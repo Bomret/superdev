@@ -64,8 +64,9 @@ Repeat until every slice is `merged`:
      are the net).
 4. **Merge (you, serially)** — from the scope checkout: `git merge --no-ff slice/<id>`. Resolve any
    conflicts yourself (you hold cross-slice context; dispatch a fix subagent only if a conflict needs
-   real code work). **Re-run the suite on scope** after merging. Then `git worktree remove
-   ../superdev-<id>`, update the slice to `merged` in the store + ledger. Merging unblocks dependents.
+   real code work). **Re-run the suite on scope** after merging. Then clean up: `git worktree remove
+   ../superdev-<id>` and `git branch -D slice/<id>` (the branch is merged; leaving it clutters the repo).
+   Update the slice to `merged` in the store + ledger. Merging unblocks dependents.
 5. Recompute the runnable set and continue.
 
 ## 4. Final phase — whole-scope review, then PR

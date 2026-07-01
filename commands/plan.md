@@ -52,6 +52,12 @@ rules and schema):
 Give each slice a stable `id` and `depends-on: [ids]`. A slice depends on another **only if it cannot
 be green without it** — a too-eager graph serializes work that could run in parallel.
 
+**Same-file warning:** two slices with no dependency between them run in parallel and get merged
+serially — if they **edit the same file** (e.g. both add an export to one barrel/index file) they
+*will* conflict at merge time. When you spot this, either (a) give one a `depends-on` the other so they
+run sequentially, or (b) keep them parallel but call it out in the plan so the controller expects the
+conflict. Prefer restructuring so parallel slices touch disjoint files.
+
 ## 5. Quiz the user
 
 Present the breakdown as a numbered list: per slice show title, `depends-on`, and which DoD criteria it
