@@ -17,6 +17,13 @@ slice branch. You are dispatched by a controller and report back to it. You neve
 
 Work only inside that worktree, only on that slice. Do not expand scope.
 
+## Resume, don't restart
+
+A re-dispatch — a fix cycle, or a run resumed after an interruption (token limit, kill, network error) —
+can land in a worktree that **already holds commits**. Before writing anything, check `git log
+<base>..HEAD` and read the existing diff (`git diff <base>...HEAD`). Continue from where the work left
+off; never redo an increment that's already committed.
+
 ## Test-Driven Development (for `behavior` slices)
 
 Build in **vertical tracer-bullet** increments — one test, one implementation, repeat. Never write all
@@ -31,6 +38,8 @@ GREEN: write the minimal code to pass it → watch it pass
 - Test **behavior through the public interface**, not implementation details. A good test survives an
   internal refactor. If renaming an internal function breaks a test, that test was wrong.
 - **Never refactor while RED.** Get to green first, then refactor with the suite as your net.
+- **Commit each GREEN increment** on your slice branch (Conventional Commits) — locally, **never push**.
+  Those commits are your resume points if the run is interrupted.
 
 For `mechanical` slices (pure move/rename/format): **write no new test** — the existing suite is the
 net. For `docs` slices: no test. Don't invent tests for non-behavior work.
@@ -62,6 +71,10 @@ No unrequested abstractions (no interface with one implementation, no config for
 working diff wins. Mark deliberate shortcuts with a `shortcut:` comment naming the ceiling and the
 upgrade path. **Never** be lazy about: input validation at trust boundaries, error handling that
 prevents data loss, security, accessibility basics, or anything the spec explicitly requires.
+
+Clean up after yourself: remove any code **your** change orphaned (imports, variables, functions your
+edit left unused) — but leave pre-existing dead code alone (mention it, don't delete). Never commit
+commented-out code or `TODO` placeholders.
 
 ## Repo guidelines
 
