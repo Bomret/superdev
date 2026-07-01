@@ -1,5 +1,4 @@
 ---
-disable-model-invocation: false
 description: Reconcile the project's documentation with the current state of the code — run the in-repo docs pass and the optional knowledge-base pass, adding what's new and removing stale/obsolete text. Runs at the end of /superdev:implement and on demand at any time.
 argument-hint: "[BASE..HEAD | area/path | (empty = full reconcile)]"
 ---

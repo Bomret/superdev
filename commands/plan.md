@@ -1,5 +1,4 @@
 ---
-disable-model-invocation: false
 description: Plan a feature for superdev — a relentless interview that pins intent and the Definition of Done, captures ADRs + a glossary as decisions surface, then decomposes the work into independently-green vertical tracer-bullet slices with explicit dependencies, written to the configured slice store. Run before /superdev:implement.
 ---
 
@@ -105,4 +104,9 @@ Iterate until they approve.
 
 Per `docs/agents/issue-tracker.md`, write the global DoD + each approved slice (the
 `id`/`depends-on`/`test-applicability`/`spec`/`acceptance` fields from the plan-contract) — to the local
-plan file or as issues. Tell the user it's ready for `/superdev:implement`.
+plan file or as issues.
+
+**Commit the durable design docs** you wrote — the glossary (`CONTEXT.md`), any ADRs (`docs/adr/`), and
+any `.claude/rules/` — to the base branch. `/superdev:implement` runs each slice in a fresh worktree
+checkout of that branch; anything left uncommitted never reaches the implementers, and a path-scoped
+rule that isn't on the branch can't auto-load. Then tell the user it's ready for `/superdev:implement`.

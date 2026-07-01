@@ -24,7 +24,8 @@ Technical docs live in the repo as a hierarchy of `AGENTS.md` files:
 
 superdev usage:
 
-- `/superdev:plan` records ADRs and the glossary as durable docs under this convention.
+- `/superdev:plan` records the glossary (`CONTEXT.md`), ADRs (`docs/adr/`), and any path-scoped rules
+  (`.claude/rules/`) in their conventional locations; the `AGENTS.md` tree indexes and points to them.
 - `/superdev:document` runs the **documentation pass**: it brings the affected `AGENTS.md` (and other
   in-repo docs) up to the current state and removes stale text. It runs at the end of every
   `/superdev:implement` and on demand.

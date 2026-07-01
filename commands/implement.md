@@ -1,5 +1,4 @@
 ---
-disable-model-invocation: false
 description: Execute a superdev plan — drive its vertical slices to merge as a dependency-ordered DAG. Parallel implementer subagents in isolated worktrees, warrant-gated per-slice review, controller-owned serial merges, then one whole-scope code review before the PR. Use when a plan exists in the slice store; run /superdev:plan first if not.
 ---
 
@@ -42,6 +41,10 @@ just dispatch them with the per-slice specifics. **Always pass an explicit `mode
 
 ## 2. Branch model
 
+- **Commit plan-authored design docs first.** Before cutting anything, ensure the glossary
+  (`CONTEXT.md`), ADRs (`docs/adr/`), and `.claude/rules/` are committed on the base — worktrees are
+  clean checkouts, so uncommitted design docs never reach implementers and path-scoped rules can't
+  auto-load. If any are dirty/untracked, commit them to base now.
 - **Scope branch** off base: `git switch -c <scope> <base>` (base from `code-management.md`, default
   `main`).
 - **Per slice**, a branch off scope in its own **worktree** under the scratch dir:
@@ -56,7 +59,7 @@ Repeat until every slice is `merged`:
 1. **Compute the runnable set** — slices whose `depends-on` are all `merged` and which are still
    `todo`. (Roots have empty `depends-on`.)
 2. **Dispatch implementers in parallel** — one `superdev:implementer` per runnable slice, each in its
-   own worktree, each with an explicit `model` (per the table below). Give each only its own specifics:
+   own worktree, each with its `model` from the table below. Give each only its own specifics:
    the slice `spec` + `acceptance`, its worktree path (`.superdev/worktrees/<id>`) + branch, base/head,
    a report-file path (`.superdev/reports/report-<id>.md`), the global constraints, and interfaces
    decided by already-merged slices. Not the whole plan.
