@@ -104,7 +104,7 @@ Iterate until they approve.
 
 Per `docs/agents/issue-tracker.md`, write the global DoD + each approved slice (the
 `id`/`depends-on`/`test-applicability`/`spec`/`acceptance` fields from the plan-contract) — to the local
-plan file or as issues.
+plan files or as issues.
 
 **Commit the durable design docs** you wrote — the glossary (`CONTEXT.md`), any ADRs (`docs/adr/`), and
 any `.claude/rules/` — to the base branch. `/superdev:implement` runs each slice in a fresh worktree

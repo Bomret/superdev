@@ -69,9 +69,10 @@ backend.
 - **Slice store** — where a feature's plan lives: the global **Definition of Done** plus every vertical
   slice (`id`, `depends-on`, `test-applicability`, `spec`, `acceptance`). `/plan` writes it; `/implement`
   reads it and drives each slice to `merged`.
-  Choices: *local file* (`docs/plans/<feature>.md`, one per feature — best for solo work or no tracker) ·
-  *Jira* (each slice an issue, `depends-on` → "is blocked by" links) · *other* (describe your tracker's
-  CRUD + dependency link in prose). → `docs/agents/issue-tracker.md`.
+  Choices: *local files* (a directory `docs/plans/<feature-slug>/` per feature: `00-epic-*` = DoD +
+  scope, `NN-<test-applicability>-*` = one file per slice, the number *is* the id — best for solo work
+  or no tracker) · *Jira* (each slice an issue, `depends-on` → "is blocked by" links) · *other* (describe
+  your tracker's CRUD + dependency link in prose). → `docs/agents/issue-tracker.md`.
 - **Code host** — where the scope branch is pushed and the PR/MR opens, plus the default posture
   (`draft` / `ready` / `push-only`) and base branch. GitHub (`gh`) · Forgejo/self-hosted (`tea`/REST) ·
   *other*. No host CLI present → degrades to "push + printed compare URL + ready-to-run command".
@@ -94,7 +95,8 @@ Adding a backend = a new seed template in `references/` + a config doc. No skill
 
 ```
 docs/agents/*.md          backend config — the five docs above (committed)
-docs/plans/<feature>.md   slices + Definition of Done, when the slice store is the local file
+docs/plans/<feature-slug>/  slices + Definition of Done (local store): 00-epic-* = DoD + scope,
+                          NN-<test-applicability>-* = one file per slice (number = id)
 CONTEXT.md                glossary / ubiquitous language, authored by /plan
 docs/adr/NNNN-*.md        architecture decision records, authored by /plan
 .claude/rules/*.md        path-scoped conventions the implementers auto-load, authored by /plan

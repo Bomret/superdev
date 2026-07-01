@@ -8,7 +8,7 @@ reads it. It is backend-agnostic: the local-file rendering is shown below; issue
 
 | Field | Meaning | Consumed by |
 |---|---|---|
-| `id` | Stable slice identifier (e.g. `S1`). | DAG ordering, status tracking |
+| `id` | Stable slice identifier (e.g. `S1`; the local backend uses the zero-padded file number `01`). | DAG ordering, status tracking |
 | `title` | Short descriptive name. | humans |
 | `depends-on` | List of slice `id`s that must merge before this slice can start. Empty = root. | `/implement` DAG |
 | `test-applicability` | `behavior` \| `mechanical` \| `docs`. Drives the warrant gates (see below). | `/implement` |
@@ -37,36 +37,10 @@ Plus one **global Definition of Done** block: the acceptance criteria for the wh
 
 ## Local-file rendering
 
-Written to `docs/plans/<feature-slug>.md`:
-
-```
-# Plan: <feature>
-
-## Definition of Done (global)
-- [ ] <checkable acceptance criterion for the whole feature>
-- [ ] ...
-
-## Slices
-
-### S1 — <title>
-depends-on: []
-test-applicability: behavior
-status: todo
-spec: |
-  <behavior/interface this slice delivers — the implementer's requirements>
-acceptance: |
-  - <checkable criterion 1>
-  - <checkable criterion 2>
-
-### S2 — <title>
-depends-on: [S1]
-test-applicability: behavior
-status: todo
-spec: |
-  ...
-acceptance: |
-  - ...
-```
+Written to a per-feature directory `docs/plans/<feature-slug>/`: the scope file `00-epic-<summary>.md`
+holds the global DoD, and each slice is its own `NN-<test-applicability>-<summary>.md` whose zero-padded
+number is its `id` (so `depends-on` reads `[01, 03]`). See `issue-tracker-local.md` for the exact file
+layout and per-file format.
 
 ## Issue-backend mapping (general)
 

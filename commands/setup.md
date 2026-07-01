@@ -30,8 +30,9 @@ proposed default (inferred from the remote).
 
 **A — Slice store.** Where do slices/plans live?
 
-- **Local file** — slices in `docs/plans/<feature>.md`. Great for solo work or no remote.
-  Seed: `references/issue-tracker-local.md`.
+- **Local files** — a directory per feature, `docs/plans/<feature-slug>/` (`00-epic-*` = DoD + scope,
+  `NN-<test-applicability>-*` = one file per slice, the number is the id). Great for solo work or no
+  remote. Seed: `references/issue-tracker-local.md`.
 - **Jira** — slices as Jira issues. Seed: `references/issue-tracker-jira.md`. Ask for base URL,
   project key, issue type, the "is blocked by" link type, the ready status/label, and the **env-var
   names** for the API token + email (never the secrets).
