@@ -71,7 +71,13 @@ Repeat until every slice is `merged`:
      are the net).
 4. **Merge (you, serially)** — from the scope checkout: `git merge --no-ff slice/<id>`. Resolve any
    conflicts yourself (you hold cross-slice context; dispatch a fix subagent only if a conflict needs
-   real code work). **Re-run the suite on scope** after merging — if a test command is configured
+   real code work). **Resolve conflicts only when they're additive.** Independent slices usually
+   conflict because each *added* something to the same place — new list/enum/`switch` entries, new
+   attributes, new test methods, new doc bullets; the correct result is the **union of both sides,
+   dropping nothing** (keep every test from both sides — never delete a sibling's test to make the merge
+   compile). A **semantic overlap** — the *same* logic changed two different ways, where you'd have to
+   pick a winner — is not yours to guess: `git merge --abort` and escalate to the human. **Re-run the
+   suite on scope** after merging — if a test command is configured
    (`docs/agents/verification.md`), the **green-gate hook** runs it for you and blocks with a RED report
    you must fix or revert before continuing. Then clean up: `git worktree remove
    .superdev/worktrees/<id>` and `git branch -D slice/<id>` (merged; leaving it clutters the repo).
