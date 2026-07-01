@@ -35,6 +35,11 @@ When terms or decisions crystallise, capture them immediately — don't batch:
 Stress-test domain relationships with concrete edge-case scenarios; cross-check claims against the code
 and surface contradictions.
 
+Follow the project's documentation convention in `docs/agents/documentation.md` for where these durable
+docs live and how to record them (DOX: update the relevant `AGENTS.md`; keep concise/current). If that
+config names an external knowledge base (e.g. Confluence), optionally publish the PRD / ADR summaries
+there after writing them in-repo.
+
 ## 3. Slice into tracer bullets
 
 Decompose into **vertical slices** (see `${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md` for the

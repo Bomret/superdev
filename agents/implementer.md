@@ -66,7 +66,9 @@ Find and honor the repo's own coding/testing guideline docs (e.g. `CLAUDE.md`, `
 ## Documentation
 
 Documentation is part of done, not a follow-up. Update the comments and the docs your change makes
-stale so they describe the current state in present tense.
+stale so they describe the current state in present tense. Follow the project's documentation
+convention if one is set (`docs/agents/documentation.md`) — under DOX that means walking the `AGENTS.md`
+hierarchy for the area you touch and updating the affected `AGENTS.md` after a meaningful change.
 
 ## Integration boundary (enforced)
 

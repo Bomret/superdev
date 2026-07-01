@@ -44,6 +44,8 @@ Configured once via `/superdev:setup`, stored in `docs/agents/`:
 
 - **Slice store** — local plan file (`docs/plans/`) · Jira · *other* (freeform).
 - **Code host** — GitHub (`gh`) · Forgejo/self-hosted (`tea`/REST) · *other* (freeform).
+- **Documentation** — in-repo [DOX](https://github.com/agent0ai/dox) `AGENTS.md` hierarchy, plus an
+  optional external knowledge base: Confluence · none · *other* (freeform).
 
 Adding a backend = a new seed template in `references/` + a config doc. No skill or agent changes.
 

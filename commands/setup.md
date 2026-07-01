@@ -1,6 +1,6 @@
 ---
 disable-model-invocation: false
-description: Configure this repo for superdev — choose the slice store (where plans/slices live) and the code host (where PRs go), and write docs/agents/issue-tracker.md + docs/agents/code-management.md. Run once before /superdev:plan or /superdev:implement; they auto-invoke it if config is missing.
+description: Configure this repo for superdev — choose the slice store (where plans/slices live), the code host (where PRs go), and the documentation/knowledge-base convention, writing docs/agents/{issue-tracker,code-management,documentation}.md. Run once before /superdev:plan or /superdev:implement; they auto-invoke it if config is missing.
 ---
 
 # superdev setup
@@ -9,6 +9,7 @@ Write the two per-repo config docs the superdev skills read, so the workflow is 
 
 - `docs/agents/issue-tracker.md` — the **slice store** (where slices live + how to CRUD them)
 - `docs/agents/code-management.md` — the **code host** (push + open PR/MR + default posture)
+- `docs/agents/documentation.md` — the **documentation** convention (in-repo DOX + optional external KB)
 
 This is prompt-driven, not a script. **Explore, propose defaults, confirm one decision at a time, then
 write.** Seed templates live in `${CLAUDE_PLUGIN_ROOT}/references/`.
@@ -17,7 +18,8 @@ write.** Seed templates live in `${CLAUDE_PLUGIN_ROOT}/references/`.
 
 - `git remote -v` and `.git/config` — GitHub? GitLab? a self-hosted host (Forgejo/Gitea)?
 - `docs/agents/` — does prior superdev config already exist? (If so, offer to update, not duplicate.)
-- `CLAUDE.md` / `AGENTS.md` at root — which exists? Is there already an `## Agent skills` section?
+- `CLAUDE.md` / `AGENTS.md` at root — which exists? Is there already an `## Agent skills` section? Is a
+  DOX-style `AGENTS.md` hierarchy already present (child `AGENTS.md` files in subdirs)?
 - `docs/plans/` — sign the local-file store is already in use.
 
 ## 2. Decide (one at a time)
@@ -46,6 +48,20 @@ while slices live in Jira.)
 For both hosts, confirm the **default PR posture** (`draft` recommended | `ready` | `push-only`) and
 the **base branch** (default `main`).
 
+**C — Documentation & knowledge base.** How does the project keep durable technical docs?
+
+- **In-repo docs (default: DOX).** Technical docs live in the repo as an `AGENTS.md` hierarchy per the
+  DOX convention (walk before editing; update the affected `AGENTS.md` after meaningful changes; keep
+  concise/current). Seed: `references/documentation-dox.md`. Keep this on unless the user has a
+  different in-repo doc convention (then capture theirs as prose).
+- **Optional external knowledge base** (independent of the above):
+  - **Confluence** — mirror durable docs (PRDs, ADR summaries) to a Confluence space. Seed:
+    `references/knowledge-base-confluence.md`. Ask base URL, space key, what to publish, parent page,
+    and the **env-var names** for the API token + email (never the secrets).
+  - **None** — in-repo DOX docs only (default if unsure).
+  - **Other** (another wiki) — describe publish/update/find in a paragraph; write it into
+    `documentation.md`.
+
 ## 3. Confirm, then write
 
 Show the user a draft of both files (and the `## Agent skills` block) and let them edit before writing.
@@ -55,6 +71,9 @@ Write:
 - `docs/agents/issue-tracker.md` — start from the chosen seed, fill in the specifics. For "other",
   write from the user's prose.
 - `docs/agents/code-management.md` — same, from the chosen host seed.
+- `docs/agents/documentation.md` — start from `references/documentation-dox.md`; if an external KB was
+  chosen, append the filled `references/knowledge-base-confluence.md` (or the "other" prose) in place of
+  its `<!-- KB-BLOCK -->` marker. If "None", drop the marker.
 - Add an `## Agent skills` block to whichever of `CLAUDE.md` / `AGENTS.md` already exists (edit that
   one; never create the other; never duplicate an existing block):
 
@@ -66,6 +85,9 @@ Write:
 
 ### Code host
 [one-line summary, incl. default PR posture]. See `docs/agents/code-management.md`.
+
+### Documentation
+[one-line summary — DOX in-repo + KB if any]. See `docs/agents/documentation.md`.
 ```
 
 If neither `CLAUDE.md` nor `AGENTS.md` exists, ask the user which to create — don't pick for them.
