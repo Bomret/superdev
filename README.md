@@ -74,7 +74,46 @@ Adding a backend = a new seed template in `references/` + a config doc. No skill
 
 ## Install
 
-Add the plugin to Claude Code (marketplace or local path), then run `/superdev:setup` in your repo.
+superdev ships as a single-plugin Claude Code **marketplace** (`.claude-plugin/marketplace.json`), so
+both the marketplace and the plugin are named `superdev` → you install `superdev@superdev`. Requires
+Claude Code **v2.1.128+**.
+
+**From the git host** (interactive):
+
+```
+/plugin marketplace add https://codeberg.org/bomret/superdev.git
+/plugin install superdev@superdev
+```
+
+**From a local clone** (for hacking on it):
+
+```
+git clone https://codeberg.org/bomret/superdev.git
+/plugin marketplace add /absolute/path/to/superdev
+/plugin install superdev@superdev
+```
+
+**Committed / non-interactive** — add to `.claude/settings.json` (project) or your user settings, so the
+plugin loads without the interactive menu:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "superdev": {
+      "source": { "source": "github", "repo": "https://codeberg.org/bomret/superdev.git" }
+    }
+  },
+  "enabledPlugins": { "superdev@superdev": true }
+}
+```
+
+For a local checkout instead, use `"source": { "source": "directory", "path": "/absolute/path/to/superdev" }`.
+
+**Manage:** `/plugin list` · `/plugin details superdev@superdev` · pull updates with
+`/plugin marketplace update superdev` then `/reload-plugins`.
+
+Then, in each repo you want to use it: run **`/superdev:setup`** once, then `/superdev:plan` →
+`/superdev:implement`.
 
 ## Requirements
 
