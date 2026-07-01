@@ -8,7 +8,7 @@ reads it. It is backend-agnostic: the local-file rendering is shown below; issue
 
 | Field | Meaning | Consumed by |
 |---|---|---|
-| `id` | Stable slice identifier (e.g. `S1`; the local backend uses the zero-padded file number `01`). | DAG ordering, status tracking |
+| `id` | Stable slice identifier — the local backend uses the zero-padded file number (`01`, `02`, …); an issue backend uses the issue key. | DAG ordering, status tracking |
 | `title` | Short descriptive name. | humans |
 | `depends-on` | List of slice `id`s that must merge before this slice can start. Empty = root. | `/implement` DAG |
 | `test-applicability` | `behavior` \| `mechanical` \| `docs`. Drives the warrant gates (see below). | `/implement` |
