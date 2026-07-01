@@ -18,9 +18,9 @@ just dispatch them with the per-slice specifics. **Always pass an explicit `mode
 
 ## 0. Config + input
 
-- Read `docs/agents/issue-tracker.md` (slice store), `docs/agents/code-management.md` (code host), and
-  `docs/agents/documentation.md` (doc convention + optional KB). Slice store or code host missing → run
-  **`/superdev:setup`**, then continue.
+- Read `docs/agents/issue-tracker.md` (slice store), `docs/agents/code-management.md` (code host),
+  `docs/agents/documentation.md` (in-repo DOX convention), and `docs/agents/knowledge-base.md` (optional
+  KB). Slice store or code host missing → run **`/superdev:setup`**, then continue.
 - **Load the slices** from the store (per the contract: `id`, `depends-on`, `test-applicability`,
   `spec`, `acceptance`, + global DoD). No slices → run **`/superdev:plan`** first.
 - **Pre-flight scan:** read all slices once for contradictions (a slice that conflicts with another or
@@ -77,8 +77,9 @@ Repeat until every slice is `merged`:
 - For **Critical/Important** findings, dispatch **one** `superdev:implementer` fix with the **complete**
   findings list (not one fixer per finding), each fix opening with a **RED test**; re-review until clean.
 - Confirm the **documentation pass** is done per `docs/agents/documentation.md` (DOX: the affected
-  `AGENTS.md` / docs reflect the integrated state) and **every Phase 0 DoD item is met**. If that config
-  names an external KB, optionally sync the durable docs (design overview, ADR summaries) now.
+  `AGENTS.md` / docs reflect the integrated state) and **every Phase 0 DoD item is met**. If
+  `docs/agents/knowledge-base.md` defines a KB, optionally sync the durable docs (design overview, ADR
+  summaries) there now.
 - **Open the PR/MR per `docs/agents/code-management.md`** (default posture = draft; degrade to push +
   printed compare URL + ready-to-run command when no host CLI is present). Report the PR URL to the user.
 

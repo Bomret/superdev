@@ -1,9 +1,7 @@
-# Documentation: DOX (in-repo) + optional knowledge base
+# Documentation: DOX (in-repo technical docs)
 
-How this repo keeps durable technical documentation. Two layers: **in-repo docs (DOX)** — always —
-and an **optional external knowledge base** (see the KB section, appended by setup if chosen).
-
-## In-repo docs — DOX
+How this repo keeps durable **in-repo** technical documentation. (The optional external/local
+knowledge base is a separate concern — see `docs/agents/knowledge-base.md`.)
 
 Technical docs live in the repo as a hierarchy of `AGENTS.md` files. Canonical convention:
 <https://github.com/agent0ai/dox> — install its root `AGENTS.md` for the full contract; the distilled
@@ -25,5 +23,3 @@ superdev usage:
 - `/superdev:plan` records ADRs and the glossary as durable docs under this convention.
 - `/superdev:implement` runs a **DOX pass** per slice: the implementer updates the affected `AGENTS.md`
   (and other docs) its change makes stale; the final phase confirms the pass happened.
-
-<!-- KB-BLOCK -->

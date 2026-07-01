@@ -36,9 +36,9 @@ Stress-test domain relationships with concrete edge-case scenarios; cross-check 
 and surface contradictions.
 
 Follow the project's documentation convention in `docs/agents/documentation.md` for where these durable
-docs live and how to record them (DOX: update the relevant `AGENTS.md`; keep concise/current). If that
-config names an external knowledge base (e.g. Confluence), optionally publish the PRD / ADR summaries
-there after writing them in-repo.
+docs live and how to record them (DOX: update the relevant `AGENTS.md`; keep concise/current). If
+`docs/agents/knowledge-base.md` defines a knowledge base (software like Confluence, or local `docs/kb/`
+files), optionally publish the PRD / ADR summaries there after writing them in-repo.
 
 ## 3. Slice into tracer bullets
 
