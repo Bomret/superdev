@@ -1,8 +1,8 @@
 # Knowledge base: Local file storage
 
 An in-repo knowledge base — durable, human-facing docs (PRDs, design overviews, ADR summaries) kept as
-markdown files in the repo. No external service. (This is distinct from DOX `AGENTS.md` docs in
-`docs/agents/documentation.md`: DOX is the agent-facing contract; this KB is the reader-facing library.)
+markdown files in the repo. No external service. (This is distinct from the in-repo `AGENTS.md` docs in
+`docs/agents/documentation.md`: those are the agent-facing contract; this KB is the reader-facing library.)
 
 ## Audience, language & outline
 

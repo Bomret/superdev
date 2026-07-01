@@ -1,6 +1,6 @@
 ---
 disable-model-invocation: false
-description: Configure this repo for superdev — choose the slice store (where plans/slices live), the code host (where PRs go), the in-repo documentation convention (DOX), and the optional knowledge base (software / local file / none), writing docs/agents/{issue-tracker,code-management,documentation,knowledge-base}.md. Run once before /superdev:plan or /superdev:implement; they auto-invoke it if config is missing.
+description: Configure this repo for superdev — choose the slice store (where plans/slices live), the code host (where PRs go), the in-repo documentation convention, and the optional knowledge base (software / local file / none), writing docs/agents/{issue-tracker,code-management,documentation,knowledge-base}.md. Run once before /superdev:plan or /superdev:implement; they auto-invoke it if config is missing.
 ---
 
 # superdev setup
@@ -9,7 +9,7 @@ Write the two per-repo config docs the superdev skills read, so the workflow is 
 
 - `docs/agents/issue-tracker.md` — the **slice store** (where slices live + how to CRUD them)
 - `docs/agents/code-management.md` — the **code host** (push + open PR/MR + default posture)
-- `docs/agents/documentation.md` — the in-repo **documentation** convention (DOX)
+- `docs/agents/documentation.md` — the in-repo **documentation** convention
 - `docs/agents/knowledge-base.md` — the optional **knowledge base** (software / local file / none)
 
 This is prompt-driven, not a script. **Explore, propose defaults, confirm one decision at a time, then
@@ -20,7 +20,7 @@ write.** Seed templates live in `${CLAUDE_PLUGIN_ROOT}/references/`.
 - `git remote -v` and `.git/config` — GitHub? GitLab? a self-hosted host (Forgejo/Gitea)?
 - `docs/agents/` — does prior superdev config already exist? (If so, offer to update, not duplicate.)
 - `CLAUDE.md` / `AGENTS.md` at root — which exists? Is there already an `## Agent skills` section? Is a
-  DOX-style `AGENTS.md` hierarchy already present (child `AGENTS.md` files in subdirs)?
+  `AGENTS.md` documentation hierarchy already present (child `AGENTS.md` files in subdirs)?
 - `docs/plans/` — sign the local-file store is already in use.
 
 ## 2. Decide (one at a time)
@@ -49,9 +49,9 @@ while slices live in Jira.)
 For both hosts, confirm the **default PR posture** (`draft` recommended | `ready` | `push-only`) and
 the **base branch** (default `main`).
 
-**C — Documentation (in-repo).** How does the project keep durable in-repo technical docs? Default is
-**DOX**: docs live as an `AGENTS.md` hierarchy (walk before editing; update the affected `AGENTS.md`
-after meaningful changes; keep concise/current). Seed: `references/documentation-dox.md`. Keep DOX
+**C — Documentation (in-repo).** How does the project keep durable in-repo technical docs? The default
+convention is an **`AGENTS.md` hierarchy** (walk before editing; update the affected `AGENTS.md` after
+meaningful changes; keep concise/current). Seed: `references/documentation.md`. Keep this convention
 unless the user has a different in-repo doc convention (then capture theirs as prose).
 
 **D — Knowledge base (optional).** Is there a **knowledge base** for durable, reader-facing docs (PRDs,
@@ -62,7 +62,7 @@ design overviews, ADR summaries)? Ask the user which of:
   page, and the **env-var names** for the API token + email (never the secrets). For a different wiki,
   capture its publish/find/update commands as prose ("other").
 - **Local file storage** — markdown under `docs/kb/`. Seed: `references/knowledge-base-local.md`.
-- **None** — no separate KB; the in-repo DOX docs are the only record.
+- **None** — no separate KB; the in-repo docs are the only record.
 
 If a KB (software or local) is chosen, the KB is **human-consumption first, agents second** — so shape
 it around its readers. Ask two more things, then propose a structure:
@@ -70,7 +70,7 @@ it around its readers. Ask two more things, then propose a structure:
 1. **Audience** (multi-select) — who reads it? e.g. end-users, internal developers, ops/support,
    stakeholders. Record the list.
 2. **Language** — the single natural language KB prose is written in (e.g. English, German). Code and
-   in-repo DOX docs stay as they are; only KB content uses this language.
+   in-repo docs stay as they are; only KB content uses this language.
 
 Then **do a quick repo scan** (README, top-level structure) and **propose an audience-shaped outline** —
 a top-level section per audience with a few candidate topic headings under each (e.g. *User Guide →
@@ -87,7 +87,7 @@ Write:
 - `docs/agents/issue-tracker.md` — start from the chosen seed, fill in the specifics. For "other",
   write from the user's prose.
 - `docs/agents/code-management.md` — same, from the chosen host seed.
-- `docs/agents/documentation.md` — from `references/documentation-dox.md` (or the user's in-repo doc
+- `docs/agents/documentation.md` — from `references/documentation.md` (or the user's in-repo doc
   convention as prose).
 - `docs/agents/knowledge-base.md` — from the chosen KB seed (`knowledge-base-confluence.md` /
   `knowledge-base-local.md`) filled in, or the "other" prose. For **None**, write a one-line
@@ -105,7 +105,7 @@ Write:
 [one-line summary, incl. default PR posture]. See `docs/agents/code-management.md`.
 
 ### Documentation
-[one-line summary — in-repo DOX or the project's convention]. See `docs/agents/documentation.md`.
+[one-line summary — in-repo docs or the project's convention]. See `docs/agents/documentation.md`.
 
 ### Knowledge base
 [one-line summary — software / local file / none]. See `docs/agents/knowledge-base.md`.

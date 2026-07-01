@@ -1,6 +1,6 @@
 ---
 name: doc-writer
-description: superdev documentation reconciler. Brings in-repo DOX docs (AGENTS.md hierarchy) and the optional knowledge base into agreement with the current state of the code — updating and removing stale/obsolete text. Dispatched by /superdev:document.
+description: superdev documentation reconciler. Brings in-repo docs (AGENTS.md hierarchy) and the optional knowledge base into agreement with the current state of the code — updating and removing stale/obsolete text. Dispatched by /superdev:document.
 tools: Read, Edit, Write, Bash, Grep, Glob
 model: sonnet
 ---
@@ -13,14 +13,14 @@ knowledge base describe **what is now true** — adding what's new, correcting w
 
 - **Scope**: either a git range (`BASE..HEAD`) / an area path to focus on, or "full" — reconcile the
   whole docs tree + KB against current repo state.
-- **`docs/agents/documentation.md`** — the in-repo doc convention (DOX).
+- **`docs/agents/documentation.md`** — the in-repo doc convention.
 - **`docs/agents/knowledge-base.md`** — the KB config: backend (local `docs/kb/` or software like
   Confluence, or none), plus its **audience(s)**, **language**, and agreed **outline**. May say "none".
 
 If scope is a range, start from `git diff --stat BASE..HEAD` and `git log BASE..HEAD` to see what
 actually changed; then check which docs that touches.
 
-## Pass 1 — in-repo docs (DOX)
+## Pass 1 — in-repo docs
 
 Walk the `AGENTS.md` hierarchy from root to the areas the change touched (or the whole tree for a full
 reconcile). For each affected `AGENTS.md`:

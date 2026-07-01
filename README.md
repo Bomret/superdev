@@ -22,7 +22,7 @@ host.
   "ponytail" minimalism); each behavior slice is gated by a separate **correctness reviewer** and an
   **over-engineering reviewer**; the controller merges **serially**; when all slices land, one
   **whole-scope review** gates the **PR**.
-- **`/superdev:document`** — dispatches the `doc-writer` to reconcile the in-repo DOX docs
+- **`/superdev:document`** — dispatches the `doc-writer` to reconcile the in-repo docs
   (`AGENTS.md` hierarchy) and the optional knowledge base with the current code — adding what's new and
   **removing stale/obsolete** text. Runs automatically at the end of every `/superdev:implement`, and on
   demand anytime (full reconcile, or scoped to a range/area).
@@ -50,7 +50,7 @@ Configured once via `/superdev:setup`, stored in `docs/agents/`:
 
 - **Slice store** — local plan file (`docs/plans/`) · Jira · *other* (freeform).
 - **Code host** — GitHub (`gh`) · Forgejo/self-hosted (`tea`/REST) · *other* (freeform).
-- **Documentation** — in-repo [DOX](https://github.com/agent0ai/dox) `AGENTS.md` hierarchy.
+- **Documentation** — in-repo `AGENTS.md` documentation hierarchy.
 - **Knowledge base** (optional) — software (Confluence) · local file (`docs/kb/`) · none · *other*.
 
 Adding a backend = a new seed template in `references/` + a config doc. No skill or agent changes.

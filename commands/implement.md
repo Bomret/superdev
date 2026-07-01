@@ -19,7 +19,7 @@ just dispatch them with the per-slice specifics. **Always pass an explicit `mode
 ## 0. Config + input
 
 - Read `docs/agents/issue-tracker.md` (slice store), `docs/agents/code-management.md` (code host),
-  `docs/agents/documentation.md` (in-repo DOX convention), and `docs/agents/knowledge-base.md` (optional
+  `docs/agents/documentation.md` (in-repo documentation convention), and `docs/agents/knowledge-base.md` (optional
   KB). Slice store or code host missing → run **`/superdev:setup`**, then continue.
 - **Load the slices** from the store (per the contract: `id`, `depends-on`, `test-applicability`,
   `spec`, `acceptance`, + global DoD). No slices → run **`/superdev:plan`** first.
@@ -77,10 +77,10 @@ Repeat until every slice is `merged`:
 - For **Critical/Important** findings, dispatch **one** `superdev:implementer` fix with the **complete**
   findings list (not one fixer per finding), each fix opening with a **RED test**; re-review until clean.
 - **Reconcile docs + KB (always):** run **`/superdev:document <base>..<scope>`** (BASE =
-  `git merge-base <base> <scope>`). It dispatches the `doc-writer` to bring the in-repo DOX docs and the
+  `git merge-base <base> <scope>`). It dispatches the `doc-writer` to bring the in-repo docs and the
   knowledge base up to the integrated state and **remove stale/obsolete** text, committing the changes on
   the scope branch so they land in the PR. This runs after every scope — even docs-only ones, and even
-  when the KB is `none` (then it's the DOX docs pass only).
+  when the KB is `none` (then it's the in-repo docs pass only).
 - Confirm **every Phase 0 DoD item is met**.
 - **Open the PR/MR per `docs/agents/code-management.md`** (default posture = draft; degrade to push +
   printed compare URL + ready-to-run command when no host CLI is present). Report the PR URL to the user.

@@ -1,7 +1,7 @@
 # Knowledge base: Confluence
 
 An external knowledge base for durable, human-facing docs (PRDs, design overviews, ADR summaries),
-published to a Confluence space. In-repo DOX docs (`docs/agents/documentation.md`) remain the source of
+published to a Confluence space. In-repo docs (`docs/agents/documentation.md`) remain the source of
 truth; the KB is a published view.
 
 ## Audience, language & outline
