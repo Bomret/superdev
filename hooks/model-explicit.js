@@ -9,7 +9,7 @@
 // ponytail: one rule. NOTE: the per-invocation model field name is assumed `model`
 // (the documented "per-invocation model parameter"); confirm on first real dispatch.
 
-const OURS = /^(superdev[:_-])?(implementer|slice-reviewer|ponytail-reviewer|final-reviewer)$/;
+const OURS = /^(superdev[:_-])?(implementer|slice-reviewer|ponytail-reviewer|final-reviewer|doc-writer)$/;
 
 function decide(input) {
   if (!input || input.tool_name !== 'Agent') return { block: false };
@@ -53,6 +53,7 @@ if (process.argv[2] === '--selftest') {
   assert.equal(d({ subagent_type: 'superdev:final-reviewer' }).block, true, 'namespaced, no model');
   assert.equal(d({ subagent_type: 'implementer', model: 'sonnet' }).block, false, 'ours + model → allow');
   assert.equal(d({ subagent_type: 'implementer', model: '   ' }).block, true, 'blank model → block');
+  assert.equal(d({ subagent_type: 'superdev:doc-writer' }).block, true, 'doc-writer is ours');
   assert.equal(d({ subagent_type: 'Explore' }).block, false, 'not ours → allow');
   assert.equal(d({ subagent_type: 'implementer' }, 'Bash').block, false, 'wrong tool → allow');
   console.log('model-explicit selftest ok');

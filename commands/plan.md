@@ -37,8 +37,10 @@ and surface contradictions.
 
 Follow the project's documentation convention in `docs/agents/documentation.md` for where these durable
 docs live and how to record them (DOX: update the relevant `AGENTS.md`; keep concise/current). If
-`docs/agents/knowledge-base.md` defines a knowledge base (software like Confluence, or local `docs/kb/`
-files), optionally publish the PRD / ADR summaries there after writing them in-repo.
+`docs/agents/knowledge-base.md` defines a knowledge base, also seed the PRD / ADR summaries into its
+agreed **outline**, in its **language**, for its **audience(s)** (human-first). You only seed the design
+docs here; the authoritative reconcile (and stale removal) happens at the end of `/superdev:implement`
+via `/superdev:document`.
 
 ## 3. Slice into tracer bullets
 

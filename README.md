@@ -6,9 +6,10 @@ separate implementer/reviewer subagents, deterministic guardrails, and a pluggab
 host.
 
 ```
-/superdev:setup      → write docs/agents/{issue-tracker,code-management}.md (once per repo)
+/superdev:setup      → configure backends in docs/agents/*.md (once per repo)
 /superdev:plan       → interview + slice a feature into the slice store
 /superdev:implement  → drive the slices to merge, then open the PR
+/superdev:document   → reconcile in-repo docs + knowledge base with the code (also runs at implement's end)
 ```
 
 ## What it does
@@ -21,13 +22,18 @@ host.
   "ponytail" minimalism); each behavior slice is gated by a separate **correctness reviewer** and an
   **over-engineering reviewer**; the controller merges **serially**; when all slices land, one
   **whole-scope review** gates the **PR**.
+- **`/superdev:document`** — dispatches the `doc-writer` to reconcile the in-repo DOX docs
+  (`AGENTS.md` hierarchy) and the optional knowledge base with the current code — adding what's new and
+  **removing stale/obsolete** text. Runs automatically at the end of every `/superdev:implement`, and on
+  demand anytime (full reconcile, or scoped to a range/area).
 - **`/superdev:setup`** — records the backends in `docs/agents/*.md` so the workflow never hardcodes a
-  tool.
+  tool. For a knowledge base it also captures **audience(s)** and **language** and proposes a
+  human-first outline.
 
 ## Roles (subagents)
 
-`implementer`, `slice-reviewer`, `ponytail-reviewer`, `final-reviewer` — each runs in an isolated
-context; only its result returns to the controller.
+`implementer`, `slice-reviewer`, `ponytail-reviewer`, `final-reviewer`, `doc-writer` — each runs in an
+isolated context; only its result returns to the controller.
 
 ## Guardrails (deterministic hooks)
 

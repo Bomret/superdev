@@ -76,10 +76,12 @@ Repeat until every slice is `merged`:
   BASE = `git merge-base <base> <scope>`, HEAD = scope tip; requirements = the global DoD + slice list.
 - For **Critical/Important** findings, dispatch **one** `superdev:implementer` fix with the **complete**
   findings list (not one fixer per finding), each fix opening with a **RED test**; re-review until clean.
-- Confirm the **documentation pass** is done per `docs/agents/documentation.md` (DOX: the affected
-  `AGENTS.md` / docs reflect the integrated state) and **every Phase 0 DoD item is met**. If
-  `docs/agents/knowledge-base.md` defines a KB, optionally sync the durable docs (design overview, ADR
-  summaries) there now.
+- **Reconcile docs + KB (always):** run **`/superdev:document <base>..<scope>`** (BASE =
+  `git merge-base <base> <scope>`). It dispatches the `doc-writer` to bring the in-repo DOX docs and the
+  knowledge base up to the integrated state and **remove stale/obsolete** text, committing the changes on
+  the scope branch so they land in the PR. This runs after every scope — even docs-only ones, and even
+  when the KB is `none` (then it's the DOX docs pass only).
+- Confirm **every Phase 0 DoD item is met**.
 - **Open the PR/MR per `docs/agents/code-management.md`** (default posture = draft; degrade to push +
   printed compare URL + ready-to-run command when no host CLI is present). Report the PR URL to the user.
 

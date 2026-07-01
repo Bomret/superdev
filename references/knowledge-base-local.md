@@ -4,6 +4,18 @@ An in-repo knowledge base — durable, human-facing docs (PRDs, design overviews
 markdown files in the repo. No external service. (This is distinct from DOX `AGENTS.md` docs in
 `docs/agents/documentation.md`: DOX is the agent-facing contract; this KB is the reader-facing library.)
 
+## Audience, language & outline
+
+The KB is **human-consumption first**. Recorded at setup:
+
+- **Audience(s):** `<end-users | internal developers | ops/support | stakeholders | …>`
+- **Language:** `<e.g. English | German>` — all KB prose is written in this language.
+- **Outline** (living skeleton; a top-level section per audience — `/superdev:plan` and
+  `/superdev:document` fill and extend it):
+
+  - `<Audience A — e.g. User Guide>` → `<topic>`, `<topic>`
+  - `<Audience B — e.g. Developer Docs>` → `Architecture`, `Setup`, `ADR summaries`
+
 ## Location
 
 `docs/kb/` — one markdown file per document, e.g. `docs/kb/<feature>-prd.md`,

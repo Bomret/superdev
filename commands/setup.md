@@ -64,6 +64,20 @@ design overviews, ADR summaries)? Ask the user which of:
 - **Local file storage** — markdown under `docs/kb/`. Seed: `references/knowledge-base-local.md`.
 - **None** — no separate KB; the in-repo DOX docs are the only record.
 
+If a KB (software or local) is chosen, the KB is **human-consumption first, agents second** — so shape
+it around its readers. Ask two more things, then propose a structure:
+
+1. **Audience** (multi-select) — who reads it? e.g. end-users, internal developers, ops/support,
+   stakeholders. Record the list.
+2. **Language** — the single natural language KB prose is written in (e.g. English, German). Code and
+   in-repo DOX docs stay as they are; only KB content uses this language.
+
+Then **do a quick repo scan** (README, top-level structure) and **propose an audience-shaped outline** —
+a top-level section per audience with a few candidate topic headings under each (e.g. *User Guide →
+Getting started, FAQ*; *Developer Docs → Architecture, Setup, ADR summaries*). Present it, **discuss and
+adjust with the user**, and record the agreed outline in `knowledge-base.md`. It's a living skeleton —
+`/superdev:plan` and `/superdev:document` fill and extend it, not reinvent it.
+
 ## 3. Confirm, then write
 
 Show the user a draft of both files (and the `## Agent skills` block) and let them edit before writing.

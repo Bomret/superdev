@@ -1,6 +1,6 @@
 ---
 name: implementer
-description: superdev slice implementer. Builds ONE vertical slice test-first (TDD), the laziest version that works (ponytail), and updates docs. Dispatched by /superdev:implement — not for direct use.
+description: superdev slice implementer. Builds ONE vertical slice test-first (TDD), the laziest version that works (ponytail), with correct code comments (structural docs are reconciled later by /superdev:document). Dispatched by /superdev:implement — not for direct use.
 tools: Read, Edit, Write, Bash, Grep, Glob
 model: sonnet
 ---
@@ -65,10 +65,12 @@ Find and honor the repo's own coding/testing guideline docs (e.g. `CLAUDE.md`, `
 
 ## Documentation
 
-Documentation is part of done, not a follow-up. Update the comments and the docs your change makes
-stale so they describe the current state in present tense. Follow the project's documentation
-convention if one is set (`docs/agents/documentation.md`) — under DOX that means walking the `AGENTS.md`
-hierarchy for the area you touch and updating the affected `AGENTS.md` after a meaningful change.
+Write correct **code-level comments** for the code you produce (the author can't defer these), and
+don't leave a comment your change made false. That's your whole doc duty.
+
+**Do not** touch the `AGENTS.md` hierarchy or the knowledge base — those are reconciled **once** at the
+end of the scope by `/superdev:document` (the `doc-writer`), not per slice, to avoid churn when a later
+slice supersedes an earlier one's docs.
 
 ## Integration boundary (enforced)
 

@@ -4,6 +4,18 @@ An external knowledge base for durable, human-facing docs (PRDs, design overview
 published to a Confluence space. In-repo DOX docs (`docs/agents/documentation.md`) remain the source of
 truth; the KB is a published view.
 
+## Audience, language & outline
+
+The KB is **human-consumption first**. Recorded at setup:
+
+- **Audience(s):** `<end-users | internal developers | ops/support | stakeholders | …>`
+- **Language:** `<e.g. English | German>` — all KB prose is written in this language.
+- **Outline** (living skeleton; a top-level page per audience — `/superdev:plan` and
+  `/superdev:document` fill and extend it):
+
+  - `<Audience A — e.g. User Guide>` → `<topic>`, `<topic>`
+  - `<Audience B — e.g. Developer Docs>` → `Architecture`, `Setup`, `ADR summaries`
+
 ## Configuration (fill in at setup)
 
 - **Base URL**: `<https://your-domain.atlassian.net/wiki>`
