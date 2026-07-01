@@ -1,0 +1,16 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "superdev",
+  "description": "Zero-prereq plan→implement loop: interview-driven vertical slicing, parallel worktree execution with isolated implementer/reviewer subagents, deterministic guardrails, and a pluggable slice store + code host.",
+  "owner": {
+    "name": "Stefan"
+  },
+  "plugins": [
+    {
+      "name": "superdev",
+      "description": "plan → implement loop with parallel slice execution, separate review subagents, and deterministic guardrails.",
+      "source": "./",
+      "category": "productivity"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+superdev
+Copyright (c) 2026 Stefan
+
+This product bundles and adapts material from the following MIT-licensed
+projects. Their copyright and permission notices are retained here as required
+by the MIT License.
+
+--------------------------------------------------------------------------------
+Superpowers — Copyright (c) 2025 Jesse Vincent
+https://github.com/obra/superpowers
+
+Adapted into superdev:
+  - test-driven-development  → agents/implementer.md (TDD discipline)
+  - requesting-code-review   → agents/final-reviewer.md (code-reviewer rubric)
+  - writing-plans            → skills/plan/SKILL.md (task right-sizing, principles)
+  - subagent-driven-development → referenced for escalation-status + file-handoff
+                                  discipline (not copied verbatim)
+
+--------------------------------------------------------------------------------
+ponytail — Copyright (c) 2026 Dietrich Gebert
+
+Adapted into superdev:
+  - ponytail        → agents/implementer.md (the lazy-ladder / YAGNI discipline)
+  - ponytail-review → agents/ponytail-reviewer.md (over-engineering review rubric)
+
+--------------------------------------------------------------------------------
+Additional engineering-skill patterns (grilling, domain-modeling, to-issues, and
+the docs/agents setup convention) were distilled as principles into skills/plan,
+skills/setup, and the references/ seed templates.
+
+The MIT License text (applying both to superdev's own code and, per their terms,
+to the bundled portions above) is in the LICENSE file.
