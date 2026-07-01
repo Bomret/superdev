@@ -30,6 +30,19 @@ host.
   tool. For a knowledge base it also captures **audience(s)** and **language** and proposes a
   human-first outline.
 
+## After the PR
+
+`/superdev:implement` is a goal-based loop: it drives the DAG until every slice is merged and the
+whole-scope review passes, then opens the PR and **stops**. The last mile — review comments and CI on
+the open PR — is a time-based loop; hand it to `/loop`:
+
+```
+/loop 5m check my PR, address review comments, and fix failing CI
+```
+
+To cap a long run, wrap the implement call in `/goal` with the Definition of Done as the stop condition
+and an explicit turn ceiling (e.g. "stop after N tries").
+
 ## Roles (subagents)
 
 `implementer`, `slice-reviewer`, `simplicity-reviewer`, `final-reviewer`, `doc-writer` — each runs in an
