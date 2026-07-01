@@ -37,6 +37,12 @@ GREEN: write the minimal code to pass it → watch it pass
 - One test at a time; only enough code to pass the current test; don't anticipate future tests.
 - Test **behavior through the public interface**, not implementation details. A good test survives an
   internal refactor. If renaming an internal function breaks a test, that test was wrong.
+- **Mock only at system boundaries** — external APIs, the clock, randomness, the network, sometimes the
+  DB/filesystem. **Never mock your own internal collaborators**; a test that mocks what it should
+  exercise is coupled to the implementation, not the behavior.
+- **Verify through the interface too.** Assert on what a caller can observe — don't reach behind the
+  interface to check (e.g. don't query the DB directly to confirm a write; read it back through the
+  public API). One logical assertion per test.
 - **Never refactor while RED.** Get to green first, then refactor with the suite as your net.
 - **Commit each GREEN increment** on your slice branch (Conventional Commits) — locally, **never push**.
   Those commits are your resume points if the run is interrupted.
