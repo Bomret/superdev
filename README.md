@@ -43,6 +43,9 @@ Cross-platform Node hooks (`node` is a Claude Code runtime dependency — no bas
   the controller integrates.
 - **model-explicit** — blocks a dispatch to a superdev subagent that omits an explicit `model`, so cost
   is always warrant-scaled.
+- **green-gate** — after a controller merge, re-runs the configured test command and blocks on a RED
+  suite, so "tests pass on scope after merging" is enforced, not merely prompted. Inactive until a test
+  command is recorded in `docs/agents/verification.md` (via `/superdev:setup`).
 
 ## Pluggable backends
 
@@ -52,6 +55,7 @@ Configured once via `/superdev:setup`, stored in `docs/agents/`:
 - **Code host** — GitHub (`gh`) · Forgejo/self-hosted (`tea`/REST) · *other* (freeform).
 - **Documentation** — in-repo `AGENTS.md` documentation hierarchy.
 - **Knowledge base** (optional) — software (Confluence) · local file (`docs/kb/`) · none · *other*.
+- **Verification** (optional) — a test command in `docs/agents/verification.md` that arms the green-gate.
 
 Adding a backend = a new seed template in `references/` + a config doc. No skill or agent changes.
 

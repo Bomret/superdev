@@ -71,7 +71,9 @@ Repeat until every slice is `merged`:
      are the net).
 4. **Merge (you, serially)** — from the scope checkout: `git merge --no-ff slice/<id>`. Resolve any
    conflicts yourself (you hold cross-slice context; dispatch a fix subagent only if a conflict needs
-   real code work). **Re-run the suite on scope** after merging. Then clean up: `git worktree remove
+   real code work). **Re-run the suite on scope** after merging — if a test command is configured
+   (`docs/agents/verification.md`), the **green-gate hook** runs it for you and blocks with a RED report
+   you must fix or revert before continuing. Then clean up: `git worktree remove
    .superdev/worktrees/<id>` and `git branch -D slice/<id>` (merged; leaving it clutters the repo).
    Update the slice to `merged` in the store + ledger. Merging unblocks dependents.
 5. Recompute the runnable set and continue.

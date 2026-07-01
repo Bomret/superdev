@@ -24,13 +24,39 @@ Definition of Done** — the checkable acceptance criteria for the whole feature
 
 ## 2. Domain-model as you go
 
-When terms or decisions crystallise, capture them immediately — don't batch:
+When terms, decisions, or conventions crystallise, capture them immediately — don't batch:
 
 - **Glossary** — when the user uses a vague or overloaded term, propose a precise canonical term and
   record it. Challenge terms that conflict with existing language. Write to `CONTEXT.md` (or the repo's
-  glossary), kept free of implementation detail.
+  glossary) — a glossary and nothing else: no spec, no scratchpad, no implementation decisions. Each
+  entry is a tight one-to-two-sentence definition of what the term **is**, with an `_Avoid_:` list of
+  rejected synonyms. In a multi-context repo (root `CONTEXT-MAP.md`), record the term under the context
+  it belongs to; if unclear, ask.
 - **ADRs** — write `docs/adr/NNNN-<title>.md` only when a decision is **hard to reverse**, **surprising
-  without context**, and **the result of a real trade-off**. If any of the three is missing, skip it.
+  without context**, and **the result of a real trade-off**. If any of the three is missing, skip it. An
+  ADR is a short title plus 1–3 sentences (context, decision, why); add Status/Options/Consequences only
+  when they earn their place. Number by scanning `docs/adr/` for the highest existing number + 1.
+- **Rules** — when the interview surfaces an **enforceable, file-scoped** convention ("API handlers
+  validate input with Zod", "migrations are append-only"), write `.claude/rules/<name>.md` with a
+  `paths:` frontmatter listing the globs it governs:
+
+  ```markdown
+  ---
+  paths:
+    - "src/api/**"
+    - "**/*.handler.ts"
+  ---
+  All API handlers must validate input with Zod before processing.
+  ```
+
+  Unlike an ADR (a one-off decision) or the glossary (a term), a rule is a **standing constraint** the
+  harness auto-loads whenever a matching file is edited — so implementer subagents pick it up exactly
+  when it applies, at zero always-on cost. Reserve it for constraints that are genuinely path-scoped and
+  repeatable; a whole-project norm belongs in the docs convention, and a slice-specific requirement
+  belongs in that slice's `spec` — not a rule.
+
+Create these files lazily — only when the first term, decision, or rule actually crystallises, never as
+empty scaffolding.
 
 Stress-test domain relationships with concrete edge-case scenarios; cross-check claims against the code
 and surface contradictions.
