@@ -22,7 +22,8 @@ From `$ARGUMENTS`:
 
 - **A git range** (`BASE..HEAD`) or an **area path** → a focused reconcile of what changed there.
   (`/superdev:implement` passes `merge-base(base, scope)..<scope>`.)
-- **Empty** → a **full reconcile**: the whole `AGENTS.md` tree + the KB against current repo state.
+- **Empty** → a **full reconcile**: all in-repo docs (README + the whole `AGENTS.md` tree) + the KB
+  against current repo state.
 
 ## 3. Dispatch
 
