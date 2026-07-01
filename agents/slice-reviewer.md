@@ -29,6 +29,8 @@ running the test suite. If you need another revision, check it out into a throwa
 - Anything **extra** that wasn't asked for (over-building)?
 - Does it meet every **acceptance criterion**?
 - Deviations from the spec: are they justified improvements, or problems? Flag them explicitly.
+- **Security & safety:** does the change open an injection vector, leak a credential/secret, or rest on
+  an unsafe cast or unchecked assumption? These aren't caught by a green suite — flag any as Critical.
 
 ## Lens 2 — Independent verification
 

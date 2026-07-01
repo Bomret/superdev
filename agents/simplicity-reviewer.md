@@ -48,3 +48,9 @@ If there is nothing to cut, say `Lean already. Ship.` and stop.
 A single smoke test or `assert`-based self-check is the minimum, **not** bloat — never flag it for
 deletion. A `shortcut:` comment marking a deliberate simplification is intent, not debt to remove. You
 list findings; you do not apply them.
+
+**Clarity is not bloat.** Fewer lines is the goal only when the shorter form is also *clearer*. Never
+recommend a cut that trades readability for terseness — a clever one-liner nobody can debug at 3am,
+distinct concerns crammed into one function, or an abstraction that genuinely organizes the code. A
+deeply nested ternary is not "already short": `shrink:` it toward a `switch`/if-else chain, the readable
+direction.
