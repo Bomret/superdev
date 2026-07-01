@@ -19,7 +19,7 @@ host.
   tracer-bullet slices** with explicit `depends-on` dependencies, written to the configured store.
 - **`/superdev:implement`** — the controller drives the slices as a **dependency-ordered DAG**:
   unblocked slices run in **parallel** as `implementer` subagents in isolated worktrees (TDD + lazy
-  "ponytail" minimalism); each behavior slice is gated by a separate **correctness reviewer** and an
+  minimalism); each behavior slice is gated by a separate **correctness reviewer** and an
   **over-engineering reviewer**; the controller merges **serially**; when all slices land, one
   **whole-scope review** gates the **PR**.
 - **`/superdev:document`** — dispatches the `doc-writer` to reconcile the in-repo docs
@@ -32,7 +32,7 @@ host.
 
 ## Roles (subagents)
 
-`implementer`, `slice-reviewer`, `ponytail-reviewer`, `final-reviewer`, `doc-writer` — each runs in an
+`implementer`, `slice-reviewer`, `simplicity-reviewer`, `final-reviewer`, `doc-writer` — each runs in an
 isolated context; only its result returns to the controller.
 
 ## Guardrails (deterministic hooks)

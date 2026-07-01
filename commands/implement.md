@@ -12,7 +12,7 @@ you alone integrate. You never implement or merge inside a subagent.
 reviewers re-verify; you integrate serially; one whole-scope review gates the PR.
 
 **Background:** the four roles are subagents (`superdev:implementer`, `superdev:slice-reviewer`,
-`superdev:ponytail-reviewer`, `superdev:final-reviewer`) — their discipline is in their bodies; you
+`superdev:simplicity-reviewer`, `superdev:final-reviewer`) — their discipline is in their bodies; you
 just dispatch them with the per-slice specifics. **Always pass an explicit `model`** on every dispatch
 (a hook blocks omissions). Between dispatches, narrate at most one short line.
 
@@ -66,7 +66,7 @@ Repeat until every slice is `merged`:
    - **`behavior`** slice → dispatch **`superdev:slice-reviewer`** (correctness + independent
      verification). For each **Critical/Important** finding, dispatch a fresh **`superdev:implementer`**
      fix with a **RED test that reproduces the bug first**; re-review until clean. Then dispatch
-     **`superdev:ponytail-reviewer`** (over-engineering); apply warranted cuts.
+     **`superdev:simplicity-reviewer`** (over-engineering); apply warranted cuts.
    - **`mechanical`** / **`docs`** slice → **skip both per-slice reviews** (the suite + the final review
      are the net).
 4. **Merge (you, serially)** — from the scope checkout: `git merge --no-ff slice/<id>`. Resolve any
@@ -98,7 +98,7 @@ Repeat until every slice is `merged`:
 | implementer / fix | `haiku` | mechanical slice (move, rename, transcription from a complete spec) |
 | implementer / fix | `sonnet` | design / multi-file / judgment slice |
 | slice-reviewer | `sonnet` | default (verification is load-bearing) |
-| ponytail-reviewer | `haiku` | scoped over-engineering scan |
+| simplicity-reviewer | `haiku` | scoped over-engineering scan |
 | final-reviewer | `opus` | whole-scope correctness — the highest-stakes review |
 
 Scale to the slice. Turn count beats token price: the cheapest model often takes 2–3× the turns on

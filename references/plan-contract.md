@@ -22,7 +22,7 @@ Plus one **global Definition of Done** block: the acceptance criteria for the wh
 ## `test-applicability` → warrant gates
 
 - `behavior` — implementer does full TDD; **slice-reviewer runs** (correctness + independent
-  verification); **ponytail-reviewer runs** (over-engineering).
+  verification); **simplicity-reviewer runs** (over-engineering).
 - `mechanical` — pure move/rename/format: no new test (the existing suite is the net); **both
   per-slice reviews skipped**; correctness is caught by the suite + final review.
 - `docs` — documentation only: no test, **reviews skipped**.

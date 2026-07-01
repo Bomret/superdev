@@ -5,7 +5,7 @@
 // Subagents must never integrate — only the controller merges. A subagent's tool
 // call carries `agent_id` on the hook stdin; the controller's does not. So we block
 // `git merge`/`push`/`rebase` ONLY when agent_id is present, leaving the controller free.
-// ponytail: one regex, one rule, no deps.
+// one regex, one rule, no deps.
 
 const BLOCK = /(^|[;&|])\s*git\s+(merge|push|rebase)\b/;
 

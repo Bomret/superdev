@@ -21,7 +21,7 @@ ponytail — Copyright (c) 2026 Dietrich Gebert
 
 Adapted into superdev:
   - ponytail        → agents/implementer.md (the lazy-ladder / YAGNI discipline)
-  - ponytail-review → agents/ponytail-reviewer.md (over-engineering review rubric)
+  - ponytail-review → agents/simplicity-reviewer.md (over-engineering review rubric)
 
 --------------------------------------------------------------------------------
 Additional engineering-skill patterns (grilling, domain-modeling, to-issues, and

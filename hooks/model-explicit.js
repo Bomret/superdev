@@ -6,10 +6,10 @@
 // (warrant-scaled by the controller). An omitted model silently inherits the
 // session model — usually the most expensive tier. We only police OUR agents, so
 // the user's other subagent dispatches are untouched.
-// ponytail: one rule. NOTE: the per-invocation model field name is assumed `model`
+// NOTE: the per-invocation model field name is assumed `model`
 // (the documented "per-invocation model parameter"); confirm on first real dispatch.
 
-const OURS = /^(superdev[:_-])?(implementer|slice-reviewer|ponytail-reviewer|final-reviewer|doc-writer)$/;
+const OURS = /^(superdev[:_-])?(implementer|slice-reviewer|simplicity-reviewer|final-reviewer|doc-writer)$/;
 
 function decide(input) {
   if (!input || input.tool_name !== 'Agent') return { block: false };
