@@ -12,9 +12,9 @@
 // unaffected). Subagents can't merge (merge-guard blocks them pre-run), so a merge here
 // is always the controller's; the agent_id check is belt-and-suspenders.
 
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
+const fs = require('node:fs');
+const path = require('node:path');
+const { execSync } = require('node:child_process');
 
 const IS_MERGE = /(^|[;&|])\s*git\s+merge\b/;
 const VERIFICATION_DOC = 'docs/agents/verification.md';
@@ -44,10 +44,7 @@ function decide(input, testCommand, runTests) {
   return {
     block: true,
     reason:
-      'superdev: scope suite is RED after merging. The green-gate re-ran `' +
-      testCommand +
-      '` and it failed — fix the break or revert this merge before continuing.\n\n' +
-      result.output,
+      `superdev: scope suite is RED after merging. The green-gate re-ran \`${testCommand}\` and it failed — fix the break or revert this merge before continuing.\n\n${result.output}`,
   };
 }
 
@@ -85,7 +82,7 @@ function main() {
 }
 
 if (process.argv[2] === '--selftest') {
-  const assert = require('assert');
+  const assert = require('node:assert');
   const green = () => ({ ok: true, output: '' });
   const red = () => ({ ok: false, output: 'FAIL foo' });
   const merge = (command, extra) => Object.assign({ tool_input: { command } }, extra);
@@ -99,7 +96,7 @@ if (process.argv[2] === '--selftest') {
   assert.equal(decide(merge('cd x && git merge y'), 'npm test', red).block, true, 'after &&');
 
   // fenced-block parsing
-  const tmp = require('os').tmpdir();
+  const tmp = require('node:os').tmpdir();
   const dir = fs.mkdtempSync(path.join(tmp, 'gg-'));
   fs.mkdirSync(path.join(dir, 'docs/agents'), { recursive: true });
   fs.writeFileSync(path.join(dir, VERIFICATION_DOC), '# Verification\n\n```sh\nnpm test\n```\n');

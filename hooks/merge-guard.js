@@ -44,7 +44,7 @@ function main() {
 }
 
 if (process.argv[2] === '--selftest') {
-  const assert = require('assert');
+  const assert = require('node:assert');
   const sub = (command) => ({ agent_id: 'a1', tool_input: { command } });
   assert.equal(decide({}).block, false, 'no agent_id → allow');
   assert.equal(decide({ tool_input: { command: 'git merge scope' } }).block, false, 'controller merges');

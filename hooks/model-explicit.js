@@ -19,8 +19,7 @@ function decide(input) {
   return {
     block: true,
     reason:
-      `superdev: dispatch to "${type}" must set an explicit model (warrant-scaled). ` +
-      'Omitting it inherits the session model — usually the most expensive tier. (model-explicit)',
+      `superdev: dispatch to "${type}" must set an explicit model (warrant-scaled). Omitting it inherits the session model — usually the most expensive tier. (model-explicit)`,
   };
 }
 
@@ -45,7 +44,7 @@ function main() {
 }
 
 if (process.argv[2] === '--selftest') {
-  const assert = require('assert');
+  const assert = require('node:assert');
   const d = (tool_input, tool_name = 'Agent') => decide({ tool_name, tool_input });
   assert.equal(d({ subagent_type: 'implementer' }).block, true, 'ours, no model → block');
   assert.equal(d({ subagent_type: 'superdev:final-reviewer' }).block, true, 'namespaced, no model');
