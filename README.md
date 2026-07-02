@@ -152,6 +152,24 @@ For a local checkout instead, use `"source": { "source": "directory", "path": "/
 Then, in each repo you want to use it: run **`/superdev:setup`** once, then `/superdev:plan` →
 `/superdev:implement`.
 
+## Updating
+
+superdev is a third-party marketplace, so **auto-update is off by default** — updates are pull-based.
+Pull a new version with:
+
+```
+/plugin marketplace update superdev     # refresh the catalog from the git host
+/plugin update superdev@superdev        # upgrade the installed plugin
+/reload-plugins                         # activate it
+```
+
+Prefer hands-off? Enable it once — `/plugin` → **Marketplaces** → `superdev` → **Enable auto-update** —
+and Claude upgrades it at startup, then prompts `/reload-plugins`.
+
+A best-effort `SessionStart` hook prints a one-line notice when a newer version is published (checked at
+most once a day, silent when offline). "Newer" is the `version` in `.claude-plugin/plugin.json`, so a
+release **must bump that field** — an unchanged version is invisible to `/plugin update`.
+
 ## Requirements
 
 - Claude Code (provides `node` for the hooks).
