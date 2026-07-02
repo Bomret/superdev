@@ -68,7 +68,8 @@ backend.
 
 - **Slice store** — where a feature's plan lives: the global **Definition of Done** plus every vertical
   slice (`id`, `depends-on`, `test-applicability`, `spec`, `acceptance`). `/plan` writes it; `/implement`
-  reads it and drives each slice to `merged`.
+  reads it and drives each slice to `merged`, walking its issue along the tracker's status workflow as it
+  goes (dispatch → in-progress, review → in-review, merge → done — mapped at setup).
   Choices: *local files* (a directory `docs/plans/<feature-slug>/` per feature: `00-epic-*` = DoD +
   scope, `NN-<test-applicability>-*` = one file per slice, the number *is* the id — best for solo work
   or no tracker) · *Jira* (each slice an issue, `depends-on` → "is blocked by" links) · *other* (describe

@@ -13,6 +13,7 @@ user has it installed); the user records which below.
 - **`depends-on` link type**: `<is blocked by>` (Jira's "Blocks"/"is blocked by" link).
 - **Ready status/label**: `<ready-for-agent>` — marks a slice an agent may pick up.
 - **Tooling**: `<rest>` or `<jira CLI>`.
+- **Status map**: canonical lifecycle → Jira status + transition — fill in the table below at setup.
 
 ## REST conventions (curl)
 
@@ -35,7 +36,7 @@ Auth header: `-u "$JIRA_EMAIL:$JIRA_API_TOKEN"`, `-H "Content-Type: application/
 
 ## Field mapping (plan-contract → Jira)
 
-- `id` ↔ Jira issue `key`. Record the `S<n>` ↔ `PROJ-<n>` mapping in the run ledger so `depends-on`
+- `id` ↔ Jira issue `key`. Record the slice-id ↔ `PROJ-<n>` mapping in the run ledger so `depends-on`
   resolves to real keys.
 - `title` ↔ `summary`.
 - `depends-on` ↔ "is blocked by" issue links.
@@ -44,6 +45,24 @@ Auth header: `-u "$JIRA_EMAIL:$JIRA_API_TOKEN"`, `-H "Content-Type: application/
 - `test-applicability` ↔ a label (`behavior`/`mechanical`/`docs`).
 - `status` ↔ Jira status.
 - global DoD ↔ a parent Epic; slices are children of the Epic.
+
+## Status workflow (fill in at setup)
+
+`/implement` transitions each issue at every lifecycle point (see the plan-contract's *Slice lifecycle &
+status*). Record the mapping and the transition to reach each status:
+
+| Canonical | Jira status | Transition name/id |
+|---|---|---|
+| `in-progress` | `<In Progress>` | `<id>` |
+| `in-review` | `<In Review / Testing>` | `<id>` |
+| `blocked` | `<Blocked>` (or nearest) | `<id>` |
+| `merged` (done) | `<Done>` | `<id>` |
+
+- **Perform a transition**: `POST <base>/rest/api/3/issue/<key>/transitions` with
+  `{ "transition": {"id":"<id>"} }`. Discover ids per issue with `GET <base>/rest/api/3/issue/<key>/transitions`.
+- The **Epic** moves to *In Progress* when the run starts and to *Done* once every child slice is Done.
+- If Jira lacks a status (no separate *In Review* or *Blocked*), map it to the nearest one and note the
+  collapse here.
 
 ## When a skill says "write slices to the store"
 

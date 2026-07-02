@@ -14,7 +14,7 @@ reads it. It is backend-agnostic: the local-file rendering is shown below; issue
 | `test-applicability` | `behavior` \| `mechanical` \| `docs`. Drives the warrant gates (see below). | `/implement` |
 | `spec` | What this slice delivers end-to-end — the implementer's requirements. Describe behavior/interface, not file paths. | `implementer` |
 | `acceptance` | Checkable criteria for THIS slice. | `slice-reviewer` |
-| `status` | `todo` \| `in-progress` \| `in-review` \| `merged` (optional; the ledger is authoritative during a run). | `/implement`, store |
+| `status` | Canonical lifecycle `todo` → `in-progress` → `in-review` → `merged` (= done), plus `blocked`. Backends map these onto their real statuses; the ledger is authoritative during a run. | `/implement`, store |
 
 Plus one **global Definition of Done** block: the acceptance criteria for the whole feature. Anchors
 `/implement` Phase 0 and the final review.
@@ -26,6 +26,23 @@ Plus one **global Definition of Done** block: the acceptance criteria for the wh
 - `mechanical` — pure move/rename/format: no new test (the existing suite is the net); **both
   per-slice reviews skipped**; correctness is caught by the suite + final review.
 - `docs` — documentation only: no test, **reviews skipped**.
+
+## Slice lifecycle & status
+
+`/implement` drives each slice through a canonical lifecycle. Every backend maps these onto its own
+statuses — the local file uses them verbatim; an issue tracker maps them to real statuses/transitions
+recorded in `issue-tracker.md`:
+
+| Canonical | Entered when |
+|---|---|
+| `todo` | slice written to the store |
+| `in-progress` | an implementer is dispatched for it |
+| `in-review` | implementer returned; per-slice review running (**behavior** slices only) |
+| `blocked` | implementer reports BLOCKED (only if the tracker has a blocked state) |
+| `merged` (done) | merged into the scope branch |
+
+`mechanical`/`docs` slices skip `in-review` (`in-progress` → `merged`). The scope/epic issue moves to
+`in-progress` when the run starts and to `done` once every slice is merged.
 
 ## Vertical-slice rules (how `/plan` must slice)
 

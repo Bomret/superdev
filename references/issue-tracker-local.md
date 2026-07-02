@@ -70,8 +70,9 @@ slice file into `id` (its file number), `depends-on`, `test-applicability`, `spe
 
 ## When `/superdev:implement` says "update slice status"
 
-Edit that slice file's `status:` line in place (`todo` → `in-progress` → `in-review` → `merged`). The
-run's ledger file is authoritative during execution; the slice files' `status:` is the durable record.
+Edit that slice file's `status:` line in place along the canonical lifecycle
+(`todo` → `in-progress` → `in-review` → `merged`, or `blocked`). The run's ledger file is authoritative
+during execution; the slice files' `status:` is the durable record.
 
 ## Dependencies
 

@@ -39,6 +39,14 @@ proposed default (inferred from the remote).
 - **Other** (GitHub/GitLab Issues, Linear, …) — ask the user to describe create/read/list/update +
   the dependency-link mechanism in a paragraph; write `issue-tracker.md` from that prose.
 
+For any **issue backend** (Jira / other — not the local file), also capture the tracker's **status
+workflow**: probe or ask for the available statuses, the transitions between them, and the issue types
+for the scope/epic vs a slice. Agree a **status map** with the user — superdev's canonical lifecycle
+(`todo` → `in-progress` → `in-review` → `merged`/done, plus `blocked`) → the tracker's real statuses,
+with how to perform each move (transition name/id or CLI verb). Record it in `issue-tracker.md`;
+`/implement` walks each issue along it as work progresses. If the tracker lacks a state (no separate
+`in-review` or `blocked`), map it to the nearest sensible status and note the collapse.
+
 **B — Code host.** Where does code live / where do PRs go? (Independent of A — code may be on GitHub
 while slices live in Jira.)
 

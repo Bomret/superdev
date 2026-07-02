@@ -36,8 +36,20 @@ just dispatch them with the per-slice specifics. **Always pass an explicit `mode
   It anchors the final review and tells you when to stop. No DoD → don't proceed.
 - Create the **ledger** at `.superdev/ledger.md`. Track each slice's status
   (`todo`/`in-progress`/`in-review`/`merged`), its commit range when merged, and — for issue stores —
-  the `S<n>` ↔ issue-key mapping. The ledger is your recovery map after compaction: a slice it marks
+  the slice-id ↔ issue-key mapping. The ledger is your recovery map after compaction: a slice it marks
   `merged` is done — never re-dispatch it; trust the ledger and `git log` over memory.
+
+## Issue status (move issues along the tracker's workflow)
+
+`docs/agents/issue-tracker.md` holds a **status map**: superdev's canonical lifecycle (`todo` →
+`in-progress` → `in-review` → `merged`/done, plus `blocked`) → the tracker's real statuses. At each
+lifecycle point in the loop below, **move the issue to the mapped status** so anyone watching the
+tracker sees live progress — for the **local-file** store that's editing the slice file's `status:`
+line, for an **issue tracker** it's the mapped transition. Do it **best-effort**: the ledger drives
+control flow, so if a status write/transition fails, log it and keep going. Points: dispatch →
+`in-progress`; entering per-slice review (behavior only) → `in-review`; BLOCKED → `blocked`; merged →
+`merged`/done. The **scope/epic** issue moves to `in-progress` when the run starts and `done` once every
+slice is merged.
 
 ## 2. Branch model
 
@@ -46,7 +58,7 @@ just dispatch them with the per-slice specifics. **Always pass an explicit `mode
   clean checkouts, so uncommitted design docs never reach implementers and path-scoped rules can't
   auto-load. If any are dirty/untracked, commit them to base now.
 - **Scope branch** off base: `git switch -c <scope> <base>` (base from `code-management.md`, default
-  `main`).
+  `main`). Then move the **scope/epic** issue → `in-progress` (per `issue-tracker.md`; best-effort).
 - **Per slice**, a branch off scope in its own **worktree** under the scratch dir:
   `git worktree add .superdev/worktrees/<id> -b slice/<id> <scope>`. Filesystem isolation lets
   independent slices run in parallel without clobbering each other; `.superdev/` being git-ignored keeps
@@ -62,11 +74,13 @@ Repeat until every slice is `merged`:
    own worktree, each with its `model` from the table below. Give each only its own specifics:
    the slice `spec` + `acceptance`, its worktree path (`.superdev/worktrees/<id>`) + branch, base/head,
    a report-file path (`.superdev/reports/report-<id>.md`), the global constraints, and interfaces
-   decided by already-merged slices. Not the whole plan.
+   decided by already-merged slices. Not the whole plan. Mark each dispatched slice `in-progress` (store
+   + ledger).
 3. **Per slice, when the implementer returns** (handle status: DONE / DONE_WITH_CONCERNS — address real
    concerns first / NEEDS_CONTEXT — provide it, re-dispatch / BLOCKED — assess: more context, stronger
-   model, split the slice, or escalate to the human):
-   - **`behavior`** slice → dispatch **`superdev:slice-reviewer`** (correctness + independent
+   model, split the slice, or escalate to the human — and move the slice → `blocked` while it's stuck):
+   - **`behavior`** slice → move it → `in-review`, then dispatch **`superdev:slice-reviewer`**
+     (correctness + independent
      verification). For each **Critical/Important** finding, dispatch a fresh **`superdev:implementer`**
      fix with a **RED test that reproduces the bug first**; re-review until clean. Then dispatch
      **`superdev:simplicity-reviewer`** (over-engineering); apply warranted cuts.
@@ -84,7 +98,7 @@ Repeat until every slice is `merged`:
    (`docs/agents/verification.md`), the **green-gate hook** runs it for you and blocks with a RED report
    you must fix or revert before continuing. Then clean up: `git worktree remove
    .superdev/worktrees/<id>` and `git branch -D slice/<id>` (merged; leaving it clutters the repo).
-   Update the slice to `merged` in the store + ledger. Merging unblocks dependents.
+   Move the slice → `merged`/done in the store + ledger. Merging unblocks dependents.
 5. Recompute the runnable set and continue.
 
 ## 4. Final phase — whole-scope review, then PR
@@ -98,7 +112,7 @@ Repeat until every slice is `merged`:
   knowledge base up to the integrated state and **remove stale/obsolete** text, committing the changes on
   the scope branch so they land in the PR. This runs after every scope — even docs-only ones, and even
   when the KB is `none` (then it's the in-repo docs pass only).
-- Confirm **every Phase 0 DoD item is met**.
+- Confirm **every Phase 0 DoD item is met**, then move the scope/epic issue → `done`.
 - **Open the PR/MR per `docs/agents/code-management.md`** (default posture = draft; degrade to push +
   printed compare URL + ready-to-run command when no host CLI is present). Report the PR URL to the user.
 
