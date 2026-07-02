@@ -170,6 +170,10 @@ A best-effort `SessionStart` hook prints a one-line notice when a newer version 
 most once a day, silent when offline). "Newer" is the `version` in `.claude-plugin/plugin.json`, so a
 release **must bump that field** — an unchanged version is invisible to `/plugin update`.
 
+**Maintainers:** releases are deterministic and commit-driven (semantic-release bumps the version,
+writes `CHANGELOG.md`, tags, and publishes a Codeberg Release from the Conventional Commits). See
+[`RELEASING.md`](RELEASING.md).
+
 ## Requirements
 
 - Claude Code (provides `node` for the hooks).

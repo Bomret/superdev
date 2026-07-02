@@ -1,0 +1,20 @@
+{
+  "name": "superdev-release-tooling",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Release tooling for the superdev Claude Code plugin. Not published to npm; the plugin ships via .claude-plugin/. semantic-release drives versioning off Conventional Commits.",
+  "type": "module",
+  "scripts": {
+    "release": "semantic-release --no-ci"
+  },
+  "engines": {
+    "node": ">=20.8.1"
+  },
+  "devDependencies": {
+    "@saithodev/semantic-release-gitea": "^2.1.0",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/exec": "^7.1.0",
+    "@semantic-release/git": "^10.0.1",
+    "semantic-release": "^25.0.5"
+  }
+}

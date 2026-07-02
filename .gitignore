@@ -1,2 +1,5 @@
 # superdev run scratch (ledger, worktree bookkeeping)
 .superdev/
+
+# release tooling
+node_modules/
