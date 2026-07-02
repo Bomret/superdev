@@ -12,7 +12,7 @@ https://github.com/obra/superpowers
 Adapted into superdev:
   - test-driven-development  → agents/implementer.md (TDD discipline)
   - requesting-code-review   → agents/final-reviewer.md (code-reviewer rubric)
-  - writing-plans            → skills/plan/SKILL.md (task right-sizing, principles)
+  - writing-plans            → commands/plan.md (task right-sizing, principles)
   - subagent-driven-development → referenced for escalation-status + file-handoff
                                   discipline (not copied verbatim)
 
@@ -25,8 +25,11 @@ Adapted into superdev:
 
 --------------------------------------------------------------------------------
 Additional engineering-skill patterns (grilling, domain-modeling, to-issues, and
-the docs/agents setup convention) were distilled as principles into skills/plan,
-skills/setup, and the references/ seed templates.
+the docs/agents setup convention) were distilled as principles into commands/plan.md,
+commands/setup.md, and the references/ seed templates. The in-repo AGENTS.md
+documentation hierarchy (references/documentation.md) is inspired by DOX
+(agent0ai — https://github.com/agent0ai/dox), distilled in superdev's own words;
+DOX is not required to be installed.
 
 The MIT License text (applying both to superdev's own code and, per their terms,
 to the bundled portions above) is in the LICENSE file.

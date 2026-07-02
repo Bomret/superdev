@@ -60,6 +60,9 @@ Cross-platform Node hooks (`node` is a Claude Code runtime dependency — no bas
   suite, so "tests pass on scope after merging" is enforced, not merely prompted. Inactive until a test
   command is recorded in `docs/agents/verification.md` (via `/superdev:setup`).
 
+A fourth Node hook, **update-check**, is a `SessionStart` *notice* (not a guardrail) — see
+[Updating](#updating).
+
 ## Configuration & backends
 
 `/superdev:setup` records your choices in `docs/agents/*.md` — one small doc per concern — so the
@@ -90,7 +93,7 @@ backend.
   (re-runs the suite after every controller merge); omitted, the gate stays inactive.
   → `docs/agents/verification.md`.
 
-Adding a backend = a new seed template in `references/` + a config doc. No skill or agent changes.
+Adding a backend = a new seed template in `references/` + a config doc. No command or agent changes.
 
 ## What superdev writes to your repo
 

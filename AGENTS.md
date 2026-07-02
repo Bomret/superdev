@@ -27,6 +27,7 @@ hooks/                 — deterministic Node hooks + hooks.json: merge-guard, m
 references/            — backend seed templates + plan-contract + documentation convention
 release.config.cjs     — semantic-release config (semantic-release-replace-plugin bumps plugin.json)
 package.json           — dev-only tooling (Bun); NOT published to npm
+CHANGELOG.md           — release-managed by semantic-release; do not hand-edit
 README.md · RELEASING.md · NOTICE · LICENSE
 ```
 
