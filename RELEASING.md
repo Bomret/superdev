@@ -4,6 +4,21 @@ Releases are deterministic and commit-driven, via [semantic-release](https://sem
 The version is computed from the [Conventional Commits](https://www.conventionalcommits.org) since the
 last release tag — no manual version bumping.
 
+## Repo tooling (Bun)
+
+[Bun](https://bun.sh) is the repo's package manager and task runner. Install dev deps and run tasks with
+it:
+
+```
+bun install       # install dev deps (semantic-release toolchain); writes bun.lock
+bun run test      # run the hook selftests
+bun run release   # cut a release (see below)
+```
+
+The plugin's **hooks stay on `node`** (`hooks.json` invokes `node …`) — `node` is guaranteed in every
+user's Claude Code environment, Bun is not. Bun is a maintainer-only tool; `bun run test` executes the
+selftests with `node` so they match the production runtime.
+
 ## What a release does
 
 1. Analyse commits since the last `v*` tag → compute the next version:
@@ -20,19 +35,19 @@ last release tag — no manual version bumping.
 Local, off `main`, working tree clean:
 
 ```
-GITEA_TOKEN=<codeberg-token> npm run release
+GITEA_TOKEN=<codeberg-token> bun run release
 ```
 
 - **`GITEA_TOKEN`** — a Codeberg token with write access to the repo
   (Codeberg → Settings → Applications → *Generate New Token*). The instance URL is pinned in
   `.releaserc.json` (`giteaUrl: https://codeberg.org`); override with `GITEA_URL` if needed.
 - Pushing the release commit + tag uses your normal git auth (SSH).
-- `npm run release` passes `--no-ci`, so it runs outside a CI environment.
+- `bun run release` passes `--no-ci`, so it runs outside a CI environment.
 
 Dry run (computes the next version and notes, changes nothing):
 
 ```
-GITEA_TOKEN=<token> npx semantic-release --no-ci --dry-run
+GITEA_TOKEN=<token> bunx semantic-release --no-ci --dry-run
 ```
 
 ## Baseline
