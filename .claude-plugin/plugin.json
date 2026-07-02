@@ -15,6 +15,5 @@
     "worktrees",
     "code-review",
     "workflow"
-  ],
-  "hooks": "./hooks/hooks.json"
+  ]
 }

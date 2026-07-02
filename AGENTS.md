@@ -19,7 +19,8 @@ guardrails, and a pluggable slice store + code host. No prerequisite plugins.
 
 ```
 .claude-plugin/
-  plugin.json          — plugin manifest (name, version, hooks ref); version is the SINGLE source of truth
+  plugin.json          — plugin manifest (name, version, author); version is the SINGLE source of truth.
+                         No `hooks` field — Claude Code auto-loads the standard hooks/hooks.json.
   marketplace.json     — single-plugin marketplace manifest (deliberately NO version field)
 commands/              — slash commands (*.md): setup, plan, implement, document
 agents/                — subagents (*.md): implementer, slice-reviewer, simplicity-reviewer, final-reviewer, doc-writer
