@@ -3,3 +3,6 @@
 
 # release tooling
 node_modules/
+
+# local Claude Code settings (personal, per-machine)
+.claude/settings.local.json
