@@ -10,6 +10,7 @@ host.
 /superdev:plan       → interview + slice a feature into the slice store
 /superdev:implement  → drive the slices to merge, then open the PR
 /superdev:status     → read-only DAG progress snapshot for in-flight runs
+/superdev:review     → standalone read-only review of any diff/branch/working tree
 /superdev:document   → reconcile in-repo docs + knowledge base with the code (also runs at implement's end)
 ```
 
@@ -26,6 +27,10 @@ host.
 - **`/superdev:status`** — a read-only snapshot of every in-flight `/superdev:implement` run in the repo:
   per scope, slice counts by status and which slices are `blocked`. Never writes, transitions, or merges
   anything.
+- **`/superdev:review`** — a standalone review of any diff, branch, path, or the working tree — no plan
+  or slice store required. Dispatches the same `final-reviewer` + `simplicity-reviewer` subagents
+  `/superdev:implement` uses per scope, read-only, and reports one consolidated verdict. Never edits,
+  commits, or merges anything.
 - **`/superdev:document`** — dispatches the `doc-writer` to reconcile the in-repo docs
   (`AGENTS.md` hierarchy) and the optional knowledge base with the current code — adding what's new and
   **removing stale/obsolete** text. Runs automatically at the end of every `/superdev:implement`, and on

@@ -1,6 +1,6 @@
 ---
 name: final-reviewer
-description: superdev whole-scope reviewer. Reviews the entire scope branch (all merged slices) against the global Definition of Done before the PR. Read-only, structured verdict. Dispatched by /superdev:implement.
+description: superdev whole-scope reviewer. Reviews the entire scope branch (all merged slices) against the global Definition of Done before the PR. Read-only, structured verdict. Dispatched by /superdev:implement and /superdev:review.
 tools: Read, Grep, Bash
 model: opus
 ---

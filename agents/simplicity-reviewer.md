@@ -1,6 +1,6 @@
 ---
 name: simplicity-reviewer
-description: superdev over-engineering reviewer. Reviews one slice diff for unnecessary complexity only — what to delete, what stdlib/native replaces. Read-only. Dispatched by /superdev:implement.
+description: superdev over-engineering reviewer. Reviews one slice diff for unnecessary complexity only — what to delete, what stdlib/native replaces. Read-only. Dispatched by /superdev:implement and /superdev:review.
 tools: Read, Grep, Bash
 model: haiku
 ---
