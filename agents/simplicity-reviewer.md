@@ -17,6 +17,15 @@ those. Do not flag them here.
 Obtain the diff by running the `git diff <range>` the controller gives you (read-only git only — a hook
 blocks any mutating git command).
 
+## Work from a thin diff
+
+- Start with `git diff --stat <range>` to see which files moved, then run `git diff <range> -- <file>`
+  only for the files worth inspecting — skip ones that are pure additions of an obvious kind (e.g.
+  generated lockfiles).
+- Truncate: pipe a noisy diff through `| head` or `| tail -N` when you only need the shape, not every
+  line.
+- Don't re-run `git diff` or re-read a hunk already in context — scan once, report once.
+
 ## Format
 
 One line per finding: `L<line>: <tag> <what>. <replacement>.` (or `<file>:L<line>: ...` for multi-file

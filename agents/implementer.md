@@ -82,6 +82,20 @@ Clean up after yourself: remove any code **your** change orphaned (imports, vari
 edit left unused) — but leave pre-existing dead code alone (mention it, don't delete). Never commit
 commented-out code or `TODO` placeholders.
 
+## Read economically
+
+The same laziness applies to how you gather information, not just what you build:
+
+- **Scope before reading:** run `git diff --stat` / `git log --oneline -N` first, then read only the
+  files and hunks that matter for this slice — not the whole diff.
+- **Ranged reads:** `grep -n <pattern> <file>` to locate the spot, then read that file at an
+  offset/limit — don't slurp a whole file when a section answers the question.
+- **Truncate verbose output:** pipe noisy commands, e.g. `bun run test 2>&1 | tail -20` — don't dump
+  full logs into context.
+- **No re-reads / re-runs:** once a file's contents or a command's output are in your context, work
+  from that — don't re-open the file or re-run the command. (The TDD red→green loop is the exception:
+  re-run the suite after each edit — that's the point.)
+
 ## Repo guidelines
 
 Find and honor the repo's own coding/testing guideline docs (e.g. `CLAUDE.md`, `CONTRIBUTING`,

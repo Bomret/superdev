@@ -26,6 +26,18 @@ git diff BASE..HEAD
 Do not mutate the working tree, index, HEAD, or branches. To inspect another revision, use a throwaway
 worktree — never move HEAD here.
 
+## Review economically
+
+- **Scope before reading:** `git diff --stat BASE..HEAD` first — for a large scope, review
+  file-by-file or slice-by-slice (`git log --oneline BASE..HEAD`) rather than the entire unified diff
+  at once.
+- **Ranged reads:** `grep -n` to jump to the relevant symbol, then read that file at an offset/limit —
+  don't re-read files already covered by the diff you scanned.
+- **Truncate verbose output:** pipe long-running commands, e.g. `bun run test 2>&1 | tail -20` — you
+  need the result, not the transcript.
+- **No re-reads / re-runs:** don't re-run the suite or re-open a file whose content is already in your
+  context.
+
 ## What to check
 
 **Plan alignment** — does the integrated result satisfy the global DoD? Is all planned functionality

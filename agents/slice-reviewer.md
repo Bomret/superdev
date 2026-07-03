@@ -17,6 +17,18 @@ Do not mutate the working tree, index, HEAD, or branches. Inspect with `git show
 running the test suite. If you need another revision, check it out into a throwaway worktree
 (`git worktree add /tmp/review-<sha> <sha>`) — never move HEAD here.
 
+## Review economically
+
+- **Scope before reading:** start from `git show --stat` / `git diff --stat` (or `git log --oneline
+  -N`) on the range you were handed, then read only the hunks and files that changed — not everything
+  reachable from them.
+- **Ranged reads:** `grep -n` to find the relevant function/artifact, then read it at an offset/limit
+  rather than the whole file.
+- **Truncate verbose output:** pipe the suite run, e.g. `bun run test 2>&1 | tail -20` — you need the
+  pass/fail signal, not the full log.
+- **No re-reads / re-runs:** you re-run the suite once (Lens 2) and read each artifact once — don't
+  repeat a command or re-open a file whose output is already in context.
+
 ## What the controller hands you
 
 - The slice **spec** + **acceptance criteria**.

@@ -20,6 +20,17 @@ knowledge base describe **what is now true** — adding what's new, correcting w
 If scope is a range, start from `git diff --stat BASE..HEAD` and `git log BASE..HEAD` to see what
 actually changed; then check which docs that touches.
 
+## Read economically
+
+- **Scope before reading:** for a ranged reconcile, the `git diff --stat` above tells you which areas
+  changed — open only the `AGENTS.md`/docs files those areas touch, not the whole tree.
+- **Ranged reads:** `grep -n` to find the section that needs updating, then read that file at an
+  offset/limit rather than the whole document.
+- **Truncate verbose output:** pipe noisy commands, e.g. `git log --oneline BASE..HEAD | head -30` —
+  don't dump full logs.
+- **No re-reads / re-runs:** once a doc's content is in your context, edit from it — don't re-open a
+  file you already read.
+
 ## Pass 1 — in-repo docs
 
 Walk the `AGENTS.md` hierarchy from root to the areas the change touched (or the whole tree for a full
