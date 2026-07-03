@@ -28,14 +28,18 @@ just dispatch them with the per-slice specifics. **Always pass an explicit `mode
 
 ## 1. Phase 0 — Definition of done + ledger (always first)
 
-- **Scratch dir.** All superdev run artifacts live under `.superdev/` — **git-ignored** (ensure
-  `.superdev/` is in the repo's `.gitignore`; add it if absent). Layout: `.superdev/dod.md` (the DoD),
-  `.superdev/ledger.md` (the ledger), `.superdev/reports/<id>/progress.md` (per-slice progress log — see
-  **Progress log** below), `.superdev/worktrees/` (per-slice worktrees). Nothing here is committed or
+- **Run root (per scope).** Choose this run's **scope branch name** `<scope>` now (e.g.
+  `superdev/<feature-slug>`; you create the branch in §2). All artifacts for this run live under a
+  per-scope run root **`.superdev/<scope>/`** — **git-ignored** (ensure `.superdev/` is in the repo's
+  `.gitignore`; add it if absent). Layout: `.superdev/<scope>/dod.md` (the DoD),
+  `.superdev/<scope>/ledger.md` (the ledger), `.superdev/<scope>/reports/<id>/progress.md` (per-slice
+  progress log — see **Progress log**), `.superdev/<scope>/worktrees/<id>` (per-slice worktrees).
+  **Namespacing by `<scope>` is what lets several scope runs execute in parallel** — even in separate
+  sessions — without clobbering each other's DoD/ledger/reports/worktrees. Nothing here is committed or
   lands in the PR.
-- Write the **global verification plan** (the DoD, made concrete and checkable) to `.superdev/dod.md`.
-  It anchors the final review and tells you when to stop. No DoD → don't proceed.
-- Create the **ledger** at `.superdev/ledger.md`. Track each slice's status
+- Write the **global verification plan** (the DoD, made concrete and checkable) to
+  `.superdev/<scope>/dod.md`. It anchors the final review and tells you when to stop. No DoD → don't proceed.
+- Create the **ledger** at `.superdev/<scope>/ledger.md`. Track each slice's status
   (`todo`/`in-progress`/`in-review`/`merged`), its commit range when merged, and — for issue stores —
   the slice-id ↔ issue-key mapping. The ledger is your recovery map after compaction: a slice it marks
   `merged` is done — never re-dispatch it; trust the ledger and `git log` over memory.
@@ -54,8 +58,8 @@ slice is merged.
 
 ## Progress log (per slice)
 
-Each slice has a **progress log** at `.superdev/reports/<id>/progress.md` — a running record of how the
-slice unfolded, not a final report. **You (the controller) own it:**
+Each slice has a **progress log** at `.superdev/<scope>/reports/<id>/progress.md` — a running record of
+how the slice unfolded, not a final report. **You (the controller) own it:**
 
 - **Seed it** with a header (slice `<id>` + title) before the slice's first dispatch.
 - **Pass its path** to *every* agent you dispatch for that slice — implementer, fix implementers, and
@@ -73,12 +77,14 @@ compaction — can see what happened on a slice without re-reading every worktre
   (`CONTEXT.md`), ADRs (`docs/adr/`), and `.claude/rules/` are committed on the base — worktrees are
   clean checkouts, so uncommitted design docs never reach implementers and path-scoped rules can't
   auto-load. If any are dirty/untracked, commit them to base now.
-- **Scope branch** off base: `git switch -c <scope> <base>` (base from `code-management.md`, default
-  `main`). Then move the **scope/epic** issue → `in-progress` (per `issue-tracker.md`; best-effort).
-- **Per slice**, a branch off scope in its own **worktree** under the scratch dir:
-  `git worktree add .superdev/worktrees/<id> -b slice/<id> <scope>`. Filesystem isolation lets
-  independent slices run in parallel without clobbering each other; `.superdev/` being git-ignored keeps
-  the nested worktrees out of the parent's status.
+- **Scope branch** off base: `git switch -c <scope> <base>` (the `<scope>` chosen in Phase 0; base from
+  `code-management.md`, default `main`). Then move the **scope/epic** issue → `in-progress` (per
+  `issue-tracker.md`; best-effort).
+- **Per slice**, a branch off scope in its own **worktree** under this run's root:
+  `git worktree add .superdev/<scope>/worktrees/<id> -b slice/<scope>/<id> <scope>`. The slice branch is
+  **scoped** (`slice/<scope>/<id>`) so parallel runs never collide even when slice ids repeat (e.g.
+  local-store `01`/`02`). Filesystem isolation lets independent slices run in parallel without clobbering
+  each other; `.superdev/` being git-ignored keeps the nested worktrees out of the parent's status.
 
 ## 3. DAG loop
 
@@ -88,9 +94,10 @@ Repeat until every slice is `merged`:
    `todo`. (Roots have empty `depends-on`.)
 2. **Dispatch implementers in parallel** — one `superdev:implementer` per runnable slice, each in its
    own worktree, each with its `model` from the table below. Give each only its own specifics:
-   the slice `spec` + `acceptance`, its worktree path (`.superdev/worktrees/<id>`) + branch, base/head,
-   its **progress-log** path (`.superdev/reports/<id>/progress.md` — seed it first; see **Progress
-   log**), the global constraints, and interfaces decided by already-merged slices. Not the whole plan.
+   the slice `spec` + `acceptance`, its worktree path (`.superdev/<scope>/worktrees/<id>`) + branch
+   (`slice/<scope>/<id>`), base/head, its **progress-log** path
+   (`.superdev/<scope>/reports/<id>/progress.md` — seed it first; see **Progress log**), the global
+   constraints, and interfaces decided by already-merged slices. Not the whole plan.
    Mark each dispatched slice `in-progress` (store + ledger).
 3. **Per slice, when the implementer returns** (handle status: DONE / DONE_WITH_CONCERNS — address real
    concerns first / NEEDS_CONTEXT — provide it, re-dispatch / BLOCKED — assess: more context, stronger
@@ -102,7 +109,7 @@ Repeat until every slice is `merged`:
      **`superdev:simplicity-reviewer`** (over-engineering); apply warranted cuts.
    - **`mechanical`** / **`docs`** slice → **skip both per-slice reviews** (the suite + the final review
      are the net).
-4. **Merge (you, serially)** — from the scope checkout: `git merge --no-ff slice/<id>`. Resolve any
+4. **Merge (you, serially)** — from the scope checkout: `git merge --no-ff slice/<scope>/<id>`. Resolve any
    conflicts yourself (you hold cross-slice context; dispatch a fix subagent only if a conflict needs
    real code work). **Resolve conflicts only when they're additive.** Independent slices usually
    conflict because each *added* something to the same place — new list/enum/`switch` entries, new
@@ -113,10 +120,10 @@ Repeat until every slice is `merged`:
    suite on scope** after merging — if a test command is configured
    (`docs/agents/verification.md`), the **green-gate hook** runs it for you and blocks with a RED report
    you must fix or revert before continuing. Then clean up: `git worktree remove
-   .superdev/worktrees/<id>` and `git branch -D slice/<id>` (merged; leaving it clutters the repo). The
-   **worktree-sweep** `Stop` hook removes any merged slice worktree you forget, so cleanup is guaranteed
-   even if you skip this — but do it anyway. Move the slice → `merged`/done in the store + ledger.
-   Merging unblocks dependents.
+   .superdev/<scope>/worktrees/<id>` and `git branch -D slice/<scope>/<id>` (merged; leaving it clutters
+   the repo). The **worktree-sweep** `Stop` hook removes any merged slice worktree you forget, so cleanup
+   is guaranteed even if you skip this — but do it anyway. Move the slice → `merged`/done in the store +
+   ledger. Merging unblocks dependents.
 5. Recompute the runnable set and continue.
 
 ## 4. Final phase — whole-scope review, then PR
@@ -134,10 +141,10 @@ Repeat until every slice is `merged`:
 - **Open the PR/MR per `docs/agents/code-management.md`** (default posture = draft; degrade to push +
   printed compare URL + ready-to-run command when no host CLI is present). Report the PR URL to the user.
 - **Clean up worktrees (after the PR).** Per-slice worktrees are already removed at merge (step 3.4);
-  as a final sweep run `git worktree prune`, then remove any remaining `.superdev/worktrees/*` and any
-  leftover `slice/*` branches (`git worktree remove` / `git branch -D`). Keep the rest of `.superdev/`
-  (progress logs, ledger, DoD) — the git-ignored paper trail for post-mortem. **Never** delete the scope
-  branch: the PR is from it.
+  as a final sweep run `git worktree prune`, then remove any remaining `.superdev/<scope>/worktrees/*`
+  and any leftover `slice/<scope>/*` branches (`git worktree remove` / `git branch -D`). Keep the rest of
+  `.superdev/<scope>/` (progress logs, ledger, DoD) — the git-ignored paper trail for post-mortem.
+  **Never** delete the scope branch: the PR is from it.
 
 ## Model selection (always set explicitly)
 

@@ -108,8 +108,9 @@ CONTEXT.md                glossary / ubiquitous language, authored by /plan
 docs/adr/NNNN-*.md        architecture decision records, authored by /plan
 .claude/rules/*.md        path-scoped conventions the implementers auto-load, authored by /plan
 docs/kb/                  knowledge base, only if the local-file KB backend is chosen
-.superdev/                git-ignored run scratch: the concrete DoD, the ledger, per-slice
-                          progress logs + worktrees — never committed, never in the PR
+.superdev/<scope>/        git-ignored run scratch, namespaced per scope branch so parallel runs
+                          don't collide: the concrete DoD, the ledger, per-slice progress logs +
+                          worktrees — never committed, never in the PR
 ```
 
 Everything except `.superdev/` is committed — the design docs (glossary, ADRs, rules) **must** be on the

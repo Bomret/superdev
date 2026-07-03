@@ -104,8 +104,8 @@ work committed.
 
 ## Progress log & report
 
-The controller gives you a **progress-log** path (`.superdev/reports/<id>/progress.md`). **Append to it
-as you work** — don't save it for the end:
+The controller gives you a **progress-log** path (under this run's scope root, e.g.
+`.superdev/<scope>/reports/<id>/progress.md`). **Append to it as you work** — don't save it for the end:
 
 - a line when you **start** (slice id, what you're building);
 - a line per **RED→GREEN increment**, and per real decision or `shortcut:` you make;
