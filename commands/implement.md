@@ -131,6 +131,11 @@ Repeat until every slice is `merged`:
 - Confirm **every Phase 0 DoD item is met**, then move the scope/epic issue → `done`.
 - **Open the PR/MR per `docs/agents/code-management.md`** (default posture = draft; degrade to push +
   printed compare URL + ready-to-run command when no host CLI is present). Report the PR URL to the user.
+- **Clean up worktrees (after the PR).** Per-slice worktrees are already removed at merge (step 3.4);
+  as a final sweep run `git worktree prune`, then remove any remaining `.superdev/worktrees/*` and any
+  leftover `slice/*` branches (`git worktree remove` / `git branch -D`). Keep the rest of `.superdev/`
+  (progress logs, ledger, DoD) — the git-ignored paper trail for post-mortem. **Never** delete the scope
+  branch: the PR is from it.
 
 ## Model selection (always set explicitly)
 
