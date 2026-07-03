@@ -161,8 +161,11 @@ Then, in each repo you want to use it: run **`/superdev:setup`** once, then `/su
 
 ## Updating
 
-superdev is a third-party marketplace, so **auto-update is off by default** — updates are pull-based.
-Pull a new version with:
+Easiest — run **`/superdev:upgrade`**: it checks for a newer release and installs it in place (then
+restart Claude Code to load it). No manual `/plugin` steps.
+
+superdev is a third-party marketplace, so **auto-update is off by default** — updates are otherwise
+pull-based. The manual equivalent of `/superdev:upgrade`:
 
 ```
 /plugin marketplace update superdev     # refresh the catalog from the git host
