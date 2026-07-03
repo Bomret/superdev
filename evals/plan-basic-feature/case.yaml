@@ -1,0 +1,53 @@
+schema_version: "1.0"
+name: plan-basic-feature
+description: >-
+  /superdev:plan turns a small feature intent into a plan carrying a global
+  Definition of Done and at least two dependency-tagged vertical slices.
+tags:
+  - plan
+
+context:
+  scaffold_script: |
+    set -e
+    mkdir -p docs/agents
+    cat > docs/agents/issue-tracker.md <<'DOC'
+    # Slice store: Local plan files
+
+    A feature's plan is a directory of markdown files: `docs/plans/<feature-slug>/`.
+
+    - `00-epic-<summary>.md` — the scope file: global Definition of Done + a
+      short description of the feature. Not a slice.
+    - `NN-<test-applicability>-<summary>.md` (N >= 01) — one slice per file.
+      `<test-applicability>` is `behavior` | `mechanical` | `docs`. The
+      zero-padded number is the slice `id`; `depends-on` references those
+      numbers directly (e.g. `depends-on: [01, 03]`).
+
+    Slice file body: `depends-on:`, `test-applicability:`, `status: todo`,
+    a `## spec` section, and an `## acceptance` section.
+    DOC
+
+execution:
+  prompt: |
+    Run /superdev:plan for this feature intent — answer every interview
+    question yourself from the description below instead of waiting for a
+    reply (state each assumption inline, then move straight on):
+
+    "Add a `/health` HTTP endpoint that returns 200 with `{\"status\":\"ok\"}`,
+    for uptime monitors to poll. Global Definition of Done: a request to
+    `/health` returns 200 with that body, verified by a test."
+
+    Decompose into at least two vertical slices, each with an explicit
+    `depends-on` and a classified `test-applicability`. Write the plan
+    straight to `docs/plans/health-endpoint/` per the plan-contract — this is
+    a non-interactive run, so skip asking for approval and write the files.
+  max_turns: 40
+  timeout_seconds: 900
+  allowed_tools:
+    - Read
+    - Write
+    - Edit
+    - Glob
+    - Grep
+    - Bash
+
+runs: 1

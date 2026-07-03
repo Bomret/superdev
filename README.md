@@ -9,6 +9,7 @@ host.
 /superdev:setup      → configure backends in docs/agents/*.md (once per repo)
 /superdev:plan       → interview + slice a feature into the slice store
 /superdev:implement  → drive the slices to merge, then open the PR
+/superdev:status     → read-only DAG progress snapshot for in-flight runs
 /superdev:document   → reconcile in-repo docs + knowledge base with the code (also runs at implement's end)
 ```
 
@@ -22,6 +23,9 @@ host.
   minimalism); each behavior slice is gated by a separate **correctness reviewer** and an
   **over-engineering reviewer**; the controller merges **serially**; when all slices land, one
   **whole-scope review** gates the **PR**.
+- **`/superdev:status`** — a read-only snapshot of every in-flight `/superdev:implement` run in the repo:
+  per scope, slice counts by status and which slices are `blocked`. Never writes, transitions, or merges
+  anything.
 - **`/superdev:document`** — dispatches the `doc-writer` to reconcile the in-repo docs
   (`AGENTS.md` hierarchy) and the optional knowledge base with the current code — adding what's new and
   **removing stale/obsolete** text. Runs automatically at the end of every `/superdev:implement`, and on
@@ -115,6 +119,26 @@ docs/kb/                  knowledge base, only if the local-file KB backend is c
 
 Everything except `.superdev/` is committed — the design docs (glossary, ADRs, rules) **must** be on the
 branch, because the implementer subagents run in fresh worktree checkouts and only see what's committed.
+
+## Worked example
+
+A tiny feature end to end, with the local-file slice store and GitHub as the code host:
+
+- **`/superdev:setup`** (once per repo) — a short interview, then `docs/agents/*.md` is written: slice
+  store = local files, code host = GitHub (`gh`), documentation = the `AGENTS.md` hierarchy,
+  verification = `npm test`, no knowledge base.
+- **`/superdev:plan add a health-check endpoint`** — interviews for intent + a Definition of Done, then
+  writes `docs/plans/health-check/`: `00-epic-*` (DoD + scope) plus two slices, e.g.
+  `01-behavior-route-handler.md` and `02-behavior-wire-into-router.md`, the second `depends-on` the
+  first. You see the slice list printed back, ready for `/implement`.
+- **`/superdev:implement health-check`** — sets up `.superdev/health-check/` (git-ignored run scratch:
+  concrete DoD, ledger, per-slice progress logs and worktrees). Slice 01 has no dependencies, so an
+  `implementer` subagent TDDs it in its own worktree, a `slice-reviewer` and `simplicity-reviewer` gate
+  it, the controller merges it; slice 02 then unblocks and follows the same loop. Once both are merged,
+  a `final-reviewer` gates the whole scope, then the controller opens the PR and stops. You see a
+  one-line status per slice as it lands, then the PR URL.
+- **After** — review comments or flaky CI on the open PR are a `/loop` job, not `/implement`'s concern
+  (see [After the PR](#after-the-pr)).
 
 ## Install
 

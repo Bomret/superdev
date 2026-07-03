@@ -22,11 +22,12 @@ guardrails, and a pluggable slice store + code host. No prerequisite plugins.
   plugin.json          — plugin manifest (name, version, author); version is the SINGLE source of truth.
                          No `hooks` field — Claude Code auto-loads the standard hooks/hooks.json.
   marketplace.json     — single-plugin marketplace manifest (deliberately NO version field)
-commands/              — slash commands (*.md): setup, plan, implement, document, upgrade
+commands/              — slash commands (*.md): setup, plan, implement, document, upgrade, status
 agents/                — subagents (*.md): implementer, slice-reviewer, simplicity-reviewer, final-reviewer, doc-writer
 hooks/                 — deterministic Node hooks + hooks.json: merge-guard, model-explicit, green-gate,
                          worktree-sweep, update-check
 references/            — backend seed templates + plan-contract + documentation convention
+evals/                 — `claude plugin eval` cases (*/case.yaml + graders/*.md) exercising the commands
 release.config.cjs     — semantic-release config (semantic-release-replace-plugin bumps plugin.json)
 package.json           — dev-only tooling (Bun); NOT published to npm
 CHANGELOG.md           — release-managed by semantic-release; do not hand-edit
@@ -52,7 +53,8 @@ The plugin ships as markdown + JS hooks — there is **no build step**. `command
   resolves the plugin's `package.json` when running a hook and would treat every hook as ESM, breaking
   them in production. Only `.mjs` is ESM (extension-scoped).
 - **Every hook ships a `--selftest`.** Add one for any new hook; `bun run test` runs them all (under
-  `node`, matching the production runtime).
+  `node`, matching the production runtime), then runs `claude plugin validate .` as a manifest-validation
+  gate.
 - **Version lives only in `.claude-plugin/plugin.json`.** Never hand-edit it — semantic-release +
   `semantic-release-replace-plugin` bump it on release. `marketplace.json` carries no version (avoids the
   double-pin, where `plugin.json` would silently win).
@@ -64,7 +66,8 @@ The plugin ships as markdown + JS hooks — there is **no build step**. `command
 
 ```
 bun install                        # install dev deps (release toolchain)
-bun run test                       # hook selftests
+bun run test                       # hook selftests + plugin manifest validation
+bun run eval                       # run the evals/ cases against the commands
 GITEA_TOKEN=<token> bun run release  # cut a release from clean main (see RELEASING.md)
 ```
 

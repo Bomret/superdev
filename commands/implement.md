@@ -92,12 +92,18 @@ Repeat until every slice is `merged`:
 
 1. **Compute the runnable set** — slices whose `depends-on` are all `merged` and which are still
    `todo`. (Roots have empty `depends-on`.)
-2. **Dispatch implementers in parallel** — one `superdev:implementer` per runnable slice, each in its
-   own worktree, each with its `model` from the table below. Give each only its own specifics:
+2. **Dispatch implementers in parallel, capped** — one `superdev:implementer` per runnable slice, each
+   in its own worktree, each with its `model` from the table below. Give each only its own specifics:
    the slice `spec` + `acceptance`, its worktree path (`.superdev/<scope>/worktrees/<id>`) + branch
    (`slice/<scope>/<id>`), base/head, its **progress-log** path
    (`.superdev/<scope>/reports/<id>/progress.md` — seed it first; see **Progress log**), the global
    constraints, and interfaces decided by already-merged slices. Not the whole plan.
+   Cap how many run **concurrently** at a **max-concurrent-implementers** limit (default **4**;
+   configurable — raise it once you've piloted a scope and trust the cost + merge-queue size, lower it
+   for a heavier model or a tighter budget). If the runnable set exceeds the cap, dispatch in **waves**:
+   fill the cap, and as each implementer returns (step 3 completes for it), backfill from the remaining
+   runnable set until it's exhausted — never dispatch more than the cap at once. The cap only throttles
+   concurrency; it never changes `depends-on` / DAG semantics or which slices are runnable.
    Mark each dispatched slice `in-progress` (store + ledger).
 3. **Per slice, when the implementer returns** (handle status: DONE / DONE_WITH_CONCERNS — address real
    concerns first / NEEDS_CONTEXT — provide it, re-dispatch / BLOCKED — assess: more context, stronger
@@ -125,6 +131,23 @@ Repeat until every slice is `merged`:
    is guaranteed even if you skip this — but do it anyway. Move the slice → `merged`/done in the store +
    ledger. Merging unblocks dependents.
 5. Recompute the runnable set and continue.
+
+### Resume (re-running `/superdev:implement` on an existing scope)
+
+Re-entering an already-started scope — a fresh session, a re-run after compaction, or an interruption
+mid-loop — is a **first-class path through the loop above, not a special case**: before dispatching
+anything, reconcile state, then re-enter the DAG loop at step 1.
+
+- **Reconcile before dispatching.** Read `.superdev/<scope>/ledger.md`, cross-check it against
+  `git log <base>..<scope>` (merge commits name the slice branch) and the store's slice statuses. A
+  slice the ledger — or the merge log — marks `merged` is done: **never re-dispatch it**, no matter what
+  a stale in-progress worktree suggests.
+- **Reconcile leftover worktrees.** For each `.superdev/<scope>/worktrees/<id>` still present, check its
+  branch against the ledger: already merged → clean it up (`git worktree remove` +
+  `git branch -D slice/<scope>/<id>`); not yet merged → resume it in place (dispatch there with its
+  existing commits intact, per the implementer's own resume discipline) rather than recreating it.
+- **Rebuild the runnable set from reconciled state** (DAG loop step 1) and continue the loop exactly as
+  above — dispatch, review, merge, recompute — until every slice is `merged`.
 
 ## 4. Final phase — whole-scope review, then PR
 

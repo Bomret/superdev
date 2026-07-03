@@ -5,8 +5,8 @@ Codeberg repo **Wiki** for `bomret/superdev`. Distinct from the agent-first in-r
 
 ## Configuration
 
-- **Backend:** Codeberg repo Wiki. **The Wiki unit must be enabled** on the repo
-  (`PATCH /api/v1/repos/bomret/superdev { "has_wiki": true }` — currently off; enable once with the
+- **Backend:** Codeberg repo Wiki. **The Wiki unit is enabled** on the repo (`has_wiki: true`; if it's
+  ever disabled, re-enable with `PATCH /api/v1/repos/bomret/superdev { "has_wiki": true }` using the
   `GITEA_TOKEN`).
 - **Auth:** `GITEA_TOKEN` (header `Authorization: token $GITEA_TOKEN`).
 - **Audience:** superdev **adopters** (people installing/using the plugin) first; **maintainers** second.
