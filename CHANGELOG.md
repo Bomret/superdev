@@ -1,3 +1,10 @@
+# [0.8.0](https://codeberg.org/bomret/superdev/compare/v0.7.0...v0.8.0) (2026-07-03)
+
+
+### Features
+
+* secret hygiene in subagent bodies ([#17](https://codeberg.org/bomret/superdev/issues/17)) ([caa5c00](https://codeberg.org/bomret/superdev/commit/caa5c00189a0a1867bdf1ba107dba9a49cca4638)), closes [#15](https://codeberg.org/bomret/superdev/issues/15)
+
 # [0.7.0](https://codeberg.org/bomret/superdev/compare/v0.6.0...v0.7.0) (2026-07-03)
 
 
