@@ -5,10 +5,14 @@
 // worktrees so they don't pile up when the controller skips the prompted cleanup.
 //
 // superdev lays worktrees out per scope run: .superdev/<scope>/worktrees/<id>, on a
-// scoped branch slice/<scope>/<id>. This hook removes any such worktree whose branch
-// is FULLY MERGED into the current branch — i.e. an already-integrated slice. An
-// unmerged (in-progress) or reverted slice is left untouched, so it is safe to fire on
-// every turn, mid-run included, and self-corrects if a merge is later reverted.
+// scoped branch slice/<scope>/<id>. A worktree is removed only when its branch is BOTH:
+//   (a) fully merged into the current branch (integrated), AND
+//   (b) "worked" — it has ≥1 commit not reachable from the repo's default branch.
+// (b) is the critical guard: a freshly-created slice branch with zero commits is
+// trivially an ancestor of (hence "merged" into) its base, so `--merged` alone would
+// sweep active, not-yet-committed worktrees out from under running implementers. An
+// unmerged in-progress slice fails (a); a fresh empty slice fails (b); only a genuinely
+// integrated slice satisfies both. Safe to fire every turn, self-corrects on reverts.
 // Best-effort and silent: any git error, a dirty worktree, or no .superdev/ → no-op.
 
 const { execSync } = require('node:child_process');
@@ -19,10 +23,27 @@ function sh(cmd, cwd) {
   return execSync(cmd, { cwd, stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' }).trim();
 }
 
-// Pure: from `git worktree list --porcelain` text, the set of merged branch names, and
-// the absolute .superdev root, return the {wt, br} entries safe to remove — a slice/*
-// branch, fully merged, whose worktree sits in a `worktrees/` dir under .superdev/.
-function selectRemovable(porcelain, mergedSet, superdevRoot) {
+// The repo's default branch name (main/master), used as the "base" that worked slices
+// have commits beyond. Null if undetectable → nothing is swept (safe).
+function defaultBranch(cwd) {
+  try {
+    return sh('git symbolic-ref --short refs/remotes/origin/HEAD', cwd).replace(/^origin\//, '');
+  } catch {
+    for (const b of ['main', 'master']) {
+      try {
+        sh(`git show-ref --verify --quiet refs/heads/${b}`, cwd);
+        return b;
+      } catch {
+        /* not this one */
+      }
+    }
+    return null;
+  }
+}
+
+// Pure: from `git worktree list --porcelain` text, the merged-branch set, the worked-branch
+// set, and the absolute .superdev root, return the {wt, br} entries safe to remove.
+function selectRemovable(porcelain, mergedSet, workedSet, superdevRoot) {
   const prefix = superdevRoot.endsWith(path.sep) ? superdevRoot : superdevRoot + path.sep;
   const out = [];
   for (const block of porcelain.split('\n\n')) {
@@ -32,7 +53,8 @@ function selectRemovable(porcelain, mergedSet, superdevRoot) {
     if (!wt.startsWith(prefix)) continue; // only worktrees under .superdev/
     if (path.basename(path.dirname(wt)) !== 'worktrees') continue; // .../<scope>/worktrees/<id>
     if (!/^slice\//.test(br)) continue; // only slice/* branches
-    if (!mergedSet.has(br)) continue; // only fully-merged (integrated) slices
+    if (!mergedSet.has(br)) continue; // (a) integrated into the current branch
+    if (!workedSet.has(br)) continue; // (b) has real committed work — not a fresh empty branch
     out.push({ wt, br });
   }
   return out;
@@ -41,7 +63,9 @@ function selectRemovable(porcelain, mergedSet, superdevRoot) {
 function main(cwd) {
   const superdevRoot = path.join(cwd, '.superdev');
   if (!fs.existsSync(superdevRoot)) return; // not a superdev run in this repo
-  let merged, porcelain;
+  const def = defaultBranch(cwd);
+  if (!def) return; // can't establish a base → don't risk sweeping
+  let merged, worked, porcelain;
   try {
     merged = new Set(
       sh('git branch --merged', cwd)
@@ -49,11 +73,19 @@ function main(cwd) {
         .map((s) => s.replace(/^[*+ ]+/, '').trim())
         .filter(Boolean)
     );
+    // slice branches with ≥1 commit not in the default branch = genuinely worked
+    worked = new Set();
+    const sliceBranches = sh("git for-each-ref --format=%(refname:short) refs/heads/slice", cwd)
+      .split('\n')
+      .filter(Boolean);
+    for (const b of sliceBranches) {
+      if (sh(`git rev-list -n1 ${b} --not ${def}`, cwd)) worked.add(b);
+    }
     porcelain = sh('git worktree list --porcelain', cwd);
   } catch {
     return; // not a git repo / detached HEAD → bail quietly
   }
-  for (const { wt, br } of selectRemovable(porcelain, merged, superdevRoot)) {
+  for (const { wt, br } of selectRemovable(porcelain, merged, worked, superdevRoot)) {
     try {
       sh(`git worktree remove "${wt}"`, cwd); // refuses if dirty → caught, left for later
       sh(`git branch -D "${br}"`, cwd);
@@ -66,29 +98,26 @@ function main(cwd) {
 if (process.argv[2] === '--selftest') {
   const assert = require('node:assert');
   const root = '/repo/.superdev';
-  // scope names may contain slashes (e.g. superdev/featA) → nested dirs and branch refs
   const porcelain = [
     'worktree /repo\nHEAD a\nbranch refs/heads/main',
-    'worktree /repo/.superdev/superdev/featA/worktrees/01\nHEAD b\nbranch refs/heads/slice/superdev/featA/01',
-    'worktree /repo/.superdev/superdev/featB/worktrees/01\nHEAD c\nbranch refs/heads/slice/superdev/featB/01',
-    'worktree /repo/.superdev/superdev/featA/worktrees/02\nHEAD d\ndetached',
+    'worktree /repo/.superdev/self-improvements/worktrees/2\nHEAD b\nbranch refs/heads/slice/self-improvements/2',
+    'worktree /repo/.superdev/self-improvements/worktrees/4\nHEAD c\nbranch refs/heads/slice/self-improvements/4',
+    'worktree /repo/.superdev/self-improvements/worktrees/5\nHEAD d\nbranch refs/heads/slice/self-improvements/5',
   ].join('\n\n');
-  const merged = new Set(['main', 'slice/superdev/featA/01']);
+  const merged = new Set(['main', 'slice/self-improvements/2', 'slice/self-improvements/4']);
+  const worked = new Set(['slice/self-improvements/2', 'slice/self-improvements/5']);
+  // #2: merged AND worked → remove. #4: merged but NOT worked (fresh) → skip (the bug).
+  // #5: worked but NOT merged → skip.
   assert.deepEqual(
-    selectRemovable(porcelain, merged, root),
-    [{ wt: '/repo/.superdev/superdev/featA/worktrees/01', br: 'slice/superdev/featA/01' }],
-    'only the merged, non-detached slice worktree under .superdev/**/worktrees/'
+    selectRemovable(porcelain, merged, worked, root),
+    [{ wt: '/repo/.superdev/self-improvements/worktrees/2', br: 'slice/self-improvements/2' }],
+    'only the merged-AND-worked slice is swept'
   );
-  assert.deepEqual(selectRemovable(porcelain, new Set(['main']), root), [], 'nothing merged → nothing removed');
+  assert.deepEqual(selectRemovable(porcelain, merged, new Set(), root), [], 'no worked branches → nothing swept');
   assert.deepEqual(
-    selectRemovable('worktree /other/x\nbranch refs/heads/slice/s/01', new Set(['slice/s/01']), root),
-    [],
-    'slice worktree outside .superdev/ → skipped'
-  );
-  assert.deepEqual(
-    selectRemovable('worktree /repo/.superdev/x/01\nbranch refs/heads/slice/x/01', new Set(['slice/x/01']), root),
-    [],
-    'not under a worktrees/ dir → skipped'
+    selectRemovable('worktree /repo/.superdev/x/worktrees/1\nbranch refs/heads/slice/x/1', new Set(['slice/x/1']), new Set(['slice/x/1']), root),
+    [{ wt: '/repo/.superdev/x/worktrees/1', br: 'slice/x/1' }],
+    'merged+worked under any scope'
   );
   console.log('worktree-sweep selftest ok');
 } else {
