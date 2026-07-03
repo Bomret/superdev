@@ -113,8 +113,10 @@ Repeat until every slice is `merged`:
    suite on scope** after merging — if a test command is configured
    (`docs/agents/verification.md`), the **green-gate hook** runs it for you and blocks with a RED report
    you must fix or revert before continuing. Then clean up: `git worktree remove
-   .superdev/worktrees/<id>` and `git branch -D slice/<id>` (merged; leaving it clutters the repo).
-   Move the slice → `merged`/done in the store + ledger. Merging unblocks dependents.
+   .superdev/worktrees/<id>` and `git branch -D slice/<id>` (merged; leaving it clutters the repo). The
+   **worktree-sweep** `Stop` hook removes any merged slice worktree you forget, so cleanup is guaranteed
+   even if you skip this — but do it anyway. Move the slice → `merged`/done in the store + ledger.
+   Merging unblocks dependents.
 5. Recompute the runnable set and continue.
 
 ## 4. Final phase — whole-scope review, then PR

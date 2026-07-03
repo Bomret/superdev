@@ -59,8 +59,11 @@ Cross-platform Node hooks (`node` is a Claude Code runtime dependency — no bas
 - **green-gate** — after a controller merge, re-runs the configured test command and blocks on a RED
   suite, so "tests pass on scope after merging" is enforced, not merely prompted. Inactive until a test
   command is recorded in `docs/agents/verification.md` (via `/superdev:setup`).
+- **worktree-sweep** — a `Stop` hook that removes each per-slice worktree + branch once its slice is
+  fully merged, so finished worktrees can't pile up when the controller skips the prompted cleanup.
+  Only touches merged `slice/*` worktrees under `.superdev/`; in-progress and reverted slices are left.
 
-A fourth Node hook, **update-check**, is a `SessionStart` *notice* (not a guardrail) — see
+A fifth Node hook, **update-check**, is a `SessionStart` *notice* (not a guardrail) — see
 [Updating](#updating).
 
 ## Configuration & backends

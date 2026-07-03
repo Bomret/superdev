@@ -24,7 +24,8 @@ guardrails, and a pluggable slice store + code host. No prerequisite plugins.
   marketplace.json     — single-plugin marketplace manifest (deliberately NO version field)
 commands/              — slash commands (*.md): setup, plan, implement, document
 agents/                — subagents (*.md): implementer, slice-reviewer, simplicity-reviewer, final-reviewer, doc-writer
-hooks/                 — deterministic Node hooks + hooks.json: merge-guard, model-explicit, green-gate, update-check
+hooks/                 — deterministic Node hooks + hooks.json: merge-guard, model-explicit, green-gate,
+                         worktree-sweep, update-check
 references/            — backend seed templates + plan-contract + documentation convention
 release.config.cjs     — semantic-release config (semantic-release-replace-plugin bumps plugin.json)
 package.json           — dev-only tooling (Bun); NOT published to npm
