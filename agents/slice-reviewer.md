@@ -62,3 +62,7 @@ For each: file:line · what's wrong · why it matters · how to fix (if not obvi
 Categorize by **actual** severity — not everything is Critical. Give a clear verdict. If you cannot
 verify a requirement from the diff alone (it lives in unchanged code or spans slices), say so as a
 "⚠️ cannot verify from diff" item — don't guess.
+
+If the controller gives you a **progress-log** path (`.superdev/reports/<id>/progress.md`), **append**
+one line recording your verdict + finding counts (e.g. `slice-reviewer: spec ✅, 2 Important, 0
+Critical`). Append only — never overwrite earlier entries.

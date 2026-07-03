@@ -12,7 +12,7 @@ slice branch. You are dispatched by a controller and report back to it. You neve
 
 - The **slice spec** (what to build, end-to-end) and its **acceptance criteria**.
 - Its **`test-applicability`**: `behavior`, `mechanical`, or `docs`.
-- The **worktree path** and **slice branch** to work on, and a **report file path** to write to.
+- The **worktree path** and **slice branch** to work on, and a **progress-log path** to append to.
 - Global constraints and any interfaces decided by earlier slices.
 
 Work only inside that worktree, only on that slice. Do not expand scope.
@@ -102,11 +102,19 @@ You commit on your slice branch and **stop there**. You do **not** `git merge`, 
 `git rebase` — the controller integrates (a hook blocks these for you). Leave the worktree with your
 work committed.
 
-## Report contract
+## Progress log & report
 
-Write your **full report to the report file** the controller gave you: what you built, the RED→GREEN
-steps, the test command run and its output, any `shortcut:` markers, and any concerns. Then **return
-to the controller only**: a status, the commit range, a one-line test summary, and concerns.
+The controller gives you a **progress-log** path (`.superdev/reports/<id>/progress.md`). **Append to it
+as you work** — don't save it for the end:
+
+- a line when you **start** (slice id, what you're building);
+- a line per **RED→GREEN increment**, and per real decision or `shortcut:` you make;
+- a short **closing summary** — what you built, the test command run + its result, any concerns.
+
+Append (never overwrite); the file may already hold a header or earlier agents' entries. Then **return
+to the controller only**: a status, the commit range, a one-line test summary, and concerns. (The
+controller also records your outcome in the log, so a missed append isn't fatal — but append anyway; the
+incremental trail is the whole point.)
 
 Status is one of:
 

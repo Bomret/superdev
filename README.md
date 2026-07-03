@@ -106,7 +106,7 @@ docs/adr/NNNN-*.md        architecture decision records, authored by /plan
 .claude/rules/*.md        path-scoped conventions the implementers auto-load, authored by /plan
 docs/kb/                  knowledge base, only if the local-file KB backend is chosen
 .superdev/                git-ignored run scratch: the concrete DoD, the ledger, per-slice
-                          worktrees + reviewer reports — never committed, never in the PR
+                          progress logs + worktrees — never committed, never in the PR
 ```
 
 Everything except `.superdev/` is committed — the design docs (glossary, ADRs, rules) **must** be on the

@@ -30,8 +30,9 @@ just dispatch them with the per-slice specifics. **Always pass an explicit `mode
 
 - **Scratch dir.** All superdev run artifacts live under `.superdev/` — **git-ignored** (ensure
   `.superdev/` is in the repo's `.gitignore`; add it if absent). Layout: `.superdev/dod.md` (the DoD),
-  `.superdev/ledger.md` (the ledger), `.superdev/reports/` (per-slice subagent reports),
-  `.superdev/worktrees/` (per-slice worktrees). Nothing here is committed or lands in the PR.
+  `.superdev/ledger.md` (the ledger), `.superdev/reports/<id>/progress.md` (per-slice progress log — see
+  **Progress log** below), `.superdev/worktrees/` (per-slice worktrees). Nothing here is committed or
+  lands in the PR.
 - Write the **global verification plan** (the DoD, made concrete and checkable) to `.superdev/dod.md`.
   It anchors the final review and tells you when to stop. No DoD → don't proceed.
 - Create the **ledger** at `.superdev/ledger.md`. Track each slice's status
@@ -50,6 +51,21 @@ control flow, so if a status write/transition fails, log it and keep going. Poin
 `in-progress`; entering per-slice review (behavior only) → `in-review`; BLOCKED → `blocked`; merged →
 `merged`/done. The **scope/epic** issue moves to `in-progress` when the run starts and `done` once every
 slice is merged.
+
+## Progress log (per slice)
+
+Each slice has a **progress log** at `.superdev/reports/<id>/progress.md` — a running record of how the
+slice unfolded, not a final report. **You (the controller) own it:**
+
+- **Seed it** with a header (slice `<id>` + title) before the slice's first dispatch.
+- **Pass its path** to *every* agent you dispatch for that slice — implementer, fix implementers, and
+  reviewers — and tell each to append to it as it works.
+- **After each agent returns, append a one-line outcome yourself** (agent, status, commit range or
+  finding count). This is the guarantee: a loaded subagent often skips a prompted write, so your own
+  post-return entry means the log is complete even when the agent wrote nothing.
+
+Append-only, oldest-first, git-ignored scratch. It exists so a human — or a controller resumed after
+compaction — can see what happened on a slice without re-reading every worktree.
 
 ## 2. Branch model
 
@@ -73,9 +89,9 @@ Repeat until every slice is `merged`:
 2. **Dispatch implementers in parallel** — one `superdev:implementer` per runnable slice, each in its
    own worktree, each with its `model` from the table below. Give each only its own specifics:
    the slice `spec` + `acceptance`, its worktree path (`.superdev/worktrees/<id>`) + branch, base/head,
-   a report-file path (`.superdev/reports/report-<id>.md`), the global constraints, and interfaces
-   decided by already-merged slices. Not the whole plan. Mark each dispatched slice `in-progress` (store
-   + ledger).
+   its **progress-log** path (`.superdev/reports/<id>/progress.md` — seed it first; see **Progress
+   log**), the global constraints, and interfaces decided by already-merged slices. Not the whole plan.
+   Mark each dispatched slice `in-progress` (store + ledger).
 3. **Per slice, when the implementer returns** (handle status: DONE / DONE_WITH_CONCERNS — address real
    concerns first / NEEDS_CONTEXT — provide it, re-dispatch / BLOCKED — assess: more context, stronger
    model, split the slice, or escalate to the human — and move the slice → `blocked` while it's stuck):
