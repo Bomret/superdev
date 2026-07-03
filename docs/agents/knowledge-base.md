@@ -1,5 +1,32 @@
-# Knowledge base: none
+# Knowledge base: Codeberg Wiki (Forgejo)
 
-There is no separate knowledge base for this repo. The in-repo docs — `README.md`, `RELEASING.md`, the
-`AGENTS.md` hierarchy, and the `references/` seed templates — are the only durable record.
-`/superdev:document` runs the in-repo docs pass only (no KB pass).
+Durable, **human-first** reader-facing docs (PRDs, design overviews, ADR summaries) live in the
+Codeberg repo **Wiki** for `bomret/superdev`. Distinct from the agent-first in-repo `AGENTS.md` docs.
+
+## Configuration
+
+- **Backend:** Codeberg repo Wiki. **The Wiki unit must be enabled** on the repo
+  (`PATCH /api/v1/repos/bomret/superdev { "has_wiki": true }` — currently off; enable once with the
+  `GITEA_TOKEN`).
+- **Auth:** `GITEA_TOKEN` (header `Authorization: token $GITEA_TOKEN`).
+- **Audience:** superdev **adopters** (people installing/using the plugin) first; **maintainers** second.
+- **Language:** English.
+
+## Outline (living skeleton — `/plan` and `/document` fill and extend it)
+
+- **Overview** — what superdev is + the plan→implement loop (adopter-facing).
+- **Concepts** — slice store, code host, documentation convention, knowledge base, verification.
+- **Design notes / PRD summaries** — one page per significant feature.
+- **ADR summaries** — human-readable digests of `docs/adr/` decisions.
+- **Guides** — install, configure a backend, cut a release.
+
+## REST conventions
+
+- **Create/update a page:** `POST /api/v1/repos/bomret/superdev/wiki/new` with
+  `{ "title": "...", "content_base64": "<base64 markdown>", "message": "..." }`; update with
+  `PATCH /api/v1/repos/bomret/superdev/wiki/page/<pageName>`.
+- **Find an existing page:** `GET /api/v1/repos/bomret/superdev/wiki/pages` (don't duplicate — update).
+- If the token is missing or the Wiki unit is disabled, **skip publishing, note it**, and leave the
+  in-repo docs as the record — do not fail.
+
+Human-consumption first: shape pages around the audience, write in English, follow the outline above.
