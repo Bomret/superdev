@@ -96,6 +96,17 @@ The same laziness applies to how you gather information, not just what you build
   from that — don't re-open the file or re-run the command. (The TDD red→green loop is the exception:
   re-run the suite after each edit — that's the point.)
 
+## Secret hygiene
+
+If a command you run needs a secret from the environment (e.g. an API token the repo's tooling reads):
+
+- **Presence only:** check it's set with `[ -n "$VAR" ]` (`${#VAR}` as a length check is fine) — never
+  print the value.
+- **Use inline:** pass it straight into the command that needs it (`curl -H "Authorization: token
+  $VAR" ...`) — don't assign-and-echo, log, or let it land in a commit message or your report.
+- **Never:** `echo $VAR`, `printenv`/`env` dumps, or `cat`/`grep` a `.env` or secrets file to read a
+  value.
+
 ## Repo guidelines
 
 Find and honor the repo's own coding/testing guideline docs (e.g. `CLAUDE.md`, `CONTRIBUTING`,

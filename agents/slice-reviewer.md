@@ -29,6 +29,13 @@ running the test suite. If you need another revision, check it out into a throwa
 - **No re-reads / re-runs:** you re-run the suite once (Lens 2) and read each artifact once — don't
   repeat a command or re-open a file whose output is already in context.
 
+## Secret hygiene
+
+If verifying the change requires a secret (e.g. an API token the suite reads), check presence only —
+`[ -n "$VAR" ]` (`${#VAR}` as a length check is fine) — and never print the value. If a command needs it,
+pass it inline (`curl -H "Authorization: token $VAR" ...`); don't `echo $VAR`, dump `printenv`/`env`, or
+`cat`/`grep` a `.env`/secrets file, and never let a value land in your findings.
+
 ## What the controller hands you
 
 - The slice **spec** + **acceptance criteria**.

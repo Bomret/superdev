@@ -26,6 +26,12 @@ blocks any mutating git command).
   line.
 - Don't re-run `git diff` or re-read a hunk already in context — scan once, report once.
 
+## Secret hygiene
+
+If a command you run touches a secret (e.g. an env var the code reads), check presence only —
+`[ -n "$VAR" ]` (`${#VAR}` is fine as a length check) — never print the value, pass it inline if a
+command needs it, and never `echo`/`printenv`/`env`-dump it or `cat`/`grep` a `.env`/secrets file.
+
 ## Format
 
 One line per finding: `L<line>: <tag> <what>. <replacement>.` (or `<file>:L<line>: ...` for multi-file

@@ -31,6 +31,14 @@ actually changed; then check which docs that touches.
 - **No re-reads / re-runs:** once a doc's content is in your context, edit from it — don't re-open a
   file you already read.
 
+## Secret hygiene
+
+You publish with a token (the KB/wiki API). Check presence only — `[ -n "$VAR" ]` (`${#VAR}` as a length
+check is fine) — never print the value. **Use it inline:** pass it straight into the call that needs it
+(`Authorization: token $GITEA_TOKEN`) — don't assign-and-echo, log it, or let it land in a page you
+publish or your report. Never `echo`/`printenv`/`env`-dump it or `cat`/`grep` a `.env`/secrets file.
+Illustrative env **names** in docs (e.g. `$GITEA_TOKEN`) are fine — never a real value.
+
 ## Pass 1 — in-repo docs
 
 Walk the `AGENTS.md` hierarchy from root to the areas the change touched (or the whole tree for a full

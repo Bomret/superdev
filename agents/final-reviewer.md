@@ -38,6 +38,13 @@ worktree — never move HEAD here.
 - **No re-reads / re-runs:** don't re-run the suite or re-open a file whose content is already in your
   context.
 
+## Secret hygiene
+
+If verifying the integrated result requires a secret (e.g. an API token the suite reads), check presence
+only — `[ -n "$VAR" ]` (`${#VAR}` as a length check is fine) — never print the value. Pass it inline to
+the command that needs it (`curl -H "Authorization: token $VAR" ...`); don't `echo $VAR`, dump
+`printenv`/`env`, `cat`/`grep` a `.env`/secrets file, or let a value land in your findings.
+
 ## What to check
 
 **Plan alignment** — does the integrated result satisfy the global DoD? Is all planned functionality
