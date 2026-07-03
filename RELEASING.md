@@ -31,6 +31,20 @@ manifest-validation gate.
 3. Commit `chore(release): X.Y.Z [skip ci]` with the release notes, tag `vX.Y.Z`, and push.
 4. Publish a **Codeberg Release** (Gitea API) with the generated notes.
 
+## Merging PRs (keep the Conventional Commit type)
+
+semantic-release reads the commit **type** to decide the bump, so a merged PR must land at least one
+`feat:`/`fix:` commit on `main`:
+
+- **Squash merge** — Codeberg uses the **PR title** as the squash message, so give the PR a conventional
+  title (`feat: …`, `fix: …`). A non-conventional title (e.g. `My feature (#8)`) squashes to a commit
+  that triggers **no release** — the change lands on `main` unreleased.
+- **Merge commit** — preserves each slice's own `feat:`/`fix:` commits, so the type survives regardless
+  of the PR title.
+
+If a squash already landed with a non-conventional message, add one `git commit --allow-empty -m "feat:
+…"` before releasing to record the type.
+
 ## Running it
 
 Local, off `main`, working tree clean:
