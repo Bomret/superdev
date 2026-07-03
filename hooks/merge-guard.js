@@ -7,7 +7,9 @@
 // `git merge`/`push`/`rebase` ONLY when agent_id is present, leaving the controller free.
 // one regex, one rule, no deps.
 
-const BLOCK = /(^|[;&|])\s*git\s+(merge|push|rebase)\b/;
+// (?![-\w]) so the subcommand is exactly `merge`/`push`/`rebase` — not read-only helpers
+// like `git merge-base` / `merge-tree` (a `\b` would match those, blocking them as false positives).
+const BLOCK = /(^|[;&|])\s*git\s+(merge|push|rebase)(?![-\w])/;
 
 function decide(input) {
   if (!input || !input.agent_id) return { block: false }; // controller (or unknown) → allow
@@ -52,6 +54,8 @@ if (process.argv[2] === '--selftest') {
   assert.equal(decide(sub('git commit -m "x"')).block, false);
   assert.equal(decide(sub('git status')).block, false);
   assert.equal(decide(sub('forgit push')).block, false, 'no false positive on substrings');
+  assert.equal(decide(sub('git merge-base main HEAD')).block, false, 'merge-base is read-only, not a merge');
+  assert.equal(decide(sub('git merge-tree a b')).block, false, 'merge-tree is read-only');
   assert.equal(decide(sub('git merge scope')).block, true);
   assert.equal(decide(sub('  git push -u origin s')).block, true, 'leading spaces');
   assert.equal(decide(sub('cd x && git push')).block, true, 'after &&');
