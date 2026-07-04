@@ -135,12 +135,14 @@ correct because every slice exists before any reference is written. (A local-fil
 files; there's no API latency to batch.)
 
 **Tell the user the expected execution tier.** `/superdev:implement` derives it fresh from the final
-slice count — **≤3 slices → `lite`** (the controller implements each slice inline, no worktrees, one
-final review), **>3 slices → `full`** (parallel worktrees + per-slice implementer/reviewer subagents).
+slice count — **≤3 slices → `lite`** (the controller implements each slice inline in a single scope
+worktree, one final review), **>3 slices → `full`** (parallel per-slice worktrees + implementer/reviewer
+subagents).
 This is purely informational so the user knows what to expect: `/plan` doesn't stamp or persist the
 tier anywhere.
 
 **Commit the durable design docs** you wrote — the glossary (`CONTEXT.md`), any ADRs (`docs/adr/`), and
-any `.claude/rules/` — to the base branch. `/superdev:implement` runs each slice in a fresh worktree
-checkout of that branch; anything left uncommitted never reaches the implementers, and a path-scoped
-rule that isn't on the branch can't auto-load. Then tell the user it's ready for `/superdev:implement`.
+any `.claude/rules/` — to the base branch. `/superdev:implement` runs from a fresh worktree checkout of
+that branch (per-slice on the full tier, a single scope worktree on the lite tier); anything left
+uncommitted never reaches those checkouts, and a path-scoped rule that isn't on the branch can't
+auto-load. Then tell the user it's ready for `/superdev:implement`.

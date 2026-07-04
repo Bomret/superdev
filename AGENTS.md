@@ -27,7 +27,7 @@ commands/              — slash commands (*.md): brainstorm, setup, plan, imple
                          status, review
 agents/                — subagents (*.md): implementer, slice-reviewer, simplicity-reviewer, final-reviewer, doc-writer
 hooks/                 — deterministic Node hooks + hooks.json: merge-guard, model-explicit, green-gate,
-                         worktree-sweep, update-check
+                         run-lock, worktree-sweep, update-check
 references/            — backend seed templates + plan-contract + documentation convention
 evals/                 — `claude plugin eval` cases (*/case.yaml + graders/*.md) exercising the commands
 release.config.cjs     — semantic-release config (semantic-release-replace-plugin bumps plugin.json)

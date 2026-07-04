@@ -8,7 +8,7 @@ _Avoid: "feature issue", "parent issue"_
 **Slice** — a vertical tracer bullet: a narrow but complete path through every layer (spec → implementation → test), independently green, demoable/verifiable on its own. Each slice carries test-applicability (behavior/mechanical/docs), a spec, acceptance criteria, and explicit dependencies on other slices.
 _Avoid: "story", "task", "sub-issue", "chunk"_
 
-**Tier** (execution) — the execution strategy for a plan, derived from the loaded slice count. `lite` (≤3 slices): controller implements each slice inline on the scope branch (test-first), then one final-reviewer; `full` (>3 slices): parallel capped implementers in isolated worktrees, per-slice reviewer + simplicity-reviewer, serial merges, final review. Never persisted, derived fresh every run.
+**Tier** (execution) — the execution strategy for a plan, derived from the loaded slice count. `lite` (≤3 slices): controller implements each slice inline in a single scope worktree (test-first), then one final-reviewer; `full` (>3 slices): parallel capped implementers in isolated per-slice worktrees, per-slice reviewer + simplicity-reviewer, serial merges, final review. Never persisted, derived fresh every run.
 _Avoid: "mode", "strategy", "level"_
 
 **Scope** — a feature's scope branch and all its run artifacts (.superdev/<scope>/ directory: DoD, ledger, progress logs, worktrees). Scope is the namespace that lets multiple features' runs execute in parallel without colliding.

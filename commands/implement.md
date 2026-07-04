@@ -1,5 +1,5 @@
 ---
-description: Execute a superdev plan — drive its vertical slices to merge as a dependency-ordered DAG. The execution tier is derived from the loaded slice count: >3 slices run the full path (parallel implementer subagents in isolated worktrees, warrant-gated per-slice review, controller-owned serial merges); ≤3 slices run the lite path (controller implements inline on the scope branch, test-first, no worktrees). Either way, one whole-scope code review gates the PR. Use when a plan exists in the slice store; run /superdev:plan first if not.
+description: Execute a superdev plan — drive its vertical slices to merge as a dependency-ordered DAG. The execution tier is derived from the loaded slice count: >3 slices run the full path (parallel implementer subagents in isolated per-slice worktrees, warrant-gated per-slice review, controller-owned serial merges); ≤3 slices run the lite path (controller implements inline in a single scope worktree, test-first, invoking checkout never switched, guarded by same-scope run lock). Either way, one whole-scope code review gates the PR. Use when a plan exists in the slice store; run /superdev:plan first if not.
 ---
 
 # superdev implement
@@ -47,11 +47,14 @@ short line.
   §2). All artifacts for this run live under a per-scope run root **`.superdev/<scope>/`** — keyed on the
   bare slug, so it never doubles the branch's `superdev/` prefix into `.superdev/superdev/…` —
   **git-ignored** (ensure `.superdev/` is in the repo's `.gitignore`; add it if absent). Layout: `.superdev/<scope>/dod.md` (the DoD),
-  `.superdev/<scope>/ledger.md` (the ledger — **both tiers**), `.superdev/<scope>/reports/<id>/progress.md`
-  (per-slice progress log, **full path only** — see **Progress log**), `.superdev/<scope>/worktrees/<id>`
-  (per-slice worktrees, **full path only**). The **lite** path drops both of the latter — no worktree to
-  isolate (you implement inline) and no per-slice log (your own context is the record); the ledger alone
-  carries its resume state. **Namespacing by `<scope>` is what lets several scope runs execute in
+  `.superdev/<scope>/ledger.md` (the ledger — **both tiers**), `.superdev/<scope>/run.lock` (same-scope
+  liveness guard, lite only), `.superdev/<scope>/reports/<id>/progress.md` (per-slice progress log,
+  **full path only** — see **Progress log**), `.superdev/<scope>/worktree/` (lite tier's single scope
+  worktree, where all inline work happens), `.superdev/<scope>/worktrees/<id>` (per-slice worktrees,
+  **full path only**). The **lite** path creates one scope worktree and drops per-slice worktrees + logs;
+  the **full** path creates per-slice worktrees + progress logs. The run root (dod/ledger/run.lock) stays
+  in the **invoking checkout** (the repo's main tree, where you git switch FROM), never moves into a
+  worktree; only the code checkout moves into a worktree. **Namespacing by `<scope>` is what lets several scope runs execute in
   parallel** — even in separate sessions — without clobbering each other's DoD/ledger/reports/worktrees.
   Nothing here is committed or lands in the PR.
 - Write the **global verification plan** (the DoD, made concrete and checkable) to
@@ -101,34 +104,48 @@ compaction — can see what happened on a slice without re-reading every worktre
   (`CONTEXT.md`), ADRs (`docs/adr/`), and `.claude/rules/` are committed on the base — worktrees are
   clean checkouts, so uncommitted design docs never reach implementers and path-scoped rules can't
   auto-load. If any are dirty/untracked, commit them to base now.
-- **Scope branch** off base: `git switch -c superdev/<scope> <base>` (`<scope>` chosen in Phase 0; base
-  from `code-management.md`, default `main`). Then move the **scope/epic** issue → `in-progress` (per
-  `issue-tracker.md`; best-effort).
+- **Scope branch off base — tier-dependent.**
+  - **Full path:** `git switch -c superdev/<scope> <base>` in the invoking checkout (`<scope>` chosen
+    in Phase 0; base from `code-management.md`, default `main`). You'll merge into this checkout later.
+    Then move the **scope/epic** issue → `in-progress` (per `issue-tracker.md`; best-effort).
+  - **Lite path:** `git worktree add .superdev/<scope>/worktree -b superdev/<scope> <base>`. The scope
+    branch is checked out into a dedicated worktree; the invoking checkout is never switched (it stays
+    on main or wherever it was). All inline implementation happens **in this worktree**, not in the
+    invoking checkout. Then move the **scope/epic** issue → `in-progress` (per `issue-tracker.md`;
+    best-effort).
 - **Per slice (full path only)**, a branch off scope in its own **worktree** under this run's root:
   `git worktree add .superdev/<scope>/worktrees/<id> -b slice/<scope>/<id> superdev/<scope>`. The slice branch is
   **scoped** (`slice/<scope>/<id>`) so parallel runs never collide even when slice ids repeat (e.g.
   local-store `01`/`02`). Filesystem isolation lets independent slices run in parallel without clobbering
   each other; `.superdev/` being git-ignored keeps the nested worktrees out of the parent's status. The
-  **lite** path has no per-slice branch or worktree — see **Lite path**, next.
+  **lite** path has no per-slice branch or worktree (it uses the single scope worktree above) — see **Lite path**, next.
 
 ## Lite path (≤3 slices)
 
-Small plans don't need the worktree + multi-subagent machinery. After the scope branch above is cut, you
-implement every slice yourself, directly on it — no per-slice worktree, no implementer subagent, no
-per-slice reviewer.
+Small plans don't need the per-slice worktree + multi-subagent machinery. After the scope worktree above
+is cut (§2, lite), you implement every slice yourself, directly in that scope worktree — no per-slice
+worktree, no implementer subagent, no per-slice reviewer. The invoking checkout is never touched.
 
 - **Implement in `depends-on` order, inline, test-first.** For each slice, in dependency order: read its
   `spec` + `acceptance`, then carry the same tracer-bullet discipline an implementer subagent would (one
-  RED test, minimal GREEN code, repeat) yourself, directly against the scope branch's working tree.
-  `mechanical` / `docs` slices need no new test — the existing suite is the net, same rule as the full
-  path.
+  RED test, minimal GREEN code, repeat) yourself, **directly in the scope worktree at `.superdev/<scope>/worktree/`**.
+  All file edits, test runs, `git` commands, and commits happen **in the scope worktree as the cwd** — never
+  in the invoking checkout. `mechanical` / `docs` slices need no new test — the existing suite is the net,
+  same rule as the full path.
 - **Carry the implementer's escalation discipline too, not just its TDD discipline.** If you can't get a
   slice green after reasonable effort, treat it like the full path's BLOCKED / 3-strike case — it's a
   **wrong cut**, not something to force through. Move the slice → `blocked` and escalate (re-slice or
   hand it to the human) rather than grinding on it inline.
-- **Commit per slice** on the scope branch (Conventional Commits) as each one goes green. Update the
-  ledger (`todo` → `in-progress` → `merged`; `merged` here means "committed to the scope branch" — there
-  is no separate slice branch to merge) and the tracker status per **Issue status**, above.
+- **Write the run lock at the start of the run.** Before implementing the first slice, write
+  `.superdev/<scope>/run.lock` in the invoking checkout (not the worktree — the run root stays there).
+  The lock's mtime marks this run as live; a deterministic hook (§41) uses this to prevent a second
+  concurrent run of the same scope from creating its own scope worktree, enforcing same-scope mutual
+  exclusion. You remove the lock at the end of §4 (after the PR), per the epic's lock contract.
+- **Commit per slice** on the scope branch (Conventional Commits) as each one goes green. All commits
+  happen in the scope worktree. Update the ledger (`todo` → `in-progress` → `merged`; `merged` here means
+  "committed to the scope branch" — there is no separate slice branch to merge) and the tracker status per
+  **Issue status**, above. At the end of §4 (after the PR), remove the `.superdev/<scope>/run.lock` file
+  to signal that this run is done (the worktree cleanup §4 does is distinct from lock removal).
 - **No per-slice review, no per-slice progress log.** There is no `slice-reviewer` / `simplicity-reviewer`
   dispatch; your own context is the record of how each slice unfolded, and the ledger is the durable
   trace once that context is gone.
@@ -151,19 +168,22 @@ per-slice reviewer.
   final-reviewer** on the **lite** path (re-run after any review-forced fixes) — see the concurrent
   bullet above.
 
-**Resume:** there are no worktrees to reconcile. Read `.superdev/<scope>/ledger.md` and cross-check it
-against `git log <base>..superdev/<scope>` on the scope branch directly — a slice the ledger marks `merged` (i.e.
-already committed) is done; pick up at the next `todo` slice in `depends-on` order. Unlike the full
-path's isolated worktrees, lite implements directly on the shared scope branch working tree, so an
-interrupted `in-progress` slice may have left partial, uncommitted changes there. Before resuming, run
-`git status` / `git diff` on the scope branch's working tree and decide whether to continue that
-in-progress slice's uncommitted work or discard it, before dispatching or continuing.
+**Resume:** Read `.superdev/<scope>/ledger.md` and cross-check it against `git log <base>..superdev/<scope>` in the scope
+worktree — a slice the ledger marks `merged` (already committed there) is done; pick up at the next
+`todo` slice in `depends-on` order. An interrupted `in-progress` slice may have left partial,
+uncommitted changes in the scope worktree. Before resuming, check `.superdev/<scope>/run.lock`: if it
+exists and is fresh (mtime recent, per the hook's staleness threshold), another session is live in this
+worktree — escalate or wait. If the lock is stale or absent, it's a crash resume; run `git status` /
+`git diff` in the scope worktree and decide whether to continue that in-progress slice's uncommitted work
+or discard it, before resuming implementation.
 
 **Rationale:** lite deliberately relaxes the "controller never implements inline" invariant for small
 plans — dispatching a worktree'd implementer subagent per slice for a 1–3 slice plan is pure token +
-latency overhead with no payoff. The single `superdev:final-reviewer` preserves the one thing that
-matters: an independent check that green ≠ correct, without paying for per-slice isolation the plan is
-too small to need.
+latency overhead with no payoff. Lite still uses a single scope worktree to keep the invoking checkout
+untouched (enabling parallel sessions in the same repo) and to prove the worktree model works before
+converting the full path. The single `superdev:final-reviewer` preserves the one thing that matters: an
+independent check that green ≠ correct, without paying for per-slice isolation the plan is too small to
+need.
 
 ## 3. DAG loop (full path, >3 slices)
 
@@ -257,12 +277,16 @@ anything, reconcile state, then re-enter the DAG loop at step 1.
   slice issue, already `merged`, is done).
 - **Open the PR/MR per `docs/agents/code-management.md`** (default posture = draft; degrade to push +
   printed compare URL + ready-to-run command when no host CLI is present). Report the PR URL to the user.
-- **Clean up worktrees (after the PR, full path).** Per-slice worktrees are already removed at merge
-  (step 3.4); as a final sweep run `git worktree prune`, then remove any remaining
-  `.superdev/<scope>/worktrees/*` and any leftover `slice/<scope>/*` branches (`git worktree remove` /
-  `git branch -D`). Keep the rest of `.superdev/<scope>/` (progress logs, ledger, DoD) — the git-ignored
-  paper trail for post-mortem. **Never** delete the scope branch: the PR is from it. **Lite** skips this
-  step — it never created any worktrees.
+- **Clean up worktrees (tier-dependent).**
+  - **Full path:** Per-slice worktrees are already removed at merge (step 3.4); as a final sweep run `git
+    worktree prune`, then remove any remaining `.superdev/<scope>/worktrees/*` and any leftover
+    `slice/<scope>/*` branches (`git worktree remove` / `git branch -D`). Keep the rest of
+    `.superdev/<scope>/` — the git-ignored paper trail for post-mortem.
+  - **Lite path:** Remove the scope worktree: `git worktree remove .superdev/<scope>/worktree`, then `git
+    branch -D superdev/<scope>` (if it's no longer checked out). Keep the run root (`.superdev/<scope>/`)
+    with its ledger and DoD — the post-mortem trail.
+  - **Both tiers:** **Never** delete the scope branch itself: the PR is from it. After worktree cleanup,
+    remove the `.superdev/<scope>/run.lock` file to signal this run is done.
 
 ## Model selection (always set explicitly)
 
