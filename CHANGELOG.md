@@ -1,3 +1,10 @@
+# [0.11.0](https://codeberg.org/bomret/superdev/compare/v0.10.1...v0.11.0) (2026-07-04)
+
+
+### Features
+
+* **implement, hooks:** parallel-safe lite runs — scope worktree + run-lock ([#42](https://codeberg.org/bomret/superdev/issues/42)) ([d17ea85](https://codeberg.org/bomret/superdev/commit/d17ea85d32d5a2b1fb920cf7db0f5e087771bfc0)), closes [#39](https://codeberg.org/bomret/superdev/issues/39) [#40](https://codeberg.org/bomret/superdev/issues/40)
+
 ## [0.10.1](https://codeberg.org/bomret/superdev/compare/v0.10.0...v0.10.1) (2026-07-04)
 
 
