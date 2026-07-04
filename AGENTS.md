@@ -64,6 +64,24 @@ The plugin ships as markdown + JS hooks — there is **no build step**. `command
   matching `docs/agents/*.md` written by `/superdev:setup` in the *consumer* repo. `commands/` and
   `agents/` stay tool-agnostic — don't hardcode a backend into them.
 
+## Known issues (Claude Code platform)
+
+**SessionStart system-prompt preambles leak into subagent tool outputs** (issue #32 tracking). When a
+subagent is dispatched, the Claude Code harness includes the main conversation's SessionStart
+system-message (e.g., context-window-protection, tool-bootstrap guidance) in the subagent's prompt
+context. This creates a prompt-injection surface where:
+
+- Subagents receive meta-instructions they didn't ask for.
+- Tool-call outputs may be wrapped with system-prompt tags instead of remaining opaque.
+
+**Mitigation (implemented):** all subagent bodies include explicit secret-hygiene discipline — they
+identify and disregard any injected system-reminder blocks, using only the standard tools they were
+given (`Read`, `Edit`, `Write`, `Bash`, etc.). See `agents/implementer.md` (and others) for the
+pattern.
+
+**Fix required at:** Claude Code platform layer — subagent prompts should be isolated from main
+conversation's SessionStart preamble. Track upstream with the Claude Code team.
+
 ## Common commands
 
 ```
