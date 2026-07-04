@@ -42,10 +42,11 @@ short line.
 
 ## 1. Phase 0 — Definition of done + ledger (always first)
 
-- **Run root (per scope).** Choose this run's **scope branch name** `<scope>` now (e.g.
-  `superdev/<feature-slug>`; you create the branch in §2). All artifacts for this run live under a
-  per-scope run root **`.superdev/<scope>/`** — **git-ignored** (ensure `.superdev/` is in the repo's
-  `.gitignore`; add it if absent). Layout: `.superdev/<scope>/dod.md` (the DoD),
+- **Run root (per scope).** Choose this run's **scope** `<scope>` now — a short feature-slug (e.g.
+  `lite-perf`). The **scope branch** is `superdev/<scope>` (e.g. `superdev/lite-perf`; you create it in
+  §2). All artifacts for this run live under a per-scope run root **`.superdev/<scope>/`** — keyed on the
+  bare slug, so it never doubles the branch's `superdev/` prefix into `.superdev/superdev/…` —
+  **git-ignored** (ensure `.superdev/` is in the repo's `.gitignore`; add it if absent). Layout: `.superdev/<scope>/dod.md` (the DoD),
   `.superdev/<scope>/ledger.md` (the ledger — **both tiers**), `.superdev/<scope>/reports/<id>/progress.md`
   (per-slice progress log, **full path only** — see **Progress log**), `.superdev/<scope>/worktrees/<id>`
   (per-slice worktrees, **full path only**). The **lite** path drops both of the latter — no worktree to
@@ -100,11 +101,11 @@ compaction — can see what happened on a slice without re-reading every worktre
   (`CONTEXT.md`), ADRs (`docs/adr/`), and `.claude/rules/` are committed on the base — worktrees are
   clean checkouts, so uncommitted design docs never reach implementers and path-scoped rules can't
   auto-load. If any are dirty/untracked, commit them to base now.
-- **Scope branch** off base: `git switch -c <scope> <base>` (the `<scope>` chosen in Phase 0; base from
-  `code-management.md`, default `main`). Then move the **scope/epic** issue → `in-progress` (per
+- **Scope branch** off base: `git switch -c superdev/<scope> <base>` (`<scope>` chosen in Phase 0; base
+  from `code-management.md`, default `main`). Then move the **scope/epic** issue → `in-progress` (per
   `issue-tracker.md`; best-effort).
 - **Per slice (full path only)**, a branch off scope in its own **worktree** under this run's root:
-  `git worktree add .superdev/<scope>/worktrees/<id> -b slice/<scope>/<id> <scope>`. The slice branch is
+  `git worktree add .superdev/<scope>/worktrees/<id> -b slice/<scope>/<id> superdev/<scope>`. The slice branch is
   **scoped** (`slice/<scope>/<id>`) so parallel runs never collide even when slice ids repeat (e.g.
   local-store `01`/`02`). Filesystem isolation lets independent slices run in parallel without clobbering
   each other; `.superdev/` being git-ignored keeps the nested worktrees out of the parent's status. The
@@ -133,7 +134,7 @@ per-slice reviewer.
   trace once that context is gone.
 - **One final review for the whole scope — concurrent with the doc reconcile.** Once every slice is
   implemented, proceed to **§4 Final phase**. Dispatch the single `superdev:final-reviewer` over the
-  integrated diff (BASE = `git merge-base <base> <scope>`, HEAD = scope tip) against the global DoD **and**
+  integrated diff (BASE = `git merge-base <base> superdev/<scope>`, HEAD = scope tip) against the global DoD **and**
   the §4 `/superdev:document` doc reconcile **concurrently** (both in one message) — both read the same
   integrated diff and are independent when the review is clean, so overlapping them spends **one**
   round-trip of wall-clock instead of two. Follow §4's fix loop — including its **3-strike cap** — exactly
@@ -151,7 +152,7 @@ per-slice reviewer.
   bullet above.
 
 **Resume:** there are no worktrees to reconcile. Read `.superdev/<scope>/ledger.md` and cross-check it
-against `git log <base>..<scope>` on the scope branch directly — a slice the ledger marks `merged` (i.e.
+against `git log <base>..superdev/<scope>` on the scope branch directly — a slice the ledger marks `merged` (i.e.
 already committed) is done; pick up at the next `todo` slice in `depends-on` order. Unlike the full
 path's isolated worktrees, lite implements directly on the shared scope branch working tree, so an
 interrupted `in-progress` slice may have left partial, uncommitted changes there. Before resuming, run
@@ -223,7 +224,7 @@ mid-loop — is a **first-class path through the loop above, not a special case*
 anything, reconcile state, then re-enter the DAG loop at step 1.
 
 - **Reconcile before dispatching.** Read `.superdev/<scope>/ledger.md`, cross-check it against
-  `git log <base>..<scope>` (merge commits name the slice branch) and the store's slice statuses. A
+  `git log <base>..superdev/<scope>` (merge commits name the slice branch) and the store's slice statuses. A
   slice the ledger — or the merge log — marks `merged` is done: **never re-dispatch it**, no matter what
   a stale in-progress worktree suggests.
 - **Reconcile leftover worktrees.** For each `.superdev/<scope>/worktrees/<id>` still present, check its
@@ -239,14 +240,14 @@ anything, reconcile state, then re-enter the DAG loop at step 1.
   suite is the net) and go straight to the remaining steps below — confirming every DoD item is met and
   moving the scope/epic issue → `done`, then the doc pass + PR. Only the review step is skipped.
 - Dispatch **`superdev:final-reviewer`** (`model: opus`) on the integrated scope branch:
-  BASE = `git merge-base <base> <scope>`, HEAD = scope tip; requirements = the global DoD + slice list.
+  BASE = `git merge-base <base> superdev/<scope>`, HEAD = scope tip; requirements = the global DoD + slice list.
 - For **Critical/Important** findings, dispatch **one** `superdev:implementer` fix with the **complete**
   findings list (not one fixer per finding), each fix opening with a **RED test**; re-review until clean —
   **or 3 strikes**: if the fix loop takes 3 cycles without going clean, stop re-dispatching. That's not a
   buggy slice, it's a **wrong cut** — a hidden dependency or a boundary too big. Stop, escalate to the
   human (re-slice or hand it over); don't burn a fourth cycle. This cap applies to **both tiers**.
-- **Reconcile docs + KB (always):** run **`/superdev:document <base>..<scope>`** (BASE =
-  `git merge-base <base> <scope>`). It dispatches the `doc-writer` to bring the in-repo docs and the
+- **Reconcile docs + KB (always):** run **`/superdev:document <base>..superdev/<scope>`** (BASE =
+  `git merge-base <base> superdev/<scope>`). It dispatches the `doc-writer` to bring the in-repo docs and the
   knowledge base up to the integrated state and **remove stale/obsolete** text, committing the changes on
   the scope branch so they land in the PR. This runs after every scope — even docs-only ones, and even
   when the KB is `none` (then it's the in-repo docs pass only). **Full path** runs it here — after the

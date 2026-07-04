@@ -20,7 +20,7 @@ Bring the docs and the knowledge base into agreement with reality. Dispatches th
 From `$ARGUMENTS`:
 
 - **A git range** (`BASE..HEAD`) or an **area path** → a focused reconcile of what changed there.
-  (`/superdev:implement` passes `merge-base(base, scope)..<scope>`.)
+  (`/superdev:implement` passes `merge-base(base, superdev/<scope>)..superdev/<scope>`.)
 - **Empty** → a **full reconcile**: all in-repo docs (README + the whole `AGENTS.md` tree) + the KB
   against current repo state.
 
