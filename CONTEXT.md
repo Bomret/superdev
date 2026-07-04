@@ -20,8 +20,14 @@ _Avoid: "requirements", "spec", "checklist" (DoD is the integrated checklist)_
 **Ledger** — the per-scope recovery map: tracks each slice's status (todo → in-progress → in-review → merged), its commit range when merged, and the slice-id ↔ issue-key mapping. `.superdev/<scope>/ledger.md` is the authoritative state during a run and after compaction/resume.
 _Avoid: "log", "status file", "tracker"_
 
-**Worktree** — an isolated filesystem checkout of the scope branch for one slice. `.superdev/<scope>/worktrees/<id>/` holds the slice branch and its working tree; used only in the full tier (>3 slices). Lite tier implements directly on the shared scope branch, not in isolated worktrees.
+**Worktree** — an isolated filesystem checkout used to keep a run's branch work off the invoking checkout. The full tier gives each slice its own **per-slice worktree** (`.superdev/<scope>/worktrees/<id>/`, plural); the lite tier uses a single **scope worktree** (`.superdev/<scope>/worktree/`, singular) for all its slices. Both nest under the git-ignored `.superdev/<scope>/`.
 _Avoid: "branch", "workspace", "checkout"_
+
+**Invoking checkout** — the working tree the user runs superdev from (their clone, usually on main). superdev never switches it: a run's branch work happens in a scope worktree, so the invoking checkout's HEAD, index, and files stay untouched and the user can keep working.
+_Avoid: "main checkout", "user branch", "current tree"_
+
+**Scope worktree** — the dedicated worktree a lite run cuts its scope branch into (`.superdev/<scope>/worktree/`), where all inline implementation, commits, and tests run. Isolates the run from the invoking checkout and from other sessions. The run root (dod/ledger) stays in the invoking checkout, not here, so it survives worktree removal.
+_Avoid: "scratch checkout", "session workspace"_
 
 **Progress log** — the per-slice running record of what happened: agent dispatches, reviews, fixes, merge results. `.superdev/<scope>/reports/<id>/progress.md` is append-only, oldest-first, git-ignored. Exists so a human or a resumed controller can see what unfolded without re-reading worktree state.
 _Avoid: "log", "report", "transcript" (logs are broader; this is slice-specific narrative)_
@@ -52,7 +58,7 @@ _Avoid: "retry limit", "attempt count" (the 3 strikes are cycles, not attempts)_
 
 ## Separation of concerns
 
-**Lite path** — execution tier for ≤3 slices: controller implements each slice inline on the scope branch (test-first, no worktrees, no per-slice worktree branch), then one final-reviewer over the whole diff (3-strike loop reused; all-mechanical/docs plans skip even that review). Deliberately relaxes "controller never implements inline" to kill small-plan token + latency overhead.
+**Lite path** — execution tier for ≤3 slices: controller implements each slice inline in a single scope worktree (test-first, one worktree for all slices, no per-slice worktree branch), never switching the invoking checkout, then one final-reviewer over the whole diff (3-strike loop reused; all-mechanical/docs plans skip even that review). Deliberately relaxes "controller never implements inline" to kill small-plan token + latency overhead.
 _Avoid: "inline implementation", "fast path"_
 
 **Full path** — execution tier for >3 slices: parallel capped implementers in isolated worktrees, per-slice slice-reviewer (correctness) + simplicity-reviewer (over-engineering), serial merges into scope, one whole-scope final-reviewer. The existing architecture; unchanged for >3 slices.
