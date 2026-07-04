@@ -1,3 +1,17 @@
+# [0.12.0](https://codeberg.org/bomret/superdev/compare/v0.11.0...v0.12.0) (2026-07-04)
+
+
+### Bug Fixes
+
+* **hooks,agents:** close guard bypasses + implement injection mitigation from review ([#53](https://codeberg.org/bomret/superdev/issues/53)) ([6125b9b](https://codeberg.org/bomret/superdev/commit/6125b9b5427d8252b4860f09568f18c361570678)), closes [#32](https://codeberg.org/bomret/superdev/issues/32)
+* **implement:** de-interleave into tier playbooks + serial doc reconcile ([#49](https://codeberg.org/bomret/superdev/issues/49)) ([d227c0c](https://codeberg.org/bomret/superdev/commit/d227c0ca9fe4b5df6e2640d6ca9fc44072e1daaf)), closes [#48](https://codeberg.org/bomret/superdev/issues/48)
+
+
+### Features
+
+* **authoring:** deepen /plan + /brainstorm to skill-depth via shared references ([#52](https://codeberg.org/bomret/superdev/issues/52)) ([c24568d](https://codeberg.org/bomret/superdev/commit/c24568da15a1ff6ce50adbc794501e1bf8a79d1d))
+* **plan:** harden authoring + review prompts ([#51](https://codeberg.org/bomret/superdev/issues/51)) ([6b7be0b](https://codeberg.org/bomret/superdev/commit/6b7be0b85735cb577c4fbc3a2f61acb757900cfc))
+
 # [0.11.0](https://codeberg.org/bomret/superdev/compare/v0.10.1...v0.11.0) (2026-07-04)
 
 
