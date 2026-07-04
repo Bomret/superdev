@@ -1,3 +1,10 @@
+## [0.10.1](https://codeberg.org/bomret/superdev/compare/v0.10.0...v0.10.1) (2026-07-04)
+
+
+### Bug Fixes
+
+* **implement:** key run root on bare slug to avoid .superdev/superdev nesting ([#38](https://codeberg.org/bomret/superdev/issues/38)) ([2d3820d](https://codeberg.org/bomret/superdev/commit/2d3820d13a4b8fe009066f9c29333be4abdcc378))
+
 # [0.10.0](https://codeberg.org/bomret/superdev/compare/v0.9.0...v0.10.0) (2026-07-04)
 
 
