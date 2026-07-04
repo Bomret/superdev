@@ -26,10 +26,12 @@ first to explore the space before pinning it down here.
 
 ## 2. Domain-model as you go
 
+**Maintain the glossary first.** Check for an existing `CONTEXT.md` in the repo root. If it exists, read it before the interview — it's the canonical domain language for this project. During the interview, propose new terms for any vague/overloaded user language, and ask: "does this term fit our glossary, or should we add a new one?" Update `CONTEXT.md` as you go (add new terms, refine definitions if the project's understanding evolved). The glossary is durable, living documentation — keep it current.
+
 When terms, decisions, or conventions crystallise, capture them immediately — don't batch:
 
 - **Glossary** — when the user uses a vague or overloaded term, propose a precise canonical term and
-  record it. Challenge terms that conflict with existing language. Write to `CONTEXT.md` (or the repo's
+  record it (add to `CONTEXT.md` if new, or refine the existing entry). Challenge terms that conflict with existing language. Write to `CONTEXT.md` (or the repo's
   glossary) — a glossary and nothing else: no spec, no scratchpad, no implementation decisions. Each
   entry is a tight one-to-two-sentence definition of what the term **is**, with an `_Avoid_:` list of
   rejected synonyms. In a multi-context repo (root `CONTEXT-MAP.md`), record the term under the context
