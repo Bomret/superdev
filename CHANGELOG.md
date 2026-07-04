@@ -1,3 +1,10 @@
+# [0.10.0](https://codeberg.org/bomret/superdev/compare/v0.9.0...v0.10.0) (2026-07-04)
+
+
+### Features
+
+* lite execution tier for /superdev:implement ([#30](https://codeberg.org/bomret/superdev/issues/30)) ([b3cce1e](https://codeberg.org/bomret/superdev/commit/b3cce1e92d45f0531cba2164fefc936777c6323d)), closes [#29](https://codeberg.org/bomret/superdev/issues/29)
+
 # [0.9.0](https://codeberg.org/bomret/superdev/compare/v0.8.0...v0.9.0) (2026-07-04)
 
 
