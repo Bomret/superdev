@@ -7,7 +7,7 @@ Code lives on Codeberg (`ssh://codeberg.org/bomret/superdev.git`). Use the Forge
 
 - **Host / owner / repo:** `https://codeberg.org` · `bomret` / `superdev`.
 - **Auth:** API token in env var `GITEA_TOKEN` (record the name, never the value).
-- **Default PR posture:** `draft` (open as draft; flip to ready manually). Override: `ready` | `push-only`.
+- **Default PR posture:** `ready` (open ready-for-review). Override: `draft` | `push-only`.
 - **Base branch:** `main`.
 
 ## Conventions
@@ -20,9 +20,9 @@ Code lives on Codeberg (`ssh://codeberg.org/bomret/superdev.git`). Use the Forge
 - **The title MUST be a Conventional Commits header** (`type(scope): subject`, e.g.
   `feat(implement): …`). PRs are **squash-merged**, so the title becomes the commit message on `main` and
   semantic-release parses it for the version bump + changelog — a title without a conventional type is
-  silently ignored (no release). For a **draft**, prefix `WIP:` (Forgejo's draft marker, stripped on flip
-  to ready) *before* the conventional header — `WIP: feat(scope): …` — and flip to ready before merging so
-  the squash message is clean.
+  silently ignored (no release). Only for a `draft` **override** does Forgejo need a `WIP:` prefix on the
+  title (its draft marker) — strip it before merge so the squash message is clean; the default `ready`
+  posture never adds it.
 - **Report:** print the PR URL.
 
 ## Degrade when no host CLI / API access
