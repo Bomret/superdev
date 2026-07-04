@@ -117,7 +117,11 @@ Repeat until every slice is `merged`:
    - **`behavior`** slice → move it → `in-review`, then dispatch **`superdev:slice-reviewer`**
      (correctness + independent
      verification). For each **Critical/Important** finding, dispatch a fresh **`superdev:implementer`**
-     fix with a **RED test that reproduces the bug first**; re-review until clean. Then dispatch
+     fix with a **RED test that reproduces the bug first**; re-review until clean —
+     **or 3 strikes**: if a slice takes 3 fix cycles without going clean (each fix exposing a new
+     defect elsewhere), stop re-dispatching. That's not a buggy slice, it's a **wrong cut** — a hidden
+     dependency or a boundary too big. Move it → `blocked` and escalate (re-slice or hand to the human);
+     don't burn a fourth cycle. Then dispatch
      **`superdev:simplicity-reviewer`** (over-engineering); apply warranted cuts.
    - **`mechanical`** / **`docs`** slice → **skip both per-slice reviews** (the suite + the final review
      are the net).
