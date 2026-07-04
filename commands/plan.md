@@ -60,6 +60,10 @@ When terms, decisions, or conventions crystallise, capture them immediately — 
 Create these files lazily — only when the first term, decision, or rule actually crystallises, never as
 empty scaffolding.
 
+When a later answer overturns a decision you already recorded, revise it in place — update the glossary
+entry, rewrite the ADR (or mark it superseded and write the replacement), retire the rule. Never leave
+the store holding two contradictory decisions; the plan states current truth, not its history.
+
 Stress-test domain relationships with concrete edge-case scenarios; cross-check claims against the code
 and surface contradictions.
 
