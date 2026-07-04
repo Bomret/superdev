@@ -1,3 +1,18 @@
+# [0.9.0](https://codeberg.org/bomret/superdev/compare/v0.8.0...v0.9.0) (2026-07-04)
+
+
+### Features
+
+* /superdev:brainstorm — discovery front-end for vague ideas ([#20](https://codeberg.org/bomret/superdev/issues/20)) ([5281c06](https://codeberg.org/bomret/superdev/commit/5281c06a87dfad713466df5917815388902e9127)), closes [#18](https://codeberg.org/bomret/superdev/issues/18)
+* cap the per-slice fix loop at 3 strikes ([041c511](https://codeberg.org/bomret/superdev/commit/041c511e063a5e76b2676f544c4a51c5a0157698))
+* optional epic for single-slice plans (+ Haiku for status/upgrade) ([#24](https://codeberg.org/bomret/superdev/issues/24)) ([8aaa281](https://codeberg.org/bomret/superdev/commit/8aaa2819494da6e15db58779e92fcb956ddc0920)), closes [21/#22](https://codeberg.org/bomret/superdev/issues/22)
+* revise recorded decisions when the interview overturns them ([#26](https://codeberg.org/bomret/superdev/issues/26)) ([05b8574](https://codeberg.org/bomret/superdev/commit/05b8574b79ad86ad12aab5fdb7757ca65c977aa4))
+
+
+### Performance Improvements
+
+* run status and upgrade commands on Haiku ([#23](https://codeberg.org/bomret/superdev/issues/23)) ([53fc00a](https://codeberg.org/bomret/superdev/commit/53fc00af8c09118934270a17045103e761ca1d74))
+
 # [0.8.0](https://codeberg.org/bomret/superdev/compare/v0.7.0...v0.8.0) (2026-07-03)
 
 
