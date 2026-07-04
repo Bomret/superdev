@@ -31,7 +31,8 @@ agents/                — subagents (*.md): implementer, slice-reviewer, simpli
 hooks/                 — deterministic Node hooks + hooks.json: merge-guard, model-explicit, green-gate,
                          run-lock, worktree-sweep, update-check
 references/            — backend seed templates + plan-contract + documentation convention +
-                         execution playbooks (implement-full/lite, read at runtime by /implement)
+                         execution playbooks (implement-full/lite, read at runtime by /implement) +
+                         authoring disciplines (grilling, domain-modeling, read at runtime by /plan + /brainstorm)
 docs/adr/              — architecture decision records (why the plugin is built this way)
 docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, KB, verification)
 evals/                 — `claude plugin eval` cases (*/case.yaml + graders/*.md) exercising the commands
@@ -179,7 +180,7 @@ When the user requests a durable behavior change, record it here or in the relev
 
 ## Child DOX Index
 
-**No child AGENTS.md — the repo is flat.** It's small (8 commands, 5 agents, 7 hooks, 10 references) and
+**No child AGENTS.md — the repo is flat.** It's small (8 commands, 5 agents, 7 hooks, 12 references) and
 every subtree's rules already live in this root doc. Add a child only when a subtree becomes a durable
 boundary with rules of its own that don't fit here.
 
@@ -191,7 +192,10 @@ This root owns every subtree directly:
   ships a `--selftest`**. Strongest future child-doc candidate if its rules outgrow this root.
 - `references/` — backend seed templates + `plan-contract.md` (slice schema/lifecycle) + `documentation.md`
   + **execution playbooks** (`implement-full.md` / `implement-lite.md`): the tier-specific linear procedures
-  `/implement` reads at runtime once it computes the tier (non-seed refs, like `plan-contract.md`).
+  `/implement` reads at runtime once it computes the tier (non-seed refs, like `plan-contract.md`)
+  + **authoring disciplines** (`grilling.md` / `domain-modeling.md`): the relentless-interview and
+  active-domain-modeling disciplines `/plan` and `/brainstorm` read at runtime (superdev's self-contained
+  rendering of the grilling + domain-modeling skills).
 - `docs/adr/` — architecture decision records. `docs/agents/` — this repo's own dogfooded backend config.
 - `.claude-plugin/` — manifests. Governed by **Working rules → Version lives only in `plugin.json`**.
 - `CONTEXT.md` — the domain glossary. `evals/` — `claude plugin eval` cases.

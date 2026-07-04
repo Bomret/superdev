@@ -16,6 +16,14 @@ loud, and treat "I don't know yet" as useful signal, not a blocker. Ground every
 repo — read `AGENTS.md` and the relevant code before proposing directions, so suggestions are grounded
 in what exists, not invented from nothing.
 
+**Run it with the interview discipline in `${CLAUDE_PLUGIN_ROOT}/references/grilling.md`** — relentless,
+one thread at a time, exploring the code instead of asking wherever you can, surfacing contradictions the
+moment they appear — but in **divergent** mode: offer options rather than a single recommended answer, and
+let the tree branch wider before it narrows. Apply the **active moves** in
+`${CLAUDE_PLUGIN_ROOT}/references/domain-modeling.md` too — challenge vague terms, sharpen fuzzy language,
+cross-check claims against the code — to think precisely. But **write nothing durable** here: no glossary
+entries, no ADRs, no slices. Durable capture is `/superdev:plan`'s job.
+
 ## 1. Start from the problem, not the solution
 
 If `$ARGUMENTS` names a solution ("add a cache", "build a dashboard"), pull the conversation back one

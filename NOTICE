@@ -24,9 +24,19 @@ Adapted into superdev:
   - ponytail-review → agents/simplicity-reviewer.md (over-engineering review rubric)
 
 --------------------------------------------------------------------------------
-Additional engineering-skill patterns (grilling, domain-modeling, to-issues, and
-the docs/agents setup convention) were distilled as principles into commands/plan.md,
-commands/setup.md, and the references/ seed templates. The in-repo AGENTS.md
+Skills — Copyright (c) 2026 Matt Pocock
+https://github.com/mattpocock/skills
+
+Adapted into superdev:
+  - grilling        → references/grilling.md (relentless-interview discipline)
+  - domain-modeling → references/domain-modeling.md (active domain-modeling +
+                      CONTEXT.md / ADR format)
+
+--------------------------------------------------------------------------------
+Additional engineering-skill patterns (to-issues and the docs/agents setup
+convention, likewise from Matt Pocock's skills above) were distilled as principles
+into commands/plan.md, commands/setup.md, and the references/ seed templates. The
+in-repo AGENTS.md
 documentation hierarchy (references/documentation.md) is inspired by DOX
 (agent0ai — https://github.com/agent0ai/dox), distilled in superdev's own words;
 DOX is not required to be installed.

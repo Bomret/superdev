@@ -14,34 +14,31 @@ continue.
 
 ## 1. Interview (relentless, one question at a time)
 
-Walk down the design tree, resolving dependencies between decisions one by one. **Ask one question at
-a time** — multiple at once is bewildering — and for each give your **recommended answer**. If a
-question can be answered by reading the codebase, read it instead of asking.
+**Read `${CLAUDE_PLUGIN_ROOT}/references/grilling.md` and run the interview by it.** This is the **main
+event** of `/plan`, not a quick step before the real work of slicing — walk the whole design tree, one
+recommended-answer question at a time, exploring the code instead of asking wherever you can, until the
+tree is exhausted and the picture is shared. Do not short-circuit to slicing with a half-pinned design.
 
-Pin: the problem (from the user's perspective), the solution shape, constraints, and the **global
-Definition of Done** — the checkable acceptance criteria for the whole feature. State the DoD and every
-per-slice `acceptance` as **observable, user-facing behaviour**, not gameable proxy counts (coverage %,
-line count, lint score) — a proxy count is a reviewer signal, never an agent-facing gate (ADR 0002).
+Over the session, pin: the problem (from the user's perspective), the solution shape, constraints, and
+the **global Definition of Done** — the checkable acceptance criteria for the whole feature. State the DoD
+and every per-slice `acceptance` as **observable, user-facing behaviour**, not gameable proxy counts
+(coverage %, line count, lint score) — a proxy count is a reviewer signal, never an agent-facing gate
+(ADR 0002).
 
 Intent still vague — no clear problem, no checkable success criteria? Suggest `/superdev:brainstorm`
 first to explore the space before pinning it down here.
 
 ## 2. Domain-model as you go
 
-**Maintain the glossary first.** Check for an existing `CONTEXT.md` in the repo root. If it exists, read it before the interview — it's the canonical domain language for this project. During the interview, propose new terms for any vague/overloaded user language, and ask: "does this term fit our glossary, or should we add a new one?" Update `CONTEXT.md` as you go (add new terms, refine definitions if the project's understanding evolved). The glossary is durable, living documentation — keep it current.
+**Read `${CLAUDE_PLUGIN_ROOT}/references/domain-modeling.md` and apply it as you interview.** Read any
+existing `CONTEXT.md` first — it's this project's canonical language. Then run the active moves: challenge
+terms against the glossary, sharpen fuzzy language, probe boundaries with concrete scenarios, cross-check
+claims against the code and surface contradictions, and **capture the glossary + ADRs the moment they
+crystallise — never batch**. That reference owns the `CONTEXT.md` and ADR formats, the three-part test for
+when an ADR is warranted, and the revise-in-place rule.
 
-When terms, decisions, or conventions crystallise, capture them immediately — don't batch:
+Two captures are **superdev-specific** — the reference doesn't cover them:
 
-- **Glossary** — when the user uses a vague or overloaded term, propose a precise canonical term and
-  record it (add to `CONTEXT.md` if new, or refine the existing entry). Challenge terms that conflict with existing language. Write to `CONTEXT.md` (or the repo's
-  glossary) — a glossary and nothing else: no spec, no scratchpad, no implementation decisions. Each
-  entry is a tight one-to-two-sentence definition of what the term **is**, with an `_Avoid_:` list of
-  rejected synonyms. In a multi-context repo (root `CONTEXT-MAP.md`), record the term under the context
-  it belongs to; if unclear, ask.
-- **ADRs** — write `docs/adr/NNNN-<title>.md` only when a decision is **hard to reverse**, **surprising
-  without context**, and **the result of a real trade-off**. If any of the three is missing, skip it. An
-  ADR is a short title plus 1–3 sentences (context, decision, why); add Status/Options/Consequences only
-  when they earn their place. Number by scanning `docs/adr/` for the highest existing number + 1.
 - **Rules** — when the interview surfaces an **enforceable, file-scoped** convention ("API handlers
   validate input with Zod", "migrations are append-only"), write `.claude/rules/<name>.md` with a
   `paths:` frontmatter listing the globs it governs:
@@ -61,22 +58,14 @@ When terms, decisions, or conventions crystallise, capture them immediately — 
   repeatable; a whole-project norm belongs in the docs convention, and a slice-specific requirement
   belongs in that slice's `spec` — not a rule.
 
-Create these files lazily — only when the first term, decision, or rule actually crystallises, never as
-empty scaffolding.
+- **Knowledge base** — if `docs/agents/knowledge-base.md` defines one, also seed the PRD / ADR summaries
+  into its agreed **outline**, in its **language**, for its **audience(s)** (human-first).
 
-When a later answer overturns a decision you already recorded, revise it in place — update the glossary
-entry, rewrite the ADR (or mark it superseded and write the replacement), retire the rule. Never leave
-the store holding two contradictory decisions; the plan states current truth, not its history.
-
-Stress-test domain relationships with concrete edge-case scenarios; cross-check claims against the code
-and surface contradictions.
-
-Follow the project's documentation convention in `docs/agents/documentation.md` for where these durable
-docs live and how to record them (update the relevant `AGENTS.md`; keep concise/current). If
-`docs/agents/knowledge-base.md` defines a knowledge base, also seed the PRD / ADR summaries into its
-agreed **outline**, in its **language**, for its **audience(s)** (human-first). You only seed the design
-docs here; the authoritative reconcile (and stale removal) happens at the end of `/superdev:implement`
-via `/superdev:document`.
+Create all these durable files **lazily** — only when the first term, decision, or rule actually
+crystallises, never as empty scaffolding. Follow the documentation convention in
+`docs/agents/documentation.md` for where they live (update the relevant `AGENTS.md`; keep concise and
+current). You only seed the design docs here; the authoritative reconcile and stale removal happen at the
+end of `/superdev:implement` via `/superdev:document`.
 
 ## 3. Slice into tracer bullets
 
