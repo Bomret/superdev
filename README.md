@@ -65,8 +65,10 @@ and an explicit turn ceiling (e.g. "stop after N tries").
 `implementer`, `slice-reviewer`, `simplicity-reviewer`, `final-reviewer`, `doc-writer` — each runs in an
 isolated context; only its result returns to the controller. `implementer` / `slice-reviewer` /
 `simplicity-reviewer` are dispatched per slice in the **full** execution tier only; the **lite** tier
-(≤3 slices) has the controller implement inline and dispatches only `final-reviewer` (once, for the
-whole scope) and `doc-writer` — the same as the full tier's closing steps.
+(≤3 slices) has the controller implement inline, then dispatches `final-reviewer` and `doc-writer`
+**concurrently** — one round-trip when the review is clean, re-running `doc-writer` only if the review
+forces fixes. The **full** tier dispatches them sequentially: `final-reviewer` first, then `doc-writer`
+once its fix loop closes.
 
 ## Guardrails (deterministic hooks)
 

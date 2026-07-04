@@ -30,7 +30,12 @@ Slices live as Codeberg issues — one slice = one issue — in `bomret/superdev
 
 - **Create an issue:** `POST /api/v1/repos/bomret/superdev/issues` with
   `{ "title": "...", "body": "<spec + acceptance checklist>", "labels": [<label ids>] }`. Capture the
-  returned `number` as the slice's `id`.
+  returned `number` as the slice's `id`. Pass `labels` **at creation** — no separate label POST for the
+  create path.
+- **Parallel-safe creation order:** create the epic first (slices reference `#<epic>`), then fire **all
+  slice creates in parallel**, then the `depends-on` body-patches in parallel once every `number` is
+  known. Only the epic→slices→depends-on ordering is required; within each step the calls are
+  independent, so `/plan` issues them concurrently.
 - **Record a dependency (`depends-on`):** append a `**Depends on:** #<blocker>` line to the issue body
   (the native `POST .../issues/<index>/dependencies` endpoint 404s — dependencies unit disabled).
 - **List feature slices:** `GET /api/v1/repos/bomret/superdev/issues?labels=feat/<feature>&state=all`.

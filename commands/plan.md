@@ -125,6 +125,15 @@ plan files or as issues.
   slice's `acceptance` and write only the slice. No `00-epic-…` file / no epic issue.
 - **Two or more slices** — write the global DoD (epic) plus each slice, as today.
 
+**Write with max parallelism (issue-backend stores).** Writes have a strict ordering only where one
+record references another — otherwise issue them concurrently, don't serialize. Order: **(1)** create the
+epic first (slices reference its key); **(2)** create **all slice issues in parallel** — a single batch of
+create calls — applying each slice's labels (`test-applicability` + feature + ready) **at creation**, not
+in a follow-up pass; **(3)** once every slice key is known, apply the cross-references (`depends-on`) **in
+parallel**. Steps 2 and 3 each fan out at once rather than one issue at a time. `depends-on` keys are
+correct because every slice exists before any reference is written. (A local-file store just writes the
+files; there's no API latency to batch.)
+
 **Tell the user the expected execution tier.** `/superdev:implement` derives it fresh from the final
 slice count — **≤3 slices → `lite`** (the controller implements each slice inline, no worktrees, one
 final review), **>3 slices → `full`** (parallel worktrees + per-slice implementer/reviewer subagents).

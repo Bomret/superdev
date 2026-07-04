@@ -131,15 +131,24 @@ per-slice reviewer.
 - **No per-slice review, no per-slice progress log.** There is no `slice-reviewer` / `simplicity-reviewer`
   dispatch; your own context is the record of how each slice unfolded, and the ledger is the durable
   trace once that context is gone.
-- **One final review for the whole scope.** Once every slice is implemented, proceed to **§4 Final
-  phase** exactly as the full path does: dispatch a single `superdev:final-reviewer` over the integrated
-  diff (BASE = `git merge-base <base> <scope>`, HEAD = scope tip) against the global DoD, and follow §4's
-  fix loop — including its **3-strike cap** — exactly as written; it already applies to both tiers.
+- **One final review for the whole scope — concurrent with the doc reconcile.** Once every slice is
+  implemented, proceed to **§4 Final phase**. Dispatch the single `superdev:final-reviewer` over the
+  integrated diff (BASE = `git merge-base <base> <scope>`, HEAD = scope tip) against the global DoD **and**
+  the §4 `/superdev:document` doc reconcile **concurrently** (both in one message) — both read the same
+  integrated diff and are independent when the review is clean, so overlapping them spends **one**
+  round-trip of wall-clock instead of two. Follow §4's fix loop — including its **3-strike cap** — exactly
+  as written (it applies to both tiers). **On a clean review** the concurrent doc pass already reconciled
+  the final state — nothing more to do. **If the review returns Critical/Important findings**, run the fix
+  loop, then **re-run the doc reconcile after the fixes land** — the concurrent pass described the pre-fix
+  state, so the post-fix re-run is what makes the docs current. `final-reviewer` stays **read-only** and
+  its **own subagent** — never fold it into the doc reconcile.
 - **All slices `mechanical`/`docs`** → skip the final review too (the suite is the net) — the same
   exception the full path already grants per-slice mechanical/docs work, just applied to the whole small
   plan.
-- **Doc pass + PR are unchanged.** §4's `/superdev:document` reconcile and PR steps run exactly as
-  written, regardless of tier.
+- **PR is unchanged.** §4's PR steps run exactly as written, regardless of tier. The doc reconcile runs
+  as §4 orders it on the **full** path (after the review + fix loop) and **concurrently with the
+  final-reviewer** on the **lite** path (re-run after any review-forced fixes) — see the concurrent
+  bullet above.
 
 **Resume:** there are no worktrees to reconcile. Read `.superdev/<scope>/ledger.md` and cross-check it
 against `git log <base>..<scope>` on the scope branch directly — a slice the ledger marks `merged` (i.e.
@@ -240,7 +249,9 @@ anything, reconcile state, then re-enter the DAG loop at step 1.
   `git merge-base <base> <scope>`). It dispatches the `doc-writer` to bring the in-repo docs and the
   knowledge base up to the integrated state and **remove stale/obsolete** text, committing the changes on
   the scope branch so they land in the PR. This runs after every scope — even docs-only ones, and even
-  when the KB is `none` (then it's the in-repo docs pass only).
+  when the KB is `none` (then it's the in-repo docs pass only). **Full path** runs it here — after the
+  final review + fix loop, as ordered. **Lite path** dispatches it **concurrently with the
+  final-reviewer** (see **Lite path**) and re-runs it after any review-forced fixes land.
 - Confirm **every Phase 0 DoD item is met**, then move the scope/epic issue → `done` (no epic → the lone
   slice issue, already `merged`, is done).
 - **Open the PR/MR per `docs/agents/code-management.md`** (default posture = draft; degrade to push +
