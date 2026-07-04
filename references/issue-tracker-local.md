@@ -16,7 +16,8 @@ docs/plans/<feature-slug>/
 ```
 
 - **`00-epic-…`** is the **scope** file: it holds the global Definition of Done plus a short description
-  of the feature. It is not a slice.
+  of the feature. It is not a slice. **A single-slice feature has no `00-epic-…` file** — the lone
+  `01-…` slice carries the DoD in its own `acceptance` section.
 - Each **`NN-…`** (N ≥ 01) is one slice. `<test-applicability>` is `behavior` | `mechanical` | `docs`;
   `<summary>` is a short kebab-case slug.
 - The zero-padded number **is the slice `id`** (`01`, `02`, …). `depends-on` references those numbers
@@ -59,14 +60,17 @@ status: todo
 
 ## When `/superdev:plan` says "write slices to the store"
 
-Create `docs/plans/<feature-slug>/`. Write `00-epic-<summary>.md` (the global DoD + description), then
-one `NN-<test-applicability>-<summary>.md` per slice with `depends-on`, `status: todo`, `spec`,
-`acceptance`.
+Create `docs/plans/<feature-slug>/`. **≥2 slices** — write `00-epic-<summary>.md` (the global DoD +
+description), then one `NN-<test-applicability>-<summary>.md` per slice with `depends-on`,
+`status: todo`, `spec`, `acceptance`. **Exactly one slice** — skip `00-epic-…`; write only
+`01-<test-applicability>-<summary>.md`, folding the global DoD into its `acceptance`.
 
 ## When `/superdev:implement` says "load slices from the store"
 
-Read every `NN-…md` in `docs/plans/<feature-slug>/`; take the global DoD from `00-epic-…`. Parse each
-slice file into `id` (its file number), `depends-on`, `test-applicability`, `spec`, `acceptance`.
+Read every `NN-…md` in `docs/plans/<feature-slug>/`. **`00-epic-…` present** — take the global DoD from
+it. **No `00-epic-…`** (a single-slice feature) — the global DoD is the lone slice's own `acceptance`.
+Parse each slice file into `id` (its file number), `depends-on`, `test-applicability`, `spec`,
+`acceptance`.
 
 ## When `/superdev:implement` says "update slice status"
 

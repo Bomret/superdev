@@ -44,7 +44,8 @@ Auth header: `-u "$JIRA_EMAIL:$JIRA_API_TOKEN"`, `-H "Content-Type: application/
 - `acceptance` ↔ a checklist in the description (or sub-tasks).
 - `test-applicability` ↔ a label (`behavior`/`mechanical`/`docs`).
 - `status` ↔ Jira status.
-- global DoD ↔ a parent Epic; slices are children of the Epic.
+- global DoD ↔ a parent Epic; slices are children of the Epic. **A single-slice feature has no Epic** —
+  the lone slice issue's `acceptance` checklist is the DoD.
 
 ## Status workflow (fill in at setup)
 
@@ -61,13 +62,18 @@ status*). Record the mapping and the transition to reach each status:
 - **Perform a transition**: `POST <base>/rest/api/3/issue/<key>/transitions` with
   `{ "transition": {"id":"<id>"} }`. Discover ids per issue with `GET <base>/rest/api/3/issue/<key>/transitions`.
 - The **Epic** moves to *In Progress* when the run starts and to *Done* once every child slice is Done.
+  **No Epic** (single-slice feature) — the lone slice issue is the scope anchor: it moves to
+  *In Progress* at the start and to *Done* at the end, per its own transitions above.
 - If Jira lacks a status (no separate *In Review* or *Blocked*), map it to the nearest one and note the
   collapse here.
 
 ## When a skill says "write slices to the store"
 
-Create one Jira issue per slice (Epic first if used), link dependencies, apply the ready label.
+**≥2 slices** — create the Epic first (global DoD), then one Jira issue per slice, link dependencies,
+apply the ready label. **Exactly one slice** — skip the Epic; create only the slice issue, folding the
+global DoD into its `acceptance` checklist.
 
 ## When a skill says "load slices from the store"
 
-JQL-search the feature's issues, read each, and reconstruct slice fields from the mapping above.
+JQL-search the feature's issues, read each, and reconstruct slice fields from the mapping above. No Epic
+among the results (single-slice feature) → the global DoD is the lone slice issue's own `acceptance`.

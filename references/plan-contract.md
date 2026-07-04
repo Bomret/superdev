@@ -19,6 +19,10 @@ reads it. It is backend-agnostic: the local-file rendering is shown below; issue
 Plus one **global Definition of Done** block: the acceptance criteria for the whole feature. Anchors
 `/implement` Phase 0 and the final review.
 
+**The epic is optional.** A plan with a single slice needs no epic: that slice IS the whole plan, so its
+`acceptance` doubles as the global DoD, and the slice is its own scope anchor. A plan with ≥2 slices
+always carries a global DoD (the epic) on top of the per-slice `acceptance` fields, as above.
+
 ## `test-applicability` → warrant gates
 
 - `behavior` — implementer does full TDD; **slice-reviewer runs** (correctness + independent
@@ -56,8 +60,9 @@ recorded in `issue-tracker.md`:
 
 Written to a per-feature directory `docs/plans/<feature-slug>/`: the scope file `00-epic-<summary>.md`
 holds the global DoD, and each slice is its own `NN-<test-applicability>-<summary>.md` whose zero-padded
-number is its `id` (so `depends-on` reads `[01, 03]`). See `issue-tracker-local.md` for the exact file
-layout and per-file format.
+number is its `id` (so `depends-on` reads `[01, 03]`). A single-slice feature skips `00-epic-…` entirely
+— the lone slice file's `acceptance` is the DoD. See `issue-tracker-local.md` for the exact file layout
+and per-file format.
 
 ## Issue-backend mapping (general)
 
@@ -71,6 +76,7 @@ When the slice store is an issue tracker, each slice is one issue:
 - `acceptance` ↔ a checklist in the description (or sub-tasks).
 - `test-applicability` ↔ a label.
 - `status` ↔ the tracker's status/state; a "ready" label/status marks slices an agent may pick up.
-- global DoD ↔ a parent/epic issue, or the first section of the feature epic.
+- global DoD ↔ a parent/epic issue, or the first section of the feature epic. A single-slice feature
+  skips the epic issue — the lone slice's `acceptance` checklist is the DoD.
 
 The exact commands and vocabulary live in the active `docs/agents/issue-tracker.md`.

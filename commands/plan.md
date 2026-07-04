@@ -105,9 +105,13 @@ Iterate until they approve.
 
 ## 6. Write to the store
 
-Per `docs/agents/issue-tracker.md`, write the global DoD + each approved slice (the
-`id`/`depends-on`/`test-applicability`/`spec`/`acceptance` fields from the plan-contract) — to the local
+Per `docs/agents/issue-tracker.md`, write the approved slice(s) — the
+`id`/`depends-on`/`test-applicability`/`spec`/`acceptance` fields from the plan-contract — to the local
 plan files or as issues.
+
+- **Exactly one slice** — the epic is optional (see plan-contract.md): fold the global DoD into that
+  slice's `acceptance` and write only the slice. No `00-epic-…` file / no epic issue.
+- **Two or more slices** — write the global DoD (epic) plus each slice, as today.
 
 **Commit the durable design docs** you wrote — the glossary (`CONTEXT.md`), any ADRs (`docs/adr/`), and
 any `.claude/rules/` — to the base branch. `/superdev:implement` runs each slice in a fresh worktree

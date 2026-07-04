@@ -21,7 +21,9 @@ just dispatch them with the per-slice specifics. **Always pass an explicit `mode
   `docs/agents/documentation.md` (in-repo documentation convention), and `docs/agents/knowledge-base.md` (optional
   KB). Slice store or code host missing → run **`/superdev:setup`**, then continue.
 - **Load the slices** from the store (per the contract: `id`, `depends-on`, `test-applicability`,
-  `spec`, `acceptance`, + global DoD). No slices → run **`/superdev:plan`** first.
+  `spec`, `acceptance`, + global DoD). No slices → run **`/superdev:plan`** first. **Exactly one slice
+  and no epic** → the epic was optional (plan-contract.md): the DoD is that slice's `acceptance`; there
+  is no separate epic to load.
 - **Pre-flight scan:** read all slices once for contradictions (a slice that conflicts with another or
   with the DoD; a spec that mandates something a review would flag). Batch anything you find to the
   user before starting. Clean → proceed silently.
@@ -38,7 +40,9 @@ just dispatch them with the per-slice specifics. **Always pass an explicit `mode
   sessions — without clobbering each other's DoD/ledger/reports/worktrees. Nothing here is committed or
   lands in the PR.
 - Write the **global verification plan** (the DoD, made concrete and checkable) to
-  `.superdev/<scope>/dod.md`. It anchors the final review and tells you when to stop. No DoD → don't proceed.
+  `.superdev/<scope>/dod.md`. It anchors the final review and tells you when to stop. No DoD → don't
+  proceed. **No epic** (a single-slice plan) → the DoD is that lone slice's `acceptance`; write it to
+  `dod.md` verbatim.
 - Create the **ledger** at `.superdev/<scope>/ledger.md`. Track each slice's status
   (`todo`/`in-progress`/`in-review`/`merged`), its commit range when merged, and — for issue stores —
   the slice-id ↔ issue-key mapping. The ledger is your recovery map after compaction: a slice it marks
@@ -54,7 +58,9 @@ line, for an **issue tracker** it's the mapped transition. Do it **best-effort**
 control flow, so if a status write/transition fails, log it and keep going. Points: dispatch →
 `in-progress`; entering per-slice review (behavior only) → `in-review`; BLOCKED → `blocked`; merged →
 `merged`/done. The **scope/epic** issue moves to `in-progress` when the run starts and `done` once every
-slice is merged.
+slice is merged. **No epic** (single-slice plan) — there is no separate scope issue: the lone slice IS
+the scope anchor, so move it → `in-progress` at the start of the run and → `merged`/done at the end,
+covering both the slice transition and the scope-level signal in one issue.
 
 ## Progress log (per slice)
 
@@ -160,7 +166,8 @@ anything, reconcile state, then re-enter the DAG loop at step 1.
   knowledge base up to the integrated state and **remove stale/obsolete** text, committing the changes on
   the scope branch so they land in the PR. This runs after every scope — even docs-only ones, and even
   when the KB is `none` (then it's the in-repo docs pass only).
-- Confirm **every Phase 0 DoD item is met**, then move the scope/epic issue → `done`.
+- Confirm **every Phase 0 DoD item is met**, then move the scope/epic issue → `done` (no epic → the lone
+  slice issue, already `merged`, is done).
 - **Open the PR/MR per `docs/agents/code-management.md`** (default posture = draft; degrade to push +
   printed compare URL + ready-to-run command when no host CLI is present). Report the PR URL to the user.
 - **Clean up worktrees (after the PR).** Per-slice worktrees are already removed at merge (step 3.4);
