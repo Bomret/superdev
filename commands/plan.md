@@ -76,6 +76,12 @@ via `/superdev:document`.
 
 ## 3. Slice into tracer bullets
 
+**Ground the decomposition first.** For a large or unfamiliar feature, before slicing, fan out
+2-3 read-only `Explore` agents in parallel — each mapping a different aspect (similar existing
+features, integration points, the architecture of the area you'll touch) and returning a ranked
+list of key files. Read those files, then decompose. Skip for a small change in familiar code —
+don't tax a two-slice plan with a recon phase.
+
 Decompose into **vertical slices** (see `${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md` for the
 rules and schema):
 
