@@ -27,10 +27,11 @@ function isLockFresh(lockPath) {
 }
 
 function extractScope(cmd) {
-  // Look for .superdev/<scope>/worktree ADD (not remove/other ops) — use git worktree add syntax.
-  // Match `.superdev/<scope>/worktree ` (space after path) to catch only the create/enter ops,
-  // not `git worktree remove` or `git -C .superdev/<scope>/worktree ...`.
-  const match = cmd.match(/\.superdev\/([a-zA-Z0-9_-]+)\/worktree[\s\/$]/);
+  // Guard ONLY the create op: `git worktree add … .superdev/<scope>/worktree`. Every other command
+  // that names the path — `cd`/`grep`/`bun` in the worktree, `git -C <worktree> …`, `git worktree
+  // remove` — is the owner working in its own tree and must never be blocked by its own lock. Keying
+  // on the whole `git worktree add` phrase (not just the path) is what keeps the owner unblocked.
+  const match = cmd.match(/git\s+worktree\s+add\b[^\n]*?\.superdev\/([a-zA-Z0-9_-]+)\/worktree\b/);
   return match ? match[1] : null;
 }
 
@@ -85,6 +86,7 @@ function main() {
 }
 
 function selftest() {
+  const assert = require('node:assert');
   const tmpDir = require('os').tmpdir();
   const testScope = 'test-scope-' + Date.now();
   const testRunDir = path.join(tmpDir, testScope);
@@ -103,7 +105,7 @@ function selftest() {
         cwd: testRunDir,
       },
     });
-    console.assert(freshLocked.block === true, 'Test 1 FAIL: fresh lock should block');
+    assert.strictEqual(freshLocked.block, true, 'Test 1 FAIL: fresh lock should block');
 
     // Test 2: stale lock (should allow)
     const now = Date.now();
@@ -115,7 +117,7 @@ function selftest() {
         cwd: testRunDir,
       },
     });
-    console.assert(staleLocked.block === false, 'Test 2 FAIL: stale lock should allow');
+    assert.strictEqual(staleLocked.block, false, 'Test 2 FAIL: stale lock should allow');
 
     // Test 3: no lock (should allow)
     fs.unlinkSync(lockPath);
@@ -125,7 +127,7 @@ function selftest() {
         cwd: testRunDir,
       },
     });
-    console.assert(noLock.block === false, 'Test 3 FAIL: absent lock should allow');
+    assert.strictEqual(noLock.block, false, 'Test 3 FAIL: absent lock should allow');
 
     // Test 4: non-worktree command (should allow)
     fs.writeFileSync(lockPath, 'locked', 'utf8');
@@ -135,7 +137,7 @@ function selftest() {
         cwd: testRunDir,
       },
     });
-    console.assert(notWorktree.block === false, 'Test 4 FAIL: non-worktree should allow');
+    assert.strictEqual(notWorktree.block, false, 'Test 4 FAIL: non-worktree should allow');
 
     // Test 5: remove command should not match (doesn't trigger guard)
     const removeCmd = decide({
@@ -144,7 +146,27 @@ function selftest() {
         cwd: testRunDir,
       },
     });
-    console.assert(removeCmd.block === false, 'Test 5 FAIL: worktree remove should not block');
+    assert.strictEqual(removeCmd.block, false, 'Test 5 FAIL: worktree remove should not block');
+
+    // Test 6: owner operating IN its own worktree (cd/grep/bun) must NOT be blocked by its own fresh
+    // lock — the lock guards only the `git worktree add` create op, not every command naming the path.
+    fs.writeFileSync(lockPath, 'locked', 'utf8');
+    const cdInto = decide({
+      tool_input: { command: `cd .superdev/${testScope}/worktree && bun run test`, cwd: testRunDir },
+    });
+    assert.strictEqual(cdInto.block, false, 'Test 6 FAIL: cd into worktree must not block on a fresh lock');
+
+    // Test 7: `git -C <worktree> …` (and other non-add ops) must NOT block either.
+    const gitC = decide({
+      tool_input: { command: `git -C .superdev/${testScope}/worktree status`, cwd: testRunDir },
+    });
+    assert.strictEqual(gitC.block, false, 'Test 7 FAIL: git -C worktree must not block on a fresh lock');
+
+    // Test 8: the create op it DOES guard still blocks under a fresh lock.
+    const addBlocked = decide({
+      tool_input: { command: `git worktree add .superdev/${testScope}/worktree -b b base`, cwd: testRunDir },
+    });
+    assert.strictEqual(addBlocked.block, true, 'Test 8 FAIL: git worktree add must block on a fresh lock');
 
     // Protocol validation (exit 2 on block, exit 0 on allow) is tested at hook invocation time by
     // Claude Code; this selftest covers the decide() logic. The fixed main() properly translates

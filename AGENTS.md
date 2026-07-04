@@ -30,7 +30,8 @@ commands/              — slash commands (*.md): brainstorm, setup, plan, imple
 agents/                — subagents (*.md): implementer, slice-reviewer, simplicity-reviewer, final-reviewer, doc-writer
 hooks/                 — deterministic Node hooks + hooks.json: merge-guard, model-explicit, green-gate,
                          run-lock, worktree-sweep, update-check
-references/            — backend seed templates + plan-contract + documentation convention
+references/            — backend seed templates + plan-contract + documentation convention +
+                         execution playbooks (implement-full/lite, read at runtime by /implement)
 docs/adr/              — architecture decision records (why the plugin is built this way)
 docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, KB, verification)
 evals/                 — `claude plugin eval` cases (*/case.yaml + graders/*.md) exercising the commands
@@ -178,7 +179,7 @@ When the user requests a durable behavior change, record it here or in the relev
 
 ## Child DOX Index
 
-**No child AGENTS.md — the repo is flat.** It's small (8 commands, 5 agents, 7 hooks, 8 references) and
+**No child AGENTS.md — the repo is flat.** It's small (8 commands, 5 agents, 7 hooks, 10 references) and
 every subtree's rules already live in this root doc. Add a child only when a subtree becomes a durable
 boundary with rules of its own that don't fit here.
 
@@ -188,7 +189,9 @@ This root owns every subtree directly:
   pluggable** (stay tool-agnostic; never hardcode a backend). Behaviour contracts live in the files.
 - `hooks/` — the only executable code. Governed by **Working rules → Hooks are CommonJS** + **Every hook
   ships a `--selftest`**. Strongest future child-doc candidate if its rules outgrow this root.
-- `references/` — backend seed templates + `plan-contract.md` (slice schema/lifecycle) + `documentation.md`.
+- `references/` — backend seed templates + `plan-contract.md` (slice schema/lifecycle) + `documentation.md`
+  + **execution playbooks** (`implement-full.md` / `implement-lite.md`): the tier-specific linear procedures
+  `/implement` reads at runtime once it computes the tier (non-seed refs, like `plan-contract.md`).
 - `docs/adr/` — architecture decision records. `docs/agents/` — this repo's own dogfooded backend config.
 - `.claude-plugin/` — manifests. Governed by **Working rules → Version lives only in `plugin.json`**.
 - `CONTEXT.md` — the domain glossary. `evals/` — `claude plugin eval` cases.

@@ -2,7 +2,7 @@
 'use strict';
 
 // green-gate: deterministic PostToolUse(Bash) gate on the controller's merges.
-// implement.md's load-bearing rule is "re-run the suite on scope after merging" —
+// The full playbook's rule (references/implement-full.md, DAG loop) is "re-run the suite on scope after merging" —
 // prompted, so a model can skip it. This makes it deterministic: after a controller
 // `git merge`, run the configured test command; a RED suite exits 2 so the controller
 // MUST fix or revert before continuing.

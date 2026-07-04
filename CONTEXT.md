@@ -70,6 +70,9 @@ _Avoid: "inline implementation", "fast path"; "lite tier" for the route (the tie
 **Full path** — the execution *route* the full tier selects (>3 slices): parallel capped implementers in isolated worktrees, per-slice slice-reviewer (correctness) + simplicity-reviewer (over-engineering), serial merges into scope, one whole-scope final-reviewer.
 _Avoid: "parallel path", "standard path"; "full tier" for the route (the tier is the decision, this is the path)_
 
+**Execution playbook** — the linear, tier-specific procedure the controller `Read`s once the tier is computed: `references/implement-full.md` (the full path) or `references/implement-lite.md` (the lite path). The `/implement` command body keeps only the tier-agnostic core (invariants, config, Phase 0, issue-status map, final review + PR) and delegates the execution flow to the matching playbook, so each run loads only the one it takes.
+_Avoid: "command", "path" (the path is the route a tier selects; the playbook is the file that encodes it)_
+
 ## Backends
 
 superdev is tool-agnostic: three pluggable backends, each chosen by `/setup` and recorded under `docs/agents/`. The commands and agents never hardcode one.
