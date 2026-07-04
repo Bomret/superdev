@@ -9,17 +9,28 @@
 
 // (?![-\w]) so the subcommand is exactly `merge`/`push`/`rebase` — not read-only helpers
 // like `git merge-base` / `merge-tree` (a `\b` would match those, blocking them as false positives).
-const BLOCK = /(^|[;&|])\s*git\s+(merge|push|rebase)(?![-\w])/;
+// The lead-in class includes `\n` (+ `m` flag) so a `git push` on its own line of a multi-line
+// command string is caught, not just one after `;`/`&`/`|` or at string start.
+const BLOCK = /(^|[;&|\n])\s*git\s+(merge|push|rebase)(?![-\w])/m;
+// Integration via the code-host CLI is the controller's job too: `gh pr merge` / `tea pr merge`.
+// (The REST-API path — `curl … /pulls/<n>/merge` — can't be caught deterministically without
+// false-positiving on legitimate read curls; the subagent bodies carry that as an explicit contract.)
+const BLOCK_CLI = /(^|[;&|\n])\s*(gh|tea)\s+pr\s+merge\b/m;
+// ponytail: catches the honest/common forms only. A leading token with no separator before `git`
+// (`env FOO=1 git push`, `time git push`, `sudo git push`), a subshell (`$(git push)`), or an
+// interpreter wrapper (`bash -c "git push"`) still slip past — the char before `git` isn't a line
+// start or a `;`/`&`/`|`/`\n`. This is a deterministic guardrail against the model's normal output,
+// not a sandbox; airtight subagent isolation is the platform's job (see AGENTS.md known issues).
 
 function decide(input) {
   if (!input || !input.agent_id) return { block: false }; // controller (or unknown) → allow
   const cmd = (input.tool_input && input.tool_input.command) || '';
-  if (BLOCK.test(cmd)) {
+  if (BLOCK.test(cmd) || BLOCK_CLI.test(cmd)) {
     return {
       block: true,
       reason:
-        'superdev: subagents must not integrate. `git merge`/`push`/`rebase` are the ' +
-        "controller's job — commit on your slice branch and report your status. (merge-guard)",
+        'superdev: subagents must not integrate. `git merge`/`push`/`rebase` and `gh`/`tea pr merge` ' +
+        "are the controller's job — commit on your slice branch and report your status. (merge-guard)",
     };
   }
   return { block: false };
@@ -60,6 +71,10 @@ if (process.argv[2] === '--selftest') {
   assert.equal(decide(sub('  git push -u origin s')).block, true, 'leading spaces');
   assert.equal(decide(sub('cd x && git push')).block, true, 'after &&');
   assert.equal(decide(sub('git rebase main')).block, true);
+  assert.equal(decide(sub('git add -A\ngit commit -m x\ngit push')).block, true, 'push on a later line');
+  assert.equal(decide(sub('gh pr merge 5 --squash')).block, true, 'gh pr merge');
+  assert.equal(decide(sub('tea pr merge 5')).block, true, 'tea pr merge');
+  assert.equal(decide(sub('gh pr view 5')).block, false, 'gh read is fine');
   console.log('merge-guard selftest ok');
 } else {
   main();

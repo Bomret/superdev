@@ -16,7 +16,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { execSync } = require('node:child_process');
 
-const IS_MERGE = /(^|[;&|])\s*git\s+merge\b/;
+// (?![-\w]) so read-only helpers `git merge-base` / `merge-tree` don't trip the gate (a `\b` would
+// match them — mirror merge-guard). `\n` lead-in + `m` so a merge on a later line of a multi-line
+// command is still gated.
+const IS_MERGE = /(^|[;&|\n])\s*git\s+merge(?![-\w])/m;
 const VERIFICATION_DOC = 'docs/agents/verification.md';
 
 // First fenced code block's contents, trimmed — the test command.
@@ -48,9 +51,9 @@ function decide(input, testCommand, runTests) {
   };
 }
 
-function runTests(testCommand) {
+function runTests(testCommand, cwd) {
   try {
-    execSync(testCommand, { stdio: 'pipe', encoding: 'utf8' });
+    execSync(testCommand, { cwd, stdio: 'pipe', encoding: 'utf8' });
     return { ok: true, output: '' };
   } catch (e) {
     const out = ((e.stdout || '') + (e.stderr || '')).trim();
@@ -72,7 +75,7 @@ function main() {
     }
     const cwd = (input && input.cwd) || process.cwd();
     const testCommand = readTestCommand(cwd);
-    const { block, reason } = decide(input, testCommand, runTests);
+    const { block, reason } = decide(input, testCommand, (tc) => runTests(tc, cwd));
     if (block) {
       process.stderr.write(reason + '\n');
       process.exit(2);
@@ -93,7 +96,10 @@ if (process.argv[2] === '--selftest') {
   assert.equal(decide(merge('git status'), 'npm test', red).block, false, 'non-merge ignored');
   assert.equal(decide(merge('git merge x', { agent_id: 'a1' }), 'npm test', red).block, false, 'subagent ignored');
   assert.equal(decide(merge('forgit merge'), 'npm test', red).block, false, 'no substring false positive');
+  assert.equal(decide(merge('git merge-base main HEAD'), 'npm test', red).block, false, 'merge-base is read-only, not a merge');
+  assert.equal(decide(merge('git merge-tree a b'), 'npm test', red).block, false, 'merge-tree is read-only');
   assert.equal(decide(merge('cd x && git merge y'), 'npm test', red).block, true, 'after &&');
+  assert.equal(decide(merge('echo done\ngit merge --no-ff s'), 'npm test', red).block, true, 'merge on a later line');
 
   // fenced-block parsing
   const tmp = require('node:os').tmpdir();

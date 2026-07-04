@@ -16,6 +16,10 @@ Code lives on GitHub. Use the `gh` CLI for push + pull requests. `gh` infers the
   `gh pr create --draft --base <base> --head <scope-branch> --title "<title>" --body-file <file>`.
   Use a body file (heredoc) built from the global DoD + the slice list + the final-review summary.
 - **Ready (non-draft)**: same without `--draft`.
+- **Never interpolate a store-derived value into a shell string.** The title comes from the slice/plan;
+  if the slice store is multi-writer, treat it as untrusted. Pass it as a single quoted `--title "<title>"`
+  argument (so `gh` receives it as one argv, not a shell fragment) and always use `--body-file` for the
+  body — never build a command line by concatenating a title/body that could carry `"`/`` ` ``/`$( )`.
 - **Report**: print the PR URL (`gh pr view --json url --jq .url`).
 
 ## Degrade when `gh` is absent

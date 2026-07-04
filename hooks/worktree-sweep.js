@@ -15,12 +15,18 @@
 // integrated slice satisfies both. Safe to fire every turn, self-corrects on reverts.
 // Best-effort and silent: any git error, a dirty worktree, or no .superdev/ → no-op.
 
-const { execSync } = require('node:child_process');
+const { execSync, execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 
 function sh(cmd, cwd) {
   return execSync(cmd, { cwd, stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' }).trim();
+}
+
+// Like sh() but argv-based (no shell) — for any git call that includes a repo-derived value
+// (branch name, worktree path). A name containing a quote/backtick/$() can't break out and inject.
+function git(args, cwd) {
+  return execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' }).trim();
 }
 
 // The repo's default branch name (main/master), used as the "base" that worked slices
@@ -31,7 +37,7 @@ function defaultBranch(cwd) {
   } catch {
     for (const b of ['main', 'master']) {
       try {
-        sh(`git show-ref --verify --quiet refs/heads/${b}`, cwd);
+        git(['show-ref', '--verify', '--quiet', `refs/heads/${b}`], cwd);
         return b;
       } catch {
         /* not this one */
@@ -79,7 +85,7 @@ function main(cwd) {
       .split('\n')
       .filter(Boolean);
     for (const b of sliceBranches) {
-      if (sh(`git rev-list -n1 ${b} --not ${def}`, cwd)) worked.add(b);
+      if (git(['rev-list', '-n1', b, '--not', def], cwd)) worked.add(b);
     }
     porcelain = sh('git worktree list --porcelain', cwd);
   } catch {
@@ -87,8 +93,8 @@ function main(cwd) {
   }
   for (const { wt, br } of selectRemovable(porcelain, merged, worked, superdevRoot)) {
     try {
-      sh(`git worktree remove "${wt}"`, cwd); // refuses if dirty → caught, left for later
-      sh(`git branch -D "${br}"`, cwd);
+      git(['worktree', 'remove', wt], cwd); // refuses if dirty → caught, left for later
+      git(['branch', '-D', br], cwd);
     } catch {
       /* dirty / in use → leave it */
     }

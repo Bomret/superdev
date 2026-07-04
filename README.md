@@ -67,10 +67,10 @@ and an explicit turn ceiling (e.g. "stop after N tries").
 `implementer`, `slice-reviewer`, `simplicity-reviewer`, `final-reviewer`, `doc-writer` — each runs in an
 isolated context; only its result returns to the controller. `implementer` / `slice-reviewer` /
 `simplicity-reviewer` are dispatched per slice in the **full** execution tier only; the **lite** tier
-(≤3 slices) has the controller implement inline, then dispatches `final-reviewer` and `doc-writer`
-**concurrently** — one round-trip when the review is clean, re-running `doc-writer` only if the review
-forces fixes. The **full** tier dispatches them sequentially: `final-reviewer` first, then `doc-writer`
-once its fix loop closes.
+(≤3 slices) has the controller implement inline. Both tiers share the same final phase — `final-reviewer`
+over the whole scope, then, once its fix loop closes, `doc-writer` to reconcile the docs. The doc
+reconcile always runs **after** the review, never concurrent with it, so `doc-writer`'s commits can't
+shift the diff the reviewer reads ([ADR 0003](docs/adr/0003-doc-reconcile-runs-serially.md)).
 
 ## Guardrails (deterministic hooks)
 
