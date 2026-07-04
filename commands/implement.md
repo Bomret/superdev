@@ -272,18 +272,16 @@ and mechanical fixes.
 
 ## Red flags
 
-These flags describe the **full path**; the **lite** path is the documented exception — see **Lite
-path**.
+Most flags below apply to both **full** and **lite** paths. A few are full-path-only, marked explicitly. See **Lite path** for lite-specific behavior.
 
 - **One review instead of two (full path)** — a behavior slice gets correctness AND over-engineering
   (separate subagents), then the whole scope gets the final review.
-- **Reviewing inline / reusing the implementer's context** — reviewers are always separate subagents,
-  full path or lite.
-- **Trusting green** — "tests pass" ≠ correct; the reviewer reads the artifact and hunts uncovered input.
-- **Inventing tests for non-behavior slices** — a rename's net is the existing suite.
-- **Fixing without a RED test** — every fix starts with a failing test that reproduces the bug.
-- **A subagent merging/pushing** — only you integrate (a hook enforces this).
-- **Inferring dependencies** — use the plan's `depends-on`; don't guess from file overlap.
-- **Stalling for routine approval** — execute the plan continuously; stop only for a real blocker, a
+- **Reviewing inline / reusing the implementer's context (full path)** — in the full path, reviewers are always separate subagents. Lite's inline implementer is the exception.
+- **Trusting green (both tiers)** — "tests pass" ≠ correct; the reviewer reads the artifact and hunts uncovered input.
+- **Inventing tests for non-behavior slices (both tiers)** — a rename's net is the existing suite.
+- **Fixing without a RED test (both tiers)** — every fix starts with a failing test that reproduces the bug.
+- **A subagent merging/pushing (both tiers)** — only the controller integrates (a hook enforces this).
+- **Inferring dependencies (both tiers)** — use the plan's `depends-on`; don't guess from file overlap.
+- **Stalling for routine approval (both tiers)** — execute the plan continuously; stop only for a real blocker, a
   genuine ambiguity, a plan contradiction, or completion.
-- **Re-dispatching a merged slice** — after any compaction, trust the ledger and `git log`.
+- **Re-dispatching a merged slice (both tiers)** — after any compaction, trust the ledger and `git log`.
