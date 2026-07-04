@@ -16,7 +16,13 @@ Code lives on Codeberg (`ssh://codeberg.org/bomret/superdev.git`). Use the Forge
 - **Open the PR (REST):** `POST https://codeberg.org/api/v1/repos/bomret/superdev/pulls` with
   `{ "base": "main", "head": "<scope-branch>", "title": "...", "body": "..." }`,
   header `Authorization: token $GITEA_TOKEN`. Body built from the global DoD + slice list + final-review
-  summary. For a draft, prefix the title with `WIP:` (Forgejo treats a `WIP:` title as draft).
+  summary.
+- **The title MUST be a Conventional Commits header** (`type(scope): subject`, e.g.
+  `feat(implement): …`). PRs are **squash-merged**, so the title becomes the commit message on `main` and
+  semantic-release parses it for the version bump + changelog — a title without a conventional type is
+  silently ignored (no release). For a **draft**, prefix `WIP:` (Forgejo's draft marker, stripped on flip
+  to ready) *before* the conventional header — `WIP: feat(scope): …` — and flip to ready before merging so
+  the squash message is clean.
 - **Report:** print the PR URL.
 
 ## Degrade when no host CLI / API access
