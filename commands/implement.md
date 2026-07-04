@@ -1,19 +1,27 @@
 ---
-description: Execute a superdev plan — drive its vertical slices to merge as a dependency-ordered DAG. Parallel implementer subagents in isolated worktrees, warrant-gated per-slice review, controller-owned serial merges, then one whole-scope code review before the PR. Use when a plan exists in the slice store; run /superdev:plan first if not.
+description: Execute a superdev plan — drive its vertical slices to merge as a dependency-ordered DAG. The execution tier is derived from the loaded slice count: >3 slices run the full path (parallel implementer subagents in isolated worktrees, warrant-gated per-slice review, controller-owned serial merges); ≤3 slices run the lite path (controller implements inline on the scope branch, test-first, no worktrees). Either way, one whole-scope code review gates the PR. Use when a plan exists in the slice store; run /superdev:plan first if not.
 ---
 
 # superdev implement
 
-You are the **controller**. You drive a plan's slices to merge by dispatching isolated subagents, and
-you alone integrate. You never implement or merge inside a subagent.
+You are the **controller**. You drive a plan's slices to merge, and you alone integrate — never a
+subagent. **How** depends on the execution **tier**, derived from the loaded slice count (see §0): the
+**full** path (>3 slices) holds the invariant that **the controller never implements inline** —
+implementation happens only in isolated implementer subagents, one per slice. The **lite** path (≤3
+slices) is the one deliberate, documented exception to that invariant: you implement each slice inline
+yourself, test-first, directly on the scope branch — see **Lite path** below.
 
-**Core principle:** a slice's green suite proves its fixtures pass — not that it's correct. Separate
-reviewers re-verify; you integrate serially; one whole-scope review gates the PR.
+**Core principle:** a slice's green suite proves its fixtures pass — not that it's correct. In the full
+path, separate reviewers re-verify each slice and you integrate serially; in the lite path, the single
+whole-scope final review is the independent check. Either way, one whole-scope review gates the PR.
 
-**Background:** the four roles are subagents (`superdev:implementer`, `superdev:slice-reviewer`,
+**Background:** the full path's four roles are subagents (`superdev:implementer`, `superdev:slice-reviewer`,
 `superdev:simplicity-reviewer`, `superdev:final-reviewer`) — their discipline is in their bodies; you
-just dispatch them with the per-slice specifics. **Always pass an explicit `model`** on every dispatch
-(a hook blocks omissions). Between dispatches, narrate at most one short line.
+just dispatch them with the per-slice specifics. The lite path dispatches **at most one**
+`superdev:final-reviewer` (none at all for an all-mechanical/docs plan), plus an `implementer` fix only
+if that review finds something; you carry the implementer's TDD discipline yourself. **Always pass an
+explicit `model`** on every dispatch (a hook blocks omissions). Between dispatches, narrate at most one
+short line.
 
 ## 0. Config + input
 
@@ -27,6 +35,10 @@ just dispatch them with the per-slice specifics. **Always pass an explicit `mode
 - **Pre-flight scan:** read all slices once for contradictions (a slice that conflicts with another or
   with the DoD; a spec that mandates something a review would flag). Batch anything you find to the
   user before starting. Clean → proceed silently.
+- **Compute the execution tier** — a pure function of the loaded slice count, derived fresh every run:
+  **≤3 slices → `lite`**, **>3 slices → `full`**. Never configured, overridden, or persisted — `/plan`
+  and `/implement` both derive it the same way from the same count. `full` → §2 Branch model then §3 DAG
+  loop, below. `lite` → the **Lite path** section, below.
 
 ## 1. Phase 0 — Definition of done + ledger (always first)
 
@@ -34,11 +46,13 @@ just dispatch them with the per-slice specifics. **Always pass an explicit `mode
   `superdev/<feature-slug>`; you create the branch in §2). All artifacts for this run live under a
   per-scope run root **`.superdev/<scope>/`** — **git-ignored** (ensure `.superdev/` is in the repo's
   `.gitignore`; add it if absent). Layout: `.superdev/<scope>/dod.md` (the DoD),
-  `.superdev/<scope>/ledger.md` (the ledger), `.superdev/<scope>/reports/<id>/progress.md` (per-slice
-  progress log — see **Progress log**), `.superdev/<scope>/worktrees/<id>` (per-slice worktrees).
-  **Namespacing by `<scope>` is what lets several scope runs execute in parallel** — even in separate
-  sessions — without clobbering each other's DoD/ledger/reports/worktrees. Nothing here is committed or
-  lands in the PR.
+  `.superdev/<scope>/ledger.md` (the ledger — **both tiers**), `.superdev/<scope>/reports/<id>/progress.md`
+  (per-slice progress log, **full path only** — see **Progress log**), `.superdev/<scope>/worktrees/<id>`
+  (per-slice worktrees, **full path only**). The **lite** path drops both of the latter — no worktree to
+  isolate (you implement inline) and no per-slice log (your own context is the record); the ledger alone
+  carries its resume state. **Namespacing by `<scope>` is what lets several scope runs execute in
+  parallel** — even in separate sessions — without clobbering each other's DoD/ledger/reports/worktrees.
+  Nothing here is committed or lands in the PR.
 - Write the **global verification plan** (the DoD, made concrete and checkable) to
   `.superdev/<scope>/dod.md`. It anchors the final review and tells you when to stop. No DoD → don't
   proceed. **No epic** (a single-slice plan) → the DoD is that lone slice's `acceptance`; write it to
@@ -62,7 +76,10 @@ slice is merged. **No epic** (single-slice plan) — there is no separate scope 
 the scope anchor, so move it → `in-progress` at the start of the run and → `merged`/done at the end,
 covering both the slice transition and the scope-level signal in one issue.
 
-## Progress log (per slice)
+**Lite tier** has no per-slice review, so skip the `in-review` transition — move each slice straight from
+`in-progress` to `merged`/done once its commit lands on the scope branch.
+
+## Progress log (per slice, full path)
 
 Each slice has a **progress log** at `.superdev/<scope>/reports/<id>/progress.md` — a running record of
 how the slice unfolded, not a final report. **You (the controller) own it:**
@@ -86,13 +103,61 @@ compaction — can see what happened on a slice without re-reading every worktre
 - **Scope branch** off base: `git switch -c <scope> <base>` (the `<scope>` chosen in Phase 0; base from
   `code-management.md`, default `main`). Then move the **scope/epic** issue → `in-progress` (per
   `issue-tracker.md`; best-effort).
-- **Per slice**, a branch off scope in its own **worktree** under this run's root:
+- **Per slice (full path only)**, a branch off scope in its own **worktree** under this run's root:
   `git worktree add .superdev/<scope>/worktrees/<id> -b slice/<scope>/<id> <scope>`. The slice branch is
   **scoped** (`slice/<scope>/<id>`) so parallel runs never collide even when slice ids repeat (e.g.
   local-store `01`/`02`). Filesystem isolation lets independent slices run in parallel without clobbering
-  each other; `.superdev/` being git-ignored keeps the nested worktrees out of the parent's status.
+  each other; `.superdev/` being git-ignored keeps the nested worktrees out of the parent's status. The
+  **lite** path has no per-slice branch or worktree — see **Lite path**, next.
 
-## 3. DAG loop
+## Lite path (≤3 slices)
+
+Small plans don't need the worktree + multi-subagent machinery. After the scope branch above is cut, you
+implement every slice yourself, directly on it — no per-slice worktree, no implementer subagent, no
+per-slice reviewer.
+
+- **Implement in `depends-on` order, inline, test-first.** For each slice, in dependency order: read its
+  `spec` + `acceptance`, then carry the same tracer-bullet discipline an implementer subagent would (one
+  RED test, minimal GREEN code, repeat) yourself, directly against the scope branch's working tree.
+  `mechanical` / `docs` slices need no new test — the existing suite is the net, same rule as the full
+  path.
+- **Carry the implementer's escalation discipline too, not just its TDD discipline.** If you can't get a
+  slice green after reasonable effort, treat it like the full path's BLOCKED / 3-strike case — it's a
+  **wrong cut**, not something to force through. Move the slice → `blocked` and escalate (re-slice or
+  hand it to the human) rather than grinding on it inline.
+- **Commit per slice** on the scope branch (Conventional Commits) as each one goes green. Update the
+  ledger (`todo` → `in-progress` → `merged`; `merged` here means "committed to the scope branch" — there
+  is no separate slice branch to merge) and the tracker status per **Issue status**, above.
+- **No per-slice review, no per-slice progress log.** There is no `slice-reviewer` / `simplicity-reviewer`
+  dispatch; your own context is the record of how each slice unfolded, and the ledger is the durable
+  trace once that context is gone.
+- **One final review for the whole scope.** Once every slice is implemented, proceed to **§4 Final
+  phase** exactly as the full path does: dispatch a single `superdev:final-reviewer` over the integrated
+  diff (BASE = `git merge-base <base> <scope>`, HEAD = scope tip) against the global DoD, and follow §4's
+  fix loop — including its **3-strike cap** — exactly as written; it already applies to both tiers.
+- **All slices `mechanical`/`docs`** → skip the final review too (the suite is the net) — the same
+  exception the full path already grants per-slice mechanical/docs work, just applied to the whole small
+  plan.
+- **Doc pass + PR are unchanged.** §4's `/superdev:document` reconcile and PR steps run exactly as
+  written, regardless of tier.
+
+**Resume:** there are no worktrees to reconcile. Read `.superdev/<scope>/ledger.md` and cross-check it
+against `git log <base>..<scope>` on the scope branch directly — a slice the ledger marks `merged` (i.e.
+already committed) is done; pick up at the next `todo` slice in `depends-on` order. Unlike the full
+path's isolated worktrees, lite implements directly on the shared scope branch working tree, so an
+interrupted `in-progress` slice may have left partial, uncommitted changes there. Before resuming, run
+`git status` / `git diff` on the scope branch's working tree and decide whether to continue that
+in-progress slice's uncommitted work or discard it, before dispatching or continuing.
+
+**Rationale:** lite deliberately relaxes the "controller never implements inline" invariant for small
+plans — dispatching a worktree'd implementer subagent per slice for a 1–3 slice plan is pure token +
+latency overhead with no payoff. The single `superdev:final-reviewer` preserves the one thing that
+matters: an independent check that green ≠ correct, without paying for per-slice isolation the plan is
+too small to need.
+
+## 3. DAG loop (full path, >3 slices)
+
+*(The lite path above does not use this loop.)*
 
 Repeat until every slice is `merged`:
 
@@ -159,12 +224,18 @@ anything, reconcile state, then re-enter the DAG loop at step 1.
 - **Rebuild the runnable set from reconciled state** (DAG loop step 1) and continue the loop exactly as
   above — dispatch, review, merge, recompute — until every slice is `merged`.
 
-## 4. Final phase — whole-scope review, then PR
+## 4. Final phase — whole-scope review, then PR (both tiers)
 
+- **Lite tier, all slices `mechanical`/`docs`** → skip the final-reviewer dispatch below entirely (the
+  suite is the net) and go straight to the remaining steps below — confirming every DoD item is met and
+  moving the scope/epic issue → `done`, then the doc pass + PR. Only the review step is skipped.
 - Dispatch **`superdev:final-reviewer`** (`model: opus`) on the integrated scope branch:
   BASE = `git merge-base <base> <scope>`, HEAD = scope tip; requirements = the global DoD + slice list.
 - For **Critical/Important** findings, dispatch **one** `superdev:implementer` fix with the **complete**
-  findings list (not one fixer per finding), each fix opening with a **RED test**; re-review until clean.
+  findings list (not one fixer per finding), each fix opening with a **RED test**; re-review until clean —
+  **or 3 strikes**: if the fix loop takes 3 cycles without going clean, stop re-dispatching. That's not a
+  buggy slice, it's a **wrong cut** — a hidden dependency or a boundary too big. Stop, escalate to the
+  human (re-slice or hand it over); don't burn a fourth cycle. This cap applies to **both tiers**.
 - **Reconcile docs + KB (always):** run **`/superdev:document <base>..<scope>`** (BASE =
   `git merge-base <base> <scope>`). It dispatches the `doc-writer` to bring the in-repo docs and the
   knowledge base up to the integrated state and **remove stale/obsolete** text, committing the changes on
@@ -174,13 +245,18 @@ anything, reconcile state, then re-enter the DAG loop at step 1.
   slice issue, already `merged`, is done).
 - **Open the PR/MR per `docs/agents/code-management.md`** (default posture = draft; degrade to push +
   printed compare URL + ready-to-run command when no host CLI is present). Report the PR URL to the user.
-- **Clean up worktrees (after the PR).** Per-slice worktrees are already removed at merge (step 3.4);
-  as a final sweep run `git worktree prune`, then remove any remaining `.superdev/<scope>/worktrees/*`
-  and any leftover `slice/<scope>/*` branches (`git worktree remove` / `git branch -D`). Keep the rest of
-  `.superdev/<scope>/` (progress logs, ledger, DoD) — the git-ignored paper trail for post-mortem.
-  **Never** delete the scope branch: the PR is from it.
+- **Clean up worktrees (after the PR, full path).** Per-slice worktrees are already removed at merge
+  (step 3.4); as a final sweep run `git worktree prune`, then remove any remaining
+  `.superdev/<scope>/worktrees/*` and any leftover `slice/<scope>/*` branches (`git worktree remove` /
+  `git branch -D`). Keep the rest of `.superdev/<scope>/` (progress logs, ledger, DoD) — the git-ignored
+  paper trail for post-mortem. **Never** delete the scope branch: the PR is from it. **Lite** skips this
+  step — it never created any worktrees.
 
 ## Model selection (always set explicitly)
+
+The `implementer` / `slice-reviewer` / `simplicity-reviewer` rows are **full-path only** (per-slice
+dispatches lite doesn't make). The `final-reviewer` row — and an `implementer` fix for final-review
+findings, at the `implementer`/`fix` rows' model — applies to **both** tiers.
 
 | Dispatch | Model | When |
 |---|---|---|
@@ -196,9 +272,13 @@ and mechanical fixes.
 
 ## Red flags
 
-- **One review instead of two** — a behavior slice gets correctness AND over-engineering (separate
-  subagents), then the whole scope gets the final review.
-- **Reviewing inline / reusing the implementer's context** — reviewers are separate subagents.
+These flags describe the **full path**; the **lite** path is the documented exception — see **Lite
+path**.
+
+- **One review instead of two (full path)** — a behavior slice gets correctness AND over-engineering
+  (separate subagents), then the whole scope gets the final review.
+- **Reviewing inline / reusing the implementer's context** — reviewers are always separate subagents,
+  full path or lite.
 - **Trusting green** — "tests pass" ≠ correct; the reviewer reads the artifact and hunts uncovered input.
 - **Inventing tests for non-behavior slices** — a rename's net is the existing suite.
 - **Fixing without a RED test** — every fix starts with a failing test that reproduces the bug.

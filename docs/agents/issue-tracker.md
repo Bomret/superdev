@@ -52,3 +52,7 @@ Slices live as Codeberg issues — one slice = one issue — in `bomret/superdev
 
 The **epic** issue: label `in-progress` when the run starts, **closed** once every slice issue is closed.
 Best-effort — the run ledger drives control flow; if a label/close call fails, log it and continue.
+
+**Lite execution tier** (≤3 slices, see `plan-contract.md`) skips `in-review` for every slice regardless
+of `test-applicability` — go straight from `in-progress` to closed once the slice's commit lands on the
+scope branch.

@@ -1,9 +1,9 @@
 # superdev
 
 A self-contained Claude Code plugin for the full **plan → implement** loop, with **no prerequisite
-plugins**. Interview-driven vertical slicing, parallel execution in isolated git worktrees with
-separate implementer/reviewer subagents, deterministic guardrails, and a pluggable slice store + code
-host.
+plugins**. Interview-driven vertical slicing, an execution tier sized to the plan (parallel execution in
+isolated git worktrees with separate implementer/reviewer subagents for larger plans, inline test-first
+implementation for small ones), deterministic guardrails, and a pluggable slice store + code host.
 
 ```
 /superdev:setup      → configure backends in docs/agents/*.md (once per repo)
@@ -23,12 +23,15 @@ host.
   to the slice store.
 - **`/superdev:plan`** — a relentless interview pins intent and a Definition of Done, captures ADRs +
   a glossary as decisions surface, then decomposes the work into **independently-green vertical
-  tracer-bullet slices** with explicit `depends-on` dependencies, written to the configured store.
-- **`/superdev:implement`** — the controller drives the slices as a **dependency-ordered DAG**:
-  unblocked slices run in **parallel** as `implementer` subagents in isolated worktrees (TDD + lazy
-  minimalism); each behavior slice is gated by a separate **correctness reviewer** and an
-  **over-engineering reviewer**; the controller merges **serially**; when all slices land, one
-  **whole-scope review** gates the **PR**.
+  tracer-bullet slices** with explicit `depends-on` dependencies, written to the configured store. Tells
+  you the execution tier `/superdev:implement` will use for the final slice count (see below).
+- **`/superdev:implement`** — the controller drives the slices as a **dependency-ordered DAG**, sized to
+  an execution tier derived fresh from the loaded slice count, never configured or persisted:
+  **>3 slices → full** — unblocked slices run in **parallel** as `implementer` subagents in isolated
+  worktrees (TDD + lazy minimalism), each behavior slice gated by a separate **correctness reviewer**
+  and an **over-engineering reviewer**, the controller merges **serially**. **≤3 slices → lite** — the
+  controller implements each slice inline on the scope branch itself, test-first, no worktrees or
+  per-slice reviewers. Either tier ends with one **whole-scope review** gating the **PR**.
 - **`/superdev:status`** — a read-only snapshot of every in-flight `/superdev:implement` run in the repo:
   per scope, slice counts by status and which slices are `blocked`. Never writes, transitions, or merges
   anything.
@@ -60,7 +63,10 @@ and an explicit turn ceiling (e.g. "stop after N tries").
 ## Roles (subagents)
 
 `implementer`, `slice-reviewer`, `simplicity-reviewer`, `final-reviewer`, `doc-writer` — each runs in an
-isolated context; only its result returns to the controller.
+isolated context; only its result returns to the controller. `implementer` / `slice-reviewer` /
+`simplicity-reviewer` are dispatched per slice in the **full** execution tier only; the **lite** tier
+(≤3 slices) has the controller implement inline and dispatches only `final-reviewer` (once, for the
+whole scope) and `doc-writer` — the same as the full tier's closing steps.
 
 ## Guardrails (deterministic hooks)
 
@@ -76,6 +82,7 @@ Cross-platform Node hooks (`node` is a Claude Code runtime dependency — no bas
 - **worktree-sweep** — a `Stop` hook that removes each per-slice worktree + branch once its slice is
   fully merged, so finished worktrees can't pile up when the controller skips the prompted cleanup.
   Only touches merged `slice/*` worktrees under `.superdev/`; in-progress and reverted slices are left.
+  A lite-tier run (≤3 slices) creates no per-slice worktrees, so there's nothing for this hook to sweep.
 
 A fifth Node hook, **update-check**, is a `SessionStart` *notice* (not a guardrail) — see
 [Updating](#updating).
@@ -88,8 +95,10 @@ backend.
 
 - **Slice store** — where a feature's plan lives: the global **Definition of Done** plus every vertical
   slice (`id`, `depends-on`, `test-applicability`, `spec`, `acceptance`). `/plan` writes it; `/implement`
-  reads it and drives each slice to `merged`, walking its issue along the tracker's status workflow as it
-  goes (dispatch → in-progress, review → in-review, merge → done — mapped at setup).
+  reads it, uses its slice count to derive the execution tier, and drives each slice to `merged`, walking
+  its issue along the tracker's status workflow as it goes (dispatch → in-progress, review → in-review,
+  merge → done — mapped at setup; the **lite** tier has no per-slice review, so it skips straight from
+  in-progress to merged/done).
   Choices: *local files* (a directory `docs/plans/<feature-slug>/` per feature: `00-epic-*` = DoD +
   scope, `NN-<test-applicability>-*` = one file per slice, the number *is* the id — best for solo work
   or no tracker) · *Jira* (each slice an issue, `depends-on` → "is blocked by" links) · *other* (describe
@@ -123,8 +132,9 @@ docs/adr/NNNN-*.md        architecture decision records, authored by /plan
 .claude/rules/*.md        path-scoped conventions the implementers auto-load, authored by /plan
 docs/kb/                  knowledge base, only if the local-file KB backend is chosen
 .superdev/<scope>/        git-ignored run scratch, namespaced per scope branch so parallel runs
-                          don't collide: the concrete DoD, the ledger, per-slice progress logs +
-                          worktrees — never committed, never in the PR
+                          don't collide: the concrete DoD + ledger (both execution tiers), plus
+                          per-slice progress logs + worktrees (full tier only, >3 slices) — never
+                          committed, never in the PR
 ```
 
 Everything except `.superdev/` is committed — the design docs (glossary, ADRs, rules) **must** be on the
@@ -140,13 +150,14 @@ A tiny feature end to end, with the local-file slice store and GitHub as the cod
 - **`/superdev:plan add a health-check endpoint`** — interviews for intent + a Definition of Done, then
   writes `docs/plans/health-check/`: `00-epic-*` (DoD + scope) plus two slices, e.g.
   `01-behavior-route-handler.md` and `02-behavior-wire-into-router.md`, the second `depends-on` the
-  first. You see the slice list printed back, ready for `/implement`.
+  first. You see the slice list printed back, ready for `/implement`, along with the tier it'll run
+  under — two slices is ≤3, so **lite**.
 - **`/superdev:implement health-check`** — sets up `.superdev/health-check/` (git-ignored run scratch:
-  concrete DoD, ledger, per-slice progress logs and worktrees). Slice 01 has no dependencies, so an
-  `implementer` subagent TDDs it in its own worktree, a `slice-reviewer` and `simplicity-reviewer` gate
-  it, the controller merges it; slice 02 then unblocks and follows the same loop. Once both are merged,
-  a `final-reviewer` gates the whole scope, then the controller opens the PR and stops. You see a
-  one-line status per slice as it lands, then the PR URL.
+  concrete DoD + ledger). Two slices → the **lite** tier: no per-slice worktrees or reviewer subagents —
+  the controller implements slice 01 test-first directly on the scope branch and commits it, then slice
+  02 unblocks and follows the same loop. Once both are merged, a single `final-reviewer` gates the whole
+  scope, then the controller opens the PR and stops. You see a one-line status per slice as it lands,
+  then the PR URL.
 - **After** — review comments or flaky CI on the open PR are a `/loop` job, not `/implement`'s concern
   (see [After the PR](#after-the-pr)).
 

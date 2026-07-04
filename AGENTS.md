@@ -1,8 +1,9 @@
 # superdev
 
 A self-contained **Claude Code plugin** for the plan → implement loop: interview-driven vertical
-slicing, parallel worktree execution with isolated implementer/reviewer subagents, deterministic hook
-guardrails, and a pluggable slice store + code host. No prerequisite plugins.
+slicing, an execution tier sized to the plan (parallel worktree execution with isolated
+implementer/reviewer subagents for >3 slices, inline test-first implementation for ≤3), deterministic
+hook guardrails, and a pluggable slice store + code host. No prerequisite plugins.
 
 ## Need something? → Read this
 

@@ -123,6 +123,12 @@ plan files or as issues.
   slice's `acceptance` and write only the slice. No `00-epic-…` file / no epic issue.
 - **Two or more slices** — write the global DoD (epic) plus each slice, as today.
 
+**Tell the user the expected execution tier.** `/superdev:implement` derives it fresh from the final
+slice count — **≤3 slices → `lite`** (the controller implements each slice inline, no worktrees, one
+final review), **>3 slices → `full`** (parallel worktrees + per-slice implementer/reviewer subagents).
+This is purely informational so the user knows what to expect: `/plan` doesn't stamp or persist the
+tier anywhere.
+
 **Commit the durable design docs** you wrote — the glossary (`CONTEXT.md`), any ADRs (`docs/adr/`), and
 any `.claude/rules/` — to the base branch. `/superdev:implement` runs each slice in a fresh worktree
 checkout of that branch; anything left uncommitted never reaches the implementers, and a path-scoped

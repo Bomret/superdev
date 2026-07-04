@@ -48,6 +48,12 @@ recorded in `issue-tracker.md`:
 `mechanical`/`docs` slices skip `in-review` (`in-progress` → `merged`). The scope/epic issue moves to
 `in-progress` when the run starts and to `done` once every slice is merged.
 
+`/implement` derives an **execution tier** from the loaded slice count (≤3 → `lite`, >3 → `full`) —
+never a plan field, never persisted. The **lite** tier has no per-slice review at all, regardless of
+`test-applicability`: every slice goes `todo` → `in-progress` → `merged` directly, and a single
+whole-scope review substitutes for the per-slice ones. The table above (and the `behavior`-only
+`in-review` step) describes the **full** tier.
+
 ## Vertical-slice rules (how `/plan` must slice)
 
 - Each slice is a **tracer bullet**: a narrow but COMPLETE path through every layer (schema → API → UI
