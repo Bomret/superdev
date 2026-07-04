@@ -7,6 +7,7 @@ host.
 
 ```
 /superdev:setup      → configure backends in docs/agents/*.md (once per repo)
+/superdev:brainstorm → (optional) turn a vague idea into a plan-ready intent
 /superdev:plan       → interview + slice a feature into the slice store
 /superdev:implement  → drive the slices to merge, then open the PR
 /superdev:status     → read-only DAG progress snapshot for in-flight runs
@@ -16,6 +17,10 @@ host.
 
 ## What it does
 
+- **`/superdev:brainstorm`** — *(optional)* a divergent discovery conversation that shapes a vague idea
+  into a plan-ready intent: explores candidate directions, finds the smallest end-to-end slice worth
+  building, surfaces open questions, then hands off to `/superdev:plan`. Near read-only — writes nothing
+  to the slice store.
 - **`/superdev:plan`** — a relentless interview pins intent and a Definition of Done, captures ADRs +
   a glossary as decisions surface, then decomposes the work into **independently-green vertical
   tracer-bullet slices** with explicit `depends-on` dependencies, written to the configured store.

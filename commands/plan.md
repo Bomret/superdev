@@ -21,6 +21,9 @@ question can be answered by reading the codebase, read it instead of asking.
 Pin: the problem (from the user's perspective), the solution shape, constraints, and the **global
 Definition of Done** — the checkable acceptance criteria for the whole feature.
 
+Intent still vague — no clear problem, no checkable success criteria? Suggest `/superdev:brainstorm`
+first to explore the space before pinning it down here.
+
 ## 2. Domain-model as you go
 
 When terms, decisions, or conventions crystallise, capture them immediately — don't batch:

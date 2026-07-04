@@ -1,0 +1,62 @@
+---
+description: Turn a rough idea into a plan-ready intent — a divergent, curious discovery conversation that starts from the problem, explores candidate directions, finds the smallest end-to-end version worth building, and surfaces open questions. Run before /superdev:plan when the idea isn't sharp enough to interview yet.
+argument-hint: "[a rough idea, or nothing]"
+---
+
+# superdev brainstorm
+
+Turn a vague idea into an intent that's sharp enough to interview. Where `/superdev:plan` **converges**
+— one question at a time, pinning down a Definition of Done — this command **diverges** first: it
+generates options, tolerates "I don't know," and only narrows once the shape of the problem is clear.
+Near read-only — it does not write slices, a Definition of Done, or anything to the slice store; that's
+`/superdev:plan`'s job.
+
+Set a generative, curious mode: offer options rather than asking closed questions, explore tradeoffs out
+loud, and treat "I don't know yet" as useful signal, not a blocker. Ground every option in the actual
+repo — read `AGENTS.md` and the relevant code before proposing directions, so suggestions are grounded
+in what exists, not invented from nothing.
+
+## 1. Start from the problem, not the solution
+
+If `$ARGUMENTS` names a solution ("add a cache", "build a dashboard"), pull the conversation back one
+level before going further. Ask: who feels this pain, what's frustrating about today, why does it matter
+now, and what happens if nothing changes. A brainstorm that starts from the solution locks in the first
+idea instead of finding the best one.
+
+## 2. Explore the space
+
+Propose **2–4 candidate directions or shapes** for solving the problem — different enough to reveal real
+tradeoffs, not variations on one idea. For each, name the rough shape and its cost/benefit. Get the
+user's reaction to each before narrowing. Diverge before you converge — resist collapsing to a single
+direction too early.
+
+## 3. Find the skateboard
+
+For the direction the user leans toward, find the **smallest end-to-end version that delivers real
+value** — not a fragment of the final thing, but a complete (if narrow) slice through it a user could
+actually use. Push back on gold-plating; push back on scope so thin it delivers nothing real either.
+
+## 4. Surface unknowns
+
+Name the assumptions being made, the risks, and any constraints (technical, organizational, timeline).
+Cross-check claims against the code — if the codebase already does or doesn't support something the
+idea assumes, say so now rather than let `/superdev:plan` discover it later.
+
+## 5. Converge to a "ready to plan" brief
+
+Once the space has been explored, pull it together into a short brief:
+
+- **Problem statement** — the pain, from the user's perspective.
+- **Target user** — who this is for.
+- **Success criteria** — checkable, not vibes.
+- **Rough scope + non-goals** — the skateboard, and what's deliberately excluded.
+- **Still-open decisions** — what remains genuinely undecided.
+
+You may jot this brief to a scratch file for the user's reference, but do not create ADRs, a glossary,
+slices, or anything in the slice store — none of that durable capture happens here.
+
+## 6. Hand off
+
+Once the brief has a clear problem, checkable success criteria, and a bounded scope — even if some
+decisions remain open — tell the user it's ready and to run **`/superdev:plan`**, which will interview
+those remaining decisions one at a time and decompose the work into slices.
