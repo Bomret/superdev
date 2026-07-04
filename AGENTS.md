@@ -12,6 +12,8 @@ hook guardrails, and a pluggable slice store + code host. No prerequisite plugin
 | Understand the plugin, install, updating | [`README.md`](README.md) |
 | Cut a release | [`RELEASING.md`](RELEASING.md) |
 | Slice schema, lifecycle & status | [`references/plan-contract.md`](references/plan-contract.md) |
+| Domain language (ubiquitous terms) | [`CONTEXT.md`](CONTEXT.md) |
+| Architecture decisions (why it's built this way) | [`docs/adr/`](docs/adr/) |
 | In-repo documentation convention (this AGENTS.md hierarchy) | [`references/documentation.md`](references/documentation.md) |
 | Add/adjust a backend (slice store, code host, KB, verification) | seeds in [`references/`](references/) |
 | Attribution / license | [`NOTICE`](NOTICE), [`LICENSE`](LICENSE) |
@@ -29,10 +31,13 @@ agents/                — subagents (*.md): implementer, slice-reviewer, simpli
 hooks/                 — deterministic Node hooks + hooks.json: merge-guard, model-explicit, green-gate,
                          run-lock, worktree-sweep, update-check
 references/            — backend seed templates + plan-contract + documentation convention
+docs/adr/              — architecture decision records (why the plugin is built this way)
+docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, KB, verification)
 evals/                 — `claude plugin eval` cases (*/case.yaml + graders/*.md) exercising the commands
 release.config.cjs     — semantic-release config (semantic-release-replace-plugin bumps plugin.json)
 package.json           — dev-only tooling (Bun); NOT published to npm
 CHANGELOG.md           — release-managed by semantic-release; do not hand-edit
+CONTEXT.md             — the domain-language glossary (ubiquitous terms); maintained by /plan
 README.md · RELEASING.md · NOTICE · LICENSE
 ```
 
@@ -91,20 +96,99 @@ bun run eval                       # run the evals/ cases against the commands
 GITEA_TOKEN=<token> bun run release  # cut a release from clean main (see RELEASING.md)
 ```
 
-## Documentation contract (DOX-style)
+# DOX framework
 
-This file is the binding contract for the repo. superdev's own `/superdev:document` implements this same
-`AGENTS.md`-hierarchy convention (see `references/documentation.md`).
+- DOX is highly performant AGENTS.md hierarchy installed here
+- Agent must follow DOX instructions across any edits
 
-**Read before editing:** read this AGENTS.md, then any child AGENTS.md on the path to the files you'll
-touch. Don't rely on memory — re-read in the current session.
+## Core Contract
 
-**Update after editing:** when a change affects purpose, structure, contracts, workflow, or operating
-rules, update the nearest owning AGENTS.md (and parents whose structure/child-index changed). Delete
-stale or contradictory text immediately — present-tense, state-of-the-world prose, no history.
+- AGENTS.md files are binding work contracts for their subtrees
+- Work products, source materials, instructions, records, assets, and durable docs must stay understandable from the nearest applicable AGENTS.md plus every parent AGENTS.md above it
 
-**Style:** concise, current, operational. Stable contracts, not diary entries. Broad rules in parents,
-concrete detail in children. Don't duplicate a rule across files unless each scope needs its own.
+## Read Before Editing
 
-**Hierarchy:** this is currently the only AGENTS.md — the repo is flat. Add a child AGENTS.md when a
-subtree becomes a durable boundary with its own rules, and list it in a Child DOX Index here.
+1. Read the root AGENTS.md
+2. Identify every file or folder you expect to touch
+3. Walk from the repository root to each target path
+4. Read every AGENTS.md found along each route
+5. If a parent AGENTS.md lists a child AGENTS.md whose scope contains the path, read that child and continue from there
+6. Use the nearest AGENTS.md as the local contract and parent docs for repo-wide rules
+7. If docs conflict, the closer doc controls local work details, but no child doc may weaken DOX
+
+Do not rely on memory. Re-read the applicable DOX chain in the current session before editing.
+
+## Update After Editing
+
+Every meaningful change requires a DOX pass before the task is done.
+
+Update the closest owning AGENTS.md when a change affects:
+
+- purpose, scope, ownership, or responsibilities
+- durable structure, contracts, workflows, or operating rules
+- required inputs, outputs, permissions, constraints, side effects, or artifacts
+- user preferences about behavior, communication, process, organization, or quality
+- AGENTS.md creation, deletion, move, rename, or index contents
+
+Update parent docs when parent-level structure, ownership, workflow, or child index changes. Update child docs when parent changes alter local rules. Remove stale or contradictory text immediately. Small edits that do not change behavior or contracts may leave docs unchanged, but the DOX pass still must happen.
+
+## Hierarchy
+
+- Root AGENTS.md is the DOX rail: project-wide instructions, global preferences, durable workflow rules, and the top-level Child DOX Index
+- Child AGENTS.md files own domain-specific instructions and their own Child DOX Index
+- Each parent explains what its direct children cover and what stays owned by the parent
+- The closer a doc is to the work, the more specific and practical it must be
+
+## Child Doc Shape
+
+- Create a child AGENTS.md when a folder becomes a durable boundary with its own purpose, rules, responsibilities, workflow, materials, or quality standards
+- Work Guidance must reflect the current standards of the project or user instructions; if there are no specific standards or instructions yet, leave it empty
+- Verification must reflect an existing check; if no verification framework exists yet, leave it empty and update it when one exists
+
+Default section order:
+- Purpose
+- Ownership
+- Local Contracts
+- Work Guidance
+- Verification
+- Child DOX Index
+
+## Style
+
+- Keep docs concise, current, and operational
+- Document stable contracts, not diary entries
+- Put broad rules in parent docs and concrete details in child docs
+- Prefer direct bullets with explicit names
+- Do not duplicate rules across many files unless each scope needs a local version
+- Delete stale notes instead of explaining history
+- Trim obvious statements, repeated rules, misplaced detail, and warnings for risks that no longer exist
+
+## Closeout
+
+1. Re-check changed paths against the DOX chain
+2. Update nearest owning docs and any affected parents or children
+3. Refresh every affected Child DOX Index
+4. Remove stale or contradictory text
+5. Run existing verification when relevant
+6. Report any docs intentionally left unchanged and why
+
+## User Preferences
+
+When the user requests a durable behavior change, record it here or in the relevant child AGENTS.md
+
+## Child DOX Index
+
+**No child AGENTS.md — the repo is flat.** It's small (8 commands, 5 agents, 7 hooks, 8 references) and
+every subtree's rules already live in this root doc. Add a child only when a subtree becomes a durable
+boundary with rules of its own that don't fit here.
+
+This root owns every subtree directly:
+
+- `commands/`, `agents/` — prose slash-commands + subagents. Governed by **Working rules → Backends are
+  pluggable** (stay tool-agnostic; never hardcode a backend). Behaviour contracts live in the files.
+- `hooks/` — the only executable code. Governed by **Working rules → Hooks are CommonJS** + **Every hook
+  ships a `--selftest`**. Strongest future child-doc candidate if its rules outgrow this root.
+- `references/` — backend seed templates + `plan-contract.md` (slice schema/lifecycle) + `documentation.md`.
+- `docs/adr/` — architecture decision records. `docs/agents/` — this repo's own dogfooded backend config.
+- `.claude-plugin/` — manifests. Governed by **Working rules → Version lives only in `plugin.json`**.
+- `CONTEXT.md` — the domain glossary. `evals/` — `claude plugin eval` cases.

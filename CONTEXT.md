@@ -8,8 +8,8 @@ _Avoid: "feature issue", "parent issue"_
 **Slice** — a vertical tracer bullet: a narrow but complete path through every layer (spec → implementation → test), independently green, demoable/verifiable on its own. Each slice carries test-applicability (behavior/mechanical/docs), a spec, acceptance criteria, and explicit dependencies on other slices.
 _Avoid: "story", "task", "sub-issue", "chunk"_
 
-**Tier** (execution) — the execution strategy for a plan, derived from the loaded slice count. `lite` (≤3 slices): controller implements each slice inline in a single scope worktree (test-first), then one final-reviewer; `full` (>3 slices): parallel capped implementers in isolated per-slice worktrees, per-slice reviewer + simplicity-reviewer, serial merges, final review. Never persisted, derived fresh every run.
-_Avoid: "mode", "strategy", "level"_
+**Tier** (execution) — the routing *decision* for a plan, derived from the loaded slice count; it selects which execution **path** runs (see _Separation of concerns_). `lite` (≤3 slices): controller implements each slice inline in a single scope worktree (test-first), then one final-reviewer; `full` (>3 slices): parallel capped implementers in isolated per-slice worktrees, per-slice reviewer + simplicity-reviewer, serial merges, final review. Never persisted, derived fresh every run.
+_Avoid: "mode", "strategy", "level"; "path" (that's the route a tier selects, not the decision)_
 
 **Scope** — a feature's scope branch and all its run artifacts (.superdev/<scope>/ directory: DoD, ledger, progress logs, worktrees). Scope is the namespace that lets multiple features' runs execute in parallel without colliding.
 _Avoid: "run", "branch", "feature branch" (too generic)_
@@ -31,6 +31,12 @@ _Avoid: "scratch checkout", "session workspace"_
 
 **Progress log** — the per-slice running record of what happened: agent dispatches, reviews, fixes, merge results. `.superdev/<scope>/reports/<id>/progress.md` is append-only, oldest-first, git-ignored. Exists so a human or a resumed controller can see what unfolded without re-reading worktree state.
 _Avoid: "log", "report", "transcript" (logs are broader; this is slice-specific narrative)_
+
+**Warrant** — the justification a piece of work carries; scales both cost (which model tier a dispatch uses) and rigor (which review gates run). Derived from a slice's test-applicability + complexity, never a plan field. A `behavior` slice warrants more than a `mechanical` one; a hook blocks any dispatch that omits an explicit model so cost stays warrant-scaled.
+_Avoid: "priority", "estimate", "weight"_
+
+**Intent** — a rough idea sharpened into something plan-ready: the problem, a few candidate directions, the smallest end-to-end version worth building, and the open questions. Output of `/brainstorm`, input to `/plan`.
+_Avoid: "idea", "requirements", "spec"_
 
 ## Acceptance / verification
 
@@ -58,8 +64,37 @@ _Avoid: "retry limit", "attempt count" (the 3 strikes are cycles, not attempts)_
 
 ## Separation of concerns
 
-**Lite path** — execution tier for ≤3 slices: controller implements each slice inline in a single scope worktree (test-first, one worktree for all slices, no per-slice worktree branch), never switching the invoking checkout, then one final-reviewer over the whole diff (3-strike loop reused; all-mechanical/docs plans skip even that review). Deliberately relaxes "controller never implements inline" to kill small-plan token + latency overhead.
-_Avoid: "inline implementation", "fast path"_
+**Lite path** — the execution *route* the lite tier selects (≤3 slices): controller implements each slice inline in a single scope worktree (test-first, one worktree for all slices, no per-slice worktree branch), never switching the invoking checkout, then one final-reviewer over the whole diff (3-strike loop reused; all-mechanical/docs plans skip even that review). Deliberately relaxes "controller never implements inline" to kill small-plan token + latency overhead.
+_Avoid: "inline implementation", "fast path"; "lite tier" for the route (the tier is the decision, this is the path)_
 
-**Full path** — execution tier for >3 slices: parallel capped implementers in isolated worktrees, per-slice slice-reviewer (correctness) + simplicity-reviewer (over-engineering), serial merges into scope, one whole-scope final-reviewer. The existing architecture; unchanged for >3 slices.
-_Avoid: "parallel path", "standard path"_
+**Full path** — the execution *route* the full tier selects (>3 slices): parallel capped implementers in isolated worktrees, per-slice slice-reviewer (correctness) + simplicity-reviewer (over-engineering), serial merges into scope, one whole-scope final-reviewer.
+_Avoid: "parallel path", "standard path"; "full tier" for the route (the tier is the decision, this is the path)_
+
+## Backends
+
+superdev is tool-agnostic: three pluggable backends, each chosen by `/setup` and recorded under `docs/agents/`. The commands and agents never hardcode one.
+
+**Slice store** — the backend where a feature's plan and slices live: local files, or an issue tracker. Configured in `docs/agents/issue-tracker.md`.
+_Avoid: "issue tracker" as the concept name (that's one backend), "database"_
+
+**Code host** — the backend the scope branch pushes to and where the PR/MR opens. Configured in `docs/agents/code-management.md`.
+_Avoid: "code-management" (that's the doc slug), "GitHub" (that's one host)_
+
+**Knowledge base** — the optional human-first record (PRDs, design overviews, ADR summaries), distinct from the agent-first `AGENTS.md` docs. May be `none`. Reconciled by the doc-writer.
+_Avoid: "docs" (too broad — the AGENTS.md tree is separate), "wiki" (that's one KB)_
+
+## Roles
+
+The subagents the controller dispatches; each runs in isolated context and only its result returns. **Controller** and **Final-reviewer** carry discipline beyond their name — defined under _Controller discipline_ and _Review discipline_ above.
+
+**Implementer** — builds ONE slice test-first (TDD), the laziest version that works. Never merges (a hook enforces it).
+_Avoid: "developer", "coder"_
+
+**Slice-reviewer** — per-slice correctness gate (full path, `behavior` slices): verifies against the slice's acceptance and independently re-runs the suite + reads the produced artifact, hunting uncovered input.
+_Avoid: "reviewer" (unqualified — say which)_
+
+**Simplicity-reviewer** — per-slice over-engineering gate (full path, `behavior` slices): what to delete, what stdlib/native replaces. Read-only.
+_Avoid: "linter", "critic"_
+
+**Doc-writer** — reconciles the in-repo docs (AGENTS.md tree) + the knowledge base with the merged code, removing stale text. Run by `/document`.
+_Avoid: "documenter", "technical writer"_
