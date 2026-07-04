@@ -19,7 +19,9 @@ a time** — multiple at once is bewildering — and for each give your **recomm
 question can be answered by reading the codebase, read it instead of asking.
 
 Pin: the problem (from the user's perspective), the solution shape, constraints, and the **global
-Definition of Done** — the checkable acceptance criteria for the whole feature.
+Definition of Done** — the checkable acceptance criteria for the whole feature. State the DoD and every
+per-slice `acceptance` as **observable, user-facing behaviour**, not gameable proxy counts (coverage %,
+line count, lint score) — a proxy count is a reviewer signal, never an agent-facing gate (ADR 0002).
 
 Intent still vague — no clear problem, no checkable success criteria? Suggest `/superdev:brainstorm`
 first to explore the space before pinning it down here.

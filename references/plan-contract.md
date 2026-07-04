@@ -19,6 +19,11 @@ reads it. It is backend-agnostic: the local-file rendering is shown below; issue
 Plus one **global Definition of Done** block: the acceptance criteria for the whole feature. Anchors
 `/implement` Phase 0 and the final review.
 
+Both `acceptance` and the DoD state **observable, user-facing behaviour** — not gameable proxy counts
+(coverage %, line count, lint score). Behaviour can't be faked without doing the work; a count can. Where
+a proxy count appears at all it's a signal a reviewer reads, never a gate an agent optimizes toward (ADR
+0002).
+
 **The epic is optional.** A plan with a single slice needs no epic: that slice IS the whole plan, so its
 `acceptance` doubles as the global DoD, and the slice is its own scope anchor. A plan with ≥2 slices
 always carries a global DoD (the epic) on top of the per-slice `acceptance` fields, as above.
@@ -61,6 +66,10 @@ whole-scope review substitutes for the per-slice ones. The table above (and the 
 - Each slice leaves the suite **green on its own**.
 - A slice depends on another **only if it cannot be green without it** — keep the graph honest, or you
   serialize work that could run in parallel.
+- **Negotiable** — the `spec` states intent and the end-to-end behaviour and leaves the implementer room
+  on the *how*; it is a contract of outcomes, not a line-by-line script.
+- **Estimable** — a slice a fresh reviewer couldn't size in one pass is too big or too vague: decompose
+  it further until each slice is a unit you could gate on its own.
 
 ## Local-file rendering
 

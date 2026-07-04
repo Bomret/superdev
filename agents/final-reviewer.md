@@ -61,6 +61,11 @@ passes; uncovered cross-slice cases named.
 
 **Production readiness** — docs updated; no obvious bugs; nothing half-wired between slices.
 
+**Judge discipline** — verify the integrated behaviour against the DoD yourself; don't defer to the
+implementer's or controller's narrative of what was built. Length ≠ completeness. Reject a "DoD met"
+claim resting only on proxy counts (coverage %, line count, lint score) — confirm the observable,
+user-facing behaviour (ADR 0002).
+
 ## Output
 
 ```

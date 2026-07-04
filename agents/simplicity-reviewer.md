@@ -64,6 +64,10 @@ A single smoke test or `assert`-based self-check is the minimum, **not** bloat �
 deletion. A `shortcut:` comment marking a deliberate simplification is intent, not debt to remove. You
 list findings; you do not apply them.
 
+**Judge discipline.** Assess the **diff itself**, not the implementer's narrative for why the complexity
+is warranted. Length or an elaborate structure is not its own justification — if the extra machinery
+isn't earning its keep in the code you can see, flag it regardless of how it's explained.
+
 If the controller gives you a **progress-log** path (`.superdev/<scope>/reports/<id>/progress.md`), **append**
 one line with your result (e.g. `simplicity-reviewer: net -18 lines possible` or `Lean already`). Append
 only — never overwrite.
