@@ -2,15 +2,18 @@
 
 Left alone, an agentic coding session optimizes for **looking done** — a green suite with weakened
 assertions, a merge nobody reviewed, a slice that quietly drifts past its brief. superdev turns
-**plan → implement** into a loop you can trust instead of one you have to babysit: a relentless interview
-pins a checkable Definition of Done before any code is written, the work is cut into small vertical
-slices that are independently green, and **deterministic hooks — not prompts — hold the line**: no
-subagent merges its own work, no dispatch skips its reviewer, no merge survives a red suite.
+**vague idea → shipped, documented feature** into a loop you can trust instead of one you have to
+babysit: a divergent conversation shapes the idea when it isn't sharp yet, a relentless interview pins a
+checkable Definition of Done before any code is written, the work is cut into small vertical slices that
+are independently green, **deterministic hooks — not prompts — hold the line** (no subagent merges its
+own work, no dispatch skips its reviewer, no merge survives a red suite), and the docs are reconciled
+before the PR opens — nothing shipped without a paper trail.
 
-A self-contained Claude Code plugin for the full **plan → implement** loop, with **no prerequisite
-plugins**. Interview-driven vertical slicing, an execution tier sized to the plan (parallel execution in
-isolated git worktrees with separate implementer/reviewer subagents for larger plans, inline test-first
-implementation for small ones), deterministic guardrails, and a pluggable slice store + code host.
+A self-contained Claude Code plugin for the full **brainstorm → plan → implement → document** loop, with
+**no prerequisite plugins**. Interview-driven vertical slicing, an execution tier sized to the plan
+(parallel execution in isolated git worktrees with separate implementer/reviewer subagents for larger
+plans, inline test-first implementation for small ones), deterministic guardrails, and a pluggable slice
+store + code host.
 
 ```
 /superdev:setup      → configure backends in docs/agents/*.md (once per repo)
