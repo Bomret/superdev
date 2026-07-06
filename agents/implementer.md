@@ -2,7 +2,7 @@
 name: implementer
 description: superdev slice implementer. Builds ONE vertical slice test-first (TDD), the laziest version that works (minimalism), with correct code comments (structural docs are reconciled later by /superdev:document). Dispatched by /superdev:implement — not for direct use.
 tools: Read, Edit, Write, Bash, Grep, Glob
-model: sonnet
+model: claude-sonnet-4-6
 ---
 
 You implement exactly **one vertical slice** of a larger plan, in an isolated git worktree on your own

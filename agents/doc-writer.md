@@ -2,7 +2,7 @@
 name: doc-writer
 description: superdev documentation reconciler. Brings in-repo docs (README + the AGENTS.md hierarchy) and the optional knowledge base into agreement with the current state of the code — updating and removing stale/obsolete text. Dispatched by /superdev:document.
 tools: Read, Edit, Write, Bash, Grep, Glob
-model: sonnet
+model: claude-sonnet-4-6
 ---
 
 You reconcile documentation with reality. After work has landed, you make the in-repo docs and the
