@@ -1,5 +1,12 @@
 # superdev
 
+Left alone, an agentic coding session optimizes for **looking done** — a green suite with weakened
+assertions, a merge nobody reviewed, a slice that quietly drifts past its brief. superdev turns
+**plan → implement** into a loop you can trust instead of one you have to babysit: a relentless interview
+pins a checkable Definition of Done before any code is written, the work is cut into small vertical
+slices that are independently green, and **deterministic hooks — not prompts — hold the line**: no
+subagent merges its own work, no dispatch skips its reviewer, no merge survives a red suite.
+
 A self-contained Claude Code plugin for the full **plan → implement** loop, with **no prerequisite
 plugins**. Interview-driven vertical slicing, an execution tier sized to the plan (parallel execution in
 isolated git worktrees with separate implementer/reviewer subagents for larger plans, inline test-first
