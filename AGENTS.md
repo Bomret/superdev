@@ -182,7 +182,7 @@ When the user requests a durable behavior change, record it here or in the relev
 
 ## Child DOX Index
 
-**No child AGENTS.md — the repo is flat.** It's small (8 commands, 5 agents, 7 hooks, 12 references) and
+**No child AGENTS.md — the repo is flat.** It's small (8 commands, 5 agents, 6 hooks, 13 references) and
 every subtree's rules already live in this root doc. Add a child only when a subtree becomes a durable
 boundary with rules of its own that don't fit here.
 
