@@ -2,8 +2,9 @@
 
 superdev turns **vague idea → shipped, documented feature** into a loop you can trust: a divergent
 conversation shapes the idea when it isn't sharp yet, a relentless interview pins a checkable Definition
-of Done before any code is written, the work is cut into small, independently-green vertical slices,
-**deterministic hooks — not prompts — hold the line** (no subagent merges its own work, no
+of Done before any code is written, the work is cut into small slices that each stand on their own —
+proven to work before they merge into the rest — and **deterministic hooks — not prompts — hold the
+line** (no subagent merges its own work, no
 dispatch skips its reviewer, no merge survives a red suite), and the docs are reconciled before the PR
 opens — nothing shipped without a paper trail.
 
