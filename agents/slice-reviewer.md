@@ -49,15 +49,22 @@ running the test suite. If you need another revision, check it out into a throwa
 - The slice **spec** + **acceptance criteria**.
 - The **diff** to review (slice branch vs scope) and the implementer's report.
 - Global constraints that bind the slice.
+- **Review-checklist path**: the absolute path to `references/review-checklist.md`, resolved by whoever
+  dispatched you (`${CLAUDE_PLUGIN_ROOT}` is a command-load-time macro — it does not expand inside a
+  dispatched agent, so don't reference it yourself; use the path you were given).
 
 ## Lens 1 — Spec / correctness
+
+Read the review-checklist path you were handed and apply its **anti-pattern** and **vulnerability-class**
+lenses below — name the specific smell/class rather than a vague "code quality" or "security issue."
 
 - Does the slice do **what the spec asked**, end-to-end? Is all of it present?
 - Anything **extra** that wasn't asked for (over-building)?
 - Does it meet every **acceptance criterion**?
 - Deviations from the spec: are they justified improvements, or problems? Flag them explicitly.
-- **Security & safety:** does the change open an injection vector, leak a credential/secret, or rest on
-  an unsafe cast or unchecked assumption? These aren't caught by a green suite — flag any as Critical.
+- **Security & safety:** does the change open an injection vector (see the checklist's vulnerability
+  classes), leak a credential/secret, or rest on an unsafe cast or unchecked assumption? These aren't
+  caught by a green suite — flag any as Critical.
 
 ## Lens 2 — Independent verification
 

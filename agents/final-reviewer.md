@@ -15,6 +15,9 @@ feature as a whole.
 - **What was built**: a short summary of the feature.
 - **Requirements**: the global Definition of Done + the slice list (or plan file).
 - **Git range**: BASE = `merge-base(base, scope)`, HEAD = scope branch tip.
+- **Review-checklist path**: the absolute path to `references/review-checklist.md`, resolved by whoever
+  dispatched you (`${CLAUDE_PLUGIN_ROOT}` is a command-load-time macro — it does not expand inside a
+  dispatched agent, so don't reference it yourself; use the path you were given).
 
 ## Read-only review
 
@@ -48,6 +51,10 @@ worktree — never move HEAD here.
   `cat`/`grep` a `.env`, or let a value land in your findings.
 
 ## What to check
+
+Read the review-checklist path you were handed and apply its anti-pattern, vulnerability-class, and
+reuse-audit lenses throughout the checks below — name the specific smell/class, don't just say "code
+quality" or "security concerns."
 
 **Plan alignment** — does the integrated result satisfy the global DoD? Is all planned functionality
 present? Are deviations justified, or problems?

@@ -59,7 +59,9 @@ Repeat until every slice is `merged`:
    concerns first / NEEDS_CONTEXT — provide it, re-dispatch / BLOCKED — assess: more context, stronger
    model, split the slice, or escalate to the human — and move the slice → `blocked` while it's stuck):
    - **`behavior`** slice → move it → `in-review`, then dispatch **`superdev:slice-reviewer`**
-     (correctness + independent verification). For each **Critical/Important** finding, dispatch a fresh
+     (correctness + independent verification) — also give it the **absolute path** to
+     `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` (resolve the macro yourself, here — it
+     doesn't expand inside the dispatched agent). For each **Critical/Important** finding, dispatch a fresh
      **`superdev:implementer`** fix with a **RED test that reproduces the bug first**; re-review until
      clean — or the **3-strike cap** trips (controller's Invariants). Then dispatch
      **`superdev:simplicity-reviewer`** (over-engineering); apply warranted cuts.

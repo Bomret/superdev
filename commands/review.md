@@ -45,6 +45,12 @@ announcement rather than reviewing silently-incomplete changes.
 **State the concrete range/target** (e.g. "Reviewing `a1b2c3..d4e5f6`" or "Reviewing working tree changes
 incl. untracked") before dispatching — the user should see exactly what's under review.
 
+**Size caution (qualitative, non-blocking).** Glance at `git diff --stat` for the resolved range. If the
+change spans enough files or churn that a single review pass would likely miss things — not a fixed line
+count, a judgment call — say so alongside the range announcement (e.g. "this is a large, multi-concern
+diff; consider splitting it via `/superdev:plan` for a sharper review") and proceed anyway. Never block
+on it.
+
 ## 2. Review (parallel, read-only)
 
 Dispatch both reviewers in parallel, each with an **explicit `model`** (a hook blocks any dispatch to a
@@ -52,9 +58,10 @@ superdev subagent that omits one):
 
 - **`superdev:final-reviewer`** (`model: opus`) — correctness, architecture, security, tests, production
   readiness. Give it: a one-line summary of what changed (derive it from the diff if the intent didn't
-  supply one), the `requirements` from §1, and the git range. If a test command is configured
-  (`docs/agents/verification.md`), tell it it may re-run the suite over the range to verify green rather
-  than trust the diff alone.
+  supply one), the `requirements` from §1, the git range, and the **absolute path** to
+  `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` (resolve the macro yourself, here — it doesn't
+  expand inside the dispatched agent). If a test command is configured (`docs/agents/verification.md`),
+  tell it it may re-run the suite over the range to verify green rather than trust the diff alone.
 - **`superdev:simplicity-reviewer`** (`model: haiku`) — over-engineering only (unnecessary complexity,
   what stdlib/native replaces, what to delete). Give it the same git range.
 
