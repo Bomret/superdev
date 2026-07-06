@@ -25,8 +25,10 @@ write.** Seed templates live in `${CLAUDE_PLUGIN_ROOT}/references/`.
 
 ## 2. Decide (one at a time)
 
-Assume the user may not know these terms. Each decision: a one-line explainer, the choices, the
-proposed default (inferred from the remote).
+Assume the user may not know these terms. Each decision: a one-line explainer, the choices, and a
+proposed default (inferred from the remote) — grilling.md's recommended-answer rule applied to a config
+choice: never present the choices bare. Using `AskUserQuestion`? Mark the proposed default
+`(Recommended)`.
 
 **A — Slice store.** Where do slices/plans live?
 

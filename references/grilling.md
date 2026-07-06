@@ -10,7 +10,10 @@ exhausted and you and the user share the same picture — **not** until you have
   next. Never batch.
 - **A recommended answer every time.** Never pose a bare open question — state your best answer and the
   reasoning behind it, so the user reacts to a concrete position instead of generating one from nothing.
-  "I'd do X because Y — agree?" beats "how should we do X?".
+  "I'd do X because Y — agree?" beats "how should we do X?". This applies to `AskUserQuestion` too: if you
+  reach for that tool instead of prose, mark the lean option `(Recommended)` — its own labeling
+  convention — with the reasoning in that option's description, never a bare neutral list. A genuine
+  toss-up (two readings truly equal) → say so explicitly rather than fabricate a preference.
 - **Walk the design tree, branch by branch.** Resolve dependencies between decisions one by one: a
   decision that constrains others is asked first; never ask a downstream question whose answer a still-open
   upstream decision would change. Finish a branch before starting the next.
