@@ -1,12 +1,19 @@
 # superdev
 
-superdev turns **vague idea → shipped, documented feature** into a loop you can trust: a divergent
-conversation shapes the idea when it isn't sharp yet, a relentless interview pins a checkable Definition
-of Done before any code is written, the work is cut into small slices that each stand on their own —
-proven to work before they merge into the rest — and **deterministic hooks — not prompts — hold the
-line** (no subagent merges its own work, no
-dispatch skips its reviewer, no merge survives a red suite), and the docs are reconciled before the PR
-opens — nothing shipped without a paper trail.
+An agent left alone will ship with confidence — whether or not anyone agreed what "done" means, whether
+or not its own tests prove anything, whether or not the diff ever got a second look.
+
+superdev makes it stop and check first.
+
+**Before / after**
+
+You ask your agent for a feature. Four hundred lines land across six files, the suite is green, a PR
+opens. Nobody agreed what "done" meant before the first line was written, nobody but the model reviewed
+it, and by the time a corner-cut surfaces, it's already merged.
+
+With superdev: `/superdev:plan` interviews you until the Definition of Done is checkable,
+`/superdev:implement` cuts the work into small slices, a separate reviewer subagent checks each one
+before it merges, and a hook — not a prompt — blocks the merge outright if the suite goes red.
 
 A self-contained Claude Code plugin for the full **brainstorm → plan → implement → document** loop, with
 **no prerequisite plugins**. Interview-driven vertical slicing, an execution tier sized to the plan
