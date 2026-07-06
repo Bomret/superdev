@@ -1,3 +1,16 @@
+# [0.13.0](https://codeberg.org/bomret/superdev/compare/v0.12.0...v0.13.0) (2026-07-06)
+
+
+### Bug Fixes
+
+* **agents:** pin implementer/reviewer/doc-writer to Sonnet 4.6 ([eb93dd9](https://codeberg.org/bomret/superdev/commit/eb93dd9298ad5e2950ed66bf0af904384c284b74))
+
+
+### Features
+
+* **plan:** tie recommended-answer rule to AskUserQuestion ([#59](https://codeberg.org/bomret/superdev/issues/59)) ([ac5869e](https://codeberg.org/bomret/superdev/commit/ac5869edf9678698b1723b5b6f19e2cbf5f83208)), closes [#58](https://codeberg.org/bomret/superdev/issues/58)
+* **review:** fold code-review-skill checklists into reviewer agents ([#57](https://codeberg.org/bomret/superdev/issues/57)) ([d187817](https://codeberg.org/bomret/superdev/commit/d18781799ee501ee55d6273e7e64ec11c7acfc82)), closes [#54](https://codeberg.org/bomret/superdev/issues/54) [#55](https://codeberg.org/bomret/superdev/issues/55) [#56](https://codeberg.org/bomret/superdev/issues/56)
+
 # [0.12.0](https://codeberg.org/bomret/superdev/compare/v0.11.0...v0.12.0) (2026-07-04)
 
 
