@@ -1,3 +1,15 @@
+# [0.14.0](https://codeberg.org/bomret/superdev/compare/v0.13.0...v0.14.0) (2026-07-08)
+
+
+### Bug Fixes
+
+* **plan:** push base-branch design-doc commits before the scope PR ([769163e](https://codeberg.org/bomret/superdev/commit/769163ed48833e456b996596f22944d833156533))
+
+
+### Features
+
+* **review:** add rule-compliance lens + review report sharpening ([#65](https://codeberg.org/bomret/superdev/issues/65)) ([b6f6ea6](https://codeberg.org/bomret/superdev/commit/b6f6ea60e61e29b4c4f0a542c6cda2747bdd5b04)), closes [#63](https://codeberg.org/bomret/superdev/issues/63) [#64](https://codeberg.org/bomret/superdev/issues/64)
+
 # [0.13.0](https://codeberg.org/bomret/superdev/compare/v0.12.0...v0.13.0) (2026-07-06)
 
 
