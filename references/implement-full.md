@@ -11,7 +11,11 @@ Honor the controller's **Invariants** and **Issue status** map throughout. Retur
 - **Commit plan-authored design docs first.** Before cutting anything, ensure the glossary
   (`CONTEXT.md`), ADRs (`docs/adr/`), and `.claude/rules/` are committed on the base — worktrees are
   clean checkouts, so uncommitted design docs never reach implementers and path-scoped rules can't
-  auto-load. If any are dirty/untracked, commit them to base now.
+  auto-load. If any are dirty/untracked, commit them to base now. Either way, **confirm the base branch
+  is pushed to its remote** before cutting the scope branch (`git status` shows "up to date"/"nothing to
+  commit"; if base is ahead of its remote, push it now) — the PR you open later diffs against the remote
+  base, and an unpushed local commit there diverges into a stranded duplicate once the PR is
+  squash-merged.
 - **Scope branch off base:** `git switch -c superdev/<scope> <base>` in the invoking checkout (`<scope>`
   chosen in Phase 0; base from `code-management.md`, default `main`). You merge into this checkout later.
   Then move the **scope/epic** issue → `in-progress` (per `issue-tracker.md`; best-effort).

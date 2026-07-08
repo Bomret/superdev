@@ -11,7 +11,10 @@ throughout. Return to the controller's **Final phase** once every slice is commi
 - **Commit plan-authored design docs first.** Ensure the glossary (`CONTEXT.md`), ADRs (`docs/adr/`),
   and `.claude/rules/` are committed on the base before cutting the worktree — a worktree is a clean
   checkout, so uncommitted design docs never reach it. If any are dirty/untracked, commit them to base
-  now.
+  now. Either way, **confirm the base branch is pushed to its remote** before cutting the scope branch
+  (`git status` shows "up to date"/"nothing to commit"; if base is ahead of its remote, push it now) —
+  the PR you open later diffs against the remote base, and an unpushed local commit there diverges into
+  a stranded duplicate once the PR is squash-merged.
 - **Cut the scope branch into a dedicated worktree:**
   `git worktree add .superdev/<scope>/worktree -b superdev/<scope> <base>` (base from
   `code-management.md`, default `main`). The invoking checkout is **never switched** — it stays on main

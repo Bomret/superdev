@@ -136,4 +136,8 @@ tier anywhere.
 any `.claude/rules/` — to the base branch. `/superdev:implement` runs from a fresh worktree checkout of
 that branch (per-slice on the full tier, a single scope worktree on the lite tier); anything left
 uncommitted never reaches those checkouts, and a path-scoped rule that isn't on the branch can't
-auto-load. Then tell the user it's ready for `/superdev:implement`.
+auto-load. **Push the base branch** to its remote right after committing (if one is configured, per
+`docs/agents/code-management.md`) — `/implement`'s PR is opened against the remote base; an unpushed
+local commit there diverges from it the moment the PR is squash-merged (a duplicate copy of the same
+content lands in the merge commit while the local-only commit is left stranded). Then tell the user it's
+ready for `/superdev:implement`.
