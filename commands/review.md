@@ -24,8 +24,14 @@ Parse `$ARGUMENTS` into a **scope** and an optional **intent**:
 
 - **Intent** — everything after a ` -- ` separator, or (no `--` present) a clear trailing natural-language
   sentence describing what the change should do. This is handed to both reviewers as their
-  `requirements`. No intent given → requirements = "no formal spec — general correctness, security, and
-  quality."
+  `requirements`.
+- **No intent given → try issue-ref discovery.** If `docs/agents/issue-tracker.md` is configured, grep
+  the resolved range's `git log` for issue references — keyword-qualified
+  (`Close[sd]?`/`Fix(e[sd])?`/`Resolve[sd]?\s+#<n>`, case-insensitive), falling back to a bare `#<n>`.
+  Dedupe the matched issue numbers, fetch each via the tracker's configured read-issue step, and
+  concatenate their titles + bodies into `requirements`. No tracker configured, or no ref found →
+  requirements = "no formal spec — general correctness, security, and quality" (today's default).
+  Never runs when an explicit intent was given — discovery is a fallback, not an override.
 - **Scope** — whatever remains, resolved to a concrete git range:
   - **`BASE..HEAD`** (or `BASE...HEAD`, contains `..`) → use verbatim.
   - **A branch** (no `..`; resolves via `git rev-parse --verify --quiet <name>`) → range is
@@ -94,9 +100,16 @@ file:line · what's wrong · why it matters · how to fix (if not obvious)
 net: -<N> lines possible   (or "Lean already" if nothing to cut)
 
 ### Assessment
+Correctness: [ready | not ready]. Simplicity: [N cuts recommended, non-blocking | Lean already | not dispatched].
 Ready to merge? [Yes | No | With fixes]
 Reasoning: [1–2 sentences]
 ```
+
+The per-axis line is additive, sourced straight from each reviewer's own verdict — final-reviewer's
+`Ready to merge?` line for Correctness, simplicity-reviewer's `net: -N lines possible` / `Lean already`
+line for Simplicity (or "not dispatched" per §2's skip rules). It doesn't replace the combined
+`Ready to merge?` verdict below it — over-engineering findings stay non-blocking, never gating merge on
+their own.
 
 **Apply nothing.** This command is read-only end to end — never edit, commit, or merge, no matter how
 small or obvious a fix looks. To act on findings, run `/superdev:plan` to slice the fix, then

@@ -59,6 +59,12 @@ quality" or "security concerns."
 **Plan alignment** — does the integrated result satisfy the global DoD? Is all planned functionality
 present? Are deviations justified, or problems?
 
+**Rule compliance** — for each `.claude/rules/*.md` whose `paths:` glob matches a file in this diff, read
+it and check the diff complies. No `.claude/rules/` directory, or no rule's globs match anything changed
+→ skip this check silently, don't report an empty section. Categorize any violation by actual severity
+in the Issues section below, the same as every other check — a rule violation has no fixed severity of
+its own.
+
 **Code quality** — clean separation of concerns; proper error handling; type safety where it applies;
 DRY without premature abstraction; edge cases handled.
 
