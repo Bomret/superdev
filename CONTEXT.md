@@ -38,6 +38,9 @@ _Avoid: "priority", "estimate", "weight"_
 **Intent** — a rough idea sharpened into something plan-ready: the problem, a few candidate directions, the smallest end-to-end version worth building, and the open questions. Output of `/brainstorm`, input to `/plan`.
 _Avoid: "idea", "requirements", "spec"_
 
+**Parked questions** — a load-bearing decision that survived `/plan`'s interview still unresolved, written to the epic's `## Parked questions` section the moment it's parked (grilling.md's termination rule permits ending an interview this way). Advisory only: `/implement` never reads it, nothing gates on it. Distinct from `Intent`'s open questions (brainstorm's pre-interview output, which `/plan` is expected to resolve) — a parked question is what's left after `/plan` already tried and couldn't.
+_Avoid: "open questions" (that's Intent's pre-interview concept), "blocker", "TODO"_
+
 ## Acceptance / verification
 
 **Acceptance** (per-slice) — the checkable criteria for ONE slice; the slice-reviewer verifies against this. Different from the global DoD (acceptance is per-slice, DoD is whole-feature).

@@ -28,6 +28,12 @@ a proxy count appears at all it's a signal a reviewer reads, never a gate an age
 `acceptance` doubles as the global DoD, and the slice is its own scope anchor. A plan with ≥2 slices
 always carries a global DoD (the epic) on top of the per-slice `acceptance` fields, as above.
 
+**Parked questions** (optional, epic-only). A load-bearing decision the interview couldn't resolve,
+written to the epic the moment it's parked (`grilling.md`'s termination rule permits ending an interview
+this way). Purely advisory — `/implement` never reads it, nothing gates on it, no new lifecycle status.
+Single-slice plans carry no equivalent: an unresolved load-bearing decision there signals the plan isn't
+single-slice-simple yet, not something to park (ADR 0005).
+
 ## `test-applicability` → warrant gates
 
 - `behavior` — implementer does full TDD; **slice-reviewer runs** (correctness + independent
@@ -93,5 +99,7 @@ When the slice store is an issue tracker, each slice is one issue:
 - `status` ↔ the tracker's status/state; a "ready" label/status marks slices an agent may pick up.
 - global DoD ↔ a parent/epic issue, or the first section of the feature epic. A single-slice feature
   skips the epic issue — the lone slice's `acceptance` checklist is the DoD.
+- **Parked questions** (optional) ↔ a `## Parked questions` section in the epic issue body. Epic-only —
+  absent on single-slice features, same as the epic itself.
 
 The exact commands and vocabulary live in the active `docs/agents/issue-tracker.md`.

@@ -24,6 +24,9 @@ Slices live as Codeberg issues — one slice = one issue — in `bomret/superdev
   parses.
 - global DoD ↔ an **epic** issue (label `epic`) whose body holds the DoD checklist; slices carry the
   feature label and reference the epic (`#<epic>`).
+- **Parked questions** (optional) ↔ a `## Parked questions` section in the epic issue body, same
+  body-text pattern as `acceptance`. Epic-only — no equivalent on a single-slice feature's lone issue.
+  Advisory only: `/implement` never reads it.
 - `status` ↔ open/closed + a status label (see the status map below).
 
 ## REST conventions
