@@ -1,3 +1,10 @@
+## [0.14.3](https://codeberg.org/bomret/superdev/compare/v0.14.2...v0.14.3) (2026-07-09)
+
+
+### Bug Fixes
+
+* **context:** rename PRD to feature specification across knowledge-base docs ([fe0124e](https://codeberg.org/bomret/superdev/commit/fe0124ea3910e94ceb3bb3cc57bf521081073a5b))
+
 ## [0.14.2](https://codeberg.org/bomret/superdev/compare/v0.14.1...v0.14.2) (2026-07-09)
 
 
