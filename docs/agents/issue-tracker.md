@@ -32,7 +32,7 @@ Slices live as Codeberg issues — one slice = one issue — in `bomret/superdev
 ## REST conventions
 
 - **Create an issue:** `POST /api/v1/repos/bomret/superdev/issues` with
-  `{ "title": "...", "body": "<spec + acceptance checklist>", "labels": [<label ids>] }`. Capture the
+  `{ "title": "...", "body": "<specification + acceptance checklist>", "labels": [<label ids>] }`. Capture the
   returned `number` as the slice's `id`. Pass `labels` **at creation** — no separate label POST for the
   create path.
 - **Parallel-safe creation order:** create the epic first (slices reference `#<epic>`), then fire **all

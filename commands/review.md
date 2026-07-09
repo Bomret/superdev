@@ -30,7 +30,7 @@ Parse `$ARGUMENTS` into a **range** and an optional trailing description of what
   (`Close[sd]?`/`Fix(e[sd])?`/`Resolve[sd]?\s+#<n>`, case-insensitive), falling back to a bare `#<n>`.
   Dedupe the matched issue numbers, fetch each via the tracker's configured read-issue step, and
   concatenate their titles + bodies into `acceptance`. No tracker configured, or no ref found →
-  acceptance = "no formal spec — general correctness, security, and quality" (today's default).
+  acceptance = "no formal specification — general correctness, security, and quality" (today's default).
   Never runs when an explicit description was given — discovery is a fallback, not an override.
 - **Range** — whatever remains, resolved to a concrete git range:
   - **`BASE..HEAD`** (or `BASE...HEAD`, contains `..`) → use verbatim.
@@ -79,7 +79,7 @@ either). Scale the dispatch to the diff:
 - **Never skip `final-reviewer`** — correctness is always in scope.
 
 **Exclude `superdev:slice-reviewer`.** It verifies one slice's diff against that slice's own
-`spec`/`acceptance` from a plan — standalone review has no per-slice spec for it to check against.
+`spec`/`acceptance` from a plan — standalone review has no per-slice specification for it to check against.
 
 ## 3. Report
 

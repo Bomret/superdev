@@ -12,7 +12,7 @@ reads it. It is backend-agnostic: the local-file rendering is shown below; issue
 | `title` | Short descriptive name. | humans |
 | `depends-on` | List of slice `id`s that must merge before this slice can start. Empty = root. | `/implement` DAG |
 | `test-applicability` | `behavior` \| `mechanical` \| `docs`. Drives the warrant gates (see below). | `/implement` |
-| `spec` | What this slice delivers end-to-end — the implementer's requirements. Describe behavior/interface, not file paths. | `implementer` |
+| `spec` | What this slice delivers end-to-end — the implementer's requirements. Describe behavior and name the specific interface (a function signature, an API endpoint, a CLI command) its tests exercise — not file paths. | `implementer` |
 | `acceptance` | Checkable criteria for THIS slice. | `slice-reviewer` |
 | `status` | Canonical lifecycle `todo` → `in-progress` → `in-review` → `merged` (= done), plus `blocked`. Backends map these onto their real statuses; the ledger is authoritative during a run. | `/implement`, store |
 

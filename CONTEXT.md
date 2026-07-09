@@ -5,7 +5,7 @@
 **Epic** — the slice-store container for a multi-slice feature: a single issue (or `docs/plans/<feature-slug>/00-epic-*.md`) that groups all the feature's slices and holds the source text for the global DoD. Optional — a single-slice feature has no epic; that slice's `acceptance` becomes the DoD directly.
 _Avoid: "feature issue", "parent issue", "the DoD" (the epic holds/sources the DoD's text; `.superdev/<scope>/dod.md` is the concrete DoD itself)_
 
-**Slice** — a vertical tracer bullet: a narrow but complete path through every layer (spec → implementation → test), independently green, demoable/verifiable on its own. Each slice carries test-applicability (behavior/mechanical/docs), a spec, acceptance criteria, and explicit dependencies on other slices.
+**Slice** — a vertical tracer bullet: a narrow but complete path through every layer (specification → implementation → test), independently green, demoable/verifiable on its own. Each slice carries test-applicability (behavior/mechanical/docs), a specification, acceptance criteria, and explicit dependencies on other slices.
 _Avoid: "story", "task", "sub-issue", "chunk"_
 
 **Tier** (execution) — the routing decision for a plan, derived from the loaded slice count, and the procedure that decision runs. `lite` (≤3 slices): controller implements each slice inline in a single scope worktree (test-first, no per-slice worktree branch), never switching the invoking checkout, then one final-reviewer over the whole diff (3-strike loop reused; all-mechanical/docs plans skip even that review) — deliberately relaxes "controller never implements inline" to kill small-plan token + latency overhead. `full` (>3 slices): parallel capped implementers in isolated per-slice worktrees, per-slice slice-reviewer (correctness) + simplicity-reviewer (over-engineering), serial merges into scope, one whole-scope final-reviewer. Never persisted, derived fresh every run. Each tier's linear procedure is read from its **execution playbook** (see _Separation of concerns_).
@@ -21,7 +21,7 @@ _Avoid: "epic" (only an epic-bearing feature has one; the anchor role also falls
 _Avoid: "run directory", "scope dir" (too generic — this is specifically the checkout-resident subset, not the whole `.superdev/<scope>/` namespace)_
 
 **Definition of Done (DoD)** — the checkable acceptance criteria for the whole feature, sourced from the epic if one exists, or from the lone slice's `acceptance` if not. `.superdev/<scope>/dod.md` is the concrete verification plan that gates the final-reviewer and PR.
-_Avoid: "requirements", "spec", "checklist" (DoD is the integrated checklist)_
+_Avoid: "requirements", "specification", "checklist" (DoD is the integrated checklist)_
 
 **Ledger** — the per-scope recovery map: tracks each slice's status (todo → in-progress → in-review → merged), its commit range when merged, and the slice-id ↔ issue-key mapping. `.superdev/<scope>/ledger.md` is the authoritative state during a run and after compaction/resume.
 _Avoid: "log", "status file", "tracker"_
@@ -45,7 +45,7 @@ _Avoid: "log", "report", "transcript" (logs are broader; this is slice-specific 
 _Avoid: "priority", "estimate", "weight"_
 
 **Intent** — a rough idea sharpened into something plan-ready: the problem, a few candidate directions, the smallest end-to-end version worth building, and the open questions. Output of `/brainstorm`, input to `/plan`.
-_Avoid: "idea", "requirements", "spec"_
+_Avoid: "idea", "requirements", "specification"_
 
 **Load-bearing decision** — a decision the plan can't ship without: leaving it unresolved means the plan isn't actually decided, not just thin on detail. Triggers `Parked questions` when the interview can't resolve it (multi-slice only); on a single-slice plan, an unresolved one signals the plan isn't single-slice-simple yet, not something to park.
 _Avoid: "blocker", "important question" (any open question can be unimportant; load-bearing specifically means the plan can't ship without it resolved)_
@@ -56,7 +56,7 @@ _Avoid: "open questions" (that's Intent's pre-interview concept), "blocker", "TO
 ## Acceptance / verification
 
 **Acceptance** (per-slice) — the checkable criteria for ONE slice; the slice-reviewer verifies against this. Different from the global DoD (acceptance is per-slice, DoD is whole-feature).
-_Avoid: "spec", "requirements" (acceptance is the test oracle)_
+_Avoid: "specification", "requirements" (acceptance is the test oracle)_
 
 **Test-applicability** — the class of changes a slice carries: `behavior` (new functionality, needs TDD + per-slice reviewer + simplicity-reviewer), `mechanical` (move/rename/format, uses existing suite as the net, skips per-slice reviews), `docs` (documentation-only, skips reviews).
 _Avoid: "slice type", "category"_

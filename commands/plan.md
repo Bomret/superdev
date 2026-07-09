@@ -84,6 +84,9 @@ rules and schema):
   reviewer's gate. Map the file structure first; fold scaffolding/setup/docs into the slice that needs
   them. Do any **prefactoring** first ("make the change easy, then make the easy change").
 - Classify each slice's `test-applicability`: `behavior` | `mechanical` | `docs`.
+- Name the specific interface each slice's tests will exercise (a function signature, an API endpoint,
+  a CLI command) in its `spec` — so the implementer tests through an agreed boundary instead of picking
+  one.
 - **Don't create a documentation-only slice** just to describe the code other slices produce — the
   end-of-run documentation pass (`/superdev:document`) reconciles README, `AGENTS.md`, and the KB after
   the scope lands. Only slice out `docs` when documentation *is* the deliverable (e.g. a standalone

@@ -41,7 +41,7 @@ choice: never present the choices bare. Using `AskUserQuestion`? Mark the propos
 - **Other** (GitHub/GitLab Issues, Linear, …) — ask the user to describe create/read/list/update +
   the dependency-link mechanism in a paragraph; write `issue-tracker.md` from that prose.
 
-> **Trust boundary.** `/implement` loads slice specs from this store and an implementer executes them as
+> **Trust boundary.** `/implement` loads slice specifications from this store and an implementer executes them as
 > build instructions. A store writable by anyone but the trusted planner is arbitrary code execution by
 > an autonomous agent — keep write access to the tracker (or the feature label) restricted to trusted
 > authors, and only run `/implement` on slices the run owner authored or approved.

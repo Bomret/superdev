@@ -21,7 +21,7 @@ Auth header: `-u "$JIRA_EMAIL:$JIRA_API_TOKEN"`, `-H "Content-Type: application/
 
 - **Create a slice issue**:
   `POST <base>/rest/api/3/issue` with `{ "fields": { "project": {"key":"PROJ"}, "summary": "<title>",
-  "issuetype": {"name":"Task"}, "description": <ADF body: spec + acceptance checklist> } }`.
+  "issuetype": {"name":"Task"}, "description": <ADF body: specification + acceptance checklist> } }`.
   Capture the returned `key` (e.g. `PROJ-123`) as this slice's external id.
 - **Link a dependency** (`depends-on`):
   `POST <base>/rest/api/3/issueLink` with

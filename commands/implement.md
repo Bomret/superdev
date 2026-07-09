@@ -47,7 +47,7 @@ narrate at most one short line.
   epic** → the epic was optional (`plan-contract.md`): the DoD is that slice's `acceptance`; there is no
   separate epic to load.
 - **Pre-flight scan:** read all slices once for contradictions (a slice that conflicts with another or
-  with the DoD; a spec that mandates something a review would flag). Batch anything you find to the user
+  with the DoD; a specification that mandates something a review would flag). Batch anything you find to the user
   before starting. Clean → proceed silently.
 - **Compute the tier** — **≤3 slices → `lite`**, **>3 slices → `full`** — derived fresh every run, never
   configured, overridden, or persisted (`/plan` and `/implement` derive it the same way from the same
@@ -125,14 +125,14 @@ playbook. The `final-reviewer` row — and an `implementer` fix for final-review
 
 | Dispatch | Model | When |
 |---|---|---|
-| implementer / fix | `haiku` | mechanical slice (move, rename, transcription from a complete spec) |
+| implementer / fix | `haiku` | mechanical slice (move, rename, transcription from a complete specification) |
 | implementer / fix | `sonnet` | design / multi-file / judgment slice |
 | slice-reviewer | `sonnet` | default (verification is load-bearing) |
 | simplicity-reviewer | `haiku` | scoped over-engineering scan |
 | final-reviewer | `opus` | whole-scope correctness — the highest-stakes review |
 
 Scale to the slice. Turn count beats token price: the cheapest model often takes 2–3× the turns on
-multi-step work. Use a mid-tier floor for anything from a prose spec; reserve `haiku` for transcription
+multi-step work. Use a mid-tier floor for anything from a prose specification; reserve `haiku` for transcription
 and mechanical fixes.
 
 ## Red flags

@@ -22,7 +22,7 @@ below to sharpen thinking but writes **nothing durable**.
 
 ### Glossary → `CONTEXT.md`
 
-A glossary and **nothing else** — no spec, no scratchpad, no implementation decisions. Each entry: a tight
+A glossary and **nothing else** — no specification, no scratchpad, no implementation decisions. Each entry: a tight
 one-to-two-sentence definition of what the term **is** (not what it does), with an `_Avoid_:` list of
 rejected synonyms. Be **opinionated** — when several words name one concept, pick the best and list the
 others under `_Avoid_`. Include **only terms specific to this project's domain** — a general programming

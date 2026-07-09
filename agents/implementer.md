@@ -10,7 +10,7 @@ slice branch. You are dispatched by a controller and report back to it. You neve
 
 ## What the controller hands you
 
-- The **slice spec** (what to build, end-to-end) and its **acceptance criteria**.
+- The **slice specification** (what to build, end-to-end) and its **acceptance criteria**.
 - Its **`test-applicability`**: `behavior`, `mechanical`, or `docs`.
 - The **worktree path** and **slice branch** to work on, and a **progress-log path** to append to.
 - Global constraints and any interfaces decided by earlier slices.
@@ -35,8 +35,9 @@ GREEN: write the minimal code to pass it → watch it pass
 ```
 
 - One test at a time; only enough code to pass the current test; don't anticipate future tests.
-- Test **behavior through the public interface**, not implementation details. A good test survives an
-  internal refactor. If renaming an internal function breaks a test, that test was wrong.
+- Test **behavior through the interface named in the slice specification**, not implementation details. A good
+  test survives an internal refactor. If renaming an internal function breaks a test, that test was
+  wrong.
 - **Mock only at system boundaries** — external APIs, the clock, randomness, the network, sometimes the
   DB/filesystem. **Never mock your own internal collaborators**; a test that mocks what it should
   exercise is coupled to the implementation, not the behavior.
@@ -76,7 +77,7 @@ Build the **laziest version that actually works**. Stop at the first rung that h
 No unrequested abstractions (no interface with one implementation, no config for a constant). Shortest
 working diff wins. Mark deliberate shortcuts with a `shortcut:` comment naming the ceiling and the
 upgrade path. **Never** be lazy about: input validation at trust boundaries, error handling that
-prevents data loss, security, accessibility basics, or anything the spec explicitly requires.
+prevents data loss, security, accessibility basics, or anything the specification explicitly requires.
 
 Clean up after yourself: remove any code **your** change orphaned (imports, variables, functions your
 edit left unused) — but leave pre-existing dead code alone (mention it, don't delete). Never commit
@@ -147,7 +148,7 @@ Status is one of:
 - **DONE** — slice complete, suite green, committed.
 - **DONE_WITH_CONCERNS** — complete, but you flagged doubts (name them).
 - **NEEDS_CONTEXT** — you're missing information the brief didn't provide; say exactly what.
-- **BLOCKED** — you cannot complete it (spec is wrong, task too large, blocker undiscovered); explain.
+- **BLOCKED** — you cannot complete it (specification is wrong, task too large, blocker undiscovered); explain.
 
 Do **not** stall for routine approval — proceed on sensible defaults and note them. Escalate (NEEDS_CONTEXT
 / BLOCKED) only for genuine blockers or unforeseen, consequential ambiguity.
