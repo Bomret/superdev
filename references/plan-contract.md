@@ -29,7 +29,7 @@ a proxy count appears at all it's a signal a reviewer reads, never a gate an age
 always carries a global DoD (the epic) on top of the per-slice `acceptance` fields, as above.
 
 **Parked questions** (optional, epic-only). A load-bearing decision the interview couldn't resolve,
-written to the epic the moment it's parked (`grilling.md`'s termination rule permits ending an interview
+written to the epic the moment it's parked (`cross-exam.md`'s termination rule permits ending an interview
 this way). Purely advisory — `/implement` never reads it, nothing gates on it, no new lifecycle status.
 Single-slice plans carry no equivalent: an unresolved load-bearing decision there signals the plan isn't
 single-slice-simple yet, not something to park (ADR 0005).
@@ -56,7 +56,7 @@ recorded in `issue-tracker.md`:
 | `blocked` | implementer reports BLOCKED (only if the tracker has a blocked state) |
 | `merged` (done) | merged into the scope branch |
 
-`mechanical`/`docs` slices skip `in-review` (`in-progress` → `merged`). The scope/epic issue moves to
+`mechanical`/`docs` slices skip `in-review` (`in-progress` → `merged`). The scope anchor issue moves to
 `in-progress` when the run starts and to `done` once every slice is merged.
 
 `/implement` derives an **execution tier** from the loaded slice count (≤3 → `lite`, >3 → `full`) —

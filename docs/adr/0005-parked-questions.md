@@ -2,8 +2,8 @@
 
 **Status:** Accepted
 
-**Context.** `grilling.md`'s termination rule already permits ending an interview with a load-bearing
-decision "explicitly parked as a known-open question" (`grilling.md:35`), but `plan-contract.md` defines
+**Context.** `cross-exam.md`'s termination rule already permits ending an interview with a load-bearing
+decision "explicitly parked as a known-open question" (`cross-exam.md:35`), but `plan-contract.md` defines
 no field for it — a parked question either evaporates once the session ends or gets smuggled into a
 slice's `spec` as a vague TODO it was never meant to carry. Separately, comparing superdev against the
 "wayfinder" skill (a multi-session, tracker-native incremental-planning pattern with partial DAGs,
@@ -37,7 +37,7 @@ building for a hypothetical.
 
 **Consequences.** `plan-contract.md` gains a `parked-questions` field (epic-only, advisory). Both
 backends (`issue-tracker-local.md`, and this repo's `docs/agents/issue-tracker.md`) gain the same
-body-text mapping. `grilling.md` gains a capture move next to its termination rule. `docs/adr/
+body-text mapping. `cross-exam.md` gains a capture move next to its termination rule. `docs/adr/
 0004-plan-append-semantics.md` is amended (not superseded) to note that its future append-mode
 implementation will surface and consume parked questions. Anyone wanting the fuller wayfinder-style model
 later reopens this ADR with a concrete case in hand, not a hypothetical one.

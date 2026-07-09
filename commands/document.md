@@ -15,7 +15,7 @@ Bring the docs and the knowledge base into agreement with reality. Dispatches th
 - Neither documentation config present → this repo hasn't been set up for superdev docs; suggest
   `/superdev:setup` and stop.
 
-## 2. Scope
+## 2. Range
 
 From `$ARGUMENTS`:
 
@@ -27,7 +27,7 @@ From `$ARGUMENTS`:
 ## 3. Dispatch
 
 Dispatch **`superdev:doc-writer`** with an **explicit `model`** (`sonnet`; `haiku` for a tiny focused
-range). Hand it: the scope (range/area/"full"), the two config file paths, and — for a range — a
+range). Hand it: the range (git range/area/"full"), the two config file paths, and — for a range — a
 reminder to start from `git diff --stat`/`git log` over that range. It runs two passes (in-repo docs, then
 KB per its outline/language/audience, human-first), **deleting stale/obsolete text**, and commits its
 doc changes on the current branch.

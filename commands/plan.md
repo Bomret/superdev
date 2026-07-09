@@ -14,7 +14,7 @@ continue.
 
 ## 1. Interview (relentless, one question at a time)
 
-**Read `${CLAUDE_PLUGIN_ROOT}/references/grilling.md` and run the interview by it.** This is the **main
+**Read `${CLAUDE_PLUGIN_ROOT}/references/cross-exam.md` and run the interview by it.** This is the **main
 event** of `/plan`, not a quick step before the real work of slicing — walk the whole design tree, one
 recommended-answer question at a time, exploring the code instead of asking wherever you can, until the
 tree is exhausted and the picture is shared. Do not short-circuit to slicing with a half-pinned design.

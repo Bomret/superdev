@@ -4,7 +4,7 @@
 
 **Context.** superdev gates work on measures that each stand in for a goal they don't fully capture:
 the green-gate's test command for "code correct", a DoD line for "user-observable behaviour delivered",
-slice count for "complexity", the fix-loop cap for "converged". The implementer subagent is an optimizer
+slice count for "complexity", the 3-strike fix loop's cap for "converged". The implementer subagent is an optimizer
 pointed at these measures — and by Goodhart's law, *a measure under optimization pressure stops measuring
 its goal*. The dominant failure mode: an LLM told to make the suite green makes it green without making
 the code correct (weakened assertions, narrowed cases, hardcoded returns) — the adversarial variant, acute
@@ -18,9 +18,10 @@ because the implementer both writes the code and would otherwise own the bar it'
   line count, lint score). Behaviour can't be faked without doing the work; a count can. Where a proxy
   count is used at all, it's a signal a reviewer reads — never a gate an agent optimizes toward.
 - The implementer never defines or loosens its own criteria; author, implementer, reviewer stay separate.
-- Tier slice-count and fix-loop cap are gameable (an author can split/merge slices to land the cheaper
-  tier — the Lucas critique), so they're treated as routing heuristics, not correctness guarantees. A run
-  nearing the fix-loop cap is a signal to inspect for papering-over, not evidence of a fix.
+- Tier slice-count and the 3-strike fix loop's cap are gameable (an author can split/merge slices to land
+  the cheaper tier — the Lucas critique), so they're treated as routing heuristics, not correctness
+  guarantees. A run nearing the fix loop's cap is a signal to inspect for papering-over, not evidence of
+  a fix.
 
 **Consequences.** Reviewer independence is load-bearing, not redundant re-running: its token cost —
 re-running and re-reading what the implementer already produced — is paid deliberately and must not be

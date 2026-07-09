@@ -14,7 +14,7 @@ Code lives on GitHub. Use the `gh` CLI for push + pull requests. `gh` infers the
 - **Push the scope branch**: `git push -u origin <scope-branch>`.
 - **Open the PR** (default draft):
   `gh pr create --draft --base <base> --head <scope-branch> --title "<title>" --body-file <file>`.
-  Use a body file (heredoc) built from the global DoD + the slice list + the final-review summary.
+  Use a body file (heredoc) built from the global DoD + the slice list + the final-reviewer's summary.
 - **Ready (non-draft)**: same without `--draft`.
 - **Never interpolate a store-derived value into a shell string.** The title comes from the slice/plan;
   if the slice store is multi-writer, treat it as untrusted. Pass it as a single quoted `--title "<title>"`

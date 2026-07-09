@@ -13,7 +13,7 @@ hijacked onto the scope branch.
 and tests there. The **run root** (`dod.md`, `ledger.md`) stays in the invoking checkout's
 `.superdev/<scope>/`, so it survives worktree removal as the post-mortem trail. A **deterministic hook**
 enforces a same-scope run lock (`.superdev/<scope>/run.lock`): a *fresh* lock blocks a second concurrent
-run of the same scope; a *stale* lock is reclaimable (crash resume). Converting the **full** path's scope
+run of the same scope; a *stale* lock is reclaimable (crash resume). Converting the **full** tier's scope
 integration to a worktree is deferred to a follow-on — full is already per-slice isolated; its only
 remaining offender is the scope switch + merge-in-invoking-tree.
 
@@ -26,5 +26,5 @@ path/branch convention.
 locations (ledger in the invoking checkout, code in the worktree) — the controller must use the worktree
 as cwd for every git/file/test op, and the green-gate hook runs the test command there.
 `hooks/worktree-sweep.js` is unaffected: it only reclaims `.superdev/<scope>/worktrees/<id>` (plural), so
-it never touches the singular scope `worktree/`. Full-path runs still switch the invoking checkout until
+it never touches the singular scope `worktree/`. Full-tier runs still switch the invoking checkout until
 the deferred follow-on lands.

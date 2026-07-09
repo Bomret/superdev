@@ -1,4 +1,4 @@
-# Interview discipline (grilling)
+# Interview discipline (cross-examination)
 
 `/superdev:plan` and `/superdev:brainstorm` both run their conversation by this. The interview is the
 **main event**, not a warm-up before slicing or brief-writing: keep going until the design tree is

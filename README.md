@@ -44,8 +44,9 @@ store + code host.
 - **`/superdev:implement`** — the controller drives the slices as a **dependency-ordered DAG**, sized to
   an execution tier derived fresh from the loaded slice count, never configured or persisted:
   **>3 slices → full** — unblocked slices run in **parallel** as `implementer` subagents in isolated
-  worktrees (TDD + lazy minimalism), each behavior slice gated by a separate **correctness reviewer**
-  and an **over-engineering reviewer**, the controller merges **serially**. **≤3 slices → lite** — the
+  worktrees (TDD + lazy minimalism), each behavior slice gated by a separate **slice-reviewer**
+  (correctness) and **simplicity-reviewer** (over-engineering), the controller merges **serially**.
+  **≤3 slices → lite** — the
   controller implements each slice inline, test-first, in a single dedicated **scope worktree**
   (`.superdev/<scope>/worktree/`); the invoking checkout is never switched, and a same-scope run lock
   guards against a second concurrent run. No per-slice worktrees or reviewers. Either tier ends with one
@@ -125,7 +126,7 @@ backend.
   merge → done — mapped at setup; the **lite** tier has no per-slice review, so it skips straight from
   in-progress to merged/done).
   Choices: *local files* (a directory `docs/plans/<feature-slug>/` per feature: `00-epic-*` = DoD +
-  scope, `NN-<test-applicability>-*` = one file per slice, the number *is* the id — best for solo work
+  description, `NN-<test-applicability>-*` = one file per slice, the number *is* the id — best for solo work
   or no tracker) · *Jira* (each slice an issue, `depends-on` → "is blocked by" links) · *other* (describe
   your tracker's CRUD + dependency link in prose). → `docs/agents/issue-tracker.md`.
 - **Code host** — where the scope branch is pushed and the PR/MR opens, plus the default posture
@@ -150,7 +151,7 @@ Adding a backend = a new seed template in `references/` + a config doc. No comma
 
 ```
 docs/agents/*.md          backend config — the five docs above (committed)
-docs/plans/<feature-slug>/  slices + Definition of Done (local store): 00-epic-* = DoD + scope,
+docs/plans/<feature-slug>/  slices + Definition of Done (local store): 00-epic-* = DoD + description,
                           NN-<test-applicability>-* = one file per slice (number = id)
 CONTEXT.md                glossary / ubiquitous language, authored by /plan
 docs/adr/NNNN-*.md        architecture decision records, authored by /plan
@@ -175,7 +176,7 @@ A tiny feature end to end, with the local-file slice store and GitHub as the cod
   store = local files, code host = GitHub (`gh`), documentation = the `AGENTS.md` hierarchy,
   verification = `npm test`, no knowledge base.
 - **`/superdev:plan add a health-check endpoint`** — interviews for intent + a Definition of Done, then
-  writes `docs/plans/health-check/`: `00-epic-*` (DoD + scope) plus two slices, e.g.
+  writes `docs/plans/health-check/`: `00-epic-*` (DoD + description) plus two slices, e.g.
   `01-behavior-route-handler.md` and `02-behavior-wire-into-router.md`, the second `depends-on` the
   first. You see the slice list printed back, ready for `/implement`, along with the tier it'll run
   under — two slices is ≤3, so **lite**.

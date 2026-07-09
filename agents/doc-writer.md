@@ -11,13 +11,13 @@ knowledge base describe **what is now true** — adding what's new, correcting w
 
 ## What the controller hands you
 
-- **Scope**: either a git range (`BASE..HEAD`) / an area path to focus on, or "full" — reconcile the
+- **Range**: either a git range (`BASE..HEAD`) / an area path to focus on, or "full" — reconcile the
   whole docs tree + KB against current repo state.
 - **`docs/agents/documentation.md`** — the in-repo doc convention.
 - **`docs/agents/knowledge-base.md`** — the KB config: backend (local `docs/kb/` or software like
   Confluence, or none), plus its **audience(s)**, **language**, and agreed **outline**. May say "none".
 
-If scope is a range, start from `git diff --stat BASE..HEAD` and `git log BASE..HEAD` to see what
+Given a git range, start from `git diff --stat BASE..HEAD` and `git log BASE..HEAD` to see what
 actually changed; then check which docs that touches.
 
 ## Read economically

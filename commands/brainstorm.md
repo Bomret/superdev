@@ -16,7 +16,7 @@ loud, and treat "I don't know yet" as useful signal, not a blocker. Ground every
 repo — read `AGENTS.md` and the relevant code before proposing directions, so suggestions are grounded
 in what exists, not invented from nothing.
 
-**Run it with the interview discipline in `${CLAUDE_PLUGIN_ROOT}/references/grilling.md`** — relentless,
+**Run it with the interview discipline in `${CLAUDE_PLUGIN_ROOT}/references/cross-exam.md`** — relentless,
 one thread at a time, exploring the code instead of asking wherever you can, surfacing contradictions the
 moment they appear — but in **divergent** mode: offer options rather than a single recommended answer, and
 let the tree branch wider before it narrows. Apply the **active moves** in
@@ -50,9 +50,9 @@ Name the assumptions being made, the risks, and any constraints (technical, orga
 Cross-check claims against the code — if the codebase already does or doesn't support something the
 idea assumes, say so now rather than let `/superdev:plan` discover it later.
 
-## 5. Converge to a "ready to plan" brief
+## 5. Converge to a "ready to plan" intent
 
-Once the space has been explored, pull it together into a short brief:
+Once the space has been explored, pull it together into a short intent:
 
 - **Problem statement** — the pain, from the user's perspective.
 - **Target user** — who this is for.
@@ -60,11 +60,11 @@ Once the space has been explored, pull it together into a short brief:
 - **Rough scope + non-goals** — the skateboard, and what's deliberately excluded.
 - **Still-open decisions** — what remains genuinely undecided.
 
-You may jot this brief to a scratch file for the user's reference, but do not create ADRs, a glossary,
+You may jot this intent to a scratch file for the user's reference, but do not create ADRs, a glossary,
 slices, or anything in the slice store — none of that durable capture happens here.
 
 ## 6. Hand off
 
-Once the brief has a clear problem, checkable success criteria, and a bounded scope — even if some
+Once the intent has a clear problem, checkable success criteria, and a bounded scope — even if some
 decisions remain open — tell the user it's ready and to run **`/superdev:plan`**, which will interview
 those remaining decisions one at a time and decompose the work into slices.

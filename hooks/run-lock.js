@@ -6,7 +6,7 @@
 // check if a fresh .superdev/<scope>/run.lock exists. If so, another session is live on
 // this scope — block. If the lock is stale or absent, allow (crash resume or new run).
 // ponytail: mtime staleness threshold is 1 hour; if long-running lite sessions exceed this,
-// add a heartbeat refresh loop inside the controller's lite-path run (or parameterize the
+// add a heartbeat refresh loop inside the controller's lite-tier run (or parameterize the
 // threshold), but YAGNI for now.
 
 const fs = require('fs');

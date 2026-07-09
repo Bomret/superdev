@@ -32,7 +32,7 @@ hooks/                 — deterministic Node hooks + hooks.json: merge-guard, m
                          run-lock, worktree-sweep, update-check
 references/            — backend seed templates + plan-contract + documentation convention +
                          execution playbooks (implement-full/lite, read at runtime by /implement) +
-                         authoring disciplines (grilling, domain-modeling, read at runtime by /plan + /brainstorm) +
+                         authoring disciplines (cross-examination, domain-modeling, read at runtime by /plan + /brainstorm) +
                          review-checklist (anti-patterns, vuln-classes, reuse-audit; read at runtime by
                          final-reviewer + slice-reviewer)
 docs/adr/              — architecture decision records (why the plugin is built this way)
@@ -195,9 +195,9 @@ This root owns every subtree directly:
 - `references/` — backend seed templates + `plan-contract.md` (slice schema/lifecycle) + `documentation.md`
   + **execution playbooks** (`implement-full.md` / `implement-lite.md`): the tier-specific linear procedures
   `/implement` reads at runtime once it computes the tier (non-seed refs, like `plan-contract.md`)
-  + **authoring disciplines** (`grilling.md` / `domain-modeling.md`): the relentless-interview and
-  active-domain-modeling disciplines `/plan` and `/brainstorm` read at runtime (superdev's self-contained
-  rendering of the grilling + domain-modeling skills)
+  + **authoring disciplines** (`cross-exam.md` / `domain-modeling.md`): the relentless cross-examination and
+  active-domain-modeling disciplines `/plan` and `/brainstorm` read at runtime (superdev's own rendering of
+  Matt Pocock's grilling + domain-modeling skills)
   + **`review-checklist.md`**: named anti-patterns, vulnerability classes, and a reuse-audit lens,
   read at runtime by `final-reviewer` (all three) and `slice-reviewer` (anti-patterns + vuln-classes).
 - `docs/adr/` — architecture decision records. `docs/agents/` — this repo's own dogfooded backend config.

@@ -19,7 +19,7 @@ throughout. Return to the controller's **Final phase** once every slice is commi
   `git worktree add .superdev/<scope>/worktree -b superdev/<scope> <base>` (base from
   `code-management.md`, default `main`). The invoking checkout is **never switched** — it stays on main
   (or wherever it was), so a second session can run in the same repo. All inline implementation happens
-  **in this worktree**, never in the invoking checkout. Then move the **scope/epic** issue →
+  **in this worktree**, never in the invoking checkout. Then move the **scope anchor** issue →
   `in-progress` (per `issue-tracker.md`; best-effort).
 
 ## Run lock

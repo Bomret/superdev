@@ -18,7 +18,7 @@ Honor the controller's **Invariants** and **Issue status** map throughout. Retur
   squash-merged.
 - **Scope branch off base:** `git switch -c superdev/<scope> <base>` in the invoking checkout (`<scope>`
   chosen in Phase 0; base from `code-management.md`, default `main`). You merge into this checkout later.
-  Then move the **scope/epic** issue → `in-progress` (per `issue-tracker.md`; best-effort).
+  Then move the **scope anchor** issue → `in-progress` (per `issue-tracker.md`; best-effort).
 - **Per slice**, a branch off scope in its own **worktree** under this run's root:
   `git worktree add .superdev/<scope>/worktrees/<id> -b slice/<scope>/<id> superdev/<scope>`. The slice
   branch is **scoped** (`slice/<scope>/<id>`) so parallel runs never collide even when slice ids repeat.
@@ -67,7 +67,7 @@ Repeat until every slice is `merged`:
      `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` (resolve the macro yourself, here — it
      doesn't expand inside the dispatched agent). For each **Critical/Important** finding, dispatch a fresh
      **`superdev:implementer`** fix with a **RED test that reproduces the bug first**; re-review until
-     clean — or the **3-strike cap** trips (controller's Invariants). Then dispatch
+     clean — or the **3-strike fix loop** caps out (controller's Invariants). Then dispatch
      **`superdev:simplicity-reviewer`** (over-engineering); apply warranted cuts.
    - **`mechanical`** / **`docs`** slice → **skip both per-slice reviews** (the suite + the final review
      are the net).

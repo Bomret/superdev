@@ -2,7 +2,7 @@
 
 **Status:** Proposed
 
-**Context.** `/plan` writes a feature's slice DAG **once**, in full — the interview (`grilling.md`) runs
+**Context.** `/plan` writes a feature's slice DAG **once**, in full — the interview (`cross-exam.md`) runs
 until "the design tree is exhausted," and step 6 creates `docs/plans/<feature-slug>/` (or the equivalent
 issue-tracker records) from scratch. Nothing defines what happens when `/plan` is invoked a second time
 against a `<feature-slug>` that already has slices — a real scenario whenever a feature grows scope after
@@ -32,7 +32,7 @@ record a reviewer gated on), or mutating the DAG while `/implement`'s ledger is 
 **Why.** Hard to reverse: once ids are referenced by merge history and `depends-on` edges across
 possibly-parallel worktrees, renumbering or rewriting them corrupts the record `/implement` and its
 reviewers already gated on. Surprising without context: `/plan`'s one-shot "exhaust the tree" design
-(this AGENTS.md / `grilling.md`) reads as if a feature is planned exactly once, so silent overwrite-on-
+(this AGENTS.md / `cross-exam.md`) reads as if a feature is planned exactly once, so silent overwrite-on-
 rerun would surprise a user who reasonably expects to grow a shipped feature's scope later. Genuine
 trade-off: the alternative — always start a fresh feature-slug for added scope — avoids the append logic
 entirely but scatters one feature's history across multiple directories/epics and loses the single DoD

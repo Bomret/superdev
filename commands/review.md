@@ -18,21 +18,21 @@ standalone: this command never edits, commits, or merges anything.
 - **Neither file is required.** This command works in any repo, including one never set up for superdev
   (`/superdev:setup` was never run) — it just loses the test-command hint.
 
-## 1. Scope
+## 1. Range
 
-Parse `$ARGUMENTS` into a **scope** and an optional **intent**:
+Parse `$ARGUMENTS` into a **range** and an optional trailing description of what the change should do:
 
-- **Intent** — everything after a ` -- ` separator, or (no `--` present) a clear trailing natural-language
-  sentence describing what the change should do. This is handed to both reviewers as their
-  `requirements`.
-- **No intent given → try issue-ref discovery.** If `docs/agents/issue-tracker.md` is configured, grep
+- **Trailing description** — everything after a ` -- ` separator, or (no `--` present) a clear trailing
+  natural-language sentence describing what the change should do. This is handed to both reviewers as
+  their `acceptance`.
+- **No description given → try issue-ref discovery.** If `docs/agents/issue-tracker.md` is configured, grep
   the resolved range's `git log` for issue references — keyword-qualified
   (`Close[sd]?`/`Fix(e[sd])?`/`Resolve[sd]?\s+#<n>`, case-insensitive), falling back to a bare `#<n>`.
   Dedupe the matched issue numbers, fetch each via the tracker's configured read-issue step, and
-  concatenate their titles + bodies into `requirements`. No tracker configured, or no ref found →
-  requirements = "no formal spec — general correctness, security, and quality" (today's default).
-  Never runs when an explicit intent was given — discovery is a fallback, not an override.
-- **Scope** — whatever remains, resolved to a concrete git range:
+  concatenate their titles + bodies into `acceptance`. No tracker configured, or no ref found →
+  acceptance = "no formal spec — general correctness, security, and quality" (today's default).
+  Never runs when an explicit description was given — discovery is a fallback, not an override.
+- **Range** — whatever remains, resolved to a concrete git range:
   - **`BASE..HEAD`** (or `BASE...HEAD`, contains `..`) → use verbatim.
   - **A branch** (no `..`; resolves via `git rev-parse --verify --quiet <name>`) → range is
     `merge-base(base, branch)..branch`.
@@ -63,8 +63,8 @@ Dispatch both reviewers in parallel, each with an **explicit `model`** (a hook b
 superdev subagent that omits one):
 
 - **`superdev:final-reviewer`** (`model: opus`) — correctness, architecture, security, tests, production
-  readiness. Give it: a one-line summary of what changed (derive it from the diff if the intent didn't
-  supply one), the `requirements` from §1, the git range, and the **absolute path** to
+  readiness. Give it: a one-line summary of what changed (derive it from the diff if the trailing
+  description didn't supply one), the `acceptance` from §1, the git range, and the **absolute path** to
   `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` (resolve the macro yourself, here — it doesn't
   expand inside the dispatched agent). If a test command is configured (`docs/agents/verification.md`),
   tell it it may re-run the suite over the range to verify green rather than trust the diff alone.

@@ -26,7 +26,7 @@ write.** Seed templates live in `${CLAUDE_PLUGIN_ROOT}/references/`.
 ## 2. Decide (one at a time)
 
 Assume the user may not know these terms. Each decision: a one-line explainer, the choices, and a
-proposed default (inferred from the remote) — grilling.md's recommended-answer rule applied to a config
+proposed default (inferred from the remote) — cross-exam.md's recommended-answer rule applied to a config
 choice: never present the choices bare. Using `AskUserQuestion`? Mark the proposed default
 `(Recommended)`.
 
@@ -48,7 +48,7 @@ choice: never present the choices bare. Using `AskUserQuestion`? Mark the propos
 
 For any **issue backend** (Jira / other — not the local file), also capture the tracker's **status
 workflow**: probe or ask for the available statuses, the transitions between them, and the issue types
-for the scope/epic vs a slice. Agree a **status map** with the user — superdev's canonical lifecycle
+for the scope anchor vs a slice. Agree a **status map** with the user — superdev's canonical lifecycle
 (`todo` → `in-progress` → `in-review` → `merged`/done, plus `blocked`) → the tracker's real statuses,
 with how to perform each move (transition name/id or CLI verb). Record it in `issue-tracker.md`;
 `/implement` walks each issue along it as work progresses. If the tracker lacks a state (no separate

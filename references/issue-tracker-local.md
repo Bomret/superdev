@@ -9,13 +9,13 @@ scope, one per slice — in the format defined by the superdev plan-contract.
 
 ```
 docs/plans/<feature-slug>/
-  00-epic-<summary>.md                    scope: global Definition of Done + feature description
+  00-epic-<summary>.md                    epic file: global Definition of Done + feature description
   01-<test-applicability>-<summary>.md    first slice   (id 01)
   02-<test-applicability>-<summary>.md    next slice    (id 02)
   ...
 ```
 
-- **`00-epic-…`** is the **scope** file: it holds the global Definition of Done plus a short description
+- **`00-epic-…`** is the **epic file**: it holds the global Definition of Done plus a short description
   of the feature. It is not a slice. **A single-slice feature has no `00-epic-…` file** — the lone
   `01-…` slice carries the DoD in its own `acceptance` section.
 - Each **`NN-…`** (N ≥ 01) is one slice. `<test-applicability>` is `behavior` | `mechanical` | `docs`;
@@ -29,7 +29,7 @@ the numbering. Two digits cover up to 99 slices; widen the padding if a feature 
 
 ## File format
 
-Scope file `00-epic-<summary>.md`:
+Epic file `00-epic-<summary>.md`:
 
 ```markdown
 # <feature>

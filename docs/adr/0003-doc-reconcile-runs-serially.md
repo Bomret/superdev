@@ -19,5 +19,5 @@ does not hold. The one review at the end of a scope is not worth a moving-diff h
 removes it by construction. The saved round-trip was a single wall-clock step at the very end of a run.
 
 **Consequences.** The final phase is identical across tiers: review → fix loop → doc reconcile → PR.
-The lite path loses its concurrent-dispatch optimization. The `final-reviewer` always reads a stable
+The lite tier loses its concurrent-dispatch optimization. The `final-reviewer` always reads a stable
 diff. Anyone re-introducing concurrency as a speed-up reopens the race this ADR closes.

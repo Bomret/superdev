@@ -23,7 +23,7 @@ narrate at most one short line.
 
 ## Invariants (honored by both playbooks)
 
-- **The 3-strike cap = a wrong cut, not a bug.** If a slice's fix loop takes 3 cycles without going clean
+- **The 3-strike fix loop caps at a wrong cut, not a bug.** If a slice's fix loop takes 3 cycles without going clean
   (each fix exposing a new defect elsewhere), stop re-dispatching. That's a hidden dependency or a
   boundary too big — move the slice → `blocked` and escalate (re-slice or hand to the human); never burn a
   fourth cycle.
@@ -82,11 +82,11 @@ lifecycle point, **move the issue to the mapped status** so anyone watching the 
 — for a local-file store that's editing the slice file's `status:` line, for an issue tracker it's the
 mapped transition. Do it **best-effort**: the ledger drives control flow, so if a status write fails, log
 it and keep going. Points: dispatch → `in-progress`; entering per-slice review (behavior only) →
-`in-review`; BLOCKED → `blocked`; merged → `merged`/done. The **scope/epic** issue moves to `in-progress`
-when the run starts and `done` once every slice is merged. **No epic** (single-slice plan) — the lone slice
-IS the scope anchor: move it → `in-progress` at the start and → `merged`/done at the end, covering both the
-slice transition and the scope-level signal in one issue. (The `lite` playbook skips the `in-review`
-transition — it has no per-slice review.)
+`in-review`; BLOCKED → `blocked`; merged → `merged`/done. The **scope anchor** issue — the epic if one
+exists, otherwise the lone slice on a single-slice plan — moves to `in-progress` when the run starts and
+`merged`/`done` once every slice is merged, covering both the slice transition and the scope-level signal
+in one issue when there's no epic. (The `lite` playbook skips the `in-review` transition — it has no
+per-slice review.)
 
 ## Final phase — whole-scope review, then PR
 
@@ -109,8 +109,8 @@ across tiers except the worktree cleanup, which your playbook owns.
   `none` (then it's the in-repo docs pass only). Run it **after** the final review + fix loop, never
   concurrent with the review: `doc-writer` commits on the scope branch and would move the tip under the
   read-only reviewer's `BASE..HEAD` diff (ADR 0003). `final-reviewer` stays read-only and its own subagent.
-- Confirm **every Phase 0 DoD item is met**, then move the scope/epic issue → `done` (no epic → the lone
-  slice issue, already `merged`, is done).
+- Confirm **every Phase 0 DoD item is met**, then move the **scope anchor** issue → `done` (no epic → the
+  lone slice issue, already `merged`, is done).
 - **Open the PR/MR per `docs/agents/code-management.md`** (default posture = draft; degrade to push +
   printed compare URL + ready-to-run command when no host CLI is present). Report the PR URL to the user.
 - **Clean up** per your playbook's final-cleanup section (it removes the worktrees it created), then remove
