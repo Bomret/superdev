@@ -68,8 +68,8 @@ Otherwise update the KB to match reality, following that file's backend commands
 writing in its **language**, for its **audience(s)** — **human-consumption first**, agent-relevant
 detail second:
 
-- Fill/refresh the durable, reader-facing docs the change affects (PRD, design overview, ADR
-  summaries) under the agreed outline. Don't mirror every `AGENTS.md`.
+- Fill/refresh the durable, reader-facing docs the change affects (feature specification, design
+  overview, ADR summaries) under the agreed outline. Don't mirror every `AGENTS.md`.
 - Correct and **remove obsolete** KB content — a KB that contradicts the code is worse than none.
 - **Local file** backend: edit the markdown under `docs/kb/` and keep its index current.
 - **Software** backend (e.g. Confluence): find the existing page and update it (don't duplicate);

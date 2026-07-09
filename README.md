@@ -137,8 +137,8 @@ backend.
   project-wide, child = per-boundary). `/plan` also records the glossary (`CONTEXT.md`), ADRs
   (`docs/adr/`), and path-scoped rules (`.claude/rules/`) under this convention; `/document` reconciles
   it after a scope lands. → `docs/agents/documentation.md`.
-- **Knowledge base** *(optional)* — a **separate, human-first** record (PRDs, design overviews, ADR
-  summaries) for *readers*, not agents — distinct from the agent-first `AGENTS.md` docs. You pick the
+- **Knowledge base** *(optional)* — a **separate, human-first** record (feature specifications, design
+  overviews, ADR summaries) for *readers*, not agents — distinct from the agent-first `AGENTS.md` docs. You pick the
   backend (Confluence · local `docs/kb/` · none), its **audience(s)**, **language**, and an agreed
   **outline** that `/plan` and `/document` fill rather than reinvent. → `docs/agents/knowledge-base.md`.
 - **Verification** *(optional)* — the repo's test command. Recorded, it **arms the green-gate** hook

@@ -70,8 +70,8 @@ convention is an **`AGENTS.md` hierarchy** (walk before editing; update the affe
 meaningful changes; keep concise/current). Seed: `references/documentation.md`. Keep this convention
 unless the user has a different in-repo doc convention (then capture theirs as prose).
 
-**D — Knowledge base (optional).** Is there a **knowledge base** for durable, reader-facing docs (PRDs,
-design overviews, ADR summaries)? Ask the user which of:
+**D — Knowledge base (optional).** Is there a **knowledge base** for durable, reader-facing docs (feature
+specifications, design overviews, ADR summaries)? Ask the user which of:
 
 - **Knowledge base software available** — e.g. **Confluence**. Seed:
   `references/knowledge-base-confluence.md`. Ask base URL, space key, what to publish, optional parent

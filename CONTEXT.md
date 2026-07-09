@@ -107,8 +107,11 @@ _Avoid: "code-management" (that's the doc slug), "GitHub" (that's one host)_
 **PR posture** — the three-state config value controlling how `/implement` opens the PR: `draft` (open as draft), `ready` (open ready-for-review), or `push-only` (push the branch, skip opening a PR). Set per code host during `/setup`, recorded in `code-management.md`.
 _Avoid: "PR mode", "draft mode" (only one of the three states)_
 
-**Knowledge base** — the optional human-first record (PRDs, design overviews, ADR summaries), distinct from the agent-first `AGENTS.md` docs. May be `none`. Reconciled by the doc-writer.
+**Knowledge base** — the optional human-first record (feature specifications, design overviews, ADR summaries), distinct from the agent-first `AGENTS.md` docs. May be `none`. Reconciled by the doc-writer.
 _Avoid: "docs" (too broad — the AGENTS.md tree is separate), "wiki" (that's one KB)_
+
+**Feature specification** — the KB's one-page-per-feature document: the problem, solution shape, and Definition of Done, written for the KB's audience(s) and language. Distinct from a slice's own `spec`: this is one per-feature narrative for readers, not a per-slice implementer contract.
+_Avoid: "PRD" (implies business-case/persona content this doc doesn't carry), "specification" alone (collides with the per-slice `spec` field)_
 
 ## Roles
 

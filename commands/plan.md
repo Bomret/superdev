@@ -58,8 +58,8 @@ Two captures are **superdev-specific** — the reference doesn't cover them:
   repeatable; a whole-project norm belongs in the docs convention, and a slice-specific requirement
   belongs in that slice's `spec` — not a rule.
 
-- **Knowledge base** — if `docs/agents/knowledge-base.md` defines one, also seed the PRD / ADR summaries
-  into its agreed **outline**, in its **language**, for its **audience(s)** (human-first).
+- **Knowledge base** — if `docs/agents/knowledge-base.md` defines one, also seed the feature specification
+  / ADR summaries into its agreed **outline**, in its **language**, for its **audience(s)** (human-first).
 
 Create all these durable files **lazily** — only when the first term, decision, or rule actually
 crystallises, never as empty scaffolding. Follow the documentation convention in

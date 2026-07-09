@@ -1,6 +1,6 @@
 # Knowledge base: Local file storage
 
-An in-repo knowledge base — durable, human-facing docs (PRDs, design overviews, ADR summaries) kept as
+An in-repo knowledge base — durable, human-facing docs (feature specifications, design overviews, ADR summaries) kept as
 markdown files in the repo. No external service. (This is distinct from the in-repo `AGENTS.md` docs in
 `docs/agents/documentation.md`: those are the agent-facing contract; this KB is the reader-facing library.)
 
@@ -18,7 +18,7 @@ The KB is **human-consumption first**. Recorded at setup:
 
 ## Location
 
-`docs/kb/` — one markdown file per document, e.g. `docs/kb/<feature>-prd.md`,
+`docs/kb/` — one markdown file per document, e.g. `docs/kb/<feature>-spec.md`,
 `docs/kb/adr-summary.md`. A `docs/kb/README.md` index lists them.
 
 ## Conventions
@@ -29,7 +29,7 @@ The KB is **human-consumption first**. Recorded at setup:
 
 ## superdev usage
 
-- `/superdev:plan` — write the PRD / ADR summaries under `docs/kb/` and update the index.
+- `/superdev:plan` — write the feature specification / ADR summaries under `docs/kb/` and update the index.
 - `/superdev:implement` — the final phase refreshes the affected `docs/kb/` docs once the scope branch
   is green.
 

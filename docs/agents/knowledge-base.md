@@ -1,6 +1,6 @@
 # Knowledge base: Codeberg Wiki (Forgejo)
 
-Durable, **human-first** reader-facing docs (PRDs, design overviews, ADR summaries) live in the
+Durable, **human-first** reader-facing docs (feature specifications, design overviews, ADR summaries) live in the
 Codeberg repo **Wiki** for `bomret/superdev`. Distinct from the agent-first in-repo `AGENTS.md` docs.
 
 ## Configuration
@@ -16,7 +16,7 @@ Codeberg repo **Wiki** for `bomret/superdev`. Distinct from the agent-first in-r
 
 - **Overview** — what superdev is + the plan→implement loop (adopter-facing).
 - **Concepts** — slice store, code host, documentation convention, knowledge base, verification.
-- **Design notes / PRD summaries** — one page per significant feature.
+- **Feature specifications / design notes** — one page per significant feature.
 - **ADR summaries** — human-readable digests of `docs/adr/` decisions.
 - **Guides** — install, configure a backend, cut a release.
 

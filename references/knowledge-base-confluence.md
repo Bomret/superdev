@@ -1,6 +1,6 @@
 # Knowledge base: Confluence
 
-An external knowledge base for durable, human-facing docs (PRDs, design overviews, ADR summaries),
+An external knowledge base for durable, human-facing docs (feature specifications, design overviews, ADR summaries),
 published to a Confluence space. In-repo docs (`docs/agents/documentation.md`) remain the source of
 truth; the KB is a published view.
 
@@ -22,7 +22,7 @@ The KB is **human-consumption first**. Recorded at setup:
 - **Space key**: `<SPACE>`
 - **Auth**: API token in env var `<CONFLUENCE_API_TOKEN>`, user email in `<CONFLUENCE_EMAIL>`. Record
   the env-var NAMES only, never the secrets.
-- **What to publish**: `<PRDs + ADR summaries>` — durable, reader-facing docs only, not every `AGENTS.md`.
+- **What to publish**: `<feature specifications + ADR summaries>` — durable, reader-facing docs only, not every `AGENTS.md`.
 - **Parent page** (optional): `<page id or title under which superdev pages are created>`.
 
 ## REST conventions (curl, Confluence Cloud v2)
@@ -37,7 +37,7 @@ Auth: `-u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN"`, `-H "Content-Type: applica
 
 ## superdev usage
 
-- `/superdev:plan` — after writing the in-repo PRD/ADRs, optionally publish/refresh their pages.
+- `/superdev:plan` — after writing the in-repo feature specification/ADRs, optionally publish/refresh their pages.
 - `/superdev:implement` — the final phase optionally syncs the durable docs to the space once the scope
   branch is green.
 
