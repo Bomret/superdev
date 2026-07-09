@@ -1,3 +1,10 @@
+## [0.14.2](https://codeberg.org/bomret/superdev/compare/v0.14.1...v0.14.2) (2026-07-09)
+
+
+### Bug Fixes
+
+* **plan:** pin per-slice test interface, flag tautological tests, standardize on specification ([63f097b](https://codeberg.org/bomret/superdev/commit/63f097bca4911529b70be00f7e4f84c5d58b7ffa))
+
 ## [0.14.1](https://codeberg.org/bomret/superdev/compare/v0.14.0...v0.14.1) (2026-07-09)
 
 
