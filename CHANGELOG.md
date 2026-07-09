@@ -1,3 +1,10 @@
+## [0.14.1](https://codeberg.org/bomret/superdev/compare/v0.14.0...v0.14.1) (2026-07-09)
+
+
+### Bug Fixes
+
+* **context:** correct contradictory glossary/spec claims, rename grilling to cross-examination ([4d7f738](https://codeberg.org/bomret/superdev/commit/4d7f738c0c5cc021a422c1139f3f1cc2d4a4fbc2))
+
 # [0.14.0](https://codeberg.org/bomret/superdev/compare/v0.13.0...v0.14.0) (2026-07-08)
 
 
