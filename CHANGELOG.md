@@ -1,3 +1,10 @@
+# [0.15.0](https://codeberg.org/bomret/superdev/compare/v0.14.4...v0.15.0) (2026-07-10)
+
+
+### Features
+
+* **references:** add doc-verification discipline ([874bb9c](https://codeberg.org/bomret/superdev/commit/874bb9cc81429eb9668473d909933087436949cc))
+
 ## [0.14.4](https://codeberg.org/bomret/superdev/compare/v0.14.3...v0.14.4) (2026-07-10)
 
 
