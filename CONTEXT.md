@@ -44,8 +44,11 @@ _Avoid: "log", "report", "transcript" (logs are broader; this is slice-specific 
 **Warrant** — the justification a piece of work carries; scales both cost (which model a dispatch uses) and rigor (which review gates run). Derived from a slice's test-applicability + complexity, never a plan field. A `behavior` slice warrants more than a `mechanical` one; a hook blocks any dispatch that omits an explicit model so cost stays warrant-scaled.
 _Avoid: "priority", "estimate", "weight"_
 
-**Intent** — a rough idea sharpened into something plan-ready: the problem, a few candidate directions, the smallest end-to-end version worth building, and the open questions. Output of `/brainstorm`, input to `/plan`.
+**Intent** — a rough idea sharpened into something plan-ready: the problem, a few candidate directions, the MLP, and the open questions. Output of `/brainstorm`, input to `/plan`.
 _Avoid: "idea", "requirements", "specification"_
+
+**Minimal Lovable Product (MLP)** — the smallest end-to-end version of the chosen direction that delivers real value: a complete (if narrow) path through the system a user could actually use, not a fragment of the final thing. Found in `/brainstorm` step 3, carried into `Intent`'s rough scope.
+_Avoid: "skateboard" (Kniberg's MVP-evolution analogy — unclear without the backstory), "MVP" (implies bare-minimum/incomplete, not "usable and complete but narrow")_
 
 **Load-bearing decision** — a decision the plan can't ship without: leaving it unresolved means the plan isn't actually decided, not just thin on detail. Triggers `Parked questions` when the interview can't resolve it (multi-slice only); on a single-slice plan, an unresolved one signals the plan isn't single-slice-simple yet, not something to park.
 _Avoid: "blocker", "important question" (any open question can be unimportant; load-bearing specifically means the plan can't ship without it resolved)_

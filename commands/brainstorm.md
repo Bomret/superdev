@@ -38,7 +38,7 @@ tradeoffs, not variations on one idea. For each, name the rough shape and its co
 user's reaction to each before narrowing. Diverge before you converge — resist collapsing to a single
 direction too early.
 
-## 3. Find the skateboard
+## 3. Find the Minimal Lovable Product (MLP)
 
 For the direction the user leans toward, find the **smallest end-to-end version that delivers real
 value** — not a fragment of the final thing, but a complete (if narrow) slice through it a user could
@@ -57,7 +57,7 @@ Once the space has been explored, pull it together into a short intent:
 - **Problem statement** — the pain, from the user's perspective.
 - **Target user** — who this is for.
 - **Success criteria** — checkable, not vibes.
-- **Rough scope + non-goals** — the skateboard, and what's deliberately excluded.
+- **Rough scope + non-goals** — the MLP, and what's deliberately excluded.
 - **Still-open decisions** — what remains genuinely undecided.
 
 You may jot this intent to a scratch file for the user's reference, but do not create ADRs, a glossary,
