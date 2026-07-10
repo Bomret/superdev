@@ -32,7 +32,8 @@ hooks/                 — deterministic Node hooks + hooks.json: merge-guard, m
                          run-lock, worktree-sweep, update-check
 references/            — backend seed templates + plan-contract + documentation convention +
                          execution playbooks (implement-full/lite, read at runtime by /implement) +
-                         authoring disciplines (cross-examination, domain-modeling, read at runtime by /plan + /brainstorm) +
+                         authoring disciplines (cross-examination, domain-modeling, doc-verification;
+                         read at runtime by /plan + /brainstorm, doc-verification also by implementer) +
                          review-checklist (anti-patterns, vuln-classes, reuse-audit; read at runtime by
                          final-reviewer + slice-reviewer)
 docs/adr/              — architecture decision records (why the plugin is built this way)
@@ -182,7 +183,7 @@ When the user requests a durable behavior change, record it here or in the relev
 
 ## Child DOX Index
 
-**No child AGENTS.md — the repo is flat.** It's small (8 commands, 5 agents, 6 hooks, 13 references) and
+**No child AGENTS.md — the repo is flat.** It's small (8 commands, 5 agents, 6 hooks, 14 references) and
 every subtree's rules already live in this root doc. Add a child only when a subtree becomes a durable
 boundary with rules of its own that don't fit here.
 
@@ -195,9 +196,11 @@ This root owns every subtree directly:
 - `references/` — backend seed templates + `plan-contract.md` (slice schema/lifecycle) + `documentation.md`
   + **execution playbooks** (`implement-full.md` / `implement-lite.md`): the tier-specific linear procedures
   `/implement` reads at runtime once it computes the tier (non-seed refs, like `plan-contract.md`)
-  + **authoring disciplines** (`cross-exam.md` / `domain-modeling.md`): the relentless cross-examination and
-  active-domain-modeling disciplines `/plan` and `/brainstorm` read at runtime (superdev's own rendering of
-  Matt Pocock's grilling + domain-modeling skills)
+  + **authoring disciplines** (`cross-exam.md` / `domain-modeling.md` / `doc-verification.md`): the
+  relentless cross-examination, active-domain-modeling, and verify-against-official-docs disciplines
+  `/plan` and `/brainstorm` read at runtime (superdev's own rendering of Matt Pocock's grilling +
+  domain-modeling skills); `doc-verification.md` is also read by the `implementer` agent before it acts on
+  an assumption about a third-party library/API/service
   + **`review-checklist.md`**: named anti-patterns, vulnerability classes, and a reuse-audit lens,
   read at runtime by `final-reviewer` (all three) and `slice-reviewer` (anti-patterns + vuln-classes).
 - `docs/adr/` — architecture decision records. `docs/agents/` — this repo's own dogfooded backend config.

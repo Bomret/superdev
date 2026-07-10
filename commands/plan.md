@@ -28,6 +28,10 @@ and every per-slice `acceptance` as **observable, user-facing behaviour**, not g
 Intent still vague — no clear problem, no checkable success criteria? Suggest `/superdev:brainstorm`
 first to explore the space before pinning it down here.
 
+**Read `${CLAUDE_PLUGIN_ROOT}/references/doc-verification.md` and apply it whenever the interview leans on
+a claim about how a third-party library, product, or service behaves.** Verify it against official docs
+before it's baked into the DoD, a slice's `spec`, or an ADR.
+
 ## 2. Domain-model as you go
 
 **Read `${CLAUDE_PLUGIN_ROOT}/references/domain-modeling.md` and apply it as you interview.** Read any

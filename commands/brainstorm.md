@@ -21,8 +21,11 @@ one thread at a time, exploring the code instead of asking wherever you can, sur
 moment they appear — but in **divergent** mode: offer options rather than a single recommended answer, and
 let the tree branch wider before it narrows. Apply the **active moves** in
 `${CLAUDE_PLUGIN_ROOT}/references/domain-modeling.md` too — challenge vague terms, sharpen fuzzy language,
-cross-check claims against the code — to think precisely. But **write nothing durable** here: no glossary
-entries, no ADRs, no slices. Durable capture is `/superdev:plan`'s job.
+cross-check claims against the code — to think precisely. Apply
+`${CLAUDE_PLUGIN_ROOT}/references/doc-verification.md` as well — verify a claim about how a third-party
+library, product, or service behaves against its official docs before it's carried into the intent as
+fact. But **write nothing durable** here: no glossary entries, no ADRs, no slices. Durable capture is
+`/superdev:plan`'s job.
 
 ## 1. Start from the problem, not the solution
 

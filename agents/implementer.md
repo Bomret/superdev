@@ -58,6 +58,14 @@ net. For `docs` slices: no test. Don't invent tests for non-behavior work.
 - Read `CONTEXT.md` / the project glossary and use its vocabulary in names and tests. Respect any ADRs
   in the area you touch — don't contradict a recorded decision; if the slice forces you to, escalate.
 
+## Verify before you assume
+
+Read `${CLAUDE_PLUGIN_ROOT}/references/doc-verification.md` and apply it. Before writing code that
+depends on how a third-party library, API, or service behaves — an unfamiliar method, an auth flow, a
+response shape, a version-sensitive default — verify it against the official docs (`WebFetch`/`WebSearch`)
+instead of relying on memory. Note what you verified (a URL) in the progress-log line for that increment.
+Docs unreachable? Say so and flag the assumption in your report rather than presenting it as fact.
+
 <!--
   Attribution: the "lazy ladder" minimalism discipline below is distilled from
   ponytail, by Dietrich Gebert (https://github.com/DietrichGebert). Credit to its author.
