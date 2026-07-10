@@ -1,3 +1,10 @@
+## [0.14.4](https://codeberg.org/bomret/superdev/compare/v0.14.3...v0.14.4) (2026-07-10)
+
+
+### Bug Fixes
+
+* **brainstorm:** rename skateboard to Minimal Lovable Product (MLP) ([04b2b4a](https://codeberg.org/bomret/superdev/commit/04b2b4a4a096a530bc1f974ba44f694a45865edb))
+
 ## [0.14.3](https://codeberg.org/bomret/superdev/compare/v0.14.2...v0.14.3) (2026-07-09)
 
 
