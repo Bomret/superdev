@@ -63,8 +63,12 @@ Once the space has been explored, pull it together into a short intent:
 - **Rough scope + non-goals** — the MLP, and what's deliberately excluded.
 - **Still-open decisions** — what remains genuinely undecided.
 
-You may jot this intent to a scratch file for the user's reference, but do not create ADRs, a glossary,
-slices, or anything in the slice store — none of that durable capture happens here.
+You may jot this intent to a scratch file for the user's reference — write it under the git-ignored
+`.superdev/brainstorm/<intent-slug>.md` (ensure `.superdev/` is in the repo's `.gitignore`; add it if
+absent). This sits alongside `.superdev/scopes/`, never inside it, so it's never mistaken for a scope run
+root (`/status` only scans `.superdev/scopes/*/`). Never loose in the tracked working tree of whatever
+branch happens to be checked out. Do not create ADRs, a glossary, slices, or anything in the slice store
+— none of that durable capture happens here.
 
 ## 6. Hand off
 

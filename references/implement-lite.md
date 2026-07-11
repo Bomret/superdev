@@ -16,7 +16,7 @@ throughout. Return to the controller's **Final phase** once every slice is commi
   the PR you open later diffs against the remote base, and an unpushed local commit there diverges into
   a stranded duplicate once the PR is squash-merged.
 - **Cut the scope branch into a dedicated worktree:**
-  `git worktree add .superdev/<scope>/worktree -b superdev/<scope> <base>` (base from
+  `git worktree add .superdev/scopes/<scope>/worktree -b superdev/<scope> <base>` (base from
   `code-management.md`, default `main`). The invoking checkout is **never switched** — it stays on main
   (or wherever it was), so a second session can run in the same repo. All inline implementation happens
   **in this worktree**, never in the invoking checkout. Then move the **scope anchor** issue →
@@ -24,7 +24,7 @@ throughout. Return to the controller's **Final phase** once every slice is commi
 
 ## Run lock
 
-Before implementing the first slice, write `.superdev/<scope>/run.lock` in the invoking checkout (not the
+Before implementing the first slice, write `.superdev/scopes/<scope>/run.lock` in the invoking checkout (not the
 worktree — the run root stays there). The lock's mtime marks this run as live; the **run-lock** hook uses
 it to stop a second concurrent run of the same scope from creating its own scope worktree, enforcing
 same-scope mutual exclusion. Remove the lock at the end of the controller's **Final phase** (after the
@@ -35,7 +35,7 @@ PR).
 - **In `depends-on` order, inline, test-first.** For each slice, in dependency order: read its `spec` +
   `acceptance`, then carry the same tracer-bullet discipline an implementer subagent would (one RED test,
   minimal GREEN code, repeat) yourself, **directly in the scope worktree at
-  `.superdev/<scope>/worktree/`**. All file edits, test runs, `git` commands, and commits happen **in the
+  `.superdev/scopes/<scope>/worktree/`**. All file edits, test runs, `git` commands, and commits happen **in the
   scope worktree as the cwd** — never in the invoking checkout. `mechanical` / `docs` slices need no new
   test — the existing suite is the net.
 - **Carry the implementer's escalation discipline.** If you can't get a slice green after reasonable
@@ -52,10 +52,10 @@ PR).
 
 ## Resume
 
-Read `.superdev/<scope>/ledger.md` and cross-check it against `git log <base>..superdev/<scope>` in the
+Read `.superdev/scopes/<scope>/ledger.md` and cross-check it against `git log <base>..superdev/<scope>` in the
 scope worktree — a slice the ledger marks `merged` (already committed there) is done; pick up at the next
 `todo` slice in `depends-on` order. An interrupted `in-progress` slice may have left partial, uncommitted
-changes in the scope worktree. Before resuming, check `.superdev/<scope>/run.lock`: if it exists and is
+changes in the scope worktree. Before resuming, check `.superdev/scopes/<scope>/run.lock`: if it exists and is
 fresh (mtime recent, per the run-lock hook's staleness threshold), another session is live in this
 worktree — escalate or wait. If the lock is stale or absent, it's a crash resume; run `git status` /
 `git diff` in the scope worktree and decide whether to continue that in-progress slice's uncommitted work
@@ -63,7 +63,7 @@ or discard it, before resuming.
 
 ## Final cleanup (worktree)
 
-Remove the scope worktree: `git worktree remove .superdev/<scope>/worktree`, then
+Remove the scope worktree: `git worktree remove .superdev/scopes/<scope>/worktree`, then
 `git branch -D superdev/<scope>` (only if it's no longer checked out). Keep the run root
-(`.superdev/<scope>/`) with its ledger and DoD — the post-mortem trail. **Never** delete the scope branch
+(`.superdev/scopes/<scope>/`) with its ledger and DoD — the post-mortem trail. **Never** delete the scope branch
 itself: the PR is from it.

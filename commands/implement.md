@@ -60,17 +60,17 @@ narrate at most one short line.
 
 - **Run root (per scope).** Choose this run's **scope** `<scope>` now — a short feature-slug (e.g.
   `lite-perf`). The **scope branch** is `superdev/<scope>` (created in your playbook's branch model). All
-  artifacts for this run live under a per-scope run root **`.superdev/<scope>/`** — keyed on the bare slug,
+  artifacts for this run live under a per-scope run root **`.superdev/scopes/<scope>/`** — keyed on the bare slug,
   so it never doubles the branch's `superdev/` prefix into `.superdev/superdev/…` — **git-ignored**
   (ensure `.superdev/` is in the repo's `.gitignore`; add it if absent). The run root
   (`dod.md`, `ledger.md`, `run.lock`) stays in the **invoking checkout** (the repo's main tree), never
   moves into a worktree; only the code checkout moves into a worktree. **Namespacing by `<scope>`** is what
   lets several scope runs execute in parallel — even in separate sessions — without clobbering each
   other's DoD/ledger/reports/worktrees. Nothing in the run root is committed or lands in the PR.
-- Write the **global verification plan** (the DoD, made concrete and checkable) to `.superdev/<scope>/dod.md`.
+- Write the **global verification plan** (the DoD, made concrete and checkable) to `.superdev/scopes/<scope>/dod.md`.
   It anchors the final review and tells you when to stop. No DoD → don't proceed. **No epic** (a
   single-slice plan) → the DoD is that lone slice's `acceptance`; write it to `dod.md` verbatim.
-- Create the **ledger** at `.superdev/<scope>/ledger.md`. Track each slice's status
+- Create the **ledger** at `.superdev/scopes/<scope>/ledger.md`. Track each slice's status
   (`todo`/`in-progress`/`in-review`/`merged`), its commit range when merged, and — for issue stores — the
   slice-id ↔ issue-key mapping.
 
@@ -114,7 +114,7 @@ across tiers except the worktree cleanup, which your playbook owns.
 - **Open the PR/MR per `docs/agents/code-management.md`** (default posture = draft; degrade to push +
   printed compare URL + ready-to-run command when no host CLI is present). Report the PR URL to the user.
 - **Clean up** per your playbook's final-cleanup section (it removes the worktrees it created), then remove
-  `.superdev/<scope>/run.lock` to signal this run is done. **Never** delete the scope branch — the PR is
+  `.superdev/scopes/<scope>/run.lock` to signal this run is done. **Never** delete the scope branch — the PR is
   from it.
 
 ## Model selection (always set explicitly)

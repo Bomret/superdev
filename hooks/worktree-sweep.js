@@ -4,7 +4,7 @@
 // worktree-sweep: Stop hook. Deterministically removes finished superdev slice
 // worktrees so they don't pile up when the controller skips the prompted cleanup.
 //
-// superdev lays worktrees out per scope run: .superdev/<scope>/worktrees/<id>, on a
+// superdev lays worktrees out per scope run: .superdev/scopes/<scope>/worktrees/<id>, on a
 // scoped branch slice/<scope>/<id>. A worktree is removed only when its branch is BOTH:
 //   (a) fully merged into the current branch (integrated), AND
 //   (b) "worked" — it has ≥1 commit not reachable from the repo's default branch.

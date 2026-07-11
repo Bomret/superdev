@@ -29,7 +29,7 @@ commands/              — slash commands (*.md): brainstorm, setup, plan, imple
                          status, review
 agents/                — subagents (*.md): implementer, slice-reviewer, simplicity-reviewer, final-reviewer, doc-writer
 hooks/                 — deterministic Node hooks + hooks.json: merge-guard, model-explicit, green-gate,
-                         run-lock, worktree-sweep, update-check
+                         run-lock, worktree-sweep, scope-prune, update-check
 references/            — backend seed templates + plan-contract + documentation convention +
                          execution playbooks (implement-full/lite, read at runtime by /implement) +
                          authoring disciplines (cross-examination, domain-modeling, doc-verification;
@@ -183,7 +183,7 @@ When the user requests a durable behavior change, record it here or in the relev
 
 ## Child DOX Index
 
-**No child AGENTS.md — the repo is flat.** It's small (8 commands, 5 agents, 6 hooks, 14 references) and
+**No child AGENTS.md — the repo is flat.** It's small (8 commands, 5 agents, 7 hooks, 14 references) and
 every subtree's rules already live in this root doc. Add a child only when a subtree becomes a durable
 boundary with rules of its own that don't fit here.
 

@@ -4,7 +4,7 @@
   "private": true,
   "description": "Release tooling for the superdev Claude Code plugin. Not published to npm; the plugin ships via .claude-plugin/. semantic-release drives versioning off Conventional Commits.",
   "scripts": {
-    "test": "node hooks/merge-guard.js --selftest && node hooks/run-lock.js --selftest && node hooks/model-explicit.js --selftest && node hooks/green-gate.js --selftest && node hooks/update-check.js --selftest && node hooks/worktree-sweep.js --selftest && claude plugin validate .",
+    "test": "node hooks/merge-guard.js --selftest && node hooks/run-lock.js --selftest && node hooks/model-explicit.js --selftest && node hooks/green-gate.js --selftest && node hooks/update-check.js --selftest && node hooks/worktree-sweep.js --selftest && node hooks/scope-prune.js --selftest && claude plugin validate .",
     "eval": "claude plugin eval . --scaffold",
     "release": "semantic-release --no-ci"
   },

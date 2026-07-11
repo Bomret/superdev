@@ -3,7 +3,7 @@
 ## Core concepts
 
 **Epic** — the slice-store container for a multi-slice feature: a single issue (or `docs/plans/<feature-slug>/00-epic-*.md`) that groups all the feature's slices and holds the source text for the global DoD. Optional — a single-slice feature has no epic; that slice's `acceptance` becomes the DoD directly.
-_Avoid: "feature issue", "parent issue", "the DoD" (the epic holds/sources the DoD's text; `.superdev/<scope>/dod.md` is the concrete DoD itself)_
+_Avoid: "feature issue", "parent issue", "the DoD" (the epic holds/sources the DoD's text; `.superdev/scopes/<scope>/dod.md` is the concrete DoD itself)_
 
 **Slice** — a vertical tracer bullet: a narrow but complete path through every layer (specification → implementation → test), independently green, demoable/verifiable on its own. Each slice carries test-applicability (behavior/mechanical/docs), a specification, acceptance criteria, and explicit dependencies on other slices.
 _Avoid: "story", "task", "sub-issue", "chunk"_
@@ -11,34 +11,34 @@ _Avoid: "story", "task", "sub-issue", "chunk"_
 **Tier** (execution) — the routing decision for a plan, derived from the loaded slice count, and the procedure that decision runs. `lite` (≤3 slices): controller implements each slice inline in a single scope worktree (test-first, no per-slice worktree branch), never switching the invoking checkout, then one final-reviewer over the whole diff (3-strike loop reused; all-mechanical/docs plans skip even that review) — deliberately relaxes "controller never implements inline" to kill small-plan token + latency overhead. `full` (>3 slices): parallel capped implementers in isolated per-slice worktrees, per-slice slice-reviewer (correctness) + simplicity-reviewer (over-engineering), serial merges into scope, one whole-scope final-reviewer. Never persisted, derived fresh every run. Each tier's linear procedure is read from its **execution playbook** (see _Separation of concerns_).
 _Avoid: "mode", "strategy", "level", "route", "path"_
 
-**Scope** — a feature's scope branch and all its run artifacts (.superdev/<scope>/ directory: DoD, ledger, progress logs, worktrees). Scope is the namespace that lets multiple features' runs execute in parallel without colliding.
+**Scope** — a feature's scope branch and all its run artifacts (.superdev/scopes/<scope>/ directory: DoD, ledger, progress logs, worktrees). Scope is the namespace that lets multiple features' runs execute in parallel without colliding. `.superdev/` also holds non-scope areas nested outside `scopes/` (e.g. `.superdev/brainstorm/`) — `/status` only scans `.superdev/scopes/*/`, so a sibling area can never be mistaken for a run root.
 _Avoid: "run", "branch", "feature branch" (too generic)_
 
 **Scope anchor** — the single slice-store issue that carries the scope-level status signal for a run: the epic issue if one exists, otherwise the lone slice on a single-slice feature. Moves to `in-progress` when the run starts and `merged`/`done` once the whole scope is done — distinct from any individual slice's own status transitions.
 _Avoid: "epic" (only an epic-bearing feature has one; the anchor role also falls to a lone slice)_
 
-**Run root** — the part of `.superdev/<scope>/` that stays in the invoking checkout across both tiers: `dod.md`, `ledger.md`, `run.lock`. Never moves into a worktree, so it survives worktree removal as the post-mortem trail and lets `/status` enumerate runs without touching any worktree.
-_Avoid: "run directory", "scope dir" (too generic — this is specifically the checkout-resident subset, not the whole `.superdev/<scope>/` namespace)_
+**Run root** — the part of `.superdev/scopes/<scope>/` that stays in the invoking checkout across both tiers: `dod.md`, `ledger.md`, `run.lock`. Never moves into a worktree, so it survives worktree removal as the post-mortem trail and lets `/status` enumerate runs without touching any worktree.
+_Avoid: "run directory", "scope dir" (too generic — this is specifically the checkout-resident subset, not the whole `.superdev/scopes/<scope>/` namespace)_
 
-**Definition of Done (DoD)** — the checkable acceptance criteria for the whole feature, sourced from the epic if one exists, or from the lone slice's `acceptance` if not. `.superdev/<scope>/dod.md` is the concrete verification plan that gates the final-reviewer and PR.
+**Definition of Done (DoD)** — the checkable acceptance criteria for the whole feature, sourced from the epic if one exists, or from the lone slice's `acceptance` if not. `.superdev/scopes/<scope>/dod.md` is the concrete verification plan that gates the final-reviewer and PR.
 _Avoid: "requirements", "specification", "checklist" (DoD is the integrated checklist)_
 
-**Ledger** — the per-scope recovery map: tracks each slice's status (todo → in-progress → in-review → merged), its commit range when merged, and the slice-id ↔ issue-key mapping. `.superdev/<scope>/ledger.md` is the authoritative state during a run and after compaction/resume.
+**Ledger** — the per-scope recovery map: tracks each slice's status (todo → in-progress → in-review → merged), its commit range when merged, and the slice-id ↔ issue-key mapping. `.superdev/scopes/<scope>/ledger.md` is the authoritative state during a run and after compaction/resume.
 _Avoid: "log", "status file", "tracker"_
 
-**Worktree** — an isolated filesystem checkout used to keep a run's branch work off the invoking checkout. The full tier gives each slice its own **per-slice worktree** (`.superdev/<scope>/worktrees/<id>/`, plural); the lite tier uses a single **scope worktree** (singular — see below) for all its slices. Both nest under the git-ignored `.superdev/<scope>/`.
+**Worktree** — an isolated filesystem checkout used to keep a run's branch work off the invoking checkout. The full tier gives each slice its own **per-slice worktree** (`.superdev/scopes/<scope>/worktrees/<id>/`, plural); the lite tier uses a single **scope worktree** (singular — see below) for all its slices. Both nest under the git-ignored `.superdev/scopes/<scope>/`.
 _Avoid: "branch", "workspace", "checkout"_
 
 **Invoking checkout** — the working tree the user runs superdev from (their clone, usually on main). The `lite` tier never switches it: a lite run's branch work happens in its scope worktree, so the invoking checkout's HEAD, index, and files stay untouched and the user can keep working. The `full` tier does switch it — `git switch -c superdev/<scope> <base>` happens directly in the invoking checkout, with only per-slice work isolated in worktrees off that branch (converting full's own scope integration to a worktree too is a deferred follow-on, ADR 0001).
 _Avoid: "main checkout", "user branch", "current tree"_
 
-**Scope worktree** — the dedicated worktree a lite run cuts its scope branch into (`.superdev/<scope>/worktree/`), where all inline implementation, commits, and tests run. Isolates the run from the invoking checkout and from other sessions. The run root (dod/ledger) stays in the invoking checkout, not here, so it survives worktree removal.
+**Scope worktree** — the dedicated worktree a lite run cuts its scope branch into (`.superdev/scopes/<scope>/worktree/`), where all inline implementation, commits, and tests run. Isolates the run from the invoking checkout and from other sessions. The run root (dod/ledger) stays in the invoking checkout, not here, so it survives worktree removal.
 _Avoid: "scratch checkout", "session workspace"_
 
-**Run lock** — the `.superdev/<scope>/run.lock` file plus the `run-lock` hook that together enforce same-scope mutual exclusion for the `lite` tier: a fresh lock blocks a second concurrent run of the same scope from cutting its own scope worktree; a stale lock (past the staleness threshold) is reclaimable as a crash resume.
+**Run lock** — the `.superdev/scopes/<scope>/run.lock` file plus the `run-lock` hook that together enforce same-scope mutual exclusion for the `lite` tier: a fresh lock blocks a second concurrent run of the same scope from cutting its own scope worktree; a stale lock (past the staleness threshold) is reclaimable as a crash resume.
 _Avoid: "lockfile" (that names a dependency-manifest file elsewhere), "mutex" (too implementation-generic)_
 
-**Progress log** — the per-slice running record of what happened: agent dispatches, reviews, fixes, merge results. `.superdev/<scope>/reports/<id>/progress.md` is append-only, oldest-first, git-ignored. Exists so a human or a resumed controller can see what unfolded without re-reading worktree state.
+**Progress log** — the per-slice running record of what happened: agent dispatches, reviews, fixes, merge results. `.superdev/scopes/<scope>/reports/<id>/progress.md` is append-only, oldest-first, git-ignored. Exists so a human or a resumed controller can see what unfolded without re-reading worktree state.
 _Avoid: "log", "report", "transcript" (logs are broader; this is slice-specific narrative)_
 
 **Warrant** — the justification a piece of work carries; scales both cost (which model a dispatch uses) and rigor (which review gates run). Derived from a slice's test-applicability + complexity, never a plan field. A `behavior` slice warrants more than a `mechanical` one; a hook blocks any dispatch that omits an explicit model so cost stays warrant-scaled.

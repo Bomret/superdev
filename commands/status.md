@@ -1,5 +1,5 @@
 ---
-description: Report per-scope DAG progress for every superdev run in this repo — reads each .superdev/<scope>/ledger.md and prints slice counts by status plus which slices are blocked. Read-only; makes no changes.
+description: Report per-scope DAG progress for every superdev run in this repo — reads each .superdev/scopes/<scope>/ledger.md and prints slice counts by status plus which slices are blocked. Read-only; makes no changes.
 model: claude-haiku-4-5
 allowed-tools: Read, Glob
 ---
@@ -11,14 +11,15 @@ write, transition, or merge anything here — this is a report, not a control co
 
 ## 1. Find run roots
 
-- List `.superdev/*/` directories. Each one that holds a `ledger.md` is a **run root** for scope `<scope>`
-  (the directory name).
-- **No `.superdev/` directory, or no subdirectory has a `ledger.md`:** report `No superdev runs found in
-  this repo.` and stop. Do not create `.superdev/` or any file.
+- List `.superdev/scopes/*/` directories. Each one that holds a `ledger.md` is a **run root** for scope
+  `<scope>` (the directory name). `.superdev/` also holds non-scope areas (e.g. `.superdev/brainstorm/`)
+  — only `.superdev/scopes/` is scanned.
+- **No `.superdev/scopes/` directory, or no subdirectory has a `ledger.md`:** report `No superdev runs
+  found in this repo.` and stop. Do not create `.superdev/` or any file.
 
 ## 2. Read each ledger
 
-For each run root, read `.superdev/<scope>/ledger.md` (see `references/plan-contract.md` for the
+For each run root, read `.superdev/scopes/<scope>/ledger.md` (see `references/plan-contract.md` for the
 canonical status vocabulary: `todo` / `in-progress` / `in-review` / `blocked` / `merged`). Parse its
 table (columns: `id`, `issue`, `title`, `type`, `depends-on`, `status`, `range`) to tally, per scope:
 

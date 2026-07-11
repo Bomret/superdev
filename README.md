@@ -48,7 +48,7 @@ store + code host.
   (correctness) and **simplicity-reviewer** (over-engineering), the controller merges **serially**.
   **≤3 slices → lite** — the
   controller implements each slice inline, test-first, in a single dedicated **scope worktree**
-  (`.superdev/<scope>/worktree/`); the invoking checkout is never switched, and a same-scope run lock
+  (`.superdev/scopes/<scope>/worktree/`); the invoking checkout is never switched, and a same-scope run lock
   guards against a second concurrent run. No per-slice worktrees or reviewers. Either tier ends with one
   **whole-scope review** gating the **PR**.
 - **`/superdev:status`** — a read-only snapshot of every in-flight `/superdev:implement` run in the repo:
@@ -100,8 +100,8 @@ Cross-platform Node hooks (`node` is a Claude Code runtime dependency — no bas
 - **green-gate** — after a controller merge, re-runs the configured test command and blocks on a RED
   suite, so "tests pass on scope after merging" is enforced, not merely prompted. Inactive until a test
   command is recorded in `docs/agents/verification.md` (via `/superdev:setup`).
-- **run-lock** — blocks a `git worktree add` on a scope worktree (`.superdev/<scope>/worktree`) while a
-  fresh `.superdev/<scope>/run.lock` exists, so two concurrent lite runs on the same scope can't collide.
+- **run-lock** — blocks a `git worktree add` on a scope worktree (`.superdev/scopes/<scope>/worktree`) while a
+  fresh `.superdev/scopes/<scope>/run.lock` exists, so two concurrent lite runs on the same scope can't collide.
   A stale lock (older than the staleness threshold) or no lock at all is allowed through — crash resume
   or a new run.
 - **worktree-sweep** — a `Stop` hook that removes each per-slice worktree + branch once its slice is
@@ -109,8 +109,11 @@ Cross-platform Node hooks (`node` is a Claude Code runtime dependency — no bas
   Only touches merged `slice/*` worktrees under `.superdev/`; in-progress and reverted slices are left.
   A lite-tier run's single scope worktree isn't a per-slice worktree, so this hook doesn't touch it —
   `/implement` removes it itself at the end of the run.
+- **scope-prune** — a `Stop` hook that deletes a scope's run root (`.superdev/scopes/<scope>/` — its
+  `ledger.md`/`dod.md` post-mortem trail) once the scope branch is merged **and** the run root has sat
+  untouched for 7+ days. An unmerged scope, or one whose worktree is still present, is never touched.
 
-A fifth Node hook, **update-check**, is a `SessionStart` *notice* (not a guardrail) — see
+A seventh Node hook, **update-check**, is a `SessionStart` *notice* (not a guardrail) — see
 [Updating](#updating).
 
 ## Configuration & backends
@@ -157,11 +160,15 @@ CONTEXT.md                glossary / ubiquitous language, authored by /plan
 docs/adr/NNNN-*.md        architecture decision records, authored by /plan
 .claude/rules/*.md        path-scoped conventions the implementers auto-load, authored by /plan
 docs/kb/                  knowledge base, only if the local-file KB backend is chosen
-.superdev/<scope>/        git-ignored run scratch, namespaced per scope branch so parallel runs
+.superdev/scopes/<scope>/  git-ignored run scratch, namespaced per scope branch so parallel runs
                           don't collide: the concrete DoD + ledger (both execution tiers), plus
                           per-slice progress logs + per-slice worktrees (full tier only, >3 slices),
                           or a single scope worktree + run.lock (lite tier only, ≤3 slices) — never
                           committed, never in the PR
+.superdev/brainstorm/<intent-slug>.md   git-ignored scratch intent notes, optionally written by
+                          /brainstorm — sibling to .superdev/scopes/, not inside it, so /status (which
+                          only scans .superdev/scopes/*/) never mistakes it for a run root; never
+                          committed
 ```
 
 Everything except `.superdev/` is committed — the design docs (glossary, ADRs, rules) **must** be on the
@@ -180,9 +187,9 @@ A tiny feature end to end, with the local-file slice store and GitHub as the cod
   `01-behavior-route-handler.md` and `02-behavior-wire-into-router.md`, the second `depends-on` the
   first. You see the slice list printed back, ready for `/implement`, along with the tier it'll run
   under — two slices is ≤3, so **lite**.
-- **`/superdev:implement health-check`** — sets up `.superdev/health-check/` (git-ignored run scratch:
+- **`/superdev:implement health-check`** — sets up `.superdev/scopes/health-check/` (git-ignored run scratch:
   concrete DoD + ledger). Two slices → the **lite** tier: the controller cuts a single scope worktree at
-  `.superdev/health-check/worktree/` (the invoking checkout is never switched) and implements slice 01
+  `.superdev/scopes/health-check/worktree/` (the invoking checkout is never switched) and implements slice 01
   test-first in it, commits, then slice 02 unblocks and follows the same loop — no per-slice worktrees or
   reviewer subagents. Once both are merged, a single `final-reviewer` gates the whole scope, then the
   controller opens the PR, removes the scope worktree, and stops. You see a one-line status per slice as
