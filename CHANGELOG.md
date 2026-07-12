@@ -1,3 +1,10 @@
+# [0.16.0](https://codeberg.org/bomret/superdev/compare/v0.15.0...v0.16.0) (2026-07-12)
+
+
+### Features
+
+* **hooks:** nest .superdev run roots under scopes/, auto-prune completed ones ([3b8fbf4](https://codeberg.org/bomret/superdev/commit/3b8fbf4215373f7883e08fbb7ab9c49a4fb2cedb))
+
 # [0.15.0](https://codeberg.org/bomret/superdev/compare/v0.14.4...v0.15.0) (2026-07-10)
 
 
