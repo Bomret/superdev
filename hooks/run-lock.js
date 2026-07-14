@@ -72,9 +72,8 @@ function main() {
     let input;
     try {
       input = JSON.parse(raw || '{}');
-    } catch (e) {
-      process.stderr.write('run-lock: malformed hook input\n');
-      process.exit(1);
+    } catch {
+      process.exit(0); // not our shape → never block
     }
 
     const result = decide(input);

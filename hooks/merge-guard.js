@@ -11,7 +11,9 @@
 // like `git merge-base` / `merge-tree` (a `\b` would match those, blocking them as false positives).
 // The lead-in class includes `\n` (+ `m` flag) so a `git push` on its own line of a multi-line
 // command string is caught, not just one after `;`/`&`/`|` or at string start.
-const BLOCK = /(^|[;&|\n])\s*git\s+(merge|push|rebase)(?![-\w])/m;
+// The optional group skips git's global options before the subcommand — `git -C <path> push` and
+// `git -c k=v merge` are the natural forms in a multi-worktree layout and must not slip past.
+const BLOCK = /(^|[;&|\n])\s*git(?:\s+(?:-[cC]\s+\S+|--\S+))*\s+(merge|push|rebase)(?![-\w])/m;
 // Integration via the code-host CLI is the controller's job too: `gh pr merge` / `tea pr merge`.
 // (The REST-API path — `curl … /pulls/<n>/merge` — can't be caught deterministically without
 // false-positiving on legitimate read curls; the subagent bodies carry that as an explicit contract.)
@@ -72,6 +74,11 @@ if (process.argv[2] === '--selftest') {
   assert.equal(decide(sub('cd x && git push')).block, true, 'after &&');
   assert.equal(decide(sub('git rebase main')).block, true);
   assert.equal(decide(sub('git add -A\ngit commit -m x\ngit push')).block, true, 'push on a later line');
+  assert.equal(decide(sub('git -C ../scope push')).block, true, 'git -C <path> push');
+  assert.equal(decide(sub('git -C .superdev/scopes/x/worktree rebase main')).block, true, 'git -C rebase');
+  assert.equal(decide(sub('git --no-pager push origin s')).block, true, 'inline global flag before push');
+  assert.equal(decide(sub('git -c user.name=x commit -m x')).block, false, 'git -c commit is fine');
+  assert.equal(decide(sub('git -C ../scope status')).block, false, 'git -C read is fine');
   assert.equal(decide(sub('gh pr merge 5 --squash')).block, true, 'gh pr merge');
   assert.equal(decide(sub('tea pr merge 5')).block, true, 'tea pr merge');
   assert.equal(decide(sub('gh pr view 5')).block, false, 'gh read is fine');

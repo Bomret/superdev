@@ -1,5 +1,5 @@
 ---
-description: Review a change — a commit range, a branch, a path, or the working tree — for correctness, architecture, security, and over-engineering. Read-only, standalone: no plan or slice store required. Dispatches final-reviewer + simplicity-reviewer in parallel and consolidates their verdicts.
+description: Review a change — a commit range, a branch, a path, or the working tree — for correctness, architecture, security, and over-engineering. Read-only and standalone; no plan or slice store required.
 argument-hint: "[BASE..HEAD | branch | path | (empty = working tree)]  [-- what it should do]"
 ---
 

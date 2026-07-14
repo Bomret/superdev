@@ -1,5 +1,5 @@
 ---
-description: Configure this repo for superdev — choose the slice store (where plans/slices live), the code host (where PRs go), the in-repo documentation convention, the optional knowledge base (software / local file / none), and the optional test command that arms the merge green-gate, writing docs/agents/{issue-tracker,code-management,documentation,knowledge-base,verification}.md. Run once before /superdev:plan or /superdev:implement; they auto-invoke it if config is missing.
+description: Configure this repo for superdev — slice store, code host, documentation convention, optional knowledge base, and the green-gate test command — written to docs/agents/*.md. Run once; /superdev:plan and /superdev:implement auto-invoke it if config is missing.
 ---
 
 # superdev setup

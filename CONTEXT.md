@@ -17,7 +17,7 @@ _Avoid: "run", "branch", "feature branch" (too generic)_
 **Scope anchor** — the single slice-store issue that carries the scope-level status signal for a run: the epic issue if one exists, otherwise the lone slice on a single-slice feature. Moves to `in-progress` when the run starts and `merged`/`done` once the whole scope is done — distinct from any individual slice's own status transitions.
 _Avoid: "epic" (only an epic-bearing feature has one; the anchor role also falls to a lone slice)_
 
-**Run root** — the part of `.superdev/scopes/<scope>/` that stays in the invoking checkout across both tiers: `dod.md`, `ledger.md`, `run.lock`. Never moves into a worktree, so it survives worktree removal as the post-mortem trail and lets `/status` enumerate runs without touching any worktree.
+**Run root** — the part of `.superdev/scopes/<scope>/` that stays in the invoking checkout across both tiers: `dod.md`, `ledger.md`, `run.lock`, and on the full tier `interfaces.md` (the cross-slice interface record). Never moves into a worktree, so it survives worktree removal as the post-mortem trail and lets `/status` enumerate runs without touching any worktree.
 _Avoid: "run directory", "scope dir" (too generic — this is specifically the checkout-resident subset, not the whole `.superdev/scopes/<scope>/` namespace)_
 
 **Definition of Done (DoD)** — the checkable acceptance criteria for the whole feature, sourced from the epic if one exists, or from the lone slice's `acceptance` if not. `.superdev/scopes/<scope>/dod.md` is the concrete verification plan that gates the final-reviewer and PR.

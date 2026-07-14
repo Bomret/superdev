@@ -1,5 +1,5 @@
 ---
-description: Execute a superdev plan — drive its vertical slices to merge as a dependency-ordered DAG. The execution tier is derived from the loaded slice count: >3 slices run the full playbook (parallel implementer subagents in isolated per-slice worktrees, warrant-gated per-slice review, controller-owned serial merges); ≤3 slices run the lite playbook (controller implements inline in a single scope worktree, test-first, invoking checkout never switched, guarded by a same-scope run lock). Either way, one whole-scope code review gates the PR. Use when a plan exists in the slice store; run /superdev:plan first if not.
+description: Execute a superdev plan — drive its vertical slices to merge as a dependency-ordered DAG, with an execution tier sized to the slice count and one whole-scope review gating the PR. Use when a plan exists in the slice store; run /superdev:plan first if not.
 ---
 
 # superdev implement
@@ -58,6 +58,12 @@ narrate at most one short line.
 
 ## Phase 0 — Definition of done + ledger (always first)
 
+- **Commit + push the base first.** Ensure the glossary (`CONTEXT.md`), ADRs (`docs/adr/`), and
+  `.claude/rules/` are committed on the base branch — worktrees are clean checkouts, so uncommitted
+  design docs never reach them and a path-scoped rule that isn't committed can't auto-load. If any are
+  dirty/untracked, commit them to base now. Then confirm the base is pushed to its remote (push it if
+  it's ahead) — the PR you open later diffs against the remote base, and an unpushed local commit there
+  diverges into a stranded duplicate once the PR is squash-merged.
 - **Run root (per scope).** Choose this run's **scope** `<scope>` now — a short feature-slug (e.g.
   `lite-perf`). The **scope branch** is `superdev/<scope>` (created in your playbook's branch model). All
   artifacts for this run live under a per-scope run root **`.superdev/scopes/<scope>/`** — keyed on the bare slug,
@@ -66,7 +72,7 @@ narrate at most one short line.
   (`dod.md`, `ledger.md`, `run.lock`) stays in the **invoking checkout** (the repo's main tree), never
   moves into a worktree; only the code checkout moves into a worktree. **Namespacing by `<scope>`** is what
   lets several scope runs execute in parallel — even in separate sessions — without clobbering each
-  other's DoD/ledger/reports/worktrees. Nothing in the run root is committed or lands in the PR.
+  other's DoD/ledger/reports/interfaces/worktrees. Nothing in the run root is committed or lands in the PR.
 - Write the **global verification plan** (the DoD, made concrete and checkable) to `.superdev/scopes/<scope>/dod.md`.
   It anchors the final review and tells you when to stop. No DoD → don't proceed. **No epic** (a
   single-slice plan) → the DoD is that lone slice's `acceptance`; write it to `dod.md` verbatim.

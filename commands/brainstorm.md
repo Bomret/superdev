@@ -1,5 +1,5 @@
 ---
-description: Turn a rough idea into a plan-ready intent — a divergent, curious discovery conversation that starts from the problem, explores candidate directions, finds the smallest end-to-end version worth building, and surfaces open questions. Run before /superdev:plan when the idea isn't sharp enough to interview yet.
+description: Turn a rough idea into a plan-ready intent through a divergent discovery conversation. Run before /superdev:plan when the idea isn't sharp enough to interview yet.
 argument-hint: "[a rough idea, or nothing]"
 ---
 

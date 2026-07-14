@@ -8,13 +8,8 @@ throughout. Return to the controller's **Final phase** once every slice is commi
 
 ## Branch model
 
-- **Commit plan-authored design docs first.** Ensure the glossary (`CONTEXT.md`), ADRs (`docs/adr/`),
-  and `.claude/rules/` are committed on the base before cutting the worktree — a worktree is a clean
-  checkout, so uncommitted design docs never reach it. If any are dirty/untracked, commit them to base
-  now. Either way, **confirm the base branch is pushed to its remote** before cutting the scope branch
-  (`git status` shows "up to date"/"nothing to commit"; if base is ahead of its remote, push it now) —
-  the PR you open later diffs against the remote base, and an unpushed local commit there diverges into
-  a stranded duplicate once the PR is squash-merged.
+- **Base committed + pushed** per the controller's Phase 0 (design docs on base, base pushed) — do it
+  before cutting the worktree.
 - **Cut the scope branch into a dedicated worktree:**
   `git worktree add .superdev/scopes/<scope>/worktree -b superdev/<scope> <base>` (base from
   `code-management.md`, default `main`). The invoking checkout is **never switched** — it stays on main
@@ -56,14 +51,13 @@ Read `.superdev/scopes/<scope>/ledger.md` and cross-check it against `git log <b
 scope worktree — a slice the ledger marks `merged` (already committed there) is done; pick up at the next
 `todo` slice in `depends-on` order. An interrupted `in-progress` slice may have left partial, uncommitted
 changes in the scope worktree. Before resuming, check `.superdev/scopes/<scope>/run.lock`: if it exists and is
-fresh (mtime recent, per the run-lock hook's staleness threshold), another session is live in this
+fresh (mtime under 1 hour old — the run-lock hook's staleness threshold), another session is live in this
 worktree — escalate or wait. If the lock is stale or absent, it's a crash resume; run `git status` /
 `git diff` in the scope worktree and decide whether to continue that in-progress slice's uncommitted work
 or discard it, before resuming.
 
 ## Final cleanup (worktree)
 
-Remove the scope worktree: `git worktree remove .superdev/scopes/<scope>/worktree`, then
-`git branch -D superdev/<scope>` (only if it's no longer checked out). Keep the run root
+Remove the scope worktree: `git worktree remove .superdev/scopes/<scope>/worktree`. Keep the run root
 (`.superdev/scopes/<scope>/`) with its ledger and DoD — the post-mortem trail. **Never** delete the scope branch
 itself: the PR is from it.

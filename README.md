@@ -162,9 +162,9 @@ docs/adr/NNNN-*.md        architecture decision records, authored by /plan
 docs/kb/                  knowledge base, only if the local-file KB backend is chosen
 .superdev/scopes/<scope>/  git-ignored run scratch, namespaced per scope branch so parallel runs
                           don't collide: the concrete DoD + ledger (both execution tiers), plus
-                          per-slice progress logs + per-slice worktrees (full tier only, >3 slices),
-                          or a single scope worktree + run.lock (lite tier only, ≤3 slices) — never
-                          committed, never in the PR
+                          per-slice progress logs + the cross-slice interface record + per-slice
+                          worktrees (full tier only, >3 slices), or a single scope worktree +
+                          run.lock (lite tier only, ≤3 slices) — never committed, never in the PR
 .superdev/brainstorm/<intent-slug>.md   git-ignored scratch intent notes, optionally written by
                           /brainstorm — sibling to .superdev/scopes/, not inside it, so /status (which
                           only scans .superdev/scopes/*/) never mistakes it for a run root; never

@@ -8,14 +8,8 @@ Honor the controller's **Invariants** and **Issue status** map throughout. Retur
 
 ## Branch model
 
-- **Commit plan-authored design docs first.** Before cutting anything, ensure the glossary
-  (`CONTEXT.md`), ADRs (`docs/adr/`), and `.claude/rules/` are committed on the base — worktrees are
-  clean checkouts, so uncommitted design docs never reach implementers and path-scoped rules can't
-  auto-load. If any are dirty/untracked, commit them to base now. Either way, **confirm the base branch
-  is pushed to its remote** before cutting the scope branch (`git status` shows "up to date"/"nothing to
-  commit"; if base is ahead of its remote, push it now) — the PR you open later diffs against the remote
-  base, and an unpushed local commit there diverges into a stranded duplicate once the PR is
-  squash-merged.
+- **Base committed + pushed** per the controller's Phase 0 (design docs on base, base pushed) — do it
+  before cutting anything here.
 - **Scope branch off base:** `git switch -c superdev/<scope> <base>` in the invoking checkout (`<scope>`
   chosen in Phase 0; base from `code-management.md`, default `main`). You merge into this checkout later.
   Then move the **scope anchor** issue → `in-progress` (per `issue-tracker.md`; best-effort).
@@ -40,6 +34,14 @@ how the slice unfolded, not a final report. **You (the controller) own it:**
 Append-only, oldest-first, git-ignored scratch. It exists so a human — or a controller resumed after
 compaction — can see what happened on a slice without re-reading every worktree.
 
+## Interface file (per scope)
+
+`.superdev/scopes/<scope>/interfaces.md` is the durable record of **cross-slice interfaces** — the
+function signatures, endpoints, CLI commands, and types a merged slice decided that later slices build
+on. Your context is not that record: after a compaction it's gone, and the ledger holds statuses, not
+interfaces. Append the interfaces a slice decided when you merge it (DAG step 4), pass the file's path
+in every dispatch (step 2), and read it on resume.
+
 ## DAG loop
 
 Repeat until every slice is `merged`:
@@ -50,8 +52,13 @@ Repeat until every slice is `merged`:
    in its own worktree, each with its `model` from the controller's model table. Give each only its own
    specifics: the slice `spec` + `acceptance`, its worktree path (`.superdev/scopes/<scope>/worktrees/<id>`) +
    branch (`slice/<scope>/<id>`), base/head, its **progress-log** path
-   (`.superdev/scopes/<scope>/reports/<id>/progress.md` — seed it first), the global constraints, and interfaces
-   decided by already-merged slices. Not the whole plan.
+   (`.superdev/scopes/<scope>/reports/<id>/progress.md` — seed it first), the global constraints, and the
+   **interface file** path (`.superdev/scopes/<scope>/interfaces.md` — the interfaces already-merged
+   slices decided). Not the whole plan.
+   **Pilot the first wave.** On a fresh scope (nothing merged yet), dispatch a single slice first and
+   take it through review + merge before filling the cap — a systemic problem (a mis-specified
+   convention, a broken test command) surfaces once instead of being replicated across every parallel
+   worktree. From the next wave on, fill the cap.
    Cap how many run **concurrently** at a **max-concurrent-implementers** limit (default **4**;
    configurable — raise it once you've piloted a scope and trust the cost + merge-queue size, lower it
    for a heavier model or a tighter budget). If the runnable set exceeds the cap, dispatch in **waves**:
@@ -83,7 +90,8 @@ Repeat until every slice is `merged`:
    runs it for you and blocks with a RED report you must fix or revert before continuing. Then clean up:
    `git worktree remove .superdev/scopes/<scope>/worktrees/<id>` and `git branch -D slice/<scope>/<id>` (merged;
    leaving it clutters the repo). The **worktree-sweep** `Stop` hook removes any merged slice worktree you
-   forget, so cleanup is guaranteed even if you skip this — but do it anyway. Move the slice →
+   forget, so cleanup is guaranteed even if you skip this — but do it anyway. **Append the interfaces this
+   slice decided** to `.superdev/scopes/<scope>/interfaces.md` (skip if it decided none). Move the slice →
    `merged`/done in the store + ledger. Merging unblocks dependents.
 5. Recompute the runnable set and continue.
 
@@ -93,7 +101,9 @@ Re-entering an already-started scope — a fresh session, a re-run after compact
 mid-loop — is a **first-class path through the loop, not a special case**: reconcile state, then
 re-enter the DAG loop at step 1.
 
-- **Reconcile before dispatching.** Read `.superdev/scopes/<scope>/ledger.md`, cross-check it against
+- **Reconcile before dispatching.** Read `.superdev/scopes/<scope>/ledger.md` and
+  `.superdev/scopes/<scope>/interfaces.md` (the cross-slice interface record — your pre-compaction
+  context is gone; this file is what survives), cross-check the ledger against
   `git log <base>..superdev/<scope>` (merge commits name the slice branch) and the store's slice statuses.
   A slice the ledger — or the merge log — marks `merged` is done: **never re-dispatch it**, no matter what
   a stale in-progress worktree suggests.

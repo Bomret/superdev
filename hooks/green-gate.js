@@ -11,6 +11,9 @@
 // (written by /superdev:setup). No file / no command → no gate (zero-config repos are
 // unaffected). Subagents can't merge (merge-guard blocks them pre-run), so a merge here
 // is always the controller's; the agent_id check is belt-and-suspenders.
+// ponytail: the suite runs inside the hook, under Claude Code's default 60s hook timeout —
+// a suite slower than that is killed and the gate silently doesn't fire. Set a per-hook
+// `timeout` in hooks.json if the repo's suite needs more.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -18,8 +21,9 @@ const { execSync } = require('node:child_process');
 
 // (?![-\w]) so read-only helpers `git merge-base` / `merge-tree` don't trip the gate (a `\b` would
 // match them — mirror merge-guard). `\n` lead-in + `m` so a merge on a later line of a multi-line
-// command is still gated.
-const IS_MERGE = /(^|[;&|\n])\s*git\s+merge(?![-\w])/m;
+// command is still gated. The optional group skips git's global options (`-C <path>`, `-c k=v`,
+// inline `--flags`) so `git -C <path> merge` is gated too — mirror merge-guard.
+const IS_MERGE = /(^|[;&|\n])\s*git(?:\s+(?:-[cC]\s+\S+|--\S+))*\s+merge(?![-\w])/m;
 const VERIFICATION_DOC = 'docs/agents/verification.md';
 
 // First fenced code block's contents, trimmed — the test command.
@@ -100,6 +104,8 @@ if (process.argv[2] === '--selftest') {
   assert.equal(decide(merge('git merge-tree a b'), 'npm test', red).block, false, 'merge-tree is read-only');
   assert.equal(decide(merge('cd x && git merge y'), 'npm test', red).block, true, 'after &&');
   assert.equal(decide(merge('echo done\ngit merge --no-ff s'), 'npm test', red).block, true, 'merge on a later line');
+  assert.equal(decide(merge('git -C ../wt merge slice/x/1'), 'npm test', red).block, true, 'git -C merge is gated');
+  assert.equal(decide(merge('git -c core.editor=true commit -m x'), 'npm test', red).block, false, 'git -c commit ignored');
 
   // fenced-block parsing
   const tmp = require('node:os').tmpdir();

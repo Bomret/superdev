@@ -1,6 +1,6 @@
 ---
-description: Check for a newer superdev release and upgrade the plugin in place — fetches the latest from the marketplace and installs it, with no manual /plugin steps. Restart Claude Code afterward to load it.
-model: claude-haiku-4-5
+description: Check for a newer superdev release and upgrade the plugin in place from the marketplace. Restart Claude Code afterward to load it.
+model: haiku
 allowed-tools: Bash(claude plugin marketplace update:*), Bash(claude plugin update:*)
 ---
 

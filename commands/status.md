@@ -1,6 +1,6 @@
 ---
-description: Report per-scope DAG progress for every superdev run in this repo — reads each .superdev/scopes/<scope>/ledger.md and prints slice counts by status plus which slices are blocked. Read-only; makes no changes.
-model: claude-haiku-4-5
+description: Report per-scope DAG progress for every superdev run in this repo, from each scope's ledger. Read-only; makes no changes.
+model: haiku
 allowed-tools: Read, Glob
 ---
 

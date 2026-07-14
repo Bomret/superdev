@@ -1,5 +1,5 @@
 ---
-description: Plan a feature for superdev — a relentless interview that pins intent and the Definition of Done, captures ADRs + a glossary as decisions surface, then decomposes the work into independently-green vertical tracer-bullet slices with explicit dependencies, written to the configured slice store. Run before /superdev:implement.
+description: Plan a feature for superdev — a relentless interview that pins intent and the Definition of Done, then decomposes the work into independently-green vertical slices in the configured slice store. Run before /superdev:implement.
 ---
 
 # superdev plan

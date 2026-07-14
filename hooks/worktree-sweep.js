@@ -106,9 +106,9 @@ if (process.argv[2] === '--selftest') {
   const root = '/repo/.superdev';
   const porcelain = [
     'worktree /repo\nHEAD a\nbranch refs/heads/main',
-    'worktree /repo/.superdev/self-improvements/worktrees/2\nHEAD b\nbranch refs/heads/slice/self-improvements/2',
-    'worktree /repo/.superdev/self-improvements/worktrees/4\nHEAD c\nbranch refs/heads/slice/self-improvements/4',
-    'worktree /repo/.superdev/self-improvements/worktrees/5\nHEAD d\nbranch refs/heads/slice/self-improvements/5',
+    'worktree /repo/.superdev/scopes/self-improvements/worktrees/2\nHEAD b\nbranch refs/heads/slice/self-improvements/2',
+    'worktree /repo/.superdev/scopes/self-improvements/worktrees/4\nHEAD c\nbranch refs/heads/slice/self-improvements/4',
+    'worktree /repo/.superdev/scopes/self-improvements/worktrees/5\nHEAD d\nbranch refs/heads/slice/self-improvements/5',
   ].join('\n\n');
   const merged = new Set(['main', 'slice/self-improvements/2', 'slice/self-improvements/4']);
   const worked = new Set(['slice/self-improvements/2', 'slice/self-improvements/5']);
@@ -116,13 +116,13 @@ if (process.argv[2] === '--selftest') {
   // #5: worked but NOT merged → skip.
   assert.deepEqual(
     selectRemovable(porcelain, merged, worked, root),
-    [{ wt: '/repo/.superdev/self-improvements/worktrees/2', br: 'slice/self-improvements/2' }],
+    [{ wt: '/repo/.superdev/scopes/self-improvements/worktrees/2', br: 'slice/self-improvements/2' }],
     'only the merged-AND-worked slice is swept'
   );
   assert.deepEqual(selectRemovable(porcelain, merged, new Set(), root), [], 'no worked branches → nothing swept');
   assert.deepEqual(
-    selectRemovable('worktree /repo/.superdev/x/worktrees/1\nbranch refs/heads/slice/x/1', new Set(['slice/x/1']), new Set(['slice/x/1']), root),
-    [{ wt: '/repo/.superdev/x/worktrees/1', br: 'slice/x/1' }],
+    selectRemovable('worktree /repo/.superdev/scopes/x/worktrees/1\nbranch refs/heads/slice/x/1', new Set(['slice/x/1']), new Set(['slice/x/1']), root),
+    [{ wt: '/repo/.superdev/scopes/x/worktrees/1', br: 'slice/x/1' }],
     'merged+worked under any scope'
   );
   console.log('worktree-sweep selftest ok');

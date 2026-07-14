@@ -24,6 +24,12 @@ classes beat a generic "check code quality" / "check security."
   nothing (wasted I/O, spurious change events/timestamps).
 - **Redundant state** — a value stored in two places that must be kept in sync by convention rather than
   derived once from a single source of truth.
+- **Weakened net** — a diff that edits, deletes, or skips a *pre-existing* test to get the suite green.
+  The existing suite is the safety net; a change that must loosen it is hiding a regression, not fixing
+  one.
+- **Justified workaround** — if it takes a paragraph-long comment to justify why a workaround is OK, the
+  code is wrong — fix the code. Stubbing a function out to silence a compile/test failure is the same
+  smell.
 
 ## Vulnerability classes
 
