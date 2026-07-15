@@ -1,3 +1,10 @@
+# [0.18.0](https://codeberg.org/bomret/superdev/compare/v0.17.0...v0.18.0) (2026-07-15)
+
+
+### Features
+
+* reader-test reconciled docs with fresh-context doc-reader ([d2c990c](https://codeberg.org/bomret/superdev/commit/d2c990cd4d96e6e1b8ccf34811518845e1cf38b2))
+
 # [0.17.0](https://codeberg.org/bomret/superdev/compare/v0.16.0...v0.17.0) (2026-07-14)
 
 
