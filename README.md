@@ -60,8 +60,10 @@ store + code host.
   commits, or merges anything.
 - **`/superdev:document`** — dispatches the `doc-writer` to reconcile the in-repo docs
   (`AGENTS.md` hierarchy) and the optional knowledge base with the current code — adding what's new and
-  **removing stale/obsolete** text. Runs automatically at the end of every `/superdev:implement`, and on
-  demand anytime (full reconcile, or scoped to a range/area).
+  **removing stale/obsolete** text — then reader-tests the result: the fresh-context `doc-reader` reads
+  the changed docs cold and verifies their claims against the repo; ungrounded or stale text goes back
+  to the `doc-writer` for one fix round. Runs automatically at the end of every `/superdev:implement`,
+  and on demand anytime (full reconcile, or scoped to a range/area).
 - **`/superdev:setup`** — records the backends in `docs/agents/*.md` so the workflow never hardcodes a
   tool. For a knowledge base it also captures **audience(s)** and **language** and proposes a
   human-first outline.
@@ -81,11 +83,12 @@ and an explicit turn ceiling (e.g. "stop after N tries").
 
 ## Roles (subagents)
 
-`implementer`, `slice-reviewer`, `simplicity-reviewer`, `final-reviewer`, `doc-writer` — each runs in an
-isolated context; only its result returns to the controller. `implementer` / `slice-reviewer` /
-`simplicity-reviewer` are dispatched per slice in the **full** execution tier only; the **lite** tier
-(≤3 slices) has the controller implement inline. Both tiers share the same final phase — `final-reviewer`
-over the whole scope, then, once its fix loop closes, `doc-writer` to reconcile the docs. The doc
+`implementer`, `slice-reviewer`, `simplicity-reviewer`, `final-reviewer`, `doc-writer`, `doc-reader` —
+each runs in an isolated context; only its result returns to the controller. `implementer` /
+`slice-reviewer` / `simplicity-reviewer` are dispatched per slice in the **full** execution tier only;
+the **lite** tier (≤3 slices) has the controller implement inline. Both tiers share the same final
+phase — `final-reviewer` over the whole scope, then, once its fix loop closes, `doc-writer` to
+reconcile the docs, reader-tested by `doc-reader`. The doc
 reconcile always runs **after** the review, never concurrent with it, so `doc-writer`'s commits can't
 shift the diff the reviewer reads ([ADR 0003](docs/adr/0003-doc-reconcile-runs-serially.md)).
 

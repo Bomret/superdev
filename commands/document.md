@@ -6,7 +6,8 @@ argument-hint: "[BASE..HEAD | area/path | (empty = full reconcile)]"
 # superdev document
 
 Bring the docs and the knowledge base into agreement with reality. Dispatches the isolated
-**`superdev:doc-writer`** subagent to do the work; you (the controller) just scope it and report.
+**`superdev:doc-writer`** subagent to do the work, then reader-tests the result with the fresh-context
+**`superdev:doc-reader`**; you (the controller) just scope, relay, and report.
 
 ## 1. Config
 
@@ -32,8 +33,21 @@ reminder to start from `git diff --stat`/`git log` over that range. It runs two 
 KB per its outline/language/audience, human-first), **deleting stale/obsolete text**, and commits its
 doc changes on the current branch.
 
-## 4. Report
+## 4. Reader test
+
+Skip if the doc-writer changed nothing.
+
+From the doc-writer's report, collect the changed doc files — in-repo docs and **local** KB pages
+(software-KB pages are out of scope). Dispatch **`superdev:doc-reader`** with an **explicit `model`**
+(`sonnet`) and that file list **only** — no range, no history, no summary of the work: it reads the
+docs cold and verifies their claims against the repo, read-only.
+
+If it reports findings, re-dispatch **`superdev:doc-writer`** (as in §3) with the findings to fix.
+**One fix round** — don't loop the reader; unresolved findings go in the report instead.
+
+## 5. Report
 
 Relay what the doc-writer changed: which `AGENTS.md`/docs were updated, what was removed as stale, which
-KB pages were updated/created (or that the KB pass was none/skipped), and any concerns (e.g. a missing
-KB token). Do not re-do its work.
+KB pages were updated/created (or that the KB pass was none/skipped), the reader-test tally (including
+any findings left unresolved after the fix round), and any concerns (e.g. a missing KB token). Do not
+re-do its work.

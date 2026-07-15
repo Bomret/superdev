@@ -131,3 +131,6 @@ _Avoid: "linter", "critic"_
 
 **Doc-writer** — reconciles the in-repo docs (AGENTS.md tree) + the knowledge base with the merged code, removing stale text. Run by `/document`.
 _Avoid: "documenter", "technical writer"_
+
+**Doc-reader** — the reader test: a fresh-context, read-only verifier that reads the doc-writer's changed docs cold and checks their claims against the repo (paths, commands, described behavior). Run by `/document` after the doc-writer; findings trigger one doc-writer fix round.
+_Avoid: "doc-reviewer" (it tests grounding and first-read clarity, not prose quality)_
