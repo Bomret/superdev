@@ -1,3 +1,10 @@
+# [0.19.0](https://codeberg.org/bomret/superdev/compare/v0.18.0...v0.19.0) (2026-07-21)
+
+
+### Features
+
+* **review:** reframe final-reviewer around five adversarial axes ([#68](https://codeberg.org/bomret/superdev/issues/68)) ([f9dadca](https://codeberg.org/bomret/superdev/commit/f9dadca2b72ea6793c46d366d4df89203eea5132))
+
 # [0.18.0](https://codeberg.org/bomret/superdev/compare/v0.17.0...v0.18.0) (2026-07-15)
 
 
