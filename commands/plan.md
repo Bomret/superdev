@@ -14,6 +14,12 @@ continue.
 
 ## 1. Interview (relentless, one question at a time)
 
+**Seed from an existing brainstorm intent if there is one.** Glob `.superdev/brainstorm/*.md` — the
+git-ignored scratch intents `/superdev:brainstorm` may have left. If exactly one exists, offer it
+("Found intent `<slug>` — start from it?"); if several, list them and let the user pick one or start
+fresh; if none, interview from scratch. Never auto-select — the user names which idea they're planning.
+A picked intent is a *starting point* for the interview, not a substitute for it.
+
 **Read `${CLAUDE_PLUGIN_ROOT}/references/cross-exam.md` and run the interview by it.** This is the **main
 event** of `/plan`, not a quick step before the real work of slicing — walk the whole design tree, one
 recommended-answer question at a time, exploring the code instead of asking wherever you can, until the
