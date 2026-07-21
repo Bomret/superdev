@@ -91,6 +91,17 @@ _Avoid: "command" (the playbook is the file the command delegates to, not the co
 **Review checklist** — the shared file (`references/review-checklist.md`) naming concrete anti-patterns, vulnerability classes, a reuse-audit lens, and a consistency lens (convention drift, cross-slice divergence), read at dispatch time — `final-reviewer` applies all four lenses, `slice-reviewer` applies anti-patterns + vulnerability classes — the same shared-file-read-at-dispatch pattern as `Execution playbook`, one level down (a checklist of things to look for, not a procedure to follow).
 _Avoid: "checklist" alone (ambiguous with the DoD's own checklist), "linter rules" (it's read and reasoned about, not mechanically run)_
 
+## Doc loop
+
+**Audit** — the reader-first mode of `/superdev:document` (invoked as `/superdev:document audit`): the doc-reader reads the whole audit set cold and grounds every claim against the repo before any doc-writer involvement; findings get the standard single doc-writer fix round.
+_Avoid: "full reader-test" (the mechanism, not the mode), "doc review" (review is the code-review family)_
+
+**Audit set** — the file set an audit reads: the documentation convention's own tree (`AGENTS.md` hierarchy, `README.md`, `CONTEXT.md`, local KB pages) by default, extended per repo by an `## Audit set` section in `docs/agents/documentation.md`.
+_Avoid: "doc tree" (that's only the default; the set may include other prose surfaces)_
+
+**Drift assertion** — a deterministic check in the repo's test chain that a fact restated outside its source (a guard regex's coverage of `agents/`, a referenced plugin path) still matches the artifact it derives from.
+_Avoid: "drift test" (it's an assertion inside the existing chain, not a suite), "consistency check" (too generic — that names a review lens)_
+
 ## Backends
 
 superdev is tool-agnostic: three pluggable backends, each chosen by `/setup` and recorded under `docs/agents/`. The commands and agents never hardcode one.
