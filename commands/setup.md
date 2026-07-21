@@ -154,3 +154,7 @@ If neither `CLAUDE.md` nor `AGENTS.md` exists, ask the user which to create — 
 Tell the user setup is complete and that `/superdev:plan` and `/superdev:implement` now read these
 files. They can edit `docs/agents/*.md` directly later; re-run this skill only to switch backends.
 Record only env-var **names** for secrets — never the token values.
+
+If the §1 explore step found **no `AGENTS.md` hierarchy** in the repo, point the user at
+**`/superdev:document`** — its bootstrap mode seeds the initial hierarchy + glossary from the existing
+code, so per-feature `/superdev:plan` doesn't start blind.

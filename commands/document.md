@@ -21,9 +21,12 @@ Bring the docs and the knowledge base into agreement with reality. Dispatches th
 From `$ARGUMENTS`:
 
 - **A git range** (`BASE..HEAD`) or an **area path** → a focused reconcile of what changed there.
-  (`/superdev:implement` passes `merge-base(base, superdev/<scope>)..superdev/<scope>`.)
+  (`/superdev:implement` passes `merge-base(base, superdev/<scope>)..superdev/<scope>`.) A range or area
+  **never** bootstraps (§7) — so the end-of-`/implement` doc pass, which always passes a range, can't.
 - **Empty** → a **full reconcile**: all in-repo docs (README + the whole `AGENTS.md` tree) + the KB
-  against current repo state.
+  against current repo state. **Exception:** if the convention is the `AGENTS.md` hierarchy and the root
+  `AGENTS.md` is **absent**, this repo has no doc tree to reconcile — skip §3-§5 and run **bootstrap** in
+  §7 instead.
 - **The literal word `audit`** → skip §3-§5; run the **reader-first audit** in §6 instead.
 
 ## 3. Dispatch
@@ -69,3 +72,28 @@ Inverts the usual order: **reader first**, writer only to fix what it finds.
    `superdev:doc-writer` once with the findings; don't re-loop the reader; unresolved findings go in the
    report).
 4. **Report** per §5.
+
+## 7. Bootstrap mode (brownfield seed)
+
+Reached from §2 when the doc convention is the `AGENTS.md` hierarchy **and** the root `AGENTS.md` is
+absent: there's no doc tree to reconcile, so **seed** one from the existing code.
+
+**Precondition — AGENTS.md convention only.** If `docs/agents/documentation.md` records a **custom**
+(non-`AGENTS.md`) doc convention, bootstrap doesn't apply — say so in one line and fall through to the
+normal full reconcile (§3-§5) instead. Bootstrap only seeds the `AGENTS.md` hierarchy.
+
+1. **Confirm once, never silent.** Tell the user no doc hierarchy was found and ask to seed one. Only on
+   confirmation proceed.
+2. **Recon (large/unfamiliar repo only).** Fan out **2-4 read-only `Explore` agents** in parallel — each
+   mapping a different aspect (structure + stack, domain vocabulary, subsystem boundaries, build +
+   conventions) and returning a **compressed map**, not raw file dumps. A **small** repo skips this — the
+   doc-writer explores directly.
+3. **Dispatch `superdev:doc-writer`** with an **explicit `model`** (`sonnet`) in **bootstrap** mode. Hand
+   it: "bootstrap" (no diff, no prior tree), the recon maps (or "small repo — explore directly"), and the
+   two config file paths. It seeds root `AGENTS.md` + child `AGENTS.md` only at genuine boundaries, mines
+   existing README/`docs/` as input, and **proposes `CONTEXT.md` candidate terms in its report** without
+   committing `CONTEXT.md`.
+4. **Confirm the glossary before it lands.** Present the writer's `CONTEXT.md` candidates to the user to
+   **confirm/prune** — never auto-commit them. Re-dispatch the writer with the confirmed set to write +
+   commit `CONTEXT.md`. Empty confirmed set → no `CONTEXT.md`.
+5. **Reader test** the seeded files exactly as §4, then **report** per §5.

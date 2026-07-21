@@ -102,6 +102,9 @@ _Avoid: "doc tree" (that's only the default; the set may include other prose sur
 **Drift assertion** — a deterministic check in the repo's test chain that a fact restated outside its source (a guard regex's coverage of `agents/`, a referenced plugin path) still matches the artifact it derives from.
 _Avoid: "drift test" (it's an assertion inside the existing chain, not a suite), "consistency check" (too generic — that names a review lens)_
 
+**Bootstrap** (mode) — the brownfield-seed mode of `/superdev:document` (empty args, `AGENTS.md`-hierarchy convention, root `AGENTS.md` absent): the doc-writer seeds root/child `AGENTS.md` files from the existing code and proposes `CONTEXT.md` candidate terms, which the controller confirms/prunes with the user before committing. A range or area invocation never bootstraps.
+_Avoid: "init", "scaffold" (bootstrap seeds from what already exists, it doesn't scaffold empty structure)_
+
 ## Backends
 
 superdev is tool-agnostic: three pluggable backends, each chosen by `/setup` and recorded under `docs/agents/`. The commands and agents never hardcode one.

@@ -63,10 +63,14 @@ store + code host.
   **removing stale/obsolete** text — then reader-tests the result: the fresh-context `doc-reader` reads
   the changed docs cold and verifies their claims against the repo; ungrounded or stale text goes back
   to the `doc-writer` for one fix round. Runs automatically at the end of every `/superdev:implement`,
-  and on demand anytime (full reconcile, or scoped to a range/area).
+  and on demand anytime (full reconcile, scoped to a range/area, or `audit` for a reader-first check).
+  Called empty on a **brownfield repo with no `AGENTS.md` hierarchy**, it **bootstraps** one instead —
+  seeding root (and, where warranted, child) `AGENTS.md` files plus a proposed `CONTEXT.md` glossary from
+  the existing code, confirmed with you before anything commits.
 - **`/superdev:setup`** — records the backends in `docs/agents/*.md` so the workflow never hardcodes a
   tool. For a knowledge base it also captures **audience(s)** and **language** and proposes a
-  human-first outline.
+  human-first outline. Finds no `AGENTS.md` hierarchy in the repo → points you at `/superdev:document`'s
+  bootstrap mode to seed one.
 
 ## After the PR
 
