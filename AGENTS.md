@@ -35,8 +35,8 @@ references/            — backend seed templates + plan-contract + documentatio
                          execution playbooks (implement-full/lite, read at runtime by /implement) +
                          authoring disciplines (cross-examination, domain-modeling, doc-verification;
                          read at runtime by /plan + /brainstorm, doc-verification also by implementer) +
-                         review-checklist (anti-patterns, vuln-classes, reuse-audit; read at runtime by
-                         final-reviewer + slice-reviewer)
+                         review-checklist (anti-patterns, vuln-classes, reuse-audit, consistency; read at
+                         runtime by final-reviewer + slice-reviewer)
 docs/adr/              — architecture decision records (why the plugin is built this way)
 docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, KB, verification)
 evals/                 — `claude plugin eval` cases (*/case.yaml + graders/*.md) exercising the commands
@@ -202,8 +202,9 @@ This root owns every subtree directly:
   `/plan` and `/brainstorm` read at runtime (superdev's own rendering of Matt Pocock's grilling +
   domain-modeling skills); `doc-verification.md` is also read by the `implementer` agent before it acts on
   an assumption about a third-party library/API/service
-  + **`review-checklist.md`**: named anti-patterns, vulnerability classes, and a reuse-audit lens,
-  read at runtime by `final-reviewer` (all three) and `slice-reviewer` (anti-patterns + vuln-classes).
+  + **`review-checklist.md`**: named anti-patterns, vulnerability classes, a reuse-audit lens, and a
+  consistency lens, read at runtime by `final-reviewer` (all four) and `slice-reviewer` (anti-patterns +
+  vuln-classes).
 - `docs/adr/` — architecture decision records. `docs/agents/` — this repo's own dogfooded backend config.
 - `.claude-plugin/` — manifests. Governed by **Working rules → Version lives only in `plugin.json`**.
 - `CONTEXT.md` — the domain glossary. `evals/` — `claude plugin eval` cases.

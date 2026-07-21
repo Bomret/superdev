@@ -52,3 +52,11 @@ classes beat a generic "check code quality" / "check security."
 Before accepting new code, search the project's own utils/helpers/adjacent and shared modules for an
 existing equivalent — a duplicate implementation is a quality issue even when each copy is individually
 correct. Prefer extending or calling the existing one over adding a parallel implementation.
+
+## Consistency
+
+- **Convention drift** — new code that ignores the conventions already established in the codebase:
+  naming, file/module layout, error-handling style, the idiom used for the same job elsewhere. Match
+  what's there rather than introduce a second way to do one thing.
+- **Cross-slice divergence** — the same concept given a different name, API shape, or vocabulary across
+  slices; two seams that should agree but don't.

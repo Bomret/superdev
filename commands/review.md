@@ -62,8 +62,9 @@ on it.
 Dispatch both reviewers in parallel, each with an **explicit `model`** (a hook blocks any dispatch to a
 superdev subagent that omits one):
 
-- **`superdev:final-reviewer`** (`model: opus`) — correctness, architecture, security, tests, production
-  readiness. Give it: a one-line summary of what changed (derive it from the diff if the trailing
+- **`superdev:final-reviewer`** (`model: opus`) — correctness, consistency, whole-scope brevity,
+  security, performance, applied adversarially per axis. Give it: a one-line summary of what changed
+  (derive it from the diff if the trailing
   description didn't supply one), the `acceptance` from §1, the git range, and the **absolute path** to
   `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` (resolve the macro yourself, here — it doesn't
   expand inside the dispatched agent). If a test command is configured (`docs/agents/verification.md`),

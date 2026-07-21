@@ -135,7 +135,7 @@ playbook. The `final-reviewer` row — and an `implementer` fix for final-review
 | implementer / fix | `sonnet` | design / multi-file / judgment slice |
 | slice-reviewer | `sonnet` | default (verification is load-bearing) |
 | simplicity-reviewer | `haiku` | scoped over-engineering scan |
-| final-reviewer | `opus` | whole-scope correctness — the highest-stakes review |
+| final-reviewer | `opus` | whole-scope review across five axes — the highest-stakes review |
 
 Scale to the slice. Turn count beats token price: the cheapest model often takes 2–3× the turns on
 multi-step work. Use a mid-tier floor for anything from a prose specification; reserve `haiku` for transcription

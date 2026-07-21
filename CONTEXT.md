@@ -88,7 +88,7 @@ _Avoid: "verification discipline" (too generic — this specifically means not t
 **Execution playbook** — the linear, tier-specific procedure the controller `Read`s once the tier is computed: `references/implement-full.md` (full tier) or `references/implement-lite.md` (lite tier). The `/implement` command body keeps only the tier-agnostic core (invariants, config, Phase 0, issue-status map, final review + PR) and delegates the execution flow to the matching playbook, so each run loads only the one it takes.
 _Avoid: "command" (the playbook is the file the command delegates to, not the command itself)_
 
-**Review checklist** — the shared file (`references/review-checklist.md`) naming concrete anti-patterns, vulnerability classes, and a reuse-audit lens that both `final-reviewer` and `slice-reviewer` read and apply at dispatch time — the same shared-file-read-at-dispatch pattern as `Execution playbook`, one level down (a checklist of things to look for, not a procedure to follow).
+**Review checklist** — the shared file (`references/review-checklist.md`) naming concrete anti-patterns, vulnerability classes, a reuse-audit lens, and a consistency lens (convention drift, cross-slice divergence), read at dispatch time — `final-reviewer` applies all four lenses, `slice-reviewer` applies anti-patterns + vulnerability classes — the same shared-file-read-at-dispatch pattern as `Execution playbook`, one level down (a checklist of things to look for, not a procedure to follow).
 _Avoid: "checklist" alone (ambiguous with the DoD's own checklist), "linter rules" (it's read and reasoned about, not mechanically run)_
 
 ## Backends
