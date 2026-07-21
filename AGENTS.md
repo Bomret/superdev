@@ -39,7 +39,10 @@ references/            — backend seed templates + plan-contract + documentatio
                          runtime by final-reviewer + slice-reviewer)
 docs/adr/              — architecture decision records (why the plugin is built this way)
 docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, KB, verification)
-evals/                 — `claude plugin eval` cases (*/case.yaml + graders/*.md) exercising the commands
+scripts/               — standalone drift-assertion checks wired into `bun run test` (e.g.
+                         `drift-check.js`, asserting every referenced `references/*.md` path exists)
+evals/                 — `claude plugin eval` cases (*/case.yaml + graders/*.md); currently one case,
+                         `evals/plan-basic-feature/`, exercising `/plan`
 release.config.cjs     — semantic-release config (semantic-release-replace-plugin bumps plugin.json)
 package.json           — dev-only tooling (Bun); NOT published to npm
 CHANGELOG.md           — release-managed by semantic-release; do not hand-edit
@@ -48,7 +51,8 @@ README.md · RELEASING.md · NOTICE · LICENSE
 ```
 
 The plugin ships as markdown + JS hooks — there is **no build step**. `commands/`, `agents/`,
-`references/` are prose; only `hooks/` is executable.
+`references/` are prose; `hooks/` and `scripts/` are executable (`hooks/` are Claude Code hooks;
+`scripts/` holds standalone checks like `drift-check.js`, run from `package.json`).
 
 ## Stack
 
@@ -184,16 +188,19 @@ When the user requests a durable behavior change, record it here or in the relev
 
 ## Child DOX Index
 
-**No child AGENTS.md — the repo is flat.** It's small (8 commands, 5 agents, 7 hooks, 14 references) and
-every subtree's rules already live in this root doc. Add a child only when a subtree becomes a durable
-boundary with rules of its own that don't fit here.
+**No child AGENTS.md — the repo is flat.** It's small and every subtree's rules already live in this
+root doc (see `Structure` above for the current file inventory). Add a child only when a subtree
+becomes a durable boundary with rules of its own that don't fit here.
 
 This root owns every subtree directly:
 
 - `commands/`, `agents/` — prose slash-commands + subagents. Governed by **Working rules → Backends are
   pluggable** (stay tool-agnostic; never hardcode a backend). Behaviour contracts live in the files.
-- `hooks/` — the only executable code. Governed by **Working rules → Hooks are CommonJS** + **Every hook
-  ships a `--selftest`**. Strongest future child-doc candidate if its rules outgrow this root.
+- `hooks/` — Claude Code hooks, the plugin's deterministic guardrails. Governed by **Working rules →
+  Hooks are CommonJS** + **Every hook ships a `--selftest`**. Strongest future child-doc candidate if
+  its rules outgrow this root.
+- `scripts/` — standalone drift-assertion checks run from `package.json` (e.g. `drift-check.js`), the
+  other executable code alongside `hooks/`. Follows the same `--selftest` convention.
 - `references/` — backend seed templates + `plan-contract.md` (slice schema/lifecycle) + `documentation.md`
   + **execution playbooks** (`implement-full.md` / `implement-lite.md`): the tier-specific linear procedures
   `/implement` reads at runtime once it computes the tier (non-seed refs, like `plan-contract.md`)

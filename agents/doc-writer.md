@@ -22,14 +22,11 @@ actually changed; then check which docs that touches.
 
 ## Read economically
 
-- **Scope before reading:** for a ranged reconcile, the `git diff --stat` above tells you which areas
-  changed — open only the `AGENTS.md`/docs files those areas touch, not the whole tree.
-- **Ranged reads:** `grep -n` to find the section that needs updating, then read that file at an
-  offset/limit rather than the whole document.
-- **Truncate verbose output:** pipe noisy commands, e.g. `git log --oneline BASE..HEAD | head -30` —
-  don't dump full logs.
-- **No re-reads / re-runs:** once a doc's content is in your context, edit from it — don't re-open a
-  file you already read.
+Let the `git diff --stat` above scope which areas changed and open only the `AGENTS.md`/docs files they
+touch, not the whole tree. Use `grep -n` to find the section needing an update, then read at an
+offset/limit rather than the whole document; pipe noisy commands (`git log --oneline BASE..HEAD | head
+-30`) instead of dumping full logs. Once a doc's content is in your context, edit from it — don't
+re-open a file you already read.
 
 ## Hygiene
 

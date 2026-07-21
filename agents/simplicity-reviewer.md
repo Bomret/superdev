@@ -15,7 +15,7 @@ getting shorter. Correctness, security, and performance are **out of scope** —
 those. Do not flag them here.
 
 Obtain the diff by running the `git diff <range>` the controller gives you (read-only git only — a hook
-blocks any mutating git command).
+blocks `git merge`/`push`/`rebase` and `gh`/`tea pr merge`).
 
 ## Work from a thin diff
 

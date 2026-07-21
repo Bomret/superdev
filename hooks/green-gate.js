@@ -11,7 +11,7 @@
 // (written by /superdev:setup). No file / no command → no gate (zero-config repos are
 // unaffected). Subagents can't merge (merge-guard blocks them pre-run), so a merge here
 // is always the controller's; the agent_id check is belt-and-suspenders.
-// ponytail: the suite runs inside the hook, under Claude Code's default 60s hook timeout —
+// ponytail: the suite runs inside the hook, under Claude Code's default 600s hook timeout —
 // a suite slower than that is killed and the gate silently doesn't fire. Set a per-hook
 // `timeout` in hooks.json if the repo's suite needs more.
 

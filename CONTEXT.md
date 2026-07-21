@@ -8,7 +8,7 @@ _Avoid: "feature issue", "parent issue", "the DoD" (the epic holds/sources the D
 **Slice** — a vertical tracer bullet: a narrow but complete path through every layer (specification → implementation → test), independently green, demoable/verifiable on its own. Each slice carries test-applicability (behavior/mechanical/docs), a specification, acceptance criteria, and explicit dependencies on other slices.
 _Avoid: "story", "task", "sub-issue", "chunk"_
 
-**Tier** (execution) — the routing decision for a plan, derived from the loaded slice count, and the procedure that decision runs. `lite` (≤3 slices): controller implements each slice inline in a single scope worktree (test-first, no per-slice worktree branch), never switching the invoking checkout, then one final-reviewer over the whole diff (3-strike loop reused; all-mechanical/docs plans skip even that review) — deliberately relaxes "controller never implements inline" to kill small-plan token + latency overhead. `full` (>3 slices): parallel capped implementers in isolated per-slice worktrees, per-slice slice-reviewer (correctness) + simplicity-reviewer (over-engineering), serial merges into scope, one whole-scope final-reviewer. Never persisted, derived fresh every run. Each tier's linear procedure is read from its **execution playbook** (see _Separation of concerns_).
+**Tier** (execution) — the routing decision for a plan, derived from the loaded slice count: `lite` (≤3 slices) or `full` (>3 slices). Never persisted, derived fresh every run; each tier's linear procedure is read from its **execution playbook** (see _Separation of concerns_).
 _Avoid: "mode", "strategy", "level", "route", "path"_
 
 **Scope** — a feature's scope branch and all its run artifacts (.superdev/scopes/<scope>/ directory: DoD, ledger, progress logs, worktrees). Scope is the namespace that lets multiple features' runs execute in parallel without colliding. `.superdev/` also holds non-scope areas nested outside `scopes/` (e.g. `.superdev/brainstorm/`) — `/status` only scans `.superdev/scopes/*/`, so a sibling area can never be mistaken for a run root.
@@ -29,13 +29,13 @@ _Avoid: "log", "status file", "tracker"_
 **Worktree** — an isolated filesystem checkout used to keep a run's branch work off the invoking checkout. The full tier gives each slice its own **per-slice worktree** (`.superdev/scopes/<scope>/worktrees/<id>/`, plural); the lite tier uses a single **scope worktree** (singular — see below) for all its slices. Both nest under the git-ignored `.superdev/scopes/<scope>/`.
 _Avoid: "branch", "workspace", "checkout"_
 
-**Invoking checkout** — the working tree the user runs superdev from (their clone, usually on main). The `lite` tier never switches it: a lite run's branch work happens in its scope worktree, so the invoking checkout's HEAD, index, and files stay untouched and the user can keep working. The `full` tier does switch it — `git switch -c superdev/<scope> <base>` happens directly in the invoking checkout, with only per-slice work isolated in worktrees off that branch (converting full's own scope integration to a worktree too is a deferred follow-on, ADR 0001).
+**Invoking checkout** — the working tree the user runs superdev from (their clone, usually on main). Whether and how a tier switches it is owned by that tier's execution playbook (ADR 0001).
 _Avoid: "main checkout", "user branch", "current tree"_
 
 **Scope worktree** — the dedicated worktree a lite run cuts its scope branch into (`.superdev/scopes/<scope>/worktree/`), where all inline implementation, commits, and tests run. Isolates the run from the invoking checkout and from other sessions. The run root (dod/ledger) stays in the invoking checkout, not here, so it survives worktree removal.
 _Avoid: "scratch checkout", "session workspace"_
 
-**Run lock** — the `.superdev/scopes/<scope>/run.lock` file plus the `run-lock` hook that together enforce same-scope mutual exclusion for the `lite` tier: a fresh lock blocks a second concurrent run of the same scope from cutting its own scope worktree; a stale lock (past the staleness threshold) is reclaimable as a crash resume.
+**Run lock** — the `.superdev/scopes/<scope>/run.lock` file plus the `run-lock` hook that together enforce same-scope mutual exclusion for the `lite` tier. A stale lock is reclaimable as a crash resume.
 _Avoid: "lockfile" (that names a dependency-manifest file elsewhere), "mutex" (too implementation-generic)_
 
 **Progress log** — the per-slice running record of what happened: agent dispatches, reviews, fixes, merge results. `.superdev/scopes/<scope>/reports/<id>/progress.md` is append-only, oldest-first, git-ignored. Exists so a human or a resumed controller can see what unfolded without re-reading worktree state.
@@ -53,7 +53,7 @@ _Avoid: "skateboard" (Kniberg's MVP-evolution analogy — unclear without the ba
 **Load-bearing decision** — a decision the plan can't ship without: leaving it unresolved means the plan isn't actually decided, not just thin on detail. Triggers `Parked questions` when the interview can't resolve it (multi-slice only); on a single-slice plan, an unresolved one signals the plan isn't single-slice-simple yet, not something to park.
 _Avoid: "blocker", "important question" (any open question can be unimportant; load-bearing specifically means the plan can't ship without it resolved)_
 
-**Parked questions** — a load-bearing decision that survived `/plan`'s interview still unresolved, written to the epic's `## Parked questions` section the moment it's parked (cross-exam.md's termination rule permits ending an interview this way). Advisory only: `/implement` never reads it, nothing gates on it. Distinct from `Intent`'s open questions (brainstorm's pre-interview output, which `/plan` is expected to resolve) — a parked question is what's left after `/plan` already tried and couldn't.
+**Parked questions** — a load-bearing decision that survived `/plan`'s interview still unresolved, written to the epic's `## Parked questions` section. Advisory only: `/implement` never reads it, nothing gates on it.
 _Avoid: "open questions" (that's Intent's pre-interview concept), "blocker", "TODO"_
 
 ## Acceptance / verification

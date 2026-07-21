@@ -65,15 +65,15 @@ superdev subagent that omits one):
 - **`superdev:final-reviewer`** (`model: opus`) — correctness, consistency, whole-scope brevity,
   security, performance, applied adversarially per axis. Give it: a one-line summary of what changed
   (derive it from the diff if the trailing
-  description didn't supply one), the `acceptance` from §1, the git range, and the **absolute path** to
-  `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` (resolve the macro yourself, here — it doesn't
-  expand inside the dispatched agent). If a test command is configured (`docs/agents/verification.md`),
-  tell it it may re-run the suite over the range to verify green rather than trust the diff alone.
+  description didn't supply one), the `acceptance` from §1, and the git range (it reads the review
+  checklist itself via `${CLAUDE_PLUGIN_ROOT}`). If a test command is configured
+  (`docs/agents/verification.md`), tell it it may re-run the suite over the range to verify green rather
+  than trust the diff alone.
 - **`superdev:simplicity-reviewer`** (`model: haiku`) — over-engineering only (unnecessary complexity,
   what stdlib/native replaces, what to delete). Give it the same git range.
 
-Both subagents are **read-only** (`Read`, `Grep`, `Bash` — a hook blocks any mutating git command from
-either). Scale the dispatch to the diff:
+Both subagents are **read-only** (`Read`, `Grep`, `Bash` — a hook blocks `git merge`/`push`/`rebase` and
+`gh`/`tea pr merge` from any subagent). Scale the dispatch to the diff:
 
 - **Tiny diff** (a handful of lines) → `final-reviewer` alone is enough; skip `simplicity-reviewer`.
 - **Nothing plausible to cut** (e.g. the diff is docs-only, or already lean) → skip `simplicity-reviewer`.

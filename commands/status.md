@@ -19,7 +19,7 @@ write, transition, or merge anything here — this is a report, not a control co
 
 ## 2. Read each ledger
 
-For each run root, read `.superdev/scopes/<scope>/ledger.md` (see `references/plan-contract.md` for the
+For each run root, read `.superdev/scopes/<scope>/ledger.md` (see `${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md` for the
 canonical status vocabulary: `todo` / `in-progress` / `in-review` / `blocked` / `merged`). Parse its
 table (columns: `id`, `issue`, `title`, `type`, `depends-on`, `status`, `range`) to tally, per scope:
 

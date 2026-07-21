@@ -103,8 +103,7 @@ across tiers except the worktree cleanup, which your playbook owns.
   to confirming the DoD, then the doc pass + PR. Only the review step is skipped.
 - Dispatch **`superdev:final-reviewer`** (`model: opus`) on the integrated scope branch:
   BASE = `git merge-base <base> superdev/<scope>`, HEAD = scope tip; requirements = the global DoD + slice
-  list; also give it the **absolute path** to `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`
-  (resolve the macro yourself, here — it doesn't expand inside the dispatched agent).
+  list (it reads the review checklist itself via `${CLAUDE_PLUGIN_ROOT}`).
 - For **Critical/Important** findings, dispatch **one** `superdev:implementer` fix with the **complete**
   findings list (not one fixer per finding); re-review until clean, or the fix loop caps out (see
   **Invariants** for the RED-test rule and wrong-cut escalation).

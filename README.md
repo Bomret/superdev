@@ -221,22 +221,6 @@ git clone https://codeberg.org/bomret/superdev.git
 /plugin install superdev@superdev
 ```
 
-**Committed / non-interactive** — add to `.claude/settings.json` (project) or your user settings, so the
-plugin loads without the interactive menu:
-
-```json
-{
-  "extraKnownMarketplaces": {
-    "superdev": {
-      "source": { "source": "github", "repo": "https://codeberg.org/bomret/superdev.git" }
-    }
-  },
-  "enabledPlugins": { "superdev@superdev": true }
-}
-```
-
-For a local checkout instead, use `"source": { "source": "directory", "path": "/absolute/path/to/superdev" }`.
-
 **Manage:** `/plugin list` · `/plugin details superdev@superdev` · pull updates with
 `/plugin marketplace update superdev` then `/reload-plugins`.
 

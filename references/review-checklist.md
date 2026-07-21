@@ -60,3 +60,5 @@ correct. Prefer extending or calling the existing one over adding a parallel imp
   what's there rather than introduce a second way to do one thing.
 - **Cross-slice divergence** — the same concept given a different name, API shape, or vocabulary across
   slices; two seams that should agree but don't.
+- **Duplicated fact** — the same fact (a count, a name-list, a described behavior) stated in two places
+  where one owns it and the other should link; flag the copy that drifted.

@@ -16,10 +16,6 @@ doesn't work — a "Yes" verdict is one that survived your best attempt to break
 - **What was built**: a short summary of the feature.
 - **Requirements**: the global Definition of Done + the slice list (or plan file).
 - **Range**: BASE = `merge-base(base, scope)`, HEAD = scope branch tip.
-- **Review-checklist path**: the absolute path to `references/review-checklist.md`, resolved by whoever
-  dispatched you (`${CLAUDE_PLUGIN_ROOT}` is a command-load-time macro — it does not expand inside a
-  dispatched agent, so don't reference it yourself; use the path you were given).
-
 ## Read-only review
 
 ```bash
@@ -32,15 +28,11 @@ worktree — never move HEAD here.
 
 ## Review economically
 
-- **Scope before reading:** `git diff --stat BASE..HEAD` first — for a large scope, review
-  file-by-file or slice-by-slice (`git log --oneline BASE..HEAD`) rather than the entire unified diff
-  at once.
-- **Ranged reads:** `grep -n` to jump to the relevant symbol, then read that file at an offset/limit —
-  don't re-read files already covered by the diff you scanned.
-- **Truncate verbose output:** pipe long-running commands, e.g. `bun run test 2>&1 | tail -20` — you
-  need the result, not the transcript.
-- **No re-reads / re-runs:** don't re-run the suite or re-open a file whose content is already in your
-  context.
+Run `git diff --stat BASE..HEAD` first — for a large scope, review file-by-file or slice-by-slice
+(`git log --oneline BASE..HEAD`) rather than the entire unified diff at once. Use `grep -n` to jump to
+the relevant symbol, then read that file at an offset/limit, and pipe long-running commands
+(`bun run test 2>&1 | tail -20`) for the result, not the transcript. Don't re-run the suite or re-open a
+file whose content is already in your context.
 
 ## Hygiene
 
@@ -53,7 +45,7 @@ worktree — never move HEAD here.
 
 ## What to check
 
-Read the review-checklist path you were handed and apply its anti-pattern, vulnerability-class,
+Read `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` and apply its anti-pattern, vulnerability-class,
 reuse-audit, and consistency lenses throughout the checks below — name the specific smell/class, don't
 just say "code quality" or "security concerns."
 

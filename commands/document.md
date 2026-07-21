@@ -1,6 +1,6 @@
 ---
 description: Reconcile the project's docs and optional knowledge base with the current state of the code, removing stale text. Runs at the end of /superdev:implement and on demand at any time.
-argument-hint: "[BASE..HEAD | area/path | (empty = full reconcile)]"
+argument-hint: "[BASE..HEAD | area/path | audit | (empty = full reconcile)]"
 ---
 
 # superdev document
@@ -24,6 +24,7 @@ From `$ARGUMENTS`:
   (`/superdev:implement` passes `merge-base(base, superdev/<scope>)..superdev/<scope>`.)
 - **Empty** → a **full reconcile**: all in-repo docs (README + the whole `AGENTS.md` tree) + the KB
   against current repo state.
+- **The literal word `audit`** → skip §3-§5; run the **reader-first audit** in §6 instead.
 
 ## 3. Dispatch
 
@@ -51,3 +52,20 @@ Relay what the doc-writer changed: which `AGENTS.md`/docs were updated, what was
 KB pages were updated/created (or that the KB pass was none/skipped), the reader-test tally (including
 any findings left unresolved after the fix round), and any concerns (e.g. a missing KB token). Do not
 re-do its work.
+
+## 6. Audit mode (`audit`)
+
+Inverts the usual order: **reader first**, writer only to fix what it finds.
+
+1. **Build the audit set:** the default doc tree (`AGENTS.md` hierarchy + `README.md` + `CONTEXT.md` +
+   local KB pages, when the KB backend is local `docs/kb/`) plus any globs listed under a `## Audit set`
+   section in `docs/agents/documentation.md`. That section is optional — if it's absent, use the default
+   tree alone and say so in the report.
+2. Dispatch **`superdev:doc-reader`** with an **explicit `model`** (`sonnet`) and the full audit set,
+   cold — no range, no history, no summary of prior work. Tell it explicitly: hook/guardrail-enforcement
+   claims ("a hook blocks X", "the gate re-runs Y") are **always load-bearing** and must be verified
+   against the hooks' actual source (`hooks/*.js`), not assumed from prose.
+3. If it reports findings, run **one doc-writer fix round** exactly as in §4 (dispatch
+   `superdev:doc-writer` once with the findings; don't re-loop the reader; unresolved findings go in the
+   report).
+4. **Report** per §5.

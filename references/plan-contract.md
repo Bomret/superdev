@@ -79,11 +79,7 @@ whole-scope review substitutes for the per-slice ones. The table above (and the 
 
 ## Local-file rendering
 
-Written to a per-feature directory `docs/plans/<feature-slug>/`: the scope file `00-epic-<summary>.md`
-holds the global DoD, and each slice is its own `NN-<test-applicability>-<summary>.md` whose zero-padded
-number is its `id` (so `depends-on` reads `[01, 03]`). A single-slice feature skips `00-epic-…` entirely
-— the lone slice file's `acceptance` is the DoD. See `issue-tracker-local.md` for the exact file layout
-and per-file format.
+See [`issue-tracker-local.md`](issue-tracker-local.md) for the file layout and per-file format.
 
 ## Issue-backend mapping (general)
 

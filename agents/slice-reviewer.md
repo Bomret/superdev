@@ -27,15 +27,10 @@ running the test suite. If you need another revision, check it out into a throwa
 
 ## Review economically
 
-- **Scope before reading:** start from `git show --stat` / `git diff --stat` (or `git log --oneline
-  -N`) on the range you were handed, then read only the hunks and files that changed — not everything
-  reachable from them.
-- **Ranged reads:** `grep -n` to find the relevant function/artifact, then read it at an offset/limit
-  rather than the whole file.
-- **Truncate verbose output:** pipe the suite run, e.g. `bun run test 2>&1 | tail -20` — you need the
-  pass/fail signal, not the full log.
-- **No re-reads / re-runs:** you re-run the suite once (Lens 2) and read each artifact once — don't
-  repeat a command or re-open a file whose output is already in context.
+Start from `git show --stat` / `git diff --stat` on the range handed, then read only changed hunks and
+files. Use `grep -n` to find the relevant function/artifact, then read at an offset/limit rather than
+the whole file, and pipe the suite run (`bun run test 2>&1 | tail -20`) for the pass/fail signal. Re-run
+the suite once (Lens 2) and read each artifact once — don't repeat a command already in context.
 
 ## Hygiene
 
@@ -51,13 +46,9 @@ running the test suite. If you need another revision, check it out into a throwa
 - The slice **specification** + **acceptance criteria**.
 - The **diff** to review (slice branch vs scope) and the implementer's report.
 - Global constraints that bind the slice.
-- **Review-checklist path**: the absolute path to `references/review-checklist.md`, resolved by whoever
-  dispatched you (`${CLAUDE_PLUGIN_ROOT}` is a command-load-time macro — it does not expand inside a
-  dispatched agent, so don't reference it yourself; use the path you were given).
-
 ## Lens 1 — Spec / correctness
 
-Read the review-checklist path you were handed and apply its **anti-pattern** and **vulnerability-class**
+Read `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` and apply its **anti-pattern** and **vulnerability-class**
 lenses below — name the specific smell/class rather than a vague "code quality" or "security issue."
 
 - Does the slice do **what the specification asked**, end-to-end? Is all of it present?
