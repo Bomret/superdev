@@ -1,3 +1,18 @@
+# [0.20.0](https://codeberg.org/bomret/superdev/compare/v0.19.0...v0.20.0) (2026-07-21)
+
+
+### Bug Fixes
+
+* **plan:** make AskUserQuestion the default surface for optioned questions ([04e66e4](https://codeberg.org/bomret/superdev/commit/04e66e43ff3870ece61bf84d3c7d01e855e537b4))
+
+
+### Features
+
+* **document:** add brownfield bootstrap mode for /superdev:document ([#80](https://codeberg.org/bomret/superdev/issues/80)) ([1a7ff65](https://codeberg.org/bomret/superdev/commit/1a7ff65460c093b7d3c4f42a4184b83b15120dfd)), closes [#79](https://codeberg.org/bomret/superdev/issues/79)
+* fix review findings and harden the doc loop against drift ([#78](https://codeberg.org/bomret/superdev/issues/78)) ([1ea87c2](https://codeberg.org/bomret/superdev/commit/1ea87c2cd5ea85b280480c7b3cda9579186f0232)), closes [#70](https://codeberg.org/bomret/superdev/issues/70) [#77](https://codeberg.org/bomret/superdev/issues/77) [#75](https://codeberg.org/bomret/superdev/issues/75) [#74](https://codeberg.org/bomret/superdev/issues/74) [#71](https://codeberg.org/bomret/superdev/issues/71) [#73](https://codeberg.org/bomret/superdev/issues/73) [#72](https://codeberg.org/bomret/superdev/issues/72) [#76](https://codeberg.org/bomret/superdev/issues/76)
+* **plan:** seed interview from existing brainstorm intent ([18b3e95](https://codeberg.org/bomret/superdev/commit/18b3e95b526b0df622154d4d21a34f03b2bfcbc9))
+* **setup:** discover and record repo toolchain in docs/agents/toolchain.md ([#82](https://codeberg.org/bomret/superdev/issues/82)) ([a8509c7](https://codeberg.org/bomret/superdev/commit/a8509c760fbf37ed76aac1f983d0a0e0a02f50e2)), closes [#81](https://codeberg.org/bomret/superdev/issues/81)
+
 # [0.19.0](https://codeberg.org/bomret/superdev/compare/v0.18.0...v0.19.0) (2026-07-21)
 
 
