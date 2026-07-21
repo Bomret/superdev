@@ -38,7 +38,7 @@ references/            — backend seed templates + plan-contract + documentatio
                          review-checklist (anti-patterns, vuln-classes, reuse-audit, consistency; read at
                          runtime by final-reviewer + slice-reviewer)
 docs/adr/              — architecture decision records (why the plugin is built this way)
-docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, KB, verification)
+docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, documentation, KB, toolchain, verification)
 scripts/               — standalone drift-assertion checks wired into `bun run test` (e.g.
                          `drift-check.js`, asserting every referenced `references/*.md` path exists)
 evals/                 — `claude plugin eval` cases (*/case.yaml + graders/*.md); currently one case,

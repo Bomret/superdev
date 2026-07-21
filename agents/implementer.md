@@ -113,8 +113,10 @@ which re-runs the suite after each edit by design.
 
 ## Repo guidelines
 
-Find and honor the repo's own coding/testing guideline docs (e.g. `CLAUDE.md`, `CONTRIBUTING`,
-`CODING.md`, `TESTING.md`, `docs/`). Match the surrounding code's style even where you'd differ.
+Read `docs/agents/toolchain.md` if present and honor it: use the recorded package manager and the
+build/lint/format commands for your workspace, and follow the style-prose docs it points to. If it's
+**absent**, just match the surrounding code's style — don't run your own toolchain-discovery scan.
+Either way, match the surrounding code even where you'd differ.
 
 ## Documentation
 

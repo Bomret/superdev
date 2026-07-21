@@ -1,15 +1,17 @@
 ---
-description: Configure this repo for superdev — slice store, code host, documentation convention, optional knowledge base, and the green-gate test command — written to docs/agents/*.md. Run once; /superdev:plan and /superdev:implement auto-invoke it if config is missing.
+description: Configure this repo for superdev — slice store, code host, documentation convention, optional knowledge base, detected toolchain profile, and the green-gate test command — written to docs/agents/*.md. Run once; /superdev:plan and /superdev:implement auto-invoke it if config is missing.
 ---
 
 # superdev setup
 
-Write the five per-repo config docs the superdev skills read, so the workflow is backend-agnostic:
+Write the six per-repo config docs the superdev skills read, so the workflow is backend-agnostic:
 
 - `docs/agents/issue-tracker.md` — the **slice store** (where slices live + how to CRUD them)
 - `docs/agents/code-management.md` — the **code host** (push + open PR/MR + default posture)
 - `docs/agents/documentation.md` — the in-repo **documentation** convention
 - `docs/agents/knowledge-base.md` — the optional **knowledge base** (software / local file / none)
+- `docs/agents/toolchain.md` — the detected **toolchain** profile (package manager + build/lint/format/
+  release commands + style pointers), one section per workspace
 - `docs/agents/verification.md` — the optional **test command** that arms the merge green-gate hook
 
 This is prompt-driven, not a script. **Explore, propose defaults, confirm one decision at a time, then
@@ -22,6 +24,16 @@ write.** Seed templates live in `${CLAUDE_PLUGIN_ROOT}/references/`.
 - `CLAUDE.md` / `AGENTS.md` at root — which exists? Is there already an `## Agent skills` section? Is a
   `AGENTS.md` documentation hierarchy already present (child `AGENTS.md` files in subdirs)?
 - `docs/plans/` — sign the local-file store is already in use.
+- **Toolchain** — scan for the repo's build/tooling, feeding decision **F**:
+  - **build/package manifests** → the package manager + its scripts: `package.json` (+ lockfile /
+    `packageManager` field → npm/pnpm/yarn/bun), `*.sln`/`*.csproj`/`nuget.config`, `pom.xml`,
+    `build.gradle(.kts)` (+ `gradlew`/`mvnw` wrappers), `pyproject.toml`/`poetry.lock`/`uv.lock`,
+    `Cargo.toml`, `go.mod`, a `Makefile`, …
+  - **formatter/linter configs**: `.editorconfig`, `.prettierrc*`, `.eslintrc*`, `rustfmt.toml`,
+    `.clang-format`, `.rubocop.yml`, …
+  - **style-prose docs**: `CONTRIBUTING`, `CODING.md`, `STYLE.md`, and any coding-guideline section in
+    `CLAUDE.md`/`AGENTS.md`.
+  - **Monorepo?** several package roots / languages side by side → note each as its own workspace.
 
 ## 2. Decide (one at a time)
 
@@ -99,11 +111,31 @@ adjust with the user**, and record the agreed outline in `knowledge-base.md`. It
 re-runs it and blocks the run if the scope suite is RED — turning implement's "re-run the suite after
 merging" from a prompt into a deterministic gate. Detect a likely command from the repo (package.json
 scripts, a Makefile `test` target, `pyproject.toml`) and propose it. No suite (e.g. a docs-only repo) →
-skip; the gate stays inactive and nothing else changes.
+skip; the gate stays inactive and nothing else changes. (The **F** scan below finds the same manifests —
+draw the proposed test command from it.)
+
+**F — Toolchain (optional).** From §1's scan, propose the repo's toolchain profile — the package manager
+and the build/lint/format/release commands agents should use, plus pointers to the linter/formatter
+configs and style-prose docs. Record **pointers, not copied rules** — the config files stay the source of
+truth. Discipline:
+
+- **Describe each command by intent, not just its name.** Infer the conventional ones (`test` → unit
+  tests, `test:integration` → integration tests, `lint`, `format`, `build`, a `release`/publish script).
+- **Ask when a component's purpose is unclear.** A script/task/binary whose intent you can't infer (a
+  cutely-named `make-it-so` script, an opaque MSBuild target, an unknown `compiler.exe` in `./bin`) → ask
+  the user "is this relevant, and if so what for?" and record the answer as its description. Don't guess.
+- **Auto-note orphaned tooling.** A formatter/linter config that **no command runs** (e.g. a `.prettierrc`
+  with no `format` script and prettier not a dependency) → note it "not wired / not enforced." This is a
+  coherence check only — never grade the *quality* of a tool's configuration, and don't prompt the user
+  for it.
+- **`test` defers to E.** The toolchain doc references `docs/agents/verification.md` for the test command
+  rather than restating it — verification.md stays the single source the green-gate reads.
+- **Skip only when fully empty.** No manifest, no config, no style doc at all (a pure-prose/empty repo) →
+  write no `toolchain.md`. Any detection (even just a package manager) → write it. Partial ≠ empty.
 
 ## 3. Confirm, then write
 
-Show the user a draft of all five files (and the `## Agent skills` block) and let them edit before writing.
+Show the user a draft of all six files (and the `## Agent skills` block) and let them edit before writing.
 
 Write:
 
@@ -115,6 +147,29 @@ Write:
 - `docs/agents/knowledge-base.md` — from the chosen KB seed (`knowledge-base-confluence.md` /
   `knowledge-base-local.md`) filled in, or the "other" prose. For **None**, write a one-line
   `knowledge-base.md` stating there is no separate KB (or skip the file).
+- `docs/agents/toolchain.md` — the detected profile (decision **F**), freeform markdown, **one section
+  per workspace** (a single section for a non-monorepo). Each command is an intent phrase + its
+  invocation; `test` points at `docs/agents/verification.md`; orphaned tooling is noted; unclear
+  components carry the user's confirmed description. Omit absent categories from a section. Skip the file
+  when the repo is fully empty of toolchain. **On re-run** (the file already exists): re-scan and
+  reconcile — add newly-found elements, update changed ones, drop removed ones — but **keep the
+  human-authored descriptions** of components that still exist and re-ask only about *newly*-unclear ones;
+  show the delta before writing. Shape:
+
+  ````markdown
+  # Toolchain
+
+  ## `.` — TypeScript / Node
+  - Package manager: pnpm (lockfile `pnpm-lock.yaml`)
+  - Commands:
+    - Tests — see docs/agents/verification.md  (the green-gate command — not restated here)
+    - Integration tests — `pnpm test:integration`
+    - Lint — `pnpm lint`  (eslint · `.eslintrc.json`)
+    - Format — `pnpm format`  (prettier · `.prettierrc`)
+    - `make-it-so` — tags and publishes a release  (purpose confirmed with user)
+  - Not wired: `.editorconfig` present but no command applies it — formatting not enforced
+  - Style prose: `CONTRIBUTING.md §Style`
+  ````
 - `docs/agents/verification.md` — the test command in a single fenced block (the green-gate reads the
   first fenced block). Skip the file entirely if there's no suite. Example:
 
@@ -142,6 +197,9 @@ Write:
 
 ### Knowledge base
 [one-line summary — software / local file / none]. See `docs/agents/knowledge-base.md`.
+
+### Toolchain
+[one-line summary — package manager + key commands, or "none detected"]. See `docs/agents/toolchain.md`.
 
 ### Verification
 [the test command, or "none"]. Arms the merge green-gate. See `docs/agents/verification.md`.

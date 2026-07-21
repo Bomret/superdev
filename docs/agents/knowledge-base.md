@@ -15,7 +15,7 @@ Codeberg repo **Wiki** for `bomret/superdev`. Distinct from the agent-first in-r
 ## Outline (living skeleton — `/plan` and `/document` fill and extend it)
 
 - **Overview** — what superdev is + the plan→implement loop (adopter-facing).
-- **Concepts** — slice store, code host, documentation convention, knowledge base, verification.
+- **Concepts** — slice store, code host, documentation convention, knowledge base, toolchain, verification.
 - **Feature specifications / design notes** — one page per significant feature.
 - **ADR summaries** — human-readable digests of `docs/adr/` decisions.
 - **Guides** — install, configure a backend, cut a release.

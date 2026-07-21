@@ -149,8 +149,12 @@ backend.
   it after a scope lands. → `docs/agents/documentation.md`.
 - **Knowledge base** *(optional)* — a **separate, human-first** record (feature specifications, design
   overviews, ADR summaries) for *readers*, not agents — distinct from the agent-first `AGENTS.md` docs. You pick the
-  backend (Confluence · local `docs/kb/` · none), its **audience(s)**, **language**, and an agreed
+  backend (Confluence · local `docs/kb/` · other · none), its **audience(s)**, **language**, and an agreed
   **outline** that `/plan` and `/document` fill rather than reinvent. → `docs/agents/knowledge-base.md`.
+- **Toolchain** *(detected)* — the repo's package manager and build/lint/format/release commands plus
+  style-doc pointers, **auto-detected** by setup (not a pluggable backend) and recorded one section per
+  workspace, so agents use the right tools instead of rediscovering them. `test` defers to Verification.
+  → `docs/agents/toolchain.md`.
 - **Verification** *(optional)* — the repo's test command. Recorded, it **arms the green-gate** hook
   (re-runs the suite after every controller merge); omitted, the gate stays inactive.
   → `docs/agents/verification.md`.
@@ -160,7 +164,7 @@ Adding a backend = a new seed template in `references/` + a config doc. No comma
 ## What superdev writes to your repo
 
 ```
-docs/agents/*.md          backend config — the five docs above (committed)
+docs/agents/*.md          backend config — the six docs above (committed)
 docs/plans/<feature-slug>/  slices + Definition of Done (local store): 00-epic-* = DoD + description,
                           NN-<test-applicability>-* = one file per slice (number = id)
 CONTEXT.md                glossary / ubiquitous language, authored by /plan

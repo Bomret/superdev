@@ -12,6 +12,11 @@ to the slice store, ready for `/superdev:implement`. Interactive — this needs 
 Read `docs/agents/issue-tracker.md` (the slice store). Missing → run **`/superdev:setup`** first, then
 continue.
 
+**Toolchain freshness (advisory).** If `docs/agents/toolchain.md` is **absent while the repo has
+build/package manifests** (`package.json`, `*.csproj`/`*.sln`, `pom.xml`/`build.gradle*`, `pyproject.toml`,
+`Cargo.toml`, `go.mod`, …), tell the user it looks like the toolchain isn't recorded and suggest running
+**`/superdev:setup`** to capture it — then continue. Non-blocking; never halt planning for it.
+
 ## 1. Interview (relentless, one question at a time)
 
 **Seed from an existing brainstorm intent if there is one.** Glob `.superdev/brainstorm/*.md` — the

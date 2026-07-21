@@ -72,7 +72,9 @@ matter; the suite passes; name any uncovered cross-slice case. *Break it:* find 
 wrong result, or the seam where two slices disagree.
 
 **Consistency** — does the change match the conventions, naming, and patterns already in this codebase?
-Does it reuse existing utils/helpers rather than add a parallel implementation (reuse-audit)? Are the
+If `docs/agents/toolchain.md` records the repo's tooling, check the change honors it — the recorded
+package manager, the linter/formatter not bypassed. Does it reuse existing utils/helpers rather than add
+a parallel implementation (reuse-audit)? Are the
 slices consistent with each other — same concept, same API shape and vocabulary across seams? Do the
 docs match the behaviour? *Break it:* find the convention it violates, or the divergent second way to do
 one job.

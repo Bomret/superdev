@@ -41,7 +41,10 @@ narrate at most one short line.
 
 - Read `docs/agents/issue-tracker.md` (slice store), `docs/agents/code-management.md` (code host),
   `docs/agents/documentation.md` (in-repo documentation convention), and `docs/agents/knowledge-base.md`
-  (optional KB). Slice store or code host missing → run **`/superdev:setup`**, then continue.
+  (optional KB). Slice store or code host missing → run **`/superdev:setup`**, then continue. **Advisory:**
+  if `docs/agents/toolchain.md` is absent while the repo has build/package manifests (`package.json`,
+  `*.csproj`/`*.sln`, `pom.xml`/`build.gradle*`, `pyproject.toml`, `Cargo.toml`, `go.mod`, …), suggest the
+  user run **`/superdev:setup`** to record the toolchain — non-blocking, then continue.
 - **Load the slices** from the store (per the contract: `id`, `depends-on`, `test-applicability`, `spec`,
   `acceptance`, + global DoD). No slices → run **`/superdev:plan`** first. **Exactly one slice and no
   epic** → the epic was optional (`plan-contract.md`): the DoD is that slice's `acceptance`; there is no
