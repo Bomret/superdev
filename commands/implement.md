@@ -117,8 +117,9 @@ across tiers except the worktree cleanup, which your playbook owns.
   `none` (then it's the in-repo docs pass only). Run it **after** the final review + fix loop, never
   concurrent with the review: `doc-writer` commits on the scope branch and would move the tip under the
   read-only reviewer's `BASE..HEAD` diff (ADR 0003). `final-reviewer` stays read-only and its own subagent.
-- Confirm **every Phase 0 DoD item is met**, then move the **scope anchor** issue → `done` (no epic → the
-  lone slice issue, already `merged`, is done).
+- Confirm **every Phase 0 DoD item is met**, ticking each verified item in `dod.md` (`- [ ]` → `- [x]`);
+  leave any unmet item unchecked with a one-line note on why. Then move the **scope anchor** issue → `done`
+  (no epic → the lone slice issue, already `merged`, is done).
 - **Open the PR/MR per `docs/agents/code-management.md`** (default posture = draft; degrade to push +
   printed compare URL + ready-to-run command when no host CLI is present). Report the PR URL to the user.
 - **Clean up** per your playbook's final-cleanup section (it removes the worktrees it created), then remove

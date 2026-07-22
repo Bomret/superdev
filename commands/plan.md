@@ -143,6 +143,12 @@ parallel**. Steps 2 and 3 each fan out at once rather than one issue at a time. 
 correct because every slice exists before any reference is written. (A local-file store just writes the
 files; there's no API latency to batch.)
 
+**Delete the seeded brainstorm intent.** If this plan started from a `.superdev/brainstorm/<slug>.md`
+file (§1), delete it now that its intent is durably captured in the slice store — it has served its
+purpose, and a leftover scratch intent only re-surfaces as a stale option in the next `/plan` glob.
+Delete only the file the user actually picked; leave any other brainstorm intents untouched. (Nothing
+downstream reads it — `/superdev:implement` works from the slice store.)
+
 **Tell the user the expected execution tier.** `/superdev:implement` derives it fresh from the final
 slice count — **≤3 slices → `lite`** (the controller implements each slice inline in a single scope
 worktree, one final review), **>3 slices → `full`** (parallel per-slice worktrees + implementer/reviewer
