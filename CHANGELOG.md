@@ -1,3 +1,10 @@
+# [0.21.0](https://codeberg.org/bomret/superdev/compare/v0.20.0...v0.21.0) (2026-07-22)
+
+
+### Features
+
+* tick DoD boxes on confirm and delete seeded brainstorm intents ([#83](https://codeberg.org/bomret/superdev/issues/83)) ([e51cd61](https://codeberg.org/bomret/superdev/commit/e51cd6194d8b78bb4ab4ee80b4dd2b2aca66c42d))
+
 # [0.20.0](https://codeberg.org/bomret/superdev/compare/v0.19.0...v0.20.0) (2026-07-21)
 
 
