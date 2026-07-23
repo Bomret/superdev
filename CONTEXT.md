@@ -58,7 +58,7 @@ _Avoid: "open questions" (that's Intent's pre-interview concept), "blocker", "TO
 
 ## Acceptance / verification
 
-**Acceptance** (per-slice) — the checkable criteria for ONE slice; the slice-reviewer verifies against this. Different from the global DoD (acceptance is per-slice, DoD is whole-feature).
+**Acceptance** (per-slice) — the checkable criteria for ONE slice; the slice-reviewer verifies against this. Different from the global DoD (acceptance is per-slice, DoD is whole-feature). On a `behavior` slice it names the **domain-level** failure and boundary cases too — those derivable from the interview without seeing the implementation (empty input, absent config, duplicate, auth failure, concurrent arrival) — stated as observable behaviour. Implementation-level edges (off-by-one, parser boundary, encoding) belong to the implementer's TDD loop and the reviewers, who read the code the planner never sees.
 _Avoid: "specification", "requirements" (acceptance is the test oracle)_
 
 **Test-applicability** — the class of changes a slice carries: `behavior` (new functionality, needs TDD + per-slice reviewer + simplicity-reviewer), `mechanical` (move/rename/format, uses existing suite as the net, skips per-slice reviews), `docs` (documentation-only, skips reviews).
