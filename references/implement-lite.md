@@ -19,8 +19,9 @@ throughout. Return to the controller's **Final phase** once every slice is commi
 
 ## Run lock
 
-Before implementing the first slice, write `.superdev/scopes/<scope>/run.lock` in the invoking checkout (not the
-worktree — the run root stays there). The lock's mtime marks this run as live; the **run-lock** hook uses
+Before implementing the first slice, write `<run-root>/run.lock` (the absolute Phase-0 run-root path in
+the invoking checkout — never a `.superdev/scopes/<scope>/…` path from the worktree cwd, which resolves
+one level too deep). The lock's mtime marks this run as live; the **run-lock** hook uses
 it to stop a second concurrent run of the same scope from creating its own scope worktree, enforcing
 same-scope mutual exclusion. Remove the lock at the end of the controller's **Final phase** (after the
 PR).
@@ -47,10 +48,10 @@ PR).
 
 ## Resume
 
-Read `.superdev/scopes/<scope>/ledger.md` and cross-check it against `git log <base>..superdev/<scope>` in the
+Read `<run-root>/ledger.md` and cross-check it against `git log <base>..superdev/<scope>` in the
 scope worktree — a slice the ledger marks `merged` (already committed there) is done; pick up at the next
 `todo` slice in `depends-on` order. An interrupted `in-progress` slice may have left partial, uncommitted
-changes in the scope worktree. Before resuming, check `.superdev/scopes/<scope>/run.lock`: if it exists and is
+changes in the scope worktree. Before resuming, check `<run-root>/run.lock`: if it exists and is
 fresh (mtime under 1 hour old — the run-lock hook's staleness threshold), another session is live in this
 worktree — escalate or wait. If the lock is stale or absent, it's a crash resume; run `git status` /
 `git diff` in the scope worktree and decide whether to continue that in-progress slice's uncommitted work

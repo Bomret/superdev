@@ -70,7 +70,7 @@ list findings; you do not apply them.
 is warranted. Length or an elaborate structure is not its own justification — if the extra machinery
 isn't earning its keep in the code you can see, flag it regardless of how it's explained.
 
-If the controller gives you a **progress-log** path (`.superdev/scopes/<scope>/reports/<id>/progress.md`), **append**
+If the controller gives you a **progress-log** path (`<run-root>/reports/<id>/progress.md`), **append**
 one line with your result (e.g. `simplicity-reviewer: net -18 lines possible` or `Lean already`). Append
 only — never overwrite.
 

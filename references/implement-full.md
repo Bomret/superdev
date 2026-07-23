@@ -21,7 +21,7 @@ Honor the controller's **Invariants** and **Issue status** map throughout. Retur
 
 ## Progress log (per slice)
 
-Each slice has a **progress log** at `.superdev/scopes/<scope>/reports/<id>/progress.md` — a running record of
+Each slice has a **progress log** at `<run-root>/reports/<id>/progress.md` — a running record of
 how the slice unfolded, not a final report. **You (the controller) own it:**
 
 - **Seed it** with a header (slice `<id>` + title) before the slice's first dispatch.
@@ -36,7 +36,7 @@ compaction — can see what happened on a slice without re-reading every worktre
 
 ## Interface file (per scope)
 
-`.superdev/scopes/<scope>/interfaces.md` is the durable record of **cross-slice interfaces** — the
+`<run-root>/interfaces.md` is the durable record of **cross-slice interfaces** — the
 function signatures, endpoints, CLI commands, and types a merged slice decided that later slices build
 on. Your context is not that record: after a compaction it's gone, and the ledger holds statuses, not
 interfaces. Append the interfaces a slice decided when you merge it (DAG step 4), pass the file's path
@@ -52,8 +52,8 @@ Repeat until every slice is `merged`:
    in its own worktree, each with its `model` from the controller's model table. Give each only its own
    specifics: the slice `spec` + `acceptance`, its worktree path (`.superdev/scopes/<scope>/worktrees/<id>`) +
    branch (`slice/<scope>/<id>`), base/head, its **progress-log** path
-   (`.superdev/scopes/<scope>/reports/<id>/progress.md` — seed it first), the global constraints, and the
-   **interface file** path (`.superdev/scopes/<scope>/interfaces.md` — the interfaces already-merged
+   (`<run-root>/reports/<id>/progress.md` — seed it first), the global constraints, and the
+   **interface file** path (`<run-root>/interfaces.md` — the interfaces already-merged
    slices decided). Not the whole plan.
    **Pilot the first wave.** On a fresh scope (nothing merged yet), dispatch a single slice first and
    take it through review + merge before filling the cap — a systemic problem (a mis-specified
@@ -90,7 +90,7 @@ Repeat until every slice is `merged`:
    `git worktree remove .superdev/scopes/<scope>/worktrees/<id>` and `git branch -D slice/<scope>/<id>` (merged;
    leaving it clutters the repo). The **worktree-sweep** `Stop` hook removes any merged slice worktree you
    forget, so cleanup is guaranteed even if you skip this — but do it anyway. **Append the interfaces this
-   slice decided** to `.superdev/scopes/<scope>/interfaces.md` (skip if it decided none). Move the slice →
+   slice decided** to `<run-root>/interfaces.md` (skip if it decided none). Move the slice →
    `merged`/done in the store + ledger. Merging unblocks dependents.
 5. Recompute the runnable set and continue.
 
@@ -100,8 +100,8 @@ Re-entering an already-started scope — a fresh session, a re-run after compact
 mid-loop — is a **first-class path through the loop, not a special case**: reconcile state, then
 re-enter the DAG loop at step 1.
 
-- **Reconcile before dispatching.** Read `.superdev/scopes/<scope>/ledger.md` and
-  `.superdev/scopes/<scope>/interfaces.md` (the cross-slice interface record — your pre-compaction
+- **Reconcile before dispatching.** Read `<run-root>/ledger.md` and
+  `<run-root>/interfaces.md` (the cross-slice interface record — your pre-compaction
   context is gone; this file is what survives), cross-check the ledger against
   `git log <base>..superdev/<scope>` (merge commits name the slice branch) and the store's slice statuses.
   A slice the ledger — or the merge log — marks `merged` is done: **never re-dispatch it**, no matter what

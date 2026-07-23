@@ -93,6 +93,6 @@ Categorize by **actual** severity — not everything is Critical. Give a clear v
 verify a requirement from the diff alone (it lives in unchanged code or spans slices), say so as a
 "⚠️ cannot verify from diff" item — don't guess.
 
-If the controller gives you a **progress-log** path (`.superdev/scopes/<scope>/reports/<id>/progress.md`), **append**
+If the controller gives you a **progress-log** path (`<run-root>/reports/<id>/progress.md`), **append**
 one line recording your verdict + finding counts (e.g. `slice-reviewer: specification ✅, 2 Important, 0
 Critical`). Append only — never overwrite earlier entries.

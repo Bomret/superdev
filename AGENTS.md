@@ -40,7 +40,9 @@ references/            — backend seed templates + plan-contract + documentatio
 docs/adr/              — architecture decision records (why the plugin is built this way)
 docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, documentation, KB, toolchain, verification)
 scripts/               — standalone drift-assertion checks wired into `bun run test` (e.g.
-                         `drift-check.js`, asserting every referenced `references/*.md` path exists)
+                         `drift-check.js`, asserting every referenced `references/*.md` path exists and
+                         that the execution/controller docs address run-root artifacts by absolute
+                         `<run-root>/…` path, never a checkout-relative `.superdev/scopes/<scope>/…` one)
 evals/                 — `claude plugin eval` cases (*/case.yaml + graders/*.md); currently one case,
                          `evals/plan-basic-feature/`, exercising `/plan`
 release.config.cjs     — semantic-release config (semantic-release-replace-plugin bumps plugin.json)
@@ -199,8 +201,11 @@ This root owns every subtree directly:
 - `hooks/` — Claude Code hooks, the plugin's deterministic guardrails. Governed by **Working rules →
   Hooks are CommonJS** + **Every hook ships a `--selftest`**. Strongest future child-doc candidate if
   its rules outgrow this root.
-- `scripts/` — standalone drift-assertion checks run from `package.json` (e.g. `drift-check.js`), the
-  other executable code alongside `hooks/`. Follows the same `--selftest` convention.
+- `scripts/` — standalone drift-assertion checks run from `package.json` (e.g. `drift-check.js`, which
+  also guards that `commands/implement.md`, `references/implement-full.md`/`implement-lite.md`, and
+  `agents/implementer.md`/`slice-reviewer.md`/`simplicity-reviewer.md` address run-root artifacts by
+  absolute `<run-root>/…` path), the other executable code alongside `hooks/`. Follows the same
+  `--selftest` convention.
 - `references/` — backend seed templates + `plan-contract.md` (slice schema/lifecycle) + `documentation.md`
   + **execution playbooks** (`implement-full.md` / `implement-lite.md`): the tier-specific linear procedures
   `/implement` reads at runtime once it computes the tier (non-seed refs, like `plan-contract.md`)
