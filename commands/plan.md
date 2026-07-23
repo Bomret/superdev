@@ -36,6 +36,17 @@ and every per-slice `acceptance` as **observable, user-facing behaviour**, not g
 (coverage %, line count, lint score) — a proxy count is a reviewer signal, never an agent-facing gate
 (ADR 0002).
 
+**Enumerate the failure and boundary cases, don't leave them to the implementer.** A `behavior` slice's
+`acceptance` names its **domain-level** edge cases alongside the happy path — the ones derivable from the
+interview without reading the implementation: empty or absent input, missing configuration, a duplicate,
+an authorization failure, two arriving at once, the documented failure mode of anything it depends on.
+Derive them yourself as you decompose and show them; this is not a new interview thread to walk case by
+case. Each one is stated as observable behaviour ("rejects an empty payload with a 400 and no write"),
+never as a count ("covers the edge cases"). **Implementation-level** edges — off-by-one, parser
+boundaries, encoding — are *not* yours: they belong to the implementer's TDD loop and the reviewers, who
+read code you never see. Naming them here would turn `acceptance` into a test script, against the
+plan-contract's **Negotiable** rule.
+
 Intent still vague — no clear problem, no checkable success criteria? Suggest `/superdev:brainstorm`
 first to explore the space before pinning it down here.
 

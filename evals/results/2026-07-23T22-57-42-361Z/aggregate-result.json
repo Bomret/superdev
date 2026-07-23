@@ -1,0 +1,73 @@
+{
+  "schema_version": "1.0",
+  "claude_version": "2.1.216",
+  "started_at": "2026-07-23T22:57:42.361Z",
+  "duration_seconds": 6,
+  "cost_usd": 0.002808,
+  "partial": false,
+  "plugins": [
+    {
+      "name": "worktree",
+      "path": "/Users/stefan/Development/agents/superdev/.superdev/scopes/test-quality/worktree"
+    }
+  ],
+  "cases": [
+    {
+      "name": "plan-basic-feature",
+      "dir": "evals/plan-basic-feature",
+      "source": "mixed",
+      "score": 0,
+      "pass_rate": 0,
+      "runs": [
+        {
+          "score": 0,
+          "turns": 1,
+          "cost_usd": 0.002808,
+          "judge_cost_usd": 0.002808,
+          "graders": [
+            {
+              "name": "acceptance-names-failure-case",
+              "passed": false,
+              "weight": 2,
+              "explanation": "judge votes: FAIL FAIL FAIL",
+              "judge_votes": [
+                false,
+                false,
+                false
+              ],
+              "evidence": "(no file changes)"
+            },
+            {
+              "name": "at-least-two-slices",
+              "passed": false,
+              "weight": 1,
+              "explanation": "pattern not found in files"
+            },
+            {
+              "name": "depends-on-ids-valid",
+              "passed": false,
+              "weight": 2,
+              "explanation": "judge votes: FAIL FAIL FAIL",
+              "judge_votes": [
+                false,
+                false,
+                false
+              ],
+              "evidence": "(no file changes)"
+            },
+            {
+              "name": "epic-has-dod",
+              "passed": false,
+              "weight": 1,
+              "explanation": "pattern not found in files"
+            }
+          ],
+          "trace_path": "/private/tmp/claude-eval-4zdkGg/out/trace.jsonl",
+          "error": "exit 1: (no stderr)",
+          "started_at": "2026-07-23T22:57:42.365Z",
+          "duration_seconds": 6
+        }
+      ]
+    }
+  ]
+}

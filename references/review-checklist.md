@@ -27,6 +27,13 @@ classes beat a generic "check code quality" / "check security."
 - **Weakened net** — a diff that edits, deletes, or skips a *pre-existing* test to get the suite green.
   The existing suite is the safety net; a change that must loosen it is hiding a regression, not fixing
   one.
+- **Tautological test** — an assertion that recomputes the expected value the way the code does (e.g.
+  `expect(add(a,b)).toBe(a+b)`), so it passes by construction and would keep passing if the code were
+  wrong. The expected value must come from an independent source of truth — a literal, a worked example,
+  the specification.
+- **Happy-path-only suite** — new behaviour whose tests exercise only the success path, with no assertion
+  for the failure and boundary cases named in its acceptance criteria. Name the specific uncovered case,
+  not a vague "add more tests."
 - **Justified workaround** — if it takes a paragraph-long comment to justify why a workaround is OK, the
   code is wrong — fix the code. Stubbing a function out to silence a compile/test failure is the same
   smell.

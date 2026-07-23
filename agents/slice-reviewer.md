@@ -65,10 +65,9 @@ lenses below — name the specific smell/class rather than a vague "code quality
 - **Read the actual produced artifact** — the generated file, the wire output, the rendered result —
   against intent. Tests can pass while the artifact is wrong.
 - **Adversarially name an input the existing fixtures don't cover** and reason about whether the code
-  handles it. Report the gap as a concrete missing case, not a vague "add more tests."
-- **Tautological tests**: does any assertion recompute the expected value the way the code does (e.g.
-  `expect(add(a,b)).toBe(a+b)`), so it passes by construction? The expected value must come from an
-  independent source of truth — a literal, a worked example, the specification — not the same computation.
+  handles it — the checklist's *happy-path-only suite* smell. Then read every assertion that *does* exist
+  against its *tautological test* smell: a case with a test can still be a case with no coverage. Feed
+  every gap you find into the output section below.
 
 ## Output
 

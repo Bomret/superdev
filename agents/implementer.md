@@ -35,6 +35,10 @@ GREEN: write the minimal code to pass it → watch it pass
 ```
 
 - One test at a time; only enough code to pass the current test; don't anticipate future tests.
+- **Every acceptance criterion gets at least one increment.** The loop terminates on acceptance coverage,
+  not on the specification's happy path — each criterion, including the failure and boundary cases the
+  criteria name, is the RED test of its own increment. This governs when you stop, not how many tests you
+  write at once: one test at a time still holds.
 - Test **behavior through the interface named in the slice specification**, not implementation details. A good
   test survives an internal refactor. If renaming an internal function breaks a test, that test was
   wrong.

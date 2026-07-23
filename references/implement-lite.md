@@ -34,6 +34,9 @@ PR).
   `.superdev/scopes/<scope>/worktree/`**. All file edits, test runs, `git` commands, and commits happen **in the
   scope worktree as the cwd** — never in the invoking checkout. `mechanical` / `docs` slices need no new
   test — the existing suite is the net.
+- **Every acceptance criterion gets at least one increment.** On a `behavior` slice the loop terminates on
+  acceptance coverage, not on the specification's happy path — each criterion, including the failure and
+  boundary cases the criteria name, is the RED test of its own increment.
 - **Carry the implementer's escalation discipline.** If you can't get a slice green after reasonable
   effort, treat it as the Invariants' BLOCKED / 3-strike case — it's a **wrong cut**, not something to
   force through. Move the slice → `blocked` and escalate (re-slice or hand to the human) rather than

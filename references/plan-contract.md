@@ -13,7 +13,7 @@ reads it. It is backend-agnostic: the local-file rendering is shown below; issue
 | `depends-on` | List of slice `id`s that must merge before this slice can start. Empty = root. | `/implement` DAG |
 | `test-applicability` | `behavior` \| `mechanical` \| `docs`. Drives the warrant gates (see below). | `/implement` |
 | `spec` | What this slice delivers end-to-end — the implementer's requirements. Describe behavior and name the specific interface (a function signature, an API endpoint, a CLI command) its tests exercise — not file paths. | `implementer` |
-| `acceptance` | Checkable criteria for THIS slice. | `slice-reviewer` |
+| `acceptance` | Checkable criteria for THIS slice. On a `behavior` slice these name the domain-level failure and boundary cases too — those derivable from the interview without reading the implementation — not just the happy path. Implementation-level edges stay with the implementer and the reviewers, who read code the planner never sees. `commands/plan.md` holds the split with examples. | `slice-reviewer`, `implementer` |
 | `status` | Canonical lifecycle `todo` → `in-progress` → `in-review` → `merged` (= done), plus `blocked`. Backends map these onto their real statuses; the ledger is authoritative during a run. | `/implement`, store |
 
 Plus one **global Definition of Done** block: the acceptance criteria for the whole feature. Anchors
