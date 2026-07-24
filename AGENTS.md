@@ -43,8 +43,9 @@ scripts/               — standalone drift-assertion checks wired into `bun run
                          `drift-check.js`, asserting every referenced `references/*.md` path exists and
                          that the execution/controller docs address run-root artifacts by absolute
                          `<run-root>/…` path, never a checkout-relative `.superdev/scopes/<scope>/…` one)
-evals/                 — `claude plugin eval` cases (*/case.yaml + graders/*.md); currently one case,
-                         `evals/plan-basic-feature/`, exercising `/plan`
+evals/                 — `claude plugin eval` cases (*/case.yaml + graders/*.md + the case's
+                         scaffold_script, a path relative to the case dir — never an inline block);
+                         currently one case, `evals/plan-basic-feature/`, exercising `/plan`
 release.config.cjs     — semantic-release config (semantic-release-replace-plugin bumps plugin.json)
 package.json           — dev-only tooling (Bun); NOT published to npm
 CHANGELOG.md           — release-managed by semantic-release; do not hand-edit
@@ -104,9 +105,15 @@ conversation's SessionStart preamble. Track upstream with the Claude Code team.
 ```
 bun install                        # install dev deps (release toolchain)
 bun run test                       # hook selftests + plugin manifest validation
-bun run eval                       # run the evals/ cases against the commands
+bun run eval                       # run the evals/ cases against the commands (needs the two vars below)
 GITEA_TOKEN=<token> bun run release  # cut a release from clean main (see RELEASING.md)
 ```
+
+**`bun run eval` needs two environment variables.** `claude plugin eval` is early-access, gated on the
+`tengu_walnut_spire` flag — `CLAUDE_CODE_WALNUT_SPIRE=1` opens it locally. It also needs
+`ANTHROPIC_API_KEY`: the harness runs each case in a sandbox with a throwaway `HOME`, and strips
+`CLAUDE_CODE_OAUTH_TOKEN` from the child environment, so a subscription-only login authenticates as
+`Not logged in` and every grader scores 0 against an empty workspace. An API key survives the strip.
 
 # DOX framework
 
