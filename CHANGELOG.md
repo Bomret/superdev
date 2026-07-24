@@ -1,3 +1,15 @@
+# [0.22.0](https://codeberg.org/bomret/superdev/compare/v0.21.0...v0.22.0) (2026-07-24)
+
+
+### Bug Fixes
+
+* **implement:** address run-root artifacts by absolute path ([#85](https://codeberg.org/bomret/superdev/issues/85)) ([f7d700a](https://codeberg.org/bomret/superdev/commit/f7d700a5f8b523693af5c94520d8e1b9250c72ae)), closes [#84](https://codeberg.org/bomret/superdev/issues/84)
+
+
+### Features
+
+* enumerate domain-level edge cases at plan time and share the test smells ([#90](https://codeberg.org/bomret/superdev/issues/90)) ([8feb817](https://codeberg.org/bomret/superdev/commit/8feb817377fb249d2dd49d05fc65aa65fb65a5b5)), closes [#87](https://codeberg.org/bomret/superdev/issues/87) [#88](https://codeberg.org/bomret/superdev/issues/88)
+
 # [0.21.0](https://codeberg.org/bomret/superdev/compare/v0.20.0...v0.21.0) (2026-07-22)
 
 
