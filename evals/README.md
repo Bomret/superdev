@@ -1,0 +1,69 @@
+# evals — does superdev beat plain plan-then-build?
+
+Every case here is one arm of a single question: **on the same task, in the
+same repo, does the plugin produce a better plan, better code, and truer docs
+than Claude Code with no plugin at all?**
+
+`claude plugin eval --ablation with-without` runs each case twice — once with
+the plugin loaded, once without — and reports the per-grader delta. The
+baseline arm is the control: same prompt, same scaffold, same graders, no
+superdev.
+
+## Running it
+
+```sh
+bun run eval        # all cases, both arms — includes the expensive implement case
+bun run eval:plan   # the two plan cases only, both arms — cheap iteration
+```
+
+Both need `CLAUDE_CODE_WALNUT_SPIRE=1` (the eval command is early-access) and
+`ANTHROPIC_API_KEY`. The harness runs each case in a sandbox with a throwaway
+`HOME` and strips `CLAUDE_CODE_OAUTH_TOKEN` from the child environment, so a
+subscription-only login authenticates as `Not logged in` and every grader
+scores 0 against an empty workspace. An API key survives the strip.
+
+Useful flags: `--runs 1` to cut cost while iterating, `--report out.html` for a
+readable side-by-side, `--keep-temp` to inspect (or re-run `npm test` in) the
+scaffold dirs afterwards, `--max-cost-usd` for a hard ceiling.
+
+The target is `.` — the working tree, not the installed 0.x release. Point it
+at `superdev@superdev` to score the released plugin instead.
+
+## The cases
+
+| Case | What it costs | What it isolates |
+|------|---------------|------------------|
+| `ab-plan-edge-case` | cheap, plan only | Does the plan enumerate the failure cases the intent never names — missing widget, unreachable datastore — as acceptance criteria a test could check? |
+| `ab-plan-multi-slice` | cheap, plan only | Is a five-operation feature cut into vertical slices with an explicit dependency order, or into horizontal layers? |
+| `ab-implement-lite` | expensive, full build | Shipped code, tests, and docs in a runnable repo: are the two unnamed failure cases handled, are they tested, does the README stay true, is the suite honestly green, and is the diff proportionate? |
+
+## Reading a result honestly
+
+- **The graders are format-agnostic on purpose.** None of them require a
+  `NN-behavior-*.md` slice file or any other superdev shape — they judge the
+  plan or the code wherever it lands and in whatever format. A grader that
+  rewards the plugin's file naming would measure compliance, not quality.
+- **Every grader scores `both` arms.** A `with-only` grader would inflate the
+  plugin arm's total and turn the delta into noise.
+- **The scaffold is biased toward the baseline.** `docs/agents/` states the
+  repo's conventions — slice-file layout, verification command, documentation
+  rule — and the no-plugin arm reads them as ordinary repo docs. That hands the
+  control arm hints it would not have in a bare repo. Deliberate: a delta that
+  survives a generous baseline is a real delta.
+- **The prompts name no slash command.** The plugin arm has to reach for its
+  own workflow the way a real user's prompt would, so discoverability is part
+  of what is being measured.
+- **One run is an anecdote.** Cases default to `runs: 3`; a per-grader delta
+  smaller than the spread across those runs is not a result.
+- **`ab-implement-lite` runs the `lite` tier** (≤3 slices). The `full` tier's
+  parallel worktrees and independent reviewer subagents are not covered by any
+  case here — that is the largest unmeasured claim the plugin makes.
+
+## Adding a case
+
+A case is `case.yaml` + `graders/*.md`, plus a `scaffold_script` path relative
+to the case directory (never an inline block). Graders are frontmatter +
+criteria prose: `type: regex` (free, deterministic — prefer it when the check
+is mechanical), `type: llm`, `type: file_exists`. `focus`/`target` is `files`
+(the diff), `trace` (the whole transcript), `last_message`, or a specific
+file. Keep new graders arm-neutral for the same reason the existing ones are.

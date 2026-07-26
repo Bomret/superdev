@@ -1,0 +1,40 @@
+schema_version: "1.0"
+name: ab-plan-edge-case
+description: >-
+  A/B arm: planning a feature whose failure modes are left unstated. Measures
+  whether the plan enumerates the domain-level failure and boundary cases the
+  intent never names — with the plugin vs. plain plan-then-build.
+tags:
+  - ab
+  - plan
+
+context:
+  scaffold_script: scaffold.sh
+
+execution:
+  # Deliberately workflow-neutral: it names no slash command, so the plugin arm
+  # has to reach for its own workflow the same way a real user's prompt would.
+  prompt: |
+    Plan this feature for the repo you are in. Use whatever planning workflow
+    this environment offers you. This run is non-interactive: answer every
+    question you would have asked me yourself, state each assumption inline,
+    and never wait for a reply or for approval.
+
+    Feature: `GET /widgets/:id` returns the widget as JSON. The handler reads
+    the widget from the datastore (`src/store.js`) on every request.
+    Definition of Done: a request for a widget that exists returns 200 with
+    that widget's JSON body, verified by a test.
+
+    Write the finished plan to files under `docs/plans/<feature-slug>/`
+    following this repo's conventions in `docs/agents/`. Do not implement it.
+  max_turns: 40
+  timeout_seconds: 900
+  allowed_tools:
+    - Read
+    - Write
+    - Edit
+    - Glob
+    - Grep
+    - Bash
+
+runs: 3

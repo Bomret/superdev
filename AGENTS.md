@@ -45,7 +45,7 @@ scripts/               — standalone drift-assertion checks wired into `bun run
                          `<run-root>/…` path, never a checkout-relative `.superdev/scopes/<scope>/…` one)
 evals/                 — `claude plugin eval` cases (*/case.yaml + graders/*.md + the case's
                          scaffold_script, a path relative to the case dir — never an inline block);
-                         currently one case, `evals/plan-basic-feature/`, exercising `/plan`
+                         every case is one arm of the with/without-plugin A/B — see `evals/README.md`
 release.config.cjs     — semantic-release config (semantic-release-replace-plugin bumps plugin.json)
 package.json           — dev-only tooling (Bun); NOT published to npm
 CHANGELOG.md           — release-managed by semantic-release; do not hand-edit
@@ -105,7 +105,8 @@ conversation's SessionStart preamble. Track upstream with the Claude Code team.
 ```
 bun install                        # install dev deps (release toolchain)
 bun run test                       # hook selftests + plugin manifest validation
-bun run eval                       # run the evals/ cases against the commands (needs the two vars below)
+bun run eval                       # the with/without-plugin A/B over evals/ (needs the two vars below)
+bun run eval:plan                  # the two cheap plan-only arms of that A/B
 GITEA_TOKEN=<token> bun run release  # cut a release from clean main (see RELEASING.md)
 ```
 
@@ -226,4 +227,5 @@ This root owns every subtree directly:
   vuln-classes).
 - `docs/adr/` — architecture decision records. `docs/agents/` — this repo's own dogfooded backend config.
 - `.claude-plugin/` — manifests. Governed by **Working rules → Version lives only in `plugin.json`**.
-- `CONTEXT.md` — the domain glossary. `evals/` — `claude plugin eval` cases.
+- `CONTEXT.md` — the domain glossary. `evals/` — the with/without-plugin A/B (`evals/README.md` owns
+  its grader-neutrality and result-reading rules).

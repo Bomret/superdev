@@ -1,0 +1,40 @@
+schema_version: "1.0"
+name: ab-plan-multi-slice
+description: >-
+  A/B arm: planning a feature too big for one slice. Measures whether the work
+  is cut into independently-shippable vertical slices with an explicit
+  dependency order — with the plugin vs. plain plan-then-build.
+tags:
+  - ab
+  - plan
+
+context:
+  scaffold_script: scaffold.sh
+
+execution:
+  prompt: |
+    Plan this feature for the repo you are in. Use whatever planning workflow
+    this environment offers you. This run is non-interactive: answer every
+    question you would have asked me yourself, state each assumption inline,
+    and never wait for a reply or for approval.
+
+    Feature: widget CRUD over HTTP, backed by the datastore in `src/store.js`.
+    Callers can create a widget, read one by id, list them page by page,
+    update one, and delete one. Writes go through an API key in the
+    `X-Api-Key` header; reads are public. Definition of Done: each of the five
+    operations behaves as described, verified by tests, and an unauthenticated
+    write is rejected.
+
+    Write the finished plan to files under `docs/plans/<feature-slug>/`
+    following this repo's conventions in `docs/agents/`. Do not implement it.
+  max_turns: 60
+  timeout_seconds: 1200
+  allowed_tools:
+    - Read
+    - Write
+    - Edit
+    - Glob
+    - Grep
+    - Bash
+
+runs: 3
