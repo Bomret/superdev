@@ -27,6 +27,12 @@ Slices live as Codeberg issues — one slice = one issue — in `bomret/superdev
 - **Parked questions** (optional) ↔ a `## Parked questions` section in the epic issue body, same
   body-text pattern as `acceptance`. Epic-only — no equivalent on a single-slice feature's lone issue.
   Advisory only: `/implement` never reads it.
+- **Non-goals** (optional) ↔ a `## Non-goals` section in the epic issue body, same body-text pattern as
+  **Parked questions** above. Epic-only — no equivalent on a single-slice feature's lone issue. Advisory
+  only: `/implement` never reads it.
+- **Epic visuals** (optional) ↔ `## Slice graph` and `## Touch map` sections in the epic issue body.
+  Codeberg renders mermaid in issue bodies, so the slice graph draws itself in the epic issue. Epic-only
+  and advisory, same as parked questions; `plan-contract.md` owns when each is written.
 - `status` ↔ open/closed + a status label (see the status map below).
 
 ## REST conventions

@@ -31,7 +31,9 @@ agents/                — subagents (*.md): implementer, slice-reviewer, simpli
                          doc-writer, doc-reader
 hooks/                 — deterministic Node hooks + hooks.json: merge-guard, model-explicit, green-gate,
                          run-lock, worktree-sweep, scope-prune, update-check
-references/            — backend seed templates + plan-contract + documentation convention +
+references/            — backend seed templates + plan-contract (slice schema/lifecycle, incl. the
+                         optional epic sections: parked questions, non-goals, and the epic-visuals gate
+                         for `## Slice graph`/`## Touch map`) + documentation convention +
                          execution playbooks (implement-full/lite, read at runtime by /implement) +
                          authoring disciplines (cross-examination, domain-modeling, doc-verification;
                          read at runtime by /plan + /brainstorm, doc-verification also by implementer) +
@@ -214,7 +216,8 @@ This root owns every subtree directly:
   `agents/implementer.md`/`slice-reviewer.md`/`simplicity-reviewer.md` address run-root artifacts by
   absolute `<run-root>/…` path), the other executable code alongside `hooks/`. Follows the same
   `--selftest` convention.
-- `references/` — backend seed templates + `plan-contract.md` (slice schema/lifecycle) + `documentation.md`
+- `references/` — backend seed templates + `plan-contract.md` (slice schema/lifecycle, incl. the
+  optional epic sections and the epic-visuals gate for `## Slice graph`/`## Touch map`) + `documentation.md`
   + **execution playbooks** (`implement-full.md` / `implement-lite.md`): the tier-specific linear procedures
   `/implement` reads at runtime once it computes the tier (non-seed refs, like `plan-contract.md`)
   + **authoring disciplines** (`cross-exam.md` / `domain-modeling.md` / `doc-verification.md`): the

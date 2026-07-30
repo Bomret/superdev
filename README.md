@@ -35,11 +35,14 @@ store + code host.
 
 - **`/superdev:brainstorm`** — *(optional)* a divergent discovery conversation that shapes a vague idea
   into a plan-ready intent: explores candidate directions, finds the smallest end-to-end slice worth
-  building, surfaces open questions, then hands off to `/superdev:plan`. Near read-only — writes nothing
-  to the slice store.
+  building, surfaces open questions and rejected directions, then hands off to `/superdev:plan`, which
+  routes each rejected direction to a durable home. Near read-only — writes nothing to the slice store.
 - **`/superdev:plan`** — a relentless interview pins intent and a Definition of Done, captures ADRs +
   a glossary as decisions surface, then decomposes the work into **independently-green vertical
-  tracer-bullet slices** with explicit `depends-on` dependencies, written to the configured store. Tells
+  tracer-bullet slices** with explicit `depends-on` dependencies, written to the configured store. On an
+  epic whose shape earns it, also draws a `## Slice graph` (the `depends-on` DAG) and/or a `## Touch map`
+  (parallel-slice file collisions) — both markdown, both advisory, gated per
+  [`references/plan-contract.md`](references/plan-contract.md). Tells
   you the execution tier `/superdev:implement` will use for the final slice count (see below).
 - **`/superdev:implement`** — the controller drives the slices as a **dependency-ordered DAG**, sized to
   an execution tier derived fresh from the loaded slice count, never configured or persisted:

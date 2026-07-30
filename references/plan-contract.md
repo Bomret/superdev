@@ -34,6 +34,77 @@ this way). Purely advisory — `/implement` never reads it, nothing gates on it,
 Single-slice plans carry no equivalent: an unresolved load-bearing decision there signals the plan isn't
 single-slice-simple yet, not something to park (ADR 0005).
 
+**Non-goals** (optional, epic-only). Something deliberately not being built — from the interview's own
+scoping, or routed here from a seeded intent's rejected scope (`domain-modeling.md`). Advisory, like
+parked questions: `/implement` never reads it. Single-slice plans write no epic, so a deliberate
+exclusion there is named in the lone slice's `spec` instead.
+
+## Epic visuals (optional, epic-only)
+
+Two sections `/plan` may add to the epic when the plan's shape defeats a numbered list. Both are for
+human readers of the epic; both are **advisory**, exactly like `Parked questions` — `/implement` never
+reads them, no review agent gates on them, and neither adds a lifecycle status. Visuals are markdown
+only: superdev ships no renderer and writes no HTML artifact (ADR 0009).
+
+**`## Slice graph`** — a mermaid `flowchart LR` of the plan's `depends-on` DAG, one node per slice
+labelled `<id> · <title>`, one edge per `depends-on` entry:
+
+````markdown
+## Slice graph
+
+```mermaid
+flowchart LR
+  01["01 · user schema"] --> 02["02 · auth endpoint"]
+  01 --> 03["03 · session cookie"]
+  02 --> 04["04 · logout"]
+  03 --> 04
+```
+````
+
+**`## Touch map`** — a fenced plain-text tree of the files the plan touches, naming the slices that
+touch each one and marking every file that slices **able to run in parallel** both edit. It is the
+evidence for the dependency order, not an instruction: no slice `spec` gains a file path (the `spec`
+field rule and **Negotiable** both still hold), and an implementer that touches a file the map didn't
+predict has done nothing wrong.
+
+````markdown
+## Touch map
+
+```
+src/
+  auth/
+    login.ts       ← 02
+    session.ts     ← 03
+    logout.ts      ← 04
+  db/schema.ts     ← 01
+  index.ts         ← 02, 03   ⚠ parallel, barrel export, both add a line
+```
+
+`02` and `03` are the only pair with no dependency path between them, so `index.ts` is the only
+collision — every other file is touched by one slice, or by slices the graph already orders.
+````
+
+### When to write them
+
+- **Floor.** A plan `/implement` would run at the **`lite` tier** gets neither section, ever — such a
+  plan is too small to have a shape worth drawing. The floor *is* the tier boundary; it is not a second
+  number to keep in sync.
+- Above the floor, write `## Slice graph` when the graph is **not a single chain** — some slice has ≥2
+  dependencies, or two slices have no dependency path between them. A chain of any length is a numbered
+  list, and drawing it is noise.
+- A plan above the floor with no `depends-on` anywhere still earns the graph: a diagram with no edges is
+  correct, not empty — it communicates "everything is parallel".
+- Above the floor, write `## Touch map` when slices that **can run in parallel** edit a common file.
+  With no parallel overlap the map has nothing to report; omit it.
+- The two are independent: a plan can warrant one and not the other.
+- `/plan` **states the verdict** in one line either way, so the judgment is visible and overridable —
+  "7 slices, two parallel branches colliding on `src/index.ts` — writing both sections", or "5 slices,
+  straight chain — numbered list is clearer, skipping both".
+
+Single-slice plans carry no equivalent: they write no epic at all, and they are under the floor anyway.
+A slice store that renders neither mermaid nor HTML shows the graph as a fenced code block — legible,
+unrendered; the touch map is plain text and unaffected.
+
 ## `test-applicability` → warrant gates
 
 - `behavior` — implementer does full TDD; **slice-reviewer runs** (correctness + independent
@@ -97,5 +168,9 @@ When the slice store is an issue tracker, each slice is one issue:
   skips the epic issue — the lone slice's `acceptance` checklist is the DoD.
 - **Parked questions** (optional) ↔ a `## Parked questions` section in the epic issue body. Epic-only —
   absent on single-slice features, same as the epic itself.
+- **Non-goals** (optional) ↔ a `## Non-goals` section in the epic issue body, same registration as
+  **Parked questions** above. Epic-only, advisory — `/implement` never reads it.
+- **Epic visuals** (optional) ↔ `## Slice graph` and `## Touch map` sections in the epic issue body,
+  same body-text pattern. Epic-only, advisory, and written only when *When to write them* above says so.
 
 The exact commands and vocabulary live in the active `docs/agents/issue-tracker.md`.

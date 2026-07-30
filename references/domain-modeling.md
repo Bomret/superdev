@@ -37,6 +37,33 @@ trade-off** (there were genuine alternatives). Any one missing → skip it. An A
 sentences (context, decision, why); add Status / Considered Options / Consequences only when they earn
 their place. Number by scanning `docs/adr/` for the highest existing number + 1.
 
+**Draw the structure when prose can't hold it.** An ADR deciding how components relate carries a mermaid
+diagram alongside its prose when the relations are non-trivial — roughly three or more components, or any
+edge a sentence can't state plainly. One component, or a relation prose already makes obvious, gets no
+diagram. An ADR is a point-in-time record, so its diagram documents what was decided and never goes stale
+the way a live architecture picture would. Every node must be a component the prose also names.
+
+### Rejected directions → an ADR's `Considered options`, or the epic's non-goals
+
+A direction explored and dropped is worth keeping only where a future reader will look for it. When
+`/plan` seeds from a brainstorm intent carrying **Rejected directions** (`brainstorm.md` §5), route each
+one — don't re-explore it, and don't drop it silently:
+
+- a rejected **approach** (a design trade-off, an alternative mechanism) → the relevant ADR's
+  `Considered options`, one line each: the option and why it lost — one of several sources that can earn
+  that optional section, alongside genuine alternatives surfaced directly in the interview;
+- a rejected **scope** (a thing deliberately not being built) → a non-goal in the epic body. A
+  single-slice plan writes no epic, so there is nowhere to put one: name it in the lone slice's `spec` as
+  deliberately excluded — a `spec` bounds what the slice delivers, and saying what it doesn't is part of
+  that. A rejected **approach** needs no carve-out; its ADR exists whether or not the plan has an epic.
+
+Forward only what passes the ADR's own **surprising without context** test — what a reader would
+plausibly re-propose. Filter the rest, and say so rather than letting it vanish unremarked. Nothing
+surviving the filter means the rejects contribute nothing to `Considered options` or the epic's non-goals
+**on their own account** — it doesn't suppress content those sections earn from elsewhere (an ADR's own
+alternatives surfaced in the interview, the intent's "Rough scope + non-goals" bullet). Write no section
+only when no source, rejects included, has anything for it; an empty one is worse than none.
+
 ### Revise in place
 
 When a later answer overturns a decision you already recorded, revise it where it lives — update the

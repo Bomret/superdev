@@ -44,7 +44,7 @@ _Avoid: "log", "report", "transcript" (logs are broader; this is slice-specific 
 **Warrant** — the justification a piece of work carries; scales both cost (which model a dispatch uses) and rigor (which review gates run). Derived from a slice's test-applicability + complexity, never a plan field. A `behavior` slice warrants more than a `mechanical` one; a hook blocks any dispatch that omits an explicit model so cost stays warrant-scaled.
 _Avoid: "priority", "estimate", "weight"_
 
-**Intent** — a rough idea sharpened into something plan-ready: the problem, a few candidate directions, the MLP, and the open questions. Output of `/brainstorm`, input to `/plan`.
+**Intent** — a rough idea sharpened into something plan-ready: the problem, a few candidate directions, the MLP, the open questions, and the rejected directions. Output of `/brainstorm`, input to `/plan`.
 _Avoid: "idea", "requirements", "specification"_
 
 **Minimal Lovable Product (MLP)** — the smallest end-to-end version of the chosen direction that delivers real value: a complete (if narrow) path through the system a user could actually use, not a fragment of the final thing. Found in `/brainstorm` step 3, carried into `Intent`'s rough scope.
@@ -61,6 +61,9 @@ _Avoid: "the DAG" (that's the dependency structure itself, which exists whether 
 
 **Touch map** — the epic's `## Touch map` section: a plain-text file tree marking which slices touch which files, and where slices that run in parallel collide. Evidence for the dependency order, not an instruction — no slice `spec` names file paths, and no reviewer gates on it.
 _Avoid: "file map" (too generic — the collisions are the point), "impact analysis"_
+
+**Rejected direction** — a direction a brainstorm explored and dropped, carried in the `Intent` with the reason it lost. `/plan` routes each one to a durable home — a dropped approach to an ADR's `Considered options`, dropped scope to the epic's non-goals — so it can't be re-proposed cold later.
+_Avoid: "non-goal" (that's the destination for a rejected scope, not the record of why), "alternative"_
 
 ## Acceptance / verification
 

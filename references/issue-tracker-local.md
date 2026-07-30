@@ -42,11 +42,28 @@ Epic file `00-epic-<summary>.md`:
 
 ## Parked questions
 - <question> — <why it's open / what would resolve it>
+
+## Non-goals
+- <thing deliberately not being built> — <why>
+
+## Slice graph
+<mermaid flowchart LR of the depends-on DAG>
+
+## Touch map
+<fenced file tree: which slices touch which files, collisions marked>
 ```
 
 `## Parked questions` is optional — omit the section entirely when nothing's been parked. Advisory
 only: `/implement` never reads it. Single-slice features have no epic file, so no equivalent section —
 see `plan-contract.md`.
+
+`## Non-goals` is optional too — omit the section entirely when nothing was deliberately dropped from
+scope. Advisory only: `/implement` never reads it. Single-slice features have no epic file, so no
+equivalent section — see `plan-contract.md`.
+
+`## Slice graph` and `## Touch map` are optional too, and independent of each other — `plan-contract.md`'s
+*Epic visuals* section owns their shape and the rule for when each is written. Advisory, same as parked
+questions: `/implement` never reads them.
 
 Each slice file `NN-<test-applicability>-<summary>.md`:
 
@@ -68,10 +85,11 @@ status: todo
 ## When `/superdev:plan` says "write slices to the store"
 
 Create `docs/plans/<feature-slug>/`. **≥2 slices** — write `00-epic-<summary>.md` (the global DoD +
-description, plus `## Parked questions` if any decision was parked during the interview), then one
+description, plus whichever optional sections earn their place — `## Parked questions`, `## Non-goals`,
+`## Slice graph`, `## Touch map`, per the rules above and `plan-contract.md`), then one
 `NN-<test-applicability>-<summary>.md` per slice with `depends-on`, `status: todo`, `spec`, `acceptance`.
 **Exactly one slice** — skip `00-epic-…`; write only `01-<test-applicability>-<summary>.md`, folding the
-global DoD into its `acceptance` (no parked questions on a single-slice plan — see `plan-contract.md`).
+global DoD into its `acceptance` (no epic-only sections on a single-slice plan — see `plan-contract.md`).
 
 ## When `/superdev:implement` says "load slices from the store"
 

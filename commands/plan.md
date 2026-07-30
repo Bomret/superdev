@@ -25,6 +25,10 @@ git-ignored scratch intents `/superdev:brainstorm` may have left. If exactly one
 fresh; if none, interview from scratch. Never auto-select — the user names which idea they're planning.
 A picked intent is a *starting point* for the interview, not a substitute for it.
 
+An intent carrying **Rejected directions** hands you ground already covered: treat those as settled
+rather than re-opening them, unless something in the interview genuinely overturns one. They are also the
+only record of *why* — §2 routes each one to a durable home before this plan ends.
+
 **Read `${CLAUDE_PLUGIN_ROOT}/references/cross-exam.md` and run the interview by it.** This is the **main
 event** of `/plan`, not a quick step before the real work of slicing — walk the whole design tree, one
 recommended-answer question at a time, exploring the code instead of asking wherever you can, until the
@@ -61,7 +65,12 @@ existing `CONTEXT.md` first — it's this project's canonical language. Then run
 terms against the glossary, sharpen fuzzy language, probe boundaries with concrete scenarios, cross-check
 claims against the code and surface contradictions, and **capture the glossary + ADRs the moment they
 crystallise — never batch**. That reference owns the `CONTEXT.md` and ADR formats, the three-part test for
-when an ADR is warranted, and the revise-in-place rule.
+when an ADR is warranted, the component-diagram rule for structural ADRs, the routing of a seeded intent's
+**Rejected directions**, and the revise-in-place rule.
+
+**Route the seeded rejects before this plan ends.** Every rejected direction §1 carried in lands where the
+reference says — an ADR's `Considered options` for a dropped approach, the epic's non-goals for dropped
+scope — or is filtered out loud as not worth recording. None of them silently disappears.
 
 Two captures are **superdev-specific** — the reference doesn't cover them:
 
@@ -129,11 +138,19 @@ serially — if they **edit the same file** (e.g. both add an export to one barr
 run sequentially, or (b) keep them parallel but call it out in the plan so the controller expects the
 conflict. Prefer restructuring so parallel slices touch disjoint files.
 
+**Note the files as you go.** Spotting that warning already means knowing which slice touches what —
+§3's "map the file structure first" step produced it. Keep that list; §6 writes the epic's `## Touch map`
+from it, and the collisions you found here are exactly what the map marks. It never reaches a slice
+`spec` (a `spec` names an interface, never file paths).
+
 ## 5. Quiz the user
 
 Present the breakdown as a numbered list: per slice show title, `depends-on`, and which DoD criteria it
 covers. Ask: is the granularity right? are the dependencies correct? should any slice split or merge?
 Iterate until they approve.
+
+When the plan earns a `## Slice graph` (plan-contract.md's *Epic visuals* → *When to write them*), show
+it here too — reviewing the drawn graph is how a wrong dependency gets caught before it's written.
 
 ## 6. Write to the store
 
@@ -145,6 +162,14 @@ plan files or as issues.
   slice's `acceptance` and write only the slice. No `00-epic-…` file / no epic issue.
 - **Two or more slices** — write the global DoD (epic) plus each slice, as today.
 
+**Add the epic visuals the plan earned.** Apply plan-contract.md's *Epic visuals* → *When to write them*
+and write `## Slice graph` and/or `## Touch map` into the epic body (the touch map from the file list you
+kept in §4). Then **say which you wrote and why, in one line**, in the verdict format plan-contract.md's
+*Epic visuals* section shows. Stating the verdict is what keeps the judgment honest and lets the user
+override it in a word. Don't let the drawing shape the decomposition: the slices were settled in §5, and a
+plan is never re-cut to make a nicer diagram — but a genuine dependency error the drawing exposes (§5) is
+worth fixing before writing it; that's correction, not re-cutting for looks.
+
 **Write with max parallelism (issue-backend stores).** Writes have a strict ordering only where one
 record references another — otherwise issue them concurrently, don't serialize. Order: **(1)** create the
 epic first (slices reference its key); **(2)** create **all slice issues in parallel** — a single batch of
@@ -154,11 +179,13 @@ parallel**. Steps 2 and 3 each fan out at once rather than one issue at a time. 
 correct because every slice exists before any reference is written. (A local-file store just writes the
 files; there's no API latency to batch.)
 
-**Delete the seeded brainstorm intent.** If this plan started from a `.superdev/brainstorm/<slug>.md`
-file (§1), delete it now that its intent is durably captured in the slice store — it has served its
-purpose, and a leftover scratch intent only re-surfaces as a stale option in the next `/plan` glob.
-Delete only the file the user actually picked; leave any other brainstorm intents untouched. (Nothing
-downstream reads it — `/superdev:implement` works from the slice store.)
+**Delete the seeded brainstorm intent.** If this plan started from a `.superdev/brainstorm/<slug>.md` file
+(§1), delete it now that its intent is durably captured in the slice store — it has served its purpose,
+and a leftover scratch intent only re-surfaces as a stale option in the next `/plan` glob. Delete it only
+once every `Rejected direction` it carried has a durable home (§2) or was filtered out loud — never
+before; this delete is irreversible and is exactly the silent-drop it exists to prevent. Delete only the
+file the user actually picked; leave any other brainstorm intents untouched. (Nothing downstream reads it
+— `/superdev:implement` works from the slice store.)
 
 **Tell the user the expected execution tier.** `/superdev:implement` derives it fresh from the final
 slice count — **≤3 slices → `lite`** (the controller implements each slice inline in a single scope
