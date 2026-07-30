@@ -54,8 +54,9 @@ If it reports findings, re-dispatch **`superdev:doc-writer`** (as in §3) with t
 **One fix round** — don't loop the reader; unresolved findings go in the report instead.
 
 The reader returns its findings **most-severe-first** (false claims, then incomplete ones, then style), so
-hand them over in that order and let the round work **down from the top**. With a single round, anything it
-can't reach is then the least costly finding rather than an arbitrary one.
+hand them over in that order and **tell the writer the order is a priority** — the `doc-writer` has no
+fix-round section of its own, so say it. With a single round, anything it can't reach is then the least
+costly finding rather than an arbitrary one.
 
 ## 5. Report
 
