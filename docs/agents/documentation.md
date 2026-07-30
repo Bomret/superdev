@@ -19,6 +19,29 @@ superdev usage: `/superdev:plan` records ADRs (`docs/adr/`), the glossary (`CONT
 rules (`.claude/rules/`) in their conventional locations; `/superdev:document` reconciles the `AGENTS.md`
 tree + `README.md` with the code at the end of every `/superdev:implement` and on demand.
 
+## Writing standard
+
+**Standard:** `controlled`
+
+The doc agents write prose to `${CLAUDE_PLUGIN_ROOT}/references/controlled-prose.md` (ADR 0012). It binds
+only the prose an agent writes or rewrites, so untouched text is never reformatted.
+
+`README.md`'s hero and before/after section is voiced prose and is exempt by the standard's own scope
+rule. The reference material below it is not exempt.
+
+### Declare per language
+
+- **Spelling:** American English.
+- **Compound formation:** hyphenate a multi-word modifier before the noun it modifies (`test-first
+  discipline`, `read-only reviewer`). Leave it open elsewhere.
+- **Numbers and dates:** numerals from 10 up, words below. Dates as `YYYY-MM-DD`.
+- **Quotation marks:** straight double quotes. Interface text, paths, and identifiers take backticks
+  instead of quotes.
+- **Case and possessive forms:** the possessive of a singular noun takes `'s` (`hook's`). The possessive
+  of a plural noun ending in `s` takes `s'` (`hooks'`).
+
+Untranslated terms do not arise in an English repo, so this repo leaves that one unanswered.
+
 ## Audit set
 
 `/superdev:document audit` reads these in addition to the default tree (`AGENTS.md` + `README.md` +

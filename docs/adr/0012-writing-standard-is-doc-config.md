@@ -54,7 +54,7 @@ single-language standard would be inapplicable in a configuration superdev expli
   unreviewable diff.
 
 **Consequences.** `doc-reader`'s dispatch is deliberately starved of history so it reads cold, but a
-changed-text-only rule needs a diff. The controller therefore passes the writer's commit sha, and
+changed-text-only rule needs a diff. The controller therefore passes the writer's commit range, and
 `doc-reader` diffs for the **style lens only** — claim verification stays cold. `/superdev:document audit`
 has no preceding writer, so it drops the style lens entirely rather than flag prose nobody touched. Docs
 converge on the standard as they are touched, which leaves files in a mixed style during the transition;

@@ -95,6 +95,20 @@ convention is an **`AGENTS.md` hierarchy** (walk before editing; update the affe
 meaningful changes; keep concise/current). Seed: `references/documentation.md`. Keep this convention
 unless the user has a different in-repo doc convention (then capture theirs as prose).
 
+Then ask about the **writing standard** (the prose style the doc agents apply when they write, ADR
+0012):
+
+- **`controlled`** (recommended): the language-neutral rule set shipped with the plugin
+  (`references/controlled-prose.md`). It uses active voice, a sentence-length cap, one name for one
+  thing, and no hedging or marketing adjectives, in whatever language the project's docs are written in.
+- **A repo-relative path**: the project already has an editorial style guide. The agents read it.
+- **`none`**: no standard.
+
+Record the answer as the `## Writing standard` section of `docs/agents/documentation.md`. On
+`controlled`, point the user at that file's *Declare per language* section: spelling convention,
+compound formation, and number format are the repo's to answer, and answering them later means two
+writers have already disagreed.
+
 **D — Knowledge base (optional).** Is there a **knowledge base** for durable, reader-facing docs (feature
 specifications, design overviews, ADR summaries)? Ask the user which of:
 
@@ -156,7 +170,8 @@ Write:
   write from the user's prose.
 - `docs/agents/code-management.md` — same, from the chosen host seed.
 - `docs/agents/documentation.md` — from `references/documentation.md` (or the user's in-repo doc
-  convention as prose).
+  convention as prose). Always carries the **`## Writing standard`** section with decision **C**'s
+  answer, including when the answer is `none`.
 - `docs/agents/knowledge-base.md` — from the chosen KB seed (`knowledge-base-confluence.md` /
   `knowledge-base-local.md`) filled in, or the "other" prose. For **None**, write a one-line
   `knowledge-base.md` stating there is no separate KB (or skip the file).

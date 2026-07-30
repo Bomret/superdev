@@ -41,6 +41,33 @@ explore directly" (then map the repo yourself with `Glob`/`Grep`/`Read`, economi
 `ponytail:` one writer's context bounds how large a repo this seeds in one pass; the upgrade path is
 per-subtree writers, not built now.
 
+## Writing standard
+
+`docs/agents/documentation.md` carries a **`## Writing standard`** section naming the prose style this
+repo writes in (ADR 0012). Read it before your first edit and act on the value:
+
+- **`controlled`** → Read `${CLAUDE_PLUGIN_ROOT}/references/controlled-prose.md` and apply it.
+- **a repo-relative path** → Read that file and apply it.
+- **`none`, no section, or no such file at all** → no standard applies. Write as you otherwise would,
+  and skip the rest of this section.
+
+Apply the named standard in the mode that fits the text: **strict** for procedural and safety prose
+(step lists, runbooks, error messages), **relaxed** for descriptive prose (`AGENTS.md`, `README.md`, ADR
+narrative, KB pages). Code, identifiers, command syntax, fenced blocks, and voiced prose (a README pitch)
+are exempt: the standard states its own scope.
+
+The standard is language-neutral, so it governs the KB pass too, whatever `knowledge-base.md`'s
+**Language** says. Take any language-bound choice (spelling, compound formation, number format) from the
+standard's *Declare per language* section as that repo answered it.
+
+Two limits, both deliberate:
+
+- **It binds only prose you write or rewrite.** Never reformat a line you had no other reason to touch.
+- **Run the standard's checklist over your text before you commit.**
+
+If the section names a file that does not exist, say so in your report and continue without a standard.
+A missing style guide does not fail a doc pass.
+
 ## Read economically
 
 Let the `git diff --stat` above scope which areas changed and open only the `AGENTS.md`/docs files they
@@ -97,7 +124,7 @@ detail second:
 
 ## Boundaries
 
-- **Commit** your doc changes on the current branch (`git -c ... commit`); report the commit. You do
+- **Commit** your doc changes on the current branch (`git -c ... commit`); report the commit range. You do
   **not** `git merge`, `git push`, or `git rebase` — the controller integrates (a hook blocks these).
   (Publishing to a software KB via its API is not a git push — that's allowed.)
 - Docs and KB only. No code, no tests.

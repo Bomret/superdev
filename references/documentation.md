@@ -25,6 +25,20 @@ Technical docs live in the repo as a hierarchy of `AGENTS.md` files:
   exactly one owning place. Every other doc that needs it links to the owning place instead of
   restating it — a restated fact drifts the moment the owning place changes.
 
+## Writing standard
+
+**Standard:** `<controlled | <repo-relative path> | none>`
+
+The prose style the doc agents apply (ADR 0012). One of:
+
+- `controlled`: the language-neutral rule set shipped with the plugin. The agents read
+  `${CLAUDE_PLUGIN_ROOT}/references/controlled-prose.md`.
+- a repo-relative path (for example, `docs/style-guide.md`): the agents read the project's own guide.
+- `none`: no standard. The agents write as they otherwise would.
+
+It binds only the prose an agent writes or rewrites in a dispatch. Untouched text is never reformatted,
+so docs converge on the standard as they are touched.
+
 superdev usage:
 
 - `/superdev:plan` records the glossary (`CONTEXT.md`), ADRs (`docs/adr/`), and any path-scoped rules

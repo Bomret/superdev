@@ -1,22 +1,24 @@
 # superdev
 
-A self-contained **Claude Code plugin** for the plan → implement loop: interview-driven vertical
-slicing, an execution tier sized to the plan (parallel worktree execution with isolated
-implementer/reviewer subagents for >3 slices, inline test-first implementation for ≤3), deterministic
-hook guardrails, and a pluggable slice store + code host. No prerequisite plugins.
+A self-contained **Claude Code plugin** for the plan and implement loop. It gives you interview-driven
+vertical slicing, an execution tier sized to the plan, deterministic hook guardrails, and a pluggable
+slice store plus code host. A plan of more than 3 slices runs in parallel worktrees with isolated
+implementer and reviewer subagents. A plan of 3 or fewer runs test-first and inline. No prerequisite
+plugins.
 
-## Need something? → Read this
+## Need something? Read this
 
 | Goal | Start here |
 |------|------------|
 | Understand the plugin, install, updating | [`README.md`](README.md) |
 | Cut a release | [`RELEASING.md`](RELEASING.md) |
-| Slice schema, lifecycle & status | [`references/plan-contract.md`](references/plan-contract.md) |
+| Slice schema, lifecycle and status | [`references/plan-contract.md`](references/plan-contract.md) |
 | Domain language (ubiquitous terms) | [`CONTEXT.md`](CONTEXT.md) |
-| Architecture decisions (why it's built this way) | [`docs/adr/`](docs/adr/) |
+| Architecture decisions (why it is built this way) | [`docs/adr/`](docs/adr/) |
 | In-repo documentation convention (this AGENTS.md hierarchy) | [`references/documentation.md`](references/documentation.md) |
-| Add/adjust a backend (slice store, code host, KB, verification) | seeds in [`references/`](references/) |
-| Attribution / license | [`NOTICE`](NOTICE), [`LICENSE`](LICENSE) |
+| Writing standard for docs | [`references/controlled-prose.md`](references/controlled-prose.md) |
+| Add or adjust a backend (slice store, code host, KB, verification) | seeds in [`references/`](references/) |
+| Attribution and license | [`NOTICE`](NOTICE), [`LICENSE`](LICENSE) |
 
 ## Structure
 
@@ -34,6 +36,7 @@ hooks/                 — deterministic Node hooks + hooks.json: merge-guard, m
 references/            — backend seed templates + plan-contract (slice schema/lifecycle, incl. the
                          optional epic sections: parked questions, non-goals, and the epic-visuals gate
                          for `## Slice graph`/`## Touch map`) + documentation convention +
+                         controlled-prose (the writing standard, read at runtime by the doc agents) +
                          execution playbooks (implement-full/lite, read at runtime by /implement) +
                          authoring disciplines (cross-examination, domain-modeling, doc-verification;
                          read at runtime by /plan + /brainstorm, doc-verification also by implementer) +
@@ -45,7 +48,8 @@ scripts/               — standalone drift-assertion checks wired into `bun run
                          `drift-check.js`, asserting every referenced `references/*.md` path exists,
                          that the execution/controller docs address run-root artifacts by absolute
                          `<run-root>/…` path, never a checkout-relative `.superdev/scopes/<scope>/…` one,
-                         and that every issue-backend document carries the `**Assignee` config bullet)
+                         that every issue-backend document carries the `**Assignee` config bullet,
+                         and that the documentation seed still offers a `## Writing standard` section)
 evals/                 — `claude plugin eval` cases (*/case.yaml + graders/*.md + the case's
                          scaffold_script, a path relative to the case dir — never an inline block);
                          every case is one arm of the with/without-plugin A/B — see `evals/README.md`
@@ -56,52 +60,54 @@ CONTEXT.md             — the domain-language glossary (ubiquitous terms); main
 README.md · RELEASING.md · NOTICE · LICENSE
 ```
 
-The plugin ships as markdown + JS hooks — there is **no build step**. `commands/`, `agents/`,
-`references/` are prose; `hooks/` and `scripts/` are executable (`hooks/` are Claude Code hooks;
-`scripts/` holds standalone checks like `drift-check.js`, run from `package.json`).
+The plugin ships as markdown and JS hooks. There is **no build step**. `commands/`, `agents/`, and
+`references/` are prose. `hooks/` and `scripts/` are executable: `hooks/` holds Claude Code hooks, and
+`scripts/` holds standalone checks like `drift-check.js`, which `package.json` runs.
 
 ## Stack
 
-- **Bun** — repo package manager + task runner (`bun.lock`).
-- **Node** — the hooks' runtime. `hooks.json` invokes `node`, because `node` is guaranteed in every
-  user's Claude Code environment and Bun is not. Bun is maintainer-only.
-- **semantic-release** — deterministic, commit-driven releases (`release.config.cjs`), publishing to
-  **Codeberg** (Forgejo) via `@saithodev/semantic-release-gitea`.
-- **Conventional Commits** — drive the version bump (`feat`→minor, `fix`/`perf`→patch, `!`/`BREAKING
-  CHANGE`→major).
+- **Bun.** The repo package manager and task runner (`bun.lock`).
+- **Node.** The hooks' runtime. `hooks.json` invokes `node`, because every user's Claude Code
+  environment has `node` and not every one has Bun. Bun is maintainer-only.
+- **semantic-release.** Deterministic, commit-driven releases (`release.config.cjs`), published to
+  **Codeberg** (Forgejo) through `@saithodev/semantic-release-gitea`.
+- **Conventional Commits.** They drive the version bump. `feat` gives a minor bump, `fix` and `perf`
+  give a patch bump, and `!` or `BREAKING CHANGE` gives a major bump.
 
-## Working rules (repo-specific — read before editing hooks/version/release)
+## Working rules (repo-specific: read before you edit hooks, the version, or the release config)
 
-- **Hooks are CommonJS** (`.js`, `require`). Do **not** add `"type": "module"` to `package.json` — node
-  resolves the plugin's `package.json` when running a hook and would treat every hook as ESM, breaking
-  them in production. Only `.mjs` is ESM (extension-scoped).
-- **Every hook ships a `--selftest`.** Add one for any new hook; `bun run test` runs them all (under
-  `node`, matching the production runtime), then runs `claude plugin validate .` as a manifest-validation
-  gate.
-- **Version lives only in `.claude-plugin/plugin.json`.** Never hand-edit it — semantic-release +
-  `semantic-release-replace-plugin` bump it on release. `marketplace.json` carries no version (avoids the
-  double-pin, where `plugin.json` would silently win).
-- **Backends are pluggable.** Adding a slice store / code host / KB = a new seed in `references/` + the
-  matching `docs/agents/*.md` written by `/superdev:setup` in the *consumer* repo. `commands/` and
-  `agents/` stay tool-agnostic — don't hardcode a backend into them.
+- **Hooks are CommonJS** (`.js`, `require`). Do **not** add `"type": "module"` to `package.json`. Node
+  resolves the plugin's `package.json` when it runs a hook, and would then treat every hook as ESM,
+  which breaks them in production. Only `.mjs` is ESM, because that is scoped by extension.
+- **Every hook ships a `--selftest`.** Add one for any new hook. `bun run test` runs them all under
+  `node`, which matches the production runtime. It then runs `claude plugin validate .` as a
+  manifest-validation gate.
+- **Version lives only in `.claude-plugin/plugin.json`.** Never hand-edit it. semantic-release and
+  `semantic-release-replace-plugin` bump it on release. `marketplace.json` carries no version, which
+  avoids a double pin where `plugin.json` would silently win.
+- **Backends are pluggable.** To add a slice store, a code host, or a KB, write a new seed in
+  `references/`. `/superdev:setup` turns that seed into the matching `docs/agents/*.md` in the *consumer*
+  repo. `commands/` and `agents/` stay tool-agnostic. Do not hardcode a backend into them.
+- **Docs follow a writing standard.** `docs/agents/documentation.md` names it, and the doc agents apply
+  it to prose they write. This repo uses `controlled`
+  ([`references/controlled-prose.md`](references/controlled-prose.md), ADR 0012).
 
 ## Known issues (Claude Code platform)
 
-**SessionStart system-prompt preambles leak into subagent tool outputs** (issue #32 tracking). When a
+**SessionStart system-prompt preambles leak into subagent tool outputs** (tracked as issue #32). When a
 subagent is dispatched, the Claude Code harness includes the main conversation's SessionStart
-system-message (e.g., context-window-protection, tool-bootstrap guidance) in the subagent's prompt
-context. This creates a prompt-injection surface where:
+system-message in the subagent's prompt context. Examples are context-window protection and
+tool-bootstrap guidance. This creates a prompt-injection surface, in two ways:
 
-- Subagents receive meta-instructions they didn't ask for.
-- Tool-call outputs may be wrapped with system-prompt tags instead of remaining opaque.
+- Subagents receive meta-instructions they did not ask for.
+- Tool-call outputs may arrive wrapped in system-prompt tags instead of staying opaque.
 
-**Mitigation (implemented):** all subagent bodies include explicit secret-hygiene discipline — they
-identify and disregard any injected system-reminder blocks, using only the standard tools they were
-given (`Read`, `Edit`, `Write`, `Bash`, etc.). See `agents/implementer.md` (and others) for the
-pattern.
+**Mitigation (implemented):** every subagent body carries explicit secret-hygiene discipline. Each agent
+identifies and disregards any injected system-reminder block, and uses only the standard tools it was
+given (`Read`, `Edit`, `Write`, `Bash`, and the rest). See `agents/implementer.md` for the pattern.
 
-**Fix required at:** Claude Code platform layer — subagent prompts should be isolated from main
-conversation's SessionStart preamble. Track upstream with the Claude Code team.
+**Fix required at:** the Claude Code platform layer. Subagent prompts need isolation from the main
+conversation's SessionStart preamble. Track this upstream with the Claude Code team.
 
 ## Common commands
 
@@ -113,16 +119,16 @@ bun run eval:plan                  # the two cheap plan-only arms of that A/B
 GITEA_TOKEN=<token> bun run release  # cut a release from clean main (see RELEASING.md)
 ```
 
-**`bun run eval` needs two environment variables.** `claude plugin eval` is early-access, gated on the
-`tengu_walnut_spire` flag — `CLAUDE_CODE_WALNUT_SPIRE=1` opens it locally. It also needs
-`ANTHROPIC_API_KEY`: the harness runs each case in a sandbox with a throwaway `HOME`, and strips
-`CLAUDE_CODE_OAUTH_TOKEN` from the child environment, so a subscription-only login authenticates as
-`Not logged in` and every grader scores 0 against an empty workspace. An API key survives the strip.
+**`bun run eval` needs two environment variables.** `claude plugin eval` is early-access and gated on the
+`tengu_walnut_spire` flag, so `CLAUDE_CODE_WALNUT_SPIRE=1` opens it locally. It also needs
+`ANTHROPIC_API_KEY`. The harness runs each case in a sandbox with a throwaway `HOME`, and strips
+`CLAUDE_CODE_OAUTH_TOKEN` from the child environment. A subscription-only login therefore authenticates
+as `Not logged in`, and every grader scores 0 against an empty workspace. An API key survives the strip.
 
 # DOX framework
 
-- DOX is highly performant AGENTS.md hierarchy installed here
-- Agent must follow DOX instructions across any edits
+- DOX is a highly performant AGENTS.md hierarchy, installed here
+- The agent must follow DOX instructions across any edit
 
 ## Core Contract
 
@@ -153,7 +159,10 @@ Update the closest owning AGENTS.md when a change affects:
 - user preferences about behavior, communication, process, organization, or quality
 - AGENTS.md creation, deletion, move, rename, or index contents
 
-Update parent docs when parent-level structure, ownership, workflow, or child index changes. Update child docs when parent changes alter local rules. Remove stale or contradictory text immediately. Small edits that do not change behavior or contracts may leave docs unchanged, but the DOX pass still must happen.
+Update parent docs when parent-level structure, ownership, workflow, or the child index changes. Update
+child docs when a parent change alters local rules. Remove stale or contradictory text immediately. A
+small edit that changes no behavior and no contract may leave the docs unchanged, but the DOX pass still
+must happen.
 
 ## Hierarchy
 
@@ -165,8 +174,8 @@ Update parent docs when parent-level structure, ownership, workflow, or child in
 ## Child Doc Shape
 
 - Create a child AGENTS.md when a folder becomes a durable boundary with its own purpose, rules, responsibilities, workflow, materials, or quality standards
-- Work Guidance must reflect the current standards of the project or user instructions; if there are no specific standards or instructions yet, leave it empty
-- Verification must reflect an existing check; if no verification framework exists yet, leave it empty and update it when one exists
+- Work Guidance must reflect the current standards of the project or user instructions. If there are no specific standards or instructions yet, leave it empty
+- Verification must reflect an existing check. If no verification framework exists yet, leave it empty and update it when one exists
 
 Default section order:
 - Purpose
@@ -201,37 +210,45 @@ When the user requests a durable behavior change, record it here or in the relev
 
 ## Child DOX Index
 
-**No child AGENTS.md — the repo is flat.** It's small and every subtree's rules already live in this
-root doc (see `Structure` above for the current file inventory). Add a child only when a subtree
-becomes a durable boundary with rules of its own that don't fit here.
+**No child AGENTS.md exists, because the repo is flat.** The repo is small, and every subtree's rules
+already live in this root doc. See `Structure` above for the current file inventory. Add a child only
+when a subtree becomes a durable boundary with rules of its own that do not fit here.
 
 This root owns every subtree directly:
 
-- `commands/`, `agents/` — prose slash-commands + subagents. Governed by **Working rules → Backends are
-  pluggable** (stay tool-agnostic; never hardcode a backend). Behaviour contracts live in the files.
-- `hooks/` — Claude Code hooks, the plugin's deterministic guardrails. Governed by **Working rules →
-  Hooks are CommonJS** + **Every hook ships a `--selftest`**. Strongest future child-doc candidate if
-  its rules outgrow this root.
-- `scripts/` — standalone drift-assertion checks run from `package.json` (e.g. `drift-check.js`, which
-  also guards that `commands/implement.md`, `references/implement-full.md`/`implement-lite.md`, and
-  `agents/implementer.md`/`slice-reviewer.md`/`simplicity-reviewer.md` address run-root artifacts by
-  absolute `<run-root>/…` path, and that every issue-backend document carries the `**Assignee` config
-  bullet — triggered by filename alone, no content gate on how the doc phrases issue creation;
-  `references/issue-tracker-local.md` exempt, having no assignee concept), the other executable code
-  alongside `hooks/`. Follows the same `--selftest` convention.
-- `references/` — backend seed templates + `plan-contract.md` (slice schema/lifecycle, incl. the
-  optional epic sections and the epic-visuals gate for `## Slice graph`/`## Touch map`) + `documentation.md`
-  + **execution playbooks** (`implement-full.md` / `implement-lite.md`): the tier-specific linear procedures
-  `/implement` reads at runtime once it computes the tier (non-seed refs, like `plan-contract.md`)
-  + **authoring disciplines** (`cross-exam.md` / `domain-modeling.md` / `doc-verification.md`): the
-  relentless cross-examination, active-domain-modeling, and verify-against-official-docs disciplines
-  `/plan` and `/brainstorm` read at runtime (superdev's own rendering of Matt Pocock's grilling +
-  domain-modeling skills); `doc-verification.md` is also read by the `implementer` agent before it acts on
-  an assumption about a third-party library/API/service
-  + **`review-checklist.md`**: named anti-patterns, vulnerability classes, a reuse-audit lens, and a
-  consistency lens, read at runtime by `final-reviewer` (all four) and `slice-reviewer` (anti-patterns +
-  vuln-classes).
-- `docs/adr/` — architecture decision records. `docs/agents/` — this repo's own dogfooded backend config.
-- `.claude-plugin/` — manifests. Governed by **Working rules → Version lives only in `plugin.json`**.
-- `CONTEXT.md` — the domain glossary. `evals/` — the with/without-plugin A/B (`evals/README.md` owns
-  its grader-neutrality and result-reading rules).
+- `commands/`, `agents/`. Prose slash-commands and subagents. Governed by **Working rules, Backends are
+  pluggable**: stay tool-agnostic and never hardcode a backend. Behaviour contracts live in the files.
+- `hooks/`. Claude Code hooks, the plugin's deterministic guardrails. Governed by **Working rules, Hooks
+  are CommonJS** and **Every hook ships a `--selftest`**. This is the strongest future child-doc
+  candidate, if its rules outgrow this root.
+- `scripts/`. Standalone drift-assertion checks that `package.json` runs, and the other executable code
+  alongside `hooks/`. It follows the same `--selftest` convention. `drift-check.js` also guards three
+  things. First, that `commands/implement.md`, `references/implement-full.md`,
+  `references/implement-lite.md`, `agents/implementer.md`, `agents/slice-reviewer.md`, and
+  `agents/simplicity-reviewer.md` address run-root artifacts by absolute `<run-root>/…` path. Second,
+  that every issue-backend document carries the `**Assignee` config bullet. The filename alone triggers
+  that check, with no content gate on how the doc phrases issue creation. `references/issue-tracker-local.md`
+  is exempt, because it has no assignee concept. Third, that
+  `references/documentation.md` still offers a `## Writing standard` section (ADR 0012).
+- `references/`. Backend seed templates plus the non-seed references below.
+  + `plan-contract.md`: the slice schema and lifecycle, including the optional epic sections and the
+    epic-visuals gate for `## Slice graph` and `## Touch map`.
+  + `documentation.md`: the in-repo documentation convention, including the `## Writing standard`
+    section that `/superdev:setup` fills in.
+  + `controlled-prose.md`: the **writing standard**. A language-neutral rule set that merges the
+    ASD-STE100 Part 1 rules with the rules the tekom catalogue reaches that ASD-STE100 does not. Read at
+    runtime by `doc-writer`, which applies it, and by `doc-reader`, which verifies it (ADR 0012).
+  + **Execution playbooks** (`implement-full.md`, `implement-lite.md`): the tier-specific linear
+    procedures `/implement` reads at runtime once it computes the tier.
+  + **Authoring disciplines** (`cross-exam.md`, `domain-modeling.md`, `doc-verification.md`): the
+    relentless cross-examination, active-domain-modeling, and verify-against-official-docs disciplines
+    that `/plan` and `/brainstorm` read at runtime. They are superdev's own rendering of Matt Pocock's
+    grilling and domain-modeling skills. The `implementer` agent also reads `doc-verification.md` before
+    it acts on an assumption about a third-party library, API, or service.
+  + `review-checklist.md`: named anti-patterns, vulnerability classes, a reuse-audit lens, and a
+    consistency lens. `final-reviewer` reads all four and `slice-reviewer` reads the anti-patterns and
+    vulnerability classes.
+- `docs/adr/`. Architecture decision records. `docs/agents/`. This repo's own dogfooded backend config.
+- `.claude-plugin/`. Manifests. Governed by **Working rules, Version lives only in `plugin.json`**.
+- `CONTEXT.md`. The domain glossary. `evals/`. The with/without-plugin A/B, where `evals/README.md` owns
+  its grader-neutrality and result-reading rules.

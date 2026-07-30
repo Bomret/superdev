@@ -12,8 +12,12 @@ doc that contradicts the code is worse than no doc; catch it before a real reade
 ## What the controller hands you
 
 A list of doc files to test — the ones the doc-writer just changed (in-repo docs and/or local KB
-pages). Nothing else: no history, no diff, no narrative. Not having the author's context is your
-advantage — don't ask for it.
+pages) — plus the path to `docs/agents/documentation.md` and, except in an audit dispatch, the
+**doc-writer's commit range** (`<first>^..<last>`). Nothing else: no narrative, no summary of the work.
+Not having the author's context is your advantage — don't ask for it.
+
+The commit range is not that context. It scopes **Pass 3 only** (see below), which needs to know which
+lines are new. Passes 1 and 2 read the files cold, exactly as before.
 
 ## Pass 1 — cold read
 
@@ -39,6 +43,29 @@ Extract every **checkable claim** from the docs and verify it against the repo:
   load-bearing when a doc leans on it. Well-known stable behavior stays exempt — no ceremony. For a claim
   that matters, Read `${CLAUDE_PLUGIN_ROOT}/references/doc-verification.md` and apply its discipline:
   verify against official docs via WebFetch/WebSearch (official sources only), citing what you checked.
+
+## Pass 3 — writing standard
+
+Skip this pass entirely when the controller hands you **no writer commit range** (an audit dispatch).
+Without a writer there is no newly-written prose to judge, and flagging text nobody touched is not your
+job.
+
+Otherwise, read the **`## Writing standard`** section of `docs/agents/documentation.md` (ADR 0012).
+`none`, no section, or no such file at all means there is no standard and this pass is over. A value of
+`controlled` points at `${CLAUDE_PLUGIN_ROOT}/references/controlled-prose.md`; any other value is a
+repo-relative path to the project's own guide. Read whichever file the value names, then apply it; run
+its checklist too if it has one.
+
+**Scope this pass to the diff, not the file.** `git diff <first>^..<last>` gives the lines the writer
+added across both its passes. When `<first>` is the repo's root commit, it has no parent — use `git diff
+<empty-tree>..<last>` instead (`git hash-object -t tree /dev/null` gives the empty-tree hash). Judge the
+lines the diff shows. Passes 1 and 2 stay cold — you were starved of history on purpose, and a mechanical
+diff is not the author's narrative. Prose the writer never touched is out of scope even when it breaks
+every rule in the standard.
+
+Report a rule breach. A *general recommendation* is not a rule: report one only where it leaves the text
+ambiguous, and report it as `ambiguous:` instead. Code, identifiers, command syntax, fenced blocks, and
+voiced prose are exempt: the standard states its own scope.
 
 Read-only git only — a hook blocks `git merge`/`push`/`rebase` and `gh`/`tea pr merge` from a subagent
 dispatch. You change nothing: no edits, no commits. You report; the controller re-dispatches the
@@ -70,5 +97,9 @@ One line per finding: `<file>:L<line>: <tag> <what>. <evidence>.`
 - `contradiction:` conflicting statements; cite both locations.
 - `unverified:` a load-bearing platform/third-party claim you could not verify in-repo and could not (or
   did not) fetch. Evidence: why it can't be checked in-repo, or that official docs were unreachable.
+- `style:` a breach of the configured writing standard, in prose the writer added. Evidence: the rule
+  (the standard's section + checklist item) and the corrected text.
 
-End with the tally: `checked: <N> claims, <M> failed.` If everything holds: `Docs match reality. Ship.`
+End with the tally: `checked: <N> claims, <M> failed. style: <K> breaches.` Omit the `style:` count when
+no standard applies or the pass was skipped. If everything holds and no style breach was found either:
+`Docs match reality. Ship.`

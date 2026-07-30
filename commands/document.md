@@ -43,8 +43,12 @@ Skip if the doc-writer changed nothing.
 
 From the doc-writer's report, collect the changed doc files — in-repo docs and **local** KB pages
 (software-KB pages are out of scope). Dispatch **`superdev:doc-reader`** with an **explicit `model`**
-(`sonnet`) and that file list **only** — no range, no history, no summary of the work: it reads the
-docs cold and verifies their claims against the repo, read-only.
+(`sonnet`), that file list, the `docs/agents/documentation.md` path, and the doc-writer's **commit
+range** (`<first>^..<last>`, covering both of its passes) — no narrative, no summary of the work: it
+reads the docs cold and verifies their claims against the repo, read-only.
+
+The range scopes its **writing-standard pass** to the lines those commits added, so the configured
+standard binds new prose without flagging text nobody touched. Its claim-verification passes stay cold.
 
 If it reports findings, re-dispatch **`superdev:doc-writer`** (as in §3) with the findings to fix.
 **One fix round** — don't loop the reader; unresolved findings go in the report instead.
@@ -53,8 +57,8 @@ If it reports findings, re-dispatch **`superdev:doc-writer`** (as in §3) with t
 
 Relay what the doc-writer changed: which `AGENTS.md`/docs were updated, what was removed as stale, which
 KB pages were updated/created (or that the KB pass was none/skipped), the reader-test tally (including
-any findings left unresolved after the fix round), and any concerns (e.g. a missing KB token). Do not
-re-do its work.
+any findings left unresolved after the fix round), the **writing standard** that applied (or that none
+did), and any concerns (e.g. a missing KB token). Do not re-do its work.
 
 ## 6. Audit mode (`audit`)
 
@@ -64,8 +68,10 @@ Inverts the usual order: **reader first**, writer only to fix what it finds.
    local KB pages, when the KB backend is local `docs/kb/`) plus any globs listed under a `## Audit set`
    section in `docs/agents/documentation.md`. That section is optional — if it's absent, use the default
    tree alone and say so in the report.
-2. Dispatch **`superdev:doc-reader`** with an **explicit `model`** (`sonnet`) and the full audit set,
-   cold — no range, no history, no summary of prior work. Tell it explicitly: hook/guardrail-enforcement
+2. Dispatch **`superdev:doc-reader`** with an **explicit `model`** (`sonnet`), the full audit set, and
+   the `docs/agents/documentation.md` path — cold, and with **no writer commit range**, which is what
+   tells it to skip the writing-standard pass: an audit has no writer, so no prose is newly-written and the
+   standard has nothing in scope to bind. Tell it explicitly: hook/guardrail-enforcement
    claims ("a hook blocks X", "the gate re-runs Y") are **always load-bearing** and must be verified
    against the hooks' actual source (`hooks/*.js`), not assumed from prose.
 3. If it reports findings, run **one doc-writer fix round** exactly as in §4 (dispatch

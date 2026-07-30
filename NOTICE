@@ -3,7 +3,8 @@ Copyright (c) 2026 Stefan Reichel
 
 This product bundles and adapts material from the following MIT-licensed
 projects. Their copyright and permission notices are retained here as required
-by the MIT License.
+by the MIT License. Material credited under other terms is marked as such, and
+the closing paragraph names exactly what the MIT License covers.
 
 --------------------------------------------------------------------------------
 Superpowers — Copyright (c) 2025 Jesse Vincent
@@ -41,5 +42,33 @@ documentation hierarchy (references/documentation.md) is inspired by DOX
 (agent0ai — https://github.com/agent0ai/dox), distilled in superdev's own words;
 DOX is not required to be installed.
 
-The MIT License text (applying both to superdev's own code and, per their terms,
-to the bundled portions above) is in the LICENSE file.
+--------------------------------------------------------------------------------
+Writing standard — references/controlled-prose.md
+
+That file is a language-neutral rule set for technical documentation. It draws
+on two sources with different terms:
+
+ASD-STE100 Simplified Technical English — © AeroSpace and Defence Industries
+Association of Europe (ASD). https://asd-ste100.org
+  Published free for adoption. Its Part 1 writing rules (Sections 1 thru 9) are
+  restated in superdev's own words. Part 2 (the Dictionary) is copyrighted and
+  is NOT reproduced or bundled. ASD-STE100 is not an open-source work; obtain
+  the specification from asd-ste100.org.
+
+tekom Praxisleitfaden "Deutsch für die Technische Kommunikation — Regeln und
+ihre Anwendung" — © tcworld GmbH. https://www.tekom.de
+  PRIOR ART ONLY. Its notice forbids reproduction, translation, and storage in
+  electronic media, so no text in controlled-prose.md derives from it. Where its
+  catalogue reaches a rule ASD-STE100 does not, that rule is written here from
+  the underlying principle. Cited because the two catalogues independently
+  converge, which is the evidence that the shared rules are language-neutral
+  rather than English-specific.
+
+The two-mode split (strict for procedures and safety text, relaxed for general
+prose) and the self-lint checklist follow the distillation published by
+woosal1337 — https://github.com/woosal1337/blog (videos/ep01-the-cure-for-ai-slop).
+
+--------------------------------------------------------------------------------
+The MIT License text is in the LICENSE file. It applies to superdev's own code and, per their terms,
+to the Superpowers, ponytail, Skills, and DOX portions bundled above. It does not apply to the
+ASD-STE100 or tekom material, which is prior art credited above under its own terms.

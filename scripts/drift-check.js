@@ -123,13 +123,42 @@ function scanAssigneeContract(root) {
   return gaps;
 }
 
+// The documentation seed must offer a writing standard (ADR 0012). A seed that loses the section makes
+// /superdev:setup write a doc convention with no standard, and both doc agents then find nothing to
+// apply — the feature silently does nothing in every repo set up after the drift, and no build step
+// would catch it. Same failure shape as the assignee contract above. The section is a heading `/setup`
+// fills in, so a bare prose mention of "the writing standard" does not satisfy it.
+const WRITING_STANDARD_DOCS = ['references/documentation.md'];
+const WRITING_STANDARD_PATTERN = /^#{2,3}\s+Writing standard\s*$/m;
+
+// scanWritingStandardContract() is pure over a root dir: reads every documentation-convention document
+// and reports the ones that never offer a writing standard. Absent files are skipped, so fixtures need
+// only the docs they exercise.
+function scanWritingStandardContract(root) {
+  const gaps = [];
+  for (const rel of WRITING_STANDARD_DOCS) {
+    let text;
+    try {
+      text = fs.readFileSync(path.join(root, rel), 'utf8');
+    } catch {
+      continue; // doc absent (fixture / partial checkout) → nothing to scan
+    }
+    if (!WRITING_STANDARD_PATTERN.test(text)) gaps.push({ source: rel });
+  }
+  return gaps;
+}
+
 function main() {
   const root = path.join(__dirname, '..');
   const missing = scan(root);
   const offenders = scanRunRootPaths(root);
   const gaps = scanAssigneeContract(root);
-  if (missing.length === 0 && offenders.length === 0 && gaps.length === 0) {
-    console.log('drift-check ok: references resolve, run-root paths are absolute, assignee contract carried');
+  const wsGaps = scanWritingStandardContract(root);
+  if (missing.length === 0 && offenders.length === 0 && gaps.length === 0 && wsGaps.length === 0) {
+    console.log(
+      'drift-check ok: references resolve, run-root paths are absolute, assignee contract carried, ' +
+        'writing standard offered',
+    );
     process.exit(0);
   }
   for (const m of missing) {
@@ -142,6 +171,12 @@ function main() {
     console.error(
       `${g.source} carries no \`**Assignee\` config bullet — expected \`- **Assignee:** <value>\` or ` +
         `\`- **Assignee**: <value>\` as a list item; see plan-contract.md → Assignee`,
+    );
+  }
+  for (const g of wsGaps) {
+    console.error(
+      `${g.source} carries no \`## Writing standard\` section — expected the heading plus its ` +
+        `\`controlled | <path> | none\` values; see ADR 0012`,
     );
   }
   process.exit(1);
@@ -314,6 +349,53 @@ if (process.argv[2] === '--selftest') {
   );
   const gaps12 = scanAssigneeContract(tmp12);
   assert.equal(gaps12.length, 0, 'both `**Assignee:**` and `**Assignee**:` bullets satisfy it');
+
+  // --- scanWritingStandardContract: the documentation seed must carry the `## Writing standard`
+  // section. A seed that loses it makes /superdev:setup write a doc convention with no standard, and
+  // the doc agents silently fall back to no standard at all — the same silent-drop failure the
+  // assignee contract exists to prevent. ---
+
+  // positive: a seed with no `## Writing standard` section is flagged
+  const tmp13 = fs.mkdtempSync(path.join(os.tmpdir(), 'drift-check-'));
+  fs.mkdirSync(path.join(tmp13, 'references'), { recursive: true });
+  fs.writeFileSync(
+    path.join(tmp13, 'references', 'documentation.md'),
+    '# Documentation: in-repo technical docs\n\n- **Hierarchy.** Root `AGENTS.md` holds the index.\n',
+  );
+  const wsGaps13 = scanWritingStandardContract(tmp13);
+  assert.equal(wsGaps13.length, 1, 'flags a documentation seed with no writing-standard section');
+  assert.equal(
+    wsGaps13[0].source,
+    path.join('references', 'documentation.md'),
+    'names the seed',
+  );
+
+  // negative: the same seed carrying the section is clean
+  const tmp14 = fs.mkdtempSync(path.join(os.tmpdir(), 'drift-check-'));
+  fs.mkdirSync(path.join(tmp14, 'references'), { recursive: true });
+  fs.writeFileSync(
+    path.join(tmp14, 'references', 'documentation.md'),
+    '# Documentation\n\n## Writing standard\n\n**Standard:** `<controlled | path | none>`\n',
+  );
+  const wsGaps14 = scanWritingStandardContract(tmp14);
+  assert.equal(wsGaps14.length, 0, 'a seed carrying the section yields zero gaps');
+
+  // a bare prose mention is not the section — the contract is a heading `/setup` fills in, and prose
+  // that merely refers to "the writing standard" says nothing about whether the seed offers one
+  const tmp15 = fs.mkdtempSync(path.join(os.tmpdir(), 'drift-check-'));
+  fs.mkdirSync(path.join(tmp15, 'references'), { recursive: true });
+  fs.writeFileSync(
+    path.join(tmp15, 'references', 'documentation.md'),
+    '# Documentation\n\nThe writing standard governs prose the doc agents write.\n',
+  );
+  const wsGaps15 = scanWritingStandardContract(tmp15);
+  assert.equal(wsGaps15.length, 1, 'a prose mention is not the section');
+
+  // an absent seed is skipped, so partial fixtures do not fail the check
+  const tmp16 = fs.mkdtempSync(path.join(os.tmpdir(), 'drift-check-'));
+  fs.mkdirSync(path.join(tmp16, 'references'), { recursive: true });
+  const wsGaps16 = scanWritingStandardContract(tmp16);
+  assert.equal(wsGaps16.length, 0, 'an absent seed is skipped');
 
   console.log('drift-check selftest ok');
 } else {
