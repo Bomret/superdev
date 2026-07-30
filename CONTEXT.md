@@ -56,6 +56,12 @@ _Avoid: "blocker", "important question" (any open question can be unimportant; l
 **Parked questions** — a load-bearing decision that survived `/plan`'s interview still unresolved, written to the epic's `## Parked questions` section. Advisory only: `/implement` never reads it, nothing gates on it.
 _Avoid: "open questions" (that's Intent's pre-interview concept), "blocker", "TODO"_
 
+**Slice graph** — the epic's `## Slice graph` section: a mermaid rendering of the plan's depends-on DAG, written only when the graph's shape defeats a numbered list. For human readers of the epic; advisory, like `Parked questions`.
+_Avoid: "the DAG" (that's the dependency structure itself, which exists whether or not it's drawn), "diagram"_
+
+**Touch map** — the epic's `## Touch map` section: a plain-text file tree marking which slices touch which files, and where slices that run in parallel collide. Evidence for the dependency order, not an instruction — no slice `spec` names file paths, and no reviewer gates on it.
+_Avoid: "file map" (too generic — the collisions are the point), "impact analysis"_
+
 ## Acceptance / verification
 
 **Acceptance** (per-slice) — the checkable criteria for ONE slice; the slice-reviewer verifies against this, and the implementer treats it as the TDD loop's termination condition — one increment per criterion. Different from the global DoD (acceptance is per-slice, DoD is whole-feature). On a `behavior` slice it names the **domain-level** failure and boundary cases too — those derivable from the interview without seeing the implementation (empty input, absent config, duplicate, auth failure, concurrent arrival) — stated as observable behaviour. Implementation-level edges (off-by-one, parser boundary, encoding) belong to the implementer's TDD loop and the reviewers, who read the code the planner never sees.
