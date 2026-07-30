@@ -124,6 +124,9 @@ _Avoid: "template" alone (too generic), "backend file" (that names the `docs/age
 **Slice store** — the backend where a feature's plan and slices live: local files, or an issue tracker. Configured in `docs/agents/issue-tracker.md`.
 _Avoid: "issue tracker" as the concept name (that's one backend), "database"_
 
+**Assignee** — the slice-store account every issue a run creates is assigned to: a single store-native identifier (a login for Forgejo/GitHub, an `accountId` for Jira) recorded in `docs/agents/issue-tracker.md`, resolving to the API token's own identity when unconfigured and disabled by `none`. Store configuration rather than a slice field, applied at creation to the epic and every slice (ADR 0010).
+_Avoid: "owner" (too generic), "creator"/"reporter" (the store already records who filed the issue — assignee is who owns it), "reviewer" (a pull-request role, owned by the code host)_
+
 **Status map** — the agreed mapping from superdev's canonical slice lifecycle (`todo` → `in-progress` → `in-review` → `merged`/done, plus `blocked`) to an issue tracker's real statuses/transitions. Captured by `/setup` for issue-backed slice stores, recorded in `issue-tracker.md`, walked by `/implement` at each lifecycle point.
 _Avoid: "status mapping", "workflow" (too generic)_
 
