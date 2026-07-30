@@ -44,12 +44,14 @@ references/            — backend seed templates + plan-contract (slice schema/
                          runtime by final-reviewer + slice-reviewer)
 docs/adr/              — architecture decision records (why the plugin is built this way)
 docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, documentation, KB, toolchain, verification)
-scripts/               — standalone drift-assertion checks wired into `bun run test` (e.g.
+scripts/               — standalone deterministic checks wired into `bun run test` (e.g.
                          `drift-check.js`, asserting every referenced `references/*.md` path exists,
                          that the execution/controller docs address run-root artifacts by absolute
                          `<run-root>/…` path, never a checkout-relative `.superdev/scopes/<scope>/…` one,
                          that every issue-backend document carries the `**Assignee` config bullet,
-                         and that the documentation seed still offers a `## Writing standard` section)
+                         that the documentation seed still offers a `## Writing standard` section,
+                         and that every eval grader's frontmatter is one the harness can act on and
+                         every case's scaffold_script resolves)
 evals/                 — `claude plugin eval` cases (*/case.yaml + graders/*.md + the case's
                          scaffold_script, a path relative to the case dir — never an inline block);
                          every case is one arm of the with/without-plugin A/B — see `evals/README.md`
@@ -221,15 +223,22 @@ This root owns every subtree directly:
 - `hooks/`. Claude Code hooks, the plugin's deterministic guardrails. Governed by **Working rules, Hooks
   are CommonJS** and **Every hook ships a `--selftest`**. This is the strongest future child-doc
   candidate, if its rules outgrow this root.
-- `scripts/`. Standalone drift-assertion checks that `package.json` runs, and the other executable code
-  alongside `hooks/`. It follows the same `--selftest` convention. `drift-check.js` also guards three
-  things. First, that `commands/implement.md`, `references/implement-full.md`,
+- `scripts/`. Standalone deterministic checks that `package.json` runs, and the other executable code
+  alongside `hooks/`. It follows the same `--selftest` convention. The reference, run-root, assignee,
+  and writing-standard checks are drift assertions, which compare a restated fact against its source.
+  The eval-shape check compares a document against a schema. `drift-check.js` guards five
+  things. First, that every `references/*.md` path named in `commands/` or `agents/` resolves to a file
+  that exists. Second, that `commands/implement.md`, `references/implement-full.md`,
   `references/implement-lite.md`, `agents/implementer.md`, `agents/slice-reviewer.md`, and
-  `agents/simplicity-reviewer.md` address run-root artifacts by absolute `<run-root>/…` path. Second,
+  `agents/simplicity-reviewer.md` address run-root artifacts by absolute `<run-root>/…` path. Third,
   that every issue-backend document carries the `**Assignee` config bullet. The filename alone triggers
   that check, with no content gate on how the doc phrases issue creation. `references/issue-tracker-local.md`
-  is exempt, because it has no assignee concept. Third, that
-  `references/documentation.md` still offers a `## Writing standard` section (ADR 0012).
+  is exempt, because it has no assignee concept. Fourth, that
+  `references/documentation.md` still offers a `## Writing standard` section (ADR 0012). Fifth, that
+  every `evals/*/graders/*.md` declares a known `type` and a positive `weight`, that an `llm` or `regex`
+  grader also declares a `focus` or `target`, and that every case's `scaffold_script` resolves. Nothing
+  else validates a grader, so without this a typo surfaces part-way through a run that costs real API
+  spend.
 - `references/`. Backend seed templates plus the non-seed references below.
   + `plan-contract.md`: the slice schema and lifecycle, including the optional epic sections and the
     epic-visuals gate for `## Slice graph` and `## Touch map`.

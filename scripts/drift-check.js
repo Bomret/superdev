@@ -148,16 +148,123 @@ function scanWritingStandardContract(root) {
   return gaps;
 }
 
+// An eval grader is prose with frontmatter the harness parses, and nothing else validates it: `claude
+// plugin validate` reads only the marketplace manifest, so a grader with `weight: notanumber` passes the
+// suite and surfaces part-way through a run that costs real API spend. Same for a case whose
+// `scaffold_script` points at a file that isn't there. This is a shape check rather than a drift
+// assertion — it compares a document against a schema, not against a source it restates — but it belongs
+// with the others: this file is where the repo keeps its deterministic prose assertions.
+// The six types the harness accepts. Only `llm` and `regex` carry a focus/target; the other four
+// declare neither, and their schema variants are strict, so requiring one would produce a grader the
+// harness rejects.
+const GRADER_TYPES = new Set(['llm', 'regex', 'tool_order', 'tool_used', 'file_exists', 'baseline']);
+const FOCUS_TYPES = new Set(['llm', 'regex']);
+
+// A scalar as a maintainer may legally write it: quoted or bare, with or without a trailing comment.
+function scalar(raw) {
+  const withoutComment = raw.replace(/\s+#.*$/, '').trim();
+  const unquoted = withoutComment.match(/^(['"])(.*)\1$/);
+  return unquoted ? unquoted[2] : withoutComment;
+}
+
+// Frontmatter is the leading `---` fenced block; read it as lines rather than parsing YAML, since the
+// hooks and scripts carry no dependencies. CRLF is normalised first, so a file authored on Windows is
+// read rather than reported as having no frontmatter at all.
+function frontmatter(text) {
+  const match = text.replace(/\r\n/g, '\n').match(/^---\n([\s\S]*?)\n---/);
+  if (!match) return null;
+  const fields = {};
+  for (const line of match[1].split('\n')) {
+    const kv = line.match(/^([A-Za-z_][A-Za-z0-9_]*):\s*(.*)$/);
+    if (kv) fields[kv[1]] = scalar(kv[2]);
+  }
+  return fields;
+}
+
+// scanEvalShape() is pure over a root dir: reads every eval case and reports graders whose frontmatter
+// the harness could not act on, plus cases whose scaffold_script does not resolve. An absent evals/ dir,
+// or a case with no graders/ dir, yields nothing — there is no shape to be wrong.
+function scanEvalShape(root) {
+  const problems = [];
+  let cases;
+  try {
+    cases = fs.readdirSync(path.join(root, 'evals'), { withFileTypes: true });
+  } catch {
+    return problems; // no evals/ → nothing to check
+  }
+  for (const entry of cases) {
+    if (!entry.isDirectory()) continue;
+    const caseDir = path.join(root, 'evals', entry.name);
+
+    let caseYaml;
+    try {
+      caseYaml = fs.readFileSync(path.join(caseDir, 'case.yaml'), 'utf8');
+    } catch {
+      caseYaml = null; // not a case dir (e.g. a shared fixtures dir) → only its graders matter
+    }
+    if (caseYaml) {
+      const script = caseYaml.replace(/\r\n/g, '\n').match(/^\s*scaffold_script:\s*(.+)$/m);
+      const scriptPath = script && scalar(script[1]);
+      if (scriptPath && !fs.existsSync(path.join(caseDir, scriptPath))) {
+        problems.push({
+          source: path.join('evals', entry.name, 'case.yaml'),
+          problem: `scaffold_script \`${scriptPath}\` does not resolve relative to the case directory`,
+        });
+      }
+    }
+
+    let graders;
+    try {
+      graders = fs.readdirSync(path.join(caseDir, 'graders'));
+    } catch {
+      continue; // no graders/ → nothing to check
+    }
+    for (const file of graders) {
+      if (!file.endsWith('.md')) continue;
+      const rel = path.join('evals', entry.name, 'graders', file);
+      const fields = frontmatter(fs.readFileSync(path.join(caseDir, 'graders', file), 'utf8'));
+      if (!fields) {
+        problems.push({ source: rel, problem: 'has no `---` frontmatter block' });
+        continue;
+      }
+      if (!GRADER_TYPES.has(fields.type)) {
+        problems.push({
+          source: rel,
+          problem: `\`type: ${fields.type ?? '(missing)'}\` is not one of ${[...GRADER_TYPES].join(', ')}`,
+        });
+      }
+      const weight = Number(fields.weight);
+      if (!fields.weight || !Number.isFinite(weight) || weight <= 0) {
+        problems.push({
+          source: rel,
+          problem: `\`weight: ${fields.weight || '(missing)'}\` is not a positive number`,
+        });
+      }
+      if (FOCUS_TYPES.has(fields.type) && fields.focus === undefined && fields.target === undefined) {
+        problems.push({ source: rel, problem: 'declares neither `focus` nor `target`' });
+      }
+    }
+  }
+  return problems;
+}
+
 function main() {
   const root = path.join(__dirname, '..');
   const missing = scan(root);
   const offenders = scanRunRootPaths(root);
   const gaps = scanAssigneeContract(root);
   const wsGaps = scanWritingStandardContract(root);
-  if (missing.length === 0 && offenders.length === 0 && gaps.length === 0 && wsGaps.length === 0) {
+  const shape = scanEvalShape(root);
+  if (
+    missing.length === 0 &&
+    offenders.length === 0 &&
+    gaps.length === 0 &&
+    wsGaps.length === 0 &&
+    shape.length === 0
+  ) {
     console.log(
       'drift-check ok: references resolve, run-root paths are absolute, assignee contract carried, ' +
-        'writing standard offered',
+        'writing standard offered, eval graders and scaffolds well-formed',
     );
     process.exit(0);
   }
@@ -178,6 +285,9 @@ function main() {
       `${g.source} carries no \`## Writing standard\` section — expected the heading plus its ` +
         `\`controlled | <path> | none\` values; see ADR 0012`,
     );
+  }
+  for (const p of shape) {
+    console.error(`${p.source}: ${p.problem}`);
   }
   process.exit(1);
 }
@@ -396,6 +506,112 @@ if (process.argv[2] === '--selftest') {
   fs.mkdirSync(path.join(tmp16, 'references'), { recursive: true });
   const wsGaps16 = scanWritingStandardContract(tmp16);
   assert.equal(wsGaps16.length, 0, 'an absent seed is skipped');
+
+  // --- scanEvalShape: a grader's frontmatter must be something the harness can act on, and a case's
+  // scaffold_script must resolve ---
+
+  const evalFixture = (label, files) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'drift-check-'));
+    for (const [rel, body] of Object.entries(files)) {
+      const full = path.join(dir, rel);
+      fs.mkdirSync(path.dirname(full), { recursive: true });
+      fs.writeFileSync(full, body);
+    }
+    return { label, dir };
+  };
+
+  const goodGrader = '---\ntype: llm\nfocus: files\nweight: 2\n---\nJudge the plan.\n';
+  const goodCase = 'name: c\ncontext:\n  scaffold_script: scaffold.sh\n';
+
+  // a well-formed case yields nothing
+  const ok = evalFixture('ok', {
+    'evals/c/case.yaml': goodCase,
+    'evals/c/scaffold.sh': '#!/bin/sh\n',
+    'evals/c/graders/g.md': goodGrader,
+  });
+  assert.equal(scanEvalShape(ok.dir).length, 0, 'a well-formed case yields no problems');
+
+  // each rule fires on its own, and names the offending file
+  const badType = evalFixture('badType', {
+    'evals/c/graders/g.md': '---\ntype: vibes\nfocus: files\nweight: 2\n---\nb\n',
+  });
+  const typeProblems = scanEvalShape(badType.dir);
+  assert.equal(typeProblems.length, 1, 'an unknown type is flagged');
+  assert.equal(typeProblems[0].source, path.join('evals', 'c', 'graders', 'g.md'), 'names the grader');
+
+  const badWeight = evalFixture('badWeight', {
+    'evals/c/graders/g.md': '---\ntype: llm\nfocus: files\nweight: notanumber\n---\nb\n',
+  });
+  assert.equal(scanEvalShape(badWeight.dir).length, 1, 'a non-numeric weight is flagged');
+
+  const noFocus = evalFixture('noFocus', {
+    'evals/c/graders/g.md': '---\ntype: llm\nweight: 2\n---\nb\n',
+  });
+  assert.equal(scanEvalShape(noFocus.dir).length, 1, 'neither focus nor target is flagged');
+
+  // `target` is the regex graders' spelling and satisfies the same rule
+  const withTarget = evalFixture('withTarget', {
+    'evals/c/graders/g.md': '---\ntype: regex\ntarget: files\nweight: 1\n---\nb\n',
+  });
+  assert.equal(scanEvalShape(withTarget.dir).length, 0, '`target` satisfies the focus/target rule');
+
+  const noFrontmatter = evalFixture('noFrontmatter', {
+    'evals/c/graders/g.md': 'Just prose, no frontmatter.\n',
+  });
+  assert.equal(scanEvalShape(noFrontmatter.dir).length, 1, 'a missing frontmatter block is flagged');
+
+  const badScaffold = evalFixture('badScaffold', {
+    'evals/c/case.yaml': 'name: c\ncontext:\n  scaffold_script: missing.sh\n',
+    'evals/c/graders/g.md': goodGrader,
+  });
+  const scaffoldProblems = scanEvalShape(badScaffold.dir);
+  assert.equal(scaffoldProblems.length, 1, 'an unresolvable scaffold_script is flagged');
+  assert.match(scaffoldProblems[0].problem, /scaffold_script/, 'says what is wrong');
+
+  // nothing to check is not a failure
+  const noEvals = evalFixture('noEvals', { 'README.md': '# repo\n' });
+  assert.equal(scanEvalShape(noEvals.dir).length, 0, 'an absent evals/ directory yields no problems');
+
+  const noGraders = evalFixture('noGraders', {
+    'evals/c/case.yaml': goodCase,
+    'evals/c/scaffold.sh': '#!/bin/sh\n',
+  });
+  assert.equal(scanEvalShape(noGraders.dir).length, 0, 'a case with no graders/ dir yields no problems');
+
+  // The harness accepts six grader types, and only `llm` and `regex` carry a focus/target. The other
+  // four are `.strict()`, so adding `focus:` to satisfy this check would make the harness reject them.
+  for (const type of ['tool_order', 'tool_used', 'file_exists', 'baseline']) {
+    const other = evalFixture(type, {
+      'evals/c/graders/g.md': `---\ntype: ${type}\nweight: 1\n---\nb\n`,
+    });
+    assert.equal(scanEvalShape(other.dir).length, 0, `\`${type}\` is a valid type and needs no focus`);
+  }
+
+  // The harness declares weight as a positive number, so zero, a negative, and a blank are malformed.
+  for (const weight of ['0', '-1', '']) {
+    const bad = evalFixture(`weight${weight}`, {
+      'evals/c/graders/g.md': `---\ntype: llm\nfocus: files\nweight: ${weight}\n---\nb\n`,
+    });
+    assert.equal(scanEvalShape(bad.dir).length, 1, `\`weight: ${weight}\` is not a positive number`);
+  }
+
+  // YAML a maintainer can legally write: CRLF endings, a quoted scalar, a trailing comment.
+  const crlf = evalFixture('crlf', {
+    'evals/c/graders/g.md': '---\r\ntype: llm\r\nfocus: files\r\nweight: 2\r\n---\r\nb\r\n',
+  });
+  assert.equal(scanEvalShape(crlf.dir).length, 0, 'CRLF frontmatter is read, not rejected');
+
+  const quoted = evalFixture('quoted', {
+    'evals/c/graders/g.md': '---\ntype: "llm"\nfocus: \'files\'\nweight: 2  # weighted\n---\nb\n',
+  });
+  assert.equal(scanEvalShape(quoted.dir).length, 0, 'quoted scalars and trailing comments are read');
+
+  const quotedScaffold = evalFixture('quotedScaffold', {
+    'evals/c/case.yaml': 'context:\n  scaffold_script: "scaffold.sh"  # relative to the case dir\n',
+    'evals/c/scaffold.sh': '#!/bin/sh\n',
+    'evals/c/graders/g.md': goodGrader,
+  });
+  assert.equal(scanEvalShape(quotedScaffold.dir).length, 0, 'a quoted scaffold_script resolves');
 
   console.log('drift-check selftest ok');
 } else {

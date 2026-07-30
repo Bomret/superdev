@@ -34,7 +34,7 @@ at `superdev@superdev` to score the released plugin instead.
 | Case | What it costs | What it isolates |
 |------|---------------|------------------|
 | `ab-plan-edge-case` | cheap, plan only | Does the plan enumerate the failure cases the intent never names — missing widget, unreachable datastore — as acceptance criteria a test could check? |
-| `ab-plan-multi-slice` | cheap, plan only | Is a five-operation feature cut into vertical slices with an explicit dependency order, or into horizontal layers? |
+| `ab-plan-multi-slice` | cheap, plan only | Is a five-operation feature cut into vertical slices with an explicit dependency order, or into horizontal layers? Does every operation get a criterion? |
 | `ab-implement-lite` | expensive, full build | Shipped code, tests, and docs in a runnable repo: are the two unnamed failure cases handled, are they tested, does the README stay true, is the suite honestly green, and is the diff proportionate? |
 
 ## Reading a result honestly
@@ -62,8 +62,15 @@ at `superdev@superdev` to score the released plugin instead.
 ## Adding a case
 
 A case is `case.yaml` + `graders/*.md`, plus a `scaffold_script` path relative
-to the case directory (never an inline block). Graders are frontmatter +
-criteria prose: `type: regex` (free, deterministic — prefer it when the check
-is mechanical), `type: llm`, `type: file_exists`. `focus`/`target` is `files`
-(the diff), `trace` (the whole transcript), `last_message`, or a specific
-file. Keep new graders arm-neutral for the same reason the existing ones are.
+to the case directory (never an inline block). A grader is frontmatter plus
+criteria prose. The harness accepts six grader types: `llm`, `regex`,
+`file_exists`, `tool_order`, `tool_used`, `baseline`. Every grader needs a
+positive `weight`. An `llm` or `regex` grader also needs a `focus` or
+`target`. The graders here use `files`, which scores the diff, and `trace`,
+which scores the whole transcript. The harness accepts more values than those
+two. It is early access and carries no public schema, so read the values off
+the harness rather than from a list here. Prefer `regex` when the check is
+mechanical: it is free and deterministic. `scripts/drift-check.js` checks
+this shape, so a malformed grader fails `bun run test` instead of surfacing
+part-way through a paid run. Keep new graders arm-neutral for the same reason
+the existing ones are.
