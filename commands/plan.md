@@ -172,12 +172,13 @@ worth fixing before writing it; that's correction, not re-cutting for looks.
 
 **Write with max parallelism (issue-backend stores).** Writes have a strict ordering only where one
 record references another — otherwise issue them concurrently, don't serialize. Order: **(1)** create the
-epic first (slices reference its key); **(2)** create **all slice issues in parallel** — a single batch of
-create calls — applying each slice's labels (`test-applicability` + feature + ready) **at creation**, not
-in a follow-up pass; **(3)** once every slice key is known, apply the cross-references (`depends-on`) **in
-parallel**. Steps 2 and 3 each fan out at once rather than one issue at a time. `depends-on` keys are
-correct because every slice exists before any reference is written. (A local-file store just writes the
-files; there's no API latency to batch.)
+epic first (slices reference its key), carrying the store's configured assignee like every slice does;
+**(2)** create **all slice issues in parallel** — a single batch of create calls — applying each slice's
+labels (`test-applicability` + feature + ready) and that same configured assignee **at creation**, not in
+a follow-up pass; **(3)** once every slice key is known, apply
+the cross-references (`depends-on`) **in parallel**. Steps 2 and 3 each fan out at once rather than one
+issue at a time. `depends-on` keys are correct because every slice exists before any reference is written.
+(A local-file store just writes the files; there's no API latency to batch.)
 
 **Delete the seeded brainstorm intent.** If this plan started from a `.superdev/brainstorm/<slug>.md` file
 (§1), delete it now that its intent is durably captured in the slice store — it has served its purpose,

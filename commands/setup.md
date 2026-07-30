@@ -66,6 +66,16 @@ with how to perform each move (transition name/id or CLI verb). Record it in `is
 `/implement` walks each issue along it as work progresses. If the tracker lacks a state (no separate
 `in-review` or `blocked`), map it to the nearest sensible status and note the collapse.
 
+Also capture the **assignee** for any issue backend — the account every issue `/plan` creates is assigned
+to, recorded as `Assignee` in `issue-tracker.md` (`plan-contract.md` → *Assignee*). Propose the **API
+token's own identity** as the default: resolve it from the backend's whoami endpoint (`GET /api/v1/user`
+on Forgejo/Gitea, `GET /user` on GitHub, `GET /rest/api/3/myself` on Jira) and offer that login or
+`accountId`. Accept a different account — the case that matters when a shared or bot token files the
+issues — provided the account can actually be assigned there (a repo collaborator, an assignable project
+user), since an unassignable one fails. Or `none`,
+to create the issues unassigned. An omitted line behaves as the default, so a repo that never answers
+still gets owned issues. The local-file store has no assignee: don't ask.
+
 **B — Code host.** Where does code live / where do PRs go? (Independent of A — code may be on GitHub
 while slices live in Jira.)
 

@@ -12,6 +12,9 @@ user has it installed); the user records which below.
 - **Issue type for a slice**: `<Story|Task>`
 - **`depends-on` link type**: `<is blocked by>` (Jira's "Blocks"/"is blocked by" link).
 - **Ready status/label**: `<ready-for-agent>` — marks a slice an agent may pick up.
+- **Assignee**: `<accountId>` — the account every issue a run creates is assigned to (see *Assignee*
+  below). `none` creates issues unassigned; omit the line entirely to fall back to whoever the API token
+  belongs to.
 - **Tooling**: `<rest>` or `<jira CLI>`.
 - **Status map**: canonical lifecycle → Jira status + transition — fill in the table below at setup.
 
@@ -21,8 +24,9 @@ Auth header: `-u "$JIRA_EMAIL:$JIRA_API_TOKEN"`, `-H "Content-Type: application/
 
 - **Create a slice issue**:
   `POST <base>/rest/api/3/issue` with `{ "fields": { "project": {"key":"PROJ"}, "summary": "<title>",
-  "issuetype": {"name":"Task"}, "description": <ADF body: specification + acceptance checklist> } }`.
-  Capture the returned `key` (e.g. `PROJ-123`) as this slice's external id.
+  "issuetype": {"name":"Task"}, "description": <ADF body: specification + acceptance checklist>,
+  "assignee": {"accountId":"<assignee>"} } }` — omit the `assignee` field entirely when
+  `Assignee: none`. Capture the returned `key` (e.g. `PROJ-123`) as this slice's external id.
 - **Link a dependency** (`depends-on`):
   `POST <base>/rest/api/3/issueLink` with
   `{ "type": {"name":"Blocks"}, "inwardIssue":{"key":"<this slice>"}, "outwardIssue":{"key":"<blocker>"} }`
@@ -46,6 +50,26 @@ Auth header: `-u "$JIRA_EMAIL:$JIRA_API_TOKEN"`, `-H "Content-Type: application/
 - `status` ↔ Jira status.
 - global DoD ↔ a parent Epic; slices are children of the Epic. **A single-slice feature has no Epic** —
   the lone slice issue's `acceptance` checklist is the DoD.
+
+## Assignee
+
+Store configuration, not a slice field (`plan-contract.md` → *Assignee*). The **Assignee** value above is
+applied to the **Epic and every slice** in the create call, never a follow-up pass. The failure shape
+below is the general *Assignee* recovery rule (`plan-contract.md`) made concrete for Jira.
+
+- Jira takes **exactly one** assignee, as `{"accountId": "<id>"}` — unlike the array Forgejo and GitHub
+  accept. Two reserved values: `"-1"` assigns the project's default assignee, and `null` unassigns.
+- **No `Assignee` line** in the configuration above → resolve the token's own identity with
+  `GET <base>/rest/api/3/myself` and use its `accountId`.
+- **`Assignee: none`** → omit the `assignee` field entirely. No warning, no error.
+- **Assignment is a separate permission.** *Assign Issues* is distinct from *Edit Issues*, so a token that
+  can transition an issue may still be unable to assign it. Jira rejects the create outright rather than
+  stripping the field: a `400` naming `assignee` (in `errors`, or in `errorMessages` — Jira uses both
+  channels). Retry that one create with the `assignee`
+  field omitted; report it once per run — the issue exists and nothing is retried more than that one
+  time or rolled back.
+- To assign an existing issue instead: `PUT <base>/rest/api/3/issue/<key>/assignee` with
+  `{ "accountId": "<id>" }`.
 
 ## Status workflow (fill in at setup)
 

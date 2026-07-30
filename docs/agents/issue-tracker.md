@@ -10,6 +10,9 @@ Slices live as Codeberg issues — one slice = one issue — in `bomret/superdev
   `Authorization: token $GITEA_TOKEN`, `Content-Type: application/json`.
 - **Feature label:** one label per feature/scope (e.g. `feat/self-improvements`) applied to the epic +
   its slices, so the feature's issues are listable.
+- **Assignee:** `bomret` — the Codeberg login every issue a run creates is assigned to (see
+  *Assignee* below). Set to `none` to create issues unassigned; remove the line entirely to fall back to
+  whoever `GITEA_TOKEN` belongs to.
 
 ## Field mapping (plan-contract → Forgejo)
 
@@ -38,9 +41,10 @@ Slices live as Codeberg issues — one slice = one issue — in `bomret/superdev
 ## REST conventions
 
 - **Create an issue:** `POST /api/v1/repos/bomret/superdev/issues` with
-  `{ "title": "...", "body": "<specification + acceptance checklist>", "labels": [<label ids>] }`. Capture the
-  returned `number` as the slice's `id`. Pass `labels` **at creation** — no separate label POST for the
-  create path.
+  `{ "title": "...", "body": "<specification + acceptance checklist>", "labels": [<label ids>],
+  "assignees": ["bomret"] }` — omit `assignees` entirely when `Assignee: none`. Capture the returned
+  `number` as the slice's `id`. Pass `labels` and `assignees` **at creation** — no separate label or
+  assignee POST for the create path.
 - **Parallel-safe creation order:** create the epic first (slices reference `#<epic>`), then fire **all
   slice creates in parallel**, then the `depends-on` body-patches in parallel once every `number` is
   known. Only the epic→slices→depends-on ordering is required; within each step the calls are
@@ -51,6 +55,26 @@ Slices live as Codeberg issues — one slice = one issue — in `bomret/superdev
 - **Read a slice:** `GET /api/v1/repos/bomret/superdev/issues/<index>`.
 - **Set labels / status:** `POST .../issues/<index>/labels` (add) and
   `PATCH .../issues/<index>` with `{ "state": "closed" }` to close.
+
+## Assignee
+
+Store configuration, not a slice field (`plan-contract.md` → *Assignee*; ADR 0010). The **Assignee**
+value above is applied to the **epic and every slice** in the create call, never a follow-up pass. The
+two failure shapes below are the general *Assignee* recovery rule (`plan-contract.md`) made concrete for
+Forgejo.
+
+- Forgejo's `CreateIssueOption.assignees` is an **array**, so the single configured login is sent as a
+  one-element `["bomret"]`. `EditIssueOption.assignees` is the same shape if an issue ever needs it later.
+- **No `Assignee` line** in the configuration above → resolve the token's own identity with
+  `GET /api/v1/user` and use its `login`.
+- **`Assignee: none`** → omit `assignees` entirely. No warning, no error.
+- **A login that doesn't exist or isn't a collaborator rejects the whole create**: `422 Assignee does not
+  exist` or `422 canBeAssigned` (`ErrUserDoesNotHaveAccessToRepo`). Retry that one create with
+  `assignees` omitted; report it once per run.
+- **A token without issue-write access silently drops the assignment** (and `labels` with it) — the
+  create succeeds but the returned `assignees` is empty or `null`. Read it back from the create response;
+  if it's empty while an assignee was configured, report it once per run.
+- Either way the issue is created and nothing is retried more than that one time or rolled back.
 
 ## Status workflow (Forgejo has open/closed + labels — no custom states)
 

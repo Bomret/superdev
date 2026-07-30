@@ -174,3 +174,35 @@ When the slice store is an issue tracker, each slice is one issue:
   same body-text pattern. Epic-only, advisory, and written only when *When to write them* above says so.
 
 The exact commands and vocabulary live in the active `docs/agents/issue-tracker.md`.
+
+### Assignee — store configuration, not a slice field
+
+Every issue a run creates — the epic and each slice — is assigned to the account named by the
+**`Assignee`** setting in the active `docs/agents/issue-tracker.md`: a single store-native identifier (a
+login on Forgejo/GitHub, an `accountId` on Jira). It deliberately gains **no row in the *Fields* table
+above**. Assignee names who owns work inside a tracker — a property of the store and the run, not of a
+slice — and the local-file store has no equivalent, so a schema field would be one that backend could
+never honour (ADR 0010).
+
+- **Absent setting** — no `Assignee` line in `issue-tracker.md` → resolve the API token's own identity
+  from the store's whoami endpoint and assign that. Every issue-backed repo gets owned issues without
+  configuring anything.
+- **`Assignee: none`** — create the issues unassigned. A deliberate choice, not a failure: no warning,
+  no error.
+- **Applied at creation** — the assignee goes in the same create call that already carries the title,
+  body, and labels, for the epic and every slice. Never a follow-up pass, so it costs no extra request.
+- **A bad assignee must never cost the run its issues** — `/plan` fires every slice create in parallel, so
+  one misconfigured `Assignee` can't be allowed to fail every create in the batch. A store rejects an
+  unassignable configuration one of two ways, and each has its own recovery:
+  - **The create itself is rejected because of the assignee** (the account doesn't exist, or can't be
+    assigned on this repo) — retry that one create **once, without the assignee**, so the issue still
+    exists; report it **once** for the whole run.
+  - **The create succeeds but the assignee comes back empty** (the token lacks the permission to assign,
+    and drops it silently) — read the assignee back from the response the create already returned; if
+    it's empty while one was configured, report it **once** for the whole run.
+
+  Either way every issue is still created, and nothing is retried more than that one time or rolled back.
+
+The field name, identifier format, which of the two shapes a given backend fails with, and the whoami
+endpoint are per-backend and live in the active `docs/agents/issue-tracker.md`. The local-file store has
+no assignee: `issue-tracker-local.md` neither carries the setting nor honours it.

@@ -79,12 +79,55 @@ function scanRunRootPaths(root) {
   return offenders;
 }
 
+// An issue-backend document must carry the assignee contract (plan-contract.md → Assignee). A seed that
+// omits it makes /superdev:setup write a config doc with no assignee, and the feature silently does
+// nothing for that backend — the exact failure the contract exists to prevent, and one no build step
+// would catch. The local-file store is exempt: it has no assignee concept and deliberately never gains
+// one. Every other references/issue-tracker-*.md is an issue backend by definition — a slice store that
+// isn't the local-file store creates issues — so the filename alone is the trigger; no content gate on
+// how the doc phrases "create an issue" (CLI, REST, or plain prose all count, and a content gate misses
+// forms it wasn't written to expect, e.g. `gh issue create`).
+const ASSIGNEE_DOCS_DIR = 'references';
+const ASSIGNEE_EXEMPT = new Set(['issue-tracker-local.md']);
+const EXTRA_ASSIGNEE_DOCS = ['docs/agents/issue-tracker.md']; // this repo's own dogfooded store config
+// The config-bullet form the contract actually uses (`**Assignee:**` / `**Assignee**:`), not a bare
+// substring — "this tracker has no assignee field" would otherwise satisfy a substring check.
+const ASSIGNEE_PATTERN = /\*\*Assignee[:*]/;
+
+// scanAssigneeContract() is pure over a root dir: reads every issue-backend document and reports the
+// ones that never carry the assignee contract. Absent files are skipped, so fixtures need only the docs
+// they exercise.
+function scanAssigneeContract(root) {
+  const gaps = [];
+  const candidates = [...EXTRA_ASSIGNEE_DOCS];
+  try {
+    for (const entry of fs.readdirSync(path.join(root, ASSIGNEE_DOCS_DIR))) {
+      if (!entry.startsWith('issue-tracker-') || !entry.endsWith('.md')) continue;
+      if (ASSIGNEE_EXEMPT.has(entry)) continue;
+      candidates.push(path.join(ASSIGNEE_DOCS_DIR, entry));
+    }
+  } catch {
+    // no references/ dir → nothing to scan
+  }
+  for (const rel of candidates) {
+    let text;
+    try {
+      text = fs.readFileSync(path.join(root, rel), 'utf8');
+    } catch {
+      continue; // doc absent (fixture / partial checkout) → nothing to scan
+    }
+    if (!ASSIGNEE_PATTERN.test(text)) gaps.push({ source: rel });
+  }
+  return gaps;
+}
+
 function main() {
   const root = path.join(__dirname, '..');
   const missing = scan(root);
   const offenders = scanRunRootPaths(root);
-  if (missing.length === 0 && offenders.length === 0) {
-    console.log('drift-check ok: references resolve and run-root paths are absolute');
+  const gaps = scanAssigneeContract(root);
+  if (missing.length === 0 && offenders.length === 0 && gaps.length === 0) {
+    console.log('drift-check ok: references resolve, run-root paths are absolute, assignee contract carried');
     process.exit(0);
   }
   for (const m of missing) {
@@ -92,6 +135,9 @@ function main() {
   }
   for (const o of offenders) {
     console.error(`checkout-relative run-root path \`${o.match}\` in ${o.source} — use \`<run-root>/…\``);
+  }
+  for (const g of gaps) {
+    console.error(`${g.source} carries no \`**Assignee\` config bullet — see plan-contract.md → Assignee`);
   }
   process.exit(1);
 }
@@ -176,6 +222,66 @@ if (process.argv[2] === '--selftest') {
   );
   const offenders5 = scanRunRootPaths(tmp5);
   assert.equal(offenders5.length, 0, 'absolute form + worktree dir paths yield zero offenders');
+
+  // --- scanAssigneeContract: an issue-backend doc that describes creating an issue must carry the
+  // assignee contract; the local-file store is exempt ---
+
+  // positive: an issue-backend seed with no `**Assignee` config bullet is flagged
+  const tmp6 = fs.mkdtempSync(path.join(os.tmpdir(), 'drift-check-'));
+  fs.mkdirSync(path.join(tmp6, 'references'), { recursive: true });
+  fs.writeFileSync(
+    path.join(tmp6, 'references', 'issue-tracker-acme.md'),
+    '**Create a slice issue**: `POST /api/v1/repos/o/r/issues` with `{ "title": "...", "labels": [] }`.\n',
+  );
+  const gaps6 = scanAssigneeContract(tmp6);
+  assert.equal(gaps6.length, 1, 'flags a create-issue seed with no assignee contract');
+  assert.equal(gaps6[0].source, path.join('references', 'issue-tracker-acme.md'), 'names the seed');
+
+  // negative: the same seed carrying the assignee contract is clean
+  const tmp7 = fs.mkdtempSync(path.join(os.tmpdir(), 'drift-check-'));
+  fs.mkdirSync(path.join(tmp7, 'references'), { recursive: true });
+  fs.writeFileSync(
+    path.join(tmp7, 'references', 'issue-tracker-acme.md'),
+    '**Create a slice issue**: `POST /api/v1/repos/o/r/issues` with `{ "title": "...", "assignees": ["x"] }`.\n' +
+      'No **Assignee** configured → resolve the token identity; `none` disables assignment.\n',
+  );
+  const gaps7 = scanAssigneeContract(tmp7);
+  assert.equal(gaps7.length, 0, 'a seed carrying the assignee contract yields zero gaps');
+
+  // the local-file store creates slice FILES, not issues, and is exempt even though it is an
+  // issue-tracker-*.md document
+  const tmp8 = fs.mkdtempSync(path.join(os.tmpdir(), 'drift-check-'));
+  fs.mkdirSync(path.join(tmp8, 'references'), { recursive: true });
+  fs.writeFileSync(
+    path.join(tmp8, 'references', 'issue-tracker-local.md'),
+    'Create an issue file per slice under `docs/plans/<feature>/`. `POST /issues` is not used.\n',
+  );
+  const gaps8 = scanAssigneeContract(tmp8);
+  assert.equal(gaps8.length, 0, 'the local-file store is exempt from the assignee contract');
+
+  // positive: a seed describing the `gh issue create` CLI form (no "create an issue" prose, no
+  // `POST .../issues`) still creates issues and must carry the assignee contract too — every
+  // references/issue-tracker-*.md not in ASSIGNEE_EXEMPT is an issue backend by definition, so the
+  // filename alone is the trigger
+  const tmp9 = fs.mkdtempSync(path.join(os.tmpdir(), 'drift-check-'));
+  fs.mkdirSync(path.join(tmp9, 'references'), { recursive: true });
+  fs.writeFileSync(
+    path.join(tmp9, 'references', 'issue-tracker-ghcli.md'),
+    '`gh issue create -t "<title>" -b "<body>" -l "<label>"`\n',
+  );
+  const gaps9 = scanAssigneeContract(tmp9);
+  assert.equal(gaps9.length, 1, 'flags a gh-issue-create seed with no assignee contract');
+
+  // negative: a bare substring mention ("no assignee field; skip it") must not satisfy the contract —
+  // only the config-bullet form does
+  const tmp10 = fs.mkdtempSync(path.join(os.tmpdir(), 'drift-check-'));
+  fs.mkdirSync(path.join(tmp10, 'references'), { recursive: true });
+  fs.writeFileSync(
+    path.join(tmp10, 'references', 'issue-tracker-bare.md'),
+    '`gh issue create -t "<title>" -b "<body>"`. This tracker has no assignee field; skip it.\n',
+  );
+  const gaps10 = scanAssigneeContract(tmp10);
+  assert.equal(gaps10.length, 1, 'a bare "assignee" mention does not satisfy the contract');
 
   console.log('drift-check selftest ok');
 } else {

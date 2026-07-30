@@ -42,9 +42,10 @@ references/            — backend seed templates + plan-contract (slice schema/
 docs/adr/              — architecture decision records (why the plugin is built this way)
 docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, documentation, KB, toolchain, verification)
 scripts/               — standalone drift-assertion checks wired into `bun run test` (e.g.
-                         `drift-check.js`, asserting every referenced `references/*.md` path exists and
+                         `drift-check.js`, asserting every referenced `references/*.md` path exists,
                          that the execution/controller docs address run-root artifacts by absolute
-                         `<run-root>/…` path, never a checkout-relative `.superdev/scopes/<scope>/…` one)
+                         `<run-root>/…` path, never a checkout-relative `.superdev/scopes/<scope>/…` one,
+                         and that every issue-backend document carries the `**Assignee` config bullet)
 evals/                 — `claude plugin eval` cases (*/case.yaml + graders/*.md + the case's
                          scaffold_script, a path relative to the case dir — never an inline block);
                          every case is one arm of the with/without-plugin A/B — see `evals/README.md`
@@ -214,8 +215,10 @@ This root owns every subtree directly:
 - `scripts/` — standalone drift-assertion checks run from `package.json` (e.g. `drift-check.js`, which
   also guards that `commands/implement.md`, `references/implement-full.md`/`implement-lite.md`, and
   `agents/implementer.md`/`slice-reviewer.md`/`simplicity-reviewer.md` address run-root artifacts by
-  absolute `<run-root>/…` path), the other executable code alongside `hooks/`. Follows the same
-  `--selftest` convention.
+  absolute `<run-root>/…` path, and that every issue-backend document carries the `**Assignee` config
+  bullet — triggered by filename alone, no content gate on how the doc phrases issue creation;
+  `references/issue-tracker-local.md` exempt, having no assignee concept), the other executable code
+  alongside `hooks/`. Follows the same `--selftest` convention.
 - `references/` — backend seed templates + `plan-contract.md` (slice schema/lifecycle, incl. the
   optional epic sections and the epic-visuals gate for `## Slice graph`/`## Touch map`) + `documentation.md`
   + **execution playbooks** (`implement-full.md` / `implement-lite.md`): the tier-specific linear procedures
