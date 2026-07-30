@@ -1,3 +1,10 @@
+# [0.23.0](https://codeberg.org/bomret/superdev/compare/v0.22.0...v0.23.0) (2026-07-30)
+
+
+### Features
+
+* **plan:** draw the slice graph and touch map when a plan earns them ([#94](https://codeberg.org/bomret/superdev/issues/94)) ([37362ab](https://codeberg.org/bomret/superdev/commit/37362abb6460331411f0ace9f9c0be3776b5b20c)), closes [#91](https://codeberg.org/bomret/superdev/issues/91) [#92](https://codeberg.org/bomret/superdev/issues/92) [#93](https://codeberg.org/bomret/superdev/issues/93)
+
 # [0.22.0](https://codeberg.org/bomret/superdev/compare/v0.21.0...v0.22.0) (2026-07-24)
 
 
