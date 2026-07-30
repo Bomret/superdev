@@ -114,6 +114,9 @@ _Avoid: "drift test" (it's an assertion inside the existing chain, not a suite),
 **Bootstrap** (mode) — the brownfield-seed mode of `/superdev:document` (empty args, `AGENTS.md`-hierarchy convention, root `AGENTS.md` absent): the doc-writer seeds root/child `AGENTS.md` files from the existing code and proposes `CONTEXT.md` candidate terms, which the controller confirms/prunes with the user before committing. A range or area invocation never bootstraps.
 _Avoid: "init", "scaffold" (bootstrap seeds from what already exists, it doesn't scaffold empty structure)_
 
+**Writing standard** — the prose style the doc agents apply, recorded as a pointer in a `## Writing standard` section of `docs/agents/documentation.md`: `STE` (ASD-STE100 Simplified Technical English, shipped as `references/ste.md`), a repo-relative path to the project's own style guide, or `none`. Binds only the prose an agent writes or rewrites in that dispatch, never untouched text (ADR 0012).
+_Avoid: "style guide" (that names one possible value — a repo's own file — not the config), "tone" (a voice property; the standard governs form), "linter" (there is no deterministic check — the doc-reader is the verifier)_
+
 ## Backends
 
 superdev is tool-agnostic: three pluggable backends, each chosen by `/setup` and recorded under `docs/agents/`. The commands and agents never hardcode one.
