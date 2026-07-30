@@ -140,8 +140,10 @@ backend.
   in-progress to merged/done).
   Choices: *local files* (a directory `docs/plans/<feature-slug>/` per feature: `00-epic-*` = DoD +
   description, `NN-<test-applicability>-*` = one file per slice, the number *is* the id — best for solo work
-  or no tracker) · *Jira* (each slice an issue, `depends-on` → "is blocked by" links) · *other* (describe
-  your tracker's CRUD + dependency link in prose). For any issue-backed choice, setup also asks who owns
+  or no tracker) · *GitHub Issues* (each slice an issue, a sub-issue of its epic, `depends-on` → native
+  `blocked_by` dependencies) · *Jira* (each
+  slice an issue, `depends-on` → "is blocked by" links) · *other* (describe your tracker's CRUD +
+  dependency link in prose). For any issue-backed choice, setup also asks who owns
   the created issues (an **assignee** — a login or `accountId`, defaulting to the API token's own
   identity, or `none`). → `docs/agents/issue-tracker.md`.
 - **Code host** — where the scope branch is pushed and the PR/MR opens, plus the default posture

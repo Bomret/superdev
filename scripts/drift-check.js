@@ -90,9 +90,11 @@ function scanRunRootPaths(root) {
 const ASSIGNEE_DOCS_DIR = 'references';
 const ASSIGNEE_EXEMPT = new Set(['issue-tracker-local.md']);
 const EXTRA_ASSIGNEE_DOCS = ['docs/agents/issue-tracker.md']; // this repo's own dogfooded store config
-// The config-bullet form the contract actually uses (`**Assignee:**` / `**Assignee**:`), not a bare
-// substring — "this tracker has no assignee field" would otherwise satisfy a substring check.
-const ASSIGNEE_PATTERN = /\*\*Assignee[:*]/;
+// The config bullet itself — a list item, in either of the two spellings the real documents use
+// (`- **Assignee:** …` and `- **Assignee**: …`). Matching a bare bolded `**Assignee**` would be
+// satisfied by any running prose that merely refers to the setting, which says nothing about whether
+// this backend is actually configured with one.
+const ASSIGNEE_PATTERN = /^\s*[-*]\s+\*\*Assignee(?:\*\*:|:\*\*)/m;
 
 // scanAssigneeContract() is pure over a root dir: reads every issue-backend document and reports the
 // ones that never carry the assignee contract. Absent files are skipped, so fixtures need only the docs
@@ -137,7 +139,10 @@ function main() {
     console.error(`checkout-relative run-root path \`${o.match}\` in ${o.source} — use \`<run-root>/…\``);
   }
   for (const g of gaps) {
-    console.error(`${g.source} carries no \`**Assignee\` config bullet — see plan-contract.md → Assignee`);
+    console.error(
+      `${g.source} carries no \`**Assignee\` config bullet — expected \`- **Assignee:** <value>\` or ` +
+        `\`- **Assignee**: <value>\` as a list item; see plan-contract.md → Assignee`,
+    );
   }
   process.exit(1);
 }
@@ -242,7 +247,8 @@ if (process.argv[2] === '--selftest') {
   fs.mkdirSync(path.join(tmp7, 'references'), { recursive: true });
   fs.writeFileSync(
     path.join(tmp7, 'references', 'issue-tracker-acme.md'),
-    '**Create a slice issue**: `POST /api/v1/repos/o/r/issues` with `{ "title": "...", "assignees": ["x"] }`.\n' +
+    '- **Assignee:** `<login>` — the account every issue a run creates is assigned to.\n\n' +
+      '**Create a slice issue**: `POST /api/v1/repos/o/r/issues` with `{ "title": "...", "assignees": ["x"] }`.\n' +
       'No **Assignee** configured → resolve the token identity; `none` disables assignment.\n',
   );
   const gaps7 = scanAssigneeContract(tmp7);
@@ -282,6 +288,32 @@ if (process.argv[2] === '--selftest') {
   );
   const gaps10 = scanAssigneeContract(tmp10);
   assert.equal(gaps10.length, 1, 'a bare "assignee" mention does not satisfy the contract');
+
+  // a **bolded** mention in running prose is not a config bullet either. The contract lives in a
+  // `- **Assignee:** <value>` list item; prose that merely refers to "the **Assignee** value" says
+  // nothing about what this backend is configured with.
+  const tmp11 = fs.mkdtempSync(path.join(os.tmpdir(), 'drift-check-'));
+  fs.mkdirSync(path.join(tmp11, 'references'), { recursive: true });
+  fs.writeFileSync(
+    path.join(tmp11, 'references', 'issue-tracker-prose.md'),
+    '## Assignee\n\nThe **Assignee** value above is applied to the epic and every slice.\n',
+  );
+  const gaps11 = scanAssigneeContract(tmp11);
+  assert.equal(gaps11.length, 1, 'a bolded prose mention is not a config bullet');
+
+  // both real spellings of the config bullet satisfy it
+  const tmp12 = fs.mkdtempSync(path.join(os.tmpdir(), 'drift-check-'));
+  fs.mkdirSync(path.join(tmp12, 'references'), { recursive: true });
+  fs.writeFileSync(
+    path.join(tmp12, 'references', 'issue-tracker-colon-inside.md'),
+    '- **Assignee:** `someone` — the account every issue is assigned to.\n',
+  );
+  fs.writeFileSync(
+    path.join(tmp12, 'references', 'issue-tracker-colon-outside.md'),
+    '- **Assignee**: `<accountId>` — the account every issue is assigned to.\n',
+  );
+  const gaps12 = scanAssigneeContract(tmp12);
+  assert.equal(gaps12.length, 0, 'both `**Assignee:**` and `**Assignee**:` bullets satisfy it');
 
   console.log('drift-check selftest ok');
 } else {

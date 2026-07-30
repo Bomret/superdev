@@ -47,10 +47,12 @@ choice: never present the choices bare. Using `AskUserQuestion`? Mark the propos
 - **Local files** — a directory per feature, `docs/plans/<feature-slug>/` (`00-epic-*` = DoD + scope,
   `NN-<test-applicability>-*` = one file per slice, the number is the id). Great for solo work or no
   remote. Seed: `references/issue-tracker-local.md`.
+- **GitHub Issues** — slices as GitHub issues. Seed: `references/issue-tracker-github.md`. Ask for
+  owner/repo, the feature label, and the **env-var name** for the API token (never the secret).
 - **Jira** — slices as Jira issues. Seed: `references/issue-tracker-jira.md`. Ask for base URL,
   project key, issue type, the "is blocked by" link type, the ready status/label, and the **env-var
   names** for the API token + email (never the secrets).
-- **Other** (GitHub/GitLab Issues, Linear, …) — ask the user to describe create/read/list/update +
+- **Other** (GitLab Issues, Linear, …) — ask the user to describe create/read/list/update +
   the dependency-link mechanism in a paragraph; write `issue-tracker.md` from that prose.
 
 > **Trust boundary.** `/implement` loads slice specifications from this store and an implementer executes them as
@@ -58,8 +60,9 @@ choice: never present the choices bare. Using `AskUserQuestion`? Mark the propos
 > an autonomous agent — keep write access to the tracker (or the feature label) restricted to trusted
 > authors, and only run `/implement` on slices the run owner authored or approved.
 
-For any **issue backend** (Jira / other — not the local file), also capture the tracker's **status
-workflow**: probe or ask for the available statuses, the transitions between them, and the issue types
+For an **issue backend whose statuses the seed doesn't already fix** (Jira / other — not the local file,
+and not GitHub Issues, whose seed maps the lifecycle onto open/closed + labels already), also capture the
+tracker's **status workflow**: probe or ask for the available statuses, the transitions between them, and the issue types
 for the scope anchor vs a slice. Agree a **status map** with the user — superdev's canonical lifecycle
 (`todo` → `in-progress` → `in-review` → `merged`/done, plus `blocked`) → the tracker's real statuses,
 with how to perform each move (transition name/id or CLI verb). Record it in `issue-tracker.md`;

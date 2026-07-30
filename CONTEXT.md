@@ -6,7 +6,7 @@
 _Avoid: "feature issue", "parent issue", "the DoD" (the epic holds/sources the DoD's text; `.superdev/scopes/<scope>/dod.md` is the concrete DoD itself)_
 
 **Slice** — a vertical tracer bullet: a narrow but complete path through every layer (specification → implementation → test), independently green, demoable/verifiable on its own. Each slice carries test-applicability (behavior/mechanical/docs), a specification, acceptance criteria, and explicit dependencies on other slices.
-_Avoid: "story", "task", "sub-issue", "chunk"_
+_Avoid: "story", "task", "sub-issue", "chunk" — though GitHub's **sub-issue** is a different sense: the tracker's parent/child relation, which the GitHub slice store uses to link a slice to its epic (ADR 0011), not a synonym for the slice itself_
 
 **Tier** (execution) — the routing decision for a plan, derived from the loaded slice count: `lite` (≤3 slices) or `full` (>3 slices). Never persisted, derived fresh every run; each tier's linear procedure is read from its **execution playbook** (see _Separation of concerns_).
 _Avoid: "mode", "strategy", "level", "route", "path"_
@@ -79,7 +79,7 @@ _Avoid: "slice type", "category"_
 _Avoid: "orchestrator", "manager"_
 
 **Depends-on** — the set of slice IDs that must merge before a slice can start (a DAG edge). A slice depends on another only if it cannot be green without it; too-eager dependencies serialize work that could run in parallel.
-_Avoid: "blocked by", "dependency" (too generic; "depends-on" is the explicit, load-bearing relationship)_
+_Avoid: "blocked by", "dependency" (too generic; "depends-on" is the explicit, load-bearing relationship) — though GitHub's **`blocked_by`** is the literal name of the native relation the GitHub slice store uses to record this same edge (ADR 0011), not a looser competing term_
 
 ## Review discipline
 
