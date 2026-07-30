@@ -23,8 +23,14 @@ _Avoid: "run directory", "scope dir" (too generic — this is specifically the c
 **Definition of Done (DoD)** — the checkable acceptance criteria for the whole feature, sourced from the epic if one exists, or from the lone slice's `acceptance` if not. `.superdev/scopes/<scope>/dod.md` is the concrete verification plan that gates the final-reviewer and PR.
 _Avoid: "requirements", "specification", "checklist" (DoD is the integrated checklist)_
 
-**Ledger** — the per-scope recovery map: tracks each slice's status (todo → in-progress → in-review → merged), its commit range when merged, and the slice-id ↔ issue-key mapping. `.superdev/scopes/<scope>/ledger.md` is the authoritative state during a run and after compaction/resume.
+**Ledger** — the per-scope recovery map: tracks the run's stage, each slice's status (todo → in-progress → in-review → merged), its commit range when merged, and the slice-id ↔ issue-key mapping. `.superdev/scopes/<scope>/ledger.md` is the authoritative state during a run and after compaction/resume.
 _Avoid: "log", "status file", "tracker"_
+
+**Stage** — how far a scope has moved through the four-command chain (`/implement` → `/review` → `/document` → `/ship`), recorded as the ledger's `**Stage:**` line and naming the last completed step: `implementing`, `merged`, `reviewed`, `documented`, `shipped`. Distinct from a slice's status, which tracks one slice through the DAG (ADR 0013).
+_Avoid: "phase" (that names a section of a single command's procedure, as in Phase 0), "state", "step"_
+
+**Scope checkout** — the working tree holding the scope branch, which every command after `/implement` finds from disk: the scope worktree when one exists (a lite run), otherwise the invoking checkout, which a full run left switched to the scope branch. Where a chained command's fix commits and documentation commits land.
+_Avoid: "the checkout" unqualified (the invoking checkout is a different thing on a lite run)_
 
 **Worktree** — an isolated filesystem checkout used to keep a run's branch work off the invoking checkout. The full tier gives each slice its own **per-slice worktree** (`.superdev/scopes/<scope>/worktrees/<id>/`, plural); the lite tier uses a single **scope worktree** (singular — see below) for all its slices. Both nest under the git-ignored `.superdev/scopes/<scope>/`.
 _Avoid: "branch", "workspace", "checkout"_
@@ -35,7 +41,7 @@ _Avoid: "main checkout", "user branch", "current tree"_
 **Scope worktree** — the dedicated worktree a lite run cuts its scope branch into (`.superdev/scopes/<scope>/worktree/`), where all inline implementation, commits, and tests run. Isolates the run from the invoking checkout and from other sessions. The run root (dod/ledger) stays in the invoking checkout, not here, so it survives worktree removal.
 _Avoid: "scratch checkout", "session workspace"_
 
-**Run lock** — the `.superdev/scopes/<scope>/run.lock` file plus the `run-lock` hook that together enforce same-scope mutual exclusion for the `lite` tier. A stale lock is reclaimable as a crash resume.
+**Run lock** — the `.superdev/scopes/<scope>/run.lock` file plus the `run-lock` hook that together enforce same-scope mutual exclusion for the `lite` tier. Its mtime marks the run as live, so every command in the chain touches it and the lock spans the whole run rather than one invocation. A stale lock is reclaimable as a crash resume.
 _Avoid: "lockfile" (that names a dependency-manifest file elsewhere), "mutex" (too implementation-generic)_
 
 **Progress log** — the per-slice running record of what happened: agent dispatches, reviews, fixes, merge results. `.superdev/scopes/<scope>/reports/<id>/progress.md` is append-only, oldest-first, git-ignored. Exists so a human or a resumed controller can see what unfolded without re-reading worktree state.
@@ -83,7 +89,7 @@ _Avoid: "blocked by", "dependency" (too generic; "depends-on" is the explicit, l
 
 ## Review discipline
 
-**Final-reviewer** — the whole-scope review gate after all slices are merged. Checks the integrated diff against the global DoD. Read-only (`Read`, `Grep`, `Bash` — no `Edit`): its findings drive the controller's 3-strike fix loop (each fix with a RED test; on 3 strikes without going clean, escalate), it never applies a fix itself.
+**Final-reviewer** — the whole-scope review gate after all slices are merged. Checks the integrated diff against the global DoD. Read-only (`Read`, `Grep`, `Bash` — no `Edit`): its findings drive the dispatching command's 3-strike fix loop (each fix with a RED test; on 3 strikes without going clean, escalate), it never applies a fix itself.
 _Avoid: "final review", "scope review" (the role/agent, not just the step)_
 
 **3-strike fix loop** — if a final-review (or per-slice review) fix cycle exposes a new defect, dispatch a fresh fix with a RED test; repeat. On 3 strikes (3 fix cycles each surfacing a new bug), stop: it's a wrong cut (hidden dependency, boundary too big), not a buggy slice. Move it → blocked and escalate.
