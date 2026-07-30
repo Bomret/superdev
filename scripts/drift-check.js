@@ -248,23 +248,57 @@ function scanEvalShape(root) {
   return problems;
 }
 
+// Both doc agents must wire the content-type lens (ADR 0014). scan() above catches a reference to a file
+// that does not exist. The reverse drift is invisible to it: an agent that stops referencing a file which
+// still exists leaves the reference resolvable, the suite green, and the lens dead in every dispatch.
+// Same silent-drop failure shape as the assignee and writing-standard contracts.
+const CONTENT_TYPES_AGENTS = [
+  path.join('agents', 'doc-writer.md'),
+  path.join('agents', 'doc-reader.md'),
+];
+// Anchored on the `Read` instruction, not on a bare occurrence of the path. An agent that keeps the path
+// in a passing aside but drops the instruction to read it has already lost the lens, so a substring match
+// on the path alone would pass the exact drift this check exists to catch. Either path form satisfies it:
+// the `${CLAUDE_PLUGIN_ROOT}` macro or a bare prose path, since an agent resolves both at dispatch.
+const CONTENT_TYPES_PATTERN =
+  /Read\s+`?(?:\$\{CLAUDE_PLUGIN_ROOT\}\/)?references\/content-types\.md/;
+
+// scanContentTypesContract() is pure over a root dir: reads every agent that must apply the content-type
+// lens and reports the ones that no longer instruct themselves to read it. Absent files are skipped, so
+// fixtures need only the agents they exercise.
+function scanContentTypesContract(root) {
+  const gaps = [];
+  for (const rel of CONTENT_TYPES_AGENTS) {
+    let text;
+    try {
+      text = fs.readFileSync(path.join(root, rel), 'utf8');
+    } catch {
+      continue; // agent absent (fixture / partial checkout) → nothing to scan
+    }
+    if (!CONTENT_TYPES_PATTERN.test(text)) gaps.push({ source: rel });
+  }
+  return gaps;
+}
+
 function main() {
   const root = path.join(__dirname, '..');
   const missing = scan(root);
   const offenders = scanRunRootPaths(root);
   const gaps = scanAssigneeContract(root);
   const wsGaps = scanWritingStandardContract(root);
+  const ctGaps = scanContentTypesContract(root);
   const shape = scanEvalShape(root);
   if (
     missing.length === 0 &&
     offenders.length === 0 &&
     gaps.length === 0 &&
     wsGaps.length === 0 &&
+    ctGaps.length === 0 &&
     shape.length === 0
   ) {
     console.log(
       'drift-check ok: references resolve, run-root paths are absolute, assignee contract carried, ' +
-        'writing standard offered, eval graders and scaffolds well-formed',
+        'writing standard offered, content-type lens wired, eval graders and scaffolds well-formed',
     );
     process.exit(0);
   }
@@ -284,6 +318,12 @@ function main() {
     console.error(
       `${g.source} carries no \`## Writing standard\` section — expected the heading plus its ` +
         `\`controlled | <path> | none\` values; see ADR 0012`,
+    );
+  }
+  for (const g of ctGaps) {
+    console.error(
+      `${g.source} no longer instructs itself to read \`references/content-types.md\` — the ` +
+        `content-type lens is dead in every dispatch of this agent; see ADR 0014`,
     );
   }
   for (const p of shape) {
@@ -506,6 +546,70 @@ if (process.argv[2] === '--selftest') {
   fs.mkdirSync(path.join(tmp16, 'references'), { recursive: true });
   const wsGaps16 = scanWritingStandardContract(tmp16);
   assert.equal(wsGaps16.length, 0, 'an absent seed is skipped');
+
+  // --- scanContentTypesContract: both doc agents must wire the content-type lens. scan() above catches
+  // a reference pointing at a file that does not exist; it cannot catch the reverse, an agent that stops
+  // referencing a file which still exists. That leaves the reference present, the suite green, and the
+  // lens dead in every dispatch (ADR 0014). ---
+
+  const ctFixture = (files) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'drift-check-'));
+    fs.mkdirSync(path.join(dir, 'agents'), { recursive: true });
+    for (const [rel, body] of Object.entries(files)) {
+      fs.writeFileSync(path.join(dir, rel), body);
+    }
+    return dir;
+  };
+  const wired = 'Read `${CLAUDE_PLUGIN_ROOT}/references/content-types.md` and apply it.\n';
+  const unwired = '# doc agent\n\nNo lens here.\n';
+
+  // positive: doc-reader dropped its wire
+  const ct17 = ctFixture({
+    'agents/doc-writer.md': wired,
+    'agents/doc-reader.md': unwired,
+  });
+  const ctGaps17 = scanContentTypesContract(ct17);
+  assert.equal(ctGaps17.length, 1, 'flags the agent that dropped the content-types reference');
+  assert.equal(ctGaps17[0].source, path.join('agents', 'doc-reader.md'), 'names doc-reader');
+
+  // positive: doc-writer dropped its wire — the same failure from the other side
+  const ct18 = ctFixture({
+    'agents/doc-writer.md': unwired,
+    'agents/doc-reader.md': wired,
+  });
+  const ctGaps18 = scanContentTypesContract(ct18);
+  assert.equal(ctGaps18.length, 1, 'flags doc-writer when it is the one that dropped the wire');
+  assert.equal(ctGaps18[0].source, path.join('agents', 'doc-writer.md'), 'names doc-writer');
+
+  // negative: both wired is clean
+  const ct19 = ctFixture({
+    'agents/doc-writer.md': wired,
+    'agents/doc-reader.md': wired,
+  });
+  assert.equal(scanContentTypesContract(ct19).length, 0, 'both agents wired yields zero gaps');
+
+  // a bare prose path counts too, matching how scan() accepts either form
+  const ct20 = ctFixture({
+    'agents/doc-writer.md': 'Read `references/content-types.md` before your first edit.\n',
+    'agents/doc-reader.md': wired,
+  });
+  assert.equal(scanContentTypesContract(ct20).length, 0, 'a bare reference path satisfies the contract');
+
+  // the path alone is not a wire: an agent that mentions the file in passing but never instructs itself
+  // to read it has already lost the lens, which is the drift this check exists to catch
+  const ct21 = ctFixture({
+    'agents/doc-writer.md': 'The lens lives in `references/content-types.md` and matters here.\n',
+    'agents/doc-reader.md': wired,
+  });
+  assert.equal(
+    scanContentTypesContract(ct21).length,
+    1,
+    'a passing mention with no read instruction is still a gap',
+  );
+
+  // an absent agent file is skipped, so a fixture carries only the files it exercises
+  const ct22 = ctFixture({ 'agents/doc-writer.md': wired });
+  assert.equal(scanContentTypesContract(ct22).length, 0, 'an absent agent file is skipped');
 
   // --- scanEvalShape: a grader's frontmatter must be something the harness can act on, and a case's
   // scaffold_script must resolve ---

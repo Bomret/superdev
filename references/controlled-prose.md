@@ -122,6 +122,14 @@ other rule.
 - When the reader must know a condition first, write the condition first. Then separate it from the
   command with a comma.
 - Write a note to give information. A note does not contain an instruction.
+- Give each numbered step one action, or a group of actions the reader performs as one. Two actions in
+  two separate parts of an interface are two steps.
+- State the result of a step where the reader needs it to continue. A step that opens something, writes
+  something, or changes state says so.
+- Do not number a result. A number tells the reader to perform the line. Write the result inside the
+  step, or on its own line below it.
+- Give sibling procedures one lead-in pattern. When one procedure opens with a phrase, the next
+  procedure opens with the same phrase.
 
 ## Descriptive text (relaxed mode)
 
@@ -138,7 +146,7 @@ other rule.
 - Start with the command or the condition.
 - Explain the risk or the result the reader avoids.
 
-## Headings, lists, and references
+## Headings, lists, tables, and references
 
 - Do not write a full sentence as a heading. Do not write a subordinate clause in a heading.
 - Give a heading one topic. Put the word that distinguishes it first.
@@ -149,6 +157,10 @@ other rule.
 - Where your script has letter case, start each list item the way it starts a sentence (*Declare per
   language*, **Case and possessive forms**). End an item with a period only when the item is a full
   sentence. Always end the last item with a period. Do not end an item with a comma.
+- Give a table column a heading that names what the column holds. Use a noun.
+- Do not build a table's structure from one language's sentence order. A pair of headings that reads as
+  the halves of one sentence (`If …` and `then …`) is the common form of this error. Word order differs
+  between languages, so that table stops parsing as soon as the text moves to another one.
 - Make every cross-reference explicit. Name what the reader will find at the target. "See the section
   above" tells the reader nothing.
 - Write a cross-reference so it survives the medium. A reference to a page number breaks on the web.
@@ -214,6 +226,12 @@ Run this list over the text before you return it. The `doc-reader` agent runs th
 10. Does a heading contain a full sentence or a subordinate clause? Rewrite it.
 11. Does a cross-reference say what the reader will find? If not, name it.
 12. Is a language-bound choice made twice, two different ways? Take it from *Declare per language*.
+13. Does a numbered step carry two actions the reader performs separately? Divide it into two steps.
+14. Is the result of a step missing where the reader needs it to continue? State the result.
+15. Is a result numbered as though the reader must perform it? Remove the number and write the result
+    inside the step.
+16. Do sibling procedures open with different lead-in patterns? Give them one pattern.
+17. Does a table heading carry a clause instead of a noun? Name what the column holds.
 
 The rules above are checkable. Good documentation also needs judgment that no checklist supplies: the
 right technical term, the right amount of detail, and whether a sentence is true. This standard fixes

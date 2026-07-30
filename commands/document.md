@@ -53,6 +53,10 @@ standard binds new prose without flagging text nobody touched. Its claim-verific
 If it reports findings, re-dispatch **`superdev:doc-writer`** (as in §3) with the findings to fix.
 **One fix round** — don't loop the reader; unresolved findings go in the report instead.
 
+The reader returns its findings **most-severe-first** (false claims, then incomplete ones, then style), so
+hand them over in that order and let the round work **down from the top**. With a single round, anything it
+can't reach is then the least costly finding rather than an arbitrary one.
+
 ## 5. Report
 
 Relay what the doc-writer changed: which `AGENTS.md`/docs were updated, what was removed as stale, which
@@ -75,8 +79,8 @@ Inverts the usual order: **reader first**, writer only to fix what it finds.
    claims ("a hook blocks X", "the gate re-runs Y") are **always load-bearing** and must be verified
    against the hooks' actual source (`hooks/*.js`), not assumed from prose.
 3. If it reports findings, run **one doc-writer fix round** exactly as in §4 (dispatch
-   `superdev:doc-writer` once with the findings; don't re-loop the reader; unresolved findings go in the
-   report).
+   `superdev:doc-writer` once with the findings, in the reader's most-severe-first order so the round works
+   down from the top; don't re-loop the reader; unresolved findings go in the report).
 4. **Report** per §5.
 
 ## 7. Bootstrap mode (brownfield seed)

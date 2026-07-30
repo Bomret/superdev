@@ -68,8 +68,11 @@ test-first and inline.
   hierarchy) and the optional knowledge base with the current code. It adds what is new and **removes
   stale or obsolete** text. It then reader-tests the result: the fresh-context `doc-reader` reads the
   changed docs cold and verifies their claims against the repo. Ungrounded or stale text goes back to
-  the `doc-writer` for one fix round. Where the repo configures a **writing standard**, the `doc-writer`
-  writes to it and the `doc-reader` verifies it. The command runs automatically at the end of every
+  the `doc-writer` for one fix round. Both agents also apply a **content-type lens**
+  ([`references/content-types.md`](references/content-types.md)): does a reader learn *why* a thing
+  exists and *when* to use it, not only what it's called and how to run it. That check is always on,
+  unlike the **writing standard**, which the repo may configure to `none`. Where a writing standard is
+  configured, the `doc-writer` writes to it and the `doc-reader` verifies it. The command runs automatically at the end of every
   `/superdev:implement`, and on demand at any time. On demand it does a full reconcile, a reconcile
   scoped to a range or area, or an `audit` for a reader-first check.
   Called empty on a **brownfield repo with no `AGENTS.md` hierarchy**, it **bootstraps** one instead. It

@@ -69,6 +69,24 @@ prose) and the self-lint checklist follow the distillation published by
 woosal1337 — https://github.com/woosal1337/blog (videos/ep01-the-cure-for-ai-slop).
 
 --------------------------------------------------------------------------------
+references/content-types.md — the content-type lens — and several rules in
+references/controlled-prose.md draw on:
+
+"Technical Writing 101: A Real-World Guide to Planning and Writing Technical
+Content", 3rd edition — © 2000-2009 Scriptorium Publishing Services, Inc.
+Alan S. Pringle and Sarah S. O'Keefe. https://www.scriptorium.com/books
+  PRIOR ART ONLY. No text is reproduced. Its Chapter 6 names the four content
+  types (interface, reference, conceptual, procedural) and identifies conceptual
+  information as the hardest to write and the most often absent; that taxonomy is
+  restated in superdev's own words in content-types.md. Its Chapter 7 supplies the
+  procedure-element rules (state a step's result, never number a result, one
+  lead-in pattern across sibling procedures, one action per step) and its
+  Chapter 12 the table-heading rule, each written from the principle in
+  controlled-prose.md. Its Chapter 9 ranking of documentation qualities is the
+  basis for doc-reader's severity order.
+
+--------------------------------------------------------------------------------
 The MIT License text is in the LICENSE file. It applies to superdev's own code and, per their terms,
 to the Superpowers, ponytail, Skills, and DOX portions bundled above. It does not apply to the
-ASD-STE100 or tekom material, which is prior art credited above under its own terms.
+ASD-STE100, tekom, or Technical Writing 101 material, which is prior art credited above under its
+own terms.

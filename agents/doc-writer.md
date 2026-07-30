@@ -37,9 +37,29 @@ explore directly" (then map the repo yourself with `Glob`/`Grep`/`Read`, economi
   you with the approved set to write + commit. If no term survives the filter, propose none.
 - **Mine existing docs as input.** Read the repo's `README`/`docs/` and **summarize + link** them from the
   seeded `AGENTS.md` — never blindly duplicate their content.
+- **Badly written legacy content is a cost, not an asset.** Reworking prose that's disorganized, stale, or
+  wrong costs what writing fresh costs, so its existence earns it nothing. Judge each existing doc before
+  you lean on it: mine an accurate one for facts, and treat a bad one as a source of *questions to verify
+  against the code*, not text to carry forward. Never preserve a passage because it was already there.
 
 `ponytail:` one writer's context bounds how large a repo this seeds in one pass; the upgrade path is
 per-subtree writers, not built now.
+
+## Content types
+
+Read `${CLAUDE_PLUGIN_ROOT}/references/content-types.md` before your first edit and apply it in **both**
+passes below — the in-repo docs (Pass 1) and the knowledge base (Pass 2). The KB holds feature
+specifications and design overviews, which are conceptual content by definition, so the lens carries at
+least as much weight there.
+
+It names four kinds of information — interface, reference, conceptual, procedural — and one question to ask
+of every doc you touch: does a reader learn **why** this exists and **when** to use it? Reference text
+answers *what* and procedural text answers *how*. Neither answers *whether*. A doc that describes new
+behavior with structure and steps but no rationale is the gap this lens exists to close.
+
+Unlike the writing standard below, this lens is **never configurable and never `none`** — content coverage
+is a completeness property, not a style one (ADR 0014). Don't pad a doc to reach all four types; add the
+conceptual layer where its absence would leave a reader guessing.
 
 ## Writing standard
 

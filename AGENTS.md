@@ -17,6 +17,7 @@ plugins.
 | Architecture decisions (why it is built this way) | [`docs/adr/`](docs/adr/) |
 | In-repo documentation convention (this AGENTS.md hierarchy) | [`references/documentation.md`](references/documentation.md) |
 | Writing standard for docs | [`references/controlled-prose.md`](references/controlled-prose.md) |
+| What kind of information a doc owes its reader | [`references/content-types.md`](references/content-types.md) |
 | Add or adjust a backend (slice store, code host, KB, verification) | seeds in [`references/`](references/) |
 | Attribution and license | [`NOTICE`](NOTICE), [`LICENSE`](LICENSE) |
 
@@ -36,7 +37,8 @@ hooks/                 — deterministic Node hooks + hooks.json: merge-guard, m
 references/            — backend seed templates + plan-contract (slice schema/lifecycle, incl. the
                          optional epic sections: parked questions, non-goals, and the epic-visuals gate
                          for `## Slice graph`/`## Touch map`) + documentation convention +
-                         controlled-prose (the writing standard, read at runtime by the doc agents) +
+                         controlled-prose (the writing standard) + content-types (the four kinds of
+                         information a doc carries) — both read at runtime by the doc agents +
                          execution playbooks (implement-full/lite, read at runtime by /implement) +
                          authoring disciplines (cross-examination, domain-modeling, doc-verification;
                          read at runtime by /plan + /brainstorm, doc-verification also by implementer) +
@@ -45,13 +47,8 @@ references/            — backend seed templates + plan-contract (slice schema/
 docs/adr/              — architecture decision records (why the plugin is built this way)
 docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, documentation, KB, toolchain, verification)
 scripts/               — standalone deterministic checks wired into `bun run test` (e.g.
-                         `drift-check.js`, asserting every referenced `references/*.md` path exists,
-                         that the execution/controller docs address run-root artifacts by absolute
-                         `<run-root>/…` path, never a checkout-relative `.superdev/scopes/<scope>/…` one,
-                         that every issue-backend document carries the `**Assignee` config bullet,
-                         that the documentation seed still offers a `## Writing standard` section,
-                         and that every eval grader's frontmatter is one the harness can act on and
-                         every case's scaffold_script resolves)
+                         `drift-check.js`). What each one guards is enumerated once, in the `scripts/`
+                         entry of the Child DOX Index below.
 evals/                 — `claude plugin eval` cases (*/case.yaml + graders/*.md + the case's
                          scaffold_script, a path relative to the case dir — never an inline block);
                          every case is one arm of the with/without-plugin A/B — see `evals/README.md`
@@ -225,8 +222,8 @@ This root owns every subtree directly:
   candidate, if its rules outgrow this root.
 - `scripts/`. Standalone deterministic checks that `package.json` runs, and the other executable code
   alongside `hooks/`. It follows the same `--selftest` convention. The reference, run-root, assignee,
-  and writing-standard checks are drift assertions, which compare a restated fact against its source.
-  The eval-shape check compares a document against a schema. `drift-check.js` guards five
+  writing-standard, and content-types checks are drift assertions, which compare a restated fact against
+  its source. The eval-shape check compares a document against a schema. `drift-check.js` guards six
   things. First, that every `references/*.md` path named in `commands/` or `agents/` resolves to a file
   that exists. Second, that `commands/implement.md`, `references/implement-full.md`,
   `references/implement-lite.md`, `agents/implementer.md`, `agents/slice-reviewer.md`, and
@@ -235,10 +232,16 @@ This root owns every subtree directly:
   that check, with no content gate on how the doc phrases issue creation. `references/issue-tracker-local.md`
   is exempt, because it has no assignee concept. Fourth, that
   `references/documentation.md` still offers a `## Writing standard` section (ADR 0012). Fifth, that
+  `agents/doc-writer.md` and `agents/doc-reader.md` each still instruct themselves to read
+  `references/content-types.md` (ADR 0014). Sixth, that
   every `evals/*/graders/*.md` declares a known `type` and a positive `weight`, that an `llm` or `regex`
   grader also declares a `focus` or `target`, and that every case's `scaffold_script` resolves. Nothing
   else validates a grader, so without this a typo surfaces part-way through a run that costs real API
   spend.
+
+  The first and fifth checks are opposites. The first catches a reference to a file that does not exist.
+  The fifth catches an agent that drops its wire to a file which still exists. That drift leaves the
+  reference resolvable and the suite green, and the lens then does nothing in any dispatch.
 - `references/`. Backend seed templates plus the non-seed references below.
   + `plan-contract.md`: the slice schema and lifecycle, including the optional epic sections and the
     epic-visuals gate for `## Slice graph` and `## Touch map`.
@@ -247,6 +250,11 @@ This root owns every subtree directly:
   + `controlled-prose.md`: the **writing standard**. A language-neutral rule set that merges the
     ASD-STE100 Part 1 rules with the rules the tekom catalogue reaches that ASD-STE100 does not. Read at
     runtime by `doc-writer`, which applies it, and by `doc-reader`, which verifies it (ADR 0012).
+  + `content-types.md`: the **content-type lens**. The four kinds of information a doc carries, and the
+    test for reporting an absent conceptual layer. Read at runtime by `doc-writer`, which applies it in
+    both its passes, and by `doc-reader`, which checks it in Pass 1. Unlike the writing standard it is
+    never configurable and never `none`, because coverage is a completeness property and not a style
+    one (ADR 0014).
   + **Execution playbooks** (`implement-full.md`, `implement-lite.md`): the tier-specific linear
     procedures `/implement` reads at runtime once it computes the tier.
   + **Authoring disciplines** (`cross-exam.md`, `domain-modeling.md`, `doc-verification.md`): the

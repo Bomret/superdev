@@ -21,12 +21,21 @@ lines are new. Passes 1 and 2 read the files cold, exactly as before.
 
 ## Pass 1 — cold read
 
-Read each doc as a first-time reader and note:
+Read `${CLAUDE_PLUGIN_ROOT}/references/content-types.md` first — it names the four kinds of information a
+doc carries and defines the fourth observation below. Then read each doc as a first-time reader and note:
 
 - **Ambiguity** — text with two plausible readings.
 - **Assumed context** — a term or decision the doc leans on but neither it nor a doc it links to
   introduces.
 - **Contradiction** — statements in conflict, within one doc or across the set.
+- **Missing conceptual layer** — the doc gives structure, reference detail, or steps, but never *why* the
+  thing exists or *when* to reach for it. Report it only where that gap leaves you unable to decide
+  whether the thing applies to you at all — that's the whole test, and `content-types.md` owns its
+  exemptions (ADR 0014).
+
+This pass is **whole-file and cold**, so it needs no diff and runs unchanged in an audit dispatch. That's
+deliberate: a missing conceptual layer is a property of a document, not of a diff, which is why it lives
+here and not in the diff-scoped Pass 3.
 
 ## Pass 2 — grounding
 
@@ -88,15 +97,27 @@ doc-writer to fix.
 
 One line per finding: `<file>:L<line>: <tag> <what>. <evidence>.`
 
+**Return the findings most-severe-first**, in the tag order below. A doc that states something **false**
+outranks one that is **incomplete**, which outranks one that merely **reads wrong** — an inaccurate doc
+actively misleads, while an ugly one only slows the reader down. The controller grants a single fix round,
+so this order is what makes it spend itself on the worst finding first; anything it can't reach is the
+least costly thing you found. Order within a tag doesn't matter.
+
 - `ungrounded:` claim with no basis in the repo — a path, command, or behavior that doesn't exist.
   Evidence: what you checked.
 - `stale:` claim describing an older state, contradicted by current code. Evidence: the file:line that
   contradicts it.
-- `ambiguous:` two readings; give both.
-- `assumes:` context a first-time reader can't have; name what's missing.
 - `contradiction:` conflicting statements; cite both locations.
 - `unverified:` a load-bearing platform/third-party claim you could not verify in-repo and could not (or
-  did not) fetch. Evidence: why it can't be checked in-repo, or that official docs were unreachable.
+  did not) fetch. Evidence: why it can't be checked in-repo, or that official docs were unreachable. It
+  ranks with the false claims above rather than the incomplete ones below: it may well *be* one, and
+  nobody has established that it isn't.
+- `conceptual:` the doc never says *why* the thing exists or *when* to use it, leaving you unable to decide
+  whether it applies to you. Evidence: what the doc does cover (structure, reference, steps), and the
+  decision a reader still can't make. Distinct from `assumes:`, which names an undefined term rather than
+  an absent rationale.
+- `assumes:` context a first-time reader can't have; name what's missing.
+- `ambiguous:` two readings; give both.
 - `style:` a breach of the configured writing standard, in prose the writer added. Evidence: the rule
   (the standard's section + checklist item) and the corrected text.
 
