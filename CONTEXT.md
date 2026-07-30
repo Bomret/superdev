@@ -126,6 +126,9 @@ _Avoid: "init", "scaffold" (bootstrap seeds from what already exists, it doesn't
 **Writing standard** — the prose style the doc agents apply, recorded as a pointer in a `## Writing standard` section of `docs/agents/documentation.md`: `controlled` (the language-neutral rule set shipped as `references/controlled-prose.md`, merged from ASD-STE100 and the tekom rule catalogue), a repo-relative path to the project's own style guide, or `none`. Binds only the prose an agent writes or rewrites in that dispatch, never untouched text (ADR 0012).
 _Avoid: "style guide" (that names one possible value — a repo's own file — not the config), "STE" (one of the two sources, not the standard), "tone" (a voice property; the standard governs form), "linter" (there is no deterministic check — the doc-reader is the verifier)_
 
+**Content type** — the kind of information a passage of documentation carries: `interface` (what a part is called), `reference` (data the reader looks up), `conceptual` (why the thing exists and when to reach for it), `procedural` (the steps to perform a task). Shipped as `references/content-types.md`, a lens both doc agents read at dispatch — the doc-writer applies it, the doc-reader flags an absent conceptual layer as `conceptual:` in its cold read (ADR 0014). Unlike the **Writing standard** it is never configurable and never `none`: coverage is a completeness property, not a style one.
+_Avoid: "doc type" (the type classifies a passage, not a whole file — one `AGENTS.md` carries several), "information type" (the DITA term for a stricter topic-level schema superdev does not adopt), "section"_
+
 ## Backends
 
 superdev is tool-agnostic: three pluggable backends, each chosen by `/setup` and recorded under `docs/agents/`. The commands and agents never hardcode one.
