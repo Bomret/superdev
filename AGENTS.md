@@ -28,8 +28,9 @@ plugins.
   plugin.json          — plugin manifest (name, version, author); version is the SINGLE source of truth.
                          No `hooks` field — Claude Code auto-loads the standard hooks/hooks.json.
   marketplace.json     — single-plugin marketplace manifest (deliberately NO version field)
-commands/              — slash commands (*.md): brainstorm, setup, plan, implement, document, upgrade,
-                         status, review
+commands/              — slash commands (*.md): brainstorm, setup, plan, implement, review, document,
+                         ship, upgrade, status. implement → review → document → ship is the chain a scope
+                         walks, each command printing the next (ADR 0013)
 agents/                — subagents (*.md): implementer, slice-reviewer, simplicity-reviewer, final-reviewer,
                          doc-writer, doc-reader
 hooks/                 — deterministic Node hooks + hooks.json: merge-guard, model-explicit, green-gate,
@@ -40,6 +41,8 @@ references/            — backend seed templates + plan-contract (slice schema/
                          controlled-prose (the writing standard) + content-types (the four kinds of
                          information a doc carries) — both read at runtime by the doc agents +
                          execution playbooks (implement-full/lite, read at runtime by /implement) +
+                         scope-mode (the rule /review, /document, and /ship share, read at runtime by
+                         each) +
                          authoring disciplines (cross-examination, domain-modeling, doc-verification;
                          read at runtime by /plan + /brainstorm, doc-verification also by implementer) +
                          review-checklist (anti-patterns, vuln-classes, reuse-audit, consistency; read at
@@ -222,11 +225,13 @@ This root owns every subtree directly:
   candidate, if its rules outgrow this root.
 - `scripts/`. Standalone deterministic checks that `package.json` runs, and the other executable code
   alongside `hooks/`. It follows the same `--selftest` convention. The reference, run-root, assignee,
-  writing-standard, and content-types checks are drift assertions, which compare a restated fact against
-  its source. The eval-shape check compares a document against a schema. `drift-check.js` guards six
-  things. First, that every `references/*.md` path named in `commands/` or `agents/` resolves to a file
-  that exists. Second, that `commands/implement.md`, `references/implement-full.md`,
-  `references/implement-lite.md`, `agents/implementer.md`, `agents/slice-reviewer.md`, and
+  writing-standard, content-types, stage, command-resolution, and chain-handoff checks are drift
+  assertions, which compare a restated fact against its source. The eval-shape check compares a document
+  against a schema. `drift-check.js` guards
+  nine things. First, that every `references/*.md` path named in `commands/` or `agents/` resolves to a file
+  that exists. Second, that `commands/implement.md`, `commands/review.md`, `commands/document.md`,
+  `commands/ship.md`, `references/implement-full.md`, `references/implement-lite.md`,
+  `references/scope-mode.md`, `agents/implementer.md`, `agents/slice-reviewer.md`, and
   `agents/simplicity-reviewer.md` address run-root artifacts by absolute `<run-root>/…` path. Third,
   that every issue-backend document carries the `**Assignee` config bullet. The filename alone triggers
   that check, with no content gate on how the doc phrases issue creation. `references/issue-tracker-local.md`
@@ -237,11 +242,22 @@ This root owns every subtree directly:
   every `evals/*/graders/*.md` declares a known `type` and a positive `weight`, that an `llm` or `regex`
   grader also declares a `focus` or `target`, and that every case's `scaffold_script` resolves. Nothing
   else validates a grader, so without this a typo surfaces part-way through a run that costs real API
-  spend.
+  spend. Seventh, that every command in the chain still names the ledger's `**Stage:**` line (ADR 0013).
+  The chain hands a run along through that line, so a command that stops naming it never writes or reads
+  the stage, and nothing fails. Eighth, that every `/superdev:<name>` reference in `commands/` or
+  `agents/` resolves to a `commands/<name>.md` file, so a chain handoff never points the reader at a
+  command that does not exist. Ninth, that `commands/implement.md`, `commands/review.md`, and
+  `commands/document.md` each name their successor in the chain. `commands/ship.md` ends the chain and is
+  deliberately outside that check.
 
   The first and fifth checks are opposites. The first catches a reference to a file that does not exist.
   The fifth catches an agent that drops its wire to a file which still exists. That drift leaves the
   reference resolvable and the suite green, and the lens then does nothing in any dispatch.
+
+  The first and eighth are the same check at two levels: one resolves a `references/` path, the other a
+  command name. The eighth and ninth are opposites in the same way as the first and fifth: the eighth
+  catches a handoff that points at a command with no file, the ninth a command that names no successor at
+  all.
 - `references/`. Backend seed templates plus the non-seed references below.
   + `plan-contract.md`: the slice schema and lifecycle, including the optional epic sections and the
     epic-visuals gate for `## Slice graph` and `## Touch map`.
@@ -257,6 +273,10 @@ This root owns every subtree directly:
     one (ADR 0014).
   + **Execution playbooks** (`implement-full.md`, `implement-lite.md`): the tier-specific linear
     procedures `/implement` reads at runtime once it computes the tier.
+  + `scope-mode.md`: the rule `/superdev:review`, `/superdev:document`, and `/superdev:ship` share (ADR
+    0013) — what makes a range a live scope run, how to find the scope checkout on disk for both tiers, and
+    the run-lock refresh-not-create rule. Each of the three reads it at runtime and keeps only what is
+    specific to it.
   + **Authoring disciplines** (`cross-exam.md`, `domain-modeling.md`, `doc-verification.md`): the
     relentless cross-examination, active-domain-modeling, and verify-against-official-docs disciplines
     that `/plan` and `/brainstorm` read at runtime. They are superdev's own rendering of Matt Pocock's

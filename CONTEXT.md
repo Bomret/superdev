@@ -26,11 +26,14 @@ _Avoid: "requirements", "specification", "checklist" (DoD is the integrated chec
 **Ledger** — the per-scope recovery map: tracks the run's stage, each slice's status (todo → in-progress → in-review → merged), its commit range when merged, and the slice-id ↔ issue-key mapping. `.superdev/scopes/<scope>/ledger.md` is the authoritative state during a run and after compaction/resume.
 _Avoid: "log", "status file", "tracker"_
 
-**Stage** — how far a scope has moved through the four-command chain (`/implement` → `/review` → `/document` → `/ship`), recorded as the ledger's `**Stage:**` line and naming the last completed step: `implementing`, `merged`, `reviewed`, `documented`, `shipped`. Distinct from a slice's status, which tracks one slice through the DAG (ADR 0013).
+**Stage** — how far a scope has moved through the four-command chain (`/implement` → `/review` → `/document` → `/ship`), recorded as the ledger's `**Stage:**` line and naming the last completed step: `implementing`, `merged`, `reviewed`, `documented` (or `documented-unreviewed` when `/document` ran before `/review` did), `shipped`. Distinct from a slice's status, which tracks one slice through the DAG (ADR 0013).
 _Avoid: "phase" (that names a section of a single command's procedure, as in Phase 0), "state", "step"_
 
 **Scope checkout** — the working tree holding the scope branch, which every command after `/implement` finds from disk: the scope worktree when one exists (a lite run), otherwise the invoking checkout, which a full run left switched to the scope branch. Where a chained command's fix commits and documentation commits land.
 _Avoid: "the checkout" unqualified (the invoking checkout is a different thing on a lite run)_
+
+**Scope mode** — the shared rule `/superdev:review`, `/superdev:document`, and `/superdev:ship` each read from `references/scope-mode.md` at runtime: what makes a range or scope slug a live run, how to find the scope checkout from disk for either tier, the refresh-not-create rule for the run lock, and the never-moves-backwards rule for the ledger's stage (ADR 0013). Each command keeps only what is specific to it beyond the shared rule.
+_Avoid: "chain mode" (the chain is the four commands. Scope mode is the one rule the last three share), "review mode" (that names `/superdev:review`'s own ad-hoc/scope split, one level down)_
 
 **Worktree** — an isolated filesystem checkout used to keep a run's branch work off the invoking checkout. The full tier gives each slice its own **per-slice worktree** (`.superdev/scopes/<scope>/worktrees/<id>/`, plural); the lite tier uses a single **scope worktree** (singular — see below) for all its slices. Both nest under the git-ignored `.superdev/scopes/<scope>/`.
 _Avoid: "branch", "workspace", "checkout"_
@@ -100,7 +103,7 @@ _Avoid: "verification discipline" (too generic — this specifically means not t
 
 ## Separation of concerns
 
-**Execution playbook** — the linear, tier-specific procedure the controller `Read`s once the tier is computed: `references/implement-full.md` (full tier) or `references/implement-lite.md` (lite tier). The `/implement` command body keeps only the tier-agnostic core (invariants, config, Phase 0, issue-status map, final review + PR) and delegates the execution flow to the matching playbook, so each run loads only the one it takes.
+**Execution playbook** — the linear, tier-specific procedure the controller `Read`s once the tier is computed: `references/implement-full.md` (full tier) or `references/implement-lite.md` (lite tier). The `/implement` command body keeps only the tier-agnostic core (invariants, config, Phase 0, issue-status map, and the handoff to `/superdev:review`) and delegates the execution flow to the matching playbook, so each run loads only the one it takes.
 _Avoid: "command" (the playbook is the file the command delegates to, not the command itself)_
 
 **Review checklist** — the shared file (`references/review-checklist.md`) naming concrete anti-patterns, vulnerability classes, a reuse-audit lens, and a consistency lens (convention drift, cross-slice divergence), read at dispatch time — `final-reviewer` applies all four lenses, `slice-reviewer` applies anti-patterns + vulnerability classes — the same shared-file-read-at-dispatch pattern as `Execution playbook`, one level down (a checklist of things to look for, not a procedure to follow).
@@ -148,7 +151,7 @@ _Avoid: "status mapping", "workflow" (too generic)_
 **Code host** — the backend the scope branch pushes to and where the PR/MR opens. Configured in `docs/agents/code-management.md`.
 _Avoid: "code-management" (that's the doc slug), "GitHub" (that's one host)_
 
-**PR posture** — the three-state config value controlling how `/implement` opens the PR: `draft` (open as draft), `ready` (open ready-for-review), or `push-only` (push the branch, skip opening a PR). Set per code host during `/setup`, recorded in `code-management.md`.
+**PR posture** — the three-state config value controlling how `/superdev:ship` opens the PR: `draft` (open as draft), `ready` (open ready-for-review), or `push-only` (push the branch, skip opening a PR). Set per code host during `/setup`, recorded in `code-management.md`.
 _Avoid: "PR mode", "draft mode" (only one of the three states)_
 
 **Knowledge base** — the optional human-first record (feature specifications, design overviews, ADR summaries), distinct from the agent-first `AGENTS.md` docs. May be `none`. Reconciled by the doc-writer.

@@ -99,8 +99,8 @@ Two captures are **superdev-specific** — the reference doesn't cover them:
 Create all these durable files **lazily** — only when the first term, decision, or rule actually
 crystallises, never as empty scaffolding. Follow the documentation convention in
 `docs/agents/documentation.md` for where they live (update the relevant `AGENTS.md`; keep concise and
-current). You only seed the design docs here; the authoritative reconcile and stale removal happen at the
-end of `/superdev:implement` via `/superdev:document`.
+current). You only seed the design docs here; the authoritative reconcile and stale removal happen in
+`/superdev:document`, the third command of the implement chain (ADR 0013).
 
 ## 3. Slice into tracer bullets
 
@@ -190,8 +190,9 @@ file the user actually picked; leave any other brainstorm intents untouched. (No
 
 **Tell the user the expected execution tier.** `/superdev:implement` derives it fresh from the final
 slice count — **≤3 slices → `lite`** (the controller implements each slice inline in a single scope
-worktree, one final review), **>3 slices → `full`** (parallel per-slice worktrees + implementer/reviewer
-subagents).
+worktree, no per-slice review), **>3 slices → `full`** (parallel per-slice worktrees + implementer/reviewer
+subagents). Either tier hands off to `/superdev:review` for the whole-scope review once every slice is
+on the scope branch.
 This is purely informational so the user knows what to expect: `/plan` doesn't stamp or persist the
 tier anywhere.
 
@@ -200,7 +201,7 @@ any `.claude/rules/` — to the base branch. `/superdev:implement` runs from a f
 that branch (per-slice on the full tier, a single scope worktree on the lite tier); anything left
 uncommitted never reaches those checkouts, and a path-scoped rule that isn't on the branch can't
 auto-load. **Push the base branch** to its remote right after committing (if one is configured, per
-`docs/agents/code-management.md`) — `/implement`'s PR is opened against the remote base; an unpushed
+`docs/agents/code-management.md`) — `/superdev:ship`'s PR is opened against the remote base; an unpushed
 local commit there diverges from it the moment the PR is squash-merged (a duplicate copy of the same
 content lands in the merge commit while the local-only commit is left stranded). Then tell the user it's
 ready for `/superdev:implement`.

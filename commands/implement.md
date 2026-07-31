@@ -1,5 +1,5 @@
 ---
-description: Execute a superdev plan — drive its vertical slices to merge as a dependency-ordered DAG, with an execution tier sized to the slice count and one whole-scope review gating the PR. Use when a plan exists in the slice store; run /superdev:plan first if not.
+description: Execute a superdev plan — drive its vertical slices to merge as a dependency-ordered DAG, with an execution tier sized to the slice count, then hand off to /superdev:review. Use when a plan exists in the slice store; run /superdev:plan first if not.
 ---
 
 # superdev implement
@@ -8,18 +8,20 @@ You are the **controller**. You drive a plan's slices to merge, and you alone in
 subagent. **How** depends on the execution **tier**, a pure function of the loaded slice count (see
 **Config + input**): **>3 slices → `full`**, **≤3 slices → `lite`**. The tier selects one of two linear
 execution playbooks you `Read` and follow; this file holds only what both share — the invariants, config,
-Phase 0, issue-status map, and the final review + PR.
+Phase 0, issue-status map, and the handoff.
+
+**You stop when the code is on the scope branch.** The whole-scope review, the doc pass, and the pull
+request are the next three commands in the chain, and the maintainer runs each one (ADR 0013). Reviewing,
+documenting, or opening a pull request here is out of scope: hand off instead.
 
 **Core principle:** a slice's green suite proves its fixtures pass — not that it's correct. The `full`
 playbook re-verifies each slice with separate reviewer subagents and integrates serially; the `lite`
-playbook leans on the single whole-scope final review. Either way, one whole-scope review gates the PR.
+playbook leans on the whole-scope review that `/superdev:review` runs next.
 
-The `full` playbook's four roles are subagents — `superdev:implementer`, `superdev:slice-reviewer`,
-`superdev:simplicity-reviewer`, `superdev:final-reviewer` — whose discipline lives in their own bodies;
-you dispatch them with per-slice specifics, not the whole plan. The `lite` playbook dispatches **at most
-one** `superdev:final-reviewer` (none for an all-`mechanical`/`docs` plan), plus an `implementer` fix only
-if the review finds something; you carry the implementer's TDD discipline yourself. Between dispatches,
-narrate at most one short line.
+The `full` playbook's three roles are subagents — `superdev:implementer`, `superdev:slice-reviewer`,
+`superdev:simplicity-reviewer` — whose discipline lives in their own bodies; you dispatch them with
+per-slice specifics, not the whole plan. The `lite` playbook dispatches nothing: you carry the
+implementer's TDD discipline yourself. Between dispatches, narrate at most one short line.
 
 ## Invariants (honored by both playbooks)
 
@@ -83,11 +85,17 @@ narrate at most one short line.
   lets several scope runs execute in parallel — even in separate sessions — without clobbering each
   other's DoD/ledger/reports/interfaces/worktrees. Nothing in the run root is committed or lands in the PR.
 - Write the **global verification plan** (the DoD, made concrete and checkable) to `<run-root>/dod.md`.
-  It anchors the final review and tells you when to stop. No DoD → don't proceed. **No epic** (a
+  It anchors the whole-scope review `/superdev:review` runs next, and `/superdev:ship` ticks it at the end
+  of the chain. No DoD → don't proceed. **No epic** (a
   single-slice plan) → the DoD is that lone slice's `acceptance`; write it to `dod.md` verbatim.
 - Create the **ledger** at `<run-root>/ledger.md`. Track each slice's status
   (`todo`/`in-progress`/`in-review`/`merged`), its commit range when merged, and — for issue stores — the
   slice-id ↔ issue-key mapping.
+- Write the **stage** as a `**Stage:** implementing` line at the top of the ledger. The stage records how
+  far this scope has moved through the chain of commands that follow you, and it names the last completed
+  step: `implementing`, `merged`, `reviewed`, `documented` (or `documented-unreviewed` when `/superdev:document`
+  ran before `/superdev:review` did), `shipped` (ADR 0013). You own the first two. `/superdev:status` reads
+  the line, and each later command in the chain writes its own value.
 
 ## Issue status (move issues along the tracker's workflow)
 
@@ -98,45 +106,36 @@ lifecycle point, **move the issue to the mapped status** so anyone watching the 
 mapped transition. Do it **best-effort**: the ledger drives control flow, so if a status write fails, log
 it and keep going. Points: dispatch → `in-progress`; entering per-slice review (behavior only) →
 `in-review`; BLOCKED → `blocked`; merged → `merged`/done. The **scope anchor** issue — the epic if one
-exists, otherwise the lone slice on a single-slice plan — moves to `in-progress` when the run starts and
-`merged`/`done` once every slice is merged, covering both the slice transition and the scope-level signal
-in one issue when there's no epic. (The `lite` playbook skips the `in-review` transition — it has no
-per-slice review.)
+exists, otherwise the lone slice on a single-slice plan — moves to `in-progress` when the run starts, and
+**`/superdev:ship` closes it** at the end of the chain, not you: a scope whose slices are all merged still
+has to be reviewed, documented, and shipped. On a single-slice plan the lone slice moves to `merged` here
+as any slice does, and the same issue carries the scope-level signal it closes on later. (The `lite`
+playbook skips the `in-review` transition — it has no per-slice review.)
 
-## Final phase — whole-scope review, then PR
+## Final phase — hand off to `/superdev:review`
 
-Run after your playbook returns (every slice `merged`/committed on the scope branch). Steps are identical
-across tiers except the worktree cleanup, which your playbook owns.
+Run after your playbook returns (every slice `merged`/committed on the scope branch). Identical across
+tiers: your job here is to record that slice execution finished and to name what comes next.
 
-- **All slices `mechanical`/`docs`** → skip the final-reviewer dispatch (the suite is the net); go straight
-  to confirming the DoD, then the doc pass + PR. Only the review step is skipped.
-- Dispatch **`superdev:final-reviewer`** (`model: opus`) on the integrated scope branch:
-  BASE = `git merge-base <base> superdev/<scope>`, HEAD = scope tip; requirements = the global DoD + slice
-  list (it reads the review checklist itself via `${CLAUDE_PLUGIN_ROOT}`).
-- For **Critical/Important** findings, dispatch **one** `superdev:implementer` fix with the **complete**
-  findings list (not one fixer per finding); re-review until clean, or the fix loop caps out (see
-  **Invariants** for the RED-test rule and wrong-cut escalation).
-- **Reconcile docs + KB (always):** run **`/superdev:document <base>..superdev/<scope>`** (BASE =
-  `git merge-base <base> superdev/<scope>`). It dispatches `doc-writer` to bring the in-repo docs and the
-  knowledge base up to the integrated state and **remove stale/obsolete** text, committing on the scope
-  branch so the changes land in the PR. Runs after every scope — even docs-only ones, even when the KB is
-  `none` (then it's the in-repo docs pass only). Run it **after** the final review + fix loop, never
-  concurrent with the review: `doc-writer` commits on the scope branch and would move the tip under the
-  read-only reviewer's `BASE..HEAD` diff (ADR 0003). `final-reviewer` stays read-only and its own subagent.
-- Confirm **every Phase 0 DoD item is met**, ticking each verified item in `dod.md` (`- [ ]` → `- [x]`);
-  leave any unmet item unchecked with a one-line note on why. Then move the **scope anchor** issue → `done`
-  (no epic → the lone slice issue, already `merged`, is done).
-- **Open the PR/MR per `docs/agents/code-management.md`** (default posture = draft; degrade to push +
-  printed compare URL + ready-to-run command when no host CLI is present). Report the PR URL to the user.
-- **Clean up** per your playbook's final-cleanup section (it removes the worktrees it created), then remove
-  `<run-root>/run.lock` to signal this run is done. **Never** delete the scope branch — the PR is
-  from it.
+- **Set the stage to `merged`.** Update the ledger's `**Stage:**` line. It is what tells the next command,
+  or a resumed run, that every slice is on the scope branch.
+- **Leave the run standing.** Keep the worktrees, keep `<run-root>/run.lock`, and leave
+  `<run-root>/dod.md` unticked and the scope anchor at `in-progress`. `/superdev:review` and
+  `/superdev:document` work in the scope checkout you leave behind, and `/superdev:ship` takes the run
+  down. Removing any of it here breaks the rest of the chain.
+- **Print the next command, resolved.** Compute `BASE = git merge-base <base> superdev/<scope>` and print
+  it with the real commit substituted, so the line is copy-pasteable:
+  `/superdev:review <BASE-sha>..superdev/<scope>`. Say in one line what it will do (review the integrated
+  scope against the DoD) and stop. **All slices `mechanical`/`docs`** → add that such a scope skips the
+  whole-scope review by design (the suite is the net), so `/superdev:document <BASE-sha>..superdev/<scope>`
+  is the reasonable next step instead.
+- **Report** the scope branch, the slice count, and the commit range. Then stop: no review, no doc pass, no
+  pull request, no DoD tick, no cleanup.
 
 ## Model selection (always set explicitly)
 
-The `implementer` / `slice-reviewer` / `simplicity-reviewer` rows are dispatched only by the `full`
-playbook. The `final-reviewer` row — and an `implementer` fix for final-review findings, at the
-`implementer`/`fix` model — applies whichever playbook ran.
+Every row here is dispatched by the `full` playbook alone. The `lite` playbook dispatches nothing, and the
+reviews that follow the chain carry their own model choices.
 
 | Dispatch | Model | When |
 |---|---|---|
@@ -144,7 +143,6 @@ playbook. The `final-reviewer` row — and an `implementer` fix for final-review
 | implementer / fix | `sonnet` | design / multi-file / judgment slice |
 | slice-reviewer | `sonnet` | default (verification is load-bearing) |
 | simplicity-reviewer | `haiku` | scoped over-engineering scan |
-| final-reviewer | `opus` | whole-scope review across five axes — the highest-stakes review |
 
 Scale to the slice. Turn count beats token price: the cheapest model often takes 2–3× the turns on
 multi-step work. Use a mid-tier floor for anything from a prose specification; reserve `haiku` for transcription

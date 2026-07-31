@@ -128,7 +128,7 @@ recorded in `issue-tracker.md`:
 | `merged` (done) | merged into the scope branch |
 
 `mechanical`/`docs` slices skip `in-review` (`in-progress` → `merged`). The scope anchor issue moves to
-`in-progress` when the run starts and to `done` once every slice is merged.
+`in-progress` when the run starts. `/superdev:ship` closes it to `done` at the end of the chain.
 
 `/implement` derives an **execution tier** from the loaded slice count (≤3 → `lite`, >3 → `full`) —
 never a plan field, never persisted. The **lite** tier has no per-slice review at all, regardless of

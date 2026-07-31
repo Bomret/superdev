@@ -1,13 +1,19 @@
 ---
-description: Review a change — a commit range, a branch, a path, or the working tree — for correctness, architecture, security, and over-engineering. Read-only and standalone; no plan or slice store required.
+description: Review a change — a commit range, a branch, a path, or the working tree — for correctness, architecture, security, and over-engineering. Read-only on an ad-hoc range; on a live superdev scope it reviews against the DoD and can drive the fix loop.
 argument-hint: "[BASE..HEAD | branch | path | (empty = working tree)]  [-- what it should do]"
 ---
 
 # superdev review
 
-Review a change end to end without a plan behind it — a spot-check, a pre-PR pass, a second opinion on
-someone else's branch. Dispatches the same reviewer subagents `/superdev:implement` uses per scope, but
-standalone: this command never edits, commits, or merges anything.
+Review a change end to end. Two modes, and §1 decides which:
+
+- **Ad-hoc** — a spot-check, a pre-PR pass, a second opinion on someone else's branch. No plan behind it,
+  and **read-only end to end**: this command never edits, commits, or merges.
+- **Scope** — the range is a live superdev scope branch, so this is the whole-scope review gate in the
+  implement chain (ADR 0013). It reviews against that run's Definition of Done, may drive the fix loop
+  after asking once, and hands off to `/superdev:document`. **§4 owns everything that differs.**
+
+Either way the reviewers themselves are the same read-only subagents.
 
 ## 0. Config (optional)
 
@@ -25,6 +31,11 @@ Parse `$ARGUMENTS` into a **range** and an optional trailing description of what
 - **Trailing description** — everything after a ` -- ` separator, or (no `--` present) a clear trailing
   natural-language sentence describing what the change should do. This is handed to both reviewers as
   their `acceptance`.
+- **Scope mode wins over both.** Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md` for what makes the
+  resolved range a live superdev run. When it is, capture `<run-root>` and take `<run-root>/dod.md` as the
+  `acceptance` for both reviewers. That is the run's own verification plan, so no trailing description and
+  no issue-ref discovery is needed or wanted. **No `dod.md` in the run root** → say so in one line and fall
+  back to the two rules below. Then follow **§4** as well as §2 and §3.
 - **No description given → try issue-ref discovery.** If `docs/agents/issue-tracker.md` is configured, grep
   the resolved range's `git log` for issue references — keyword-qualified
   (`Close[sd]?`/`Fix(e[sd])?`/`Resolve[sd]?\s+#<n>`, case-insensitive), falling back to a bare `#<n>`.
@@ -112,6 +123,35 @@ line for Simplicity (or "not dispatched" per §2's skip rules). It doesn't repla
 `Ready to merge?` verdict below it — over-engineering findings stay non-blocking, never gating merge on
 their own.
 
-**Apply nothing.** This command is read-only end to end — never edit, commit, or merge, no matter how
-small or obvious a fix looks. To act on findings, run `/superdev:plan` to slice the fix, then
-`/superdev:implement` to build and merge it.
+**Apply nothing — on an ad-hoc range.** Never edit, commit, or merge, no matter how small or obvious a fix
+looks. To act on findings, run `/superdev:plan` to slice the fix, then `/superdev:implement` to build and
+merge it. **Scope mode is the one exception**, and §4 states it: there the findings belong to a run that is
+already in flight, and fixing them is the point of the gate. Even then you ask first, and the reviewers
+above stay read-only.
+
+## 4. Scope mode — fix loop and handoff
+
+Only when §1 found a live run. Everything above still applies; this adds the run's own steps.
+
+- **Find the scope checkout, and refresh the run lock.** Per
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`. **Not on `superdev/<scope>`** → report that and review
+  read-only rather than writing to the wrong branch.
+- **Ask once before fixing.** `final-reviewer` returned **Critical or Important** findings → report them
+  per §3 first, then ask whether to fix them now. **Declined** → stop. The findings stand, nothing is
+  written, and the stage does **not** advance. **Confirmed** → dispatch **one**
+  `superdev:implementer` (`model: sonnet`; `haiku` only for a mechanical fix) with the **complete**
+  findings list, not one fixer per finding. Every fix opens with a RED test that reproduces the defect.
+  Re-review after it returns, and repeat until the verdict is clean or the **3-strike cap** is reached
+  (three fix cycles each exposing a new defect elsewhere means a wrong cut, not a bug: stop, say so, and
+  leave the stage where it is).
+- **Over-engineering findings never gate.** `simplicity-reviewer`'s cuts stay advisory here exactly as in
+  §3. They do not hold up the handoff and they do not trigger the fix loop.
+- **On a clean verdict**, and only then: write the ledger's `**Stage:**` line per
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s rule that a stage write never moves a run backwards.
+  Read the current stage first. `documented-unreviewed` → write `documented`: the review it was missing has
+  now run, so the doc pass it followed needs no redo. `documented` or `shipped` → leave the line alone and
+  say so in one line. The run has already moved past this gate. Anything else → write `reviewed`. Then
+  print the next command with the range already resolved — `/superdev:document <BASE>..superdev/<scope>`,
+  the same range you just reviewed — and say in one line what it will do (reconcile the in-repo docs and
+  the knowledge base with the merged state).
+- **Never merge, push, or open a pull request.** `/superdev:ship` ends the chain.

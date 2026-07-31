@@ -47,8 +47,12 @@ function scan(root) {
 // issue-tracker-local.md, brainstorm.md) run only from the invoking checkout and are deliberately absent.
 const RUN_ROOT_DOCS = [
   'commands/implement.md',
+  'commands/review.md',
+  'commands/document.md',
+  'commands/ship.md',
   'references/implement-lite.md',
   'references/implement-full.md',
+  'references/scope-mode.md',
   'agents/implementer.md',
   'agents/slice-reviewer.md',
   'agents/simplicity-reviewer.md',
@@ -280,6 +284,100 @@ function scanContentTypesContract(root) {
   return gaps;
 }
 
+// The chain documents hand a run along through the ledger's `**Stage:**` line (ADR 0013): `/implement`
+// writes it, and every later command reads it before it acts. A document that stops naming the line
+// breaks the handoff silently — the stage is never written, or never read, and the suite stays green.
+// Same silent-drop failure shape as the assignee, writing-standard, and content-type contracts. The
+// pattern is the line's exact spelling, so prose that merely refers to "the stage" does not satisfy it.
+const STAGE_DOCS = [
+  path.join('commands', 'implement.md'),
+  path.join('commands', 'review.md'),
+  path.join('commands', 'document.md'),
+  path.join('commands', 'ship.md'),
+  path.join('commands', 'status.md'),
+];
+const STAGE_PATTERN = /\*\*Stage:\*\*/;
+
+// scanStageContract() is pure over a root dir: reads every chain document and reports the ones that no
+// longer name the ledger's stage line. Absent files are skipped, so fixtures need only the documents
+// they exercise.
+function scanStageContract(root) {
+  const gaps = [];
+  for (const rel of STAGE_DOCS) {
+    let text;
+    try {
+      text = fs.readFileSync(path.join(root, rel), 'utf8');
+    } catch {
+      continue; // document absent (fixture / partial checkout) → nothing to scan
+    }
+    if (!STAGE_PATTERN.test(text)) gaps.push({ source: rel });
+  }
+  return gaps;
+}
+
+// A `/superdev:<name>` reference must resolve to `commands/<name>.md`. The chain hands the reader from
+// one command to the next by printing its name (ADR 0013), so a reference to a command that does not
+// exist is a dead end. This is scan() one level over: that one resolves `references/` paths, this one
+// resolves command names, and both catch a pointer no build step would follow.
+const COMMAND_REFERENCE_PATTERN = /\/superdev:([a-z][a-z-]*)/g;
+
+// scanCommandRefs() is pure over a root dir: reads commands/*.md and agents/*.md and reports every
+// command reference with no matching file under commands/. A document naming the same missing command is
+// reported once per document, so the report alone names every dead end.
+function scanCommandRefs(root) {
+  const unresolved = [];
+  for (const dir of ['commands', 'agents']) {
+    let entries;
+    try {
+      entries = fs.readdirSync(path.join(root, dir));
+    } catch {
+      continue; // no such dir → nothing to scan
+    }
+    for (const entry of entries) {
+      if (!entry.endsWith('.md')) continue;
+      const text = fs.readFileSync(path.join(root, dir, entry), 'utf8');
+      const seen = new Set();
+      for (const match of text.matchAll(COMMAND_REFERENCE_PATTERN)) {
+        const name = match[1];
+        if (seen.has(name)) continue; // one report per document per command
+        seen.add(name);
+        if (!fs.existsSync(path.join(root, 'commands', `${name}.md`))) {
+          unresolved.push({ source: path.join(dir, entry), command: `/superdev:${name}` });
+        }
+      }
+    }
+  }
+  return unresolved;
+}
+
+// Each command in the chain must name its successor, because printing the next command with its range
+// resolved is the whole handoff (ADR 0013). scanCommandRefs above catches a handoff that points at a
+// command with no file. The reverse drift is invisible to it: a command that names no successor at all
+// leaves every reference resolvable and the suite green, and the chain dead-ends there silently.
+// `commands/ship.md` ends the chain and has no successor, so it is deliberately absent.
+const CHAIN_HANDOFFS = [
+  [path.join('commands', 'implement.md'), '/superdev:review'],
+  [path.join('commands', 'review.md'), '/superdev:document'],
+  [path.join('commands', 'document.md'), '/superdev:ship'],
+];
+
+// scanChainHandoff() is pure over a root dir: reads each command in the chain and reports the ones that
+// no longer name their successor. Absent files are skipped, so fixtures need only the links they
+// exercise.
+function scanChainHandoff(root) {
+  const gaps = [];
+  for (const [rel, next] of CHAIN_HANDOFFS) {
+    let text;
+    try {
+      text = fs.readFileSync(path.join(root, rel), 'utf8');
+    } catch {
+      continue; // document absent (fixture / partial checkout) → nothing to scan
+    }
+    if (!text.includes(next)) gaps.push({ source: rel, next });
+  }
+  return gaps;
+}
+
 function main() {
   const root = path.join(__dirname, '..');
   const missing = scan(root);
@@ -287,6 +385,9 @@ function main() {
   const gaps = scanAssigneeContract(root);
   const wsGaps = scanWritingStandardContract(root);
   const ctGaps = scanContentTypesContract(root);
+  const stGaps = scanStageContract(root);
+  const deadEnds = scanCommandRefs(root);
+  const chainGaps = scanChainHandoff(root);
   const shape = scanEvalShape(root);
   if (
     missing.length === 0 &&
@@ -294,11 +395,15 @@ function main() {
     gaps.length === 0 &&
     wsGaps.length === 0 &&
     ctGaps.length === 0 &&
+    stGaps.length === 0 &&
+    deadEnds.length === 0 &&
+    chainGaps.length === 0 &&
     shape.length === 0
   ) {
     console.log(
       'drift-check ok: references resolve, run-root paths are absolute, assignee contract carried, ' +
-        'writing standard offered, content-type lens wired, eval graders and scaffolds well-formed',
+        'writing standard offered, content-type lens wired, stage line named, commands resolve, ' +
+        'chain hands off, eval graders and scaffolds well-formed',
     );
     process.exit(0);
   }
@@ -324,6 +429,21 @@ function main() {
     console.error(
       `${g.source} no longer instructs itself to read \`references/content-types.md\` — the ` +
         `content-type lens is dead in every dispatch of this agent; see ADR 0014`,
+    );
+  }
+  for (const g of stGaps) {
+    console.error(
+      `${g.source} no longer names the ledger's \`**Stage:**\` line — the chain handoff is broken ` +
+        `there, silently; see ADR 0013`,
+    );
+  }
+  for (const d of deadEnds) {
+    console.error(`${d.source} names \`${d.command}\`, which has no file under commands/`);
+  }
+  for (const c of chainGaps) {
+    console.error(
+      `${c.source} never names \`${c.next}\` — the chain dead-ends there instead of handing off; ` +
+        `see ADR 0013`,
     );
   }
   for (const p of shape) {
@@ -552,11 +672,17 @@ if (process.argv[2] === '--selftest') {
   // referencing a file which still exists. That leaves the reference present, the suite green, and the
   // lens dead in every dispatch (ADR 0014). ---
 
-  const ctFixture = (files) => {
+  // fixture() builds a throwaway repo tree for a selftest case: given a `files` object (a checkout-
+  // relative path → its content), it creates each file's parent directory as needed and writes it,
+  // returning the tmp root. Shared by every fixture below (content-types, eval-shape, stage, command-refs,
+  // chain-handoff) — one general helper instead of five near-identical ones that only differed in which
+  // directory they mkdir'd upfront.
+  const fixture = (files) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'drift-check-'));
-    fs.mkdirSync(path.join(dir, 'agents'), { recursive: true });
     for (const [rel, body] of Object.entries(files)) {
-      fs.writeFileSync(path.join(dir, rel), body);
+      const full = path.join(dir, rel);
+      fs.mkdirSync(path.dirname(full), { recursive: true });
+      fs.writeFileSync(full, body);
     }
     return dir;
   };
@@ -564,7 +690,7 @@ if (process.argv[2] === '--selftest') {
   const unwired = '# doc agent\n\nNo lens here.\n';
 
   // positive: doc-reader dropped its wire
-  const ct17 = ctFixture({
+  const ct17 = fixture({
     'agents/doc-writer.md': wired,
     'agents/doc-reader.md': unwired,
   });
@@ -573,7 +699,7 @@ if (process.argv[2] === '--selftest') {
   assert.equal(ctGaps17[0].source, path.join('agents', 'doc-reader.md'), 'names doc-reader');
 
   // positive: doc-writer dropped its wire — the same failure from the other side
-  const ct18 = ctFixture({
+  const ct18 = fixture({
     'agents/doc-writer.md': unwired,
     'agents/doc-reader.md': wired,
   });
@@ -582,14 +708,14 @@ if (process.argv[2] === '--selftest') {
   assert.equal(ctGaps18[0].source, path.join('agents', 'doc-writer.md'), 'names doc-writer');
 
   // negative: both wired is clean
-  const ct19 = ctFixture({
+  const ct19 = fixture({
     'agents/doc-writer.md': wired,
     'agents/doc-reader.md': wired,
   });
   assert.equal(scanContentTypesContract(ct19).length, 0, 'both agents wired yields zero gaps');
 
   // a bare prose path counts too, matching how scan() accepts either form
-  const ct20 = ctFixture({
+  const ct20 = fixture({
     'agents/doc-writer.md': 'Read `references/content-types.md` before your first edit.\n',
     'agents/doc-reader.md': wired,
   });
@@ -597,7 +723,7 @@ if (process.argv[2] === '--selftest') {
 
   // the path alone is not a wire: an agent that mentions the file in passing but never instructs itself
   // to read it has already lost the lens, which is the drift this check exists to catch
-  const ct21 = ctFixture({
+  const ct21 = fixture({
     'agents/doc-writer.md': 'The lens lives in `references/content-types.md` and matters here.\n',
     'agents/doc-reader.md': wired,
   });
@@ -608,114 +734,234 @@ if (process.argv[2] === '--selftest') {
   );
 
   // an absent agent file is skipped, so a fixture carries only the files it exercises
-  const ct22 = ctFixture({ 'agents/doc-writer.md': wired });
+  const ct22 = fixture({ 'agents/doc-writer.md': wired });
   assert.equal(scanContentTypesContract(ct22).length, 0, 'an absent agent file is skipped');
 
   // --- scanEvalShape: a grader's frontmatter must be something the harness can act on, and a case's
   // scaffold_script must resolve ---
 
-  const evalFixture = (label, files) => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'drift-check-'));
-    for (const [rel, body] of Object.entries(files)) {
-      const full = path.join(dir, rel);
-      fs.mkdirSync(path.dirname(full), { recursive: true });
-      fs.writeFileSync(full, body);
-    }
-    return { label, dir };
-  };
-
   const goodGrader = '---\ntype: llm\nfocus: files\nweight: 2\n---\nJudge the plan.\n';
   const goodCase = 'name: c\ncontext:\n  scaffold_script: scaffold.sh\n';
 
   // a well-formed case yields nothing
-  const ok = evalFixture('ok', {
+  const ok = fixture({
     'evals/c/case.yaml': goodCase,
     'evals/c/scaffold.sh': '#!/bin/sh\n',
     'evals/c/graders/g.md': goodGrader,
   });
-  assert.equal(scanEvalShape(ok.dir).length, 0, 'a well-formed case yields no problems');
+  assert.equal(scanEvalShape(ok).length, 0, 'a well-formed case yields no problems');
 
   // each rule fires on its own, and names the offending file
-  const badType = evalFixture('badType', {
+  const badType = fixture({
     'evals/c/graders/g.md': '---\ntype: vibes\nfocus: files\nweight: 2\n---\nb\n',
   });
-  const typeProblems = scanEvalShape(badType.dir);
+  const typeProblems = scanEvalShape(badType);
   assert.equal(typeProblems.length, 1, 'an unknown type is flagged');
   assert.equal(typeProblems[0].source, path.join('evals', 'c', 'graders', 'g.md'), 'names the grader');
 
-  const badWeight = evalFixture('badWeight', {
+  const badWeight = fixture({
     'evals/c/graders/g.md': '---\ntype: llm\nfocus: files\nweight: notanumber\n---\nb\n',
   });
-  assert.equal(scanEvalShape(badWeight.dir).length, 1, 'a non-numeric weight is flagged');
+  assert.equal(scanEvalShape(badWeight).length, 1, 'a non-numeric weight is flagged');
 
-  const noFocus = evalFixture('noFocus', {
+  const noFocus = fixture({
     'evals/c/graders/g.md': '---\ntype: llm\nweight: 2\n---\nb\n',
   });
-  assert.equal(scanEvalShape(noFocus.dir).length, 1, 'neither focus nor target is flagged');
+  assert.equal(scanEvalShape(noFocus).length, 1, 'neither focus nor target is flagged');
 
   // `target` is the regex graders' spelling and satisfies the same rule
-  const withTarget = evalFixture('withTarget', {
+  const withTarget = fixture({
     'evals/c/graders/g.md': '---\ntype: regex\ntarget: files\nweight: 1\n---\nb\n',
   });
-  assert.equal(scanEvalShape(withTarget.dir).length, 0, '`target` satisfies the focus/target rule');
+  assert.equal(scanEvalShape(withTarget).length, 0, '`target` satisfies the focus/target rule');
 
-  const noFrontmatter = evalFixture('noFrontmatter', {
+  const noFrontmatter = fixture({
     'evals/c/graders/g.md': 'Just prose, no frontmatter.\n',
   });
-  assert.equal(scanEvalShape(noFrontmatter.dir).length, 1, 'a missing frontmatter block is flagged');
+  assert.equal(scanEvalShape(noFrontmatter).length, 1, 'a missing frontmatter block is flagged');
 
-  const badScaffold = evalFixture('badScaffold', {
+  const badScaffold = fixture({
     'evals/c/case.yaml': 'name: c\ncontext:\n  scaffold_script: missing.sh\n',
     'evals/c/graders/g.md': goodGrader,
   });
-  const scaffoldProblems = scanEvalShape(badScaffold.dir);
+  const scaffoldProblems = scanEvalShape(badScaffold);
   assert.equal(scaffoldProblems.length, 1, 'an unresolvable scaffold_script is flagged');
   assert.match(scaffoldProblems[0].problem, /scaffold_script/, 'says what is wrong');
 
   // nothing to check is not a failure
-  const noEvals = evalFixture('noEvals', { 'README.md': '# repo\n' });
-  assert.equal(scanEvalShape(noEvals.dir).length, 0, 'an absent evals/ directory yields no problems');
+  const noEvals = fixture({ 'README.md': '# repo\n' });
+  assert.equal(scanEvalShape(noEvals).length, 0, 'an absent evals/ directory yields no problems');
 
-  const noGraders = evalFixture('noGraders', {
+  const noGraders = fixture({
     'evals/c/case.yaml': goodCase,
     'evals/c/scaffold.sh': '#!/bin/sh\n',
   });
-  assert.equal(scanEvalShape(noGraders.dir).length, 0, 'a case with no graders/ dir yields no problems');
+  assert.equal(scanEvalShape(noGraders).length, 0, 'a case with no graders/ dir yields no problems');
 
   // The harness accepts six grader types, and only `llm` and `regex` carry a focus/target. The other
   // four are `.strict()`, so adding `focus:` to satisfy this check would make the harness reject them.
   for (const type of ['tool_order', 'tool_used', 'file_exists', 'baseline']) {
-    const other = evalFixture(type, {
+    const other = fixture({
       'evals/c/graders/g.md': `---\ntype: ${type}\nweight: 1\n---\nb\n`,
     });
-    assert.equal(scanEvalShape(other.dir).length, 0, `\`${type}\` is a valid type and needs no focus`);
+    assert.equal(scanEvalShape(other).length, 0, `\`${type}\` is a valid type and needs no focus`);
   }
 
   // The harness declares weight as a positive number, so zero, a negative, and a blank are malformed.
   for (const weight of ['0', '-1', '']) {
-    const bad = evalFixture(`weight${weight}`, {
+    const bad = fixture({
       'evals/c/graders/g.md': `---\ntype: llm\nfocus: files\nweight: ${weight}\n---\nb\n`,
     });
-    assert.equal(scanEvalShape(bad.dir).length, 1, `\`weight: ${weight}\` is not a positive number`);
+    assert.equal(scanEvalShape(bad).length, 1, `\`weight: ${weight}\` is not a positive number`);
   }
 
   // YAML a maintainer can legally write: CRLF endings, a quoted scalar, a trailing comment.
-  const crlf = evalFixture('crlf', {
+  const crlf = fixture({
     'evals/c/graders/g.md': '---\r\ntype: llm\r\nfocus: files\r\nweight: 2\r\n---\r\nb\r\n',
   });
-  assert.equal(scanEvalShape(crlf.dir).length, 0, 'CRLF frontmatter is read, not rejected');
+  assert.equal(scanEvalShape(crlf).length, 0, 'CRLF frontmatter is read, not rejected');
 
-  const quoted = evalFixture('quoted', {
+  const quoted = fixture({
     'evals/c/graders/g.md': '---\ntype: "llm"\nfocus: \'files\'\nweight: 2  # weighted\n---\nb\n',
   });
-  assert.equal(scanEvalShape(quoted.dir).length, 0, 'quoted scalars and trailing comments are read');
+  assert.equal(scanEvalShape(quoted).length, 0, 'quoted scalars and trailing comments are read');
 
-  const quotedScaffold = evalFixture('quotedScaffold', {
+  const quotedScaffold = fixture({
     'evals/c/case.yaml': 'context:\n  scaffold_script: "scaffold.sh"  # relative to the case dir\n',
     'evals/c/scaffold.sh': '#!/bin/sh\n',
     'evals/c/graders/g.md': goodGrader,
   });
-  assert.equal(scanEvalShape(quotedScaffold.dir).length, 0, 'a quoted scaffold_script resolves');
+  assert.equal(scanEvalShape(quotedScaffold).length, 0, 'a quoted scaffold_script resolves');
+
+  // --- scanStageContract: every chain document must name the ledger's `**Stage:**` line. The four
+  // commands hand a run along through that line (ADR 0013), so a document that stops naming it breaks
+  // the handoff silently: the stage is never written, or never read, and the suite stays green. ---
+
+  const stageWritten = 'Write `**Stage:** implementing` into `<run-root>/ledger.md`.\n';
+  const stageRead = "Read the ledger's `**Stage:**` line and show it per scope.\n";
+
+  // positive: status.md stopped naming the stage line
+  const st1 = fixture({
+    'commands/implement.md': stageWritten,
+    'commands/status.md': '# status\n\nNo stage here.\n',
+  });
+  const stGaps1 = scanStageContract(st1);
+  assert.equal(stGaps1.length, 1, 'flags the chain document that stopped naming the stage line');
+  assert.equal(stGaps1[0].source, path.join('commands', 'status.md'), 'names status.md');
+
+  // positive from the other side: implement.md is the writer, and its gap is the same failure
+  const st2 = fixture({
+    'commands/implement.md': '# implement\n\nNo stage here.\n',
+    'commands/status.md': stageRead,
+  });
+  const stGaps2 = scanStageContract(st2);
+  assert.equal(stGaps2.length, 1, 'flags implement.md when it is the one that dropped the line');
+  assert.equal(stGaps2[0].source, path.join('commands', 'implement.md'), 'names implement.md');
+
+  // negative: both naming the line is clean
+  const st3 = fixture({
+    'commands/implement.md': stageWritten,
+    'commands/status.md': stageRead,
+  });
+  assert.equal(scanStageContract(st3).length, 0, 'both documents naming the line yields zero gaps');
+
+  // a prose mention of "the stage" is not the ledger line: the contract is the line's exact spelling,
+  // and prose that merely refers to a stage says nothing about which line a command writes or reads
+  const st4 = fixture({
+    'commands/implement.md': 'The run records its stage somewhere.\n',
+    'commands/status.md': stageRead,
+  });
+  assert.equal(scanStageContract(st4).length, 1, 'a prose mention of the stage is not the line');
+
+  // an absent document is skipped, so a fixture carries only the files it exercises
+  const st5 = fixture({ 'commands/status.md': stageRead });
+  assert.equal(scanStageContract(st5).length, 0, 'an absent chain document is skipped');
+
+  // --- scanCommandRefs: a `/superdev:<name>` reference must resolve to `commands/<name>.md`. The chain
+  // hands the user from one command to the next by printing its name (ADR 0013), so a reference to a
+  // command that does not exist sends the reader to a dead end. Same failure shape as scan() one level
+  // over: that one resolves references/ paths, this one resolves command names. ---
+
+  // positive: a command points at one that does not exist
+  const cr1 = fixture({
+    'commands/implement.md': 'When every slice is merged, run `/superdev:ship <scope>`.\n',
+  });
+  const crGaps1 = scanCommandRefs(cr1);
+  assert.equal(crGaps1.length, 1, 'flags a reference to a command with no file');
+  assert.equal(crGaps1[0].command, '/superdev:ship', 'names the unresolved command');
+  assert.equal(crGaps1[0].source, path.join('commands', 'implement.md'), 'names the source document');
+
+  // negative: the same reference resolves once the command exists
+  const cr2 = fixture({
+    'commands/implement.md': 'When every slice is merged, run `/superdev:ship <scope>`.\n',
+    'commands/ship.md': '# superdev ship\n',
+  });
+  assert.equal(scanCommandRefs(cr2).length, 0, 'a resolving reference yields zero gaps');
+
+  // an agent may name a command too, and its references resolve by the same rule
+  const cr3 = fixture({ 'agents/doc-writer.md': 'Dispatched by `/superdev:nope`.\n' });
+  assert.equal(scanCommandRefs(cr3).length, 1, 'an agent naming a missing command is flagged');
+
+  // a command naming itself resolves, and a trailing argument is not part of the name
+  const cr4 = fixture({
+    'commands/document.md': 'Invoked as `/superdev:document audit` — see `/superdev:document`.\n',
+  });
+  assert.equal(scanCommandRefs(cr4).length, 0, 'a trailing argument is not read as part of the name');
+
+  // one missing command named by two documents is reported once per document, so every dead end is
+  // fixable from the report alone
+  const cr5 = fixture({
+    'commands/implement.md': 'Then `/superdev:ship`.\n',
+    'commands/document.md': 'Then `/superdev:ship`.\n',
+  });
+  assert.equal(scanCommandRefs(cr5).length, 2, 'each source naming a missing command is reported');
+
+  // --- scanChainHandoff: each command in the chain must name its successor. scanCommandRefs above
+  // catches a handoff that points at a command with no file; it cannot catch a command that names no
+  // successor at all. That drift leaves every reference resolvable and the suite green, and the chain
+  // then dead-ends silently at whichever command dropped its line (ADR 0013). ---
+
+  const handsOff = (next) => `When it is clean, print \`${next} <range>\` as the next step.\n`;
+
+  // positive: review.md stopped naming its successor
+  const ch1 = fixture({
+    'commands/implement.md': handsOff('/superdev:review'),
+    'commands/review.md': '# review\n\nReport the findings and stop.\n',
+    'commands/document.md': handsOff('/superdev:ship'),
+  });
+  const chGaps1 = scanChainHandoff(ch1);
+  assert.equal(chGaps1.length, 1, 'flags the command that names no successor');
+  assert.equal(chGaps1[0].source, path.join('commands', 'review.md'), 'names review.md');
+  assert.equal(chGaps1[0].next, '/superdev:document', 'names the successor it should have');
+
+  // negative: a fully wired chain is clean
+  const ch2 = fixture({
+    'commands/implement.md': handsOff('/superdev:review'),
+    'commands/review.md': handsOff('/superdev:document'),
+    'commands/document.md': handsOff('/superdev:ship'),
+  });
+  assert.equal(scanChainHandoff(ch2).length, 0, 'a fully wired chain yields zero gaps');
+
+  // every link is checked, not just the first: two broken handoffs are both reported
+  const ch3 = fixture({
+    'commands/implement.md': '# implement\n\nMerge the slices and stop.\n',
+    'commands/review.md': handsOff('/superdev:document'),
+    'commands/document.md': '# document\n\nReconcile the docs and stop.\n',
+  });
+  assert.equal(scanChainHandoff(ch3).length, 2, 'each broken link is reported');
+
+  // naming some other command is not the handoff — the chain's order is what this check pins, and
+  // /superdev:plan is a legitimate reference that says nothing about the successor
+  const ch4 = fixture({
+    'commands/implement.md': handsOff('/superdev:review'),
+    'commands/review.md': 'To act on findings, run `/superdev:plan`, then `/superdev:implement`.\n',
+    'commands/document.md': handsOff('/superdev:ship'),
+  });
+  assert.equal(scanChainHandoff(ch4).length, 1, 'naming an unrelated command is not a handoff');
+
+  // an absent document is skipped, so a fixture carries only the links it exercises
+  const ch5 = fixture({ 'commands/document.md': handsOff('/superdev:ship') });
+  assert.equal(scanChainHandoff(ch5).length, 0, 'an absent chain document is skipped');
 
   console.log('drift-check selftest ok');
 } else {

@@ -1,5 +1,5 @@
 ---
-description: Reconcile the project's docs and optional knowledge base with the current state of the code, removing stale text. Runs at the end of /superdev:implement and on demand at any time.
+description: Reconcile the project's docs and optional knowledge base with the current state of the code, removing stale text. The third step of the implement chain, after /superdev:review, and available on demand at any time.
 argument-hint: "[BASE..HEAD | area/path | audit | (empty = full reconcile)]"
 ---
 
@@ -21,13 +21,17 @@ Bring the docs and the knowledge base into agreement with reality. Dispatches th
 From `$ARGUMENTS`:
 
 - **A git range** (`BASE..HEAD`) or an **area path** → a focused reconcile of what changed there.
-  (`/superdev:implement` passes `merge-base(base, superdev/<scope>)..superdev/<scope>`.) A range or area
-  **never** bootstraps (§7) — so the end-of-`/implement` doc pass, which always passes a range, can't.
+  (`/superdev:review` hands on `merge-base(base, superdev/<scope>)..superdev/<scope>`.) A range or area
+  **never** bootstraps (§7) — so the chain's doc pass, which always passes a range, can't.
 - **Empty** → a **full reconcile**: all in-repo docs (README + the whole `AGENTS.md` tree) + the KB
   against current repo state. **Exception:** if the convention is the `AGENTS.md` hierarchy and the root
   `AGENTS.md` is **absent**, this repo has no doc tree to reconcile — skip §3-§5 and run **bootstrap** in
   §7 instead.
 - **The literal word `audit`** → skip §3-§5; run the **reader-first audit** in §6 instead.
+
+**Scope mode.** Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md` for what makes the range a live
+superdev run. When it is, §8 adds its steps. Every other invocation is ad-hoc: no stage is written and no
+next command is printed.
 
 ## 3. Dispatch
 
@@ -108,3 +112,23 @@ normal full reconcile (§3-§5) instead. Bootstrap only seeds the `AGENTS.md` hi
    **confirm/prune** — never auto-commit them. Re-dispatch the writer with the confirmed set to write +
    commit `CONTEXT.md`. Empty confirmed set → no `CONTEXT.md`.
 5. **Reader test** the seeded files exactly as §4, then **report** per §5.
+
+## 8. Scope mode — commit in the scope checkout, then hand off
+
+Only when §2 found a live run. Everything above still applies; this adds the run's own steps. Capture
+`<run-root>` — the **absolute** path to that scope's directory — before anything else, and address the
+run's artifacts as `<run-root>/ledger.md` and `<run-root>/run.lock`.
+
+- **Find the scope checkout, and refresh the run lock.** Per
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`. Hand the doc-writer the scope checkout path as its
+  working directory: this is where its commits must land.
+- **Write the stage.** Once §4 finishes, write the ledger's `**Stage:**` line per
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s rule that a stage write never moves a run backwards.
+  Read the current stage first. `shipped` → leave the line alone and say so in one line. A shipped scope
+  never regains an earlier stage. `reviewed` → write `documented`. `documented` → leave it. The docs are
+  already recorded as reconciled. Anything else, including no line at all, → write
+  `documented-unreviewed` instead, which records that the review step never ran before this doc pass. A
+  pass in which the doc-writer changed nothing still counts: the docs already agreed with the code, which
+  is the state this stage records.
+- **Print the next command:** `/superdev:ship <scope>`, with one line on what it does (tick the Definition
+  of Done, close the scope anchor, open the pull request, and take the run down).

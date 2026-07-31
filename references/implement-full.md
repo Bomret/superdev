@@ -112,12 +112,13 @@ re-enter the DAG loop at step 1.
   existing commits intact, per the implementer's own resume discipline) rather than recreating it.
 - **Rebuild the runnable set from reconciled state** (DAG loop step 1) and continue.
 
-## Final cleanup (worktrees)
+## Leave the run standing
 
-Per-slice worktrees are already removed at merge (DAG step 4); as a final sweep run `git worktree prune`,
-then remove any remaining `.superdev/scopes/<scope>/worktrees/*` and any leftover `slice/<scope>/*` branches
-(`git worktree remove` / `git branch -D`). Keep the rest of `.superdev/scopes/<scope>/` — the git-ignored paper
-trail for post-mortem. **Never** delete the scope branch itself: the PR is from it.
+Per-slice worktrees are already removed at merge (DAG step 4). Anything left — a stray
+`.superdev/scopes/<scope>/worktrees/*`, a leftover `slice/<scope>/*` branch, the run root, the lock — stays
+for `/superdev:ship`, which takes the run down at the end of the chain. The invoking checkout keeps
+`superdev/<scope>` checked out: that is the scope checkout `/superdev:review` and `/superdev:document` work
+in on this tier. Return to the controller's **Final phase** without cleaning up.
 
 ## Red flags
 

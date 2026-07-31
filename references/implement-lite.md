@@ -23,8 +23,8 @@ Before implementing the first slice, write `<run-root>/run.lock` (the absolute P
 the invoking checkout — never a `.superdev/scopes/<scope>/…` path from the worktree cwd, which resolves
 one level too deep). The lock's mtime marks this run as live; the **run-lock** hook uses
 it to stop a second concurrent run of the same scope from creating its own scope worktree, enforcing
-same-scope mutual exclusion. Remove the lock at the end of the controller's **Final phase** (after the
-PR).
+same-scope mutual exclusion. Leave the lock in place when you finish: it spans the whole chain, and
+`/superdev:ship` removes it once the run is shipped.
 
 ## Implement
 
@@ -60,8 +60,9 @@ worktree — escalate or wait. If the lock is stale or absent, it's a crash resu
 `git diff` in the scope worktree and decide whether to continue that in-progress slice's uncommitted work
 or discard it, before resuming.
 
-## Final cleanup (worktree)
+## Leave the worktree standing
 
-Remove the scope worktree: `git worktree remove .superdev/scopes/<scope>/worktree`. Keep the run root
-(`.superdev/scopes/<scope>/`) with its ledger and DoD — the post-mortem trail. **Never** delete the scope branch
-itself: the PR is from it.
+Do **not** remove the scope worktree when the last slice is committed. `/superdev:review` and
+`/superdev:document` run in it — a fix commit and the doc commit both land on the scope branch there — and
+`/superdev:ship` removes it at the end of the chain. Return to the controller's **Final phase** with the
+worktree, the run root, and the lock all in place.

@@ -1,0 +1,88 @@
+---
+description: Close out a superdev scope — tick the Definition of Done, close the scope anchor, open the PR, and clean up the run. The last step of the implement chain; run it after /superdev:review and /superdev:document.
+argument-hint: "[<scope>  (empty = the only run in this repo)]"
+---
+
+# superdev ship
+
+End a run. Every slice is on the scope branch, the scope has been reviewed, and the docs have been
+reconciled — this command turns that into a pull request and takes the run's scaffolding down. It
+dispatches no subagents: everything here is yours.
+
+## 1. Scope + run root
+
+Resolve `$ARGUMENTS` to one scope:
+
+A **run root** is a `.superdev/scopes/*/` directory that holds a `ledger.md`.
+
+- **A scope slug given** → use it. No run root by that name → say so and stop.
+- **Empty, exactly one run root** → use it.
+- **Empty, no run root** → report `No superdev run found in this repo.` and stop. Create nothing.
+- **Empty, more than one run root** → list them with each one's stage and ask which to ship. Never guess.
+
+Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md` for how to capture `<run-root>` and how the run lock
+behaves. Refresh `<run-root>/run.lock` now, per that file's rule.
+
+## 2. Scope checkout
+
+Find the scope checkout per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`. You need it for §5's git
+commands. **§6 runs from the invoking checkout instead** — see there.
+
+## 3. Stage gate (warn once, never block)
+
+Read the ledger's `**Stage:**` line:
+
+- **`shipped`** → this scope is already shipped. Report that, print the existing pull request if the code
+  host still lists one, and stop. Never open a second.
+- **`documented`** → the whole chain ran. Proceed silently.
+- **`documented-unreviewed`** → `/superdev:document` ran, but the ledger's stage was earlier than
+  `reviewed` when it did, so the review step never ran. Treat this exactly like the review-missing case
+  below: name `/superdev:review` as missing and **ask once**.
+- **Anything earlier** (`implementing`, `merged`, `reviewed`), or **no line at all** → name exactly what
+  has not run (`/superdev:review`, `/superdev:document`, or both) and **ask once** whether to ship anyway.
+  Declined → stop and print the missing command. Confirmed → proceed and record in the report that the
+  scope shipped without it.
+- **Every slice in the ledger is `mechanical` or `docs`** → drop `/superdev:review` from that warning,
+  whether it applies to this bullet or to `documented-unreviewed` above. Such a scope skips the
+  whole-scope review by design (the suite is the net), so naming it as missing would train the reader to
+  dismiss the question. If that drop empties the warning (review was the only thing missing), there is
+  nothing left to name. Proceed silently instead of asking about an empty list.
+
+## 4. Definition of Done
+
+Confirm every item in `<run-root>/dod.md` against the integrated scope branch, ticking each verified one
+(`- [ ]` → `- [x]`). Leave an unmet item unchecked with a one-line note on why. Verify the items yourself:
+a passing review earlier in the chain is evidence, not a substitute.
+
+## 5. Pull request
+
+Per `docs/agents/code-management.md`: push the scope branch, then open the pull request at the configured
+posture, with a body built from the Definition of Done and the slice list. No host CLI or API access →
+degrade exactly as that document says (push, then print the compare URL and the ready-to-run call) rather
+than failing. **Report the pull-request URL.**
+
+Then move the **scope anchor** issue (the epic, or the lone slice on a single-slice plan) to done per
+`docs/agents/issue-tracker.md`, and set the ledger's `**Stage:**` line to `shipped`.
+
+## 6. Clean up
+
+**From the invoking checkout, not the scope worktree** — `git worktree remove` refuses to remove the tree
+you are standing in:
+
+- Remove this run's worktrees: `.superdev/scopes/<scope>/worktree` (lite) or every
+  `.superdev/scopes/<scope>/worktrees/*` (full), then `git worktree prune`.
+- Delete any leftover `slice/<scope>/*` branch (merged into the scope branch, so it only clutters).
+- Remove `<run-root>/run.lock` to signal the run is done, if it exists. A `full` run never creates one
+  (per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`), so there is nothing to remove there.
+- Keep the rest of `<run-root>` — the ledger and the ticked DoD are the git-ignored paper trail.
+
+**Never delete the scope branch.** The pull request is from it, and deleting it closes the request.
+
+## Red flags
+
+- **Opening a pull request from the wrong branch** — §2 refuses rather than guessing which tree is the
+  scope checkout.
+- **Ticking the DoD from the review's word** — confirm each item against the branch.
+- **Blocking on the stage gate** — it warns and asks once. The maintainer decides.
+- **Removing the scope branch or the run root** — the first closes the pull request, the second discards
+  the trail.

@@ -15,20 +15,21 @@ With superdev: `/superdev:plan` interviews you until the Definition of Done is c
 `/superdev:implement` cuts the work into small slices, a separate reviewer subagent checks each one
 before it merges, and a hook — not a prompt — blocks the merge outright if the suite goes red.
 
-A self-contained Claude Code plugin for the full **brainstorm, plan, implement, document** loop, with
-**no prerequisite plugins**. It gives you interview-driven vertical slicing, an execution tier sized to
-the plan, deterministic guardrails, and a pluggable slice store plus code host. A larger plan runs in
-parallel in isolated git worktrees, with separate implementer and reviewer subagents. A small plan runs
-test-first and inline.
+A self-contained Claude Code plugin for the full **brainstorm, plan, implement, review, document, ship**
+loop, with **no prerequisite plugins**. It gives you interview-driven vertical slicing, an execution tier
+sized to the plan, deterministic guardrails, and a pluggable slice store plus code host. A larger plan
+runs in parallel in isolated git worktrees, with separate implementer and reviewer subagents. A small
+plan runs test-first and inline.
 
 ```
 /superdev:setup      → configure backends in docs/agents/*.md (once per repo)
 /superdev:brainstorm → (optional) turn a vague idea into a plan-ready intent
 /superdev:plan       → interview + slice a feature into the slice store
-/superdev:implement  → drive the slices to merge, then open the PR
+/superdev:implement  → drive the slices to merge onto the scope branch, then stop
 /superdev:status     → read-only DAG progress snapshot for in-flight runs
-/superdev:review     → standalone read-only review of any diff/branch/working tree
-/superdev:document   → reconcile in-repo docs + knowledge base with the code (also runs at implement's end)
+/superdev:review     → whole-scope review against the DoD, with a fix loop
+/superdev:document   → reconcile in-repo docs + knowledge base with the code
+/superdev:ship       → tick the DoD, close the scope anchor, open the PR, and clean up
 ```
 
 ## What it does
@@ -56,14 +57,16 @@ test-first and inline.
   test-first, in a single dedicated **scope worktree** (`.superdev/scopes/<scope>/worktree/`). The
   invoking checkout is never switched, and a same-scope run lock guards against a second concurrent run.
   There are no per-slice worktrees and no per-slice reviewers.
-  Either tier ends with one **whole-scope review** that gates the **PR**.
+  Either tier stops here, once every slice sits on the scope branch. `/superdev:review` runs next: one
+  **whole-scope review** that gates the pull request `/superdev:ship` opens later.
 - **`/superdev:status`**. A read-only snapshot of every in-flight `/superdev:implement` run in the repo:
   per scope, the slice counts by status and which slices are `blocked`. It never writes, transitions, or
   merges anything.
-- **`/superdev:review`**. A standalone review of any diff, branch, path, or the working tree. It needs no
-  plan and no slice store. It dispatches the same `final-reviewer` and `simplicity-reviewer` subagents
-  `/superdev:implement` uses per scope, read-only, and reports one consolidated verdict. It never edits,
-  commits, or merges anything.
+- **`/superdev:review`**. Two modes. Given an ad-hoc diff, branch, path, or the working tree, it needs no
+  plan and no slice store, and it stays read-only end to end. Given a live scope branch, it is the
+  whole-scope review gate in the implement chain: it checks the scope against that run's `dod.md`, and it
+  can drive one fix loop after asking once. Either way it dispatches the same `final-reviewer` and
+  `simplicity-reviewer` subagents and reports one consolidated verdict.
 - **`/superdev:document`**. Dispatches the `doc-writer` to reconcile the in-repo docs (the `AGENTS.md`
   hierarchy) and the optional knowledge base with the current code. It adds what is new and **removes
   stale or obsolete** text. It then reader-tests the result: the fresh-context `doc-reader` reads the
@@ -72,9 +75,10 @@ test-first and inline.
   ([`references/content-types.md`](references/content-types.md)): does a reader learn *why* a thing
   exists and *when* to use it, not only what it's called and how to run it. That check is always on,
   unlike the **writing standard**, which the repo may configure to `none`. Where a writing standard is
-  configured, the `doc-writer` writes to it and the `doc-reader` verifies it. The command runs automatically at the end of every
-  `/superdev:implement`, and on demand at any time. On demand it does a full reconcile, a reconcile
-  scoped to a range or area, or an `audit` for a reader-first check.
+  configured, the `doc-writer` writes to it and the `doc-reader` verifies it. It is the third command of the
+  four-command chain, run over the range `/superdev:review` hands it, and it also runs on demand at any
+  time. On demand it does a full reconcile, a reconcile scoped to a range or area, or an `audit` for a
+  reader-first check.
   Called empty on a **brownfield repo with no `AGENTS.md` hierarchy**, it **bootstraps** one instead. It
   seeds a root `AGENTS.md`, child files where they are warranted, and a proposed `CONTEXT.md` glossary,
   all from the existing code. It confirms them with you before anything commits.
@@ -85,16 +89,17 @@ test-first and inline.
 
 ## After the PR
 
-`/superdev:implement` is a goal-based loop. It drives the DAG until every slice is merged and the
-whole-scope review passes, then opens the PR and **stops**. The last mile is a time-based loop, so hand
-review comments and CI on the open PR to `/loop`:
+`/superdev:implement` is a goal-based loop. It drives the DAG until every slice sits on the scope branch,
+then **stops**. `/superdev:review`, `/superdev:document`, and `/superdev:ship` run next, in that order, and
+carry the run the rest of the way to a pull request. The last mile, once the PR is open, is a time-based
+loop, so hand review comments and CI on it to `/loop`:
 
 ```
 /loop 5m check my PR, address review comments, and fix failing CI
 ```
 
-To cap a long run, wrap the implement call in `/goal`. Give it the Definition of Done as the stop
-condition and an explicit turn ceiling (for example, "stop after N tries").
+To cap a long `/superdev:implement` run, wrap the call in `/goal`. Give it the Definition of Done as the
+stop condition and an explicit turn ceiling (for example, "stop after N tries").
 
 ## Roles (subagents)
 
@@ -103,11 +108,12 @@ The subagents are `implementer`, `slice-reviewer`, `simplicity-reviewer`, `final
 controller.
 
 The **full** execution tier dispatches `implementer`, `slice-reviewer`, and `simplicity-reviewer` per
-slice. The **lite** tier (3 slices or fewer) has the controller implement inline instead. Both tiers
-share the same final phase: `final-reviewer` over the whole scope, then `doc-writer` to reconcile the
-docs once the review's fix loop closes, reader-tested by `doc-reader`. The doc reconcile always runs
-**after** the review, and never concurrent with it, so the `doc-writer`'s commits cannot shift the diff
-the reviewer reads ([ADR 0003](docs/adr/0003-doc-reconcile-runs-serially.md)).
+slice. The **lite** tier (3 slices or fewer) has the controller implement inline instead. Both tiers hand
+off to the same chain once every slice sits on the scope branch: `/superdev:review` dispatches
+`final-reviewer` and `simplicity-reviewer` over the whole scope, then `/superdev:document` dispatches
+`doc-writer` to reconcile the docs, reader-tested by `doc-reader`. The doc reconcile always runs **after**
+the review, and never concurrent with it, so the `doc-writer`'s commits cannot shift the diff the reviewer
+read ([ADR 0003](docs/adr/0003-doc-reconcile-runs-serially.md)).
 
 ## Guardrails (deterministic hooks)
 
@@ -130,11 +136,12 @@ bash or PowerShell variants.
   cleanup. It
   touches only merged `slice/*` worktrees under `.superdev/`, and leaves in-progress and reverted slices
   alone. A lite-tier run's single scope worktree is not a per-slice worktree, so this hook leaves it
-  alone too. `/implement` removes that one itself at the end of the run.
+  alone too. `/superdev:ship` removes it at the end of the chain.
 - **scope-prune.** A `Stop` hook that deletes a scope's run root (`.superdev/scopes/<scope>/`, its
-  `ledger.md` and `dod.md` post-mortem trail). It waits until the scope branch is merged **and** the run
-  root has sat untouched for 7 days or more. It never touches an unmerged scope, or one whose worktree is
-  still present.
+  `ledger.md` and `dod.md` post-mortem trail). It waits until the scope branch is merged, the run root has
+  sat untouched for 7 days or more, **and** the ledger's `**Stage:**` line reads `shipped`. It never
+  touches an unmerged scope, one whose worktree is still present, or one whose ledger is unreadable or
+  silent on the stage.
 
 A seventh Node hook, **update-check**, is a `SessionStart` *notice* rather than a guardrail. See
 [Updating](#updating).
@@ -229,11 +236,16 @@ A tiny feature end to end, with the local-file slice store and GitHub as the cod
   cuts a single scope worktree at `.superdev/scopes/health-check/worktree/`, and never switches the
   invoking checkout. It implements slice 01 test-first in that worktree and commits. Slice 02 then
   unblocks and follows the same loop. There are no per-slice worktrees and no reviewer subagents. Once
-  both slices are merged, a single `final-reviewer` gates the whole scope. The controller then opens the
-  PR, removes the scope worktree, and stops. You see a one-line status per slice as it lands, then the
-  PR URL.
-- **After.** Review comments and flaky CI on the open PR are a `/loop` job, not `/implement`'s concern.
-  See [After the PR](#after-the-pr).
+  both slices sit on the scope branch, the controller **stops** and prints the resolved
+  `/superdev:review` call. You see a one-line status per slice as it lands.
+- **`/superdev:review <range>`**. Dispatches `final-reviewer` and `simplicity-reviewer` against `dod.md`.
+  A clean verdict sets the ledger's stage to `reviewed` and prints the resolved `/superdev:document` call.
+- **`/superdev:document <range>`**. Reconciles `README.md` and the `AGENTS.md` hierarchy with the two
+  merged slices. It sets the stage to `documented` and prints `/superdev:ship health-check`.
+- **`/superdev:ship health-check`**. Ticks `dod.md`, opens the pull request, removes the scope worktree,
+  and closes the scope anchor. You see the pull-request URL.
+- **After.** Review comments and flaky CI on the open pull request are a `/loop` job, not this chain's
+  concern. See [After the PR](#after-the-pr).
 
 ## Install
 

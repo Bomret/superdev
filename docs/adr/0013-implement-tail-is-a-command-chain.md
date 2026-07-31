@@ -14,8 +14,9 @@ resolved. `/superdev:implement` stops once every slice sits on the scope branch.
 reviews a scope range against `<run-root>/dod.md` and asks once before it fixes anything.
 `/superdev:document` commits in the scope's checkout. A new command, `/superdev:ship`, ticks the
 Definition of Done, closes the scope anchor, opens the pull request, and removes the run's worktrees and
-lock. The ledger carries a `Stage` line that records the last completed stage, and `/superdev:status`
-reports it.
+lock. The ledger carries a `Stage` line that records the last completed stage — `implementing`, `merged`,
+`reviewed`, `documented` (or `documented-unreviewed`, when `/superdev:document` ran before
+`/superdev:review` did), `shipped` — and `/superdev:status` reports it.
 
 ```mermaid
 flowchart LR
@@ -59,6 +60,11 @@ else. The one-time question marks that boundary for the reader. The lite tier's 
 survive until `/superdev:ship`, because a lite run's documentation commit and any fix commit land there,
 so worktree cleanup moves out of both execution playbooks. Each chained command finds its checkout from
 disk: a scope worktree means a lite run, and no worktree means a full run whose scope branch sits in the
-invoking checkout. The run lock now spans four invocations, so each chained command touches it, because
-the `run-lock` hook treats a lock older than one hour as dead. A scope can reach a pull request with no
-review and no documentation pass, which `/superdev:ship` names and asks about once.
+invoking checkout. The run lock spans four invocations only on the `lite` tier, because only the `lite`
+tier's worktree-add needs the `run-lock` hook's guard. A `full` run never creates the lock. Each chained
+command refreshes the lock's mtime when the file already exists, and never creates it, so a `full` run
+never gains a lock that would guard nothing. The `run-lock` hook treats a lock older than one hour as
+dead, which is why the refresh matters on a human-paced `lite` chain. A scope can reach a pull request
+with no review and no documentation pass, which `/superdev:ship` names and asks about once. The stage is
+one scalar naming the last completed step, so it records that a step happened but not the order steps ran
+in.

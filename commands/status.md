@@ -25,7 +25,12 @@ table (columns: `id`, `issue`, `title`, `type`, `depends-on`, `status`, `range`)
 
 - total slice count;
 - count per status;
-- the `id` + `title` of every slice whose status is `blocked`.
+- the `id` + `title` of every slice whose status is `blocked`;
+- the run's **stage** from the ledger's `**Stage:**` line: how far the scope has moved through the chain
+  of commands (`implementing` → `merged` → `reviewed` → `documented` (or `documented-unreviewed` when
+  `/document` ran ahead of `/review`) → `shipped`, naming the last completed step; ADR 0013). A ledger
+  written before the stage existed carries no such line — report the scope without a stage and carry on,
+  exactly as you do for any other missing optional field.
 
 A ledger that fails to parse (malformed table, missing file despite the directory existing) → report it
 as `<scope>: ledger unreadable` and continue with the remaining scopes; don't abort the whole command.
@@ -35,13 +40,16 @@ as `<scope>: ledger unreadable` and continue with the remaining scopes; don't ab
 Print one block per scope, oldest run root first:
 
 ```
-<scope>  (N slices)
+<scope>  (N slices, stage: <stage>)
   todo: N  in-progress: N  in-review: N  blocked: N  merged: N
   blocked: <id> <title>, <id> <title>   (omit this line if none)
 ```
 
-If every slice in a scope is `merged`, still show it (it's a completed run whose worktree/ledger wasn't
-cleaned up yet) but note `complete` next to the scope name.
+Drop `, stage: <stage>` for a ledger that carries no `**Stage:**` line.
+
+Every slice `merged` does not mean the run is done: the scope still has to be reviewed, documented, and
+shipped. The stage is what says which of those already happened, so report it and add nothing of your own
+— no `complete` note, and no guess at what the reader should run next.
 
 End with nothing further — no suggested next action, no mutation. If the caller wants to act on a
 blocked slice, that's `/superdev:implement` or manual intervention, not this command.
