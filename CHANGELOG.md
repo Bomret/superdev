@@ -1,3 +1,20 @@
+# [0.24.0](https://codeberg.org/bomret/superdev/compare/v0.23.0...v0.24.0) (2026-07-31)
+
+
+### Bug Fixes
+
+* **chain:** re-run the doc pass after a fix cycle, harden the prune gate ([#126](https://codeberg.org/bomret/superdev/issues/126)) ([cfa09d4](https://codeberg.org/bomret/superdev/commit/cfa09d4cffc2fe55cf792568243479b304e00972)), closes [#124](https://codeberg.org/bomret/superdev/issues/124) [#125](https://codeberg.org/bomret/superdev/issues/125)
+
+
+### Features
+
+* **docs:** configurable, language-neutral writing standard for the doc agents ([#110](https://codeberg.org/bomret/superdev/issues/110)) ([6cb27bc](https://codeberg.org/bomret/superdev/commit/6cb27bcdb146c47981b8725cab0a9f49016ff9b9)), closes [#107](https://codeberg.org/bomret/superdev/issues/107) [#108](https://codeberg.org/bomret/superdev/issues/108)
+* **evals:** validate grader shape and score operation coverage ([#115](https://codeberg.org/bomret/superdev/issues/115)) ([1982490](https://codeberg.org/bomret/superdev/commit/1982490eb59e824c12dafc023c61600c9f36be1f))
+* **implement:** disentangle the implement tail into a four-command chain ([#122](https://codeberg.org/bomret/superdev/issues/122)) ([7aec5f3](https://codeberg.org/bomret/superdev/commit/7aec5f3c9b4d1b4b58c5294201667f3048340e95)), closes [#113](https://codeberg.org/bomret/superdev/issues/113) [#112](https://codeberg.org/bomret/superdev/issues/112) [#114](https://codeberg.org/bomret/superdev/issues/114)
+* **plan:** assign every issue a run creates to the store's configured account ([#98](https://codeberg.org/bomret/superdev/issues/98)) ([0bc5aaf](https://codeberg.org/bomret/superdev/commit/0bc5aafe9ad6cdab24ac2fbe3848f5f3e9422788)), closes [#97](https://codeberg.org/bomret/superdev/issues/97)
+* **references:** extend controlled prose with five Handbook rules ([#127](https://codeberg.org/bomret/superdev/issues/127)) ([718898c](https://codeberg.org/bomret/superdev/commit/718898cfba0ca794907c714bec2415d9cb60b97e))
+* **setup:** add GitHub Issues as a first-class slice store ([#102](https://codeberg.org/bomret/superdev/issues/102)) ([ceaae00](https://codeberg.org/bomret/superdev/commit/ceaae0091e213e32fec902e153b8adc84137539f))
+
 # [0.23.0](https://codeberg.org/bomret/superdev/compare/v0.22.0...v0.23.0) (2026-07-30)
 
 
