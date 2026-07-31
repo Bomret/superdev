@@ -123,7 +123,7 @@ run's artifacts as `<run-root>/ledger.md` and `<run-root>/run.lock`.
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`. Hand the doc-writer the scope checkout path as its
   working directory: this is where its commits must land.
 - **Write the stage.** Once §4 finishes, write the ledger's `**Stage:**` line per
-  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s rule that a stage write never moves a run backwards.
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s rule that a stage write never undoes completed work.
   Read the current stage first. `shipped` → leave the line alone and say so in one line. A shipped scope
   never regains an earlier stage. `reviewed` → write `documented`. `documented` → leave it. The docs are
   already recorded as reconciled. Anything else, including no line at all, → write

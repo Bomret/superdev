@@ -38,7 +38,17 @@ than an hour as dead. Each command in the chain refreshes the mtime at its own s
 ## The stage never moves backwards
 
 `/superdev:review` and `/superdev:document` both write the ledger's `**Stage:**` line, and each reads the
-current value first: **a stage write never moves a run backwards.** `shipped` is what stops
+current value first: **a stage write never undoes completed work.** `shipped` is what stops
 `/superdev:ship` from opening a second pull request, so a later command that overwrote it with an earlier
-stage would disarm that check. Each command keeps its own table of exactly what it writes for the stage it
-finds. This shared rule is the one thing both tables honor.
+stage would disarm that check. `documented` and `shipped` are therefore terminal. No command in the chain
+writes over either one.
+
+The rule protects work that is still valid, not the ordering of the values. One move that reads as
+backwards is sanctioned, because it records a fact rather than a distance: `/superdev:review` writes
+`reviewed` over `documented-unreviewed` when its fix loop landed commits. The doc pass really did run, and
+those commits made it stale, so the run needs it again. The stage is one scalar, so it cannot say "reviewed
+and documented, but documented too early". `reviewed` is the value that gets the doc pass re-run, which is
+the outcome that matters.
+
+Each command keeps its own table of exactly what it writes for the stage it finds. This shared rule is the
+one thing both tables honor.

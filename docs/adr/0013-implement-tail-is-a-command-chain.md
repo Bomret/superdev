@@ -67,4 +67,6 @@ never gains a lock that would guard nothing. The `run-lock` hook treats a lock o
 dead, which is why the refresh matters on a human-paced `lite` chain. A scope can reach a pull request
 with no review and no documentation pass, which `/superdev:ship` names and asks about once. The stage is
 one scalar naming the last completed step, so it records that a step happened but not the order steps ran
-in.
+in. Where that matters, the chain resolves it toward re-running work rather than skipping it:
+`/superdev:review` writes `reviewed` over `documented-unreviewed` when its fix loop landed commits, because
+those commits made the earlier doc pass stale.

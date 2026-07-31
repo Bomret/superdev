@@ -147,9 +147,12 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
 - **Over-engineering findings never gate.** `simplicity-reviewer`'s cuts stay advisory here exactly as in
   §3. They do not hold up the handoff and they do not trigger the fix loop.
 - **On a clean verdict**, and only then: write the ledger's `**Stage:**` line per
-  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s rule that a stage write never moves a run backwards.
-  Read the current stage first. `documented-unreviewed` → write `documented`: the review it was missing has
-  now run, so the doc pass it followed needs no redo. `documented` or `shipped` → leave the line alone and
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s rule that a stage write never undoes completed work.
+  Read the current stage first. `documented-unreviewed`, and **no fix cycle ran** → write `documented`. The
+  review it was missing has now run, and the doc pass it followed still describes this code.
+  `documented-unreviewed`, and **a fix cycle landed commits** → write `reviewed` instead. Those commits
+  arrived after the doc pass, so the docs are stale by exactly them, and `reviewed` is what makes
+  `/superdev:ship` ask for the doc pass again. `documented` or `shipped` → leave the line alone and
   say so in one line. The run has already moved past this gate. Anything else → write `reviewed`. Then
   print the next command with the range already resolved — `/superdev:document <BASE>..superdev/<scope>`,
   the same range you just reviewed — and say in one line what it will do (reconcile the in-repo docs and

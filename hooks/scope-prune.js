@@ -53,9 +53,12 @@ function readStage(scopeDir) {
   try {
     const text = fs.readFileSync(path.join(scopeDir, 'ledger.md'), 'utf8');
     const match = text.match(/\*\*Stage:\*\*\s*(\S+)/);
-    // Strip backticks/trailing punctuation: `/superdev:ship` §5 writes the value in backticks
-    // (`` `shipped` ``), and a bare capture would then never match the plain stage names below.
-    return match ? match[1].replace(/^`+|`+$|[.,;:]+$/g, '') : null;
+    // Strip markup and trailing punctuation: `/superdev:ship` §5 writes the value in backticks
+    // (`` `shipped` ``), and a bare capture would then never match the plain stage names below. Two
+    // sequential strips rather than one alternation, because one pass cannot remove a marker that a
+    // neighbouring marker hides: in `` `shipped`. `` the trailing backtick sits behind the period, so an
+    // alternation anchored on the end of the string never reaches it.
+    return match ? match[1].replace(/^[`*]+/, '').replace(/[`*.,;:]+$/, '') : null;
   } catch {
     return null;
   }
@@ -181,6 +184,38 @@ if (process.argv[2] === '--selftest') {
     'a ledger whose stage line wraps the value in backticks is still prunable'
   );
   fs.rmSync(tmpBacktick, { recursive: true, force: true });
+
+  // The two spellings a maintainer or an agent also plausibly writes: a backticked value followed by a
+  // period, and an emphasized value. Both must normalize, or the gate silently stops matching and the
+  // scope is never pruned. Every one of these is a real stage line, so the strip must not care in which
+  // order the markers appear.
+  for (const [line, label] of [
+    ['**Stage:** `shipped`.', 'a backticked value with a trailing period'],
+    ['**Stage:** **shipped**', 'an emphasized value'],
+    ['**Stage:** shipped.', 'a plain value with a trailing period'],
+    ['**Stage:** `shipped`', 'a backticked value'],
+    ['**Stage:** shipped', 'a plain value'],
+  ]) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-'));
+    fs.writeFileSync(path.join(dir, 'ledger.md'), `# ledger\n\n${line}\n`);
+    assert.equal(readStage(dir), 'shipped', `normalizes ${label}`);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+
+  // The strip must not turn a different stage into `shipped`. Every one of these stays itself, so a scope
+  // that has not shipped is never pruned by a normalization accident.
+  for (const [line, expected] of [
+    ['**Stage:** documented-unreviewed', 'documented-unreviewed'],
+    ['**Stage:** `reviewed`', 'reviewed'],
+    ['**Stage:** unshipped', 'unshipped'],
+    ['**Stage:** not-shipped', 'not-shipped'],
+  ]) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-'));
+    fs.writeFileSync(path.join(dir, 'ledger.md'), `# ledger\n\n${line}\n`);
+    assert.equal(readStage(dir), expected, `leaves \`${expected}\` as itself`);
+    assert.notEqual(readStage(dir), 'shipped', `never reads \`${expected}\` as shipped`);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 
   console.log('scope-prune selftest ok');
 } else {

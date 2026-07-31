@@ -58,6 +58,15 @@ at `superdev@superdev` to score the released plugin instead.
 - **`ab-implement-lite` runs the `lite` tier** (≤3 slices). The `full` tier's
   parallel worktrees and independent reviewer subagents are not covered by any
   case here — that is the largest unmeasured claim the plugin makes.
+- **`readme-stays-true` measures discoverability, not just documentation.**
+  `/superdev:implement` stops once the slices are on the scope branch, so the
+  doc reconcile is two commands further along the chain, in
+  `/superdev:document` (ADR 0013). A plugin arm that stops at the handoff
+  therefore scores lower on this grader than one that walks the rest of the
+  chain. That gap is the measurement. **Do not "fix" the grader or loosen the
+  prompt to close it** — the prompt names no slash command by design, and
+  tuning either one would fit the instrument to the result and hide the real
+  cost the chain asks of a user.
 
 ## Adding a case
 
