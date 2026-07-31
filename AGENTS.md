@@ -264,8 +264,9 @@ This root owns every subtree directly:
   + `documentation.md`: the in-repo documentation convention, including the `## Writing standard`
     section that `/superdev:setup` fills in.
   + `controlled-prose.md`: the **writing standard**. A language-neutral rule set that merges the
-    ASD-STE100 Part 1 rules with the rules the tekom catalogue reaches that ASD-STE100 does not. Read at
-    runtime by `doc-writer`, which applies it, and by `doc-reader`, which verifies it (ADR 0012).
+    ASD-STE100 Part 1 rules with the rules the tekom catalogue and the *Handbook of Technical Writing*
+    reach that ASD-STE100 does not. Read at runtime by `doc-writer`, which applies it, and by
+    `doc-reader`, which verifies it (ADR 0012).
   + `content-types.md`: the **content-type lens**. The four kinds of information a doc carries, and the
     test for reporting an absent conceptual layer. Read at runtime by `doc-writer`, which applies it in
     both its passes, and by `doc-reader`, which checks it in Pass 1. Unlike the writing standard it is

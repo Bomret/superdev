@@ -86,7 +86,24 @@ Alan S. Pringle and Sarah S. O'Keefe. https://www.scriptorium.com/books
   basis for doc-reader's severity order.
 
 --------------------------------------------------------------------------------
+Five rules in references/controlled-prose.md were extended from:
+
+"Handbook of Technical Writing", 12th edition — © 2020 Bedford/St. Martin's,
+Macmillan Learning. Gerald J. Alred, Walter E. Oliu, and Charles T. Brusaw.
+ISBN 978-1-319-36220-1
+  PRIOR ART ONLY. No text is reproduced. Its entries on headings, definition,
+  lists, dangling modifiers, and voice supply five rules written in
+  controlled-prose.md from the underlying principle: a heading may not carry
+  meaning the text omits, a list closes with a sentence that refers back to it,
+  a definition names its category and does not restate its own term, a modifying
+  phrase attaches to the word it describes, and one sentence keeps one voice.
+  Cited as a third independent catalogue. It converges on the shared core rules
+  from a native-English business and technical writing tradition, and it diverges
+  on semicolons, dashes, sentence variety, and emphasis, where controlled-prose.md
+  follows ASD-STE100 instead.
+
+--------------------------------------------------------------------------------
 The MIT License text is in the LICENSE file. It applies to superdev's own code and, per their terms,
 to the Superpowers, ponytail, Skills, and DOX portions bundled above. It does not apply to the
-ASD-STE100, tekom, or Technical Writing 101 material, which is prior art credited above under its
-own terms.
+ASD-STE100, tekom, Technical Writing 101, or Handbook of Technical Writing material, which is prior
+art credited above under its own terms.

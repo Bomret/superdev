@@ -6,10 +6,17 @@
   - tekom Praxisleitfaden "Deutsch für die Technische Kommunikation", © tcworld GmbH. PRIOR ART ONLY.
     Its notice forbids reproduction, translation, and storage in electronic media. No text here derives
     from it. The rules it reaches that ASD-STE100 does not are written here from the principle.
+  - Handbook of Technical Writing, 12th edition, Alred/Oliu/Brusaw, © Macmillan Learning.
+    PRIOR ART ONLY. No text here derives from it. Its entries on headings, definitions, lists,
+    dangling modifiers, and voice reach five rules the other two catalogues do not. Those five are
+    written here from the principle.
   - The two-mode split (strict and relaxed) and the self-lint checklist follow the distillation
     published by woosal1337, https://github.com/woosal1337/blog (videos/ep01-the-cure-for-ai-slop).
-  Both catalogues arrive at the same core rules from different languages. That convergence is what
-  makes those rules portable, and it is the reason this file is language-neutral.
+  Three catalogues arrive at the same core rules from different languages and traditions. That
+  convergence is what makes those rules portable, and it is the reason this file is language-neutral.
+  Where the Handbook diverges (it permits semicolons, dashes, sentence variety, and intensifiers for
+  emphasis), this file follows ASD-STE100, because those four rules trade a native reader's ease for a
+  form that any reader and any checker can parse.
 -->
 
 # Controlled prose
@@ -94,6 +101,8 @@ other rule.
   not "spin up the server". Write "extinguish the fire", not "put out the fire".
 - Keep the parts of a verb together. A reader who meets the first half of a verb and finds the second
   half fifteen words later has to hold the sentence open.
+- Keep one voice in one sentence. Do not open a sentence in the active voice and finish it in the
+  passive voice.
 
 ## Sentences
 
@@ -110,10 +119,25 @@ other rule.
 - Do not interrupt a sentence with a parenthetical insertion. Write a second sentence.
 - Do not interrupt a sentence with a list. End the sentence, then start the list.
 - Give a pronoun exactly one possible referent. If two nouns come before it, repeat the noun instead.
+- Attach a modifying phrase to the word it describes. A phrase at the start of a sentence describes
+  the subject that follows it. Write "after you merge the branch, the hook removes the worktree", not
+  "after merging the branch, the worktree is removed".
 - Put the parts of a sentence in the order the reader needs them. State a condition before the action it
   governs.
 - Use the same sentence pattern for the same kind of statement. A reader who recognises the pattern
   reads the meaning, not the grammar.
+
+## Definitions
+
+A glossary entry and a first-use definition are prose, so every rule above applies. Three more rules
+apply to a definition:
+
+- Name the category the term belongs to, then name what separates it from the rest of that category.
+  A definition that opens with a bare time or place ("a merge is when the hook runs") leaves the
+  category out.
+- Do not restate the term inside its own definition. "A run lock is a lock on a run" defines nothing.
+- Define a term by what it is. Name a contrast with another term only after the reader knows what
+  this term is.
 
 ## Procedures (strict mode)
 
@@ -152,7 +176,11 @@ other rule.
 - Give a heading one topic. Put the word that distinguishes it first.
 - Do not repeat the parent heading's words in a child heading.
 - Use the same grammatical form for headings at the same level.
+- Do not state a fact in a heading and leave it out of the text. The text below a heading reads
+  complete when the reader skips the heading.
 - Introduce a list with a sentence that ends in a colon.
+- Close a list. The sentence after the list refers back to the list, or to the sentence that
+  introduced it.
 - Put only items of the same kind in one list.
 - Where your script has letter case, start each list item the way it starts a sentence (*Declare per
   language*, **Case and possessive forms**). End an item with a period only when the item is a full
@@ -217,21 +245,26 @@ Run this list over the text before you return it. The `doc-reader` agent runs th
    parentheses.
 3. Is there an optional informal short form, or an omitted function word? Write the words in full.
 4. Is there a passive construction with a known actor? Make it active.
-5. Is there an action expressed as a noun ("perform an analysis"), or a verb plus an opaque particle
+5. Does a sentence change voice part-way through? Put the whole sentence in one voice.
+6. Is there an action expressed as a noun ("perform an analysis"), or a verb plus an opaque particle
    ("spin up")? Replace it with a plain verb.
-6. Is there a hedge, an evaluative adjective, or a stock phrase? Remove it.
-7. Does a pronoun have more than one possible referent? Repeat the noun.
-8. Does one thing have two names? Select one name.
-9. Does a paragraph carry more than one topic, or more than six sentences? Divide it.
-10. Does a heading contain a full sentence or a subordinate clause? Rewrite it.
-11. Does a cross-reference say what the reader will find? If not, name it.
-12. Is a language-bound choice made twice, two different ways? Take it from *Declare per language*.
-13. Does a numbered step carry two actions the reader performs separately? Divide it into two steps.
-14. Is the result of a step missing where the reader needs it to continue? State the result.
-15. Is a result numbered as though the reader must perform it? Remove the number and write the result
+7. Is there a hedge, an evaluative adjective, or a stock phrase? Remove it.
+8. Does a pronoun have more than one possible referent? Repeat the noun.
+9. Does a modifying phrase describe the wrong word, or no word at all? Name the actor it needs.
+10. Does one thing have two names? Select one name.
+11. Does a definition restate its own term, or leave out the category? Rewrite it.
+12. Does a paragraph carry more than one topic, or more than six sentences? Divide it.
+13. Does a heading contain a full sentence or a subordinate clause? Rewrite it.
+14. Does a heading carry meaning the text below it leaves out? Move the meaning into the text.
+15. Does a list end without a sentence that refers back to it? Add one.
+16. Does a cross-reference say what the reader will find? If not, name it.
+17. Is a language-bound choice made twice, two different ways? Take it from *Declare per language*.
+18. Does a numbered step carry two actions the reader performs separately? Divide it into two steps.
+19. Is the result of a step missing where the reader needs it to continue? State the result.
+20. Is a result numbered as though the reader must perform it? Remove the number and write the result
     inside the step.
-16. Do sibling procedures open with different lead-in patterns? Give them one pattern.
-17. Does a table heading carry a clause instead of a noun? Name what the column holds.
+21. Do sibling procedures open with different lead-in patterns? Give them one pattern.
+22. Does a table heading carry a clause instead of a noun? Name what the column holds.
 
 The rules above are checkable. Good documentation also needs judgment that no checklist supplies: the
 right technical term, the right amount of detail, and whether a sentence is true. This standard fixes

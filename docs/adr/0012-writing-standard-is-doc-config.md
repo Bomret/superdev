@@ -13,8 +13,9 @@ families.
 **Decision.** The writing standard is **documentation configuration**: a `## Writing standard` section in
 `docs/agents/documentation.md`, written by `/superdev:setup`, holding a **pointer** — `controlled`, a
 repo-relative path to the project's own style guide, or `none`. The plugin ships one standard,
-`references/controlled-prose.md`: a **language-neutral** rule set merged from ASD-STE100 Issue 9 Part 1
-and the tekom Praxisleitfaden's rule catalogue for German technical communication. The standard binds only
+`references/controlled-prose.md`: a **language-neutral** rule set merged from ASD-STE100 Issue 9 Part 1,
+the tekom Praxisleitfaden's rule catalogue for German technical communication, and the *Handbook of
+Technical Writing*. The standard binds only
 prose an agent writes or rewrites in that dispatch; it never governs untouched text.
 
 **Why.** A style is not agent behaviour, it is a property of the repo being documented. The repo's own
@@ -22,12 +23,17 @@ rule that `commands/` and `agents/` stay tool-agnostic applies unchanged to a wr
 pointer keeps the rules in one shipped file that upgrades with the plugin instead of copying ~150 lines
 into every consumer repo where they freeze at install time.
 
-The standard is language-neutral because the defects are. Both source catalogues independently reach the
-same rules — active voice, no nominalizations, a sentence-length cap, one instruction per sentence, one
+The standard is language-neutral because the defects are. The ASD-STE100 and tekom catalogues
+independently reach the same rules — active voice, no nominalizations, a sentence-length cap, one instruction per sentence, one
 name for one thing, no semicolon, an unambiguous pronoun referent — from different languages, which is
 what makes those rules portable rather than English trivia. Merging them is also what makes the standard
 usable at all: the knowledge-base config carries a `Language` field that may say German, and a
 single-language standard would be inapplicable in a configuration superdev explicitly supports.
+
+The *Handbook of Technical Writing* reaches that same core from a third tradition, and it supplies five
+further rules the other two catalogues leave out. It diverges on semicolons, dashes, sentence variety,
+and emphasis. There the standard follows ASD-STE100, because those four rules trade a native reader's
+ease for a form that any reader and any checker can parse.
 
 **Considered options.**
 
