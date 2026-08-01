@@ -71,6 +71,18 @@ _Avoid: "the DAG" (that's the dependency structure itself, which exists whether 
 **Touch map** — the epic's `## Touch map` section: a plain-text file tree marking which slices touch which files, and where slices that run in parallel collide. Evidence for the dependency order, not an instruction — no slice `spec` names file paths, and no reviewer gates on it.
 _Avoid: "file map" (too generic — the collisions are the point), "impact analysis"_
 
+**Unattended run** — one `/superdev:afk` invocation: a serial sweep that takes each eligible epic through the whole four-command chain, and ends on an interrupt, on two consecutive blocked epics, on a `/superdev:ship` failure, or on an empty backlog. Keeps no queue — the tracker's labels are its only state, re-read every iteration.
+_Avoid: "afk mode" (there is no mode; afk is one command with one run), "batch", "autopilot"_
+
+**Unattended token** — the `--unattended` argument afk passes on every command invocation, which tells that command to take its standing answers instead of asking. An invocation property, never written to the run root, so it cannot outlive the run that passed it (ADR 0016).
+_Avoid: "unattended flag" (it is an argument token, not a config setting), "afk mode"_
+
+**Standing answer** — what a command does at a stop where it would otherwise ask the maintainer, when the unattended token is present. Each is written at the stop it governs; a stop with none written blocks the epic, which is the catch-all that keeps an unwritten question from stalling a run until morning.
+_Avoid: "default" (a default applies always; a standing answer applies only unattended), "policy", "auto-answer"_
+
+**Eligible epic** — an epic `/superdev:afk` may pick up: open, with neither the epic nor any of its slices carrying `blocked`, and with no run lock newer than an hour. Says nothing about `ready`, so a part-merged epic and a crash-interrupted slice both resume.
+_Avoid: "ready epic" (`ready` is a slice label, and eligibility deliberately ignores it), "available", "unblocked issue"_
+
 **Rejected direction** — a direction a brainstorm explored and dropped, carried in the `Intent` with the reason it lost. `/plan` routes each one to a durable home — a dropped approach to an ADR's `Considered options`, dropped scope to the epic's non-goals — so it can't be re-proposed cold later.
 _Avoid: "non-goal" (that's the destination for a rejected scope, not the record of why), "alternative"_
 
@@ -144,6 +156,9 @@ _Avoid: "issue tracker" as the concept name (that's one backend), "database"_
 
 **Assignee** — the slice-store account every issue a run creates is assigned to: a single store-native identifier (a login for Forgejo/GitHub, an `accountId` for Jira) recorded in `docs/agents/issue-tracker.md`, resolving to the API token's own identity when unconfigured and disabled by `none`. Store configuration rather than a slice field, applied at creation to the epic and every slice (ADR 0010).
 _Avoid: "owner" (too generic), "creator"/"reporter" (the store already records who filed the issue — assignee is who owns it), "reviewer" (a pull-request role, owned by the code host)_
+
+**Feature label** — the one slice-store label a feature's epic and every one of its slices carry (`feat/<slug>`), recorded in `docs/agents/issue-tracker.md`. It names the feature to `/superdev:implement`, and its slug is the scope, so one value fixes which epic gets built and which branch and run root the build uses.
+_Avoid: "epic label" (`epic` is a different label, marking which issue is the epic), "tag", "component"_
 
 **Status map** — the agreed mapping from superdev's canonical slice lifecycle (`todo` → `in-progress` → `in-review` → `merged`/done, plus `blocked`) to an issue tracker's real statuses/transitions. Captured by `/setup` for issue-backed slice stores, recorded in `issue-tracker.md`, walked by `/implement` at each lifecycle point.
 _Avoid: "status mapping", "workflow" (too generic)_
