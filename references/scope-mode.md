@@ -34,7 +34,10 @@ Find the working tree that holds the scope branch, from disk.
   every git command that writes to the scope branch with it as the current directory.
 - No such directory exists. The invoking checkout holds the branch, because a `full` run left it switched
   to `superdev/<scope>`. Confirm this with `git rev-parse --abbrev-ref HEAD`. A different branch means the
-  checkout is wrong. Say so and stop. On a read-only command, review read-only instead.
+  checkout is wrong. Say so and stop. When the ledger's `**Stage:**` line reads `shipped`, say instead
+  that `/superdev:ship`'s §6 returned this checkout to base by design, and that `git switch
+  superdev/<scope>` restores it before a writing command re-runs. On a read-only command, review
+  read-only instead.
 
 ## The run lock
 

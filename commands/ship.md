@@ -90,6 +90,15 @@ you are standing in:
 - Delete any leftover `slice/<scope>/*` branch (merged into the scope branch, so it only clutters).
 - Remove `<run-root>/run.lock` to signal the run is done, if it exists. A `full` run never creates one
   (per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`), so there is nothing to remove there.
+- **Return the invoking checkout to the base branch (per `docs/agents/code-management.md`, as in §5) —
+  only when its HEAD is `superdev/<scope>`.** That is the state a `full` run leaves behind, and leaving it
+  there hands the next run a checkout sitting on a branch with an open pull request. A `lite` run never
+  switched this checkout, so its HEAD is wherever the maintainer put it and switching would move them off
+  their own branch. **The base is already checked out in another worktree → `git switch` fails there; say
+  so and leave this checkout alone.** **The checkout is dirty → leave it where it stands and say so in one
+  line**, naming the branch it stayed on; if the uncommitted work includes `CONTEXT.md`, `docs/adr/`, or
+  `.claude/rules/`, note that too — it is what will trip the next run's Phase 0 guard. Uncommitted work
+  outweighs a tidy branch pointer.
 - Keep the rest of `<run-root>` — the ledger and the ticked DoD are the git-ignored paper trail.
 
 **Never delete the scope branch.** The pull request is from it, and deleting it closes the request.

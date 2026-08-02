@@ -9,8 +9,9 @@
 // same "safe by default" shape: never touches a run whose scope branch isn't merged yet (still active),
 // never touches one whose worktree is still present (an interrupted cleanup, not a finished run — leave
 // it for a human to look at), and never touches one that isn't recorded as `shipped` — a full run leaves
-// its invoking checkout ON the merged scope branch and cuts no worktree, so the TTL and the worktree
-// guard alone would let it prune a scope still mid-chain (ADR 0013).
+// its invoking checkout ON the scope branch until `/superdev:ship` §6 returns it to base, and cuts no
+// worktree meanwhile, so the TTL and the worktree guard alone would let it prune a scope still mid-chain
+// (ADR 0013).
 // ponytail: TTL is one flat value for every scope; a per-scope override would need its own config
 // knob — add one if varying retention actually comes up, but YAGNI for now.
 // Best-effort and silent: any git error, or no .superdev/scopes/ → no-op.
@@ -29,8 +30,9 @@ function sh(cmd, cwd) {
 // scope's newest-file mtime (ms, or null if unreadable), and a function returning each scope's ledger
 // stage (or null if the ledger is unreadable or carries no `**Stage:**` line), return the scope names
 // prunable now. `git branch --merged` also lists the branch a full run's invoking checkout is switched
-// to (the current branch itself), and a full run leaves no `worktree`/`worktrees` dir for the guard below
-// to catch — so the TTL was the only remaining protection until this stage gate. Only a scope whose
+// to mid-chain (the current branch itself, until `/superdev:ship` §6 switches it back to base), and a
+// full run leaves no `worktree`/`worktrees` dir for the guard below to catch — so the TTL was the only
+// remaining protection until this stage gate. Only a scope whose
 // ledger stage is `shipped` is prunable: that is the signal `/superdev:ship` writes at the end of the
 // chain, and it is stronger than "merged" on every tier. An unreadable ledger, or one with no stage line,
 // is never prunable — that is not evidence a run finished, only evidence nothing can be read.
@@ -142,12 +144,12 @@ if (process.argv[2] === '--selftest') {
     'unreadable mtime is never pruned'
   );
 
-  // A full-tier run leaves the invoking checkout on the scope branch, so `git branch --merged` lists
-  // it as merged from the moment `/superdev:implement` finishes — long before the run is done. A full
-  // run also cuts no per-scope worktree, so the guard below never fires either. The TTL was the only
-  // remaining protection, and a human-paced chain can sit past it while still mid-review. This is the
-  // RED case: a merged, stale scope whose ledger stage is `reviewed` (review ran, ship never did) must
-  // not be pruned.
+  // A full-tier run leaves the invoking checkout on the scope branch until `/superdev:ship` §6 returns
+  // it to base, so `git branch --merged` lists it as merged from the moment `/superdev:implement`
+  // finishes — long before the run is done. A full run also cuts no per-scope worktree, so the guard
+  // below never fires either. The TTL was the only remaining protection, and a human-paced chain can sit
+  // past it while still mid-review. This is the RED case: a merged, stale scope whose ledger stage is
+  // `reviewed` (review ran, ship never did) must not be pruned.
   const mergedStaleUnshipped = new Set(['main', 'superdev/parked-mid-chain']);
   assert.deepEqual(
     selectPrunable(['parked-mid-chain'], mergedStaleUnshipped, () => STALE, () => 'reviewed'),

@@ -197,7 +197,13 @@ This is purely informational so the user knows what to expect: `/plan` doesn't s
 tier anywhere.
 
 **Commit the durable design docs** you wrote — the glossary (`CONTEXT.md`), any ADRs (`docs/adr/`), and
-any `.claude/rules/` — to the base branch. `/superdev:implement` runs from a fresh worktree checkout of
+any `.claude/rules/` — to the base branch. **Check `git rev-parse --abbrev-ref HEAD` first, and only commit
+when the invoking checkout is on the base branch.** It is on any other branch → name the branch you found
+and the base you wanted, write nothing, and stop; the plan is already written to the store, so the
+maintainer switches to base and commits the design docs there — no interview, nothing re-planned —
+and the resolved `/superdev:implement feat/<label>` handoff below still prints, because the plan is
+written and only the commit is outstanding.
+`/superdev:implement` runs from a fresh worktree checkout of
 that branch (per-slice on the full tier, a single scope worktree on the lite tier); anything left
 uncommitted never reaches those checkouts, and a path-scoped rule that isn't on the branch can't
 auto-load. **Push the base branch** to its remote right after committing (if one is configured, per
