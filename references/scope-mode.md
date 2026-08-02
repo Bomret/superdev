@@ -76,6 +76,56 @@ control flow, so a failed write is logged and the block still holds.
 
 **Without the token nothing changes.** Every command asks exactly what it asks today, in the same words.
 
+## Degraded passes
+
+A **degraded pass** is a step of the chain that did not get the assurance the chain promises. Two shapes
+occur, and each takes its own action:
+
+- **A dispatch the permission classifier denies.** The controller asked for an independent pass and did
+  not get one. A prompt-rewriting plugin installed alongside superdev can trigger this, because the
+  subagent's prompt reaches the classifier carrying text the controller never wrote. **Attended** → do
+  the pass inline, say so in the report, and write the entry below — an inline pass is worth more than no
+  pass, and worth less than an independent one, which is what the entry records. **Unattended** →
+  **block**, per this file's `## Unattended` section, which owns what blocking means. Nobody is there to
+  weigh an inline pass, and a pull request whose only review was its author reviewing itself is the
+  outcome this rule exists to prevent. The block comment names the denied dispatch, **and the entry below
+  is written too**: the comment tells the tracker, and the bullet tells the run, which is what
+  `/superdev:status` reads and what a maintainer resuming the scope by hand sees first.
+- **A pass that cannot complete its own work.** The step ran, and something it needed was unreachable. The
+  knowledge-base publish is the live case: its backend states its own skip-and-note fallback. **Record and
+  continue, attended or unattended alike** — the step already ran what it could, so blocking the night's
+  sweep on an expired token or an unreachable backend protects nothing that inlining protects in the first
+  shape.
+
+**Recognising a denial.** It comes back as a permission refusal naming the classifier. A failed dispatch
+that is not that — a timeout, a network error, any other tool failure — is an ordinary error to retry or
+report, not a degraded pass.
+
+**A pass the command was already free to skip is not degraded when denied.** `/superdev:review`'s §2 is
+the standing case: it already skips `simplicity-reviewer` on judgment (a tiny or already-lean diff), so a
+denied dispatch there records nothing — the run loses nothing it was not already choosing to skip. Any
+command with a similar judgment-call skip defers to this rule rather than stating its own.
+
+Neither shape is a failure of the code under review, so neither stops a run on its own except where the
+first shape's unattended path blocks. What matters is that the run's shortfall stays visible after the
+session that saw it has ended.
+
+**The entry.** A `**Degraded:**` line in `<run-root>/ledger.md`, beside `**Stage:**`, carrying one bullet
+per degraded pass. Each bullet names the pass, why it degraded, and the date:
+
+```markdown
+**Stage:** reviewed
+**Degraded:**
+- whole-scope review ran inline — final-reviewer dispatch denied by the permission classifier (2026-08-02)
+```
+
+A run with nothing to report carries **no such line at all**. The line is absent, never present and
+empty. **An ad-hoc run — no run root exists** — has nowhere to write it: report the degraded pass in that
+command's own output instead, and write nothing.
+
+**A degraded pass is not a stage.** It is the line above, never a new stage value — ADR 0018 has the
+reasoning.
+
 ## The stage never moves backwards
 
 `/superdev:review` and `/superdev:document` both write the ledger's `**Stage:**` line, and each reads the

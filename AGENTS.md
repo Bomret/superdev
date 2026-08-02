@@ -227,11 +227,12 @@ This root owns every subtree directly:
 - `scripts/`. Standalone deterministic checks that `package.json` runs, and the other executable code
   alongside `hooks/`. It follows the same `--selftest` convention. The reference, run-root, assignee,
   anchor-contract, afk-selection-neutrality, writing-standard, content-types, stage, command-resolution,
-  chain-handoff, feature-label-argument, unattended-token, afk-invocation, and scope-slug checks are drift
-  assertions. They compare a restated fact against its source. The eval-shape check compares a document
-  against a schema. The afk-existence check is a plain existence assertion. `drift-check.js` guards
-  sixteen things, in the order its `main()` computes them. First, that every `references/*.md` path named
-  in `commands/`, `agents/`, or `references/` itself resolves to a file that exists. A reference cites
+  chain-handoff, feature-label-argument, unattended-token, afk-invocation, scope-slug, and degraded-pass
+  checks are drift assertions. They compare a restated fact against its source. The eval-shape check
+  compares a document against a schema. The afk-existence check is a plain existence assertion.
+  `drift-check.js` guards seventeen things, in the order its `main()` computes them. First, that every
+  `references/*.md` path named in `commands/`, `agents/`, or `references/` itself resolves to a file that
+  exists. A reference cites
   another reference — both execution playbooks point at `scope-mode.md` — so a rename there dangles like
   any other. Second, that `commands/implement.md`,
   `commands/review.md`, `commands/document.md`, `commands/ship.md`, `references/implement-full.md`,
@@ -259,9 +260,9 @@ This root owns every subtree directly:
   `commands/implement.md`, `commands/review.md`, and `commands/document.md` each name their successor in
   the chain. `commands/ship.md` ends the chain and is deliberately outside that check.
 
-  The eleventh, twelfth, and fourteenth checks share one scanner, `scanContract()`, run over a table of
-  `[document, pattern, expectation]` rows instead of one function each. It reads every document a table
-  names and reports the rows whose pattern that document no longer matches. Eleventh, the
+  The eleventh, twelfth, fourteenth, and fifteenth checks share one scanner, `scanContract()`, run over
+  a table of `[document, pattern, expectation]` rows instead of one function each. It reads every
+  document a table names and reports the rows whose pattern that document no longer matches. Eleventh, the
   feature-label-argument contract: `commands/implement.md` declares `feat/<label>` in its
   `argument-hint` and resolves `$ARGUMENTS`, and `commands/plan.md` names `/superdev:implement
   feat/<label>` as its resolved successor. Twelfth, the unattended-token contract: `references/scope-mode.md`
@@ -272,12 +273,18 @@ This root owns every subtree directly:
   carries `--unattended` on every one of those rows. `scanAfkInvocations()` checks this row by row: a
   whole-file regex would pass the moment any one row carried the token, letting a sibling row lose it
   unnoticed. Fourteenth, the scope-slug contract: `references/scope-mode.md`'s prose rule and
-  `hooks/run-lock.js`'s extraction regex state the same charset. Fifteenth, that `commands/afk.md`
-  exists at all. Nothing else in the plugin names `/superdev:afk` for the ninth check to resolve, so
-  its absence would otherwise go unnoticed. Sixteenth, that every `evals/*/graders/*.md` declares a
-  known `type` and a positive `weight`, that an `llm` or `regex` grader also declares a `focus` or
-  `target`, and that every case's `scaffold_script` resolves. Nothing else validates a grader, so without
-  this a typo surfaces part-way through a run that costs real API spend.
+  `hooks/run-lock.js`'s extraction regex state the same charset. Fifteenth, the degraded-pass contract:
+  `references/scope-mode.md` carries the `## Degraded passes` section, and `commands/implement.md`,
+  `commands/review.md`, `commands/document.md`, `commands/ship.md`, `commands/status.md`,
+  `references/implement-full.md`, and `references/implement-lite.md` each name the `**Degraded:**`
+  ledger entry and point at that section. A consumer that drops the wire lets a run report assurance it
+  never got — a pull request claiming a review that was its author reading their own work. Sixteenth,
+  that `commands/afk.md` exists at all. Nothing else in the plugin names `/superdev:afk` for the ninth
+  check to resolve, so its absence would otherwise go unnoticed. Seventeenth, that every
+  `evals/*/graders/*.md` declares a known `type` and a positive `weight`, that an `llm` or `regex`
+  grader also declares a `focus` or `target`, and that every case's `scaffold_script` resolves. Nothing
+  else validates a grader, so without this a typo surfaces part-way through a run that costs real API
+  spend.
 
   The first and seventh checks are opposites. The first catches a reference to a file that does not exist.
   The seventh catches an agent that drops its wire to a file which still exists. That drift leaves the
@@ -314,7 +321,11 @@ This root owns every subtree directly:
     blocking instead of asking. `/superdev:implement` and both execution playbooks read that section
     too. Its `## The scope slug` rule states the charset a feature label, or any other external source,
     must match. The check runs before that label becomes a branch name or a run-root path segment.
-    `/superdev:implement` and `/superdev:afk` both read it.
+    `/superdev:implement` and `/superdev:afk` both read it. Its `## Degraded passes` section (ADR 0018)
+    defines the pass a run did not get — a dispatch the permission classifier denied, or one that could
+    not reach what it needed — what a command does about one attended and unattended, and the
+    `**Degraded:**` ledger entry that carries it to `/superdev:ship`'s pull-request body and
+    `/superdev:status`'s report.
   + **Authoring disciplines** (`cross-exam.md`, `domain-modeling.md`, `doc-verification.md`): the
     relentless cross-examination, active-domain-modeling, and verify-against-official-docs disciplines
     that `/plan` and `/brainstorm` read at runtime. They are superdev's own rendering of Matt Pocock's

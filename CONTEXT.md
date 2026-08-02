@@ -29,6 +29,9 @@ _Avoid: "log", "status file", "tracker"_
 **Stage** — how far a scope has moved through the four-command chain (`/implement` → `/review` → `/document` → `/ship`), recorded as the ledger's `**Stage:**` line and naming the last completed step: `implementing`, `merged`, `reviewed`, `documented` (or `documented-unreviewed` when `/document` ran before `/review` did), `shipped`. Distinct from a slice's status, which tracks one slice through the DAG (ADR 0013).
 _Avoid: "phase" (that names a section of a single command's procedure, as in Phase 0), "state", "step"_
 
+**Degraded pass** — a step of the chain that did not get the assurance the chain promises. Two shapes occur: a dispatch the permission classifier denies (any chain dispatch, not only a review one), or a pass that cannot reach what it needed. A denied dispatch runs inline when attended, and blocks the scope anchor when unattended; the step writes the entry either way (ADR 0018). A pass that cannot reach what it needed writes the entry and the run continues, attended or unattended alike. `/superdev:ship` carries every written bullet into the pull-request body, and `/superdev:status` reports it for an in-flight run.
+_Avoid: "failure" (the code under review did not fail — the chain's own assurance came up short), "warning" (too generic — this names a specific shortfall the ledger tracks), "partial review" (the first shape covers any denied dispatch, not only a review one — a doc-writer or fix-implementer denial both count)_
+
 **Scope checkout** — the working tree holding the scope branch, which every command after `/implement` finds from disk: the scope worktree when one exists (a lite run), otherwise the invoking checkout, which a full run left switched to the scope branch. Where a chained command's fix commits and documentation commits land.
 _Avoid: "the checkout" unqualified (the invoking checkout is a different thing on a lite run)_
 

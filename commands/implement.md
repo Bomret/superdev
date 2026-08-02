@@ -36,6 +36,10 @@ implementer's TDD discipline yourself. Between dispatches, narrate at most one s
 - **Hook-enforced — don't restate, just comply:** only the controller merges/pushes (`merge-guard` blocks
   a subagent's `git merge`/`push`/`rebase`); every dispatch to a superdev agent sets an explicit `model`
   (`model-explicit` blocks omissions — an omitted model silently inherits the priciest tier).
+- **A denied dispatch is a degraded pass, not a silent inline step.** The permission classifier can deny
+  a dispatch for reasons outside this plan. Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
+  `## Degraded passes` section and follow it — do the work inline, say so, and write the `**Degraded:**`
+  entry to `<run-root>/ledger.md`. **`--unattended` → block** there instead.
 - **Agents carry their own discipline.** Implementers own test-first TDD; reviewers own "green ≠ correct"
   and hunting uncovered input; `mechanical`/`docs` slices invent no tests (the suite is the net). Don't
   re-teach any of it when dispatching — pass specifics, not lectures.

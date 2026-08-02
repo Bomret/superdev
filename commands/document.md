@@ -71,6 +71,16 @@ hand them over in that order and **tell the writer the order is a priority** —
 fix-round section of its own, so say it. With a single round, anything it can't reach is then the least
 costly finding rather than an arbitrary one.
 
+**Two things here are degraded passes**, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
+`## Degraded passes` section — read it and follow it, on either one:
+
+- **A dispatch the permission classifier denies.** A denied `doc-writer` means you reconcile inline; a
+  denied `doc-reader` means the docs went unread by fresh eyes. Say so in §5's report and, on a live scope
+  run, write the `**Degraded:**` entry that section defines. **`--unattended` → block** instead.
+- **A knowledge-base pass the writer could not publish.** `docs/agents/knowledge-base.md` states its own
+  skip-and-note fallback, and the note ends at the writer's report. On a live scope run, write the entry
+  too, so the unpublished pass is still visible at ship time.
+
 ## 5. Report
 
 Relay what the doc-writer changed: which `AGENTS.md`/docs were updated, what was removed as stale, which

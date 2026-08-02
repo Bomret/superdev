@@ -31,6 +31,9 @@ table (columns: `id`, `issue`, `title`, `type`, `depends-on`, `status`, `range`)
   `/document` ran ahead of `/review`) → `shipped`, naming the last completed step; ADR 0013). A ledger
   written before the stage existed carries no such line — report the scope without a stage and carry on,
   exactly as you do for any other missing optional field.
+- the run's **degrade record**: every bullet under the ledger's `**Degraded:**` line, naming a pass the
+  run did not get (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section defines
+  it). Most runs carry no such line, which is the ordinary case and not a missing field.
 
 A ledger that fails to parse (malformed table, missing file despite the directory existing) → report it
 as `<scope>: ledger unreadable` and continue with the remaining scopes; don't abort the whole command.
@@ -43,9 +46,11 @@ Print one block per scope, oldest run root first:
 <scope>  (N slices, stage: <stage>)
   todo: N  in-progress: N  in-review: N  blocked: N  merged: N
   blocked: <id> <title>, <id> <title>   (omit this line if none)
+  degraded: <what did not run, and why>, <what did not run, and why>   (omit this line if none)
 ```
 
-Drop `, stage: <stage>` for a ledger that carries no `**Stage:**` line.
+Drop `, stage: <stage>` for a ledger that carries no `**Stage:**` line, and the `degraded:` line for one
+that carries no `**Degraded:**` line.
 
 Every slice `merged` does not mean the run is done: the scope still has to be reviewed, documented, and
 shipped. The stage is what says which of those already happened, so report it and add nothing of your own

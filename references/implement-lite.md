@@ -52,6 +52,10 @@ same-scope mutual exclusion. Leave the lock in place when you finish: it spans t
   to `merged`/done once its commit lands.
 - **No per-slice review, no per-slice progress log.** Your own context is the record of how each slice
   unfolded; the ledger is the durable trace once that context is gone.
+- **Nothing here degrades.** This tier dispatches nobody, so a denied dispatch cannot happen and the
+  `**Degraded:**` line that `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes`
+  section defines stays absent through slice execution. `/superdev:review` and `/superdev:document` do
+  dispatch, so the line can still appear later in the chain — leave any entry you find alone.
 
 ## Resume
 

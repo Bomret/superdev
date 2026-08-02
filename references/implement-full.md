@@ -78,6 +78,12 @@ Repeat until every slice is `merged`:
      **`superdev:implementer`** fix with a **RED test that reproduces the bug first**; re-review until
      clean — or the **3-strike fix loop** caps out (controller's Invariants). Then dispatch
      **`superdev:simplicity-reviewer`** (over-engineering); apply warranted cuts.
+   - **A dispatch the permission classifier denies** — an implementer, a slice-reviewer, a
+     simplicity-reviewer, or a fix — is a **degraded pass**, not a step to redo silently inline. None of
+     them is ever skipped on judgment in this tier, so scope-mode's own skip carve-out never exempts one
+     here. Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section and follow
+     it, including the `**Degraded:**` entry it defines for `<run-root>/ledger.md`. **`--unattended` →
+     block** there instead.
    - **`mechanical`** / **`docs`** slice → **skip both per-slice reviews** (the suite + the final review
      are the net).
 4. **Merge (you, serially)** — from the scope checkout: `git merge --no-ff slice/<scope>/<id>`. Resolve

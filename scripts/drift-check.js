@@ -596,6 +596,43 @@ const UNATTENDED_CONTRACTS = [
   ].map((rel) => [rel, /\*\*Unattended\*\*\s+section/, 'carry a read/apply instruction for the `## Unattended` section, not merely the token']),
 ];
 
+// A degraded pass is a step that did not get the assurance the chain promises: a dispatch the permission
+// classifier denied, or a pass that could not reach what it needed. `scope-mode.md` defines it once,
+// including the `**Degraded:**` ledger entry that carries it past the session that saw it. Every document
+// that dispatches, or that reads the record, names the entry. A document that drops it degrades in
+// silence — the pull request then claims a review that was the author reading their own work, which is
+// exactly the assurance the entry exists to deny. Nothing else notices: the run is green, the prose is
+// valid, and the shortfall lives only in a transcript nobody keeps.
+const DEGRADED_CONTRACTS = [
+  [
+    path.join('references', 'scope-mode.md'),
+    /^#{2,3}\s+Degraded passes\s*$/m,
+    'carry the `## Degraded passes` section defining the rule for every document that reads it',
+  ],
+  ...[
+    path.join('commands', 'implement.md'),
+    path.join('commands', 'review.md'),
+    path.join('commands', 'document.md'),
+    path.join('commands', 'ship.md'),
+    path.join('commands', 'status.md'),
+    path.join('references', 'implement-full.md'),
+    path.join('references', 'implement-lite.md'),
+  ].map((rel) => [rel, /\*\*Degraded:\*\*/, 'name the `**Degraded:**` ledger entry']),
+  // Naming the entry without pointing at the section that governs it leaves a reader with a token and no
+  // rule: what counts as degraded, what to do attended, and what to do unattended all live in the section.
+  // Anchored on the section's own name for the same reason `UNATTENDED_CONTRACTS` is — the documents
+  // phrase the instruction several ways around one fixed noun.
+  ...[
+    path.join('commands', 'implement.md'),
+    path.join('commands', 'review.md'),
+    path.join('commands', 'document.md'),
+    path.join('commands', 'ship.md'),
+    path.join('commands', 'status.md'),
+    path.join('references', 'implement-full.md'),
+    path.join('references', 'implement-lite.md'),
+  ].map((rel) => [rel, /`## Degraded passes`/, 'point at the `## Degraded passes` section, not merely the entry']),
+];
+
 // `/superdev:afk` drives the chain by invoking the four real commands (ADR 0015), and every one of those
 // invocations carries the unattended token. An invocation that loses it asks a question at three in the
 // morning: the sweep stops there and does nothing until someone wakes up, having reported no failure —
@@ -683,6 +720,7 @@ function main() {
     ...scanContract(root, UNATTENDED_CONTRACTS, { stripFrontmatterFirst: true }),
     ...scanAfkInvocations(root),
     ...scanContract(root, SCOPE_SLUG_CONTRACTS),
+    ...scanContract(root, DEGRADED_CONTRACTS, { stripFrontmatterFirst: true }),
   ];
   // Every scanner above skips a document it cannot read, so that a fixture carries only the files it
   // exercises. That convention would let `commands/afk.md` be deleted without a single check going red,
@@ -713,7 +751,7 @@ function main() {
         'carried, ' +
         'writing standard offered, content-type lens wired, stage line named, commands resolve, ' +
         'chain hands off, scope-slug charset matches the run-lock hook, feature-label argument and ' +
-        'unattended token carried, eval graders and scaffolds well-formed',
+        'unattended token and degrade record carried, eval graders and scaffolds well-formed',
     );
     process.exit(0);
   }
@@ -1617,6 +1655,69 @@ if (process.argv[2] === '--selftest') {
   // an absent document is skipped, so a fixture carries only the stops it exercises
   const un4 = fixture({ 'references/scope-mode.md': definesToken });
   assert.equal(scanContract(un4, UNATTENDED_CONTRACTS).length, 0, 'absent documents are skipped');
+
+  // --- DEGRADED_CONTRACTS: scope-mode.md defines the degraded pass and its ledger entry, and every
+  // document that dispatches or reads the record names it. A document that drops the wire lets a run
+  // report a review it never independently got. ---
+
+  const definesDegraded =
+    '## Degraded passes\n\nA denied dispatch is one. Write a `**Degraded:**` line to the ledger.\n';
+  const namesDegraded =
+    'A denied dispatch → work inline and write the `**Degraded:**` entry, per `## Degraded passes`.\n';
+  const everyConsumer = {
+    'references/scope-mode.md': definesDegraded,
+    'commands/implement.md': namesDegraded,
+    'commands/review.md': namesDegraded,
+    'commands/document.md': namesDegraded,
+    'commands/ship.md': namesDegraded,
+    'commands/status.md': namesDegraded,
+    'references/implement-full.md': namesDegraded,
+    'references/implement-lite.md': namesDegraded,
+  };
+  const degradedOpts = { stripFrontmatterFirst: true };
+
+  // negative: every document carrying both halves is clean
+  assert.equal(
+    scanContract(fixture(everyConsumer), DEGRADED_CONTRACTS, degradedOpts).length,
+    0,
+    'every consumer carrying the wire yields zero gaps',
+  );
+
+  // positive: scope-mode.md mentions the entry but lost the section defining it, so what counts as
+  // degraded — and what to do attended versus unattended — has nowhere to live
+  const dg2 = fixture({
+    ...everyConsumer,
+    'references/scope-mode.md': 'Ledgers may carry a `**Degraded:**` line.\n',
+  });
+  const dgGaps2 = scanContract(dg2, DEGRADED_CONTRACTS, degradedOpts);
+  assert.equal(dgGaps2.length, 1, 'an entry mention is not the section that defines it');
+  assert.equal(dgGaps2[0].source, path.join('references', 'scope-mode.md'), 'names scope-mode.md');
+
+  // positive: each consumer is checked on its own, so one dropping the wire cannot hide behind its
+  // siblings — the failure this guards is exactly one command going quiet
+  for (const rel of [
+    'commands/implement.md',
+    'commands/review.md',
+    'commands/document.md',
+    'commands/ship.md',
+    'commands/status.md',
+    'references/implement-full.md',
+    'references/implement-lite.md',
+  ]) {
+    const dropped = fixture({ ...everyConsumer, [rel]: '# doc\n\nNothing about degrading here.\n' });
+    const gaps = scanContract(dropped, DEGRADED_CONTRACTS, degradedOpts);
+    assert.equal(gaps.length, 2, `flags ${rel} on both rows when it drops everything`);
+    assert.ok(gaps.every((g) => g.source === rel.split('/').join(path.sep)), `both gaps name ${rel}`);
+  }
+
+  // positive: the entry named with no pointer to the section leaves a reader a token and no rule
+  const entryOnly = fixture({
+    ...everyConsumer,
+    'commands/ship.md': '# ship\n\nCopy any `**Degraded:**` bullet into the body.\n',
+  });
+  const entryOnlyGaps = scanContract(entryOnly, DEGRADED_CONTRACTS, degradedOpts);
+  assert.equal(entryOnlyGaps.length, 1, 'flags the missing section pointer alone');
+  assert.match(entryOnlyGaps[0].expectation, /point at the/, 'names the missing pointer');
 
   // --- scanAfkInvocations: every stage-table row that invokes one of the four chain commands must carry
   // the token on that same row (ADR 0015). A row that loses it asks a question nobody answers, and the

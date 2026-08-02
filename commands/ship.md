@@ -70,6 +70,13 @@ posture, with a body built from the Definition of Done and the slice list. No ho
 degrade exactly as that document says (push, then print the compare URL and the ready-to-run call) rather
 than failing. **Report the pull-request URL.**
 
+**Carry the run's degrade record into that body.** The ledger's `**Degraded:**` line lists every pass this
+run did not get — a denied dispatch, a knowledge-base publish that never reached its backend — per
+`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section. Copy every bullet into the
+pull request body under one fixed `## Degraded passes` heading, so the reviewer reads what the run is
+short of before merging rather than assuming a whole chain ran. **No such line** → the body is exactly what
+it would have been; add no empty heading saying nothing degraded.
+
 Then move the **scope anchor** issue (the epic, or the lone slice on a single-slice plan) to done per
 `docs/agents/issue-tracker.md`, and set the ledger's `**Stage:**` line to `shipped`.
 

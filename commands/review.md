@@ -96,6 +96,12 @@ Both subagents are **read-only** (`Read`, `Grep`, `Bash` — a hook blocks `git 
 **Exclude `superdev:slice-reviewer`.** It verifies one slice's diff against that slice's own
 `spec`/`acceptance` from a plan — standalone review has no per-slice specification for it to check against.
 
+**A dispatch of either reviewer above that the permission classifier denies is a degraded pass.** Read
+`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section and follow it: review
+inline yourself, say so in §3's report, and — on a live scope run — write the `**Degraded:**` entry that
+section defines. **`--unattended` → block** there instead. That section's own carve-out already covers a
+denied `simplicity-reviewer` here.
+
 ## 3. Report
 
 Consolidate both verdicts into **one** report — don't just relay them side by side:
@@ -151,6 +157,11 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   leave the stage where it is). **`--unattended` → block** at that cap, per
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section, leaving the stage where it is
   exactly as above.
+- **The fix implementer's own dispatch is a degraded pass too, if the permission classifier denies it.**
+  Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section and follow it —
+  **attended**, apply the fix inline yourself and say so in §3's report; **unattended**, **block there
+  instead**, in place of the `--unattended → fix` rule above, since nobody is there to review a fix the
+  controller wrote itself. Write the `**Degraded:**` entry either way.
 - **Over-engineering findings never gate.** `simplicity-reviewer`'s cuts stay advisory here exactly as in
   §3. They do not hold up the handoff and they do not trigger the fix loop.
 - **On a clean verdict**, and only then: write the ledger's `**Stage:**` line per
