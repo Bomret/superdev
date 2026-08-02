@@ -1,3 +1,16 @@
+# [0.26.0](https://codeberg.org/bomret/superdev/compare/v0.25.1...v0.26.0) (2026-08-02)
+
+
+### Bug Fixes
+
+* **afk:** make an unattended sweep safe to run ([#151](https://codeberg.org/bomret/superdev/issues/151)) ([ae29413](https://codeberg.org/bomret/superdev/commit/ae29413f629065ddb2dd35aa75440ad16db7c972)), closes [#146](https://codeberg.org/bomret/superdev/issues/146) [#133](https://codeberg.org/bomret/superdev/issues/133) [#132](https://codeberg.org/bomret/superdev/issues/132)
+* **chain:** commit design docs only from the base branch ([#156](https://codeberg.org/bomret/superdev/issues/156)) ([75983b1](https://codeberg.org/bomret/superdev/commit/75983b1f35a2206367ae75c331d4148ffae231d6)), closes [#135](https://codeberg.org/bomret/superdev/issues/135) [#135](https://codeberg.org/bomret/superdev/issues/135)
+
+
+### Features
+
+* **chain:** record a pass the run did not get ([#155](https://codeberg.org/bomret/superdev/issues/155)) ([f827474](https://codeberg.org/bomret/superdev/commit/f827474a6f12a6731f5c142be264dfb5560743a3)), closes [#152](https://codeberg.org/bomret/superdev/issues/152) [#153](https://codeberg.org/bomret/superdev/issues/153) [#154](https://codeberg.org/bomret/superdev/issues/154)
+
 ## [0.25.1](https://codeberg.org/bomret/superdev/compare/v0.25.0...v0.25.1) (2026-08-02)
 
 
