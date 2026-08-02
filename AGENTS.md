@@ -29,8 +29,9 @@ plugins.
                          No `hooks` field — Claude Code auto-loads the standard hooks/hooks.json.
   marketplace.json     — single-plugin marketplace manifest (deliberately NO version field)
 commands/              — slash commands (*.md): brainstorm, setup, plan, implement, review, document,
-                         ship, upgrade, status. implement → review → document → ship is the chain a scope
-                         walks, each command printing the next (ADR 0013)
+                         ship, afk, upgrade, status. implement → review → document → ship is the chain a
+                         scope walks, each command printing the next (ADR 0013). afk drives that chain
+                         unattended, one eligible epic at a time, with the Skill tool (ADR 0015)
 agents/                — subagents (*.md): implementer, slice-reviewer, simplicity-reviewer, final-reviewer,
                          doc-writer, doc-reader
 hooks/                 — deterministic Node hooks + hooks.json: merge-guard, model-explicit, green-gate,
@@ -42,7 +43,7 @@ references/            — backend seed templates + plan-contract (slice schema/
                          information a doc carries) — both read at runtime by the doc agents +
                          execution playbooks (implement-full/lite, read at runtime by /implement) +
                          scope-mode (the rule /review, /document, and /ship share, read at runtime by
-                         each) +
+                         each, plus its Unattended section /implement and both playbooks also read) +
                          authoring disciplines (cross-examination, domain-modeling, doc-verification;
                          read at runtime by /plan + /brainstorm, doc-verification also by implementer) +
                          review-checklist (anti-patterns, vuln-classes, reuse-audit, consistency; read at
@@ -225,39 +226,56 @@ This root owns every subtree directly:
   candidate, if its rules outgrow this root.
 - `scripts/`. Standalone deterministic checks that `package.json` runs, and the other executable code
   alongside `hooks/`. It follows the same `--selftest` convention. The reference, run-root, assignee,
-  writing-standard, content-types, stage, command-resolution, and chain-handoff checks are drift
-  assertions, which compare a restated fact against its source. The eval-shape check compares a document
-  against a schema. `drift-check.js` guards
-  nine things. First, that every `references/*.md` path named in `commands/` or `agents/` resolves to a file
-  that exists. Second, that `commands/implement.md`, `commands/review.md`, `commands/document.md`,
-  `commands/ship.md`, `references/implement-full.md`, `references/implement-lite.md`,
-  `references/scope-mode.md`, `agents/implementer.md`, `agents/slice-reviewer.md`, and
-  `agents/simplicity-reviewer.md` address run-root artifacts by absolute `<run-root>/…` path. Third,
-  that every issue-backend document carries the `**Assignee` config bullet. The filename alone triggers
-  that check, with no content gate on how the doc phrases issue creation. `references/issue-tracker-local.md`
-  is exempt, because it has no assignee concept. Fourth, that
+  writing-standard, content-types, stage, command-resolution, chain-handoff, feature-label-argument,
+  unattended-token, afk-invocation, and scope-slug checks are drift assertions. They compare a restated
+  fact against its source. The eval-shape check compares a document against a schema. The afk-existence
+  check is a plain existence assertion. `drift-check.js` guards fourteen things, in the order its
+  `main()` computes them. First, that every `references/*.md` path named in `commands/` or `agents/`
+  resolves to a file that exists. Second, that `commands/implement.md`, `commands/review.md`,
+  `commands/document.md`, `commands/ship.md`, `references/implement-full.md`,
+  `references/implement-lite.md`, `references/scope-mode.md`, `agents/implementer.md`,
+  `agents/slice-reviewer.md`, and `agents/simplicity-reviewer.md` address run-root artifacts by absolute
+  `<run-root>/…` path. Third, that every issue-backend document carries the `**Assignee` config bullet.
+  The filename alone triggers that check, with no content gate on how the doc phrases issue creation.
+  `references/issue-tracker-local.md` is exempt, because it has no assignee concept. Fourth, that
   `references/documentation.md` still offers a `## Writing standard` section (ADR 0012). Fifth, that
   `agents/doc-writer.md` and `agents/doc-reader.md` each still instruct themselves to read
-  `references/content-types.md` (ADR 0014). Sixth, that
-  every `evals/*/graders/*.md` declares a known `type` and a positive `weight`, that an `llm` or `regex`
-  grader also declares a `focus` or `target`, and that every case's `scaffold_script` resolves. Nothing
-  else validates a grader, so without this a typo surfaces part-way through a run that costs real API
-  spend. Seventh, that every command in the chain still names the ledger's `**Stage:**` line (ADR 0013).
-  The chain hands a run along through that line, so a command that stops naming it never writes or reads
-  the stage, and nothing fails. Eighth, that every `/superdev:<name>` reference in `commands/` or
-  `agents/` resolves to a `commands/<name>.md` file, so a chain handoff never points the reader at a
-  command that does not exist. Ninth, that `commands/implement.md`, `commands/review.md`, and
-  `commands/document.md` each name their successor in the chain. `commands/ship.md` ends the chain and is
-  deliberately outside that check.
+  `references/content-types.md` (ADR 0014). Sixth, that every command in the chain still names the
+  ledger's `**Stage:**` line (ADR 0013). The chain hands a run along through that line, so a command that
+  stops naming it never writes or reads the stage, and nothing fails. Seventh, that every
+  `/superdev:<name>` reference in `commands/` or `agents/` resolves to a `commands/<name>.md` file, so a
+  chain handoff never points the reader at a command that does not exist. Eighth, that
+  `commands/implement.md`, `commands/review.md`, and `commands/document.md` each name their successor in
+  the chain. `commands/ship.md` ends the chain and is deliberately outside that check.
+
+  The ninth, tenth, and twelfth checks share one scanner, `scanContract()`, run over a table of
+  `[document, pattern, expectation]` rows instead of one function each. It reads every document a table
+  names and reports the rows whose pattern that document no longer matches. Ninth, the
+  feature-label-argument contract: `commands/implement.md` declares `feat/<label>` in its
+  `argument-hint` and resolves `$ARGUMENTS`, and `commands/plan.md` names `/superdev:implement
+  feat/<label>` as its resolved successor. Tenth, the unattended-token contract: `references/scope-mode.md`
+  carries the `## Unattended` section (ADR 0016), and `commands/implement.md`, `commands/review.md`,
+  `commands/document.md`, `commands/ship.md`, `references/implement-full.md`, and
+  `references/implement-lite.md` each name `--unattended` and carry a read/apply instruction pointing at
+  that section. Eleventh, that `commands/afk.md`'s stage table invokes all four chain commands and
+  carries `--unattended` on every one of those rows. `scanAfkInvocations()` checks this row by row: a
+  whole-file regex would pass the moment any one row carried the token, letting a sibling row lose it
+  unnoticed. Twelfth, the scope-slug contract: `references/scope-mode.md`'s prose rule and
+  `hooks/run-lock.js`'s extraction regex state the same charset. Thirteenth, that `commands/afk.md`
+  exists at all. Nothing else in the plugin names `/superdev:afk` for the seventh check to resolve, so
+  its absence would otherwise go unnoticed. Fourteenth, that every `evals/*/graders/*.md` declares a
+  known `type` and a positive `weight`, that an `llm` or `regex` grader also declares a `focus` or
+  `target`, and that every case's `scaffold_script` resolves. Nothing else validates a grader, so without
+  this a typo surfaces part-way through a run that costs real API spend.
 
   The first and fifth checks are opposites. The first catches a reference to a file that does not exist.
   The fifth catches an agent that drops its wire to a file which still exists. That drift leaves the
   reference resolvable and the suite green, and the lens then does nothing in any dispatch.
 
-  The first and eighth are the same check at two levels: one resolves a `references/` path, the other a
-  command name. The eighth and ninth are opposites in the same way as the first and fifth: the eighth
-  catches a handoff that points at a command with no file, the ninth a command that names no successor at
-  all.
+  The first and seventh checks are the same check at two levels: one resolves a `references/` path, the
+  other a command name. The seventh and eighth are opposites in the same way as the first and fifth: the
+  seventh catches a handoff that points at a command with no file, the eighth a command that names no
+  successor at all.
 - `references/`. Backend seed templates plus the non-seed references below.
   + `plan-contract.md`: the slice schema and lifecycle, including the optional epic sections and the
     epic-visuals gate for `## Slice graph` and `## Touch map`.
@@ -277,7 +295,12 @@ This root owns every subtree directly:
   + `scope-mode.md`: the rule `/superdev:review`, `/superdev:document`, and `/superdev:ship` share (ADR
     0013) — what makes a range a live scope run, how to find the scope checkout on disk for both tiers, and
     the run-lock refresh-not-create rule. Each of the three reads it at runtime and keeps only what is
-    specific to it.
+    specific to it. Its `## Unattended` section defines the `--unattended` token (ADR 0016). It is the
+    argument that lets `/superdev:afk` drive a command with no standing answer written at a stop
+    blocking instead of asking. `/superdev:implement` and both execution playbooks read that section
+    too. Its `## The scope slug` rule states the charset a feature label, or any other external source,
+    must match. The check runs before that label becomes a branch name or a run-root path segment.
+    `/superdev:implement` and `/superdev:afk` both read it.
   + **Authoring disciplines** (`cross-exam.md`, `domain-modeling.md`, `doc-verification.md`): the
     relentless cross-examination, active-domain-modeling, and verify-against-official-docs disciplines
     that `/plan` and `/brainstorm` read at runtime. They are superdev's own rendering of Matt Pocock's

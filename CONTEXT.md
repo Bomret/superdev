@@ -80,7 +80,7 @@ _Avoid: "unattended flag" (it is an argument token, not a config setting), "afk 
 **Standing answer** — what a command does at a stop where it would otherwise ask the maintainer, when the unattended token is present. Each is written at the stop it governs; a stop with none written blocks the epic, which is the catch-all that keeps an unwritten question from stalling a run until morning.
 _Avoid: "default" (a default applies always; a standing answer applies only unattended), "policy", "auto-answer"_
 
-**Eligible epic** — an epic `/superdev:afk` may pick up: open, with neither the epic nor any of its slices carrying `blocked`, and with no run lock newer than an hour. Says nothing about `ready`, so a part-merged epic and a crash-interrupted slice both resume.
+**Eligible epic** — an epic `/superdev:afk` may pick up, per `commands/afk.md` §2: open, with neither the epic nor any of its slices carrying `blocked`, with a feature label matching `scope-mode.md`'s scope-slug rule, and with no live run on its scope (a run lock newer than an hour, or, absent one, an unshipped ledger newer than an hour). Says nothing about `ready`, so a part-merged epic and a crash-interrupted slice both resume.
 _Avoid: "ready epic" (`ready` is a slice label, and eligibility deliberately ignores it), "available", "unblocked issue"_
 
 **Rejected direction** — a direction a brainstorm explored and dropped, carried in the `Intent` with the reason it lost. `/plan` routes each one to a durable home — a dropped approach to an ADR's `Considered options`, dropped scope to the epic's non-goals — so it can't be re-proposed cold later.

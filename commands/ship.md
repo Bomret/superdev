@@ -1,6 +1,6 @@
 ---
 description: Close out a superdev scope — tick the Definition of Done, close the scope anchor, open the PR, and clean up the run. The last step of the implement chain; run it after /superdev:review and /superdev:document.
-argument-hint: "[<scope>  (empty = the only run in this repo)]"
+argument-hint: "[<scope>  (empty = the only run in this repo)]  [--unattended]"
 ---
 
 # superdev ship
@@ -11,6 +11,9 @@ dispatches no subagents: everything here is yours.
 
 ## 1. Scope + run root
 
+**`--unattended`, if present, comes out first** — per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
+**Unattended** section, it is never part of the scope slug below.
+
 Resolve `$ARGUMENTS` to one scope:
 
 A **run root** is a `.superdev/scopes/*/` directory that holds a `ledger.md`.
@@ -19,6 +22,10 @@ A **run root** is a `.superdev/scopes/*/` directory that holds a `ledger.md`.
 - **Empty, exactly one run root** → use it.
 - **Empty, no run root** → report `No superdev run found in this repo.` and stop. Create nothing.
 - **Empty, more than one run root** → list them with each one's stage and ask which to ship. Never guess.
+  **`--unattended` → block** instead of asking, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
+  **Unattended** section: picking a scope for someone is not a guess worth making unattended, and afk
+  always names a slug so this bullet is unreachable from a sweep — the catch-all is what makes an
+  otherwise-silent stop safe if that ever stops holding.
 
 Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md` for how to capture `<run-root>` and how the run lock
 behaves. Refresh `<run-root>/run.lock` now, per that file's rule.
@@ -41,7 +48,9 @@ Read the ledger's `**Stage:**` line:
 - **Anything earlier** (`implementing`, `merged`, `reviewed`), or **no line at all** → name exactly what
   has not run (`/superdev:review`, `/superdev:document`, or both) and **ask once** whether to ship anyway.
   Declined → stop and print the missing command. Confirmed → proceed and record in the report that the
-  scope shipped without it.
+  scope shipped without it. **`--unattended` → refuse**: name what is missing, open no pull request, and stop.
+  A caller that drove the whole chain never reaches this bullet, so reaching it unattended means a step
+  really was skipped — and shipping unreviewed code is not a decision a token stands in for.
 - **Every slice in the ledger is `mechanical` or `docs`** → drop `/superdev:review` from that warning,
   whether it applies to this bullet or to `documented-unreviewed` above. Such a scope skips the
   whole-scope review by design (the suite is the net), so naming it as missing would train the reader to

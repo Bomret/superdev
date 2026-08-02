@@ -1,6 +1,6 @@
 ---
 description: Review a change — a commit range, a branch, a path, or the working tree — for correctness, architecture, security, and over-engineering. Read-only on an ad-hoc range; on a live superdev scope it reviews against the DoD and can drive the fix loop.
-argument-hint: "[BASE..HEAD | branch | path | (empty = working tree)]  [-- what it should do]"
+argument-hint: "[BASE..HEAD | branch | path | (empty = working tree)]  [--unattended]  [-- what it should do]"
 ---
 
 # superdev review
@@ -25,6 +25,9 @@ Either way the reviewers themselves are the same read-only subagents.
   (`/superdev:setup` was never run) — it just loses the test-command hint.
 
 ## 1. Range
+
+**`--unattended`, if present, comes out first** — per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
+**Unattended** section, it is never part of the range or the trailing description below.
 
 Parse `$ARGUMENTS` into a **range** and an optional trailing description of what the change should do:
 
@@ -138,12 +141,15 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   read-only rather than writing to the wrong branch.
 - **Ask once before fixing.** `final-reviewer` returned **Critical or Important** findings → report them
   per §3 first, then ask whether to fix them now. **Declined** → stop. The findings stand, nothing is
-  written, and the stage does **not** advance. **Confirmed** → dispatch **one**
+  written, and the stage does **not** advance. **`--unattended` → fix**, without asking: the fix loop is the
+  whole point of this gate, and a review that found real defects and left them is worth less than no
+  review. **Confirmed** → dispatch **one**
   `superdev:implementer` (`model: sonnet`; `haiku` only for a mechanical fix) with the **complete**
   findings list, not one fixer per finding. Every fix opens with a RED test that reproduces the defect.
   Re-review after it returns, and repeat until the verdict is clean or the **3-strike cap** is reached
   (three fix cycles each exposing a new defect elsewhere means a wrong cut, not a bug: stop, say so, and
-  leave the stage where it is).
+  leave the stage where it is). **`--unattended` → block** at that cap, per `scope-mode.md`'s **Unattended**
+  section, leaving the stage where it is exactly as above.
 - **Over-engineering findings never gate.** `simplicity-reviewer`'s cuts stay advisory here exactly as in
   §3. They do not hold up the handoff and they do not trigger the fix loop.
 - **On a clean verdict**, and only then: write the ledger's `**Stage:**` line per

@@ -185,6 +185,18 @@ function frontmatter(text) {
   return fields;
 }
 
+// The fence frontmatter() matches, reused rather than a third copy of the same shape: stripFrontmatter()
+// below strips it off, so a contract that must be met by the prose body cannot be satisfied by an
+// `argument-hint` echo instead (e.g. `[--unattended]`, which names the argument but is not a standing
+// answer in the body).
+const FRONTMATTER_FENCE = /^---\n[\s\S]*?\n---/;
+
+// stripFrontmatter() returns text with its leading `---`-fenced frontmatter block removed (CRLF
+// normalised first, matching frontmatter()). Text with no frontmatter is returned unchanged.
+function stripFrontmatter(text) {
+  return text.replace(/\r\n/g, '\n').replace(FRONTMATTER_FENCE, '');
+}
+
 // scanEvalShape() is pure over a root dir: reads every eval case and reports graders whose frontmatter
 // the harness could not act on, plus cases whose scaffold_script does not resolve. An absent evals/ dir,
 // or a case with no graders/ dir, yields nothing — there is no shape to be wrong.
@@ -378,6 +390,154 @@ function scanChainHandoff(root) {
   return gaps;
 }
 
+// The scope slug becomes a branch name and a run-root path segment, and `hooks/run-lock.js` extracts it
+// back out of a `git worktree add` command to enforce same-scope mutual exclusion. The rule the prose
+// states and the charset the hook matches with are one fact in two syntaxes, and they must stay equal. A
+// prose rule wider than the hook's regex admits a slug the hook then cannot recognise as a scope at all,
+// which disarms same-scope mutual exclusion for that scope and reports nothing. A prose rule narrower
+// than it silently skips a label a maintainer legitimately used. Both sides are pinned literally, so
+// widening or narrowing either one alone goes red and a maintainer confirms the pair still agrees.
+const SCOPE_SLUG_CONTRACTS = [
+  [
+    path.join('references', 'scope-mode.md'),
+    /`\[a-zA-Z0-9\]\[a-zA-Z0-9_-\]\*`/,
+    'state the scope-slug rule as `[a-zA-Z0-9][a-zA-Z0-9_-]*` — the charset `hooks/run-lock.js` extracts with',
+  ],
+  [
+    path.join('hooks', 'run-lock.js'),
+    /scopes\\\/\(\[a-zA-Z0-9_-\]\+\)/,
+    'keep extracting the scope with `[a-zA-Z0-9_-]+` — the charset `references/scope-mode.md` states',
+  ],
+];
+
+
+// `/superdev:implement` takes the feature label that names which planned feature to build, and derives
+// the run's scope by stripping the label's `feat/` prefix. Two documents carry that contract between
+// them: implement.md declares the argument and resolves it, and plan.md hands off with the label
+// resolved. A document that drops its half leaves a caller with no way to name its target — and
+// `/superdev:afk`, which has no conversation to infer one from, then builds nothing. Neither half fails
+// anything else, which is why this is asserted rather than trusted.
+const FEATURE_ARG_CONTRACTS = [
+  [
+    path.join('commands', 'implement.md'),
+    /^argument-hint:.*feat\//m,
+    'declare an `argument-hint` naming `feat/<label>`',
+  ],
+  [path.join('commands', 'implement.md'), /\$ARGUMENTS/, 'resolve `$ARGUMENTS`'],
+  [
+    path.join('commands', 'plan.md'),
+    /\/superdev:implement\s+feat\//,
+    'name `/superdev:implement feat/<label>` as the resolved successor',
+  ],
+];
+
+// The unattended token is what lets `/superdev:afk` drive the chain with nobody watching (ADR 0016).
+// `scope-mode.md` defines it once, including the catch-all that makes an unwritten stop block rather than
+// ask; every document carrying a stop names it. A document that drops the token asks a question no one is
+// there to answer, so the sweep stalls until morning having done nothing — a failure that costs a whole
+// night and that no other check would notice, because every file involved stays perfectly valid prose.
+const UNATTENDED_CONTRACTS = [
+  [
+    path.join('references', 'scope-mode.md'),
+    /^#{2,3}\s+Unattended\s*$/m,
+    'carry the `## Unattended` section defining the token for every command that reads it',
+  ],
+  ...[
+    path.join('commands', 'implement.md'),
+    path.join('commands', 'review.md'),
+    path.join('commands', 'document.md'),
+    path.join('commands', 'ship.md'),
+    path.join('references', 'implement-full.md'),
+    path.join('references', 'implement-lite.md'),
+  ].map((rel) => [rel, /--unattended/, 'name `--unattended`']),
+  // The token alone is decoration without a read/apply instruction for the section that governs it. A
+  // command that names `--unattended` but points no reader at the `## Unattended` section leaves its own
+  // stops with no rule routing them to block. Anchored on the section's own
+  // name rather than a verb, because the doc convention phrases the instruction several ways ("read …
+  // scope-mode.md's **Unattended** section", "per scope-mode.md's **Unattended** section", "that file's
+  // **Unattended** section governs …") — same idea as `CONTENT_TYPES_PATTERN` anchoring on `Read`, applied
+  // to a contract whose real documents don't share one fixed verb.
+  ...[
+    path.join('commands', 'implement.md'),
+    path.join('commands', 'review.md'),
+    path.join('commands', 'document.md'),
+    path.join('commands', 'ship.md'),
+    path.join('references', 'implement-full.md'),
+    path.join('references', 'implement-lite.md'),
+  ].map((rel) => [rel, /\*\*Unattended\*\*\s+section/, 'carry a read/apply instruction for the `## Unattended` section, not merely the token']),
+];
+
+// `/superdev:afk` drives the chain by invoking the four real commands (ADR 0015), and every one of those
+// invocations carries the unattended token. An invocation that loses it asks a question at three in the
+// morning: the sweep stops there and does nothing until someone wakes up, having reported no failure —
+// the most expensive silence in the plugin. §3's stage table carries **five** invocation rows (two of
+// them `/superdev:review`, one per command otherwise), so this checks every **table row** on its own
+// rather than one whole-file regex per command name: a whole-file regex is satisfied the moment any one
+// row (or even a passing prose mention on the same line, e.g. §3's `documented-unreviewed` footnote)
+// carries the token, which lets a sibling row lose it unnoticed. Only a `|`-prefixed table row counts —
+// §5's maintainer-resume mention (`/superdev:ship <slug>`, no token) is prose, not an invocation, and
+// stays green.
+const AFK_NAMES = new Set(['implement', 'review', 'document', 'ship']);
+const AFK_ROW_PATTERN = /^\|.*\/superdev:([a-z][a-z-]*)/;
+
+// scanAfkInvocations() is pure over a root dir: reads commands/afk.md and reports every stage-table row
+// that names one of the four chain commands without carrying `--unattended` on that same row. Absent
+// afk.md is skipped, matching every other contract scanner.
+function scanAfkInvocations(root) {
+  const gaps = [];
+  let text;
+  try {
+    text = fs.readFileSync(path.join(root, 'commands', 'afk.md'), 'utf8');
+  } catch {
+    return gaps; // afk.md absent → nothing to scan
+  }
+  const invoked = new Set();
+  for (const line of text.split('\n')) {
+    const match = line.match(AFK_ROW_PATTERN);
+    if (!match || !AFK_NAMES.has(match[1])) continue;
+    invoked.add(match[1]);
+    if (!/--unattended/.test(line)) {
+      gaps.push({
+        source: path.join('commands', 'afk.md'),
+        expectation: `invoke \`/superdev:${match[1]}\` with \`--unattended\` on its table row: \`${line.trim()}\``,
+      });
+    }
+  }
+  // Inspecting only the rows that exist says nothing about a row that stopped existing. Deleting the
+  // stage table, or one step out of it, would otherwise leave zero gaps: afk would quietly skip a step of
+  // the chain — never reviewing, or never shipping — and report a clean sweep either way.
+  for (const name of AFK_NAMES) {
+    if (!invoked.has(name)) {
+      gaps.push({
+        source: path.join('commands', 'afk.md'),
+        expectation: `carry a stage-table row invoking \`/superdev:${name}\``,
+      });
+    }
+  }
+  return gaps;
+}
+
+// scanContract() is pure over a root dir and a contract table: reads each document the table names and
+// reports the expectations it no longer meets. Absent files are skipped, so fixtures need only the
+// documents they exercise. Both tables above share this one scanner — they differ in what they assert,
+// not in how the assertion runs. `stripFrontmatterFirst` tests the body alone, so a document can't satisfy
+// a body contract by echoing the token into its own `argument-hint` frontmatter — `FEATURE_ARG_CONTRACTS`
+// needs the opposite (its first row asserts *inside* the frontmatter), so it leaves this off.
+function scanContract(root, contracts, { stripFrontmatterFirst = false } = {}) {
+  const gaps = [];
+  for (const [rel, pattern, expectation] of contracts) {
+    let text;
+    try {
+      text = fs.readFileSync(path.join(root, rel), 'utf8');
+    } catch {
+      continue; // document absent (fixture / partial checkout) → nothing to scan
+    }
+    if (stripFrontmatterFirst) text = stripFrontmatter(text);
+    if (!pattern.test(text)) gaps.push({ source: rel, expectation });
+  }
+  return gaps;
+}
+
 function main() {
   const root = path.join(__dirname, '..');
   const missing = scan(root);
@@ -388,6 +548,22 @@ function main() {
   const stGaps = scanStageContract(root);
   const deadEnds = scanCommandRefs(root);
   const chainGaps = scanChainHandoff(root);
+  const contractGaps = [
+    ...scanContract(root, FEATURE_ARG_CONTRACTS),
+    ...scanContract(root, UNATTENDED_CONTRACTS, { stripFrontmatterFirst: true }),
+    ...scanAfkInvocations(root),
+    ...scanContract(root, SCOPE_SLUG_CONTRACTS),
+  ];
+  // Every scanner above skips a document it cannot read, so that a fixture carries only the files it
+  // exercises. That convention would let `commands/afk.md` be deleted without a single check going red,
+  // because nothing else in the plugin names `/superdev:afk` for `scanCommandRefs` to resolve. It is a
+  // command rather than an optional doc, so its existence is asserted here instead.
+  if (!fs.existsSync(path.join(root, 'commands', 'afk.md'))) {
+    contractGaps.push({
+      source: path.join('commands', 'afk.md'),
+      expectation: 'exist — `/superdev:afk` is a command, and no other check would notice its absence',
+    });
+  }
   const shape = scanEvalShape(root);
   if (
     missing.length === 0 &&
@@ -398,12 +574,14 @@ function main() {
     stGaps.length === 0 &&
     deadEnds.length === 0 &&
     chainGaps.length === 0 &&
+    contractGaps.length === 0 &&
     shape.length === 0
   ) {
     console.log(
       'drift-check ok: references resolve, run-root paths are absolute, assignee contract carried, ' +
         'writing standard offered, content-type lens wired, stage line named, commands resolve, ' +
-        'chain hands off, eval graders and scaffolds well-formed',
+        'chain hands off, scope-slug charset matches the run-lock hook, feature-label argument and ' +
+        'unattended token carried, eval graders and scaffolds well-formed',
     );
     process.exit(0);
   }
@@ -445,6 +623,9 @@ function main() {
       `${c.source} never names \`${c.next}\` — the chain dead-ends there instead of handing off; ` +
         `see ADR 0013`,
     );
+  }
+  for (const c of contractGaps) {
+    console.error(`${c.source} no longer meets its contract — expected it to ${c.expectation}`);
   }
   for (const p of shape) {
     console.error(`${p.source}: ${p.problem}`);
@@ -962,6 +1143,277 @@ if (process.argv[2] === '--selftest') {
   // an absent document is skipped, so a fixture carries only the links it exercises
   const ch5 = fixture({ 'commands/document.md': handsOff('/superdev:ship') });
   assert.equal(scanChainHandoff(ch5).length, 0, 'an absent chain document is skipped');
+
+  // --- scanFeatureArgContract: `/superdev:implement` takes the feature label that names which planned
+  // feature to build, and plan.md hands off with that label resolved. The two halves live in different
+  // documents, so either can drift alone, and neither failure surfaces anywhere else: a caller with no
+  // conversation to infer a target from simply builds nothing. ---
+
+  const takesLabel =
+    '---\nargument-hint: "[feat/<label> | (empty = the only plan in the store)]"\n---\n' +
+    'Resolve `$ARGUMENTS` to one feature label, and derive the scope from it.\n';
+  const handsOffLabel = 'Then run `/superdev:implement feat/<label>` with the real label substituted.\n';
+
+  // negative: both halves carried is clean
+  const fa1 = fixture({
+    'commands/implement.md': takesLabel,
+    'commands/plan.md': handsOffLabel,
+  });
+  assert.equal(scanContract(fa1, FEATURE_ARG_CONTRACTS).length, 0, 'both halves carried yields zero gaps');
+
+  // positive: implement.md declares no argument-hint
+  const fa2 = fixture({
+    'commands/implement.md': 'Resolve `$ARGUMENTS` to one feature label.\n',
+    'commands/plan.md': handsOffLabel,
+  });
+  const faGaps2 = scanContract(fa2, FEATURE_ARG_CONTRACTS);
+  assert.equal(faGaps2.length, 1, 'flags implement.md when it declares no argument-hint');
+  assert.equal(faGaps2[0].source, path.join('commands', 'implement.md'), 'names implement.md');
+  assert.match(faGaps2[0].expectation, /argument-hint/, 'says which half is missing');
+
+  // positive: implement.md declares the hint but never resolves the argument, so the hint is decoration
+  const fa3 = fixture({
+    'commands/implement.md': '---\nargument-hint: "[feat/<label>]"\n---\nLoad the slices.\n',
+    'commands/plan.md': handsOffLabel,
+  });
+  const faGaps3 = scanContract(fa3, FEATURE_ARG_CONTRACTS);
+  assert.equal(faGaps3.length, 1, 'a declared-but-unresolved argument is still a gap');
+  assert.match(faGaps3[0].expectation, /\$ARGUMENTS/, 'names the unresolved argument');
+
+  // positive: plan.md stopped naming the resolved successor — the other half of the same contract
+  const fa4 = fixture({
+    'commands/implement.md': takesLabel,
+    'commands/plan.md': 'Tell the user the plan is ready for `/superdev:implement`.\n',
+  });
+  const faGaps4 = scanContract(fa4, FEATURE_ARG_CONTRACTS);
+  assert.equal(faGaps4.length, 1, 'flags plan.md when it hands off without the label');
+  assert.equal(faGaps4[0].source, path.join('commands', 'plan.md'), 'names plan.md');
+
+  // an argument-hint that names some other argument is not this contract: `/superdev:review` and
+  // `/superdev:ship` both declare hints of their own, so the presence of a hint proves nothing
+  const fa5 = fixture({
+    'commands/implement.md': '---\nargument-hint: "[BASE..HEAD]"\n---\nResolve `$ARGUMENTS`.\n',
+    'commands/plan.md': handsOffLabel,
+  });
+  assert.equal(
+    scanContract(fa5, FEATURE_ARG_CONTRACTS).length,
+    1,
+    'a hint naming an unrelated argument does not satisfy the contract',
+  );
+
+  // an absent document is skipped, so a fixture carries only the halves it exercises
+  const fa6 = fixture({ 'commands/plan.md': handsOffLabel });
+  assert.equal(scanContract(fa6, FEATURE_ARG_CONTRACTS).length, 0, 'an absent document is skipped');
+
+  // --- UNATTENDED_CONTRACTS: scope-mode.md defines the token, and every document carrying a stop names
+  // it (ADR 0016). A document that drops it asks a question nobody is there to answer, so an unattended
+  // sweep stalls until morning having done nothing — and every file involved stays valid prose, so
+  // nothing else notices. ---
+
+  const definesToken =
+    '## Unattended\n\n`--unattended` in a command\'s arguments means nobody is watching.\n';
+  const namesToken =
+    'Carrying `--unattended` → block instead of asking, per `scope-mode.md`\'s **Unattended** section.\n';
+  const everyStop = {
+    'references/scope-mode.md': definesToken,
+    'commands/implement.md': namesToken,
+    'commands/review.md': namesToken,
+    'commands/document.md': namesToken,
+    'commands/ship.md': namesToken,
+    'references/implement-full.md': namesToken,
+    'references/implement-lite.md': namesToken,
+  };
+
+  const unattendedOpts = { stripFrontmatterFirst: true };
+
+  // negative: every document carrying its half is clean
+  assert.equal(
+    scanContract(fixture(everyStop), UNATTENDED_CONTRACTS, unattendedOpts).length,
+    0,
+    'every document carrying the token yields zero gaps',
+  );
+
+  // positive: scope-mode.md names the token but lost the section that defines it, so the catch-all —
+  // the rule that makes an unwritten stop block rather than ask — has nowhere to live
+  const un2 = fixture({
+    ...everyStop,
+    'references/scope-mode.md': 'Pass `--unattended` through to each command.\n',
+  });
+  const unGaps2 = scanContract(un2, UNATTENDED_CONTRACTS, unattendedOpts);
+  assert.equal(unGaps2.length, 1, 'a token mention is not the section that defines it');
+  assert.equal(unGaps2[0].source, path.join('references', 'scope-mode.md'), 'names scope-mode.md');
+
+  // positive: each stop-carrying document is checked on its own, not just the first. Dropping everything
+  // fails both the token row and the read/apply-instruction row for that one document.
+  for (const rel of [
+    'commands/implement.md',
+    'commands/review.md',
+    'commands/document.md',
+    'commands/ship.md',
+    'references/implement-full.md',
+    'references/implement-lite.md',
+  ]) {
+    const dropped = fixture({ ...everyStop, [rel]: '# doc\n\nNo token here.\n' });
+    const gaps = scanContract(dropped, UNATTENDED_CONTRACTS, unattendedOpts);
+    assert.equal(gaps.length, 2, `flags ${rel} on both rows when it drops everything`);
+    assert.ok(gaps.every((g) => g.source === rel.split('/').join(path.sep)), `both gaps name ${rel}`);
+  }
+
+  // positive: the token alone, with no read/apply instruction for the section. A command in this shape
+  // names `--unattended` in its prose while nothing in the body points a reader at the `## Unattended`
+  // section that routes a stop to block, so the token governs nothing.
+  const shipShaped = fixture({
+    ...everyStop,
+    'commands/ship.md': '# ship\n\nCarries `--unattended` but points nowhere.\n',
+  });
+  const shipShapedGaps = scanContract(shipShaped, UNATTENDED_CONTRACTS, unattendedOpts);
+  assert.equal(shipShapedGaps.length, 1, 'flags the missing read/apply instruction alone');
+  assert.match(shipShapedGaps[0].expectation, /read\/apply instruction/, 'names the missing instruction');
+
+  // positive: `[--unattended]` in a command's own `argument-hint` frontmatter is not a standing answer in
+  // its body. Deleting every real mention from review.md/document.md/ship.md and leaving only the
+  // frontmatter echo must still be caught — the exact false-green `stripFrontmatterFirst` exists to close.
+  for (const rel of ['commands/review.md', 'commands/document.md', 'commands/ship.md']) {
+    const frontmatterOnly = fixture({
+      ...everyStop,
+      [rel]: '---\nargument-hint: "[foo] [--unattended]"\n---\n\n# doc\n\nNo body mention.\n',
+    });
+    const strippedGaps = scanContract(frontmatterOnly, UNATTENDED_CONTRACTS, unattendedOpts);
+    assert.equal(strippedGaps.length, 2, `flags ${rel} on both rows once frontmatter is stripped`);
+    assert.ok(strippedGaps.every((g) => g.source === rel.split('/').join(path.sep)), `both gaps name ${rel}`);
+    // proof this is the bug the option closes: without stripping, the token row alone reads clean —
+    // only the (always-unstripped) read/apply-instruction row still catches it
+    const unstrippedGaps = scanContract(frontmatterOnly, UNATTENDED_CONTRACTS);
+    assert.equal(unstrippedGaps.length, 1, `${rel}'s frontmatter echo satisfies only the token row unstripped`);
+    assert.match(unstrippedGaps[0].expectation, /read\/apply instruction/, 'the token row itself is clean');
+  }
+
+  // FEATURE_ARG_CONTRACTS's first row needs the frontmatter itself (`^argument-hint:.*feat/`) and never
+  // strips it — confirms the two contract tables can disagree on `stripFrontmatterFirst` safely
+  assert.equal(
+    scanContract(
+      fixture({ 'commands/implement.md': takesLabel, 'commands/plan.md': handsOffLabel }),
+      FEATURE_ARG_CONTRACTS,
+    ).length,
+    0,
+    'FEATURE_ARG_CONTRACTS reads the unstripped frontmatter',
+  );
+
+  // an absent document is skipped, so a fixture carries only the stops it exercises
+  const un4 = fixture({ 'references/scope-mode.md': definesToken });
+  assert.equal(scanContract(un4, UNATTENDED_CONTRACTS).length, 0, 'absent documents are skipped');
+
+  // --- scanAfkInvocations: every stage-table row that invokes one of the four chain commands must carry
+  // the token on that same row (ADR 0015). A row that loses it asks a question nobody answers, and the
+  // sweep stops there reporting no failure. The real table carries five rows — two of them
+  // `/superdev:review` — so this checks per row, not once per command name. ---
+
+  // a fixture modeled on commands/afk.md §3's stage table plus its footnote and §5's maintainer-resume
+  // mention, both of which name a command on the same line as `--unattended` without being a table row
+  const stageTable = (rows) =>
+    '| Stage | Start at |\n' +
+    '|---|---|\n' +
+    rows.map(([stage, cmd]) => `| \`${stage}\` | \`${cmd}\` |\n`).join('') +
+    '\n`documented-unreviewed` routes to the review, not the ship, because `/superdev:ship --unattended` ' +
+    'refuses a scope whose review never ran.\n\n' +
+    'A maintainer runs `/superdev:ship <slug>` once the host is reachable.\n';
+
+  const fullRows = [
+    ['no run root, or `implementing`', '/superdev:implement feat/<label> --unattended'],
+    ['merged', '/superdev:review <BASE>..superdev/<slug> --unattended'],
+    ['reviewed', '/superdev:document <BASE>..superdev/<slug> --unattended'],
+    ['documented-unreviewed', '/superdev:review <BASE>..superdev/<slug> --unattended'],
+    ['documented', '/superdev:ship <slug> --unattended'],
+  ];
+
+  // negative: every row carrying the token, plus the footnote and the §5 mention with no token, is clean
+  const afk1 = fixture({ 'commands/afk.md': stageTable(fullRows) });
+  assert.equal(scanAfkInvocations(afk1).length, 0, 'a fully wired stage table is clean');
+
+  // positive: each of the five rows is checked on its own — mutate one at a time, confirm it alone goes
+  // red, and that the sibling row of the same command (`review` appears twice) does not mask it
+  for (let i = 0; i < fullRows.length; i++) {
+    const mutated = fullRows.map((row, j) => (j === i ? [row[0], row[1].replace(' --unattended', '')] : row));
+    const afk = fixture({ 'commands/afk.md': stageTable(mutated) });
+    const gaps = scanAfkInvocations(afk);
+    assert.equal(gaps.length, 1, `mutating row ${i} (${fullRows[i][1]}) is caught on its own`);
+    assert.match(gaps[0].expectation, new RegExp(fullRows[i][1].split(' ')[0].replace('/', '\\/')));
+  }
+
+  // the ship-command prose footnote (name + token on one line, not a table row) does not mask a missing
+  // token on the actual ship table row
+  const afkShipMasked = fixture({
+    'commands/afk.md': stageTable(
+      fullRows.map((row) =>
+        row[1].startsWith('/superdev:ship') ? [row[0], row[1].replace(' --unattended', '')] : row,
+      ),
+    ),
+  });
+  const shipGaps = scanAfkInvocations(afkShipMasked);
+  assert.equal(shipGaps.length, 1, 'the ship footnote does not mask the ship row losing the token');
+  assert.match(shipGaps[0].expectation, /\/superdev:ship/, 'names the ship row');
+
+  // §5's maintainer-resume mention (`/superdev:ship <slug>`, no token, not a table row) stays green on
+  // its own — it is prose, not an invocation
+  const afkResumeOnly = fixture({
+    'commands/afk.md': 'A maintainer runs `/superdev:ship <slug>` once the host is reachable.\n',
+  });
+  const resumeGaps = scanAfkInvocations(afkResumeOnly);
+  assert.ok(
+    resumeGaps.every((g) => /carry a stage-table row/.test(g.expectation)),
+    'the maintainer-resume prose is never read as an invocation that lost its token',
+  );
+
+  // a row that stops existing is caught too — inspecting only the rows present says nothing about a step
+  // afk silently dropped, which would make it skip reviewing or shipping and still report a clean sweep
+  for (const dropped of ['implement', 'review', 'document', 'ship']) {
+    const afkMissing = fixture({
+      'commands/afk.md': stageTable(fullRows.filter(([, cmd]) => !cmd.startsWith(`/superdev:${dropped} `))),
+    });
+    const gaps = scanAfkInvocations(afkMissing);
+    assert.equal(gaps.length, 1, `dropping every /superdev:${dropped} row is caught`);
+    assert.match(gaps[0].expectation, /carry a stage-table row/, 'reports it as a missing row');
+    assert.match(gaps[0].expectation, new RegExp(`superdev:${dropped}`), `names /superdev:${dropped}`);
+  }
+
+  // an absent afk.md is skipped, matching every other contract scanner
+  assert.equal(
+    scanAfkInvocations(fixture({ 'README.md': '# repo\n' })).length,
+    0,
+    'an absent afk.md is skipped',
+  );
+
+  // --- SCOPE_SLUG_CONTRACTS: the slug rule the prose states and the charset the run-lock hook extracts
+  // with are one fact in two syntaxes, in two files. Pinning both literally is what makes widening either
+  // one alone go red. ---
+
+  const realRoot = path.join(__dirname, '..');
+  assert.equal(
+    scanContract(realRoot, SCOPE_SLUG_CONTRACTS).length,
+    0,
+    'the shipped scope-mode.md rule and run-lock.js regex agree',
+  );
+
+  // positive: reintroducing the `.` the prose once admitted is caught
+  const slug1 = fixture({ 'references/scope-mode.md': 'A scope slug must match `[a-z0-9][a-z0-9._-]*`.\n' });
+  const slugGaps1 = scanContract(slug1, SCOPE_SLUG_CONTRACTS);
+  assert.equal(slugGaps1.length, 1, 'flags a slug rule wider than the hook admits');
+  assert.equal(slugGaps1[0].source, path.join('references', 'scope-mode.md'), 'names scope-mode.md');
+
+  // positive from the hook's side: widening the regex alone is the same drift
+  const slug2 = fixture({
+    'hooks/run-lock.js': 'cmd.match(/\\.superdev\\/scopes\\/([a-zA-Z0-9._-]+)\\/worktree\\b/);\n',
+  });
+  const slugGaps2 = scanContract(slug2, SCOPE_SLUG_CONTRACTS);
+  assert.equal(slugGaps2.length, 1, 'flags the hook drifting away from the stated rule');
+  assert.equal(slugGaps2[0].source, path.join('hooks', 'run-lock.js'), 'names run-lock.js');
+
+  // absent files are skipped, matching every other contract table
+  assert.equal(
+    scanContract(fixture({ 'README.md': '# repo\n' }), SCOPE_SLUG_CONTRACTS).length,
+    0,
+    'absent files are skipped',
+  );
 
   console.log('drift-check selftest ok');
 } else {

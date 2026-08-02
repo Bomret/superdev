@@ -203,5 +203,8 @@ uncommitted never reaches those checkouts, and a path-scoped rule that isn't on 
 auto-load. **Push the base branch** to its remote right after committing (if one is configured, per
 `docs/agents/code-management.md`) — `/superdev:ship`'s PR is opened against the remote base; an unpushed
 local commit there diverges from it the moment the PR is squash-merged (a duplicate copy of the same
-content lands in the merge commit while the local-only commit is left stranded). Then tell the user it's
-ready for `/superdev:implement`.
+content lands in the merge commit while the local-only commit is left stranded). Then **print the next
+command with the feature label resolved** — `/superdev:implement feat/<label>`, carrying the real label
+this plan wrote — so the line is copy-pasteable and names which feature to build. Every command in the
+chain hands off this way (ADR 0013), and the label is also what fixes the run's scope, its branch, and its
+run root.

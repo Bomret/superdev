@@ -1,6 +1,6 @@
 ---
 description: Reconcile the project's docs and optional knowledge base with the current state of the code, removing stale text. The third step of the implement chain, after /superdev:review, and available on demand at any time.
-argument-hint: "[BASE..HEAD | area/path | audit | (empty = full reconcile)]"
+argument-hint: "[BASE..HEAD | area/path | audit | (empty = full reconcile)]  [--unattended]"
 ---
 
 # superdev document
@@ -18,6 +18,9 @@ Bring the docs and the knowledge base into agreement with reality. Dispatches th
 
 ## 2. Range
 
+**`--unattended`, if present, comes out first** — per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
+**Unattended** section, it is never part of the range or the area path below.
+
 From `$ARGUMENTS`:
 
 - **A git range** (`BASE..HEAD`) or an **area path** → a focused reconcile of what changed there.
@@ -32,6 +35,12 @@ From `$ARGUMENTS`:
 **Scope mode.** Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md` for what makes the range a live
 superdev run. When it is, §8 adds its steps. Every other invocation is ad-hoc: no stage is written and no
 next command is printed.
+
+**`--unattended`** in the arguments means nobody is watching, and that file's **Unattended** section
+governs every stop this command reaches. This command writes no standing answer of its own: the two
+confirmations it does ask — §7's bootstrap confirmation and its `CONTEXT.md` candidate confirm/prune —
+are both unreachable from a range, the only shape the chain passes (§2's range never bootstraps), so
+`--unattended` never actually meets either one here. The catch-all covers whatever a later change adds.
 
 ## 3. Dispatch
 

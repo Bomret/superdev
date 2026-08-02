@@ -1,5 +1,6 @@
 ---
 description: Execute a superdev plan — drive its vertical slices to merge as a dependency-ordered DAG, with an execution tier sized to the slice count, then hand off to /superdev:review. Use when a plan exists in the slice store; run /superdev:plan first if not.
+argument-hint: "[feat/<label>  (empty = the only plan in the store)]  [--unattended]"
 ---
 
 # superdev implement
@@ -47,13 +48,36 @@ implementer's TDD discipline yourself. Between dispatches, narrate at most one s
   if `docs/agents/toolchain.md` is absent while the repo has build/package manifests (`package.json`,
   `*.csproj`/`*.sln`, `pom.xml`/`build.gradle*`, `pyproject.toml`, `Cargo.toml`, `go.mod`, …), suggest the
   user run **`/superdev:setup`** to record the toolchain — non-blocking, then continue.
+- **Resolve `$ARGUMENTS` to one feature.** Take `--unattended` out first, wherever it sits — it is the
+  token below, not a feature label. A **feature label** names which planned feature to build — the
+  feature's slice-store label per `docs/agents/issue-tracker.md`, minus its prefix (e.g. `feat/<label>` on
+  the issue-tracker seeds; the local-file store's `docs/plans/<feature-slug>/` directory names the slug
+  directly, with no prefix to strip). Its slug is this run's scope: `feat/lite-perf` gives scope
+  `lite-perf`, branch `superdev/lite-perf`, and run root `.superdev/scopes/lite-perf/`. One value
+  therefore fixes the epic, the slices, the branch, and the run root together, and Phase 0 skips its
+  scope-naming step.
+  - **A label given** → load the epic carrying it, plus every slice carrying it. The store knows no such
+    label, or no epic carries it → say so and stop, and create no run root. The epic carries no slices →
+    say so, point at **`/superdev:plan`**, and stop. **The slug must match
+    `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s scope-slug rule.** Anything else → say so and stop,
+    creating no run root; **`--unattended` → block**.
+  - **Empty** → resolve the feature yourself. Exactly one feature has slices ready → use it. Several do →
+    name them and ask which; **`--unattended` → block**, because picking a feature for someone is not a
+    guess worth making. None do → run **`/superdev:plan`** first.
 - **Load the slices** from the store (per the contract: `id`, `depends-on`, `test-applicability`, `spec`,
   `acceptance`, + global DoD). No slices → run **`/superdev:plan`** first. **Exactly one slice and no
   epic** → the epic was optional (`plan-contract.md`): the DoD is that slice's `acceptance`; there is no
   separate epic to load.
+- **`--unattended` present** → read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended**
+  section and follow it wherever this command or its playbook would ask a question or start an interview
+  command (`/superdev:setup`, `/superdev:plan`) — the "slice store or code host missing" and "no slices"
+  stops above are exactly that, and carry no standing answer, so unattended blocks there instead of
+  running the interview. Nothing else in that
+  file applies here.
 - **Pre-flight scan:** read all slices once for contradictions (a slice that conflicts with another or
   with the DoD; a specification that mandates something a review would flag). Batch anything you find to the user
-  before starting. Clean → proceed silently.
+  before starting. Clean → proceed silently. **`--unattended` → block**, naming the contradictions: a plan
+  that argues with itself is the one thing an implementer must not resolve by guessing.
 - **Compute the tier** — **≤3 slices → `lite`**, **>3 slices → `full`** — derived fresh every run, never
   configured, overridden, or persisted (`/plan` and `/implement` derive it the same way from the same
   count). Do **Phase 0** below (either tier), then `Read` your playbook and follow it start to finish:
@@ -69,8 +93,9 @@ implementer's TDD discipline yourself. Between dispatches, narrate at most one s
   dirty/untracked, commit them to base now. Then confirm the base is pushed to its remote (push it if
   it's ahead) — the PR you open later diffs against the remote base, and an unpushed local commit there
   diverges into a stranded duplicate once the PR is squash-merged.
-- **Run root (per scope).** Choose this run's **scope** `<scope>` now — a short feature-slug (e.g.
-  `lite-perf`). The **scope branch** is `superdev/<scope>` (created in your playbook's branch model). All
+- **Run root (per scope).** Fix this run's **scope** `<scope>` now — the slug from the feature label when
+  **Config + input** resolved one, and otherwise a short feature-slug you choose (e.g. `lite-perf`). The
+  **scope branch** is `superdev/<scope>` (created in your playbook's branch model). All
   artifacts for this run live under a per-scope run root **`.superdev/scopes/<scope>/`** — keyed on the bare slug,
   so it never doubles the branch's `superdev/` prefix into `.superdev/superdev/…` — **git-ignored**
   (ensure `.superdev/` is in the repo's `.gitignore`; add it if absent). The run root

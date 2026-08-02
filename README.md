@@ -30,6 +30,7 @@ plan runs test-first and inline.
 /superdev:review     → whole-scope review against the DoD, with a fix loop
 /superdev:document   → reconcile in-repo docs + knowledge base with the code
 /superdev:ship       → tick the DoD, close the scope anchor, open the PR, and clean up
+/superdev:afk        → sweep the planned backlog through the whole chain unattended
 ```
 
 ## What it does
@@ -82,6 +83,14 @@ plan runs test-first and inline.
   Called empty on a **brownfield repo with no `AGENTS.md` hierarchy**, it **bootstraps** one instead. It
   seeds a root `AGENTS.md`, child files where they are warranted, and a proposed `CONTEXT.md` glossary,
   all from the existing code. It confirms them with you before anything commits.
+- **`/superdev:afk`**. Sweeps the planned backlog with nobody watching. It takes each **eligible epic**
+  through the whole chain, oldest first. Eligibility needs an open, unblocked epic with no live run on
+  its scope, among other conditions `commands/afk.md` §2 states in full. It invokes
+  `/superdev:implement`, `/superdev:review`, `/superdev:document`, and `/superdev:ship`, each carrying
+  `--unattended`. That token is an argument to one invocation, not scope state. A stop with a **standing
+  answer** takes it, and a stop with none **blocks** that epic and moves to the next. The sweep stops
+  when no eligible epic is left, when two epics block in a row, or when `/superdev:ship` fails to reach
+  the code host. It never asks a question and never starts an interview command.
 - **`/superdev:setup`**. Records the backends in `docs/agents/*.md`, so the workflow never hardcodes a
   tool. For a knowledge base it also captures the **audience(s)** and **language**, and proposes a
   human-first outline. It asks which **writing standard** the doc agents write to. When it finds no
