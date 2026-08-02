@@ -29,8 +29,10 @@ same-scope mutual exclusion. Leave the lock in place when you finish: it spans t
 ## Implement
 
 - **In `depends-on` order, inline, test-first.** For each slice, in dependency order: read its `spec` +
-  `acceptance`, then carry the same tracer-bullet discipline an implementer subagent would (one RED test,
-  minimal GREEN code, repeat) yourself, **directly in the scope worktree at
+  `acceptance`, then carry the same tracer-bullet **and surgical-edit** disciplines an implementer
+  subagent would (one RED test, minimal GREEN code, repeat; every hunk traces to an acceptance criterion
+  or the specification — remove only what your own edit orphaned, and name pre-existing dead code instead
+  of deleting it) yourself, **directly in the scope worktree at
   `.superdev/scopes/<scope>/worktree/`**. All file edits, test runs, `git` commands, and commits happen **in the
   scope worktree as the cwd** — never in the invoking checkout. `mechanical` / `docs` slices need no new
   test — the existing suite is the net.

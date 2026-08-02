@@ -37,6 +37,11 @@ classes beat a generic "check code quality" / "check security."
 - **Justified workaround** — if it takes a paragraph-long comment to justify why a workaround is OK, the
   code is wrong — fix the code. Stubbing a function out to silence a compile/test failure is the same
   smell.
+- **Drive-by change** — a hunk that traces to no acceptance criterion and to nothing in the
+  specification: a reformatted function the change never touched, a renamed unrelated variable, an
+  "improved" neighbouring comment, a refactor nobody asked for. It widens the review surface and the
+  merge-conflict surface for no requested value. Deleting *pre-existing* dead code is this smell too —
+  the report should name it, not remove it. Removing what the change itself orphaned is not.
 
 ## Vulnerability classes
 

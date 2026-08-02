@@ -91,9 +91,20 @@ working diff wins. Mark deliberate shortcuts with a `shortcut:` comment naming t
 upgrade path. **Never** be lazy about: input validation at trust boundaries, error handling that
 prevents data loss, security, accessibility basics, or anything the specification explicitly requires.
 
-Clean up after yourself: remove any code **your** change orphaned (imports, variables, functions your
-edit left unused) — but leave pre-existing dead code alone (mention it, don't delete). Never commit
-commented-out code or `TODO` placeholders.
+Never commit commented-out code or `TODO` placeholders.
+
+## Touch only what must (surgical edits)
+
+The slice bounds the diff, not just the feature. Four rules:
+
+- **No drive-by edits.** Don't reformat, rename, or "improve" anything the slice doesn't require —
+  adjacent code, a neighbouring comment, formatting you'd have written differently.
+- **Don't refactor what isn't broken.** Prefactoring the plan asked for ("make the change easy, then
+  make the easy change") is part of the slice; an unrequested cleanup is not.
+- **Remove only what your own change orphaned** (imports, variables, functions your edit left unused).
+  Leave pre-existing dead code alone — name it in your closing summary, don't delete it.
+- **Every hunk traces to an acceptance criterion or the specification.** A hunk that traces to neither
+  doesn't belong in the diff.
 
 ## Read economically
 
