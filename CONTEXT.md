@@ -160,8 +160,8 @@ _Avoid: "issue tracker" as the concept name (that's one backend), "database"_
 **Assignee** — the slice-store account every issue a run creates is assigned to: a single store-native identifier (a login for Forgejo/GitHub, an `accountId` for Jira) recorded in `docs/agents/issue-tracker.md`, resolving to the API token's own identity when unconfigured and disabled by `none`. Store configuration rather than a slice field, applied at creation to the epic and every slice (ADR 0010).
 _Avoid: "owner" (too generic), "creator"/"reporter" (the store already records who filed the issue — assignee is who owns it), "reviewer" (a pull-request role, owned by the code host)_
 
-**Feature label** — the one slice-store label a feature's epic and every one of its slices carry (`feat/<slug>`), recorded in `docs/agents/issue-tracker.md`. It names the feature to `/superdev:implement`, and its slug is the scope, so one value fixes which epic gets built and which branch and run root the build uses.
-_Avoid: "epic label" (`epic` is a different label, marking which issue is the epic), "tag", "component"_
+**Feature label** — the one slice-store identifier a feature's scope anchor and every one of its slices carry, in the shape the active `docs/agents/issue-tracker.md` states (a `feat/<slug>` label on an issue-backed store, the bare slug of a `docs/plans/<slug>/` directory on the local-file store). It names the feature to `/superdev:implement`, and its slug is the scope, so one value fixes which feature gets built and which branch and run root the build uses (ADR 0019).
+_Avoid: "epic label" (`epic` is a different label on one backend, marking which issue is the anchor), "tag", "component"_
 
 **Status map** — the agreed mapping from superdev's canonical slice lifecycle (`todo` → `in-progress` → `in-review` → `merged`/done, plus `blocked`) to an issue tracker's real statuses/transitions. Captured by `/setup` for issue-backed slice stores, recorded in `issue-tracker.md`, walked by `/implement` at each lifecycle point.
 _Avoid: "status mapping", "workflow" (too generic)_
