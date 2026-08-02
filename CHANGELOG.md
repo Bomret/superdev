@@ -1,3 +1,10 @@
+## [0.25.1](https://codeberg.org/bomret/superdev/compare/v0.25.0...v0.25.1) (2026-08-02)
+
+
+### Bug Fixes
+
+* **afk:** select scope anchors so single-slice plans are visible ([#148](https://codeberg.org/bomret/superdev/issues/148)) ([e9ba979](https://codeberg.org/bomret/superdev/commit/e9ba97917bb6832b63d9515ecc41a9f7d9c94bc3)), closes [#140](https://codeberg.org/bomret/superdev/issues/140) [#141](https://codeberg.org/bomret/superdev/issues/141) [#146](https://codeberg.org/bomret/superdev/issues/146) [#143](https://codeberg.org/bomret/superdev/issues/143) [#144](https://codeberg.org/bomret/superdev/issues/144) [#143](https://codeberg.org/bomret/superdev/issues/143) [#144](https://codeberg.org/bomret/superdev/issues/144) [#143](https://codeberg.org/bomret/superdev/issues/143) [#144](https://codeberg.org/bomret/superdev/issues/144)
+
 # [0.25.0](https://codeberg.org/bomret/superdev/compare/v0.24.0...v0.25.0) (2026-08-02)
 
 
