@@ -1,3 +1,10 @@
+# [0.25.0](https://codeberg.org/bomret/superdev/compare/v0.24.0...v0.25.0) (2026-08-02)
+
+
+### Features
+
+* **afk:** sweep the planned backlog unattended ([#137](https://codeberg.org/bomret/superdev/issues/137)) ([d2db43b](https://codeberg.org/bomret/superdev/commit/d2db43bc37c292af461abc3ddb5fb5038a68804e)), closes [#131](https://codeberg.org/bomret/superdev/issues/131) [#130](https://codeberg.org/bomret/superdev/issues/130) [#129](https://codeberg.org/bomret/superdev/issues/129) [#136](https://codeberg.org/bomret/superdev/issues/136) [#135](https://codeberg.org/bomret/superdev/issues/135) [#134](https://codeberg.org/bomret/superdev/issues/134) [#133](https://codeberg.org/bomret/superdev/issues/133) [#136](https://codeberg.org/bomret/superdev/issues/136)
+
 # [0.24.0](https://codeberg.org/bomret/superdev/compare/v0.23.0...v0.24.0) (2026-07-31)
 
 
