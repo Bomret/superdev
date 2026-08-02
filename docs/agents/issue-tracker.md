@@ -69,9 +69,11 @@ label, and on a single-slice feature it is the lone issue carrying that label (A
   (paginated), keeping the names that start with `feat/`. Per feature label:
   `GET /api/v1/repos/bomret/superdev/issues?labels=feat%2F<feature>&state=open` (URL-encode the label's
   `/`), then apply the rule above to the result.
-- **List the slices beneath it.** The same label listing already returned every feature issue: on a
-  multi-slice feature the slices are the rest of that response (every issue that is not the `epic`); a
-  single-slice feature's anchor has none beneath it.
+- **List the slices beneath it.** Use the **List feature slices** call above (`state=all`), not the
+  candidate listing: a merged slice is closed, and closing the epic is best-effort, so an anchor left open
+  with every slice closed still has slices beneath it and a `state=open` listing would present it as never
+  decomposed. On a multi-slice feature the slices are every issue in that response that is not the `epic`;
+  a single-slice feature's anchor has none beneath it.
 - **Tell an anchor that is itself a slice.** It carries a `test-applicability` label — `behavior`,
   `mechanical`, or `docs`. The epic issue never does. That is what separates a single-slice feature, whose
   lone slice is its own anchor and is real work, from an epic created and never decomposed, which is not.

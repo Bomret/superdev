@@ -12,11 +12,13 @@ const path = require('node:path');
 
 const REFERENCE_PATTERN = /(?:\$\{CLAUDE_PLUGIN_ROOT\}\/)?references\/([a-zA-Z0-9_-]+\.md)/g;
 
-// scan() is pure over a root dir so it's unit-testable: reads commands/*.md and agents/*.md,
-// extracts every referenced references/<name>.md, and reports the ones that don't exist.
+// scan() is pure over a root dir so it's unit-testable: reads commands/*.md, agents/*.md and
+// references/*.md, extracts every referenced references/<name>.md, and reports the ones that don't
+// exist. references/ is in the set because a reference cites another reference — the execution
+// playbooks point at scope-mode.md — and a rename there dangles like any other.
 function scan(root) {
   const missing = [];
-  for (const dir of ['commands', 'agents']) {
+  for (const dir of ['commands', 'agents', 'references']) {
     const dirPath = path.join(root, dir);
     let entries;
     try {
@@ -820,6 +822,36 @@ if (process.argv[2] === '--selftest') {
   const missing3 = scan(tmp3);
   assert.equal(missing3.length, 1, 'detects a bare-form missing reference');
   assert.equal(missing3[0].reference, 'references/missing-bare.md', 'names the bare reference');
+
+  // fixture where one reference cites another: the execution playbooks and scope-mode.md point at each
+  // other, so a rename inside references/ dangles exactly like one in commands/ or agents/
+  const tmp3b = fs.mkdtempSync(path.join(os.tmpdir(), 'drift-check-'));
+  fs.mkdirSync(path.join(tmp3b, 'commands'), { recursive: true });
+  fs.mkdirSync(path.join(tmp3b, 'agents'), { recursive: true });
+  fs.mkdirSync(path.join(tmp3b, 'references'), { recursive: true });
+  fs.writeFileSync(path.join(tmp3b, 'references', 'exists.md'), '# exists\n');
+  fs.writeFileSync(
+    path.join(tmp3b, 'references', 'playbook.md'),
+    'Read ${CLAUDE_PLUGIN_ROOT}/references/exists.md and ${CLAUDE_PLUGIN_ROOT}/references/gone.md\n',
+  );
+
+  const missing3b = scan(tmp3b);
+  assert.equal(missing3b.length, 1, 'scans references/ too, detecting one missing reference');
+  assert.equal(missing3b[0].reference, 'references/gone.md', 'names the missing reference');
+  assert.equal(
+    missing3b[0].source,
+    path.join('references', 'playbook.md'),
+    'names the reference file that cites it',
+  );
+
+  // a mention carrying no references/ path component stays invisible — the citation form the prose uses
+  // in passing ("per `scope-mode.md`") is not a pointer scan() can resolve, and flagging it wholesale
+  // would bury the real dangling ones
+  const tmp3c = fs.mkdtempSync(path.join(os.tmpdir(), 'drift-check-'));
+  fs.mkdirSync(path.join(tmp3c, 'references'), { recursive: true });
+  fs.writeFileSync(path.join(tmp3c, 'references', 'playbook.md'), 'per `gone.md` — no path\n');
+
+  assert.equal(scan(tmp3c).length, 0, 'a bare filename with no references/ component is not a reference');
 
   // --- scanRunRootPaths: run-root artifacts must use the absolute <run-root>/… form, never a
   // checkout-relative .superdev/scopes/<scope>/<artifact> path (wrong from a worktree cwd) ---

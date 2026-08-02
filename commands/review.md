@@ -148,8 +148,9 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   findings list, not one fixer per finding. Every fix opens with a RED test that reproduces the defect.
   Re-review after it returns, and repeat until the verdict is clean or the **3-strike cap** is reached
   (three fix cycles each exposing a new defect elsewhere means a wrong cut, not a bug: stop, say so, and
-  leave the stage where it is). **`--unattended` → block** at that cap, per `scope-mode.md`'s **Unattended**
-  section, leaving the stage where it is exactly as above.
+  leave the stage where it is). **`--unattended` → block** at that cap, per
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section, leaving the stage where it is
+  exactly as above.
 - **Over-engineering findings never gate.** `simplicity-reviewer`'s cuts stay advisory here exactly as in
   §3. They do not hold up the handoff and they do not trigger the fix loop.
 - **On a clean verdict**, and only then: write the ledger's `**Stage:**` line per

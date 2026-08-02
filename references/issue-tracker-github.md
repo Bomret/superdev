@@ -60,9 +60,11 @@ lone slice, which is nobody's sub-issue either (ADR 0017).
   `GET /repos/<owner>/<repo>/issues?labels=feat%2F<feature>&state=open` (URL-encode the label's `/`),
   keeping the issues whose `/parent` is `404`. **Cost:** one `/parent` call per issue in that response,
   every sweep iteration — accepted as the simplest correct check; nothing caches it.
-- **List the slices beneath it.** The same label listing already returned every feature issue; the slices
-  are the rest of that response — every issue whose `/parent` resolves to this anchor's `number`
-  (multi-slice), or none at all (single-slice — the anchor is the only issue under the label).
+- **List the slices beneath it.** Use the **List feature slices** call below (`state=all`), not the
+  candidate listing: a merged slice is closed, and closing the epic is best-effort, so an anchor left open
+  with every slice closed still has slices beneath it and a `state=open` listing would present it as never
+  decomposed. The slices are every issue in that response whose `/parent` resolves to this anchor's
+  `number` (multi-slice), or none at all (single-slice — the anchor is the only issue under the label).
 - **Tell an anchor that is itself a slice.** It carries a `test-applicability` label — `behavior`,
   `mechanical`, or `docs`. An epic never does. That is what separates a single-slice feature, whose lone
   slice is its own anchor and is real work, from an epic created and never decomposed, which is not.

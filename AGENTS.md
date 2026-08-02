@@ -231,7 +231,9 @@ This root owns every subtree directly:
   assertions. They compare a restated fact against its source. The eval-shape check compares a document
   against a schema. The afk-existence check is a plain existence assertion. `drift-check.js` guards
   sixteen things, in the order its `main()` computes them. First, that every `references/*.md` path named
-  in `commands/` or `agents/` resolves to a file that exists. Second, that `commands/implement.md`,
+  in `commands/`, `agents/`, or `references/` itself resolves to a file that exists. A reference cites
+  another reference — both execution playbooks point at `scope-mode.md` — so a rename there dangles like
+  any other. Second, that `commands/implement.md`,
   `commands/review.md`, `commands/document.md`, `commands/ship.md`, `references/implement-full.md`,
   `references/implement-lite.md`, `references/scope-mode.md`, `agents/implementer.md`,
   `agents/slice-reviewer.md`, and `agents/simplicity-reviewer.md` address run-root artifacts by absolute

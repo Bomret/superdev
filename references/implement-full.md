@@ -69,8 +69,9 @@ Repeat until every slice is `merged`:
 3. **Per slice, when the implementer returns** (handle status: DONE / DONE_WITH_CONCERNS — address real
    concerns first / NEEDS_CONTEXT — provide it, re-dispatch / BLOCKED — assess: more context, stronger
    model, split the slice, or escalate to the human — and move the slice → `blocked` while it's stuck;
-   **`--unattended` → block** once the cheap remedies are spent, per `scope-mode.md`'s **Unattended**
-   section, rather than escalating to a human who is not there):
+   **`--unattended` → block** once the cheap remedies are spent, per
+   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section, rather than escalating to a
+   human who is not there):
    - **`behavior`** slice → move it → `in-review`, then dispatch **`superdev:slice-reviewer`**
      (correctness + independent verification; it reads the review checklist itself via
      `${CLAUDE_PLUGIN_ROOT}`). For each **Critical/Important** finding, dispatch a fresh
@@ -87,8 +88,8 @@ Repeat until every slice is `merged`:
    (keep every test from both sides — never delete a sibling's test to make the merge compile). A
    **semantic overlap** — the *same* logic changed two different ways, where you'd have to pick a winner —
    is not yours to guess: `git merge --abort` and escalate to the human. **`--unattended` → block** after the
-   abort, per `scope-mode.md`'s **Unattended** section: picking a winner is exactly the human decision the
-   token cannot stand in for. **Re-run the suite on scope**
+   abort, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section: picking a winner
+   is exactly the human decision the token cannot stand in for. **Re-run the suite on scope**
    after merging — if a test command is configured (`docs/agents/verification.md`), the **green-gate hook**
    runs it for you and blocks with a RED report you must fix or revert before continuing. Then clean up:
    `git worktree remove .superdev/scopes/<scope>/worktrees/<id>` and `git branch -D slice/<scope>/<id>` (merged;

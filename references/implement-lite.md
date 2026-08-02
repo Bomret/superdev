@@ -42,9 +42,9 @@ same-scope mutual exclusion. Leave the lock in place when you finish: it spans t
 - **Carry the implementer's escalation discipline.** If you can't get a slice green after reasonable
   effort, treat it as the Invariants' BLOCKED / 3-strike case — it's a **wrong cut**, not something to
   force through. Move the slice → `blocked` and escalate (re-slice or hand to the human) rather than
-  grinding on it inline. **`--unattended` → block** instead of escalating, per `scope-mode.md`'s
-  **Unattended** section: a wrong cut is re-planning work, which needs the interview `/superdev:plan`
-  runs.
+  grinding on it inline. **`--unattended` → block** instead of escalating, per
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section: a wrong cut is re-planning
+  work, which needs the interview `/superdev:plan` runs.
 - **Commit per slice** on the scope branch (Conventional Commits) as each one goes green — all commits in
   the scope worktree. Update the ledger (`todo` → `in-progress` → `merged`; `merged` here means "committed
   to the scope branch" — there is no separate slice branch to merge) and the tracker status. **Skip the
