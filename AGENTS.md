@@ -226,59 +226,71 @@ This root owns every subtree directly:
   candidate, if its rules outgrow this root.
 - `scripts/`. Standalone deterministic checks that `package.json` runs, and the other executable code
   alongside `hooks/`. It follows the same `--selftest` convention. The reference, run-root, assignee,
-  writing-standard, content-types, stage, command-resolution, chain-handoff, feature-label-argument,
-  unattended-token, afk-invocation, and scope-slug checks are drift assertions. They compare a restated
-  fact against its source. The eval-shape check compares a document against a schema. The afk-existence
-  check is a plain existence assertion. `drift-check.js` guards fourteen things, in the order its
-  `main()` computes them. First, that every `references/*.md` path named in `commands/` or `agents/`
-  resolves to a file that exists. Second, that `commands/implement.md`, `commands/review.md`,
-  `commands/document.md`, `commands/ship.md`, `references/implement-full.md`,
+  anchor-contract, afk-selection-neutrality, writing-standard, content-types, stage, command-resolution,
+  chain-handoff, feature-label-argument, unattended-token, afk-invocation, and scope-slug checks are drift
+  assertions. They compare a restated fact against its source. The eval-shape check compares a document
+  against a schema. The afk-existence check is a plain existence assertion. `drift-check.js` guards
+  sixteen things, in the order its `main()` computes them. First, that every `references/*.md` path named
+  in `commands/` or `agents/` resolves to a file that exists. Second, that `commands/implement.md`,
+  `commands/review.md`, `commands/document.md`, `commands/ship.md`, `references/implement-full.md`,
   `references/implement-lite.md`, `references/scope-mode.md`, `agents/implementer.md`,
   `agents/slice-reviewer.md`, and `agents/simplicity-reviewer.md` address run-root artifacts by absolute
   `<run-root>/…` path. Third, that every issue-backend document carries the `**Assignee` config bullet.
   The filename alone triggers that check, with no content gate on how the doc phrases issue creation.
-  `references/issue-tracker-local.md` is exempt, because it has no assignee concept. Fourth, that
-  `references/documentation.md` still offers a `## Writing standard` section (ADR 0012). Fifth, that
-  `agents/doc-writer.md` and `agents/doc-reader.md` each still instruct themselves to read
-  `references/content-types.md` (ADR 0014). Sixth, that every command in the chain still names the
+  `references/issue-tracker-local.md` is exempt, because it has no assignee concept. Fourth, that every
+  slice-store document (every `references/issue-tracker-*.md` plus this repo's own
+  `docs/agents/issue-tracker.md`) carries a `## Scope anchor` section stating all four of its elements: how
+  to recognise an anchor, list its candidates, list the slices beneath one, and tell that an anchor is
+  itself a slice (ADR 0017). Fifth, that `commands/afk.md`'s selection step (§2) names no backend's own
+  anchor mechanism (the `epic` label, a `feat/` prefix, a local `00-epic-` filename, a GitHub sub-issue
+  relation, a Jira parent field) and instead points at the store's `## Scope anchor` contract. A step that
+  stayed neutral by naming nothing at all still fails this. Naming no mechanism is only half the property.
+  `scanAnchorContract()` and `scanAfkSelectionNeutrality()` share one
+  helper, `extractSection()`, which isolates the text of one heading's section before either scans its
+  body. Sixth, that `references/documentation.md` still offers a `## Writing standard` section (ADR 0012).
+  Seventh, that `agents/doc-writer.md` and `agents/doc-reader.md` each still instruct themselves to read
+  `references/content-types.md` (ADR 0014). Eighth, that every command in the chain still names the
   ledger's `**Stage:**` line (ADR 0013). The chain hands a run along through that line, so a command that
-  stops naming it never writes or reads the stage, and nothing fails. Seventh, that every
+  stops naming it never writes or reads the stage, and nothing fails. Ninth, that every
   `/superdev:<name>` reference in `commands/` or `agents/` resolves to a `commands/<name>.md` file, so a
-  chain handoff never points the reader at a command that does not exist. Eighth, that
+  chain handoff never points the reader at a command that does not exist. Tenth, that
   `commands/implement.md`, `commands/review.md`, and `commands/document.md` each name their successor in
   the chain. `commands/ship.md` ends the chain and is deliberately outside that check.
 
-  The ninth, tenth, and twelfth checks share one scanner, `scanContract()`, run over a table of
+  The eleventh, twelfth, and fourteenth checks share one scanner, `scanContract()`, run over a table of
   `[document, pattern, expectation]` rows instead of one function each. It reads every document a table
-  names and reports the rows whose pattern that document no longer matches. Ninth, the
+  names and reports the rows whose pattern that document no longer matches. Eleventh, the
   feature-label-argument contract: `commands/implement.md` declares `feat/<label>` in its
   `argument-hint` and resolves `$ARGUMENTS`, and `commands/plan.md` names `/superdev:implement
-  feat/<label>` as its resolved successor. Tenth, the unattended-token contract: `references/scope-mode.md`
+  feat/<label>` as its resolved successor. Twelfth, the unattended-token contract: `references/scope-mode.md`
   carries the `## Unattended` section (ADR 0016), and `commands/implement.md`, `commands/review.md`,
   `commands/document.md`, `commands/ship.md`, `references/implement-full.md`, and
   `references/implement-lite.md` each name `--unattended` and carry a read/apply instruction pointing at
-  that section. Eleventh, that `commands/afk.md`'s stage table invokes all four chain commands and
+  that section. Thirteenth, that `commands/afk.md`'s stage table invokes all four chain commands and
   carries `--unattended` on every one of those rows. `scanAfkInvocations()` checks this row by row: a
   whole-file regex would pass the moment any one row carried the token, letting a sibling row lose it
-  unnoticed. Twelfth, the scope-slug contract: `references/scope-mode.md`'s prose rule and
-  `hooks/run-lock.js`'s extraction regex state the same charset. Thirteenth, that `commands/afk.md`
-  exists at all. Nothing else in the plugin names `/superdev:afk` for the seventh check to resolve, so
-  its absence would otherwise go unnoticed. Fourteenth, that every `evals/*/graders/*.md` declares a
+  unnoticed. Fourteenth, the scope-slug contract: `references/scope-mode.md`'s prose rule and
+  `hooks/run-lock.js`'s extraction regex state the same charset. Fifteenth, that `commands/afk.md`
+  exists at all. Nothing else in the plugin names `/superdev:afk` for the ninth check to resolve, so
+  its absence would otherwise go unnoticed. Sixteenth, that every `evals/*/graders/*.md` declares a
   known `type` and a positive `weight`, that an `llm` or `regex` grader also declares a `focus` or
   `target`, and that every case's `scaffold_script` resolves. Nothing else validates a grader, so without
   this a typo surfaces part-way through a run that costs real API spend.
 
-  The first and fifth checks are opposites. The first catches a reference to a file that does not exist.
-  The fifth catches an agent that drops its wire to a file which still exists. That drift leaves the
+  The first and seventh checks are opposites. The first catches a reference to a file that does not exist.
+  The seventh catches an agent that drops its wire to a file which still exists. That drift leaves the
   reference resolvable and the suite green, and the lens then does nothing in any dispatch.
 
-  The first and seventh checks are the same check at two levels: one resolves a `references/` path, the
-  other a command name. The seventh and eighth are opposites in the same way as the first and fifth: the
-  seventh catches a handoff that points at a command with no file, the eighth a command that names no
+  The first and ninth checks are the same check at two levels: one resolves a `references/` path, the
+  other a command name. The ninth and tenth are opposites in the same way as the first and seventh: the
+  ninth catches a handoff that points at a command with no file, the tenth a command that names no
   successor at all.
 - `references/`. Backend seed templates plus the non-seed references below.
-  + `plan-contract.md`: the slice schema and lifecycle, including the optional epic sections and the
-    epic-visuals gate for `## Slice graph` and `## Touch map`.
+  + `plan-contract.md`: the slice schema and lifecycle, including the optional epic sections, the
+    epic-visuals gate for `## Slice graph` and `## Touch map`, and the `## Scope anchor` section — the
+    generic contract (a feature's root; a single-slice plan's anchor is its own lone slice) that each
+    store document (`issue-tracker-*.md`, `docs/agents/issue-tracker.md`) specialises for its own backend
+    (ADR 0017).
   + `documentation.md`: the in-repo documentation convention, including the `## Writing standard`
     section that `/superdev:setup` fills in.
   + `controlled-prose.md`: the **writing standard**. A language-neutral rule set that merges the

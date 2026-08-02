@@ -56,9 +56,12 @@ implementer's TDD discipline yourself. Between dispatches, narrate at most one s
   `lite-perf`, branch `superdev/lite-perf`, and run root `.superdev/scopes/lite-perf/`. One value
   therefore fixes the epic, the slices, the branch, and the run root together, and Phase 0 skips its
   scope-naming step.
-  - **A label given** → load the epic carrying it, plus every slice carrying it. The store knows no such
-    label, or no epic carries it → say so and stop, and create no run root. The epic carries no slices →
-    say so, point at **`/superdev:plan`**, and stop. **The slug must match
+  - **A label given** → load the anchor carrying it, per the store's `## Scope anchor` contract
+    (`docs/agents/issue-tracker.md`) — an epic on a multi-slice plan, or the lone slice itself on a
+    single-slice plan (ADR 0017) — plus every slice carrying it. The store knows no such label at all (no
+    anchor and no slice carries it) → say so and stop, and create no run root. **The anchor is an epic
+    that carries no slices** → say so, point at **`/superdev:plan`**, and stop — this never fires for a
+    single-slice plan, whose anchor is its own slice rather than an empty epic. **The slug must match
     `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s scope-slug rule.** Anything else → say so and stop,
     creating no run root; **`--unattended` → block**.
   - **Empty** → resolve the feature yourself. Exactly one feature has slices ready → use it. Several do →

@@ -47,6 +47,28 @@ Slices live as GitHub issues — one slice = one issue. Use the GitHub REST API 
   and advisory; `plan-contract.md` owns when each is written.
 - `status` ↔ open/closed + a status label (see the status map below).
 
+## Scope anchor
+
+A feature's scope anchor is its root (`plan-contract.md` → *Scope anchor*): the feature-labelled issue with
+no sub-issue parent. On a multi-slice feature that is the `epic` issue; on a single-slice feature it is the
+lone slice, which is nobody's sub-issue either (ADR 0017).
+
+- **Recognise one.** `GET /repos/<owner>/<repo>/issues/<number>/parent` returns `200` with the parent for
+  a slice, and `404` when the issue has none. A `404` marks a root.
+- **List the candidates.** The feature labels themselves: `GET /repos/<owner>/<repo>/labels` (paginated),
+  keeping the names that start with `feat/` — the **Feature label** prefix above. Per feature label:
+  `GET /repos/<owner>/<repo>/issues?labels=feat%2F<feature>&state=open` (URL-encode the label's `/`),
+  keeping the issues whose `/parent` is `404`. **Cost:** one `/parent` call per issue in that response,
+  every sweep iteration — accepted as the simplest correct check; nothing caches it.
+- **List the slices beneath it.** The same label listing already returned every feature issue; the slices
+  are the rest of that response — every issue whose `/parent` resolves to this anchor's `number`
+  (multi-slice), or none at all (single-slice — the anchor is the only issue under the label).
+- **Tell an anchor that is itself a slice.** It carries a `test-applicability` label — `behavior`,
+  `mechanical`, or `docs`. An epic never does. That is what separates a single-slice feature, whose lone
+  slice is its own anchor and is real work, from an epic created and never decomposed, which is not.
+- **Ambiguous.** Two or more roots under one feature label. `/superdev:plan` never writes that shape, and
+  there is no single Definition of Done to build against, so a consumer reports it instead of choosing.
+
 ## Two identifiers per issue — `number` vs `id`
 
 A GitHub issue carries **both**, and they are not interchangeable:
@@ -93,11 +115,12 @@ like a typo.
   slice creates in parallel**, then the sub-issue links **and** the dependency writes in parallel once
   every slice's `number` and `id` are known. Only the epic→slices→relations ordering is required; within
   each step the calls are independent.
-- **List feature slices:** `GET /repos/<owner>/<repo>/issues?labels=feat/<feature>&state=all`. **Always by
-  label**, epic or not — a single-slice feature has no epic to enumerate sub-issues from, so the label is
-  the one listing path that works in both shapes (ADR 0011). Two documented behaviours to handle: the
-  endpoint **returns pull requests as well as issues** (skip any result carrying a `pull_request` key), and
-  it **paginates at `per_page` 30** (page through it, or a feature past 30 slices loads a truncated set).
+- **List feature slices:** `GET /repos/<owner>/<repo>/issues?labels=feat%2F<feature>&state=all`
+  (URL-encode the label's `/`). **Always by label**, epic or not — a single-slice feature has no epic to
+  enumerate sub-issues from, so the label is the one listing path that works in both shapes (ADR 0011).
+  Two documented behaviours to handle: the endpoint **returns pull requests as well as issues** (skip any
+  result carrying a `pull_request` key), and it **paginates at `per_page` 30** (page through it, or a
+  feature past 30 slices loads a truncated set).
 - **Read a slice:** `GET /repos/<owner>/<repo>/issues/<number>`.
 - **Read a slice's blockers:** `GET /repos/<owner>/<repo>/issues/<number>/dependencies/blocked_by` —
   returns issues; map each back to a slice id by its `number`. Paginated, like every list endpoint here.

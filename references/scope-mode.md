@@ -66,7 +66,7 @@ any more than this one's. At each stop where it would otherwise do either:
 - **A standing answer is written at that stop** → take it. Each stop states its own, next to the question
   it replaces.
 - **No standing answer is written** → **block**, and stop. This catch-all is what keeps a question added
-  later from stalling a whole run: an unanswerable stop costs one epic, not the night.
+  later from stalling a whole run: an unanswerable stop costs one scope anchor, not the night.
 
 **Blocking** means: move the slice, where one is in play, and the scope anchor to `blocked` per the status
 map in `docs/agents/issue-tracker.md`; comment on the anchor naming the stop that was reached and why; then

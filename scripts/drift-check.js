@@ -127,6 +127,133 @@ function scanAssigneeContract(root) {
   return gaps;
 }
 
+// Every slice-store document must state how to identify a feature's scope anchor (ADR 0017). `/superdev:afk`
+// selects work by anchor and reads that contract rather than encoding any one store's shape, so a document
+// without it leaves the sweep with no way to recognise a candidate in that backend. Unlike the assignee
+// contract, `issue-tracker-local.md` is **not** exempt: every store has an anchor, and the local one's is
+// its `00-epic-*.md` filename. The contract is a section `/superdev:setup` carries across, so a passing
+// prose mention of "the anchor" does not satisfy it.
+const ANCHOR_DOCS_DIR = 'references';
+const EXTRA_ANCHOR_DOCS = ['docs/agents/issue-tracker.md']; // this repo's own dogfooded store config
+const ANCHOR_PATTERN = /^#{2,3}\s+Scope anchor\s*$/m;
+
+// The heading alone isn't the contract — a section that carries it but names none of its elements passes
+// today, which is how finding #4 shipped unnoticed. Each pattern matches the shared *concept* a store
+// document's bullet names, not a full sentence, so a backend-specific mechanism (a JQL clause, a
+// `/parent` call) stays free to vary without tripping this check.
+const ANCHOR_ELEMENTS = [
+  [/recognis/i, 'how to recognise an anchor'],
+  [/candidate/i, 'how to list the candidates'],
+  [/beneath/i, 'how to list the slices beneath an anchor'],
+  [/itself a slice/i, 'how to tell an anchor that is itself a slice'],
+];
+
+// extractSection(): the text from a heading match (inclusive) up to (but excluding) the next heading of
+// level ≤3, or to EOF if there is none. Shared by scanAnchorContract's element check and
+// scanAfkSelectionNeutrality below, both of which isolate one section before scanning its body.
+function extractSection(text, headingPattern) {
+  const start = text.search(headingPattern);
+  if (start === -1) return null;
+  const rest = text.slice(start);
+  // Skip past the heading's own line (not just one character) before searching for the next one — a
+  // one-character skip leaves a level-2 `##` heading truncated to `#`, which still matches `#{1,3}` and
+  // self-matches as its own "next" heading, collapsing the section to nothing.
+  const firstLineEnd = rest.indexOf('\n');
+  const searchFrom = firstLineEnd === -1 ? rest.length : firstLineEnd + 1;
+  const nextHeading = rest.slice(searchFrom).search(/^#{1,3}\s/m);
+  return nextHeading === -1 ? rest : rest.slice(0, searchFrom + nextHeading);
+}
+
+// scanAnchorContract() is pure over a root dir: reads every slice-store document and reports the ones that
+// never state how to identify a scope anchor, or state the heading but not every element. Absent files are
+// skipped, so fixtures need only the docs they exercise.
+function scanAnchorContract(root) {
+  const gaps = [];
+  const candidates = [...EXTRA_ANCHOR_DOCS];
+  try {
+    for (const entry of fs.readdirSync(path.join(root, ANCHOR_DOCS_DIR))) {
+      if (!entry.startsWith('issue-tracker-') || !entry.endsWith('.md')) continue;
+      candidates.push(path.join(ANCHOR_DOCS_DIR, entry));
+    }
+  } catch {
+    // no references/ dir → nothing to scan
+  }
+  for (const rel of candidates) {
+    let text;
+    try {
+      text = fs.readFileSync(path.join(root, rel), 'utf8');
+    } catch {
+      continue; // doc absent (fixture / partial checkout) → nothing to scan
+    }
+    const section = extractSection(text, ANCHOR_PATTERN);
+    if (section === null) {
+      gaps.push({ source: rel });
+      continue;
+    }
+    for (const [pattern, desc] of ANCHOR_ELEMENTS) {
+      if (!pattern.test(section)) gaps.push({ source: rel, expectation: `state ${desc}` });
+    }
+  }
+  return gaps;
+}
+
+// `/superdev:afk`'s selection step reads the store's `## Scope anchor` contract and must name no backend's
+// own mechanism (ADR 0017), or it is right on one store and wrong on the rest — the failure the
+// **Backends are pluggable** working rule exists to prevent, and one that shows up as a sweep finding
+// nothing rather than as an error. The scan is scoped to the selection section, because the rest of the
+// command may legitimately discuss an epic as a domain concept; what it may not do is *test* for one.
+const AFK_SELECTION_HEADING = /^## 2\..*$/m;
+const STORE_MECHANISMS = [
+  [/`epic`/, 'the `epic` label'],
+  [/feat\//, 'the `feat/` label prefix'],
+  [/00-epic/, "the local store's `00-epic-` filename"],
+  [/sub-issue|sub_issue/, "GitHub's sub-issue relation"],
+  [/Epic Link|fields\.parent/, "Jira's parent field"],
+];
+
+// scanAfkSelectionNeutrality() is pure over a root dir: reads `commands/afk.md`, isolates the selection
+// section, and reports every store mechanism it names. An absent file or a missing section yields nothing
+// — `commands/afk.md`'s existence is asserted separately in main().
+function scanAfkSelectionNeutrality(root) {
+  const gaps = [];
+  let text;
+  try {
+    text = fs.readFileSync(path.join(root, 'commands', 'afk.md'), 'utf8');
+  } catch {
+    return gaps; // afk.md absent → nothing to scan
+  }
+  const section = extractSection(text, AFK_SELECTION_HEADING);
+  if (section === null) {
+    // A missing, renamed, or renumbered selection heading is itself a gap — the same reasoning as
+    // main()'s commands/afk.md-existence check: silently returning nothing here would let the section
+    // (and whatever store mechanism it names) drift out from under this check with nothing going red.
+    gaps.push({
+      source: path.join('commands', 'afk.md'),
+      expectation:
+        'carry a `## 2. …` selection heading — a missing or renumbered one leaves the neutrality check nothing to scan',
+    });
+    return gaps;
+  }
+  for (const [pattern, label] of STORE_MECHANISMS) {
+    if (pattern.test(section)) {
+      gaps.push({
+        source: path.join('commands', 'afk.md'),
+        expectation: `select without naming ${label} — read the store's \`## Scope anchor\` contract instead`,
+      });
+    }
+  }
+  // Naming no mechanism is half the property. A selection step that names none *and* points at no
+  // contract either has nothing to select by, so the neutrality would be satisfied by prose that simply
+  // says less.
+  if (!/## Scope anchor/.test(section)) {
+    gaps.push({
+      source: path.join('commands', 'afk.md'),
+      expectation: "point its selection at the store's `## Scope anchor` contract",
+    });
+  }
+  return gaps;
+}
+
 // The documentation seed must offer a writing standard (ADR 0012). A seed that loses the section makes
 // /superdev:setup write a doc convention with no standard, and both doc agents then find nothing to
 // apply — the feature silently does nothing in every repo set up after the drift, and no build step
@@ -543,6 +670,7 @@ function main() {
   const missing = scan(root);
   const offenders = scanRunRootPaths(root);
   const gaps = scanAssigneeContract(root);
+  const anchorGaps = [...scanAnchorContract(root), ...scanAfkSelectionNeutrality(root)];
   const wsGaps = scanWritingStandardContract(root);
   const ctGaps = scanContentTypesContract(root);
   const stGaps = scanStageContract(root);
@@ -569,6 +697,7 @@ function main() {
     missing.length === 0 &&
     offenders.length === 0 &&
     gaps.length === 0 &&
+    anchorGaps.length === 0 &&
     wsGaps.length === 0 &&
     ctGaps.length === 0 &&
     stGaps.length === 0 &&
@@ -578,7 +707,8 @@ function main() {
     shape.length === 0
   ) {
     console.log(
-      'drift-check ok: references resolve, run-root paths are absolute, assignee contract carried, ' +
+      'drift-check ok: references resolve, run-root paths are absolute, assignee and anchor contracts ' +
+        'carried, ' +
         'writing standard offered, content-type lens wired, stage line named, commands resolve, ' +
         'chain hands off, scope-slug charset matches the run-lock hook, feature-label argument and ' +
         'unattended token carried, eval graders and scaffolds well-formed',
@@ -595,6 +725,15 @@ function main() {
     console.error(
       `${g.source} carries no \`**Assignee\` config bullet — expected \`- **Assignee:** <value>\` or ` +
         `\`- **Assignee**: <value>\` as a list item; see plan-contract.md → Assignee`,
+    );
+  }
+  for (const g of anchorGaps) {
+    console.error(
+      g.expectation
+        ? `${g.source} no longer meets the anchor contract — expected it to ${g.expectation}`
+        : `${g.source} carries no \`## Scope anchor\` section — expected it to state how to recognise a ` +
+          `feature's anchor, how to list candidates, and how to tell that an anchor is itself a slice; ` +
+          `see ADR 0017`,
     );
   }
   for (const g of wsGaps) {
@@ -917,6 +1056,150 @@ if (process.argv[2] === '--selftest') {
   // an absent agent file is skipped, so a fixture carries only the files it exercises
   const ct22 = fixture({ 'agents/doc-writer.md': wired });
   assert.equal(scanContentTypesContract(ct22).length, 0, 'an absent agent file is skipped');
+
+  // --- scanAnchorContract: every slice-store document must state how to identify a feature's scope
+  // anchor (ADR 0017). `/superdev:afk` selects by anchor and reads that contract instead of encoding one
+  // store's shape, so a document without it leaves the sweep blind in that backend. The local-file store
+  // is NOT exempt here, unlike the assignee contract — it has an anchor, its `00-epic-*.md` file. ---
+
+  const anchorSection =
+    '## Scope anchor\n\n' +
+    'The anchor is the feature root: the issue that is nobody\'s sub-issue.\n\n' +
+    '- **Recognise one.** It carries no parent link.\n' +
+    '- **List the candidates.** Query per feature label and keep the roots.\n' +
+    '- **List the slices beneath it.** The same query returns them.\n' +
+    '- **Tell an anchor that is itself a slice.** It carries a test-applicability label.\n';
+
+  // positive: a store document with no anchor section is flagged
+  const an1 = fixture({ 'references/issue-tracker-acme.md': '# acme\n\nSlices are issues.\n' });
+  const anGaps1 = scanAnchorContract(an1);
+  assert.equal(anGaps1.length, 1, 'flags a store document with no anchor contract');
+  assert.equal(anGaps1[0].source, path.join('references', 'issue-tracker-acme.md'), 'names the seed');
+
+  // negative: the same document carrying the section, with every element named, is clean
+  const an2 = fixture({ 'references/issue-tracker-acme.md': anchorSection });
+  assert.equal(scanAnchorContract(an2).length, 0, 'a document naming every element yields zero gaps');
+
+  // positive: the heading alone, with no elements, is not the contract — this is the empty-section gap
+  // that shipped finding #4 unnoticed
+  const anEmpty = fixture({
+    'references/issue-tracker-acme.md':
+      '## Scope anchor\n\nThe anchor is the feature root: the issue that is nobody\'s sub-issue.\n',
+  });
+  assert.equal(scanAnchorContract(anEmpty).length, 4, 'a heading naming no element flags all four');
+
+  // positive: the section is missing just one element — only that one is flagged
+  const anPartial = fixture({
+    'references/issue-tracker-acme.md': anchorSection.replace(
+      '- **List the slices beneath it.** The same query returns them.\n',
+      '',
+    ),
+  });
+  const anPartialGaps = scanAnchorContract(anPartial);
+  assert.equal(anPartialGaps.length, 1, 'flags exactly the one missing element');
+  assert.match(anPartialGaps[0].expectation, /beneath/, 'names the missing element');
+
+  // the local-file store is NOT exempt — it has an anchor concept, so it must state one
+  const an3 = fixture({ 'references/issue-tracker-local.md': 'Slices live in `docs/plans/<feature>/`.\n' });
+  assert.equal(
+    scanAnchorContract(an3).length,
+    1,
+    'the local-file store is not exempt from the anchor contract',
+  );
+
+  // this repo's own dogfooded store config is checked alongside the seeds
+  const an4 = fixture({ 'docs/agents/issue-tracker.md': '# Slice store\n\nIssues.\n' });
+  const anGaps4 = scanAnchorContract(an4);
+  assert.equal(anGaps4.length, 1, 'the dogfooded store config is checked too');
+  assert.equal(anGaps4[0].source, path.join('docs', 'agents', 'issue-tracker.md'), 'names it');
+
+  // a prose mention is not the section: the contract is a heading `/superdev:setup` carries across, and
+  // prose that merely refers to an anchor says nothing about how this backend identifies one
+  const an5 = fixture({
+    'references/issue-tracker-acme.md': 'The scope anchor is the epic, usually.\n',
+  });
+  assert.equal(scanAnchorContract(an5).length, 1, 'a prose mention is not the section');
+
+  // every store document is reported, so one pass names them all
+  const an6 = fixture({
+    'references/issue-tracker-acme.md': '# acme\n',
+    'references/issue-tracker-beta.md': '# beta\n',
+    'docs/agents/issue-tracker.md': anchorSection,
+  });
+  assert.equal(scanAnchorContract(an6).length, 2, 'each document missing the contract is reported');
+
+  // an absent document is skipped, so a fixture carries only the docs it exercises
+  assert.equal(scanAnchorContract(fixture({ 'README.md': '# repo\n' })).length, 0, 'absent docs skipped');
+
+  // --- scanAfkSelectionNeutrality: afk's selection step reads the store's anchor contract and names no
+  // backend's own mechanism (ADR 0017). Naming one is right on a single store and wrong on the rest, and
+  // it surfaces as a sweep that finds nothing rather than as an error. ---
+
+  const selection = (body) => `# afk\n\n## 2. Select the next scope anchor\n\n${body}\n\n## 3. Next\n\nGo.\n`;
+  const neutral = "Per the store's `## Scope anchor` contract, list the candidates and take the oldest.";
+
+  // negative: a neutral selection that points at the contract is clean
+  assert.equal(
+    scanAfkSelectionNeutrality(fixture({ 'commands/afk.md': selection(neutral) })).length,
+    0,
+    'a neutral selection naming the contract is clean',
+  );
+
+  // positive: each store mechanism is caught on its own
+  for (const [snippet, why] of [
+    ['Take the issue labelled `epic`.', 'the epic label'],
+    ['Strip the `feat/` prefix to get the slug.', 'the feat prefix'],
+    ['Look for `00-epic-*.md` in the plan directory.', 'the local filename'],
+    ['The anchor is nobody\'s sub-issue.', 'the GitHub relation'],
+    ['Check that `fields.parent` is absent.', 'the Jira parent field'],
+  ]) {
+    const gaps = scanAfkSelectionNeutrality(
+      fixture({ 'commands/afk.md': selection(`${neutral} ${snippet}`) }),
+    );
+    assert.equal(gaps.length, 1, `flags ${why} in the selection step`);
+    assert.match(gaps[0].expectation, /select without naming/, 'reports it as a mechanism');
+  }
+
+  // positive: naming no mechanism is only half — a selection pointing at no contract has nothing to
+  // select by, so silence must not satisfy the check
+  const silent = scanAfkSelectionNeutrality(
+    fixture({ 'commands/afk.md': selection('Take the oldest candidate and go.') }),
+  );
+  assert.equal(silent.length, 1, 'a selection naming no contract is a gap');
+  assert.match(silent[0].expectation, /point its selection at/, 'reports the missing contract');
+
+  // a mechanism outside the selection section is fine — the rest of the command may discuss an epic as a
+  // domain concept, it just may not test for one when selecting
+  assert.equal(
+    scanAfkSelectionNeutrality(
+      fixture({
+        'commands/afk.md':
+          selection(neutral) + '\n## 4. Blocks\n\nLabel the `epic` blocked and move on.\n',
+      }),
+    ).length,
+    0,
+    'a mechanism outside the selection section is not a gap',
+  );
+
+  // an absent afk.md is skipped here; its existence is asserted in main()
+  assert.equal(
+    scanAfkSelectionNeutrality(fixture({ 'README.md': '# repo\n' })).length,
+    0,
+    'an absent afk.md is skipped',
+  );
+
+  // positive: a missing, renumbered, or retitled selection heading is itself a gap — each of these three
+  // mutations previously silenced the whole neutrality check (the section was skipped, not flagged),
+  // hiding whatever store mechanism the selection step went on to name
+  for (const [why, body] of [
+    ['renumbered', `# afk\n\n## 3. Select the next scope anchor\n\nTake the \`epic\` label.\n\n## 4. Next\n\nGo.\n`],
+    ['retitled', `# afk\n\n## 2 Pick the work\n\nTake the \`epic\` label.\n\n## 3. Next\n\nGo.\n`],
+    ['deleted', `# afk\n\nTake the \`epic\` label.\n\n## 3. Next\n\nGo.\n`],
+  ]) {
+    const gaps = scanAfkSelectionNeutrality(fixture({ 'commands/afk.md': body }));
+    assert.equal(gaps.length, 1, `flags a ${why} selection heading`);
+    assert.match(gaps[0].expectation, /selection heading/, `names the missing heading for ${why}`);
+  }
 
   // --- scanEvalShape: a grader's frontmatter must be something the harness can act on, and a case's
   // scaffold_script must resolve ---

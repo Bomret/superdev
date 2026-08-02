@@ -56,6 +56,30 @@ Slices live as Codeberg issues — one slice = one issue — in `bomret/superdev
 - **Set labels / status:** `POST .../issues/<index>/labels` (add) and
   `PATCH .../issues/<index>` with `{ "state": "closed" }` to close.
 
+## Scope anchor
+
+A feature's scope anchor is its root (`plan-contract.md` → *Scope anchor*). Forgejo's issue-dependencies
+unit is disabled here and no sub-issue relation is used, so this store expresses the root with labels
+rather than natively: on a multi-slice feature the anchor is the `epic`-labelled issue carrying the feature
+label, and on a single-slice feature it is the lone issue carrying that label (ADR 0017).
+
+- **Recognise one.** Among the issues carrying a feature label, the anchor is the one labelled `epic`. If
+  none is, and exactly one issue carries the label, that issue is the anchor.
+- **List the candidates.** The feature labels themselves: `GET /api/v1/repos/bomret/superdev/labels`
+  (paginated), keeping the names that start with `feat/`. Per feature label:
+  `GET /api/v1/repos/bomret/superdev/issues?labels=feat%2F<feature>&state=open` (URL-encode the label's
+  `/`), then apply the rule above to the result.
+- **List the slices beneath it.** The same label listing already returned every feature issue: on a
+  multi-slice feature the slices are the rest of that response (every issue that is not the `epic`); a
+  single-slice feature's anchor has none beneath it.
+- **Tell an anchor that is itself a slice.** It carries a `test-applicability` label — `behavior`,
+  `mechanical`, or `docs`. The epic issue never does. That is what separates a single-slice feature, whose
+  lone slice is its own anchor and is real work, from an epic created and never decomposed, which is not.
+- **Ambiguous.** No `epic`-labelled issue and two or more issues carrying the same feature label. This
+  store has no parent relation to fall back on, so the shape cannot be resolved: `/superdev:plan` never
+  writes it, there is no single Definition of Done to build against, and a consumer reports it instead of
+  choosing.
+
 ## Assignee
 
 Store configuration, not a slice field (`plan-contract.md` → *Assignee*; ADR 0010). The **Assignee**

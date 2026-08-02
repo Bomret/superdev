@@ -14,7 +14,7 @@ _Avoid: "mode", "strategy", "level", "route", "path"_
 **Scope** — a feature's scope branch and all its run artifacts (.superdev/scopes/<scope>/ directory: DoD, ledger, progress logs, worktrees). Scope is the namespace that lets multiple features' runs execute in parallel without colliding. `.superdev/` also holds non-scope areas nested outside `scopes/` (e.g. `.superdev/brainstorm/`) — `/status` only scans `.superdev/scopes/*/`, so a sibling area can never be mistaken for a run root.
 _Avoid: "run", "branch", "feature branch" (too generic)_
 
-**Scope anchor** — the single slice-store issue that carries the scope-level status signal for a run: the epic issue if one exists, otherwise the lone slice on a single-slice feature. Moves to `in-progress` when the run starts and `merged`/`done` once the whole scope is done — distinct from any individual slice's own status transitions.
+**Scope anchor** — a feature's root: the single slice-store issue that carries its scope-level status signal for a run. A multi-slice plan's anchor has slices beneath it, and a single-slice plan's anchor is its own lone slice. One rule covers both shapes, so a single-slice plan needs no special case. How a given store expresses this is store configuration, stated in that store's own `## Scope anchor` section, never assumed by a command (ADR 0017). Moves to `in-progress` when the run starts and `merged`/`done` once the whole scope is done — distinct from any individual slice's own status transitions.
 _Avoid: "epic" (only an epic-bearing feature has one; the anchor role also falls to a lone slice)_
 
 **Run root** — the part of `.superdev/scopes/<scope>/` that stays in the invoking checkout across both tiers: `dod.md`, `ledger.md`, `run.lock`, and on the full tier `interfaces.md` (the cross-slice interface record). Never moves into a worktree, so it survives worktree removal as the post-mortem trail and lets `/status` enumerate runs without touching any worktree.
@@ -71,17 +71,17 @@ _Avoid: "the DAG" (that's the dependency structure itself, which exists whether 
 **Touch map** — the epic's `## Touch map` section: a plain-text file tree marking which slices touch which files, and where slices that run in parallel collide. Evidence for the dependency order, not an instruction — no slice `spec` names file paths, and no reviewer gates on it.
 _Avoid: "file map" (too generic — the collisions are the point), "impact analysis"_
 
-**Unattended run** — one `/superdev:afk` invocation: a serial sweep that takes each eligible epic through the whole four-command chain, and ends on an interrupt, on two consecutive blocked epics, on a `/superdev:ship` failure, or on an empty backlog. Keeps no queue — the tracker's labels are its only state, re-read every iteration.
+**Unattended run** — one `/superdev:afk` invocation: a serial sweep that takes each eligible scope anchor through the whole four-command chain, and ends on an interrupt, on two consecutive blocked features, on a `/superdev:ship` failure, or on an empty backlog. Keeps no queue — the tracker's labels are its only state, re-read every iteration.
 _Avoid: "afk mode" (there is no mode; afk is one command with one run), "batch", "autopilot"_
 
 **Unattended token** — the `--unattended` argument afk passes on every command invocation, which tells that command to take its standing answers instead of asking. An invocation property, never written to the run root, so it cannot outlive the run that passed it (ADR 0016).
 _Avoid: "unattended flag" (it is an argument token, not a config setting), "afk mode"_
 
-**Standing answer** — what a command does at a stop where it would otherwise ask the maintainer, when the unattended token is present. Each is written at the stop it governs; a stop with none written blocks the epic, which is the catch-all that keeps an unwritten question from stalling a run until morning.
+**Standing answer** — what a command does at a stop where it would otherwise ask the maintainer, when the unattended token is present. Each is written at the stop it governs; a stop with none written blocks the scope anchor, which is the catch-all that keeps an unwritten question from stalling a run until morning.
 _Avoid: "default" (a default applies always; a standing answer applies only unattended), "policy", "auto-answer"_
 
-**Eligible epic** — an epic `/superdev:afk` may pick up, per `commands/afk.md` §2: open, with neither the epic nor any of its slices carrying `blocked`, with a feature label matching `scope-mode.md`'s scope-slug rule, and with no live run on its scope (a run lock newer than an hour, or, absent one, an unshipped ledger newer than an hour). Says nothing about `ready`, so a part-merged epic and a crash-interrupted slice both resume.
-_Avoid: "ready epic" (`ready` is a slice label, and eligibility deliberately ignores it), "available", "unblocked issue"_
+**Eligible anchor** — a scope anchor `/superdev:afk` may pick up, per `commands/afk.md` §2: open, with neither the anchor nor any slice beneath it carrying `blocked`, with a feature label matching `scope-mode.md`'s scope-slug rule, and with no live run on its scope (a run lock newer than an hour, or, absent one, an unshipped ledger newer than an hour). Says nothing about `ready`, so a part-merged plan and a crash-interrupted slice both resume; the store's `## Scope anchor` contract is what tells afk which issue the anchor is (ADR 0017).
+_Avoid: "eligible epic" (a single-slice plan has no epic, and its lone slice is the anchor), "ready epic" (`ready` is a slice label, and eligibility deliberately ignores it), "available", "unblocked issue"_
 
 **Rejected direction** — a direction a brainstorm explored and dropped, carried in the `Intent` with the reason it lost. `/plan` routes each one to a durable home — a dropped approach to an ADR's `Considered options`, dropped scope to the epic's non-goals — so it can't be re-proposed cold later.
 _Avoid: "non-goal" (that's the destination for a rejected scope, not the record of why), "alternative"_

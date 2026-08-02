@@ -32,7 +32,11 @@ Auth header: `-u "$JIRA_EMAIL:$JIRA_API_TOKEN"`, `-H "Content-Type: application/
   `{ "type": {"name":"Blocks"}, "inwardIssue":{"key":"<this slice>"}, "outwardIssue":{"key":"<blocker>"} }`
   so the slice is "blocked by" its blocker.
 - **List feature slices**:
-  `GET <base>/rest/api/3/search?jql=project=PROJ AND labels="<feature-label>"`.
+  `GET <base>/rest/api/3/search/jql?jql=project=PROJ AND labels="<feature-label>"
+  &fields=summary,description,status,labels,issuetype,parent` — `/rest/api/3/search` is deprecated
+  (Atlassian is removing it) and `/search/jql` is its documented replacement. **Name the fields.**
+  `/search/jql` defaults `fields` to `id`, where the deprecated endpoint defaulted to `*navigable`, so a
+  query that omits the parameter returns bare issue IDs with a `200` and nothing to read.
 - **Read a slice**: `GET <base>/rest/api/3/issue/<key>?fields=summary,description,status,issuelinks`.
 - **Update status**: transition via `POST <base>/rest/api/3/issue/<key>/transitions`
   (`todo` → `in-progress` → `in-review`/`done`). Look up transition ids with
@@ -50,6 +54,31 @@ Auth header: `-u "$JIRA_EMAIL:$JIRA_API_TOKEN"`, `-H "Content-Type: application/
 - `status` ↔ Jira status.
 - global DoD ↔ a parent Epic; slices are children of the Epic. **A single-slice feature has no Epic** —
   the lone slice issue's `acceptance` checklist is the DoD.
+
+## Scope anchor
+
+A feature's scope anchor is its root (`plan-contract.md` → *Scope anchor*): the issue with no parent. On a
+multi-slice feature that is the Epic; on a single-slice feature it is the lone slice issue, which has no
+Epic Link either (ADR 0017).
+
+- **Recognise one.** A root has no parent: treat an absent `fields.parent` key and a `null` value alike.
+  Jira models the Epic relation as parent and child, so a slice always carries one and a root never does.
+- **List the candidates.** The feature labels themselves: `GET <base>/rest/api/3/label` (paginated
+  `values` array of every label used in the instance), keeping the values that start with `feat/`. Per
+  feature label: the **List feature slices** call above, whose `fields` already carry `parent`, `labels`
+  and `issuetype` — the three this section's other elements read. JQL's `parent` field supports only `=`,
+  `!=`, `IN` and `NOT IN`, not `IS`/`IS NOT`, so no query can filter on a missing parent server-side. The
+  call returns every issue under the label, and the roots are the ones with no parent, kept client-side.
+- **List the slices beneath it.** The same query already returned the whole feature: the slices are the
+  rest of that response — every issue whose `fields.parent.key` equals this anchor's `key` (multi-slice),
+  or none at all (single-slice — the anchor is the only issue returned).
+- **Tell an anchor that is itself a slice.** It carries a `test-applicability` label — `behavior`,
+  `mechanical`, or `docs` — and its issue type is the slice type rather than `Epic`. That is what
+  separates a single-slice feature, whose lone slice is its own anchor and is real work, from an Epic
+  created and never decomposed, which is not.
+- **Ambiguous.** Two or more parentless issues under one feature label. `/superdev:plan` never writes that
+  shape, and there is no single Definition of Done to build against, so a consumer reports it instead of
+  choosing.
 
 ## Assignee
 

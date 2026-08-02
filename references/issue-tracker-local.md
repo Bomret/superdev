@@ -82,6 +82,26 @@ status: todo
 - <checkable criterion 2>
 ```
 
+## Scope anchor
+
+A feature's scope anchor is its root (`plan-contract.md` → *Scope anchor*), and this store expresses it in
+the filename. On a multi-slice feature it is `00-epic-<summary>.md`; on a single-slice feature there is no
+epic file, so the lone `NN-<test-applicability>-<summary>.md` is the anchor (ADR 0017).
+
+- **Recognise one.** In `docs/plans/<feature-slug>/`, the anchor is `00-epic-*.md` when that file exists,
+  and otherwise the single `NN-*.md` file.
+- **List the candidates.** Each directory under `docs/plans/` is one feature, so its anchor is one
+  candidate.
+- **List the slices beneath it.** Every `NN-*.md` file in the same `docs/plans/<feature-slug>/` directory
+  as the anchor is a slice beneath it (multi-slice); a single-slice feature's anchor has none beneath it.
+- **Tell an anchor that is itself a slice.** Its filename begins with a number from `01` up and carries a
+  `<test-applicability>` segment. The epic file begins with `00-epic-`. That is what separates a
+  single-slice feature, whose lone slice file is its own anchor and is real work, from a feature
+  directory holding only an epic file, which was never decomposed.
+- **Ambiguous.** A directory with no `00-epic-*.md` and two or more `NN-*.md` files. `/superdev:plan`
+  never writes that shape, and there is no global Definition of Done to build against, so a consumer
+  reports it instead of choosing.
+
 ## When `/superdev:plan` says "write slices to the store"
 
 Create `docs/plans/<feature-slug>/`. **≥2 slices** — write `00-epic-<summary>.md` (the global DoD +
