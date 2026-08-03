@@ -116,6 +116,12 @@ _Avoid: "retry limit", "attempt count" (the 3 strikes are cycles, not attempts)_
 **Judge discipline** — the verification principle shared verbatim by all three review agents: verify the artifact/behaviour yourself, never defer to the implementer's or controller's narrative of what was done; length or an elaborate structure isn't its own evidence of correctness or of warranted complexity; reject a completion claim resting only on proxy counts (coverage %, line count, lint score) — confirm the observable behaviour instead (ADR 0002).
 _Avoid: "verification discipline" (too generic — this specifically means not trusting the builder's account of its own work)_
 
+**Derived criteria** — the acceptance criteria `final-reviewer` writes itself, from the feature's intent alone, before it reads the Definition of Done or the diff. Diffing them against the DoD surfaces criteria the plan never wrote. Scope mode only: it needs a DoD written by someone else to diff against, so `/superdev:review` hands over `dod.md`'s **path** rather than its text and the reviewer opens it after its own list exists (ADR 0020).
+_Avoid: "independent criteria", "own criteria" (the point is where they come from, not whose they are)_
+
+**Ceiling note** — the single advisory observation `final-reviewer` may add when a scope met a Definition of Done criterion **shallowly**: the criterion is ticked and the code is correct, but the work stopped at the first thing that passed. Admissible only against four gates — it names the ticked criterion, it names a concrete consequence, there is exactly one, and the review found nothing Critical or Important. Never gates a merge and never triggers the fix loop, exactly like an over-engineering finding (ADR 0020).
+_Avoid: "quality note", "improvement suggestion", "nit" (a ceiling note describes correct code, so it is not a defect at any severity)_
+
 ## Separation of concerns
 
 **Execution playbook** — the linear, tier-specific procedure the controller `Read`s once the tier is computed: `references/implement-full.md` (full tier) or `references/implement-lite.md` (lite tier). The `/implement` command body keeps only the tier-agnostic core (invariants, config, Phase 0, issue-status map, and the handoff to `/superdev:review`) and delegates the execution flow to the matching playbook, so each run loads only the one it takes.
