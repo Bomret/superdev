@@ -3,7 +3,7 @@
 
 // scope-prune: Stop hook. Deterministically removes a completed superdev scope run root
 // (.superdev/scopes/<scope>/ — ledger.md, dod.md, the git-ignored post-mortem trail) once its
-// scope branch (superdev/<scope>) is merged into the current branch AND the run root has sat
+// scope branch (<type>/<scope>) is merged into the current branch AND the run root has sat
 // untouched past a staleness TTL AND the ledger's `**Stage:**` line reads `shipped`. Mirrors
 // hooks/worktree-sweep.js's merged-branch check one level up (scope branch instead of slice branch) —
 // same "safe by default" shape: never touches a run whose scope branch isn't merged yet (still active),
@@ -22,6 +22,22 @@ const { execSync } = require('node:child_process');
 
 const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days past scope-branch merge
 
+// A scope branch is `<type>/<scope>`, where `<type>` is the change type — the Conventional Commits type
+// of the work (`references/scope-mode.md`, `## The change type`). The run-root directory name carries the
+// slug alone, so the branch cannot be rebuilt from it: match the last segment against the scope and the
+// leading segment against the type set instead. `slice/<scope>/<id>` never matches — its last segment is
+// the slice id.
+const CHANGE_TYPES = /^(feat|fix|refactor|docs|perf|test|build|ci|chore|style|revert)$/;
+
+function isScopeBranchMerged(mergedSet, scope) {
+  for (const branch of mergedSet) {
+    const cut = branch.lastIndexOf('/');
+    if (cut < 1) continue; // no type segment → not a scope branch
+    if (branch.slice(cut + 1) === scope && CHANGE_TYPES.test(branch.slice(0, cut))) return true;
+  }
+  return false;
+}
+
 function sh(cmd, cwd) {
   return execSync(cmd, { cwd, stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' }).trim();
 }
@@ -39,7 +55,7 @@ function sh(cmd, cwd) {
 function selectPrunable(scopeNames, mergedSet, mtimeOf, stageOf) {
   const out = [];
   for (const scope of scopeNames) {
-    if (!mergedSet.has(`superdev/${scope}`)) continue; // scope branch not merged → still active
+    if (!isScopeBranchMerged(mergedSet, scope)) continue; // scope branch not merged → still active
     const mtime = mtimeOf(scope);
     if (mtime == null) continue; // unreadable → leave it, don't guess
     if (Date.now() - mtime < TTL_MS) continue; // not stale yet
@@ -132,7 +148,7 @@ if (process.argv[2] === '--selftest') {
   // #unmerged: scope branch not merged (still active) → skip regardless of age or stage.
   const shipped = () => 'shipped';
   const mtimes = { 'merged-and-stale': STALE, 'merged-and-fresh': FRESH, unmerged: STALE };
-  const merged = new Set(['main', 'superdev/merged-and-stale', 'superdev/merged-and-fresh']);
+  const merged = new Set(['main', 'fix/merged-and-stale', 'docs/merged-and-fresh']);
   assert.deepEqual(
     selectPrunable(Object.keys(mtimes), merged, (s) => mtimes[s], shipped),
     ['merged-and-stale'],
@@ -150,7 +166,16 @@ if (process.argv[2] === '--selftest') {
   // below never fires either. The TTL was the only remaining protection, and a human-paced chain can sit
   // past it while still mid-review. This is the RED case: a merged, stale scope whose ledger stage is
   // `reviewed` (review ran, ship never did) must not be pruned.
-  const mergedStaleUnshipped = new Set(['main', 'superdev/parked-mid-chain']);
+  // The branch matcher takes the change type from the branch, because the run root's directory name is
+  // the slug alone. Only a Conventional Commits type counts: a slice branch (`slice/<scope>/<id>`) and a
+  // maintainer's own `wip/<scope>` both name the scope somewhere, and pruning a run root on either one
+  // would delete a live run's ledger.
+  assert.equal(isScopeBranchMerged(new Set(['refactor/exports']), 'exports'), true, 'a typed scope branch counts');
+  assert.equal(isScopeBranchMerged(new Set(['wip/exports']), 'exports'), false, 'an untyped branch does not');
+  assert.equal(isScopeBranchMerged(new Set(['slice/exports/03']), 'exports'), false, 'a slice branch does not');
+  assert.equal(isScopeBranchMerged(new Set(['exports']), 'exports'), false, 'a bare branch name does not');
+
+  const mergedStaleUnshipped = new Set(['main', 'feat/parked-mid-chain']);
   assert.deepEqual(
     selectPrunable(['parked-mid-chain'], mergedStaleUnshipped, () => STALE, () => 'reviewed'),
     [],
@@ -179,7 +204,7 @@ if (process.argv[2] === '--selftest') {
   const tmpBacktick = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-'));
   fs.writeFileSync(path.join(tmpBacktick, 'ledger.md'), '# ledger\n\n**Stage:** `shipped`\n');
   assert.equal(readStage(tmpBacktick), 'shipped', 'strips backticks from the captured stage value');
-  const backtickMerged = new Set(['main', 'superdev/backticked']);
+  const backtickMerged = new Set(['main', 'chore/backticked']);
   assert.deepEqual(
     selectPrunable(['backticked'], backtickMerged, () => STALE, () => readStage(tmpBacktick)),
     ['backticked'],

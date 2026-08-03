@@ -11,7 +11,7 @@ throughout. Return to the controller's **Final phase** once every slice is commi
 - **Base committed + pushed** per the controller's Phase 0 (design docs on base, base pushed) — do it
   before cutting the worktree.
 - **Cut the scope branch into a dedicated worktree:**
-  `git worktree add .superdev/scopes/<scope>/worktree -b superdev/<scope> <base>` (base from
+  `git worktree add .superdev/scopes/<scope>/worktree -b <type>/<scope> <base>` (base from
   `code-management.md`, default `main`). The invoking checkout is **never switched** — it stays on main
   (or wherever it was), so a second session can run in the same repo. All inline implementation happens
   **in this worktree**, never in the invoking checkout. Then move the **scope anchor** issue →
@@ -59,7 +59,7 @@ same-scope mutual exclusion. Leave the lock in place when you finish: it spans t
 
 ## Resume
 
-Read `<run-root>/ledger.md` and cross-check it against `git log <base>..superdev/<scope>` in the
+Read `<run-root>/ledger.md` and cross-check it against `git log <base>..<type>/<scope>` in the
 scope worktree — a slice the ledger marks `merged` (already committed there) is done; pick up at the next
 `todo` slice in `depends-on` order. An interrupted `in-progress` slice may have left partial, uncommitted
 changes in the scope worktree. Before resuming, check `<run-root>/run.lock`: if it exists and is

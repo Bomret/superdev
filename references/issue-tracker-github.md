@@ -10,8 +10,10 @@ Slices live as GitHub issues — one slice = one issue. Use the GitHub REST API 
   `Authorization: Bearer $<GH_TOKEN>`, `Accept: application/vnd.github+json`,
   `X-GitHub-Api-Version: 2022-11-28`. Base URL `https://api.github.com` (a GitHub Enterprise Server host
   uses `https://<host>/api/v3`).
-- **Feature label:** one label per feature/scope (e.g. `feat/<slug>`) applied to the epic + its slices, so
-  the feature's issues are listable.
+- **Feature label:** one label per feature/scope, `<type>/<slug>` (e.g. `fix/<slug>`), applied to the epic
+  + its slices, so the feature's issues are listable. `<type>` is the **change type** — the Conventional
+  Commits type of the work, per `references/scope-mode.md` — and the label doubles as the scope branch
+  name.
 - **Assignee**: `<login>` — the GitHub login every issue a run creates is assigned to (see *Assignee*
   below). Set to `none` to create issues unassigned; remove the line entirely to fall back to whoever the
   token belongs to.
@@ -56,8 +58,8 @@ lone slice, which is nobody's sub-issue either (ADR 0017).
 - **Recognise one.** `GET /repos/<owner>/<repo>/issues/<number>/parent` returns `200` with the parent for
   a slice, and `404` when the issue has none. A `404` marks a root.
 - **List the candidates.** The feature labels themselves: `GET /repos/<owner>/<repo>/labels` (paginated),
-  keeping the names that start with `feat/` — the **Feature label** prefix above. Per feature label:
-  `GET /repos/<owner>/<repo>/issues?labels=feat%2F<feature>&state=open` (URL-encode the label's `/`),
+  keeping the names whose first segment is a change type — the **Feature label** shape above. Per feature label:
+  `GET /repos/<owner>/<repo>/issues?labels=<type>%2F<feature>&state=open` (URL-encode the label's `/`),
   keeping the issues whose `/parent` is `404`. That endpoint carries the two behaviours **List feature
   slices** below states — it returns pull requests, and it paginates at 30 — and both apply here: a
   feature-labelled pull request is nobody's sub-issue, so an unskipped one presents as a second root and

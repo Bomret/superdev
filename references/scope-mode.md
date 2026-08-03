@@ -11,15 +11,30 @@ cannot wait for the stage where the other rules begin.
 
 ## The scope slug
 
-A scope slug must match `[a-zA-Z0-9][a-zA-Z0-9_-]*`. It becomes a branch name (`superdev/<slug>`) and a
+A scope slug must match `[a-zA-Z0-9][a-zA-Z0-9_-]*`. It becomes the second segment of a branch name
+(`<type>/<slug>`, per `## The change type` below) and a
 run-root path segment (`.superdev/scopes/<slug>/`), and every source it comes from — a feature label
 resolved from the slice store, an epic's feature label read off a tracker anchor — hands it over as
 external input with no such guarantee: a stray `/`, a leading `-`, `..`, a space, or `~` are all legal
-label characters, and none are safe in either place.
+label characters, and none are safe in either place. A feature label carries its change type in front of
+the slug, so validate the slug segment — what follows the first `/` — and not the label as a whole.
+
+## The change type
+
+A scope branch is `<type>/<slug>`. `<type>` is the **change type**: the Conventional Commits type of the
+work the feature does, one of `feat`, `fix`, `refactor`, `docs`, `perf`, `test`, `build`, `ci`, `chore`,
+`style`, `revert`. It leads the feature label the slice store carries, so a run reads the type off that
+label instead of choosing one. `/superdev:plan` picks it when it writes the plan, and the branch, the
+label, and the slice commits then all say the same thing about what the work is.
+
+The scope branch is the feature label verbatim. The run root is keyed on the slug alone
+(`.superdev/scopes/<slug>/`), so it never doubles the type into a path segment, and every command finds a
+run root from a scope slug without knowing the type.
 
 ## A live scope run
 
-A range or a scope slug names a live run when two conditions hold. Its head is `superdev/<scope>`. A run
+A range or a scope slug names a live run when two conditions hold. Its head is the scope branch
+`<type>/<scope>`. A run
 root exists for that scope. A run root is a `.superdev/scopes/*/` directory that holds a `ledger.md`.
 
 Capture `<run-root>` as the absolute path to `.superdev/scopes/<scope>/`. Do this while the invoking
@@ -33,10 +48,10 @@ Find the working tree that holds the scope branch, from disk.
 - `.superdev/scopes/<scope>/worktree` exists. That directory is the scope checkout, from a `lite` run. Run
   every git command that writes to the scope branch with it as the current directory.
 - No such directory exists. The invoking checkout holds the branch, because a `full` run left it switched
-  to `superdev/<scope>`. Confirm this with `git rev-parse --abbrev-ref HEAD`. A different branch means the
+  to `<type>/<scope>`. Confirm this with `git rev-parse --abbrev-ref HEAD`. A different branch means the
   checkout is wrong. Say so and stop. When the ledger's `**Stage:**` line reads `shipped`, say instead
   that `/superdev:ship`'s §6 returned this checkout to base by design, and that `git switch
-  superdev/<scope>` restores it before a writing command re-runs. On a read-only command, review
+  <type>/<scope>` restores it before a writing command re-runs. On a read-only command, review
   read-only instead.
 
 ## The run lock

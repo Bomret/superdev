@@ -242,7 +242,16 @@ const STORE_MECHANISMS = [
   // case-insensitive and unbackticked because the selection step is meant to name no epic at all —
   // backticks are typography, and "the epic issue" in plain prose is the same mechanism.
   [/\bepic\b/i, 'an epic — the `epic` label, or the local store\'s `00-epic-` filename'],
-  [/feat\//, 'the `feat/` label prefix'],
+  // Any change type, not `feat` alone: a feature label leads with the type of its own work
+  // (`references/scope-mode.md`), so pinning one type would let the selection step name `fix/` unnoticed.
+  // The lookahead is what separates a prefix from a path: a prefix is named as a prefix — `feat/<slug>`,
+  // `` `docs/` `` — and stops at the slash, while `docs/agents/issue-tracker.md` and `docs/plans` carry a
+  // path segment after it. This step is *supposed* to point at the first of those, so a bare type-plus-
+  // slash rule would flag the very sentence the check exists to require.
+  [
+    /\b(feat|fix|refactor|docs|perf|test|build|ci|chore|style|revert)\/(?=[<`\s.,)]|$)/m,
+    'a change-type label prefix',
+  ],
   [/sub-issue|sub_issue/, "GitHub's sub-issue relation"],
   [/Epic Link|fields\.parent/, "Jira's parent field"],
 ];
@@ -574,6 +583,24 @@ const SCOPE_SLUG_CONTRACTS = [
 ];
 
 
+// A scope branch is `<type>/<scope>`, and `hooks/scope-prune.js` reads that type back off a merged branch
+// to decide whether a run root may be deleted. The type set the prose lists and the set the hook matches
+// are one fact in two syntaxes. A hook set narrower than the prose leaves a run root behind forever on
+// the missing type — silent, because nothing reports a prune that never ran. A hook set wider than the
+// prose prunes a live run's ledger off a branch superdev never cut.
+const CHANGE_TYPE_CONTRACTS = [
+  [
+    path.join('references', 'scope-mode.md'),
+    /`feat`, `fix`, `refactor`, `docs`, `perf`, `test`, `build`, `ci`, `chore`,\s*`style`, `revert`/,
+    'list the change types as `feat`, `fix`, `refactor`, `docs`, `perf`, `test`, `build`, `ci`, `chore`, `style`, `revert` — the set `hooks/scope-prune.js` matches',
+  ],
+  [
+    path.join('hooks', 'scope-prune.js'),
+    /\^\(feat\|fix\|refactor\|docs\|perf\|test\|build\|ci\|chore\|style\|revert\)\$/,
+    'keep matching the change type with `^(feat|fix|refactor|docs|perf|test|build|ci|chore|style|revert)$` — the set `references/scope-mode.md` lists',
+  ],
+];
+
 // `/superdev:implement` takes the feature label that names which planned feature to build, and derives
 // the run's scope from it. Two documents carry that contract between them: implement.md declares the
 // argument and resolves it, and plan.md hands off with the label resolved. A document that drops its half
@@ -582,8 +609,9 @@ const SCOPE_SLUG_CONTRACTS = [
 // rather than trusted.
 //
 // What is asserted is the contract, never the label's shape (ADR 0019). The shape belongs to the active
-// `docs/agents/issue-tracker.md`: `feat/<slug>` on the issue-tracker seeds, a bare `docs/plans/<slug>/`
-// directory name on the local-file store. A pattern pinning `feat/` is red for a store that is perfectly
+// `docs/agents/issue-tracker.md`: a `<type>/<slug>` label on the issue-tracker seeds, a
+// `docs/plans/<type>/<slug>/` directory on the local-file store. A pattern pinning one notation is red for
+// a store that is perfectly
 // well configured. The cost is real and accepted: a typo inside the prefix a given store does use passes
 // here. The half whose loss actually costs a run — a caller with no way to name its target — is the half
 // that stays pinned.
@@ -761,6 +789,7 @@ function main() {
     ...scanContract(root, UNATTENDED_CONTRACTS, { stripFrontmatterFirst: true }),
     ...scanAfkInvocations(root),
     ...scanContract(root, SCOPE_SLUG_CONTRACTS),
+    ...scanContract(root, CHANGE_TYPE_CONTRACTS),
     ...scanContract(root, DEGRADED_CONTRACTS, { stripFrontmatterFirst: true }),
   ];
   // Every scanner above skips a document it cannot read, so that a fixture carries only the files it
@@ -791,7 +820,8 @@ function main() {
       'drift-check ok: references resolve, run-root paths are absolute, assignee and anchor contracts ' +
         'carried, ' +
         'writing standard offered, content-type lens wired, stage line named, commands resolve, ' +
-        'chain hands off, scope-slug charset matches the run-lock hook, feature-label argument and ' +
+        'chain hands off, scope-slug charset matches the run-lock hook, change-type set matches the ' +
+        'scope-prune hook, feature-label argument and ' +
         'unattended token and degrade record carried, eval graders and scaffolds well-formed',
     );
     process.exit(0);
@@ -1711,9 +1741,9 @@ if (process.argv[2] === '--selftest') {
   const fa6 = fixture({ 'commands/plan.md': handsOffLabel });
   assert.equal(scanContract(fa6, FEATURE_ARG_CONTRACTS).length, 0, 'an absent document is skipped');
 
-  // a store whose feature label carries no prefix satisfies the contract exactly as a prefixed one does.
-  // The label's shape belongs to the active slice-store document (ADR 0019), so pinning `feat/` here
-  // would go red for the local-file store, whose label is a bare `docs/plans/<slug>/` directory name.
+  // a store whose feature label uses another notation satisfies the contract exactly as a slash-prefixed
+  // one does. The label's shape belongs to the active slice-store document (ADR 0019), so pinning one
+  // notation here would go red for a store that is perfectly well configured.
   const fa7 = fixture({
     'commands/implement.md':
       '---\nargument-hint: "[<feature-label>  (empty = the only plan in the store)]"\n---\n' +
@@ -2005,6 +2035,31 @@ if (process.argv[2] === '--selftest') {
     0,
     'absent files are skipped',
   );
+
+  // --- CHANGE_TYPE_CONTRACTS: the change-type set the prose lists and the set the scope-prune hook
+  // matches are the same fact in two syntaxes, in two files. ---
+
+  assert.equal(
+    scanContract(realRoot, CHANGE_TYPE_CONTRACTS).length,
+    0,
+    'the shipped scope-mode.md type list and scope-prune.js regex agree',
+  );
+
+  // positive from each side: dropping a type from either list alone is drift, and a run root left behind
+  // for a type the hook stopped recognising is silent — no prune ever reports the one it skipped
+  const type1 = fixture({
+    'references/scope-mode.md': 'one of `feat`, `fix`, `refactor`, `docs`, `perf`, `test`.\n',
+  });
+  const typeGaps1 = scanContract(type1, CHANGE_TYPE_CONTRACTS);
+  assert.equal(typeGaps1.length, 1, 'flags a prose list the hook no longer matches');
+  assert.equal(typeGaps1[0].source, path.join('references', 'scope-mode.md'), 'names scope-mode.md');
+
+  const type2 = fixture({
+    'hooks/scope-prune.js': 'const CHANGE_TYPES = /^(feat|fix)$/;\n',
+  });
+  const typeGaps2 = scanContract(type2, CHANGE_TYPE_CONTRACTS);
+  assert.equal(typeGaps2.length, 1, 'flags the hook narrowing away from the stated set');
+  assert.equal(typeGaps2[0].source, path.join('hooks', 'scope-prune.js'), 'names scope-prune.js');
 
   console.log('drift-check selftest ok');
 } else {

@@ -2,7 +2,7 @@
 
 ## Core concepts
 
-**Epic** — the slice-store container for a multi-slice feature: a single issue (or `docs/plans/<feature-slug>/00-epic-*.md`) that groups all the feature's slices and holds the source text for the global DoD. Optional — a single-slice feature has no epic; that slice's `acceptance` becomes the DoD directly.
+**Epic** — the slice-store container for a multi-slice feature: a single issue (or `docs/plans/<type>/<feature-slug>/00-epic-*.md`) that groups all the feature's slices and holds the source text for the global DoD. Optional — a single-slice feature has no epic; that slice's `acceptance` becomes the DoD directly.
 _Avoid: "feature issue", "parent issue", "the DoD" (the epic holds/sources the DoD's text; `.superdev/scopes/<scope>/dod.md` is the concrete DoD itself)_
 
 **Slice** — a vertical tracer bullet: a narrow but complete path through every layer (specification → implementation → test), independently green, demoable/verifiable on its own. Each slice carries test-applicability (behavior/mechanical/docs), a specification, acceptance criteria, and explicit dependencies on other slices.
@@ -166,8 +166,11 @@ _Avoid: "issue tracker" as the concept name (that's one backend), "database"_
 **Assignee** — the slice-store account every issue a run creates is assigned to: a single store-native identifier (a login for Forgejo/GitHub, an `accountId` for Jira) recorded in `docs/agents/issue-tracker.md`, resolving to the API token's own identity when unconfigured and disabled by `none`. Store configuration rather than a slice field, applied at creation to the epic and every slice (ADR 0010).
 _Avoid: "owner" (too generic), "creator"/"reporter" (the store already records who filed the issue — assignee is who owns it), "reviewer" (a pull-request role, owned by the code host)_
 
-**Feature label** — the one slice-store identifier a feature's scope anchor and every one of its slices carry, in the shape the active `docs/agents/issue-tracker.md` states (a `feat/<slug>` label on an issue-backed store, the bare slug of a `docs/plans/<slug>/` directory on the local-file store). It names the feature to `/superdev:implement`, and its slug is the scope, so one value fixes which feature gets built and which branch and run root the build uses (ADR 0019).
+**Feature label** — the one slice-store identifier a feature's scope anchor and every one of its slices carry: its **change type** and its slug, in the notation the active `docs/agents/issue-tracker.md` states (a `<type>/<slug>` label on an issue-backed store, the `<type>/<slug>` path under `docs/plans/` on the local-file store). It names the feature to `/superdev:implement`, and it is the scope branch verbatim, so one value fixes which feature gets built and which branch and run root the build uses (ADR 0019, ADR 0021).
 _Avoid: "epic label" (`epic` is a different label on one backend, marking which issue is the anchor), "tag", "component"_
+
+**Change type** — the Conventional Commits type of what a feature does to the codebase: `feat`, `fix`, `refactor`, `docs`, `perf`, `test`, `build`, `ci`, `chore`, `style`, or `revert`. `/superdev:plan` picks it, it leads the **Feature label**, and it is the scope branch's first segment (`<type>/<scope>`), so the branch and the pull request report the same kind of work the commits do. `references/scope-mode.md` owns the set; `hooks/scope-prune.js` matches it to recognise a merged scope branch.
+_Avoid: "commit type" (it labels the feature, not one commit), "category", "kind"_
 
 **Status map** — the agreed mapping from superdev's canonical slice lifecycle (`todo` → `in-progress` → `in-review` → `merged`/done, plus `blocked`) to an issue tracker's real statuses/transitions. Captured by `/setup` for issue-backed slice stores, recorded in `issue-tracker.md`, walked by `/implement` at each lifecycle point.
 _Avoid: "status mapping", "workflow" (too generic)_

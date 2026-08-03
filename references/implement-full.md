@@ -10,11 +10,12 @@ Honor the controller's **Invariants** and **Issue status** map throughout. Retur
 
 - **Base committed + pushed** per the controller's Phase 0 (design docs on base, base pushed) — do it
   before cutting anything here.
-- **Scope branch off base:** `git switch -c superdev/<scope> <base>` in the invoking checkout (`<scope>`
-  chosen in Phase 0; base from `code-management.md`, default `main`). You merge into this checkout later.
+- **Scope branch off base:** `git switch -c <type>/<scope> <base>` in the invoking checkout (`<type>` and
+  `<scope>` chosen in Phase 0; base from `code-management.md`, default `main`). You merge into this
+  checkout later.
   Then move the **scope anchor** issue → `in-progress` (per `issue-tracker.md`; best-effort).
 - **Per slice**, a branch off scope in its own **worktree** under this run's root:
-  `git worktree add .superdev/scopes/<scope>/worktrees/<id> -b slice/<scope>/<id> superdev/<scope>`. The slice
+  `git worktree add .superdev/scopes/<scope>/worktrees/<id> -b slice/<scope>/<id> <type>/<scope>`. The slice
   branch is **scoped** (`slice/<scope>/<id>`) so parallel runs never collide even when slice ids repeat.
   Filesystem isolation lets independent slices run in parallel without clobbering each other;
   `.superdev/` being git-ignored keeps the nested worktrees out of the parent's status.
@@ -114,7 +115,7 @@ re-enter the DAG loop at step 1.
 - **Reconcile before dispatching.** Read `<run-root>/ledger.md` and
   `<run-root>/interfaces.md` (the cross-slice interface record — your pre-compaction
   context is gone; this file is what survives), cross-check the ledger against
-  `git log <base>..superdev/<scope>` (merge commits name the slice branch) and the store's slice statuses.
+  `git log <base>..<type>/<scope>` (merge commits name the slice branch) and the store's slice statuses.
   A slice the ledger — or the merge log — marks `merged` is done: **never re-dispatch it**, no matter what
   a stale in-progress worktree suggests.
 - **Reconcile leftover worktrees.** For each `.superdev/scopes/<scope>/worktrees/<id>` still present, check its
@@ -128,7 +129,7 @@ re-enter the DAG loop at step 1.
 Per-slice worktrees are already removed at merge (DAG step 4). Anything left — a stray
 `.superdev/scopes/<scope>/worktrees/*`, a leftover `slice/<scope>/*` branch, the run root, the lock — stays
 for `/superdev:ship`, which takes the run down at the end of the chain. The invoking checkout keeps
-`superdev/<scope>` checked out: that is the scope checkout `/superdev:review` and `/superdev:document` work
+`<type>/<scope>` checked out: that is the scope checkout `/superdev:review` and `/superdev:document` work
 in on this tier. Return to the controller's **Final phase** without cleaning up.
 
 ## Red flags

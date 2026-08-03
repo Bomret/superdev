@@ -44,7 +44,7 @@ choice: never present the choices bare. Using `AskUserQuestion`? Mark the propos
 
 **A — Slice store.** Where do slices/plans live?
 
-- **Local files** — a directory per feature, `docs/plans/<feature-slug>/` (`00-epic-*` = DoD + scope,
+- **Local files** — a directory per feature, `docs/plans/<type>/<feature-slug>/` (`00-epic-*` = DoD + scope,
   `NN-<test-applicability>-*` = one file per slice, the number is the id). Great for solo work or no
   remote. Seed: `references/issue-tracker-local.md`.
 - **GitHub Issues** — slices as GitHub issues. Seed: `references/issue-tracker-github.md`. Ask for

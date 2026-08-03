@@ -10,6 +10,9 @@ user has it installed); the user records which below.
 - **Auth**: API token in env var `<JIRA_API_TOKEN>`, user email in `<JIRA_EMAIL>`. Record the env-var
   NAMES here, never the secret values.
 - **Issue type for a slice**: `<Story|Task>`
+- **Feature label**: one label per feature/scope, `<type>/<slug>` (e.g. `fix/<slug>`), on the root and its
+  slices. `<type>` is the **change type** — the Conventional Commits type of the work, per
+  `references/scope-mode.md` — and the label doubles as the scope branch name.
 - **`depends-on` link type**: `<is blocked by>` (Jira's "Blocks"/"is blocked by" link).
 - **Ready status/label**: `<ready-for-agent>` — marks a slice an agent may pick up.
 - **Assignee**: `<accountId>` — the account every issue a run creates is assigned to (see *Assignee*
@@ -64,7 +67,8 @@ Epic Link either (ADR 0017).
 - **Recognise one.** A root has no parent: treat an absent `fields.parent` key and a `null` value alike.
   Jira models the Epic relation as parent and child, so a slice always carries one and a root never does.
 - **List the candidates.** The feature labels themselves: `GET <base>/rest/api/3/label` (paginated
-  `values` array of every label used in the instance), keeping the values that start with `feat/`. Per
+  `values` array of every label used in the instance), keeping the values whose first segment is a change
+  type (`references/scope-mode.md` lists them). Per
   feature label: the **List feature slices** call above, whose `fields` already carry `parent`, `labels`
   and `issuetype` — the three this section's other elements read. JQL's `parent` field supports only `=`,
   `!=`, `IN` and `NOT IN`, not `IS`/`IS NOT`, so no query can filter on a missing parent server-side. The

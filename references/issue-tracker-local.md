@@ -5,15 +5,19 @@ scope, one per slice — in the format defined by the superdev plan-contract.
 
 ## Layout
 
-`docs/plans/<feature-slug>/` — one directory per feature:
+`docs/plans/<type>/<feature-slug>/` — one directory per feature, under the feature's change type:
 
 ```
-docs/plans/<feature-slug>/
+docs/plans/<type>/<feature-slug>/
   00-epic-<summary>.md                    epic file: global Definition of Done + feature description
   01-<test-applicability>-<summary>.md    first slice   (id 01)
   02-<test-applicability>-<summary>.md    next slice    (id 02)
   ...
 ```
+
+- **`<type>`** is the **change type** — the Conventional Commits type of the work, per
+  `references/scope-mode.md`. The path under `docs/plans/` **is** this store's feature label
+  (`<type>/<feature-slug>`), and that label doubles as the scope branch name.
 
 - **`00-epic-…`** is the **epic file**: it holds the global Definition of Done plus a short description
   of the feature. It is not a slice. **A single-slice feature has no `00-epic-…` file** — the lone
@@ -88,11 +92,11 @@ A feature's scope anchor is its root (`plan-contract.md` → *Scope anchor*), an
 the filename. On a multi-slice feature it is `00-epic-<summary>.md`; on a single-slice feature there is no
 epic file, so the lone `NN-<test-applicability>-<summary>.md` is the anchor (ADR 0017).
 
-- **Recognise one.** In `docs/plans/<feature-slug>/`, the anchor is `00-epic-*.md` when that file exists,
+- **Recognise one.** In `docs/plans/<type>/<feature-slug>/`, the anchor is `00-epic-*.md` when that file exists,
   and otherwise the single `NN-*.md` file.
-- **List the candidates.** Each directory under `docs/plans/` is one feature, so its anchor is one
-  candidate.
-- **List the slices beneath it.** Every *other* `NN-*.md` file in the same `docs/plans/<feature-slug>/`
+- **List the candidates.** Each directory two levels under `docs/plans/` (`docs/plans/*/*/`) is one
+  feature, so its anchor is one candidate. The first level is the change type, never a feature.
+- **List the slices beneath it.** Every *other* `NN-*.md` file in the same `docs/plans/<type>/<feature-slug>/`
   directory as the anchor is a slice beneath it (multi-slice); a single-slice feature's anchor is the lone
   `NN-*.md` file, so it has none beneath it.
 - **Tell an anchor that is itself a slice.** Its filename begins with a number from `01` up and carries a
@@ -105,7 +109,7 @@ epic file, so the lone `NN-<test-applicability>-<summary>.md` is the anchor (ADR
 
 ## When `/superdev:plan` says "write slices to the store"
 
-Create `docs/plans/<feature-slug>/`. **≥2 slices** — write `00-epic-<summary>.md` (the global DoD +
+Create `docs/plans/<type>/<feature-slug>/`. **≥2 slices** — write `00-epic-<summary>.md` (the global DoD +
 description, plus whichever optional sections earn their place — `## Parked questions`, `## Non-goals`,
 `## Slice graph`, `## Touch map`, per the rules above and `plan-contract.md`), then one
 `NN-<test-applicability>-<summary>.md` per slice with `depends-on`, `status: todo`, `spec`, `acceptance`.
@@ -114,7 +118,7 @@ global DoD into its `acceptance` (no epic-only sections on a single-slice plan �
 
 ## When `/superdev:implement` says "load slices from the store"
 
-Read every `NN-…md` in `docs/plans/<feature-slug>/`. **`00-epic-…` present** — take the global DoD from
+Read every `NN-…md` in `docs/plans/<type>/<feature-slug>/`. **`00-epic-…` present** — take the global DoD from
 it. **No `00-epic-…`** (a single-slice feature) — the global DoD is the lone slice's own `acceptance`.
 Parse each slice file into `id` (its file number), `depends-on`, `test-applicability`, `spec`,
 `acceptance`.

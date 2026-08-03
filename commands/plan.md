@@ -170,6 +170,13 @@ override it in a word. Don't let the drawing shape the decomposition: the slices
 plan is never re-cut to make a nicer diagram — but a genuine dependency error the drawing exposes (§5) is
 worth fixing before writing it; that's correction, not re-cutting for looks.
 
+**Pick the feature label before you write anything.** It is the feature's **change type** plus its slug,
+in the notation `docs/agents/issue-tracker.md` states (`${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md`
+→ *Feature label*). The type is what the feature does to the codebase, not what it feels like: a defect
+this plan repairs is `fix`, a restructuring that keeps behaviour is `refactor`, a prose-only pass is
+`docs`, and `feat` is for new behaviour. It becomes the scope branch, so a mislabelled plan ships a branch
+and a pull request that misreport the work. State it to the user with the slice list.
+
 **Write with max parallelism (issue-backend stores).** Writes have a strict ordering only where one
 record references another — otherwise issue them concurrently, don't serialize. Order: **(1)** create the
 epic first (slices reference its key), carrying the store's configured assignee like every slice does;

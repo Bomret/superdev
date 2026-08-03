@@ -227,10 +227,11 @@ This root owns every subtree directly:
 - `scripts/`. Standalone deterministic checks that `package.json` runs, and the other executable code
   alongside `hooks/`. It follows the same `--selftest` convention. The reference, run-root, assignee,
   anchor-contract, afk-selection-neutrality, writing-standard, content-types, stage, command-resolution,
-  chain-handoff, feature-label-argument, unattended-token, afk-invocation, scope-slug, and degraded-pass
+  chain-handoff, feature-label-argument, unattended-token, afk-invocation, scope-slug, change-type, and
+  degraded-pass
   checks are drift assertions. They compare a restated fact against its source. The eval-shape check
   compares a document against a schema. The afk-existence check is a plain existence assertion.
-  `drift-check.js` guards seventeen things, in the order its `main()` computes them. First, that every
+  `drift-check.js` guards eighteen things, in the order its `main()` computes them. First, that every
   `references/*.md` path named in `commands/`, `agents/`, or `references/` itself resolves to a file that
   exists. A reference cites
   another reference — both execution playbooks point at `scope-mode.md` — so a rename there dangles like
@@ -249,7 +250,9 @@ This root owns every subtree directly:
   that merely lists the four concepts satisfies none of them. Fifth, that `commands/afk.md`'s selection
   step (§2) names no backend's own
   anchor mechanism — an epic (the `epic` label, matched case-insensitively whether backticked or not,
-  which also covers the local store's `00-epic-` filename), a `feat/` prefix, a GitHub sub-issue relation,
+  which also covers the local store's `00-epic-` filename), a change-type label prefix (any of them, and
+  only where the prefix is named as a prefix — `docs/agents/…` is a path this step is meant to point at),
+  a GitHub sub-issue relation,
   a Jira parent field — and instead points at the store's `## Scope anchor` contract. A step that
   stayed neutral by naming nothing at all still fails this. Naming no mechanism is only half the property.
   `scanAnchorContract()` and `scanAfkSelectionNeutrality()` share one
@@ -266,7 +269,7 @@ This root owns every subtree directly:
   `commands/implement.md`, `commands/review.md`, and `commands/document.md` each name their successor in
   the chain. `commands/ship.md` ends the chain and is deliberately outside that check.
 
-  The eleventh, twelfth, fourteenth, and fifteenth checks share one scanner, `scanContract()`, run over
+  The eleventh, twelfth, fourteenth, fifteenth, and sixteenth checks share one scanner, `scanContract()`, run over
   a table of `[document, pattern, expectation]` rows instead of one function each. It reads every
   document a table names and reports the rows whose pattern that document no longer matches. Eleventh, the
   feature-label-argument contract: `commands/implement.md` declares an `argument-hint` naming a feature
@@ -281,14 +284,17 @@ This root owns every subtree directly:
   carries `--unattended` on every one of those rows. `scanAfkInvocations()` checks this row by row: a
   whole-file regex would pass the moment any one row carried the token, letting a sibling row lose it
   unnoticed. Fourteenth, the scope-slug contract: `references/scope-mode.md`'s prose rule and
-  `hooks/run-lock.js`'s extraction regex state the same charset. Fifteenth, the degraded-pass contract:
+  `hooks/run-lock.js`'s extraction regex state the same charset. Fifteenth, the change-type contract:
+  `references/scope-mode.md`'s type list and `hooks/scope-prune.js`'s `CHANGE_TYPES` regex state the same
+  set (ADR 0021). A hook narrower than the prose leaves a shipped run's root behind forever on the missing
+  type, and reports nothing — a prune that never runs is silent. Sixteenth, the degraded-pass contract:
   `references/scope-mode.md` carries the `## Degraded passes` section, and `commands/implement.md`,
   `commands/review.md`, `commands/document.md`, `commands/ship.md`, `commands/status.md`,
   `references/implement-full.md`, and `references/implement-lite.md` each name the `**Degraded:**`
   ledger entry and point at that section. A consumer that drops the wire lets a run report assurance it
-  never got — a pull request claiming a review that was its author reading their own work. Sixteenth,
+  never got — a pull request claiming a review that was its author reading their own work. Seventeenth,
   that `commands/afk.md` exists at all. Nothing else in the plugin names `/superdev:afk` for the ninth
-  check to resolve, so its absence would otherwise go unnoticed. Seventeenth, that every
+  check to resolve, so its absence would otherwise go unnoticed. Eighteenth, that every
   `evals/*/graders/*.md` declares a known `type` and a positive `weight`, that an `llm` or `regex`
   grader also declares a `focus` or `target`, and that every case's `scaffold_script` resolves. Nothing
   else validates a grader, so without this a typo surfaces part-way through a run that costs real API
@@ -307,7 +313,9 @@ This root owns every subtree directly:
     epic-visuals gate for `## Slice graph` and `## Touch map`, and the `## Scope anchor` section — the
     generic contract (a feature's root; a single-slice plan's anchor is its own lone slice) that each
     store document (`issue-tracker-*.md`, `docs/agents/issue-tracker.md`) specialises for its own backend
-    (ADR 0017).
+    (ADR 0017). Its `## Feature label` section is the same shape one level over: the generic contract (a
+    change type plus a slug, picked by `/plan`) that each store document renders in its own notation
+    (ADR 0019, ADR 0021).
   + `documentation.md`: the in-repo documentation convention, including the `## Writing standard`
     section that `/superdev:setup` fills in.
   + `controlled-prose.md`: the **writing standard**. A language-neutral rule set that merges the
@@ -327,9 +335,13 @@ This root owns every subtree directly:
     specific to it. Its `## Unattended` section defines the `--unattended` token (ADR 0016). It is the
     argument that lets `/superdev:afk` drive a command with no standing answer written at a stop
     blocking instead of asking. `/superdev:implement` and both execution playbooks read that section
-    too. Its `## The scope slug` rule states the charset a feature label, or any other external source,
-    must match. The check runs before that label becomes a branch name or a run-root path segment.
-    `/superdev:implement` and `/superdev:afk` both read it. Its `## Degraded passes` section (ADR 0018)
+    too. Its `## The scope slug` rule states the charset a feature label's slug, or any other external
+    source, must match. The check runs before that slug becomes a branch segment or a run-root path
+    segment.
+    `/superdev:implement` and `/superdev:afk` both read it. Its `## The change type` section owns the
+    Conventional Commits type set a scope branch leads with (`<type>/<slug>`, the feature label verbatim)
+    and names `/plan` as the command that picks one (ADR 0021). `hooks/scope-prune.js` matches that set to
+    recognise a merged scope branch. Its `## Degraded passes` section (ADR 0018)
     defines the pass a run did not get — a dispatch the permission classifier denied, or one that could
     not reach what it needed — what a command does about one attended and unattended, and the
     `**Degraded:**` ledger entry that carries it to `/superdev:ship`'s pull-request body and

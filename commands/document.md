@@ -24,7 +24,7 @@ Bring the docs and the knowledge base into agreement with reality. Dispatches th
 From `$ARGUMENTS`:
 
 - **A git range** (`BASE..HEAD`) or an **area path** → a focused reconcile of what changed there.
-  (`/superdev:review` hands on `merge-base(base, superdev/<scope>)..superdev/<scope>`.) A range or area
+  (`/superdev:review` hands on `merge-base(base, <type>/<scope>)..<type>/<scope>`.) A range or area
   **never** bootstraps (§7) — so the chain's doc pass, which always passes a range, can't.
 - **Empty** → a **full reconcile**: all in-repo docs (README + the whole `AGENTS.md` tree) + the KB
   against current repo state. **Exception:** if the convention is the `AGENTS.md` hierarchy and the root

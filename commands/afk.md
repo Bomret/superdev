@@ -53,7 +53,7 @@ An anchor is **eligible** when all of these hold:
   not blocked — it is not that feature's fault, and pathing `.superdev/scopes/<slug>/…` off unvalidated
   input is exactly the mistake that rule exists to catch.
 - Its scope has **no live run**. Check `.superdev/scopes/<slug>/run.lock` (`<slug>` is its feature label
-  minus the prefix the store doc names): newer than an hour means another session owns that scope. A run
+  minus the change-type prefix that rule names): newer than an hour means another session owns that scope. A run
   lock only ever exists for a `lite`-tier scope
   (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`) — a plan with more than 3 slices runs
   `full` and never gets one, so **no lock present is not by itself eligibility**: fall back to
@@ -105,16 +105,17 @@ Read `<run-root>/ledger.md` for the scope (`.superdev/scopes/<slug>/`) and start
 | Stage | Start at |
 |---|---|
 | no run root, or `implementing` | `/superdev:implement <feature-label> --unattended` |
-| `merged` | `/superdev:review <BASE>..superdev/<slug> --unattended` |
-| `reviewed` | `/superdev:document <BASE>..superdev/<slug> --unattended` |
-| `documented-unreviewed` | `/superdev:review <BASE>..superdev/<slug> --unattended` |
+| `merged` | `/superdev:review <BASE>..<feature-label> --unattended` |
+| `reviewed` | `/superdev:document <BASE>..<feature-label> --unattended` |
+| `documented-unreviewed` | `/superdev:review <BASE>..<feature-label> --unattended` |
 | `documented` | `/superdev:ship <slug> --unattended` |
 
-Then run each remaining step in order. `BASE` is `git merge-base <base> superdev/<slug>`, with the base
+Then run each remaining step in order. `BASE` is `git merge-base <base> <feature-label>`, with the base
 branch from `docs/agents/code-management.md`.
 
 `<feature-label>` is the anchor's own label, in the shape `docs/agents/issue-tracker.md` states — a
-prefixed label on one store, a bare slug on another (ADR 0019). Pass what the store gave you and add no
+change type in front of a slug, in whatever notation that store writes it (ADR 0019, ADR 0021). It is
+also the scope branch, which is why the ranges above read off it. Pass what the store gave you and add no
 prefix of your own: a label this command invented is one `/superdev:implement` cannot resolve, and that
 stop is an error rather than a question, which §4 turns into a block.
 
@@ -139,7 +140,7 @@ labelling and the comment). Then:
   in the one invoking checkout there is (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
   scope-checkout rule), and the next eligible
   feature's chain switches that checkout to its own branch, so "leave it standing" alone no longer tells a
-  maintainer where to look. **Record `superdev/<slug>` in the block comment** (append it to what the
+  maintainer where to look. **Record `<feature-label>` in the block comment** (append it to what the
   invoked command already wrote, or — for the error-stop case below — include it in the comment you write
   yourself) and **name it in §6's report row**, so resuming by hand is one `git checkout` away.
 - **Add one to the consecutive-block count**, and go back to §2 for the next anchor.
@@ -178,7 +179,7 @@ Print one table, and nothing else:
 ```
 anchor         outcome    where
 #128 afk       shipped    <pull-request URL>
-#134 metrics   blocked    slice #137 — merge conflict on integration (superdev/metrics)
+#134 metrics   blocked    slice #137 — merge conflict on integration (fix/metrics)
 reports        skipped    2 roots, no single anchor — needs a human
 Cache_Sweep!   skipped    label fails the scope-slug rule — rename it
 #163 exports   skipped    never decomposed — run /superdev:plan

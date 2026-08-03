@@ -147,6 +147,19 @@ section rather than assuming any one store's shape — how to recognise one, lis
 slices beneath one, and tell that an anchor is itself a slice are backend mechanism, and belong there, not
 here.
 
+## Feature label
+
+A feature's **feature label** is the one identifier its scope anchor and every slice beneath it carry. It
+holds two parts: the feature's **change type** and its slug. The type is the Conventional Commits type of
+the work — `scope-mode.md`'s `## The change type` lists the set and owns the rule. `/plan` picks it from
+what the feature actually does, so a bug fix is labelled `fix`, a documentation pass `docs`, and only new
+behaviour `feat`.
+
+The notation is the active `docs/agents/issue-tracker.md`'s (ADR 0019, ADR 0021): a `<type>/<slug>` label
+on an issue-backed store, the `<type>/<slug>` path under `docs/plans/` on the local-file store. Whatever
+the notation, `/superdev:implement` reads the two parts back out — the type is the scope branch's prefix
+and the slug is the scope.
+
 ## Vertical-slice rules (how `/plan` must slice)
 
 - Each slice is a **tracer bullet**: a narrow but COMPLETE path through every layer (schema → API → UI

@@ -143,7 +143,7 @@ above stay read-only.
 Only when §1 found a live run. Everything above still applies; this adds the run's own steps.
 
 - **Find the scope checkout, and refresh the run lock.** Per
-  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`. **Not on `superdev/<scope>`** → report that and review
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`. **Not on `<type>/<scope>`** → report that and review
   read-only rather than writing to the wrong branch.
 - **Ask once before fixing.** `final-reviewer` returned **Critical or Important** findings → report them
   per §3 first, then ask whether to fix them now. **Declined** → stop. The findings stand, nothing is
@@ -172,7 +172,7 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   arrived after the doc pass, so the docs are stale by exactly them, and `reviewed` is what makes
   `/superdev:ship` ask for the doc pass again. `documented` or `shipped` → leave the line alone and
   say so in one line. The run has already moved past this gate. Anything else → write `reviewed`. Then
-  print the next command with the range already resolved — `/superdev:document <BASE>..superdev/<scope>`,
+  print the next command with the range already resolved — `/superdev:document <BASE>..<type>/<scope>`,
   the same range you just reviewed — and say in one line what it will do (reconcile the in-repo docs and
   the knowledge base with the merged state).
 - **Never merge, push, or open a pull request.** `/superdev:ship` ends the chain.

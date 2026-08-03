@@ -8,8 +8,10 @@ Slices live as Codeberg issues — one slice = one issue — in `bomret/superdev
 - **Host / owner / repo:** `https://codeberg.org` · `bomret` / `superdev`.
 - **Auth:** API token in env var `GITEA_TOKEN` (record the name, never the value). Header:
   `Authorization: token $GITEA_TOKEN`, `Content-Type: application/json`.
-- **Feature label:** one label per feature/scope (e.g. `feat/self-improvements`) applied to the epic +
-  its slices, so the feature's issues are listable.
+- **Feature label:** one label per feature/scope, `<type>/<slug>` (e.g. `fix/chain-followups`), applied to
+  the epic + its slices, so the feature's issues are listable. `<type>` is the **change type** — the
+  Conventional Commits type of the work, per `references/scope-mode.md` — and the label doubles as the
+  scope branch name.
 - **Assignee:** `bomret` — the Codeberg login every issue a run creates is assigned to (see
   *Assignee* below). Set to `none` to create issues unassigned; remove the line entirely to fall back to
   whoever `GITEA_TOKEN` belongs to.
@@ -51,7 +53,7 @@ Slices live as Codeberg issues — one slice = one issue — in `bomret/superdev
   independent, so `/plan` issues them concurrently.
 - **Record a dependency (`depends-on`):** append a `**Depends on:** #<blocker>` line to the issue body
   (the native `POST .../issues/<index>/dependencies` endpoint 404s — dependencies unit disabled).
-- **List feature slices:** `GET /api/v1/repos/bomret/superdev/issues?labels=feat/<feature>&state=all`.
+- **List feature slices:** `GET /api/v1/repos/bomret/superdev/issues?labels=<type>/<feature>&state=all`.
 - **Read a slice:** `GET /api/v1/repos/bomret/superdev/issues/<index>`.
 - **Set labels / status:** `POST .../issues/<index>/labels` (add) and
   `PATCH .../issues/<index>` with `{ "state": "closed" }` to close.
@@ -66,8 +68,9 @@ label, and on a single-slice feature it is the lone issue carrying that label (A
 - **Recognise one.** Among the issues carrying a feature label, the anchor is the one labelled `epic`. If
   none is, and exactly one issue carries the label, that issue is the anchor.
 - **List the candidates.** The feature labels themselves: `GET /api/v1/repos/bomret/superdev/labels`
-  (paginated), keeping the names that start with `feat/`. Per feature label:
-  `GET /api/v1/repos/bomret/superdev/issues?labels=feat%2F<feature>&state=open` (URL-encode the label's
+  (paginated), keeping the names whose first segment is a change type (`references/scope-mode.md` lists
+  them). Per feature label:
+  `GET /api/v1/repos/bomret/superdev/issues?labels=<type>%2F<feature>&state=open` (URL-encode the label's
   `/`), then apply the rule above to the result.
 - **List the slices beneath it.** Use the **List feature slices** call above (`state=all`), not the
   candidate listing: a merged slice is closed, and closing the epic is best-effort, so an anchor left open

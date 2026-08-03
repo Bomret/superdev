@@ -54,10 +54,10 @@ implementer's TDD discipline yourself. Between dispatches, narrate at most one s
   user run **`/superdev:setup`** to record the toolchain — non-blocking, then continue.
 - **Resolve `$ARGUMENTS` to one feature.** Take `--unattended` out first, wherever it sits — it is the
   token below, not a feature label. A **feature label** names which planned feature to build — the
-  feature's slice-store label per `docs/agents/issue-tracker.md`, minus its prefix (e.g. `feat/<label>` on
-  the issue-tracker seeds; the local-file store's `docs/plans/<feature-slug>/` directory names the slug
-  directly, with no prefix to strip). Its slug is this run's scope: `feat/lite-perf` gives scope
-  `lite-perf`, branch `superdev/lite-perf`, and run root `.superdev/scopes/lite-perf/`. One value
+  feature's slice-store label per `docs/agents/issue-tracker.md`, in that store's own shape. It carries a
+  **change type** and a slug (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The change type`):
+  the type is this run's branch prefix and the slug is this run's scope, so `fix/lite-perf` gives scope
+  `lite-perf`, branch `fix/lite-perf`, and run root `.superdev/scopes/lite-perf/`. One value
   therefore fixes the epic, the slices, the branch, and the run root together, and Phase 0 skips its
   scope-naming step.
   - **A label given** → load the anchor carrying it, per the store's `## Scope anchor` contract
@@ -111,11 +111,14 @@ implementer's TDD discipline yourself. Between dispatches, narrate at most one s
   against its upstream and push it by explicit refspec (`git push <remote> <base>`) if it's ahead — never
   by switching onto it — because the PR you open later diffs against the remote base, and an unpushed
   local commit there diverges into a stranded duplicate once the PR is squash-merged.
-- **Run root (per scope).** Fix this run's **scope** `<scope>` now — the slug from the feature label when
-  **Config + input** resolved one, and otherwise a short feature-slug you choose (e.g. `lite-perf`). The
-  **scope branch** is `superdev/<scope>` (created in your playbook's branch model). All
+- **Run root (per scope).** Fix this run's **scope** `<scope>` and its **change type** `<type>` now — both
+  read off the feature label when **Config + input** resolved one, and otherwise a short feature-slug you
+  choose (e.g. `lite-perf`) plus the Conventional Commits type of the work
+  (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The change type`). The
+  **scope branch** is `<type>/<scope>` — the feature label verbatim — created in your playbook's branch
+  model. All
   artifacts for this run live under a per-scope run root **`.superdev/scopes/<scope>/`** — keyed on the bare slug,
-  so it never doubles the branch's `superdev/` prefix into `.superdev/superdev/…` — **git-ignored**
+  so the type never becomes a second path segment — **git-ignored**
   (ensure `.superdev/` is in the repo's `.gitignore`; add it if absent). The run root
   (`dod.md`, `ledger.md`, `run.lock`) stays in the **invoking checkout** (the repo's main tree), never
   moves into a worktree; only the code checkout moves into a worktree. **Address it by absolute path.**
@@ -166,11 +169,11 @@ tiers: your job here is to record that slice execution finished and to name what
   `<run-root>/dod.md` unticked and the scope anchor at `in-progress`. `/superdev:review` and
   `/superdev:document` work in the scope checkout you leave behind, and `/superdev:ship` takes the run
   down. Removing any of it here breaks the rest of the chain.
-- **Print the next command, resolved.** Compute `BASE = git merge-base <base> superdev/<scope>` and print
+- **Print the next command, resolved.** Compute `BASE = git merge-base <base> <type>/<scope>` and print
   it with the real commit substituted, so the line is copy-pasteable:
-  `/superdev:review <BASE-sha>..superdev/<scope>`. Say in one line what it will do (review the integrated
+  `/superdev:review <BASE-sha>..<type>/<scope>`. Say in one line what it will do (review the integrated
   scope against the DoD) and stop. **All slices `mechanical`/`docs`** → add that such a scope skips the
-  whole-scope review by design (the suite is the net), so `/superdev:document <BASE-sha>..superdev/<scope>`
+  whole-scope review by design (the suite is the net), so `/superdev:document <BASE-sha>..<type>/<scope>`
   is the reasonable next step instead.
 - **Report** the scope branch, the slice count, and the commit range. Then stop: no review, no doc pass, no
   pull request, no DoD tick, no cleanup.

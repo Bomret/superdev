@@ -168,7 +168,7 @@ never hardcode a tool. Edit those files directly at any time. Re-run setup only 
   goes it walks each issue along the tracker's status workflow, mapped at setup: dispatch moves it to
   in-progress, review moves it to in-review, and a merge moves it to done. The **lite** tier has no
   per-slice review, so it skips straight from in-progress to done.
-  The choices are *local files* (a directory `docs/plans/<feature-slug>/` per feature, where `00-epic-*`
+  The choices are *local files* (a directory `docs/plans/<type>/<feature-slug>/` per feature, where `00-epic-*`
   holds the DoD and description and `NN-<test-applicability>-*` is one file per slice, with the number as
   the id, and which suits solo work or a repo with no tracker), *GitHub Issues* (each slice an issue and
   a sub-issue of its epic, with `depends-on` as a native `blocked_by` dependency), *Jira* (each slice an
@@ -208,7 +208,7 @@ changes.
 
 ```
 docs/agents/*.md          backend config — the six docs above (committed)
-docs/plans/<feature-slug>/  slices + Definition of Done (local store): 00-epic-* = DoD + description,
+docs/plans/<type>/<slug>/ slices + Definition of Done (local store): 00-epic-* = DoD + description,
                           NN-<test-applicability>-* = one file per slice (number = id)
 CONTEXT.md                glossary / ubiquitous language, authored by /plan
 docs/adr/NNNN-*.md        architecture decision records, authored by /plan
@@ -238,13 +238,15 @@ A tiny feature end to end, with the local-file slice store and GitHub as the cod
   store is local files and the code host is GitHub (`gh`). The documentation convention is the
   `AGENTS.md` hierarchy, verification is `npm test`, and there is no knowledge base.
 - **`/superdev:plan add a health-check endpoint`**. Interviews for the intent and a Definition of Done,
-  then writes `docs/plans/health-check/`. That holds `00-epic-*` (the DoD and description) plus two
+  then writes `docs/plans/feat/health-check/` — new behaviour, so the change type is `feat`. That holds
+  `00-epic-*` (the DoD and description) plus two
   slices, for example `01-behavior-route-handler.md` and `02-behavior-wire-into-router.md`, where the
   second `depends-on` the first. You see the slice list printed back, ready for `/implement`, along with
   the tier it will run under. Two slices is 3 or fewer, so the tier is **lite**.
-- **`/superdev:implement health-check`**. Sets up `.superdev/scopes/health-check/`, the git-ignored run
+- **`/superdev:implement feat/health-check`**. Sets up `.superdev/scopes/health-check/`, the git-ignored run
   scratch holding the concrete DoD and the ledger. Two slices selects the **lite** tier. The controller
-  cuts a single scope worktree at `.superdev/scopes/health-check/worktree/`, and never switches the
+  cuts a single scope worktree at `.superdev/scopes/health-check/worktree/` for the branch
+  `feat/health-check` — the feature label verbatim — and never switches the
   invoking checkout. It implements slice 01 test-first in that worktree and commits. Slice 02 then
   unblocks and follows the same loop. There are no per-slice worktrees and no reviewer subagents. Once
   both slices sit on the scope branch, the controller **stops** and prints the resolved
