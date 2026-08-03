@@ -1,3 +1,10 @@
+## [0.26.1](https://codeberg.org/bomret/superdev/compare/v0.26.0...v0.26.1) (2026-08-03)
+
+
+### Bug Fixes
+
+* **drift-check:** close the open review findings from feat/afk and feat/scope-anchor ([#161](https://codeberg.org/bomret/superdev/issues/161)) ([d96de2b](https://codeberg.org/bomret/superdev/commit/d96de2b775738417685c86ebabb82f219cfbd7c4)), closes [#128](https://codeberg.org/bomret/superdev/issues/128) [#139](https://codeberg.org/bomret/superdev/issues/139) [#143](https://codeberg.org/bomret/superdev/issues/143) [#144](https://codeberg.org/bomret/superdev/issues/144) [#134](https://codeberg.org/bomret/superdev/issues/134) [#136](https://codeberg.org/bomret/superdev/issues/136) [#145](https://codeberg.org/bomret/superdev/issues/145)
+
 # [0.26.0](https://codeberg.org/bomret/superdev/compare/v0.25.1...v0.26.0) (2026-08-02)
 
 
