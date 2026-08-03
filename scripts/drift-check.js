@@ -140,30 +140,61 @@ const EXTRA_ANCHOR_DOCS = ['docs/agents/issue-tracker.md']; // this repo's own d
 const ANCHOR_PATTERN = /^#{2,3}\s+Scope anchor\s*$/m;
 
 // The heading alone isn't the contract — a section that carries it but names none of its elements passes
-// today, which is how finding #4 shipped unnoticed. Each pattern matches the shared *concept* a store
-// document's bullet names, not a full sentence, so a backend-specific mechanism (a JQL clause, a
-// `/parent` call) stays free to vary without tripping this check.
+// today, which is how finding #4 shipped unnoticed. Each pattern is anchored on a bullet's bolded lead-in
+// rather than matched anywhere in the section: a pattern free to match anywhere is satisfied by intro
+// prose that merely lists the four concepts, which states none of them for this backend. Inside that
+// lead-in each pattern matches the shared *concept* the bullet names and not a full sentence, so a
+// backend-specific mechanism (a JQL clause, a `/parent` call) stays free to vary. Both spellings of every
+// concept are accepted: the repo's writing standard declares American English, so a document is not wrong
+// for writing `recognize`, `under`, or `also a slice`.
 const ANCHOR_ELEMENTS = [
-  [/recognis/i, 'how to recognise an anchor'],
-  [/candidate/i, 'how to list the candidates'],
-  [/beneath/i, 'how to list the slices beneath an anchor'],
-  [/itself a slice/i, 'how to tell an anchor that is itself a slice'],
+  [/^[-*] \*\*[^*]*recogni[sz]/im, 'how to recognise an anchor'],
+  [/^[-*] \*\*[^*]*candidate/im, 'how to list the candidates'],
+  [/^[-*] \*\*[^*]*\b(?:beneath|under)\b/im, 'how to list the slices beneath an anchor'],
+  [/^[-*] \*\*[^*]*\b(?:itself|also)\b a slice/im, 'how to tell an anchor that is itself a slice'],
 ];
+
+// maskFences(): the same text with every fenced code block blanked to spaces. Line lengths and newlines
+// are preserved, so every offset into the masked text is the same offset into the original. A `#` comment
+// inside a fence is not a heading, and a heading search that treats it as one ends a section early —
+// which reports a false RED for the elements below the fence, and a false GREEN for any store mechanism
+// hiding there. An unterminated fence masks to end of file: the safe direction, because a section that
+// runs long still carries its own content.
+function maskFences(text) {
+  let fence = null;
+  return text
+    .split('\n')
+    .map((line) => {
+      const marker = line.match(/^\s{0,3}(`{3,}|~{3,})/);
+      if (fence === null) {
+        if (!marker) return line;
+        fence = { char: marker[1][0], len: marker[1].length };
+      } else if (marker && marker[1][0] === fence.char && marker[1].length >= fence.len) {
+        fence = null;
+      }
+      return line.replace(/\S/g, ' ');
+    })
+    .join('\n');
+}
 
 // extractSection(): the text from a heading match (inclusive) up to (but excluding) the next heading of
 // level ≤3, or to EOF if there is none. Shared by scanAnchorContract's element check and
-// scanAfkSelectionNeutrality below, both of which isolate one section before scanning its body.
+// scanAfkSelectionNeutrality below, both of which isolate one section before scanning its body. Both the
+// heading and the terminator are found in the masked text and sliced out of the original, so a fenced
+// example neither starts a section nor ends one.
 function extractSection(text, headingPattern) {
-  const start = text.search(headingPattern);
+  const masked = maskFences(text);
+  const start = masked.search(headingPattern);
   if (start === -1) return null;
-  const rest = text.slice(start);
+  const rest = masked.slice(start);
   // Skip past the heading's own line (not just one character) before searching for the next one — a
   // one-character skip leaves a level-2 `##` heading truncated to `#`, which still matches `#{1,3}` and
   // self-matches as its own "next" heading, collapsing the section to nothing.
   const firstLineEnd = rest.indexOf('\n');
   const searchFrom = firstLineEnd === -1 ? rest.length : firstLineEnd + 1;
   const nextHeading = rest.slice(searchFrom).search(/^#{1,3}\s/m);
-  return nextHeading === -1 ? rest : rest.slice(0, searchFrom + nextHeading);
+  const end = nextHeading === -1 ? text.length : start + searchFrom + nextHeading;
+  return text.slice(start, end);
 }
 
 // scanAnchorContract() is pure over a root dir: reads every slice-store document and reports the ones that
@@ -206,9 +237,12 @@ function scanAnchorContract(root) {
 // command may legitimately discuss an epic as a domain concept; what it may not do is *test* for one.
 const AFK_SELECTION_HEADING = /^## 2\..*$/m;
 const STORE_MECHANISMS = [
-  [/`epic`/, 'the `epic` label'],
+  // One epic row, not two. `\bepic\b` covers the local store's `00-epic-` filename as well as the
+  // `epic` label, so a separate `/00-epic/` row would report the same sentence twice. It is
+  // case-insensitive and unbackticked because the selection step is meant to name no epic at all —
+  // backticks are typography, and "the epic issue" in plain prose is the same mechanism.
+  [/\bepic\b/i, 'an epic — the `epic` label, or the local store\'s `00-epic-` filename'],
   [/feat\//, 'the `feat/` label prefix'],
-  [/00-epic/, "the local store's `00-epic-` filename"],
   [/sub-issue|sub_issue/, "GitHub's sub-issue relation"],
   [/Epic Link|fields\.parent/, "Jira's parent field"],
 ];
@@ -300,11 +334,15 @@ function scalar(raw) {
   return unquoted ? unquoted[2] : withoutComment;
 }
 
+// The leading `---` fenced block, with its body captured. One literal, used by both readers below: a
+// second copy of the same shape drifts from the first with nothing to catch it.
+const FRONTMATTER_FENCE = /^---\n([\s\S]*?)\n---/;
+
 // Frontmatter is the leading `---` fenced block; read it as lines rather than parsing YAML, since the
 // hooks and scripts carry no dependencies. CRLF is normalised first, so a file authored on Windows is
 // read rather than reported as having no frontmatter at all.
 function frontmatter(text) {
-  const match = text.replace(/\r\n/g, '\n').match(/^---\n([\s\S]*?)\n---/);
+  const match = text.replace(/\r\n/g, '\n').match(FRONTMATTER_FENCE);
   if (!match) return null;
   const fields = {};
   for (const line of match[1].split('\n')) {
@@ -314,14 +352,10 @@ function frontmatter(text) {
   return fields;
 }
 
-// The fence frontmatter() matches, reused rather than a third copy of the same shape: stripFrontmatter()
-// below strips it off, so a contract that must be met by the prose body cannot be satisfied by an
-// `argument-hint` echo instead (e.g. `[--unattended]`, which names the argument but is not a standing
-// answer in the body).
-const FRONTMATTER_FENCE = /^---\n[\s\S]*?\n---/;
-
 // stripFrontmatter() returns text with its leading `---`-fenced frontmatter block removed (CRLF
-// normalised first, matching frontmatter()). Text with no frontmatter is returned unchanged.
+// normalised first, matching frontmatter()). Text with no frontmatter is returned unchanged. Contracts
+// that must be met by the prose body run over this, so an `argument-hint` echo cannot satisfy one (e.g.
+// `[--unattended]`, which names the argument but is not a standing answer in the body).
 function stripFrontmatter(text) {
   return text.replace(/\r\n/g, '\n').replace(FRONTMATTER_FENCE, '');
 }
@@ -541,22 +575,29 @@ const SCOPE_SLUG_CONTRACTS = [
 
 
 // `/superdev:implement` takes the feature label that names which planned feature to build, and derives
-// the run's scope by stripping the label's `feat/` prefix. Two documents carry that contract between
-// them: implement.md declares the argument and resolves it, and plan.md hands off with the label
-// resolved. A document that drops its half leaves a caller with no way to name its target — and
-// `/superdev:afk`, which has no conversation to infer one from, then builds nothing. Neither half fails
-// anything else, which is why this is asserted rather than trusted.
+// the run's scope from it. Two documents carry that contract between them: implement.md declares the
+// argument and resolves it, and plan.md hands off with the label resolved. A document that drops its half
+// leaves a caller with no way to name its target — and `/superdev:afk`, which has no conversation to
+// infer one from, then builds nothing. Neither half fails anything else, which is why this is asserted
+// rather than trusted.
+//
+// What is asserted is the contract, never the label's shape (ADR 0019). The shape belongs to the active
+// `docs/agents/issue-tracker.md`: `feat/<slug>` on the issue-tracker seeds, a bare `docs/plans/<slug>/`
+// directory name on the local-file store. A pattern pinning `feat/` is red for a store that is perfectly
+// well configured. The cost is real and accepted: a typo inside the prefix a given store does use passes
+// here. The half whose loss actually costs a run — a caller with no way to name its target — is the half
+// that stays pinned.
 const FEATURE_ARG_CONTRACTS = [
   [
     path.join('commands', 'implement.md'),
-    /^argument-hint:.*feat\//m,
-    'declare an `argument-hint` naming `feat/<label>`',
+    /^argument-hint:.*<(?:feature-)?label>/m,
+    'declare an `argument-hint` naming a feature label',
   ],
   [path.join('commands', 'implement.md'), /\$ARGUMENTS/, 'resolve `$ARGUMENTS`'],
   [
     path.join('commands', 'plan.md'),
-    /\/superdev:implement\s+feat\//,
-    'name `/superdev:implement feat/<label>` as the resolved successor',
+    /`\/superdev:implement\s+\S+`/,
+    'name `/superdev:implement <label>` as the resolved successor, in a backtick-delimited invocation',
   ],
 ];
 
@@ -1201,6 +1242,94 @@ if (process.argv[2] === '--selftest') {
   // an absent document is skipped, so a fixture carries only the docs it exercises
   assert.equal(scanAnchorContract(fixture({ 'README.md': '# repo\n' })).length, 0, 'absent docs skipped');
 
+  // a `#` comment inside a fenced block is not a heading, so it must not end the section. Without
+  // fence-awareness the elements below the fence are unseen and every one of them reports as missing.
+  const anFenced = fixture({
+    'references/issue-tracker-acme.md':
+      '## Scope anchor\n\n' +
+      '- **Recognise one.** It carries no parent link.\n\n' +
+      '```sh\n# list every candidate\ncurl -s "$API/issues?labels=$FEATURE"\n```\n\n' +
+      '- **List the candidates.** Query per feature label and keep the roots.\n' +
+      '- **List the slices beneath it.** The same query returns them.\n' +
+      '- **Tell an anchor that is itself a slice.** It carries a test-applicability label.\n\n' +
+      '## Assignee\n\nSomeone.\n',
+  });
+  assert.equal(scanAnchorContract(anFenced).length, 0, 'a fenced `#` comment does not end the section');
+
+  // a fence closes only on a marker at least as long as the one that opened it (CommonMark). A shorter
+  // inner fence of the same character must not close the outer one — closing early unmasks the `#`
+  // comment below it, which then reads as a heading and truncates the section before the elements after it
+  const anNestedFence = fixture({
+    'references/issue-tracker-acme.md':
+      '## Scope anchor\n\n' +
+      '- **Recognise one.** It carries no parent link.\n\n' +
+      '````md\ncurl -s "$API/issues?labels=$FEATURE"\n```\n# comment inside the outer fence\n````\n\n' +
+      '- **List the candidates.** Query per feature label and keep the roots.\n' +
+      '- **List the slices beneath it.** The same query returns them.\n' +
+      '- **Tell an anchor that is itself a slice.** It carries a test-applicability label.\n\n' +
+      '## Assignee\n\nSomeone.\n',
+  });
+  assert.equal(
+    scanAnchorContract(anNestedFence).length,
+    0,
+    'a shorter inner fence does not close a longer outer fence',
+  );
+
+  // the four elements stated only in intro prose, with no bullets, is not the contract: every pattern
+  // matched anywhere in the section, so prose alone satisfied all four and finding #4 shipped twice over
+  const anProse = fixture({
+    'references/issue-tracker-acme.md':
+      '## Scope anchor\n\n' +
+      'This section explains how to recognise an anchor, how to list the candidates, how to list the\n' +
+      'slices beneath one, and how to tell an anchor that is itself a slice.\n',
+  });
+  assert.equal(scanAnchorContract(anProse).length, 4, 'intro prose with no bullets satisfies nothing');
+
+  // the repo's writing standard declares American spelling, so the element patterns must accept it —
+  // a document is not wrong for writing `recognize`, `under`, or `also a slice`
+  const anAmerican = fixture({
+    'references/issue-tracker-acme.md':
+      '## Scope anchor\n\n' +
+      '- **Recognize one.** It carries no parent link.\n' +
+      '- **List the candidates.** Query per feature label and keep the roots.\n' +
+      '- **List the slices under it.** The same query returns them.\n' +
+      '- **Tell an anchor that is also a slice.** It carries a test-applicability label.\n',
+  });
+  assert.equal(scanAnchorContract(anAmerican).length, 0, 'American spellings satisfy the contract');
+
+  // `*` is CommonMark's other unordered-list marker; a document is not wrong for writing it instead of `-`
+  const anStarBullets = fixture({
+    'references/issue-tracker-acme.md':
+      '## Scope anchor\n\n' +
+      '* **Recognise one.** It carries no parent link.\n' +
+      '* **List the candidates.** Query per feature label and keep the roots.\n' +
+      '* **List the slices beneath it.** The same query returns them.\n' +
+      '* **Tell an anchor that is itself a slice.** It carries a test-applicability label.\n',
+  });
+  assert.equal(scanAnchorContract(anStarBullets).length, 0, '`*` bullets satisfy the contract');
+
+  // a section that is the last in its file, one with an empty body, and a file whose fence is never
+  // closed all extract without throwing — the fence masking runs over every one of them
+  assert.equal(
+    scanAnchorContract(fixture({ 'references/issue-tracker-acme.md': anchorSection })).length,
+    0,
+    'a section at EOF extracts',
+  );
+  assert.equal(
+    scanAnchorContract(fixture({ 'references/issue-tracker-acme.md': '## Scope anchor\n' })).length,
+    4,
+    'an empty section extracts and reports every element',
+  );
+  assert.equal(
+    scanAnchorContract(
+      fixture({
+        'references/issue-tracker-acme.md': `${anchorSection}\n\`\`\`sh\n# never closed\n`,
+      }),
+    ).length,
+    0,
+    'an unterminated fence does not throw',
+  );
+
   // --- scanAfkSelectionNeutrality: afk's selection step reads the store's anchor contract and names no
   // backend's own mechanism (ADR 0017). Naming one is right on a single store and wrong on the rest, and
   // it surfaces as a sweep that finds nothing rather than as an error. ---
@@ -1219,6 +1348,8 @@ if (process.argv[2] === '--selftest') {
   for (const [snippet, why] of [
     ['Take the issue labelled `epic`.', 'the epic label'],
     ['Strip the `feat/` prefix to get the slug.', 'the feat prefix'],
+    // the local store's filename carries `epic`, so the one epic row reports it — a second `/00-epic/`
+    // row would report the same sentence twice
     ['Look for `00-epic-*.md` in the plan directory.', 'the local filename'],
     ['The anchor is nobody\'s sub-issue.', 'the GitHub relation'],
     ['Check that `fields.parent` is absent.', 'the Jira parent field'],
@@ -1249,6 +1380,28 @@ if (process.argv[2] === '--selftest') {
     ).length,
     0,
     'a mechanism outside the selection section is not a gap',
+  );
+
+  // `epic` in plain prose is the same mechanism as a backticked one — the selection step is meant to
+  // name no epic at all, so backticks must not be what decides it
+  const plainEpic = scanAfkSelectionNeutrality(
+    fixture({ 'commands/afk.md': selection(`${neutral} Take the epic issue.`) }),
+  );
+  assert.equal(plainEpic.length, 1, 'an unbackticked `epic` is still a mechanism');
+  assert.match(plainEpic[0].expectation, /select without naming/, 'reports it as a mechanism');
+
+  // a fenced `#` comment hides a mechanism from this scan — the worse direction of finding #143,
+  // because this scanner is the only automated guard on the neutrality ADR 0017 requires
+  assert.equal(
+    scanAfkSelectionNeutrality(
+      fixture({
+        'commands/afk.md': selection(
+          `${neutral}\n\n\`\`\`sh\n# candidates\nls docs/plans\n\`\`\`\n\nTake the issue labelled \`epic\`.`,
+        ),
+      }),
+    ).length,
+    1,
+    'a mechanism below a fenced `#` comment is still scanned',
   );
 
   // an absent afk.md is skipped here; its existence is asserted in main()
@@ -1558,6 +1711,28 @@ if (process.argv[2] === '--selftest') {
   const fa6 = fixture({ 'commands/plan.md': handsOffLabel });
   assert.equal(scanContract(fa6, FEATURE_ARG_CONTRACTS).length, 0, 'an absent document is skipped');
 
+  // a store whose feature label carries no prefix satisfies the contract exactly as a prefixed one does.
+  // The label's shape belongs to the active slice-store document (ADR 0019), so pinning `feat/` here
+  // would go red for the local-file store, whose label is a bare `docs/plans/<slug>/` directory name.
+  const fa7 = fixture({
+    'commands/implement.md':
+      '---\nargument-hint: "[<feature-label>  (empty = the only plan in the store)]"\n---\n' +
+      'Resolve `$ARGUMENTS` to one feature label, and derive the scope from it.\n',
+    'commands/plan.md': 'Then run `/superdev:implement lite-perf` with the real label substituted.\n',
+  });
+  assert.equal(scanContract(fa7, FEATURE_ARG_CONTRACTS).length, 0, 'a prefixless label is clean');
+
+  // an unbacktick-delimited mention of the command satisfies no invocation — plan.md's own `description:`
+  // frontmatter says "Run before /superdev:implement." incidentally, and a reword that drops the trailing
+  // period ("...to build it.") must not turn the row green with the real handoff deleted
+  const fa8 = fixture({
+    'commands/implement.md': takesLabel,
+    'commands/plan.md': 'Run before /superdev:implement to build it.\n',
+  });
+  const faGaps8 = scanContract(fa8, FEATURE_ARG_CONTRACTS);
+  assert.equal(faGaps8.length, 1, 'a bare prose mention is not a resolved handoff');
+  assert.equal(faGaps8[0].source, path.join('commands', 'plan.md'), 'names plan.md');
+
   // --- UNATTENDED_CONTRACTS: scope-mode.md defines the token, and every document carrying a stop names
   // it (ADR 0016). A document that drops it asks a question nobody is there to answer, so an unattended
   // sweep stalls until morning having done nothing — and every file involved stays valid prose, so
@@ -1641,8 +1816,8 @@ if (process.argv[2] === '--selftest') {
     assert.match(unstrippedGaps[0].expectation, /read\/apply instruction/, 'the token row itself is clean');
   }
 
-  // FEATURE_ARG_CONTRACTS's first row needs the frontmatter itself (`^argument-hint:.*feat/`) and never
-  // strips it — confirms the two contract tables can disagree on `stripFrontmatterFirst` safely
+  // FEATURE_ARG_CONTRACTS's first row needs the frontmatter itself (`^argument-hint:.*<(?:feature-)?label>`)
+  // and never strips it — confirms the two contract tables can disagree on `stripFrontmatterFirst` safely
   assert.equal(
     scanContract(
       fixture({ 'commands/implement.md': takesLabel, 'commands/plan.md': handsOffLabel }),

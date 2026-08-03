@@ -201,7 +201,7 @@ any `.claude/rules/` — to the base branch. **Check `git rev-parse --abbrev-ref
 when the invoking checkout is on the base branch.** It is on any other branch → name the branch you found
 and the base you wanted, write nothing, and stop; the plan is already written to the store, so the
 maintainer switches to base and commits the design docs there — no interview, nothing re-planned —
-and the resolved `/superdev:implement feat/<label>` handoff below still prints, because the plan is
+and the resolved `/superdev:implement <feature-label>` handoff below still prints, because the plan is
 written and only the commit is outstanding.
 `/superdev:implement` runs from a fresh worktree checkout of
 that branch (per-slice on the full tier, a single scope worktree on the lite tier); anything left
@@ -210,7 +210,7 @@ auto-load. **Push the base branch** to its remote right after committing (if one
 `docs/agents/code-management.md`) — `/superdev:ship`'s PR is opened against the remote base; an unpushed
 local commit there diverges from it the moment the PR is squash-merged (a duplicate copy of the same
 content lands in the merge commit while the local-only commit is left stranded). Then **print the next
-command with the feature label resolved** — `/superdev:implement feat/<label>`, carrying the real label
-this plan wrote — so the line is copy-pasteable and names which feature to build. Every command in the
-chain hands off this way (ADR 0013), and the label is also what fixes the run's scope, its branch, and its
-run root.
+command with the feature label resolved** — `/superdev:implement <feature-label>`, carrying the real label
+this plan wrote, in the shape `docs/agents/issue-tracker.md` states (ADR 0019) — so the line is
+copy-pasteable and names which feature to build. Every command in the chain hands off this way (ADR 0013),
+and the label is also what fixes the run's scope, its branch, and its run root.

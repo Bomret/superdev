@@ -104,7 +104,7 @@ Read `<run-root>/ledger.md` for the scope (`.superdev/scopes/<slug>/`) and start
 
 | Stage | Start at |
 |---|---|
-| no run root, or `implementing` | `/superdev:implement feat/<label> --unattended` |
+| no run root, or `implementing` | `/superdev:implement <feature-label> --unattended` |
 | `merged` | `/superdev:review <BASE>..superdev/<slug> --unattended` |
 | `reviewed` | `/superdev:document <BASE>..superdev/<slug> --unattended` |
 | `documented-unreviewed` | `/superdev:review <BASE>..superdev/<slug> --unattended` |
@@ -112,6 +112,11 @@ Read `<run-root>/ledger.md` for the scope (`.superdev/scopes/<slug>/`) and start
 
 Then run each remaining step in order. `BASE` is `git merge-base <base> superdev/<slug>`, with the base
 branch from `docs/agents/code-management.md`.
+
+`<feature-label>` is the anchor's own label, in the shape `docs/agents/issue-tracker.md` states — a
+prefixed label on one store, a bare slug on another (ADR 0019). Pass what the store gave you and add no
+prefix of your own: a label this command invented is one `/superdev:implement` cannot resolve, and that
+stop is an error rather than a question, which §4 turns into a block.
 
 `documented-unreviewed` routes to the review, not the ship, because `/superdev:ship --unattended` refuses
 a scope whose review never ran. The review is what clears that state.

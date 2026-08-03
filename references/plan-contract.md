@@ -140,8 +140,9 @@ whole-scope review substitutes for the per-slice ones. The table above (and the 
 
 A feature's **scope anchor** is its root. A multi-slice plan's root has slices beneath it; a single-slice
 plan's root is its own lone slice — one rule for both shapes, so a single-slice plan needs no special case
-(ADR 0017). A consumer that needs a feature's scope-level signal (`/superdev:afk`'s selection, the status
-map above) selects by anchor and reads the active `docs/agents/issue-tracker.md`'s own `## Scope anchor`
+(ADR 0017). A consumer that needs a feature's scope-level signal — `/superdev:afk` selecting its next
+feature, the status map above writing the anchor's own status — reads the active
+`docs/agents/issue-tracker.md`'s own `## Scope anchor`
 section rather than assuming any one store's shape — how to recognise one, list the candidates, list the
 slices beneath one, and tell that an anchor is itself a slice are backend mechanism, and belong there, not
 here.

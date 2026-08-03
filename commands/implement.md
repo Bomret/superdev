@@ -1,6 +1,6 @@
 ---
 description: Execute a superdev plan — drive its vertical slices to merge as a dependency-ordered DAG, with an execution tier sized to the slice count, then hand off to /superdev:review. Use when a plan exists in the slice store; run /superdev:plan first if not.
-argument-hint: "[feat/<label>  (empty = the only plan in the store)]  [--unattended]"
+argument-hint: "[<feature-label>  (empty = the only plan in the store)]  [--unattended]"
 ---
 
 # superdev implement
@@ -62,7 +62,9 @@ implementer's TDD discipline yourself. Between dispatches, narrate at most one s
   scope-naming step.
   - **A label given** → load the anchor carrying it, per the store's `## Scope anchor` contract
     (`docs/agents/issue-tracker.md`) — an epic on a multi-slice plan, or the lone slice itself on a
-    single-slice plan (ADR 0017) — plus every slice carrying it. The store knows no such label at all (no
+    single-slice plan (ADR 0017) — plus every slice carrying it. On a single-slice plan those two sets are
+    one issue, loaded once: the anchor *is* the slice, so a plan that loaded both would implement its lone
+    slice twice. The store knows no such label at all (no
     anchor and no slice carries it) → say so and stop, and create no run root. **The anchor is an epic
     that carries no slices** → say so, point at **`/superdev:plan`**, and stop — this never fires for a
     single-slice plan, whose anchor is its own slice rather than an empty epic. **The slug must match

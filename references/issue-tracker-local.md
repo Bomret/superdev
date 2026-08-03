@@ -92,8 +92,9 @@ epic file, so the lone `NN-<test-applicability>-<summary>.md` is the anchor (ADR
   and otherwise the single `NN-*.md` file.
 - **List the candidates.** Each directory under `docs/plans/` is one feature, so its anchor is one
   candidate.
-- **List the slices beneath it.** Every `NN-*.md` file in the same `docs/plans/<feature-slug>/` directory
-  as the anchor is a slice beneath it (multi-slice); a single-slice feature's anchor has none beneath it.
+- **List the slices beneath it.** Every *other* `NN-*.md` file in the same `docs/plans/<feature-slug>/`
+  directory as the anchor is a slice beneath it (multi-slice); a single-slice feature's anchor is the lone
+  `NN-*.md` file, so it has none beneath it.
 - **Tell an anchor that is itself a slice.** Its filename begins with a number from `01` up and carries a
   `<test-applicability>` segment. The epic file begins with `00-epic-`. That is what separates a
   single-slice feature, whose lone slice file is its own anchor and is real work, from a feature

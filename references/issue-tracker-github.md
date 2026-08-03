@@ -58,8 +58,12 @@ lone slice, which is nobody's sub-issue either (ADR 0017).
 - **List the candidates.** The feature labels themselves: `GET /repos/<owner>/<repo>/labels` (paginated),
   keeping the names that start with `feat/` — the **Feature label** prefix above. Per feature label:
   `GET /repos/<owner>/<repo>/issues?labels=feat%2F<feature>&state=open` (URL-encode the label's `/`),
-  keeping the issues whose `/parent` is `404`. **Cost:** one `/parent` call per issue in that response,
-  every sweep iteration — accepted as the simplest correct check; nothing caches it.
+  keeping the issues whose `/parent` is `404`. That endpoint carries the two behaviours **List feature
+  slices** below states — it returns pull requests, and it paginates at 30 — and both apply here: a
+  feature-labelled pull request is nobody's sub-issue, so an unskipped one presents as a second root and
+  triggers the **Ambiguous** report below on a plan that is perfectly well formed. **Cost:** one `/parent`
+  call per issue in that response, every sweep iteration — accepted as the simplest correct check; nothing
+  caches it.
 - **List the slices beneath it.** Use the **List feature slices** call below (`state=all`), not the
   candidate listing: a merged slice is closed, and closing the epic is best-effort, so an anchor left open
   with every slice closed still has slices beneath it and a `state=open` listing would present it as never

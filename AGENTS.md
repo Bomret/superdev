@@ -244,13 +244,19 @@ This root owns every subtree directly:
   slice-store document (every `references/issue-tracker-*.md` plus this repo's own
   `docs/agents/issue-tracker.md`) carries a `## Scope anchor` section stating all four of its elements: how
   to recognise an anchor, list its candidates, list the slices beneath one, and tell that an anchor is
-  itself a slice (ADR 0017). Fifth, that `commands/afk.md`'s selection step (§2) names no backend's own
-  anchor mechanism (the `epic` label, a `feat/` prefix, a local `00-epic-` filename, a GitHub sub-issue
-  relation, a Jira parent field) and instead points at the store's `## Scope anchor` contract. A step that
+  itself a slice (ADR 0017). Each element is matched on a bullet's bolded lead-in (`- **Recognise one.**`
+  style, `-` or `*`, American or British spelling) rather than anywhere in the section, so intro prose
+  that merely lists the four concepts satisfies none of them. Fifth, that `commands/afk.md`'s selection
+  step (§2) names no backend's own
+  anchor mechanism — an epic (the `epic` label, matched case-insensitively whether backticked or not,
+  which also covers the local store's `00-epic-` filename), a `feat/` prefix, a GitHub sub-issue relation,
+  a Jira parent field — and instead points at the store's `## Scope anchor` contract. A step that
   stayed neutral by naming nothing at all still fails this. Naming no mechanism is only half the property.
   `scanAnchorContract()` and `scanAfkSelectionNeutrality()` share one
-  helper, `extractSection()`, which isolates the text of one heading's section before either scans its
-  body. Sixth, that `references/documentation.md` still offers a `## Writing standard` section (ADR 0012).
+  helper, `extractSection()`, which masks fenced code blocks first. (CommonMark's at-least-as-long
+  closing-fence rule applies, so a shorter inner fence never closes a longer outer one.) Then it
+  isolates the text of one heading's section before either scans its body. Sixth, that
+  `references/documentation.md` still offers a `## Writing standard` section (ADR 0012).
   Seventh, that `agents/doc-writer.md` and `agents/doc-reader.md` each still instruct themselves to read
   `references/content-types.md` (ADR 0014). Eighth, that every command in the chain still names the
   ledger's `**Stage:**` line (ADR 0013). The chain hands a run along through that line, so a command that
@@ -263,9 +269,11 @@ This root owns every subtree directly:
   The eleventh, twelfth, fourteenth, and fifteenth checks share one scanner, `scanContract()`, run over
   a table of `[document, pattern, expectation]` rows instead of one function each. It reads every
   document a table names and reports the rows whose pattern that document no longer matches. Eleventh, the
-  feature-label-argument contract: `commands/implement.md` declares `feat/<label>` in its
-  `argument-hint` and resolves `$ARGUMENTS`, and `commands/plan.md` names `/superdev:implement
-  feat/<label>` as its resolved successor. Twelfth, the unattended-token contract: `references/scope-mode.md`
+  feature-label-argument contract: `commands/implement.md` declares an `argument-hint` naming a feature
+  label and resolves `$ARGUMENTS`, and `commands/plan.md` names `/superdev:implement <label>` as its
+  resolved successor, in a backtick-delimited invocation — the contract only, never the label's shape
+  (ADR 0019). Twelfth, the
+  unattended-token contract: `references/scope-mode.md`
   carries the `## Unattended` section (ADR 0016), and `commands/implement.md`, `commands/review.md`,
   `commands/document.md`, `commands/ship.md`, `references/implement-full.md`, and
   `references/implement-lite.md` each name `--unattended` and carry a read/apply instruction pointing at
