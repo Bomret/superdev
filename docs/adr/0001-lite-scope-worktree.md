@@ -3,7 +3,8 @@
 **Status:** Accepted
 
 **Context.** Both tiers cut the scope branch with `git switch -c superdev/<scope> <base>` in the
-*invoking checkout* — the repo's single shared working tree. The lite tier then implements every slice
+*invoking checkout* — the repo's single shared working tree. (ADR 0021 later fixed that branch's name as
+`<type>/<scope>`.) The lite tier then implements every slice
 inline in that shared tree. So two superdev sessions in the same repo/dir collide (the second `git
 switch` yanks the tree out from under the first's uncommitted work), and the user's own checkout is
 hijacked onto the scope branch.

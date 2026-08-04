@@ -23,7 +23,7 @@ _Avoid: "run directory", "scope dir" (too generic — this is specifically the c
 **Definition of Done (DoD)** — the checkable acceptance criteria for the whole feature, sourced from the epic if one exists, or from the lone slice's `acceptance` if not. `.superdev/scopes/<scope>/dod.md` is the concrete verification plan that gates the final-reviewer and PR.
 _Avoid: "requirements", "specification", "checklist" (DoD is the integrated checklist)_
 
-**Ledger** — the per-scope recovery map: tracks the run's stage, each slice's status (todo → in-progress → in-review → merged), its commit range when merged, and the slice-id ↔ issue-key mapping. `.superdev/scopes/<scope>/ledger.md` is the authoritative state during a run and after compaction/resume.
+**Ledger** — the per-scope recovery map: tracks the run's stage, the scope branch, each slice's status (todo → in-progress → in-review → merged), its commit range when merged, and the slice-id ↔ issue-key mapping. `/superdev:implement` Phase 0 writes the branch as the ledger's `**Branch:**` line once, because a slug alone never names the branch. `.superdev/scopes/<scope>/ledger.md` is the authoritative state during a run and after compaction/resume.
 _Avoid: "log", "status file", "tracker"_
 
 **Stage** — how far a scope has moved through the four-command chain (`/implement` → `/review` → `/document` → `/ship`), recorded as the ledger's `**Stage:**` line and naming the last completed step: `implementing`, `merged`, `reviewed`, `documented` (or `documented-unreviewed` when `/document` ran before `/review` did), `shipped`. Distinct from a slice's status, which tracks one slice through the DAG (ADR 0013).

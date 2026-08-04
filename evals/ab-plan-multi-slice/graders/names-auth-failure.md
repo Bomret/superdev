@@ -3,7 +3,7 @@ type: llm
 focus: files
 weight: 2
 ---
-The diff adds a written plan under `docs/plans/<slug>/` cutting widget CRUD
+The diff adds a written plan under `docs/plans/<type>/<slug>/` cutting widget CRUD
 into units of work.
 
 The intent says writes go through an `X-Api-Key` header and that an

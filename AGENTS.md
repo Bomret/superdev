@@ -228,10 +228,10 @@ This root owns every subtree directly:
   alongside `hooks/`. It follows the same `--selftest` convention. The reference, run-root, assignee,
   anchor-contract, afk-selection-neutrality, writing-standard, content-types, stage, command-resolution,
   chain-handoff, feature-label-argument, unattended-token, afk-invocation, scope-slug, change-type,
-  degraded-pass, and derived-criteria
+  degraded-pass, derived-criteria, ledger-branch, and label-validation
   checks are drift assertions. They compare a restated fact against its source. The eval-shape check
   compares a document against a schema. The afk-existence check is a plain existence assertion.
-  `drift-check.js` guards nineteen things, in the order its `main()` computes them. First, that every
+  `drift-check.js` guards twenty-one things, in the order its `main()` computes them. First, that every
   `references/*.md` path named in `commands/`, `agents/`, or `references/` itself resolves to a file that
   exists. A reference cites
   another reference — both execution playbooks point at `scope-mode.md` — so a rename there dangles like
@@ -252,7 +252,11 @@ This root owns every subtree directly:
   step (§2) names no backend's own
   anchor mechanism — an epic (the `epic` label, matched case-insensitively whether backticked or not,
   which also covers the local store's `00-epic-` filename), a change-type label prefix (any of them, and
-  only where the prefix is named as a prefix — `docs/agents/…` is a path this step is meant to point at),
+  including a concrete label like `feat/self-improvements`; a type is excluded only when a further
+  `/`-delimited segment follows it, which is what separates the paths this step legitimately carries —
+  `docs/agents/…`, the store config it is meant to point at, and `docs/plans/<type>/` — from a label. A
+  delimiter rule instead reads a real label as a path and passes it, and an allowlist of the two path
+  literals both misreads an ADR citation as a prefix and lets `docs/plans-refactor` through),
   a GitHub sub-issue relation,
   a Jira parent field — and instead points at the store's `## Scope anchor` contract. A step that
   stayed neutral by naming nothing at all still fails this. Naming no mechanism is only half the property.
@@ -270,8 +274,8 @@ This root owns every subtree directly:
   `commands/implement.md`, `commands/review.md`, and `commands/document.md` each name their successor in
   the chain. `commands/ship.md` ends the chain and is deliberately outside that check.
 
-  The eleventh, twelfth, fourteenth, fifteenth, sixteenth, and seventeenth checks share one scanner,
-  `scanContract()`, run over
+  The eleventh, twelfth, fourteenth, fifteenth, sixteenth, seventeenth, eighteenth, and nineteenth checks
+  share one scanner, `scanContract()`, run over
   a table of `[document, pattern, expectation]` rows instead of one function each. It reads every
   document a table names and reports the rows whose pattern that document no longer matches. Eleventh, the
   feature-label-argument contract: `commands/implement.md` declares an `argument-hint` naming a feature
@@ -287,9 +291,11 @@ This root owns every subtree directly:
   whole-file regex would pass the moment any one row carried the token, letting a sibling row lose it
   unnoticed. Fourteenth, the scope-slug contract: `references/scope-mode.md`'s prose rule and
   `hooks/run-lock.js`'s extraction regex state the same charset. Fifteenth, the change-type contract:
-  `references/scope-mode.md`'s type list and `hooks/scope-prune.js`'s `CHANGE_TYPES` regex state the same
+  `references/scope-mode.md`'s type list, `hooks/scope-prune.js`'s `CHANGE_TYPES` regex, and
+  `CONTEXT.md`'s **Change type** glossary entry state the same
   set (ADR 0021). A hook narrower than the prose leaves a shipped run's root behind forever on the missing
-  type, and reports nothing — a prune that never runs is silent. Sixteenth, the degraded-pass contract:
+  type, and reports nothing — a prune that never runs is silent. The glossary is the copy most likely to
+  drift, because nothing executes it. Sixteenth, the degraded-pass contract:
   `references/scope-mode.md` carries the `## Degraded passes` section, and `commands/implement.md`,
   `commands/review.md`, `commands/document.md`, `commands/ship.md`, `commands/status.md`,
   `references/implement-full.md`, and `references/implement-lite.md` each name the `**Degraded:**`
@@ -302,8 +308,19 @@ This root owns every subtree directly:
   instruction asks for a derivation. Losing either half degrades the derivation into theater: references
   still resolve, the suite stays green, and the reviewer reads the DoD first exactly as before.
   Eighteenth,
+  the ledger-branch contract: `commands/implement.md`'s Phase 0 records the scope branch as the ledger's
+  `**Branch:**` line, and `references/scope-mode.md` resolves the branch from that line (ADR 0021). A
+  slug names its run root but not its branch, because the type leads the branch and nothing recovers a
+  type from a slug — and `/superdev:ship` receives a slug. A writer that stops recording the line leaves
+  every later command guessing; a reader that stops looking for it falls back to a shape scan that cannot
+  separate two runs whose slugs differ only by type. Nineteenth, the label-validation contract:
+  `references/scope-mode.md` carries the **Validate both segments.** rule, and `commands/implement.md`
+  and `commands/afk.md` each point at it. The whole feature label becomes the branch name, so the type
+  reaches `git switch -c` exactly as the slug does — a rule guarding the slug alone lets `-x/y` through to
+  git as an option, and lets a non-canonical type make a run root `scope-prune` never removes. A consumer
+  that stops pointing at the rule validates nothing and stays valid prose. Twentieth,
   that `commands/afk.md` exists at all. Nothing else in the plugin names `/superdev:afk` for the ninth
-  check to resolve, so its absence would otherwise go unnoticed. Nineteenth, that every
+  check to resolve, so its absence would otherwise go unnoticed. Twenty-first, that every
   `evals/*/graders/*.md` declares a known `type` and a positive `weight`, that an `llm` or `regex`
   grader also declares a `focus` or `target`, and that every case's `scaffold_script` resolves. Nothing
   else validates a grader, so without this a typo surfaces part-way through a run that costs real API

@@ -3,7 +3,7 @@ type: llm
 focus: files
 weight: 2
 ---
-The diff adds a written plan under `docs/plans/<slug>/`.
+The diff adds a written plan under `docs/plans/<type>/<slug>/`.
 
 `src/store.js` says every read crosses the network and the datastore can be
 up, down, or slow. The intent's Definition of Done is happy-path-only, so the

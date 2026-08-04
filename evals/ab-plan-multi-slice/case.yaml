@@ -25,7 +25,7 @@ execution:
     operations behaves as described, verified by tests, and an unauthenticated
     write is rejected.
 
-    Write the finished plan to files under `docs/plans/<feature-slug>/`
+    Write the finished plan to files under `docs/plans/<type>/<feature-slug>/`
     following this repo's conventions in `docs/agents/`. Do not implement it.
   max_turns: 60
   timeout_seconds: 1200

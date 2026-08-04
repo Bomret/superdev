@@ -3,7 +3,7 @@ type: llm
 focus: files
 weight: 2
 ---
-The diff adds a written plan under `docs/plans/<slug>/`.
+The diff adds a written plan under `docs/plans/<type>/<slug>/`.
 
 The feature intent states only the happy path: a widget that exists returns
 200 with its JSON. The case of an id that matches no widget is never

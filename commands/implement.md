@@ -59,7 +59,10 @@ implementer's TDD discipline yourself. Between dispatches, narrate at most one s
   the type is this run's branch prefix and the slug is this run's scope, so `fix/lite-perf` gives scope
   `lite-perf`, branch `fix/lite-perf`, and run root `.superdev/scopes/lite-perf/`. One value
   therefore fixes the epic, the slices, the branch, and the run root together, and Phase 0 skips its
-  scope-naming step.
+  scope-naming step. **Whichever route below resolves the label, it must pass
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s scope-slug rule, both segments** — its type as well
+  as its slug, because the whole label becomes the branch this run cuts. Anything else → say so, naming
+  which segment failed, and stop, creating no run root and cutting no branch.
   - **A label given** → load the anchor carrying it, per the store's `## Scope anchor` contract
     (`docs/agents/issue-tracker.md`) — an epic on a multi-slice plan, or the lone slice itself on a
     single-slice plan (ADR 0017) — plus every slice carrying it. On a single-slice plan those two sets are
@@ -67,9 +70,8 @@ implementer's TDD discipline yourself. Between dispatches, narrate at most one s
     slice twice. The store knows no such label at all (no
     anchor and no slice carries it) → say so and stop, and create no run root. **The anchor is an epic
     that carries no slices** → say so, point at **`/superdev:plan`**, and stop — this never fires for a
-    single-slice plan, whose anchor is its own slice rather than an empty epic. **The slug must match
-    `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s scope-slug rule.** Anything else → say so and stop,
-    creating no run root; **`--unattended` → block**.
+    single-slice plan, whose anchor is its own slice rather than an empty epic.
+    **`--unattended` → block**.
   - **Empty** → resolve the feature yourself. Exactly one feature has slices ready → use it. Several do →
     name them and ask which; **`--unattended` → block**, because picking a feature for someone is not a
     guess worth making. None do → run **`/superdev:plan`** first.
@@ -139,6 +141,11 @@ implementer's TDD discipline yourself. Between dispatches, narrate at most one s
   slice-id ↔ issue-key mapping. Also record the **scope anchor** — its key and title, per the store's
   `## Scope anchor` contract (`docs/agents/issue-tracker.md`) — so `/superdev:review` can read the
   anchor's title from the ledger instead of deriving one from the diff.
+- **Record the scope branch** as a `**Branch:** <type>/<scope>` line at the top of the ledger, beside
+  `**Stage:**`. A scope branch leads with its change type (ADR 0021), so the branch name is not computable
+  from the scope slug — and `/superdev:ship` receives a slug. You know the branch here, because the bullet
+  above already fixed `<type>` and `<scope>`; every later command in the chain reads it back from this
+  line.
 - Write the **stage** as a `**Stage:** implementing` line at the top of the ledger. The stage records how
   far this scope has moved through the chain of commands that follow you, and it names the last completed
   step: `implementing`, `merged`, `reviewed`, `documented` (or `documented-unreviewed` when `/superdev:document`

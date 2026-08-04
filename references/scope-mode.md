@@ -4,10 +4,11 @@
 file at runtime and keeps only what is specific to it. That is the stage it reads or writes, and what it
 prints next.
 
-**`## Unattended` and `## The scope slug` below have a wider audience.** `/superdev:implement` and both
-execution playbooks read `## Unattended`; `/superdev:implement` and `/superdev:afk` both read `## The
-scope slug`. Neither reads anything else here. A run is unattended from its first command, so the token
-cannot wait for the stage where the other rules begin.
+**`## Unattended`, `## The scope slug`, and `## The change type` below have a wider audience.**
+`/superdev:implement` and both execution playbooks read `## Unattended`; `/superdev:implement` and
+`/superdev:afk` both read `## The scope slug`, which in turn sends both to `## The change type` for its
+eleven-type list. Neither reads anything else here. A run is unattended from its first command, so the
+token cannot wait for the stage where the other rules begin.
 
 ## The scope slug
 
@@ -16,8 +17,20 @@ A scope slug must match `[a-zA-Z0-9][a-zA-Z0-9_-]*`. It becomes the second segme
 run-root path segment (`.superdev/scopes/<slug>/`), and every source it comes from — a feature label
 resolved from the slice store, an epic's feature label read off a tracker anchor — hands it over as
 external input with no such guarantee: a stray `/`, a leading `-`, `..`, a space, or `~` are all legal
-label characters, and none are safe in either place. A feature label carries its change type in front of
-the slug, so validate the slug segment — what follows the first `/` — and not the label as a whole.
+label characters, and none are safe in either place.
+
+**Validate both segments.** A feature label is `<type>/<slug>`, and the whole label becomes the branch
+name — so the type reaches `git switch -c` exactly as the slug does, and the same argument covers it.
+
+- **The slug** — what follows the first `/` — matches the charset above. On a store that renders the label
+  as a path (`docs/plans/<type>/<slug>/`), the label is still `<type>/<slug>`: take the slug from the
+  label, never a fragment of the rendered path.
+- **The type** — what precedes it — is one of the eleven in `## The change type` below, matched exactly.
+  This is stronger than a charset test: a label leading with `-x` reaches git as an option, and a type
+  outside the set makes a run root `hooks/scope-prune.js` never recognises and therefore never removes.
+
+**Either segment failing is the same stop.** Say which one failed and why, and build no branch and no path
+out of the label. A label with no `/`, or with an empty segment on either side, fails here too.
 
 ## The change type
 
@@ -41,14 +54,33 @@ Capture `<run-root>` as the absolute path to `.superdev/scopes/<scope>/`. Do thi
 checkout is still the current directory. Address every run-root artifact by that absolute path:
 `<run-root>/ledger.md`, `<run-root>/dod.md`, and `<run-root>/run.lock`.
 
+## The scope branch
+
+A scope slug does not name its branch. The type leads the branch and the slug follows it, and nothing
+recovers a type from a slug — so read the branch rather than compute it.
+
+- **The ledger's `**Branch:**` line.** `/superdev:implement` Phase 0 writes it, beside `**Stage:**`.
+  Verify it with `git rev-parse --verify <branch>` before trusting it — Phase 0 writes the line before it
+  cuts the branch, so a run that died in between leaves a ledger naming a branch that was never cut. It
+  verifies → this is the answer. A command that receives only a scope slug still finds the run root from
+  that slug, and the branch from this line.
+- **No such line, or the named branch does not verify — fall back to the shape.** A ledger written before
+  the line existed carries none, and one written but not yet followed by a cut branch names one that does
+  not exist. Scan the branches for one whose last segment is `<scope>` and whose leading segment is a
+  change type, which is the rule `hooks/scope-prune.js` applies. **Say which route you took**, because
+  this one is a guess: two runs whose slugs differ only by their change type both match, and the scan
+  cannot separate them. **No branch matches** → say so and stop, rather than proceeding against whatever
+  HEAD happens to be.
+
 ## The scope checkout
 
-Find the working tree that holds the scope branch, from disk.
+**Resolve the scope branch first**, per `## The scope branch` above, never from the slug alone. Then find
+the working tree that holds it, from disk.
 
 - `.superdev/scopes/<scope>/worktree` exists. That directory is the scope checkout, from a `lite` run. Run
   every git command that writes to the scope branch with it as the current directory.
 - No such directory exists. The invoking checkout holds the branch, because a `full` run left it switched
-  to `<type>/<scope>`. Confirm this with `git rev-parse --abbrev-ref HEAD`. A different branch means the
+  to it. Confirm with `git rev-parse --abbrev-ref HEAD`. A different branch means the
   checkout is wrong. Say so and stop. When the ledger's `**Stage:**` line reads `shipped`, say instead
   that `/superdev:ship`'s §6 returned this checkout to base by design, and that `git switch
   <type>/<scope>` restores it before a writing command re-runs. On a read-only command, review

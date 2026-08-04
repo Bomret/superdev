@@ -49,11 +49,13 @@ An anchor is **eligible** when all of these hold:
 
 - It is **open**, and carries no `blocked` label.
 - **No open slice beneath it** carries `blocked`.
-- Its feature label matches that scope-slug rule. A label that fails it is skipped (below),
+- Its feature label passes that scope-slug rule, **both segments** — its change type as well as its slug.
+  A label that fails either is skipped (below),
   not blocked — it is not that feature's fault, and pathing `.superdev/scopes/<slug>/…` off unvalidated
   input is exactly the mistake that rule exists to catch.
 - Its scope has **no live run**. Check `.superdev/scopes/<slug>/run.lock` (`<slug>` is its feature label
-  minus the change-type prefix that rule names): newer than an hour means another session owns that scope. A run
+  minus the change-type prefix, which `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The change
+  type` section owns): newer than an hour means another session owns that scope. A run
   lock only ever exists for a `lite`-tier scope
   (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`) — a plan with more than 3 slices runs
   `full` and never gets one, so **no lock present is not by itself eligibility**: fall back to

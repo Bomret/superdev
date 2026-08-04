@@ -3,7 +3,7 @@ type: llm
 focus: files
 weight: 1
 ---
-The diff adds a written plan under `docs/plans/<slug>/` cutting widget CRUD
+The diff adds a written plan under `docs/plans/<type>/<slug>/` cutting widget CRUD
 into units of work.
 
 PASS only if the plan states, per unit, which other units it depends on — an

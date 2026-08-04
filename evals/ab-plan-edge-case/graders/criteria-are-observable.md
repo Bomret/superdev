@@ -3,7 +3,7 @@ type: llm
 focus: files
 weight: 1
 ---
-The diff adds a written plan under `docs/plans/<slug>/`.
+The diff adds a written plan under `docs/plans/<type>/<slug>/`.
 
 PASS only if every acceptance criterion in the plan is stated as **observable
 behaviour** — something a caller or a test could check (a status code, a

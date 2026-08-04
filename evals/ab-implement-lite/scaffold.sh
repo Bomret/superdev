@@ -82,7 +82,9 @@ DOC
 cat > docs/agents/issue-tracker.md <<'DOC'
 # Slice store: Local plan files
 
-A feature's plan is a directory of markdown files: `docs/plans/<feature-slug>/`.
+A feature's plan is a directory of markdown files: `docs/plans/<type>/<feature-slug>/`,
+where `<type>` is the Conventional Commits type of the work. The feature label is
+`<type>/<feature-slug>`, and it doubles as the scope branch name.
 
 - `00-epic-<summary>.md` — the scope file: global Definition of Done + a
   short description of the feature. Not a slice.

@@ -9,12 +9,16 @@ away. A long-lived repo run through many `/superdev:implement` scopes accumulate
 per scope indefinitely, with no built-in way to reclaim it short of a manual `rm -rf`.
 
 **Decision.** A new `Stop` hook, `hooks/scope-prune.js`, silently deletes a scope's run root once **both**
-hold: (a) the scope branch (`superdev/<scope>`) is merged into the current branch, and (b) the run root's
+hold: (a) the scope branch is merged into the current branch, and (b) the run root's
 newest file is older than a 7-day TTL. It never touches a scope whose branch isn't merged (still active)
 or whose `worktree`/`worktrees/` subdirectory is still present (an interrupted cleanup, not a finished
 run — left for a human to look at, same caution `worktree-sweep.js` already applies at the per-slice
 level). Mirrors `worktree-sweep.js`'s merged-branch check one level up: scope branch instead of slice
 branch.
+
+The hook recognises a scope branch by its shape — a change type leading the run root's own name
+(`<type>/<scope>`) — per ADR 0021. A maintainer's `wip/<slug>` and a `slice/<scope>/<id>` branch never
+count.
 
 **Why.** The trail's value is front-loaded — reviewing a run shortly after it lands, or resuming after a
 crash — and drops off fast once the PR has been merged for a week. 7 days balances that against

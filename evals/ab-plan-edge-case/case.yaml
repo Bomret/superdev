@@ -25,7 +25,7 @@ execution:
     Definition of Done: a request for a widget that exists returns 200 with
     that widget's JSON body, verified by a test.
 
-    Write the finished plan to files under `docs/plans/<feature-slug>/`
+    Write the finished plan to files under `docs/plans/<type>/<feature-slug>/`
     following this repo's conventions in `docs/agents/`. Do not implement it.
   max_turns: 40
   timeout_seconds: 900

@@ -245,12 +245,22 @@ const STORE_MECHANISMS = [
   [/\bepic\b/i, 'an epic — the `epic` label, or the local store\'s `00-epic-` filename'],
   // Any change type, not `feat` alone: a feature label leads with the type of its own work
   // (`references/scope-mode.md`), so pinning one type would let the selection step name `fix/` unnoticed.
-  // The lookahead is what separates a prefix from a path: a prefix is named as a prefix — `feat/<slug>`,
-  // `` `docs/` `` — and stops at the slash, while `docs/agents/issue-tracker.md` and `docs/plans` carry a
-  // path segment after it. This step is *supposed* to point at the first of those, so a bare type-plus-
-  // slash rule would flag the very sentence the check exists to require.
+  // Excluded structurally, not by an allowlist of literal path segments: a further `/`-delimited segment
+  // right after the type — `docs/agents/x`, `docs/adr/x`, `docs/plans/<type>/` — means this is a path
+  // being cited, not a feature label, so it passes. `feat/self-improvements` and `docs/plans-refactor`
+  // have no such further segment, so both are caught as a change-type label prefix. A two-literal
+  // allowlist (`agents/`, `plans\b`) caught the first but not the second — `plans\b` matches
+  // `docs/plans-refactor` before its hyphen — and flagged an unrelated doc citation
+  // (`docs/adr/0021-….md`) as a false positive.
+  // Two measured properties of this structural exclusion are authoring traps. First, a bare path
+  // citation with no trailing slash (`docs/plans`, `docs/agents`) has no further segment either, so it is
+  // flagged as a prefix the same as a real label — this is why a selftest fixture below cites
+  // `ls docs/plans/`, never a bare `docs/plans`. Second, the rule exempts `feat/<slug>/` and
+  // `docs/plans/fix/<slug>/` too: a selection step naming the local store's path-rendered label is
+  // structurally exempt from this row the same as a doc citation, and caught, if at all, only because
+  // such prose usually also trips the `\bepic\b` row above.
   [
-    /\b(feat|fix|refactor|docs|perf|test|build|ci|chore|style|revert)\/(?=[<`\s.,)]|$)/m,
+    /\b(feat|fix|refactor|docs|perf|test|build|ci|chore|style|revert)\/(?![^\s/]*\/)/m,
     'a change-type label prefix',
   ],
   [/sub-issue|sub_issue/, "GitHub's sub-issue relation"],
@@ -600,6 +610,16 @@ const CHANGE_TYPE_CONTRACTS = [
     /\^\(feat\|fix\|refactor\|docs\|perf\|test\|build\|ci\|chore\|style\|revert\)\$/,
     'keep matching the change type with `^(feat|fix|refactor|docs|perf|test|build|ci|chore|style|revert)$` — the set `references/scope-mode.md` lists',
   ],
+  // The glossary restates the set for a reader, which makes it a third copy of one fact. It is the copy
+  // most likely to drift, because nothing executes it and no other check reads it. `doc-writer` may
+  // legitimately re-wrap this glossary line at any comma, so every separator tolerates a line break —
+  // not just the one between `chore` and `style` where the line happens to wrap today — without
+  // weakening what the row asserts: the same eleven types, in order.
+  [
+    'CONTEXT.md',
+    /`feat`,\s*`fix`,\s*`refactor`,\s*`docs`,\s*`perf`,\s*`test`,\s*`build`,\s*`ci`,\s*`chore`,\s*`style`,\s*or\s+`revert`/,
+    'list the same change types the **Change type** glossary entry names — the set `references/scope-mode.md` owns',
+  ],
 ];
 
 // `/superdev:implement` takes the feature label that names which planned feature to build, and derives
@@ -723,6 +743,47 @@ const DERIVED_CRITERIA_CONTRACTS = [
   ],
 ];
 
+// A scope branch leads with its change type (ADR 0021), so the branch name is no longer computable from
+// the scope slug the way `superdev/<scope>` was. `/superdev:ship` receives a slug and must still name the
+// branch, to decide whether the checkout it is standing in is the right one. Phase 0 knows the branch —
+// it just cut it — so the ledger records it and the readers read it back. Two documents carry that
+// between them. A writer that stops recording the line leaves every later command guessing; a reader that
+// stops looking for it silently falls back to a shape scan that cannot separate two runs whose slugs
+// differ only by type. Neither half fails anything else.
+const LEDGER_BRANCH_CONTRACTS = [
+  [
+    path.join('commands', 'implement.md'),
+    /\*\*Branch:\*\*/,
+    'record the scope branch as the ledger\'s `**Branch:**` line in Phase 0',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /\*\*Branch:\*\*/,
+    'resolve the scope branch from the ledger\'s `**Branch:**` line',
+  ],
+];
+
+// A feature label is external input that becomes a branch name and a run-root path segment. Both of its
+// segments reach `git switch -c`, so both are validated — the leading one against the closed change-type
+// set, which is strictly stronger than a charset test on it. A rule that guards the slug alone lets a
+// label of `--exec=foo/x` or `-x/y` through to git as an option, and lets a non-canonical type make a run
+// root that `scope-prune` never recognises and therefore never removes. The consumers are pinned on the
+// phrase `both segments`, not on `scope-slug rule` alone: the pre-change text already carried the latter
+// for the slug-only rule, so pinning it would go green on a revert to that wording, or on a whole-file
+// revert to the pre-change document, leaving that consumer's half of this contract unguarded.
+const LABEL_VALIDATION_CONTRACTS = [
+  [
+    path.join('references', 'scope-mode.md'),
+    /\*\*Validate both segments\.\*\*/,
+    'carry the **Validate both segments.** rule — the leading segment against the change-type set, not the slug alone',
+  ],
+  ...[path.join('commands', 'implement.md'), path.join('commands', 'afk.md')].map((rel) => [
+    rel,
+    /both segments/,
+    'point at `references/scope-mode.md`\'s both-segments validation before building a path or a branch out of a label',
+  ]),
+];
+
 // `/superdev:afk` drives the chain by invoking the four real commands (ADR 0015), and every one of those
 // invocations carries the unattended token. An invocation that loses it asks a question at three in the
 // morning: the sweep stops there and does nothing until someone wakes up, having reported no failure —
@@ -813,6 +874,8 @@ function main() {
     ...scanContract(root, CHANGE_TYPE_CONTRACTS),
     ...scanContract(root, DEGRADED_CONTRACTS, { stripFrontmatterFirst: true }),
     ...scanContract(root, DERIVED_CRITERIA_CONTRACTS),
+    ...scanContract(root, LEDGER_BRANCH_CONTRACTS),
+    ...scanContract(root, LABEL_VALIDATION_CONTRACTS),
   ];
   // Every scanner above skips a document it cannot read, so that a fixture carries only the files it
   // exercises. That convention would let `commands/afk.md` be deleted without a single check going red,
@@ -845,6 +908,7 @@ function main() {
         'chain hands off, scope-slug charset matches the run-lock hook, change-type set matches the ' +
         'scope-prune hook, feature-label argument and ' +
         'unattended token and degrade record carried, criteria derived before the DoD is read, ' +
+        'scope branch recorded in the ledger, both label segments validated, ' +
         'eval graders and scaffolds well-formed',
     );
     process.exit(0);
@@ -1422,6 +1486,59 @@ if (process.argv[2] === '--selftest') {
   assert.equal(silent.length, 1, 'a selection naming no contract is a gap');
   assert.match(silent[0].expectation, /point its selection at/, 'reports the missing contract');
 
+  // a concrete label is a change-type prefix like any other. The two path strings this step legitimately
+  // carries are excluded by name, so naming one real label no longer slips past as a path would.
+  const concreteLabel = scanAfkSelectionNeutrality(
+    fixture({
+      'commands/afk.md': selection(
+        `${neutral} Select the anchor labelled \`feat/self-improvements\`.`,
+      ),
+    }),
+  );
+  assert.equal(concreteLabel.length, 1, 'a concrete feature label is a change-type prefix');
+  assert.match(concreteLabel[0].expectation, /change-type label prefix/, 'reports the prefix mechanism');
+
+  // `docs/plans-refactor` is the string the two-literal allowlist this rule replaced let through —
+  // `plans\b` matched it before its hyphen, since a word boundary sits there too. The structural rule
+  // must still catch it: no further `/`-delimited segment follows `docs/`, so it reads as a label.
+  const hyphenatedSlug = scanAfkSelectionNeutrality(
+    fixture({
+      'commands/afk.md': selection(`${neutral} Select the anchor labelled \`docs/plans-refactor\`.`),
+    }),
+  );
+  assert.equal(hyphenatedSlug.length, 1, 'a hyphenated slug past the type is still a change-type prefix');
+  assert.match(hyphenatedSlug[0].expectation, /change-type label prefix/, 'reports the prefix mechanism');
+
+  // …while the store-config path the step is meant to point at, and the local store's plan root, both
+  // pass — each carries a further `/`-delimited segment right after the type, so the structural rule
+  // reads both as a path being cited rather than a feature label
+  assert.equal(
+    scanAfkSelectionNeutrality(
+      fixture({
+        'commands/afk.md': selection(
+          'Read `docs/agents/issue-tracker.md`\'s `## Scope anchor` contract; a local store keeps plans under `docs/plans/`.',
+        ),
+      }),
+    ).length,
+    0,
+    'the excluded path strings are not prefixes',
+  );
+
+  // an ADR citation is a doc pointer, not a label — `docs/adr/0021-….md` has the same further-segment
+  // shape as `docs/agents/…`, so the structural rule passes it too. The two-literal allowlist this rule
+  // replaced flagged it as a false "change-type label prefix".
+  assert.equal(
+    scanAfkSelectionNeutrality(
+      fixture({
+        'commands/afk.md': selection(
+          `${neutral} See \`docs/adr/0021-change-type-branch.md\` for why.`,
+        ),
+      }),
+    ).length,
+    0,
+    'an ADR citation is not a change-type label prefix',
+  );
+
   // a mechanism outside the selection section is fine — the rest of the command may discuss an epic as a
   // domain concept, it just may not test for one when selecting
   assert.equal(
@@ -1449,7 +1566,7 @@ if (process.argv[2] === '--selftest') {
     scanAfkSelectionNeutrality(
       fixture({
         'commands/afk.md': selection(
-          `${neutral}\n\n\`\`\`sh\n# candidates\nls docs/plans\n\`\`\`\n\nTake the issue labelled \`epic\`.`,
+          `${neutral}\n\n\`\`\`sh\n# candidates\nls docs/plans/\n\`\`\`\n\nTake the issue labelled \`epic\`.`,
         ),
       }),
     ).length,
@@ -2084,6 +2201,26 @@ if (process.argv[2] === '--selftest') {
   assert.equal(typeGaps2.length, 1, 'flags the hook narrowing away from the stated set');
   assert.equal(typeGaps2[0].source, path.join('hooks', 'scope-prune.js'), 'names scope-prune.js');
 
+  // and from the glossary's side: nothing executes that copy, so only this row notices it drifting
+  const type3 = fixture({
+    'CONTEXT.md': '**Change type** — one of `feat`, `fix`, or `docs`.\n',
+  });
+  const typeGaps3 = scanContract(type3, CHANGE_TYPE_CONTRACTS);
+  assert.equal(typeGaps3.length, 1, 'flags a glossary entry that drifted from the owned set');
+  assert.equal(typeGaps3[0].source, 'CONTEXT.md', 'names CONTEXT.md');
+
+  // negative: doc-writer may legitimately re-wrap the glossary line at a different comma than today's —
+  // the same eleven types, in order, must stay clean regardless of where the line break falls
+  const type4 = fixture({
+    'CONTEXT.md':
+      '**Change type** — one of `feat`, `fix`, `refactor`,\n`docs`, `perf`, `test`, `build`, `ci`,\n`chore`, `style`, or\n`revert`.\n',
+  });
+  assert.equal(
+    scanContract(type4, CHANGE_TYPE_CONTRACTS).length,
+    0,
+    'a re-wrapped but correct glossary line stays clean',
+  );
+
   // --- DERIVED_CRITERIA_CONTRACTS: the dispatch hands a path and the reviewer derives before reading.
   // Both halves are needed for the ordering to be real, and losing either one is silent. ---
 
@@ -2112,6 +2249,80 @@ if (process.argv[2] === '--selftest') {
   // absent files are skipped, matching every other contract table
   assert.equal(
     scanContract(fixture({ 'README.md': '# repo\n' }), DERIVED_CRITERIA_CONTRACTS).length,
+    0,
+    'absent files are skipped',
+  );
+
+  // --- LEDGER_BRANCH_CONTRACTS: Phase 0 records the scope branch, and scope-mode reads it back. A slug
+  // alone no longer names the branch, so both halves are needed. ---
+
+  assert.equal(
+    scanContract(realRoot, LEDGER_BRANCH_CONTRACTS).length,
+    0,
+    'the shipped implement.md ledger spec and scope-mode.md resolution rule agree',
+  );
+
+  // positive: a Phase 0 that records slice keys but not the branch is caught
+  const lb1 = fixture({
+    'commands/implement.md': 'Track each slice\'s status and the slice-id to issue-key mapping.\n',
+  });
+  const lbGaps1 = scanContract(lb1, LEDGER_BRANCH_CONTRACTS);
+  assert.equal(lbGaps1.length, 1, 'flags a ledger spec that stopped recording the branch');
+  assert.equal(lbGaps1[0].source, path.join('commands', 'implement.md'), 'names implement.md');
+
+  // positive from the reader's side: a resolution rule that stopped reading the line is the same drift
+  const lb2 = fixture({
+    'references/scope-mode.md': 'Its head is the scope branch `<type>/<scope>`.\n',
+  });
+  const lbGaps2 = scanContract(lb2, LEDGER_BRANCH_CONTRACTS);
+  assert.equal(lbGaps2.length, 1, 'flags a resolution rule that no longer reads the ledger');
+  assert.equal(lbGaps2[0].source, path.join('references', 'scope-mode.md'), 'names scope-mode.md');
+
+  // absent files are skipped, matching every other contract table
+  assert.equal(
+    scanContract(fixture({ 'README.md': '# repo\n' }), LEDGER_BRANCH_CONTRACTS).length,
+    0,
+    'absent files are skipped',
+  );
+
+  // --- LABEL_VALIDATION_CONTRACTS: both segments of a feature label reach git, so both are validated,
+  // and every command that builds a path or a branch out of one points at the rule. ---
+
+  assert.equal(
+    scanContract(realRoot, LABEL_VALIDATION_CONTRACTS).length,
+    0,
+    'the shipped rule validates both segments and both consumers point at it',
+  );
+
+  // positive: a rule that guards the slug alone leaves the type segment reaching `git switch -c`
+  const lv1 = fixture({
+    'references/scope-mode.md': 'validate the slug segment — what follows the first `/` — and not the label as a whole.\n',
+  });
+  const lvGaps1 = scanContract(lv1, LABEL_VALIDATION_CONTRACTS);
+  assert.equal(lvGaps1.length, 1, 'flags a rule that stopped validating the leading segment');
+  assert.equal(lvGaps1[0].source, path.join('references', 'scope-mode.md'), 'names scope-mode.md');
+
+  // positive from a consumer's side: a command that stopped pointing at the rule validates nothing
+  const lv2 = fixture({ 'commands/afk.md': '# superdev afk\n\nSelect the next scope anchor.\n' });
+  const lvGaps2 = scanContract(lv2, LABEL_VALIDATION_CONTRACTS);
+  assert.equal(lvGaps2.length, 1, 'flags a consumer that dropped its wire to the rule');
+  assert.equal(lvGaps2[0].source, path.join('commands', 'afk.md'), 'names afk.md');
+
+  // positive, the weaker revert: a consumer that reverted to the pre-change slug-only wording keeps its
+  // wire to `scope-mode.md`'s scope-slug rule intact but never asserts both segments are validated — the
+  // exact text `commands/afk.md` carried before this scope, which a whole-file revert would restore
+  const lv3 = fixture({
+    'commands/afk.md':
+      "**Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s scope-slug rule before you go on.**\n\n" +
+      "- Its feature label matches that scope-slug rule. A label that fails it is skipped (below),\n",
+  });
+  const lvGaps3 = scanContract(lv3, LABEL_VALIDATION_CONTRACTS);
+  assert.equal(lvGaps3.length, 1, 'flags a consumer reverted to slug-only wording, wire intact');
+  assert.equal(lvGaps3[0].source, path.join('commands', 'afk.md'), 'names afk.md');
+
+  // absent files are skipped, matching every other contract table
+  assert.equal(
+    scanContract(fixture({ 'README.md': '# repo\n' }), LABEL_VALIDATION_CONTRACTS).length,
     0,
     'absent files are skipped',
   );
