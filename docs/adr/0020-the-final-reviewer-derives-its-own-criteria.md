@@ -21,12 +21,12 @@ diff between its list and the DoD's. `/superdev:review` hands it `<run-root>/dod
 its text, which is what makes that ordering real.
 
 On a review that finds nothing Critical or Important, the reviewer may add one **ceiling note**: a DoD
-criterion that is ticked and correctly implemented but met shallowly. It is admissible only if it names that
+criterion this review found satisfied but met shallowly. It is admissible only if it names that
 criterion, names a concrete consequence, and is the single largest such gap. It never gates a merge and never
 triggers the fix loop.
 
 Both are scope mode only. An ad-hoc range's `acceptance` *is* its intent, so deriving criteria from it and
-diffing against it is circular, and a ceiling note has no ticked criterion to name.
+diffing against it is circular, and a ceiling note has no criterion the review found satisfied to name.
 
 ## Considered options
 

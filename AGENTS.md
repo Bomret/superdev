@@ -31,7 +31,7 @@ plugins.
 commands/              — slash commands (*.md): brainstorm, setup, plan, implement, review, document,
                          ship, afk, upgrade, status. implement → review → document → ship is the chain a
                          scope walks, each command printing the next (ADR 0013). afk drives that chain
-                         unattended, one eligible epic at a time, with the Skill tool (ADR 0015)
+                         unattended, one eligible scope anchor at a time, with the Skill tool (ADR 0015)
 agents/                — subagents (*.md): implementer, slice-reviewer, simplicity-reviewer, final-reviewer,
                          doc-writer, doc-reader
 hooks/                 — deterministic Node hooks + hooks.json: merge-guard, model-explicit, green-gate,
@@ -227,18 +227,19 @@ This root owns every subtree directly:
 - `scripts/`. Standalone deterministic checks that `package.json` runs, and the other executable code
   alongside `hooks/`. It follows the same `--selftest` convention. The reference, run-root, assignee,
   anchor-contract, afk-selection-neutrality, writing-standard, content-types, stage, command-resolution,
-  chain-handoff, feature-label-argument, unattended-token, afk-invocation, scope-slug, change-type, and
-  degraded-pass
+  chain-handoff, feature-label-argument, unattended-token, afk-invocation, scope-slug, change-type,
+  degraded-pass, and derived-criteria
   checks are drift assertions. They compare a restated fact against its source. The eval-shape check
   compares a document against a schema. The afk-existence check is a plain existence assertion.
-  `drift-check.js` guards eighteen things, in the order its `main()` computes them. First, that every
+  `drift-check.js` guards nineteen things, in the order its `main()` computes them. First, that every
   `references/*.md` path named in `commands/`, `agents/`, or `references/` itself resolves to a file that
   exists. A reference cites
   another reference — both execution playbooks point at `scope-mode.md` — so a rename there dangles like
   any other. Second, that `commands/implement.md`,
   `commands/review.md`, `commands/document.md`, `commands/ship.md`, `references/implement-full.md`,
   `references/implement-lite.md`, `references/scope-mode.md`, `agents/implementer.md`,
-  `agents/slice-reviewer.md`, and `agents/simplicity-reviewer.md` address run-root artifacts by absolute
+  `agents/slice-reviewer.md`, `agents/simplicity-reviewer.md`, and `agents/final-reviewer.md` address
+  run-root artifacts by absolute
   `<run-root>/…` path. Third, that every issue-backend document carries the `**Assignee` config bullet.
   The filename alone triggers that check, with no content gate on how the doc phrases issue creation.
   `references/issue-tracker-local.md` is exempt, because it has no assignee concept. Fourth, that every
@@ -269,7 +270,8 @@ This root owns every subtree directly:
   `commands/implement.md`, `commands/review.md`, and `commands/document.md` each name their successor in
   the chain. `commands/ship.md` ends the chain and is deliberately outside that check.
 
-  The eleventh, twelfth, fourteenth, fifteenth, and sixteenth checks share one scanner, `scanContract()`, run over
+  The eleventh, twelfth, fourteenth, fifteenth, sixteenth, and seventeenth checks share one scanner,
+  `scanContract()`, run over
   a table of `[document, pattern, expectation]` rows instead of one function each. It reads every
   document a table names and reports the rows whose pattern that document no longer matches. Eleventh, the
   feature-label-argument contract: `commands/implement.md` declares an `argument-hint` naming a feature
@@ -293,8 +295,15 @@ This root owns every subtree directly:
   `references/implement-full.md`, and `references/implement-lite.md` each name the `**Degraded:**`
   ledger entry and point at that section. A consumer that drops the wire lets a run report assurance it
   never got — a pull request claiming a review that was its author reading their own work. Seventeenth,
+  the derived-criteria contract: `commands/review.md` hands `final-reviewer` the **path**
+  `<run-root>/dod.md` in its scope-mode dispatch, and `agents/final-reviewer.md` carries its
+  `## Derive the criteria first` step (ADR 0020). Both halves are needed for the ordering to be real,
+  because a prompt arrives at once — DoD text inlined in the dispatch is already read by the time the
+  instruction asks for a derivation. Losing either half degrades the derivation into theater: references
+  still resolve, the suite stays green, and the reviewer reads the DoD first exactly as before.
+  Eighteenth,
   that `commands/afk.md` exists at all. Nothing else in the plugin names `/superdev:afk` for the ninth
-  check to resolve, so its absence would otherwise go unnoticed. Eighteenth, that every
+  check to resolve, so its absence would otherwise go unnoticed. Nineteenth, that every
   `evals/*/graders/*.md` declares a known `type` and a positive `weight`, that an `llm` or `regex`
   grader also declares a `focus` or `target`, and that every case's `scaffold_script` resolves. Nothing
   else validates a grader, so without this a typo surfaces part-way through a run that costs real API

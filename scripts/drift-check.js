@@ -58,6 +58,7 @@ const RUN_ROOT_DOCS = [
   'agents/implementer.md',
   'agents/slice-reviewer.md',
   'agents/simplicity-reviewer.md',
+  'agents/final-reviewer.md',
 ];
 
 // A checkout-relative run-root ARTIFACT path: .superdev/scopes/<seg>/<artifact>. Worktree *directory*
@@ -702,6 +703,26 @@ const DEGRADED_CONTRACTS = [
   ].map((rel) => [rel, /`## Degraded passes`/, 'point at the `## Degraded passes` section, not merely the entry']),
 ];
 
+// `final-reviewer` writes the acceptance criteria a feature ought to have before it opens the Definition
+// of Done, so a criterion the plan interview never wrote still reaches the report (ADR 0020). Two
+// documents carry that between them, and both halves are needed for the ordering to be real. A prompt
+// arrives at once, so DoD text inlined in the dispatch is already read by the time any instruction asks
+// for a derivation — `/superdev:review` therefore hands the *path*, and `final-reviewer` opens it late.
+// Either half alone degrades the derivation into theater: references still resolve, the suite stays
+// green, and the reviewer just reads the DoD first exactly as it did before.
+const DERIVED_CRITERIA_CONTRACTS = [
+  [
+    path.join('commands', 'review.md'),
+    /\*\*path\*\*\s+`<run-root>\/dod\.md`/,
+    'hand `final-reviewer` the **path** `<run-root>/dod.md` in scope mode, never the DoD text inlined',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /^##\s+Derive the criteria first\s*$/m,
+    'carry the `## Derive the criteria first` step — the criteria are written before the DoD and the diff are read',
+  ],
+];
+
 // `/superdev:afk` drives the chain by invoking the four real commands (ADR 0015), and every one of those
 // invocations carries the unattended token. An invocation that loses it asks a question at three in the
 // morning: the sweep stops there and does nothing until someone wakes up, having reported no failure —
@@ -791,6 +812,7 @@ function main() {
     ...scanContract(root, SCOPE_SLUG_CONTRACTS),
     ...scanContract(root, CHANGE_TYPE_CONTRACTS),
     ...scanContract(root, DEGRADED_CONTRACTS, { stripFrontmatterFirst: true }),
+    ...scanContract(root, DERIVED_CRITERIA_CONTRACTS),
   ];
   // Every scanner above skips a document it cannot read, so that a fixture carries only the files it
   // exercises. That convention would let `commands/afk.md` be deleted without a single check going red,
@@ -822,7 +844,8 @@ function main() {
         'writing standard offered, content-type lens wired, stage line named, commands resolve, ' +
         'chain hands off, scope-slug charset matches the run-lock hook, change-type set matches the ' +
         'scope-prune hook, feature-label argument and ' +
-        'unattended token and degrade record carried, eval graders and scaffolds well-formed',
+        'unattended token and degrade record carried, criteria derived before the DoD is read, ' +
+        'eval graders and scaffolds well-formed',
     );
     process.exit(0);
   }
@@ -2060,6 +2083,38 @@ if (process.argv[2] === '--selftest') {
   const typeGaps2 = scanContract(type2, CHANGE_TYPE_CONTRACTS);
   assert.equal(typeGaps2.length, 1, 'flags the hook narrowing away from the stated set');
   assert.equal(typeGaps2[0].source, path.join('hooks', 'scope-prune.js'), 'names scope-prune.js');
+
+  // --- DERIVED_CRITERIA_CONTRACTS: the dispatch hands a path and the reviewer derives before reading.
+  // Both halves are needed for the ordering to be real, and losing either one is silent. ---
+
+  assert.equal(
+    scanContract(realRoot, DERIVED_CRITERIA_CONTRACTS).length,
+    0,
+    'the shipped review.md dispatch and final-reviewer.md derivation step agree',
+  );
+
+  // positive: reverting the dispatch to inlining the DoD text is caught
+  const dc1 = fixture({
+    'commands/review.md': 'take `<run-root>/dod.md` as the `acceptance` for both reviewers.\n',
+  });
+  const dcGaps1 = scanContract(dc1, DERIVED_CRITERIA_CONTRACTS);
+  assert.equal(dcGaps1.length, 1, 'flags a dispatch that inlines the DoD instead of handing its path');
+  assert.equal(dcGaps1[0].source, path.join('commands', 'review.md'), 'names review.md');
+
+  // positive from the reviewer's side: dropping the derivation step is the same drift
+  const dc2 = fixture({
+    'agents/final-reviewer.md': '## What to check\n\nFirst, the **gate**.\n',
+  });
+  const dcGaps2 = scanContract(dc2, DERIVED_CRITERIA_CONTRACTS);
+  assert.equal(dcGaps2.length, 1, 'flags a reviewer that lost its derive-before-reading step');
+  assert.equal(dcGaps2[0].source, path.join('agents', 'final-reviewer.md'), 'names final-reviewer.md');
+
+  // absent files are skipped, matching every other contract table
+  assert.equal(
+    scanContract(fixture({ 'README.md': '# repo\n' }), DERIVED_CRITERIA_CONTRACTS).length,
+    0,
+    'absent files are skipped',
+  );
 
   console.log('drift-check selftest ok');
 } else {

@@ -13,9 +13,40 @@ doesn't work — a "Yes" verdict is one that survived your best attempt to break
 
 ## What the controller hands you
 
-- **What was built**: a short summary of the feature.
-- **Requirements**: the global Definition of Done + the slice list (or plan file).
+- **What was built**: a short summary of the feature. On a live scope run this is the scope anchor's own
+  title, from `<run-root>/ledger.md`.
+- **Requirements**: on a live scope run, the **path** to the global Definition of Done
+  (`<run-root>/dod.md`) — a path, so you choose when to open it. On an ad-hoc range, `acceptance` text
+  instead: a description of what the change should do, an issue body, or the no-specification default.
 - **Range**: BASE = `merge-base(base, scope)`, HEAD = scope branch tip.
+
+## Derive the criteria first
+
+**Only when the requirements arrived as a `<run-root>/dod.md` path.** Text handed to you is already read,
+so an ad-hoc range skips this section entirely and reviews against the `acceptance` it was given.
+
+Every quality bar is a floor. The Definition of Done was written by an interview before the code existed,
+and checking the work against that same list can only find what the list already thought of — a criterion
+the interview never wrote is one no gate can miss. So write your own list first:
+
+1. Read the one-line intent and `<run-root>/ledger.md`'s slice list. **Nothing else.** Not the diff, not
+   `dod.md`, not the slice bodies.
+2. From that intent and slice list, write the acceptance criteria this feature ought to have — what a careful
+   reviewer would demand before calling it done, including the failure and boundary cases the intent
+   implies. State this list in your response before you open `dod.md`, so the derivation is visible ahead
+   of the answer key.
+3. **Then** open `<run-root>/dod.md` and the diff, and review as below.
+
+Report every criterion on your list that the DoD does not cover, at the severity each one actually
+warrants — a missing security criterion is Critical, a missing nice-to-have is Minor. **Except**: when the
+integrated code already satisfies the criterion, that is a plan-coverage gap, not a code defect — report it
+as Minor regardless of what the criterion is about. The Critical/Important band is reserved for a derived
+criterion the code actually **fails**. These are findings like any other, not a separate category. You
+already carry "if the problem is with the plan rather than the code, say so"; this is how those surface.
+
+Your list is not a second Definition of Done. The DoD is what the run is verified against and what
+`/superdev:ship` ticks. Yours exists to show what the DoD left out.
+
 ## Read-only review
 
 ```bash
@@ -98,6 +129,26 @@ implementer's or controller's narrative of what was built. Length ≠ completene
 claim resting only on proxy counts (coverage %, line count, lint score) — confirm the observable,
 user-facing behaviour (ADR 0002).
 
+## The ceiling note
+
+A criterion can be satisfied, correctly implemented, and still met shallowly — the work stopped at the first
+thing that passed. The ceiling note is one advisory observation about that. It is not a finding: nothing
+is wrong, and there is nothing to fix.
+
+**Scope mode only.** An ad-hoc range has no DoD criterion for the first gate to name.
+
+Write one only when **all four** gates hold:
+
+1. It names a DoD criterion this review found **satisfied** — a specific one, quoted.
+2. It names a **concrete consequence**: who hits it, doing what, and what happens. Not "could be more
+   robust" — the reader must be able to picture the case.
+3. There is **exactly one**. Pick the one that costs the most.
+4. The review found **nothing Critical and nothing Important**. Minor findings do **not** suppress it: a
+   doc-polish nit is not you having something substantive to say.
+
+Nothing clears all four → **write no `### Ceiling` section at all**. An empty heading is worse than
+silence, because it trains the reader to skip the heading.
+
 ## Output
 
 ```
@@ -111,10 +162,17 @@ user-facing behaviour (ADR 0002).
 
 For each: file:line · what's wrong · why it matters · how to fix (if not obvious).
 
+### Ceiling
+[one note, per the four gates above; omit this section entirely when nothing qualifies]
+
 ### Assessment
 Ready to merge? [Yes | No | With fixes]
 Reasoning: [1–2 sentences]
 ```
+
+`### Ceiling` sits outside the severity ladder deliberately. The Issues format is
+`file:line · what's wrong · why it matters · how to fix`, and a ceiling note has no *what's wrong* to put
+in it.
 
 Categorize by **actual** severity; acknowledge what's done well; always give a clear verdict. Flag
 significant deviations from the plan specifically so the controller can confirm whether they were

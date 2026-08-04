@@ -32,11 +32,12 @@ Either way the reviewers themselves are the same read-only subagents.
 Parse `$ARGUMENTS` into a **range** and an optional trailing description of what the change should do:
 
 - **Trailing description** — everything after a ` -- ` separator, or (no `--` present) a clear trailing
-  natural-language sentence describing what the change should do. This is handed to both reviewers as
-  their `acceptance`.
+  natural-language sentence describing what the change should do. This is handed to `final-reviewer` as
+  its `acceptance`.
 - **Scope mode wins over both.** Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md` for what makes the
   resolved range a live superdev run. When it is, capture `<run-root>` and take `<run-root>/dod.md` as the
-  `acceptance` for both reviewers. That is the run's own verification plan, so no trailing description and
+  `acceptance` for `final-reviewer` — **as a path, never as text you read and paste into the dispatch**. That
+  is the run's own verification plan, so no trailing description and
   no issue-ref discovery is needed or wanted. **No `dod.md` in the run root** → say so in one line and fall
   back to the two rules below. Then follow **§4** as well as §2 and §3.
 - **No description given → try issue-ref discovery.** If `docs/agents/issue-tracker.md` is configured, grep
@@ -80,7 +81,20 @@ superdev subagent that omits one):
   security, performance, applied adversarially per axis. Give it: a one-line summary of what changed
   (derive it from the diff if the trailing
   description didn't supply one), the `acceptance` from §1, and the git range (it reads the review
-  checklist itself via `${CLAUDE_PLUGIN_ROOT}`). If a test command is configured
+  checklist itself via `${CLAUDE_PLUGIN_ROOT}`).
+  **In scope mode both of those change shape**, so the reviewer can write its own criteria before it sees
+  the answer key (ADR 0020):
+  - The summary is **the scope anchor's title**, read from `<run-root>/ledger.md` (Phase 0 of
+    `/superdev:implement` records it there), not derived from the diff. A diff-derived summary is the
+    artifact describing itself, and the derivation has to precede the artifact. **No anchor entry in the
+    ledger** (a run implemented before this rule existed) → say so in one line and fall back to a
+    diff-derived summary.
+  - The `acceptance` is the **path** `<run-root>/dod.md`, passed as a path. Never read that file and paste
+    its text into the dispatch. A prompt arrives all at once, so DoD text inlined here is already read by
+    the time the reviewer's own instruction asks it to derive first, and no instruction can undo that. The
+    reviewer also reads `<run-root>/ledger.md`'s slice list for step 1 of its derivation — `<run-root>` is
+    `dod.md`'s own directory, so no separate path needs passing.
+  If a test command is configured
   (`docs/agents/verification.md`), tell it it may re-run the suite over the range to verify green rather
   than trust the diff alone.
 - **`superdev:simplicity-reviewer`** (`model: haiku`) — over-engineering only (unnecessary complexity,
@@ -119,6 +133,10 @@ file:line · what's wrong · why it matters · how to fix (if not obvious)
 ### Over-engineering cuts
 [simplicity-reviewer's findings, if dispatched; omit this section if it wasn't]
 net: -<N> lines possible   (or "Lean already" if nothing to cut)
+
+### Ceiling
+[final-reviewer's ceiling note, carried through verbatim when it wrote one; omit this section entirely
+when it didn't]
 
 ### Assessment
 Correctness: [ready | not ready]. Simplicity: [N cuts recommended, non-blocking | Lean already | not dispatched].
@@ -164,6 +182,9 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   controller wrote itself. Write the `**Degraded:**` entry either way.
 - **Over-engineering findings never gate.** `simplicity-reviewer`'s cuts stay advisory here exactly as in
   §3. They do not hold up the handoff and they do not trigger the fix loop.
+- **A ceiling note never gates either.** `final-reviewer`'s `### Ceiling` section (ADR 0020) is an
+  observation about work that is already correct, so it holds up no handoff, starts no fix cycle, and
+  changes no stage — attended or unattended. Carry it into the report and move on.
 - **On a clean verdict**, and only then: write the ledger's `**Stage:**` line per
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s rule that a stage write never undoes completed work.
   Read the current stage first. `documented-unreviewed`, and **no fix cycle ran** → write `documented`. The

@@ -136,7 +136,9 @@ implementer's TDD discipline yourself. Between dispatches, narrate at most one s
   single-slice plan) → the DoD is that lone slice's `acceptance`; write it to `dod.md` verbatim.
 - Create the **ledger** at `<run-root>/ledger.md`. Track each slice's status
   (`todo`/`in-progress`/`in-review`/`merged`), its commit range when merged, and — for issue stores — the
-  slice-id ↔ issue-key mapping.
+  slice-id ↔ issue-key mapping. Also record the **scope anchor** — its key and title, per the store's
+  `## Scope anchor` contract (`docs/agents/issue-tracker.md`) — so `/superdev:review` can read the
+  anchor's title from the ledger instead of deriving one from the diff.
 - Write the **stage** as a `**Stage:** implementing` line at the top of the ledger. The stage records how
   far this scope has moved through the chain of commands that follow you, and it names the last completed
   step: `implementing`, `merged`, `reviewed`, `documented` (or `documented-unreviewed` when `/superdev:document`
