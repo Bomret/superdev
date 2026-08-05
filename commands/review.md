@@ -8,7 +8,7 @@ argument-hint: "[BASE..HEAD | branch | path | (empty = working tree)]  [--unatte
 Review a change end to end. Two modes, and §1 decides which:
 
 - **Ad-hoc** — a spot-check, a pre-PR pass, a second opinion on someone else's branch. No plan behind it,
-  and **read-only end to end**: this command never edits, commits, or merges.
+  and **read-only end to end** (§3).
 - **Scope** — the range is a live superdev scope branch, so this is the whole-scope review gate in the
   implement chain (ADR 0013). It reviews against that run's Definition of Done, may drive the fix loop
   after asking once, and hands off to `/superdev:document`. **§4 owns everything that differs.**
@@ -39,7 +39,7 @@ Parse `$ARGUMENTS` into a **range** and an optional trailing description of what
   `acceptance` for `final-reviewer` — **as a path, never as text you read and paste into the dispatch**. That
   is the run's own verification plan, so no trailing description and
   no issue-ref discovery is needed or wanted. **No `dod.md` in the run root** → say so in one line and fall
-  back to the two rules below. Then follow **§4** as well as §2 and §3.
+  back to the issue-ref discovery and range rules below. Then follow **§4** as well as §2 and §3.
 - **No description given → try issue-ref discovery.** If `docs/agents/issue-tracker.md` is configured, grep
   the resolved range's `git log` for issue references — keyword-qualified
   (`Close[sd]?`/`Fix(e[sd])?`/`Resolve[sd]?\s+#<n>`, case-insensitive), falling back to a bare `#<n>`.
@@ -84,11 +84,11 @@ superdev subagent that omits one):
   checklist itself via `${CLAUDE_PLUGIN_ROOT}`).
   **In scope mode both of those change shape**, so the reviewer can write its own criteria before it sees
   the answer key (ADR 0020):
-  - The summary is **the scope anchor's title**, read from `<run-root>/ledger.md` (Phase 0 of
-    `/superdev:implement` records it there), not derived from the diff. A diff-derived summary is the
-    artifact describing itself, and the derivation has to precede the artifact. **No anchor entry in the
-    ledger** (a run implemented before this rule existed) → say so in one line and fall back to a
-    diff-derived summary.
+  - The summary is **the scope anchor's title**, read from the ledger's `**Anchor:**` line (Phase 0 of
+    `/superdev:implement` writes it, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The
+    ledger` section), not derived from the diff. A diff-derived summary is the artifact describing itself,
+    and the derivation has to precede the artifact. **No `**Anchor:**` line in the ledger** (a run
+    implemented before this rule existed) → say so in one line and fall back to a diff-derived summary.
   - The `acceptance` is the **path** `<run-root>/dod.md`, passed as a path. Never read that file and paste
     its text into the dispatch. A prompt arrives all at once, so DoD text inlined here is already read by
     the time the reviewer's own instruction asks it to derive first, and no instruction can undo that. The
@@ -180,8 +180,8 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   **attended**, apply the fix inline yourself and say so in §3's report; **unattended**, **block there
   instead**, in place of the `--unattended → fix` rule above, since nobody is there to review a fix the
   controller wrote itself. Write the `**Degraded:**` entry either way.
-- **Over-engineering findings never gate.** `simplicity-reviewer`'s cuts stay advisory here exactly as in
-  §3. They do not hold up the handoff and they do not trigger the fix loop.
+- **Over-engineering findings stay advisory here, exactly as in §3.** They do not hold up the handoff and
+  they do not trigger the fix loop.
 - **A ceiling note never gates either.** `final-reviewer`'s `### Ceiling` section (ADR 0020) is an
   observation about work that is already correct, so it holds up no handoff, starts no fix cycle, and
   changes no stage — attended or unattended. Carry it into the report and move on.

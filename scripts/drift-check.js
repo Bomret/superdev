@@ -588,8 +588,8 @@ const SCOPE_SLUG_CONTRACTS = [
   ],
   [
     path.join('hooks', 'run-lock.js'),
-    /scopes\\\/\(\[a-zA-Z0-9_-\]\+\)/,
-    'keep extracting the scope with `[a-zA-Z0-9_-]+` — the charset `references/scope-mode.md` states',
+    /scopes\\\/\(\[a-zA-Z0-9\]\[a-zA-Z0-9_-\]\*\)/,
+    'keep extracting the scope with `[a-zA-Z0-9][a-zA-Z0-9_-]*` — the charset `references/scope-mode.md` states',
   ],
 ];
 
@@ -834,6 +834,57 @@ function scanAfkInvocations(root) {
   return gaps;
 }
 
+// green-gate re-runs the scope suite synchronously inside a PostToolUse hook, and a suite slower than
+// the hook's timeout is killed mid-run — the gate then silently doesn't fire, exactly the failure it
+// exists to prevent. `hooks/hooks.json` sets the green-gate entry's own `timeout` to 600s, and the
+// comment beside `IS_MERGE` in `hooks/green-gate.js` names that same number, distinguishing it from
+// Claude Code's own 60s default. A hooks.json entry that loses its `timeout` field falls back to that
+// 60s default, and a comment that no longer names 600 documents a ceiling that no longer holds — either
+// drift is silent everywhere else, because the suite stays green until a run happens to exceed 60s.
+const GREEN_GATE_TIMEOUT_CONTRACTS = [
+  [
+    path.join('hooks', 'hooks.json'),
+    // order-tolerant: `"timeout"` can precede or follow `"command"` in the entry. Forward direction uses
+    // `[^}]*` (safe: command values contain `${CLAUDE_PLUGIN_ROOT}` braces but not a closing `}` until
+    // entry end). Backward direction uses `(?:(?!"type")[\s\S]){0,160}` — matches any byte except the
+    // start of `"type":`, which every entry has and appears before our targets in a real entry,
+    // bounding backward at entry starts. This prevents a sibling entry's timeout from falsely matching.
+    /(?:green-gate\.js\\"[^}]*"timeout":\s*600(?!\d)|"timeout":\s*600(?!\d)(?:(?!"type")[\s\S]){0,160}green-gate\.js\\")/,
+    'set `"timeout": 600` on the green-gate PostToolUse(Bash) hook entry',
+  ],
+  [
+    path.join('hooks', 'green-gate.js'),
+    // `[\s\S]{0,20}` tolerates the comment's own line wrap (a `\n// ` between two words), the way
+    // `CHANGE_TYPE_CONTRACTS` tolerates a wrap at a comma — a prose reflow must not itself go red.
+    /600s `timeout` hooks\.json sets on this[\s\S]{0,20}hook's entry \(Claude Code's own default hook timeout is 60s\)/,
+    "name the 600s timeout hooks.json sets on this hook's entry, not Claude Code's own 60s default",
+  ],
+];
+
+// The ledger's schema — the slice table's columns and its labeled header lines — is otherwise specified
+// only by its readers: `commands/status.md` parses columns the writer never mandated, and
+// `commands/ship.md` reads a `type` column the same way. `references/scope-mode.md`'s `## The ledger`
+// section is the one owner; every other consumer points at it rather than restating the shape. A consumer
+// that drops the pointer leaves a reader free to parse whatever columns it imagines, silently, because
+// nothing else checks the ledger's shape.
+const LEDGER_SCHEMA_CONTRACTS = [
+  [
+    path.join('references', 'scope-mode.md'),
+    /^##\s+The ledger\s*$/m,
+    'carry the `## The ledger` section — the slice table\'s columns and the labeled header lines above it',
+  ],
+  ...[
+    path.join('commands', 'implement.md'),
+    path.join('commands', 'status.md'),
+    path.join('commands', 'ship.md'),
+  ].map((rel) => [rel, /`## The ledger`/, 'point at `references/scope-mode.md`\'s `## The ledger` section, not merely at `ledger.md`']),
+  [
+    path.join('commands', 'review.md'),
+    /\*\*Anchor:\*\*/,
+    'name the ledger\'s `**Anchor:**` line when it reads the scope anchor\'s title',
+  ],
+];
+
 // scanContract() is pure over a root dir and a contract table: reads each document the table names and
 // reports the expectations it no longer meets. Absent files are skipped, so fixtures need only the
 // documents they exercise. Both tables above share this one scanner — they differ in what they assert,
@@ -876,6 +927,8 @@ function main() {
     ...scanContract(root, DERIVED_CRITERIA_CONTRACTS),
     ...scanContract(root, LEDGER_BRANCH_CONTRACTS),
     ...scanContract(root, LABEL_VALIDATION_CONTRACTS),
+    ...scanContract(root, GREEN_GATE_TIMEOUT_CONTRACTS),
+    ...scanContract(root, LEDGER_SCHEMA_CONTRACTS),
   ];
   // Every scanner above skips a document it cannot read, so that a fixture carries only the files it
   // exercises. That convention would let `commands/afk.md` be deleted without a single check going red,
@@ -909,6 +962,8 @@ function main() {
         'scope-prune hook, feature-label argument and ' +
         'unattended token and degrade record carried, criteria derived before the DoD is read, ' +
         'scope branch recorded in the ledger, both label segments validated, ' +
+        "green-gate's hooks.json timeout matches its own comment, " +
+        'the ledger schema is owned once and every consumer points at it, ' +
         'eval graders and scaffolds well-formed',
     );
     process.exit(0);
@@ -2323,6 +2378,121 @@ if (process.argv[2] === '--selftest') {
   // absent files are skipped, matching every other contract table
   assert.equal(
     scanContract(fixture({ 'README.md': '# repo\n' }), LABEL_VALIDATION_CONTRACTS).length,
+    0,
+    'absent files are skipped',
+  );
+
+  // --- GREEN_GATE_TIMEOUT_CONTRACTS: hooks.json's green-gate timeout and green-gate.js's own comment
+  // name the same number, in two files. ---
+
+  assert.equal(
+    scanContract(realRoot, GREEN_GATE_TIMEOUT_CONTRACTS).length,
+    0,
+    'the shipped hooks.json timeout and green-gate.js comment agree',
+  );
+
+  // positive from the hooks.json side: a green-gate entry that lost its `timeout` field is drift — it
+  // silently falls back to Claude Code's own 60s default
+  const ggt1 = fixture({
+    'hooks/hooks.json': '"command": "node \\"${CLAUDE_PLUGIN_ROOT}/hooks/green-gate.js\\""\n',
+  });
+  const ggtGaps1 = scanContract(ggt1, GREEN_GATE_TIMEOUT_CONTRACTS);
+  assert.equal(ggtGaps1.length, 1, 'flags a hooks.json entry that lost its `timeout`');
+  assert.equal(ggtGaps1[0].source, path.join('hooks', 'hooks.json'), 'names hooks.json');
+
+  // positive from the green-gate.js side: a comment that stops naming the 600s ceiling is the same drift
+  const ggt2 = fixture({
+    'hooks/green-gate.js': "// the suite runs inside the hook, under Claude Code's default hook timeout.\n",
+  });
+  const ggtGaps2 = scanContract(ggt2, GREEN_GATE_TIMEOUT_CONTRACTS);
+  assert.equal(ggtGaps2.length, 1, 'flags a comment that stops naming the 600s timeout');
+  assert.equal(ggtGaps2[0].source, path.join('hooks', 'green-gate.js'), 'names green-gate.js');
+
+  // positive from the hooks.json side, numeric near-miss: `600` as a bare token must not match inside
+  // `6000` — a hooks.json entry that drifted to 6s0000ms is still drift, not a false pass
+  const ggt3 = fixture({
+    'hooks/hooks.json':
+      '"command": "node \\"${CLAUDE_PLUGIN_ROOT}/hooks/green-gate.js\\"",\n"timeout": 6000\n',
+  });
+  const ggtGaps3 = scanContract(ggt3, GREEN_GATE_TIMEOUT_CONTRACTS);
+  assert.equal(ggtGaps3.length, 1, 'flags a hooks.json `timeout` of 6000 as drift, not a 600 near-miss');
+  assert.equal(ggtGaps3[0].source, path.join('hooks', 'hooks.json'), 'names hooks.json');
+
+  // order-tolerant: `"timeout"` ahead of `"command"` in the entry is not drift
+  const ggt4 = fixture({
+    'hooks/hooks.json':
+      '"timeout": 600,\n"command": "node \\"${CLAUDE_PLUGIN_ROOT}/hooks/green-gate.js\\""\n',
+  });
+  assert.equal(
+    scanContract(ggt4, GREEN_GATE_TIMEOUT_CONTRACTS).length,
+    0,
+    'a green-gate entry with `timeout` before `command` is not drift',
+  );
+
+  // prev-sibling false-pass: current pattern uses [\s\S]{0,120} backward window that reaches across
+  // entry boundaries, falsely matching a PREVIOUS entry's timeout even if green-gate entry lacks one.
+  // The corrected pattern bounds the backward direction on "type": to stop at entry starts.
+  const ggtPrevSibling = fixture({
+    'hooks/hooks.json':
+      '"type": "command",\n' +
+      '"timeout": 600,\n' +
+      '"command": "node \\"some-hook.js\\""\n' +
+      '},\n' +
+      '{\n' +
+      '"type": "command",\n' +
+      '"command": "node \\"${CLAUDE_PLUGIN_ROOT}/hooks/green-gate.js\\""\n',
+  });
+  const ggtGapsPrevSibling = scanContract(ggtPrevSibling, GREEN_GATE_TIMEOUT_CONTRACTS);
+  assert.equal(
+    ggtGapsPrevSibling.length,
+    1,
+    'prev-sibling: flags when green-gate entry lacks timeout despite previous entry having one',
+  );
+  assert.equal(ggtGapsPrevSibling[0].source, path.join('hooks', 'hooks.json'), 'names hooks.json');
+
+  // absent files are skipped, matching every other contract table
+  assert.equal(
+    scanContract(fixture({ 'README.md': '# repo\n' }), GREEN_GATE_TIMEOUT_CONTRACTS).length,
+    0,
+    'absent files are skipped',
+  );
+
+  // --- LEDGER_SCHEMA_CONTRACTS: scope-mode.md owns the ledger's schema once, and every consumer points
+  // at it rather than restating the shape it parses. ---
+
+  assert.equal(
+    scanContract(realRoot, LEDGER_SCHEMA_CONTRACTS).length,
+    0,
+    'the shipped `## The ledger` section and every consumer pointer agree',
+  );
+
+  // positive: scope-mode.md that dropped the section itself
+  const lsc1 = fixture({
+    'references/scope-mode.md': '## The scope branch\n\nA scope slug does not name its branch.\n',
+  });
+  const lscGaps1 = scanContract(lsc1, LEDGER_SCHEMA_CONTRACTS);
+  assert.equal(lscGaps1.length, 1, 'flags scope-mode.md dropping the `## The ledger` section');
+  assert.equal(lscGaps1[0].source, path.join('references', 'scope-mode.md'), 'names scope-mode.md');
+
+  // positive: each of the three consumers dropping its pointer, one at a time
+  for (const rel of [path.join('commands', 'implement.md'), path.join('commands', 'status.md'), path.join('commands', 'ship.md')]) {
+    const dropped = fixture({ [rel]: 'Read the ledger and act on what it says.\n' });
+    const gaps = scanContract(dropped, LEDGER_SCHEMA_CONTRACTS);
+    assert.equal(gaps.length, 1, `flags ${rel} dropping its pointer to \`## The ledger\``);
+    assert.equal(gaps[0].source, rel, `names ${rel}`);
+  }
+
+  // positive: review.md that stopped naming the `**Anchor:**` line
+  const lsc2 = fixture({
+    'commands/review.md': 'The summary is the scope anchor\'s title, derived from the diff.\n',
+  });
+  const lscGaps2 = scanContract(lsc2, LEDGER_SCHEMA_CONTRACTS);
+  assert.equal(lscGaps2.length, 1, 'flags review.md dropping the `**Anchor:**` line');
+  assert.equal(lscGaps2[0].source, path.join('commands', 'review.md'), 'names review.md');
+
+  // absent files are skipped, matching every other contract table
+  assert.equal(
+    scanContract(fixture({ 'README.md': '# repo\n' }), LEDGER_SCHEMA_CONTRACTS).length,
     0,
     'absent files are skipped',
   );

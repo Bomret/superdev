@@ -51,9 +51,9 @@ An anchor is **eligible** when all of these hold:
 - **No open slice beneath it** carries `blocked`.
 - Its feature label passes that scope-slug rule, **both segments** — its change type as well as its slug.
   A label that fails either is skipped (below),
-  not blocked — it is not that feature's fault, and pathing `.superdev/scopes/<slug>/…` off unvalidated
+  not blocked — it is not that feature's fault, and pathing `.superdev/scopes/<scope>/…` off unvalidated
   input is exactly the mistake that rule exists to catch.
-- Its scope has **no live run**. Check `.superdev/scopes/<slug>/run.lock` (`<slug>` is its feature label
+- Its scope has **no live run**. Check `.superdev/scopes/<scope>/run.lock` (`<scope>` is its feature label
   minus the change-type prefix, which `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The change
   type` section owns): newer than an hour means another session owns that scope. A run
   lock only ever exists for a `lite`-tier scope
@@ -101,7 +101,7 @@ nothing to label either. Skip it and name it in §6's report. It needs a human, 
 
 ## 3. Take it through the chain
 
-Read `<run-root>/ledger.md` for the scope (`.superdev/scopes/<slug>/`) and start at the step its
+Read `<run-root>/ledger.md` for the scope (`.superdev/scopes/<scope>/`) and start at the step its
 `**Stage:**` line has not reached. Resume rather than restart: a merged slice is never rebuilt.
 
 | Stage | Start at |
@@ -110,7 +110,8 @@ Read `<run-root>/ledger.md` for the scope (`.superdev/scopes/<slug>/`) and start
 | `merged` | `/superdev:review <BASE>..<feature-label> --unattended` |
 | `reviewed` | `/superdev:document <BASE>..<feature-label> --unattended` |
 | `documented-unreviewed` | `/superdev:review <BASE>..<feature-label> --unattended` |
-| `documented` | `/superdev:ship <slug> --unattended` |
+| `documented` | `/superdev:ship <scope> --unattended` |
+| `shipped` | skip — §2's shipped skip already caught this anchor; the run is done |
 
 Then run each remaining step in order. `BASE` is `git merge-base <base> <feature-label>`, with the base
 branch from `docs/agents/code-management.md`.
@@ -167,7 +168,7 @@ A shipped feature **resets that count to zero**.
   for the same reason. Leave every remaining anchor untouched: open, unlabelled, with no run root.
 - **`/superdev:ship` failed** (the push or the pull request did not succeed) → stop at once. Label
   **nothing**: the feature is complete and the fault is the code host's. Its run stays at stage `documented`,
-  so a maintainer runs `/superdev:ship <slug>` once the host is reachable. This does not count as a block,
+  so a maintainer runs `/superdev:ship <scope>` once the host is reachable. This does not count as a block,
   and it stops the sweep immediately rather than after two, because a second feature would pay for a whole
   chain before failing the same way.
 - **No eligible anchor** → stop (§2).
@@ -198,13 +199,9 @@ pull request for each shipped one. Write no summary issue and no file.
 
 ## Red flags
 
-- **Asking anything.** Nobody is there. Every question has a standing answer, and a stop that has none is
-  a block (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`).
-- **Running `/superdev:plan`.** It is an interview. An undecomposed plan is skipped, not planned.
 - **Selecting by a store's own mechanism.** §2 reads the store's `## Scope anchor` contract. A command
   that tests for an `epic` label is right on one backend and blind on the rest — which is how every
   single-slice plan went unseen before ADR 0017.
 - **Re-implementing a chain step.** Invoke the command; it is the only copy of that procedure.
-- **Building a queue.** Re-read the tracker each iteration instead.
 - **Shipping a partial scope.** A blocked slice abandons its whole feature.
 - **Merging a pull request.** You open one and stop.

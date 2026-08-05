@@ -14,7 +14,7 @@ throughout. Return to the controller's **Final phase** once every slice is commi
   `git worktree add .superdev/scopes/<scope>/worktree -b <type>/<scope> <base>` (base from
   `code-management.md`, default `main`). The invoking checkout is **never switched** — it stays on main
   (or wherever it was), so a second session can run in the same repo. All inline implementation happens
-  **in this worktree**, never in the invoking checkout. Then move the **scope anchor** issue →
+  **in this worktree**, never in the invoking checkout. Then move the **scope anchor** →
   `in-progress` (per `issue-tracker.md`; best-effort).
 
 ## Run lock
@@ -35,7 +35,8 @@ same-scope mutual exclusion. Leave the lock in place when you finish: it spans t
   of deleting it) yourself, **directly in the scope worktree at
   `.superdev/scopes/<scope>/worktree/`**. All file edits, test runs, `git` commands, and commits happen **in the
   scope worktree as the cwd** — never in the invoking checkout. `mechanical` / `docs` slices need no new
-  test — the existing suite is the net.
+  test — the existing suite is the net. `docs/agents/verification.md`, if present, names the test
+  command (first fenced code block) — the same file the green-gate hook reads on merges.
 - **Every acceptance criterion gets at least one increment.** On a `behavior` slice the loop terminates on
   acceptance coverage, not on the specification's happy path — each criterion, including the failure and
   boundary cases the criteria name, is the RED test of its own increment.

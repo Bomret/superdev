@@ -37,9 +37,10 @@ Auth: `-u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN"`, `-H "Content-Type: applica
 
 ## superdev usage
 
-- `/superdev:plan` — after writing the in-repo feature specification/ADRs, optionally publish/refresh their pages.
-- `/superdev:implement` — the final phase optionally syncs the durable docs to the space once the scope
-  branch is green.
+- `/superdev:plan` — after seeding the in-repo feature specification/ADRs into the outline, optionally
+  publish/refresh their pages.
+- `/superdev:document` — reconciles and extends the KB (via its doc-writer), optionally syncing the
+  durable docs to the space, after a scope lands and on demand.
 
 ## Degrade / switching
 

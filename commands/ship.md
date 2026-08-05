@@ -14,9 +14,8 @@ dispatches no subagents: everything here is yours.
 **`--unattended`, if present, comes out first** — per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
 **Unattended** section, it is never part of the scope slug below.
 
-Resolve `$ARGUMENTS` to one scope:
-
-A **run root** is a `.superdev/scopes/*/` directory that holds a `ledger.md`.
+Resolve `$ARGUMENTS` to one scope — a **run root**, per
+`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## A live scope run` section:
 
 - **A scope slug given** → use it. No run root by that name → say so and stop.
 - **Empty, exactly one run root** → use it.
@@ -51,7 +50,8 @@ Read the ledger's `**Stage:**` line:
   scope shipped without it. **`--unattended` → refuse**: name what is missing, open no pull request, and stop.
   A caller that drove the whole chain never reaches this bullet, so reaching it unattended means a step
   really was skipped — and shipping unreviewed code is not a decision a token stands in for.
-- **Every slice in the ledger is `mechanical` or `docs`** → drop `/superdev:review` from that warning,
+- **Every slice in the ledger is `mechanical` or `docs`** (the ledger's `type` column, per
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The ledger`) → drop `/superdev:review` from that warning,
   whether it applies to this bullet or to `documented-unreviewed` above. Such a scope skips the
   whole-scope review by design (the suite is the net), so naming it as missing would train the reader to
   dismiss the question. If that drop empties the warning (review was the only thing missing), there is
@@ -104,12 +104,3 @@ you are standing in:
 - Keep the rest of `<run-root>` — the ledger and the ticked DoD are the git-ignored paper trail.
 
 **Never delete the scope branch.** The pull request is from it, and deleting it closes the request.
-
-## Red flags
-
-- **Opening a pull request from the wrong branch** — §2 refuses rather than guessing which tree is the
-  scope checkout.
-- **Ticking the DoD from the review's word** — confirm each item against the branch.
-- **Blocking on the stage gate** — it warns and asks once. The maintainer decides.
-- **Removing the scope branch or the run root** — the first closes the pull request, the second discards
-  the trail.

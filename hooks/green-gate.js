@@ -11,9 +11,10 @@
 // (written by /superdev:setup). No file / no command → no gate (zero-config repos are
 // unaffected). Subagents can't merge (merge-guard blocks them pre-run), so a merge here
 // is always the controller's; the agent_id check is belt-and-suspenders.
-// ponytail: the suite runs inside the hook, under Claude Code's default 600s hook timeout —
-// a suite slower than that is killed and the gate silently doesn't fire. Set a per-hook
-// `timeout` in hooks.json if the repo's suite needs more.
+// ponytail: the suite runs inside the hook, under the 600s `timeout` hooks.json sets on this
+// hook's entry (Claude Code's own default hook timeout is 60s) — a suite slower than that is
+// killed and the gate silently doesn't fire. A consumer repo whose suite needs more raises the
+// `timeout` on this hook's hooks.json entry.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -22,8 +23,15 @@ const { execSync } = require('node:child_process');
 // (?![-\w]) so read-only helpers `git merge-base` / `merge-tree` don't trip the gate (a `\b` would
 // match them — mirror merge-guard). `\n` lead-in + `m` so a merge on a later line of a multi-line
 // command is still gated. The optional group skips git's global options (`-C <path>`, `-c k=v`,
-// inline `--flags`) so `git -C <path> merge` is gated too — mirror merge-guard.
-const IS_MERGE = /(^|[;&|\n])\s*git(?:\s+(?:-[cC]\s+\S+|--\S+))*\s+merge(?![-\w])/m;
+// inline `--flags`) so `git -C <path> merge` is gated too — mirror merge-guard. Each option's
+// argument is one shell word — ARG below — so a quoted `-C`/`-c` value, an unquoted value with a
+// backslash-escaped space, and a partly-quoted `key=value` (`-c k="v w"`, `--git-dir="a b"`) are
+// all matched as a single token, not just the first non-space run a bare `\S+` would stop at.
+const ARG = /(?:[^\s"'\\]|\\.|"(?:[^"\\]|\\.)*"|'[^']*')+/.source;
+const IS_MERGE = new RegExp(
+  `(^|[;&|\\n])\\s*git(?:\\s+(?:-[cC]\\s+${ARG}|--${ARG}))*\\s+merge(?![-\\w])`,
+  'm'
+);
 const VERIFICATION_DOC = 'docs/agents/verification.md';
 
 // First fenced code block's contents, trimmed — the test command.
@@ -105,6 +113,12 @@ if (process.argv[2] === '--selftest') {
   assert.equal(decide(merge('cd x && git merge y'), 'npm test', red).block, true, 'after &&');
   assert.equal(decide(merge('echo done\ngit merge --no-ff s'), 'npm test', red).block, true, 'merge on a later line');
   assert.equal(decide(merge('git -C ../wt merge slice/x/1'), 'npm test', red).block, true, 'git -C merge is gated');
+  assert.equal(decide(merge('git -C "path with spaces" merge slice/x/1'), 'npm test', red).block, true, 'git -C <quoted path> merge is gated');
+  assert.equal(decide(merge("git -C 'path with spaces' merge slice/x/1"), 'npm test', red).block, true, 'git -C <single-quoted path> merge is gated');
+  assert.equal(decide(merge('git -C "a \\" b" merge slice/x/1'), 'npm test', red).block, true, 'git -C <double-quoted path with escaped quote> merge is gated');
+  assert.equal(decide(merge('git -C ~/my\\ path merge slice/x/1'), 'npm test', red).block, true, 'git -C <backslash-escaped space, unquoted> merge is gated');
+  assert.equal(decide(merge('git -c k="v w" merge slice/x/1'), 'npm test', red).block, true, 'git -c <unquoted key, quoted value> merge is gated');
+  assert.equal(decide(merge('git --git-dir="a b" merge slice/x/1'), 'npm test', red).block, true, 'git --git-dir="quoted value with space" merge is gated');
   assert.equal(decide(merge('git -c core.editor=true commit -m x'), 'npm test', red).block, false, 'git -c commit ignored');
 
   // fenced-block parsing

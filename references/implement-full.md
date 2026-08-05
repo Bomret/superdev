@@ -13,7 +13,7 @@ Honor the controller's **Invariants** and **Issue status** map throughout. Retur
 - **Scope branch off base:** `git switch -c <type>/<scope> <base>` in the invoking checkout (`<type>` and
   `<scope>` chosen in Phase 0; base from `code-management.md`, default `main`). You merge into this
   checkout later.
-  Then move the **scope anchor** issue → `in-progress` (per `issue-tracker.md`; best-effort).
+  Then move the **scope anchor** → `in-progress` (per `issue-tracker.md`; best-effort).
 - **Per slice**, a branch off scope in its own **worktree** under this run's root:
   `git worktree add .superdev/scopes/<scope>/worktrees/<id> -b slice/<scope>/<id> <type>/<scope>`. The slice
   branch is **scoped** (`slice/<scope>/<id>`) so parallel runs never collide even when slice ids repeat.
@@ -51,7 +51,8 @@ Repeat until every slice is `merged`:
    `todo`. (Roots have empty `depends-on`.)
 2. **Dispatch implementers in parallel, capped** — one `superdev:implementer` per runnable slice, each
    in its own worktree, each with its `model` from the controller's model table. Give each only its own
-   specifics: the slice `spec` + `acceptance`, its worktree path (`.superdev/scopes/<scope>/worktrees/<id>`) +
+   specifics: the slice `spec` + `acceptance` + `test-applicability`, its worktree path
+   (`.superdev/scopes/<scope>/worktrees/<id>`) +
    branch (`slice/<scope>/<id>`), base/head, its **progress-log** path
    (`<run-root>/reports/<id>/progress.md` — seed it first), the global constraints, and the
    **interface file** path (`<run-root>/interfaces.md` — the interfaces already-merged
@@ -131,9 +132,3 @@ Per-slice worktrees are already removed at merge (DAG step 4). Anything left —
 for `/superdev:ship`, which takes the run down at the end of the chain. The invoking checkout keeps
 `<type>/<scope>` checked out: that is the scope checkout `/superdev:review` and `/superdev:document` work
 in on this tier. Return to the controller's **Final phase** without cleaning up.
-
-## Red flags
-
-- **One review instead of two** — a behavior slice gets correctness AND over-engineering (separate
-  subagents), then the whole scope gets the final review.
-- **Reviewing inline / reusing the implementer's context** — reviewers are always separate subagents.

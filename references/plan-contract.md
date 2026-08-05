@@ -11,7 +11,7 @@ reads it. It is backend-agnostic: the local-file rendering is shown below; issue
 | `id` | Stable slice identifier — the local backend uses the zero-padded file number (`01`, `02`, …); an issue backend uses the issue key. | DAG ordering, status tracking |
 | `title` | Short descriptive name. | humans |
 | `depends-on` | List of slice `id`s that must merge before this slice can start. Empty = root. | `/implement` DAG |
-| `test-applicability` | `behavior` \| `mechanical` \| `docs`. Drives the warrant gates (see below). | `/implement` |
+| `test-applicability` | `behavior` \| `mechanical` \| `docs`. Drives the warrant gates (see below). | `/implement`, `implementer` |
 | `spec` | What this slice delivers end-to-end — the implementer's requirements. Describe behavior and name the specific interface (a function signature, an API endpoint, a CLI command) its tests exercise — not file paths. | `implementer` |
 | `acceptance` | Checkable criteria for THIS slice. On a `behavior` slice these name the domain-level failure and boundary cases too — those derivable from the interview without reading the implementation — not just the happy path. Implementation-level edges stay with the implementer and the reviewers, who read code the planner never sees. `commands/plan.md` holds the split with examples. | `slice-reviewer`, `implementer` |
 | `status` | Canonical lifecycle `todo` → `in-progress` → `in-review` → `merged` (= done), plus `blocked`. Backends map these onto their real statuses; the ledger is authoritative during a run. | `/implement`, store |
@@ -127,7 +127,7 @@ recorded in `issue-tracker.md`:
 | `blocked` | implementer reports BLOCKED (only if the tracker has a blocked state) |
 | `merged` (done) | merged into the scope branch |
 
-`mechanical`/`docs` slices skip `in-review` (`in-progress` → `merged`). The scope anchor issue moves to
+`mechanical`/`docs` slices skip `in-review` (`in-progress` → `merged`). The scope anchor moves to
 `in-progress` when the run starts. `/superdev:ship` closes it to `done` at the end of the chain.
 
 `/implement` derives an **execution tier** from the loaded slice count (≤3 → `lite`, >3 → `full`) —

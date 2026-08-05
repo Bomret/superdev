@@ -12,10 +12,9 @@ to the slice store, ready for `/superdev:implement`. Interactive — this needs 
 Read `docs/agents/issue-tracker.md` (the slice store). Missing → run **`/superdev:setup`** first, then
 continue.
 
-**Toolchain freshness (advisory).** If `docs/agents/toolchain.md` is **absent while the repo has
-build/package manifests** (`package.json`, `*.csproj`/`*.sln`, `pom.xml`/`build.gradle*`, `pyproject.toml`,
-`Cargo.toml`, `go.mod`, …), tell the user it looks like the toolchain isn't recorded and suggest running
-**`/superdev:setup`** to capture it — then continue. Non-blocking; never halt planning for it.
+**Toolchain freshness (advisory).** Same rule as `/superdev:implement`'s **Config + input** step: an
+absent `docs/agents/toolchain.md` alongside build/package manifests gets a non-blocking
+**`/superdev:setup`** suggestion, then planning continues.
 
 ## 1. Interview (relentless, one question at a time)
 
@@ -30,7 +29,7 @@ rather than re-opening them, unless something in the interview genuinely overtur
 only record of *why* — §2 routes each one to a durable home before this plan ends.
 
 **Read `${CLAUDE_PLUGIN_ROOT}/references/cross-exam.md` and run the interview by it.** This is the **main
-event** of `/plan`, not a quick step before the real work of slicing — walk the whole design tree, one
+event** of `/superdev:plan`, not a quick step before the real work of slicing — walk the whole design tree, one
 recommended-answer question at a time, exploring the code instead of asking wherever you can, until the
 tree is exhausted and the picture is shared. Do not short-circuit to slicing with a half-pinned design.
 
@@ -189,19 +188,18 @@ issue at a time. `depends-on` keys are correct because every slice exists before
 
 **Delete the seeded brainstorm intent.** If this plan started from a `.superdev/brainstorm/<slug>.md` file
 (§1), delete it now that its intent is durably captured in the slice store — it has served its purpose,
-and a leftover scratch intent only re-surfaces as a stale option in the next `/plan` glob. Delete it only
+and a leftover scratch intent only re-surfaces as a stale option in the next `/superdev:plan` glob. Delete it only
 once every `Rejected direction` it carried has a durable home (§2) or was filtered out loud — never
 before; this delete is irreversible and is exactly the silent-drop it exists to prevent. Delete only the
 file the user actually picked; leave any other brainstorm intents untouched. (Nothing downstream reads it
 — `/superdev:implement` works from the slice store.)
 
-**Tell the user the expected execution tier.** `/superdev:implement` derives it fresh from the final
+**Tell the user the expected execution tier** — purely informational, so `/superdev:plan` doesn't stamp or
+persist it anywhere. `/superdev:implement` derives it fresh from the final
 slice count — **≤3 slices → `lite`** (the controller implements each slice inline in a single scope
 worktree, no per-slice review), **>3 slices → `full`** (parallel per-slice worktrees + implementer/reviewer
 subagents). Either tier hands off to `/superdev:review` for the whole-scope review once every slice is
 on the scope branch.
-This is purely informational so the user knows what to expect: `/plan` doesn't stamp or persist the
-tier anywhere.
 
 **Commit the durable design docs** you wrote — the glossary (`CONTEXT.md`), any ADRs (`docs/adr/`), and
 any `.claude/rules/` — to the base branch. **Check `git rev-parse --abbrev-ref HEAD` first, and only commit

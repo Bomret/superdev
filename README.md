@@ -168,14 +168,21 @@ never hardcode a tool. Edit those files directly at any time. Re-run setup only 
   goes it walks each issue along the tracker's status workflow, mapped at setup: dispatch moves it to
   in-progress, review moves it to in-review, and a merge moves it to done. The **lite** tier has no
   per-slice review, so it skips straight from in-progress to done.
-  The choices are *local files* (a directory `docs/plans/<type>/<feature-slug>/` per feature, where `00-epic-*`
-  holds the DoD and description and `NN-<test-applicability>-*` is one file per slice, with the number as
-  the id, and which suits solo work or a repo with no tracker), *GitHub Issues* (each slice an issue and
-  a sub-issue of its epic, with `depends-on` as a native `blocked_by` dependency), *Jira* (each slice an
-  issue, with `depends-on` as an "is blocked by" link), and *other* (describe your tracker's CRUD and
-  dependency link in prose). For any issue-backed choice, setup also asks who owns the created issues.
-  That **assignee** is a login or an `accountId`, and it defaults to the API token's own identity, or to
-  `none`. The answers go to `docs/agents/issue-tracker.md`.
+  The choices are:
+  - *local files*: a directory `docs/plans/<type>/<feature-slug>/` per feature, where `00-epic-*` holds
+    the DoD and description and `NN-<test-applicability>-*` is one file per slice, with the number as
+    the id. It suits solo work or a repo with no tracker.
+  - *GitHub Issues*: each slice is an issue and a sub-issue of its epic, with `depends-on` as a native
+    `blocked_by` dependency.
+  - *Jira*: each slice is an issue, with `depends-on` as an "is blocked by" link.
+  - *Forgejo / Codeberg Issues*: each slice is an issue on a Forgejo or Gitea instance. `depends-on` is
+    a `**Depends on:**` body-text line, or the native dependency link when the instance's
+    issue-dependencies unit is enabled.
+  - *other*: you describe your tracker's CRUD and dependency link in prose.
+
+  For any issue-backed choice, setup also asks who owns the created issues. That **assignee** is a login
+  or an `accountId`, and it defaults to the API token's own identity, or to `none`. The answers go to
+  `docs/agents/issue-tracker.md`.
 - **Code host.** Where the scope branch is pushed and the PR or MR opens, plus the default posture
   (`draft`, `ready`, or `push-only`) and the base branch. The choices are GitHub (`gh`), Forgejo or
   self-hosted (`tea` or REST), and *other*. With no host CLI present, the step degrades to a push plus a

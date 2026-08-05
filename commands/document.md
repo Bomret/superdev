@@ -36,11 +36,8 @@ From `$ARGUMENTS`:
 superdev run. When it is, §8 adds its steps. Every other invocation is ad-hoc: no stage is written and no
 next command is printed.
 
-**`--unattended`** in the arguments means nobody is watching, and that file's **Unattended** section
-governs every stop this command reaches. This command writes no standing answer of its own: the two
-confirmations it does ask — §7's bootstrap confirmation and its `CONTEXT.md` candidate confirm/prune —
-are both unreachable from a range, the only shape the chain passes (§2's range never bootstraps), so
-`--unattended` never actually meets either one here. The catch-all covers whatever a later change adds.
+**`--unattended`** in the arguments means nobody is watching: that file's **Unattended** section governs
+every stop this command reaches, including whatever a later change adds.
 
 ## 3. Dispatch
 

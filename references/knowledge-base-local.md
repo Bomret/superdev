@@ -29,9 +29,10 @@ The KB is **human-consumption first**. Recorded at setup:
 
 ## superdev usage
 
-- `/superdev:plan` — write the feature specification / ADR summaries under `docs/kb/` and update the index.
-- `/superdev:implement` — the final phase refreshes the affected `docs/kb/` docs once the scope branch
-  is green.
+- `/superdev:plan` — seed the feature specification / ADR summaries into the outline under `docs/kb/` and
+  update the index.
+- `/superdev:document` — reconcile and extend the affected `docs/kb/` docs (via its doc-writer) after a
+  scope lands, and on demand.
 
 ## Switching later
 

@@ -64,16 +64,14 @@ Once the space has been explored, pull it together into a short intent:
 - **Still-open decisions** — what remains genuinely undecided.
 - **Rejected directions** — a direction explored and dropped, and why it lost. Include only what a
   future reader would plausibly re-propose; a divergent conversation generates dead ends nobody needs
-  recorded. Nothing worth keeping → omit the bullet entirely rather than write an empty one. `/plan`
-  is what makes these durable (`domain-modeling.md`) — losing them at handoff is what this exists to
-  prevent.
+  recorded. Nothing worth keeping → omit the bullet entirely rather than write an empty one.
+  `/superdev:plan` makes these durable (`domain-modeling.md`).
 
 You may jot this intent to a scratch file for the user's reference — write it under the git-ignored
 `.superdev/brainstorm/<intent-slug>.md` (ensure `.superdev/` is in the repo's `.gitignore`; add it if
 absent). This sits alongside `.superdev/scopes/`, never inside it, so it's never mistaken for a scope run
-root (`/status` only scans `.superdev/scopes/*/`). Never loose in the tracked working tree of whatever
-branch happens to be checked out. Do not create ADRs, a glossary, slices, or anything in the slice store
-— none of that durable capture happens here.
+root (`/superdev:status` only scans `.superdev/scopes/*/`). Never loose in the tracked working tree of whatever
+branch happens to be checked out — durable capture happens only in `/superdev:plan`.
 
 ## 6. Hand off
 

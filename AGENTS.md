@@ -228,10 +228,11 @@ This root owns every subtree directly:
   alongside `hooks/`. It follows the same `--selftest` convention. The reference, run-root, assignee,
   anchor-contract, afk-selection-neutrality, writing-standard, content-types, stage, command-resolution,
   chain-handoff, feature-label-argument, unattended-token, afk-invocation, scope-slug, change-type,
-  degraded-pass, derived-criteria, ledger-branch, and label-validation
-  checks are drift assertions. They compare a restated fact against its source. The eval-shape check
-  compares a document against a schema. The afk-existence check is a plain existence assertion.
-  `drift-check.js` guards twenty-one things, in the order its `main()` computes them. First, that every
+  degraded-pass, derived-criteria, ledger-branch, label-validation, green-gate-timeout, and
+  ledger-schema checks are drift assertions. They compare a restated fact against its source. The
+  eval-shape check compares a document against a schema. The afk-existence check is a plain existence
+  assertion.
+  `drift-check.js` guards twenty-three things, in the order its `main()` computes them. First, that every
   `references/*.md` path named in `commands/`, `agents/`, or `references/` itself resolves to a file that
   exists. A reference cites
   another reference — both execution playbooks point at `scope-mode.md` — so a rename there dangles like
@@ -274,7 +275,8 @@ This root owns every subtree directly:
   `commands/implement.md`, `commands/review.md`, and `commands/document.md` each name their successor in
   the chain. `commands/ship.md` ends the chain and is deliberately outside that check.
 
-  The eleventh, twelfth, fourteenth, fifteenth, sixteenth, seventeenth, eighteenth, and nineteenth checks
+  The eleventh, twelfth, fourteenth, fifteenth, sixteenth, seventeenth, eighteenth, nineteenth,
+  twentieth, and twenty-first checks
   share one scanner, `scanContract()`, run over
   a table of `[document, pattern, expectation]` rows instead of one function each. It reads every
   document a table names and reports the rows whose pattern that document no longer matches. Eleventh, the
@@ -318,9 +320,24 @@ This root owns every subtree directly:
   and `commands/afk.md` each point at it. The whole feature label becomes the branch name, so the type
   reaches `git switch -c` exactly as the slug does — a rule guarding the slug alone lets `-x/y` through to
   git as an option, and lets a non-canonical type make a run root `scope-prune` never removes. A consumer
-  that stops pointing at the rule validates nothing and stays valid prose. Twentieth,
+  that stops pointing at the rule validates nothing and stays valid prose. Twentieth, the
+  green-gate-timeout contract: `hooks/hooks.json` sets `"timeout": 600` on the green-gate
+  PostToolUse(Bash) hook entry, and the comment beside `IS_MERGE` in `hooks/green-gate.js` names that
+  same 600s ceiling, distinct from Claude Code's own 60s default hook timeout. Green-gate re-runs the
+  scope suite synchronously inside the hook, so a suite slower than the configured timeout is killed
+  mid-run and the gate silently doesn't fire — a hooks.json entry that loses its `timeout` field falls
+  back to the 60s default unnoticed, because the suite stays green until a run happens to exceed it.
+  Twenty-first, the ledger-schema contract: `references/scope-mode.md` carries the `## The ledger`
+  section — the slice table's columns and its labeled header lines — and `commands/implement.md`,
+  `commands/status.md`, and `commands/ship.md` each point at that section rather than restating the
+  shape; `commands/review.md` names the `**Anchor:**` line it reads back for the PR-facing title.
+  Before this section existed the schema was specified only by its readers: `commands/status.md` parsed
+  columns the writer never mandated, and `commands/ship.md` read a `type` column the same way. A consumer
+  that drops the pointer leaves a reader free to parse whatever columns it imagines, silently, because
+  nothing else checks the ledger's shape.
+  Twenty-second,
   that `commands/afk.md` exists at all. Nothing else in the plugin names `/superdev:afk` for the ninth
-  check to resolve, so its absence would otherwise go unnoticed. Twenty-first, that every
+  check to resolve, so its absence would otherwise go unnoticed. Twenty-third, that every
   `evals/*/graders/*.md` declares a known `type` and a positive `weight`, that an `llm` or `regex`
   grader also declares a `focus` or `target`, and that every case's `scaffold_script` resolves. Nothing
   else validates a grader, so without this a typo surfaces part-way through a run that costs real API
@@ -371,7 +388,9 @@ This root owns every subtree directly:
     defines the pass a run did not get — a dispatch the permission classifier denied, or one that could
     not reach what it needed — what a command does about one attended and unattended, and the
     `**Degraded:**` ledger entry that carries it to `/superdev:ship`'s pull-request body and
-    `/superdev:status`'s report.
+    `/superdev:status`'s report. Its `## The ledger` section owns the ledger's schema once: the slice
+    table's columns and the labeled header lines above it, including the `**Anchor:**` line
+    `/superdev:implement` writes and `/superdev:review` reads back for the PR-facing title.
   + **Authoring disciplines** (`cross-exam.md`, `domain-modeling.md`, `doc-verification.md`): the
     relentless cross-examination, active-domain-modeling, and verify-against-official-docs disciplines
     that `/plan` and `/brainstorm` read at runtime. They are superdev's own rendering of Matt Pocock's

@@ -11,9 +11,20 @@
 // like `git merge-base` / `merge-tree` (a `\b` would match those, blocking them as false positives).
 // The lead-in class includes `\n` (+ `m` flag) so a `git push` on its own line of a multi-line
 // command string is caught, not just one after `;`/`&`/`|` or at string start.
-// The optional group skips git's global options before the subcommand — `git -C <path> push` and
-// `git -c k=v merge` are the natural forms in a multi-worktree layout and must not slip past.
-const BLOCK = /(^|[;&|\n])\s*git(?:\s+(?:-[cC]\s+\S+|--\S+))*\s+(merge|push|rebase)(?![-\w])/m;
+// The optional group skips git's global options before the subcommand — `git -C <path> push`,
+// `git -c k=v merge`, and `git --git-dir=<path> push` are the natural forms in a multi-worktree
+// layout and must not slip past. Each option's argument is one shell word — ARG below — so a
+// quoted `-C`/`-c` value (`-C "path with spaces"`), an unquoted value with a backslash-escaped
+// space (`-C ~/my\ path`), and a partly-quoted `key=value` (`-c k="v w"`, `--git-dir="a b"`) are
+// all matched as a single token, not just the first non-space run a bare `\S+` would stop at.
+// The double-quoted alternative tolerates a backslash-escaped internal quote so an escaped `"`
+// inside the value doesn't close the span early; single quotes have no escapes in POSIX shells, so
+// `'[^']*'` stays literal.
+const ARG = /(?:[^\s"'\\]|\\.|"(?:[^"\\]|\\.)*"|'[^']*')+/.source;
+const BLOCK = new RegExp(
+  `(^|[;&|\\n])\\s*git(?:\\s+(?:-[cC]\\s+${ARG}|--${ARG}))*\\s+(merge|push|rebase)(?![-\\w])`,
+  'm'
+);
 // Integration via the code-host CLI is the controller's job too: `gh pr merge` / `tea pr merge`.
 // (The REST-API path — `curl … /pulls/<n>/merge` — can't be caught deterministically without
 // false-positiving on legitimate read curls; the subagent bodies carry that as an explicit contract.)
@@ -75,6 +86,12 @@ if (process.argv[2] === '--selftest') {
   assert.equal(decide(sub('git rebase main')).block, true);
   assert.equal(decide(sub('git add -A\ngit commit -m x\ngit push')).block, true, 'push on a later line');
   assert.equal(decide(sub('git -C ../scope push')).block, true, 'git -C <path> push');
+  assert.equal(decide(sub('git -C "path with spaces" push')).block, true, 'git -C <double-quoted path> push');
+  assert.equal(decide(sub("git -C 'path with spaces' push")).block, true, 'git -C <single-quoted path> push');
+  assert.equal(decide(sub('git -C "a \\" b" push')).block, true, 'git -C <double-quoted path with escaped quote> push');
+  assert.equal(decide(sub('git -C ~/my\\ path push')).block, true, 'git -C <backslash-escaped space, unquoted> push');
+  assert.equal(decide(sub('git -c k="v w" push')).block, true, 'git -c <unquoted key, quoted value> push');
+  assert.equal(decide(sub('git --git-dir="a b" push')).block, true, 'git --git-dir="quoted value with space" push');
   assert.equal(decide(sub('git -C .superdev/scopes/x/worktree rebase main')).block, true, 'git -C rebase');
   assert.equal(decide(sub('git --no-pager push origin s')).block, true, 'inline global flag before push');
   assert.equal(decide(sub('git -c user.name=x commit -m x')).block, false, 'git -c commit is fine');

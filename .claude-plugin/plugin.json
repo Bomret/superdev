@@ -7,6 +7,8 @@
     "email": "dev@bomret.com"
   },
   "license": "MIT",
+  "homepage": "https://codeberg.org/bomret/superdev",
+  "repository": "https://codeberg.org/bomret/superdev",
   "keywords": [
     "tdd",
     "planning",

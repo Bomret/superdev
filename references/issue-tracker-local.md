@@ -38,6 +38,8 @@ Epic file `00-epic-<summary>.md`:
 ```markdown
 # <feature>
 
+status: todo
+
 <short description of the feature and its intent>
 
 ## Definition of Done (global)
@@ -57,17 +59,12 @@ Epic file `00-epic-<summary>.md`:
 <fenced file tree: which slices touch which files, collisions marked>
 ```
 
-`## Parked questions` is optional — omit the section entirely when nothing's been parked. Advisory
-only: `/implement` never reads it. Single-slice features have no epic file, so no equivalent section —
-see `plan-contract.md`.
-
-`## Non-goals` is optional too — omit the section entirely when nothing was deliberately dropped from
-scope. Advisory only: `/implement` never reads it. Single-slice features have no epic file, so no
-equivalent section — see `plan-contract.md`.
-
-`## Slice graph` and `## Touch map` are optional too, and independent of each other — `plan-contract.md`'s
-*Epic visuals* section owns their shape and the rule for when each is written. Advisory, same as parked
-questions: `/implement` never reads them.
+`## Parked questions`, `## Non-goals`, `## Slice graph`, and `## Touch map` are all optional, advisory-only
+sections that `/implement` never reads — omit `## Parked questions` when nothing's been parked, omit
+`## Non-goals` when nothing was deliberately dropped from scope, and write `## Slice graph`/`## Touch map`
+per `plan-contract.md`'s *Epic visuals* section, which owns their shape, their independence from each
+other, and the rule for when each is written. A single-slice feature has no epic file, so none of the four
+exist there — see `plan-contract.md`.
 
 Each slice file `NN-<test-applicability>-<summary>.md`:
 
@@ -128,6 +125,14 @@ Parse each slice file into `id` (its file number), `depends-on`, `test-applicabi
 Edit that slice file's `status:` line in place along the canonical lifecycle
 (`todo` → `in-progress` → `in-review` → `merged`, or `blocked`). The run's ledger file is authoritative
 during execution; the slice files' `status:` is the durable record.
+
+## When a skill says "update the anchor status"
+
+Edit the anchor's own `status:` line — the same field and vocabulary as a slice's, since the anchor is
+either the epic file or, on a single-slice plan, the lone slice file itself (see *Scope anchor* above).
+**Run start** — set it `in-progress`. **`/superdev:ship`** — set it `done` once the scope branch merges.
+On a single-slice plan there is no second file: the anchor signal rides the lone slice's own `status:`
+line, so this transition and the slice's own status update are the same edit.
 
 ## Dependencies
 

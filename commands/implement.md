@@ -7,9 +7,8 @@ argument-hint: "[<feature-label>  (empty = the only plan in the store)]  [--unat
 
 You are the **controller**. You drive a plan's slices to merge, and you alone integrate — never a
 subagent. **How** depends on the execution **tier**, a pure function of the loaded slice count (see
-**Config + input**): **>3 slices → `full`**, **≤3 slices → `lite`**. The tier selects one of two linear
-execution playbooks you `Read` and follow; this file holds only what both share — the invariants, config,
-Phase 0, issue-status map, and the handoff.
+**Config + input**). The tier selects one of two linear execution playbooks you `Read` and follow; this
+file holds only what both share — the invariants, config, Phase 0, issue-status map, and the handoff.
 
 **You stop when the code is on the scope branch.** The whole-scope review, the doc pass, and the pull
 request are the next three commands in the chain, and the maintainer runs each one (ADR 0013). Reviewing,
@@ -36,8 +35,8 @@ implementer's TDD discipline yourself. Between dispatches, narrate at most one s
 - **Hook-enforced — don't restate, just comply:** only the controller merges/pushes (`merge-guard` blocks
   a subagent's `git merge`/`push`/`rebase`); every dispatch to a superdev agent sets an explicit `model`
   (`model-explicit` blocks omissions — an omitted model silently inherits the priciest tier).
-- **A denied dispatch is a degraded pass, not a silent inline step.** The permission classifier can deny
-  a dispatch for reasons outside this plan. Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
+- **A denied dispatch is a degraded pass, not a silent inline step.** Read
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
   `## Degraded passes` section and follow it — do the work inline, say so, and write the `**Degraded:**`
   entry to `<run-root>/ledger.md`. **`--unattended` → block** there instead.
 - **Agents carry their own discipline.** Implementers own test-first TDD; reviewers own "green ≠ correct"
@@ -90,8 +89,9 @@ implementer's TDD discipline yourself. Between dispatches, narrate at most one s
   before starting. Clean → proceed silently. **`--unattended` → block**, naming the contradictions: a plan
   that argues with itself is the one thing an implementer must not resolve by guessing.
 - **Compute the tier** — **≤3 slices → `lite`**, **>3 slices → `full`** — derived fresh every run, never
-  configured, overridden, or persisted (`/plan` and `/implement` derive it the same way from the same
-  count). Do **Phase 0** below (either tier), then `Read` your playbook and follow it start to finish:
+  configured, overridden, or persisted (`/superdev:plan` and `/superdev:implement` derive it the same way
+  from the same count). Do **Phase 0** below (either tier), then `Read` your playbook and follow it start
+  to finish:
   - `full` → `${CLAUDE_PLUGIN_ROOT}/references/implement-full.md`
   - `lite` → `${CLAUDE_PLUGIN_ROOT}/references/implement-lite.md`
   When it returns, do the **Final phase** below.
@@ -122,8 +122,10 @@ implementer's TDD discipline yourself. Between dispatches, narrate at most one s
   artifacts for this run live under a per-scope run root **`.superdev/scopes/<scope>/`** — keyed on the bare slug,
   so the type never becomes a second path segment — **git-ignored**
   (ensure `.superdev/` is in the repo's `.gitignore`; add it if absent). The run root
-  (`dod.md`, `ledger.md`, `run.lock`) stays in the **invoking checkout** (the repo's main tree), never
-  moves into a worktree; only the code checkout moves into a worktree. **Address it by absolute path.**
+  (`dod.md`, `ledger.md`, `run.lock` — the last lite-tier only, per
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The run lock`) stays in the **invoking checkout**
+  (the repo's main tree), never moves into a worktree; only the code checkout moves into a worktree.
+  **Address it by absolute path.**
   Capture `<run-root>` now — the **absolute** path to `.superdev/scopes/<scope>/`, while the invoking
   checkout is your cwd (before any worktree is cut) — and refer to every run-root artifact as
   `<run-root>/dod.md`, `<run-root>/ledger.md`, `<run-root>/run.lock`, `<run-root>/reports/<id>/…`,
@@ -136,11 +138,11 @@ implementer's TDD discipline yourself. Between dispatches, narrate at most one s
   It anchors the whole-scope review `/superdev:review` runs next, and `/superdev:ship` ticks it at the end
   of the chain. No DoD → don't proceed. **No epic** (a
   single-slice plan) → the DoD is that lone slice's `acceptance`; write it to `dod.md` verbatim.
-- Create the **ledger** at `<run-root>/ledger.md`. Track each slice's status
-  (`todo`/`in-progress`/`in-review`/`merged`), its commit range when merged, and — for issue stores — the
-  slice-id ↔ issue-key mapping. Also record the **scope anchor** — its key and title, per the store's
-  `## Scope anchor` contract (`docs/agents/issue-tracker.md`) — so `/superdev:review` can read the
-  anchor's title from the ledger instead of deriving one from the diff.
+- Create the **ledger** at `<run-root>/ledger.md`, with the slice table and header lines
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The ledger` section defines — it owns the
+  table's columns and every labeled line. Write the `**Anchor:**` line there from the store's `## Scope
+  anchor` contract (`docs/agents/issue-tracker.md`) — the anchor's key and title — so `/superdev:review`
+  can read the anchor's title from the ledger instead of deriving one from the diff.
 - **Record the scope branch** as a `**Branch:** <type>/<scope>` line at the top of the ledger, beside
   `**Stage:**`. A scope branch leads with its change type (ADR 0021), so the branch name is not computable
   from the scope slug — and `/superdev:ship` receives a slug. You know the branch here, because the bullet
@@ -174,7 +176,8 @@ tiers: your job here is to record that slice execution finished and to name what
 
 - **Set the stage to `merged`.** Update the ledger's `**Stage:**` line. It is what tells the next command,
   or a resumed run, that every slice is on the scope branch.
-- **Leave the run standing.** Keep the worktrees, keep `<run-root>/run.lock`, and leave
+- **Leave the run standing.** Keep the worktrees, keep `<run-root>/run.lock` (lite tier — the only tier
+  that has one), and leave
   `<run-root>/dod.md` unticked and the scope anchor at `in-progress`. `/superdev:review` and
   `/superdev:document` work in the scope checkout you leave behind, and `/superdev:ship` takes the run
   down. Removing any of it here breaks the rest of the chain.
@@ -189,8 +192,8 @@ tiers: your job here is to record that slice execution finished and to name what
 
 ## Model selection (always set explicitly)
 
-Every row here is dispatched by the `full` playbook alone. The `lite` playbook dispatches nothing, and the
-reviews that follow the chain carry their own model choices.
+Every row here is dispatched by the `full` playbook alone; the reviews that follow the chain carry their
+own model choices.
 
 | Dispatch | Model | When |
 |---|---|---|
@@ -205,10 +208,7 @@ and mechanical fixes.
 
 ## Red flags
 
-- **Trusting green** — "tests pass" ≠ correct; the reviewer reads the artifact and hunts uncovered input.
 - **Inventing tests for non-behavior slices** — a rename's net is the existing suite.
-- **A subagent merging/pushing** — only the controller integrates (`merge-guard` enforces this).
 - **Inferring dependencies** — use the plan's `depends-on`; don't guess from file overlap.
 - **Stalling for routine approval** — execute the plan continuously; stop only for a real blocker, a
   genuine ambiguity, a plan contradiction, or completion.
-- **Re-dispatching a merged slice** — after any compaction, trust the ledger and `git log`.

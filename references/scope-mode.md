@@ -4,17 +4,19 @@
 file at runtime and keeps only what is specific to it. That is the stage it reads or writes, and what it
 prints next.
 
-**`## Unattended`, `## The scope slug`, and `## The change type` below have a wider audience.**
-`/superdev:implement` and both execution playbooks read `## Unattended`; `/superdev:implement` and
+**Several sections below have a wider audience than these three.** `/superdev:implement` and both
+execution playbooks read `## Unattended` and `## Degraded passes`; `/superdev:implement` and
 `/superdev:afk` both read `## The scope slug`, which in turn sends both to `## The change type` for its
-eleven-type list. Neither reads anything else here. A run is unattended from its first command, so the
-token cannot wait for the stage where the other rules begin.
+eleven-type list; `/superdev:afk` also relies on `## The run lock` and `## The scope checkout`; and
+`## The ledger` is read by `/superdev:implement`, `/superdev:status`, and `/superdev:ship`, besides
+`/superdev:review` above. A run is unattended from its first command, so the token cannot wait for the
+stage where the other rules begin.
 
 ## The scope slug
 
 A scope slug must match `[a-zA-Z0-9][a-zA-Z0-9_-]*`. It becomes the second segment of a branch name
 (`<type>/<slug>`, per `## The change type` below) and a
-run-root path segment (`.superdev/scopes/<slug>/`), and every source it comes from — a feature label
+run-root path segment (`.superdev/scopes/<scope>/`), and every source it comes from — a feature label
 resolved from the slice store, an epic's feature label read off a tracker anchor — hands it over as
 external input with no such guarantee: a stray `/`, a leading `-`, `..`, a space, or `~` are all legal
 label characters, and none are safe in either place.
@@ -41,7 +43,7 @@ label instead of choosing one. `/superdev:plan` picks it when it writes the plan
 label, and the slice commits then all say the same thing about what the work is.
 
 The scope branch is the feature label verbatim. The run root is keyed on the slug alone
-(`.superdev/scopes/<slug>/`), so it never doubles the type into a path segment, and every command finds a
+(`.superdev/scopes/<scope>/`), so it never doubles the type into a path segment, and every command finds a
 run root from a scope slug without knowing the type.
 
 ## A live scope run
@@ -53,6 +55,32 @@ root exists for that scope. A run root is a `.superdev/scopes/*/` directory that
 Capture `<run-root>` as the absolute path to `.superdev/scopes/<scope>/`. Do this while the invoking
 checkout is still the current directory. Address every run-root artifact by that absolute path:
 `<run-root>/ledger.md`, `<run-root>/dod.md`, and `<run-root>/run.lock`.
+
+## The ledger
+
+`<run-root>/ledger.md` is one document: labeled header lines, then a slice table. `/superdev:implement`'s
+Phase 0 creates both, and every later command in the chain reads them back rather than restating their
+shape.
+
+**The slice table** carries exactly these columns, in this order: `id`, `issue`, `title`, `type`,
+`depends-on`, `status`, `range`. `status` is `plan-contract.md`'s status vocabulary (`todo` /
+`in-progress` / `in-review` / `blocked` / `merged`); `type` is the slice's `test-applicability`
+(`behavior` / `mechanical` / `docs`); `range` is the slice's commit range, filled in once it merges.
+
+**The header lines**, above the table:
+
+- **`**Stage:**`** — how far the scope has moved through the chain. `## The stage never moves backwards`
+  below owns the value set and the write rules.
+- **`**Branch:**`** — the scope branch. `## The scope branch` below owns how it is written and resolved.
+- **`**Anchor:** <key> — <title>`** — the scope anchor's store key and title, e.g. `**Anchor:** #183 —
+  Audit fixes`. `/superdev:implement` Phase 0 writes it once, per the store's `## Scope anchor` contract
+  (`docs/agents/issue-tracker.md`); `/superdev:review` reads the title back for the PR-facing summary
+  (ADR 0020) instead of deriving one from the diff.
+- **`**Degraded:**`** — the run's degrade record. `## Degraded passes` below owns the value shape and when
+  a command writes it.
+
+A ledger written before a line existed carries none of it. Every reader treats an absent header line as
+the missing-optional-field case it already handles, never as a parse error.
 
 ## The scope branch
 
@@ -190,6 +218,3 @@ backwards is sanctioned, because it records a fact rather than a distance: `/sup
 those commits made it stale, so the run needs it again. The stage is one scalar, so it cannot say "reviewed
 and documented, but documented too early". `reviewed` is the value that gets the doc pass re-run, which is
 the outcome that matters.
-
-Each command keeps its own table of exactly what it writes for the stage it finds. This shared rule is the
-one thing both tables honor.

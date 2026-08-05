@@ -11,24 +11,28 @@ write, transition, or merge anything here — this is a report, not a control co
 
 ## 1. Find run roots
 
-- List `.superdev/scopes/*/` directories. Each one that holds a `ledger.md` is a **run root** for scope
-  `<scope>` (the directory name). `.superdev/` also holds non-scope areas (e.g. `.superdev/brainstorm/`)
-  — only `.superdev/scopes/` is scanned.
+- List `.superdev/scopes/*/` directories — each that holds a `ledger.md` is a **run root**, for scope
+  `<scope>` (the directory name), per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## A live scope
+  run` section. `.superdev/` also holds non-scope areas (e.g. `.superdev/brainstorm/`) — only
+  `.superdev/scopes/` is scanned.
 - **No `.superdev/scopes/` directory, or no subdirectory has a `ledger.md`:** report `No superdev runs
   found in this repo.` and stop. Do not create `.superdev/` or any file.
 
 ## 2. Read each ledger
 
-For each run root, read `.superdev/scopes/<scope>/ledger.md` (see `${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md` for the
-canonical status vocabulary: `todo` / `in-progress` / `in-review` / `blocked` / `merged`). Parse its
-table (columns: `id`, `issue`, `title`, `type`, `depends-on`, `status`, `range`) to tally, per scope:
+For each run root, read `.superdev/scopes/<scope>/ledger.md` —
+`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The ledger` section owns its shape (see
+`${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md` for the canonical status vocabulary: `todo` /
+`in-progress` / `in-review` / `blocked` / `merged`). Parse its table (columns: `id`, `issue`, `title`,
+`type`, `depends-on`, `status`, `range`, per that section) to tally, per scope:
 
 - total slice count;
 - count per status;
 - the `id` + `title` of every slice whose status is `blocked`;
 - the run's **stage** from the ledger's `**Stage:**` line: how far the scope has moved through the chain
   of commands (`implementing` → `merged` → `reviewed` → `documented` (or `documented-unreviewed` when
-  `/document` ran ahead of `/review`) → `shipped`, naming the last completed step; ADR 0013). A ledger
+  `/superdev:document` ran ahead of `/superdev:review`) → `shipped`, naming the last completed step; ADR
+  0013). A ledger
   written before the stage existed carries no such line — report the scope without a stage and carry on,
   exactly as you do for any other missing optional field.
 - the run's **degrade record**: every bullet under the ledger's `**Degraded:**` line, naming a pass the
@@ -54,7 +58,7 @@ that carries no `**Degraded:**` line.
 
 Every slice `merged` does not mean the run is done: the scope still has to be reviewed, documented, and
 shipped. The stage is what says which of those already happened, so report it and add nothing of your own
-— no `complete` note, and no guess at what the reader should run next.
+— no `complete` note.
 
 End with nothing further — no suggested next action, no mutation. If the caller wants to act on a
 blocked slice, that's `/superdev:implement` or manual intervention, not this command.

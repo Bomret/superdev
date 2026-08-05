@@ -31,7 +31,7 @@ function extractScope(cmd) {
   // that names the path — `cd`/`grep`/`bun` in the worktree, `git -C <worktree> …`, `git worktree
   // remove` — is the owner working in its own tree and must never be blocked by its own lock. Keying
   // on the whole `git worktree add` phrase (not just the path) is what keeps the owner unblocked.
-  const match = cmd.match(/git\s+worktree\s+add\b[^\n]*?\.superdev\/scopes\/([a-zA-Z0-9_-]+)\/worktree\b/);
+  const match = cmd.match(/git\s+worktree\s+add\b[^\n]*?\.superdev\/scopes\/([a-zA-Z0-9][a-zA-Z0-9_-]*)\/worktree\b/);
   return match ? match[1] : null;
 }
 
@@ -129,6 +129,20 @@ function selftest() {
 
     // Test 8: the guarded create op still blocks under a fresh lock
     assert.strictEqual(at(`git worktree add .superdev/scopes/${testScope}/worktree -b b base`).block, true, 'Test 8 FAIL: git worktree add must block on a fresh lock');
+
+    // Test 9/10: a slug leading with `-` or `_` is not canonical (references/scope-mode.md's
+    // `[a-zA-Z0-9][a-zA-Z0-9_-]*`) — extractScope must return null for it. Proven with a fresh lock
+    // sitting at that exact literal path: if extraction wrongly captured the slug, the fresh lock
+    // would block; it doesn't, so no scope was extracted at all.
+    const badLockDir = path.join(testRunDir, '.superdev', 'scopes', '-bad');
+    require('child_process').execSync(`mkdir -p "${badLockDir}"`);
+    fs.writeFileSync(path.join(badLockDir, 'run.lock'), 'locked', 'utf8');
+    assert.strictEqual(at('git worktree add .superdev/scopes/-bad/worktree').block, false, 'Test 9 FAIL: leading `-` must not be extracted as a scope');
+
+    const underscoreLockDir = path.join(testRunDir, '.superdev', 'scopes', '_bad');
+    require('child_process').execSync(`mkdir -p "${underscoreLockDir}"`);
+    fs.writeFileSync(path.join(underscoreLockDir, 'run.lock'), 'locked', 'utf8');
+    assert.strictEqual(at('git worktree add .superdev/scopes/_bad/worktree').block, false, 'Test 10 FAIL: leading `_` must not be extracted as a scope');
 
     // Protocol validation (exit 2 on block, exit 0 on allow) is tested at hook invocation time by
     // Claude Code; this selftest covers the decide() logic. The fixed main() properly translates

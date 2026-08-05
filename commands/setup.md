@@ -49,16 +49,20 @@ choice: never present the choices bare. Using `AskUserQuestion`? Mark the propos
   remote. Seed: `references/issue-tracker-local.md`.
 - **GitHub Issues** — slices as GitHub issues. Seed: `references/issue-tracker-github.md`. Ask for
   owner/repo, the feature label, and the **env-var name** for the API token (never the secret).
+- **Forgejo / Codeberg Issues** — slices as issues on a Forgejo or Gitea instance (Codeberg included).
+  Seed: `references/issue-tracker-forgejo.md`. Detection hint: a `codeberg.org` or self-hosted
+  Forgejo/Gitea remote. Ask for host/owner/repo, the feature label, and the **env-var name** for the API
+  token (never the secret).
 - **Jira** — slices as Jira issues. Seed: `references/issue-tracker-jira.md`. Ask for base URL,
   project key, issue type, the "is blocked by" link type, the ready status/label, and the **env-var
   names** for the API token + email (never the secrets).
 - **Other** (GitLab Issues, Linear, …) — ask the user to describe create/read/list/update +
   the dependency-link mechanism in a paragraph; write `issue-tracker.md` from that prose.
 
-> **Trust boundary.** `/implement` loads slice specifications from this store and an implementer executes them as
+> **Trust boundary.** `/superdev:implement` loads slice specifications from this store and an implementer executes them as
 > build instructions. A store writable by anyone but the trusted planner is arbitrary code execution by
 > an autonomous agent — keep write access to the tracker (or the feature label) restricted to trusted
-> authors, and only run `/implement` on slices the run owner authored or approved.
+> authors, and only run `/superdev:implement` on slices the run owner authored or approved.
 
 For an **issue backend whose statuses the seed doesn't already fix** (Jira / other — not the local file,
 and not GitHub Issues, whose seed maps the lifecycle onto open/closed + labels already), also capture the
@@ -66,10 +70,10 @@ tracker's **status workflow**: probe or ask for the available statuses, the tran
 for the scope anchor vs a slice. Agree a **status map** with the user — superdev's canonical lifecycle
 (`todo` → `in-progress` → `in-review` → `merged`/done, plus `blocked`) → the tracker's real statuses,
 with how to perform each move (transition name/id or CLI verb). Record it in `issue-tracker.md`;
-`/implement` walks each issue along it as work progresses. If the tracker lacks a state (no separate
+`/superdev:implement` walks each issue along it as work progresses. If the tracker lacks a state (no separate
 `in-review` or `blocked`), map it to the nearest sensible status and note the collapse.
 
-Also capture the **assignee** for any issue backend — the account every issue `/plan` creates is assigned
+Also capture the **assignee** for any issue backend — the account every issue `/superdev:plan` creates is assigned
 to, recorded as `Assignee` in `issue-tracker.md` (`plan-contract.md` → *Assignee*). Propose the **API
 token's own identity** as the default: resolve it from the backend's whoami endpoint (`GET /api/v1/user`
 on Forgejo/Gitea, `GET /user` on GitHub, `GET /rest/api/3/myself` on Jira) and offer that login or
@@ -134,9 +138,10 @@ adjust with the user**, and record the agreed outline in `knowledge-base.md`. It
 `/superdev:plan` and `/superdev:document` fill and extend it, not reinvent it.
 
 **E — Verification (optional).** What single command runs the repo's test suite (e.g. `npm test`,
-`pytest -q`, `cargo test`)? Recorded, it **arms the green-gate**: after every controller merge, a hook
-re-runs it and blocks the run if the scope suite is RED — turning implement's "re-run the suite after
-merging" from a prompt into a deterministic gate. Detect a likely command from the repo (package.json
+`pytest -q`, `cargo test`)? Recorded, it **arms the green-gate**: on the `full` execution tier, after
+every controller merge, a hook re-runs it and blocks the run if the scope suite is RED — turning
+implement's "re-run the suite after merging" from a prompt into a deterministic gate. Detect a likely
+command from the repo (package.json
 scripts, a Makefile `test` target, `pyproject.toml`) and propose it. No suite (e.g. a docs-only repo) →
 skip; the gate stays inactive and nothing else changes. (The **F** scan below finds the same manifests —
 draw the proposed test command from it.)

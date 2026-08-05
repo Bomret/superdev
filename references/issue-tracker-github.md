@@ -39,14 +39,11 @@ Slices live as GitHub issues — one slice = one issue. Use the GitHub REST API 
   feature label, reference the epic (`#<epic>`), and are linked to it as **sub-issues**. A single-slice
   feature has **no epic** — the lone slice's `acceptance` checklist is the DoD, and there is no
   sub-issue parent.
-- **Parked questions** (optional) ↔ a `## Parked questions` section in the epic issue body, same
-  body-text pattern as `acceptance`. Epic-only — no equivalent on a single-slice feature's lone issue.
-  Advisory only: `/implement` never reads it.
-- **Non-goals** (optional) ↔ a `## Non-goals` section in the epic issue body, same body-text pattern as
-  **Parked questions** above. Epic-only, advisory.
-- **Epic visuals** (optional) ↔ `## Slice graph` and `## Touch map` sections in the epic issue body.
-  GitHub renders mermaid in issue bodies, so the slice graph draws itself in the epic issue. Epic-only
-  and advisory; `plan-contract.md` owns when each is written.
+- **Parked questions**, **Non-goals**, and **Epic visuals** (all optional) ↔ `## Parked questions`,
+  `## Non-goals`, and `## Slice graph`/`## Touch map` sections in the epic issue body — same body-text
+  pattern as `acceptance`, epic-only and advisory (`/implement` never reads them; no equivalent on a
+  single-slice feature's lone issue). GitHub renders mermaid in issue bodies, so the slice graph draws
+  itself in the epic issue; `plan-contract.md` owns their shape and when each is written.
 - `status` ↔ open/closed + a status label (see the status map below).
 
 ## Scope anchor
