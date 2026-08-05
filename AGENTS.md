@@ -75,7 +75,9 @@ The plugin ships as markdown and JS hooks. There is **no build step**. `commands
 - **semantic-release.** Deterministic, commit-driven releases (`release.config.cjs`), published to
   **Codeberg** (Forgejo) through `@saithodev/semantic-release-gitea`.
 - **Conventional Commits.** They drive the version bump. `feat` gives a minor bump, `fix` and `perf`
-  give a patch bump, and `!` or `BREAKING CHANGE` gives a major bump.
+  give a patch bump. **Pre-1.0 policy:** `!` or `BREAKING CHANGE` also gives a **minor** bump (a
+  `releaseRules` entry in `release.config.cjs`) — superdev stays below 1.0.0 until it has proven itself
+  in real use, and removing that rule is what opens the first deliberate 1.0.0.
 
 ## Working rules (repo-specific: read before you edit hooks, the version, or the release config)
 

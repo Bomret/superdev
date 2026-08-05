@@ -23,7 +23,10 @@ manifest-validation gate.
 ## What a release does
 
 1. Analyse commits since the last `v*` tag → compute the next version:
-   - `fix:` → patch, `feat:` → minor, `feat!:` / a `BREAKING CHANGE:` footer → major.
+   - `fix:` → patch, `feat:` → minor. `feat!:` / a `BREAKING CHANGE:` footer → **also minor** while the
+     plugin is pre-1.0 (`releaseRules` in `release.config.cjs`); remove that rule to cut the first
+     deliberate 1.0.0. The commit still records the break and its notes still list it under
+     `BREAKING CHANGES`.
    - Only `feat`/`fix`/`perf` (and breaking) trigger a release; `docs`/`chore`/`refactor`/`style`/`test` do not.
 2. Update `CHANGELOG.md` and bump the version in `.claude-plugin/plugin.json`
    (via `semantic-release-replace-plugin` — `plugin.json` is the single source of truth; `marketplace.json`
