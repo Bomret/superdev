@@ -4,7 +4,15 @@
 module.exports = {
   branches: ['main'],
   plugins: [
-    '@semantic-release/commit-analyzer',
+    [
+      '@semantic-release/commit-analyzer',
+      {
+        // Pre-1.0 policy: superdev stays below 1.0.0 until it has proven itself in real
+        // use, so a breaking change bumps the minor, not the major. Remove this rule to
+        // let the first deliberate 1.0.0 happen.
+        releaseRules: [{ breaking: true, release: 'minor' }],
+      },
+    ],
     [
       'semantic-release-replace-plugin',
       {
