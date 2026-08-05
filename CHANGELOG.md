@@ -1,3 +1,30 @@
+# [1.0.0](https://codeberg.org/bomret/superdev/compare/v0.26.1...v1.0.0) (2026-08-05)
+
+
+* feat!: lead the feature label and scope branch with the change type ([#165](https://codeberg.org/bomret/superdev/issues/165)) ([196d7a5](https://codeberg.org/bomret/superdev/commit/196d7a5c09959617bc3eed49dbbb8d9d1713cc3b))
+
+
+### Bug Fixes
+
+* **scope:** resolve the scope branch from the ledger and validate both label segments ([#171](https://codeberg.org/bomret/superdev/issues/171)) ([73c66cb](https://codeberg.org/bomret/superdev/commit/73c66cb2f00f7a846c6d72137248e2c454a2defe)), closes [#166](https://codeberg.org/bomret/superdev/issues/166) [#167](https://codeberg.org/bomret/superdev/issues/167) [#168](https://codeberg.org/bomret/superdev/issues/168) [#169](https://codeberg.org/bomret/superdev/issues/169)
+
+
+### Features
+
+* add the Forgejo store seed and harden the plugin's guard and ledger contracts ([#186](https://codeberg.org/bomret/superdev/issues/186)) ([1dc0dc7](https://codeberg.org/bomret/superdev/commit/1dc0dc72564ccbb2c583eaffc1e93b07661bc12d)), closes [#172](https://codeberg.org/bomret/superdev/issues/172) [#173](https://codeberg.org/bomret/superdev/issues/173) [#183](https://codeberg.org/bomret/superdev/issues/183) [#180](https://codeberg.org/bomret/superdev/issues/180) [#174](https://codeberg.org/bomret/superdev/issues/174) [#185](https://codeberg.org/bomret/superdev/issues/185) [#177](https://codeberg.org/bomret/superdev/issues/177) [#176](https://codeberg.org/bomret/superdev/issues/176)
+* **review:** derive the reviewer's own criteria and gate a ceiling note ([#170](https://codeberg.org/bomret/superdev/issues/170)) ([586330b](https://codeberg.org/bomret/superdev/commit/586330b29058d4f9ad32c577480834c46c0c4059)), closes [#163](https://codeberg.org/bomret/superdev/issues/163) [#164](https://codeberg.org/bomret/superdev/issues/164)
+
+
+### BREAKING CHANGES
+
+* scope branches are named `<type>/<slug>` rather than
+`superdev/<slug>`, and feature labels carry a change-type prefix on every slice
+store. An in-flight run on a `superdev/*` branch keeps working, but scope-prune
+no longer recognises its branch as merged, so its run root needs removing by
+hand.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+
 ## [0.26.1](https://codeberg.org/bomret/superdev/compare/v0.26.0...v0.26.1) (2026-08-03)
 
 
