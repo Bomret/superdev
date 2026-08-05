@@ -1,4 +1,4 @@
-# [1.0.0](https://codeberg.org/bomret/superdev/compare/v0.26.1...v1.0.0) (2026-08-05)
+# [0.27.0](https://codeberg.org/bomret/superdev/compare/v0.26.1...v0.27.0) (2026-08-05)
 
 
 * feat!: lead the feature label and scope branch with the change type ([#165](https://codeberg.org/bomret/superdev/issues/165)) ([196d7a5](https://codeberg.org/bomret/superdev/commit/196d7a5c09959617bc3eed49dbbb8d9d1713cc3b))
