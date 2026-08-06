@@ -153,6 +153,9 @@ _Avoid: "style guide" (that names one possible value — a repo's own file — n
 **Content type** — the kind of information a passage of documentation carries: `interface` (what a part is called), `reference` (data the reader looks up), `conceptual` (why the thing exists and when to reach for it), `procedural` (the steps to perform a task). Shipped as `references/content-types.md`, a lens both doc agents read at dispatch — the doc-writer applies it, the doc-reader flags an absent conceptual layer as `conceptual:` in its cold read (ADR 0014). Unlike the **Writing standard** it is never configurable and never `none`: coverage is a completeness property, not a style one.
 _Avoid: "doc type" (the type classifies a passage, not a whole file — one `AGENTS.md` carries several), "information type" (the DITA term for a stricter topic-level schema superdev does not adopt), "section"_
 
+**Staged page** — one knowledge-base page `/superdev:document` writes to `.superdev/kb-pending/<scope>/` instead of sending to a remote backend: YAML frontmatter carrying the page `title` and an `action` of `upsert` or `delete`, the page body below it. It waits there until `/superdev:publish-kb` applies it, which is the only path from superdev to a remote backend. A local `docs/kb/` backend produces none, because its pages are repository files (ADR 0023).
+_Avoid: "draft" (a draft is unfinished; a staged page is final and merely held), "pending page" (that names the state, not the artifact), "queue" (there is no ordering — the pages are a set)_
+
 ## Backends
 
 superdev is tool-agnostic: three pluggable backends, each chosen by `/setup` and recorded under `docs/agents/`. The commands and agents never hardcode one.
@@ -181,7 +184,7 @@ _Avoid: "code-management" (that's the doc slug), "GitHub" (that's one host)_
 **PR posture** — the three-state config value controlling how `/superdev:ship` opens the PR: `draft` (open as draft), `ready` (open ready-for-review), or `push-only` (push the branch, skip opening a PR). Set per code host during `/setup`, recorded in `code-management.md`.
 _Avoid: "PR mode", "draft mode" (only one of the three states)_
 
-**Knowledge base** — the optional human-first record (feature specifications, design overviews, ADR summaries), distinct from the agent-first `AGENTS.md` docs. May be `none`. Reconciled by the doc-writer.
+**Knowledge base** — the optional human-first record (feature specifications, design overviews, ADR summaries), distinct from the agent-first `AGENTS.md` docs. May be `none`. Reconciled by the doc-writer, which writes a remote backend's pages as **staged pages** rather than sending them; `/superdev:publish-kb` is the only command that reaches a remote backend (ADR 0023).
 _Avoid: "docs" (too broad — the AGENTS.md tree is separate), "wiki" (that's one KB)_
 
 **Feature specification** — the KB's one-page-per-feature document: the problem, solution shape, and Definition of Done, written for the KB's audience(s) and language. Distinct from a slice's own `spec`: this is one per-feature narrative for readers, not a per-slice implementer contract.
