@@ -17,14 +17,22 @@ offers no way to take it back.
 This has happened in a consumer repo: a feature was implemented, the knowledge base was updated, the
 pull request sat for a week, and clients called support about a feature that did not work.
 
+`/superdev:plan` reaches the backend too, when it seeds the feature specification. That claim is earlier
+still: it lands before any of the feature is built.
+
 ## Decision
 
-`/superdev:document` never calls a remote knowledge-base backend. For such a backend it writes each page
-it would have published as a **staged page** under `.superdev/kb-pending/<scope>/` — one file per page,
-YAML frontmatter carrying the page `title` and an `action` of `upsert` or `delete`, the body below it.
-An invocation outside a live scope run stages to `.superdev/kb-pending/_adhoc/`. A local `docs/kb/`
-backend stages nothing and commits on the branch as before, because its pages are repository files with
-no external surface.
+Neither `/superdev:plan` nor `/superdev:document` calls a remote knowledge-base backend. For such a
+backend each writes the page it would have published as a **staged page** under
+`.superdev/kb-pending/<scope>/` — one file per page, YAML frontmatter carrying the page `title` and an
+`action` of `upsert` or `delete`, the body below it. `/superdev:plan` stages under the feature label's
+slug, which is the scope those pages belong to. A documentation pass outside a live scope run stages to
+`.superdev/kb-pending/_adhoc/`. A local `docs/kb/` backend stages nothing and commits on the branch as
+before, because its pages are repository files with no external surface.
+
+The staging path is absolute, resolved from the invoking checkout. A lite-tier scope checkout is
+`.superdev/scopes/<scope>/worktree`, inside `.superdev/` itself, and `/superdev:ship` removes it — a
+working-directory-relative path would stage pages into the worktree and lose them at cleanup.
 
 `/superdev:publish-kb` is the only path from superdev to a remote knowledge-base backend. It applies each
 staged page's action, removes the file once the call lands, and leaves a failed page staged. It resolves
@@ -58,7 +66,9 @@ telling clients about an unshipped feature with no human present is the failure 
 
 `agents/doc-writer.md` loses knowledge-base backend access. It writes files, so the subagent that carries
 the SessionStart injection surface no longer holds a knowledge-base token. A drift assertion in
-`scripts/drift-check.js` fails if `/superdev:document` or the doc-writer regains a backend call path.
+`scripts/drift-check.js` fails if `/superdev:plan`, `/superdev:document`, or the doc-writer regains a
+backend call path. The invariant lives as prose in three documents, so a fourth writer added later is
+what the assertion exists to catch.
 
 A routine reconcile on the base branch costs two commands where it cost one. Superdev never learns when a
 feature reaches a reader, so a staged page waits until an operator publishes it. The failure mode is a
