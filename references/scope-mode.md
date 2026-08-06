@@ -58,37 +58,41 @@ checkout is still the current directory. Address every run-root artifact by that
 
 ## The ledger
 
-`<run-root>/ledger.md` is one document: labeled header lines, then a slice table. `/superdev:implement`'s
-Phase 0 creates both, and every later command in the chain reads them back rather than restating their
-shape.
+`<run-root>/ledger.md` is one document: labeled header lines, then a slice table.
+`${CLAUDE_PLUGIN_ROOT}/scripts/scope.js` owns its schema and is its only read and write path (ADR 0022):
+`init` creates the document, `stage` / `slice` / `degraded add` move it, and `get` / `status` read it
+back. No command or playbook edits or parses the file directly — the `ledger-guard` hook denies any
+other write, naming `scope.js`.
 
-**The slice table** carries exactly these columns, in this order: `id`, `issue`, `title`, `type`,
-`depends-on`, `status`, `range`. `status` is `plan-contract.md`'s status vocabulary (`todo` /
-`in-progress` / `in-review` / `blocked` / `merged`); `type` is the slice's `test-applicability`
-(`behavior` / `mechanical` / `docs`); `range` is the slice's commit range, filled in once it merges.
+**The slice table** (written by `init` from the slice JSON it receives, moved row by row with
+`slice <id> <status>`, read back with `get slices`) carries one row per slice: its id, store issue,
+title, `test-applicability` type, dependencies, `plan-contract.md` status, and commit range.
 
 **The header lines**, above the table:
 
-- **`**Stage:**`** — how far the scope has moved through the chain. `## The stage never moves backwards`
-  below owns the value set and the write rules.
+- **`**Stage:**`** — how far the scope has moved through the chain. Read with `get stage`, written with
+  `stage set <value>`; `## The stage never moves backwards` below owns the value set, and `scope.js`
+  enforces its write rules in code.
 - **`**Branch:**`** — the scope branch. `## The scope branch` below owns how it is written and resolved.
 - **`**Anchor:** <key> — <title>`** — the scope anchor's store key and title, e.g. `**Anchor:** #183 —
-  Audit fixes`. `/superdev:implement` Phase 0 writes it once, per the store's `## Scope anchor` contract
-  (`docs/agents/issue-tracker.md`); `/superdev:review` reads the title back for the PR-facing summary
-  (ADR 0020) instead of deriving one from the diff.
+  Audit fixes`. `/superdev:implement` Phase 0 hands it to `init`, per the store's `## Scope anchor`
+  contract (`docs/agents/issue-tracker.md`); `/superdev:review` reads the title back with `get anchor`
+  for the PR-facing summary (ADR 0020) instead of deriving one from the diff.
 - **`**Degraded:**`** — the run's degrade record. `## Degraded passes` below owns the value shape and when
   a command writes it.
 
-A ledger written before a line existed carries none of it. Every reader treats an absent header line as
-the missing-optional-field case it already handles, never as a parse error.
+A ledger written before a line existed carries none of it — `scope.js` parses a pre-CLI ledger
+unchanged, and `get` reports an absent header line as `absent`, never as a parse error.
 
 ## The scope branch
 
 A scope slug does not name its branch. The type leads the branch and the slug follows it, and nothing
 recovers a type from a slug — so read the branch rather than compute it.
 
-- **The ledger's `**Branch:**` line.** `/superdev:implement` Phase 0 writes it, beside `**Stage:**`.
-  Verify it with `git rev-parse --verify <branch>` before trusting it — Phase 0 writes the line before it
+- **The ledger's `**Branch:**` line.** `/superdev:implement` Phase 0 writes it, beside `**Stage:**`
+  (`scope.js init` writes both from the feature label). Read it with
+  `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js get branch --root <run-root>`, then verify it with
+  `git rev-parse --verify <branch>` before trusting it — Phase 0 writes the line before it
   cuts the branch, so a run that died in between leaves a ledger naming a branch that was never cut. It
   verifies → this is the answer. A command that receives only a scope slug still finds the run root from
   that slug, and the branch from this line.
@@ -189,7 +193,9 @@ first shape's unattended path blocks. What matters is that the run's shortfall s
 session that saw it has ended.
 
 **The entry.** A `**Degraded:**` line in `<run-root>/ledger.md`, beside `**Stage:**`, carrying one bullet
-per degraded pass. Each bullet names the pass, why it degraded, and the date:
+per degraded pass. Write each bullet with
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js degraded add "<text>" --root <run-root>`, which creates the
+line when absent and appends when present. Each bullet names the pass, why it degraded, and the date:
 
 ```markdown
 **Stage:** reviewed
@@ -206,8 +212,9 @@ reasoning.
 
 ## The stage never moves backwards
 
-`/superdev:review` and `/superdev:document` both write the ledger's `**Stage:**` line, and each reads the
-current value first: **a stage write never undoes completed work.** `shipped` is what stops
+`/superdev:review` and `/superdev:document` both write the ledger's `**Stage:**` line — through
+`scope.js stage set`, which enforces every rule in this section in code and refuses a write that breaks
+one: **a stage write never undoes completed work.** `shipped` is what stops
 `/superdev:ship` from opening a second pull request, so a later command that overwrote it with an earlier
 stage would disarm that check. `documented` and `shipped` are therefore terminal. No command in the chain
 writes over either one.

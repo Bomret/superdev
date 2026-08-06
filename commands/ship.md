@@ -36,7 +36,9 @@ commands. **§6 runs from the invoking checkout instead** — see there.
 
 ## 3. Stage gate (warn once, never block)
 
-Read the ledger's `**Stage:**` line:
+Read the ledger's `**Stage:**` line with
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>` (`absent` means no line at
+all):
 
 - **`shipped`** → this scope is already shipped. Report that, print the existing pull request if the code
   host still lists one, and stop. Never open a second.
@@ -50,8 +52,9 @@ Read the ledger's `**Stage:**` line:
   scope shipped without it. **`--unattended` → refuse**: name what is missing, open no pull request, and stop.
   A caller that drove the whole chain never reaches this bullet, so reaching it unattended means a step
   really was skipped — and shipping unreviewed code is not a decision a token stands in for.
-- **Every slice in the ledger is `mechanical` or `docs`** (the ledger's `type` column, per
-  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The ledger`) → drop `/superdev:review` from that warning,
+- **Every slice in the ledger is `mechanical` or `docs`** (the fourth, `type` field of
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>`, one tab-separated row per
+  slice) → drop `/superdev:review` from that warning,
   whether it applies to this bullet or to `documented-unreviewed` above. Such a scope skips the
   whole-scope review by design (the suite is the net), so naming it as missing would train the reader to
   dismiss the question. If that drop empties the warning (review was the only thing missing), there is
@@ -72,13 +75,15 @@ than failing. **Report the pull-request URL.**
 
 **Carry the run's degrade record into that body.** The ledger's `**Degraded:**` line lists every pass this
 run did not get — a denied dispatch, a knowledge-base publish that never reached its backend — per
-`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section. Copy every bullet into the
+`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section; the `degraded:` line of
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" status` reports it for this scope. Copy every bullet into the
 pull request body under one fixed `## Degraded passes` heading, so the reviewer reads what the run is
 short of before merging rather than assuming a whole chain ran. **No such line** → the body is exactly what
 it would have been; add no empty heading saying nothing degraded.
 
 Then move the **scope anchor** issue (the epic, or the lone slice on a single-slice plan) to done per
-`docs/agents/issue-tracker.md`, and set the ledger's `**Stage:**` line to `shipped`.
+`docs/agents/issue-tracker.md`, and set the ledger's `**Stage:**` line to `shipped` with
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set shipped --root <run-root>`.
 
 ## 6. Clean up
 

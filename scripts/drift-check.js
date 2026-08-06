@@ -479,37 +479,6 @@ function scanContentTypesContract(root) {
   return gaps;
 }
 
-// The chain documents hand a run along through the ledger's `**Stage:**` line (ADR 0013): `/implement`
-// writes it, and every later command reads it before it acts. A document that stops naming the line
-// breaks the handoff silently — the stage is never written, or never read, and the suite stays green.
-// Same silent-drop failure shape as the assignee, writing-standard, and content-type contracts. The
-// pattern is the line's exact spelling, so prose that merely refers to "the stage" does not satisfy it.
-const STAGE_DOCS = [
-  path.join('commands', 'implement.md'),
-  path.join('commands', 'review.md'),
-  path.join('commands', 'document.md'),
-  path.join('commands', 'ship.md'),
-  path.join('commands', 'status.md'),
-];
-const STAGE_PATTERN = /\*\*Stage:\*\*/;
-
-// scanStageContract() is pure over a root dir: reads every chain document and reports the ones that no
-// longer name the ledger's stage line. Absent files are skipped, so fixtures need only the documents
-// they exercise.
-function scanStageContract(root) {
-  const gaps = [];
-  for (const rel of STAGE_DOCS) {
-    let text;
-    try {
-      text = fs.readFileSync(path.join(root, rel), 'utf8');
-    } catch {
-      continue; // document absent (fixture / partial checkout) → nothing to scan
-    }
-    if (!STAGE_PATTERN.test(text)) gaps.push({ source: rel });
-  }
-  return gaps;
-}
-
 // A `/superdev:<name>` reference must resolve to `commands/<name>.md`. The chain hands the reader from
 // one command to the next by printing its name (ADR 0013), so a reference to a command that does not
 // exist is a dead end. This is scan() one level over: that one resolves `references/` paths, this one
@@ -573,27 +542,6 @@ function scanChainHandoff(root) {
   return gaps;
 }
 
-// The scope slug becomes a branch name and a run-root path segment, and `hooks/run-lock.js` extracts it
-// back out of a `git worktree add` command to enforce same-scope mutual exclusion. The rule the prose
-// states and the charset the hook matches with are one fact in two syntaxes, and they must stay equal. A
-// prose rule wider than the hook's regex admits a slug the hook then cannot recognise as a scope at all,
-// which disarms same-scope mutual exclusion for that scope and reports nothing. A prose rule narrower
-// than it silently skips a label a maintainer legitimately used. Both sides are pinned literally, so
-// widening or narrowing either one alone goes red and a maintainer confirms the pair still agrees.
-const SCOPE_SLUG_CONTRACTS = [
-  [
-    path.join('references', 'scope-mode.md'),
-    /`\[a-zA-Z0-9\]\[a-zA-Z0-9_-\]\*`/,
-    'state the scope-slug rule as `[a-zA-Z0-9][a-zA-Z0-9_-]*` — the charset `hooks/run-lock.js` extracts with',
-  ],
-  [
-    path.join('hooks', 'run-lock.js'),
-    /scopes\\\/\(\[a-zA-Z0-9\]\[a-zA-Z0-9_-\]\*\)/,
-    'keep extracting the scope with `[a-zA-Z0-9][a-zA-Z0-9_-]*` — the charset `references/scope-mode.md` states',
-  ],
-];
-
-
 // A scope branch is `<type>/<scope>`, and `hooks/scope-prune.js` reads that type back off a merged branch
 // to decide whether a run root may be deleted. The type set the prose lists and the set the hook matches
 // are one fact in two syntaxes. A hook set narrower than the prose leaves a run root behind forever on
@@ -619,6 +567,13 @@ const CHANGE_TYPE_CONTRACTS = [
     'CONTEXT.md',
     /`feat`,\s*`fix`,\s*`refactor`,\s*`docs`,\s*`perf`,\s*`test`,\s*`build`,\s*`ci`,\s*`chore`,\s*`style`,\s*or\s+`revert`/,
     'list the same change types the **Change type** glossary entry names — the set `references/scope-mode.md` owns',
+  ],
+  // scope.js validates every `init` label against the same set, so it is a fourth copy — executable,
+  // but still one fact that must not fork.
+  [
+    path.join('scripts', 'scope.js'),
+    /'feat', 'fix', 'refactor', 'docs', 'perf', 'test', 'build', 'ci', 'chore', 'style', 'revert'/,
+    'keep CHANGE_TYPES equal to the set `references/scope-mode.md` lists',
   ],
 ];
 
@@ -743,26 +698,6 @@ const DERIVED_CRITERIA_CONTRACTS = [
   ],
 ];
 
-// A scope branch leads with its change type (ADR 0021), so the branch name is no longer computable from
-// the scope slug the way `superdev/<scope>` was. `/superdev:ship` receives a slug and must still name the
-// branch, to decide whether the checkout it is standing in is the right one. Phase 0 knows the branch —
-// it just cut it — so the ledger records it and the readers read it back. Two documents carry that
-// between them. A writer that stops recording the line leaves every later command guessing; a reader that
-// stops looking for it silently falls back to a shape scan that cannot separate two runs whose slugs
-// differ only by type. Neither half fails anything else.
-const LEDGER_BRANCH_CONTRACTS = [
-  [
-    path.join('commands', 'implement.md'),
-    /\*\*Branch:\*\*/,
-    'record the scope branch as the ledger\'s `**Branch:**` line in Phase 0',
-  ],
-  [
-    path.join('references', 'scope-mode.md'),
-    /\*\*Branch:\*\*/,
-    'resolve the scope branch from the ledger\'s `**Branch:**` line',
-  ],
-];
-
 // A feature label is external input that becomes a branch name and a run-root path segment. Both of its
 // segments reach `git switch -c`, so both are validated — the leading one against the closed change-type
 // set, which is strictly stronger than a charset test on it. A rule that guards the slug alone lets a
@@ -861,28 +796,26 @@ const GREEN_GATE_TIMEOUT_CONTRACTS = [
   ],
 ];
 
-// The ledger's schema — the slice table's columns and its labeled header lines — is otherwise specified
-// only by its readers: `commands/status.md` parses columns the writer never mandated, and
-// `commands/ship.md` reads a `type` column the same way. `references/scope-mode.md`'s `## The ledger`
-// section is the one owner; every other consumer points at it rather than restating the shape. A consumer
-// that drops the pointer leaves a reader free to parse whatever columns it imagines, silently, because
-// nothing else checks the ledger's shape.
-const LEDGER_SCHEMA_CONTRACTS = [
-  [
-    path.join('references', 'scope-mode.md'),
-    /^##\s+The ledger\s*$/m,
-    'carry the `## The ledger` section — the slice table\'s columns and the labeled header lines above it',
-  ],
-  ...[
-    path.join('commands', 'implement.md'),
-    path.join('commands', 'status.md'),
-    path.join('commands', 'ship.md'),
-  ].map((rel) => [rel, /`## The ledger`/, 'point at `references/scope-mode.md`\'s `## The ledger` section, not merely at `ledger.md`']),
-  [
-    path.join('commands', 'review.md'),
-    /\*\*Anchor:\*\*/,
-    'name the ledger\'s `**Anchor:**` line when it reads the scope anchor\'s title',
-  ],
+// Run state is owned by scripts/scope.js (ADR 0022): every ledger write and read in the chain goes
+// through its verbs, and the retired stage, scope-slug, ledger-branch, and ledger-schema contract rows
+// live on as scope.js selftest assertions. What is left to drift is the wiring: a chain document that
+// stops invoking its verb goes back to hand-editing or hand-parsing `ledger.md` — and the ledger-guard
+// hook catches only tool calls at runtime, not prose that never issues one. Each row pins the verb a
+// document must name; the pattern tolerates the `${CLAUDE_PLUGIN_ROOT}/scripts/` path prefix in front of
+// `scope.js`.
+const VERB_CONTRACTS = [
+  [path.join('commands', 'implement.md'), /scope\.js["'`]?\s+init\b/, 'create the run root and ledger with `scope.js init`'],
+  [path.join('commands', 'implement.md'), /scope\.js["'`]?\s+stage set merged\b/, 'record slice completion with `scope.js stage set merged`'],
+  [path.join('commands', 'review.md'), /scope\.js["'`]?\s+stage set\b/, 'write its stage with `scope.js stage set`'],
+  [path.join('commands', 'review.md'), /scope\.js["'`]?\s+get anchor\b/, 'read the scope anchor\'s title with `scope.js get anchor`'],
+  [path.join('commands', 'document.md'), /scope\.js["'`]?\s+stage set\b/, 'write its stage with `scope.js stage set`'],
+  [path.join('commands', 'ship.md'), /scope\.js["'`]?\s+get stage\b/, 'read the stage with `scope.js get stage`'],
+  [path.join('commands', 'ship.md'), /scope\.js["'`]?\s+stage set shipped\b/, 'set the terminal stage with `scope.js stage set shipped`'],
+  [path.join('commands', 'status.md'), /scope\.js["'`]?\s+status\b/, 'produce the report with `scope.js status` and print it verbatim'],
+  [path.join('commands', 'afk.md'), /scope\.js["'`]?\s+get stage\b/, 'read a run\'s stage with `scope.js get stage`'],
+  [path.join('references', 'implement-full.md'), /scope\.js["'`]?\s+slice\b/, 'move slice rows with `scope.js slice`'],
+  [path.join('references', 'implement-lite.md'), /scope\.js["'`]?\s+slice\b/, 'move slice rows with `scope.js slice`'],
+  [path.join('references', 'scope-mode.md'), /scope\.js["'`]?\s+degraded add\b/, 'write the degrade entry with `scope.js degraded add`'],
 ];
 
 // scanContract() is pure over a root dir and a contract table: reads each document the table names and
@@ -914,21 +847,18 @@ function main() {
   const anchorGaps = [...scanAnchorContract(root), ...scanAfkSelectionNeutrality(root)];
   const wsGaps = scanWritingStandardContract(root);
   const ctGaps = scanContentTypesContract(root);
-  const stGaps = scanStageContract(root);
   const deadEnds = scanCommandRefs(root);
   const chainGaps = scanChainHandoff(root);
   const contractGaps = [
     ...scanContract(root, FEATURE_ARG_CONTRACTS),
     ...scanContract(root, UNATTENDED_CONTRACTS, { stripFrontmatterFirst: true }),
     ...scanAfkInvocations(root),
-    ...scanContract(root, SCOPE_SLUG_CONTRACTS),
     ...scanContract(root, CHANGE_TYPE_CONTRACTS),
     ...scanContract(root, DEGRADED_CONTRACTS, { stripFrontmatterFirst: true }),
     ...scanContract(root, DERIVED_CRITERIA_CONTRACTS),
-    ...scanContract(root, LEDGER_BRANCH_CONTRACTS),
     ...scanContract(root, LABEL_VALIDATION_CONTRACTS),
     ...scanContract(root, GREEN_GATE_TIMEOUT_CONTRACTS),
-    ...scanContract(root, LEDGER_SCHEMA_CONTRACTS),
+    ...scanContract(root, VERB_CONTRACTS),
   ];
   // Every scanner above skips a document it cannot read, so that a fixture carries only the files it
   // exercises. That convention would let `commands/afk.md` be deleted without a single check going red,
@@ -948,7 +878,6 @@ function main() {
     anchorGaps.length === 0 &&
     wsGaps.length === 0 &&
     ctGaps.length === 0 &&
-    stGaps.length === 0 &&
     deadEnds.length === 0 &&
     chainGaps.length === 0 &&
     contractGaps.length === 0 &&
@@ -957,13 +886,13 @@ function main() {
     console.log(
       'drift-check ok: references resolve, run-root paths are absolute, assignee and anchor contracts ' +
         'carried, ' +
-        'writing standard offered, content-type lens wired, stage line named, commands resolve, ' +
-        'chain hands off, scope-slug charset matches the run-lock hook, change-type set matches the ' +
-        'scope-prune hook, feature-label argument and ' +
+        'writing standard offered, content-type lens wired, commands resolve, ' +
+        'chain hands off, change-type set matches the ' +
+        'scope-prune hook and scope.js, feature-label argument and ' +
         'unattended token and degrade record carried, criteria derived before the DoD is read, ' +
-        'scope branch recorded in the ledger, both label segments validated, ' +
+        'both label segments validated, ' +
         "green-gate's hooks.json timeout matches its own comment, " +
-        'the ledger schema is owned once and every consumer points at it, ' +
+        'every chain document invokes its scope.js verb, ' +
         'eval graders and scaffolds well-formed',
     );
     process.exit(0);
@@ -999,12 +928,6 @@ function main() {
     console.error(
       `${g.source} no longer instructs itself to read \`references/content-types.md\` — the ` +
         `content-type lens is dead in every dispatch of this agent; see ADR 0014`,
-    );
-  }
-  for (const g of stGaps) {
-    console.error(
-      `${g.source} no longer names the ledger's \`**Stage:**\` line — the chain handoff is broken ` +
-        `there, silently; see ADR 0013`,
     );
   }
   for (const d of deadEnds) {
@@ -1745,50 +1668,6 @@ if (process.argv[2] === '--selftest') {
   });
   assert.equal(scanEvalShape(quotedScaffold).length, 0, 'a quoted scaffold_script resolves');
 
-  // --- scanStageContract: every chain document must name the ledger's `**Stage:**` line. The four
-  // commands hand a run along through that line (ADR 0013), so a document that stops naming it breaks
-  // the handoff silently: the stage is never written, or never read, and the suite stays green. ---
-
-  const stageWritten = 'Write `**Stage:** implementing` into `<run-root>/ledger.md`.\n';
-  const stageRead = "Read the ledger's `**Stage:**` line and show it per scope.\n";
-
-  // positive: status.md stopped naming the stage line
-  const st1 = fixture({
-    'commands/implement.md': stageWritten,
-    'commands/status.md': '# status\n\nNo stage here.\n',
-  });
-  const stGaps1 = scanStageContract(st1);
-  assert.equal(stGaps1.length, 1, 'flags the chain document that stopped naming the stage line');
-  assert.equal(stGaps1[0].source, path.join('commands', 'status.md'), 'names status.md');
-
-  // positive from the other side: implement.md is the writer, and its gap is the same failure
-  const st2 = fixture({
-    'commands/implement.md': '# implement\n\nNo stage here.\n',
-    'commands/status.md': stageRead,
-  });
-  const stGaps2 = scanStageContract(st2);
-  assert.equal(stGaps2.length, 1, 'flags implement.md when it is the one that dropped the line');
-  assert.equal(stGaps2[0].source, path.join('commands', 'implement.md'), 'names implement.md');
-
-  // negative: both naming the line is clean
-  const st3 = fixture({
-    'commands/implement.md': stageWritten,
-    'commands/status.md': stageRead,
-  });
-  assert.equal(scanStageContract(st3).length, 0, 'both documents naming the line yields zero gaps');
-
-  // a prose mention of "the stage" is not the ledger line: the contract is the line's exact spelling,
-  // and prose that merely refers to a stage says nothing about which line a command writes or reads
-  const st4 = fixture({
-    'commands/implement.md': 'The run records its stage somewhere.\n',
-    'commands/status.md': stageRead,
-  });
-  assert.equal(scanStageContract(st4).length, 1, 'a prose mention of the stage is not the line');
-
-  // an absent document is skipped, so a fixture carries only the files it exercises
-  const st5 = fixture({ 'commands/status.md': stageRead });
-  assert.equal(scanStageContract(st5).length, 0, 'an absent chain document is skipped');
-
   // --- scanCommandRefs: a `/superdev:<name>` reference must resolve to `commands/<name>.md`. The chain
   // hands the user from one command to the next by printing its name (ADR 0013), so a reference to a
   // command that does not exist sends the reader to a dead end. Same failure shape as scan() one level
@@ -2199,37 +2078,7 @@ if (process.argv[2] === '--selftest') {
     'an absent afk.md is skipped',
   );
 
-  // --- SCOPE_SLUG_CONTRACTS: the slug rule the prose states and the charset the run-lock hook extracts
-  // with are one fact in two syntaxes, in two files. Pinning both literally is what makes widening either
-  // one alone go red. ---
-
   const realRoot = path.join(__dirname, '..');
-  assert.equal(
-    scanContract(realRoot, SCOPE_SLUG_CONTRACTS).length,
-    0,
-    'the shipped scope-mode.md rule and run-lock.js regex agree',
-  );
-
-  // positive: reintroducing the `.` the prose once admitted is caught
-  const slug1 = fixture({ 'references/scope-mode.md': 'A scope slug must match `[a-z0-9][a-z0-9._-]*`.\n' });
-  const slugGaps1 = scanContract(slug1, SCOPE_SLUG_CONTRACTS);
-  assert.equal(slugGaps1.length, 1, 'flags a slug rule wider than the hook admits');
-  assert.equal(slugGaps1[0].source, path.join('references', 'scope-mode.md'), 'names scope-mode.md');
-
-  // positive from the hook's side: widening the regex alone is the same drift
-  const slug2 = fixture({
-    'hooks/run-lock.js': 'cmd.match(/\\.superdev\\/scopes\\/([a-zA-Z0-9._-]+)\\/worktree\\b/);\n',
-  });
-  const slugGaps2 = scanContract(slug2, SCOPE_SLUG_CONTRACTS);
-  assert.equal(slugGaps2.length, 1, 'flags the hook drifting away from the stated rule');
-  assert.equal(slugGaps2[0].source, path.join('hooks', 'run-lock.js'), 'names run-lock.js');
-
-  // absent files are skipped, matching every other contract table
-  assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), SCOPE_SLUG_CONTRACTS).length,
-    0,
-    'absent files are skipped',
-  );
 
   // --- CHANGE_TYPE_CONTRACTS: the change-type set the prose lists and the set the scope-prune hook
   // matches are the same fact in two syntaxes, in two files. ---
@@ -2304,38 +2153,6 @@ if (process.argv[2] === '--selftest') {
   // absent files are skipped, matching every other contract table
   assert.equal(
     scanContract(fixture({ 'README.md': '# repo\n' }), DERIVED_CRITERIA_CONTRACTS).length,
-    0,
-    'absent files are skipped',
-  );
-
-  // --- LEDGER_BRANCH_CONTRACTS: Phase 0 records the scope branch, and scope-mode reads it back. A slug
-  // alone no longer names the branch, so both halves are needed. ---
-
-  assert.equal(
-    scanContract(realRoot, LEDGER_BRANCH_CONTRACTS).length,
-    0,
-    'the shipped implement.md ledger spec and scope-mode.md resolution rule agree',
-  );
-
-  // positive: a Phase 0 that records slice keys but not the branch is caught
-  const lb1 = fixture({
-    'commands/implement.md': 'Track each slice\'s status and the slice-id to issue-key mapping.\n',
-  });
-  const lbGaps1 = scanContract(lb1, LEDGER_BRANCH_CONTRACTS);
-  assert.equal(lbGaps1.length, 1, 'flags a ledger spec that stopped recording the branch');
-  assert.equal(lbGaps1[0].source, path.join('commands', 'implement.md'), 'names implement.md');
-
-  // positive from the reader's side: a resolution rule that stopped reading the line is the same drift
-  const lb2 = fixture({
-    'references/scope-mode.md': 'Its head is the scope branch `<type>/<scope>`.\n',
-  });
-  const lbGaps2 = scanContract(lb2, LEDGER_BRANCH_CONTRACTS);
-  assert.equal(lbGaps2.length, 1, 'flags a resolution rule that no longer reads the ledger');
-  assert.equal(lbGaps2[0].source, path.join('references', 'scope-mode.md'), 'names scope-mode.md');
-
-  // absent files are skipped, matching every other contract table
-  assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), LEDGER_BRANCH_CONTRACTS).length,
     0,
     'absent files are skipped',
   );
@@ -2457,42 +2274,40 @@ if (process.argv[2] === '--selftest') {
     'absent files are skipped',
   );
 
-  // --- LEDGER_SCHEMA_CONTRACTS: scope-mode.md owns the ledger's schema once, and every consumer points
-  // at it rather than restating the shape it parses. ---
+  // --- VERB_CONTRACTS: every chain document invokes its scope.js verb (ADR 0022). A document that
+  // drops its verb goes back to hand-editing or hand-parsing the ledger, and the ledger-guard hook only
+  // sees tool calls at runtime, not prose. ---
 
   assert.equal(
-    scanContract(realRoot, LEDGER_SCHEMA_CONTRACTS).length,
+    scanContract(realRoot, VERB_CONTRACTS).length,
     0,
-    'the shipped `## The ledger` section and every consumer pointer agree',
+    'every shipped chain document invokes its scope.js verb',
   );
 
-  // positive: scope-mode.md that dropped the section itself
-  const lsc1 = fixture({
-    'references/scope-mode.md': '## The scope branch\n\nA scope slug does not name its branch.\n',
+  // positive: a status.md that renders the report itself instead of running the verb
+  const vc1 = fixture({
+    'commands/status.md': 'Read each ledger and print one block per scope.\n',
   });
-  const lscGaps1 = scanContract(lsc1, LEDGER_SCHEMA_CONTRACTS);
-  assert.equal(lscGaps1.length, 1, 'flags scope-mode.md dropping the `## The ledger` section');
-  assert.equal(lscGaps1[0].source, path.join('references', 'scope-mode.md'), 'names scope-mode.md');
+  const vcGaps1 = scanContract(vc1, VERB_CONTRACTS);
+  assert.equal(vcGaps1.length, 1, 'flags a chain document that stopped invoking its verb');
+  assert.equal(vcGaps1[0].source, path.join('commands', 'status.md'), 'names status.md');
 
-  // positive: each of the three consumers dropping its pointer, one at a time
-  for (const rel of [path.join('commands', 'implement.md'), path.join('commands', 'status.md'), path.join('commands', 'ship.md')]) {
-    const dropped = fixture({ [rel]: 'Read the ledger and act on what it says.\n' });
-    const gaps = scanContract(dropped, LEDGER_SCHEMA_CONTRACTS);
-    assert.equal(gaps.length, 1, `flags ${rel} dropping its pointer to \`## The ledger\``);
-    assert.equal(gaps[0].source, rel, `names ${rel}`);
-  }
-
-  // positive: review.md that stopped naming the `**Anchor:**` line
-  const lsc2 = fixture({
-    'commands/review.md': 'The summary is the scope anchor\'s title, derived from the diff.\n',
+  // positive: naming scope.js without the verb is not enough — the pattern pins verb and argument
+  const vc2 = fixture({
+    'commands/document.md': 'Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js` when done.\n',
   });
-  const lscGaps2 = scanContract(lsc2, LEDGER_SCHEMA_CONTRACTS);
-  assert.equal(lscGaps2.length, 1, 'flags review.md dropping the `**Anchor:**` line');
-  assert.equal(lscGaps2[0].source, path.join('commands', 'review.md'), 'names review.md');
+  const vcGaps2 = scanContract(vc2, VERB_CONTRACTS);
+  assert.equal(vcGaps2.length, 1, 'a bare scope.js mention without the verb is still a gap');
+
+  // negative: the full invocation with the plugin-root path prefix satisfies the row
+  const vc3 = fixture({
+    'commands/document.md': 'Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js stage set documented --root <run-root>`.\n',
+  });
+  assert.equal(scanContract(vc3, VERB_CONTRACTS).length, 0, 'a full verb invocation is clean');
 
   // absent files are skipped, matching every other contract table
   assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), LEDGER_SCHEMA_CONTRACTS).length,
+    scanContract(fixture({ 'README.md': '# repo\n' }), VERB_CONTRACTS).length,
     0,
     'absent files are skipped',
   );

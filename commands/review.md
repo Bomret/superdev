@@ -84,10 +84,12 @@ superdev subagent that omits one):
   checklist itself via `${CLAUDE_PLUGIN_ROOT}`).
   **In scope mode both of those change shape**, so the reviewer can write its own criteria before it sees
   the answer key (ADR 0020):
-  - The summary is **the scope anchor's title**, read from the ledger's `**Anchor:**` line (Phase 0 of
-    `/superdev:implement` writes it, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The
-    ledger` section), not derived from the diff. A diff-derived summary is the artifact describing itself,
-    and the derivation has to precede the artifact. **No `**Anchor:**` line in the ledger** (a run
+  - The summary is **the scope anchor's title**, read with
+    `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get anchor --root <run-root>` — the ledger's
+    `**Anchor:**` line (Phase 0 of `/superdev:implement` writes it, per
+    `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The ledger` section), not derived from the
+    diff. A diff-derived summary is the artifact describing itself,
+    and the derivation has to precede the artifact. **The verb prints `absent`** (a run
     implemented before this rule existed) → say so in one line and fall back to a diff-derived summary.
   - The `acceptance` is the **path** `<run-root>/dod.md`, passed as a path. Never read that file and paste
     its text into the dispatch. A prompt arrives all at once, so DoD text inlined here is already read by
@@ -185,9 +187,11 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
 - **A ceiling note never gates either.** `final-reviewer`'s `### Ceiling` section (ADR 0020) is an
   observation about work that is already correct, so it holds up no handoff, starts no fix cycle, and
   changes no stage — attended or unattended. Carry it into the report and move on.
-- **On a clean verdict**, and only then: write the ledger's `**Stage:**` line per
-  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s rule that a stage write never undoes completed work.
-  Read the current stage first. `documented-unreviewed`, and **no fix cycle ran** → write `documented`. The
+- **On a clean verdict**, and only then: write the ledger's `**Stage:**` line with
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set <value> --root <run-root>`, per
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s rule that a stage write never undoes completed work —
+  the verb enforces that rule and refuses a write that breaks it.
+  Read the current stage first (`scope.js get stage`). `documented-unreviewed`, and **no fix cycle ran** → write `documented`. The
   review it was missing has now run, and the doc pass it followed still describes this code.
   `documented-unreviewed`, and **a fix cycle landed commits** → write `reviewed` instead. Those commits
   arrived after the doc pass, so the docs are stale by exactly them, and `reviewed` is what makes

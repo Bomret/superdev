@@ -47,7 +47,11 @@ same-scope mutual exclusion. Leave the lock in place when you finish: it spans t
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section: a wrong cut is re-planning
   work, which needs the interview `/superdev:plan` runs.
 - **Commit per slice** on the scope branch (Conventional Commits) as each one goes green — all commits in
-  the scope worktree. Update the ledger (`todo` → `in-progress` → `merged`; `merged` here means "committed
+  the scope worktree. Update the ledger with
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" slice <id> <status> --root <run-root>`
+  (add `--range <commit-range>` on the `merged` write to record the slice's commit range in the
+  ledger's `range` column, when you have one)
+  (`todo` → `in-progress` → `merged`; `merged` here means "committed
   to the scope branch" — there is no separate slice branch to merge) and the tracker status. **Skip the
   `in-review` transition** — lite has no per-slice review, so move each slice straight from `in-progress`
   to `merged`/done once its commit lands.
@@ -60,7 +64,8 @@ same-scope mutual exclusion. Leave the lock in place when you finish: it spans t
 
 ## Resume
 
-Read `<run-root>/ledger.md` and cross-check it against `git log <base>..<type>/<scope>` in the
+Read the ledger — `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>` and
+`get stage` — and cross-check it against `git log <base>..<type>/<scope>` in the
 scope worktree — a slice the ledger marks `merged` (already committed there) is done; pick up at the next
 `todo` slice in `depends-on` order. An interrupted `in-progress` slice may have left partial, uncommitted
 changes in the scope worktree. Before resuming, check `<run-root>/run.lock`: if it exists and is

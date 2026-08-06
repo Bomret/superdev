@@ -67,7 +67,9 @@ Repeat until every slice is `merged`:
    fill the cap, and as each implementer returns (step 3 completes for it), backfill from the remaining
    runnable set until it's exhausted — never dispatch more than the cap at once. The cap only throttles
    concurrency; it never changes `depends-on` / DAG semantics or which slices are runnable.
-   Mark each dispatched slice `in-progress` (store + ledger).
+   Mark each dispatched slice `in-progress` — the store transition, plus
+   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" slice <id> in-progress --root <run-root>` for the
+   ledger.
 3. **Per slice, when the implementer returns** (handle status: DONE / DONE_WITH_CONCERNS — address real
    concerns first / NEEDS_CONTEXT — provide it, re-dispatch / BLOCKED — assess: more context, stronger
    model, split the slice, or escalate to the human — and move the slice → `blocked` while it's stuck;
@@ -104,7 +106,9 @@ Repeat until every slice is `merged`:
    leaving it clutters the repo). The **worktree-sweep** `Stop` hook removes any merged slice worktree you
    forget, so cleanup is guaranteed even if you skip this — but do it anyway. **Append the interfaces this
    slice decided** to `<run-root>/interfaces.md` (skip if it decided none). Move the slice →
-   `merged`/done in the store + ledger. Merging unblocks dependents.
+   `merged`/done in the store, and `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" slice <id> merged
+   --root <run-root>` in the ledger (add `--range <commit-range>` to record the slice's commit range in
+   the ledger's `range` column, when you have one). Merging unblocks dependents.
 5. Recompute the runnable set and continue.
 
 ## Resume (re-running on an existing scope)
@@ -113,7 +117,8 @@ Re-entering an already-started scope — a fresh session, a re-run after compact
 mid-loop — is a **first-class path through the loop, not a special case**: reconcile state, then
 re-enter the DAG loop at step 1.
 
-- **Reconcile before dispatching.** Read `<run-root>/ledger.md` and
+- **Reconcile before dispatching.** Read the ledger through
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>` (and `get stage`), plus
   `<run-root>/interfaces.md` (the cross-slice interface record — your pre-compaction
   context is gone; this file is what survives), cross-check the ledger against
   `git log <base>..<type>/<scope>` (merge commits name the slice branch) and the store's slice statuses.

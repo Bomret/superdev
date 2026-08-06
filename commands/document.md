@@ -138,9 +138,11 @@ run's artifacts as `<run-root>/ledger.md` and `<run-root>/run.lock`.
 - **Find the scope checkout, and refresh the run lock.** Per
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`. Hand the doc-writer the scope checkout path as its
   working directory: this is where its commits must land.
-- **Write the stage.** Once §4 finishes, write the ledger's `**Stage:**` line per
-  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s rule that a stage write never undoes completed work.
-  Read the current stage first. `shipped` → leave the line alone and say so in one line. A shipped scope
+- **Write the stage.** Once §4 finishes, write the ledger's `**Stage:**` line with
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set <value> --root <run-root>`, per
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s rule that a stage write never undoes completed work —
+  the verb enforces that rule and refuses a write that breaks it.
+  Read the current stage first (`scope.js get stage`). `shipped` → leave the line alone and say so in one line. A shipped scope
   never regains an earlier stage. `reviewed` → write `documented`. `documented` → leave it. The docs are
   already recorded as reconciled. Anything else, including no line at all, → write
   `documented-unreviewed` instead, which records that the review step never ran before this doc pass. A

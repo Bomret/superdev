@@ -38,7 +38,8 @@ implementer's TDD discipline yourself. Between dispatches, narrate at most one s
 - **A denied dispatch is a degraded pass, not a silent inline step.** Read
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
   `## Degraded passes` section and follow it — do the work inline, say so, and write the `**Degraded:**`
-  entry to `<run-root>/ledger.md`. **`--unattended` → block** there instead.
+  entry to `<run-root>/ledger.md` with the `scope.js degraded add` verb that section names.
+  **`--unattended` → block** there instead.
 - **Agents carry their own discipline.** Implementers own test-first TDD; reviewers own "green ≠ correct"
   and hunting uncovered input; `mechanical`/`docs` slices invent no tests (the suite is the net). Don't
   re-teach any of it when dispatching — pass specifics, not lectures.
@@ -138,21 +139,29 @@ implementer's TDD discipline yourself. Between dispatches, narrate at most one s
   It anchors the whole-scope review `/superdev:review` runs next, and `/superdev:ship` ticks it at the end
   of the chain. No DoD → don't proceed. **No epic** (a
   single-slice plan) → the DoD is that lone slice's `acceptance`; write it to `dod.md` verbatim.
-- Create the **ledger** at `<run-root>/ledger.md`, with the slice table and header lines
-  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The ledger` section defines — it owns the
-  table's columns and every labeled line. Write the `**Anchor:**` line there from the store's `## Scope
-  anchor` contract (`docs/agents/issue-tracker.md`) — the anchor's key and title — so `/superdev:review`
-  can read the anchor's title from the ledger instead of deriving one from the diff.
-- **Record the scope branch** as a `**Branch:** <type>/<scope>` line at the top of the ledger, beside
-  `**Stage:**`. A scope branch leads with its change type (ADR 0021), so the branch name is not computable
-  from the scope slug — and `/superdev:ship` receives a slug. You know the branch here, because the bullet
-  above already fixed `<type>` and `<scope>`; every later command in the chain reads it back from this
-  line.
-- Write the **stage** as a `**Stage:** implementing` line at the top of the ledger. The stage records how
-  far this scope has moved through the chain of commands that follow you, and it names the last completed
-  step: `implementing`, `merged`, `reviewed`, `documented` (or `documented-unreviewed` when `/superdev:document`
-  ran before `/superdev:review` did), `shipped` (ADR 0013). You own the first two. `/superdev:status` reads
-  the line, and each later command in the chain writes its own value.
+- Create the **ledger** with `scope.js init` — run, from the invoking checkout:
+
+  ```sh
+  echo '{"anchor": "<key> — <title>", "slices": [{"id": "01", "issue": "…", "title": "…", "type": "…", "depends-on": "…"}, …]}' \
+    | node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" init <type>/<scope>
+  ```
+
+  `scope.js` owns the ledger's schema (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The
+  ledger`, ADR 0022) and this one call does the run-root bookkeeping: it validates both label segments,
+  refuses only when `<run-root>/ledger.md` already exists (the run root itself may already hold
+  `dod.md`, written above — `init` tolerates that and creates the ledger into it), ensures `.superdev/`
+  is git-ignored, and writes the ledger — the slice
+  table from your JSON, a `**Stage:** implementing` line, a `**Branch:** <type>/<scope>` line (the branch
+  is not computable from the slug, and `/superdev:ship` receives a slug — ADR 0021), and the `**Anchor:**`
+  line from the store's `## Scope anchor` contract (`docs/agents/issue-tracker.md`) — the anchor's key and
+  title — so `/superdev:review` can read the anchor's title back instead of deriving one from the diff.
+  **Resuming a Phase 0 that already ran** — `<run-root>/ledger.md` already present — skip `init` and go
+  on to your playbook; its **Resume** section reconciles the ledger against `git log`.
+  The stage records how far this scope has moved through the chain, naming the last completed step:
+  `implementing`, `merged`, `reviewed`, `documented` (or `documented-unreviewed` when `/superdev:document`
+  ran before `/superdev:review` did), `shipped` (ADR 0013). You own the first two. Every later ledger
+  write in this run goes through a `scope.js` verb too (`stage`, `slice`, `degraded add`) — the
+  `ledger-guard` hook denies any other write path.
 
 ## Issue status (move issues along the tracker's workflow)
 
@@ -174,8 +183,10 @@ playbook skips the `in-review` transition — it has no per-slice review.)
 Run after your playbook returns (every slice `merged`/committed on the scope branch). Identical across
 tiers: your job here is to record that slice execution finished and to name what comes next.
 
-- **Set the stage to `merged`.** Update the ledger's `**Stage:**` line. It is what tells the next command,
-  or a resumed run, that every slice is on the scope branch.
+- **Set the stage to `merged`.** Run
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set merged --root <run-root>`. The ledger's
+  `**Stage:**` line is what tells the next command, or a resumed run, that every slice is on the scope
+  branch.
 - **Leave the run standing.** Keep the worktrees, keep `<run-root>/run.lock` (lite tier — the only tier
   that has one), and leave
   `<run-root>/dod.md` unticked and the scope anchor at `in-progress`. `/superdev:review` and

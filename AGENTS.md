@@ -35,7 +35,7 @@ commands/              — slash commands (*.md): brainstorm, setup, plan, imple
 agents/                — subagents (*.md): implementer, slice-reviewer, simplicity-reviewer, final-reviewer,
                          doc-writer, doc-reader
 hooks/                 — deterministic Node hooks + hooks.json: merge-guard, model-explicit, green-gate,
-                         run-lock, worktree-sweep, scope-prune, update-check
+                         run-lock, ledger-guard, worktree-sweep, scope-prune, update-check
 references/            — backend seed templates + plan-contract (slice schema/lifecycle, incl. the
                          optional epic sections: parked questions, non-goals, and the epic-visuals gate
                          for `## Slice graph`/`## Touch map`) + documentation convention +
@@ -50,9 +50,9 @@ references/            — backend seed templates + plan-contract (slice schema/
                          runtime by final-reviewer + slice-reviewer)
 docs/adr/              — architecture decision records (why the plugin is built this way)
 docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, documentation, KB, toolchain, verification)
-scripts/               — standalone deterministic checks wired into `bun run test` (e.g.
-                         `drift-check.js`). What each one guards is enumerated once, in the `scripts/`
-                         entry of the Child DOX Index below.
+scripts/               — standalone deterministic code wired into `bun run test`: `scope.js` (the
+                         run-state CLI, ADR 0022) and `drift-check.js`. What each one owns and guards is
+                         enumerated once, in the `scripts/` entry of the Child DOX Index below.
 evals/                 — `claude plugin eval` cases (*/case.yaml + graders/*.md + the case's
                          scaffold_script, a path relative to the case dir — never an inline block);
                          every case is one arm of the with/without-plugin A/B — see `evals/README.md`
@@ -226,15 +226,26 @@ This root owns every subtree directly:
 - `hooks/`. Claude Code hooks, the plugin's deterministic guardrails. Governed by **Working rules, Hooks
   are CommonJS** and **Every hook ships a `--selftest`**. This is the strongest future child-doc
   candidate, if its rules outgrow this root.
-- `scripts/`. Standalone deterministic checks that `package.json` runs, and the other executable code
-  alongside `hooks/`. It follows the same `--selftest` convention. The reference, run-root, assignee,
-  anchor-contract, afk-selection-neutrality, writing-standard, content-types, stage, command-resolution,
-  chain-handoff, feature-label-argument, unattended-token, afk-invocation, scope-slug, change-type,
-  degraded-pass, derived-criteria, ledger-branch, label-validation, green-gate-timeout, and
-  ledger-schema checks are drift assertions. They compare a restated fact against its source. The
+- `scripts/`. Standalone deterministic code that `package.json` runs, alongside `hooks/`. It follows the
+  same `--selftest` convention. Two executables live here.
+
+  `scope.js` is the **run-state CLI** (ADR 0022): it owns the ledger's schema and is the only
+  `ledger.md` read and write path in the chain — `init`, `stage get|set`, `slice`, `degraded add`,
+  `get stage|branch|anchor|slices`, and `status` (which renders the whole `/superdev:status` report).
+  The stage machine's transition rules are enforced in its code, not in prose, and
+  `hooks/ledger-guard.js` denies every other write path. Its selftest carries the retired drift
+  assertions along with its own behavior: the stage machine, the ledger schema and header lines, a
+  pre-CLI ledger parsing unchanged, and the scope-slug charset staying equal across `scope.js`,
+  `hooks/run-lock.js`, and `references/scope-mode.md`.
+
+  The reference, run-root, assignee,
+  anchor-contract, afk-selection-neutrality, writing-standard, content-types, command-resolution,
+  chain-handoff, feature-label-argument, unattended-token, afk-invocation, change-type,
+  degraded-pass, derived-criteria, label-validation, green-gate-timeout, and
+  verb-pointer checks are drift assertions. They compare a restated fact against its source. The
   eval-shape check compares a document against a schema. The afk-existence check is a plain existence
   assertion.
-  `drift-check.js` guards twenty-three things, in the order its `main()` computes them. First, that every
+  `drift-check.js` guards twenty things, in the order its `main()` computes them. First, that every
   `references/*.md` path named in `commands/`, `agents/`, or `references/` itself resolves to a file that
   exists. A reference cites
   another reference — both execution playbooks point at `scope-mode.md` — so a rename there dangles like
@@ -269,77 +280,67 @@ This root owns every subtree directly:
   isolates the text of one heading's section before either scans its body. Sixth, that
   `references/documentation.md` still offers a `## Writing standard` section (ADR 0012).
   Seventh, that `agents/doc-writer.md` and `agents/doc-reader.md` each still instruct themselves to read
-  `references/content-types.md` (ADR 0014). Eighth, that every command in the chain still names the
-  ledger's `**Stage:**` line (ADR 0013). The chain hands a run along through that line, so a command that
-  stops naming it never writes or reads the stage, and nothing fails. Ninth, that every
+  `references/content-types.md` (ADR 0014). Eighth, that every
   `/superdev:<name>` reference in `commands/` or `agents/` resolves to a `commands/<name>.md` file, so a
-  chain handoff never points the reader at a command that does not exist. Tenth, that
+  chain handoff never points the reader at a command that does not exist. Ninth, that
   `commands/implement.md`, `commands/review.md`, and `commands/document.md` each name their successor in
   the chain. `commands/ship.md` ends the chain and is deliberately outside that check.
 
-  The eleventh, twelfth, fourteenth, fifteenth, sixteenth, seventeenth, eighteenth, nineteenth,
-  twentieth, and twenty-first checks
+  The tenth, eleventh, thirteenth, fourteenth, fifteenth, sixteenth, seventeenth, and eighteenth checks
   share one scanner, `scanContract()`, run over
   a table of `[document, pattern, expectation]` rows instead of one function each. It reads every
-  document a table names and reports the rows whose pattern that document no longer matches. Eleventh, the
+  document a table names and reports the rows whose pattern that document no longer matches. Tenth, the
   feature-label-argument contract: `commands/implement.md` declares an `argument-hint` naming a feature
   label and resolves `$ARGUMENTS`, and `commands/plan.md` names `/superdev:implement <label>` as its
   resolved successor, in a backtick-delimited invocation — the contract only, never the label's shape
-  (ADR 0019). Twelfth, the
+  (ADR 0019). Eleventh, the
   unattended-token contract: `references/scope-mode.md`
   carries the `## Unattended` section (ADR 0016), and `commands/implement.md`, `commands/review.md`,
   `commands/document.md`, `commands/ship.md`, `references/implement-full.md`, and
   `references/implement-lite.md` each name `--unattended` and carry a read/apply instruction pointing at
-  that section. Thirteenth, that `commands/afk.md`'s stage table invokes all four chain commands and
+  that section. Twelfth, that `commands/afk.md`'s stage table invokes all four chain commands and
   carries `--unattended` on every one of those rows. `scanAfkInvocations()` checks this row by row: a
   whole-file regex would pass the moment any one row carried the token, letting a sibling row lose it
-  unnoticed. Fourteenth, the scope-slug contract: `references/scope-mode.md`'s prose rule and
-  `hooks/run-lock.js`'s extraction regex state the same charset. Fifteenth, the change-type contract:
-  `references/scope-mode.md`'s type list, `hooks/scope-prune.js`'s `CHANGE_TYPES` regex, and
-  `CONTEXT.md`'s **Change type** glossary entry state the same
-  set (ADR 0021). A hook narrower than the prose leaves a shipped run's root behind forever on the missing
+  unnoticed. Thirteenth, the change-type contract:
+  `references/scope-mode.md`'s type list, `hooks/scope-prune.js`'s `CHANGE_TYPES` regex,
+  `CONTEXT.md`'s **Change type** glossary entry, and `scripts/scope.js`'s `CHANGE_TYPES` array state the
+  same set (ADR 0021). A hook narrower than the prose leaves a shipped run's root behind forever on the
+  missing
   type, and reports nothing — a prune that never runs is silent. The glossary is the copy most likely to
-  drift, because nothing executes it. Sixteenth, the degraded-pass contract:
+  drift, because nothing executes it. Fourteenth, the degraded-pass contract:
   `references/scope-mode.md` carries the `## Degraded passes` section, and `commands/implement.md`,
   `commands/review.md`, `commands/document.md`, `commands/ship.md`, `commands/status.md`,
   `references/implement-full.md`, and `references/implement-lite.md` each name the `**Degraded:**`
   ledger entry and point at that section. A consumer that drops the wire lets a run report assurance it
-  never got — a pull request claiming a review that was its author reading their own work. Seventeenth,
+  never got — a pull request claiming a review that was its author reading their own work. Fifteenth,
   the derived-criteria contract: `commands/review.md` hands `final-reviewer` the **path**
   `<run-root>/dod.md` in its scope-mode dispatch, and `agents/final-reviewer.md` carries its
   `## Derive the criteria first` step (ADR 0020). Both halves are needed for the ordering to be real,
   because a prompt arrives at once — DoD text inlined in the dispatch is already read by the time the
   instruction asks for a derivation. Losing either half degrades the derivation into theater: references
   still resolve, the suite stays green, and the reviewer reads the DoD first exactly as before.
-  Eighteenth,
-  the ledger-branch contract: `commands/implement.md`'s Phase 0 records the scope branch as the ledger's
-  `**Branch:**` line, and `references/scope-mode.md` resolves the branch from that line (ADR 0021). A
-  slug names its run root but not its branch, because the type leads the branch and nothing recovers a
-  type from a slug — and `/superdev:ship` receives a slug. A writer that stops recording the line leaves
-  every later command guessing; a reader that stops looking for it falls back to a shape scan that cannot
-  separate two runs whose slugs differ only by type. Nineteenth, the label-validation contract:
+  Sixteenth, the label-validation contract:
   `references/scope-mode.md` carries the **Validate both segments.** rule, and `commands/implement.md`
   and `commands/afk.md` each point at it. The whole feature label becomes the branch name, so the type
   reaches `git switch -c` exactly as the slug does — a rule guarding the slug alone lets `-x/y` through to
   git as an option, and lets a non-canonical type make a run root `scope-prune` never removes. A consumer
-  that stops pointing at the rule validates nothing and stays valid prose. Twentieth, the
+  that stops pointing at the rule validates nothing and stays valid prose. Seventeenth, the
   green-gate-timeout contract: `hooks/hooks.json` sets `"timeout": 600` on the green-gate
   PostToolUse(Bash) hook entry, and the comment beside `IS_MERGE` in `hooks/green-gate.js` names that
   same 600s ceiling, distinct from Claude Code's own 60s default hook timeout. Green-gate re-runs the
   scope suite synchronously inside the hook, so a suite slower than the configured timeout is killed
   mid-run and the gate silently doesn't fire — a hooks.json entry that loses its `timeout` field falls
   back to the 60s default unnoticed, because the suite stays green until a run happens to exceed it.
-  Twenty-first, the ledger-schema contract: `references/scope-mode.md` carries the `## The ledger`
-  section — the slice table's columns and its labeled header lines — and `commands/implement.md`,
-  `commands/status.md`, and `commands/ship.md` each point at that section rather than restating the
-  shape; `commands/review.md` names the `**Anchor:**` line it reads back for the PR-facing title.
-  Before this section existed the schema was specified only by its readers: `commands/status.md` parsed
-  columns the writer never mandated, and `commands/ship.md` read a `type` column the same way. A consumer
-  that drops the pointer leaves a reader free to parse whatever columns it imagines, silently, because
-  nothing else checks the ledger's shape.
-  Twenty-second,
-  that `commands/afk.md` exists at all. Nothing else in the plugin names `/superdev:afk` for the ninth
-  check to resolve, so its absence would otherwise go unnoticed. Twenty-third, that every
+  Eighteenth, the verb-pointer contract (ADR 0022): every ledger touchpoint in the chain invokes its
+  `scope.js` verb — `commands/implement.md` `init` and `stage set merged`, `commands/review.md`
+  `stage set` and `get anchor`, `commands/document.md` `stage set`, `commands/ship.md` `get stage` and
+  `stage set shipped`, `commands/status.md` `status`, `commands/afk.md` `get stage`, both execution
+  playbooks `slice`, and `references/scope-mode.md` `degraded add`. A document that drops its verb goes
+  back to hand-editing or hand-parsing the ledger, which the `ledger-guard` hook only catches as a tool
+  call at runtime, never as prose.
+  Nineteenth,
+  that `commands/afk.md` exists at all. Nothing else in the plugin names `/superdev:afk` for the eighth
+  check to resolve, so its absence would otherwise go unnoticed. Twentieth, that every
   `evals/*/graders/*.md` declares a known `type` and a positive `weight`, that an `llm` or `regex`
   grader also declares a `focus` or `target`, and that every case's `scaffold_script` resolves. Nothing
   else validates a grader, so without this a typo surfaces part-way through a run that costs real API
@@ -349,9 +350,9 @@ This root owns every subtree directly:
   The seventh catches an agent that drops its wire to a file which still exists. That drift leaves the
   reference resolvable and the suite green, and the lens then does nothing in any dispatch.
 
-  The first and ninth checks are the same check at two levels: one resolves a `references/` path, the
-  other a command name. The ninth and tenth are opposites in the same way as the first and seventh: the
-  ninth catches a handoff that points at a command with no file, the tenth a command that names no
+  The first and eighth checks are the same check at two levels: one resolves a `references/` path, the
+  other a command name. The eighth and ninth are opposites in the same way as the first and seventh: the
+  eighth catches a handoff that points at a command with no file, the ninth a command that names no
   successor at all.
 - `references/`. Backend seed templates plus the non-seed references below.
   + `plan-contract.md`: the slice schema and lifecycle, including the optional epic sections, the
@@ -390,9 +391,10 @@ This root owns every subtree directly:
     defines the pass a run did not get — a dispatch the permission classifier denied, or one that could
     not reach what it needed — what a command does about one attended and unattended, and the
     `**Degraded:**` ledger entry that carries it to `/superdev:ship`'s pull-request body and
-    `/superdev:status`'s report. Its `## The ledger` section owns the ledger's schema once: the slice
-    table's columns and the labeled header lines above it, including the `**Anchor:**` line
-    `/superdev:implement` writes and `/superdev:review` reads back for the PR-facing title.
+    `/superdev:status`'s report. Its `## The ledger` section defers the ledger's schema to `scripts/scope.js` (ADR 0022), which
+    owns it and is the only read and write path — including the `**Anchor:**` line
+    `/superdev:implement` hands to `init` and `/superdev:review` reads back (`get anchor`) for the
+    PR-facing title.
   + **Authoring disciplines** (`cross-exam.md`, `domain-modeling.md`, `doc-verification.md`): the
     relentless cross-examination, active-domain-modeling, and verify-against-official-docs disciplines
     that `/plan` and `/brainstorm` read at runtime. They are superdev's own rendering of Matt Pocock's

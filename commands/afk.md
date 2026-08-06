@@ -59,7 +59,9 @@ An anchor is **eligible** when all of these hold:
   lock only ever exists for a `lite`-tier scope
   (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`) — a plan with more than 3 slices runs
   `full` and never gets one, so **no lock present is not by itself eligibility**: fall back to
-  `<run-root>/ledger.md`'s mtime instead. Newer than an hour, with the stage short of `shipped`, is a
+  `<run-root>/ledger.md`'s mtime instead (the stage itself comes from
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>`, as everywhere in this
+  command). Newer than an hour, with the stage short of `shipped`, is a
   weaker signal than a lock — the ledger is written only when a step completes rather than refreshed at
   every step, so a long-running step (a full-tier review grinding to its 3-strike cap, one large slice)
   can leave it stale for over an hour on a run that is still alive. It is still far better than treating
@@ -82,7 +84,7 @@ Eligibility says nothing about `ready`, deliberately. A part-merged plan and a s
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`. There is no scope to path on.
 - An anchor whose scope holds a **live run** (fresh lock, or — with none — a fresh, unshipped ledger).
   Someone else is working, and nothing is wrong.
-- An anchor whose ledger reads `**Stage:** shipped`. The run is done.
+- An anchor whose ledger's stage reads `shipped`. The run is done.
 
 Every skip changes no label and does not touch the consecutive-block count. Two of the four are
 **transient** — a live run ends, and a shipped run is done — so they stay silent: nothing needs doing and
@@ -101,8 +103,9 @@ nothing to label either. Skip it and name it in §6's report. It needs a human, 
 
 ## 3. Take it through the chain
 
-Read `<run-root>/ledger.md` for the scope (`.superdev/scopes/<scope>/`) and start at the step its
-`**Stage:**` line has not reached. Resume rather than restart: a merged slice is never rebuilt.
+Read the scope's stage — `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>`
+(`<run-root>` is `.superdev/scopes/<scope>/`) — and start at the step that stage has not reached. Resume
+rather than restart: a merged slice is never rebuilt.
 
 | Stage | Start at |
 |---|---|

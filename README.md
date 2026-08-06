@@ -142,6 +142,9 @@ bash or PowerShell variants.
   while a fresh `.superdev/scopes/<scope>/run.lock` exists, so two concurrent lite runs on one scope
   cannot collide. A stale lock (older than the staleness threshold) or no lock at all passes through,
   which covers a crash resume and a new run.
+- **ledger-guard.** Blocks every write to a scope's `ledger.md`: an `Edit`, a `Write`, and a `Bash`
+  write (redirect, `tee`, `sed -i`, `cp`, `mv`, `install`) are all denied. Only `scripts/scope.js`,
+  the run-state CLI that owns the ledger's schema, may write it.
 - **worktree-sweep.** A `Stop` hook that removes each per-slice worktree and branch once its slice is
   fully merged. Finished worktrees therefore cannot pile up when the controller skips the prompted
   cleanup. It
@@ -154,7 +157,7 @@ bash or PowerShell variants.
   touches an unmerged scope, one whose worktree is still present, or one whose ledger is unreadable or
   silent on the stage.
 
-A seventh Node hook, **update-check**, is a `SessionStart` *notice* rather than a guardrail. See
+An eighth Node hook, **update-check**, is a `SessionStart` *notice* rather than a guardrail. See
 [Updating](#updating).
 
 ## Configuration and backends
