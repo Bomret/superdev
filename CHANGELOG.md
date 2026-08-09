@@ -1,3 +1,11 @@
+# [0.28.0](https://codeberg.org/bomret/superdev/compare/v0.27.0...v0.28.0) (2026-08-09)
+
+
+### Features
+
+* **kb:** make the knowledge-base publish its own command ([#196](https://codeberg.org/bomret/superdev/issues/196)) ([f196ec6](https://codeberg.org/bomret/superdev/commit/f196ec603e394ae423d89f2c01c3dd06dea813a1)), closes [#193](https://codeberg.org/bomret/superdev/issues/193) [#194](https://codeberg.org/bomret/superdev/issues/194) [#195](https://codeberg.org/bomret/superdev/issues/195)
+* **scope:** run state owned by a deterministic CLI (scope.js) ([#191](https://codeberg.org/bomret/superdev/issues/191)) ([8cc5756](https://codeberg.org/bomret/superdev/commit/8cc575637f1c3cad0e772a4a17fb0959db9834de)), closes [#187](https://codeberg.org/bomret/superdev/issues/187) [#188](https://codeberg.org/bomret/superdev/issues/188) [#189](https://codeberg.org/bomret/superdev/issues/189) [#190](https://codeberg.org/bomret/superdev/issues/190) [#187](https://codeberg.org/bomret/superdev/issues/187)
+
 # [0.27.0](https://codeberg.org/bomret/superdev/compare/v0.26.1...v0.27.0) (2026-08-05)
 
 
