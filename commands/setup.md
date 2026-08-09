@@ -119,7 +119,10 @@ specifications, design overviews, ADR summaries)? Ask the user which of:
 - **Knowledge base software available** — e.g. **Confluence**. Seed:
   `references/knowledge-base-confluence.md`. Ask base URL, space key, what to publish, optional parent
   page, and the **env-var names** for the API token + email (never the secrets). For a different wiki,
-  capture its publish/find/update commands as prose ("other").
+  capture its publish/find/update/**removal** commands as prose ("other") — a config with no removal
+  convention leaves every `action: delete` staged page unpublishable. Also record that
+  `/superdev:publish-kb` is the only caller of this backend and that `/superdev:plan`/`/superdev:document`
+  stage its pages instead of sending them (ADR 0023), the `## Staging` section the seeded templates carry.
 - **Local file storage** — markdown under `docs/kb/`. Seed: `references/knowledge-base-local.md`.
 - **None** — no separate KB; the in-repo docs are the only record.
 

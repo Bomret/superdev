@@ -173,11 +173,11 @@ occur, and each takes its own action:
   outcome this rule exists to prevent. The block comment names the denied dispatch, **and the entry below
   is written too**: the comment tells the tracker, and the bullet tells the run, which is what
   `/superdev:status` reads and what a maintainer resuming the scope by hand sees first.
-- **A pass that cannot complete its own work.** The step ran, and something it needed was unreachable. The
-  knowledge-base publish is the live case: its backend states its own skip-and-note fallback. **Record and
-  continue, attended or unattended alike** — the step already ran what it could, so blocking the night's
-  sweep on an expired token or an unreachable backend protects nothing that inlining protects in the first
-  shape.
+- **A pass that cannot complete its own work.** The step ran, and something it needed was unreachable. A
+  knowledge-base pass the writer could not stage is the live case: the pass reaches no backend, so what
+  remains is a staging path it could not write. **Record and continue, attended or unattended alike** —
+  the step already ran what it could, so blocking the night's sweep on a staging path it cannot write
+  protects nothing that inlining protects in the first shape.
 
 **Recognising a denial.** It comes back as a permission refusal naming the classifier. A failed dispatch
 that is not that — a timeout, a network error, any other tool failure — is an ordinary error to retry or

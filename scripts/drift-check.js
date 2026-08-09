@@ -52,6 +52,7 @@ const RUN_ROOT_DOCS = [
   'commands/review.md',
   'commands/document.md',
   'commands/ship.md',
+  'commands/publish-kb.md',
   'references/implement-lite.md',
   'references/implement-full.md',
   'references/scope-mode.md',
@@ -816,7 +817,72 @@ const VERB_CONTRACTS = [
   [path.join('references', 'implement-full.md'), /scope\.js["'`]?\s+slice\b/, 'move slice rows with `scope.js slice`'],
   [path.join('references', 'implement-lite.md'), /scope\.js["'`]?\s+slice\b/, 'move slice rows with `scope.js slice`'],
   [path.join('references', 'scope-mode.md'), /scope\.js["'`]?\s+degraded add\b/, 'write the degrade entry with `scope.js degraded add`'],
+  [path.join('commands', 'publish-kb.md'), /scope\.js["'`]?\s+get branch\b/, 'read the scope branch with `scope.js get branch` for its merge check'],
 ];
+
+// ADR 0023: a remote knowledge base is a reader-facing surface, and a page sent from an unmerged branch
+// claims a feature no reader can reach. `/superdev:plan` and `/superdev:document` therefore write pages
+// as staged pages, and `/superdev:publish-kb` is the only path to a backend.
+//
+// The invariant is prose in three documents, so it is guarded in two halves. Either half alone passes
+// while the invariant is gone: a document can name the staging location and carry a REST call beside it,
+// and a document can lose its call path along with the instruction that replaces it — leaving a
+// knowledge-base pass that does nothing at all. The positive half rides `scanContract()`; the negative
+// half needs its own scanner, because `scanContract()` asserts that a pattern *matches*.
+const KB_STAGING_CONTRACTS = [
+  [path.join('commands', 'plan.md'), /\.superdev\/kb-pending\//, 'stage the feature specification under `.superdev/kb-pending/` rather than sending it'],
+  [path.join('commands', 'document.md'), /\.superdev\/kb-pending\//, 'hand the doc-writer a `.superdev/kb-pending/` staging path'],
+  [path.join('agents', 'doc-writer.md'), /\.superdev\/kb-pending\//, 'write a remote backend\'s pages under `.superdev/kb-pending/`'],
+];
+
+// The documents that must reach no knowledge-base backend, and the markers that say one does.
+// `/superdev:publish-kb` is deliberately absent from the document list: reaching the backend is its job.
+//
+// A marker built from a backend's literal endpoint or credential (`api/v2/pages`,
+// `CONFLUENCE_API_TOKEN`) catches almost nothing: AGENTS.md's "Backends are pluggable" rule already
+// forbids these documents from naming a backend at all, so that literal can only appear in a document
+// that already breaks a different rule. What a real regression reads like instead is an instruction
+// shape — a backend-directed verb aimed at a knowledge-base object — regardless of which backend or
+// whether it names one at all. The pre-ADR-0023 doc-writer.md ("Publishing to a **KB/wiki** host…",
+// "create pages only for genuinely new outline entries") is the reference case this is built to catch.
+const KB_NO_CALL_DOCS = [
+  path.join('commands', 'plan.md'),
+  path.join('commands', 'document.md'),
+  path.join('agents', 'doc-writer.md'),
+];
+const KB_OBJECT = 'pages?|wiki|space|backend';
+const KB_BACKEND_CALL_MARKERS = [
+  // "publish-kb" is the command name, not the verb — excluded so naming `/superdev:publish-kb` never
+  // trips this on its own.
+  [new RegExp(`\\bpublish(?!-kb)(?:es|ing)?\\b[^\\n]{0,25}?\\b(?:${KB_OBJECT})\\b`, 'i'), 'a "publish" instruction aimed at a knowledge-base object'],
+  // `upsert` alone carries the backtick exclusion (?<!`)…(?!`), because `upsert` is also the staged
+  // page's own `action` value and both writers cite it as a frontmatter literal beside the word "page".
+  // The exclusion is scoped to that one verb: applied to the whole alternation it would exempt every
+  // verb, and a backticked `create` — this guard's own reference case — would walk straight through.
+  [new RegExp(`\\b(?:create(?:s|d)?(?:-or-update)?|update(?:s|d)?)\\b[^\\n]{0,25}?\\b(?:${KB_OBJECT})\\b` +
+    `|(?<!\`)\\bupsert(?:s|ed|ing)?\\b(?!\`)[^\\n]{0,25}?\\b(?:${KB_OBJECT})\\b`, 'i'), 'a create-or-update instruction aimed at a knowledge-base object'],
+  // Case-sensitive: an HTTP verb is uppercase in these docs' code samples, unlike the lowercase
+  // `action: delete` frontmatter value staged pages carry.
+  [new RegExp(`\\b(?:POST|PUT|DELETE)\\b[^\\n]{0,100}?\\b(?:${KB_OBJECT})\\b`), 'an HTTP call aimed at a knowledge-base object'],
+];
+
+// scanKbNoBackendCall() is pure over a root dir: reports every KB-backend call marker still carried by a
+// document that must not reach one. Absent files are skipped, as everywhere else here.
+function scanKbNoBackendCall(root) {
+  const offenders = [];
+  for (const rel of KB_NO_CALL_DOCS) {
+    let text;
+    try {
+      text = fs.readFileSync(path.join(root, rel), 'utf8');
+    } catch {
+      continue; // document absent (fixture / partial checkout) → nothing to scan
+    }
+    for (const [pattern, what] of KB_BACKEND_CALL_MARKERS) {
+      if (pattern.test(text)) offenders.push({ source: rel, expectation: `reach no knowledge-base backend — it still carries ${what}` });
+    }
+  }
+  return offenders;
+}
 
 // scanContract() is pure over a root dir and a contract table: reads each document the table names and
 // reports the expectations it no longer meets. Absent files are skipped, so fixtures need only the
@@ -859,6 +925,8 @@ function main() {
     ...scanContract(root, LABEL_VALIDATION_CONTRACTS),
     ...scanContract(root, GREEN_GATE_TIMEOUT_CONTRACTS),
     ...scanContract(root, VERB_CONTRACTS),
+    ...scanContract(root, KB_STAGING_CONTRACTS),
+    ...scanKbNoBackendCall(root),
   ];
   // Every scanner above skips a document it cannot read, so that a fixture carries only the files it
   // exercises. That convention would let `commands/afk.md` be deleted without a single check going red,
@@ -893,6 +961,7 @@ function main() {
         'both label segments validated, ' +
         "green-gate's hooks.json timeout matches its own comment, " +
         'every chain document invokes its scope.js verb, ' +
+        'knowledge-base pages are staged and no document but publish-kb reaches a backend, ' +
         'eval graders and scaffolds well-formed',
     );
     process.exit(0);
@@ -2310,6 +2379,104 @@ if (process.argv[2] === '--selftest') {
     scanContract(fixture({ 'README.md': '# repo\n' }), VERB_CONTRACTS).length,
     0,
     'absent files are skipped',
+  );
+
+  // --- KB staging (ADR 0023): /superdev:plan and /superdev:document stage knowledge-base pages, and
+  // /superdev:publish-kb is the only path to a remote backend. Two halves, checked separately, because
+  // each passes on its own while the invariant is gone. ---
+
+  assert.equal(
+    scanContract(realRoot, KB_STAGING_CONTRACTS).length,
+    0,
+    'every shipped document that writes KB pages names the staging location',
+  );
+  assert.equal(
+    scanKbNoBackendCall(realRoot).length,
+    0,
+    'no shipped document but publish-kb carries a KB backend call path',
+  );
+
+  // positive: a plan.md that seeds the page straight into the wiki again
+  const kb1 = fixture({
+    'commands/plan.md': 'Seed the feature specification into the KB outline.\n',
+  });
+  const kbGaps1 = scanContract(kb1, KB_STAGING_CONTRACTS);
+  assert.equal(kbGaps1.length, 1, 'flags a document that stopped naming the staging location');
+  assert.equal(kbGaps1[0].source, path.join('commands', 'plan.md'), 'names plan.md');
+
+  // positive: the negative half fires on a restored call path even while the staging line is still there
+  const kb2 = fixture({
+    'agents/doc-writer.md':
+      'Write each page under `.superdev/kb-pending/<scope>/`.\n' +
+      'Then POST it to `/api/v1/repos/o/r/wiki/new` with `content_base64`.\n',
+  });
+  assert.equal(scanContract(kb2, KB_STAGING_CONTRACTS).length, 0, 'the staging half still passes');
+  const kbGaps2 = scanKbNoBackendCall(kb2);
+  assert.ok(kbGaps2.length >= 1, 'a restored wiki call path is caught even beside a staging instruction');
+  assert.equal(kbGaps2[0].source, path.join('agents', 'doc-writer.md'), 'names doc-writer.md');
+
+  // negative: naming a credential's env var alone, with no verb aimed at an object, is not a call — the
+  // hygiene rule that permits illustrative env-var names in docs would otherwise conflict with this check
+  const kb3 = fixture({
+    'commands/document.md':
+      'Stage under `.superdev/kb-pending/<scope>/`. The credential env var is `$CONFLUENCE_API_TOKEN`.\n',
+  });
+  assert.equal(scanKbNoBackendCall(kb3).length, 0, 'naming a credential env var alone is not a call');
+
+  // negative: publish-kb itself carries the endpoints and is deliberately not scanned
+  const kb4 = fixture({
+    'commands/publish-kb.md': 'POST `/wiki/new` with `content_base64`, or PUT `<base>/api/v2/pages`.\n',
+  });
+  assert.equal(scanKbNoBackendCall(kb4).length, 0, 'publish-kb may reach the backend — that is its job');
+
+  // positive: the pre-ADR-0023 doc-writer.md text — the literal state this feature replaced — reads as
+  // a real regression: "publish"/"create" verbs each aimed at a page/wiki object, with no backend-specific
+  // literal anywhere. A marker built from literals alone would pass this clean.
+  const kb5 = fixture({
+    'agents/doc-writer.md':
+      'Publishing to a **KB/wiki** host via its API is not integration and is allowed.\n' +
+      "Software backend (e.g. Confluence): find the existing page and update it (don't duplicate); " +
+      'create pages only for genuinely new outline entries.\n',
+  });
+  assert.ok(scanKbNoBackendCall(kb5).length >= 1, 'the pre-ADR-0023 doc-writer.md text reads as a regression');
+
+  // positive: a plain "publish the page" instruction, no endpoint or credential in sight
+  const kb6 = fixture({
+    'commands/document.md': 'Publish each page to the backend, following docs/agents/knowledge-base.md.\n',
+  });
+  assert.ok(scanKbNoBackendCall(kb6).length >= 1, 'a "publish each page" instruction is caught');
+
+  // positive: a generic POST to a pages endpoint, with no backend-specific literal at all
+  const kb7 = fixture({
+    'agents/doc-writer.md': 'curl -X POST -H "Authorization: token $GITEA_TOKEN" "$KB_BASE/pages"\n',
+  });
+  assert.ok(scanKbNoBackendCall(kb7).length >= 1, 'a generic POST-to-pages call is caught with no backend literal');
+
+  // negative: pointing the reader at /superdev:publish-kb, or explaining what it does, merely mentions
+  // publishing — it is not itself a call
+  const kb8 = fixture({
+    'commands/document.md':
+      'A staged page waits until a human runs `/superdev:publish-kb`, once the feature reaches its readers.\n',
+  });
+  assert.equal(scanKbNoBackendCall(kb8).length, 0, 'pointing the reader at /superdev:publish-kb is not a call');
+
+  // positive: "upsert" is this feature's own vocabulary for a create-or-update backend call — the verb
+  // alternation must catch it, not just "create"/"update"
+  const kb9 = fixture({
+    'commands/document.md': 'Upsert each page at the backend.\n',
+  });
+  assert.ok(scanKbNoBackendCall(kb9).length >= 1, 'an "upsert" instruction aimed at a knowledge-base object is caught');
+
+  // absent files are skipped, matching every other scanner here
+  assert.equal(
+    scanContract(fixture({ 'README.md': '# repo\n' }), KB_STAGING_CONTRACTS).length,
+    0,
+    'absent files are skipped (staging half)',
+  );
+  assert.equal(
+    scanKbNoBackendCall(fixture({ 'README.md': '# repo\n' })).length,
+    0,
+    'absent files are skipped (no-call half)',
   );
 
   console.log('drift-check selftest ok');

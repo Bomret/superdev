@@ -27,5 +27,11 @@ none. Do not create `.superdev/` or any file.
 Every slice `merged` does not mean the run is done: the scope still has to be reviewed, documented, and
 shipped. The stage says which of those already happened, so add nothing of your own — no `complete` note.
 
+A `pending publish:` line means that scope holds **staged pages** — knowledge-base pages
+`/superdev:document` wrote but did not send, waiting for `/superdev:publish-kb` (ADR 0023). A shipped
+scope can still carry one: the pages go live when a human decides the feature reached its readers, which
+is later than the pull request and later than the merge. A block headed `(no ledger)` is staged pages
+with no run root — an `_adhoc` doc pass, or a run whose root was pruned.
+
 End with nothing further — no suggested next action, no mutation. If the caller wants to act on a
 blocked slice, that's `/superdev:implement` or manual intervention, not this command.

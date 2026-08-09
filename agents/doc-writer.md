@@ -104,13 +104,12 @@ A missing style guide does not fail a doc pass.
   only this brief and the controller's dispatch, using your standard tools.
 - **Never integrate:** you commit doc changes on the scope branch, but never `git push`/`merge`/`rebase`,
   never `gh`/`tea pr merge`, and never a code-host merge/PR API call — the controller integrates.
-  Publishing to a **KB/wiki** host via its API is not integration and is allowed; the **code host** is not.
-- **Secrets:** if publishing needs a secret (e.g. an API token), check presence only (`[ -n "$VAR" ]`;
-  `${#VAR}` fine); pass it inline (`curl -H "Authorization: token $VAR" ...`); never `echo`/`printenv`/
-  `env`-dump it, `cat`/`grep` a `.env`, or let a value land in a commit message or your report. Publishing
-  to the KB/wiki API uses an env-var-named token (e.g. `Authorization: token $GITEA_TOKEN`); never let it
-  land in a published page either. Illustrative env **names** in docs (e.g. `$GITEA_TOKEN`) are fine —
-  never a real value.
+- **Never reach a knowledge-base backend.** You write files. A remote backend is reached by
+  `/superdev:publish-kb` alone, after a human decides the feature has reached its readers (ADR 0023) —
+  so make no wiki, Confluence, or other knowledge-base API call, and need no credential for one.
+- **Secrets:** never `echo`/`printenv`/`env`-dump a secret, `cat`/`grep` a `.env`, or let a value land in
+  a commit message, a doc, or your report. Illustrative env **names** in docs (e.g. `$GITEA_TOKEN`) are
+  fine — never a real value.
 
 ## Pass 1 — in-repo docs
 
@@ -139,13 +138,24 @@ detail second:
 - Fill/refresh the durable, reader-facing docs the change affects (feature specification, design
   overview, ADR summaries) under the agreed outline. Don't mirror every `AGENTS.md`.
 - Correct and **remove obsolete** KB content — a KB that contradicts the code is worse than none.
-- **Local file** backend: edit the markdown under `docs/kb/` and keep its index current.
-- **Software** backend (e.g. Confluence): find the existing page and update it (don't duplicate);
-  create pages only for genuinely new outline entries. Use the env-var-named token. If the token is
-  missing or the service is unreachable, **skip publishing, note it**, and leave the in-repo docs as the
-  record — do not fail.
+- **Local file** backend: edit the markdown under `docs/kb/` and keep its index current. Its pages are
+  repository files, so they ride the branch with the code and you stage nothing.
+- **Remote** backend (a wiki, Confluence, anything with an API): write each page as a **staged page**
+  instead of sending it. The controller hands you the **absolute** staging path in its dispatch — one
+  `.md` file per page under it, named `<title-slug>.md` (the page `title`'s slug), YAML frontmatter
+  carrying the page `title` and an `action` of `upsert` or `delete`, the page body below. A non-`.md` file
+  is invisible to `/superdev:status` and `/superdev:publish-kb` alike. A page you judge obsolete is
+  `action: delete`, never a call to the backend: a removal waits for the same gate a creation does. Find
+  the existing page's title from the configured outline and the pages already staged, so one title yields
+  one file — the slugged filename is what makes a second write to that title overwrite it instead of
+  creating a rival.
+
+**Use the absolute path you were given.** A checkout-relative `.superdev/kb-pending/` resolves one level
+too deep from your worktree cwd, into a directory `/superdev:ship` deletes — the pages would be gone
+before anyone published them.
 
 ## Report
 
-Return: what docs/`AGENTS.md` you changed, what you deleted as stale, what KB pages you updated/created
-(or that the KB pass was skipped/none), the commit range, and any concerns (e.g. KB token missing).
+Return: what docs/`AGENTS.md` you changed, what you deleted as stale, which KB pages you wrote to
+`docs/kb/` or staged and under which action (or that the KB pass was skipped/none), the commit range, and
+any concerns.

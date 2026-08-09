@@ -74,7 +74,7 @@ degrade exactly as that document says (push, then print the compare URL and the 
 than failing. **Report the pull-request URL.**
 
 **Carry the run's degrade record into that body.** The ledger's `**Degraded:**` line lists every pass this
-run did not get — a denied dispatch, a knowledge-base publish that never reached its backend — per
+run did not get — a denied dispatch, a knowledge-base pass the writer could not stage — per
 `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section; the `degraded:` line of
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" status` reports it for this scope. Copy every bullet into the
 pull request body under one fixed `## Degraded passes` heading, so the reviewer reads what the run is
@@ -107,5 +107,17 @@ you are standing in:
   `.claude/rules/`, note that too — it is what will trip the next run's Phase 0 guard. Uncommitted work
   outweighs a tidy branch pointer.
 - Keep the rest of `<run-root>` — the ledger and the ticked DoD are the git-ignored paper trail.
+- **Keep `.superdev/kb-pending/<scope>/`.** It is outside the run root and holds this scope's staged
+  knowledge-base pages, which outlive the run by design (ADR 0023).
 
 **Never delete the scope branch.** The pull request is from it, and deleting it closes the request.
+
+## 7. Point at the publish, when pages are waiting
+
+`.superdev/kb-pending/<scope>/` holds staged pages → print `/superdev:publish-kb <scope>` with one line
+on when to run it: **once the feature has reached its readers**, which is later than this pull request
+and later than its merge. Superdev cannot detect that moment, which is why nothing here does it for you.
+
+This is a pointer, not a chain handoff. `/superdev:ship` still ends the chain, and the publish is a step
+the maintainer takes on their own clock. **No staged pages** → print nothing; add no line saying there is
+nothing to publish.

@@ -284,7 +284,61 @@ function verbGet(root, field) {
   console.log(v === null ? 'absent' : v);
 }
 
+// Staged knowledge-base pages wait under .superdev/kb-pending/<scope>/ until /superdev:publish-kb sends
+// them (ADR 0023). Nothing else in the chain reports them, and the safe failure this design chose — a
+// missing page rather than a wrong one — is only safe while it stays visible. Keyed on scope, the same
+// slug a run root uses. A scope with an empty directory is not pending: nothing waits there.
+// A non-`.md` file under a scope's staging directory (a page written as `overview` or
+// `overview.markdown` instead of `overview.md`) is invisible to `/superdev:publish-kb`'s file glob, so
+// counting it as staged would be wrong and dropping it silently would be the exact loss this contract
+// exists to prevent. `strays` carries it instead, so `verbStatus` can surface it.
+function stagedPageCounts(cwd) {
+  const dir = path.join(cwd, '.superdev', 'kb-pending');
+  const counts = new Map();
+  const strays = new Map();
+  const loose = [];
+  let dirents;
+  try {
+    dirents = fs.readdirSync(dir, { withFileTypes: true });
+  } catch (e) {
+    if (e.code !== 'ENOENT') throw e;
+    return { counts, strays, loose };
+  }
+  // A file written straight into the staging root, not under a <scope>/ subdirectory, matches no
+  // scope's page count and no publish-kb glob — the same silent loss `strays` closes one level down.
+  for (const d of dirents) if (!d.isDirectory()) loose.push(d.name);
+  const names = dirents.filter((d) => d.isDirectory()).map((d) => d.name);
+  for (const scope of names.sort()) {
+    let entries;
+    try {
+      entries = fs.readdirSync(path.join(dir, scope));
+    } catch {
+      continue; // unreadable → report nothing rather than guess
+    }
+    const pages = entries.filter((f) => f.endsWith('.md')).length;
+    const other = entries.filter((f) => !f.endsWith('.md'));
+    if (pages > 0) counts.set(scope, pages);
+    if (other.length > 0) strays.set(scope, other);
+  }
+  return { counts, strays, loose };
+}
+
+function pendingLine(scope, pages) {
+  return `pending publish: ${pages} staged page${pages === 1 ? '' : 's'} — /superdev:publish-kb ${scope}`;
+}
+
+function strayLine(files) {
+  return `${files.length} non-.md file${files.length === 1 ? '' : 's'} staged, ignored: ${files.join(', ')} — rename to .md so /superdev:publish-kb finds it`;
+}
+
+function looseLine(files) {
+  return `${files.length} file${files.length === 1 ? '' : 's'} staged directly under .superdev/kb-pending, not in a scope directory: ${files.join(', ')} — move each under a <scope>/ subdirectory, named <title-slug>.md, so /superdev:publish-kb finds it`;
+}
+
 function verbStatus(cwd) {
+  const { counts: pending, strays, loose } = stagedPageCounts(cwd);
+  const pendingShown = new Set();
+  const straysShown = new Set();
   const scopesDir = path.join(cwd, '.superdev', 'scopes');
   let entries = [];
   try {
@@ -296,7 +350,7 @@ function verbStatus(cwd) {
   } catch (e) {
     if (e.code !== 'ENOENT') throw e;
   }
-  if (entries.length === 0) {
+  if (entries.length === 0 && pending.size === 0 && strays.size === 0 && loose.length === 0) {
     console.log('No superdev runs found in this repo.');
     return;
   }
@@ -307,13 +361,30 @@ function verbStatus(cwd) {
     return (sa.birthtimeMs || sa.mtimeMs) - (sb.birthtimeMs || sb.mtimeMs);
   });
 
+  // A scope's ledger and its staged pages are independent: a malformed or unreadable ledger still leaves
+  // any staged pages waiting. Shared by every `ledger unreadable` exit below, so that scope is marked
+  // shown and the fallback loop past this one never reports it a second time under `(no ledger)` — which
+  // would be wrong anyway, since the ledger file exists; only its contents are unreadable.
   const out = [];
+  function pushPendingAndStrays(scope) {
+    const pages = pending.get(scope);
+    if (pages) {
+      out.push(`  ${pendingLine(scope, pages)}`);
+      pendingShown.add(scope);
+    }
+    const strayFiles = strays.get(scope);
+    if (strayFiles) {
+      out.push(`  ${strayLine(strayFiles)}`);
+      straysShown.add(scope);
+    }
+  }
   for (const scope of entries) {
     let lines;
     try {
       lines = readLines(path.join(scopesDir, scope));
     } catch {
       out.push(`${scope}: ledger unreadable`);
+      pushPendingAndStrays(scope);
       continue;
     }
     try {
@@ -321,6 +392,7 @@ function verbStatus(cwd) {
       const rows = tableRowIndexes(lines).map((i) => splitRow(lines[i]));
       if (rows.some((c) => c.length !== 7)) {
         out.push(`${scope}: ledger unreadable`);
+        pushPendingAndStrays(scope);
         continue;
       }
       const counts = { todo: 0, 'in-progress': 0, 'in-review': 0, blocked: 0, merged: 0 };
@@ -341,10 +413,24 @@ function verbStatus(cwd) {
       out.push(`  todo: ${counts.todo}  in-progress: ${counts['in-progress']}  in-review: ${counts['in-review']}  blocked: ${counts.blocked}  merged: ${counts.merged}`);
       if (blocked.length) out.push(`  blocked: ${blocked.join(', ')}`);
       if (degraded.length) out.push(`  degraded: ${degraded.join(', ')}`);
+      pushPendingAndStrays(scope);
     } catch {
       out.push(`${scope}: ledger unreadable`);
+      pushPendingAndStrays(scope);
     }
   }
+  // A pending scope with no readable ledger still has pages (or stray files) waiting: `_adhoc` never has
+  // a run root, and a pruned or unreadable run leaves one behind too. Reporting only the scopes above
+  // would hide exactly the pages, and the stray files, least likely to be remembered.
+  const unreported = new Set([...pending.keys(), ...strays.keys()].filter((s) => !pendingShown.has(s) && !straysShown.has(s)));
+  for (const scope of [...unreported].sort()) {
+    out.push(`${scope}  (no ledger)`);
+    const pages = pending.get(scope);
+    if (pages) out.push(`  ${pendingLine(scope, pages)}`);
+    const strayFiles = strays.get(scope);
+    if (strayFiles) out.push(`  ${strayLine(strayFiles)}`);
+  }
+  if (loose.length > 0) out.push(looseLine(loose));
   console.log(out.join('\n'));
 }
 
@@ -700,6 +786,88 @@ function selftest() {
     }
     assert.strictEqual(logged.join('\n'), 'No superdev runs found in this repo.', 'zero-scope message');
     fs.rmSync(empty, { recursive: true, force: true });
+
+    // status: staged knowledge-base pages awaiting /superdev:publish-kb (ADR 0023). Nothing else
+    // reports them, and a page nobody publishes is a page no reader sees.
+    const kbDir = path.join(tmp, '.superdev', 'kb-pending');
+    assert.ok(!/pending publish/.test(st.out), 'nothing staged adds no line at all');
+
+    fs.mkdirSync(path.join(kbDir, 'demo'), { recursive: true });
+    fs.writeFileSync(path.join(kbDir, 'demo', 'overview.md'), '---\ntitle: Overview\naction: upsert\n---\n', 'utf8');
+    fs.writeFileSync(path.join(kbDir, 'demo', 'legacy.md'), '---\ntitle: Legacy\naction: delete\n---\n', 'utf8');
+    fs.mkdirSync(path.join(kbDir, '_adhoc'), { recursive: true });
+    fs.writeFileSync(path.join(kbDir, '_adhoc', 'guide.md'), '---\ntitle: Guide\naction: upsert\n---\n', 'utf8');
+    fs.mkdirSync(path.join(kbDir, 'nothing-here'), { recursive: true });
+
+    // A scope with a malformed ledger (see `broken` below) can still hold staged pages. Its pending
+    // line belongs beside its `ledger unreadable` line, once — never a second time under `(no ledger)`,
+    // because the ledger file exists; only its rows are malformed.
+    fs.mkdirSync(path.join(kbDir, 'broken'), { recursive: true });
+    fs.writeFileSync(path.join(kbDir, 'broken', 'p.md'), '---\ntitle: P\naction: upsert\n---\n', 'utf8');
+
+    // A non-`.md` file in a staging directory (a page written as `overview` or `overview.markdown`)
+    // must be surfaced, never silently skipped — that is exactly the silent loss the staged-page
+    // filename contract exists to prevent. Cover both a scope with a run root and one without.
+    fs.writeFileSync(path.join(kbDir, 'demo', 'draft.markdown'), 'stray\n', 'utf8');
+    fs.mkdirSync(path.join(kbDir, 'stray-only'), { recursive: true });
+    fs.writeFileSync(path.join(kbDir, 'stray-only', 'notes.txt'), 'stray\n', 'utf8');
+
+    // A .md file written straight into the staging root, not under a <scope>/ subdirectory, is the same
+    // silent-loss failure one level up: it counts in no scope's pages and matches no publish-kb glob.
+    fs.writeFileSync(path.join(kbDir, 'orphan.md'), '---\ntitle: Orphan\naction: upsert\n---\n', 'utf8');
+
+    const stKb = call(['status']);
+    assert.ok(stKb.ok, 'status runs with staged pages');
+    assert.ok(
+      stKb.out.includes('  pending publish: 2 staged pages — /superdev:publish-kb demo'),
+      'a scope with a run root carries its pending line: ' + stKb.out,
+    );
+    assert.ok(stKb.out.includes('_adhoc  (no ledger)'), 'a pending scope with no run root is reported');
+    assert.ok(
+      stKb.out.includes('  pending publish: 1 staged page — /superdev:publish-kb _adhoc'),
+      'one page is singular',
+    );
+    assert.ok(!/nothing-here/.test(stKb.out), 'an empty staging directory is not pending');
+    assert.ok(stKb.out.includes('broken: ledger unreadable'), 'the rest of the report is unchanged');
+    assert.ok(
+      stKb.out.includes('draft.markdown') && /ignored/.test(stKb.out),
+      'a non-.md file under a scope with a run root is surfaced, not silently skipped: ' + stKb.out,
+    );
+    assert.ok(
+      stKb.out.includes('stray-only') && stKb.out.includes('notes.txt'),
+      'a scope with only stray files (no .md pages, no ledger) is still surfaced: ' + stKb.out,
+    );
+    assert.ok(
+      stKb.out.includes('orphan.md') && /staged directly/.test(stKb.out),
+      'a .md file staged directly under kb-pending (no scope directory) is surfaced, not silently dropped: ' + stKb.out,
+    );
+    assert.ok(
+      stKb.out.includes('  pending publish: 1 staged page — /superdev:publish-kb broken'),
+      'a malformed ledger still reports its own pending pages: ' + stKb.out,
+    );
+    assert.ok(!stKb.out.includes('broken  (no ledger)'), 'not reported a second time — its ledger file exists');
+
+    // pages staged with no run root anywhere: the report is the pending blocks, not the zero-scope line.
+    const only = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-selftest-kbonly-'));
+    fs.mkdirSync(path.join(only, '.superdev', 'kb-pending', '_adhoc'), { recursive: true });
+    fs.writeFileSync(path.join(only, '.superdev', 'kb-pending', '_adhoc', 'p.md'), 'x\n', 'utf8');
+    const onlyLog = [];
+    const origOnly = console.log;
+    console.log = (s) => onlyLog.push(String(s));
+    try {
+      run(['status'], only, '');
+    } finally {
+      console.log = origOnly;
+    }
+    assert.ok(
+      onlyLog.join('\n').includes('pending publish: 1 staged page — /superdev:publish-kb _adhoc'),
+      'staged pages alone still produce a report',
+    );
+    assert.ok(
+      !onlyLog.join('\n').includes('No superdev runs found'),
+      'the zero-scope message never hides pending pages',
+    );
+    fs.rmSync(only, { recursive: true, force: true });
 
     // main()'s success path lets the process exit naturally instead of forcing process.exit(0),
     // so stdout flushes before exit. `call()` above bypasses main() entirely, so this needs a

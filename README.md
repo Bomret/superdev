@@ -31,6 +31,7 @@ plan runs test-first and inline.
 /superdev:document   → reconcile in-repo docs + knowledge base with the code
 /superdev:ship       → tick the DoD, close the scope anchor, open the PR, and clean up
 /superdev:afk        → sweep the planned backlog through the whole chain unattended
+/superdev:publish-kb → send a scope's staged knowledge-base pages to the configured backend
 ```
 
 ## What it does
@@ -61,8 +62,9 @@ plan runs test-first and inline.
   Either tier stops here, once every slice sits on the scope branch. `/superdev:review` runs next: one
   **whole-scope review** that gates the pull request `/superdev:ship` opens later.
 - **`/superdev:status`**. A read-only snapshot of every in-flight `/superdev:implement` run in the repo:
-  per scope, the slice counts by status and which slices are `blocked`. It never writes, transitions, or
-  merges anything.
+  per scope, the slice counts by status and which slices are `blocked`. It also names each scope holding
+  **staged** knowledge-base pages, so a page nobody published yet stays visible instead of silent. It
+  never writes, transitions, or merges anything.
 - **`/superdev:review`**. Two modes. Given an ad-hoc diff, branch, path, or the working tree, it needs no
   plan and no slice store, and it stays read-only end to end. Given a live scope branch, it is the
   whole-scope review gate in the implement chain: it checks the scope against that run's `dod.md`, and it
@@ -70,7 +72,10 @@ plan runs test-first and inline.
   `simplicity-reviewer` subagents and reports one consolidated verdict.
 - **`/superdev:document`**. Dispatches the `doc-writer` to reconcile the in-repo docs (the `AGENTS.md`
   hierarchy) and the optional knowledge base with the current code. It adds what is new and **removes
-  stale or obsolete** text. It then reader-tests the result: the fresh-context `doc-reader` reads the
+  stale or obsolete** text. For a remote knowledge-base backend it writes each page as a **staged page**
+  instead of sending it. `/superdev:publish-kb` sends it later, once a human decides the feature has
+  reached its readers ([ADR 0023](docs/adr/0023-the-knowledge-base-publish-is-its-own-command.md)). It
+  then reader-tests the result: the fresh-context `doc-reader` reads the
   changed docs cold and verifies their claims against the repo. Ungrounded or stale text goes back to
   the `doc-writer` for one fix round. Both agents also apply a **content-type lens**
   ([`references/content-types.md`](references/content-types.md)): does a reader learn *why* a thing
@@ -97,6 +102,13 @@ plan runs test-first and inline.
   tool. For a knowledge base it also captures the **audience(s)** and **language**, and proposes a
   human-first outline. It asks which **writing standard** the doc agents write to. When it finds no
   `AGENTS.md` hierarchy in the repo, it points you at `/superdev:document`'s bootstrap mode to seed one.
+- **`/superdev:publish-kb`** *(remote knowledge base only)*. Sends a scope's **staged** knowledge-base
+  pages to the configured backend, and is the only path from superdev to one. `/superdev:plan` and
+  `/superdev:document` write a remote backend's pages under `.superdev/kb-pending/<scope>/` instead of
+  sending them. A page sent from unmerged or unreleased work claims a feature no reader can reach
+  ([ADR 0023](docs/adr/0023-the-knowledge-base-publish-is-its-own-command.md)). You decide when to run
+  it: it warns once when the scope branch is not merged, but a merge is not a release, so it never blocks
+  on that check. `/superdev:afk` never drives it.
 
 ## After the PR
 
@@ -201,7 +213,11 @@ never hardcode a tool. Edit those files directly at any time. Re-run setup only 
   feature specifications, design overviews, and ADR summaries. It is distinct from the agent-first
   `AGENTS.md` docs. You pick the backend (Confluence, a local `docs/kb/`, other, or none), its
   **audience(s)**, its **language**, and an agreed **outline** that `/plan` and `/document` fill rather than
-  reinvent. The answers go to `docs/agents/knowledge-base.md`.
+  reinvent. The answers go to `docs/agents/knowledge-base.md`. For a **remote** backend, `/plan` and
+  `/document` stage each page under `.superdev/kb-pending/<scope>/` instead of sending it. `/superdev:publish-kb`
+  is the only command that reaches the backend
+  ([ADR 0023](docs/adr/0023-the-knowledge-base-publish-is-its-own-command.md)). A local `docs/kb/`
+  backend stages nothing, because its pages ride the branch.
 - **Toolchain** *(detected)*. The repo's package manager and its build, lint, format, and release
   commands, plus style-doc pointers. Setup detects these rather than asking, because the toolchain is not
   a pluggable backend. It records one section per workspace, so agents use the right tools instead of
@@ -233,6 +249,9 @@ docs/kb/                  knowledge base, only if the local-file KB backend is c
                           /brainstorm — sibling to .superdev/scopes/, not inside it, so /status (which
                           only scans .superdev/scopes/*/) never mistakes it for a run root; never
                           committed
+.superdev/kb-pending/<scope>/<title-slug>.md   git-ignored staged pages for a remote knowledge-base
+                          backend, written by /plan and /document instead of a live publish, sent by
+                          /publish-kb (ADR 0023); outlives the run root, so /ship never removes it
 ```
 
 Everything except `.superdev/` is committed. The design docs (the glossary, the ADRs, and the rules)

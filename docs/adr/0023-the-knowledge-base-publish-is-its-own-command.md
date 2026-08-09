@@ -73,3 +73,7 @@ what the assertion exists to catch.
 A routine reconcile on the base branch costs two commands where it cost one. Superdev never learns when a
 feature reaches a reader, so a staged page waits until an operator publishes it. The failure mode is a
 missing page rather than a wrong one.
+
+Staged pages never expire. Unlike a run root, which `hooks/scope-prune.js` reaps seven days past a
+shipped, merged scope, an abandoned plan leaves its `action: upsert` pages under
+`.superdev/kb-pending/<slug>/` and `scripts/scope.js status` reports them indefinitely.

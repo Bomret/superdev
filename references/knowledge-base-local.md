@@ -27,6 +27,11 @@ The KB is **human-consumption first**. Recorded at setup:
 - **Find/update**: read the file by path; update in place (no versioning beyond git history).
 - **Format**: plain markdown, present-tense state-of-the-world prose.
 
+**This backend stages nothing.** Its pages are repository files, so they ride the scope branch and merge
+with the code that makes them true — there is no moment where a reader sees a page the code does not back.
+Staging exists for a **remote** backend, whose pages go live the instant they are sent (ADR 0023), and
+`/superdev:publish-kb` has nothing to do here.
+
 ## superdev usage
 
 - `/superdev:plan` — seed the feature specification / ADR summaries into the outline under `docs/kb/` and

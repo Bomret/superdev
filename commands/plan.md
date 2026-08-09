@@ -95,6 +95,18 @@ Two captures are **superdev-specific** — the reference doesn't cover them:
 - **Knowledge base** — if `docs/agents/knowledge-base.md` defines one, also seed the feature specification
   / ADR summaries into its agreed **outline**, in its **language**, for its **audience(s)** (human-first).
 
+  **A remote backend gets a staged page, never a call** (ADR 0023). At plan time none of the feature is
+  built, so a page sent now claims a feature that does not exist — the earliest possible version of the
+  failure `/superdev:publish-kb` exists to prevent. Write each page under
+  `.superdev/kb-pending/<slug>/` instead (ensure `.superdev/` is in the repo's `.gitignore`; add it if
+  absent), where `<slug>` is the feature label's slug, which is the scope these pages belong to. Use an
+  **absolute** path, resolved from the invoking checkout. One `.md` file per page, named `<title-slug>.md`
+  (the page `title`'s slug) so a re-run that revises the plan overwrites the same file instead of creating
+  a rival: YAML frontmatter carrying the page `title` and an `action` of `upsert`, the page body below. A
+  non-`.md` file is invisible to `/superdev:status` and `/superdev:publish-kb` alike.
+  `/superdev:publish-kb` sends it when the feature reaches its readers. A **local** `docs/kb/` backend
+  seeds as before — its pages are repository files that ride the branch.
+
 Create all these durable files **lazily** — only when the first term, decision, or rule actually
 crystallises, never as empty scaffolding. Follow the documentation convention in
 `docs/agents/documentation.md` for where they live (update the relevant `AGENTS.md`; keep concise and

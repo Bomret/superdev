@@ -29,9 +29,12 @@ plugins.
                          No `hooks` field — Claude Code auto-loads the standard hooks/hooks.json.
   marketplace.json     — single-plugin marketplace manifest (deliberately NO version field)
 commands/              — slash commands (*.md): brainstorm, setup, plan, implement, review, document,
-                         ship, afk, upgrade, status. implement → review → document → ship is the chain a
-                         scope walks, each command printing the next (ADR 0013). afk drives that chain
-                         unattended, one eligible scope anchor at a time, with the Skill tool (ADR 0015)
+                         ship, afk, upgrade, status, publish-kb. implement → review → document → ship is
+                         the chain a scope walks, each command printing the next (ADR 0013). afk drives
+                         that chain unattended, one eligible scope anchor at a time, with the Skill tool
+                         (ADR 0015). publish-kb sits outside the chain: it sends a scope's staged
+                         knowledge-base pages to a remote backend, on the operator's own clock, and afk
+                         never drives it (ADR 0023)
 agents/                — subagents (*.md): implementer, slice-reviewer, simplicity-reviewer, final-reviewer,
                          doc-writer, doc-reader
 hooks/                 — deterministic Node hooks + hooks.json: merge-guard, model-explicit, green-gate,
@@ -232,6 +235,10 @@ This root owns every subtree directly:
   `scope.js` is the **run-state CLI** (ADR 0022): it owns the ledger's schema and is the only
   `ledger.md` read and write path in the chain — `init`, `stage get|set`, `slice`, `degraded add`,
   `get stage|branch|anchor|slices`, and `status` (which renders the whole `/superdev:status` report).
+  `status` also reports every scope's **staged knowledge-base pages** under `.superdev/kb-pending/`
+  (ADR 0023): a `pending publish:` line per scope, a scope with no run root under `(no ledger)`, a
+  non-`.md` file staged and ignored, and a `.md` file staged directly under `.superdev/kb-pending`
+  outside any scope directory. Each is a page `/superdev:publish-kb` would otherwise silently miss.
   The stage machine's transition rules are enforced in its code, not in prose, and
   `hooks/ledger-guard.js` denies every other write path. Its selftest carries the retired drift
   assertions along with its own behavior: the stage machine, the ledger schema and header lines, a
@@ -245,12 +252,13 @@ This root owns every subtree directly:
   verb-pointer checks are drift assertions. They compare a restated fact against its source. The
   eval-shape check compares a document against a schema. The afk-existence check is a plain existence
   assertion.
-  `drift-check.js` guards twenty things, in the order its `main()` computes them. First, that every
+  `drift-check.js` guards twenty-two things, in the order its `main()` computes them. First, that every
   `references/*.md` path named in `commands/`, `agents/`, or `references/` itself resolves to a file that
   exists. A reference cites
   another reference — both execution playbooks point at `scope-mode.md` — so a rename there dangles like
   any other. Second, that `commands/implement.md`,
-  `commands/review.md`, `commands/document.md`, `commands/ship.md`, `references/implement-full.md`,
+  `commands/review.md`, `commands/document.md`, `commands/ship.md`, `commands/publish-kb.md`,
+  `references/implement-full.md`,
   `references/implement-lite.md`, `references/scope-mode.md`, `agents/implementer.md`,
   `agents/slice-reviewer.md`, `agents/simplicity-reviewer.md`, and `agents/final-reviewer.md` address
   run-root artifacts by absolute
@@ -334,13 +342,24 @@ This root owns every subtree directly:
   Eighteenth, the verb-pointer contract (ADR 0022): every ledger touchpoint in the chain invokes its
   `scope.js` verb — `commands/implement.md` `init` and `stage set merged`, `commands/review.md`
   `stage set` and `get anchor`, `commands/document.md` `stage set`, `commands/ship.md` `get stage` and
-  `stage set shipped`, `commands/status.md` `status`, `commands/afk.md` `get stage`, both execution
+  `stage set shipped`, `commands/status.md` `status`, `commands/afk.md` `get stage`,
+  `commands/publish-kb.md` `get branch` for its merge check, both execution
   playbooks `slice`, and `references/scope-mode.md` `degraded add`. A document that drops its verb goes
   back to hand-editing or hand-parsing the ledger, which the `ledger-guard` hook only catches as a tool
   call at runtime, never as prose.
-  Nineteenth,
+  Nineteenth and twentieth, the ADR 0023 knowledge-base contracts, checked in two halves because either
+  alone passes while the invariant is gone. Nineteenth, the staging half: `commands/plan.md`,
+  `commands/document.md`, and `agents/doc-writer.md` each name `.superdev/kb-pending/` as the place a
+  remote backend's page goes instead of a live call. Twentieth, the no-call half, `scanKbNoBackendCall()`:
+  none of those same three documents carries a backend-directed verb — publish, create, update, upsert, or
+  an HTTP `POST`/`PUT`/`DELETE` — aimed at a page, wiki, space, or backend object.
+  `commands/publish-kb.md` is exempt, because reaching the backend is its job. The check reads the
+  instruction's shape rather than a backend's literal endpoint or credential name, because
+  **Backends are pluggable** already forbids these three documents from naming a backend at all, so a
+  literal-only marker would catch almost nothing.
+  Twenty-first,
   that `commands/afk.md` exists at all. Nothing else in the plugin names `/superdev:afk` for the eighth
-  check to resolve, so its absence would otherwise go unnoticed. Twentieth, that every
+  check to resolve, so its absence would otherwise go unnoticed. Twenty-second, that every
   `evals/*/graders/*.md` declares a known `type` and a positive `weight`, that an `llm` or `regex`
   grader also declares a `focus` or `target`, and that every case's `scaffold_script` resolves. Nothing
   else validates a grader, so without this a typo surfaces part-way through a run that costs real API

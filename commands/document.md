@@ -42,10 +42,23 @@ every stop this command reaches, including whatever a later change adds.
 ## 3. Dispatch
 
 Dispatch **`superdev:doc-writer`** with an **explicit `model`** (`sonnet`; `haiku` for a tiny focused
-range). Hand it: the range (git range/area/"full"), the two config file paths, and — for a range — a
-reminder to start from `git diff --stat`/`git log` over that range. It runs two passes (in-repo docs, then
-KB per its outline/language/audience, human-first), **deleting stale/obsolete text**, and commits its
-doc changes on the current branch.
+range). Hand it: the range (git range/area/"full"), the two config file paths, the **staging path** below,
+and — for a range — a reminder to start from `git diff --stat`/`git log` over that range. It runs two
+passes (in-repo docs, then KB per its outline/language/audience, human-first), **deleting stale/obsolete
+text**, and commits its doc changes on the current branch.
+
+**The knowledge-base pass reaches no backend.** For a remote backend the doc-writer writes each page as a
+**staged page**, and `/superdev:publish-kb` sends it later, once a human decides the feature has reached
+its readers (ADR 0023). A local `docs/kb/` backend is unaffected: its pages are repository files that ride
+the branch.
+
+Hand the doc-writer the staging path as an **absolute** path — `.superdev/kb-pending/<scope>/` in the
+invoking checkout, or `.superdev/kb-pending/_adhoc/` when §2 found no live scope run. Resolve it before
+you dispatch, while the invoking checkout is your cwd. A lite-tier scope checkout is
+`.superdev/scopes/<scope>/worktree`, inside `.superdev/` itself, so a checkout-relative path resolves one
+level too deep from the doc-writer's cwd and lands in a directory `/superdev:ship` deletes. Ensure
+`.superdev/` is in the repo's `.gitignore` before you dispatch; add it if absent — an ad-hoc run may reach
+this command before either ran the check.
 
 ## 4. Reader test
 
@@ -74,16 +87,21 @@ costly finding rather than an arbitrary one.
 - **A dispatch the permission classifier denies.** A denied `doc-writer` means you reconcile inline; a
   denied `doc-reader` means the docs went unread by fresh eyes. Say so in §5's report and, on a live scope
   run, write the `**Degraded:**` entry that section defines. **`--unattended` → block** instead.
-- **A knowledge-base pass the writer could not publish.** `docs/agents/knowledge-base.md` states its own
-  skip-and-note fallback, and the note ends at the writer's report. On a live scope run, write the entry
-  too, so the unpublished pass is still visible at ship time.
+- **A knowledge-base pass the writer could not stage.** The pass reaches no backend, so a missing token
+  and an unreachable service no longer cost anything here — what remains is a staging path it could not
+  write. The note ends at the writer's report. On a live scope run, write the entry too, so the pass
+  nobody can publish later is visible at ship time.
 
 ## 5. Report
 
 Relay what the doc-writer changed: which `AGENTS.md`/docs were updated, what was removed as stale, which
-KB pages were updated/created (or that the KB pass was none/skipped), the reader-test tally (including
-any findings left unresolved after the fix round), the **writing standard** that applied (or that none
-did), and any concerns (e.g. a missing KB token). Do not re-do its work.
+KB pages were written to `docs/kb/` or **staged** and under which action (or that the KB pass was
+none/skipped), the reader-test tally (including any findings left unresolved after the fix round), the
+**writing standard** that applied (or that none did), and any concerns. Do not re-do its work.
+
+**Staged pages are named, with `/superdev:publish-kb`.** They are not on the knowledge base yet, and
+nothing later in the chain sends them. Say how many pages wait and under which scope, so the reader knows
+a step is still theirs to take.
 
 ## 6. Audit mode (`audit`)
 
