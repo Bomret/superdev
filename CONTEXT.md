@@ -144,6 +144,12 @@ _Avoid: "drift test" (it's an assertion inside the existing chain, not a suite),
 **Eval-shape check** — the `drift-check.js` check that a grader's frontmatter is one the harness can act on. It requires a known `type`, a positive `weight`, and, for `llm`/`regex`, a `focus` or `target`. It also checks that every case's `scaffold_script` resolves. This check compares a document against a schema, not a fact restated outside its source, so it differs from a Drift assertion.
 _Avoid: "drift assertion" (a drift assertion compares a restated fact against its source; this check compares a document against a schema)_
 
+**Arm** — one of the two runs an eval case produces from the same prompt, the same scaffold, and the same graders: the **plugin arm**, which loads superdev, and the **baseline arm**, which loads nothing. The single difference between them is what the delta measures, so a baseline arm that reaches an installed copy of the plugin destroys the case rather than weakening it.
+_Avoid: "run" (a case runs each arm several times — the runs sit inside an arm), "variant", "control"/"treatment" alone (name which arm)_
+
+**Eval runner** — `scripts/eval-run.js`: the standalone script that reads `evals/*/case.yaml`, spawns `claude -p` per arm with a throwaway `HOME` and a subscription token, grades the captured transcript and diff against `graders/*.md`, and reports the per-grader delta. `bun run eval` invokes it. Reads the same case and grader files as `claude plugin eval`, which stays available for a key-funded cross-check (ADR 0024).
+_Avoid: "the harness" (that names `claude plugin eval`, the other reader of the same files), "eval command", "test runner" (`bun run test` is a different thing)_
+
 **Bootstrap** (mode) — the brownfield-seed mode of `/superdev:document` (empty args, `AGENTS.md`-hierarchy convention, root `AGENTS.md` absent): the doc-writer seeds root/child `AGENTS.md` files from the existing code and proposes `CONTEXT.md` candidate terms, which the controller confirms/prunes with the user before committing. A range or area invocation never bootstraps.
 _Avoid: "init", "scaffold" (bootstrap seeds from what already exists, it doesn't scaffold empty structure)_
 
