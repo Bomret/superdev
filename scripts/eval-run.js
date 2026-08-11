@@ -145,11 +145,15 @@ function childEnv(parentEnv, home) {
 
 // The plugin arm loads the working tree as a plugin; the baseline arm loads nothing. That single
 // argument is the whole ablation.
+// The prompt leads, because `--allowedTools` is variadic and swallows every argument that follows
+// it. A prompt pushed last therefore lands inside the tool list, and the CLI exits 1 with "Input must
+// be provided either through stdin or as a prompt argument". The plugin arm survived that by accident
+// — its `--plugin-dir` ended the variadic list — so the arms differed by two things instead of one,
+// and the baseline arm never ran at all.
 function armArgs(spec, arm, pluginRoot) {
-  const args = ['-p', '--output-format', 'stream-json', '--verbose', '--permission-mode', 'bypassPermissions'];
+  const args = ['-p', spec.prompt || '', '--output-format', 'stream-json', '--verbose', '--permission-mode', 'bypassPermissions'];
   if (spec.allowed_tools && spec.allowed_tools.length) args.push('--allowedTools', ...spec.allowed_tools);
   if (arm === 'plugin') args.push('--plugin-dir', pluginRoot);
-  args.push(spec.prompt || '');
   return args;
 }
 
@@ -507,6 +511,10 @@ function aggregate(name, runs) {
   // "No run completed" and "every grader errored" are different faults with different fixes; collapsing
   // them sends the reader to the wrong one.
   const ranNothing = noScore && !runs.some((r) => (r.plugin && r.plugin.ok) || (r.baseline && r.baseline.ok));
+  // An arm that errored in every run leaves the other arm's score with nothing to compare against.
+  // `noScore` does not catch it, because one surviving arm still produces a number — and a table
+  // showing the plugin arm alone is the most flattering wrong answer this runner can print.
+  const armNeverRan = { plugin: pluginOk.length === 0, baseline: baselineOk.length === 0 };
   return {
     case: name,
     runs: runs.length,
@@ -516,6 +524,7 @@ function aggregate(name, runs) {
     markers,
     brokenAblation,
     emptyDiffDespiteWork,
+    armNeverRan,
     failed: noScore,
     ranNothing,
   };
@@ -550,6 +559,10 @@ function renderTable(aggregates) {
       if (a.emptyDiffDespiteWork.plugin) bits.push('plugin');
       if (a.emptyDiffDespiteWork.baseline) bits.push('baseline');
       out.push(`  ! empty diff despite visible work: the ${bits.join(' and ')} arm's transcript shows tool use but the captured diff is empty`);
+    }
+    if (a.armNeverRan && (a.armNeverRan.plugin || a.armNeverRan.baseline) && !a.failed) {
+      const arm = a.armNeverRan.plugin ? 'plugin' : 'baseline';
+      out.push(`  ! the ${arm} arm never completed a run — the other arm's score has nothing to compare against`);
     }
   }
   out.push('');
@@ -641,7 +654,12 @@ function run(argv, root) {
 // never happened.
 function shouldFailExit(aggregates) {
   return aggregates.some(
-    (a) => a.failed || a.brokenAblation || a.emptyDiffDespiteWork.plugin || a.emptyDiffDespiteWork.baseline,
+    (a) =>
+      a.failed ||
+      a.brokenAblation ||
+      a.emptyDiffDespiteWork.plugin ||
+      a.emptyDiffDespiteWork.baseline ||
+      (a.armNeverRan && (a.armNeverRan.plugin || a.armNeverRan.baseline)),
   );
 }
 
@@ -743,6 +761,54 @@ function selftest() {
       'the arms are otherwise identical',
     );
     assert.ok(baseline.includes('--allowedTools') && baseline.includes('Read'), 'the case\'s allowed_tools reach the child');
+
+    // Comparing the two arg arrays against each other cannot see an argument the CLI itself rejects.
+    // It did not: `--allowedTools` is variadic, so a prompt pushed after it was swallowed into the tool
+    // list, and only the plugin arm survived — its `--plugin-dir` happened to end that list. The
+    // baseline arm exited 1 with an empty transcript, and the table reported the plugin arm alone.
+    // So this asserts what the CLI would see, on both arms.
+    for (const arm of ARMS) {
+      const args = armArgs({ name: 'c', prompt: 'the prompt', allowed_tools: ['Read', 'Bash'] }, arm, '/repo');
+      const toolsAt = args.indexOf('--allowedTools');
+      const promptAt = args.indexOf('the prompt');
+      assert.notStrictEqual(promptAt, -1, `the ${arm} arm passes the prompt at all`);
+      assert.ok(
+        promptAt < toolsAt,
+        `the ${arm} arm's prompt precedes the variadic --allowedTools, which would otherwise swallow it`,
+      );
+    }
+
+    // The same property through a real spawn: a fake CLI records its own argv, and both arms must show
+    // the prompt as an argument no variadic flag consumed.
+    {
+      const argvDir = fs.mkdtempSync(path.join(os.tmpdir(), 'eval-argv-'));
+      const recorder = path.join(argvDir, 'fake-claude.sh');
+      fs.writeFileSync(
+        recorder,
+        '#!/bin/bash\nprintf "%s\\n" "$@" > "$ARGV_LOG"\necho \'{"type":"result"}\'\n',
+        'utf8',
+      );
+      fs.chmodSync(recorder, 0o755);
+      const caseDir = fs.mkdtempSync(path.join(os.tmpdir(), 'eval-argv-case-'));
+      fs.writeFileSync(path.join(caseDir, 'scaffold.sh'), '#!/bin/bash\necho seed > seed.txt\n', 'utf8');
+      const spec = {
+        name: 'argv', dir: caseDir, scaffold_script: 'scaffold.sh',
+        prompt: 'PROMPT_SENTINEL\n', allowed_tools: ['Read', 'Bash'], timeout_seconds: 60,
+      };
+      for (const arm of ARMS) {
+        const log = path.join(argvDir, `${arm}.argv`);
+        process.env.ARGV_LOG = log;
+        runArm(spec, arm, { claudeBin: recorder, pluginRoot: '/repo', outDir: path.join(argvDir, 'out') });
+        const seen = fs.readFileSync(log, 'utf8').split('\n');
+        assert.ok(
+          seen.some((a) => a.includes('PROMPT_SENTINEL')),
+          `the ${arm} arm's child process actually received the prompt`,
+        );
+      }
+      delete process.env.ARGV_LOG;
+      fs.rmSync(argvDir, { recursive: true, force: true });
+      fs.rmSync(caseDir, { recursive: true, force: true });
+    }
 
     // --- superdev markers ---------------------------------------------------
     assert.deepStrictEqual(superdevMarkers('ran /superdev:plan for you'), ['command']);
@@ -1169,6 +1235,26 @@ function selftest() {
     assert.ok(turnsMsg.includes('max_turns is not enforced'), 'the cap is named as unenforced, not silently dropped');
     assert.ok(turnsMsg.includes('widget-planner-case'), 'the case that asked for it is named');
     assert.ok(turnsMsg.includes('timeout_seconds'), 'the bound that actually applies is named instead');
+
+    // --- an arm that never completed a run leaves nothing to compare against -------
+    const onlyPluginRan = aggregate('c', [
+      { plugin: armOf(1, [g('a', true)]), baseline: { ok: false, error: 'agent exited 1', graders: [] } },
+    ]);
+    assert.deepStrictEqual(
+      onlyPluginRan.armNeverRan,
+      { plugin: false, baseline: true },
+      'the arm that never completed a run is named',
+    );
+    assert.strictEqual(onlyPluginRan.failed, false, 'the surviving arm did produce a score, so the case is not scoreless');
+    assert.strictEqual(
+      shouldFailExit([onlyPluginRan]),
+      true,
+      'a run where one arm never ran exits non-zero — a table showing the plugin arm alone is the most flattering wrong answer',
+    );
+    assert.ok(
+      renderTable([onlyPluginRan]).includes('the baseline arm never completed a run'),
+      'and the table says which arm is missing',
+    );
 
     // --- a broken ablation is a non-zero exit, the same class as a failed case -----
     const noEDW = { plugin: false, baseline: false };
