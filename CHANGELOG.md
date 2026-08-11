@@ -1,3 +1,10 @@
+## [0.28.1](https://codeberg.org/bomret/superdev/compare/v0.28.0...v0.28.1) (2026-08-11)
+
+
+### Bug Fixes
+
+* **scope-prune:** recognise a squash-merged scope ([#204](https://codeberg.org/bomret/superdev/issues/204)) ([3f1898e](https://codeberg.org/bomret/superdev/commit/3f1898efade9e0e37d5cde6fb016a01778b04681)), closes [#198](https://codeberg.org/bomret/superdev/issues/198) [#199](https://codeberg.org/bomret/superdev/issues/199)
+
 # [0.28.0](https://codeberg.org/bomret/superdev/compare/v0.27.0...v0.28.0) (2026-08-09)
 
 
