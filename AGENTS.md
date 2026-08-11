@@ -234,7 +234,11 @@ This root owns every subtree directly:
 
   `scope.js` is the **run-state CLI** (ADR 0022): it owns the ledger's schema and is the only
   `ledger.md` read and write path in the chain — `init`, `stage get|set`, `slice`, `degraded add`,
-  `get stage|branch|anchor|slices`, and `status` (which renders the whole `/superdev:status` report).
+  `get stage|branch|anchor|slices`, and `status` (which renders the whole `/superdev:status` report). A
+  scope whose ledger stage reads `shipped` collapses to one line, `<scope>  (shipped)`. It drops the slice
+  tally and the blocked list. `hooks/scope-prune.js` (ADR 0007) is about to reap that run root, so
+  per-slice detail is no longer work in flight. Its `**Degraded:**` line and its staged-page lines survive
+  the collapse, because each is otherwise recorded nowhere else.
   `status` also reports every scope's **staged knowledge-base pages** under `.superdev/kb-pending/`
   (ADR 0023): a `pending publish:` line per scope, a scope with no run root under `(no ledger)`, a
   non-`.md` file staged and ignored, and a `.md` file staged directly under `.superdev/kb-pending`
@@ -312,10 +316,11 @@ This root owns every subtree directly:
   unnoticed. Thirteenth, the change-type contract:
   `references/scope-mode.md`'s type list, `hooks/scope-prune.js`'s `CHANGE_TYPES` regex,
   `CONTEXT.md`'s **Change type** glossary entry, and `scripts/scope.js`'s `CHANGE_TYPES` array state the
-  same set (ADR 0021). A hook narrower than the prose leaves a shipped run's root behind forever on the
-  missing
-  type, and reports nothing — a prune that never runs is silent. The glossary is the copy most likely to
-  drift, because nothing executes it. Fourteenth, the degraded-pass contract:
+  same set (ADR 0021). A hook narrower than the prose misreads a live branch of the missing type as gone
+  — gone is one of the two conditions that make a scope prunable (ADR 0007) — and reaps a shipped run's
+  root that is still in progress, silently: the Stop hook that runs it reports nothing either way. The
+  glossary is the copy most likely to drift, because nothing executes it. Fourteenth, the degraded-pass
+  contract:
   `references/scope-mode.md` carries the `## Degraded passes` section, and `commands/implement.md`,
   `commands/review.md`, `commands/document.md`, `commands/ship.md`, `commands/status.md`,
   `references/implement-full.md`, and `references/implement-lite.md` each name the `**Degraded:**`
@@ -331,7 +336,8 @@ This root owns every subtree directly:
   `references/scope-mode.md` carries the **Validate both segments.** rule, and `commands/implement.md`
   and `commands/afk.md` each point at it. The whole feature label becomes the branch name, so the type
   reaches `git switch -c` exactly as the slug does — a rule guarding the slug alone lets `-x/y` through to
-  git as an option, and lets a non-canonical type make a run root `scope-prune` never removes. A consumer
+  git as an option, and lets a non-canonical type make `scope-prune` reap a run root that is still live.
+  A consumer
   that stops pointing at the rule validates nothing and stays valid prose. Seventeenth, the
   green-gate-timeout contract: `hooks/hooks.json` sets `"timeout": 600` on the green-gate
   PostToolUse(Bash) hook entry, and the comment beside `IS_MERGE` in `hooks/green-gate.js` names that
@@ -405,8 +411,10 @@ This root owns every subtree directly:
     segment.
     `/superdev:implement` and `/superdev:afk` both read it. Its `## The change type` section owns the
     Conventional Commits type set a scope branch leads with (`<type>/<slug>`, the feature label verbatim)
-    and names `/plan` as the command that picks one (ADR 0021). `hooks/scope-prune.js` matches that set to
-    recognise a merged scope branch. Its `## Degraded passes` section (ADR 0018)
+    and names `/plan` as the command that picks one (ADR 0021). `hooks/scope-prune.js` matches that set
+    only on its pre-CLI fallback path. A scope is finished with once its branch is merged or gone
+    (ADR 0007), and the ledger's `**Branch:**` line is what the hook checks first. Its `## Degraded passes`
+    section (ADR 0018)
     defines the pass a run did not get — a dispatch the permission classifier denied, or one that could
     not reach what it needed — what a command does about one attended and unattended, and the
     `**Degraded:**` ledger entry that carries it to `/superdev:ship`'s pull-request body and

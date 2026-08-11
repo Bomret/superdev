@@ -702,8 +702,9 @@ const DERIVED_CRITERIA_CONTRACTS = [
 // A feature label is external input that becomes a branch name and a run-root path segment. Both of its
 // segments reach `git switch -c`, so both are validated — the leading one against the closed change-type
 // set, which is strictly stronger than a charset test on it. A rule that guards the slug alone lets a
-// label of `--exec=foo/x` or `-x/y` through to git as an option, and lets a non-canonical type make a run
-// root that `scope-prune` never recognises and therefore never removes. The consumers are pinned on the
+// label of `--exec=foo/x` or `-x/y` through to git as an option, and lets a non-canonical type make
+// `scope-prune` reap a run root that is still live, mistaking its unrecognised branch for gone. The
+// consumers are pinned on the
 // phrase `both segments`, not on `scope-slug rule` alone: the pre-change text already carried the latter
 // for the slug-only rule, so pinning it would go green on a revert to that wording, or on a whole-file
 // revert to the pre-change document, leaving that consumer's half of this contract unguarded.

@@ -24,9 +24,18 @@ means the hook does not prune, which fails closed.
 `worktree-sweep.js` keeps ancestry alone at the per-slice level, correctly — a slice branch merges into
 the scope branch normally, so its ancestry survives.
 
-The hook recognises a scope branch by its shape — a change type leading the run root's own name
-(`<type>/<scope>`) — per ADR 0021. A maintainer's `wip/<slug>` and a `slice/<scope>/<id>` branch never
-count.
+The hook reads the scope's branch from the ledger's `**Branch:**` line, written by `scope.js init` —
+exact-name membership, no guessing (`references/scope-mode.md`, `## The scope branch`). A pre-CLI ledger
+carries no such line; only then does the hook fall back to recognising a branch by its shape — a change
+type leading the run root's own name (`<type>/<scope>`) — per ADR 0021. A maintainer's `wip/<slug>` and a
+`slice/<scope>/<id>` branch never count, in either reading.
+
+The hook narrows `references/scope-mode.md`'s general rule on purpose. That section falls back to the
+shape scan on two triggers: no `**Branch:**` line, or a named branch that fails
+`git rev-parse --verify`. A command resolving the branch for its own work cannot tell a dead run from a
+live one that has not yet cut its branch. The hook falls back on the first trigger only. A named branch
+that fails to verify is exactly the squash-merge signal it wants. The hook reads that failure as evidence
+the branch is gone, rather than guessing from shape.
 
 **Considered options** for recognising a squash merge, all rejected in favour of branch absence:
 
@@ -59,5 +68,6 @@ looks the same to the hook, so a run whose work never landed loses its trail sev
 and only after ticking the Definition of Done and opening a pull request.
 
 `/superdev:status` prints a shipped scope as one line, without its slice tally, because a run the hook is
-about to reap is not work in flight. Its staged-page lines survive that collapse: a page nobody publishes
-is invisible everywhere else (ADR 0023).
+about to reap is not work in flight. Its degrade record and staged-page lines survive that collapse: a
+degraded pass is otherwise recorded only in the pull-request body, which this same prune outlives, and a
+page nobody publishes is invisible everywhere else (ADR 0023).

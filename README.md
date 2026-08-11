@@ -164,10 +164,13 @@ bash or PowerShell variants.
   alone. A lite-tier run's single scope worktree is not a per-slice worktree, so this hook leaves it
   alone too. `/superdev:ship` removes it at the end of the chain.
 - **scope-prune.** A `Stop` hook that deletes a scope's run root (`.superdev/scopes/<scope>/`, its
-  `ledger.md` and `dod.md` post-mortem trail). It waits until the scope branch is merged, the run root has
-  sat untouched for 7 days or more, **and** the ledger's `**Stage:**` line reads `shipped`. It never
-  touches an unmerged scope, one whose worktree is still present, or one whose ledger is unreadable or
-  silent on the stage.
+  `ledger.md` and `dod.md` post-mortem trail). It waits until the scope branch is **merged or gone** — a
+  squash merge leaves no ancestry, and a code host that squash-merges deletes the branch, so absence is
+  the merge's only local trace — the run root has sat untouched for 7 days or more, **and** the ledger's
+  `**Stage:**` line reads `shipped`. It reads absence only from refs the repository already holds: a
+  remote-tracking ref it has not fetched still counts as present, so it never prunes on stale
+  information. It never touches a scope branch that is present and unmerged, one whose worktree is still
+  present, or one whose ledger is unreadable or silent on the stage.
 
 An eighth Node hook, **update-check**, is a `SessionStart` *notice* rather than a guardrail. See
 [Updating](#updating).

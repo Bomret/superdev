@@ -29,7 +29,8 @@ name — so the type reaches `git switch -c` exactly as the slug does, and the s
   label, never a fragment of the rendered path.
 - **The type** — what precedes it — is one of the eleven in `## The change type` below, matched exactly.
   This is stronger than a charset test: a label leading with `-x` reaches git as an option, and a type
-  outside the set makes a run root `hooks/scope-prune.js` never recognises and therefore never removes.
+  outside the set makes `hooks/scope-prune.js` misread a live, unmerged branch as gone — gone is one of
+  the two conditions a scope needs to be prunable (ADR 0007) — and reap a run root still in progress.
 
 **Either segment failing is the same stop.** Say which one failed and why, and build no branch and no path
 out of the label. A label with no `/`, or with an empty segment on either side, fails here too.

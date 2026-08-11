@@ -89,6 +89,19 @@ function getHeader(lines, name) {
   return null;
 }
 
+// The `**Degraded:**` bullet list, if any (scope-mode `## Degraded passes`). Shared by both status
+// branches below: an in-flight scope prints it inline with its tally, a shipped one prints it alone.
+function readDegraded(lines) {
+  const degAt = lines.findIndex((l) => headerRe('Degraded').test(l));
+  const degraded = [];
+  if (degAt >= 0) {
+    for (let i = degAt + 1; i < lines.length && lines[i].startsWith('- '); i++) {
+      degraded.push(lines[i].slice(2));
+    }
+  }
+  return degraded;
+}
+
 function setHeader(lines, name, value) {
   const re = headerRe(name);
   for (let i = 0; i < lines.length; i++) {
@@ -395,20 +408,27 @@ function verbStatus(cwd) {
         pushPendingAndStrays(scope);
         continue;
       }
+      // A shipped scope is finished with, and `hooks/scope-prune.js` reaps its run root once the TTL
+      // elapses (ADR 0007). It is not work in flight, so it collapses to one line here rather than
+      // carrying a tally through a report that exists to show what is still moving. Its degrade record
+      // and staged-page lines are the deliberate exceptions below: a degraded pass is otherwise recorded
+      // only in the pull-request body, which the same prune outlives it by (scope-mode `## Degraded
+      // passes`), and a page nobody publishes is invisible everywhere else (ADR 0023) — a shipped scope
+      // is exactly where either waits.
+      if (stage === 'shipped') {
+        out.push(`${scope}  (shipped)`);
+        const shippedDegraded = readDegraded(lines);
+        if (shippedDegraded.length) out.push(`  degraded: ${shippedDegraded.join(', ')}`);
+        pushPendingAndStrays(scope);
+        continue;
+      }
       const counts = { todo: 0, 'in-progress': 0, 'in-review': 0, blocked: 0, merged: 0 };
       const blocked = [];
       for (const c of rows) {
         if (counts[c[5]] !== undefined) counts[c[5]]++;
         if (c[5] === 'blocked') blocked.push(`${c[0]} ${c[2]}`);
       }
-      const degRe = headerRe('Degraded');
-      const degAt = lines.findIndex((l) => degRe.test(l));
-      const degraded = [];
-      if (degAt >= 0) {
-        for (let i = degAt + 1; i < lines.length && lines[i].startsWith('- '); i++) {
-          degraded.push(lines[i].slice(2));
-        }
-      }
+      const degraded = readDegraded(lines);
       out.push(`${scope}  (${rows.length} slices${stage ? `, stage: ${stage}` : ''})`);
       out.push(`  todo: ${counts.todo}  in-progress: ${counts['in-progress']}  in-review: ${counts['in-review']}  blocked: ${counts.blocked}  merged: ${counts.merged}`);
       if (blocked.length) out.push(`  blocked: ${blocked.join(', ')}`);
@@ -768,11 +788,42 @@ function selftest() {
     fs.writeFileSync(path.join(badRoot, 'ledger.md'), '| 01 | not | enough | cells |\n', 'utf8');
     const st = call(['status']);
     assert.ok(st.ok, 'status runs');
-    assert.ok(st.out.includes('demo  (2 slices, stage: shipped)'), 'status shows demo scope: ' + st.out);
-    assert.ok(st.out.includes('todo: 0  in-progress: 0  in-review: 0  blocked: 0  merged: 2'), 'status tallies demo');
-    assert.ok(st.out.includes('degraded: first pass degraded (2026-08-06), second pass degraded (2026-08-06)'), 'status shows degrade record');
+    // A shipped scope is not work in flight — `scope-prune` is about to reap it (ADR 0007) — so it
+    // collapses to one line and drops its tally and blocked list. Its degrade record survives that
+    // collapse: `scope-prune` reaps the run root seven days later, and the pull-request body is
+    // otherwise the only surviving copy of a pass that ran degraded. Its staged-page lines survive too,
+    // and are asserted with the rest of the kb cases below.
+    assert.ok(st.out.includes('demo  (shipped)'), 'a shipped scope collapses to one line: ' + st.out);
+    assert.ok(!st.out.includes('demo  (2 slices'), 'a shipped scope carries no slice count');
+    assert.ok(
+      !st.out.includes('todo: 0  in-progress: 0  in-review: 0  blocked: 0  merged: 2'),
+      "a shipped scope's tally is not printed"
+    );
+    assert.ok(
+      st.out.includes('  degraded: first pass degraded (2026-08-06), second pass degraded (2026-08-06)'),
+      "a shipped scope's degrade record survives the collapse: " + st.out
+    );
     assert.ok(st.out.includes('precli  (1 slices, stage: reviewed)'), 'status shows pre-CLI scope');
     assert.ok(st.out.includes('broken: ledger unreadable'), 'unreadable ledger reported');
+
+    // An in-flight scope still prints everything it printed before: tally, blocked slices, and its
+    // degrade record. The collapse is scoped to `shipped` alone.
+    const flightRoot = path.join(tmp, '.superdev', 'scopes', 'inflight');
+    fs.mkdirSync(flightRoot, { recursive: true });
+    fs.writeFileSync(
+      path.join(flightRoot, 'ledger.md'),
+      '# Ledger — inflight\n\n**Stage:** merged\n**Degraded:**\n- doc pass denied (2026-08-11)\n\n' +
+        '| id | issue | title | type | depends-on | status | range |\n' +
+        '|---|---|---|---|---|---|---|\n' +
+        '| 01 | #20 | one | behavior | — | merged | a..b |\n' +
+        '| 02 | #21 | two | behavior | — | blocked | — |\n',
+      'utf8'
+    );
+    const stFlight = call(['status']);
+    assert.ok(stFlight.out.includes('inflight  (2 slices, stage: merged)'), 'an in-flight scope keeps its header');
+    assert.ok(stFlight.out.includes('todo: 0  in-progress: 0  in-review: 0  blocked: 1  merged: 1'), 'and its tally');
+    assert.ok(stFlight.out.includes('  blocked: 02 two'), 'and its blocked slices');
+    assert.ok(stFlight.out.includes('  degraded: doc pass denied (2026-08-11)'), 'and its degrade record');
 
     // status with zero scopes.
     const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-selftest-empty-'));
@@ -829,6 +880,28 @@ function selftest() {
     );
     assert.ok(!/nothing-here/.test(stKb.out), 'an empty staging directory is not pending');
     assert.ok(stKb.out.includes('broken: ledger unreadable'), 'the rest of the report is unchanged');
+
+    // `demo` is shipped, so it collapses — but its staged-page lines are the exception that survives.
+    // A page nobody publishes is invisible everywhere else (ADR 0023), and a shipped scope is exactly
+    // where one waits, so collapsing these away would reintroduce the silent loss reporting prevents.
+    // Asserted on the collapsed header specifically, not merely on the lines being present somewhere.
+    const demoBlock = stKb.out.split('\n');
+    const demoAt = demoBlock.findIndex((l) => l === 'demo  (shipped)');
+    assert.ok(demoAt >= 0, 'the shipped scope still collapses with pages staged: ' + stKb.out);
+    const demoLines = [];
+    for (let i = demoAt + 1; i < demoBlock.length && demoBlock[i].startsWith('  '); i++) demoLines.push(demoBlock[i]);
+    assert.ok(
+      demoLines.some((l) => l.includes('pending publish: 2 staged pages')),
+      "a shipped scope's pending line survives the collapse: " + demoLines.join(' | '),
+    );
+    assert.ok(
+      demoLines.some((l) => l.includes('draft.markdown')),
+      "a shipped scope's stray line survives the collapse: " + demoLines.join(' | '),
+    );
+    assert.ok(
+      !demoLines.some((l) => l.startsWith('  todo:')),
+      'and its tally still does not print',
+    );
     assert.ok(
       stKb.out.includes('draft.markdown') && /ignored/.test(stKb.out),
       'a non-.md file under a scope with a run root is surfaced, not silently skipped: ' + stKb.out,

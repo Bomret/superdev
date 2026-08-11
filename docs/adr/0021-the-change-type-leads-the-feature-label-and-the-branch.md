@@ -21,7 +21,7 @@ is the type plus the slug, in each store's own notation, and the **scope branch 
 
 The run root stays keyed on the slug alone (`.superdev/scopes/<slug>/`), so nothing that finds a run from a
 scope needs to know the type. `references/scope-mode.md` owns the type set, `hooks/scope-prune.js` matches
-it to recognise a merged scope branch, and `drift-check.js` asserts those two agree.
+it on its pre-CLI fallback path (ADR 0007), and `drift-check.js` asserts those two agree.
 
 ## Considered options
 
@@ -35,10 +35,11 @@ it to recognise a merged scope branch, and `drift-check.js` asserts those two ag
 ## Consequences
 
 A branch, its pull request, and its commits agree about what kind of change they carry, and the tracker
-lists a feature under its real type. The `superdev/` namespace no longer marks which branches a run owns,
-so `scope-prune` identifies a scope branch by its shape (`<type>/<slug>`, last segment matching the run
-root's name) instead of by a literal prefix; a maintainer's own `wip/<slug>` branch is not mistaken for
-one, and neither is a `slice/<scope>/<id>` branch.
+lists a feature under its real type. The `superdev/` namespace no longer marks which branches a run owns.
+`scope-prune` instead recognises a scope branch by its shape (`<type>/<slug>`, last segment matching the
+run root's name). A maintainer's own `wip/<slug>` branch is not mistaken for one, and neither is a
+`slice/<scope>/<id>` branch. `scope-prune` uses this shape scan only as a fallback, for a pre-CLI ledger
+that carries no `**Branch:**` line to read the branch from directly (ADR 0007).
 
 ADR 0019 stands where it matters — no command hardcodes a notation — but its example of a store whose
 label is a bare slug no longer applies: the local-file store nests plan directories under their type
