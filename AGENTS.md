@@ -54,11 +54,13 @@ references/            — backend seed templates + plan-contract (slice schema/
 docs/adr/              — architecture decision records (why the plugin is built this way)
 docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, documentation, KB, toolchain, verification)
 scripts/               — standalone deterministic code wired into `bun run test`: `scope.js` (the
-                         run-state CLI, ADR 0022) and `drift-check.js`. What each one owns and guards is
-                         enumerated once, in the `scripts/` entry of the Child DOX Index below.
-evals/                 — `claude plugin eval` cases (*/case.yaml + graders/*.md + the case's
-                         scaffold_script, a path relative to the case dir — never an inline block);
-                         every case is one arm of the with/without-plugin A/B — see `evals/README.md`
+                         run-state CLI, ADR 0022), `eval-run.js` (the eval runner, ADR 0024), and
+                         `drift-check.js`. What each one owns and guards is enumerated once, in the
+                         `scripts/` entry of the Child DOX Index below.
+evals/                 — cases (*/case.yaml + graders/*.md + the case's scaffold_script, a path
+                         relative to the case dir — never an inline block); every case is one arm of
+                         the with/without-plugin A/B, run by `scripts/eval-run.js` on a Claude
+                         subscription (ADR 0024) — see `evals/README.md`
 release.config.cjs     — semantic-release config (semantic-release-replace-plugin bumps plugin.json)
 package.json           — dev-only tooling (Bun); NOT published to npm
 CHANGELOG.md           — release-managed by semantic-release; do not hand-edit
@@ -127,11 +129,11 @@ bun run eval:plan                  # the two cheap plan-only arms of that A/B
 GITEA_TOKEN=<token> bun run release  # cut a release from clean main (see RELEASING.md)
 ```
 
-**`bun run eval` needs two environment variables.** `claude plugin eval` is early-access and gated on the
-`tengu_walnut_spire` flag, so `CLAUDE_CODE_WALNUT_SPIRE=1` opens it locally. It also needs
-`ANTHROPIC_API_KEY`. The harness runs each case in a sandbox with a throwaway `HOME`, and strips
-`CLAUDE_CODE_OAUTH_TOKEN` from the child environment. A subscription-only login therefore authenticates
-as `Not logged in`, and every grader scores 0 against an empty workspace. An API key survives the strip.
+**`bun run eval` needs `CLAUDE_CODE_OAUTH_TOKEN`.** `scripts/eval-run.js` runs each `evals/` case as
+two arms on a Claude subscription instead of a metered API key (ADR 0024). The plugin arm loads
+superdev through `claude -p --plugin-dir`. The baseline arm loads nothing. A maintainer creates the
+token once with `claude setup-token` and exports it. The runner refuses to start without it and never
+falls back to `ANTHROPIC_API_KEY`.
 
 # DOX framework
 
@@ -230,7 +232,7 @@ This root owns every subtree directly:
   are CommonJS** and **Every hook ships a `--selftest`**. This is the strongest future child-doc
   candidate, if its rules outgrow this root.
 - `scripts/`. Standalone deterministic code that `package.json` runs, alongside `hooks/`. It follows the
-  same `--selftest` convention. Two executables live here.
+  same `--selftest` convention. Three executables live here.
 
   `scope.js` is the **run-state CLI** (ADR 0022): it owns the ledger's schema and is the only
   `ledger.md` read and write path in the chain — `init`, `stage get|set`, `slice`, `degraded add`,
@@ -248,6 +250,28 @@ This root owns every subtree directly:
   assertions along with its own behavior: the stage machine, the ledger schema and header lines, a
   pre-CLI ledger parsing unchanged, and the scope-slug charset staying equal across `scope.js`,
   `hooks/run-lock.js`, and `references/scope-mode.md`.
+
+  `eval-run.js` is the **eval runner** (ADR 0024). It runs every `evals/` case as two arms on a Claude
+  subscription instead of a metered API key. The plugin arm loads superdev through `claude -p
+  --plugin-dir`. The baseline arm loads nothing. It scores each arm's diff and transcript against the
+  case's `graders/*.md`. It refuses to start without `CLAUDE_CODE_OAUTH_TOKEN` and never falls back to
+  a billed `ANTHROPIC_API_KEY`. It exits non-zero in three cases. A case scores nothing. The ablation
+  looks broken: the plugin arm shows no superdev marker in any of its runs, or the baseline arm shows
+  one. An arm's transcript shows a mutating tool call, but the captured diff stays empty. It reports
+  that capture failure as an error, never as a silent zero. `claude plugin eval` still reads the same
+  `case.yaml` and `graders/*.md` files, unchanged, for a key-funded cross-check.
+
+  Its selftest covers:
+
+    - the case-YAML reader
+    - the child-environment scrub
+    - the two arms' argument difference
+    - the run classifier
+    - the diff-capture failure paths (an empty scaffold, work committed off HEAD, a nested repository
+      tracked as a gitlink)
+    - the grader and judge machinery
+    - aggregation across runs
+    - the missing-token exit
 
   The reference, run-root, assignee,
   anchor-contract, afk-selection-neutrality, writing-standard, content-types, command-resolution,

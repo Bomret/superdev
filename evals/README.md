@@ -4,10 +4,10 @@ Every case here is one arm of a single question: **on the same task, in the
 same repo, does the plugin produce a better plan, better code, and truer docs
 than Claude Code with no plugin at all?**
 
-`claude plugin eval --ablation with-without` runs each case twice — once with
-the plugin loaded, once without — and reports the per-grader delta. The
-baseline arm is the control: same prompt, same scaffold, same graders, no
-superdev.
+`scripts/eval-run.js` runs each case twice on a Claude subscription instead of
+a metered API key (`docs/adr/0024-the-eval-suite-runs-on-subscription-auth.md`).
+The plugin arm loads the plugin. The baseline arm loads nothing. The baseline
+arm is the control: same prompt, same scaffold, same graders, no superdev.
 
 ## Running it
 
@@ -16,18 +16,36 @@ bun run eval        # all cases, both arms — includes the expensive implement 
 bun run eval:plan   # the two plan cases only, both arms — cheap iteration
 ```
 
-Both need `CLAUDE_CODE_WALNUT_SPIRE=1` (the eval command is early-access) and
-`ANTHROPIC_API_KEY`. The harness runs each case in a sandbox with a throwaway
-`HOME` and strips `CLAUDE_CODE_OAUTH_TOKEN` from the child environment, so a
-subscription-only login authenticates as `Not logged in` and every grader
-scores 0 against an empty workspace. An API key survives the strip.
+Both need `CLAUDE_CODE_OAUTH_TOKEN`. Create it once with `claude setup-token`
+and export it. The runner refuses to start without it and never falls back to
+a billed `ANTHROPIC_API_KEY`.
 
-Useful flags: `--runs 1` to cut cost while iterating, `--report out.html` for a
-readable side-by-side, `--keep-temp` to inspect (or re-run `npm test` in) the
-scaffold dirs afterwards, `--max-cost-usd` for a hard ceiling.
+Flags: `--case <glob>` selects cases by name, `--runs <n>` overrides a case's
+own run count, `--judge-model <model>` overrides the judge (it defaults to
+`haiku`, because judging spends the same subscription window as the arms),
+and `--output-dir <dir>` overrides where transcripts, diffs, and the result
+land. Results default to `evals/results/<timestamp>/`, which `.gitignore`
+excludes.
 
-The target is `.` — the working tree, not the installed 0.x release. Point it
-at `superdev@superdev` to score the released plugin instead.
+`claude plugin eval` still reads the same `case.yaml` and `graders/*.md`
+files, unchanged, so it stays available for a key-funded cross-check.
+
+## Limits
+
+- **A capture failure scores nothing, on purpose.** The runner refuses to
+  score an arm whose work it cannot see, and reports a capture failure
+  instead of a number. A leftover `.superdev/` worktree directory is one
+  known cause. A case scaffold that does not ignore `.superdev/` leaves it
+  tracked as a gitlink. That trips the check even though the arm's work is
+  fully captured. A `.gitignore` line for `.superdev/` in the case's
+  scaffold avoids it. This matters most for a full-tier plugin arm, which
+  creates that worktree.
+- **An arm with no superdev marker fails the run.** The broken-ablation check
+  needs the plugin arm to show a superdev marker (a command, a subagent, or a
+  hook) in at least one run of a case. An arm that only explores, and never
+  invokes any of the three, shows none. `bun run eval` then reports the case
+  as a broken ablation and exits non-zero, even when `--plugin-dir` isolated
+  the arms correctly.
 
 ## The cases
 
