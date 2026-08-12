@@ -97,6 +97,12 @@ _Avoid: "specification", "requirements" (acceptance is the test oracle)_
 **Test-applicability** — the class of changes a slice carries: `behavior` (new functionality, needs TDD + per-slice reviewer + simplicity-reviewer), `mechanical` (move/rename/format, uses existing suite as the net, skips per-slice reviews), `docs` (documentation-only, skips reviews).
 _Avoid: "slice type", "category"_
 
+**Focused test command** — the optional **second** fenced block of `docs/agents/verification.md`: the narrowed run every step inside the loop takes, in place of the full command the first block holds. Carrying the token `{paths}` makes the caller substitute the **changed-path set** below, shell-quoted; carrying none makes it run verbatim, for a runner that detects the change set itself. Absent, every caller runs the full command, which is the behaviour a repository configuring nothing keeps. `references/test-selection.md` owns the contract and every consumer reads it at runtime (ADR 0025).
+_Avoid: "partial test command" (it is narrowed, not incomplete), "incremental tests" (that names a runner's own caching), "fast command" (speed is the effect, not the definition)_
+
+**Changed-path set** — the paths a caller substitutes for `{paths}`, always those changed in the range that caller judges: the slice base to the working tree for the implementer's TDD loop and the lite tier's inline loop, the slice branch against the scope branch for the slice-reviewer, and the merge's first parent against `HEAD` for the green-gate hook. An **empty** set runs the full command rather than a focused run over nothing — a conflicted merge leaves `HEAD` unmoved and produces exactly that, and a focused run over no paths would report green having tested nothing (ADR 0025).
+_Avoid: "diff" (that names the content, not the path list), "touched files" (`Touch map` already claims that phrasing for a different artifact)_
+
 ## Controller discipline
 
 **Controller** — the agent driving a plan's slices to merge (you). You dispatch implementers/reviewers, you merge, you integrate serially. You never implement or merge inside a subagent.
