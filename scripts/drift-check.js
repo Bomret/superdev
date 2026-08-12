@@ -885,6 +885,51 @@ function scanKbNoBackendCall(root) {
   return offenders;
 }
 
+// ADR 0022: `scripts/scope.js` owns the ledger's schema, and since it exports `readLedgerHeader` that
+// ownership means one implementation rather than one per consumer. `hooks/scope-prune.js` used to carry
+// its own `**Name:**` regex, and it drifted on four axes while being hardened against defects on its
+// delete path — every difference arrived as a well-intentioned local fix, and none travelled back.
+//
+// The primary guard against that drift restarting is the orphan test in `hooks/scope-prune.js
+// --selftest` (`#reader-unavailable` and its shared-reader agreement vectors): it exercises the real
+// reader against real input and fails the moment a hook stops using it. This regex is a fast literal-
+// shape tripwire only, not a substitute — it looks for the ledger's header marker being *built as a
+// pattern* — an escaped `**`, a short run, a colon, then an escaped `**` again — and a self-contained
+// reader with no regex and no `require` (or one spelled `[*][*]`, `/\*{2}Stage:\*{2}/`,
+// `line.startsWith('**Stage:**')`, `l.indexOf('**Branch:**') === 0`) walks straight past it. `\\+`
+// rather than a fixed count because the escaping depends on the quoting: the regex reads `\*\*` inside a
+// template literal or a single-quoted string as `\\*\\*` in the file. Do not harden the pattern to catch
+// those — the orphan test already covers what it misses, in that hook. A second hook growing a reader
+// of its own is covered by neither, and needs its own orphan test.
+const HOOK_HEADER_REGEX = /\\+\*\\+\*[^\n]{0,60}:\\+\*\\+\*/;
+
+function scanHookLedgerParsers(root) {
+  const dir = path.join(root, 'hooks');
+  let names = [];
+  try {
+    names = fs.readdirSync(dir).filter((f) => f.endsWith('.js'));
+  } catch {
+    return []; // no hooks dir (fixture) → nothing to scan
+  }
+  const offenders = [];
+  for (const name of names) {
+    let text;
+    try {
+      text = fs.readFileSync(path.join(dir, name), 'utf8');
+    } catch {
+      continue;
+    }
+    if (HOOK_HEADER_REGEX.test(text)) {
+      offenders.push({
+        source: path.join('hooks', name),
+        expectation:
+          'read a ledger header through `scripts/scope.js`\'s exported `readLedgerHeader` — it carries a `**…:**` regex of its own, which is the drift ADR 0022 removed',
+      });
+    }
+  }
+  return offenders;
+}
+
 // scanContract() is pure over a root dir and a contract table: reads each document the table names and
 // reports the expectations it no longer meets. Absent files are skipped, so fixtures need only the
 // documents they exercise. Both tables above share this one scanner — they differ in what they assert,
@@ -928,6 +973,7 @@ function main() {
     ...scanContract(root, VERB_CONTRACTS),
     ...scanContract(root, KB_STAGING_CONTRACTS),
     ...scanKbNoBackendCall(root),
+    ...scanHookLedgerParsers(root),
   ];
   // Every scanner above skips a document it cannot read, so that a fixture carries only the files it
   // exercises. That convention would let `commands/afk.md` be deleted without a single check going red,
@@ -962,6 +1008,7 @@ function main() {
         'both label segments validated, ' +
         "green-gate's hooks.json timeout matches its own comment, " +
         'every chain document invokes its scope.js verb, ' +
+        'no hook parses a ledger header itself, ' +
         'knowledge-base pages are staged and no document but publish-kb reaches a backend, ' +
         'eval graders and scaffolds well-formed',
     );
@@ -2479,6 +2526,38 @@ if (process.argv[2] === '--selftest') {
     0,
     'absent files are skipped (no-call half)',
   );
+
+  // --- scanHookLedgerParsers: no hook carries a ledger-header regex of its own (ADR 0022) ---
+
+  assert.equal(
+    scanHookLedgerParsers(realRoot).length,
+    0,
+    'no shipped hook builds its own ledger-header pattern',
+  );
+
+  // The exact line this scope deleted from hooks/scope-prune.js, in both quotings it appears in.
+  for (const [label, src] of [
+    ['a template literal', 'const m = text.match(new RegExp(`\\\\*\\\\*${name}:\\\\*\\\\*[^\\\\S\\\\n]*(\\\\S+)`));'],
+    ['a single-quoted string', "const re = new RegExp('^\\\\*\\\\*' + name + ':\\\\*\\\\*\\\\s*(.*)$');"],
+  ]) {
+    const gaps = scanHookLedgerParsers(fixture({ 'hooks/rogue.js': src }));
+    assert.equal(gaps.length, 1, `flags a hook parsing a header with ${label}`);
+    assert.equal(gaps[0].source, path.join('hooks', 'rogue.js'), 'names the hook');
+  }
+
+  // A hook that reads through the shared export is clean, and so is ordinary hook code that happens to
+  // mention a header in prose — the check looks for the marker being built as a pattern, not named.
+  assert.equal(
+    scanHookLedgerParsers(fixture({
+      'hooks/good.js':
+        "const { readLedgerHeader } = require('../scripts/scope.js');\n" +
+        "// reads the ledger's **Stage:** line through scope.js\n",
+    })).length,
+    0,
+    'a hook using the shared reader, and naming a header in prose, is clean',
+  );
+
+  assert.equal(scanHookLedgerParsers(fixture({ 'README.md': '# repo\n' })).length, 0, 'no hooks dir is skipped');
 
   console.log('drift-check selftest ok');
 } else {

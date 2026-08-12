@@ -78,15 +78,54 @@ function headerRe(name) {
   return new RegExp('^\\*\\*' + name + ':\\*\\*\\s*(.*)$');
 }
 
+// Normalisation is per header, because the values differ in kind (ADR 0022).
+//
+// A TOKEN header is a single word this file also writes: a hand-written or pre-CLI ledger may wrap it
+// in markdown emphasis, or leave a sentence's period behind, and every spelling means the same token.
+// It takes the first whitespace-delimited token before stripping that markup. Git forbids whitespace in
+// a refname, and a stage name is one word, so first-token can never truncate a legal value. It does
+// widen what is accepted: `**Stage:** shipped (rolled back)` reads as `shipped` and satisfies the prune
+// gate. That matches the reader this replaced, so it costs nothing here — but the cut is a capture rule,
+// not validation, and nothing downstream treats it as one. It only
+// ever drops a trailing parenthetical or comment a hand-written ledger tacks on after the real token
+// (e.g. `fix/demo (PR #99 open)`). Once cut to that token, stripping is safe: no legal value carries
+// these markup characters — a stage name is from a fixed set, and git forbids `*` and `:` in a branch
+// name and forbids a component ending in `.`.
+//
+// Every other header is PROSE. `Anchor` carries an issue title that reaches a pull request through
+// `/superdev:review`, and a title may legitimately end in `.` or `:` or contain one, or carry internal
+// whitespace. It is trimmed and otherwise taken as written.
+const TOKEN_HEADERS = new Set(['Stage', 'Branch']);
+
+function normalizeHeaderValue(name, raw) {
+  const trimmed = raw.trim();
+  if (!trimmed) return null; // a header line present but empty is absent, not an empty value
+  if (!TOKEN_HEADERS.has(name)) return trimmed;
+  const token = trimmed.split(/\s+/)[0];
+  // Two sequential strips rather than one alternation: one pass cannot remove a marker another marker
+  // hides. In `` `shipped`. `` the trailing backtick sits behind the period, so an alternation anchored
+  // at the end of the string never reaches it.
+  const stripped = token.replace(/^[`*]+/, '').replace(/[`*.,;:]+$/, '');
+  return stripped || null;
+}
+
 // A pre-CLI ledger may miss any header line; absence is the missing-optional-field
 // case (scope-mode `## The ledger`), never a parse error.
 function getHeader(lines, name) {
   const re = headerRe(name);
   for (const line of lines) {
     const m = line.match(re);
-    if (m) return m[1].trim();
+    if (m) return normalizeHeaderValue(name, m[1]);
   }
   return null;
+}
+
+// The reader `hooks/scope-prune.js` requires, so one implementation serves both (ADR 0022). Takes the
+// ledger's content rather than a path, which keeps `fs` out of the contract — the hook reads the file
+// itself, and a text-in reader needs no temp directory to test. Matching is line-anchored, so a
+// value-less header can never capture the next line's token.
+function readLedgerHeader(content, name) {
+  return getHeader(String(content).split('\n'), name);
 }
 
 // The `**Degraded:**` bullet list, if any (scope-mode `## Degraded passes`). Shared by both status
@@ -952,10 +991,123 @@ function selftest() {
     assert.strictEqual(spawned.stdout.trim(), 'No superdev runs found in this repo.', 'CLI process flushes stdout');
     fs.rmSync(spawnEmpty, { recursive: true, force: true });
 
+    // --- readLedgerHeader: one reader, normalisation per header kind (ADR 0022) ---
+    //
+    // `hooks/scope-prune.js` carried its own copy of this and drifted on four axes. The hook now
+    // requires the export below, so these cases are the definition for both readers.
+
+    // Token headers — `Stage` and `Branch` — are single tokens. A hand-written ledger may wrap one in
+    // markup or leave a period behind; every spelling reads as the bare token.
+    for (const [line, expected, label] of [
+      ['**Stage:** shipped', 'shipped', 'a plain value'],
+      ['**Stage:** `shipped`', 'shipped', 'a backticked value'],
+      ['**Stage:** **shipped**', 'shipped', 'an emphasised value'],
+      ['**Stage:** `shipped`.', 'shipped', 'a backticked value with a trailing period'],
+      ['**Stage:** shipped.', 'shipped', 'a plain value with a trailing period'],
+    ]) {
+      assert.strictEqual(readLedgerHeader(`# ledger\n\n${line}\n`, 'Stage'), expected, `Stage: ${label}`);
+    }
+
+    // The strip must never turn one stage into another.
+    for (const [line, expected] of [
+      ['**Stage:** documented-unreviewed', 'documented-unreviewed'],
+      ['**Stage:** `reviewed`', 'reviewed'],
+      ['**Stage:** not-shipped', 'not-shipped'],
+    ]) {
+      assert.strictEqual(readLedgerHeader(`# ledger\n\n${line}\n`, 'Stage'), expected, `Stage stays ${expected}`);
+      assert.notStrictEqual(readLedgerHeader(`# ledger\n\n${line}\n`, 'Stage'), 'shipped', `${expected} is never shipped`);
+    }
+
+    assert.strictEqual(
+      readLedgerHeader('# ledger\n\n**Branch:** `fix/x`\n', 'Branch'),
+      'fix/x',
+      'Branch is a token header too'
+    );
+
+    // A TOKEN header value is one word — git forbids whitespace in a refname — so trailing content after
+    // the first whitespace run is never part of the value. A hand-written ledger that tacks on a
+    // parenthetical or a comment must not widen the capture past that token: a value carrying trailing
+    // content matches nothing in a branch set, and the veto that reads it (`branchPresent` in
+    // hooks/scope-prune.js) reads a live, unmerged branch as gone.
+    for (const [line, expected, label] of [
+      ['**Branch:** fix/demo (PR #99 open)', 'fix/demo', 'a trailing parenthetical'],
+      // A tab, not only a space: `split(' ')` passes every other row here and reads this one as the
+      // whole line, which lands back on the delete path as a branch that matches nothing.
+      ['**Branch:** fix/demo\t(PR open)', 'fix/demo', 'a tab-separated trailing note'],
+      ['**Branch:** fix/demo   # note', 'fix/demo', 'a trailing comment'],
+    ]) {
+      assert.strictEqual(readLedgerHeader(`# ledger\n\n${line}\n`, 'Branch'), expected, `Branch: ${label}`);
+    }
+
+    // Prose headers — `Anchor` — carry a title that reaches a pull request through /superdev:review.
+    // Take the rest of the line and trim; a uniform strip would eat the last character of a title
+    // ending in punctuation.
+    assert.strictEqual(
+      readLedgerHeader('# ledger\n\n**Anchor:** #208 — Epic: one reader, shared.\n', 'Anchor'),
+      '#208 — Epic: one reader, shared.',
+      'Anchor keeps its internal colon and its trailing period'
+    );
+
+    // A header line present but empty is absent, for every header — and never reaches past its own
+    // line. `\s` matches a newline, so a reader that is not line-anchored captures the NEXT header's
+    // token here, which on `Branch` reads as a branch that exists nowhere.
+    const valueless = '# ledger\n\n**Stage:** shipped\n**Branch:**\n**Anchor:** #208 — Epic\n';
+    assert.strictEqual(readLedgerHeader(valueless, 'Branch'), null, 'an empty Branch line is absent');
+    assert.strictEqual(readLedgerHeader(valueless, 'Stage'), 'shipped', 'and its neighbours still read');
+    assert.strictEqual(readLedgerHeader(valueless, 'Anchor'), '#208 — Epic', 'including the one after it');
+    assert.strictEqual(readLedgerHeader('# ledger\n\n**Stage:**   \n', 'Stage'), null, 'whitespace-only is absent');
+    assert.strictEqual(readLedgerHeader('# ledger\n', 'Stage'), null, 'a missing line is absent');
+
+    // The verbs report an empty header as `absent`, not as an empty line.
+    const emptyRoot = path.join(tmp, '.superdev', 'scopes', 'emptyhdr');
+    fs.mkdirSync(emptyRoot, { recursive: true });
+    fs.writeFileSync(path.join(emptyRoot, 'ledger.md'), valueless, 'utf8');
+    assert.strictEqual(call(['get', 'branch', '--root', emptyRoot]).out, 'absent', 'get branch reports absent');
+
+    // `status` collapses a shipped scope whose stage line carries markup — it does not today.
+    const markupRoot = path.join(tmp, '.superdev', 'scopes', 'markupstage');
+    fs.mkdirSync(markupRoot, { recursive: true });
+    fs.writeFileSync(
+      path.join(markupRoot, 'ledger.md'),
+      '# Ledger — markupstage\n\n**Stage:** `shipped`\n\n' +
+        '| id | issue | title | type | depends-on | status | range |\n' +
+        '|---|---|---|---|---|---|---|\n' +
+        '| 01 | #1 | one | behavior | — | merged | a..b |\n',
+      'utf8'
+    );
+    assert.ok(
+      call(['status']).out.includes('markupstage  (shipped)'),
+      'a backticked stage still collapses: ' + call(['status']).out
+    );
+
+    // Requiring the module must run no CLI code. Unguarded, `main()` parses the *caller's* argv and a
+    // refusal calls process.exit — measured, a requiring process dies with `unknown verb ""` and exit 1.
+    // A subprocess, because requiring this file from inside itself returns the half-built module.
+    const requirer = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-selftest-require-'));
+    const probe = path.join(requirer, 'probe.js');
+    fs.writeFileSync(
+      probe,
+      `const m = require(${JSON.stringify(__filename)});\n` +
+        "process.stdout.write(typeof m.readLedgerHeader + '|' + m.readLedgerHeader('**Stage:** `shipped`', 'Stage'));\n",
+      'utf8'
+    );
+    const required = cp.spawnSync(process.execPath, [probe], { cwd: requirer, encoding: 'utf8', timeout: 10000 });
+    assert.strictEqual(required.status, 0, 'requiring the module exits 0 rather than hanging or erroring');
+    assert.strictEqual(required.stdout, 'function|shipped', 'the export works from a requiring process');
+    assert.strictEqual(required.stderr, '', 'requiring the module prints no usage and no refusal');
+    fs.rmSync(requirer, { recursive: true, force: true });
+
     console.log('scope selftest ok');
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 }
 
-main();
+// The CLI runs only when this file is executed directly. `hooks/scope-prune.js` requires it for
+// `readLedgerHeader` (ADR 0022), and an unguarded `main()` parses the *caller's* argv: measured, a
+// requiring process dies with `unknown verb ""` and exit 1 before its own first statement, because a
+// refusal calls process.exit. Had the caller's argv happened to start with `init`, the same path waits
+// on stdin instead and hangs. Either way the require, not the CLI, is what fails.
+if (require.main === module) main();
+
+module.exports = { readLedgerHeader };

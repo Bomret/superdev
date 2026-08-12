@@ -70,7 +70,10 @@ README.md · RELEASING.md · NOTICE · LICENSE
 
 The plugin ships as markdown and JS hooks. There is **no build step**. `commands/`, `agents/`, and
 `references/` are prose. `hooks/` and `scripts/` are executable: `hooks/` holds Claude Code hooks, and
-`scripts/` holds standalone checks like `drift-check.js`, which `package.json` runs.
+`scripts/` holds standalone checks like `drift-check.js`, which `package.json` runs. `hooks/` is also a
+runtime consumer of `scripts/`: `hooks/scope-prune.js` `require`s `scripts/scope.js` for its shared
+ledger-header reader (ADR 0022). This is the one dependency `hooks/` has on `scripts/`. Every other hook stays
+standalone.
 
 ## Stack
 
@@ -230,13 +233,21 @@ This root owns every subtree directly:
   pluggable**: stay tool-agnostic and never hardcode a backend. Behaviour contracts live in the files.
 - `hooks/`. Claude Code hooks, the plugin's deterministic guardrails. Governed by **Working rules, Hooks
   are CommonJS** and **Every hook ships a `--selftest`**. This is the strongest future child-doc
-  candidate, if its rules outgrow this root.
+  candidate, if its rules outgrow this root. `scope-prune.js` `require`s `scripts/scope.js` for its
+  ledger-header reader (ADR 0022). This is the only place a hook depends on a script instead of standing alone.
+  A `require` failure leaves the hook with no fallback reader: it prunes nothing and says nothing.
 - `scripts/`. Standalone deterministic code that `package.json` runs, alongside `hooks/`. It follows the
   same `--selftest` convention. Three executables live here.
 
   `scope.js` is the **run-state CLI** (ADR 0022): it owns the ledger's schema and is the only
   `ledger.md` read and write path in the chain — `init`, `stage get|set`, `slice`, `degraded add`,
-  `get stage|branch|anchor|slices`, and `status` (which renders the whole `/superdev:status` report). A
+  `get stage|branch|anchor|slices`, and `status` (which renders the whole `/superdev:status` report). It
+  also exports `readLedgerHeader` as a module API. This per-header ledger-line reader is what `hooks/scope-prune.js`
+  uses instead of carrying its own regex. The API guards its CLI entry with
+  `require.main === module`, so a `require` for that reader alone runs no CLI code. Normalisation is per
+  header: `Stage` and `Branch` are single tokens, cut to the first whitespace-delimited token and stripped
+  of markup and trailing punctuation. `Anchor` is a prose title that reaches a pull request, trimmed and
+  otherwise left alone. An empty header line reads as absent, not as an empty string. A
   scope whose ledger stage reads `shipped` collapses to one line, `<scope>  (shipped)`. It drops the slice
   tally and the blocked list. `hooks/scope-prune.js` (ADR 0007) is about to reap that run root, so
   per-slice detail is no longer work in flight. Its `**Degraded:**` line and its staged-page lines survive
@@ -276,11 +287,12 @@ This root owns every subtree directly:
   The reference, run-root, assignee,
   anchor-contract, afk-selection-neutrality, writing-standard, content-types, command-resolution,
   chain-handoff, feature-label-argument, unattended-token, afk-invocation, change-type,
-  degraded-pass, derived-criteria, label-validation, green-gate-timeout, and
-  verb-pointer checks are drift assertions. They compare a restated fact against its source. The
+  degraded-pass, derived-criteria, label-validation, green-gate-timeout,
+  verb-pointer, and no-second-reader checks are drift assertions. They compare a restated fact against
+  its source. The
   eval-shape check compares a document against a schema. The afk-existence check is a plain existence
   assertion.
-  `drift-check.js` guards twenty-two things, in the order its `main()` computes them. First, that every
+  `drift-check.js` guards twenty-three things, in the order its `main()` computes them. First, that every
   `references/*.md` path named in `commands/`, `agents/`, or `references/` itself resolves to a file that
   exists. A reference cites
   another reference — both execution playbooks point at `scope-mode.md` — so a rename there dangles like
@@ -387,9 +399,15 @@ This root owns every subtree directly:
   instruction's shape rather than a backend's literal endpoint or credential name, because
   **Backends are pluggable** already forbids these three documents from naming a backend at all, so a
   literal-only marker would catch almost nothing.
-  Twenty-first,
+  Twenty-first, the no-second-reader contract (ADR 0022), `scanHookLedgerParsers()` scans every
+  `hooks/*.js` file for a literal `**…:**`-shaped header regex. This pattern marks whether a hook grows a
+  ledger-header reader of its own instead of `require`ing `scope.js`'s `readLedgerHeader`. It reads the
+  pattern's shape rather than running the hooks, because the same drift happened to `scope-prune.js`'s own
+  copy. A second reader can diverge on anchoring, capture width, newline handling, or markup normalisation
+  silently, and prose alone would not have caught it.
+  Twenty-second,
   that `commands/afk.md` exists at all. Nothing else in the plugin names `/superdev:afk` for the eighth
-  check to resolve, so its absence would otherwise go unnoticed. Twenty-second, that every
+  check to resolve, so its absence would otherwise go unnoticed. Twenty-third, that every
   `evals/*/graders/*.md` declares a known `type` and a positive `weight`, that an `llm` or `regex`
   grader also declares a `focus` or `target`, and that every case's `scaffold_script` resolves. Nothing
   else validates a grader, so without this a typo surfaces part-way through a run that costs real API

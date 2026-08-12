@@ -120,26 +120,21 @@ function selectPrunable(scopeNames, mergedSet, mtimeOf, stageOf, allBranchSet, b
   return out;
 }
 
-// Reads one `**<name>:**` header line's value out of a scope's ledger.md. Returns the stripped value, or
-// null when the ledger is unreadable or carries no such line. Shared by `readStage` and `readBranch`
-// below: both read a hand-written ledger — `/superdev:ship` §5 may write `**Stage:**` by hand, and a
-// pre-CLI ledger's `**Branch:**` predates `scope.js init` recording it — and hand-written is exactly the
-// population that produces markup-wrapped values (`` `shipped` ``, `**fix/foo**`, a trailing period).
-// Stripping it on a branch value trims only a trailing character git's own refname rules already forbid
-// there (`*`, `:`, a component ending in `.`, per `git check-ref-format --branch`) or one this repo's
-// markup wraps a value in. A backtick, comma, or semicolon is legal in a branch name, so a real branch
-// deliberately ending in one would lose that character — a narrow risk against the strip's actual job,
-// cleaning the markup a hand-written ledger routinely wraps a value in. Two sequential strips rather
-// than one alternation, because one pass cannot remove a marker that a neighbouring marker hides: in
-// `` `shipped`. `` the trailing backtick sits behind the period, so an alternation anchored on the end
-// of the string never reaches it.
+// `scripts/scope.js` owns the ledger's schema, so it owns how a header value is read (ADR 0022). This
+// hook carried its own regex and drifted from it on four axes while being hardened — anchoring, capture
+// width, newline crossing, normalisation — and none of those fixes travelled back. There is one reader
+// now, and no fallback: a fallback is the second reader again, and the second reader is the defect.
+let readLedgerHeader = null;
+try {
+  ({ readLedgerHeader } = require('../scripts/scope.js'));
+} catch {
+  // Left null. main() prunes nothing below — the same fail-closed direction a git error takes, because
+  // a hook that cannot read a stage must never conclude a scope is finished with.
+}
+
 function readHeader(scopeDir, name) {
   try {
-    const text = fs.readFileSync(path.join(scopeDir, 'ledger.md'), 'utf8');
-    // `[^\S\n]*`, not `\s*`: `\s` matches `\n`, so `\s*` after the colon lets a value-less header line
-    // capture the next line's token instead of reading as absent.
-    const match = text.match(new RegExp(`\\*\\*${name}:\\*\\*[^\\S\\n]*(\\S+)`));
-    return match ? match[1].replace(/^[`*]+/, '').replace(/[`*.,;:]+$/, '') : null;
+    return readLedgerHeader(fs.readFileSync(path.join(scopeDir, 'ledger.md'), 'utf8'), name);
   } catch {
     return null;
   }
@@ -169,6 +164,7 @@ function newestMtimeMs(dir) {
 }
 
 function main(cwd) {
+  if (!readLedgerHeader) return; // shared reader unavailable → prune nothing, say nothing
   const scopesRoot = path.join(cwd, '.superdev', 'scopes');
   if (!fs.existsSync(scopesRoot)) return; // no superdev runs in this repo
 
@@ -591,6 +587,30 @@ if (process.argv[2] === '--selftest') {
     assert.equal(fs.existsSync(liveScopeDir), true, 'a present, unmerged scope survives main() end to end');
     fs.rmSync(liveRepo, { recursive: true, force: true });
 
+    // #present-and-unmerged-divergent-branch-value: same shape as #present-and-unmerged, but the ledger's
+    // `**Branch:**` line carries trailing content after the real branch name — exactly what a hand-written
+    // ledger produces (Important 1). A reader that captures past the first token never finds
+    // `fix/divergent` in the branch set, reads the branch as gone, and main() deletes a run root whose
+    // branch is alive and unmerged.
+    const divergentRepo = makeRepo();
+    gitTest(['checkout', '-q', '-b', 'fix/divergent'], divergentRepo);
+    fs.writeFileSync(path.join(divergentRepo, 'more.md'), 'y\n');
+    gitTest(['add', '.'], divergentRepo);
+    gitTest(['commit', '-q', '-m', 'wip'], divergentRepo);
+    gitTest(['checkout', '-q', 'main'], divergentRepo);
+    const divergentScopeDir = makeScope(
+      divergentRepo,
+      'divergent',
+      '**Stage:** shipped\n**Branch:** fix/divergent (PR #99 open)\n'
+    );
+    main(divergentRepo);
+    assert.equal(
+      fs.existsSync(divergentScopeDir),
+      true,
+      'a present, unmerged scope survives main() end to end even when the ledger Branch line carries trailing content'
+    );
+    fs.rmSync(divergentRepo, { recursive: true, force: true });
+
     // #ledger-named-branch-wired: every other fixture is shipped with no `**Branch:**` line, so both the
     // readBranch and readStage lambdas main() wires selectPrunable to could be swapped for `() => null` /
     // `() => 'shipped'` and still leave every case above green. `feature/alpha`'s type is not in
@@ -677,6 +697,102 @@ if (process.argv[2] === '--selftest') {
     );
     fs.rmSync(failRepo, { recursive: true, force: true });
     fs.rmSync(fakeBinDir, { recursive: true, force: true });
+  }
+
+  // The hook `require`s `../scripts/scope.js` (below), and nothing else asserts that `scripts/` actually
+  // ships alongside `hooks/` in a real install. If a future packaging change stopped shipping it, this
+  // hook would fail closed and prune nothing, forever, with no signal beyond that silence.
+  assert.equal(
+    fs.existsSync(path.join(__dirname, '..', 'scripts', 'scope.js')),
+    true,
+    'scripts/scope.js ships alongside this hook'
+  );
+
+  // --- one reader, shared with scripts/scope.js (ADR 0022) ---
+  //
+  // This hook carried its own header regex and it drifted on four axes — anchoring, capture width,
+  // whether the whitespace after the colon crossed a newline, and normalisation — while being hardened
+  // against defects on this very delete path. Every vector below is the same one `scope.js --selftest`
+  // asserts, so agreement is a property of there being one implementation rather than of two staying
+  // in step.
+  {
+    const os2 = require('node:os');
+    const scope = require('../scripts/scope.js');
+    const mk = (body) => {
+      const d = fs.mkdtempSync(path.join(os2.tmpdir(), 'scope-prune-hdr-'));
+      fs.writeFileSync(path.join(d, 'ledger.md'), body);
+      return d;
+    };
+
+    for (const [line, name, expected, label] of [
+      ['**Stage:** shipped', 'Stage', 'shipped', 'a plain token'],
+      ['**Stage:** `shipped`.', 'Stage', 'shipped', 'a backticked token with a period'],
+      ['**Stage:** **shipped**', 'Stage', 'shipped', 'an emphasised token'],
+      ['**Stage:** reviewed', 'Stage', 'reviewed', 'a non-shipped stage, unchanged'],
+      ['**Branch:** `fix/x`', 'Branch', 'fix/x', 'a backticked branch'],
+      // The capture-width difference: the hook used to take the first token, so an anchor title
+      // stopped at its first space. `scope.js` takes the rest of the line, and now so does this.
+      ['**Anchor:** #208 — Epic: one reader, shared.', 'Anchor', '#208 — Epic: one reader, shared.', 'a prose anchor title'],
+    ]) {
+      const dir = mk(`# ledger\n\n${line}\n`);
+      const viaHook = readHeader(dir, name);
+      const viaScope = scope.readLedgerHeader(`# ledger\n\n${line}\n`, name);
+      assert.equal(viaHook, expected, `hook reads ${label}`);
+      assert.equal(viaHook, viaScope, `hook and scope.js agree on ${label}`);
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+
+    // A value-less header line reads as absent, and never reaches the next line's token.
+    const empty = mk('# ledger\n\n**Stage:** shipped\n**Branch:**\n**Anchor:** #208 — Epic\n');
+    assert.equal(readHeader(empty, 'Branch'), null, 'an empty Branch line is absent');
+    assert.equal(readHeader(empty, 'Stage'), 'shipped', 'its neighbours still read');
+    assert.equal(readBranch(empty), null, 'readBranch agrees');
+    assert.equal(readStage(empty), 'shipped', 'readStage agrees');
+    fs.rmSync(empty, { recursive: true, force: true });
+
+    assert.equal(readHeader(path.join(os2.tmpdir(), 'no-such-scope-dir'), 'Stage'), null, 'an unreadable ledger is null');
+  }
+
+  // #reader-unavailable: the hook cannot load the shared reader → it prunes nothing and says nothing.
+  // A copy of this file outside the plugin cannot resolve `../scripts/scope.js`, which is exactly the
+  // failure being tested. This proves the fail-closed property holds when the reader is unavailable — not
+  // that the explicit `if (!readLedgerHeader) return;` guard in main() is what causes it: `readHeader`'s
+  // own try/catch already yields null for every header in that case, and a null stage is never prunable
+  // either way. The guard stays as explicit intent. Fail-closed is the same direction the hook already
+  // takes on a git error: a hook that cannot read a stage must never conclude a scope is finished.
+  {
+    const os2 = require('node:os');
+    const cp = require('node:child_process');
+    const away = fs.mkdtempSync(path.join(os2.tmpdir(), 'scope-prune-orphan-'));
+    fs.copyFileSync(__filename, path.join(away, 'scope-prune.js'));
+
+    const repo = fs.mkdtempSync(path.join(os2.tmpdir(), 'scope-prune-orphan-repo-'));
+    const g = (args) => cp.execFileSync('git', args, { cwd: repo, stdio: 'ignore' });
+    g(['init', '-q', '-b', 'main']);
+    g(['config', 'user.email', 'test@example.com']);
+    g(['config', 'user.name', 'test']);
+    fs.writeFileSync(path.join(repo, 'README.md'), 'x\n');
+    g(['add', '.']);
+    g(['commit', '-q', '-m', 'init']);
+    const doomed = path.join(repo, '.superdev', 'scopes', 'gone');
+    fs.mkdirSync(doomed, { recursive: true });
+    const led = path.join(doomed, 'ledger.md');
+    fs.writeFileSync(led, '# ledger\n\n**Stage:** shipped\n');
+    const past = new Date(Date.now() - TTL_MS - 1000);
+    fs.utimesSync(led, past, past);
+
+    const orphan = cp.spawnSync(process.execPath, [path.join(away, 'scope-prune.js')], {
+      input: JSON.stringify({ cwd: repo }), encoding: 'utf8', timeout: 15000,
+    });
+    assert.equal(orphan.status, 0, 'a hook that cannot load the reader still exits 0');
+    assert.equal(orphan.stdout, '', 'and prints nothing');
+    assert.equal(
+      fs.existsSync(doomed),
+      true,
+      'a scope that would otherwise be pruned survives when the shared reader is unavailable'
+    );
+    fs.rmSync(away, { recursive: true, force: true });
+    fs.rmSync(repo, { recursive: true, force: true });
   }
 
   console.log('scope-prune selftest ok');
