@@ -34,6 +34,8 @@ RED:   write ONE test for the next behavior → watch it fail
 GREEN: write the minimal code to pass it → watch it pass
 ```
 
+- **Read `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run the command it selects for each RED
+  and GREEN run.**
 - One test at a time; only enough code to pass the current test; don't anticipate future tests.
 - **Every acceptance criterion gets at least one increment.** The loop terminates on acceptance coverage,
   not on the specification's happy path — each criterion, including the failure and boundary cases the
@@ -133,9 +135,8 @@ The same laziness applies to gathering information:
 Read `docs/agents/toolchain.md` if present and honor it: use the recorded package manager and the
 build/lint/format commands for your workspace, and follow the style-prose docs it points to. If it's
 **absent**, just match the surrounding code's style — don't run your own toolchain-discovery scan.
-Either way, match the surrounding code even where you'd differ. For the test command specifically, read
-`docs/agents/verification.md` if present — its first fenced code block is the command to run; absent →
-infer it from the toolchain doc instead.
+Either way, match the surrounding code even where you'd differ. The TDD section above owns the test
+command itself.
 
 ## Documentation
 

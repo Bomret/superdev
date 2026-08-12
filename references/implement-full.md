@@ -88,8 +88,9 @@ Repeat until every slice is `merged`:
      here. Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section and follow
      it, including the `**Degraded:**` entry it defines for `<run-root>/ledger.md`. **`--unattended` →
      block** there instead.
-   - **`mechanical`** / **`docs`** slice → **skip both per-slice reviews** (the suite + the final review
-     are the net).
+   - **`mechanical`** / **`docs`** slice → **skip both per-slice reviews** (the merge's focused run, plus
+     the scope's one full-suite run — at `/superdev:review`, or the Final-phase run when every slice in
+     the scope is `mechanical`/`docs` — are the net; ADR 0025).
 4. **Merge (you, serially)** — from the scope checkout: `git merge --no-ff slice/<scope>/<id>`. Resolve
    any conflicts yourself (you hold cross-slice context; dispatch a fix subagent only if a conflict needs
    real code work). **Resolve conflicts only when they're additive.** Independent slices usually conflict
@@ -99,9 +100,11 @@ Repeat until every slice is `merged`:
    **semantic overlap** — the *same* logic changed two different ways, where you'd have to pick a winner —
    is not yours to guess: `git merge --abort` and escalate to the human. **`--unattended` → block** after the
    abort, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section: picking a winner
-   is exactly the human decision the token cannot stand in for. **Re-run the suite on scope**
-   after merging — if a test command is configured (`docs/agents/verification.md`), the **green-gate hook**
-   runs it for you and blocks with a RED report you must fix or revert before continuing. Then clean up:
+   is exactly the human decision the token cannot stand in for. **A focused suite runs on the merge,
+   automatically** — if a test command is configured (`docs/agents/verification.md`), the **green-gate
+   hook** re-runs the focused command over this merge's changed paths
+   (`${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` owns which command that is) and blocks with a RED
+   report you must fix or revert before continuing. Then clean up:
    `git worktree remove .superdev/scopes/<scope>/worktrees/<id>` and `git branch -D slice/<scope>/<id>` (merged;
    leaving it clutters the repo). The **worktree-sweep** `Stop` hook removes any merged slice worktree you
    forget, so cleanup is guaranteed even if you skip this — but do it anyway. **Append the interfaces this

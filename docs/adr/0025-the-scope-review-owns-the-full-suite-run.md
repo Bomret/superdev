@@ -51,6 +51,14 @@ degrades into a focused run over no paths, which would report green having teste
 A scope's whole-suite verification happens once, at the point where the integrated branch is judged
 against the Definition of Done, instead of continuously throughout the run.
 
+A scope whose slices are all `mechanical`/`docs` skips the whole-scope review by design — there is no
+Definition-of-Done judgment to attach a full-suite run to. `/superdev:implement`'s Final phase runs the
+full suite itself instead, once, immediately before handing off to `/superdev:document` in place of
+`/superdev:review`. A red result there stops the handoff, the same way a red verdict at review would.
+The permission classifier can deny that Bash call. Attended, the run records a `**Degraded:**` entry
+and continues. Unattended, it blocks instead. An attended denial reaches the pull request with zero
+full-suite runs for this scope.
+
 A cross-slice break surfaces later than it did. On the full tier the green-gate still catches it at the
 merge that introduced it, because the focused run covers the paths that merge brought in. On the **lite
 tier there is no merge at all** — slices commit straight to the scope branch — so no gate fires between

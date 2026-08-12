@@ -147,9 +147,11 @@ bash or PowerShell variants.
   `agent_id`. The controller integrates.
 - **model-explicit.** Blocks a dispatch to a superdev subagent that omits an explicit `model`, so cost
   is always warrant-scaled.
-- **green-gate.** After a controller merge, re-runs the configured test command and blocks on a RED
-  suite. "Tests pass on scope after merging" is therefore enforced and not merely prompted. The gate is
-  inactive until `docs/agents/verification.md` records a test command, which `/superdev:setup` does.
+- **green-gate.** After a controller merge, runs the command
+  [`references/test-selection.md`](references/test-selection.md) picks and blocks on a RED result. That
+  file owns the full-versus-focused rule the gate follows. "Tests pass on scope after merging" is
+  therefore enforced, not merely prompted. The gate is inactive until `docs/agents/verification.md`
+  records a test command, which `/superdev:setup` does.
 - **run-lock.** Blocks a `git worktree add` on a scope worktree (`.superdev/scopes/<scope>/worktree`)
   while a fresh `.superdev/scopes/<scope>/run.lock` exists, so two concurrent lite runs on one scope
   cannot collide. A stale lock (older than the staleness threshold) or no lock at all passes through,
@@ -226,9 +228,13 @@ never hardcode a tool. Edit those files directly at any time. Re-run setup only 
   a pluggable backend. It records one section per workspace, so agents use the right tools instead of
   rediscovering them. The `test` entry defers to Verification. The result goes to
   `docs/agents/toolchain.md`.
-- **Verification** *(optional)*. The repo's test command. Recorded, it **arms the green-gate** hook,
-  which re-runs the suite after every controller merge. Omitted, the gate stays inactive. The answer goes
-  to `docs/agents/verification.md`.
+- **Verification** *(optional)*. The repo's test command, the first fenced block of
+  `docs/agents/verification.md`. Recorded, it **arms the green-gate** hook. Omitted, the gate stays
+  inactive. An optional second fenced block holds the focused test command. It narrows four callers to a
+  set of changed paths. They are the implementer's TDD loop, the lite tier's inline loop, the
+  slice-reviewer's Lens 2 re-run, and the green-gate hook.
+  [`references/test-selection.md`](references/test-selection.md) owns the full-versus-focused rule. The
+  answer goes to `docs/agents/verification.md`.
 
 To add a backend, write a new seed template in `references/` plus a config doc. No command and no agent
 changes.

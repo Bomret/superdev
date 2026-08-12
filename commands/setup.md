@@ -12,7 +12,8 @@ Write the six per-repo config docs the superdev skills read, so the workflow is 
 - `docs/agents/knowledge-base.md` — the optional **knowledge base** (software / local file / none)
 - `docs/agents/toolchain.md` — the detected **toolchain** profile (package manager + build/lint/format/
   release commands + style pointers), one section per workspace
-- `docs/agents/verification.md` — the optional **test command** that arms the merge green-gate hook
+- `docs/agents/verification.md` — the optional **test commands** (a full one, plus an optional focused
+  one) that arm the merge green-gate hook
 
 This is prompt-driven, not a script. **Explore, propose defaults, confirm one decision at a time, then
 write.** Seed templates live in `${CLAUDE_PLUGIN_ROOT}/references/`.
@@ -149,6 +150,13 @@ scripts, a Makefile `test` target, `pyproject.toml`) and propose it. No suite (e
 skip; the gate stays inactive and nothing else changes. (The **F** scan below finds the same manifests —
 draw the proposed test command from it.)
 
+Then ask about the **focused test command** (optional): a command that scopes a run to a set of changed
+paths (e.g. `vitest related {paths}`, `pytest {paths}`, or a runner flag that detects the change set on
+its own, like `vitest --changed`). `references/test-selection.md` owns the full contract — read it, then
+propose a command derived from the full command above where the repo's runner supports narrowing. `none`
+→ record no such command; the run then always falls back to the full command, which is the
+configuration this repository keeps.
+
 **F — Toolchain (optional).** From §1's scan, propose the repo's toolchain profile — the package manager
 and the build/lint/format/release commands agents should use, plus pointers to the linter/formatter
 configs and style-prose docs. Record **pointers, not copied rules** — the config files stay the source of
@@ -206,14 +214,20 @@ Write:
   - Not wired: `.editorconfig` present but no command applies it — formatting not enforced
   - Style prose: `CONTRIBUTING.md §Style`
   ````
-- `docs/agents/verification.md` — the test command in a single fenced block (the green-gate reads the
-  first fenced block). Skip the file entirely if there's no suite. Example:
+- `docs/agents/verification.md` — the full test command as the first fenced block. Skip the file
+  entirely if there's no suite. Add the focused test command, where decision **E** answered one, as a
+  second fenced block; answering `none` writes only the first block. Example, with a focused command
+  configured:
 
   ````markdown
   # Verification
 
   ```sh
   npm test
+  ```
+
+  ```sh
+  npx vitest related {paths}
   ```
   ````
 - Add an `## Agent skills` block to whichever of `CLAUDE.md` / `AGENTS.md` already exists (edit that
@@ -238,7 +252,7 @@ Write:
 [one-line summary — package manager + key commands, or "none detected"]. See `docs/agents/toolchain.md`.
 
 ### Verification
-[the test command, or "none"]. Arms the merge green-gate. See `docs/agents/verification.md`.
+[the test commands, or "none"]. Arms the merge green-gate. See `docs/agents/verification.md`.
 ```
 
 If neither `CLAUDE.md` nor `AGENTS.md` exists, ask the user which to create — don't pick for them.

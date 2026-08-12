@@ -836,6 +836,46 @@ const KB_STAGING_CONTRACTS = [
   [path.join('agents', 'doc-writer.md'), /\.superdev\/kb-pending\//, 'write a remote backend\'s pages under `.superdev/kb-pending/`'],
 ];
 
+// ADR 0025: `/superdev:review` in scope mode is the only full-suite run left in the chain. The
+// controller runs the full command itself, before dispatching `final-reviewer`, so a dispatch the
+// permission classifier denies is a degraded review rather than a lost verification. Losing either half
+// silently reopens the gap ADR 0025 closed: a command that stops running the suite itself falls back to
+// leaving that run to the subagent's optional re-run, and a reviewer that stops naming that optionality
+// treats its own re-run as authoritative again. Two more rows guard the fail path itself, added on
+// re-review: a `review.md` that stops folding a red full suite into the fix loop as a Critical finding
+// lets a red gate pass through unfixed, and a `final-reviewer.md` that stops making `Full-suite run: fail`
+// disqualifying on its own lets the other four axes argue a red suite back to "Yes". A fifth row guards
+// the clause that actually blocks a red scope: a `review.md` that keeps the fail-is-Critical wording but
+// drops "The stage does **not** advance while it stands" would still name the finding without holding up
+// the handoff over it.
+const FULL_SUITE_CONTRACTS = [
+  [
+    path.join('commands', 'review.md'),
+    /run the full (?:test )?suite (?:itself|yourself)[\s\S]{0,60}before dispatching/i,
+    'run the full suite itself, before dispatching `final-reviewer`, per ADR 0025',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /own re-run[\s\S]{0,60}stays optional[\s\S]{0,80}never the scope's only full-suite run/i,
+    "state that its own re-run stays optional and is never the scope's only full-suite run",
+  ],
+  [
+    path.join('commands', 'review.md'),
+    /a `?fail`?[\s\S]{0,20}is itself a Critical finding[\s\S]{0,60}fold it into the fix\s+loop/i,
+    'state that a `fail` here is itself a Critical finding, folded into the fix loop',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /`?Full-suite run:\s*fail`?\s+makes the verdict\s+`?Ready to merge\?\s*No`?/i,
+    'state that `Full-suite run: fail` makes the verdict `Ready to merge? No` on its own',
+  ],
+  [
+    path.join('commands', 'review.md'),
+    /the stage does\s+\*\*not\*\*\s+advance while it stands/i,
+    'state that the stage does **not** advance while a full-suite fail or Critical/Important finding stands',
+  ],
+];
+
 // The documents that must reach no knowledge-base backend, and the markers that say one does.
 // `/superdev:publish-kb` is deliberately absent from the document list: reaching the backend is its job.
 //
@@ -930,6 +970,37 @@ function scanHookLedgerParsers(root) {
   return offenders;
 }
 
+// ADR 0025: every run inside the TDD/inline loop is focused, and `references/test-selection.md` owns the
+// rule that picks the focused command over the full one. Each loop consumer reads that file at runtime
+// instead of restating the rule, so the wire is what can drift: a consumer can drop the read/apply
+// instruction while the reference still resolves (scan() above stays green), which leaves the suite green
+// and the narrowing silently gone in every dispatch — the same failure shape as the content-types and
+// unattended-token contracts. Anchored on `Read … test-selection.md` **and** the substantive clause "run
+// the command it selects" that follows it in every real document — `\s+` between each word tolerates the
+// prose wrap, since the three real documents each wrap that phrase at a different word. A pattern anchored
+// on the bare `Read … test-selection.md` mention alone (`CONTENT_TYPES_PATTERN`'s shape) would pass a
+// document that keeps the reference in a passing aside but drops the instruction to run what it selects —
+// the same anti-pattern `FULL_SUITE_CONTRACTS` avoids by anchoring on its own substantive clause.
+const TEST_SELECTION_PATTERN =
+  /Read\s+`?(?:\$\{CLAUDE_PLUGIN_ROOT\}\/)?references\/test-selection\.md`?[\s\S]{0,60}?run\s+the\s+command\s+it\s+selects/;
+const TEST_SELECTION_CONTRACTS = [
+  [
+    path.join('agents', 'implementer.md'),
+    TEST_SELECTION_PATTERN,
+    'read `references/test-selection.md` and run the command it selects for each RED→GREEN increment',
+  ],
+  [
+    path.join('references', 'implement-lite.md'),
+    TEST_SELECTION_PATTERN,
+    'read `references/test-selection.md` and run the command it selects for the inline loop',
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    TEST_SELECTION_PATTERN,
+    "read `references/test-selection.md` and run the command it selects for Lens 2's independent re-run",
+  ],
+];
+
 // scanContract() is pure over a root dir and a contract table: reads each document the table names and
 // reports the expectations it no longer meets. Absent files are skipped, so fixtures need only the
 // documents they exercise. Both tables above share this one scanner — they differ in what they assert,
@@ -974,6 +1045,8 @@ function main() {
     ...scanContract(root, KB_STAGING_CONTRACTS),
     ...scanKbNoBackendCall(root),
     ...scanHookLedgerParsers(root),
+    ...scanContract(root, TEST_SELECTION_CONTRACTS),
+    ...scanContract(root, FULL_SUITE_CONTRACTS),
   ];
   // Every scanner above skips a document it cannot read, so that a fixture carries only the files it
   // exercises. That convention would let `commands/afk.md` be deleted without a single check going red,
@@ -1010,7 +1083,10 @@ function main() {
         'every chain document invokes its scope.js verb, ' +
         'no hook parses a ledger header itself, ' +
         'knowledge-base pages are staged and no document but publish-kb reaches a backend, ' +
-        'eval graders and scaffolds well-formed',
+        'eval graders and scaffolds well-formed, ' +
+        'every loop consumer reads test-selection.md, ' +
+        "and the scope review runs the full suite itself while final-reviewer's own re-run stays " +
+        'optional',
     );
     process.exit(0);
   }
@@ -2558,6 +2634,150 @@ if (process.argv[2] === '--selftest') {
   );
 
   assert.equal(scanHookLedgerParsers(fixture({ 'README.md': '# repo\n' })).length, 0, 'no hooks dir is skipped');
+
+  // --- TEST_SELECTION_CONTRACTS: the TDD loop, the inline loop, and Lens 2's independent re-run each
+  // read references/test-selection.md rather than restating the focused-command rule (ADR 0025). scan()
+  // above would stay green if one dropped the read/apply instruction while the reference file itself
+  // still exists — this is the wire, not the reference. ---
+
+  assert.equal(
+    scanContract(realRoot, TEST_SELECTION_CONTRACTS).length,
+    0,
+    'the repo as it stands wires all three loop consumers to test-selection.md',
+  );
+
+  for (const rel of [
+    path.join('agents', 'implementer.md'),
+    path.join('references', 'implement-lite.md'),
+    path.join('agents', 'slice-reviewer.md'),
+  ]) {
+    const dropped = fixture({ [rel]: '# doc\n\nRuns its own test command, no reference to speak of.\n' });
+    const tsGaps = scanContract(dropped, TEST_SELECTION_CONTRACTS);
+    assert.equal(tsGaps.length, 1, `flags ${rel} for dropping the test-selection reference`);
+    assert.equal(tsGaps[0].source, rel, `names ${rel} as the offender`);
+  }
+
+  // positive: a document that keeps the reference but drops the "run the command it selects" clause
+  // still passes today unless the pattern is anchored on that clause too — a bare mention of the file
+  // is not the wire, the run instruction is
+  const readOnly = fixture({
+    [path.join('agents', 'implementer.md')]:
+      'Read `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` for the rule, then run whatever you like.\n',
+  });
+  const readOnlyGaps = scanContract(readOnly, [TEST_SELECTION_CONTRACTS[0]]);
+  assert.equal(
+    readOnlyGaps.length,
+    1,
+    'flags a document that reads the reference but drops the run-the-selected-command instruction',
+  );
+
+  // positive: either read form — the ${CLAUDE_PLUGIN_ROOT} macro or bare prose — satisfies the wire
+  const wired1 = fixture({
+    [path.join('agents', 'implementer.md')]:
+      'Read `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run the command it selects.\n',
+  });
+  assert.equal(
+    scanContract(wired1, [TEST_SELECTION_CONTRACTS[0]]).length,
+    0,
+    'the ${CLAUDE_PLUGIN_ROOT} macro form satisfies the wire',
+  );
+  const wired2 = fixture({
+    [path.join('references', 'implement-lite.md')]:
+      'Read references/test-selection.md and run the command it selects.\n',
+  });
+  assert.equal(
+    scanContract(wired2, [TEST_SELECTION_CONTRACTS[1]]).length,
+    0,
+    'the bare-prose form satisfies the wire',
+  );
+
+  assert.equal(
+    scanContract(fixture({ 'README.md': '# repo\n' }), TEST_SELECTION_CONTRACTS).length,
+    0,
+    'absent files are skipped',
+  );
+
+  // --- FULL_SUITE_CONTRACTS: /superdev:review in scope mode is the only full-suite run left in the
+  // chain (ADR 0025) — the controller runs it itself, before dispatching final-reviewer, and
+  // final-reviewer names its own re-run as optional and never the scope's only full-suite run. ---
+
+  assert.equal(
+    scanContract(realRoot, FULL_SUITE_CONTRACTS).length,
+    0,
+    'the shipped review command and final-reviewer both carry the ADR 0025 wiring',
+  );
+
+  // positive: review.md drops the controller-run full suite and goes back to just handing over the command
+  const fs1 = fixture({
+    'commands/review.md': 'Read `docs/agents/verification.md` for the test command and pass it to final-reviewer.\n',
+  });
+  const fsGaps1 = scanContract(fs1, FULL_SUITE_CONTRACTS);
+  assert.equal(fsGaps1.length, 3, 'flags a review.md missing all three of its rows: the controller-run suite, fail-is-Critical, and stage-not-advance');
+  assert.ok(
+    fsGaps1.every((g) => g.source === path.join('commands', 'review.md')),
+    'all three gaps name review.md',
+  );
+
+  // positive: final-reviewer.md drops the optionality clause and reads like the run is its own again
+  const fs2 = fixture({
+    'agents/final-reviewer.md': 'Re-run the suite over the range to confirm green before you write your verdict.\n',
+  });
+  const fsGaps2 = scanContract(fs2, FULL_SUITE_CONTRACTS);
+  assert.equal(fsGaps2.length, 2, 'flags a final-reviewer.md that stopped naming its re-run as optional, and its missing fail-means-No row');
+  assert.ok(
+    fsGaps2.every((g) => g.source === path.join('agents', 'final-reviewer.md')),
+    'both gaps name final-reviewer.md',
+  );
+
+  // positive: review.md drops the failing-suite-is-Critical rule and the stage-not-advance rule
+  const fs4 = fixture({
+    'commands/review.md': 'Run the full suite yourself, before dispatching `final-reviewer`.\n',
+  });
+  const fsGaps4 = scanContract(fs4, FULL_SUITE_CONTRACTS);
+  assert.equal(fsGaps4.length, 2, 'flags a review.md missing the failing-suite-is-Critical rule and the stage-not-advance rule');
+  assert.ok(
+    fsGaps4.every((g) => g.source === path.join('commands', 'review.md')),
+    'both gaps name review.md',
+  );
+
+  // positive: final-reviewer.md drops the fail-means-No rule
+  const fs5 = fixture({
+    'agents/final-reviewer.md':
+      "Your own re-run here stays optional and is never the scope's only full-suite run.\n",
+  });
+  const fsGaps5 = scanContract(fs5, FULL_SUITE_CONTRACTS);
+  assert.equal(fsGaps5.length, 1, 'flags a final-reviewer.md that drops the fail-means-No rule');
+  assert.equal(fsGaps5[0].source, path.join('agents', 'final-reviewer.md'), 'names final-reviewer.md');
+
+  // positive: review.md keeps the fail-is-Critical wording but drops the clause that actually blocks the
+  // handoff — the anti-pattern the acceptance criteria for this row names directly
+  const fs6 = fixture({
+    'commands/review.md':
+      "Run the full suite yourself, before dispatching `final-reviewer`. A `fail` here is itself a " +
+      'Critical finding — fold it into the fix loop below.\n',
+  });
+  const fsGaps6 = scanContract(fs6, FULL_SUITE_CONTRACTS);
+  assert.equal(fsGaps6.length, 1, 'flags a review.md that names the finding but drops the stage-not-advance clause');
+  assert.equal(fsGaps6[0].source, path.join('commands', 'review.md'), 'names review.md');
+
+  // negative: all five rows carried
+  const fs3 = fixture({
+    'commands/review.md':
+      "Run the full suite yourself, before dispatching `final-reviewer`. A `fail` here is itself a " +
+      'Critical finding — fold it into the fix loop below. The stage does **not** advance while it ' +
+      'stands.\n',
+    'agents/final-reviewer.md':
+      "Your own re-run here stays optional and is never the scope's only full-suite run. `Full-suite " +
+      'run: fail` makes the verdict `Ready to merge? No`.\n',
+  });
+  assert.equal(scanContract(fs3, FULL_SUITE_CONTRACTS).length, 0, 'all five rows carried yields zero gaps');
+
+  // absent files are skipped, matching every other contract table
+  assert.equal(
+    scanContract(fixture({ 'README.md': '# repo\n' }), FULL_SUITE_CONTRACTS).length,
+    0,
+    'absent files are skipped',
+  );
 
   console.log('drift-check selftest ok');
 } else {

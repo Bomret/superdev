@@ -56,9 +56,12 @@ all):
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>`, one tab-separated row per
   slice) → drop `/superdev:review` from that warning,
   whether it applies to this bullet or to `documented-unreviewed` above. Such a scope skips the
-  whole-scope review by design (the suite is the net), so naming it as missing would train the reader to
-  dismiss the question. If that drop empties the warning (review was the only thing missing), there is
-  nothing left to name. Proceed silently instead of asking about an empty list.
+  whole-scope review by design — a scope reaches this stage only once `/superdev:implement`'s Final
+  phase has run the full suite and found it green, found no test command configured, or recorded a denied
+  test command and continued attended (ADR 0025) — so
+  naming `/superdev:review` as missing
+  would train the reader to dismiss the question. If that drop empties the warning (review was the only
+  thing missing), there is nothing left to name. Proceed silently instead of asking about an empty list.
 
 ## 4. Definition of Done
 

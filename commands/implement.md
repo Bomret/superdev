@@ -41,8 +41,9 @@ implementer's TDD discipline yourself. Between dispatches, narrate at most one s
   entry to `<run-root>/ledger.md` with the `scope.js degraded add` verb that section names.
   **`--unattended` → block** there instead.
 - **Agents carry their own discipline.** Implementers own test-first TDD; reviewers own "green ≠ correct"
-  and hunting uncovered input; `mechanical`/`docs` slices invent no tests (the suite is the net). Don't
-  re-teach any of it when dispatching — pass specifics, not lectures.
+  and hunting uncovered input; `mechanical`/`docs` slices invent no tests — the runs already in the loop,
+  plus the scope's one full-suite run (ADR 0025), are the net. Don't re-teach any of it when dispatching —
+  pass specifics, not lectures.
 
 ## Config + input
 
@@ -174,15 +175,40 @@ it and keep going. Points: dispatch → `in-progress`; entering per-slice review
 `in-review`; BLOCKED → `blocked`; merged → `merged`/done. The **scope anchor** issue — the epic if one
 exists, otherwise the lone slice on a single-slice plan — moves to `in-progress` when the run starts, and
 **`/superdev:ship` closes it** at the end of the chain, not you: a scope whose slices are all merged still
-has to be reviewed, documented, and shipped. On a single-slice plan the lone slice moves to `merged` here
-as any slice does, and the same issue carries the scope-level signal it closes on later. (The `lite`
-playbook skips the `in-review` transition — it has no per-slice review.)
+has to be reviewed, documented, and shipped. **On a single-slice plan the anchor rule wins.** Its lone
+issue is both the slice and the anchor. It stays `in-progress` through the merge, and closes once, when
+`/superdev:ship` runs. (The `lite` playbook skips the `in-review` transition — it has no per-slice
+review.)
 
 ## Final phase — hand off to `/superdev:review`
 
 Run after your playbook returns (every slice `merged`/committed on the scope branch). Identical across
 tiers: your job here is to record that slice execution finished and to name what comes next.
 
+- **All slices `mechanical`/`docs`? Run the full suite before writing the stage.** Such a scope skips the
+  whole-scope review by design — there is no Definition-of-Done judgment to attach one to — so this phase
+  attempts that scope's one full-suite run itself, once, in place of that review, before the pull request
+  (ADR 0025). Read
+  `docs/agents/verification.md` for the full command per
+  `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run it once over the scope branch. **No test
+  command configured, or Green** → continue to the stage write below; a repo that configures nothing
+  loses nothing it had, and claims no run it never made. **Denied by the permission classifier** → this is
+  `## Degraded passes`'s second shape: the pass ran and could not reach what it needed. Its own action is
+  record and continue regardless of attendance — but this is the only full-suite verification a
+  `mechanical`/`docs` scope gets, since it skips `/superdev:review` by design, so continuing unattended
+  would reach `/superdev:ship` with no suite run behind it anywhere in the chain: a **local deviation**
+  from that default, for that reason. **Attended** → write the `**Degraded:**` entry
+  (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" degraded add "<text>" --root <run-root>`, per
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section, second shape) naming the
+  denial, and continue to the stage write below. **Unattended** → **block** instead, per that file's
+  `## Unattended` section, for the reason above. **Red** → do **not** write the stage — leave it
+  where it is, and dispatch **one** `superdev:implementer` (`model: sonnet`; `haiku` only for a mechanical
+  fix) with the failing output — never fix it yourself inline: the controller only integrates, and lite's
+  inline loop is that tier's own deliberate exception (ADR 0001), not this phase's. Every fix opens with a
+  RED test that reproduces the failure. Re-run the full suite after it returns; repeat until green or three
+  cycles without going clean (this bullet's own 3-strike cap — a scope-wide suite has no single slice to
+  move to `blocked`, so the remedy is here, not in the controller's Invariants: stop, say so, and leave the
+  stage where it is).
 - **Set the stage to `merged`.** Run
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set merged --root <run-root>`. The ledger's
   `**Stage:**` line is what tells the next command, or a resumed run, that every slice is on the scope
@@ -195,9 +221,13 @@ tiers: your job here is to record that slice execution finished and to name what
 - **Print the next command, resolved.** Compute `BASE = git merge-base <base> <type>/<scope>` and print
   it with the real commit substituted, so the line is copy-pasteable:
   `/superdev:review <BASE-sha>..<type>/<scope>`. Say in one line what it will do (review the integrated
-  scope against the DoD) and stop. **All slices `mechanical`/`docs`** → add that such a scope skips the
-  whole-scope review by design (the suite is the net), so `/superdev:document <BASE-sha>..<type>/<scope>`
-  is the reasonable next step instead.
+  scope against the DoD) and stop. **All slices `mechanical`/`docs`** → print
+  `/superdev:document <BASE-sha>..<type>/<scope>` instead of the review command, and say in one line that
+  it will do so because this scope's slices carry no whole-scope review. The full suite above already ran
+  and left one of three outcomes:
+  - **Green.**
+  - **No test command configured.**
+  - **A denied test command, recorded and continued attended** (ADR 0025).
 - **Report** the scope branch, the slice count, and the commit range. Then stop: no review, no doc pass, no
   pull request, no DoD tick, no cleanup.
 

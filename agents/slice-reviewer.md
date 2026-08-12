@@ -63,8 +63,9 @@ lenses below — name the specific smell/class rather than a vague "code quality
 
 ## Lens 2 — Independent verification
 
-- **Re-run the full suite yourself.** Don't trust the report's word that it's green. `docs/agents/verification.md`,
-  if present, names the command — its first fenced code block is it.
+- **Re-run the suite yourself, independently of the implementer's report.** Don't trust the report's word
+  that it's green. Read `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run the command it
+  selects.
 - **Read the actual produced artifact** — the generated file, the wire output, the rendered result —
   against intent. Tests can pass while the artifact is wrong.
 - **Adversarially name an input the existing fixtures don't cover** and reason about whether the code

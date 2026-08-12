@@ -47,6 +47,8 @@ references/            — backend seed templates + plan-contract (slice schema/
                          execution playbooks (implement-full/lite, read at runtime by /implement) +
                          scope-mode (the rule /review, /document, and /ship share, read at runtime by
                          each, plus its Unattended section /implement and both playbooks also read) +
+                         test-selection (the full-versus-focused test-command rule, ADR 0025, read at
+                         runtime by every full/focused-suite caller) +
                          authoring disciplines (cross-examination, domain-modeling, doc-verification;
                          read at runtime by /plan + /brainstorm, doc-verification also by implementer) +
                          review-checklist (anti-patterns, vuln-classes, reuse-audit, consistency; read at
@@ -295,7 +297,7 @@ This root owns every subtree directly:
   its source. The
   eval-shape check compares a document against a schema. The afk-existence check is a plain existence
   assertion.
-  `drift-check.js` guards twenty-three things, in the order its `main()` computes them. First, that every
+  `drift-check.js` guards twenty-five things, in the order its `main()` computes them. First, that every
   `references/*.md` path named in `commands/`, `agents/`, or `references/` itself resolves to a file that
   exists. A reference cites
   another reference — both execution playbooks point at `scope-mode.md` — so a rename there dangles like
@@ -408,9 +410,20 @@ This root owns every subtree directly:
   pattern's shape rather than running the hooks, because the same drift happened to `scope-prune.js`'s own
   copy. A second reader can diverge on anchoring, capture width, newline handling, or markup normalisation
   silently, and prose alone would not have caught it.
-  Twenty-second,
+  Twenty-second, the test-selection wiring contract (ADR 0025): `agents/implementer.md`,
+  `references/implement-lite.md`, and `agents/slice-reviewer.md` each still instruct themselves to read
+  `references/test-selection.md` **and run the command it selects** — anchored on that clause, not the
+  bare mention, so a document that keeps the path in a passing aside but drops the run instruction still
+  fails. Twenty-third, the full-suite contract (ADR 0025), five rows: `commands/review.md` still runs the
+  full suite itself, before dispatching `final-reviewer`; states that a `fail` there is itself a Critical
+  finding folded into the fix loop; and states that the stage does **not** advance while a full-suite fail
+  or Critical/Important finding stands — the clause that actually blocks a red scope, distinct from the
+  finding merely being named. `agents/final-reviewer.md` still names its own re-run as optional and never
+  the scope's only full-suite run, and states that `Full-suite run: fail` makes the verdict `Ready to
+  merge? No` on its own. Losing any one row quietly reopens the gap ADR 0025 closed.
+  Twenty-fourth,
   that `commands/afk.md` exists at all. Nothing else in the plugin names `/superdev:afk` for the eighth
-  check to resolve, so its absence would otherwise go unnoticed. Twenty-third, that every
+  check to resolve, so its absence would otherwise go unnoticed. Twenty-fifth, that every
   `evals/*/graders/*.md` declares a known `type` and a positive `weight`, that an `llm` or `regex`
   grader also declares a `focus` or `target`, and that every case's `scaffold_script` resolves. Nothing
   else validates a grader, so without this a typo surfaces part-way through a run that costs real API
@@ -445,6 +458,9 @@ This root owns every subtree directly:
     one (ADR 0014).
   + **Execution playbooks** (`implement-full.md`, `implement-lite.md`): the tier-specific linear
     procedures `/implement` reads at runtime once it computes the tier.
+  + `test-selection.md`: the rule that picks the full test command over the focused one (ADR 0025) —
+    single-sourced here and read at runtime by `agents/implementer.md`, `agents/slice-reviewer.md`,
+    `references/implement-lite.md`, and `hooks/green-gate.js`.
   + `scope-mode.md`: the rule `/superdev:review`, `/superdev:document`, and `/superdev:ship` share (ADR
     0013) — what makes a range a live scope run, how to find the scope checkout on disk for both tiers, and
     the run-lock refresh-not-create rule. Each of the three reads it at runtime and keeps only what is

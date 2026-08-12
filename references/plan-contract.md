@@ -109,8 +109,9 @@ unrendered; the touch map is plain text and unaffected.
 
 - `behavior` — implementer does full TDD; **slice-reviewer runs** (correctness + independent
   verification); **simplicity-reviewer runs** (over-engineering).
-- `mechanical` — pure move/rename/format: no new test (the existing suite is the net); **both
-  per-slice reviews skipped**; correctness is caught by the suite + final review.
+- `mechanical` — pure move/rename/format: no new test — the runs already in the loop, plus the scope's
+  one full-suite run (ADR 0025), are the net; **both per-slice reviews skipped**; correctness is caught
+  there, not by a dedicated per-slice review.
 - `docs` — documentation only: no test, **reviews skipped**.
 
 ## Slice lifecycle & status
@@ -128,7 +129,9 @@ recorded in `issue-tracker.md`:
 | `merged` (done) | merged into the scope branch |
 
 `mechanical`/`docs` slices skip `in-review` (`in-progress` → `merged`). The scope anchor moves to
-`in-progress` when the run starts. `/superdev:ship` closes it to `done` at the end of the chain.
+`in-progress` when the run starts. `/superdev:ship` closes it to `done` at the end of the chain. On a
+single-slice plan the lone issue is both the slice and the anchor. The anchor rule wins: it stays
+`in-progress` through the merge, and closes once, at ship.
 
 `/implement` derives an **execution tier** from the loaded slice count (≤3 → `lite`, >3 → `full`) —
 never a plan field, never persisted. The **lite** tier has no per-slice review at all, regardless of

@@ -118,6 +118,8 @@ Forgejo.
 | `merged` (done) | **closed** | `PATCH { "state": "closed" }` after merge |
 
 The **epic** issue: label `in-progress` when the run starts, **closed** once every slice issue is closed.
+A **single-slice feature has no epic**: its lone issue is the scope anchor, so the anchor rule wins. It
+keeps the `in-progress` label through the merge, and closes once, when `/superdev:ship` runs.
 Best-effort — the run ledger drives control flow; if a label/close call fails, log it and continue.
 
 **Lite execution tier** (≤3 slices, see `plan-contract.md`) skips `in-review` for every slice regardless

@@ -24,9 +24,11 @@ doesn't work — a "Yes" verdict is one that survived your best attempt to break
   (`git diff <merge-base>..HEAD -- <path>`, or `git diff HEAD -- <path>` when that path has uncommitted
   changes). For the working-tree scope and a path scope diffed against `HEAD`, the controller stages
   untracked files with `git add -N .` before dispatching you, or says it could not — you mutate nothing.
-- **Test command** (optional): the command from `docs/agents/verification.md`, when the controller found
-  one configured — you may re-run the suite over the range to confirm green rather than trust the diff
-  alone.
+- **Test command or result** (optional). On an ad-hoc range, the command from `docs/agents/verification.md`,
+  when the controller found one configured — you may re-run the suite over the range to confirm green
+  rather than trust the diff alone. **On a live scope run**, the controller already ran the full suite
+  itself before dispatching you and hands you that result instead (ADR 0025) — that is the scope's one
+  full-suite run. Your own re-run here stays optional and is never the scope's only full-suite run.
 
 ## Derive the criteria first
 
@@ -174,9 +176,13 @@ For each: file:line · what's wrong · why it matters · how to fix (if not obvi
 [one note, per the four gates above; omit this section entirely when nothing qualifies]
 
 ### Assessment
+Full-suite run: [pass | fail | not run]
 Ready to merge? [Yes | No | With fixes]
 Reasoning: [1–2 sentences]
 ```
+
+`Full-suite run: fail` makes the verdict `Ready to merge? No`, regardless of what the five axes above
+found — a red suite is disqualifying on its own, not one more input the verdict weighs against the rest.
 
 `### Ceiling` sits outside the severity ladder deliberately. The Issues format is
 `file:line · what's wrong · why it matters · how to fix`, and a ceiling note has no *what's wrong* to put

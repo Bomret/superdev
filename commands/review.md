@@ -21,6 +21,8 @@ Either way the reviewers themselves are the same read-only subagents.
   `main`).
 - Read `docs/agents/verification.md`, if present, for the **test command** — pass it to the
   final-reviewer so it can re-run the suite over the range and confirm green, not just read the diff.
+  **In scope mode, §4 instead runs the full command itself before dispatch and hands the result, not
+  just the command, to `final-reviewer`** (ADR 0025).
 - **Neither file is required.** This command works in any repo, including one never set up for superdev
   (`/superdev:setup` was never run) — it just loses the test-command hint.
 
@@ -96,9 +98,11 @@ superdev subagent that omits one):
     the time the reviewer's own instruction asks it to derive first, and no instruction can undo that. The
     reviewer also reads `<run-root>/ledger.md`'s slice list for step 1 of its derivation — `<run-root>` is
     `dod.md`'s own directory, so no separate path needs passing.
-  If a test command is configured
+  **Ad-hoc mode**, if a test command is configured
   (`docs/agents/verification.md`), tell it it may re-run the suite over the range to verify green rather
-  than trust the diff alone.
+  than trust the diff alone. **Scope mode** — §4 already ran the full suite itself before this dispatch;
+  hand it that result instead, and tell it its own re-run stays optional, never the scope's only
+  full-suite run.
 - **`superdev:simplicity-reviewer`** (`model: haiku`) — over-engineering only (unnecessary complexity,
   what stdlib/native replaces, what to delete). Give it the same git range.
 
@@ -141,6 +145,7 @@ net: -<N> lines possible   (or "Lean already" if nothing to cut)
 when it didn't]
 
 ### Assessment
+Full-suite run: [pass | fail | not run | denied — degraded pass]
 Correctness: [ready | not ready]. Simplicity: [N cuts recommended, non-blocking | Lean already | not dispatched].
 Ready to merge? [Yes | No | With fixes]
 Reasoning: [1–2 sentences]
@@ -165,9 +170,31 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
 - **Find the scope checkout, and refresh the run lock.** Per
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`. **Not on `<type>/<scope>`** → report that and review
   read-only rather than writing to the wrong branch.
-- **Ask once before fixing.** `final-reviewer` returned **Critical or Important** findings → report them
-  per §3 first, then ask whether to fix them now. **Declined** → stop. The findings stand, nothing is
-  written, and the stage does **not** advance. **`--unattended` → fix**, without asking: the fix loop is the
+- **Run the full suite yourself, before dispatching `final-reviewer`.** Read `docs/agents/verification.md`
+  for the full test command per
+  `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run it over the scope branch. This
+  happens whether or not the `final-reviewer` dispatch below succeeds, so a denied dispatch is a degraded
+  review, not a missing verification (ADR 0025). **No test command configured** → say so and continue;
+  this never blocks the review. **State the outcome** — pass, fail, no command configured, or denied by
+  the permission classifier — in your own output, the same way §1 states the range, **independent of
+  whether the `final-reviewer` dispatch below succeeds** — a denied dispatch still leaves the result
+  visible. **Denied** → this is `## Degraded passes`'s second shape: the pass ran and could not reach what
+  it needed. Its own action is record and continue regardless of attendance — but this is the chain's only
+  full-suite verification, so continuing unattended would reach `/superdev:ship` with no suite run behind
+  it anywhere in the chain: a **local deviation** from that default, for that reason. **Attended** → write
+  the `**Degraded:**` entry it defines and continue — there is no independent full-suite run left to
+  substitute for it here, and nothing left to try inline. **Unattended** → **block** instead, per
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Unattended` section, for the reason above. Carry
+  the result (pass/fail, and any failure output) into §2's dispatch when you continue.
+  **A `fail` here is itself a Critical finding** — fold it into the fix
+  loop below exactly like a finding from `final-reviewer`, whether or not that dispatch also returned
+  Critical/Important findings of its own. The stage does **not** advance while it stands. After any fix
+  cycle that touches it, **re-run the full suite yourself again** before treating the verdict as clean —
+  `final-reviewer`'s own re-run is optional and never substitutes for this.
+- **Ask once before fixing.** `final-reviewer` returned **Critical or Important** findings, or the full
+  suite you ran above came back `fail` → report them per §3 first, then ask whether to fix them now.
+  **Declined** → stop. The findings stand, nothing is written, and the stage does **not** advance.
+  **`--unattended` → fix**, without asking: the fix loop is the
   whole point of this gate, and a review that found real defects and left them is worth less than no
   review. **Confirmed** → dispatch **one**
   `superdev:implementer` (`model: sonnet`; `haiku` only for a mechanical fix) with the **complete**
