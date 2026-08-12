@@ -1,3 +1,10 @@
+## [0.28.2](https://codeberg.org/bomret/superdev/compare/v0.28.1...v0.28.2) (2026-08-12)
+
+
+### Bug Fixes
+
+* **scope:** give the hooks one shared ledger header reader ([#212](https://codeberg.org/bomret/superdev/issues/212)) ([b8a4057](https://codeberg.org/bomret/superdev/commit/b8a405790cf6e4bc64c7e465ac66bbdefb636375)), closes [#209](https://codeberg.org/bomret/superdev/issues/209) [#210](https://codeberg.org/bomret/superdev/issues/210)
+
 ## [0.28.1](https://codeberg.org/bomret/superdev/compare/v0.28.0...v0.28.1) (2026-08-11)
 
 
