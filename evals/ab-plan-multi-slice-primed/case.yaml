@@ -1,0 +1,59 @@
+schema_version: "1.0"
+name: ab-plan-multi-slice-primed
+description: >-
+  A/B arm: the same feature as `ab-plan-multi-slice`, planned from a primed
+  prompt. `ab-plan-primed` showed a primed prompt closing the plugin's whole
+  advantage on failure-case derivation. This case asks the same of the one gap
+  a bare prompt never closed — cutting the work into vertical slices — so the
+  pair separates what the plugin adds from what wording adds.
+tags:
+  - ab
+  - plan
+
+context:
+  # The same scaffold as ab-plan-multi-slice, by path rather than by copy. The
+  # two cases differ by their prompt and nothing else.
+  scaffold_script: ../ab-plan-multi-slice/scaffold.sh
+
+execution:
+  # The priming names the *discipline* and never this case's facts. It does not
+  # say which operations exist, which of them need the API key, or how many
+  # slices to write — those are what the graders check. It does name vertical
+  # slicing and dependency order, exactly as `ab-plan-primed` names failure-case
+  # derivation: both are general planning practice a skilled user states by
+  # hand, which is the thing under test.
+  prompt: |
+    Plan this feature for the repo you are in. Use whatever planning workflow
+    this environment offers you. This run is non-interactive: answer every
+    question you would have asked me yourself, state each assumption inline,
+    and never wait for a reply or for approval.
+
+    Cut the work into units that can each ship on their own. A unit delivers
+    one user-visible behaviour end to end — request in, response out, its own
+    test — rather than one technical layer shared by many behaviours. State
+    which units depend on which, and why. Before you write the plan, work out
+    what the request leaves unsaid: read the code the feature touches and the
+    environment it runs in, and derive the failure and boundary conditions they
+    imply but the request never mentions. Every one you find becomes an
+    acceptance criterion, stated as behaviour a caller or a test could observe.
+
+    Feature: widget CRUD over HTTP, backed by the datastore in `src/store.js`.
+    Callers can create a widget, read one by id, list them page by page,
+    update one, and delete one. Writes go through an API key in the
+    `X-Api-Key` header; reads are public. Definition of Done: each of the five
+    operations behaves as described, verified by tests, and an unauthenticated
+    write is rejected.
+
+    Write the finished plan to files under `docs/plans/<type>/<feature-slug>/`
+    following this repo's conventions in `docs/agents/`. Do not implement it.
+  max_turns: 60
+  timeout_seconds: 1200
+  allowed_tools:
+    - Read
+    - Write
+    - Edit
+    - Glob
+    - Grep
+    - Bash
+
+runs: 3

@@ -54,22 +54,32 @@ files, unchanged, so it stays available for a key-funded cross-check.
 | `ab-plan-edge-case` | cheap, plan only | Does the plan enumerate the failure cases the intent never names — missing widget, unreachable datastore — as acceptance criteria a test could check? |
 | `ab-plan-primed` | cheap, plan only | The same feature and the same graders as `ab-plan-edge-case`, from a **primed** prompt. What does the plugin add on top of good prompting, rather than on top of a bare request? |
 | `ab-plan-multi-slice` | cheap, plan only | Is a five-operation feature cut into vertical slices with an explicit dependency order, or into horizontal layers? Does every operation get a criterion? |
+| `ab-plan-multi-slice-primed` | cheap, plan only | The same feature and the same graders as `ab-plan-multi-slice`, from a **primed** prompt. Does wording buy vertical slicing, the one gap a bare prompt never closed? |
 | `ab-implement-lite` | expensive, full build | Shipped code, tests, and docs in a runnable repo: are the two unnamed failure cases handled, are they tested, does the README stay true, is the suite honestly green, and is the diff proportionate? |
 
-### The primed pair
+### The primed pairs
 
-`ab-plan-edge-case` and `ab-plan-primed` are one experiment in two halves, so
-they share their scaffold and their graders rather than copying either.
-`ab-plan-primed` names the other case's `scaffold.sh` by relative path, and its
-`graders/` is a symbolic link. A copy of either could drift, and two cases that
-differ by more than their prompt answer no question at all.
+Two pairs run this way: `ab-plan-edge-case` with `ab-plan-primed`, and
+`ab-plan-multi-slice` with `ab-plan-multi-slice-primed`. Each pair is one
+experiment in two halves, so the halves share their scaffold and their graders
+rather than copying either. The primed case names the bare case's `scaffold.sh`
+by relative path, and its `graders/` is a symbolic link. A copy of either could
+drift, and two cases that differ by more than their prompt answer no question at
+all.
 
 The bare case asks a plain user's question. The primed case supplies the
 planning discipline a skilled user supplies by hand: derive the failure cases
-the request leaves unsaid, and state every criterion as observable behaviour.
-It names **discipline only, never this case's facts** — it does not mention the
-datastore, its failure modes, or a widget that does not exist, because those
-are what the graders check and a prompt naming them would grade itself.
+the request leaves unsaid, state every criterion as observable behaviour, and
+cut the work into units that each ship on their own. It names **discipline
+only, never the case's facts** — no failure mode, no missing widget, no count
+of slices, no operation that needs the API key, because those are what the
+graders check and a prompt naming them would grade itself.
+
+**The priming is written by someone who knows which disciplines are graded.**
+That is the limit on how far a primed result generalises: it shows that *this*
+wording closes a gap, not that any competent user would write it. A reader who
+concludes "prompting is enough" from a primed tie is claiming the reader would
+have written this prompt unprompted.
 
 Read the two deltas together. The bare case's delta is the plugin against no
 planning discipline at all. The primed case's delta is the plugin against a

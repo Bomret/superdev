@@ -714,7 +714,7 @@ function selftest() {
     }
     assert.deepStrictEqual(
       discoverCases(path.join(__dirname, '..'), 'ab-plan-*').map((c) => c.name).sort(),
-      ['ab-plan-edge-case', 'ab-plan-multi-slice', 'ab-plan-primed'],
+      ['ab-plan-edge-case', 'ab-plan-multi-slice', 'ab-plan-multi-slice-primed', 'ab-plan-primed'],
       '--case selects exactly the plan cases',
     );
     assert.strictEqual(discoverCases(path.join(__dirname, '..'), 'nope-*').length, 0, 'a glob matching nothing selects nothing');
