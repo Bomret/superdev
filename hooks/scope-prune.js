@@ -742,6 +742,19 @@ if (process.argv[2] === '--selftest') {
       fs.rmSync(dir, { recursive: true, force: true });
     }
 
+    // A CRLF ledger — one an editor or `core.autocrlf` wrote — reads exactly as the LF one does, on
+    // both sides. The hook reaching a different answer here is what would let it miss `shipped` and
+    // never reap a finished run root, silently.
+    const crlf = mk('# ledger\r\n\r\n**Stage:** shipped\r\n**Branch:** fix/crlf\r\n');
+    assert.equal(readStage(crlf), 'shipped', 'the hook reads a CRLF Stage');
+    assert.equal(readBranch(crlf), 'fix/crlf', 'the hook reads a CRLF Branch');
+    assert.equal(
+      readStage(crlf),
+      scope.readLedgerHeader('# ledger\r\n\r\n**Stage:** shipped\r\n**Branch:** fix/crlf\r\n', 'Stage'),
+      'hook and scope.js agree under CRLF'
+    );
+    fs.rmSync(crlf, { recursive: true, force: true });
+
     // A value-less header line reads as absent, and never reaches the next line's token.
     const empty = mk('# ledger\n\n**Stage:** shipped\n**Branch:**\n**Anchor:** #208 — Epic\n');
     assert.equal(readHeader(empty, 'Branch'), null, 'an empty Branch line is absent');

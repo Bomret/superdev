@@ -62,7 +62,16 @@ function readLines(root) {
     if (e.code === 'ENOENT') fail(`no ledger at ${ledgerPath(root)}`);
     throw e;
   }
-  return raw.split('\n');
+  return splitLines(raw);
+}
+
+// Split on either ending. A `ledger.md` an editor or `core.autocrlf` wrote is CRLF, and splitting on
+// `'\n'` alone leaves a trailing `\r` that `headerRe`'s `(.*)$` cannot span — JavaScript's `.` excludes
+// `\r` as a line terminator, so every header would read as absent. Nothing here writes CRLF: `writeLines`
+// joins with `'\n'`, so any verb that writes also normalises the file. A lone `\r` (classic Mac) is not
+// handled, deliberately: it is extinct, and widening the split for it buys no live case.
+function splitLines(raw) {
+  return String(raw).split(/\r?\n/);
 }
 
 function writeLines(root, lines) {
@@ -125,7 +134,7 @@ function getHeader(lines, name) {
 // itself, and a text-in reader needs no temp directory to test. Matching is line-anchored, so a
 // value-less header can never capture the next line's token.
 function readLedgerHeader(content, name) {
-  return getHeader(String(content).split('\n'), name);
+  return getHeader(splitLines(content), name);
 }
 
 // The `**Degraded:**` bullet list, if any (scope-mode `## Degraded passes`). Shared by both status
@@ -1096,6 +1105,73 @@ function selftest() {
     assert.strictEqual(required.stdout, 'function|shipped', 'the export works from a requiring process');
     assert.strictEqual(required.stderr, '', 'requiring the module prints no usage and no refusal');
     fs.rmSync(requirer, { recursive: true, force: true });
+
+    // --- CRLF: a ledger an editor or `core.autocrlf` wrote reads exactly like an LF one ---
+    //
+    // Splitting on `'\n'` alone leaves a trailing `\r` on every line, and `headerRe`'s `(.*)$` cannot
+    // span it — JavaScript's `.` excludes `\r` as a line terminator. Every header then reads as the
+    // missing-optional-field case: `get stage` prints `absent`, `/superdev:ship` sees no stage, and
+    // `hooks/scope-prune.js` never sees `shipped`, so it never reaps that run root. Silently, since the
+    // Stop hook prints nothing either way. Nothing superdev writes is CRLF — `writeLines` joins with
+    // `'\n'` — so this only reaches a maintainer whose editor or git config produced the file.
+    const ledgerBody = (nl) =>
+      ['# Ledger — crlf', '', '**Stage:** shipped', '**Branch:** fix/crlf', '**Anchor:** #219 — Epic: a title.',
+       '**Degraded:**', '- a denied pass', '',
+       '| id | issue | title | type | depends-on | status | range |',
+       '|---|---|---|---|---|---|---|',
+       '| 01 | #219 | one | behavior | — | merged | a..b |', ''].join(nl);
+
+    for (const [label, nl] of [['CRLF', '\r\n'], ['LF', '\n']]) {
+      const text = ledgerBody(nl);
+      assert.strictEqual(readLedgerHeader(text, 'Stage'), 'shipped', `${label}: Stage reads`);
+      assert.strictEqual(readLedgerHeader(text, 'Branch'), 'fix/crlf', `${label}: Branch reads`);
+      assert.strictEqual(readLedgerHeader(text, 'Anchor'), '#219 — Epic: a title.', `${label}: Anchor reads whole`);
+    }
+
+    // A ledger mixing both endings — a file half-rewritten by a different editor.
+    const mixed = '# Ledger — crlf\r\n\r\n**Stage:** shipped\n**Branch:** fix/crlf\r\n';
+    assert.strictEqual(readLedgerHeader(mixed, 'Stage'), 'shipped', 'mixed endings: LF line reads');
+    assert.strictEqual(readLedgerHeader(mixed, 'Branch'), 'fix/crlf', 'mixed endings: CRLF line reads');
+
+    // Through the verbs and the report, not only the reader: the table and the degrade list too.
+    const crlfRoot = path.join(tmp, '.superdev', 'scopes', 'crlfscope');
+    fs.mkdirSync(crlfRoot, { recursive: true });
+    fs.writeFileSync(path.join(crlfRoot, 'ledger.md'), ledgerBody('\r\n'), 'utf8');
+    const CR = ['--root', crlfRoot];
+    assert.strictEqual(call(['get', 'stage', ...CR]).out, 'shipped', 'get stage on a CRLF ledger');
+    assert.strictEqual(call(['get', 'branch', ...CR]).out, 'fix/crlf', 'get branch on a CRLF ledger');
+    assert.strictEqual(call(['get', 'anchor', ...CR]).out, '#219 — Epic: a title.', 'get anchor on a CRLF ledger');
+    assert.strictEqual(
+      call(['get', 'slices', ...CR]).out,
+      '01\t#219\tone\tbehavior\t—\tmerged\ta..b',
+      'the slice table parses under CRLF, with no stray carriage return in the last cell'
+    );
+    const crlfStatus = call(['status']).out;
+    assert.ok(crlfStatus.includes('crlfscope  (shipped)'), 'status reads the stage of a CRLF ledger: ' + crlfStatus);
+    // `includes` cannot see a trailing `\r`, so assert on the whole line: a stray carriage return in the
+    // degrade bullet would leave the line unequal while still "including" the text.
+    assert.ok(
+      crlfStatus.split('\n').includes('  degraded: a denied pass'),
+      'its degrade record renders as an exact line, with no stray carriage return: ' + JSON.stringify(crlfStatus)
+    );
+
+    // A shipped scope collapses and carries no tally, so the criterion "its stage AND its tally" needs a
+    // scope that is still in flight. Same ledger, one stage earlier.
+    const crlfLive = path.join(tmp, '.superdev', 'scopes', 'crlflive');
+    fs.mkdirSync(crlfLive, { recursive: true });
+    fs.writeFileSync(path.join(crlfLive, 'ledger.md'), ledgerBody('\r\n').replace('**Stage:** shipped', '**Stage:** merged'), 'utf8');
+    const liveStatus = call(['status']).out.split('\n');
+    assert.ok(liveStatus.includes('crlflive  (1 slices, stage: merged)'), 'an in-flight CRLF scope keeps its header: ' + liveStatus.join(' | '));
+    assert.ok(
+      liveStatus.includes('  todo: 0  in-progress: 0  in-review: 0  blocked: 0  merged: 1'),
+      'and its tally, byte-identical to the LF rendering'
+    );
+
+    // A write leaves the file readable, and normalises it to LF.
+    assert.ok(call(['slice', '01', 'merged', '--range', 'c..d', ...CR]).ok, 'a verb writes to a CRLF ledger');
+    const rewritten = fs.readFileSync(path.join(crlfRoot, 'ledger.md'), 'utf8');
+    assert.ok(!rewritten.includes('\r'), 'a ledger scope.js wrote carries LF endings only');
+    assert.strictEqual(call(['get', 'stage', ...CR]).out, 'shipped', 'and it still reads afterwards');
 
     console.log('scope selftest ok');
   } finally {

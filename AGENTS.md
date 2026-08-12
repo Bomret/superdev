@@ -247,7 +247,10 @@ This root owns every subtree directly:
   `require.main === module`, so a `require` for that reader alone runs no CLI code. Normalisation is per
   header: `Stage` and `Branch` are single tokens, cut to the first whitespace-delimited token and stripped
   of markup and trailing punctuation. `Anchor` is a prose title that reaches a pull request, trimmed and
-  otherwise left alone. An empty header line reads as absent, not as an empty string. A
+  otherwise left alone. An empty header line reads as absent, not as an empty string. Both
+  `readLines` and `readLedgerHeader` split on `\r?\n`. A `ledger.md` an editor or `core.autocrlf` wrote
+  with CRLF line endings reads exactly as an LF one does. A lone `\r`, the classic-Mac line ending, reads
+  as absent, and that is deliberate. Any verb that writes the file normalises it back to LF. A
   scope whose ledger stage reads `shipped` collapses to one line, `<scope>  (shipped)`. It drops the slice
   tally and the blocked list. `hooks/scope-prune.js` (ADR 0007) is about to reap that run root, so
   per-slice detail is no longer work in flight. Its `**Degraded:**` line and its staged-page lines survive
