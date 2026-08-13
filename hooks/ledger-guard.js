@@ -59,7 +59,7 @@ function bashWritesLedger(cmd) {
 function decide(input) {
   const ti = (input && input.tool_input) || {};
   const reason =
-    'superdev: ledger.md is written only through scripts/scope.js (init/stage/slice/degraded verbs) — ' +
+    'superdev: ledger.md is written only through scripts/scope.js (init/stage/slice/degraded/unresolved verbs) — ' +
     'run `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js <verb> …` instead of editing the ledger directly. (ledger-guard)';
 
   if (typeof ti.file_path === 'string') {

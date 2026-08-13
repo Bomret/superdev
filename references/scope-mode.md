@@ -81,6 +81,8 @@ title, `test-applicability` type, dependencies, `plan-contract.md` status, and c
   for the PR-facing summary (ADR 0020) instead of deriving one from the diff.
 - **`**Degraded:**`** — the run's degrade record. `## Degraded passes` below owns the value shape and when
   a command writes it.
+- **`**Unresolved:**`** — the run's unresolved-defect record. `## Unresolved defects` below owns the value
+  shape and when a command writes it.
 
 A ledger written before a line existed carries none of it — `scope.js` parses a pre-CLI ledger
 unchanged, and `get` reports an absent header line as `absent`, never as a parse error.
@@ -210,6 +212,41 @@ command's own output instead, and write nothing.
 
 **A degraded pass is not a stage.** It is the line above, never a new stage value — ADR 0018 has the
 reasoning.
+
+## Unresolved defects
+
+An **unresolved defect** is a defect the run finds in the code and leaves standing: a full suite still
+red at the three-strike cap, a finding the operator declines to fix, or an unattended block reached at
+that cap. It answers a different question than `## Degraded passes` above — that section says how much
+of the chain ran; this one says whether the branch is sound (ADR 0026).
+
+**A command writes the entry where the run gives up**, never where the defect first appears. A defect
+found and then fixed leaves no trace, because nothing is left standing.
+
+A **blocked slice** is not an unresolved defect. It already carries a durable record, its own `blocked`
+status in the ledger's slice table (`plan-contract.md`). This line is for scope-level defects, which have
+none.
+
+**The entry.** An `**Unresolved:**` line in `<run-root>/ledger.md`, beside `**Stage:**`, carrying one
+bullet per unresolved defect. Write each bullet with
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js unresolved add "<text>" --root <run-root>`, which creates
+the line when absent and appends when present. Each bullet names the defect, where it stands, and the
+date:
+
+```markdown
+**Stage:** reviewed
+**Unresolved:**
+- full suite red at the three-strike cap — two tests in payment/checkout still fail (2026-08-12)
+```
+
+A run with nothing to report carries **no such line at all**. The line is absent, never present and
+empty.
+
+**`unresolved clear` drops the whole line.** A run that resumes, fixes the defect, and re-verifies the
+scope with a green suite clears the record with
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js unresolved clear --root <run-root>`. Clearing is wholesale,
+never per-bullet: the run that clears the line has re-verified the whole scope, so no bullet needs to
+survive individually. `unresolved clear` on a ledger carrying no such line succeeds and changes nothing.
 
 ## The stage never moves backwards
 

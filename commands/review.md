@@ -193,17 +193,20 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   `final-reviewer`'s own re-run is optional and never substitutes for this.
 - **Ask once before fixing.** `final-reviewer` returned **Critical or Important** findings, or the full
   suite you ran above came back `fail` → report them per §3 first, then ask whether to fix them now.
-  **Declined** → stop. The findings stand, nothing is written, and the stage does **not** advance.
+  **Declined** → stop. The findings stand: write the `**Unresolved:**` entry, per
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Unresolved defects` section, with
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add "<text>" --root <run-root>`,
+  and the stage does **not** advance.
   **`--unattended` → fix**, without asking: the fix loop is the
   whole point of this gate, and a review that found real defects and left them is worth less than no
   review. **Confirmed** → dispatch **one**
   `superdev:implementer` (`model: sonnet`; `haiku` only for a mechanical fix) with the **complete**
   findings list, not one fixer per finding. Every fix opens with a RED test that reproduces the defect.
   Re-review after it returns, and repeat until the verdict is clean or the **3-strike cap** is reached
-  (three fix cycles each exposing a new defect elsewhere means a wrong cut, not a bug: stop, say so, and
-  leave the stage where it is). **`--unattended` → block** at that cap, per
-  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section, leaving the stage where it is
-  exactly as above.
+  (three fix cycles each exposing a new defect elsewhere means a wrong cut, not a bug: stop, say so,
+  write the `**Unresolved:**` entry above, and leave the stage where it is). **`--unattended` → block**
+  at that cap, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section, writing the
+  `**Unresolved:**` entry above and leaving the stage where it is exactly as above.
 - **The fix implementer's own dispatch is a degraded pass too, if the permission classifier denies it.**
   Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section and follow it —
   **attended**, apply the fix inline yourself and say so in §3's report; **unattended**, **block there
@@ -214,7 +217,10 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
 - **A ceiling note never gates either.** `final-reviewer`'s `### Ceiling` section (ADR 0020) is an
   observation about work that is already correct, so it holds up no handoff, starts no fix cycle, and
   changes no stage — attended or unattended. Carry it into the report and move on.
-- **On a clean verdict**, and only then: write the ledger's `**Stage:**` line with
+- **On a clean verdict**, and only then: clear any standing `**Unresolved:**` entry — the run has just
+  re-verified clean, so a defect recorded on an earlier give-up no longer stands — with
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`, which succeeds and
+  changes nothing when no such entry exists. Then write the ledger's `**Stage:**` line with
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set <value> --root <run-root>`, per
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s rule that a stage write never undoes completed work —
   the verb enforces that rule and refuses a write that breaks it.

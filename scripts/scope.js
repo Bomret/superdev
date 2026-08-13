@@ -2,7 +2,7 @@
 'use strict';
 
 // scope.js: the run-state CLI (ADR 0022). Owns every ledger.md write and read in the chain.
-// Verbs: init, stage, slice, degraded, get, status. Exit nonzero with a one-line stderr
+// Verbs: init, stage, slice, degraded, unresolved, get, status. Exit nonzero with a one-line stderr
 // reason on any refusal. hooks/ledger-guard.js makes this the only ledger write path.
 
 const fs = require('fs');
@@ -148,6 +148,19 @@ function readDegraded(lines) {
     }
   }
   return degraded;
+}
+
+// The `**Unresolved:**` bullet list, if any (scope-mode `## Unresolved defects`). Same shape as
+// `readDegraded`, read by both status branches below.
+function readUnresolved(lines) {
+  const at = lines.findIndex((l) => headerRe('Unresolved').test(l));
+  const unresolved = [];
+  if (at >= 0) {
+    for (let i = at + 1; i < lines.length && lines[i].startsWith('- '); i++) {
+      unresolved.push(lines[i].slice(2));
+    }
+  }
+  return unresolved;
 }
 
 function setHeader(lines, name, value) {
@@ -310,6 +323,7 @@ function verbSlice(root, id, status, range) {
 function verbDegraded(root, sub, text) {
   if (sub !== 'add') fail(`unknown degraded subcommand "${sub}" — use add`);
   if (!text) fail('degraded add needs the bullet text');
+  if (text.includes('\n')) fail('degraded add text must not contain a newline');
   const lines = readLines(root);
   const re = headerRe('Degraded');
   let at = lines.findIndex((l) => re.test(l));
@@ -318,6 +332,36 @@ function verbDegraded(root, sub, text) {
     const stageAt = lines.findIndex((l) => headerRe('Stage').test(l));
     at = stageAt >= 0 ? stageAt + 1 : 0;
     lines.splice(at, 0, '**Degraded:**');
+  }
+  // Append after the last existing bullet under the line.
+  let end = at + 1;
+  while (end < lines.length && lines[end].startsWith('- ')) end++;
+  lines.splice(end, 0, `- ${text}`);
+  writeLines(root, lines);
+}
+
+function verbUnresolved(root, sub, text) {
+  if (sub === 'clear') {
+    const lines = readLines(root);
+    const at = lines.findIndex((l) => headerRe('Unresolved').test(l));
+    if (at < 0) return; // no such line — succeeds, changes nothing
+    let end = at + 1;
+    while (end < lines.length && lines[end].startsWith('- ')) end++;
+    lines.splice(at, end - at);
+    writeLines(root, lines);
+    return;
+  }
+  if (sub !== 'add') fail(`unknown unresolved subcommand "${sub}" — use add|clear`);
+  if (!text) fail('unresolved add needs the bullet text');
+  if (text.includes('\n')) fail('unresolved add text must not contain a newline');
+  const lines = readLines(root);
+  const re = headerRe('Unresolved');
+  let at = lines.findIndex((l) => re.test(l));
+  if (at < 0) {
+    // Create the line beside **Stage:** (scope-mode `## Unresolved defects`).
+    const stageAt = lines.findIndex((l) => headerRe('Stage').test(l));
+    at = stageAt >= 0 ? stageAt + 1 : 0;
+    lines.splice(at, 0, '**Unresolved:**');
   }
   // Append after the last existing bullet under the line.
   let end = at + 1;
@@ -338,9 +382,17 @@ function verbGet(root, field) {
     }
     return;
   }
+  if (field === 'unresolved' || field === 'degraded') {
+    // The read half of `unresolved add`/`degraded add`: every bullet, one per line, so a caller
+    // (`/superdev:ship`'s gate and its pull-request body step) never has to split a joined string back
+    // apart — a bullet containing a comma stays intact this way, unlike `status`'s `, `-joined line.
+    const lines = readLines(root);
+    for (const b of field === 'unresolved' ? readUnresolved(lines) : readDegraded(lines)) console.log(b);
+    return;
+  }
   const names = { stage: 'Stage', branch: 'Branch', anchor: 'Anchor' };
   const name = names[field];
-  if (!name) fail(`unknown field "${field}" — use stage|branch|anchor|slices`);
+  if (!name) fail(`unknown field "${field}" — use stage|branch|anchor|slices|unresolved|degraded`);
   const v = getHeader(readLines(root), name);
   console.log(v === null ? 'absent' : v);
 }
@@ -458,15 +510,18 @@ function verbStatus(cwd) {
       }
       // A shipped scope is finished with, and `hooks/scope-prune.js` reaps its run root once the TTL
       // elapses (ADR 0007). It is not work in flight, so it collapses to one line here rather than
-      // carrying a tally through a report that exists to show what is still moving. Its degrade record
-      // and staged-page lines are the deliberate exceptions below: a degraded pass is otherwise recorded
-      // only in the pull-request body, which the same prune outlives it by (scope-mode `## Degraded
-      // passes`), and a page nobody publishes is invisible everywhere else (ADR 0023) — a shipped scope
-      // is exactly where either waits.
+      // carrying a tally through a report that exists to show what is still moving. Its degrade record,
+      // unresolved-defect record, and staged-page lines are the deliberate exceptions below: a degraded
+      // pass is otherwise recorded only in the pull-request body, which the same prune outlives it by
+      // (scope-mode `## Degraded passes`); an unresolved defect the same way (`## Unresolved defects`);
+      // and a page nobody publishes is invisible everywhere else (ADR 0023) — a shipped scope is exactly
+      // where any of them waits.
       if (stage === 'shipped') {
         out.push(`${scope}  (shipped)`);
         const shippedDegraded = readDegraded(lines);
         if (shippedDegraded.length) out.push(`  degraded: ${shippedDegraded.join(', ')}`);
+        const shippedUnresolved = readUnresolved(lines);
+        if (shippedUnresolved.length) out.push(`  unresolved: ${shippedUnresolved.join(', ')}`);
         pushPendingAndStrays(scope);
         continue;
       }
@@ -477,10 +532,12 @@ function verbStatus(cwd) {
         if (c[5] === 'blocked') blocked.push(`${c[0]} ${c[2]}`);
       }
       const degraded = readDegraded(lines);
+      const unresolved = readUnresolved(lines);
       out.push(`${scope}  (${rows.length} slices${stage ? `, stage: ${stage}` : ''})`);
       out.push(`  todo: ${counts.todo}  in-progress: ${counts['in-progress']}  in-review: ${counts['in-review']}  blocked: ${counts.blocked}  merged: ${counts.merged}`);
       if (blocked.length) out.push(`  blocked: ${blocked.join(', ')}`);
       if (degraded.length) out.push(`  degraded: ${degraded.join(', ')}`);
+      if (unresolved.length) out.push(`  unresolved: ${unresolved.join(', ')}`);
       pushPendingAndStrays(scope);
     } catch {
       out.push(`${scope}: ledger unreadable`);
@@ -511,7 +568,8 @@ function usage() {
     '  stage get|set <value> --root <run-root>',
     '  slice <id> <status> [--range <r>]   --root <run-root>',
     '  degraded add <text>   --root <run-root>',
-    '  get stage|branch|anchor|slices --root <run-root>',
+    '  unresolved add <text>|clear   --root <run-root>',
+    '  get stage|branch|anchor|slices|unresolved|degraded --root <run-root>',
     '  status                             scans <cwd>/.superdev/scopes/*/',
   ].join('\n');
 }
@@ -554,6 +612,11 @@ function run(argv, cwd, stdinJson) {
     case 'degraded': {
       const root = takeRoot(args);
       verbDegraded(root, args[0], args.slice(1).join(' '));
+      break;
+    }
+    case 'unresolved': {
+      const root = takeRoot(args);
+      verbUnresolved(root, args[0], args.slice(1).join(' '));
       break;
     }
     case 'get': {
@@ -762,6 +825,101 @@ function selftest() {
     const deg = fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
     assert.ok(/\*\*Degraded:\*\*\n- first pass degraded \(2026-08-06\)\n- second pass degraded \(2026-08-06\)/.test(deg), 'both bullets under one line');
 
+    // unresolved: creates the line when absent, appends when present — mirrors degraded add.
+    assert.ok(call(['unresolved', 'add', 'suite still red at the three-strike cap (2026-08-12)', ...R]).ok, 'unresolved add creates');
+    assert.ok(call(['unresolved', 'add', 'operator declined the fix (2026-08-12)', ...R]).ok, 'unresolved add appends');
+    const unres = fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
+    assert.ok(
+      /\*\*Unresolved:\*\*\n- suite still red at the three-strike cap \(2026-08-12\)\n- operator declined the fix \(2026-08-12\)/.test(unres),
+      'both bullets under one line'
+    );
+
+    // get unresolved / get degraded: one bullet per line, mirroring `get slices`.
+    assert.strictEqual(
+      call(['get', 'degraded', ...R]).out,
+      'first pass degraded (2026-08-06)\nsecond pass degraded (2026-08-06)',
+      'get degraded prints one bullet per line'
+    );
+    assert.strictEqual(
+      call(['get', 'unresolved', ...R]).out,
+      'suite still red at the three-strike cap (2026-08-12)\noperator declined the fix (2026-08-12)',
+      'get unresolved prints one bullet per line'
+    );
+
+    // degraded add / unresolved add: a bullet containing a newline is refused — unescaped, it would
+    // write arbitrary extra ledger lines, including a second **Stage:** line.
+    const beforeNewlineDeg = fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
+    r = call(['degraded', 'add', 'line one\nline two', ...R]);
+    assert.ok(!r.ok && /newline/.test(r.err), 'degraded add with a newline refused: ' + r.err);
+    assert.strictEqual(fs.readFileSync(path.join(root, 'ledger.md'), 'utf8'), beforeNewlineDeg, 'nothing written on refusal');
+    r = call(['unresolved', 'add', 'line one\nline two', ...R]);
+    assert.ok(!r.ok && /newline/.test(r.err), 'unresolved add with a newline refused: ' + r.err);
+    assert.strictEqual(fs.readFileSync(path.join(root, 'ledger.md'), 'utf8'), beforeNewlineDeg, 'nothing written on refusal');
+
+    // unresolved add: no text refuses with a one-line message and writes nothing.
+    const beforeNoText = fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
+    r = call(['unresolved', 'add', '', ...R]);
+    assert.ok(!r.ok && /needs the bullet text/.test(r.err), 'unresolved add with no text refused');
+    assert.strictEqual(fs.readFileSync(path.join(root, 'ledger.md'), 'utf8'), beforeNoText, 'nothing written on refusal');
+
+    // unresolved: an unknown subcommand refuses, naming the two that exist.
+    r = call(['unresolved', 'zap', 'x', ...R]);
+    assert.ok(!r.ok && /unknown unresolved subcommand.*add\|clear/.test(r.err), 'unknown unresolved subcommand refused: ' + r.err);
+
+    // unresolved clear: removes the line and its bullets entirely.
+    assert.ok(call(['unresolved', 'clear', ...R]).ok, 'unresolved clear');
+    const cleared = fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
+    assert.ok(!/\*\*Unresolved:\*\*/.test(cleared), 'the line is gone');
+    assert.ok(!/suite still red/.test(cleared), 'its bullets are gone too');
+
+    // unresolved clear: on a ledger with no such line, succeeds and changes nothing.
+    const beforeNoopClear = fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
+    assert.ok(call(['unresolved', 'clear', ...R]).ok, 'clearing an absent line still succeeds');
+    assert.strictEqual(fs.readFileSync(path.join(root, 'ledger.md'), 'utf8'), beforeNoopClear, 'and changes nothing');
+
+    // unresolved clear: the two adjacency cases — nothing beside the block gets touched.
+    // Case 1: **Unresolved:** and its bullets are the file's last lines (no trailing table, no
+    // blank line after).
+    const tailRoot = path.join(tmp, '.superdev', 'scopes', 'unresolved-tail');
+    fs.mkdirSync(tailRoot, { recursive: true });
+    const tailText =
+      '# Ledger — unresolved-tail\n\n**Stage:** merged\n\n' +
+      '| id | issue | title | type | depends-on | status | range |\n' +
+      '|---|---|---|---|---|---|---|\n' +
+      '| 01 | #1 | x | behavior | — | merged | — |\n\n' +
+      '**Unresolved:**\n- suite still red at the three-strike cap (2026-08-12)\n- second bullet\n';
+    fs.writeFileSync(path.join(tailRoot, 'ledger.md'), tailText, 'utf8');
+    assert.ok(call(['unresolved', 'clear', '--root', tailRoot]).ok, 'clear on a trailing Unresolved block');
+    assert.strictEqual(
+      fs.readFileSync(path.join(tailRoot, 'ledger.md'), 'utf8'),
+      '# Ledger — unresolved-tail\n\n**Stage:** merged\n\n' +
+        '| id | issue | title | type | depends-on | status | range |\n' +
+        '|---|---|---|---|---|---|---|\n' +
+        '| 01 | #1 | x | behavior | — | merged | — |\n\n',
+      'the block and only the block is gone; the table above is untouched'
+    );
+
+    // Case 2: **Unresolved:**'s last bullet is immediately followed by the slice table header
+    // row, with no blank-line separator.
+    const gluedRoot = path.join(tmp, '.superdev', 'scopes', 'unresolved-glued');
+    fs.mkdirSync(gluedRoot, { recursive: true });
+    const gluedText =
+      '# Ledger — unresolved-glued\n\n**Stage:** merged\n\n' +
+      '**Unresolved:**\n- suite still red at the three-strike cap (2026-08-12)\n' +
+      '| id | issue | title | type | depends-on | status | range |\n' +
+      '|---|---|---|---|---|---|---|\n' +
+      '| 01 | #1 | x | behavior | — | merged | — |\n';
+    fs.writeFileSync(path.join(gluedRoot, 'ledger.md'), gluedText, 'utf8');
+    assert.ok(call(['unresolved', 'clear', '--root', gluedRoot]).ok, 'clear on an Unresolved block glued to the table');
+    assert.strictEqual(
+      fs.readFileSync(path.join(gluedRoot, 'ledger.md'), 'utf8'),
+      '# Ledger — unresolved-glued\n\n**Stage:** merged\n\n' +
+        '| id | issue | title | type | depends-on | status | range |\n' +
+        '|---|---|---|---|---|---|---|\n' +
+        '| 01 | #1 | x | behavior | — | merged | — |\n',
+      'the block is gone and the table header sits exactly where it did, no stray blank line'
+    );
+
     // get: prints the value; absent header reported as absent.
     assert.strictEqual(call(['get', 'branch', ...R]).out, 'feat/demo', 'get branch');
     assert.ok(/#187/.test(call(['get', 'anchor', ...R]).out), 'get anchor');
@@ -814,20 +972,20 @@ function selftest() {
     const scopeMode = fs.readFileSync(path.join(repo, 'references', 'scope-mode.md'), 'utf8');
     assert.ok(scopeMode.includes('`' + charset + '`'), 'scope-mode.md states the SLUG_RE charset');
 
-    // A pre-CLI ledger (hand-written, no Branch/Anchor/Degraded lines) parses unchanged.
+    // A pre-CLI ledger (hand-written, no Branch/Anchor/Degraded/Unresolved lines) parses unchanged.
     const preRoot = path.join(tmp, '.superdev', 'scopes', 'precli');
     fs.mkdirSync(preRoot, { recursive: true });
-    fs.writeFileSync(
-      path.join(preRoot, 'ledger.md'),
+    const preCliText =
       '# Ledger — precli\n\n**Stage:** merged\n\n' +
-        '| id | issue | title | type | depends-on | status | range |\n' +
-        '|---|---|---|---|---|---|---|\n' +
-        '| 01 | #10 | old slice | mechanical | — | merged | abc..def |\n',
-      'utf8'
-    );
+      '| id | issue | title | type | depends-on | status | range |\n' +
+      '|---|---|---|---|---|---|---|\n' +
+      '| 01 | #10 | old slice | mechanical | — | merged | abc..def |\n';
+    fs.writeFileSync(path.join(preRoot, 'ledger.md'), preCliText, 'utf8');
     const P = ['--root', preRoot];
     assert.strictEqual(call(['stage', 'get', ...P]).out, 'merged', 'pre-CLI stage readable');
     assert.strictEqual(call(['get', 'branch', ...P]).out, 'absent', 'absent Branch reported as absent');
+    assert.strictEqual(readLedgerHeader(preCliText, 'Unresolved'), null, 'a missing Unresolved line reads as absent rather than raising');
+    assert.ok(call(['unresolved', 'clear', ...P]).ok, 'clearing an absent Unresolved line on a pre-CLI ledger still succeeds');
     assert.ok(call(['stage', 'set', 'reviewed', ...P]).ok, 'pre-CLI ledger writable');
 
     // status: renders every scope; an unreadable ledger is reported while others render.
@@ -854,13 +1012,26 @@ function selftest() {
     assert.ok(st.out.includes('precli  (1 slices, stage: reviewed)'), 'status shows pre-CLI scope');
     assert.ok(st.out.includes('broken: ledger unreadable'), 'unreadable ledger reported');
 
+    // status: an `unresolved:` line for a scope that has one, and none for a scope that does not.
+    // No scope carries one yet — the demo scope's line was cleared above.
+    assert.ok(!/unresolved:/.test(st.out), 'no unresolved line when no scope has one: ' + st.out);
+    // A shipped scope's collapsed status still carries its unresolved bullets, as it carries its
+    // degraded ones (the demo scope above is shipped).
+    assert.ok(call(['unresolved', 'add', 'suite still red at the three-strike cap (2026-08-12)', ...R]).ok);
+    const stShippedUnresolved = call(['status']).out;
+    assert.ok(
+      stShippedUnresolved.includes('  unresolved: suite still red at the three-strike cap (2026-08-12)'),
+      "a shipped scope's unresolved record survives the collapse: " + stShippedUnresolved
+    );
+
     // An in-flight scope still prints everything it printed before: tally, blocked slices, and its
     // degrade record. The collapse is scoped to `shipped` alone.
     const flightRoot = path.join(tmp, '.superdev', 'scopes', 'inflight');
     fs.mkdirSync(flightRoot, { recursive: true });
     fs.writeFileSync(
       path.join(flightRoot, 'ledger.md'),
-      '# Ledger — inflight\n\n**Stage:** merged\n**Degraded:**\n- doc pass denied (2026-08-11)\n\n' +
+      '# Ledger — inflight\n\n**Stage:** merged\n**Degraded:**\n- doc pass denied (2026-08-11)\n' +
+        '**Unresolved:**\n- fix declined by the operator (2026-08-12)\n\n' +
         '| id | issue | title | type | depends-on | status | range |\n' +
         '|---|---|---|---|---|---|---|\n' +
         '| 01 | #20 | one | behavior | — | merged | a..b |\n' +
@@ -872,6 +1043,7 @@ function selftest() {
     assert.ok(stFlight.out.includes('todo: 0  in-progress: 0  in-review: 0  blocked: 1  merged: 1'), 'and its tally');
     assert.ok(stFlight.out.includes('  blocked: 02 two'), 'and its blocked slices');
     assert.ok(stFlight.out.includes('  degraded: doc pass denied (2026-08-11)'), 'and its degrade record');
+    assert.ok(stFlight.out.includes('  unresolved: fix declined by the operator (2026-08-12)'), 'and its unresolved record');
 
     // status with zero scopes.
     const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-selftest-empty-'));
@@ -1116,7 +1288,7 @@ function selftest() {
     // `'\n'` — so this only reaches a maintainer whose editor or git config produced the file.
     const ledgerBody = (nl) =>
       ['# Ledger — crlf', '', '**Stage:** shipped', '**Branch:** fix/crlf', '**Anchor:** #219 — Epic: a title.',
-       '**Degraded:**', '- a denied pass', '',
+       '**Degraded:**', '- a denied pass', '**Unresolved:**', '- suite still red at the cap', '',
        '| id | issue | title | type | depends-on | status | range |',
        '|---|---|---|---|---|---|---|',
        '| 01 | #219 | one | behavior | — | merged | a..b |', ''].join(nl);
@@ -1126,6 +1298,7 @@ function selftest() {
       assert.strictEqual(readLedgerHeader(text, 'Stage'), 'shipped', `${label}: Stage reads`);
       assert.strictEqual(readLedgerHeader(text, 'Branch'), 'fix/crlf', `${label}: Branch reads`);
       assert.strictEqual(readLedgerHeader(text, 'Anchor'), '#219 — Epic: a title.', `${label}: Anchor reads whole`);
+      assert.strictEqual(readLedgerHeader(text, 'Unresolved'), null, `${label}: the Unresolved header line itself carries no value — its bullets are read separately`);
     }
 
     // A ledger mixing both endings — a file half-rewritten by a different editor.
@@ -1154,6 +1327,10 @@ function selftest() {
       crlfStatus.split('\n').includes('  degraded: a denied pass'),
       'its degrade record renders as an exact line, with no stray carriage return: ' + JSON.stringify(crlfStatus)
     );
+    assert.ok(
+      crlfStatus.split('\n').includes('  unresolved: suite still red at the cap'),
+      'its unresolved record renders as an exact line too, with no stray carriage return: ' + JSON.stringify(crlfStatus)
+    );
 
     // A shipped scope collapses and carries no tally, so the criterion "its stage AND its tally" needs a
     // scope that is still in flight. Same ledger, one stage earlier.
@@ -1172,6 +1349,21 @@ function selftest() {
     const rewritten = fs.readFileSync(path.join(crlfRoot, 'ledger.md'), 'utf8');
     assert.ok(!rewritten.includes('\r'), 'a ledger scope.js wrote carries LF endings only');
     assert.strictEqual(call(['get', 'stage', ...CR]).out, 'shipped', 'and it still reads afterwards');
+
+    // a bullet containing a comma survives intact through `get unresolved` — a status report that joins
+    // bullets with `, ` corrupts a comma-bearing bullet on the read side; `get` must not do that. A
+    // fresh scope, added last, so it doesn't show up in an earlier `status` scan of `tmp` that asserts no
+    // scope carries an unresolved line.
+    const commaJson = JSON.stringify({ anchor: '#1 — anchor', slices: [{ id: '01', issue: '#1', title: 'a', type: 'behavior' }] });
+    assert.ok(call(['init', 'feat/comma-bullet'], commaJson).ok);
+    const commaRoot = path.join(tmp, '.superdev', 'scopes', 'comma-bullet');
+    const CB = ['--root', commaRoot];
+    assert.ok(call(['unresolved', 'add', 'suite red: a, b, and c all fail', ...CB]).ok);
+    assert.strictEqual(
+      call(['get', 'unresolved', ...CB]).out,
+      'suite red: a, b, and c all fail',
+      'a comma inside a bullet survives intact'
+    );
 
     console.log('scope selftest ok');
   } finally {

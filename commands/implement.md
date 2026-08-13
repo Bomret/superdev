@@ -191,8 +191,12 @@ tiers: your job here is to record that slice execution finished and to name what
   (ADR 0025). Read
   `docs/agents/verification.md` for the full command per
   `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run it once over the scope branch. **No test
-  command configured, or Green** → continue to the stage write below; a repo that configures nothing
-  loses nothing it had, and claims no run it never made. **Denied by the permission classifier** → this is
+  command configured** → continue to the stage write below; a repo that configures nothing
+  loses nothing it had, and claims no run it never made. **Green** → clear any standing `**Unresolved:**`
+  entry, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Unresolved defects` section, with
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`, which succeeds and
+  changes nothing when no such entry exists, then continue to the stage write below. **Denied by the
+  permission classifier** → this is
   `## Degraded passes`'s second shape: the pass ran and could not reach what it needed. Its own action is
   record and continue regardless of attendance — but this is the only full-suite verification a
   `mechanical`/`docs` scope gets, since it skips `/superdev:review` by design, so continuing unattended
@@ -205,9 +209,15 @@ tiers: your job here is to record that slice execution finished and to name what
   where it is, and dispatch **one** `superdev:implementer` (`model: sonnet`; `haiku` only for a mechanical
   fix) with the failing output — never fix it yourself inline: the controller only integrates, and lite's
   inline loop is that tier's own deliberate exception (ADR 0001), not this phase's. Every fix opens with a
-  RED test that reproduces the failure. Re-run the full suite after it returns; repeat until green or three
-  cycles without going clean (this bullet's own 3-strike cap — a scope-wide suite has no single slice to
-  move to `blocked`, so the remedy is here, not in the controller's Invariants: stop, say so, and leave the
+  RED test that reproduces the failure. Re-run the full suite after it returns; repeat until **green** —
+  clear any standing `**Unresolved:**` entry the same way the first result above does, with
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`, then continue to the
+  stage write below — **or three
+  cycles without going clean** (this bullet's own 3-strike cap — a scope-wide suite has no single slice to
+  move to `blocked`, so the remedy is here, not in the controller's Invariants: stop, say so, write the
+  `**Unresolved:**` entry, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Unresolved defects`
+  section, with
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add "<text>" --root <run-root>`, and leave the
   stage where it is).
 - **Set the stage to `merged`.** Run
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set merged --root <run-root>`. The ledger's

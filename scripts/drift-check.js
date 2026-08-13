@@ -808,11 +808,17 @@ const GREEN_GATE_TIMEOUT_CONTRACTS = [
 const VERB_CONTRACTS = [
   [path.join('commands', 'implement.md'), /scope\.js["'`]?\s+init\b/, 'create the run root and ledger with `scope.js init`'],
   [path.join('commands', 'implement.md'), /scope\.js["'`]?\s+stage set merged\b/, 'record slice completion with `scope.js stage set merged`'],
+  [path.join('commands', 'implement.md'), /scope\.js["'`]?\s+unresolved add\b/, 'record a give-up point with `scope.js unresolved add`'],
+  [path.join('commands', 'implement.md'), /scope\.js["'`]?\s+unresolved clear\b/, 'clear a standing defect on Green with `scope.js unresolved clear`'],
   [path.join('commands', 'review.md'), /scope\.js["'`]?\s+stage set\b/, 'write its stage with `scope.js stage set`'],
   [path.join('commands', 'review.md'), /scope\.js["'`]?\s+get anchor\b/, 'read the scope anchor\'s title with `scope.js get anchor`'],
+  [path.join('commands', 'review.md'), /scope\.js["'`]?\s+unresolved add\b/, 'record a give-up point with `scope.js unresolved add`'],
+  [path.join('commands', 'review.md'), /scope\.js["'`]?\s+unresolved clear\b/, 'clear a standing defect on a clean verdict with `scope.js unresolved clear`'],
   [path.join('commands', 'document.md'), /scope\.js["'`]?\s+stage set\b/, 'write its stage with `scope.js stage set`'],
   [path.join('commands', 'ship.md'), /scope\.js["'`]?\s+get stage\b/, 'read the stage with `scope.js get stage`'],
   [path.join('commands', 'ship.md'), /scope\.js["'`]?\s+stage set shipped\b/, 'set the terminal stage with `scope.js stage set shipped`'],
+  [path.join('commands', 'ship.md'), /scope\.js["'`]?\s+get unresolved\b/, 'read the unresolved-defect record with `scope.js get unresolved`, never through cwd-dependent `status`'],
+  [path.join('commands', 'ship.md'), /scope\.js["'`]?\s+get degraded\b/, 'read the degrade record with `scope.js get degraded`, never through cwd-dependent `status`'],
   [path.join('commands', 'status.md'), /scope\.js["'`]?\s+status\b/, 'produce the report with `scope.js status` and print it verbatim'],
   [path.join('commands', 'afk.md'), /scope\.js["'`]?\s+get stage\b/, 'read a run\'s stage with `scope.js get stage`'],
   [path.join('references', 'implement-full.md'), /scope\.js["'`]?\s+slice\b/, 'move slice rows with `scope.js slice`'],
@@ -875,6 +881,123 @@ const FULL_SUITE_CONTRACTS = [
     'state that the stage does **not** advance while a full-suite fail or Critical/Important finding stands',
   ],
 ];
+
+// `/superdev:ship` §3 gates on a standing unresolved defect (ADR 0026): a defect the run left standing is
+// named once, and shipping with it is asked about rather than assumed. A consumer that keeps the §5
+// `## Unresolved defects` pull-request heading but drops either half of the gate reads right and ships a
+// broken branch anyway — the exact failure shape the ask (attended) and the refuse (unattended) exist to
+// prevent. Both halves live in one paragraph, §3's "Entries standing." bullet — but §3 also carries an
+// unrelated, pre-existing gate (the missing-review/document warning) that uses the identical **ask once**
+// and `--unattended` → refuse phrasing for a different question. A whole-file test is satisfied by that
+// unrelated paragraph even after the entries-standing gate's own clause is deleted, so both halves are
+// matched inside the "Entries standing." paragraph alone — extracted with the same `extractSection()`
+// helper `scanAnchorContract()` uses, anchored on the paragraph's own bolded lead-in rather than a
+// markdown heading, since the paragraph carries no heading of its own.
+const SHIP_GATE_HEADING = /\*\*Entries standing\.\*\*/;
+const SHIP_GATE_ELEMENTS = [
+  [
+    /\*\*ask once\*\*\s+whether\s+to\s+ship\s+with\s+it\s+standing/i,
+    'ask once whether to ship with a standing unresolved defect',
+  ],
+  [/`--unattended`\s*→\s*refuse/i, 'refuse under `--unattended` when an unresolved defect stands'],
+];
+
+// scanShipGateContract() is pure over a root dir: reads commands/ship.md, isolates the "Entries standing."
+// paragraph, and reports every gate element that paragraph does not itself carry. An absent ship.md is
+// skipped, matching every other contract scanner; a ship.md with no such paragraph at all is one gap
+// naming the missing paragraph, the same shape scanAnchorContract() uses for a missing section.
+//
+// Ordering dependency: extractSection() runs from SHIP_GATE_HEADING to the next markdown heading, and
+// "Entries standing." carries no heading of its own — so this check's specificity holds only as long as
+// that paragraph stays the LAST one in §3, immediately before "## 4. Definition of Done". Move it above
+// the stage-gate bullets and the extracted section would swallow them too; §3's other gate uses the
+// identical "ask once" / `--unattended` → refuse phrasing for an unrelated question, so it would then
+// satisfy SHIP_GATE_ELEMENTS on its own and this check would silently degrade to the whole-file match
+// the comment above warns against.
+function scanShipGateContract(root) {
+  const gaps = [];
+  let text;
+  try {
+    text = fs.readFileSync(path.join(root, 'commands', 'ship.md'), 'utf8');
+  } catch {
+    return gaps; // ship.md absent → nothing to scan
+  }
+  const section = extractSection(text, SHIP_GATE_HEADING);
+  if (section === null) {
+    gaps.push({
+      source: path.join('commands', 'ship.md'),
+      expectation: "carry the entries-standing gate's own \"Entries standing.\" paragraph",
+    });
+    return gaps;
+  }
+  for (const [pattern, expectation] of SHIP_GATE_ELEMENTS) {
+    if (!pattern.test(section)) gaps.push({ source: path.join('commands', 'ship.md'), expectation });
+  }
+  return gaps;
+}
+
+// CONTEXT.md's **Degraded pass** and **Unresolved defect** entries restate what
+// `references/scope-mode.md`'s `## Degraded passes` and `## Unresolved defects` sections define, and the
+// two records answer different questions: a degraded pass is never a failure of the code under review, an
+// unresolved defect is exactly that (ADR 0026). This is the same third-copy risk `CHANGE_TYPE_CONTRACTS`
+// guards — nothing executes the glossary, so it is the copy most likely to drift, and it did: this scope's
+// own history shipped a `CONTEXT.md` that contradicted this reference for three fix cycles with the suite
+// green throughout. Each fact is pinned once per document, in that document's own wording rather than one
+// shared literal, because the reference and the glossary phrase it differently.
+//
+// The check is a verbatim canonical-clause match, the same shape every other contract in this file already
+// is — a literal-phrase guard. What separates a correct sentence from a contradiction here is coreference
+// (which subject a clause attributes to), and no character-window heuristic recovers that: it either
+// over-fires on a correct document whose negation fronts a different clause, or misses a contradiction
+// phrased the same way. A canonical clause long enough to carry the whole assertion sidesteps the question
+// instead of answering it — negate the clause, reword it, or drop it, and the literal match fails.
+const UNRESOLVED_GLOSSARY_CONTRACTS = [
+  [
+    path.join('references', 'scope-mode.md'),
+    'Neither shape is a failure of the code under review',
+    "state that neither degraded-pass shape is a failure of the code under review — CONTEXT.md's Degraded pass entry must agree",
+  ],
+  [
+    'CONTEXT.md',
+    'the code under review did not fail',
+    "state that the code under review did not fail — matching references/scope-mode.md's Degraded passes section",
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    'this one says whether the branch is sound',
+    "state that an unresolved defect answers whether the branch is sound — CONTEXT.md's Unresolved defect entry must agree",
+  ],
+  [
+    'CONTEXT.md',
+    'rather than whether the branch is sound',
+    "state that an unresolved defect answers whether the branch is sound — matching references/scope-mode.md's Unresolved defects section",
+  ],
+];
+
+// normalizeWhitespace() collapses every run of whitespace, including a line break, to a single space.
+// CONTEXT.md and references/scope-mode.md are hard-wrapped, so a canonical clause can straddle a line
+// break in the real document; normalizing both the clause and the document before comparing makes that
+// wrap invisible to the match instead of a false gap.
+function normalizeWhitespace(text) {
+  return text.replace(/\s+/g, ' ');
+}
+
+// scanUnresolvedGlossaryContract() is pure over a root dir: reads every document UNRESOLVED_GLOSSARY_CONTRACTS
+// names and reports the rows whose canonical clause is not present verbatim, after whitespace normalization
+// on both sides. Absent files are skipped, matching every other contract scanner.
+function scanUnresolvedGlossaryContract(root) {
+  const gaps = [];
+  for (const [rel, clause, expectation] of UNRESOLVED_GLOSSARY_CONTRACTS) {
+    let text;
+    try {
+      text = fs.readFileSync(path.join(root, rel), 'utf8');
+    } catch {
+      continue; // document absent (fixture / partial checkout) → nothing to scan
+    }
+    if (!normalizeWhitespace(text).includes(normalizeWhitespace(clause))) gaps.push({ source: rel, expectation });
+  }
+  return gaps;
+}
 
 // The documents that must reach no knowledge-base backend, and the markers that say one does.
 // `/superdev:publish-kb` is deliberately absent from the document list: reaching the backend is its job.
@@ -1047,6 +1170,8 @@ function main() {
     ...scanHookLedgerParsers(root),
     ...scanContract(root, TEST_SELECTION_CONTRACTS),
     ...scanContract(root, FULL_SUITE_CONTRACTS),
+    ...scanShipGateContract(root),
+    ...scanUnresolvedGlossaryContract(root),
   ];
   // Every scanner above skips a document it cannot read, so that a fixture carries only the files it
   // exercises. That convention would let `commands/afk.md` be deleted without a single check going red,
@@ -1085,8 +1210,11 @@ function main() {
         'knowledge-base pages are staged and no document but publish-kb reaches a backend, ' +
         'eval graders and scaffolds well-formed, ' +
         'every loop consumer reads test-selection.md, ' +
-        "and the scope review runs the full suite itself while final-reviewer's own re-run stays " +
-        'optional',
+        "the scope review runs the full suite itself while final-reviewer's own re-run stays " +
+        'optional, ' +
+        'ship asks once and refuses unattended on a standing unresolved defect, ' +
+        'and the glossary agrees with scope-mode.md on which record covers a failure of the code ' +
+        'under review',
     );
     process.exit(0);
   }
@@ -2505,6 +2633,57 @@ if (process.argv[2] === '--selftest') {
     'absent files are skipped',
   );
 
+  // positive: review.md and implement.md keep their other verbs but drop the `unresolved add`/
+  // `unresolved clear` pair, going back to hand-editing or hand-parsing the ledger's `**Unresolved:**` line
+  const uvReview = fixture({
+    'commands/review.md':
+      'Write its stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set reviewed --root <run-root>`. ' +
+      'Read the anchor title with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get anchor --root <run-root>`.\n',
+  });
+  const uvReviewGaps = scanContract(uvReview, VERB_CONTRACTS);
+  assert.equal(uvReviewGaps.length, 2, 'flags review.md for dropping both unresolved verbs');
+  assert.ok(
+    uvReviewGaps.every((g) => g.source === path.join('commands', 'review.md')),
+    'both gaps name review.md',
+  );
+
+  const uvImplement = fixture({
+    'commands/implement.md':
+      'Create the run root with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" init --root <run-root>`. ' +
+      'Record slice completion with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set merged --root <run-root>`.\n',
+  });
+  const uvImplementGaps = scanContract(uvImplement, VERB_CONTRACTS);
+  assert.equal(uvImplementGaps.length, 2, 'flags implement.md for dropping both unresolved verbs');
+  assert.ok(
+    uvImplementGaps.every((g) => g.source === path.join('commands', 'implement.md')),
+    'both gaps name implement.md',
+  );
+
+  // negative: review.md carrying all four of its rows, including both unresolved verbs, is clean
+  const uvClean = fixture({
+    [path.join('commands', 'review.md')]:
+      'Write its stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set reviewed --root <run-root>`. ' +
+      'Read the anchor title with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get anchor --root <run-root>`. ' +
+      'Write it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add "<text>" --root <run-root>`. ' +
+      'On a clean verdict, `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`.\n',
+  });
+  assert.equal(
+    scanContract(uvClean, VERB_CONTRACTS).length,
+    0,
+    'a review.md carrying all its verbs, including both unresolved ones, is clean',
+  );
+
+  // positive: ship.md drops the `scope.js get unresolved`/`get degraded` reads entirely, going back to
+  // hand-reading the ledger (or the cwd-dependent `status`, which is the failure Important 2 closed)
+  const shipNoStatus = fixture({
+    'commands/ship.md': 'Ask whether anything stands, from memory of the review.\n',
+  });
+  const shipVerbGaps = scanContract(shipNoStatus, VERB_CONTRACTS);
+  assert.ok(
+    shipVerbGaps.some((g) => g.source === path.join('commands', 'ship.md')),
+    'flags a ship.md that stopped reading the unresolved and degrade records through `scope.js get`',
+  );
+
   // --- KB staging (ADR 0023): /superdev:plan and /superdev:document stage knowledge-base pages, and
   // /superdev:publish-kb is the only path to a remote backend. Two halves, checked separately, because
   // each passes on its own while the invariant is gone. ---
@@ -2775,6 +2954,206 @@ if (process.argv[2] === '--selftest') {
   // absent files are skipped, matching every other contract table
   assert.equal(
     scanContract(fixture({ 'README.md': '# repo\n' }), FULL_SUITE_CONTRACTS).length,
+    0,
+    'absent files are skipped',
+  );
+
+  // --- SHIP_GATE_ELEMENTS: /superdev:ship §3 gates on a standing unresolved defect — asked about once
+  // attended, refused under --unattended (ADR 0026). §3 also carries an unrelated, pre-existing gate (the
+  // missing-review/document warning) that uses the identical **ask once** and `--unattended` → refuse
+  // phrasing for a different question. Every fixture below carries that unrelated gate too, so a scanner
+  // that tested the whole file instead of the "Entries standing." paragraph alone would wrongly pass. ---
+
+  const SHIP_UNRELATED_GATE =
+    '## 3. Stage gate\n\n' +
+    'Name what has not run and **ask once** whether to ship anyway. Declined → stop. Confirmed → ' +
+    'proceed. **`--unattended` → refuse**: name what is missing, open no pull request, and stop.\n\n';
+
+  assert.equal(
+    scanShipGateContract(realRoot).length,
+    0,
+    'the shipped ship.md carries both the ask-once and refuse-unattended halves in its own Entries ' +
+      'standing paragraph',
+  );
+
+  // positive (RED reproduction): the entries-standing paragraph drops its own ask-once clause, while the
+  // unrelated stage gate above it still carries an "ask once" phrase for a different question — a
+  // whole-file test is satisfied by that unrelated phrase and misses the drop
+  const sg1 = fixture({
+    'commands/ship.md':
+      SHIP_UNRELATED_GATE +
+      '**Entries standing.** Name every bullet. Declined → stop. Confirmed → proceed. **`--unattended` → ' +
+      'refuse**: name what stands, open no pull request, and stop.\n\n' +
+      '## 4. Definition of Done\n',
+  });
+  const sgGaps1 = scanShipGateContract(sg1);
+  assert.equal(
+    sgGaps1.length,
+    1,
+    'flags a ship.md whose entries-standing paragraph drops the ask-once clause, even with the unrelated ' +
+      'stage gate above it still carrying one',
+  );
+  assert.equal(sgGaps1[0].source, path.join('commands', 'ship.md'), 'names ship.md');
+
+  // positive (RED reproduction, the reviewer's exact case): the entries-standing paragraph drops its own
+  // unattended-refuse clause, while the unrelated stage gate above it still carries the identical
+  // `--unattended` → refuse phrase — the whole-file test used to pass wrongly here
+  const sg2 = fixture({
+    'commands/ship.md':
+      SHIP_UNRELATED_GATE +
+      '**Entries standing.** Name every bullet and **ask once** whether to ship with it standing. ' +
+      'Declined → stop. Confirmed → proceed.\n\n' +
+      '## 4. Definition of Done\n',
+  });
+  const sgGaps2 = scanShipGateContract(sg2);
+  assert.equal(
+    sgGaps2.length,
+    1,
+    'flags a ship.md whose entries-standing paragraph drops the unattended-refuse clause, even with the ' +
+      'unrelated stage gate above it still carrying the identical phrase',
+  );
+  assert.equal(sgGaps2[0].source, path.join('commands', 'ship.md'), 'names ship.md');
+
+  // negative: both halves carried in the entries-standing paragraph itself
+  const sg3 = fixture({
+    'commands/ship.md':
+      SHIP_UNRELATED_GATE +
+      '**Entries standing.** Name every bullet and **ask once** whether to ship with it standing. ' +
+      'Declined → stop. Confirmed → proceed. **`--unattended` → refuse**: name what stands, open no ' +
+      'pull request, and stop.\n\n' +
+      '## 4. Definition of Done\n',
+  });
+  assert.equal(
+    scanShipGateContract(sg3).length,
+    0,
+    'both gate halves carried in the entries-standing paragraph itself yields zero gaps',
+  );
+
+  // positive: no entries-standing paragraph at all
+  const sg4 = fixture({ 'commands/ship.md': SHIP_UNRELATED_GATE + '## 4. Definition of Done\n' });
+  const sgGaps4 = scanShipGateContract(sg4);
+  assert.equal(sgGaps4.length, 1, 'flags a ship.md with no entries-standing paragraph at all');
+  assert.equal(sgGaps4[0].source, path.join('commands', 'ship.md'), 'names ship.md');
+
+  // absent files are skipped, matching every other contract scanner
+  assert.equal(
+    scanShipGateContract(fixture({ 'README.md': '# repo\n' })).length,
+    0,
+    'absent files are skipped',
+  );
+
+  // --- UNRESOLVED_GLOSSARY_CONTRACTS: CONTEXT.md's Degraded pass and Unresolved defect entries agree
+  // with references/scope-mode.md about which record covers a failure of the code under review (ADR
+  // 0026) — the fact this scope's own history let drift for three fix cycles with the suite green. ---
+
+  assert.equal(
+    scanUnresolvedGlossaryContract(realRoot).length,
+    0,
+    'CONTEXT.md and scope-mode.md agree on which record covers a failure of the code under review',
+  );
+
+  // positive: scope-mode.md drops the degraded-pass disclaimer CONTEXT.md's Degraded pass entry restates,
+  // while keeping its Unresolved-defects half (verbatim) so only the dropped row is flagged
+  const ug1 = fixture({
+    'references/scope-mode.md':
+      'A degraded pass is a step that did not get the assurance the chain promises.\n\n' +
+      'Distinct from a Degraded pass — this one says whether the branch is sound.\n',
+  });
+  const ugGaps1 = scanUnresolvedGlossaryContract(ug1);
+  assert.equal(ugGaps1.length, 1, "flags scope-mode.md for dropping the degraded-pass disclaimer");
+  assert.equal(ugGaps1[0].source, path.join('references', 'scope-mode.md'), 'names scope-mode.md');
+
+  // positive: CONTEXT.md's Degraded pass entry drops the disclaimer scope-mode.md states, while keeping
+  // its Unresolved defect half verbatim
+  const ug2 = fixture({
+    'CONTEXT.md':
+      '**Degraded pass** — a step of the chain that did not get the assurance it promises.\n\n' +
+      '**Unresolved defect** — distinct from a Degraded pass, which says how much of the chain ran, ' +
+      'rather than whether the branch is sound (ADR 0026).\n',
+  });
+  const ugGaps2 = scanUnresolvedGlossaryContract(ug2);
+  assert.equal(ugGaps2.length, 1, "flags CONTEXT.md for dropping the degraded-pass disclaimer");
+  assert.equal(ugGaps2[0].source, 'CONTEXT.md', 'names CONTEXT.md');
+
+  // positive: scope-mode.md's Unresolved defects section drops the branch-soundness clause, while keeping
+  // its Degraded-passes half verbatim
+  const ug3 = fixture({
+    'references/scope-mode.md':
+      'Neither shape is a failure of the code under review.\n\n' +
+      'An unresolved defect is a defect the run finds in the code and leaves standing.\n',
+  });
+  const ugGaps3 = scanUnresolvedGlossaryContract(ug3);
+  assert.equal(ugGaps3.length, 1, 'flags scope-mode.md for dropping the branch-soundness clause');
+  assert.equal(ugGaps3[0].source, path.join('references', 'scope-mode.md'), 'names scope-mode.md');
+
+  // positive: CONTEXT.md's Unresolved defect entry drops the branch-soundness clause, while keeping its
+  // Degraded pass half verbatim
+  const ug4 = fixture({
+    'CONTEXT.md':
+      '**Degraded pass** — the code under review did not fail; the chain\'s own assurance came up short.\n\n' +
+      '**Unresolved defect** — a defect the run finds in the code and leaves standing.\n',
+  });
+  const ugGaps4 = scanUnresolvedGlossaryContract(ug4);
+  assert.equal(ugGaps4.length, 1, 'flags CONTEXT.md for dropping the branch-soundness clause');
+  assert.equal(ugGaps4[0].source, 'CONTEXT.md', 'names CONTEXT.md');
+
+  // positive: CONTEXT.md's Unresolved defect entry negates the branch-soundness clause outright — a
+  // literal match on the affirmative clause cannot appear inside a sentence that denies it
+  const ug6 = fixture({
+    'CONTEXT.md':
+      '**Degraded pass** — the code under review did not fail; the chain\'s own assurance came up short.\n\n' +
+      '**Unresolved defect** — this record does not answer whether the branch is sound; that is a ' +
+      'different question.\n',
+  });
+  const ugGaps6 = scanUnresolvedGlossaryContract(ug6);
+  assert.equal(ugGaps6.length, 1, 'flags a CONTEXT.md entry that negates the branch-soundness clause');
+  assert.equal(ugGaps6[0].source, 'CONTEXT.md', 'names CONTEXT.md');
+
+  // positive: CONTEXT.md's Unresolved defect entry negates the branch-soundness clause as an "X, not Y"
+  // contrastive coordination — the genuine contradiction a character-window look-behind let through,
+  // because it reads as a correct sentence when the only difference from the real one is which word
+  // ("rather than" vs. "not") sits in front of the shared "whether the branch is sound" fragment
+  const ug7 = fixture({
+    'CONTEXT.md':
+      '**Degraded pass** — the code under review did not fail; the chain\'s own assurance came up short.\n\n' +
+      '**Unresolved defect** — distinct from a **Degraded pass**, which says how much of the chain ran, ' +
+      'not whether the branch is sound (ADR 0026).\n',
+  });
+  const ugGaps7 = scanUnresolvedGlossaryContract(ug7);
+  assert.equal(ugGaps7.length, 1, 'flags the "X, not Y" contrastive negation as a contradiction');
+  assert.equal(ugGaps7[0].source, 'CONTEXT.md', 'names CONTEXT.md');
+
+  // positive: rewording the canonical clause fails too — the accepted cost of a literal-phrase guard,
+  // the same shape every other contract in this file already accepts
+  const ug8 = fixture({
+    'references/scope-mode.md':
+      'Neither shape counts as a failure of the code under review.\n\n' +
+      'Distinct from a Degraded pass — this one says whether the branch is sound.\n',
+  });
+  const ugGaps8 = scanUnresolvedGlossaryContract(ug8);
+  assert.equal(ugGaps8.length, 1, 'flags a reworded canonical clause as a gap');
+  assert.equal(ugGaps8[0].source, path.join('references', 'scope-mode.md'), 'names scope-mode.md');
+
+  // negative: both documents carry the full agreement verbatim, wrapped across a line break the way the
+  // real files wrap — whitespace normalization makes the wrap invisible to the match
+  const ug5 = fixture({
+    'references/scope-mode.md':
+      'Neither shape is a failure of the code\nunder review.\n\n' +
+      'Distinct from a Degraded pass — this one says\nwhether the branch is sound.\n',
+    'CONTEXT.md':
+      '**Degraded pass** — the code under review did\nnot fail; the chain\'s own assurance came up short.\n\n' +
+      '**Unresolved defect** — distinct from a Degraded pass, which says how much of the chain ran, rather ' +
+      'than whether the branch\nis sound (ADR 0026).\n',
+  });
+  assert.equal(
+    scanUnresolvedGlossaryContract(ug5).length,
+    0,
+    'both documents carrying the full agreement, wrapped across a line break, yields zero gaps',
+  );
+
+  // absent files are skipped, matching every other contract scanner
+  assert.equal(
+    scanUnresolvedGlossaryContract(fixture({ 'README.md': '# repo\n' })).length,
     0,
     'absent files are skipped',
   );

@@ -39,26 +39,17 @@ agents/                — subagents (*.md): implementer, slice-reviewer, simpli
                          doc-writer, doc-reader
 hooks/                 — deterministic Node hooks + hooks.json: merge-guard, model-explicit, green-gate,
                          run-lock, ledger-guard, worktree-sweep, scope-prune, update-check
-references/            — backend seed templates + plan-contract (slice schema/lifecycle, incl. the
-                         optional epic sections: parked questions, non-goals, and the epic-visuals gate
-                         for `## Slice graph`/`## Touch map`) + documentation convention +
-                         controlled-prose (the writing standard) + content-types (the four kinds of
-                         information a doc carries) — both read at runtime by the doc agents +
-                         execution playbooks (implement-full/lite, read at runtime by /implement) +
-                         scope-mode (the rule /review, /document, and /ship share, read at runtime by
-                         each, plus its Unattended section /implement and both playbooks also read) +
-                         test-selection (the full-versus-focused test-command rule, ADR 0025, read at
-                         runtime by every full/focused-suite caller) +
-                         authoring disciplines (cross-examination, domain-modeling, doc-verification;
-                         read at runtime by /plan + /brainstorm, doc-verification also by implementer) +
-                         review-checklist (anti-patterns, vuln-classes, reuse-audit, consistency; read at
-                         runtime by final-reviewer + slice-reviewer)
+references/            — backend seed templates + the non-seed runtime references (plan-contract,
+                         documentation convention, controlled-prose, content-types, execution
+                         playbooks, test-selection, scope-mode, authoring disciplines,
+                         review-checklist). Who reads what: the `references/` entry of the Child
+                         DOX Index below.
 docs/adr/              — architecture decision records (why the plugin is built this way)
 docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, documentation, KB, toolchain, verification)
 scripts/               — standalone deterministic code wired into `bun run test`: `scope.js` (the
                          run-state CLI, ADR 0022), `eval-run.js` (the eval runner, ADR 0024), and
-                         `drift-check.js`. What each one owns and guards is enumerated once, in the
-                         `scripts/` entry of the Child DOX Index below.
+                         `drift-check.js`. What each one owns and guards is enumerated once, in
+                         `scripts/AGENTS.md`.
 evals/                 — cases (*/case.yaml + graders/*.md + the case's scaffold_script, a path
                          relative to the case dir — never an inline block); every case is one arm of
                          the with/without-plugin A/B, run by `scripts/eval-run.js` on a Claude
@@ -134,11 +125,10 @@ bun run eval:plan                  # the two cheap plan-only arms of that A/B
 GITEA_TOKEN=<token> bun run release  # cut a release from clean main (see RELEASING.md)
 ```
 
-**`bun run eval` needs `CLAUDE_CODE_OAUTH_TOKEN`.** `scripts/eval-run.js` runs each `evals/` case as
-two arms on a Claude subscription instead of a metered API key (ADR 0024). The plugin arm loads
-superdev through `claude -p --plugin-dir`. The baseline arm loads nothing. A maintainer creates the
-token once with `claude setup-token` and exports it. The runner refuses to start without it and never
-falls back to `ANTHROPIC_API_KEY`.
+**`bun run eval` needs `CLAUDE_CODE_OAUTH_TOKEN`.** `scripts/eval-run.js` runs on a Claude
+subscription instead of a metered API key (ADR 0024). A maintainer creates the token once with
+`claude setup-token` and exports it. The runner refuses to start without it and never falls back to
+`ANTHROPIC_API_KEY`. Details: `scripts/AGENTS.md`.
 
 # DOX framework
 
@@ -225,11 +215,12 @@ When the user requests a durable behavior change, record it here or in the relev
 
 ## Child DOX Index
 
-**No child AGENTS.md exists, because the repo is flat.** The repo is small, and every subtree's rules
-already live in this root doc. See `Structure` above for the current file inventory. Add a child only
-when a subtree becomes a durable boundary with rules of its own that do not fit here.
+**One child exists: [`scripts/AGENTS.md`](scripts/AGENTS.md).** It owns what the three scripts guard,
+including the full drift-check contract narrative. Every other subtree's rules live in this root doc.
+See `Structure` above for the current file inventory. Add a child only when a subtree becomes a
+durable boundary with rules of its own that do not fit here.
 
-This root owns every subtree directly:
+This root owns every other subtree directly:
 
 - `commands/`, `agents/`. Prose slash-commands and subagents. Governed by **Working rules, Backends are
   pluggable**: stay tool-agnostic and never hardcode a backend. Behaviour contracts live in the files.
@@ -238,205 +229,11 @@ This root owns every subtree directly:
   candidate, if its rules outgrow this root. `scope-prune.js` `require`s `scripts/scope.js` for its
   ledger-header reader (ADR 0022). This is the only place a hook depends on a script instead of standing alone.
   A `require` failure leaves the hook with no fallback reader: it prunes nothing and says nothing.
-- `scripts/`. Standalone deterministic code that `package.json` runs, alongside `hooks/`. It follows the
-  same `--selftest` convention. Three executables live here.
-
-  `scope.js` is the **run-state CLI** (ADR 0022): it owns the ledger's schema and is the only
-  `ledger.md` read and write path in the chain — `init`, `stage get|set`, `slice`, `degraded add`,
-  `get stage|branch|anchor|slices`, and `status` (which renders the whole `/superdev:status` report). It
-  also exports `readLedgerHeader` as a module API. This per-header ledger-line reader is what `hooks/scope-prune.js`
-  uses instead of carrying its own regex. The API guards its CLI entry with
-  `require.main === module`, so a `require` for that reader alone runs no CLI code. Normalisation is per
-  header: `Stage` and `Branch` are single tokens, cut to the first whitespace-delimited token and stripped
-  of markup and trailing punctuation. `Anchor` is a prose title that reaches a pull request, trimmed and
-  otherwise left alone. An empty header line reads as absent, not as an empty string. Both
-  `readLines` and `readLedgerHeader` split on `\r?\n`. A `ledger.md` an editor or `core.autocrlf` wrote
-  with CRLF line endings reads exactly as an LF one does. A lone `\r`, the classic-Mac line ending, reads
-  as absent, and that is deliberate. Any verb that writes the file normalises it back to LF. A
-  scope whose ledger stage reads `shipped` collapses to one line, `<scope>  (shipped)`. It drops the slice
-  tally and the blocked list. `hooks/scope-prune.js` (ADR 0007) is about to reap that run root, so
-  per-slice detail is no longer work in flight. Its `**Degraded:**` line and its staged-page lines survive
-  the collapse, because each is otherwise recorded nowhere else.
-  `status` also reports every scope's **staged knowledge-base pages** under `.superdev/kb-pending/`
-  (ADR 0023): a `pending publish:` line per scope, a scope with no run root under `(no ledger)`, a
-  non-`.md` file staged and ignored, and a `.md` file staged directly under `.superdev/kb-pending`
-  outside any scope directory. Each is a page `/superdev:publish-kb` would otherwise silently miss.
-  The stage machine's transition rules are enforced in its code, not in prose, and
-  `hooks/ledger-guard.js` denies every other write path. Its selftest carries the retired drift
-  assertions along with its own behavior: the stage machine, the ledger schema and header lines, a
-  pre-CLI ledger parsing unchanged, and the scope-slug charset staying equal across `scope.js`,
-  `hooks/run-lock.js`, and `references/scope-mode.md`.
-
-  `eval-run.js` is the **eval runner** (ADR 0024). It runs every `evals/` case as two arms on a Claude
-  subscription instead of a metered API key. The plugin arm loads superdev through `claude -p
-  --plugin-dir`. The baseline arm loads nothing. It scores each arm's diff and transcript against the
-  case's `graders/*.md`. It refuses to start without `CLAUDE_CODE_OAUTH_TOKEN` and never falls back to
-  a billed `ANTHROPIC_API_KEY`. It exits non-zero in three cases. A case scores nothing. The ablation
-  looks broken: the plugin arm shows no superdev marker in any of its runs, or the baseline arm shows
-  one. An arm's transcript shows a mutating tool call, but the captured diff stays empty. It reports
-  that capture failure as an error, never as a silent zero. `claude plugin eval` still reads the same
-  `case.yaml` and `graders/*.md` files, unchanged, for a key-funded cross-check.
-
-  Its selftest covers:
-
-    - the case-YAML reader
-    - the child-environment scrub
-    - the two arms' argument difference
-    - the run classifier
-    - the diff-capture failure paths (an empty scaffold, work committed off HEAD, a nested repository
-      tracked as a gitlink)
-    - the grader and judge machinery
-    - aggregation across runs
-    - the missing-token exit
-
-  The reference, run-root, assignee,
-  anchor-contract, afk-selection-neutrality, writing-standard, content-types, command-resolution,
-  chain-handoff, feature-label-argument, unattended-token, afk-invocation, change-type,
-  degraded-pass, derived-criteria, label-validation, green-gate-timeout,
-  verb-pointer, and no-second-reader checks are drift assertions. They compare a restated fact against
-  its source. The
-  eval-shape check compares a document against a schema. The afk-existence check is a plain existence
-  assertion.
-  `drift-check.js` guards twenty-five things, in the order its `main()` computes them. First, that every
-  `references/*.md` path named in `commands/`, `agents/`, or `references/` itself resolves to a file that
-  exists. A reference cites
-  another reference — both execution playbooks point at `scope-mode.md` — so a rename there dangles like
-  any other. Second, that `commands/implement.md`,
-  `commands/review.md`, `commands/document.md`, `commands/ship.md`, `commands/publish-kb.md`,
-  `references/implement-full.md`,
-  `references/implement-lite.md`, `references/scope-mode.md`, `agents/implementer.md`,
-  `agents/slice-reviewer.md`, `agents/simplicity-reviewer.md`, and `agents/final-reviewer.md` address
-  run-root artifacts by absolute
-  `<run-root>/…` path. Third, that every issue-backend document carries the `**Assignee` config bullet.
-  The filename alone triggers that check, with no content gate on how the doc phrases issue creation.
-  `references/issue-tracker-local.md` is exempt, because it has no assignee concept. Fourth, that every
-  slice-store document (every `references/issue-tracker-*.md` plus this repo's own
-  `docs/agents/issue-tracker.md`) carries a `## Scope anchor` section stating all four of its elements: how
-  to recognise an anchor, list its candidates, list the slices beneath one, and tell that an anchor is
-  itself a slice (ADR 0017). Each element is matched on a bullet's bolded lead-in (`- **Recognise one.**`
-  style, `-` or `*`, American or British spelling) rather than anywhere in the section, so intro prose
-  that merely lists the four concepts satisfies none of them. Fifth, that `commands/afk.md`'s selection
-  step (§2) names no backend's own
-  anchor mechanism — an epic (the `epic` label, matched case-insensitively whether backticked or not,
-  which also covers the local store's `00-epic-` filename), a change-type label prefix (any of them, and
-  including a concrete label like `feat/self-improvements`; a type is excluded only when a further
-  `/`-delimited segment follows it, which is what separates the paths this step legitimately carries —
-  `docs/agents/…`, the store config it is meant to point at, and `docs/plans/<type>/` — from a label. A
-  delimiter rule instead reads a real label as a path and passes it, and an allowlist of the two path
-  literals both misreads an ADR citation as a prefix and lets `docs/plans-refactor` through),
-  a GitHub sub-issue relation,
-  a Jira parent field — and instead points at the store's `## Scope anchor` contract. A step that
-  stayed neutral by naming nothing at all still fails this. Naming no mechanism is only half the property.
-  `scanAnchorContract()` and `scanAfkSelectionNeutrality()` share one
-  helper, `extractSection()`, which masks fenced code blocks first. (CommonMark's at-least-as-long
-  closing-fence rule applies, so a shorter inner fence never closes a longer outer one.) Then it
-  isolates the text of one heading's section before either scans its body. Sixth, that
-  `references/documentation.md` still offers a `## Writing standard` section (ADR 0012).
-  Seventh, that `agents/doc-writer.md` and `agents/doc-reader.md` each still instruct themselves to read
-  `references/content-types.md` (ADR 0014). Eighth, that every
-  `/superdev:<name>` reference in `commands/` or `agents/` resolves to a `commands/<name>.md` file, so a
-  chain handoff never points the reader at a command that does not exist. Ninth, that
-  `commands/implement.md`, `commands/review.md`, and `commands/document.md` each name their successor in
-  the chain. `commands/ship.md` ends the chain and is deliberately outside that check.
-
-  The tenth, eleventh, thirteenth, fourteenth, fifteenth, sixteenth, seventeenth, and eighteenth checks
-  share one scanner, `scanContract()`, run over
-  a table of `[document, pattern, expectation]` rows instead of one function each. It reads every
-  document a table names and reports the rows whose pattern that document no longer matches. Tenth, the
-  feature-label-argument contract: `commands/implement.md` declares an `argument-hint` naming a feature
-  label and resolves `$ARGUMENTS`, and `commands/plan.md` names `/superdev:implement <label>` as its
-  resolved successor, in a backtick-delimited invocation — the contract only, never the label's shape
-  (ADR 0019). Eleventh, the
-  unattended-token contract: `references/scope-mode.md`
-  carries the `## Unattended` section (ADR 0016), and `commands/implement.md`, `commands/review.md`,
-  `commands/document.md`, `commands/ship.md`, `references/implement-full.md`, and
-  `references/implement-lite.md` each name `--unattended` and carry a read/apply instruction pointing at
-  that section. Twelfth, that `commands/afk.md`'s stage table invokes all four chain commands and
-  carries `--unattended` on every one of those rows. `scanAfkInvocations()` checks this row by row: a
-  whole-file regex would pass the moment any one row carried the token, letting a sibling row lose it
-  unnoticed. Thirteenth, the change-type contract:
-  `references/scope-mode.md`'s type list, `hooks/scope-prune.js`'s `CHANGE_TYPES` regex,
-  `CONTEXT.md`'s **Change type** glossary entry, and `scripts/scope.js`'s `CHANGE_TYPES` array state the
-  same set (ADR 0021). A hook narrower than the prose misreads a live branch of the missing type as gone
-  — gone is one of the two conditions that make a scope prunable (ADR 0007) — and reaps a shipped run's
-  root that is still in progress, silently: the Stop hook that runs it reports nothing either way. The
-  glossary is the copy most likely to drift, because nothing executes it. Fourteenth, the degraded-pass
-  contract:
-  `references/scope-mode.md` carries the `## Degraded passes` section, and `commands/implement.md`,
-  `commands/review.md`, `commands/document.md`, `commands/ship.md`, `commands/status.md`,
-  `references/implement-full.md`, and `references/implement-lite.md` each name the `**Degraded:**`
-  ledger entry and point at that section. A consumer that drops the wire lets a run report assurance it
-  never got — a pull request claiming a review that was its author reading their own work. Fifteenth,
-  the derived-criteria contract: `commands/review.md` hands `final-reviewer` the **path**
-  `<run-root>/dod.md` in its scope-mode dispatch, and `agents/final-reviewer.md` carries its
-  `## Derive the criteria first` step (ADR 0020). Both halves are needed for the ordering to be real,
-  because a prompt arrives at once — DoD text inlined in the dispatch is already read by the time the
-  instruction asks for a derivation. Losing either half degrades the derivation into theater: references
-  still resolve, the suite stays green, and the reviewer reads the DoD first exactly as before.
-  Sixteenth, the label-validation contract:
-  `references/scope-mode.md` carries the **Validate both segments.** rule, and `commands/implement.md`
-  and `commands/afk.md` each point at it. The whole feature label becomes the branch name, so the type
-  reaches `git switch -c` exactly as the slug does — a rule guarding the slug alone lets `-x/y` through to
-  git as an option, and lets a non-canonical type make `scope-prune` reap a run root that is still live.
-  A consumer
-  that stops pointing at the rule validates nothing and stays valid prose. Seventeenth, the
-  green-gate-timeout contract: `hooks/hooks.json` sets `"timeout": 600` on the green-gate
-  PostToolUse(Bash) hook entry, and the comment beside `IS_MERGE` in `hooks/green-gate.js` names that
-  same 600s ceiling, distinct from Claude Code's own 60s default hook timeout. Green-gate re-runs the
-  scope suite synchronously inside the hook, so a suite slower than the configured timeout is killed
-  mid-run and the gate silently doesn't fire — a hooks.json entry that loses its `timeout` field falls
-  back to the 60s default unnoticed, because the suite stays green until a run happens to exceed it.
-  Eighteenth, the verb-pointer contract (ADR 0022): every ledger touchpoint in the chain invokes its
-  `scope.js` verb — `commands/implement.md` `init` and `stage set merged`, `commands/review.md`
-  `stage set` and `get anchor`, `commands/document.md` `stage set`, `commands/ship.md` `get stage` and
-  `stage set shipped`, `commands/status.md` `status`, `commands/afk.md` `get stage`,
-  `commands/publish-kb.md` `get branch` for its merge check, both execution
-  playbooks `slice`, and `references/scope-mode.md` `degraded add`. A document that drops its verb goes
-  back to hand-editing or hand-parsing the ledger, which the `ledger-guard` hook only catches as a tool
-  call at runtime, never as prose.
-  Nineteenth and twentieth, the ADR 0023 knowledge-base contracts, checked in two halves because either
-  alone passes while the invariant is gone. Nineteenth, the staging half: `commands/plan.md`,
-  `commands/document.md`, and `agents/doc-writer.md` each name `.superdev/kb-pending/` as the place a
-  remote backend's page goes instead of a live call. Twentieth, the no-call half, `scanKbNoBackendCall()`:
-  none of those same three documents carries a backend-directed verb — publish, create, update, upsert, or
-  an HTTP `POST`/`PUT`/`DELETE` — aimed at a page, wiki, space, or backend object.
-  `commands/publish-kb.md` is exempt, because reaching the backend is its job. The check reads the
-  instruction's shape rather than a backend's literal endpoint or credential name, because
-  **Backends are pluggable** already forbids these three documents from naming a backend at all, so a
-  literal-only marker would catch almost nothing.
-  Twenty-first, the no-second-reader contract (ADR 0022), `scanHookLedgerParsers()` scans every
-  `hooks/*.js` file for a literal `**…:**`-shaped header regex. This pattern marks whether a hook grows a
-  ledger-header reader of its own instead of `require`ing `scope.js`'s `readLedgerHeader`. It reads the
-  pattern's shape rather than running the hooks, because the same drift happened to `scope-prune.js`'s own
-  copy. A second reader can diverge on anchoring, capture width, newline handling, or markup normalisation
-  silently, and prose alone would not have caught it.
-  Twenty-second, the test-selection wiring contract (ADR 0025): `agents/implementer.md`,
-  `references/implement-lite.md`, and `agents/slice-reviewer.md` each still instruct themselves to read
-  `references/test-selection.md` **and run the command it selects** — anchored on that clause, not the
-  bare mention, so a document that keeps the path in a passing aside but drops the run instruction still
-  fails. Twenty-third, the full-suite contract (ADR 0025), five rows: `commands/review.md` still runs the
-  full suite itself, before dispatching `final-reviewer`; states that a `fail` there is itself a Critical
-  finding folded into the fix loop; and states that the stage does **not** advance while a full-suite fail
-  or Critical/Important finding stands — the clause that actually blocks a red scope, distinct from the
-  finding merely being named. `agents/final-reviewer.md` still names its own re-run as optional and never
-  the scope's only full-suite run, and states that `Full-suite run: fail` makes the verdict `Ready to
-  merge? No` on its own. Losing any one row quietly reopens the gap ADR 0025 closed.
-  Twenty-fourth,
-  that `commands/afk.md` exists at all. Nothing else in the plugin names `/superdev:afk` for the eighth
-  check to resolve, so its absence would otherwise go unnoticed. Twenty-fifth, that every
-  `evals/*/graders/*.md` declares a known `type` and a positive `weight`, that an `llm` or `regex`
-  grader also declares a `focus` or `target`, and that every case's `scaffold_script` resolves. Nothing
-  else validates a grader, so without this a typo surfaces part-way through a run that costs real API
-  spend.
-
-  The first and seventh checks are opposites. The first catches a reference to a file that does not exist.
-  The seventh catches an agent that drops its wire to a file which still exists. That drift leaves the
-  reference resolvable and the suite green, and the lens then does nothing in any dispatch.
-
-  The first and eighth checks are the same check at two levels: one resolves a `references/` path, the
-  other a command name. The eighth and ninth are opposites in the same way as the first and seventh: the
-  eighth catches a handoff that points at a command with no file, the ninth a command that names no
-  successor at all.
+- `scripts/`. Owned by [`scripts/AGENTS.md`](scripts/AGENTS.md): `scope.js` (the run-state CLI, ADR
+  0022 — owns the ledger schema, is the only `ledger.md` read and write path, and exports
+  `readLedgerHeader` for `hooks/scope-prune.js`), `eval-run.js` (the eval runner, ADR 0024), and
+  `drift-check.js` (the twenty-seven cross-document contract checks). What each guards, check by
+  check, lives in that child doc.
 - `references/`. Backend seed templates plus the non-seed references below.
   + `plan-contract.md`: the slice schema and lifecycle, including the optional epic sections, the
     epic-visuals gate for `## Slice graph` and `## Touch map`, and the `## Scope anchor` section — the
@@ -479,7 +276,10 @@ This root owns every subtree directly:
     defines the pass a run did not get — a dispatch the permission classifier denied, or one that could
     not reach what it needed — what a command does about one attended and unattended, and the
     `**Degraded:**` ledger entry that carries it to `/superdev:ship`'s pull-request body and
-    `/superdev:status`'s report. Its `## The ledger` section defers the ledger's schema to `scripts/scope.js` (ADR 0022), which
+    `/superdev:status`'s report. Its `## Unresolved defects` section (ADR 0026) defines the defect a run
+    finds and leaves standing, distinct from a degraded pass. The `**Unresolved:**` ledger entry carries
+    it to `/superdev:ship`'s pull-request body and `/superdev:status`'s report the same way. Its `## The
+    ledger` section defers the ledger's schema to `scripts/scope.js` (ADR 0022), which
     owns it and is the only read and write path — including the `**Anchor:**` line
     `/superdev:implement` hands to `init` and `/superdev:review` reads back (`get anchor`) for the
     PR-facing title.

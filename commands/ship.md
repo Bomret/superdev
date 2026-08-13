@@ -63,6 +63,15 @@ all):
   would train the reader to dismiss the question. If that drop empties the warning (review was the only
   thing missing), there is nothing left to name. Proceed silently instead of asking about an empty list.
 
+**Entries standing.** Read every bullet with
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get unresolved --root <run-root>` — one bullet per line,
+never through cwd-dependent `status`, whose result depends on the current directory rather than
+`<run-root>` — per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Unresolved defects` section.
+**No output** → proceed silently; nothing here changes. **Output present** → name every bullet and
+**ask once** whether to ship with it standing. Declined → stop, open no pull request, and write nothing.
+Confirmed → proceed and record in the report that the scope shipped with the defect standing.
+**`--unattended` → refuse**: name what stands, open no pull request, and stop.
+
 ## 4. Definition of Done
 
 Confirm every item in `<run-root>/dod.md` against the integrated scope branch, ticking each verified one
@@ -78,11 +87,21 @@ than failing. **Report the pull-request URL.**
 
 **Carry the run's degrade record into that body.** The ledger's `**Degraded:**` line lists every pass this
 run did not get — a denied dispatch, a knowledge-base pass the writer could not stage — per
-`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section; the `degraded:` line of
-`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" status` reports it for this scope. Copy every bullet into the
-pull request body under one fixed `## Degraded passes` heading, so the reviewer reads what the run is
-short of before merging rather than assuming a whole chain ran. **No such line** → the body is exactly what
-it would have been; add no empty heading saying nothing degraded.
+`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section;
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get degraded --root <run-root>` reports it for this scope,
+one bullet per line. Copy every bullet into the pull request body under one fixed `## Degraded passes`
+heading, so the reviewer reads what the run is short of before merging rather than assuming a whole chain
+ran. **No output** → the body is exactly what it would have been; add no empty heading saying nothing
+degraded.
+
+**Carry a standing defect into that body too, under its own heading.** The ledger's `**Unresolved:**` line
+lists every defect the run left standing, per
+`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Unresolved defects` section;
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get unresolved --root <run-root>` reports it for this
+scope, one bullet per line, and §3 above already asked about it before this step ran. Copy every bullet
+into the pull request body under its own `## Unresolved defects` heading, distinct from
+`## Degraded passes` — the two answer different questions, so each keeps its own heading and its own
+bullets. **No output** → add no empty heading.
 
 Then move the **scope anchor** issue (the epic, or the lone slice on a single-slice plan) to done per
 `docs/agents/issue-tracker.md`, and set the ledger's `**Stage:**` line to `shipped` with
