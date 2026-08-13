@@ -74,11 +74,12 @@ The reference, run-root, assignee, anchor-contract, afk-selection-neutrality, wr
 content-types, command-resolution, chain-handoff, feature-label-argument, unattended-token,
 afk-invocation, change-type, degraded-pass, derived-criteria, label-validation,
 green-gate-timeout, verb-pointer, kb-staging, kb-no-backend-call, no-second-reader,
-test-selection-wiring, full-suite, entries-standing-gate, and unresolved-glossary checks are drift
+test-selection-wiring, full-suite, entries-standing-gate, unresolved-glossary, afk-routing,
+arg-token, and audit-set checks are drift
 assertions. They compare a restated fact against its source. The eval-shape check compares a document
 against a schema. The afk-existence check is a plain existence assertion.
 
-`drift-check.js` guards twenty-seven things, in the order its `main()` computes them. First, that every
+`drift-check.js` guards thirty things, in the order its `main()` computes them. First, that every
 `references/*.md` path named in `commands/`, `agents/`, or `references/` itself resolves to a file that
 exists. A reference cites
 another reference — both execution playbooks point at `scope-mode.md` — so a rename there dangles like
@@ -198,13 +199,17 @@ Twenty-second, the test-selection wiring contract (ADR 0025): `agents/implemente
 `references/implement-lite.md`, and `agents/slice-reviewer.md` each still instruct themselves to read
 `references/test-selection.md` **and run the command it selects** — anchored on that clause, not the
 bare mention, so a document that keeps the path in a passing aside but drops the run instruction still
-fails. Twenty-third, the full-suite contract (ADR 0025), five rows: `commands/review.md` still runs the
+fails. Twenty-third, the full-suite contract (ADR 0025), six rows: `commands/review.md` still runs the
 full suite itself, before dispatching `final-reviewer`; states that a `fail` there is itself a Critical
 finding folded into the fix loop; and states that the stage does **not** advance while a full-suite fail
 or Critical/Important finding stands — the clause that actually blocks a red scope, distinct from the
 finding merely being named. `agents/final-reviewer.md` still names its own re-run as optional and never
 the scope's only full-suite run, and states that `Full-suite run: fail` makes the verdict `Ready to
-merge? No` on its own. Losing any one row quietly reopens the gap ADR 0025 closed.
+merge? No` on its own. The sixth row covers the other end: `commands/implement.md`'s Final phase still
+runs the scope's one full suite itself, in place of the review an all-`mechanical`/`docs` scope skips. It
+is the one full-suite run the other five rows leave uncovered, and the routing check below sends such a
+scope past `/superdev:review` on the strength of it. Losing any one row quietly reopens the gap ADR 0025
+closed.
 Twenty-fourth, the entries-standing gate contract (ADR 0026), `scanShipGateContract()`: `commands/ship.md`
 §3's own "Entries standing." paragraph asks once whether to ship a standing unresolved defect, and refuses
 outright under `--unattended`. §3 also carries an unrelated, pre-existing gate (the missing-review/document
@@ -227,9 +232,34 @@ does anywhere else in this file. Both sides of the comparison are whitespace-nor
 whitespace, including a line break, collapse to a single space — because `CONTEXT.md` and
 `references/scope-mode.md` are hard-wrapped and a canonical clause can span a line break in the real
 document. Nothing executes the glossary, so it is the copy most likely to drift.
-Twenty-sixth,
+Twenty-sixth, the afk-routing contract (ADR 0025), three rows: `commands/afk.md`'s stage table reads each
+slice's `type` off the ledger and routes an all-`mechanical`/`docs` scope from `merged` to
+`/superdev:document ... --unattended` and from `documented-unreviewed` to `/superdev:ship ...
+--unattended`, and `commands/ship.md` drops `/superdev:review` from its own missing-step warning for that
+same scope. Such a scope skips the whole-scope review by design — there is no Definition-of-Done judgment
+to attach one to — so a table that routes it into the review strands the feature: the review has nothing
+to judge, and `/superdev:ship --unattended` still refuses a scope whose review never ran, which no sweep
+can clear. Each afk.md row also requires `--unattended` past the command name: this paragraph is prose,
+not a stage-table row, so `scanAfkInvocations`'s row scan never reaches it, and a row that drops the token
+strands an unattended sweep at an interactive question with nothing reported. Both documents are pinned
+because either alone reads correct while the pair disagrees, which is how the defect reached `main` in
+the first place. Twenty-seventh, the arg-token contract: `hooks/merge-guard.js`,
+`hooks/green-gate.js`, and `hooks/ledger-guard.js` each carry the canonical `const ARG = …` shell-word
+token **verbatim**. The three parse the same shape out of a Bash command line by hand, and nothing links
+the copies, so this pins the literal rather than testing mutual equality — a token that narrows in one
+hook reopens the quoted-argument bypass there (`git -C "my repo" merge` walking past the guard), and a
+deliberate improvement is meant to reach all three files and this pin in one commit. Same shape as the
+scope-slug charset assertion in `scripts/scope.js --selftest`.
+Twenty-eighth, the audit-set contract: `commands/setup.md` still records decision C's answer as the
+`## Audit set` section of `docs/agents/documentation.md`, `commands/document.md` still reads that
+section back with its stated fallback for when it's absent, and `references/documentation.md` still
+seeds the section as optional, for `/setup` to fill in. Three documents agree on the section only in
+prose, the same shape as the afk-routing and arg-token pairs above — a renamed heading or a dropped
+fallback clause leaves the section unreachable in every repo that carries it, unnoticed, until a doc
+audit runs on one and finds nothing there.
+Twenty-ninth,
 that `commands/afk.md` exists at all. Nothing else in the plugin names `/superdev:afk` for the eighth
-check to resolve, so its absence would otherwise go unnoticed. Twenty-seventh, that every
+check to resolve, so its absence would otherwise go unnoticed. Thirtieth, that every
 `evals/*/graders/*.md` declares a known `type` and a positive `weight`, that an `llm` or `regex`
 grader also declares a `focus` or `target`, and that every case's `scaffold_script` resolves. Nothing
 else validates a grader, so without this a typo surfaces part-way through a run that costs real API
@@ -249,7 +279,7 @@ successor at all.
 - Scripts are CommonJS, like the hooks. `hooks/scope-prune.js` `require`s `scope.js`, so `scope.js`
   must stay `require`-able under plain `node`. This is the one dependency `hooks/` has on `scripts/`.
 - Every script ships a `--selftest`, same convention as the hooks.
-- A new drift-check contract gets its own entry in the twenty-seven-check narrative above, in
+- A new drift-check contract gets its own entry in the thirty-check narrative above, in
   `main()` order.
 
 ## Verification

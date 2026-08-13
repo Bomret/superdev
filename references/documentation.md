@@ -39,6 +39,18 @@ The prose style the doc agents apply (ADR 0012). One of:
 It binds only the prose an agent writes or rewrites in a dispatch. Untouched text is never reformatted,
 so docs converge on the standard as they are touched.
 
+## Audit set
+
+Optional. `/superdev:document audit` reads a default tree — the `AGENTS.md` hierarchy, `README.md`,
+`CONTEXT.md`, and the local knowledge-base pages when the knowledge base is a local `docs/kb/` — plus
+every glob listed here:
+
+- `<repo-relative glob>`
+
+List the documentation that default tree does not reach: a `docs/` guide tree, a release runbook, prose
+that is itself the product. Nothing outside the default tree → the section is absent, and the audit reads
+the default tree alone and says so in its report.
+
 superdev usage:
 
 - `/superdev:plan` records the glossary (`CONTEXT.md`), ADRs (`docs/adr/`), and any path-scoped rules

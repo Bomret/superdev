@@ -230,7 +230,7 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   arrived after the doc pass, so the docs are stale by exactly them, and `reviewed` is what makes
   `/superdev:ship` ask for the doc pass again. `documented` or `shipped` → leave the line alone and
   say so in one line. The run has already moved past this gate. Anything else → write `reviewed`. Then
-  print the next command with the range already resolved — `/superdev:document <BASE>..<type>/<scope>`,
-  the same range you just reviewed — and say in one line what it will do (reconcile the in-repo docs and
+  print the next command with the range already resolved — `/superdev:document <range>`, carrying the
+  concrete range §1 resolved and this review just read — and say in one line what it will do (reconcile the in-repo docs and
   the knowledge base with the merged state).
 - **Never merge, push, or open a pull request.** `/superdev:ship` ends the chain.

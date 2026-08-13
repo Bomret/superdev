@@ -136,7 +136,9 @@ re-enter the DAG loop at step 1.
 ## Leave the run standing
 
 Per-slice worktrees are already removed at merge (DAG step 4). Anything left — a stray
-`.superdev/scopes/<scope>/worktrees/*`, a leftover `slice/<scope>/*` branch, the run root, the lock — stays
-for `/superdev:ship`, which takes the run down at the end of the chain. The invoking checkout keeps
+`.superdev/scopes/<scope>/worktrees/*`, a leftover `slice/<scope>/*` branch, the run root — stays
+for `/superdev:ship`, which takes the run down at the end of the chain. This tier leaves no `run.lock`:
+only `references/implement-lite.md` creates one, because the `run-lock` hook guards a scope worktree this
+tier never cuts (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The run lock`). The invoking checkout keeps
 `<type>/<scope>` checked out: that is the scope checkout `/superdev:review` and `/superdev:document` work
 in on this tier. Return to the controller's **Final phase** without cleaning up.

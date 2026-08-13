@@ -176,7 +176,7 @@ For each: file:line · what's wrong · why it matters · how to fix (if not obvi
 [one note, per the four gates above; omit this section entirely when nothing qualifies]
 
 ### Assessment
-Full-suite run: [pass | fail | not run]
+Full-suite run: [pass | fail | not run | denied — degraded pass]
 Ready to merge? [Yes | No | With fixes]
 Reasoning: [1–2 sentences]
 ```

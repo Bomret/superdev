@@ -1,5 +1,7 @@
 # 0026 — An unresolved defect is not a degraded pass
 
+**Status:** Accepted
+
 ## Context
 
 A run had one durable record for what went wrong: the ledger's `**Degraded:**` line. `references/scope-mode.md`

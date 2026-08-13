@@ -128,6 +128,18 @@ stop is an error rather than a question, which §4 turns into a block.
 `documented-unreviewed` routes to the review, not the ship, because `/superdev:ship --unattended` refuses
 a scope whose review never ran. The review is what clears that state.
 
+**A scope whose slices are every one `mechanical` or `docs` takes two different rows.** Read each slice's
+`type` — the fourth, tab-separated field of `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices
+--root <run-root>`, one row per slice. When no row reads `behavior`, `merged` routes to
+`/superdev:document <BASE>..<feature-label> --unattended` and `documented-unreviewed` routes to
+`/superdev:ship <scope> --unattended`, in place of the two review rows above. Such a scope skips the
+whole-scope review by design: there is no Definition-of-Done judgment to attach one to, so
+`/superdev:implement`'s Final phase already ran the scope's one full suite in its place (ADR 0025), and
+`commands/ship.md` drops `/superdev:review` from its own missing-step warning for the same reason.
+Routing it into the review instead strands the feature — the review has nothing to judge, and the ship
+that follows still refuses a scope whose review never ran. **A ledger with no slice rows at all is not
+such a scope**: it says nothing about what the slices are, so route it to the review as any other scope.
+
 A feature reaches one of two ends: **shipped** (a pull request is open) or **blocked**. A command can also
 stop with an **error** rather than a question — `/superdev:implement`'s "No DoD → don't proceed",
 `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s wrong-checkout stop — and write no label at all.

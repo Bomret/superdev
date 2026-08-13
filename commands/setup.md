@@ -114,6 +114,14 @@ Record the answer as the `## Writing standard` section of `docs/agents/documenta
 compound formation, and number format are the repo's to answer, and answering them later means two
 writers have already disagreed.
 
+Then ask which **documentation sits outside the default tree**. `/superdev:document audit` reads the
+`AGENTS.md` hierarchy, `README.md`, `CONTEXT.md`, and the local knowledge-base pages on its own; anything
+else it should audit is named here. Scan the repo for directories holding markdown that tree does not
+reach and **offer what you found** as the answer, so the user edits a list instead of writing one from
+nothing. Record it as the `## Audit set` section of `docs/agents/documentation.md`, one repo-relative
+glob per bullet. **Nothing outside the default tree** → write no section: audit mode already states what
+it does when the section is absent, and an empty section says less than no section.
+
 **D — Knowledge base (optional).** Is there a **knowledge base** for durable, reader-facing docs (feature
 specifications, design overviews, ADR summaries)? Ask the user which of:
 
@@ -142,9 +150,10 @@ adjust with the user**, and record the agreed outline in `knowledge-base.md`. It
 `/superdev:plan` and `/superdev:document` fill and extend it, not reinvent it.
 
 **E — Verification (optional).** What single command runs the repo's test suite (e.g. `npm test`,
-`pytest -q`, `cargo test`)? Recorded, it **arms the green-gate**: on the `full` execution tier, after
-every controller merge, a hook re-runs it and blocks the run if the scope suite is RED — turning
-implement's "re-run the suite after merging" from a prompt into a deterministic gate. Detect a likely
+`pytest -q`, `cargo test`)? Recorded, it **arms the green-gate**: after every controller merge, a hook
+re-runs it and blocks the run if the scope suite is RED — turning implement's "re-run the suite after
+merging" from a prompt into a deterministic gate. The hook reads no execution tier; the `full` tier's
+per-slice merges are simply where the implement loop meets it most. Detect a likely
 command from the repo (package.json
 scripts, a Makefile `test` target, `pyproject.toml`) and propose it. No suite (e.g. a docs-only repo) →
 skip; the gate stays inactive and nothing else changes. (The **F** scan below finds the same manifests —
@@ -187,7 +196,8 @@ Write:
 - `docs/agents/code-management.md` — same, from the chosen host seed.
 - `docs/agents/documentation.md` — from `references/documentation.md` (or the user's in-repo doc
   convention as prose). Always carries the **`## Writing standard`** section with decision **C**'s
-  answer, including when the answer is `none`.
+  answer, including when the answer is `none`. It carries the **`## Audit set`** section only when
+  decision **C** named documentation outside the default tree.
 - `docs/agents/knowledge-base.md` — from the chosen KB seed (`knowledge-base-confluence.md` /
   `knowledge-base-local.md`) filled in, or the "other" prose. For **None**, write a one-line
   `knowledge-base.md` stating there is no separate KB (or skip the file).

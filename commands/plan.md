@@ -1,5 +1,6 @@
 ---
 description: Plan a feature for superdev — a relentless interview that pins intent and the Definition of Done, then decomposes the work into independently-green vertical slices in the configured slice store. Run before /superdev:implement.
+argument-hint: "[an intent, or nothing]"
 ---
 
 # superdev plan
@@ -17,6 +18,12 @@ absent `docs/agents/toolchain.md` alongside build/package manifests gets a non-b
 **`/superdev:setup`** suggestion, then planning continues.
 
 ## 1. Interview (relentless, one question at a time)
+
+**`$ARGUMENTS` is the intent, when one is given.** Take it as the interview's starting point — the same
+standing a picked brainstorm intent has below, and no more: it states what the user wants, never the
+design, so the interview still walks the whole tree. An argument present makes the brainstorm glob below
+a cross-check rather than a prompt: an intent whose slug matches what the argument describes is offered,
+and nothing else is. Empty → interview from the glob below.
 
 **Seed from an existing brainstorm intent if there is one.** Glob `.superdev/brainstorm/*.md` — the
 git-ignored scratch intents `/superdev:brainstorm` may have left. If exactly one exists, offer it
@@ -56,6 +63,16 @@ first to explore the space before pinning it down here.
 **Read `${CLAUDE_PLUGIN_ROOT}/references/doc-verification.md` and apply it whenever the interview leans on
 a claim about how a third-party library, product, or service behaves.** Verify it against official docs
 before it's baked into the DoD, a slice's `spec`, or an ADR.
+
+**Pick the feature label once the interview settles the solution shape**, before §2 stages a knowledge-base
+page — that step paths on the label's slug, so a plan that picks the label later stages its pages under a
+slug it has not chosen yet. The label is the feature's **change type** plus its slug, in the notation
+`docs/agents/issue-tracker.md` states (`${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md` → *Feature
+label*). The type is what the feature does to the codebase, not what it feels like: a defect this plan
+repairs is `fix`, a restructuring that keeps behaviour is `refactor`, a prose-only pass is `docs`, and
+`feat` is for new behaviour. It becomes the scope branch, so a mislabelled plan ships a branch and a pull
+request that misreport the work. A later answer that changes what the feature does revises the label in
+place, the same way §2 revises any other decision it has already recorded.
 
 ## 2. Domain-model as you go
 
@@ -181,12 +198,8 @@ override it in a word. Don't let the drawing shape the decomposition: the slices
 plan is never re-cut to make a nicer diagram — but a genuine dependency error the drawing exposes (§5) is
 worth fixing before writing it; that's correction, not re-cutting for looks.
 
-**Pick the feature label before you write anything.** It is the feature's **change type** plus its slug,
-in the notation `docs/agents/issue-tracker.md` states (`${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md`
-→ *Feature label*). The type is what the feature does to the codebase, not what it feels like: a defect
-this plan repairs is `fix`, a restructuring that keeps behaviour is `refactor`, a prose-only pass is
-`docs`, and `feat` is for new behaviour. It becomes the scope branch, so a mislabelled plan ships a branch
-and a pull request that misreport the work. State it to the user with the slice list.
+**State the feature label** (§1 picked it) to the user with the slice list, so a wrong type or slug is
+caught before anything is written.
 
 **Write with max parallelism (issue-backend stores).** Writes have a strict ordering only where one
 record references another — otherwise issue them concurrently, don't serialize. Order: **(1)** create the

@@ -48,8 +48,9 @@ implementer's TDD discipline yourself. Between dispatches, narrate at most one s
 ## Config + input
 
 - Read `docs/agents/issue-tracker.md` (slice store), `docs/agents/code-management.md` (code host),
-  `docs/agents/documentation.md` (in-repo documentation convention), and `docs/agents/knowledge-base.md`
-  (optional KB). Slice store or code host missing → run **`/superdev:setup`**, then continue. **Advisory:**
+  `docs/agents/documentation.md` (in-repo documentation convention), `docs/agents/knowledge-base.md`
+  (optional KB), and `docs/agents/verification.md` (the test command, which the Final phase runs and
+  every slice's loop reads). Slice store or code host missing → run **`/superdev:setup`**, then continue. **Advisory:**
   if `docs/agents/toolchain.md` is absent while the repo has build/package manifests (`package.json`,
   `*.csproj`/`*.sln`, `pom.xml`/`build.gradle*`, `pyproject.toml`, `Cargo.toml`, `go.mod`, …), suggest the
   user run **`/superdev:setup`** to record the toolchain — non-blocking, then continue.
@@ -243,8 +244,9 @@ tiers: your job here is to record that slice execution finished and to name what
 
 ## Model selection (always set explicitly)
 
-Every row here is dispatched by the `full` playbook alone; the reviews that follow the chain carry their
-own model choices.
+The `full` playbook dispatches every row here, and the **Final phase** above dispatches the implementer
+row on a red full suite — on either tier, which is the one row the `lite` playbook reaches. The reviews
+that follow the chain carry their own model choices.
 
 | Dispatch | Model | When |
 |---|---|---|

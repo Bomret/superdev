@@ -1,5 +1,7 @@
 # 0025 — The scope review owns the full-suite run
 
+**Status:** Accepted
+
 ## Context
 
 `docs/agents/verification.md` named one test command, and five places in the chain ran it: the

@@ -880,6 +880,17 @@ const FULL_SUITE_CONTRACTS = [
     /the stage does\s+\*\*not\*\*\s+advance while it stands/i,
     'state that the stage does **not** advance while a full-suite fail or Critical/Important finding stands',
   ],
+  // A sixth row: `commands/implement.md`'s Final phase is the other end of ADR 0025. An all-`mechanical`
+  // /`docs` scope has no whole-scope review to attach a suite run to, so that phase runs the scope's one
+  // full suite in its place. It is the one full-suite run no row above covers, and it is load-bearing
+  // twice over — the routing contract below sends such a scope past `/superdev:review` on the strength of
+  // it. A Final phase that stops running the suite leaves that scope reaching a pull request with no
+  // suite run behind it anywhere in the chain, while every other check here stays green.
+  [
+    path.join('commands', 'implement.md'),
+    /attempts that scope's one full-suite run itself[\s\S]{0,60}in place of that review/i,
+    "run the scope's one full-suite run itself, in place of the review an all-`mechanical`/`docs` scope skips",
+  ],
 ];
 
 // `/superdev:ship` §3 gates on a standing unresolved defect (ADR 0026): a defect the run left standing is
@@ -1124,6 +1135,84 @@ const TEST_SELECTION_CONTRACTS = [
   ],
 ];
 
+// ADR 0025 again, one level up: an all-`mechanical`/`docs` scope skips `/superdev:review` by design, so
+// `commands/implement.md`'s Final phase runs its one full suite instead (the sixth full-suite row above).
+// Two documents have to agree about what that scope does next, and they agree only in prose.
+// `commands/ship.md` drops `/superdev:review` from its missing-step warning for such a scope, and
+// `commands/afk.md`'s stage table routes it past the review rather than into it. A table that keeps
+// routing `merged` to the review strands the scope: `/superdev:review` has no Definition-of-Done judgment
+// to make, `/superdev:ship --unattended` refuses a scope whose review never ran, and the sweep never
+// finishes the feature. Both sides are pinned, because either alone reads correct while the pair
+// disagrees. Each afk.md row also requires `--unattended` past the command name — a prose sentence that
+// drops it strands an unattended sweep at an interactive question with nothing reported, the failure
+// ADR 0015's token check exists to prevent, and this is prose the stage-table row scan
+// (`scanAfkInvocations`) never reaches.
+const AFK_ROUTING_CONTRACTS = [
+  [
+    path.join('commands', 'afk.md'),
+    /no\s+row\s+reads\s+`?behavior`?[\s\S]{0,160}`?merged`?\s+routes\s+to\s+`?\/superdev:document[\s\S]{0,50}--unattended/i,
+    'route an all-`mechanical`/`docs` scope from `merged` to `/superdev:document ... --unattended`, read ' +
+      "off the ledger's slice types",
+  ],
+  [
+    path.join('commands', 'afk.md'),
+    /no\s+row\s+reads\s+`?behavior`?[\s\S]{0,200}`?documented-unreviewed`?\s+routes\s+to\s+`?\/superdev:ship[\s\S]{0,50}--unattended/i,
+    'route that same all-`mechanical`/`docs` scope from `documented-unreviewed` to `/superdev:ship ... ' +
+      '--unattended`, not back to the review — tied to the same condition as the `merged` row above, not ' +
+      'every scope',
+  ],
+  [
+    path.join('commands', 'ship.md'),
+    /every slice in the ledger is\s+\*{0,2}`?mechanical`?[\s\S]{0,240}drop\s+`?\/superdev:review`?\s+from that warning/i,
+    'drop `/superdev:review` from its missing-step warning for an all-`mechanical`/`docs` scope',
+  ],
+];
+
+// Three hooks parse the same shell-word shape out of a Bash command line: `merge-guard` and `green-gate`
+// to see past git's global options (`-C <path>`, `-c k=v`) to the verb, and `ledger-guard` to read a
+// write target. The token is one regex source string, duplicated by hand in each file, and a quoted or
+// backslash-escaped argument is exactly what it exists to keep whole — the bypass a narrower copy
+// reopens is a guard that misses `git -C "my repo" merge`. Nothing links the three copies, so this pins
+// the literal: the canonical source below must appear verbatim in all three. The same shape as the
+// scope-slug charset assertion in `scripts/scope.js --selftest`, and deliberately strict — a genuine
+// improvement to the token is meant to be applied to all three files and re-pinned here in one commit,
+// not to drift into one hook and be discovered by a bypass.
+const ARG_TOKEN_LINE = String.raw`const ARG = /(?:[^\s"'\\]|\\.|"(?:[^"\\]|\\.)*"|'[^']*')+/.source;`;
+const ARG_TOKEN_PATTERN = new RegExp(ARG_TOKEN_LINE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+const ARG_TOKEN_EXPECTATION =
+  'carry the canonical ARG shell-word token verbatim — all three hooks parse the same shape, and a copy that drifts reopens the quoted-argument bypass';
+const ARG_TOKEN_CONTRACTS = [
+  [path.join('hooks', 'merge-guard.js'), ARG_TOKEN_PATTERN, ARG_TOKEN_EXPECTATION],
+  [path.join('hooks', 'green-gate.js'), ARG_TOKEN_PATTERN, ARG_TOKEN_EXPECTATION],
+  [path.join('hooks', 'ledger-guard.js'), ARG_TOKEN_PATTERN, ARG_TOKEN_EXPECTATION],
+];
+
+// `## Audit set` is a three-document agreement, the same shape as AFK_ROUTING_CONTRACTS and
+// ARG_TOKEN_CONTRACTS above: `/superdev:setup` writes the section, `/superdev:document` reads it back
+// with a stated fallback for when it's absent, and `references/documentation.md` seeds it as the
+// section `/setup` fills in. Nothing links the three documents, so a renamed heading or a dropped
+// fallback clause leaves the suite green and the section unreachable — a section one document reads
+// that no other document writes, the exact defect shape this file was already extended twice to catch,
+// and the one that reached `main` unnoticed before.
+const AUDIT_SET_CONTRACTS = [
+  [
+    path.join('commands', 'setup.md'),
+    /Record it as the `?##\s*Audit set`?\s+section/i,
+    "record decision C's answer as the `## Audit set` section of `docs/agents/documentation.md`",
+  ],
+  [
+    path.join('commands', 'document.md'),
+    /`?##\s*Audit set`?\s+section[\s\S]{0,250}optional[\s\S]{0,150}absent[\s\S]{0,150}default\s+tree/i,
+    'read the `## Audit set` section and fall back to the default doc tree, noted in the report, when ' +
+      'the section is absent',
+  ],
+  [
+    path.join('references', 'documentation.md'),
+    /##\s*Audit set[\s\S]{0,80}Optional/i,
+    'seed the `## Audit set` section as optional, for `/superdev:setup` to fill in',
+  ],
+];
+
 // scanContract() is pure over a root dir and a contract table: reads each document the table names and
 // reports the expectations it no longer meets. Absent files are skipped, so fixtures need only the
 // documents they exercise. Both tables above share this one scanner — they differ in what they assert,
@@ -1172,6 +1261,9 @@ function main() {
     ...scanContract(root, FULL_SUITE_CONTRACTS),
     ...scanShipGateContract(root),
     ...scanUnresolvedGlossaryContract(root),
+    ...scanContract(root, AFK_ROUTING_CONTRACTS),
+    ...scanContract(root, ARG_TOKEN_CONTRACTS),
+    ...scanContract(root, AUDIT_SET_CONTRACTS),
   ];
   // Every scanner above skips a document it cannot read, so that a fixture carries only the files it
   // exercises. That convention would let `commands/afk.md` be deleted without a single check going red,
@@ -1213,8 +1305,11 @@ function main() {
         "the scope review runs the full suite itself while final-reviewer's own re-run stays " +
         'optional, ' +
         'ship asks once and refuses unattended on a standing unresolved defect, ' +
-        'and the glossary agrees with scope-mode.md on which record covers a failure of the code ' +
-        'under review',
+        'the glossary agrees with scope-mode.md on which record covers a failure of the code ' +
+        'under review, ' +
+        'afk and ship agree on where an all-mechanical/docs scope goes next, ' +
+        'the three Bash hooks carry the same ARG shell-word token, ' +
+        'and setup, document, and the documentation seed agree on the `## Audit set` section',
     );
     process.exit(0);
   }
@@ -2939,7 +3034,29 @@ if (process.argv[2] === '--selftest') {
   assert.equal(fsGaps6.length, 1, 'flags a review.md that names the finding but drops the stage-not-advance clause');
   assert.equal(fsGaps6[0].source, path.join('commands', 'review.md'), 'names review.md');
 
-  // negative: all five rows carried
+  // positive: implement.md's Final phase stops running the scope's one full suite itself — the row that
+  // covers an all-`mechanical`/`docs` scope, which has no whole-scope review to attach a run to
+  const fs7 = fixture({
+    'commands/implement.md': 'Set the stage to `merged`, then print the next command.\n',
+  });
+  const fsGaps7 = scanContract(fs7, FULL_SUITE_CONTRACTS);
+  assert.equal(fsGaps7.length, 1, "flags an implement.md whose Final phase runs no full suite of its own");
+  assert.equal(fsGaps7[0].source, path.join('commands', 'implement.md'), 'names implement.md');
+
+  // negative: that same sixth row carried
+  assert.equal(
+    scanContract(
+      fixture({
+        'commands/implement.md':
+          "This phase attempts that scope's one full-suite run itself, once, in place of that review.\n",
+      }),
+      FULL_SUITE_CONTRACTS,
+    ).length,
+    0,
+    'an implement.md carrying the Final-phase full-suite run yields no gap',
+  );
+
+  // negative: all six rows carried
   const fs3 = fixture({
     'commands/review.md':
       "Run the full suite yourself, before dispatching `final-reviewer`. A `fail` here is itself a " +
@@ -2949,11 +3066,237 @@ if (process.argv[2] === '--selftest') {
       "Your own re-run here stays optional and is never the scope's only full-suite run. `Full-suite " +
       'run: fail` makes the verdict `Ready to merge? No`.\n',
   });
-  assert.equal(scanContract(fs3, FULL_SUITE_CONTRACTS).length, 0, 'all five rows carried yields zero gaps');
+  assert.equal(scanContract(fs3, FULL_SUITE_CONTRACTS).length, 0, 'all six rows carried yields zero gaps');
 
   // absent files are skipped, matching every other contract table
   assert.equal(
     scanContract(fixture({ 'README.md': '# repo\n' }), FULL_SUITE_CONTRACTS).length,
+    0,
+    'absent files are skipped',
+  );
+
+  // --- AFK_ROUTING_CONTRACTS: an all-`mechanical`/`docs` scope skips the whole-scope review by design,
+  // so afk's stage table routes it past `/superdev:review` and ship drops the review from its own
+  // missing-step warning. Either document alone reads correct while the pair disagrees, so both are
+  // pinned. ---
+
+  assert.equal(
+    scanContract(realRoot, AFK_ROUTING_CONTRACTS).length,
+    0,
+    'the shipped afk.md and ship.md agree on where an all-mechanical/docs scope goes next',
+  );
+
+  // positive: afk.md keeps the stage table but never reads the slice types — the shape that strands such
+  // a scope in a review it skips, which is the defect this contract exists to catch
+  const afkR1 = fixture({
+    'commands/afk.md':
+      '| `merged` | `/superdev:review <BASE>..<feature-label> --unattended` |\n' +
+      '| `documented-unreviewed` | `/superdev:review <BASE>..<feature-label> --unattended` |\n',
+  });
+  const afkGaps1 = scanContract(afkR1, AFK_ROUTING_CONTRACTS);
+  assert.equal(afkGaps1.length, 2, 'flags an afk.md that routes both stages into the review unconditionally');
+  assert.ok(
+    afkGaps1.every((g) => g.source === path.join('commands', 'afk.md')),
+    'both gaps name afk.md',
+  );
+
+  // positive: afk.md carries the `merged` half but sends `documented-unreviewed` back to the review — the
+  // half-fix that still cannot finish a sweep, since ship refuses a scope whose review never ran
+  const afkGaps2 = scanContract(
+    fixture({
+      'commands/afk.md':
+        'When no row reads `behavior`, `merged` routes to `/superdev:document <BASE>..<feature-label> ' +
+        '--unattended`.\n`documented-unreviewed` routes to `/superdev:review` as always.\n',
+    }),
+    AFK_ROUTING_CONTRACTS,
+  );
+  assert.equal(afkGaps2.length, 1, 'flags an afk.md that fixes only the `merged` row');
+  assert.equal(afkGaps2[0].source, path.join('commands', 'afk.md'), 'names afk.md');
+
+  // positive (RED reproduction): the real exception paragraph with both `--unattended` tokens stripped —
+  // prose the stage-table row scan never reaches, so nothing else in this file would have caught it
+  const afkGapsNoToken = scanContract(
+    fixture({
+      'commands/afk.md':
+        'When no row reads `behavior`, `merged` routes to `/superdev:document <BASE>..<feature-label>` ' +
+        'and `documented-unreviewed` routes to `/superdev:ship <scope>`, in place of the two review rows ' +
+        'above.\n',
+    }),
+    AFK_ROUTING_CONTRACTS,
+  );
+  assert.equal(afkGapsNoToken.length, 2, 'flags both rows when `--unattended` is stripped from each');
+  assert.ok(
+    afkGapsNoToken.every((g) => g.source === path.join('commands', 'afk.md')),
+    'both gaps name afk.md',
+  );
+
+  // positive: ship.md drops its own half — the other side of the same agreement
+  const afkGaps3 = scanContract(
+    fixture({
+      'commands/ship.md':
+        'Name exactly what has not run (`/superdev:review`, `/superdev:document`, or both) and ask once.\n',
+    }),
+    AFK_ROUTING_CONTRACTS,
+  );
+  assert.equal(afkGaps3.length, 1, "flags a ship.md that stopped exempting an all-mechanical/docs scope");
+  assert.equal(afkGaps3[0].source, path.join('commands', 'ship.md'), 'names ship.md');
+
+  // negative: both documents carry their halves, hard-wrapped the way the real prose is
+  assert.equal(
+    scanContract(
+      fixture({
+        'commands/afk.md':
+          'Read each slice\'s `type`. When no\nrow reads `behavior`, `merged` routes to\n' +
+          '`/superdev:document <BASE>..<feature-label> --unattended` and `documented-unreviewed` routes ' +
+          'to\n`/superdev:ship <scope> --unattended`.\n',
+        'commands/ship.md':
+          '- **Every slice in the ledger is `mechanical` or `docs`** (the fourth, `type` field of\n' +
+          '  `scope.js get slices`) → drop `/superdev:review` from that warning.\n',
+      }),
+      AFK_ROUTING_CONTRACTS,
+    ).length,
+    0,
+    'both halves carried, across a line wrap, yields zero gaps',
+  );
+
+  // positive (RED reproduction, MINOR 7): `documented-unreviewed` routes to ship unconditionally, for
+  // every scope, with no all-mechanical/docs condition anywhere nearby — the shape row 1 alone used to
+  // pass, which would ship a behavior scope's `documented-unreviewed` anchor straight past the review it
+  // still needs. Tying row 1 to the same condition as row 0 catches it.
+  const afkGapsUnconditional = scanContract(
+    fixture({
+      'commands/afk.md':
+        'Every `documented-unreviewed` scope routes straight to `/superdev:ship <scope> --unattended`, no ' +
+        'matter what its slices are.\n',
+    }),
+    AFK_ROUTING_CONTRACTS,
+  );
+  assert.equal(
+    afkGapsUnconditional.length,
+    2,
+    'flags both the missing merged-routing condition and the unconditional ship route — an afk.md that ' +
+      'routes every scope from `documented-unreviewed` to ship, not just the all-mechanical/docs one, must ' +
+      'fail row 1 too',
+  );
+  assert.ok(
+    afkGapsUnconditional.every((g) => g.source === path.join('commands', 'afk.md')),
+    'both gaps name afk.md',
+  );
+
+  // --- ARG_TOKEN_CONTRACTS: merge-guard, green-gate, and ledger-guard each parse the same shell-word
+  // shape out of a Bash command line, by hand. A copy that drifts reopens the quoted-argument bypass. ---
+
+  assert.equal(
+    scanContract(realRoot, ARG_TOKEN_CONTRACTS).length,
+    0,
+    'all three shipped hooks carry the canonical ARG token verbatim',
+  );
+
+  // positive: one hook narrows its copy back to a bare `\S+` — the pre-fix shape, which stops at the
+  // first space inside a quoted path and lets `git -C "my repo" merge` past the guard
+  const argGaps1 = scanContract(
+    fixture({ 'hooks/merge-guard.js': 'const ARG = /\\S+/.source;\n' }),
+    ARG_TOKEN_CONTRACTS,
+  );
+  assert.equal(argGaps1.length, 1, 'flags a hook whose ARG token narrowed');
+  assert.equal(argGaps1[0].source, path.join('hooks', 'merge-guard.js'), 'names the hook that drifted');
+
+  // positive: a subtler drift — the single-quote alternative loses its `+`, so the token matches one
+  // character where it used to match a run. Every other character of the line is unchanged.
+  assert.equal(
+    scanContract(
+      fixture({
+        'hooks/green-gate.js': ARG_TOKEN_LINE.replace("'[^']*')+", "'[^']*')") + '\n',
+      }),
+      ARG_TOKEN_CONTRACTS,
+    ).length,
+    1,
+    'flags a one-character drift in the token',
+  );
+
+  // negative: the canonical line, carried verbatim in all three
+  assert.equal(
+    scanContract(
+      fixture({
+        'hooks/merge-guard.js': '// leading comment\n' + ARG_TOKEN_LINE + '\n',
+        'hooks/green-gate.js': ARG_TOKEN_LINE + '\nconst IS_MERGE = null;\n',
+        'hooks/ledger-guard.js': ARG_TOKEN_LINE + '\n',
+      }),
+      ARG_TOKEN_CONTRACTS,
+    ).length,
+    0,
+    'the canonical token in all three yields zero gaps',
+  );
+
+  // absent files are skipped, matching every other contract table
+  assert.equal(
+    scanContract(fixture({ 'README.md': '# repo\n' }), ARG_TOKEN_CONTRACTS).length +
+      scanContract(fixture({ 'README.md': '# repo\n' }), AFK_ROUTING_CONTRACTS).length,
+    0,
+    'absent files are skipped by both new tables',
+  );
+
+  // --- AUDIT_SET_CONTRACTS: `/superdev:setup` writes the `## Audit set` section, `/superdev:document`
+  // reads it back with a stated fallback, and `references/documentation.md` seeds it — three documents
+  // agreeing in prose only. ---
+
+  assert.equal(
+    scanContract(realRoot, AUDIT_SET_CONTRACTS).length,
+    0,
+    'the shipped setup.md, document.md, and documentation.md carry all three audit-set clauses',
+  );
+
+  // positive: setup.md drops the write instruction — decision C's answer would go nowhere
+  const auditGaps1 = scanContract(
+    fixture({ 'commands/setup.md': 'Ask which docs sit outside the default tree the audit reads.\n' }),
+    AUDIT_SET_CONTRACTS,
+  );
+  assert.equal(auditGaps1.length, 1, 'flags a setup.md that stops recording the `## Audit set` section');
+  assert.equal(auditGaps1[0].source, path.join('commands', 'setup.md'), 'names setup.md');
+
+  // positive: document.md keeps the heading but drops its own fallback clause — the shape that reads
+  // fine on its own and only breaks in a repo whose documentation.md carries no such section
+  const auditGaps2 = scanContract(
+    fixture({
+      'commands/document.md':
+        'Build the audit set: the default doc tree plus any globs listed under a `## Audit set` section ' +
+        'in `docs/agents/documentation.md`.\n',
+    }),
+    AUDIT_SET_CONTRACTS,
+  );
+  assert.equal(auditGaps2.length, 1, "flags a document.md that drops the absent-section fallback clause");
+  assert.equal(auditGaps2[0].source, path.join('commands', 'document.md'), 'names document.md');
+
+  // positive: the documentation seed loses the section entirely
+  const auditGaps3 = scanContract(
+    fixture({ 'references/documentation.md': '## Writing standard\n\ncontrolled\n' }),
+    AUDIT_SET_CONTRACTS,
+  );
+  assert.equal(auditGaps3.length, 1, 'flags a documentation.md seed that carries no `## Audit set` section');
+  assert.equal(auditGaps3[0].source, path.join('references', 'documentation.md'), 'names documentation.md');
+
+  // negative: all three carried, hard-wrapped the way the real prose is
+  assert.equal(
+    scanContract(
+      fixture({
+        'commands/setup.md':
+          'Record it as the `## Audit set` section of `docs/agents/documentation.md`, one repo-relative\n' +
+          'glob per bullet.\n',
+        'commands/document.md':
+          'plus any globs listed under a `## Audit set`\nsection in `docs/agents/documentation.md`. That ' +
+          "section is optional — if it's absent, use the default\ntree alone and say so in the report.\n",
+        'references/documentation.md': '## Audit set\n\nOptional. Reads a default tree plus every glob ' +
+          'listed here.\n',
+      }),
+      AUDIT_SET_CONTRACTS,
+    ).length,
+    0,
+    'all three halves carried, across a line wrap, yields zero gaps',
+  );
+
+  // absent files are skipped, matching every other contract table
+  assert.equal(
+    scanContract(fixture({ 'README.md': '# repo\n' }), AUDIT_SET_CONTRACTS).length,
     0,
     'absent files are skipped',
   );
