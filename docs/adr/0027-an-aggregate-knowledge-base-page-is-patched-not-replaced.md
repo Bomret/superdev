@@ -25,6 +25,21 @@ Which pages take a `patch` is **knowledge-base configuration**: the outline in
 `docs/agents/knowledge-base.md` marks the entries that aggregate across scopes, and `/superdev:setup` asks.
 The writer reads that marker rather than judging page by page.
 
+**Amended: the read is a requirement, not an assumption.** "Reading the live page" above named no call, and
+no configuration document defined one that returns a page **body** — a find call that lists titles is not a
+read. A backend may therefore mark a page `(aggregate)` and enable an action its own configuration cannot
+perform. So: a configuration document that marks any outline entry `(aggregate)` **must** document a call
+returning the page body, and how to get from a staged page's `title` to whatever identifier that call
+takes. `/superdev:setup` captures that read alongside publish, find, update and remove, and will not leave
+an entry marked without one.
+
+The failure this closes is not the missing call but its fallback. `/superdev:publish-kb` treated "no live
+page under this title" as the reason it held no body, and created the page from the single staged section —
+so a page it merely failed to *read* was replaced by one scope's contribution, which is the loss this ADR
+exists to prevent, reached through the documented procedure. **Only positive evidence of absence** (the
+find call does not list the title; the read returns 404) may create a page. Every other outcome leaves the
+file staged and is reported.
+
 ```mermaid
 flowchart LR
   W["doc-writer<br/>(no credential)"] -->|"stages one section<br/>action: patch"| S[".superdev/kb-pending/&lt;scope&gt;/"]
