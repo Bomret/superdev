@@ -16,6 +16,21 @@ The KB is **human-consumption first**. Recorded at setup:
   - `<Audience A — e.g. User Guide>` → `<topic>`, `<topic>`
   - `<Audience B — e.g. Developer Docs>` → `Architecture`, `Setup`, `ADR summaries`
 
+**`(aggregate)` marks a page many scopes contribute to** — an index, a changelog, an ADR-summaries
+digest. `/superdev:document` stages one **section** for such a page (`action: patch`) rather than the
+whole page, and `/superdev:publish-kb` merges that section into the live page by its heading. Without the
+marker the doc pass stages an `upsert`, which replaces the page wholesale and drops every section written
+by a scope it cannot see (ADR 0027). `/superdev:setup` asks which outline pages aggregate; a page no
+scope but its own contributes to carries no marker.
+
+**A non-markdown backend marks nothing `aggregate`, and so needs no body read.** `scripts/kb-patch.js`
+merges by matching markdown ATX headings, and Confluence stores a page as `storage` — XHTML
+(`body.representation: storage` below), not markdown. `action: patch` sent as-is finds no heading to match
+and appends its markdown section, unrendered, to the end of the XHTML body on every publish. ADR 0027
+requires a documented body read for any outline entry marked `(aggregate)`; this seed carries none,
+because none is needed while pages stay XHTML storage. Mark no outline entry `aggregate` here until a
+markdown conversion is named and a matching read documented.
+
 ## Configuration (fill in at setup)
 
 - **Base URL**: `<https://your-domain.atlassian.net/wiki>`
@@ -29,8 +44,8 @@ The KB is **human-consumption first**. Recorded at setup:
 
 Confluence is a **remote** backend, so nothing but `/superdev:publish-kb` calls it (ADR 0023).
 `/superdev:plan` and `/superdev:document` write each page as a **staged page** under
-`.superdev/kb-pending/<scope>/` — YAML frontmatter carrying the page `title` and an `action` of `upsert`
-or `delete`, the page body below. A page reaches the space when a human runs `/superdev:publish-kb`,
+`.superdev/kb-pending/<scope>/` — YAML frontmatter carrying the page `title` and an `action` of `upsert`,
+`patch`, or `delete`, the page body below. A page reaches the space when a human runs `/superdev:publish-kb`,
 after the feature has reached the readers this space is written for.
 
 ## REST conventions (curl, Confluence Cloud v2)

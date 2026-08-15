@@ -47,9 +47,9 @@ references/            — backend seed templates + the non-seed runtime referen
 docs/adr/              — architecture decision records (why the plugin is built this way)
 docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, documentation, KB, toolchain, verification)
 scripts/               — standalone deterministic code wired into `bun run test`: `scope.js` (the
-                         run-state CLI, ADR 0022), `eval-run.js` (the eval runner, ADR 0024), and
-                         `drift-check.js`. What each one owns and guards is enumerated once, in
-                         `scripts/AGENTS.md`.
+                         run-state CLI, ADR 0022), `kb-patch.js` (the knowledge-base section merge,
+                         ADR 0027), `eval-run.js` (the eval runner, ADR 0024), and `drift-check.js`.
+                         What each one owns and guards is enumerated once, in `scripts/AGENTS.md`.
 evals/                 — cases (*/case.yaml + graders/*.md + the case's scaffold_script, a path
                          relative to the case dir — never an inline block); every case is one arm of
                          the with/without-plugin A/B, run by `scripts/eval-run.js` on a Claude
@@ -215,7 +215,7 @@ When the user requests a durable behavior change, record it here or in the relev
 
 ## Child DOX Index
 
-**One child exists: [`scripts/AGENTS.md`](scripts/AGENTS.md).** It owns what the three scripts guard,
+**One child exists: [`scripts/AGENTS.md`](scripts/AGENTS.md).** It owns what the four scripts guard,
 including the full drift-check contract narrative. Every other subtree's rules live in this root doc.
 See `Structure` above for the current file inventory. Add a child only when a subtree becomes a
 durable boundary with rules of its own that do not fit here.
@@ -231,9 +231,10 @@ This root owns every other subtree directly:
   A `require` failure leaves the hook with no fallback reader: it prunes nothing and says nothing.
 - `scripts/`. Owned by [`scripts/AGENTS.md`](scripts/AGENTS.md): `scope.js` (the run-state CLI, ADR
   0022 — owns the ledger schema, is the only `ledger.md` read and write path, and exports
-  `readLedgerHeader` for `hooks/scope-prune.js`), `eval-run.js` (the eval runner, ADR 0024), and
-  `drift-check.js` (the thirty cross-document contract checks). What each guards, check by
-  check, lives in that child doc.
+  `readLedgerHeader` for `hooks/scope-prune.js`), `kb-patch.js` (the deterministic section merge behind a
+  staged page's `action: patch`, called by `/superdev:publish-kb`, ADR 0027), `eval-run.js` (the eval
+  runner, ADR 0024), and `drift-check.js` (the thirty-two cross-document contract checks). What each guards,
+  check by check, lives in that child doc.
 - `references/`. Backend seed templates plus the non-seed references below.
   + `plan-contract.md`: the slice schema and lifecycle, including the optional epic sections, the
     epic-visuals gate for `## Slice graph` and `## Touch map`, and the `## Scope anchor` section — the

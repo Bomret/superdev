@@ -124,6 +124,19 @@ Two captures are **superdev-specific** — the reference doesn't cover them:
   `/superdev:publish-kb` sends it when the feature reaches its readers. A **local** `docs/kb/` backend
   seeds as before — its pages are repository files that ride the branch.
 
+  **An outline entry marked `(aggregate)` takes `action: patch` instead** (ADR 0027): name the file
+  `<title-slug>--<section-slug>.md` (`<section-slug>` is the section heading's text, kebab-cased the same
+  way `<title-slug>` is), never the plain `<title-slug>.md` above — that filename is one file per *page*,
+  and a second section staged under it, now or in a later run, would silently overwrite the first. Stage
+  **one section per file** — an ATX heading, at the level the outline entry names and never the page's
+  own title, as the body's first line, nothing above it, no setext heading, no unterminated fenced code
+  block; `scripts/kb-patch.js`
+  refuses a file that breaks any of these. `/superdev:publish-kb` merges the section into the live page by
+  that heading. An `upsert` here would replace every section other scopes already wrote with the one you
+  can see. Two sections staged in this pass whose headings kebab-case identically collide on that
+  filename before `/superdev:publish-kb` ever sees either — append `-2`, `-3`, … to the later ones'
+  `<section-slug>` so each keeps its own file.
+
 Create all these durable files **lazily** — only when the first term, decision, or rule actually
 crystallises, never as empty scaffolding. Follow the documentation convention in
 `docs/agents/documentation.md` for where they live (update the relevant `AGENTS.md`; keep concise and

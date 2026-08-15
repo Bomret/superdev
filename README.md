@@ -259,8 +259,10 @@ docs/kb/                  knowledge base, only if the local-file KB backend is c
                           only scans .superdev/scopes/*/) never mistakes it for a run root; never
                           committed
 .superdev/kb-pending/<scope>/<title-slug>.md   git-ignored staged pages for a remote knowledge-base
-                          backend, written by /plan and /document instead of a live publish, sent by
-                          /publish-kb (ADR 0023); outlives the run root, so /ship never removes it
+                          backend (a `patch` page instead names itself
+                          `<title-slug>--<section-slug>.md`, ADR 0027), written by /plan and /document
+                          instead of a live publish, sent by /publish-kb (ADR 0023); outlives the run
+                          root, so /ship never removes it
 ```
 
 Everything except `.superdev/` is committed. The design docs (the glossary, the ADRs, and the rules)

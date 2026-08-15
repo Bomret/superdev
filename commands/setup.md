@@ -128,8 +128,9 @@ specifications, design overviews, ADR summaries)? Ask the user which of:
 - **Knowledge base software available** — e.g. **Confluence**. Seed:
   `references/knowledge-base-confluence.md`. Ask base URL, space key, what to publish, optional parent
   page, and the **env-var names** for the API token + email (never the secrets). For a different wiki,
-  capture its publish/find/update/**removal** commands as prose ("other") — a config with no removal
-  convention leaves every `action: delete` staged page unpublishable. Also record that
+  capture its publish/find/update/**read**/**removal** commands as prose ("other") — a config with no
+  removal convention leaves every `action: delete` staged page unpublishable, and a config with no
+  documented read blocks the aggregate question below. Also record that
   `/superdev:publish-kb` is the only caller of this backend and that `/superdev:plan`/`/superdev:document`
   stage its pages instead of sending them (ADR 0023), the `## Staging` section the seeded templates carry.
 - **Local file storage** — markdown under `docs/kb/`. Seed: `references/knowledge-base-local.md`.
@@ -148,6 +149,26 @@ a top-level section per audience with a few candidate topic headings under each 
 Getting started, FAQ*; *Developer Docs → Architecture, Setup, ADR summaries*). Present it, **discuss and
 adjust with the user**, and record the agreed outline in `knowledge-base.md`. It's a living skeleton —
 `/superdev:plan` and `/superdev:document` fill and extend it, not reinvent it.
+
+Then, for a **remote** backend, ask which of those pages **aggregate**: a page many scopes each
+contribute one section to — an index, a changelog, an ADR-summaries digest — rather than a page one
+scope owns end to end. **A documented read is a precondition of this question**: a call that returns a
+page's body, and how to get from a staged page's `title` to whatever identifier that call takes (ADR
+0027). Before any entry can carry the marker, the config document you are writing must name a call
+returning a page body and how to reach its identifier from a staged `title` — the Confluence seed names
+none, because its XHTML pages need no body read (below); a bespoke backend needs one captured in the read
+verb you already asked for above. Mark each answer in the outline you record with
+`(aggregate)`, and pin the heading level its sections take at the same time (e.g. `## <concept>`) — the
+writer reaches no backend and so cannot see the live page's own nesting, and a level left unpinned lets
+a staged heading as shallow as the page's own title carry the whole page away when it merges. A marked
+page is staged one section at a time (`action: patch`) and merged into the
+live page; an unmarked one is replaced wholesale, which on an aggregate page drops every section written
+by a scope the doc pass cannot see (ADR 0027). A digest or index page in the proposed outline is the case
+to ask about by name. **None aggregate** → mark nothing. A backend whose page bodies are not markdown
+(e.g. Confluence's XHTML storage format) marks nothing either — `action: patch` merges by matching
+markdown headings and finds none there, so it needs no body read. A **local `docs/kb/`** backend skips
+this question: its pages are repository files the doc pass reads and edits directly, so it stages
+nothing.
 
 **E — Verification (optional).** What single command runs the repo's test suite (e.g. `npm test`,
 `pytest -q`, `cargo test`)? Recorded, it **arms the green-gate**: after every controller merge, a hook

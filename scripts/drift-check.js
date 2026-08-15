@@ -1213,6 +1213,127 @@ const AUDIT_SET_CONTRACTS = [
   ],
 ];
 
+// ADR 0027's `patch` action is a four-document agreement of the same shape as the three above:
+// `agents/doc-writer.md` and `commands/plan.md` — the two stagers — each stage one section for a
+// page the outline marks aggregate, `commands/publish-kb.md` applies it through
+// `scripts/kb-patch.js`, and `references/knowledge-base-confluence.md` documents the marker that
+// decides which pages get one. Nothing links them. The failure that matters is not a dropped action
+// name but a `publish-kb` that keeps the name and merges the page itself — the reader-facing page
+// then gets rewritten by a model reading 25 KB of prose, which is the whole reason the merge is a
+// script. So the publish-kb row is anchored on the call, not on the word `patch`; a document that
+// names the action in passing and merges by hand still fails. Losing the marker row is the quietest
+// of the four: the doc pass falls back to `upsert` and silently replaces an aggregate page with the
+// one section it can see, which is the loss ADR 0027 exists to prevent and the state that left this
+// repo's own `ADR summaries` page four decisions stale.
+const AGGREGATE_PAGE_CONTRACTS = [
+  [
+    path.join('agents', 'doc-writer.md'),
+    /aggregate[\s\S]{0,80}`?action:\s*patch`?[\s\S]{0,400}one\s+section/i,
+    'stage `action: patch` carrying one section for an outline entry marked aggregate',
+  ],
+  [
+    path.join('commands', 'plan.md'),
+    /aggregate[\s\S]{0,80}`?action:\s*patch`?[\s\S]{0,400}one\s+section/i,
+    'stage `action: patch` carrying one section for an outline entry marked aggregate',
+  ],
+  [
+    path.join('commands', 'publish-kb.md'),
+    /`?patch`?[\s\S]{0,600}scripts\/kb-patch\.js/i,
+    'apply `patch` by merging through `scripts/kb-patch.js` rather than rewriting the page itself',
+  ],
+  [
+    path.join('references', 'knowledge-base-confluence.md'),
+    /\(aggregate\)[\s\S]{0,400}`?action:\s*patch`?/i,
+    'document the `(aggregate)` outline marker and the `action: patch` it selects',
+  ],
+];
+
+// ADR 0027's `patch` read is a two-document agreement, the same shape as AGGREGATE_PAGE_CONTRACTS above.
+// `commands/publish-kb.md` reads the live body through the call the config document documents, and splits
+// the outcome into **positive absence** — the find call does not list the title — which creates the
+// page, and **any other outcome** — no documented read, a transport or authorisation failure, the read
+// itself reporting the page absent (e.g. a 404) for a title the find call does list, or an empty body for
+// a title the find call does list — which is a **read failure**, not absence, and must leave the file
+// staged. The read identifier only ever exists for a title the find call already listed, so a 404 there
+// is a read failure, never positive evidence of absence.
+//
+// What separates a document that still means this from one that no longer does is coreference and scope —
+// which clause a trailing "instead of", "rather than", or a later sentence's "never mind that" reaches
+// back to negate — the same wall `UNRESOLVED_GLOSSARY_CONTRACTS` hit first (see its comment above). A
+// banned-token list scoped to a fixed character window is not a fix for that: there is always another
+// negator, and a negation placed after the window closes never gets inspected at all. A keyword-order
+// regex has the identical wall: a sentence that carries every keyword the regex looks for, in order, but
+// asserts the call is never made (row 2's own RED fixture below) satisfies it just as wrongly. So both
+// rows drop pattern-matching meaning and instead pin the sentence itself: a verbatim canonical clause,
+// matched against the document after `normalizeWhitespace` on both sides (reused from
+// `UNRESOLVED_GLOSSARY_CONTRACTS` below), so the real hard-wrapped document still matches. Reword the
+// clause, negate it, or drop it, and the match fails identically — there is no separate "negated" case to
+// special-case, and no new negator ever needs adding to a list. The trade-off is the one every row in this
+// idiom carries: a legitimate rewording of the pinned sentence now fails this check too, until the pin is
+// updated to match — deliberately, since a silent pass on a reworded safety sentence is the failure mode
+// these rows exist to close. Neither pin proves the document still *means* the clause afterward: a
+// document that carries a pin intact and then contradicts it in a later sentence, or an earlier one that
+// frames or negates the whole clause, is out of reach of this check, exactly as it is for
+// `UNRESOLVED_GLOSSARY_CONTRACTS` above — no positive-presence check catches such a contradiction, and neither row attempts to.
+//
+// Row 1 pins `READ_PATH_CLAUSE`, the read-failure consequence clause alone — the outcome ("read failure,
+// not absence") and the three things to do about it: leave the file staged, report the reason in §5, and
+// create nothing. It does not pin the antecedent that names the read-failure enumeration (no documented
+// read, a transport/authorisation failure, an empty body for a listed title) or the positive-absence
+// contrast that precedes it in the real document — a document could carry this exact clause verbatim
+// while describing a different antecedent, and this row would not catch that. Row 1's expectation message
+// states only what the pin covers, for the same reason.
+//
+// Row 2 is unrelated and conditional, not a bare pattern: a config document that marks no outline entry
+// `(aggregate)` documents no read at all, and must not be required to — only a document that actually uses
+// the marker owes the call it selects, or every consumer repo that never enabled the feature would fail
+// this check. When the marker is present, row 2 pins `AGGREGATE_READ_CLAUSE`, the whole list item, from
+// its bold label through the call and what it returns.
+//
+// A verbatim pin resists a negator prefixed onto the real sentence only if no negator can be inserted
+// *inside* the pinned span — which requires the span to start at a sentence or list-item boundary, not
+// mid-clause. `READ_PATH_CLAUSE` holds despite starting mid-sentence because its own first two words are
+// "is a": the idiomatic negation of "X is a Y" inserts "not" between them ("is not a"), corrupting the
+// pin's own opening rather than landing safely in front of it. A pin that instead opens on a bare verb
+// (e.g. "returns …") has no such trap — "never returns …" leaves the verb and everything after it intact
+// as a substring, so the pin survives verbatim and the check wrongly passes. `AGGREGATE_READ_CLAUSE`
+// starts at the list item's bold label and carries the endpoint through to the verb, so the same "never
+// returns" negation must corrupt text *inside* the span (between the endpoint and "returns") to take
+// effect. The label-to-clause span also pins this repo's host in the endpoint URL, so a repo move forces
+// a re-pin — accepted deliberately, in favour of one span over a two-part pin that would leave the
+// trailing half open to the same bare-verb prefix attack this span closes.
+const READ_PATH_CLAUSE =
+  'is a **read failure, not absence**: leave the file staged, report the reason in §5, and create nothing.';
+const AGGREGATE_READ_CLAUSE =
+  "**Read a page's body:** `GET /api/v1/repos/bomret/superdev/wiki/page/<sub_url>` returns " +
+  '`content_base64`, which decodes to the page markdown.';
+const READ_PATH_CONTRACTS = [
+  [
+    path.join('commands', 'publish-kb.md'),
+    { test: (text) => normalizeWhitespace(text).includes(normalizeWhitespace(READ_PATH_CLAUSE)) },
+    'state, verbatim after whitespace normalization, that the outcome is a read failure, not absence: ' +
+      'leave the file staged, report the reason in §5, and create nothing',
+  ],
+  [
+    path.join('docs', 'agents', 'knowledge-base.md'),
+    {
+      test(text) {
+        // ponytail: `(aggregate)` matches the marker anywhere in the document, so prose that merely
+        // discusses the marker (with no outline entry actually carrying it) would wrongly owe a body-read
+        // call. Left as-is: every real caller applies the marker to an outline entry, and tightening to
+        // "attached to a list entry" risks missing a legitimate wrapped or reordered form. Revisit if a
+        // false positive is ever seen in practice.
+        if (!/\(aggregate\)/i.test(text)) return true; // no marker → no read is owed
+        return normalizeWhitespace(text).includes(normalizeWhitespace(AGGREGATE_READ_CLAUSE));
+      },
+    },
+    "state, verbatim after whitespace normalization, that reading a page's body calls " +
+      '`GET /api/v1/repos/bomret/superdev/wiki/page/<sub_url>`, which returns `content_base64` decoding ' +
+      'to the page markdown — the call an outline entry marked `(aggregate)` is read through ' +
+      'before it is patched',
+  ],
+];
+
 // scanContract() is pure over a root dir and a contract table: reads each document the table names and
 // reports the expectations it no longer meets. Absent files are skipped, so fixtures need only the
 // documents they exercise. Both tables above share this one scanner — they differ in what they assert,
@@ -1264,6 +1385,8 @@ function main() {
     ...scanContract(root, AFK_ROUTING_CONTRACTS),
     ...scanContract(root, ARG_TOKEN_CONTRACTS),
     ...scanContract(root, AUDIT_SET_CONTRACTS),
+    ...scanContract(root, AGGREGATE_PAGE_CONTRACTS),
+    ...scanContract(root, READ_PATH_CONTRACTS),
   ];
   // Every scanner above skips a document it cannot read, so that a fixture carries only the files it
   // exercises. That convention would let `commands/afk.md` be deleted without a single check going red,
@@ -1309,7 +1432,10 @@ function main() {
         'under review, ' +
         'afk and ship agree on where an all-mechanical/docs scope goes next, ' +
         'the three Bash hooks carry the same ARG shell-word token, ' +
-        'and setup, document, and the documentation seed agree on the `## Audit set` section',
+        'setup, document, and the documentation seed agree on the `## Audit set` section, ' +
+        'both stagers, publish-kb, and the knowledge-base seed agree on the `patch` action, ' +
+        'and publish-kb separates a read failure from a genuinely absent page while a marked config ' +
+        'document documents the call that returns the body',
     );
     process.exit(0);
   }
@@ -3296,9 +3422,281 @@ if (process.argv[2] === '--selftest') {
 
   // absent files are skipped, matching every other contract table
   assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), AUDIT_SET_CONTRACTS).length,
+    scanContract(fixture({ 'README.md': '# repo\n' }), AGGREGATE_PAGE_CONTRACTS).length +
+      scanContract(fixture({ 'README.md': '# repo\n' }), AUDIT_SET_CONTRACTS).length,
     0,
     'absent files are skipped',
+  );
+
+  // --- AGGREGATE_PAGE_CONTRACTS: doc-writer stages one section for a marked page, publish-kb merges it
+  // through the script, and the KB seed documents the marker that decides which pages get one (ADR
+  // 0027). ---
+
+  assert.equal(
+    scanContract(realRoot, AGGREGATE_PAGE_CONTRACTS).length,
+    0,
+    'the shipped doc-writer, publish-kb, and Confluence seed all carry their half of the patch agreement',
+  );
+
+  // positive: doc-writer goes back to staging whole pages only — the state that leaves an aggregate
+  // page replaceable by the one section a scope can see
+  const aggGaps1 = scanContract(
+    fixture({
+      'agents/doc-writer.md':
+        'Write each page as a **staged page**: frontmatter carrying `title` and an `action` of `upsert` ' +
+        'or `delete`, the page body below.\n',
+    }),
+    AGGREGATE_PAGE_CONTRACTS,
+  );
+  assert.equal(aggGaps1.length, 1, 'flags a doc-writer that stages no patch for an aggregate page');
+  assert.equal(aggGaps1[0].source, path.join('agents', 'doc-writer.md'), 'names doc-writer.md');
+
+  // positive: the same gap, reachable through the other stager — `/superdev:plan` seeds ADR summaries
+  // into the outline too (ADR 0027, CONTEXT.md's Staged page entry), so it needs the same branch.
+  const aggGapsPlan = scanContract(
+    fixture({
+      'commands/plan.md':
+        'Write each page as a **staged page**: frontmatter carrying `title` and an `action` of `upsert`, ' +
+        'the page body below.\n',
+    }),
+    AGGREGATE_PAGE_CONTRACTS,
+  );
+  assert.equal(aggGapsPlan.length, 1, 'flags a plan.md that stages no patch for an aggregate page');
+  assert.equal(aggGapsPlan[0].source, path.join('commands', 'plan.md'), 'names plan.md');
+
+  // positive: publish-kb keeps the action and merges the page itself. This is the row's whole point —
+  // a document that names `patch` in passing but rewrites the live page by hand puts a model back in
+  // charge of a reader-facing page, which is what moving the merge into a script prevented.
+  const aggGaps2 = scanContract(
+    fixture({
+      'commands/publish-kb.md':
+        '- **`patch`** → fetch the live page under `title`, splice the staged section into it, and send ' +
+        'the result back under the same title.\n',
+    }),
+    AGGREGATE_PAGE_CONTRACTS,
+  );
+  assert.equal(aggGaps2.length, 1, 'flags a publish-kb that names `patch` but merges the page itself');
+  assert.equal(aggGaps2[0].source, path.join('commands', 'publish-kb.md'), 'names publish-kb.md');
+
+  // positive: the seed loses the marker. The quietest of the three — every other document still reads
+  // correct, and the doc pass simply never marks a page, so it silently stages `upsert` forever.
+  const aggGaps3 = scanContract(
+    fixture({
+      'references/knowledge-base-confluence.md':
+        '## Audience, language & outline\n\n- **Outline** — a top-level page per audience.\n',
+    }),
+    AGGREGATE_PAGE_CONTRACTS,
+  );
+  assert.equal(aggGaps3.length, 1, 'flags a seed that documents no `(aggregate)` marker');
+  assert.equal(
+    aggGaps3[0].source,
+    path.join('references', 'knowledge-base-confluence.md'),
+    'names the Confluence seed',
+  );
+
+  // negative: all four carried, hard-wrapped the way the real prose is
+  assert.equal(
+    scanContract(
+      fixture({
+        'agents/doc-writer.md':
+          'An outline entry marked `aggregate` takes `action: patch` instead (ADR 0027). Such a page\n' +
+          'collects a section from each of many scopes, so stage **one section**, not the page.\n',
+        'commands/plan.md':
+          'An outline entry marked `aggregate` takes `action: patch` instead (ADR 0027): stage **one\n' +
+          'section**, not the page.\n',
+        'commands/publish-kb.md':
+          '- **`patch`** → the staged body is one section. Fetch the live page, then merge with\n' +
+          '`node "${CLAUDE_PLUGIN_ROOT}/scripts/kb-patch.js" <live-page> <staged-file>`.\n',
+        'references/knowledge-base-confluence.md':
+          '- `Developer Docs` → `ADR summaries` **(aggregate)**\n\n`(aggregate)` marks a page many\n' +
+          'scopes contribute to. The doc pass stages one section for it, as `action: patch`.\n',
+      }),
+      AGGREGATE_PAGE_CONTRACTS,
+    ).length,
+    0,
+    'all four halves carried, across a line wrap, yields zero gaps',
+  );
+
+  // --- READ_PATH_CONTRACTS: publish-kb.md separates a read failure from a genuinely absent page, and a
+  // config document that marks `(aggregate)` documents the call that returns the body (ADR 0027). ---
+
+  assert.equal(
+    scanContract(realRoot, READ_PATH_CONTRACTS).length,
+    0,
+    'the shipped publish-kb.md and knowledge-base.md carry both halves of the read-path agreement',
+  );
+
+  // positive (RED reproduction): publish-kb mentions reading the live page, but creates it on *any*
+  // missing body instead of separating a read failure from a genuinely absent page — the exact shape a
+  // keyword search for "read" would wrongly pass
+  const rpGaps1 = scanContract(
+    fixture({
+      'commands/publish-kb.md':
+        "- **`patch`** → Read the live page's body through the call the config document documents. If " +
+        'the body is missing, treat the page as absent and create it from the staged section.\n',
+    }),
+    READ_PATH_CONTRACTS,
+  );
+  assert.equal(rpGaps1.length, 1, 'flags a publish-kb that creates the page on any missing body');
+  assert.equal(rpGaps1[0].source, path.join('commands', 'publish-kb.md'), 'names publish-kb.md');
+
+  // positive: a config document marks an outline entry `(aggregate)` but documents no call returning the
+  // page body — the doc pass would stage a patch with no read to check it against
+  const rpGaps2 = scanContract(
+    fixture({
+      'docs/agents/knowledge-base.md':
+        '## Outline\n\n- **Concepts** — slice store, code host. **(aggregate)** — one section per ' +
+        'concept.\n',
+    }),
+    READ_PATH_CONTRACTS,
+  );
+  assert.equal(rpGaps2.length, 1, 'flags a config doc that marks `(aggregate)` but documents no read');
+  assert.equal(
+    rpGaps2[0].source,
+    path.join('docs', 'agents', 'knowledge-base.md'),
+    'names knowledge-base.md',
+  );
+
+  // positive (RED reproduction): every keyword a keyword-order regex looks for — "read", "page's body",
+  // "returns", "content"/"markdown" — present, in order, but the sentence asserts the call is never made.
+  // A keyword-order regex with no negation awareness passes this; only a verbatim pin of the real clause
+  // catches it, the same class row 1 closed for `commands/publish-kb.md`.
+  const rpGaps2b = scanContract(
+    fixture({
+      'docs/agents/knowledge-base.md':
+        "- **Concepts** **(aggregate)**\n\nNever read a page's body before it returns the merged " +
+        'content; that call is never made.\n',
+    }),
+    READ_PATH_CONTRACTS,
+  );
+  assert.equal(rpGaps2b.length, 1, 'flags a knowledge-base.md that asserts the body read is never made');
+  assert.equal(
+    rpGaps2b[0].source,
+    path.join('docs', 'agents', 'knowledge-base.md'),
+    'names knowledge-base.md',
+  );
+
+  // positive (RED reproduction): the label and clause are both present, in order, but "never" is
+  // prefixed onto the bare verb "returns" — the exact defect a pin starting at "returns" let through
+  // verbatim, since a negator prefixed before a pin's own first word leaves the rest of the pin, and so
+  // the whole substring, intact. Pinning from the list item's bold label through the endpoint traps the
+  // insertion point inside the span instead.
+  const rpGaps7 = scanContract(
+    fixture({
+      'docs/agents/knowledge-base.md':
+        '- **Concepts** **(aggregate)**\n\n' +
+        "- **Read a page's body:** `GET /api/v1/repos/bomret/superdev/wiki/page/<sub_url>` never returns\n" +
+        '  `content_base64`, which decodes to the page markdown.\n',
+    }),
+    READ_PATH_CONTRACTS,
+  );
+  assert.equal(rpGaps7.length, 1, 'flags a knowledge-base.md that negates the read call with a "never" prefix');
+  assert.equal(
+    rpGaps7[0].source,
+    path.join('docs', 'agents', 'knowledge-base.md'),
+    'names knowledge-base.md',
+  );
+
+  // positive (RED reproduction): every required phrase present, in order, but the terminal instruction
+  // itself is negated — "never leave the file staged ... anyway" — the half a bare keyword search for
+  // "read failure" and "leave the file staged" would wrongly pass, since both substrings are still there
+  const rpGaps3 = scanContract(
+    fixture({
+      'commands/publish-kb.md':
+        "**Positive absence only** — the config document's find call does not list the title — means " +
+        'the page does not exist yet: the staged section becomes the new page, as an `upsert` of the ' +
+        'section alone. **Any other outcome** — the config document names no read for this backend, the ' +
+        'read call fails for any other reason, or it returns an empty body for a title the find call ' +
+        'does list — is a **read failure, not absence**: never leave the file staged, and create the ' +
+        'page from the section anyway.\n',
+    }),
+    READ_PATH_CONTRACTS,
+  );
+  assert.equal(rpGaps3.length, 1, 'flags a publish-kb that negates the terminal "leave the file staged"');
+  assert.equal(rpGaps3[0].source, path.join('commands', 'publish-kb.md'), 'names publish-kb.md');
+
+  // positive (RED reproduction): an unlisted negator ("rather than") sits inside the character window the
+  // old five-token banned list scanned — proof widening that list is a losing game, not a fix for it
+  const rpGaps4 = scanContract(
+    fixture({
+      'commands/publish-kb.md':
+        'Any other outcome is a **read failure, not absence**: create the page from the section rather ' +
+        'than leave the file staged.\n',
+    }),
+    READ_PATH_CONTRACTS,
+  );
+  assert.equal(rpGaps4.length, 1, 'flags an unlisted negator ("rather than") inside the old window');
+  assert.equal(rpGaps4[0].source, path.join('commands', 'publish-kb.md'), 'names publish-kb.md');
+
+  // positive (RED reproduction): a second unlisted negator ("instead of") — same shape as rpGaps4
+  const rpGaps5 = scanContract(
+    fixture({
+      'commands/publish-kb.md':
+        'Any other outcome is a **read failure, not absence**: create the page from the section instead ' +
+        'of leave the file staged.\n',
+    }),
+    READ_PATH_CONTRACTS,
+  );
+  assert.equal(rpGaps5.length, 1, 'flags an unlisted negator ("instead of") inside the old window');
+  assert.equal(rpGaps5[0].source, path.join('commands', 'publish-kb.md'), 'names publish-kb.md');
+
+  // positive (RED reproduction): the clause is cut short before "report the reason in §5, and create
+  // nothing" — a truncated clause is not the pinned clause, whatever follows it. This is not a proof that
+  // the row catches the trailing "Just kidding" contradiction: the clause here is already incomplete
+  // before that sentence starts, so the gap traces to the truncation, not to what follows it (a trailing
+  // contradiction after the *complete* clause is out of reach of this check — see the comment above
+  // READ_PATH_CONTRACTS).
+  const rpGaps6 = scanContract(
+    fixture({
+      'commands/publish-kb.md':
+        'Any other outcome is a **read failure, not absence**: leave the file staged. Just kidding, ' +
+        'never do that — create the page anyway.\n',
+    }),
+    READ_PATH_CONTRACTS,
+  );
+  assert.equal(rpGaps6.length, 1, 'flags a publish-kb whose clause is truncated before "report the reason in §5"');
+  assert.equal(rpGaps6[0].source, path.join('commands', 'publish-kb.md'), 'names publish-kb.md');
+
+  // negative: a config document with no `(aggregate)` marker at all owes no read — the requirement is
+  // conditional on the marker, or every consumer repo that never enabled the feature would fail
+  assert.equal(
+    scanContract(
+      fixture({
+        'docs/agents/knowledge-base.md': '## Outline\n\n- **Overview** — what the plugin is.\n',
+      }),
+      READ_PATH_CONTRACTS,
+    ).length,
+    0,
+    'a config document with no `(aggregate)` marker documents no read and yields zero gaps',
+  );
+
+  // absent files are skipped, matching every other contract table
+  assert.equal(
+    scanContract(fixture({ 'README.md': '# repo\n' }), READ_PATH_CONTRACTS).length,
+    0,
+    'absent files are skipped',
+  );
+
+  // negative: both halves carried
+  assert.equal(
+    scanContract(
+      fixture({
+        'commands/publish-kb.md':
+          "**Positive absence only** — the config document's find call does not list the title — means " +
+          'the page does not exist yet: the staged section becomes the new page, as an `upsert` of the ' +
+          'section alone. **Any other outcome** — the config document names no read for this backend, the ' +
+          'read call fails for any other reason, or it returns an empty body for a title the find call ' +
+          'does list — is a **read failure, not absence**: leave the file staged, report the reason in ' +
+          '§5, and create nothing.\n',
+        'docs/agents/knowledge-base.md':
+          "- **Concepts** **(aggregate)**\n\n- **Read a page's body:** " +
+          '`GET /api/v1/repos/bomret/superdev/wiki/page/<sub_url>` returns `content_base64`, which ' +
+          'decodes to the page markdown.\n',
+      }),
+      READ_PATH_CONTRACTS,
+    ).length,
+    0,
+    'both halves carried yields zero gaps',
   );
 
   // --- SHIP_GATE_ELEMENTS: /superdev:ship §3 gates on a standing unresolved defect — asked about once

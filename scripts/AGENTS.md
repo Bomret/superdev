@@ -2,9 +2,10 @@
 
 ## Purpose
 
-Standalone deterministic code that `package.json` runs, alongside `hooks/`. Three executables live
-here: `scope.js` (the run-state CLI, ADR 0022), `eval-run.js` (the eval runner, ADR 0024), and
-`drift-check.js` (the cross-document contract checks).
+Standalone deterministic code that `package.json` runs, alongside `hooks/`. Four executables live
+here: `scope.js` (the run-state CLI, ADR 0022), `kb-patch.js` (the knowledge-base section merge, ADR
+0027), `eval-run.js` (the eval runner, ADR 0024), and `drift-check.js` (the cross-document contract
+checks).
 
 ## Ownership
 
@@ -44,6 +45,57 @@ assertions along with its own behavior: the stage machine, the ledger schema and
 pre-CLI ledger parsing unchanged, and the scope-slug charset staying equal across `scope.js`,
 `hooks/run-lock.js`, and `references/scope-mode.md`.
 
+### kb-patch.js — the knowledge-base section merge (ADR 0027)
+
+`kb-patch.js` is the deterministic half of a staged page's `action: patch`. It reads a live
+knowledge-base page and a staged page carrying **one section**, prints the merged markdown on
+stdout, and writes nothing. `/superdev:publish-kb` holds the backend credential and calls it;
+`agents/doc-writer.md` stages the section and reaches no backend at all (ADR 0023). The merge lives
+here rather than in the command's prose so that a reader-facing page is not edited by a model
+reading it.
+
+The staged section names itself by the **first ATX heading in its body**, spanning to the next
+heading of the same or higher level — so a sub-heading belongs to the section and a sibling ends it.
+A heading may carry up to 3 leading spaces, CommonMark's own limit before a fourth space, or a leading
+tab, makes it an indented code block instead — so an indented live section is still recognised as a
+boundary and is never swallowed into the section ahead of it. The comparison that finds the live
+section to replace requires a line to clear that same up-to-3-space gate before it counts as a
+candidate at all, then compares it by a key that folds three surface spellings of the same heading —
+trailing whitespace, a closed-ATX form (`## A ##`), and the gap between the `#` marker and its text
+(one space, several, or a tab) — into one, on the read that a
+staged heading is always column-0 — so a live target indented up to 3 spaces still matches instead of
+missing and appending a duplicate, while a 4-space or tab-indented line that merely *shows* the heading
+text in a code block never matches, no matter how it reads once trimmed. Setext headings are unsupported as a section marker: one notation is what makes "does the
+live page carry this heading" a string comparison instead of a parse, and a staged body using one has
+no ATX heading and refuses. A *live* page is never validated that way, so the merge separately refuses
+when a setext underline falls inside the live region about to be dropped, rather than silently
+swallowing that section into the replaced one. `extractSection()` applies the identical `hasSetextHeading()`
+check to the **staged** body's own section, refusing there too, rather than accept a shape it would
+merge cleanly today and then refuse to ever patch again — that failure belongs on the staged file, which
+a doc pass re-runs, not on the live page it would otherwise strand. Heading detection runs on fence-masked lines (matches
+`scripts/drift-check.js`'s `maskFences`, including its at-least-as-long closing-fence rule), so a
+`#`/`~~~` shown *inside* a fenced code example is never read as a heading, in the staged body, in the
+live section being replaced, or by the duplicate-heading scan; an unterminated fence in either input —
+which would otherwise mask every line after it and hide real headings — refuses instead of guessing
+where it would have closed. The live page carrying that exact heading line has its section replaced; a
+page without it gains the section at the end. Sorting is deliberately absent, because where a new
+section belongs is editorial, and appending is correct for the ascending-number case (`ADR summaries`)
+that motivated the ADR. Appending onto a live page whose trailing blank lines vary collapses them to
+exactly one before the new section; harmless, since a blank-line run carries no content.
+
+The merge is **idempotent**: applying the same patch to its own output changes nothing, which is
+what makes it safe under `/superdev:publish-kb`'s retry of a staged page whose call failed. It
+refuses, nonzero and with a one-line stderr reason, on a staged body with no heading, on a staged body
+carrying content before its first heading or more than one section — a patch stages exactly one — on a
+live page carrying the heading more than once — because which section to replace cannot be resolved,
+the same reason `/superdev:publish-kb` refuses two staged files sharing one title — on an unterminated
+fenced code block in either input, and on a setext underline inside the live region a replace would
+drop, or inside the section the staged body itself stages. A CRLF live or staged page merges exactly as
+an LF one does, the way `scope.js` reads a CRLF ledger.
+
+Removing a single section is out of scope: `patch` replaces or appends, and `delete` still removes a
+whole page (ADR 0027, Consequences).
+
 ### eval-run.js — the eval runner (ADR 0024)
 
 `eval-run.js` runs every `evals/` case as two arms on a Claude subscription instead of a metered
@@ -75,11 +127,11 @@ content-types, command-resolution, chain-handoff, feature-label-argument, unatte
 afk-invocation, change-type, degraded-pass, derived-criteria, label-validation,
 green-gate-timeout, verb-pointer, kb-staging, kb-no-backend-call, no-second-reader,
 test-selection-wiring, full-suite, entries-standing-gate, unresolved-glossary, afk-routing,
-arg-token, and audit-set checks are drift
+arg-token, audit-set, aggregate-page, and read-path checks are drift
 assertions. They compare a restated fact against its source. The eval-shape check compares a document
 against a schema. The afk-existence check is a plain existence assertion.
 
-`drift-check.js` guards thirty things, in the order its `main()` computes them. First, that every
+`drift-check.js` guards thirty-two things, in the order its `main()` computes them. First, that every
 `references/*.md` path named in `commands/`, `agents/`, or `references/` itself resolves to a file that
 exists. A reference cites
 another reference — both execution playbooks point at `scope-mode.md` — so a rename there dangles like
@@ -257,9 +309,32 @@ seeds the section as optional, for `/setup` to fill in. Three documents agree on
 prose, the same shape as the afk-routing and arg-token pairs above — a renamed heading or a dropped
 fallback clause leaves the section unreachable in every repo that carries it, unnoticed, until a doc
 audit runs on one and finds nothing there.
-Twenty-ninth,
+Twenty-ninth, the aggregate-page contract (ADR 0027), four rows: `agents/doc-writer.md` and
+`commands/plan.md` — the two stagers — each stage `action: patch` carrying one section for an outline
+entry marked aggregate, `commands/publish-kb.md` applies it by merging through `scripts/kb-patch.js`,
+and `references/knowledge-base-confluence.md` documents the `(aggregate)` marker that decides which
+pages get one. The `publish-kb` row is anchored on
+the **call**, not on the word `patch`: a document that names the action and then merges the page in its
+own prose puts a model back in charge of rewriting a reader-facing page, which is exactly what moving the
+merge into a script prevented. The marker row is the quietest to lose — every other document still reads
+correct, the doc pass simply never marks a page, and it stages `upsert` forever, replacing an aggregate
+page with the one section a scope can see. That is the state that left this repository's own
+`ADR summaries` page four decisions stale.
+Thirtieth,
+the read-path contract (ADR 0027), two rows: `commands/publish-kb.md` reads a
+`patch`'s live body through the call the config document documents, and splits the outcome into
+**positive absence** — the find call does not list the title — which creates the page, and **any other
+outcome** — no documented read, a transport or authorisation failure, the read itself reporting the page
+absent for a listed title, or an empty body for a listed title — which is a **read failure**, not absence,
+and must leave the file staged. The row is anchored on that branch, not on the word "read": a document
+that mentions reading the live page and then creates it on *any* missing body passes a keyword search
+while destroying a published page on the very failure the branch exists to catch, which is the defect
+that reached a whole-scope review before ADR 0027 pinned it. `docs/agents/knowledge-base.md`'s row is
+conditional rather than a bare pattern: it documents a call returning the page body only when it marks
+some outline entry `(aggregate)`, so a config document that marks none owes no read, and the row is
+implemented as a `test()` function rather than a literal `RegExp` to express that. Thirty-first,
 that `commands/afk.md` exists at all. Nothing else in the plugin names `/superdev:afk` for the eighth
-check to resolve, so its absence would otherwise go unnoticed. Thirtieth, that every
+check to resolve, so its absence would otherwise go unnoticed. Thirty-second, that every
 `evals/*/graders/*.md` declares a known `type` and a positive `weight`, that an `llm` or `regex`
 grader also declares a `focus` or `target`, and that every case's `scaffold_script` resolves. Nothing
 else validates a grader, so without this a typo surfaces part-way through a run that costs real API
@@ -279,7 +354,7 @@ successor at all.
 - Scripts are CommonJS, like the hooks. `hooks/scope-prune.js` `require`s `scope.js`, so `scope.js`
   must stay `require`-able under plain `node`. This is the one dependency `hooks/` has on `scripts/`.
 - Every script ships a `--selftest`, same convention as the hooks.
-- A new drift-check contract gets its own entry in the thirty-check narrative above, in
+- A new drift-check contract gets its own entry in the thirty-two-check narrative above, in
   `main()` order.
 
 ## Verification
