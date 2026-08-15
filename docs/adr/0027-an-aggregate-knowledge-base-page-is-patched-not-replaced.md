@@ -36,9 +36,11 @@ an entry marked without one.
 The failure this closes is not the missing call but its fallback. `/superdev:publish-kb` treated "no live
 page under this title" as the reason it held no body, and created the page from the single staged section —
 so a page it merely failed to *read* was replaced by one scope's contribution, which is the loss this ADR
-exists to prevent, reached through the documented procedure. **Only positive evidence of absence** (the
-find call does not list the title; the read returns 404) may create a page. Every other outcome leaves the
-file staged and is reported.
+exists to prevent, reached through the documented procedure. **Only positive evidence of absence — the
+find call does not list the title — may create a page.** A `404` from the read call is not that evidence:
+the read's identifier comes from the find call's own matching entry, so a `404` says the identifier is
+wrong or the page was renamed between the two calls, never that the page does not exist. It joins the
+read failures. Every other outcome leaves the file staged and is reported.
 
 ```mermaid
 flowchart LR
