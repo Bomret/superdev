@@ -1,3 +1,18 @@
+# [0.29.0](https://codeberg.org/bomret/superdev/compare/v0.28.2...v0.29.0) (2026-08-15)
+
+
+### Bug Fixes
+
+* **scope:** read a ledger written with CRLF line endings ([#220](https://codeberg.org/bomret/superdev/issues/220)) ([a85e739](https://codeberg.org/bomret/superdev/commit/a85e739a8d23546d286b62b6ee5126a3e18146fe))
+
+
+### Features
+
+* **chain:** close the plugin audit's tier 1 defects and tier 3 hardening ([#233](https://codeberg.org/bomret/superdev/issues/233)) ([55ddaad](https://codeberg.org/bomret/superdev/commit/55ddaadf4c3a699828dbab9dd416033e6c81ca38)), closes [#230](https://codeberg.org/bomret/superdev/issues/230) [#231](https://codeberg.org/bomret/superdev/issues/231) [#232](https://codeberg.org/bomret/superdev/issues/232)
+* **kb:** extend an aggregate knowledge-base page instead of replacing it ([#241](https://codeberg.org/bomret/superdev/issues/241)) ([9b5cf64](https://codeberg.org/bomret/superdev/commit/9b5cf645be2188b680b977ebc8eeb53dfbeb5d31)), closes [#237](https://codeberg.org/bomret/superdev/issues/237) [#235](https://codeberg.org/bomret/superdev/issues/235) [#236](https://codeberg.org/bomret/superdev/issues/236) [#238](https://codeberg.org/bomret/superdev/issues/238) [#239](https://codeberg.org/bomret/superdev/issues/239) [#240](https://codeberg.org/bomret/superdev/issues/240) [#32](https://codeberg.org/bomret/superdev/issues/32)
+* **scope:** record a defect the run leaves standing ([#228](https://codeberg.org/bomret/superdev/issues/228)) ([87e6d76](https://codeberg.org/bomret/superdev/commit/87e6d76baf9c43903c1889072f4b17819e746a9a)), closes [#223](https://codeberg.org/bomret/superdev/issues/223) [#224](https://codeberg.org/bomret/superdev/issues/224) [#225](https://codeberg.org/bomret/superdev/issues/225) [#226](https://codeberg.org/bomret/superdev/issues/226) [#227](https://codeberg.org/bomret/superdev/issues/227)
+* **verification:** scope the loop's test runs to the changed paths ([#221](https://codeberg.org/bomret/superdev/issues/221)) ([3c846bd](https://codeberg.org/bomret/superdev/commit/3c846bda3eb7a370772da49e6dfc903daa9db142)), closes [#214](https://codeberg.org/bomret/superdev/issues/214) [#215](https://codeberg.org/bomret/superdev/issues/215) [#216](https://codeberg.org/bomret/superdev/issues/216) [#217](https://codeberg.org/bomret/superdev/issues/217) [#215](https://codeberg.org/bomret/superdev/issues/215) [#216](https://codeberg.org/bomret/superdev/issues/216) [#217](https://codeberg.org/bomret/superdev/issues/217) [#218](https://codeberg.org/bomret/superdev/issues/218)
+
 ## [0.28.2](https://codeberg.org/bomret/superdev/compare/v0.28.1...v0.28.2) (2026-08-12)
 
 
