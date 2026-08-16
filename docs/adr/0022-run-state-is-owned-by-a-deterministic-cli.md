@@ -1,6 +1,6 @@
 # 0022 — Run state is owned by a deterministic CLI
 
-**Status:** accepted
+**Status:** Accepted
 
 ## Context
 

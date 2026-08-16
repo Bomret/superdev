@@ -336,6 +336,31 @@ function scanWritingStandardContract(root) {
   return gaps;
 }
 
+// An ADR with no `**Status:**` line reads as accepted whether it is or not. That is how ADR 0026 was
+// documented as live while nothing implemented it, and it recurred on 0019/0020/0021 because nothing
+// checked. The status is the one field that separates a decision the code honours from one still being
+// argued, so it is asserted here rather than left to review. Capitalization is pinned too — a lowercase
+// `accepted` sorts and greps apart from the rest for no reason.
+const ADR_DIR = path.join('docs', 'adr');
+const ADR_STATUSES = ['Accepted', 'Proposed', 'Superseded', 'Rejected'];
+const ADR_STATUS_PATTERN = new RegExp(`^\\*\\*Status:\\*\\* (?:${ADR_STATUSES.join('|')})\\s*$`, 'm');
+
+// scanAdrStatus() is pure over a root dir: reads every `docs/adr/*.md` and reports the ones carrying no
+// recognised status line. An absent directory is skipped, so fixtures need only the files they exercise.
+function scanAdrStatus(root) {
+  let names;
+  try {
+    names = fs.readdirSync(path.join(root, ADR_DIR));
+  } catch {
+    return []; // no ADR tree (fixture / partial checkout) → nothing to scan
+  }
+  return names
+    .filter((n) => n.endsWith('.md'))
+    .sort()
+    .filter((n) => !ADR_STATUS_PATTERN.test(fs.readFileSync(path.join(root, ADR_DIR, n), 'utf8')))
+    .map((n) => ({ source: path.join(ADR_DIR, n) }));
+}
+
 // An eval grader is prose with frontmatter the harness parses, and nothing else validates it: `claude
 // plugin validate` reads only the marketplace manifest, so a grader with `weight: notanumber` passes the
 // suite and surfaces part-way through a run that costs real API spend. Same for a case whose
@@ -1399,6 +1424,7 @@ function main() {
     });
   }
   const shape = scanEvalShape(root);
+  const adrGaps = scanAdrStatus(root);
   if (
     missing.length === 0 &&
     offenders.length === 0 &&
@@ -1409,7 +1435,8 @@ function main() {
     deadEnds.length === 0 &&
     chainGaps.length === 0 &&
     contractGaps.length === 0 &&
-    shape.length === 0
+    shape.length === 0 &&
+    adrGaps.length === 0
   ) {
     console.log(
       'drift-check ok: references resolve, run-root paths are absolute, assignee and anchor contracts ' +
@@ -1434,8 +1461,9 @@ function main() {
         'the three Bash hooks carry the same ARG shell-word token, ' +
         'setup, document, and the documentation seed agree on the `## Audit set` section, ' +
         'both stagers, publish-kb, and the knowledge-base seed agree on the `patch` action, ' +
-        'and publish-kb separates a read failure from a genuinely absent page while a marked config ' +
-        'document documents the call that returns the body',
+        'publish-kb separates a read failure from a genuinely absent page while a marked config ' +
+        'document documents the call that returns the body, ' +
+        'and every ADR states a status',
     );
     process.exit(0);
   }
@@ -1486,6 +1514,12 @@ function main() {
   }
   for (const p of shape) {
     console.error(`${p.source}: ${p.problem}`);
+  }
+  for (const g of adrGaps) {
+    console.error(
+      `${g.source} states no status — expected \`**Status:** <${ADR_STATUSES.join(' | ')}>\` on its ` +
+        `own line, so a decision nothing implements cannot read as one the code honours`,
+    );
   }
   process.exit(1);
 }
@@ -1804,6 +1838,73 @@ if (process.argv[2] === '--selftest') {
   // an absent agent file is skipped, so a fixture carries only the files it exercises
   const ct22 = fixture({ 'agents/doc-writer.md': wired });
   assert.equal(scanContentTypesContract(ct22).length, 0, 'an absent agent file is skipped');
+
+  // --- scanAdrStatus: every ADR must state a status. An ADR with no status line reads as accepted
+  // whether or not anything implements it, which is how a decision gets documented as live while the
+  // code has none of it. ---
+
+  const adrBody = (status) =>
+    `# 0099 — A decision\n\n${status ? `**Status:** ${status}\n\n` : ''}## Context\n\nSomething.\n`;
+
+  // positive: an ADR with no status line at all
+  const adr1 = fixture({ 'docs/adr/0099-a-decision.md': adrBody(null) });
+  const adrGaps1 = scanAdrStatus(adr1);
+  assert.equal(adrGaps1.length, 1, 'flags an ADR that states no status');
+  assert.equal(adrGaps1[0].source, path.join('docs', 'adr', '0099-a-decision.md'), 'names the ADR');
+
+  // positive: a status outside the recognised set is not a status
+  assert.equal(
+    scanAdrStatus(fixture({ 'docs/adr/0099-a.md': adrBody('Draft') })).length,
+    1,
+    'an unrecognised status value is flagged',
+  );
+
+  // positive: capitalization is pinned — a lowercase value greps and sorts apart from the rest
+  assert.equal(
+    scanAdrStatus(fixture({ 'docs/adr/0099-a.md': adrBody('accepted') })).length,
+    1,
+    'a lowercase status value is flagged',
+  );
+
+  // positive: prose that merely mentions a status is not the line
+  assert.equal(
+    scanAdrStatus(
+      fixture({ 'docs/adr/0099-a.md': '# 0099 — A\n\nThis ADR is Accepted in practice.\n' }),
+    ).length,
+    1,
+    'a prose mention is not the status line',
+  );
+
+  // negative: each recognised value satisfies the check
+  for (const status of ADR_STATUSES) {
+    assert.equal(
+      scanAdrStatus(fixture({ 'docs/adr/0099-a.md': adrBody(status) })).length,
+      0,
+      `\`${status}\` satisfies the contract`,
+    );
+  }
+
+  // every offender is reported, not just the first
+  const adrMany = fixture({
+    'docs/adr/0098-a.md': adrBody(null),
+    'docs/adr/0099-b.md': adrBody('Accepted'),
+    'docs/adr/0100-c.md': adrBody('accepted'),
+  });
+  assert.deepEqual(
+    scanAdrStatus(adrMany).map((g) => path.basename(g.source)),
+    ['0098-a.md', '0100-c.md'],
+    'both offenders reported, in filename order, and the compliant ADR is not',
+  );
+
+  // a non-markdown file in the ADR tree is not an ADR
+  assert.equal(
+    scanAdrStatus(fixture({ 'docs/adr/README.txt': 'no status here' })).length,
+    0,
+    'a non-markdown file is skipped',
+  );
+
+  // an absent ADR tree is skipped, so a fixture carries only the files it exercises
+  assert.equal(scanAdrStatus(fixture({ 'README.md': '# repo\n' })).length, 0, 'absent ADR tree is skipped');
 
   // --- scanAnchorContract: every slice-store document must state how to identify a feature's scope
   // anchor (ADR 0017). `/superdev:afk` selects by anchor and reads that contract instead of encoding one

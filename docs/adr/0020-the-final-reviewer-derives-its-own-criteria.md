@@ -1,5 +1,7 @@
 # 0020 — The final-reviewer derives its own criteria
 
+**Status:** Accepted
+
 ## Context
 
 Every quality bar superdev applies to code is a floor. The Definition of Done is written by `/superdev:plan`'s

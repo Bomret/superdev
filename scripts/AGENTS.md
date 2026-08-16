@@ -128,10 +128,10 @@ afk-invocation, change-type, degraded-pass, derived-criteria, label-validation,
 green-gate-timeout, verb-pointer, kb-staging, kb-no-backend-call, no-second-reader,
 test-selection-wiring, full-suite, entries-standing-gate, unresolved-glossary, afk-routing,
 arg-token, audit-set, aggregate-page, and read-path checks are drift
-assertions. They compare a restated fact against its source. The eval-shape check compares a document
-against a schema. The afk-existence check is a plain existence assertion.
+assertions. They compare a restated fact against its source. The eval-shape and adr-status checks
+compare a document against a schema. The afk-existence check is a plain existence assertion.
 
-`drift-check.js` guards thirty-two things, in the order its `main()` computes them. First, that every
+`drift-check.js` guards thirty-three things, in the order its `main()` computes them. First, that every
 `references/*.md` path named in `commands/`, `agents/`, or `references/` itself resolves to a file that
 exists. A reference cites
 another reference — both execution playbooks point at `scope-mode.md` — so a rename there dangles like
@@ -338,7 +338,11 @@ check to resolve, so its absence would otherwise go unnoticed. Thirty-second, th
 `evals/*/graders/*.md` declares a known `type` and a positive `weight`, that an `llm` or `regex`
 grader also declares a `focus` or `target`, and that every case's `scaffold_script` resolves. Nothing
 else validates a grader, so without this a typo surfaces part-way through a run that costs real API
-spend.
+spend. Thirty-third, that every `docs/adr/*.md` states a `**Status:**` line carrying one of `Accepted`,
+`Proposed`, `Superseded`, or `Rejected`. An ADR with no status line reads as accepted whether or not
+anything implements it, which is how a decision reaches the glossary and the command bodies while the
+code has none of it. The value's capitalization is pinned with the set, so one ADR does not sort and
+grep apart from the rest.
 
 The first and seventh checks are opposites. The first catches a reference to a file that does not exist.
 The seventh catches an agent that drops its wire to a file which still exists. That drift leaves the
@@ -354,8 +358,9 @@ successor at all.
 - Scripts are CommonJS, like the hooks. `hooks/scope-prune.js` `require`s `scope.js`, so `scope.js`
   must stay `require`-able under plain `node`. This is the one dependency `hooks/` has on `scripts/`.
 - Every script ships a `--selftest`, same convention as the hooks.
-- A new drift-check contract gets its own entry in the thirty-two-check narrative above, in
-  `main()` order.
+- A new drift-check contract gets its own entry in the thirty-three-check narrative above, in
+  `main()` order. Append it at the end of `main()` unless the check belongs earlier for a reason —
+  every ordinal after an insertion point has to be rewritten by hand.
 
 ## Verification
 

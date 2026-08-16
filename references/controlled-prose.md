@@ -1,23 +1,4 @@
-<!--
-  Sources and attribution (see NOTICE):
-  - ASD-STE100 Issue 9, Part 1 (Writing rules), © ASD, https://asd-ste100.org. Published free for
-    adoption. Its Part 1 rules are restated here in superdev's own words. Part 2 (the Dictionary) is
-    copyrighted and is NOT reproduced.
-  - tekom Praxisleitfaden "Deutsch für die Technische Kommunikation", © tcworld GmbH. PRIOR ART ONLY.
-    Its notice forbids reproduction, translation, and storage in electronic media. No text here derives
-    from it. The rules it reaches that ASD-STE100 does not are written here from the principle.
-  - Handbook of Technical Writing, 12th edition, Alred/Oliu/Brusaw, © Macmillan Learning.
-    PRIOR ART ONLY. No text here derives from it. Its entries on headings, definitions, lists,
-    dangling modifiers, and voice reach five rules the other two catalogues do not. Those five are
-    written here from the principle.
-  - The two-mode split (strict and relaxed) and the self-lint checklist follow the distillation
-    published by woosal1337, https://github.com/woosal1337/blog (videos/ep01-the-cure-for-ai-slop).
-  Three catalogues arrive at the same core rules from different languages and traditions. That
-  convergence is what makes those rules portable, and it is the reason this file is language-neutral.
-  Where the Handbook diverges (it permits semicolons, dashes, sentence variety, and intensifiers for
-  emphasis), this file follows ASD-STE100, because those four rules trade a native reader's ease for a
-  form that any reader and any checker can parse.
--->
+<!-- Sources, attribution, and licence terms: see NOTICE. -->
 
 # Controlled prose
 
@@ -25,14 +6,14 @@ The writing standard for documentation. A repo selects it in the `## Writing sta
 `docs/agents/documentation.md` (ADR 0012). The `doc-writer` agent applies it. The `doc-reader` agent
 verifies it.
 
-The standard is **language-neutral**. Every rule below holds in any language you write documentation in.
-Rules that depend on one language live in *Declare per language* near the end, and each repo answers
-those for itself.
+The standard is **language-neutral**. Three catalogues reach the same core rules from different
+languages, and that convergence is what makes the rules portable. Every rule below holds in any language
+you write documentation in. Rules that depend on one language live in *Declare per language* near the
+end, and each repo answers those for itself.
 
 The examples are written in English because this file is. They illustrate a rule, they do not restrict
-it. Read the rule, then apply it to the language your docs use. Where an example names an English word
-pair ("use" over "utilize"), the rule is the principle behind the pair: prefer the shorter and more
-common word.
+it. Where an example names an English word pair ("use" over "utilize"), the rule is the principle behind
+the pair: prefer the shorter and more common word.
 
 ## Scope
 
@@ -236,37 +217,12 @@ These rules cannot be neutral. Each repo answers them once, in its own
 Unanswered, each of these defaults to whatever the writer of the moment prefers. That is the
 inconsistency this standard exists to remove, so answer them before the second writer arrives.
 
-## Checklist
+## Self-check
 
-Run this list over the text before you return it. The `doc-reader` agent runs the same list.
+Every rule above is written as a check. Read the text you produced against each section before you
+return it, and cite the section a violation belongs to. The `doc-reader` agent reads the same sections.
 
-1. Is a sentence longer than the mode's limit (20 words strict, 25 relaxed)? Divide it.
-2. Is there a semicolon or a dash used as punctuation? Replace it with a period, a comma, a colon, or
-   parentheses.
-3. Is there an optional informal short form, or an omitted function word? Write the words in full.
-4. Is there a passive construction with a known actor? Make it active.
-5. Does a sentence change voice part-way through? Put the whole sentence in one voice.
-6. Is there an action expressed as a noun ("perform an analysis"), or a verb plus an opaque particle
-   ("spin up")? Replace it with a plain verb.
-7. Is there a hedge, an evaluative adjective, or a stock phrase? Remove it.
-8. Does a pronoun have more than one possible referent? Repeat the noun.
-9. Does a modifying phrase describe the wrong word, or no word at all? Name the actor it needs.
-10. Does one thing have two names? Select one name.
-11. Does a definition restate its own term, or leave out the category? Rewrite it.
-12. Does a paragraph carry more than one topic, or more than six sentences? Divide it.
-13. Does a heading contain a full sentence or a subordinate clause? Rewrite it.
-14. Does a heading carry meaning the text below it leaves out? Move the meaning into the text.
-15. Does a list end without a sentence that refers back to it? Add one.
-16. Does a cross-reference say what the reader will find? If not, name it.
-17. Is a language-bound choice made twice, two different ways? Take it from *Declare per language*.
-18. Does a numbered step carry two actions the reader performs separately? Divide it into two steps.
-19. Is the result of a step missing where the reader needs it to continue? State the result.
-20. Is a result numbered as though the reader must perform it? Remove the number and write the result
-    inside the step.
-21. Do sibling procedures open with different lead-in patterns? Give them one pattern.
-22. Does a table heading carry a clause instead of a noun? Name what the column holds.
-
-The rules above are checkable. Good documentation also needs judgment that no checklist supplies: the
-right technical term, the right amount of detail, and whether a sentence is true. This standard fixes
-the form of the text. It cannot make an empty paragraph informative, and it cannot make a false
-statement true.
+Those rules are checkable. Good documentation also needs judgment that no rule supplies: the right
+technical term, the right amount of detail, and whether a sentence is true. This standard fixes the
+form of the text. It cannot make an empty paragraph informative, and it cannot make a false statement
+true.

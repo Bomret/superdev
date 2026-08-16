@@ -1,5 +1,7 @@
 # 0019 — The feature label is store-defined
 
+**Status:** Accepted
+
 ## Context
 
 `/superdev:implement` resolves which planned feature to build from a feature label, and derives the run's

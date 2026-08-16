@@ -1,5 +1,7 @@
 # 0021 — The change type leads the feature label and the scope branch
 
+**Status:** Accepted
+
 ## Context
 
 Every superdev run named its branch `superdev/<scope>`, and every issue-backed store seed labelled its

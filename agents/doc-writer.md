@@ -83,7 +83,7 @@ standard's *Declare per language* section as that repo answered it.
 Two limits, both deliberate:
 
 - **It binds only prose you write or rewrite.** Never reformat a line you had no other reason to touch.
-- **Run the standard's checklist over your text before you commit.**
+- **Read your text against every rule of the standard before you commit.**
 
 If the section names a file that does not exist, say so in your report and continue without a standard.
 A missing style guide does not fail a doc pass.

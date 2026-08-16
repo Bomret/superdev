@@ -62,8 +62,8 @@ job.
 Otherwise, read the **`## Writing standard`** section of `docs/agents/documentation.md` (ADR 0012).
 `none`, no section, or no such file at all means there is no standard and this pass is over. A value of
 `controlled` points at `${CLAUDE_PLUGIN_ROOT}/references/controlled-prose.md`; any other value is a
-repo-relative path to the project's own guide. Read whichever file the value names, then apply it; run
-its checklist too if it has one.
+repo-relative path to the project's own guide. Read whichever file the value names, then apply every
+rule it states.
 
 **Scope this pass to the diff, not the file.** `git diff <first>^..<last>` gives the lines the writer
 added across both its passes. When `<first>` is the repo's root commit, it has no parent — use `git diff
@@ -121,7 +121,7 @@ least costly thing you found. Order within a tag doesn't matter.
 - `assumes:` context a first-time reader can't have; name what's missing.
 - `ambiguous:` two readings; give both.
 - `style:` a breach of the configured writing standard, in prose the writer added. Evidence: the rule
-  (the standard's section + checklist item) and the corrected text.
+  (the standard's section, and the rule inside it) and the corrected text.
 
 End with the tally: `checked: <N> claims, <M> failed. style: <K> breaches.` Omit the `style:` count when
 no standard applies or the pass was skipped. If everything holds and no style breach was found either:
