@@ -18,7 +18,8 @@ that already has slices or plans a new one. Answering *extend* enters **append m
 mode:
 
 - **The user names the feature; `/plan` never infers it.** A store carries a feature label per feature
-  and keeps it after the feature ships, so the list only grows — this repository's own store carries 46.
+  and keeps it after the feature ships, so the list only grows, and this repository's own store already
+  carries dozens.
   Answering *new* therefore makes no store call at all, and only *extend* lists the labels to pick from.
   Detection cannot wait for step 1 to pick a label, because the epic's parked questions and its shipped
   slices are the context the append interview needs from its first question.
