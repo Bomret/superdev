@@ -706,6 +706,60 @@ function selftest() {
     assert.ok(text.includes('| 01 | #188 | scope.js CLI | behavior | — | todo | — |'), 'ledger carries slice rows');
     assert.ok(fs.readFileSync(path.join(tmp, '.gitignore'), 'utf8').includes('.superdev/'), '.superdev/ git-ignored');
 
+    // init: a slice already reported merged (ADR 0004 — a second run over an appended feature must
+    // never re-dispatch it) writes `merged` into the ledger table, alongside a sibling with no status
+    // that still defaults to `todo`.
+    const mergedSliceJson = JSON.stringify({
+      anchor: '#187 — Run state owned by a deterministic CLI (scope.js)',
+      slices: [
+        { id: '01', issue: '#188', title: 'scope.js CLI', type: 'behavior', 'depends-on': '—', status: 'merged' },
+        { id: '02', issue: '#189', title: 'ledger-guard hook', type: 'behavior', 'depends-on': '01' },
+      ],
+    });
+    r = call(['init', 'feat/appended'], mergedSliceJson);
+    assert.ok(r.ok, 'init should pass with a merged slice: ' + (r.err || ''));
+    const appendedText = fs.readFileSync(
+      path.join(tmp, '.superdev', 'scopes', 'appended', 'ledger.md'),
+      'utf8',
+    );
+    assert.ok(
+      appendedText.includes('| 01 | #188 | scope.js CLI | behavior | — | merged | — |'),
+      'ledger writes the merged status verbatim: ' + appendedText,
+    );
+    assert.ok(
+      appendedText.includes('| 02 | #189 | ledger-guard hook | behavior | 01 | todo | — |'),
+      'a sibling with no status still defaults to todo: ' + appendedText,
+    );
+
+    // init: a slice list that is entirely merged (a second run over a fully-shipped appended feature,
+    // ADR 0004) writes `merged` into every row — nothing defaults to `todo`. Isolated in its own root
+    // so its 2-of-2-merged tally doesn't collide with the shipped-scope tally assertion below.
+    const allMergedJson = JSON.stringify({
+      anchor: '#187 — Run state owned by a deterministic CLI (scope.js)',
+      slices: [
+        { id: '01', issue: '#188', title: 'scope.js CLI', type: 'behavior', 'depends-on': '—', status: 'merged' },
+        { id: '02', issue: '#189', title: 'ledger-guard hook', type: 'behavior', 'depends-on': '01', status: 'merged' },
+      ],
+    });
+    const fullyShipped = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-selftest-fully-shipped-'));
+    const origFullyShipped = console.log;
+    console.log = () => {};
+    try {
+      run(['init', 'feat/fully-shipped'], fullyShipped, allMergedJson);
+    } finally {
+      console.log = origFullyShipped;
+    }
+    const allMergedText = fs.readFileSync(
+      path.join(fullyShipped, '.superdev', 'scopes', 'fully-shipped', 'ledger.md'),
+      'utf8',
+    );
+    assert.ok(
+      allMergedText.includes('| 01 | #188 | scope.js CLI | behavior | — | merged | — |')
+        && allMergedText.includes('| 02 | #189 | ledger-guard hook | behavior | 01 | merged | — |'),
+      'every row seeds merged, none defaults to todo: ' + allMergedText,
+    );
+    fs.rmSync(fullyShipped, { recursive: true, force: true });
+
     // init: a run root whose ledger.md already exists is refused (the real double-init signal).
     r = call(['init', 'feat/demo'], sliceJson);
     assert.ok(!r.ok && /already exists/.test(r.err), 'existing ledger refused');

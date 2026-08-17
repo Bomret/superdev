@@ -191,6 +191,30 @@ response, which is what the ledger's slice-id mapping and both relation calls ne
 Its cost: `gh issue create` prints the issue URL rather than JSON, so the `number` has to be parsed off
 the URL and the global `id` fetched separately — and the dependency write needs that `id` regardless.
 
+## Append mode
+
+`/superdev:plan` can extend a feature that already has issues (`plan-contract.md` → *Append mode*,
+ADR 0004).
+
+- **Create only new records; never edit, close, or delete a merged slice.** Append fires new
+  `POST /repos/<owner>/<repo>/issues` calls for the new slices alone. It never `PATCH`es or closes an
+  issue a prior run already merged, and never rewrites its labels, sub-issue link, or `blocked_by`
+  dependency — a merged issue's `number` is a satisfied `depends-on` root for a newly created one,
+  nothing more.
+- **Create the epic first when none exists.** A feature whose lone issue carries the feature label with
+  no sub-issue parent has no epic yet (the single-slice shape, `## Scope anchor` above). Append creates
+  the epic issue first — its body holding the lone slice's `acceptance` checklist as the global DoD —
+  then links every new slice as its sub-issue. The lone existing issue itself is never edited: no epic
+  body copies onto it, no sub-issue link is written for it, and it stays nobody's child.
+- **Amend the epic's own body — the one sanctioned edit.** `PATCH /repos/<owner>/<repo>/issues/<epic
+  number>` with `{ "body": "<amended body>" }` folds the interview's new criteria into the epic's
+  Definition of Done in place, and, the same call, deletes a resolved parked question's line from the
+  epic's `## Parked questions` section. Both are edits to the epic issue's own body, never to a merged
+  slice's issue — the never-edit rule above still holds for every slice.
+
+The `number` is server-assigned at creation, already unique and stable, so append names no continuation
+rule for `id`.
+
 ## When a skill says "write slices to the store"
 
 **≥2 slices** — create the epic first (global DoD), then one issue per slice, then link each slice as a

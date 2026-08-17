@@ -232,6 +232,69 @@ function scanAnchorContract(root) {
   return gaps;
 }
 
+// Every slice-store document must render `/plan`'s append-mode contract for its own backend (ADR 0004,
+// `plan-contract.md` → *Append mode*): create only new slice records — never edit, close, or delete a
+// merged one — and, when a single-slice feature has no epic yet, create the epic first and copy the lone
+// slice's `acceptance` into it as the global DoD. Same candidate list as the anchor contract: every store
+// document renders both, and each element pattern is anchored on a bullet's bolded lead-in for the same
+// reason `ANCHOR_ELEMENTS` is — a passing prose mention of "append" states none of these rules for this
+// backend.
+const APPEND_PATTERN = /^#{2,3}\s+Append mode\s*$/m;
+const APPEND_ELEMENTS = [
+  [/^[-*] \*\*[^*]*never edit[^*]*\*\*/im, 'the never-edit-a-merged-slice clause'],
+  [/^[-*] \*\*[^*]*epic first[^*]*\*\*/im, 'the epic-promotion clause for a single-slice feature'],
+  // Anchored on "sanctioned edit", the clause that grants the permission, not on "amend" or "epic" alone
+  // — either word alone recurs elsewhere in the section's surrounding prose.
+  [/^[-*] \*\*[^*]*sanctioned edit[^*]*\*\*/im, 'the epic-amendment clause for a promoted epic'],
+];
+// `references/issue-tracker-local.md` alone needs a continuation rule: its `id` is the zero-padded file
+// number `/plan` itself assigns, so append must continue numbering from the highest one already present
+// and never reuse a number. An issue backend's `id` is server-assigned at creation, already unique and
+// stable, so it names no continuation rule at all (`plan-contract.md` → *Append mode*).
+const LOCAL_APPEND_DOC = path.join('references', 'issue-tracker-local.md');
+const LOCAL_CONTINUATION_ELEMENT = [
+  /^[-*] \*\*[^*]*continu[^*]*number[^*]*\*\*/im,
+  'the local-only numbering-continuation clause',
+];
+
+// scanAppendContract() is pure over a root dir: reads every slice-store document (the same candidate list
+// scanAnchorContract uses) and reports the ones missing the `## Append mode` section, missing one of its
+// two universal elements, or — for the local-file store alone — missing the numbering-continuation
+// element. Absent files are skipped, so a fixture carries only the docs it exercises.
+function scanAppendContract(root) {
+  const gaps = [];
+  const candidates = [...EXTRA_ANCHOR_DOCS];
+  try {
+    for (const entry of fs.readdirSync(path.join(root, ANCHOR_DOCS_DIR))) {
+      if (!entry.startsWith('issue-tracker-') || !entry.endsWith('.md')) continue;
+      candidates.push(path.join(ANCHOR_DOCS_DIR, entry));
+    }
+  } catch {
+    // no references/ dir → nothing to scan
+  }
+  for (const rel of candidates) {
+    let text;
+    try {
+      text = fs.readFileSync(path.join(root, rel), 'utf8');
+    } catch {
+      continue; // doc absent (fixture / partial checkout) → nothing to scan
+    }
+    const section = extractSection(text, APPEND_PATTERN);
+    if (section === null) {
+      gaps.push({ source: rel });
+      continue;
+    }
+    for (const [pattern, desc] of APPEND_ELEMENTS) {
+      if (!pattern.test(section)) gaps.push({ source: rel, expectation: `state ${desc}` });
+    }
+    if (rel === LOCAL_APPEND_DOC) {
+      const [pattern, desc] = LOCAL_CONTINUATION_ELEMENT;
+      if (!pattern.test(section)) gaps.push({ source: rel, expectation: `state ${desc}` });
+    }
+  }
+  return gaps;
+}
+
 // `/superdev:afk`'s selection step reads the store's `## Scope anchor` contract and must name no backend's
 // own mechanism (ADR 0017), or it is right on one store and wrong on the rest — the failure the
 // **Backends are pluggable** working rule exists to prevent, and one that shows up as a sweep finding
@@ -1359,9 +1422,109 @@ const READ_PATH_CONTRACTS = [
   ],
 ];
 
+// ADR 0004: append mode never renumbers a merged slice, so a second `/superdev:implement` run over an
+// appended feature must never re-dispatch one. Phase 0's `init` call is the one place that seeds the
+// ledger's per-slice status, so it must carry each loaded slice's real `status` rather than defaulting
+// every row to `todo`.
+const STATUS_SEED_CONTRACTS = [
+  [path.join('commands', 'implement.md'), /"status"\s*:/, "carry each loaded slice's real `status` field in its `scope.js init` call"],
+  [
+    path.join('commands', 'implement.md'),
+    /never\s+dispatched/,
+    'state that a slice the store reports as merged seeds `merged` and is never dispatched',
+  ],
+];
+
+// ADR 0004: `/plan`'s §0 asks new-vs-extend before the interview begins, refuses to extend on either of
+// two signals while writing nothing, and promotes a single-slice feature to an epic in §6, where the
+// command's other writes happen. Five independent rows, so losing any one clause fails on its own. The
+// ledger refusal signal is one condition with two clauses (a stage other than `shipped`; a `shipped`
+// stage whose branch is neither merged into the base nor gone), so it is two rows rather than one — a
+// single lookahead pinning both clauses cannot report which one went missing. Each row anchors on the
+// condition sentence's own wording, not on the rationale sentence that explains the branch test
+// afterward, so a document that keeps the rationale but loses the condition still fails.
+const PLAN_APPEND_CONTRACTS = [
+  [
+    path.join('commands', 'plan.md'),
+    /makes no store call at all/,
+    'ask new-vs-extend before the interview begins, and state that answering "new" makes no store call',
+  ],
+  [
+    path.join('commands', 'plan.md'),
+    /holds a slice `in-progress`, `in-review`, or `blocked`/,
+    'state the store refusal signal — a slice `in-progress`, `in-review`, or `blocked` elsewhere',
+  ],
+  [
+    path.join('commands', 'plan.md'),
+    /ledger stage other than `shipped`/,
+    'state the ledger refusal signal, first clause — a run root whose stage is other than `shipped`',
+  ],
+  [
+    path.join('commands', 'plan.md'),
+    /scope branch \(`<type>\/<scope>`\) is neither merged into the base nor gone/,
+    'state the ledger refusal signal, second clause — a `shipped` stage whose scope branch is neither ' +
+      'merged into the base nor gone',
+  ],
+  [
+    path.join('commands', 'plan.md'),
+    /leave the lone slice byte-identical/,
+    'state the single-slice epic-promotion clause, including that the lone slice is left untouched',
+  ],
+];
+
+// ADR 0007 + ADR 0004: `scope-prune` keeps a run root, and its shipped `ledger.md`, for seven days past
+// merge, so a second `/superdev:implement` run over an appended feature can land while that ledger is
+// still on disk. Phase 0 must read the stage before choosing resume-vs-init: a `shipped` ledger belongs
+// to a finished run and gets rotated aside, never resumed, and never deleted — `scope-prune` still reaps
+// the whole run root on its own terms. The rotation must also never clobber an existing
+// `ledger-shipped-<date>.md`, so a scope that ships twice in one calendar day keeps both trails.
+const ROTATE_ON_SHIPPED_CONTRACTS = [
+  [
+    path.join('commands', 'implement.md'),
+    /rename it to `ledger-shipped-<date>\.md`/,
+    'rotate a `shipped` ledger to `ledger-shipped-<date>.md` before running `init` again',
+  ],
+  [
+    path.join('commands', 'implement.md'),
+    /`implementing`,\s*`merged`,\s*`reviewed`,\s*`documented`,\s*or\s*`documented-unreviewed`/,
+    'name every other stage — `implementing`, `merged`, `reviewed`, `documented`, `documented-unreviewed` ' +
+      '— that keeps the existing resume path',
+  ],
+  [
+    path.join('commands', 'implement.md'),
+    /nothing is deleted,\s*so ADR\s*0007's seven-day trail and `scope-prune`'s reap-on-merge rule both stand/,
+    "state that nothing is deleted, so ADR 0007's seven-day trail and `scope-prune`'s rule stand unchanged",
+  ],
+  [
+    path.join('commands', 'implement.md'),
+    /never overwrites an existing\s*`ledger-shipped-<date>\.md`/,
+    'state that a rotation never overwrites an existing `ledger-shipped-<date>.md`, so a same-day ' +
+      'second rotation of one scope cannot clobber the first',
+  ],
+];
+
+// ADR 0004 + ADR 0005: `/plan`'s §0 surfaces an epic's parked questions once it loads, before the
+// interview diverges into new ground — each is a load-bearing decision an earlier interview couldn't
+// resolve. A question the interview resolves has its line deleted from the epic's `## Parked questions`
+// section; the new slice's `spec`/`acceptance` becomes the durable record instead
+// (`references/domain-modeling.md`'s revise-in-place rule).
+const PARKED_QUESTIONS_CONTRACTS = [
+  [
+    path.join('commands', 'plan.md'),
+    /once it loads, before the interview diverges into new\s+ground/,
+    "surface the epic's `## Parked questions` once it loads, before the interview diverges into new ground",
+  ],
+  [
+    path.join('commands', 'plan.md'),
+    /has its line deleted from that\s+section\s*—\s*the new slice's\s+`spec` and `acceptance` become the durable record/,
+    "state that a question the interview resolves has its line deleted from the epic's `## Parked " +
+      "questions` section, with the new slice's `spec`/`acceptance` becoming the durable record instead",
+  ],
+];
+
 // scanContract() is pure over a root dir and a contract table: reads each document the table names and
 // reports the expectations it no longer meets. Absent files are skipped, so fixtures need only the
-// documents they exercise. Both tables above share this one scanner — they differ in what they assert,
+// documents they exercise. The tables above share this one scanner — they differ in what they assert,
 // not in how the assertion runs. `stripFrontmatterFirst` tests the body alone, so a document can't satisfy
 // a body contract by echoing the token into its own `argument-hint` frontmatter — `FEATURE_ARG_CONTRACTS`
 // needs the opposite (its first row asserts *inside* the frontmatter), so it leaves this off.
@@ -1425,6 +1588,18 @@ function main() {
   }
   const shape = scanEvalShape(root);
   const adrGaps = scanAdrStatus(root);
+  const appendGaps = scanAppendContract(root);
+  // Last, so the narrative's ordinals never shift. A contract-table row placed inside `contractGaps`
+  // above would compute before the afk-existence, eval-shape, ADR-status, and append-mode checks, and
+  // renumber all four in `scripts/AGENTS.md` — the cost the append-at-the-end rule exists to avoid.
+  const statusSeedGaps = scanContract(root, STATUS_SEED_CONTRACTS);
+  // Same reasoning as statusSeedGaps above: each is computed last, on its own line, so adding one
+  // shifts no ordinal in scripts/AGENTS.md's narrative.
+  const planAppendGaps = scanContract(root, PLAN_APPEND_CONTRACTS);
+  const rotateOnShippedGaps = scanContract(root, ROTATE_ON_SHIPPED_CONTRACTS);
+  // Same reasoning as planAppendGaps/rotateOnShippedGaps above: its own line, after every other gap, so
+  // adding it shifts no ordinal in scripts/AGENTS.md's narrative.
+  const parkedQuestionsGaps = scanContract(root, PARKED_QUESTIONS_CONTRACTS);
   if (
     missing.length === 0 &&
     offenders.length === 0 &&
@@ -1436,7 +1611,12 @@ function main() {
     chainGaps.length === 0 &&
     contractGaps.length === 0 &&
     shape.length === 0 &&
-    adrGaps.length === 0
+    adrGaps.length === 0 &&
+    appendGaps.length === 0 &&
+    statusSeedGaps.length === 0 &&
+    planAppendGaps.length === 0 &&
+    rotateOnShippedGaps.length === 0 &&
+    parkedQuestionsGaps.length === 0
   ) {
     console.log(
       'drift-check ok: references resolve, run-root paths are absolute, assignee and anchor contracts ' +
@@ -1463,7 +1643,14 @@ function main() {
         'both stagers, publish-kb, and the knowledge-base seed agree on the `patch` action, ' +
         'publish-kb separates a read failure from a genuinely absent page while a marked config ' +
         'document documents the call that returns the body, ' +
-        'and every ADR states a status',
+        'every ADR states a status, ' +
+        'every store document carries its append-mode rules, ' +
+        "Phase 0's init call seeds each loaded slice's real status, " +
+        "/plan's §0 asks new-vs-extend, refuses on either signal while writing nothing, and promotes " +
+        'a single-slice feature to an epic, ' +
+        'and Phase 0 rotates a shipped ledger aside before running init again, ' +
+        "and /plan's §0 surfaces an epic's parked questions before the interview diverges and deletes " +
+        "a resolved one's line",
     );
     process.exit(0);
   }
@@ -1520,6 +1707,26 @@ function main() {
       `${g.source} states no status — expected \`**Status:** <${ADR_STATUSES.join(' | ')}>\` on its ` +
         `own line, so a decision nothing implements cannot read as one the code honours`,
     );
+  }
+  for (const g of appendGaps) {
+    console.error(
+      g.expectation
+        ? `${g.source} no longer meets the append-mode contract — expected it to ${g.expectation}`
+        : `${g.source} carries no \`## Append mode\` section — expected it to render \`/plan\`'s ` +
+          `append-mode contract for its own backend; see plan-contract.md → Append mode (ADR 0004)`,
+    );
+  }
+  for (const c of statusSeedGaps) {
+    console.error(`${c.source} no longer meets its contract — expected it to ${c.expectation}`);
+  }
+  for (const c of planAppendGaps) {
+    console.error(`${c.source} no longer meets its contract — expected it to ${c.expectation}`);
+  }
+  for (const c of rotateOnShippedGaps) {
+    console.error(`${c.source} no longer meets its contract — expected it to ${c.expectation}`);
+  }
+  for (const c of parkedQuestionsGaps) {
+    console.error(`${c.source} no longer meets its contract — expected it to ${c.expectation}`);
   }
   process.exit(1);
 }
@@ -3998,6 +4205,428 @@ if (process.argv[2] === '--selftest') {
     scanUnresolvedGlossaryContract(fixture({ 'README.md': '# repo\n' })).length,
     0,
     'absent files are skipped',
+  );
+
+  // --- STATUS_SEED_CONTRACTS: Phase 0 seeds each loaded slice's real status into `scope.js init`, so a
+  // second run over an appended feature (ADR 0004) never re-dispatches an already-merged slice. ---
+
+  assert.equal(
+    scanContract(realRoot, STATUS_SEED_CONTRACTS).length,
+    0,
+    'the shipped implement.md carries the `status` field in its init call',
+  );
+
+  // positive: implement.md's init call drops the `status` field — every loaded slice would seed the
+  // bare `todo` default again, exactly the re-dispatch bug this contract exists to catch. The
+  // never-dispatched sentence stays in this fixture, so the gap is the field row alone.
+  const statusGaps1 = scanContract(
+    fixture({
+      'commands/implement.md':
+        'A slice the store reports as **merged seeds `merged`, and is never dispatched**.\n\n' +
+        'echo \'{"anchor": "…", "slices": [{"id": "01", "issue": "…", "title": "…", "type": "…", ' +
+        '"depends-on": "…"}]}\' | node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" init <type>/<scope>\n',
+    }),
+    STATUS_SEED_CONTRACTS,
+  );
+  assert.equal(statusGaps1.length, 1, 'flags an init call that stops passing `status`');
+  assert.equal(statusGaps1[0].source, path.join('commands', 'implement.md'), 'names implement.md');
+
+  // negative: both clauses carried
+  assert.equal(
+    scanContract(
+      fixture({
+        'commands/implement.md':
+          'A slice the store reports as **merged seeds `merged`, and is never dispatched**.\n\n' +
+          'echo \'{"anchor": "…", "slices": [{"id": "01", "issue": "…", "title": "…", "type": "…", ' +
+          '"depends-on": "…", "status": "…"}]}\' | node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" init ' +
+          '<type>/<scope>\n',
+      }),
+      STATUS_SEED_CONTRACTS,
+    ).length,
+    0,
+    'an init call carrying `status` and the never-dispatched sentence yields zero gaps',
+  );
+
+  // positive: the sentence stating a merged slice is never dispatched is gone, but the `status` field
+  // itself is still carried — the field alone says nothing about skipping a merged slice, so this row
+  // must fire alone, with the field row silent.
+  const statusGapsNoNeverDispatched = scanContract(
+    fixture({
+      'commands/implement.md':
+        'echo \'{"anchor": "…", "slices": [{"id": "01", "issue": "…", "title": "…", "type": "…", ' +
+        '"depends-on": "…", "status": "…"}]}\' | node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" init ' +
+        '<type>/<scope>\n',
+    }),
+    STATUS_SEED_CONTRACTS,
+  );
+  assert.equal(
+    statusGapsNoNeverDispatched.length,
+    1,
+    'flags exactly the missing never-dispatched clause, field row silent',
+  );
+  assert.match(
+    statusGapsNoNeverDispatched[0].expectation,
+    /never dispatched/,
+    'names the never-dispatched clause',
+  );
+
+  // absent file is skipped, matching every other contract table
+  assert.equal(
+    scanContract(fixture({ 'README.md': '# repo\n' }), STATUS_SEED_CONTRACTS).length,
+    0,
+    'absent file is skipped',
+  );
+
+  // --- ROTATE_ON_SHIPPED_CONTRACTS: a `shipped` ledger belongs to a finished run (ADR 0007's seven-day
+  // trail keeps `ledger.md` on disk past merge), so Phase 0 must rotate it aside and run `init` again
+  // rather than resume it — the exact landing a second run over an appended feature (ADR 0004) needs. ---
+
+  assert.equal(
+    scanContract(realRoot, ROTATE_ON_SHIPPED_CONTRACTS).length,
+    0,
+    'the shipped implement.md states the rotate-on-shipped rule and the unchanged resume path',
+  );
+
+  // positive: implement.md loses the rotate-on-shipped rule and falls back to the old always-resume text
+  const rotateGaps1 = scanContract(
+    fixture({
+      'commands/implement.md':
+        '**Resuming a Phase 0 that already ran** — `<run-root>/ledger.md` already present — skip `init` ' +
+        'and go on to your playbook.\n',
+    }),
+    ROTATE_ON_SHIPPED_CONTRACTS,
+  );
+  assert.equal(rotateGaps1.length, 4, 'flags all four missing clauses');
+  assert.ok(
+    rotateGaps1.every((g) => g.source === path.join('commands', 'implement.md')),
+    'names implement.md',
+  );
+
+  // negative: the full rotate-on-shipped paragraph, wrapped the way the real document wraps it
+  assert.equal(
+    scanContract(
+      fixture({
+        'commands/implement.md':
+          '**`<run-root>/ledger.md` already present** — read its stage first. Stage **`shipped`** — ' +
+          'that ledger belongs to a finished run — rename it to `ledger-shipped-<date>.md` and run ' +
+          '`init` above, which writes a fresh ledger beside it: the rotation never overwrites an ' +
+          'existing `ledger-shipped-<date>.md`, nothing is deleted, so ADR\n' +
+          "0007's seven-day trail and `scope-prune`'s reap-on-merge rule both stand unchanged. Any " +
+          'other stage — `implementing`, `merged`, `reviewed`, `documented`, or\n' +
+          '`documented-unreviewed` — is a Phase 0 that already ran: skip `init`.\n',
+      }),
+      ROTATE_ON_SHIPPED_CONTRACTS,
+    ).length,
+    0,
+    'the wrapped paragraph satisfies all four clauses',
+  );
+
+  // positive: the three existing clauses hold, but the rotation carries no no-clobber guarantee — the
+  // fourth row must fire alone, leaving the other three silent
+  const rotateNoClobberGap = scanContract(
+    fixture({
+      'commands/implement.md':
+        '**`<run-root>/ledger.md` already present** — read its stage first. Stage **`shipped`** — ' +
+        'that ledger belongs to a finished run — rename it to `ledger-shipped-<date>.md` and run ' +
+        '`init` above, which writes a fresh ledger beside it: nothing is deleted, so ADR\n' +
+        "0007's seven-day trail and `scope-prune`'s reap-on-merge rule both stand unchanged. Any " +
+        'other stage — `implementing`, `merged`, `reviewed`, `documented`, or\n' +
+        '`documented-unreviewed` — is a Phase 0 that already ran: skip `init`.\n',
+    }),
+    ROTATE_ON_SHIPPED_CONTRACTS,
+  );
+  assert.equal(rotateNoClobberGap.length, 1, 'only the no-clobber row fires');
+  assert.ok(
+    /never overwrites an existing/.test(rotateNoClobberGap[0].expectation),
+    'the lone gap names the no-clobber expectation',
+  );
+
+  // absent file is skipped, matching every other contract table
+  assert.equal(
+    scanContract(fixture({ 'README.md': '# repo\n' }), ROTATE_ON_SHIPPED_CONTRACTS).length,
+    0,
+    'absent file is skipped',
+  );
+
+  // --- scanAppendContract: every slice-store document must render `/plan`'s append-mode contract for
+  // its own backend (ADR 0004, `plan-contract.md` → *Append mode*): create only new slice records, never
+  // edit/close/delete a merged one, promote a single-slice feature by creating the epic first, and name
+  // amending a promoted epic's own body as the one sanctioned edit. Same candidate-document list and
+  // section-extraction shape as scanAnchorContract. ---
+
+  const appendSection =
+    '## Append mode\n\n' +
+    "Extends a feature that already has slices, without touching what's already merged.\n\n" +
+    '- **Create only new records; never edit, close, or delete a merged slice.** One issue-create call ' +
+    'per new slice.\n' +
+    "- **Create the epic first when none exists.** Copy the lone slice's `acceptance` into it as the " +
+    'global DoD, leaving that slice untouched.\n' +
+    "- **Amend the epic's own body — the one sanctioned edit.** Folds the interview's new criteria into " +
+    "the epic's Definition of Done in place.\n";
+
+  // positive: a store document with no append section is flagged
+  const ap1 = fixture({ 'references/issue-tracker-acme.md': '# acme\n\nSlices are issues.\n' });
+  const apGaps1 = scanAppendContract(ap1);
+  assert.equal(apGaps1.length, 1, 'flags a store document with no append contract');
+  assert.equal(apGaps1[0].source, path.join('references', 'issue-tracker-acme.md'), 'names the seed');
+
+  // negative: the same document carrying all three universal elements is clean
+  assert.equal(
+    scanAppendContract(fixture({ 'references/issue-tracker-acme.md': appendSection })).length,
+    0,
+    'a document naming all three elements yields zero gaps',
+  );
+
+  // positive: losing the never-edit clause is flagged on its own
+  const apNoNeverEdit = fixture({
+    'references/issue-tracker-acme.md': appendSection.replace(
+      '- **Create only new records; never edit, close, or delete a merged slice.** One issue-create ' +
+        'call per new slice.\n',
+      '',
+    ),
+  });
+  const apGapsNoNeverEdit = scanAppendContract(apNoNeverEdit);
+  assert.equal(apGapsNoNeverEdit.length, 1, 'flags exactly the missing never-edit clause');
+  assert.match(apGapsNoNeverEdit[0].expectation, /never-edit/, 'names the never-edit clause');
+
+  // positive: losing the epic-promotion clause is flagged on its own
+  const apNoEpicFirst = fixture({
+    'references/issue-tracker-acme.md': appendSection.replace(
+      "- **Create the epic first when none exists.** Copy the lone slice's `acceptance` into it as the " +
+        'global DoD, leaving that slice untouched.\n',
+      '',
+    ),
+  });
+  const apGapsNoEpicFirst = scanAppendContract(apNoEpicFirst);
+  assert.equal(apGapsNoEpicFirst.length, 1, 'flags exactly the missing epic-promotion clause');
+  assert.match(apGapsNoEpicFirst[0].expectation, /epic-promotion/, 'names the epic-promotion clause');
+
+  // positive: losing the epic-amendment clause is flagged on its own, with the other two silent
+  const apNoAmend = fixture({
+    'references/issue-tracker-acme.md': appendSection.replace(
+      "- **Amend the epic's own body — the one sanctioned edit.** Folds the interview's new criteria " +
+        "into the epic's Definition of Done in place.\n",
+      '',
+    ),
+  });
+  const apGapsNoAmend = scanAppendContract(apNoAmend);
+  assert.equal(apGapsNoAmend.length, 1, 'flags exactly the missing epic-amendment clause');
+  assert.match(apGapsNoAmend[0].expectation, /epic-amendment/, 'names the epic-amendment clause');
+
+  // an absent document is skipped, so a fixture carries only the docs it exercises
+  assert.equal(
+    scanAppendContract(fixture({ 'README.md': '# repo\n' })).length,
+    0,
+    'an absent document is skipped rather than reported',
+  );
+
+  // the local-file store alone needs a numbering-continuation clause — its `id` is a file number `/plan`
+  // assigns, unlike an issue backend's server-assigned key
+  const apLocalNoContinuation = fixture({ 'references/issue-tracker-local.md': appendSection });
+  const apGapsLocal = scanAppendContract(apLocalNoContinuation);
+  assert.equal(apGapsLocal.length, 1, 'flags the local store missing its continuation clause');
+  assert.match(apGapsLocal[0].expectation, /continuation/, 'names the continuation clause');
+
+  // negative: the local store carrying the continuation clause too is clean
+  const localAppendSection =
+    appendSection +
+    '- **Continue numbering from the highest file number already present; never reuse one.** New slices ' +
+    'take the next `NN`.\n';
+  assert.equal(
+    scanAppendContract(fixture({ 'references/issue-tracker-local.md': localAppendSection })).length,
+    0,
+    'the local store carrying all three elements yields zero gaps',
+  );
+
+  // an issue-backend seed carrying no continuation clause is not held to that rule — its id is
+  // server-assigned already
+  assert.equal(
+    scanAppendContract(fixture({ 'references/issue-tracker-github.md': appendSection })).length,
+    0,
+    'an issue-backend seed is not held to the local-only continuation clause',
+  );
+
+  // --- PLAN_APPEND_CONTRACTS: /plan's §0 asks new-vs-extend, refuses to extend on either signal while
+  // writing nothing, and promotes a single-slice feature to an epic in §6, with the other writes
+  // (ADR 0004). Five independent rows: losing any one clause fails on its own, not just in aggregate.
+  // The ledger refusal signal's two clauses are pinned on the condition sentence's own wording, not on
+  // the rationale that explains the branch test afterward, so gutting the condition while leaving the
+  // rationale intact still fails. ---
+
+  const planAppendBody =
+    '## 0. Config\n\n' +
+    'Ask new vs. extend, before the interview begins. Answering **new** makes no store call at all.\n\n' +
+    'Refuse to extend, and write nothing, on either signal below:\n\n' +
+    '- The store holds a slice `in-progress`, `in-review`, or `blocked` — a run active elsewhere.\n' +
+    "- The scope's run root exists with a ledger stage other than `shipped`, or with a `shipped` stage " +
+    'whose scope branch (`<type>/<scope>`) is neither merged into the base nor gone.\n\n' +
+    "Create the epic, copy the lone slice's `acceptance` into it as the global DoD, and leave the lone " +
+    'slice byte-identical.\n';
+
+  // the shipped plan.md satisfies the whole contract
+  assert.equal(
+    scanContract(realRoot, PLAN_APPEND_CONTRACTS).length,
+    0,
+    'the shipped plan.md carries all five append clauses',
+  );
+
+  // negative: losing the §0 new-vs-extend question fails on its own
+  const paNoQuestion = fixture({
+    'commands/plan.md': planAppendBody.replace(
+      'Ask new vs. extend, before the interview begins. Answering **new** makes no store call at all.\n\n',
+      '',
+    ),
+  });
+  const paGapsNoQuestion = scanContract(paNoQuestion, PLAN_APPEND_CONTRACTS);
+  assert.equal(paGapsNoQuestion.length, 1, 'flags exactly the missing §0 question');
+  assert.match(paGapsNoQuestion[0].expectation, /new-vs-extend/, 'names the §0 clause');
+
+  // negative: losing the store refusal signal fails on its own
+  const paNoStoreSignal = fixture({
+    'commands/plan.md': planAppendBody.replace(
+      '- The store holds a slice `in-progress`, `in-review`, or `blocked` — a run active elsewhere.\n',
+      '',
+    ),
+  });
+  const paGapsNoStoreSignal = scanContract(paNoStoreSignal, PLAN_APPEND_CONTRACTS);
+  assert.equal(paGapsNoStoreSignal.length, 1, 'flags exactly the missing store refusal signal');
+  assert.match(paGapsNoStoreSignal[0].expectation, /store refusal signal/, 'names the store signal');
+
+  // negative: losing the whole ledger refusal signal fails both of its rows
+  const paNoLedgerSignal = fixture({
+    'commands/plan.md': planAppendBody.replace(
+      "- The scope's run root exists with a ledger stage other than `shipped`, or with a `shipped` stage " +
+        'whose scope branch (`<type>/<scope>`) is neither merged into the base nor gone.\n',
+      '',
+    ),
+  });
+  const paGapsNoLedgerSignal = scanContract(paNoLedgerSignal, PLAN_APPEND_CONTRACTS);
+  assert.equal(paGapsNoLedgerSignal.length, 2, 'flags both ledger refusal signal rows');
+  assert.ok(
+    paGapsNoLedgerSignal.every((g) => /ledger refusal signal/.test(g.expectation)),
+    'both gaps name the ledger signal',
+  );
+
+  // negative: losing only the first ledger clause (stage other than `shipped`) fails that row alone
+  const paNoLedgerStage = fixture({
+    'commands/plan.md': planAppendBody.replace('a ledger stage other than `shipped`', 'a bad stage'),
+  });
+  const paGapsNoLedgerStage = scanContract(paNoLedgerStage, PLAN_APPEND_CONTRACTS);
+  assert.equal(paGapsNoLedgerStage.length, 1, 'flags exactly the missing first ledger clause');
+  assert.match(paGapsNoLedgerStage[0].expectation, /first clause/, 'names the first ledger clause');
+
+  // negative: losing only the second ledger clause (branch neither merged nor gone) fails that row alone,
+  // with the first clause's row silent
+  const paNoLedgerBranch = fixture({
+    'commands/plan.md': planAppendBody.replace(
+      'whose scope branch (`<type>/<scope>`) is neither merged into the base nor gone',
+      'whose scope branch is anything',
+    ),
+  });
+  const paGapsNoLedgerBranch = scanContract(paNoLedgerBranch, PLAN_APPEND_CONTRACTS);
+  assert.equal(paGapsNoLedgerBranch.length, 1, 'flags exactly the missing second ledger clause');
+  assert.match(paGapsNoLedgerBranch[0].expectation, /second clause/, 'names the second ledger clause');
+
+  // acceptance mutation: gutting the real plan.md's refusal condition while leaving its rationale
+  // sentence intact (the branch test explanation a few lines below still names "merged into the base, or
+  // gone entirely") must still fail — this is the exact drift a rationale-anchored pattern misses.
+  const realPlanBody = fs.readFileSync(path.join(realRoot, 'commands', 'plan.md'), 'utf8');
+  const guttedCondition = realPlanBody.replace(
+    /whose scope branch \(`<type>\/<scope>`\) is neither merged into the base nor gone/,
+    'whose scope branch is not shipped',
+  );
+  assert.notEqual(guttedCondition, realPlanBody, 'the mutation actually changed the condition sentence');
+  const guttedGaps = scanContract(fixture({ 'commands/plan.md': guttedCondition }), PLAN_APPEND_CONTRACTS);
+  assert.equal(guttedGaps.length, 1, 'gutting the condition while keeping the rationale still fails');
+  assert.match(guttedGaps[0].expectation, /second clause/, 'names the second ledger clause');
+
+  // negative: losing the epic-promotion clause fails on its own
+  const paNoPromotion = fixture({
+    'commands/plan.md': planAppendBody.replace(
+      "Create the epic, copy the lone slice's `acceptance` into it as the global DoD, and leave the lone " +
+        'slice byte-identical.\n',
+      '',
+    ),
+  });
+  const paGapsNoPromotion = scanContract(paNoPromotion, PLAN_APPEND_CONTRACTS);
+  assert.equal(paGapsNoPromotion.length, 1, 'flags exactly the missing epic-promotion clause');
+  assert.match(paGapsNoPromotion[0].expectation, /epic-promotion/, 'names the epic-promotion clause');
+
+  // negative: a plan.md carrying every clause is clean
+  assert.equal(
+    scanContract(fixture({ 'commands/plan.md': planAppendBody }), PLAN_APPEND_CONTRACTS).length,
+    0,
+    'a plan.md carrying all five clauses yields zero gaps',
+  );
+
+  // absent file is skipped, matching every other contract table
+  assert.equal(
+    scanContract(fixture({ 'README.md': '# repo\n' }), PLAN_APPEND_CONTRACTS).length,
+    0,
+    'absent file is skipped',
+  );
+
+  // --- PARKED_QUESTIONS_CONTRACTS: /plan's §0 surfaces the epic's parked questions once it loads,
+  // before the interview diverges into new ground, and deletes a resolved one's line, leaving the new
+  // slice's `spec`/`acceptance` as the durable record (ADR 0004, ADR 0005). Two independent rows: losing
+  // either clause fails on its own, not just in aggregate. ---
+
+  const parkedQuestionsBody =
+    '## 0. Config\n\n' +
+    "**Surface the epic's parked questions once it loads, before the interview diverges into new " +
+    "ground.** Present every entry in the epic's `## Parked questions` section to the user; an absent " +
+    'or empty section surfaces nothing.\n\n' +
+    "A question this interview resolves has its line deleted from that section — the new slice's " +
+    '`spec` and `acceptance` become the durable record instead. One left unresolved carries forward ' +
+    'untouched.\n';
+
+  // the shipped plan.md satisfies the whole contract
+  assert.equal(
+    scanContract(realRoot, PARKED_QUESTIONS_CONTRACTS).length,
+    0,
+    'the shipped plan.md carries both parked-questions clauses',
+  );
+
+  // negative: losing the surface-step clause fails on its own
+  const pqNoSurface = fixture({
+    'commands/plan.md': parkedQuestionsBody.replace(
+      "**Surface the epic's parked questions once it loads, before the interview diverges into new " +
+        'ground.** ',
+      '',
+    ),
+  });
+  const pqGapsNoSurface = scanContract(pqNoSurface, PARKED_QUESTIONS_CONTRACTS);
+  assert.equal(pqGapsNoSurface.length, 1, 'flags exactly the missing surface step');
+  assert.match(
+    pqGapsNoSurface[0].expectation,
+    /surface the epic's `## Parked questions`/,
+    'names the surface-step clause',
+  );
+
+  // negative: losing the delete-on-resolve clause fails on its own
+  const pqNoDelete = fixture({
+    'commands/plan.md': parkedQuestionsBody.replace(
+      "A question this interview resolves has its line deleted from that section — the new slice's " +
+        '`spec` and `acceptance` become the durable record instead. ',
+      '',
+    ),
+  });
+  const pqGapsNoDelete = scanContract(pqNoDelete, PARKED_QUESTIONS_CONTRACTS);
+  assert.equal(pqGapsNoDelete.length, 1, 'flags exactly the missing delete-on-resolve rule');
+  assert.match(pqGapsNoDelete[0].expectation, /has its line deleted/, 'names the delete-on-resolve clause');
+
+  // negative: a plan.md carrying both clauses is clean
+  assert.equal(
+    scanContract(fixture({ 'commands/plan.md': parkedQuestionsBody }), PARKED_QUESTIONS_CONTRACTS).length,
+    0,
+    'a plan.md carrying both clauses yields zero gaps',
+  );
+
+  // absent file is skipped, matching every other contract table
+  assert.equal(
+    scanContract(fixture({ 'README.md': '# repo\n' }), PARKED_QUESTIONS_CONTRACTS).length,
+    0,
+    'absent file is skipped',
   );
 
   console.log('drift-check selftest ok');

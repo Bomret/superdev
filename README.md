@@ -48,6 +48,12 @@ plan runs test-first and inline.
   DAG), a `## Touch map` (parallel-slice file collisions), or both. Both are markdown, both are advisory, and
   [`references/plan-contract.md`](references/plan-contract.md) gates each one. The command also tells you
   the execution tier `/superdev:implement` will use for the final slice count (see below).
+
+  Run it again against a feature that already has slices, and it **appends**. New slices land on top of
+  the ones already merged, and the command never edits, renumbers, or re-litigates any of them. It
+  refuses while a run against that feature is active elsewhere. It surfaces any parked questions the
+  feature carries before asking anything new. A parked question is a load-bearing decision an earlier
+  interview could not resolve (`commands/plan.md` §0).
 - **`/superdev:implement`**. The controller drives the slices as a **dependency-ordered DAG**, sized to
   an execution tier derived fresh from the loaded slice count. The tier is never configured and never
   persisted.

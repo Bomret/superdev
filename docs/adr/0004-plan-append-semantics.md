@@ -1,6 +1,6 @@
 # 0004 — Re-running `/plan` on an existing feature appends; merged slices are immutable
 
-**Status:** Proposed
+**Status:** Accepted
 
 **Context.** `/plan` writes a feature's slice DAG **once**, in full — the interview (`cross-exam.md`) runs
 until "the design tree is exhausted," and step 6 creates `docs/plans/<feature-slug>/` (or the equivalent

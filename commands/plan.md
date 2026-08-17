@@ -17,6 +17,41 @@ continue.
 absent `docs/agents/toolchain.md` alongside build/package manifests gets a non-blocking
 **`/superdev:setup`** suggestion, then planning continues.
 
+**Ask new vs. extend, before the interview begins.** Is this a new feature, or one that already has
+slices? Answering **new** makes no store call at all — continue at §1 exactly as below. Answering
+**extend** lists the store's feature labels (`docs/agents/issue-tracker.md` → *Scope anchor*, *List the
+candidates*) for the user to pick one, then loads that feature's epic, its slices, and its Definition of
+Done — **before §1's first question**, because that context is what the append interview needs from the
+start, not once §1 settles a label (`references/plan-contract.md` → *Append mode*, ADR 0004).
+
+**Refuse to extend, and write nothing, on either signal below** — there is no override argument; the only
+escape is fixing the state. Name which signal fired and what clears it:
+
+- The store holds a slice `in-progress`, `in-review`, or `blocked` — a run active elsewhere.
+- The scope's run root (`.superdev/scopes/<slug>/`) exists with a ledger stage other than `shipped`, or
+  with a `shipped` stage whose scope branch (`<type>/<scope>`) is neither merged into the base nor gone —
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>` for the stage and `get
+  branch --root <run-root>` for the branch, then the same branch test `hooks/scope-prune.js` runs to
+  decide a scope is finished with (ADR 0007): merged into the base, or gone entirely. A stage other than
+  `shipped` means every slice is merged but the chain has not shipped, so appending here would add DoD
+  criteria the open pull request never carries. A `shipped` stage
+  whose branch is still alive means the pull request is still open, so appending would grow a request that
+  has already been reviewed.
+
+**A picked feature with no epic (a single-slice feature) is promoted to one.** §6 creates the epic and
+copies the lone slice's `acceptance` into it as the global DoD, then amends that DoD in place with the
+criteria the interview settled. The promotion is a write, so it happens where the command's other writes
+happen, and an abandoned interview strands no epic. Throughout, leave the lone slice byte-identical
+(`references/plan-contract.md` → *Append mode*, `docs/agents/issue-tracker.md` → *Append mode*).
+
+**Surface the epic's parked questions once it loads, before the interview diverges into new
+ground.** Each is a load-bearing decision an earlier interview could not resolve
+(`references/plan-contract.md` → *Parked questions*) — present every entry in the epic's
+`## Parked questions` section to the user. An absent or empty section surfaces nothing. That is not
+an error, since most epics carry none. A question this interview resolves has its line deleted from that
+section — the new slice's `spec` and `acceptance` become the durable record instead
+(`references/domain-modeling.md` → *Revise in place*). One left unresolved carries forward untouched.
+
 ## 1. Interview (relentless, one question at a time)
 
 **`$ARGUMENTS` is the intent, when one is given.** Take it as the interview's starting point — the same
@@ -190,6 +225,9 @@ Present the breakdown as a numbered list: per slice show title, `depends-on`, an
 covers. Ask: is the granularity right? are the dependencies correct? should any slice split or merge?
 Iterate until they approve.
 
+**Extending a feature:** present only the **new** slices — a merged slice already landed and isn't
+re-litigated here.
+
 When the plan earns a `## Slice graph` (plan-contract.md's *Epic visuals* → *When to write them*), show
 it here too — reviewing the drawn graph is how a wrong dependency gets caught before it's written.
 
@@ -202,6 +240,9 @@ plan files or as issues.
 - **Exactly one slice** — the epic is optional (see plan-contract.md): fold the global DoD into that
   slice's `acceptance` and write only the slice. No `00-epic-…` file / no epic issue.
 - **Two or more slices** — write the global DoD (epic) plus each slice, as today.
+- **Extending a feature** — create only the **new** slice records; never edit, close, renumber, or delete
+  a merged one. Amend the epic's Definition of Done **in place** (never replace it) with the new criteria
+  the interview settled. `docs/agents/issue-tracker.md` → *Append mode* owns the per-backend mechanics.
 
 **Add the epic visuals the plan earned.** Apply plan-contract.md's *Epic visuals* → *When to write them*
 and write `## Slice graph` and/or `## Touch map` into the epic body (the touch map from the file list you

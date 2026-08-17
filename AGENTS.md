@@ -233,7 +233,7 @@ This root owns every other subtree directly:
   0022 — owns the ledger schema, is the only `ledger.md` read and write path, and exports
   `readLedgerHeader` for `hooks/scope-prune.js`), `kb-patch.js` (the deterministic section merge behind a
   staged page's `action: patch`, called by `/superdev:publish-kb`, ADR 0027), `eval-run.js` (the eval
-  runner, ADR 0024), and `drift-check.js` (the thirty-three cross-document contract checks). What each guards,
+  runner, ADR 0024), and `drift-check.js` (the thirty-eight cross-document contract checks). What each guards,
   check by check, lives in that child doc.
 - `references/`. Backend seed templates plus the non-seed references below.
   + `plan-contract.md`: the slice schema and lifecycle, including the optional epic sections, the
@@ -242,7 +242,11 @@ This root owns every other subtree directly:
     store document (`issue-tracker-*.md`, `docs/agents/issue-tracker.md`) specialises for its own backend
     (ADR 0017). Its `## Feature label` section is the same shape one level over: the generic contract (a
     change type plus a slug, picked by `/plan`) that each store document renders in its own notation
-    (ADR 0019, ADR 0021).
+    (ADR 0019, ADR 0021). Its `## Append mode` section holds the five invariants that let `/plan` extend
+    a feature that already has slices — merged slices are immutable, ids are never reused or renumbered,
+    the global DoD is amended in place, extending a single-slice feature creates the epic first, and
+    append refuses while a run is active — with numbering continuation named as the local-file store's
+    own rule alone (ADR 0004).
   + `documentation.md`: the in-repo documentation convention, including the two sections
     `/superdev:setup` fills in — `## Writing standard`, always, and `## Audit set`, only when the repo has
     documentation outside the tree `/superdev:document audit` reads on its own.

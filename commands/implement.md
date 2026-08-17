@@ -141,10 +141,14 @@ implementer's TDD discipline yourself. Between dispatches, narrate at most one s
   It anchors the whole-scope review `/superdev:review` runs next, and `/superdev:ship` ticks it at the end
   of the chain. No DoD → don't proceed. **No epic** (a
   single-slice plan) → the DoD is that lone slice's `acceptance`; write it to `dod.md` verbatim.
-- Create the **ledger** with `scope.js init` — run, from the invoking checkout:
+- Create the **ledger** with `scope.js init` — run, from the invoking checkout, carrying each loaded
+  slice's real **`status`**, mapped from the store through `${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md`'s
+  `## Slice lifecycle & status`. A slice the store reports as **merged seeds `merged`, and is never
+  dispatched**. Omit the field and every row seeds `todo`, so a second run over an appended feature
+  (`docs/adr/0004-plan-append-semantics.md`) rebuilds what already shipped:
 
   ```sh
-  echo '{"anchor": "<key> — <title>", "slices": [{"id": "01", "issue": "…", "title": "…", "type": "…", "depends-on": "…"}, …]}' \
+  echo '{"anchor": "<key> — <title>", "slices": [{"id": "01", "issue": "…", "title": "…", "type": "…", "depends-on": "…", "status": "…"}, …]}' \
     | node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" init <type>/<scope>
   ```
 
@@ -157,8 +161,17 @@ implementer's TDD discipline yourself. Between dispatches, narrate at most one s
   is not computable from the slug, and `/superdev:ship` receives a slug — ADR 0021), and the `**Anchor:**`
   line from the store's `## Scope anchor` contract (`docs/agents/issue-tracker.md`) — the anchor's key and
   title — so `/superdev:review` can read the anchor's title back instead of deriving one from the diff.
-  **Resuming a Phase 0 that already ran** — `<run-root>/ledger.md` already present — skip `init` and go
-  on to your playbook; its **Resume** section reconciles the ledger against `git log`.
+  **`<run-root>/ledger.md` already present** — read its stage first:
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>`. Stage **`shipped`** —
+  that ledger belongs to a finished run — rename it to `ledger-shipped-<date>.md` (e.g. `mv`,
+  `date +%FT%H%M%S` for `<date>`, precise enough that two same-day rotations of one scope never collide)
+  and run `init` above, which writes a fresh ledger beside it: the rotation never overwrites an existing
+  `ledger-shipped-<date>.md`, nothing is deleted, so ADR
+  0007's seven-day trail and `scope-prune`'s reap-on-merge rule both stand unchanged; rotation, not
+  deletion, is what lets a second run over an appended feature (ADR 0004) begin instead of resuming a
+  shipped one. Any other stage — `implementing`, `merged`, `reviewed`, `documented`, or
+  `documented-unreviewed` — is a Phase 0 that already ran: skip `init` and go on to your playbook; its
+  **Resume** section reconciles the ledger against `git log`.
   The stage records how far this scope has moved through the chain, naming the last completed step:
   `implementing`, `merged`, `reviewed`, `documented` (or `documented-unreviewed` when `/superdev:document`
   ran before `/superdev:review` did), `shipped` (ADR 0013). You own the first two. Every later ledger

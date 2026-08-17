@@ -12,8 +12,11 @@ Honor the controller's **Invariants** and **Issue status** map throughout. Retur
   before cutting anything here.
 - **Scope branch off base:** `git switch -c <type>/<scope> <base>` in the invoking checkout (`<type>` and
   `<scope>` chosen in Phase 0; base from `code-management.md`, default `main`). You merge into this
-  checkout later.
-  Then move the **scope anchor** → `in-progress` (per `issue-tracker.md`; best-effort).
+  checkout later. `-c` fails when `<type>/<scope>` already exists, which is the safe outcome: a forcing
+  flag would reset the branch to `<base>` and strand every slice already merged into it, and this step
+  runs on the resume path too. An appended feature whose prior branch still exists therefore stops here,
+  loudly, for a human. Then move the **scope anchor** → `in-progress` (per `issue-tracker.md`;
+  best-effort).
 - **Per slice**, a branch off scope in its own **worktree** under this run's root:
   `git worktree add .superdev/scopes/<scope>/worktrees/<id> -b slice/<scope>/<id> <type>/<scope>`. The slice
   branch is **scoped** (`slice/<scope>/<id>`) so parallel runs never collide even when slice ids repeat.

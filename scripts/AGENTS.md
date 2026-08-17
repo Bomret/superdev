@@ -127,11 +127,12 @@ content-types, command-resolution, chain-handoff, feature-label-argument, unatte
 afk-invocation, change-type, degraded-pass, derived-criteria, label-validation,
 green-gate-timeout, verb-pointer, kb-staging, kb-no-backend-call, no-second-reader,
 test-selection-wiring, full-suite, entries-standing-gate, unresolved-glossary, afk-routing,
-arg-token, audit-set, aggregate-page, and read-path checks are drift
+arg-token, audit-set, aggregate-page, read-path, status-seed, plan-append, rotate-on-shipped, and
+parked-questions checks are drift
 assertions. They compare a restated fact against its source. The eval-shape and adr-status checks
 compare a document against a schema. The afk-existence check is a plain existence assertion.
 
-`drift-check.js` guards thirty-three things, in the order its `main()` computes them. First, that every
+`drift-check.js` guards thirty-eight things, in the order its `main()` computes them. First, that every
 `references/*.md` path named in `commands/`, `agents/`, or `references/` itself resolves to a file that
 exists. A reference cites
 another reference — both execution playbooks point at `scope-mode.md` — so a rename there dangles like
@@ -342,7 +343,56 @@ spend. Thirty-third, that every `docs/adr/*.md` states a `**Status:**` line carr
 `Proposed`, `Superseded`, or `Rejected`. An ADR with no status line reads as accepted whether or not
 anything implements it, which is how a decision reaches the glossary and the command bodies while the
 code has none of it. The value's capitalization is pinned with the set, so one ADR does not sort and
-grep apart from the rest.
+grep apart from the rest. Thirty-fourth, the append-mode contract (ADR 0004): every slice-store document
+(every `references/issue-tracker-*.md` plus `docs/agents/issue-tracker.md`) carries a `## Append mode`
+section stating three universal elements: append creates only new slice records and never edits, closes,
+or deletes a merged one; extending a single-slice feature creates the epic first, copying the lone
+slice's `acceptance` into it as the global DoD; and amending a promoted epic's own body is the one
+sanctioned edit — the clause anchored on that permission's own wording, not on "amend" or "epic" alone,
+either of which recurs elsewhere in the section's surrounding prose. Each element is matched on a
+bullet's bolded lead-in, the same `scanAnchorContract` shape, over the same candidate-document list.
+`references/issue-tracker-local.md` alone carries a fourth element, that append continues file numbering
+from the highest number already present and never reuses one — its `id` is the file number `/plan`
+itself assigns, unlike an issue backend's server-assigned key, which already satisfies the id rule on
+its own. Thirty-fifth, the
+status-seed contract (ADR 0004), two rows against `commands/implement.md`: it carries a `"status"` field
+in the JSON its Phase 0 pipes into `scope.js init`, and it states that a slice the store reports as merged
+seeds `merged` and is never dispatched. Append mode never renumbers or re-merges a slice already shipped,
+so a second run over an appended feature must seed each loaded slice's real status rather than defaulting
+every row to `todo`, and skip every row already seeded `merged` rather than re-dispatching it — a document
+that drops the field, or drops the never-dispatched clause while keeping the field, silently re-dispatches
+a merged slice either way, so the two rows fail independently. It is computed last, on its own line rather
+than inside the contract table above, so that adding a row shifts no ordinal in this narrative.
+Thirty-sixth, the plan-append contract (ADR 0004), five rows all against
+`commands/plan.md`: its §0 asks new-vs-extend before the interview begins and states that answering "new"
+makes no store call; it states the store refusal signal (a slice `in-progress`, `in-review`, or `blocked`
+elsewhere) as one row and the ledger refusal signal's two clauses — a run root whose stage is other than
+`shipped`, and a `shipped` stage whose scope branch is neither merged into the base nor gone — as two
+further independent rows, so losing any one of the three fails on its own rather than only in aggregate;
+and it states the single-slice epic-promotion clause, including that the lone slice is left untouched.
+Each ledger-signal row is anchored on the refusal condition's own wording, not on the rationale sentence
+that explains the branch test a few lines below it, so a document that keeps the rationale but loses the
+condition still fails. It is computed the same way as the status-seed contract just above — its own line,
+after every other gap, so adding it shifts no ordinal either. Thirty-seventh, the rotate-on-shipped contract (ADR 0004, ADR 0007):
+`commands/implement.md` states that Phase 0 reads a present ledger's stage before choosing between
+resume and init, that stage `shipped` rotates `ledger.md` to `ledger-shipped-<date>.md` and then runs
+`init` again, that every other stage — `implementing`, `merged`, `reviewed`, `documented`,
+`documented-unreviewed` — keeps the existing resume path, and that nothing is deleted, so
+`scope-prune`'s seven-day post-merge reap still runs on its own terms. A fourth clause states that the
+rotation never overwrites an existing `ledger-shipped-<date>.md`, so a scope that ships twice in one
+calendar day keeps both trails instead of the second rotation clobbering the first. `scope-prune` keeps
+a shipped run root on disk past merge, so a second `/superdev:implement` run over an appended feature
+can land while that ledger is still there; a document that goes back to treating any present ledger as
+an in-progress resume re-dispatches a finished run instead of beginning the new one. Computed on its
+own line, after the plan-append contract, for the same reason that one is. Thirty-eighth, the
+parked-questions contract (ADR 0004, ADR 0005), two rows against `commands/plan.md`: it surfaces an
+epic's `## Parked questions` the moment §0 loads it, before the interview diverges into new ground; and
+a question the interview resolves has its line deleted from that section, with the new slice's `spec`
+and `acceptance` standing as the sole record — `references/domain-modeling.md`'s revise-in-place rule
+forbids holding both. Losing either row independently: a document that keeps surfacing questions but
+stops deleting a resolved one's line leaves two records of the same decision, and one that stops
+surfacing them silently strands a load-bearing decision no later interview ever revisits. Computed on
+its own line, after the rotate-on-shipped contract, for the same reason those two are.
 
 The first and seventh checks are opposites. The first catches a reference to a file that does not exist.
 The seventh catches an agent that drops its wire to a file which still exists. That drift leaves the
@@ -358,7 +408,7 @@ successor at all.
 - Scripts are CommonJS, like the hooks. `hooks/scope-prune.js` `require`s `scope.js`, so `scope.js`
   must stay `require`-able under plain `node`. This is the one dependency `hooks/` has on `scripts/`.
 - Every script ships a `--selftest`, same convention as the hooks.
-- A new drift-check contract gets its own entry in the thirty-three-check narrative above, in
+- A new drift-check contract gets its own entry in the thirty-eight-check narrative above, in
   `main()` order. Append it at the end of `main()` unless the check belongs earlier for a reason —
   every ordinal after an insertion point has to be rewritten by hand.
 

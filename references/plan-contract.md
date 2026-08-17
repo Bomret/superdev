@@ -139,6 +139,30 @@ never a plan field, never persisted. The **lite** tier has no per-slice review a
 whole-scope review substitutes for the per-slice ones. The table above (and the `behavior`-only
 `in-review` step) describes the **full** tier.
 
+## Append mode
+
+`/superdev:plan` can also **extend** a feature that already has slices, instead of planning a new one.
+Append mode holds five invariants, and every backend renders all five:
+
+- **Merged slices are immutable.** Append never edits, renumbers, closes, or deletes a merged slice's
+  file or issue.
+- **Ids are never reused or renumbered.** A new slice's `depends-on` may name an already-merged slice's
+  `id` as a satisfied root.
+- **The global Definition of Done is amended in place, never replaced.** New criteria are appended to the
+  checklist; a criterion merged slices already satisfy is never removed retroactively.
+- **Extending a single-slice feature creates the epic first.** A single-slice feature has no epic — its
+  lone slice's `acceptance` doubles as the global DoD (see *Fields* above), and the slice is its own scope
+  anchor. Append copies that `acceptance` into the new epic as the global DoD, amends it with the new
+  criteria, and leaves the lone slice byte-identical. Skipping this step would leave two slices under one
+  feature label with no epic — the shape a store's `## Scope anchor` section calls **Ambiguous**, which
+  cannot resolve into a root.
+- **Append refuses, and writes nothing, while a run is active.**
+
+Only one part of this is backend-specific: **numbering continuation.** The local-file store's `id` is the
+zero-padded file number `/plan` itself assigns, so append continues that numbering from the highest
+number already present. An issue backend's `id` is the key its own server assigns at creation, which is
+already unique and stable — append there names no continuation rule at all.
+
 ## Scope anchor
 
 A feature's **scope anchor** is its root. A multi-slice plan's root has slices beneath it; a single-slice

@@ -124,6 +124,29 @@ status*). Record the mapping and the transition to reach each status:
 - If Jira lacks a status (no separate *In Review* or *Blocked*), map it to the nearest one and note the
   collapse here.
 
+## Append mode
+
+`/superdev:plan` can extend a feature that already has issues (`plan-contract.md` → *Append mode*,
+ADR 0004).
+
+- **Create only new records; never edit, close, or delete a merged slice.** Append fires new
+  `POST <base>/rest/api/3/issue` calls for the new slices alone. It never transitions or edits an issue
+  a prior run already merged (no `fields` PUT, no transition to a closed status, no relabel) — a merged
+  issue's `key` is a satisfied `depends-on` "is blocked by" target for a newly created one, nothing more.
+- **Create the Epic first when none exists.** A feature whose lone issue has no `fields.parent` has no
+  Epic yet (the single-slice shape, `## Scope anchor` above). Append creates the Epic issue first — its
+  description holding the lone slice's `acceptance` checklist as the global DoD — then sets every new
+  slice issue's parent to it. The lone existing issue itself is never edited: no DoD copies onto its own
+  description, and its `fields.parent` stays unset.
+- **Amend the Epic's own description — the one sanctioned edit.** `PUT <base>/rest/api/3/issue/<epic key>`
+  with `{ "fields": { "description": <amended ADF body> } }` folds the interview's new criteria into the
+  Epic's Definition of Done in place, and, the same call, deletes a resolved parked question's line from
+  the description's Parked questions block. Both are edits to the Epic issue's own description, never to a
+  merged slice's issue — the never-edit rule above still holds for every slice.
+
+The `key` is assigned by Jira at creation, already unique and stable, so append names no continuation
+rule for `id`.
+
 ## When a skill says "write slices to the store"
 
 **≥2 slices** — create the Epic first (global DoD), then one Jira issue per slice, link dependencies,

@@ -104,6 +104,28 @@ epic file, so the lone `NN-<test-applicability>-<summary>.md` is the anchor (ADR
   never writes that shape, and there is no global Definition of Done to build against, so a consumer
   reports it instead of choosing.
 
+## Append mode
+
+`/superdev:plan` can extend a feature that already has a plan directory (`plan-contract.md` → *Append
+mode*, ADR 0004).
+
+- **Create only new files; never edit, renumber, or delete a merged slice file.** Append writes a new
+  `NN-<test-applicability>-<summary>.md` file per new slice. It never opens an existing `NN-…md` file for
+  editing, never renumbers it, and never deletes it — a merged slice's file number is a satisfied
+  `depends-on` root a new file's own `depends-on` may name.
+- **Create the epic first when none exists.** A feature directory holding a single `01-…md` file with no
+  `00-epic-…md` has not been decomposed yet (the single-slice shape, `## Scope anchor` above). Append
+  writes `00-epic-<summary>.md` first — copying the lone slice's `acceptance` into its Definition of Done
+  section — then writes the new `NN-…md` files. The lone `01-…md` file itself is never edited: no DoD
+  copies onto it, and its own `acceptance` stays exactly as merged.
+- **Continue file numbering from the highest number already present; never reuse one.** A new slice's
+  `NN` picks up where the feature directory's highest existing `NN-…md` (epic file excluded) leaves off —
+  `03` after a directory ending at `02`, not a number a merged file already carries.
+- **Amend `00-epic-…md` in place — the one sanctioned edit.** Open the epic file itself and fold the
+  interview's new criteria into its `## Definition of Done (global)` section, and, the same edit, delete a
+  resolved parked question's line from its `## Parked questions` section. Both are edits to the epic file
+  itself, never to a merged `NN-…md` slice file — the never-edit rule above still holds for every slice.
+
 ## When `/superdev:plan` says "write slices to the store"
 
 Create `docs/plans/<type>/<feature-slug>/`. **≥2 slices** — write `00-epic-<summary>.md` (the global DoD +

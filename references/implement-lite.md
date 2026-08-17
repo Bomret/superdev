@@ -12,10 +12,13 @@ throughout. Return to the controller's **Final phase** once every slice is commi
   before cutting the worktree.
 - **Cut the scope branch into a dedicated worktree:**
   `git worktree add .superdev/scopes/<scope>/worktree -b <type>/<scope> <base>` (base from
-  `code-management.md`, default `main`). The invoking checkout is **never switched** — it stays on main
+  `code-management.md`, default `main`). `-b` fails when `<type>/<scope>` already exists, which is the
+  safe outcome: a forcing flag would reset the branch to `<base>` and strand every slice already merged
+  into it, and this step runs on the resume path too. An appended feature whose prior branch still exists
+  therefore stops here, loudly, for a human. The invoking checkout is **never switched** — it stays on main
   (or wherever it was), so a second session can run in the same repo. All inline implementation happens
-  **in this worktree**, never in the invoking checkout. Then move the **scope anchor** →
-  `in-progress` (per `issue-tracker.md`; best-effort).
+  **in this worktree**, never in the invoking checkout. Then move the **scope anchor** → `in-progress`
+  (per `issue-tracker.md`; best-effort).
 
 ## Run lock
 
@@ -28,7 +31,9 @@ same-scope mutual exclusion. Leave the lock in place when you finish: it spans t
 
 ## Implement
 
-- **In `depends-on` order, inline, test-first.** For each slice, in dependency order: read its `spec` +
+- **In `depends-on` order, inline, test-first, skipping every slice the ledger already marks `merged`**
+  (an appended feature's already-shipped slices seed `merged`, per the `status` field Phase 0 carried into
+  `scope.js init`, and are never dispatched). For each slice, in dependency order: read its `spec` +
   `acceptance`, then carry the same tracer-bullet **and surgical-edit** disciplines an implementer
   subagent would (one RED test, minimal GREEN code, repeat; every hunk traces to an acceptance criterion
   or the specification — remove only what your own edit orphaned, and name pre-existing dead code instead

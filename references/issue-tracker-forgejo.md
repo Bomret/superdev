@@ -130,6 +130,29 @@ Best-effort — the run ledger drives control flow; if a label/close call fails,
 of `test-applicability` — go straight from `in-progress` to closed once the slice's commit lands on the
 scope branch.
 
+## Append mode
+
+`/superdev:plan` can extend a feature that already has issues (`plan-contract.md` → *Append mode*,
+ADR 0004).
+
+- **Create only new records; never edit, close, or delete a merged slice.** Append fires new
+  `POST /api/v1/repos/<owner>/<repo>/issues` calls for the new slices alone. It never `PATCH`es or closes
+  an issue a prior run already merged, and never rewrites its labels or body — a merged issue's index is
+  a satisfied `depends-on` root for a newly created one, nothing more.
+- **Create the epic first when none exists.** A feature whose lone issue carries the feature label with no
+  `epic`-labeled sibling has no epic yet (the single-slice shape, `## Scope anchor` above). Append
+  creates the epic issue first — `body` holding the lone slice's `acceptance` checklist as the global DoD
+  — then references it (`#<epic>`) from every new slice issue. The lone existing issue itself is never
+  edited: no epic body copies onto it, no label changes, no `#<epic>` reference added to it.
+- **Amend the epic's own body — the one sanctioned edit.** `PATCH /api/v1/repos/<owner>/<repo>/issues/<epic
+  index>` with `{ "body": "<amended body>" }` folds the interview's new criteria into the epic's Definition
+  of Done in place, and, the same call, deletes a resolved parked question's line from the epic's `##
+  Parked questions` section. Both are edits to the epic issue's own body, never to a merged slice's issue —
+  the never-edit rule above still holds for every slice.
+
+The issue index is server-assigned at creation, already unique and stable, so append names no
+continuation rule for `id` — the same reasoning `plan-contract.md` states for every issue-backed store.
+
 ## When a skill says "write slices to the store"
 
 **≥2 slices** — create the epic first (global DoD), then one issue per slice, then append each slice's
