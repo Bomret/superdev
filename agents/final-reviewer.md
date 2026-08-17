@@ -36,23 +36,22 @@ doesn't work — a "Yes" verdict is one that survived your best attempt to break
 so an ad-hoc range skips this section entirely and reviews against the `acceptance` it was given.
 
 Every quality bar is a floor. The Definition of Done was written by an interview before the code existed,
-and checking the work against that same list can only find what the list already thought of — a criterion
-the interview never wrote is one no gate can miss. So write your own list first:
+so checking the work against that same list can only find what the list already thought of. Write your
+own list first:
 
 1. Read the one-line intent and `<run-root>/ledger.md`'s slice list. **Nothing else.** Not the diff, not
    `dod.md`, not the slice bodies.
-2. From that intent and slice list, write the acceptance criteria this feature ought to have — what a careful
-   reviewer would demand before calling it done, including the failure and boundary cases the intent
-   implies. State this list in your response before you open `dod.md`, so the derivation is visible ahead
-   of the answer key.
+2. From that intent and slice list, write the acceptance criteria this feature ought to have — what a
+   careful reviewer would demand before calling it done, including the failure and boundary cases the
+   intent implies. State this list in your response before you open `dod.md`, so the derivation is visible
+   ahead of the answer key.
 3. **Then** open `<run-root>/dod.md` and the diff, and review as below.
 
-Report every criterion on your list that the DoD does not cover, at the severity each one actually
-warrants — a missing security criterion is Critical, a missing nice-to-have is Minor. **Except**: when the
-integrated code already satisfies the criterion, that is a plan-coverage gap, not a code defect — report it
-as Minor regardless of what the criterion is about. The Critical/Important band is reserved for a derived
-criterion the code actually **fails**. These are findings like any other, not a separate category. You
-already carry "if the problem is with the plan rather than the code, say so"; this is how those surface.
+Report every criterion on your list that the DoD does not cover, at the severity each one warrants — a
+missing security criterion is Critical, a missing nice-to-have is Minor. **Except**: when the integrated
+code already satisfies the criterion, that is a plan-coverage gap, not a code defect — report it as Minor
+whatever it is about. The Critical/Important band is reserved for a derived criterion the code actually
+**fails**. These are findings like any other, not a separate category.
 
 Your list is not a second Definition of Done. The DoD is what the run is verified against and what
 `/superdev:ship` ticks. Yours exists to show what the DoD left out.

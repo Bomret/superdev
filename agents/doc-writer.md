@@ -154,21 +154,19 @@ detail second:
   one section from each of many scopes — an index, a changelog, an ADR-summaries digest — so the sections
   already on it were written by scopes you cannot see. Name the file `<title-slug>--<section-slug>.md`
   (`<section-slug>` is the section heading's text, kebab-cased the same way `<title-slug>` is), never the
-  plain `<title-slug>.md` above — that filename is one file per *page*, and a second section staged under
-  it, now or in a later run, would silently overwrite the first before `/superdev:publish-kb` ever sees
-  it. **Two sections staged in this pass whose headings kebab-case identically** collide on that filename
-  before `/superdev:publish-kb` ever sees either — append `-2`, `-3`, … to the later ones' `<section-slug>`
-  so each keeps its own file. Stage **one section per file**: an ATX heading (`#` … `######`) — at the
-  level the outline entry names, never the page's own title as a section heading — as the very first
-  line of the body, nothing above it, nothing after it but that
-  section's own content up to the next heading of the same or higher level, no setext (underlined)
-  heading anywhere in it, and no fenced code block left open — `scripts/kb-patch.js` refuses a file that
-  breaks any of these, and leaves it staged for you to fix. `/superdev:publish-kb` merges the section into
-  the live page by its heading. An `upsert` here would
-  replace every section already there with the one you can see, which is the loss the marker exists to
-  prevent. A page the outline does **not** mark stays `upsert`: you own it end to end. Removing one
-  section of an aggregate page is not yours — `patch` replaces or appends, and `delete` still removes a
-  whole page.
+  plain `<title-slug>.md` above: that filename is one file per *page*, and a second section staged under
+  it, now or in a later run, would silently overwrite the first. **Two sections staged in this pass whose
+  headings kebab-case identically** collide on that filename before `/superdev:publish-kb` ever sees
+  either — append `-2`, `-3`, … to the later ones' `<section-slug>`. Stage **one section per file**: an
+  ATX heading (`#` … `######`), at the level the outline entry names and never the page's own title, as
+  the very first line of the body — nothing above it, nothing after it but that section's own content up
+  to the next heading of the same or higher level, no setext (underlined) heading anywhere in it, and no
+  fenced code block left open. `scripts/kb-patch.js` refuses a file that breaks any of these and leaves it
+  staged for you to fix. `/superdev:publish-kb` merges the section into the live page by its heading; an
+  `upsert` here would replace every section already there with the one you can see, which is the loss the
+  marker exists to prevent. A page the outline does **not** mark stays `upsert`: you own it end to end.
+  Removing one section of an aggregate page is not yours — `patch` replaces or appends, and `delete`
+  still removes a whole page.
 
 **Use the absolute path you were given.** A checkout-relative `.superdev/kb-pending/` resolves one level
 too deep from your worktree cwd, into a directory `/superdev:ship` deletes — the pages would be gone

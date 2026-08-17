@@ -166,13 +166,11 @@ already unique and stable — append there names no continuation rule at all.
 ## Scope anchor
 
 A feature's **scope anchor** is its root. A multi-slice plan's root has slices beneath it; a single-slice
-plan's root is its own lone slice — one rule for both shapes, so a single-slice plan needs no special case
-(ADR 0017). A consumer that needs a feature's scope-level signal — `/superdev:afk` selecting its next
-feature, the status map above writing the anchor's own status — reads the active
-`docs/agents/issue-tracker.md`'s own `## Scope anchor`
-section rather than assuming any one store's shape — how to recognise one, list the candidates, list the
-slices beneath one, and tell that an anchor is itself a slice are backend mechanism, and belong there, not
-here.
+plan's root is its own lone slice — one rule for both shapes (ADR 0017). A consumer that needs a feature's
+scope-level signal — `/superdev:afk` selecting its next feature, the status map above writing the anchor's
+own status — reads the active `docs/agents/issue-tracker.md`'s own `## Scope anchor` section rather than
+assuming any one store's shape. How to recognise an anchor, list the candidates, list the slices beneath
+one, and tell that an anchor is itself a slice are backend mechanism, and belong there.
 
 ## Feature label
 
@@ -243,8 +241,8 @@ never honour (ADR 0010).
 - **Applied at creation** — the assignee goes in the same create call that already carries the title,
   body, and labels, for the epic and every slice. Never a follow-up pass, so it costs no extra request.
 - **A bad assignee must never cost the run its issues** — `/plan` fires every slice create in parallel, so
-  one misconfigured `Assignee` can't be allowed to fail every create in the batch. A store rejects an
-  unassignable configuration one of two ways, and each has its own recovery:
+  one misconfigured `Assignee` must not fail the batch. A store rejects an unassignable configuration one
+  of two ways, each with its own recovery:
   - **The create itself is rejected because of the assignee** (the account doesn't exist, or can't be
     assigned on this repo) — retry that one create **once, without the assignee**, so the issue still
     exists; report it **once** for the whole run.
