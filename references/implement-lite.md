@@ -10,15 +10,16 @@ throughout. Return to the controller's **Final phase** once every slice is commi
 
 - **Base committed + pushed** per the controller's Phase 0 (design docs on base, base pushed) — do it
   before cutting the worktree.
-- **Cut the scope branch into a dedicated worktree:**
-  `git worktree add .superdev/scopes/<scope>/worktree -b <type>/<scope> <base>` (base from
-  `code-management.md`, default `main`). `-b` fails when `<type>/<scope>` already exists, which is the
-  safe outcome: a forcing flag would reset the branch to `<base>` and strand every slice already merged
-  into it, and this step runs on the resume path too. An appended feature whose prior branch still exists
-  therefore stops here, loudly, for a human. The invoking checkout is **never switched** — it stays on main
-  (or wherever it was), so a second session can run in the same repo. All inline implementation happens
-  **in this worktree**, never in the invoking checkout. Then move the **scope anchor** → `in-progress`
-  (per `issue-tracker.md`; best-effort).
+- **Scope branch into a dedicated worktree, per this run's kind.** Read
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Cutting the scope branch` and do what it says for
+  the run kind the controller handed you — `fresh`, `appended`, or `resumed` (ADR 0028). Never derive that
+  value yourself. Call whatever it leaves you on `<branch>` for the rest of this file: for `fresh` that is
+  literally `git worktree add .superdev/scopes/<scope>/worktree -b <type>/<scope> <base>` (`<path>` there
+  is always `.superdev/scopes/<scope>/worktree`; base from `code-management.md`, default `main`), but
+  `appended` and `resumed` resolve `<branch>` per that same section, never by reconstructing that name.
+  The invoking checkout is **never switched** — it stays on main (or wherever it was), so a second session
+  can run in the same repo. All inline implementation happens **in this worktree**, never in the
+  invoking checkout. Then move the **scope anchor** → `in-progress` (per `issue-tracker.md`; best-effort).
 
 ## Run lock
 
@@ -70,7 +71,8 @@ same-scope mutual exclusion. Leave the lock in place when you finish: it spans t
 ## Resume
 
 Read the ledger — `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>` and
-`get stage` — and cross-check it against `git log <base>..<type>/<scope>` in the
+`get stage` — and cross-check it against `git log <base>..<branch>` (`<branch>` from the branch step
+above, never rebuilt as `<type>/<scope>`) in the
 scope worktree — a slice the ledger marks `merged` (already committed there) is done; pick up at the next
 `todo` slice in `depends-on` order. An interrupted `in-progress` slice may have left partial, uncommitted
 changes in the scope worktree. Before resuming, check `<run-root>/run.lock`: if it exists and is

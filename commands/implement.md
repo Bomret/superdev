@@ -111,8 +111,9 @@ implementer's TDD discipline yourself. Between dispatches, narrate at most one s
   **Unattended** section. A previous `full`-tier run leaves its scope branch checked out here, and a
   maintainer may simply be standing on their own branch — committing design docs to either one puts them
   where no worktree branches from, which is the failure this step exists to prevent. **Nothing dirty →
-  the branch check does not apply**: whatever branch you are on, both playbooks cut from `<base>`
-  explicitly, so the topology is unaffected — move on to the push check below. Then compare `<base>`
+  the branch check does not apply**: with nothing uncommitted, whatever branch you are on holds no design
+  docs this step needs to protect, and the branch step below points at its own explicit branch per run
+  kind regardless — so the topology is unaffected — move on to the push check below. Then compare `<base>`
   against its upstream and push it by explicit refspec (`git push <remote> <base>`) if it's ahead — never
   by switching onto it — because the PR you open later diffs against the remote base, and an unpushed
   local commit there diverges into a stranded duplicate once the PR is squash-merged.
@@ -177,6 +178,13 @@ implementer's TDD discipline yourself. Between dispatches, narrate at most one s
   ran before `/superdev:review` did), `shipped` (ADR 0013). You own the first two. Every later ledger
   write in this run goes through a `scope.js` verb too (`stage`, `slice`, `degraded add`) — the
   `ledger-guard` hook denies any other write path.
+- **Name this run's kind, and hand it to your playbook.** The ledger step above already decided it: a
+  ledger you wrote with `init` is **`fresh`**, a `shipped` ledger you rotated aside is **`appended`**, and
+  a live ledger you skipped `init` for is **`resumed`**. State which one when you `Read` your playbook.
+  Its branch model acts on that value, per
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Cutting the scope branch` — one determination,
+  made here, rather than a second reading of the same two signals that can disagree with this one
+  (ADR 0028).
 
 ## Issue status (move issues along the tracker's workflow)
 

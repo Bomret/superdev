@@ -10,15 +10,17 @@ Honor the controller's **Invariants** and **Issue status** map throughout. Retur
 
 - **Base committed + pushed** per the controller's Phase 0 (design docs on base, base pushed) — do it
   before cutting anything here.
-- **Scope branch off base:** `git switch -c <type>/<scope> <base>` in the invoking checkout (`<type>` and
-  `<scope>` chosen in Phase 0; base from `code-management.md`, default `main`). You merge into this
-  checkout later. `-c` fails when `<type>/<scope>` already exists, which is the safe outcome: a forcing
-  flag would reset the branch to `<base>` and strand every slice already merged into it, and this step
-  runs on the resume path too. An appended feature whose prior branch still exists therefore stops here,
-  loudly, for a human. Then move the **scope anchor** → `in-progress` (per `issue-tracker.md`;
-  best-effort).
+- **Scope branch, per this run's kind.** Read
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Cutting the scope branch` and do what it says for
+  the run kind the controller handed you — `fresh`, `appended`, or `resumed` (ADR 0028). Never derive that
+  value yourself. Call whatever it leaves you on `<branch>` for the rest of this file: for `fresh` that is
+  literally `git switch -c <type>/<scope> <base>` (`<type>` and `<scope>` chosen in Phase 0; base from
+  `code-management.md`, default `main`), but `appended` and `resumed` resolve `<branch>` per that same
+  `## Cutting the scope branch` section, never by reconstructing that name. Every command there runs
+  **in the invoking checkout**, which is where you merge each slice later. Then move the **scope anchor**
+  → `in-progress` (per `issue-tracker.md`; best-effort).
 - **Per slice**, a branch off scope in its own **worktree** under this run's root:
-  `git worktree add .superdev/scopes/<scope>/worktrees/<id> -b slice/<scope>/<id> <type>/<scope>`. The slice
+  `git worktree add .superdev/scopes/<scope>/worktrees/<id> -b slice/<scope>/<id> <branch>`. The slice
   branch is **scoped** (`slice/<scope>/<id>`) so parallel runs never collide even when slice ids repeat.
   Filesystem isolation lets independent slices run in parallel without clobbering each other;
   `.superdev/` being git-ignored keeps the nested worktrees out of the parent's status.
@@ -127,7 +129,8 @@ re-enter the DAG loop at step 1.
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>` (and `get stage`), plus
   `<run-root>/interfaces.md` (the cross-slice interface record — your pre-compaction
   context is gone; this file is what survives), cross-check the ledger against
-  `git log <base>..<type>/<scope>` (merge commits name the slice branch) and the store's slice statuses.
+  `git log <base>..<branch>` (`<branch>` from the branch step above, never rebuilt as `<type>/<scope>`;
+  merge commits name the slice branch) and the store's slice statuses.
   A slice the ledger — or the merge log — marks `merged` is done: **never re-dispatch it**, no matter what
   a stale in-progress worktree suggests.
 - **Reconcile leftover worktrees.** For each `.superdev/scopes/<scope>/worktrees/<id>` still present, check its
@@ -143,5 +146,5 @@ Per-slice worktrees are already removed at merge (DAG step 4). Anything left —
 for `/superdev:ship`, which takes the run down at the end of the chain. This tier leaves no `run.lock`:
 only `references/implement-lite.md` creates one, because the `run-lock` hook guards a scope worktree this
 tier never cuts (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The run lock`). The invoking checkout keeps
-`<type>/<scope>` checked out: that is the scope checkout `/superdev:review` and `/superdev:document` work
+`<branch>` checked out: that is the scope checkout `/superdev:review` and `/superdev:document` work
 in on this tier. Return to the controller's **Final phase** without cleaning up.

@@ -107,6 +107,61 @@ recovers a type from a slug — so read the branch rather than compute it.
   cannot separate them. **No branch matches** → say so and stop, rather than proceeding against whatever
   HEAD happens to be.
 
+## Cutting the scope branch
+
+`/superdev:implement`'s Phase 0 computes this run's **run kind** — `CONTEXT.md`'s glossary entry names all
+three values — and hands it to the execution playbook it reads. Both playbooks act on that value instead
+of deriving it a second time from git state.
+
+- **`fresh`** — no ledger existed, so the scope branch does not exist either. Cut it from `<base>`:
+  `git switch -c <type>/<scope> <base>` on the `full` tier, and
+  `git worktree add <path> -b <type>/<scope> <base>` on the `lite` tier. **The name already exists** — a
+  prior scope's branch survived a non-squash merge and outlived its reaped run root
+  (`hooks/scope-prune.js`'s seven-day TTL, ADR 0007): `-c` and `-b` both fail rather than reset it, which
+  is the safe outcome. Stop, name the branch found, and cut nothing — a human renames or deletes it
+  before the run retries.
+- **`appended`** — a `shipped` ledger was rotated aside, and the branch may have survived its pull request,
+  because `/superdev:ship` opens the request from that branch and never deletes it. Read `<branch>` from
+  the ledger's own line — `scope.js get branch --root <run-root>`, then `git rev-parse --verify <branch>` —
+  rather than resolving it per `## The scope branch` above, whose shape-scan fallback risks a foreign
+  branch; this step cuts and hands the name onward, unlike that section's read-only callers. Then decide on
+  the same test that decides a scope is finished with (ADR 0007): merged into `<base>`, or gone entirely —
+  the test `hooks/scope-prune.js` runs and
+  `commands/plan.md`'s refusal bullet reads back, not a bare `git merge-base --is-ancestor` on a name a
+  squash-merging host already deleted, which exits 128 rather than answering true or false. **Gone** —
+  `<branch>` does not verify: nothing survives to reuse, so cut fresh from `<base>` exactly as `fresh`
+  does. **Present** — test containment with `git merge-base --is-ancestor <branch> <base>`. **Contained**
+  — `<base>` holds every commit on the branch, so reuse loses nothing: the `full` tier switches to the
+  branch — stopping first when that checkout is dirty or another worktree holds the branch, naming what
+  it found, the same stop `resumed` takes below — then runs `git merge --ff-only <base>`, and the `lite`
+  tier works in its existing scope worktree when one already holds the branch, stopping first when a
+  different worktree holds it instead, or otherwise runs `git worktree add <path> <branch>` — either way
+  then fast-forwarding inside that worktree — the same either-or `resumed` takes below when `/superdev:ship`
+  has or has not removed that worktree.
+  **Not contained** — commits live only on that branch: print `git log <base>..<branch> --oneline` so
+  the operator sees what is at risk, ask, and print
+  `git branch -m <branch> <branch>-<date>` as the remedy. **`--unattended` → block**, per `## Unattended`.
+  A code host that squash-merges and deletes the branch on merge reads gone here; one that squash-merges
+  without deleting it reads present and not contained, so it asks — the ordinary outcome there.
+- **`resumed`** — the branch holds unmerged slice work by design, so no ancestor test runs and nothing is
+  cut. Read `<branch>` from the ledger's own line — `scope.js get branch --root <run-root>`, verified with
+  `git rev-parse --verify <branch>` — never by rebuilding `<type>/<scope>` and never through `## The scope
+  branch` above's shape-scan fallback, which can return a foreign branch just as it can for `appended`. A
+  `resumed` branch is expected to exist, so a name that does not verify is a stop, not a fallback to guess
+  from — say so rather than proceeding on a shape match. The `full` tier switches the invoking checkout
+  onto it, and stops, naming what it found, when that checkout is dirty or another worktree holds the
+  branch. The `lite` tier
+  works in its existing scope worktree, and reattaches the branch with `git worktree add <path> <branch>`
+  when `/superdev:ship` has already removed that worktree.
+
+**No forcing flag, at any run kind.** `git switch -C` and `git worktree add -B` reset the branch to
+`<base>` and leave every slice already merged into it unreachable from any ref, while the ledger still
+records those slices as `merged` — so nothing in the run rebuilds what it lost (ADR 0028). Fast-forwarding
+to `<base>` is the one re-pointing this rule permits.
+
+**Every stop above writes nothing.** No run starts and no ledger entry is written. None of them is a
+degraded pass either: `## Degraded passes` records work done a lesser way, and here no work happens.
+
 ## The scope checkout
 
 **Resolve the scope branch first**, per `## The scope branch` above, never from the slug alone. Then find

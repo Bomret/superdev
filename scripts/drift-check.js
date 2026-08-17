@@ -913,6 +913,10 @@ const VERB_CONTRACTS = [
   [path.join('references', 'implement-lite.md'), /scope\.js["'`]?\s+slice\b/, 'move slice rows with `scope.js slice`'],
   [path.join('references', 'scope-mode.md'), /scope\.js["'`]?\s+degraded add\b/, 'write the degrade entry with `scope.js degraded add`'],
   [path.join('commands', 'publish-kb.md'), /scope\.js["'`]?\s+get branch\b/, 'read the scope branch with `scope.js get branch` for its merge check'],
+  // /plan names `scope.js` once and then its two verbs, so the branch half wraps away from the path
+  // prefix (`get\n  branch --root <run-root>`) and the `scope.js <verb>` shape above cannot reach it.
+  // The `--root` argument is what separates the verb invocation from the words "get branch" in prose.
+  [path.join('commands', 'plan.md'), /get\s+branch\s+--root/, 'read the scope branch with `scope.js get branch` for its append refusal, never by reconstructing `<type>/<scope>`'],
 ];
 
 // ADR 0023: a remote knowledge base is a reader-facing surface, and a page sent from an unmerged branch
@@ -1522,6 +1526,51 @@ const PARKED_QUESTIONS_CONTRACTS = [
   ],
 ];
 
+// ADR 0028: the scope branch is cut once, and a later run reuses it only losslessly.
+// `references/scope-mode.md` owns the rule and both execution playbooks read it, so the three run kinds
+// are pinned there rather than in either playbook — a pointer's prose is not worth pinning, and a
+// tier-specific line that drifts still leaves the rule itself intact. Five independent rows: losing the
+// specification for one clause fails on its own. `fresh` gets two rows because it carries two clauses (a
+// scope-prune reap can leave a same-named branch standing with no ledger to match it, so `fresh` is not
+// always a guaranteed-absent name), and `appended` gets two because a contained reuse switches the
+// invoking checkout on the `full` tier — same as `resumed` — and must stop on the same conditions rather
+// than a raw git fatal. The regexes span the bullet from its run-kind label (or its own distinguishing
+// clause, for a row anchored past that label) to the sentence that distinguishes it, so a prose reflow
+// inside that bullet does not go red while a deleted clause does.
+const RUN_KIND_CONTRACTS = [
+  [
+    path.join('references', 'scope-mode.md'),
+    /`fresh`[\s\S]{0,240}?[Cc]ut\s+it\s+from\s+`<base>`/,
+    'specify the `fresh` run kind — no branch exists, so the run cuts one from `<base>`',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /\*\*The name already exists\*\*[\s\S]{0,300}?[Ss]top,\s+name\s+the\s+branch\s+found,\s+and\s+cut\s+nothing/,
+    'specify the `fresh` run kind — a same-named branch a scope-prune reap left standing makes `-c`/`-b` ' +
+      'fail; stop and name it rather than forcing a reset',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /`appended`[\s\S]{0,650}?merged\s+into\s+`<base>`,\s+or\s+gone\s+entirely/,
+    'specify the `appended` run kind — key the branch decision on the same merged-or-gone test ' +
+      '`hooks/scope-prune.js` and `commands/plan.md` run, not a bare `git merge-base --is-ancestor` ' +
+      'that exits 128 on a branch a squash-merging host already deleted',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /\*\*Contained\*\*[\s\S]{0,200}?stopping\s+first\s+when\s+that\s+checkout\s+is\s+dirty\s+or\s+another\s+worktree\s+holds\s+the\s+branch/,
+    'specify the `appended` run kind — a contained reuse switches the invoking checkout too, so it must ' +
+      'stop on the same dirty-checkout/held-elsewhere conditions `resumed` stops on, instead of a raw ' +
+      'git fatal',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /`resumed`[\s\S]{0,400}?[Nn]o\s+ancestor\s+test\s+runs\s+and\s+nothing\s+is\s+cut/,
+    'specify the `resumed` run kind — no ancestor test runs and nothing is cut, because the branch ' +
+      'holds unmerged slice work by design',
+  ],
+];
+
 // scanContract() is pure over a root dir and a contract table: reads each document the table names and
 // reports the expectations it no longer meets. Absent files are skipped, so fixtures need only the
 // documents they exercise. The tables above share this one scanner — they differ in what they assert,
@@ -1600,6 +1649,9 @@ function main() {
   // Same reasoning as planAppendGaps/rotateOnShippedGaps above: its own line, after every other gap, so
   // adding it shifts no ordinal in scripts/AGENTS.md's narrative.
   const parkedQuestionsGaps = scanContract(root, PARKED_QUESTIONS_CONTRACTS);
+  // Same reasoning as parkedQuestionsGaps above: its own line, after every other gap, so adding it
+  // shifts no ordinal in scripts/AGENTS.md's narrative.
+  const runKindGaps = scanContract(root, RUN_KIND_CONTRACTS);
   if (
     missing.length === 0 &&
     offenders.length === 0 &&
@@ -1616,7 +1668,8 @@ function main() {
     statusSeedGaps.length === 0 &&
     planAppendGaps.length === 0 &&
     rotateOnShippedGaps.length === 0 &&
-    parkedQuestionsGaps.length === 0
+    parkedQuestionsGaps.length === 0 &&
+    runKindGaps.length === 0
   ) {
     console.log(
       'drift-check ok: references resolve, run-root paths are absolute, assignee and anchor contracts ' +
@@ -1650,7 +1703,8 @@ function main() {
         'a single-slice feature to an epic, ' +
         'and Phase 0 rotates a shipped ledger aside before running init again, ' +
         "and /plan's §0 surfaces an epic's parked questions before the interview diverges and deletes " +
-        "a resolved one's line",
+        "a resolved one's line, " +
+        'and scope-mode.md specifies the branch step for all three run kinds',
     );
     process.exit(0);
   }
@@ -1726,6 +1780,9 @@ function main() {
     console.error(`${c.source} no longer meets its contract — expected it to ${c.expectation}`);
   }
   for (const c of parkedQuestionsGaps) {
+    console.error(`${c.source} no longer meets its contract — expected it to ${c.expectation}`);
+  }
+  for (const c of runKindGaps) {
     console.error(`${c.source} no longer meets its contract — expected it to ${c.expectation}`);
   }
   process.exit(1);
@@ -4628,6 +4685,134 @@ if (process.argv[2] === '--selftest') {
     0,
     'absent file is skipped',
   );
+
+  // --- RUN_KIND_CONTRACTS: scope-mode.md specifies the branch step for each of the three run kinds —
+  // `fresh` cuts from base (and stops, cutting nothing, when a scope-prune reap left a same-named branch
+  // standing), `appended` reuses the branch only when it is present and base already contains it (and
+  // stops on the same dirty-checkout/held-elsewhere conditions `resumed` does before reusing it),
+  // `resumed` switches to it and cuts nothing (ADR 0028). Five independent rows: losing one clause's
+  // specification fails on its own, not just in aggregate. ---
+
+  const runKindBody =
+    '## Cutting the scope branch\n\n' +
+    '- **`fresh`** — no ledger existed, so the scope branch does not exist either. Cut it from ' +
+    '`<base>`. **The name already exists** — a scope-prune reap left it standing. Stop, name the ' +
+    'branch found, and cut nothing.\n' +
+    '- **`appended`** — a `shipped` ledger was rotated aside. Decide on the same test that decides a ' +
+    'scope is finished with (ADR 0007): merged into `<base>`, or gone entirely. Gone → cut fresh. ' +
+    'Present → test containment with `git merge-base --is-ancestor <branch> <base>`. **Contained** — ' +
+    'stopping first when that checkout is dirty or another worktree holds the branch, the same stop ' +
+    '`resumed` takes below, then reuse it.\n' +
+    '- **`resumed`** — the branch holds unmerged slice work by design, so no ancestor test runs and ' +
+    'nothing is cut.\n';
+
+  // the shipped scope-mode.md satisfies the whole contract
+  assert.equal(
+    scanContract(realRoot, RUN_KIND_CONTRACTS).length,
+    0,
+    'the shipped scope-mode.md specifies all three run kinds',
+  );
+
+  // negative: losing the `fresh` cut-from-base clause fails on its own
+  const rkNoFresh = fixture({
+    'references/scope-mode.md': runKindBody.replace(
+      'no ledger existed, so the scope branch does not exist either. Cut it from `<base>`. ',
+      '',
+    ),
+  });
+  const rkGapsNoFresh = scanContract(rkNoFresh, RUN_KIND_CONTRACTS);
+  assert.equal(rkGapsNoFresh.length, 1, 'flags exactly the missing `fresh` cut-from-base clause');
+  assert.match(rkGapsNoFresh[0].expectation, /`fresh` run kind/, 'names the `fresh` run kind');
+
+  // negative: losing the `fresh` existing-name stop clause fails on its own
+  const rkNoFreshStop = fixture({
+    'references/scope-mode.md': runKindBody.replace(
+      ' **The name already exists** — a scope-prune reap left it standing. Stop, name the branch ' +
+        'found, and cut nothing.',
+      '',
+    ),
+  });
+  const rkGapsNoFreshStop = scanContract(rkNoFreshStop, RUN_KIND_CONTRACTS);
+  assert.equal(rkGapsNoFreshStop.length, 1, 'flags exactly the missing `fresh` existing-name stop clause');
+  assert.match(rkGapsNoFreshStop[0].expectation, /`fresh` run kind/, 'names the `fresh` run kind');
+
+  // negative: losing the `appended` merged-or-gone clause fails on its own
+  const rkNoAppended = fixture({
+    'references/scope-mode.md': runKindBody.replace(
+      'Decide on the same test that decides a scope is finished with (ADR 0007): merged into ' +
+        '`<base>`, or gone entirely. Gone → cut fresh. ',
+      '',
+    ),
+  });
+  const rkGapsNoAppended = scanContract(rkNoAppended, RUN_KIND_CONTRACTS);
+  assert.equal(rkGapsNoAppended.length, 1, 'flags exactly the missing `appended` merged-or-gone clause');
+  assert.match(rkGapsNoAppended[0].expectation, /`appended` run kind/, 'names the `appended` run kind');
+
+  // negative: losing the `appended` contained-reuse stop clause fails on its own
+  const rkNoAppendedStop = fixture({
+    'references/scope-mode.md': runKindBody.replace(
+      ' — stopping first when that checkout is dirty or another worktree holds the branch, the same ' +
+        'stop `resumed` takes below, then reuse it',
+      '',
+    ),
+  });
+  const rkGapsNoAppendedStop = scanContract(rkNoAppendedStop, RUN_KIND_CONTRACTS);
+  assert.equal(
+    rkGapsNoAppendedStop.length,
+    1,
+    'flags exactly the missing `appended` contained-reuse stop clause',
+  );
+  assert.match(rkGapsNoAppendedStop[0].expectation, /`appended` run kind/, 'names the `appended` run kind');
+
+  // negative: losing the `resumed` specification fails on its own
+  const rkNoResumed = fixture({
+    'references/scope-mode.md': runKindBody.replace(
+      '- **`resumed`** — the branch holds unmerged slice work by design, so no ancestor test runs and ' +
+        'nothing is cut.\n',
+      '',
+    ),
+  });
+  const rkGapsNoResumed = scanContract(rkNoResumed, RUN_KIND_CONTRACTS);
+  assert.equal(rkGapsNoResumed.length, 1, 'flags exactly the missing `resumed` specification');
+  assert.match(rkGapsNoResumed[0].expectation, /`resumed` run kind/, 'names the `resumed` run kind');
+
+  // negative: a scope-mode.md carrying all three is clean
+  assert.equal(
+    scanContract(fixture({ 'references/scope-mode.md': runKindBody }), RUN_KIND_CONTRACTS).length,
+    0,
+    'a scope-mode.md specifying all three run kinds yields zero gaps',
+  );
+
+  // absent file is skipped, matching every other contract table
+  assert.equal(
+    scanContract(fixture({ 'README.md': '# repo\n' }), RUN_KIND_CONTRACTS).length,
+    0,
+    'absent file is skipped',
+  );
+
+  // A forcing flag is what ADR 0028 forbids: `git switch -C`/`--force-create`, `git checkout -B`, and
+  // `git worktree add … -B`/`--force-create` all reset an existing branch instead of failing on it.
+  const hasForcingBranchFlag = (text) =>
+    /git\s+switch\s+(?:-C|--force-create)\b/.test(text) ||
+    /git\s+checkout\s+-B\b/.test(text) ||
+    /worktree\s+add[^\n]*\s(?:-B|--force-create)\b/.test(text);
+
+  // positive: every forcing-flag spelling is actually caught, not just `switch -C` / `worktree add -B`
+  for (const flagged of [
+    'git switch -C <type>/<scope> <base>',
+    'git switch --force-create <type>/<scope> <base>',
+    'git checkout -B <type>/<scope> <base>',
+    'git worktree add <path> -B <type>/<scope> <base>',
+    'git worktree add <path> --force-create <type>/<scope> <base>',
+  ]) {
+    assert.ok(hasForcingBranchFlag(flagged), `catches the forcing flag in "${flagged}"`);
+  }
+
+  // a forcing flag in either playbook is what ADR 0028 forbids, so the shipped playbooks carry none
+  for (const playbook of ['implement-full.md', 'implement-lite.md']) {
+    const text = fs.readFileSync(path.join(realRoot, 'references', playbook), 'utf8');
+    assert.ok(!hasForcingBranchFlag(text), `${playbook} names no forcing branch flag`);
+  }
 
   console.log('drift-check selftest ok');
 } else {

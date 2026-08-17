@@ -132,7 +132,7 @@ parked-questions checks are drift
 assertions. They compare a restated fact against its source. The eval-shape and adr-status checks
 compare a document against a schema. The afk-existence check is a plain existence assertion.
 
-`drift-check.js` guards thirty-eight things, in the order its `main()` computes them. First, that every
+`drift-check.js` guards thirty-nine things, in the order its `main()` computes them. First, that every
 `references/*.md` path named in `commands/`, `agents/`, or `references/` itself resolves to a file that
 exists. A reference cites
 another reference — both execution playbooks point at `scope-mode.md` — so a rename there dangles like
@@ -392,7 +392,23 @@ and `acceptance` standing as the sole record — `references/domain-modeling.md`
 forbids holding both. Losing either row independently: a document that keeps surfacing questions but
 stops deleting a resolved one's line leaves two records of the same decision, and one that stops
 surfacing them silently strands a load-bearing decision no later interview ever revisits. Computed on
-its own line, after the rotate-on-shipped contract, for the same reason those two are.
+its own line, after the rotate-on-shipped contract, for the same reason those two are. Thirty-ninth, the
+run-kind contract (ADR 0028), five rows against `references/scope-mode.md`: its `## Cutting the scope
+branch` section specifies the branch step for each of the three run kinds — `fresh` cuts one from
+`<base>` and stops, cutting nothing, when a scope-prune reap left a same-named branch standing; `appended`
+decides on the same merged-or-gone test `hooks/scope-prune.js` and `commands/plan.md` already run (ADR
+0007) rather than a bare `git merge-base --is-ancestor`, which exits 128 on a branch a squash-merging host
+already deleted, then stops a contained reuse on the same dirty-checkout/held-elsewhere conditions
+`resumed` stops on before it switches the invoking checkout; and `resumed` runs no ancestor test and cuts
+nothing. `fresh` and `appended` get two rows each because each carries two independent clauses; `resumed`
+gets one. The rows sit against that one document rather than the two playbooks, which hold a pointer plus
+their own tier's command: pinning a pointer's prose goes red on a reflow while catching no revert. Losing
+any row independently: a document that stops specifying one clause leaves that run's branch step to
+whatever a reader infers, which is the gap three consecutive review fix cycles kept re-opening. The
+selftest also asserts that neither playbook names a forcing flag — `git switch -C`/`--force-create`,
+`git checkout -B`, or `git worktree add … -B`/`--force-create` — since `git switch -C` is the specific
+revert ADR 0028 exists to prevent. Computed on its own line, after the parked-questions contract, for the
+same reason those three are.
 
 The first and seventh checks are opposites. The first catches a reference to a file that does not exist.
 The seventh catches an agent that drops its wire to a file which still exists. That drift leaves the
@@ -408,7 +424,7 @@ successor at all.
 - Scripts are CommonJS, like the hooks. `hooks/scope-prune.js` `require`s `scope.js`, so `scope.js`
   must stay `require`-able under plain `node`. This is the one dependency `hooks/` has on `scripts/`.
 - Every script ships a `--selftest`, same convention as the hooks.
-- A new drift-check contract gets its own entry in the thirty-eight-check narrative above, in
+- A new drift-check contract gets its own entry in the thirty-nine-check narrative above, in
   `main()` order. Append it at the end of `main()` unless the check belongs earlier for a reason —
   every ordinal after an insertion point has to be rewritten by hand.
 

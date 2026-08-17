@@ -233,7 +233,7 @@ This root owns every other subtree directly:
   0022 — owns the ledger schema, is the only `ledger.md` read and write path, and exports
   `readLedgerHeader` for `hooks/scope-prune.js`), `kb-patch.js` (the deterministic section merge behind a
   staged page's `action: patch`, called by `/superdev:publish-kb`, ADR 0027), `eval-run.js` (the eval
-  runner, ADR 0024), and `drift-check.js` (the thirty-eight cross-document contract checks). What each guards,
+  runner, ADR 0024), and `drift-check.js` (the thirty-nine cross-document contract checks). What each guards,
   check by check, lives in that child doc.
 - `references/`. Backend seed templates plus the non-seed references below.
   + `plan-contract.md`: the slice schema and lifecycle, including the optional epic sections, the
@@ -292,7 +292,10 @@ This root owns every other subtree directly:
     ledger` section defers the ledger's schema to `scripts/scope.js` (ADR 0022), which
     owns it and is the only read and write path — including the `**Anchor:**` line
     `/superdev:implement` hands to `init` and `/superdev:review` reads back (`get anchor`) for the
-    PR-facing title.
+    PR-facing title. Its `## Cutting the scope branch` section (ADR 0028) owns what the branch step does
+    for each **run kind** — `fresh`, `appended`, `resumed`. `/superdev:implement`'s Phase 0 computes that
+    value and both execution playbooks read this section instead of deriving it again, so each playbook
+    keeps only its own tier's command.
   + **Authoring disciplines** (`cross-exam.md`, `domain-modeling.md`, `doc-verification.md`): the
     relentless cross-examination, active-domain-modeling, and verify-against-official-docs disciplines
     that `/plan` and `/brainstorm` read at runtime. They are superdev's own rendering of Matt Pocock's
