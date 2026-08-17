@@ -127,13 +127,20 @@ function storeDocuments(root, { dir, extra, exempt = new Set() }) {
 // not in how the assertion runs. `stripFrontmatterFirst` tests the body alone, so a document can't satisfy
 // a body contract by echoing the token into its own `argument-hint` frontmatter — `FEATURE_ARG_CONTRACTS`
 // needs the opposite (its first row asserts *inside* the frontmatter), so it leaves this off.
+//
+// A pattern that misses the raw text is retried against the whitespace-normalized text. The documents are
+// hard-wrapped, so a clause a table spells with single spaces straddles a line break in the real file; the
+// retry makes the wrap invisible to the match. Patterns that anchor per line (`^`/`$` with `m`) still see
+// the raw text on the first attempt, so the retry only ever widens what passes, never narrows it.
 function scanContract(root, contracts, { stripFrontmatterFirst = false } = {}) {
   const gaps = [];
   for (const [rel, pattern, expectation] of contracts) {
     let text = readDoc(root, rel);
     if (text === null) continue; // document absent (fixture / partial checkout) → nothing to scan
     if (stripFrontmatterFirst) text = stripFrontmatter(text);
-    if (!pattern.test(text)) gaps.push({ source: rel, expectation });
+    if (!pattern.test(text) && !pattern.test(normalizeWhitespace(text))) {
+      gaps.push({ source: rel, expectation });
+    }
   }
   return gaps;
 }

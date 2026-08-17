@@ -911,4 +911,24 @@ module.exports = ({ assert, path, fixture, realRoot }) => {
     0,
     'absent files are skipped by both new tables',
   );
+
+  // ---------------------------------------------------------------------------
+  // scanContract(): a clause the table spells with single spaces is met across a line break
+  // ---------------------------------------------------------------------------
+  const wrapTable = [['commands/x.md', /the clause this table pins/, 'state the clause']];
+  assert.equal(
+    scanContract(fixture({ 'commands/x.md': 'the clause this table pins\n' }), wrapTable).length,
+    0,
+    'a clause on one line is met',
+  );
+  assert.equal(
+    scanContract(fixture({ 'commands/x.md': 'the clause this\ntable pins\n' }), wrapTable).length,
+    0,
+    'the same clause wrapped across a line break is still met',
+  );
+  assert.equal(
+    scanContract(fixture({ 'commands/x.md': 'the clause this table drops\n' }), wrapTable).length,
+    1,
+    'a document that does not state the clause is still a gap',
+  );
 };
