@@ -137,30 +137,19 @@ function readLedgerHeader(content, name) {
   return getHeader(splitLines(content), name);
 }
 
-// The `**Degraded:**` bullet list, if any (scope-mode `## Degraded passes`). Shared by both status
-// branches below: an in-flight scope prints it inline with its tally, a shipped one prints it alone.
-function readDegraded(lines) {
-  const degAt = lines.findIndex((l) => headerRe('Degraded').test(l));
-  const degraded = [];
-  if (degAt >= 0) {
-    for (let i = degAt + 1; i < lines.length && lines[i].startsWith('- '); i++) {
-      degraded.push(lines[i].slice(2));
-    }
-  }
-  return degraded;
-}
-
-// The `**Unresolved:**` bullet list, if any (scope-mode `## Unresolved defects`). Same shape as
-// `readDegraded`, read by both status branches below.
-function readUnresolved(lines) {
-  const at = lines.findIndex((l) => headerRe('Unresolved').test(l));
-  const unresolved = [];
+// The bullet list under a header line, if any: `**Degraded:**` (scope-mode `## Degraded passes`) and
+// `**Unresolved:**` (`## Unresolved defects`) carry one each, in the same shape. Read by both status
+// branches below — an in-flight scope prints them inline with its tally, a shipped one prints them
+// alone — and by `get degraded`/`get unresolved`.
+function readBullets(lines, name) {
+  const at = lines.findIndex((l) => headerRe(name).test(l));
+  const bullets = [];
   if (at >= 0) {
     for (let i = at + 1; i < lines.length && lines[i].startsWith('- '); i++) {
-      unresolved.push(lines[i].slice(2));
+      bullets.push(lines[i].slice(2));
     }
   }
-  return unresolved;
+  return bullets;
 }
 
 function setHeader(lines, name, value) {
@@ -320,24 +309,29 @@ function verbSlice(root, id, status, range) {
   fail(`no slice row with id "${id}" in ${ledgerPath(root)}`);
 }
 
-function verbDegraded(root, sub, text) {
-  if (sub !== 'add') fail(`unknown degraded subcommand "${sub}" — use add`);
-  if (!text) fail('degraded add needs the bullet text');
-  if (text.includes('\n')) fail('degraded add text must not contain a newline');
+// The write half of `readBullets`: append one bullet under `**<name>:**`, creating that line beside
+// `**Stage:**` when the ledger has none yet (scope-mode `## Degraded passes`, `## Unresolved defects`).
+// A newline in the text would break the one bullet = one line assumption the reader depends on.
+function addBullet(root, name, verb, text) {
+  if (!text) fail(`${verb} add needs the bullet text`);
+  if (text.includes('\n')) fail(`${verb} add text must not contain a newline`);
   const lines = readLines(root);
-  const re = headerRe('Degraded');
-  let at = lines.findIndex((l) => re.test(l));
+  let at = lines.findIndex((l) => headerRe(name).test(l));
   if (at < 0) {
-    // Create the line beside **Stage:** (scope-mode `## Degraded passes`).
     const stageAt = lines.findIndex((l) => headerRe('Stage').test(l));
     at = stageAt >= 0 ? stageAt + 1 : 0;
-    lines.splice(at, 0, '**Degraded:**');
+    lines.splice(at, 0, `**${name}:**`);
   }
   // Append after the last existing bullet under the line.
   let end = at + 1;
   while (end < lines.length && lines[end].startsWith('- ')) end++;
   lines.splice(end, 0, `- ${text}`);
   writeLines(root, lines);
+}
+
+function verbDegraded(root, sub, text) {
+  if (sub !== 'add') fail(`unknown degraded subcommand "${sub}" — use add`);
+  addBullet(root, 'Degraded', 'degraded', text);
 }
 
 function verbUnresolved(root, sub, text) {
@@ -352,22 +346,7 @@ function verbUnresolved(root, sub, text) {
     return;
   }
   if (sub !== 'add') fail(`unknown unresolved subcommand "${sub}" — use add|clear`);
-  if (!text) fail('unresolved add needs the bullet text');
-  if (text.includes('\n')) fail('unresolved add text must not contain a newline');
-  const lines = readLines(root);
-  const re = headerRe('Unresolved');
-  let at = lines.findIndex((l) => re.test(l));
-  if (at < 0) {
-    // Create the line beside **Stage:** (scope-mode `## Unresolved defects`).
-    const stageAt = lines.findIndex((l) => headerRe('Stage').test(l));
-    at = stageAt >= 0 ? stageAt + 1 : 0;
-    lines.splice(at, 0, '**Unresolved:**');
-  }
-  // Append after the last existing bullet under the line.
-  let end = at + 1;
-  while (end < lines.length && lines[end].startsWith('- ')) end++;
-  lines.splice(end, 0, `- ${text}`);
-  writeLines(root, lines);
+  addBullet(root, 'Unresolved', 'unresolved', text);
 }
 
 function verbGet(root, field) {
@@ -387,7 +366,7 @@ function verbGet(root, field) {
     // (`/superdev:ship`'s gate and its pull-request body step) never has to split a joined string back
     // apart — a bullet containing a comma stays intact this way, unlike `status`'s `, `-joined line.
     const lines = readLines(root);
-    for (const b of field === 'unresolved' ? readUnresolved(lines) : readDegraded(lines)) console.log(b);
+    for (const b of readBullets(lines, field === 'unresolved' ? 'Unresolved' : 'Degraded')) console.log(b);
     return;
   }
   const names = { stage: 'Stage', branch: 'Branch', anchor: 'Anchor' };
@@ -518,9 +497,9 @@ function verbStatus(cwd) {
       // where any of them waits.
       if (stage === 'shipped') {
         out.push(`${scope}  (shipped)`);
-        const shippedDegraded = readDegraded(lines);
+        const shippedDegraded = readBullets(lines, 'Degraded');
         if (shippedDegraded.length) out.push(`  degraded: ${shippedDegraded.join(', ')}`);
-        const shippedUnresolved = readUnresolved(lines);
+        const shippedUnresolved = readBullets(lines, 'Unresolved');
         if (shippedUnresolved.length) out.push(`  unresolved: ${shippedUnresolved.join(', ')}`);
         pushPendingAndStrays(scope);
         continue;
@@ -531,8 +510,8 @@ function verbStatus(cwd) {
         if (counts[c[5]] !== undefined) counts[c[5]]++;
         if (c[5] === 'blocked') blocked.push(`${c[0]} ${c[2]}`);
       }
-      const degraded = readDegraded(lines);
-      const unresolved = readUnresolved(lines);
+      const degraded = readBullets(lines, 'Degraded');
+      const unresolved = readBullets(lines, 'Unresolved');
       out.push(`${scope}  (${rows.length} slices${stage ? `, stage: ${stage}` : ''})`);
       out.push(`  todo: ${counts.todo}  in-progress: ${counts['in-progress']}  in-review: ${counts['in-review']}  blocked: ${counts.blocked}  merged: ${counts.merged}`);
       if (blocked.length) out.push(`  blocked: ${blocked.join(', ')}`);

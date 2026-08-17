@@ -48,7 +48,9 @@ docs/adr/              — architecture decision records (why the plugin is buil
 docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, documentation, KB, toolchain, verification)
 scripts/               — standalone deterministic code wired into `bun run test`: `scope.js` (the
                          run-state CLI, ADR 0022), `kb-patch.js` (the knowledge-base section merge,
-                         ADR 0027), `eval-run.js` (the eval runner, ADR 0024), and `drift-check.js`.
+                         ADR 0027), `eval-run.js` (the eval runner, ADR 0024), and `drift-check.js`
+                         with its `drift/` modules (registry, contract tables, scanners, shared
+                         helpers, selftest suites).
                          What each one owns and guards is enumerated once, in `scripts/AGENTS.md`.
 evals/                 — cases (*/case.yaml + graders/*.md + the case's scaffold_script, a path
                          relative to the case dir — never an inline block); every case is one arm of
@@ -233,8 +235,9 @@ This root owns every other subtree directly:
   0022 — owns the ledger schema, is the only `ledger.md` read and write path, and exports
   `readLedgerHeader` for `hooks/scope-prune.js`), `kb-patch.js` (the deterministic section merge behind a
   staged page's `action: patch`, called by `/superdev:publish-kb`, ADR 0027), `eval-run.js` (the eval
-  runner, ADR 0024), and `drift-check.js` (the thirty-nine cross-document contract checks). What each guards,
-  check by check, lives in that child doc.
+  runner, ADR 0024), and `drift-check.js` with `drift/` (the forty cross-document contract checks: the
+  CLI walks the `drift/checks.js` registry, which orders every scanner and contract table). What each
+  guards, check by check, lives in that child doc.
 - `references/`. Backend seed templates plus the non-seed references below.
   + `plan-contract.md`: the slice schema and lifecycle, including the optional epic sections, the
     epic-visuals gate for `## Slice graph` and `## Touch map`, and the `## Scope anchor` section — the

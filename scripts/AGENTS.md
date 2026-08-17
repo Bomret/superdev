@@ -116,23 +116,38 @@ Its selftest covers:
 - the run classifier
 - the diff-capture failure paths (an empty scaffold, work committed off HEAD, a nested repository
   tracked as a gitlink)
-- the grader and judge machinery
+- the grader and judge machinery, including a grader that cannot be evaluated at all — an unknown
+  focus, a judge that never returns a verdict, or `regex` criteria that will not compile — reported as
+  a grader error and left out of the score, never as a fail and never as a thrown `SyntaxError` that
+  ends the run
 - aggregation across runs
 - the missing-token exit
 
 ### drift-check.js — the cross-document contract checks
+
+`drift-check.js` is the entry point only: it walks the check registry and reports. The checks themselves
+live beside it, in `scripts/drift/`.
+
+| File | Owns |
+|------|------|
+| `drift-check.js` | the CLI — `main()`, the ok line, the exit code, and the `--selftest` handoff |
+| `drift/checks.js` | the **registry**: one entry per check — `id`, `run`, its `ok` phrase, and how one gap prints. Its array order is the order this narrative numbers them |
+| `drift/contracts.js` | the contract tables and patterns. Data only |
+| `drift/scanners.js` | the bespoke scanners — every check whose assertion is more than one pattern over one document |
+| `drift/lib.js` | what they share: `maskFences`, `extractSection`, the frontmatter readers, `readDoc`, `storeDocuments`, and `scanContract` |
+| `drift/selftest/` | `index.js` (the `fixture` helper, `realRoot`, temp-dir cleanup) plus one suite per area: `scanners`, `chain`, `kb-plan` |
 
 The reference, run-root, assignee, anchor-contract, afk-selection-neutrality, writing-standard,
 content-types, command-resolution, chain-handoff, feature-label-argument, unattended-token,
 afk-invocation, change-type, degraded-pass, derived-criteria, label-validation,
 green-gate-timeout, verb-pointer, kb-staging, kb-no-backend-call, no-second-reader,
 test-selection-wiring, full-suite, entries-standing-gate, unresolved-glossary, afk-routing,
-arg-token, audit-set, aggregate-page, read-path, status-seed, plan-append, rotate-on-shipped, and
-parked-questions checks are drift
+arg-token, audit-set, aggregate-page, read-path, status-seed, plan-append, rotate-on-shipped,
+parked-questions, and forcing-flag checks are drift
 assertions. They compare a restated fact against its source. The eval-shape and adr-status checks
 compare a document against a schema. The afk-existence check is a plain existence assertion.
 
-`drift-check.js` guards thirty-nine things, in the order its `main()` computes them. First, that every
+`drift-check.js` guards forty things, in the order `drift/checks.js` registers them. First, that every
 `references/*.md` path named in `commands/`, `agents/`, or `references/` itself resolves to a file that
 exists. A reference cites
 another reference — both execution playbooks point at `scope-mode.md` — so a rename there dangles like
@@ -175,8 +190,9 @@ chain handoff never points the reader at a command that does not exist. Ninth, t
 the chain. `commands/ship.md` ends the chain and is deliberately outside that check.
 
 The tenth, eleventh, thirteenth, fourteenth, fifteenth, sixteenth, seventeenth, and eighteenth checks
-share one scanner, `scanContract()`, run over
-a table of `[document, pattern, expectation]` rows instead of one function each. It reads every
+share one scanner, `drift/lib.js`'s `scanContract()`, run over
+a table of `[document, pattern, expectation]` rows in `drift/contracts.js` instead of one function each.
+It reads every
 document a table names and reports the rows whose pattern that document no longer matches. Tenth, the
 feature-label-argument contract: `commands/implement.md` declares an `argument-hint` naming a feature
 label and resolves `$ARGUMENTS`, and `commands/plan.md` names `/superdev:implement <label>` as its
@@ -361,8 +377,7 @@ seeds `merged` and is never dispatched. Append mode never renumbers or re-merges
 so a second run over an appended feature must seed each loaded slice's real status rather than defaulting
 every row to `todo`, and skip every row already seeded `merged` rather than re-dispatching it — a document
 that drops the field, or drops the never-dispatched clause while keeping the field, silently re-dispatches
-a merged slice either way, so the two rows fail independently. It is computed last, on its own line rather
-than inside the contract table above, so that adding a row shifts no ordinal in this narrative.
+a merged slice either way, so the two rows fail independently.
 Thirty-sixth, the plan-append contract (ADR 0004), five rows all against
 `commands/plan.md`: its §0 asks new-vs-extend before the interview begins and states that answering "new"
 makes no store call; it states the store refusal signal (a slice `in-progress`, `in-review`, or `blocked`
@@ -372,8 +387,7 @@ further independent rows, so losing any one of the three fails on its own rather
 and it states the single-slice epic-promotion clause, including that the lone slice is left untouched.
 Each ledger-signal row is anchored on the refusal condition's own wording, not on the rationale sentence
 that explains the branch test a few lines below it, so a document that keeps the rationale but loses the
-condition still fails. It is computed the same way as the status-seed contract just above — its own line,
-after every other gap, so adding it shifts no ordinal either. Thirty-seventh, the rotate-on-shipped contract (ADR 0004, ADR 0007):
+condition still fails. Thirty-seventh, the rotate-on-shipped contract (ADR 0004, ADR 0007):
 `commands/implement.md` states that Phase 0 reads a present ledger's stage before choosing between
 resume and init, that stage `shipped` rotates `ledger.md` to `ledger-shipped-<date>.md` and then runs
 `init` again, that every other stage — `implementing`, `merged`, `reviewed`, `documented`,
@@ -383,16 +397,14 @@ rotation never overwrites an existing `ledger-shipped-<date>.md`, so a scope tha
 calendar day keeps both trails instead of the second rotation clobbering the first. `scope-prune` keeps
 a shipped run root on disk past merge, so a second `/superdev:implement` run over an appended feature
 can land while that ledger is still there; a document that goes back to treating any present ledger as
-an in-progress resume re-dispatches a finished run instead of beginning the new one. Computed on its
-own line, after the plan-append contract, for the same reason that one is. Thirty-eighth, the
+an in-progress resume re-dispatches a finished run instead of beginning the new one. Thirty-eighth, the
 parked-questions contract (ADR 0004, ADR 0005), two rows against `commands/plan.md`: it surfaces an
 epic's `## Parked questions` the moment §0 loads it, before the interview diverges into new ground; and
 a question the interview resolves has its line deleted from that section, with the new slice's `spec`
 and `acceptance` standing as the sole record — `references/domain-modeling.md`'s revise-in-place rule
 forbids holding both. Losing either row independently: a document that keeps surfacing questions but
 stops deleting a resolved one's line leaves two records of the same decision, and one that stops
-surfacing them silently strands a load-bearing decision no later interview ever revisits. Computed on
-its own line, after the rotate-on-shipped contract, for the same reason those two are. Thirty-ninth, the
+surfacing them silently strands a load-bearing decision no later interview ever revisits. Thirty-ninth, the
 run-kind contract (ADR 0028), five rows against `references/scope-mode.md`: its `## Cutting the scope
 branch` section specifies the branch step for each of the three run kinds — `fresh` cuts one from
 `<base>` and stops, cutting nothing, when a scope-prune reap left a same-named branch standing; `appended`
@@ -404,11 +416,16 @@ nothing. `fresh` and `appended` get two rows each because each carries two indep
 gets one. The rows sit against that one document rather than the two playbooks, which hold a pointer plus
 their own tier's command: pinning a pointer's prose goes red on a reflow while catching no revert. Losing
 any row independently: a document that stops specifying one clause leaves that run's branch step to
-whatever a reader infers, which is the gap three consecutive review fix cycles kept re-opening. The
-selftest also asserts that neither playbook names a forcing flag — `git switch -C`/`--force-create`,
-`git checkout -B`, or `git worktree add … -B`/`--force-create` — since `git switch -C` is the specific
-revert ADR 0028 exists to prevent. Computed on its own line, after the parked-questions contract, for the
-same reason those three are.
+whatever a reader infers, which is the gap three consecutive review fix cycles kept re-opening.
+Fortieth, the forcing-flag contract (ADR 0028): neither execution playbook names a forcing branch flag —
+`git switch -C`/`--force-create`, `git checkout -B`, or `git worktree add … -B`/`--force-create`. Each
+resets an existing branch instead of failing on it: `git switch -C` prints `Reset branch` and exits 0
+while leaving every slice already merged into that branch unreachable from any ref, and the ledger still
+records those slices as `merged`, so nothing in the run rebuilds what it lost. Every spelling is pinned,
+not just the two the playbooks happen to use, because the flag a hurried edit reaches for is whichever
+one it already knows. It is the one **negative** check here: every other asserts a document still matches
+a pattern, and this asserts one no longer does — which is why it is a scanner rather than a contract-table
+row.
 
 The first and seventh checks are opposites. The first catches a reference to a file that does not exist.
 The seventh catches an agent that drops its wire to a file which still exists. That drift leaves the
@@ -424,9 +441,10 @@ successor at all.
 - Scripts are CommonJS, like the hooks. `hooks/scope-prune.js` `require`s `scope.js`, so `scope.js`
   must stay `require`-able under plain `node`. This is the one dependency `hooks/` has on `scripts/`.
 - Every script ships a `--selftest`, same convention as the hooks.
-- A new drift-check contract gets its own entry in the thirty-nine-check narrative above, in
-  `main()` order. Append it at the end of `main()` unless the check belongs earlier for a reason —
-  every ordinal after an insertion point has to be rewritten by hand.
+- A new drift-check contract is one entry appended at the end of the `drift/checks.js` registry, plus
+  its section in the forty-check narrative above and its selftest in the matching
+  `drift/selftest/*.test.js` suite. Append rather than insert unless the check belongs earlier for a
+  reason — every ordinal after an insertion point has to be rewritten by hand.
 
 ## Verification
 

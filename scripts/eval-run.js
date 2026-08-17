@@ -394,9 +394,18 @@ function parseVerdict(stdout) {
   return null;
 }
 
+// A criteria block that will not compile is a broken grader, not a failed arm: it says nothing about
+// what the agent did. Left unguarded, the SyntaxError escapes gradeOne's GraderError catch and takes the
+// whole run down part-way — after real subscription spend, and with the completed arms unscored.
 function gradeRegex(grader, input) {
   const pattern = grader.criteria.trim();
-  const passed = new RegExp(pattern, 'm').test(input);
+  let rx;
+  try {
+    rx = new RegExp(pattern, 'm');
+  } catch (e) {
+    throw new GraderError(`${grader.name}: criteria is not a valid regex — ${e.message}`);
+  }
+  const passed = rx.test(input);
   return { passed, evidence: `pattern \`${pattern}\` ${passed ? 'found' : 'not found'} in ${grader.focus}` };
 }
 
@@ -1061,6 +1070,16 @@ function selftest() {
     assert.strictEqual(rxMiss.passed, false);
     assert.ok(!rxMiss.error, 'a regex grader that does not match failed — it did not error');
 
+    // a regex grader whose criteria will not compile errors too, rather than throwing a SyntaxError
+    // past this catch and taking the whole run down with the other arms unscored
+    fs.writeFileSync(path.join(gdir, 'bad-regex.md'), '---\ntype: regex\ntarget: trace\nweight: 1\n---\n(\n', 'utf8');
+    const badRx = gradeOne(readGrader(path.join(gdir, 'bad-regex.md')), armFixture, {});
+    assert.ok(badRx.error && /not a valid regex/.test(badRx.error), 'the malformed regex grader errored');
+    assert.strictEqual(badRx.passed, undefined, 'a malformed regex grader has no verdict at all');
+    // and it is left out of the score entirely, the way every other errored grader is
+    assert.strictEqual(scoreArm([badRx, { weight: 1, passed: true }]), 1, 'an errored grader leaves the score alone');
+    fs.rmSync(path.join(gdir, 'bad-regex.md'));
+
     // an unknown focus is reported as an error, not as a fail
     fs.writeFileSync(path.join(gdir, 'bad-focus.md'), '---\ntype: llm\nfocus: workspace\nweight: 1\n---\nx\n', 'utf8');
     const bad = gradeOne(readGrader(path.join(gdir, 'bad-focus.md')), armFixture, {});
@@ -1291,4 +1310,6 @@ function selftest() {
   }
 }
 
-main();
+// Guarded the way scope.js and kb-patch.js are, so a `require` of this file for one of its functions
+// runs no CLI code.
+if (require.main === module) main();
