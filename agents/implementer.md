@@ -26,6 +26,14 @@ off; never redo an increment that's already committed.
 
 ## Test-Driven Development (for `behavior` slices)
 
+**Declare the domain shapes first.** Before the first RED test, write the shapes your `spec` names —
+whatever your language names a domain concept with: an interface or type, a class, a DTO, a dataclass or
+`TypedDict`, a schema. A `spec` naming none leaves nothing to declare. The names and their vocabulary are
+the `spec`'s; the fields are yours. A shape whose term `CONTEXT.md` lacks goes in your closing summary —
+never invent one, because `/superdev:document` proposes the term and the maintainer confirms it. A
+`spec`-named shape is **requested**, so the minimalism ladder below still forbids every abstraction the
+`spec` did not name (ADR 0030).
+
 Build in **vertical tracer-bullet** increments — one test, one implementation, repeat. Never write all
 the tests first; tests written in bulk verify imagined behavior, not real behavior.
 

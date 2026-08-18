@@ -41,6 +41,11 @@ when you finish: it spans the whole chain, and `/superdev:ship` removes it once 
   and commits happen **in the scope worktree as the cwd** — never in the invoking checkout. `mechanical` /
   `docs` slices need no new test — the existing suite is the net. Read
   `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run the command it selects for each run.
+- **Declare the domain shapes a slice's `spec` names before its first RED test** — the same step
+  `agents/implementer.md` carries, for the tier that dispatches nobody. A `spec` naming none leaves
+  nothing to declare, the fields are yours, and a shape whose term `CONTEXT.md` lacks is reported rather
+  than invented. A `spec`-named shape is requested, so the minimalism ladder still forbids every
+  abstraction the `spec` did not name (ADR 0030).
 - **Every acceptance criterion gets at least one increment.** On a `behavior` slice the loop terminates on
   acceptance coverage, not on the specification's happy path — each criterion, including the failure and
   boundary cases the criteria name, is the RED test of its own increment.

@@ -181,6 +181,10 @@ and schema):
 - Classify each slice's `test-applicability`: `behavior` | `mechanical` | `docs`.
 - Name the specific interface each slice's tests will exercise (a function signature, an API endpoint, a
   CLI command) in its `spec`, so the implementer tests through an agreed boundary instead of picking one.
+- Name the **domain shapes** the slice needs in its `spec` as well — by name, in `CONTEXT.md`'s
+  vocabulary, and never as field lists. The implementer declares them before its first failing test, and
+  the fields are its own, because a `spec` is a contract of outcomes (ADR 0030). A slice needing no shape,
+  or a repository whose language has none, gets none named.
 - **Don't create a documentation-only slice** to describe code other slices produce —
   `/superdev:document` reconciles README, `AGENTS.md`, and the KB after the scope lands. Slice out `docs`
   only when documentation *is* the deliverable (e.g. a standalone guide).
