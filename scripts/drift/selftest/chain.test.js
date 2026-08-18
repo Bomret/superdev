@@ -55,6 +55,7 @@ const {
   ROTATE_ON_SHIPPED_CONTRACTS,
   PARKED_QUESTIONS_CONTRACTS,
   RUN_KIND_CONTRACTS,
+  SOURCE_SECTION_CONTRACTS,
 } = contracts;
 
 module.exports = ({ assert, path, fixture, realRoot }) => {
@@ -910,6 +911,84 @@ module.exports = ({ assert, path, fixture, realRoot }) => {
       scanContract(fixture({ 'README.md': '# repo\n' }), AFK_ROUTING_CONTRACTS).length,
     0,
     'absent files are skipped by both new tables',
+  );
+
+  // --- SOURCE_SECTION_CONTRACTS: each canonical reference still carries the sections its readers are
+  // sent to. The readers are pinned already (a loop consumer must say *read test-selection.md*, a doc
+  // agent must name content-types.md); this asserts the named file still holds the rule, so a body gutted
+  // behind an intact filename is a gap rather than a green run. ---
+
+  const sourceSectionBodies = {
+    'references/plan-contract.md':
+      '# Plan-file contract\n\n## Fields\n\n## Epic visuals (optional, epic-only)\n\n' +
+      '## Slice lifecycle & status\n\n## Append mode\n\n## Scope anchor\n\n## Feature label\n',
+    'references/test-selection.md':
+      '# Test selection\n\n## The two commands\n\n## Fallback to the full command\n',
+    'references/content-types.md': '# Content types\n\n## The four types\n\n## The conceptual layer\n',
+    'references/controlled-prose.md': '# Controlled prose\n\n## Modes\n\n## Self-check\n',
+    'references/review-checklist.md':
+      '# Review checklist\n\n## Anti-patterns\n\n## Vulnerability classes\n\n## Reuse audit\n\n' +
+      '## Consistency\n',
+  };
+
+  // the shipped references satisfy every row
+  assert.equal(
+    scanContract(realRoot, SOURCE_SECTION_CONTRACTS).length,
+    0,
+    'every shipped canonical reference carries its pinned sections',
+  );
+
+  // a fixture carrying all five files whole is clean
+  assert.equal(
+    scanContract(fixture(sourceSectionBodies), SOURCE_SECTION_CONTRACTS).length,
+    0,
+    'all five canonical references intact yields zero gaps',
+  );
+
+  // negative: deleting any one pinned heading fails on its own, and the gap names its own file
+  const pinnedHeadings = [
+    ['references/plan-contract.md', '## Fields\n\n'],
+    ['references/plan-contract.md', '## Epic visuals (optional, epic-only)\n\n'],
+    ['references/plan-contract.md', '## Slice lifecycle & status\n\n'],
+    ['references/plan-contract.md', '## Append mode\n\n'],
+    ['references/plan-contract.md', '## Scope anchor\n\n'],
+    ['references/plan-contract.md', '## Feature label\n'],
+    ['references/test-selection.md', '## The two commands\n\n'],
+    ['references/test-selection.md', '## Fallback to the full command\n'],
+    ['references/content-types.md', '## The four types\n\n'],
+    ['references/content-types.md', '## The conceptual layer\n'],
+    ['references/controlled-prose.md', '## Modes\n\n'],
+    ['references/controlled-prose.md', '## Self-check\n'],
+    ['references/review-checklist.md', '## Anti-patterns\n\n'],
+    ['references/review-checklist.md', '## Vulnerability classes\n\n'],
+    ['references/review-checklist.md', '## Reuse audit\n\n'],
+    ['references/review-checklist.md', '## Consistency\n'],
+  ];
+  assert.equal(
+    pinnedHeadings.length,
+    SOURCE_SECTION_CONTRACTS.length,
+    'every row in the table has a negative fixture',
+  );
+  for (const [rel, heading] of pinnedHeadings) {
+    const gutted = fixture({ ...sourceSectionBodies, [rel]: sourceSectionBodies[rel].replace(heading, '') });
+    const gaps = scanContract(gutted, SOURCE_SECTION_CONTRACTS);
+    assert.equal(gaps.length, 1, `dropping \`${heading.trim()}\` flags exactly one gap`);
+    assert.equal(gaps[0].source, rel, `the gap names ${rel}`);
+  }
+
+  // a filename kept while the whole body goes is the drift this table exists to catch
+  const hollowed = fixture({ ...sourceSectionBodies, 'references/test-selection.md': '# Test selection\n' });
+  assert.equal(
+    scanContract(hollowed, SOURCE_SECTION_CONTRACTS).length,
+    2,
+    'a reference gutted to its title alone fails every row pinned to it',
+  );
+
+  // absent files are skipped, matching every other contract table
+  assert.equal(
+    scanContract(fixture({ 'README.md': '# repo\n' }), SOURCE_SECTION_CONTRACTS).length,
+    0,
+    'absent files are skipped',
   );
 
   // ---------------------------------------------------------------------------

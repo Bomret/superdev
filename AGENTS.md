@@ -235,7 +235,7 @@ This root owns every other subtree directly:
   0022 — owns the ledger schema, is the only `ledger.md` read and write path, and exports
   `readLedgerHeader` for `hooks/scope-prune.js`), `kb-patch.js` (the deterministic section merge behind a
   staged page's `action: patch`, called by `/superdev:publish-kb`, ADR 0027), `eval-run.js` (the eval
-  runner, ADR 0024), and `drift-check.js` with `drift/` (the forty cross-document contract checks: the
+  runner, ADR 0024), and `drift-check.js` with `drift/` (the forty-one cross-document contract checks: the
   CLI walks the `drift/checks.js` registry, which orders every scanner and contract table). What each
   guards, check by check, lives in that child doc.
 - `references/`. Backend seed templates plus the non-seed references below.

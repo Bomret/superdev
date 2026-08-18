@@ -147,7 +147,7 @@ parked-questions, and forcing-flag checks are drift
 assertions. They compare a restated fact against its source. The eval-shape and adr-status checks
 compare a document against a schema. The afk-existence check is a plain existence assertion.
 
-`drift-check.js` guards forty things, in the order `drift/checks.js` registers them. First, that every
+`drift-check.js` guards forty-one things, in the order `drift/checks.js` registers them. First, that every
 `references/*.md` path named in `commands/`, `agents/`, or `references/` itself resolves to a file that
 exists. A reference cites
 another reference — both execution playbooks point at `scope-mode.md` — so a rename there dangles like
@@ -426,6 +426,21 @@ not just the two the playbooks happen to use, because the flag a hurried edit re
 one it already knows. It is the one **negative** check here: every other asserts a document still matches
 a pattern, and this asserts one no longer does — which is why it is a scanner rather than a contract-table
 row.
+Forty-first, the source-section contract: each canonical reference still carries the sections its readers
+are sent to — `references/plan-contract.md` (`## Fields`, `## Epic visuals`, `## Slice lifecycle & status`,
+`## Append mode`, `## Scope anchor`, `## Feature label`), `references/test-selection.md` (`## The two
+commands`, `## Fallback to the full command`), `references/content-types.md` (`## The four types`, `## The
+conceptual layer`), `references/controlled-prose.md` (`## Modes`, `## Self-check`), and
+`references/review-checklist.md` (`## Anti-patterns`, `## Vulnerability classes`, `## Reuse audit`, `##
+Consistency`). Every other check pins these files from the reader's side: a loop consumer must say *read
+`references/test-selection.md`*, both doc agents must name `references/content-types.md`. None asserts that
+the named file still holds the rule. Delete a body and keep the filename, and the reference resolves, every
+consumer still points at it, and the suite stays green while the rule is gone. A bare heading is the
+weakest thing worth asserting and the strongest a pattern can honestly claim: a section still present may
+say the wrong thing, which is the reviewer's job, but a section deleted outright is drift that no review of
+the diff which deleted it would connect to the readers it silently broke. `references/scope-mode.md` was
+already pinned this way, by the eleventh and fourteenth checks' heading rows; this is that treatment for
+the five sources that never got it.
 
 The first and seventh checks are opposites. The first catches a reference to a file that does not exist.
 The seventh catches an agent that drops its wire to a file which still exists. That drift leaves the
@@ -442,7 +457,7 @@ successor at all.
   must stay `require`-able under plain `node`. This is the one dependency `hooks/` has on `scripts/`.
 - Every script ships a `--selftest`, same convention as the hooks.
 - A new drift-check contract is one entry appended at the end of the `drift/checks.js` registry, plus
-  its section in the forty-check narrative above and its selftest in the matching
+  its section in the forty-one-check narrative above and its selftest in the matching
   `drift/selftest/*.test.js` suite. Append rather than insert unless the check belongs earlier for a
   reason — every ordinal after an insertion point has to be rewritten by hand.
 

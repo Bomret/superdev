@@ -54,6 +54,7 @@ const {
   ROTATE_ON_SHIPPED_CONTRACTS,
   PARKED_QUESTIONS_CONTRACTS,
   RUN_KIND_CONTRACTS,
+  SOURCE_SECTION_CONTRACTS,
 } = require('./contracts');
 
 // The printer twenty-three table-driven checks share. A gap is `{ source, expectation }` and reads the
@@ -259,6 +260,11 @@ module.exports = [
     run: scanForcingBranchFlag,
     format: contractGap,
   },
+  table(
+    'source-sections',
+    SOURCE_SECTION_CONTRACTS,
+    'every canonical reference still carries the sections its readers are sent to',
+  ),
 ];
 
 // The anchor contract and the afk-selection neutrality check report into the same sentence: a gap with

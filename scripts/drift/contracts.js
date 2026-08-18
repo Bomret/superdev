@@ -1041,6 +1041,112 @@ const FORCING_FLAG_PATTERNS = [
   /worktree\s+add[^\n]*\s(?:-B|--force-create)\b/,
 ];
 
+// The canonical references are pinned by their readers, not by themselves. `TEST_SELECTION_CONTRACTS`
+// asserts that every loop consumer says *read `references/test-selection.md`*; `CONTENT_TYPES_AGENTS`
+// asserts that both doc agents name `references/content-types.md`. Neither asserts that the named file
+// still carries the rule. Gut the body and keep the filename, and the reference resolves, every consumer
+// still points at it, and drift-check stays green while the rule it promises is gone.
+//
+// Each row pins one section a reader is sent to, by its bare heading. The heading is the weakest thing
+// worth asserting and the strongest thing a pattern can honestly claim: a section still present may say
+// the wrong thing, which is the reviewer's job, but a section deleted outright is drift no reviewer sees
+// on a diff that touches a different file. `references/scope-mode.md` is already pinned this way (its
+// `## Unattended` and `## Degraded passes` rows); this table is that treatment for the five canonical
+// sources that never got it.
+//
+// `plan-contract.md` carries six rows because five of its sections are cited by name elsewhere in the
+// plugin — a store document rendering `## Append mode` or `## Scope anchor` for its own backend is
+// following a section that has to exist to be followed — plus `## Fields`, the slice schema every store
+// renders. The other four files are cited only as whole files, so their rows pin the sections that hold
+// the rule the citing document promises its reader.
+const SOURCE_SECTION_CONTRACTS = [
+  [
+    path.join('references', 'plan-contract.md'),
+    /^#{2,3}\s+Fields\s*$/m,
+    'carry the `## Fields` section — the slice schema every store document renders',
+  ],
+  [
+    path.join('references', 'plan-contract.md'),
+    /^#{2,3}\s+Slice lifecycle & status\s*$/m,
+    'carry the `## Slice lifecycle & status` section, which the chain documents cite by name',
+  ],
+  [
+    path.join('references', 'plan-contract.md'),
+    /^#{2,3}\s+Epic visuals\b/m,
+    'carry the `## Epic visuals` section, which holds the epic-visuals gate for `## Slice graph` and ' +
+      '`## Touch map`',
+  ],
+  [
+    path.join('references', 'plan-contract.md'),
+    /^#{2,3}\s+Append mode\s*$/m,
+    'carry the `## Append mode` section — the generic contract each store document specialises (ADR 0004)',
+  ],
+  [
+    path.join('references', 'plan-contract.md'),
+    /^#{2,3}\s+Scope anchor\s*$/m,
+    'carry the `## Scope anchor` section — the generic contract each store document specialises (ADR 0017)',
+  ],
+  [
+    path.join('references', 'plan-contract.md'),
+    /^#{2,3}\s+Feature label\s*$/m,
+    'carry the `## Feature label` section — the change type plus slug `/plan` picks (ADR 0019, ADR 0021)',
+  ],
+  [
+    path.join('references', 'test-selection.md'),
+    /^#{2,3}\s+The two commands\s*$/m,
+    'carry the `## The two commands` section — the full and focused commands its readers select between ' +
+      '(ADR 0025)',
+  ],
+  [
+    path.join('references', 'test-selection.md'),
+    /^#{2,3}\s+Fallback to the full command\s*$/m,
+    'carry the `## Fallback to the full command` section — the rule that picks the full command over ' +
+      'the focused one (ADR 0025)',
+  ],
+  [
+    path.join('references', 'content-types.md'),
+    /^#{2,3}\s+The four types\s*$/m,
+    'carry the `## The four types` section — the four kinds of information both doc agents apply (ADR 0014)',
+  ],
+  [
+    path.join('references', 'content-types.md'),
+    /^#{2,3}\s+The conceptual layer\s*$/m,
+    'carry the `## The conceptual layer` section — the test for reporting an absent conceptual layer ' +
+      '(ADR 0014)',
+  ],
+  [
+    path.join('references', 'controlled-prose.md'),
+    /^#{2,3}\s+Modes\s*$/m,
+    'carry the `## Modes` section — the strict and relaxed modes its own rule sections are written against ' +
+      '(ADR 0012)',
+  ],
+  [
+    path.join('references', 'controlled-prose.md'),
+    /^#{2,3}\s+Self-check\s*$/m,
+    'carry the `## Self-check` section — what `doc-reader` verifies prose against (ADR 0012)',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /^#{2,3}\s+Anti-patterns\s*$/m,
+    'carry the `## Anti-patterns` section, which both `final-reviewer` and `slice-reviewer` read',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /^#{2,3}\s+Vulnerability classes\s*$/m,
+    'carry the `## Vulnerability classes` section, which both `final-reviewer` and `slice-reviewer` read',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /^#{2,3}\s+Reuse audit\s*$/m,
+    'carry the `## Reuse audit` section, which `final-reviewer` reads',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /^#{2,3}\s+Consistency\s*$/m,
+    'carry the `## Consistency` section, which `final-reviewer` reads',
+  ],
+];
+
 module.exports = {
   REFERENCE_PATTERN,
   RUN_ROOT_DOCS,
@@ -1108,4 +1214,5 @@ module.exports = {
   RUN_KIND_CONTRACTS,
   FORCING_FLAG_DOCS,
   FORCING_FLAG_PATTERNS,
+  SOURCE_SECTION_CONTRACTS,
 };
