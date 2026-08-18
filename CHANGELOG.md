@@ -1,3 +1,15 @@
+# [0.31.0](https://codeberg.org/bomret/superdev/compare/v0.30.0...v0.31.0) (2026-08-18)
+
+
+### Bug Fixes
+
+* drift-check covers what it claims about itself ([#269](https://codeberg.org/bomret/superdev/issues/269)) ([803b827](https://codeberg.org/bomret/superdev/commit/803b8272a36d977e54584ce96bb0dcfdbab69390)), closes [#266](https://codeberg.org/bomret/superdev/issues/266) [#265](https://codeberg.org/bomret/superdev/issues/265) [#261](https://codeberg.org/bomret/superdev/issues/261) [#262](https://codeberg.org/bomret/superdev/issues/262)
+
+
+### Features
+
+* **plan:** declare a slice's domain shapes before its first test ([#271](https://codeberg.org/bomret/superdev/issues/271)) ([219d88b](https://codeberg.org/bomret/superdev/commit/219d88b8533688df7b29ed35aca8f8141693bf80)), closes [#270](https://codeberg.org/bomret/superdev/issues/270)
+
 # [0.30.0](https://codeberg.org/bomret/superdev/compare/v0.29.0...v0.30.0) (2026-08-18)
 
 
