@@ -1,3 +1,18 @@
+# [0.30.0](https://codeberg.org/bomret/superdev/compare/v0.29.0...v0.30.0) (2026-08-18)
+
+
+### Bug Fixes
+
+* **drift-check:** meet a contract clause that wraps across a line ([f93d7a6](https://codeberg.org/bomret/superdev/commit/f93d7a601ecec86bf831564cd0c0710a74cdab86))
+* **eval-run:** report a malformed regex grader instead of ending the run ([#253](https://codeberg.org/bomret/superdev/issues/253)) ([dafacbe](https://codeberg.org/bomret/superdev/commit/dafacbe197171c66d44cb43355daf72877f41416))
+* **implement:** specify the scope branch per run kind ([#252](https://codeberg.org/bomret/superdev/issues/252)) ([dfb4de2](https://codeberg.org/bomret/superdev/commit/dfb4de24dbcfeefba0a34457fb6d152b51f872a2)), closes [#251](https://codeberg.org/bomret/superdev/issues/251)
+
+
+### Features
+
+* **drift-check:** pin the sections a canonical reference's readers are sent to ([4577285](https://codeberg.org/bomret/superdev/commit/457728590cf0aae426d9d823e84577515670efe8))
+* **plan:** append new slices to a feature that already has them ([#250](https://codeberg.org/bomret/superdev/issues/250)) ([2584511](https://codeberg.org/bomret/superdev/commit/25845110672f1949c63cd1fe9071f5e763a91cb0)), closes [#245](https://codeberg.org/bomret/superdev/issues/245) [#248](https://codeberg.org/bomret/superdev/issues/248) [#247](https://codeberg.org/bomret/superdev/issues/247) [#244](https://codeberg.org/bomret/superdev/issues/244) [#246](https://codeberg.org/bomret/superdev/issues/246) [#249](https://codeberg.org/bomret/superdev/issues/249) [#32](https://codeberg.org/bomret/superdev/issues/32)
+
 # [0.29.0](https://codeberg.org/bomret/superdev/compare/v0.28.2...v0.29.0) (2026-08-15)
 
 
