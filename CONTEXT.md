@@ -180,6 +180,9 @@ _Avoid: "draft" (a draft is unfinished; a staged page is final and merely held),
 **Aggregate page** — a knowledge-base page many scopes each contribute one section to, rather than one a single scope owns end to end: an index, a changelog, an ADR-summaries digest. The knowledge-base outline marks which pages aggregate, and `/superdev:setup` asks. A marked page is staged one section at a time (`action: patch`) and merged into the live page by that section's heading, because the doc-writer reaches no backend and so cannot see the sections other scopes already wrote — replacing it wholesale would drop them (ADR 0027).
 _Avoid: "shared page" (every page is shared with its readers; what distinguishes this one is many writers), "index page" (an index is one instance, not the class)_
 
+**Inline doc pass** — the documentation pass a `lite` run performs in the controller's own context, as the last step of its execution playbook before run handoff, instead of through a dispatched doc-writer. It covers both passes — the in-repo docs and the knowledge base — and follows `references/doc-pass.md`, the same procedure the doc-writer reads. The run records it as the ledger's `**Docs:**` line, which is what tells `/superdev:document` to dispatch `doc-reader` alone; `/superdev:review` clears that line when its fix loop lands commits, so the pass a fix made stale is redone by the writer (ADR 0031). A `full` run never performs one, because its parallel slice worktrees would collide on shared doc files.
+_Avoid: "inline documentation" (that names code comments), "self-documenting run", "doc step" (names one step of any pass, not this tier's arrangement)_
+
 ## Backends
 
 superdev is tool-agnostic: three pluggable backends, each chosen by `/setup` and recorded under `docs/agents/`. The commands and agents never hardcode one.
