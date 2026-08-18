@@ -10,6 +10,10 @@ const path = require('node:path');
 
 const { readDoc, storeDocuments, extractSection, scalar, frontmatter, normalizeWhitespace } = require('./lib');
 const {
+  NARRATIVE_DOC,
+  CHECK_COUNT_CLAIMS,
+  NUMBER_ONES,
+  NUMBER_TENS,
   FORCING_FLAG_DOCS,
   FORCING_FLAG_PATTERNS,
   REFERENCE_PATTERN,
@@ -505,6 +509,64 @@ function scanForcingBranchFlag(root) {
   return gaps;
 }
 
+// numberWord(): a small integer spelled the way the narrative spells it — 43 → "forty-three". The
+// narrative states its count in prose, so a check comparing digits would never match the text it guards.
+// Above ninety-nine it gives up and returns null, which the caller reads as "no count to compare": a
+// registry that large has outgrown a hand-written narrative anyway, and a wrong guess would be worse
+// than an honest gap.
+function numberWord(n) {
+  if (n < 0 || n > 99) return null;
+  if (n < 20) return NUMBER_ONES[n];
+  const tens = NUMBER_TENS[Math.floor(n / 10)];
+  const ones = n % 10;
+  return ones === 0 ? tens : `${tens}-${NUMBER_ONES[ones]}`;
+}
+
+// scanNarrativeCoverage(): every registered check is written up in `scripts/AGENTS.md` by its backticked
+// `id`, and both documents that state how many checks there are agree with the registry.
+//
+// The id half requires the exact `` `${id}` `` backtick pair rather than a bare substring: a check's id
+// is often a substring of unrelated prose (`reference` inside `references/…`), and a bare search on it
+// would report every check written up whether or not it actually is.
+//
+// `ids` is a parameter rather than a module-level require because `checks.js` requires this file: taking
+// the registry at call time keeps the cycle from forming, and lets the selftest drive the scanner with a
+// fixed list instead of one that shifts every time a check is added.
+function scanNarrativeCoverage(root, ids = require('./checks').map((check) => check.id)) {
+  const gaps = [];
+  const narrative = readDoc(root, NARRATIVE_DOC);
+  if (narrative === null) return gaps; // narrative absent (fixture / partial checkout) → nothing to scan
+
+  for (const id of ids) {
+    if (!narrative.includes(`\`${id}\``)) {
+      gaps.push({
+        source: NARRATIVE_DOC,
+        expectation:
+          `describe the \`${id}\` check — it is registered in \`drift/checks.js\` and written up ` +
+          'nowhere by its own backticked id, so the only account of what it guards is its own code',
+      });
+    }
+  }
+
+  const word = numberWord(ids.length);
+  if (word === null) return gaps;
+  for (const [rel, template] of CHECK_COUNT_CLAIMS) {
+    const text = readDoc(root, rel);
+    if (text === null) continue;
+    const claim = template.replace('{n}', word);
+    if (!text.includes(claim)) {
+      gaps.push({
+        source: rel,
+        expectation:
+          `state the check count as \`${claim}\` — the registry holds ${ids.length}, and this document ` +
+          'counts them in prose, so the two drift on every addition — pinned in `drift/contracts.js`\'s ' +
+          '`CHECK_COUNT_CLAIMS`',
+      });
+    }
+  }
+  return gaps;
+}
+
 // scanReturnToController() is pure over a root dir: reads the two execution playbooks plus run-init.md
 // and run-handoff.md (`RETURN_TO_CONTROLLER_DOCS`, in `contracts.js`) and reports every instruction they
 // still give to return to the command body. Slices 01-02 made the run one-directional — it opens at
@@ -551,4 +613,5 @@ module.exports = {
   scanHookLedgerParsers,
   scanForcingBranchFlag,
   scanReturnToController,
+  scanNarrativeCoverage,
 };

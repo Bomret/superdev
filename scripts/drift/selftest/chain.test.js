@@ -159,6 +159,8 @@ module.exports = ({ assert, path, fixture, realRoot }) => {
     'commands/ship.md': namesToken,
     'references/implement-full.md': namesToken,
     'references/implement-lite.md': namesToken,
+    'references/run-init.md': namesToken,
+    'references/run-handoff.md': namesToken,
   };
 
   const unattendedOpts = { stripFrontmatterFirst: true };
@@ -189,6 +191,8 @@ module.exports = ({ assert, path, fixture, realRoot }) => {
     'commands/ship.md',
     'references/implement-full.md',
     'references/implement-lite.md',
+    'references/run-init.md',
+    'references/run-handoff.md',
   ]) {
     const dropped = fixture({ ...everyStop, [rel]: '# doc\n\nNo token here.\n' });
     const gaps = scanContract(dropped, UNATTENDED_CONTRACTS, unattendedOpts);

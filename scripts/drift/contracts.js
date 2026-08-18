@@ -300,6 +300,7 @@ const UNATTENDED_CONTRACTS = [
     path.join('references', 'implement-full.md'),
     path.join('references', 'implement-lite.md'),
     path.join('references', 'run-init.md'),
+    path.join('references', 'run-handoff.md'),
   ].map((rel) => [rel, /--unattended/, 'name `--unattended`']),
   // The token alone is decoration without a read/apply instruction for the section that governs it. A
   // command that names `--unattended` but points no reader at the `## Unattended` section leaves its own
@@ -316,6 +317,7 @@ const UNATTENDED_CONTRACTS = [
     path.join('references', 'implement-full.md'),
     path.join('references', 'implement-lite.md'),
     path.join('references', 'run-init.md'),
+    path.join('references', 'run-handoff.md'),
   ].map((rel) => [rel, /\*\*Unattended\*\*\s+section/, 'carry a read/apply instruction for the `## Unattended` section, not merely the token']),
 ];
 
@@ -1047,6 +1049,36 @@ const FORCING_FLAG_PATTERNS = [
   /worktree\s+add[^\n]*\s(?:-B|--force-create)\b/,
 ];
 
+// `scripts/AGENTS.md`'s Work Guidance sets its own contract: a new drift-check contract is one registry
+// entry, plus its section in the narrative, plus its selftest. Only the first and third are enforced by
+// anything, and the middle one has been skipped twice — `forcing-branch-flag` and `source-sections` were
+// registered and undescribed. The stated count drifts on the same edit, because both are maintained by
+// hand: it read forty-one while the registry held forty-three.
+//
+// The narrative names each check by its registry `id`, wrapped in a backtick pair, so a bare substring of
+// the id occurring elsewhere in the document does not count as "described" — this pins that every check
+// is written up somewhere, never that the write-up is accurate or that the classification sentence files
+// it under the right kind. Those stay human judgment, and the epic says so.
+const NARRATIVE_DOC = path.join('scripts', 'AGENTS.md');
+// Both documents state the count in prose, so both drift on the same edit. Each claim is pinned by the
+// sentence that makes it, with `{n}` standing in for the spelled count — not by the bare number word.
+// The narrative also recounts *past* drift ("it read forty-one against a registry of forty-three"), and a
+// document-wide search for the current word would pass on a historical mention like that while the real
+// claim stayed stale. A reworded sentence goes red, which is the same bargain every other contract row
+// in this file makes.
+const CHECK_COUNT_CLAIMS = [
+  [path.join('scripts', 'AGENTS.md'), 'guards {n} things'],
+  [path.join('scripts', 'AGENTS.md'), 'the {n}-check narrative'],
+  ['AGENTS.md', 'the {n} cross-document contract checks'],
+];
+// The narrative counts in words ("guards {n} things"), so the check compares against the form a
+// maintainer would actually write rather than the digits.
+const NUMBER_ONES = [
+  'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+  'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen',
+];
+const NUMBER_TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+
 // The canonical references are pinned by their readers, not by themselves. `TEST_SELECTION_CONTRACTS`
 // asserts that every loop consumer says *read `references/test-selection.md`*; `CONTENT_TYPES_AGENTS`
 // asserts that both doc agents name `references/content-types.md`. Neither asserts that the named file
@@ -1280,6 +1312,10 @@ module.exports = {
   RUN_KIND_CONTRACTS,
   FORCING_FLAG_DOCS,
   FORCING_FLAG_PATTERNS,
+  NARRATIVE_DOC,
+  CHECK_COUNT_CLAIMS,
+  NUMBER_ONES,
+  NUMBER_TENS,
   SOURCE_SECTION_CONTRACTS,
   RETURN_TO_CONTROLLER_DOCS,
   RETURN_VERBS,

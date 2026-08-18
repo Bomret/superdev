@@ -22,8 +22,8 @@ tiers: record that slice execution finished, name what comes next.
     `mechanical`/`docs` scope gets and unattended would reach `/superdev:ship` with none behind it.
     **Attended** → write the `**Degraded:**` entry
     (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" degraded add "<text>" --root <run-root>`) naming the
-    denial, continue to the stage write. **Unattended** → **block**, per that file's `## Unattended`
-    section.
+    denial, continue to the stage write. **Unattended** (`--unattended` in the arguments) → **block**,
+    per that file's **Unattended** section.
   - **Red** → do **not** write the stage. Dispatch **one** `superdev:implementer` (`model: sonnet`;
     `haiku` only for a mechanical fix) with the failing output — never fix it inline: the controller only
     integrates, and lite's inline loop is that tier's own exception (ADR 0001), not run handoff's. Every

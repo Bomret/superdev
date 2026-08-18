@@ -31,6 +31,7 @@ const {
   scanAdrStatus,
   scanForcingBranchFlag,
   scanReturnToController,
+  scanNarrativeCoverage,
 } = require('./scanners');
 const {
   ADR_STATUSES,
@@ -278,6 +279,12 @@ module.exports = [
     PLAYBOOK_EDGE_CONTRACTS,
     'both execution playbooks still name run-init.md as their opening step and run-handoff.md as their closing one',
   ),
+  {
+    id: 'narrative-coverage',
+    ok: "every registered check is written up in scripts/AGENTS.md, and both counts match the registry",
+    run: scanNarrativeCoverage,
+    format: contractGap,
+  },
 ];
 
 // The anchor contract and the afk-selection neutrality check report into the same sentence: a gap with
