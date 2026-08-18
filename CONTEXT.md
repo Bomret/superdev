@@ -95,6 +95,9 @@ _Avoid: "eligible epic" (a single-slice plan has no epic, and its lone slice is 
 **Rejected direction** — a direction a brainstorm explored and dropped, carried in the `Intent` with the reason it lost. `/plan` routes each one to a durable home — a dropped approach to an ADR's `Considered options`, dropped scope to the epic's non-goals — so it can't be re-proposed cold later.
 _Avoid: "non-goal" (that's the destination for a rejected scope, not the record of why), "alternative"_
 
+**Domain shape** — a named structure a slice's code gives a domain concept, in whatever the repository's language provides: a TypeScript interface or type, a class, a DTO, a Python dataclass or `TypedDict`, a zod schema. A slice `spec` names the shapes the slice needs, by name and in this glossary's vocabulary, and the implementer declares them before its first RED test. Names only — the fields are the implementer's, because a `spec` is a contract of outcomes (ADR 0030).
+_Avoid: "type" (too narrow — a shape is not a static-typing claim, and an untyped language still has shapes), "model", "DTO" (one rendering of a shape, not the concept), "entity"_
+
 ## Acceptance / verification
 
 **Acceptance** (per-slice) — the checkable criteria for ONE slice; the slice-reviewer verifies against this, and the implementer treats it as the TDD loop's termination condition — one increment per criterion. Different from the global DoD (acceptance is per-slice, DoD is whole-feature). On a `behavior` slice it names the **domain-level** failure and boundary cases too — those derivable from the interview without seeing the implementation (empty input, absent config, duplicate, auth failure, concurrent arrival) — stated as observable behaviour. Implementation-level edges (off-by-one, parser boundary, encoding) belong to the implementer's TDD loop and the reviewers, who read the code the planner never sees.
