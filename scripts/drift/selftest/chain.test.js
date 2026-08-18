@@ -535,7 +535,7 @@ module.exports = ({ assert, path, fixture, realRoot }) => {
     'absent files are skipped',
   );
 
-  // positive: review.md and implement.md keep their other verbs but drop the `unresolved add`/
+  // positive: review.md and run-handoff.md keep their other verbs but drop the `unresolved add`/
   // `unresolved clear` pair, going back to hand-editing or hand-parsing the ledger's `**Unresolved:**` line
   const uvReview = fixture({
     'commands/review.md':
@@ -550,15 +550,14 @@ module.exports = ({ assert, path, fixture, realRoot }) => {
   );
 
   const uvImplement = fixture({
-    'commands/implement.md':
-      'Create the run root with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" init --root <run-root>`. ' +
+    'references/run-handoff.md':
       'Record slice completion with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set merged --root <run-root>`.\n',
   });
   const uvImplementGaps = scanContract(uvImplement, VERB_CONTRACTS);
-  assert.equal(uvImplementGaps.length, 2, 'flags implement.md for dropping both unresolved verbs');
+  assert.equal(uvImplementGaps.length, 2, 'flags run-handoff.md for dropping both unresolved verbs');
   assert.ok(
-    uvImplementGaps.every((g) => g.source === path.join('commands', 'implement.md')),
-    'both gaps name implement.md',
+    uvImplementGaps.every((g) => g.source === path.join('references', 'run-handoff.md')),
+    'both gaps name run-handoff.md',
   );
 
   // negative: review.md carrying all four of its rows, including both unresolved verbs, is clean
@@ -711,26 +710,26 @@ module.exports = ({ assert, path, fixture, realRoot }) => {
   assert.equal(fsGaps6.length, 1, 'flags a review.md that names the finding but drops the stage-not-advance clause');
   assert.equal(fsGaps6[0].source, path.join('commands', 'review.md'), 'names review.md');
 
-  // positive: implement.md's Final phase stops running the scope's one full suite itself — the row that
+  // positive: run-handoff.md's run handoff stops running the scope's one full suite itself — the row that
   // covers an all-`mechanical`/`docs` scope, which has no whole-scope review to attach a run to
   const fs7 = fixture({
-    'commands/implement.md': 'Set the stage to `merged`, then print the next command.\n',
+    'references/run-handoff.md': 'Set the stage to `merged`, then print the next command.\n',
   });
   const fsGaps7 = scanContract(fs7, FULL_SUITE_CONTRACTS);
-  assert.equal(fsGaps7.length, 1, "flags an implement.md whose Final phase runs no full suite of its own");
-  assert.equal(fsGaps7[0].source, path.join('commands', 'implement.md'), 'names implement.md');
+  assert.equal(fsGaps7.length, 1, "flags a run-handoff.md whose run handoff runs no full suite of its own");
+  assert.equal(fsGaps7[0].source, path.join('references', 'run-handoff.md'), 'names run-handoff.md');
 
   // negative: that same sixth row carried
   assert.equal(
     scanContract(
       fixture({
-        'commands/implement.md':
-          "This phase attempts that scope's one full-suite run itself, once, in place of that review.\n",
+        'references/run-handoff.md':
+          "Run handoff attempts that scope's one full-suite run itself, once, in place of that review.\n",
       }),
       FULL_SUITE_CONTRACTS,
     ).length,
     0,
-    'an implement.md carrying the Final-phase full-suite run yields no gap',
+    'a run-handoff.md carrying the run-handoff full-suite run yields no gap',
   );
 
   // negative: all six rows carried

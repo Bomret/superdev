@@ -47,6 +47,8 @@ const {
   KB_NO_CALL_DOCS,
   KB_BACKEND_CALL_MARKERS,
   HOOK_HEADER_REGEX,
+  RETURN_TO_CONTROLLER_DOCS,
+  RETURN_TO_CONTROLLER_PATTERNS,
 } = require('./contracts');
 
 // scan() is pure over a root dir so it's unit-testable: reads commands/*.md, agents/*.md and
@@ -503,6 +505,32 @@ function scanForcingBranchFlag(root) {
   return gaps;
 }
 
+// scanReturnToController() is pure over a root dir: reads the two execution playbooks plus run-init.md
+// and run-handoff.md (`RETURN_TO_CONTROLLER_DOCS`, in `contracts.js`) and reports every instruction they
+// still give to return to the command body. Slices 01-02 made the run one-directional — it opens at
+// run-init.md and ends at run-handoff.md, and no document sends a reader back — but nothing guarded that
+// shape, so a later edit could reintroduce the return jump silently. Absent files are skipped, so
+// fixtures need only the documents they exercise.
+function scanReturnToController(root) {
+  const gaps = [];
+  for (const rel of RETURN_TO_CONTROLLER_DOCS) {
+    const text = readDoc(root, rel);
+    if (text === null) continue; // playbook absent (fixture / partial checkout) → nothing to scan
+    for (const pattern of RETURN_TO_CONTROLLER_PATTERNS) {
+      const hit = text.match(pattern);
+      if (hit) {
+        gaps.push({
+          source: rel,
+          expectation:
+            `instruct no return to the command body — \`${hit[0]}\` sends a reader back to the ` +
+            'controller instead of forward, the way run-init.md and run-handoff.md do',
+        });
+      }
+    }
+  }
+  return gaps;
+}
+
 module.exports = {
   scan,
   scanRunRootPaths,
@@ -522,4 +550,5 @@ module.exports = {
   scanKbNoBackendCall,
   scanHookLedgerParsers,
   scanForcingBranchFlag,
+  scanReturnToController,
 };

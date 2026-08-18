@@ -14,7 +14,7 @@ const REFERENCE_PATTERN = /(?:\$\{CLAUDE_PLUGIN_ROOT\}\/)?references\/([a-zA-Z0-
 
 // The execution/controller docs whose instructions are followed with a worktree as cwd (or handed to
 // a subagent whose cwd is a worktree). Run-root artifacts referenced here must use the absolute
-// <run-root>/… path the controller captures at Phase 0 — a checkout-relative .superdev/scopes/<scope>/…
+// <run-root>/… path the controller captures at run init — a checkout-relative .superdev/scopes/<scope>/…
 // path resolves one level too deep from a worktree cwd. Descriptive docs (status.md, plan-contract.md,
 // issue-tracker-local.md, brainstorm.md) run only from the invoking checkout and are deliberately absent.
 const RUN_ROOT_DOCS = [
@@ -25,6 +25,8 @@ const RUN_ROOT_DOCS = [
   'commands/publish-kb.md',
   'references/implement-lite.md',
   'references/implement-full.md',
+  'references/run-init.md',
+  'references/run-handoff.md',
   'references/scope-mode.md',
   'agents/implementer.md',
   'agents/slice-reviewer.md',
@@ -211,7 +213,7 @@ const COMMAND_REFERENCE_PATTERN = /\/superdev:([a-z][a-z-]*)/g;
 // leaves every reference resolvable and the suite green, and the chain dead-ends there silently.
 // `commands/ship.md` ends the chain and has no successor, so it is deliberately absent.
 const CHAIN_HANDOFFS = [
-  [path.join('commands', 'implement.md'), '/superdev:review'],
+  [path.join('references', 'run-handoff.md'), '/superdev:review'],
   [path.join('commands', 'review.md'), '/superdev:document'],
   [path.join('commands', 'document.md'), '/superdev:ship'],
 ];
@@ -297,6 +299,7 @@ const UNATTENDED_CONTRACTS = [
     path.join('commands', 'ship.md'),
     path.join('references', 'implement-full.md'),
     path.join('references', 'implement-lite.md'),
+    path.join('references', 'run-init.md'),
   ].map((rel) => [rel, /--unattended/, 'name `--unattended`']),
   // The token alone is decoration without a read/apply instruction for the section that governs it. A
   // command that names `--unattended` but points no reader at the `## Unattended` section leaves its own
@@ -312,6 +315,7 @@ const UNATTENDED_CONTRACTS = [
     path.join('commands', 'ship.md'),
     path.join('references', 'implement-full.md'),
     path.join('references', 'implement-lite.md'),
+    path.join('references', 'run-init.md'),
   ].map((rel) => [rel, /\*\*Unattended\*\*\s+section/, 'carry a read/apply instruction for the `## Unattended` section, not merely the token']),
 ];
 
@@ -336,6 +340,7 @@ const DEGRADED_CONTRACTS = [
     path.join('commands', 'status.md'),
     path.join('references', 'implement-full.md'),
     path.join('references', 'implement-lite.md'),
+    path.join('references', 'run-handoff.md'),
   ].map((rel) => [rel, /\*\*Degraded:\*\*/, 'name the `**Degraded:**` ledger entry']),
   // Naming the entry without pointing at the section that governs it leaves a reader with a token and no
   // rule: what counts as degraded, what to do attended, and what to do unattended all live in the section.
@@ -349,6 +354,7 @@ const DEGRADED_CONTRACTS = [
     path.join('commands', 'status.md'),
     path.join('references', 'implement-full.md'),
     path.join('references', 'implement-lite.md'),
+    path.join('references', 'run-handoff.md'),
   ].map((rel) => [rel, /`## Degraded passes`/, 'point at the `## Degraded passes` section, not merely the entry']),
 ];
 
@@ -443,10 +449,10 @@ const GREEN_GATE_TIMEOUT_CONTRACTS = [
 // document must name; the pattern tolerates the `${CLAUDE_PLUGIN_ROOT}/scripts/` path prefix in front of
 // `scope.js`.
 const VERB_CONTRACTS = [
-  [path.join('commands', 'implement.md'), /scope\.js["'`]?\s+init\b/, 'create the run root and ledger with `scope.js init`'],
-  [path.join('commands', 'implement.md'), /scope\.js["'`]?\s+stage set merged\b/, 'record slice completion with `scope.js stage set merged`'],
-  [path.join('commands', 'implement.md'), /scope\.js["'`]?\s+unresolved add\b/, 'record a give-up point with `scope.js unresolved add`'],
-  [path.join('commands', 'implement.md'), /scope\.js["'`]?\s+unresolved clear\b/, 'clear a standing defect on Green with `scope.js unresolved clear`'],
+  [path.join('references', 'run-init.md'), /scope\.js["'`]?\s+init\b/, 'create the run root and ledger with `scope.js init`'],
+  [path.join('references', 'run-handoff.md'), /scope\.js["'`]?\s+stage set merged\b/, 'record slice completion with `scope.js stage set merged`'],
+  [path.join('references', 'run-handoff.md'), /scope\.js["'`]?\s+unresolved add\b/, 'record a give-up point with `scope.js unresolved add`'],
+  [path.join('references', 'run-handoff.md'), /scope\.js["'`]?\s+unresolved clear\b/, 'clear a standing defect on Green with `scope.js unresolved clear`'],
   [path.join('commands', 'review.md'), /scope\.js["'`]?\s+stage set\b/, 'write its stage with `scope.js stage set`'],
   [path.join('commands', 'review.md'), /scope\.js["'`]?\s+get anchor\b/, 'read the scope anchor\'s title with `scope.js get anchor`'],
   [path.join('commands', 'review.md'), /scope\.js["'`]?\s+unresolved add\b/, 'record a give-up point with `scope.js unresolved add`'],
@@ -521,14 +527,14 @@ const FULL_SUITE_CONTRACTS = [
     /the stage does\s+\*\*not\*\*\s+advance while it stands/i,
     'state that the stage does **not** advance while a full-suite fail or Critical/Important finding stands',
   ],
-  // A sixth row: `commands/implement.md`'s Final phase is the other end of ADR 0025. An all-`mechanical`
-  // /`docs` scope has no whole-scope review to attach a suite run to, so that phase runs the scope's one
-  // full suite in its place. It is the one full-suite run no row above covers, and it is load-bearing
-  // twice over — the routing contract below sends such a scope past `/superdev:review` on the strength of
-  // it. A Final phase that stops running the suite leaves that scope reaching a pull request with no
-  // suite run behind it anywhere in the chain, while every other check here stays green.
+  // A sixth row: `references/run-handoff.md`'s run handoff is the other end of ADR 0025. An
+  // all-`mechanical`/`docs` scope has no whole-scope review to attach a suite run to, so run handoff runs
+  // the scope's one full suite in its place. It is the one full-suite run no row above covers, and it is
+  // load-bearing twice over — the routing contract below sends such a scope past `/superdev:review` on
+  // the strength of it. A run handoff that stops running the suite leaves that scope reaching a pull
+  // request with no suite run behind it anywhere in the chain, while every other check here stays green.
   [
-    path.join('commands', 'implement.md'),
+    path.join('references', 'run-handoff.md'),
     /attempts that scope's one full-suite run itself[\s\S]{0,60}in place of that review/i,
     "run the scope's one full-suite run itself, in place of the review an all-`mechanical`/`docs` scope skips",
   ],
@@ -677,7 +683,7 @@ const TEST_SELECTION_CONTRACTS = [
 ];
 
 // ADR 0025 again, one level up: an all-`mechanical`/`docs` scope skips `/superdev:review` by design, so
-// `commands/implement.md`'s Final phase runs its one full suite instead (the sixth full-suite row above).
+// `references/run-handoff.md`'s run handoff runs its one full suite instead (the sixth full-suite row above).
 // Two documents have to agree about what that scope does next, and they agree only in prose.
 // `commands/ship.md` drops `/superdev:review` from its missing-step warning for such a scope, and
 // `commands/afk.md`'s stage table routes it past the review rather than into it. A table that keeps
@@ -881,13 +887,13 @@ const READ_PATH_CONTRACTS = [
 ];
 
 // ADR 0004: append mode never renumbers a merged slice, so a second `/superdev:implement` run over an
-// appended feature must never re-dispatch one. Phase 0's `init` call is the one place that seeds the
+// appended feature must never re-dispatch one. Run init's `init` call is the one place that seeds the
 // ledger's per-slice status, so it must carry each loaded slice's real `status` rather than defaulting
 // every row to `todo`.
 const STATUS_SEED_CONTRACTS = [
-  [path.join('commands', 'implement.md'), /"status"\s*:/, "carry each loaded slice's real `status` field in its `scope.js init` call"],
+  [path.join('references', 'run-init.md'), /"status"\s*:/, "carry each loaded slice's real `status` field in its `scope.js init` call"],
   [
-    path.join('commands', 'implement.md'),
+    path.join('references', 'run-init.md'),
     /never\s+dispatched/,
     'state that a slice the store reports as merged seeds `merged` and is never dispatched',
   ],
@@ -932,29 +938,29 @@ const PLAN_APPEND_CONTRACTS = [
 
 // ADR 0007 + ADR 0004: `scope-prune` keeps a run root, and its shipped `ledger.md`, for seven days past
 // merge, so a second `/superdev:implement` run over an appended feature can land while that ledger is
-// still on disk. Phase 0 must read the stage before choosing resume-vs-init: a `shipped` ledger belongs
+// still on disk. Run init must read the stage before choosing resume-vs-init: a `shipped` ledger belongs
 // to a finished run and gets rotated aside, never resumed, and never deleted — `scope-prune` still reaps
 // the whole run root on its own terms. The rotation must also never clobber an existing
 // `ledger-shipped-<date>.md`, so a scope that ships twice in one calendar day keeps both trails.
 const ROTATE_ON_SHIPPED_CONTRACTS = [
   [
-    path.join('commands', 'implement.md'),
+    path.join('references', 'run-init.md'),
     /rename it to `ledger-shipped-<date>\.md`/,
     'rotate a `shipped` ledger to `ledger-shipped-<date>.md` before running `init` again',
   ],
   [
-    path.join('commands', 'implement.md'),
+    path.join('references', 'run-init.md'),
     /`implementing`,\s*`merged`,\s*`reviewed`,\s*`documented`,\s*or\s*`documented-unreviewed`/,
     'name every other stage — `implementing`, `merged`, `reviewed`, `documented`, `documented-unreviewed` ' +
       '— that keeps the existing resume path',
   ],
   [
-    path.join('commands', 'implement.md'),
+    path.join('references', 'run-init.md'),
     /nothing is deleted,\s*so ADR\s*0007's seven-day trail and `scope-prune`'s reap-on-merge rule both stand/,
     "state that nothing is deleted, so ADR 0007's seven-day trail and `scope-prune`'s rule stand unchanged",
   ],
   [
-    path.join('commands', 'implement.md'),
+    path.join('references', 'run-init.md'),
     /never overwrites an existing\s*`ledger-shipped-<date>\.md`/,
     'state that a rotation never overwrites an existing `ledger-shipped-<date>.md`, so a same-day ' +
       'second rotation of one scope cannot clobber the first',
@@ -1147,6 +1153,66 @@ const SOURCE_SECTION_CONTRACTS = [
   ],
 ];
 
+// Both new run references are read forward, at a step: `implement-full.md` and `implement-lite.md`
+// each say "read `references/run-init.md`" and "read `references/run-handoff.md`" as instructions to
+// go on, never back. Only an instruction to go back to the command body is a gap. `/superdev:implement`
+// and its router are fine to name — the gap is a *return*, not a mention. A gap is a directional verb
+// (return, resume, continue, hand back, go back up, jump back — every one of them carries "return to",
+// "resume at", "continue in", or "back to" as a substring) paired with a return target (the controller,
+// the command body, `/superdev:implement`, `commands/implement.md`, or "Final phase"). Either half alone
+// is legitimate prose: a target named with nothing sending the reader there ("the controller's Final
+// phase" in passing, "the controller merges each slice serially", a `commands/implement.md`
+// cross-reference), or a verb with no controller-shaped target ("resume it in place"). `run-init.md` and
+// `run-handoff.md` are the two documents the command body's opening and closing steps were carved into
+// (ADR 0029) — the most plausible place for a stray "then return to `/superdev:implement`" to reappear —
+// so both join the two execution playbooks in the candidate list.
+const RETURN_TO_CONTROLLER_DOCS = [
+  path.join('references', 'implement-full.md'),
+  path.join('references', 'implement-lite.md'),
+  path.join('references', 'run-init.md'),
+  path.join('references', 'run-handoff.md'),
+];
+const RETURN_VERBS = ['return\\s+to', 'back\\s+(?:up\\s+)?to', 'resume\\s+at', 'continue\\s+in'];
+// A prose-shaped target only ever names the return jump this check exists for — nobody writes "refer
+// back to the controller" as a cross-reference the way they write "refer back to `commands/implement.md`".
+const PROSE_TARGETS = ['controller\\b', 'command\\s+body\\b', 'Final\\s+[Pp]hase\\b'];
+// A path-shaped target (a command name, a doc path) is also how a legitimate backward *cross-reference*
+// reads ("refer back to `commands/implement.md`", "point back to `/superdev:implement`") — bare "back
+// to"/"back up to" would flag that pointer as a hand-off. Pair it only with a verb that names the
+// hand-off explicitly, plus the two verbs ("return to", "continue in") no cross-reference uses.
+const PATH_TARGETS = ['/superdev:implement\\b', 'commands/implement\\.md'];
+const HAND_BACK_VERB = 'hand(?:\\s+\\w+){0,2}\\s+back\\s+to';
+const PATH_VERBS = ['return\\s+to', 'resume\\s+at', 'continue\\s+in', HAND_BACK_VERB];
+// Up to two `` ` `` or `*` markdown markers, optionally "the ", then up to two more — covers "the
+// controller", "`commands/implement.md`", and "**Final phase**" alike between the verb and its target.
+const RETURN_CONNECTOR = '[`*\\s]*(?:the\\s+)?[`*\\s]*';
+const RETURN_TO_CONTROLLER_PATTERNS = [
+  ...RETURN_VERBS.flatMap((verb) =>
+    PROSE_TARGETS.map((target) => new RegExp(`\\b(?:${verb})${RETURN_CONNECTOR}${target}`, 'i')),
+  ),
+  ...PATH_VERBS.flatMap((verb) =>
+    PATH_TARGETS.map((target) => new RegExp(`\\b(?:${verb})${RETURN_CONNECTOR}${target}`, 'i')),
+  ),
+];
+
+// ADR 0029, one level over: `scanReturnToController()` (in `scanners.js`) is the negative half of the
+// run's one-directional shape — an instruction to go *back*. Nothing pins the positive half: that a
+// playbook still points *forward*, at run-init.md and run-handoff.md, at all. Delete "read
+// run-handoff.md as your last step" from a playbook and every check above stays green — the reference
+// resolves (nothing else names it, so `scan()` never notices) and nothing points back to the controller
+// either. The run would then end with no `scope.js stage set merged` write, and — on an
+// all-`mechanical`/`docs` scope — with no full-suite run anywhere in the chain (ADR 0025).
+const PLAYBOOK_EDGE_DOCS = [
+  path.join('references', 'implement-full.md'),
+  path.join('references', 'implement-lite.md'),
+];
+const RUN_INIT_PATTERN = /(?:\$\{CLAUDE_PLUGIN_ROOT\}\/)?references\/run-init\.md/;
+const RUN_HANDOFF_PATTERN = /(?:\$\{CLAUDE_PLUGIN_ROOT\}\/)?references\/run-handoff\.md/;
+const PLAYBOOK_EDGE_CONTRACTS = PLAYBOOK_EDGE_DOCS.flatMap((rel) => [
+  [rel, RUN_INIT_PATTERN, 'name `references/run-init.md` as its opening step'],
+  [rel, RUN_HANDOFF_PATTERN, 'name `references/run-handoff.md` as its closing step'],
+]);
+
 module.exports = {
   REFERENCE_PATTERN,
   RUN_ROOT_DOCS,
@@ -1215,4 +1281,16 @@ module.exports = {
   FORCING_FLAG_DOCS,
   FORCING_FLAG_PATTERNS,
   SOURCE_SECTION_CONTRACTS,
+  RETURN_TO_CONTROLLER_DOCS,
+  RETURN_VERBS,
+  PROSE_TARGETS,
+  PATH_TARGETS,
+  HAND_BACK_VERB,
+  PATH_VERBS,
+  RETURN_CONNECTOR,
+  RETURN_TO_CONTROLLER_PATTERNS,
+  PLAYBOOK_EDGE_DOCS,
+  RUN_INIT_PATTERN,
+  RUN_HANDOFF_PATTERN,
+  PLAYBOOK_EDGE_CONTRACTS,
 };

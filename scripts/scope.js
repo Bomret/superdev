@@ -209,7 +209,7 @@ function validateLabel(label) {
 function verbInit(cwd, label, stdinJson) {
   const { slug } = validateLabel(label);
   const root = path.join(cwd, '.superdev', 'scopes', slug);
-  // The real double-init signal is an existing ledger.md, not the run-root directory: Phase 0
+  // The real double-init signal is an existing ledger.md, not the run-root directory: run init
   // writes dod.md into the run root before calling init, so the directory legitimately exists
   // on every fresh run.
   if (fs.existsSync(ledgerPath(root))) fail(`ledger already exists: ${ledgerPath(root)}`);
@@ -743,7 +743,7 @@ function selftest() {
     r = call(['init', 'feat/demo'], sliceJson);
     assert.ok(!r.ok && /already exists/.test(r.err), 'existing ledger refused');
 
-    // init: a run root directory that exists but holds no ledger.md yet (Phase 0 writes dod.md
+    // init: a run root directory that exists but holds no ledger.md yet (run init writes dod.md
     // before calling init) is tolerated — init still writes the ledger into it.
     const preexistingRoot = path.join(tmp, '.superdev', 'scopes', 'preexisting');
     fs.mkdirSync(preexistingRoot, { recursive: true });

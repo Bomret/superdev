@@ -17,7 +17,7 @@ reads it. It is backend-agnostic: the local-file rendering is shown below; issue
 | `status` | Canonical lifecycle `todo` → `in-progress` → `in-review` → `merged` (= done), plus `blocked`. Backends map these onto their real statuses; the ledger is authoritative during a run. | `/implement`, store |
 
 Plus one **global Definition of Done** block: the acceptance criteria for the whole feature. Anchors
-`/implement` Phase 0 and the final review.
+`/implement`'s run init and the final review.
 
 Both `acceptance` and the DoD state **observable, user-facing behaviour** — not gameable proxy counts
 (coverage %, line count, lint score). Behaviour can't be faked without doing the work; a count can. Where

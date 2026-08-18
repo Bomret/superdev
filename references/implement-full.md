@@ -3,17 +3,18 @@
 The controller `Read`s this after computing tier = `full` (see `commands/implement.md`). Implementation
 happens **only** in isolated `superdev:implementer` subagents — one per slice, each in its own worktree.
 The controller never implements inline; it dispatches, reviews via subagents, and integrates serially.
-Honor the controller's **Invariants** and **Issue status** map throughout. Return to the controller's
-**Final phase** once every slice is `merged`.
+Honor the controller's **Invariants** and **Issue status** map throughout. Once every slice is `merged`,
+read `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md` as your last step.
 
 ## Branch model
 
-- **Base committed + pushed** per the controller's Phase 0, before cutting anything here.
+- **Read `${CLAUDE_PLUGIN_ROOT}/references/run-init.md`** — the controller's run opening — before cutting
+  anything here.
 - **Scope branch, per this run's kind.** Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
   `## Cutting the scope branch` and do what it says for the run kind the controller handed you — `fresh`,
   `appended`, or `resumed` (ADR 0028). Never derive that value yourself. Call whatever it leaves you on
   `<branch>` for the rest of this file: for `fresh` that is literally `git switch -c <type>/<scope>
-  <base>` (`<type>` and `<scope>` chosen in Phase 0; base from `code-management.md`, default `main`),
+  <base>` (`<type>` and `<scope>` chosen in run init; base from `code-management.md`, default `main`),
   while `appended` and `resumed` resolve `<branch>` per that same section, never by reconstructing the
   name. Every command there runs **in the invoking checkout**, which is where you merge each slice later.
   Then move the **scope anchor** → `in-progress` (per `issue-tracker.md`; best-effort).
@@ -91,7 +92,7 @@ Repeat until every slice is `merged`:
      including the `**Degraded:**` entry it defines for `<run-root>/ledger.md`. **`--unattended` → block**
      there instead.
    - **`mechanical`** / **`docs`** slice → **skip both per-slice reviews** (the merge's focused run, plus
-     the scope's one full-suite run — at `/superdev:review`, or the Final-phase run when every slice in
+     the scope's one full-suite run — at `/superdev:review`, or the run-handoff run when every slice in
      the scope is `mechanical`/`docs` — are the net; ADR 0025).
 4. **Merge (you, serially)** — from the scope checkout: `git merge --no-ff slice/<scope>/<id>`. Resolve
    conflicts yourself (you hold cross-slice context; dispatch a fix subagent only if a conflict needs real
@@ -145,4 +146,4 @@ Per-slice worktrees are already removed at merge (DAG step 4). Anything left —
 `references/implement-lite.md` creates one, because the `run-lock` hook guards a scope worktree this tier
 never cuts (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The run lock`). The invoking checkout
 keeps `<branch>` checked out: that is the scope checkout `/superdev:review` and `/superdev:document` work
-in on this tier. Return to the controller's **Final phase** without cleaning up.
+in on this tier. Read `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md` next, without cleaning up.

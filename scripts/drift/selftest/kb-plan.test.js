@@ -1,6 +1,6 @@
 'use strict';
 
-// The knowledge-base and plan/ledger contract tables: staging and publishing a page, and the Phase 0
+// The knowledge-base and plan/ledger contract tables: staging and publishing a page, and the run-init
 // and /plan §0 rules a second run over an appended feature depends on. One section per table.
 //
 // Run by ./index.js, which owns the shared fixture() helper, realRoot, and the temp-dir cleanup.
@@ -493,7 +493,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'both halves carried yields zero gaps',
   );
 
-  // --- STATUS_SEED_CONTRACTS: Phase 0 seeds each loaded slice's real status into `scope.js init`, so a
+  // --- STATUS_SEED_CONTRACTS: run init seeds each loaded slice's real status into `scope.js init`, so a
   // second run over an appended feature (ADR 0004) never re-dispatches an already-merged slice. ---
 
   assert.equal(
@@ -507,7 +507,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // never-dispatched sentence stays in this fixture, so the gap is the field row alone.
   const statusGaps1 = scanContract(
     fixture({
-      'commands/implement.md':
+      'references/run-init.md':
         'A slice the store reports as **merged seeds `merged`, and is never dispatched**.\n\n' +
         'echo \'{"anchor": "…", "slices": [{"id": "01", "issue": "…", "title": "…", "type": "…", ' +
         '"depends-on": "…"}]}\' | node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" init <type>/<scope>\n',
@@ -515,13 +515,13 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     STATUS_SEED_CONTRACTS,
   );
   assert.equal(statusGaps1.length, 1, 'flags an init call that stops passing `status`');
-  assert.equal(statusGaps1[0].source, path.join('commands', 'implement.md'), 'names implement.md');
+  assert.equal(statusGaps1[0].source, path.join('references', 'run-init.md'), 'names run-init.md');
 
   // negative: both clauses carried
   assert.equal(
     scanContract(
       fixture({
-        'commands/implement.md':
+        'references/run-init.md':
           'A slice the store reports as **merged seeds `merged`, and is never dispatched**.\n\n' +
           'echo \'{"anchor": "…", "slices": [{"id": "01", "issue": "…", "title": "…", "type": "…", ' +
           '"depends-on": "…", "status": "…"}]}\' | node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" init ' +
@@ -538,7 +538,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // must fire alone, with the field row silent.
   const statusGapsNoNeverDispatched = scanContract(
     fixture({
-      'commands/implement.md':
+      'references/run-init.md':
         'echo \'{"anchor": "…", "slices": [{"id": "01", "issue": "…", "title": "…", "type": "…", ' +
         '"depends-on": "…", "status": "…"}]}\' | node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" init ' +
         '<type>/<scope>\n',
@@ -564,7 +564,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   );
 
   // --- ROTATE_ON_SHIPPED_CONTRACTS: a `shipped` ledger belongs to a finished run (ADR 0007's seven-day
-  // trail keeps `ledger.md` on disk past merge), so Phase 0 must rotate it aside and run `init` again
+  // trail keeps `ledger.md` on disk past merge), so run init must rotate it aside and run `init` again
   // rather than resume it — the exact landing a second run over an appended feature (ADR 0004) needs. ---
 
   assert.equal(
@@ -576,30 +576,30 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // positive: implement.md loses the rotate-on-shipped rule and falls back to the old always-resume text
   const rotateGaps1 = scanContract(
     fixture({
-      'commands/implement.md':
-        '**Resuming a Phase 0 that already ran** — `<run-root>/ledger.md` already present — skip `init` ' +
+      'references/run-init.md':
+        '**Resuming a run init that already ran** — `<run-root>/ledger.md` already present — skip `init` ' +
         'and go on to your playbook.\n',
     }),
     ROTATE_ON_SHIPPED_CONTRACTS,
   );
   assert.equal(rotateGaps1.length, 4, 'flags all four missing clauses');
   assert.ok(
-    rotateGaps1.every((g) => g.source === path.join('commands', 'implement.md')),
-    'names implement.md',
+    rotateGaps1.every((g) => g.source === path.join('references', 'run-init.md')),
+    'names run-init.md',
   );
 
   // negative: the full rotate-on-shipped paragraph, wrapped the way the real document wraps it
   assert.equal(
     scanContract(
       fixture({
-        'commands/implement.md':
+        'references/run-init.md':
           '**`<run-root>/ledger.md` already present** — read its stage first. Stage **`shipped`** — ' +
           'that ledger belongs to a finished run — rename it to `ledger-shipped-<date>.md` and run ' +
           '`init` above, which writes a fresh ledger beside it: the rotation never overwrites an ' +
           'existing `ledger-shipped-<date>.md`, nothing is deleted, so ADR\n' +
           "0007's seven-day trail and `scope-prune`'s reap-on-merge rule both stand unchanged. Any " +
           'other stage — `implementing`, `merged`, `reviewed`, `documented`, or\n' +
-          '`documented-unreviewed` — is a Phase 0 that already ran: skip `init`.\n',
+          '`documented-unreviewed` — is a run init that already ran: skip `init`.\n',
       }),
       ROTATE_ON_SHIPPED_CONTRACTS,
     ).length,
@@ -611,13 +611,13 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // fourth row must fire alone, leaving the other three silent
   const rotateNoClobberGap = scanContract(
     fixture({
-      'commands/implement.md':
+      'references/run-init.md':
         '**`<run-root>/ledger.md` already present** — read its stage first. Stage **`shipped`** — ' +
         'that ledger belongs to a finished run — rename it to `ledger-shipped-<date>.md` and run ' +
         '`init` above, which writes a fresh ledger beside it: nothing is deleted, so ADR\n' +
         "0007's seven-day trail and `scope-prune`'s reap-on-merge rule both stand unchanged. Any " +
         'other stage — `implementing`, `merged`, `reviewed`, `documented`, or\n' +
-        '`documented-unreviewed` — is a Phase 0 that already ran: skip `init`.\n',
+        '`documented-unreviewed` — is a run init that already ran: skip `init`.\n',
     }),
     ROTATE_ON_SHIPPED_CONTRACTS,
   );

@@ -30,6 +30,7 @@ const {
   scanEvalShape,
   scanAdrStatus,
   scanForcingBranchFlag,
+  scanReturnToController,
 } = require('./scanners');
 const {
   ADR_STATUSES,
@@ -55,6 +56,7 @@ const {
   PARKED_QUESTIONS_CONTRACTS,
   RUN_KIND_CONTRACTS,
   SOURCE_SECTION_CONTRACTS,
+  PLAYBOOK_EDGE_CONTRACTS,
 } = require('./contracts');
 
 // The printer twenty-three table-driven checks share. A gap is `{ source, expectation }` and reads the
@@ -235,7 +237,7 @@ module.exports = [
         : `${g.source} carries no \`## Append mode\` section — expected it to render \`/plan\`'s ` +
           `append-mode contract for its own backend; see plan-contract.md → Append mode (ADR 0004)`,
   },
-  table('status-seed', STATUS_SEED_CONTRACTS, "Phase 0's init call seeds each loaded slice's real status"),
+  table('status-seed', STATUS_SEED_CONTRACTS, "run init's `scope.js init` call seeds each loaded slice's real status"),
   table(
     'plan-append',
     PLAN_APPEND_CONTRACTS,
@@ -245,7 +247,7 @@ module.exports = [
   table(
     'rotate-on-shipped',
     ROTATE_ON_SHIPPED_CONTRACTS,
-    'Phase 0 rotates a shipped ledger aside before running init again',
+    'run init rotates a shipped ledger aside before running it again',
   ),
   table(
     'parked-questions',
@@ -264,6 +266,17 @@ module.exports = [
     'source-sections',
     SOURCE_SECTION_CONTRACTS,
     'every canonical reference still carries the sections its readers are sent to',
+  ),
+  {
+    id: 'return-to-controller',
+    ok: 'neither execution playbook instructs a return to the command body',
+    run: scanReturnToController,
+    format: contractGap,
+  },
+  table(
+    'playbook-edges',
+    PLAYBOOK_EDGE_CONTRACTS,
+    'both execution playbooks still name run-init.md as their opening step and run-handoff.md as their closing one',
   ),
 ];
 

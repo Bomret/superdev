@@ -54,7 +54,7 @@ all):
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>`, one tab-separated row per
   slice) → drop `/superdev:review` from that warning, whether it applies to this bullet or to
   `documented-unreviewed` above. Such a scope skips the whole-scope review by design — it reaches this
-  stage only once `/superdev:implement`'s Final phase has run the full suite and found it green, found no
+  stage only once `/superdev:implement`'s run handoff has run the full suite and found it green, found no
   test command configured, or recorded a denied test command and continued attended (ADR 0025) — so naming
   `/superdev:review` as missing would train the reader to dismiss the question. If that drop empties the
   warning, proceed silently instead of asking about an empty list.
@@ -116,7 +116,7 @@ you are standing in:
   already checked out in another worktree → `git switch` fails; say so and leave this checkout alone.**
   **The checkout is dirty → leave it where it stands and say so in one line**, naming the branch it stayed
   on; if the uncommitted work includes `CONTEXT.md`, `docs/adr/`, or `.claude/rules/`, note that too — it
-  is what will trip the next run's Phase 0 guard. Uncommitted work outweighs a tidy branch pointer.
+  is what will trip the next run's run-init guard. Uncommitted work outweighs a tidy branch pointer.
 - Keep the rest of `<run-root>` — the ledger and the ticked DoD are the git-ignored paper trail.
 - **Keep `.superdev/kb-pending/<scope>/`.** It is outside the run root and holds this scope's staged
   knowledge-base pages, which outlive the run by design (ADR 0023).

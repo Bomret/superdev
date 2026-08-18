@@ -3,12 +3,13 @@
 The controller `Read`s this after computing tier = `lite` (see `commands/implement.md`). Small plans
 don't need per-slice worktrees or subagents: you (the controller) implement every slice yourself, inline,
 test-first, in a single dedicated scope worktree. This is the one deliberate exception to the "controller
-never implements inline" invariant (ADR 0001). Honor the controller's **Invariants** throughout. Return
-to the controller's **Final phase** once every slice is committed.
+never implements inline" invariant (ADR 0001). Honor the controller's **Invariants** throughout. Once
+every slice is committed, read `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md` as your last step.
 
 ## Branch model
 
-- **Base committed + pushed** per the controller's Phase 0, before cutting the worktree.
+- **Read `${CLAUDE_PLUGIN_ROOT}/references/run-init.md`** — the controller's run opening — before cutting
+  the worktree.
 - **Scope branch into a dedicated worktree, per this run's kind.** Read
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Cutting the scope branch` and do what it says for
   the run kind the controller handed you — `fresh`, `appended`, or `resumed` (ADR 0028). Never derive that
@@ -22,7 +23,7 @@ to the controller's **Final phase** once every slice is committed.
 
 ## Run lock
 
-Before implementing the first slice, write `<run-root>/run.lock` (the absolute Phase-0 run-root path in
+Before implementing the first slice, write `<run-root>/run.lock` (the absolute run-init run-root path in
 the invoking checkout — never a `.superdev/scopes/<scope>/…` path from the worktree cwd, which resolves
 one level too deep). The lock's mtime marks this run as live; the **run-lock** hook uses it to stop a
 second concurrent run of the same scope from creating its own scope worktree. Leave the lock in place
@@ -31,7 +32,7 @@ when you finish: it spans the whole chain, and `/superdev:ship` removes it once 
 ## Implement
 
 - **In `depends-on` order, inline, test-first, skipping every slice the ledger already marks `merged`**
-  (an appended feature's already-shipped slices seed `merged`, per the `status` field Phase 0 carried into
+  (an appended feature's already-shipped slices seed `merged`, per the `status` field run init carried into
   `scope.js init`, and are never dispatched). For each slice: read its `spec` + `acceptance`, then carry
   the same tracer-bullet **and surgical-edit** disciplines an implementer subagent would (one RED test,
   minimal GREEN code, repeat; every hunk traces to an acceptance criterion or the specification — remove
@@ -80,5 +81,5 @@ slice's uncommitted work or discard it, before resuming.
 
 Do **not** remove the scope worktree when the last slice is committed. `/superdev:review` and
 `/superdev:document` run in it — a fix commit and the doc commit both land on the scope branch there — and
-`/superdev:ship` removes it at the end of the chain. Return to the controller's **Final phase** with the
-worktree, the run root, and the lock all in place.
+`/superdev:ship` removes it at the end of the chain. Read `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md`
+next, with the worktree, the run root, and the lock all in place.

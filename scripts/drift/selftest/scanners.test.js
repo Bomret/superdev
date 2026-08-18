@@ -30,6 +30,7 @@ const {
   scanEvalShape,
   scanAdrStatus,
   scanForcingBranchFlag,
+  scanReturnToController,
 } = scanners;
 const {
   ADR_STATUSES,
@@ -55,6 +56,7 @@ const {
   ROTATE_ON_SHIPPED_CONTRACTS,
   PARKED_QUESTIONS_CONTRACTS,
   RUN_KIND_CONTRACTS,
+  PLAYBOOK_EDGE_CONTRACTS,
 } = contracts;
 
 module.exports = ({ assert, path, fixture, realRoot }) => {
@@ -827,7 +829,7 @@ module.exports = ({ assert, path, fixture, realRoot }) => {
 
   // positive: review.md stopped naming its successor
   const ch1 = fixture({
-    'commands/implement.md': handsOff('/superdev:review'),
+    'references/run-handoff.md': handsOff('/superdev:review'),
     'commands/review.md': '# review\n\nReport the findings and stop.\n',
     'commands/document.md': handsOff('/superdev:ship'),
   });
@@ -838,7 +840,7 @@ module.exports = ({ assert, path, fixture, realRoot }) => {
 
   // negative: a fully wired chain is clean
   const ch2 = fixture({
-    'commands/implement.md': handsOff('/superdev:review'),
+    'references/run-handoff.md': handsOff('/superdev:review'),
     'commands/review.md': handsOff('/superdev:document'),
     'commands/document.md': handsOff('/superdev:ship'),
   });
@@ -846,7 +848,7 @@ module.exports = ({ assert, path, fixture, realRoot }) => {
 
   // every link is checked, not just the first: two broken handoffs are both reported
   const ch3 = fixture({
-    'commands/implement.md': '# implement\n\nMerge the slices and stop.\n',
+    'references/run-handoff.md': '# implement\n\nMerge the slices and stop.\n',
     'commands/review.md': handsOff('/superdev:document'),
     'commands/document.md': '# document\n\nReconcile the docs and stop.\n',
   });
@@ -855,7 +857,7 @@ module.exports = ({ assert, path, fixture, realRoot }) => {
   // naming some other command is not the handoff — the chain's order is what this check pins, and
   // /superdev:plan is a legitimate reference that says nothing about the successor
   const ch4 = fixture({
-    'commands/implement.md': handsOff('/superdev:review'),
+    'references/run-handoff.md': handsOff('/superdev:review'),
     'commands/review.md': 'To act on findings, run `/superdev:plan`, then `/superdev:implement`.\n',
     'commands/document.md': handsOff('/superdev:ship'),
   });
@@ -1312,4 +1314,191 @@ module.exports = ({ assert, path, fixture, realRoot }) => {
 
   // a forcing flag in either playbook is what ADR 0028 forbids, so the shipped playbooks carry none
   assert.equal(scanForcingBranchFlag(realRoot).length, 0, 'neither shipped playbook names a forcing flag');
+
+  // positive: a playbook that instructs a return to the command body is reported, naming the document
+  const returnRoot = fixture({
+    'references/implement-full.md': 'Once the fix loop caps out, return to the controller.\n',
+  });
+  const returnGaps = scanReturnToController(returnRoot);
+  assert.equal(returnGaps.length, 1, 'flags the return-to-controller instruction');
+  assert.equal(returnGaps[0].source, path.join('references', 'implement-full.md'), 'names the document');
+
+  // positive: every phrasing a hurried edit reaches for is caught, not just "return to the controller"
+  for (const flagged of [
+    'return to the controller',
+    'Return to the controller',
+    'go back to the controller',
+    'return to the **Final phase**',
+    'return to the Final phase',
+  ]) {
+    const flaggedRoot = fixture({ 'references/implement-lite.md': `Once done, ${flagged} for the next step.\n` });
+    const flaggedGaps = scanReturnToController(flaggedRoot);
+    assert.equal(flaggedGaps.length, 1, `catches the return instruction in "${flagged}"`);
+    assert.match(flaggedGaps[0].expectation, /return to the command body/, 'names the rule');
+  }
+
+  // positive: nine reintroductions a future edit could reach for, none of them the two historical
+  // wordings above — each pairs a directional verb (hand back, resume, continue, go back up, jump back,
+  // return, back to) with a return target (the controller, the command body, /superdev:implement, or
+  // commands/implement.md) the two-verb/two-target net above would let straight through
+  for (const flagged of [
+    'Once the loop caps out, hand control back to /superdev:implement.',
+    'Once the loop caps out, resume at the controller.',
+    'Continue in commands/implement.md from where this left off.',
+    'Go back up to the command body to finish Final phase.',
+    'Jump back to Final phase in the controller.',
+    'When done, return to Final Phase.',
+    'Hand off execution back to /superdev:implement now.',
+    'back to the command body',
+    'return to commands/implement.md',
+  ]) {
+    const flaggedRoot = fixture({ 'references/implement-lite.md': `${flagged}\n` });
+    const flaggedGaps = scanReturnToController(flaggedRoot);
+    assert.equal(flaggedGaps.length, 1, `catches the reintroduced return jump in "${flagged}"`);
+    assert.match(flaggedGaps[0].expectation, /return to the command body/, 'names the rule');
+  }
+
+  // negative: a bare, verb-less mention of "the controller's Final phase" is not itself a return jump —
+  // only a directional verb paired with a return target is one. A pattern with no verb requirement would
+  // flag this forward-pointing sentence for no defect.
+  assert.equal(
+    scanReturnToController(
+      fixture({
+        'references/implement-lite.md':
+          "See the controller's Final phase for what happens after this playbook ends.\n",
+      }),
+    ).length,
+    0,
+    'a bare mention of "the controller\'s Final phase" with no directional verb is reported clean',
+  );
+
+  // negative: a playbook naming the controller or the router without instructing a return is clean —
+  // mentioning /superdev:implement, the router, or "the controller" as the reader is not a violation
+  const cleanRoot = fixture({
+    'references/implement-full.md':
+      'The controller `Read`s this after computing tier = `full` (see `commands/implement.md`). ' +
+      "Honor the controller's **Invariants** throughout. " +
+      'Read `${CLAUDE_PLUGIN_ROOT}/references/run-init.md` before cutting the branch, and read ' +
+      '`${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md` as your last step.\n',
+  });
+  assert.equal(scanReturnToController(cleanRoot).length, 0, 'a forward-only playbook is reported clean');
+
+  // negative: "the controller" used as an ordinary actor, with no verb sending the reader back to it
+  assert.equal(
+    scanReturnToController(
+      fixture({ 'references/implement-lite.md': 'The controller merges each slice serially.\n' }),
+    ).length,
+    0,
+    'an ordinary mention of "the controller" as an actor is reported clean',
+  );
+
+  // negative: a cross-reference to commands/implement.md, not an instruction to go there
+  assert.equal(
+    scanReturnToController(
+      fixture({
+        'references/implement-lite.md': 'See `commands/implement.md` for the tier the controller computed.\n',
+      }),
+    ).length,
+    0,
+    'a cross-reference to commands/implement.md is reported clean',
+  );
+
+  // negative: "back to" crossed with a path-shaped target catches an ordinary backward cross-reference
+  // too — "refer back to" is a pointer, not a hand-off, and a playbook could legitimately carry it
+  assert.equal(
+    scanReturnToController(
+      fixture({
+        'references/implement-lite.md':
+          'For the full command surface, refer back to `commands/implement.md`.\n',
+      }),
+    ).length,
+    0,
+    'a "refer back to" cross-reference to commands/implement.md is reported clean',
+  );
+
+  // negative: the same shape against the other path-shaped target
+  assert.equal(
+    scanReturnToController(
+      fixture({
+        'references/implement-lite.md':
+          'The router can point back to `/superdev:implement` if a slice needs re-dispatch.\n',
+      }),
+    ).length,
+    0,
+    'a "point back to" cross-reference to /superdev:implement is reported clean',
+  );
+
+  // absent file is skipped, matching every other scanner
+  assert.equal(
+    scanReturnToController(fixture({ 'README.md': '# repo\n' })).length,
+    0,
+    'a fixture missing the playbook entirely is skipped, not reported',
+  );
+
+  // positive: run-init.md and run-handoff.md are candidates too, not just the two playbooks — they are
+  // the documents the command body's opening and closing steps were carved into, and the most plausible
+  // place for a stray "then return to /superdev:implement" to reappear
+  const runInitReturn = scanReturnToController(
+    fixture({ 'references/run-init.md': 'Once the ledger exists, return to the controller.\n' }),
+  );
+  assert.equal(runInitReturn.length, 1, 'flags a return-to-controller instruction in run-init.md');
+  assert.equal(runInitReturn[0].source, path.join('references', 'run-init.md'), 'names run-init.md');
+
+  const runHandoffReturn = scanReturnToController(
+    fixture({ 'references/run-handoff.md': 'When done, hand control back to /superdev:implement.\n' }),
+  );
+  assert.equal(runHandoffReturn.length, 1, 'flags a return-to-controller instruction in run-handoff.md');
+  assert.equal(runHandoffReturn[0].source, path.join('references', 'run-handoff.md'), 'names run-handoff.md');
+
+  // the real repository reports clean — slices 01-02 made the run one-directional
+  assert.equal(scanReturnToController(realRoot).length, 0, 'neither shipped playbook instructs a return');
+
+  // --- PLAYBOOK_EDGE_CONTRACTS: the positive half of the same one-directional shape — both execution
+  // playbooks must still name run-init.md as their opening step and run-handoff.md as their closing one.
+  // scanReturnToController() above only catches an instruction to go back; this catches a playbook that
+  // stops pointing forward, at either reference, without ever instructing a return.
+
+  // positive: a playbook that stops naming run-init.md goes red on its own row
+  const edgeNoRunInit = scanContract(
+    fixture({ 'references/implement-full.md': 'Read `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md` last.\n' }),
+    PLAYBOOK_EDGE_CONTRACTS,
+  );
+  assert.equal(edgeNoRunInit.length, 1, 'flags a playbook missing run-init.md');
+  assert.match(edgeNoRunInit[0].expectation, /run-init\.md/, 'names the run-init.md row');
+
+  // positive: a playbook that stops naming run-handoff.md goes red on its own row, independently
+  const edgeNoRunHandoff = scanContract(
+    fixture({ 'references/implement-lite.md': 'Read `${CLAUDE_PLUGIN_ROOT}/references/run-init.md` first.\n' }),
+    PLAYBOOK_EDGE_CONTRACTS,
+  );
+  assert.equal(edgeNoRunHandoff.length, 1, 'flags a playbook missing run-handoff.md');
+  assert.match(edgeNoRunHandoff[0].expectation, /run-handoff\.md/, 'names the run-handoff.md row');
+
+  // negative: a playbook naming both is clean
+  assert.equal(
+    scanContract(
+      fixture({
+        'references/implement-full.md':
+          'Read `${CLAUDE_PLUGIN_ROOT}/references/run-init.md` first and ' +
+          '`${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md` last.\n',
+      }),
+      PLAYBOOK_EDGE_CONTRACTS,
+    ).length,
+    0,
+    'a playbook naming both references is clean',
+  );
+
+  // absent playbook is skipped, matching every other contract row
+  assert.equal(
+    scanContract(fixture({ 'README.md': '# repo\n' }), PLAYBOOK_EDGE_CONTRACTS).length,
+    0,
+    'an absent playbook is skipped rather than reported',
+  );
+
+  // the real repository reports clean — both shipped playbooks still name both references
+  assert.equal(
+    scanContract(realRoot, PLAYBOOK_EDGE_CONTRACTS).length,
+    0,
+    'both shipped playbooks still name run-init.md and run-handoff.md',
+  );
 };

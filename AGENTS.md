@@ -40,10 +40,10 @@ agents/                — subagents (*.md): implementer, slice-reviewer, simpli
 hooks/                 — deterministic Node hooks + hooks.json: merge-guard, model-explicit, green-gate,
                          run-lock, ledger-guard, worktree-sweep, scope-prune, update-check
 references/            — backend seed templates + the non-seed runtime references (plan-contract,
-                         documentation convention, controlled-prose, content-types, execution
-                         playbooks, test-selection, scope-mode, authoring disciplines,
-                         review-checklist). Who reads what: the `references/` entry of the Child
-                         DOX Index below.
+                         documentation convention, controlled-prose, content-types, run init,
+                         run handoff, execution playbooks, test-selection, scope-mode, authoring
+                         disciplines, review-checklist). Who reads what: the `references/` entry of the
+                         Child DOX Index below.
 docs/adr/              — architecture decision records (why the plugin is built this way)
 docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, documentation, KB, toolchain, verification)
 scripts/               — standalone deterministic code wired into `bun run test`: `scope.js` (the
@@ -235,7 +235,7 @@ This root owns every other subtree directly:
   0022 — owns the ledger schema, is the only `ledger.md` read and write path, and exports
   `readLedgerHeader` for `hooks/scope-prune.js`), `kb-patch.js` (the deterministic section merge behind a
   staged page's `action: patch`, called by `/superdev:publish-kb`, ADR 0027), `eval-run.js` (the eval
-  runner, ADR 0024), and `drift-check.js` with `drift/` (the forty-one cross-document contract checks: the
+  runner, ADR 0024), and `drift-check.js` with `drift/` (the forty-three cross-document contract checks: the
   CLI walks the `drift/checks.js` registry, which orders every scanner and contract table). What each
   guards, check by check, lives in that child doc.
 - `references/`. Backend seed templates plus the non-seed references below.
@@ -262,15 +262,19 @@ This root owns every other subtree directly:
     both its passes, and by `doc-reader`, which checks it in Pass 1. Unlike the writing standard it is
     never configurable and never `none`, because coverage is a completeness property and not a style
     one (ADR 0014).
+  + `run-init.md`: run init — the ledger and DoD setup both execution playbooks `Read` as their first
+    step, tier-agnostic.
+  + `run-handoff.md`: run handoff — the hand-off to `/superdev:review` both execution playbooks `Read`
+    as their last step, tier-agnostic.
   + **Execution playbooks** (`implement-full.md`, `implement-lite.md`): the tier-specific linear
     procedures `/implement` reads at runtime once it computes the tier.
   + `test-selection.md`: the rule that picks the full test command over the focused one (ADR 0025) —
     single-sourced here and read at runtime by two kinds of caller. The **focused** callers run the command
     it selects for each loop increment: `agents/implementer.md`, `agents/slice-reviewer.md`, and
     `references/implement-lite.md`. The **full-suite** callers read it for the full command instead:
-    `commands/review.md`'s scope review, and `commands/implement.md`'s Final phase, which runs that suite in
-    place of the review an all-`mechanical`/`docs` scope skips. `hooks/green-gate.js` implements the same
-    rule in code rather than reading it.
+    `commands/review.md`'s scope review, and `references/run-handoff.md`'s run handoff, which runs that
+    suite in place of the review an all-`mechanical`/`docs` scope skips. `hooks/green-gate.js` implements
+    the same rule in code rather than reading it.
   + `scope-mode.md`: the rule `/superdev:review`, `/superdev:document`, and `/superdev:ship` share (ADR
     0013) — what makes a range a live scope run, how to find the scope checkout on disk for both tiers, and
     the run-lock refresh-not-create rule. Each of the three reads it at runtime and keeps only what is
@@ -296,9 +300,9 @@ This root owns every other subtree directly:
     owns it and is the only read and write path — including the `**Anchor:**` line
     `/superdev:implement` hands to `init` and `/superdev:review` reads back (`get anchor`) for the
     PR-facing title. Its `## Cutting the scope branch` section (ADR 0028) owns what the branch step does
-    for each **run kind** — `fresh`, `appended`, `resumed`. `/superdev:implement`'s Phase 0 computes that
-    value and both execution playbooks read this section instead of deriving it again, so each playbook
-    keeps only its own tier's command.
+    for each **run kind** — `fresh`, `appended`, `resumed`. `references/run-init.md`'s run init computes
+    that value and both execution playbooks read this section instead of deriving it again, so each
+    playbook keeps only its own tier's command.
   + **Authoring disciplines** (`cross-exam.md`, `domain-modeling.md`, `doc-verification.md`): the
     relentless cross-examination, active-domain-modeling, and verify-against-official-docs disciplines
     that `/plan` and `/brainstorm` read at runtime. They are superdev's own rendering of Matt Pocock's

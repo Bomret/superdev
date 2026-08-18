@@ -48,7 +48,7 @@ dispatches nothing — you carry the TDD discipline yourself. Narrate at most on
   label** is the feature's slice-store label per `docs/agents/issue-tracker.md`, in that store's shape. It
   carries a **change type** and a slug (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
   `## The change type`): `fix/lite-perf` gives scope `lite-perf`, branch `fix/lite-perf`, run root
-  `.superdev/scopes/lite-perf/`, and Phase 0 skips its scope-naming step. **The label must pass
+  `.superdev/scopes/lite-perf/`, and run init skips its scope-naming step. **The label must pass
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s scope-slug rule, both segments** — the whole label
   becomes this run's branch. Fails → say which segment, stop, create no run root and cut no branch.
   - **A label given** → load the anchor carrying it, per the store's `## Scope anchor` contract
@@ -71,75 +71,11 @@ dispatches nothing — you carry the TDD discipline yourself. Narrate at most on
   specification mandating something a review would flag). Batch what you find to the user; clean →
   proceed silently. **`--unattended` → block**, naming the contradictions.
 - **Compute the tier** — **≤3 slices → `lite`**, **>3 → `full`** — derived fresh every run, never
-  configured or persisted (`/superdev:plan` derives it the same way). Do **Phase 0**, then `Read` your
-  playbook and follow it start to finish:
+  configured or persisted (`/superdev:plan` derives it the same way). `Read` your playbook and follow it
+  start to finish:
   - `full` → `${CLAUDE_PLUGIN_ROOT}/references/implement-full.md`
   - `lite` → `${CLAUDE_PLUGIN_ROOT}/references/implement-lite.md`
-  When it returns, do the **Final phase**.
-
-## Phase 0 — Definition of done + ledger (always first)
-
-- **Commit + push the base first.** The glossary (`CONTEXT.md`), ADRs (`docs/adr/`), and `.claude/rules/`
-  must be committed on the base branch — worktrees are clean checkouts, so uncommitted design docs never
-  reach them. Any dirty/untracked → commit to base, but **check `git rev-parse --abbrev-ref HEAD` first
-  and only commit when the invoking checkout is on the base branch.** Any other branch → name the branch
-  you found and the base you wanted, write nothing, stop. **`--unattended` → block**, per
-  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section. **Nothing dirty → the branch
-  check does not apply.** Then push `<base>` by explicit refspec (`git push <remote> <base>`) if it's
-  ahead of upstream — never by switching onto it. The PR diffs against the remote base.
-- **Run root (per scope).** Fix this run's **scope** `<scope>` and **change type** `<type>` now — off the
-  feature label if one resolved, else a short feature-slug you choose (e.g. `lite-perf`) plus the
-  Conventional Commits type (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The change type`). The
-  **scope branch** is `<type>/<scope>`, the feature label verbatim, cut by your playbook's branch model.
-  Every artifact lives under the run root **`.superdev/scopes/<scope>/`** — bare slug, so the type never
-  becomes a second path segment — **git-ignored** (add `.superdev/` to `.gitignore` if absent). The run
-  root (`dod.md`, `ledger.md`, `run.lock` — lite tier only, per that file's `## The run lock`) stays in
-  the **invoking checkout** and never moves into a worktree; only the code checkout does.
-  **Capture `<run-root>` as an absolute path now**, while the invoking checkout is your cwd, and address
-  every artifact as `<run-root>/dod.md`, `<run-root>/ledger.md`, `<run-root>/run.lock`,
-  `<run-root>/reports/<id>/…`, `<run-root>/interfaces.md`. Hand subagents that absolute path: a relative
-  one resolves a level too deep from a worktree cwd. Namespacing by `<scope>` is what lets scope runs go
-  in parallel. Nothing in the run root is committed or lands in the PR.
-- **Write the DoD** — the global verification plan, made concrete and checkable — to `<run-root>/dod.md`.
-  `/superdev:review` reviews against it and `/superdev:ship` ticks it. No DoD → don't proceed. **No epic**
-  → write the lone slice's `acceptance` verbatim.
-- **Create the ledger** with `scope.js init`, from the invoking checkout, carrying each slice's real
-  **`status`**, mapped through `${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md`'s
-  `## Slice lifecycle & status`. A slice the store reports as **merged seeds `merged`, and is never
-  dispatched**. Omit the field and every row seeds `todo`, so a second run over an appended feature
-  (`docs/adr/0004-plan-append-semantics.md`) rebuilds what already shipped:
-
-  ```sh
-  echo '{"anchor": "<key> — <title>", "slices": [{"id": "01", "issue": "…", "title": "…", "type": "…", "depends-on": "…", "status": "…"}, …]}' \
-    | node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" init <type>/<scope>
-  ```
-
-  `scope.js` owns the ledger schema (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The ledger`,
-  ADR 0022). This one call validates both label segments, refuses only when `<run-root>/ledger.md` already
-  exists (a `dod.md` already there is fine), ensures `.superdev/` is git-ignored, and writes the ledger:
-  the slice table, `**Stage:** implementing`, `**Branch:** <type>/<scope>` (the branch is not computable
-  from the slug, and `/superdev:ship` receives a slug — ADR 0021), and the `**Anchor:**` line — the
-  anchor's key and title, per the store's `## Scope anchor` contract — which `/superdev:review` reads back
-  instead of deriving a title from the diff.
-
-  **`<run-root>/ledger.md` already present** → read its stage:
-  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>`.
-  - **`shipped`** — a finished run — rename it to `ledger-shipped-<date>.md` (`date +%FT%H%M%S`, precise
-    enough that two same-day rotations never collide), then run `init`, which writes a fresh ledger beside
-    it. A rotation never overwrites an existing `ledger-shipped-<date>.md` and nothing is deleted, so ADR
-    0007's seven-day trail and `scope-prune`'s reap-on-merge rule both stand unchanged. Rotation, not
-    deletion, is what lets a second run over an appended feature (ADR 0004) begin.
-  - **`implementing`, `merged`, `reviewed`, `documented`, or `documented-unreviewed`** — Phase 0 already
-    ran: skip `init`, go to your playbook; its **Resume** section reconciles the ledger against `git log`.
-
-  The stage names the last completed step (`documented-unreviewed` = `/superdev:document` ran before
-  `/superdev:review`; ADR 0013). You own `implementing` and `merged`. Every later ledger write goes
-  through a `scope.js` verb (`stage`, `slice`, `degraded add`) — `ledger-guard` denies any other path.
-- **Name this run's kind and hand it to your playbook.** A ledger you wrote with `init` is **`fresh`**, a
-  `shipped` ledger you rotated aside is **`appended`**, a live ledger you skipped `init` for is
-  **`resumed`**. State which when you `Read` your playbook; its branch model acts on that value, per
-  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Cutting the scope branch`. One determination,
-  made here (ADR 0028).
+  Each playbook ends by reading `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md`.
 
 ## Issue status (move issues along the tracker's workflow)
 
@@ -155,57 +91,11 @@ the run starts, and **`/superdev:ship` closes it**, not you. **On a single-slice
 wins**: that one issue stays `in-progress` through the merge and closes once, at ship. (`lite` skips the
 `in-review` transition — it has no per-slice review.)
 
-## Final phase — hand off to `/superdev:review`
-
-Run after your playbook returns (every slice `merged`/committed on the scope branch). Identical across
-tiers: record that slice execution finished, name what comes next.
-
-- **All slices `mechanical`/`docs`? Run the full suite before writing the stage.** Such a scope skips the
-  whole-scope review by design, so this phase attempts that scope's one full-suite run itself, once, in
-  place of that review, before the pull request (ADR 0025). Take the full command from
-  `docs/agents/verification.md` per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run it once
-  over the scope branch.
-  - **No test command configured** → continue to the stage write.
-  - **Green** → clear any standing `**Unresolved:**` entry (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
-    `## Unresolved defects`) with
-    `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>` — a no-op when there
-    is none — then continue to the stage write.
-  - **Denied by the permission classifier** → `## Degraded passes`'s second shape. Its default is record
-    and continue regardless of attendance; **local deviation**, because this is the only full-suite run a
-    `mechanical`/`docs` scope gets and unattended would reach `/superdev:ship` with none behind it.
-    **Attended** → write the `**Degraded:**` entry
-    (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" degraded add "<text>" --root <run-root>`) naming the
-    denial, continue to the stage write. **Unattended** → **block**, per that file's `## Unattended`
-    section.
-  - **Red** → do **not** write the stage. Dispatch **one** `superdev:implementer` (`model: sonnet`;
-    `haiku` only for a mechanical fix) with the failing output — never fix it inline: the controller only
-    integrates, and lite's inline loop is that tier's own exception (ADR 0001), not this phase's. Every
-    fix opens with a RED test. Re-run the full suite; repeat until **green** (then clear `**Unresolved:**`
-    as above and continue), **or three cycles without going clean** — this bullet's own 3-strike cap,
-    since a scope-wide suite has no slice to block. Stop, say so, write the `**Unresolved:**` entry with
-    `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add "<text>" --root <run-root>`, leave the
-    stage where it is.
-- **Set the stage to `merged`:**
-  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set merged --root <run-root>`. The `**Stage:**`
-  line is what tells the next command, or a resumed run, that every slice is on the scope branch.
-- **Leave the run standing.** Keep the worktrees and `<run-root>/run.lock` (lite tier), leave
-  `<run-root>/dod.md` unticked and the anchor at `in-progress`. `/superdev:review` and
-  `/superdev:document` work in the scope checkout you leave behind; `/superdev:ship` takes the run down.
-- **Print the next command, resolved.** Compute `BASE = git merge-base <base> <type>/<scope>` and print
-  `/superdev:review <BASE-sha>..<type>/<scope>` with the real commit substituted, plus one line on what it
-  does (review the integrated scope against the DoD). **All slices `mechanical`/`docs`** → print
-  `/superdev:document <BASE-sha>..<type>/<scope>` instead, and say this scope carries no whole-scope
-  review. The full suite above left one of three outcomes:
-  - **Green.**
-  - **No test command configured.**
-  - **A denied test command, recorded and continued attended** (ADR 0025).
-- **Report** the scope branch, the slice count, and the commit range. Then stop: no review, no doc pass,
-  no pull request, no DoD tick, no cleanup.
-
 ## Model selection (always set explicitly)
 
-`full` dispatches every row; the **Final phase** dispatches the implementer row on a red full suite, which
-is the one row `lite` reaches. The reviews later in the chain carry their own model choices.
+`full` dispatches every row; `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md`'s run handoff dispatches the
+implementer row on a red full suite, which is the one row `lite` reaches. The reviews later in the chain
+carry their own model choices.
 
 | Dispatch | Model | When |
 |---|---|---|

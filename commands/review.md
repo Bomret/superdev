@@ -84,7 +84,7 @@ superdev subagent that omits one):
   the answer key (ADR 0020):
   - The summary is **the scope anchor's title**, read with
     `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get anchor --root <run-root>` — the ledger's
-    `**Anchor:**` line (`/superdev:implement` Phase 0 writes it, per
+    `**Anchor:**` line (run init writes it, per
     `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The ledger` section), not derived from the
     diff: a diff-derived summary is the artifact describing itself. **The verb prints `absent`** (a run
     implemented before this rule existed) → say so in one line and fall back to a diff-derived summary.

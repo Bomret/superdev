@@ -147,7 +147,7 @@ parked-questions, and forcing-flag checks are drift
 assertions. They compare a restated fact against its source. The eval-shape and adr-status checks
 compare a document against a schema. The afk-existence check is a plain existence assertion.
 
-`drift-check.js` guards forty-one things, in the order `drift/checks.js` registers them. First, that every
+`drift-check.js` guards forty-three things, in the order `drift/checks.js` registers them. First, that every
 `references/*.md` path named in `commands/`, `agents/`, or `references/` itself resolves to a file that
 exists. A reference cites
 another reference — both execution playbooks point at `scope-mode.md` — so a rename there dangles like
@@ -238,9 +238,9 @@ scope suite synchronously inside the hook, so a suite slower than the configured
 mid-run and the gate silently doesn't fire — a hooks.json entry that loses its `timeout` field falls
 back to the 60s default unnoticed, because the suite stays green until a run happens to exceed it.
 Eighteenth, the verb-pointer contract (ADR 0022): every ledger touchpoint in the chain invokes its
-`scope.js` verb — `commands/implement.md` `init`, `stage set merged`, `unresolved add`, and
-`unresolved clear`, `commands/review.md` `stage set`, `get anchor`, `unresolved add`, and
-`unresolved clear`, `commands/document.md` `stage set`, `commands/ship.md` `get stage`,
+`scope.js` verb — `references/run-init.md` `init`, `references/run-handoff.md` `stage set merged`,
+`unresolved add`, and `unresolved clear`, `commands/review.md` `stage set`, `get anchor`, `unresolved add`,
+and `unresolved clear`, `commands/document.md` `stage set`, `commands/ship.md` `get stage`,
 `stage set shipped`, `get unresolved` (for the unresolved-defect record its §3 gate and §5 body
 read), and `get degraded` (for the degrade record its §5 body reads),
 `commands/status.md` `status`, `commands/afk.md` `get stage`,
@@ -274,7 +274,7 @@ finding folded into the fix loop; and states that the stage does **not** advance
 or Critical/Important finding stands — the clause that actually blocks a red scope, distinct from the
 finding merely being named. `agents/final-reviewer.md` still names its own re-run as optional and never
 the scope's only full-suite run, and states that `Full-suite run: fail` makes the verdict `Ready to
-merge? No` on its own. The sixth row covers the other end: `commands/implement.md`'s Final phase still
+merge? No` on its own. The sixth row covers the other end: `references/run-handoff.md`'s run handoff still
 runs the scope's one full suite itself, in place of the review an all-`mechanical`/`docs` scope skips. It
 is the one full-suite run the other five rows leave uncovered, and the routing check below sends such a
 scope past `/superdev:review` on the strength of it. Losing any one row quietly reopens the gap ADR 0025
@@ -371,8 +371,8 @@ bullet's bolded lead-in, the same `scanAnchorContract` shape, over the same cand
 from the highest number already present and never reuses one — its `id` is the file number `/plan`
 itself assigns, unlike an issue backend's server-assigned key, which already satisfies the id rule on
 its own. Thirty-fifth, the
-status-seed contract (ADR 0004), two rows against `commands/implement.md`: it carries a `"status"` field
-in the JSON its Phase 0 pipes into `scope.js init`, and it states that a slice the store reports as merged
+status-seed contract (ADR 0004), two rows against `references/run-init.md`: it carries a `"status"` field
+in the JSON its run init pipes into `scope.js init`, and it states that a slice the store reports as merged
 seeds `merged` and is never dispatched. Append mode never renumbers or re-merges a slice already shipped,
 so a second run over an appended feature must seed each loaded slice's real status rather than defaulting
 every row to `todo`, and skip every row already seeded `merged` rather than re-dispatching it — a document
@@ -388,7 +388,7 @@ and it states the single-slice epic-promotion clause, including that the lone sl
 Each ledger-signal row is anchored on the refusal condition's own wording, not on the rationale sentence
 that explains the branch test a few lines below it, so a document that keeps the rationale but loses the
 condition still fails. Thirty-seventh, the rotate-on-shipped contract (ADR 0004, ADR 0007):
-`commands/implement.md` states that Phase 0 reads a present ledger's stage before choosing between
+`references/run-init.md` states that run init reads a present ledger's stage before choosing between
 resume and init, that stage `shipped` rotates `ledger.md` to `ledger-shipped-<date>.md` and then runs
 `init` again, that every other stage — `implementing`, `merged`, `reviewed`, `documented`,
 `documented-unreviewed` — keeps the existing resume path, and that nothing is deleted, so
@@ -441,6 +441,22 @@ say the wrong thing, which is the reviewer's job, but a section deleted outright
 the diff which deleted it would connect to the readers it silently broke. `references/scope-mode.md` was
 already pinned this way, by the eleventh and fourteenth checks' heading rows; this is that treatment for
 the five sources that never got it.
+Forty-second, the return-to-controller contract (ADR 0029), `scanReturnToController()`: neither execution
+playbook, nor `references/run-init.md`, nor `references/run-handoff.md` instructs a return to the command
+body. Slices 01-02 made the run one-directional — it opens at run-init.md and ends at run-handoff.md — but
+nothing guarded that shape until this check, so a later edit could reintroduce "return to the controller",
+"resume at `commands/implement.md`", or any of the other verb/target pairings `contracts.js` enumerates,
+with the suite staying green throughout. A bare mention of the controller, the command body, or
+`/superdev:implement` is legitimate prose on its own; only a directional verb paired with one of those
+targets is a gap.
+Forty-third, the playbook-edges contract (ADR 0029), four rows: both execution playbooks still name
+`references/run-init.md` as their opening step and `references/run-handoff.md` as their closing one. The
+return-to-controller check above is the negative half of the run's one-directional shape — an instruction
+to go back; this is the positive half — that a playbook still points forward at all. Deleting "read
+run-handoff.md as your last step" from a playbook leaves every other check green — the reference still
+resolves, nothing points back to the controller either — while the run would end with no
+`scope.js stage set merged` write and, on an all-`mechanical`/`docs` scope, with no full-suite run
+anywhere in the chain.
 
 The first and seventh checks are opposites. The first catches a reference to a file that does not exist.
 The seventh catches an agent that drops its wire to a file which still exists. That drift leaves the
@@ -457,7 +473,7 @@ successor at all.
   must stay `require`-able under plain `node`. This is the one dependency `hooks/` has on `scripts/`.
 - Every script ships a `--selftest`, same convention as the hooks.
 - A new drift-check contract is one entry appended at the end of the `drift/checks.js` registry, plus
-  its section in the forty-one-check narrative above and its selftest in the matching
+  its section in the forty-three-check narrative above and its selftest in the matching
   `drift/selftest/*.test.js` suite. Append rather than insert unless the check belongs earlier for a
   reason — every ordinal after an insertion point has to be rewritten by hand.
 

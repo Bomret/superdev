@@ -127,7 +127,7 @@ a scope whose review never ran. The review is what clears that state.
 `/superdev:document <BASE>..<feature-label> --unattended` and `documented-unreviewed` routes to
 `/superdev:ship <scope> --unattended`, in place of the two review rows. Such a scope skips the whole-scope
 review by design: there is no Definition-of-Done judgment to attach one to, so `/superdev:implement`'s
-Final phase already ran the scope's one full suite in its place (ADR 0025), and `commands/ship.md` drops
+run handoff already ran the scope's one full suite in its place (ADR 0025), and `commands/ship.md` drops
 `/superdev:review` from its own missing-step warning for the same reason. Routing it into the review
 instead strands the feature — the review has nothing to judge, and the ship that follows still refuses a
 scope whose review never ran. **A ledger with no slice rows at all is not such a scope**: it says nothing
