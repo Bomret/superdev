@@ -1,3 +1,16 @@
+# [0.33.0](https://codeberg.org/bomret/superdev/compare/v0.32.1...v0.33.0) (2026-08-19)
+
+
+### Bug Fixes
+
+* anchor the shipped hooks to CommonJS and guard the marketplace source ([0d0c33d](https://codeberg.org/bomret/superdev/commit/0d0c33d1193c4591f242dfdd977e9180d6a5b9e6)), closes [issue-#32](https://codeberg.org/issue-/issues/32)
+* **run-lock:** answer not-fresh on an unreadable lock instead of crashing ([9ce5f22](https://codeberg.org/bomret/superdev/commit/9ce5f22b3823988d0f5116110a1bb6b0be4bff2d))
+
+
+### Features
+
+* ship only the runtime plugin files ([72f12ac](https://codeberg.org/bomret/superdev/commit/72f12ac12372684d2e2164856798870fd434f697))
+
 ## [0.32.1](https://codeberg.org/bomret/superdev/compare/v0.32.0...v0.32.1) (2026-08-19)
 
 
