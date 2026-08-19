@@ -1,3 +1,17 @@
+# [0.34.0](https://codeberg.org/bomret/superdev/compare/v0.33.0...v0.34.0) (2026-08-19)
+
+
+### Bug Fixes
+
+* **drift:** catch passive/gerund backend verbs; refactor: dedupe scanners, trim dead code ([39a908a](https://codeberg.org/bomret/superdev/commit/39a908a78cf4940677f3325aef71bfec014cbfc8))
+* **hooks:** close the three verified guardrail bugs and pin their shared regex ([b9b66ab](https://codeberg.org/bomret/superdev/commit/b9b66ab9228c2d485e1cc154543afab8435e9e11))
+* **scripts:** close the four CLI edge-case bugs and drop two dead surfaces ([813add8](https://codeberg.org/bomret/superdev/commit/813add8e9cd8b82fe85c59824b8f168e40e1dfc0))
+
+
+### Features
+
+* import the skills-main disciplines — diagnosis, expand–contract, reuse audit, and interview sharpenings ([e4791b1](https://codeberg.org/bomret/superdev/commit/e4791b1af766d73fdc7d763fe18883b69e892a58))
+
 # [0.33.0](https://codeberg.org/bomret/superdev/compare/v0.32.1...v0.33.0) (2026-08-19)
 
 
