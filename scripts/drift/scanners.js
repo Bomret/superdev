@@ -8,7 +8,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { readDoc, storeDocuments, extractSection, scalar, frontmatter, normalizeWhitespace } = require('./lib');
+const { docPath, readDoc, storeDocuments, extractSection, scalar, frontmatter, normalizeWhitespace } = require('./lib');
 const {
   NARRATIVE_DOC,
   CHECK_COUNT_CLAIMS,
@@ -62,7 +62,7 @@ const {
 function scan(root) {
   const missing = [];
   for (const dir of ['commands', 'agents', 'references']) {
-    const dirPath = path.join(root, dir);
+    const dirPath = docPath(root, dir);
     let entries;
     try {
       entries = fs.readdirSync(dirPath);
@@ -75,7 +75,7 @@ function scan(root) {
       const text = fs.readFileSync(filePath, 'utf8');
       for (const match of text.matchAll(REFERENCE_PATTERN)) {
         const refName = match[1];
-        const refPath = path.join(root, 'references', refName);
+        const refPath = docPath(root, 'references', refName);
         if (!fs.existsSync(refPath)) {
           missing.push({ source: path.join(dir, entry), reference: `references/${refName}` });
         }
@@ -172,7 +172,7 @@ function scanAfkSelectionNeutrality(root) {
   const gaps = [];
   let text;
   try {
-    text = fs.readFileSync(path.join(root, 'commands', 'afk.md'), 'utf8');
+    text = fs.readFileSync(docPath(root, 'commands', 'afk.md'), 'utf8');
   } catch {
     return gaps; // afk.md absent → nothing to scan
   }
@@ -325,19 +325,19 @@ function scanCommandRefs(root) {
   for (const dir of ['commands', 'agents']) {
     let entries;
     try {
-      entries = fs.readdirSync(path.join(root, dir));
+      entries = fs.readdirSync(docPath(root, dir));
     } catch {
       continue; // no such dir → nothing to scan
     }
     for (const entry of entries) {
       if (!entry.endsWith('.md')) continue;
-      const text = fs.readFileSync(path.join(root, dir, entry), 'utf8');
+      const text = fs.readFileSync(docPath(root, dir, entry), 'utf8');
       const seen = new Set();
       for (const match of text.matchAll(COMMAND_REFERENCE_PATTERN)) {
         const name = match[1];
         if (seen.has(name)) continue; // one report per document per command
         seen.add(name);
-        if (!fs.existsSync(path.join(root, 'commands', `${name}.md`))) {
+        if (!fs.existsSync(docPath(root, 'commands', `${name}.md`))) {
           unresolved.push({ source: path.join(dir, entry), command: `/superdev:${name}` });
         }
       }
@@ -366,7 +366,7 @@ function scanAfkInvocations(root) {
   const gaps = [];
   let text;
   try {
-    text = fs.readFileSync(path.join(root, 'commands', 'afk.md'), 'utf8');
+    text = fs.readFileSync(docPath(root, 'commands', 'afk.md'), 'utf8');
   } catch {
     return gaps; // afk.md absent → nothing to scan
   }
@@ -412,7 +412,7 @@ function scanShipGateContract(root) {
   const gaps = [];
   let text;
   try {
-    text = fs.readFileSync(path.join(root, 'commands', 'ship.md'), 'utf8');
+    text = fs.readFileSync(docPath(root, 'commands', 'ship.md'), 'utf8');
   } catch {
     return gaps; // ship.md absent → nothing to scan
   }
@@ -458,7 +458,7 @@ function scanKbNoBackendCall(root) {
 }
 
 function scanHookLedgerParsers(root) {
-  const dir = path.join(root, 'hooks');
+  const dir = docPath(root, 'hooks');
   let names = [];
   try {
     names = fs.readdirSync(dir).filter((f) => f.endsWith('.js'));

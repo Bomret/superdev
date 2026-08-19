@@ -2,10 +2,11 @@
 
 ## Purpose
 
-Standalone deterministic code that `package.json` runs, alongside `hooks/`. Four executables live
-here: `scope.js` (the run-state CLI, ADR 0022), `kb-patch.js` (the knowledge-base section merge, ADR
-0027), `eval-run.js` (the eval runner, ADR 0024), and `drift-check.js` (the cross-document contract
-checks).
+Standalone deterministic code that `package.json` runs, alongside `plugin/hooks/`. Four executables:
+the two shipped CLIs in `plugin/scripts/` — `scope.js` (the run-state CLI, ADR 0022) and `kb-patch.js`
+(the knowledge-base section merge, ADR 0027) — and the two maintainer-only ones here in `scripts/` —
+`eval-run.js` (the eval runner, ADR 0024) and `drift-check.js` (the cross-document contract checks).
+This doc owns all four regardless of which of the two dirs each lives in.
 
 ## Ownership
 

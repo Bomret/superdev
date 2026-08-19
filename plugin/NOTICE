@@ -1,0 +1,109 @@
+superdev
+Copyright (c) 2026 Stefan Reichel
+
+This product bundles and adapts material from the following MIT-licensed
+projects. Their copyright and permission notices are retained here as required
+by the MIT License. Material credited under other terms is marked as such, and
+the closing paragraph names exactly what the MIT License covers.
+
+--------------------------------------------------------------------------------
+Superpowers — Copyright (c) 2025 Jesse Vincent
+https://github.com/obra/superpowers
+
+Adapted into superdev:
+  - test-driven-development  → agents/implementer.md (TDD discipline)
+  - requesting-code-review   → agents/final-reviewer.md (code-reviewer rubric)
+  - writing-plans            → commands/plan.md (task right-sizing, principles)
+  - subagent-driven-development → referenced for escalation-status + file-handoff
+                                  discipline (not copied verbatim)
+
+--------------------------------------------------------------------------------
+ponytail — Copyright (c) 2026 Dietrich Gebert
+
+Adapted into superdev:
+  - ponytail        → agents/implementer.md (the lazy-ladder / YAGNI discipline)
+  - ponytail-review → agents/simplicity-reviewer.md (over-engineering review rubric)
+
+--------------------------------------------------------------------------------
+Skills — Copyright (c) 2026 Matt Pocock
+https://github.com/mattpocock/skills
+
+Adapted into superdev:
+  - grilling        → references/cross-exam.md (relentless cross-examination discipline)
+  - domain-modeling → references/domain-modeling.md (active domain-modeling +
+                      CONTEXT.md / ADR format)
+
+--------------------------------------------------------------------------------
+Additional engineering-skill patterns (to-issues and the docs/agents setup
+convention, likewise from Matt Pocock's skills above) were distilled as principles
+into commands/plan.md, commands/setup.md, and the references/ seed templates. The
+in-repo AGENTS.md
+documentation hierarchy (references/documentation.md) is inspired by DOX
+(agent0ai — https://github.com/agent0ai/dox), distilled in superdev's own words;
+DOX is not required to be installed.
+
+--------------------------------------------------------------------------------
+Writing standard — references/controlled-prose.md
+
+That file is a language-neutral rule set for technical documentation. It draws
+on two sources with different terms:
+
+ASD-STE100 Simplified Technical English — © AeroSpace and Defence Industries
+Association of Europe (ASD). https://asd-ste100.org
+  Published free for adoption. Its Part 1 writing rules (Sections 1 thru 9) are
+  restated in superdev's own words. Part 2 (the Dictionary) is copyrighted and
+  is NOT reproduced or bundled. ASD-STE100 is not an open-source work; obtain
+  the specification from asd-ste100.org.
+
+tekom Praxisleitfaden "Deutsch für die Technische Kommunikation — Regeln und
+ihre Anwendung" — © tcworld GmbH. https://www.tekom.de
+  PRIOR ART ONLY. Its notice forbids reproduction, translation, and storage in
+  electronic media, so no text in controlled-prose.md derives from it. Where its
+  catalogue reaches a rule ASD-STE100 does not, that rule is written here from
+  the underlying principle. Cited because the two catalogues independently
+  converge, which is the evidence that the shared rules are language-neutral
+  rather than English-specific.
+
+The two-mode split (strict for procedures and safety text, relaxed for general
+prose) and the self-check discipline follow the distillation published by
+woosal1337 — https://github.com/woosal1337/blog (videos/ep01-the-cure-for-ai-slop).
+
+--------------------------------------------------------------------------------
+references/content-types.md — the content-type lens — and several rules in
+references/controlled-prose.md draw on:
+
+"Technical Writing 101: A Real-World Guide to Planning and Writing Technical
+Content", 3rd edition — © 2000-2009 Scriptorium Publishing Services, Inc.
+Alan S. Pringle and Sarah S. O'Keefe. https://www.scriptorium.com/books
+  PRIOR ART ONLY. No text is reproduced. Its Chapter 6 names the four content
+  types (interface, reference, conceptual, procedural) and identifies conceptual
+  information as the hardest to write and the most often absent; that taxonomy is
+  restated in superdev's own words in content-types.md. Its Chapter 7 supplies the
+  procedure-element rules (state a step's result, never number a result, one
+  lead-in pattern across sibling procedures, one action per step) and its
+  Chapter 12 the table-heading rule, each written from the principle in
+  controlled-prose.md. Its Chapter 9 ranking of documentation qualities is the
+  basis for doc-reader's severity order.
+
+--------------------------------------------------------------------------------
+Five rules in references/controlled-prose.md were extended from:
+
+"Handbook of Technical Writing", 12th edition — © 2020 Bedford/St. Martin's,
+Macmillan Learning. Gerald J. Alred, Walter E. Oliu, and Charles T. Brusaw.
+ISBN 978-1-319-36220-1
+  PRIOR ART ONLY. No text is reproduced. Its entries on headings, definition,
+  lists, dangling modifiers, and voice supply five rules written in
+  controlled-prose.md from the underlying principle: a heading may not carry
+  meaning the text omits, a list closes with a sentence that refers back to it,
+  a definition names its category and does not restate its own term, a modifying
+  phrase attaches to the word it describes, and one sentence keeps one voice.
+  Cited as a third independent catalogue. It converges on the shared core rules
+  from a native-English business and technical writing tradition, and it diverges
+  on semicolons, dashes, sentence variety, and emphasis, where controlled-prose.md
+  follows ASD-STE100 instead.
+
+--------------------------------------------------------------------------------
+The MIT License text is in the LICENSE file. It applies to superdev's own code and, per their terms,
+to the Superpowers, ponytail, Skills, and DOX portions bundled above. It does not apply to the
+ASD-STE100, tekom, Technical Writing 101, or Handbook of Technical Writing material, which is prior
+art credited above under its own terms.

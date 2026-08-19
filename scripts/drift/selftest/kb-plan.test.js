@@ -5,7 +5,7 @@
 //
 // Run by ./index.js, which owns the shared fixture() helper, realRoot, and the temp-dir cleanup.
 
-const { maskFences, extractSection, scalar, frontmatter, stripFrontmatter, normalizeWhitespace, scanContract } = require('../lib');
+const { docPath, maskFences, extractSection, scalar, frontmatter, stripFrontmatter, normalizeWhitespace, scanContract } = require('../lib');
 const scanners = require('../scanners');
 const contracts = require('../contracts');
 
@@ -718,7 +718,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // acceptance mutation: gutting the real plan.md's refusal condition while leaving its rationale
   // sentence intact (the branch test explanation a few lines below still names "merged into the base, or
   // gone entirely") must still fail — this is the exact drift a rationale-anchored pattern misses.
-  const realPlanBody = fs.readFileSync(path.join(realRoot, 'commands', 'plan.md'), 'utf8');
+  const realPlanBody = fs.readFileSync(docPath(realRoot, 'commands', 'plan.md'), 'utf8');
   const guttedCondition = realPlanBody.replace(
     /whose scope branch \(`<type>\/<scope>`\) is neither merged into the base nor gone/,
     'whose scope branch is not shipped',

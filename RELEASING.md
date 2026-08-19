@@ -17,8 +17,8 @@ bun run release   # cut a release (see below)
 
 The plugin's **hooks stay on `node`** (`hooks.json` invokes `node …`) — `node` is guaranteed in every
 user's Claude Code environment, Bun is not. Bun is a maintainer-only tool; `bun run test` executes the
-selftests with `node` so they match the production runtime, then runs `claude plugin validate .` as a
-manifest-validation gate.
+selftests with `node` so they match the production runtime, then runs `claude plugin validate ./plugin`
+as a manifest-validation gate.
 
 ## What a release does
 
@@ -28,7 +28,7 @@ manifest-validation gate.
      deliberate 1.0.0. The commit still records the break and its notes still list it under
      `BREAKING CHANGES`.
    - Only `feat`/`fix`/`perf` (and breaking) trigger a release; `docs`/`chore`/`refactor`/`style`/`test` do not.
-2. Update `CHANGELOG.md` and bump the version in `.claude-plugin/plugin.json`
+2. Update `CHANGELOG.md` and bump the version in `plugin/.claude-plugin/plugin.json`
    (via `semantic-release-replace-plugin` — `plugin.json` is the single source of truth; `marketplace.json`
    carries no version).
 3. Commit `chore(release): X.Y.Z [skip ci]` with the release notes, tag `vX.Y.Z`, and push.

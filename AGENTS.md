@@ -25,33 +25,38 @@ plugins.
 
 ```
 .claude-plugin/
-  plugin.json          — plugin manifest (name, version, author); version is the SINGLE source of truth.
+  marketplace.json     — single-plugin marketplace manifest (deliberately NO version field); its
+                         `source` is `./plugin`, so an install copies only the shipped tree below
+plugin/                — the SHIPPED tree: everything a user's install copies, nothing else
+  .claude-plugin/
+    plugin.json        — plugin manifest (name, version, author); version is the SINGLE source of truth.
                          No `hooks` field — Claude Code auto-loads the standard hooks/hooks.json.
-  marketplace.json     — single-plugin marketplace manifest (deliberately NO version field)
-commands/              — slash commands (*.md): brainstorm, setup, plan, implement, review, document,
+  commands/            — slash commands (*.md): brainstorm, setup, plan, implement, review, document,
                          ship, afk, upgrade, status, publish-kb. implement → review → document → ship is
                          the chain a scope walks, each command printing the next (ADR 0013). afk drives
                          that chain unattended, one eligible scope anchor at a time, with the Skill tool
                          (ADR 0015). publish-kb sits outside the chain: it sends a scope's staged
                          knowledge-base pages to a remote backend, on the operator's own clock, and afk
                          never drives it (ADR 0023)
-agents/                — subagents (*.md): implementer, slice-reviewer, simplicity-reviewer, final-reviewer,
+  agents/              — subagents (*.md): implementer, slice-reviewer, simplicity-reviewer, final-reviewer,
                          doc-writer, doc-reader
-hooks/                 — deterministic Node hooks + hooks.json: merge-guard, model-explicit, green-gate,
+  hooks/               — deterministic Node hooks + hooks.json: merge-guard, model-explicit, green-gate,
                          run-lock, ledger-guard, worktree-sweep, scope-prune, update-check
-references/            — backend seed templates + the non-seed runtime references (plan-contract,
+  references/          — backend seed templates + the non-seed runtime references (plan-contract,
                          documentation convention, controlled-prose, content-types, doc pass, run init,
                          run handoff, execution playbooks, test-selection, scope-mode, authoring
                          disciplines, review-checklist). Who reads what: the `references/` entry of the
                          Child DOX Index below.
+  scripts/             — the two CLIs the commands invoke at runtime: `scope.js` (the run-state CLI,
+                         ADR 0022) and `kb-patch.js` (the knowledge-base section merge, ADR 0027)
+  LICENSE · NOTICE     — copies of the root files, so the shipped tree carries its own attribution
 docs/adr/              — architecture decision records (why the plugin is built this way)
 docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, documentation, KB, toolchain, verification)
-scripts/               — standalone deterministic code wired into `bun run test`: `scope.js` (the
-                         run-state CLI, ADR 0022), `kb-patch.js` (the knowledge-base section merge,
-                         ADR 0027), `eval-run.js` (the eval runner, ADR 0024), and `drift-check.js`
-                         with its `drift/` modules (registry, contract tables, scanners, shared
-                         helpers, selftest suites).
-                         What each one owns and guards is enumerated once, in `scripts/AGENTS.md`.
+scripts/               — maintainer-only deterministic code wired into `bun run test`: `eval-run.js`
+                         (the eval runner, ADR 0024) and `drift-check.js` with its `drift/` modules
+                         (registry, contract tables, scanners, shared helpers, selftest suites).
+                         What every script owns and guards — the two here and the two shipped ones in
+                         `plugin/scripts/` — is enumerated once, in `scripts/AGENTS.md`.
 evals/                 — cases (*/case.yaml + graders/*.md + the case's scaffold_script, a path
                          relative to the case dir — never an inline block); every case is one arm of
                          the with/without-plugin A/B, run by `scripts/eval-run.js` on a Claude
@@ -63,12 +68,16 @@ CONTEXT.md             — the domain-language glossary (ubiquitous terms); main
 README.md · RELEASING.md · NOTICE · LICENSE
 ```
 
-The plugin ships as markdown and JS hooks. There is **no build step**. `commands/`, `agents/`, and
-`references/` are prose. `hooks/` and `scripts/` are executable: `hooks/` holds Claude Code hooks, and
-`scripts/` holds standalone checks like `drift-check.js`, which `package.json` runs. `hooks/` is also a
-runtime consumer of `scripts/`: `hooks/scope-prune.js` `require`s `scripts/scope.js` for its shared
-ledger-header reader (ADR 0022). This is the one dependency `hooks/` has on `scripts/`. Every other hook stays
-standalone.
+The plugin ships as markdown and JS hooks. There is **no build step**: the marketplace's `./plugin`
+source is what limits an install to the shipped tree, so releasing stays a plain commit. `commands/`,
+`agents/`, and `references/` are prose. `hooks/` and the two `scripts/` dirs are executable: `hooks/`
+holds Claude Code hooks, `plugin/scripts/` holds the two runtime CLIs, and the root `scripts/` holds
+maintainer-only checks like `drift-check.js`, which `package.json` runs. `hooks/` is also a runtime
+consumer of `plugin/scripts/`: `hooks/scope-prune.js` `require`s `../scripts/scope.js` for its shared
+ledger-header reader (ADR 0022). This is the one dependency `hooks/` has on a script. Every other hook
+stays standalone. Paths inside `plugin/` resolve against the plugin root at runtime, so prose there
+names them without the `plugin/` prefix; `scripts/drift/lib.js`'s `docPath()` resolves the same
+plugin-relative paths for the maintainer-side checks.
 
 ## Stack
 
@@ -88,9 +97,9 @@ standalone.
   resolves the plugin's `package.json` when it runs a hook, and would then treat every hook as ESM,
   which breaks them in production. Only `.mjs` is ESM, because that is scoped by extension.
 - **Every hook ships a `--selftest`.** Add one for any new hook. `bun run test` runs them all under
-  `node`, which matches the production runtime. It then runs `claude plugin validate .` as a
+  `node`, which matches the production runtime. It then runs `claude plugin validate ./plugin` as a
   manifest-validation gate.
-- **Version lives only in `.claude-plugin/plugin.json`.** Never hand-edit it. semantic-release and
+- **Version lives only in `plugin/.claude-plugin/plugin.json`.** Never hand-edit it. semantic-release and
   `semantic-release-replace-plugin` bump it on release. `marketplace.json` carries no version, which
   avoids a double pin where `plugin.json` would silently win.
 - **Backends are pluggable.** To add a slice store, a code host, or a KB, write a new seed in
@@ -217,28 +226,32 @@ When the user requests a durable behavior change, record it here or in the relev
 
 ## Child DOX Index
 
-**One child exists: [`scripts/AGENTS.md`](scripts/AGENTS.md).** It owns what the four scripts guard,
-including the full drift-check contract narrative. Every other subtree's rules live in this root doc.
+**One child exists: [`scripts/AGENTS.md`](scripts/AGENTS.md).** It owns what the four scripts guard —
+the two maintainer-only ones in `scripts/` and the two shipped ones in `plugin/scripts/` — including
+the full drift-check contract narrative. Every other subtree's rules live in this root doc.
 See `Structure` above for the current file inventory. Add a child only when a subtree becomes a
 durable boundary with rules of its own that do not fit here.
 
 This root owns every other subtree directly:
 
-- `commands/`, `agents/`. Prose slash-commands and subagents. Governed by **Working rules, Backends are
-  pluggable**: stay tool-agnostic and never hardcode a backend. Behaviour contracts live in the files.
-- `hooks/`. Claude Code hooks, the plugin's deterministic guardrails. Governed by **Working rules, Hooks
-  are CommonJS** and **Every hook ships a `--selftest`**. This is the strongest future child-doc
-  candidate, if its rules outgrow this root. `scope-prune.js` `require`s `scripts/scope.js` for its
-  ledger-header reader (ADR 0022). This is the only place a hook depends on a script instead of standing alone.
-  A `require` failure leaves the hook with no fallback reader: it prunes nothing and says nothing.
-- `scripts/`. Owned by [`scripts/AGENTS.md`](scripts/AGENTS.md): `scope.js` (the run-state CLI, ADR
-  0022 — owns the ledger schema, is the only `ledger.md` read and write path, and exports
-  `readLedgerHeader` for `hooks/scope-prune.js`), `kb-patch.js` (the deterministic section merge behind a
-  staged page's `action: patch`, called by `/superdev:publish-kb`, ADR 0027), `eval-run.js` (the eval
-  runner, ADR 0024), and `drift-check.js` with `drift/` (the forty-five cross-document contract checks: the
+- `plugin/commands/`, `plugin/agents/`. Prose slash-commands and subagents. Governed by **Working
+  rules, Backends are pluggable**: stay tool-agnostic and never hardcode a backend. Behaviour contracts
+  live in the files.
+- `plugin/hooks/`. Claude Code hooks, the plugin's deterministic guardrails. Governed by **Working
+  rules, Hooks are CommonJS** and **Every hook ships a `--selftest`**. This is the strongest future
+  child-doc candidate, if its rules outgrow this root. `scope-prune.js` `require`s `../scripts/scope.js`
+  for its ledger-header reader (ADR 0022). This is the only place a hook depends on a script instead of
+  standing alone. A `require` failure leaves the hook with no fallback reader: it prunes nothing and
+  says nothing.
+- `scripts/` and `plugin/scripts/`. Owned by [`scripts/AGENTS.md`](scripts/AGENTS.md):
+  `plugin/scripts/scope.js` (the run-state CLI, ADR 0022 — owns the ledger schema, is the only
+  `ledger.md` read and write path, and exports `readLedgerHeader` for `plugin/hooks/scope-prune.js`),
+  `plugin/scripts/kb-patch.js` (the deterministic section merge behind a staged page's `action: patch`,
+  called by `/superdev:publish-kb`, ADR 0027), `scripts/eval-run.js` (the eval
+  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the forty-five cross-document contract checks: the
   CLI walks the `drift/checks.js` registry, which orders every scanner and contract table). What each
   guards, check by check, lives in that child doc.
-- `references/`. Backend seed templates plus the non-seed references below.
+- `plugin/references/`. Backend seed templates plus the non-seed references below.
   + `plan-contract.md`: the slice schema and lifecycle, including the optional epic sections, the
     epic-visuals gate for `## Slice graph` and `## Touch map`, and the `## Scope anchor` section — the
     generic contract (a feature's root; a single-slice plan's anchor is its own lone slice) that each

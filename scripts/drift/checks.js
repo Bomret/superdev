@@ -10,7 +10,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { scanContract } = require('./lib');
+const { docPath, scanContract } = require('./lib');
 const {
   scan,
   scanRunRootPaths,
@@ -79,7 +79,7 @@ const table = (id, contracts, ok, opts) => ({
 // else in the plugin names `/superdev:afk` for scanCommandRefs to resolve. It is a command rather than
 // an optional doc, so its existence is asserted on its own.
 function scanAfkExists(root) {
-  if (fs.existsSync(path.join(root, 'commands', 'afk.md'))) return [];
+  if (fs.existsSync(docPath(root, 'commands', 'afk.md'))) return [];
   return [
     {
       source: path.join('commands', 'afk.md'),

@@ -20,12 +20,12 @@ module.exports = {
           {
             // plugin.json is the single source of truth for the plugin version;
             // marketplace.json carries none.
-            files: ['.claude-plugin/plugin.json'],
+            files: ['plugin/.claude-plugin/plugin.json'],
             from: '"version": ".*"',
             to: '"version": "${nextRelease.version}"',
             results: [
               {
-                file: '.claude-plugin/plugin.json',
+                file: 'plugin/.claude-plugin/plugin.json',
                 hasChanged: true,
                 numMatches: 1,
                 numReplacements: 1,
@@ -46,7 +46,7 @@ module.exports = {
     [
       '@semantic-release/git',
       {
-        assets: ['CHANGELOG.md', '.claude-plugin/plugin.json'],
+        assets: ['CHANGELOG.md', 'plugin/.claude-plugin/plugin.json'],
         message: 'chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}',
       },
     ],

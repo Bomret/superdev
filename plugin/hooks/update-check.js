@@ -11,7 +11,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const https = require('node:https');
 
-const REMOTE = 'https://codeberg.org/bomret/superdev/raw/branch/main/.claude-plugin/plugin.json';
+const REMOTE = 'https://codeberg.org/bomret/superdev/raw/branch/main/plugin/.claude-plugin/plugin.json';
 const CHECK_TTL_MS = 24 * 60 * 60 * 1000;
 
 // 1 if a>b, -1 if a<b, 0 equal — dotted numeric compare, missing parts count as 0.

@@ -635,7 +635,7 @@ function run(argv, root) {
       const runResult = {};
       for (const arm of ARMS) {
         try {
-          const res = runArm(spec, arm, { pluginRoot: root, outDir: path.join(outDir, `run-${n}`) });
+          const res = runArm(spec, arm, { pluginRoot: path.join(root, 'plugin'), outDir: path.join(outDir, `run-${n}`) });
           const graded = res.ok ? gradeArm(graders, res, opts) : [];
           runResult[arm] = { ok: res.ok, error: res.error, markers: res.markers, graders: graded, score: scoreArm(graded) };
         } catch (e) {

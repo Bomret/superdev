@@ -91,13 +91,24 @@ function normalizeWhitespace(text) {
   return text.replace(/\s+/g, ' ');
 }
 
+// docPath(): where a checked file lives under a root. The shipped tree sits in the repo's plugin/
+// subdirectory (the marketplace's git-subdir source), so contract tables, scanners, and fixtures all
+// name its files relative to the plugin root — commands/…, agents/…, hooks/…, references/…,
+// scripts/scope.js — while root-level docs (CONTEXT.md, scripts/AGENTS.md, docs/, evals/) resolve at
+// the repo root. Fixtures build plugin-relative paths directly under their tmp root, so the direct
+// path is tried first and plugin/ is the fallback; the two never both exist for one file.
+function docPath(root, ...rel) {
+  const direct = path.join(root, ...rel);
+  return fs.existsSync(direct) ? direct : path.join(root, 'plugin', ...rel);
+}
+
 // readDoc(): one document's text, or null when it is not there. Every check skips a document it cannot
 // read, so a fixture carries only the files it exercises and a partial checkout fails nothing. That
 // convention is the reason no scanner may treat an absent file as a gap — the one exception is asserted
 // on its own, as the afk-existence check.
 function readDoc(root, rel) {
   try {
-    return fs.readFileSync(path.join(root, rel), 'utf8');
+    return fs.readFileSync(docPath(root, rel), 'utf8');
   } catch {
     return null;
   }
@@ -110,7 +121,7 @@ function readDoc(root, rel) {
 function storeDocuments(root, { dir, extra, exempt = new Set() }) {
   const candidates = [...extra];
   try {
-    for (const entry of fs.readdirSync(path.join(root, dir))) {
+    for (const entry of fs.readdirSync(docPath(root, dir))) {
       if (!entry.startsWith('issue-tracker-') || !entry.endsWith('.md')) continue;
       if (exempt.has(entry)) continue;
       candidates.push(path.join(dir, entry));
@@ -146,6 +157,7 @@ function scanContract(root, contracts, { stripFrontmatterFirst = false } = {}) {
 }
 
 module.exports = {
+  docPath,
   readDoc,
   storeDocuments,
   maskFences,

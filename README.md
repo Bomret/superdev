@@ -361,8 +361,8 @@ For a hands-off setup, enable it once through `/plugin`, then **Marketplaces**, 
 
 A best-effort `SessionStart` hook prints a one-line notice when a newer version is published. It checks
 at most once a day and stays silent when offline. "Newer" means the `version` in
-`.claude-plugin/plugin.json`, so a release **must bump that field**. `/plugin update` cannot see an
-unchanged version.
+`plugin/.claude-plugin/plugin.json`, so a release **must bump that field**. `/plugin update` cannot see
+an unchanged version.
 
 **Maintainers:** releases are deterministic and commit-driven. semantic-release bumps the version,
 writes `CHANGELOG.md`, tags, and publishes a Codeberg Release from the Conventional Commits. See

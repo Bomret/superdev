@@ -8,7 +8,7 @@
     {
       "name": "superdev",
       "description": "plan → implement loop with parallel slice execution, separate review subagents, and deterministic guardrails.",
-      "source": "./",
+      "source": "./plugin",
       "category": "productivity"
     }
   ]
