@@ -27,7 +27,6 @@ execution:
 
     Follow the repo's conventions in `docs/agents/`. Finish with the full test
     suite run and passing.
-  max_turns: 120
   timeout_seconds: 2400
   allowed_tools:
     - Read

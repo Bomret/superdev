@@ -20,6 +20,7 @@
 // Best-effort and silent: any git error, or no .superdev/scopes/ → no-op.
 
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
@@ -273,7 +274,6 @@ if (process.argv[2] === '--selftest') {
   );
 
   // --- readStage: reads the ledger's `**Stage:**` line, or null when unreadable/absent ---
-  const os = require('node:os');
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-'));
   fs.writeFileSync(path.join(tmp, 'ledger.md'), '# ledger\n\n**Stage:** shipped\n');
   assert.equal(readStage(tmp), 'shipped', 'reads the stage value off the ledger line');
@@ -393,8 +393,6 @@ if (process.argv[2] === '--selftest') {
   // doesn't recognise, or a slug that drifted from the run-root's directory name. Both would prune a run
   // still mid-flight, because "gone" and "shipped" together mean prunable.
   {
-    const os = require('node:os');
-
     // `feature/alpha`: the type is not in CHANGE_TYPES (only `feat` is), so the shape scan reads
     // `alpha`'s branch as gone even though it exists and is unmerged.
     const alphaDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-branch-'));
@@ -512,8 +510,6 @@ if (process.argv[2] === '--selftest') {
   // `%(refname)` hitting /bin/sh) would still pass all of them, because main()'s try/catch swallows the
   // error and prunes nothing, silently. Only running main() against a real repository catches that.
   {
-    const os = require('node:os');
-
     function gitTest(args, cwd) {
       execFileSync('git', args, { cwd, stdio: 'ignore' });
     }
@@ -716,10 +712,9 @@ if (process.argv[2] === '--selftest') {
   // asserts, so agreement is a property of there being one implementation rather than of two staying
   // in step.
   {
-    const os2 = require('node:os');
     const scope = require('../scripts/scope.js');
     const mk = (body) => {
-      const d = fs.mkdtempSync(path.join(os2.tmpdir(), 'scope-prune-hdr-'));
+      const d = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-hdr-'));
       fs.writeFileSync(path.join(d, 'ledger.md'), body);
       return d;
     };
@@ -763,7 +758,7 @@ if (process.argv[2] === '--selftest') {
     assert.equal(readStage(empty), 'shipped', 'readStage agrees');
     fs.rmSync(empty, { recursive: true, force: true });
 
-    assert.equal(readHeader(path.join(os2.tmpdir(), 'no-such-scope-dir'), 'Stage'), null, 'an unreadable ledger is null');
+    assert.equal(readHeader(path.join(os.tmpdir(), 'no-such-scope-dir'), 'Stage'), null, 'an unreadable ledger is null');
   }
 
   // #reader-unavailable: the hook cannot load the shared reader → it prunes nothing and says nothing.
@@ -774,12 +769,11 @@ if (process.argv[2] === '--selftest') {
   // either way. The guard stays as explicit intent. Fail-closed is the same direction the hook already
   // takes on a git error: a hook that cannot read a stage must never conclude a scope is finished.
   {
-    const os2 = require('node:os');
     const cp = require('node:child_process');
-    const away = fs.mkdtempSync(path.join(os2.tmpdir(), 'scope-prune-orphan-'));
+    const away = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-orphan-'));
     fs.copyFileSync(__filename, path.join(away, 'scope-prune.js'));
 
-    const repo = fs.mkdtempSync(path.join(os2.tmpdir(), 'scope-prune-orphan-repo-'));
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-orphan-repo-'));
     const g = (args) => cp.execFileSync('git', args, { cwd: repo, stdio: 'ignore' });
     g(['init', '-q', '-b', 'main']);
     g(['config', 'user.email', 'test@example.com']);

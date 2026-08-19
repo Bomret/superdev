@@ -163,7 +163,6 @@ module.exports = {
   maskFences,
   extractSection,
   scalar,
-  FRONTMATTER_FENCE,
   frontmatter,
   stripFrontmatter,
   normalizeWhitespace,

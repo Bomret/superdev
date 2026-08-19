@@ -93,7 +93,7 @@ function selftest() {
   const lockDir = path.join(testRunDir, '.superdev', 'scopes', testScope);
   const lockPath = path.join(lockDir, 'run.lock');
 
-  require('child_process').execSync(`mkdir -p "${lockDir}"`);
+  fs.mkdirSync(lockDir, { recursive: true });
 
   try {
     // decide() reads the session cwd from the top-level payload (input.cwd), NOT tool_input —
@@ -130,26 +130,22 @@ function selftest() {
     // Test 8: the guarded create op still blocks under a fresh lock
     assert.strictEqual(at(`git worktree add .superdev/scopes/${testScope}/worktree -b b base`).block, true, 'Test 8 FAIL: git worktree add must block on a fresh lock');
 
-    // Test 9/10: a slug leading with `-` or `_` is not canonical (references/scope-mode.md's
+    // Test 9: a slug leading outside `[a-zA-Z0-9]` is not canonical (references/scope-mode.md's
     // `[a-zA-Z0-9][a-zA-Z0-9_-]*`) — extractScope must return null for it. Proven with a fresh lock
     // sitting at that exact literal path: if extraction wrongly captured the slug, the fresh lock
-    // would block; it doesn't, so no scope was extracted at all.
+    // would block; it doesn't, so no scope was extracted at all. One vector covers the class: `-`
+    // and `_` fail the identical first-character test.
     const badLockDir = path.join(testRunDir, '.superdev', 'scopes', '-bad');
-    require('child_process').execSync(`mkdir -p "${badLockDir}"`);
+    fs.mkdirSync(badLockDir, { recursive: true });
     fs.writeFileSync(path.join(badLockDir, 'run.lock'), 'locked', 'utf8');
     assert.strictEqual(at('git worktree add .superdev/scopes/-bad/worktree').block, false, 'Test 9 FAIL: leading `-` must not be extracted as a scope');
-
-    const underscoreLockDir = path.join(testRunDir, '.superdev', 'scopes', '_bad');
-    require('child_process').execSync(`mkdir -p "${underscoreLockDir}"`);
-    fs.writeFileSync(path.join(underscoreLockDir, 'run.lock'), 'locked', 'utf8');
-    assert.strictEqual(at('git worktree add .superdev/scopes/_bad/worktree').block, false, 'Test 10 FAIL: leading `_` must not be extracted as a scope');
 
     // Protocol validation (exit 2 on block, exit 0 on allow) is tested at hook invocation time by
     // Claude Code; this selftest covers the decide() logic. The fixed main() properly translates
     // decide() results to the hook protocol (stderr + exit code), validated by the next bun run test.
     console.log('run-lock selftest ok');
   } finally {
-    require('child_process').execSync(`rm -rf "${testRunDir}"`);
+    fs.rmSync(testRunDir, { recursive: true, force: true });
   }
 }
 

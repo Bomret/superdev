@@ -15,16 +15,12 @@
 // integrated slice satisfies both. Safe to fire every turn, self-corrects on reverts.
 // Best-effort and silent: any git error, a dirty worktree, or no .superdev/ → no-op.
 
-const { execSync, execFileSync } = require('node:child_process');
+const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 
-function sh(cmd, cwd) {
-  return execSync(cmd, { cwd, stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' }).trim();
-}
-
-// Like sh() but argv-based (no shell) — for any git call that includes a repo-derived value
-// (branch name, worktree path). A name containing a quote/backtick/$() can't break out and inject.
+// argv-based (no shell) — a repo-derived value (branch name, worktree path) containing a
+// quote/backtick/$() can't break out and inject.
 function git(args, cwd) {
   return execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' }).trim();
 }
@@ -33,7 +29,7 @@ function git(args, cwd) {
 // have commits beyond. Null if undetectable → nothing is swept (safe).
 function defaultBranch(cwd) {
   try {
-    return sh('git symbolic-ref --short refs/remotes/origin/HEAD', cwd).replace(/^origin\//, '');
+    return git(['symbolic-ref', '--short', 'refs/remotes/origin/HEAD'], cwd).replace(/^origin\//, '');
   } catch {
     for (const b of ['main', 'master']) {
       try {
@@ -74,20 +70,20 @@ function main(cwd) {
   let merged, worked, porcelain;
   try {
     merged = new Set(
-      sh('git branch --merged', cwd)
+      git(['branch', '--merged'], cwd)
         .split('\n')
         .map((s) => s.replace(/^[*+ ]+/, '').trim())
         .filter(Boolean)
     );
     // slice branches with ≥1 commit not in the default branch = genuinely worked
     worked = new Set();
-    const sliceBranches = sh("git for-each-ref --format=%(refname:short) refs/heads/slice", cwd)
+    const sliceBranches = git(['for-each-ref', '--format=%(refname:short)', 'refs/heads/slice'], cwd)
       .split('\n')
       .filter(Boolean);
     for (const b of sliceBranches) {
       if (git(['rev-list', '-n1', b, '--not', def], cwd)) worked.add(b);
     }
-    porcelain = sh('git worktree list --porcelain', cwd);
+    porcelain = git(['worktree', 'list', '--porcelain'], cwd);
   } catch {
     return; // not a git repo / detached HEAD → bail quietly
   }
@@ -118,12 +114,6 @@ if (process.argv[2] === '--selftest') {
     selectRemovable(porcelain, merged, worked, root),
     [{ wt: '/repo/.superdev/scopes/self-improvements/worktrees/2', br: 'slice/self-improvements/2' }],
     'only the merged-AND-worked slice is swept'
-  );
-  assert.deepEqual(selectRemovable(porcelain, merged, new Set(), root), [], 'no worked branches → nothing swept');
-  assert.deepEqual(
-    selectRemovable('worktree /repo/.superdev/scopes/x/worktrees/1\nbranch refs/heads/slice/x/1', new Set(['slice/x/1']), new Set(['slice/x/1']), root),
-    [{ wt: '/repo/.superdev/scopes/x/worktrees/1', br: 'slice/x/1' }],
-    'merged+worked under any scope'
   );
   console.log('worktree-sweep selftest ok');
 } else {

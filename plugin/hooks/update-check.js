@@ -14,18 +14,9 @@ const https = require('node:https');
 const REMOTE = 'https://codeberg.org/bomret/superdev/raw/branch/main/plugin/.claude-plugin/plugin.json';
 const CHECK_TTL_MS = 24 * 60 * 60 * 1000;
 
-// 1 if a>b, -1 if a<b, 0 equal — dotted numeric compare, missing parts count as 0.
+// 1 if a>b, -1 if a<b, 0 equal — numeric collation compares each dotted segment as a number.
 function cmpVersion(a, b) {
-  const pa = String(a).split('.').map(Number);
-  const pb = String(b).split('.').map(Number);
-  const n = Math.max(pa.length, pb.length);
-  for (let i = 0; i < n; i++) {
-    const x = pa[i] || 0;
-    const y = pb[i] || 0;
-    if (x > y) return 1;
-    if (x < y) return -1;
-  }
-  return 0;
+  return String(a).localeCompare(String(b), undefined, { numeric: true });
 }
 
 function localVersion(root) {

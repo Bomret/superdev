@@ -206,17 +206,6 @@ if (process.argv[2] === '--selftest') {
     assert.equal(ran, 'npm test', 'empty changed-path set falls back to the full command');
   }
 
-  // a verbatim focused command (no {paths} token) paired with an empty changed-path set still
-  // falls back to the full command — pickCommand resolves the changed-path set before it checks
-  // for the token, so this is the same fallback as the {paths} case above, not a separate path
-  {
-    let ran;
-    const spy = (tc) => { ran = tc; return green(); };
-    const verification = { full: 'npm test', focused: 'vitest --changed' };
-    decide(merge('git merge --no-ff slice/s1'), verification, spy, () => []);
-    assert.equal(ran, 'npm test', 'verbatim focused command + empty changed-path set falls back to the full command');
-  }
-
   // a changed path with a space reaches the command as a single shell-quoted argument
   {
     let ran;
