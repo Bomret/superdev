@@ -17,11 +17,13 @@ function refsLedger(word) {
   return /\.superdev\/scopes\/.*ledger\.md/.test(plain);
 }
 
-// The shell write shapes the spec names. Each captures its target word(s).
+// The shell write shapes the spec names. Each captures its target word(s). TEE and CPMV capture
+// only to the end of their own `[;&|\n]`-delimited segment — like SED_SEGMENT — so a `cp`/`mv`/
+// `tee` elsewhere never swallows a later command's pure ledger read into its target scan.
 const REDIR = new RegExp('>{1,2}\\s*(' + ARG + ')', 'g');
-const TEE = new RegExp('(^|[;&|\\n])\\s*tee\\s+((?:-\\S+\\s+)*(?:' + ARG + '\\s*)+)', 'gm');
+const TEE = /(^|[;&|\n])\s*tee\s+([^;&|\n]*)/gm;
 const SED_SEGMENT = /(^|[;&|\n])([^;&|\n]*\bsed\b[^;&|\n]*)/gm;
-const CPMV = new RegExp('(^|[;&|\\n])\\s*\\b(?:cp|mv|install)\\b\\s+((?:-\\S+\\s+)*(?:' + ARG + '\\s*)+)', 'gm');
+const CPMV = /(^|[;&|\n])\s*\b(?:cp|mv|install)\b\s+([^;&|\n]*)/gm;
 
 function bashWritesLedger(cmd) {
   let m;
@@ -130,6 +132,15 @@ if (process.argv[2] === '--selftest') {
   assert.equal(bash('install -m 644 new.md ' + L).block, true, 'install denied');
   assert.equal(bash('cp a b').block, false, 'cp elsewhere allowed');
 
+  // Compound commands: a write elsewhere followed by a pure ledger read stays allowed — the
+  // target scan is bounded to the writing command's own segment.
+  assert.equal(bash('cp a b && cat ' + L).block, false, 'cp elsewhere then a ledger read passes');
+  assert.equal(bash('mv x y; grep Stage ' + L).block, false, 'mv elsewhere then a ledger grep passes');
+  assert.equal(bash('echo hi | tee /tmp/log; cat ' + L).block, false, 'tee elsewhere then a ledger read passes');
+  assert.equal(bash('cat x; cp new.md ' + L).block, true, 'cp into the ledger after another command still denied');
+  assert.equal(bash('true && mv new.md ' + L).block, true, 'mv into the ledger after && still denied');
+  assert.equal(bash('echo x | tee /tmp/log ' + L).block, true, 'tee with the ledger as a later target still denied');
+
   // scope.js invocations and reads → allow.
   assert.equal(bash('node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set merged --root /abs/.superdev/scopes/demo').block, false, 'scope.js passes');
   assert.equal(bash('node scripts/scope.js init feat/demo < slices.json').block, false, 'scope.js init with stdin redirect-in passes');
@@ -138,6 +149,17 @@ if (process.argv[2] === '--selftest') {
   assert.equal(bash('sed -n "1,5p" ' + L).block, false, 'sed without -i passes');
   assert.equal(bash('echo hi > /tmp/out.txt').block, false, 'redirect elsewhere passes');
   assert.equal(bash('bun run test').block, false, 'unrelated bash passes');
+
+  // ARG mirrors merge-guard's token (comment at the declaration); hooks stay standalone, so pin
+  // the copy against the canonical one instead of sharing it — silent drift would be a bug.
+  {
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const sibling = fs.readFileSync(path.join(__dirname, 'merge-guard.js'), 'utf8');
+    const m = sibling.match(/^const ARG = \/(.*)\/\.source;$/m);
+    assert.ok(m, 'merge-guard.js declares its ARG token where this pin expects it');
+    assert.equal(ARG, m[1], 'ledger-guard ARG is byte-identical to merge-guard ARG');
+  }
 
   console.log('ledger-guard selftest ok');
 } else {

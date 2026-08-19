@@ -115,6 +115,40 @@ if (process.argv[2] === '--selftest') {
     [{ wt: '/repo/.superdev/scopes/self-improvements/worktrees/2', br: 'slice/self-improvements/2' }],
     'only the merged-AND-worked slice is swept'
   );
+
+  // --- real-repo smoke: main() end to end, so a broken git invocation inside its try/catch can't
+  // hide behind the pure selectRemovable() cases (the gap class scope-prune's smoke test closes) ---
+  {
+    const os = require('node:os');
+    // realpath: git prints resolved worktree paths, and macOS's tmpdir is a symlink
+    const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ws-')));
+    const g = (args, cwd) => git(args, cwd);
+    g(['init', '-q', '-b', 'main'], repo);
+    g(['config', 'user.email', 'test@example.com'], repo);
+    g(['config', 'user.name', 'test'], repo);
+    fs.writeFileSync(path.join(repo, 'base.txt'), 'x\n');
+    g(['add', '.'], repo);
+    g(['commit', '-q', '-m', 'base'], repo);
+    // slices merge into the scope branch; main is the "worked" base they must have commits beyond
+    g(['checkout', '-q', '-b', 'scope/demo'], repo);
+    const wtDone = path.join(repo, '.superdev/scopes/demo/worktrees/1');
+    const wtFresh = path.join(repo, '.superdev/scopes/demo/worktrees/2');
+    g(['worktree', 'add', '-q', '-b', 'slice/demo/1', wtDone], repo);
+    g(['worktree', 'add', '-q', '-b', 'slice/demo/2', wtFresh], repo);
+    fs.writeFileSync(path.join(wtDone, 's1.txt'), 'y\n');
+    g(['add', '.'], wtDone);
+    g(['commit', '-q', '-m', 's1'], wtDone);
+    g(['merge', '-q', '--no-ff', 'slice/demo/1', '-m', 'merge s1'], repo);
+    main(repo);
+    assert.ok(!fs.existsSync(wtDone), 'the merged-and-worked slice worktree is removed');
+    assert.throws(
+      () => g(['show-ref', '--verify', '--quiet', 'refs/heads/slice/demo/1'], repo),
+      'the swept slice branch is deleted'
+    );
+    assert.ok(fs.existsSync(wtFresh), 'the fresh empty slice worktree is left for its implementer');
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+
   console.log('worktree-sweep selftest ok');
 } else {
   let raw = '';

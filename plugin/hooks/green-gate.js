@@ -32,8 +32,10 @@ const { execSync } = require('node:child_process');
 // backslash-escaped space, and a partly-quoted `key=value` (`-c k="v w"`, `--git-dir="a b"`) are
 // all matched as a single token, not just the first non-space run a bare `\S+` would stop at.
 const ARG = /(?:[^\s"'\\]|\\.|"(?:[^"\\]|\\.)*"|'[^']*')+/.source;
+// `--abort` and `--quit` undo or abandon a merge — nothing new landed, so nothing to gate.
+// `--continue` completes one and stays gated.
 const IS_MERGE = new RegExp(
-  `(^|[;&|\\n])\\s*git(?:\\s+(?:-[cC]\\s+${ARG}|--${ARG}))*\\s+merge(?![-\\w])`,
+  `(^|[;&|\\n])\\s*git(?:\\s+(?:-[cC]\\s+${ARG}|--${ARG}))*\\s+merge(?![-\\w])(?!\\s+--(?:abort|quit)\\b)`,
   'm'
 );
 const VERIFICATION_DOC = 'docs/agents/verification.md';
@@ -70,13 +72,19 @@ function pickCommand(verification, getChangedPaths) {
   return verification.focused.replace(/\{paths\}/g, () => quoted);
 }
 
-// decide() is pure over its inputs (cmd + verification doc) so it is unit-testable; runTests and
-// getChangedPaths inject the side effects.
-function decide(input, verification, runTests, getChangedPaths) {
+// decide() is pure over its inputs so it is unit-testable; getVerification, runTests,
+// getChangedPaths, and mergeInProgress inject the side effects. getVerification is a thunk —
+// PostToolUse(Bash) fires on every Bash call, so the doc read only happens once the cheap
+// checks say this is a gated merge.
+function decide(input, getVerification, runTests, getChangedPaths, mergeInProgress) {
   if (input && input.agent_id) return { block: false }; // subagent → not our concern
   const cmd = (input && input.tool_input && input.tool_input.command) || '';
   if (!IS_MERGE.test(cmd)) return { block: false }; // not a merge
+  const verification = getVerification();
   if (!verification || !verification.full) return { block: false }; // no gate configured
+  // A conflicted merge left MERGE_HEAD behind: nothing merged yet, so a suite run would test the
+  // unchanged (or conflicted) tree and blame the merge. Skip; the run-handoff full suite still runs.
+  if (mergeInProgress && mergeInProgress()) return { block: false };
   const testCommand = pickCommand(verification, getChangedPaths);
   const result = runTests(testCommand);
   if (result.ok) return { block: false };
@@ -89,12 +97,27 @@ function decide(input, verification, runTests, getChangedPaths) {
 
 function runTests(testCommand, cwd) {
   try {
-    execSync(testCommand, { cwd, stdio: 'pipe', encoding: 'utf8' });
+    // maxBuffer well above Node's 1 MiB default: a chatty green suite killed with ENOBUFS would
+    // land in the catch and read as RED.
+    execSync(testCommand, { cwd, stdio: 'pipe', encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
     return { ok: true, output: '' };
   } catch (e) {
+    // status == null means the suite was killed (signal, ENOBUFS), not that it failed — no verdict,
+    // so fail open, same as the 600s hook timeout ceiling documented above.
+    if (e.status == null) return { ok: true, output: '' };
     const out = ((e.stdout || '') + (e.stderr || '')).trim();
     // tail — the failing assertions are at the end, and we don't want to flood context
     return { ok: false, output: out.split('\n').slice(-40).join('\n') };
+  }
+}
+
+// MERGE_HEAD only exists while a merge sits unresolved in the working tree.
+function mergeInProgress(cwd) {
+  try {
+    execSync('git rev-parse -q --verify MERGE_HEAD', { cwd, stdio: 'pipe' });
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -129,8 +152,13 @@ function main() {
       process.exit(0); // not our shape → never block
     }
     const cwd = (input && input.cwd) || process.cwd();
-    const verification = readVerification(cwd);
-    const { block, reason } = decide(input, verification, (tc) => runTests(tc, cwd), () => getChangedPaths(cwd));
+    const { block, reason } = decide(
+      input,
+      () => readVerification(cwd),
+      (tc) => runTests(tc, cwd),
+      () => getChangedPaths(cwd),
+      () => mergeInProgress(cwd),
+    );
     if (block) {
       process.stderr.write(reason + '\n');
       process.exit(2);
@@ -144,7 +172,8 @@ if (process.argv[2] === '--selftest') {
   const green = () => ({ ok: true, output: '' });
   const red = () => ({ ok: false, output: 'FAIL foo' });
   const merge = (command, extra) => Object.assign({ tool_input: { command } }, extra);
-  const full = (cmd) => ({ full: cmd, focused: null });
+  // decide() takes the verification as a thunk; full() returns one.
+  const full = (cmd) => () => ({ full: cmd, focused: null });
   const notCalled = () => {
     throw new Error('getChangedPaths should not be called when no focused command is configured');
   };
@@ -167,6 +196,43 @@ if (process.argv[2] === '--selftest') {
   assert.equal(decide(merge('git -c k="v w" merge slice/x/1'), full('npm test'), red, notCalled).block, true, 'git -c <unquoted key, quoted value> merge is gated');
   assert.equal(decide(merge('git --git-dir="a b" merge slice/x/1'), full('npm test'), red, notCalled).block, true, 'git --git-dir="quoted value with space" merge is gated');
   assert.equal(decide(merge('git -c core.editor=true commit -m x'), full('npm test'), red, notCalled).block, false, 'git -c commit ignored');
+  assert.equal(decide(merge('git merge --abort'), full('npm test'), red, notCalled).block, false, 'merge --abort undoes a merge, not gated');
+  assert.equal(decide(merge('git merge --quit'), full('npm test'), red, notCalled).block, false, 'merge --quit abandons a merge, not gated');
+  assert.equal(decide(merge('git merge --continue'), full('npm test'), red, notCalled).block, true, 'merge --continue completes a merge, gated');
+
+  // a merge left unresolved (MERGE_HEAD present) → skip; nothing merged yet to gate
+  assert.equal(
+    decide(merge('git merge conflicting'), full('npm test'), red, notCalled, () => true).block,
+    false,
+    'an in-progress conflicted merge is not gated',
+  );
+
+  // the verification doc is only read once the cheap checks pass — PostToolUse fires on every Bash call
+  {
+    const readNotCalled = () => {
+      throw new Error('getVerification should not be called for a non-merge command');
+    };
+    assert.equal(decide(merge('git status'), readNotCalled, red, notCalled).block, false, 'non-merge never reads the verification doc');
+  }
+
+  // runTests: a verdict only when the suite actually ran to an exit code
+  assert.equal(runTests('exit 0').ok, true, 'exit 0 is GREEN');
+  assert.equal(runTests('exit 3').ok, false, 'a nonzero exit is RED');
+  assert.equal(
+    runTests(`node -e "process.stdout.write('x'.repeat(2 * 1024 * 1024))"`).ok,
+    true,
+    'a green suite with >1 MiB of output stays GREEN (maxBuffer above the Node default)',
+  );
+  assert.equal(runTests('kill -9 $$').ok, true, 'a killed suite (status null) is no verdict — fails open, not RED');
+
+  // ARG mirrors merge-guard's token (the comment above owns why); hooks stay standalone, so pin
+  // the copy against the canonical one instead of sharing it — silent drift would be a bug.
+  {
+    const sibling = fs.readFileSync(path.join(__dirname, 'merge-guard.js'), 'utf8');
+    const m = sibling.match(/^const ARG = \/(.*)\/\.source;$/m);
+    assert.ok(m, 'merge-guard.js declares its ARG token where this pin expects it');
+    assert.equal(ARG, m[1], 'green-gate ARG is byte-identical to merge-guard ARG');
+  }
 
   // --- references/test-selection.md: full vs. focused command selection ---
 
@@ -184,7 +250,7 @@ if (process.argv[2] === '--selftest') {
     let ran;
     const spy = (tc) => { ran = tc; return green(); };
     const verification = { full: 'npm test', focused: 'npm test -- {paths}' };
-    decide(merge('git merge --no-ff slice/s1'), verification, spy, () => ['src/a.js', 'src/b.js']);
+    decide(merge('git merge --no-ff slice/s1'), () => verification, spy, () => ['src/a.js', 'src/b.js']);
     assert.equal(ran, "npm test -- 'src/a.js' 'src/b.js'", 'focused {paths} token is substituted with the changed paths');
   }
 
@@ -193,7 +259,7 @@ if (process.argv[2] === '--selftest') {
     let ran;
     const spy = (tc) => { ran = tc; return green(); };
     const verification = { full: 'npm test', focused: 'vitest --changed' };
-    decide(merge('git merge --no-ff slice/s1'), verification, spy, () => ['src/a.js']);
+    decide(merge('git merge --no-ff slice/s1'), () => verification, spy, () => ['src/a.js']);
     assert.equal(ran, 'vitest --changed', 'focused command with no {paths} token runs verbatim');
   }
 
@@ -202,7 +268,7 @@ if (process.argv[2] === '--selftest') {
     let ran;
     const spy = (tc) => { ran = tc; return green(); };
     const verification = { full: 'npm test', focused: 'npm test -- {paths}' };
-    decide(merge('git merge --no-ff slice/s1'), verification, spy, () => []);
+    decide(merge('git merge --no-ff slice/s1'), () => verification, spy, () => []);
     assert.equal(ran, 'npm test', 'empty changed-path set falls back to the full command');
   }
 
@@ -211,14 +277,14 @@ if (process.argv[2] === '--selftest') {
     let ran;
     const spy = (tc) => { ran = tc; return green(); };
     const verification = { full: 'npm test', focused: 'npm test -- {paths}' };
-    decide(merge('git merge --no-ff slice/s1'), verification, spy, () => ['a b/c.js']);
+    decide(merge('git merge --no-ff slice/s1'), () => verification, spy, () => ['a b/c.js']);
     assert.equal(ran, "npm test -- 'a b/c.js'", 'a changed path with a space is a single quoted argument');
   }
 
   // a RED focused run blocks with the same message shape a RED full run blocks with, naming the command
   {
     const verification = { full: 'npm test', focused: 'npm test -- {paths}' };
-    const result = decide(merge('git merge --no-ff slice/s1'), verification, red, () => ['src/a.js']);
+    const result = decide(merge('git merge --no-ff slice/s1'), () => verification,red, () => ['src/a.js']);
     assert.equal(result.block, true, 'RED focused run blocks');
     assert.match(result.reason, /npm test -- 'src\/a\.js'/, 'block reason names the focused command it ran');
     assert.match(result.reason, /FAIL foo/, 'block reason carries the failure output');
@@ -230,7 +296,7 @@ if (process.argv[2] === '--selftest') {
     let ran;
     const spy = (tc) => { ran = tc; return green(); };
     const verification = { full: 'npm test', focused: 'pytest {paths} && ruff check {paths}' };
-    decide(merge('git merge --no-ff slice/s1'), verification, spy, () => ['x.py']);
+    decide(merge('git merge --no-ff slice/s1'), () => verification, spy, () => ['x.py']);
     assert.equal(ran, "pytest 'x.py' && ruff check 'x.py'", 'both {paths} tokens are substituted');
   }
 
@@ -240,7 +306,7 @@ if (process.argv[2] === '--selftest') {
     let ran;
     const spy = (tc) => { ran = tc; return green(); };
     const verification = { full: 'npm test', focused: 'npm test -- {paths}' };
-    decide(merge('git merge --no-ff slice/s1'), verification, spy, () => ['a$&b.js']);
+    decide(merge('git merge --no-ff slice/s1'), () => verification, spy, () => ['a$&b.js']);
     assert.equal(ran, "npm test -- 'a$&b.js'", 'a `$&` in a changed path is not treated as a replacement pattern');
   }
 
@@ -293,6 +359,23 @@ if (process.argv[2] === '--selftest') {
     // a merge that leaves HEAD unmoved (ORIG_HEAD == HEAD) → an empty changed-path set
     gitTest(['update-ref', 'ORIG_HEAD', 'HEAD'], repo);
     assert.deepEqual(getChangedPaths(repo), [], 'ORIG_HEAD equal to HEAD → empty changed-path set');
+
+    // mergeInProgress(): a conflicted merge leaves MERGE_HEAD behind; --abort clears it
+    assert.equal(mergeInProgress(repo), false, 'no merge in progress on a clean tree');
+    gitTest(['checkout', '-q', '-b', 'left'], repo);
+    fs.writeFileSync(path.join(repo, 'base.txt'), 'left\n');
+    gitTest(['commit', '-q', '-am', 'left'], repo);
+    gitTest(['checkout', '-q', 'main'], repo);
+    fs.writeFileSync(path.join(repo, 'base.txt'), 'right\n');
+    gitTest(['commit', '-q', '-am', 'right'], repo);
+    try {
+      gitTest(['merge', 'left'], repo); // conflicts on base.txt
+    } catch {
+      // the conflict is the point
+    }
+    assert.equal(mergeInProgress(repo), true, 'a conflicted merge is detected via MERGE_HEAD');
+    gitTest(['merge', '--abort'], repo);
+    assert.equal(mergeInProgress(repo), false, 'merge --abort clears MERGE_HEAD');
 
     // no ORIG_HEAD ref at all → falls back to HEAD^1
     const repo2 = fs.mkdtempSync(path.join(os.tmpdir(), 'gg-repo2-'));
