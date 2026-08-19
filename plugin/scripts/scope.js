@@ -224,23 +224,14 @@ function verbInit(cwd, label, stdinJson) {
     fail('stdin JSON must carry an "anchor" string and a "slices" array');
   }
 
-  // Ensure .superdev/ is git-ignored before creating anything under it.
-  const gi = path.join(cwd, '.gitignore');
-  let giText = '';
-  try {
-    giText = fs.readFileSync(gi, 'utf8');
-  } catch (e) {
-    if (e.code !== 'ENOENT') throw e;
-  }
-  if (!giText.split('\n').some((l) => l.trim() === '.superdev/' || l.trim() === '.superdev')) {
-    fs.writeFileSync(gi, giText + (giText && !giText.endsWith('\n') ? '\n' : '') + '.superdev/\n', 'utf8');
-  }
-
   const seenIds = new Set();
   const rows = spec.slices.map((s) => {
     for (const k of ['id', 'issue', 'title', 'type']) {
       if (typeof s[k] !== 'string' || !s[k]) fail(`slice row missing "${k}"`);
     }
+    // tableRowIndexes drops any row whose first cell is `id` (the header row) — a slice actually
+    // named that would be written but invisible to every reader, so refuse it here.
+    if (/^id$/i.test(s.id)) fail(`slice id "${s.id}" is reserved (it reads as the table header row)`);
     if (seenIds.has(s.id)) fail(`duplicate slice id "${s.id}"`);
     seenIds.add(s.id);
     const dep = s['depends-on'] || '—';
@@ -252,12 +243,27 @@ function verbInit(cwd, label, stdinJson) {
     );
   });
 
+  // Ensure .superdev/ is git-ignored before creating anything under it — but after every
+  // refusal above, so a refused init leaves the repo untouched.
+  const gi = path.join(cwd, '.gitignore');
+  let giText = '';
+  try {
+    giText = fs.readFileSync(gi, 'utf8');
+  } catch (e) {
+    if (e.code !== 'ENOENT') throw e;
+  }
+  if (!giText.split('\n').some((l) => l.trim() === '.superdev/' || l.trim() === '.superdev')) {
+    fs.writeFileSync(gi, giText + (giText && !giText.endsWith('\n') ? '\n' : '') + '.superdev/\n', 'utf8');
+  }
+
   const doc = [
     `# Ledger — ${slug}`,
     '',
     '**Stage:** implementing',
     `**Branch:** ${label}`,
-    `**Anchor:** ${sanitizeCell(spec.anchor)}`,
+    // Not sanitizeCell: the Anchor is a header line, not a table cell, and no header reader
+    // unescapes `\|` — only the one-line shape matters here.
+    `**Anchor:** ${spec.anchor.replace(/(\r\n|\r|\n)+/g, ' ')}`,
     '',
     '| id | issue | title | type | depends-on | status | range |',
     '|---|---|---|---|---|---|---|',
@@ -269,14 +275,10 @@ function verbInit(cwd, label, stdinJson) {
   console.log(root);
 }
 
+// Set-only: the read path is `get stage`.
 function verbStage(root, sub, value) {
   const lines = readLines(root);
-  if (sub === 'get') {
-    const v = getHeader(lines, 'Stage');
-    console.log(v === null ? 'absent' : v);
-    return;
-  }
-  if (sub !== 'set') fail(`unknown stage subcommand "${sub}" — use get|set`);
+  if (sub !== 'set') fail(`unknown stage subcommand "${sub}" — use set`);
   if (!STAGES.includes(value)) fail(`unknown stage "${value}" (${STAGES.join(', ')})`);
   const cur = getHeader(lines, 'Stage');
   if (cur !== null && cur !== value) {
@@ -579,7 +581,7 @@ function usage() {
   return [
     'usage: node scope.js <verb> …   (ledger CLI — the only ledger.md write path)',
     '  init <type>/<slug>                 stdin: {"anchor":"…","slices":[{id,issue,title,type,…}]}',
-    '  stage get|set <value> --root <run-root>',
+    '  stage set <value> --root <run-root>',
     '  slice <id> <status> [--range <r>]   --root <run-root>',
     '  degraded add <text>   --root <run-root>',
     '  unresolved add <text>|clear   --root <run-root>',
@@ -821,9 +823,51 @@ function selftest() {
     assert.ok(!r.ok && /duplicate slice id/.test(r.err), 'duplicate slice id refused');
     assert.ok(!fs.existsSync(path.join(tmp, '.superdev', 'scopes', 'dup')), 'no root created on duplicate id');
 
+    // init: a refused init leaves the repo untouched — .gitignore is only written on success.
+    {
+      const refusedDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-selftest-refused-'));
+      const origRefused = console.log;
+      console.log = () => {};
+      try {
+        run(['init', 'feat/refused'], refusedDir, dupJson);
+        assert.fail('duplicate-id init should refuse');
+      } catch (e) {
+        if (!e.isRefusal) throw e;
+      } finally {
+        console.log = origRefused;
+      }
+      assert.ok(!fs.existsSync(path.join(refusedDir, '.gitignore')), 'a refused init does not write .gitignore');
+      fs.rmSync(refusedDir, { recursive: true, force: true });
+    }
+
+    // init: a slice literally named `id` (any case) is refused — tableRowIndexes reads that row
+    // as the table header, so it would be written but invisible to every reader.
+    const idSliceJson = JSON.stringify({
+      anchor: '#1 — anchor',
+      slices: [{ id: 'ID', issue: '#1', title: 'a', type: 'behavior' }],
+    });
+    r = call(['init', 'feat/idslice'], idSliceJson);
+    assert.ok(!r.ok && /reserved/.test(r.err), 'slice id "ID" refused as reserved: ' + (r.err || ''));
+
+    // init: an anchor with a pipe is a header line, not a table cell — it reads back as written,
+    // with no `\|` escape leaking into `get anchor` (and from there into a PR body).
+    const pipeAnchorJson = JSON.stringify({
+      anchor: '#5 — a | b',
+      slices: [{ id: '01', issue: '#1', title: 'a', type: 'behavior' }],
+    });
+    r = call(['init', 'feat/pipe-anchor'], pipeAnchorJson);
+    assert.ok(r.ok, 'pipe-anchor init passes: ' + (r.err || ''));
+    assert.strictEqual(
+      call(['get', 'anchor', '--root', path.join(tmp, '.superdev', 'scopes', 'pipe-anchor')]).out,
+      '#5 — a | b',
+      'an anchor with a pipe reads back unescaped',
+    );
+
     // stage: get, unknown value, backwards, terminal, sanctioned move.
     const R = ['--root', root];
-    assert.strictEqual(call(['stage', 'get', ...R]).out, 'implementing', 'stage get');
+    assert.strictEqual(call(['get', 'stage', ...R]).out, 'implementing', 'get stage reads the fresh stage');
+    r = call(['stage', 'get', ...R]);
+    assert.ok(!r.ok && /use set/.test(r.err), 'stage is set-only — get stage is the read path');
     r = call(['stage', 'set', 'polished', ...R]);
     assert.ok(!r.ok && /unknown stage/.test(r.err), 'unknown stage refused');
     assert.ok(call(['stage', 'set', 'merged', ...R]).ok, 'implementing → merged');
@@ -1109,7 +1153,7 @@ function selftest() {
       '| 01 | #10 | old slice | mechanical | — | merged | abc..def |\n';
     fs.writeFileSync(path.join(preRoot, 'ledger.md'), preCliText, 'utf8');
     const P = ['--root', preRoot];
-    assert.strictEqual(call(['stage', 'get', ...P]).out, 'merged', 'pre-CLI stage readable');
+    assert.strictEqual(call(['get', 'stage', ...P]).out, 'merged', 'pre-CLI stage readable');
     assert.strictEqual(call(['get', 'branch', ...P]).out, 'absent', 'absent Branch reported as absent');
     assert.strictEqual(readLedgerHeader(preCliText, 'Unresolved'), null, 'a missing Unresolved line reads as absent rather than raising');
     assert.ok(call(['unresolved', 'clear', ...P]).ok, 'clearing an absent Unresolved line on a pre-CLI ledger still succeeds');

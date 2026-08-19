@@ -18,7 +18,7 @@ the working rules, the release flow — stay in the root [`AGENTS.md`](../AGENTS
 ### scope.js — the run-state CLI (ADR 0022)
 
 `scope.js` owns the ledger's schema and is the only `ledger.md` read and write path in the chain —
-`init`, `stage get|set`, `slice`, `degraded add`, `unresolved add|clear`,
+`init`, `stage set`, `slice`, `degraded add`, `unresolved add|clear`,
 `get stage|branch|anchor|slices|unresolved|degraded`, and `status`
 (which renders the whole `/superdev:status` report). It also exports `readLedgerHeader` as a module
 API. This per-header ledger-line reader is what `hooks/scope-prune.js` uses instead of carrying its

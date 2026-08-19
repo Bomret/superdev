@@ -86,13 +86,16 @@ function readLines(text) {
 function maskFencedLines(lines, source) {
   let fence = null;
   const masked = lines.map((line) => {
-    const marker = line.match(/^\s{0,3}(`{3,}|~{3,})/);
     if (fence === null) {
+      const marker = line.match(/^\s{0,3}(`{3,}|~{3,})/);
       if (!marker) return line;
       fence = { char: marker[1][0], len: marker[1].length };
       return '';
     }
-    if (marker && marker[1][0] === fence.char && marker[1].length >= fence.len) fence = null;
+    // CommonMark: a closing fence is the marker alone — a shown ```bash opener inside the open
+    // block is content, not a closer.
+    const closer = line.match(/^\s{0,3}(`{3,}|~{3,})\s*$/);
+    if (closer && closer[1][0] === fence.char && closer[1].length >= fence.len) fence = null;
     return '';
   });
   if (fence !== null) fail(`${source} has an unterminated fenced code block — nothing is merged`);
@@ -400,6 +403,22 @@ function selftest() {
   assert.ok(exampleOut.includes('## Deploy\n\nnew.'), 'the real section is replaced, not refused as a duplicate');
   assert.equal((exampleOut.match(/^## Deploy$/gm) || []).length, 1, 'the fenced example heading is gone with it');
 
+  // mode 4: a shown fence opener with an info string (```bash) inside an open block is content,
+  // not a closer — CommonMark closes a fence only on the bare marker. The `# comment` after it must
+  // stay masked, or it would read as a heading and end the section early.
+  const shownOpener = merge(
+    runbooks,
+    staged('## Deploy', 'Run:\n\n````markdown\n```bash\n# not a heading\n```\n````\n\ndone.'),
+  );
+  assert.ok(shownOpener.includes('# not a heading'), 'the shown fenced comment survives, unread as a heading');
+  assert.ok(shownOpener.includes('done.'), 'the prose after the outer fence is kept in the section');
+  assert.ok(shownOpener.includes('## Rollback\n\nroll.'), 'the next section is untouched');
+  assert.throws(
+    () => merge(runbooks, staged('## Deploy', '```\n```bash\n# still open\n')),
+    /unterminated fenced code block/,
+    'a ```bash line inside an open ``` block does not close it — the block stays unterminated',
+  );
+
   // --- a live section titled by an ATX heading indented 1-3 spaces (still a heading under
   // CommonMark) stops the replaced region — it does not vanish into the section ahead of it. ---
   const indentedLive =
@@ -476,5 +495,3 @@ function selftest() {
 }
 
 if (require.main === module) main();
-
-module.exports = { merge };
