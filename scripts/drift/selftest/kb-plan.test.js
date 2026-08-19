@@ -5,48 +5,10 @@
 //
 // Run by ./index.js, which owns the shared fixture() helper, realRoot, and the temp-dir cleanup.
 
-const { docPath, maskFences, extractSection, scalar, frontmatter, stripFrontmatter, normalizeWhitespace, scanContract } = require('../lib');
-const scanners = require('../scanners');
-const contracts = require('../contracts');
-
-// Every scanner and every contract table by its own name, exactly as the single-file selftest read
-// them before the split.
+const { docPath, scanContract } = require('../lib');
+const { scanKbNoBackendCall } = require('../scanners');
 const {
-  scan,
-  scanRunRootPaths,
-  scanAssigneeContract,
-  scanAnchorContract,
-  scanAppendContract,
-  scanAfkSelectionNeutrality,
-  scanWritingStandardContract,
-  scanContentTypesContract,
-  scanCommandRefs,
-  scanChainHandoff,
-  scanAfkInvocations,
-  scanShipGateContract,
-  scanUnresolvedGlossaryContract,
-  scanKbNoBackendCall,
-  scanHookLedgerParsers,
-  scanEvalShape,
-  scanAdrStatus,
-  scanForcingBranchFlag,
-} = scanners;
-const {
-  ADR_STATUSES,
-  FEATURE_ARG_CONTRACTS,
-  UNATTENDED_CONTRACTS,
-  CHANGE_TYPE_CONTRACTS,
-  DEGRADED_CONTRACTS,
-  DERIVED_CRITERIA_CONTRACTS,
-  LABEL_VALIDATION_CONTRACTS,
-  GREEN_GATE_TIMEOUT_CONTRACTS,
-  VERB_CONTRACTS,
   KB_STAGING_CONTRACTS,
-  TEST_SELECTION_CONTRACTS,
-  FULL_SUITE_CONTRACTS,
-  AFK_ROUTING_CONTRACTS,
-  ARG_TOKEN_CONTRACTS,
-  ARG_TOKEN_LINE,
   AUDIT_SET_CONTRACTS,
   AGGREGATE_PAGE_CONTRACTS,
   READ_PATH_CONTRACTS,
@@ -55,7 +17,7 @@ const {
   ROTATE_ON_SHIPPED_CONTRACTS,
   PARKED_QUESTIONS_CONTRACTS,
   RUN_KIND_CONTRACTS,
-} = contracts;
+} = require('../contracts');
 
 module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // --- KB staging (ADR 0023): /superdev:plan and /superdev:document stage knowledge-base pages, and
@@ -132,6 +94,18 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'commands/document.md': 'Upsert each page at the backend.\n',
   });
   assert.ok(scanKbNoBackendCall(kb9).length >= 1, 'an "upsert" instruction aimed at a knowledge-base object is caught');
+
+  // positive: passive and gerund spellings — a regression phrased as "is published to", "when
+  // updating", or "creating pages" must not walk past a guard built for imperative verbs only
+  for (const [text, label] of [
+    ['Each page is published to the wiki as part of the pass.\n', 'the passive "is published to the wiki"'],
+    ['When updating the wiki page, keep the outline order.\n', 'the gerund "updating the wiki page"'],
+    ['Creating pages for genuinely new outline entries is allowed.\n', 'the gerund "creating pages"'],
+    ['Pages are created on the wiki during the pass.\n', 'the passive "are created on the wiki"'],
+  ]) {
+    const kbMorph = fixture({ 'commands/document.md': text });
+    assert.ok(scanKbNoBackendCall(kbMorph).length >= 1, `${label} is caught`);
+  }
 
   // absent files are skipped, matching every other scanner here
   assert.equal(

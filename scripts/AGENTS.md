@@ -155,8 +155,9 @@ itself resolves to a file that exists. A reference cites another reference — b
 playbooks point at `scope-mode.md` — so a rename there dangles like any other. Second, the
 `run-root` contract: `commands/implement.md`, `commands/review.md`, `commands/document.md`,
 `commands/ship.md`, `commands/publish-kb.md`, `references/implement-full.md`,
-`references/implement-lite.md`, `references/scope-mode.md`, `agents/implementer.md`,
-`agents/slice-reviewer.md`, `agents/simplicity-reviewer.md`, and `agents/final-reviewer.md` address
+`references/implement-lite.md`, `references/run-init.md`, `references/run-handoff.md`,
+`references/scope-mode.md`, `agents/implementer.md`, `agents/slice-reviewer.md`,
+`agents/simplicity-reviewer.md`, and `agents/final-reviewer.md` address
 run-root artifacts by absolute `<run-root>/…` path. Third, the `assignee` contract: every
 issue-backend document carries the `**Assignee` config bullet. The filename alone triggers that
 check, with no content gate on how the doc phrases issue creation.
@@ -266,7 +267,8 @@ half, `scanKbNoBackendCall()`: none of those three, nor `agents/doc-writer.md`, 
 backend-directed verb. The staging-path mention moved off `doc-writer.md`, but the check keeps that
 document in this list, because the agent still dispatches the knowledge-base pass, and a regression
 could add a backend call to its own framing without touching the reference at all. The verb checked is
-publish, create, update, upsert, or
+publish, create, update, upsert — in any morphology, so a passive "is published to" or a gerund
+"updating the wiki page" counts too — or
 an HTTP `POST`/`PUT`/`DELETE` — aimed at a page, wiki, space, or backend object.
 `commands/publish-kb.md` is exempt, because reaching the backend is its job. The check reads the
 instruction's shape rather than a backend's literal endpoint or credential name, because

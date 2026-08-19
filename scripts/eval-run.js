@@ -73,7 +73,11 @@ function parseCase(text) {
     if (!kv) continue;
     const [, indent, key, rest] = kv;
 
-    if (key === 'prompt' && rest.trim() === '|') {
+    // Any block/folded scalar body (`|`, `>-`, …) is consumed here, not just the prompt's —
+    // otherwise a prose line like `runs: 5` inside a `description: >-` body would silently
+    // overwrite the case's real value.
+    const blockMarker = rest.trim().match(/^[|>][+-]?$/);
+    if (blockMarker) {
       const body = [];
       const inner = indent.length + 2;
       for (let j = i + 1; j < lines.length; j++) {
@@ -81,7 +85,9 @@ function parseCase(text) {
         body.push(lines[j].slice(inner));
         i = j;
       }
-      out.prompt = body.join('\n').replace(/\s+$/, '') + '\n';
+      if (key === 'prompt' && blockMarker[0][0] === '|') {
+        out.prompt = body.join('\n').replace(/\s+$/, '') + '\n';
+      }
       continue;
     }
     if (key === 'allowed_tools') {
@@ -95,7 +101,7 @@ function parseCase(text) {
     }
     if (rest.trim() === '') continue;
     if (['name', 'scaffold_script'].includes(key)) out[key] = scalar(rest);
-    if (['max_turns', 'timeout_seconds', 'runs'].includes(key)) out[key] = Number(scalar(rest));
+    if (['timeout_seconds', 'runs'].includes(key)) out[key] = Number(scalar(rest));
   }
   return out;
 }
@@ -591,16 +597,6 @@ function formatRunLine(name, arm, n, total, r) {
   return `${name} run ${n}/${total} · ${arm}: score ${r.score === null ? 'n/a' : r.score.toFixed(2)} markers=${markers}`;
 }
 
-// The CLI has no --max-turns flag (verified against `claude -p --help`), so a case's max_turns cannot
-// be honored. Silence here would let a case author believe the cap fired; one warning per run instead,
-// naming the bound that actually applies.
-function maxTurnsWarning(cases) {
-  const withCap = cases.filter((c) => Number.isFinite(c.max_turns));
-  if (!withCap.length) return null;
-  const names = withCap.map((c) => c.name).join(', ');
-  return `max_turns is not enforced by this CLI (no --max-turns flag) — ${names} fall back to their timeout_seconds bound instead.`;
-}
-
 function parseArgs(argv) {
   const opts = { case: null, judgeModel: DEFAULT_JUDGE };
   for (let i = 0; i < argv.length; i++) {
@@ -622,8 +618,6 @@ function run(argv, root) {
   }
   const cases = discoverCases(root, opts.case);
   if (!cases.length) fail(opts.case ? `no case matches \`${opts.case}\`` : 'no cases found under evals/');
-  const turnsWarning = maxTurnsWarning(cases);
-  if (turnsWarning) process.stderr.write(turnsWarning + '\n');
 
   const outDir = opts.outDir || path.join(root, 'evals', 'results', new Date().toISOString().replace(/[:.]/g, '-'));
   const aggregates = [];
@@ -687,6 +681,9 @@ function selftest() {
     const yaml = [
       'schema_version: "1.0"',
       'name: ab-plan-edge-case',
+      'description: >-',
+      '  prose that happens to mention',
+      '  runs: 5 and timeout_seconds: 60 inline.',
       'tags:',
       '  - ab',
       'context:',
@@ -707,6 +704,8 @@ function selftest() {
     const spec = parseCase(yaml);
     assert.strictEqual(spec.name, 'ab-plan-edge-case');
     assert.strictEqual(spec.scaffold_script, 'scaffold.sh');
+    // both real values survive the `runs:`/`timeout_seconds:` lines inside the description's
+    // folded-scalar body — the body is consumed, not key-matched
     assert.strictEqual(spec.runs, 3);
     assert.strictEqual(spec.timeout_seconds, 900);
     assert.deepStrictEqual(spec.allowed_tools, ['Read', 'Bash']);
@@ -1247,13 +1246,6 @@ function selftest() {
       formatRunLine('c', 'plugin', 1, 3, { ok: false, error: 'timed out' }),
       'c run 1/3 · plugin: ERROR timed out',
     );
-
-    // --- max_turns cannot be honored, so a case that names one gets one warning ---
-    assert.strictEqual(maxTurnsWarning([{ name: 'a' }]), null, 'no case asked for a turn cap — nothing to warn about');
-    const turnsMsg = maxTurnsWarning([{ name: 'widget-planner-case', max_turns: 40 }]);
-    assert.ok(turnsMsg.includes('max_turns is not enforced'), 'the cap is named as unenforced, not silently dropped');
-    assert.ok(turnsMsg.includes('widget-planner-case'), 'the case that asked for it is named');
-    assert.ok(turnsMsg.includes('timeout_seconds'), 'the bound that actually applies is named instead');
 
     // --- an arm that never completed a run leaves nothing to compare against -------
     const onlyPluginRan = aggregate('c', [

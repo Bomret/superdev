@@ -661,12 +661,15 @@ const KB_OBJECT = 'pages?|wiki|space|backend';
 const KB_BACKEND_CALL_MARKERS = [
   // "publish-kb" is the command name, not the verb — excluded so naming `/superdev:publish-kb` never
   // trips this on its own.
-  [new RegExp(`\\bpublish(?!-kb)(?:es|ing)?\\b[^\\n]{0,25}?\\b(?:${KB_OBJECT})\\b`, 'i'), 'a "publish" instruction aimed at a knowledge-base object'],
+  // Full verb morphology (publishes/published/publishing, creating, updated, …): a regression
+  // phrased in the passive or as a gerund ("is published to the wiki", "when updating the wiki
+  // page") must not walk past a guard whose whole job is catching the silent false-green.
+  [new RegExp(`\\bpublish(?!-kb)(?:es|ed|ing)?\\b[^\\n]{0,25}?\\b(?:${KB_OBJECT})\\b`, 'i'), 'a "publish" instruction aimed at a knowledge-base object'],
   // `upsert` alone carries the backtick exclusion (?<!`)…(?!`), because `upsert` is also the staged
   // page's own `action` value and both writers cite it as a frontmatter literal beside the word "page".
   // The exclusion is scoped to that one verb: applied to the whole alternation it would exempt every
   // verb, and a backticked `create` — this guard's own reference case — would walk straight through.
-  [new RegExp(`\\b(?:create(?:s|d)?(?:-or-update)?|update(?:s|d)?)\\b[^\\n]{0,25}?\\b(?:${KB_OBJECT})\\b` +
+  [new RegExp(`\\b(?:creat(?:e|es|ed|ing)(?:-or-update)?|updat(?:e|es|ed|ing))\\b[^\\n]{0,25}?\\b(?:${KB_OBJECT})\\b` +
     `|(?<!\`)\\bupsert(?:s|ed|ing)?\\b(?!\`)[^\\n]{0,25}?\\b(?:${KB_OBJECT})\\b`, 'i'), 'a create-or-update instruction aimed at a knowledge-base object'],
   // Case-sensitive: an HTTP verb is uppercase in these docs' code samples, unlike the lowercase
   // `action: delete` frontmatter value staged pages carry.

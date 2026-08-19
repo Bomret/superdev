@@ -208,18 +208,21 @@ function scanAfkSelectionNeutrality(root) {
   return gaps;
 }
 
-// scanWritingStandardContract() is pure over a root dir: reads every documentation-convention document
-// and reports the ones that never offer a writing standard. Absent files are skipped, so fixtures need
-// only the docs they exercise.
-function scanWritingStandardContract(root) {
+// scanDocsCarry(): the shared loop behind the single-pattern-per-document checks — every listed
+// document must still match the pattern; one that no longer does is the gap. Absent files are
+// skipped, so fixtures need only the docs they exercise.
+function scanDocsCarry(root, docs, pattern) {
   const gaps = [];
-  for (const rel of WRITING_STANDARD_DOCS) {
+  for (const rel of docs) {
     const text = readDoc(root, rel);
     if (text === null) continue; // doc absent (fixture / partial checkout) → nothing to scan
-    if (!WRITING_STANDARD_PATTERN.test(text)) gaps.push({ source: rel });
+    if (!pattern.test(text)) gaps.push({ source: rel });
   }
   return gaps;
 }
+
+// The documentation-convention seed must offer a writing standard (ADR 0012).
+const scanWritingStandardContract = (root) => scanDocsCarry(root, WRITING_STANDARD_DOCS, WRITING_STANDARD_PATTERN);
 
 // scanAdrStatus() is pure over a root dir: reads every `docs/adr/*.md` and reports the ones carrying no
 // recognised status line. An absent directory is skipped, so fixtures need only the files they exercise.
@@ -304,18 +307,8 @@ function scanEvalShape(root) {
   return problems;
 }
 
-// scanContentTypesContract() is pure over a root dir: reads every agent that must apply the content-type
-// lens and reports the ones that no longer instruct themselves to read it. Absent files are skipped, so
-// fixtures need only the agents they exercise.
-function scanContentTypesContract(root) {
-  const gaps = [];
-  for (const rel of CONTENT_TYPES_DOCS) {
-    const text = readDoc(root, rel);
-    if (text === null) continue; // agent absent (fixture / partial checkout) → nothing to scan
-    if (!CONTENT_TYPES_PATTERN.test(text)) gaps.push({ source: rel });
-  }
-  return gaps;
-}
+// Every document in the doc loop must still instruct itself to read the content-type lens (ADR 0014).
+const scanContentTypesContract = (root) => scanDocsCarry(root, CONTENT_TYPES_DOCS, CONTENT_TYPES_PATTERN);
 
 // scanCommandRefs() is pure over a root dir: reads commands/*.md and agents/*.md and reports every
 // command reference with no matching file under commands/. A document naming the same missing command is
@@ -443,19 +436,27 @@ function scanUnresolvedGlossaryContract(root) {
   return gaps;
 }
 
-// scanKbNoBackendCall() is pure over a root dir: reports every KB-backend call marker still carried by a
-// document that must not reach one. Absent files are skipped, as everywhere else here.
-function scanKbNoBackendCall(root) {
-  const offenders = [];
-  for (const rel of KB_NO_CALL_DOCS) {
+// scanDocsAvoid(): the shared loop behind the negative checks — a marker the listed documents must
+// NOT match (a table row asserts a document still matches a pattern; these assert one no longer
+// does). Each marker is `[pattern, expectation(hit)]`, so every check keeps its own gap text.
+// Absent files are skipped, as everywhere else here.
+function scanDocsAvoid(root, docs, markers) {
+  const gaps = [];
+  for (const rel of docs) {
     const text = readDoc(root, rel);
     if (text === null) continue; // document absent (fixture / partial checkout) → nothing to scan
-    for (const [pattern, what] of KB_BACKEND_CALL_MARKERS) {
-      if (pattern.test(text)) offenders.push({ source: rel, expectation: `reach no knowledge-base backend — it still carries ${what}` });
+    for (const [pattern, expectation] of markers) {
+      const hit = text.match(pattern);
+      if (hit) gaps.push({ source: rel, expectation: expectation(hit) });
     }
   }
-  return offenders;
+  return gaps;
 }
+
+// No document outside publish-kb may carry a KB-backend call marker (ADR 0023).
+const scanKbNoBackendCall = (root) =>
+  scanDocsAvoid(root, KB_NO_CALL_DOCS, KB_BACKEND_CALL_MARKERS.map(([pattern, what]) =>
+    [pattern, () => `reach no knowledge-base backend — it still carries ${what}`]));
 
 function scanHookLedgerParsers(root) {
   const dir = docPath(root, 'hooks');
@@ -484,30 +485,12 @@ function scanHookLedgerParsers(root) {
   return offenders;
 }
 
-// scanForcingBranchFlag() is pure over a root dir: reads both execution playbooks and reports every
-// forcing branch flag they still name (ADR 0028). Absent files are skipped, so fixtures need only the
-// playbooks they exercise. The rule lives here rather than in a contract table because it is a
-// *negative* — a table row asserts a document still matches a pattern, and this asserts one no longer
-// does.
-function scanForcingBranchFlag(root) {
-  const gaps = [];
-  for (const rel of FORCING_FLAG_DOCS) {
-    const text = readDoc(root, rel);
-    if (text === null) continue; // playbook absent (fixture / partial checkout) → nothing to scan
-    for (const pattern of FORCING_FLAG_PATTERNS) {
-      const hit = text.match(pattern);
-      if (hit) {
-        gaps.push({
-          source: rel,
-          expectation:
-            `name no forcing branch flag — \`${hit[0]}\` resets an existing branch instead of failing ` +
-            'on it, stranding every slice already merged into it; see ADR 0028',
-        });
-      }
-    }
-  }
-  return gaps;
-}
+// Neither execution playbook may name a forcing branch flag (ADR 0028).
+const scanForcingBranchFlag = (root) =>
+  scanDocsAvoid(root, FORCING_FLAG_DOCS, FORCING_FLAG_PATTERNS.map((pattern) =>
+    [pattern, (hit) =>
+      `name no forcing branch flag — \`${hit[0]}\` resets an existing branch instead of failing ` +
+      'on it, stranding every slice already merged into it; see ADR 0028']));
 
 // numberWord(): a small integer spelled the way the narrative spells it — 43 → "forty-three". The
 // narrative states its count in prose, so a check comparing digits would never match the text it guards.
@@ -573,25 +556,11 @@ function scanNarrativeCoverage(root, ids = require('./checks').map((check) => ch
 // run-init.md and ends at run-handoff.md, and no document sends a reader back — but nothing guarded that
 // shape, so a later edit could reintroduce the return jump silently. Absent files are skipped, so
 // fixtures need only the documents they exercise.
-function scanReturnToController(root) {
-  const gaps = [];
-  for (const rel of RETURN_TO_CONTROLLER_DOCS) {
-    const text = readDoc(root, rel);
-    if (text === null) continue; // playbook absent (fixture / partial checkout) → nothing to scan
-    for (const pattern of RETURN_TO_CONTROLLER_PATTERNS) {
-      const hit = text.match(pattern);
-      if (hit) {
-        gaps.push({
-          source: rel,
-          expectation:
-            `instruct no return to the command body — \`${hit[0]}\` sends a reader back to the ` +
-            'controller instead of forward, the way run-init.md and run-handoff.md do',
-        });
-      }
-    }
-  }
-  return gaps;
-}
+const scanReturnToController = (root) =>
+  scanDocsAvoid(root, RETURN_TO_CONTROLLER_DOCS, RETURN_TO_CONTROLLER_PATTERNS.map((pattern) =>
+    [pattern, (hit) =>
+      `instruct no return to the command body — \`${hit[0]}\` sends a reader back to the ` +
+      'controller instead of forward, the way run-init.md and run-handoff.md do']));
 
 // scanMarketplaceSource() is pure over a root dir: `.claude-plugin/marketplace.json`'s relative `source`
 // for each plugin must resolve to a directory carrying `.claude-plugin/plugin.json`. That one string is

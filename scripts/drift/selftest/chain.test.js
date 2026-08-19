@@ -5,34 +5,8 @@
 //
 // Run by ./index.js, which owns the shared fixture() helper, realRoot, and the temp-dir cleanup.
 
-const { maskFences, extractSection, scalar, frontmatter, stripFrontmatter, normalizeWhitespace, scanContract } = require('../lib');
-const scanners = require('../scanners');
-const contracts = require('../contracts');
-
-// Every scanner and every contract table by its own name, exactly as the single-file selftest read
-// them before the split.
+const { scanContract } = require('../lib');
 const {
-  scan,
-  scanRunRootPaths,
-  scanAssigneeContract,
-  scanAnchorContract,
-  scanAppendContract,
-  scanAfkSelectionNeutrality,
-  scanWritingStandardContract,
-  scanContentTypesContract,
-  scanCommandRefs,
-  scanChainHandoff,
-  scanAfkInvocations,
-  scanShipGateContract,
-  scanUnresolvedGlossaryContract,
-  scanKbNoBackendCall,
-  scanHookLedgerParsers,
-  scanEvalShape,
-  scanAdrStatus,
-  scanForcingBranchFlag,
-} = scanners;
-const {
-  ADR_STATUSES,
   FEATURE_ARG_CONTRACTS,
   UNATTENDED_CONTRACTS,
   CHANGE_TYPE_CONTRACTS,
@@ -41,22 +15,13 @@ const {
   LABEL_VALIDATION_CONTRACTS,
   GREEN_GATE_TIMEOUT_CONTRACTS,
   VERB_CONTRACTS,
-  KB_STAGING_CONTRACTS,
   TEST_SELECTION_CONTRACTS,
   FULL_SUITE_CONTRACTS,
   AFK_ROUTING_CONTRACTS,
   ARG_TOKEN_CONTRACTS,
   ARG_TOKEN_LINE,
-  AUDIT_SET_CONTRACTS,
-  AGGREGATE_PAGE_CONTRACTS,
-  READ_PATH_CONTRACTS,
-  STATUS_SEED_CONTRACTS,
-  PLAN_APPEND_CONTRACTS,
-  ROTATE_ON_SHIPPED_CONTRACTS,
-  PARKED_QUESTIONS_CONTRACTS,
-  RUN_KIND_CONTRACTS,
   SOURCE_SECTION_CONTRACTS,
-} = contracts;
+} = require('../contracts');
 
 module.exports = ({ assert, path, fixture }) => {
   // --- scanFeatureArgContract: `/superdev:implement` takes the feature label that names which planned

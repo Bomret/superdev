@@ -5,12 +5,7 @@
 //
 // Run by ./index.js, which owns the shared fixture() helper, realRoot, and the temp-dir cleanup.
 
-const { maskFences, extractSection, scalar, frontmatter, stripFrontmatter, normalizeWhitespace, scanContract } = require('../lib');
-const scanners = require('../scanners');
-const contracts = require('../contracts');
-
-// Every scanner and every contract table by its own name, exactly as the single-file selftest read
-// them before the split.
+const { scanContract } = require('../lib');
 const {
   scan,
   scanRunRootPaths,
@@ -25,40 +20,15 @@ const {
   scanAfkInvocations,
   scanShipGateContract,
   scanUnresolvedGlossaryContract,
-  scanKbNoBackendCall,
   scanHookLedgerParsers,
   scanEvalShape,
   scanAdrStatus,
   scanForcingBranchFlag,
   scanNarrativeCoverage,
   scanReturnToController,
-} = scanners;
-const {
-  ADR_STATUSES,
-  FEATURE_ARG_CONTRACTS,
-  UNATTENDED_CONTRACTS,
-  CHANGE_TYPE_CONTRACTS,
-  DEGRADED_CONTRACTS,
-  DERIVED_CRITERIA_CONTRACTS,
-  LABEL_VALIDATION_CONTRACTS,
-  GREEN_GATE_TIMEOUT_CONTRACTS,
-  VERB_CONTRACTS,
-  KB_STAGING_CONTRACTS,
-  TEST_SELECTION_CONTRACTS,
-  FULL_SUITE_CONTRACTS,
-  AFK_ROUTING_CONTRACTS,
-  ARG_TOKEN_CONTRACTS,
-  ARG_TOKEN_LINE,
-  AUDIT_SET_CONTRACTS,
-  AGGREGATE_PAGE_CONTRACTS,
-  READ_PATH_CONTRACTS,
-  STATUS_SEED_CONTRACTS,
-  PLAN_APPEND_CONTRACTS,
-  ROTATE_ON_SHIPPED_CONTRACTS,
-  PARKED_QUESTIONS_CONTRACTS,
-  RUN_KIND_CONTRACTS,
-  PLAYBOOK_EDGE_CONTRACTS,
-} = contracts;
+  scanMarketplaceSource,
+} = require('../scanners');
+const { ADR_STATUSES, DOC_PASS_CONTRACTS, PLAYBOOK_EDGE_CONTRACTS } = require('../contracts');
 
 module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // fixture with a missing reference
@@ -318,7 +288,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   const dp1 = fixture({
     'agents/doc-writer.md': '# doc-writer\n\nYou reconcile documentation with reality.\n',
   });
-  const dpGaps1 = scanContract(dp1, contracts.DOC_PASS_CONTRACTS);
+  const dpGaps1 = scanContract(dp1, DOC_PASS_CONTRACTS);
   assert.equal(dpGaps1.length, 1, 'flags a doc-writer that no longer reads references/doc-pass.md');
   assert.equal(dpGaps1[0].source, path.join('agents', 'doc-writer.md'), 'names doc-writer.md');
 
@@ -327,7 +297,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'agents/doc-writer.md': 'The pass is stated in `references/doc-pass.md`, which matters here.\n',
   });
   assert.equal(
-    scanContract(dp2, contracts.DOC_PASS_CONTRACTS).length,
+    scanContract(dp2, DOC_PASS_CONTRACTS).length,
     1,
     'a passing mention with no read instruction is still a gap',
   );
@@ -336,7 +306,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   const dp3 = fixture({
     'agents/doc-writer.md': 'Read `references/doc-pass.md` and perform the pass it states.\n',
   });
-  assert.equal(scanContract(dp3, contracts.DOC_PASS_CONTRACTS).length, 0, 'a bare reference path satisfies it');
+  assert.equal(scanContract(dp3, DOC_PASS_CONTRACTS).length, 0, 'a bare reference path satisfies it');
 
   // --- scanAdrStatus: every ADR must state a status. An ADR with no status line reads as accepted
   // whether or not anything implements it, which is how a decision gets documented as live while the
@@ -1613,7 +1583,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // carrying `.claude-plugin/plugin.json` (ADR 0032). `claude plugin validate .` accepts a source that
   // names no directory at all, so this is the only check between a mistyped path and every install
   // breaking while the suite stays green. ---
-  const { scanMarketplaceSource } = scanners;
 
   // negative: a source that resolves to a real plugin tree is clean
   const mkManifest = (source) =>
