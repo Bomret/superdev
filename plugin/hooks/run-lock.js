@@ -20,9 +20,10 @@ function isLockFresh(lockPath) {
     const stat = fs.statSync(lockPath);
     const age = Date.now() - stat.mtimeMs;
     return age < STALENESS_MS; // fresh if less than 1 hour old
-  } catch (e) {
-    if (e.code === 'ENOENT') return false; // no lock = not fresh (lock absent)
-    throw e; // other errors propagate
+  } catch {
+    // ENOENT, EACCES, or anything else: a lock this hook cannot stat is not evidence of a live
+    // run, and an uncaught throw here would crash the hook instead of answering.
+    return false;
   }
 }
 
