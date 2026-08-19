@@ -420,11 +420,13 @@ const AFK_ROW_PATTERN = /^\|.*\/superdev:([a-z][a-z-]*)/;
 
 // green-gate re-runs the scope suite synchronously inside a PostToolUse hook, and a suite slower than
 // the hook's timeout is killed mid-run — the gate then silently doesn't fire, exactly the failure it
-// exists to prevent. `hooks/hooks.json` sets the green-gate entry's own `timeout` to 600s, and the
-// comment beside `IS_MERGE` in `hooks/green-gate.js` names that same number, distinguishing it from
-// Claude Code's own 60s default. A hooks.json entry that loses its `timeout` field falls back to that
-// 60s default, and a comment that no longer names 600 documents a ceiling that no longer holds — either
-// drift is silent everywhere else, because the suite stays green until a run happens to exceed 60s.
+// exists to prevent. `hooks/hooks.json` sets the green-gate entry's own `timeout` to 600s, which is
+// also Claude Code's own default for a `command` hook: the entry states the ceiling where the suite
+// runs, and holds it if that default ever moves. The comment beside `IS_MERGE` in
+// `hooks/green-gate.js` names the same number and the same default. A comment that names a wrong
+// default sends a consumer whose suite is too slow to the wrong knob, and a comment that no longer
+// names 600 documents a ceiling that no longer holds — either drift is silent everywhere else,
+// because the suite stays green until a run happens to exceed the ceiling.
 const GREEN_GATE_TIMEOUT_CONTRACTS = [
   [
     path.join('hooks', 'hooks.json'),
@@ -440,8 +442,16 @@ const GREEN_GATE_TIMEOUT_CONTRACTS = [
     path.join('hooks', 'green-gate.js'),
     // `[\s\S]{0,20}` tolerates the comment's own line wrap (a `\n// ` between two words), the way
     // `CHANGE_TYPE_CONTRACTS` tolerates a wrap at a comma — a prose reflow must not itself go red.
-    /600s `timeout` hooks\.json sets on this[\s\S]{0,20}hook's entry \(Claude Code's own default hook timeout is 60s\)/,
-    "name the 600s timeout hooks.json sets on this hook's entry, not Claude Code's own 60s default",
+    /600s `timeout` hooks\.json sets on this[\s\S]{0,20}hook's entry/,
+    "name the 600s timeout hooks.json sets on this hook's entry",
+  ],
+  [
+    path.join('hooks', 'green-gate.js'),
+    // The hook type is the whole point: 600s is the default for a `command` hook, and 60s is the
+    // default for an `agent` one. A comment that names the wrong type, or the wrong number, points a
+    // consumer whose suite is too slow at a knob that isn't theirs.
+    /Claude Code's own default for a `command` hook/,
+    "identify the 600s ceiling as Claude Code's own default for a `command` hook",
   ],
 ];
 

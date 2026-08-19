@@ -15,9 +15,10 @@
 // them pre-run), so a merge here is always the controller's; the agent_id check is
 // belt-and-suspenders.
 // ponytail: the suite runs inside the hook, under the 600s `timeout` hooks.json sets on this
-// hook's entry (Claude Code's own default hook timeout is 60s) — a suite slower than that is
-// killed and the gate silently doesn't fire. A consumer repo whose suite needs more raises the
-// `timeout` on this hook's hooks.json entry.
+// hook's entry. That is also Claude Code's own default for a `command` hook, and it is set
+// explicitly so the ceiling is stated where the suite runs. A suite slower than it is killed and
+// the gate silently doesn't fire. A consumer repo whose suite needs more raises the `timeout` on
+// this hook's hooks.json entry.
 
 const fs = require('node:fs');
 const path = require('node:path');

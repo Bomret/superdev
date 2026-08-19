@@ -435,8 +435,8 @@ module.exports = ({ assert, path, fixture, realRoot }) => {
     'the shipped hooks.json timeout and green-gate.js comment agree',
   );
 
-  // positive from the hooks.json side: a green-gate entry that lost its `timeout` field is drift — it
-  // silently falls back to Claude Code's own 60s default
+  // positive from the hooks.json side: a green-gate entry that lost its `timeout` field is drift — the
+  // ceiling the suite runs under stops being stated where the suite runs
   const ggt1 = fixture({
     'hooks/hooks.json': '"command": "node \\"${CLAUDE_PLUGIN_ROOT}/hooks/green-gate.js\\""\n',
   });
@@ -444,13 +444,34 @@ module.exports = ({ assert, path, fixture, realRoot }) => {
   assert.equal(ggtGaps1.length, 1, 'flags a hooks.json entry that lost its `timeout`');
   assert.equal(ggtGaps1[0].source, path.join('hooks', 'hooks.json'), 'names hooks.json');
 
-  // positive from the green-gate.js side: a comment that stops naming the 600s ceiling is the same drift
+  // positive from the green-gate.js side: a comment that names neither the ceiling nor the default it
+  // is — both green-gate.js rows are gaps
   const ggt2 = fixture({
     'hooks/green-gate.js': "// the suite runs inside the hook, under Claude Code's default hook timeout.\n",
   });
   const ggtGaps2 = scanContract(ggt2, GREEN_GATE_TIMEOUT_CONTRACTS);
-  assert.equal(ggtGaps2.length, 1, 'flags a comment that stops naming the 600s timeout');
-  assert.equal(ggtGaps2[0].source, path.join('hooks', 'green-gate.js'), 'names green-gate.js');
+  assert.equal(ggtGaps2.length, 2, 'flags a comment that names neither the 600s timeout nor the default');
+  assert.deepEqual(
+    [...new Set(ggtGaps2.map((g) => g.source))],
+    [path.join('hooks', 'green-gate.js')],
+    'names green-gate.js',
+  );
+
+  // positive, the false-default regression (#268): the comment names the 600s ceiling correctly but
+  // attributes it to the wrong platform default — 60s is the `agent` default, not the `command` one. The
+  // ceiling row passes and the default row alone flags, so a consumer is not sent to the wrong knob.
+  const ggtWrongDefault = fixture({
+    'hooks/green-gate.js':
+      "// the suite runs inside the hook, under the 600s `timeout` hooks.json sets on this\n" +
+      "// hook's entry (Claude Code's own default hook timeout is 60s).\n",
+  });
+  const ggtGapsWrongDefault = scanContract(ggtWrongDefault, GREEN_GATE_TIMEOUT_CONTRACTS);
+  assert.equal(ggtGapsWrongDefault.length, 1, 'flags a comment that names a wrong platform default');
+  assert.equal(
+    ggtGapsWrongDefault[0].expectation,
+    "identify the 600s ceiling as Claude Code's own default for a `command` hook",
+    'and names the default row, not the ceiling row',
+  );
 
   // positive from the hooks.json side, numeric near-miss: `600` as a bare token must not match inside
   // `6000` — a hooks.json entry that drifted to 6s0000ms is still drift, not a false pass

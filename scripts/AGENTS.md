@@ -235,10 +235,12 @@ A consumer
 that stops pointing at the rule validates nothing and stays valid prose. Seventeenth, the
 `green-gate-timeout` contract: `hooks/hooks.json` sets `"timeout": 600` on the green-gate
 PostToolUse(Bash) hook entry, and the comment beside `IS_MERGE` in `hooks/green-gate.js` names that
-same 600s ceiling, distinct from Claude Code's own 60s default hook timeout. Green-gate re-runs the
-scope suite synchronously inside the hook, so a suite slower than the configured timeout is killed
-mid-run and the gate silently doesn't fire — a hooks.json entry that loses its `timeout` field falls
-back to the 60s default unnoticed, because the suite stays green until a run happens to exceed it.
+same 600s ceiling and identifies it as Claude Code's own default for a `command` hook. Green-gate
+re-runs the scope suite synchronously inside the hook, so a suite slower than the configured timeout
+is killed mid-run and the gate silently doesn't fire. The explicit entry states the ceiling where the
+suite runs and holds it if that platform default ever moves, so the check pins both the value and the
+comment's account of it: a comment naming a wrong default sends a consumer whose suite is too slow to
+the wrong knob, and the suite stays green until a run happens to exceed the ceiling.
 Eighteenth, the `verb-pointer` contract (ADR 0022): every ledger touchpoint in the chain invokes its
 `scope.js` verb — `references/run-init.md` `init`, `references/run-handoff.md` `stage set merged`,
 `unresolved add`, and `unresolved clear`, `commands/review.md` `stage set`, `get anchor`, `unresolved add`,
