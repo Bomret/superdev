@@ -1,3 +1,10 @@
+# [0.32.0](https://codeberg.org/bomret/superdev/compare/v0.31.0...v0.32.0) (2026-08-19)
+
+
+### Features
+
+* **lite:** the lite tier writes its own documentation ([#276](https://codeberg.org/bomret/superdev/issues/276)) ([310c659](https://codeberg.org/bomret/superdev/commit/310c6594865fe8eb6f4da91637e90d256d75c7b3)), closes [#273](https://codeberg.org/bomret/superdev/issues/273) [#274](https://codeberg.org/bomret/superdev/issues/274) [#275](https://codeberg.org/bomret/superdev/issues/275) [#273](https://codeberg.org/bomret/superdev/issues/273) [#274](https://codeberg.org/bomret/superdev/issues/274)
+
 # [0.31.0](https://codeberg.org/bomret/superdev/compare/v0.30.0...v0.31.0) (2026-08-18)
 
 
