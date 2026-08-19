@@ -46,5 +46,8 @@ tiers: record that slice execution finished, name what comes next.
   - **Green.**
   - **No test command configured.**
   - **A denied test command, recorded and continued attended** (ADR 0025).
-- **Report** the scope branch, the slice count, and the commit range. Then stop: no review, no doc pass,
-  no pull request, no DoD tick, no cleanup.
+- **Report** the scope branch, the slice count, and the commit range, and **say the conversation is
+  disposable**: the ledger, `dod.md`, `interfaces.md`, and the per-slice progress logs now hold
+  everything `/superdev:review` needs, so a `/clear` before it costs nothing — a fresh-context review
+  reads the run state cold, which is the least anchored shape a reviewer can start in. Then stop: no
+  review, no doc pass, no pull request, no DoD tick, no cleanup.

@@ -65,6 +65,17 @@ An intent carrying **Rejected directions** hands you ground already covered: tre
 unless the interview genuinely overturns one. They are also the only record of *why* — §2 routes each one
 to a durable home before this plan ends.
 
+**Audit for prior art before the interview commits to building.** Two checks, both cheap:
+
+- **Redundancy** — search the repo for an existing implementation of the requested behaviour **by domain
+  concept, not the request's wording** (the glossary's terms, the code's own names), and report where
+  you looked. Found → say so before interviewing further: extending the existing implementation is the
+  plan, not building a rival.
+- **Prior rejection** — read `.out-of-scope/*.md`, when the directory exists, and surface any entry that
+  resembles this request **by concept, not keyword** ("night theme" matches `dark-mode.md`). A match is
+  a decision already made: present it, and proceed only when the user explicitly overturns it.
+  (`docs/agents/documentation.md` → *Rejected requests* owns the convention.)
+
 **Read `${CLAUDE_PLUGIN_ROOT}/references/cross-exam.md` and run the interview by it.** This is the **main
 event**, not a quick step before slicing: walk the whole design tree, one recommended-answer question at
 a time, exploring the code instead of asking wherever you can, until the tree is exhausted and the
@@ -100,6 +111,12 @@ does to the codebase, not what it feels like: a defect repaired is `fix`, a beha
 restructuring is `refactor`, a prose-only pass is `docs`, `feat` is new behaviour. It becomes the scope
 branch, so a mislabelled plan ships a branch and a pull request that misreport the work. A later answer
 that changes what the feature does revises the label in place.
+
+**A `fix`-type feature starts from its reproduction.** Read
+`${CLAUDE_PLUGIN_ROOT}/references/diagnosis.md` and hold the plan to it: the **red-capable command** —
+one invocation that reproduces the defect, already run once — becomes the first acceptance criterion of
+the first slice, so the Definition of Done is falsifiable before anything is built. A defect nobody can
+reproduce yet is what that first slice delivers, not a detail left for the implementer to discover.
 
 ## 2. Domain-model as you go
 
@@ -179,6 +196,10 @@ and schema):
   the file structure first; fold scaffolding/setup/docs into the slice that needs them. Do any
   **prefactoring** first ("make the change easy, then make the easy change").
 - Classify each slice's `test-applicability`: `behavior` | `mechanical` | `docs`.
+- **A wide refactor is the one exception to tracer bullets** — sequence it as expand–contract
+  (`${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md` → *Wide refactors*): expand, migrate in batches,
+  contract, each slice green. Only when even the batches can't stay green alone does the epic gain an
+  `## Integration branch` section (ADR 0033).
 - Name the specific interface each slice's tests will exercise (a function signature, an API endpoint, a
   CLI command) in its `spec`, so the implementer tests through an agreed boundary instead of picking one.
 - Name the **domain shapes** the slice needs in its `spec` as well — by name, in `CONTEXT.md`'s

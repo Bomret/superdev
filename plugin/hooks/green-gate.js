@@ -73,15 +73,20 @@ function pickCommand(verification, getChangedPaths) {
 }
 
 // decide() is pure over its inputs so it is unit-testable; getVerification, runTests,
-// getChangedPaths, and mergeInProgress inject the side effects. getVerification is a thunk —
-// PostToolUse(Bash) fires on every Bash call, so the doc read only happens once the cheap
-// checks say this is a gated merge.
-function decide(input, getVerification, runTests, getChangedPaths, mergeInProgress) {
+// getChangedPaths, mergeInProgress, and getCurrentBranch inject the side effects. getVerification
+// is a thunk — PostToolUse(Bash) fires on every Bash call, so the doc read only happens once the
+// cheap checks say this is a gated merge.
+function decide(input, getVerification, runTests, getChangedPaths, mergeInProgress, getCurrentBranch = () => '') {
   if (input && input.agent_id) return { block: false }; // subagent → not our concern
   const cmd = (input && input.tool_input && input.tool_input.command) || '';
   if (!IS_MERGE.test(cmd)) return { block: false }; // not a merge
   const verification = getVerification();
   if (!verification || !verification.full) return { block: false }; // no gate configured
+  // ADR 0033: a merge whose checkout is on an integration branch is a wide refactor's batch merge —
+  // green is promised at the integrate-and-verify merge into the scope branch, so the gate defers here
+  // and fires there. The prefix check is on `integration/` with the slash: a branch merely named
+  // `integration` gets no deferral.
+  if (getCurrentBranch().startsWith('integration/')) return { block: false };
   // A conflicted merge left MERGE_HEAD behind: nothing merged yet, so a suite run would test the
   // unchanged (or conflicted) tree and blame the merge. Skip; the run-handoff full suite still runs.
   if (mergeInProgress && mergeInProgress()) return { block: false };
@@ -118,6 +123,16 @@ function mergeInProgress(cwd) {
     return true;
   } catch {
     return false;
+  }
+}
+
+// The merge target: the checkout's current branch. Empty when HEAD is detached inside rev-parse's
+// error path or the cwd is no repo — both read as "not an integration branch", so the gate still fires.
+function getCurrentBranch(cwd) {
+  try {
+    return execSync('git rev-parse --abbrev-ref HEAD', { cwd, stdio: 'pipe', encoding: 'utf8' }).trim();
+  } catch {
+    return '';
   }
 }
 
@@ -158,6 +173,7 @@ function main() {
       (tc) => runTests(tc, cwd),
       () => getChangedPaths(cwd),
       () => mergeInProgress(cwd),
+      () => getCurrentBranch(cwd),
     );
     if (block) {
       process.stderr.write(reason + '\n');
@@ -206,6 +222,34 @@ if (process.argv[2] === '--selftest') {
     false,
     'an in-progress conflicted merge is not gated',
   );
+
+  // --- ADR 0033: a merge into an integration branch defers the gate ---
+  {
+    const onBranch = (name) => () => name;
+    const suiteNotRun = () => {
+      throw new Error('the suite should not run on an integration-branch merge');
+    };
+    assert.equal(
+      decide(merge('git merge --no-ff slice/s1'), full('npm test'), suiteNotRun, notCalled, () => false, onBranch('integration/wide-rename')).block,
+      false,
+      'a merge on an integration/* branch is deferred, suite not run',
+    );
+    assert.equal(
+      decide(merge('git merge --no-ff integration/wide-rename'), full('npm test'), red, notCalled, () => false, onBranch('refactor/wide-rename')).block,
+      true,
+      'the integrate-and-verify merge into the scope branch is gated',
+    );
+    assert.equal(
+      decide(merge('git merge x'), full('npm test'), red, notCalled, () => false, onBranch('integration')).block,
+      true,
+      'a branch named exactly `integration` (no slash) gets no deferral',
+    );
+    assert.equal(
+      decide(merge('git merge x'), full('npm test'), red, notCalled, () => false, onBranch('')).block,
+      true,
+      'an unreadable branch (detached HEAD, no repo) fails closed: still gated',
+    );
+  }
 
   // the verification doc is only read once the cheap checks pass — PostToolUse fires on every Bash call
   {

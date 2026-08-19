@@ -190,7 +190,9 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
     found real defects and left them is worth less than no review.
   - **Confirmed** → dispatch **one** `superdev:implementer` (`model: sonnet`; `haiku` only for a
     mechanical fix) with the **complete** findings list, not one fixer per finding. Every fix opens with a
-    RED test that reproduces the defect. Re-review after it returns, and repeat until the verdict is clean
+    RED test that reproduces the defect; a finding whose cause is not yet established runs the diagnosis
+    loop first (`${CLAUDE_PLUGIN_ROOT}/references/diagnosis.md` — the implementer reads it on any
+    defect-repair dispatch). Re-review after it returns, and repeat until the verdict is clean
     or the **3-strike cap** is reached — three cycles each exposing a new defect elsewhere means a wrong
     cut, not a bug: stop, say so, write the `**Unresolved:**` entry, leave the stage where it is.
     **`--unattended` → block** at that cap, per that file's **Unattended** section, writing the same entry
@@ -230,5 +232,7 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
 
   Then print the next command with the range already resolved — `/superdev:document <range>`, carrying
   the concrete range §1 resolved — and say in one line what it will do (reconcile the in-repo docs and
-  the knowledge base with the merged state).
+  the knowledge base with the merged state). Add that this conversation is disposable: the ledger's
+  stage and the scope branch carry everything `/superdev:document` reads, so a `/clear` first costs
+  nothing.
 - **Never merge, push, or open a pull request.** `/superdev:ship` ends the chain.

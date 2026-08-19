@@ -26,16 +26,27 @@ A glossary and **nothing else** — no specification, no scratchpad, no implemen
 one-to-two-sentence definition of what the term **is** (not what it does), with an `_Avoid_:` list of
 rejected synonyms. Be **opinionated** — when several words name one concept, pick the best and list the
 others under `_Avoid_`. Include **only terms specific to this project's domain** — a general programming
-concept (timeout, retry, cache) does not belong even if the project uses it heavily. In a multi-context
+concept (timeout, retry, cache) does not belong even if the project uses it heavily. Group terms under
+subheadings when natural clusters emerge; a single cohesive area stays a flat list. In a multi-context
 repo (root `CONTEXT-MAP.md`), record the term under the context it belongs to; if unclear, ask.
 
 ### ADRs → `docs/adr/NNNN-<slug>.md`
 
 Offer one **only when all three hold**: **hard to reverse** (changing your mind later is costly),
 **surprising without context** (a future reader will wonder "why this way?"), and **the result of a real
-trade-off** (there were genuine alternatives). Any one missing → skip it. An ADR is a short title plus 1–3
+trade-off** (there were genuine alternatives). Any one missing → skip it — a decision that is easy to
+reverse gets no ADR, because you'll just reverse it. What usually passes all three: architectural shape,
+integration patterns between contexts, technology choices carrying real lock-in (the ones that would take
+a quarter to swap out — not every library), boundary and scope decisions where the explicit no's are as
+valuable as the yes's, deliberate deviations from the obvious path (these stop the next engineer from
+"fixing" something deliberate), constraints invisible in the code (compliance, a partner's SLA), and
+non-obvious rejected alternatives. An ADR is a short title plus 1–3
 sentences (context, decision, why); add Status / Considered Options / Consequences only when they earn
-their place. Number by scanning `docs/adr/` for the highest existing number + 1.
+their place. Number by scanning the target directory for the highest existing number + 1.
+
+**Placement:** `docs/adr/` at the repo root. In a multi-context repo (root `CONTEXT-MAP.md`), a decision
+belonging to one bounded context lives beside it — that context's own `docs/adr/` — with the root
+reserved for decisions that span contexts.
 
 **Draw the structure when prose can't hold it.** An ADR deciding how components relate carries a mermaid
 diagram alongside its prose when the relations are non-trivial — roughly three or more components, or any

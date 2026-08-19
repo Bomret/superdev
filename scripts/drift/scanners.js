@@ -591,6 +591,47 @@ function scanMarketplaceSource(root) {
   return gaps;
 }
 
+// scanReadmeCommands() is pure over a root dir: `README.md` and `commands/` agree — every
+// `commands/<name>.md` is mentioned in the README as `/superdev:<name>`, and every `/superdev:<name>`
+// the README names has a command file. The README is the user-facing map of the commands, so a command
+// it never names or a command it still names after a rename is a router that lies. Either half is
+// skipped when its side is absent (fixture / partial checkout), matching every other scanner.
+function scanReadmeCommands(root) {
+  const gaps = [];
+  const readme = readDoc(root, 'README.md');
+  if (readme === null) return gaps;
+  let entries;
+  try {
+    entries = fs.readdirSync(docPath(root, 'commands'));
+  } catch {
+    return gaps; // no commands dir → nothing to cross-check
+  }
+  const commands = new Set(entries.filter((e) => e.endsWith('.md')).map((e) => e.slice(0, -3)));
+  for (const name of [...commands].sort()) {
+    if (!readme.includes(`/superdev:${name}`)) {
+      gaps.push({
+        source: 'README.md',
+        expectation:
+          `mention \`/superdev:${name}\` — \`commands/${name}.md\` ships, and a README that never ` +
+          'names a command is a router that lies',
+      });
+    }
+  }
+  const named = new Set();
+  for (const m of readme.matchAll(/\/superdev:([a-z][a-z0-9-]*)/g)) named.add(m[1]);
+  for (const name of [...named].sort()) {
+    if (!commands.has(name)) {
+      gaps.push({
+        source: 'README.md',
+        expectation:
+          `name only commands that exist — \`/superdev:${name}\` has no \`commands/${name}.md\`, ` +
+          'so the README routes users to a command the plugin does not carry',
+      });
+    }
+  }
+  return gaps;
+}
+
 module.exports = {
   scan,
   scanRunRootPaths,
@@ -613,4 +654,5 @@ module.exports = {
   scanReturnToController,
   scanNarrativeCoverage,
   scanMarketplaceSource,
+  scanReadmeCommands,
 };

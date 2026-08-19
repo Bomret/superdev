@@ -34,6 +34,12 @@ never invent one, because `/superdev:document` proposes the term and the maintai
 `spec`-named shape is **requested**, so the minimalism ladder below still forbids every abstraction the
 `spec` did not name (ADR 0030).
 
+**A defect repair starts at the cause.** On a dispatch that repairs a defect — a `fix`-type slice, or a
+reviewer finding — read `${CLAUDE_PLUGIN_ROOT}/references/diagnosis.md` and run its loop before the RED
+test: the red-capable command, the minimised repro, and the ranked hypotheses are what land the RED test
+at the proven cause instead of the symptom. A dispatch that already hands you a proven cause skips
+straight to the RED test.
+
 Build in **vertical tracer-bullet** increments — one test, one implementation, repeat. Never write all
 the tests first; tests written in bulk verify imagined behavior, not real behavior.
 
@@ -52,9 +58,17 @@ GREEN: write the minimal code to pass it → watch it pass
 - Test **behavior through the interface named in the slice specification**, not implementation details. A good
   test survives an internal refactor. If renaming an internal function breaks a test, that test was
   wrong.
-- **Mock only at system boundaries** — external APIs, the clock, randomness, the network, sometimes the
-  DB/filesystem. **Never mock your own internal collaborators**; a test that mocks what it should
+- **Mock by dependency category, not by habit.** Four categories, each dictating the test strategy:
+  **in-process** (your own modules) — test directly, no adapter, no mock; **local-substitutable** (a DB
+  or filesystem with a real in-memory stand-in) — substitute it, keeping the seam internal: no port at
+  the module's external interface; **remote but owned** (another service of this project) — a port, with
+  an in-memory adapter for tests and the real one for prod; **true external** (a third-party API, the
+  clock, randomness, the network) — an injected port plus a mock adapter. **One adapter is a
+  hypothetical seam; two adapters make it real** — a single-adapter seam is indirection, so don't cut
+  one. **Never mock your own internal collaborators**; a test that mocks what it should
   exercise is coupled to the implementation, not the behavior.
+- **Replace, don't layer.** Once tests exist at a deepened module's interface, delete the old unit
+  tests on the shallow internals it absorbed — they're waste, not extra coverage.
 - **Verify through the interface too.** Assert on what a caller can observe — don't reach behind the
   interface to check (e.g. don't query the DB directly to confirm a write; read it back through the
   public API). One logical assertion per test.
@@ -133,6 +147,8 @@ context — except the TDD red→green loop, which re-runs the suite after each 
   git/CLI paths).
 - **Secrets:** check presence only (`[ -n "$VAR" ]`), pass inline (`curl -H "… $VAR"`); never dump one
   (`echo`/`printenv`/`env`, `cat`/`grep` a `.env`) or let a value reach a commit message or your report.
+  Quote fetched artifacts and command output with secrets redacted — `<REDACTED>` over auth headers and
+  tokens, and only the lines that carry the signal.
 
 ## Repo guidelines
 

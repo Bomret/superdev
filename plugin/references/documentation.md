@@ -25,6 +25,16 @@ Technical docs live in the repo as a hierarchy of `AGENTS.md` files:
   exactly one owning place. Every other doc that needs it links to the owning place instead of
   restating it — a restated fact drifts the moment the owning place changes.
 
+## Rejected requests
+
+Optional. `.out-of-scope/<concept>.md` records ideas deliberately rejected — one file per **concept**,
+never per request, each stating the request shape and why it stays out of scope. `/superdev:plan` reads
+the directory before an interview commits to building, matching by concept rather than keyword. Two
+rules keep it useful: the reason must be durable ("too busy right now" is a deferral, not a rejection —
+don't record it), and an idea closed because it is **already implemented** never goes here — that is a
+built feature, and recording it would poison the check with false rejections. The doc pass maintains the
+entries like any other doc. No rejections yet → no directory; never scaffold an empty one.
+
 ## Writing standard
 
 **Standard:** `<controlled | <repo-relative path> | none>`

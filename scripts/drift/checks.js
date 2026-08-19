@@ -33,6 +33,7 @@ const {
   scanReturnToController,
   scanNarrativeCoverage,
   scanMarketplaceSource,
+  scanReadmeCommands,
 } = require('./scanners');
 const {
   ADR_STATUSES,
@@ -296,6 +297,12 @@ module.exports = [
     id: 'marketplace-source',
     ok: 'the marketplace source resolves to the shipped plugin tree',
     run: scanMarketplaceSource,
+    format: contractGap,
+  },
+  {
+    id: 'readme-commands',
+    ok: 'the README and commands/ name the same command set',
+    run: scanReadmeCommands,
     format: contractGap,
   },
 ];

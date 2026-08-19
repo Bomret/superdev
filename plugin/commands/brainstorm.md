@@ -34,6 +34,8 @@ Push back on gold-plating; push back on scope so thin it delivers nothing real e
 Name the assumptions being made, the risks, and any constraints (technical, organizational, timeline).
 Cross-check claims against the code — if the codebase already does or doesn't support something the idea assumes, say so now rather than let `/superdev:plan` discover it later.
 
+**An unknown conversation cannot settle earns a prototype.** "Does this state model feel right", "which of these two shapes survives real data" — offer the detour and run it by `${CLAUDE_PLUGIN_ROOT}/references/prototype.md`: state the question in the artifact, keep the logic liftable, fold the validated decision into the intent, and park the prototype itself on a throwaway branch. The intent carries the decision; the codebase carries nothing.
+
 ## 5. Converge to a "ready to plan" intent
 
 Once the space has been explored, pull it together into a short intent:

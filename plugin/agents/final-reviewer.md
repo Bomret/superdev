@@ -82,9 +82,10 @@ re-run the suite or re-open a file already in context.
 
 ## What to check
 
-Read `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` and apply its anti-pattern, vulnerability-class,
-reuse-audit, and consistency lenses throughout the checks below — name the specific smell/class, don't
-just say "code quality" or "security concerns."
+Read `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` and apply its anti-pattern, design-smell,
+vulnerability-class, reuse-audit, and consistency lenses throughout the checks below — under its two
+binding rules (the repo overrides; skip what tooling already enforces) — and name the specific
+smell/class, don't just say "code quality" or "security concerns."
 
 First, the **gate** — the bar the scope must clear (these are not quality axes):
 

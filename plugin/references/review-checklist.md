@@ -8,6 +8,16 @@
 Concrete lenses for a reviewer to apply on top of its own judgment — named smells and vulnerability
 classes beat a generic "check code quality" / "check security."
 
+Two rules bind every lens below:
+
+- **The repo overrides.** A documented repo standard wins; where it endorses something a lens would
+  flag, suppress the finding.
+- **Skip what tooling already enforces.** A linter or formatter the repo runs
+  (`docs/agents/toolchain.md`) already catches its own class of issue; re-reporting it spends review
+  attention on a solved problem.
+
+Every smell is a labelled judgment call ("possible feature envy"), never a hard violation.
+
 ## Anti-patterns
 
 - **Parameter sprawl** — a function/constructor taking so many params that call sites are unreadable or
@@ -42,6 +52,30 @@ classes beat a generic "check code quality" / "check security."
   "improved" neighbouring comment, a refactor nobody asked for. It widens the review surface and the
   merge-conflict surface for no requested value. Deleting *pre-existing* dead code is this smell too —
   the report should name it, not remove it. Removing what the change itself orphaned is not.
+
+## Design smells
+
+The classical catalogue (Fowler), each one nameable and huntable:
+
+- **Mysterious name** — a name that requires reading the body to learn what it does.
+- **Feature envy** — a function more interested in another module's data than its own; it wants to move
+  to the data.
+- **Data clumps** — the same few fields or params travelling together everywhere: a type wanting to be
+  born.
+- **Primitive obsession** — a domain concept passed around as a bare string/number where the glossary
+  has a name for it.
+- **Repeated switches** — the same `switch`/if-chain over one discriminator in several places; one
+  polymorphic seam replaces them.
+- **Shotgun surgery** — one logical change forcing edits in many places; the scattered pieces want one
+  home.
+- **Divergent change** — one module edited for many unrelated reasons; it wants splitting.
+- **Message chains** — `a.b().c().d()` coupling the caller to the whole path.
+- **Middle man** — a module that only delegates; call the target.
+- **Speculative generality** — flexibility nobody asked for. The `simplicity-reviewer` owns this on a
+  slice diff; flag it here only on a whole-scope range that reviewer never saw.
+- **Single-adapter seam** — a port/interface with exactly one adapter behind it and no second in sight:
+  a hypothetical seam, which is indirection, not architecture. Two adapters make a seam real — one of
+  them may be the in-memory test adapter of a true external dependency.
 
 ## Vulnerability classes
 

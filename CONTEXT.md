@@ -8,6 +8,12 @@ _Avoid: "feature issue", "parent issue", "the DoD" (the epic holds/sources the D
 **Slice** — a vertical tracer bullet: a narrow but complete path through every layer (specification → implementation → test), independently green, demoable/verifiable on its own. Each slice carries test-applicability (behavior/mechanical/docs), a specification, acceptance criteria, and explicit dependencies on other slices.
 _Avoid: "story", "task", "sub-issue", "chunk" — though GitHub's **sub-issue** is a different sense: the tracker's parent/child relation, which the GitHub slice store uses to link a slice to its epic (ADR 0011), not a synonym for the slice itself_
 
+**Expand–contract** — the slicing sequence for a wide refactor (one mechanical change whose blast radius fans across the codebase): an expand slice adds the new form beside the old, migrate slices move call sites over in batches, a contract slice deletes the old form once no caller remains. Each slice stays independently green; only when even the batches can't does the epic name an **Integration branch** (ADR 0033).
+_Avoid: "big-bang refactor" (the thing this sequence replaces), "parallel change" (Fowler's synonym — pick one name)_
+
+**Integration branch** — the `integration/<scope>` branch a wide refactor's slices merge into when its batches can't stay green alone, named by the epic's `## Integration branch` section. Green is promised at one node: the final integrate-and-verify slice merges it into the scope branch, where the green-gate fires; the gate defers on merges into `integration/*` (ADR 0033).
+_Avoid: "staging branch" (a deploy-pipeline term), "scope branch" (the branch the integration branch merges into)_
+
 **Tier** (execution) — the routing decision for a plan, derived from the loaded slice count: `lite` (≤3 slices) or `full` (>3 slices). Never persisted, derived fresh every run; each tier's linear procedure is read from its **execution playbook** (see _Separation of concerns_).
 _Avoid: "mode", "strategy", "level", "route", "path"_
 

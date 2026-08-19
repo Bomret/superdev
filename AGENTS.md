@@ -45,8 +45,8 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
   references/          — backend seed templates + the non-seed runtime references (plan-contract,
                          documentation convention, controlled-prose, content-types, doc pass, run init,
                          run handoff, execution playbooks, test-selection, scope-mode, authoring
-                         disciplines, review-checklist). Who reads what: the `references/` entry of the
-                         Child DOX Index below.
+                         disciplines, diagnosis, prototype, merge-conflicts, review-checklist). Who reads
+                         what: the `references/` entry of the Child DOX Index below.
   scripts/             — the two CLIs the commands invoke at runtime: `scope.js` (the run-state CLI,
                          ADR 0022) and `kb-patch.js` (the knowledge-base section merge, ADR 0027)
   LICENSE · NOTICE     — copies of the root files, so the shipped tree carries its own attribution
@@ -111,6 +111,24 @@ plugin-relative paths for the maintainer-side checks.
 - **Docs follow a writing standard.** `docs/agents/documentation.md` names it, and the doc agents apply
   it to prose they write. This repo uses `controlled`
   ([`references/controlled-prose.md`](plugin/references/controlled-prose.md), ADR 0012).
+- **Prompt prose follows the prompt-architecture rules.** They govern the *structure* of `commands/`,
+  `agents/`, and `references/` prose, where `controlled-prose.md` governs its form:
+  - **Prompt the positive.** Steering by prohibition drags the forbidden behaviour into context and makes
+    it more available; phrase the wanted behaviour, and reserve `never` for real contracts.
+  - **A contested line gets an eval arm, not an argument.** An instruction the model already obeys by
+    default is pure context load, and whether a line is such a no-op is model-relative — `bun run eval`
+    settles it by running the document.
+  - **Completion criteria demand.** "Every modified model accounted for" forces thorough work where
+    "produce a change list" does not; write every done-condition in the demanding form.
+  - **Hiding later steps needs a real context boundary.** A subagent dispatch, or a path handed instead
+    of inlined text, clears context; an inline mention does not. ADR 0020 is the applied case.
+  - **Descriptions are permanent context load.** Every command and agent `description` is always loaded:
+    front-load the trigger word, one trigger per branch (synonyms are one branch written twice), and cut
+    identity the body already carries.
+- **Platform-dependent claims carry dated verification.** A statement about Claude Code behaviour — in an
+  ADR or in `## Known issues` below — records, when re-checked, a dated update naming the version and the
+  observed evidence ("Verified 2026-08-19, on Claude Code 2.1.x, output …"), so a stale platform claim
+  shows its age instead of silently misleading.
 
 ## Known issues (Claude Code platform)
 
@@ -183,7 +201,7 @@ This root owns every other subtree directly:
   `ledger.md` read and write path, and exports `readLedgerHeader` for `plugin/hooks/scope-prune.js`),
   `plugin/scripts/kb-patch.js` (the deterministic section merge behind a staged page's `action: patch`,
   called by `/superdev:publish-kb`, ADR 0027), `scripts/eval-run.js` (the eval
-  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the forty-six cross-document contract checks: the
+  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the forty-seven cross-document contract checks: the
   CLI walks the `drift/checks.js` registry, which orders every scanner and contract table). What each
   guards, check by check, lives in that child doc.
 - `plugin/references/`. Backend seed templates plus the non-seed references below. Each reference's own
@@ -201,7 +219,10 @@ This root owns every other subtree directly:
   | `test-selection.md` | the focused-vs-full test command rule (ADR 0025); `hooks/green-gate.js` implements the same rule in code | focused: `implementer`, `slice-reviewer`, `implement-lite`; full-suite: `/review`'s scope review, `run-handoff` |
   | `scope-mode.md` | the shared scope rules — live-run detection, the scope checkout, the run lock, `## Unattended`, `## The scope slug`, `## The change type`, `## Degraded passes`, `## Unresolved defects`, `## The ledger` (deferring the schema to `scope.js`), `## Cutting the scope branch` (ADR 0007, 0013, 0016, 0018, 0021, 0022, 0026, 0028) | `/review`, `/document`, `/ship`, `/implement`, `/afk`, both playbooks |
   | `cross-exam.md`, `domain-modeling.md`, `doc-verification.md` | the authoring disciplines — superdev's rendering of Matt Pocock's grilling and domain-modeling skills | `/plan`, `/brainstorm`; `implementer` reads `doc-verification.md` before acting on a third-party assumption |
-  | `review-checklist.md` | anti-patterns, vulnerability classes, a reuse-audit lens, a consistency lens | `final-reviewer` (all four); `slice-reviewer` (anti-patterns + vulnerabilities) |
+  | `diagnosis.md` | the defect-diagnosis loop — the red-capable repro gate, the minimised repro, ranked hypotheses, tagged instrumentation (a rendering of Matt Pocock's diagnosing-bugs skill) | `/plan` on a `fix` feature; `implementer` on a defect-repair dispatch; `/review`'s fix loop |
+  | `prototype.md` | the prototype discipline — one stated question, liftable logic, throwaway-branch capture, the `spec` snippet exception (a rendering of Matt Pocock's prototype skill) | `/brainstorm` §4; `plan-contract.md` cites the `spec` exception |
+  | `merge-conflicts.md` | conflict resolution by intent — the union on additive conflicts, composing compatible intents, abort-and-escalate on a winner-picking overlap | the full playbook's merge step |
+  | `review-checklist.md` | anti-patterns, design smells, vulnerability classes, a reuse-audit lens, a consistency lens | `final-reviewer` (all five); `slice-reviewer` (anti-patterns + vulnerabilities) |
 - `docs/adr/`. Architecture decision records. `docs/agents/`. This repo's own dogfooded backend config.
 - `.claude-plugin/`. Manifests. Governed by **Working rules, Version lives only in `plugin.json`**.
 - `CONTEXT.md`. The domain glossary. `evals/`. The with/without-plugin A/B, where `evals/README.md` owns

@@ -12,7 +12,7 @@ reads it. It is backend-agnostic: the local-file rendering is shown below; issue
 | `title` | Short descriptive name. | humans |
 | `depends-on` | List of slice `id`s that must merge before this slice can start. Empty = root. | `/implement` DAG |
 | `test-applicability` | `behavior` \| `mechanical` \| `docs`. Drives the warrant gates (see below). | `/implement`, `implementer` |
-| `spec` | What this slice delivers end-to-end — the implementer's requirements. Describe behavior and name the specific interface (a function signature, an API endpoint, a CLI command) its tests exercise — not file paths. Name the **domain shapes** the slice needs too, by name and in the project glossary's vocabulary, never as field lists: the implementer declares them before its first failing test and owns their fields (ADR 0030). | `implementer` |
+| `spec` | What this slice delivers end-to-end — the implementer's requirements. Describe behavior and name the specific interface (a function signature, an API endpoint, a CLI command) its tests exercise — not file paths. Name the **domain shapes** the slice needs too, by name and in the project glossary's vocabulary, never as field lists: the implementer declares them before its first failing test and owns their fields (ADR 0030). One exception to interfaces-only: a prototype-produced snippet that encodes a decision more precisely than prose can (a state machine, a reducer, a schema) may be inlined, trimmed to the decision-rich parts and marked as prototype-sourced (`prototype.md`). | `implementer` |
 | `acceptance` | Checkable criteria for THIS slice. On a `behavior` slice these name the domain-level failure and boundary cases too — those derivable from the interview without reading the implementation — not just the happy path. Implementation-level edges stay with the implementer and the reviewers, who read code the planner never sees. `commands/plan.md` holds the split with examples. | `slice-reviewer`, `implementer` |
 | `status` | Canonical lifecycle `todo` → `in-progress` → `in-review` → `merged` (= done), plus `blocked`. Backends map these onto their real statuses; the ledger is authoritative during a run. | `/implement`, store |
 
@@ -196,6 +196,26 @@ and the slug is the scope.
   on the *how*; it is a contract of outcomes, not a line-by-line script.
 - **Estimable** — a slice a fresh reviewer couldn't size in one pass is too big or too vague: decompose
   it further until each slice is a unit you could gate on its own.
+
+### Wide refactors (expand–contract)
+
+A **wide refactor** — one mechanical change whose blast radius fans across the codebase (rename a
+column, retype a shared symbol) — is the exception to tracer-bullet slicing: no narrow path through
+every layer exists. Don't force one; sequence it as **expand–contract** (ADR 0033):
+
+1. **Expand** — add the new form beside the old, so nothing breaks. One slice, green.
+2. **Migrate** — move call sites over in batches sized by blast radius (per package, per directory),
+   each batch its own slice with `depends-on` the expand slice. Each batch green.
+3. **Contract** — delete the old form once no caller remains, in a slice that `depends-on` every
+   migrate batch.
+
+Every slice above stays independently green, so the ordinary rules and gates all hold; the batches are
+usually `mechanical`, so the per-slice reviews are already skipped. **When even the batches cannot stay
+green alone**, green is promised at one node instead of per slice: the epic carries an
+`## Integration branch` section naming `integration/<scope>`, the full playbook merges every slice into
+that branch — where the green-gate hook defers — and a final **integrate-and-verify** slice, depending
+on every batch, is where `integration/<scope>` merges into the scope branch and the gate fires. The
+deferral changes where the suite gates, never whether.
 
 ## Local-file rendering
 

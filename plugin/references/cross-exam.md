@@ -18,10 +18,18 @@ exhausted and you and the user share the same picture — **not** until you have
   fabricate a preference.
 - **Walk the design tree, branch by branch.** Resolve dependencies between decisions one by one: a
   decision that constrains others is asked first; never ask a downstream question whose answer a still-open
-  upstream decision would change. Finish a branch before starting the next.
+  upstream decision would change. Finish a branch before starting the next. **Recompute the open frontier
+  after every answer**: an answer reshapes the tree — settling some questions, spawning others — so the
+  next question comes from the recomputed frontier, not from a list drawn up at the start. The frontier is
+  your judgment, not a computed graph; recomputing it is what makes a long interview converge instead of
+  wander.
 - **Explore the code instead of asking.** If a question is answerable from the repo — does X exist, how
   does Y work, what calls Z — read it. Spend a tool call, not the user's attention. Only ask what the code
   cannot answer.
+- **Find facts concurrently.** Facts are your job, never the user's. When a frontier question needs a
+  fact from the environment that takes real digging, dispatch a background sub-agent to find it and keep
+  interviewing — a running exploration is an unsettled prerequisite, so only the questions downstream of
+  it wait for the report; ask the rest of the frontier now.
 - **Surface, never smuggle.** State assumptions out loud. Two readings of an answer → present both, don't
   silently pick one. A simpler path than the user's framing → say so. Something unclear → stop and name the
   confusing thing.
@@ -43,4 +51,6 @@ exhausted and you and the user share the same picture — **not** until you have
 
 Stop when every load-bearing decision is resolved (or explicitly parked as a known-open question), the
 picture is shared, and the next question would be ceremony. Stopping earlier — at "enough to begin" — is
-the failure this discipline exists to prevent.
+the failure this discipline exists to prevent. Then state the shared picture in a few sentences and **get
+the user's explicit confirmation of it before acting on it** — slicing, writing, and briefing all wait
+for that confirmation, not just for the questions to run out.

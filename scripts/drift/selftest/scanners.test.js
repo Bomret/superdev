@@ -27,6 +27,7 @@ const {
   scanNarrativeCoverage,
   scanReturnToController,
   scanMarketplaceSource,
+  scanReadmeCommands,
 } = require('../scanners');
 const { ADR_STATUSES, DOC_PASS_CONTRACTS, PLAYBOOK_EDGE_CONTRACTS } = require('../contracts');
 
@@ -1614,4 +1615,41 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // absent or unparsable manifest → nothing to scan, matching every other scanner's fixture rule
   assert.equal(scanMarketplaceSource(fixture({ 'README.md': '# repo\n' })).length, 0, 'absent manifest is skipped');
+
+  // --- scanReadmeCommands: README.md and commands/ name the same command set — a command the README
+  // never names, or one it still names after a rename, is a router that lies. ---
+
+  // negative: README and commands/ agree
+  const rcOk = fixture({
+    'README.md': '# p\n\nRun `/superdev:plan`, then `/superdev:implement`.\n',
+    'commands/plan.md': '# plan\n',
+    'commands/implement.md': '# implement\n',
+  });
+  assert.equal(scanReadmeCommands(rcOk).length, 0, 'a README naming every command yields zero gaps');
+
+  // a shipped command the README never names
+  const rcMissing = fixture({
+    'README.md': '# p\n\nRun `/superdev:plan`.\n',
+    'commands/plan.md': '# plan\n',
+    'commands/ship.md': '# ship\n',
+  });
+  const rcMissingGaps = scanReadmeCommands(rcMissing);
+  assert.equal(rcMissingGaps.length, 1, 'an unmentioned command is one gap');
+  assert.match(rcMissingGaps[0].expectation, /\/superdev:ship/, 'the gap names the unmentioned command');
+
+  // a README naming a command that does not exist (a rename left the old name behind)
+  const rcGhost = fixture({
+    'README.md': '# p\n\nRun `/superdev:plan` and `/superdev:retired` (twice: `/superdev:retired`).\n',
+    'commands/plan.md': '# plan\n',
+  });
+  const rcGhostGaps = scanReadmeCommands(rcGhost);
+  assert.equal(rcGhostGaps.length, 1, 'a ghost command is one gap, deduped across repeated mentions');
+  assert.match(rcGhostGaps[0].expectation, /\/superdev:retired/, 'the gap names the ghost command');
+
+  // absent README or absent commands dir → nothing to scan, matching every other scanner's fixture rule
+  assert.equal(scanReadmeCommands(fixture({ 'commands/plan.md': '# plan\n' })).length, 0, 'absent README is skipped');
+  assert.equal(scanReadmeCommands(fixture({ 'README.md': '# p\n' })).length, 0, 'absent commands dir is skipped');
+
+  // the real repository is clean both ways
+  assert.equal(scanReadmeCommands(realRoot).length, 0, 'the real README and commands/ agree');
 };

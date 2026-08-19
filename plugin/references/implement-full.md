@@ -23,6 +23,13 @@ read `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md` as your last step.
   branch is **scoped** (`slice/<scope>/<id>`) so parallel runs never collide even when slice ids repeat.
   Filesystem isolation lets independent slices run in parallel; `.superdev/` being git-ignored keeps the
   nested worktrees out of the parent's status.
+- **An epic carrying `## Integration branch`** (a wide refactor whose batches can't stay green alone —
+  `${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md` → *Wide refactors*, ADR 0033) inserts one branch
+  between the slices and the scope: cut `integration/<scope>` from `<branch>` at run start, keep it
+  checked out in the invoking checkout, and merge every slice into it instead of `<branch>` (the
+  green-gate defers there). The plan's final **integrate-and-verify** slice is where you switch back to
+  `<branch>` and merge `integration/<scope>` into it — the gate fires on that merge, and it is the run's
+  promise of green. Everything else in the loop is unchanged.
 
 ## Progress log (per slice)
 
@@ -95,15 +102,15 @@ Repeat until every slice is `merged`:
      the scope's one full-suite run — at `/superdev:review`, or the run-handoff run when every slice in
      the scope is `mechanical`/`docs` — are the net; ADR 0025).
 4. **Merge (you, serially)** — from the scope checkout: `git merge --no-ff slice/<scope>/<id>`. Resolve
-   conflicts yourself (you hold cross-slice context; dispatch a fix subagent only if a conflict needs real
-   code work). **Resolve conflicts only when they're additive.** Independent slices usually conflict
-   because each *added* something to the same place — new list/enum/`switch` entries, new attributes, new
-   test methods, new doc bullets; the correct result is the **union of both sides, dropping nothing**
-   (keep every test from both sides — never delete a sibling's test to make the merge compile). A
-   **semantic overlap** — the *same* logic changed two different ways, where you'd have to pick a winner —
+   conflicts yourself, per `${CLAUDE_PLUGIN_ROOT}/references/merge-conflicts.md` (you hold cross-slice
+   context; dispatch a fix subagent only if a conflict needs real code work): trace both sides to their
+   slice specs, take the **union of both sides, dropping nothing** on additive conflicts (keep every test
+   from both sides — never delete a sibling's test to make the merge compile), and compose compatible
+   intents. A **genuine winner-picking overlap** — the *same* decision decided two incompatible ways,
+   where honouring one spec means violating the other —
    is not yours to guess: `git merge --abort` and escalate to the human. **`--unattended` → block** after
-   the abort, per that file's **Unattended** section: picking a winner is exactly the human decision the
-   token cannot stand in for.
+   the abort, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section: picking a
+   winner is exactly the human decision the token cannot stand in for.
 
    **A focused suite runs on the merge, automatically** — if a test command is configured
    (`docs/agents/verification.md`), the **green-gate hook** re-runs the focused command over this merge's

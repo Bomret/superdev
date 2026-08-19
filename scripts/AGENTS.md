@@ -149,7 +149,7 @@ every drift assertion by id, and it fell behind at five separate additions, beca
 maintained by hand at the moment its author is thinking about code. Naming the exceptions cannot drift
 when a new check lands.
 
-`drift-check.js` guards forty-six things, in the order `drift/checks.js` registers them. First, the
+`drift-check.js` guards forty-seven things, in the order `drift/checks.js` registers them. First, the
 `reference` contract: every `references/*.md` path named in `commands/`, `agents/`, or `references/`
 itself resolves to a file that exists. A reference cites another reference — both execution
 playbooks point at `scope-mode.md` — so a rename there dangles like any other. Second, the
@@ -508,6 +508,14 @@ validate .` accepts a source that names no directory at all — so a renamed tre
 would break every install while `bun run test` stayed green. An absent manifest is skipped, and an object
 source (a remote repo) is out of scope: only a path into this repository can drift against it.
 
+Forty-seventh, the `readme-commands` check, `scanReadmeCommands()`: `README.md` and `commands/` name the
+same command set — every `commands/<name>.md` is mentioned in the README as `/superdev:<name>`, and
+every `/superdev:<name>` the README names has a command file. The README is the user-facing map of the
+commands, and nothing else cross-checks it: the eighth check resolves command names in `commands/` and
+`agents/` prose only, so a command added without a README section, or a README still routing users to a
+renamed command, stayed green before this. Either half is skipped when its side is absent, matching
+every other scanner's fixture rule.
+
 The first and seventh checks are opposites. The first catches a reference to a file that does not exist.
 The seventh catches an agent that drops its wire to a file which still exists. That drift leaves the
 reference resolvable and the suite green, and the lens then does nothing in any dispatch.
@@ -523,7 +531,7 @@ successor at all.
   must stay `require`-able under plain `node`. This is the one dependency `hooks/` has on `scripts/`.
 - Every script ships a `--selftest`, same convention as the hooks.
 - A new drift-check contract is one entry appended at the end of the `drift/checks.js` registry, plus
-  its section in the forty-six-check narrative above and its selftest in the matching
+  its section in the forty-seven-check narrative above and its selftest in the matching
   `drift/selftest/*.test.js` suite. Append rather than insert unless the check belongs earlier for a
   reason — every ordinal after an insertion point has to be rewritten by hand. The forty-fifth check,
   `narrative-coverage`, enforces two pieces of this by itself: the new id must appear backticked
