@@ -1,3 +1,10 @@
+## [0.32.1](https://codeberg.org/bomret/superdev/compare/v0.32.0...v0.32.1) (2026-08-19)
+
+
+### Bug Fixes
+
+* **green-gate:** name the real Claude Code hook timeout default ([e0a490b](https://codeberg.org/bomret/superdev/commit/e0a490b01b5e8524650688c9eda1a0e63a05e575)), closes [#268](https://codeberg.org/bomret/superdev/issues/268)
+
 # [0.32.0](https://codeberg.org/bomret/superdev/compare/v0.31.0...v0.32.0) (2026-08-19)
 
 
