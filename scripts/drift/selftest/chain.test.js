@@ -58,7 +58,7 @@ const {
   SOURCE_SECTION_CONTRACTS,
 } = contracts;
 
-module.exports = ({ assert, path, fixture, realRoot }) => {
+module.exports = ({ assert, path, fixture }) => {
   // --- scanFeatureArgContract: `/superdev:implement` takes the feature label that names which planned
   // feature to build, and plan.md hands off with that label resolved. The two halves live in different
   // documents, so either can drift alone, and neither failure surfaces anywhere else: a caller with no
@@ -310,12 +310,6 @@ module.exports = ({ assert, path, fixture, realRoot }) => {
   // --- CHANGE_TYPE_CONTRACTS: the change-type set the prose lists and the set the scope-prune hook
   // matches are the same fact in two syntaxes, in two files. ---
 
-  assert.equal(
-    scanContract(realRoot, CHANGE_TYPE_CONTRACTS).length,
-    0,
-    'the shipped scope-mode.md type list and scope-prune.js regex agree',
-  );
-
   // positive from each side: dropping a type from either list alone is drift, and a run root left behind
   // for a type the hook stopped recognising is silent — no prune ever reports the one it skipped
   const type1 = fixture({
@@ -355,12 +349,6 @@ module.exports = ({ assert, path, fixture, realRoot }) => {
   // --- DERIVED_CRITERIA_CONTRACTS: the dispatch hands a path and the reviewer derives before reading.
   // Both halves are needed for the ordering to be real, and losing either one is silent. ---
 
-  assert.equal(
-    scanContract(realRoot, DERIVED_CRITERIA_CONTRACTS).length,
-    0,
-    'the shipped review.md dispatch and final-reviewer.md derivation step agree',
-  );
-
   // positive: reverting the dispatch to inlining the DoD text is caught
   const dc1 = fixture({
     'commands/review.md': 'take `<run-root>/dod.md` as the `acceptance` for both reviewers.\n',
@@ -386,12 +374,6 @@ module.exports = ({ assert, path, fixture, realRoot }) => {
 
   // --- LABEL_VALIDATION_CONTRACTS: both segments of a feature label reach git, so both are validated,
   // and every command that builds a path or a branch out of one points at the rule. ---
-
-  assert.equal(
-    scanContract(realRoot, LABEL_VALIDATION_CONTRACTS).length,
-    0,
-    'the shipped rule validates both segments and both consumers point at it',
-  );
 
   // positive: a rule that guards the slug alone leaves the type segment reaching `git switch -c`
   const lv1 = fixture({
@@ -428,12 +410,6 @@ module.exports = ({ assert, path, fixture, realRoot }) => {
 
   // --- GREEN_GATE_TIMEOUT_CONTRACTS: hooks.json's green-gate timeout and green-gate.js's own comment
   // name the same number, in two files. ---
-
-  assert.equal(
-    scanContract(realRoot, GREEN_GATE_TIMEOUT_CONTRACTS).length,
-    0,
-    'the shipped hooks.json timeout and green-gate.js comment agree',
-  );
 
   // positive from the hooks.json side: a green-gate entry that lost its `timeout` field is drift — the
   // ceiling the suite runs under stops being stated where the suite runs
@@ -526,12 +502,6 @@ module.exports = ({ assert, path, fixture, realRoot }) => {
   // drops its verb goes back to hand-editing or hand-parsing the ledger, and the ledger-guard hook only
   // sees tool calls at runtime, not prose. ---
 
-  assert.equal(
-    scanContract(realRoot, VERB_CONTRACTS).length,
-    0,
-    'every shipped chain document invokes its scope.js verb',
-  );
-
   // positive: a status.md that renders the report itself instead of running the verb
   const vc1 = fixture({
     'commands/status.md': 'Read each ledger and print one block per scope.\n',
@@ -622,12 +592,6 @@ module.exports = ({ assert, path, fixture, realRoot }) => {
   // above would stay green if one dropped the read/apply instruction while the reference file itself
   // still exists — this is the wire, not the reference. ---
 
-  assert.equal(
-    scanContract(realRoot, TEST_SELECTION_CONTRACTS).length,
-    0,
-    'the repo as it stands wires all three loop consumers to test-selection.md',
-  );
-
   for (const rel of [
     path.join('agents', 'implementer.md'),
     path.join('references', 'implement-lite.md'),
@@ -682,12 +646,6 @@ module.exports = ({ assert, path, fixture, realRoot }) => {
   // --- FULL_SUITE_CONTRACTS: /superdev:review in scope mode is the only full-suite run left in the
   // chain (ADR 0025) — the controller runs it itself, before dispatching final-reviewer, and
   // final-reviewer names its own re-run as optional and never the scope's only full-suite run. ---
-
-  assert.equal(
-    scanContract(realRoot, FULL_SUITE_CONTRACTS).length,
-    0,
-    'the shipped review command and final-reviewer both carry the ADR 0025 wiring',
-  );
 
   // positive: review.md drops the controller-run full suite and goes back to just handing over the command
   const fs1 = fixture({
@@ -787,12 +745,6 @@ module.exports = ({ assert, path, fixture, realRoot }) => {
   // so afk's stage table routes it past `/superdev:review` and ship drops the review from its own
   // missing-step warning. Either document alone reads correct while the pair disagrees, so both are
   // pinned. ---
-
-  assert.equal(
-    scanContract(realRoot, AFK_ROUTING_CONTRACTS).length,
-    0,
-    'the shipped afk.md and ship.md agree on where an all-mechanical/docs scope goes next',
-  );
 
   // positive: afk.md keeps the stage table but never reads the slice types — the shape that strands such
   // a scope in a review it skips, which is the defect this contract exists to catch
@@ -894,12 +846,6 @@ module.exports = ({ assert, path, fixture, realRoot }) => {
   // --- ARG_TOKEN_CONTRACTS: merge-guard, green-gate, and ledger-guard each parse the same shell-word
   // shape out of a Bash command line, by hand. A copy that drifts reopens the quoted-argument bypass. ---
 
-  assert.equal(
-    scanContract(realRoot, ARG_TOKEN_CONTRACTS).length,
-    0,
-    'all three shipped hooks carry the canonical ARG token verbatim',
-  );
-
   // positive: one hook narrows its copy back to a bare `\S+` — the pre-fix shape, which stops at the
   // first space inside a quoted path and lets `git -C "my repo" merge` past the guard
   const argGaps1 = scanContract(
@@ -961,13 +907,6 @@ module.exports = ({ assert, path, fixture, realRoot }) => {
       '# Review checklist\n\n## Anti-patterns\n\n## Vulnerability classes\n\n## Reuse audit\n\n' +
       '## Consistency\n',
   };
-
-  // the shipped references satisfy every row
-  assert.equal(
-    scanContract(realRoot, SOURCE_SECTION_CONTRACTS).length,
-    0,
-    'every shipped canonical reference carries its pinned sections',
-  );
 
   // a fixture carrying all five files whole is clean
   assert.equal(

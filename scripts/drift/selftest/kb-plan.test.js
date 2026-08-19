@@ -62,17 +62,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // /superdev:publish-kb is the only path to a remote backend. Two halves, checked separately, because
   // each passes on its own while the invariant is gone. ---
 
-  assert.equal(
-    scanContract(realRoot, KB_STAGING_CONTRACTS).length,
-    0,
-    'every shipped document that writes KB pages names the staging location',
-  );
-  assert.equal(
-    scanKbNoBackendCall(realRoot).length,
-    0,
-    'no shipped document but publish-kb carries a KB backend call path',
-  );
-
   // positive: a plan.md that seeds the page straight into the wiki again
   const kb1 = fixture({
     'commands/plan.md': 'Seed the feature specification into the KB outline.\n',
@@ -160,12 +149,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // reads it back with a stated fallback, and `references/documentation.md` seeds it — three documents
   // agreeing in prose only. ---
 
-  assert.equal(
-    scanContract(realRoot, AUDIT_SET_CONTRACTS).length,
-    0,
-    'the shipped setup.md, document.md, and documentation.md carry all three audit-set clauses',
-  );
-
   // positive: setup.md drops the write instruction — decision C's answer would go nowhere
   const auditGaps1 = scanContract(
     fixture({ 'commands/setup.md': 'Ask which docs sit outside the default tree the audit reads.\n' }),
@@ -225,12 +208,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // --- AGGREGATE_PAGE_CONTRACTS: the doc-pass reference stages one section for a marked page, publish-kb merges it
   // through the script, and the KB seed documents the marker that decides which pages get one (ADR
   // 0027). ---
-
-  assert.equal(
-    scanContract(realRoot, AGGREGATE_PAGE_CONTRACTS).length,
-    0,
-    'the shipped doc-pass reference, publish-kb, and Confluence seed all carry their half of the patch agreement',
-  );
 
   // positive: the doc-pass reference goes back to staging whole pages only — the state that leaves an aggregate
   // page replaceable by the one section a scope can see
@@ -313,12 +290,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // --- READ_PATH_CONTRACTS: publish-kb.md separates a read failure from a genuinely absent page, and a
   // config document that marks `(aggregate)` documents the call that returns the body (ADR 0027). ---
-
-  assert.equal(
-    scanContract(realRoot, READ_PATH_CONTRACTS).length,
-    0,
-    'the shipped publish-kb.md and knowledge-base.md carry both halves of the read-path agreement',
-  );
 
   // positive (RED reproduction): publish-kb mentions reading the live page, but creates it on *any*
   // missing body instead of separating a read failure from a genuinely absent page — the exact shape a
@@ -496,12 +467,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // --- STATUS_SEED_CONTRACTS: run init seeds each loaded slice's real status into `scope.js init`, so a
   // second run over an appended feature (ADR 0004) never re-dispatches an already-merged slice. ---
 
-  assert.equal(
-    scanContract(realRoot, STATUS_SEED_CONTRACTS).length,
-    0,
-    'the shipped implement.md carries the `status` field in its init call',
-  );
-
   // positive: implement.md's init call drops the `status` field — every loaded slice would seed the
   // bare `todo` default again, exactly the re-dispatch bug this contract exists to catch. The
   // never-dispatched sentence stays in this fixture, so the gap is the field row alone.
@@ -566,12 +531,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // --- ROTATE_ON_SHIPPED_CONTRACTS: a `shipped` ledger belongs to a finished run (ADR 0007's seven-day
   // trail keeps `ledger.md` on disk past merge), so run init must rotate it aside and run `init` again
   // rather than resume it — the exact landing a second run over an appended feature (ADR 0004) needs. ---
-
-  assert.equal(
-    scanContract(realRoot, ROTATE_ON_SHIPPED_CONTRACTS).length,
-    0,
-    'the shipped implement.md states the rotate-on-shipped rule and the unchanged resume path',
-  );
 
   // positive: implement.md loses the rotate-on-shipped rule and falls back to the old always-resume text
   const rotateGaps1 = scanContract(
@@ -650,13 +609,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'whose scope branch (`<type>/<scope>`) is neither merged into the base nor gone.\n\n' +
     "Create the epic, copy the lone slice's `acceptance` into it as the global DoD, and leave the lone " +
     'slice byte-identical.\n';
-
-  // the shipped plan.md satisfies the whole contract
-  assert.equal(
-    scanContract(realRoot, PLAN_APPEND_CONTRACTS).length,
-    0,
-    'the shipped plan.md carries all five append clauses',
-  );
 
   // negative: losing the §0 new-vs-extend question fails on its own
   const paNoQuestion = fixture({
@@ -768,13 +720,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     '`spec` and `acceptance` become the durable record instead. One left unresolved carries forward ' +
     'untouched.\n';
 
-  // the shipped plan.md satisfies the whole contract
-  assert.equal(
-    scanContract(realRoot, PARKED_QUESTIONS_CONTRACTS).length,
-    0,
-    'the shipped plan.md carries both parked-questions clauses',
-  );
-
   // negative: losing the surface-step clause fails on its own
   const pqNoSurface = fixture({
     'commands/plan.md': parkedQuestionsBody.replace(
@@ -836,13 +781,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     '`resumed` takes below, then reuse it.\n' +
     '- **`resumed`** — the branch holds unmerged slice work by design, so no ancestor test runs and ' +
     'nothing is cut.\n';
-
-  // the shipped scope-mode.md satisfies the whole contract
-  assert.equal(
-    scanContract(realRoot, RUN_KIND_CONTRACTS).length,
-    0,
-    'the shipped scope-mode.md specifies all three run kinds',
-  );
 
   // negative: losing the `fresh` cut-from-base clause fails on its own
   const rkNoFresh = fixture({

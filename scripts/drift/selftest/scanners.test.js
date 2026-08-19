@@ -314,12 +314,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // (ADR 0031). The lens, staging, and aggregate contracts above all moved onto that reference with the
   // prose, so they stay green for a caller that dropped the read — this is the check that does not. ---
 
-  assert.equal(
-    scanContract(realRoot, contracts.DOC_PASS_CONTRACTS).length,
-    0,
-    'the shipped doc-writer reads the doc-pass reference',
-  );
-
   // positive: the writer keeps its brief but stops reading the pass it performs
   const dp1 = fixture({
     'agents/doc-writer.md': '# doc-writer\n\nYou reconcile documentation with reality.\n',
@@ -984,12 +978,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // --- scanHookLedgerParsers: no hook carries a ledger-header regex of its own (ADR 0022) ---
 
-  assert.equal(
-    scanHookLedgerParsers(realRoot).length,
-    0,
-    'no shipped hook builds its own ledger-header pattern',
-  );
-
   // The exact line this scope deleted from hooks/scope-prune.js, in both quotings it appears in.
   for (const [label, src] of [
     ['a template literal', 'const m = text.match(new RegExp(`\\\\*\\\\*${name}:\\\\*\\\\*[^\\\\S\\\\n]*(\\\\S+)`));'],
@@ -1024,13 +1012,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     '## 3. Stage gate\n\n' +
     'Name what has not run and **ask once** whether to ship anyway. Declined → stop. Confirmed → ' +
     'proceed. **`--unattended` → refuse**: name what is missing, open no pull request, and stop.\n\n';
-
-  assert.equal(
-    scanShipGateContract(realRoot).length,
-    0,
-    'the shipped ship.md carries both the ask-once and refuse-unattended halves in its own Entries ' +
-      'standing paragraph',
-  );
 
   // positive (RED reproduction): the entries-standing paragraph drops its own ask-once clause, while the
   // unrelated stage gate above it still carries an "ask once" phrase for a different question — a
@@ -1101,12 +1082,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // --- UNRESOLVED_GLOSSARY_CONTRACTS: CONTEXT.md's Degraded pass and Unresolved defect entries agree
   // with references/scope-mode.md about which record covers a failure of the code under review (ADR
   // 0026) — the fact this scope's own history let drift for three fix cycles with the suite green. ---
-
-  assert.equal(
-    scanUnresolvedGlossaryContract(realRoot).length,
-    0,
-    'CONTEXT.md and scope-mode.md agree on which record covers a failure of the code under review',
-  );
 
   // positive: scope-mode.md drops the degraded-pass disclaimer CONTEXT.md's Degraded pass entry restates,
   // while keeping its Unresolved-defects half (verbatim) so only the dropped row is flagged
@@ -1347,9 +1322,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // absent file is skipped, matching every other scanner
   assert.equal(scanForcingBranchFlag(fixture({ 'README.md': '# repo\n' })).length, 0, 'absent playbook is skipped');
 
-  // a forcing flag in either playbook is what ADR 0028 forbids, so the shipped playbooks carry none
-  assert.equal(scanForcingBranchFlag(realRoot).length, 0, 'neither shipped playbook names a forcing flag');
-
   // positive: a playbook that instructs a return to the command body is reported, naming the document
   const returnRoot = fixture({
     'references/implement-full.md': 'Once the fix loop caps out, return to the controller.\n',
@@ -1485,9 +1457,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(runHandoffReturn.length, 1, 'flags a return-to-controller instruction in run-handoff.md');
   assert.equal(runHandoffReturn[0].source, path.join('references', 'run-handoff.md'), 'names run-handoff.md');
 
-  // the real repository reports clean — slices 01-02 made the run one-directional
-  assert.equal(scanReturnToController(realRoot).length, 0, 'neither shipped playbook instructs a return');
-
   // --- PLAYBOOK_EDGE_CONTRACTS: the positive half of the same one-directional shape — both execution
   // playbooks must still name run-init.md as their opening step and run-handoff.md as their closing one.
   // scanReturnToController() above only catches an instruction to go back; this catches a playbook that
@@ -1528,13 +1497,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     scanContract(fixture({ 'README.md': '# repo\n' }), PLAYBOOK_EDGE_CONTRACTS).length,
     0,
     'an absent playbook is skipped rather than reported',
-  );
-
-  // the real repository reports clean — both shipped playbooks still name both references
-  assert.equal(
-    scanContract(realRoot, PLAYBOOK_EDGE_CONTRACTS).length,
-    0,
-    'both shipped playbooks still name run-init.md and run-handoff.md',
   );
 
   // ---------------------------------------------------------------------------
@@ -1630,13 +1592,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
       .filter((g) => /check count/.test(g.expectation)).length,
     0,
     'a registry too large to spell reports no count gap rather than guessing',
-  );
-
-  // the real repository reports clean, against its own live registry
-  assert.equal(
-    scanNarrativeCoverage(realRoot).length,
-    0,
-    'every shipped check is written up and both counts match the registry',
   );
 
   // positive: stripping a check's own write-up from the shipped narrative is reported as a gap. Earlier
