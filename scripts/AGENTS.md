@@ -142,14 +142,14 @@ The checks named below are the exceptions, and every other one is a **drift asse
 restated fact against its source. `forcing-branch-flag`, `kb-no-backend-call`, `no-second-reader`, and
 `return-to-controller` are **negative** assertions — each reports a document that still says something,
 rather than one that stopped saying it. `eval-shape` and `adr-status` compare a document against a
-**schema**. `afk-existence` is a plain **existence** assertion.
+**schema**. `afk-existence` and `marketplace-source` are plain **existence** assertions.
 
 The exceptions are named and the rule covers the rest, deliberately. This sentence used to enumerate
 every drift assertion by id, and it fell behind at five separate additions, because a list of forty is
 maintained by hand at the moment its author is thinking about code. Naming the exceptions cannot drift
-when a forty-fifth check lands.
+when a new check lands.
 
-`drift-check.js` guards forty-five things, in the order `drift/checks.js` registers them. First, the
+`drift-check.js` guards forty-six things, in the order `drift/checks.js` registers them. First, the
 `reference` contract: every `references/*.md` path named in `commands/`, `agents/`, or `references/`
 itself resolves to a file that exists. A reference cites another reference — both execution
 playbooks point at `scope-mode.md` — so a rename there dangles like any other. Second, the
@@ -499,6 +499,13 @@ each check is described **somewhere** and that the counts agree, never that a de
 that the classification sentence files a check under the right kind. Those stay human judgment, and no
 check can replace them.
 
+Forty-sixth, the `marketplace-source` check, `scanMarketplaceSource()`: `.claude-plugin/marketplace.json`'s
+relative `source` for each plugin resolves to a directory that carries `.claude-plugin/plugin.json`. That
+one string is what limits an install to the shipped `plugin/` tree (ADR 0032), and `claude plugin
+validate .` accepts a source that names no directory at all — so a renamed tree or a fat-fingered path
+would break every install while `bun run test` stayed green. An absent manifest is skipped, and an object
+source (a remote repo) is out of scope: only a path into this repository can drift against it.
+
 The first and seventh checks are opposites. The first catches a reference to a file that does not exist.
 The seventh catches an agent that drops its wire to a file which still exists. That drift leaves the
 reference resolvable and the suite green, and the lens then does nothing in any dispatch.
@@ -514,7 +521,7 @@ successor at all.
   must stay `require`-able under plain `node`. This is the one dependency `hooks/` has on `scripts/`.
 - Every script ships a `--selftest`, same convention as the hooks.
 - A new drift-check contract is one entry appended at the end of the `drift/checks.js` registry, plus
-  its section in the forty-five-check narrative above and its selftest in the matching
+  its section in the forty-six-check narrative above and its selftest in the matching
   `drift/selftest/*.test.js` suite. Append rather than insert unless the check belongs earlier for a
   reason — every ordinal after an insertion point has to be rewritten by hand. The forty-fifth check,
   `narrative-coverage`, enforces two pieces of this by itself: the new id must appear backticked

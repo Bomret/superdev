@@ -14,9 +14,10 @@ const https = require('node:https');
 const REMOTE = 'https://codeberg.org/bomret/superdev/raw/branch/main/plugin/.claude-plugin/plugin.json';
 const CHECK_TTL_MS = 24 * 60 * 60 * 1000;
 
-// 1 if a>b, -1 if a<b, 0 equal — numeric collation compares each dotted segment as a number.
+// Positive if a>b, negative if a<b, 0 equal — numeric collation compares each dotted segment as a
+// number. The locale is fixed so the ordering never varies with the host.
 function cmpVersion(a, b) {
-  return String(a).localeCompare(String(b), undefined, { numeric: true });
+  return String(a).localeCompare(String(b), 'en', { numeric: true });
 }
 
 function localVersion(root) {
@@ -90,12 +91,14 @@ async function main() {
 
 if (process.argv[2] === '--selftest') {
   const assert = require('node:assert');
-  assert.equal(cmpVersion('0.2.0', '0.1.0'), 1, 'newer minor');
-  assert.equal(cmpVersion('0.1.0', '0.2.0'), -1, 'older minor');
+  // The contract is the sign, not ±1 — localeCompare only promises negative/zero/positive, and the
+  // one real caller tests `> 0`.
+  assert.ok(cmpVersion('0.2.0', '0.1.0') > 0, 'newer minor');
+  assert.ok(cmpVersion('0.1.0', '0.2.0') < 0, 'older minor');
   assert.equal(cmpVersion('0.2.0', '0.2.0'), 0, 'equal');
-  assert.equal(cmpVersion('0.2.1', '0.2'), 1, 'missing patch counts as 0');
-  assert.equal(cmpVersion('1.0.0', '0.9.9'), 1, 'major beats minor/patch');
-  assert.equal(cmpVersion('0.10.0', '0.9.0'), 1, 'numeric, not lexical');
+  assert.ok(cmpVersion('0.2.1', '0.2') > 0, 'a longer version with the same prefix is newer');
+  assert.ok(cmpVersion('1.0.0', '0.9.9') > 0, 'major beats minor/patch');
+  assert.ok(cmpVersion('0.10.0', '0.9.0') > 0, 'numeric, not lexical');
   console.log('update-check selftest ok');
 } else {
   main();

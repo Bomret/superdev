@@ -78,8 +78,7 @@ function readLines(text) {
 // fence markers themselves) is blanked, so a `#`/`~~~` shown *inside* an example is never read as a
 // heading — not in the staged body, not in the live section being replaced, and not by the `hits`
 // duplicate scan. Index-for-index with the input, so a masked index still locates the real line.
-// Follows CommonMark's closing-fence rule (matches `scripts/drift-check.js`'s `maskFences`): a shorter
-// inner fence never closes a longer outer one. An unterminated fence — an LLM or an editor dropping
+// Follows CommonMark's closing-fence rule: a shorter inner fence never closes a longer outer one. An unterminated fence — an LLM or an editor dropping
 // the closing marker is routine — would otherwise mask every line after it as fence content in both
 // inputs: hiding a following staged section from the "more than one section" refusal, or hiding real
 // live headings so the patch appends a duplicate and every later patch of that heading then refuses

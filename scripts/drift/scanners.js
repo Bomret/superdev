@@ -593,6 +593,35 @@ function scanReturnToController(root) {
   return gaps;
 }
 
+// scanMarketplaceSource() is pure over a root dir: `.claude-plugin/marketplace.json`'s relative `source`
+// for each plugin must resolve to a directory carrying `.claude-plugin/plugin.json`. That one string is
+// what limits an install to the shipped tree (ADR 0032), and `claude plugin validate .` accepts a source
+// that names no directory at all — so a renamed tree or a mistyped path breaks every install while the
+// suite stays green. The manifest is a repo-root file, never under `plugin/`, so it is read directly
+// rather than through docPath(). An absent or unparsable manifest is skipped, so fixtures need only the
+// files they exercise; an object source names a remote repo and is out of scope.
+function scanMarketplaceSource(root) {
+  let manifest;
+  try {
+    manifest = JSON.parse(fs.readFileSync(path.join(root, '.claude-plugin', 'marketplace.json'), 'utf8'));
+  } catch {
+    return []; // no marketplace manifest (fixture / partial checkout) → nothing to scan
+  }
+  const gaps = [];
+  for (const plugin of manifest.plugins || []) {
+    if (typeof plugin.source !== 'string') continue;
+    if (!fs.existsSync(path.join(root, plugin.source, '.claude-plugin', 'plugin.json'))) {
+      gaps.push({
+        source: path.join('.claude-plugin', 'marketplace.json'),
+        expectation:
+          `point \`${plugin.name}\`'s source at a directory carrying \`.claude-plugin/plugin.json\` — ` +
+          `\`${plugin.source}\` resolves to no plugin tree, and \`claude plugin validate\` accepts that`,
+      });
+    }
+  }
+  return gaps;
+}
+
 module.exports = {
   scan,
   scanRunRootPaths,
@@ -614,4 +643,5 @@ module.exports = {
   scanForcingBranchFlag,
   scanReturnToController,
   scanNarrativeCoverage,
+  scanMarketplaceSource,
 };

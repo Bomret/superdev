@@ -12,13 +12,13 @@ plugins.
 |------|------------|
 | Understand the plugin, install, updating | [`README.md`](README.md) |
 | Cut a release | [`RELEASING.md`](RELEASING.md) |
-| Slice schema, lifecycle and status | [`references/plan-contract.md`](references/plan-contract.md) |
+| Slice schema, lifecycle and status | [`references/plan-contract.md`](plugin/references/plan-contract.md) |
 | Domain language (ubiquitous terms) | [`CONTEXT.md`](CONTEXT.md) |
 | Architecture decisions (why it is built this way) | [`docs/adr/`](docs/adr/) |
-| In-repo documentation convention (this AGENTS.md hierarchy) | [`references/documentation.md`](references/documentation.md) |
-| Writing standard for docs | [`references/controlled-prose.md`](references/controlled-prose.md) |
-| What kind of information a doc owes its reader | [`references/content-types.md`](references/content-types.md) |
-| Add or adjust a backend (slice store, code host, KB, verification) | seeds in [`references/`](references/) |
+| In-repo documentation convention (this AGENTS.md hierarchy) | [`references/documentation.md`](plugin/references/documentation.md) |
+| Writing standard for docs | [`references/controlled-prose.md`](plugin/references/controlled-prose.md) |
+| What kind of information a doc owes its reader | [`references/content-types.md`](plugin/references/content-types.md) |
+| Add or adjust a backend (slice store, code host, KB, verification) | seeds in [`references/`](plugin/references/) |
 | Attribution and license | [`NOTICE`](NOTICE), [`LICENSE`](LICENSE) |
 
 ## Structure
@@ -93,9 +93,12 @@ plugin-relative paths for the maintainer-side checks.
 
 ## Working rules (repo-specific: read before you edit hooks, the version, or the release config)
 
-- **Hooks are CommonJS** (`.js`, `require`). Do **not** add `"type": "module"` to `package.json`. Node
-  resolves the plugin's `package.json` when it runs a hook, and would then treat every hook as ESM,
-  which breaks them in production. Only `.mjs` is ESM, because that is scoped by extension.
+- **Hooks are CommonJS** (`.js`, `require`). `plugin/package.json` is the anchor: it carries
+  `"type": "commonjs"` and ships with the plugin, so Node never walks past the install directory to
+  whatever `package.json` an ancestor of the user's plugin cache happens to carry — a `"type": "module"`
+  found there would treat every hook as ESM and break them all in production. Do **not** change that
+  field, and do not add `"type": "module"` to the root `package.json` either. Only `.mjs` is ESM,
+  because that is scoped by extension.
 - **Every hook ships a `--selftest`.** Add one for any new hook. `bun run test` runs them all under
   `node`, which matches the production runtime. It then runs `claude plugin validate ./plugin` as a
   manifest-validation gate.
@@ -107,7 +110,7 @@ plugin-relative paths for the maintainer-side checks.
   repo. `commands/` and `agents/` stay tool-agnostic. Do not hardcode a backend into them.
 - **Docs follow a writing standard.** `docs/agents/documentation.md` names it, and the doc agents apply
   it to prose they write. This repo uses `controlled`
-  ([`references/controlled-prose.md`](references/controlled-prose.md), ADR 0012).
+  ([`references/controlled-prose.md`](plugin/references/controlled-prose.md), ADR 0012).
 
 ## Known issues (Claude Code platform)
 
@@ -180,7 +183,7 @@ This root owns every other subtree directly:
   `ledger.md` read and write path, and exports `readLedgerHeader` for `plugin/hooks/scope-prune.js`),
   `plugin/scripts/kb-patch.js` (the deterministic section merge behind a staged page's `action: patch`,
   called by `/superdev:publish-kb`, ADR 0027), `scripts/eval-run.js` (the eval
-  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the forty-five cross-document contract checks: the
+  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the forty-six cross-document contract checks: the
   CLI walks the `drift/checks.js` registry, which orders every scanner and contract table). What each
   guards, check by check, lives in that child doc.
 - `plugin/references/`. Backend seed templates plus the non-seed references below. Each reference's own

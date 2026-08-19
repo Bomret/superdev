@@ -46,7 +46,7 @@ plan runs test-first and inline.
   vertical tracer-bullet slices** with explicit `depends-on` dependencies, written to the configured
   store. On an epic whose shape earns it, the command also draws a `## Slice graph` (the `depends-on`
   DAG), a `## Touch map` (parallel-slice file collisions), or both. Both are markdown, both are advisory, and
-  [`references/plan-contract.md`](references/plan-contract.md) gates each one. The command also tells you
+  [`references/plan-contract.md`](plugin/references/plan-contract.md) gates each one. The command also tells you
   the execution tier `/superdev:implement` will use for the final slice count (see below).
 
   Run it again against a feature that already has slices, and it **appends**. New slices land on top of
@@ -91,7 +91,7 @@ plan runs test-first and inline.
   It dispatches only the `doc-reader`, over the doc files that run's own commits touched, and nothing when
   those commits touched none. A review fix loop that lands commits clears that record, so the next run of
   this command dispatches the writer again. Both agents also apply a **content-type lens**
-  ([`references/content-types.md`](references/content-types.md)): does a reader learn *why* a thing
+  ([`references/content-types.md`](plugin/references/content-types.md)): does a reader learn *why* a thing
   exists and *when* to use it, not only what it's called and how to run it. That check is always on,
   unlike the **writing standard**, which the repo may configure to `none`. Where a writing standard is
   configured, the `doc-writer` writes to it and the `doc-reader` verifies it. It is the third command of the
@@ -163,7 +163,7 @@ bash or PowerShell variants.
 - **model-explicit.** Blocks a dispatch to a superdev subagent that omits an explicit `model`, so cost
   is always warrant-scaled.
 - **green-gate.** After a controller merge, runs the command
-  [`references/test-selection.md`](references/test-selection.md) picks and blocks on a RED result. That
+  [`references/test-selection.md`](plugin/references/test-selection.md) picks and blocks on a RED result. That
   file owns the full-versus-focused rule the gate follows. "Tests pass on scope after merging" is
   therefore enforced, not merely prompted. The gate is inactive until `docs/agents/verification.md`
   records a test command, which `/superdev:setup` does.
@@ -227,7 +227,7 @@ never hardcode a tool. Edit those files directly at any time. Re-run setup only 
   (`CONTEXT.md`), ADRs (`docs/adr/`), and path-scoped rules (`.claude/rules/`) under this convention, and
   `/document` reconciles it after a scope lands. This doc also names the **writing standard** the doc
   agents write to: `controlled` (the language-neutral rule set in
-  [`references/controlled-prose.md`](references/controlled-prose.md)), a path to your own style guide, or
+  [`references/controlled-prose.md`](plugin/references/controlled-prose.md)), a path to your own style guide, or
   `none`. The answers go to `docs/agents/documentation.md`.
 - **Knowledge base** *(optional)*. A **separate, human-first** record for *readers* rather than agents:
   feature specifications, design overviews, and ADR summaries. It is distinct from the agent-first
@@ -248,7 +248,7 @@ never hardcode a tool. Edit those files directly at any time. Re-run setup only 
   inactive. An optional second fenced block holds the focused test command. It narrows four callers to a
   set of changed paths. They are the implementer's TDD loop, the lite tier's inline loop, the
   slice-reviewer's Lens 2 re-run, and the green-gate hook.
-  [`references/test-selection.md`](references/test-selection.md) owns the full-versus-focused rule. The
+  [`references/test-selection.md`](plugin/references/test-selection.md) owns the full-versus-focused rule. The
   answer goes to `docs/agents/verification.md`.
 
 To add a backend, write a new seed template in `references/` plus a config doc. No command and no agent

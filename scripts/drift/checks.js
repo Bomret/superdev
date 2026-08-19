@@ -32,6 +32,7 @@ const {
   scanForcingBranchFlag,
   scanReturnToController,
   scanNarrativeCoverage,
+  scanMarketplaceSource,
 } = require('./scanners');
 const {
   ADR_STATUSES,
@@ -289,6 +290,12 @@ module.exports = [
     id: 'narrative-coverage',
     ok: "every registered check is written up in scripts/AGENTS.md, and both counts match the registry",
     run: scanNarrativeCoverage,
+    format: contractGap,
+  },
+  {
+    id: 'marketplace-source',
+    ok: 'the marketplace source resolves to the shipped plugin tree',
+    run: scanMarketplaceSource,
     format: contractGap,
   },
 ];

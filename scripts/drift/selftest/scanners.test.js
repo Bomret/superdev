@@ -1608,4 +1608,41 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     scanNarrativeCoverage(strippedOwnWriteUp).some((g) => /source-sections/.test(g.expectation)),
     "stripping `source-sections`'s own write-up is reported as a gap, with no other mention left to hide it",
   );
+
+  // --- scanMarketplaceSource: the marketplace manifest's relative `source` resolves to a directory
+  // carrying `.claude-plugin/plugin.json` (ADR 0032). `claude plugin validate .` accepts a source that
+  // names no directory at all, so this is the only check between a mistyped path and every install
+  // breaking while the suite stays green. ---
+  const { scanMarketplaceSource } = scanners;
+
+  // negative: a source that resolves to a real plugin tree is clean
+  const mkManifest = (source) =>
+    JSON.stringify({ name: 'm', plugins: [{ name: 'p', source }] });
+  const msOk = fixture({
+    '.claude-plugin/marketplace.json': mkManifest('./shipped'),
+    'shipped/.claude-plugin/plugin.json': '{"name":"p","version":"0.0.0"}',
+  });
+  assert.equal(scanMarketplaceSource(msOk).length, 0, 'a resolving source yields zero gaps');
+
+  // positive: a mistyped source names the manifest and the dead path
+  const msTypo = fixture({
+    '.claude-plugin/marketplace.json': mkManifest('./shippd'),
+    'shipped/.claude-plugin/plugin.json': '{"name":"p","version":"0.0.0"}',
+  });
+  const msGaps = scanMarketplaceSource(msTypo);
+  assert.equal(msGaps.length, 1, 'a source resolving to no plugin tree is a gap');
+  assert.equal(msGaps[0].source, path.join('.claude-plugin', 'marketplace.json'), 'names the manifest');
+  assert.match(msGaps[0].expectation, /\.\/shippd/, 'names the dead path');
+
+  // an object source names a remote repo, not a path in this repo — out of scope
+  const msRemote = fixture({
+    '.claude-plugin/marketplace.json': JSON.stringify({
+      name: 'm',
+      plugins: [{ name: 'p', source: { source: 'github', repo: 'o/r' } }],
+    }),
+  });
+  assert.equal(scanMarketplaceSource(msRemote).length, 0, 'an object source is skipped');
+
+  // absent or unparsable manifest → nothing to scan, matching every other scanner's fixture rule
+  assert.equal(scanMarketplaceSource(fixture({ 'README.md': '# repo\n' })).length, 0, 'absent manifest is skipped');
 };
