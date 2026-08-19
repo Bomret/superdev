@@ -143,86 +143,18 @@ subscription instead of a metered API key (ADR 0024). A maintainer creates the t
 
 # DOX framework
 
-- DOX is a highly performant AGENTS.md hierarchy, installed here
-- The agent must follow DOX instructions across any edit
-
-## Core Contract
-
-- AGENTS.md files are binding work contracts for their subtrees
-- Work products, source materials, instructions, records, assets, and durable docs must stay understandable from the nearest applicable AGENTS.md plus every parent AGENTS.md above it
-
-## Read Before Editing
-
-1. Read the root AGENTS.md
-2. Identify every file or folder you expect to touch
-3. Walk from the repository root to each target path
-4. Read every AGENTS.md found along each route
-5. If a parent AGENTS.md lists a child AGENTS.md whose scope contains the path, read that child and continue from there
-6. Use the nearest AGENTS.md as the local contract and parent docs for repo-wide rules
-7. If docs conflict, the closer doc controls local work details, but no child doc may weaken DOX
-
-Do not rely on memory. Re-read the applicable DOX chain in the current session before editing.
-
-## Update After Editing
-
-Every meaningful change requires a DOX pass before the task is done.
-
-Update the closest owning AGENTS.md when a change affects:
-
-- purpose, scope, ownership, or responsibilities
-- durable structure, contracts, workflows, or operating rules
-- required inputs, outputs, permissions, constraints, side effects, or artifacts
-- user preferences about behavior, communication, process, organization, or quality
-- AGENTS.md creation, deletion, move, rename, or index contents
-
-Update parent docs when parent-level structure, ownership, workflow, or the child index changes. Update
-child docs when a parent change alters local rules. Remove stale or contradictory text immediately. A
-small edit that changes no behavior and no contract may leave the docs unchanged, but the DOX pass still
-must happen.
-
-## Hierarchy
-
-- Root AGENTS.md is the DOX rail: project-wide instructions, global preferences, durable workflow rules, and the top-level Child DOX Index
-- Child AGENTS.md files own domain-specific instructions and their own Child DOX Index
-- Each parent explains what its direct children cover and what stays owned by the parent
-- The closer a doc is to the work, the more specific and practical it must be
-
-## Child Doc Shape
-
-- Create a child AGENTS.md when a folder becomes a durable boundary with its own purpose, rules, responsibilities, workflow, materials, or quality standards
-- Work Guidance must reflect the current standards of the project or user instructions. If there are no specific standards or instructions yet, leave it empty
-- Verification must reflect an existing check. If no verification framework exists yet, leave it empty and update it when one exists
-
-Default section order:
-- Purpose
-- Ownership
-- Local Contracts
-- Work Guidance
-- Verification
-- Child DOX Index
-
-## Style
-
-- Keep docs concise, current, and operational
-- Document stable contracts, not diary entries
-- Put broad rules in parent docs and concrete details in child docs
-- Prefer direct bullets with explicit names
-- Do not duplicate rules across many files unless each scope needs a local version
-- Delete stale notes instead of explaining history
-- Trim obvious statements, repeated rules, misplaced detail, and warnings for risks that no longer exist
-
-## Closeout
-
-1. Re-check changed paths against the DOX chain
-2. Update nearest owning docs and any affected parents or children
-3. Refresh every affected Child DOX Index
-4. Remove stale or contradictory text
-5. Run existing verification when relevant
-6. Report any docs intentionally left unchanged and why
-
-## User Preferences
-
-When the user requests a durable behavior change, record it here or in the relevant child AGENTS.md
+- AGENTS.md files are binding work contracts for their subtrees. Before editing, read this root doc
+  plus every AGENTS.md on the path to each file you touch, in the current session. The nearest doc
+  controls local detail; no child doc may weaken a parent.
+- After every meaningful change, do a DOX pass: update the closest owning AGENTS.md — and any affected
+  parent, child, or Child DOX Index — when purpose, ownership, durable structure, contracts, workflows,
+  constraints, or user preferences changed. Delete stale or contradictory text immediately. A change
+  that alters no behavior and no contract may leave the docs unchanged, but the pass still happens.
+- Create a child AGENTS.md only when a folder becomes a durable boundary with rules of its own. Section
+  order: Purpose, Ownership, Local Contracts, Work Guidance, Verification, Child DOX Index. Broad rules
+  live in parents, concrete detail in children — concise, current, operational, no duplicated rules,
+  no history.
+- When the user requests a durable behavior change, record it here or in the relevant child AGENTS.md.
 
 ## Child DOX Index
 
@@ -251,85 +183,22 @@ This root owns every other subtree directly:
   runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the forty-five cross-document contract checks: the
   CLI walks the `drift/checks.js` registry, which orders every scanner and contract table). What each
   guards, check by check, lives in that child doc.
-- `plugin/references/`. Backend seed templates plus the non-seed references below.
-  + `plan-contract.md`: the slice schema and lifecycle, including the optional epic sections, the
-    epic-visuals gate for `## Slice graph` and `## Touch map`, and the `## Scope anchor` section — the
-    generic contract (a feature's root; a single-slice plan's anchor is its own lone slice) that each
-    store document (`issue-tracker-*.md`, `docs/agents/issue-tracker.md`) specialises for its own backend
-    (ADR 0017). Its `## Feature label` section is the same shape one level over: the generic contract (a
-    change type plus a slug, picked by `/plan`) that each store document renders in its own notation
-    (ADR 0019, ADR 0021). Its `## Append mode` section holds the five invariants that let `/plan` extend
-    a feature that already has slices — merged slices are immutable, ids are never reused or renumbered,
-    the global DoD is amended in place, extending a single-slice feature creates the epic first, and
-    append refuses while a run is active — with numbering continuation named as the local-file store's
-    own rule alone (ADR 0004).
-  + `documentation.md`: the in-repo documentation convention, including the two sections
-    `/superdev:setup` fills in — `## Writing standard`, always, and `## Audit set`, only when the repo has
-    documentation outside the tree `/superdev:document audit` reads on its own.
-  + `controlled-prose.md`: the **writing standard**. A language-neutral rule set that merges the
-    ASD-STE100 Part 1 rules with the rules the tekom catalogue and the *Handbook of Technical Writing*
-    reach that ASD-STE100 does not. Read at runtime by `references/doc-pass.md` on behalf of both its
-    callers, which apply it, and by `doc-reader`, which verifies it directly (ADR 0012).
-  + `content-types.md`: the **content-type lens**. The four kinds of information a doc carries, and the
-    test for reporting an absent conceptual layer. Read at runtime by `references/doc-pass.md` on behalf
-    of both its callers, which apply it in both its passes. `doc-reader` checks it in Pass 1 directly.
-    Unlike the writing standard it is never configurable and never `none`, because coverage is a
-    completeness property and not a style one (ADR 0014).
-  + `doc-pass.md`: the **documentation pass**, stated once for its two callers. One is the dispatched
-    `doc-writer`. The other is the `lite` execution playbook's controller, which performs the pass itself
-    in its own context, as the run's last step (ADR 0031). It owns the content-type lens, the writing
-    standard, the in-repo docs pass, and the knowledge-base pass with its staged pages. Each caller keeps
-    only what is specific to it: `doc-writer` keeps its agent framing, bootstrap mode, and report, and the
-    `lite` playbook keeps only the pass's timing, its commit, and its ledger record.
-  + `run-init.md`: run init — the ledger and DoD setup both execution playbooks `Read` as their first
-    step, tier-agnostic.
-  + `run-handoff.md`: run handoff — the hand-off to `/superdev:review` both execution playbooks `Read`
-    as their last step, tier-agnostic.
-  + **Execution playbooks** (`implement-full.md`, `implement-lite.md`): the tier-specific linear
-    procedures `/implement` reads at runtime once it computes the tier.
-  + `test-selection.md`: the rule that picks the full test command over the focused one (ADR 0025) —
-    single-sourced here and read at runtime by two kinds of caller. The **focused** callers run the command
-    it selects for each loop increment: `agents/implementer.md`, `agents/slice-reviewer.md`, and
-    `references/implement-lite.md`. The **full-suite** callers read it for the full command instead:
-    `commands/review.md`'s scope review, and `references/run-handoff.md`'s run handoff, which runs that
-    suite in place of the review an all-`mechanical`/`docs` scope skips. `hooks/green-gate.js` implements
-    the same rule in code rather than reading it.
-  + `scope-mode.md`: the rule `/superdev:review`, `/superdev:document`, and `/superdev:ship` share (ADR
-    0013) — what makes a range a live scope run, how to find the scope checkout on disk for both tiers, and
-    the run-lock refresh-not-create rule. Each of the three reads it at runtime and keeps only what is
-    specific to it. Its `## Unattended` section defines the `--unattended` token (ADR 0016). It is the
-    argument that lets `/superdev:afk` drive a command with no standing answer written at a stop
-    blocking instead of asking. `/superdev:implement` and both execution playbooks read that section
-    too. Its `## The scope slug` rule states the charset a feature label's slug, or any other external
-    source, must match. The check runs before that slug becomes a branch segment or a run-root path
-    segment.
-    `/superdev:implement` and `/superdev:afk` both read it. Its `## The change type` section owns the
-    Conventional Commits type set a scope branch leads with (`<type>/<slug>`, the feature label verbatim)
-    and names `/plan` as the command that picks one (ADR 0021). `hooks/scope-prune.js` matches that set
-    only on its pre-CLI fallback path. A scope is finished with once its branch is merged or gone
-    (ADR 0007), and the ledger's `**Branch:**` line is what the hook checks first. Its `## Degraded passes`
-    section (ADR 0018)
-    defines the pass a run did not get — a dispatch the permission classifier denied, or one that could
-    not reach what it needed — what a command does about one attended and unattended, and the
-    `**Degraded:**` ledger entry that carries it to `/superdev:ship`'s pull-request body and
-    `/superdev:status`'s report. Its `## Unresolved defects` section (ADR 0026) defines the defect a run
-    finds and leaves standing, distinct from a degraded pass. The `**Unresolved:**` ledger entry carries
-    it to `/superdev:ship`'s pull-request body and `/superdev:status`'s report the same way. Its `## The
-    ledger` section defers the ledger's schema to `scripts/scope.js` (ADR 0022), which
-    owns it and is the only read and write path — including the `**Anchor:**` line
-    `/superdev:implement` hands to `init` and `/superdev:review` reads back (`get anchor`) for the
-    PR-facing title. Its `## Cutting the scope branch` section (ADR 0028) owns what the branch step does
-    for each **run kind** — `fresh`, `appended`, `resumed`. `references/run-init.md`'s run init computes
-    that value and both execution playbooks read this section instead of deriving it again, so each
-    playbook keeps only its own tier's command.
-  + **Authoring disciplines** (`cross-exam.md`, `domain-modeling.md`, `doc-verification.md`): the
-    relentless cross-examination, active-domain-modeling, and verify-against-official-docs disciplines
-    that `/plan` and `/brainstorm` read at runtime. They are superdev's own rendering of Matt Pocock's
-    grilling and domain-modeling skills. The `implementer` agent also reads `doc-verification.md` before
-    it acts on an assumption about a third-party library, API, or service.
-  + `review-checklist.md`: named anti-patterns, vulnerability classes, a reuse-audit lens, and a
-    consistency lens. `final-reviewer` reads all four and `slice-reviewer` reads the anti-patterns and
-    vulnerability classes.
+- `plugin/references/`. Backend seed templates plus the non-seed references below. Each reference's own
+  opening states its full contract; this index only routes.
+
+  | Reference | Owns | Read at runtime by |
+  |---|---|---|
+  | `plan-contract.md` | slice schema + lifecycle; the `## Scope anchor`, `## Feature label`, and `## Append mode` generic contracts every store document specialises (ADR 0004, 0017, 0019, 0021) | `/plan`; the store seeds cite it |
+  | `documentation.md` | the in-repo documentation convention; `/superdev:setup` fills `## Writing standard` always and `## Audit set` when needed | `/setup`, `/document` |
+  | `controlled-prose.md` | the writing standard (ADR 0012) | `doc-pass.md`'s callers apply it; `doc-reader` verifies it |
+  | `content-types.md` | the content-type lens — never configurable, never `none` (ADR 0014) | `doc-pass.md`'s callers; `doc-reader` |
+  | `doc-pass.md` | the documentation pass, stated once for its two callers (ADR 0031) | `doc-writer`; the `lite` playbook |
+  | `run-init.md`, `run-handoff.md` | run init and run handoff, tier-agnostic | both execution playbooks |
+  | `implement-full.md`, `implement-lite.md` | the tier-specific execution playbooks | `/implement`, once it computes the tier |
+  | `test-selection.md` | the focused-vs-full test command rule (ADR 0025); `hooks/green-gate.js` implements the same rule in code | focused: `implementer`, `slice-reviewer`, `implement-lite`; full-suite: `/review`'s scope review, `run-handoff` |
+  | `scope-mode.md` | the shared scope rules — live-run detection, the scope checkout, the run lock, `## Unattended`, `## The scope slug`, `## The change type`, `## Degraded passes`, `## Unresolved defects`, `## The ledger` (deferring the schema to `scope.js`), `## Cutting the scope branch` (ADR 0007, 0013, 0016, 0018, 0021, 0022, 0026, 0028) | `/review`, `/document`, `/ship`, `/implement`, `/afk`, both playbooks |
+  | `cross-exam.md`, `domain-modeling.md`, `doc-verification.md` | the authoring disciplines — superdev's rendering of Matt Pocock's grilling and domain-modeling skills | `/plan`, `/brainstorm`; `implementer` reads `doc-verification.md` before acting on a third-party assumption |
+  | `review-checklist.md` | anti-patterns, vulnerability classes, a reuse-audit lens, a consistency lens | `final-reviewer` (all four); `slice-reviewer` (anti-patterns + vulnerabilities) |
 - `docs/adr/`. Architecture decision records. `docs/agents/`. This repo's own dogfooded backend config.
 - `.claude-plugin/`. Manifests. Governed by **Working rules, Version lives only in `plugin.json`**.
 - `CONTEXT.md`. The domain glossary. `evals/`. The with/without-plugin A/B, where `evals/README.md` owns
