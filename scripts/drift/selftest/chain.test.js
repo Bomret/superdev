@@ -524,11 +524,16 @@ module.exports = ({ assert, path, fixture, realRoot }) => {
     'commands/document.md': 'Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js` when done.\n',
   });
   const vcGaps2 = scanContract(vc2, VERB_CONTRACTS);
-  assert.equal(vcGaps2.length, 1, 'a bare scope.js mention without the verb is still a gap');
+  // Two, because `commands/document.md` carries two rows: its stage write and its read of the
+  // inline-doc-pass record (ADR 0031). A bare mention satisfies neither.
+  assert.equal(vcGaps2.length, 2, 'a bare scope.js mention without the verb is still a gap');
 
-  // negative: the full invocation with the plugin-root path prefix satisfies the row
+  // negative: the full invocation with the plugin-root path prefix satisfies the row — both of
+  // `commands/document.md`'s rows, so the fixture carries both invocations
   const vc3 = fixture({
-    'commands/document.md': 'Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js stage set documented --root <run-root>`.\n',
+    'commands/document.md':
+      'Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js stage set documented --root <run-root>`.\n' +
+      'Read it first with `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js get docs --root <run-root>`.\n',
   });
   assert.equal(scanContract(vc3, VERB_CONTRACTS).length, 0, 'a full verb invocation is clean');
 
@@ -544,7 +549,8 @@ module.exports = ({ assert, path, fixture, realRoot }) => {
   const uvReview = fixture({
     'commands/review.md':
       'Write its stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set reviewed --root <run-root>`. ' +
-      'Read the anchor title with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get anchor --root <run-root>`.\n',
+      'Read the anchor title with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get anchor --root <run-root>`. ' +
+      'Clear the doc record with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs clear --root <run-root>`.\n',
   });
   const uvReviewGaps = scanContract(uvReview, VERB_CONTRACTS);
   assert.equal(uvReviewGaps.length, 2, 'flags review.md for dropping both unresolved verbs');
@@ -564,13 +570,14 @@ module.exports = ({ assert, path, fixture, realRoot }) => {
     'both gaps name run-handoff.md',
   );
 
-  // negative: review.md carrying all four of its rows, including both unresolved verbs, is clean
+  // negative: review.md carrying all five of its rows, including both unresolved verbs, is clean
   const uvClean = fixture({
     [path.join('commands', 'review.md')]:
       'Write its stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set reviewed --root <run-root>`. ' +
       'Read the anchor title with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get anchor --root <run-root>`. ' +
       'Write it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add "<text>" --root <run-root>`. ' +
-      'On a clean verdict, `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`.\n',
+      'On a clean verdict, `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`. ' +
+      'A fix cycle that committed also runs `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs clear --root <run-root>`.\n',
   });
   assert.equal(
     scanContract(uvClean, VERB_CONTRACTS).length,

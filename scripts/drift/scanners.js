@@ -39,7 +39,7 @@ const {
   ADR_STATUS_PATTERN,
   GRADER_TYPES,
   FOCUS_TYPES,
-  CONTENT_TYPES_AGENTS,
+  CONTENT_TYPES_DOCS,
   CONTENT_TYPES_PATTERN,
   COMMAND_REFERENCE_PATTERN,
   CHAIN_HANDOFFS,
@@ -309,7 +309,7 @@ function scanEvalShape(root) {
 // fixtures need only the agents they exercise.
 function scanContentTypesContract(root) {
   const gaps = [];
-  for (const rel of CONTENT_TYPES_AGENTS) {
+  for (const rel of CONTENT_TYPES_DOCS) {
     const text = readDoc(root, rel);
     if (text === null) continue; // agent absent (fixture / partial checkout) → nothing to scan
     if (!CONTENT_TYPES_PATTERN.test(text)) gaps.push({ source: rel });

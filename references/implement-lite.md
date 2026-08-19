@@ -4,7 +4,8 @@ The controller `Read`s this after computing tier = `lite` (see `commands/impleme
 don't need per-slice worktrees or subagents: you (the controller) implement every slice yourself, inline,
 test-first, in a single dedicated scope worktree. This is the one deliberate exception to the "controller
 never implements inline" invariant (ADR 0001). Honor the controller's **Invariants** throughout. Once
-every slice is committed, read `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md` as your last step.
+every slice is committed, perform the documentation pass (`## Document, before you hand off` below), then
+read `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md` as your last step.
 
 ## Branch model
 
@@ -64,10 +65,40 @@ when you finish: it spans the whole chain, and `/superdev:ship` removes it once 
   no per-slice review.
 - **No per-slice review, no per-slice progress log.** Your own context is the record of how each slice
   unfolded; the ledger is the durable trace once that context is gone.
-- **Nothing here degrades.** This tier dispatches nobody, so a denied dispatch cannot happen and the
+- **No dispatch degrades here.** This tier dispatches nobody, so a denied dispatch cannot happen and the
   `**Degraded:**` line that `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes`
-  section defines stays absent through slice execution. `/superdev:review` and `/superdev:document` do
-  dispatch, so the line can still appear later in the chain — leave any entry you find alone.
+  section defines stays absent through slice execution. The doc step below can still write one, for that
+  section's second shape. `/superdev:review` and `/superdev:document` dispatch too, so the line can
+  appear later in the chain — leave any entry you find alone.
+
+## Document, before you hand off
+
+Once every slice is committed, **you** perform the documentation pass, in this same worktree, while the
+scope is still in your context. That is the point of doing it here: a `doc-writer` dispatched later would
+rebuild the same picture from a diff, and `/superdev:document` keeps only the cold `doc-reader` that hot
+context cannot replace (ADR 0031). The `full` tier does not do this — its slices are built in parallel
+worktrees and would collide on shared doc files.
+
+- **Read `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md` and perform the pass it states**, both passes,
+  over the range `<base>..<branch>` — this scope's own commits. It owns the content-type lens, the writing
+  standard, the in-repo docs pass, and the knowledge-base pass; this step owns only when it runs and what
+  it records.
+- **Hand the pass the staging path as an absolute path** — `.superdev/kb-pending/<scope>/` in the
+  **invoking checkout**, not a `.superdev/…` path resolved from this worktree's cwd, which lands one level
+  too deep in a directory `/superdev:ship` deletes.
+- **Commit the doc changes on the scope branch**, in this worktree, as their own commit.
+- **Record the pass** with
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs set inline --root <run-root>`. That record is what
+  tells `/superdev:document` to dispatch the `doc-reader` alone. Write it **after** the pass, never before:
+  a run that ends between the two is exactly the case the absent record covers, and the next
+  `/superdev:document` then runs the full writer.
+- **A pass that changed nothing still records.** The docs already agreed with the code, which is a
+  finished pass, not a skipped one.
+- **A knowledge-base pass you cannot stage is a degraded pass**, the second shape in
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section: record it with
+  `scope.js degraded add` and continue, attended or unattended alike. Record the doc pass as well — what
+  ran, ran.
+- **Nothing here asks a question**, so `--unattended` changes nothing about this step.
 
 ## Resume
 

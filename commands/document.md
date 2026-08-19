@@ -29,6 +29,22 @@ From `$ARGUMENTS`:
 
 ## 3. Dispatch
 
+**Read the run's inline-doc-pass record first**, whenever §2 found a live scope run:
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get docs --root <run-root>`. Anything but `absent` means
+that run already performed the pass in its own context, while it still held the scope (ADR 0031), so the
+work this section would dispatch is done:
+
+- **Dispatch no `doc-writer`.** Go straight to §4 with the scope's own commits (`<base>..<branch>`) as the
+  range, and the doc files those commits touched as the file list — the two things §4 would otherwise take
+  from a writer's report.
+- **Those commits touched no doc file** → skip §4 as well, and say in §5 that the pass was already done and
+  left nothing for a reader. This invocation dispatches nobody at all.
+- The record reads `absent` on every `full` run, on a `lite` run that ended before its doc step, and after
+  `/superdev:review` cleared it because its fix loop landed commits. Each takes the dispatch below,
+  unchanged.
+
+An ad-hoc range has no run root and so no record: dispatch below.
+
 Dispatch **`superdev:doc-writer`** with an **explicit `model`** (`sonnet`; `haiku` for a tiny focused range).
 Hand it: the range (git range/area/"full"), the two config file paths, the **staging path** below, and — for a range — a reminder to start from `git diff --stat`/`git log` over that range.
 It runs two passes (in-repo docs, then KB per its outline/language/audience, human-first), **deleting stale/obsolete text**, and commits its doc changes on the current branch.
@@ -41,9 +57,9 @@ Ensure `.superdev/` is in the repo's `.gitignore` before you dispatch; add it if
 
 ## 4. Reader test
 
-Skip if the doc-writer changed nothing.
+Skip if the doc-writer changed nothing, or if §3 found the pass already done and no doc file changed.
 
-From the doc-writer's report, collect the changed doc files — in-repo docs and **local** KB pages (software-KB pages are out of scope).
+From the doc-writer's report, collect the changed doc files — in-repo docs and **local** KB pages (software-KB pages are out of scope). §3's no-writer path supplies both from the scope's own commits instead; everything else in this section is the same either way, including the fix round, which does dispatch a `doc-writer`.
 Dispatch **`superdev:doc-reader`** with an **explicit `model`** (`sonnet`), that file list, the `docs/agents/documentation.md` path, and the doc-writer's **commit range** (`<first>^..<last>`, covering both passes) — no narrative, no summary of the work: it reads the docs cold and verifies their claims against the repo, read-only.
 
 The range scopes its **writing-standard pass** to the lines those commits added, so the configured standard binds new prose without flagging text nobody touched. Its claim-verification passes stay cold.

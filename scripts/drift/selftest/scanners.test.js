@@ -264,32 +264,32 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // positive: doc-reader dropped its wire
   const ct17 = fixture({
-    'agents/doc-writer.md': wired,
+    'references/doc-pass.md': wired,
     'agents/doc-reader.md': unwired,
   });
   const ctGaps17 = scanContentTypesContract(ct17);
   assert.equal(ctGaps17.length, 1, 'flags the agent that dropped the content-types reference');
   assert.equal(ctGaps17[0].source, path.join('agents', 'doc-reader.md'), 'names doc-reader');
 
-  // positive: doc-writer dropped its wire — the same failure from the other side
+  // positive: the doc-pass reference dropped its wire — the same failure from the other side
   const ct18 = fixture({
-    'agents/doc-writer.md': unwired,
+    'references/doc-pass.md': unwired,
     'agents/doc-reader.md': wired,
   });
   const ctGaps18 = scanContentTypesContract(ct18);
-  assert.equal(ctGaps18.length, 1, 'flags doc-writer when it is the one that dropped the wire');
-  assert.equal(ctGaps18[0].source, path.join('agents', 'doc-writer.md'), 'names doc-writer');
+  assert.equal(ctGaps18.length, 1, 'flags doc-pass.md when it is the one that dropped the wire');
+  assert.equal(ctGaps18[0].source, path.join('references', 'doc-pass.md'), 'names doc-pass.md');
 
   // negative: both wired is clean
   const ct19 = fixture({
-    'agents/doc-writer.md': wired,
+    'references/doc-pass.md': wired,
     'agents/doc-reader.md': wired,
   });
   assert.equal(scanContentTypesContract(ct19).length, 0, 'both agents wired yields zero gaps');
 
   // a bare prose path counts too, matching how scan() accepts either form
   const ct20 = fixture({
-    'agents/doc-writer.md': 'Read `references/content-types.md` before your first edit.\n',
+    'references/doc-pass.md': 'Read `references/content-types.md` before your first edit.\n',
     'agents/doc-reader.md': wired,
   });
   assert.equal(scanContentTypesContract(ct20).length, 0, 'a bare reference path satisfies the contract');
@@ -297,7 +297,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // the path alone is not a wire: an agent that mentions the file in passing but never instructs itself
   // to read it has already lost the lens, which is the drift this check exists to catch
   const ct21 = fixture({
-    'agents/doc-writer.md': 'The lens lives in `references/content-types.md` and matters here.\n',
+    'references/doc-pass.md': 'The lens lives in `references/content-types.md` and matters here.\n',
     'agents/doc-reader.md': wired,
   });
   assert.equal(
@@ -307,8 +307,42 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   );
 
   // an absent agent file is skipped, so a fixture carries only the files it exercises
-  const ct22 = fixture({ 'agents/doc-writer.md': wired });
-  assert.equal(scanContentTypesContract(ct22).length, 0, 'an absent agent file is skipped');
+  const ct22 = fixture({ 'references/doc-pass.md': wired });
+  assert.equal(scanContentTypesContract(ct22).length, 0, 'an absent doc file is skipped');
+
+  // --- DOC_PASS_CONTRACTS: every caller of the documentation pass reads the reference that states it
+  // (ADR 0031). The lens, staging, and aggregate contracts above all moved onto that reference with the
+  // prose, so they stay green for a caller that dropped the read — this is the check that does not. ---
+
+  assert.equal(
+    scanContract(realRoot, contracts.DOC_PASS_CONTRACTS).length,
+    0,
+    'the shipped doc-writer reads the doc-pass reference',
+  );
+
+  // positive: the writer keeps its brief but stops reading the pass it performs
+  const dp1 = fixture({
+    'agents/doc-writer.md': '# doc-writer\n\nYou reconcile documentation with reality.\n',
+  });
+  const dpGaps1 = scanContract(dp1, contracts.DOC_PASS_CONTRACTS);
+  assert.equal(dpGaps1.length, 1, 'flags a doc-writer that no longer reads references/doc-pass.md');
+  assert.equal(dpGaps1[0].source, path.join('agents', 'doc-writer.md'), 'names doc-writer.md');
+
+  // positive: naming the reference in passing is not reading it, the same rule content-types applies
+  const dp2 = fixture({
+    'agents/doc-writer.md': 'The pass is stated in `references/doc-pass.md`, which matters here.\n',
+  });
+  assert.equal(
+    scanContract(dp2, contracts.DOC_PASS_CONTRACTS).length,
+    1,
+    'a passing mention with no read instruction is still a gap',
+  );
+
+  // negative: either path form satisfies it, since the agent resolves both at dispatch
+  const dp3 = fixture({
+    'agents/doc-writer.md': 'Read `references/doc-pass.md` and perform the pass it states.\n',
+  });
+  assert.equal(scanContract(dp3, contracts.DOC_PASS_CONTRACTS).length, 0, 'a bare reference path satisfies it');
 
   // --- scanAdrStatus: every ADR must state a status. An ADR with no status line reads as accepted
   // whether or not anything implements it, which is how a decision gets documented as live while the

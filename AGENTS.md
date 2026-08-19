@@ -40,7 +40,7 @@ agents/                — subagents (*.md): implementer, slice-reviewer, simpli
 hooks/                 — deterministic Node hooks + hooks.json: merge-guard, model-explicit, green-gate,
                          run-lock, ledger-guard, worktree-sweep, scope-prune, update-check
 references/            — backend seed templates + the non-seed runtime references (plan-contract,
-                         documentation convention, controlled-prose, content-types, run init,
+                         documentation convention, controlled-prose, content-types, doc pass, run init,
                          run handoff, execution playbooks, test-selection, scope-mode, authoring
                          disciplines, review-checklist). Who reads what: the `references/` entry of the
                          Child DOX Index below.
@@ -235,7 +235,7 @@ This root owns every other subtree directly:
   0022 — owns the ledger schema, is the only `ledger.md` read and write path, and exports
   `readLedgerHeader` for `hooks/scope-prune.js`), `kb-patch.js` (the deterministic section merge behind a
   staged page's `action: patch`, called by `/superdev:publish-kb`, ADR 0027), `eval-run.js` (the eval
-  runner, ADR 0024), and `drift-check.js` with `drift/` (the forty-four cross-document contract checks: the
+  runner, ADR 0024), and `drift-check.js` with `drift/` (the forty-five cross-document contract checks: the
   CLI walks the `drift/checks.js` registry, which orders every scanner and contract table). What each
   guards, check by check, lives in that child doc.
 - `references/`. Backend seed templates plus the non-seed references below.
@@ -255,13 +255,19 @@ This root owns every other subtree directly:
     documentation outside the tree `/superdev:document audit` reads on its own.
   + `controlled-prose.md`: the **writing standard**. A language-neutral rule set that merges the
     ASD-STE100 Part 1 rules with the rules the tekom catalogue and the *Handbook of Technical Writing*
-    reach that ASD-STE100 does not. Read at runtime by `doc-writer`, which applies it, and by
-    `doc-reader`, which verifies it (ADR 0012).
+    reach that ASD-STE100 does not. Read at runtime by `references/doc-pass.md` on behalf of both its
+    callers, which apply it, and by `doc-reader`, which verifies it directly (ADR 0012).
   + `content-types.md`: the **content-type lens**. The four kinds of information a doc carries, and the
-    test for reporting an absent conceptual layer. Read at runtime by `doc-writer`, which applies it in
-    both its passes, and by `doc-reader`, which checks it in Pass 1. Unlike the writing standard it is
-    never configurable and never `none`, because coverage is a completeness property and not a style
-    one (ADR 0014).
+    test for reporting an absent conceptual layer. Read at runtime by `references/doc-pass.md` on behalf
+    of both its callers, which apply it in both its passes. `doc-reader` checks it in Pass 1 directly.
+    Unlike the writing standard it is never configurable and never `none`, because coverage is a
+    completeness property and not a style one (ADR 0014).
+  + `doc-pass.md`: the **documentation pass**, stated once for its two callers. One is the dispatched
+    `doc-writer`. The other is the `lite` execution playbook's controller, which performs the pass itself
+    in its own context, as the run's last step (ADR 0031). It owns the content-type lens, the writing
+    standard, the in-repo docs pass, and the knowledge-base pass with its staged pages. Each caller keeps
+    only what is specific to it: `doc-writer` keeps its agent framing, bootstrap mode, and report, and the
+    `lite` playbook keeps only the pass's timing, its commit, and its ledger record.
   + `run-init.md`: run init — the ledger and DoD setup both execution playbooks `Read` as their first
     step, tier-agnostic.
   + `run-handoff.md`: run handoff — the hand-off to `/superdev:review` both execution playbooks `Read`

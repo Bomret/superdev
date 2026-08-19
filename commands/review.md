@@ -220,6 +220,14 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
     gate.
   - Anything else → write `reviewed`.
 
+  **A fix cycle that landed commits also clears the inline-doc-pass record**, with
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs clear --root <run-root>`. A `lite` run wrote that
+  record when it documented itself, before this review existed; commits landed since make what it recorded
+  stale, so the next `/superdev:document` must run the full `doc-writer` rather than the reader alone (ADR
+  0031). It is the same judgment the `documented-unreviewed` row above makes, on the same trigger. **No fix
+  cycle, or none that committed** → leave the record alone: the docs still describe this code. The verb
+  succeeds and changes nothing when there is no record, so a `full` run needs no separate branch here.
+
   Then print the next command with the range already resolved — `/superdev:document <range>`, carrying
   the concrete range §1 resolved — and say in one line what it will do (reconcile the in-repo docs and
   the knowledge base with the merged state).

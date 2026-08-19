@@ -58,6 +58,7 @@ const {
   RUN_KIND_CONTRACTS,
   SOURCE_SECTION_CONTRACTS,
   PLAYBOOK_EDGE_CONTRACTS,
+  DOC_PASS_CONTRACTS,
 } = require('./contracts');
 
 // The printer twenty-three table-driven checks share. A gap is `{ source, expectation }` and reads the
@@ -278,6 +279,11 @@ module.exports = [
     'playbook-edges',
     PLAYBOOK_EDGE_CONTRACTS,
     'both execution playbooks still name run-init.md as their opening step and run-handoff.md as their closing one',
+  ),
+  table(
+    'doc-pass',
+    DOC_PASS_CONTRACTS,
+    'every caller of the documentation pass reads the reference that states it',
   ),
   {
     id: 'narrative-coverage',

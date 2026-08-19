@@ -185,12 +185,14 @@ const GRADER_TYPES = new Set(['llm', 'regex', 'tool_order', 'tool_used', 'file_e
 
 const FOCUS_TYPES = new Set(['llm', 'regex']);
 
-// Both doc agents must wire the content-type lens (ADR 0014). scan() above catches a reference to a file
-// that does not exist. The reverse drift is invisible to it: an agent that stops referencing a file which
-// still exists leaves the reference resolvable, the suite green, and the lens dead in every dispatch.
-// Same silent-drop failure shape as the assignee and writing-standard contracts.
-const CONTENT_TYPES_AGENTS = [
-  path.join('agents', 'doc-writer.md'),
+// Both sides of the doc loop must wire the content-type lens (ADR 0014). scan() above catches a
+// reference to a file that does not exist. The reverse drift is invisible to it: a document that stops
+// referencing a file which still exists leaves the reference resolvable, the suite green, and the lens
+// dead in every dispatch. Same silent-drop failure shape as the assignee and writing-standard contracts.
+// The writing side is `references/doc-pass.md` rather than `agents/doc-writer.md`, because the pass is
+// stated once there and performed by two callers (ADR 0031); the reading side is the agent itself.
+const CONTENT_TYPES_DOCS = [
+  path.join('references', 'doc-pass.md'),
   path.join('agents', 'doc-reader.md'),
 ];
 
@@ -469,6 +471,13 @@ const VERB_CONTRACTS = [
   [path.join('references', 'implement-full.md'), /scope\.js["'`]?\s+slice\b/, 'move slice rows with `scope.js slice`'],
   [path.join('references', 'implement-lite.md'), /scope\.js["'`]?\s+slice\b/, 'move slice rows with `scope.js slice`'],
   [path.join('references', 'scope-mode.md'), /scope\.js["'`]?\s+degraded add\b/, 'write the degrade entry with `scope.js degraded add`'],
+  // ADR 0031's three-document agreement on one header. A lite playbook that stops writing the record
+  // leaves every later command dispatching the writer it was meant to skip; a `/superdev:document` that
+  // stops reading it does the same while the record sits there; a `/superdev:review` that stops clearing
+  // it ships documentation written before the fix that made it wrong.
+  [path.join('references', 'implement-lite.md'), /scope\.js["'`]?\s+docs set\b/, 'record its inline doc pass with `scope.js docs set`'],
+  [path.join('commands', 'document.md'), /scope\.js["'`]?\s+get docs\b/, 'read the inline-doc-pass record with `scope.js get docs` before it dispatches a writer'],
+  [path.join('commands', 'review.md'), /scope\.js["'`]?\s+docs clear\b/, 'clear the inline-doc-pass record with `scope.js docs clear` when its fix loop lands commits'],
   [path.join('commands', 'publish-kb.md'), /scope\.js["'`]?\s+get branch\b/, 'read the scope branch with `scope.js get branch` for its merge check'],
   // /plan names `scope.js` once and then its two verbs, so the branch half wraps away from the path
   // prefix (`get\n  branch --root <run-root>`) and the `scope.js <verb>` shape above cannot reach it.
@@ -488,7 +497,26 @@ const VERB_CONTRACTS = [
 const KB_STAGING_CONTRACTS = [
   [path.join('commands', 'plan.md'), /\.superdev\/kb-pending\//, 'stage the feature specification under `.superdev/kb-pending/` rather than sending it'],
   [path.join('commands', 'document.md'), /\.superdev\/kb-pending\//, 'hand the doc-writer a `.superdev/kb-pending/` staging path'],
-  [path.join('agents', 'doc-writer.md'), /\.superdev\/kb-pending\//, 'write a remote backend\'s pages under `.superdev/kb-pending/`'],
+  [path.join('references', 'doc-pass.md'), /\.superdev\/kb-pending\//, 'write a remote backend\'s pages under `.superdev/kb-pending/`'],
+];
+
+// ADR 0031: the documentation pass is stated once, in `references/doc-pass.md`, and performed by two
+// callers — the dispatched `doc-writer`, and the `lite` execution playbook's controller in its own
+// context. A caller that stops reading the reference keeps performing a pass it no longer has the rules
+// for, which is invisible to scan(): the file still exists and every other document still points at it.
+// Anchored on the `Read` instruction rather than a bare path, for the reason CONTENT_TYPES_PATTERN
+// states: a passing mention is not a read.
+const DOC_PASS_CONTRACTS = [
+  [
+    path.join('agents', 'doc-writer.md'),
+    /Read\s+`?(?:\$\{CLAUDE_PLUGIN_ROOT\}\/)?references\/doc-pass\.md/,
+    'read `references/doc-pass.md`, which states the pass it performs',
+  ],
+  [
+    path.join('references', 'implement-lite.md'),
+    /Read\s+`?(?:\$\{CLAUDE_PLUGIN_ROOT\}\/)?references\/doc-pass\.md/,
+    'read `references/doc-pass.md`, which states the pass its doc step performs',
+  ],
 ];
 
 // ADR 0025: `/superdev:review` in scope mode is the only full-suite run left in the chain. The
@@ -615,6 +643,7 @@ const KB_NO_CALL_DOCS = [
   path.join('commands', 'plan.md'),
   path.join('commands', 'document.md'),
   path.join('agents', 'doc-writer.md'),
+  path.join('references', 'doc-pass.md'),
 ];
 
 const KB_OBJECT = 'pages?|wiki|space|backend';
@@ -766,7 +795,7 @@ const AUDIT_SET_CONTRACTS = [
 ];
 
 // ADR 0027's `patch` action is a four-document agreement of the same shape as the three above:
-// `agents/doc-writer.md` and `commands/plan.md` — the two stagers — each stage one section for a
+// `references/doc-pass.md` and `commands/plan.md` — the two stagers — each stage one section for a
 // page the outline marks aggregate, `commands/publish-kb.md` applies it through
 // `scripts/kb-patch.js`, and `references/knowledge-base-confluence.md` documents the marker that
 // decides which pages get one. Nothing links them. The failure that matters is not a dropped action
@@ -779,7 +808,7 @@ const AUDIT_SET_CONTRACTS = [
 // repo's own `ADR summaries` page four decisions stale.
 const AGGREGATE_PAGE_CONTRACTS = [
   [
-    path.join('agents', 'doc-writer.md'),
+    path.join('references', 'doc-pass.md'),
     /aggregate[\s\S]{0,80}`?action:\s*patch`?[\s\S]{0,400}one\s+section/i,
     'stage `action: patch` carrying one section for an outline entry marked aggregate',
   ],
@@ -1270,7 +1299,8 @@ module.exports = {
   ADR_STATUS_PATTERN,
   GRADER_TYPES,
   FOCUS_TYPES,
-  CONTENT_TYPES_AGENTS,
+  CONTENT_TYPES_DOCS,
+  DOC_PASS_CONTRACTS,
   CONTENT_TYPES_PATTERN,
   COMMAND_REFERENCE_PATTERN,
   CHAIN_HANDOFFS,

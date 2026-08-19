@@ -222,28 +222,28 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'absent files are skipped',
   );
 
-  // --- AGGREGATE_PAGE_CONTRACTS: doc-writer stages one section for a marked page, publish-kb merges it
+  // --- AGGREGATE_PAGE_CONTRACTS: the doc-pass reference stages one section for a marked page, publish-kb merges it
   // through the script, and the KB seed documents the marker that decides which pages get one (ADR
   // 0027). ---
 
   assert.equal(
     scanContract(realRoot, AGGREGATE_PAGE_CONTRACTS).length,
     0,
-    'the shipped doc-writer, publish-kb, and Confluence seed all carry their half of the patch agreement',
+    'the shipped doc-pass reference, publish-kb, and Confluence seed all carry their half of the patch agreement',
   );
 
-  // positive: doc-writer goes back to staging whole pages only — the state that leaves an aggregate
+  // positive: the doc-pass reference goes back to staging whole pages only — the state that leaves an aggregate
   // page replaceable by the one section a scope can see
   const aggGaps1 = scanContract(
     fixture({
-      'agents/doc-writer.md':
+      'references/doc-pass.md':
         'Write each page as a **staged page**: frontmatter carrying `title` and an `action` of `upsert` ' +
         'or `delete`, the page body below.\n',
     }),
     AGGREGATE_PAGE_CONTRACTS,
   );
-  assert.equal(aggGaps1.length, 1, 'flags a doc-writer that stages no patch for an aggregate page');
-  assert.equal(aggGaps1[0].source, path.join('agents', 'doc-writer.md'), 'names doc-writer.md');
+  assert.equal(aggGaps1.length, 1, 'flags a doc-pass reference that stages no patch for an aggregate page');
+  assert.equal(aggGaps1[0].source, path.join('references', 'doc-pass.md'), 'names doc-pass.md');
 
   // positive: the same gap, reachable through the other stager — `/superdev:plan` seeds ADR summaries
   // into the outline too (ADR 0027, CONTEXT.md's Staged page entry), so it needs the same branch.
@@ -292,7 +292,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(
     scanContract(
       fixture({
-        'agents/doc-writer.md':
+        'references/doc-pass.md':
           'An outline entry marked `aggregate` takes `action: patch` instead (ADR 0027). Such a page\n' +
           'collects a section from each of many scopes, so stage **one section**, not the page.\n',
         'commands/plan.md':

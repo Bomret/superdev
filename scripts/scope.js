@@ -104,7 +104,7 @@ function headerRe(name) {
 // Every other header is PROSE. `Anchor` carries an issue title that reaches a pull request through
 // `/superdev:review`, and a title may legitimately end in `.` or `:` or contain one, or carry internal
 // whitespace. It is trimmed and otherwise taken as written.
-const TOKEN_HEADERS = new Set(['Stage', 'Branch']);
+const TOKEN_HEADERS = new Set(['Stage', 'Branch', 'Docs']);
 
 function normalizeHeaderValue(name, raw) {
   const trimmed = raw.trim();
@@ -349,6 +349,41 @@ function verbUnresolved(root, sub, text) {
   addBullet(root, 'Unresolved', 'unresolved', text);
 }
 
+// `**Docs:**` records that a run performed its documentation pass in the controller's own context
+// rather than through a dispatched doc-writer (ADR 0031). `/superdev:document` reads it to skip that
+// dispatch; `/superdev:review` clears it when its fix loop lands commits, because those commits made the
+// pass stale. The value names the pass rather than merely marking presence, so another arrangement can
+// record its own kind without a second header.
+function verbDocs(root, sub, value) {
+  const lines = readLines(root);
+  const at = lines.findIndex((l) => headerRe('Docs').test(l));
+  if (sub === 'clear') {
+    if (at < 0) return; // no such line — succeeds, changes nothing
+    lines.splice(at, 1);
+    writeLines(root, lines);
+    return;
+  }
+  if (sub !== 'set') fail(`unknown docs subcommand "${sub}" — use set|clear`);
+  if (!value) fail('docs set needs a value');
+  // `Docs` is a TOKEN_HEADERS entry: `get docs` reads back only the first whitespace-delimited
+  // token, so a value with internal whitespace would write something `get docs` can never round-trip.
+  if (/\s/.test(value)) fail('docs set value must not contain whitespace — "get docs" only reads back the first token');
+  if (at >= 0) {
+    lines[at] = `**Docs:** ${value}`;
+    writeLines(root, lines);
+    return;
+  }
+  // Absent: sit with the other header lines rather than above them, which is where `setHeader`'s
+  // title-anchored fallback would put it.
+  const last = Math.max(...['Stage', 'Branch', 'Anchor'].map((n) => lines.findIndex((l) => headerRe(n).test(l))));
+  if (last < 0) {
+    writeLines(root, setHeader(lines, 'Docs', value));
+    return;
+  }
+  lines.splice(last + 1, 0, `**Docs:** ${value}`);
+  writeLines(root, lines);
+}
+
 function verbGet(root, field) {
   if (field === 'slices') {
     // The read half of `slice`: every table row as tab-separated
@@ -369,9 +404,9 @@ function verbGet(root, field) {
     for (const b of readBullets(lines, field === 'unresolved' ? 'Unresolved' : 'Degraded')) console.log(b);
     return;
   }
-  const names = { stage: 'Stage', branch: 'Branch', anchor: 'Anchor' };
+  const names = { stage: 'Stage', branch: 'Branch', anchor: 'Anchor', docs: 'Docs' };
   const name = names[field];
-  if (!name) fail(`unknown field "${field}" — use stage|branch|anchor|slices|unresolved|degraded`);
+  if (!name) fail(`unknown field "${field}" — use stage|branch|anchor|docs|slices|unresolved|degraded`);
   const v = getHeader(readLines(root), name);
   console.log(v === null ? 'absent' : v);
 }
@@ -548,7 +583,8 @@ function usage() {
     '  slice <id> <status> [--range <r>]   --root <run-root>',
     '  degraded add <text>   --root <run-root>',
     '  unresolved add <text>|clear   --root <run-root>',
-    '  get stage|branch|anchor|slices|unresolved|degraded --root <run-root>',
+    '  docs set <value>|clear   --root <run-root>',
+    '  get stage|branch|anchor|docs|slices|unresolved|degraded --root <run-root>',
     '  status                             scans <cwd>/.superdev/scopes/*/',
   ].join('\n');
 }
@@ -596,6 +632,11 @@ function run(argv, cwd, stdinJson) {
     case 'unresolved': {
       const root = takeRoot(args);
       verbUnresolved(root, args[0], args.slice(1).join(' '));
+      break;
+    }
+    case 'docs': {
+      const root = takeRoot(args);
+      verbDocs(root, args[0], args[1]);
       break;
     }
     case 'get': {
@@ -951,6 +992,59 @@ function selftest() {
         '|---|---|---|---|---|---|---|\n' +
         '| 01 | #1 | x | behavior | — | merged | — |\n',
       'the block is gone and the table header sits exactly where it did, no stray blank line'
+    );
+
+    // docs set: `**Docs:**` records that a run performed its documentation pass in the controller's
+    // own context (ADR 0031), and the line sits with the other headers rather than above them.
+    assert.ok(call(['docs', 'set', 'inline', ...R]).ok, 'docs set');
+    const docsText = fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
+    assert.ok(/\*\*Docs:\*\* inline/.test(docsText), 'ledger carries the Docs line');
+    assert.ok(
+      /\*\*Anchor:\*\*[^\n]*\n\*\*Docs:\*\* inline/.test(docsText),
+      'the Docs line follows the last header line, not the title'
+    );
+    assert.strictEqual(call(['get', 'docs', ...R]).out, 'inline', 'get docs');
+
+    // docs set: a second write replaces the line rather than adding a rival.
+    assert.ok(call(['docs', 'set', 'inline-again', ...R]).ok, 'docs set twice');
+    const docsTwice = fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
+    assert.strictEqual((docsTwice.match(/\*\*Docs:\*\*/g) || []).length, 1, 'one Docs line, not two');
+    assert.strictEqual(call(['get', 'docs', ...R]).out, 'inline-again', 'the second value wins');
+
+    // docs: refusals write nothing.
+    const beforeDocsRefusal = fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
+    r = call(['docs', 'set', ...R]);
+    assert.ok(!r.ok && /docs set needs a value/.test(r.err), 'docs set with no value refused');
+    r = call(['docs', 'zap', 'x', ...R]);
+    assert.ok(!r.ok && /unknown docs subcommand.*set\|clear/.test(r.err), 'unknown docs subcommand refused: ' + r.err);
+    r = call(['docs', 'set', 'inline', '--root', path.join(tmp, 'no-such-root')]);
+    assert.ok(!r.ok && /no-such-root/.test(r.err), 'docs set against a missing root refused, naming it');
+    r = call(['docs', 'set', 'two words', ...R]);
+    assert.ok(!r.ok && /whitespace/.test(r.err), 'docs set with a whitespace-bearing value refused, naming the problem: ' + r.err);
+    assert.strictEqual(
+      fs.readFileSync(path.join(root, 'ledger.md'), 'utf8'),
+      beforeDocsRefusal,
+      'nothing written on any docs refusal'
+    );
+
+    // docs clear: removes the line and leaves every other byte alone.
+    const beforeDocsClear = fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
+    assert.ok(call(['docs', 'clear', ...R]).ok, 'docs clear');
+    assert.strictEqual(
+      fs.readFileSync(path.join(root, 'ledger.md'), 'utf8'),
+      beforeDocsClear.replace('**Docs:** inline-again\n', ''),
+      'the Docs line and only the Docs line is gone'
+    );
+    assert.strictEqual(call(['get', 'docs', ...R]).out, 'absent', 'get docs on a ledger with no line');
+
+    // docs clear: on a ledger with no such line, succeeds and changes nothing — the shape an
+    // interrupted lite run and every full run leave behind.
+    const beforeNoopDocsClear = fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
+    assert.ok(call(['docs', 'clear', ...R]).ok, 'clearing an absent Docs line still succeeds');
+    assert.strictEqual(
+      fs.readFileSync(path.join(root, 'ledger.md'), 'utf8'),
+      beforeNoopDocsClear,
+      'and changes nothing'
     );
 
     // get: prints the value; absent header reported as absent.

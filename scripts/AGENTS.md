@@ -148,7 +148,7 @@ every drift assertion by id, and it fell behind at five separate additions, beca
 maintained by hand at the moment its author is thinking about code. Naming the exceptions cannot drift
 when a forty-fifth check lands.
 
-`drift-check.js` guards forty-four things, in the order `drift/checks.js` registers them. First, the
+`drift-check.js` guards forty-five things, in the order `drift/checks.js` registers them. First, the
 `reference` contract: every `references/*.md` path named in `commands/`, `agents/`, or `references/`
 itself resolves to a file that exists. A reference cites another reference — both execution
 playbooks point at `scope-mode.md` — so a rename there dangles like any other. Second, the
@@ -181,9 +181,10 @@ helper, `extractSection()`, which masks fenced code blocks first. (CommonMark's 
 closing-fence rule applies, so a shorter inner fence never closes a longer outer one.) Then it
 isolates the text of one heading's section before either scans its body. Sixth, the
 `writing-standard` contract: `references/documentation.md` still offers a `## Writing standard`
-section (ADR 0012). Seventh, the `content-types` contract: `agents/doc-writer.md` and
+section (ADR 0012). Seventh, the `content-types` contract: `references/doc-pass.md` and
 `agents/doc-reader.md` each still instruct themselves to read `references/content-types.md` (ADR
-0014). Eighth, the `command-resolution` contract: every `/superdev:<name>` reference in `commands/`
+0014). The writing side moved off `agents/doc-writer.md` and onto the reference with the rest of the
+pass's prose (ADR 0031). Eighth, the `command-resolution` contract: every `/superdev:<name>` reference in `commands/`
 or `agents/` resolves to a `commands/<name>.md` file, so a chain handoff never points the reader at
 a command that does not exist. Ninth, the `chain-handoff` contract: `commands/implement.md`,
 `commands/review.md`, and `commands/document.md` each name their successor in the chain.
@@ -247,19 +248,26 @@ read), and `get degraded` (for the degrade record its §5 body reads),
 `commands/status.md` `status`, `commands/afk.md` `get stage`,
 `commands/publish-kb.md` `get branch` for its merge check, `commands/plan.md` `get branch --root` (for
 the refusal signal its §0 reads before extending a feature), both execution
-playbooks `slice`, and `references/scope-mode.md` `degraded add`. A document that drops its verb goes
+playbooks `slice`, `references/scope-mode.md` `degraded add`, `references/implement-lite.md` `docs set`
+(the inline-doc-pass record, ADR 0031), `commands/document.md` `get docs` (read before it decides whether
+to dispatch a `doc-writer`), and `commands/review.md` `docs clear` (when its fix loop lands commits). A
+document that drops its verb goes
 back to hand-editing or hand-parsing the ledger, which the `ledger-guard` hook only catches as a tool
 call at runtime, never as prose.
 Nineteenth and twentieth, the ADR 0023 knowledge-base contracts, checked in two halves because either
 alone passes while the invariant is gone. Nineteenth, the `kb-staging` half: `commands/plan.md`,
-`commands/document.md`, and `agents/doc-writer.md` each name `.superdev/kb-pending/` as the place a
-remote backend's page goes instead of a live call. Twentieth, the `kb-no-backend-call` half,
-`scanKbNoBackendCall()`: none of those same three documents carries a backend-directed verb —
+`commands/document.md`, and `references/doc-pass.md` each name `.superdev/kb-pending/` as the place a
+remote backend's page goes instead of a live call. The third row moved from `agents/doc-writer.md`
+onto the reference with the rest of the pass's prose (ADR 0031). Twentieth, the `kb-no-backend-call`
+half, `scanKbNoBackendCall()`: none of those three, nor `agents/doc-writer.md`, carries a
+backend-directed verb. The staging-path mention moved off `doc-writer.md`, but the check keeps that
+document in this list, because the agent still dispatches the knowledge-base pass, and a regression
+could add a backend call to its own framing without touching the reference at all. The verb checked is
 publish, create, update, upsert, or
 an HTTP `POST`/`PUT`/`DELETE` — aimed at a page, wiki, space, or backend object.
 `commands/publish-kb.md` is exempt, because reaching the backend is its job. The check reads the
 instruction's shape rather than a backend's literal endpoint or credential name, because
-**Backends are pluggable** already forbids these three documents from naming a backend at all, so a
+**Backends are pluggable** already forbids these four documents from naming a backend at all, so a
 literal-only marker would catch almost nothing.
 Twenty-first, the `no-second-reader` contract (ADR 0022), `scanHookLedgerParsers()` scans every
 `hooks/*.js` file for a literal `**…:**`-shaped header regex. This pattern marks whether a hook grows a
@@ -329,7 +337,7 @@ seeds the section as optional, for `/setup` to fill in. Three documents agree on
 prose, the same shape as the afk-routing and arg-token pairs above — a renamed heading or a dropped
 fallback clause leaves the section unreachable in every repo that carries it, unnoticed, until a doc
 audit runs on one and finds nothing there.
-Twenty-ninth, the `aggregate-page` contract (ADR 0027), four rows: `agents/doc-writer.md` and
+Twenty-ninth, the `aggregate-page` contract (ADR 0027), four rows: `references/doc-pass.md` and
 `commands/plan.md` — the two stagers — each stage `action: patch` carrying one section for an outline
 entry marked aggregate, `commands/publish-kb.md` applies it by merging through `scripts/kb-patch.js`,
 and `references/knowledge-base-confluence.md` documents the `(aggregate)` marker that decides which
@@ -464,7 +472,18 @@ resolves, nothing points back to the controller either — while the run would e
 `scope.js stage set merged` write and, on an all-`mechanical`/`docs` scope, with no full-suite run
 anywhere in the chain.
 
-Forty-fourth, the `narrative-coverage` contract, `scanNarrativeCoverage()`: every check registered in
+Forty-fourth, the `doc-pass` contract (ADR 0031), two rows: `agents/doc-writer.md` and
+`references/implement-lite.md` each read `references/doc-pass.md`, the file that states the documentation
+pass they perform. The pass has two callers — the dispatched writer, and the `lite` execution playbook's
+controller working in its own context — so it is stated once and read by both. A caller that drops the
+read keeps performing a pass it
+no longer holds the rules for, and nothing else notices: `reference` above only resolves paths that are
+still cited, and the content-type, staging, and aggregate contracts moved onto the reference with the
+prose, so they stay green while the caller that lost the read quietly writes to no standard at all. The
+row is anchored on the `Read` instruction rather than the bare path, for the reason the `content-types`
+contract states — a passing mention is not a read.
+
+Forty-fifth, the `narrative-coverage` contract, `scanNarrativeCoverage()`: every check registered in
 `drift/checks.js` is written up in this file by its backticked `id`, and both documents that count the
 checks in prose — this one and the root `AGENTS.md` — state the number the registry actually holds. The Work
 Guidance below already required the write-up; nothing enforced it, and it was skipped twice, for two
@@ -492,9 +511,9 @@ successor at all.
   must stay `require`-able under plain `node`. This is the one dependency `hooks/` has on `scripts/`.
 - Every script ships a `--selftest`, same convention as the hooks.
 - A new drift-check contract is one entry appended at the end of the `drift/checks.js` registry, plus
-  its section in the forty-four-check narrative above and its selftest in the matching
+  its section in the forty-five-check narrative above and its selftest in the matching
   `drift/selftest/*.test.js` suite. Append rather than insert unless the check belongs earlier for a
-  reason — every ordinal after an insertion point has to be rewritten by hand. The forty-fourth check,
+  reason — every ordinal after an insertion point has to be rewritten by hand. The forty-fifth check,
   `narrative-coverage`, enforces two pieces of this by itself: the new id must appear backticked
   somewhere in this file, and this file's and the root `AGENTS.md`'s check-count prose must both state
   the new total. It does not enforce the selftest, or that the write-up is accurate or files the check

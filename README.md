@@ -64,7 +64,10 @@ plan runs test-first and inline.
   With **3 or fewer slices the tier is `lite`**: the controller implements each slice inline and
   test-first, in a single dedicated **scope worktree** (`.superdev/scopes/<scope>/worktree/`). The
   invoking checkout is never switched, and a same-scope run lock guards against a second concurrent run.
-  There are no per-slice worktrees and no per-slice reviewers.
+  There are no per-slice worktrees and no per-slice reviewers. Once every slice is merged, the controller
+  also performs the documentation pass itself, in that same worktree, as the last step before hand-off
+  ([ADR 0031](docs/adr/0031-the-lite-tier-writes-its-own-documentation.md)). The `/superdev:document`
+  entry below describes what that changes downstream.
   Either tier stops here, once every slice sits on the scope branch. `/superdev:review` runs next: one
   **whole-scope review** that gates the pull request `/superdev:ship` opens later.
 - **`/superdev:status`**. A read-only snapshot of every in-flight `/superdev:implement` run in the repo:
@@ -83,7 +86,11 @@ plan runs test-first and inline.
   reached its readers ([ADR 0023](docs/adr/0023-the-knowledge-base-publish-is-its-own-command.md)). It
   then reader-tests the result: the fresh-context `doc-reader` reads the
   changed docs cold and verifies their claims against the repo. Ungrounded or stale text goes back to
-  the `doc-writer` for one fix round. Both agents also apply a **content-type lens**
+  the `doc-writer` for one fix round. **On a `lite` scope that already documented itself inline**
+  ([ADR 0031](docs/adr/0031-the-lite-tier-writes-its-own-documentation.md)), it dispatches no `doc-writer`.
+  It dispatches only the `doc-reader`, over the doc files that run's own commits touched, and nothing when
+  those commits touched none. A review fix loop that lands commits clears that record, so the next run of
+  this command dispatches the writer again. Both agents also apply a **content-type lens**
   ([`references/content-types.md`](references/content-types.md)): does a reader learn *why* a thing
   exists and *when* to use it, not only what it's called and how to run it. That check is always on,
   unlike the **writing standard**, which the repo may configure to `none`. Where a writing standard is
@@ -137,10 +144,12 @@ The subagents are `implementer`, `slice-reviewer`, `simplicity-reviewer`, `final
 controller.
 
 The **full** execution tier dispatches `implementer`, `slice-reviewer`, and `simplicity-reviewer` per
-slice. The **lite** tier (3 slices or fewer) has the controller implement inline instead. Both tiers hand
+slice. The **lite** tier (3 slices or fewer) has the controller implement inline instead, and also
+performs the documentation pass itself, as the last step before hand-off (ADR 0031). Both tiers hand
 off to the same chain once every slice sits on the scope branch: `/superdev:review` dispatches
 `final-reviewer` and `simplicity-reviewer` over the whole scope, then `/superdev:document` dispatches
-`doc-writer` to reconcile the docs, reader-tested by `doc-reader`. The doc reconcile always runs **after**
+`doc-writer` to reconcile the docs, reader-tested by `doc-reader`. On a `lite` scope that already
+documented itself, it dispatches `doc-reader` alone instead. The doc reconcile always runs **after**
 the review, and never concurrent with it, so the `doc-writer`'s commits cannot shift the diff the reviewer
 read ([ADR 0003](docs/adr/0003-doc-reconcile-runs-serially.md)).
 
