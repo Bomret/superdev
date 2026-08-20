@@ -1,3 +1,10 @@
+## [0.34.1](https://codeberg.org/bomret/superdev/compare/v0.34.0...v0.34.1) (2026-08-20)
+
+
+### Bug Fixes
+
+* **docs:** close the 26 prose defects the markdown audit found ([#277](https://codeberg.org/bomret/superdev/issues/277)) ([8ff3aae](https://codeberg.org/bomret/superdev/commit/8ff3aae98788f10f34508256fc1b0e50c2401f97))
+
 # [0.34.0](https://codeberg.org/bomret/superdev/compare/v0.33.0...v0.34.0) (2026-08-19)
 
 
