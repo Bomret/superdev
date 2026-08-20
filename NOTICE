@@ -32,6 +32,10 @@ Adapted into superdev:
   - grilling        → references/cross-exam.md (relentless cross-examination discipline)
   - domain-modeling → references/domain-modeling.md (active domain-modeling +
                       CONTEXT.md / ADR format)
+  - diagnosing-bugs → references/diagnosis.md (the defect-diagnosis loop: repro gate,
+                      minimised repro, ranked hypotheses, tagged instrumentation)
+  - prototype       → references/prototype.md (throwaway-prototype discipline: one
+                      stated question, liftable logic, throwaway-branch capture)
 
 --------------------------------------------------------------------------------
 Additional engineering-skill patterns (to-issues and the docs/agents setup

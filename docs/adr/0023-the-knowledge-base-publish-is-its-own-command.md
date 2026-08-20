@@ -25,7 +25,8 @@ still: it lands before any of the feature is built.
 Neither `/superdev:plan` nor `/superdev:document` calls a remote knowledge-base backend. For such a
 backend each writes the page it would have published as a **staged page** under
 `.superdev/kb-pending/<scope>/` — one file per page, YAML frontmatter carrying the page `title` and an
-`action` of `upsert` or `delete`, the body below it. `/superdev:plan` stages under the feature label's
+`action` of `upsert` or `delete` (ADR 0027 adds `patch`, for one section of an aggregate page), the body
+below it. `/superdev:plan` stages under the feature label's
 slug, which is the scope those pages belong to. A documentation pass outside a live scope run stages to
 `.superdev/kb-pending/_adhoc/`. A local `docs/kb/` backend stages nothing and commits on the branch as
 before, because its pages are repository files with no external surface.

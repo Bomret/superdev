@@ -27,7 +27,8 @@ as a manifest-validation gate.
      plugin is pre-1.0 (`releaseRules` in `release.config.cjs`); remove that rule to cut the first
      deliberate 1.0.0. The commit still records the break and its notes still list it under
      `BREAKING CHANGES`.
-   - Only `feat`/`fix`/`perf` (and breaking) trigger a release; `docs`/`chore`/`refactor`/`style`/`test` do not.
+   - Only `feat`/`fix`/`perf`/`revert` (and breaking) trigger a release; `docs`/`chore`/`refactor`/`style`/`test` do not.
+     `revert` gives a patch bump, from commit-analyzer's defaults, and is one of superdev's own change types.
 2. Update `CHANGELOG.md` and bump the version in `plugin/.claude-plugin/plugin.json`
    (via `semantic-release-replace-plugin` — `plugin.json` is the single source of truth; `marketplace.json`
    carries no version).

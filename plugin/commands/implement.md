@@ -1,5 +1,5 @@
 ---
-description: Execute a superdev plan — drive its vertical slices to merge as a dependency-ordered DAG, with an execution tier sized to the slice count, then hand off to /superdev:review. Use when a plan exists in the slice store; run /superdev:plan first if not.
+description: Execute a superdev plan — drive its vertical slices to merge as a dependency-ordered DAG, with an execution tier sized to the slice count, then hand off to the next command in the chain. Use when a plan exists in the slice store; run /superdev:plan first if not.
 argument-hint: "[<feature-label>  (empty = the only plan in the store)]  [--unattended]"
 ---
 
@@ -10,7 +10,9 @@ subagent. The **tier**, a pure function of the loaded slice count, picks one of 
 and follow. This file holds what both share.
 
 **You stop when the code is on the scope branch.** Review, docs, and the pull request are the next three
-commands in the chain, each run by the maintainer (ADR 0013). Do none of them here — hand off.
+commands in the chain, each run by the maintainer (ADR 0013) — hand off rather than running them here. The
+one exception is the `lite` tier's inline documentation pass, which that playbook runs in this same
+worktree before run handoff (ADR 0031).
 
 **Core principle:** a slice's green suite proves its fixtures pass, not that it's correct. `full`
 re-verifies each slice with reviewer subagents and integrates serially; `lite` leans on the whole-scope

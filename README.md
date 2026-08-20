@@ -319,7 +319,8 @@ A tiny feature end to end, with the local-file slice store and GitHub as the cod
 
 superdev ships as a single-plugin Claude Code **marketplace**
 (`.claude-plugin/marketplace.json`). Both the marketplace and the plugin are named `superdev`, so you
-install `superdev@superdev`. It requires Claude Code **v2.1.128** or later.
+install `superdev@superdev`. Verified on Claude Code **v2.1.237** (2026-08-20); no lower bound is
+claimed, because none has been tested.
 
 **From the git host** (interactive):
 
@@ -336,8 +337,9 @@ git clone https://codeberg.org/bomret/superdev.git
 /plugin install superdev@superdev
 ```
 
-**Manage:** `/plugin list` and `/plugin details superdev@superdev`. Pull updates with
-`/plugin marketplace update superdev`, then `/reload-plugins`.
+**Manage:** `/plugin list` and `/plugin details superdev@superdev`. For updates use
+**`/superdev:upgrade`**, or the manual steps under [Updating](#updating) — refreshing the catalog alone
+does not upgrade an installed plugin.
 
 Then, in each repo you want to use it, run **`/superdev:setup`** once. After that, run `/superdev:plan`
 and `/superdev:implement`.

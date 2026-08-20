@@ -1,7 +1,7 @@
 # Documentation: in-repo technical docs
 
-Durable in-repo docs live as a hierarchy of `AGENTS.md` files (this repo currently has a single root
-`AGENTS.md`).
+Durable in-repo docs live as a hierarchy of `AGENTS.md` files (this repo has a root `AGENTS.md` plus one
+child, `scripts/AGENTS.md`).
 
 - **Hierarchy.** Root `AGENTS.md` holds project-wide instructions + the top-level index. Add a child
   `AGENTS.md` when a subtree becomes a durable boundary with its own rules.
@@ -48,7 +48,7 @@ Untranslated terms do not arise in an English repo, so this repo leaves that one
 `/superdev:document audit` reads these in addition to the default tree (`AGENTS.md` + `README.md` +
 `CONTEXT.md` + local KB):
 
-- `commands/*.md`
-- `agents/*.md`
-- `references/*.md`
+- `plugin/commands/*.md`
+- `plugin/agents/*.md`
+- `plugin/references/*.md`
 - `RELEASING.md`

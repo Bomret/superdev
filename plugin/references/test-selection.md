@@ -1,7 +1,9 @@
 # Test selection
 
-The rule that picks between the full test command and the focused one (ADR 0025). Every caller reads
-this file at runtime, the same shared-file-read-at-dispatch pattern as `references/scope-mode.md`.
+The rule that picks between the full test command and the focused one (ADR 0025). Every prose caller
+reads this file at runtime, the same shared-file-read-at-dispatch pattern as `references/scope-mode.md`.
+`hooks/green-gate.js` is the exception: it reimplements the same rule in code, because a hook fires
+without a dispatch to read a reference at.
 
 ## The two commands
 

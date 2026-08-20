@@ -32,7 +32,7 @@ behaves. Refresh `<run-root>/run.lock` now, per that file's rule.
 Find the scope checkout per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`. You need it for §5's git
 commands. **§6 runs from the invoking checkout instead** — see there.
 
-## 3. Stage gate (warn once, never block)
+## 3. Stage gate (ask once attended, refuse unattended)
 
 Read the ledger's `**Stage:**` line with
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>` (`absent` means no line at

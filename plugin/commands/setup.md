@@ -66,7 +66,7 @@ choice, so never present the choices bare. Using `AskUserQuestion`? Mark the def
 > approved.
 
 For an **issue backend whose statuses the seed doesn't already fix** (Jira / other — not the local file,
-and not GitHub Issues, whose seed maps the lifecycle onto open/closed + labels), also capture the
+and not GitHub Issues or Forgejo, whose seeds each map the lifecycle onto open/closed + labels), also capture the
 tracker's **status workflow**: probe or ask for the available statuses, the transitions, and the issue
 types for the scope anchor vs a slice. Agree a **status map** — superdev's canonical lifecycle (`todo` →
 `in-progress` → `in-review` → `merged`/done, plus `blocked`) → the tracker's real statuses, with how to

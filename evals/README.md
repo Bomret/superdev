@@ -13,7 +13,7 @@ arm is the control: same prompt, same scaffold, same graders, no superdev.
 
 ```sh
 bun run eval        # all cases, both arms — includes the expensive implement case
-bun run eval:plan   # the two plan cases only, both arms — cheap iteration
+bun run eval:plan   # the four plan cases only, both arms — cheap iteration
 ```
 
 Both need `CLAUDE_CODE_OAUTH_TOKEN`. Create it once with `claude setup-token`

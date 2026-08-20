@@ -34,6 +34,7 @@ const {
   scanNarrativeCoverage,
   scanMarketplaceSource,
   scanReadmeCommands,
+  scanAuditSetGlobs,
 } = require('./scanners');
 const {
   ADR_STATUSES,
@@ -63,7 +64,7 @@ const {
   DOC_PASS_CONTRACTS,
 } = require('./contracts');
 
-// The printer twenty-three table-driven checks share. A gap is `{ source, expectation }` and reads the
+// The printer the table-driven checks share. A gap is `{ source, expectation }` and reads the
 // same whichever table produced it.
 const contractGap = (g) => `${g.source} no longer meets its contract — expected it to ${g.expectation}`;
 
@@ -303,6 +304,12 @@ module.exports = [
     id: 'readme-commands',
     ok: 'the README and commands/ name the same command set',
     run: scanReadmeCommands,
+    format: contractGap,
+  },
+  {
+    id: 'audit-set-globs',
+    ok: 'every audit-set pattern resolves to at least one file',
+    run: scanAuditSetGlobs,
     format: contractGap,
   },
 ];

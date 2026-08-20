@@ -27,8 +27,9 @@ name, so the type reaches `git switch -c` exactly as the slug does.
   the label, never a fragment of the rendered path.
 - **The type** — what precedes it — is one of the eleven in `## The change type`, matched exactly.
   Stronger than a charset test: a label leading with `-x` reaches git as an option, and a type outside
-  the set makes `hooks/scope-prune.js` misread a live, unmerged branch as gone — one of the two
-  conditions a scope needs to be prunable (ADR 0007) — and reap a run root still in progress.
+  the set makes `hooks/scope-prune.js` misread a live, unmerged branch as gone — one of the three
+  conditions a scope needs to be prunable, alongside the staleness TTL and a `shipped` stage (ADR 0007
+  reaps once all hold).
 
 **Either segment failing is the same stop.** Say which one failed and why, and build no branch and no
 path out of the label. A label with no `/`, or an empty segment on either side, fails here too.
@@ -59,7 +60,8 @@ still the current directory. Address every artifact by that absolute path: `<run
 
 `<run-root>/ledger.md` is one document: labeled header lines, then a slice table.
 `${CLAUDE_PLUGIN_ROOT}/scripts/scope.js` owns its schema and is its only read and write path (ADR 0022):
-`init` creates the document, `stage` / `slice` / `degraded add` move it, `get` / `status` read it back.
+`init` creates the document, `stage` / `slice` / `degraded add` / `unresolved add|clear` / `docs
+set|clear` move it, `get` / `status` read it back.
 No command or playbook edits or parses the file directly — the `ledger-guard` hook denies any other
 write, naming `scope.js`.
 
@@ -80,6 +82,10 @@ write, naming `scope.js`.
 - **`**Degraded:**`** — the run's degrade record. `## Degraded passes` owns its shape and when it is
   written.
 - **`**Unresolved:**`** — the run's unresolved-defect record. `## Unresolved defects` owns the same.
+- **`**Docs:**`** — that the run performed its documentation pass, and in whose context. Read with
+  `get docs`, written with `docs set <value>` and removed with `docs clear`. The `lite` playbook writes
+  it for the pass it runs inline (ADR 0031); `/superdev:review` and `/superdev:document` read it to tell
+  a pass that already ran from one still owed. A single whitespace-free token, which `docs set` enforces.
 
 A ledger written before a line existed carries none of it — `scope.js` parses a pre-CLI ledger unchanged,
 and `get` reports an absent header line as `absent`, never as a parse error.
@@ -290,11 +296,12 @@ carrying no such line succeeds and changes nothing.
 
 ## The stage never moves backwards
 
-`/superdev:review` and `/superdev:document` both write the ledger's `**Stage:**` line — through
-`scope.js stage set`, which enforces every rule in this section in code and refuses a write that breaks
-one: **a stage write never undoes completed work.** `shipped` is what stops `/superdev:ship` from opening
-a second pull request, so a later command overwriting it with an earlier stage would disarm that check.
-`documented` and `shipped` are therefore terminal, and no command in the chain writes over either.
+Four writers move the ledger's `**Stage:**` line — `/superdev:review`, `/superdev:document`, run handoff
+(`merged`), and `/superdev:ship` (`shipped`) — all through `scope.js stage set`, which enforces every rule
+in this section in code and refuses a write that breaks one: **a stage write never undoes completed
+work.** `shipped` is what stops `/superdev:ship` from opening a second pull request, so a later command
+overwriting it with an earlier stage would disarm that check. `shipped` is therefore terminal;
+`documented` is not, since `documented → shipped` is the chain's own last move.
 
 The rule protects work that is still valid, not the ordering of the values. One move that reads as
 backwards is sanctioned, because it records a fact rather than a distance: `/superdev:review` writes

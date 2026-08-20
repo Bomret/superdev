@@ -6,7 +6,7 @@
 
 Both execution playbooks open with the same step: cut the scope branch `<type>/<scope>` from the base.
 `references/implement-full.md` runs `git switch -c`, `references/implement-lite.md` runs
-`git worktree add … -b`, and `commands/implement.md`'s Phase 0 relaxes its own branch check on the stated
+`git worktree add … -b`, and `references/run-init.md` relaxes its own branch check on the stated
 grounds that both playbooks cut from `<base>` explicitly.
 
 Every run reaches that step, and not every run is the first one. ADR 0004 lets `/superdev:plan` extend a
@@ -26,8 +26,8 @@ the signal that the branch step needed a specification rather than another flag.
 ## Decision
 
 The branch step is defined per **run kind** — `fresh`, `appended`, or `resumed`.
-`references/scope-mode.md` owns the rule, both playbooks read it, and `commands/implement.md`'s Phase 0
-computes the run kind and hands it down. Phase 0 already makes that determination: rotating a `shipped`
+`references/scope-mode.md` owns the rule, both playbooks read it, and `references/run-init.md`
+computes the run kind and hands it down. Run init already makes that determination: rotating a `shipped`
 ledger means `appended`, skipping `init` on a live ledger means `resumed`, and writing a new ledger means
 `fresh`.
 
@@ -61,7 +61,7 @@ held in another worktree. The lite tier works in its existing scope worktree, or
 `git worktree add <path> <branch>` when the worktree is gone.
 
 **No forcing flag appears in either playbook**, at any run kind. Fast-forwarding to base is the one form
-of re-pointing the rule permits, and it is a stronger version of Phase 0's cut-from-base guarantee rather
+of re-pointing the rule permits, and it is a stronger version of run init's cut-from-base guarantee rather
 than a weaker one.
 
 **All three stops write nothing.** No run starts, no ledger entry is written, and none of them is a
@@ -93,7 +93,7 @@ either. Only a squash-merging host that leaves the branch standing reads present
 the run asks once there, with the commit list in view — a question unavoidable without host knowledge the
 step declines to have.
 
-Phase 0 gains one output and both playbooks gain one input, so the run kind is determined in one place and
+Run init gains one output and both playbooks gain one input, so the run kind is determined in one place and
 read in three. Deriving it twice is what this avoids.
 
 No superdev command can reset a branch that holds unmerged commits. The cost is that a stale local branch

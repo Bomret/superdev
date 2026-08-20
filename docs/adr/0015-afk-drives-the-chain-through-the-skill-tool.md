@@ -9,6 +9,11 @@ nobody watching, so something has to take the maintainer's place at each handoff
 **Decision.** afk invokes each command with the Skill tool, the same mechanism a typed
 `/superdev:implement` uses. It reads no command file and duplicates no procedure.
 
+Verified 2026-08-20, on Claude Code 2.1.237: every superdev command is offered to the model as a
+Skill-tool entry (`superdev:implement`, `superdev:review`, `superdev:document`, `superdev:ship` among
+them), and the harness routes a typed `/<skill-name>` through that same tool. The equivalence this
+decision rests on is the platform's own, not a superdev convention.
+
 ```mermaid
 flowchart LR
   tracker[("slice store<br/>epics + slices")] --> afk["/superdev:afk<br/>select · loop · halt"]

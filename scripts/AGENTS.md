@@ -18,8 +18,8 @@ the working rules, the release flow — stay in the root [`AGENTS.md`](../AGENTS
 ### scope.js — the run-state CLI (ADR 0022)
 
 `scope.js` owns the ledger's schema and is the only `ledger.md` read and write path in the chain —
-`init`, `stage set`, `slice`, `degraded add`, `unresolved add|clear`,
-`get stage|branch|anchor|slices|unresolved|degraded`, and `status`
+`init`, `stage set`, `slice`, `degraded add`, `unresolved add|clear`, `docs set <value>|clear`,
+`get stage|branch|anchor|slices|unresolved|degraded|docs`, and `status`
 (which renders the whole `/superdev:status` report). It also exports `readLedgerHeader` as a module
 API. This per-header ledger-line reader is what `hooks/scope-prune.js` uses instead of carrying its
 own regex. The API guards its CLI entry with `require.main === module`, so a `require` for that
@@ -74,7 +74,7 @@ swallowing that section into the replaced one. `extractSection()` applies the id
 check to the **staged** body's own section, refusing there too, rather than accept a shape it would
 merge cleanly today and then refuse to ever patch again — that failure belongs on the staged file, which
 a doc pass re-runs, not on the live page it would otherwise strand. Heading detection runs on fence-masked lines (matches
-`scripts/drift-check.js`'s `maskFences`, including its at-least-as-long closing-fence rule), so a
+`scripts/drift/lib.js`'s `maskFences`, including its at-least-as-long closing-fence rule), so a
 `#`/`~~~` shown *inside* a fenced code example is never read as a heading, in the staged body, in the
 live section being replaced, or by the duplicate-heading scan; an unterminated fence in either input —
 which would otherwise mask every line after it and hide real headings — refuses instead of guessing
@@ -149,7 +149,7 @@ every drift assertion by id, and it fell behind at five separate additions, beca
 maintained by hand at the moment its author is thinking about code. Naming the exceptions cannot drift
 when a new check lands.
 
-`drift-check.js` guards forty-seven things, in the order `drift/checks.js` registers them. First, the
+`drift-check.js` guards forty-eight things, in the order `drift/checks.js` registers them. First, the
 `reference` contract: every `references/*.md` path named in `commands/`, `agents/`, or `references/`
 itself resolves to a file that exists. A reference cites another reference — both execution
 playbooks point at `scope-mode.md` — so a rename there dangles like any other. Second, the
@@ -203,9 +203,9 @@ resolved successor, in a backtick-delimited invocation — the contract only, ne
 (ADR 0019). Eleventh, the
 `unattended-token` contract: `references/scope-mode.md`
 carries the `## Unattended` section (ADR 0016), and `commands/implement.md`, `commands/review.md`,
-`commands/document.md`, `commands/ship.md`, `references/implement-full.md`, and
-`references/implement-lite.md` each name `--unattended` and carry a read/apply instruction pointing at
-that section. Twelfth, the `afk-invocation` contract: `commands/afk.md`'s stage table invokes all
+`commands/document.md`, `commands/ship.md`, `references/implement-full.md`,
+`references/implement-lite.md`, `references/run-init.md`, and `references/run-handoff.md` each name
+`--unattended` and carry a read/apply instruction pointing at that section. Twelfth, the `afk-invocation` contract: `commands/afk.md`'s stage table invokes all
 four chain commands and carries `--unattended` on every one of those rows. `scanAfkInvocations()`
 checks this row by row: a
 whole-file regex would pass the moment any one row carried the token, letting a sibling row lose it
@@ -219,8 +219,8 @@ glossary is the copy most likely to drift, because nothing executes it. Fourteen
 contract:
 `references/scope-mode.md` carries the `## Degraded passes` section, and `commands/implement.md`,
 `commands/review.md`, `commands/document.md`, `commands/ship.md`, `commands/status.md`,
-`references/implement-full.md`, and `references/implement-lite.md` each name the `**Degraded:**`
-ledger entry and point at that section. A consumer that drops the wire lets a run report assurance it
+`references/implement-full.md`, `references/implement-lite.md`, and `references/run-handoff.md` each
+name the `**Degraded:**` ledger entry and point at that section. A consumer that drops the wire lets a run report assurance it
 never got — a pull request claiming a review that was its author reading their own work. Fifteenth,
 the `derived-criteria` contract: `commands/review.md` hands `final-reviewer` the **path**
 `<run-root>/dod.md` in its scope-mode dispatch, and `agents/final-reviewer.md` carries its
@@ -516,6 +516,17 @@ commands, and nothing else cross-checks it: the eighth check resolves command na
 renamed command, stayed green before this. Either half is skipped when its side is absent, matching
 every other scanner's fixture rule.
 
+Forty-eighth, the `audit-set-globs` check, `scanAuditSetGlobs()`: every pattern listed under `## Audit
+set` in this repo's own `docs/agents/documentation.md` resolves to at least one file. The twenty-eighth
+check pins that the section exists and that `commands/setup.md`, `commands/document.md`, and the seed
+still agree about it; nothing there expands a pattern. A pattern matching no file is the one drift the
+reader cannot see, because `/superdev:document audit` reads zero files for it and reports the same clean
+pass as a real audit — the state this repo shipped in when the plugin tree moved under `plugin/` (ADR
+0032) and three globs kept their old repo-root prefixes. Patterns are repo-relative by the section's own
+rule, so they resolve against the repo root and never through `docPath()`'s `plugin/` fallback; a plain
+path is checked for existence and a `*` in the final segment is expanded by reading that directory. An
+absent `docs/agents/documentation.md`, or one carrying no such section, is skipped.
+
 The first and seventh checks are opposites. The first catches a reference to a file that does not exist.
 The seventh catches an agent that drops its wire to a file which still exists. That drift leaves the
 reference resolvable and the suite green, and the lens then does nothing in any dispatch.
@@ -531,7 +542,7 @@ successor at all.
   must stay `require`-able under plain `node`. This is the one dependency `hooks/` has on `scripts/`.
 - Every script ships a `--selftest`, same convention as the hooks.
 - A new drift-check contract is one entry appended at the end of the `drift/checks.js` registry, plus
-  its section in the forty-seven-check narrative above and its selftest in the matching
+  its section in the forty-eight-check narrative above and its selftest in the matching
   `drift/selftest/*.test.js` suite. Append rather than insert unless the check belongs earlier for a
   reason — every ordinal after an insertion point has to be rewritten by hand. The forty-fifth check,
   `narrative-coverage`, enforces two pieces of this by itself: the new id must appear backticked

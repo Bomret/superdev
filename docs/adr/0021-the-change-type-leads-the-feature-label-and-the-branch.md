@@ -53,6 +53,6 @@ unique within a repo, so this is accepted rather than encoded into the path.
 A scope slug no longer names its branch. `superdev/<slug>` was computable from the slug alone, and
 `<type>/<slug>` is not, while `/superdev:ship` still takes a slug and has to decide whether the checkout
 it stands in is the right one. The run's own ledger carries the branch instead: `/superdev:implement`
-Phase 0 writes a `**Branch:**` line, and `references/scope-mode.md`'s `## The scope branch` resolves from
+Run init writes a `**Branch:**` line, and `references/scope-mode.md`'s `## The scope branch` resolves from
 it. A ledger written before that line falls back to the same shape scan `scope-prune` uses, which is a
 guess — it is exactly the slug collision above that it cannot resolve.

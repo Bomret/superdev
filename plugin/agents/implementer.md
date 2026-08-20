@@ -34,8 +34,8 @@ never invent one, because `/superdev:document` proposes the term and the maintai
 `spec`-named shape is **requested**, so the minimalism ladder below still forbids every abstraction the
 `spec` did not name (ADR 0030).
 
-**A defect repair starts at the cause.** On a dispatch that repairs a defect — a `fix`-type slice, or a
-reviewer finding — read `${CLAUDE_PLUGIN_ROOT}/references/diagnosis.md` and run its loop before the RED
+**A defect repair starts at the cause.** On a dispatch that repairs a defect — a slice of a feature whose
+change type is `fix`, or a reviewer finding — read `${CLAUDE_PLUGIN_ROOT}/references/diagnosis.md` and run its loop before the RED
 test: the red-capable command, the minimised repro, and the ranked hypotheses are what land the RED test
 at the proven cause instead of the symptom. A dispatch that already hands you a proven cause skips
 straight to the RED test.

@@ -18,7 +18,7 @@ plugins.
 | In-repo documentation convention (this AGENTS.md hierarchy) | [`references/documentation.md`](plugin/references/documentation.md) |
 | Writing standard for docs | [`references/controlled-prose.md`](plugin/references/controlled-prose.md) |
 | What kind of information a doc owes its reader | [`references/content-types.md`](plugin/references/content-types.md) |
-| Add or adjust a backend (slice store, code host, KB, verification) | seeds in [`references/`](plugin/references/) |
+| Add or adjust a backend (slice store, code host, KB) | seeds in [`references/`](plugin/references/) |
 | Attribution and license | [`NOTICE`](NOTICE), [`LICENSE`](LICENSE) |
 
 ## Structure
@@ -151,9 +151,9 @@ conversation's SessionStart preamble. Track this upstream with the Claude Code t
 
 ```
 bun install                        # install dev deps (release toolchain)
-bun run test                       # hook selftests + plugin manifest validation
+bun run test                       # hook + script selftests, drift-check, plugin manifest validation
 bun run eval                       # the with/without-plugin A/B over evals/ (needs the two vars below)
-bun run eval:plan                  # the two cheap plan-only arms of that A/B
+bun run eval:plan                  # the four cheap plan-only cases of that A/B, both arms
 GITEA_TOKEN=<token> bun run release  # cut a release from clean main (see RELEASING.md)
 ```
 
@@ -201,7 +201,7 @@ This root owns every other subtree directly:
   `ledger.md` read and write path, and exports `readLedgerHeader` for `plugin/hooks/scope-prune.js`),
   `plugin/scripts/kb-patch.js` (the deterministic section merge behind a staged page's `action: patch`,
   called by `/superdev:publish-kb`, ADR 0027), `scripts/eval-run.js` (the eval
-  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the forty-seven cross-document contract checks: the
+  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the forty-eight cross-document contract checks: the
   CLI walks the `drift/checks.js` registry, which orders every scanner and contract table). What each
   guards, check by check, lives in that child doc.
 - `plugin/references/`. Backend seed templates plus the non-seed references below. Each reference's own

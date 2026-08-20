@@ -29,8 +29,8 @@ Every slice `merged` does not mean the run is done: the scope still has to be re
 shipped. The stage says which of those already happened, so add nothing of your own — no `complete` note.
 
 A **shipped** scope prints as one line, `<scope>  (shipped)`, with no slice tally and no blocked list. It
-is finished with, and `hooks/scope-prune.js` reaps its run root once the staleness TTL elapses (ADR
-0007), so it is not work in flight. Its degrade record, unresolved-defect record, and staged-page lines
+is finished with, and `hooks/scope-prune.js` reaps its run root once the staleness TTL elapses and its
+scope branch is merged into base or gone (ADR 0007), so it is not work in flight. Its degrade record, unresolved-defect record, and staged-page lines
 are the exceptions and still print in full: the run root is about to disappear, and the pull-request body
 is otherwise the only surviving copy of a pass that ran degraded or a defect the run left standing — see
 below.

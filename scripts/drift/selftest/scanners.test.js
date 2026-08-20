@@ -28,6 +28,7 @@ const {
   scanReturnToController,
   scanMarketplaceSource,
   scanReadmeCommands,
+  scanAuditSetGlobs,
 } = require('../scanners');
 const { ADR_STATUSES, DOC_PASS_CONTRACTS, PLAYBOOK_EDGE_CONTRACTS } = require('../contracts');
 
@@ -1652,4 +1653,53 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // the real repository is clean both ways
   assert.equal(scanReadmeCommands(realRoot).length, 0, 'the real README and commands/ agree');
+
+  // --- scanAuditSetGlobs: every pattern under `## Audit set` resolves to at least one file. A pattern
+  // matching nothing makes `/superdev:document audit` read zero files and still report a clean pass. ---
+
+  // negative: every pattern resolves, both the glob and the plain-path shapes
+  const asOk = fixture({
+    'plugin/commands/plan.md': '# plan\n',
+    'RELEASING.md': '# releasing\n',
+    'docs/agents/documentation.md':
+      '# doc\n\n## Audit set\n\n- `plugin/commands/*.md`\n- `RELEASING.md`\n',
+  });
+  assert.equal(scanAuditSetGlobs(asOk).length, 0, 'patterns that all resolve yield zero gaps');
+
+  // a glob whose directory does not exist at the root — the audited-nothing bug, verbatim
+  const asStale = fixture({
+    'plugin/commands/plan.md': '# plan\n',
+    'docs/agents/documentation.md':
+      '# doc\n\n## Audit set\n\n- `commands/*.md`\n- `plugin/commands/*.md`\n',
+  });
+  const asStaleGaps = scanAuditSetGlobs(asStale);
+  assert.equal(asStaleGaps.length, 1, 'a glob resolving to no file is one gap');
+  assert.match(asStaleGaps[0].expectation, /`commands\/\*\.md`/, 'the gap names the unresolvable pattern');
+
+  // a plain path that is gone, and a glob whose directory exists but holds no match
+  const asEmpty = fixture({
+    'plugin/agents/.keep': '',
+    'docs/agents/documentation.md':
+      '# doc\n\n## Audit set\n\n- `plugin/agents/*.md`\n- `GONE.md`\n',
+  });
+  assert.equal(scanAuditSetGlobs(asEmpty).length, 2, 'an empty directory and a missing file are both gaps');
+
+  // the section ends at the next heading — a bullet below it is not an audit-set pattern
+  const asBounded = fixture({
+    'RELEASING.md': '# releasing\n',
+    'docs/agents/documentation.md':
+      '# doc\n\n## Audit set\n\n- `RELEASING.md`\n\n## Something else\n\n- `not/a/pattern.md`\n',
+  });
+  assert.equal(scanAuditSetGlobs(asBounded).length, 0, 'bullets past the section are not scanned');
+
+  // absent file, or the file without the section → nothing to scan; AUDIT_SET_CONTRACTS owns existence
+  assert.equal(scanAuditSetGlobs(fixture({ 'README.md': '# r\n' })).length, 0, 'absent file is skipped');
+  assert.equal(
+    scanAuditSetGlobs(fixture({ 'docs/agents/documentation.md': '# doc\n\n## Writing standard\n' })).length,
+    0,
+    'a documentation.md with no `## Audit set` section is skipped',
+  );
+
+  // the real repository's own audit set resolves
+  assert.equal(scanAuditSetGlobs(realRoot).length, 0, "this repo's audit-set patterns all resolve");
 };

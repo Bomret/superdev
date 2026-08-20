@@ -22,8 +22,9 @@ with it.
 `docs/agents/verification.md` carries an optional **second** fenced block: the **focused test command**.
 Where it contains the token `{paths}`, the caller substitutes the shell-quoted paths that changed in the
 range it judges; where it does not, the command runs verbatim, for a runner that detects the change set
-itself. `references/test-selection.md` owns the contract, and every consumer reads it at runtime — the
-same shared-file-read-at-dispatch pattern as `references/scope-mode.md`.
+itself. `references/test-selection.md` owns the contract, and every prose consumer reads it at runtime — the
+same shared-file-read-at-dispatch pattern as `references/scope-mode.md`. `hooks/green-gate.js` is the
+exception, reimplementing the rule in code: a hook fires with no dispatch to read a reference at.
 
 Every run inside the loop is focused: the implementer's TDD increments, the lite tier's inline loop, the
 slice-reviewer's independent re-run, and the green-gate hook after a controller merge.

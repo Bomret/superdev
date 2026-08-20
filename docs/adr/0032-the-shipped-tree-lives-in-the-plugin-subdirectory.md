@@ -10,6 +10,12 @@ into the user's plugin cache; there is no manifest field that filters files. Wit
 a subdirectory source: an entry whose source names a path inside the marketplace repo copies only that
 tree.
 
+Verified 2026-08-20, on Claude Code 2.1.237: the installed
+`~/.claude/plugins/cache/superdev/superdev/0.34.0/` holds exactly `plugin/`'s contents —
+`.claude-plugin/`, `commands/`, `agents/`, `hooks/`, `references/`, `scripts/` (`scope.js` and
+`kb-patch.js` only), `package.json`, `LICENSE`, `NOTICE` — and none of `scripts/drift-check.js`,
+`scripts/eval-run.js`, `evals/`, `docs/`, `AGENTS.md`, `release.config.cjs`, or `CHANGELOG.md`.
+
 **Decision.** The shipped tree lives in `plugin/`: `commands/`, `agents/`, `hooks/`, `references/`,
 the two runtime CLIs in `scripts/` (`scope.js`, `kb-patch.js`), the manifest in
 `.claude-plugin/plugin.json`, and copies of `LICENSE` and `NOTICE`. `marketplace.json` stays at the

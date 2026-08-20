@@ -68,9 +68,9 @@ agreement, because an append rule that reaches three seeds out of four leaves th
 undefined behaviour this ADR exists to remove.
 
 `/superdev:implement` carries two consequences of its own, and append is unsafe to use without them.
-Phase 0 passes each loaded slice's real status to `scope.js init`, which already accepts one and defaults
+Run init passes each loaded slice's real status to `scope.js init`, which already accepts one and defaults
 it to `todo` — without that, a second run over an appended feature seeds every shipped slice as `todo`
-and dispatches it again. Phase 0 also reads the stage before choosing between resume and init: a run root
+and dispatches it again. Run init also reads the stage before choosing between resume and init: a run root
 whose ledger reads `shipped` has its `ledger.md` rotated aside and a fresh one written beside it, because
 the run root outlives the run by ADR 0007's seven-day trail and the resume path would otherwise resume a
 finished run. Rotation keeps that trail rather than deleting it, so ADR 0007 stands unchanged.

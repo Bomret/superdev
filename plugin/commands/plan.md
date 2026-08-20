@@ -160,7 +160,8 @@ Two captures are **superdev-specific**:
   being the feature label's slug. Use an **absolute** path resolved from the invoking checkout. One `.md`
   file per page, named `<title-slug>.md` (the page `title`'s slug) so a re-run overwrites the same file
   instead of creating a rival: YAML frontmatter carrying the page `title` and an `action` of `upsert`,
-  the body below. A non-`.md` file is invisible to `/superdev:status` and `/superdev:publish-kb` alike.
+  the body below. `/superdev:publish-kb` sends no non-`.md` file; `/superdev:status` prints it as a stray
+with a rename hint, so a misnamed page is visible rather than silently dropped.
   `/superdev:publish-kb` sends it when the feature reaches its readers. A **local** `docs/kb/` backend
   seeds as before — its pages are repository files that ride the branch.
 
@@ -169,7 +170,10 @@ Two captures are **superdev-specific**:
   plain `<title-slug>.md` above, which is one file per *page* and would silently overwrite. Stage **one
   section per file** — an ATX heading, at the level the outline entry names and never the page's own
   title, as the body's first line: nothing above it, no setext heading, no unterminated fenced code
-  block. `scripts/kb-patch.js` refuses a file that breaks any of these. `/superdev:publish-kb` merges the
+  block. `scripts/kb-patch.js` refuses a body with no heading, content before its first heading, more
+  than one section, a setext heading, or an unterminated fence, and refuses a heading the live page
+  already carries twice. The heading **level** is yours to get right — nothing checks it.
+  `/superdev:publish-kb` merges the
   section into the live page by that heading; an `upsert` here would replace every section other scopes
   wrote. Two sections staged in this pass whose headings kebab-case identically collide on that filename
   before `/superdev:publish-kb` ever sees either — append `-2`, `-3`, … to the later ones'
@@ -275,8 +279,9 @@ silent-drop it exists to prevent. Delete only the file the user picked; leave ot
 **Tell the user the expected execution tier** — informational only; `/superdev:plan` persists it nowhere.
 `/superdev:implement` derives it fresh from the final slice count — **≤3 slices → `lite`** (the
 controller implements each slice inline in a single scope worktree, no per-slice review), **>3 slices →
-`full`** (parallel per-slice worktrees + implementer/reviewer subagents). Either tier hands off to
-`/superdev:review` once every slice is on the scope branch.
+`full`** (parallel per-slice worktrees + implementer/reviewer subagents). Either tier hands off once
+every slice is on the scope branch — to `/superdev:review`, or straight to `/superdev:document` when
+every slice is `mechanical` or `docs` (ADR 0025).
 
 **Commit the durable design docs** you wrote — `CONTEXT.md`, any ADRs (`docs/adr/`), any
 `.claude/rules/` — to the base branch. **Check `git rev-parse --abbrev-ref HEAD` first, and only commit

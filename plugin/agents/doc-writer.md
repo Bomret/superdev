@@ -16,6 +16,9 @@ knowledge base describe **what is now true** — adding what's new, correcting w
 - **`docs/agents/documentation.md`** — the in-repo doc convention.
 - **`docs/agents/knowledge-base.md`** — the KB config: backend (local `docs/kb/` or software like
   Confluence, or none), plus its **audience(s)**, **language**, and agreed **outline**. May say "none".
+- **The staging path** — where a remote backend's pages are staged, handed to you as an **absolute**
+  path. Write every staged page under it exactly as given; resolving it yourself against your own cwd
+  lands the pages one level too deep, in a directory `/superdev:ship` deletes.
 
 Given a git range, start from `git diff --stat BASE..HEAD` and `git log BASE..HEAD` to see what
 actually changed; then check which docs that touches.

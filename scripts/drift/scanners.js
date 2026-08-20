@@ -632,6 +632,53 @@ function scanReadmeCommands(root) {
   return gaps;
 }
 
+// auditSetMatches(): how many files an audit-set pattern resolves to under `root`. The section's own rule
+// makes every entry a repo-relative path, optionally with one `*` in its final segment — the one shape
+// `/superdev:document audit` expands — so this walks that segment's directory rather than depending on a
+// glob implementation whose availability varies by Node version.
+function auditSetMatches(root, pattern) {
+  const slash = pattern.lastIndexOf('/');
+  const dir = slash === -1 ? '' : pattern.slice(0, slash);
+  const base = pattern.slice(slash + 1);
+  if (!base.includes('*')) return fs.existsSync(path.join(root, pattern)) ? 1 : 0;
+  const re = new RegExp(`^${base.split('*').map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`);
+  try {
+    return fs.readdirSync(path.join(root, dir)).filter((e) => re.test(e)).length;
+  } catch {
+    return 0; // the directory itself is gone, which is the same lie as an empty match
+  }
+}
+
+// scanAuditSetGlobs() is pure over a root dir: every glob listed under `## Audit set` in this repo's own
+// `docs/agents/documentation.md` matches at least one file. The AUDIT_SET_CONTRACTS table pins that the
+// section exists and that setup/document/seed still agree about it; nothing there resolves a glob, and a
+// glob matching nothing is indistinguishable from a clean audit — `/superdev:document audit` silently
+// reads zero files and reports success. Paths are repo-relative by the section's own rule, so they are
+// resolved against the root and never through docPath()'s plugin/ fallback. Absent file → skipped,
+// matching every other scanner.
+function scanAuditSetGlobs(root) {
+  const gaps = [];
+  const doc = readDoc(root, path.join('docs', 'agents', 'documentation.md'));
+  if (doc === null) return gaps;
+  const at = doc.search(/^##\s+Audit set\s*$/m);
+  if (at === -1) return gaps; // AUDIT_SET_CONTRACTS owns the section's existence
+  const rest = doc.slice(at);
+  const next = rest.slice(1).search(/^##\s/m);
+  const section = next === -1 ? rest : rest.slice(0, next + 1);
+  for (const m of section.matchAll(/^-\s+`([^`]+)`\s*$/gm)) {
+    const pattern = m[1];
+    if (auditSetMatches(root, pattern) === 0) {
+      gaps.push({
+        source: path.join('docs', 'agents', 'documentation.md'),
+        expectation:
+          `list only audit-set patterns that resolve — \`${pattern}\` matches no file, so ` +
+          '`/superdev:document audit` reads nothing for it and still reports a clean pass',
+      });
+    }
+  }
+  return gaps;
+}
+
 module.exports = {
   scan,
   scanRunRootPaths,
@@ -655,4 +702,5 @@ module.exports = {
   scanNarrativeCoverage,
   scanMarketplaceSource,
   scanReadmeCommands,
+  scanAuditSetGlobs,
 };

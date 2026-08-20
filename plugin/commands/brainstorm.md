@@ -48,7 +48,7 @@ Once the space has been explored, pull it together into a short intent:
 - **Rejected directions** — a direction explored and dropped, and why it lost. Include only what a future reader would plausibly re-propose; a divergent conversation generates dead ends nobody needs recorded. Nothing worth keeping → omit the bullet entirely rather than write an empty one. `/superdev:plan` makes these durable (`domain-modeling.md`).
 
 You may jot this intent to a scratch file for the user's reference — write it under the git-ignored `.superdev/brainstorm/<intent-slug>.md` (ensure `.superdev/` is in the repo's `.gitignore`; add it if absent).
-This sits alongside `.superdev/scopes/`, never inside it, so it's never mistaken for a scope run root (`/superdev:status` only scans `.superdev/scopes/*/`). Never loose in the tracked working tree of whatever branch happens to be checked out — durable capture happens only in `/superdev:plan`.
+This sits alongside `.superdev/scopes/`, never inside it, so it's never mistaken for a scope run root (`/superdev:status` reads scope runs from `.superdev/scopes/*/`, and staged pages from `.superdev/kb-pending/`, so a `brainstorm/` file belongs to neither). Never loose in the tracked working tree of whatever branch happens to be checked out — durable capture happens only in `/superdev:plan`.
 
 ## 6. Hand off
 
