@@ -86,7 +86,7 @@ _Avoid: "the DAG" (that is the dependency structure itself, which exists whether
 **Touch map**: the epic's `## Touch map` section, a plain-text file tree marking which slices touch which files, and where slices that run in parallel collide. Evidence for the dependency order, not an instruction: no slice `spec` names file paths, and no reviewer gates on it.
 _Avoid: "file map" (too generic, because the collisions are the point), "impact analysis"_
 
-**Unattended run**: one `/superdev:afk` invocation, a serial sweep that takes each eligible scope anchor through the whole four-command chain. It ends on an interrupt, on two consecutive blocked features, on a `/superdev:ship` failure, or on an empty backlog. It keeps no queue: the tracker's labels are its only state, re-read every iteration.
+**Unattended run**: one `/superdev:afk` invocation, a serial sweep that takes each eligible scope anchor through the whole four-command chain. It ends on an interrupt, on two consecutive blocked features, on a `/superdev:ship` failure, or on an empty backlog. It keeps no queue: it re-reads the tracker's labels every iteration and keeps its consecutive-block count in `.superdev/afk-blocks`, so a compaction loses nothing.
 _Avoid: "afk mode" (there is no mode, and afk is one command with one run), "batch", "autopilot"_
 
 **Unattended token**: the `--unattended` argument afk passes on every command invocation, which tells that command to take its standing answers instead of asking. An invocation property, never written to the run root, so it cannot outlive the run that passed it (ADR 0016).

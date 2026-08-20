@@ -18,15 +18,19 @@ reads for itself. Your job is to select work, invoke the chain, and know when to
 
 **You keep no queue.** Re-read the slice store at the top of every iteration. The tracker's labels are the
 only state this command has, so a compaction costs you nothing and two afk runs cannot disagree about
-what is left — **except the consecutive-block count** (§4-§5): nothing in the tracker records it, so it
-lives in your own memory alone, and a compaction mid-sweep resets it to zero, silently loosening the
-halt-at-two guarantee for the rest of that run.
+what is left. The one number the tracker cannot record — the **consecutive-block count** (§4-§5) — lives
+in `.superdev/afk-blocks`, a file holding that single integer. Read it from the file every time §4 or §5
+needs it: a value you remember from earlier in the sweep is exactly what a compaction erases, and the
+file is what keeps the halt-at-two guarantee across one.
 
 ## 1. Config
 
 Read `docs/agents/issue-tracker.md` (slice store) and `docs/agents/code-management.md` (code host).
 Either missing → say so, point at **`/superdev:setup`**, and stop. Do not run `/superdev:setup` yourself:
 it is an interview.
+
+Write `0` to `.superdev/afk-blocks`. The consecutive-block count is per-sweep, and this is the one write
+that starts it over: from here on the file only ever moves through §4's increment and §4's ship reset.
 
 ## 2. Select the next scope anchor
 
@@ -152,7 +156,8 @@ labelling and the comment). Then:
   look. **Record `<feature-label>` in the block comment** (append it to what the invoked command wrote,
   or — for the error-stop case below — include it in the comment you write yourself) and **name it in
   §6's report row**, so resuming by hand is one `git checkout` away.
-- **Add one to the consecutive-block count**, and go back to §2 for the next anchor.
+- **Add one to the consecutive-block count** — read `.superdev/afk-blocks`, write it back incremented —
+  and go back to §2 for the next anchor.
 
 **A command that stops without either shipping or blocking counts as a block — except `/superdev:ship`
 failing to push or open the pull request, which §5 governs and which labels nothing.** That file's
@@ -164,11 +169,12 @@ naming which command stopped and why, and add one to the consecutive-block count
 tracker and the ledger show now — never from memory of features you already tried this sweep, which a
 compaction would erase.
 
-A shipped feature **resets that count to zero**.
+A shipped feature **resets that count to zero**: write `0` to `.superdev/afk-blocks`.
 
 ## 5. When to stop
 
-- **Two consecutive blocked features** → stop. Two independent features failing back to back is a
+- **Two consecutive blocked features** (`.superdev/afk-blocks` reads `2` — read the file, not your
+  memory) → stop. Two independent features failing back to back is a
   systemic cause — a red base, a broken toolchain, an expired token — and every further one would block
   the same way. Leave every remaining anchor untouched: open, unlabelled, with no run root.
 - **`/superdev:ship` failed** (the push or the pull request did not succeed) → stop at once. Label
