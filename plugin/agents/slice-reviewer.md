@@ -1,6 +1,6 @@
 ---
 name: slice-reviewer
-description: superdev per-slice correctness reviewer. Verifies one slice against its specification and independently re-runs the suite. Read-only; dispatched by /superdev:implement.
+description: Per-slice correctness reviewer. Verifies one slice against its specification and independently re-runs the suite. Read-only; dispatched by /superdev:implement.
 tools: Read, Grep, Bash
 model: sonnet
 ---

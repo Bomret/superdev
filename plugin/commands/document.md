@@ -1,5 +1,5 @@
 ---
-description: Reconcile the project's docs and optional knowledge base with the current state of the code, removing stale text. The third step of the implement chain, after /superdev:review, and available on demand at any time.
+description: Reconcile the project's docs and optional knowledge base with the current state of the code, removing stale text. Third step of the implement chain, after /superdev:review; also runs standalone.
 argument-hint: "[BASE..HEAD | area/path | audit | (empty = full reconcile)]  [--unattended]"
 ---
 

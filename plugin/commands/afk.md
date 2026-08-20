@@ -1,5 +1,5 @@
 ---
-description: Sweep the backlog unattended — take every eligible scope anchor through the whole implement chain to an open pull request. Stops on an interrupt, on a failed ship, on two consecutive blocked features, or when no eligible anchor is left.
+description: Sweep the backlog unattended: take every eligible scope anchor through the whole implement chain to an open pull request.
 disable-model-invocation: true
 ---
 

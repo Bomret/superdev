@@ -1,6 +1,6 @@
 ---
 name: doc-reader
-description: superdev fresh-eyes doc verifier. Reads just-reconciled docs cold and checks every claim against the repo, flagging ungrounded, stale, or ambiguous text. Read-only; dispatched by /superdev:document.
+description: Fresh-eyes doc verifier. Reads just-reconciled docs cold and checks every claim against the repo, flagging ungrounded, stale, or ambiguous text. Read-only; dispatched by /superdev:document.
 tools: Read, Grep, Bash, WebFetch, WebSearch
 model: sonnet
 ---

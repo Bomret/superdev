@@ -1,5 +1,5 @@
 ---
-description: Configure this repo for superdev — slice store, code host, documentation convention, optional knowledge base, detected toolchain profile, and the green-gate test command — written to docs/agents/*.md. Run once; /superdev:plan and /superdev:implement auto-invoke it if config is missing.
+description: Configure this repo for superdev: slice store, code host, documentation convention, knowledge base, toolchain, and test command. Run once; /superdev:plan and /superdev:implement auto-invoke it if config is missing.
 ---
 
 # superdev setup

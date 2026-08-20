@@ -209,9 +209,14 @@ function scaffold(spec, workspace) {
   const r = cp.spawnSync('bash', [script], { cwd: workspace, encoding: 'utf8' });
   if (r.status !== 0) throw new RunError(`${spec.name}: scaffold_script failed: ${(r.stderr || '').trim()}`);
 
-  // Commit the scaffold so the arm's diff shows only what the agent did. Every call is checked: an
-  // empty scaffold makes `commit` fail with nothing to commit, and swallowing that would silently
-  // report an empty artifact as if the agent had produced nothing.
+  // Commit the scaffold so the arm's diff shows only what the agent did.
+  //
+  // The guard here is that the scaffold produced files at all: an empty artifact reported as the
+  // agent's own output would read as the agent having done nothing. `git ls-files` asks that
+  // directly. A non-zero `commit` is the wrong proxy for it, because a scaffold that runs `git init`
+  // and commits its own tree — a legitimate thing for a scaffold to do — leaves nothing staged and
+  // exits non-zero on a workspace that is fully populated. `--allow-empty` lets that case through,
+  // pinning the diff to a commit whose tree is the scaffold's either way.
   const git = (...args) => {
     const res = cp.spawnSync('git', args, { cwd: workspace, encoding: 'utf8' });
     if (res.status !== 0) throw new RunError(`${spec.name}: git ${args[0]} failed: ${(res.stderr || '').trim()}`);
@@ -221,7 +226,8 @@ function scaffold(spec, workspace) {
   git('config', 'user.email', 'eval@localhost');
   git('config', 'user.name', 'eval');
   git('add', '-A');
-  git('commit', '-qm', 'scaffold');
+  if (!git('ls-files').stdout.trim()) throw new RunError(`${spec.name}: scaffold_script produced no files`);
+  git('commit', '-qm', 'scaffold', '--allow-empty');
   return git('rev-parse', 'HEAD').stdout.trim();
 }
 
@@ -502,7 +508,18 @@ function aggregate(name, runs) {
     return { name: gn, weight, plugin: p, baseline: b, delta: delta(p, b) };
   });
 
-  const scoreOf = (arm) => summarize(pick(arm, (r) => r[arm].score));
+  // `scoreArm` promises an errored grader is left out of both halves of the fraction, and cannot keep
+  // that promise on its own: it is called per arm, before the other arm has been graded. So the
+  // comparable score is computed here, where both arms of a run are in hand. A grader that errored on
+  // either arm is dropped from both. Left asymmetric, the arms are scored over different weight
+  // totals — a plugin arm whose only failing grader errored beats a baseline that still carries it,
+  // and the delta reports that arithmetic rather than the plugin.
+  const comparableScore = (r, arm) => {
+    if (!(r[arm] && r[arm].ok)) return null;
+    const errored = new Set(ARMS.flatMap((a) => ((r[a] && r[a].graders) || []).filter((x) => x.error).map((x) => x.name)));
+    return scoreArm(r[arm].graders.filter((x) => !errored.has(x.name)));
+  };
+  const scoreOf = (arm) => summarize(pick(arm, (r) => comparableScore(r, arm)));
   const p = scoreOf('plugin');
   const b = scoreOf('baseline');
   const errors = runs.flatMap((r) => ARMS.map((a) => r[a]).filter((x) => x && !x.ok).map((x) => x.error));
@@ -853,11 +870,29 @@ function selftest() {
     try {
       assert.throws(
         () => scaffold({ name: 'c', dir: tmp, scaffold_script: 'empty.sh' }, emptyWs),
-        (e) => e instanceof RunError && /git commit failed/.test(e.message),
+        (e) => e instanceof RunError && /produced no files/.test(e.message),
         'a scaffold that adds nothing raises a RunError instead of `|| \'\'` turning it into a silent empty artifact',
       );
     } finally {
       fs.rmSync(emptyWs, { recursive: true, force: true });
+    }
+
+    // --- a scaffold that commits its own tree is scaffolded, not failed ------
+    // Leaving nothing staged is not the same as producing nothing. Keying the empty-scaffold guard on
+    // a non-zero `commit` conflated the two and made every self-committing case unrunnable.
+    fs.writeFileSync(
+      path.join(tmp, 'self-commit.sh'),
+      '#!/bin/bash\nset -e\necho seed > seed.txt\ngit init -q -b main\ngit config user.email s@l\ngit config user.name s\ngit add -A\ngit commit -qm "scaffold commits itself"\n',
+      'utf8',
+    );
+    const selfWs = fs.mkdtempSync(path.join(os.tmpdir(), 'eval-self-commit-'));
+    try {
+      const sha = scaffold({ name: 'c', dir: tmp, scaffold_script: 'self-commit.sh' }, selfWs);
+      assert.match(sha, /^[0-9a-f]{40}$/, 'a scaffold that commits its own tree still yields a base SHA');
+      const tracked = cp.spawnSync('git', ['-C', selfWs, 'ls-tree', '--name-only', sha], { encoding: 'utf8' }).stdout;
+      assert.ok(tracked.includes('seed.txt'), 'and the base commit carries the scaffold\'s files, so the arm diffs against real content');
+    } finally {
+      fs.rmSync(selfWs, { recursive: true, force: true });
     }
 
     // --- diff capture sees new files too, and survives the agent committing (the real capture path) ---
@@ -1177,6 +1212,27 @@ function selftest() {
     assert.strictEqual(allErrored.failed, true);
     assert.strictEqual(allErrored.score.plugin, null, 'no runs, no score — not a zero');
     assert.strictEqual(allErrored.ranNothing, true, 'no run completed at all — the true "every run errored" case');
+
+    // a grader that errored on ONE arm is dropped from both halves, or the halves are fractions over
+    // different weight totals and the delta reports that instead of the plugin
+    const oneArmGraderError = aggregate('c', [
+      {
+        plugin: armOf(null, [g('kept', true, 2), { name: 'flaky', weight: 1, error: 'judge returned no verdict' }]),
+        baseline: armOf(null, [g('kept', true, 2), g('flaky', false)]),
+      },
+    ]);
+    assert.strictEqual(oneArmGraderError.score.plugin.mean, 1, 'the plugin arm scores over the graders both arms could be judged on');
+    assert.strictEqual(
+      oneArmGraderError.score.baseline.mean,
+      1,
+      'the baseline drops the grader the plugin arm could not be judged on, instead of being scored 2/3 against the plugin arm\'s 2/2',
+    );
+    assert.strictEqual(oneArmGraderError.score.delta, 0, 'two arms that agree on every judgeable grader show no delta');
+    assert.strictEqual(
+      oneArmGraderError.graders.find((x) => x.name === 'flaky').plugin,
+      null,
+      'the grader row still reports the arm that could not be judged, so the exclusion is visible rather than silent',
+    );
 
     // no run completed vs. every grader errored are different faults with different fixes
     const gradersAllErrored = aggregate('c', [

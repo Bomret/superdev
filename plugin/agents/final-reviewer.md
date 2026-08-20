@@ -1,6 +1,6 @@
 ---
 name: final-reviewer
-description: superdev whole-scope reviewer. Reviews the integrated scope branch against the global Definition of Done before the PR. Read-only; dispatched by /superdev:review, in both its ad-hoc and scope modes.
+description: Whole-scope reviewer. Reviews the integrated scope branch against the global Definition of Done before the PR. Read-only; dispatched by /superdev:review, in both its ad-hoc and scope modes.
 tools: Read, Grep, Bash
 model: opus
 ---

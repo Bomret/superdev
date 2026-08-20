@@ -119,10 +119,19 @@ Its selftest covers:
 - the run classifier
 - the diff-capture failure paths (an empty scaffold, work committed off HEAD, a nested repository
   tracked as a gitlink)
+- the two shapes a `scaffold_script` may leave behind. A scaffold that writes files and stops, and a
+  scaffold that runs `git init` and commits its own tree, both yield a base commit carrying the
+  scaffold's files. `scaffold()` measures an empty scaffold with `git ls-files`, so a workspace with
+  nothing staged is scaffolded rather than failed.
 - the grader and judge machinery, including a grader that cannot be evaluated at all (an unknown
   focus, a judge that never returns a verdict, or `regex` criteria that will not compile), reported as
   a grader error and left out of the score, never as a fail and never as a thrown `SyntaxError` that
   ends the run
+- the symmetry of that exclusion. A grader that errored on one arm is dropped from **both** arms'
+  scores, computed in `aggregate()` where both arms of a run are in hand. `scoreArm` runs per arm and
+  cannot see the other one, so an exclusion left to it scores the arms over different weight totals
+  and turns the delta into arithmetic about which grader failed to run. The per-grader row still
+  reports the arm that could not be judged, so the exclusion stays visible.
 - aggregation across runs
 - the missing-token exit
 

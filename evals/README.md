@@ -12,7 +12,7 @@ arm is the control: same prompt, same scaffold, same graders, no superdev.
 ## Running it
 
 ```sh
-bun run eval        # all cases, both arms — includes the expensive implement case
+bun run eval        # all cases, both arms — includes the two expensive implement cases
 bun run eval:plan   # the four plan cases only, both arms — cheap iteration
 ```
 
@@ -56,6 +56,7 @@ files, unchanged, so it stays available for a key-funded cross-check.
 | `ab-plan-multi-slice` | cheap, plan only | Is a five-operation feature cut into vertical slices with an explicit dependency order, or into horizontal layers? Does every operation get a criterion? |
 | `ab-plan-multi-slice-primed` | cheap, plan only | The same feature and the same graders as `ab-plan-multi-slice`, from a **primed** prompt. Does wording buy vertical slicing, the one gap a bare prompt never closed? |
 | `ab-implement-lite` | expensive, full build | Shipped code, tests, and docs in a runnable repo: are the two unnamed failure cases handled, are they tested, does the README stay true, is the suite honestly green, and is the diff proportionate? |
+| `ab-implement-full` | most expensive, full build | The same question over a five-operation feature with an auth rule, sized to invite more than three slices. Does every operation ship, get a test, and reach the README, does the auth split hold, does the work land in reviewable commits, and does the diff stay proportionate? The tier the plugin arm reaches is its own decision, so read the slice count before reading the result as a `full`-tier one. |
 
 ### The primed pairs
 
@@ -105,9 +106,25 @@ prompting. Both readings are useful, and neither is the headline on its own.
   of what is being measured.
 - **One run is an anecdote.** Cases default to `runs: 3`. A per-grader delta
   smaller than the spread across those runs is not a result.
-- **`ab-implement-lite` runs the `lite` tier** (3 slices or fewer). No case
-  here covers the `full` tier's parallel worktrees and independent reviewer
-  subagents. That is the largest unmeasured claim the plugin makes.
+- **The two implement cases split the tiers.** `ab-implement-lite` runs the
+  `lite` tier (3 slices or fewer). `ab-implement-full` sizes its feature past
+  that threshold, so the plugin arm reaches the `full` tier's parallel
+  worktrees and its isolated implementer and reviewer subagents. The tier is
+  the plugin arm's own decision, not a flag the case sets, so a plugin arm that
+  cuts the same feature into three slices runs `lite` and measures `lite`. Read
+  the transcript's slice count before reading the `full` case as a `full`-tier
+  result.
+- **A `focus: trace` grader can outgrow its judge.** The judge receives the whole transcript. A
+  `full`-tier plugin arm produced 1.6 MB, roughly 430k tokens, against the baseline arm's 172 KB, and
+  every `trace` grader on that arm came back as a grader error while the same graders judged the
+  baseline fine. The score stays honest, because a grader that errored on either arm is dropped from
+  both, so the two halves remain fractions over the same weight total. What is lost is the comparison
+  itself: the `trace` axis goes unmeasured on the arm that most needed it. Prefer `focus: files` for
+  anything the diff can show, and read a `—` in a `trace` row as "the transcript outgrew the judge",
+  not as "the arm did badly".
+- **`ab-implement-full` is the only case that allows `Task`.** The `full` tier
+  cannot dispatch a subagent without it. Both arms get it, so the baseline can
+  dispatch its own subagents too and the ablation stays one variable.
 - **`readme-stays-true` measures discoverability, not just documentation.**
   `/superdev:implement` stops once the slices are on the scope branch, so the
   doc reconcile is two commands further along the chain, in

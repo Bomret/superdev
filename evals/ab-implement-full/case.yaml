@@ -1,0 +1,47 @@
+schema_version: "1.0"
+name: ab-implement-full
+description: >-
+  A/B arm: implementing a feature too big for one slice, end to end, in a
+  runnable repo. Five operations plus an auth rule put the work over the
+  plugin's three-slice threshold, so the plugin arm runs the `full` tier —
+  parallel worktrees and isolated implementer and reviewer subagents. Measures
+  shipped code, tests, and docs across every operation, with the plugin vs.
+  plain plan-then-build.
+tags:
+  - ab
+  - implement
+
+context:
+  scaffold_script: scaffold.sh
+
+execution:
+  prompt: |
+    Build this feature in the repo you are in, end to end, and leave the suite
+    green. Use whatever workflow this environment offers you. This run is
+    non-interactive: answer every question you would have asked me yourself,
+    state each assumption inline, and never wait for a reply or for approval.
+    There is no network and no remote — never push.
+
+    Feature: widget CRUD over HTTP, backed by the datastore in `src/store.js`,
+    reached through the `handle` function in `src/handler.js`. Callers can
+    create a widget, read one by id, list them page by page, update one, and
+    delete one. Writes go through an API key in the `X-Api-Key` header; reads
+    are public.
+
+    Definition of Done: each of the five operations behaves as described,
+    verified by tests, and an unauthenticated write is rejected. The existing
+    `GET /widgets/:id` behaviour is unchanged.
+
+    Follow the repo's conventions in `docs/agents/`. Finish with the full test
+    suite run and passing.
+  timeout_seconds: 3600
+  allowed_tools:
+    - Read
+    - Write
+    - Edit
+    - Glob
+    - Grep
+    - Bash
+    - Task
+
+runs: 3

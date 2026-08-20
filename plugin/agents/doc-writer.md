@@ -1,6 +1,6 @@
 ---
 name: doc-writer
-description: superdev documentation reconciler. Brings in-repo docs and the optional knowledge base into agreement with the code, removing stale text. Dispatched by /superdev:document.
+description: Documentation reconciler. Brings in-repo docs and the optional knowledge base into agreement with the code, removing stale text. Dispatched by /superdev:document.
 tools: Read, Edit, Write, Bash, Grep, Glob
 model: sonnet
 ---
