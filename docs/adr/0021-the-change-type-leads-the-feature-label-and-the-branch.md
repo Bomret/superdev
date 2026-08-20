@@ -1,4 +1,4 @@
-# 0021 — The change type leads the feature label and the scope branch
+# 0021: The change type leads the feature label and the scope branch
 
 **Status:** Accepted
 
@@ -17,7 +17,7 @@ assumption that the notation's prefix, wherever a store had one, meant `feat`.
 
 A feature carries a **change type**: the Conventional Commits type of what it does to the codebase, one of
 `feat`, `fix`, `refactor`, `docs`, `perf`, `test`, `build`, `ci`, `chore`, `style`, `revert`.
-`/superdev:plan` picks it from what the plan actually does and writes it into the feature label. The label
+`/superdev:plan` picks it from what the plan does and writes it into the feature label. The label
 is the type plus the slug, in each store's own notation, and the **scope branch is that label verbatim**
 (`<type>/<slug>`). The `superdev/` branch namespace is gone.
 
@@ -32,7 +32,7 @@ it on its pre-CLI fallback path (ADR 0007), and `drift-check.js` asserts those t
   reporting the wrong thing.
 - **Record the type as a field on the scope anchor rather than in the label.** It preserves ADR 0019
   untouched. It loses on cost: every store document gains a mapping row, `/superdev:implement` gains a
-  read, and the label — the value a maintainer types — still would not say what the work is.
+  read, and the label still would not say what the work is. A maintainer types that label.
 
 ## Consequences
 
@@ -43,7 +43,7 @@ run root's name). A maintainer's own `wip/<slug>` branch is not mistaken for one
 `slice/<scope>/<id>` branch. `scope-prune` uses this shape scan only as a fallback, for a pre-CLI ledger
 that carries no `**Branch:**` line to read the branch from directly (ADR 0007).
 
-ADR 0019 stands where it matters — no command hardcodes a notation — but its example of a store whose
+ADR 0019 stands where it matters, because no command hardcodes a notation. Its example of a store whose
 label is a bare slug no longer applies: the local-file store nests plan directories under their type
 (`docs/plans/<type>/<slug>/`), so every store's label carries both parts.
 
@@ -55,4 +55,4 @@ A scope slug no longer names its branch. `superdev/<slug>` was computable from t
 it stands in is the right one. The run's own ledger carries the branch instead: `/superdev:implement`
 Run init writes a `**Branch:**` line, and `references/scope-mode.md`'s `## The scope branch` resolves from
 it. A ledger written before that line falls back to the same shape scan `scope-prune` uses, which is a
-guess — it is exactly the slug collision above that it cannot resolve.
+guess. It is exactly the slug collision above that it cannot resolve.

@@ -1,4 +1,4 @@
-# 0030 — Domain shapes are declared before the first test
+# 0030: Domain shapes are declared before the first test
 
 **Status:** Accepted
 
@@ -10,7 +10,7 @@ that has not yet said what an `Order` or a `Person` is in this project's terms. 
 is that a language model writes better code when the domain shapes exist as declarations first.
 
 Two recorded disciplines make this look like a contradiction. `agents/implementer.md` runs a strict
-one-test-then-one-implementation loop, and its minimalism ladder forbids an unrequested abstraction — "no
+one-test-then-one-implementation loop, and its minimalism ladder forbids an unrequested abstraction: "no
 interface with one implementation". A rule that says "write the shapes first" reads as a violation of
 both.
 
@@ -24,12 +24,12 @@ makes a `spec` a contract of outcomes rather than a line-by-line script, and bec
 field lists guesses at structure the code has not yet shown it.
 
 Neither discipline is weakened. A shape the `spec` names is *requested*, so the ladder still forbids every
-abstraction the `spec` did not name. The test-first loop still starts at RED for behaviour; what precedes
+abstraction the `spec` did not name. The test-first loop still starts at RED for behaviour. What precedes
 it is a declaration, not logic.
 
 The rule carries no gate for a repository whose language has no shape convention. The implementer
 declares "the shapes the `spec` names, if any", so a `spec` naming none leaves nothing to declare, and
-this repository — Markdown plus CommonJS — is one where the step never fires.
+this repository, Markdown plus CommonJS, is one where the step never fires.
 
 No reviewer verifies it. Whether the declarations were written before the tests is invisible in a
 finished diff. The instruction is the whole mechanism, and the rule is therefore never a Definition of
@@ -50,5 +50,5 @@ Done criterion.
 - **A drift check guarding the wording across the two tiers.** Lost on cost: a new check hand-updates four
   count claims across `AGENTS.md` and `scripts/AGENTS.md` and renumbers every ordinal after its insertion
   point, to guard four sentences. The tracer-bullet discipline the shapes step sits beside is already
-  duplicated across both tiers unguarded; only the test *command* earned extraction into
+  duplicated across both tiers unguarded. Only the test *command* earned extraction into
   `references/test-selection.md`.

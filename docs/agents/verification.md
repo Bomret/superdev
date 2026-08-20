@@ -1,6 +1,6 @@
 # Verification
 
-The repo's test command — arms the merge green-gate (re-run after every controller merge):
+The repo's test command. It arms the merge green-gate, so re-run it after every controller merge:
 
 ```sh
 bun run test

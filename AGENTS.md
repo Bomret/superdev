@@ -76,7 +76,7 @@ maintainer-only checks like `drift-check.js`, which `package.json` runs. `hooks/
 consumer of `plugin/scripts/`: `hooks/scope-prune.js` `require`s `../scripts/scope.js` for its shared
 ledger-header reader (ADR 0022). This is the one dependency `hooks/` has on a script. Every other hook
 stays standalone. Paths inside `plugin/` resolve against the plugin root at runtime, so prose there
-names them without the `plugin/` prefix; `scripts/drift/lib.js`'s `docPath()` resolves the same
+names them without the `plugin/` prefix. `scripts/drift/lib.js`'s `docPath()` resolves the same
 plugin-relative paths for the maintainer-side checks.
 
 ## Stack
@@ -88,15 +88,15 @@ plugin-relative paths for the maintainer-side checks.
   **Codeberg** (Forgejo) through `@saithodev/semantic-release-gitea`.
 - **Conventional Commits.** They drive the version bump. `feat` gives a minor bump, `fix` and `perf`
   give a patch bump. **Pre-1.0 policy:** `!` or `BREAKING CHANGE` also gives a **minor** bump (a
-  `releaseRules` entry in `release.config.cjs`) — superdev stays below 1.0.0 until it has proven itself
+  `releaseRules` entry in `release.config.cjs`). superdev stays below 1.0.0 until it has proven itself
   in real use, and removing that rule is what opens the first deliberate 1.0.0.
 
 ## Working rules (repo-specific: read before you edit hooks, the version, or the release config)
 
 - **Hooks are CommonJS** (`.js`, `require`). `plugin/package.json` is the anchor: it carries
   `"type": "commonjs"` and ships with the plugin, so Node never walks past the install directory to
-  whatever `package.json` an ancestor of the user's plugin cache happens to carry — a `"type": "module"`
-  found there would treat every hook as ESM and break them all in production. Do **not** change that
+  whatever `package.json` an ancestor of the user's plugin cache happens to carry. A `"type": "module"`
+  found there treats every hook as ESM and breaks them all in production. Do **not** change that
   field, and do not add `"type": "module"` to the root `package.json` either. Only `.mjs` is ESM,
   because that is scoped by extension.
 - **Every hook ships a `--selftest`.** Add one for any new hook. `bun run test` runs them all under
@@ -110,25 +110,28 @@ plugin-relative paths for the maintainer-side checks.
   repo. `commands/` and `agents/` stay tool-agnostic. Do not hardcode a backend into them.
 - **Docs follow a writing standard.** `docs/agents/documentation.md` names it, and the doc agents apply
   it to prose they write. This repo uses `controlled`
-  ([`references/controlled-prose.md`](plugin/references/controlled-prose.md), ADR 0012).
-- **Prompt prose follows the prompt-architecture rules.** They govern the *structure* of `commands/`,
-  `agents/`, and `references/` prose, where `controlled-prose.md` governs its form:
+  ([`references/controlled-prose.md`](plugin/references/controlled-prose.md), ADR 0012). Its own
+  `## Scope` section states where it applies: the `AGENTS.md` tree, `README.md`, ADR text, glossary
+  entries, knowledge-base pages, and report text. Prompt prose is outside it, and has its own rules
+  below.
+- **Prompt prose follows the prompt-architecture rules.** They govern `commands/`, `agents/`, and
+  `references/` prose:
   - **Prompt the positive.** Steering by prohibition drags the forbidden behaviour into context and makes
-    it more available; phrase the wanted behaviour, and reserve `never` for real contracts.
+    it more available. Phrase the wanted behaviour, and reserve `never` for real contracts.
   - **A contested line gets an eval arm, not an argument.** An instruction the model already obeys by
-    default is pure context load, and whether a line is such a no-op is model-relative — `bun run eval`
+    default is pure context load, and whether a line is such a no-op is model-relative. `bun run eval`
     settles it by running the document.
   - **Completion criteria demand.** "Every modified model accounted for" forces thorough work where
-    "produce a change list" does not; write every done-condition in the demanding form.
+    "produce a change list" does not. Write every done-condition in the demanding form.
   - **Hiding later steps needs a real context boundary.** A subagent dispatch, or a path handed instead
-    of inlined text, clears context; an inline mention does not. ADR 0020 is the applied case.
+    of inlined text, clears context. An inline mention does not. ADR 0020 is the applied case.
   - **Descriptions are permanent context load.** Every command and agent `description` is always loaded:
     front-load the trigger word, one trigger per branch (synonyms are one branch written twice), and cut
     identity the body already carries.
-- **Platform-dependent claims carry dated verification.** A statement about Claude Code behaviour — in an
-  ADR or in `## Known issues` below — records, when re-checked, a dated update naming the version and the
-  observed evidence ("Verified 2026-08-19, on Claude Code 2.1.x, output …"), so a stale platform claim
-  shows its age instead of silently misleading.
+- **Platform-dependent claims carry dated verification.** An ADR, or a `## Known issues` entry below,
+  states a claim about Claude Code behaviour. When you re-check that claim, record a dated update naming
+  the version and the observed evidence ("Verified 2026-08-19, on Claude Code 2.1.x, output …"). A stale
+  platform claim then shows its age instead of silently misleading.
 
 ## Known issues (Claude Code platform)
 
@@ -166,22 +169,24 @@ subscription instead of a metered API key (ADR 0024). A maintainer creates the t
 
 - AGENTS.md files are binding work contracts for their subtrees. Before editing, read this root doc
   plus every AGENTS.md on the path to each file you touch, in the current session. The nearest doc
-  controls local detail; no child doc may weaken a parent.
-- After every meaningful change, do a DOX pass: update the closest owning AGENTS.md — and any affected
-  parent, child, or Child DOX Index — when purpose, ownership, durable structure, contracts, workflows,
-  constraints, or user preferences changed. Delete stale or contradictory text immediately. A change
-  that alters no behavior and no contract may leave the docs unchanged, but the pass still happens.
+  controls local detail. No child doc may weaken a parent.
+- After every meaningful change, do a DOX pass. Update the closest owning AGENTS.md when purpose,
+  ownership, durable structure, contracts, workflows, constraints, or user preferences changed. Update
+  every affected parent, child, and Child DOX Index too. Delete stale or contradictory text immediately.
+  A change that alters no behavior and no contract may leave the docs unchanged, but the pass still
+  happens.
 - Create a child AGENTS.md only when a folder becomes a durable boundary with rules of its own. Section
   order: Purpose, Ownership, Local Contracts, Work Guidance, Verification, Child DOX Index. Broad rules
-  live in parents, concrete detail in children — concise, current, operational, no duplicated rules,
-  no history.
+  live in parents, concrete detail in children. Keep both concise, current, and operational, with no
+  duplicated rules and no history.
 - When the user requests a durable behavior change, record it here or in the relevant child AGENTS.md.
 
 ## Child DOX Index
 
-**One child exists: [`scripts/AGENTS.md`](scripts/AGENTS.md).** It owns what the four scripts guard —
-the two maintainer-only ones in `scripts/` and the two shipped ones in `plugin/scripts/` — including
-the full drift-check contract narrative. Every other subtree's rules live in this root doc.
+**One child exists: [`scripts/AGENTS.md`](scripts/AGENTS.md).** It owns what the four scripts guard:
+the two maintainer-only ones in `scripts/` and the two shipped ones in `plugin/scripts/`. That
+ownership includes the full drift-check contract narrative. Every other subtree's rules live in this
+root doc.
 See `Structure` above for the current file inventory. Add a child only when a subtree becomes a
 durable boundary with rules of its own that do not fit here.
 
@@ -197,7 +202,7 @@ This root owns every other subtree directly:
   standing alone. A `require` failure leaves the hook with no fallback reader: it prunes nothing and
   says nothing.
 - `scripts/` and `plugin/scripts/`. Owned by [`scripts/AGENTS.md`](scripts/AGENTS.md):
-  `plugin/scripts/scope.js` (the run-state CLI, ADR 0022 — owns the ledger schema, is the only
+  `plugin/scripts/scope.js` (the run-state CLI, ADR 0022: owns the ledger schema, is the only
   `ledger.md` read and write path, and exports `readLedgerHeader` for `plugin/hooks/scope-prune.js`),
   `plugin/scripts/kb-patch.js` (the deterministic section merge behind a staged page's `action: patch`,
   called by `/superdev:publish-kb`, ADR 0027), `scripts/eval-run.js` (the eval
@@ -205,25 +210,25 @@ This root owns every other subtree directly:
   CLI walks the `drift/checks.js` registry, which orders every scanner and contract table). What each
   guards, check by check, lives in that child doc.
 - `plugin/references/`. Backend seed templates plus the non-seed references below. Each reference's own
-  opening states its full contract; this index only routes.
+  opening states its full contract. This index only routes.
 
   | Reference | Owns | Read at runtime by |
   |---|---|---|
-  | `plan-contract.md` | slice schema + lifecycle; the `## Scope anchor`, `## Feature label`, and `## Append mode` generic contracts every store document specialises (ADR 0004, 0017, 0019, 0021) | `/plan`; the store seeds cite it |
-  | `documentation.md` | the in-repo documentation convention; `/superdev:setup` fills `## Writing standard` always and `## Audit set` when needed | `/setup`, `/document` |
-  | `controlled-prose.md` | the writing standard (ADR 0012) | `doc-pass.md`'s callers apply it; `doc-reader` verifies it |
-  | `content-types.md` | the content-type lens — never configurable, never `none` (ADR 0014) | `doc-pass.md`'s callers; `doc-reader` |
-  | `doc-pass.md` | the documentation pass, stated once for its two callers (ADR 0031) | `doc-writer`; the `lite` playbook |
+  | `plan-contract.md` | slice schema and lifecycle, plus the `## Scope anchor`, `## Feature label`, and `## Append mode` generic contracts every store document specialises (ADR 0004, 0017, 0019, 0021) | `/plan`, and the store seeds cite it |
+  | `documentation.md` | the in-repo documentation convention, which `/superdev:setup` fills at `## Writing standard` always and at `## Audit set` when needed | `/setup`, `/document` |
+  | `controlled-prose.md` | the writing standard (ADR 0012) | `doc-pass.md`'s callers apply it, `doc-reader` verifies it |
+  | `content-types.md` | the content-type lens, never configurable and never `none` (ADR 0014) | `doc-pass.md`'s callers, `doc-reader` |
+  | `doc-pass.md` | the documentation pass, stated once for its two callers (ADR 0031) | `doc-writer`, the `lite` playbook |
   | `run-init.md`, `run-handoff.md` | run init and run handoff, tier-agnostic | both execution playbooks |
   | `implement-full.md`, `implement-lite.md` | the tier-specific execution playbooks | `/implement`, once it computes the tier |
-  | `test-selection.md` | the focused-vs-full test command rule (ADR 0025); `hooks/green-gate.js` implements the same rule in code | focused: `implementer`, `slice-reviewer`, `implement-lite`; full-suite: `/review`'s scope review, `run-handoff` |
-  | `scope-mode.md` | the shared scope rules — live-run detection, the scope checkout, the run lock, `## Unattended`, `## The scope slug`, `## The change type`, `## Degraded passes`, `## Unresolved defects`, `## The ledger` (deferring the schema to `scope.js`), `## Cutting the scope branch` (ADR 0007, 0013, 0016, 0018, 0021, 0022, 0026, 0028) | `/review`, `/document`, `/ship`, `/implement`, `/afk`, both playbooks |
-  | `cross-exam.md`, `domain-modeling.md`, `doc-verification.md` | the authoring disciplines — superdev's rendering of Matt Pocock's grilling and domain-modeling skills | `/plan`, `/brainstorm`; `implementer` reads `doc-verification.md` before acting on a third-party assumption |
-  | `diagnosis.md` | the defect-diagnosis loop — the red-capable repro gate, the minimised repro, ranked hypotheses, tagged instrumentation (a rendering of Matt Pocock's diagnosing-bugs skill) | `/plan` on a `fix` feature; `implementer` on a defect-repair dispatch; `/review`'s fix loop |
-  | `prototype.md` | the prototype discipline — one stated question, liftable logic, throwaway-branch capture, the `spec` snippet exception (a rendering of Matt Pocock's prototype skill) | `/brainstorm` §4; `plan-contract.md` cites the `spec` exception |
-  | `merge-conflicts.md` | conflict resolution by intent — the union on additive conflicts, composing compatible intents, abort-and-escalate on a winner-picking overlap | the full playbook's merge step |
-  | `review-checklist.md` | anti-patterns, design smells, vulnerability classes, a reuse-audit lens, a consistency lens | `final-reviewer` (all five); `slice-reviewer` (anti-patterns + vulnerabilities) |
+  | `test-selection.md` | the focused-or-full test command rule (ADR 0025), which `hooks/green-gate.js` implements in code | focused: `implementer`, `slice-reviewer`, `implement-lite`. Full suite: `/review`'s scope review, `run-handoff` |
+  | `scope-mode.md` | the shared scope rules: live-run detection, the scope checkout, the run lock, `## Unattended`, `## The scope slug`, `## The change type`, `## Degraded passes`, `## Unresolved defects`, `## The ledger` (deferring the schema to `scope.js`), `## Cutting the scope branch` (ADR 0007, 0013, 0016, 0018, 0021, 0022, 0026, 0028) | `/review`, `/document`, `/ship`, `/implement`, `/afk`, both playbooks |
+  | `cross-exam.md`, `domain-modeling.md`, `doc-verification.md` | the authoring disciplines, superdev's rendering of Matt Pocock's grilling and domain-modeling skills | `/plan`, `/brainstorm`. `implementer` reads `doc-verification.md` before acting on a third-party assumption |
+  | `diagnosis.md` | the defect-diagnosis loop: the red-capable repro gate, the minimised repro, ranked hypotheses, tagged instrumentation (a rendering of Matt Pocock's diagnosing-bugs skill) | `/plan` on a `fix` feature, `implementer` on a defect-repair dispatch, `/review`'s fix loop |
+  | `prototype.md` | the prototype discipline: one stated question, liftable logic, throwaway-branch capture, the `spec` snippet exception (a rendering of Matt Pocock's prototype skill) | `/brainstorm` §4, and `plan-contract.md` cites the `spec` exception |
+  | `merge-conflicts.md` | conflict resolution by intent: the union on additive conflicts, composing compatible intents, abort-and-escalate on a winner-picking overlap | the full playbook's merge step |
+  | `review-checklist.md` | anti-patterns, design smells, vulnerability classes, a reuse-audit lens, a consistency lens | `final-reviewer` (all five), `slice-reviewer` (anti-patterns and vulnerabilities) |
 - `docs/adr/`. Architecture decision records. `docs/agents/`. This repo's own dogfooded backend config.
 - `.claude-plugin/`. Manifests. Governed by **Working rules, Version lives only in `plugin.json`**.
-- `CONTEXT.md`. The domain glossary. `evals/`. The with/without-plugin A/B, where `evals/README.md` owns
-  its grader-neutrality and result-reading rules.
+- `CONTEXT.md`. The domain glossary. `evals/`. The with-plugin and without-plugin A/B, where
+  `evals/README.md` owns its grader-neutrality and result-reading rules.

@@ -1,4 +1,4 @@
-# 0013 — The implement tail is a command chain, not one invocation
+# 0013: The implement tail is a command chain, not one invocation
 
 **Status:** Accepted
 
@@ -14,9 +14,9 @@ resolved. `/superdev:implement` stops once every slice sits on the scope branch.
 reviews a scope range against `<run-root>/dod.md` and asks once before it fixes anything.
 `/superdev:document` commits in the scope's checkout. A new command, `/superdev:ship`, ticks the
 Definition of Done, closes the scope anchor, opens the pull request, and removes the run's worktrees and
-lock. The ledger carries a `Stage` line that records the last completed stage — `implementing`, `merged`,
+lock. The ledger carries a `Stage` line that records the last completed stage: `implementing`, `merged`,
 `reviewed`, `documented` (or `documented-unreviewed`, when `/superdev:document` ran before
-`/superdev:review` did), `shipped` — and `/superdev:status` reports it.
+`/superdev:review` did), or `shipped`. `/superdev:status` reports it.
 
 ```mermaid
 flowchart LR
@@ -41,18 +41,18 @@ all.
 
 **Considered options.**
 
-- *Confirmation prompts inside `/superdev:implement`* — rejected: a prompt keeps the whole chain in one
+- *Confirmation prompts inside `/superdev:implement`*. Rejected: a prompt keeps the whole chain in one
   invocation and one context, so it answers the control complaint but not the cost one.
-- *A re-entrant `/superdev:implement` that performs the tail on a second invocation* — rejected: it
+- *A re-entrant `/superdev:implement` that performs the tail on a second invocation*. Rejected: it
   avoids a new command, but it needs a resume branch anyway, and "run implement again" reads as a repeat
   rather than as a next step.
-- *`/superdev:document` opens the pull request* — rejected: it puts code-host work in the documentation
+- *`/superdev:document` opens the pull request*. Rejected: it puts code-host work in the documentation
   command, which also runs on a base branch where no pull request applies.
-- *`/superdev:review` stays read-only in every case* — rejected: the fix-until-clean loop then disappears
+- *`/superdev:review` stays read-only in every case*. Rejected: the fix-until-clean loop then disappears
   from the flow with nothing to replace it.
-- *A hard gate that blocks `/superdev:ship` until a clean review exists* — rejected: it restores the
+- *A hard gate that blocks `/superdev:ship` until a clean review exists*. Rejected: it restores the
   entanglement the chain removes. `/superdev:ship` warns instead.
-- *The stage inferred from artifacts rather than recorded* — rejected: inference from a git log and a
+- *The stage inferred from artifacts rather than recorded*. Rejected: inference from a git log and a
   report file breaks quietly when a person commits documentation by hand.
 
 **Consequences.** `/superdev:review` writes when it reviews a live scope, and stays read-only everywhere

@@ -1,10 +1,10 @@
-# 0031 — The lite tier writes its own documentation
+# 0031: The lite tier writes its own documentation
 
 **Status:** Accepted
 
-**Context.** The implement chain ends `/superdev:implement` → `/superdev:review` → `/superdev:document` →
+**Context.** The implement chain ends with `/superdev:implement`, then `/superdev:review`, then `/superdev:document`, then
 `/superdev:ship` (ADR 0013). On the `lite` tier the controller implements every slice itself, inline, in
-one scope worktree — the deliberate exception ADR 0001 records — so it reaches the end of the run holding
+one scope worktree, the deliberate exception ADR 0001 records, so it reaches the end of the run holding
 the whole scope in its own context. `/superdev:document` then dispatches a cold `doc-writer` that rebuilds
 that same scope from a diff, and a cold `doc-reader` after it. Two dispatches pay to reconstruct what
 existed minutes earlier and was discarded. ADR 0003 settled **when** the reconcile runs relative to the
@@ -19,8 +19,8 @@ commits touched no doc file. A `doc-reader` finding still gets exactly one `doc-
 stale. The procedure both callers follow lives in `references/doc-pass.md`. The `full` tier is unchanged.
 
 **Why.** Writing wants hot context and checking wants fresh eyes. The `lite` controller already holds the
-scope, so a cold writer buys nothing there but the tokens to rebuild it; the `doc-reader`'s value is the
-opposite property — it never saw the work — so it stays. The `full` tier keeps its writer because its
+scope, so a cold writer buys nothing there but the tokens to rebuild it. The `doc-reader`'s value is the
+opposite property, that it never saw the work, so it stays. The `full` tier keeps its writer because its
 implementers sit in isolated parallel worktrees while the controller merges serially: per-slice doc edits
 would collide on shared doc files, which is the one conflict class with no mechanical resolution.
 
@@ -32,17 +32,17 @@ the documentation. ADR 0003's ordering continues to govern every `doc-writer` di
 
 **Considered options.**
 
-- *Per-slice doc edits inside the lite loop* — rejected: a later slice supersedes an earlier slice's
+- *Per-slice doc edits inside the lite loop*. Rejected: a later slice supersedes an earlier slice's
   paragraph, so the churn `agents/implementer.md`'s ban prevents across a run returns inside one scope.
-- *The pass moves into `agents/implementer.md` for both tiers* — rejected: the `full` tier's parallel
+- *The pass moves into `agents/implementer.md` for both tiers*. Rejected: the `full` tier's parallel
   worktrees collide on shared doc files, and per-slice doc overhead multiplied by the slice count costs
   more than the single pass it replaces.
-- *Infer the pass from the scope worktree instead of recording it* — rejected: inference cannot separate
+- *Infer the pass from the scope worktree instead of recording it*. Rejected: inference cannot separate
   "nothing needed documenting" from "the run ended before its doc step", so it must dispatch the writer on
   exactly the cheap scope this decision optimizes.
-- *The knowledge-base pass stays with `doc-writer`* — rejected: the writer is then dispatched on every
+- *The knowledge-base pass stays with `doc-writer`*. Rejected: the writer is then dispatched on every
   `lite` scope anyway and most of the saving disappears.
-- *The `doc-reader` alone covers a review fix loop's commits* — rejected: a fix that needs a new paragraph
+- *The `doc-reader` alone covers a review fix loop's commits*. Rejected: a fix that needs a new paragraph
   is an absence, and a reader detects a false claim far more reliably than a missing one.
 
 **Consequences.** A `lite` run reads the doc-pass procedure, the writing standard, and the content-type

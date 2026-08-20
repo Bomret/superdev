@@ -1,4 +1,4 @@
-# 0023 — The knowledge-base publish is its own command
+# 0023: The knowledge-base publish is its own command
 
 **Status:** Accepted
 
@@ -24,7 +24,7 @@ still: it lands before any of the feature is built.
 
 Neither `/superdev:plan` nor `/superdev:document` calls a remote knowledge-base backend. For such a
 backend each writes the page it would have published as a **staged page** under
-`.superdev/kb-pending/<scope>/` — one file per page, YAML frontmatter carrying the page `title` and an
+`.superdev/kb-pending/<scope>/`: one file per page, YAML frontmatter carrying the page `title` and an
 `action` of `upsert` or `delete` (ADR 0027 adds `patch`, for one section of an aggregate page), the body
 below it. `/superdev:plan` stages under the feature label's
 slug, which is the scope those pages belong to. A documentation pass outside a live scope run stages to
@@ -32,7 +32,7 @@ slug, which is the scope those pages belong to. A documentation pass outside a l
 before, because its pages are repository files with no external surface.
 
 The staging path is absolute, resolved from the invoking checkout. A lite-tier scope checkout is
-`.superdev/scopes/<scope>/worktree`, inside `.superdev/` itself, and `/superdev:ship` removes it — a
+`.superdev/scopes/<scope>/worktree`, inside `.superdev/` itself, and `/superdev:ship` removes it. A
 working-directory-relative path would stage pages into the worktree and lose them at cleanup.
 
 `/superdev:publish-kb` is the only path from superdev to a remote knowledge-base backend. It applies each
@@ -43,8 +43,8 @@ proceeds on confirmation, and it never blocks.
 The operator decides when to run it. Superdev computes no gate.
 
 Pending pages are visible rather than silent: `scripts/scope.js status` names every scope holding them,
-and `/superdev:ship` prints the command for the scope it shipped. `/superdev:afk` never drives it —
-telling clients about an unshipped feature with no human present is the failure this record removes.
+and `/superdev:ship` prints the command for the scope it shipped. `/superdev:afk` never drives it.
+Telling clients about an unshipped feature with no human present is the failure this record removes.
 
 ## Considered options
 

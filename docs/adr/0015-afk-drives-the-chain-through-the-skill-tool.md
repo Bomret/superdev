@@ -1,4 +1,4 @@
-# 0015 — `/superdev:afk` drives the chain through the Skill tool
+# 0015: `/superdev:afk` drives the chain through the Skill tool
 
 **Status:** Accepted
 
@@ -30,12 +30,12 @@ behaves when a maintainer types it.
 
 **Considered options.**
 
-- *afk carries its own copy of the four-step procedure* — rejected: two copies of the chain drift apart,
+- *afk carries its own copy of the four-step procedure*. Rejected: two copies of the chain drift apart,
   and catching that drift needs a new assertion in `drift-check.js` to guard a duplication that has no
   reason to exist.
-- *One subagent owns each scope's chain, to bound context* — rejected: `merge-guard` blocks a subagent's
+- *One subagent owns each scope's chain, to bound context*. Rejected: `merge-guard` blocks a subagent's
   `git merge` and `git push`, so the `full` tier cannot integrate inside one.
-- *`context: fork` on the afk skill, for the same context reason* — rejected: it runs the skill in a
+- *`context: fork` on the afk skill, for the same context reason*. Rejected: it runs the skill in a
   subagent context, so `merge-guard` blocks the merge identically.
 
 **Consequences.** The four chained commands stay model-invocable. `disable-model-invocation: true` on any

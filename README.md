@@ -47,7 +47,7 @@ plan runs test-first and inline.
   store. On an epic whose shape earns it, the command also draws a `## Slice graph` (the `depends-on`
   DAG), a `## Touch map` (parallel-slice file collisions), or both. Both are markdown, both are advisory, and
   [`references/plan-contract.md`](plugin/references/plan-contract.md) gates each one. The command also tells you
-  the execution tier `/superdev:implement` will use for the final slice count (see below).
+  the execution tier `/superdev:implement` uses for the final slice count (see below).
 
   Run it again against a feature that already has slices, and it **appends**. New slices land on top of
   the ones already merged, and the command never edits, renumbers, or re-litigates any of them. It
@@ -92,7 +92,7 @@ plan runs test-first and inline.
   those commits touched none. A review fix loop that lands commits clears that record, so the next run of
   this command dispatches the writer again. Both agents also apply a **content-type lens**
   ([`references/content-types.md`](plugin/references/content-types.md)): does a reader learn *why* a thing
-  exists and *when* to use it, not only what it's called and how to run it. That check is always on,
+  exists and *when* to use it, not only what it is called and how to run it. That check is always on,
   unlike the **writing standard**, which the repo may configure to `none`. Where a writing standard is
   configured, the `doc-writer` writes to it and the `doc-reader` verifies it. It is the third command of the
   four-command chain, run over the range `/superdev:review` hands it, and it also runs on demand at any
@@ -112,7 +112,7 @@ plan runs test-first and inline.
   when no eligible anchor is left, when two anchors block in a row, or when `/superdev:ship` fails to
   reach the code host. It never asks a question and never starts an interview command.
 - **`/superdev:setup`**. Records the backends in `docs/agents/*.md`, so the workflow never hardcodes a
-  tool. For a knowledge base it also captures the **audience(s)** and **language**, and proposes a
+  tool. For a knowledge base it also captures the **audiences** and the **language**, and proposes a
   human-first outline. It asks which **writing standard** the doc agents write to. When it finds no
   `AGENTS.md` hierarchy in the repo, it points you at `/superdev:document`'s bootstrap mode to seed one.
 - **`/superdev:publish-kb`** *(remote knowledge base only)*. Sends a scope's **staged** knowledge-base
@@ -181,15 +181,16 @@ bash or PowerShell variants.
   alone. A lite-tier run's single scope worktree is not a per-slice worktree, so this hook leaves it
   alone too. `/superdev:ship` removes it at the end of the chain.
 - **scope-prune.** A `Stop` hook that deletes a scope's run root (`.superdev/scopes/<scope>/`, its
-  `ledger.md` and `dod.md` post-mortem trail). It waits until the scope branch is **merged or gone** — a
-  squash merge leaves no ancestry, and a code host that squash-merges deletes the branch, so absence is
-  the merge's only local trace — the run root has sat untouched for 7 days or more, **and** the ledger's
-  `**Stage:**` line reads `shipped`. It reads absence only from refs the repository already holds: a
+  `ledger.md` and `dod.md` post-mortem trail). It waits for three conditions: the scope branch is
+  **merged or gone**, the run root has sat untouched for 7 days or more, **and** the ledger's
+  `**Stage:**` line reads `shipped`. A squash merge leaves no ancestry, and a code host that
+  squash-merges deletes the branch, so absence is the merge's only local trace. It reads absence only
+  from refs the repository already holds: a
   remote-tracking ref it has not fetched still counts as present, so it never prunes on stale
   information. It never touches a scope branch that is present and unmerged, one whose worktree is still
   present, or one whose ledger is unreadable or silent on the stage.
 
-An eighth Node hook, **update-check**, is a `SessionStart` *notice* rather than a guardrail. See
+**update-check** is an eighth Node hook, and a `SessionStart` *notice* rather than a guardrail. See
 [Updating](#updating).
 
 ## Configuration and backends
@@ -210,7 +211,7 @@ never hardcode a tool. Edit those files directly at any time. Re-run setup only 
   - *GitHub Issues*: each slice is an issue and a sub-issue of its epic, with `depends-on` as a native
     `blocked_by` dependency.
   - *Jira*: each slice is an issue, with `depends-on` as an "is blocked by" link.
-  - *Forgejo / Codeberg Issues*: each slice is an issue on a Forgejo or Gitea instance. `depends-on` is
+  - *Forgejo or Codeberg Issues*: each slice is an issue on a Forgejo or Gitea instance. `depends-on` is
     a `**Depends on:**` body-text line, or the native dependency link when the instance's
     issue-dependencies unit is enabled.
   - *other*: you describe your tracker's CRUD and dependency link in prose.
@@ -232,7 +233,7 @@ never hardcode a tool. Edit those files directly at any time. Re-run setup only 
 - **Knowledge base** *(optional)*. A **separate, human-first** record for *readers* rather than agents:
   feature specifications, design overviews, and ADR summaries. It is distinct from the agent-first
   `AGENTS.md` docs. You pick the backend (Confluence, a local `docs/kb/`, other, or none), its
-  **audience(s)**, its **language**, and an agreed **outline** that `/plan` and `/document` fill rather than
+  **audiences**, its **language**, and an agreed **outline** that `/plan` and `/document` fill rather than
   reinvent. The answers go to `docs/agents/knowledge-base.md`. For a **remote** backend, `/plan` and
   `/document` stage each page under `.superdev/kb-pending/<scope>/` instead of sending it. `/superdev:publish-kb`
   is the only command that reaches the backend
@@ -293,15 +294,15 @@ A tiny feature end to end, with the local-file slice store and GitHub as the cod
   store is local files and the code host is GitHub (`gh`). The documentation convention is the
   `AGENTS.md` hierarchy, verification is `npm test`, and there is no knowledge base.
 - **`/superdev:plan add a health-check endpoint`**. Interviews for the intent and a Definition of Done,
-  then writes `docs/plans/feat/health-check/` — new behaviour, so the change type is `feat`. That holds
+  then writes `docs/plans/feat/health-check/`. New behaviour, so the change type is `feat`. That holds
   `00-epic-*` (the DoD and description) plus two
   slices, for example `01-behavior-route-handler.md` and `02-behavior-wire-into-router.md`, where the
   second `depends-on` the first. You see the slice list printed back, ready for `/implement`, along with
-  the tier it will run under. Two slices is 3 or fewer, so the tier is **lite**.
+  the tier it runs under. Two slices is 3 or fewer, so the tier is **lite**.
 - **`/superdev:implement feat/health-check`**. Sets up `.superdev/scopes/health-check/`, the git-ignored run
   scratch holding the concrete DoD and the ledger. Two slices selects the **lite** tier. The controller
   cuts a single scope worktree at `.superdev/scopes/health-check/worktree/` for the branch
-  `feat/health-check` — the feature label verbatim — and never switches the
+  `feat/health-check`, which is the feature label verbatim. It never switches the
   invoking checkout. It implements slice 01 test-first in that worktree and commits. Slice 02 then
   unblocks and follows the same loop. There are no per-slice worktrees and no reviewer subagents. Once
   both slices sit on the scope branch, the controller **stops** and prints the resolved
@@ -319,7 +320,7 @@ A tiny feature end to end, with the local-file slice store and GitHub as the cod
 
 superdev ships as a single-plugin Claude Code **marketplace**
 (`.claude-plugin/marketplace.json`). Both the marketplace and the plugin are named `superdev`, so you
-install `superdev@superdev`. Verified on Claude Code **v2.1.237** (2026-08-20); no lower bound is
+install `superdev@superdev`. Verified on Claude Code **v2.1.237** (2026-08-20). No lower bound is
 claimed, because none has been tested.
 
 **From the git host** (interactive):
@@ -338,7 +339,7 @@ git clone https://codeberg.org/bomret/superdev.git
 ```
 
 **Manage:** `/plugin list` and `/plugin details superdev@superdev`. For updates use
-**`/superdev:upgrade`**, or the manual steps under [Updating](#updating) — refreshing the catalog alone
+**`/superdev:upgrade`**, or the manual steps under [Updating](#updating). Refreshing the catalog alone
 does not upgrade an installed plugin.
 
 Then, in each repo you want to use it, run **`/superdev:setup`** once. After that, run `/superdev:plan`

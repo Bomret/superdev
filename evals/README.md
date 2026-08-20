@@ -1,4 +1,4 @@
-# evals — does superdev beat plain plan-then-build?
+# evals: superdev against plain plan-then-build
 
 Every case here is one arm of a single question: **on the same task, in the
 same repo, does the plugin produce a better plan, better code, and truer docs
@@ -20,12 +20,12 @@ Both need `CLAUDE_CODE_OAUTH_TOKEN`. Create it once with `claude setup-token`
 and export it. The runner refuses to start without it and never falls back to
 a billed `ANTHROPIC_API_KEY`.
 
-Flags: `--case <glob>` selects cases by name, `--runs <n>` overrides a case's
-own run count, `--judge-model <model>` overrides the judge (it defaults to
-`haiku`, because judging spends the same subscription window as the arms),
-and `--output-dir <dir>` overrides where transcripts, diffs, and the result
-land. Results default to `evals/results/<timestamp>/`, which `.gitignore`
-excludes.
+Four flags adjust a run. `--case <glob>` selects cases by name. `--runs <n>`
+overrides a case's own run count. `--judge-model <model>` overrides the judge,
+which defaults to `haiku`, because judging spends the same subscription window
+as the arms. `--output-dir <dir>` overrides where transcripts, diffs, and the
+result land. Results default to `evals/results/<timestamp>/`, which
+`.gitignore` excludes.
 
 `claude plugin eval` still reads the same `case.yaml` and `graders/*.md`
 files, unchanged, so it stays available for a key-funded cross-check.
@@ -51,7 +51,7 @@ files, unchanged, so it stays available for a key-funded cross-check.
 
 | Case | What it costs | What it isolates |
 |------|---------------|------------------|
-| `ab-plan-edge-case` | cheap, plan only | Does the plan enumerate the failure cases the intent never names — missing widget, unreachable datastore — as acceptance criteria a test could check? |
+| `ab-plan-edge-case` | cheap, plan only | Does the plan enumerate the failure cases the intent never names (missing widget, unreachable datastore) as acceptance criteria a test could check? |
 | `ab-plan-primed` | cheap, plan only | The same feature and the same graders as `ab-plan-edge-case`, from a **primed** prompt. What does the plugin add on top of good prompting, rather than on top of a bare request? |
 | `ab-plan-multi-slice` | cheap, plan only | Is a five-operation feature cut into vertical slices with an explicit dependency order, or into horizontal layers? Does every operation get a criterion? |
 | `ab-plan-multi-slice-primed` | cheap, plan only | The same feature and the same graders as `ab-plan-multi-slice`, from a **primed** prompt. Does wording buy vertical slicing, the one gap a bare prompt never closed? |
@@ -71,9 +71,9 @@ The bare case asks a plain user's question. The primed case supplies the
 planning discipline a skilled user supplies by hand: derive the failure cases
 the request leaves unsaid, state every criterion as observable behaviour, and
 cut the work into units that each ship on their own. It names **discipline
-only, never the case's facts** — no failure mode, no missing widget, no count
-of slices, no operation that needs the API key, because those are what the
-graders check and a prompt naming them would grade itself.
+only, never the case's facts**: no failure mode, no missing widget, no count
+of slices, and no operation that needs the API key. Those are what the graders
+check, and a prompt naming them would grade itself.
 
 **The priming is written by someone who knows which disciplines are graded.**
 That is the limit on how far a primed result generalises: it shows that *this*
@@ -84,43 +84,43 @@ have written this prompt unprompted.
 Read the two deltas together. The bare case's delta is the plugin against no
 planning discipline at all. The primed case's delta is the plugin against a
 user who already has it. A plugin advantage that survives the second is worth
-the plugin; one that only appears in the first is worth a sentence of
+the plugin. One that only appears in the first is worth a sentence of
 prompting. Both readings are useful, and neither is the headline on its own.
 
 ## Reading a result honestly
 
 - **The graders are format-agnostic on purpose.** None of them require a
-  `NN-behavior-*.md` slice file or any other superdev shape — they judge the
+  `NN-behavior-*.md` slice file or any other superdev shape. They judge the
   plan or the code wherever it lands and in whatever format. A grader that
   rewards the plugin's file naming would measure compliance, not quality.
 - **Every grader scores `both` arms.** A `with-only` grader would inflate the
   plugin arm's total and turn the delta into noise.
 - **The scaffold is biased toward the baseline.** `docs/agents/` states the
-  repo's conventions — slice-file layout, verification command, documentation
-  rule — and the no-plugin arm reads them as ordinary repo docs. That hands the
-  control arm hints it would not have in a bare repo. Deliberate: a delta that
-  survives a generous baseline is a real delta.
+  repo's conventions (slice-file layout, verification command, documentation
+  rule), and the no-plugin arm reads them as ordinary repo docs. That hands the
+  control arm hints it would not have in a bare repo. This is deliberate: a
+  delta that survives a generous baseline is a real delta.
 - **The prompts name no slash command.** The plugin arm has to reach for its
   own workflow the way a real user's prompt would, so discoverability is part
   of what is being measured.
-- **One run is an anecdote.** Cases default to `runs: 3`; a per-grader delta
+- **One run is an anecdote.** Cases default to `runs: 3`. A per-grader delta
   smaller than the spread across those runs is not a result.
-- **`ab-implement-lite` runs the `lite` tier** (≤3 slices). The `full` tier's
-  parallel worktrees and independent reviewer subagents are not covered by any
-  case here — that is the largest unmeasured claim the plugin makes.
+- **`ab-implement-lite` runs the `lite` tier** (3 slices or fewer). No case
+  here covers the `full` tier's parallel worktrees and independent reviewer
+  subagents. That is the largest unmeasured claim the plugin makes.
 - **`readme-stays-true` measures discoverability, not just documentation.**
   `/superdev:implement` stops once the slices are on the scope branch, so the
   doc reconcile is two commands further along the chain, in
   `/superdev:document` (ADR 0013). A plugin arm that stops at the handoff
   therefore scores lower on this grader than one that walks the rest of the
   chain. That gap is the measurement. **Do not "fix" the grader or loosen the
-  prompt to close it** — the prompt names no slash command by design, and
-  tuning either one would fit the instrument to the result and hide the real
+  prompt to close it.** The prompt names no slash command by design, and
+  tuning either one fits the instrument to the result and hides the real
   cost the chain asks of a user.
 
 ## Adding a case
 
-A case is `case.yaml` + `graders/*.md`, plus a `scaffold_script` path relative
+A case is `case.yaml` and `graders/*.md`, plus a `scaffold_script` path relative
 to the case directory (never an inline block). A grader is frontmatter plus
 criteria prose. The harness accepts six grader types: `llm`, `regex`,
 `file_exists`, `tool_order`, `tool_used`, `baseline`. Every grader needs a

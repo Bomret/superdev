@@ -1,4 +1,4 @@
-# 0014 — Content coverage is a documentation lens, not a writing standard
+# 0014: Content coverage is a documentation lens, not a writing standard
 
 **Status:** Accepted
 
@@ -30,19 +30,19 @@ pure lookup table is exempt when a document that links to it carries the why.
 
 **Considered options.**
 
-- *A `## Content types` section in `references/controlled-prose.md`* — rejected: the smallest diff, but
+- *A `## Content types` section in `references/controlled-prose.md`*. Rejected: the smallest diff, but
   `Standard: none` and a repo-relative path both disable the whole file, which would take a completeness
   check down with a style choice.
-- *A `## Content types` section in the `references/documentation.md` seed* — rejected: the seed becomes
+- *A `## Content types` section in the `references/documentation.md` seed*. Rejected: the seed becomes
   each repo's `docs/agents/documentation.md`, whose job is to record repo-specific choices. The taxonomy
   is fixed, so every repo would carry an identical copy that freezes at setup time.
-- *A new Pass 4 in `doc-reader`, scoped whole-file* — rejected: two adjacent passes with two scoping
+- *A new Pass 4 in `doc-reader`, scoped whole-file*. Rejected: two adjacent passes with two scoping
   rules, and it duplicates the cold read that Pass 1 already performs.
-- *Writer-side only, with no reader check* — rejected: the doc loop is writer-proposes and
+- *Writer-side only, with no reader check*. Rejected: the doc loop is writer-proposes and
   reader-verifies. An unverified rule is one the writer can skip without consequence.
-- *Named severity bands for the reader's findings* — rejected: the seven existing tags already carry the
+- *Named severity bands for the reader's findings*. Rejected: the seven existing tags already carry the
   distinction. An ordered list delivers the same fix-round priority without a new term.
-- *Flag any document missing any of the four types* — rejected: mechanical and consistent, but most
+- *Flag any document missing any of the four types*. Rejected: mechanical and consistent, but most
   documents legitimately carry one or two types, so the finding becomes noise.
 
 **Consequences.** `doc-reader` reports findings most-severe-first, in a stated tag order, so the single

@@ -1,67 +1,68 @@
 # Slice store: Codeberg Issues (Forgejo)
 
-Slices live as Codeberg issues — one slice = one issue — in `bomret/superdev`. Use the Forgejo REST API
+Slices live as Codeberg issues in `bomret/superdev`, one slice per issue. Use the Forgejo REST API
 (or the `tea` CLI if installed).
 
 ## Configuration
 
-- **Host / owner / repo:** `https://codeberg.org` · `bomret` / `superdev`.
+- **Host, owner, and repo:** `https://codeberg.org`, `bomret`, `superdev`.
 - **Auth:** API token in env var `GITEA_TOKEN` (record the name, never the value). Header:
   `Authorization: token $GITEA_TOKEN`, `Content-Type: application/json`.
-- **Feature label:** one label per feature/scope, `<type>/<slug>` (e.g. `fix/chain-followups`), applied to
-  the epic + its slices, so the feature's issues are listable. `<type>` is the **change type** — the
-  Conventional Commits type of the work, per `references/scope-mode.md` — and the label doubles as the
-  scope branch name.
-- **Assignee:** `bomret` — the Codeberg login every issue a run creates is assigned to (see
-  *Assignee* below). Set to `none` to create issues unassigned; remove the line entirely to fall back to
-  whoever `GITEA_TOKEN` belongs to.
+- **Feature label:** one label per feature scope, `<type>/<slug>` (for example `fix/chain-followups`),
+  applied to the epic and its slices, so the feature's issues are listable. `<type>` is the **change
+  type**, the Conventional Commits type of the work, per `references/scope-mode.md`. The label doubles
+  as the scope branch name.
+- **Assignee:** `bomret`, the Codeberg login every issue a run creates is assigned to (see
+  *Assignee* below). Set it to `none` to create issues unassigned. Remove the line entirely to fall back
+  to whoever `GITEA_TOKEN` belongs to.
 
-## Field mapping (plan-contract → Forgejo)
+## Field mapping (plan-contract to Forgejo)
 
-- `id` ↔ the issue **index** (`#<n>`). Record the slice-id ↔ `#<n>` mapping in the run ledger so
-  `depends-on` resolves to real indexes.
-- `title` ↔ issue title.
-- `spec` ↔ issue body ("What to build").
-- `acceptance` ↔ a `- [ ]` checklist in the body.
-- `test-applicability` ↔ a label: `behavior` | `mechanical` | `docs`.
-- `depends-on` ↔ a `**Depends on:** #<n>` line in the issue body (one per blocker). Forgejo's native
+- `id` maps to the issue **index** (`#<n>`). Record the mapping between slice id and `#<n>` in the run
+  ledger, so `depends-on` resolves to real indexes.
+- `title` maps to the issue title.
+- `spec` maps to the issue body ("What to build").
+- `acceptance` maps to a `- [ ]` checklist in the body.
+- `test-applicability` maps to a label: `behavior`, `mechanical`, or `docs`.
+- `depends-on` maps to a `**Depends on:** #<n>` line in the issue body (one per blocker). Forgejo's native
   issue-dependencies unit is **disabled** on this repo, so the body line is the source of truth `/implement`
   parses.
-- global DoD ↔ an **epic** issue (label `epic`) whose body holds the DoD checklist; slices carry the
-  feature label and reference the epic (`#<epic>`).
-- **Parked questions** (optional) ↔ a `## Parked questions` section in the epic issue body, same
-  body-text pattern as `acceptance`. Epic-only — no equivalent on a single-slice feature's lone issue.
+- The global DoD maps to an **epic** issue (label `epic`) whose body holds the DoD checklist. Slices carry
+  the feature label and reference the epic (`#<epic>`).
+- **Parked questions** (optional) maps to a `## Parked questions` section in the epic issue body, the same
+  body-text pattern as `acceptance`. Epic-only, with no equivalent on a single-slice feature's lone issue.
   Advisory only: `/implement` never reads it.
-- **Non-goals** (optional) ↔ a `## Non-goals` section in the epic issue body, same body-text pattern as
-  **Parked questions** above. Epic-only — no equivalent on a single-slice feature's lone issue. Advisory
-  only: `/implement` never reads it.
-- **Epic visuals** (optional) ↔ `## Slice graph` and `## Touch map` sections in the epic issue body.
+- **Non-goals** (optional) maps to a `## Non-goals` section in the epic issue body, the same body-text
+  pattern as **Parked questions** above. Epic-only, with no equivalent on a single-slice feature's lone
+  issue. Advisory only: `/implement` never reads it.
+- **Epic visuals** (optional) maps to `## Slice graph` and `## Touch map` sections in the epic issue body.
   Codeberg renders mermaid in issue bodies, so the slice graph draws itself in the epic issue. Epic-only
-  and advisory, same as parked questions; `plan-contract.md` owns when each is written.
-- `status` ↔ open/closed + a status label (see the status map below).
+  and advisory, the same as parked questions. `plan-contract.md` owns when each is written.
+- `status` maps to the open or closed state plus a status label (see the status map below).
 
 ## REST conventions
 
 - **Create an issue:** `POST /api/v1/repos/bomret/superdev/issues` with
   `{ "title": "...", "body": "<specification + acceptance checklist>", "labels": [<label ids>],
-  "assignees": ["bomret"] }` — omit `assignees` entirely when `Assignee: none`. Capture the returned
-  `number` as the slice's `id`. Pass `labels` and `assignees` **at creation** — no separate label or
-  assignee POST for the create path.
+  "assignees": ["bomret"] }`. Omit `assignees` entirely when `Assignee: none`. Capture the returned
+  `number` as the slice's `id`. Pass `labels` and `assignees` **at creation**. The create path needs no
+  separate label or assignee POST.
 - **Parallel-safe creation order:** create the epic first (slices reference `#<epic>`), then fire **all
   slice creates in parallel**, then the `depends-on` body-patches in parallel once every `number` is
-  known. Only the epic→slices→depends-on ordering is required; within each step the calls are
-  independent, so `/plan` issues them concurrently.
+  known. Only the ordering of epic, then slices, then depends-on is required. Within each step the calls
+  are independent, so `/plan` issues them concurrently.
 - **Record a dependency (`depends-on`):** append a `**Depends on:** #<blocker>` line to the issue body
-  (the native `POST .../issues/<index>/dependencies` endpoint 404s — dependencies unit disabled).
+  (the native `POST .../issues/<index>/dependencies` endpoint 404s, because the dependencies unit is
+  disabled).
 - **List feature slices:** `GET /api/v1/repos/bomret/superdev/issues?labels=<type>/<feature>&state=all`.
 - **Read a slice:** `GET /api/v1/repos/bomret/superdev/issues/<index>`.
-- **Set labels / status:** `POST .../issues/<index>/labels` (add) and
+- **Set labels and status:** `POST .../issues/<index>/labels` (add) and
   `PATCH .../issues/<index>` with `{ "state": "closed" }` to close.
 
 ## Scope anchor
 
-A feature's scope anchor is its root (`plan-contract.md` → *Scope anchor*). Forgejo's issue-dependencies
-unit is disabled here and no sub-issue relation is used, so this store expresses the root with labels
+A feature's scope anchor is its root (`plan-contract.md`, *Scope anchor*). Forgejo's issue-dependencies
+unit is disabled here and this store uses no sub-issue relation, so it expresses the root with labels
 rather than natively: on a multi-slice feature the anchor is the `epic`-labelled issue carrying the feature
 label, and on a single-slice feature it is the lone issue carrying that label (ADR 0017).
 
@@ -73,11 +74,11 @@ label, and on a single-slice feature it is the lone issue carrying that label (A
   `GET /api/v1/repos/bomret/superdev/issues?labels=<type>%2F<feature>&state=open` (URL-encode the label's
   `/`), then apply the rule above to the result.
 - **List the slices beneath it.** Use the **List feature slices** call above (`state=all`), not the
-  candidate listing: a merged slice is closed, and closing the epic is best-effort, so an anchor left open
-  with every slice closed still has slices beneath it and a `state=open` listing would present it as never
-  decomposed. On a multi-slice feature the slices are every issue in that response that is not the `epic`;
-  a single-slice feature's anchor has none beneath it.
-- **Tell an anchor that is itself a slice.** It carries a `test-applicability` label — `behavior`,
+  candidate listing. A merged slice is closed, and closing the epic is best-effort. An anchor left open
+  with every slice closed therefore still has slices beneath it, and a `state=open` listing presents it as
+  never decomposed. On a multi-slice feature the slices are every issue in that response that is not the
+  `epic`. A single-slice feature's anchor has none beneath it.
+- **Tell an anchor that is itself a slice.** It carries a `test-applicability` label: `behavior`,
   `mechanical`, or `docs`. The epic issue never does. That is what separates a single-slice feature, whose
   lone slice is its own anchor and is real work, from an epic created and never decomposed, which is not.
 - **Ambiguous.** No `epic`-labelled issue and two or more issues carrying the same feature label. This
@@ -87,64 +88,65 @@ label, and on a single-slice feature it is the lone issue carrying that label (A
 
 ## Assignee
 
-Store configuration, not a slice field (`plan-contract.md` → *Assignee*; ADR 0010). The **Assignee**
-value above is applied to the **epic and every slice** in the create call, never a follow-up pass. The
-two failure shapes below are the general *Assignee* recovery rule (`plan-contract.md`) made concrete for
-Forgejo.
+Store configuration, not a slice field (`plan-contract.md`, *Assignee*, ADR 0010). The create call applies
+the **Assignee** value above to the **epic and every slice**, never a follow-up pass. The two failure
+shapes below make the general *Assignee* recovery rule (`plan-contract.md`) concrete for Forgejo.
 
 - Forgejo's `CreateIssueOption.assignees` is an **array**, so the single configured login is sent as a
   one-element `["bomret"]`. `EditIssueOption.assignees` is the same shape if an issue ever needs it later.
-- **No `Assignee` line** in the configuration above → resolve the token's own identity with
+- **No `Assignee` line** in the configuration above: resolve the token's own identity with
   `GET /api/v1/user` and use its `login`.
-- **`Assignee: none`** → omit `assignees` entirely. No warning, no error.
-- **A login that doesn't exist or isn't a collaborator rejects the whole create**: `422 Assignee does not
+- **`Assignee: none`**: omit `assignees` entirely. No warning, no error.
+- **A login that does not exist or is not a collaborator rejects the whole create**: `422 Assignee does not
   exist` or `422 canBeAssigned` (`ErrUserDoesNotHaveAccessToRepo`). Retry that one create with
-  `assignees` omitted; report it once per run.
-- **A token without issue-write access silently drops the assignment** (and `labels` with it) — the
-  create succeeds but the returned `assignees` is empty or `null`. Read it back from the create response;
-  if it's empty while an assignee was configured, report it once per run.
+  `assignees` omitted, and report it once per run.
+- **A token without issue-write access silently drops the assignment** (and `labels` with it). The
+  create succeeds, but the returned `assignees` is empty or `null`. Read it back from the create response.
+  When it is empty while an assignee was configured, report it once per run.
 - Either way the issue is created and nothing is retried more than that one time or rolled back.
 
-## Status workflow (Forgejo has open/closed + labels — no custom states)
+## Status workflow
 
-`/implement` moves each issue at every lifecycle point (see the plan-contract's *Slice lifecycle*):
+Forgejo carries open and closed states plus labels, and no custom states. `/implement` moves each issue at
+every lifecycle point (see the plan-contract's *Slice lifecycle*):
 
 | Canonical | Forgejo state | How |
 |---|---|---|
 | `todo` | open + label `ready` | on create |
-| `in-progress` | open + label `in-progress` | swap `ready`→`in-progress` on dispatch |
+| `in-progress` | open + label `in-progress` | swap `ready` to `in-progress` on dispatch |
 | `in-review` | open + label `in-review` | swap label when per-slice review starts (behavior only) |
 | `blocked` | open + label `blocked` | swap label while stuck |
 | `merged` (done) | **closed** | `PATCH { "state": "closed" }` after merge |
 
-The **epic** issue: label `in-progress` when the run starts, **closed** once every slice issue is closed.
-A **single-slice feature has no epic**: its lone issue is the scope anchor, so the anchor rule wins. It
-keeps the `in-progress` label through the merge, and closes once, when `/superdev:ship` runs.
-Best-effort — the run ledger drives control flow; if a label/close call fails, log it and continue.
+The **epic** issue takes the label `in-progress` when the run starts, and is **closed** once every slice
+issue is closed. A **single-slice feature has no epic**: its lone issue is the scope anchor, so the anchor
+rule wins. It keeps the `in-progress` label through the merge, and closes once, when `/superdev:ship` runs.
+All of this is best-effort, because the run ledger drives control flow. When a label call or a close call
+fails, log it and continue.
 
-**Lite execution tier** (≤3 slices, see `plan-contract.md`) skips `in-review` for every slice regardless
-of `test-applicability` — go straight from `in-progress` to closed once the slice's commit lands on the
-scope branch.
+**Lite execution tier** (3 slices or fewer, see `plan-contract.md`) skips `in-review` for every slice
+regardless of `test-applicability`. Go straight from `in-progress` to closed once the slice's commit lands
+on the scope branch.
 
 ## Append mode
 
-`/superdev:plan` can extend a feature that already has issues (`plan-contract.md` → *Append mode*,
+`/superdev:plan` can extend a feature that already has issues (`plan-contract.md`, *Append mode*,
 ADR 0004).
 
-- **Create only new records; never edit, close, or delete a merged slice.** Append fires new
+- **Create only new records. Never edit, close, or delete a merged slice.** Append fires new
   `POST /api/v1/repos/bomret/superdev/issues` calls for the new slices alone. It never `PATCH`es or
-  closes an issue a prior run already merged, and never rewrites its labels or body — a merged issue's
+  closes an issue a prior run already merged, and never rewrites its labels or body. A merged issue's
   index is a satisfied `depends-on` root for a newly created one, nothing more.
 - **Create the epic first when none exists.** A feature whose lone issue carries the feature label with no
   `epic`-labeled sibling has no epic yet (the single-slice shape, `## Scope anchor` above). Append
-  creates the epic issue first — `body` holding the lone slice's `acceptance` checklist as the global DoD
-  — then references it (`#<epic>`) from every new slice issue. The lone existing issue itself is never
-  edited: no epic body copies onto it, no label changes, no `#<epic>` reference added to it.
-- **Amend the epic's own body — the one sanctioned edit.** `PATCH
+  creates the epic issue first, with `body` holding the lone slice's `acceptance` checklist as the global
+  DoD, then references it (`#<epic>`) from every new slice issue. The lone existing issue itself is never
+  edited: no epic body copies onto it, no label changes, and no `#<epic>` reference added to it.
+- **Amend the epic's own body, the one sanctioned edit.** `PATCH
   /api/v1/repos/bomret/superdev/issues/<epic index>` with `{ "body": "<amended body>" }` folds the
-  interview's new criteria into the epic's Definition of Done in place, and, the same call, deletes a
+  interview's new criteria into the epic's Definition of Done in place. The same call deletes a
   resolved parked question's line from the epic's `## Parked questions` section. Both are edits to the
-  epic issue's own body, never to a merged slice's issue — the never-edit rule above still holds for every
+  epic issue's own body, never to a merged slice's issue. The never-edit rule above still holds for every
   slice.
 
 The issue index is server-assigned at creation, already unique and stable, so append names no
