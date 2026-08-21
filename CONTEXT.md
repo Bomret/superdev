@@ -244,3 +244,6 @@ _Avoid: "documenter", "technical writer"_
 
 **Doc-reader**: the reader test, a fresh-context, read-only verifier that reads the doc-writer's changed docs cold and checks their claims against the repo (paths, commands, described behavior). Run by `/document` after the doc-writer. Findings trigger one doc-writer fix round.
 _Avoid: "doc-reviewer" (it tests grounding and first-read clarity, not prose quality)_
+
+**Dispatch prose**: the text a command sends to a subagent, as distinct from that subagent's own body. Both reach the model in one prompt, and the dispatch is the later, more specific instruction, so it wins a conflict between them. A behaviour contract stated in an agent body therefore also has to hold in every dispatch that reaches it, which is why a drift row pins both halves rather than the body alone (ADR 0035).
+_Avoid: "the prompt" (ambiguous between the two halves)_

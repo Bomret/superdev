@@ -1,0 +1,61 @@
+# 0035: A review fix changes how the code meets the DoD, never what it does
+
+**Status:** Accepted
+
+## Context
+
+`/superdev:review`'s scope mode drives a fix loop: it asks once, then dispatches one implementer with the
+complete findings list and re-reviews until the verdict is clean or the three-strike cap is reached
+(ADR 0013). Nothing bounded what a fix could be.
+
+On the run this decision comes from (`feat/one-full-suite-run`, pull request #286), a review pass found
+that an ADR sentence justifying a step's silence was false: the documentation step commits after the
+review, and nothing re-verified those commits before the pull request. Two remedies were available —
+correct the sentence, or give the documentation step a verification run of its own. The second was
+chosen, and it was **new behaviour the Definition of Done never named**. It arrived with a contract row, a
+narrative rewrite, a README correction, a glossary clause, two further ADR edits, and follow-up findings
+of its own about which checkout it ran in and what a no-test-matched exit code meant. Most of two fix
+cycles were that one addition settling.
+
+The operator chose it knowingly, from a question naming both options. The failure was not the choice: it
+was that the choice arrived disguised as one finding among four, at the point in a long run where the
+appetite for scope questions is lowest.
+
+## Decision
+
+**The fix loop may change how the code meets the Definition of Done. A remedy that adds a capability the
+Definition of Done never named is recorded and handed to `/superdev:plan` instead.**
+
+The boundary is drawn at the Definition of Done, not at "behaviour": repairing a defect in what the
+Definition of Done does name stays inside the loop, and such a repair is frequently behavioural — a
+missing guard, a wrong branch, an unhandled failure mode. What leaves the loop is a capability nobody
+planned, however good an idea it is.
+
+A drift row pins the clause, because a boundary that reads as advice is one an eager fix cycle steps over.
+
+## Considered options
+
+- **Ask, but label it scope growth.** Let the review still build it, on the condition that it presents the
+  remedy as scope growth rather than as one finding among several, and records it in the ledger and the
+  pull-request body. It keeps the escape hatch for a case where the addition really is the cheapest path,
+  and it costs one paragraph. It loses because the label lands at exactly the moment the operator is least
+  able to weigh it — deep in a fix cycle, at the hour these runs reach — and because the plugin already
+  has a place for unplanned work: an interview that starts fresh, with the whole tree in view.
+- **Leave it unbounded and rely on the reviewer.** The reviewers already report over-engineering, and a
+  human reads every finding. It costs nothing. It loses on the evidence: the reviewer that found the
+  false sentence proposed the behavioural remedy itself, and no pass flagged the growth as growth.
+
+## Consequences
+
+A review that finds a real gap outside the plan now produces a smaller change and a follow-up, instead of
+a larger change and a longer review. The recorded gap may never be built, which is the cost this accepts:
+an unbuilt follow-up is visible in the tracker, while an unplanned capability is only visible to whoever
+reads the diff.
+
+The boundary needs judgment at exactly one seam — whether a finding names a defect in planned behaviour or
+asks for unplanned behaviour — and prose is what carries that judgment. If the boundary misfires in either
+direction (a defect repair refused as scope growth, or growth admitted as a repair), the next step is an
+eval arm rather than another paragraph, per the prompt-architecture rule that a contested line is settled
+by running the document.
+
+Nothing changes for an ad-hoc review, which applies no fixes at all.
