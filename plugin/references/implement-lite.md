@@ -37,11 +37,13 @@ when you finish: it spans the whole chain, and `/superdev:ship` removes it once 
   `scope.js init`, and are never dispatched). For each slice: read its `spec` + `acceptance`, then carry
   the same tracer-bullet **and surgical-edit** disciplines an implementer subagent would (one RED test,
   minimal GREEN code, repeat; every hunk traces to an acceptance criterion or the specification — remove
-  only what your own edit orphaned, and name pre-existing dead code instead of deleting it), **directly in
-  the scope worktree at `.superdev/scopes/<scope>/worktree/`**. All file edits, test runs, `git` commands,
-  and commits happen **in the scope worktree as the cwd** — never in the invoking checkout. `mechanical` /
-  `docs` slices need no new test — the existing suite is the net. Read
-  `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run the command it selects for each run.
+  only what your own edit orphaned, name pre-existing dead code instead of deleting it, and **grep for a
+  sentence before you replace it**, since a clause restated in a sibling document keeps the old contract
+  alive while the suite stays green), **directly in the scope worktree at `.superdev/scopes/<scope>/worktree/`**.
+  All file edits, test runs, `git` commands, and commits happen **in the scope worktree as the cwd** —
+  never in the invoking checkout. `mechanical` / `docs` slices need no new test — the existing suite is
+  the net. Read `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run the command it selects for
+  each run.
 - **Declare the domain shapes a slice's `spec` names before its first RED test** — the same step
   `agents/implementer.md` carries, for the tier that dispatches nobody. A `spec` naming none leaves
   nothing to declare, the fields are yours, and a shape whose term `CONTEXT.md` lacks is reported rather

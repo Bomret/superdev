@@ -47,7 +47,7 @@ An ad-hoc range has no run root and so no record: dispatch below.
 
 Dispatch **`superdev:doc-writer`** with an **explicit `model`** (`sonnet`; `haiku` for a tiny focused range).
 Hand it: the range (git range/area/"full"), the two config file paths, the **staging path** below, and — for a range — a reminder to start from `git diff --stat`/`git log` over that range.
-It runs two passes (in-repo docs, then KB per its outline/language/audience, human-first), **deleting stale/obsolete text**, and commits its doc changes on the current branch.
+It performs the pass `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md` states, and commits its doc changes on the current branch. **Name that reference in the dispatch**: it owns the pass, and a dispatch that describes the pass in its own words is the one the writer acts on (ADR 0031, ADR 0035).
 
 **The knowledge-base pass reaches no backend.** For a remote backend the doc-writer writes each page as a **staged page**, and `/superdev:publish-kb` sends it later, once a human decides the feature has reached its readers (ADR 0023). A local `docs/kb/` backend is unaffected: its pages are repository files that ride the branch.
 

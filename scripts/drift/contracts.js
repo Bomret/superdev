@@ -537,6 +537,14 @@ const KB_STAGING_CONTRACTS = [
 // for, which is invisible to scan(): the file still exists and every other document still points at it.
 // Anchored on the `Read` instruction rather than a bare path, for the reason CONTENT_TYPES_PATTERN
 // states: a passing mention is not a read.
+//
+// The third row is the **dispatch-prose half** (ADR 0035, and root `AGENTS.md`'s rule of the same name).
+// A contract the agent body carries also has to hold in the prose that dispatches it, because a
+// controller writes its dispatch from what `commands/document.md` says the writer does. That command used
+// to paraphrase the pass ("It runs two passes, deleting stale text"), so a dispatch built from the
+// paraphrase reached the writer while the two rows above stayed green — the reference owned the pass and
+// nothing kept the dispatch pointing at it. `references/implement-lite.md` needs no such pairing: it is
+// the caller, not a dispatcher, and its own row is already the instruction it acts on.
 const DOC_PASS_CONTRACTS = [
   [
     path.join('agents', 'doc-writer.md'),
@@ -547,6 +555,12 @@ const DOC_PASS_CONTRACTS = [
     path.join('references', 'implement-lite.md'),
     /Read\s+`?(?:\$\{CLAUDE_PLUGIN_ROOT\}\/)?references\/doc-pass\.md/,
     'read `references/doc-pass.md`, which states the pass its doc step performs',
+  ],
+  [
+    path.join('commands', 'document.md'),
+    /references\/doc-pass\.md[\s\S]{0,240}?[Nn]ame\s+that\s+reference\s+in\s+the\s+dispatch/,
+    'name `references/doc-pass.md` in the dispatch it builds, rather than paraphrasing the pass the ' +
+      'writer performs',
   ],
 ];
 
@@ -608,6 +622,46 @@ const FULL_SUITE_CONTRACTS = [
     path.join('references', 'run-handoff.md'),
     /attempts that scope's one full-suite run itself[\s\S]{0,60}in place of that review/i,
     "run the scope's one full-suite run itself, in place of the review an all-`mechanical`/`docs` scope skips",
+  ],
+];
+
+// ADR 0035: `/superdev:review`'s fix loop may change **how** the code meets the Definition of Done, and a
+// remedy that adds a capability the Definition of Done never named is recorded and handed to
+// `/superdev:plan` instead. Repairing a defect in what the Definition of Done does name stays in the loop,
+// which is why the boundary is drawn at the Definition of Done rather than at "behaviour" — a defect
+// repair is frequently behavioural.
+//
+// Three rows, because any one alone is useless. A boundary with no destination leaves the finding
+// nowhere to go, so the fix cycle builds it anyway; a destination with no boundary never fires; and a
+// boundary with no exit deadlocks the run the moment a finding actually gets deferred — every path §4
+// offers to advance past a Critical finding either fires on it anyway (`--unattended → fix`) or never
+// fires at all (the clean-verdict advance), with no record class standing in for it (ADR 0035 refuses the
+// run state a new field). Nothing else in the chain notices a boundary that has quietly become advice —
+// the review just returns a bigger diff, green, and the scope grows by however much the remedy was.
+// All three patterns avoid the bare "capability the Definition of Done never named" phrase, which §3's report
+// template also carries (`### Deferred to a plan`). A row anchored on the phrase alone is satisfied by that
+// template while §4's instruction is gone — which is the same one-sided-pin failure ADR 0035 came from,
+// reproduced inside the check meant to prevent it. Row one takes §4's own "changes how" framing, row two
+// takes the boundary together with the verb that sends the finding somewhere, row three takes the exit
+// together with the "counts as clean" clause that actually lets a run advance past a deferred finding.
+const FIX_BOUNDARY_CONTRACTS = [
+  [
+    path.join('commands', 'review.md'),
+    /fix\s+loop\s+changes\s+how[\s\S]{0,80}?Definition\s+of\s+Done/i,
+    "state that the fix loop changes how the code meets the Definition of Done",
+  ],
+  [
+    path.join('commands', 'review.md'),
+    /adds?\s+a\s+capability\s+the\s+Definition\s+of\s+Done\s+never\s+named[\s\S]{0,120}?recorded\s+and\s+handed\s+to[\s\S]{0,40}?\/superdev:plan/i,
+    'hand a remedy that adds a capability the Definition of Done never named to `/superdev:plan`, so the ' +
+      'boundary names where the work goes instead of only where it stops',
+  ],
+  [
+    path.join('commands', 'review.md'),
+    /enters\s+no\s+fix\s+loop[\s\S]{0,60}?not\s+an\s+unresolved\s+defect[\s\S]{0,220}?--unattended[\s\S]{0,320}?counts\s+as\s+clean/i,
+    'state that a deferred finding enters no fix loop and is not an unresolved defect, taking precedence ' +
+      'over `--unattended → fix`, and that a verdict whose only remaining findings are deferred counts as ' +
+      'clean — the exit a deferred finding needs so the run does not deadlock on it',
   ],
 ];
 
@@ -808,6 +862,14 @@ const HOOK_HEADER_REGEX = /\\+\*\\+\*[^\n]{0,60}:\\+\*\\+\*/;
 // on the bare `Read … test-selection.md` mention alone (`CONTENT_TYPES_PATTERN`'s shape) would pass a
 // document that keeps the reference in a passing aside but drops the instruction to run what it selects —
 // the same anti-pattern `FULL_SUITE_CONTRACTS` avoids by anchoring on its own substantive clause.
+//
+// **Judged for the dispatch-prose rule** (root `AGENTS.md`, ADR 0035) and deliberately left one-sided:
+// `agents/implementer.md` and `agents/slice-reviewer.md` are dispatched by `references/implement-full.md`,
+// whose dispatch steps name no test command at all — they hand a slice and let each agent read this
+// reference itself. There is no dispatch sentence about test selection for a row to pair with, so pairing
+// one would pin prose that does not exist. `commands/document.md`'s row here is the doc step as a caller
+// of the rule, not as a dispatcher of it. A dispatch step that starts naming a test command is what would
+// change this judgment, and the rule in root `AGENTS.md` is what sends the next maintainer back here.
 const TEST_SELECTION_PATTERN =
   /Read\s+`?(?:\$\{CLAUDE_PLUGIN_ROOT\}\/)?references\/test-selection\.md`?[\s\S]{0,60}?run\s+the\s+command\s+it\s+selects/;
 
@@ -1443,6 +1505,7 @@ module.exports = {
   VERB_CONTRACTS,
   KB_STAGING_CONTRACTS,
   FULL_SUITE_CONTRACTS,
+  FIX_BOUNDARY_CONTRACTS,
   DOC_STEP_SILENCE_DOCS,
   SUITE_RUN_INSTRUCTIONS,
   SHIP_GATE_HEADING,

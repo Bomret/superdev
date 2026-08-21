@@ -119,7 +119,7 @@ Never commit commented-out code or `TODO` placeholders.
 
 ## Touch only what must (surgical edits)
 
-The slice bounds the diff, not just the feature. Four rules:
+The slice bounds the diff, not just the feature. Five rules:
 
 - **No drive-by edits.** Don't reformat, rename, or "improve" anything the slice doesn't require —
   adjacent code, a neighbouring comment, formatting you'd have written differently.
@@ -129,6 +129,10 @@ The slice bounds the diff, not just the feature. Four rules:
   Leave pre-existing dead code alone — name it in your closing summary, don't delete it.
 - **Every hunk traces to an acceptance criterion or the specification.** A hunk that traces to neither
   doesn't belong in the diff.
+- **Grep for a sentence before you replace it.** A clause worth changing is often restated — twice in one
+  file, or in a sibling document that says the same thing in its own words. `grep` the tree for the text
+  you are about to replace, and change every copy the slice reaches. The occurrence you miss keeps the old
+  contract alive while the suite stays green.
 
 ## Read economically
 

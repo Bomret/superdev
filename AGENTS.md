@@ -128,6 +128,12 @@ plugin-relative paths for the maintainer-side checks.
   - **Descriptions are permanent context load.** Every command and agent `description` is always loaded:
     front-load the trigger word, one trigger per branch (synonyms are one branch written twice), and cut
     identity the body already carries.
+  - **A contract in an agent body also holds in the dispatch prose that reaches it.** Both halves arrive
+    in one prompt, and the dispatch is the later, more specific instruction, so it wins a conflict
+    ([`CONTEXT.md`](CONTEXT.md) → *Dispatch prose*, ADR 0035). Where a drift row pins a clause in
+    `agents/`, pin the `commands/` sentence that dispatches it too, or write down why no dispatch can
+    contradict it. A one-sided pin is a contract that reads enforced and stays green while the live path
+    drifts: `FULL_SUITE_CONTRACTS` had exactly that shape, and the leak reached production prose.
 - **Platform-dependent claims carry dated verification.** An ADR, or a `## Known issues` entry below,
   states a claim about Claude Code behaviour. When you re-check that claim, record a dated update naming
   the version and the observed evidence ("Verified 2026-08-19, on Claude Code 2.1.x, output …"). A stale
@@ -206,7 +212,7 @@ This root owns every other subtree directly:
   `ledger.md` read and write path, and exports `readLedgerHeader` for `plugin/hooks/scope-prune.js`),
   `plugin/scripts/kb-patch.js` (the deterministic section merge behind a staged page's `action: patch`,
   called by `/superdev:publish-kb`, ADR 0027), `scripts/eval-run.js` (the eval
-  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the fifty cross-document contract checks: the
+  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the fifty-one cross-document contract checks: the
   CLI walks the `drift/checks.js` registry, which orders every scanner and contract table). What each
   guards, check by check, lives in that child doc.
 - `plugin/references/`. Backend seed templates plus the non-seed references below. Each reference's own

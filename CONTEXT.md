@@ -146,6 +146,14 @@ _Avoid: "independent criteria", "own criteria" (the point is where they come fro
 **Ceiling note**: the single advisory observation `final-reviewer` may add when a scope met a Definition of Done criterion **shallowly**. The review found the criterion satisfied and the code correct, but the work stopped at the first thing that passed. It is admissible only against four gates: it names the criterion this review found satisfied, it names a concrete consequence, there is exactly one, and the review found nothing Critical or Important. It never gates a merge and never triggers the fix loop, exactly like an over-engineering finding (ADR 0020).
 _Avoid: "quality note", "improvement suggestion", "nit" (a ceiling note describes correct code, so it is not a defect at any severity)_
 
+**Deferred finding**: a fix-loop finding whose remedy adds a capability the Definition of Done never
+named. It starts no fix loop, holds no run stage, and is not an **Unresolved defect**. The scope review
+records it under its report's `### Deferred to a plan` heading instead and hands it to `/superdev:plan`.
+The record lives only in that report: nothing tracks it elsewhere. It survives past the report only if
+the operator reads it and runs the planning command (ADR 0035).
+_Avoid: "scope growth", "out-of-scope finding" (the point is the DoD boundary, not that the finding is
+unwelcome or off-topic)_
+
 ## Separation of concerns
 
 **Execution playbook**: the linear, tier-specific procedure that runs a scope's whole `/implement` execution, start to finish. It is `references/implement-full.md` (full tier) or `references/implement-lite.md` (lite tier), computed and `Read` by the controller once the tier is known. Each playbook opens by reading `references/run-init.md` (run init) and closes by reading `references/run-handoff.md` (run handoff). The `/implement` command body therefore keeps config and input, the tier computation, the invariants, the model table, the issue-status map, and red flags. Control never returns to it once a playbook starts.

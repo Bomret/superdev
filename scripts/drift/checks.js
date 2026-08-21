@@ -51,6 +51,7 @@ const {
   KB_STAGING_CONTRACTS,
   TEST_SELECTION_CONTRACTS,
   FULL_SUITE_CONTRACTS,
+  FIX_BOUNDARY_CONTRACTS,
   AFK_ROUTING_CONTRACTS,
   ARG_TOKEN_CONTRACTS,
   AUDIT_SET_CONTRACTS,
@@ -331,6 +332,11 @@ module.exports = [
     run: scanDocStepsNoSuite,
     format: contractGap,
   },
+  table(
+    'fix-boundary',
+    FIX_BOUNDARY_CONTRACTS,
+    "the review's fix loop states its scope boundary and where a deferred finding goes",
+  ),
 ];
 
 // The anchor contract and the afk-selection neutrality check report into the same sentence: a gap with

@@ -160,7 +160,7 @@ every drift assertion by id, and it fell behind at five separate additions, beca
 maintained by hand at the moment its author is thinking about code. Naming the exceptions cannot drift
 when a new check lands.
 
-`drift-check.js` guards fifty things, in the order `drift/checks.js` registers them. First, the
+`drift-check.js` guards fifty-one things, in the order `drift/checks.js` registers them. First, the
 `reference` contract: every `references/*.md` path named in `commands/`, `agents/`, or `references/`
 itself resolves to a file that exists. A reference cites another reference, as both execution
 playbooks point at `scope-mode.md`, so a rename there dangles like any other. Second, the
@@ -500,7 +500,7 @@ still resolves and nothing points back to the controller either. The run then en
 `scope.js stage set merged` write and, on an all-`mechanical` or all-`docs` scope, with no full-suite run
 anywhere in the chain.
 
-Forty-fourth, the `doc-pass` contract (ADR 0031), two rows: `agents/doc-writer.md` and
+Forty-fourth, the `doc-pass` contract (ADR 0031), three rows. `agents/doc-writer.md` and
 `references/implement-lite.md` each read `references/doc-pass.md`, the file that states the documentation
 pass they perform. The pass has two callers, the dispatched writer and the `lite` execution playbook's
 controller working in its own context, so it is stated once and read by both. A caller that drops the
@@ -510,6 +510,15 @@ still cited, and the content-type, staging, and aggregate contracts moved onto t
 prose, so they stay green while the caller that lost the read quietly writes to no standard at all. The
 row is anchored on the `Read` instruction rather than the bare path, for the reason the `content-types`
 contract states: a passing mention is not a read.
+
+The third row is the **dispatch-prose half** of the same contract (root `AGENTS.md`'s rule of that name,
+ADR 0035): `commands/document.md` names `references/doc-pass.md` in the dispatch it builds. A controller
+writes its dispatch from what that command says the writer does, so a command that paraphrased the pass
+("it runs two passes, deleting stale text") put the paraphrase in front of the writer while both rows
+above stayed green. `references/implement-lite.md` needs no pairing — it is a caller rather than a
+dispatcher, and its own row is the instruction it acts on. `test-selection-wiring` was judged under the
+same rule and deliberately left one-sided: the dispatch steps in `references/implement-full.md` name no
+test command at all, so there is no dispatch sentence for a row to pair with.
 
 Forty-fifth, the `narrative-coverage` contract, `scanNarrativeCoverage()`: every check registered in
 `drift/checks.js` is written up in this file by its backticked `id`, and both documents that count the
@@ -599,6 +608,20 @@ prompt-the-positive rule keeps a "never run the suite" line out of always-loaded
 is enforced by test instead. This is a shape-based prose guard, not a grammar: it catches the phrasings
 named above, not every paraphrase a maintainer could write, and the reviewer's eye covers the rest.
 
+Fifty-first, the `fix-boundary` contract (ADR 0035), three rows on `commands/review.md`. §4's fix loop
+states that it changes **how** the code meets the Definition of Done, that a remedy adding a
+capability the Definition of Done never named is recorded and handed to `/superdev:plan`, and that a
+deferred finding enters no fix loop and is not an unresolved defect — taking precedence over
+`--unattended → fix` — with a verdict whose only remaining findings are deferred counting as clean. All
+three are pinned because any one alone is inert: a boundary with no destination leaves the finding
+nowhere to go, so the fix cycle builds it regardless; a destination with no boundary never fires; and a
+boundary with no exit deadlocks the run the moment a finding is actually deferred, since every other path
+§4 offers either fires on it anyway or never fires at all. Nothing else in the chain notices when this
+becomes advice — the review returns a bigger diff, green, and the scope grows by whatever the remedy was.
+That is not hypothetical: it is what the run this check comes from did, and two fix cycles went into
+settling the addition. The boundary sits at the Definition of Done rather than at "behaviour", since
+repairing a defect in planned behaviour is frequently behavioural and stays in the loop.
+
 The first and seventh checks are opposites. The first catches a reference to a file that does not exist.
 The seventh catches an agent that drops its wire to a file which still exists. That drift leaves the
 reference resolvable and the suite green, and the lens then does nothing in any dispatch.
@@ -613,8 +636,21 @@ successor at all.
 - Scripts are CommonJS, like the hooks. `hooks/scope-prune.js` `require`s `scope.js`, so `scope.js`
   must stay `require`-able under plain `node`. This is the one dependency `hooks/` has on `scripts/`.
 - Every script ships a `--selftest`, same convention as the hooks.
+- A **shape-based prose guard that asserts an absence states its ceiling beside itself.** A pattern over
+  English catches the phrasings it names and not every paraphrase, and on an absence check — the document
+  must *not* say X — a missed paraphrase is a **silent pass**: the check reads the reworded instruction as
+  gone and stays green while it is still there. Write the ceiling down next to the patterns for one of
+  these — a `ponytail:` comment naming it is the house idiom — or every reviewer who finds one more
+  evadable phrasing reports a defect, and the guard grows by discovery instead of by decision. The
+  convention governs six checks of this shape: `doc-steps-no-suite`, `forcing-branch-flag`,
+  `kb-no-backend-call`, `no-second-reader`, `return-to-controller`, and `afk-selection-neutrality`. Only
+  `doc-steps-no-suite` carries the worked example today; the other five still owe the note, and a
+  maintainer touching one of them adds it. A **presence table** — the document must say X, one row per
+  `[document, pattern, expectation]` — needs no such note: a paraphrase it doesn't recognize fails
+  *loudly*, the row goes red until the pattern catches up, so the presence tables in `drift/contracts.js`
+  (`FIX_BOUNDARY_CONTRACTS` among them) carry none.
 - A new drift-check contract is one entry appended at the end of the `drift/checks.js` registry, plus
-  its section in the fifty-check narrative above and its selftest in the matching
+  its section in the fifty-one-check narrative above and its selftest in the matching
   `drift/selftest/*.test.js` suite. Append rather than insert unless the check belongs earlier for a
   reason, because every ordinal after an insertion point has to be rewritten by hand. The forty-fifth check,
   `narrative-coverage`, enforces two pieces of this by itself: the new id must appear backticked

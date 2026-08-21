@@ -86,6 +86,13 @@ Definition of Done** — checkable acceptance criteria for the whole feature. St
 per-slice `acceptance` as **observable, user-facing behaviour**, never gameable proxy counts (coverage %,
 line count, lint score): a proxy is a reviewer signal, never an agent-facing gate (ADR 0002).
 
+**Ask "in every configuration?" of every Definition-of-Done criterion.** A criterion that names behaviour
+holds in some configurations and not others: a fallback the repo supports, an optional config document
+nobody wrote, a unit the host has disabled, a runner that cannot do what the criterion assumes. Walk the
+global DoD once with that question and write what you find into the criterion itself, so a run cannot
+tick it in one configuration while it is false in another — the same lens the per-slice enumeration below
+applies, aimed at the whole-scope DoD instead of one slice's `acceptance`.
+
 **Enumerate the failure and boundary cases, don't leave them to the implementer.** A `behavior` slice's
 `acceptance` names its **domain-level** edge cases alongside the happy path — the ones derivable from the
 interview without reading the implementation: empty or absent input, missing configuration, a duplicate,

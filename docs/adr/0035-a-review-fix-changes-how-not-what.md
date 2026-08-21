@@ -31,7 +31,17 @@ Definition of Done does name stays inside the loop, and such a repair is frequen
 missing guard, a wrong branch, an unhandled failure mode. What leaves the loop is a capability nobody
 planned, however good an idea it is.
 
-A drift row pins the clause, because a boundary that reads as advice is one an eager fix cycle steps over.
+"Recorded" is a `### Deferred to a plan` heading in the review's own report, one line per finding with the
+follow-up command beside it. The run state gains no new field: the ledger's `**Unresolved:**` line is for
+defects the run leaves standing, and a capability nobody planned is not one.
+
+Three drift rows pin the boundary — the "changes how" framing, the hand-off destination, and the exit
+clause a deferred finding needs so `--unattended → fix` and the clean-verdict check both treat it as
+settled rather than as an unresolved defect — because a boundary that reads as advice is one an eager fix
+cycle steps over, a boundary with no destination leaves the finding nowhere to go, and a boundary with no
+exit deadlocks the run on the very finding it was meant to wave through. None of the three rows anchors on
+the phrase the report template also carries: a row satisfied by the template while the instruction is gone
+would be the same one-sided pin this decision's companion rule exists to prevent.
 
 ## Considered options
 
@@ -49,8 +59,10 @@ A drift row pins the clause, because a boundary that reads as advice is one an e
 
 A review that finds a real gap outside the plan now produces a smaller change and a follow-up, instead of
 a larger change and a longer review. The recorded gap may never be built, which is the cost this accepts:
-an unbuilt follow-up is visible in the tracker, while an unplanned capability is only visible to whoever
-reads the diff.
+the record lives only in the review's own report, not in any tracker, and survives past that report only
+if the operator reads it and runs `/superdev:plan`. That is weaker than "visible in the tracker" — a
+deferred finding that nobody acts on leaves no trace anywhere else, which is the gap this decision accepts
+rather than closes.
 
 The boundary needs judgment at exactly one seam — whether a finding names a defect in planned behaviour or
 asks for unplanned behaviour — and prose is what carries that judgment. If the boundary misfires in either

@@ -77,7 +77,9 @@ plan runs test-first and inline.
 - **`/superdev:review`**. Two modes. Given an ad-hoc diff, branch, path, or the working tree, it needs no
   plan and no slice store, and it stays read-only end to end. Given a live scope branch, it is the
   whole-scope review gate in the implement chain: it checks the scope against that run's `dod.md`, and it
-  can drive one fix loop after asking once. Either way it dispatches the same `final-reviewer` and
+  can drive one fix loop after asking once. That loop changes how the code meets the Definition of Done; a
+  finding whose remedy would add a capability nobody planned goes to `/superdev:plan` instead of growing
+  the scope under review (ADR 0035). Either way it dispatches the same `final-reviewer` and
   `simplicity-reviewer` subagents and reports one consolidated verdict.
 - **`/superdev:document`**. Dispatches the `doc-writer` to reconcile the in-repo docs (the `AGENTS.md`
   hierarchy) and the optional knowledge base with the current code. It adds what is new and **removes

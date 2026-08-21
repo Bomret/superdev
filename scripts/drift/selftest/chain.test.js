@@ -18,6 +18,7 @@ const {
   VERB_CONTRACTS,
   TEST_SELECTION_CONTRACTS,
   FULL_SUITE_CONTRACTS,
+  FIX_BOUNDARY_CONTRACTS,
   AFK_ROUTING_CONTRACTS,
   ARG_TOKEN_CONTRACTS,
   ARG_TOKEN_LINE,
@@ -750,6 +751,82 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     scanContract(fs10, FULL_SUITE_CONTRACTS).length,
     0,
     'the dispatch row tolerates a longer connecting phrase between "that result" and "tell it"',
+  );
+
+  // --- FIX_BOUNDARY_CONTRACTS (ADR 0035): `/superdev:review`'s fix loop may change how the code meets
+  // the Definition of Done, and a remedy that adds a capability the DoD never named goes to
+  // `/superdev:plan` instead. The boundary is prose a fix cycle steps over the moment it reads as advice,
+  // and nothing else in the chain would notice: the review would simply return a bigger diff. A boundary
+  // with no exit is the same deadlock from the other side: a deferred finding arrives as a Critical, so
+  // every path §4 offers either fires on it anyway (`--unattended → fix`) or never fires (the clean-verdict
+  // advance), with no record class standing in for it. ---
+
+  const exitClause =
+    'A deferred finding enters no fix loop and is not an unresolved defect, taking precedence over ' +
+    '`--unattended → fix`. A verdict whose only remaining findings are deferred counts as clean.';
+
+  // positive: §4 keeps its fix loop but states no boundary at all
+  const fb1 = fixture({
+    'commands/review.md':
+      'Ask once before fixing, then dispatch one `superdev:implementer` with the complete findings list.\n',
+  });
+  const fbGaps1 = scanContract(fb1, FIX_BOUNDARY_CONTRACTS);
+  assert.equal(fbGaps1.length, 3, 'flags all three rows on a review.md whose fix loop states no scope boundary');
+  assert.ok(
+    fbGaps1.every((g) => g.source === path.join('commands', 'review.md')),
+    'every gap names review.md',
+  );
+
+  // positive: the boundary is stated but names no destination and no exit, so the finding has nowhere to
+  // go and a deferred one still deadlocks the run
+  const fb2 = fixture({
+    'commands/review.md':
+      'The fix loop changes how the code meets the Definition of Done. A remedy that adds a capability ' +
+      'the Definition of Done never named is outside it.\n',
+  });
+  assert.equal(
+    scanContract(fb2, FIX_BOUNDARY_CONTRACTS).length,
+    2,
+    'naming the boundary without a destination or an exit leaves two gaps',
+  );
+
+  // positive: §3's report template alone carries the boundary phrase, so a row anchored on that phrase
+  // would read satisfied while §4's instruction is gone — the one-sided pin this check exists to prevent,
+  // and the shape its own first draft had
+  const fb4 = fixture({
+    'commands/review.md':
+      '### Deferred to a plan\n[a finding whose remedy would add a capability the Definition of Done ' +
+      "never named — §4's boundary; one line each, with the follow-up `/superdev:plan`]\n",
+  });
+  assert.equal(
+    scanContract(fb4, FIX_BOUNDARY_CONTRACTS).length,
+    3,
+    "the report template alone satisfies none of the three rows — §4's own instruction is what is pinned",
+  );
+
+  // positive (RED): boundary plus destination, but no exit — a deferred finding still deadlocks the run,
+  // since nothing states that it skips the fix loop and counts toward a clean verdict
+  const fb3 = fixture({
+    'commands/review.md':
+      'The fix loop changes how the code meets the Definition of Done. A remedy that adds a capability ' +
+      'the Definition of Done never named is recorded and handed to `/superdev:plan`, while repairing a ' +
+      'defect in what the Definition of Done does name stays in this loop.\n',
+  });
+  const fbGaps3 = scanContract(fb3, FIX_BOUNDARY_CONTRACTS);
+  assert.equal(fbGaps3.length, 1, 'boundary plus destination alone still leaves the exit-less deadlock');
+  assert.match(fbGaps3[0].expectation, /counts as|deferred finding|deadlock/i, 'names the missing exit');
+
+  // negative (GREEN): boundary, destination, and exit together satisfy all three rows
+  const fb5 = fixture({
+    'commands/review.md':
+      'The fix loop changes how the code meets the Definition of Done. A remedy that adds a capability ' +
+      'the Definition of Done never named is recorded and handed to `/superdev:plan`, while repairing a ' +
+      `defect in what the Definition of Done does name stays in this loop. ${exitClause}\n`,
+  });
+  assert.equal(
+    scanContract(fb5, FIX_BOUNDARY_CONTRACTS).length,
+    0,
+    'boundary, destination, and exit together satisfy all three rows',
   );
 
   // --- scanDocStepsNoSuite: the other side of ADR 0025. `/superdev:document`, `/superdev:ship`, and the

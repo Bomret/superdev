@@ -138,6 +138,10 @@ net: -<N> lines possible   (or "Lean already" if nothing to cut)
 [final-reviewer's ceiling note, carried through verbatim when it wrote one; omit this section entirely
 when it didn't]
 
+### Deferred to a plan
+[a finding whose remedy would add a capability the Definition of Done never named — §4's boundary; one
+line each, with the follow-up `/superdev:plan`. Omit this section when there is none]
+
 ### Assessment
 Full-suite run: [pass | fail | not run | denied — degraded pass]
 Correctness: [ready | not ready]. Simplicity: [N cuts recommended, non-blocking | Lean already | not dispatched].
@@ -148,7 +152,11 @@ Reasoning: [1–2 sentences]
 The per-axis line is additive, sourced from each reviewer's own verdict — final-reviewer's `Ready to
 merge?` line for Correctness, simplicity-reviewer's `net: -N lines possible` / `Lean already` for
 Simplicity (or "not dispatched" per §2's skip rules). It doesn't replace the combined `Ready to merge?`
-verdict: over-engineering findings stay non-blocking, never gating merge on their own.
+verdict: over-engineering findings stay non-blocking, never gating merge on their own. `final-reviewer`
+has no notion of deferral and lands its own line at the finding's actual severity, so a verdict whose only
+remaining findings are `### Deferred to a plan` entries — §4's exit clause already treats that verdict as
+clean — lands the combined `Ready to merge?` as `Yes`, naming the deferrals in the Reasoning line, rather
+than carrying `final-reviewer`'s raw `No` into a report for a scope the run went on to advance.
 
 **Apply nothing — on an ad-hoc range.** Never edit, commit, or merge, however small the fix looks. To act
 on findings, run `/superdev:plan` to slice the fix, then `/superdev:implement`. **Scope mode is the one
@@ -179,6 +187,19 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   **not** advance while it stands. After any fix cycle that touches it, **re-run the full suite yourself
   again** before treating the verdict as clean — this run is the scope's verification, and `final-reviewer`
   reviews against the result you hand it.
+- **The fix loop changes how the code meets the Definition of Done.** A finding whose remedy **adds a
+  capability the Definition of Done never named** is recorded and handed to **`/superdev:plan`**: report it
+  under §3's `### Deferred to a plan` heading, name the follow-up command, and leave the scope as it is.
+  Repairing a defect in what the Definition of Done *does* name stays in this loop, and such a repair is
+  often behavioural — a missing guard, an unhandled failure mode, a wrong branch. That is the line: not
+  "behaviour", but whether the plan asked for it (ADR 0035). A remedy the review builds here is one the
+  interview never weighed, arriving at the point in a run where scope questions get the least attention.
+  **That boundary needs an exit.** A deferred finding enters no fix loop, holds no stage, and is not an
+  unresolved defect — the same non-gating shape the over-engineering and ceiling notes below use for their
+  own findings. This holds precedence over `--unattended → fix, without asking` just below: that rule fixes
+  a real defect without asking, and a deferred finding is not one, so it never reaches that rule. A verdict
+  whose only remaining findings are deferred counts as clean, for the ask-once gate right after this bullet,
+  the 3-strike cap, and the clean-verdict stage advance alike.
 - **Ask once before fixing.** `final-reviewer` returned **Critical or Important** findings, or the full
   suite came back `fail` → report them per §3 first, then ask whether to fix them now.
   - **Declined** → stop. The findings stand: write the `**Unresolved:**` entry, per

@@ -311,6 +311,31 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   });
   assert.equal(scanContract(dp3, DOC_PASS_CONTRACTS).length, 0, 'a bare reference path satisfies it');
 
+  // positive: the dispatching command paraphrases the pass instead of naming the reference that owns it.
+  // This is the dispatch-prose half of the same contract (ADR 0035): a controller writes its dispatch from
+  // what `commands/document.md` says the writer does, so a paraphrase here is what reaches the writer —
+  // and the row above, on the agent alone, stays green while the two descriptions drift apart.
+  const dp4 = fixture({
+    'commands/document.md':
+      'Dispatch `superdev:doc-writer`. It runs two passes (in-repo docs, then the knowledge base), ' +
+      'deleting stale text, and commits on the current branch.\n',
+  });
+  const dpGaps4 = scanContract(dp4, DOC_PASS_CONTRACTS);
+  assert.equal(dpGaps4.length, 1, 'flags a document.md whose dispatch paraphrases the pass');
+  assert.equal(dpGaps4[0].source, path.join('commands', 'document.md'), 'names document.md');
+
+  // negative: the dispatch names the reference as the authority the writer performs
+  const dp5 = fixture({
+    'commands/document.md':
+      'It performs the pass `references/doc-pass.md` states. **Name that reference in the dispatch**: it ' +
+      'owns the pass end to end.\n',
+  });
+  assert.equal(
+    scanContract(dp5, DOC_PASS_CONTRACTS).length,
+    0,
+    'a dispatch that names the reference satisfies the row',
+  );
+
   // --- scanAdrStatus: every ADR must state a status. An ADR with no status line reads as accepted
   // whether or not anything implements it, which is how a decision gets documented as live while the
   // code has none of it. ---
