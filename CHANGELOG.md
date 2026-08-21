@@ -1,3 +1,16 @@
+# [0.35.0](https://codeberg.org/bomret/superdev/compare/v0.34.1...v0.35.0) (2026-08-21)
+
+
+### Bug Fixes
+
+* **afk:** persist the consecutive-block count in .superdev/afk-blocks ([0861d4b](https://codeberg.org/bomret/superdev/commit/0861d4baa603f7be98d6ede8a744cf42601a7b69))
+* **eval-run:** close two harness bugs, trim prompt context load, add the full-tier eval case ([b2855b4](https://codeberg.org/bomret/superdev/commit/b2855b40fa53c3085d0b3ba471095c8b53e2e506))
+
+
+### Features
+
+* **plan:** gate implementation on a human release of the plan ([#281](https://codeberg.org/bomret/superdev/issues/281)) ([9641fbc](https://codeberg.org/bomret/superdev/commit/9641fbc81f5fa1a5e2675ac131a9ece49058e82f))
+
 ## [0.34.1](https://codeberg.org/bomret/superdev/compare/v0.34.0...v0.34.1) (2026-08-20)
 
 
