@@ -64,6 +64,13 @@ dispatches nothing — you carry the TDD discipline yourself. Narrate at most on
 - **Load the slices** (`id`, `depends-on`, `test-applicability`, `spec`, `acceptance`, + global DoD). No
   slices → run **`/superdev:plan`** first. **One slice, no epic** → the epic is optional
   (`plan-contract.md`): the DoD is that slice's `acceptance`.
+- **Check the feature is released** (`plan-contract.md` → *Release*). The signal and the call that reads
+  it live in `docs/agents/issue-tracker.md`'s `## Release` section; read it off the **scope anchor**, whose
+  release covers every slice beneath it. **Released** → continue silently. **Unreleased** → stop while
+  nothing exists yet (no run root, no branch), name the feature and the signal it lacks, and ask the user
+  whether to implement it anyway. A yes runs the feature unchanged, and leaves the signal unapplied:
+  releasing the plan in the tracker stays the human's own act. **`--unattended` → block** — `/superdev:afk`
+  passes over an unreleased feature, so this stop means one was named on the command line.
 - **`--unattended` present** → read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended**
   section and follow it wherever this command or its playbook asks a question or starts an interview
   command (`/superdev:setup`, `/superdev:plan`). The "slice store or code host missing" and "no slices"

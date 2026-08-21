@@ -292,7 +292,22 @@ only the commit is outstanding. `/superdev:implement` runs from a fresh worktree
 so anything uncommitted never reaches it and a path-scoped rule that isn't on the branch can't auto-load.
 **Push the base branch** to its remote right after committing (if one is configured, per
 `docs/agents/code-management.md`): `/superdev:ship`'s PR is opened against the remote base, and an
-unpushed local commit there is stranded once the PR is squash-merged. Then **print the next command with
+unpushed local commit there is stranded once the PR is squash-merged.
+
+**Ask whether to release the plan.** `plan-contract.md`'s *Release* section owns what a release is; the
+active `docs/agents/issue-tracker.md`'s `## Release` section owns this backend's signal and the call that
+applies it. List every slice this plan wrote — key, title, type, `depends-on` — and ask the user one
+question: **release this feature for execution now, or leave the release to a human later?**
+
+- **Release now** → apply the signal to the scope anchor, and say it is applied.
+- **Later** → apply nothing, and name what a human does to release it: the signal, and where it goes.
+  Say that `/superdev:implement` asks for confirmation until then.
+
+A store whose `## Release` section says its features are released when written has nothing to ask: say
+the plan is live and move on. On every other store the answer is the user's, so **wait for it**, and a
+correction the user names on seeing the list is applied to the store before the question is put again.
+
+Then **print the next command with
 the feature label resolved** — `/superdev:implement <feature-label>`, carrying the real label this plan
 wrote, in the shape `docs/agents/issue-tracker.md` states (ADR 0019) — so the line is copy-pasteable.
 Every command in the chain hands off this way (ADR 0013), and the label is also what fixes the run's

@@ -172,6 +172,32 @@ own status — reads the active `docs/agents/issue-tracker.md`'s own `## Scope a
 assuming any one store's shape. How to recognise an anchor, list the candidates, list the slices beneath
 one, and tell that an anchor is itself a slice are backend mechanism, and belong there.
 
+## Release
+
+A feature is **released** once a human has said its plan may be built (ADR 0034). Many trackers hold a backlog of
+tickets written but not yet agreed, so writing a plan and releasing it are two separate acts, and only
+the second one authorises an agent to build.
+
+The **release signal lives on the scope anchor**, and covers every slice beneath it: one act of judgment
+per feature, matching the one Definition of Done the anchor carries. It is a **durable** marker, distinct
+from the `todo`/`ready` lifecycle state above — a signal the lifecycle consumes (a status the dispatch
+moves off, a label the dispatch swaps) reads as unreleased the moment work starts, and a resumed run then
+stops on a feature the human already released.
+
+Three consumers act on it, and each reads the active `docs/agents/issue-tracker.md`'s own `## Release`
+section for the backend's signal and the calls that set and read it:
+
+- **`/superdev:plan`** asks, once the plan is written, whether to release it now or leave that to a human
+  later, and applies the signal on a release.
+- **`/superdev:implement`** builds a released feature. An unreleased one stops the run and asks the user
+  to confirm it anyway, since the operator naming a label directly is a human judgment of the same kind.
+- **`/superdev:afk`** takes released features only. Nobody is watching, so an unreleased one is passed
+  over rather than asked about.
+
+A store whose `## Release` section states that its features are released when written — the local-file
+store's default, where there is no board to hold a backlog — has every feature released at creation, and
+`/superdev:plan` skips the question there.
+
 ## Feature label
 
 A feature's **feature label** is the one identifier its scope anchor and every slice beneath it carry. It

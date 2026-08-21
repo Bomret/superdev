@@ -18,7 +18,8 @@ Slices live as GitHub issues — one slice = one issue. Use the GitHub REST API 
   below). Set to `none` to create issues unassigned; remove the line entirely to fall back to whoever the
   token belongs to.
 - **Tooling**: `<rest>` or `<gh CLI>` (see *Tooling* below).
-- **Labels must exist first.** Create the feature label and the status labels (`ready`, `in-progress`,
+- **Labels must exist first.** Create the feature label, the release label (`released`, *Release* below),
+  and the status labels (`ready`, `in-progress`,
   `in-review`, `blocked`, plus the `behavior`/`mechanical`/`docs` set) once with
   `POST /repos/<owner>/<repo>/labels` before the first `/plan` run. GitHub's docs don't specify how an
   unknown label name is handled on create, so creating them explicitly keeps the outcome from depending on
@@ -159,6 +160,19 @@ shape below is the general *Assignee* recovery rule (`plan-contract.md`) made co
   configuration. An empty `labels` array on the response means the labels didn't stick — the documented
   cause is a token without push access — and since the feature label is the only listing path, those
   issues are unfindable. Report it **once** per run, independently of what `Assignee` is set to.
+
+## Release
+
+`plan-contract.md` → *Release*. The signal is the label **`released`** on the **scope anchor** — the epic
+issue, or a single-slice feature's lone issue. It is deliberately not the `ready` label below, which the
+dispatch swaps to `in-progress`.
+
+- **Apply** (`/superdev:plan`, on a release):
+  `POST /repos/<owner>/<repo>/issues/<number>/labels` with `{ "labels": ["released"] }`.
+- **Read** (`/superdev:implement`, `/superdev:afk`): the anchor's own `labels` array, which the listing
+  that found the anchor already returned — no extra call.
+- A feature whose anchor lacks the label is unreleased. Nothing else about the issue says so, and no other
+  label means it.
 
 ## Status workflow (GitHub has open/closed + labels — no custom states)
 

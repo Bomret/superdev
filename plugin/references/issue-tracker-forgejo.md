@@ -109,6 +109,20 @@ Forgejo.
   if it's empty while an assignee was configured, report it once per run.
 - Either way the issue is created and nothing is retried more than that one time or rolled back.
 
+## Release
+
+`plan-contract.md` → *Release*. The signal is the label **`released`** on the **scope anchor** — the
+`epic`-labelled issue, or a single-slice feature's lone issue. It is deliberately not the `ready` label
+below, which the dispatch swaps to `in-progress`.
+
+- **Apply** (`/superdev:plan`, on a release): `POST .../issues/<index>/labels`, the same add call the
+  status map uses. Labels are addressed by **id** here, so resolve `released` through
+  `GET /api/v1/repos/<owner>/<repo>/labels` first, exactly as the feature and status labels are resolved.
+- **Read** (`/superdev:implement`, `/superdev:afk`): the anchor's own `labels` array, which the issue
+  listing that found the anchor already returned — no extra call.
+- A feature whose anchor lacks the label is unreleased. Nothing else about the issue says so, and no other
+  label means it.
+
 ## Status workflow (Forgejo has open/closed + labels — no custom states)
 
 `/implement` moves each issue at every lifecycle point (see the plan-contract's *Slice lifecycle*):

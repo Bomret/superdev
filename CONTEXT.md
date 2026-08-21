@@ -23,6 +23,9 @@ _Avoid: "run", "branch", "feature branch" (too generic)_
 **Scope anchor**: a feature's root, the single slice-store issue that carries its scope-level status signal for a run. A multi-slice plan's anchor has slices beneath it. A single-slice plan's anchor is its own lone slice, so one rule covers both shapes. How a given store expresses this is stated in that store's own `## Scope anchor` section, never assumed by a command (ADR 0017).
 _Avoid: "epic" (only an epic-bearing feature has one, and the anchor role also falls to a lone slice)_
 
+**Release**: the human agreement that a written plan may be built, carried as a durable signal on the scope anchor. A tracker holds a backlog of tickets written but not yet agreed, so writing a plan and releasing it are two acts: `/plan` asks which one it is doing, `/implement` asks for confirmation before building an unreleased feature, and `/afk` passes one over. The signal is distinct from the `ready` lifecycle state, which the dispatch swaps away. How a given store expresses it is stated in that store's own `## Release` section (ADR 0034).
+_Avoid: "ready" (that is the `todo` lifecycle state, consumed the moment work starts), "approved" (unused elsewhere)_
+
 **Run root**: the part of `.superdev/scopes/<scope>/` that stays in the invoking checkout across both tiers: `dod.md`, `ledger.md`, `run.lock`, and on the full tier `interfaces.md` (the cross-slice interface record). Never moves into a worktree, so it survives worktree removal as the post-mortem trail and lets `/status` enumerate runs without touching any worktree.
 _Avoid: "run directory", "scope dir" (too generic, because this is the checkout-resident subset, not the whole `.superdev/scopes/<scope>/` namespace)_
 

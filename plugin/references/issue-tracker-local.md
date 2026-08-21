@@ -104,6 +104,17 @@ epic file, so the lone `NN-<test-applicability>-<summary>.md` is the anchor (ADR
   never writes that shape, and there is no global Definition of Done to build against, so a consumer
   reports it instead of choosing.
 
+## Release
+
+`plan-contract.md` → *Release*. **A plan file is released when it is written.** There is no backlog column
+and no refinement board here: the person who ran `/superdev:plan` is the person who agreed to the plan, and
+the file landing in `docs/plans/<type>/<feature-slug>/` is that agreement. So `/superdev:plan` asks no
+release question on this store, `/superdev:implement` treats every feature as released, and
+`/superdev:afk` finds every well-formed anchor eligible.
+
+A team that wants a release gate on plan files configures a different store, or records the signal here
+instead — a `released: yes` line in the epic file's header, read where the status line is read.
+
 ## Append mode
 
 `/superdev:plan` can extend a feature that already has a plan directory (`plan-contract.md` → *Append

@@ -29,6 +29,9 @@ const {
   ANCHOR_ELEMENTS,
   APPEND_PATTERN,
   APPEND_ELEMENTS,
+  RELEASE_PATTERN,
+  RELEASE_CONSUMERS,
+  RELEASE_CONSUMER_PATTERN,
   LOCAL_APPEND_DOC,
   LOCAL_CONTINUATION_ELEMENT,
   AFK_SELECTION_HEADING,
@@ -160,6 +163,28 @@ function scanAppendContract(root) {
     if (rel === LOCAL_APPEND_DOC) {
       const [pattern, desc] = LOCAL_CONTINUATION_ELEMENT;
       if (!pattern.test(section)) gaps.push({ source: rel, expectation: `state ${desc}` });
+    }
+  }
+  return gaps;
+}
+
+// scanReleaseContract() is pure over a root dir: reads every slice-store document (the same candidate
+// list the anchor and append contracts use) and reports the ones carrying no `## Release` section, then
+// reports every consumer command that no longer names that section. Absent files are skipped, so a
+// fixture carries only the docs it exercises.
+function scanReleaseContract(root) {
+  const gaps = [];
+  const candidates = storeDocuments(root, { dir: ANCHOR_DOCS_DIR, extra: EXTRA_ANCHOR_DOCS });
+  for (const rel of candidates) {
+    const text = readDoc(root, rel);
+    if (text === null) continue; // doc absent (fixture / partial checkout) → nothing to scan
+    if (!RELEASE_PATTERN.test(text)) gaps.push({ source: rel });
+  }
+  for (const rel of RELEASE_CONSUMERS) {
+    const text = readDoc(root, rel);
+    if (text === null) continue;
+    if (!RELEASE_CONSUMER_PATTERN.test(text)) {
+      gaps.push({ source: rel, expectation: "name the store document's `## Release` section" });
     }
   }
   return gaps;
@@ -685,6 +710,7 @@ module.exports = {
   scanAssigneeContract,
   scanAnchorContract,
   scanAppendContract,
+  scanReleaseContract,
   scanAfkSelectionNeutrality,
   scanWritingStandardContract,
   scanAdrStatus,

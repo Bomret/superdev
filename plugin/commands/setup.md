@@ -74,6 +74,22 @@ perform each move (transition name/id or CLI verb). Record it in `issue-tracker.
 `/superdev:implement` walks each issue along it. If the tracker lacks a state (no separate `in-review` or
 `blocked`), map it to the nearest sensible status and note the collapse.
 
+Also capture **how a ticket is released** for any issue backend, recorded as a `## Release` section in
+`issue-tracker.md` (`plan-contract.md` → *Release*). A tracker usually holds a backlog of tickets written
+but not yet agreed, so ask: **what marks a ticket ready for work here?** A label (`released`,
+`ready-for-work`), a status, a board column. Two properties make an answer usable, and both are worth
+stating back to the user:
+
+- It sits on the **scope anchor** — the epic, or a single-slice feature's lone issue — since one release
+  covers the whole feature.
+- It **survives the lifecycle moves** `/superdev:implement` makes. The status map's own `ready` label is
+  swapped to `in-progress` on dispatch, so it cannot double as the release signal: a separate label can,
+  and is the default worth proposing.
+
+Record the signal plus the calls that **apply** it (what `/superdev:plan` fires on a release) and **read**
+it (what `/superdev:implement` and `/superdev:afk` check). A team that agrees plans elsewhere and wants
+every plan live on creation is a valid answer too — write that, and `/superdev:plan` stops asking.
+
 Also capture the **assignee** for any issue backend — the account every issue `/superdev:plan` creates is
 assigned to, recorded as `Assignee` in `issue-tracker.md` (`plan-contract.md` → *Assignee*). Propose the
 **API token's own identity** as the default: resolve it from the backend's whoami endpoint

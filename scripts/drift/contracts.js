@@ -104,6 +104,27 @@ const APPEND_ELEMENTS = [
   [/^[-*] \*\*[^*]*sanctioned edit[^*]*\*\*/im, 'the epic-amendment clause for a promoted epic'],
 ];
 
+// Every slice-store document must state how its backend expresses a **release** — the human agreement
+// that a written plan may be built (`plan-contract.md` → *Release*) — and all three consumers must name
+// that section. The failure this catches is silent in both directions: a store document without the
+// section leaves `/superdev:implement` with no signal to read, so it either builds an unreleased backlog
+// or stops on everything; a consumer that drops the reference builds whatever it is handed, which is the
+// gate's whole purpose gone with no error anywhere. Same candidate list as the anchor contract, since
+// every store renders this one too — the local-file store's rendering is that its plans are released when
+// written, which is still a `## Release` section stating it.
+const RELEASE_PATTERN = /^#{2,3}\s+Release\s*$/m;
+
+// The consumers are pinned on the backticked section name rather than the bare word: "release" recurs in
+// ordinary prose (a released feature, releasing the plan), and a bare search on it would pass a document
+// that merely mentions releasing while reading no signal at all.
+const RELEASE_CONSUMERS = [
+  path.join('commands', 'plan.md'),
+  path.join('commands', 'implement.md'),
+  path.join('commands', 'afk.md'),
+];
+
+const RELEASE_CONSUMER_PATTERN = /`## Release`/;
+
 // `references/issue-tracker-local.md` alone needs a continuation rule: its `id` is the zero-padded file
 // number `/plan` itself assigns, so append must continue numbering from the highest one already present
 // and never reuse a number. An issue backend's `id` is server-assigned at creation, already unique and
@@ -1301,6 +1322,9 @@ module.exports = {
   ANCHOR_ELEMENTS,
   APPEND_PATTERN,
   APPEND_ELEMENTS,
+  RELEASE_PATTERN,
+  RELEASE_CONSUMERS,
+  RELEASE_CONSUMER_PATTERN,
   LOCAL_APPEND_DOC,
   LOCAL_CONTINUATION_ELEMENT,
   AFK_SELECTION_HEADING,

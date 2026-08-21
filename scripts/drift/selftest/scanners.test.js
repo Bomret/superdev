@@ -12,6 +12,7 @@ const {
   scanAssigneeContract,
   scanAnchorContract,
   scanAppendContract,
+  scanReleaseContract,
   scanAfkSelectionNeutrality,
   scanWritingStandardContract,
   scanContentTypesContract,
@@ -1257,6 +1258,70 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     scanAppendContract(fixture({ 'references/issue-tracker-github.md': appendSection })).length,
     0,
     'an issue-backend seed is not held to the local-only continuation clause',
+  );
+
+  // --- scanReleaseContract: every slice-store document states how its backend expresses a release
+  // (`plan-contract.md` → *Release*), and `commands/plan.md`, `commands/implement.md`, and
+  // `commands/afk.md` each name that section. Both halves fail silently, so both are asserted. ---
+
+  // positive: a store document with no release section is flagged
+  const rl1 = fixture({ 'references/issue-tracker-acme.md': '# acme\n\nSlices are issues.\n' });
+  const rlGaps1 = scanReleaseContract(rl1);
+  assert.equal(rlGaps1.length, 1, 'flags a store document with no release section');
+  assert.equal(rlGaps1[0].source, path.join('references', 'issue-tracker-acme.md'), 'names the seed');
+  assert.equal(rlGaps1[0].expectation, undefined, 'a missing section carries no expectation');
+
+  // negative: the same document carrying the section is clean
+  assert.equal(
+    scanReleaseContract(
+      fixture({
+        'references/issue-tracker-acme.md':
+          '# acme\n\n## Release\n\nLabel `released` on the scope anchor.\n',
+      }),
+    ).length,
+    0,
+    'a store document carrying the section yields zero gaps',
+  );
+
+  // positive: prose about releasing is not the section — the heading is what `/superdev:setup` carries
+  assert.equal(
+    scanReleaseContract(
+      fixture({ 'references/issue-tracker-acme.md': '# acme\n\nA released plan may be built.\n' }),
+    ).length,
+    1,
+    'a prose mention is not the section',
+  );
+
+  // positive: a consumer that no longer names the section is flagged, with the store half silent
+  const rlConsumer = fixture({ 'commands/plan.md': '# plan\n\nWrite the slices, then hand off.\n' });
+  const rlGapsConsumer = scanReleaseContract(rlConsumer);
+  assert.equal(rlGapsConsumer.length, 1, 'flags the consumer that dropped the reference');
+  assert.equal(rlGapsConsumer[0].source, path.join('commands', 'plan.md'), 'names the consumer');
+  assert.match(rlGapsConsumer[0].expectation, /`## Release`/, 'names the section it must read');
+
+  // negative: the same consumer naming the backticked section is clean — and the bare word alone is not,
+  // since "release" recurs in ordinary prose
+  assert.equal(
+    scanReleaseContract(
+      fixture({ 'commands/plan.md': "# plan\n\nRead `docs/agents/issue-tracker.md`'s `## Release`.\n" }),
+    ).length,
+    0,
+    'a consumer naming the backticked section yields zero gaps',
+  );
+
+  // all three consumers are held to it, so dropping the reference everywhere reports three gaps
+  const rlAllThree = fixture({
+    'commands/plan.md': '# plan\n',
+    'commands/implement.md': '# implement\n',
+    'commands/afk.md': '# afk\n',
+  });
+  assert.equal(scanReleaseContract(rlAllThree).length, 3, 'every consumer is held to the reference');
+
+  // an absent document is skipped, so a fixture carries only the docs it exercises
+  assert.equal(
+    scanReleaseContract(fixture({ 'README.md': '# repo\n' })).length,
+    0,
+    'an absent document is skipped rather than reported',
   );
 
   // positive: every forcing-flag spelling is actually caught, not just `switch -C` / `worktree add -B`

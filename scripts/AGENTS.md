@@ -160,7 +160,7 @@ every drift assertion by id, and it fell behind at five separate additions, beca
 maintained by hand at the moment its author is thinking about code. Naming the exceptions cannot drift
 when a new check lands.
 
-`drift-check.js` guards forty-eight things, in the order `drift/checks.js` registers them. First, the
+`drift-check.js` guards forty-nine things, in the order `drift/checks.js` registers them. First, the
 `reference` contract: every `references/*.md` path named in `commands/`, `agents/`, or `references/`
 itself resolves to a file that exists. A reference cites another reference, as both execution
 playbooks point at `scope-mode.md`, so a rename there dangles like any other. Second, the
@@ -541,6 +541,17 @@ own rule, so they resolve against the repo root and never through `docPath()`'s 
 plain path is checked for existence and a `*` in the final segment is expanded by reading that directory. An
 absent `docs/agents/documentation.md`, or one carrying no such section, is skipped.
 
+Forty-ninth, the `release-contract` check, `scanReleaseContract()`: every slice-store document carries a
+`## Release` section, and `commands/plan.md`, `commands/implement.md`, and `commands/afk.md` each name it.
+A release is the human agreement that a written plan may be built (`references/plan-contract.md` →
+*Release*), and it is expressed differently per backend — a label on Forgejo and GitHub, a label rather
+than a status on Jira, and nothing at all on the local-file store, whose plans are released when written.
+Both halves fail silently, which is why both are pinned: a store document without the section leaves the
+consumers no signal to read, and a consumer that drops the reference builds whatever it is handed, which
+is the gate gone with every command still valid prose. The consumer half matches the backticked
+`` `## Release` `` rather than the bare word, since "release" recurs in ordinary prose. Absent documents
+are skipped, matching every other scanner.
+
 The first and seventh checks are opposites. The first catches a reference to a file that does not exist.
 The seventh catches an agent that drops its wire to a file which still exists. That drift leaves the
 reference resolvable and the suite green, and the lens then does nothing in any dispatch.
@@ -556,7 +567,7 @@ successor at all.
   must stay `require`-able under plain `node`. This is the one dependency `hooks/` has on `scripts/`.
 - Every script ships a `--selftest`, same convention as the hooks.
 - A new drift-check contract is one entry appended at the end of the `drift/checks.js` registry, plus
-  its section in the forty-eight-check narrative above and its selftest in the matching
+  its section in the forty-nine-check narrative above and its selftest in the matching
   `drift/selftest/*.test.js` suite. Append rather than insert unless the check belongs earlier for a
   reason, because every ordinal after an insertion point has to be rewritten by hand. The forty-fifth check,
   `narrative-coverage`, enforces two pieces of this by itself: the new id must appear backticked

@@ -17,6 +17,7 @@ const {
   scanAssigneeContract,
   scanAnchorContract,
   scanAppendContract,
+  scanReleaseContract,
   scanAfkSelectionNeutrality,
   scanWritingStandardContract,
   scanContentTypesContract,
@@ -311,6 +312,17 @@ module.exports = [
     ok: 'every audit-set pattern resolves to at least one file',
     run: scanAuditSetGlobs,
     format: contractGap,
+  },
+  {
+    id: 'release-contract',
+    ok: 'every store document states its release signal, and all three consumers read it',
+    run: scanReleaseContract,
+    format: (g) =>
+      g.expectation
+        ? `${g.source} no longer meets the release contract — expected it to ${g.expectation}`
+        : `${g.source} carries no \`## Release\` section — expected it to state how this backend marks ` +
+            'a plan agreed for execution, or that its plans are released when written; see ' +
+            '`references/plan-contract.md` → *Release*',
   },
 ];
 

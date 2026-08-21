@@ -51,6 +51,9 @@ else wrote and a path you build out of it.
 An anchor is **eligible** when all of these hold:
 
 - It is **open**, and carries no `blocked` label.
+- It is **released** (`plan-contract.md` → *Release*). `docs/agents/issue-tracker.md`'s `## Release`
+  section states this backend's signal and how to read it. An unreleased feature is a plan nobody has
+  agreed to build yet, and nobody is here to agree to it now, so it is skipped (below).
 - **No open slice beneath it** carries `blocked`.
 - Its feature label passes that scope-slug rule, **both segments** — its change type as well as its slug.
   A label that fails either is skipped (below), not blocked: it is not that feature's fault, and pathing
@@ -71,11 +74,13 @@ Take eligible anchors in **ascending issue number** — oldest first. Nothing mo
 features, so this is the order, and two features that collide on the same files produce a merge conflict
 in the second, which blocks it correctly.
 
-Eligibility says nothing about `ready`, deliberately. A part-merged plan and a slice still labelled
-`in-progress` from an interrupted run both resume, which §3 handles.
+Eligibility says nothing about the slices' own `ready` state, deliberately. A part-merged plan and a slice
+still labelled `in-progress` from an interrupted run both resume, which §3 handles. The release signal is
+the anchor's and survives those moves (`plan-contract.md` → *Release*), so a resumed run stays eligible.
 
 **Skip, rather than block:**
 
+- An **unreleased** anchor. The plan exists; the agreement to build it does not.
 - An anchor that is **not itself a slice and has none beneath it**. The plan was never decomposed, and
   `/superdev:plan` is an interview, not yours to run. The store's contract says how to tell — this is the
   one skip that needs it, because a single-slice plan also has no slices beneath its anchor and is **not**
@@ -84,13 +89,13 @@ Eligibility says nothing about `ready`, deliberately. A part-merged plan and a s
 - An anchor whose scope holds a **live run** (fresh lock, or — with none — a fresh, unshipped ledger).
 - An anchor whose ledger's stage reads `shipped`. The run is done.
 
-Every skip changes no label and does not touch the consecutive-block count. Two of the four are
+Every skip changes no label and does not touch the consecutive-block count. Two of the five are
 **transient** — a live run ends, a shipped run is done — so they stay silent.
 
-The other two are **permanent**: a malformed label and a never-decomposed plan are passed over on every
-sweep, forever, until somebody fixes them, and nothing else in this command would surface either. **Name
-each one in §6's report** with what it needs — a label that matches the scope-slug rule, or
-`/superdev:plan` to decompose the anchor.
+The other three **wait on a human**: a malformed label, a never-decomposed plan, and an unreleased plan
+are passed over on every sweep until somebody acts, and nothing else in this command would surface any of
+them. **Name each one in §6's report** with what it needs — a label that matches the scope-slug rule,
+`/superdev:plan` to decompose the anchor, or the release signal `docs/agents/issue-tracker.md` names.
 
 **A third condition is reported the same way.** A feature label presenting **two or more roots** is a
 malformed plan: there is no single Definition of Done to build against, so there is nothing to select and

@@ -15,6 +15,8 @@ user has it installed); the user records which below.
   `references/scope-mode.md` — and the label doubles as the scope branch name.
 - **`depends-on` link type**: `<is blocked by>` (Jira's "Blocks"/"is blocked by" link).
 - **Ready status/label**: `<ready-for-agent>` — marks a slice an agent may pick up.
+- **Release signal**: `<released>` — the label on the scope anchor that marks the feature agreed for
+  execution (*Release* below).
 - **Assignee**: `<accountId>` — the account every issue a run creates is assigned to (see *Assignee*
   below). `none` creates issues unassigned; omit the line entirely to fall back to whoever the API token
   belongs to.
@@ -103,6 +105,20 @@ below is the general *Assignee* recovery rule (`plan-contract.md`) made concrete
   time or rolled back.
 - To assign an existing issue instead: `PUT <base>/rest/api/3/issue/<key>/assignee` with
   `{ "accountId": "<id>" }`.
+
+## Release
+
+`plan-contract.md` → *Release*. The signal is the **release label** from *Configuration*, on the **scope
+anchor** — the Epic, or a single-slice feature's lone issue. A **label**, not a status: the status workflow
+below transitions the anchor to `in-progress` when the run starts, so a status could not survive the run,
+and the ready status/label marks a slice rather than the feature.
+
+- **Apply** (`/superdev:plan`, on a release): `PUT <base>/rest/api/3/issue/<key>` with
+  `{ "update": { "labels": [{ "add": "<released>" }] } }` — an add, which leaves the feature label and the
+  `test-applicability` label in place.
+- **Read** (`/superdev:implement`, `/superdev:afk`): the anchor's `labels` field, which the JQL search that
+  found the feature already returns.
+- A feature whose anchor lacks the label is unreleased. No status and no other label means it.
 
 ## Status workflow (fill in at setup)
 

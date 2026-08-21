@@ -105,6 +105,19 @@ shapes below make the general *Assignee* recovery rule (`plan-contract.md`) conc
   When it is empty while an assignee was configured, report it once per run.
 - Either way the issue is created and nothing is retried more than that one time or rolled back.
 
+## Release
+
+`plan-contract.md` → *Release*. The signal is the label **`released`** on the scope anchor — the
+`epic`-labelled issue, or a single-slice feature's lone issue. Not the `ready` label below: the dispatch
+swaps that one to `in-progress`.
+
+- **Apply** (`/superdev:plan`, on a release): `POST /api/v1/repos/bomret/superdev/issues/<index>/labels`.
+  Labels go by id, so resolve `released` through `GET /api/v1/repos/bomret/superdev/labels` first.
+- **Read** (`/superdev:implement`, `/superdev:afk`): the anchor's own `labels` array, already returned by
+  the issue listing that found it.
+- An anchor without the label is unreleased: `/superdev:implement` asks before building it, and
+  `/superdev:afk` passes over it.
+
 ## Status workflow
 
 Forgejo carries open and closed states plus labels, and no custom states. `/implement` moves each issue at

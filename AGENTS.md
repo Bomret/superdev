@@ -206,7 +206,7 @@ This root owns every other subtree directly:
   `ledger.md` read and write path, and exports `readLedgerHeader` for `plugin/hooks/scope-prune.js`),
   `plugin/scripts/kb-patch.js` (the deterministic section merge behind a staged page's `action: patch`,
   called by `/superdev:publish-kb`, ADR 0027), `scripts/eval-run.js` (the eval
-  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the forty-eight cross-document contract checks: the
+  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the forty-nine cross-document contract checks: the
   CLI walks the `drift/checks.js` registry, which orders every scanner and contract table). What each
   guards, check by check, lives in that child doc.
 - `plugin/references/`. Backend seed templates plus the non-seed references below. Each reference's own
@@ -214,7 +214,7 @@ This root owns every other subtree directly:
 
   | Reference | Owns | Read at runtime by |
   |---|---|---|
-  | `plan-contract.md` | slice schema and lifecycle, plus the `## Scope anchor`, `## Feature label`, and `## Append mode` generic contracts every store document specialises (ADR 0004, 0017, 0019, 0021) | `/plan`, and the store seeds cite it |
+  | `plan-contract.md` | slice schema and lifecycle, plus the `## Scope anchor`, `## Feature label`, `## Release`, and `## Append mode` generic contracts every store document specialises (ADR 0004, 0017, 0019, 0021, 0034) | `/plan`, `/implement`, `/afk`, and the store seeds cite it |
   | `documentation.md` | the in-repo documentation convention, which `/superdev:setup` fills at `## Writing standard` always and at `## Audit set` when needed | `/setup`, `/document` |
   | `controlled-prose.md` | the writing standard (ADR 0012) | `doc-pass.md`'s callers apply it, `doc-reader` verifies it |
   | `content-types.md` | the content-type lens, never configurable and never `none` (ADR 0014) | `doc-pass.md`'s callers, `doc-reader` |
