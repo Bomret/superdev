@@ -554,14 +554,19 @@ const DOC_PASS_CONTRACTS = [
 // controller runs the full command itself, before dispatching `final-reviewer`, so a dispatch the
 // permission classifier denies is a degraded review rather than a lost verification. Losing either half
 // silently reopens the gap ADR 0025 closed: a command that stops running the suite itself falls back to
-// leaving that run to the subagent's optional re-run, and a reviewer that stops naming that optionality
-// treats its own re-run as authoritative again. Two more rows guard the fail path itself, added on
+// leaving that run to the subagent, and a reviewer that stops deferring to the result it was handed runs
+// the same suite a second time, which is the duplicate run this row exists to keep out. The ad-hoc branch
+// is untouched — a range with no controller-run suite behind it is the one place the reviewer's own re-run
+// is the only verification there is. Two more rows guard the fail path itself, added on
 // re-review: a `review.md` that stops folding a red full suite into the fix loop as a Critical finding
 // lets a red gate pass through unfixed, and a `final-reviewer.md` that stops making `Full-suite run: fail`
-// disqualifying on its own lets the other four axes argue a red suite back to "Yes". A fifth row guards
-// the clause that actually blocks a red scope: a `review.md` that keeps the fail-is-Critical wording but
-// drops "The stage does **not** advance while it stands" would still name the finding without holding up
-// the handoff over it.
+// disqualifying on its own lets the other four axes argue a red suite back to "Yes". The `commands/review.md`
+// "stage does not advance" row guards the clause that actually blocks a red scope: a `review.md` that keeps
+// the fail-is-Critical wording but drops "The stage does **not** advance while it stands" would still name
+// the finding without holding up the handoff over it. The `commands/review.md` dispatch row guards the
+// dispatch sentence itself: `review.md`'s prose reaches `final-reviewer` at runtime alongside the agent
+// body, so a leaked "its own re-run stays optional" clause there defeats the deferral
+// `final-reviewer.md`'s own row above states, on the live path, regardless of what the agent file says.
 const FULL_SUITE_CONTRACTS = [
   [
     path.join('commands', 'review.md'),
@@ -570,8 +575,13 @@ const FULL_SUITE_CONTRACTS = [
   ],
   [
     path.join('agents', 'final-reviewer.md'),
-    /own re-run[\s\S]{0,60}stays optional[\s\S]{0,80}never the scope's only full-suite run/i,
-    "state that its own re-run stays optional and is never the scope's only full-suite run",
+    /the scope's one full-suite run[\s\S]{0,60}review against it[\s\S]{0,60}running no suite of your own/i,
+    'state that on a live scope run it reviews against the handed result and runs no suite of its own',
+  ],
+  [
+    path.join('commands', 'review.md'),
+    /hand it that result[\s\S]{0,60}tell it to review against that result[\s\S]{0,60}running no suite of its own/i,
+    'hand `final-reviewer` the result and tell it to review against that result, running no suite of its own — never that its own re-run "stays optional"',
   ],
   [
     path.join('commands', 'review.md'),
@@ -588,7 +598,7 @@ const FULL_SUITE_CONTRACTS = [
     /the stage does\s+\*\*not\*\*\s+advance while it stands/i,
     'state that the stage does **not** advance while a full-suite fail or Critical/Important finding stands',
   ],
-  // A sixth row: `references/run-handoff.md`'s run handoff is the other end of ADR 0025. An
+  // The `references/run-handoff.md` row: its run handoff is the other end of ADR 0025. An
   // all-`mechanical`/`docs` scope has no whole-scope review to attach a suite run to, so run handoff runs
   // the scope's one full suite in its place. It is the one full-suite run no row above covers, and it is
   // load-bearing twice over — the routing contract below sends such a scope past `/superdev:review` on
@@ -599,6 +609,77 @@ const FULL_SUITE_CONTRACTS = [
     /attempts that scope's one full-suite run itself[\s\S]{0,60}in place of that review/i,
     "run the scope's one full-suite run itself, in place of the review an all-`mechanical`/`docs` scope skips",
   ],
+];
+
+// ADR 0025 from the other side. The two chain steps after the review, and the writer the first of them
+// dispatches, run no full suite: `/superdev:review` owns the scope's one run, so a run added to
+// `commands/document.md`, `commands/ship.md`, or `agents/doc-writer.md` is a second pass over a tree the
+// review already verified. Prose is the wrong guard for it — root `AGENTS.md`'s prompt-the-positive rule
+// keeps a "never run the suite" line out of always-loaded context, and a prohibition makes the forbidden
+// behaviour more available rather than less. The silence is asserted here instead. Only these four
+// documents are scanned: every other consumer of a test command runs one by design.
+//
+// `agents/final-reviewer.md` is the fourth, and it sits in both this list and FULL_SUITE_CONTRACTS above —
+// deliberately. That table only asserts presence: a document carrying both the new "runs no suite of your
+// own" clause and the old "your own re-run here stays optional" sentence it replaced reads as zero gaps
+// there, because presence of the new clause is all a scanContract() row can check. An additive re-growth —
+// the old clause coming back *beside* the new one, rather than replacing it — is exactly the shape a
+// re-review found live, so this list's absence check is what actually forbids the old clause from
+// returning.
+//
+// A gap is a **match**, the inverse of every table above, so this one drives its own scanner rather than
+// scanContract(). The patterns are the shapes a real instruction takes in this repository: a bare
+// imperative ("Run the full suite before opening the pull request" — the reflexive "yourself"/"itself"
+// phrasing `commands/review.md` used to use is one case of this, not a separate pattern), the
+// take-it-from-the-config one `references/run-handoff.md` uses ("take the full command from … and run
+// it"), and the optionality clause `agents/final-reviewer.md`'s own re-run sentence used to carry. A
+// past-tense reference to a run that already happened stays legal, because `commands/ship.md` says the run
+// handoff *has run* the full suite, which is both true and load-bearing there, and so does
+// `final-reviewer.md`'s legitimate ad-hoc "you may re-run the suite over the range" and its "the controller
+// already ran the full suite itself" — neither is the optionality clause this list forbids.
+const DOC_STEP_SILENCE_DOCS = [
+  path.join('commands', 'document.md'),
+  path.join('commands', 'ship.md'),
+  path.join('agents', 'doc-writer.md'),
+  path.join('agents', 'final-reviewer.md'),
+];
+
+// `\s+` between each word, because these documents are hard-wrapped and an instruction added to one wraps
+// wherever it lands — the same tolerance the tables above get from scanContract()'s normalized retry, which
+// the negative scanner behind these patterns does not run.
+//
+// The first pattern is a bare imperative, not a reflexive one: "Run the full suite before opening the pull
+// request" and "Re-run the full suite before staging the pull request" are the ordinary way this
+// instruction gets written, with no "itself"/"yourself" for the old reflexive-only pattern to anchor on
+// (which this one replaces, being strictly broader — it still matches the reflexive phrasing too). The
+// discriminator against a legal past-tense mention (`commands/ship.md`'s "the run handoff has run the full
+// suite") is the auxiliary, not the pronoun: a negative lookbehind for "has"/"have"/"had", optionally
+// followed by up to two more words, before "run" — the same shape `RETURN_TO_CONTROLLER_PATTERNS`'s
+// `HAND_BACK_VERB` (`hand(?:\s+\w+){0,2}\s+back\s+to`) already uses for "a verb and its object, a short
+// run of words apart". A lookbehind anchored on the auxiliary sitting immediately before "run" instead
+// false-positives on ordinary legal prose the auxiliary still governs from a distance — "has already run",
+// "have not run", or a markdown hard break landing between the two — so the gap is `(?:\s+\w+){0,2}\s+`,
+// not a single `\s`.
+//
+// The third pattern is `agents/final-reviewer.md`'s own — the optionality clause a re-review found
+// additively re-grown beside the new deferral sentence, generalized past its exact wording ("stays
+// optional" or "remains optional", the leading "own" optional too) so a rephrase of the same clause still
+// trips it. It is scoped to that one document's own gap message by nothing in the pattern itself; the
+// other two silence-only documents simply never carry this phrasing.
+//
+// The fourth pattern is the same bare imperative with the word "full" dropped ("Re-run the suite … before
+// the handoff", "Run the whole suite once more before staging the pull request") — the same auxiliary
+// discriminator applies, and the trailing `before` anchor is what keeps it off
+// `agents/final-reviewer.md`'s legitimate ad-hoc "you may re-run the suite over the range to confirm green
+// rather than trust the diff alone", which never carries a nearby "before" for an instruction to hang off.
+//
+// ponytail: this is a shape-based prose guard, not a grammar. It catches the phrasings named above — not
+// every paraphrase a maintainer could write. The reviewer's eye covers the rest.
+const SUITE_RUN_INSTRUCTIONS = [
+  /(?<!\b(?:has|have|had)(?:\s+\w+){0,2}\s+)run\s+the\s+full\s+(?:test\s+)?suite/i,
+  /take\s+the\s+full\s+command[\s\S]{0,120}?\band\s+run\s+it\b/i,
+  /(?:own\s+)?re-run[\s\S]{0,60}?\b(?:stays|remains)\s+optional/i,
+  /(?<!\b(?:has|have|had)(?:\s+\w+){0,2}\s+)run\s+the\s+(?:whole\s+)?suite\b[\s\S]{0,60}?\bbefore\b/i,
 ];
 
 // `/superdev:ship` §3 gates on a standing unresolved defect (ADR 0026): a defect the run left standing is
@@ -722,7 +803,8 @@ const HOOK_HEADER_REGEX = /\\+\*\\+\*[^\n]{0,60}:\\+\*\\+\*/;
 // and the narrowing silently gone in every dispatch — the same failure shape as the content-types and
 // unattended-token contracts. Anchored on `Read … test-selection.md` **and** the substantive clause "run
 // the command it selects" that follows it in every real document — `\s+` between each word tolerates the
-// prose wrap, since the three real documents each wrap that phrase at a different word. A pattern anchored
+// prose wrap, since a real document wraps somewhere in that span and not every one wraps at the same
+// word (or wraps it at all). A pattern anchored
 // on the bare `Read … test-selection.md` mention alone (`CONTENT_TYPES_PATTERN`'s shape) would pass a
 // document that keeps the reference in a passing aside but drops the instruction to run what it selects —
 // the same anti-pattern `FULL_SUITE_CONTRACTS` avoids by anchoring on its own substantive clause.
@@ -744,6 +826,14 @@ const TEST_SELECTION_CONTRACTS = [
     path.join('agents', 'slice-reviewer.md'),
     TEST_SELECTION_PATTERN,
     "read `references/test-selection.md` and run the command it selects for Lens 2's independent re-run",
+  ],
+  // ADR 0025's corrected rationale: nothing else re-verifies a doc commit before the pull request — the
+  // green-gate hook fires only on a controller merge, and a doc commit is not one — so the documentation
+  // step judges its own doc commits with the focused command, never the full suite.
+  [
+    path.join('commands', 'document.md'),
+    TEST_SELECTION_PATTERN,
+    'read `references/test-selection.md` and run the command it selects over the doc commits it just landed',
   ],
 ];
 
@@ -1353,6 +1443,8 @@ module.exports = {
   VERB_CONTRACTS,
   KB_STAGING_CONTRACTS,
   FULL_SUITE_CONTRACTS,
+  DOC_STEP_SILENCE_DOCS,
+  SUITE_RUN_INSTRUCTIONS,
   SHIP_GATE_HEADING,
   SHIP_GATE_ELEMENTS,
   UNRESOLVED_GLOSSARY_CONTRACTS,

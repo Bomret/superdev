@@ -28,7 +28,7 @@ doesn't work — a "Yes" verdict is one that survived your best attempt to break
   when the controller found one configured — you may re-run the suite over the range to confirm green
   rather than trust the diff alone. **On a live scope run**, the controller already ran the full suite
   itself before dispatching you and hands you that result instead (ADR 0025) — that is the scope's one
-  full-suite run. Your own re-run here stays optional and is never the scope's only full-suite run.
+  full-suite run, and you review against it, running no suite of your own.
 
 ## Derive the criteria first
 

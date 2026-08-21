@@ -246,9 +246,11 @@ never hardcode a tool. Edit those files directly at any time. Re-run setup only 
   `docs/agents/toolchain.md`.
 - **Verification** *(optional)*. The repo's test command, the first fenced block of
   `docs/agents/verification.md`. Recorded, it **arms the green-gate** hook. Omitted, the gate stays
-  inactive. An optional second fenced block holds the focused test command. It narrows four callers to a
-  set of changed paths. They are the implementer's TDD loop, the lite tier's inline loop, the
-  slice-reviewer's Lens 2 re-run, and the green-gate hook.
+  inactive. A second fenced block holds the focused test command, which setup derives from the runner it
+  detected wherever that runner can narrow a run. It narrows five callers to a set of changed paths. They
+  are the implementer's TDD loop, the lite tier's inline loop, the slice-reviewer's Lens 2 re-run, the
+  green-gate hook, and the documentation step's own run over its doc commits. A runner that cannot narrow
+  records no such command, with the reason, and every caller runs the full one.
   [`references/test-selection.md`](plugin/references/test-selection.md) owns the full-versus-focused rule. The
   answer goes to `docs/agents/verification.md`.
 

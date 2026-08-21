@@ -27,6 +27,7 @@ const {
   scanShipGateContract,
   scanUnresolvedGlossaryContract,
   scanKbNoBackendCall,
+  scanDocStepsNoSuite,
   scanHookLedgerParsers,
   scanEvalShape,
   scanAdrStatus,
@@ -186,7 +187,7 @@ module.exports = [
   table(
     'full-suite',
     FULL_SUITE_CONTRACTS,
-    "the scope review runs the full suite itself while final-reviewer's own re-run stays optional",
+    'the scope review runs the full suite itself while final-reviewer reviews against the result it is handed',
   ),
   {
     id: 'entries-standing-gate',
@@ -323,6 +324,12 @@ module.exports = [
         : `${g.source} carries no \`## Release\` section — expected it to state how this backend marks ` +
             'a plan agreed for execution, or that its plans are released when written; see ' +
             '`references/plan-contract.md` → *Release*',
+  },
+  {
+    id: 'doc-steps-no-suite',
+    ok: 'the documentation and ship steps name no full-suite run of their own',
+    run: scanDocStepsNoSuite,
+    format: contractGap,
   },
 ];
 

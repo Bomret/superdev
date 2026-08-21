@@ -189,12 +189,21 @@ per-slice merges are simply where the implement loop meets it most. Detect a lik
 scripts, a Makefile `test` target, `pyproject.toml`) and propose it. No suite (e.g. a docs-only repo) →
 skip; the gate stays inactive. (The **F** scan finds the same manifests — draw the proposal from it.)
 
-Then ask about the **focused test command** (optional): a command that scopes a run to a set of changed
-paths (e.g. `vitest related {paths}`, `pytest {paths}`, or a runner flag that detects the change set on
-its own, like `vitest --changed`). `references/test-selection.md` owns the full contract — read it, then
-propose a command derived from the full one where the repo's runner supports narrowing. `none` → record
-no such command; the run then always falls back to the full command, which is the configuration this
-repository keeps.
+**A repo with a full command settles the focused test command too**: the command that scopes a run to a
+set of changed paths (e.g. `vitest related {paths}`, `pytest {paths}`, or a runner flag that detects the
+change set on its own, like `vitest --changed`). Every step inside the implement loop runs it, so a repo
+without one runs its whole suite on every RED→GREEN increment — hours per scope on a slow suite.
+`references/test-selection.md` owns the full contract. Read it, **derive the focused command from the full
+one and the runner the §1 scan detected, and write it on the user's confirmation.** A runner that narrows
+gets a focused command out of this interview. **No suite at all** → skip this too; there is no full
+command to narrow.
+
+**A runner that cannot narrow records no focused command, and every caller runs the full one** — setup
+already knows the reason is the runner, so there's nothing to ask: **state it and record it** in
+`verification.md` beside the single block, the same place a user-given reason lands below. **A user who
+picks `none` anyway** records the same, but here **ask what makes that the right answer here, and record
+the reason** in `verification.md` beside the single block — a suite that finishes in seconds is a good
+one, and the next reader learns which reason applied.
 
 **F — Toolchain (optional).** From §1's scan, propose the repo's toolchain profile — the package manager
 and the build/lint/format/release commands agents should use, plus pointers to the linter/formatter
@@ -255,8 +264,12 @@ Write:
   - Style prose: `CONTRIBUTING.md §Style`
   ````
 - `docs/agents/verification.md` — the full test command as the first fenced block. Skip the file entirely
-  if there's no suite. Add the focused command, where decision **E** answered one, as a second fenced
-  block; `none` writes only the first. Example, with a focused command configured:
+  if there's no suite. Add the focused command, which decision **E** derives wherever the runner narrows,
+  as a second fenced block. **No focused command** — whether the runner can't narrow or the user picked
+  `none` — writes the first block plus the one-line reason **E** recorded for it, **as prose outside the
+  fence, never fenced itself** — `hooks/green-gate.js` takes a fenced block by index, so a reason fenced
+  by mistake becomes the "focused" command the hook runs after every merge. Example, with a focused
+  command configured:
 
   ````markdown
   # Verification
@@ -268,6 +281,21 @@ Write:
   ```sh
   npx vitest related {paths}
   ```
+  ````
+
+  Example, single block, the reason recorded as prose beside it (this repo's own
+  `docs/agents/verification.md` is exactly this shape):
+
+  ````markdown
+  # Verification
+
+  ```sh
+  npm test
+  ```
+
+  **No focused test command, deliberately.** This suite finishes in seconds, so narrowing a run saves
+  nothing worth the second block, and every caller runs the full command
+  (`references/test-selection.md`, ADR 0025).
   ````
 - Add an `## Agent skills` block to whichever of `CLAUDE.md` / `AGENTS.md` already exists (edit that one;
   never create the other; never duplicate an existing block):

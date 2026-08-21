@@ -6,6 +6,7 @@
 // Run by ./index.js, which owns the shared fixture() helper, realRoot, and the temp-dir cleanup.
 
 const { scanContract } = require('../lib');
+const { scanDocStepsNoSuite } = require('../scanners');
 const {
   FEATURE_ARG_CONTRACTS,
   UNATTENDED_CONTRACTS,
@@ -23,7 +24,7 @@ const {
   SOURCE_SECTION_CONTRACTS,
 } = require('../contracts');
 
-module.exports = ({ assert, path, fixture }) => {
+module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // --- scanFeatureArgContract: `/superdev:implement` takes the feature label that names which planned
   // feature to build, and plan.md hands off with that label resolved. The two halves live in different
   // documents, so either can drift alone, and neither failure surfaces anywhere else: a caller with no
@@ -552,15 +553,16 @@ module.exports = ({ assert, path, fixture }) => {
     'flags a ship.md that stopped reading the unresolved and degrade records through `scope.js get`',
   );
 
-  // --- TEST_SELECTION_CONTRACTS: the TDD loop, the inline loop, and Lens 2's independent re-run each
-  // read references/test-selection.md rather than restating the focused-command rule (ADR 0025). scan()
-  // above would stay green if one dropped the read/apply instruction while the reference file itself
-  // still exists — this is the wire, not the reference. ---
+  // --- TEST_SELECTION_CONTRACTS: the TDD loop, the inline loop, Lens 2's independent re-run, and the
+  // documentation step's own commits each read references/test-selection.md rather than restating the
+  // focused-command rule (ADR 0025). scan() above would stay green if one dropped the read/apply
+  // instruction while the reference file itself still exists — this is the wire, not the reference. ---
 
   for (const rel of [
     path.join('agents', 'implementer.md'),
     path.join('references', 'implement-lite.md'),
     path.join('agents', 'slice-reviewer.md'),
+    path.join('commands', 'document.md'),
   ]) {
     const dropped = fixture({ [rel]: '# doc\n\nRuns its own test command, no reference to speak of.\n' });
     const tsGaps = scanContract(dropped, TEST_SELECTION_CONTRACTS);
@@ -610,25 +612,25 @@ module.exports = ({ assert, path, fixture }) => {
 
   // --- FULL_SUITE_CONTRACTS: /superdev:review in scope mode is the only full-suite run left in the
   // chain (ADR 0025) — the controller runs it itself, before dispatching final-reviewer, and
-  // final-reviewer names its own re-run as optional and never the scope's only full-suite run. ---
+  // final-reviewer reviews against the result it is handed, running no suite of its own. ---
 
   // positive: review.md drops the controller-run full suite and goes back to just handing over the command
   const fs1 = fixture({
     'commands/review.md': 'Read `docs/agents/verification.md` for the test command and pass it to final-reviewer.\n',
   });
   const fsGaps1 = scanContract(fs1, FULL_SUITE_CONTRACTS);
-  assert.equal(fsGaps1.length, 3, 'flags a review.md missing all three of its rows: the controller-run suite, fail-is-Critical, and stage-not-advance');
+  assert.equal(fsGaps1.length, 4, 'flags a review.md missing all four of its rows: the controller-run suite, the dispatch clause, fail-is-Critical, and stage-not-advance');
   assert.ok(
     fsGaps1.every((g) => g.source === path.join('commands', 'review.md')),
-    'all three gaps name review.md',
+    'all four gaps name review.md',
   );
 
-  // positive: final-reviewer.md drops the optionality clause and reads like the run is its own again
+  // positive: final-reviewer.md reads like the run is its own again on a live scope run
   const fs2 = fixture({
     'agents/final-reviewer.md': 'Re-run the suite over the range to confirm green before you write your verdict.\n',
   });
   const fsGaps2 = scanContract(fs2, FULL_SUITE_CONTRACTS);
-  assert.equal(fsGaps2.length, 2, 'flags a final-reviewer.md that stopped naming its re-run as optional, and its missing fail-means-No row');
+  assert.equal(fsGaps2.length, 2, 'flags a final-reviewer.md that stopped deferring to the handed result, and its missing fail-means-No row');
   assert.ok(
     fsGaps2.every((g) => g.source === path.join('agents', 'final-reviewer.md')),
     'both gaps name final-reviewer.md',
@@ -639,20 +641,48 @@ module.exports = ({ assert, path, fixture }) => {
     'commands/review.md': 'Run the full suite yourself, before dispatching `final-reviewer`.\n',
   });
   const fsGaps4 = scanContract(fs4, FULL_SUITE_CONTRACTS);
-  assert.equal(fsGaps4.length, 2, 'flags a review.md missing the failing-suite-is-Critical rule and the stage-not-advance rule');
+  assert.equal(fsGaps4.length, 3, 'flags a review.md missing the dispatch clause, the failing-suite-is-Critical rule, and the stage-not-advance rule');
   assert.ok(
     fsGaps4.every((g) => g.source === path.join('commands', 'review.md')),
-    'both gaps name review.md',
+    'all three gaps name review.md',
   );
+
+  // positive (RED reproduction): review.md's dispatch sentence still leaks the optional-re-run wording
+  // final-reviewer.md itself no longer carries — the exact live-path leak this row exists to close
+  const fs9 = fixture({
+    'commands/review.md':
+      "Run the full suite yourself, before dispatching `final-reviewer`. A `fail` here is itself a " +
+      'Critical finding — fold it into the fix loop below. The stage does **not** advance while it ' +
+      "stands. hand it that result instead, and tell it its own re-run stays optional, never the scope's " +
+      'only full-suite run.\n',
+  });
+  const fsGaps9 = scanContract(fs9, FULL_SUITE_CONTRACTS);
+  assert.equal(fsGaps9.length, 1, "flags a review.md whose dispatch clause still leaks the optional re-run sentence");
+  assert.equal(fsGaps9[0].source, path.join('commands', 'review.md'), 'names review.md');
 
   // positive: final-reviewer.md drops the fail-means-No rule
   const fs5 = fixture({
     'agents/final-reviewer.md':
-      "Your own re-run here stays optional and is never the scope's only full-suite run.\n",
+      'That is the scope\'s one full-suite run, and you review against it, running no suite of your own.\n',
   });
   const fsGaps5 = scanContract(fs5, FULL_SUITE_CONTRACTS);
   assert.equal(fsGaps5.length, 1, 'flags a final-reviewer.md that drops the fail-means-No rule');
   assert.equal(fsGaps5[0].source, path.join('agents', 'final-reviewer.md'), 'names final-reviewer.md');
+
+  // positive: final-reviewer.md re-grows the optional live-scope re-run the chain paid for once already —
+  // the wording this row replaced, which reads plausible and costs a second full suite per scope
+  const fs8 = fixture({
+    'agents/final-reviewer.md':
+      "Your own re-run here stays optional and is never the scope's only full-suite run. `Full-suite " +
+      'run: fail` makes the verdict `Ready to merge? No`.\n',
+  });
+  const fsGaps8 = scanContract(fs8, FULL_SUITE_CONTRACTS);
+  assert.equal(fsGaps8.length, 1, 'flags a final-reviewer.md that re-grows an optional live-scope re-run');
+  assert.match(
+    fsGaps8[0].expectation,
+    /runs no suite of its own/,
+    'the gap says the reviewer reviews against the handed result instead',
+  );
 
   // positive: review.md keeps the fail-is-Critical wording but drops the clause that actually blocks the
   // handoff — the anti-pattern the acceptance criteria for this row names directly
@@ -662,8 +692,11 @@ module.exports = ({ assert, path, fixture }) => {
       'Critical finding — fold it into the fix loop below.\n',
   });
   const fsGaps6 = scanContract(fs6, FULL_SUITE_CONTRACTS);
-  assert.equal(fsGaps6.length, 1, 'flags a review.md that names the finding but drops the stage-not-advance clause');
-  assert.equal(fsGaps6[0].source, path.join('commands', 'review.md'), 'names review.md');
+  assert.equal(fsGaps6.length, 2, 'flags a review.md that names the finding but drops the dispatch clause and the stage-not-advance clause');
+  assert.ok(
+    fsGaps6.every((g) => g.source === path.join('commands', 'review.md')),
+    'both gaps name review.md',
+  );
 
   // positive: run-handoff.md's run handoff stops running the scope's one full suite itself — the row that
   // covers an all-`mechanical`/`docs` scope, which has no whole-scope review to attach a run to
@@ -674,7 +707,7 @@ module.exports = ({ assert, path, fixture }) => {
   assert.equal(fsGaps7.length, 1, "flags a run-handoff.md whose run handoff runs no full suite of its own");
   assert.equal(fsGaps7[0].source, path.join('references', 'run-handoff.md'), 'names run-handoff.md');
 
-  // negative: that same sixth row carried
+  // negative: that same run-handoff.md row carried
   assert.equal(
     scanContract(
       fixture({
@@ -687,23 +720,255 @@ module.exports = ({ assert, path, fixture }) => {
     'a run-handoff.md carrying the run-handoff full-suite run yields no gap',
   );
 
-  // negative: all six rows carried
+  // negative: all seven rows carried
   const fs3 = fixture({
     'commands/review.md':
       "Run the full suite yourself, before dispatching `final-reviewer`. A `fail` here is itself a " +
       'Critical finding — fold it into the fix loop below. The stage does **not** advance while it ' +
-      'stands.\n',
+      'stands. Scope mode: hand it that result and tell it to review against that result, running no ' +
+      'suite of its own.\n',
     'agents/final-reviewer.md':
-      "Your own re-run here stays optional and is never the scope's only full-suite run. `Full-suite " +
-      'run: fail` makes the verdict `Ready to merge? No`.\n',
+      "That is the scope's one full-suite run, and you review against it, running no suite of your own. " +
+      '`Full-suite run: fail` makes the verdict `Ready to merge? No`.\n',
   });
-  assert.equal(scanContract(fs3, FULL_SUITE_CONTRACTS).length, 0, 'all six rows carried yields zero gaps');
+  assert.equal(scanContract(fs3, FULL_SUITE_CONTRACTS).length, 0, 'all seven rows carried yields zero gaps');
+
+  // negative: the dispatch row's gaps tolerate an innocuous rewording between its anchors — widened from
+  // {0,20} to {0,60}, matching every other row in this table, since a {0,20} gap breaks on a rewording as
+  // small as adding a few connecting words
+  const fs10 = fixture({
+    'commands/review.md':
+      'Run the full suite yourself, before dispatching `final-reviewer`. A `fail` here is itself a ' +
+      'Critical finding — fold it into the fix loop below. The stage does **not** advance while it ' +
+      'stands. Scope mode: hand it that result, and then be sure to tell it to review against that ' +
+      'result, running no suite of its own.\n',
+    'agents/final-reviewer.md':
+      "That is the scope's one full-suite run, and you review against it, running no suite of your own. " +
+      '`Full-suite run: fail` makes the verdict `Ready to merge? No`.\n',
+  });
+  assert.equal(
+    scanContract(fs10, FULL_SUITE_CONTRACTS).length,
+    0,
+    'the dispatch row tolerates a longer connecting phrase between "that result" and "tell it"',
+  );
+
+  // --- scanDocStepsNoSuite: the other side of ADR 0025. `/superdev:document`, `/superdev:ship`, and the
+  // `doc-writer` instruct no full-suite run, so the scope's one run stays the review's. This asserts an
+  // absence, which every table above asserts the opposite of: a gap here is a document that grew an
+  // instruction, not one that lost a clause. ---
+
+  // negative: three silent documents, plus ship.md's past-tense mention of a run that already happened
+  const ds1 = fixture({
+    'commands/document.md': 'Dispatch `superdev:doc-writer` over the range, then dispatch `doc-reader`.\n',
+    'commands/ship.md':
+      "Stage the pull request only once `/superdev:implement`'s run handoff has run the full suite and " +
+      'found it green.\n',
+    'agents/doc-writer.md': 'Reconcile the in-repo docs with the code over the range you are handed.\n',
+  });
+  assert.equal(
+    scanDocStepsNoSuite(ds1).length,
+    0,
+    'three silent documents, and a past-tense mention of a run that already happened, yield no gaps',
+  );
+
+  // positive: document.md grows a reflexive suite run
+  const ds2 = fixture({ 'commands/document.md': 'Run the full suite yourself before the doc pass.\n' });
+  const dsGaps2 = scanDocStepsNoSuite(ds2);
+  assert.equal(dsGaps2.length, 1, 'flags a document.md that runs the full suite itself');
+  assert.equal(dsGaps2[0].source, path.join('commands', 'document.md'), 'names document.md');
+  assert.match(dsGaps2[0].expectation, /full suite/i, 'the gap names the run it found');
+
+  // positive: ship.md grows the take-the-command-and-run-it shape run handoff uses
+  const ds3 = fixture({
+    'commands/ship.md':
+      'Take the full command from `docs/agents/verification.md` and run it once over the scope branch ' +
+      'before opening the request.\n',
+  });
+  const dsGaps3 = scanDocStepsNoSuite(ds3);
+  assert.equal(dsGaps3.length, 1, 'flags a ship.md that takes the full command and runs it');
+  assert.equal(dsGaps3[0].source, path.join('commands', 'ship.md'), 'names ship.md');
+
+  // positive: the doc-writer grows one too — a subagent's run is the same duplicate as a command's
+  const ds4 = fixture({ 'agents/doc-writer.md': 'Run the full test suite itself once the docs agree.\n' });
+  const dsGaps4 = scanDocStepsNoSuite(ds4);
+  assert.equal(dsGaps4.length, 1, 'flags a doc-writer.md that runs the full test suite itself');
+  assert.equal(dsGaps4[0].source, path.join('agents', 'doc-writer.md'), 'names doc-writer.md');
+
+  // positive: the bare imperative, no reflexive pronoun — the ordinary way this instruction gets written
+  const ds5 = fixture({ 'commands/document.md': 'Run the full suite before opening the pull request.\n' });
+  const dsGaps5 = scanDocStepsNoSuite(ds5);
+  assert.equal(dsGaps5.length, 1, 'flags a document.md with the bare imperative, no reflexive pronoun');
+  assert.equal(dsGaps5[0].source, path.join('commands', 'document.md'), 'names document.md');
+
+  const ds6 = fixture({ 'commands/ship.md': 'Re-run the full suite before staging the pull request.\n' });
+  const dsGaps6 = scanDocStepsNoSuite(ds6);
+  assert.equal(dsGaps6.length, 1, 'flags a ship.md with the bare re-run imperative');
+  assert.equal(dsGaps6[0].source, path.join('commands', 'ship.md'), 'names ship.md');
+
+  const ds7 = fixture({ 'agents/doc-writer.md': 'Run the full test suite once the docs agree.\n' });
+  const dsGaps7 = scanDocStepsNoSuite(ds7);
+  assert.equal(dsGaps7.length, 1, 'flags a doc-writer.md with the bare imperative naming the test suite');
+  assert.equal(dsGaps7[0].source, path.join('agents', 'doc-writer.md'), 'names doc-writer.md');
+
+  // negative: the auxiliary, not the reflexive pronoun, is the discriminator — ship.md's real past-tense
+  // mention stays silent under the bare-imperative pattern too
+  assert.equal(
+    scanDocStepsNoSuite(
+      fixture({
+        'commands/ship.md':
+          "Stage the pull request only once `/superdev:implement`'s run handoff has run the full suite " +
+          'and found it green.\n',
+      }),
+    ).length,
+    0,
+    "the auxiliary-past-tense mention (has run) stays silent",
+  );
+
+  // negative: the auxiliary still governs "run" from a distance — an intervening adverb, a negation, or a
+  // markdown hard break all used to false-positive under a lookbehind that demanded immediate adjacency
+  assert.equal(
+    scanDocStepsNoSuite(
+      fixture({
+        'commands/ship.md':
+          'The run handoff has already run the full suite and found it green.\n',
+      }),
+    ).length,
+    0,
+    '"has already run" (an intervening adverb) stays silent',
+  );
+  assert.equal(
+    scanDocStepsNoSuite(
+      fixture({
+        'commands/document.md': 'Scopes that have not run the full suite block here.\n',
+      }),
+    ).length,
+    0,
+    '"have not run" (a negation) stays silent',
+  );
+  assert.equal(
+    scanDocStepsNoSuite(
+      fixture({
+        'commands/ship.md': 'The run handoff has  \nrun the full suite and found it green.\n',
+      }),
+    ).length,
+    0,
+    'a markdown hard break between the auxiliary and "run" stays silent',
+  );
+
+  // positive: the bare imperative with "full" dropped — the ordinary way a maintainer writes this shape
+  // without the word "full" in it
+  const ds8 = fixture({
+    'commands/ship.md': 'Re-run the suite over the scope branch before the handoff.\n',
+  });
+  const dsGaps8 = scanDocStepsNoSuite(ds8);
+  assert.equal(dsGaps8.length, 1, 'flags a ship.md that re-runs the suite before the handoff');
+  assert.equal(dsGaps8[0].source, path.join('commands', 'ship.md'), 'names ship.md');
+
+  const ds9 = fixture({
+    'commands/document.md': 'Run the whole suite once more before staging the pull request.\n',
+  });
+  const dsGaps9 = scanDocStepsNoSuite(ds9);
+  assert.equal(dsGaps9.length, 1, 'flags a document.md that runs the whole suite once more');
+  assert.equal(dsGaps9[0].source, path.join('commands', 'document.md'), 'names document.md');
+
+  // negative: the trailing "before" anchor is what keeps the bare-suite pattern off final-reviewer.md's
+  // legitimate ad-hoc mention, which carries no "before" nearby
+  assert.equal(
+    scanDocStepsNoSuite(
+      fixture({
+        'agents/final-reviewer.md':
+          'On an ad-hoc range you may re-run the suite over the range rather than trust the diff alone.\n',
+      }),
+    ).length,
+    0,
+    'the legitimate ad-hoc re-run sentence, with no nearby "before", stays silent',
+  );
+
+  // positive: the optionality clause generalized past "own re-run … stays optional" — "remains" and no
+  // "own" are the same clause reworded
+  const dsGaps10 = scanDocStepsNoSuite(
+    fixture({ 'agents/final-reviewer.md': 'Your re-run here remains optional on every range.\n' }),
+  );
+  assert.equal(dsGaps10.length, 1, 'flags a final-reviewer.md whose re-run "remains optional"');
+  assert.equal(dsGaps10[0].source, path.join('agents', 'final-reviewer.md'), 'names final-reviewer.md');
+
+  const dsGaps11 = scanDocStepsNoSuite(
+    fixture({ 'agents/final-reviewer.md': 'The re-run here stays optional on every range.\n' }),
+  );
+  assert.equal(dsGaps11.length, 1, 'flags a final-reviewer.md whose re-run "stays optional" with no "own"');
+  assert.equal(dsGaps11[0].source, path.join('agents', 'final-reviewer.md'), 'names final-reviewer.md');
 
   // absent files are skipped, matching every other contract table
   assert.equal(
     scanContract(fixture({ 'README.md': '# repo\n' }), FULL_SUITE_CONTRACTS).length,
     0,
     'absent files are skipped',
+  );
+
+  // --- scanDocStepsNoSuite, additive re-growth: a presence check alone cannot catch a final-reviewer.md
+  // that carries BOTH the new "runs no suite of its own" clause and the old optionality sentence it
+  // replaced — that combination reads as zero gaps against FULL_SUITE_CONTRACTS today. agents/final-
+  // reviewer.md is why it joins the silence list even though it's also in the presence table above: the
+  // presence row proves the new clause showed up, and this row proves the old one didn't come back
+  // beside it. ---
+
+  // positive: the additive re-growth — both sentences present at once
+  const dsAdditive = fixture({
+    'agents/final-reviewer.md':
+      "That is the scope's one full-suite run, and you review against it, running no suite of your own. " +
+      "Your own re-run here stays optional and is never the scope's only full-suite run.\n",
+  });
+  const dsAdditiveGaps = scanDocStepsNoSuite(dsAdditive);
+  assert.equal(dsAdditiveGaps.length, 1, 'flags a final-reviewer.md that additively re-grows the optionality clause');
+  assert.equal(dsAdditiveGaps[0].source, path.join('agents', 'final-reviewer.md'), 'names final-reviewer.md');
+
+  // negative: the legitimate ad-hoc re-run sentence, and the past-tense controller mention, both stay silent
+  const dsLegit = fixture({
+    'agents/final-reviewer.md':
+      'On an ad-hoc range you may re-run the suite over the range rather than trust the diff alone. ' +
+      "On a live scope run the controller already ran the full suite itself before dispatching you.\n",
+  });
+  assert.equal(scanDocStepsNoSuite(dsLegit).length, 0, 'the legitimate ad-hoc and past-tense sentences stay silent');
+
+  // positive: the additive re-growth still gets caught when a hard wrap lands inside the clause itself —
+  // final-reviewer.md hard-wraps near 100 columns, so a re-grown sentence hitting a wrap point is the
+  // ordinary case, not a contrived one. Two wrap points, both inside the third SUITE_RUN_INSTRUCTIONS
+  // pattern's literal spaces.
+  const dsAdditiveWrappedAtOwn = fixture({
+    'agents/final-reviewer.md':
+      "That is the scope's one full-suite run, and you review against it, running no suite of your own. " +
+      "Your own\nre-run here stays optional and is never the scope's only full-suite run.\n",
+  });
+  const dsAdditiveWrappedAtOwnGaps = scanDocStepsNoSuite(dsAdditiveWrappedAtOwn);
+  assert.equal(
+    dsAdditiveWrappedAtOwnGaps.length,
+    1,
+    'flags a final-reviewer.md whose optionality clause wraps between "own" and "re-run"',
+  );
+  assert.equal(dsAdditiveWrappedAtOwnGaps[0].source, path.join('agents', 'final-reviewer.md'), 'names final-reviewer.md');
+
+  const dsAdditiveWrappedAtStays = fixture({
+    'agents/final-reviewer.md':
+      "That is the scope's one full-suite run, and you review against it, running no suite of your own. " +
+      "Your own re-run here stays\noptional and is never the scope's only full-suite run.\n",
+  });
+  const dsAdditiveWrappedAtStaysGaps = scanDocStepsNoSuite(dsAdditiveWrappedAtStays);
+  assert.equal(
+    dsAdditiveWrappedAtStaysGaps.length,
+    1,
+    'flags a final-reviewer.md whose optionality clause wraps between "stays" and "optional"',
+  );
+  assert.equal(dsAdditiveWrappedAtStaysGaps[0].source, path.join('agents', 'final-reviewer.md'), 'names final-reviewer.md');
+
+  // negative: the real final-reviewer.md, unmodified, yields zero gaps against the whole silence list
+  const realFinalReviewer = fs.readFileSync(
+    path.join(realRoot, 'plugin', 'agents', 'final-reviewer.md'),
+    'utf8',
+  );
+  assert.equal(
+    scanDocStepsNoSuite(fixture({ 'agents/final-reviewer.md': realFinalReviewer })).length,
+    0,
+    'the real final-reviewer.md carries neither a full-suite run nor the optionality clause',
   );
 
   // --- AFK_ROUTING_CONTRACTS: an all-`mechanical`/`docs` scope skips the whole-scope review by design,

@@ -69,6 +69,16 @@ If it reports findings, re-dispatch **`superdev:doc-writer`** (as in §3) with t
 
 The reader returns its findings **most-severe-first** (false claims, then incomplete ones, then style), so hand them over in that order and **tell the writer the order is a priority** — the `doc-writer` has no fix-round section of its own, so say it. With a single round, anything it can't reach is then the least costly finding rather than an arbitrary one.
 
+**Read `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run the command it selects, in the scope
+checkout over the scope branch on a live run (§8's checkout) or the invoking checkout otherwise** — the
+same tree the doc commits just landed on, the writer's initial pass and any fix round above. Red → the doc
+commit broke a test that asserts prose; fix it before the handoff. No test command configured → continue;
+there's nothing to run. **A non-zero exit that reports no test matched the changed paths is not that
+Red** — this step's changed-path set is docs-only by construction, and a runner that maps paths to test
+files ordinarily finds none for it (`pytest {paths}` exits 5, "no tests ran"; `vitest related {paths}`
+exits 1, "No test files found", absent `--passWithNoTests`); read that outcome as green and continue. The
+same holds under `--unattended`: there is nothing to ask, so don't stop on it.
+
 **Two things here are degraded passes**, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section — read it and follow it, on either one:
 
 - **A dispatch the permission classifier denies.** A denied `doc-writer` means you reconcile inline; a denied `doc-reader` means the docs went unread by fresh eyes. Say so in §5's report and, on a live scope run, write the `**Degraded:**` entry that section defines. **`--unattended` → block** instead.
@@ -86,7 +96,7 @@ Inverts the usual order: **reader first**, writer only to fix what it finds.
 
 1. **Build the audit set:** the default doc tree (`AGENTS.md` hierarchy + `README.md` + `CONTEXT.md` + local KB pages, when the KB backend is local `docs/kb/`) plus any globs listed under a `## Audit set` section in `docs/agents/documentation.md`. That section is optional — absent, use the default tree alone and say so in the report.
 2. Dispatch **`superdev:doc-reader`** with an **explicit `model`** (`sonnet`), the full audit set, and the `docs/agents/documentation.md` path — cold, and with **no writer commit range**, which is what tells it to skip the writing-standard pass: an audit has no writer, so no prose is newly-written. Tell it explicitly: hook/guardrail-enforcement claims ("a hook blocks X", "the gate re-runs Y") are **always load-bearing** and must be verified against the hooks' actual source (`hooks/*.js`), not assumed from prose.
-3. If it reports findings, run **one doc-writer fix round** exactly as in §4 (dispatch once with the findings, in the reader's most-severe-first order; don't re-loop the reader; unresolved findings go in the report).
+3. If it reports findings, run **one doc-writer fix round** exactly as in §4 (dispatch once with the findings, in the reader's most-severe-first order; don't re-loop the reader; unresolved findings go in the report) — including §4's test-selection run afterward, over the commits that fix round lands.
 4. **Report** per §5.
 
 ## 7. Bootstrap mode (brownfield seed)

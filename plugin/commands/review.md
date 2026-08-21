@@ -96,8 +96,7 @@ superdev subagent that omits one):
 
   **Ad-hoc mode**, if a test command is configured (`docs/agents/verification.md`), tell it it may re-run
   the suite over the range rather than trust the diff alone. **Scope mode** — §4 already ran the full
-  suite; hand it that result instead, and tell it its own re-run stays optional, never the scope's only
-  full-suite run.
+  suite; hand it that result and tell it to review against that result, running no suite of its own.
 - **`superdev:simplicity-reviewer`** (`model: haiku`) — over-engineering only (unnecessary complexity,
   what stdlib/native replaces, what to delete). Give it the same git range.
 
@@ -171,15 +170,15 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   denied — in your own output, the same way §1 states the range, **independent of whether the
   `final-reviewer` dispatch succeeds**. **Denied** → `## Degraded passes`'s second shape: the pass ran and
   could not reach what it needed. Its default is record and continue regardless of attendance; **local
-  deviation**, because this is the chain's only full-suite verification and unattended would reach
+  deviation**, because this is the chain's only full-suite verification gate and unattended would reach
   `/superdev:ship` with none behind it. **Attended** → write the `**Degraded:**` entry and continue.
   **Unattended** → **block**, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Unattended`
   section. Carry the result (pass/fail, and any failure output) into §2's dispatch when you continue.
   **A `fail` here is itself a Critical finding** — fold it into the fix loop exactly like a
   `final-reviewer` finding, whether or not that dispatch returned findings of its own. The stage does
   **not** advance while it stands. After any fix cycle that touches it, **re-run the full suite yourself
-  again** before treating the verdict as clean — `final-reviewer`'s own re-run is optional and never
-  substitutes for this.
+  again** before treating the verdict as clean — this run is the scope's verification, and `final-reviewer`
+  reviews against the result you hand it.
 - **Ask once before fixing.** `final-reviewer` returned **Critical or Important** findings, or the full
   suite came back `fail` → report them per §3 first, then ask whether to fix them now.
   - **Declined** → stop. The findings stand: write the `**Unresolved:**` entry, per

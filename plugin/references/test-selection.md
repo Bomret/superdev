@@ -38,6 +38,8 @@ Each caller judges its own range and builds the set from it:
   conflicted merge leaves `HEAD` unmoved with `ORIG_HEAD` equal to it, an empty set the fallback below
   catches, where the first parent would instead return the previous commit's paths, stale. Falls back to
   the first parent where `ORIG_HEAD` does not resolve.
+- **The documentation step.** Its own doc commits — the ones the doc-writer just landed on the scope
+  branch, never the wider range the chain is reconciling.
 
 ## Fallback to the full command
 

@@ -52,6 +52,8 @@ const {
   SHIP_GATE_ELEMENTS,
   UNRESOLVED_GLOSSARY_CONTRACTS,
   KB_NO_CALL_DOCS,
+  DOC_STEP_SILENCE_DOCS,
+  SUITE_RUN_INSTRUCTIONS,
   KB_BACKEND_CALL_MARKERS,
   HOOK_HEADER_REGEX,
   RETURN_TO_CONTROLLER_DOCS,
@@ -483,6 +485,15 @@ const scanKbNoBackendCall = (root) =>
   scanDocsAvoid(root, KB_NO_CALL_DOCS, KB_BACKEND_CALL_MARKERS.map(([pattern, what]) =>
     [pattern, () => `reach no knowledge-base backend — it still carries ${what}`]));
 
+// The two chain steps after the review, and the writer the first of them dispatches, instruct no
+// full-suite run of their own (ADR 0025). `agents/final-reviewer.md` joins the same silence list for a
+// different reason: it must never re-grow the optional live-scope re-run its own dispatch sentence
+// replaced, beside the deferral clause that already satisfies the presence check above.
+const scanDocStepsNoSuite = (root) =>
+  scanDocsAvoid(root, DOC_STEP_SILENCE_DOCS, SUITE_RUN_INSTRUCTIONS.map((pattern) =>
+    [pattern, (hit) => `leave the scope's one full suite to \`/superdev:review\` — it instructs a run of ` +
+      `its own: "${normalizeWhitespace(hit[0])}"`]));
+
 function scanHookLedgerParsers(root) {
   const dir = docPath(root, 'hooks');
   let names = [];
@@ -722,6 +733,7 @@ module.exports = {
   scanShipGateContract,
   scanUnresolvedGlossaryContract,
   scanKbNoBackendCall,
+  scanDocStepsNoSuite,
   scanHookLedgerParsers,
   scanForcingBranchFlag,
   scanReturnToController,

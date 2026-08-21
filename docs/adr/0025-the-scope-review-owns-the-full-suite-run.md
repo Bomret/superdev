@@ -10,8 +10,8 @@ independent re-run, the green-gate hook after every controller merge, and the fi
 scope of eight slices therefore ran the whole suite roughly fifty-five times, and all but a handful of
 those runs proved code no slice had touched.
 
-The cost is invisible in this repository, whose own suite finishes in under six seconds. It is the
-adopter with a ten-minute suite who pays it, and pays it in hours per scope.
+The cost is invisible in this repository, whose own suite finishes in seconds. It is the adopter with a
+ten-minute suite who pays it, and pays it in hours per scope.
 
 The final reviewer's run was also the weakest of the five. It was optional, because the reviewer *may* re-run
 the suite, and it lived inside a subagent, so a dispatch the permission classifier denied took the run
@@ -31,7 +31,25 @@ slice-reviewer's independent re-run, and the green-gate hook after a controller 
 
 **One full-suite run remains, and `/superdev:review` in scope mode owns it.** The command runs it itself
 and hands the result to `final-reviewer`, rather than delegating the run to that subagent. A denied
-dispatch is then a lost review, not a lost verification.
+dispatch is then a lost review, not a lost verification. `final-reviewer` reviews a live scope against
+that handed result and runs no suite of its own; on an ad-hoc range, where no controller ran one, its own
+re-run stays available and is the only verification there is.
+
+**The ship step, and the `doc-writer` the documentation step dispatches, run no full suite at all.**
+`/superdev:ship` and the writer would each be re-proving a tree the review just verified. The
+`doc-steps-no-suite` drift check enforces that silence, rather than a line of prose in each document
+forbidding the run.
+
+**The documentation step itself runs the focused command, over its own commits.** A doc commit lands on
+the scope branch after the review has already passed, and nothing else re-verifies it before the pull
+request — the green-gate hook fires only on a controller merge, and a doc commit is not one.
+`/superdev:document` therefore reads `references/test-selection.md` and runs the focused command over the
+doc commits it just landed, the same rule the implement loop already applies. **The invariant this
+decision keeps is one full-suite run per scope, at the review — not one full-suite run per scope,
+full stop.** Where a repository configures no second fenced block, `references/test-selection.md`'s
+own fallback runs the full command verbatim for the documentation step too, the same bargain the
+implementer's TDD loop and the slice-reviewer's re-run already make there. That repository pays a
+second full-suite run at the documentation step; a repository whose focused command narrows does not.
 
 Two fallbacks run the full command. **No second block** configured reproduces the previous behaviour
 exactly, so a repository that configures nothing is untouched. An **empty changed-path set** never
@@ -51,16 +69,19 @@ degrades into a focused run over no paths, which would report green having teste
 
 ## Consequences
 
-A scope's whole-suite verification happens once, at the point where the integrated branch is judged
-against the Definition of Done, instead of continuously throughout the run.
+A scope's whole-suite verification **gate** happens once, at the point where the integrated branch is
+judged against the Definition of Done, instead of continuously throughout the run. A repository whose
+documentation step falls back to the full command still pays a run there — that run judges nothing
+against the Definition of Done, so it is not a second gate.
 
 A scope whose slices are all `mechanical` or all `docs` skips the whole-scope review by design, because
 there is no Definition-of-Done judgment to attach a full-suite run to. `/superdev:implement`'s Final phase runs the
 full suite itself instead, once, immediately before handing off to `/superdev:document` in place of
 `/superdev:review`. A red result there stops the handoff, the same way a red verdict at review would.
 The permission classifier can deny that Bash call. Attended, the run records a `**Degraded:**` entry
-and continues. Unattended, it blocks instead. An attended denial reaches the pull request with zero
-full-suite runs for this scope.
+and continues. Unattended, it blocks instead. An attended denial reaches the pull request with no
+full-suite verification gate behind it for this scope — the documentation step's own fallback run,
+where one happens, judges only its own doc commits and is not a gate either.
 
 A cross-slice break surfaces later than it did. On the full tier the green-gate still catches it at the
 merge that introduced it, because the focused run covers the paths that merge brought in. On the **lite

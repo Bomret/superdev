@@ -160,7 +160,7 @@ every drift assertion by id, and it fell behind at five separate additions, beca
 maintained by hand at the moment its author is thinking about code. Naming the exceptions cannot drift
 when a new check lands.
 
-`drift-check.js` guards forty-nine things, in the order `drift/checks.js` registers them. First, the
+`drift-check.js` guards fifty things, in the order `drift/checks.js` registers them. First, the
 `reference` contract: every `references/*.md` path named in `commands/`, `agents/`, or `references/`
 itself resolves to a file that exists. A reference cites another reference, as both execution
 playbooks point at `scope-mode.md`, so a rename there dangles like any other. Second, the
@@ -292,20 +292,29 @@ pattern's shape rather than running the hooks, because the same drift happened t
 copy. A second reader can diverge on anchoring, capture width, newline handling, or markup normalisation
 silently, and prose alone would not have caught it.
 Twenty-second, the `test-selection-wiring` contract (ADR 0025): `agents/implementer.md`,
-`references/implement-lite.md`, and `agents/slice-reviewer.md` each still instruct themselves to read
-`references/test-selection.md` **and run the command it selects**. The row is anchored on that clause,
-not the bare mention, so a document that keeps the path in a passing aside but drops the run instruction
-still fails. Twenty-third, the `full-suite` contract (ADR 0025), six rows. `commands/review.md` still
+`references/implement-lite.md`, `agents/slice-reviewer.md`, and `commands/document.md` each still instruct
+themselves to read `references/test-selection.md` **and run the command it selects**. The row is anchored
+on that clause, not the bare mention, so a document that keeps the path in a passing aside but drops the
+run instruction still fails. The fourth consumer is the odd one out: the other three narrow a run inside
+the implement loop, before the review's one full-suite run, while `commands/document.md` runs after it —
+a doc commit lands on the scope branch once the review has already passed, and nothing else re-verifies
+it before the pull request, so the documentation step judges just what it changed with the same focused
+command, never the full suite (ADR 0025). Twenty-third, the `full-suite` contract (ADR 0025), seven rows. `commands/review.md` still
 runs the full suite itself, before dispatching `final-reviewer`. It states that a `fail` there is itself
 a Critical finding folded into the fix loop. It states that the stage does **not** advance while a
 full-suite fail, or a Critical or Important finding, stands. That last clause is the one that blocks a
-red scope, distinct from the finding merely being named. `agents/final-reviewer.md` still names its own
-re-run as optional and never the scope's only full-suite run, and states that `Full-suite run: fail`
-makes the verdict `Ready to merge? No` on its own. The sixth row covers the other end:
-`references/run-handoff.md`'s run handoff still runs the scope's one full suite itself, in place of the
-review an all-`mechanical` or all-`docs` scope skips. It is the one full-suite run the other five rows
-leave uncovered, and the routing check below sends such a scope past `/superdev:review` on the strength
-of it. Losing any one row quietly reopens the gap ADR 0025 closed.
+red scope, distinct from the finding merely being named. `agents/final-reviewer.md` still reviews a live
+scope against the result the controller hands it, running no suite of its own, and states that
+`Full-suite run: fail` makes the verdict `Ready to merge? No` on its own. Its ad-hoc branch keeps its own
+re-run, which is the only verification a range with no controller behind it gets. The `commands/review.md`
+dispatch row pins that command's own dispatch sentence — the prose that reaches `final-reviewer` at
+runtime alongside the agent body — so it hands the result and tells the reviewer to review against it,
+running no suite of its own, never that its own re-run "stays optional." That sentence is the live path: a
+leak there reopens the duplicate run regardless of what `agents/final-reviewer.md` itself still says. The
+`references/run-handoff.md` row covers the other end: its run handoff still runs the scope's one full
+suite itself, in place of the review an all-`mechanical` or all-`docs` scope skips. It is the one
+full-suite run no other row covers, and the routing check below sends such a scope past `/superdev:review`
+on the strength of it. Losing any one row quietly reopens the gap ADR 0025 closed.
 Twenty-fourth, the `entries-standing-gate` contract (ADR 0026), `scanShipGateContract()`: `commands/ship.md`
 §3's own "Entries standing." paragraph asks once whether to ship a standing unresolved defect, and refuses
 outright under `--unattended`. §3 also carries an unrelated, pre-existing gate (the warning about a
@@ -552,6 +561,44 @@ is the gate gone with every command still valid prose. The consumer half matches
 `` `## Release` `` rather than the bare word, since "release" recurs in ordinary prose. Absent documents
 are skipped, matching every other scanner.
 
+Fiftieth, the `doc-steps-no-suite` check, `scanDocStepsNoSuite()`: `commands/document.md`,
+`commands/ship.md`, `agents/doc-writer.md`, and `agents/final-reviewer.md` name no full-suite run of
+their own (ADR 0025). That is narrower than "performs no full-suite run": `commands/document.md` reads
+`references/test-selection.md` and runs the focused command it selects over its own doc commits, and that
+rule falls back to the full command wherever a repository configures no second fenced block — the same
+fallback this repository dogfoods for every other focused caller. What this check forbids is a document
+*instructing* a full run in its own prose; the fallback producing one at runtime is `test-selection.md`'s
+contract, not a gap this check would catch or should. `/superdev:review`'s scope mode owns the scope's one
+**review** run, so an instruction named in any of the first three is a second pass over a tree the review
+already verified — and on a slow suite that is minutes per scope, spent proving what was just proved.
+`agents/final-reviewer.md` joins the list for a
+different reason: it already carries the presence row in `full-suite` above stating it reviews against
+the handed result, running no suite of its own, but that row only checks presence — a document carrying
+both that clause and the old "your own re-run here stays optional" sentence it replaced reads as zero gaps
+there. This check's absence half is what actually forbids the old clause from growing back beside the new
+one. This is the only check that asserts an **absence**, so a gap is a match rather than a missing clause,
+and it runs through `scanDocsAvoid()` instead of `scanContract()`. The patterns are the shapes a real
+instruction takes here: a bare imperative ("Run the full suite before opening the pull request", "Re-run
+the full suite before staging it" — the reflexive "yourself"/"itself" phrasing `commands/review.md` used to
+use is one case of this, not a separate pattern), that same imperative with "full" dropped ("Re-run the
+suite … before the handoff", "Run the whole suite once more before staging the pull request"), the
+take-it-from-the-config one `references/run-handoff.md` uses ("take the full command from … and run it"),
+and the optionality clause `agents/final-reviewer.md`'s own re-run sentence used to carry, generalized past
+its exact wording ("stays optional" or "remains optional", "own" or no "own"). The bare-imperative
+pattern's discriminator against a legal past-tense mention is the auxiliary, not the pronoun: a negative
+lookbehind for "has"/"have"/"had", up to two more words, then "run" is what lets `commands/ship.md`'s "the
+run handoff *has* already *run* the full suite" stay silent — the same `(?:\s+\w+){0,2}` gap
+`RETURN_TO_CONTROLLER_PATTERNS`'s `HAND_BACK_VERB` uses, wide enough for an intervening word or a hard-wrap
+landing between the auxiliary and the verb, tight enough not to swallow an unrelated sentence. Each spells
+its words with `\s+` for the same hard-wrap tolerance, because the negative scanner runs no normalized
+retry. `agents/final-reviewer.md`'s own legitimate ad-hoc "you may re-run the suite over the range" and its
+"the controller already ran the full suite itself" stay legal too: neither is the optionality clause this
+check forbids, and the bare-suite pattern's own trailing "before" anchor is what keeps it off the ad-hoc
+sentence, which never carries one nearby. Prose is the wrong guard for this one: root `AGENTS.md`'s
+prompt-the-positive rule keeps a "never run the suite" line out of always-loaded context, so the silence
+is enforced by test instead. This is a shape-based prose guard, not a grammar: it catches the phrasings
+named above, not every paraphrase a maintainer could write, and the reviewer's eye covers the rest.
+
 The first and seventh checks are opposites. The first catches a reference to a file that does not exist.
 The seventh catches an agent that drops its wire to a file which still exists. That drift leaves the
 reference resolvable and the suite green, and the lens then does nothing in any dispatch.
@@ -567,7 +614,7 @@ successor at all.
   must stay `require`-able under plain `node`. This is the one dependency `hooks/` has on `scripts/`.
 - Every script ships a `--selftest`, same convention as the hooks.
 - A new drift-check contract is one entry appended at the end of the `drift/checks.js` registry, plus
-  its section in the forty-nine-check narrative above and its selftest in the matching
+  its section in the fifty-check narrative above and its selftest in the matching
   `drift/selftest/*.test.js` suite. Append rather than insert unless the check belongs earlier for a
   reason, because every ordinal after an insertion point has to be rewritten by hand. The forty-fifth check,
   `narrative-coverage`, enforces two pieces of this by itself: the new id must appear backticked
