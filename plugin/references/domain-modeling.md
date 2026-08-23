@@ -77,6 +77,16 @@ only when no source, rejects included, has anything for it; an empty one is wors
 
 ### Revise in place
 
-When a later answer overturns a decision you already recorded, revise it where it lives — update the
-glossary entry, rewrite the ADR (or mark it superseded and write the replacement). Never leave the store
-holding two contradictory decisions; the record states current truth, not its history.
+When a later answer overturns a decision you already recorded, bring the record into line where that
+decision lives. Never leave the store holding two contradictory decisions. The two homes take opposite
+treatments:
+
+- **A glossary entry is revised in place.** It states current truth, not its history, so rewrite the
+  entry and keep exactly one per term.
+- **An ADR is superseded, never edited.** It is a dated record of what was decided at the time, and
+  editing it destroys the record the ADR exists to be. Superseding has three parts: write the
+  replacement ADR, set the old one's `**Status:**` line to `Superseded`, adding that line under
+  the title when the ADR carries none, and add a pointer to the replacement **on its own line** —
+  the status line carries the status word and nothing after it, so it stays readable by eye and by
+  tool alike. Everything else in the old ADR stands unchanged, including its `Considered options`:
+  an option that lost then still lost, and the replacement records what changed and why.

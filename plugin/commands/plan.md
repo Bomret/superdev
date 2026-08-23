@@ -198,6 +198,14 @@ agents in parallel — each mapping a different aspect (similar existing feature
 architecture of the area you'll touch) and returning a ranked list of key files. Read those files, then
 decompose. Skip for a small change in familiar code.
 
+**Offer the design sketch, before you decompose.** The grounding above just mapped what exists and no
+slice is cut yet, so this is the one point where the operator can still change the design for free. Ask
+whether to write one. **Yes** → run that grounding first even where it would otherwise be skipped, since
+a card marked `changed` needs the code read rather than guessed, then read
+`${CLAUDE_PLUGIN_ROOT}/references/design-sketch.md` and follow it through to the operator's approval of
+the design, and decompose the design they approved. **No** → decompose. That reference states the whole
+contract, so a declined sketch loads none of it.
+
 Decompose into **vertical slices** (`${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md` owns the rules
 and schema):
 

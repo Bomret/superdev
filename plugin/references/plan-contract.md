@@ -43,8 +43,9 @@ exclusion there is named in the lone slice's `spec` instead.
 
 Two sections `/plan` may add to the epic when the plan's shape defeats a numbered list. Both are for
 human readers of the epic; both are **advisory**, exactly like `Parked questions` — `/implement` never
-reads them, no review agent gates on them, and neither adds a lifecycle status. Visuals are markdown
-only: superdev ships no renderer and writes no HTML artifact (ADR 0009).
+reads them, no review agent gates on them, and neither adds a lifecycle status. The epic's own visuals
+are markdown only: superdev ships no renderer, and the epic itself carries no HTML. The design sketch
+(`design-sketch.md`) is a separate, throwaway file outside the epic (ADR 0036 supersedes ADR 0009).
 
 **`## Slice graph`** — a mermaid `flowchart LR` of the plan's `depends-on` DAG, one node per slice
 labelled `<id> · <title>`, one edge per `depends-on` entry:

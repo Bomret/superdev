@@ -42,7 +42,10 @@ plan runs test-first and inline.
   which routes each rejected direction to a durable home. Near read-only: it writes nothing to the slice
   store.
 - **`/superdev:plan`**. A relentless interview pins the intent and a Definition of Done, and captures
-  ADRs and a glossary as decisions surface. It then decomposes the work into **independently-green
+  ADRs and a glossary as decisions surface. Before it decomposes, it offers a **design sketch**: a
+  throwaway HTML page you open in your browser, inventorying the components the plan intends to add,
+  change, or delete and how they interact. The command waits there, so a design you did not expect gets
+  corrected while no slice has been cut yet. It then decomposes the work into **independently-green
   vertical tracer-bullet slices** with explicit `depends-on` dependencies, written to the configured
   store. On an epic whose shape earns it, the command also draws a `## Slice graph` (the `depends-on`
   DAG), a `## Touch map` (parallel-slice file collisions), or both. Both are markdown, both are advisory, and
@@ -278,6 +281,9 @@ docs/kb/                  knowledge base, only if the local-file KB backend is c
                           /brainstorm — sibling to .superdev/scopes/, not inside it, so /status (which
                           only scans .superdev/scopes/*/) never mistakes it for a run root; never
                           committed
+.superdev/design/<feature-slug>.html   git-ignored throwaway design sketch, written by /plan only when
+                          the operator accepts it — sibling to .superdev/scopes/, not inside it;
+                          overwritten per feature slug, never committed
 .superdev/kb-pending/<scope>/<title-slug>.md   git-ignored staged pages for a remote knowledge-base
                           backend (a `patch` page instead names itself
                           `<title-slug>--<section-slug>.md`, ADR 0027), written by /plan and /document

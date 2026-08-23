@@ -45,8 +45,9 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
   references/          — backend seed templates + the non-seed runtime references (plan-contract,
                          documentation convention, controlled-prose, content-types, doc pass, run init,
                          run handoff, execution playbooks, test-selection, scope-mode, authoring
-                         disciplines, diagnosis, prototype, merge-conflicts, review-checklist). Who reads
-                         what: the `references/` entry of the Child DOX Index below.
+                         disciplines, design sketch, diagnosis, prototype, merge-conflicts,
+                         review-checklist). Who reads what: the `references/` entry of the Child DOX
+                         Index below.
   scripts/             — the two CLIs the commands invoke at runtime: `scope.js` (the run-state CLI,
                          ADR 0022) and `kb-patch.js` (the knowledge-base section merge, ADR 0027)
   LICENSE · NOTICE     — copies of the root files, so the shipped tree carries its own attribution
@@ -229,7 +230,8 @@ This root owns every other subtree directly:
   | `implement-full.md`, `implement-lite.md` | the tier-specific execution playbooks | `/implement`, once it computes the tier |
   | `test-selection.md` | the focused-or-full test command rule (ADR 0025), which `hooks/green-gate.js` implements in code | focused: `implementer`, `slice-reviewer`, `implement-lite`, `/superdev:document` (over its own doc commits). Full suite: `/review`'s scope review, `run-handoff` |
   | `scope-mode.md` | the shared scope rules: live-run detection, the scope checkout, the run lock, `## Unattended`, `## The scope slug`, `## The change type`, `## Degraded passes`, `## Unresolved defects`, `## Deferred findings`, `## The ledger` (deferring the schema to `scope.js`), `## Cutting the scope branch` (ADR 0007, 0013, 0016, 0018, 0021, 0022, 0026, 0028, 0035) | `/review`, `/document`, `/ship`, `/implement`, `/afk`, both playbooks |
-  | `cross-exam.md`, `domain-modeling.md`, `doc-verification.md` | the authoring disciplines, superdev's rendering of Matt Pocock's grilling and domain-modeling skills | `/plan`, `/brainstorm`. `implementer` reads `doc-verification.md` before acting on a third-party assumption |
+  | `cross-exam.md`, `domain-modeling.md`, `doc-verification.md` | the authoring disciplines, superdev's rendering of Matt Pocock's grilling and domain-modeling skills. `domain-modeling.md` also owns revise-in-place, where a glossary entry is rewritten and an ADR is superseded rather than edited | `/plan`, `/brainstorm`. `implementer` reads `doc-verification.md` before acting on a third-party assumption |
+  | `design-sketch.md` | the throwaway HTML page showing the components a plan intends to add, change, or delete: the card contract, the self-contained no-JavaScript artifact, the skeleton, and the wait for the operator's approval (ADR 0036) | `/plan` §3, and only when the operator accepts the offer |
   | `diagnosis.md` | the defect-diagnosis loop: the red-capable repro gate, the minimised repro, ranked hypotheses, tagged instrumentation (a rendering of Matt Pocock's diagnosing-bugs skill) | `/plan` on a `fix` feature, `implementer` on a defect-repair dispatch, `/review`'s fix loop |
   | `prototype.md` | the prototype discipline: one stated question, liftable logic, throwaway-branch capture, the `spec` snippet exception (a rendering of Matt Pocock's prototype skill) | `/brainstorm` §4, and `plan-contract.md` cites the `spec` exception |
   | `merge-conflicts.md` | conflict resolution by intent: the union on additive conflicts, composing compatible intents, abort-and-escalate on a winner-picking overlap | the full playbook's merge step |
