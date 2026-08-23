@@ -162,7 +162,7 @@ every drift assertion by id, and it fell behind at five separate additions, beca
 maintained by hand at the moment its author is thinking about code. Naming the exceptions cannot drift
 when a new check lands.
 
-`drift-check.js` guards fifty-one things, in the order `drift/checks.js` registers them. First, the
+`drift-check.js` guards fifty-two things, in the order `drift/checks.js` registers them. First, the
 `reference` contract: every `references/*.md` path named in `commands/`, `agents/`, or `references/`
 itself resolves to a file that exists. A reference cites another reference, as both execution
 playbooks point at `scope-mode.md`, so a rename there dangles like any other. Second, the
@@ -234,7 +234,9 @@ contract:
 `commands/review.md`, `commands/document.md`, `commands/ship.md`, `commands/status.md`,
 `references/implement-full.md`, `references/implement-lite.md`, and `references/run-handoff.md` each
 name the `**Degraded:**` ledger entry and point at that section. A consumer that drops the wire lets a run report assurance it
-never got, such as a pull request claiming a review that was its author reading their own work. Fifteenth,
+never got, such as a pull request claiming a review that was its author reading their own work. The
+section also states that a denied-dispatch bullet quotes the classifier's refusal text, which is what
+tells a genuine safety block from one of auto mode's documented false positives (ADR 0039). Fifteenth,
 the `derived-criteria` contract: `commands/review.md` hands `final-reviewer` the **path**
 `<run-root>/dod.md` in its scope-mode dispatch, and `agents/final-reviewer.md` carries its
 `## Derive the criteria first` step (ADR 0020). Both halves are needed for the ordering to be real,
@@ -640,6 +642,19 @@ That is not hypothetical: it is what the run this check comes from did, and two 
 settling the addition. The boundary sits at the Definition of Done rather than at "behaviour", since
 repairing a defect in planned behaviour is frequently behavioural and stays in the loop.
 
+Fifty-second, the `denial-authorship` contract (ADR 0039), seven rows. Three sit on
+`references/scope-mode.md`: the rule names the **verification dispatch**es it governs, keys the unattended
+stop on whether the controller authored what the denied pass verifies, and derives the tier from the
+ledger's slice rows. The other four sit on `commands/review.md`, `commands/document.md`,
+`commands/implement.md`, and `references/implement-full.md`, the documents that dispatch one of those passes. A dispatch is the later,
+more specific instruction, so a call site still reading "unattended → block" wins the conflict and the
+central rule becomes prose nothing executes — the one-sided pin ADR 0035 names, which is why the call
+sites are pinned on the condition itself rather than on a pointer to the section.
+`references/run-handoff.md` is deliberately outside the table: its denial case is the full-suite Bash
+command, and the only dispatch it makes is an implementer on a red suite, so nothing there can contradict
+the rule. This is a shape-based prose guard, and it carries the same ceiling as its siblings: it catches
+the phrasings above, not every paraphrase.
+
 The first and seventh checks are opposites. The first catches a reference to a file that does not exist.
 The seventh catches an agent that drops its wire to a file which still exists. That drift leaves the
 reference resolvable and the suite green, and the lens then does nothing in any dispatch.
@@ -669,7 +684,7 @@ successor at all.
   *loudly*, the row goes red until the pattern catches up, so the presence tables in `drift/contracts.js`
   (`FIX_BOUNDARY_CONTRACTS` among them) carry none.
 - A new drift-check contract is one entry appended at the end of the `drift/checks.js` registry, plus
-  its section in the fifty-one-check narrative above and its selftest in the matching
+  its section in the fifty-two-check narrative above and its selftest in the matching
   `drift/selftest/*.test.js` suite. Append rather than insert unless the check belongs earlier for a
   reason, because every ordinal after an insertion point has to be rewritten by hand. The forty-fifth check,
   `narrative-coverage`, enforces two pieces of this by itself: the new id must appear backticked

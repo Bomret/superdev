@@ -113,8 +113,10 @@ Both subagents are **read-only** (`Read`, `Grep`, `Bash` — a hook blocks `git 
 **A dispatch of either reviewer above that the permission classifier denies is a degraded pass.** Read
 `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section and follow it: review
 inline yourself, say so in §3's report, and — on a live scope run — write the `**Degraded:**` entry that
-section defines. **`--unattended` → block** there instead. That section's own carve-out already covers a
-denied `simplicity-reviewer` here.
+section defines, quoting the classifier's refusal. **`--unattended`** → that section's authorship rule
+decides: **block** where the controller authored what the review verifies, which the tier answers, and
+otherwise review inline as above. That section's own carve-out already covers a denied
+`simplicity-reviewer` here.
 
 ## 3. Report
 

@@ -223,11 +223,13 @@ occur, each with its own action:
   not get one. A prompt-rewriting plugin installed alongside superdev can trigger this, because the
   subagent's prompt reaches the classifier carrying text the controller never wrote. **Attended** → do
   the pass inline, say so in the report, and write the entry below: an inline pass is worth more than no
-  pass and less than an independent one, which is what the entry records. **Unattended** → **block**, per
-  `## Unattended`, which owns what blocking means — a pull request whose only review was its author
-  reviewing itself is the outcome this rule prevents. The block comment names the denied dispatch, **and
-  the entry below is written too**: the comment tells the tracker, the bullet tells the run, which is
-  what `/superdev:status` reads and what a maintainer resuming by hand sees first.
+  pass and less than an independent one, which is what the entry records. **Unattended** → the authorship
+  rule below decides: **block** where the controller authored what the pass verifies, per `## Unattended`,
+  which owns what blocking means, and otherwise do the pass inline as an attended run does. A pull request
+  whose only review was its author reviewing itself is the outcome this rule prevents. A block comment
+  names the denied dispatch, **and the entry below is written either way**: the comment tells the tracker,
+  the bullet tells the run, which is what `/superdev:status` reads and what a maintainer resuming by hand
+  sees first.
 - **A pass that cannot complete its own work.** The step ran, and something it needed was unreachable — a
   knowledge-base pass the writer could not stage is the live case. **Record and continue, attended or
   unattended alike**: the step already ran what it could, so blocking the night's sweep on a staging path
@@ -235,6 +237,37 @@ occur, each with its own action:
 
 **Recognising a denial.** It comes back as a permission refusal naming the classifier. A timeout, a
 network error, or any other tool failure is an ordinary error to retry or report, not a degraded pass.
+
+**Whose work the pass verifies decides the unattended stop.** The rule guards against self-review, so it
+fires on authorship rather than on the denial itself (ADR 0039). It governs the three **verification
+dispatch**es — `final-reviewer`, `slice-reviewer`, and `doc-reader` — and a denied `implementer` stays
+outside it, blocking unattended at every tier, because the controller-never-implements invariant is not
+an independence rule (ADR 0001).
+
+- **The controller authored what the pass verifies** → block, exactly as above.
+- **It did not** → do the pass inline, say so in the report, write the entry, and continue the chain.
+
+**The execution tier answers that question.** Derive it the way `/superdev:implement` does, from the
+ledger's slice rows read with `scope.js get slices`: three or fewer is `lite`, which has the controller
+implement every slice inline and perform its own documentation pass, so it counts as authored; more is
+`full`, whose slices and docs each come from a dispatched agent, so it does not. A ledger carrying no
+slice rows says nothing about who wrote the code, so the tier is unknown and the run blocks.
+
+The tier is a proxy, and its **ceiling** is a `full` run whose controller wrote code anyway: a merge
+conflict it resolved itself, or a fix it applied inline on an attended pass earlier in the same scope.
+Such a resolution composes slices that were each already reviewed, so what goes unverified is the
+composition rather than the code.
+
+**Quote the refusal.** A denied-dispatch bullet carries the classifier's own refusal text, beside the
+paraphrase naming the pass. Those words are what separate a genuine safety block from one of the false
+positives auto mode is documented to produce, and they are what a maintainer carries upstream (ADR 0039).
+Flatten every newline in the quote to a space and cap it at roughly 200 characters, ending a longer one
+with an ellipsis: `scope.js degraded add` refuses a bullet containing a newline, and `/superdev:status`
+prints every bullet for as long as the run root lives. Single-quote the argument itself and drop any
+single quote the refusal text carries, so a stray `$` or backtick in the classifier's own words stays
+inert rather than reaching the shell. A denial whose refusal text never reached you still writes its
+bullet, and the bullet says the text was unavailable. `/superdev:ship` copies every bullet into the
+pull-request body, so the quote reaches the human reviewing the change with no step of its own.
 
 **A pass the command was already free to skip is not degraded when denied.** `/superdev:review`'s §2 is
 the standing case: it already skips `simplicity-reviewer` on judgment (a tiny or already-lean diff), so a
@@ -246,13 +279,13 @@ session that saw it has ended.
 
 **The entry.** A `**Degraded:**` line in `<run-root>/ledger.md`, beside `**Stage:**`, carrying one bullet
 per degraded pass. Write each with
-`node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js degraded add "<text>" --root <run-root>`, which creates the
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js degraded add '<text>' --root <run-root>`, which creates the
 line when absent and appends when present. Each bullet names the pass, why it degraded, and the date:
 
 ```markdown
 **Stage:** reviewed
 **Degraded:**
-- whole-scope review ran inline — final-reviewer dispatch denied by the permission classifier (2026-08-02)
+- whole-scope review ran inline — final-reviewer dispatch denied by the permission classifier, "this delegation would let the agent review its own changes without user oversight" (2026-08-02)
 ```
 
 A run with nothing to report carries **no such line at all** — absent, never present and empty. **An

@@ -21,7 +21,7 @@ tiers: record that slice execution finished, name what comes next.
     and continue regardless of attendance; **local deviation**, because this is the only full-suite run a
     `mechanical`/`docs` scope gets and unattended would reach `/superdev:ship` with none behind it.
     **Attended** → write the `**Degraded:**` entry
-    (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" degraded add "<text>" --root <run-root>`) naming the
+    (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" degraded add '<text>' --root <run-root>`) naming the
     denial, continue to the stage write. **Unattended** (`--unattended` in the arguments) → **block**,
     per that file's **Unattended** section.
   - **Red** → do **not** write the stage. Dispatch **one** `superdev:implementer` (`model: sonnet`;

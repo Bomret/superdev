@@ -42,6 +42,7 @@ const {
   UNATTENDED_CONTRACTS,
   CHANGE_TYPE_CONTRACTS,
   DEGRADED_CONTRACTS,
+  DENIAL_AUTHORSHIP_CONTRACTS,
   DERIVED_CRITERIA_CONTRACTS,
   LABEL_VALIDATION_CONTRACTS,
   GREEN_GATE_TIMEOUT_CONTRACTS,
@@ -330,6 +331,12 @@ module.exports = [
     'fix-boundary',
     FIX_BOUNDARY_CONTRACTS,
     "the review's fix loop states its scope boundary and where a deferred finding goes",
+  ),
+  table(
+    'denial-authorship',
+    DENIAL_AUTHORSHIP_CONTRACTS,
+    'the unattended block keys on authorship, and every dispatching document carries the condition',
+    { stripFrontmatterFirst: true },
   ),
 ];
 

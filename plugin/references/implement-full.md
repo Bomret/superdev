@@ -96,8 +96,12 @@ Repeat until every slice is `merged`:
      simplicity-reviewer, or a fix — is a **degraded pass**, not a step to redo silently inline. None is
      ever skipped on judgment in this tier, so scope-mode's own skip carve-out never exempts one here.
      Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section and follow it,
-     including the `**Degraded:**` entry it defines for `<run-root>/ledger.md`. **`--unattended` → block**
-     there instead.
+     including the `**Degraded:**` entry it defines for `<run-root>/ledger.md`, quoting the classifier's
+     refusal. **`--unattended`** → a denied implementer or fix **blocks**, per ADR 0001. A denied
+     `slice-reviewer` follows that section's authorship rule, and this tier's slices come from a
+     dispatched implementer, so the controller authored none of what the review verifies: review the
+     slice inline and carry on. A denied `simplicity-reviewer` follows that same authorship rule, and
+     since its findings are advisory, the pass runs inline and the run carries on.
    - **`mechanical`** / **`docs`** slice → **skip both per-slice reviews** (the merge's focused run, plus
      the scope's one full-suite run — at `/superdev:review`, or the run-handoff run when every slice in
      the scope is `mechanical`/`docs` — are the net; ADR 0025).

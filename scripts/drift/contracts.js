@@ -361,6 +361,16 @@ const DEGRADED_CONTRACTS = [
     /^#{2,3}\s+Degraded passes\s*$/m,
     'carry the `## Degraded passes` section defining the rule for every document that reads it',
   ],
+  // The classifier's own words are what separate a genuine safety block from one of the false positives
+  // auto mode is documented to produce (ADR 0039). A bullet paraphrasing the denial reads the same either
+  // way, so the maintainer who meets it in the pull request has nothing to act on and nothing to carry
+  // upstream. Anchored on the noun rather than a phrasing, because the section states the flattening, the
+  // cap, and the unavailable case around that one term.
+  [
+    path.join('references', 'scope-mode.md'),
+    /refusal text/,
+    "require a denied-dispatch bullet to quote the classifier's refusal text",
+  ],
   ...[
     path.join('commands', 'implement.md'),
     path.join('commands', 'review.md'),
@@ -673,6 +683,48 @@ const FIX_BOUNDARY_CONTRACTS = [
       'over `--unattended → fix`, and that a verdict whose only remaining findings are deferred counts as ' +
       'clean — the exit a deferred finding needs so the run does not deadlock on it',
   ],
+];
+
+// ADR 0039. The unattended block on a denied dispatch exists to stop a pull request whose only review was
+// its author reviewing itself, so it fires on authorship rather than on the denial: a `full`-tier
+// controller wrote none of the code a denied `final-reviewer`, `slice-reviewer`, or `doc-reader` would
+// have verified. `scope-mode.md` states the rule, and the four documents that dispatch a verification
+// pass carry it too — a dispatch is the later, more specific instruction, so a call site still reading
+// "unattended → block" wins the conflict and the central rule becomes prose nothing executes (ADR 0035).
+// That is the one-sided pin this table exists to prevent, and it is why the call sites are pinned on the
+// condition rather than on a pointer to the section.
+// ponytail: shape-based prose guard — it catches the fixed phrases below, not every paraphrase; the
+// reviewer's eye covers the rest, and a stricter grammar is the upgrade if paraphrase drift ever appears.
+const DENIAL_AUTHORSHIP_CONTRACTS = [
+  [
+    path.join('references', 'scope-mode.md'),
+    /verification dispatch/,
+    'name the verification dispatches the authorship rule governs, so a denied `implementer` stays outside it',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /controller authored/,
+    'key the unattended block on whether the controller authored what the denied pass verifies',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /slice rows/,
+    "derive the tier from the ledger's slice rows, so the authorship test reads run state rather than memory",
+  ],
+  // `references/run-handoff.md` is deliberately absent: its denial case is the full-suite Bash command,
+  // and the only dispatch it makes is an implementer on a red suite. Neither is a verification dispatch,
+  // so no prose there can contradict the rule.
+  ...[
+    path.join('commands', 'review.md'),
+    path.join('commands', 'document.md'),
+    path.join('commands', 'implement.md'),
+    path.join('references', 'implement-full.md'),
+  ].map((rel) => [
+    rel,
+    /controller authored/,
+    'carry the authorship condition into the prose that dispatches the pass, rather than instructing an ' +
+      'unconditional unattended block',
+  ]),
 ];
 
 // ADR 0025 from the other side. The two chain steps after the review, and the writer the first of them
@@ -1533,6 +1585,7 @@ module.exports = {
   KB_STAGING_CONTRACTS,
   FULL_SUITE_CONTRACTS,
   FIX_BOUNDARY_CONTRACTS,
+  DENIAL_AUTHORSHIP_CONTRACTS,
   DOC_STEP_SILENCE_DOCS,
   SUITE_RUN_INSTRUCTIONS,
   SHIP_GATE_HEADING,

@@ -12,6 +12,7 @@ const {
   UNATTENDED_CONTRACTS,
   CHANGE_TYPE_CONTRACTS,
   DEGRADED_CONTRACTS,
+  DENIAL_AUTHORSHIP_CONTRACTS,
   DERIVED_CRITERIA_CONTRACTS,
   LABEL_VALIDATION_CONTRACTS,
   GREEN_GATE_TIMEOUT_CONTRACTS,
@@ -216,7 +217,8 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // report a review it never independently got. ---
 
   const definesDegraded =
-    '## Degraded passes\n\nA denied dispatch is one. Write a `**Degraded:**` line to the ledger.\n';
+    '## Degraded passes\n\nA denied dispatch is one. Write a `**Degraded:**` line to the ledger,\n' +
+    'carrying the refusal text the classifier returned, flattened to one line.\n';
   const namesDegraded =
     'A denied dispatch → work inline and write the `**Degraded:**` entry, per `## Degraded passes`.\n';
   const everyConsumer = {
@@ -245,8 +247,22 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'references/scope-mode.md': 'Ledgers may carry a `**Degraded:**` line.\n',
   });
   const dgGaps2 = scanContract(dg2, DEGRADED_CONTRACTS, degradedOpts);
-  assert.equal(dgGaps2.length, 1, 'an entry mention is not the section that defines it');
-  assert.equal(dgGaps2[0].source, path.join('references', 'scope-mode.md'), 'names scope-mode.md');
+  assert.equal(dgGaps2.length, 2, 'an entry mention is neither the section nor the refusal-text rule');
+  assert.ok(
+    dgGaps2.every((g) => g.source === path.join('references', 'scope-mode.md')),
+    'both gaps name scope-mode.md',
+  );
+
+  // positive: the section survives but drops what a denied-dispatch bullet must carry, so the ledger
+  // records that a pass degraded and never why the classifier refused it (ADR 0039)
+  const dgNoRefusal = fixture({
+    ...everyConsumer,
+    'references/scope-mode.md':
+      '## Degraded passes\n\nA denied dispatch is one. Write a `**Degraded:**` line to the ledger.\n',
+  });
+  const dgNoRefusalGaps = scanContract(dgNoRefusal, DEGRADED_CONTRACTS, degradedOpts);
+  assert.equal(dgNoRefusalGaps.length, 1, 'flags a section that never names the refusal text');
+  assert.match(dgNoRefusalGaps[0].expectation, /refusal text/, 'names the missing refusal text');
 
   // positive: each consumer is checked on its own, so one dropping the wire cannot hide behind its
   // siblings — the failure this guards is exactly one command going quiet
@@ -273,6 +289,72 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   const entryOnlyGaps = scanContract(entryOnly, DEGRADED_CONTRACTS, degradedOpts);
   assert.equal(entryOnlyGaps.length, 1, 'flags the missing section pointer alone');
   assert.match(entryOnlyGaps[0].expectation, /point at the/, 'names the missing pointer');
+
+  // --- DENIAL_AUTHORSHIP_CONTRACTS: the unattended block fires on authorship, not on the denial, and
+  // every document that dispatches a verification pass carries that condition. A call site left reading
+  // "unattended → block" wins the conflict as the later instruction, so the central rule goes inert. ---
+
+  const definesAuthorship =
+    '## Degraded passes\n\nA denied verification dispatch blocks unattended when the controller authored\n' +
+    "what the pass verifies. Derive the tier from the ledger's slice rows.\n";
+  const carriesAuthorship =
+    'A denied reviewer dispatch: block unattended where the controller authored the code under review,\n' +
+    'and otherwise review inline and record the entry.\n';
+  const everyDispatcher = {
+    'references/scope-mode.md': definesAuthorship,
+    'commands/review.md': carriesAuthorship,
+    'commands/document.md': carriesAuthorship,
+    'commands/implement.md': carriesAuthorship,
+    'references/implement-full.md': carriesAuthorship,
+  };
+  const authorshipOpts = { stripFrontmatterFirst: true };
+
+  // negative: the rule stated centrally and carried by every dispatcher is clean
+  assert.equal(
+    scanContract(fixture(everyDispatcher), DENIAL_AUTHORSHIP_CONTRACTS, authorshipOpts).length,
+    0,
+    'the rule plus every dispatching document yields zero gaps',
+  );
+
+  // positive: each dispatcher is checked on its own, because one call site reverting to an unconditional
+  // block is exactly the one-sided pin ADR 0035 names — the central rule reads enforced and never fires
+  for (const rel of [
+    'commands/review.md',
+    'commands/document.md',
+    'commands/implement.md',
+    'references/implement-full.md',
+  ]) {
+    const reverted = fixture({
+      ...everyDispatcher,
+      [rel]: '# doc\n\nA denied dispatch: `--unattended` → block.\n',
+    });
+    const gaps = scanContract(reverted, DENIAL_AUTHORSHIP_CONTRACTS, authorshipOpts);
+    assert.equal(gaps.length, 1, `flags ${rel} for reverting to an unconditional block`);
+    assert.equal(gaps[0].source, rel.split('/').join(path.sep), `names ${rel}`);
+  }
+
+  // positive: the section keeps the condition but drops which dispatches it governs, so a denied
+  // implementer reads as covered by it — the one dispatch ADR 0001 keeps blocking at every tier
+  const noVerificationScope = fixture({
+    ...everyDispatcher,
+    'references/scope-mode.md':
+      'A denied dispatch blocks unattended when the controller authored what it verifies.\n' +
+      "Derive the tier from the ledger's slice rows.\n",
+  });
+  const scopeGaps = scanContract(noVerificationScope, DENIAL_AUTHORSHIP_CONTRACTS, authorshipOpts);
+  assert.equal(scopeGaps.length, 1, 'flags a rule that never says which dispatches it governs');
+  assert.match(scopeGaps[0].expectation, /verification dispatches/, 'names the missing scoping');
+
+  // positive: the condition with no way to evaluate it is advice — the tier derivation is what makes the
+  // test read run state instead of the controller's memory of what it did
+  const noTierRule = fixture({
+    ...everyDispatcher,
+    'references/scope-mode.md':
+      'A denied verification dispatch blocks unattended when the controller authored what it verifies.\n',
+  });
+  const tierGaps = scanContract(noTierRule, DENIAL_AUTHORSHIP_CONTRACTS, authorshipOpts);
+  assert.equal(tierGaps.length, 1, 'flags a condition with no derivation behind it');
+  assert.match(tierGaps[0].expectation, /slice rows/, 'names the missing tier derivation');
 
   // --- CHANGE_TYPE_CONTRACTS: the change-type set the prose lists and the set the scope-prune hook
   // matches are the same fact in two syntaxes, in two files. ---

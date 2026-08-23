@@ -34,7 +34,10 @@ dispatches nothing — you carry the TDD discipline yourself. Narrate at most on
   an explicit `model` (`model-explicit`).
 - **A denied dispatch is a degraded pass, not a silent inline step.** Follow
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section: work inline, say so,
-  write the `**Degraded:**` entry with `scope.js degraded add`. **`--unattended` → block** instead.
+  write the `**Degraded:**` entry with `scope.js degraded add`. **`--unattended`** → a denied implementer
+  or fix blocks at every tier, per ADR 0001; a denied verification dispatch follows that section's
+  authorship rule instead — block where the controller authored what the pass verifies, and otherwise do
+  the pass inline as above.
 - **Agents carry their own discipline.** Pass specifics, not lectures. `mechanical`/`docs` slices invent
   no tests — the loop's runs plus the scope's one full-suite run are the net (ADR 0025).
 
