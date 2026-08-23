@@ -94,6 +94,14 @@ per line, and §3 already asked about it. Copy every bullet under its own `## Un
 distinct from `## Degraded passes` — the two answer different questions. **No output** → add no empty
 heading.
 
+**Carry a deferred finding into that body as well, under a third heading.** The ledger's `**Deferred:**`
+line lists every finding `/superdev:review` handed to `/superdev:plan` rather than fixing, per that file's
+`## Deferred findings` section; `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get deferred --root
+<run-root>` reports it, one bullet per line. Copy every bullet under its own `## Deferred to a plan`
+heading, distinct from both headings above — the three answer different questions: what the run did not
+get, what is broken, and what nobody has planned yet (ADR 0035). The pull request is where a reader meets
+it, and where it outlives the review that found it. **No output** → add no empty heading.
+
 Then move the **scope anchor** issue (the epic, or the lone slice on a single-slice plan) to done per
 `docs/agents/issue-tracker.md`, and set the ledger's `**Stage:**` line to `shipped` with
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set shipped --root <run-root>`.

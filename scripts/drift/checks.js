@@ -7,10 +7,7 @@
 // A new contract is appended at the END of this array. Every ordinal after an insertion point has to be
 // rewritten by hand in `scripts/AGENTS.md`, which is the cost the append-at-the-end rule exists to avoid.
 
-const fs = require('node:fs');
-const path = require('node:path');
-
-const { docPath, scanContract } = require('./lib');
+const { scanContract } = require('./lib');
 const {
   scan,
   scanRunRootPaths,
@@ -27,6 +24,7 @@ const {
   scanShipGateContract,
   scanUnresolvedGlossaryContract,
   scanKbNoBackendCall,
+  scanPinnedPaths,
   scanDocStepsNoSuite,
   scanHookLedgerParsers,
   scanEvalShape,
@@ -80,19 +78,15 @@ const table = (id, contracts, ok, opts) => ({
   format: contractGap,
 });
 
-// Every scanner skips a document it cannot read, so a fixture carries only the files it exercises. That
-// convention would let `commands/afk.md` be deleted without a single check going red, because nothing
-// else in the plugin names `/superdev:afk` for scanCommandRefs to resolve. It is a command rather than
-// an optional doc, so its existence is asserted on its own.
-function scanAfkExists(root) {
-  if (fs.existsSync(docPath(root, 'commands', 'afk.md'))) return [];
-  return [
-    {
-      source: path.join('commands', 'afk.md'),
-      expectation: 'exist — `/superdev:afk` is a command, and no other check would notice its absence',
-    },
-  ];
-}
+// `scanPinnedPaths` (in `drift/scanners.js`) occupies the slot the `afk-existence` check held. That one
+// asserted `commands/afk.md` alone, on the stated grounds that nothing else in the plugin names
+// `/superdev:afk` — already false when written: `commands/implement.md` names it too, and
+// `command-resolution` already resolves every `/superdev:` reference in `commands/`, so it already
+// caught the file's deletion. The general rule — every path a contract table pins still exists — covers
+// `commands/afk.md` a second way (three tables pin it) and the other thirty-odd besides, so the special
+// case went. It sits here rather than at the end of the registry deliberately: replacing the entry in
+// place renumbers no ordinal in `scripts/AGENTS.md`, where appending would have shifted every one below
+// it.
 
 module.exports = [
   {
@@ -220,7 +214,7 @@ module.exports = [
     'publish-kb separates a read failure from a genuinely absent page while a marked config document ' +
       'documents the call that returns the body',
   ),
-  { id: 'afk-existence', ok: 'commands/afk.md exists', run: scanAfkExists, format: contractGap },
+  { id: 'pinned-paths', ok: 'every document a contract table pins still exists', run: scanPinnedPaths, format: contractGap },
   {
     id: 'eval-shape',
     ok: 'eval graders and scaffolds well-formed',

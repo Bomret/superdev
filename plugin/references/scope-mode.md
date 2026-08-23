@@ -82,6 +82,7 @@ write, naming `scope.js`.
 - **`**Degraded:**`** — the run's degrade record. `## Degraded passes` owns its shape and when it is
   written.
 - **`**Unresolved:**`** — the run's unresolved-defect record. `## Unresolved defects` owns the same.
+- **`**Deferred:**`** — the run's deferred-finding record. `## Deferred findings` owns the same.
 - **`**Docs:**`** — that the run performed its documentation pass, and in whose context. Read with
   `get docs`, written with `docs set <value>` and removed with `docs clear`. The `lite` playbook writes
   it for the pass it runs inline (ADR 0031); `/superdev:review` and `/superdev:document` read it to tell
@@ -293,6 +294,41 @@ scope with a green suite clears the record with
 `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js unresolved clear --root <run-root>`. Clearing is wholesale,
 never per-bullet: the run that clears has re-verified the whole scope. `unresolved clear` on a ledger
 carrying no such line succeeds and changes nothing.
+
+## Deferred findings
+
+A **deferred finding** is a review finding whose remedy would add a capability the Definition of Done
+never named (ADR 0035). `/superdev:review`'s fix loop changes how the code meets that Definition of Done,
+so such a remedy leaves the loop and goes to `/superdev:plan`. This record is what carries it there.
+
+It answers a third question, beside the two above: `## Degraded passes` says how much of the chain ran,
+`## Unresolved defects` says whether the branch is sound, and this one says what nobody has planned yet.
+A deferred finding is therefore **not** an unresolved defect — it holds no stage, starts no fix loop, and
+a verdict whose only remaining findings are deferred counts as clean.
+
+**The entry.** A `**Deferred:**` line in `<run-root>/ledger.md`, beside `**Stage:**`, carrying one bullet
+per deferred finding. Write each with
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js deferred add "<text>" --root <run-root>`, which creates the
+line when absent and appends when present. Each bullet names the finding, why no criterion covers it, and
+the date:
+
+```markdown
+**Stage:** reviewed
+**Deferred:**
+- carry a deferred finding into the pull-request body — no DoD criterion covers durability (2026-08-23)
+```
+
+A run with nothing deferred carries **no such line at all** — absent, never present and empty.
+
+**There is no `deferred clear`.** An unresolved defect stops being true the moment a run re-verifies the
+scope green, which is what earns that record its `clear`. Unplanned work stays unplanned until somebody
+plans it, so the bullet stands until the run ships and `/superdev:ship` copies it into the pull-request
+body, where a reader meets it. That absence is also why `/superdev:review` reads `get deferred` before it
+writes, and skips a finding the line already carries: every duplicate is permanent, and two paths reach
+one. Its fix loop repeats until the verdict is clean, so a finding still deferred re-appears in each
+re-review's report; and a second `/superdev:review` invocation on the same run — after a denied dispatch,
+or a maintainer picking the scope back up — starts with no memory of the first. Reading the line covers
+both, where writing "only on the first cycle" covers only the loop.
 
 ## The stage never moves backwards
 

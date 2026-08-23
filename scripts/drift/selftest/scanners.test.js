@@ -30,6 +30,7 @@ const {
   scanMarketplaceSource,
   scanReadmeCommands,
   scanAuditSetGlobs,
+  scanPinnedPaths,
 } = require('../scanners');
 const { ADR_STATUSES, DOC_PASS_CONTRACTS, PLAYBOOK_EDGE_CONTRACTS } = require('../contracts');
 
@@ -692,7 +693,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'a mechanism below a fenced `#` comment is still scanned',
   );
 
-  // an absent afk.md is skipped here; its existence is asserted in main()
+  // an absent afk.md is skipped here; its existence is asserted by `pinned-paths`
   assert.equal(
     scanAfkSelectionNeutrality(fixture({ 'README.md': '# repo\n' })).length,
     0,
@@ -1792,4 +1793,46 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // the real repository's own audit set resolves
   assert.equal(scanAuditSetGlobs(realRoot).length, 0, "this repo's audit-set patterns all resolve");
+
+  // --- scanPinnedPaths: every document a contract table pins still exists. `scanContract` skips a
+  // document it cannot read — the convention every fixture above depends on — so a table reports zero
+  // gaps once its document is renamed away, and all of `bun run test` stays green while the contract it
+  // asserted is gone. This is the one check that notices, and it collects the paths from the tables
+  // themselves rather than a hand-kept list, so a table added later is covered without touching it. ---
+
+  // the real repository: every pinned path resolves
+  assert.equal(scanPinnedPaths(realRoot).length, 0, 'every path the contract tables pin exists in this repo');
+
+  // positive: an empty tree — every pinned path is missing, and each gap names its own path
+  const ppEmpty = scanPinnedPaths(fixture({ 'README.md': '# r\n' }));
+  assert.ok(ppEmpty.length > 20, `an empty tree flags every pinned path (got ${ppEmpty.length})`);
+  assert.ok(
+    ppEmpty.every((g) => g.expectation.includes(g.source)),
+    'each gap names the path that went missing, so the reader does not grep for it',
+  );
+
+  // positive: `commands/afk.md` is among the paths this check collects, which is what lets the
+  // `afk-existence` special case go. Three tables pin that file, so the general rule now covers what
+  // that check was written to catch on its own.
+  assert.ok(
+    scanPinnedPaths(fixture({ 'README.md': '# r\n' })).some((g) => g.source === path.join('commands', 'afk.md')),
+    'commands/afk.md disappearing is still caught, now by the general check',
+  );
+
+  // positive: `READ_PATH_CONTRACTS`' second row pins `docs/agents/knowledge-base.md` with a `test()`
+  // function in row[1] rather than a `RegExp` — the shape the old `row[1] instanceof RegExp` gate
+  // could not see, so this document was one of the seven a whole-scope review found uncollected.
+  assert.ok(
+    scanPinnedPaths(fixture({ 'README.md': '# r\n' })).some(
+      (g) => g.source === path.join('docs', 'agents', 'knowledge-base.md'),
+    ),
+    'a document pinned by a test()-shaped row is still caught',
+  );
+
+  // positive: `CHECK_COUNT_CLAIMS` pins `scripts/AGENTS.md` with a String in row[1], another shape
+  // the old `instanceof RegExp` gate could not see.
+  assert.ok(
+    scanPinnedPaths(fixture({ 'README.md': '# r\n' })).some((g) => g.source === path.join('scripts', 'AGENTS.md')),
+    'a document pinned by a String-shaped row is still caught',
+  );
 };

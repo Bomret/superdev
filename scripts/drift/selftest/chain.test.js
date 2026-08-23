@@ -511,10 +511,14 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'Clear the doc record with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs clear --root <run-root>`.\n',
   });
   const uvReviewGaps = scanContract(uvReview, VERB_CONTRACTS);
-  assert.equal(uvReviewGaps.length, 2, 'flags review.md for dropping both unresolved verbs');
+  assert.equal(
+    uvReviewGaps.length,
+    3,
+    'flags review.md for dropping both unresolved verbs and `deferred add` (ADR 0035)',
+  );
   assert.ok(
     uvReviewGaps.every((g) => g.source === path.join('commands', 'review.md')),
-    'both gaps name review.md',
+    'all three gaps name review.md',
   );
 
   const uvImplement = fixture({
@@ -528,20 +532,49 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'both gaps name run-handoff.md',
   );
 
-  // negative: review.md carrying all five of its rows, including both unresolved verbs, is clean
+  // negative: review.md carrying all six of its rows — both unresolved verbs and `deferred add` — is clean
   const uvClean = fixture({
     [path.join('commands', 'review.md')]:
       'Write its stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set reviewed --root <run-root>`. ' +
       'Read the anchor title with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get anchor --root <run-root>`. ' +
       'Write it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add "<text>" --root <run-root>`. ' +
       'On a clean verdict, `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`. ' +
+      'A deferred finding goes to `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deferred add "<text>" --root <run-root>`. ' +
       'A fix cycle that committed also runs `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs clear --root <run-root>`.\n',
   });
   assert.equal(
     scanContract(uvClean, VERB_CONTRACTS).length,
     0,
-    'a review.md carrying all its verbs, including both unresolved ones, is clean',
+    'a review.md carrying all its verbs, including both unresolved ones and `deferred add`, is clean',
   );
+
+  // The deferred record's two halves, pinned separately (ADR 0035): the review writes the bullet and the
+  // ship reads it back for the pull-request body. Either half alone leaves a record nobody sees — an
+  // unwritten one, or one written and never carried — so each row is exercised on its own document.
+  {
+    const writeOnly = fixture({
+      'commands/review.md':
+        'Write its stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set reviewed --root <run-root>`. ' +
+        'Read the anchor with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get anchor --root <run-root>`. ' +
+        'Write it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add "<text>" --root <run-root>`. ' +
+        'On a clean verdict, `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`. ' +
+        'A fix cycle that committed runs `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs clear --root <run-root>`.\n',
+    });
+    const writeGaps = scanContract(writeOnly, VERB_CONTRACTS);
+    assert.equal(writeGaps.length, 1, 'a review.md with every other verb but no `deferred add` is flagged');
+    assert.match(writeGaps[0].expectation, /deferred add/, 'the gap names the verb it wants');
+
+    const readOnly = fixture({
+      'commands/ship.md':
+        'Read the stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>`. ' +
+        'Set it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set shipped --root <run-root>`. ' +
+        'Read them with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get unresolved --root <run-root>` and ' +
+        '`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get degraded --root <run-root>`.\n',
+    });
+    const readGaps = scanContract(readOnly, VERB_CONTRACTS);
+    assert.equal(readGaps.length, 1, 'a ship.md with every other read but no `get deferred` is flagged');
+    assert.match(readGaps[0].expectation, /get deferred/, 'the gap names the read it wants');
+  }
 
   // positive: ship.md drops the `scope.js get unresolved`/`get degraded` reads entirely, going back to
   // hand-reading the ledger (or the cwd-dependent `status`, which is the failure Important 2 closed)

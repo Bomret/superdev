@@ -189,7 +189,15 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   reviews against the result you hand it.
 - **The fix loop changes how the code meets the Definition of Done.** A finding whose remedy **adds a
   capability the Definition of Done never named** is recorded and handed to **`/superdev:plan`**: report it
-  under §3's `### Deferred to a plan` heading, name the follow-up command, and leave the scope as it is.
+  under §3's `### Deferred to a plan` heading, name the follow-up command, write it to the run with
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deferred add "<text>" --root <run-root>`, and leave the
+  scope as it is. Write the ledger entry once per finding: **read `scope.js get deferred` first and skip a
+  finding it already reports.** `deferred add` carries no `clear` counterpart, so every duplicate is
+  permanent, and two paths reach it — a later fix cycle whose re-review returns the same still-deferred
+  finding, and a second `/superdev:review` invocation on the same run, which remembers nothing of the
+  first. The read covers both, where "only on the first cycle" covers one. The report is this conversation and the ledger outlives it, which is what
+  carries the finding to the pull request `/superdev:ship` opens (ADR 0035). An ad-hoc range has no run
+  root: report it and write nothing.
   Repairing a defect in what the Definition of Done *does* name stays in this loop, and such a repair is
   often behavioural — a missing guard, an unhandled failure mode, a wrong branch. That is the line: not
   "behaviour", but whether the plan asked for it (ADR 0035). A remedy the review builds here is one the

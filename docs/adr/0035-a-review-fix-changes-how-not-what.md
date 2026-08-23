@@ -31,9 +31,11 @@ Definition of Done does name stays inside the loop, and such a repair is frequen
 missing guard, a wrong branch, an unhandled failure mode. What leaves the loop is a capability nobody
 planned, however good an idea it is.
 
-"Recorded" is a `### Deferred to a plan` heading in the review's own report, one line per finding with the
-follow-up command beside it. The run state gains no new field: the ledger's `**Unresolved:**` line is for
-defects the run leaves standing, and a capability nobody planned is not one.
+"Recorded" is two places at once: a `### Deferred to a plan` heading in the review's own report, one line
+per finding with the follow-up command beside it, and a `**Deferred:**` bullet in the run's ledger that
+`/superdev:ship` copies into the pull-request body. The ledger's `**Unresolved:**` line is not that
+record — it is for defects the run leaves standing, and a capability nobody planned is not one, so the
+deferred finding gets a line of its own rather than overloading that one.
 
 Three drift rows pin the boundary — the "changes how" framing, the hand-off destination, and the exit
 clause a deferred finding needs so `--unattended → fix` and the clean-verdict check both treat it as
@@ -58,11 +60,16 @@ would be the same one-sided pin this decision's companion rule exists to prevent
 ## Consequences
 
 A review that finds a real gap outside the plan now produces a smaller change and a follow-up, instead of
-a larger change and a longer review. The recorded gap may never be built, which is the cost this accepts:
-the record lives only in the review's own report, not in any tracker, and survives past that report only
-if the operator reads it and runs `/superdev:plan`. That is weaker than "visible in the tracker" — a
-deferred finding that nobody acts on leaves no trace anywhere else, which is the gap this decision accepts
-rather than closes.
+a larger change and a longer review. The recorded gap may never be built, which is the cost this accepts.
+
+The record itself is durable. `/superdev:review` writes each deferred finding to the ledger's
+`**Deferred:**` line (`scope.js deferred add`), and `/superdev:ship` copies every bullet into the
+pull-request body under its own heading — so the finding reaches the reader who decides what to build
+next, rather than ending with the conversation that found it. The first version of this decision left the
+record in the review's report alone and named that a cost; the record above is what closed it, and
+`references/scope-mode.md`'s `## Deferred findings` section states its shape. What remains true is the
+softer cost: a follow-up in a pull-request body is a prompt, not a plan, and nothing builds it until
+somebody runs `/superdev:plan`.
 
 The boundary needs judgment at exactly one seam — whether a finding names a defect in planned behaviour or
 asks for unplanned behaviour — and prose is what carries that judgment. If the boundary misfires in either

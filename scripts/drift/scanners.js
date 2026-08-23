@@ -9,6 +9,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { docPath, readDoc, storeDocuments, extractSection, scalar, frontmatter, normalizeWhitespace } = require('./lib');
+const contracts = require('./contracts');
 const {
   NARRATIVE_DOC,
   CHECK_COUNT_CLAIMS,
@@ -58,7 +59,7 @@ const {
   HOOK_HEADER_REGEX,
   RETURN_TO_CONTROLLER_DOCS,
   RETURN_TO_CONTROLLER_PATTERNS,
-} = require('./contracts');
+} = contracts;
 
 // scan() is pure over a root dir so it's unit-testable: reads commands/*.md, agents/*.md and
 // references/*.md, extracts every referenced references/<name>.md, and reports the ones that don't
@@ -194,7 +195,8 @@ function scanReleaseContract(root) {
 
 // scanAfkSelectionNeutrality() is pure over a root dir: reads `commands/afk.md`, isolates the selection
 // section, and reports every store mechanism it names. An absent file or a missing section yields nothing
-// — `commands/afk.md`'s existence is asserted separately in main().
+// — `commands/afk.md`'s existence is asserted by the `pinned-paths` check, which collects every path the
+// contract tables pin (three of them pin this file).
 function scanAfkSelectionNeutrality(root) {
   const gaps = [];
   let text;
@@ -485,6 +487,69 @@ const scanKbNoBackendCall = (root) =>
   scanDocsAvoid(root, KB_NO_CALL_DOCS, KB_BACKEND_CALL_MARKERS.map(([pattern, what]) =>
     [pattern, () => `reach no knowledge-base backend — it still carries ${what}`]));
 
+// Every document a contract table pins still exists. `scanContract()` skips a document it cannot read —
+// the convention that lets a fixture carry only the files one assertion exercises, and lets a partial
+// checkout fail nothing — so a table reports zero gaps the moment its document is renamed or deleted, and
+// every check stays green while the contract it asserted is gone. Verified before this check existed:
+// `FIX_BOUNDARY_CONTRACTS` against a tree with no `commands/review.md` returned no gaps at all.
+//
+// The paths come from the tables themselves rather than a list kept beside them, so a table added later is
+// covered without anyone remembering to. `collectPinnedPaths()` recurses every exported value — arrays,
+// plain objects (a row's `test()`-shaped second element), and strings — because a document is pinned in
+// more shapes than `[relPath, RegExp, expectation]`: `READ_PATH_CONTRACTS`'s second row carries a `test()`
+// function instead of a `RegExp`, `CHECK_COUNT_CLAIMS`'s rows carry a String template, and `RUN_ROOT_DOCS`
+// / `CONTENT_TYPES_DOCS` are bare path lists with no row shape at all. Gating on shape (`row[1] instanceof
+// RegExp`) missed exactly those; gating on a path-shaped string instead — one ending in `.md`, `.json`, or
+// `.js` — catches all of them, and a path-shape predicate still won't misreport a row whose first element
+// is a heading rather than a path. A `Set` is deliberately excluded from the recursion: every `Set` in
+// this file holds a membership value (`ASSIGNEE_EXEMPT`'s bare filename, `AFK_NAMES`'s bare verb), not a
+// document this scanner should assert exists — `ASSIGNEE_EXEMPT`'s bare `issue-tracker-local.md` has no
+// root-level file to resolve to, so recursing into it would report the real
+// `references/issue-tracker-local.md` as missing.
+//
+// This holds the slot the `afk-existence` check held, which asserted `commands/afk.md` alone on the
+// stated grounds that nothing else in the plugin names `/superdev:afk` — already false when written:
+// `commands/implement.md` names it too, and `command-resolution` already resolves every `/superdev:`
+// reference under `commands/`, so it already caught that file's deletion. Three contract tables also
+// pin `commands/afk.md` directly, so the general rule here covers it a second way.
+//
+// ponytail: shape-based, and its ceiling is the extension whitelist and the two container shapes it
+// recurses (arrays, plain objects). A future table that pins a path with no `.md`/`.json`/`.js`
+// extension, as an object key instead of a value, or inside a `Map`, goes uncollected — silently,
+// since `scanPinnedPaths` only ever reports a path it found. Measured clean against every table this
+// file exports today; widen the whitelist or the recursion the day a table needs one of those shapes.
+const PATH_SHAPE = /\.(?:md|json|js)$/;
+
+function collectPinnedPaths(value, pinned) {
+  if (typeof value === 'string') {
+    if (PATH_SHAPE.test(value)) pinned.add(value);
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) collectPinnedPaths(item, pinned);
+    return;
+  }
+  if (value && typeof value === 'object' && !(value instanceof RegExp) && !(value instanceof Set)) {
+    for (const item of Object.values(value)) collectPinnedPaths(item, pinned);
+  }
+}
+
+function scanPinnedPaths(root) {
+  const pinned = new Set();
+  for (const value of Object.values(contracts)) collectPinnedPaths(value, pinned);
+  const gaps = [];
+  for (const rel of [...pinned].sort()) {
+    if (fs.existsSync(docPath(root, rel))) continue;
+    gaps.push({
+      source: rel,
+      expectation:
+        `exist — a contract table pins \`${rel}\`, and scanContract() skips a document it cannot read, so ` +
+        'every row on it passes vacuously while the contract is gone',
+    });
+  }
+  return gaps;
+}
+
 // The two chain steps after the review, and the writer the first of them dispatches, instruct no
 // full-suite run of their own (ADR 0025). `agents/final-reviewer.md` joins the same silence list for a
 // different reason: it must never re-grow the optional live-scope re-run its own dispatch sentence
@@ -733,6 +798,7 @@ module.exports = {
   scanShipGateContract,
   scanUnresolvedGlossaryContract,
   scanKbNoBackendCall,
+  scanPinnedPaths,
   scanDocStepsNoSuite,
   scanHookLedgerParsers,
   scanForcingBranchFlag,

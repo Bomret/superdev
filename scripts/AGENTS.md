@@ -18,8 +18,8 @@ This doc owns what each script guards and the contracts between them. Repo-wide 
 ### scope.js, the run-state CLI (ADR 0022)
 
 `scope.js` owns the ledger's schema and is the only `ledger.md` read and write path in the chain:
-`init`, `stage set`, `slice`, `degraded add`, `unresolved add|clear`, `docs set <value>|clear`,
-`get stage|branch|anchor|slices|unresolved|degraded|docs`, and `status`
+`init`, `stage set`, `slice`, `degraded add`, `unresolved add|clear`, `deferred add`,
+`docs set <value>|clear`, `get stage|branch|anchor|slices|unresolved|degraded|deferred|docs`, and `status`
 (which renders the whole `/superdev:status` report). It also exports `readLedgerHeader` as a module
 API. This per-header ledger-line reader is what `hooks/scope-prune.js` uses instead of carrying its
 own regex. The API guards its CLI entry with `require.main === module`, so a `require` for that
@@ -32,8 +32,10 @@ an LF one does. A lone `\r`, the classic-Mac line ending, reads as absent, and t
 Any verb that writes the file normalises it back to LF. A scope whose ledger stage reads `shipped`
 collapses to one line, `<scope>  (shipped)`. It drops the slice tally and the blocked list.
 `hooks/scope-prune.js` (ADR 0007) is about to reap that run root, so per-slice detail is no longer
-work in flight. Its `**Degraded:**` line, its `**Unresolved:**` line, and its staged-page lines
-survive the collapse, because each is otherwise recorded nowhere else.
+work in flight. Its `**Degraded:**` line, its `**Unresolved:**` line, its `**Deferred:**` line, and its
+staged-page lines survive the collapse, because each is otherwise recorded nowhere else. `deferred add`
+carries no `clear` counterpart: a defect stops being true once a run re-verifies the scope green, while
+unplanned work stays unplanned until somebody plans it (ADR 0035).
 
 `status` also reports every scope's **staged knowledge-base pages** under `.superdev/kb-pending/`
 (ADR 0023): a `pending publish:` line per scope, a scope with no run root under `(no ledger)`, a
@@ -153,7 +155,7 @@ The checks named below are the exceptions, and every other one is a **drift asse
 restated fact against its source. `forcing-branch-flag`, `kb-no-backend-call`, `no-second-reader`, and
 `return-to-controller` are **negative** assertions. Each reports a document that still says something,
 rather than one that stopped saying it. `eval-shape` and `adr-status` compare a document against a
-**schema**. `afk-existence` and `marketplace-source` are plain **existence** assertions.
+**schema**. `pinned-paths` and `marketplace-source` are plain **existence** assertions.
 
 The exceptions are named and the rule covers the rest, deliberately. This sentence used to enumerate
 every drift assertion by id, and it fell behind at five separate additions, because a list of forty is
@@ -386,8 +388,24 @@ that reached a whole-scope review before ADR 0027 pinned it. `docs/agents/knowle
 conditional rather than a bare pattern: it documents a call returning the page body only when it marks
 some outline entry `(aggregate)`, so a config document that marks none owes no read, and the row is
 implemented as a `test()` function rather than a literal `RegExp` to express that. Thirty-first,
-the `afk-existence` contract: `commands/afk.md` exists at all. Nothing else in the plugin names
-`/superdev:afk` for the eighth check to resolve, so its absence would otherwise go unnoticed.
+the `pinned-paths` contract, `scanPinnedPaths()`: every document a contract table pins still exists.
+`scanContract()` skips a document it cannot read — the convention that lets a fixture carry only the files
+one assertion exercises, and lets a partial checkout fail nothing — so a table reports zero gaps the
+moment its document is renamed or deleted, and the whole suite stays green while the contract it asserted
+is gone. Measured before this check existed: `FIX_BOUNDARY_CONTRACTS` against a tree with no
+`commands/review.md` returned no gaps at all. It collects the paths from the tables themselves rather than
+a list kept beside them, so a table added later is covered without anyone remembering to, and each gap
+names the path that went missing. That collection is shape-based, not exhaustive: it recurses every
+exported array, plain object, and string, keeping the ones ending `.md`, `.json`, or `.js`, so a future
+table that pins a path with none of those extensions, as an object key instead of a value, or inside a
+`Map`, goes uncollected without either check going red — measured clean against every table this file
+exports today. It holds the slot the `afk-existence` check held, which asserted
+`commands/afk.md` on its own. That check's stated reason — nothing else in the plugin names
+`/superdev:afk` — was already false when it was written: nine plugin documents name the command, and
+`commands/implement.md` is one of them, so the eighth check (`command-resolution`) already resolves
+`/superdev:afk` there and already catches the file's deletion. Three contract tables also pin
+`commands/afk.md` directly, so the general rule covers it a second way, and the special case went — in
+place rather than appended, because appending would have renumbered every ordinal below.
 Thirty-second, the `eval-shape` contract: every
 `evals/*/graders/*.md` declares a known `type` and a positive `weight`, an `llm` or `regex`
 grader also declares a `focus` or `target`, and every case's `scaffold_script` resolves. Nothing
@@ -642,10 +660,11 @@ successor at all.
   gone and stays green while it is still there. Write the ceiling down next to the patterns for one of
   these — a `ponytail:` comment naming it is the house idiom — or every reviewer who finds one more
   evadable phrasing reports a defect, and the guard grows by discovery instead of by decision. The
-  convention governs six checks of this shape: `doc-steps-no-suite`, `forcing-branch-flag`,
-  `kb-no-backend-call`, `no-second-reader`, `return-to-controller`, and `afk-selection-neutrality`. Only
-  `doc-steps-no-suite` carries the worked example today; the other five still owe the note, and a
-  maintainer touching one of them adds it. A **presence table** — the document must say X, one row per
+  convention governs six checks of this shape, and all six carry their note: `doc-steps-no-suite`,
+  `forcing-branch-flag`, `kb-no-backend-call`, `no-second-reader`, `return-to-controller`, and
+  `afk-selection-neutrality`. A seventh of this shape adds its own. `no-second-reader`'s reads differently
+  from the rest on purpose: its gap is closed by an orphan test in `hooks/scope-prune.js --selftest`
+  rather than left open, and the note says so instead of claiming a ceiling it does not have. A **presence table** — the document must say X, one row per
   `[document, pattern, expectation]` — needs no such note: a paraphrase it doesn't recognize fails
   *loudly*, the row goes red until the pattern catches up, so the presence tables in `drift/contracts.js`
   (`FIX_BOUNDARY_CONTRACTS` among them) carry none.

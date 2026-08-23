@@ -105,7 +105,7 @@ function docPath(root, ...rel) {
 // readDoc(): one document's text, or null when it is not there. Every check skips a document it cannot
 // read, so a fixture carries only the files it exercises and a partial checkout fails nothing. That
 // convention is the reason no scanner may treat an absent file as a gap — the one exception is asserted
-// on its own, as the afk-existence check.
+// on its own, as the pinned-paths check.
 function readDoc(root, rel) {
   try {
     return fs.readFileSync(docPath(root, rel), 'utf8');

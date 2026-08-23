@@ -143,6 +143,10 @@ const LOCAL_CONTINUATION_ELEMENT = [
 // command may legitimately discuss an epic as a domain concept; what it may not do is *test* for one.
 const AFK_SELECTION_HEADING = /^## 2\..*$/m;
 
+// ponytail: shape-based, and its ceiling is the mechanism vocabulary below. A store mechanism named in
+// words no row carries ("the umbrella ticket", "the parent story") reads as neutral prose to this check.
+// The `## Scope anchor` presence half covers the other failure — a selection step that states nothing at
+// all — so what remains uncovered is a paraphrase, which is a reviewer's catch.
 const STORE_MECHANISMS = [
   // One epic row, not two. `\bepic\b` covers the local store's `00-epic-` filename as well as the
   // `epic` label, so a separate `/00-epic/` row would report the same sentence twice. It is
@@ -497,6 +501,12 @@ const VERB_CONTRACTS = [
   [path.join('commands', 'ship.md'), /scope\.js["'`]?\s+stage set shipped\b/, 'set the terminal stage with `scope.js stage set shipped`'],
   [path.join('commands', 'ship.md'), /scope\.js["'`]?\s+get unresolved\b/, 'read the unresolved-defect record with `scope.js get unresolved`, never through cwd-dependent `status`'],
   [path.join('commands', 'ship.md'), /scope\.js["'`]?\s+get degraded\b/, 'read the degrade record with `scope.js get degraded`, never through cwd-dependent `status`'],
+  // ADR 0035's two-document agreement on the deferred record. A `/superdev:review` that stops writing it
+  // leaves the finding in chat output alone, which is the durability gap the record exists to close; a
+  // `/superdev:ship` that stops reading it writes a pull-request body missing the one item nobody has
+  // planned yet. Either half alone reads correct, and the ledger keeps a bullet no reader ever sees.
+  [path.join('commands', 'review.md'), /scope\.js["'`]?\s+deferred add\b/, 'record a deferred finding with `scope.js deferred add`'],
+  [path.join('commands', 'ship.md'), /scope\.js["'`]?\s+get deferred\b/, 'read the deferred-finding record with `scope.js get deferred`, never through cwd-dependent `status`'],
   [path.join('commands', 'status.md'), /scope\.js["'`]?\s+status\b/, 'produce the report with `scope.js status` and print it verbatim'],
   [path.join('commands', 'afk.md'), /scope\.js["'`]?\s+get stage\b/, 'read a run\'s stage with `scope.js get stage`'],
   [path.join('references', 'implement-full.md'), /scope\.js["'`]?\s+slice\b/, 'move slice rows with `scope.js slice`'],
@@ -814,6 +824,10 @@ const KB_NO_CALL_DOCS = [
 
 const KB_OBJECT = 'pages?|wiki|space|backend';
 
+// ponytail: shape-based, and its ceiling is the verb morphology below plus the backends named there.
+// A call phrased with a verb no row carries ("hand the page to Confluence", "sync the wiki"), or one
+// naming a backend added later, passes silently. The staging convention (ADR 0023) is what makes that
+// tolerable: a document reaching a backend has to also stop staging, and `kb-staging` catches that half.
 const KB_BACKEND_CALL_MARKERS = [
   // "publish-kb" is the command name, not the verb — excluded so naming `/superdev:publish-kb` never
   // trips this on its own.
@@ -848,6 +862,10 @@ const KB_BACKEND_CALL_MARKERS = [
 // template literal or a single-quoted string as `\\*\\*` in the file. Do not harden the pattern to catch
 // those — the orphan test already covers what it misses, in that hook. A second hook growing a reader
 // of its own is covered by neither, and needs its own orphan test.
+// ponytail: a literal-shape tripwire, and the comment above already names what it misses — a reader
+// built from `split('\n')` and `indexOf('**Stage:**')` carries no regex for this to see. That gap is
+// deliberate rather than unclosed: `hooks/scope-prune.js --selftest`'s orphan test exercises the real
+// reader against real input and fails the moment a hook stops using it, which is the guard that holds.
 const HOOK_HEADER_REGEX = /\\+\*\\+\*[^\n]{0,60}:\\+\*\\+\*/;
 
 // ADR 0025: every run inside the TDD/inline loop is focused, and `references/test-selection.md` owns the
@@ -1258,6 +1276,11 @@ const FORCING_FLAG_DOCS = [
   path.join('references', 'implement-full.md'),
   path.join('references', 'implement-lite.md'),
 ];
+// ponytail: shape-based, and its ceiling is the three spellings below. `git switch -C`,
+// `git checkout -B`, and `worktree add -B` are the forcing flags the playbooks could plausibly reach for;
+// a reset spelled another way (`git branch -f`, `update-ref`, a `reset --hard` onto the base) walks past.
+// Widening this is cheap when a fourth spelling shows up in review — guessing at every reset git can
+// express is not, and ADR 0028's real guarantee is the prose these patterns keep honest.
 const FORCING_FLAG_PATTERNS = [
   /git\s+switch\s+(?:-C|--force-create)\b/,
   /git\s+checkout\s+-B\b/,
@@ -1433,6 +1456,10 @@ const PATH_VERBS = ['return\\s+to', 'resume\\s+at', 'continue\\s+in', HAND_BACK_
 // Up to two `` ` `` or `*` markdown markers, optionally "the ", then up to two more — covers "the
 // controller", "`commands/implement.md`", and "**Final phase**" alike between the verb and its target.
 const RETURN_CONNECTOR = '[`*\\s]*(?:the\\s+)?[`*\\s]*';
+// ponytail: shape-based over a verb list crossed with a target list, so its ceiling is that cross
+// product. A playbook that sends the reader back in words no row spells ("pick up where the command
+// left off", "the caller resumes from here") passes. The verb and target lists are the place to widen it
+// when review finds a phrasing they miss.
 const RETURN_TO_CONTROLLER_PATTERNS = [
   ...RETURN_VERBS.flatMap((verb) =>
     PROSE_TARGETS.map((target) => new RegExp(`\\b(?:${verb})${RETURN_CONNECTOR}${target}`, 'i')),

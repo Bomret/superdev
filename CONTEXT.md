@@ -149,8 +149,8 @@ _Avoid: "quality note", "improvement suggestion", "nit" (a ceiling note describe
 **Deferred finding**: a fix-loop finding whose remedy adds a capability the Definition of Done never
 named. It starts no fix loop, holds no run stage, and is not an **Unresolved defect**. The scope review
 records it under its report's `### Deferred to a plan` heading instead and hands it to `/superdev:plan`.
-The record lives only in that report: nothing tracks it elsewhere. It survives past the report only if
-the operator reads it and runs the planning command (ADR 0035).
+The run's ledger carries it as a `**Deferred:**` bullet, which `/superdev:ship` copies into the
+pull-request body under its own heading. That is what outlives the review's own conversation (ADR 0035).
 _Avoid: "scope growth", "out-of-scope finding" (the point is the DoD boundary, not that the finding is
 unwelcome or off-topic)_
 

@@ -2,7 +2,7 @@
 'use strict';
 
 // scope.js: the run-state CLI (ADR 0022). Owns every ledger.md write and read in the chain.
-// Verbs: init, stage, slice, degraded, unresolved, get, status. Exit nonzero with a one-line stderr
+// Verbs: init, stage, slice, degraded, unresolved, deferred, get, status. Exit nonzero with a one-line stderr
 // reason on any refusal. hooks/ledger-guard.js makes this the only ledger write path.
 
 const fs = require('fs');
@@ -140,7 +140,7 @@ function readLedgerHeader(content, name) {
 // The bullet list under a header line, if any: `**Degraded:**` (scope-mode `## Degraded passes`) and
 // `**Unresolved:**` (`## Unresolved defects`) carry one each, in the same shape. Read by both status
 // branches below — an in-flight scope prints them inline with its tally, a shipped one prints them
-// alone — and by `get degraded`/`get unresolved`.
+// alone — and by `get degraded`/`get unresolved`/`get deferred`.
 function readBullets(lines, name) {
   const at = lines.findIndex((l) => headerRe(name).test(l));
   const bullets = [];
@@ -351,6 +351,16 @@ function verbUnresolved(root, sub, text) {
   addBullet(root, 'Unresolved', 'unresolved', text);
 }
 
+// `**Deferred:**` carries a finding `/superdev:review` handed to `/superdev:plan` rather than fixed: its
+// remedy would add a capability the Definition of Done never named (ADR 0035). It has no `clear`, unlike
+// the unresolved record it otherwise mirrors — a defect stops being true once a run re-verifies clean,
+// while unplanned work stays unplanned until somebody plans it, so there is nothing for a later step to
+// discover and undo.
+function verbDeferred(root, sub, text) {
+  if (sub !== 'add') fail(`unknown deferred subcommand "${sub}" — use add`);
+  addBullet(root, 'Deferred', 'deferred', text);
+}
+
 // `**Docs:**` records that a run performed its documentation pass in the controller's own context
 // rather than through a dispatched doc-writer (ADR 0031). `/superdev:document` reads it to skip that
 // dispatch; `/superdev:review` clears it when its fix loop lands commits, because those commits made the
@@ -398,17 +408,18 @@ function verbGet(root, field) {
     }
     return;
   }
-  if (field === 'unresolved' || field === 'degraded') {
-    // The read half of `unresolved add`/`degraded add`: every bullet, one per line, so a caller
-    // (`/superdev:ship`'s gate and its pull-request body step) never has to split a joined string back
-    // apart — a bullet containing a comma stays intact this way, unlike `status`'s `, `-joined line.
+  const bulletFields = { unresolved: 'Unresolved', degraded: 'Degraded', deferred: 'Deferred' };
+  if (bulletFields[field]) {
+    // The read half of `unresolved add`/`degraded add`/`deferred add`: every bullet, one per line, so a
+    // caller (`/superdev:ship`'s gate and its pull-request body step) never has to split a joined string
+    // back apart — a bullet containing a comma stays intact this way, unlike `status`'s `, `-joined line.
     const lines = readLines(root);
-    for (const b of readBullets(lines, field === 'unresolved' ? 'Unresolved' : 'Degraded')) console.log(b);
+    for (const b of readBullets(lines, bulletFields[field])) console.log(b);
     return;
   }
   const names = { stage: 'Stage', branch: 'Branch', anchor: 'Anchor', docs: 'Docs' };
   const name = names[field];
-  if (!name) fail(`unknown field "${field}" — use stage|branch|anchor|docs|slices|unresolved|degraded`);
+  if (!name) fail(`unknown field "${field}" — use stage|branch|anchor|docs|slices|unresolved|degraded|deferred`);
   const v = getHeader(readLines(root), name);
   console.log(v === null ? 'absent' : v);
 }
@@ -527,17 +538,20 @@ function verbStatus(cwd) {
       // A shipped scope is finished with, and `hooks/scope-prune.js` reaps its run root once the TTL
       // elapses (ADR 0007). It is not work in flight, so it collapses to one line here rather than
       // carrying a tally through a report that exists to show what is still moving. Its degrade record,
-      // unresolved-defect record, and staged-page lines are the deliberate exceptions below: a degraded
-      // pass is otherwise recorded only in the pull-request body, which the same prune outlives it by
-      // (scope-mode `## Degraded passes`); an unresolved defect the same way (`## Unresolved defects`);
-      // and a page nobody publishes is invisible everywhere else (ADR 0023) — a shipped scope is exactly
-      // where any of them waits.
+      // unresolved-defect record, deferred-finding record, and staged-page lines are the deliberate
+      // exceptions below: a degraded pass is otherwise recorded only in the pull-request body, which the
+      // same prune outlives it by (scope-mode `## Degraded passes`); an unresolved defect the same way
+      // (`## Unresolved defects`); a deferred finding likewise, and it is the one record naming work
+      // nobody has planned yet (ADR 0035); and a page nobody publishes is invisible everywhere else
+      // (ADR 0023) — a shipped scope is exactly where any of them waits.
       if (stage === 'shipped') {
         out.push(`${scope}  (shipped)`);
         const shippedDegraded = readBullets(lines, 'Degraded');
         if (shippedDegraded.length) out.push(`  degraded: ${shippedDegraded.join(', ')}`);
         const shippedUnresolved = readBullets(lines, 'Unresolved');
         if (shippedUnresolved.length) out.push(`  unresolved: ${shippedUnresolved.join(', ')}`);
+        const shippedDeferred = readBullets(lines, 'Deferred');
+        if (shippedDeferred.length) out.push(`  deferred: ${shippedDeferred.join(', ')}`);
         pushPendingAndStrays(scope);
         continue;
       }
@@ -585,8 +599,9 @@ function usage() {
     '  slice <id> <status> [--range <r>]   --root <run-root>',
     '  degraded add <text>   --root <run-root>',
     '  unresolved add <text>|clear   --root <run-root>',
+    '  deferred add <text>   --root <run-root>',
     '  docs set <value>|clear   --root <run-root>',
-    '  get stage|branch|anchor|docs|slices|unresolved|degraded --root <run-root>',
+    '  get stage|branch|anchor|docs|slices|unresolved|degraded|deferred --root <run-root>',
     '  status                             scans <cwd>/.superdev/scopes/*/',
   ].join('\n');
 }
@@ -634,6 +649,11 @@ function run(argv, cwd, stdinJson) {
     case 'unresolved': {
       const root = takeRoot(args);
       verbUnresolved(root, args[0], args.slice(1).join(' '));
+      break;
+    }
+    case 'deferred': {
+      const root = takeRoot(args);
+      verbDeferred(root, args[0], args.slice(1).join(' '));
       break;
     }
     case 'docs': {
@@ -952,6 +972,50 @@ function selftest() {
       'both bullets under one line'
     );
 
+    // deferred: the third record of this shape (ADR 0035). Creates the line when absent, appends when
+    // present, exactly as degraded and unresolved do. It carries no `clear`: a deferred finding is not a
+    // defect a re-verified run can wave away, and it stays true until somebody plans it.
+    assert.ok(call(['deferred', 'add', 'carry deferrals into the pull-request body (2026-08-23)', ...R]).ok, 'deferred add creates');
+    assert.ok(call(['deferred', 'add', 'second deferred finding (2026-08-23)', ...R]).ok, 'deferred add appends');
+    const defer = fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
+    assert.ok(
+      /\*\*Deferred:\*\*\n- carry deferrals into the pull-request body \(2026-08-23\)\n- second deferred finding \(2026-08-23\)/.test(defer),
+      'both deferred bullets under one line'
+    );
+    assert.strictEqual(
+      call(['get', 'deferred', ...R]).out,
+      'carry deferrals into the pull-request body (2026-08-23)\nsecond deferred finding (2026-08-23)',
+      'get deferred prints one bullet per line'
+    );
+
+    // deferred add: a newline and an empty text are refused, and neither writes — the same two
+    // refusals every bullet record makes, for the same reason.
+    {
+      const before = fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
+      let d = call(['deferred', 'add', 'line one\nline two', ...R]);
+      assert.ok(!d.ok && /newline/.test(d.err), 'deferred add with a newline refused: ' + d.err);
+      d = call(['deferred', 'add', '', ...R]);
+      assert.ok(!d.ok && /needs the bullet text/.test(d.err), 'deferred add with no text refused');
+      assert.strictEqual(fs.readFileSync(path.join(root, 'ledger.md'), 'utf8'), before, 'nothing written on either refusal');
+    }
+
+    // deferred: an unknown subcommand refuses, naming the one that exists — `clear` is not among them.
+    {
+      const d = call(['deferred', 'clear', ...R]);
+      assert.ok(!d.ok && /unknown deferred subcommand.*add/.test(d.err), 'deferred clear refused, naming add: ' + d.err);
+    }
+
+    // get deferred: a ledger written before this record existed reports absent rather than failing,
+    // the way every other header does for a pre-CLI ledger.
+    {
+      const preRoot = path.join(tmp, '.superdev', 'scopes', 'deferred-absent');
+      fs.mkdirSync(preRoot, { recursive: true });
+      fs.writeFileSync(path.join(preRoot, 'ledger.md'), '# Ledger — deferred-absent\n\n**Stage:** merged\n', 'utf8');
+      const d = call(['get', 'deferred', '--root', preRoot]);
+      assert.ok(d.ok, 'get deferred on a ledger with no such line succeeds');
+      assert.strictEqual(d.out, '', 'and prints nothing');
+    }
+
     // get unresolved / get degraded: one bullet per line, mirroring `get slices`.
     assert.strictEqual(
       call(['get', 'degraded', ...R]).out,
@@ -1179,6 +1243,12 @@ function selftest() {
     assert.ok(
       st.out.includes('  degraded: first pass degraded (2026-08-06), second pass degraded (2026-08-06)'),
       "a shipped scope's degrade record survives the collapse: " + st.out
+    );
+    // Its deferred-finding record survives for the same reason, and one reason more: it is the only
+    // record naming work nobody has planned yet (ADR 0035), so the reap takes the last copy with it.
+    assert.ok(
+      st.out.includes('  deferred: carry deferrals into the pull-request body (2026-08-23), second deferred finding (2026-08-23)'),
+      "a shipped scope's deferred record survives the collapse: " + st.out
     );
     assert.ok(st.out.includes('precli  (1 slices, stage: reviewed)'), 'status shows pre-CLI scope');
     assert.ok(st.out.includes('broken: ledger unreadable'), 'unreadable ledger reported');
