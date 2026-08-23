@@ -185,6 +185,9 @@ _Avoid: "drift assertion" (a drift assertion compares a restated fact against it
 **Arm**: one of the two runs an eval case produces from the same prompt, the same scaffold, and the same graders. The **plugin arm** loads superdev, and the **baseline arm** loads nothing. The single difference between them is what the delta measures, so a baseline arm that reaches an installed copy of the plugin destroys the case rather than weakening it.
 _Avoid: "run" (a case runs each arm several times, and the runs sit inside an arm), "variant", "control" or "treatment" alone (name which arm)_
 
+**Prose ablation**: a pair of whole eval runs of one case, whose plugin arms differ by a single edit to the plugin's own prose, read plugin arm against plugin arm. It is how a contested instruction is settled by running the document rather than by argument. The runner knows nothing of it: the toggle is a manual edit between two ordinary invocations, and the baseline arm runs in both and is ignored (ADR 0038).
+_Avoid: "arm" (an arm sits inside one run, and a prose ablation spans two), "variant" (the same reason the Arm entry rejects it), "A/B" alone (every case is already an A/B against no plugin)_
+
 **Eval runner**: `scripts/eval-run.js`, the standalone script that reads `evals/*/case.yaml`, spawns `claude -p` per arm with a throwaway `HOME` and a subscription token, grades the captured transcript and diff against `graders/*.md`, and reports the per-grader delta. `bun run eval` invokes it. It reads the same case and grader files as `claude plugin eval`, which stays available for a key-funded cross-check (ADR 0024).
 _Avoid: "the harness" (that names `claude plugin eval`, the other reader of the same files), "eval command", "test runner" (`bun run test` is a different thing)_
 
