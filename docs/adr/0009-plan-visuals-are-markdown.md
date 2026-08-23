@@ -1,6 +1,9 @@
 # 0009: A plan's visuals live in the markdown epic, not a rendered artifact
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0036](0036-the-plan-sketches-its-design-before-it-decomposes.md), which keeps the
+epic's markdown visuals and adds a throwaway HTML design sketch for the plan's author.
 
 **Context.** A plan's dependency structure is real data, because `id` and `depends-on` form a DAG. The epic
 renders it as a numbered list the reader has to topologically sort in their head. Tools in this space

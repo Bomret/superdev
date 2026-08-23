@@ -89,6 +89,12 @@ _Avoid: "the DAG" (that is the dependency structure itself, which exists whether
 **Touch map**: the epic's `## Touch map` section, a plain-text file tree marking which slices touch which files, and where slices that run in parallel collide. Evidence for the dependency order, not an instruction: no slice `spec` names file paths, and no reviewer gates on it.
 _Avoid: "file map" (too generic, because the collisions are the point), "impact analysis"_
 
+**Design sketch**: the throwaway HTML page `/superdev:plan` writes before it decomposes, inventorying the components a plan intends to add, change, or delete and the interactions between them. Written only when the operator asks for one, at `.superdev/design/<slug>.html`, git-ignored and overwritten per feature slug. The step waits for the operator's approval, so a design the operator did not expect is corrected while correcting it is still free. It never reaches the epic or the pull request, and `/superdev:document` never reconciles it (ADR 0036).
+_Avoid: "plan preview" (it shows the design, not the plan, which is what the §5 quiz presents), "architecture diagram" (it is per-plan and throwaway, where that names a standing picture of the whole system), "slice graph" (that draws the dependency DAG, and this draws the components)_
+
+**Component**: a unit of a repository that acts — a module, a class, a command file, a hook, a service — named in the implementation language's own terms rather than a superdev word. What a **Design sketch** inventories. Distinct from a **Domain shape**, which is data the code declares rather than a unit that does something; a component's sketch card may name the shapes it introduces, and omits that line in a repository whose language has none.
+_Avoid: "module" (one language's rendering of the concept, and superdev must name them all), "service" (a deployment unit), "domain shape" (that is the data a component moves, not the actor)_
+
 **Unattended run**: one `/superdev:afk` invocation, a serial sweep that takes each eligible scope anchor through the whole four-command chain. It ends on an interrupt, on two consecutive blocked features, on a `/superdev:ship` failure, or on an empty backlog. It keeps no queue: it re-reads the tracker's labels every iteration and keeps its consecutive-block count in `.superdev/afk-blocks`, so a compaction loses nothing.
 _Avoid: "afk mode" (there is no mode, and afk is one command with one run), "batch", "autopilot"_
 
