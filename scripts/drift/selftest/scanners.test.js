@@ -32,6 +32,7 @@ const {
   scanReadmeCommands,
   scanAuditSetGlobs,
   scanPinnedPaths,
+  scanAgentToolAgnostic,
 } = require('../scanners');
 const { ADR_STATUSES, DOC_PASS_CONTRACTS, PLAYBOOK_EDGE_CONTRACTS } = require('../contracts');
 
@@ -1928,4 +1929,45 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     scanPinnedPaths(fixture({ 'README.md': '# r\n' })).some((g) => g.source === path.join('scripts', 'AGENTS.md')),
     'a document pinned by a String-shaped row is still caught',
   );
+
+  // --- scanAgentToolAgnostic: shipped agent prose names no concrete toolchain command — the class the
+  // `bun run test` pipe example shipped once (root AGENTS.md → Backends are pluggable). ---
+
+  // negative: the neutral placeholder and the test-selection wire stay silent
+  assert.equal(
+    scanAgentToolAgnostic(
+      fixture({
+        'agents/implementer.md':
+          'Pipe noisy commands (`<test command> 2>&1 | tail -20`). Read `references/test-selection.md` ' +
+          'and run the command it selects.\n',
+      }),
+    ).length,
+    0,
+    'the neutral placeholder yields no gap',
+  );
+
+  // negative: commands/ is out of scope — setup.md names concrete commands legitimately, as examples
+  assert.equal(
+    scanAgentToolAgnostic(fixture({ 'commands/setup.md': 'e.g. `npm test`, `pytest -q`, `cargo test`\n' })).length,
+    0,
+    'commands/ examples stay out of scope',
+  );
+
+  // positive: the shipped leak, verbatim
+  const taGaps = scanAgentToolAgnostic(
+    fixture({ 'agents/implementer.md': 'Pipe noisy commands (`bun run test 2>&1 | tail -20`).\n' }),
+  );
+  assert.equal(taGaps.length, 1, 'flags a maintainer toolchain command in agent prose');
+  assert.equal(taGaps[0].source, path.join('agents', 'implementer.md'), 'names the agent file');
+  assert.match(taGaps[0].expectation, /bun run test/, 'the gap quotes the command it found');
+
+  // positive: a brand-new agent file is covered without a table change, and a bare runner name counts
+  assert.equal(
+    scanAgentToolAgnostic(fixture({ 'agents/new-agent.md': 'Re-run with `pytest -q`.\n' })).length,
+    1,
+    'a new agent file and a bare runner name are both caught',
+  );
+
+  // negative: the real tree carries none
+  assert.equal(scanAgentToolAgnostic(realRoot).length, 0, 'the shipped agents are clean');
 };

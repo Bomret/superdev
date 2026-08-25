@@ -205,7 +205,7 @@ every drift assertion by id, and it fell behind at five separate additions, beca
 maintained by hand at the moment its author is thinking about code. Naming the exceptions cannot drift
 when a new check lands.
 
-`drift-check.js` guards fifty-seven things, in the order `drift/checks.js` registers them. First, the
+`drift-check.js` guards fifty-eight things, in the order `drift/checks.js` registers them. First, the
 `reference` contract: every `references/*.md` path named in `commands/`, `agents/`, or `references/`
 itself resolves to a file that exists. A reference cites another reference, as both execution
 playbooks point at `scope-mode.md`, so a rename there dangles like any other. Second, the
@@ -821,6 +821,16 @@ which branch gets fetched, versus which worktree gets created — and no fixture
 distinguished "removed by ship" from "never created", so a regression narrowing the sentence back to one
 cause would have passed silently.
 
+Fifty-eighth, the `agent-tool-agnostic` contract: no `agents/*.md` names a concrete package-manager or
+test-runner command. The test command is `references/test-selection.md`'s to select from the consumer
+repo's own configuration, and the shipped briefs execute in consumer repos, so a literal command there
+is this repo's toolchain leaking into another repo's dispatch — `bun run test` shipped exactly that way,
+as a pipe example in three agent briefs, inviting an agent to pattern-match a maintainer-only command in
+a repo that uses another runner. The doc list is the `agents/` directory read at scan time, not a pinned
+table, so a new agent is covered the day its file lands. `commands/setup.md` and `commands/document.md`
+name such commands legitimately, as interview and focused-command examples, which is why the scan covers
+`agents/` alone.
+
 The first and seventh checks are opposites. The first catches a reference to a file that does not exist.
 The seventh catches an agent that drops its wire to a file which still exists. That drift leaves the
 reference resolvable and the suite green, and the lens then does nothing in any dispatch.
@@ -846,16 +856,16 @@ successor at all.
   gone and stays green while it is still there. Write the ceiling down next to the patterns for one of
   these — a `ponytail:` comment naming it is the house idiom — or every reviewer who finds one more
   evadable phrasing reports a defect, and the guard grows by discovery instead of by decision. The
-  convention governs six checks of this shape, and all six carry their note: `doc-steps-no-suite`,
-  `forcing-branch-flag`, `kb-no-backend-call`, `no-second-reader`, `return-to-controller`, and
-  `afk-selection-neutrality`. A seventh of this shape adds its own. `no-second-reader`'s reads differently
+  convention governs seven checks of this shape, and all seven carry their note: `doc-steps-no-suite`,
+  `forcing-branch-flag`, `kb-no-backend-call`, `no-second-reader`, `return-to-controller`,
+  `afk-selection-neutrality`, and `agent-tool-agnostic`. An eighth of this shape adds its own. `no-second-reader`'s reads differently
   from the rest on purpose: its gap is closed by an orphan test in `hooks/scope-prune.js --selftest`
   rather than left open, and the note says so instead of claiming a ceiling it does not have. A **presence table** — the document must say X, one row per
   `[document, pattern, expectation]` — needs no such note: a paraphrase it doesn't recognize fails
   *loudly*, the row goes red until the pattern catches up, so the presence tables in `drift/contracts.js`
   (`FIX_BOUNDARY_CONTRACTS` among them) carry none.
 - A new drift-check contract is one entry appended at the end of the `drift/checks.js` registry, plus
-  its section in the fifty-seven-check narrative above and its selftest in the matching
+  its section in the fifty-eight-check narrative above and its selftest in the matching
   `drift/selftest/*.test.js` suite. Append rather than insert unless the check belongs earlier for a
   reason, because every ordinal after an insertion point has to be rewritten by hand. The forty-fifth check,
   `narrative-coverage`, enforces two pieces of this by itself: the new id must appear backticked

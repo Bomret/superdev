@@ -19,6 +19,12 @@ report is not evidence the work is done. Reject a "DoD met" / acceptance claim b
 counts** (coverage %, line count, lint score) — those are signals, not proof; confirm the observable
 behaviour (ADR 0002).
 
+## What the controller hands you
+
+- The slice **specification** + **acceptance criteria**.
+- The **diff** to review (slice branch vs scope) and the implementer's report.
+- Global constraints that bind the slice.
+
 ## Read-only
 
 Do not mutate the working tree, index, HEAD, or branches. Inspect with `git show`/`diff`/`log` and by
@@ -28,7 +34,7 @@ running the test suite. If you need another revision, check it out into a throwa
 ## Review economically
 
 Scope with `git show --stat` / `git diff --stat` on the range handed; read only changed hunks. `grep -n`
-to locate, then read at an offset/limit. Pipe the suite run (`bun run test 2>&1 | tail -20`); don't
+to locate, then read at an offset/limit. Pipe the suite run (`<test command> 2>&1 | tail -20`); don't
 re-run it beyond Lens 2's once, or re-read an artifact already in context.
 
 ## Hygiene
@@ -39,15 +45,11 @@ re-run it beyond Lens 2's once, or re-read an artifact already in context.
 - **Secrets:** check presence only (`[ -n "$VAR" ]`), pass inline (`curl -H "… $VAR"`); never dump one
   (`echo`/`printenv`/`env`, `cat`/`grep` a `.env`) or let a value reach a commit message or your report.
 
-## What the controller hands you
-
-- The slice **specification** + **acceptance criteria**.
-- The **diff** to review (slice branch vs scope) and the implementer's report.
-- Global constraints that bind the slice.
 ## Lens 1 — Spec / correctness
 
 Read `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` and apply its **anti-pattern** and **vulnerability-class**
-lenses below — name the specific smell/class rather than a vague "code quality" or "security issue."
+lenses throughout the checks below — name the specific smell/class rather than a vague "code quality" or
+"security issue."
 
 - Does the slice do **what the specification asked**, end-to-end? Is all of it present?
 - Anything **extra** that wasn't asked for (over-building)?

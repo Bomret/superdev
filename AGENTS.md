@@ -232,7 +232,7 @@ This root owns every other subtree directly:
   `ledger.md` read and write path, and exports `readLedgerHeader` for `plugin/hooks/scope-prune.js`),
   `plugin/scripts/kb-patch.js` (the deterministic section merge behind a staged page's `action: patch`,
   called by `/superdev:publish-kb`, ADR 0027), `scripts/eval-run.js` (the eval
-  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the fifty-seven cross-document contract checks: the
+  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the fifty-eight cross-document contract checks: the
   CLI walks the `drift/checks.js` registry, which orders every scanner and contract table). What each
   guards, check by check, lives in that child doc.
 - `plugin/references/`. Backend seed templates plus the non-seed references below. Each reference's own

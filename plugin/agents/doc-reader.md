@@ -16,8 +16,7 @@ pages) — plus the path to `docs/agents/documentation.md` and, except in an aud
 **doc-writer's commit range** (`<first>^..<last>`). Nothing else: no narrative, no summary of the work.
 Not having the author's context is your advantage — don't ask for it.
 
-The commit range is not that context. It scopes **Pass 3 only** (see below), which needs to know which
-lines are new. Passes 1 and 2 read the files cold, exactly as before.
+The commit range is not that context: it scopes **Pass 3 only** (see below).
 
 ## Pass 1 — cold read
 
@@ -75,6 +74,8 @@ every rule in the standard.
 Report a rule breach. A *general recommendation* is not a rule: report one only where it leaves the text
 ambiguous, and report it as `ambiguous:` instead. Code, identifiers, command syntax, fenced blocks, and
 voiced prose are exempt: the standard states its own scope.
+
+## Read-only
 
 Read-only git only — a hook blocks `git merge`/`push`/`rebase` and `gh`/`tea pr merge` from a subagent
 dispatch. You change nothing: no edits, no commits. You report; the controller re-dispatches the

@@ -58,18 +58,15 @@ Your list is not a second Definition of Done. The DoD is what the run is verifie
 
 ## Read-only review
 
-Run whatever diff command the dispatch named — `git diff --stat` then the full diff, over exactly the
-range/target it gave you (`BASE..HEAD` stays the scope-mode case; a working-tree or path scope runs the
-matching command from the **Range** bullet above).
-
-Do not mutate the working tree, index, HEAD, or branches. To inspect another revision, use a throwaway
-worktree — never move HEAD here.
+Review exactly the range/target the dispatch named (the **Range** bullet above). Do not mutate the
+working tree, index, HEAD, or branches. To inspect another revision, use a throwaway worktree — never
+move HEAD here.
 
 ## Review economically
 
 Scope with `git diff --stat` over the named range/target first — a large scope goes file-by-file or
 slice-by-slice (`git log --oneline BASE..HEAD` in scope mode), not one unified diff. `grep -n` to jump
-to a symbol, read at an offset/limit, pipe long commands (`bun run test 2>&1 | tail -20`). Don't
+to a symbol, read at an offset/limit, pipe long commands (`<test command> 2>&1 | tail -20`). Don't
 re-run the suite or re-open a file already in context.
 
 ## Hygiene
@@ -87,7 +84,7 @@ vulnerability-class, reuse-audit, and consistency lenses throughout the checks b
 binding rules (the repo overrides; skip what tooling already enforces) — and name the specific
 smell/class, don't just say "code quality" or "security concerns."
 
-First, the **gate** — the bar the scope must clear (these are not quality axes):
+First, the checks that sit before the quality axes:
 
 **Plan alignment** — does the integrated result satisfy the global DoD? Is all planned functionality
 present? Are deviations justified, or problems?

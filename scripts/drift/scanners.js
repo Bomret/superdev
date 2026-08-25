@@ -66,6 +66,7 @@ const {
   KB_NO_CALL_DOCS,
   DOC_STEP_SILENCE_DOCS,
   SUITE_RUN_INSTRUCTIONS,
+  AGENT_TOOLCHAIN_PATTERNS,
   DENIAL_CAP_NUMBER_SILENCE_DOCS,
   DENIAL_CAP_NUMBER_MARKERS,
   KB_BACKEND_CALL_MARKERS,
@@ -607,6 +608,28 @@ const scanDocStepsNoSuite = (root) =>
 const scanDenialCapNumberSilence = (root) =>
   scanDocsAvoid(root, DENIAL_CAP_NUMBER_SILENCE_DOCS, DENIAL_CAP_NUMBER_MARKERS);
 
+// Shipped agent briefs run in consumer repos, so their prose names no concrete toolchain command; see
+// AGENT_TOOLCHAIN_PATTERNS' note for the class and its ceiling. The doc list is the `agents/` directory
+// read at scan time, not a pinned table, so a new agent is covered the day its file lands.
+function scanAgentToolAgnostic(root) {
+  let names = [];
+  try {
+    names = fs.readdirSync(docPath(root, 'agents')).filter((f) => f.endsWith('.md'));
+  } catch {
+    return []; // no agents dir (fixture / partial checkout) → nothing to scan
+  }
+  return scanDocsAvoid(
+    root,
+    names.map((f) => path.join('agents', f)),
+    AGENT_TOOLCHAIN_PATTERNS.map((pattern) => [
+      pattern,
+      (hit) =>
+        `stay tool-agnostic — the test command is \`references/test-selection.md\`'s to select, and it ` +
+        `still names \`${normalizeWhitespace(hit[0])}\``,
+    ]),
+  );
+}
+
 function scanHookLedgerParsers(root) {
   const dir = docPath(root, 'hooks');
   let names = [];
@@ -850,6 +873,7 @@ module.exports = {
   scanPinnedPaths,
   scanDocStepsNoSuite,
   scanDenialCapNumberSilence,
+  scanAgentToolAgnostic,
   scanHookLedgerParsers,
   scanForcingBranchFlag,
   scanReturnToController,

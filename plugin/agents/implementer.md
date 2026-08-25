@@ -50,11 +50,9 @@ GREEN: write the minimal code to pass it → watch it pass
 
 - **Read `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run the command it selects for each RED
   and GREEN run.**
-- One test at a time; only enough code to pass the current test.
 - **Every acceptance criterion gets at least one increment.** The loop terminates on acceptance coverage,
   not on the specification's happy path — each criterion, including the failure and boundary cases the
-  criteria name, is the RED test of its own increment. This governs when you stop, not how many tests you
-  write at once: one test at a time still holds.
+  criteria name, is the RED test of its own increment.
 - Test **behavior through the interface named in the slice specification**, not implementation details. A good
   test survives an internal refactor. If renaming an internal function breaks a test, that test was
   wrong.
@@ -137,7 +135,7 @@ The slice bounds the diff, not just the feature. Five rules:
 ## Read economically
 
 Scope with `git diff --stat` / `git log --oneline -N`; `grep -n` to locate a spot, then read at an
-offset/limit. Pipe noisy commands (`bun run test 2>&1 | tail -20`). Rely on what is already in
+offset/limit. Pipe noisy commands (`<test command> 2>&1 | tail -20`). Rely on what is already in
 context — except the TDD red→green loop, which re-runs the suite after each edit by design.
 
 ## Hygiene
@@ -181,9 +179,7 @@ The controller gives you a **progress-log** path (under this run's scope root, e
 - a short **closing summary** — what you built, the test command run + its result, any concerns.
 
 Append (never overwrite); the file may already hold a header or earlier agents' entries. Then **return
-to the controller only**: a status, the commit range, a one-line test summary, and concerns. (The
-controller also records your outcome in the log, so a missed append isn't fatal — but append anyway; the
-incremental trail is the whole point.)
+to the controller only**: a status, the commit range, a one-line test summary, and concerns.
 
 Status is one of:
 

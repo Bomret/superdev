@@ -920,6 +920,21 @@ const SUITE_RUN_INSTRUCTIONS = [
   /(?<!\b(?:has|have|had)(?:\s+\w+){0,2}\s+)run\s+the\s+(?:whole\s+)?suite\b[\s\S]{0,60}?\bbefore\b/i,
 ];
 
+// Shipped agent prose stays tool-agnostic (root AGENTS.md → "Backends are pluggable"): the test command
+// is `references/test-selection.md`'s to select from the consumer repo's own config, so a concrete
+// package-manager or test-runner invocation inside `agents/*.md` is this repo's toolchain leaking into
+// a brief that executes in consumer repos — `bun run test` shipped exactly that way, as a pipe example
+// in three agent briefs. `commands/setup.md` and `commands/document.md` name such commands legitimately,
+// as interview and focused-command examples, so the scan covers `agents/` alone.
+//
+// ponytail: shape-based, and its ceiling is the package managers and runners named below. A command from
+// a toolchain outside them (`cargo test`, `go test`, `mvn verify`) passes silently until a row names it.
+// The reviewer's eye covers the rest.
+const AGENT_TOOLCHAIN_PATTERNS = [
+  /\b(?:bun|npm|pnpm|yarn)\s+(?:run\s+[\w:.-]+|test\b)/i,
+  /\b(?:pytest|vitest|jest)\b/i,
+];
+
 // `/superdev:ship` §3 gates on a standing unresolved defect (ADR 0026): a defect the run left standing is
 // named once, and shipping with it is asked about rather than assumed. A consumer that keeps the §5
 // `## Unresolved defects` pull-request heading but drops either half of the gate reads right and ships a
@@ -1995,6 +2010,7 @@ module.exports = {
   CHECK_COUNT_CLAIMS,
   NUMBER_ONES,
   NUMBER_TENS,
+  AGENT_TOOLCHAIN_PATTERNS,
   SOURCE_SECTION_CONTRACTS,
   RETURN_TO_CONTROLLER_DOCS,
   RETURN_TO_CONTROLLER_PATTERNS,

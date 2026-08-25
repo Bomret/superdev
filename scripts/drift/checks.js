@@ -27,6 +27,7 @@ const {
   scanKbNoBackendCall,
   scanPinnedPaths,
   scanDocStepsNoSuite,
+  scanAgentToolAgnostic,
   scanHookLedgerParsers,
   scanEvalShape,
   scanAdrStatus,
@@ -375,6 +376,12 @@ module.exports = [
     "the lite tier's resumed worktree step fires whenever the worktree is absent, not only when ship " +
       'removed it',
   ),
+  {
+    id: 'agent-tool-agnostic',
+    ok: 'shipped agent prose names no concrete toolchain command',
+    run: scanAgentToolAgnostic,
+    format: contractGap,
+  },
 ];
 
 // The anchor contract and the afk-selection neutrality check report into the same sentence: a gap with

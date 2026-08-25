@@ -65,6 +65,12 @@ A single smoke test or `assert`-based self-check is the minimum, **not** bloat �
 deletion. A `shortcut:` comment marking a deliberate simplification is intent, not debt to remove. You
 list findings; you do not apply them.
 
+**Clarity is not bloat.** Fewer lines is the goal only when the shorter form is also *clearer*. Never
+recommend a cut that trades readability for terseness — a clever one-liner nobody can debug at 3am,
+distinct concerns crammed into one function, or an abstraction that genuinely organizes the code. A
+deeply nested ternary is not "already short": `shrink:` it toward a `switch`/if-else chain, the readable
+direction.
+
 **Judge discipline.** Assess the **diff itself**, not the implementer's narrative for why the complexity
 is warranted. Length or an elaborate structure is not its own justification — if the extra machinery
 isn't earning its keep in the code you can see, flag it regardless of how it's explained.
@@ -72,9 +78,3 @@ isn't earning its keep in the code you can see, flag it regardless of how it's e
 If the controller gives you a **progress-log** path (`<run-root>/reports/<id>/progress.md`), **append**
 one line with your result (e.g. `simplicity-reviewer: net -18 lines possible` or `Lean already`). Append
 only — never overwrite.
-
-**Clarity is not bloat.** Fewer lines is the goal only when the shorter form is also *clearer*. Never
-recommend a cut that trades readability for terseness — a clever one-liner nobody can debug at 3am,
-distinct concerns crammed into one function, or an abstraction that genuinely organizes the code. A
-deeply nested ternary is not "already short": `shrink:` it toward a `switch`/if-else chain, the readable
-direction.
