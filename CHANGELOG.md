@@ -1,3 +1,10 @@
+## [0.36.1](https://codeberg.org/bomret/superdev/compare/v0.36.0...v0.36.1) (2026-08-25)
+
+
+### Bug Fixes
+
+* **agents:** tighten agent briefs, guard tool-agnostic prose with a drift check ([#331](https://codeberg.org/bomret/superdev/issues/331)) ([b1501d7](https://codeberg.org/bomret/superdev/commit/b1501d77de159f1b736b2047e799edaf4408b498))
+
 # [0.36.0](https://codeberg.org/bomret/superdev/compare/v0.35.0...v0.36.0) (2026-08-25)
 
 
