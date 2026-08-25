@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0044](0044-a-denial-reset-returns-the-budget-and-keeps-the-record.md), which gives a
+capped run a way back: a reset marker returns the budget and leaves every recorded denial standing.
+
 ## Context
 
 ADR 0039 lets an unattended run survive a denied verification dispatch: where the controller did not
