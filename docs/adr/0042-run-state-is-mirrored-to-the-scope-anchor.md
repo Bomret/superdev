@@ -25,19 +25,39 @@ of truth for control flow; the snapshot is a mirror, never a second authority.
 **`scope.js` gains two verbs and performs no store I/O**, because slice-store I/O stays in-agent
 (ADR 0022). `publish` reads the ledger and prints it on stdout as a single `## Run state` section, its
 `# Ledger — <slug>` heading replaced by that section heading. `adopt` reads a whole anchor body on stdin,
-extracts the `## Run state` section, validates it against the schema it already owns, and writes
+takes the ledger back out of it, validates it against the schema it already owns, and writes
 `<run-root>/ledger.md`. The ledger is already labeled header lines plus a markdown table, so the snapshot
 needs no wire format: it renders as a table for a human reader on the anchor and round-trips
 byte-for-byte back into a ledger.
+
+**The payload's boundary is marked, never inferred.** `publish` wraps the ledger between
+`<!-- superdev:run-state -->` and `<!-- /superdev:run-state -->`, and `adopt` reads what lies between
+them, disregarding every heading in the body. An HTML comment does not render, so the anchor still shows
+a table.
+
+Inferring the boundary from heading structure — reading the `## Run state` section as ending at the next
+heading, the way `kb-patch.js` bounds a section — cannot be made correct, and the two failures it produces
+are opposites. Bound it loosely and a `#`-led line anywhere inside the payload silently truncates the
+adopted ledger, dropping slice rows with a zero exit. Tighten it by refusing when the content past that
+boundary still looks like ledger data, and an unrelated markdown table or a prose mention of
+`**Degraded:**` further down the anchor makes the scope permanently un-adoptable. No heuristic separates
+a stray heading inside the payload from a legitimate sibling section, because a truncated ledger is
+itself a well-formed ledger. A marked boundary removes the question rather than answering it.
+
+**The markers are the merge's payload, not its frame.** `kb-patch.js` still finds and replaces the
+`## Run state` section by its heading, unchanged: the markers sit inside that section, so the section
+merge and the payload boundary answer different questions and neither constrains the other.
 
 **`scripts/kb-patch.js` performs the merge, unchanged.** Its `merge` appends a section whose heading the
 live document does not carry and replaces one it does, which is create-and-update for the anchor's body
 exactly as it is for a knowledge-base page.
 
-**Publishing follows every stage write.** One rule rather than a list of call sites: wherever a command
-calls `scope.js stage set`, it publishes after. The anchor is then never more than one stage stale, which
-is what lets an adopted run re-enter the chain at the right command. Publishing is **best-effort**, as
-every store write in superdev is, because the ledger drives control flow.
+**Publishing follows any ledger write the snapshot would show**, not `scope.js stage set` alone. One rule
+rather than a list of call sites: `references/scope-mode.md`'s `## Publishing run state` states it once,
+and every write that changes what the snapshot shows — a stage move, a `**Degraded:**`, `**Unresolved:**`,
+or `**Deferred:**` bullet, a `**Docs:**` write — cites it. The anchor is then never more than one write
+stale, which is what lets an adopted run re-enter the chain at the right command. Publishing is
+**best-effort**, as every store write in superdev is, because the ledger drives control flow.
 
 **Slice rows are not published on their own.** Both playbooks' **Resume** cross-checks the ledger against
 `git log <base>..<branch>` and the store's slice statuses, so a stale slice table in an adopted ledger
@@ -56,11 +76,13 @@ survive the reap.
 **Each store seed gains a `## Run state` section**, the same shape as its `## Scope anchor` section: where
 the snapshot lives on that backend, how to write it, and how to read it back. Backends stay pluggable.
 
-**The local-file store carries no snapshot**, and its section says so. That store's anchor is a tracked
-plan file riding the scope branch, so a snapshot written into it is the rejected "commit the run root"
-option under another name: it conflicts on every slice merge and lands in the pull request. A backend
-whose anchor is a repository file therefore declares itself snapshot-less rather than accept either
-outcome, and a run on it publishes nothing, adopts nothing, and ticks only its local Definition of Done.
+**A store whose anchor cannot safely carry a mirrored write declares itself snapshot-less**, in its own
+`## Run state` section, and a run on it publishes nothing, adopts nothing, and ticks only its local
+Definition of Done. The local-file store's anchor is a tracked plan file riding the scope branch, so a
+snapshot written into it is the rejected "commit the run root" option under another name: it conflicts
+on every slice merge and lands in the pull request. Jira's anchor is unsafe for a different reason: its
+`description` field is Atlassian Document Format by default, which has no node for the section heading or
+the fence markers a round trip needs, so a default Jira instance is snapshot-less too.
 
 ## Considered options
 
@@ -77,6 +99,15 @@ outcome, and a run on it publishes nothing, adopts nothing, and ticks only its l
   comment-id bookkeeping the ledger would have to carry.
 - **Publish at run handoff and ship only.** Two call sites instead of a rule. The anchor then reads
   `merged` while the run sits at `documented`, so an adopted run repeats the review and the doc pass.
+- **An inferred payload boundary** — `adopt` bounding the ledger by heading structure, reusing the rule
+  `kb-patch.js` applies to a knowledge-base section. It needs no markers in the published text, and it is
+  the option the *Decision* above rejects on evidence: two fix cycles moved the failure between silent
+  truncation and false refusal without reaching a correct rule, because a truncated ledger is a
+  well-formed ledger and nothing in the payload distinguishes the two.
+- **A fenced payload** — `publish` wrapping the ledger in a code fence, which `adopt` reads through the
+  fence-masking it already shares with `kb-patch.js`. Unambiguous, and the smallest change of the three,
+  since it adds no new notation. It loses the rendered table: the anchor shows monospace text, and being
+  readable at a glance is one of the three reasons the snapshot exists.
 - **`/superdev:status` reads the anchor** when no local run root exists. One tool for both views, at the
   cost of store I/O in a read-only command whose no-op path is currently local and instant. The rendered
   anchor is already the remote view.
@@ -98,5 +129,7 @@ shipped.
 `scope-prune`'s seven-day reap stops being lossy: the record it deletes is on the anchor, and `adopt`
 rebuilds a ledger from it.
 
-Drift-check gains one contract — that a `stage set` call site publishes after — rather than one per
-command, because the rule is stated once in `references/scope-mode.md`.
+Drift-check gains three contracts — `publish-run-state`, that a ledger write which changes the snapshot
+publishes after it; `adopt-run-state`, the mirror image, that run init adopts a live snapshot correctly;
+and `resumed-worktree-trigger`, that a `resumed` run reattaches its worktree — rather than one per command,
+because each rule is stated once in `references/scope-mode.md` or `references/run-init.md`.

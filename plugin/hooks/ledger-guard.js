@@ -144,6 +144,7 @@ if (process.argv[2] === '--selftest') {
   // scope.js invocations and reads → allow.
   assert.equal(bash('node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set merged --root /abs/.superdev/scopes/demo').block, false, 'scope.js passes');
   assert.equal(bash('node scripts/scope.js init feat/demo < slices.json').block, false, 'scope.js init with stdin redirect-in passes');
+  assert.equal(bash('node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" adopt --root /abs/.superdev/scopes/demo').block, false, 'scope.js adopt passes — the write it makes is the sanctioned one');
   assert.equal(bash('cat ' + L).block, false, 'read passes');
   assert.equal(bash('grep Stage ' + L).block, false, 'grep passes');
   assert.equal(bash('sed -n "1,5p" ' + L).block, false, 'sed without -i passes');

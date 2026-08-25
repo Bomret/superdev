@@ -232,7 +232,7 @@ This root owns every other subtree directly:
   `ledger.md` read and write path, and exports `readLedgerHeader` for `plugin/hooks/scope-prune.js`),
   `plugin/scripts/kb-patch.js` (the deterministic section merge behind a staged page's `action: patch`,
   called by `/superdev:publish-kb`, ADR 0027), `scripts/eval-run.js` (the eval
-  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the fifty-four cross-document contract checks: the
+  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the fifty-seven cross-document contract checks: the
   CLI walks the `drift/checks.js` registry, which orders every scanner and contract table). What each
   guards, check by check, lives in that child doc.
 - `plugin/references/`. Backend seed templates plus the non-seed references below. Each reference's own
@@ -240,7 +240,7 @@ This root owns every other subtree directly:
 
   | Reference | Owns | Read at runtime by |
   |---|---|---|
-  | `plan-contract.md` | slice schema and lifecycle, plus the `## Scope anchor`, `## Feature label`, `## Release`, and `## Append mode` generic contracts every store document specialises, including the anchor dependency `/afk` defers on (ADR 0004, 0017, 0019, 0021, 0034, 0040) | `/plan`, `/implement`, `/afk`, and the store seeds cite it |
+  | `plan-contract.md` | slice schema and lifecycle, plus the `## Scope anchor`, `## Feature label`, `## Release`, `## Run state`, and `## Append mode` generic contracts every store document specialises, including the anchor dependency `/afk` defers on (ADR 0004, 0017, 0019, 0021, 0034, 0040, 0042) | `/plan`, `/implement`, `/afk`, and the store seeds cite it |
   | `documentation.md` | the in-repo documentation convention, which `/superdev:setup` fills at `## Writing standard` always and at `## Audit set` when needed | `/setup`, `/document` |
   | `controlled-prose.md` | the writing standard (ADR 0012) | `doc-pass.md`'s callers apply it, `doc-reader` verifies it |
   | `content-types.md` | the content-type lens, never configurable and never `none` (ADR 0014) | `doc-pass.md`'s callers, `doc-reader` |
@@ -248,7 +248,7 @@ This root owns every other subtree directly:
   | `run-init.md`, `run-handoff.md` | run init and run handoff, tier-agnostic | both execution playbooks |
   | `implement-full.md`, `implement-lite.md` | the tier-specific execution playbooks | `/implement`, once it computes the tier |
   | `test-selection.md` | the focused-or-full test command rule (ADR 0025), which `hooks/green-gate.js` implements in code | focused: `implementer`, `slice-reviewer`, `implement-lite`, `/superdev:document` (over its own doc commits). Full suite: `/review`'s scope review, `run-handoff` |
-  | `scope-mode.md` | the shared scope rules: live-run detection, the scope checkout, the run lock, `## Unattended`, `## The scope slug`, `## The change type`, `## Degraded passes`, `## Unresolved defects`, `## Deferred findings`, `## The ledger` (deferring the schema to `scope.js`), `## Cutting the scope branch` (ADR 0007, 0013, 0016, 0018, 0021, 0022, 0026, 0028, 0035, 0039, 0041) | `/review`, `/document`, `/ship`, `/implement`, `/afk`, both playbooks |
+  | `scope-mode.md` | the shared scope rules: live-run detection, the scope checkout, the run lock, `## Unattended`, `## The scope slug`, `## The change type`, `## Degraded passes`, `## Unresolved defects`, `## Deferred findings`, `## The ledger` (deferring the schema to `scope.js`), `## Cutting the scope branch`, `## Publishing run state` (ADR 0007, 0013, 0016, 0018, 0021, 0022, 0026, 0028, 0035, 0039, 0041, 0042) | `/review`, `/document`, `/ship`, `/implement`, `/afk`, both playbooks |
   | `cross-exam.md`, `domain-modeling.md`, `doc-verification.md` | the authoring disciplines, superdev's rendering of Matt Pocock's grilling and domain-modeling skills. `domain-modeling.md` also owns revise-in-place, where a glossary entry is rewritten and an ADR is superseded rather than edited | `/plan`, `/brainstorm`. `implementer` reads `doc-verification.md` before acting on a third-party assumption |
   | `design-sketch.md` | the throwaway HTML page showing the components a plan intends to add, change, or delete: the card contract, the self-contained no-JavaScript artifact, the skeleton, and the wait for the operator's approval (ADR 0036) | `/plan` §3, and only when the operator accepts the offer |
   | `diagnosis.md` | the defect-diagnosis loop: the red-capable repro gate, the minimised repro, ranked hypotheses, tagged instrumentation (a rendering of Matt Pocock's diagnosing-bugs skill) | `/plan` on a `fix` feature, `implementer` on a defect-repair dispatch, `/review`'s fix loop |

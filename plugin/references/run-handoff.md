@@ -19,11 +19,13 @@ tiers: record that slice execution finished, name what comes next.
     is none — then continue to the stage write.
   - **Denied by the permission classifier** → `## Degraded passes`'s second shape. Its default is record
     and continue regardless of attendance; **local deviation**, because this is the only full-suite run a
-    `mechanical`/`docs` scope gets and unattended would reach `/superdev:ship` with none behind it.
-    **Attended** → write the `**Degraded:**` entry
+    `mechanical`/`docs` scope gets and unattended would reach `/superdev:ship` with none behind it. Write
+    the `**Degraded:**` entry either way
     (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" degraded add '<text>' --root <run-root>`) naming the
-    denial, continue to the stage write. **Unattended** (`--unattended` in the arguments) → **block**,
-    per that file's **Unattended** section.
+    denial, then publish the snapshot before deciding which branch below applies — per
+    `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section — since the block
+    branch reaches no later write in this run. **Attended** → continue to the stage write. **Unattended**
+    (`--unattended` in the arguments) → **block**, per that file's **Unattended** section.
   - **Red** → do **not** write the stage. Dispatch **one** `superdev:implementer` (`model: sonnet`;
     `haiku` only for a mechanical fix) with the failing output — never fix it inline: the controller only
     integrates, and lite's inline loop is that tier's own exception (ADR 0001), not run handoff's. Every
@@ -31,10 +33,15 @@ tiers: record that slice execution finished, name what comes next.
     as above and continue), **or three cycles without going clean** — this bullet's own 3-strike cap,
     since a scope-wide suite has no slice to block. Stop, say so, write the `**Unresolved:**` entry with
     `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add "<text>" --root <run-root>`, leave the
-    stage where it is.
+    stage where it is, and publish the snapshot before stopping — per
+    `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section — since no later
+    stage write in this run will do it: the run root stands unresolved until a human resumes it, and
+    `scope-prune` reaps it in seven days.
 - **Set the stage to `merged`:**
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set merged --root <run-root>`. The `**Stage:**`
-  line is what tells the next command, or a resumed run, that every slice is on the scope branch.
+  line is what tells the next command, or a resumed run, that every slice is on the scope branch. Publish
+  the snapshot afterwards, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state`
+  section.
 - **Leave the run standing.** Keep the worktrees and `<run-root>/run.lock` (lite tier), leave
   `<run-root>/dod.md` unticked and the anchor at `in-progress`. `/superdev:review` and
   `/superdev:document` work in the scope checkout you leave behind; `/superdev:ship` takes the run down.

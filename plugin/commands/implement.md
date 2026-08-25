@@ -36,7 +36,8 @@ dispatches nothing — you carry the TDD discipline yourself. Narrate at most on
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section: work inline, say so,
   and write the `**Degraded:**` entry — `scope.js degraded add` for an authoring dispatch (implementer,
   fix), `scope.js degraded add-denial` for a denied verification dispatch, quoting the classifier's
-  refusal. **`--unattended`** → a denied implementer
+  refusal — then publish the snapshot, per that file's `## Publishing run state` section. **`--unattended`**
+  → a denied implementer
   or fix blocks at every tier, per ADR 0001; a denied verification dispatch follows that section's
   authorship rule instead — block where the controller authored what the pass verifies, and otherwise do
   the pass inline as above, up to that section's cap: read `scope.js get denials` after writing the entry

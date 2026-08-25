@@ -191,6 +191,24 @@ dispatch swaps to `in-progress`.
 - A feature whose anchor lacks the label is unreleased. Nothing else about the issue says so, and no other
   label means it.
 
+## Run state
+
+`plan-contract.md` → *Run state*. The snapshot lives in the anchor's own body, beside the DoD checklist and
+every other body section — the epic issue on a multi-slice feature, the lone slice issue on a single-slice
+one (`## Scope anchor` above).
+
+- **Write** (after any ledger write the snapshot would show): `PATCH /repos/<owner>/<repo>/issues/<number>` with
+  `{ "body": "<anchor body with the ## Run state section folded in>" }` — the same call and body shape the
+  epic amendment under *Append mode* below already uses. **Best-effort:** a failed write is reported once
+  per run and the run continues; the ledger stays authoritative.
+- **Read** (every publish, including run init and adopting a run): `GET /repos/<owner>/<repo>/issues/<number>` — the same call **Read a
+  slice** above already names — and take the body back out of the response.
+- **Ticking the anchor's own Definition of Done checklist** (`/superdev:ship`, toggling a body `- [ ]` to
+  `- [x]`) is a second sanctioned body edit, beside the epic amendment under *Append mode*.
+- **The section is machine-owned.** A deeper subsection an operator adds under `## Run state` — a
+  `### Operator notes` heading, say — is replaced along with the rest on the next publish. Keep an
+  operator note outside the section.
+
 ## Status workflow (GitHub has open/closed + labels — no custom states)
 
 `/implement` moves each issue at every lifecycle point (see the plan-contract's *Slice lifecycle*):

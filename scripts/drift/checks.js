@@ -67,6 +67,9 @@ const {
   SOURCE_SECTION_CONTRACTS,
   PLAYBOOK_EDGE_CONTRACTS,
   DOC_PASS_CONTRACTS,
+  PUBLISH_RUN_STATE_CONTRACTS,
+  ADOPT_RUN_STATE_CONTRACTS,
+  RESUMED_WORKTREE_TRIGGER_CONTRACTS,
 } = require('./contracts');
 
 // The printer the table-driven checks share. A gap is `{ source, expectation }` and reads the
@@ -356,6 +359,22 @@ module.exports = [
     run: scanAfkAnchorCount,
     format: contractGap,
   },
+  table(
+    'publish-run-state',
+    PUBLISH_RUN_STATE_CONTRACTS,
+    'publishing the run-state snapshot is stated once, and every ledger-writing site points at it',
+  ),
+  table(
+    'adopt-run-state',
+    ADOPT_RUN_STATE_CONTRACTS,
+    'run init adopts a live snapshot, and the resumed branch step fetches it from the remote first',
+  ),
+  table(
+    'resumed-worktree-trigger',
+    RESUMED_WORKTREE_TRIGGER_CONTRACTS,
+    "the lite tier's resumed worktree step fires whenever the worktree is absent, not only when ship " +
+      'removed it',
+  ),
 ];
 
 // The anchor contract and the afk-selection neutrality check report into the same sentence: a gap with

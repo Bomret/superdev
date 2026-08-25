@@ -83,7 +83,10 @@ function readLines(text) {
 // inputs: hiding a following staged section from the "more than one section" refusal, or hiding real
 // live headings so the patch appends a duplicate and every later patch of that heading then refuses
 // as a 2-times duplicate. Refuse outright instead of guessing where the fence would have closed.
-function maskFencedLines(lines, source) {
+// `verb` names what a caller's refusal describes as not happening — kb-patch.js's two call sites
+// both merge, but scope.js's adopt (ADR 0022, ADR 0042) writes instead, so it passes its own verb
+// rather than misreporting a write as a merge.
+function maskFencedLines(lines, source, verb = 'merged') {
   let fence = null;
   const masked = lines.map((line) => {
     if (fence === null) {
@@ -98,7 +101,7 @@ function maskFencedLines(lines, source) {
     if (closer && closer[1][0] === fence.char && closer[1].length >= fence.len) fence = null;
     return '';
   });
-  if (fence !== null) fail(`${source} has an unterminated fenced code block — nothing is merged`);
+  if (fence !== null) fail(`${source} has an unterminated fenced code block — nothing is ${verb}`);
   return masked;
 }
 
@@ -493,5 +496,10 @@ function selftest() {
 
   console.log('kb-patch selftest ok');
 }
+
+// `scripts/scope.js` requires this for `maskFencedLines`, so its `adopt` verb's fence-awareness
+// (ADR 0022's second-reader lesson, ADR 0042) reads a fenced `#`/marker line exactly as
+// extractSection()/merge() above do, instead of growing a second copy of the same masking rule.
+module.exports = { maskFencedLines };
 
 if (require.main === module) main();

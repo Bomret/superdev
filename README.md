@@ -191,7 +191,9 @@ bash or PowerShell variants.
   alone. A lite-tier run's single scope worktree is not a per-slice worktree, so this hook leaves it
   alone too. `/superdev:ship` removes it at the end of the chain.
 - **scope-prune.** A `Stop` hook that deletes a scope's run root (`.superdev/scopes/<scope>/`, its
-  `ledger.md` and `dod.md` post-mortem trail). It waits for three conditions: the scope branch is
+  `ledger.md` and `dod.md` post-mortem trail). The scope anchor keeps its own published snapshot of the
+  ledger, so the record survives this reap on a backend that carries one. It waits for three conditions:
+  the scope branch is
   **merged or gone**, the run root has sat untouched for 7 days or more, **and** the ledger's
   `**Stage:**` line reads `shipped`. A squash merge leaves no ancestry, and a code host that
   squash-merges deletes the branch, so absence is the merge's only local trace. It reads absence only
@@ -229,6 +231,14 @@ never hardcode a tool. Edit those files directly at any time. Re-run setup only 
   For any issue-backed choice, setup also asks who owns the created issues. That **assignee** is a login
   or an `accountId`, and it defaults to the API token's own identity, or to `none`. The answers go to
   `docs/agents/issue-tracker.md`.
+
+  Each slice-store backend also states where it mirrors a run's ledger, the **published snapshot** it
+  writes to the scope anchor as a `## Run state` section. `/superdev:implement` reads a live snapshot back
+  when no local run root exists, which is what lets a run resume from a fresh clone on another machine. `/superdev:ship`
+  ticks the anchor's own Definition of Done alongside the local copy. A backend whose
+  anchor cannot carry the mirror safely declares itself snapshot-less. The local-file store and Jira
+  default to this: the run publishes nothing and adopts nothing there, and `/superdev:ship` ticks only the
+  local Definition of Done.
 - **Code host.** Where the scope branch is pushed and the PR or MR opens, plus the default posture
   (`draft`, `ready`, or `push-only`) and the base branch. The choices are GitHub (`gh`), Forgejo or
   self-hosted (`tea` or REST), and *other*. With no host CLI present, the step degrades to a push plus a
@@ -326,8 +336,8 @@ A tiny feature end to end, with the local-file slice store and GitHub as the cod
   A clean verdict sets the ledger's stage to `reviewed` and prints the resolved `/superdev:document` call.
 - **`/superdev:document <range>`**. Reconciles `README.md` and the `AGENTS.md` hierarchy with the two
   merged slices. It sets the stage to `documented` and prints `/superdev:ship health-check`.
-- **`/superdev:ship health-check`**. Ticks `dod.md`, opens the pull request, removes the scope worktree,
-  and closes the scope anchor. You see the pull-request URL.
+- **`/superdev:ship health-check`**. Ticks `dod.md` and the anchor's own Definition of Done, opens the
+  pull request, removes the scope worktree, and closes the scope anchor. You see the pull-request URL.
 - **After.** Review comments and flaky CI on the open pull request are a `/loop` job, not this chain's
   concern. See [After the PR](#after-the-pr).
 

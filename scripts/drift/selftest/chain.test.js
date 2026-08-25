@@ -25,6 +25,9 @@ const {
   ARG_TOKEN_CONTRACTS,
   ARG_TOKEN_LINE,
   SOURCE_SECTION_CONTRACTS,
+  PUBLISH_RUN_STATE_CONTRACTS,
+  ADOPT_RUN_STATE_CONTRACTS,
+  RESUMED_WORKTREE_TRIGGER_CONTRACTS,
 } = require('../contracts');
 
 module.exports = ({ assert, path, fixture, fs, realRoot }) => {
@@ -290,6 +293,335 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   const entryOnlyGaps = scanContract(entryOnly, DEGRADED_CONTRACTS, degradedOpts);
   assert.equal(entryOnlyGaps.length, 1, 'flags the missing section pointer alone');
   assert.match(entryOnlyGaps[0].expectation, /point at the/, 'names the missing pointer');
+
+  // --- PUBLISH_RUN_STATE_CONTRACTS: scope-mode.md states, once, both the publish-after-any-ledger-write
+  // rule and the criterion for which write cites it directly (a write whose own instruction can end the
+  // command — a block, a stop, a refusal — before any later write in the run reaches a citing site; every
+  // other write relies on its defining section's own citation instead). A second fix cycle found that
+  // review.md and run-handoff.md each carry *several* citations, one per terminal site, so a single
+  // file-level presence row cannot tell one being dropped from a sibling surviving — three denied-dispatch
+  // sites sat uncited with the check green because another branch's citation kept the file "covered". The
+  // rows below are per-site wherever a file carries more than one citation, each anchored on text unique to
+  // its own write, never just the repeated section name. A file with exactly one citation
+  // (`run-init.md`, `implement.md`, `ship.md`, `implement-full.md`) keeps one file-level row, unambiguous
+  // on its own; `implement-lite.md` carries none — neither of its two writes can end the command, so both
+  // rely on inheritance and the file is outside this table entirely. ---
+
+  // scope-mode.md: 6 pieces (heading, the criterion paragraph, and one per defining section/bullet).
+  const scopeModePieces = {
+    heading: '## Publishing run state\n\n',
+    rule:
+      "Publishing follows any ledger write the snapshot would show. **Which sites cite this directly.**\n" +
+      "Cite this section directly at the write, rather than relying on inheritance, when that write's own\n" +
+      'instruction can end the command — a block, a stop, a refusal. Every other write relies on its\n' +
+      "defining section's own citation instead.\n\n",
+    degraded:
+      '## Degraded passes\n\nPublish the snapshot afterwards, per `## Publishing run state` above, on every\n' +
+      '`degraded add` or `degraded add-denial` call.\n\n',
+    unresolved:
+      '## Unresolved defects\n\nPublish the snapshot afterwards, per `## Publishing run state` above, on\n' +
+      'every `unresolved add` or `unresolved clear` call.\n\n',
+    deferred:
+      '## Deferred findings\n\nPublish the snapshot afterwards, per `## Publishing run state` above, on\n' +
+      'every `deferred add` call.\n\n',
+    docs:
+      '## The ledger\n\nPublish the snapshot afterwards, per `## Publishing run state` below, on every\n' +
+      '`docs set` or `docs clear` call.\n',
+  };
+
+  // commands/document.md: 2 terminal sites (a denied doc-writer/doc-reader dispatch; its own stage write).
+  const documentPieces = {
+    denial:
+      "Say so in §5's report and write the `**Degraded:**` entry, quoting the classifier's refusal.\n" +
+      "Publish the snapshot afterwards, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing\n" +
+      'run state` section.\n\n',
+    stage:
+      "Write the ledger's `**Stage:**` line. **Wrote `documented` or `documented-unreviewed` above** →\n" +
+      "publish the snapshot, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state`\n" +
+      'section. The two leave-alone branches wrote nothing, so there is nothing to publish there.\n',
+  };
+
+  // references/run-handoff.md: 3 terminal sites (denied full suite, the 3-strike red-cap stop, its own
+  // stage-merged write).
+  const runHandoffPieces = {
+    denied:
+      'Write the `**Degraded:**` entry either way naming the denial, then publish the snapshot before\n' +
+      "deciding which branch below applies — per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s\n" +
+      '`## Publishing run state` section — since the block\nbranch reaches no later write in this run.\n' +
+      '**Attended** → continue to the stage write. **Unattended** → block.\n\n',
+    redCap:
+      'Stop, say so, write the `**Unresolved:**` entry, leave the\nstage where it is, and publish the\n' +
+      "snapshot before stopping — per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md}'s `## Publishing run\n" +
+      'state` section — since no later\nstage write in this run will do it.\n\n',
+    merged:
+      "Set the stage to `merged`. The `**Stage:**` line is what tells the next command, or a resumed run,\n" +
+      'that every slice is on the scope branch. Publish\nthe snapshot afterwards, per\n' +
+      "`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md}'s `## Publishing run state`\nsection.\n",
+  };
+
+  // commands/review.md: 6 terminal sites (denied final-reviewer, denied full suite in §4, the "Declined"
+  // stop, the 3-strike-cap/unattended-block stop, the denied fix implementer, the clean-verdict writes).
+  const reviewPieces = {
+    finalReviewer:
+      "Write the `**Degraded:**` entry that section defines, quoting the classifier's refusal, then\n" +
+      "publish the\nsnapshot, per that file's `## Publishing run state` section — since either block branch below\n" +
+      'reaches no\nlater write in this run.\n\n',
+    fullSuite:
+      'Write the `**Degraded:**` entry either way, then publish the\nsnapshot before deciding which\n' +
+      "branch applies — per\n`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md}'s `## Publishing run state`\n" +
+      'section — since the block\nbranch reaches no later write in this run.\n\n',
+    declined:
+      'Declined → stop. Write the `**Unresolved:**` entry, publish the\nsnapshot before stopping — per\n' +
+      "`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md}'s `## Publishing run\nstate` section, since no later\n" +
+      'write in this run will do it — and the stage does not advance.\n\n',
+    threeStrike:
+      'Stop, say so, write the `**Unresolved:**` entry, leave the stage where it is, and\n' +
+      "publish the snapshot before stopping — per\n`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md}'s\n" +
+      '`## Publishing run state` section — since no later\nstage write in this run will do it.\n\n',
+    fixImplementer:
+      'Write the `**Degraded:**` entry either way, with `scope.js degraded add` — the fix\n' +
+      'implementer is an authoring dispatch, not one of the three the cap counts — then publish the snapshot,\n' +
+      "per that file's `## Publishing run state` section, since an unattended block below reaches no later\n" +
+      'write in this run.\n\n',
+    cleanVerdict:
+      'Publish the snapshot after any of the writes above — `unresolved clear`, the stage write, and `docs\n' +
+      "clear` alike — per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section.\n",
+  };
+
+  const joinAll = (pieces) => Object.values(pieces).join('');
+  const pointsAtPublish = "Publish the snapshot afterwards, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md}'s " +
+    '`## Publishing run state` section.\n';
+  // references/implement-full.md carries a second, unrelated mention of the section (the non-terminal
+  // simplicity-reviewer write's own inheritance note), so its row is anchored on the real citation's own
+  // lead-in rather than a bare heading match.
+  const implementFullPointsAtPublish =
+    'Publish the snapshot after either write, per ' +
+    "`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md}'s `## Publishing run state` section.\n" +
+    "Nothing in the simplicity-reviewer's own outcome can end the command, so that write relies on its " +
+    "defining section's own citation (`## Publishing run state`) rather than repeating one here.\n";
+  const everyPublishSite = {
+    'references/scope-mode.md': joinAll(scopeModePieces),
+    'commands/document.md': joinAll(documentPieces),
+    'references/run-handoff.md': joinAll(runHandoffPieces),
+    'commands/review.md': joinAll(reviewPieces),
+    'references/run-init.md': pointsAtPublish,
+    'commands/implement.md': pointsAtPublish,
+    'commands/ship.md': pointsAtPublish,
+    'references/implement-full.md': implementFullPointsAtPublish,
+  };
+
+  // negative: every site present is clean
+  assert.equal(
+    scanContract(fixture(everyPublishSite), PUBLISH_RUN_STATE_CONTRACTS).length,
+    0,
+    'the section plus every citing site yields zero gaps',
+  );
+
+  // positive: dropping any one piece of a multi-site file leaves the others intact, so exactly one gap
+  // fires naming that file — the precision the file-level version of this check could not offer, and the
+  // exact mechanical gap the second fix cycle demonstrated on implement-lite.md
+  const dropOne = (rel, pieces, key, sourceLabel) => {
+    const remaining = Object.entries(pieces)
+      .filter(([k]) => k !== key)
+      .map(([, v]) => v)
+      .join('');
+    const dropped = fixture({ ...everyPublishSite, [rel]: remaining });
+    const gaps = scanContract(dropped, PUBLISH_RUN_STATE_CONTRACTS);
+    assert.equal(gaps.length, 1, `flags ${sourceLabel} alone for dropping its "${key}" citation`);
+    assert.equal(gaps[0].source, rel.split('/').join(path.sep), `names ${rel}`);
+  };
+
+  for (const key of Object.keys(scopeModePieces)) {
+    dropOne('references/scope-mode.md', scopeModePieces, key, 'scope-mode.md');
+  }
+  for (const key of Object.keys(documentPieces)) {
+    dropOne('commands/document.md', documentPieces, key, 'document.md');
+  }
+  for (const key of Object.keys(runHandoffPieces)) {
+    dropOne('references/run-handoff.md', runHandoffPieces, key, 'run-handoff.md');
+  }
+  for (const key of Object.keys(reviewPieces)) {
+    dropOne('commands/review.md', reviewPieces, key, 'review.md');
+  }
+
+  // positive: each of the four single-citation files is checked on its own too
+  for (const rel of ['references/run-init.md', 'commands/implement.md', 'commands/ship.md', 'references/implement-full.md']) {
+    const dropped = fixture({ ...everyPublishSite, [rel]: '# doc\n\nWrite the stage. Nothing else.\n' });
+    const gaps = scanContract(dropped, PUBLISH_RUN_STATE_CONTRACTS);
+    assert.equal(gaps.length, 1, `flags ${rel} alone for dropping its citation`);
+    assert.equal(gaps[0].source, rel.split('/').join(path.sep), `names ${rel}`);
+  }
+
+  // positive: implement-full.md's real citation dropped while its unrelated second mention of the
+  // section (the simplicity-reviewer's own inheritance note) survives still fires — a bare heading-only
+  // pattern would stay green here, exactly the mechanical gap this row's anchor exists to close
+  const implementFullRealCitationDropped = fixture({
+    ...everyPublishSite,
+    'references/implement-full.md':
+      "Nothing in the simplicity-reviewer's own outcome can end the command, so that write relies on its " +
+      "defining section's own citation (`## Publishing run state`) rather than repeating one here.\n",
+  });
+  const implementFullGaps = scanContract(implementFullRealCitationDropped, PUBLISH_RUN_STATE_CONTRACTS);
+  assert.equal(implementFullGaps.length, 1, 'flags implement-full.md even though the section is still named once');
+  assert.equal(
+    implementFullGaps[0].source,
+    path.join('references', 'implement-full.md'),
+    'names implement-full.md',
+  );
+
+  // implement-lite.md carries no citation at all — neither of its writes can end the command — and is
+  // absent from the table, so a fixture with no citation there still yields zero gaps
+  assert.equal(
+    scanContract(
+      fixture({ ...everyPublishSite, 'references/implement-lite.md': '# doc\n\nRecord the pass. Continue.\n' }),
+      PUBLISH_RUN_STATE_CONTRACTS,
+    ).length,
+    0,
+    'implement-lite.md is outside this table: both its writes rely on inheritance',
+  );
+
+  // absent files are skipped, matching every other contract table
+  assert.equal(
+    scanContract(fixture({ 'README.md': '# repo\n' }), PUBLISH_RUN_STATE_CONTRACTS).length,
+    0,
+    'absent documents are skipped',
+  );
+
+  // --- ADOPT_RUN_STATE_CONTRACTS: the mirror image of the table above — run-init.md's adopt branch (six
+  // rows) plus scope-mode.md's `resumed`-branch fetch (two rows). Each row is anchored on text unique to
+  // its own clause, so dropping any one leaves the others intact and fires exactly one gap. ---
+
+  const adoptRunInitPieces = {
+    trigger:
+      '**No `<run-root>/ledger.md` yet** → before running `init`, check the scope anchor for a snapshot ' +
+      'to adopt, unless the active store declares itself snapshot-less (the local store) — skip straight ' +
+      'to `init` below.\n\n',
+    readFails:
+      '**The read fails** (the store is unreachable) → report it once and fall through to `init` below, ' +
+      'exactly as if the anchor carried no snapshot. Not a stop.\n\n',
+    notAdopted:
+      '**No `## Run state` section, or its `**Stage:**` line reads `shipped`** → not adopted — fall ' +
+      'through to `init` below.\n\n',
+    adoptCall:
+      '**A `## Run state` section whose stage is not `shipped`** → **adopt**. Write `<run-root>/dod.md` ' +
+      'from that body first, then pipe it to `adopt`:\n\n```sh\n<anchor body> | node ' +
+      '"${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" adopt --root <run-root>\n```\n\n',
+    reconciliation:
+      "This run's kind is `resumed`. Never run `init` afterwards: your playbook's **Resume** section " +
+      'reconciles it against `git log`, and re-dispatches no slice that reconciliation finds already on ' +
+      'the scope branch.\n\n',
+    kindNamed:
+      "Name this run's kind: a live ledger — one already on disk, or one you just adopted from the " +
+      "anchor's snapshot — is **`resumed`**.\n",
+  };
+
+  const adoptScopeModePieces = {
+    fetch:
+      '**A name that does not verify locally is fetched before anything else**: `git fetch <remote> ' +
+      '<branch>` (`<remote>` from `docs/agents/code-management.md`).\n\n',
+    verifyRef:
+      "Verify the fetch's own ref afterwards, `git rev-parse --verify <remote>/<branch>`, never the bare " +
+      'name a second time**: fetching one ref only ever populates the remote-tracking ref ' +
+      '`refs/remotes/<remote>/<branch>`, never a local `refs/heads/<branch>`.\n\n',
+    stop:
+      'A name that still does not verify — the fetch found nothing either — is a stop, naming the branch ' +
+      "it looked for, not a guess. **`--unattended` → block**, per `## Unattended`.\n",
+  };
+
+  const everyAdoptSite = {
+    'references/run-init.md': joinAll(adoptRunInitPieces),
+    'references/scope-mode.md': joinAll(adoptScopeModePieces),
+  };
+
+  // negative: every site present is clean
+  assert.equal(
+    scanContract(fixture(everyAdoptSite), ADOPT_RUN_STATE_CONTRACTS).length,
+    0,
+    'adopt-run-state: every clause present yields zero gaps',
+  );
+
+  // positive: dropping any one clause fires exactly one gap naming its own file
+  for (const key of Object.keys(adoptRunInitPieces)) {
+    const remaining = Object.entries(adoptRunInitPieces)
+      .filter(([k]) => k !== key)
+      .map(([, v]) => v)
+      .join('');
+    const dropped = fixture({ ...everyAdoptSite, 'references/run-init.md': remaining });
+    const gaps = scanContract(dropped, ADOPT_RUN_STATE_CONTRACTS);
+    assert.equal(gaps.length, 1, `adopt-run-state: flags run-init.md alone for dropping its "${key}" clause`);
+    assert.equal(gaps[0].source, path.join('references', 'run-init.md'), 'names run-init.md');
+  }
+  for (const key of Object.keys(adoptScopeModePieces)) {
+    const remaining = Object.entries(adoptScopeModePieces)
+      .filter(([k]) => k !== key)
+      .map(([, v]) => v)
+      .join('');
+    const dropped = fixture({ ...everyAdoptSite, 'references/scope-mode.md': remaining });
+    const gaps = scanContract(dropped, ADOPT_RUN_STATE_CONTRACTS);
+    assert.equal(
+      gaps.length,
+      1,
+      `adopt-run-state: flags scope-mode.md alone for dropping its "${key}" clause`,
+    );
+    assert.equal(gaps[0].source, path.join('references', 'scope-mode.md'), 'names scope-mode.md');
+  }
+
+  // absent files are skipped, matching every other contract table
+  assert.equal(
+    scanContract(fixture({ 'README.md': '# repo\n' }), ADOPT_RUN_STATE_CONTRACTS).length,
+    0,
+    'adopt-run-state: absent documents are skipped',
+  );
+
+  // positive: the pre-fix-cycle wording — re-verifying the bare `<branch>` name after the fetch, the
+  // Critical defect two review passes missed (`git fetch` only ever populates the remote-tracking ref,
+  // never a local one, so that re-verify always fails) — fires the gap this row exists to catch
+  const buggyVerifyRef = fixture({
+    ...everyAdoptSite,
+    'references/scope-mode.md': joinAll({
+      ...adoptScopeModePieces,
+      verifyRef: 'Verify the fetch by re-running `git rev-parse --verify <branch>`.\n\n',
+    }),
+  });
+  const buggyVerifyGaps = scanContract(buggyVerifyRef, ADOPT_RUN_STATE_CONTRACTS);
+  assert.equal(buggyVerifyGaps.length, 1, 'adopt-run-state: flags a re-verify against the bare branch name');
+  assert.equal(buggyVerifyGaps[0].source, path.join('references', 'scope-mode.md'), 'names scope-mode.md');
+
+  // --- RESUMED_WORKTREE_TRIGGER_CONTRACTS: the lite tier's worktree step fires on either cause the
+  // worktree can be absent for — `/superdev:ship` removed it, or this checkout never held it at all — not
+  // only the first. A regression back to the single-cause sentence must fail on its own. ---
+
+  const broadenedWorktreeStep =
+    'The `lite` tier creates or reattaches the worktree with `git worktree add <path> <branch>` whenever ' +
+    '`.superdev/scopes/<scope>/worktree` is absent — because `/superdev:ship` already removed it, or ' +
+    'because this checkout never held it (a resumed run adopted from the anchor on a fresh clone) — and ' +
+    'otherwise works in the one already there.\n';
+
+  assert.equal(
+    scanContract(fixture({ 'references/scope-mode.md': broadenedWorktreeStep }), RESUMED_WORKTREE_TRIGGER_CONTRACTS)
+      .length,
+    0,
+    'resumed-worktree-trigger: the broadened sentence yields zero gaps',
+  );
+
+  // positive: the pre-fix-cycle, single-cause sentence (ship-removed only) fires the gap — the exact
+  // regression this check exists to catch
+  const narrowedWorktreeStep =
+    'The `lite` tier works in its existing scope worktree, and reattaches the branch with `git worktree ' +
+    'add <path> <branch>` when `/superdev:ship` has already removed that worktree.\n';
+  const narrowedGaps = scanContract(
+    fixture({ 'references/scope-mode.md': narrowedWorktreeStep }),
+    RESUMED_WORKTREE_TRIGGER_CONTRACTS,
+  );
+  assert.equal(narrowedGaps.length, 1, 'resumed-worktree-trigger: flags the narrowed, single-cause sentence');
+  assert.equal(narrowedGaps[0].source, path.join('references', 'scope-mode.md'), 'names scope-mode.md');
+
+  // absent files are skipped, matching every other contract table
+  assert.equal(
+    scanContract(fixture({ 'README.md': '# repo\n' }), RESUMED_WORKTREE_TRIGGER_CONTRACTS).length,
+    0,
+    'resumed-worktree-trigger: absent documents are skipped',
+  );
 
   // --- DENIAL_AUTHORSHIP_CONTRACTS: the unattended block fires on authorship, not on the denial, and
   // every document that dispatches a verification pass carries that condition. A call site left reading

@@ -113,7 +113,9 @@ Both subagents are **read-only** (`Read`, `Grep`, `Bash` — a hook blocks `git 
 **A dispatch of `final-reviewer` that the permission classifier denies is a degraded pass.** Read
 `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section and follow it: review
 inline yourself, say so in §3's report, and — on a live scope run — write the `**Degraded:**` entry that
-section defines with `scope.js degraded add-denial`, quoting the classifier's refusal.
+section defines with `scope.js degraded add-denial`, quoting the classifier's refusal, then publish the
+snapshot, per that file's `## Publishing run state` section — since either block branch below reaches no
+later write in this run.
 **`--unattended`** → that section's authorship rule
 decides: **block** where the controller authored what the review verifies, which the tier answers, and
 otherwise review inline as above — up to the cap: read `scope.js get denials` after writing the entry,
@@ -183,7 +185,10 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   `final-reviewer` dispatch succeeds**. **Denied** → `## Degraded passes`'s second shape: the pass ran and
   could not reach what it needed. Its default is record and continue regardless of attendance; **local
   deviation**, because this is the chain's only full-suite verification gate and unattended would reach
-  `/superdev:ship` with none behind it. **Attended** → write the `**Degraded:**` entry and continue.
+  `/superdev:ship` with none behind it. Write the `**Degraded:**` entry either way, then publish the
+  snapshot before deciding which branch applies — per
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section — since the block
+  branch reaches no later write in this run. **Attended** → continue.
   **Unattended** → **block**, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Unattended`
   section. Carry the result (pass/fail, and any failure output) into §2's dispatch when you continue.
   **A `fail` here is itself a Critical finding** — fold it into the fix loop exactly like a
@@ -214,10 +219,10 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   the 3-strike cap, and the clean-verdict stage advance alike.
 - **Ask once before fixing.** `final-reviewer` returned **Critical or Important** findings, or the full
   suite came back `fail` → report them per §3 first, then ask whether to fix them now.
-  - **Declined** → stop. The findings stand: write the `**Unresolved:**` entry, per
-    `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Unresolved defects` section, with
-    `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add "<text>" --root <run-root>`, and the
-    stage does **not** advance.
+  - **Declined** → stop. The findings stand: write the `**Unresolved:**` entry with
+    `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add "<text>" --root <run-root>`, publish the
+    snapshot before stopping — per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run
+    state` section, since no later write in this run will do it — and the stage does **not** advance.
   - **`--unattended` → fix**, without asking: the fix loop is the point of this gate, and a review that
     found real defects and left them is worth less than no review.
   - **Confirmed** → dispatch **one** `superdev:implementer` (`model: sonnet`; `haiku` only for a
@@ -226,15 +231,20 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
     loop first (`${CLAUDE_PLUGIN_ROOT}/references/diagnosis.md` — the implementer reads it on any
     defect-repair dispatch). Re-review after it returns, and repeat until the verdict is clean
     or the **3-strike cap** is reached — three cycles each exposing a new defect elsewhere means a wrong
-    cut, not a bug: stop, say so, write the `**Unresolved:**` entry, leave the stage where it is.
-    **`--unattended` → block** at that cap, per that file's **Unattended** section, writing the same entry
-    and leaving the stage where it is.
+    cut, not a bug: stop, say so, write the `**Unresolved:**` entry, leave the stage where it is, and
+    publish the snapshot before stopping — per
+    `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section — since no later
+    stage write in this run will do it.
+    **`--unattended` → block** at that cap, per that file's **Unattended** section, writing the same entry,
+    publishing the same way, and leaving the stage where it is.
 - **The fix implementer's own dispatch is a degraded pass too, if the permission classifier denies it.**
-  Follow `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section — **attended**,
-  apply the fix inline yourself and say so in §3's report; **unattended**, **block there instead**, in
-  place of the `--unattended → fix` rule above, since nobody is there to review a fix the controller
-  wrote itself. Write the `**Degraded:**` entry either way, with `scope.js degraded add` — the fix
-  implementer is an authoring dispatch, not one of the three the cap counts.
+  Follow `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section. Write the
+  `**Degraded:**` entry either way, with `scope.js degraded add` — the fix implementer is an authoring
+  dispatch, not one of the three the cap counts — then publish the snapshot, per that file's `## Publishing
+  run state` section, since an unattended block below reaches no later write in this run. **Attended** →
+  apply the fix inline yourself and say so in §3's report. **Unattended** → **block there instead**, in
+  place of the `--unattended → fix` rule above, since nobody is there to review a fix the controller wrote
+  itself.
 - **Over-engineering findings stay advisory here, exactly as in §3.** They hold up no handoff and trigger
   no fix loop.
 - **A ceiling note never gates either.** `final-reviewer`'s `### Ceiling` section (ADR 0020) is an
@@ -262,6 +272,9 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   0031). It is the same judgment the `documented-unreviewed` row above makes, on the same trigger. **No fix
   cycle, or none that committed** → leave the record alone: the docs still describe this code. The verb
   succeeds and changes nothing when there is no record, so a `full` run needs no separate branch here.
+
+  Publish the snapshot after any of the writes above — `unresolved clear`, the stage write, and `docs
+  clear` alike — per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section.
 
   Then print the next command with the range already resolved — `/superdev:document <range>`, carrying
   the concrete range §1 resolved — and say in one line what it will do (reconcile the in-repo docs and

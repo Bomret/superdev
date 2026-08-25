@@ -140,6 +140,38 @@ and the ready status/label marks a slice rather than the feature.
   found the feature already returns.
 - A feature whose anchor lacks the label is unreleased. No status and no other label means it.
 
+## Run state (fill in at setup)
+
+`plan-contract.md` → *Run state*. A Jira issue's `description` field is Atlassian Document Format (ADF) —
+a JSON node tree — by default, and `kb-patch.js` performs a **markdown-only** deterministic merge whose
+payload boundary is an HTML comment (`<!-- superdev:run-state -->`), which has no ADF node: neither the
+section heading nor the markers survive a round trip through the API, so `adopt` would refuse forever on
+every anchor this backend ever wrote. This store therefore carries **no snapshot** by default, the same
+posture the local-file store takes when its anchor cannot safely carry a mirrored write.
+
+A run on a default Jira instance publishes nothing, adopts nothing, and ticks only `<run-root>/dod.md` —
+never the anchor's own Definition of Done checklist.
+
+**Unless your Jira instance stores the description as markdown or wiki markup** — a Jira Server/Data
+Center instance configured for wiki markup, or a Jira Cloud app that exposes a plain-text body — the
+mechanism is the same as Forgejo's and GitHub's. At setup, confirm which of the two your instance is and
+strike the other, so `docs/agents/issue-tracker.md` states one posture, not both — `references/run-init.md`
+reads this section for a single yes-or-no answer to "does this store carry a snapshot":
+
+- **Write** (after any ledger write the snapshot would show): `PUT <base>/rest/api/3/issue/<key>` with
+  `{ "fields": { "description": <anchor description, folded per ## Publishing run state> } }` — the same
+  call and body shape the Epic amendment under *Append mode* below already uses. **Best-effort:** a failed
+  write is reported once per run and the run continues; the ledger stays authoritative.
+- **Read** (every publish, including run init and adopting a run): `GET <base>/rest/api/3/issue/<key>?fields=description` — the same
+  field the **Read an anchor's dependencies** call above already reads — and take the description back
+  out of the response.
+- **Ticking the anchor's own Definition of Done checklist** (`/superdev:ship`, toggling a description
+  `- [ ]` to `- [x]`) is a second sanctioned description edit, beside the Epic amendment under
+  *Append mode*.
+- **The section is machine-owned.** A deeper subsection an operator adds under `## Run state` — a
+  `### Operator notes` heading, say — is replaced along with the rest on the next publish. Keep an
+  operator note outside the section.
+
 ## Status workflow (fill in at setup)
 
 `/implement` transitions each issue at every lifecycle point (see the plan-contract's *Slice lifecycle &

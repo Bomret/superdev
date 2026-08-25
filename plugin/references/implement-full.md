@@ -99,14 +99,20 @@ Repeat until every slice is `merged`:
      including the `**Degraded:**` entry it defines for `<run-root>/ledger.md`. A denied implementer or
      fix is an authoring dispatch: write it with `scope.js degraded add`. A denied `slice-reviewer` is
      this tier's one verification dispatch: write it with `scope.js degraded add-denial`, quoting the
-     classifier's refusal. **`--unattended`** → a denied implementer or fix **blocks**, per ADR 0001. A
+     classifier's refusal. Publish the snapshot after either write, per
+     `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section — since a denied
+     implementer/fix or a capped slice-reviewer denial reaches no later write below. **`--unattended`** →
+     a denied implementer or fix **blocks**, per ADR 0001. A
      denied `slice-reviewer` follows that section's authorship rule, and this tier's slices come from a
      dispatched implementer, so the controller authored none of what the review verifies: review the
      slice inline and carry on, bounded by that section's cap — read `scope.js get denials` after writing
      the entry, and **block** once the count reaches it instead of reviewing inline again. A denied
      `simplicity-reviewer` follows that same authorship rule, and since its findings are advisory, the
      pass runs inline and the run carries on; write its entry with plain `scope.js degraded add` — its
-     denial is not a verification dispatch, so it stays outside that cap.
+     denial is not a verification dispatch, so it stays outside that cap. Nothing in that outcome can end
+     the command, so this write relies on its defining section's own citation
+     (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section) rather than
+     repeating one here.
    - **`mechanical`** / **`docs`** slice → **skip both per-slice reviews** (the merge's focused run, plus
      the scope's one full-suite run — at `/superdev:review`, or the run-handoff run when every slice in
      the scope is `mechanical`/`docs` — are the net; ADR 0025).

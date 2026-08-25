@@ -1690,6 +1690,235 @@ const AFK_ANCHOR_COUNT_ELEMENTS = [
   ],
 ];
 
+// ADR 0042: publishing the run-state snapshot follows any ledger write the snapshot would show, stated
+// once in `references/scope-mode.md`'s `## Publishing run state` section rather than at each call site
+// that writes one. A site that drops the pointer silently strands the anchor's snapshot behind whichever
+// write it stopped citing — nothing else notices, because the write itself still lands and the suite stays
+// green. Anchored on the section's own name, the same shape `UNATTENDED_CONTRACTS` and `DEGRADED_CONTRACTS`
+// use for a rule several call sites cite in their own words around one fixed noun.
+//
+// The rule was originally scoped to `stage set` alone, and a fix cycle broadened it: a scope-wide suite's
+// 3-strike halt writes `**Unresolved:**` and deliberately leaves the stage untouched, so the original five
+// stage-only rows never covered it. The five rows below pin that `references/scope-mode.md` states, once,
+// the criterion for which write gets a direct citation (`## Publishing run state`'s own "Which sites cite
+// this directly" paragraph) and that its own defining sections — `## Degraded passes`, `## Unresolved
+// defects`, `## Deferred findings`, and the `**Docs:**` bullet in `## The ledger` — each carry the
+// broadened instruction where they name their own write.
+//
+// A second fix cycle found that a *file-level* presence row is too weak once a file carries more than one
+// citation: `review.md` and `run-handoff.md` each already satisfied their row from an unrelated branch's
+// citation, so three sites where a denied dispatch or a denied full-suite run writes `**Degraded:**` and
+// then blocks — reaching no later write in the same run — sat uncited with the check still green. The
+// rows below are per-site rather than per-file wherever a file carries more than one citation: each is
+// anchored on text unique to its own write (the surrounding sentence, never just the repeated section
+// name), so dropping any one citation fails on its own regardless of its siblings. `references/run-init.md`,
+// `commands/implement.md`, `commands/ship.md`, and `references/implement-full.md` carry exactly one
+// citation each, so a bare file-level row is unambiguous there. `references/implement-lite.md` carries no
+// direct citation, one inheritance note: neither of its two writes (`docs set inline`, the knowledge-base
+// pass's `degraded add`) can end the command — nothing in that section ever blocks — so both rely on
+// inheritance and the file is absent from this table entirely, the same as any other document whose every
+// write is non-terminal.
+const PUBLISH_RUN_STATE_CONTRACTS = [
+  [
+    path.join('references', 'scope-mode.md'),
+    /^#{2,3}\s+Publishing run state\s*$/m,
+    'carry the `## Publishing run state` section defining the rule for every ledger write',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /Cite this section directly at the write[\s\S]{0,80}?can end the command[\s\S]{0,400}?relies on its defining section/,
+    "state the criterion for which write gets a direct citation, in the section's own " +
+      '`Which sites cite this directly` paragraph',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /on every `degraded add` or `degraded add-denial` call/,
+    'publish the snapshot after a `degraded add`/`degraded add-denial` write, in its own `## Degraded ' +
+      'passes` section',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /on every `unresolved add` or `unresolved clear` call/,
+    'publish the snapshot after an `unresolved add`/`unresolved clear` write, in its own `## Unresolved ' +
+      'defects` section',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /on every `deferred add` call/,
+    'publish the snapshot after a `deferred add` write, in its own `## Deferred findings` section',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /on every `docs set` or `docs clear` call/,
+    'publish the snapshot after a `docs set`/`docs clear` write, in `## The ledger`\'s `**Docs:**` bullet',
+  ],
+  ...[
+    path.join('references', 'run-init.md'),
+    path.join('commands', 'implement.md'),
+    path.join('commands', 'ship.md'),
+  ].map((rel) => [rel, /`## Publishing run state`/, 'point at the `## Publishing run state` section after its one ledger write']),
+  // references/implement-full.md: anchored on the real citation's own lead-in, not a bare heading match —
+  // the file also names the section a second time, in the non-terminal simplicity-reviewer write's own
+  // inheritance note, so a bare presence row would stay green with the real citation stripped.
+  [
+    path.join('references', 'implement-full.md'),
+    /Publish the snapshot after either write, per[\s\S]{0,80}?`## Publishing run state`/,
+    'publish the snapshot after either terminal write (a denied implementer/fix, a denied slice-reviewer)',
+  ],
+  // commands/document.md: two distinct terminal sites, each its own row.
+  [
+    path.join('commands', 'document.md'),
+    /refusal\. Publish the snapshot afterwards, per[\s\S]{0,60}?`## Publishing run state`/,
+    'publish the snapshot after a denied doc-writer/doc-reader dispatch, since an unattended block reaches ' +
+      'no later write in this command',
+  ],
+  [
+    path.join('commands', 'document.md'),
+    /Wrote `documented` or `documented-unreviewed` above[\s\S]{0,40}?publish the snapshot, per[\s\S]{0,60}?`## Publishing run state`/,
+    'publish the snapshot after its own stage write, the last write this command makes',
+  ],
+  // references/run-handoff.md: three distinct terminal sites, each its own row.
+  [
+    path.join('references', 'run-handoff.md'),
+    /then publish the snapshot before deciding which branch below applies[\s\S]{0,120}?`## Publishing run state`[\s\S]{0,60}?since the block\s+branch reaches no later write/,
+    'publish the snapshot after the denied-full-suite write, since the unattended branch reaches no later ' +
+      'write in this run',
+  ],
+  [
+    path.join('references', 'run-handoff.md'),
+    /leave the\s+stage where it is, and publish the snapshot before stopping[\s\S]{0,120}?`## Publishing run state`[\s\S]{0,60}?since no later\s+stage write in this run will do it/,
+    'publish the snapshot at the 3-strike red-cap stop, since no later stage write in this run will do it',
+  ],
+  [
+    path.join('references', 'run-handoff.md'),
+    /tells the next command, or a resumed run, that every slice is on the scope branch\. Publish[\s\S]{0,150}?`## Publishing run state`/,
+    'publish the snapshot after its own `stage set merged` write, the last write a normal run makes here',
+  ],
+  // commands/review.md: six distinct terminal sites, each its own row.
+  [
+    path.join('commands', 'review.md'),
+    /quoting the classifier's refusal, then publish the[\s\S]{0,80}?`## Publishing run state`/,
+    'publish the snapshot after a denied final-reviewer dispatch, since either block branch reaches no ' +
+      'later write in this run',
+  ],
+  [
+    path.join('commands', 'review.md'),
+    /Write the `\*\*Degraded:\*\*` entry either way, then publish the[\s\S]{0,150}?`## Publishing run state`[\s\S]{0,40}?since the block\s+branch reaches no later write/,
+    'publish the snapshot after the denied full-suite dispatch in §4, since the unattended branch reaches ' +
+      'no later write in this run',
+  ],
+  [
+    path.join('commands', 'review.md'),
+    /publish the\s+snapshot before stopping[\s\S]{0,120}?`## Publishing run\s+state`[\s\S]{0,60}?since no later write in this run will do it/,
+    'publish the snapshot at the "Declined" stop, since no later write in this run will do it',
+  ],
+  [
+    path.join('commands', 'review.md'),
+    /publish the snapshot before stopping[\s\S]{0,120}?`## Publishing run state`[\s\S]{0,60}?since no later\s+stage write in this run will do it/,
+    'publish the snapshot at the 3-strike-cap/unattended-block stop, since no later stage write in this ' +
+      'run will do it',
+  ],
+  [
+    path.join('commands', 'review.md'),
+    /entry either way, with `scope\.js degraded add`[\s\S]{0,150}?`## Publishing run state`[\s\S]{0,60}?since an unattended block below reaches no later write/,
+    'publish the snapshot after the denied fix-implementer dispatch, since the unattended block reaches ' +
+      'no later write in this run',
+  ],
+  [
+    path.join('commands', 'review.md'),
+    /Publish the snapshot after any of the writes above[\s\S]{0,150}?`## Publishing run state`/,
+    'publish the snapshot after the clean-verdict writes (unresolved clear, the stage write, docs clear)',
+  ],
+];
+
+// The `adopt-run-state` contract (ADR 0042), the mirror image of the table above: where publishing
+// writes the ledger onto the anchor, adopting reads it back. Six rows pin `references/run-init.md`'s
+// adopt branch — the trigger condition and its snapshot-less skip, the read-failure fallthrough, the
+// shipped-or-section-less fallthrough, the adopt call itself (`dod.md` written before `adopt`, per
+// ADR 0042's own ordering), the reconciliation sentence that keeps the adopted slice table from gating a
+// re-dispatch on its own, and the `resumed` naming for an adopted ledger — plus three on
+// `references/scope-mode.md`'s `resumed` branch bullet: the remote fetch a name that does not verify
+// locally now takes before the stop, the fetch's own remote-tracking ref that the post-fetch check
+// verifies instead of the bare name (`git fetch <remote> <branch>` only ever populates
+// `refs/remotes/<remote>/<branch>`, never a local `refs/heads/<branch>`, so verifying the bare name a
+// second time always fails — the Critical defect a fix cycle found and fixed, after two review passes
+// missed it), and the stop itself once the fetch finds nothing either, blocking rather than asking under
+// `--unattended`.
+const ADOPT_RUN_STATE_CONTRACTS = [
+  [
+    path.join('references', 'run-init.md'),
+    /No `<run-root>\/ledger\.md` yet\*\* → before running `init`, check the scope anchor for a snapshot to adopt, unless the active store declares itself snapshot-less[\s\S]{0,150}?skip straight to `init`/,
+    'check the scope anchor for a snapshot to adopt before running `init`, skipping straight to `init` ' +
+      'when the active store declares itself snapshot-less',
+  ],
+  [
+    path.join('references', 'run-init.md'),
+    /\*\*The read fails\*\* \(the store is unreachable\)[\s\S]{0,60}?report it once and fall through to `init` below[\s\S]{0,60}?Not a stop/,
+    'fall through to `init` when the anchor read fails, reporting it once rather than stopping',
+  ],
+  [
+    path.join('references', 'run-init.md'),
+    /No `## Run state` section, or its `\*\*Stage:\*\*` line reads `shipped`\*\*[\s\S]{0,60}?not adopted[\s\S]{0,150}?fall through to `init` below/,
+    'treat a `shipped` stage or a section-less anchor as not adopted, falling through to `init`',
+  ],
+  [
+    path.join('references', 'run-init.md'),
+    /A `## Run state` section whose stage is not `shipped`\*\* → \*\*adopt\*\*\. Write `<run-root>\/dod\.md` from[\s\S]{0,400}?scope\.js" adopt --root <run-root>/,
+    'adopt the snapshot — write `<run-root>/dod.md` from the anchor body before piping it to `scope.js ' +
+      'adopt`',
+  ],
+  [
+    path.join('references', 'run-init.md'),
+    /your playbook's \*\*Resume\*\* section reconciles it against `git log`, and re-dispatches no slice that reconciliation finds already on the scope branch/,
+    "state that the adopted slice table gates no re-dispatch on its own — the playbook's Resume " +
+      'reconciliation against `git log` decides',
+  ],
+  [
+    path.join('references', 'run-init.md'),
+    /a live ledger — one already on disk, or one you just adopted from the anchor's[\s\S]{0,20}?snapshot — is \*\*`resumed`\*\*/,
+    'name the run kind `resumed` for a ledger it just adopted, beside one already on disk',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /A name that does not verify locally is fetched before anything else\*\*: `git fetch[\s\S]{0,30}?<branch>` \(`<remote>` from `docs\/agents\/code-management\.md`\)/,
+    'fetch a `resumed` branch that does not verify locally, from the remote `docs/agents/code-management.md` ' +
+      'names, before taking the stop',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /Verify the fetch's own\s+ref afterwards, `git rev-parse --verify <remote>\/<branch>`, never the bare name a second time\*\*: fetching\s+one ref only ever populates the remote-tracking ref `refs\/remotes\/<remote>\/<branch>`, never a local\s+`refs\/heads\/<branch>`/,
+    "verify the fetch's own remote-tracking ref (`git rev-parse --verify <remote>/<branch>`) afterwards, " +
+      'never the bare name a second time — a fetch only ever populates `refs/remotes/<remote>/<branch>`, ' +
+      'never a local `refs/heads/<branch>`',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /the fetch found nothing either — is a stop, naming the branch it looked for, not a guess\.[\s\S]{0,20}?\*\*`--unattended` → block\*\*, per `## Unattended`/,
+    'stop, naming the branch it looked for, when the fetch finds nothing either, and block rather than ' +
+      'ask under `--unattended`',
+  ],
+];
+
+// The `resumed-worktree-trigger` contract (ADR 0042), one row: the `lite` tier's worktree step in
+// `references/scope-mode.md`'s `resumed` branch bullet must create or reattach the worktree whenever it
+// is absent for *either* cause — `/superdev:ship` already removed it, or this checkout never held it at
+// all (a resumed run adopted from the anchor on a fresh clone, the scenario `adopt-run-state` makes
+// reachable). A fix cycle found the sentence named only the first cause: `implement-lite.md`'s Resume
+// step works "in the scope worktree" unconditionally, assuming it exists, and nothing created it on a
+// fresh clone. No fixture distinguished "removed by ship" from "never created", so a regression back to
+// the narrower, single-cause sentence would pass silently. Split out from `ADOPT_RUN_STATE_CONTRACTS`
+// rather than appended to it, because the two tables answer different questions — which branch gets
+// fetched, versus which worktree gets created — and a single-cause regression here is exactly the shape
+// a per-clause row exists to catch on its own.
+const RESUMED_WORKTREE_TRIGGER_CONTRACTS = [
+  [
+    path.join('references', 'scope-mode.md'),
+    /The `lite` tier creates or reattaches the worktree with `git worktree add <path> <branch>` whenever `\.superdev\/scopes\/<scope>\/worktree` is absent[\s\S]{0,60}?already removed it, or because this checkout never held it[\s\S]{0,60}?resumed run adopted from the anchor on a fresh clone/,
+    'create or reattach the `lite`-tier worktree whenever it is absent, whether `/superdev:ship` removed ' +
+      'it or this checkout never held it (a resumed run adopted from the anchor on a fresh clone)',
+  ],
+];
+
 module.exports = {
   REFERENCE_PATTERN,
   RUN_ROOT_DOCS,
@@ -1772,4 +2001,7 @@ module.exports = {
   PLAYBOOK_EDGE_CONTRACTS,
   AFK_ANCHOR_COUNT_HEADING,
   AFK_ANCHOR_COUNT_ELEMENTS,
+  PUBLISH_RUN_STATE_CONTRACTS,
+  ADOPT_RUN_STATE_CONTRACTS,
+  RESUMED_WORKTREE_TRIGGER_CONTRACTS,
 };

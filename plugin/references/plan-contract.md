@@ -220,6 +220,25 @@ A store whose `## Release` section states that its features are released when wr
 store's default, where there is no board to hold a backlog — has every feature released at creation, and
 `/superdev:plan` skips the question there.
 
+## Run state
+
+A run publishes a **snapshot** of its progress onto the scope anchor: a `## Run state` section in the
+anchor's own body. `<run-root>/ledger.md` stays the run's single source of truth; the snapshot is a
+mirror, never a second authority — it is what lets the anchor still show where a run stood after the run
+root is gone, and what a resumed run on a clean checkout reconciles against. Publishing follows any ledger
+write the snapshot would show, not `stage set` alone, one rule rather than a list of call sites, and it
+is **best-effort**: a failed publish is reported once and the run continues, exactly as a failed status
+label is, because the ledger drives control flow, not the anchor.
+
+`/superdev:ship` ticks the anchor's own Definition of Done checklist too, a second sanctioned body edit
+beside the epic amendment *Append mode* above already names, so those ticks also outlive the run root.
+
+Every backend mechanism — where the section lives, the call that writes it, and the call that reads it
+back — belongs to the active `docs/agents/issue-tracker.md`'s own `## Run state` section, which resolves
+the anchor for both feature shapes by citing that store's own `## Scope anchor` section rather than
+restating it. A store whose anchor cannot safely carry a mirrored write declares itself snapshot-less
+there instead.
+
 ## Feature label
 
 A feature's **feature label** is the one identifier its scope anchor and every slice beneath it carry. It

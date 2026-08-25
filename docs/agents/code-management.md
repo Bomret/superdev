@@ -6,6 +6,7 @@ Code lives on Codeberg (`ssh://codeberg.org/bomret/superdev.git`). Use the Forge
 ## Configuration
 
 - **Host, owner, and repo:** `https://codeberg.org`, `bomret`, `superdev`.
+- **Remote:** `origin`. Confirm with `git remote -v`.
 - **Auth:** API token in env var `GITEA_TOKEN` (record the name, never the value).
 - **Default PR posture:** `ready` (open ready-for-review). Override: `draft` or `push-only`.
 - **Base branch:** `main`.

@@ -6,6 +6,7 @@ Code lives on a Forgejo (or Gitea) instance. Use the `tea` CLI if installed, oth
 
 - **Base URL**: `<https://git.example.com>`
 - **Owner / repo**: `<owner>/<repo>` (confirm with `git remote -v`).
+- **Remote**: `origin`. Confirm with `git remote -v`.
 - **Auth**: API token in env var `<FORGEJO_TOKEN>`. Record the env-var NAME here, never the secret.
 - **Tooling**: `<tea>` or `<rest>`.
 - **Default PR posture**: `draft` (override: `ready` | `push-only`).

@@ -73,6 +73,13 @@ Confirm every item in `<run-root>/dod.md` against the integrated scope branch, t
 (`- [ ]` → `- [x]`). Leave an unmet item unchecked with a one-line note on why. Verify the items yourself:
 a passing review earlier in the chain is evidence, not a substitute.
 
+**Apply the same verdict to the anchor's own Definition of Done checklist**, through the sanctioned body
+edit the active store's own `## Run state` section names (`docs/agents/issue-tracker.md`, or whichever
+seed is active). Best-effort: a failed write is reported once and never stops the ship. Leave an unmet
+item's one-line note on the local copy alone — the anchor carries tick state, and the pull-request body
+already carries the reasons. A store whose `## Run state` section declares it snapshot-less has no anchor
+body to edit: tick the local copy only and say so in one line.
+
 ## 5. Pull request
 
 Per `docs/agents/code-management.md`: push the scope branch, then open the pull request at the configured
@@ -104,7 +111,8 @@ it, and where it outlives the review that found it. **No output** → add no emp
 
 Then move the **scope anchor** issue (the epic, or the lone slice on a single-slice plan) to done per
 `docs/agents/issue-tracker.md`, and set the ledger's `**Stage:**` line to `shipped` with
-`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set shipped --root <run-root>`.
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set shipped --root <run-root>`. Publish the snapshot
+afterwards, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section.
 
 ## 6. Clean up
 

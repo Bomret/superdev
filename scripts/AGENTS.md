@@ -19,11 +19,12 @@ This doc owns what each script guards and the contracts between them. Repo-wide 
 
 `scope.js` owns the ledger's schema and is the only `ledger.md` read and write path in the chain:
 `init`, `stage set`, `slice`, `degraded add|add-denial`, `unresolved add|clear`, `deferred add`,
-`docs set <value>|clear`, `get stage|branch|anchor|slices|unresolved|degraded|deferred|denials|docs`, and
-`status` (which renders the whole `/superdev:status` report). `degraded add-denial` prefixes its bullet
-`denied: `, which is what separates a denied verification dispatch from the other degraded shape sharing
-that line, and `get denials` counts those prefixed bullets — the number an unattended run caps at two
-(ADR 0041). `get degraded` prints every bullet either way, prefix intact. It also exports `readLedgerHeader` as a module
+`docs set <value>|clear`, `get stage|branch|anchor|slices|unresolved|degraded|deferred|denials|docs`,
+`status` (which renders the whole `/superdev:status` report), `publish`, and `adopt`. `degraded
+add-denial` prefixes its bullet `denied: `, which is what separates a denied verification dispatch from
+the other degraded shape sharing that line, and `get denials` counts those prefixed bullets — the number
+an unattended run caps at two (ADR 0041). `get degraded` prints every bullet either way, prefix intact.
+It also exports `readLedgerHeader` as a module
 API. This per-header ledger-line reader is what `hooks/scope-prune.js` uses instead of carrying its
 own regex. The API guards its CLI entry with `require.main === module`, so a `require` for that
 reader alone runs no CLI code. Normalisation is per header: `Stage` and `Branch` are single tokens,
@@ -40,6 +41,40 @@ staged-page lines survive the collapse, because each is otherwise recorded nowhe
 carries no `clear` counterpart: a defect stops being true once a run re-verifies the scope green, while
 unplanned work stays unplanned until somebody plans it (ADR 0035).
 
+`publish` and `adopt` (ADR 0042) mirror the ledger to the scope anchor's **published snapshot**, and
+neither performs store I/O: slice-store I/O stays in-agent (ADR 0022). `publish --root <run-root>`
+prints the ledger on stdout as a single `## Run state` section: that heading, then the ledger — its
+`# Ledger — <slug>` title line dropped, every other byte untouched — wrapped between a
+`<!-- superdev:run-state -->` line and a `<!-- /superdev:run-state -->` line. `adopt --root <run-root>`
+reads a whole anchor body on stdin, takes the payload between those two markers, reconstructs the title
+from the payload's own `**Branch:**` line, validates the result against the same schema (`Stage` against
+the known set, every table row's 7 columns), and writes `<run-root>/ledger.md`.
+
+The payload's boundary is marked, never inferred. `adopt` disregards every heading in the body — the
+markers alone bound the payload, so a bare or fenced `#`-led line inside it, an unrelated markdown table
+in a later section, or prose reusing `**Degraded:**`/`**Unresolved:**`/`**Deferred:**` elsewhere on the
+anchor plays no part in the extraction and triggers no refusal. `kb-patch.js`'s `merge()` still finds and
+replaces the `## Run state` section by that heading, unchanged: the markers sit inside the section that
+heading bounds, so the section merge and the payload boundary answer different questions. Two fix cycles
+on the previous, heading-inferred boundary moved the failure between a stray heading silently truncating
+the payload and a false refusal on ordinary anchor content reusing ledger vocabulary — a truncated ledger
+is itself a well-formed ledger, so no heuristic over the payload's shape, or over what follows it,
+separated the two cases (ADR 0042).
+
+The marker scan itself `require`s `kb-patch.js`'s `maskFencedLines` — the same function
+`extractSection()` uses — rather than growing a second copy (ADR 0022's second-reader lesson). An HTML
+comment renders invisibly, so a fence is the only way to *show* the marker syntax to a human at all
+(documentation, an issue comment quoting a snapshot), and a shown marker is neither mistaken for the real
+payload boundary nor counted toward the duplicate-opening-marker refusal. A body whose only marker pair
+sits inside a fence therefore reads as carrying no real marker at all and refuses, rather than adopting
+the fenced example as live state. An unterminated fence in the body refuses outright, the same posture
+`extractSection()`/`merge()` already take, rather than guess where it would have closed and risk masking
+a real marker past it. `adopt` refuses, writing nothing, when the opening marker is absent, when it
+appears more than once (which payload to adopt cannot be resolved), when the closing marker is absent,
+or when the closing marker precedes the opening one. It also refuses when the payload carries no
+`**Branch:**` line (the heading cannot be reconstructed without it), when the run root's directory name
+does not match the Branch line's slug, or when a ledger already exists at that root.
+
 `status` also reports every scope's **staged knowledge-base pages** under `.superdev/kb-pending/`
 (ADR 0023): a `pending publish:` line per scope, a scope with no run root under `(no ledger)`, a
 non-`.md` file staged and ignored, and a `.md` file staged directly under `.superdev/kb-pending`
@@ -49,7 +84,12 @@ The stage machine's transition rules are enforced in its code, not in prose, and
 `hooks/ledger-guard.js` denies every other write path. Its selftest carries the retired drift
 assertions along with its own behavior: the stage machine, the ledger schema and header lines, a
 pre-CLI ledger parsing unchanged, and the scope-slug charset staying equal across `scope.js`,
-`hooks/run-lock.js`, and `references/scope-mode.md`.
+`hooks/run-lock.js`, and `references/scope-mode.md`. A further pin — the same class of assertion as
+`hooks/ledger-guard.js`'s byte-identical `ARG` token against `hooks/merge-guard.js`, adapted for a
+shared function instead of a duplicated constant — asserts that `scope.js`'s own source still requires
+`maskFencedLines` from `kb-patch.js` and declares no private function of that name, so a reintroduced
+private copy of the masking rule fails this instead of only being caught by chance, on whichever
+fixture happens to exercise the drift.
 
 ### kb-patch.js, the knowledge-base section merge (ADR 0027)
 
@@ -165,7 +205,7 @@ every drift assertion by id, and it fell behind at five separate additions, beca
 maintained by hand at the moment its author is thinking about code. Naming the exceptions cannot drift
 when a new check lands.
 
-`drift-check.js` guards fifty-four things, in the order `drift/checks.js` registers them. First, the
+`drift-check.js` guards fifty-seven things, in the order `drift/checks.js` registers them. First, the
 `reference` contract: every `references/*.md` path named in `commands/`, `agents/`, or `references/`
 itself resolves to a file that exists. A reference cites another reference, as both execution
 playbooks point at `scope-mode.md`, so a rename there dangles like any other. Second, the
@@ -702,6 +742,85 @@ paragraph itself with `extractParagraph()`, narrower than `anchor-contract`'s se
 (the eligibility bullet reads it) — a section-wide match would pass on that restatement alone even after
 the intro paragraph itself reverted to "four".
 
+Fifty-fifth, the `publish-run-state` contract (ADR 0042), twenty-one rows. `references/scope-mode.md`
+carries the `## Publishing run state` section, stating that publishing follows any ledger write the
+snapshot would show — not `stage set` alone — with one exception, a slice-row move, and stating the
+criterion for which write cites the section *directly*, in its own "Which sites cite this directly"
+paragraph: a write whose own instruction can end the command — a block, a stop, a refusal — before any
+later write in the same run reaches a site that already cites the section gets a direct citation at the
+write; every other write relies on its defining section's own citation instead, since the run is guaranteed
+to reach a citing site regardless of which branch it takes. Four more rows sit on that same file: its
+`## Degraded passes`, `## Unresolved defects`, and `## Deferred findings` sections, and `## The ledger`'s
+`**Docs:**` bullet, each carry the publish instruction where they name their own write.
+
+The rule was first scoped to `stage set` alone, and a first fix cycle broadened it: a scope-wide suite's
+3-strike halt writes `**Unresolved:**` and deliberately leaves the stage untouched, so a stage-only rule
+never covered it, and the durability ADR 0042 promises was lost on exactly the path that needs it. That
+cycle's own citations were file-level — one presence check per document — which a second fix cycle found
+too weak the moment a file carries more than one citation: `commands/review.md` and
+`references/run-handoff.md` each already satisfied a bare per-file row from an unrelated branch's citation
+(the clean-verdict write, the `stage set merged` write), so three sites where a denied dispatch or a denied
+full-suite run writes `**Degraded:**` and then blocks unattended — reaching no later write in the same run —
+sat uncited with the check green throughout. The remaining fifteen rows are the sites that write one of
+those ledger lines, each anchored on text unique to its own write wherever its file carries more than one
+citation, not merely the repeated section name: six on `commands/review.md` (a denied `final-reviewer`
+dispatch, a denied full-suite dispatch in its own scope-mode fix loop, the "Declined" stop, the 3-strike-cap
+stop, a denied fix-implementer dispatch, and the clean-verdict writes together), three on
+`references/run-handoff.md` (a denied full-suite dispatch, the 3-strike red-cap stop, and its own
+`stage set merged` write), and two on `commands/document.md` (a denied `doc-writer`/`doc-reader` dispatch,
+and its own stage write). `references/run-init.md`, `commands/implement.md`, and `commands/ship.md` carry
+exactly one citation each and no other mention of the section, so a bare file-level row stays unambiguous
+there. `references/implement-lite.md` carries no direct citation, one inheritance note, and sits outside
+this table entirely: neither of its two
+writes (`docs set inline`, the knowledge-base pass's `degraded add`) can end the command, so both rely on
+inheritance — the same shape the file-level version of this check could not tell apart from a genuine gap,
+proven by stripping one of its two prior citations and watching the check stay green.
+
+`references/implement-full.md` keeps one shared citation covering a single bullet that describes three
+sibling write-shapes (a denied implementer/fix, a denied `slice-reviewer`, a denied `simplicity-reviewer`) —
+only the first two can end the command, and the citation sits before either's block description, the same
+order `commands/implement.md`'s own near-identical bullet already uses. The bullet also names the section a
+second time, in a sentence stating that the third, non-terminal shape relies on inheritance instead — so its
+row is anchored on the real citation's own lead-in ("Publish the snapshot after either write, per…") rather
+than a bare heading match, which a second mention in the same file would satisfy on its own regardless of
+which one survived. **Ceiling:** the anchor still proves only that this exact sentence exists somewhere in
+the file, never that it sits before the block descriptions rather than after — it is a presence check with
+no notion of position, and an ordering regression there would need a human or a reviewer to catch, the same
+way these three fix cycles did.
+
+Fifty-sixth, the `adopt-run-state` contract (ADR 0042), the mirror image of the check above: where
+publishing writes the ledger onto the anchor, adopting reads it back. Six rows sit on
+`references/run-init.md`'s `## Run init` step: that a missing local ledger triggers a check of the scope
+anchor for a snapshot to adopt, skipping straight to `init` on a store that declares itself
+snapshot-less; that a failed anchor read falls through to `init` too, reported once rather than treated as
+a stop; that a `shipped` stage or a section-less anchor is not adopted, also falling through to `init`;
+that adopting writes `<run-root>/dod.md` from the anchor body before piping it to `scope.js adopt`, the
+ordering ADR 0042 states explicitly; that the adopted slice table gates no re-dispatch on its own, because
+the playbook's own Resume reconciliation against `git log` decides that instead; and that the run kind for
+an adopted ledger is named `resumed`, beside a ledger already on disk. Three more rows sit on
+`references/scope-mode.md`'s `resumed` branch bullet: that a name which does not verify locally is fetched
+from the remote `docs/agents/code-management.md` names before the stop, since a fresh clone or a
+just-adopted ledger holds no scope branch until that runs; that the post-fetch check re-verifies the
+fetch's own remote-tracking ref (`git rev-parse --verify <remote>/<branch>`), never the bare name a second
+time — `git fetch <remote> <branch>` only ever populates `refs/remotes/<remote>/<branch>`, never a local
+`refs/heads/<branch>`, so a bare re-verify always fails, the Critical defect a fix cycle found and fixed
+after two review passes read the wrong-ref sentence as correct; and that the stop itself, once the fetch
+finds nothing either, still names the branch it looked for and blocks rather than asks under
+`--unattended`.
+
+Fifty-seventh, the `resumed-worktree-trigger` contract (ADR 0042), one row: the `lite` tier's action in
+that same `resumed` branch bullet creates or reattaches the worktree whenever it is absent for either
+cause — `/superdev:ship` already removed it, or this checkout never held it at all, the case
+`adopt-run-state` makes reachable on a fresh clone. A fix cycle found the sentence named only the first
+cause, so `references/implement-lite.md`'s Resume step — which works "in the scope worktree"
+unconditionally, assuming it exists — had nothing creating that worktree on a fresh clone; `implement-lite.md`
+itself needed no change once the bullet it delegates to was broadened, because its own Branch model step
+already runs `## Cutting the scope branch` in full before Resume ever reads the worktree. Split into its
+own check rather than folded into `adopt-run-state`'s table, because the two answer different questions —
+which branch gets fetched, versus which worktree gets created — and no fixture anywhere previously
+distinguished "removed by ship" from "never created", so a regression narrowing the sentence back to one
+cause would have passed silently.
+
 The first and seventh checks are opposites. The first catches a reference to a file that does not exist.
 The seventh catches an agent that drops its wire to a file which still exists. That drift leaves the
 reference resolvable and the suite green, and the lens then does nothing in any dispatch.
@@ -715,6 +834,11 @@ successor at all.
 
 - Scripts are CommonJS, like the hooks. `hooks/scope-prune.js` `require`s `scope.js`, so `scope.js`
   must stay `require`-able under plain `node`. This is the one dependency `hooks/` has on `scripts/`.
+  `scope.js` in turn `require`s `kb-patch.js` for `maskFencedLines`, so `kb-patch.js` must stay
+  `require`-able under plain `node` too — the one dependency inside `plugin/scripts/` itself. `adopt`'s
+  payload boundary is a pair of markers, not a heading, but a marker can still be shown inside a fenced
+  illustrative example, so the marker scan needs the same fence-masking `kb-patch.js`'s
+  `extractSection()` already owns.
 - Every script ships a `--selftest`, same convention as the hooks.
 - A **shape-based prose guard that asserts an absence states its ceiling beside itself.** A pattern over
   English catches the phrasings it names and not every paraphrase, and on an absence check — the document
@@ -731,7 +855,7 @@ successor at all.
   *loudly*, the row goes red until the pattern catches up, so the presence tables in `drift/contracts.js`
   (`FIX_BOUNDARY_CONTRACTS` among them) carry none.
 - A new drift-check contract is one entry appended at the end of the `drift/checks.js` registry, plus
-  its section in the fifty-four-check narrative above and its selftest in the matching
+  its section in the fifty-seven-check narrative above and its selftest in the matching
   `drift/selftest/*.test.js` suite. Append rather than insert unless the check belongs earlier for a
   reason, because every ordinal after an insertion point has to be rewritten by hand. The forty-fifth check,
   `narrative-coverage`, enforces two pieces of this by itself: the new id must appear backticked

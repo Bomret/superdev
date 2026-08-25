@@ -130,6 +130,17 @@ release question on this store, `/superdev:implement` treats every feature as re
 A team that wants a release gate on plan files configures a different store, or records the signal here
 instead — a `released: yes` line in the epic file's header, read where the status line is read.
 
+## Run state
+
+`plan-contract.md` → *Run state*. This store carries **no snapshot**. Its anchor is a tracked plan file
+riding the scope branch — `00-epic-<summary>.md` on a multi-slice feature, the lone `01-…md` slice file on
+a single-slice one (`## Scope anchor` above) — and a snapshot written into it is the rejected "commit the
+run root" option under another name: it conflicts on every slice merge and lands in the pull request.
+
+A run on this store publishes nothing, adopts nothing, and ticks only `<run-root>/dod.md` — never the
+anchor file's own `## Definition of Done (global)` checklist, or the lone slice's `acceptance` on a
+single-slice feature.
+
 ## Append mode
 
 `/superdev:plan` can extend a feature that already has a plan directory (`plan-contract.md` → *Append
