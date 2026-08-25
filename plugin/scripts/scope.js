@@ -140,7 +140,8 @@ function readLedgerHeader(content, name) {
 // The bullet list under a header line, if any: `**Degraded:**` (scope-mode `## Degraded passes`) and
 // `**Unresolved:**` (`## Unresolved defects`) carry one each, in the same shape. Read by both status
 // branches below — an in-flight scope prints them inline with its tally, a shipped one prints them
-// alone — and by `get degraded`/`get unresolved`/`get deferred`.
+// alone — and by `get degraded`/`get unresolved`/`get deferred`, and by `get denials`, which counts the
+// `**Degraded:**` bullets carrying the denial prefix.
 function readBullets(lines, name) {
   const at = lines.findIndex((l) => headerRe(name).test(l));
   const bullets = [];
@@ -331,8 +332,19 @@ function addBullet(root, name, verb, text) {
   writeLines(root, lines);
 }
 
+// A denied verification dispatch and a pass that could not reach what it needed share the `**Degraded:**`
+// line and answer different questions, so the denial carries a prefix (scope-mode `## Degraded passes`,
+// ADR 0041). `get denials` counts by that prefix, which is why it is structural rather than a convention
+// each of the three recording callers would have to word identically.
+const DENIAL_PREFIX = 'denied: ';
+
 function verbDegraded(root, sub, text) {
-  if (sub !== 'add') fail(`unknown degraded subcommand "${sub}" — use add`);
+  if (sub === 'add-denial') {
+    // The refusals are `add`'s, named as `add`'s: one bullet record, one set of rules.
+    addBullet(root, 'Degraded', 'degraded', text && `${DENIAL_PREFIX}${text}`);
+    return;
+  }
+  if (sub !== 'add') fail(`unknown degraded subcommand "${sub}" — use add|add-denial`);
   addBullet(root, 'Degraded', 'degraded', text);
 }
 
@@ -417,9 +429,17 @@ function verbGet(root, field) {
     for (const b of readBullets(lines, bulletFields[field])) console.log(b);
     return;
   }
+  if (field === 'denials') {
+    // The count half of `degraded add-denial`: how many denied verification dispatches this run has
+    // absorbed, which is what an unattended run caps at two (ADR 0041). A ledger with no `**Degraded:**`
+    // line, or one carrying only the other degraded shape, counts zero.
+    const bullets = readBullets(readLines(root), 'Degraded');
+    console.log(String(bullets.filter((b) => b.startsWith(DENIAL_PREFIX)).length));
+    return;
+  }
   const names = { stage: 'Stage', branch: 'Branch', anchor: 'Anchor', docs: 'Docs' };
   const name = names[field];
-  if (!name) fail(`unknown field "${field}" — use stage|branch|anchor|docs|slices|unresolved|degraded|deferred`);
+  if (!name) fail(`unknown field "${field}" — use stage|branch|anchor|docs|slices|unresolved|degraded|deferred|denials`);
   const v = getHeader(readLines(root), name);
   console.log(v === null ? 'absent' : v);
 }
@@ -597,11 +617,11 @@ function usage() {
     '  init <type>/<slug>                 stdin: {"anchor":"…","slices":[{id,issue,title,type,…}]}',
     '  stage set <value> --root <run-root>',
     '  slice <id> <status> [--range <r>]   --root <run-root>',
-    '  degraded add <text>   --root <run-root>',
+    '  degraded add|add-denial <text>   --root <run-root>',
     '  unresolved add <text>|clear   --root <run-root>',
     '  deferred add <text>   --root <run-root>',
     '  docs set <value>|clear   --root <run-root>',
-    '  get stage|branch|anchor|docs|slices|unresolved|degraded|deferred --root <run-root>',
+    '  get stage|branch|anchor|docs|slices|unresolved|degraded|deferred|denials --root <run-root>',
     '  status                             scans <cwd>/.superdev/scopes/*/',
   ].join('\n');
 }
@@ -1027,6 +1047,57 @@ function selftest() {
       'suite still red at the three-strike cap (2026-08-12)\noperator declined the fix (2026-08-12)',
       'get unresolved prints one bullet per line'
     );
+
+    // degraded add-denial / get denials: a denied verification dispatch is recorded distinguishably from
+    // the other degraded shape, and counted, so an unattended run caps itself at two before the
+    // platform's own three-denial kill stops it outside superdev's block procedure (ADR 0041). Its own
+    // root, because the count is per run and the shared one above already carries the other shape.
+    {
+      const dRoot = path.join(tmp, '.superdev', 'scopes', 'denials');
+      fs.mkdirSync(dRoot, { recursive: true });
+      fs.writeFileSync(path.join(dRoot, 'ledger.md'), '# Ledger — denials\n\n**Stage:** implementing\n', 'utf8');
+      const D = ['--root', dRoot];
+
+      assert.strictEqual(call(['get', 'denials', ...D]).out, '0', 'no **Degraded:** line at all counts zero');
+
+      assert.ok(call(['degraded', 'add', 'knowledge-base pass could not stage (2026-08-25)', ...D]).ok, 'degraded add creates');
+      assert.strictEqual(call(['get', 'denials', ...D]).out, '0', 'a bullet of the other degraded shape counts zero');
+
+      assert.ok(call(['degraded', 'add-denial', 'final-reviewer denied (2026-08-25)', ...D]).ok, 'add-denial appends');
+      assert.ok(call(['degraded', 'add-denial', 'doc-reader denied (2026-08-25)', ...D]).ok, 'add-denial appends again');
+      const denLedger = fs.readFileSync(path.join(dRoot, 'ledger.md'), 'utf8');
+      assert.ok(
+        /\*\*Degraded:\*\*\n- knowledge-base pass could not stage \(2026-08-25\)\n- denied: final-reviewer denied \(2026-08-25\)\n- denied: doc-reader denied \(2026-08-25\)/.test(denLedger),
+        'every bullet under one line, each denial carrying the prefix'
+      );
+      assert.strictEqual(call(['get', 'denials', ...D]).out, '2', 'get denials counts only the prefixed bullets');
+
+      // `get degraded` still prints every bullet one per line, prefix intact, so `/superdev:status` and
+      // the pull-request body show a denial as a denial with no step of their own.
+      assert.strictEqual(
+        call(['get', 'degraded', ...D]).out,
+        'knowledge-base pass could not stage (2026-08-25)\ndenied: final-reviewer denied (2026-08-25)\ndenied: doc-reader denied (2026-08-25)',
+        'get degraded prints every bullet, denial prefix intact'
+      );
+
+      // add-denial shares add's two refusals, and neither writes.
+      const beforeDenialRefusal = fs.readFileSync(path.join(dRoot, 'ledger.md'), 'utf8');
+      let d = call(['degraded', 'add-denial', 'line one\nline two', ...D]);
+      assert.ok(!d.ok && /newline/.test(d.err), 'add-denial with a newline refused: ' + d.err);
+      d = call(['degraded', 'add-denial', '', ...D]);
+      assert.ok(!d.ok && /needs the bullet text/.test(d.err), 'add-denial with no text refused: ' + d.err);
+      assert.strictEqual(
+        fs.readFileSync(path.join(dRoot, 'ledger.md'), 'utf8'),
+        beforeDenialRefusal,
+        'nothing written on either refusal'
+      );
+
+      d = call(['degraded', 'zap', 'x', ...D]);
+      assert.ok(!d.ok && /unknown degraded subcommand.*add\|add-denial/.test(d.err), 'unknown degraded subcommand names both: ' + d.err);
+
+      d = call(['get', 'nope', ...D]);
+      assert.ok(!d.ok && /denials/.test(d.err), 'get on an unknown field names denials among the valid ones: ' + d.err);
+    }
 
     // degraded add / unresolved add: a bullet containing a newline is refused — unescaped, it would
     // write arbitrary extra ledger lines, including a second **Stage:** line.

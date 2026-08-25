@@ -110,13 +110,15 @@ Both subagents are **read-only** (`Read`, `Grep`, `Bash` — a hook blocks `git 
 **Exclude `superdev:slice-reviewer`.** It verifies one slice's diff against that slice's own
 `spec`/`acceptance` from a plan; standalone review has no per-slice specification to check against.
 
-**A dispatch of either reviewer above that the permission classifier denies is a degraded pass.** Read
+**A dispatch of `final-reviewer` that the permission classifier denies is a degraded pass.** Read
 `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section and follow it: review
 inline yourself, say so in §3's report, and — on a live scope run — write the `**Degraded:**` entry that
-section defines, quoting the classifier's refusal. **`--unattended`** → that section's authorship rule
+section defines with `scope.js degraded add-denial`, quoting the classifier's refusal.
+**`--unattended`** → that section's authorship rule
 decides: **block** where the controller authored what the review verifies, which the tier answers, and
-otherwise review inline as above. That section's own carve-out already covers a denied
-`simplicity-reviewer` here.
+otherwise review inline as above — up to the cap: read `scope.js get denials` after writing the entry,
+and **block** once the count reaches that cap rather than reviewing inline again. That section's own
+carve-out already covers a denied `simplicity-reviewer` here.
 
 ## 3. Report
 
@@ -231,7 +233,8 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   Follow `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section — **attended**,
   apply the fix inline yourself and say so in §3's report; **unattended**, **block there instead**, in
   place of the `--unattended → fix` rule above, since nobody is there to review a fix the controller
-  wrote itself. Write the `**Degraded:**` entry either way.
+  wrote itself. Write the `**Degraded:**` entry either way, with `scope.js degraded add` — the fix
+  implementer is an authoring dispatch, not one of the three the cap counts.
 - **Over-engineering findings stay advisory here, exactly as in §3.** They hold up no handoff and trigger
   no fix loop.
 - **A ceiling note never gates either.** `final-reviewer`'s `### Ceiling` section (ADR 0020) is an

@@ -732,6 +732,123 @@ const DENIAL_AUTHORSHIP_CONTRACTS = [
   ]),
 ];
 
+// ADR 0041. ADR 0039 lets an unattended run continue past a denied verification dispatch it did not
+// author, and nothing counted how many it absorbed. Claude Code's auto mode counts anyway: three
+// consecutive denials, or twenty in a session, stop the model, and a headless run terminates outright.
+// That termination is not superdev's block — no `blocked` label, no comment, a stranded run root — so the
+// run caps itself at two first. The cap is only real where the recording call sites feed it: a caller
+// recording with plain `degraded add` writes a bullet the count cannot see, and one that never reads
+// `get denials` continues past every denial exactly as before. Both leave the central rule inert, the
+// same one-sided pin the table above exists to prevent, so the call sites are pinned on the verb and the
+// read rather than on a pointer to the section.
+// ponytail: shape-based prose guard, matching the two call shapes rather than every paraphrase around
+// them; a stricter grammar is the upgrade if paraphrase drift ever appears.
+const DENIAL_CAP_CONTRACTS = [
+  [
+    path.join('references', 'scope-mode.md'),
+    /second denied verification dispatch/,
+    'state the cap: an unattended run blocks on its second denied verification dispatch',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /degraded add-denial/,
+    'record a denied verification dispatch with `scope.js degraded add-denial`, so the count can tell it ' +
+      'from the other degraded shape sharing that line',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /get denials/,
+    "read the running count with `scope.js get denials`, so the cap reads the run's own ledger rather " +
+      "than the controller's memory of this session",
+  ],
+  ...[
+    path.join('commands', 'review.md'),
+    path.join('commands', 'document.md'),
+    path.join('commands', 'implement.md'),
+    path.join('references', 'implement-full.md'),
+  ].flatMap((rel) => [
+    [
+      rel,
+      /add-denial/,
+      'record its denied verification dispatch with `scope.js degraded add-denial`, so the bullet reaches ' +
+        'the count the cap reads',
+    ],
+    [
+      rel,
+      /get denials/,
+      'read `scope.js get denials` before continuing inline, rather than continuing on every denial the ' +
+        'authorship rule lets through',
+    ],
+  ]),
+  // The three counted verification dispatches are a closed set (`final-reviewer`, `slice-reviewer`,
+  // `doc-reader`). A call site that dispatches both an authoring pass (implementer, fix, doc-writer) and
+  // a verification one in the same breath has to tie `degraded add` to the former and `degraded
+  // add-denial` to the latter — otherwise every denial in that breath reads as a classifier denial, which
+  // it always is in context, and the plain-`add` branch is dead: a denied implementer or doc-writer would
+  // then wrongly feed the count too.
+  ...[
+    path.join('commands', 'review.md'),
+    path.join('commands', 'document.md'),
+    path.join('commands', 'implement.md'),
+    path.join('references', 'implement-full.md'),
+  ].map((rel) => [
+    rel,
+    /authoring dispatch/,
+    'tie the plain `add` verb to an authoring dispatch by name, so a denied implementer, fix, or ' +
+      'doc-writer is never recorded as if it counted toward the cap',
+  ]),
+  // `simplicity-reviewer` is advisory and outside the closed set above, at every tier it is dispatched.
+  // `implement-full.md` is the one document that dispatches both it and the tier's one verification
+  // dispatch (`slice-reviewer`) under the same authorship rule, so it is the one place the cap's own text
+  // can drift wide enough to bound a denied `simplicity-reviewer` too.
+  [
+    path.join('references', 'implement-full.md'),
+    /outside that cap/,
+    "narrow the cap to `slice-reviewer` alone, so a denied `simplicity-reviewer`'s advisory pass never " +
+      'counts toward it',
+  ],
+];
+
+// The four call sites above must never restate the cap's own number: `references/scope-mode.md`'s
+// `## Degraded passes` section states it once, and a call site names that section by reference instead of
+// repeating the digit. `DENIAL_CAP_CONTRACTS` above only pins the verbs (`add-denial`, `get denials`), so
+// a call site that restates the number can drift to a different one — "three or more" — while every row
+// above still matches and `bun run test` stays green. This scans for that restatement instead of pinning
+// a presence, the same asymmetry `DOC_STEP_SILENCE_DOCS` uses for the full-suite instruction.
+const DENIAL_CAP_NUMBER_SILENCE_DOCS = [
+  path.join('commands', 'review.md'),
+  path.join('commands', 'document.md'),
+  path.join('commands', 'implement.md'),
+  path.join('references', 'implement-full.md'),
+];
+
+const DENIAL_CAP_NUMBER_MARKERS = [
+  [
+    /\b(?:one|two|three|four|five)\s+or\s+more\b/i,
+    (hit) =>
+      `defer to \`references/scope-mode.md\`'s \`## Degraded passes\` section for the cap by name, ` +
+      `instead of restating a number of its own: "${hit[0]}"`,
+  ],
+  [
+    /\bsecond\s+(?:denials?|denied)\b/i,
+    (hit) =>
+      `defer to \`references/scope-mode.md\`'s \`## Degraded passes\` section for the cap by name, ` +
+      `instead of restating a number of its own: "${hit[0]}"`,
+  ],
+  [
+    /\bcap\s+is\s+(?:one|two|three|four|five|\d+)\b/i,
+    (hit) =>
+      `defer to \`references/scope-mode.md\`'s \`## Degraded passes\` section for the cap by name, ` +
+      `instead of restating a number of its own: "${hit[0]}"`,
+  ],
+  [
+    /\bat\s+(?:one|two|three|four|five|\d+)\s+denials?\b/i,
+    (hit) =>
+      `defer to \`references/scope-mode.md\`'s \`## Degraded passes\` section for the cap by name, ` +
+      `instead of restating a number of its own: "${hit[0]}"`,
+  ],
+];
+
 // ADR 0025 from the other side. The two chain steps after the review, and the writer the first of them
 // dispatches, run no full suite: `/superdev:review` owns the scope's one run, so a run added to
 // `commands/document.md`, `commands/ship.md`, or `agents/doc-writer.md` is a second pass over a tree the
@@ -1620,6 +1737,9 @@ module.exports = {
   FULL_SUITE_CONTRACTS,
   FIX_BOUNDARY_CONTRACTS,
   DENIAL_AUTHORSHIP_CONTRACTS,
+  DENIAL_CAP_CONTRACTS,
+  DENIAL_CAP_NUMBER_SILENCE_DOCS,
+  DENIAL_CAP_NUMBER_MARKERS,
   DOC_STEP_SILENCE_DOCS,
   SUITE_RUN_INSTRUCTIONS,
   SHIP_GATE_HEADING,

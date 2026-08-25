@@ -6,13 +6,14 @@
 // Run by ./index.js, which owns the shared fixture() helper, realRoot, and the temp-dir cleanup.
 
 const { scanContract } = require('../lib');
-const { scanDocStepsNoSuite } = require('../scanners');
+const { scanDocStepsNoSuite, scanDenialCapNumberSilence } = require('../scanners');
 const {
   FEATURE_ARG_CONTRACTS,
   UNATTENDED_CONTRACTS,
   CHANGE_TYPE_CONTRACTS,
   DEGRADED_CONTRACTS,
   DENIAL_AUTHORSHIP_CONTRACTS,
+  DENIAL_CAP_CONTRACTS,
   DERIVED_CRITERIA_CONTRACTS,
   LABEL_VALIDATION_CONTRACTS,
   GREEN_GATE_TIMEOUT_CONTRACTS,
@@ -355,6 +356,166 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   const tierGaps = scanContract(noTierRule, DENIAL_AUTHORSHIP_CONTRACTS, authorshipOpts);
   assert.equal(tierGaps.length, 1, 'flags a condition with no derivation behind it');
   assert.match(tierGaps[0].expectation, /slice rows/, 'names the missing tier derivation');
+
+  // --- DENIAL_CAP_CONTRACTS: an unattended run blocks on its second denied verification dispatch, and
+  // the cap is only real where the recording call sites feed the count it reads (ADR 0041). ---
+
+  const definesCap =
+    '## Degraded passes\n\nAn unattended run blocks on its second denied verification dispatch. Record\n' +
+    'each with `scope.js degraded add-denial`, then read `scope.js get denials`.\n';
+  // `review.md`/`document.md`/`implement.md`/`implement-full.md` each dispatch an authoring pass
+  // (a fix implementer, `doc-writer`, an implementer) alongside a verification one, so their carrier ties
+  // the plain verb to the authoring dispatch by name. Neither restates the cap's own number — it defers to
+  // `references/scope-mode.md` by name instead.
+  const carriesCap =
+    'Record an authoring dispatch with `scope.js degraded add`. Record the verification-dispatch denial\n' +
+    'with `scope.js degraded add-denial`, then read `scope.js get denials`: block once the count reaches\n' +
+    'that cap.\n';
+  // `implement-full.md` alone dispatches both `slice-reviewer` (the tier's one verification dispatch) and
+  // `simplicity-reviewer` (advisory), so it alone narrows the cap to the former by name.
+  const carriesFullCap = carriesCap + 'A denied simplicity-reviewer stays outside that cap.\n';
+  const everyRecorder = {
+    'references/scope-mode.md': definesCap,
+    'commands/review.md': carriesCap,
+    'commands/document.md': carriesCap,
+    'commands/implement.md': carriesCap,
+    'references/implement-full.md': carriesFullCap,
+  };
+  const capOpts = { stripFrontmatterFirst: true };
+
+  // negative: the cap stated centrally and fed by every recorder is clean
+  assert.equal(
+    scanContract(fixture(everyRecorder), DENIAL_CAP_CONTRACTS, capOpts).length,
+    0,
+    'the cap plus every recording call site yields zero gaps',
+  );
+
+  // positive: a call site reverting to plain `degraded add` writes a bullet the count cannot see, so the
+  // cap never fires and the run rides on to the platform's own kill
+  for (const rel of [
+    'commands/review.md',
+    'commands/document.md',
+    'commands/implement.md',
+    'references/implement-full.md',
+  ]) {
+    const plainAdd = fixture({
+      ...everyRecorder,
+      [rel]: 'Record the denial with `scope.js degraded add`, then read `scope.js get denials`.\n',
+    });
+    const gaps = scanContract(plainAdd, DENIAL_CAP_CONTRACTS, capOpts);
+    assert.ok(gaps.length >= 1, `flags ${rel} for recording with the verb the count cannot see`);
+    assert.ok(
+      gaps.some((g) => g.source === rel.split('/').join(path.sep) && /add-denial/.test(g.expectation)),
+      `names ${rel} for the missing add-denial verb`,
+    );
+  }
+
+  // positive: a call site that records but never reads the count continues inline on every denial, which
+  // is the behaviour the cap exists to bound
+  for (const rel of [
+    'commands/review.md',
+    'commands/document.md',
+    'commands/implement.md',
+    'references/implement-full.md',
+  ]) {
+    const noRead = fixture({
+      ...everyRecorder,
+      [rel]: 'Record the denial with `scope.js degraded add-denial`, then do the pass inline.\n',
+    });
+    const gaps = scanContract(noRead, DENIAL_CAP_CONTRACTS, capOpts);
+    assert.ok(gaps.length >= 1, `flags ${rel} for continuing without reading the count`);
+    assert.ok(
+      gaps.some((g) => g.source === rel.split('/').join(path.sep)),
+      `names ${rel}`,
+    );
+  }
+
+  // positive: the verbs present centrally with no number behind them is machinery with no rule — the cap
+  // is the one fact a reader cannot derive from the two calls
+  const noNumber = fixture({
+    ...everyRecorder,
+    'references/scope-mode.md':
+      'Record each denial with `scope.js degraded add-denial`, then read `scope.js get denials`.\n',
+  });
+  const numberGaps = scanContract(noNumber, DENIAL_CAP_CONTRACTS, capOpts);
+  assert.equal(numberGaps.length, 1, 'flags a rule that never states where the cap falls');
+  assert.match(numberGaps[0].expectation, /second denied verification dispatch/, 'names the missing cap');
+
+  // positive (finding 1): a call site that never ties the plain `add` verb to an authoring dispatch by
+  // name reads as if every denial in its own breath is a classifier denial — which it always is in
+  // context — so a denied implementer/fix/doc-writer would wrongly feed the count too
+  const untiedText =
+    'Record the denial with `scope.js degraded add-denial`, then read `scope.js get denials`: block once\n' +
+    'the count reaches that cap.\n';
+  for (const rel of [
+    'commands/review.md',
+    'commands/document.md',
+    'commands/implement.md',
+    'references/implement-full.md',
+  ]) {
+    const untied = fixture({
+      ...everyRecorder,
+      [rel]: untiedText + (rel === path.join('references', 'implement-full.md')
+        ? 'A denied simplicity-reviewer stays outside that cap.\n'
+        : ''),
+    });
+    const gaps = scanContract(untied, DENIAL_CAP_CONTRACTS, capOpts);
+    assert.equal(gaps.length, 1, `flags ${rel} for never tying the plain verb to an authoring dispatch`);
+    assert.equal(gaps[0].source, rel.split('/').join(path.sep), `names ${rel}`);
+    assert.match(gaps[0].expectation, /authoring dispatch/, 'names the missing tie');
+  }
+
+  // positive (finding 2): implement-full.md never narrowing the cap to `slice-reviewer` alone reads as if
+  // a denied `simplicity-reviewer` — advisory, and outside the closed set of verification dispatches —
+  // counts toward the two-denial cap too
+  const noNarrow = fixture({
+    ...everyRecorder,
+    'references/implement-full.md': carriesCap,
+  });
+  const narrowGaps = scanContract(noNarrow, DENIAL_CAP_CONTRACTS, capOpts);
+  assert.equal(narrowGaps.length, 1, 'flags implement-full.md for never narrowing the cap to slice-reviewer');
+  assert.equal(narrowGaps[0].source, path.join('references', 'implement-full.md'), 'names implement-full.md');
+  assert.match(narrowGaps[0].expectation, /never counts toward it/, 'names the missing narrowing');
+
+  // --- scanDenialCapNumberSilence (finding 3, prose half): a call site must never restate the cap's own
+  // number — it can drift to a different one ("three or more") while every row above still matches. ---
+
+  // negative: every call site defers to scope-mode.md by name, restating no number of its own
+  assert.equal(
+    scanDenialCapNumberSilence(fixture(everyRecorder)).length,
+    0,
+    'no call site restates the cap number',
+  );
+
+  // positive: a call site restating the number — even the correct one — is what the platform's own
+  // three-denial kill silently outraces the day it drifts to a different one
+  for (const rel of [
+    'commands/review.md',
+    'commands/document.md',
+    'commands/implement.md',
+    'references/implement-full.md',
+  ]) {
+    const restatesNumber = fixture({
+      ...everyRecorder,
+      [rel]: (everyRecorder[rel] + 'Two or more blocks; one continues inline.\n'),
+    });
+    const gaps = scanDenialCapNumberSilence(restatesNumber);
+    assert.equal(gaps.length, 1, `flags ${rel} for restating the cap's own number`);
+    assert.equal(gaps[0].source, rel.split('/').join(path.sep), `names ${rel}`);
+    assert.match(gaps[0].expectation, /scope-mode\.md/, 'points back at the single source of truth');
+  }
+
+  // positive (finding 4): "two or more" is not the only shape a restatement takes — "second denial",
+  // "cap is two", and "at two denials" are the phrasings a call site is most likely to reach for instead
+  for (const phrase of ['Block on the second denial.\n', 'The cap is two.\n', 'Block at two denials.\n']) {
+    const restatesShape = fixture({
+      ...everyRecorder,
+      'commands/review.md': everyRecorder['commands/review.md'] + phrase,
+    });
+    const gaps = scanDenialCapNumberSilence(restatesShape);
+    assert.equal(gaps.length, 1, `flags "${phrase.trim()}" for restating the cap's own number`);
+    assert.match(gaps[0].expectation, /scope-mode\.md/, 'points back at the single source of truth');
+  }
 
   // --- CHANGE_TYPE_CONTRACTS: the change-type set the prose lists and the set the scope-prune hook
   // matches are the same fact in two syntaxes, in two files. ---

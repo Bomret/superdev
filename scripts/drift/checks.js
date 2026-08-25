@@ -36,6 +36,7 @@ const {
   scanMarketplaceSource,
   scanReadmeCommands,
   scanAuditSetGlobs,
+  scanDenialCapNumberSilence,
 } = require('./scanners');
 const {
   ADR_STATUSES,
@@ -44,6 +45,7 @@ const {
   CHANGE_TYPE_CONTRACTS,
   DEGRADED_CONTRACTS,
   DENIAL_AUTHORSHIP_CONTRACTS,
+  DENIAL_CAP_CONTRACTS,
   DERIVED_CRITERIA_CONTRACTS,
   LABEL_VALIDATION_CONTRACTS,
   GREEN_GATE_TIMEOUT_CONTRACTS,
@@ -339,6 +341,15 @@ module.exports = [
     'the unattended block keys on authorship, and every dispatching document carries the condition',
     { stripFrontmatterFirst: true },
   ),
+  {
+    id: 'denial-cap',
+    ok: 'the unattended run caps its denials at two, and every recording call site feeds that count',
+    run: (root) => [
+      ...scanContract(root, DENIAL_CAP_CONTRACTS, { stripFrontmatterFirst: true }),
+      ...scanDenialCapNumberSilence(root),
+    ],
+    format: contractGap,
+  },
   {
     id: 'afk-anchor-count',
     ok: "afk.md's scope-anchor paragraph states five things, naming the anchor dependency ADR 0040 added",

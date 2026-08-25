@@ -60,8 +60,8 @@ still the current directory. Address every artifact by that absolute path: `<run
 
 `<run-root>/ledger.md` is one document: labeled header lines, then a slice table.
 `${CLAUDE_PLUGIN_ROOT}/scripts/scope.js` owns its schema and is its only read and write path (ADR 0022):
-`init` creates the document, `stage` / `slice` / `degraded add` / `unresolved add|clear` / `docs
-set|clear` move it, `get` / `status` read it back.
+`init` creates the document, `stage` / `slice` / `degraded add|add-denial` / `unresolved add|clear` /
+`docs set|clear` move it, `get` / `status` read it back.
 No command or playbook edits or parses the file directly — the `ledger-guard` hook denies any other
 write, naming `scope.js`.
 
@@ -225,7 +225,8 @@ occur, each with its own action:
   the pass inline, say so in the report, and write the entry below: an inline pass is worth more than no
   pass and less than an independent one, which is what the entry records. **Unattended** → the authorship
   rule below decides: **block** where the controller authored what the pass verifies, per `## Unattended`,
-  which owns what blocking means, and otherwise do the pass inline as an attended run does. A pull request
+  which owns what blocking means, and otherwise do the pass inline as an attended run does, up to the cap
+  in **Two denials end the run** below. A pull request
   whose only review was its author reviewing itself is the outcome this rule prevents. A block comment
   names the denied dispatch, **and the entry below is written either way**: the comment tells the tracker,
   the bullet tells the run, which is what `/superdev:status` reads and what a maintainer resuming by hand
@@ -258,11 +259,36 @@ conflict it resolved itself, or a fix it applied inline on an attended pass earl
 Such a resolution composes slices that were each already reviewed, so what goes unverified is the
 composition rather than the code.
 
+**Two denials end the run.** An unattended run blocks on its **second denied verification dispatch**,
+whoever authored the work (ADR 0041). Record every denial with
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js degraded add-denial '<text>' --root <run-root>` — the entry
+below, written through the verb that prefixes it `denied: ` so the count can tell it from the other
+degraded shape — then read the running total with
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js get denials --root <run-root>`:
+
+- **One** → do the pass inline and continue, exactly as the authorship rule above has it.
+- **Two or more** → block, per `## Unattended`. The bullet is already written, so the block comment and
+  the ledger agree on what happened.
+
+The cap is two because the platform stops at three: three consecutive denials, or twenty in a session,
+stop the model, and headless `claude -p` terminates rather than escalating. That termination is not a
+block — no `blocked` label reaches the anchor, no comment names the stop, and the run root, lock, and
+worktree stay standing. Blocking on the second keeps the stop inside superdev, where it leaves a record a
+human can act on.
+
+**An attended run carries no cap.** A human is present, and the platform's own stop escalates to that
+human. It performs every denied pass inline, however many arrive.
+
+**The count is per run, and lives in the ledger.** A run resumed by a second invocation — which a denial
+makes likely — counts the denials the earlier invocation recorded. Across a whole sweep the escalation is
+`/superdev:afk`'s own: a blocked feature increments its consecutive-block count, and two consecutive
+blocked features stop the night.
+
 **Quote the refusal.** A denied-dispatch bullet carries the classifier's own refusal text, beside the
 paraphrase naming the pass. Those words are what separate a genuine safety block from one of the false
 positives auto mode is documented to produce, and they are what a maintainer carries upstream (ADR 0039).
 Flatten every newline in the quote to a space and cap it at roughly 200 characters, ending a longer one
-with an ellipsis: `scope.js degraded add` refuses a bullet containing a newline, and `/superdev:status`
+with an ellipsis: `scope.js degraded add-denial` refuses a bullet containing a newline, and `/superdev:status`
 prints every bullet for as long as the run root lives. Single-quote the argument itself and drop any
 single quote the refusal text carries, so a stray `$` or backtick in the classifier's own words stays
 inert rather than reaching the shell. A denial whose refusal text never reached you still writes its
@@ -280,12 +306,15 @@ session that saw it has ended.
 **The entry.** A `**Degraded:**` line in `<run-root>/ledger.md`, beside `**Stage:**`, carrying one bullet
 per degraded pass. Write each with
 `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js degraded add '<text>' --root <run-root>`, which creates the
-line when absent and appends when present. Each bullet names the pass, why it degraded, and the date:
+line when absent and appends when present. A denied verification dispatch takes `degraded add-denial`
+instead, the same call with the prefix the count reads: `denied: ` marks a counted verification-dispatch
+denial, never every denial — a denied Bash command, or a denied authoring dispatch, still takes plain
+`add`. Each bullet names the pass, why it degraded, and the date:
 
 ```markdown
 **Stage:** reviewed
 **Degraded:**
-- whole-scope review ran inline — final-reviewer dispatch denied by the permission classifier, "this delegation would let the agent review its own changes without user oversight" (2026-08-02)
+- denied: whole-scope review ran inline — final-reviewer dispatch denied by the permission classifier, "this delegation would let the agent review its own changes without user oversight" (2026-08-02)
 ```
 
 A run with nothing to report carries **no such line at all** — absent, never present and empty. **An

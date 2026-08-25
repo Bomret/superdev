@@ -18,9 +18,12 @@ This doc owns what each script guards and the contracts between them. Repo-wide 
 ### scope.js, the run-state CLI (ADR 0022)
 
 `scope.js` owns the ledger's schema and is the only `ledger.md` read and write path in the chain:
-`init`, `stage set`, `slice`, `degraded add`, `unresolved add|clear`, `deferred add`,
-`docs set <value>|clear`, `get stage|branch|anchor|slices|unresolved|degraded|deferred|docs`, and `status`
-(which renders the whole `/superdev:status` report). It also exports `readLedgerHeader` as a module
+`init`, `stage set`, `slice`, `degraded add|add-denial`, `unresolved add|clear`, `deferred add`,
+`docs set <value>|clear`, `get stage|branch|anchor|slices|unresolved|degraded|deferred|denials|docs`, and
+`status` (which renders the whole `/superdev:status` report). `degraded add-denial` prefixes its bullet
+`denied: `, which is what separates a denied verification dispatch from the other degraded shape sharing
+that line, and `get denials` counts those prefixed bullets — the number an unattended run caps at two
+(ADR 0041). `get degraded` prints every bullet either way, prefix intact. It also exports `readLedgerHeader` as a module
 API. This per-header ledger-line reader is what `hooks/scope-prune.js` uses instead of carrying its
 own regex. The API guards its CLI entry with `require.main === module`, so a `require` for that
 reader alone runs no CLI code. Normalisation is per header: `Stage` and `Branch` are single tokens,
@@ -162,7 +165,7 @@ every drift assertion by id, and it fell behind at five separate additions, beca
 maintained by hand at the moment its author is thinking about code. Naming the exceptions cannot drift
 when a new check lands.
 
-`drift-check.js` guards fifty-three things, in the order `drift/checks.js` registers them. First, the
+`drift-check.js` guards fifty-four things, in the order `drift/checks.js` registers them. First, the
 `reference` contract: every `references/*.md` path named in `commands/`, `agents/`, or `references/`
 itself resolves to a file that exists. A reference cites another reference, as both execution
 playbooks point at `scope-mode.md`, so a rename there dangles like any other. Second, the
@@ -659,7 +662,34 @@ command, and the only dispatch it makes is an implementer on a red suite, so not
 the rule. This is a shape-based prose guard, and it carries the same ceiling as its siblings: it catches
 the phrasings above, not every paraphrase.
 
-Fifty-third, the `afk-anchor-count` contract (ADR 0040), two elements on `commands/afk.md`'s paragraph
+Fifty-third, the `denial-cap` check (ADR 0041), the sibling of the one above from the other side. That
+rule decides what a *single* denial costs; this one bounds how many an unattended run absorbs. It runs two
+scans under one id: `DENIAL_CAP_CONTRACTS`, sixteen rows of presence checks, and `scanDenialCapNumberSilence`,
+an absence check over the same four call sites. Three of the sixteen rows sit on
+`references/scope-mode.md`: the cap itself (an unattended run blocks on its **second denied verification
+dispatch**), the recording verb `degraded add-denial`, and the read `get denials`. Eight more are two rows
+each on `commands/review.md`, `commands/document.md`, `commands/implement.md`, and
+`references/implement-full.md` — the same four documents the table above pins, because a document that
+dispatches a verification pass is exactly one that records its denial. Each carries both halves, and each
+half fails on its own: a call site recording with plain `degraded add` writes a bullet the count cannot
+see, and one that never reads `get denials` continues inline on every denial. Either leaves the cap stated
+centrally and executed nowhere, so the run rides on to Claude Code's own three-denial kill — which
+terminates a headless sweep outright, with no `blocked` label, no comment, and a stranded run root. The
+presence check on `add-denial` is deliberate where an absence check on `degraded add` would be wrong: the
+plain verb stays correct for the other degraded shape, and `references/implement-lite.md` legitimately
+uses it for a knowledge-base pass it could not stage. Same shape-based ceiling as its siblings. The last
+five rows tie the plain verb to an *authoring* dispatch by name on `commands/review.md`,
+`commands/document.md`, `commands/implement.md`, and `references/implement-full.md` (a document that
+dispatches both an authoring pass and a verification one has to say which is which, or every denial in
+that breath reads as the classifier's, and the plain-verb branch goes dead), plus one narrowing
+`references/implement-full.md`'s cap to `slice-reviewer` alone — it alone also dispatches the advisory
+`simplicity-reviewer`, outside the closed set of counted verification dispatches. `scanDenialCapNumberSilence`
+closes what the presence rows cannot: none of the four call sites may restate the cap's own number,
+because a call site that does can drift to a different one — "three or more" — while every presence row
+above still matches it. A call site defers to `references/scope-mode.md`'s `## Degraded passes` section by
+name instead, so the number lives once.
+
+Fifty-fourth, the `afk-anchor-count` contract (ADR 0040), two elements on `commands/afk.md`'s paragraph
 introducing `## Scope anchor`: it states that the section carries five things for this backend, and names
 reading an anchor's own dependencies as the fifth. ADR 0040 added that fifth element to `plan-contract.md`,
 every store document's own section, and this file's own `anchor-contract` write-up above, but nothing
@@ -701,7 +731,7 @@ successor at all.
   *loudly*, the row goes red until the pattern catches up, so the presence tables in `drift/contracts.js`
   (`FIX_BOUNDARY_CONTRACTS` among them) carry none.
 - A new drift-check contract is one entry appended at the end of the `drift/checks.js` registry, plus
-  its section in the fifty-three-check narrative above and its selftest in the matching
+  its section in the fifty-four-check narrative above and its selftest in the matching
   `drift/selftest/*.test.js` suite. Append rather than insert unless the check belongs earlier for a
   reason, because every ordinal after an insertion point has to be rewritten by hand. The forty-fifth check,
   `narrative-coverage`, enforces two pieces of this by itself: the new id must appear backticked

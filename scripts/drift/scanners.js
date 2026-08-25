@@ -66,6 +66,8 @@ const {
   KB_NO_CALL_DOCS,
   DOC_STEP_SILENCE_DOCS,
   SUITE_RUN_INSTRUCTIONS,
+  DENIAL_CAP_NUMBER_SILENCE_DOCS,
+  DENIAL_CAP_NUMBER_MARKERS,
   KB_BACKEND_CALL_MARKERS,
   HOOK_HEADER_REGEX,
   RETURN_TO_CONTROLLER_DOCS,
@@ -599,6 +601,12 @@ const scanDocStepsNoSuite = (root) =>
     [pattern, (hit) => `leave the scope's one full suite to \`/superdev:review\` — it instructs a run of ` +
       `its own: "${normalizeWhitespace(hit[0])}"`]));
 
+// The denial cap's four call sites must never restate its own number (ADR 0041): the number lives once,
+// in `references/scope-mode.md`'s `## Degraded passes` section, and a call site names that section
+// instead of repeating the digit — the same asymmetry `scanDocStepsNoSuite` above guards for ADR 0025.
+const scanDenialCapNumberSilence = (root) =>
+  scanDocsAvoid(root, DENIAL_CAP_NUMBER_SILENCE_DOCS, DENIAL_CAP_NUMBER_MARKERS);
+
 function scanHookLedgerParsers(root) {
   const dir = docPath(root, 'hooks');
   let names = [];
@@ -841,6 +849,7 @@ module.exports = {
   scanKbNoBackendCall,
   scanPinnedPaths,
   scanDocStepsNoSuite,
+  scanDenialCapNumberSilence,
   scanHookLedgerParsers,
   scanForcingBranchFlag,
   scanReturnToController,
