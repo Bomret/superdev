@@ -116,6 +116,9 @@ _Avoid: "eligible epic" (a single-slice plan has no epic, and its lone slice is 
 **Anchor dependency**: a recorded relation between two scope anchors, saying the second feature cannot be built until the first has shipped. It is satisfied once the anchor it names is closed, that scope's ledger stage reads `shipped`, or no such anchor exists, and an anchor whose dependency is unsatisfied is **deferred** for that sweep — no label written, no block counted, named in the report with what it waits on. `/plan` records one when its interview named a prerequisite feature; `/afk` is the only reader. How a given store records it is stated in that store's own `## Scope anchor` section (ADR 0040).
 _Avoid: "depends-on" (that is the slice-level edge inside one plan, which `/implement` reads), "blocked anchor" (`blocked` is a label a human clears, where a deferred anchor clears itself)_
 
+**Amendment** (of an ADR): the treatment for a recorded decision that stands with a narrow qualification, where supersession is the treatment for one that was overturned. The amending ADR carries the qualification and names what it amends; the amended one keeps its `**Status:**` at `Accepted`, keeps its text, and gains an `**Amended by:**` pointer on its own line. Nothing is edited into an ADR's body, so the dated record stays intact and every document citing it stays current (ADR 0043).
+_Avoid: "supersede" (that replaces a decision rather than qualifying it), "revise" (that is the glossary's treatment, where one entry is rewritten in place)_
+
 **Rejected direction**: a direction a brainstorm explored and dropped, carried in the `Intent` with the reason it lost. `/plan` routes each one to a durable home, so it cannot be re-proposed cold later: a dropped approach goes to an ADR's `Considered options`, and dropped scope goes to the epic's non-goals.
 _Avoid: "non-goal" (that is the destination for a rejected scope, not the record of why), "alternative"_
 

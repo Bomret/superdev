@@ -2,6 +2,10 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0043](0043-appends-immutability-rule-excepts-the-anchor-dependency-migration.md),
+which excepts one line from the immutability rule below: an anchor dependency recorded on a lone slice
+migrates to the epic that promotion creates.
+
 **Context.** `/plan` writes a feature's slice DAG **once**, in full. The interview (`cross-exam.md`) runs
 until "the design tree is exhausted," and step 6 creates `docs/plans/<feature-slug>/` (or the equivalent
 issue-tracker records) from scratch. Nothing defines what happens when `/plan` is invoked a second time
