@@ -16,6 +16,7 @@ const {
   scanAppendContract,
   scanReleaseContract,
   scanAfkSelectionNeutrality,
+  scanAfkAnchorCount,
   scanWritingStandardContract,
   scanContentTypesContract,
   scanCommandRefs,
@@ -338,6 +339,12 @@ module.exports = [
     'the unattended block keys on authorship, and every dispatching document carries the condition',
     { stripFrontmatterFirst: true },
   ),
+  {
+    id: 'afk-anchor-count',
+    ok: "afk.md's scope-anchor paragraph states five things, naming the anchor dependency ADR 0040 added",
+    run: scanAfkAnchorCount,
+    format: contractGap,
+  },
 ];
 
 // The anchor contract and the afk-selection neutrality check report into the same sentence: a gap with
@@ -346,6 +353,6 @@ function anchorGap(g) {
   return g.expectation
     ? `${g.source} no longer meets the anchor contract — expected it to ${g.expectation}`
     : `${g.source} carries no \`## Scope anchor\` section — expected it to state how to recognise a ` +
-        `feature's anchor, how to list candidates, and how to tell that an anchor is itself a slice; ` +
-        `see ADR 0017`;
+        `feature's anchor, how to list candidates, how to tell that an anchor is itself a slice, and ` +
+        `how to read an anchor's dependencies; see ADR 0017, ADR 0040`;
 }

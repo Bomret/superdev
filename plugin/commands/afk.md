@@ -39,10 +39,10 @@ multi-slice plan's root has slices beneath it; a single-slice plan's root is its
 covers both (ADR 0017).
 
 **How this store expresses a root is not yours to know.** `docs/agents/issue-tracker.md` carries a
-`## Scope anchor` section stating four things for this backend: how to recognise an anchor, how to list
-the candidates, how to list the slices beneath one, and how to tell that an anchor is itself a slice.
-Read it and follow it. Encoding any store's own mechanism here would be right on one backend and wrong on
-every other.
+`## Scope anchor` section stating five things for this backend: how to recognise an anchor, how to list
+the candidates, how to list the slices beneath one, how to tell that an anchor is itself a slice, and how
+to read an anchor's own dependencies. Read it and follow it. Encoding any store's own mechanism here would
+be right on one backend and wrong on every other.
 
 **Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s scope-slug rule before you go on.** Both the
 eligibility test and the skip below turn on it, and it is what stands between a feature label somebody
@@ -69,10 +69,37 @@ An anchor is **eligible** when all of these hold:
   ledger is written when a step completes rather than refreshed at every step, so a long-running step can
   leave it stale for over an hour on a live run — but far better than treating that scope as eligible
   outright, which is what no-lock alone would do.
+- Every **anchor dependency** it records is **satisfied** (`plan-contract.md` → *Scope anchor*). Read them
+  the way `docs/agents/issue-tracker.md`'s `## Scope anchor` section states — resolving a recorded
+  reference to the blocker's own record first, on a store that records one instead of a feature label
+  directly — and hold each against the **blocker** anchor it names, not the candidate under test. **The
+  blocker's own feature label passes the scope-slug rule first, both segments** — the same rule the label
+  bullet above applies to the candidate's own label, because pathing `.superdev/scopes/<scope>/…` off it
+  unvalidated is the identical mistake that rule exists to catch. A blocker label that fails **defers this
+  anchor** (below), not the blocker itself, and is named in §6's report. Once it validates, derive the
+  blocker's own run root — `.superdev/scopes/<blocker-scope>/` — from that label, and read `node
+  "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>` **there**, `<run-root>` now being
+  the **blocker's**, not the candidate's: satisfied means the blocker anchor is **closed**, or that call
+  reads `shipped`, or **no anchor of that name exists**. A read that fails for any other reason — the store
+  is unreachable, or the call errors in a way that is not a confirmed absence (a `404` can mean "not
+  visible" as easily as "not there") — **defers this anchor** too, exactly like an unsatisfied dependency:
+  it is not evidence the blocker is gone, only that this attempt failed to confirm it. Closing an anchor is
+  best-effort at ship time, so a closed state alone would strand a dependent on a feature that has in fact
+  landed. **One such read failure is confirmable rather than ambiguous, and waits on a human:** the run
+  root is confirmedly absent (`hooks/scope-prune.js` deletes it seven days after a `shipped` stage merges,
+  ADR 0007) while the blocker's own anchor still reads open. Defer this anchor as usual, but name it in
+  §6's report as needing a human — closing the blocker's anchor by hand — rather than as ordinary progress,
+  because no ledger is left to ever confirm `shipped` again. An anchor carrying an unsatisfied dependency
+  is **deferred** (below), not blocked: it is waiting its turn, which is a state that clears itself.
 
-Take eligible anchors in **ascending issue number** — oldest first. Nothing models dependencies between
-features, so this is the order, and two features that collide on the same files produce a merge conflict
-in the second, which blocks it correctly.
+Take eligible anchors in **ascending issue number** — oldest first. The recorded dependencies above are
+the only order this command honours; two features that merely collide on the same files produce a merge
+conflict in the second, which blocks it correctly.
+
+**Deferral is what carries the order, and it needs no graph.** You take one anchor at a time through the
+whole chain and re-read the store at the top of every iteration, so a dependent anchor deferred now is
+re-tested the moment its blocker ships and runs in this same sweep, one iteration later. That is the order
+a topological sort would give a serial consumer.
 
 Eligibility says nothing about the slices' own `ready` state, deliberately. A part-merged plan and a slice
 still labelled `in-progress` from an interrupted run both resume, which §3 handles. The release signal is
@@ -88,20 +115,33 @@ the anchor's and survives those moves (`plan-contract.md` → *Release*), so a r
 - An anchor whose **feature label fails the scope-slug rule**. There is no scope to path on.
 - An anchor whose scope holds a **live run** (fresh lock, or — with none — a fresh, unshipped ledger).
 - An anchor whose ledger's stage reads `shipped`. The run is done.
+- An anchor carrying an **unsatisfied dependency** — this is the **deferral**, and it has its own paragraph
+  below.
 
-Every skip changes no label and does not touch the consecutive-block count. Two of the five are
+Every skip changes no label and does not touch the consecutive-block count. Two of the six are
 **transient** — a live run ends, a shipped run is done — so they stay silent.
 
-The other three **wait on a human**: a malformed label, a never-decomposed plan, and an unreleased plan
-are passed over on every sweep until somebody acts, and nothing else in this command would surface any of
-them. **Name each one in §6's report** with what it needs — a label that matches the scope-slug rule,
-`/superdev:plan` to decompose the anchor, or the release signal `docs/agents/issue-tracker.md` names.
+Three **wait on a human**: a malformed label, a never-decomposed plan, and an unreleased plan are passed
+over on every sweep until somebody acts, and nothing else in this command would surface any of them.
+**Name each one in §6's report** with what it needs — a label that matches the scope-slug rule,
+`/superdev:plan` to decompose the anchor, or the release signal `docs/agents/issue-tracker.md` names. The
+sixth is the unsatisfied dependency — the **deferral**, with its own paragraph below.
 
 **A third condition is reported the same way.** A feature label presenting **two or more roots** is a
 malformed plan: there is no single Definition of Done to build against, so there is nothing to select and
-nothing to label. Skip it and name it in §6's report. It needs a human, exactly like the two above.
+nothing to label. Skip it and name it in §6's report. It needs a human, exactly like the three above.
 
-**No eligible anchor** → say so in one line and stop. The ordinary end of a sweep, not a failure.
+**A deferred anchor is reported too, and names what it waits on.** It clears itself, so it is not one of
+the three above — but three shapes of a deferral wait on a human just as they do, and the row is the only
+place any of them becomes visible: a dependency on an anchor this sweep itself skips, a **cycle**, where
+each anchor in it waits on another that is waiting back, and a blocker whose anchor is still open while its
+run root no longer exists (above). Report every deferral with the anchor it waits on (§6), which reads as
+progress on the ordinary shape and as a diagnosis — closing the blocker's anchor by hand, on the third — on
+those three.
+
+**No eligible anchor** → say so in one line and stop. The ordinary end of a sweep, not a failure. An
+iteration whose every remaining candidate is deferred **is** this case: nothing is selectable, so the
+sweep ends there rather than re-testing the same candidates. That is what keeps a cycle from spinning.
 
 ## 3. Take it through the chain
 
@@ -174,7 +214,10 @@ naming which command stopped and why, and add one to the consecutive-block count
 tracker and the ledger show now — never from memory of features you already tried this sweep, which a
 compaction would erase.
 
-A shipped feature **resets that count to zero**: write `0` to `.superdev/afk-blocks`.
+A shipped feature **resets that count to zero**: write `0` to `.superdev/afk-blocks`, then **go back to
+§2 for the next anchor**, exactly as a block does. A pull request is one feature's end, not the sweep's:
+selection runs again, over a store whose ledger now reads this anchor's scope `shipped`, which is what
+releases anything deferred on it.
 
 ## 5. When to stop
 
@@ -202,12 +245,22 @@ anchor         outcome    where
 reports        skipped    2 roots, no single anchor — needs a human
 Cache_Sweep!   skipped    label fails the scope-slug rule — rename it
 #163 exports   skipped    never decomposed — run /superdev:plan
+#171 search    deferred   waits on #163, which is skipped — needs a human
+#178 indexer   deferred   waits on #185, which waits back — dependency cycle
+#185 crawler   deferred   waits on #178, which waits back — dependency cycle
+#190 payments  deferred   waits on #142, whose run root is pruned — close #142 by hand
 #141 cache     untouched  halted before it
 ```
 
 A `skipped` row appears for the three permanent conditions of §2: a feature label with two or more roots,
 a label that fails the scope-slug rule, and an anchor that was never decomposed. Each row names what the
 condition needs. The transient skips — a live run, a shipped run — stay out of the table.
+
+A `deferred` row names the anchor waited on and what became of it — the three shapes that need a human are
+§2's, and the third (a still-open anchor behind a pruned run root) names what it needs — closing that
+anchor by hand — since nothing will become of it on its own. An anchor deferred early and taken later in
+the same sweep earns the row its own outcome gives it — `shipped` or `blocked` — and no `deferred` row at
+all.
 
 The durable record already exists where a maintainer would act on it: a comment on each blocked anchor, a
 pull request for each shipped one. Write no summary issue and no file.

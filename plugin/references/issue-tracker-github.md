@@ -36,6 +36,10 @@ Slices live as GitHub issues — one slice = one issue. Use the GitHub REST API 
 - `depends-on` ↔ a native **`blocked_by` dependency**, one per blocker
   (`POST .../issues/<number>/dependencies/blocked_by`). Sub-issues model *parent/child*, which is the
   epic relation — a different relation from blocking, and both are used (ADR 0011).
+- **Anchor dependency** (optional) ↔ a `**Blocked by feature:** #<n>` line in the **anchor's own** body —
+  the epic on a multi-slice feature, the lone slice on a single-slice one. Not the native `blocked_by`
+  relation above: that relation is already spent on slice-level `depends-on`, so it cannot carry a second,
+  feature-level meaning without a reader confusing the two (`plan-contract.md` → *Scope anchor*, ADR 0040).
 - global DoD ↔ an **epic** issue (label `epic`) whose body holds the DoD checklist; slices carry the
   feature label, reference the epic (`#<epic>`), and are linked to it as **sub-issues**. A single-slice
   feature has **no epic** — the lone slice's `acceptance` checklist is the DoD, and there is no
@@ -72,6 +76,15 @@ lone slice, which is nobody's sub-issue either (ADR 0017).
 - **Tell an anchor that is itself a slice.** It carries a `test-applicability` label — `behavior`,
   `mechanical`, or `docs`. An epic never does. That is what separates a single-slice feature, whose lone
   slice is its own anchor and is real work, from an epic created and never decomposed, which is not.
+- **Read an anchor's dependencies.** The `**Blocked by feature:** #<n>` body line the field mapping
+  defines, read off the **anchor's own** body — never the native `blocked_by` relation **Record a
+  dependency** below writes for a slice, which already carries slice-level `depends-on` and cannot also
+  carry this. It names another feature's scope anchor (`plan-contract.md` → *Scope anchor*, ADR 0040). No
+  such line means no dependency. **Resolve `#<n>` to that anchor's own record** with `GET
+  /repos/<owner>/<repo>/issues/<n>` — its `labels` array is the blocker's own feature label, and its
+  `state` is open or closed — because a consumer holds the dependency against the blocker's own label and
+  state, not the label of the record carrying this line. `/superdev:plan` writes one through the same
+  **Record an anchor dependency** body-append below.
 - **Ambiguous.** Two or more roots under one feature label. `/superdev:plan` never writes that shape, and
   there is no single Definition of Done to build against, so a consumer reports it instead of choosing.
 
@@ -117,6 +130,10 @@ like a typo.
   reporting failure. Nothing is deleted or rolled back — the issues that were created stay, and the plan is
   repaired by writing the missing edges, not by starting over. A token lacking Issues write fails every
   edge at once; report that as the single cause rather than one message per edge.
+- **Record an anchor dependency:** append a `**Blocked by feature:** #<blocker-anchor>` line to the
+  **anchor issue's own** body — the epic on a multi-slice feature, the lone slice issue on a single-slice
+  one. A body edit, not the `dependencies/blocked_by` call above, kept distinct so the two relations never
+  collide on one issue (ADR 0040).
 - **Parallel-safe creation order:** create the epic first (slices reference `#<epic>`), then fire **all
   slice creates in parallel**, then the sub-issue links **and** the dependency writes in parallel once
   every slice's `number` and `id` are known. Only the epic→slices→relations ordering is required; within
@@ -213,13 +230,17 @@ ADR 0004).
 - **Create only new records; never edit, close, or delete a merged slice.** Append fires new
   `POST /repos/<owner>/<repo>/issues` calls for the new slices alone. It never `PATCH`es or closes an
   issue a prior run already merged, and never rewrites its labels, sub-issue link, or `blocked_by`
-  dependency — a merged issue's `number` is a satisfied `depends-on` root for a newly created one,
-  nothing more.
+  dependency — except the anchor-dependency line, which migrates to the new epic issue when append
+  promotes a single-slice feature (below) — a merged issue's `number` is a satisfied `depends-on` root
+  for a newly created one, nothing more.
 - **Create the epic first when none exists.** A feature whose lone issue carries the feature label with
   no sub-issue parent has no epic yet (the single-slice shape, `## Scope anchor` above). Append creates
   the epic issue first — its body holding the lone slice's `acceptance` checklist as the global DoD —
   then links every new slice as its sub-issue. The lone existing issue itself is never edited: no epic
-  body copies onto it, no sub-issue link is written for it, and it stays nobody's child.
+  body copies onto it, no sub-issue link is written for it, and it stays nobody's child. **One exception:**
+  when the lone issue carries an anchor dependency (a `**Blocked by feature:** #<n>` line), it **migrates
+  to the new epic issue's own body** and is removed from the lone issue — the epic is the anchor now.
+  Nothing else about the lone issue changes.
 - **Amend the epic's own body — the one sanctioned edit.** `PATCH /repos/<owner>/<repo>/issues/<epic
   number>` with `{ "body": "<amended body>" }` folds the interview's new criteria into the epic's
   Definition of Done in place, and, the same call, deletes a resolved parked question's line from the
@@ -232,9 +253,12 @@ rule for `id`.
 ## When a skill says "write slices to the store"
 
 **≥2 slices** — create the epic first (global DoD), then one issue per slice, then link each slice as a
-sub-issue of the epic and write the `blocked_by` dependencies. **Exactly one slice** — skip the epic;
-create only the slice issue, folding the global DoD into its `acceptance` checklist, and skip both
-relation calls entirely.
+sub-issue of the epic and write the `blocked_by` dependencies. When the interview named a prerequisite
+feature, also write the anchor dependency — a `**Blocked by feature:** #<n>` line — on the epic issue's
+own body. **Exactly one slice** — skip the epic; create only the slice issue, folding the global DoD into
+its `acceptance` checklist, and skip both relation calls entirely (a lone slice has no blocker and no
+sub-issue parent). When the interview named a prerequisite feature, still write the anchor dependency on
+that same lone slice issue: the anchor dependency is never skipped, because the lone slice is the anchor.
 
 ## When a skill says "load slices from the store"
 

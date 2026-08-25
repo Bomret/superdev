@@ -38,7 +38,8 @@ escape is fixing the state. Name which signal fired and what clears it:
 **A picked feature with no epic (a single-slice feature) is promoted to one.** §6 creates the epic,
 copies the lone slice's `acceptance` into it as the global DoD, then amends that DoD in place with the
 criteria the interview settled — a write, so it happens where the other writes do, and an abandoned
-interview strands no epic. Throughout, leave the lone slice byte-identical
+interview strands no epic. Throughout, leave the lone slice byte-identical, except for one moving part: an
+anchor-dependency line, if the slice carries one, migrates to the new epic
 (`references/plan-contract.md` → *Append mode*, `docs/agents/issue-tracker.md` → *Append mode*).
 
 **Surface the epic's parked questions once it loads, before the interview diverges into new ground.**
@@ -284,6 +285,16 @@ slice's labels (`test-applicability` + feature + ready) and that same configured
 creation**, not in a follow-up pass. **(3)** Once every slice key is known, apply the cross-references
 (`depends-on`) **in parallel**. `depends-on` keys are correct because every slice exists before any
 reference is written. (A local-file store just writes the files.)
+
+**Record an anchor dependency when the interview named a prerequisite feature.** A feature the interview
+established cannot be built until another one has landed gets that relation written on **this feature's
+scope anchor**, naming the other feature's anchor, through the mechanism
+`docs/agents/issue-tracker.md`'s `## Scope anchor` section states (`references/plan-contract.md` →
+*Scope anchor*, ADR 0040). It is what lets `/superdev:afk` reach the two in the right order. Ask nothing
+new for it: a feature that cannot be built yet surfaces as a constraint during §1 or it does not surface
+at all, and an interview that named no prerequisite writes no dependency. The honesty rule is the one
+slice-level `depends-on` already carries — record one only where the second feature genuinely cannot be
+built first, because a needless one serializes an unattended sweep for nothing.
 
 **Delete the seeded brainstorm intent.** If this plan started from a `.superdev/brainstorm/<slug>.md`
 file (§1), delete it now that its intent is durably in the slice store — a leftover scratch intent

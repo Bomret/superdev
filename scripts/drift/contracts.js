@@ -75,7 +75,7 @@ const ANCHOR_PATTERN = /^#{2,3}\s+Scope anchor\s*$/m;
 // The heading alone isn't the contract — a section that carries it but names none of its elements passes
 // today, which is how finding #4 shipped unnoticed. Each pattern is anchored on a bullet's bolded lead-in
 // rather than matched anywhere in the section: a pattern free to match anywhere is satisfied by intro
-// prose that merely lists the four concepts, which states none of them for this backend. Inside that
+// prose that merely lists the five concepts, which states none of them for this backend. Inside that
 // lead-in each pattern matches the shared *concept* the bullet names and not a full sentence, so a
 // backend-specific mechanism (a JQL clause, a `/parent` call) stays free to vary. Both spellings of every
 // concept are accepted: the repo's writing standard declares American English, so a document is not wrong
@@ -85,6 +85,11 @@ const ANCHOR_ELEMENTS = [
   [/^[-*] \*\*[^*]*candidate/im, 'how to list the candidates'],
   [/^[-*] \*\*[^*]*\b(?:beneath|under)\b/im, 'how to list the slices beneath an anchor'],
   [/^[-*] \*\*[^*]*\b(?:itself|also)\b a slice/im, 'how to tell an anchor that is itself a slice'],
+  // The fifth element (ADR 0040): how to read an anchor's own dependencies, the relation `/superdev:afk`
+  // defers a dependent anchor on and `/superdev:plan` records. The lead-in anchoring matters more here
+  // than for the other four: two store documents discuss a native dependencies *unit* in this section's
+  // intro prose, which says nothing about how to read the relation in that backend.
+  [/^[-*] \*\*[^*]*dependenc/im, "how to read an anchor's dependencies"],
 ];
 
 // Every slice-store document must render `/plan`'s append-mode contract for its own backend (ADR 0004,
@@ -1539,6 +1544,35 @@ const PLAYBOOK_EDGE_CONTRACTS = PLAYBOOK_EDGE_DOCS.flatMap((rel) => [
   [rel, RUN_HANDOFF_PATTERN, 'name `references/run-handoff.md` as its closing step'],
 ]);
 
+// `commands/afk.md`'s paragraph introducing `## Scope anchor` restates how many things that section
+// states for this backend. ADR 0040 added the anchor dependency as a fifth element to that section
+// everywhere else (`plan-contract.md`, every store document, `scripts/AGENTS.md`'s `anchor-contract`
+// write-up), but nothing pinned this one paragraph, so it kept reading "four" and naming only the
+// original four — the one-sided-pin shape root `AGENTS.md`'s prompt-architecture rules name. The two
+// rows are independent: a maintainer could fix the count without naming the fifth thing, or name it
+// without updating the count.
+//
+// Scoped to the paragraph itself, not the whole `## 2.` section or the whole document: `commands/afk.md`
+// legitimately discusses the anchor dependency again later in that section (the eligibility bullet reads
+// it), so a section-wide or document-wide match would pass even after this one paragraph reverted to
+// "four" — exactly the shape `anchor-contract` already guards against with the narrower
+// `extractSection()` isolation. `AFK_ANCHOR_COUNT_HEADING` locates the paragraph itself (a phrase common
+// to every wording, "four" or "five" alike); `scanAfkAnchorCount()` then isolates it with
+// `extractParagraph()` and tests both elements inside that isolation alone.
+const AFK_ANCHOR_COUNT_HEADING = /`## Scope anchor` section stating/;
+
+const AFK_ANCHOR_COUNT_ELEMENTS = [
+  [
+    /stating five things for this backend/,
+    'say the `## Scope anchor` section states five things for this backend, not four — ADR 0040 added ' +
+      "reading an anchor's own dependencies as the fifth",
+  ],
+  [
+    /read an anchor's own dependencies/,
+    "name reading an anchor's own dependencies among the things that section states, the fifth ADR 0040 added",
+  ],
+];
+
 module.exports = {
   REFERENCE_PATTERN,
   RUN_ROOT_DOCS,
@@ -1616,4 +1650,6 @@ module.exports = {
   RETURN_TO_CONTROLLER_DOCS,
   RETURN_TO_CONTROLLER_PATTERNS,
   PLAYBOOK_EDGE_CONTRACTS,
+  AFK_ANCHOR_COUNT_HEADING,
+  AFK_ANCHOR_COUNT_ELEMENTS,
 };

@@ -53,8 +53,11 @@ plan runs test-first and inline.
   the execution tier `/superdev:implement` uses for the final slice count (see below).
 
   Run it again against a feature that already has slices, and it **appends**. New slices land on top of
-  the ones already merged, and the command never edits, renumbers, or re-litigates any of them. It
-  refuses while a run against that feature is active elsewhere. It surfaces any parked questions the
+  the ones already merged, and the command never edits, renumbers, or re-litigates any of them. An
+  **anchor dependency** is a recorded relation saying this feature waits on another feature. But
+  promoting a single-slice feature to an epic migrates its line onto the new epic, removing it from the
+  lone record, which otherwise stays untouched. It refuses while a run against that feature is active
+  elsewhere. It surfaces any parked questions the
   feature carries before asking anything new. A parked question is a load-bearing decision an earlier
   interview could not resolve (`commands/plan.md` §0).
 - **`/superdev:implement`**. The controller drives the slices as a **dependency-ordered DAG**, sized to
@@ -108,14 +111,16 @@ plan runs test-first and inline.
   all from the existing code. It confirms them with you before anything commits.
 - **`/superdev:afk`**. Sweeps the planned backlog with nobody watching. A **scope anchor** is a feature's
   root, whether that root is a multi-slice epic or a single-slice plan's own lone slice. It takes each
-  **eligible scope anchor** through the whole chain, oldest first. Eligibility needs an open, unblocked
-  anchor with no live run on its scope, among other conditions `commands/afk.md` §2 states in full. It
-  invokes
-  `/superdev:implement`, `/superdev:review`, `/superdev:document`, and `/superdev:ship`, each carrying
-  `--unattended`. That token is an argument to one invocation, not scope state. A stop with a **standing
-  answer** takes it, and a stop with none **blocks** that anchor and moves to the next. The sweep stops
-  when no eligible anchor is left, when two anchors block in a row, or when `/superdev:ship` fails to
-  reach the code host. It never asks a question and never starts an interview command.
+  **eligible scope anchor** through the whole chain, oldest first except where a plan says otherwise: an
+  anchor recording an **anchor dependency** on another feature is **deferred** until that feature's anchor
+  is closed or its scope has shipped, and the report names what it waits on. Eligibility needs an open,
+  unblocked anchor with no live run on its scope, among other conditions `commands/afk.md` §2 states in
+  full. It invokes `/superdev:implement`, `/superdev:review`, `/superdev:document`, and
+  `/superdev:ship`, each carrying `--unattended`. That token is an argument to one invocation, not scope
+  state. A stop with a **standing answer** takes it, and a stop with none **blocks** that anchor and
+  moves to the next. The sweep stops when no eligible anchor is left, when two anchors block in a row,
+  or when `/superdev:ship` fails to reach the code host. It never asks a question and never starts an
+  interview command.
 - **`/superdev:setup`**. Records the backends in `docs/agents/*.md`, so the workflow never hardcodes a
   tool. For a knowledge base it also captures the **audiences** and the **language**, and proposes a
   human-first outline. It asks which **writing standard** the doc agents write to. When it finds no

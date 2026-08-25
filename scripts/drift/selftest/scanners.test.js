@@ -14,6 +14,7 @@ const {
   scanAppendContract,
   scanReleaseContract,
   scanAfkSelectionNeutrality,
+  scanAfkAnchorCount,
   scanWritingStandardContract,
   scanContentTypesContract,
   scanCommandRefs,
@@ -337,6 +338,67 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'a dispatch that names the reference satisfies the row',
   );
 
+  // --- scanAfkAnchorCount: `commands/afk.md`'s paragraph introducing `## Scope anchor` states how many
+  // things that section carries for this backend (ADR 0040 made it five, naming the anchor dependency as
+  // the fifth). Both elements are independent, and the scan is narrowed to the one paragraph — a
+  // restatement anywhere else in the same section must not satisfy a stale paragraph. ---
+
+  // positive: the stale "four things" paragraph, naming only the original four, is two gaps
+  const aacStale = fixture({
+    'commands/afk.md':
+      '`docs/agents/issue-tracker.md` carries a `## Scope anchor` section stating four things for this ' +
+      'backend: how to recognise an anchor, how to list the candidates, how to list the slices beneath ' +
+      'one, and how to tell that an anchor is itself a slice.\n',
+  });
+  const aacGaps = scanAfkAnchorCount(aacStale);
+  assert.equal(aacGaps.length, 2, 'the stale paragraph fails the count row and the naming row independently');
+
+  // positive: the count fixed but the fifth thing still unnamed is one gap
+  const aacCountOnly = fixture({
+    'commands/afk.md':
+      '`docs/agents/issue-tracker.md` carries a `## Scope anchor` section stating five things for this ' +
+      'backend: how to recognise an anchor, how to list the candidates, how to list the slices beneath ' +
+      'one, and how to tell that an anchor is itself a slice.\n',
+  });
+  assert.equal(
+    scanAfkAnchorCount(aacCountOnly).length,
+    1,
+    'fixing the count alone still leaves the fifth thing unnamed',
+  );
+
+  // negative: both the count and the fifth element are named
+  const aacFixed = fixture({
+    'commands/afk.md':
+      '`docs/agents/issue-tracker.md` carries a `## Scope anchor` section stating five things for this ' +
+      'backend: how to recognise an anchor, how to list the candidates, how to list the slices beneath ' +
+      'one, how to tell that an anchor is itself a slice, and how to read an anchor\'s own dependencies.\n',
+  });
+  assert.equal(scanAfkAnchorCount(aacFixed).length, 0, 'the fixed paragraph satisfies both rows');
+
+  // narrowing: a restatement elsewhere in §2's body (a second paragraph, separated by a blank line) that
+  // carries both phrases must not save a stale intro paragraph — a section-wide or document-wide match
+  // would pass this fixture, which is exactly the false green extractParagraph() exists to prevent
+  const aacNarrowed = fixture({
+    'commands/afk.md':
+      '`docs/agents/issue-tracker.md` carries a `## Scope anchor` section stating four things for this ' +
+      'backend: how to recognise an anchor, how to list the candidates, how to list the slices beneath ' +
+      'one, and how to tell that an anchor is itself a slice.\n\n' +
+      'Later in this same section, unrelated to the paragraph above: the section in fact states five ' +
+      "things for this backend, the fifth being how to read an anchor's own dependencies.\n",
+  });
+  assert.equal(
+    scanAfkAnchorCount(aacNarrowed).length,
+    2,
+    'a restatement elsewhere in the section does not save a stale intro paragraph',
+  );
+
+  // the real repository's own afk.md satisfies both rows
+  assert.equal(
+    scanAfkAnchorCount(realRoot).length,
+    0,
+    "this repo's own afk.md states five things and names the anchor dependency",
+  );
+
   // --- scanAdrStatus: every ADR must state a status. An ADR with no status line reads as accepted
   // whether or not anything implements it, which is how a decision gets documented as live while the
   // code has none of it. ---
@@ -415,7 +477,8 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     '- **Recognise one.** It carries no parent link.\n' +
     '- **List the candidates.** Query per feature label and keep the roots.\n' +
     '- **List the slices beneath it.** The same query returns them.\n' +
-    '- **Tell an anchor that is itself a slice.** It carries a test-applicability label.\n';
+    '- **Tell an anchor that is itself a slice.** It carries a test-applicability label.\n' +
+    "- **Read an anchor's dependencies.** The `waits-on` field on the root issue.\n";
 
   // positive: a store document with no anchor section is flagged
   const an1 = fixture({ 'references/issue-tracker-acme.md': '# acme\n\nSlices are issues.\n' });
@@ -433,7 +496,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'references/issue-tracker-acme.md':
       '## Scope anchor\n\nThe anchor is the feature root: the issue that is nobody\'s sub-issue.\n',
   });
-  assert.equal(scanAnchorContract(anEmpty).length, 4, 'a heading naming no element flags all four');
+  assert.equal(scanAnchorContract(anEmpty).length, 5, 'a heading naming no element flags all five');
 
   // positive: the section is missing just one element — only that one is flagged
   const anPartial = fixture({
@@ -445,6 +508,31 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   const anPartialGaps = scanAnchorContract(anPartial);
   assert.equal(anPartialGaps.length, 1, 'flags exactly the one missing element');
   assert.match(anPartialGaps[0].expectation, /beneath/, 'names the missing element');
+
+  // positive: the dependency element alone is missing (ADR 0040). The other four are stated, so a
+  // document written before that decision reports exactly the one thing it never said.
+  const anNoDeps = fixture({
+    'references/issue-tracker-acme.md': anchorSection.replace(
+      "- **Read an anchor's dependencies.** The `waits-on` field on the root issue.\n",
+      '',
+    ),
+  });
+  const anNoDepsGaps = scanAnchorContract(anNoDeps);
+  assert.equal(anNoDepsGaps.length, 1, 'flags the missing dependency element alone');
+  assert.match(anNoDepsGaps[0].expectation, /dependenc/, 'names the dependency element');
+
+  // positive: intro prose discussing dependencies is not the element. Two real store documents open this
+  // section by saying the native issue-dependencies unit is disabled, which states no way to read the
+  // relation — a pattern free of the bullet lead-in would pass on exactly that sentence.
+  const anDepsProse = fixture({
+    'references/issue-tracker-acme.md': anchorSection.replace(
+      "- **Read an anchor's dependencies.** The `waits-on` field on the root issue.\n",
+      'The native issue-dependencies unit is disabled on this instance.\n',
+    ),
+  });
+  const anDepsProseGaps = scanAnchorContract(anDepsProse);
+  assert.equal(anDepsProseGaps.length, 1, 'prose about dependencies satisfies the element not at all');
+  assert.match(anDepsProseGaps[0].expectation, /dependenc/, 'names the dependency element');
 
   // the local-file store is NOT exempt — it has an anchor concept, so it must state one
   const an3 = fixture({ 'references/issue-tracker-local.md': 'Slices live in `docs/plans/<feature>/`.\n' });
@@ -487,7 +575,8 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
       '```sh\n# list every candidate\ncurl -s "$API/issues?labels=$FEATURE"\n```\n\n' +
       '- **List the candidates.** Query per feature label and keep the roots.\n' +
       '- **List the slices beneath it.** The same query returns them.\n' +
-      '- **Tell an anchor that is itself a slice.** It carries a test-applicability label.\n\n' +
+      '- **Tell an anchor that is itself a slice.** It carries a test-applicability label.\n' +
+      "- **Read an anchor's dependencies.** The `waits-on` field on the root issue.\n\n" +
       '## Assignee\n\nSomeone.\n',
   });
   assert.equal(scanAnchorContract(anFenced).length, 0, 'a fenced `#` comment does not end the section');
@@ -502,7 +591,8 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
       '````md\ncurl -s "$API/issues?labels=$FEATURE"\n```\n# comment inside the outer fence\n````\n\n' +
       '- **List the candidates.** Query per feature label and keep the roots.\n' +
       '- **List the slices beneath it.** The same query returns them.\n' +
-      '- **Tell an anchor that is itself a slice.** It carries a test-applicability label.\n\n' +
+      '- **Tell an anchor that is itself a slice.** It carries a test-applicability label.\n' +
+      "- **Read an anchor's dependencies.** The `waits-on` field on the root issue.\n\n" +
       '## Assignee\n\nSomeone.\n',
   });
   assert.equal(
@@ -511,15 +601,16 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'a shorter inner fence does not close a longer outer fence',
   );
 
-  // the four elements stated only in intro prose, with no bullets, is not the contract: every pattern
-  // matched anywhere in the section, so prose alone satisfied all four and finding #4 shipped twice over
+  // the elements stated only in intro prose, with no bullets, is not the contract: every pattern
+  // matched anywhere in the section, so prose alone satisfied them all and finding #4 shipped twice over
   const anProse = fixture({
     'references/issue-tracker-acme.md':
       '## Scope anchor\n\n' +
       'This section explains how to recognise an anchor, how to list the candidates, how to list the\n' +
-      'slices beneath one, and how to tell an anchor that is itself a slice.\n',
+      "slices beneath one, how to tell an anchor that is itself a slice, and how to read an anchor's\n" +
+      'dependencies.\n',
   });
-  assert.equal(scanAnchorContract(anProse).length, 4, 'intro prose with no bullets satisfies nothing');
+  assert.equal(scanAnchorContract(anProse).length, 5, 'intro prose with no bullets satisfies nothing');
 
   // the repo's writing standard declares American spelling, so the element patterns must accept it —
   // a document is not wrong for writing `recognize`, `under`, or `also a slice`
@@ -529,7 +620,8 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
       '- **Recognize one.** It carries no parent link.\n' +
       '- **List the candidates.** Query per feature label and keep the roots.\n' +
       '- **List the slices under it.** The same query returns them.\n' +
-      '- **Tell an anchor that is also a slice.** It carries a test-applicability label.\n',
+      '- **Tell an anchor that is also a slice.** It carries a test-applicability label.\n' +
+      "- **Read an anchor's dependencies.** The `waits-on` field on the root issue.\n",
   });
   assert.equal(scanAnchorContract(anAmerican).length, 0, 'American spellings satisfy the contract');
 
@@ -540,7 +632,8 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
       '* **Recognise one.** It carries no parent link.\n' +
       '* **List the candidates.** Query per feature label and keep the roots.\n' +
       '* **List the slices beneath it.** The same query returns them.\n' +
-      '* **Tell an anchor that is itself a slice.** It carries a test-applicability label.\n',
+      '* **Tell an anchor that is itself a slice.** It carries a test-applicability label.\n' +
+      "* **Read an anchor's dependencies.** The `waits-on` field on the root issue.\n",
   });
   assert.equal(scanAnchorContract(anStarBullets).length, 0, '`*` bullets satisfy the contract');
 
@@ -553,7 +646,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   );
   assert.equal(
     scanAnchorContract(fixture({ 'references/issue-tracker-acme.md': '## Scope anchor\n' })).length,
-    4,
+    5,
     'an empty section extracts and reports every element',
   );
   assert.equal(

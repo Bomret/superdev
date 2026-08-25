@@ -36,6 +36,9 @@ Auth header: `-u "$JIRA_EMAIL:$JIRA_API_TOKEN"`, `-H "Content-Type: application/
   `POST <base>/rest/api/3/issueLink` with
   `{ "type": {"name":"Blocks"}, "inwardIssue":{"key":"<this slice>"}, "outwardIssue":{"key":"<blocker>"} }`
   so the slice is "blocked by" its blocker.
+- **Record an anchor dependency**: append a `**Blocked by feature:** <blocker-key>` line to the **anchor
+  issue's own** description (an ADF body edit) — never the "is blocked by" link above, kept distinct so the
+  two relations never collide on one issue.
 - **List feature slices**:
   `GET <base>/rest/api/3/search/jql?jql=project=PROJ AND labels="<feature-label>"
   &fields=summary,description,status,labels,issuetype,parent` — `/rest/api/3/search` is deprecated
@@ -57,6 +60,11 @@ Auth header: `-u "$JIRA_EMAIL:$JIRA_API_TOKEN"`, `-H "Content-Type: application/
 - `acceptance` ↔ a checklist in the description (or sub-tasks).
 - `test-applicability` ↔ a label (`behavior`/`mechanical`/`docs`).
 - `status` ↔ Jira status.
+- **Anchor dependency** (optional) ↔ a `**Blocked by feature:** <key>` line in the **anchor's own**
+  description — the Epic on a multi-slice feature, the lone slice issue on a single-slice one. Not the
+  "is blocked by" issue link above: that link type already carries slice-level `depends-on`, and reusing
+  it for a feature-level relation would make the two indistinguishable on read (`plan-contract.md` →
+  *Scope anchor*, ADR 0040).
 - global DoD ↔ a parent Epic; slices are children of the Epic. **A single-slice feature has no Epic** —
   the lone slice issue's `acceptance` checklist is the DoD.
 
@@ -82,6 +90,18 @@ Epic Link either (ADR 0017).
   `mechanical`, or `docs` — and its issue type is the slice type rather than `Epic`. That is what
   separates a single-slice feature, whose lone slice is its own anchor and is real work, from an Epic
   created and never decomposed, which is not.
+- **Read an anchor's dependencies.** The `**Blocked by feature:** <key>` description line the field
+  mapping defines, read off the **anchor's own** description — never the "is blocked by" issue link
+  **Link a dependency** above writes for a slice, which already carries slice-level `depends-on` and would
+  be indistinguishable from it on read. Read the anchor's own `fields.description` with
+  `GET <base>/rest/api/3/issue/<key>?fields=description`, or add `description` to the **List feature
+  slices** `fields` list. It names another feature's scope anchor (`plan-contract.md` → *Scope anchor*,
+  ADR 0040). No such line means no dependency. **Resolve `<key>` to that anchor's own record** with `GET
+  <base>/rest/api/3/issue/<key>?fields=labels,status` — `fields.labels` is the blocker's own feature
+  label, and `fields.status.name` matching the `<Done>` status the **Status workflow** table above names
+  means closed — because a consumer holds the dependency against the blocker's own label and status, not
+  the label of the record carrying this line. `/superdev:plan` writes one through the same **Record an
+  anchor dependency** description edit above.
 - **Ambiguous.** Two or more parentless issues under one feature label. `/superdev:plan` never writes that
   shape, and there is no single Definition of Done to build against, so a consumer reports it instead of
   choosing.
@@ -147,13 +167,18 @@ ADR 0004).
 
 - **Create only new records; never edit, close, or delete a merged slice.** Append fires new
   `POST <base>/rest/api/3/issue` calls for the new slices alone. It never transitions or edits an issue
-  a prior run already merged (no `fields` PUT, no transition to a closed status, no relabel) — a merged
-  issue's `key` is a satisfied `depends-on` "is blocked by" target for a newly created one, nothing more.
+  a prior run already merged (no `fields` PUT, no transition to a closed status, no relabel) — except the
+  anchor-dependency description line, which migrates to the new Epic issue when append promotes a
+  single-slice feature (below) — a merged issue's `key` is a satisfied `depends-on` "is blocked by"
+  target for a newly created one, nothing more.
 - **Create the Epic first when none exists.** A feature whose lone issue has no `fields.parent` has no
   Epic yet (the single-slice shape, `## Scope anchor` above). Append creates the Epic issue first — its
   description holding the lone slice's `acceptance` checklist as the global DoD — then sets every new
   slice issue's parent to it. The lone existing issue itself is never edited: no DoD copies onto its own
-  description, and its `fields.parent` stays unset.
+  description, and its `fields.parent` stays unset. **One exception:** when the lone issue carries an
+  anchor dependency (a `**Blocked by feature:** <key>` description line), it **migrates to the new Epic
+  issue's own description** and is removed from the lone issue — the Epic is the anchor now. Nothing else
+  about the lone issue changes.
 - **Amend the Epic's own description — the one sanctioned edit.** `PUT <base>/rest/api/3/issue/<epic key>`
   with `{ "fields": { "description": <amended ADF body> } }` folds the interview's new criteria into the
   Epic's Definition of Done in place, and, the same call, deletes a resolved parked question's line from
@@ -166,8 +191,12 @@ rule for `id`.
 ## When a skill says "write slices to the store"
 
 **≥2 slices** — create the Epic first (global DoD), then one Jira issue per slice, link dependencies,
-apply the ready label. **Exactly one slice** — skip the Epic; create only the slice issue, folding the
-global DoD into its `acceptance` checklist.
+apply the ready label. When the interview named a prerequisite feature, also write the anchor dependency —
+a `**Blocked by feature:** <key>` line — on the Epic issue's own description. **Exactly one slice** — skip
+the Epic; create only the slice issue, folding the global DoD into its `acceptance` checklist, and skip the
+dependency-link step entirely (a lone slice has no blocker). When the interview named a prerequisite
+feature, still write the anchor dependency on that same lone slice issue: the anchor dependency is never
+skipped, because the lone slice is the anchor.
 
 ## When a skill says "load slices from the store"
 

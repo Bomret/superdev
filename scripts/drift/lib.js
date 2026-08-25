@@ -50,6 +50,22 @@ function extractSection(text, headingPattern) {
   return text.slice(start, end);
 }
 
+// extractParagraph(): the text from a pattern match (inclusive) up to the next blank line, or to EOF if
+// there is none — narrower than extractSection()'s heading-to-heading span. Used where a contract is
+// pinned to one paragraph inside a section rather than the section itself: the surrounding section may
+// legitimately restate the same concept elsewhere, and a section-wide (or whole-document) match would then
+// be satisfied by that restatement even after the paragraph itself went stale. Fences are masked first,
+// exactly as extractSection() masks them, so a blank line inside a fenced example never ends the paragraph
+// early.
+function extractParagraph(text, startPattern) {
+  const masked = maskFences(text);
+  const start = masked.search(startPattern);
+  if (start === -1) return null;
+  const blank = masked.slice(start).search(/\n[ \t]*\n/);
+  const end = blank === -1 ? text.length : start + blank;
+  return text.slice(start, end);
+}
+
 // A scalar as a maintainer may legally write it: quoted or bare, with or without a trailing comment.
 function scalar(raw) {
   const withoutComment = raw.replace(/\s+#.*$/, '').trim();
@@ -162,6 +178,7 @@ module.exports = {
   storeDocuments,
   maskFences,
   extractSection,
+  extractParagraph,
   scalar,
   frontmatter,
   stripFrontmatter,

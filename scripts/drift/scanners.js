@@ -8,7 +8,16 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { docPath, readDoc, storeDocuments, extractSection, scalar, frontmatter, normalizeWhitespace } = require('./lib');
+const {
+  docPath,
+  readDoc,
+  storeDocuments,
+  extractSection,
+  extractParagraph,
+  scalar,
+  frontmatter,
+  normalizeWhitespace,
+} = require('./lib');
 const contracts = require('./contracts');
 const {
   NARRATIVE_DOC,
@@ -36,6 +45,8 @@ const {
   LOCAL_APPEND_DOC,
   LOCAL_CONTINUATION_ELEMENT,
   AFK_SELECTION_HEADING,
+  AFK_ANCHOR_COUNT_HEADING,
+  AFK_ANCHOR_COUNT_ELEMENTS,
   STORE_MECHANISMS,
   WRITING_STANDARD_DOCS,
   WRITING_STANDARD_PATTERN,
@@ -233,6 +244,35 @@ function scanAfkSelectionNeutrality(root) {
       source: path.join('commands', 'afk.md'),
       expectation: "point its selection at the store's `## Scope anchor` contract",
     });
+  }
+  return gaps;
+}
+
+// scanAfkAnchorCount() is pure over a root dir: reads `commands/afk.md`, isolates the one paragraph
+// AFK_ANCHOR_COUNT_HEADING names with extractParagraph() — narrower than a section, so a legitimate
+// restatement later in the same `## 2.` section (the eligibility bullet also reads the anchor dependency)
+// cannot satisfy this contract on the stale paragraph's behalf — and reports the elements missing from
+// that isolation alone. An absent file yields nothing; `commands/afk.md`'s existence is asserted by the
+// pinned-paths check.
+function scanAfkAnchorCount(root) {
+  const gaps = [];
+  const rel = path.join('commands', 'afk.md');
+  const text = readDoc(root, rel);
+  if (text === null) return gaps; // afk.md absent (fixture / partial checkout) → nothing to scan
+  const paragraph = extractParagraph(text, AFK_ANCHOR_COUNT_HEADING);
+  if (paragraph === null) {
+    gaps.push({
+      source: rel,
+      expectation:
+        'carry the paragraph introducing `## Scope anchor` in §2 — a missing or reworded lead-in leaves ' +
+        'the two elements below it unscoped and unchecked',
+    });
+    return gaps;
+  }
+  for (const [pattern, expectation] of AFK_ANCHOR_COUNT_ELEMENTS) {
+    if (!pattern.test(paragraph) && !pattern.test(normalizeWhitespace(paragraph))) {
+      gaps.push({ source: rel, expectation });
+    }
   }
   return gaps;
 }
@@ -788,6 +828,7 @@ module.exports = {
   scanAppendContract,
   scanReleaseContract,
   scanAfkSelectionNeutrality,
+  scanAfkAnchorCount,
   scanWritingStandardContract,
   scanAdrStatus,
   scanEvalShape,

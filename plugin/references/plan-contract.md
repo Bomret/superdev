@@ -146,7 +146,8 @@ whole-scope review substitutes for the per-slice ones. The table above (and the 
 Append mode holds five invariants, and every backend renders all five:
 
 - **Merged slices are immutable.** Append never edits, renumbers, closes, or deletes a merged slice's
-  file or issue.
+  file or issue — except the anchor-dependency line, which migrates to the new epic when append promotes
+  a single-slice feature (*Extending a single-slice feature creates the epic first*, below).
 - **Ids are never reused or renumbered.** A new slice's `depends-on` may name an already-merged slice's
   `id` as a satisfied root.
 - **The global Definition of Done is amended in place, never replaced.** New criteria are appended to the
@@ -156,7 +157,11 @@ Append mode holds five invariants, and every backend renders all five:
   anchor. Append copies that `acceptance` into the new epic as the global DoD, amends it with the new
   criteria, and leaves the lone slice byte-identical. Skipping this step would leave two slices under one
   feature label with no epic — the shape a store's `## Scope anchor` section calls **Ambiguous**, which
-  cannot resolve into a root.
+  cannot resolve into a root. **One exception to byte-identical:** when the lone slice carries an anchor
+  dependency (*Scope anchor* below), that line **migrates to the new epic** — the epic is the anchor now,
+  and the dependency is a property of the anchor, not of the slice — and is removed from the lone slice.
+  Nothing else about the slice changes. Leaving it behind would strand it on a record `/superdev:afk` no
+  longer reads as this feature's anchor.
 - **Append refuses, and writes nothing, while a run is active.**
 
 Only one part of this is backend-specific: **numbering continuation.** The local-file store's `id` is the
@@ -171,7 +176,23 @@ plan's root is its own lone slice — one rule for both shapes (ADR 0017). A con
 scope-level signal — `/superdev:afk` selecting its next feature, the status map above writing the anchor's
 own status — reads the active `docs/agents/issue-tracker.md`'s own `## Scope anchor` section rather than
 assuming any one store's shape. How to recognise an anchor, list the candidates, list the slices beneath
-one, and tell that an anchor is itself a slice are backend mechanism, and belong there.
+one, tell that an anchor is itself a slice, and read an anchor's own dependencies are backend mechanism,
+and belong there.
+
+An anchor may carry an **anchor dependency**: a recorded relation naming another feature's anchor that must
+land first (ADR 0040). It is the feature-level counterpart of a slice's `depends-on`, and the same honesty
+rule holds — record one only when the second feature cannot be built until the first has shipped, because a
+needless one serializes work for nothing. **It is never the same relation as a slice's `depends-on`, even on
+a store where the two could land on the same record.** A single-slice feature's anchor is its own lone slice
+(above), so a store that reused the slice-level relation for the anchor dependency would leave
+`/superdev:implement` reading it as that lone slice's own blocker — naming an issue that is not a member of
+the feature and can never reach `merged` — and would lose it outright the moment append mode promotes that
+lone slice to an epic (*Append mode* above). Each store's `## Scope anchor` section names the distinct
+notation it uses instead. A dependency is **satisfied** when the anchor it names is closed, when that
+scope's ledger stage reads `shipped`, or when no such anchor exists; closing an anchor is best-effort at
+ship time, so closure alone would strand a dependent on a feature that has landed. `/superdev:plan` records
+one when its interview named a prerequisite feature, and `/superdev:afk` is the only reader: it defers an
+anchor whose dependency is unsatisfied.
 
 ## Release
 

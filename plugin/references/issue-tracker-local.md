@@ -39,6 +39,7 @@ Epic file `00-epic-<summary>.md`:
 # <feature>
 
 status: todo
+blocked-by: [<type>/<feature-slug>]
 
 <short description of the feature and its intent>
 
@@ -59,12 +60,14 @@ status: todo
 <fenced file tree: which slices touch which files, collisions marked>
 ```
 
-`## Parked questions`, `## Non-goals`, `## Slice graph`, and `## Touch map` are all optional, advisory-only
-sections that `/implement` never reads — omit `## Parked questions` when nothing's been parked, omit
-`## Non-goals` when nothing was deliberately dropped from scope, and write `## Slice graph`/`## Touch map`
-per `plan-contract.md`'s *Epic visuals* section, which owns their shape, their independence from each
-other, and the rule for when each is written. A single-slice feature has no epic file, so none of the four
-exist there — see `plan-contract.md`.
+`blocked-by:` is optional too, but unlike the four sections below it is a header line, and
+`/superdev:afk` does read it (`## Scope anchor` below, ADR 0040) — omit it unless the interview named a
+prerequisite feature. `## Parked questions`, `## Non-goals`, `## Slice graph`, and `## Touch map` are all
+optional, advisory-only sections that `/implement` never reads — omit `## Parked questions` when
+nothing's been parked, omit `## Non-goals` when nothing was deliberately dropped from scope, and write
+`## Slice graph`/`## Touch map` per `plan-contract.md`'s *Epic visuals* section, which owns their shape,
+their independence from each other, and the rule for when each is written. A single-slice feature has no
+epic file, so none of the four exist there — see `plan-contract.md`.
 
 Each slice file `NN-<test-applicability>-<summary>.md`:
 
@@ -74,6 +77,7 @@ Each slice file `NN-<test-applicability>-<summary>.md`:
 depends-on: []
 test-applicability: behavior
 status: todo
+blocked-by: [<type>/<feature-slug>]
 
 ## spec
 <behavior/interface this slice delivers — the implementer's requirements>
@@ -82,6 +86,11 @@ status: todo
 - <checkable criterion 1>
 - <checkable criterion 2>
 ```
+
+`blocked-by:` is optional, and belongs here only on a single-slice feature: write it when this lone slice
+is the feature's own anchor and the interview named a prerequisite feature, and omit it otherwise — a
+slice beneath a multi-slice epic never carries it, because the epic is the anchor there (`## Scope
+anchor` below, ADR 0040).
 
 ## Scope anchor
 
@@ -100,6 +109,12 @@ epic file, so the lone `NN-<test-applicability>-<summary>.md` is the anchor (ADR
   `<test-applicability>` segment. The epic file begins with `00-epic-`. That is what separates a
   single-slice feature, whose lone slice file is its own anchor and is real work, from a feature
   directory holding only an epic file, which was never decomposed.
+- **Read an anchor's dependencies.** A `blocked-by:` line in the anchor file, listing other features by
+  their `<type>/<feature-slug>` path under `docs/plans/` (for example
+  `blocked-by: [feat/anchor-dependencies]`). Each entry names another feature's scope anchor
+  (`plan-contract.md` → *Scope anchor*, ADR 0040). An absent line means no dependency. The key is
+  `blocked-by` rather than `depends-on` because a single-slice feature's anchor is its lone slice file,
+  where `depends-on` already carries slice numbers within the feature.
 - **Ambiguous.** A directory with no `00-epic-*.md` and two or more `NN-*.md` files. `/superdev:plan`
   never writes that shape, and there is no global Definition of Done to build against, so a consumer
   reports it instead of choosing.
@@ -122,13 +137,16 @@ mode*, ADR 0004).
 
 - **Create only new files; never edit, renumber, or delete a merged slice file.** Append writes a new
   `NN-<test-applicability>-<summary>.md` file per new slice. It never opens an existing `NN-…md` file for
-  editing, never renumbers it, and never deletes it — a merged slice's file number is a satisfied
-  `depends-on` root a new file's own `depends-on` may name.
+  editing — except to remove a migrating `blocked-by:` line when append promotes it to an epic (below) —
+  never renumbers it, and never deletes it — a merged slice's file number is a satisfied `depends-on`
+  root a new file's own `depends-on` may name.
 - **Create the epic first when none exists.** A feature directory holding a single `01-…md` file with no
   `00-epic-…md` has not been decomposed yet (the single-slice shape, `## Scope anchor` above). Append
   writes `00-epic-<summary>.md` first — copying the lone slice's `acceptance` into its Definition of Done
   section — then writes the new `NN-…md` files. The lone `01-…md` file itself is never edited: no DoD
-  copies onto it, and its own `acceptance` stays exactly as merged.
+  copies onto it, and its own `acceptance` stays exactly as merged. **One exception:** when the lone slice
+  carries a `blocked-by:` line, it **migrates to the new `00-epic-…md`'s own header** and is removed from
+  the lone slice — the epic file is the anchor now. Nothing else about the lone slice changes.
 - **Continue file numbering from the highest number already present; never reuse one.** A new slice's
   `NN` picks up where the feature directory's highest existing `NN-…md` (epic file excluded) leaves off —
   `03` after a directory ending at `02`, not a number a merged file already carries.
@@ -145,6 +163,10 @@ description, plus whichever optional sections earn their place — `## Parked qu
 `NN-<test-applicability>-<summary>.md` per slice with `depends-on`, `status: todo`, `spec`, `acceptance`.
 **Exactly one slice** — skip `00-epic-…`; write only `01-<test-applicability>-<summary>.md`, folding the
 global DoD into its `acceptance` (no epic-only sections on a single-slice plan — see `plan-contract.md`).
+When the interview named a prerequisite feature, add `blocked-by: [<type>/<feature-slug>]` to the anchor's
+own header — the epic file on a multi-slice feature, the lone `01-…` slice file on a single-slice one —
+naming that feature's directory path under `docs/plans/`; omit the line otherwise (`plan-contract.md` →
+*Scope anchor*, ADR 0040).
 
 ## When `/superdev:implement` says "load slices from the store"
 
@@ -169,5 +191,7 @@ line, so this transition and the slice's own status update are the same edit.
 
 ## Dependencies
 
-`depends-on` references other slice numbers directly (e.g. `depends-on: [01, 03]`). No external link
-types — the ids are local to the feature directory.
+`depends-on` references other slice numbers directly (e.g. `depends-on: [01, 03]`) — local to the feature
+directory, the ids it names are never external. `blocked-by` is the second relation (`## Scope anchor`
+above): it names another feature's own directory path under `docs/plans/`, so unlike `depends-on` it does
+reach outside the feature directory it is written in.

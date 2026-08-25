@@ -162,7 +162,7 @@ every drift assertion by id, and it fell behind at five separate additions, beca
 maintained by hand at the moment its author is thinking about code. Naming the exceptions cannot drift
 when a new check lands.
 
-`drift-check.js` guards fifty-two things, in the order `drift/checks.js` registers them. First, the
+`drift-check.js` guards fifty-three things, in the order `drift/checks.js` registers them. First, the
 `reference` contract: every `references/*.md` path named in `commands/`, `agents/`, or `references/`
 itself resolves to a file that exists. A reference cites another reference, as both execution
 playbooks point at `scope-mode.md`, so a rename there dangles like any other. Second, the
@@ -176,11 +176,15 @@ issue-backend document carries the `**Assignee` config bullet. The filename alon
 check, with no content gate on how the doc phrases issue creation.
 `references/issue-tracker-local.md` is exempt, because it has no assignee concept. Fourth, the
 `anchor-contract`: every slice-store document (every `references/issue-tracker-*.md` plus this
-repo's own `docs/agents/issue-tracker.md`) carries a `## Scope anchor` section stating all four of
-its elements: how to recognise an anchor, list its candidates, list the slices beneath one, and tell
-that an anchor is itself a slice (ADR 0017). Each element is matched on a bullet's bolded lead-in
+repo's own `docs/agents/issue-tracker.md`) carries a `## Scope anchor` section stating all five of
+its elements: how to recognise an anchor, list its candidates, list the slices beneath one, tell
+that an anchor is itself a slice (ADR 0017), and read an anchor's own dependencies (ADR 0040). Each
+element is matched on a bullet's bolded lead-in
 (`- **Recognise one.**` style, `-` or `*`, American or British spelling) rather than anywhere in the
-section, so intro prose that merely lists the four concepts satisfies none of them. Fifth, the
+section, so intro prose that merely lists the five concepts satisfies none of them. The lead-in
+anchoring carries extra weight on the dependency element: two store documents open the section by
+noting that a native issue-dependencies unit is disabled, which states no way to read the relation.
+Fifth, the
 `afk-selection-neutrality` contract: `commands/afk.md`'s selection step (§2) names no backend's own
 anchor mechanism, and instead points at the store's `## Scope anchor` contract. Four mechanisms are
 checked. An epic (the `epic` label, matched case-insensitively whether backticked or not, which also
@@ -655,6 +659,19 @@ command, and the only dispatch it makes is an implementer on a red suite, so not
 the rule. This is a shape-based prose guard, and it carries the same ceiling as its siblings: it catches
 the phrasings above, not every paraphrase.
 
+Fifty-third, the `afk-anchor-count` contract (ADR 0040), two elements on `commands/afk.md`'s paragraph
+introducing `## Scope anchor`: it states that the section carries five things for this backend, and names
+reading an anchor's own dependencies as the fifth. ADR 0040 added that fifth element to `plan-contract.md`,
+every store document's own section, and this file's own `anchor-contract` write-up above, but nothing
+pinned this one paragraph, so it kept reading "four" and naming only the original four — the one-sided-pin
+shape root `AGENTS.md`'s prompt-architecture rules name, and the reason `bun run test` stayed green over a
+stale contract statement. The two elements are independent: a maintainer could fix the count without
+naming the fifth thing, or name it without updating the count. `scanAfkAnchorCount()` isolates the
+paragraph itself with `extractParagraph()`, narrower than `anchor-contract`'s section-wide
+`extractSection()`, because the same section legitimately restates the anchor dependency again lower down
+(the eligibility bullet reads it) — a section-wide match would pass on that restatement alone even after
+the intro paragraph itself reverted to "four".
+
 The first and seventh checks are opposites. The first catches a reference to a file that does not exist.
 The seventh catches an agent that drops its wire to a file which still exists. That drift leaves the
 reference resolvable and the suite green, and the lens then does nothing in any dispatch.
@@ -684,7 +701,7 @@ successor at all.
   *loudly*, the row goes red until the pattern catches up, so the presence tables in `drift/contracts.js`
   (`FIX_BOUNDARY_CONTRACTS` among them) carry none.
 - A new drift-check contract is one entry appended at the end of the `drift/checks.js` registry, plus
-  its section in the fifty-two-check narrative above and its selftest in the matching
+  its section in the fifty-three-check narrative above and its selftest in the matching
   `drift/selftest/*.test.js` suite. Append rather than insert unless the check belongs earlier for a
   reason, because every ordinal after an insertion point has to be rewritten by hand. The forty-fifth check,
   `narrative-coverage`, enforces two pieces of this by itself: the new id must appear backticked
