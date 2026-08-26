@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 'use strict';
 
-// run-lock: deterministic PreToolUse(Bash) guard for parallel-safe lite runs.
+// run-lock: deterministic PreToolUse(Bash) guard for parallel-safe runs, at both tiers.
 // When a bash command tries to create/enter a scope worktree (.superdev/scopes/<scope>/worktree),
 // check if a fresh .superdev/scopes/<scope>/run.lock exists. If so, another session is live on
 // this scope — block. If the lock is stale or absent, allow (crash resume or new run).
-// ponytail: mtime staleness threshold is 1 hour; if long-running lite sessions exceed this,
-// add a heartbeat refresh loop inside the controller's lite-tier run (or parameterize the
+// ponytail: mtime staleness threshold is 1 hour; if long-running runs exceed this,
+// add a heartbeat refresh loop inside the controller's run (or parameterize the
 // threshold), but YAGNI for now.
 
 const fs = require('fs');

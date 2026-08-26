@@ -22,10 +22,10 @@ and §3's "ask once" are unconditional stops, not defaults an automation caller 
 
 The staging root is **`.superdev/kb-pending/`** in the repository's main checkout. Capture it as an
 **absolute** path now, before anything else, and address every staged page as
-`<staging-root>/<scope>/<page>.md`. Resolve the main checkout from any cwd, including a lite-tier
+`<staging-root>/<scope>/<page>.md`. Resolve the main checkout from any cwd, including a scope
 worktree, as the parent of `git rev-parse --path-format=absolute --git-common-dir`.
 
-A lite-tier scope checkout is `.superdev/scopes/<scope>/worktree`, which sits **inside** `.superdev/`, so
+The scope checkout is `.superdev/scopes/<scope>/worktree`, which sits **inside** `.superdev/`, so
 a checkout-relative `.superdev/kb-pending/` resolves one level too deep from a worktree cwd and points at
 a directory `/superdev:ship` deletes.
 

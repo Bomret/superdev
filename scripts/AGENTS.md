@@ -25,9 +25,10 @@ add-denial` prefixes its bullet `denied: `, which is what separates a denied ver
 the other degraded shape sharing that line, and `get denials` counts those prefixed bullets — the number
 an unattended run caps at two (ADR 0041). `get degraded` prints every bullet either way, prefix intact.
 It also exports `readLedgerHeader` as a module
-API. This per-header ledger-line reader is what `hooks/scope-prune.js` uses instead of carrying its
-own regex. The API guards its CLI entry with `require.main === module`, so a `require` for that
-reader alone runs no CLI code. Normalisation is per header: `Stage` and `Branch` are single tokens,
+API. This per-header ledger-line reader is what `hooks/scope-prune.js` and `hooks/worktree-sweep.js`
+both use instead of carrying their own regex. The API guards its CLI entry with
+`require.main === module`, so a `require` for that reader alone runs no CLI code. Normalisation is per
+header: `Stage` and `Branch` are single tokens,
 cut to the first whitespace-delimited token and stripped of markup and trailing punctuation.
 `Anchor` is a prose title that reaches a pull request, trimmed and otherwise left alone. An empty
 header line reads as absent, not as an empty string. Both `readLines` and `readLedgerHeader` split
@@ -205,7 +206,7 @@ every drift assertion by id, and it fell behind at five separate additions, beca
 maintained by hand at the moment its author is thinking about code. Naming the exceptions cannot drift
 when a new check lands.
 
-`drift-check.js` guards fifty-eight things, in the order `drift/checks.js` registers them. First, the
+`drift-check.js` guards fifty-nine things, in the order `drift/checks.js` registers them. First, the
 `reference` contract: every `references/*.md` path named in `commands/`, `agents/`, or `references/`
 itself resolves to a file that exists. A reference cites another reference, as both execution
 playbooks point at `scope-mode.md`, so a rename there dangles like any other. Second, the
@@ -522,19 +523,22 @@ and `acceptance` standing as the sole record, because `references/domain-modelin
 rule forbids holding both. Losing either row independently: a document that keeps surfacing questions but
 stops deleting a resolved one's line leaves two records of the same decision, and one that stops
 surfacing them silently strands a load-bearing decision no later interview ever revisits. Thirty-ninth, the
-`run-kind` contract (ADR 0028), five rows against `references/scope-mode.md`. Its `## Cutting the scope
-branch` section specifies the branch step for each of the three run kinds. `fresh` cuts one from
-`<base>` and stops, cutting nothing, when a scope-prune reap left a same-named branch standing.
-`appended` decides on the same merged-or-gone test `hooks/scope-prune.js` and `commands/plan.md` already
-run (ADR 0007) rather than a bare `git merge-base --is-ancestor`, which exits 128 on a branch a
-squash-merging host already deleted. It then stops a contained reuse, before it switches the invoking
-checkout, on the same dirty-checkout and held-elsewhere conditions `resumed` stops on. `resumed` runs no
-ancestor test and cuts nothing. `fresh` and `appended` get two rows each because each carries two
-independent clauses. `resumed` gets one. The rows sit against that one document rather than the two
-playbooks, which hold a pointer plus their own tier's command: pinning a pointer's prose goes red on a
+`run-kind` contract (ADR 0028, ADR 0045), four rows against `references/scope-mode.md`. Its
+`## Cutting the scope branch` section specifies the branch step for each of the three run kinds. `fresh`
+cuts one from `<base>` and stops, cutting nothing, when a scope-prune reap left a same-named branch
+standing. `appended` decides on the same merged-or-gone test `hooks/scope-prune.js` and
+`commands/plan.md` already run (ADR 0007) rather than a bare `git merge-base --is-ancestor`, which exits
+128 on a branch a squash-merging host already deleted. `resumed` runs no ancestor test and cuts nothing.
+`fresh` gets two rows because it carries two independent clauses; `appended` and `resumed` get one each.
+The rows sit against that one document rather than the two playbooks, which hold a pointer plus their own
+tier's command: pinning a pointer's prose goes red on a
 reflow while catching no revert. Losing any row independently: a document that stops specifying one
 clause leaves that run's branch step to whatever a reader infers, which is the gap three consecutive
-review fix cycles kept re-opening.
+review fix cycles kept re-opening. This table used to carry a fifth row, pinning `appended`'s contained-reuse
+clause when it split by tier ("the `full` tier switches the invoking checkout … the `lite` tier works in
+its existing scope worktree"). ADR 0045 retired both the clause and the row: reuse now means working in
+the one scope worktree both tiers share, which the `scope-worktree` check (fifty-ninth, below) pins
+instead.
 Fortieth, the `forcing-branch-flag` contract (ADR 0028), `scanForcingBranchFlag()`: neither execution
 playbook names a forcing branch flag, in any of its spellings.
 `git switch -C` and `--force-create`, `git checkout -B`, and `git worktree add … -B` and
@@ -819,8 +823,8 @@ after two review passes read the wrong-ref sentence as correct; and that the sto
 finds nothing either, still names the branch it looked for and blocks rather than asks under
 `--unattended`.
 
-Fifty-seventh, the `resumed-worktree-trigger` contract (ADR 0042), one row: the `lite` tier's action in
-that same `resumed` branch bullet creates or reattaches the worktree whenever it is absent for either
+Fifty-seventh, the `resumed-worktree-trigger` contract (ADR 0042, ADR 0045), one row: `references/scope-mode.md`'s action in
+that same `resumed` branch bullet creates or reattaches the scope worktree, at both tiers, whenever it is absent for either
 cause — `/superdev:ship` already removed it, or this checkout never held it at all, the case
 `adopt-run-state` makes reachable on a fresh clone. A fix cycle found the sentence named only the first
 cause, so `references/implement-lite.md`'s Resume step — which works "in the scope worktree"
@@ -842,6 +846,65 @@ table, so a new agent is covered the day its file lands. `commands/setup.md` and
 name such commands legitimately, as interview and focused-command examples, which is why the scan covers
 `agents/` alone.
 
+Fifty-ninth, the `scope-worktree` contract (ADR 0045), twenty-one rows: the `full` tier cuts its scope
+branch into the same dedicated scope worktree the `lite` tier uses, `.superdev/scopes/<scope>/worktree`,
+and does every merge there — the invoking checkout is never switched, at either tier. Five rows sit on
+`references/scope-mode.md`. `## The scope checkout` resolves to that one location for both tiers, states
+the `git worktree add .superdev/scopes/<scope>/worktree <branch>` call that recreates an absent one,
+states that a `run-lock` refusal met while recreating is this run's own lock rather than a competing
+session's and names the remedy (remove and retry) — a fix cycle otherwise found the recreate path
+unreachable inside a live run, since the same run's own lock, refreshed by every earlier command in the
+chain, is what blocks it — and names a stop, writing nothing, when a different working tree already holds
+the branch — the same reuse the retired `run-kind` row above used to describe split by tier. `## The run
+lock` states that both tiers write `<run-root>/run.lock`, and only once `## Cutting the scope branch` has
+already cut the worktree, or the `run-lock` hook's own guard on `git worktree add` would block the run
+making that very call. Six more rows sit on `references/implement-full.md`, the tier ADR 0045 actually
+changed: its Branch model states that every later command in the file — every merge — addresses the scope
+worktree with `git -C` rather than the invoking checkout, once the cutting/reuse command itself has run
+from that checkout the way any `git worktree add` does; its DAG loop's merge step addresses that worktree
+with `git -C`; its integration-branch bullet keeps `integration/<scope>` there too, and the
+integrate-and-verify slice switches that same worktree, never the invoking checkout, for the final merge;
+its Resume step finds the worktree — present, recreated, or a named stop — before reading anything out of
+it; its own `## Run lock` section reads scope-mode.md's `## The run lock` — a fix cycle otherwise found
+this file with no lock section at all while two other documents still claimed the lock was lite tier only;
+and a sixth row states that Resume checks the run lock once the worktree is found already present, naming
+the worktree-present/absent qualifier that distinguishes this check from the recreate path's own fresh-lock
+reading — a fix cycle otherwise found a second full-tier `/superdev:implement` of a live scope reading no
+lock at all in its `resumed`-worktree-already-there path, so the Definition of Done's "refused by name, on
+the `full` tier as well as `lite`" went unmet. One more row sits on `references/implement-lite.md`: its
+`## Run lock` section reads scope-mode.md's `## The run lock` rather than restating who writes the lock
+and when, now that the rule covers both tiers there — the same caller-reads-the-rule shape the `doc-pass`
+contract already uses. Two more rows sit on `references/run-init.md` and `references/run-handoff.md`: each
+lists `run.lock` with no `lite tier only`/`(lite tier)` qualifier, since a qualifier is the later, more
+specific instruction and silences scope-mode.md's shared rule for the full tier. Three more rows sit on
+`commands/review.md` — a fix cycle found this chain-tail command naming no working directory anywhere, so
+its §4 tested the controller's own invoking checkout against `<type>/<scope>` instead of the scope
+checkout, ran the full suite nowhere in particular, and could hand a fix-cycle implementer no working
+directory at all, landing commits on the base branch in the operator's own clone. The rows pin its
+scope-checkout branch test, its full-suite run in the scope checkout, and its fix-implementer dispatch
+handing over the scope checkout as a working directory — the same working-directory statement
+`implement-full.md` and `document.md` already carry. Two more rows sit on `references/run-handoff.md` for
+the same class of gap on its own only full-suite run: a scope of all `mechanical`/`docs` slices reaches no
+other verification before `/superdev:ship`, so its full-suite run and its Red-branch fix dispatch each
+naming no working directory reached the invoking checkout on the full tier — sitting on the base branch by
+then — reading `docs/agents/verification.md` off base, running the suite over base's tree, and landing any
+fix commit on base in the operator's own clone; the rows pin the full suite running in the scope checkout
+and the fix implementer taking that same checkout as its working directory. The last row sits on
+`references/merge-conflicts.md`: its winner-picking-overlap abort names the scope worktree with `git -C`,
+not a bare `git merge --abort` — this file is read after `implement-full.md` delegates the whole
+conflict-resolution step to it, so its own unqualified abort used to win the conflict, exiting 128 in the
+invoking checkout and leaving the scope worktree sitting on `MERGE_HEAD`, which `hooks/green-gate.js`'s
+`mergeInProgress()` then reads as a deferral that gates nothing. The last row sits on `commands/afk.md`'s
+eligibility bullet: the no-lock case falls back to the ledger mtime, with no claim that a full run never
+gets a lock — a fix cycle found the bullet still asserting a run lock "only ever exists for a `lite`-tier
+scope" and citing `## The run lock` for that claim, a section ADR 0045 had already flipped to state the
+opposite. Losing any one row independently reopens exactly the cost ADR 0045 removed: a full run parking
+a second session's checkout on its own branch, a merge landing in a tree `/superdev:ship` never expects, a
+restated lock rule drifting from the shared one, a full run that writes no lock at all, a second full-tier
+run never meeting its own fresh-lock refusal, a whole-scope review or run-handoff full-suite pass that
+writes to the wrong checkout, a merge abort that silently ungates the next merge in the scope worktree, or
+an unattended controller told to distrust a lock signal it can actually trust.
+
 The first and seventh checks are opposites. The first catches a reference to a file that does not exist.
 The seventh catches an agent that drops its wire to a file which still exists. That drift leaves the
 reference resolvable and the suite green, and the lens then does nothing in any dispatch.
@@ -853,8 +916,9 @@ successor at all.
 
 ## Work Guidance
 
-- Scripts are CommonJS, like the hooks. `hooks/scope-prune.js` `require`s `scope.js`, so `scope.js`
-  must stay `require`-able under plain `node`. This is the one dependency `hooks/` has on `scripts/`.
+- Scripts are CommonJS, like the hooks. `hooks/scope-prune.js` and `hooks/worktree-sweep.js` both
+  `require` `scope.js`, so `scope.js` must stay `require`-able under plain `node`. These are the only
+  two dependencies `hooks/` has on `scripts/`.
   `scope.js` in turn `require`s `kb-patch.js` for `maskFencedLines`, so `kb-patch.js` must stay
   `require`-able under plain `node` too — the one dependency inside `plugin/scripts/` itself. `adopt`'s
   payload boundary is a pair of markers, not a heading, but a marker can still be shown inside a fenced
@@ -876,7 +940,7 @@ successor at all.
   *loudly*, the row goes red until the pattern catches up, so the presence tables in `drift/contracts.js`
   (`FIX_BOUNDARY_CONTRACTS` among them) carry none.
 - A new drift-check contract is one entry appended at the end of the `drift/checks.js` registry, plus
-  its section in the fifty-eight-check narrative above and its selftest in the matching
+  its section in the fifty-nine-check narrative above and its selftest in the matching
   `drift/selftest/*.test.js` suite. Append rather than insert unless the check belongs earlier for a
   reason, because every ordinal after an insertion point has to be rewritten by hand. The forty-fifth check,
   `narrative-coverage`, enforces two pieces of this by itself: the new id must appear backticked

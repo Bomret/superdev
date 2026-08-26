@@ -24,11 +24,11 @@ read `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md` as your last step.
 
 ## Run lock
 
-Before implementing the first slice, write `<run-root>/run.lock` (the absolute run-init run-root path in
-the invoking checkout — never a `.superdev/scopes/<scope>/…` path from the worktree cwd, which resolves
-one level too deep). The lock's mtime marks this run as live; the **run-lock** hook uses it to stop a
-second concurrent run of the same scope from creating its own scope worktree. Leave the lock in place
-when you finish: it spans the whole chain, and `/superdev:ship` removes it once the run is shipped.
+Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The run lock` and write
+`<run-root>/run.lock` as it says (the absolute run-init run-root path in the invoking checkout — never a
+`.superdev/scopes/<scope>/…` path from the worktree cwd, which resolves one level too deep). Leave the
+lock in place when you finish: it spans the whole chain, and `/superdev:ship` removes it once the run is
+shipped.
 
 ## Implement
 
@@ -114,9 +114,11 @@ done; pick up at the next `todo` slice in `depends-on` order.
 
 An interrupted `in-progress` slice may have left partial, uncommitted changes in the scope worktree.
 Before resuming, check `<run-root>/run.lock`: it exists and is fresh (mtime under 1 hour old, the run-lock
-hook's staleness threshold) → another session is live in this worktree; escalate or wait. Stale or absent
-→ a crash resume: run `git status` / `git diff` in the scope worktree and decide whether to continue that
-slice's uncommitted work or discard it, before resuming.
+hook's staleness threshold) → another session is live in this worktree; escalate or wait. **This worktree
+already exists** — unlike `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope checkout`
+recreate path, where the worktree is absent and the same fresh lock is this run's own instead. Stale or
+absent → a crash resume: run `git status` / `git diff` in the scope worktree and decide whether to continue
+that slice's uncommitted work or discard it, before resuming.
 
 ## Leave the worktree standing
 

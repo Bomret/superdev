@@ -18,7 +18,7 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
   **scope branch** is `<type>/<scope>`, the feature label verbatim, cut by your playbook's branch model.
   Every artifact lives under the run root **`.superdev/scopes/<scope>/`** — bare slug, so the type never
   becomes a second path segment — **git-ignored** (add `.superdev/` to `.gitignore` if absent). The run
-  root (`dod.md`, `ledger.md`, `run.lock` — lite tier only, per that file's `## The run lock`) stays in
+  root (`dod.md`, `ledger.md`, `run.lock`, per that file's `## The run lock`) stays in
   the **invoking checkout** and never moves into a worktree; only the code checkout does.
   **Capture `<run-root>` as an absolute path now**, while the invoking checkout is your cwd, and address
   every artifact as `<run-root>/dod.md`, `<run-root>/ledger.md`, `<run-root>/run.lock`,

@@ -52,7 +52,7 @@ It performs the pass `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md` states, and 
 **The knowledge-base pass reaches no backend.** For a remote backend the doc-writer writes each page as a **staged page**, and `/superdev:publish-kb` sends it later, once a human decides the feature has reached its readers (ADR 0023). A local `docs/kb/` backend is unaffected: its pages are repository files that ride the branch.
 
 Hand the doc-writer the staging path as an **absolute** path — `.superdev/kb-pending/<scope>/` in the invoking checkout, or `.superdev/kb-pending/_adhoc/` when §2 found no live scope run — resolved before you dispatch, while the invoking checkout is your cwd.
-A lite-tier scope checkout is `.superdev/scopes/<scope>/worktree`, inside `.superdev/` itself, so a checkout-relative path resolves one level too deep from the doc-writer's cwd and lands in a directory `/superdev:ship` deletes.
+The scope checkout is `.superdev/scopes/<scope>/worktree`, inside `.superdev/` itself, so a checkout-relative path resolves one level too deep from the doc-writer's cwd and lands in a directory `/superdev:ship` deletes.
 Ensure `.superdev/` is in the repo's `.gitignore` before you dispatch; add it if absent — an ad-hoc run may reach this command before either ran the check.
 
 ## 4. Reader test

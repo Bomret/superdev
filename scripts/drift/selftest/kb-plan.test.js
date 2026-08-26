@@ -781,10 +781,9 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // --- RUN_KIND_CONTRACTS: scope-mode.md specifies the branch step for each of the three run kinds —
   // `fresh` cuts from base (and stops, cutting nothing, when a scope-prune reap left a same-named branch
-  // standing), `appended` reuses the branch only when it is present and base already contains it (and
-  // stops on the same dirty-checkout/held-elsewhere conditions `resumed` does before reusing it),
-  // `resumed` switches to it and cuts nothing (ADR 0028). Five independent rows: losing one clause's
-  // specification fails on its own, not just in aggregate. ---
+  // standing), `appended` reuses the branch only when it is present and base already contains it,
+  // `resumed` switches to it and cuts nothing (ADR 0028, ADR 0045). Four independent rows: losing one
+  // clause's specification fails on its own, not just in aggregate. ---
 
   const runKindBody =
     '## Cutting the scope branch\n\n' +
@@ -794,8 +793,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     '- **`appended`** — a `shipped` ledger was rotated aside. Decide on the same test that decides a ' +
     'scope is finished with (ADR 0007): merged into `<base>`, or gone entirely. Gone → cut fresh. ' +
     'Present → test containment with `git merge-base --is-ancestor <branch> <base>`. **Contained** — ' +
-    'stopping first when that checkout is dirty or another worktree holds the branch, the same stop ' +
-    '`resumed` takes below, then reuse it.\n' +
+    'work in the scope worktree, then reuse it.\n' +
     '- **`resumed`** — the branch holds unmerged slice work by design, so no ancestor test runs and ' +
     'nothing is cut.\n';
 
@@ -833,22 +831,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   const rkGapsNoAppended = scanContract(rkNoAppended, RUN_KIND_CONTRACTS);
   assert.equal(rkGapsNoAppended.length, 1, 'flags exactly the missing `appended` merged-or-gone clause');
   assert.match(rkGapsNoAppended[0].expectation, /`appended` run kind/, 'names the `appended` run kind');
-
-  // negative: losing the `appended` contained-reuse stop clause fails on its own
-  const rkNoAppendedStop = fixture({
-    'references/scope-mode.md': runKindBody.replace(
-      ' — stopping first when that checkout is dirty or another worktree holds the branch, the same ' +
-        'stop `resumed` takes below, then reuse it',
-      '',
-    ),
-  });
-  const rkGapsNoAppendedStop = scanContract(rkNoAppendedStop, RUN_KIND_CONTRACTS);
-  assert.equal(
-    rkGapsNoAppendedStop.length,
-    1,
-    'flags exactly the missing `appended` contained-reuse stop clause',
-  );
-  assert.match(rkGapsNoAppendedStop[0].expectation, /`appended` run kind/, 'names the `appended` run kind');
 
   // negative: losing the `resumed` specification fails on its own
   const rkNoResumed = fixture({

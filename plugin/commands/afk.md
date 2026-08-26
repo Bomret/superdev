@@ -60,9 +60,8 @@ An anchor is **eligible** when all of these hold:
   `.superdev/scopes/<scope>/…` off unvalidated input is the mistake that rule exists to catch.
 - Its scope has **no live run**. Check `.superdev/scopes/<scope>/run.lock` (`<scope>` is its feature label
   minus the change-type prefix, which `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
-  `## The change type` section owns): newer than an hour means another session owns that scope. A run
-  lock only ever exists for a `lite`-tier scope (same file) — a plan with more than 3 slices runs `full`
-  and never gets one, so **no lock present is not by itself eligibility**: fall back to
+  `## The change type` section owns): newer than an hour means another session owns that scope.
+  **No lock present is not by itself eligibility**: fall back to
   `<run-root>/ledger.md`'s mtime (the stage itself comes from
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>`, as everywhere in this
   command). Newer than an hour with the stage short of `shipped` is a weaker signal than a lock — the
@@ -195,12 +194,10 @@ A command you invoked blocked instead of finishing
 labelling and the comment). Then:
 
 - **Leave the scope standing.** Its branch, worktree, run root and lock all stay, so a maintainer resolves
-  the decision and finishes that scope by hand. A `full`-tier scope leaves its branch checked out in the
-  one invoking checkout there is (that file's scope-checkout rule), and the next feature's chain switches
-  that checkout to its own branch — so "leave it standing" alone no longer tells a maintainer where to
-  look. **Record `<feature-label>` in the block comment** (append it to what the invoked command wrote,
-  or — for the error-stop case below — include it in the comment you write yourself) and **name it in
-  §6's report row**, so resuming by hand is one `git checkout` away.
+  the decision and finishes that scope by hand. **Record `<feature-label>` in the block comment** (append
+  it to what the invoked command wrote, or — for the error-stop case below — include it in the comment
+  you write yourself) and **name it in §6's report row**, so resuming by hand is one `cd` into the scope
+  worktree (`.superdev/scopes/<scope>/worktree`) away.
 - **Add one to the consecutive-block count** — read `.superdev/afk-blocks`, write it back incremented —
   and go back to §2 for the next anchor.
 

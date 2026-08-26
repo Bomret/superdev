@@ -65,6 +65,7 @@ const {
   ROTATE_ON_SHIPPED_CONTRACTS,
   PARKED_QUESTIONS_CONTRACTS,
   RUN_KIND_CONTRACTS,
+  SCOPE_WORKTREE_CONTRACTS,
   SOURCE_SECTION_CONTRACTS,
   PLAYBOOK_EDGE_CONTRACTS,
   DOC_PASS_CONTRACTS,
@@ -373,8 +374,7 @@ module.exports = [
   table(
     'resumed-worktree-trigger',
     RESUMED_WORKTREE_TRIGGER_CONTRACTS,
-    "the lite tier's resumed worktree step fires whenever the worktree is absent, not only when ship " +
-      'removed it',
+    'the resumed worktree step fires whenever the scope worktree is absent, not only when ship removed it',
   ),
   {
     id: 'agent-tool-agnostic',
@@ -382,6 +382,12 @@ module.exports = [
     run: scanAgentToolAgnostic,
     format: contractGap,
   },
+  table(
+    'scope-worktree',
+    SCOPE_WORKTREE_CONTRACTS,
+    'the full tier cuts and merges in the same scope worktree the lite tier uses, never the invoking ' +
+      'checkout',
+  ),
 ];
 
 // The anchor contract and the afk-selection neutrality check report into the same sentence: a gap with

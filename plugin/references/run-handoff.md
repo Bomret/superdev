@@ -9,9 +9,10 @@ tiers: record that slice execution finished, name what comes next.
 
 - **All slices `mechanical`/`docs`? Run the full suite before writing the stage.** Such a scope skips the
   whole-scope review by design, so run handoff attempts that scope's one full-suite run itself, once, in
-  place of that review, before the pull request (ADR 0025). Take the full command from
-  `docs/agents/verification.md` per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run it once
-  over the scope branch.
+  place of that review, before the pull request (ADR 0025). Find the scope checkout per
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope checkout`, take the full command from
+  `docs/agents/verification.md` per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`, and run it once
+  **in that checkout**, over the scope branch.
   - **No test command configured** → continue to the stage write.
   - **Green** → clear any standing `**Unresolved:**` entry (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
     `## Unresolved defects`) with
@@ -28,8 +29,9 @@ tiers: record that slice execution finished, name what comes next.
     (`--unattended` in the arguments) → **block**, per that file's **Unattended** section.
   - **Red** → do **not** write the stage. Dispatch **one** `superdev:implementer` (`model: sonnet`;
     `haiku` only for a mechanical fix) with the failing output — never fix it inline: the controller only
-    integrates, and lite's inline loop is that tier's own exception (ADR 0001), not run handoff's. Every
-    fix opens with a RED test. Re-run the full suite; repeat until **green** (then clear `**Unresolved:**`
+    integrates, and lite's inline loop is that tier's own exception (ADR 0001), not run handoff's. Hand it
+    the scope checkout as its working directory: this is where its fix commits must land. Every fix opens
+    with a RED test. Re-run the full suite; repeat until **green** (then clear `**Unresolved:**`
     as above and continue), **or three cycles without going clean** — this bullet's own 3-strike cap,
     since a scope-wide suite has no slice to block. Stop, say so, write the `**Unresolved:**` entry with
     `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add "<text>" --root <run-root>`, leave the
@@ -42,7 +44,7 @@ tiers: record that slice execution finished, name what comes next.
   line is what tells the next command, or a resumed run, that every slice is on the scope branch. Publish
   the snapshot afterwards, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state`
   section.
-- **Leave the run standing.** Keep the worktrees and `<run-root>/run.lock` (lite tier), leave
+- **Leave the run standing.** Keep the worktrees and `<run-root>/run.lock`, leave
   `<run-root>/dod.md` unticked and the anchor at `in-progress`. `/superdev:review` and
   `/superdev:document` work in the scope checkout you leave behind; `/superdev:ship` takes the run down.
 - **Print the next command, resolved.** Compute `BASE = git merge-base <base> <branch>` (`<base>` from

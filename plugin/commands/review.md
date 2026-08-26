@@ -174,11 +174,12 @@ of the gate. Even then you ask first, and the reviewers stay read-only.
 Only when §1 found a live run. Everything above still applies; this adds the run's own steps.
 
 - **Find the scope checkout, and refresh the run lock.** Per
-  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`. **Not on `<type>/<scope>`** → report that and review
-  read-only rather than writing to the wrong branch.
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`. **The scope checkout not on `<type>/<scope>`** →
+  report that and review read-only rather than writing to the wrong branch.
 - **Run the full suite yourself, before dispatching `final-reviewer`.** Take the full command from
-  `docs/agents/verification.md` per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run it over
-  the scope branch. This happens whether or not the dispatch below succeeds, so a denied dispatch is a
+  `docs/agents/verification.md` per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run it **in
+  the scope checkout above**, over the scope branch. This happens whether or not the dispatch below
+  succeeds, so a denied dispatch is a
   degraded review, not a missing verification (ADR 0025). **No test command configured** → say so and
   continue; this never blocks the review. **State the outcome** — pass, fail, no command configured, or
   denied — in your own output, the same way §1 states the range, **independent of whether the
@@ -226,7 +227,8 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   - **`--unattended` → fix**, without asking: the fix loop is the point of this gate, and a review that
     found real defects and left them is worth less than no review.
   - **Confirmed** → dispatch **one** `superdev:implementer` (`model: sonnet`; `haiku` only for a
-    mechanical fix) with the **complete** findings list, not one fixer per finding. Every fix opens with a
+    mechanical fix) with the **complete** findings list, not one fixer per finding. Hand it the scope
+    checkout as its working directory: this is where its fix commits must land. Every fix opens with a
     RED test that reproduces the defect; a finding whose cause is not yet established runs the diagnosis
     loop first (`${CLAUDE_PLUGIN_ROOT}/references/diagnosis.md` — the implementer reads it on any
     defect-repair dispatch). Re-review after it returns, and repeat until the verdict is clean

@@ -13,7 +13,12 @@
 // (references/test-selection.md owns the full-versus-focused rule). No file / no command →
 // no gate (zero-config repos are unaffected). Subagents can't merge (merge-guard blocks
 // them pre-run), so a merge here is always the controller's; the agent_id check is
-// belt-and-suspenders.
+// belt-and-suspenders. The doc read, the suite run, the changed-path diff, the in-progress
+// check, and the branch read all run in the merge's own working tree: a `-C <path>` on the
+// merge command when the controller merges from another worktree, resolveMergeCwd()'s job, or
+// the session cwd unchanged for a bare `git merge`. A scope worktree carries its own
+// `docs/agents/verification.md` on its own branch, so a full run reading it from the session's
+// invoking checkout instead would gate a merged scope with a stale or absent command.
 // ponytail: the suite runs inside the hook, under the 600s `timeout` hooks.json sets on this
 // hook's entry. That is also Claude Code's own default for a `command` hook, and it is set
 // explicitly so the ceiling is stated where the suite runs. A suite slower than it is killed and
@@ -31,13 +36,69 @@ const { execSync } = require('node:child_process');
 // argument is one shell word — ARG below — so a quoted `-C`/`-c` value, an unquoted value with a
 // backslash-escaped space, and a partly-quoted `key=value` (`-c k="v w"`, `--git-dir="a b"`) are
 // all matched as a single token, not just the first non-space run a bare `\S+` would stop at.
+// `-C`'s alternative carries its own capturing group — resolveMergeCwd() below reads it — while
+// `-c` and `--flags` stay uncaptured; `-c`'s VALUE could itself contain `-C `, but only in the
+// global-options position this alternation walks, never inside `-c`'s own alternative.
 const ARG = /(?:[^\s"'\\]|\\.|"(?:[^"\\]|\\.)*"|'[^']*')+/.source;
 // `--abort` and `--quit` undo or abandon a merge — nothing new landed, so nothing to gate.
 // `--continue` completes one and stays gated.
 const IS_MERGE = new RegExp(
-  `(^|[;&|\\n])\\s*git(?:\\s+(?:-[cC]\\s+${ARG}|--${ARG}))*\\s+merge(?![-\\w])(?!\\s+--(?:abort|quit)\\b)`,
+  `(^|[;&|\\n])\\s*git(?:\\s+(?:-c\\s+${ARG}|-C\\s+(${ARG})|--${ARG}))*\\s+merge(?![-\\w])(?!\\s+--(?:abort|quit)\\b)`,
   'm'
 );
+
+// Unquotes a captured ARG token so it reaches path.resolve as a plain string. ARG (the comment
+// above it) matches a run of concatenated pieces — unquoted, single-quoted, double-quoted — with
+// no separating whitespace (`-C /base/"my dir"`, `-C "/base"/sub`), the same way a shell resolves
+// one word built from several quoting styles. So this walks the token piece by piece instead of
+// keying off raw[0]: a single-quoted span passes through untouched (no escapes in the shell), a
+// double-quoted span un-escapes `\x` to `x`, and an unquoted run does the same un-escaping.
+function unquoteArg(raw) {
+  let out = '';
+  let i = 0;
+  while (i < raw.length) {
+    const c = raw[i];
+    if (c === "'") {
+      const end = raw.indexOf("'", i + 1);
+      // ARG guarantees a balanced token, so this never fires in practice — but `end === -1` would
+      // otherwise slice to -1 and rewind `i` to 0, spinning forever on the same unclosed quote.
+      if (end === -1) break;
+      out += raw.slice(i + 1, end);
+      i = end + 1;
+    } else if (c === '"') {
+      i += 1;
+      // Bounded by raw.length too: an unclosed double quote would otherwise leave `raw[i]`
+      // `undefined` forever, which is never `'"'`, spinning past the end of the string.
+      while (i < raw.length && raw[i] !== '"') {
+        if (raw[i] === '\\') {
+          out += raw[i + 1];
+          i += 2;
+        } else {
+          out += raw[i];
+          i += 1;
+        }
+      }
+      i += 1; // skip the closing quote
+    } else if (c === '\\') {
+      out += raw[i + 1];
+      i += 2;
+    } else {
+      out += c;
+      i += 1;
+    }
+  }
+  return out;
+}
+
+// The merge's own working tree: a `-C <path>` on the command, resolved against the session cwd
+// (git itself resolves -C relative to the shell's cwd at invocation, not to this hook's cwd), or
+// the session cwd unchanged when the command carries no -C — a bare `git merge` keeps running
+// where it always has.
+function resolveMergeCwd(cmd, sessionCwd) {
+  const m = IS_MERGE.exec(cmd);
+  const raw = m && m[2];
+  return raw ? path.resolve(sessionCwd, unquoteArg(raw)) : sessionCwd;
+}
 const VERIFICATION_DOC = 'docs/agents/verification.md';
 
 // references/test-selection.md: the first fenced block is the full command, the optional
@@ -107,8 +168,13 @@ function runTests(testCommand, cwd) {
     execSync(testCommand, { cwd, stdio: 'pipe', encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
     return { ok: true, output: '' };
   } catch (e) {
-    // status == null means the suite was killed (signal, ENOBUFS), not that it failed — no verdict,
-    // so fail open, same as the 600s hook timeout ceiling documented above.
+    // status == null with no signal means the suite never started at all — e.g. a -C cwd that
+    // doesn't exist (ENOENT): the OS never got as far as running a process to kill. That's not
+    // "no verdict", it's "the merge's own working tree can't even run the suite", so it gates
+    // like a RED verdict rather than failing open.
+    if (e.status == null && e.signal == null) return { ok: false, output: (e.message || '').trim() };
+    // status == null with a signal means the suite started and was killed (signal, ENOBUFS) — no
+    // verdict, so fail open, same as the 600s hook timeout ceiling documented above.
     if (e.status == null) return { ok: true, output: '' };
     const out = ((e.stdout || '') + (e.stderr || '')).trim();
     // tail — the failing assertions are at the end, and we don't want to flood context
@@ -166,7 +232,12 @@ function main() {
     } catch {
       process.exit(0); // not our shape → never block
     }
-    const cwd = (input && input.cwd) || process.cwd();
+    // The doc read, the suite run, the changed-path diff, the in-progress check, and the branch
+    // read all happen in the merge's own working tree (resolveMergeCwd()'s -C, or the session cwd
+    // with no -C).
+    const sessionCwd = (input && input.cwd) || process.cwd();
+    const cmd = (input && input.tool_input && input.tool_input.command) || '';
+    const cwd = resolveMergeCwd(cmd, sessionCwd);
     const { block, reason } = decide(
       input,
       () => readVerification(cwd),
@@ -268,6 +339,11 @@ if (process.argv[2] === '--selftest') {
     'a green suite with >1 MiB of output stays GREEN (maxBuffer above the Node default)',
   );
   assert.equal(runTests('kill -9 $$').ok, true, 'a killed suite (status null) is no verdict — fails open, not RED');
+  assert.equal(
+    runTests('exit 0', '/definitely/does/not/exist-gg-selftest').ok,
+    false,
+    'a cwd that does not exist at all could not even start the suite — blocks rather than failing open',
+  );
 
   // ARG mirrors merge-guard's token (the comment above owns why); hooks stay standalone, so pin
   // the copy against the canonical one instead of sharing it — silent drift would be a bug.
@@ -277,6 +353,52 @@ if (process.argv[2] === '--selftest') {
     assert.ok(m, 'merge-guard.js declares its ARG token where this pin expects it');
     assert.equal(ARG, m[1], 'green-gate ARG is byte-identical to merge-guard ARG');
   }
+
+  // --- resolveMergeCwd(): the merge's own working tree, from -C or the session cwd fallback ---
+  assert.equal(resolveMergeCwd('git merge --no-ff s', '/session'), '/session', 'no -C → the session cwd');
+  assert.equal(resolveMergeCwd('git -C /wt merge slice/x/1', '/session'), '/wt', 'a bare -C path is used as-is (already absolute)');
+  assert.equal(resolveMergeCwd('git -C ../wt merge slice/x/1', '/session'), '/wt', 'a relative -C path resolves against the session cwd');
+  assert.equal(
+    resolveMergeCwd('git -C "path with spaces" merge slice/x/1', '/session'),
+    '/session/path with spaces',
+    'a double-quoted -C path with spaces is unquoted before resolution',
+  );
+  assert.equal(
+    resolveMergeCwd("git -C 'path with spaces' merge slice/x/1", '/session'),
+    '/session/path with spaces',
+    'a single-quoted -C path with spaces is unquoted before resolution',
+  );
+  assert.equal(
+    resolveMergeCwd('git -C "a \\" b" merge slice/x/1', '/session'),
+    '/session/a " b',
+    'an escaped quote inside a double-quoted -C path survives unquoting',
+  );
+  assert.equal(
+    resolveMergeCwd('git -C my\\ path merge slice/x/1', '/session'),
+    '/session/my path',
+    'a backslash-escaped space in an unquoted -C path is unescaped',
+  );
+  assert.equal(resolveMergeCwd('git merge -C /wt slice/x/1', '/session'), '/session', '-C after `merge` is a merge argument, not the global option');
+  assert.equal(
+    resolveMergeCwd('git -C /base/"my dir" merge slice/x/1', '/session'),
+    '/base/my dir',
+    'a -C path with a trailing quoted segment is unquoted across both the unquoted and quoted runs',
+  );
+  assert.equal(
+    resolveMergeCwd('git -C "/base"/sub merge slice/x/1', '/session'),
+    '/base/sub',
+    'a -C path with a leading quoted segment is unquoted across both the quoted and unquoted runs',
+  );
+
+  // unquoteArg() is bounded even on a malformed, unbalanced token — ARG guarantees balance in
+  // practice, so this is defensive: without the bound, an unclosed `'` rewinds `i` to 0 and an
+  // unclosed `"` never meets its terminator, either way spinning forever instead of returning.
+  assert.equal(unquoteArg("it's"), 'it', "an unclosed single quote terminates instead of spinning");
+  assert.equal(
+    unquoteArg('unterminated "double'),
+    'unterminated double',
+    'an unclosed double quote terminates instead of spinning',
+  );
 
   // --- references/test-selection.md: full vs. focused command selection ---
 
@@ -466,6 +588,192 @@ if (process.argv[2] === '--selftest') {
       'a quote, a backslash, a non-ASCII character, and a trailing space all reach the caller unquoted and untrimmed',
     );
     fs.rmSync(repo4, { recursive: true, force: true });
+  }
+
+  // --- main()'s own -C wiring: spawn the hook, since only main() ties resolveMergeCwd() to the
+  // suite run, the changed-path diff, the in-progress check, and the current-branch read ---
+  {
+    const os = require('node:os');
+    const cp = require('node:child_process');
+    function git2(args, cwd) {
+      cp.execFileSync('git', args, { cwd, stdio: 'ignore' });
+    }
+    function initRepo(dir) {
+      fs.mkdirSync(dir, { recursive: true });
+      git2(['init', '-q', '-b', 'main'], dir);
+      git2(['config', 'user.email', 'test@example.com'], dir);
+      git2(['config', 'user.name', 'test'], dir);
+    }
+    function commitFile(dir, file, content) {
+      fs.writeFileSync(path.join(dir, file), content);
+      git2(['add', '.'], dir);
+      git2(['commit', '-q', '-m', file], dir);
+    }
+    function writeVerification(dir, full, focused) {
+      fs.mkdirSync(path.join(dir, 'docs/agents'), { recursive: true });
+      const blocks = focused ? `\`\`\`sh\n${full}\n\`\`\`\n\n\`\`\`sh\n${focused}\n\`\`\`\n` : `\`\`\`sh\n${full}\n\`\`\`\n`;
+      fs.writeFileSync(path.join(dir, VERIFICATION_DOC), `# Verification\n\n${blocks}`);
+    }
+    function runHook(inputObj) {
+      return cp.spawnSync(process.execPath, [__filename], { input: JSON.stringify(inputObj), encoding: 'utf8', timeout: 15000 });
+    }
+    function tmp(prefix) {
+      return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+    }
+
+    // `git -C <path> merge`: a suite that fails in <path> blocks, quoting that failure — not a
+    // session-cwd failure, which would pass this test even on the bug this slice fixes
+    {
+      const session = tmp('gg-session-');
+      const target = tmp('gg-target-');
+      initRepo(session);
+      commitFile(session, 'base.txt', 'x\n');
+      initRepo(target);
+      commitFile(target, 'base.txt', 'x\n');
+      fs.writeFileSync(path.join(target, 'fail-marker'), '');
+      writeVerification(target, `node -e "console.error('TARGET-CHECK'); process.exit(require('fs').existsSync('fail-marker') ? 1 : 0)"`);
+      const result = runHook({ cwd: session, tool_input: { command: `git -C '${target}' merge --no-ff other` } });
+      assert.equal(result.status, 2, 'a -C merge whose target suite fails blocks');
+      assert.match(result.stderr, /TARGET-CHECK/, 'the block report quotes the -C target failure, not a session-cwd run');
+      fs.rmSync(session, { recursive: true, force: true });
+      fs.rmSync(target, { recursive: true, force: true });
+    }
+
+    // the verification doc itself is read from the -C target, not the session — a scope worktree
+    // carries its own docs/agents/verification.md on its own branch, so a full run must gate on ITS
+    // command. Two facets: a doc the target introduces (absent at session) still gates, and a doc
+    // that differs from the session's runs the target's own command, never the session's.
+    {
+      const session = tmp('gg-session-');
+      const target = tmp('gg-target-');
+      initRepo(session);
+      commitFile(session, 'base.txt', 'x\n');
+      initRepo(target);
+      commitFile(target, 'base.txt', 'x\n');
+      // Session carries no verification doc at all; only the target's own branch introduced one.
+      writeVerification(target, `node -e "console.error('TARGET-ONLY-DOC'); process.exit(1)"`);
+      const introduced = runHook({ cwd: session, tool_input: { command: `git -C '${target}' merge --no-ff other` } });
+      assert.equal(introduced.status, 2, 'a verification doc introduced only on the -C target still gates');
+      assert.match(introduced.stderr, /TARGET-ONLY-DOC/, "the block report ran the target's own command");
+      fs.rmSync(target, { recursive: true, force: true });
+
+      initRepo(target);
+      commitFile(target, 'base.txt', 'x\n');
+      writeVerification(session, 'node -e "process.exit(0)"'); // session: always green
+      writeVerification(target, `node -e "console.error('TARGET-COMMAND'); process.exit(1)"`); // target: always red
+      const diverged = runHook({ cwd: session, tool_input: { command: `git -C '${target}' merge --no-ff other` } });
+      assert.equal(diverged.status, 2, "the target's own (red) command runs, not the session's (green) one");
+      assert.match(diverged.stderr, /TARGET-COMMAND/, "the block report quotes the target's own command output");
+      fs.rmSync(session, { recursive: true, force: true });
+      fs.rmSync(target, { recursive: true, force: true });
+    }
+
+    // a bare `git merge` still runs the suite in the session cwd, exactly as before
+    {
+      const session = tmp('gg-session-');
+      initRepo(session);
+      commitFile(session, 'base.txt', 'x\n');
+      fs.writeFileSync(path.join(session, 'session-marker'), '');
+      writeVerification(session, `node -e "process.exit(require('fs').existsSync('session-marker') ? 1 : 0)"`);
+      const result = runHook({ cwd: session, tool_input: { command: 'git merge --no-ff other' } });
+      assert.equal(result.status, 2, 'a bare merge still runs the suite in the session cwd');
+      fs.rmSync(session, { recursive: true, force: true });
+    }
+
+    // the changed-path set (and so the focused-command substitution) is computed against the -C
+    // target, not the session — a real merge in the target introduces feature.txt
+    {
+      const session = tmp('gg-session-');
+      const target = tmp('gg-target-');
+      initRepo(session);
+      commitFile(session, 'base.txt', 'x\n');
+      initRepo(target);
+      commitFile(target, 'base.txt', 'x\n');
+      git2(['checkout', '-q', '-b', 'feature'], target);
+      commitFile(target, 'feature.txt', 'x\n');
+      git2(['checkout', '-q', 'main'], target);
+      git2(['merge', '-q', '--no-ff', 'feature', '-m', 'merge feature'], target);
+      writeVerification(
+        target,
+        'node -e "process.exit(0)"',
+        `node -e "console.error('PATHS:' + process.argv.slice(1).join(',')); process.exit(1)" {paths}`,
+      );
+      const result = runHook({ cwd: session, tool_input: { command: `git -C '${target}' merge --no-ff other` } });
+      assert.equal(result.status, 2, 'the focused run over the -C target changed paths fails as configured');
+      assert.match(result.stderr, /PATHS:feature\.txt/, 'the changed-path set is computed against the -C target, not the session');
+      fs.rmSync(session, { recursive: true, force: true });
+      fs.rmSync(target, { recursive: true, force: true });
+    }
+
+    // ADR 0033's integration/ deferral reads the -C target's own current branch
+    {
+      const session = tmp('gg-session-');
+      const target = tmp('gg-target-');
+      initRepo(session);
+      commitFile(session, 'base.txt', 'x\n');
+      initRepo(target);
+      commitFile(target, 'base.txt', 'x\n');
+      git2(['checkout', '-q', '-b', 'integration/foo'], target);
+      writeVerification(target, 'node -e "process.exit(1)"');
+      const deferred = runHook({ cwd: session, tool_input: { command: `git -C '${target}' merge --no-ff other` } });
+      assert.equal(deferred.status, 0, 'a merge whose -C target sits on integration/* is deferred, not gated');
+
+      // git's loose-ref storage can't hold both `integration/foo` and `integration` (a file where a
+      // directory prefix already exists) — drop the first before creating the second
+      git2(['checkout', '-q', 'main'], target);
+      git2(['branch', '-D', 'integration/foo'], target);
+      git2(['checkout', '-q', '-b', 'integration'], target); // exactly `integration`, no slash
+      const gated = runHook({ cwd: session, tool_input: { command: `git -C '${target}' merge --no-ff other` } });
+      assert.equal(gated.status, 2, "a -C target branch named exactly `integration` gets no deferral, still gated");
+      fs.rmSync(session, { recursive: true, force: true });
+      fs.rmSync(target, { recursive: true, force: true });
+    }
+
+    // a -C path that is not a git repository fails closed: reading its own verification doc needs
+    // no git repository at all — just a real directory — so the gate still fires from that doc
+    {
+      const session = tmp('gg-session-');
+      const target = tmp('gg-notrepo-');
+      initRepo(session);
+      commitFile(session, 'base.txt', 'x\n');
+      writeVerification(target, 'node -e "process.exit(1)"');
+      const result = runHook({ cwd: session, tool_input: { command: `git -C '${target}' merge --no-ff other` } });
+      assert.equal(result.status, 2, 'a -C path that is not a git repository still gates rather than silently passing');
+      fs.rmSync(session, { recursive: true, force: true });
+      fs.rmSync(target, { recursive: true, force: true });
+    }
+
+    // a -C path that does not exist at all has no verification doc to read there either — the gate
+    // stays inert, which is correct: `git -C <nonexistent>` already failed before merging anything,
+    // so there is nothing this gate would be blocking.
+    {
+      const session = tmp('gg-session-');
+      const target = path.join(tmp('gg-parent-'), 'does-not-exist');
+      initRepo(session);
+      commitFile(session, 'base.txt', 'x\n');
+      writeVerification(session, 'node -e "process.exit(1)"');
+      const result = runHook({ cwd: session, tool_input: { command: `git -C '${target}' merge --no-ff other` } });
+      assert.equal(result.status, 0, 'a -C path that does not exist carries no verification doc, so the gate stays inert');
+      fs.rmSync(session, { recursive: true, force: true });
+    }
+
+    // no verification doc configured → inert at both command shapes, no error
+    {
+      const session = tmp('gg-session-');
+      const target = tmp('gg-target-');
+      initRepo(session);
+      commitFile(session, 'base.txt', 'x\n');
+      initRepo(target);
+      commitFile(target, 'base.txt', 'x\n');
+      const bare = runHook({ cwd: session, tool_input: { command: 'git merge --no-ff other' } });
+      assert.equal(bare.status, 0, 'no verification doc → inert on a bare merge');
+      assert.equal(bare.stderr, '', 'and prints nothing');
+      const withC = runHook({ cwd: session, tool_input: { command: `git -C '${target}' merge --no-ff other` } });
+      assert.equal(withC.status, 0, 'no verification doc → inert on a -C merge too');
+      assert.equal(withC.stderr, '', 'and prints nothing');
+      fs.rmSync(session, { recursive: true, force: true });
+      fs.rmSync(target, { recursive: true, force: true });
+    }
   }
 
   console.log('green-gate selftest ok');

@@ -119,20 +119,10 @@ afterwards, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishin
 **From the invoking checkout, not the scope worktree** — `git worktree remove` refuses to remove the tree
 you are standing in:
 
-- Remove this run's worktrees: `.superdev/scopes/<scope>/worktree` (lite) or every
-  `.superdev/scopes/<scope>/worktrees/*` (full), then `git worktree prune`.
+- Remove this run's worktree: `.superdev/scopes/<scope>/worktree`, plus any leftover slice worktrees at
+  `.superdev/scopes/<scope>/worktrees/*`, then `git worktree prune`.
 - Delete any leftover `slice/<scope>/*` branch (merged into the scope branch, so it only clutters).
-- Remove `<run-root>/run.lock` to signal the run is done, if it exists. A `full` run never creates one
-  (per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`), so there is nothing to remove there.
-- **Return the invoking checkout to the base branch (per `docs/agents/code-management.md`, as in §5) —
-  only when its HEAD is the scope branch** (resolved in §2, per that file's `## The scope branch`; you
-  were given a slug, which does not name it). That is the state a `full` run leaves behind, and leaving it
-  there hands the next run a checkout sitting on a branch with an open pull request. A `lite` run never
-  switched this checkout, so switching would move the maintainer off their own branch. **The base is
-  already checked out in another worktree → `git switch` fails; say so and leave this checkout alone.**
-  **The checkout is dirty → leave it where it stands and say so in one line**, naming the branch it stayed
-  on; if the uncommitted work includes `CONTEXT.md`, `docs/adr/`, or `.claude/rules/`, note that too — it
-  is what will trip the next run's run-init guard. Uncommitted work outweighs a tidy branch pointer.
+- Remove `<run-root>/run.lock` to signal the run is done, if it exists.
 - Keep the rest of `<run-root>` — the ledger and the ticked DoD are the git-ignored paper trail.
 - **Keep `.superdev/kb-pending/<scope>/`.** It is outside the run root and holds this scope's staged
   knowledge-base pages, which outlive the run by design (ADR 0023).

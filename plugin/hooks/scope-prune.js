@@ -12,9 +12,9 @@
 // Same "safe by default" shape throughout: never touches a run whose branch is still there and unmerged
 // (still active), never touches one whose worktree is still present (an interrupted cleanup, not a
 // finished run — leave it for a human to look at), and never touches one that isn't recorded as
-// `shipped` — a full run leaves its invoking checkout ON the scope branch until `/superdev:ship` §6
-// returns it to base, and cuts no worktree meanwhile, so the TTL and the worktree guard alone would let
-// it prune a scope still mid-chain (ADR 0013).
+// `shipped` — a run mid-chain, at either tier, has its scope worktree standing until `/superdev:ship`
+// removes it, so the worktree guard alone already protects it; the stage gate is the second, independent
+// signal (ADR 0013, ADR 0045).
 // ponytail: TTL is one flat value for every scope; a per-scope override would need its own config
 // knob — add one if varying retention actually comes up, but YAGNI for now.
 // Best-effort and silent: any git error, or no .superdev/scopes/ → no-op.
@@ -83,11 +83,10 @@ function git(args, cwd) {
 // from refs the repository already holds, so an unfetched remote-tracking ref still counts as present
 // and the scope survives — this fails closed, which is the only safe direction for a delete.
 //
-// `git branch --merged` also lists the branch a full run's invoking checkout is switched
-// to mid-chain (the current branch itself, until `/superdev:ship` §6 switches it back to base), and a
-// full run leaves no `worktree`/`worktrees` dir for the guard below to catch — so the TTL was the only
-// remaining protection until this stage gate. Only a scope whose
-// ledger stage is `shipped` is prunable: that is the signal `/superdev:ship` writes at the end of the
+// `git branch --merged` also trivially lists whatever branch the invoking checkout is currently on — a
+// branch is always its own ancestor. Neither tier ever switches that checkout onto the scope branch
+// (ADR 0045), so this only matters for a scope worked by hand, outside superdev's chain. Only a scope
+// whose ledger stage is `shipped` is prunable: that is the signal `/superdev:ship` writes at the end of the
 // chain, and it is stronger than "merged" on every tier. An unreadable ledger, or one with no stage line,
 // is never prunable — that is not evidence a run finished, only evidence nothing can be read. The stage
 // is also what keeps absence narrow: a branch deleted without ever merging looks identical here, and only
@@ -243,12 +242,11 @@ if (process.argv[2] === '--selftest') {
     'unreadable mtime is never pruned'
   );
 
-  // A full-tier run leaves the invoking checkout on the scope branch until `/superdev:ship` §6 returns
-  // it to base, so `git branch --merged` lists it as merged from the moment `/superdev:implement`
-  // finishes — long before the run is done. A full run also cuts no per-scope worktree, so the guard
-  // below never fires either. The TTL was the only remaining protection, and a human-paced chain can sit
-  // past it while still mid-review. This is the RED case: a merged, stale scope whose ledger stage is
-  // `reviewed` (review ran, ship never did) must not be pruned.
+  // Neither tier switches the invoking checkout onto the scope branch (ADR 0045), and both leave a scope
+  // worktree standing until `/superdev:ship` removes it, so `git branch --merged` and the worktree guard
+  // already protect a run mid-chain. The stage gate is the second, independent signal, exercised here on
+  // its own: a merged, stale scope whose ledger stage is `reviewed` (review ran, ship never did) must
+  // still not be pruned, whatever the branch or worktree checks would otherwise say.
   // The branch matcher takes the change type from the branch, because the run root's directory name is
   // the slug alone. Only a Conventional Commits type counts: a slice branch (`slice/<scope>/<id>`) and a
   // maintainer's own `wip/<scope>` both name the scope somewhere, and pruning a run root on either one

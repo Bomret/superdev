@@ -19,7 +19,7 @@ A self-contained Claude Code plugin for the full **brainstorm, plan, implement, 
 loop, with **no prerequisite plugins**. It gives you interview-driven vertical slicing, an execution tier
 sized to the plan, deterministic guardrails, and a pluggable slice store plus code host. A larger plan
 runs in parallel in isolated git worktrees, with separate implementer and reviewer subagents. A small
-plan runs test-first and inline.
+plan runs test-first, inline in the scope worktree.
 
 ```
 /superdev:setup      → configure backends in docs/agents/*.md (once per repo)

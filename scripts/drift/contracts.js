@@ -429,9 +429,10 @@ const DERIVED_CRITERIA_CONTRACTS = [
   ],
 ];
 
-// A feature label is external input that becomes a branch name and a run-root path segment. Both of its
-// segments reach `git switch -c`, so both are validated — the leading one against the closed change-type
-// set, which is strictly stronger than a charset test on it. A rule that guards the slug alone lets a
+// A feature label is external input that becomes a branch name and a run-root path segment. Both of
+// its segments reach `git worktree add … -b`, so both are validated — the leading one against the
+// closed change-type set, which is strictly stronger than a charset test on it. A rule that guards the
+// slug alone lets a
 // label of `--exec=foo/x` or `-x/y` through to git as an option, and lets a non-canonical type make
 // `scope-prune` reap a run root that is still live, mistaking its unrecognised branch for gone. The
 // consumers are pinned on the
@@ -1435,14 +1436,15 @@ const PARKED_QUESTIONS_CONTRACTS = [
 // ADR 0028: the scope branch is cut once, and a later run reuses it only losslessly.
 // `references/scope-mode.md` owns the rule and both execution playbooks read it, so the three run kinds
 // are pinned there rather than in either playbook — a pointer's prose is not worth pinning, and a
-// tier-specific line that drifts still leaves the rule itself intact. Five independent rows: losing the
+// tier-specific line that drifts still leaves the rule itself intact. Four independent rows: losing the
 // specification for one clause fails on its own. `fresh` gets two rows because it carries two clauses (a
 // scope-prune reap can leave a same-named branch standing with no ledger to match it, so `fresh` is not
-// always a guaranteed-absent name), and `appended` gets two because a contained reuse switches the
-// invoking checkout on the `full` tier — same as `resumed` — and must stop on the same conditions rather
-// than a raw git fatal. The regexes span the bullet from its run-kind label (or its own distinguishing
-// clause, for a row anchored past that label) to the sentence that distinguishes it, so a prose reflow
-// inside that bullet does not go red while a deleted clause does.
+// always a guaranteed-absent name). The regexes span the bullet from its run-kind label (or its own
+// distinguishing clause, for a row anchored past that label) to the sentence that distinguishes it, so a
+// prose reflow inside that bullet does not go red while a deleted clause does. ADR 0045 retired the fifth
+// row this table used to carry — the `appended` contained-reuse clause split by tier ("the `full` tier
+// switches the invoking checkout … the `lite` tier works in its existing scope worktree") — because both
+// tiers now share one worktree-based reuse, pinned instead by `SCOPE_WORKTREE_CONTRACTS` below.
 const RUN_KIND_CONTRACTS = [
   [
     path.join('references', 'scope-mode.md'),
@@ -1452,8 +1454,8 @@ const RUN_KIND_CONTRACTS = [
   [
     path.join('references', 'scope-mode.md'),
     /\*\*The name already exists\*\*[\s\S]{0,300}?[Ss]top,\s+name\s+the\s+branch\s+found,\s+and\s+cut\s+nothing/,
-    'specify the `fresh` run kind — a same-named branch a scope-prune reap left standing makes `-c`/`-b` ' +
-      'fail; stop and name it rather than forcing a reset',
+    'specify the `fresh` run kind — a same-named branch a scope-prune reap left standing makes `-b` fail; ' +
+      'stop and name it rather than forcing a reset',
   ],
   [
     path.join('references', 'scope-mode.md'),
@@ -1464,16 +1466,193 @@ const RUN_KIND_CONTRACTS = [
   ],
   [
     path.join('references', 'scope-mode.md'),
-    /\*\*Contained\*\*[\s\S]{0,200}?stopping\s+first\s+when\s+that\s+checkout\s+is\s+dirty\s+or\s+another\s+worktree\s+holds\s+the\s+branch/,
-    'specify the `appended` run kind — a contained reuse switches the invoking checkout too, so it must ' +
-      'stop on the same dirty-checkout/held-elsewhere conditions `resumed` stops on, instead of a raw ' +
-      'git fatal',
-  ],
-  [
-    path.join('references', 'scope-mode.md'),
     /`resumed`[\s\S]{0,400}?[Nn]o\s+ancestor\s+test\s+runs\s+and\s+nothing\s+is\s+cut/,
     'specify the `resumed` run kind — no ancestor test runs and nothing is cut, because the branch ' +
       'holds unmerged slice work by design',
+  ],
+];
+
+// ADR 0045: the `full` tier cuts its scope branch into the same dedicated scope worktree the `lite` tier
+// uses, `.superdev/scopes/<scope>/worktree`, and does every merge there — the invoking checkout is never
+// switched, at either tier. Twenty-one independent rows, each anchored on text unique to its own clause
+// so a prose reflow elsewhere in the same section or file does not fire it.
+//
+// Five rows sit on `references/scope-mode.md`. `## The scope checkout` resolving to one location covers
+// the `appended` contained-reuse clause `RUN_KIND_CONTRACTS` retired above: reuse now means working in
+// that one worktree, creating it with `git worktree add` when absent and stopping, naming what it found,
+// when a different worktree already holds the branch — the same stop `## Cutting the scope branch`'s
+// `resumed` bullet already took before this ADR, so this is a location change, not a new behaviour. A
+// fifth row on that same section states that a `run-lock` refusal met while recreating is this run's own
+// lock, not a competing session's, and names the remedy (remove and retry) rather than leaving the two
+// sections contradicting each other — a fix cycle found the recreate path unreachable inside a live run
+// otherwise. `## The run lock` states that both tiers write the lock, and only after the worktree is cut,
+// or the `run-lock` hook's own guard on `git worktree add` would block the run that is about to make that
+// call.
+//
+// Six rows sit on `references/implement-full.md`, the tier that changed: its Branch model states that
+// every later command in the file — every merge — addresses the scope worktree with `git -C` rather than
+// the invoking checkout; its DAG loop's merge step addresses that worktree with `git -C`; its
+// integration-branch bullet keeps `integration/<scope>` there too, and the integrate-and-verify slice
+// switches that same worktree, never the invoking checkout, for the final merge; its Resume step finds
+// the worktree before reading anything out of it; its own `## Run lock` section reads scope-mode.md's
+// `## The run lock` rather than leaving the full tier with no pointer at all — a fix cycle found two other
+// documents still claiming the lock was lite-only with this file carrying no lock section to contradict
+// them; and a sixth row states that Resume checks the run lock once the worktree is found already present
+// — a fix cycle otherwise found this tier's own `resumed` Resume path taking no lock reading at all, so a
+// second full-tier `/superdev:implement` of a live scope never met the fresh-lock refusal
+// `references/implement-lite.md`'s Resume already carries.
+//
+// One row sits on `references/implement-lite.md`: its `## Run lock` section reads scope-mode.md's
+// `## The run lock` rather than restating who writes the lock and when — the shared rule now lives once,
+// in scope-mode.md, and this row is the same shape as the `doc-pass` contract's caller-reads-the-rule row.
+//
+// Two rows sit on `references/run-init.md` and `references/run-handoff.md`: the run root prose lists
+// `run.lock` with no `lite tier only`/`(lite tier)` qualifier, since scope-mode.md's `## The run lock`
+// is the one place that states who writes it and when (ADR 0045) — a qualifier reintroduced on either
+// side makes it the later, more specific instruction and silences the shared rule for the full tier.
+//
+// Three rows sit on `commands/review.md` — a fix cycle found this chain-tail command naming no working
+// directory anywhere, so its scope-mode read against `<type>/<scope>` tested the controller's own cwd
+// instead of the scope checkout, its full-suite run had nowhere stated to run, and its fix-implementer
+// dispatch could land commits on the base branch in the operator's own clone: §4 tests the *scope
+// checkout's* branch rather than the invoking checkout's, runs the full suite in that checkout, and hands
+// the fix implementer that same checkout as its working directory — the same pattern `implement-full.md`
+// and `document.md` already carry.
+//
+// Two more rows sit on `references/run-handoff.md`, the one full-suite run a scope of all `mechanical`/
+// `docs` slices ever gets: a fix cycle found its full-suite run and its Red-branch fix dispatch both naming
+// no working directory, so on the full tier both acted on the invoking checkout — sitting on the base
+// branch by the time this step runs — reading `docs/agents/verification.md` off base, running the suite
+// over base's tree, and landing any fix commit on base in the operator's own clone. One row states the
+// full suite runs in the scope checkout; the other states the Red-branch fix implementer is handed that
+// same checkout as its working directory, the identical clause `commands/review.md` already carries for
+// its own fix dispatch.
+//
+// One more row sits on `references/merge-conflicts.md`: its winner-picking-overlap abort names the scope
+// worktree with `git -C`, not a bare `git merge --abort`. `implement-full.md`'s own merge and
+// `merge --abort` calls are already pinned above, but this file is read *after* it — the later, more
+// specific instruction — and delegates the whole conflict-resolution step, so its own unqualified abort
+// used to win the conflict: run in the invoking checkout it exits 128 and leaves the scope worktree
+// sitting on `MERGE_HEAD`, which `hooks/green-gate.js`'s `mergeInProgress()` then reads as a deferral,
+// gating nothing on the next merge in that tree.
+//
+// The last row sits on `commands/afk.md`'s eligibility bullet: a live run's no-lock case falls back to the
+// ledger mtime, with no claim that a full run never gets a lock. A fix cycle found the bullet still
+// asserting a run lock "only ever exists for a `lite`-tier scope" and citing `references/scope-mode.md`'s
+// `## The run lock` section for that claim, which by then stated the opposite — both tiers write the
+// lock. The fallback stayed conservative either way, so this drift cost no eligibility it should not have,
+// but it told an unattended controller to distrust the strong signal it now has.
+const SCOPE_WORKTREE_CONTRACTS = [
+  [
+    path.join('references', 'scope-mode.md'),
+    /`\.superdev\/scopes\/<scope>\/worktree`\s+is\s+the\s+scope\s+checkout,\s+at\s+both\s+tiers/,
+    'state that the scope checkout resolves to one location, `.superdev/scopes/<scope>/worktree`, at ' +
+      'both tiers',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /\*\*Absent\*\*[\s\S]{0,120}?git\s+worktree\s+add\s+\.superdev\/scopes\/<scope>\/worktree\s+<branch>/,
+    'state that an absent scope checkout is recreated with `git worktree add ' +
+      '.superdev/scopes/<scope>/worktree <branch>`',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /`run-lock`\s+refuses\s+the\s+call,\s+naming\s+another\s+session\*\*\s+→\s+that\s+lock\s+is\s+this\s+run's\s+own/,
+    "state that a `run-lock` refusal met while recreating the scope checkout is this run's own lock, " +
+      'not a competing session, and name the remedy',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /\*\*A\s+different\s+working\s+tree\s+already\s+holds\s+`<branch>`\*\*[\s\S]{0,200}?[Ss]ay\s+so\s+and\s+stop,\s+writing\s+nothing/,
+    'name a stop, writing nothing, when a different working tree already holds the scope branch',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /\*\*Write\s+`<run-root>\/run\.lock`\s+once\s+`## Cutting the scope branch`\s+above\s+has\s+cut\s+the\s+worktree,\s+at\s+both\s+tiers\*\*/,
+    'state that the run lock is written for both tiers, once the scope worktree is cut',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /every\s+later\s+command\s+in\s+this\s+file\s+—\s+every\s+merge\s+—\s+addresses\s+the\s+scope\s+worktree.{0,40}?with\s+`git\s+-C`,\s+and\s+the\s+invoking\s+checkout\s+is\s+never\s+switched/,
+    'run every later command — every merge — against the scope worktree with `git -C` rather than the ' +
+      'invoking checkout',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /\*\*Merge \(you, serially\)\*\*[\s\S]{0,80}?git\s+-C\s+\.superdev\/scopes\/<scope>\/worktree\s+merge/,
+    'address the DAG loop merge step at the scope worktree with `git -C`',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /cut\s+`integration\/<scope>`\s+from\s+`<branch>`\s+at\s+run\s+start,\s+keep\s+it\s+checked\s+out\s+\*\*in\s+the\s+scope\s+worktree\*\*[\s\S]{0,300}?switch\s+that\s+same\s+scope\s+worktree\s+back\s+to\s+`<branch>`/,
+    'keep `integration/<scope>` in the scope worktree, and switch that same worktree — never the ' +
+      'invoking checkout — for the integrate-and-verify merge',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /\*\*Find\s+the\s+scope\s+worktree\s+first\*\*/,
+    'find the scope worktree, per `## The scope checkout`, before Resume reads anything out of it',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /Read\s+`\$\{CLAUDE_PLUGIN_ROOT\}\/references\/scope-mode\.md`'s\s+`## The run lock`\s+and\s+write/,
+    "read scope-mode.md's `## The run lock` rather than leaving the full tier with no lock pointer",
+  ],
+  [
+    path.join('references', 'implement-lite.md'),
+    /Read\s+`\$\{CLAUDE_PLUGIN_ROOT\}\/references\/scope-mode\.md`'s\s+`## The run lock`\s+and\s+write/,
+    "read scope-mode.md's `## The run lock` rather than restating who writes the lock and when",
+  ],
+  [
+    path.join('references', 'run-init.md'),
+    /`run\.lock`,\s+per\s+that\s+file's\s+`## The run lock`\)/,
+    'list `run.lock` with no `lite tier only` qualifier, since scope-mode.md states who writes it and when',
+  ],
+  [
+    path.join('references', 'run-handoff.md'),
+    /Keep\s+the\s+worktrees\s+and\s+`<run-root>\/run\.lock`,\s+leave/,
+    'list `<run-root>/run.lock` with no `(lite tier)` qualifier, since scope-mode.md states who writes ' +
+      'it and when',
+  ],
+  [
+    path.join('commands', 'review.md'),
+    /\*\*The scope checkout not on `<type>\/<scope>`\*\*/,
+    'test the scope checkout against `<type>/<scope>`, not the controller\'s own invoking checkout',
+  ],
+  [
+    path.join('commands', 'review.md'),
+    /run it \*\*in the scope checkout above\*\*,\s+over\s+the\s+scope\s+branch/,
+    'run the full suite in the scope checkout, not the invoking checkout',
+  ],
+  [
+    path.join('commands', 'review.md'),
+    /Hand it the scope checkout as its working directory:\s+this is where its fix commits must land/,
+    'hand the fix-cycle implementer the scope checkout as its working directory',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /\*\*Found already present\?\s+Check the run lock before dispatching anything\.\*\*/,
+    "check the run lock, against the worktree-present case, before Resume dispatches into it",
+  ],
+  [
+    path.join('references', 'run-handoff.md'),
+    /run it once\s+\*\*in that checkout\*\*,\s+over the scope branch/,
+    "run the mechanical/docs scope's own full suite in the scope checkout, not the invoking checkout",
+  ],
+  [
+    path.join('references', 'run-handoff.md'),
+    /Hand it\s+the scope checkout as its working directory:\s+this is where its fix commits must land/,
+    'hand the Red-branch fix implementer the scope checkout as its working directory',
+  ],
+  [
+    path.join('references', 'merge-conflicts.md'),
+    /git\s+-C\s+\.superdev\/scopes\/<scope>\/worktree\s+merge\s+--abort`?\s+and\s+escalate\s+to\s+the\s+human/,
+    'abort a winner-picking conflict in the scope worktree with `git -C`, not the invoking checkout',
+  ],
+  [
+    path.join('commands', 'afk.md'),
+    /\*\*No\s+lock\s+present\s+is\s+not\s+by\s+itself\s+eligibility\*\*/,
+    'fall back to the ledger mtime on no lock present, without first claiming a full run never gets a lock',
   ],
 ];
 
@@ -1936,9 +2115,9 @@ const ADOPT_RUN_STATE_CONTRACTS = [
   ],
 ];
 
-// The `resumed-worktree-trigger` contract (ADR 0042), one row: the `lite` tier's worktree step in
-// `references/scope-mode.md`'s `resumed` branch bullet must create or reattach the worktree whenever it
-// is absent for *either* cause — `/superdev:ship` already removed it, or this checkout never held it at
+// The `resumed-worktree-trigger` contract (ADR 0042), one row: `references/scope-mode.md`'s worktree step
+// in the `resumed` branch bullet must create or reattach the scope worktree whenever it is absent for
+// *either* cause — `/superdev:ship` already removed it, or this checkout never held it at
 // all (a resumed run adopted from the anchor on a fresh clone, the scenario `adopt-run-state` makes
 // reachable). A fix cycle found the sentence named only the first cause: `implement-lite.md`'s Resume
 // step works "in the scope worktree" unconditionally, assuming it exists, and nothing created it on a
@@ -1946,13 +2125,16 @@ const ADOPT_RUN_STATE_CONTRACTS = [
 // the narrower, single-cause sentence would pass silently. Split out from `ADOPT_RUN_STATE_CONTRACTS`
 // rather than appended to it, because the two tables answer different questions — which branch gets
 // fetched, versus which worktree gets created — and a single-cause regression here is exactly the shape
-// a per-clause row exists to catch on its own.
+// a per-clause row exists to catch on its own. ADR 0045 broadened the clause from the `lite` tier alone to
+// both, so the row no longer anchors on "the `lite` tier" — a full run resuming on a fresh clone reaches
+// the identical worktree-creation case.
 const RESUMED_WORKTREE_TRIGGER_CONTRACTS = [
   [
     path.join('references', 'scope-mode.md'),
-    /The `lite` tier creates or reattaches the worktree with `git worktree add <path> <branch>` whenever `\.superdev\/scopes\/<scope>\/worktree` is absent[\s\S]{0,60}?already removed it, or because this checkout never held it[\s\S]{0,60}?resumed run adopted from the anchor on a fresh clone/,
-    'create or reattach the `lite`-tier worktree whenever it is absent, whether `/superdev:ship` removed ' +
-      'it or this checkout never held it (a resumed run adopted from the anchor on a fresh clone)',
+    /[Cc]reate\s+or\s+reattach\s+the\s+scope\s+worktree,\s+at\s+both\s+tiers,\s+whenever\s+it\s+is\s+absent[\s\S]{0,60}?already removed it, or because this checkout never held it[\s\S]{0,60}?resumed run adopted from the anchor on a fresh clone/,
+    'create or reattach the scope worktree, at both tiers, whenever it is absent, whether ' +
+      '`/superdev:ship` removed it or this checkout never held it (a resumed run adopted from the anchor ' +
+      'on a fresh clone)',
   ],
 ];
 
@@ -2026,6 +2208,7 @@ module.exports = {
   ROTATE_ON_SHIPPED_CONTRACTS,
   PARKED_QUESTIONS_CONTRACTS,
   RUN_KIND_CONTRACTS,
+  SCOPE_WORKTREE_CONTRACTS,
   FORCING_FLAG_DOCS,
   FORCING_FLAG_PATTERNS,
   NARRATIVE_DOC,

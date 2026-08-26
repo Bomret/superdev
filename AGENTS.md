@@ -3,8 +3,8 @@
 A self-contained **Claude Code plugin** for the plan and implement loop. It gives you interview-driven
 vertical slicing, an execution tier sized to the plan, deterministic hook guardrails, and a pluggable
 slice store plus code host. A plan of more than 3 slices runs in parallel worktrees with isolated
-implementer and reviewer subagents. A plan of 3 or fewer runs test-first and inline. No prerequisite
-plugins.
+implementer and reviewer subagents. A plan of 3 or fewer runs test-first, inline in the scope worktree.
+No prerequisite plugins.
 
 ## Need something? Read this
 
@@ -74,10 +74,11 @@ source is what limits an install to the shipped tree, so releasing stays a plain
 `agents/`, and `references/` are prose. `hooks/` and the two `scripts/` dirs are executable: `hooks/`
 holds Claude Code hooks, `plugin/scripts/` holds the two runtime CLIs, and the root `scripts/` holds
 maintainer-only checks like `drift-check.js`, which `package.json` runs. `hooks/` is also a runtime
-consumer of `plugin/scripts/`: `hooks/scope-prune.js` `require`s `../scripts/scope.js` for its shared
-ledger-header reader (ADR 0022). This is the one dependency `hooks/` has on a script. Every other hook
-stays standalone. Paths inside `plugin/` resolve against the plugin root at runtime, so prose there
-names them without the `plugin/` prefix. `scripts/drift/lib.js`'s `docPath()` resolves the same
+consumer of `plugin/scripts/`: `hooks/scope-prune.js` and `hooks/worktree-sweep.js` both `require`
+`../scripts/scope.js` for their shared ledger-header reader (ADR 0022). These are the only two
+dependencies `hooks/` has on a script. Every other hook stays standalone. Paths inside `plugin/` resolve
+against the plugin root at runtime, so prose there names them without the `plugin/` prefix.
+`scripts/drift/lib.js`'s `docPath()` resolves the same
 plugin-relative paths for the maintainer-side checks.
 
 ## Stack
@@ -223,16 +224,17 @@ This root owns every other subtree directly:
   live in the files.
 - `plugin/hooks/`. Claude Code hooks, the plugin's deterministic guardrails. Governed by **Working
   rules, Hooks are CommonJS** and **Every hook ships a `--selftest`**. This is the strongest future
-  child-doc candidate, if its rules outgrow this root. `scope-prune.js` `require`s `../scripts/scope.js`
-  for its ledger-header reader (ADR 0022). This is the only place a hook depends on a script instead of
-  standing alone. A `require` failure leaves the hook with no fallback reader: it prunes nothing and
-  says nothing.
+  child-doc candidate, if its rules outgrow this root. `scope-prune.js` and `worktree-sweep.js` both
+  `require` `../scripts/scope.js` for their ledger-header reader (ADR 0022). These are the only two
+  places a hook depends on a script instead of standing alone. A `require` failure leaves either hook
+  with no fallback reader: it sweeps/prunes nothing and says nothing.
 - `scripts/` and `plugin/scripts/`. Owned by [`scripts/AGENTS.md`](scripts/AGENTS.md):
   `plugin/scripts/scope.js` (the run-state CLI, ADR 0022: owns the ledger schema, is the only
-  `ledger.md` read and write path, and exports `readLedgerHeader` for `plugin/hooks/scope-prune.js`),
+  `ledger.md` read and write path, and exports `readLedgerHeader` for `plugin/hooks/scope-prune.js` and
+  `plugin/hooks/worktree-sweep.js`),
   `plugin/scripts/kb-patch.js` (the deterministic section merge behind a staged page's `action: patch`,
   called by `/superdev:publish-kb`, ADR 0027), `scripts/eval-run.js` (the eval
-  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the fifty-eight cross-document contract checks: the
+  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the fifty-nine cross-document contract checks: the
   CLI walks the `drift/checks.js` registry, which orders every scanner and contract table). What each
   guards, check by check, lives in that child doc.
 - `plugin/references/`. Backend seed templates plus the non-seed references below. Each reference's own
