@@ -1,3 +1,10 @@
+# [0.37.0](https://codeberg.org/bomret/superdev/compare/v0.36.1...v0.37.0) (2026-08-26)
+
+
+### Features
+
+* **drift:** record and pin append’s anchor-dependency exception ([#337](https://codeberg.org/bomret/superdev/issues/337)) ([10114ec](https://codeberg.org/bomret/superdev/commit/10114ecdae18ab50d943f5dfcc8d9b1046e0c111)), closes [#326](https://codeberg.org/bomret/superdev/issues/326) [#327](https://codeberg.org/bomret/superdev/issues/327) [#325](https://codeberg.org/bomret/superdev/issues/325)
+
 ## [0.36.1](https://codeberg.org/bomret/superdev/compare/v0.36.0...v0.36.1) (2026-08-25)
 
 
