@@ -107,6 +107,13 @@ const APPEND_ELEMENTS = [
   // Anchored on "sanctioned edit", the clause that grants the permission, not on "amend" or "epic" alone
   // — either word alone recurs elsewhere in the section's surrounding prose.
   [/^[-*] \*\*[^*]*sanctioned edit[^*]*\*\*/im, 'the epic-amendment clause for a promoted epic'],
+  // ADR 0043's exception to the never-edit clause above: promotion moves a lone slice's anchor-dependency
+  // line to the epic it creates, because the epic is the anchor now (ADR 0040). A store document that
+  // returns to the unqualified rule leaves a dependent feature running before its blocker, with the suite
+  // green. The exception lives inside the epic-promotion bullet's body rather than opening a bullet of its
+  // own, so it anchors on its own bolded run — the bold is still what carries it, exactly as the three
+  // elements above, and running prose that merely mentions the migration matches nothing.
+  [/\*\*migrat\w*\s+to\s+the\s+new\b/im, 'the anchor-dependency migration clause promotion carries'],
 ];
 
 // Every slice-store document must state how its backend expresses a **release** — the human agreement
@@ -1357,6 +1364,21 @@ const PLAN_APPEND_CONTRACTS = [
     path.join('commands', 'plan.md'),
     /leave the lone slice byte-identical/,
     'state the single-slice epic-promotion clause, including that the lone slice is left untouched',
+  ],
+  // ADR 0043's exception to that byte-identical rule, which `scanAppendContract` cannot reach: neither of
+  // these two is a store document, so each carries its own row here. `plan-contract.md` states the generic
+  // contract every store specialises, and `commands/plan.md` is the command that performs the promotion —
+  // the exception dropping out of either leaves the five store documents pinned around a hole.
+  [
+    path.join('references', 'plan-contract.md'),
+    /\*\*migrates to the new epic\*\*/,
+    "state that a promoted lone slice's anchor-dependency line migrates to the new epic",
+  ],
+  [
+    path.join('commands', 'plan.md'),
+    /migrates to the new epic/,
+    "state that a promoted lone slice's anchor-dependency line migrates to the new epic, the one " +
+      'exception to leaving it byte-identical',
   ],
 ];
 

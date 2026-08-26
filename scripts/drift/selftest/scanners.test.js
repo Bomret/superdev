@@ -1284,8 +1284,9 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // --- scanAppendContract: every slice-store document must render `/plan`'s append-mode contract for
   // its own backend (ADR 0004, `plan-contract.md` → *Append mode*): create only new slice records, never
-  // edit/close/delete a merged one, promote a single-slice feature by creating the epic first, and name
-  // amending a promoted epic's own body as the one sanctioned edit. Same candidate-document list and
+  // edit/close/delete a merged one, promote a single-slice feature by creating the epic first, name
+  // amending a promoted epic's own body as the one sanctioned edit, and — ADR 0043's exception — migrate
+  // a promoted lone slice's anchor-dependency line to the new epic. Same candidate-document list and
   // section-extraction shape as scanAnchorContract. ---
 
   const appendSection =
@@ -1294,9 +1295,15 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     '- **Create only new records; never edit, close, or delete a merged slice.** One issue-create call ' +
     'per new slice.\n' +
     "- **Create the epic first when none exists.** Copy the lone slice's `acceptance` into it as the " +
-    'global DoD, leaving that slice untouched.\n' +
+    'global DoD, leaving that slice untouched. **One exception:** an anchor dependency the lone slice ' +
+    'carries **migrates to the new epic** and is removed from the slice.\n' +
     "- **Amend the epic's own body — the one sanctioned edit.** Folds the interview's new criteria into " +
     "the epic's Definition of Done in place.\n";
+
+  const apEpicFirstBullet =
+    "- **Create the epic first when none exists.** Copy the lone slice's `acceptance` into it as the " +
+    'global DoD, leaving that slice untouched. **One exception:** an anchor dependency the lone slice ' +
+    'carries **migrates to the new epic** and is removed from the slice.\n';
 
   // positive: a store document with no append section is flagged
   const ap1 = fixture({ 'references/issue-tracker-acme.md': '# acme\n\nSlices are issues.\n' });
@@ -1304,11 +1311,11 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(apGaps1.length, 1, 'flags a store document with no append contract');
   assert.equal(apGaps1[0].source, path.join('references', 'issue-tracker-acme.md'), 'names the seed');
 
-  // negative: the same document carrying all three universal elements is clean
+  // negative: the same document carrying all four universal elements is clean
   assert.equal(
     scanAppendContract(fixture({ 'references/issue-tracker-acme.md': appendSection })).length,
     0,
-    'a document naming all three elements yields zero gaps',
+    'a document naming all four elements yields zero gaps',
   );
 
   // positive: losing the never-edit clause is flagged on its own
@@ -1325,17 +1332,71 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // positive: losing the epic-promotion clause is flagged on its own
   const apNoEpicFirst = fixture({
+    'references/issue-tracker-acme.md': appendSection.replace(apEpicFirstBullet, ''),
+  });
+  const apGapsNoEpicFirst = scanAppendContract(apNoEpicFirst);
+  assert.equal(apGapsNoEpicFirst.length, 2, 'flags the epic-promotion and migration clauses together');
+  assert.match(apGapsNoEpicFirst[0].expectation, /epic-promotion/, 'names the epic-promotion clause');
+
+  // positive: keeping the epic-promotion bullet but dropping its anchor-dependency exception is flagged
+  // on its own — the migration is what ADR 0040 needs and ADR 0043 excepts from ADR 0004's immutability
+  // rule, and a store document that returns to the unqualified rule strands a dependent feature
+  const apNoMigration = fixture({
     'references/issue-tracker-acme.md': appendSection.replace(
-      "- **Create the epic first when none exists.** Copy the lone slice's `acceptance` into it as the " +
-        'global DoD, leaving that slice untouched.\n',
+      ' **One exception:** an anchor dependency the lone slice carries **migrates to the new epic** and ' +
+        'is removed from the slice.',
       '',
     ),
   });
-  const apGapsNoEpicFirst = scanAppendContract(apNoEpicFirst);
-  assert.equal(apGapsNoEpicFirst.length, 1, 'flags exactly the missing epic-promotion clause');
-  assert.match(apGapsNoEpicFirst[0].expectation, /epic-promotion/, 'names the epic-promotion clause');
+  const apGapsNoMigration = scanAppendContract(apNoMigration);
+  assert.equal(apGapsNoMigration.length, 1, 'flags exactly the missing anchor-dependency migration');
+  assert.equal(
+    apGapsNoMigration[0].source,
+    path.join('references', 'issue-tracker-acme.md'),
+    'names the document that dropped the migration clause',
+  );
+  assert.match(apGapsNoMigration[0].expectation, /migration/, 'names the migration clause');
 
-  // positive: losing the epic-amendment clause is flagged on its own, with the other two silent
+  // positive: stating the migration in running prose alone, with no bolded lead-in, satisfies nothing —
+  // the same anchoring every other append element uses
+  const apProseMigration = fixture({
+    'references/issue-tracker-acme.md': appendSection.replace(
+      '**One exception:** an anchor dependency the lone slice carries **migrates to the new epic** and ' +
+        'is removed from the slice.',
+      'An anchor dependency the lone slice carries migrates to the new epic and is removed from the ' +
+        'slice.',
+    ),
+  });
+  const apGapsProse = scanAppendContract(apProseMigration);
+  assert.equal(apGapsProse.length, 1, 'running prose alone still flags the migration clause');
+  assert.match(apGapsProse[0].expectation, /migration/, 'names the migration clause');
+
+  // positive: an unrelated bolded run that merely starts with "migrat" satisfies nothing — the pattern
+  // must anchor on the real clause ("migrates ... to the new ...") rather than on the bolded word alone
+  const apWrongMigration = fixture({
+    'references/issue-tracker-acme.md': appendSection.replace(
+      '**migrates to the new epic**',
+      '**migrates the ledger**',
+    ),
+  });
+  const apGapsWrongMigration = scanAppendContract(apWrongMigration);
+  assert.equal(apGapsWrongMigration.length, 1, 'an unrelated bolded "migrat" run still flags the gap');
+  assert.match(apGapsWrongMigration[0].expectation, /migration/, 'names the migration clause');
+
+  // each of the scanned documents is named individually: one seed dropping the clause reports that
+  // seed, and leaves a sibling seed carrying it silent
+  const apOneSeedShort = fixture({
+    'references/issue-tracker-acme.md': appendSection,
+    'references/issue-tracker-github.md': appendSection.replace(apEpicFirstBullet, ''),
+  });
+  const apGapsOneSeed = scanAppendContract(apOneSeedShort);
+  assert.equal(
+    apGapsOneSeed.every((g) => g.source === path.join('references', 'issue-tracker-github.md')),
+    true,
+    'reports only the seed that dropped the clause',
+  );
+
+  // positive: losing the epic-amendment clause is flagged on its own, with the other three silent
   const apNoAmend = fixture({
     'references/issue-tracker-acme.md': appendSection.replace(
       "- **Amend the epic's own body — the one sanctioned edit.** Folds the interview's new criteria " +

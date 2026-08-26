@@ -466,13 +466,19 @@ anything implements it, which is how a decision reaches the glossary and the com
 code has none of it. The value's capitalization is pinned with the set, so one ADR does not sort and
 grep apart from the rest. Thirty-fourth, the `append-mode` contract (ADR 0004): every slice-store document
 (every `references/issue-tracker-*.md` plus `docs/agents/issue-tracker.md`) carries a `## Append mode`
-section stating three universal elements. Append creates only new slice records and never edits, closes,
+section stating four universal elements. Append creates only new slice records and never edits, closes,
 or deletes a merged one. Extending a single-slice feature creates the epic first, copying the lone
 slice's `acceptance` into it as the global DoD. Amending a promoted epic's own body is the one
 sanctioned edit, with the clause anchored on that permission's own wording, not on "amend" or "epic"
-alone, either of which recurs elsewhere in the section's surrounding prose. Each element is matched on a
-bullet's bolded lead-in, the same `scanAnchorContract` shape, over the same candidate-document list.
-`references/issue-tracker-local.md` alone carries a fourth element, that append continues file numbering
+alone, either of which recurs elsewhere in the section's surrounding prose. The fourth is ADR 0043's
+exception to the first. Promotion migrates a lone slice's anchor-dependency line to the epic it creates,
+because the epic is now the anchor (ADR 0040). A store document that returns to the unqualified rule
+lets a dependent feature run before its blocker, with the suite green. The first three elements are
+matched on a bullet's bolded lead-in, the same `scanAnchorContract` shape, over the same
+candidate-document list. The migration element lives inside the epic-promotion bullet's body rather than
+opening a bullet of its own. It is matched on its own bolded run instead, and the bold is still what
+carries it. A document stating the migration in running prose alone matches nothing.
+`references/issue-tracker-local.md` alone carries a fifth element, that append continues file numbering
 from the highest number already present and never reuses one. Its `id` is the file number `/plan`
 itself assigns, unlike an issue backend's server-assigned key, which already satisfies the id rule on
 its own. Thirty-fifth, the
@@ -483,14 +489,19 @@ so a second run over an appended feature must seed each loaded slice's real stat
 every row to `todo`, and skip every row already seeded `merged` rather than re-dispatching it. A document
 that drops the field, or drops the never-dispatched clause while keeping the field, silently re-dispatches
 a merged slice either way, so the two rows fail independently.
-Thirty-sixth, the `plan-append` contract (ADR 0004), five rows all against
-`commands/plan.md`. Its §0 asks whether the feature is new or extended before the interview begins, and
+Thirty-sixth, the `plan-append` contract (ADR 0004), seven rows: six against
+`commands/plan.md` and one against `references/plan-contract.md`. Its §0 asks whether the feature is new or extended before the interview begins, and
 states that answering "new" makes no store call. It states the store refusal signal (a slice
 `in-progress`, `in-review`, or `blocked` elsewhere) as one row. It states the ledger refusal signal's two
 clauses as two further independent rows: a run root whose stage is other than `shipped`, and a `shipped`
 stage whose scope branch is neither merged into the base nor gone. Losing any one of the three therefore
 fails on its own rather than only in aggregate. It states the single-slice epic-promotion clause,
-including that the lone slice is left untouched.
+including that the lone slice is left untouched. The last two rows pin ADR 0043's exception to that
+byte-identical rule. A promoted lone slice's anchor-dependency line migrates to the new epic. Each row
+falls on one of the two documents `scanAppendContract` cannot reach, since neither is a store document:
+`references/plan-contract.md`, which states the generic contract every store specialises, and
+`commands/plan.md`, which performs the promotion. Without them the five store documents would be pinned
+around a hole.
 Each ledger-signal row is anchored on the refusal condition's own wording, not on the rationale sentence
 that explains the branch test a few lines below it, so a document that keeps the rationale but loses the
 condition still fails. Thirty-seventh, the `rotate-on-shipped` contract (ADR 0004, ADR 0007):

@@ -161,7 +161,7 @@ function scanAnchorContract(root) {
 
 // scanAppendContract() is pure over a root dir: reads every slice-store document (the same candidate list
 // scanAnchorContract uses) and reports the ones missing the `## Append mode` section, missing one of its
-// two universal elements, or — for the local-file store alone — missing the numbering-continuation
+// four universal elements, or — for the local-file store alone — missing the numbering-continuation
 // element. Absent files are skipped, so a fixture carries only the docs it exercises.
 function scanAppendContract(root) {
   const gaps = [];

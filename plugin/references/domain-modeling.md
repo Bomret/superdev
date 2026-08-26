@@ -77,16 +77,26 @@ only when no source, rejects included, has anything for it; an empty one is wors
 
 ### Revise in place
 
-When a later answer overturns a decision you already recorded, bring the record into line where that
-decision lives. Never leave the store holding two contradictory decisions. The two homes take opposite
-treatments:
+When a later answer changes a decision you already recorded, bring the record into line where that
+decision lives. Never leave the store holding two contradictory decisions. Three treatments cover it,
+split first by home and then — inside the ADR home — by how much of the decision the later answer leaves
+standing: a decision **overturned** is superseded, a decision that **stands with a narrow qualification**
+is amended.
 
 - **A glossary entry is revised in place.** It states current truth, not its history, so rewrite the
   entry and keep exactly one per term.
-- **An ADR is superseded, never edited.** It is a dated record of what was decided at the time, and
-  editing it destroys the record the ADR exists to be. Superseding has three parts: write the
+- **An overturned ADR is superseded, never edited.** It is a dated record of what was decided at the
+  time, and editing it destroys the record the ADR exists to be. Superseding has three parts: write the
   replacement ADR, set the old one's `**Status:**` line to `Superseded`, adding that line under
   the title when the ADR carries none, and add a pointer to the replacement **on its own line** —
   the status line carries the status word and nothing after it, so it stays readable by eye and by
   tool alike. Everything else in the old ADR stands unchanged, including its `Considered options`:
   an option that lost then still lost, and the replacement records what changed and why.
+- **A qualified ADR is amended, never edited.** The decision still holds and one condition is added to
+  it, so marking it replaced would state something false about a record that is otherwise intact.
+  Amending has three parts too: write the amending ADR, which carries the qualification and names what
+  it amends; leave the amended one's `**Status:**` at `Accepted`, because the decision still stands;
+  and add an `**Amended by:**` pointer with the bolded key opening its own line, the same as the
+  supersession pointer — keeping it off the status line is what leaves both readable by eye and by tool.
+  The live example, `docs/adr/0004-plan-append-semantics.md`, wraps its pointer across three lines. The
+  amended ADR's own text stands unchanged.

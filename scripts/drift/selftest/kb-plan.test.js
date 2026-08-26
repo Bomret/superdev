@@ -569,7 +569,8 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // --- PLAN_APPEND_CONTRACTS: /plan's §0 asks new-vs-extend, refuses to extend on either signal while
   // writing nothing, and promotes a single-slice feature to an epic in §6, with the other writes
-  // (ADR 0004). Five independent rows: losing any one clause fails on its own, not just in aggregate.
+  // (ADR 0004). Seven independent rows — six against `commands/plan.md`, one against
+  // `references/plan-contract.md` — so losing any one clause fails on its own, not just in aggregate.
   // The ledger refusal signal's two clauses are pinned on the condition sentence's own wording, not on
   // the rationale that explains the branch test afterward, so gutting the condition while leaving the
   // rationale intact still fails. ---
@@ -582,7 +583,13 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     "- The scope's run root exists with a ledger stage other than `shipped`, or with a `shipped` stage " +
     'whose scope branch (`<type>/<scope>`) is neither merged into the base nor gone.\n\n' +
     "Create the epic, copy the lone slice's `acceptance` into it as the global DoD, and leave the lone " +
-    'slice byte-identical.\n';
+    'slice byte-identical, except for one moving part: an anchor-dependency line, if the slice carries ' +
+    'one, migrates to the new epic.\n';
+
+  const planPromotionSentence =
+    "Create the epic, copy the lone slice's `acceptance` into it as the global DoD, and leave the lone " +
+    'slice byte-identical, except for one moving part: an anchor-dependency line, if the slice carries ' +
+    'one, migrates to the new epic.\n';
 
   // negative: losing the §0 new-vs-extend question fails on its own
   const paNoQuestion = fixture({
@@ -656,21 +663,57 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // negative: losing the epic-promotion clause fails on its own
   const paNoPromotion = fixture({
+    'commands/plan.md': planAppendBody.replace(planPromotionSentence, ''),
+  });
+  const paGapsNoPromotion = scanContract(paNoPromotion, PLAN_APPEND_CONTRACTS);
+  assert.equal(paGapsNoPromotion.length, 2, 'flags the epic-promotion and migration clauses together');
+  assert.match(paGapsNoPromotion[0].expectation, /epic-promotion/, 'names the epic-promotion clause');
+
+  // negative: keeping the promotion clause but dropping ADR 0043's exception to it fails on its own —
+  // `commands/plan.md` is not a store document, so `scanAppendContract` never reaches it
+  const paNoMigration = fixture({
     'commands/plan.md': planAppendBody.replace(
-      "Create the epic, copy the lone slice's `acceptance` into it as the global DoD, and leave the lone " +
-        'slice byte-identical.\n',
+      ', except for one moving part: an anchor-dependency line, if the slice carries one, migrates to ' +
+        'the new epic',
       '',
     ),
   });
-  const paGapsNoPromotion = scanContract(paNoPromotion, PLAN_APPEND_CONTRACTS);
-  assert.equal(paGapsNoPromotion.length, 1, 'flags exactly the missing epic-promotion clause');
-  assert.match(paGapsNoPromotion[0].expectation, /epic-promotion/, 'names the epic-promotion clause');
+  const paGapsNoMigration = scanContract(paNoMigration, PLAN_APPEND_CONTRACTS);
+  assert.equal(paGapsNoMigration.length, 1, "flags exactly plan.md's missing migration clause");
+  assert.match(paGapsNoMigration[0].expectation, /migrates to the new epic/, 'names the migration');
+
+  // `references/plan-contract.md` carries its own row, and states the migration in bold — the same
+  // anchoring the store documents use, so running prose alone satisfies nothing
+  const planContractBody =
+    '## Append mode\n\n' +
+    'Merged slices are immutable — except the anchor-dependency line, which **migrates to the new epic** ' +
+    'when append promotes a single-slice feature.\n';
+  assert.equal(
+    scanContract(fixture({ 'references/plan-contract.md': planContractBody }), PLAN_APPEND_CONTRACTS).length,
+    0,
+    'a plan-contract.md stating the migration in bold yields zero gaps',
+  );
+  const pcGapsProse = scanContract(
+    fixture({
+      'references/plan-contract.md': planContractBody.replace(
+        '**migrates to the new epic**',
+        'migrates to the new epic',
+      ),
+    }),
+    PLAN_APPEND_CONTRACTS,
+  );
+  assert.equal(pcGapsProse.length, 1, 'running prose alone flags plan-contract.md');
+  assert.equal(
+    pcGapsProse[0].source,
+    path.join('references', 'plan-contract.md'),
+    'names plan-contract.md, not one of the plan.md rows',
+  );
 
   // negative: a plan.md carrying every clause is clean
   assert.equal(
     scanContract(fixture({ 'commands/plan.md': planAppendBody }), PLAN_APPEND_CONTRACTS).length,
     0,
-    'a plan.md carrying all five clauses yields zero gaps',
+    'a plan.md carrying all six of its clauses yields zero gaps',
   );
 
   // absent file is skipped, matching every other contract table
