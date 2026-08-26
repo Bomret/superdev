@@ -2,6 +2,10 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0045](0045-the-full-tier-runs-in-a-scope-worktree.md), which discharges the
+follow-on this record deferred: the `full` tier cuts its scope branch into the same scope worktree, so
+neither tier switches the invoking checkout.
+
 **Context.** Both tiers cut the scope branch with `git switch -c superdev/<scope> <base>` in the
 *invoking checkout*, the repo's single shared working tree. (ADR 0021 later fixed that branch's name as
 `<type>/<scope>`.) The lite tier then implements every slice
