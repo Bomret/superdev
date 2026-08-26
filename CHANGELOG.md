@@ -1,3 +1,10 @@
+## [0.37.1](https://codeberg.org/bomret/superdev/compare/v0.37.0...v0.37.1) (2026-08-26)
+
+
+### Bug Fixes
+
+* **implement:** the full tier runs in a scope worktree ([#338](https://codeberg.org/bomret/superdev/issues/338)) ([68d182f](https://codeberg.org/bomret/superdev/commit/68d182fcb5c7480d9a9e3f4c24de848c721f4c65)), closes [#336](https://codeberg.org/bomret/superdev/issues/336) [#335](https://codeberg.org/bomret/superdev/issues/335) [#334](https://codeberg.org/bomret/superdev/issues/334) [#332](https://codeberg.org/bomret/superdev/issues/332)
+
 # [0.37.0](https://codeberg.org/bomret/superdev/compare/v0.36.1...v0.37.0) (2026-08-26)
 
 
