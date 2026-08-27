@@ -176,10 +176,14 @@ bash or PowerShell variants.
   [`references/test-selection.md`](plugin/references/test-selection.md) picks and blocks on a RED result. That
   file owns the full-versus-focused rule the gate follows. "Tests pass on scope after merging" is
   therefore enforced, not merely prompted. The gate is inactive until `docs/agents/verification.md`
-  records a test command, which `/superdev:setup` does. Once it is active, a merge whose working tree
-  the gate cannot resolve blocks too: a command that changes directory first (`cd <path> && git merge`)
-  and names no `-C` says nothing about which tree it landed in, and so does a `-C` path carrying no
-  `docs/agents/verification.md` while your own checkout does. Run such a merge as
+  records a test command, which `/superdev:setup` does. Once it is active, the gate runs the suite in the
+  tree the merge names — a `-C <path>` or a `--work-tree <path>`, whichever the command carries, with
+  `--work-tree` winning when both are there and a relative `--work-tree` resolved against `-C`, not
+  against your own checkout. A merge whose working tree the gate cannot resolve blocks
+  instead: a command that changes directory first (`cd <path> && git merge`) and names no tree says
+  nothing about which one it landed in, a `--git-dir` with no `--work-tree` updates files in one tree
+  while reading refs from another repository, and a `-C` path carrying no `docs/agents/verification.md`
+  while your own checkout does is a path pointing somewhere other than the merge. Run such a merge as
   `git -C <path> merge …`. A green the gate never verified is worth less than a block naming why.
 - **run-lock.** Blocks a `git worktree add` on a scope worktree (`.superdev/scopes/<scope>/worktree`)
   while a fresh `.superdev/scopes/<scope>/run.lock` exists, so two concurrent lite runs on one scope

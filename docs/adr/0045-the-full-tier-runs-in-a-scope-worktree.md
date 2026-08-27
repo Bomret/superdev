@@ -2,6 +2,10 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0047](0047-the-green-gate-resolves-the-tree-instead-of-capturing-a-c-argument.md),
+which corrects the green-gate mechanism this ADR describes: the hook resolves the merge's working tree
+from `-C` or `--work-tree`, read back out of the matched option region, never from a regex capture group.
+
 **Context.** ADR 0001 established the rule that superdev never switches the invoking checkout, converted
 the `lite` tier to a dedicated scope worktree, and deferred the `full` tier to a follow-on — naming its
 remaining offenders as the scope switch and the merge in the invoking tree. That deferral is still open.

@@ -14,11 +14,11 @@
 // no gate (zero-config repos are unaffected). Subagents can't merge (merge-guard blocks
 // them pre-run), so a merge here is always the controller's; the agent_id check is
 // belt-and-suspenders. The doc read, the suite run, the changed-path diff, the in-progress
-// check, and the branch read all run in the merge's own working tree: a `-C <path>` on the
-// merge command when the controller merges from another worktree, resolveMergeCwd()'s job, or
-// the session cwd unchanged for a bare `git merge`. A scope worktree carries its own
-// `docs/agents/verification.md` on its own branch, so a full run reading it from the session's
-// invoking checkout instead would gate a merged scope with a stale or absent command.
+// check, and the branch read all run in the merge's own working tree: a `-C <path>` or
+// `--work-tree <path>` on the merge command when the controller merges from another worktree,
+// resolveMergeCwd()'s job, or the session cwd unchanged for a bare `git merge`. A scope worktree
+// carries its own `docs/agents/verification.md` on its own branch, so a full run reading it from
+// the session's invoking checkout instead would gate a merged scope with a stale or absent command.
 // ponytail: the suite runs inside the hook, under the 600s `timeout` hooks.json sets on this
 // hook's entry. That is also Claude Code's own default for a `command` hook, and it is set
 // explicitly so the ceiling is stated where the suite runs. A suite slower than it is killed and
@@ -36,14 +36,28 @@ const { execSync } = require('node:child_process');
 // argument is one shell word — ARG below — so a quoted `-C`/`-c` value, an unquoted value with a
 // backslash-escaped space, and a partly-quoted `key=value` (`-c k="v w"`, `--git-dir="a b"`) are
 // all matched as a single token, not just the first non-space run a bare `\S+` would stop at.
-// `-C`'s alternative carries its own capturing group — resolveMergeCwd() below reads it — while
-// `-c` and `--flags` stay uncaptured; `-c`'s VALUE could itself contain `-C `, but only in the
-// global-options position this alternation walks, never inside `-c`'s own alternative.
+// Which option named the tree is read back out of the matched option region by optionValue() below,
+// not from a capture group: the reason sits at IS_MERGE.
 const ARG = /(?:[^\s"'\\]|\\.|"(?:[^"\\]|\\.)*"|'[^']*')+/.source;
 // `--abort` and `--quit` undo or abandon a merge — nothing new landed, so nothing to gate.
 // `--continue` completes one and stays gated.
+// A long global option takes its value in two spellings — `--work-tree=<path>` and `--work-tree
+// <path>` — and `--${ARG}` alone only ever spans the first, so `git --work-tree /wt merge x` tripped
+// no matcher and the gate never fired. The value-taking options are enumerated rather than accepting an
+// optional following word after any long option — the reasoning, and the list itself (git's own
+// value-taking global options, from `handle_options()` in git.c), are merge-guard's own, beside its copy
+// of this token, including why the space-form value is required not to start with `-`
+// (`(?:=|\s+(?!-))`): unrestricted, a long run of enumerated names with no verb backtracks
+// exponentially — the same shape as the pathological command the hook's own 600s timeout above exists
+// to bound, and hitting that ceiling would mean this test never even runs. A valueless use of one of
+// these (`git --exec-path merge x`) still matches, through the `--${ARG}` alternative that follows —
+// `--exec-path` takes no value in git itself, so it stays out of this enumeration.
+// No alternative captures. JS resets every capture group inside a quantified group on each iteration,
+// so only the last option's own capture would survive a match — `git --work-tree /b -C /a merge` would
+// lose `/b`. optionValue() below reads each option out of the matched option region instead.
+const LONG_VALUE_OPT = /--(?:git-dir|work-tree|namespace|config-env|shallow-file|attr-source)/.source;
 const IS_MERGE = new RegExp(
-  `(^|[;&|\\n])\\s*git(?:\\s+(?:-c\\s+${ARG}|-C\\s+(${ARG})|--${ARG}))*\\s+merge(?![-\\w])(?!\\s+--(?:abort|quit)\\b)`,
+  `(^|[;&|\\n])\\s*git(?:\\s+(?:-[cC]\\s+${ARG}|${LONG_VALUE_OPT}(?:=|\\s+(?!-))${ARG}|--${ARG}))*\\s+merge(?![-\\w])(?!\\s+--(?:abort|quit)\\b)`,
   'm'
 );
 
@@ -102,17 +116,107 @@ function unquoteArg(raw) {
 // Upgrade to resolution only with a shell parser, never with a regex.
 const CHANGES_DIR = /(^|[;&|(\n])\s*(?:cd|pushd|popd)(\s|$)/;
 
-// The merge's own working tree: a `-C <path>` on the command, resolved against the session cwd
-// (git itself resolves -C relative to the shell's cwd at invocation, not to this hook's cwd), or
-// the session cwd unchanged when the command carries no -C — a bare `git merge` keeps running
-// where it always has. **`null` when the tree is unknowable**: the command changed directory before
-// the merge and named no `-C`, so the session cwd is the one tree the merge certainly did not touch.
+// The merge's own working tree: a `--work-tree <path>` or `-C <path>` on the command, resolved
+// against the session cwd (git itself resolves both relative to the shell's cwd at invocation, not to
+// this hook's cwd), or the session cwd unchanged when the command names neither — a bare `git merge`
+// keeps running where it always has. **`null` when the tree is unknowable**, in two shapes:
+// the command changed directory before the merge and named no tree, or it named only `--git-dir`.
+//
+// git applies every `-C` in order, each against the directory the previous one left, before it looks at
+// `--work-tree` — so `-C` is folded cumulatively here too (`git -C /a -C b` lands at `/a/b`), and a
+// relative `--work-tree` is resolved against that folded result, not against the session cwd (`git -C
+// /a --work-tree relb merge x` is `/a/relb`). `--work-tree` still wins over a `-C` naming a different
+// path outright (an absolute `--work-tree` overrides the fold): both sit in the same global-option slot,
+// so resolving either needs no shell parsing and is exactly as safe.
+//
+// A `--work-tree` tree is judged verifiable, a bare `--git-dir` is not — not because the files land
+// nowhere nameable (git defines the opposite: with a bare `--git-dir` and no `--work-tree`,
+// `GIT_WORK_TREE`, or `core.worktree`, the current directory IS the top of the working tree — verified
+// on git 2.50.1, `git --git-dir=<other>/.git rev-parse --show-toplevel` prints the cwd), but because
+// this hook's own reads don't carry that `--git-dir`. The suite, `git diff`, the `MERGE_HEAD` check,
+// and the branch read all run as plain `git` invocations in the resolved cwd, so each resolves the
+// repository a normal upward `.git` search finds from there — not necessarily the repository the
+// merge's own `--git-dir` pointed at. The files land exactly where the option said; the branch, the
+// changed-path set, and the in-progress check can still come from a different repository than the one
+// the merge advanced — there is no honest tree to pick. Failing closed on `--git-dir` alone costs the
+// caller one `-C`, the same recovery the directory-changing block asks for. A `-C` alongside a bare
+// `--git-dir` fails closed too: git would take the tree from `-C`, but a command whose repository and
+// tree are named separately is exactly the split this gate cannot verify.
+//
+// Residual ceiling: a `--work-tree` is resolvable but not meaningful when it points at a tree that is
+// not a checkout of the repository whose HEAD the merge is advancing — the gate cannot tell that case
+// apart from a real one, and runs the suite over whatever tree the path names.
 function resolveMergeCwd(cmd, sessionCwd) {
   const m = IS_MERGE.exec(cmd);
-  const raw = m && m[2];
-  if (raw) return path.resolve(sessionCwd, unquoteArg(raw));
-  if (m && CHANGES_DIR.test(cmd.slice(0, m.index))) return null;
+  if (!m) return sessionCwd;
+  const region = optionRegion(m);
+  const cValues = optionValues(region, '-C');
+  const cBase = cValues.reduce((base, v) => path.resolve(base, unquoteArg(v)), sessionCwd);
+  const workTree = optionValue(region, '--work-tree');
+  if (workTree) return path.resolve(cBase, unquoteArg(workTree));
+  if (optionValue(region, '--git-dir')) return null;
+  if (cValues.length) return cBase;
+  if (CHANGES_DIR.test(cmd.slice(0, m.index))) return null;
   return sessionCwd;
+}
+
+// Which of the two unknowable shapes a command is, for the blind reason resolveVerification() writes.
+function namesOnlyGitDir(cmd) {
+  const m = IS_MERGE.exec(cmd);
+  if (!m) return false;
+  const region = optionRegion(m);
+  return Boolean(optionValue(region, '--git-dir')) && !optionValue(region, '--work-tree');
+}
+
+// Which option resolveMergeCwd() actually took the resolved tree from, for the blind reason
+// resolveVerification() writes when that tree turns out to carry no verification doc. Mirrors
+// resolveMergeCwd()'s own precedence: `--work-tree` wins when present, `-C` otherwise — this is only
+// called once resolveMergeCwd() has already returned a resolved (non-null, non-session) cwd, so one of
+// the two is guaranteed to be there.
+function resolvingOption(cmd) {
+  const m = IS_MERGE.exec(cmd);
+  const region = m ? optionRegion(m) : '';
+  return optionValue(region, '--work-tree') ? '--work-tree' : '-C';
+}
+
+// The command's global-option run: everything IS_MERGE matched up to the `merge` verb it ends on.
+function optionRegion(match) {
+  return match[0].slice(0, -'merge'.length);
+}
+
+// Walks the region option-by-option, using the same alternation IS_MERGE itself matched against —
+// `-c`/`-C ARG`, a long value-taking option's ARG, or a bare `--ARG` — so each option's own value is
+// consumed as one token and the scan resumes only past it. That is what closes the gap a flat
+// `region.match(optionName)` scan left open: `-c msg="a -C /elsewhere"` or `-c "msg=a --work-tree
+// /elsewhere"` used to read the quoted VALUE's own text as a second, real option, because the flat scan
+// had no notion of "already inside another option's value" — matchAll's non-overlapping search
+// advances past the whole consumed token, so the embedded text is never revisited.
+const OPTION_TOKEN = new RegExp(
+  `(-[cC])\\s+(${ARG})|(${LONG_VALUE_OPT})(?:=|\\s+(?!-))(${ARG})|--(${ARG})`,
+  'g'
+);
+function parseOptions(region) {
+  const tokens = [];
+  for (const m of region.matchAll(OPTION_TOKEN)) {
+    if (m[1]) tokens.push({ name: m[1], value: m[2] });
+    else if (m[3]) tokens.push({ name: m[3], value: m[4] });
+    else tokens.push({ name: `--${m[5]}`, value: null });
+  }
+  return tokens;
+}
+
+// Every occurrence of one global option, out of that region, in the order it appears — both spellings
+// (`--opt=value`, `--opt value`).
+function optionValues(region, option) {
+  return parseOptions(region)
+    .filter((t) => t.name === option)
+    .map((t) => t.value);
+}
+
+// One global option's value, out of that region — the last occurrence, as git itself takes it.
+function optionValue(region, option) {
+  const values = optionValues(region, option);
+  return values.length ? values[values.length - 1] : null;
 }
 const VERIFICATION_DOC = 'docs/agents/verification.md';
 
@@ -131,24 +235,29 @@ function resolveVerification(cmd, sessionCwd) {
     return {
       full: session.full,
       focused: session.focused,
-      blind:
-        'superdev: green-gate cannot see this merge\'s working tree. The command changes directory and ' +
-        'carries no `-C`, so the gate would run the suite in the session\'s own checkout — a tree the ' +
-        'merge never touched. Run it as `git -C <path> merge …` instead.',
+      blind: namesOnlyGitDir(cmd)
+        ? 'superdev: green-gate cannot verify this merge. The command names its repository with ' +
+          '`--git-dir` and its working tree with nothing, so the files it updates and the refs it ' +
+          'reads live apart — there is no one tree to run the suite over. Run it as ' +
+          '`git -C <path> merge …` instead, or name the tree with `--work-tree <path>`.'
+        : 'superdev: green-gate cannot see this merge\'s working tree. The command changes directory and ' +
+          'carries no `-C`, so the gate would run the suite in the session\'s own checkout — a tree the ' +
+          'merge never touched. Run it as `git -C <path> merge …` instead.',
     };
   }
   if (cwd === sessionCwd) return session;
   const target = readVerification(cwd);
   if (!target.full && session.full) {
+    const option = resolvingOption(cmd);
     return {
       full: null,
       focused: null,
       blind:
         `superdev: green-gate found no \`${VERIFICATION_DOC}\` in the merge's own working tree ` +
-        `(\`${cwd}\`), while this session's checkout carries one. Either the \`-C\` path is not the tree ` +
-        'the merge landed in — point `-C` at the merge tree — or it is that tree and genuinely carries ' +
-        `no \`${VERIFICATION_DOC}\` at all (a \`-C\` subdirectory of this repo, or a branch cut before the ` +
-        'document existed) — verify that tree by hand.',
+        `(\`${cwd}\`), while this session's checkout carries one. Either the \`${option}\` path is not ` +
+        `the tree the merge landed in — point \`${option}\` at the merge tree — or it is that tree and ` +
+        `genuinely carries no \`${VERIFICATION_DOC}\` at all (a \`${option}\` subdirectory of this repo, ` +
+        'or a branch cut before the document existed) — verify that tree by hand.',
     };
   }
   return target;
@@ -289,8 +398,8 @@ function main() {
       process.exit(0); // not our shape → never block
     }
     // The doc read, the suite run, the changed-path diff, the in-progress check, and the branch
-    // read all happen in the merge's own working tree (resolveMergeCwd()'s -C, or the session cwd
-    // with no -C).
+    // read all happen in the merge's own working tree (resolveMergeCwd()'s -C or --work-tree, or the
+    // session cwd when the command names neither).
     const sessionCwd = (input && input.cwd) || process.cwd();
     const cmd = (input && input.tool_input && input.tool_input.command) || '';
     // `null` when the tree is unknowable: resolveVerification() turns that into the blind reason
@@ -350,6 +459,18 @@ if (process.argv[2] === '--selftest') {
   assert.equal(decide(merge('git -C ~/my\\ path merge slice/x/1'), full('npm test'), red, notCalled).block, true, 'git -C <backslash-escaped space, unquoted> merge is gated');
   assert.equal(decide(merge('git -c k="v w" merge slice/x/1'), full('npm test'), red, notCalled).block, true, 'git -c <unquoted key, quoted value> merge is gated');
   assert.equal(decide(merge('git --git-dir="a b" merge slice/x/1'), full('npm test'), red, notCalled).block, true, 'git --git-dir="quoted value with space" merge is gated');
+  assert.equal(decide(merge('git --work-tree /wt merge slice/x/1'), full('npm test'), red, notCalled).block, true, 'git --work-tree <path> merge (space form) is gated');
+  assert.equal(decide(merge('git --work-tree=/wt merge slice/x/1'), full('npm test'), red, notCalled).block, true, 'git --work-tree=<path> merge is gated');
+  assert.equal(decide(merge('git --git-dir /wt/.git merge slice/x/1'), full('npm test'), red, notCalled).block, true, 'git --git-dir <path> merge (space form) is gated');
+  assert.equal(decide(merge('git --git-dir /wt/.git --work-tree /wt merge slice/x/1'), full('npm test'), red, notCalled).block, true, 'two space-form options before the verb');
+  assert.equal(decide(merge('git --work-tree "a b" merge slice/x/1'), full('npm test'), red, notCalled).block, true, 'a quoted space-form value is one shell word');
+  assert.equal(decide(merge('git --no-pager merge slice/x/1'), full('npm test'), red, notCalled).block, true, 'a valueless long option still reaches the verb');
+  assert.equal(decide(merge('git --no-replace-objects merge slice/x/1'), full('npm test'), red, notCalled).block, true, 'another valueless long option reaches the verb');
+  assert.equal(decide(merge('git --exec-path merge slice/x/1'), full('npm test'), red, notCalled).block, true, '--exec-path (not enumerated — git itself takes no value there) still reaches the verb, via the --ARG fallback');
+  assert.equal(decide(merge('git --shallow-file /dev/null merge slice/x/1'), full('npm test'), red, notCalled).block, true, 'git --shallow-file <path> merge (space form) is gated');
+  assert.equal(decide(merge('git --attr-source main merge slice/x/1'), full('npm test'), red, notCalled).block, true, 'git --attr-source <tree> merge (space form) is gated');
+  assert.equal(IS_MERGE.test('git --version'), false, 'git --version is not a merge');
+  assert.equal(decide(merge('git --work-tree /wt status'), full('npm test'), red, notCalled).block, false, 'a space-form read command is not a merge');
   assert.equal(decide(merge('git -c core.editor=true commit -m x'), full('npm test'), red, notCalled).block, false, 'git -c commit ignored');
   assert.equal(decide(merge('git merge --abort'), full('npm test'), red, notCalled).block, false, 'merge --abort undoes a merge, not gated');
   assert.equal(decide(merge('git merge --quit'), full('npm test'), red, notCalled).block, false, 'merge --quit abandons a merge, not gated');
@@ -422,6 +543,16 @@ if (process.argv[2] === '--selftest') {
     assert.equal(ARG, m[1], 'green-gate ARG is byte-identical to merge-guard ARG');
   }
 
+  // a long run of enumerated option names with no verb must not backtrack exponentially (the comment
+  // above LONG_VALUE_OPT owns why) — this resolves well inside any hook timeout, not just eventually
+  {
+    const pathological = 'git ' + '--git-dir '.repeat(60) + 'x; git ' + 'merge main';
+    const t0 = Date.now();
+    IS_MERGE.test(pathological);
+    const elapsed = Date.now() - t0;
+    assert.ok(elapsed < 500, `a pathological long-option run must resolve quickly, took ${elapsed}ms`);
+  }
+
   // --- resolveMergeCwd(): the merge's own working tree, from -C or the session cwd fallback ---
   assert.equal(resolveMergeCwd('git merge --no-ff s', '/session'), '/session', 'no -C → the session cwd');
   assert.equal(resolveMergeCwd('git -C /wt merge slice/x/1', '/session'), '/wt', 'a bare -C path is used as-is (already absolute)');
@@ -447,6 +578,48 @@ if (process.argv[2] === '--selftest') {
     'a backslash-escaped space in an unquoted -C path is unescaped',
   );
   assert.equal(resolveMergeCwd('git merge -C /wt slice/x/1', '/session'), '/session', '-C after `merge` is a merge argument, not the global option');
+
+  // --- the tree `--work-tree` names, and the bare `--git-dir` that fails closed ---
+  assert.equal(resolveMergeCwd('git --work-tree /wt merge s', '/session'), '/wt', '--work-tree <path> names the tree');
+  assert.equal(resolveMergeCwd('git --work-tree=/wt merge s', '/session'), '/wt', '--work-tree=<path> names the tree');
+  assert.equal(resolveMergeCwd('git --work-tree ../wt merge s', '/session'), '/wt', 'a relative --work-tree resolves against the session cwd');
+  assert.equal(
+    resolveMergeCwd('git --work-tree "a b" merge s', '/session'),
+    '/session/a b',
+    'a quoted --work-tree value is unquoted before resolution',
+  );
+  assert.equal(
+    resolveMergeCwd('git --git-dir /wt/.git --work-tree /wt merge s', '/session'),
+    '/wt',
+    '--work-tree names the tree with --git-dir also present',
+  );
+  assert.equal(resolveMergeCwd('git -C /a --work-tree /b merge s', '/session'), '/b', '--work-tree wins over a -C naming another path');
+  assert.equal(resolveMergeCwd('git --work-tree /b -C /a merge s', '/session'), '/b', 'and wins in either order');
+  assert.equal(
+    resolveMergeCwd('git -C /a --work-tree relb merge s', '/session'),
+    '/a/relb',
+    'a relative --work-tree resolves against -C, applied first, not against the session cwd',
+  );
+  assert.equal(
+    resolveMergeCwd('git -C /a -C b merge s', '/session'),
+    '/a/b',
+    'multiple -C options fold cumulatively, each resolved against the previous',
+  );
+  assert.equal(resolveMergeCwd('git --git-dir /wt/.git merge s', '/session'), null, 'a bare --git-dir is ambiguous: the tree is unknowable');
+  assert.equal(resolveMergeCwd('git --git-dir=/wt/.git merge s', '/session'), null, 'the = spelling too');
+  assert.equal(resolveMergeCwd('git --namespace foo merge s', '/session'), '/session', 'another value-taking option names no tree');
+
+  // --- a -c VALUE containing another option's own spelling must not be re-read as that option ---
+  assert.equal(
+    resolveMergeCwd('git -c msg="a -C /elsewhere" merge s', '/session'),
+    '/session',
+    'a -C spelled inside a -c VALUE is that value, not a real -C redirecting the tree',
+  );
+  assert.equal(
+    resolveMergeCwd('git -c "msg=a --work-tree /elsewhere" merge s', '/session'),
+    '/session',
+    'a --work-tree spelled inside a -c VALUE is that value, not a real --work-tree redirecting the tree',
+  );
 
   // --- the unknowable tree: a directory change before the merge, with no -C to say where ---
   assert.equal(resolveMergeCwd('cd /wt && git merge s', '/session'), null, 'a cd before the merge makes the tree unknowable');
@@ -748,6 +921,96 @@ if (process.argv[2] === '--selftest') {
       fs.rmSync(target, { recursive: true, force: true });
     }
 
+    // --- the tree `--work-tree` names is where the gate runs, in both spellings and with
+    // `--git-dir` alongside. The session's own suite is green in each case, so a session-cwd run
+    // would pass and mask the target's failure — the defect this slice closes.
+    {
+      for (const options of ['--work-tree %T', '--work-tree=%T', "--git-dir '%T/.git' --work-tree %T"]) {
+        const session = tmp('gg-session-');
+        const target = tmp('gg-target-');
+        initRepo(session);
+        commitFile(session, 'base.txt', 'x\n');
+        initRepo(target);
+        commitFile(target, 'base.txt', 'x\n');
+        writeVerification(session, 'node -e "process.exit(0)"'); // session: always green
+        writeVerification(target, `node -e "console.error('TARGET-CHECK'); process.exit(1)"`);
+        const command = `git ${options.replace(/%T/g, `'${target}'`)} merge --no-ff other`;
+        const result = runHook({ cwd: session, tool_input: { command } });
+        assert.equal(result.status, 2, `a merge naming its tree with ${options} is gated in that tree`);
+        assert.match(result.stderr, /TARGET-CHECK/, "the block quotes the target's own failure, not a session-cwd run");
+        fs.rmSync(session, { recursive: true, force: true });
+        fs.rmSync(target, { recursive: true, force: true });
+      }
+    }
+
+    // the verification doc, the changed-path set, the in-progress check, and the branch read all come
+    // from the --work-tree target: a doc introduced only there gates, and its own branch is what the
+    // integration/ deferral reads
+    {
+      const session = tmp('gg-session-');
+      const target = tmp('gg-target-');
+      initRepo(session);
+      commitFile(session, 'base.txt', 'x\n');
+      initRepo(target);
+      commitFile(target, 'base.txt', 'x\n');
+      git2(['checkout', '-q', '-b', 'feature'], target);
+      commitFile(target, 'feature.txt', 'x\n');
+      git2(['checkout', '-q', 'main'], target);
+      git2(['merge', '-q', '--no-ff', 'feature', '-m', 'merge feature'], target);
+      // session carries no doc at all; only the target's own branch introduced one
+      writeVerification(
+        target,
+        'node -e "process.exit(0)"',
+        `node -e "console.error('PATHS:' + process.argv.slice(1).join(',')); process.exit(1)" {paths}`,
+      );
+      const introduced = runHook({ cwd: session, tool_input: { command: `git --work-tree '${target}' merge --no-ff other` } });
+      assert.equal(introduced.status, 2, 'a verification doc introduced only on the --work-tree target still gates');
+      assert.match(introduced.stderr, /PATHS:feature\.txt/, 'the changed-path set is computed against the --work-tree target');
+
+      git2(['checkout', '-q', '-b', 'integration/foo'], target);
+      const deferred = runHook({ cwd: session, tool_input: { command: `git --work-tree '${target}' merge --no-ff other` } });
+      assert.equal(deferred.status, 0, 'a merge whose --work-tree target sits on integration/* is deferred');
+      fs.rmSync(session, { recursive: true, force: true });
+      fs.rmSync(target, { recursive: true, force: true });
+    }
+
+    // a merge naming only --git-dir updates files in one tree while reading refs from another
+    // repository, so there is nothing honest to verify: it blocks, naming `git -C <path> merge`
+    {
+      const session = tmp('gg-session-');
+      const target = tmp('gg-target-');
+      initRepo(session);
+      commitFile(session, 'base.txt', 'x\n');
+      initRepo(target);
+      commitFile(target, 'base.txt', 'x\n');
+      writeVerification(session, 'node -e "process.exit(0)"'); // green: the block is the ambiguity
+      for (const options of [`--git-dir '${target}/.git'`, `--git-dir='${target}/.git'`]) {
+        const result = runHook({ cwd: session, tool_input: { command: `git ${options} merge --no-ff other` } });
+        assert.equal(result.status, 2, `a merge naming only ${options} blocks`);
+        assert.match(result.stderr, /git -C <path> merge/, 'the block names the way to run it');
+        assert.match(result.stderr, /--git-dir/, 'the block names the option it could not resolve a tree from');
+      }
+      fs.rmSync(session, { recursive: true, force: true });
+      fs.rmSync(target, { recursive: true, force: true });
+    }
+
+    // no verification doc anywhere → both command shapes stay inert, with no error and no block
+    {
+      const session = tmp('gg-session-');
+      const target = tmp('gg-target-');
+      initRepo(session);
+      commitFile(session, 'base.txt', 'x\n');
+      initRepo(target);
+      commitFile(target, 'base.txt', 'x\n');
+      for (const options of [`--work-tree '${target}'`, `--git-dir '${target}/.git'`]) {
+        const result = runHook({ cwd: session, tool_input: { command: `git ${options} merge --no-ff other` } });
+        assert.equal(result.status, 0, `no verification doc anywhere → inert on ${options}`);
+        assert.equal(result.stderr, '', 'and prints nothing');
+      }
+      fs.rmSync(session, { recursive: true, force: true });
+      fs.rmSync(target, { recursive: true, force: true });
+    }
+
     // a bare `git merge` still runs the suite in the session cwd, exactly as before
     {
       const session = tmp('gg-session-');
@@ -845,6 +1108,21 @@ if (process.argv[2] === '--selftest') {
         /genuinely carries no/,
         'names the other reading: -C is the merge tree, and that tree carries no verification doc at all',
       );
+      fs.rmSync(session, { recursive: true, force: true });
+    }
+
+    // the same asymmetry reached via --work-tree instead of -C: the block report names the option
+    // that actually resolved the tree, not a hardcoded `-C` the command never carried
+    {
+      const session = tmp('gg-session-');
+      const target = path.join(tmp('gg-parent-'), 'does-not-exist');
+      initRepo(session);
+      commitFile(session, 'base.txt', 'x\n');
+      writeVerification(session, 'node -e "process.exit(1)"');
+      const result = runHook({ cwd: session, tool_input: { command: `git --work-tree '${target}' merge --no-ff other` } });
+      assert.equal(result.status, 2, 'a --work-tree path with no verification doc, while the session has one, blocks');
+      assert.match(result.stderr, /`--work-tree` path is not/, 'names --work-tree, the option the command actually carried');
+      assert.doesNotMatch(result.stderr, /`-C` path/, 'does not hardcode -C when the command carried none');
       fs.rmSync(session, { recursive: true, force: true });
     }
 

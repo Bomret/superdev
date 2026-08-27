@@ -21,8 +21,27 @@
 // inside the value doesn't close the span early; single quotes have no escapes in POSIX shells, so
 // `'[^']*'` stays literal.
 const ARG = /(?:[^\s"'\\]|\\.|"(?:[^"\\]|\\.)*"|'[^']*')+/.source;
+// A long global option takes its value in two spellings — `--work-tree=<path>` and `--work-tree
+// <path>` — and `--${ARG}` alone only ever spans the first, so `git --work-tree /wt merge x` matched
+// nothing at all and a subagent could integrate through it. The value-taking options are enumerated
+// rather than accepting an optional following word after any long option: the general form is shorter
+// but leans on backtracking to keep `git --no-pager merge x` matching, which makes `git --a --b --c …`
+// with no verb ambiguous between "option with value" and "two options" at every step. The list is
+// git's own set of value-taking global options, from `handle_options()` in git.c — re-derive it there.
+// The space-form value is required not to start with `-` (`(?:=|\s+(?!-))`): without that restriction
+// a run of enumerated names with no verb (`--git-dir --git-dir … x; git merge main`) keeps both
+// readings of every adjacent pair live — "the first took the second as its value" and "both are bare"
+// — and that ambiguity compounds across the run, exponentially: measured on this file's own regex, 26
+// tokens took 25ms and 30 took 156ms, doubling every two tokens. `hooks.json` sets no `timeout` on this
+// hook's entry, so it runs at the platform default, and a PreToolUse hook that exceeds its timeout
+// fails OPEN — it never reached a verdict, so nothing blocks. The restriction collapses each pair to
+// one live reading (a value can never itself look like another option), which is linear regardless of
+// the run's length — 0ms at 400 tokens, measured. A valueless use of one of these (`git --exec-path
+// merge x`) still matches, through the `--${ARG}` alternative that follows — `--exec-path` takes no
+// value in git itself, so it stays out of this enumeration.
+const LONG_VALUE_OPT = /--(?:git-dir|work-tree|namespace|config-env|shallow-file|attr-source)/.source;
 const BLOCK = new RegExp(
-  `(^|[;&|\\n])\\s*git(?:\\s+(?:-[cC]\\s+${ARG}|--${ARG}))*\\s+(merge|push|rebase)(?![-\\w])`,
+  `(^|[;&|\\n])\\s*git(?:\\s+(?:-[cC]\\s+${ARG}|${LONG_VALUE_OPT}(?:=|\\s+(?!-))${ARG}|--${ARG}))*\\s+(merge|push|rebase)(?![-\\w])`,
   'm'
 );
 // Integration via the code-host CLI is the controller's job too: `gh pr merge` / `tea pr merge`.
@@ -94,6 +113,27 @@ if (process.argv[2] === '--selftest') {
   assert.equal(decide(sub('git --git-dir="a b" push')).block, true, 'git --git-dir="quoted value with space" push');
   assert.equal(decide(sub('git -C .superdev/scopes/x/worktree rebase main')).block, true, 'git -C rebase');
   assert.equal(decide(sub('git --no-pager push origin s')).block, true, 'inline global flag before push');
+  assert.equal(decide(sub('git --work-tree /wt merge x')).block, true, 'git --work-tree <path> merge (space form)');
+  assert.equal(decide(sub('git --work-tree=/wt merge x')).block, true, 'git --work-tree=<path> merge');
+  assert.equal(decide(sub('git --git-dir /wt/.git push origin main')).block, true, 'git --git-dir <path> push (space form)');
+  assert.equal(decide(sub('git --git-dir /wt/.git --work-tree /wt merge x')).block, true, 'two space-form options before the verb');
+  assert.equal(decide(sub('git --work-tree "a b" merge x')).block, true, 'a quoted space-form value is one shell word');
+  assert.equal(decide(sub('git --no-pager merge x')).block, true, 'a valueless long option still reaches the verb');
+  assert.equal(decide(sub('git --exec-path merge x')).block, true, '--exec-path (not enumerated — git itself takes no value there) still reaches the verb, via the --ARG fallback');
+  assert.equal(decide(sub('git --shallow-file /dev/null merge x')).block, true, 'git --shallow-file <path> merge (space form)');
+  assert.equal(decide(sub('git --attr-source main merge x')).block, true, 'git --attr-source <tree> merge (space form)');
+
+  // a long run of enumerated option names with no verb must not backtrack exponentially (the comment
+  // above LONG_VALUE_OPT owns why) — this resolves well inside any hook timeout, not just eventually
+  {
+    const pathological = 'git ' + '--git-dir '.repeat(60) + 'x; git ' + 'merge main';
+    const t0 = Date.now();
+    decide(sub(pathological));
+    const elapsed = Date.now() - t0;
+    assert.ok(elapsed < 500, `a pathological long-option run must resolve quickly, took ${elapsed}ms`);
+  }
+  assert.equal(decide({ tool_input: { command: 'git --work-tree /wt merge x' } }).block, false, 'the controller still merges in the space form');
+  assert.equal(decide(sub('git --work-tree /wt status')).block, false, 'a space-form read command is fine');
   assert.equal(decide(sub('git -c user.name=x commit -m x')).block, false, 'git -c commit is fine');
   assert.equal(decide(sub('git -C ../scope status')).block, false, 'git -C read is fine');
   assert.equal(decide(sub('gh pr merge 5 --squash')).block, true, 'gh pr merge');
