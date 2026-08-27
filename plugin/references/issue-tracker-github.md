@@ -17,6 +17,8 @@ Slices live as GitHub issues — one slice = one issue. Use the GitHub REST API 
 - **Assignee**: `<login>` — the GitHub login every issue a run creates is assigned to (see *Assignee*
   below). Set to `none` to create issues unassigned; remove the line entirely to fall back to whoever the
   token belongs to.
+- **Triage label**: `<triage>` — the label a **triage record** carries (*Triage record* below), and the
+  only label it carries. Default `triage`.
 - **Tooling**: `<rest>` or `<gh CLI>` (see *Tooling* below).
 - **Labels must exist first.** Create the feature label, the release label (`released`, *Release* below),
   and the status labels (`ready`, `in-progress`,
@@ -190,6 +192,33 @@ dispatch swaps to `in-progress`.
   that found the anchor already returned — no extra call.
 - A feature whose anchor lacks the label is unreleased. Nothing else about the issue says so, and no other
   label means it.
+
+## Triage record
+
+`CONTEXT.md` → *Triage record*, ADR 0046. `/superdev:review` creates one the moment it defers a finding.
+On this store it is an ordinary issue carrying the **Triage label** from *Configuration* and nothing else.
+
+- **Create it:** `POST /repos/<owner>/<repo>/issues` with
+  `{ "title": "<the finding, one line>", "body": "<the finding, why no Definition of Done criterion
+  covered it, the date, the feature label, the scope branch, the scope anchor's reference, and a
+  copy-pasteable /superdev:plan \"<the finding>\" line>", "labels": ["<triage>"] }`. Omit `assignees`
+  entirely: a triage record is created **unassigned**, whatever *Assignee* configures, because nobody has
+  picked the work up. Capture the returned `number` as the record's reference — `/superdev:review` puts it
+  in the ledger bullet. No sub-issue link: a triage record belongs to no epic.
+- **The label is created when it is missing.** Labels are addressed by name here, and *Configuration*'s
+  **Labels must exist first** rule covers the ones `/superdev:plan` writes. This one is written by a review
+  instead, which may be the first time the repository ever needs it: read
+  `GET /repos/<owner>/<repo>/labels` (paginated), and create it with `POST /repos/<owner>/<repo>/labels`
+  (`{ "name": "<triage>", "color": "ededed" }`) when it is absent, then create the issue above. **A `422`
+  reporting the name as `already_exists` means the label is there** — a page after the first read missed
+  it — so skip straight to the issue create above: labels are addressed by name here, and the name is
+  already in hand. A record that lands label-less is invisible to the query that is the point of writing
+  it.
+- **No feature label and no `ready` label.** Those two are what `/superdev:afk`'s candidate listing and
+  `/superdev:implement`'s slice loading select on, so a triage record carrying either would be picked up as
+  work to build. It is a record of unplanned work, not a slice.
+- **No pull-request URL.** `/superdev:review` runs before `/superdev:ship` opens one, so none exists at
+  defer time and the body names none.
 
 ## Run state
 

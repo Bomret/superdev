@@ -85,8 +85,15 @@ plan runs test-first, inline in the scope worktree.
   whole-scope review gate in the implement chain: it checks the scope against that run's `dod.md`, and it
   can drive one fix loop after asking once. That loop changes how the code meets the Definition of Done; a
   finding whose remedy would add a capability nobody planned goes to `/superdev:plan` instead of growing
-  the scope under review (ADR 0035). Either way it dispatches the same `final-reviewer` and
-  `simplicity-reviewer` subagents and reports one consolidated verdict.
+  the scope under review (ADR 0035). Such a finding gets a **triage record** in your slice store as the
+  review defers it: an issue carrying a `triage` label, or a file under `docs/plans/triage/` on the local
+  plan-file store. On an issue backend, the record reaches your backlog, not just the run's ledger and
+  the pull-request body, both of which end with the run. On the local plan-file store, the record reaches
+  your backlog only once the scope that created it ships
+  ([ADR 0046](docs/adr/0046-a-deferred-finding-becomes-a-triage-record.md),
+  [ADR 0048](docs/adr/0048-a-local-store-triage-record-needs-its-scope-to-ship.md)). It carries no feature label
+  and no `ready` label, so nothing ever builds it by accident. Either way the command dispatches the same
+  `final-reviewer` and `simplicity-reviewer` subagents and reports one consolidated verdict.
 - **`/superdev:document`**. Dispatches the `doc-writer` to reconcile the in-repo docs (the `AGENTS.md`
   hierarchy) and the optional knowledge base with the current code. It adds what is new and **removes
   stale or obsolete** text. For a remote knowledge-base backend it writes each page as a **staged page**

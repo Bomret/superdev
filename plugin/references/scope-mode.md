@@ -429,16 +429,26 @@ It answers a third question, beside the two above: `## Degraded passes` says how
 A deferred finding is therefore **not** an unresolved defect — it holds no stage, starts no fix loop, and
 a verdict whose only remaining findings are deferred counts as clean.
 
+**The record has two halves, and the durable one is the store's.** A **triage record** in the configured
+slice store is what outlives this run: `hooks/scope-prune.js` reaps the run root once the scope ships and
+goes stale, and `/superdev:ship` closes the scope anchor that mirrors it, so a bullet alone leaves the
+finding in the body of a merged pull request and in no backlog at all (ADR 0046). `/superdev:review`
+creates that record at the moment it defers, and the bullet below carries the record's reference. **How a
+store creates one is the store's own contract**, stated in the active `docs/agents/issue-tracker.md`'s
+`## Triage record` section — an issue carrying that store's triage label, a file under a directory no
+candidate listing walks, whatever that backend renders. The write is best-effort, the same posture every
+status write in the chain takes: a failure is reported once per run and the bullet still gets written.
+
 **The entry.** A `**Deferred:**` line in `<run-root>/ledger.md`, beside `**Stage:**`, carrying one bullet
 per deferred finding. Write each with
 `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js deferred add "<text>" --root <run-root>`, which creates the
-line when absent and appends when present. Each bullet names the finding, why no criterion covers it, and
-the date:
+line when absent and appends when present. Each bullet names the finding, why no criterion covers it, the
+triage record's reference, and the date:
 
 ```markdown
 **Stage:** reviewed
 **Deferred:**
-- carry a deferred finding into the pull-request body — no DoD criterion covers durability (2026-08-23)
+- carry a deferred finding into the pull-request body — no DoD criterion covers durability — triage record #421 (2026-08-23)
 ```
 
 A run with nothing deferred carries **no such line at all** — absent, never present and empty.

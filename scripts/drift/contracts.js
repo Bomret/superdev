@@ -850,6 +850,45 @@ const DENIAL_RESET_CONTRACTS = [
   ],
 ];
 
+// ADR 0046. A **triage record** is the store-native record a deferred finding gets (`CONTEXT.md` →
+// *Triage record*), and it is the only home that outlives the run root `hooks/scope-prune.js` reaps and
+// the scope anchor `/superdev:ship` closes. `/superdev:review` writes it through the active store
+// document, so a store document with no `## Triage record` section leaves the command asking a backend
+// for a record that backend never defined: the review defers, the ledger bullet is written, and the
+// finding reaches no backlog anywhere. `scanTriageRecordContract()` (`scanners.js`) walks
+// `storeDocuments()` for the presence half — the same candidate list the anchor and release contracts
+// already walk, including a backend seed added later and this repo's own dogfooded
+// `docs/agents/issue-tracker.md` — rather than naming the seeds here, so a fifth backend gets the
+// requirement for free instead of a second row nobody remembers to add.
+const TRIAGE_RECORD_PATTERN = /^#{2,3}\s+Triage record\s*$/m;
+
+const TRIAGE_RECORD_EXPECTATION =
+  'carry a `## Triage record` section stating how this backend creates the record a deferred finding ' +
+  'gets, per ADR 0046';
+
+// The writer's half is two documents, and each fails alone. `commands/review.md` is what actually creates
+// the record, at the one bullet that already runs `deferred add`: a bullet that drops the clause writes the
+// ledger entry and no record, which is the state ADR 0046 exists to end, and nothing goes red.
+// `references/scope-mode.md` owns the entry's shape for every reader of it — `/superdev:ship` copies the
+// bullet, `/superdev:status` prints it — so a section that never mentions the record leaves the reference
+// in the bullet unexplained. Neither row pins the mechanics: those are the store's, and pinning them here
+// would hardcode a backend into a tool-agnostic document. The store-presence half runs separately, as
+// `scanTriageRecordContract()`, over the same candidate list `scanAnchorContract`/`scanReleaseContract` use.
+const TRIAGE_RECORD_CONTRACTS = [
+  [
+    path.join('commands', 'review.md'),
+    /create the triage record[\s\S]{0,700}deferred add/,
+    'create the triage record in the configured slice store **before** the `scope.js deferred add` write, ' +
+      "and carry the record's reference in the bullet text",
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /triage record[\s\S]{0,900}`docs\/agents\/issue-tracker\.md`/,
+    'name the triage record as part of the deferred-finding record, and defer the per-backend mechanics ' +
+      'to the active `docs/agents/issue-tracker.md`',
+  ],
+];
+
 // The four call sites above must never restate the cap's own number: `references/scope-mode.md`'s
 // `## Degraded passes` section states it once, and a call site names that section by reference instead of
 // repeating the digit. `DENIAL_CAP_CONTRACTS` above only pins the verbs (`add-denial`, `get denials`), so
@@ -2287,4 +2326,7 @@ module.exports = {
   PUBLISH_RUN_STATE_CONTRACTS,
   ADOPT_RUN_STATE_CONTRACTS,
   RESUMED_WORKTREE_TRIGGER_CONTRACTS,
+  TRIAGE_RECORD_CONTRACTS,
+  TRIAGE_RECORD_PATTERN,
+  TRIAGE_RECORD_EXPECTATION,
 };

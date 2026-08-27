@@ -15,6 +15,7 @@ const {
   scanAnchorContract,
   scanAppendContract,
   scanReleaseContract,
+  scanTriageRecordContract,
   scanAfkSelectionNeutrality,
   scanAfkAnchorCount,
   scanWritingStandardContract,
@@ -49,6 +50,7 @@ const {
   DENIAL_AUTHORSHIP_CONTRACTS,
   DENIAL_CAP_CONTRACTS,
   DENIAL_RESET_CONTRACTS,
+  TRIAGE_RECORD_CONTRACTS,
   DERIVED_CRITERIA_CONTRACTS,
   LABEL_VALIDATION_CONTRACTS,
   GREEN_GATE_TIMEOUT_CONTRACTS,
@@ -401,6 +403,15 @@ module.exports = [
     'the cap states the reset that returns the budget, and the block a capped run leaves names it',
     { stripFrontmatterFirst: true },
   ),
+  {
+    id: 'triage-record',
+    ok: 'every slice-store seed states where a deferred finding\'s triage record lives',
+    run: (root) => [
+      ...scanTriageRecordContract(root),
+      ...scanContract(root, TRIAGE_RECORD_CONTRACTS),
+    ],
+    format: contractGap,
+  },
 ];
 
 // The anchor contract and the afk-selection neutrality check report into the same sentence: a gap with

@@ -13,6 +13,7 @@ const {
   scanAnchorContract,
   scanAppendContract,
   scanReleaseContract,
+  scanTriageRecordContract,
   scanAfkSelectionNeutrality,
   scanAfkAnchorCount,
   scanWritingStandardContract,
@@ -1509,6 +1510,72 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // an absent document is skipped, so a fixture carries only the docs it exercises
   assert.equal(
     scanReleaseContract(fixture({ 'README.md': '# repo\n' })).length,
+    0,
+    'an absent document is skipped rather than reported',
+  );
+
+  // --- scanTriageRecordContract: every slice-store document states where a deferred finding's triage
+  // record lives (ADR 0046), over the same storeDocuments() candidate list scanAnchorContract and
+  // scanReleaseContract already walk — so a fifth backend seed, or this repo's own dogfooded
+  // docs/agents/issue-tracker.md, gets the requirement without a second hardcoded row. ---
+
+  // positive: a store document with no triage-record section is flagged
+  const trSeed1 = fixture({ 'references/issue-tracker-acme.md': '# acme\n\nSlices are issues.\n' });
+  const trSeedGaps1 = scanTriageRecordContract(trSeed1);
+  assert.equal(trSeedGaps1.length, 1, 'flags a store document with no triage-record section');
+  assert.equal(trSeedGaps1[0].source, path.join('references', 'issue-tracker-acme.md'), 'names the seed');
+
+  // negative: the same document carrying the section is clean
+  assert.equal(
+    scanTriageRecordContract(
+      fixture({
+        'references/issue-tracker-acme.md':
+          '# acme\n\n## Triage record\n\nAn issue carrying the `triage` label.\n',
+      }),
+    ).length,
+    0,
+    'a store document carrying the section yields zero gaps',
+  );
+
+  // positive: one of the real seeds loses it, and the gap names that seed
+  const triageSection = '# store\n\n## Triage record\n\nAn issue carrying the `triage` label.\n';
+  const trDropped = {
+    'references/issue-tracker-forgejo.md': triageSection,
+    'references/issue-tracker-github.md': triageSection,
+    'references/issue-tracker-jira.md': triageSection,
+    'references/issue-tracker-local.md': '# store\n\nA plan file is a triage record when somebody says so.\n',
+  };
+  const trGaps = scanTriageRecordContract(fixture(trDropped));
+  assert.equal(trGaps.length, 1, 'flags the seed that dropped the section');
+  assert.equal(
+    trGaps[0].source,
+    path.join('references', 'issue-tracker-local.md'),
+    'names the seed that dropped it',
+  );
+
+  // a `###` heading satisfies the row too, the same latitude every other section pattern allows
+  assert.equal(
+    scanTriageRecordContract(
+      fixture({ 'references/issue-tracker-jira.md': '# store\n\n### Triage record\n\nAn issue.\n' }),
+    ).length,
+    0,
+    'a deeper heading level still carries the section',
+  );
+
+  // this repo's own dogfooded store config is checked alongside the seeds
+  const trDogfood = scanTriageRecordContract(fixture({ 'docs/agents/issue-tracker.md': '# Slice store\n\nIssues.\n' }));
+  assert.equal(trDogfood.length, 1, 'the dogfooded store config is checked too');
+  assert.equal(trDogfood[0].source, path.join('docs', 'agents', 'issue-tracker.md'), 'names it');
+
+  // a fifth backend seed dropped into references/ is covered without any change to this scanner
+  const trFifth = scanTriageRecordContract(
+    fixture({ 'references/issue-tracker-acme.md': '# acme\n\nNo triage-record section here.\n' }),
+  );
+  assert.equal(trFifth.length, 1, 'a seed this scanner has never seen before is still held to the contract');
+
+  // an absent document is skipped, so a fixture carries only the docs it exercises
+  assert.equal(
+    scanTriageRecordContract(fixture({ 'README.md': '# repo\n' })).length,
     0,
     'an absent document is skipped rather than reported',
   );

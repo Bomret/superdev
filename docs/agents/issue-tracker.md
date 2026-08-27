@@ -15,6 +15,8 @@ Slices live as Codeberg issues in `bomret/superdev`, one slice per issue. Use th
 - **Assignee:** `bomret`, the Codeberg login every issue a run creates is assigned to (see
   *Assignee* below). Set it to `none` to create issues unassigned. Remove the line entirely to fall back
   to whoever `GITEA_TOKEN` belongs to.
+- **Triage label:** `triage`, the label a triage record carries (*Triage record* below), and the only
+  label it carries.
 
 ## Field mapping (plan-contract to Forgejo)
 
@@ -136,6 +138,27 @@ swaps that one to `in-progress`.
   the issue listing that found it.
 - An anchor without the label is unreleased: `/superdev:implement` asks before building it, and
   `/superdev:afk` passes over it.
+
+## Triage record
+
+`CONTEXT.md` → *Triage record*, ADR 0046. `/superdev:review` creates one the moment it defers a finding.
+Here it is an ordinary Codeberg issue carrying the label **`triage`** and nothing else.
+
+- **Create it:** `POST /api/v1/repos/bomret/superdev/issues` with
+  `{ "title": "<the finding, one line>", "body": "<the finding, why no Definition of Done criterion
+  covered it, the date, the feature label, the scope branch, the scope anchor's `#<n>`, and a
+  copy-pasteable /superdev:plan \"<the finding>\" line>", "labels": [<the `triage` label id>] }`. Omit
+  `assignees` entirely, whatever *Assignee* above configures: nobody has picked the work up. Capture the
+  returned `number` as the record's reference, which `/superdev:review` puts in the ledger bullet.
+- **Resolve the label by id, and create it when it is missing.**
+  `GET /api/v1/repos/bomret/superdev/labels` first (paginated). No `triage` there → create it with
+  `POST /api/v1/repos/bomret/superdev/labels` (`{ "name": "triage", "color": "#ededed" }`), then pass the
+  new id on the create above. **A create that reports the name as already taken means the label is
+  there** — a page after the first read missed it — so re-read the list for its id and carry on. A
+  label-less record is invisible to the query that is the point of writing it.
+- **No feature label and no `ready` label.** Those two are what `/superdev:afk`'s candidate listing and
+  `/superdev:implement`'s slice loading select on, so a record carrying either would be built as work.
+- **No pull-request URL.** `/superdev:review` runs before `/superdev:ship` opens one, so none exists yet.
 
 ## Run state
 

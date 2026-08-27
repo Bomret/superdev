@@ -26,6 +26,9 @@ docs/plans/<type>/<feature-slug>/
   `<summary>` is a short kebab-case slug.
 - The zero-padded number **is the slice `id`** (`01`, `02`, …). `depends-on` references those numbers
   directly (e.g. `depends-on: [01, 03]`).
+- **Triage label:** none. This store has no labels at all, so a **triage record** is a file in its own
+  directory instead, `docs/plans/triage/` (*Triage record* below). That directory is this store's
+  configuration for it, and it is the one place under `docs/plans/` that holds no feature.
 
 Numbers are assigned in reading/authoring order — roughly topological, so a slice usually gets a higher
 number than the slices it depends on — but the **authoritative dependency graph is `depends-on`**, not
@@ -129,6 +132,43 @@ release question on this store, `/superdev:implement` treats every feature as re
 
 A team that wants a release gate on plan files configures a different store, or records the signal here
 instead — a `released: yes` line in the epic file's header, read where the status line is read.
+
+## Triage record
+
+`CONTEXT.md` → *Triage record*, ADR 0046. `/superdev:review` creates one the moment it defers a finding.
+This store has no labels, so the record is a **file**: `docs/plans/triage/<slug>.md`, where `<slug>` is a
+short kebab-case summary of the finding. A file already at that path takes a `-2`, `-3`, … suffix, so two
+findings summarised the same way stay two records.
+
+```markdown
+# <the finding, one line>
+
+status: triage
+feature-label: <type>/<feature-slug>
+anchor: docs/plans/<type>/<feature-slug>/00-epic-<summary>.md
+date: <YYYY-MM-DD>
+
+<the finding, and why no Definition of Done criterion covered it>
+
+/superdev:plan "<the finding>"
+```
+
+- **`feature-label` doubles as the scope branch name** (`## Layout` above), so the record carries no
+  separate `scope-branch` field.
+- **`docs/plans/triage/<slug>.md` is invisible to `/superdev:afk`'s candidate listing** by construction.
+  `## Scope anchor` above states the real rule: the listing walks `docs/plans/*/*/`, each **directory**
+  two levels under `docs/plans/`, with no change-type allowlist. A triage record is a **file**, not a
+  directory, sitting one directory level under `docs/plans/` (`docs/plans/triage/`) — it never reaches the
+  second directory level that walk requires, so it is skipped on shape, not on `triage` failing some
+  change-type test. It carries no `ready` status either, which is the second thing `/superdev:implement`
+  selects on.
+- **The anchor line is a path, not an issue reference**, since that is what this store's scope anchor is.
+- **No pull-request URL.** `/superdev:review` runs before `/superdev:ship` opens one, so none exists at
+  defer time and the file names none.
+- **`/superdev:review` commits the file on the scope branch**, in the scope checkout, the moment it
+  creates it — like every other plan file here — so an uncommitted record never blocks
+  `hooks/worktree-sweep.js`'s later `git worktree remove` on a dirty tree, and it rides the pull request
+  the run opens.
 
 ## Run state
 

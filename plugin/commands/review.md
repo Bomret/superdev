@@ -23,8 +23,11 @@ Either way the reviewers themselves are the same read-only subagents.
   final-reviewer so it can re-run the suite over the range and confirm green, not just read the diff.
   **In scope mode, §4 instead runs the full command itself before dispatch and hands the result, not
   just the command, to `final-reviewer`** (ADR 0025).
-- **Neither file is required.** This command works in any repo, including one never set up for superdev
-  — it just loses the test-command hint.
+- Read `docs/agents/issue-tracker.md`, if present, for its `## Triage record` section — §4's deferral
+  branch creates a triage record there when a finding is deferred, and needs to know whether that section
+  exists before it reaches that branch.
+- **None of the three files is required.** This command works in any repo, including one never set up
+  for superdev — it just loses the corresponding hint.
 
 ## 1. Range
 
@@ -199,15 +202,42 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   reviews against the result you hand it.
 - **The fix loop changes how the code meets the Definition of Done.** A finding whose remedy **adds a
   capability the Definition of Done never named** is recorded and handed to **`/superdev:plan`**: report it
-  under §3's `### Deferred to a plan` heading, name the follow-up command, write it to the run with
-  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deferred add "<text>" --root <run-root>`, and leave the
-  scope as it is. Write the ledger entry once per finding: **read `scope.js get deferred` first and skip a
-  finding it already reports.** `deferred add` carries no `clear` counterpart, so every duplicate is
-  permanent, and two paths reach it — a later fix cycle whose re-review returns the same still-deferred
-  finding, and a second `/superdev:review` invocation on the same run, which remembers nothing of the
-  first. The read covers both, where "only on the first cycle" covers one. The report is this conversation and the ledger outlives it, which is what
+  under §3's `### Deferred to a plan` heading, name the follow-up command, and give the finding a home
+  that outlives this run before you write anything to the ledger.
+  **Read `scope.js get deferred` first, and skip a finding it already reports** — that one read guards both
+  writes below, so a finding the line already carries creates no second triage record and gets no second
+  ledger bullet either. `deferred add` carries no `clear` counterpart, so every duplicate is permanent, and
+  two paths reach it — a later fix cycle whose re-review returns the same still-deferred finding, and a
+  second `/superdev:review` invocation on the same run, which remembers nothing of the first. "Only on the
+  first cycle" covers one of those paths; this read covers both.
+  **The active store document (`docs/agents/issue-tracker.md`) states no `## Triage record` section** —
+  every repo set up before that section existed, and every "Other (GitLab Issues, Linear, …)" backend
+  `commands/setup.md` never seeded one for — has nowhere to create a record. Report that, and write only
+  the ledger bullet below, with `no triage record — store defines none` in the reference's place: on a
+  backend `/superdev:setup` seeds a section for, re-running it is what adds one; on an "Other" backend the
+  section is what the store document owes, and the operator writes it by hand, from one of the shipped
+  `references/issue-tracker-*.md` seeds. This folds into the best-effort posture the rest of this bullet
+  already states.
+  **Otherwise, create the triage record first**, in the configured slice store, the way that store's own
+  `## Triage record` section states. Its body carries the finding, why no
+  Definition of Done criterion covered it, the date, the feature label, the scope branch, the scope
+  anchor's reference, and a copy-pasteable `/superdev:plan "<the finding>"` line — and **no pull-request
+  URL**, because this command runs before `/superdev:ship` opens
+  one and none exists yet. Capture the record's reference, then write it to the run with
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deferred add "<text>" --root <run-root>` — **the bullet
+  text carries that reference**, which is what leads a reader of the ledger, the pull-request body, or
+  `/superdev:status` to the record. **The create fails** → the bullet names the failure in the
+  reference's place instead — `no triage record — create failed`, or, when a permission classifier is what
+  refused the write, `no triage record — create denied` — so either reads apart from a bullet whose
+  record exists, the way a degraded pass records its own denial in the ledger rather than only in this
+  conversation. Then leave the
+  scope as it is. **The store write is best-effort**, exactly as every status write in the chain is: a
+  create that fails is reported once per run, the ledger bullet is written regardless, and
+  the review carries on — the run's own record is the one that gates nothing on a store being reachable.
+  The report is this conversation and the ledger outlives it, which is what
   carries the finding to the pull request `/superdev:ship` opens (ADR 0035). An ad-hoc range has no run
-  root: report it and write nothing.
+  root: report it and write nothing — no ledger bullet, and no triage record, since the record's body names
+  a feature label, a scope branch, and a scope anchor an ad-hoc range does not have.
   Repairing a defect in what the Definition of Done *does* name stays in this loop, and such a repair is
   often behavioural — a missing guard, an unhandled failure mode, a wrong branch. That is the line: not
   "behaviour", but whether the plan asked for it (ADR 0035). A remedy the review builds here is one the

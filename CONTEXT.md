@@ -169,8 +169,9 @@ named. It starts no fix loop, holds no run stage, and is not an **Unresolved def
 records it under its report's `### Deferred to a plan` heading instead and hands it to `/superdev:plan`.
 It reaches three homes at once: a **Triage record** in the slice store, a `**Deferred:**` bullet in the
 run's ledger carrying that record's reference, and the pull-request body `/superdev:ship` copies the
-bullet into. The triage record is the one that outlives the run root and the closed scope anchor
-(ADR 0035, 0046).
+bullet into. On an issue backend, the triage record outlives the run root and the closed scope anchor
+regardless of whether the scope ever ships. On the local plan-file store, it outlives the run root and
+the closed scope anchor only once the scope branch carrying it merges (ADR 0035, 0046, 0048).
 _Avoid: "scope growth", "out-of-scope finding" (the point is the DoD boundary, not that the finding is
 unwelcome or off-topic)_
 

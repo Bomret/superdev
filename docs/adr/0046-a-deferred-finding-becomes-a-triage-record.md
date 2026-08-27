@@ -2,6 +2,10 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0048](0048-a-local-store-triage-record-needs-its-scope-to-ship.md). It qualifies the
+Consequences claim that a scope that never ships loses nothing. On the local plan-file store, the record
+needs its scope to ship before it reaches any listing.
+
 ## Context
 
 ADR 0035 gave a deferred finding two homes: the review's own report, and the run's ledger, from where

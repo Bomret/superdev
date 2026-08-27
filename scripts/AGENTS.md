@@ -211,7 +211,7 @@ every drift assertion by id, and it fell behind at five separate additions, beca
 maintained by hand at the moment its author is thinking about code. Naming the exceptions cannot drift
 when a new check lands.
 
-`drift-check.js` guards sixty things, in the order `drift/checks.js` registers them. First, the
+`drift-check.js` guards sixty-one things, in the order `drift/checks.js` registers them. First, the
 `reference` contract: every `references/*.md` path named in `commands/`, `agents/`, or `references/`
 itself resolves to a file that exists. A reference cites another reference, as both execution
 playbooks point at `scope-mode.md`, so a rename there dangles like any other. Second, the
@@ -949,6 +949,36 @@ comment, and the way back is a section away. The fourth row's pattern spans from
 to `reset-denials`, so it matches inside the block procedure rather than anywhere the file happens to say
 both words.
 
+Sixty-first, the `triage-record` contract (ADR 0046): a scanner plus two rows. `scanTriageRecordContract`
+(`scripts/drift/scanners.js`) walks `storeDocuments()` for the presence half — the same call
+`scanAnchorContract` and `scanReleaseContract` already make over the same candidate list, every
+`references/issue-tracker-*.md` seed plus this repo's own dogfooded `docs/agents/issue-tracker.md` — and
+reports the ones carrying no `## Triage record` section, stating where a **triage record** lives on that
+backend, including `references/issue-tracker-local.md`, whose rendering is a file under
+`docs/plans/triage/` rather than a label, because that store has no labels at all. Two more rows, a table
+run through `scanContract()`, sit on `commands/review.md` and `references/scope-mode.md`, the two
+documents that write it. The record is what makes a deferred finding outlive its run —
+`hooks/scope-prune.js` reaps the run root, `/superdev:ship` closes the scope anchor, and before this
+record the only survivor was the body of a merged pull request, which appears in no backlog and no query.
+`/superdev:review` writes it through whichever store document is active, so a store document with no
+`## Triage record` section leaves the command asking a backend for a record that backend never defined:
+the review defers, the ledger bullet lands, and the finding reaches nothing. Walking `storeDocuments()`
+rather than a hardcoded four-seed table is what covers a fifth backend seed, and this repo's own dogfooded
+config, the moment either exists, with no second row for anyone to remember to add.
+
+The two writer rows fail independently, and for different reasons. `commands/review.md`'s row spans from
+the record to the `deferred add` call, so it pins the **ordering** as well as the presence: a bullet
+written before the record is exactly what a failed create leaves behind, and a command that reverses the
+two reads as if that were the design. `references/scope-mode.md`'s row spans from the record to
+`docs/agents/issue-tracker.md`, which pins the split — the reference names the record and sends the reader
+to the active store document for the mechanics. A reference that states the mechanics itself hardcodes a
+backend into a tool-agnostic document, which the **Backends are pluggable** working rule exists to
+prevent, and it stays green against a store that renders the record some other way.
+
+What a section must *say* past what its own row spans stays a review's job: a seed that names the create
+call but drops the "no feature label and no `ready` label" clause writes a record `/superdev:afk` then
+selects as work to build, and no pattern here catches that.
+
 The first and seventh checks are opposites. The first catches a reference to a file that does not exist.
 The seventh catches an agent that drops its wire to a file which still exists. That drift leaves the
 reference resolvable and the suite green, and the lens then does nothing in any dispatch.
@@ -984,7 +1014,7 @@ successor at all.
   *loudly*, the row goes red until the pattern catches up, so the presence tables in `drift/contracts.js`
   (`FIX_BOUNDARY_CONTRACTS` among them) carry none.
 - A new drift-check contract is one entry appended at the end of the `drift/checks.js` registry, plus
-  its section in the sixty-check narrative above and its selftest in the matching
+  its section in the sixty-one-check narrative above and its selftest in the matching
   `drift/selftest/*.test.js` suite. Append rather than insert unless the check belongs earlier for a
   reason, because every ordinal after an insertion point has to be rewritten by hand. The forty-fifth check,
   `narrative-coverage`, enforces two pieces of this by itself: the new id must appear backticked

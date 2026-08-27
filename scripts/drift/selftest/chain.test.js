@@ -30,6 +30,7 @@ const {
   ADOPT_RUN_STATE_CONTRACTS,
   RESUMED_WORKTREE_TRIGGER_CONTRACTS,
   SCOPE_WORKTREE_CONTRACTS,
+  TRIAGE_RECORD_CONTRACTS,
 } = require('../contracts');
 
 module.exports = ({ assert, path, fixture, fs, realRoot }) => {
@@ -2286,4 +2287,87 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     1,
     'a document that does not state the clause is still a gap',
   );
+
+  // --- TRIAGE_RECORD_CONTRACTS: the two writer documents state the triage record's creation ordering and
+  // its tool-agnostic split (ADR 0046). The presence half — every slice-store document states where the
+  // record lives — runs separately as `scanTriageRecordContract()`, over `storeDocuments()`; see
+  // scanners.test.js. ---
+
+  const triageWriter =
+    'Otherwise, create the triage record first, the way the store states, then write it to the run with\n' +
+    '`scope.js deferred add "<text>"`, and the bullet carries the record\'s reference.\n';
+  const triageEntry =
+    'A **triage record** in the configured slice store is what outlives this run. How a store creates\n' +
+    "one is stated in the active `docs/agents/issue-tracker.md`'s own section.\n";
+
+  // negative: both writer documents carry their clause
+  const trFiles = {
+    [path.join('commands', 'review.md')]: triageWriter,
+    [path.join('references', 'scope-mode.md')]: triageEntry,
+  };
+  assert.equal(
+    scanContract(fixture(trFiles), TRIAGE_RECORD_CONTRACTS).length,
+    0,
+    'both writer documents carrying their clause yields zero gaps',
+  );
+
+  // positive: the review states the record but writes the ledger bullet first — the ordering the row
+  // exists to pin, since a bullet written before the record is the state a failed create leaves behind
+  const trOrder = scanContract(
+    fixture({
+      ...trFiles,
+      [path.join('commands', 'review.md')]:
+        '`scope.js deferred add "<text>"` writes the bullet.\n\nA triage record is created afterwards.\n',
+    }),
+    TRIAGE_RECORD_CONTRACTS,
+  );
+  assert.equal(trOrder.length, 1, 'flags a review that defers the record until after the ledger write');
+  assert.equal(trOrder[0].source, path.join('commands', 'review.md'), 'names the review command');
+
+  // positive: the entry section names the record but not the store document that owns the mechanics,
+  // which is what keeps a tool-agnostic reference from growing a backend of its own
+  const trMechanics = scanContract(
+    fixture({
+      ...trFiles,
+      [path.join('references', 'scope-mode.md')]:
+        'A **triage record** in the slice store outlives the run. Create it as an issue labelled `triage`.\n',
+    }),
+    TRIAGE_RECORD_CONTRACTS,
+  );
+  assert.equal(trMechanics.length, 1, 'flags an entry section that states the mechanics itself');
+  assert.equal(trMechanics[0].source, path.join('references', 'scope-mode.md'), 'names the reference');
+
+  // negative: the real commands/review.md, unmodified, yields zero gaps against its own row — proof the
+  // anchor matches where the create instruction actually sits, not merely inside an unrelated paragraph
+  // (the dedupe paragraph's own "deferred add" mention, 58 characters from a stray "triage record", is
+  // what the old `/triage record[\s\S]{0,800}deferred add/` anchor matched instead)
+  const realReview = fs.readFileSync(path.join(realRoot, 'plugin', 'commands', 'review.md'), 'utf8');
+  assert.equal(
+    scanContract(fixture({ [path.join('commands', 'review.md')]: realReview }), TRIAGE_RECORD_CONTRACTS)
+      .length,
+    0,
+    'the real review.md carries the create instruction ahead of the deferred add call',
+  );
+
+  // positive (RED reproduction): the real review.md with its create-the-record paragraph excised — the
+  // row must flag this, since a review that dropped the create step still runs `deferred add` and would
+  // otherwise read as compliant
+  const createStart = realReview.indexOf('**Otherwise, create the triage record first**');
+  const createEnd = realReview.indexOf(
+    "the run's own record is the one that gates nothing on a store being reachable.",
+  );
+  assert.ok(createStart > -1 && createEnd > createStart, 'both excision markers are found in the real file');
+  const reviewNoCreate =
+    realReview.slice(0, createStart) +
+    realReview.slice(createEnd + "the run's own record is the one that gates nothing on a store being reachable.".length);
+  assert.ok(
+    !/create the triage record/.test(reviewNoCreate),
+    'the excised fixture genuinely drops the create instruction',
+  );
+  const trNoCreate = scanContract(
+    fixture({ [path.join('commands', 'review.md')]: reviewNoCreate }),
+    TRIAGE_RECORD_CONTRACTS,
+  );
+  assert.equal(trNoCreate.length, 1, 'flags the real review.md with the create step deleted');
+  assert.equal(trNoCreate[0].source, path.join('commands', 'review.md'), 'names the review command');
 };

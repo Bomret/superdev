@@ -15,6 +15,8 @@ user has it installed); the user records which below.
   `references/scope-mode.md` — and the label doubles as the scope branch name.
 - **`depends-on` link type**: `<is blocked by>` (Jira's "Blocks"/"is blocked by" link).
 - **Ready status/label**: `<ready-for-agent>` — marks a slice an agent may pick up.
+- **Triage label**: `<triage>` — the label a **triage record** carries (*Triage record* below), and the
+  only label it carries. Default `triage`.
 - **Release signal**: `<released>` — the label on the scope anchor that marks the feature agreed for
   execution (*Release* below).
 - **Assignee**: `<accountId>` — the account every issue a run creates is assigned to (see *Assignee*
@@ -139,6 +141,33 @@ and the ready status/label marks a slice rather than the feature.
 - **Read** (`/superdev:implement`, `/superdev:afk`): the anchor's `labels` field, which the JQL search that
   found the feature already returns.
 - A feature whose anchor lacks the label is unreleased. No status and no other label means it.
+
+## Triage record
+
+`CONTEXT.md` → *Triage record*, ADR 0046. `/superdev:review` creates one the moment it defers a finding.
+On this store it is an ordinary issue in the configured project carrying the **Triage label** from
+*Configuration* and nothing else.
+
+- **Create it:** `POST <base>/rest/api/3/issue` with
+  `{ "fields": { "project": {"key":"<PROJ>"}, "summary": "<the finding, one line>",
+  "issuetype": {"name":"<Story|Task>"}, "description": <ADF body: the finding, why no Definition of Done
+  criterion covered it, the date, the feature label, the scope branch, the scope anchor's key, and a
+  copy-pasteable /superdev:plan "<the finding>" line>,
+  "labels": ["<triage>"] } }`. Omit the `assignee` field entirely: a triage record is created
+  **unassigned**, whatever *Assignee* configures, because nobody has picked the work up. Capture the
+  returned `key` as the record's reference — `/superdev:review` puts it in the ledger bullet. No issue
+  link and no parent: a triage record belongs to no feature.
+- **The label needs no creation call.** Jira labels are free-form strings created by use, so the label
+  arrives with the issue. **A project configured with a restricted label field rejects the create
+  instead** (`400`, the field is not on the create screen): retry once with `labels` omitted, prefixing
+  `summary` with `[triage] ` so the record stays findable by text search where the label was refused —
+  a project-configuration fix, not a superdev one — and report it.
+- **No feature label and no ready status or label.** Those are what `/superdev:afk`'s candidate listing and
+  `/superdev:implement`'s slice loading select on, so a triage record carrying either would be picked up as
+  work to build. It is a record of unplanned work, not a slice, so it also takes no status transition from
+  the status map below.
+- **No pull-request URL.** `/superdev:review` runs before `/superdev:ship` opens one, so none exists at
+  defer time and the description names none.
 
 ## Run state (fill in at setup)
 

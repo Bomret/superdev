@@ -42,6 +42,8 @@ const {
   RELEASE_PATTERN,
   RELEASE_CONSUMERS,
   RELEASE_CONSUMER_PATTERN,
+  TRIAGE_RECORD_PATTERN,
+  TRIAGE_RECORD_EXPECTATION,
   LOCAL_APPEND_DOC,
   LOCAL_CONTINUATION_ELEMENT,
   AFK_SELECTION_HEADING,
@@ -205,6 +207,23 @@ function scanReleaseContract(root) {
     if (!RELEASE_CONSUMER_PATTERN.test(text)) {
       gaps.push({ source: rel, expectation: "name the store document's `## Release` section" });
     }
+  }
+  return gaps;
+}
+
+// scanTriageRecordContract() is pure over a root dir: reads every slice-store document (the same
+// candidate list scanAnchorContract/scanReleaseContract use) and reports the ones carrying no `## Triage
+// record` section (ADR 0046). Reusing storeDocuments() rather than a hardcoded seed list means a fifth
+// backend seed, or this repo's own dogfooded `docs/agents/issue-tracker.md`, is covered the same way the
+// anchor and release contracts already are. Absent files are skipped, so fixtures need only the docs
+// they exercise.
+function scanTriageRecordContract(root) {
+  const gaps = [];
+  const candidates = storeDocuments(root, { dir: ANCHOR_DOCS_DIR, extra: EXTRA_ANCHOR_DOCS });
+  for (const rel of candidates) {
+    const text = readDoc(root, rel);
+    if (text === null) continue; // doc absent (fixture / partial checkout) → nothing to scan
+    if (!TRIAGE_RECORD_PATTERN.test(text)) gaps.push({ source: rel, expectation: TRIAGE_RECORD_EXPECTATION });
   }
   return gaps;
 }
@@ -869,6 +888,7 @@ module.exports = {
   scanAnchorContract,
   scanAppendContract,
   scanReleaseContract,
+  scanTriageRecordContract,
   scanAfkSelectionNeutrality,
   scanAfkAnchorCount,
   scanWritingStandardContract,
