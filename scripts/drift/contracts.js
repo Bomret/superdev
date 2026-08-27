@@ -1819,11 +1819,11 @@ const NUMBER_TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'sev
 // `## Unattended` and `## Degraded passes` rows); this table is that treatment for the five canonical
 // sources that never got it.
 //
-// `plan-contract.md` carries seven rows because six of its sections are cited by name elsewhere in the
-// plugin — a store document rendering `## Append mode`, `## Scope anchor`, or `## Triage record` for its
-// own backend is following a section that has to exist to be followed — plus `## Fields`, the slice
-// schema every store renders. The other four files are cited only as whole files, so their rows pin the
-// sections that hold the rule the citing document promises its reader.
+// `plan-contract.md` carries nine rows because eight of its sections are cited by name elsewhere in the
+// plugin — a store document rendering `## Append mode`, `## Scope anchor`, `## Release`, `## Run state`,
+// or `## Triage record` for its own backend is following a section that has to exist to be followed —
+// plus `## Fields`, the slice schema every store renders. The other four files are cited only as whole
+// files, so their rows pin the sections that hold the rule the citing document promises its reader.
 const SOURCE_SECTION_CONTRACTS = [
   [
     path.join('references', 'plan-contract.md'),
@@ -1850,6 +1850,16 @@ const SOURCE_SECTION_CONTRACTS = [
     path.join('references', 'plan-contract.md'),
     /^#{2,3}\s+Scope anchor\s*$/m,
     'carry the `## Scope anchor` section — the generic contract each store document specialises (ADR 0017)',
+  ],
+  [
+    path.join('references', 'plan-contract.md'),
+    /^#{2,3}\s+Release\s*$/m,
+    'carry the `## Release` section — the generic contract each store document specialises (ADR 0034)',
+  ],
+  [
+    path.join('references', 'plan-contract.md'),
+    /^#{2,3}\s+Run state\s*$/m,
+    'carry the `## Run state` section — the generic contract each store document specialises (ADR 0042)',
   ],
   [
     path.join('references', 'plan-contract.md'),
@@ -1916,6 +1926,30 @@ const SOURCE_SECTION_CONTRACTS = [
     'carry the `## Consistency` section, which `final-reviewer` reads',
   ],
 ];
+
+// The five generic contracts a slice-store document specialises, four of them for a snapshot-less store
+// like Jira. Two sides are already pinned and a third was not. `SOURCE_SECTION_CONTRACTS` above proves
+// the generic section still exists in `plan-contract.md`; `scanAnchorContract`, `scanAppendContract`,
+// `scanReleaseContract` and `scanTriageRecordContract` prove the store document carries its own matching
+// section, for four of the five — `## Run state`'s store side stays unpinned, deferred as #362. Neither
+// reads the citation line between them, so a store document could point anywhere — or nowhere — and stay
+// green.
+//
+// That is not hypothetical. Four seeds opened their `## Triage record` with `` `CONTEXT.md` → *Triage
+// record* ``, a reference that resolves to nothing in a consumer install: `plugin/` ships no `CONTEXT.md`
+// and no `docs/adr/`, and a consumer's own `CONTEXT.md` is that repo's glossary. The suite was green
+// throughout, and a human review caught it.
+//
+// One notation is pinned rather than an alternation. Accepting `` `plan-contract.md`, *Section* `` beside
+// the arrow would make both forms true forever and leave a reader guessing which a new seed should copy.
+const SPECIALISING_SECTIONS = ['Scope anchor', 'Release', 'Run state', 'Append mode', 'Triage record'];
+
+const specialisingHeading = (name) => new RegExp(`^#{2,3}\\s+${name}\\s*$`, 'm');
+
+// The citation is prose, so it wraps: `references/issue-tracker-local.md` carries it as `*Append\nmode*`.
+// Matching a literal space would report that as drift, so every space in the whole citation — in the
+// section name and at either joint around the arrow — matches any run of whitespace instead.
+const specialisingCitation = (name) => new RegExp(`\`plan-contract\\.md\` → \\*${name}\\*`.replace(/ /g, '\\s+'));
 
 // Both new run references are read forward, at a step: `implement-full.md` and `implement-lite.md`
 // each say "read `references/run-init.md`" and "read `references/run-handoff.md`" as instructions to
@@ -2324,6 +2358,9 @@ module.exports = {
   NUMBER_TENS,
   AGENT_TOOLCHAIN_PATTERNS,
   SOURCE_SECTION_CONTRACTS,
+  SPECIALISING_SECTIONS,
+  specialisingHeading,
+  specialisingCitation,
   RETURN_TO_CONTROLLER_DOCS,
   RETURN_TO_CONTROLLER_PATTERNS,
   PLAYBOOK_EDGE_CONTRACTS,

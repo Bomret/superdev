@@ -234,7 +234,7 @@ This root owns every other subtree directly:
   `plugin/hooks/worktree-sweep.js`),
   `plugin/scripts/kb-patch.js` (the deterministic section merge behind a staged page's `action: patch`,
   called by `/superdev:publish-kb`, ADR 0027), `scripts/eval-run.js` (the eval
-  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the sixty-one cross-document contract checks: the
+  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the sixty-two cross-document contract checks: the
   CLI walks the `drift/checks.js` registry, which orders every scanner and contract table). What each
   guards, check by check, lives in that child doc.
 - `plugin/references/`. Backend seed templates plus the non-seed references below. Each reference's own

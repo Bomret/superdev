@@ -14,6 +14,7 @@ const {
   scanAppendContract,
   scanReleaseContract,
   scanTriageRecordContract,
+  scanSpecialisingCitations,
   scanAfkSelectionNeutrality,
   scanAfkAnchorCount,
   scanWritingStandardContract,
@@ -35,7 +36,7 @@ const {
   scanPinnedPaths,
   scanAgentToolAgnostic,
 } = require('../scanners');
-const { ADR_STATUSES, DOC_PASS_CONTRACTS, PLAYBOOK_EDGE_CONTRACTS } = require('../contracts');
+const { ADR_STATUSES, DOC_PASS_CONTRACTS, PLAYBOOK_EDGE_CONTRACTS, SPECIALISING_SECTIONS } = require('../contracts');
 
 module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // fixture with a missing reference
@@ -1576,6 +1577,102 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // an absent document is skipped, so a fixture carries only the docs it exercises
   assert.equal(
     scanTriageRecordContract(fixture({ 'README.md': '# repo\n' })).length,
+    0,
+    'an absent document is skipped rather than reported',
+  );
+
+  // --- scanSpecialisingCitations: every store document cites the generic contract each section it
+  // carries specialises. The heading rows in SOURCE_SECTION_CONTRACTS pin the generic side and the
+  // anchor/append/release/triage contracts pin the store side; this is the citation between them. ---
+
+  const citingDoc = (omit) =>
+    SPECIALISING_SECTIONS.map(
+      (n) => `## ${n}\n\n` + (n === omit ? 'nothing points anywhere.\n' : `\`plan-contract.md\` → *${n}*. text\n`),
+    ).join('\n');
+
+  // positive: each of the five fails on its own, and the gap names the document that dropped it
+  for (const name of SPECIALISING_SECTIONS) {
+    const gaps = scanSpecialisingCitations(fixture({ 'references/issue-tracker-acme.md': citingDoc(name) }));
+    assert.equal(gaps.length, 1, `dropping the \`## ${name}\` citation flags exactly one gap`);
+    assert.equal(gaps[0].source, 'references/issue-tracker-acme.md', `the \`## ${name}\` gap names its document`);
+  }
+
+  // every citation present yields zero gaps
+  assert.equal(
+    scanSpecialisingCitations(fixture({ 'references/issue-tracker-acme.md': citingDoc(null) })).length,
+    0,
+    'a store document citing all five yields zero gaps',
+  );
+
+  // a section the store legitimately does not carry is skipped, never flagged: the Jira seed is
+  // snapshot-less and carries no `## Run state` at all, which is a documented choice, not a gap
+  assert.equal(
+    scanSpecialisingCitations(
+      fixture({ 'references/issue-tracker-acme.md': '## Scope anchor\n\n`plan-contract.md` → *Scope anchor*. only this one\n' }),
+    ).length,
+    0,
+    'a section the store does not carry is skipped rather than reported',
+  );
+
+  // the citation is prose and wraps — references/issue-tracker-local.md carries `*Append\nmode*`, and a
+  // literal-space pattern would report that real document as drift
+  assert.equal(
+    scanSpecialisingCitations(
+      fixture({
+        'references/issue-tracker-acme.md':
+          '## Append mode\n\ntext (`plan-contract.md` → *Append\nmode*, ADR 0004).\n',
+      }),
+    ).length,
+    0,
+    'a citation wrapped across two lines still counts',
+  );
+
+  // the citation is prose and wraps at either space around the arrow too, not just inside the section
+  // name: a rewrap that breaks the line between `` `plan-contract.md` `` and `→`, or between `→` and
+  // `*Release*`, must not turn a correct citation red
+  assert.equal(
+    scanSpecialisingCitations(
+      fixture({
+        'references/issue-tracker-acme.md':
+          '## Release\n\ntext (`plan-contract.md`\n→\n*Release*, ADR 0034).\n',
+      }),
+    ).length,
+    0,
+    'a citation wrapped at either arrow joint still counts',
+  );
+
+  // a citation sitting only inside a fenced code block does not count: extractSection() masks fences to
+  // find the section's boundaries, but the citation test must run on fence-masked content too
+  assert.equal(
+    scanSpecialisingCitations(
+      fixture({
+        'references/issue-tracker-acme.md':
+          '## Release\n\n```markdown\n`plan-contract.md` → *Release*.\n```\n',
+      }),
+    ).length,
+    1,
+    'a citation shown only inside a fenced example is not a real citation',
+  );
+
+  // the comma form is not accepted: one notation is pinned, never an alternation
+  assert.equal(
+    scanSpecialisingCitations(
+      fixture({ 'references/issue-tracker-acme.md': '## Release\n\ntext (`plan-contract.md`, *Release*, ADR 0034).\n' }),
+    ).length,
+    1,
+    'the comma citation form is drift, not a second accepted spelling',
+  );
+
+  // a fifth backend seed is covered without any change to this scanner
+  assert.equal(
+    scanSpecialisingCitations(fixture({ 'references/issue-tracker-newstore.md': citingDoc('Release') })).length,
+    1,
+    'a seed this scanner has never seen before is still held to the contract',
+  );
+
+  // an absent document is skipped, matching every other contract table on a partial checkout
+  assert.equal(
+    scanSpecialisingCitations(fixture({ 'README.md': '# repo\n' })).length,
     0,
     'an absent document is skipped rather than reported',
   );

@@ -211,7 +211,7 @@ every drift assertion by id, and it fell behind at five separate additions, beca
 maintained by hand at the moment its author is thinking about code. Naming the exceptions cannot drift
 when a new check lands.
 
-`drift-check.js` guards sixty-one things, in the order `drift/checks.js` registers them. First, the
+`drift-check.js` guards sixty-two things, in the order `drift/checks.js` registers them. First, the
 `reference` contract: every `references/*.md` path named in `commands/`, `agents/`, or `references/`
 itself resolves to a file that exists. A reference cites another reference, as both execution
 playbooks point at `scope-mode.md`, so a rename there dangles like any other. Second, the
@@ -981,6 +981,49 @@ What a section must *say* past what its own row spans stays a review's job: a se
 call but drops the "no feature label and no `ready` label" clause writes a record `/superdev:afk` then
 selects as work to build, and no pattern here catches that.
 
+Sixty-second, the `specialising-citations` contract: every store document cites the generic contract each
+section it carries specialises. `scanSpecialisingCitations` (`scripts/drift/scanners.js`) walks the same
+`storeDocuments()` candidate list the four contracts above walk, and for each of the five specialising
+sections — `## Scope anchor`, `## Release`, `## Run state`, `## Append mode`, `## Triage record` — reports
+a section that no longer names `` `plan-contract.md` → *<section>* `` anywhere inside itself. Root
+`AGENTS.md`'s table names six generic contracts, including `## Feature label`. No seed renders that one as
+a section: every seed folds it into a bullet instead, so the checked family is five, not six.
+
+Nothing pins the family's membership itself. Root `AGENTS.md`'s six-name list and `SPECIALISING_SECTIONS`'s
+five are two lists nothing binds together, so one can drift past the other and no check catches it.
+`## Assignee` carries the same arrow citation as the five (`plan-contract.md` → *Assignee*). It reads like
+a sixth member of the family, but no row asserts that it is not one. Triage record #363 tracks the
+family's membership as deferred work.
+
+This is the third side of an arrangement whose other two were already pinned, and the one that was
+load-bearing. `SOURCE_SECTION_CONTRACTS` proves the generic section still exists in
+`references/plan-contract.md`; the anchor, append, release and triage-record contracts prove the store
+document carries its own matching section, for four of the five. Neither reads the citation between them,
+so a store document could point anywhere, or nowhere, and stay green. That is not hypothetical: four
+seeds opened their `## Triage record` with `` `CONTEXT.md` → *Triage record* ``, a reference resolving to
+nothing in a consumer install — `plugin/` ships no `CONTEXT.md` and no `docs/adr/`, and a consumer's own
+`CONTEXT.md` is that repo's glossary — and the suite stayed green until a human review caught it.
+
+`## Run state` is the fifth section and the exception: it is optional per store, so the Jira seed is
+snapshot-less and carries none. Only its generic section and its citation are pinned today, with no
+store-side presence contract of its own. Triage record #362 tracks that gap as deferred work.
+
+Four details are deliberate. The citation is matched **anywhere inside the section**, not only in its
+opening sentence, so the check's own message says "somewhere in its own section" rather than "opens by
+citing": a stricter positional claim would be one the pattern cannot honestly make. Every space in a
+section name matches any run of whitespace, because the citation is prose and wraps —
+`references/issue-tracker-local.md` carries it as `*Append\nmode*`, which a literal space would report as
+drift. And a section the store legitimately does not carry yields nothing, because `extractSection()`
+returns `null` and the loop moves on: the Jira seed is snapshot-less and carries no `## Run state` at all,
+which is a documented choice rather than a gap. The citation test runs on the fence-masked section, so a
+citation shown only inside a fenced code example does not count.
+
+One notation is pinned, not an alternation. Accepting `` `plan-contract.md`, *Section* `` beside the arrow
+would make both forms true forever and leave a new seed's author guessing which to copy, so every
+comma-form citation this repo's own `docs/agents/issue-tracker.md` carried was normalised to the arrow
+instead of widened into the pattern. That includes its `## Assignee` section, though no row pins it:
+`## Assignee` is store configuration rather than one of the five sections a store document specialises.
+
 The first and seventh checks are opposites. The first catches a reference to a file that does not exist.
 The seventh catches an agent that drops its wire to a file which still exists. That drift leaves the
 reference resolvable and the suite green, and the lens then does nothing in any dispatch.
@@ -1016,7 +1059,7 @@ successor at all.
   *loudly*, the row goes red until the pattern catches up, so the presence tables in `drift/contracts.js`
   (`FIX_BOUNDARY_CONTRACTS` among them) carry none.
 - A new drift-check contract is one entry appended at the end of the `drift/checks.js` registry, plus
-  its section in the sixty-one-check narrative above and its selftest in the matching
+  its section in the sixty-two-check narrative above and its selftest in the matching
   `drift/selftest/*.test.js` suite. Append rather than insert unless the check belongs earlier for a
   reason, because every ordinal after an insertion point has to be rewritten by hand. The forty-fifth check,
   `narrative-coverage`, enforces two pieces of this by itself: the new id must appear backticked

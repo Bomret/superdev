@@ -72,7 +72,7 @@ Slices live as Codeberg issues in `bomret/superdev`, one slice per issue. Use th
 
 ## Scope anchor
 
-A feature's scope anchor is its root (`plan-contract.md`, *Scope anchor*). Forgejo's issue-dependencies
+A feature's scope anchor is its root (`plan-contract.md` → *Scope anchor*). Forgejo's issue-dependencies
 unit is disabled here and this store uses no sub-issue relation, so it expresses the root with labels
 rather than natively: on a multi-slice feature the anchor is the `epic`-labelled issue carrying the feature
 label, and on a single-slice feature it is the lone issue carrying that label (ADR 0017).
@@ -109,7 +109,7 @@ label, and on a single-slice feature it is the lone issue carrying that label (A
 
 ## Assignee
 
-Store configuration, not a slice field (`plan-contract.md`, *Assignee*, ADR 0010). The create call applies
+Store configuration, not a slice field (`plan-contract.md` → *Assignee*; ADR 0010). The create call applies
 the **Assignee** value above to the **epic and every slice**, never a follow-up pass. The two failure
 shapes below make the general *Assignee* recovery rule (`plan-contract.md`) concrete for Forgejo.
 
@@ -203,7 +203,7 @@ on the scope branch.
 
 ## Append mode
 
-`/superdev:plan` can extend a feature that already has issues (`plan-contract.md`, *Append mode*,
+`/superdev:plan` can extend a feature that already has issues (`plan-contract.md` → *Append mode*,
 ADR 0004).
 
 - **Create only new records. Never edit, close, or delete a merged slice.** Append fires new

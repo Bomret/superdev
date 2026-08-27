@@ -14,6 +14,7 @@ const {
   storeDocuments,
   extractSection,
   extractParagraph,
+  maskFences,
   scalar,
   frontmatter,
   normalizeWhitespace,
@@ -43,6 +44,9 @@ const {
   RELEASE_CONSUMERS,
   RELEASE_CONSUMER_PATTERN,
   TRIAGE_RECORD_PATTERN,
+  SPECIALISING_SECTIONS,
+  specialisingHeading,
+  specialisingCitation,
   TRIAGE_RECORD_EXPECTATION,
   LOCAL_APPEND_DOC,
   LOCAL_CONTINUATION_ELEMENT,
@@ -224,6 +228,36 @@ function scanTriageRecordContract(root) {
     const text = readDoc(root, rel);
     if (text === null) continue; // doc absent (fixture / partial checkout) → nothing to scan
     if (!TRIAGE_RECORD_PATTERN.test(text)) gaps.push({ source: rel, expectation: TRIAGE_RECORD_EXPECTATION });
+  }
+  return gaps;
+}
+
+// scanSpecialisingCitations() is pure over a root dir: reads every slice-store document (the same
+// candidate list scanAnchorContract/scanReleaseContract/scanTriageRecordContract use) and reports every
+// specialising section that no longer cites the generic contract it renders. The heading rows in
+// SOURCE_SECTION_CONTRACTS pin the generic side and the four contracts above pin the store side, for four
+// of the five — `## Run state`'s store side stays unpinned, deferred as #362; this is the citation
+// between them, which nothing read before. A section the store legitimately does not carry
+// yields nothing — extractSection() returns null and the loop moves on — so the snapshot-less Jira seed
+// stays green while carrying no `## Run state` at all. Absent files are skipped, so fixtures need only
+// the docs they exercise. The citation test runs on the section fence-masked with maskFences(), so a
+// citation shown only inside a fenced code example is not read as the real one.
+function scanSpecialisingCitations(root) {
+  const gaps = [];
+  const candidates = storeDocuments(root, { dir: ANCHOR_DOCS_DIR, extra: EXTRA_ANCHOR_DOCS });
+  for (const rel of candidates) {
+    const text = readDoc(root, rel);
+    if (text === null) continue; // doc absent (fixture / partial checkout) → nothing to scan
+    for (const name of SPECIALISING_SECTIONS) {
+      const section = extractSection(text, specialisingHeading(name));
+      if (section === null) continue; // this store renders no such section, and says so in its own prose
+      if (!specialisingCitation(name).test(maskFences(section))) {
+        gaps.push({
+          source: rel,
+          expectation: `cite \`plan-contract.md\` → *${name}* somewhere in its own \`## ${name}\` section`,
+        });
+      }
+    }
   }
   return gaps;
 }
@@ -889,6 +923,7 @@ module.exports = {
   scanAppendContract,
   scanReleaseContract,
   scanTriageRecordContract,
+  scanSpecialisingCitations,
   scanAfkSelectionNeutrality,
   scanAfkAnchorCount,
   scanWritingStandardContract,

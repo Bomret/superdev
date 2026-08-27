@@ -16,6 +16,7 @@ const {
   scanAppendContract,
   scanReleaseContract,
   scanTriageRecordContract,
+  scanSpecialisingCitations,
   scanAfkSelectionNeutrality,
   scanAfkAnchorCount,
   scanWritingStandardContract,
@@ -410,6 +411,12 @@ module.exports = [
       ...scanTriageRecordContract(root),
       ...scanContract(root, TRIAGE_RECORD_CONTRACTS),
     ],
+    format: contractGap,
+  },
+  {
+    id: 'specialising-citations',
+    ok: 'every store document cites the generic contract each section it carries specialises',
+    run: scanSpecialisingCitations,
     format: contractGap,
   },
 ];
