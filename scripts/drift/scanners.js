@@ -69,6 +69,8 @@ const {
   AGENT_TOOLCHAIN_PATTERNS,
   DENIAL_CAP_NUMBER_SILENCE_DOCS,
   DENIAL_CAP_NUMBER_MARKERS,
+  AFK_LOCK_TIER_SILENCE_DOCS,
+  AFK_LOCK_TIER_MARKERS,
   KB_BACKEND_CALL_MARKERS,
   HOOK_HEADER_REGEX,
   RETURN_TO_CONTROLLER_DOCS,
@@ -608,6 +610,15 @@ const scanDocStepsNoSuite = (root) =>
 const scanDenialCapNumberSilence = (root) =>
   scanDocsAvoid(root, DENIAL_CAP_NUMBER_SILENCE_DOCS, DENIAL_CAP_NUMBER_MARKERS);
 
+// `commands/afk.md`'s eligibility bullet reads a scope's run lock, and `SCOPE_WORKTREE_CONTRACTS` pins
+// its surviving fallback rule by presence — a row whose expectation describes an absence, which a
+// presence row cannot assert. The stale claim it means to keep out ("a run lock only ever exists for a
+// `lite`-tier scope", true before ADR 0045 gave both tiers one) can regrow as a sentence preceding that
+// rule while the row still matches, and an unattended controller would then distrust a signal it can
+// trust. This asserts the absence the row's own expectation describes.
+const scanAfkLockTierClaim = (root) =>
+  scanDocsAvoid(root, AFK_LOCK_TIER_SILENCE_DOCS, AFK_LOCK_TIER_MARKERS);
+
 // Shipped agent briefs run in consumer repos, so their prose names no concrete toolchain command; see
 // AGENT_TOOLCHAIN_PATTERNS' note for the class and its ceiling. The doc list is the `agents/` directory
 // read at scan time, not a pinned table, so a new agent is covered the day its file lands.
@@ -873,6 +884,7 @@ module.exports = {
   scanPinnedPaths,
   scanDocStepsNoSuite,
   scanDenialCapNumberSilence,
+  scanAfkLockTierClaim,
   scanAgentToolAgnostic,
   scanHookLedgerParsers,
   scanForcingBranchFlag,

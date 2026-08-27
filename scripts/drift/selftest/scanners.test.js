@@ -314,6 +314,14 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   });
   assert.equal(scanContract(dp3, DOC_PASS_CONTRACTS).length, 0, 'a bare reference path satisfies it');
 
+  // positive: the lite playbook keeps its inline doc step but stops reading the pass it performs
+  const dp6 = fixture({
+    'references/implement-lite.md': '## Documentation\n\nReconcile the docs your slice touched.\n',
+  });
+  const dpGaps6 = scanContract(dp6, DOC_PASS_CONTRACTS);
+  assert.equal(dpGaps6.length, 1, 'flags an implement-lite.md doc step that no longer reads references/doc-pass.md');
+  assert.equal(dpGaps6[0].source, path.join('references', 'implement-lite.md'), 'names implement-lite.md');
+
   // positive: the dispatching command paraphrases the pass instead of naming the reference that owns it.
   // This is the dispatch-prose half of the same contract (ADR 0035): a controller writes its dispatch from
   // what `commands/document.md` says the writer does, so a paraphrase here is what reaches the writer —

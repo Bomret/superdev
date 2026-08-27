@@ -6,7 +6,7 @@
 // Run by ./index.js, which owns the shared fixture() helper, realRoot, and the temp-dir cleanup.
 
 const { scanContract } = require('../lib');
-const { scanDocStepsNoSuite, scanDenialCapNumberSilence } = require('../scanners');
+const { scanDocStepsNoSuite, scanDenialCapNumberSilence, scanAfkLockTierClaim } = require('../scanners');
 const {
   FEATURE_ARG_CONTRACTS,
   UNATTENDED_CONTRACTS,
@@ -236,6 +236,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'commands/status.md': namesDegraded,
     'references/implement-full.md': namesDegraded,
     'references/implement-lite.md': namesDegraded,
+    'references/run-handoff.md': namesDegraded,
   };
   const degradedOpts = { stripFrontmatterFirst: true };
 
@@ -280,6 +281,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'commands/status.md',
     'references/implement-full.md',
     'references/implement-lite.md',
+    'references/run-handoff.md',
   ]) {
     const dropped = fixture({ ...everyConsumer, [rel]: '# doc\n\nNothing about degrading here.\n' });
     const gaps = scanContract(dropped, DEGRADED_CONTRACTS, degradedOpts);
@@ -722,6 +724,12 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'directory: this is where its fix commits must land.\n',
   };
 
+  // afk's eligibility bullet: the no-lock case falls back to the ledger mtime, and claims nothing about
+  // which tier gets a lock — both do (ADR 0045).
+  const afkLockPiece =
+    'Check `.superdev/scopes/<scope>/run.lock`: newer than an hour means another session owns that ' +
+    'scope. **No lock present is not by itself eligibility**: fall back to the ledger mtime.\n';
+
   const everyScopeWorktreeSite = {
     'references/scope-mode.md': joinAll(scwScopeModePieces),
     'references/implement-full.md': joinAll(implementFullPieces),
@@ -730,7 +738,14 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'references/run-handoff.md': joinAll(runHandoffWorktreePieces),
     'references/merge-conflicts.md': mergeConflictsPiece,
     'commands/review.md': joinAll(reviewWorktreePieces),
+    'commands/afk.md': afkLockPiece,
   };
+
+  // A row can only be exercised by a fixture that names its document: `scanContract()` skips a document
+  // it cannot read, so a missing key makes the "every clause present yields zero gaps" assertion below
+  // pass without ever running that row. `./index.js`'s coverage guard names both the table and the
+  // document, because "a fixture is incomplete" sends the reader hunting through twenty-one rows across
+  // eight files.
 
   // negative: every clause present is clean
   assert.equal(
@@ -766,6 +781,50 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     );
     assert.equal(gaps[0].source, path.join('references', 'implement-full.md'), 'names implement-full.md');
   }
+
+  // positive: dropping afk.md's no-lock fallback fires exactly one gap naming that file — the shape
+  // every other row in this table has, and the one the missing fixture key withheld from this row
+  const droppedAfkLock = fixture({ ...everyScopeWorktreeSite, 'commands/afk.md': '' });
+  const afkLockGaps = scanContract(droppedAfkLock, SCOPE_WORKTREE_CONTRACTS);
+  assert.equal(afkLockGaps.length, 1, 'scope-worktree: flags afk.md for dropping the no-lock fallback');
+  assert.equal(afkLockGaps[0].source, path.join('commands', 'afk.md'), 'names afk.md');
+
+  // --- scanAfkLockTierClaim: the row above is a presence check, and its expectation describes an
+  // absence — the stale "a run lock only ever exists for a `lite`-tier scope" claim can regrow as a
+  // sentence preceding the surviving fallback rule while the row still matches. A presence row cannot
+  // assert that, so the absence scanner does. ---
+
+  // negative: the fallback rule alone, with no tier claim, reports nothing
+  assert.equal(
+    scanAfkLockTierClaim(fixture({ 'commands/afk.md': afkLockPiece })).length,
+    0,
+    'afk-lock-tier: the fallback rule with no tier claim reports nothing',
+  );
+
+  // positive: the stale claim is reported wherever in the bullet it sits, including ahead of the rule
+  for (const claim of [
+    'A run lock only ever exists for a `lite`-tier scope, so its absence says nothing on a full run.\n',
+    'The lock is written only for a `lite` tier scope.\n',
+    'A run.lock exists only for a lite-tier scope.\n',
+  ]) {
+    for (const text of [claim + afkLockPiece, afkLockPiece + claim]) {
+      const gaps = scanAfkLockTierClaim(fixture({ 'commands/afk.md': text }));
+      assert.equal(gaps.length, 1, `afk-lock-tier: reports the stale claim "${claim.trim()}"`);
+      assert.equal(gaps[0].source, path.join('commands', 'afk.md'), 'names afk.md');
+      assert.match(gaps[0].expectation, /both tiers/, 'names what is true instead');
+    }
+  }
+
+  // positive: a sibling command file carrying the same sentence is unaffected — this scanner is scoped
+  // to the one document whose eligibility bullet reads the lock
+  assert.equal(
+    scanAfkLockTierClaim(fixture({
+      'commands/review.md': 'A run lock only ever exists for a `lite`-tier scope.\n',
+      'commands/afk.md': afkLockPiece,
+    })).length,
+    0,
+    'afk-lock-tier: a sibling command file is unaffected',
+  );
 
   // positive: dropping the implement-lite.md run-lock pointer fires exactly one gap naming that file —
   // the sentence it exists to catch is a reintroduced restatement of who writes the lock and when
@@ -1124,6 +1183,15 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   assert.equal(typeGaps2.length, 1, 'flags the hook narrowing away from the stated set');
   assert.equal(typeGaps2[0].source, path.join('hooks', 'scope-prune.js'), 'names scope-prune.js');
 
+  // and from scope.js's side: this copy executes, validating every `init` label against it, but
+  // nothing else notices it narrowing away from the stated set
+  const type5 = fixture({
+    'scripts/scope.js': "const CHANGE_TYPES = ['feat', 'fix'];\n",
+  });
+  const typeGaps5 = scanContract(type5, CHANGE_TYPE_CONTRACTS);
+  assert.equal(typeGaps5.length, 1, 'flags scope.js narrowing CHANGE_TYPES away from the stated set');
+  assert.equal(typeGaps5[0].source, path.join('scripts', 'scope.js'), 'names scope.js');
+
   // and from the glossary's side: nothing executes that copy, so only this row notices it drifting
   const type3 = fixture({
     'CONTEXT.md': '**Change type** — one of `feat`, `fix`, or `docs`.\n',
@@ -1186,6 +1254,14 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   const lvGaps2 = scanContract(lv2, LABEL_VALIDATION_CONTRACTS);
   assert.equal(lvGaps2.length, 1, 'flags a consumer that dropped its wire to the rule');
   assert.equal(lvGaps2[0].source, path.join('commands', 'afk.md'), 'names afk.md');
+
+  // positive from the other consumer's side: implement.md dropping its wire is the same drift
+  const lvImplement = fixture({
+    'commands/implement.md': '# superdev implement\n\nDerive the scope from the resolved feature label.\n',
+  });
+  const lvImplementGaps = scanContract(lvImplement, LABEL_VALIDATION_CONTRACTS);
+  assert.equal(lvImplementGaps.length, 1, 'flags implement.md that dropped its wire to the rule');
+  assert.equal(lvImplementGaps[0].source, path.join('commands', 'implement.md'), 'names implement.md');
 
   // positive, the weaker revert: a consumer that reverted to the pre-change slug-only wording keeps its
   // wire to `scope-mode.md`'s scope-slug rule intact but never asserts both segments are validated — the
@@ -1325,6 +1401,65 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'Read it first with `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js get docs --root <run-root>`.\n',
   });
   assert.equal(scanContract(vc3, VERB_CONTRACTS).length, 0, 'a full verb invocation is clean');
+
+  // positive: run-init.md creates the run root and ledger by hand instead of running the verb
+  const vcRunInit = fixture({
+    'references/run-init.md': 'Create the run root directory and write a ledger header by hand.\n',
+  });
+  const vcRunInitGaps = scanContract(vcRunInit, VERB_CONTRACTS);
+  assert.equal(vcRunInitGaps.length, 1, 'flags run-init.md for creating the run root without `scope.js init`');
+  assert.equal(vcRunInitGaps[0].source, path.join('references', 'run-init.md'), 'names run-init.md');
+
+  // positive: afk.md reads a scope's stage from the ledger directly
+  const vcAfk = fixture({
+    'commands/afk.md': 'Read the ledger header to find the stage.\n',
+  });
+  const vcAfkGaps = scanContract(vcAfk, VERB_CONTRACTS);
+  assert.equal(vcAfkGaps.length, 1, 'flags afk.md for reading the stage without `scope.js get stage`');
+  assert.equal(vcAfkGaps[0].source, path.join('commands', 'afk.md'), 'names afk.md');
+
+  // positive: implement-full.md moves a slice row by hand-editing plan.md
+  const vcImplementFull = fixture({
+    'references/implement-full.md': 'Edit plan.md to move the slice row to Done.\n',
+  });
+  const vcImplementFullGaps = scanContract(vcImplementFull, VERB_CONTRACTS);
+  assert.equal(vcImplementFullGaps.length, 1, 'flags implement-full.md for moving slice rows without `scope.js slice`');
+  assert.equal(vcImplementFullGaps[0].source, path.join('references', 'implement-full.md'), 'names implement-full.md');
+
+  // positive: implement-lite.md drops both its verbs — moving the slice row and recording its doc pass
+  const vcImplementLite = fixture({
+    'references/implement-lite.md': 'Edit plan.md to move the slice row, and note that the doc pass ran.\n',
+  });
+  const vcImplementLiteGaps = scanContract(vcImplementLite, VERB_CONTRACTS);
+  assert.equal(vcImplementLiteGaps.length, 2, 'flags implement-lite.md for dropping both `scope.js slice` and `scope.js docs set`');
+  assert.ok(
+    vcImplementLiteGaps.every((g) => g.source === path.join('references', 'implement-lite.md')),
+    'both gaps name implement-lite.md',
+  );
+
+  // positive: scope-mode.md's degraded-pass section writes the ledger entry by hand
+  const vcScopeMode = fixture({
+    'references/scope-mode.md': '## Degraded passes\n\nAppend a `**Degraded:**` line to the ledger by hand.\n',
+  });
+  const vcScopeModeGaps = scanContract(vcScopeMode, VERB_CONTRACTS);
+  assert.equal(vcScopeModeGaps.length, 1, 'flags scope-mode.md for writing the degrade entry without `scope.js degraded add`');
+  assert.equal(vcScopeModeGaps[0].source, path.join('references', 'scope-mode.md'), 'names scope-mode.md');
+
+  // positive: publish-kb.md checks the scope branch some other way than the verb
+  const vcPublishKb = fixture({
+    'commands/publish-kb.md': 'Confirm the scope branch is merged before staging any page.\n',
+  });
+  const vcPublishKbGaps = scanContract(vcPublishKb, VERB_CONTRACTS);
+  assert.equal(vcPublishKbGaps.length, 1, 'flags publish-kb.md for reading the scope branch without `scope.js get branch`');
+  assert.equal(vcPublishKbGaps[0].source, path.join('commands', 'publish-kb.md'), 'names publish-kb.md');
+
+  // positive: plan.md reconstructs the scope branch from the label instead of reading it
+  const vcPlan = fixture({
+    'commands/plan.md': 'Build the branch name from `<type>/<scope>` for the append refusal.\n',
+  });
+  const vcPlanGaps = scanContract(vcPlan, VERB_CONTRACTS);
+  assert.equal(vcPlanGaps.length, 1, 'flags plan.md for reconstructing the branch instead of `scope.js get branch --root`');
+  assert.equal(vcPlanGaps[0].source, path.join('commands', 'plan.md'), 'names plan.md');
 
   // absent files are skipped, matching every other contract table
   assert.equal(

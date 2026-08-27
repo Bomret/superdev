@@ -38,6 +38,7 @@ const {
   scanReadmeCommands,
   scanAuditSetGlobs,
   scanDenialCapNumberSilence,
+  scanAfkLockTierClaim,
 } = require('./scanners');
 const {
   ADR_STATUSES,
@@ -383,12 +384,17 @@ module.exports = [
     run: scanAgentToolAgnostic,
     format: contractGap,
   },
-  table(
-    'scope-worktree',
-    SCOPE_WORKTREE_CONTRACTS,
-    'the full tier cuts and merges in the same scope worktree the lite tier uses, never the invoking ' +
+  {
+    id: 'scope-worktree',
+    ok:
+      'the full tier cuts and merges in the same scope worktree the lite tier uses, never the invoking ' +
       'checkout',
-  ),
+    run: (root) => [
+      ...scanContract(root, SCOPE_WORKTREE_CONTRACTS),
+      ...scanAfkLockTierClaim(root),
+    ],
+    format: contractGap,
+  },
   table(
     'denial-reset',
     DENIAL_RESET_CONTRACTS,

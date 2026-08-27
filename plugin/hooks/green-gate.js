@@ -90,16 +90,69 @@ function unquoteArg(raw) {
   return out;
 }
 
+// A directory-changing builtin in command position. `cd <worktree> && git merge …`, a `pushd`, or a
+// subshell that cds moves the merge somewhere the session cwd no longer names, and the command carries
+// no `-C` saying where.
+// ponytail: a shape test, not a resolution. Parsing the target would make such a command work, at the
+// cost of a surface — chained `cd`s, variables, `~`, relative-on-relative, a `cd` inside a subshell
+// that does not outlive it — where every wrong resolution runs the suite in the wrong tree and reports
+// a confident green. Failing closed costs the caller one `-C`. The regex also over-fires: `echo "note;
+// cd nowhere" && git merge s` reads a quoted `cd` as a real one and blocks a command that never left the
+// session cwd. That direction is safe — the recovery is the same one `-C` — so it is left uncorrected.
+// Upgrade to resolution only with a shell parser, never with a regex.
+const CHANGES_DIR = /(^|[;&|(\n])\s*(?:cd|pushd|popd)(\s|$)/;
+
 // The merge's own working tree: a `-C <path>` on the command, resolved against the session cwd
 // (git itself resolves -C relative to the shell's cwd at invocation, not to this hook's cwd), or
 // the session cwd unchanged when the command carries no -C — a bare `git merge` keeps running
-// where it always has.
+// where it always has. **`null` when the tree is unknowable**: the command changed directory before
+// the merge and named no `-C`, so the session cwd is the one tree the merge certainly did not touch.
 function resolveMergeCwd(cmd, sessionCwd) {
   const m = IS_MERGE.exec(cmd);
   const raw = m && m[2];
-  return raw ? path.resolve(sessionCwd, unquoteArg(raw)) : sessionCwd;
+  if (raw) return path.resolve(sessionCwd, unquoteArg(raw));
+  if (m && CHANGES_DIR.test(cmd.slice(0, m.index))) return null;
+  return sessionCwd;
 }
 const VERIFICATION_DOC = 'docs/agents/verification.md';
+
+// What the gate runs, and where — or that it cannot tell. Both blind spots end here, because both are
+// invisible to `decide()`: a tree it cannot name, and a resolved tree carrying no verification document
+// while the session's does. The second is the asymmetry that matters — a `-C` path resolving somewhere
+// other than the real merge tree reads exactly like an unconfigured repository, and the gate would go
+// inert on a repository that configured it.
+function resolveVerification(cmd, sessionCwd) {
+  const session = readVerification(sessionCwd);
+  const cwd = resolveMergeCwd(cmd, sessionCwd);
+  if (cwd === null) {
+    // No verification document anywhere → the repository configured no gate, so there is nothing to
+    // fail closed about: stay inert, exactly as an unconfigured repository always has.
+    if (!session.full) return session;
+    return {
+      full: session.full,
+      focused: session.focused,
+      blind:
+        'superdev: green-gate cannot see this merge\'s working tree. The command changes directory and ' +
+        'carries no `-C`, so the gate would run the suite in the session\'s own checkout — a tree the ' +
+        'merge never touched. Run it as `git -C <path> merge …` instead.',
+    };
+  }
+  if (cwd === sessionCwd) return session;
+  const target = readVerification(cwd);
+  if (!target.full && session.full) {
+    return {
+      full: null,
+      focused: null,
+      blind:
+        `superdev: green-gate found no \`${VERIFICATION_DOC}\` in the merge's own working tree ` +
+        `(\`${cwd}\`), while this session's checkout carries one. Either the \`-C\` path is not the tree ` +
+        'the merge landed in — point `-C` at the merge tree — or it is that tree and genuinely carries ' +
+        `no \`${VERIFICATION_DOC}\` at all (a \`-C\` subdirectory of this repo, or a branch cut before the ` +
+        'document existed) — verify that tree by hand.',
+    };
+  }
+  return target;
+}
 
 // references/test-selection.md: the first fenced block is the full command, the optional
 // second is the focused one. Both trimmed; { full: null } when the doc is missing.
@@ -142,6 +195,9 @@ function decide(input, getVerification, runTests, getChangedPaths, mergeInProgre
   const cmd = (input && input.tool_input && input.tool_input.command) || '';
   if (!IS_MERGE.test(cmd)) return { block: false }; // not a merge
   const verification = getVerification();
+  // A blind spot fails closed, before every check below: each of them — the configured command, the
+  // branch read, the in-progress check — asks a question about a tree the gate could not resolve.
+  if (verification && verification.blind) return { block: true, reason: verification.blind };
   if (!verification || !verification.full) return { block: false }; // no gate configured
   // ADR 0033: a merge whose checkout is on an integration branch is a wide refactor's batch merge —
   // green is promised at the integrate-and-verify merge into the scope branch, so the gate defers here
@@ -237,10 +293,12 @@ function main() {
     // with no -C).
     const sessionCwd = (input && input.cwd) || process.cwd();
     const cmd = (input && input.tool_input && input.tool_input.command) || '';
+    // `null` when the tree is unknowable: resolveVerification() turns that into the blind reason
+    // decide() blocks on, and the injected side effects below are never reached in that case.
     const cwd = resolveMergeCwd(cmd, sessionCwd);
     const { block, reason } = decide(
       input,
-      () => readVerification(cwd),
+      () => resolveVerification(cmd, sessionCwd),
       (tc) => runTests(tc, cwd),
       () => getChangedPaths(cwd),
       () => mergeInProgress(cwd),
@@ -273,7 +331,17 @@ if (process.argv[2] === '--selftest') {
   assert.equal(decide(merge('forgit merge'), full('npm test'), red, notCalled).block, false, 'no substring false positive');
   assert.equal(decide(merge('git merge-base main HEAD'), full('npm test'), red, notCalled).block, false, 'merge-base is read-only, not a merge');
   assert.equal(decide(merge('git merge-tree a b'), full('npm test'), red, notCalled).block, false, 'merge-tree is read-only');
-  assert.equal(decide(merge('cd x && git merge y'), full('npm test'), red, notCalled).block, true, 'after &&');
+  // A merge reached by changing directory names no tree this hook can resolve, so the gate blocks on a
+  // GREEN suite: the block is the unknowable tree, never a verdict on the code.
+  {
+    const blind = () => ({ full: 'npm test', focused: null, blind: 'superdev: cannot see the merge tree' });
+    const suiteNotRun = () => {
+      throw new Error('the suite should not run when the merge tree is unknowable');
+    };
+    const result = decide(merge('cd x && git merge y'), blind, suiteNotRun, notCalled);
+    assert.equal(result.block, true, 'a merge whose tree is unknowable blocks with a green suite');
+    assert.match(result.reason, /cannot see the merge tree/, 'the block carries the blind reason');
+  }
   assert.equal(decide(merge('echo done\ngit merge --no-ff s'), full('npm test'), red, notCalled).block, true, 'merge on a later line');
   assert.equal(decide(merge('git -C ../wt merge slice/x/1'), full('npm test'), red, notCalled).block, true, 'git -C merge is gated');
   assert.equal(decide(merge('git -C "path with spaces" merge slice/x/1'), full('npm test'), red, notCalled).block, true, 'git -C <quoted path> merge is gated');
@@ -379,6 +447,18 @@ if (process.argv[2] === '--selftest') {
     'a backslash-escaped space in an unquoted -C path is unescaped',
   );
   assert.equal(resolveMergeCwd('git merge -C /wt slice/x/1', '/session'), '/session', '-C after `merge` is a merge argument, not the global option');
+
+  // --- the unknowable tree: a directory change before the merge, with no -C to say where ---
+  assert.equal(resolveMergeCwd('cd /wt && git merge s', '/session'), null, 'a cd before the merge makes the tree unknowable');
+  assert.equal(resolveMergeCwd('pushd /wt && git merge s', '/session'), null, 'a pushd does the same');
+  assert.equal(resolveMergeCwd('popd && git merge s', '/session'), null, 'a popd does the same');
+  assert.equal(resolveMergeCwd('(cd /wt && git merge s)', '/session'), null, 'a subshell that cds does the same');
+  assert.equal(resolveMergeCwd('echo x && cd /wt && git status && git merge s', '/session'), null, 'a cd anywhere before the merge in a longer chain');
+  assert.equal(resolveMergeCwd('cd /wt\ngit merge s', '/session'), null, 'a cd on an earlier line');
+  assert.equal(resolveMergeCwd('cd /wt && git -C /other merge s', '/session'), '/other', 'an explicit -C names the tree even after a cd');
+  assert.equal(resolveMergeCwd('git merge s && cd /wt', '/session'), '/session', 'a cd after the merge leaves the merge tree knowable');
+  assert.equal(resolveMergeCwd('cdx /wt && git merge s', '/session'), '/session', 'a command merely starting with `cd` is not a directory change');
+  assert.equal(resolveMergeCwd('cd /wt && bun run test', '/session'), '/session', 'a non-merge command is untouched');
   assert.equal(
     resolveMergeCwd('git -C /base/"my dir" merge slice/x/1', '/session'),
     '/base/my dir',
@@ -743,9 +823,9 @@ if (process.argv[2] === '--selftest') {
       fs.rmSync(target, { recursive: true, force: true });
     }
 
-    // a -C path that does not exist at all has no verification doc to read there either — the gate
-    // stays inert, which is correct: `git -C <nonexistent>` already failed before merging anything,
-    // so there is nothing this gate would be blocking.
+    // a -C path carrying no verification doc, while the session's checkout carries one, is the
+    // asymmetry that says the -C path is not the merge's tree — inert there would be a repository
+    // that configured the gate silently losing it, so it blocks instead
     {
       const session = tmp('gg-session-');
       const target = path.join(tmp('gg-parent-'), 'does-not-exist');
@@ -753,7 +833,53 @@ if (process.argv[2] === '--selftest') {
       commitFile(session, 'base.txt', 'x\n');
       writeVerification(session, 'node -e "process.exit(1)"');
       const result = runHook({ cwd: session, tool_input: { command: `git -C '${target}' merge --no-ff other` } });
-      assert.equal(result.status, 0, 'a -C path that does not exist carries no verification doc, so the gate stays inert');
+      assert.equal(result.status, 2, 'a -C path with no verification doc, while the session has one, blocks');
+      assert.match(result.stderr, /found no `docs\/agents\/verification\.md`/, 'the block names what it could not find');
+      assert.match(
+        result.stderr,
+        /is not the tree the merge landed in/,
+        'names the wrong-target reading: -C pointed somewhere other than the merge tree',
+      );
+      assert.match(
+        result.stderr,
+        /genuinely carries no/,
+        'names the other reading: -C is the merge tree, and that tree carries no verification doc at all',
+      );
+      fs.rmSync(session, { recursive: true, force: true });
+    }
+
+    // a directory-changing merge naming no -C: the tree is unknowable, so the gate blocks and names
+    // `git -C <path> merge` as the way to run it — pushd and a subshell take the same path
+    {
+      const session = tmp('gg-session-');
+      initRepo(session);
+      commitFile(session, 'base.txt', 'x\n');
+      writeVerification(session, 'node -e "process.exit(0)"'); // green: the block is the blind tree, not a verdict
+      for (const command of [
+        'cd ../other-worktree && git merge --no-ff slice/x/1',
+        'pushd ../other-worktree && git merge --no-ff slice/x/1',
+        '(cd ../other-worktree && git merge --no-ff slice/x/1)',
+        'echo start && cd ../other-worktree && git status && git merge --no-ff slice/x/1',
+      ]) {
+        const result = runHook({ cwd: session, tool_input: { command } });
+        assert.equal(result.status, 2, `a directory-changing merge blocks: ${command}`);
+        assert.match(result.stderr, /git -C <path> merge/, 'the block names the way to run it');
+      }
+      // the same command with an explicit -C is knowable again, and gates on that target
+      const withC = runHook({ cwd: session, tool_input: { command: `cd /tmp && git -C '${session}' merge --no-ff other` } });
+      assert.equal(withC.status, 0, 'a directory change with an explicit -C resolves to the -C target and gates there');
+      fs.rmSync(session, { recursive: true, force: true });
+    }
+
+    // a directory-changing merge in a repository carrying no verification doc at all stays inert:
+    // there is no gate configured to fail closed on
+    {
+      const session = tmp('gg-session-');
+      initRepo(session);
+      commitFile(session, 'base.txt', 'x\n');
+      const result = runHook({ cwd: session, tool_input: { command: 'cd ../elsewhere && git merge --no-ff other' } });
+      assert.equal(result.status, 0, 'no verification doc anywhere → a directory-changing merge stays inert');
+      assert.equal(result.stderr, '', 'and prints nothing');
       fs.rmSync(session, { recursive: true, force: true });
     }
 

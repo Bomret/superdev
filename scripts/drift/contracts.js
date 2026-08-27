@@ -1689,6 +1689,32 @@ const SCOPE_WORKTREE_CONTRACTS = [
   ],
 ];
 
+// The absence half of the `commands/afk.md` row above (`scanAfkLockTierClaim` in `scanners.js` runs it).
+// One document, because one document's eligibility bullet reads the lock: a sibling command carrying the
+// same sentence is describing something else.
+const AFK_LOCK_TIER_SILENCE_DOCS = [path.join('commands', 'afk.md')];
+
+// Three spellings of the one claim, matched on the parts that carry it — `lock`, `only`/`only ever`, and
+// `lite`-the-tier — rather than on a sentence shape, since the claim regrows in whatever words the edit
+// reintroducing it reaches for. `lite` takes optional backticks and either a hyphen or a space before
+// `tier`, the three ways this repo's prose writes it.
+// ponytail: a marker list, matching the claim rather than parsing the bullet; a stricter grammar is the
+// upgrade if a paraphrase ever slips past it.
+const AFK_LOCK_TIER_MARKERS = [
+  [
+    /\b(?:run[- ]?)?lock\b[^.]{0,120}?\bonly(?:\s+ever)?\b[^.]{0,120}?`?lite`?[- ]tier/i,
+    (hit) =>
+      'claim no tier-specific run lock — both tiers write one (ADR 0045), and the eligibility bullet ' +
+      `falls back to the ledger mtime on no lock present: "${normalizeWhitespace(hit[0])}"`,
+  ],
+  [
+    /\bonly\b[^.]{0,120}?`?lite`?[- ]tier[^.]{0,120}?\b(?:run[- ]?)?lock\b/i,
+    (hit) =>
+      'claim no tier-specific run lock — both tiers write one (ADR 0045), and the eligibility bullet ' +
+      `falls back to the ledger mtime on no lock present: "${normalizeWhitespace(hit[0])}"`,
+  ],
+];
+
 // ADR 0028 forbids a forcing branch flag in either execution playbook: `git switch -C`/`--force-create`,
 // `git checkout -B`, and `git worktree add … -B`/`--force-create` all reset an existing branch instead of
 // failing on it. `switch -C` prints `Reset branch` and exits 0 while leaving every slice already merged
@@ -2243,6 +2269,8 @@ module.exports = {
   PARKED_QUESTIONS_CONTRACTS,
   RUN_KIND_CONTRACTS,
   SCOPE_WORKTREE_CONTRACTS,
+  AFK_LOCK_TIER_SILENCE_DOCS,
+  AFK_LOCK_TIER_MARKERS,
   FORCING_FLAG_DOCS,
   FORCING_FLAG_PATTERNS,
   NARRATIVE_DOC,

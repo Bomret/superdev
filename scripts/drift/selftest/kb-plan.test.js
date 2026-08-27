@@ -32,6 +32,22 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(kbGaps1.length, 1, 'flags a document that stopped naming the staging location');
   assert.equal(kbGaps1[0].source, path.join('commands', 'plan.md'), 'names plan.md');
 
+  // positive: document.md hands the writer a page with no staging path at all
+  const kbStagingDoc = fixture({
+    'commands/document.md': 'Hand the writer each page it should publish.\n',
+  });
+  const kbStagingDocGaps = scanContract(kbStagingDoc, KB_STAGING_CONTRACTS);
+  assert.equal(kbStagingDocGaps.length, 1, 'flags document.md for dropping the staging path it hands the writer');
+  assert.equal(kbStagingDocGaps[0].source, path.join('commands', 'document.md'), 'names document.md');
+
+  // positive: doc-pass.md instructs writing a remote backend's pages directly, skipping the staging step
+  const kbStagingPass = fixture({
+    'references/doc-pass.md': "Write each remote backend's page directly to the wiki.\n",
+  });
+  const kbStagingPassGaps = scanContract(kbStagingPass, KB_STAGING_CONTRACTS);
+  assert.equal(kbStagingPassGaps.length, 1, 'flags doc-pass.md for dropping the staging path');
+  assert.equal(kbStagingPassGaps[0].source, path.join('references', 'doc-pass.md'), 'names doc-pass.md');
+
   // positive: the negative half fires on a restored call path even while the staging line is still there
   const kb2 = fixture({
     'agents/doc-writer.md':

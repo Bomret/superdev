@@ -910,6 +910,29 @@ run never meeting its own fresh-lock refusal, a whole-scope review or run-handof
 writes to the wrong checkout, a merge abort that silently ungates the next merge in the scope worktree, or
 an unattended controller told to distrust a lock signal it can actually trust.
 
+**This check runs a second scanner beside its table, `scanAfkLockTierClaim`.** The `commands/afk.md` row
+above is a **presence** check — it anchors on the surviving fallback rule — while its expectation
+describes an **absence**: that the file no longer claims a run lock exists only for a `lite`-tier scope. A
+presence row cannot assert that, so the stale claim can regrow as a sentence preceding the fallback rule
+with the row still matching. The scanner is the absence half, in the `scanDocsAvoid` shape
+`DOC_STEP_SILENCE_DOCS` and `DENIAL_CAP_NUMBER_SILENCE_DOCS` already use: two markers over one document,
+where a **match** is the gap, matching on the parts that carry the claim (`lock`, `only`, `lite`-the-tier)
+in either order rather than on one sentence shape. It joins this check rather than taking a registry id
+of its own, because it asserts the other half of a row already here.
+
+**Its selftest fixture is guarded, and that guard observes instead of declares.** `scanContract()` skips a
+document it cannot read — the same convention that lets a fixture carry only the files one assertion
+exercises — so a table whose fixture never names one of its documents lets that row's "every clause
+present yields zero gaps" assertion pass without ever running it. That is how the `commands/afk.md` row
+above sat unexercised: the table pins eight documents and the fixture named seven. `selftest/index.js`
+wraps `scanContract` for the run and records, per table, every document any call actually resolves (via
+`readDoc`, so a `realRoot` call counts too); once every suite has run, it asserts each table's recorded
+set covers every document the table pins, naming both the table and the document, since "a fixture is
+incomplete" leaves the reader searching twenty-one rows. This covers every table any suite scans, with no
+per-table call and no hand-typed document list to fall out of sync with the fixtures — including a table
+like `FULL_SUITE_CONTRACTS` whose fixtures are legitimately split across many small calls, since the
+recorded set just accumulates across the run instead of needing one fixture to carry every document at once.
+
 Sixtieth, the `denial-reset` contract (ADR 0044), four rows, all on `references/scope-mode.md`: the cap
 the check above pins has a way back, and it is only reachable where two of that file's sections state it.
 Three rows sit on `## Degraded passes` — the reset command with its required reason
