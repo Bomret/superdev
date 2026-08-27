@@ -167,10 +167,23 @@ _Avoid: "quality note", "improvement suggestion", "nit" (a ceiling note describe
 **Deferred finding**: a fix-loop finding whose remedy adds a capability the Definition of Done never
 named. It starts no fix loop, holds no run stage, and is not an **Unresolved defect**. The scope review
 records it under its report's `### Deferred to a plan` heading instead and hands it to `/superdev:plan`.
-The run's ledger carries it as a `**Deferred:**` bullet, which `/superdev:ship` copies into the
-pull-request body under its own heading. That is what outlives the review's own conversation (ADR 0035).
+It reaches three homes at once: a **Triage record** in the slice store, a `**Deferred:**` bullet in the
+run's ledger carrying that record's reference, and the pull-request body `/superdev:ship` copies the
+bullet into. The triage record is the one that outlives the run root and the closed scope anchor
+(ADR 0035, 0046).
 _Avoid: "scope growth", "out-of-scope finding" (the point is the DoD boundary, not that the finding is
 unwelcome or off-topic)_
+
+**Triage record**: the slice-store record a **Deferred finding** gets, created by `/superdev:review` at
+the moment it defers. It is store-native and backend-shaped — an issue carrying the store's `triage`
+label on an issue backend, a file under `docs/plans/triage/` on the local plan-file store — and carries
+the finding, why no criterion covered it, the date, and the provenance available at defer time: the
+feature label, the scope branch, and the scope anchor's reference, never a pull request, which does not
+exist yet. It carries **no feature label and no `ready` label**, which is what keeps `/superdev:afk` and
+`/superdev:implement` from ever selecting it. Writing it is best-effort: a failure leaves the ledger
+bullet written and the review unblocked (ADR 0046).
+_Avoid: "draft issue" (no backend the plugin supports has a draft issue state outside GitHub's project
+boards), "triage slice" (it has no spec, no acceptance, and no place in a DAG)_
 
 ## Separation of concerns
 
