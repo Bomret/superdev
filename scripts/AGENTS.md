@@ -934,7 +934,8 @@ like `FULL_SUITE_CONTRACTS` whose fixtures are legitimately split across many sm
 recorded set just accumulates across the run instead of needing one fixture to carry every document at once.
 
 Sixtieth, the `denial-reset` contract (ADR 0044), four rows, all on `references/scope-mode.md`: the cap
-the check above pins has a way back, and it is only reachable where two of that file's sections state it.
+the fifty-third check pins has a way back, and it is only reachable where two of that file's sections
+state it.
 Three rows sit on `## Degraded passes` — the reset command with its required reason
 (`degraded reset-denials '<reason>'`), what it does to the count and to the record (the count runs from
 the last reset marker, so every recorded denial survives), and that a reset is a human act no command in
