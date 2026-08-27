@@ -141,7 +141,7 @@ swaps that one to `in-progress`.
 
 ## Triage record
 
-`CONTEXT.md` → *Triage record*, ADR 0046. `/superdev:review` creates one the moment it defers a finding.
+`plan-contract.md` → *Triage record*. `/superdev:review` creates one the moment it defers a finding.
 Here it is an ordinary Codeberg issue carrying the label **`triage`** and nothing else.
 
 - **Create it:** `POST /api/v1/repos/bomret/superdev/issues` with

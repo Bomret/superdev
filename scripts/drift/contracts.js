@@ -850,12 +850,13 @@ const DENIAL_RESET_CONTRACTS = [
   ],
 ];
 
-// ADR 0046. A **triage record** is the store-native record a deferred finding gets (`CONTEXT.md` →
-// *Triage record*), and it is the only home that outlives the run root `hooks/scope-prune.js` reaps and
-// the scope anchor `/superdev:ship` closes. `/superdev:review` writes it through the active store
-// document, so a store document with no `## Triage record` section leaves the command asking a backend
-// for a record that backend never defined: the review defers, the ledger bullet is written, and the
-// finding reaches no backlog anywhere. `scanTriageRecordContract()` (`scanners.js`) walks
+// ADR 0046. A **triage record** is the store-native record a deferred finding gets
+// (`references/plan-contract.md` → `## Triage record`), and it is the only home that outlives the run root
+// `hooks/scope-prune.js` reaps and the scope anchor `/superdev:ship` closes — on the local plan-file store,
+// only once the scope branch carrying it merges (ADR 0048). `/superdev:review` writes it
+// through the active store document, so a store document with no `## Triage record` section leaves the
+// command asking a backend for a record that backend never defined: the review defers, the ledger bullet
+// is written, and the finding reaches no backlog anywhere. `scanTriageRecordContract()` (`scanners.js`) walks
 // `storeDocuments()` for the presence half — the same candidate list the anchor and release contracts
 // already walk, including a backend seed added later and this repo's own dogfooded
 // `docs/agents/issue-tracker.md` — rather than naming the seeds here, so a fifth backend gets the
@@ -1818,11 +1819,11 @@ const NUMBER_TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'sev
 // `## Unattended` and `## Degraded passes` rows); this table is that treatment for the five canonical
 // sources that never got it.
 //
-// `plan-contract.md` carries six rows because five of its sections are cited by name elsewhere in the
-// plugin — a store document rendering `## Append mode` or `## Scope anchor` for its own backend is
-// following a section that has to exist to be followed — plus `## Fields`, the slice schema every store
-// renders. The other four files are cited only as whole files, so their rows pin the sections that hold
-// the rule the citing document promises its reader.
+// `plan-contract.md` carries seven rows because six of its sections are cited by name elsewhere in the
+// plugin — a store document rendering `## Append mode`, `## Scope anchor`, or `## Triage record` for its
+// own backend is following a section that has to exist to be followed — plus `## Fields`, the slice
+// schema every store renders. The other four files are cited only as whole files, so their rows pin the
+// sections that hold the rule the citing document promises its reader.
 const SOURCE_SECTION_CONTRACTS = [
   [
     path.join('references', 'plan-contract.md'),
@@ -1849,6 +1850,11 @@ const SOURCE_SECTION_CONTRACTS = [
     path.join('references', 'plan-contract.md'),
     /^#{2,3}\s+Scope anchor\s*$/m,
     'carry the `## Scope anchor` section — the generic contract each store document specialises (ADR 0017)',
+  ],
+  [
+    path.join('references', 'plan-contract.md'),
+    /^#{2,3}\s+Triage record\s*$/m,
+    'carry the `## Triage record` section — the generic contract each store document specialises (ADR 0046)',
   ],
   [
     path.join('references', 'plan-contract.md'),

@@ -2205,7 +2205,8 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   const sourceSectionBodies = {
     'references/plan-contract.md':
       '# Plan-file contract\n\n## Fields\n\n## Epic visuals (optional, epic-only)\n\n' +
-      '## Slice lifecycle & status\n\n## Append mode\n\n## Scope anchor\n\n## Feature label\n',
+      '## Slice lifecycle & status\n\n## Append mode\n\n## Scope anchor\n\n## Triage record\n\n' +
+      '## Feature label\n',
     'references/test-selection.md':
       '# Test selection\n\n## The two commands\n\n## Fallback to the full command\n',
     'references/content-types.md': '# Content types\n\n## The four types\n\n## The conceptual layer\n',
@@ -2229,6 +2230,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     ['references/plan-contract.md', '## Slice lifecycle & status\n\n'],
     ['references/plan-contract.md', '## Append mode\n\n'],
     ['references/plan-contract.md', '## Scope anchor\n\n'],
+    ['references/plan-contract.md', '## Triage record\n\n'],
     ['references/plan-contract.md', '## Feature label\n'],
     ['references/test-selection.md', '## The two commands\n\n'],
     ['references/test-selection.md', '## Fallback to the full command\n'],

@@ -91,8 +91,8 @@ plan runs test-first, inline in the scope worktree.
   the pull-request body, both of which end with the run. On the local plan-file store, the record reaches
   your backlog only once the scope that created it ships
   ([ADR 0046](docs/adr/0046-a-deferred-finding-becomes-a-triage-record.md),
-  [ADR 0048](docs/adr/0048-a-local-store-triage-record-needs-its-scope-to-ship.md)). It carries no feature label
-  and no `ready` label, so nothing ever builds it by accident. Either way the command dispatches the same
+  [ADR 0048](docs/adr/0048-a-local-store-triage-record-needs-its-scope-to-ship.md)). Nothing ever builds
+  it: no candidate listing and no slice loader selects it. Either way the command dispatches the same
   `final-reviewer` and `simplicity-reviewer` subagents and reports one consolidated verdict.
 - **`/superdev:document`**. Dispatches the `doc-writer` to reconcile the in-repo docs (the `AGENTS.md`
   hierarchy) and the optional knowledge base with the current code. It adds what is new and **removes

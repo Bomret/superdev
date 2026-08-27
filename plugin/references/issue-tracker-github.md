@@ -195,7 +195,7 @@ dispatch swaps to `in-progress`.
 
 ## Triage record
 
-`CONTEXT.md` → *Triage record*, ADR 0046. `/superdev:review` creates one the moment it defers a finding.
+`plan-contract.md` → *Triage record*. `/superdev:review` creates one the moment it defers a finding.
 On this store it is an ordinary issue carrying the **Triage label** from *Configuration* and nothing else.
 
 - **Create it:** `POST /repos/<owner>/<repo>/issues` with

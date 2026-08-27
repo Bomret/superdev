@@ -557,7 +557,8 @@ where most assert that one still does, which is why it is a scanner rather than 
 `return-to-controller` below is the other.
 Forty-first, the `source-sections` contract: each canonical reference still carries the sections its readers
 are sent to. `references/plan-contract.md` (`## Fields`, `## Epic visuals`, `## Slice lifecycle & status`,
-`## Append mode`, `## Scope anchor`, `## Feature label`), `references/test-selection.md` (`## The two
+`## Append mode`, `## Scope anchor`, `## Triage record`, `## Feature label`),
+`references/test-selection.md` (`## The two
 commands`, `## Fallback to the full command`), `references/content-types.md` (`## The four types`, `## The
 conceptual layer`), `references/controlled-prose.md` (`## Modes`, `## Self-check`), and
 `references/review-checklist.md` (`## Anti-patterns`, `## Vulnerability classes`, `## Reuse audit`, `##
@@ -957,9 +958,10 @@ reports the ones carrying no `## Triage record` section, stating where a **triag
 backend, including `references/issue-tracker-local.md`, whose rendering is a file under
 `docs/plans/triage/` rather than a label, because that store has no labels at all. Two more rows, a table
 run through `scanContract()`, sit on `commands/review.md` and `references/scope-mode.md`, the two
-documents that write it. The record is what makes a deferred finding outlive its run —
-`hooks/scope-prune.js` reaps the run root, `/superdev:ship` closes the scope anchor, and before this
-record the only survivor was the body of a merged pull request, which appears in no backlog and no query.
+documents that write it. The record is what makes a deferred finding outlive the run root
+`hooks/scope-prune.js` reaps and the scope anchor `/superdev:ship` closes — on the local plan-file
+store, only once the scope branch carrying it merges (ADR 0048) — and before this record the only
+survivor was the body of a merged pull request, which appears in no backlog and no query.
 `/superdev:review` writes it through whichever store document is active, so a store document with no
 `## Triage record` section leaves the command asking a backend for a record that backend never defined:
 the review defers, the ledger bullet lands, and the finding reaches nothing. Walking `storeDocuments()`

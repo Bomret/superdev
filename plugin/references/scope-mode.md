@@ -430,9 +430,10 @@ A deferred finding is therefore **not** an unresolved defect — it holds no sta
 a verdict whose only remaining findings are deferred counts as clean.
 
 **The record has two halves, and the durable one is the store's.** A **triage record** in the configured
-slice store is what outlives this run: `hooks/scope-prune.js` reaps the run root once the scope ships and
-goes stale, and `/superdev:ship` closes the scope anchor that mirrors it, so a bullet alone leaves the
-finding in the body of a merged pull request and in no backlog at all (ADR 0046). `/superdev:review`
+slice store is what outlives this run — on the local plan-file store, only once the scope branch
+carrying the record merges (ADR 0048): `hooks/scope-prune.js` reaps the run root once the scope ships
+and goes stale, and `/superdev:ship` closes the scope anchor that mirrors it, so a bullet alone leaves
+the finding in the body of a merged pull request and in no backlog at all (ADR 0046). `/superdev:review`
 creates that record at the moment it defers, and the bullet below carries the record's reference. **How a
 store creates one is the store's own contract**, stated in the active `docs/agents/issue-tracker.md`'s
 `## Triage record` section — an issue carrying that store's triage label, a file under a directory no

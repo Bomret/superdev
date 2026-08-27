@@ -239,6 +239,35 @@ the anchor for both feature shapes by citing that store's own `## Scope anchor` 
 restating it. A store whose anchor cannot safely carry a mirrored write declares itself snapshot-less
 there instead.
 
+## Triage record
+
+A **deferred finding** — a fix-loop finding whose remedy adds a capability the Definition of Done never
+asked for — gets a **triage record** in the slice store. The run's ledger carries a `**Deferred:**` bullet
+naming the record, and `/superdev:ship` copies that bullet into the pull-request body, but both live and
+die with the run: the run root is reaped and the pull request is merged. On an issue backend, the record
+outlives them regardless of whether the scope ever ships; on the local plan-file store, it outlives them
+only once the scope branch carrying it merges (ADR 0046, ADR 0048).
+
+Four invariants fix its shape, and every backend renders all four:
+
+- **`/superdev:review` writes it, at the moment it defers.** A run reviewed and then abandoned never
+  reaches `/superdev:ship`, and its run root is pruned with the findings still inside, so the command that
+  finds the work is the one that records it.
+- **It is neither a slice nor a scope anchor.** No candidate listing and no slice loader ever selects it.
+  How a given store guarantees that — a label it withholds, a file shape no walk reaches — is the active
+  store's own `## Triage record` section. It records unplanned work; only a human, or a later
+  `/superdev:plan` interview a human starts, acts on it.
+- **Provenance is what exists at defer time.** The record names the finding, why no Definition of Done
+  criterion covered it, the date, the feature label, the scope branch, and the scope anchor's reference. It
+  never names a pull request: `/superdev:review` runs before `/superdev:ship` opens one.
+- **The write is best-effort**, exactly as a status label is. A failure or a denial leaves the ledger
+  bullet written and the review unblocked, reported once per run, because the ledger drives control flow.
+
+Every backend mechanism — the label a record carries or the directory it lives in, and the call that
+creates it — belongs to the active `docs/agents/issue-tracker.md`'s own `## Triage record` section, when
+that document carries one. A store document that states none leaves `/superdev:review` writing only the
+ledger bullet, `no triage record — store defines none` in the reference's place.
+
 ## Feature label
 
 A feature's **feature label** is the one identifier its scope anchor and every slice beneath it carry. It

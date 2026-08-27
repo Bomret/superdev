@@ -144,7 +144,7 @@ and the ready status/label marks a slice rather than the feature.
 
 ## Triage record
 
-`CONTEXT.md` → *Triage record*, ADR 0046. `/superdev:review` creates one the moment it defers a finding.
+`plan-contract.md` → *Triage record*. `/superdev:review` creates one the moment it defers a finding.
 On this store it is an ordinary issue in the configured project carrying the **Triage label** from
 *Configuration* and nothing else.
 

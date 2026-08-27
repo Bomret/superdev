@@ -135,7 +135,7 @@ instead — a `released: yes` line in the epic file's header, read where the sta
 
 ## Triage record
 
-`CONTEXT.md` → *Triage record*, ADR 0046. `/superdev:review` creates one the moment it defers a finding.
+`plan-contract.md` → *Triage record*. `/superdev:review` creates one the moment it defers a finding.
 This store has no labels, so the record is a **file**: `docs/plans/triage/<slug>.md`, where `<slug>` is a
 short kebab-case summary of the finding. A file already at that path takes a `-2`, `-3`, … suffix, so two
 findings summarised the same way stay two records.

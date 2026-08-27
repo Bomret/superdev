@@ -176,13 +176,10 @@ _Avoid: "scope growth", "out-of-scope finding" (the point is the DoD boundary, n
 unwelcome or off-topic)_
 
 **Triage record**: the slice-store record a **Deferred finding** gets, created by `/superdev:review` at
-the moment it defers. It is store-native and backend-shaped — an issue carrying the store's `triage`
-label on an issue backend, a file under `docs/plans/triage/` on the local plan-file store — and carries
-the finding, why no criterion covered it, the date, and the provenance available at defer time: the
-feature label, the scope branch, and the scope anchor's reference, never a pull request, which does not
-exist yet. It carries **no feature label and no `ready` label**, which is what keeps `/superdev:afk` and
-`/superdev:implement` from ever selecting it. Writing it is best-effort: a failure leaves the ledger
-bullet written and the review unblocked (ADR 0046).
+the moment it defers. It records unplanned work. It is neither a slice nor a scope anchor, which is what
+keeps every run and every sweep from selecting it as work to build. Only a human acts on it, or a later
+`/superdev:plan` interview a human starts. How a given store expresses it is stated in that store's own
+`## Triage record` section (ADR 0046).
 _Avoid: "draft issue" (no backend the plugin supports has a draft issue state outside GitHub's project
 boards), "triage slice" (it has no spec, no acceptance, and no place in a DAG)_
 
