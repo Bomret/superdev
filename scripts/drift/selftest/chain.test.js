@@ -14,6 +14,7 @@ const {
   DEGRADED_CONTRACTS,
   DENIAL_AUTHORSHIP_CONTRACTS,
   DENIAL_CAP_CONTRACTS,
+  DENIAL_RESET_CONTRACTS,
   DERIVED_CRITERIA_CONTRACTS,
   LABEL_VALIDATION_CONTRACTS,
   GREEN_GATE_TIMEOUT_CONTRACTS,
@@ -318,7 +319,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       "defining section's own citation instead.\n\n",
     degraded:
       '## Degraded passes\n\nPublish the snapshot afterwards, per `## Publishing run state` above, on every\n' +
-      '`degraded add` or `degraded add-denial` call.\n\n',
+      '`degraded add`, `degraded add-denial`, or `degraded reset-denials` call.\n\n',
     unresolved:
       '## Unresolved defects\n\nPublish the snapshot afterwards, per `## Publishing run state` above, on\n' +
       'every `unresolved add` or `unresolved clear` call.\n\n',
@@ -417,6 +418,22 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     0,
     'the section plus every citing site yields zero gaps',
   );
+
+  // positive: ADR 0044 added a third verb, `degraded reset-denials`, to the write this row pins — a
+  // `## Degraded passes` citation still naming only the original two verbs (the shape every prior
+  // release carried) gaps, rather than the pattern staying satisfied by a subset of its own text.
+  const degradedTwoVerbOnly = fixture({
+    ...everyPublishSite,
+    'references/scope-mode.md': joinAll({
+      ...scopeModePieces,
+      degraded:
+        '## Degraded passes\n\nPublish the snapshot afterwards, per `## Publishing run state` above, on every\n' +
+        '`degraded add` or `degraded add-denial` call.\n\n',
+    }),
+  });
+  const twoVerbGaps = scanContract(degradedTwoVerbOnly, PUBLISH_RUN_STATE_CONTRACTS);
+  assert.equal(twoVerbGaps.length, 1, 'flags scope-mode.md for citing only two of the three degraded verbs');
+  assert.equal(twoVerbGaps[0].source, path.join('references', 'scope-mode.md'), 'names scope-mode.md');
 
   // positive: dropping any one piece of a multi-site file leaves the others intact, so exactly one gap
   // fires naming that file — the precision the file-level version of this check could not offer, and the
@@ -1033,6 +1050,60 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     assert.equal(gaps.length, 1, `flags "${phrase.trim()}" for restating the cap's own number`);
     assert.match(gaps[0].expectation, /scope-mode\.md/, 'points back at the single source of truth');
   }
+
+  // --- DENIAL_RESET_CONTRACTS: the cap above has a way back, and it is only reachable where the two
+  // documents state it — the section defining the cap, and the block a capped run leaves (ADR 0044). ---
+
+  const definesReset =
+    '## Degraded passes\n\nAn unattended run blocks on its second denied verification dispatch.\n' +
+    "`scope.js degraded reset-denials '<reason>' --root <run-root>` returns the budget: the count runs\n" +
+    'from the last reset marker, so every recorded denial survives it. A reset is a human act, and no\n' +
+    'command in the chain performs one.\n\n' +
+    '## Unattended\n\nBlocking means: comment on the anchor naming the stop reached and why.\n' +
+    'BLOCK_NAMES_RESET\n';
+  const blockNamesReset =
+    'A block at the cap names `scope.js degraded reset-denials` in that comment, so the maintainer who\n' +
+    'fixed the cause finds the way back where they are already reading.';
+  const resetOpts = { stripFrontmatterFirst: true };
+
+  // negative: both halves stated is clean
+  assert.equal(
+    scanContract(
+      fixture({ 'references/scope-mode.md': definesReset.replace('BLOCK_NAMES_RESET', blockNamesReset) }),
+      DENIAL_RESET_CONTRACTS,
+      resetOpts,
+    ).length,
+    0,
+    'the reset stated beside the cap and named by the block yields zero gaps',
+  );
+
+  // positive: the section dropping the reset leaves a cap with no way back — the run that hits it can
+  // only finish attended, which is what the reset exists to prevent
+  const noReset = fixture({
+    'references/scope-mode.md':
+      '## Degraded passes\n\nAn unattended run blocks on its second denied verification dispatch.\n\n' +
+      '## Unattended\n\nBlocking means: comment on the anchor naming the stop reached and why.\n',
+  });
+  const resetGaps = scanContract(noReset, DENIAL_RESET_CONTRACTS, resetOpts);
+  assert.ok(resetGaps.length >= 1, 'flags a section that states the cap and never states the reset');
+  assert.ok(
+    resetGaps.every((g) => g.source === path.join('references', 'scope-mode.md')),
+    'names the document',
+  );
+  assert.ok(
+    resetGaps.some((g) => /reset-denials/.test(g.expectation)),
+    'names the missing reset command',
+  );
+
+  // positive: a block procedure that stops naming the reset command strands the maintainer who fixed the
+  // cause — the quoted refusal is right there, and the way back is nowhere
+  const blockSilent = fixture({
+    'references/scope-mode.md': definesReset.replace('BLOCK_NAMES_RESET', ''),
+  });
+  const blockGaps = scanContract(blockSilent, DENIAL_RESET_CONTRACTS, resetOpts);
+  assert.equal(blockGaps.length, 1, 'flags a block procedure that never names the reset command');
+  assert.equal(blockGaps[0].source, path.join('references', 'scope-mode.md'), 'names the document');
+  assert.match(blockGaps[0].expectation, /block/, 'names the block as the place it belongs');
 
   // --- CHANGE_TYPE_CONTRACTS: the change-type set the prose lists and the set the scope-prune hook
   // matches are the same fact in two syntaxes, in two files. ---

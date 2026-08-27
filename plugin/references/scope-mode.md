@@ -61,8 +61,8 @@ still the current directory. Address every artifact by that absolute path: `<run
 
 `<run-root>/ledger.md` is one document: labeled header lines, then a slice table.
 `${CLAUDE_PLUGIN_ROOT}/scripts/scope.js` owns its schema and is its only read and write path (ADR 0022):
-`init` creates the document, `stage` / `slice` / `degraded add|add-denial` / `unresolved add|clear` /
-`docs set|clear` move it, `get` / `status` read it back.
+`init` creates the document, `stage` / `slice` / `degraded add|add-denial|reset-denials` / `unresolved
+add|clear` / `docs set|clear` move it, `get` / `status` read it back.
 No command or playbook edits or parses the file directly — the `ledger-guard` hook denies any other
 write, naming `scope.js`.
 
@@ -242,9 +242,12 @@ any more than this one's. At each stop where it would otherwise do either:
 
 **Blocking** means: move the slice, where one is in play, and the scope anchor to `blocked` per the
 status map in `docs/agents/issue-tracker.md`; comment on the anchor naming the stop reached and why; then
-stop, leaving the scope branch standing and unshipped. A store with no comment concept records the same
-reason in the anchor's body. Both writes are best-effort, as every status write is — the ledger drives
-control flow, so a failed write is logged and the block still holds.
+stop, leaving the scope branch standing and unshipped. **A block at the denial cap names
+`scope.js degraded reset-denials` in that comment**, beside the quoted refusal, so the maintainer who
+fixes the cause finds the way back where they are already reading (`## Degraded passes` states it in
+full — the reset call plus clearing the `blocked` label this same procedure just wrote). A store with no
+comment concept records the same reason in the anchor's body. Both writes are best-effort, as every
+status write is — the ledger drives control flow, so a failed write is logged and the block still holds.
 
 **Without the token nothing changes.** Every command asks exactly what it asks today, in the same words.
 
@@ -310,6 +313,22 @@ block — no `blocked` label reaches the anchor, no comment names the stop, and 
 worktree stay standing. Blocking on the second keeps the stop inside superdev, where it leaves a record a
 human can act on.
 
+**The way back is two writes, not one.** Once a human has addressed what the denials were about — adding
+the dispatch to `permissions.allow`, say — `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js degraded
+reset-denials '<reason>' --root <run-root>` writes a marker bullet, and the count runs from the last reset
+marker. Every recorded denial survives it: the bullets stay on the `**Degraded:**` line, so
+`/superdev:status`, the pull-request body, and the anchor's published snapshot show the whole history plus
+the reset and its reason (ADR 0044). The reason is required — without one the call refuses and writes
+nothing — because a marker nobody can account for is a cap that quietly resets itself. The reset alone
+returns the budget but nothing that reads it: the cap exists only unattended, so a maintainer resuming by
+hand runs attended and never reads the count, and `/superdev:afk` skips the anchor regardless, because
+blocking already wrote the `blocked` label the block procedure describes (`## Unattended`) onto the
+anchor and any blocked slice, and eligibility requires neither carry it. **Clear that label too** — off
+the scope anchor and off any slice it marked, per the status map in `docs/agents/issue-tracker.md` — which
+is what returns the scope to `/superdev:afk`'s own selection (`commands/afk.md`). **A reset is a human
+act**, and no command in the chain performs one: the cause outlives a stage advance, so a run that reset
+its own budget would block again at the same place, one denial later.
+
 **An attended run carries no cap.** A human is present, and the platform's own stop escalates to that
 human. It performs every denied pass inline, however many arrive.
 
@@ -357,8 +376,9 @@ own output instead, and write nothing.
 
 **A degraded pass is not a stage.** It is the line above, never a new stage value (ADR 0018).
 
-**Publish the snapshot afterwards**, per `## Publishing run state` above, on every `degraded add` or
-`degraded add-denial` call — including one written just before an unattended block.
+**Publish the snapshot afterwards**, per `## Publishing run state` above, on every `degraded add`,
+`degraded add-denial`, or `degraded reset-denials` call — including one written just before an
+unattended block.
 
 ## Unresolved defects
 
@@ -453,8 +473,9 @@ documented too early"; `reviewed` is the value that gets the doc pass re-run, wh
 ## Publishing run state
 
 **Publishing follows any ledger write the snapshot would show** — `scope.js init`'s first write of
-`**Stage:** implementing`, every later `stage set`, every `degraded add`/`degraded add-denial`, every
-`unresolved add`/`unresolved clear`, every `deferred add`, and every `docs set`/`docs clear` — one rule
+`**Stage:** implementing`, every later `stage set`, every `degraded add`/`degraded
+add-denial`/`degraded reset-denials`, every `unresolved add`/`unresolved clear`, every `deferred add`,
+and every `docs set`/`docs clear` — one rule
 rather than a list of call sites. Each site below cites this section instead of restating it. **One
 exception:** a slice-row move (`scope.js slice`) is not published on its own — the **Slice rows are not
 published on their own** paragraph below states why. `plan-contract.md` → *Run state* owns what a

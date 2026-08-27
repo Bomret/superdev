@@ -147,7 +147,7 @@ function readLedgerHeader(content, name) {
 // `**Unresolved:**` (`## Unresolved defects`) carry one each, in the same shape. Read by both status
 // branches below — an in-flight scope prints them inline with its tally, a shipped one prints them
 // alone — and by `get degraded`/`get unresolved`/`get deferred`, and by `get denials`, which counts the
-// `**Degraded:**` bullets carrying the denial prefix.
+// `**Degraded:**` bullets carrying the denial prefix that follow the last reset marker.
 function readBullets(lines, name) {
   const at = lines.findIndex((l) => headerRe(name).test(l));
   const bullets = [];
@@ -320,10 +320,13 @@ function verbSlice(root, id, status, range) {
 
 // The write half of `readBullets`: append one bullet under `**<name>:**`, creating that line beside
 // `**Stage:**` when the ledger has none yet (scope-mode `## Degraded passes`, `## Unresolved defects`).
-// A newline in the text would break the one bullet = one line assumption the reader depends on.
-function addBullet(root, name, verb, text) {
-  if (!text) fail(`${verb} add needs the bullet text`);
-  if (text.includes('\n')) fail(`${verb} add text must not contain a newline`);
+// A newline in the text would break the one bullet = one line assumption the reader depends on. `verb`
+// names the invoked subcommand verbatim (`degraded add`, `degraded reset-denials`, …), so a refusal
+// names what the caller actually typed rather than a sibling subcommand's shape; `noun` names what the
+// missing text is called there — `reset-denials` takes a reason, everything else a bullet.
+function addBullet(root, name, verb, text, noun = 'bullet text') {
+  if (!text) fail(`${verb} needs the ${noun}`);
+  if (text.includes('\n')) fail(`${verb} text must not contain a newline`);
   const lines = readLines(root);
   let at = lines.findIndex((l) => headerRe(name).test(l));
   if (at < 0) {
@@ -341,17 +344,37 @@ function addBullet(root, name, verb, text) {
 // A denied verification dispatch and a pass that could not reach what it needed share the `**Degraded:**`
 // line and answer different questions, so the denial carries a prefix (scope-mode `## Degraded passes`,
 // ADR 0041). `get denials` counts by that prefix, which is why it is structural rather than a convention
-// each of the three recording callers would have to word identically.
+// each of the three recording callers would have to word identically. A reset marker carries a prefix of
+// its own: the count runs from the last one, which returns the budget while every recorded denial stays
+// on the line (ADR 0044).
 const DENIAL_PREFIX = 'denied: ';
+const RESET_PREFIX = 'denials reset: ';
 
 function verbDegraded(root, sub, text) {
   if (sub === 'add-denial') {
-    // The refusals are `add`'s, named as `add`'s: one bullet record, one set of rules.
-    addBullet(root, 'Degraded', 'degraded', text && `${DENIAL_PREFIX}${text}`);
+    // The refusals are `addBullet`'s, named as `add-denial`'s: one bullet record, one set of rules.
+    addBullet(root, 'Degraded', 'degraded add-denial', text && `${DENIAL_PREFIX}${text}`);
     return;
   }
-  if (sub !== 'add') fail(`unknown degraded subcommand "${sub}" — use add|add-denial`);
-  addBullet(root, 'Degraded', 'degraded', text);
+  if (sub === 'reset-denials') {
+    addBullet(root, 'Degraded', 'degraded reset-denials', text && `${RESET_PREFIX}${text}`, 'reason');
+    return;
+  }
+  if (sub !== 'add') fail(`unknown degraded subcommand "${sub}" — use add|add-denial|reset-denials`);
+  // `get denials` reads meaning from both prefixes, so a plain bullet able to carry one is a bullet able
+  // to move the count. `add-denial` is only for the denied *verification* dispatches the cap counts
+  // (scope-mode `## Degraded passes`); a denied Bash command or a denied *authoring* dispatch still
+  // takes plain `add` (`commands/implement.md`, `references/implement-full.md`) — so a text that quotes
+  // such a denial verbatim, rather than getting routed to `add-denial`, reworks its wording instead.
+  if (text.startsWith(DENIAL_PREFIX)) {
+    fail(
+      `degraded add text must not begin "${DENIAL_PREFIX}" — add-denial is for a denied verification ` +
+        `dispatch; any other denial (a denied Bash command, a denied authoring dispatch) reworks its ` +
+        `text instead of quoting "${DENIAL_PREFIX}" verbatim`
+    );
+  }
+  if (text.startsWith(RESET_PREFIX)) fail(`degraded add text must not begin "${RESET_PREFIX}" — use degraded reset-denials`);
+  addBullet(root, 'Degraded', 'degraded add', text);
 }
 
 function verbUnresolved(root, sub, text) {
@@ -366,7 +389,7 @@ function verbUnresolved(root, sub, text) {
     return;
   }
   if (sub !== 'add') fail(`unknown unresolved subcommand "${sub}" — use add|clear`);
-  addBullet(root, 'Unresolved', 'unresolved', text);
+  addBullet(root, 'Unresolved', 'unresolved add', text);
 }
 
 // `**Deferred:**` carries a finding `/superdev:review` handed to `/superdev:plan` rather than fixed: its
@@ -376,7 +399,7 @@ function verbUnresolved(root, sub, text) {
 // discover and undo.
 function verbDeferred(root, sub, text) {
   if (sub !== 'add') fail(`unknown deferred subcommand "${sub}" — use add`);
-  addBullet(root, 'Deferred', 'deferred', text);
+  addBullet(root, 'Deferred', 'deferred add', text);
 }
 
 // `**Docs:**` records that a run performed its documentation pass in the controller's own context
@@ -438,9 +461,11 @@ function verbGet(root, field) {
   if (field === 'denials') {
     // The count half of `degraded add-denial`: how many denied verification dispatches this run has
     // absorbed, which is what an unattended run caps at two (ADR 0041). A ledger with no `**Degraded:**`
-    // line, or one carrying only the other degraded shape, counts zero.
+    // line, or one carrying only the other degraded shape, counts zero. The count starts after the last
+    // `degraded reset-denials` marker, so a reset returns the budget without removing a bullet (ADR 0044).
     const bullets = readBullets(readLines(root), 'Degraded');
-    console.log(String(bullets.filter((b) => b.startsWith(DENIAL_PREFIX)).length));
+    const lastReset = bullets.map((b) => b.startsWith(RESET_PREFIX)).lastIndexOf(true);
+    console.log(String(bullets.slice(lastReset + 1).filter((b) => b.startsWith(DENIAL_PREFIX)).length));
     return;
   }
   const names = { stage: 'Stage', branch: 'Branch', anchor: 'Anchor', docs: 'Docs' };
@@ -720,7 +745,7 @@ function usage() {
     '  init <type>/<slug>                 stdin: {"anchor":"…","slices":[{id,issue,title,type,…}]}',
     '  stage set <value> --root <run-root>',
     '  slice <id> <status> [--range <r>]   --root <run-root>',
-    '  degraded add|add-denial <text>   --root <run-root>',
+    '  degraded add|add-denial|reset-denials <text>   --root <run-root>',
     '  unresolved add <text>|clear   --root <run-root>',
     '  deferred add <text>   --root <run-root>',
     '  docs set <value>|clear   --root <run-root>',
@@ -1201,7 +1226,10 @@ function selftest() {
       let d = call(['degraded', 'add-denial', 'line one\nline two', ...D]);
       assert.ok(!d.ok && /newline/.test(d.err), 'add-denial with a newline refused: ' + d.err);
       d = call(['degraded', 'add-denial', '', ...D]);
-      assert.ok(!d.ok && /needs the bullet text/.test(d.err), 'add-denial with no text refused: ' + d.err);
+      assert.ok(
+        !d.ok && /^degraded add-denial needs the bullet text$/.test(d.err),
+        'add-denial with no text refused, naming add-denial: ' + d.err
+      );
       assert.strictEqual(
         fs.readFileSync(path.join(dRoot, 'ledger.md'), 'utf8'),
         beforeDenialRefusal,
@@ -1213,6 +1241,94 @@ function selftest() {
 
       d = call(['get', 'nope', ...D]);
       assert.ok(!d.ok && /denials/.test(d.err), 'get on an unknown field names denials among the valid ones: ' + d.err);
+
+      // degraded reset-denials: the count runs from the last marker, and every recorded denial survives
+      // it, so a maintainer who fixed the cause returns the budget without destroying the trail
+      // (ADR 0044). The ledger above carries two denials at this point.
+      assert.ok(
+        call(['degraded', 'reset-denials', 'added final-reviewer to permissions.allow', ...D]).ok,
+        'reset-denials appends'
+      );
+      assert.ok(
+        /\n- denials reset: added final-reviewer to permissions\.allow\n?$/.test(fs.readFileSync(path.join(dRoot, 'ledger.md'), 'utf8')),
+        'the marker carries its own prefix, under the same **Degraded:** line'
+      );
+      assert.strictEqual(call(['get', 'denials', ...D]).out, '0', 'a marker returns the whole budget');
+
+      assert.ok(call(['degraded', 'add-denial', 'doc-reader denied (2026-08-27)', ...D]).ok, 'a denial after the marker');
+      assert.strictEqual(call(['get', 'denials', ...D]).out, '1', 'the count runs from the marker, not the ledger head');
+
+      assert.ok(call(['degraded', 'reset-denials', 'second reason', ...D]).ok, 'a second marker');
+      assert.ok(call(['degraded', 'add-denial', 'slice-reviewer denied (2026-08-27)', ...D]).ok, 'a denial after the second marker');
+      assert.strictEqual(call(['get', 'denials', ...D]).out, '1', 'two markers: the count runs from the later one');
+
+      // Every denial bullet survives both resets: the record is what makes the cap tolerable.
+      assert.strictEqual(
+        call(['get', 'degraded', ...D]).out,
+        [
+          'knowledge-base pass could not stage (2026-08-25)',
+          'denied: final-reviewer denied (2026-08-25)',
+          'denied: doc-reader denied (2026-08-25)',
+          'denials reset: added final-reviewer to permissions.allow',
+          'denied: doc-reader denied (2026-08-27)',
+          'denials reset: second reason',
+          'denied: slice-reviewer denied (2026-08-27)',
+        ].join('\n'),
+        'get degraded prints the full history, both prefixes intact'
+      );
+
+      // reset-denials shares add's two refusals, and neither writes.
+      const beforeResetRefusal = fs.readFileSync(path.join(dRoot, 'ledger.md'), 'utf8');
+      d = call(['degraded', 'reset-denials', 'line one\nline two', ...D]);
+      assert.ok(!d.ok && /newline/.test(d.err), 'reset-denials with a newline refused: ' + d.err);
+      d = call(['degraded', 'reset-denials', '', ...D]);
+      assert.ok(
+        !d.ok && /^degraded reset-denials needs the reason$/.test(d.err),
+        'reset-denials with no text refused, naming reset-denials and its reason: ' + d.err
+      );
+      assert.strictEqual(
+        fs.readFileSync(path.join(dRoot, 'ledger.md'), 'utf8'),
+        beforeResetRefusal,
+        'nothing written on either refusal'
+      );
+
+      // A run root whose ledger carries no **Degraded:** line at all: the marker creates the line.
+      {
+        const rRoot = path.join(tmp, '.superdev', 'scopes', 'reset-only');
+        fs.mkdirSync(rRoot, { recursive: true });
+        fs.writeFileSync(path.join(rRoot, 'ledger.md'), '# Ledger — reset-only\n\n**Stage:** implementing\n', 'utf8');
+        const RR = ['--root', rRoot];
+        assert.ok(call(['degraded', 'reset-denials', 'nothing denied yet', ...RR]).ok, 'reset-denials on a line-less ledger');
+        assert.ok(
+          /\*\*Degraded:\*\*\n- denials reset: nothing denied yet/.test(fs.readFileSync(path.join(rRoot, 'ledger.md'), 'utf8')),
+          'the **Degraded:** line is created for it'
+        );
+        assert.strictEqual(call(['get', 'denials', ...RR]).out, '0', 'and the count reads zero');
+      }
+
+      // A plain `add` cannot write a bullet `get denials` reads as either shape: the refusal names
+      // `add-denial` as the verification-dispatch verb, and tells any other denial (an authoring
+      // dispatch, a denied Bash command — both still take plain `add`, per scope-mode `## Degraded
+      // passes`) to rework its wording instead of misrouting it to `add-denial` (ADR 0044).
+      const beforePrefixRefusal = fs.readFileSync(path.join(dRoot, 'ledger.md'), 'utf8');
+      d = call(['degraded', 'add', 'denied: something', ...D]);
+      assert.ok(
+        !d.ok && /add-denial is for a denied verification dispatch/.test(d.err) && /any other denial/.test(d.err),
+        'degraded add refuses a denied: text, pointing verification denials at add-denial and telling any other denial to rework: ' + d.err
+      );
+      d = call(['degraded', 'add', 'denials reset: something', ...D]);
+      assert.ok(!d.ok && /reset-denials/.test(d.err), 'degraded add refuses a denials reset: text, naming reset-denials: ' + d.err);
+      assert.strictEqual(
+        fs.readFileSync(path.join(dRoot, 'ledger.md'), 'utf8'),
+        beforePrefixRefusal,
+        'nothing written on either prefix refusal'
+      );
+
+      d = call(['degraded', 'nope', 'x', ...D]);
+      assert.ok(
+        !d.ok && /add\|add-denial\|reset-denials/.test(d.err),
+        'unknown degraded subcommand names all three: ' + d.err
+      );
     }
 
     // degraded add / unresolved add: a bullet containing a newline is refused — unescaped, it would

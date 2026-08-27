@@ -817,6 +817,39 @@ const DENIAL_CAP_CONTRACTS = [
   ],
 ];
 
+// ADR 0044. The cap above is append-only, so a run that hit it stayed capped however thoroughly a human
+// addressed the cause: the resumed run reads the same two bullets and blocks on the next denial from any
+// cause. The reset returns the budget and leaves every bullet standing. It is only reachable where both
+// documents state it — the section defining the cap, which is where a reader of the cap already is, and
+// the block comment a capped run leaves, which is where the maintainer who fixed the cause is reading.
+// A reset stated centrally and never named by the block is a way back nobody finds.
+const DENIAL_RESET_CONTRACTS = [
+  [
+    path.join('references', 'scope-mode.md'),
+    /degraded reset-denials '<reason>'/,
+    'state the reset beside the cap it releases: `scope.js degraded reset-denials \'<reason>\'`, whose ' +
+      'reason is required',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /count runs from the last reset marker.{0,120}surviv/s,
+    'state what the reset does to the count and to the record: the count runs from the last reset ' +
+      'marker, so every recorded denial survives it',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /reset is a human act/,
+    'state that a reset is a human act, so no command in the chain performs one — an automatic reset ' +
+      'would return the budget with the cause still in place',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /comment on the anchor.{0,400}reset-denials/s,
+    'name the reset command in the block a capped unattended run leaves, so the maintainer who read the ' +
+      'quoted refusal and fixed the cause finds the way back where they are already reading',
+  ],
+];
+
 // The four call sites above must never restate the cap's own number: `references/scope-mode.md`'s
 // `## Degraded passes` section states it once, and a call site names that section by reference instead of
 // repeating the digit. `DENIAL_CAP_CONTRACTS` above only pins the verbs (`add-denial`, `get denials`), so
@@ -1948,9 +1981,9 @@ const PUBLISH_RUN_STATE_CONTRACTS = [
   ],
   [
     path.join('references', 'scope-mode.md'),
-    /on every `degraded add` or `degraded add-denial` call/,
-    'publish the snapshot after a `degraded add`/`degraded add-denial` write, in its own `## Degraded ' +
-      'passes` section',
+    /on every `degraded add`, `degraded add-denial`, or `degraded reset-denials` call/,
+    'publish the snapshot after a `degraded add`/`degraded add-denial`/`degraded reset-denials` write, ' +
+      'in its own `## Degraded passes` section',
   ],
   [
     path.join('references', 'scope-mode.md'),
@@ -2186,6 +2219,7 @@ module.exports = {
   FIX_BOUNDARY_CONTRACTS,
   DENIAL_AUTHORSHIP_CONTRACTS,
   DENIAL_CAP_CONTRACTS,
+  DENIAL_RESET_CONTRACTS,
   DENIAL_CAP_NUMBER_SILENCE_DOCS,
   DENIAL_CAP_NUMBER_MARKERS,
   DOC_STEP_SILENCE_DOCS,

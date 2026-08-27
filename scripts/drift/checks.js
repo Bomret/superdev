@@ -47,6 +47,7 @@ const {
   DEGRADED_CONTRACTS,
   DENIAL_AUTHORSHIP_CONTRACTS,
   DENIAL_CAP_CONTRACTS,
+  DENIAL_RESET_CONTRACTS,
   DERIVED_CRITERIA_CONTRACTS,
   LABEL_VALIDATION_CONTRACTS,
   GREEN_GATE_TIMEOUT_CONTRACTS,
@@ -387,6 +388,12 @@ module.exports = [
     SCOPE_WORKTREE_CONTRACTS,
     'the full tier cuts and merges in the same scope worktree the lite tier uses, never the invoking ' +
       'checkout',
+  ),
+  table(
+    'denial-reset',
+    DENIAL_RESET_CONTRACTS,
+    'the cap states the reset that returns the budget, and the block a capped run leaves names it',
+    { stripFrontmatterFirst: true },
   ),
 ];
 

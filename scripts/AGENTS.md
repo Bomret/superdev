@@ -18,12 +18,17 @@ This doc owns what each script guards and the contracts between them. Repo-wide 
 ### scope.js, the run-state CLI (ADR 0022)
 
 `scope.js` owns the ledger's schema and is the only `ledger.md` read and write path in the chain:
-`init`, `stage set`, `slice`, `degraded add|add-denial`, `unresolved add|clear`, `deferred add`,
+`init`, `stage set`, `slice`, `degraded add|add-denial|reset-denials`, `unresolved add|clear`,
+`deferred add`,
 `docs set <value>|clear`, `get stage|branch|anchor|slices|unresolved|degraded|deferred|denials|docs`,
 `status` (which renders the whole `/superdev:status` report), `publish`, and `adopt`. `degraded
 add-denial` prefixes its bullet `denied: `, which is what separates a denied verification dispatch from
 the other degraded shape sharing that line, and `get denials` counts those prefixed bullets — the number
-an unattended run caps at two (ADR 0041). `get degraded` prints every bullet either way, prefix intact.
+an unattended run caps at two (ADR 0041). `degraded reset-denials` appends a bullet prefixed
+`denials reset: `, and the count runs from the last such marker, so a human who addressed the cause
+returns the whole budget while every recorded denial stays on the line (ADR 0044). Both prefixes are
+structural, so plain `degraded add` refuses a text beginning with either and names the subcommand that
+owns it. `get degraded` prints every bullet whatever its prefix, prefixes intact.
 It also exports `readLedgerHeader` as a module
 API. This per-header ledger-line reader is what `hooks/scope-prune.js` and `hooks/worktree-sweep.js`
 both use instead of carrying their own regex. The API guards its CLI entry with
@@ -206,7 +211,7 @@ every drift assertion by id, and it fell behind at five separate additions, beca
 maintained by hand at the moment its author is thinking about code. Naming the exceptions cannot drift
 when a new check lands.
 
-`drift-check.js` guards fifty-nine things, in the order `drift/checks.js` registers them. First, the
+`drift-check.js` guards sixty things, in the order `drift/checks.js` registers them. First, the
 `reference` contract: every `references/*.md` path named in `commands/`, `agents/`, or `references/`
 itself resolves to a file that exists. A reference cites another reference, as both execution
 playbooks point at `scope-mode.md`, so a rename there dangles like any other. Second, the
@@ -905,6 +910,21 @@ run never meeting its own fresh-lock refusal, a whole-scope review or run-handof
 writes to the wrong checkout, a merge abort that silently ungates the next merge in the scope worktree, or
 an unattended controller told to distrust a lock signal it can actually trust.
 
+Sixtieth, the `denial-reset` contract (ADR 0044), four rows, all on `references/scope-mode.md`: the cap
+the check above pins has a way back, and it is only reachable where two of that file's sections state it.
+Three rows sit on `## Degraded passes` — the reset command with its required reason
+(`degraded reset-denials '<reason>'`), what it does to the count and to the record (the count runs from
+the last reset marker, so every recorded denial survives), and that a reset is a human act no command in
+the chain performs. The fourth sits on `## Unattended`'s block procedure, which names the reset command in
+the comment a capped run leaves on the anchor. The two halves fail independently and for different
+reasons. A section that drops the reset leaves the cap append-only, which is the state ADR 0044 amends:
+the maintainer adds the denied dispatch to `permissions.allow`, resumes, and the resumed run reads the
+same bullets and blocks on the next denial from any cause. A block that stops naming the command leaves
+the reset stated in a document nobody reaching that block is reading — the quoted refusal is in the
+comment, and the way back is a section away. The fourth row's pattern spans from `comment on the anchor`
+to `reset-denials`, so it matches inside the block procedure rather than anywhere the file happens to say
+both words.
+
 The first and seventh checks are opposites. The first catches a reference to a file that does not exist.
 The seventh catches an agent that drops its wire to a file which still exists. That drift leaves the
 reference resolvable and the suite green, and the lens then does nothing in any dispatch.
@@ -940,7 +960,7 @@ successor at all.
   *loudly*, the row goes red until the pattern catches up, so the presence tables in `drift/contracts.js`
   (`FIX_BOUNDARY_CONTRACTS` among them) carry none.
 - A new drift-check contract is one entry appended at the end of the `drift/checks.js` registry, plus
-  its section in the fifty-nine-check narrative above and its selftest in the matching
+  its section in the sixty-check narrative above and its selftest in the matching
   `drift/selftest/*.test.js` suite. Append rather than insert unless the check belongs earlier for a
   reason, because every ordinal after an insertion point has to be rewritten by hand. The forty-fifth check,
   `narrative-coverage`, enforces two pieces of this by itself: the new id must appear backticked
