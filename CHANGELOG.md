@@ -1,3 +1,19 @@
+# [0.38.0](https://codeberg.org/bomret/superdev/compare/v0.37.1...v0.38.0) (2026-08-27)
+
+
+### Bug Fixes
+
+* **drift:** complete the source-sections pin family ([#364](https://codeberg.org/bomret/superdev/issues/364)) ([5acdc58](https://codeberg.org/bomret/superdev/commit/5acdc58b48289f39934f0acc01a7ac85814f656c)), closes [#359](https://codeberg.org/bomret/superdev/issues/359) [#360](https://codeberg.org/bomret/superdev/issues/360) [#355](https://codeberg.org/bomret/superdev/issues/355) [#358](https://codeberg.org/bomret/superdev/issues/358) [#360](https://codeberg.org/bomret/superdev/issues/360) [#361](https://codeberg.org/bomret/superdev/issues/361) [#362](https://codeberg.org/bomret/superdev/issues/362) [#363](https://codeberg.org/bomret/superdev/issues/363) [#355](https://codeberg.org/bomret/superdev/issues/355)
+* **green-gate:** fail closed where superdev cannot see what it is verifying ([#343](https://codeberg.org/bomret/superdev/issues/343)) ([c5283c6](https://codeberg.org/bomret/superdev/commit/c5283c6cf16831357bfaffec551e377f474bfe78)), closes [#341](https://codeberg.org/bomret/superdev/issues/341) [#339](https://codeberg.org/bomret/superdev/issues/339) [#340](https://codeberg.org/bomret/superdev/issues/340)
+* **hooks:** the merge matchers see every option that names the tree ([#351](https://codeberg.org/bomret/superdev/issues/351)) ([c860b4a](https://codeberg.org/bomret/superdev/commit/c860b4abd5b6c5572f4ca310ca2ed14c7eb9a831)), closes [#347](https://codeberg.org/bomret/superdev/issues/347) [#346](https://codeberg.org/bomret/superdev/issues/346)
+* **plan-contract:** give the triage record a generic contract ([#358](https://codeberg.org/bomret/superdev/issues/358)) ([abc4f8d](https://codeberg.org/bomret/superdev/commit/abc4f8dbe7c9d9567224aeabd4be4749bbb05ad3)), closes [#354](https://codeberg.org/bomret/superdev/issues/354) [#355](https://codeberg.org/bomret/superdev/issues/355) [#356](https://codeberg.org/bomret/superdev/issues/356) [#357](https://codeberg.org/bomret/superdev/issues/357)
+
+
+### Features
+
+* **review:** a deferred finding becomes a triage record in the slice store ([#353](https://codeberg.org/bomret/superdev/issues/353)) ([339225d](https://codeberg.org/bomret/superdev/commit/339225d8de8ee8494229fbf49c7da59fd30c1a19))
+* **scope:** a denial reset returns the budget and keeps the record ([#342](https://codeberg.org/bomret/superdev/issues/342)) ([9b942b4](https://codeberg.org/bomret/superdev/commit/9b942b4c454865b7c4ffea2756fd57b248ba47e0)), closes [#329](https://codeberg.org/bomret/superdev/issues/329) [#330](https://codeberg.org/bomret/superdev/issues/330) [#328](https://codeberg.org/bomret/superdev/issues/328) [#329](https://codeberg.org/bomret/superdev/issues/329)
+
 ## [0.37.1](https://codeberg.org/bomret/superdev/compare/v0.37.0...v0.37.1) (2026-08-26)
 
 
