@@ -150,6 +150,10 @@ Here it is an ordinary Codeberg issue carrying the label **`triage`** and nothin
   copy-pasteable /superdev:plan \"<the finding>\" line>", "labels": [<the `triage` label id>] }`. Omit
   `assignees` entirely, whatever *Assignee* above configures: nobody has picked the work up. Capture the
   returned `number` as the record's reference, which `/superdev:review` puts in the ledger bullet.
+- **List the records:** `GET /api/v1/repos/bomret/superdev/issues?labels=triage&state=open` (paginated).
+  It returns every open triage record with its `number`, `title`, and `body`, which is the whole record —
+  a triage record carries no other state. No `triage` label existing yet means no record has ever been
+  written, which reads as an empty list rather than an error.
 - **Resolve the label by id, and create it when it is missing.**
   `GET /api/v1/repos/bomret/superdev/labels` first (paginated). No `triage` there → create it with
   `POST /api/v1/repos/bomret/superdev/labels` (`{ "name": "triage", "color": "#ededed" }`), then pass the

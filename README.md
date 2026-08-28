@@ -27,6 +27,7 @@ plan runs test-first, inline in the scope worktree.
 /superdev:plan       → interview + slice a feature into the slice store
 /superdev:implement  → drive the slices to merge onto the scope branch, then stop
 /superdev:status     → read-only DAG progress snapshot for in-flight runs
+/superdev:backlog    → read-only survey of the slice store: what needs what, and what to do next
 /superdev:review     → whole-scope review against the DoD, with a fix loop
 /superdev:document   → reconcile in-repo docs + knowledge base with the code
 /superdev:ship       → tick the DoD, close the scope anchor, open the PR, and clean up
@@ -80,6 +81,14 @@ plan runs test-first, inline in the scope worktree.
   per scope, the slice counts by status and which slices are `blocked`. It also names each scope holding
   **staged** knowledge-base pages, so a page nobody published yet stays visible instead of silent. It
   never writes, transitions, or merges anything.
+- **`/superdev:backlog`**. A read-only survey of the **slice store**, where `/superdev:status` reports the
+  **runs**. It groups every open scope anchor, every triage record, and every stranded run root by the
+  action it needs — blocked, stranded, in flight, waiting on another feature, needing a plan, unreleased,
+  or ready to build — and ends with one recommended next move. It shows the three things `/superdev:afk`
+  passes over by design: an unreleased plan, an anchor nobody decomposed, and a triage record a review
+  deferred. Its rules are looser than that command's, because it reports rather than acts
+  ([ADR 0049](docs/adr/0049-an-advisory-survey-judges-the-backlog-more-loosely-than-an-actor.md)). It sits
+  outside the implement chain, and writes nothing.
 - **`/superdev:review`**. Two modes. Given an ad-hoc diff, branch, path, or the working tree, it needs no
   plan and no slice store, and it stays read-only end to end. Given a live scope branch, it is the
   whole-scope review gate in the implement chain: it checks the scope against that run's `dod.md`, and it

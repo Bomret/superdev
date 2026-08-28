@@ -153,6 +153,12 @@ date: <YYYY-MM-DD>
 /superdev:plan "<the finding>"
 ```
 
+- **List the records:** glob `docs/plans/triage/*.md` in the checkout. Each file is one record, and its
+  first heading is the finding. **The listing is of the checked-out branch, never of the store as a
+  whole**: a record `/superdev:review` committed on a scope branch that has not merged is absent from a
+  base-branch checkout, and is neither missing nor lost (ADR 0048). Say which branch was read rather than
+  claiming a complete backlog. An absent `docs/plans/triage/` directory is an empty list, not an error —
+  no finding has been deferred yet.
 - **`feature-label` doubles as the scope branch name** (`## Layout` above), so the record carries no
   separate `scope-branch` field.
 - **`docs/plans/triage/<slug>.md` is invisible to `/superdev:afk`'s candidate listing** by construction.

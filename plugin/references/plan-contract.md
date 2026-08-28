@@ -248,7 +248,7 @@ die with the run: the run root is reaped and the pull request is merged. On an i
 outlives them regardless of whether the scope ever ships; on the local plan-file store, it outlives them
 only once the scope branch carrying it merges (ADR 0046, ADR 0048).
 
-Four invariants fix its shape, and every backend renders all four:
+Five invariants fix its shape, and every backend renders all five:
 
 - **`/superdev:review` writes it, at the moment it defers.** A run reviewed and then abandoned never
   reaches `/superdev:ship`, and its run root is pruned with the findings still inside, so the command that
@@ -262,11 +262,14 @@ Four invariants fix its shape, and every backend renders all four:
   never names a pull request: `/superdev:review` runs before `/superdev:ship` opens one.
 - **The write is best-effort**, exactly as a status label is. A failure or a denial leaves the ledger
   bullet written and the review unblocked, reported once per run, because the ledger drives control flow.
+- **It is listable.** `/superdev:backlog` is the consumer: its survey groups every triage record the active
+  store returns by the action it needs, so a record no listing call can reach stays invisible to it.
 
 Every backend mechanism — the label a record carries or the directory it lives in, and the call that
-creates it — belongs to the active `docs/agents/issue-tracker.md`'s own `## Triage record` section, when
-that document carries one. A store document that states none leaves `/superdev:review` writing only the
-ledger bullet, `no triage record — store defines none` in the reference's place.
+creates it and the call that lists them — belongs to the active `docs/agents/issue-tracker.md`'s own
+`## Triage record` section, when that document carries one. A store document that states none leaves
+`/superdev:review` writing only the ledger bullet, `no triage record — store defines none` in the
+reference's place.
 
 ## Feature label
 

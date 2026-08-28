@@ -31,6 +31,7 @@ const {
   RESUMED_WORKTREE_TRIGGER_CONTRACTS,
   SCOPE_WORKTREE_CONTRACTS,
   TRIAGE_RECORD_CONTRACTS,
+  BACKLOG_SURVEY_CONTRACTS,
 } = require('../contracts');
 
 module.exports = ({ assert, path, fixture, fs, realRoot }) => {
@@ -2374,4 +2375,86 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   );
   assert.equal(trNoCreate.length, 1, 'flags the real review.md with the create step deleted');
   assert.equal(trNoCreate[0].source, path.join('commands', 'review.md'), 'names the review command');
+
+  // --- BACKLOG_SURVEY_CONTRACTS: `/superdev:backlog` resolves the candidate and triage listings through
+  // the store document, reads an in-flight scope's stage off the ledger `/superdev:status` also reads,
+  // and states as a contract that it writes nothing (ADR 0049). Each of the four clauses fails silently
+  // on its own. ---
+
+  const bsOpts = { stripFrontmatterFirst: true };
+  const backlogAnchor = "Its `## Scope anchor` section states how to list the candidates. Follow it.\n";
+  const backlogTriage = "Its `## Triage record` section states the listing call for this backend.\n";
+  const backlogStage = 'For each, read its stage: `node "scope.js" get stage --root <run-root>`.\n';
+  const backlogReadOnly =
+    '**This survey writes nothing.** No issue, no label, no comment, no file, no `.superdev/` directory.\n';
+
+  // negative: all four clauses present yields zero gaps
+  assert.equal(
+    scanContract(
+      fixture({ 'commands/backlog.md': backlogAnchor + backlogTriage + backlogStage + backlogReadOnly }),
+      BACKLOG_SURVEY_CONTRACTS,
+      bsOpts,
+    ).length,
+    0,
+    'all four backlog-survey clauses yield zero gaps',
+  );
+
+  // positive: dropping the `## Scope anchor` reference
+  const bsNoAnchor = scanContract(
+    fixture({ 'commands/backlog.md': backlogTriage + backlogStage + backlogReadOnly }),
+    BACKLOG_SURVEY_CONTRACTS,
+    bsOpts,
+  );
+  assert.equal(bsNoAnchor.length, 1, 'flags a survey with no `## Scope anchor` reference');
+  assert.ok(/Scope anchor/.test(bsNoAnchor[0].expectation), 'names the scope-anchor clause');
+
+  // positive: dropping the `## Triage record` reference
+  const bsNoTriage = scanContract(
+    fixture({ 'commands/backlog.md': backlogAnchor + backlogStage + backlogReadOnly }),
+    BACKLOG_SURVEY_CONTRACTS,
+    bsOpts,
+  );
+  assert.equal(bsNoTriage.length, 1, 'flags a survey with no `## Triage record` reference');
+  assert.ok(/Triage record/.test(bsNoTriage[0].expectation), 'names the triage-record clause');
+
+  // positive: dropping the `scope.js get stage` read
+  const bsNoStage = scanContract(
+    fixture({ 'commands/backlog.md': backlogAnchor + backlogTriage + backlogReadOnly }),
+    BACKLOG_SURVEY_CONTRACTS,
+    bsOpts,
+  );
+  assert.equal(bsNoStage.length, 1, 'flags a survey that never reads `scope.js get stage`');
+  assert.ok(/get stage/.test(bsNoStage[0].expectation), 'names the stage-read clause');
+
+  // positive: the read-only row's vacuity. The pattern used to span from one bold run's closing `**`
+  // across unbolded prose to a later bold run's opening `**`, so an unbolded or hedged "writes nothing"
+  // sentence still matched as long as some other bold run sat elsewhere in the document. Both mutations
+  // below must be flagged now that the pattern is anchored on a bold run that opens its own line.
+  const bsUnbolded = scanContract(
+    fixture({
+      'commands/backlog.md':
+        backlogAnchor +
+        backlogTriage +
+        backlogStage +
+        'This survey writes nothing. No issue, no label, no comment, no file.\n',
+    }),
+    BACKLOG_SURVEY_CONTRACTS,
+    bsOpts,
+  );
+  assert.equal(bsUnbolded.length, 1, 'flags a survey whose "writes nothing" sentence is not bolded');
+  assert.ok(/writes nothing/.test(bsUnbolded[0].expectation), 'names the read-only clause');
+
+  const bsHedged = scanContract(
+    fixture({
+      'commands/backlog.md':
+        backlogAnchor +
+        backlogTriage +
+        backlogStage +
+        'It mostly writes nothing, though a label update is fine.\n',
+    }),
+    BACKLOG_SURVEY_CONTRACTS,
+    bsOpts,
+  );
+  assert.equal(bsHedged.length, 1, 'flags a survey that hedges "writes nothing" instead of stating it flatly');
+  assert.ok(/writes nothing/.test(bsHedged[0].expectation), 'names the read-only clause');
 };

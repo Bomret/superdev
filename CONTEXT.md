@@ -183,6 +183,18 @@ keeps every run and every sweep from selecting it as work to build. Only a human
 _Avoid: "draft issue" (no backend the plugin supports has a draft issue state outside GitHub's project
 boards), "triage slice" (it has no spec, no acceptance, and no place in a DAG)_
 
+**Backlog survey**: the read-only report `/superdev:backlog` prints, grouping every open **Scope anchor**,
+every **Triage record**, and every **stranded run root** in the slice store by the action each one needs,
+and ending with one recommended move. A stranded run root is a run whose stage is short of `shipped` and
+matches no open anchor. It ranks as the most expensive item in the table. It reads the store where
+`/superdev:status` reads the runs' ledgers, and it shows the three things `/superdev:afk` passes over by
+design: an unreleased plan, an anchor nobody decomposed, and a triage record. It shares its facts with that
+command's selection and not its verdicts — a survey resolves an ambiguity toward showing the row, where an
+unattended sweep resolves one toward deferring (ADR 0049). It writes nothing and sits outside the implement
+chain.
+_Avoid: "backlog sweep" (a sweep is `/superdev:afk`, which acts; this only reports), "status" (that
+command reports runs from their ledgers, not the store)_
+
 ## Separation of concerns
 
 **Execution playbook**: the linear, tier-specific procedure that runs a scope's whole `/implement` execution, start to finish. It is `references/implement-full.md` (full tier) or `references/implement-lite.md` (lite tier), computed and `Read` by the controller once the tier is known. Each playbook opens by reading `references/run-init.md` (run init) and closes by reading `references/run-handoff.md` (run handoff). The `/implement` command body therefore keeps config and input, the tier computation, the invariants, the model table, the issue-status map, and red flags. Control never returns to it once a playbook starts.

@@ -156,6 +156,10 @@ On this store it is an ordinary issue carrying the **Triage label** from *Config
   `assignees` entirely: a triage record is created **unassigned**, whatever *Assignee* configures, because
   nobody has picked the work up. Capture the returned `number` as the record's reference —
   `/superdev:review` puts it in the ledger bullet.
+- **List the records:** `GET /api/v1/repos/<owner>/<repo>/issues?labels=<triage>&state=open` (paginated).
+  It returns every open triage record with its `number`, `title`, and `body`, which is the whole record —
+  a triage record carries no other state. No label of that name resolving means no record has ever been
+  written, which reads as an empty list rather than an error.
 - **The label is resolved, and created when it is missing.** Labels are addressed by **id** here, so read
   `GET /api/v1/repos/<owner>/<repo>/labels` first (paginated). No label of that name → create it with
   `POST /api/v1/repos/<owner>/<repo>/labels` (`{ "name": "<triage>", "color": "#ededed" }`), then pass the

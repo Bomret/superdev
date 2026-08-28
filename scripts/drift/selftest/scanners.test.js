@@ -1526,20 +1526,62 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(trSeedGaps1.length, 1, 'flags a store document with no triage-record section');
   assert.equal(trSeedGaps1[0].source, path.join('references', 'issue-tracker-acme.md'), 'names the seed');
 
-  // negative: the same document carrying the section is clean
+  // negative: the same document carrying the section and its listing element is clean
   assert.equal(
     scanTriageRecordContract(
       fixture({
         'references/issue-tracker-acme.md':
-          '# acme\n\n## Triage record\n\nAn issue carrying the `triage` label.\n',
+          '# acme\n\n## Triage record\n\nAn issue carrying the `triage` label.\n\n' +
+          '- **List the records:** `GET /issues?labels=triage`.\n',
       }),
     ).length,
     0,
-    'a store document carrying the section yields zero gaps',
+    'a store document carrying the section and its listing element yields zero gaps',
+  );
+
+  // positive: the section is there and states only how to create a record, never how to read one back —
+  // the gap `/superdev:backlog` opens when a store never states its listing call
+  const trCreateOnly = scanTriageRecordContract(
+    fixture({
+      'references/issue-tracker-acme.md':
+        '# acme\n\n## Triage record\n\n- **Create it:** `POST /issues` with the `triage` label.\n',
+    }),
+  );
+  assert.equal(trCreateOnly.length, 1, 'flags a section that states creation but no listing');
+  assert.match(trCreateOnly[0].expectation, /list this backend's triage records/, 'names the missing element');
+
+  // the local seed's existing bullet says a record is *invisible* to /superdev:afk's "candidate listing".
+  // A bare `list` anchor would read that exclusion rule as the listing contract, so it must not satisfy it.
+  assert.equal(
+    scanTriageRecordContract(
+      fixture({
+        'references/issue-tracker-local.md':
+          '# store\n\n## Triage record\n\n' +
+          "- **`docs/plans/triage/<slug>.md` is invisible to `/superdev:afk`'s candidate listing** by\n" +
+          '  construction.\n',
+      }),
+    ).length,
+    1,
+    'an exclusion bullet mentioning a listing does not satisfy the listing element',
+  );
+
+  // the element is scoped to the section: a listing bullet elsewhere in the document does not satisfy it
+  assert.equal(
+    scanTriageRecordContract(
+      fixture({
+        'references/issue-tracker-acme.md':
+          '# acme\n\n## Scope anchor\n\n- **List the records:** `GET /issues`.\n\n' +
+          '## Triage record\n\n- **Create it:** `POST /issues`.\n',
+      }),
+    ).length,
+    1,
+    'a listing bullet outside the section does not satisfy the element',
   );
 
   // positive: one of the real seeds loses it, and the gap names that seed
-  const triageSection = '# store\n\n## Triage record\n\nAn issue carrying the `triage` label.\n';
+  const triageSection =
+    '# store\n\n## Triage record\n\nAn issue carrying the `triage` label.\n\n' +
+    '- **List the records:** `GET /issues?labels=triage`.\n';
   const trDropped = {
     'references/issue-tracker-forgejo.md': triageSection,
     'references/issue-tracker-github.md': triageSection,
@@ -1557,7 +1599,10 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // a `###` heading satisfies the row too, the same latitude every other section pattern allows
   assert.equal(
     scanTriageRecordContract(
-      fixture({ 'references/issue-tracker-jira.md': '# store\n\n### Triage record\n\nAn issue.\n' }),
+      fixture({
+        'references/issue-tracker-jira.md':
+          '# store\n\n### Triage record\n\nAn issue.\n\n- **List the records:** `GET /search`.\n',
+      }),
     ).length,
     0,
     'a deeper heading level still carries the section',

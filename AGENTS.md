@@ -32,12 +32,15 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
     plugin.json        — plugin manifest (name, version, author); version is the SINGLE source of truth.
                          No `hooks` field — Claude Code auto-loads the standard hooks/hooks.json.
   commands/            — slash commands (*.md): brainstorm, setup, plan, implement, review, document,
-                         ship, afk, upgrade, status, publish-kb. implement → review → document → ship is
-                         the chain a scope walks, each command printing the next (ADR 0013). afk drives
-                         that chain unattended, one eligible scope anchor at a time, with the Skill tool
-                         (ADR 0015). publish-kb sits outside the chain: it sends a scope's staged
-                         knowledge-base pages to a remote backend, on the operator's own clock, and afk
-                         never drives it (ADR 0023)
+                         ship, afk, upgrade, status, backlog, publish-kb. implement → review → document →
+                         ship is the chain a scope walks, each command printing the next (ADR 0013). afk
+                         drives that chain unattended, one eligible scope anchor at a time, with the Skill
+                         tool (ADR 0015). Two commands sit outside the chain and afk drives neither:
+                         publish-kb sends a scope's staged knowledge-base pages to a remote backend on the
+                         operator's own clock (ADR 0023), and backlog surveys the slice store read-only,
+                         grouping every open scope anchor, triage record, and stranded run root by the
+                         action it needs and judging them more loosely than afk's own selection does
+                         (ADR 0049)
   agents/              — subagents (*.md): implementer, slice-reviewer, simplicity-reviewer, final-reviewer,
                          doc-writer, doc-reader
   hooks/               — deterministic Node hooks + hooks.json: merge-guard, model-explicit, green-gate,
@@ -234,7 +237,7 @@ This root owns every other subtree directly:
   `plugin/hooks/worktree-sweep.js`),
   `plugin/scripts/kb-patch.js` (the deterministic section merge behind a staged page's `action: patch`,
   called by `/superdev:publish-kb`, ADR 0027), `scripts/eval-run.js` (the eval
-  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the sixty-two cross-document contract checks: the
+  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the sixty-three cross-document contract checks: the
   CLI walks the `drift/checks.js` registry, which orders every scanner and contract table). What each
   guards, check by check, lives in that child doc.
 - `plugin/references/`. Backend seed templates plus the non-seed references below. Each reference's own

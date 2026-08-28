@@ -157,6 +157,15 @@ On this store it is an ordinary issue in the configured project carrying the **T
   **unassigned**, whatever *Assignee* configures, because nobody has picked the work up. Capture the
   returned `key` as the record's reference — `/superdev:review` puts it in the ledger bullet. No issue
   link and no parent: a triage record belongs to no feature.
+- **List the records:**
+  `GET <base>/rest/api/3/search/jql?jql=project=PROJ AND (labels="<triage>" OR summary~"\[triage\]") AND
+  statusCategory!=Done&fields=summary,description,status,labels` — the same endpoint and the same
+  **Name the fields** rule *List feature slices* above states, for the same reason. **The `summary` half
+  is what makes the query correct, not a convenience.** The create bullet below falls back to prefixing
+  `summary` with `[triage] ` when the project refuses the label, so a listing that queries `labels` alone
+  reports an empty backlog on exactly the project configuration that fallback exists for. Deduplicate the
+  two halves on the issue `key`: a record written before the project restricted its label field carries
+  both.
 - **The label needs no creation call.** Jira labels are free-form strings created by use, so the label
   arrives with the issue. **A project configured with a restricted label field rejects the create
   instead** (`400`, the field is not on the create screen): retry once with `labels` omitted, prefixing

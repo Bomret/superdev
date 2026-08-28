@@ -205,6 +205,13 @@ On this store it is an ordinary issue carrying the **Triage label** from *Config
   entirely: a triage record is created **unassigned**, whatever *Assignee* configures, because nobody has
   picked the work up. Capture the returned `number` as the record's reference — `/superdev:review` puts it
   in the ledger bullet. No sub-issue link: a triage record belongs to no epic.
+- **List the records:** `GET /repos/<owner>/<repo>/issues?labels=<triage>&state=open`. It returns every
+  open triage record with its `number`, `title`, and `body`, which is the whole record — a triage record
+  carries no other state. The same two documented behaviours **List feature slices** above names apply
+  here, for the same endpoint: it **returns pull requests as well as issues** (skip any result
+  carrying a `pull_request` key) and it **paginates at `per_page` 30** (page through it). A label that has
+  never been created yields an empty list rather than an error, which is the correct answer: no record has
+  been written.
 - **The label is created when it is missing.** Labels are addressed by name here, and *Configuration*'s
   **Labels must exist first** rule covers the ones `/superdev:plan` writes. This one is written by a review
   instead, which may be the first time the repository ever needs it: read

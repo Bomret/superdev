@@ -867,6 +867,59 @@ const TRIAGE_RECORD_EXPECTATION =
   'carry a `## Triage record` section stating how this backend creates the record a deferred finding ' +
   'gets, per ADR 0046';
 
+// The heading alone is not the whole contract, the same asymmetry `ANCHOR_ELEMENTS` corrects for its own
+// section. Every store document states how to **create** a record and, without this element, none states
+// how to **read one back** — so the record `/superdev:review` writes to surface unplanned work reaches no
+// consumer, which is the outcome ADR 0046 exists to prevent one step earlier. `/superdev:backlog` is the
+// first reader, and reaches every backend through this clause rather than encoding one store's query.
+// The pattern is anchored on a bullet's bolded lead-in and needs both the listing verb and its object
+// inside that lead-in: `references/issue-tracker-local.md` already carries a bullet whose bold ends on
+// "candidate listing" while stating the opposite — that a record is invisible to `/superdev:afk` — so a
+// bare `list` anchor would read that document's exclusion rule as its listing contract.
+const TRIAGE_RECORD_ELEMENTS = [
+  [/^[-*] \*\*[^*]*\blist\w*\b[^*]*\b(?:record\w*|them)\b/im, "how to list this backend's triage records"],
+];
+
+// ADR 0049. `/superdev:backlog` surveys the slice store and reports every open scope anchor and every
+// triage record by the action it needs. Three clauses make it what it is, and each fails silently on its
+// own — a survey that has quietly started writing looks identical in its own output, one that has learned
+// a backend's own query works perfectly on this repo and is blind on every other, and one that derives a
+// stage from git instead of the ledger disagrees with `/superdev:status` about the same scope with nothing
+// going red. It deliberately shares no eligibility reference with `/superdev:afk` (ADR 0049), so nothing
+// here pins the two rule sets to each other: the coupling that matters is to the store document, which
+// the first two rows below are.
+const BACKLOG_SURVEY_CONTRACTS = [
+  [
+    path.join('commands', 'backlog.md'),
+    /`## Scope anchor`/,
+    "read the candidates through the store document's `## Scope anchor` section, naming no backend's own " +
+      'listing call',
+  ],
+  [
+    path.join('commands', 'backlog.md'),
+    /`## Triage record`/,
+    "read the triage records through the store document's `## Triage record` section, which is where the " +
+      'listing call for each backend lives',
+  ],
+  [
+    path.join('commands', 'backlog.md'),
+    /scope\.js["'`]?\s+get stage\b/,
+    "read an in-flight scope's stage with `scope.js get stage`, the same ledger `/superdev:status` reports " +
+      'from, rather than deriving one from git state',
+  ],
+  // Anchored on a bolded run that opens its own line, not merely a bolded run somewhere in the document:
+  // `[^*\n]` keeps the run from crossing into a later `**` or across a line break, so the pattern cannot
+  // span from one bold run's closing `**` to a later one's opening `**` with unbolded prose — including a
+  // hedge like "mostly writes nothing" — sitting unmatched in between. "writes nothing" is exactly the
+  // kind of phrase that recurs in passing prose about some other command, and a passing mention is not
+  // the contract.
+  [
+    path.join('commands', 'backlog.md'),
+    /^\*\*[^*\n]*writes? nothing[^*\n]*\*\*/im,
+    'state as a contract that the survey writes nothing — no record, no label, no comment, no file',
+  ],
+];
+
 // The writer's half is two documents, and each fails alone. `commands/review.md` is what actually creates
 // the record, at the one bullet that already runs `deferred add`: a bullet that drops the clause writes the
 // ledger entry and no record, which is the state ADR 0046 exists to end, and nothing goes red.
@@ -2372,4 +2425,6 @@ module.exports = {
   TRIAGE_RECORD_CONTRACTS,
   TRIAGE_RECORD_PATTERN,
   TRIAGE_RECORD_EXPECTATION,
+  TRIAGE_RECORD_ELEMENTS,
+  BACKLOG_SURVEY_CONTRACTS,
 };

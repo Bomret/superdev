@@ -44,6 +44,7 @@ const {
   RELEASE_CONSUMERS,
   RELEASE_CONSUMER_PATTERN,
   TRIAGE_RECORD_PATTERN,
+  TRIAGE_RECORD_ELEMENTS,
   SPECIALISING_SECTIONS,
   specialisingHeading,
   specialisingCitation,
@@ -217,17 +218,24 @@ function scanReleaseContract(root) {
 
 // scanTriageRecordContract() is pure over a root dir: reads every slice-store document (the same
 // candidate list scanAnchorContract/scanReleaseContract use) and reports the ones carrying no `## Triage
-// record` section (ADR 0046). Reusing storeDocuments() rather than a hardcoded seed list means a fifth
-// backend seed, or this repo's own dogfooded `docs/agents/issue-tracker.md`, is covered the same way the
-// anchor and release contracts already are. Absent files are skipped, so fixtures need only the docs
-// they exercise.
+// record` section (ADR 0046), then the ones carrying the section but not every element of it. Reusing
+// storeDocuments() rather than a hardcoded seed list means a fifth backend seed, or this repo's own
+// dogfooded `docs/agents/issue-tracker.md`, is covered the same way the anchor and release contracts
+// already are. Absent files are skipped, so fixtures need only the docs they exercise.
 function scanTriageRecordContract(root) {
   const gaps = [];
   const candidates = storeDocuments(root, { dir: ANCHOR_DOCS_DIR, extra: EXTRA_ANCHOR_DOCS });
   for (const rel of candidates) {
     const text = readDoc(root, rel);
     if (text === null) continue; // doc absent (fixture / partial checkout) → nothing to scan
-    if (!TRIAGE_RECORD_PATTERN.test(text)) gaps.push({ source: rel, expectation: TRIAGE_RECORD_EXPECTATION });
+    const section = extractSection(text, TRIAGE_RECORD_PATTERN);
+    if (section === null) {
+      gaps.push({ source: rel, expectation: TRIAGE_RECORD_EXPECTATION });
+      continue;
+    }
+    for (const [pattern, desc] of TRIAGE_RECORD_ELEMENTS) {
+      if (!pattern.test(section)) gaps.push({ source: rel, expectation: `state ${desc}` });
+    }
   }
   return gaps;
 }

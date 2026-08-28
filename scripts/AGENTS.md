@@ -211,7 +211,7 @@ every drift assertion by id, and it fell behind at five separate additions, beca
 maintained by hand at the moment its author is thinking about code. Naming the exceptions cannot drift
 when a new check lands.
 
-`drift-check.js` guards sixty-two things, in the order `drift/checks.js` registers them. First, the
+`drift-check.js` guards sixty-three things, in the order `drift/checks.js` registers them. First, the
 `reference` contract: every `references/*.md` path named in `commands/`, `agents/`, or `references/`
 itself resolves to a file that exists. A reference cites another reference, as both execution
 playbooks point at `scope-mode.md`, so a rename there dangles like any other. Second, the
@@ -956,7 +956,14 @@ Sixty-first, the `triage-record` contract (ADR 0046): a scanner plus two rows. `
 `references/issue-tracker-*.md` seed plus this repo's own dogfooded `docs/agents/issue-tracker.md` — and
 reports the ones carrying no `## Triage record` section, stating where a **triage record** lives on that
 backend, including `references/issue-tracker-local.md`, whose rendering is a file under
-`docs/plans/triage/` rather than a label, because that store has no labels at all. Two more rows, a table
+`docs/plans/triage/` rather than a label, because that store has no labels at all. The same scanner then
+holds every section it did find to `TRIAGE_RECORD_ELEMENTS`, whose one element is the **listing** call:
+every store stated how to create a record and none stated how to read one back, so the record reached no
+consumer at all until `/superdev:backlog` needed one. The element is anchored on a bullet's bolded lead-in
+and requires both the listing verb and its object inside that lead-in, because
+`references/issue-tracker-local.md` carries a bullet whose bold ends on "candidate listing" while stating
+the opposite — that a record is invisible to `/superdev:afk` — and a bare `list` anchor would read that
+document's exclusion rule as its listing contract. Two more rows, a table
 run through `scanContract()`, sit on `commands/review.md` and `references/scope-mode.md`, the two
 documents that write it. The record is what makes a deferred finding outlive the run root
 `hooks/scope-prune.js` reaps and the scope anchor `/superdev:ship` closes — on the local plan-file
@@ -1024,6 +1031,31 @@ comma-form citation this repo's own `docs/agents/issue-tracker.md` carried was n
 instead of widened into the pattern. That includes its `## Assignee` section, though no row pins it:
 `## Assignee` is store configuration rather than one of the five sections a store document specialises.
 
+Sixty-third, the `backlog-survey` contract (ADR 0049): four rows on `commands/backlog.md`, the read-only
+survey that reports every open scope anchor, every triage record, and every stranded run root by the
+action it needs. Two rows pin
+the coupling that matters — the command names `` `## Scope anchor` `` and `` `## Triage record` ``, so the
+candidate listing and the triage listing both resolve through whichever `docs/agents/issue-tracker.md` is
+active rather than through a query written into the command. A third pins `scope.js get stage`, the same
+ledger read `/superdev:status` reports from, so the two commands agree about a scope by construction
+instead of by coincidence; a stage derived from git state disagrees with no error anywhere. The fourth
+pins the read-only clause, anchored on a bolded run that opens its own line rather than the bare words.
+A fix cycle found the prior anchor spanning newlines between two unrelated bold runs and matching a
+document that asserted the opposite. That opposite assertion was: "it mostly writes nothing, though a
+label update is fine". Unbolded hedging prose sat unmatched in between. "Writes nothing" is exactly the phrase that recurs in passing
+prose about some other command, and a passing mention is not the contract.
+
+Each of the four fails silently on its own, which is why they are pinned rather than reviewed. A survey
+that has quietly started writing looks identical in its own output. One that has learned a backend's own
+query works perfectly on this repo and reports an empty backlog on every other. One reading the wrong
+stage contradicts `/superdev:status` about the same run with both commands exiting zero.
+
+**Nothing here pins `commands/backlog.md` against `commands/afk.md`, deliberately.** Both read the same
+store over the same anchors, which is the shape this file's other rows exist to bind — but ADR 0049
+records that the two share their *facts* and not their *verdicts*: `/superdev:afk` acts unattended and
+resolves every ambiguity toward deferring, while the survey reports and resolves one toward showing the
+row. A row binding the two rule sets would assert a sameness that was decided against.
+
 The first and seventh checks are opposites. The first catches a reference to a file that does not exist.
 The seventh catches an agent that drops its wire to a file which still exists. That drift leaves the
 reference resolvable and the suite green, and the lens then does nothing in any dispatch.
@@ -1059,7 +1091,7 @@ successor at all.
   *loudly*, the row goes red until the pattern catches up, so the presence tables in `drift/contracts.js`
   (`FIX_BOUNDARY_CONTRACTS` among them) carry none.
 - A new drift-check contract is one entry appended at the end of the `drift/checks.js` registry, plus
-  its section in the sixty-two-check narrative above and its selftest in the matching
+  its section in the sixty-three-check narrative above and its selftest in the matching
   `drift/selftest/*.test.js` suite. Append rather than insert unless the check belongs earlier for a
   reason, because every ordinal after an insertion point has to be rewritten by hand. The forty-fifth check,
   `narrative-coverage`, enforces two pieces of this by itself: the new id must appear backticked

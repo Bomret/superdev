@@ -52,6 +52,7 @@ const {
   DENIAL_CAP_CONTRACTS,
   DENIAL_RESET_CONTRACTS,
   TRIAGE_RECORD_CONTRACTS,
+  BACKLOG_SURVEY_CONTRACTS,
   DERIVED_CRITERIA_CONTRACTS,
   LABEL_VALIDATION_CONTRACTS,
   GREEN_GATE_TIMEOUT_CONTRACTS,
@@ -419,6 +420,13 @@ module.exports = [
     run: scanSpecialisingCitations,
     format: contractGap,
   },
+  table(
+    'backlog-survey',
+    BACKLOG_SURVEY_CONTRACTS,
+    'the backlog survey resolves every store fact through the store document, reads the stage from the ' +
+      'ledger, and writes nothing',
+    { stripFrontmatterFirst: true },
+  ),
 ];
 
 // The anchor contract and the afk-selection neutrality check report into the same sentence: a gap with
