@@ -1,3 +1,10 @@
+# [0.39.0](https://codeberg.org/bomret/superdev/compare/v0.38.0...v0.39.0) (2026-08-28)
+
+
+### Features
+
+* **backlog:** survey the slice store by the action each item needs ([#371](https://codeberg.org/bomret/superdev/issues/371)) ([a96f9d4](https://codeberg.org/bomret/superdev/commit/a96f9d4ab34c43156ad192efaa79cc5e67691fe6)), closes [#370](https://codeberg.org/bomret/superdev/issues/370)
+
 # [0.38.0](https://codeberg.org/bomret/superdev/compare/v0.37.1...v0.38.0) (2026-08-27)
 
 
