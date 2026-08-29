@@ -224,7 +224,7 @@ _Avoid: "run" (a case runs each arm several times, and the runs sit inside an ar
 _Avoid: "arm" (an arm sits inside one run, and a prose ablation spans two), "variant" (the same reason the Arm entry rejects it), "A/B" alone (every case is already an A/B against no plugin)_
 
 **Eval runner**: `scripts/eval-run.js`, the standalone script that reads `evals/*/case.yaml`, spawns `claude -p` per arm with a throwaway `HOME` and a subscription token, grades the captured transcript and diff against `graders/*.md`, and reports the per-grader delta. `bun run eval` invokes it. It reads the same case and grader files as `claude plugin eval`, which stays available for a key-funded cross-check (ADR 0024).
-_Avoid: "the harness" (that names `claude plugin eval`, the other reader of the same files), "eval command", "test runner" (`bun run test` is a different thing)_
+_Avoid: "the eval harness" (that names `claude plugin eval`, the other reader of the same files), "eval command", "test runner" (`bun run test` is a different thing)_
 
 **Bootstrap** (mode): the brownfield-seed mode of `/superdev:document` (empty args, `AGENTS.md`-hierarchy convention, root `AGENTS.md` absent). The doc-writer seeds the root and child `AGENTS.md` files from the existing code and proposes `CONTEXT.md` candidate terms, which the controller confirms or prunes with the user before committing. A range or area invocation never bootstraps.
 _Avoid: "init", "scaffold" (bootstrap seeds from what already exists, and it does not scaffold empty structure)_
@@ -256,6 +256,20 @@ _Avoid: "issue tracker" as the concept name (that is one backend), "database"_
 
 **Assignee**: the slice-store account every issue a run creates is assigned to. It is a single store-native identifier (a login for Forgejo or GitHub, an `accountId` for Jira) recorded in `docs/agents/issue-tracker.md`, resolving to the API token's own identity when unconfigured and disabled by `none`. Store configuration rather than a slice field, applied at creation to the epic and every slice (ADR 0010).
 _Avoid: "owner" (too generic), "creator" or "reporter" (the store already records who filed the issue, and assignee is who owns it), "reviewer" (a pull-request role, owned by the code host)_
+
+## Portability
+
+**Harness**: an agent runtime a portable pack renders for (Claude Code, OpenCode, Codex, …). The pack treats one as its runtime home (Claude Code today) and every other as a render target. Not the eval runner's `claude plugin eval` reader, which is the **Eval runner**'s own avoid-list.
+_Avoid: "agent" (that is the subagent role the controller dispatches), "tool", "plugin host"_
+
+**Harness adapter**: the install-time render from a **Canonical surface** to one harness's native surface set (commands, agents, a hook bridge), together with the generated artifacts it writes. Owns no semantics of its own: every rendered file's meaning derives from the canonical source it came from.
+_Avoid: "extension" (that names a harness's own component kind, e.g. Gemini's), "shim" (too thin: it carries the full render), "translator"_
+
+**Canonical surface**: the single authored form a piece of the pack keeps in the repo — skills for prompts, agents for subagents, hook scripts for guardrails. Everything a harness loads derives from it, either natively (Claude Code) or through a **Harness adapter**.
+_Avoid: "source of truth" (the repo as a whole already claims that), "template" (that names a backend **Seed**), "primary"_
+
+**Render target**: one file set a harness adapter writes into a consumer's repository (for example `.opencode/commands/`, `.opencode/agents/`, `.opencode/plugins/`). Generated, never hand-edited, and reproducible by re-running the adapter.
+_Avoid: "artifact" (too generic), "output" (an invocation property), "install" (that is the whole flow, not the file set)_
 
 **Feature label**: the one slice-store identifier a feature's scope anchor and every one of its slices carry, its **change type** and its slug, in the notation the active `docs/agents/issue-tracker.md` states (a `<type>/<slug>` label on an issue-backed store, the `<type>/<slug>` path under `docs/plans/` on the local-file store). It names the feature to `/superdev:implement`, and it is the scope branch verbatim, so one value fixes which feature gets built and which branch and run root the build uses (ADR 0019, ADR 0021).
 _Avoid: "epic label" (`epic` is a different label on one backend, marking which issue is the anchor), "tag", "component"_
