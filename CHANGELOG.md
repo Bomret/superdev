@@ -1,3 +1,10 @@
+# [0.40.0](https://codeberg.org/bomret/superdev/compare/v0.39.0...v0.40.0) (2026-08-30)
+
+
+### Features
+
+* **adapter:** carry superdev as skills-canonical prose with an OpenCode adapter ([#380](https://codeberg.org/bomret/superdev/issues/380)) ([1e4975f](https://codeberg.org/bomret/superdev/commit/1e4975fa806017f8563bc773a1c4646573152565)), closes [#374](https://codeberg.org/bomret/superdev/issues/374) [#375](https://codeberg.org/bomret/superdev/issues/375) [#376](https://codeberg.org/bomret/superdev/issues/376) [#377](https://codeberg.org/bomret/superdev/issues/377) [#378](https://codeberg.org/bomret/superdev/issues/378) [#379](https://codeberg.org/bomret/superdev/issues/379)
+
 # [0.39.0](https://codeberg.org/bomret/superdev/compare/v0.38.0...v0.39.0) (2026-08-28)
 
 
