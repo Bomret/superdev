@@ -15,6 +15,7 @@ const {
   scanAnchorContract,
   scanAppendContract,
   scanReleaseContract,
+  scanRunStateContract,
   scanTriageRecordContract,
   scanSpecialisingCitations,
   scanAfkSelectionNeutrality,
@@ -433,6 +434,18 @@ module.exports = [
     ok: 'the committed OpenCode fixtures match a fresh render of the shipped skills, agents, and hook bridge',
     run: scanOpencodeFixtures,
     format: (gap) => gap,
+  },
+  // Appended rather than filed beside `specialising-citations`, where it belongs by subject: the registry
+  // order is the ordinal `scripts/AGENTS.md` writes every check up against, so inserting in the middle
+  // renumbers every entry below it and appending renumbers none.
+  {
+    id: 'run-state-contract',
+    ok: 'every store document carries its own `## Run state` section',
+    run: scanRunStateContract,
+    format: (g) =>
+      `${g.source} carries no \`## Run state\` section — expected it to state how this backend mirrors ` +
+      'the ledger onto the scope anchor, or that it carries no snapshot at all; see ' +
+      '`references/plan-contract.md` → *Run state*',
   },
 ];
 

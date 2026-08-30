@@ -13,6 +13,7 @@ const {
   scanAnchorContract,
   scanAppendContract,
   scanReleaseContract,
+  scanRunStateContract,
   scanTriageRecordContract,
   scanSpecialisingCitations,
   scanAfkSelectionNeutrality,
@@ -1515,6 +1516,124 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'an absent document is skipped rather than reported',
   );
 
+  // --- scanRunStateContract: every slice-store document carries its own `## Run state` section
+  // (`plan-contract.md` → *Run state*), over the same storeDocuments() candidate list the anchor,
+  // append, release and triage contracts already walk. No store is exempt: a snapshot-less backend
+  // declares itself snapshot-less *inside* that section, which is the single yes-or-no answer
+  // `references/run-init.md` reads before it adopts, so a store without the section leaves that
+  // question unanswerable rather than answered "no". ---
+
+  // positive: a store document with no run-state section is flagged
+  const rsSeed1 = fixture({ 'references/issue-tracker-acme.md': '# acme\n\nSlices are issues.\n' });
+  const rsGaps1 = scanRunStateContract(rsSeed1);
+  assert.equal(rsGaps1.length, 1, 'flags a store document with no run-state section');
+  assert.equal(rsGaps1[0].source, path.join('references', 'issue-tracker-acme.md'), 'names the seed');
+
+  // negative: the same document carrying the section is clean
+  assert.equal(
+    scanRunStateContract(
+      fixture({
+        'references/issue-tracker-acme.md':
+          '# acme\n\n## Run state\n\nThe snapshot lives in the anchor body.\n',
+      }),
+    ).length,
+    0,
+    'a store document carrying the section yields zero gaps',
+  );
+
+  // a seed heading may carry the `(fill in at setup)` suffix the Jira seed uses on the sections a
+  // consumer must complete. The suffix is the seed-template convention, not a different section, so a
+  // pattern anchored to end-of-line would report the one store that most needs the section — the
+  // snapshot-less one, whose whole declaration lives in it — as carrying none at all.
+  assert.equal(
+    scanRunStateContract(
+      fixture({
+        'references/issue-tracker-jira.md':
+          '# jira\n\n## Run state (fill in at setup)\n\nThis store carries **no snapshot** by default.\n',
+      }),
+    ).length,
+    0,
+    'a heading suffixed `(fill in at setup)` still carries the section',
+  );
+
+  // positive: prose about run state is not the section — the heading is what `/superdev:setup` carries
+  assert.equal(
+    scanRunStateContract(
+      fixture({ 'references/issue-tracker-acme.md': '# acme\n\nThe run state mirrors the ledger.\n' }),
+    ).length,
+    1,
+    'a prose mention is not the section',
+  );
+
+  // positive: one of the real seeds loses it, and the gap names that seed
+  const runStateSection = '# store\n\n## Run state\n\n`plan-contract.md` → *Run state*.\n';
+  const rsGaps = scanRunStateContract(
+    fixture({
+      'references/issue-tracker-forgejo.md': runStateSection,
+      'references/issue-tracker-github.md': runStateSection,
+      'references/issue-tracker-jira.md': runStateSection,
+      'references/issue-tracker-local.md': '# store\n\nA plan file records its own run.\n',
+    }),
+  );
+  assert.equal(rsGaps.length, 1, 'flags the seed that dropped the section');
+  assert.equal(
+    rsGaps[0].source,
+    path.join('references', 'issue-tracker-local.md'),
+    'names the seed that dropped it',
+  );
+
+  // a `###` heading satisfies the row too, the same latitude every other section pattern allows
+  assert.equal(
+    scanRunStateContract(
+      fixture({ 'references/issue-tracker-jira.md': '# store\n\n### Run state\n\nNo snapshot.\n' }),
+    ).length,
+    0,
+    'a deeper heading level still carries the section',
+  );
+
+  // this repo's own dogfooded store config is checked alongside the seeds
+  const rsDogfood = scanRunStateContract(fixture({ 'docs/agents/issue-tracker.md': '# Slice store\n\nIssues.\n' }));
+  assert.equal(rsDogfood.length, 1, 'the dogfooded store config is checked too');
+  assert.equal(rsDogfood[0].source, path.join('docs', 'agents', 'issue-tracker.md'), 'names it');
+
+  // a fifth backend seed dropped into references/ is covered without any change to this scanner
+  assert.equal(
+    scanRunStateContract(
+      fixture({ 'references/issue-tracker-newstore.md': '# newstore\n\nNo run-state section here.\n' }),
+    ).length,
+    1,
+    'a seed this scanner has never seen before is still held to the contract',
+  );
+
+  // an absent document is skipped, so a fixture carries only the docs it exercises
+  assert.equal(
+    scanRunStateContract(fixture({ 'README.md': '# repo\n' })).length,
+    0,
+    'an absent document is skipped rather than reported',
+  );
+
+  // a heading shown only inside a fenced code example is not the real section — defensive: no store
+  // document renders one this way today, but the store seeds' own habit of showing a heading inside a
+  // fenced example elsewhere makes it plausible
+  assert.equal(
+    scanRunStateContract(
+      fixture({
+        'references/issue-tracker-local.md':
+          '# store\n\nA seed renders it like this:\n\n```markdown\n## Run state (fill in at setup)\n' +
+          'This store carries no snapshot.\n```\n',
+      }),
+    ).length,
+    1,
+    'a heading shown only inside a fenced code example is not the real section',
+  );
+
+  // the real tree is green: every store document it ships carries the section
+  assert.equal(
+    scanRunStateContract(realRoot).length,
+    0,
+    'every store document in the real tree carries its `## Run state` section',
+  );
+
   // --- scanTriageRecordContract: every slice-store document states where a deferred finding's triage
   // record lives (ADR 0046), over the same storeDocuments() candidate list scanAnchorContract and
   // scanReleaseContract already walk — so a fifth backend seed, or this repo's own dogfooded
@@ -1627,15 +1746,17 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   );
 
   // --- scanSpecialisingCitations: every store document cites the generic contract each section it
-  // carries specialises. The heading rows in SOURCE_SECTION_CONTRACTS pin the generic side and the
-  // anchor/append/release/triage contracts pin the store side; this is the citation between them. ---
+  // carries specialises. The rows SPECIALISING_SECTIONS derives in SOURCE_SECTION_CONTRACTS pin the
+  // generic side and the six store-side presence contracts pin the store side; this is the citation
+  // between them. Both this loop and those rows come off the one membership list, so a member added
+  // there is exercised here with no edit. ---
 
   const citingDoc = (omit) =>
     SPECIALISING_SECTIONS.map(
       (n) => `## ${n}\n\n` + (n === omit ? 'nothing points anywhere.\n' : `\`plan-contract.md\` → *${n}*. text\n`),
     ).join('\n');
 
-  // positive: each of the five fails on its own, and the gap names the document that dropped it
+  // positive: each member fails on its own, and the gap names the document that dropped it
   for (const name of SPECIALISING_SECTIONS) {
     const gaps = scanSpecialisingCitations(fixture({ 'references/issue-tracker-acme.md': citingDoc(name) }));
     assert.equal(gaps.length, 1, `dropping the \`## ${name}\` citation flags exactly one gap`);
@@ -1646,17 +1767,25 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(
     scanSpecialisingCitations(fixture({ 'references/issue-tracker-acme.md': citingDoc(null) })).length,
     0,
-    'a store document citing all five yields zero gaps',
+    'a store document citing every member yields zero gaps',
   );
 
-  // a section the store legitimately does not carry is skipped, never flagged: the Jira seed is
-  // snapshot-less and carries no `## Run state` at all, which is a documented choice, not a gap
+  // a section the store legitimately does not carry is skipped, never flagged: the local-file store has
+  // no assignee concept and carries no `## Assignee` at all, which is a documented choice, not a gap
   assert.equal(
     scanSpecialisingCitations(
       fixture({ 'references/issue-tracker-acme.md': '## Scope anchor\n\n`plan-contract.md` → *Scope anchor*. only this one\n' }),
     ).length,
     0,
     'a section the store does not carry is skipped rather than reported',
+  );
+
+  // the real local-file seed is that case: it renders no `## Assignee`, so the newest member of the
+  // family costs it nothing
+  assert.equal(
+    scanSpecialisingCitations(realRoot).length,
+    0,
+    'every store document in the real tree cites the generic contract for every section it carries',
   );
 
   // the citation is prose and wraps — references/issue-tracker-local.md carries `*Append\nmode*`, and a

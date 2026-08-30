@@ -1872,12 +1872,83 @@ const NUMBER_TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'sev
 // `## Unattended` and `## Degraded passes` rows); this table is that treatment for the five canonical
 // sources that never got it.
 //
-// `plan-contract.md` carries nine rows because eight of its sections are cited by name elsewhere in the
-// plugin — a store document rendering `## Append mode`, `## Scope anchor`, `## Release`, `## Run state`,
-// or `## Triage record` for its own backend is following a section that has to exist to be followed —
-// plus `## Fields`, the slice schema every store renders. The other four files are cited only as whole
-// files, so their rows pin the sections that hold the rule the citing document promises its reader.
+// The heading `specialisingGenericRows()` and `scanSpecialisingCitations()` find a section by, and the
+// one pattern `scanRunStateContract` uses for its own store-side presence check. It stops at a word
+// boundary rather than end-of-line, because a real heading carries a trailing qualifier on both sides of
+// the family: the generic document writes `### Assignee — store configuration, not a slice field`, and
+// the Jira seed writes `## Run state (fill in at setup)` on the sections a consumer completes at setup.
+// Anchoring to end-of-line would read either as no section at all. Three of the other four store-side
+// presence contracts (`ANCHOR_PATTERN`, `APPEND_PATTERN`, `TRIAGE_RECORD_PATTERN`) still anchor to
+// end-of-line, because they also feed `extractSection()` for element checks, so widening them is not a
+// free swap. `RELEASE_PATTERN` anchors the same way but carries no elements: `scanReleaseContract` tests
+// it against raw text for presence alone.
+const specialisingHeading = (name) => new RegExp(`^#{2,3}\\s+${name}\\b`, 'm');
+
+// The **specialising family**: the generic contracts in `references/plan-contract.md` that a slice-store
+// document renders for its own backend. This one list decides membership, and three sides follow from it
+// with no second edit — the generic-side row in `SOURCE_SECTION_CONTRACTS` below
+// (`specialisingGenericRows()`), the citation assertion `scanSpecialisingCitations()` makes
+// (`specialisingCitation()`), and the heading each is found by (`specialisingHeading()`). The store-side
+// presence contract is the one side that stays per-section, because each has its own elements to assert:
+// `scanAnchorContract`, `scanAppendContract`, `scanReleaseContract`, `scanTriageRecordContract` and
+// `scanRunStateContract` each pin their own member's `## <Section>` heading. `scanAssigneeContract` pins
+// the `- **Assignee:**` configuration bullet instead of the `## Assignee` heading, so `Assignee`'s own
+// section presence stays unpinned — deleting the whole section from a seed leaves the suite green,
+// because the bullet still matches (triage record #386). Adding a name here without adding a store-side
+// presence contract for it leaves the section's presence to the citation check, which skips a store
+// rendering none.
+//
+// **The membership rule:** a section is a member when `plan-contract.md` states its generic contract and
+// **at least one store document renders it as its own section**. `Assignee` passes — four of the five
+// store documents carry a `## Assignee` section and all four cite `plan-contract.md` → *Assignee* — even
+// though it sits at `###` under `## Issue-backend mapping (general)` in the generic document. The heading
+// patterns match `#{2,3}`, so its real depth needs no special case.
+//
+// **`Feature label` fails the second half and is deliberately absent.** No seed renders it as a section:
+// every one folds it into a configuration bullet instead, so there is no store side to cite from. It is
+// cited by name and keeps a hand-written row below, beside `Fields`, `Slice lifecycle & status` and
+// `Epic visuals` — the other three sections cited by name that no store renders as a section.
+//
+// Before this list drove the rows, the generic-side rows were written out one by one beside it, and
+// adding a member to one and not the other was silent. `Assignee` is what that gap already cost: its
+// store side was pinned by `scanAssigneeContract` while nothing pinned its generic side and nothing
+// pinned those four citations.
+//
+// One notation is pinned rather than an alternation. Accepting `` `plan-contract.md`, *Section* `` beside
+// the arrow would make both forms true forever and leave a reader guessing which a new seed should copy.
+// That the citation matters at all is not hypothetical: four seeds opened their `## Triage record` with
+// `` `CONTEXT.md` → *Triage record* ``, a reference that resolves to nothing in a consumer install —
+// `plugin/` ships no `CONTEXT.md` and no `docs/adr/`, and a consumer's own `CONTEXT.md` is that repo's
+// glossary. The suite was green throughout, and a human review caught it.
+const SPECIALISING_SECTIONS = [
+  'Scope anchor',
+  'Release',
+  'Run state',
+  'Append mode',
+  'Triage record',
+  'Assignee',
+];
+
+// One generic-side row per member: `references/plan-contract.md` still carries the section the store
+// documents specialise. Taking the names as an argument rather than closing over the list is what lets the
+// selftest assert the derivation itself — pass a name the real list has never held, and the row for it
+// appears — instead of reading the built table back and calling that a test of how it was built.
+const specialisingGenericRows = (names) =>
+  names.map((name) => [
+    path.join('references', 'plan-contract.md'),
+    specialisingHeading(name),
+    `carry the \`## ${name}\` section — the generic contract each store document specialises`,
+  ]);
+
+// `plan-contract.md` carries the most rows, because its sections are cited by name elsewhere in the
+// plugin: a store document rendering one of them for its own backend is following a section that has to
+// exist to be followed. Its **specialising-family** rows are derived from `SPECIALISING_SECTIONS` above
+// rather than written out here — one list decides membership, and both the generic-side row and the
+// citation assertion follow from it. The four rows below it are hand-written because those sections are
+// cited by name without being members. The other four files are cited only as whole files, so their rows
+// pin the sections that hold the rule the citing document promises its reader.
 const SOURCE_SECTION_CONTRACTS = [
+  ...specialisingGenericRows(SPECIALISING_SECTIONS),
   [
     path.join('references', 'plan-contract.md'),
     /^#{2,3}\s+Fields\s*$/m,
@@ -1893,31 +1964,6 @@ const SOURCE_SECTION_CONTRACTS = [
     /^#{2,3}\s+Epic visuals\b/m,
     'carry the `## Epic visuals` section, which holds the epic-visuals gate for `## Slice graph` and ' +
       '`## Touch map`',
-  ],
-  [
-    path.join('references', 'plan-contract.md'),
-    /^#{2,3}\s+Append mode\s*$/m,
-    'carry the `## Append mode` section — the generic contract each store document specialises (ADR 0004)',
-  ],
-  [
-    path.join('references', 'plan-contract.md'),
-    /^#{2,3}\s+Scope anchor\s*$/m,
-    'carry the `## Scope anchor` section — the generic contract each store document specialises (ADR 0017)',
-  ],
-  [
-    path.join('references', 'plan-contract.md'),
-    /^#{2,3}\s+Release\s*$/m,
-    'carry the `## Release` section — the generic contract each store document specialises (ADR 0034)',
-  ],
-  [
-    path.join('references', 'plan-contract.md'),
-    /^#{2,3}\s+Run state\s*$/m,
-    'carry the `## Run state` section — the generic contract each store document specialises (ADR 0042)',
-  ],
-  [
-    path.join('references', 'plan-contract.md'),
-    /^#{2,3}\s+Triage record\s*$/m,
-    'carry the `## Triage record` section — the generic contract each store document specialises (ADR 0046)',
   ],
   [
     path.join('references', 'plan-contract.md'),
@@ -1979,25 +2025,6 @@ const SOURCE_SECTION_CONTRACTS = [
     'carry the `## Consistency` section, which `final-reviewer` reads',
   ],
 ];
-
-// The five generic contracts a slice-store document specialises, four of them for a snapshot-less store
-// like Jira. Two sides are already pinned and a third was not. `SOURCE_SECTION_CONTRACTS` above proves
-// the generic section still exists in `plan-contract.md`; `scanAnchorContract`, `scanAppendContract`,
-// `scanReleaseContract` and `scanTriageRecordContract` prove the store document carries its own matching
-// section, for four of the five — `## Run state`'s store side stays unpinned, deferred as #362. Neither
-// reads the citation line between them, so a store document could point anywhere — or nowhere — and stay
-// green.
-//
-// That is not hypothetical. Four seeds opened their `## Triage record` with `` `CONTEXT.md` → *Triage
-// record* ``, a reference that resolves to nothing in a consumer install: `plugin/` ships no `CONTEXT.md`
-// and no `docs/adr/`, and a consumer's own `CONTEXT.md` is that repo's glossary. The suite was green
-// throughout, and a human review caught it.
-//
-// One notation is pinned rather than an alternation. Accepting `` `plan-contract.md`, *Section* `` beside
-// the arrow would make both forms true forever and leave a reader guessing which a new seed should copy.
-const SPECIALISING_SECTIONS = ['Scope anchor', 'Release', 'Run state', 'Append mode', 'Triage record'];
-
-const specialisingHeading = (name) => new RegExp(`^#{2,3}\\s+${name}\\s*$`, 'm');
 
 // The citation is prose, so it wraps: `references/issue-tracker-local.md` carries it as `*Append\nmode*`.
 // Matching a literal space would report that as drift, so every space in the whole citation — in the
@@ -2412,6 +2439,7 @@ module.exports = {
   AGENT_TOOLCHAIN_PATTERNS,
   SOURCE_SECTION_CONTRACTS,
   SPECIALISING_SECTIONS,
+  specialisingGenericRows,
   specialisingHeading,
   specialisingCitation,
   RETURN_TO_CONTROLLER_DOCS,

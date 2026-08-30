@@ -26,6 +26,9 @@ const {
   ARG_TOKEN_CONTRACTS,
   ARG_TOKEN_LINE,
   SOURCE_SECTION_CONTRACTS,
+  SPECIALISING_SECTIONS,
+  specialisingGenericRows,
+  specialisingCitation,
   PUBLISH_RUN_STATE_CONTRACTS,
   ADOPT_RUN_STATE_CONTRACTS,
   RESUMED_WORKTREE_TRIGGER_CONTRACTS,
@@ -2207,7 +2210,10 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'references/plan-contract.md':
       '# Plan-file contract\n\n## Fields\n\n## Epic visuals (optional, epic-only)\n\n' +
       '## Slice lifecycle & status\n\n## Append mode\n\n## Scope anchor\n\n## Release\n\n' +
-      '## Run state\n\n## Triage record\n\n## Feature label\n',
+      '## Run state\n\n## Triage record\n\n' +
+      // the real document carries this one at `###`, under `## Issue-backend mapping (general)`, with a
+      // trailing qualifier — both are why the derived rows match `#{2,3}` up to a word boundary
+      '### Assignee — store configuration, not a slice field\n\n## Feature label\n',
     'references/test-selection.md':
       '# Test selection\n\n## The two commands\n\n## Fallback to the full command\n',
     'references/content-types.md': '# Content types\n\n## The four types\n\n## The conceptual layer\n',
@@ -2234,6 +2240,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     ['references/plan-contract.md', '## Release\n\n'],
     ['references/plan-contract.md', '## Run state\n\n'],
     ['references/plan-contract.md', '## Triage record\n\n'],
+    ['references/plan-contract.md', '### Assignee — store configuration, not a slice field\n\n'],
     ['references/plan-contract.md', '## Feature label\n'],
     ['references/test-selection.md', '## The two commands\n\n'],
     ['references/test-selection.md', '## Fallback to the full command\n'],
@@ -2257,6 +2264,55 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     assert.equal(gaps.length, 1, `dropping \`${heading.trim()}\` flags exactly one gap`);
     assert.equal(gaps[0].source, rel, `the gap names ${rel}`);
   }
+
+  // the specialising family's generic-side rows are derived from SPECIALISING_SECTIONS, not written out
+  // beside it: one name added to that list yields its row with no second edit. Asserted against the
+  // builder rather than by reading the built table, so the claim is about how the rows are produced.
+  const derivedForNewMember = specialisingGenericRows([...SPECIALISING_SECTIONS, 'Provisional shape']);
+  assert.equal(
+    derivedForNewMember.length,
+    SPECIALISING_SECTIONS.length + 1,
+    'one name added to the membership list yields exactly one more generic-side row',
+  );
+  const newMemberRow = derivedForNewMember[derivedForNewMember.length - 1];
+  assert.equal(newMemberRow[0], path.join('references', 'plan-contract.md'), 'the derived row pins the generic document');
+  assert.match(
+    '# c\n\n## Provisional shape\n',
+    newMemberRow[1],
+    'the derived row matches the new member\'s own heading',
+  );
+  assert.match(newMemberRow[2], /Provisional shape/, 'the derived row names the new member in its expectation');
+
+  // the citation assertion is likewise a pure function of a name, not only of the current membership
+  // list: a name the list has never held still yields a pattern that matches that name's own citation
+  // line and rejects a different member's
+  assert.match(
+    '`plan-contract.md` → *Provisional shape*',
+    specialisingCitation('Provisional shape'),
+    'the citation pattern for a name added to the list matches that name\'s own citation line',
+  );
+  assert.doesNotMatch(
+    '`plan-contract.md` → *Run state*',
+    specialisingCitation('Provisional shape'),
+    'and rejects a different member\'s citation line',
+  );
+
+  // every member already in the list has its generic-side row in the shipped table, and every one of them
+  // is pinned to the generic document
+  for (const name of SPECIALISING_SECTIONS) {
+    const rows = SOURCE_SECTION_CONTRACTS.filter(
+      ([rel, pattern]) => rel === path.join('references', 'plan-contract.md') && pattern.test(`## ${name}\n`),
+    );
+    assert.equal(rows.length, 1, `\`## ${name}\` has exactly one generic-side row`);
+  }
+
+  // `Feature label` is cited by name but is not a member — no seed renders it as a section — so it keeps
+  // a hand-written row and stays out of the list that drives the citation assertion
+  assert.equal(
+    SPECIALISING_SECTIONS.includes('Feature label'),
+    false,
+    '`Feature label` is not a member of the specialising family',
+  );
 
   // a filename kept while the whole body goes is the drift this table exists to catch
   const hollowed = fixture({ ...sourceSectionBodies, 'references/test-selection.md': '# Test selection\n' });

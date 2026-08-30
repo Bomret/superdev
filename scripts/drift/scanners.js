@@ -249,6 +249,29 @@ function scanReleaseContract(root) {
   return gaps;
 }
 
+// scanRunStateContract() is pure over a root dir: reads every slice-store document (the same candidate
+// list the anchor, append and release contracts use) and reports the ones carrying no `## Run state`
+// section (ADR 0042). No store is exempt — a snapshot-less backend declares itself snapshot-less inside
+// this section, which `references/run-init.md` reads before it adopts. The heading is matched by
+// specialisingHeading('Run state'), the same pattern the citation and generic-side rows use, so changing
+// the anchoring in one place can never diverge from the other two. The test runs on the text fence-masked
+// with maskFences(), defensively: no store document renders a `## Run state` heading inside a fenced code
+// example today, but the store seeds' own habit of showing a heading inside a fenced example elsewhere
+// makes one plausible. scanReleaseContract() takes the opposite latitude and tests raw text, because a
+// `## Release` heading has no seed-template convention that puts it inside a fenced example. Absent files
+// are skipped, so a fixture carries only the docs it exercises.
+function scanRunStateContract(root) {
+  const gaps = [];
+  const candidates = storeDocuments(root, { dir: ANCHOR_DOCS_DIR, extra: EXTRA_ANCHOR_DOCS });
+  const pattern = specialisingHeading('Run state');
+  for (const rel of candidates) {
+    const text = readDoc(root, rel);
+    if (text === null) continue; // doc absent (fixture / partial checkout) → nothing to scan
+    if (!pattern.test(maskFences(text))) gaps.push({ source: rel });
+  }
+  return gaps;
+}
+
 // scanTriageRecordContract() is pure over a root dir: reads every slice-store document (the same
 // candidate list scanAnchorContract/scanReleaseContract use) and reports the ones carrying no `## Triage
 // record` section (ADR 0046), then the ones carrying the section but not every element of it. Reusing
@@ -276,11 +299,11 @@ function scanTriageRecordContract(root) {
 // scanSpecialisingCitations() is pure over a root dir: reads every slice-store document (the same
 // candidate list scanAnchorContract/scanReleaseContract/scanTriageRecordContract use) and reports every
 // specialising section that no longer cites the generic contract it renders. The heading rows in
-// SOURCE_SECTION_CONTRACTS pin the generic side and the four contracts above pin the store side, for four
-// of the five — `## Run state`'s store side stays unpinned, deferred as #362; this is the citation
-// between them, which nothing read before. A section the store legitimately does not carry
-// yields nothing — extractSection() returns null and the loop moves on — so the snapshot-less Jira seed
-// stays green while carrying no `## Run state` at all. Absent files are skipped, so fixtures need only
+// SOURCE_SECTION_CONTRACTS pin the generic side and the six contracts above pin the store side; this is
+// the citation between them, which nothing read before. A section this heading pattern does not see
+// yields nothing — extractSection() returns null and the loop moves on. specialisingHeading() stops at a
+// word boundary rather than end-of-line, so the Jira seed's `## Run state (fill in at setup)` is reached
+// here too, and its citation is enforced the same as every other member's. Absent files are skipped, so fixtures need only
 // the docs they exercise. The citation test runs on the section fence-masked with maskFences(), so a
 // citation shown only inside a fenced code example is not read as the real one.
 function scanSpecialisingCitations(root) {
@@ -1025,6 +1048,7 @@ module.exports = {
   scanAnchorContract,
   scanAppendContract,
   scanReleaseContract,
+  scanRunStateContract,
   scanTriageRecordContract,
   scanSpecialisingCitations,
   scanAfkSelectionNeutrality,
