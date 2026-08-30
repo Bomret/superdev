@@ -1,4 +1,5 @@
 ---
+name: brainstorm
 description: Turn a rough idea into a plan-ready intent through a divergent discovery conversation. Run before /superdev:plan when the idea isn't sharp enough to interview yet.
 argument-hint: "[a rough idea, or nothing]"
 ---

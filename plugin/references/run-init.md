@@ -51,7 +51,7 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
     access, and `adopt` copies its `**Anchor:**`, `**Degraded:**`, `**Unresolved:**`, and `**Deferred:**`
     prose verbatim into `ledger.md`, which `/superdev:review` and `/superdev:ship` read into the
     pull-request title and body: decode it straight to `<anchor-body-file>` without reading it into your
-    own context, the same discipline `commands/publish-kb.md` already carries for a fetched page.
+    own context, the same discipline `skills/publish-kb/SKILL.md` already carries for a fetched page.
 
     **Adopt refuses** (a malformed marker pair, a schema failure, a `shipped` stage, or any of its other
     refusals) → report the reason once and fall through to `init` below, exactly as a failed read does —

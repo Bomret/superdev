@@ -1,6 +1,5 @@
 ---
-description: Review a change — a commit range, a branch, a path, or the working tree — for correctness, architecture, security, and over-engineering. Read-only on an ad-hoc range; on a live superdev scope it reviews against the DoD and can drive the fix loop.
-argument-hint: "[BASE..HEAD | branch | path | (empty = working tree)]  [--unattended]  [-- what it should do]"
+description: "Review a change — a commit range, a branch, a path, or the working tree — for correctness, architecture, security, and over-engineering. Read-only on an ad-hoc range; on a live superdev scope it reviews against the DoD and can drive the fix loop."
 ---
 
 # superdev review
@@ -11,7 +10,7 @@ Review a change end to end. Two modes, and §1 decides which:
   and **read-only end to end** (§3).
 - **Scope** — the range is a live superdev scope branch, so this is the whole-scope review gate in the
   implement chain (ADR 0013). It reviews against that run's Definition of Done, may drive the fix loop
-  after asking once, and hands off to `/superdev:document`. **§4 owns everything that differs.**
+  after asking once, and hands off to `/superdev/document`. **§4 owns everything that differs.**
 
 Either way the reviewers themselves are the same read-only subagents.
 
@@ -31,14 +30,14 @@ Either way the reviewers themselves are the same read-only subagents.
 
 ## 1. Range
 
-**`--unattended`, if present, comes out first** — per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
+**`--unattended`, if present, comes out first** — per `<plugin-root>/references/scope-mode.md`'s
 **Unattended** section, it is never part of the range or the trailing description.
 
 Parse `$ARGUMENTS` into a **range** and an optional trailing description of what the change should do:
 
 - **Trailing description** — everything after a ` -- ` separator, or (no `--` present) a clear trailing
   natural-language sentence. This is handed to `final-reviewer` as its `acceptance`.
-- **Scope mode wins over both.** Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md` for what makes the
+- **Scope mode wins over both.** Read `<plugin-root>/references/scope-mode.md` for what makes the
   resolved range a live superdev run. When it is, capture `<run-root>` and take `<run-root>/dod.md` as
   the `acceptance` for `final-reviewer` — **as a path, never as text you read and paste into the
   dispatch**. That is the run's own verification plan, so no trailing description and no issue-ref
@@ -72,23 +71,23 @@ incl. untracked") before dispatching.
 **Size caution (qualitative, non-blocking).** Glance at `git diff --stat`. If the change spans enough
 files or churn that one review pass would likely miss things — a judgment call, not a line count — say so
 alongside the range announcement (e.g. "large, multi-concern diff; consider splitting it via
-`/superdev:plan`") and proceed anyway. Never block on it.
+`/superdev/plan`") and proceed anyway. Never block on it.
 
 ## 2. Review (parallel, read-only)
 
 Dispatch both reviewers in parallel, each with an **explicit `model`** (a hook blocks any dispatch to a
 superdev subagent that omits one):
 
-- **`superdev:final-reviewer`** (`model: opus`) — correctness, consistency, whole-scope brevity,
+- **`final-reviewer`** (`model: opus`) — correctness, consistency, whole-scope brevity,
   security, performance, applied adversarially per axis. Give it: a one-line summary of what changed
   (derive it from the diff if the trailing description didn't supply one), the `acceptance` from §1, and
-  the git range (it reads the review checklist itself via `${CLAUDE_PLUGIN_ROOT}`).
+  the git range (it reads the review checklist itself via `<plugin-root>`).
   **In scope mode both of those change shape**, so the reviewer can write its own criteria before it sees
   the answer key (ADR 0020):
   - The summary is **the scope anchor's title**, read with
-    `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get anchor --root <run-root>` — the ledger's
+    `node "<plugin-root>/scripts/scope.js" get anchor --root <run-root>` — the ledger's
     `**Anchor:**` line (run init writes it, per
-    `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The ledger` section), not derived from the
+    `<plugin-root>/references/scope-mode.md`'s `## The ledger` section), not derived from the
     diff: a diff-derived summary is the artifact describing itself. **The verb prints `absent`** (a run
     implemented before this rule existed) → say so in one line and fall back to a diff-derived summary.
   - The `acceptance` is the **path** `<run-root>/dod.md`. Never read that file and paste its text into
@@ -100,7 +99,7 @@ superdev subagent that omits one):
   **Ad-hoc mode**, if a test command is configured (`docs/agents/verification.md`), tell it it may re-run
   the suite over the range rather than trust the diff alone. **Scope mode** — §4 already ran the full
   suite; hand it that result and tell it to review against that result, running no suite of its own.
-- **`superdev:simplicity-reviewer`** (`model: haiku`) — over-engineering only (unnecessary complexity,
+- **`simplicity-reviewer`** (`model: haiku`) — over-engineering only (unnecessary complexity,
   what stdlib/native replaces, what to delete). Give it the same git range.
 
 Both subagents are **read-only** (`Read`, `Grep`, `Bash` — a hook blocks `git merge`/`push`/`rebase` and
@@ -110,11 +109,11 @@ Both subagents are **read-only** (`Read`, `Grep`, `Bash` — a hook blocks `git 
 - **Nothing plausible to cut** (docs-only, or already lean) → skip `simplicity-reviewer`.
 - **Never skip `final-reviewer`** — correctness is always in scope.
 
-**Exclude `superdev:slice-reviewer`.** It verifies one slice's diff against that slice's own
+**Exclude `slice-reviewer`.** It verifies one slice's diff against that slice's own
 `spec`/`acceptance` from a plan; standalone review has no per-slice specification to check against.
 
 **A dispatch of `final-reviewer` that the permission classifier denies is a degraded pass.** Read
-`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section and follow it: review
+`<plugin-root>/references/scope-mode.md`'s `## Degraded passes` section and follow it: review
 inline yourself, say so in §3's report, and — on a live scope run — write the `**Degraded:**` entry that
 section defines with `scope.js degraded add-denial`, quoting the classifier's refusal, then publish the
 snapshot, per that file's `## Publishing run state` section — since either block branch below reaches no
@@ -149,7 +148,7 @@ when it didn't]
 
 ### Deferred to a plan
 [a finding whose remedy would add a capability the Definition of Done never named — §4's boundary; one
-line each, with the follow-up `/superdev:plan`. Omit this section when there is none]
+line each, with the follow-up `/superdev/plan`. Omit this section when there is none]
 
 ### Assessment
 Full-suite run: [pass | fail | not run | denied — degraded pass]
@@ -168,7 +167,7 @@ clean — lands the combined `Ready to merge?` as `Yes`, naming the deferrals in
 than carrying `final-reviewer`'s raw `No` into a report for a scope the run went on to advance.
 
 **Apply nothing — on an ad-hoc range.** Never edit, commit, or merge, however small the fix looks. To act
-on findings, run `/superdev:plan` to slice the fix, then `/superdev:implement`. **Scope mode is the one
+on findings, run `/superdev/plan` to slice the fix, then `/superdev/implement`. **Scope mode is the one
 exception**, per §4: there the findings belong to a run already in flight, and fixing them is the point
 of the gate. Even then you ask first, and the reviewers stay read-only.
 
@@ -177,10 +176,10 @@ of the gate. Even then you ask first, and the reviewers stay read-only.
 Only when §1 found a live run. Everything above still applies; this adds the run's own steps.
 
 - **Find the scope checkout, and refresh the run lock.** Per
-  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`. **The scope checkout not on `<type>/<scope>`** →
+  `<plugin-root>/references/scope-mode.md`. **The scope checkout not on `<type>/<scope>`** →
   report that and review read-only rather than writing to the wrong branch.
 - **Run the full suite yourself, before dispatching `final-reviewer`.** Take the full command from
-  `docs/agents/verification.md` per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run it **in
+  `docs/agents/verification.md` per `<plugin-root>/references/test-selection.md` and run it **in
   the scope checkout above**, over the scope branch. This happens whether or not the dispatch below
   succeeds, so a denied dispatch is a
   degraded review, not a missing verification (ADR 0025). **No test command configured** → say so and
@@ -189,11 +188,11 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   `final-reviewer` dispatch succeeds**. **Denied** → `## Degraded passes`'s second shape: the pass ran and
   could not reach what it needed. Its default is record and continue regardless of attendance; **local
   deviation**, because this is the chain's only full-suite verification gate and unattended would reach
-  `/superdev:ship` with none behind it. Write the `**Degraded:**` entry either way, then publish the
+  `/superdev/ship` with none behind it. Write the `**Degraded:**` entry either way, then publish the
   snapshot before deciding which branch applies — per
-  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section — since the block
+  `<plugin-root>/references/scope-mode.md`'s `## Publishing run state` section — since the block
   branch reaches no later write in this run. **Attended** → continue.
-  **Unattended** → **block**, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Unattended`
+  **Unattended** → **block**, per `<plugin-root>/references/scope-mode.md`'s `## Unattended`
   section. Carry the result (pass/fail, and any failure output) into §2's dispatch when you continue.
   **A `fail` here is itself a Critical finding** — fold it into the fix loop exactly like a
   `final-reviewer` finding, whether or not that dispatch returned findings of its own. The stage does
@@ -201,32 +200,32 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   again** before treating the verdict as clean — this run is the scope's verification, and `final-reviewer`
   reviews against the result you hand it.
 - **The fix loop changes how the code meets the Definition of Done.** A finding whose remedy **adds a
-  capability the Definition of Done never named** is recorded and handed to **`/superdev:plan`**: report it
+  capability the Definition of Done never named** is recorded and handed to **`/superdev/plan`**: report it
   under §3's `### Deferred to a plan` heading, name the follow-up command, and give the finding a home
   that outlives this run before you write anything to the ledger.
   **Read `scope.js get deferred` first, and skip a finding it already reports** — that one read guards both
   writes below, so a finding the line already carries creates no second triage record and gets no second
   ledger bullet either. `deferred add` carries no `clear` counterpart, so every duplicate is permanent, and
   two paths reach it — a later fix cycle whose re-review returns the same still-deferred finding, and a
-  second `/superdev:review` invocation on the same run, which remembers nothing of the first. "Only on the
+  second `/superdev/review` invocation on the same run, which remembers nothing of the first. "Only on the
   first cycle" covers one of those paths; this read covers both.
   **The active store document (`docs/agents/issue-tracker.md`) states no `## Triage record` section** —
   every repo set up before that section existed, and every "Other (GitLab Issues, Linear, …)" backend
-  `commands/setup.md` never seeded one for — has nowhere to create a record. Report that, and write only
+  `skills/setup/SKILL.md` never seeded one for — has nowhere to create a record. Report that, and write only
   the ledger bullet below, with `no triage record — store defines none` in the reference's place: on a
-  backend `/superdev:setup` seeds a section for, re-running it is what adds one; on an "Other" backend the
+  backend `/superdev/setup` seeds a section for, re-running it is what adds one; on an "Other" backend the
   section is what the store document owes, and the operator writes it by hand, from one of the shipped
   `references/issue-tracker-*.md` seeds. This folds into the best-effort posture the rest of this bullet
   already states.
   **Otherwise, create the triage record first**, in the configured slice store, the way that store's own
   `## Triage record` section states. Its body carries the finding, why no
   Definition of Done criterion covered it, the date, the feature label, the scope branch, the scope
-  anchor's reference, and a copy-pasteable `/superdev:plan "<the finding>"` line — and **no pull-request
-  URL**, because this command runs before `/superdev:ship` opens
+  anchor's reference, and a copy-pasteable `/superdev/plan "<the finding>"` line — and **no pull-request
+  URL**, because this command runs before `/superdev/ship` opens
   one and none exists yet. Capture the record's reference, then write it to the run with
-  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deferred add "<text>" --root <run-root>` — **the bullet
+  `node "<plugin-root>/scripts/scope.js" deferred add "<text>" --root <run-root>` — **the bullet
   text carries that reference**, which is what leads a reader of the ledger, the pull-request body, or
-  `/superdev:status` to the record. **The create fails** → the bullet names the failure in the
+  `/superdev/status` to the record. **The create fails** → the bullet names the failure in the
   reference's place instead — `no triage record — create failed`, or, when a permission classifier is what
   refused the write, `no triage record — create denied` — so either reads apart from a bullet whose
   record exists, the way a degraded pass records its own denial in the ledger rather than only in this
@@ -235,7 +234,7 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   create that fails is reported once per run, the ledger bullet is written regardless, and
   the review carries on — the run's own record is the one that gates nothing on a store being reachable.
   The report is this conversation and the ledger outlives it, which is what
-  carries the finding to the pull request `/superdev:ship` opens (ADR 0035). An ad-hoc range has no run
+  carries the finding to the pull request `/superdev/ship` opens (ADR 0035). An ad-hoc range has no run
   root: report it and write nothing — no ledger bullet, and no triage record, since the record's body names
   a feature label, a scope branch, and a scope anchor an ad-hoc range does not have.
   Repairing a defect in what the Definition of Done *does* name stays in this loop, and such a repair is
@@ -251,26 +250,26 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
 - **Ask once before fixing.** `final-reviewer` returned **Critical or Important** findings, or the full
   suite came back `fail` → report them per §3 first, then ask whether to fix them now.
   - **Declined** → stop. The findings stand: write the `**Unresolved:**` entry with
-    `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add "<text>" --root <run-root>`, publish the
-    snapshot before stopping — per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run
+    `node "<plugin-root>/scripts/scope.js" unresolved add "<text>" --root <run-root>`, publish the
+    snapshot before stopping — per `<plugin-root>/references/scope-mode.md`'s `## Publishing run
     state` section, since no later write in this run will do it — and the stage does **not** advance.
   - **`--unattended` → fix**, without asking: the fix loop is the point of this gate, and a review that
     found real defects and left them is worth less than no review.
-  - **Confirmed** → dispatch **one** `superdev:implementer` (`model: sonnet`; `haiku` only for a
+  - **Confirmed** → dispatch **one** `implementer` (`model: sonnet`; `haiku` only for a
     mechanical fix) with the **complete** findings list, not one fixer per finding. Hand it the scope
     checkout as its working directory: this is where its fix commits must land. Every fix opens with a
     RED test that reproduces the defect; a finding whose cause is not yet established runs the diagnosis
-    loop first (`${CLAUDE_PLUGIN_ROOT}/references/diagnosis.md` — the implementer reads it on any
+    loop first (`<plugin-root>/references/diagnosis.md` — the implementer reads it on any
     defect-repair dispatch). Re-review after it returns, and repeat until the verdict is clean
     or the **3-strike cap** is reached — three cycles each exposing a new defect elsewhere means a wrong
     cut, not a bug: stop, say so, write the `**Unresolved:**` entry, leave the stage where it is, and
     publish the snapshot before stopping — per
-    `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section — since no later
+    `<plugin-root>/references/scope-mode.md`'s `## Publishing run state` section — since no later
     stage write in this run will do it.
     **`--unattended` → block** at that cap, per that file's **Unattended** section, writing the same entry,
     publishing the same way, and leaving the stage where it is.
 - **The fix implementer's own dispatch is a degraded pass too, if the permission classifier denies it.**
-  Follow `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section. Write the
+  Follow `<plugin-root>/references/scope-mode.md`'s `## Degraded passes` section. Write the
   `**Degraded:**` entry either way, with `scope.js degraded add` — the fix implementer is an authoring
   dispatch, not one of the three the cap counts — then publish the snapshot, per that file's `## Publishing
   run state` section, since an unattended block below reaches no later write in this run. **Attended** →
@@ -283,34 +282,34 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   observation about work that is already correct: it holds up no handoff, starts no fix cycle, and
   changes no stage, attended or unattended. Carry it into the report and move on.
 - **On a clean verdict**, and only then: clear any standing `**Unresolved:**` entry — the run has just
-  re-verified clean — with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root
+  re-verified clean — with `node "<plugin-root>/scripts/scope.js" unresolved clear --root
   <run-root>`, which succeeds and changes nothing when there is none. Then write the ledger's
-  `**Stage:**` line with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set <value> --root
+  `**Stage:**` line with `node "<plugin-root>/scripts/scope.js" stage set <value> --root
   <run-root>`, per that file's rule that a stage write never undoes completed work — the verb enforces it
   and refuses a write that breaks it. Read the current stage first (`scope.js get stage`).
   - `documented-unreviewed`, **no fix cycle ran** → write `documented`. The review it was missing has now
     run, and the doc pass still describes this code.
   - `documented-unreviewed`, **a fix cycle landed commits** → write `reviewed`. Those commits arrived
     after the doc pass, so the docs are stale by exactly them, and `reviewed` is what makes
-    `/superdev:ship` ask for the doc pass again.
+    `/superdev/ship` ask for the doc pass again.
   - `documented` or `shipped` → leave the line alone and say so in one line; the run has moved past this
     gate.
   - Anything else → write `reviewed`.
 
   **A fix cycle that landed commits also clears the inline-doc-pass record**, with
-  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs clear --root <run-root>`. A `lite` run wrote that
+  `node "<plugin-root>/scripts/scope.js" docs clear --root <run-root>`. A `lite` run wrote that
   record when it documented itself, before this review existed; commits landed since make what it recorded
-  stale, so the next `/superdev:document` must run the full `doc-writer` rather than the reader alone (ADR
+  stale, so the next `/superdev/document` must run the full `doc-writer` rather than the reader alone (ADR
   0031). It is the same judgment the `documented-unreviewed` row above makes, on the same trigger. **No fix
   cycle, or none that committed** → leave the record alone: the docs still describe this code. The verb
   succeeds and changes nothing when there is no record, so a `full` run needs no separate branch here.
 
   Publish the snapshot after any of the writes above — `unresolved clear`, the stage write, and `docs
-  clear` alike — per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section.
+  clear` alike — per `<plugin-root>/references/scope-mode.md`'s `## Publishing run state` section.
 
-  Then print the next command with the range already resolved — `/superdev:document <range>`, carrying
+  Then print the next command with the range already resolved — `/superdev/document <range>`, carrying
   the concrete range §1 resolved — and say in one line what it will do (reconcile the in-repo docs and
   the knowledge base with the merged state). Add that this conversation is disposable: the ledger's
-  stage and the scope branch carry everything `/superdev:document` reads, so a `/clear` first costs
+  stage and the scope branch carry everything `/superdev/document` reads, so a `/clear` first costs
   nothing.
-- **Never merge, push, or open a pull request.** `/superdev:ship` ends the chain.
+- **Never merge, push, or open a pull request.** `/superdev/ship` ends the chain.

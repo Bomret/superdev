@@ -18,11 +18,11 @@ const REFERENCE_PATTERN = /(?:\$\{CLAUDE_PLUGIN_ROOT\}\/)?references\/([a-zA-Z0-
 // path resolves one level too deep from a worktree cwd. Descriptive docs (status.md, plan-contract.md,
 // issue-tracker-local.md, brainstorm.md) run only from the invoking checkout and are deliberately absent.
 const RUN_ROOT_DOCS = [
-  'commands/implement.md',
-  'commands/review.md',
-  'commands/document.md',
-  'commands/ship.md',
-  'commands/publish-kb.md',
+  'skills/implement/SKILL.md',
+  'skills/review/SKILL.md',
+  'skills/document/SKILL.md',
+  'skills/ship/SKILL.md',
+  'skills/publish-kb/SKILL.md',
   'references/implement-lite.md',
   'references/implement-full.md',
   'references/run-init.md',
@@ -130,9 +130,9 @@ const RELEASE_PATTERN = /^#{2,3}\s+Release\s*$/m;
 // ordinary prose (a released feature, releasing the plan), and a bare search on it would pass a document
 // that merely mentions releasing while reading no signal at all.
 const RELEASE_CONSUMERS = [
-  path.join('commands', 'plan.md'),
-  path.join('commands', 'implement.md'),
-  path.join('commands', 'afk.md'),
+  path.join('skills', 'plan', 'SKILL.md'),
+  path.join('skills', 'implement', 'SKILL.md'),
+  path.join('skills', 'afk', 'SKILL.md'),
 ];
 
 const RELEASE_CONSUMER_PATTERN = /`## Release`/;
@@ -240,7 +240,7 @@ const CONTENT_TYPES_DOCS = [
 const CONTENT_TYPES_PATTERN =
   /Read\s+`?(?:\$\{CLAUDE_PLUGIN_ROOT\}\/)?references\/content-types\.md/;
 
-// A `/superdev:<name>` reference must resolve to `commands/<name>.md`. The chain hands the reader from
+// A `/superdev:<name>` reference must resolve to `skills/<name>/SKILL.md`. The chain hands the reader from
 // one command to the next by printing its name (ADR 0013), so a reference to a command that does not
 // exist is a dead end. This is scan() one level over: that one resolves `references/` paths, this one
 // resolves command names, and both catch a pointer no build step would follow.
@@ -250,11 +250,11 @@ const COMMAND_REFERENCE_PATTERN = /\/superdev:([a-z][a-z-]*)/g;
 // resolved is the whole handoff (ADR 0013). scanCommandRefs above catches a handoff that points at a
 // command with no file. The reverse drift is invisible to it: a command that names no successor at all
 // leaves every reference resolvable and the suite green, and the chain dead-ends there silently.
-// `commands/ship.md` ends the chain and has no successor, so it is deliberately absent.
+// `skills/ship/SKILL.md` ends the chain and has no successor, so it is deliberately absent.
 const CHAIN_HANDOFFS = [
   [path.join('references', 'run-handoff.md'), '/superdev:review'],
-  [path.join('commands', 'review.md'), '/superdev:document'],
-  [path.join('commands', 'document.md'), '/superdev:ship'],
+  [path.join('skills', 'review', 'SKILL.md'), '/superdev:document'],
+  [path.join('skills', 'document', 'SKILL.md'), '/superdev:ship'],
 ];
 
 // A scope branch is `<type>/<scope>`, and `hooks/scope-prune.js` reads that type back off a merged branch
@@ -308,13 +308,13 @@ const CHANGE_TYPE_CONTRACTS = [
 // that stays pinned.
 const FEATURE_ARG_CONTRACTS = [
   [
-    path.join('commands', 'implement.md'),
+    path.join('skills', 'implement', 'SKILL.md'),
     /^argument-hint:.*<(?:feature-)?label>/m,
     'declare an `argument-hint` naming a feature label',
   ],
-  [path.join('commands', 'implement.md'), /\$ARGUMENTS/, 'resolve `$ARGUMENTS`'],
+  [path.join('skills', 'implement', 'SKILL.md'), /\$ARGUMENTS/, 'resolve `$ARGUMENTS`'],
   [
-    path.join('commands', 'plan.md'),
+    path.join('skills', 'plan', 'SKILL.md'),
     /`\/superdev:implement\s+\S+`/,
     'name `/superdev:implement <label>` as the resolved successor, in a backtick-delimited invocation',
   ],
@@ -332,10 +332,10 @@ const UNATTENDED_CONTRACTS = [
     'carry the `## Unattended` section defining the token for every command that reads it',
   ],
   ...[
-    path.join('commands', 'implement.md'),
-    path.join('commands', 'review.md'),
-    path.join('commands', 'document.md'),
-    path.join('commands', 'ship.md'),
+    path.join('skills', 'implement', 'SKILL.md'),
+    path.join('skills', 'review', 'SKILL.md'),
+    path.join('skills', 'document', 'SKILL.md'),
+    path.join('skills', 'ship', 'SKILL.md'),
     path.join('references', 'implement-full.md'),
     path.join('references', 'implement-lite.md'),
     path.join('references', 'run-init.md'),
@@ -349,10 +349,10 @@ const UNATTENDED_CONTRACTS = [
   // **Unattended** section governs …") — same idea as `CONTENT_TYPES_PATTERN` anchoring on `Read`, applied
   // to a contract whose real documents don't share one fixed verb.
   ...[
-    path.join('commands', 'implement.md'),
-    path.join('commands', 'review.md'),
-    path.join('commands', 'document.md'),
-    path.join('commands', 'ship.md'),
+    path.join('skills', 'implement', 'SKILL.md'),
+    path.join('skills', 'review', 'SKILL.md'),
+    path.join('skills', 'document', 'SKILL.md'),
+    path.join('skills', 'ship', 'SKILL.md'),
     path.join('references', 'implement-full.md'),
     path.join('references', 'implement-lite.md'),
     path.join('references', 'run-init.md'),
@@ -384,11 +384,11 @@ const DEGRADED_CONTRACTS = [
     "require a denied-dispatch bullet to quote the classifier's refusal text",
   ],
   ...[
-    path.join('commands', 'implement.md'),
-    path.join('commands', 'review.md'),
-    path.join('commands', 'document.md'),
-    path.join('commands', 'ship.md'),
-    path.join('commands', 'status.md'),
+    path.join('skills', 'implement', 'SKILL.md'),
+    path.join('skills', 'review', 'SKILL.md'),
+    path.join('skills', 'document', 'SKILL.md'),
+    path.join('skills', 'ship', 'SKILL.md'),
+    path.join('skills', 'status', 'SKILL.md'),
     path.join('references', 'implement-full.md'),
     path.join('references', 'implement-lite.md'),
     path.join('references', 'run-handoff.md'),
@@ -398,11 +398,11 @@ const DEGRADED_CONTRACTS = [
   // Anchored on the section's own name for the same reason `UNATTENDED_CONTRACTS` is — the documents
   // phrase the instruction several ways around one fixed noun.
   ...[
-    path.join('commands', 'implement.md'),
-    path.join('commands', 'review.md'),
-    path.join('commands', 'document.md'),
-    path.join('commands', 'ship.md'),
-    path.join('commands', 'status.md'),
+    path.join('skills', 'implement', 'SKILL.md'),
+    path.join('skills', 'review', 'SKILL.md'),
+    path.join('skills', 'document', 'SKILL.md'),
+    path.join('skills', 'ship', 'SKILL.md'),
+    path.join('skills', 'status', 'SKILL.md'),
     path.join('references', 'implement-full.md'),
     path.join('references', 'implement-lite.md'),
     path.join('references', 'run-handoff.md'),
@@ -418,7 +418,7 @@ const DEGRADED_CONTRACTS = [
 // green, and the reviewer just reads the DoD first exactly as it did before.
 const DERIVED_CRITERIA_CONTRACTS = [
   [
-    path.join('commands', 'review.md'),
+    path.join('skills', 'review', 'SKILL.md'),
     /\*\*path\*\*\s+`<run-root>\/dod\.md`/,
     'hand `final-reviewer` the **path** `<run-root>/dod.md` in scope mode, never the DoD text inlined',
   ],
@@ -445,7 +445,7 @@ const LABEL_VALIDATION_CONTRACTS = [
     /\*\*Validate both segments\.\*\*/,
     'carry the **Validate both segments.** rule — the leading segment against the change-type set, not the slug alone',
   ],
-  ...[path.join('commands', 'implement.md'), path.join('commands', 'afk.md')].map((rel) => [
+  ...[path.join('skills', 'implement', 'SKILL.md'), path.join('skills', 'afk', 'SKILL.md')].map((rel) => [
     rel,
     /both segments/,
     'point at `references/scope-mode.md`\'s both-segments validation before building a path or a branch out of a label',
@@ -515,23 +515,23 @@ const VERB_CONTRACTS = [
   [path.join('references', 'run-handoff.md'), /scope\.js["'`]?\s+stage set merged\b/, 'record slice completion with `scope.js stage set merged`'],
   [path.join('references', 'run-handoff.md'), /scope\.js["'`]?\s+unresolved add\b/, 'record a give-up point with `scope.js unresolved add`'],
   [path.join('references', 'run-handoff.md'), /scope\.js["'`]?\s+unresolved clear\b/, 'clear a standing defect on Green with `scope.js unresolved clear`'],
-  [path.join('commands', 'review.md'), /scope\.js["'`]?\s+stage set\b/, 'write its stage with `scope.js stage set`'],
-  [path.join('commands', 'review.md'), /scope\.js["'`]?\s+get anchor\b/, 'read the scope anchor\'s title with `scope.js get anchor`'],
-  [path.join('commands', 'review.md'), /scope\.js["'`]?\s+unresolved add\b/, 'record a give-up point with `scope.js unresolved add`'],
-  [path.join('commands', 'review.md'), /scope\.js["'`]?\s+unresolved clear\b/, 'clear a standing defect on a clean verdict with `scope.js unresolved clear`'],
-  [path.join('commands', 'document.md'), /scope\.js["'`]?\s+stage set\b/, 'write its stage with `scope.js stage set`'],
-  [path.join('commands', 'ship.md'), /scope\.js["'`]?\s+get stage\b/, 'read the stage with `scope.js get stage`'],
-  [path.join('commands', 'ship.md'), /scope\.js["'`]?\s+stage set shipped\b/, 'set the terminal stage with `scope.js stage set shipped`'],
-  [path.join('commands', 'ship.md'), /scope\.js["'`]?\s+get unresolved\b/, 'read the unresolved-defect record with `scope.js get unresolved`, never through cwd-dependent `status`'],
-  [path.join('commands', 'ship.md'), /scope\.js["'`]?\s+get degraded\b/, 'read the degrade record with `scope.js get degraded`, never through cwd-dependent `status`'],
+  [path.join('skills', 'review', 'SKILL.md'), /scope\.js["'`]?\s+stage set\b/, 'write its stage with `scope.js stage set`'],
+  [path.join('skills', 'review', 'SKILL.md'), /scope\.js["'`]?\s+get anchor\b/, 'read the scope anchor\'s title with `scope.js get anchor`'],
+  [path.join('skills', 'review', 'SKILL.md'), /scope\.js["'`]?\s+unresolved add\b/, 'record a give-up point with `scope.js unresolved add`'],
+  [path.join('skills', 'review', 'SKILL.md'), /scope\.js["'`]?\s+unresolved clear\b/, 'clear a standing defect on a clean verdict with `scope.js unresolved clear`'],
+  [path.join('skills', 'document', 'SKILL.md'), /scope\.js["'`]?\s+stage set\b/, 'write its stage with `scope.js stage set`'],
+  [path.join('skills', 'ship', 'SKILL.md'), /scope\.js["'`]?\s+get stage\b/, 'read the stage with `scope.js get stage`'],
+  [path.join('skills', 'ship', 'SKILL.md'), /scope\.js["'`]?\s+stage set shipped\b/, 'set the terminal stage with `scope.js stage set shipped`'],
+  [path.join('skills', 'ship', 'SKILL.md'), /scope\.js["'`]?\s+get unresolved\b/, 'read the unresolved-defect record with `scope.js get unresolved`, never through cwd-dependent `status`'],
+  [path.join('skills', 'ship', 'SKILL.md'), /scope\.js["'`]?\s+get degraded\b/, 'read the degrade record with `scope.js get degraded`, never through cwd-dependent `status`'],
   // ADR 0035's two-document agreement on the deferred record. A `/superdev:review` that stops writing it
   // leaves the finding in chat output alone, which is the durability gap the record exists to close; a
   // `/superdev:ship` that stops reading it writes a pull-request body missing the one item nobody has
   // planned yet. Either half alone reads correct, and the ledger keeps a bullet no reader ever sees.
-  [path.join('commands', 'review.md'), /scope\.js["'`]?\s+deferred add\b/, 'record a deferred finding with `scope.js deferred add`'],
-  [path.join('commands', 'ship.md'), /scope\.js["'`]?\s+get deferred\b/, 'read the deferred-finding record with `scope.js get deferred`, never through cwd-dependent `status`'],
-  [path.join('commands', 'status.md'), /scope\.js["'`]?\s+status\b/, 'produce the report with `scope.js status` and print it verbatim'],
-  [path.join('commands', 'afk.md'), /scope\.js["'`]?\s+get stage\b/, 'read a run\'s stage with `scope.js get stage`'],
+  [path.join('skills', 'review', 'SKILL.md'), /scope\.js["'`]?\s+deferred add\b/, 'record a deferred finding with `scope.js deferred add`'],
+  [path.join('skills', 'ship', 'SKILL.md'), /scope\.js["'`]?\s+get deferred\b/, 'read the deferred-finding record with `scope.js get deferred`, never through cwd-dependent `status`'],
+  [path.join('skills', 'status', 'SKILL.md'), /scope\.js["'`]?\s+status\b/, 'produce the report with `scope.js status` and print it verbatim'],
+  [path.join('skills', 'afk', 'SKILL.md'), /scope\.js["'`]?\s+get stage\b/, 'read a run\'s stage with `scope.js get stage`'],
   [path.join('references', 'implement-full.md'), /scope\.js["'`]?\s+slice\b/, 'move slice rows with `scope.js slice`'],
   [path.join('references', 'implement-lite.md'), /scope\.js["'`]?\s+slice\b/, 'move slice rows with `scope.js slice`'],
   [path.join('references', 'scope-mode.md'), /scope\.js["'`]?\s+degraded add\b/, 'write the degrade entry with `scope.js degraded add`'],
@@ -540,13 +540,13 @@ const VERB_CONTRACTS = [
   // stops reading it does the same while the record sits there; a `/superdev:review` that stops clearing
   // it ships documentation written before the fix that made it wrong.
   [path.join('references', 'implement-lite.md'), /scope\.js["'`]?\s+docs set\b/, 'record its inline doc pass with `scope.js docs set`'],
-  [path.join('commands', 'document.md'), /scope\.js["'`]?\s+get docs\b/, 'read the inline-doc-pass record with `scope.js get docs` before it dispatches a writer'],
-  [path.join('commands', 'review.md'), /scope\.js["'`]?\s+docs clear\b/, 'clear the inline-doc-pass record with `scope.js docs clear` when its fix loop lands commits'],
-  [path.join('commands', 'publish-kb.md'), /scope\.js["'`]?\s+get branch\b/, 'read the scope branch with `scope.js get branch` for its merge check'],
+  [path.join('skills', 'document', 'SKILL.md'), /scope\.js["'`]?\s+get docs\b/, 'read the inline-doc-pass record with `scope.js get docs` before it dispatches a writer'],
+  [path.join('skills', 'review', 'SKILL.md'), /scope\.js["'`]?\s+docs clear\b/, 'clear the inline-doc-pass record with `scope.js docs clear` when its fix loop lands commits'],
+  [path.join('skills', 'publish-kb', 'SKILL.md'), /scope\.js["'`]?\s+get branch\b/, 'read the scope branch with `scope.js get branch` for its merge check'],
   // /plan names `scope.js` once and then its two verbs, so the branch half wraps away from the path
   // prefix (`get\n  branch --root <run-root>`) and the `scope.js <verb>` shape above cannot reach it.
   // The `--root` argument is what separates the verb invocation from the words "get branch" in prose.
-  [path.join('commands', 'plan.md'), /get\s+branch\s+--root/, 'read the scope branch with `scope.js get branch` for its append refusal, never by reconstructing `<type>/<scope>`'],
+  [path.join('skills', 'plan', 'SKILL.md'), /get\s+branch\s+--root/, 'read the scope branch with `scope.js get branch` for its append refusal, never by reconstructing `<type>/<scope>`'],
 ];
 
 // ADR 0023: a remote knowledge base is a reader-facing surface, and a page sent from an unmerged branch
@@ -559,8 +559,8 @@ const VERB_CONTRACTS = [
 // knowledge-base pass that does nothing at all. The positive half rides `scanContract()`; the negative
 // half needs its own scanner, because `scanContract()` asserts that a pattern *matches*.
 const KB_STAGING_CONTRACTS = [
-  [path.join('commands', 'plan.md'), /\.superdev\/kb-pending\//, 'stage the feature specification under `.superdev/kb-pending/` rather than sending it'],
-  [path.join('commands', 'document.md'), /\.superdev\/kb-pending\//, 'hand the doc-writer a `.superdev/kb-pending/` staging path'],
+  [path.join('skills', 'plan', 'SKILL.md'), /\.superdev\/kb-pending\//, 'stage the feature specification under `.superdev/kb-pending/` rather than sending it'],
+  [path.join('skills', 'document', 'SKILL.md'), /\.superdev\/kb-pending\//, 'hand the doc-writer a `.superdev/kb-pending/` staging path'],
   [path.join('references', 'doc-pass.md'), /\.superdev\/kb-pending\//, 'write a remote backend\'s pages under `.superdev/kb-pending/`'],
 ];
 
@@ -573,7 +573,7 @@ const KB_STAGING_CONTRACTS = [
 //
 // The third row is the **dispatch-prose half** (ADR 0035, and root `AGENTS.md`'s rule of the same name).
 // A contract the agent body carries also has to hold in the prose that dispatches it, because a
-// controller writes its dispatch from what `commands/document.md` says the writer does. That command used
+// controller writes its dispatch from what `skills/document/SKILL.md` says the writer does. That command used
 // to paraphrase the pass ("It runs two passes, deleting stale text"), so a dispatch built from the
 // paraphrase reached the writer while the two rows above stayed green — the reference owned the pass and
 // nothing kept the dispatch pointing at it. `references/implement-lite.md` needs no such pairing: it is
@@ -590,7 +590,7 @@ const DOC_PASS_CONTRACTS = [
     'read `references/doc-pass.md`, which states the pass its doc step performs',
   ],
   [
-    path.join('commands', 'document.md'),
+    path.join('skills', 'document', 'SKILL.md'),
     /references\/doc-pass\.md[\s\S]{0,240}?[Nn]ame\s+that\s+reference\s+in\s+the\s+dispatch/,
     'name `references/doc-pass.md` in the dispatch it builds, rather than paraphrasing the pass the ' +
       'writer performs',
@@ -607,16 +607,16 @@ const DOC_PASS_CONTRACTS = [
 // is the only verification there is. Two more rows guard the fail path itself, added on
 // re-review: a `review.md` that stops folding a red full suite into the fix loop as a Critical finding
 // lets a red gate pass through unfixed, and a `final-reviewer.md` that stops making `Full-suite run: fail`
-// disqualifying on its own lets the other four axes argue a red suite back to "Yes". The `commands/review.md`
+// disqualifying on its own lets the other four axes argue a red suite back to "Yes". The `skills/review/SKILL.md`
 // "stage does not advance" row guards the clause that actually blocks a red scope: a `review.md` that keeps
 // the fail-is-Critical wording but drops "The stage does **not** advance while it stands" would still name
-// the finding without holding up the handoff over it. The `commands/review.md` dispatch row guards the
+// the finding without holding up the handoff over it. The `skills/review/SKILL.md` dispatch row guards the
 // dispatch sentence itself: `review.md`'s prose reaches `final-reviewer` at runtime alongside the agent
 // body, so a leaked "its own re-run stays optional" clause there defeats the deferral
 // `final-reviewer.md`'s own row above states, on the live path, regardless of what the agent file says.
 const FULL_SUITE_CONTRACTS = [
   [
-    path.join('commands', 'review.md'),
+    path.join('skills', 'review', 'SKILL.md'),
     /run the full (?:test )?suite (?:itself|yourself)[\s\S]{0,60}before dispatching/i,
     'run the full suite itself, before dispatching `final-reviewer`, per ADR 0025',
   ],
@@ -626,12 +626,12 @@ const FULL_SUITE_CONTRACTS = [
     'state that on a live scope run it reviews against the handed result and runs no suite of its own',
   ],
   [
-    path.join('commands', 'review.md'),
+    path.join('skills', 'review', 'SKILL.md'),
     /hand it that result[\s\S]{0,60}tell it to review against that result[\s\S]{0,60}running no suite of its own/i,
     'hand `final-reviewer` the result and tell it to review against that result, running no suite of its own — never that its own re-run "stays optional"',
   ],
   [
-    path.join('commands', 'review.md'),
+    path.join('skills', 'review', 'SKILL.md'),
     /a `?fail`?[\s\S]{0,20}is itself a Critical finding[\s\S]{0,60}fold it into the fix\s+loop/i,
     'state that a `fail` here is itself a Critical finding, folded into the fix loop',
   ],
@@ -641,7 +641,7 @@ const FULL_SUITE_CONTRACTS = [
     'state that `Full-suite run: fail` makes the verdict `Ready to merge? No` on its own',
   ],
   [
-    path.join('commands', 'review.md'),
+    path.join('skills', 'review', 'SKILL.md'),
     /the stage does\s+\*\*not\*\*\s+advance while it stands/i,
     'state that the stage does **not** advance while a full-suite fail or Critical/Important finding stands',
   ],
@@ -679,18 +679,18 @@ const FULL_SUITE_CONTRACTS = [
 // together with the "counts as clean" clause that actually lets a run advance past a deferred finding.
 const FIX_BOUNDARY_CONTRACTS = [
   [
-    path.join('commands', 'review.md'),
+    path.join('skills', 'review', 'SKILL.md'),
     /fix\s+loop\s+changes\s+how[\s\S]{0,80}?Definition\s+of\s+Done/i,
     "state that the fix loop changes how the code meets the Definition of Done",
   ],
   [
-    path.join('commands', 'review.md'),
+    path.join('skills', 'review', 'SKILL.md'),
     /adds?\s+a\s+capability\s+the\s+Definition\s+of\s+Done\s+never\s+named[\s\S]{0,120}?recorded\s+and\s+handed\s+to[\s\S]{0,40}?\/superdev:plan/i,
     'hand a remedy that adds a capability the Definition of Done never named to `/superdev:plan`, so the ' +
       'boundary names where the work goes instead of only where it stops',
   ],
   [
-    path.join('commands', 'review.md'),
+    path.join('skills', 'review', 'SKILL.md'),
     /enters\s+no\s+fix\s+loop[\s\S]{0,60}?not\s+an\s+unresolved\s+defect[\s\S]{0,220}?--unattended[\s\S]{0,320}?counts\s+as\s+clean/i,
     'state that a deferred finding enters no fix loop and is not an unresolved defect, taking precedence ' +
       'over `--unattended → fix`, and that a verdict whose only remaining findings are deferred counts as ' +
@@ -728,9 +728,9 @@ const DENIAL_AUTHORSHIP_CONTRACTS = [
   // and the only dispatch it makes is an implementer on a red suite. Neither is a verification dispatch,
   // so no prose there can contradict the rule.
   ...[
-    path.join('commands', 'review.md'),
-    path.join('commands', 'document.md'),
-    path.join('commands', 'implement.md'),
+    path.join('skills', 'review', 'SKILL.md'),
+    path.join('skills', 'document', 'SKILL.md'),
+    path.join('skills', 'implement', 'SKILL.md'),
     path.join('references', 'implement-full.md'),
   ].map((rel) => [
     rel,
@@ -770,9 +770,9 @@ const DENIAL_CAP_CONTRACTS = [
       "than the controller's memory of this session",
   ],
   ...[
-    path.join('commands', 'review.md'),
-    path.join('commands', 'document.md'),
-    path.join('commands', 'implement.md'),
+    path.join('skills', 'review', 'SKILL.md'),
+    path.join('skills', 'document', 'SKILL.md'),
+    path.join('skills', 'implement', 'SKILL.md'),
     path.join('references', 'implement-full.md'),
   ].flatMap((rel) => [
     [
@@ -795,9 +795,9 @@ const DENIAL_CAP_CONTRACTS = [
   // it always is in context, and the plain-`add` branch is dead: a denied implementer or doc-writer would
   // then wrongly feed the count too.
   ...[
-    path.join('commands', 'review.md'),
-    path.join('commands', 'document.md'),
-    path.join('commands', 'implement.md'),
+    path.join('skills', 'review', 'SKILL.md'),
+    path.join('skills', 'document', 'SKILL.md'),
+    path.join('skills', 'implement', 'SKILL.md'),
     path.join('references', 'implement-full.md'),
   ].map((rel) => [
     rel,
@@ -890,19 +890,19 @@ const TRIAGE_RECORD_ELEMENTS = [
 // the first two rows below are.
 const BACKLOG_SURVEY_CONTRACTS = [
   [
-    path.join('commands', 'backlog.md'),
+    path.join('skills', 'backlog', 'SKILL.md'),
     /`## Scope anchor`/,
     "read the candidates through the store document's `## Scope anchor` section, naming no backend's own " +
       'listing call',
   ],
   [
-    path.join('commands', 'backlog.md'),
+    path.join('skills', 'backlog', 'SKILL.md'),
     /`## Triage record`/,
     "read the triage records through the store document's `## Triage record` section, which is where the " +
       'listing call for each backend lives',
   ],
   [
-    path.join('commands', 'backlog.md'),
+    path.join('skills', 'backlog', 'SKILL.md'),
     /scope\.js["'`]?\s+get stage\b/,
     "read an in-flight scope's stage with `scope.js get stage`, the same ledger `/superdev:status` reports " +
       'from, rather than deriving one from git state',
@@ -914,13 +914,13 @@ const BACKLOG_SURVEY_CONTRACTS = [
   // kind of phrase that recurs in passing prose about some other command, and a passing mention is not
   // the contract.
   [
-    path.join('commands', 'backlog.md'),
+    path.join('skills', 'backlog', 'SKILL.md'),
     /^\*\*[^*\n]*writes? nothing[^*\n]*\*\*/im,
     'state as a contract that the survey writes nothing — no record, no label, no comment, no file',
   ],
 ];
 
-// The writer's half is two documents, and each fails alone. `commands/review.md` is what actually creates
+// The writer's half is two documents, and each fails alone. `skills/review/SKILL.md` is what actually creates
 // the record, at the one bullet that already runs `deferred add`: a bullet that drops the clause writes the
 // ledger entry and no record, which is the state ADR 0046 exists to end, and nothing goes red.
 // `references/scope-mode.md` owns the entry's shape for every reader of it — `/superdev:ship` copies the
@@ -930,7 +930,7 @@ const BACKLOG_SURVEY_CONTRACTS = [
 // `scanTriageRecordContract()`, over the same candidate list `scanAnchorContract`/`scanReleaseContract` use.
 const TRIAGE_RECORD_CONTRACTS = [
   [
-    path.join('commands', 'review.md'),
+    path.join('skills', 'review', 'SKILL.md'),
     /create the triage record[\s\S]{0,700}deferred add/,
     'create the triage record in the configured slice store **before** the `scope.js deferred add` write, ' +
       "and carry the record's reference in the bullet text",
@@ -950,9 +950,9 @@ const TRIAGE_RECORD_CONTRACTS = [
 // above still matches and `bun run test` stays green. This scans for that restatement instead of pinning
 // a presence, the same asymmetry `DOC_STEP_SILENCE_DOCS` uses for the full-suite instruction.
 const DENIAL_CAP_NUMBER_SILENCE_DOCS = [
-  path.join('commands', 'review.md'),
-  path.join('commands', 'document.md'),
-  path.join('commands', 'implement.md'),
+  path.join('skills', 'review', 'SKILL.md'),
+  path.join('skills', 'document', 'SKILL.md'),
+  path.join('skills', 'implement', 'SKILL.md'),
   path.join('references', 'implement-full.md'),
 ];
 
@@ -985,7 +985,7 @@ const DENIAL_CAP_NUMBER_MARKERS = [
 
 // ADR 0025 from the other side. The two chain steps after the review, and the writer the first of them
 // dispatches, run no full suite: `/superdev:review` owns the scope's one run, so a run added to
-// `commands/document.md`, `commands/ship.md`, or `agents/doc-writer.md` is a second pass over a tree the
+// `skills/document/SKILL.md`, `skills/ship/SKILL.md`, or `agents/doc-writer.md` is a second pass over a tree the
 // review already verified. Prose is the wrong guard for it — root `AGENTS.md`'s prompt-the-positive rule
 // keeps a "never run the suite" line out of always-loaded context, and a prohibition makes the forbidden
 // behaviour more available rather than less. The silence is asserted here instead. Only these four
@@ -1002,16 +1002,16 @@ const DENIAL_CAP_NUMBER_MARKERS = [
 // A gap is a **match**, the inverse of every table above, so this one drives its own scanner rather than
 // scanContract(). The patterns are the shapes a real instruction takes in this repository: a bare
 // imperative ("Run the full suite before opening the pull request" — the reflexive "yourself"/"itself"
-// phrasing `commands/review.md` used to use is one case of this, not a separate pattern), the
+// phrasing `skills/review/SKILL.md` used to use is one case of this, not a separate pattern), the
 // take-it-from-the-config one `references/run-handoff.md` uses ("take the full command from … and run
 // it"), and the optionality clause `agents/final-reviewer.md`'s own re-run sentence used to carry. A
-// past-tense reference to a run that already happened stays legal, because `commands/ship.md` says the run
+// past-tense reference to a run that already happened stays legal, because `skills/ship/SKILL.md` says the run
 // handoff *has run* the full suite, which is both true and load-bearing there, and so does
 // `final-reviewer.md`'s legitimate ad-hoc "you may re-run the suite over the range" and its "the controller
 // already ran the full suite itself" — neither is the optionality clause this list forbids.
 const DOC_STEP_SILENCE_DOCS = [
-  path.join('commands', 'document.md'),
-  path.join('commands', 'ship.md'),
+  path.join('skills', 'document', 'SKILL.md'),
+  path.join('skills', 'ship', 'SKILL.md'),
   path.join('agents', 'doc-writer.md'),
   path.join('agents', 'final-reviewer.md'),
 ];
@@ -1024,7 +1024,7 @@ const DOC_STEP_SILENCE_DOCS = [
 // request" and "Re-run the full suite before staging the pull request" are the ordinary way this
 // instruction gets written, with no "itself"/"yourself" for the old reflexive-only pattern to anchor on
 // (which this one replaces, being strictly broader — it still matches the reflexive phrasing too). The
-// discriminator against a legal past-tense mention (`commands/ship.md`'s "the run handoff has run the full
+// discriminator against a legal past-tense mention (`skills/ship/SKILL.md`'s "the run handoff has run the full
 // suite") is the auxiliary, not the pronoun: a negative lookbehind for "has"/"have"/"had", optionally
 // followed by up to two more words, before "run" — the same shape `RETURN_TO_CONTROLLER_PATTERNS`'s
 // `HAND_BACK_VERB` (`hand(?:\s+\w+){0,2}\s+back\s+to`) already uses for "a verb and its object, a short
@@ -1058,7 +1058,7 @@ const SUITE_RUN_INSTRUCTIONS = [
 // is `references/test-selection.md`'s to select from the consumer repo's own config, so a concrete
 // package-manager or test-runner invocation inside `agents/*.md` is this repo's toolchain leaking into
 // a brief that executes in consumer repos — `bun run test` shipped exactly that way, as a pipe example
-// in three agent briefs. `commands/setup.md` and `commands/document.md` name such commands legitimately,
+// in three agent briefs. `skills/setup/SKILL.md` and `skills/document/SKILL.md` name such commands legitimately,
 // as interview and focused-command examples, so the scan covers `agents/` alone.
 //
 // ponytail: shape-based, and its ceiling is the package managers and runners named below. A command from
@@ -1139,8 +1139,8 @@ const UNRESOLVED_GLOSSARY_CONTRACTS = [
 // whether it names one at all. The pre-ADR-0023 doc-writer.md ("Publishing to a **KB/wiki** host…",
 // "create pages only for genuinely new outline entries") is the reference case this is built to catch.
 const KB_NO_CALL_DOCS = [
-  path.join('commands', 'plan.md'),
-  path.join('commands', 'document.md'),
+  path.join('skills', 'plan', 'SKILL.md'),
+  path.join('skills', 'document', 'SKILL.md'),
   path.join('agents', 'doc-writer.md'),
   path.join('references', 'doc-pass.md'),
 ];
@@ -1208,7 +1208,7 @@ const HOOK_HEADER_REGEX = /\\+\*\\+\*[^\n]{0,60}:\\+\*\\+\*/;
 // `agents/implementer.md` and `agents/slice-reviewer.md` are dispatched by `references/implement-full.md`,
 // whose dispatch steps name no test command at all — they hand a slice and let each agent read this
 // reference itself. There is no dispatch sentence about test selection for a row to pair with, so pairing
-// one would pin prose that does not exist. `commands/document.md`'s row here is the doc step as a caller
+// one would pin prose that does not exist. `skills/document/SKILL.md`'s row here is the doc step as a caller
 // of the rule, not as a dispatcher of it. A dispatch step that starts naming a test command is what would
 // change this judgment, and the rule in root `AGENTS.md` is what sends the next maintainer back here.
 const TEST_SELECTION_PATTERN =
@@ -1234,7 +1234,7 @@ const TEST_SELECTION_CONTRACTS = [
   // green-gate hook fires only on a controller merge, and a doc commit is not one — so the documentation
   // step judges its own doc commits with the focused command, never the full suite.
   [
-    path.join('commands', 'document.md'),
+    path.join('skills', 'document', 'SKILL.md'),
     TEST_SELECTION_PATTERN,
     'read `references/test-selection.md` and run the command it selects over the doc commits it just landed',
   ],
@@ -1243,8 +1243,8 @@ const TEST_SELECTION_CONTRACTS = [
 // ADR 0025 again, one level up: an all-`mechanical`/`docs` scope skips `/superdev:review` by design, so
 // `references/run-handoff.md`'s run handoff runs its one full suite instead (the sixth full-suite row above).
 // Two documents have to agree about what that scope does next, and they agree only in prose.
-// `commands/ship.md` drops `/superdev:review` from its missing-step warning for such a scope, and
-// `commands/afk.md`'s stage table routes it past the review rather than into it. A table that keeps
+// `skills/ship/SKILL.md` drops `/superdev:review` from its missing-step warning for such a scope, and
+// `skills/afk/SKILL.md`'s stage table routes it past the review rather than into it. A table that keeps
 // routing `merged` to the review strands the scope: `/superdev:review` has no Definition-of-Done judgment
 // to make, `/superdev:ship --unattended` refuses a scope whose review never ran, and the sweep never
 // finishes the feature. Both sides are pinned, because either alone reads correct while the pair
@@ -1254,20 +1254,20 @@ const TEST_SELECTION_CONTRACTS = [
 // (`scanAfkInvocations`) never reaches.
 const AFK_ROUTING_CONTRACTS = [
   [
-    path.join('commands', 'afk.md'),
+    path.join('skills', 'afk', 'SKILL.md'),
     /no\s+row\s+reads\s+`?behavior`?[\s\S]{0,160}`?merged`?\s+routes\s+to\s+`?\/superdev:document[\s\S]{0,50}--unattended/i,
     'route an all-`mechanical`/`docs` scope from `merged` to `/superdev:document ... --unattended`, read ' +
       "off the ledger's slice types",
   ],
   [
-    path.join('commands', 'afk.md'),
+    path.join('skills', 'afk', 'SKILL.md'),
     /no\s+row\s+reads\s+`?behavior`?[\s\S]{0,200}`?documented-unreviewed`?\s+routes\s+to\s+`?\/superdev:ship[\s\S]{0,50}--unattended/i,
     'route that same all-`mechanical`/`docs` scope from `documented-unreviewed` to `/superdev:ship ... ' +
       '--unattended`, not back to the review — tied to the same condition as the `merged` row above, not ' +
       'every scope',
   ],
   [
-    path.join('commands', 'ship.md'),
+    path.join('skills', 'ship', 'SKILL.md'),
     /every slice in the ledger is\s+\*{0,2}`?mechanical`?[\s\S]{0,240}drop\s+`?\/superdev:review`?\s+from that warning/i,
     'drop `/superdev:review` from its missing-step warning for an all-`mechanical`/`docs` scope',
   ],
@@ -1304,12 +1304,12 @@ const ARG_TOKEN_CONTRACTS = [
 // and the one that reached `main` unnoticed before.
 const AUDIT_SET_CONTRACTS = [
   [
-    path.join('commands', 'setup.md'),
+    path.join('skills', 'setup', 'SKILL.md'),
     /Record it as the `?##\s*Audit set`?\s+section/i,
     "record decision C's answer as the `## Audit set` section of `docs/agents/documentation.md`",
   ],
   [
-    path.join('commands', 'document.md'),
+    path.join('skills', 'document', 'SKILL.md'),
     /`?##\s*Audit set`?\s+section[\s\S]{0,250}optional[\s\S]{0,150}absent[\s\S]{0,150}default\s+tree/i,
     'read the `## Audit set` section and fall back to the default doc tree, noted in the report, when ' +
       'the section is absent',
@@ -1322,8 +1322,8 @@ const AUDIT_SET_CONTRACTS = [
 ];
 
 // ADR 0027's `patch` action is a four-document agreement of the same shape as the three above:
-// `references/doc-pass.md` and `commands/plan.md` — the two stagers — each stage one section for a
-// page the outline marks aggregate, `commands/publish-kb.md` applies it through
+// `references/doc-pass.md` and `skills/plan/SKILL.md` — the two stagers — each stage one section for a
+// page the outline marks aggregate, `skills/publish-kb/SKILL.md` applies it through
 // `scripts/kb-patch.js`, and `references/knowledge-base-confluence.md` documents the marker that
 // decides which pages get one. Nothing links them. The failure that matters is not a dropped action
 // name but a `publish-kb` that keeps the name and merges the page itself — the reader-facing page
@@ -1340,12 +1340,12 @@ const AGGREGATE_PAGE_CONTRACTS = [
     'stage `action: patch` carrying one section for an outline entry marked aggregate',
   ],
   [
-    path.join('commands', 'plan.md'),
+    path.join('skills', 'plan', 'SKILL.md'),
     /aggregate[\s\S]{0,80}`?action:\s*patch`?[\s\S]{0,400}one\s+section/i,
     'stage `action: patch` carrying one section for an outline entry marked aggregate',
   ],
   [
-    path.join('commands', 'publish-kb.md'),
+    path.join('skills', 'publish-kb', 'SKILL.md'),
     /`?patch`?[\s\S]{0,600}scripts\/kb-patch\.js/i,
     'apply `patch` by merging through `scripts/kb-patch.js` rather than rewriting the page itself',
   ],
@@ -1357,7 +1357,7 @@ const AGGREGATE_PAGE_CONTRACTS = [
 ];
 
 // ADR 0027's `patch` read is a two-document agreement, the same shape as AGGREGATE_PAGE_CONTRACTS above.
-// `commands/publish-kb.md` reads the live body through the call the config document documents, and splits
+// `skills/publish-kb/SKILL.md` reads the live body through the call the config document documents, and splits
 // the outcome into **positive absence** — the find call does not list the title — which creates the
 // page, and **any other outcome** — no documented read, a transport or authorisation failure, the read
 // itself reporting the page absent (e.g. a 404) for a title the find call does list, or an empty body for
@@ -1419,7 +1419,7 @@ const AGGREGATE_READ_CLAUSE =
 
 const READ_PATH_CONTRACTS = [
   [
-    path.join('commands', 'publish-kb.md'),
+    path.join('skills', 'publish-kb', 'SKILL.md'),
     { test: (text) => normalizeWhitespace(text).includes(normalizeWhitespace(READ_PATH_CLAUSE)) },
     'state, verbatim after whitespace normalization, that the outcome is a read failure, not absence: ' +
       'leave the file staged, report the reason in §5, and create nothing',
@@ -1467,34 +1467,34 @@ const STATUS_SEED_CONTRACTS = [
 // afterward, so a document that keeps the rationale but loses the condition still fails.
 const PLAN_APPEND_CONTRACTS = [
   [
-    path.join('commands', 'plan.md'),
+    path.join('skills', 'plan', 'SKILL.md'),
     /makes no store call at all/,
     'ask new-vs-extend before the interview begins, and state that answering "new" makes no store call',
   ],
   [
-    path.join('commands', 'plan.md'),
+    path.join('skills', 'plan', 'SKILL.md'),
     /holds a slice `in-progress`, `in-review`, or `blocked`/,
     'state the store refusal signal — a slice `in-progress`, `in-review`, or `blocked` elsewhere',
   ],
   [
-    path.join('commands', 'plan.md'),
+    path.join('skills', 'plan', 'SKILL.md'),
     /ledger stage other than `shipped`/,
     'state the ledger refusal signal, first clause — a run root whose stage is other than `shipped`',
   ],
   [
-    path.join('commands', 'plan.md'),
+    path.join('skills', 'plan', 'SKILL.md'),
     /scope branch \(`<type>\/<scope>`\) is neither merged into the base nor gone/,
     'state the ledger refusal signal, second clause — a `shipped` stage whose scope branch is neither ' +
       'merged into the base nor gone',
   ],
   [
-    path.join('commands', 'plan.md'),
+    path.join('skills', 'plan', 'SKILL.md'),
     /leave the lone slice byte-identical/,
     'state the single-slice epic-promotion clause, including that the lone slice is left untouched',
   ],
   // ADR 0043's exception to that byte-identical rule, which `scanAppendContract` cannot reach: neither of
   // these two is a store document, so each carries its own row here. `plan-contract.md` states the generic
-  // contract every store specialises, and `commands/plan.md` is the command that performs the promotion —
+  // contract every store specialises, and `skills/plan/SKILL.md` is the command that performs the promotion —
   // the exception dropping out of either leaves the five store documents pinned around a hole.
   [
     path.join('references', 'plan-contract.md'),
@@ -1502,7 +1502,7 @@ const PLAN_APPEND_CONTRACTS = [
     "state that a promoted lone slice's anchor-dependency line migrates to the new epic",
   ],
   [
-    path.join('commands', 'plan.md'),
+    path.join('skills', 'plan', 'SKILL.md'),
     /migrates to the new epic/,
     "state that a promoted lone slice's anchor-dependency line migrates to the new epic, the one " +
       'exception to leaving it byte-identical',
@@ -1547,12 +1547,12 @@ const ROTATE_ON_SHIPPED_CONTRACTS = [
 // (`references/domain-modeling.md`'s revise-in-place rule).
 const PARKED_QUESTIONS_CONTRACTS = [
   [
-    path.join('commands', 'plan.md'),
+    path.join('skills', 'plan', 'SKILL.md'),
     /once it loads, before the interview diverges into new\s+ground/,
     "surface the epic's `## Parked questions` once it loads, before the interview diverges into new ground",
   ],
   [
-    path.join('commands', 'plan.md'),
+    path.join('skills', 'plan', 'SKILL.md'),
     /has its line deleted from that\s+section\s*—\s*the new slice's\s+`spec` and `acceptance` become the durable record/,
     "state that a question the interview resolves has its line deleted from the epic's `## Parked " +
       "questions` section, with the new slice's `spec`/`acceptance` becoming the durable record instead",
@@ -1587,7 +1587,7 @@ const RUN_KIND_CONTRACTS = [
     path.join('references', 'scope-mode.md'),
     /`appended`[\s\S]{0,650}?merged\s+into\s+`<base>`,\s+or\s+gone\s+entirely/,
     'specify the `appended` run kind — key the branch decision on the same merged-or-gone test ' +
-      '`hooks/scope-prune.js` and `commands/plan.md` run, not a bare `git merge-base --is-ancestor` ' +
+      '`hooks/scope-prune.js` and `skills/plan/SKILL.md` run, not a bare `git merge-base --is-ancestor` ' +
       'that exits 128 on a branch a squash-merging host already deleted',
   ],
   [
@@ -1637,7 +1637,7 @@ const RUN_KIND_CONTRACTS = [
 // is the one place that states who writes it and when (ADR 0045) — a qualifier reintroduced on either
 // side makes it the later, more specific instruction and silences the shared rule for the full tier.
 //
-// Three rows sit on `commands/review.md` — a fix cycle found this chain-tail command naming no working
+// Three rows sit on `skills/review/SKILL.md` — a fix cycle found this chain-tail command naming no working
 // directory anywhere, so its scope-mode read against `<type>/<scope>` tested the controller's own cwd
 // instead of the scope checkout, its full-suite run had nowhere stated to run, and its fix-implementer
 // dispatch could land commits on the base branch in the operator's own clone: §4 tests the *scope
@@ -1651,7 +1651,7 @@ const RUN_KIND_CONTRACTS = [
 // branch by the time this step runs — reading `docs/agents/verification.md` off base, running the suite
 // over base's tree, and landing any fix commit on base in the operator's own clone. One row states the
 // full suite runs in the scope checkout; the other states the Red-branch fix implementer is handed that
-// same checkout as its working directory, the identical clause `commands/review.md` already carries for
+// same checkout as its working directory, the identical clause `skills/review/SKILL.md` already carries for
 // its own fix dispatch.
 //
 // One more row sits on `references/merge-conflicts.md`: its winner-picking-overlap abort names the scope
@@ -1662,7 +1662,7 @@ const RUN_KIND_CONTRACTS = [
 // sitting on `MERGE_HEAD`, which `hooks/green-gate.js`'s `mergeInProgress()` then reads as a deferral,
 // gating nothing on the next merge in that tree.
 //
-// The last row sits on `commands/afk.md`'s eligibility bullet: a live run's no-lock case falls back to the
+// The last row sits on `skills/afk/SKILL.md`'s eligibility bullet: a live run's no-lock case falls back to the
 // ledger mtime, with no claim that a full run never gets a lock. A fix cycle found the bullet still
 // asserting a run lock "only ever exists for a `lite`-tier scope" and citing `references/scope-mode.md`'s
 // `## The run lock` section for that claim, which by then stated the opposite — both tiers write the
@@ -1741,17 +1741,17 @@ const SCOPE_WORKTREE_CONTRACTS = [
       'it and when',
   ],
   [
-    path.join('commands', 'review.md'),
+    path.join('skills', 'review', 'SKILL.md'),
     /\*\*The scope checkout not on `<type>\/<scope>`\*\*/,
     'test the scope checkout against `<type>/<scope>`, not the controller\'s own invoking checkout',
   ],
   [
-    path.join('commands', 'review.md'),
+    path.join('skills', 'review', 'SKILL.md'),
     /run it \*\*in the scope checkout above\*\*,\s+over\s+the\s+scope\s+branch/,
     'run the full suite in the scope checkout, not the invoking checkout',
   ],
   [
-    path.join('commands', 'review.md'),
+    path.join('skills', 'review', 'SKILL.md'),
     /Hand it the scope checkout as its working directory:\s+this is where its fix commits must land/,
     'hand the fix-cycle implementer the scope checkout as its working directory',
   ],
@@ -1776,16 +1776,16 @@ const SCOPE_WORKTREE_CONTRACTS = [
     'abort a winner-picking conflict in the scope worktree with `git -C`, not the invoking checkout',
   ],
   [
-    path.join('commands', 'afk.md'),
+    path.join('skills', 'afk', 'SKILL.md'),
     /\*\*No\s+lock\s+present\s+is\s+not\s+by\s+itself\s+eligibility\*\*/,
     'fall back to the ledger mtime on no lock present, without first claiming a full run never gets a lock',
   ],
 ];
 
-// The absence half of the `commands/afk.md` row above (`scanAfkLockTierClaim` in `scanners.js` runs it).
+// The absence half of the `skills/afk/SKILL.md` row above (`scanAfkLockTierClaim` in `scanners.js` runs it).
 // One document, because one document's eligibility bullet reads the lock: a sibling command carrying the
 // same sentence is describing something else.
-const AFK_LOCK_TIER_SILENCE_DOCS = [path.join('commands', 'afk.md')];
+const AFK_LOCK_TIER_SILENCE_DOCS = [path.join('skills', 'afk', 'SKILL.md')];
 
 // Three spellings of the one claim, matched on the parts that carry it — `lock`, `only`/`only ever`, and
 // `lite`-the-tier — rather than on a sentence shape, since the claim regrows in whatever words the edit
@@ -2010,9 +2010,9 @@ const specialisingCitation = (name) => new RegExp(`\`plan-contract\\.md\` → \\
 // and its router are fine to name — the gap is a *return*, not a mention. A gap is a directional verb
 // (return, resume, continue, hand back, go back up, jump back — every one of them carries "return to",
 // "resume at", "continue in", or "back to" as a substring) paired with a return target (the controller,
-// the command body, `/superdev:implement`, `commands/implement.md`, or "Final phase"). Either half alone
+// the command body, `/superdev:implement`, `skills/implement/SKILL.md`, or "Final phase"). Either half alone
 // is legitimate prose: a target named with nothing sending the reader there ("the controller's Final
-// phase" in passing, "the controller merges each slice serially", a `commands/implement.md`
+// phase" in passing, "the controller merges each slice serially", a `skills/implement/SKILL.md`
 // cross-reference), or a verb with no controller-shaped target ("resume it in place"). `run-init.md` and
 // `run-handoff.md` are the two documents the command body's opening and closing steps were carved into
 // (ADR 0029) — the most plausible place for a stray "then return to `/superdev:implement`" to reappear —
@@ -2025,17 +2025,17 @@ const RETURN_TO_CONTROLLER_DOCS = [
 ];
 const RETURN_VERBS = ['return\\s+to', 'back\\s+(?:up\\s+)?to', 'resume\\s+at', 'continue\\s+in'];
 // A prose-shaped target only ever names the return jump this check exists for — nobody writes "refer
-// back to the controller" as a cross-reference the way they write "refer back to `commands/implement.md`".
+// back to the controller" as a cross-reference the way they write "refer back to `skills/implement/SKILL.md`".
 const PROSE_TARGETS = ['controller\\b', 'command\\s+body\\b', 'Final\\s+[Pp]hase\\b'];
 // A path-shaped target (a command name, a doc path) is also how a legitimate backward *cross-reference*
-// reads ("refer back to `commands/implement.md`", "point back to `/superdev:implement`") — bare "back
+// reads ("refer back to `skills/implement/SKILL.md`", "point back to `/superdev:implement`") — bare "back
 // to"/"back up to" would flag that pointer as a hand-off. Pair it only with a verb that names the
 // hand-off explicitly, plus the two verbs ("return to", "continue in") no cross-reference uses.
-const PATH_TARGETS = ['/superdev:implement\\b', 'commands/implement\\.md'];
+const PATH_TARGETS = ['/superdev:implement\\b', 'skills/implement/SKILL\\.md'];
 const HAND_BACK_VERB = 'hand(?:\\s+\\w+){0,2}\\s+back\\s+to';
 const PATH_VERBS = ['return\\s+to', 'resume\\s+at', 'continue\\s+in', HAND_BACK_VERB];
 // Up to two `` ` `` or `*` markdown markers, optionally "the ", then up to two more — covers "the
-// controller", "`commands/implement.md`", and "**Final phase**" alike between the verb and its target.
+// controller", "`skills/implement/SKILL.md`", and "**Final phase**" alike between the verb and its target.
 const RETURN_CONNECTOR = '[`*\\s]*(?:the\\s+)?[`*\\s]*';
 // ponytail: shape-based over a verb list crossed with a target list, so its ceiling is that cross
 // product. A playbook that sends the reader back in words no row spells ("pick up where the command
@@ -2068,7 +2068,7 @@ const PLAYBOOK_EDGE_CONTRACTS = PLAYBOOK_EDGE_DOCS.flatMap((rel) => [
   [rel, RUN_HANDOFF_PATTERN, 'name `references/run-handoff.md` as its closing step'],
 ]);
 
-// `commands/afk.md`'s paragraph introducing `## Scope anchor` restates how many things that section
+// `skills/afk/SKILL.md`'s paragraph introducing `## Scope anchor` restates how many things that section
 // states for this backend. ADR 0040 added the anchor dependency as a fifth element to that section
 // everywhere else (`plan-contract.md`, every store document, `scripts/AGENTS.md`'s `anchor-contract`
 // write-up), but nothing pinned this one paragraph, so it kept reading "four" and naming only the
@@ -2076,7 +2076,7 @@ const PLAYBOOK_EDGE_CONTRACTS = PLAYBOOK_EDGE_DOCS.flatMap((rel) => [
 // rows are independent: a maintainer could fix the count without naming the fifth thing, or name it
 // without updating the count.
 //
-// Scoped to the paragraph itself, not the whole `## 2.` section or the whole document: `commands/afk.md`
+// Scoped to the paragraph itself, not the whole `## 2.` section or the whole document: `skills/afk/SKILL.md`
 // legitimately discusses the anchor dependency again later in that section (the eligibility bullet reads
 // it), so a section-wide or document-wide match would pass even after this one paragraph reverted to
 // "four" — exactly the shape `anchor-contract` already guards against with the narrower
@@ -2119,7 +2119,7 @@ const AFK_ANCHOR_COUNT_ELEMENTS = [
 // rows below are per-site rather than per-file wherever a file carries more than one citation: each is
 // anchored on text unique to its own write (the surrounding sentence, never just the repeated section
 // name), so dropping any one citation fails on its own regardless of its siblings. `references/run-init.md`,
-// `commands/implement.md`, `commands/ship.md`, and `references/implement-full.md` carry exactly one
+// `skills/implement/SKILL.md`, `skills/ship/SKILL.md`, and `references/implement-full.md` carry exactly one
 // citation each, so a bare file-level row is unambiguous there. `references/implement-lite.md` carries no
 // direct citation, one inheritance note: neither of its two writes (`docs set inline`, the knowledge-base
 // pass's `degraded add`) can end the command — nothing in that section ever blocks — so both rely on
@@ -2161,8 +2161,8 @@ const PUBLISH_RUN_STATE_CONTRACTS = [
   ],
   ...[
     path.join('references', 'run-init.md'),
-    path.join('commands', 'implement.md'),
-    path.join('commands', 'ship.md'),
+    path.join('skills', 'implement', 'SKILL.md'),
+    path.join('skills', 'ship', 'SKILL.md'),
   ].map((rel) => [rel, /`## Publishing run state`/, 'point at the `## Publishing run state` section after its one ledger write']),
   // references/implement-full.md: anchored on the real citation's own lead-in, not a bare heading match —
   // the file also names the section a second time, in the non-terminal simplicity-reviewer write's own
@@ -2172,15 +2172,15 @@ const PUBLISH_RUN_STATE_CONTRACTS = [
     /Publish the snapshot after either write, per[\s\S]{0,80}?`## Publishing run state`/,
     'publish the snapshot after either terminal write (a denied implementer/fix, a denied slice-reviewer)',
   ],
-  // commands/document.md: two distinct terminal sites, each its own row.
+  // skills/document/SKILL.md: two distinct terminal sites, each its own row.
   [
-    path.join('commands', 'document.md'),
+    path.join('skills', 'document', 'SKILL.md'),
     /refusal\. Publish the snapshot afterwards, per[\s\S]{0,60}?`## Publishing run state`/,
     'publish the snapshot after a denied doc-writer/doc-reader dispatch, since an unattended block reaches ' +
       'no later write in this command',
   ],
   [
-    path.join('commands', 'document.md'),
+    path.join('skills', 'document', 'SKILL.md'),
     /Wrote `documented` or `documented-unreviewed` above[\s\S]{0,40}?publish the snapshot, per[\s\S]{0,60}?`## Publishing run state`/,
     'publish the snapshot after its own stage write, the last write this command makes',
   ],
@@ -2201,38 +2201,38 @@ const PUBLISH_RUN_STATE_CONTRACTS = [
     /tells the next command, or a resumed run, that every slice is on the scope branch\. Publish[\s\S]{0,150}?`## Publishing run state`/,
     'publish the snapshot after its own `stage set merged` write, the last write a normal run makes here',
   ],
-  // commands/review.md: six distinct terminal sites, each its own row.
+  // skills/review/SKILL.md: six distinct terminal sites, each its own row.
   [
-    path.join('commands', 'review.md'),
+    path.join('skills', 'review', 'SKILL.md'),
     /quoting the classifier's refusal, then publish the[\s\S]{0,80}?`## Publishing run state`/,
     'publish the snapshot after a denied final-reviewer dispatch, since either block branch reaches no ' +
       'later write in this run',
   ],
   [
-    path.join('commands', 'review.md'),
+    path.join('skills', 'review', 'SKILL.md'),
     /Write the `\*\*Degraded:\*\*` entry either way, then publish the[\s\S]{0,150}?`## Publishing run state`[\s\S]{0,40}?since the block\s+branch reaches no later write/,
     'publish the snapshot after the denied full-suite dispatch in §4, since the unattended branch reaches ' +
       'no later write in this run',
   ],
   [
-    path.join('commands', 'review.md'),
+    path.join('skills', 'review', 'SKILL.md'),
     /publish the\s+snapshot before stopping[\s\S]{0,120}?`## Publishing run\s+state`[\s\S]{0,60}?since no later write in this run will do it/,
     'publish the snapshot at the "Declined" stop, since no later write in this run will do it',
   ],
   [
-    path.join('commands', 'review.md'),
+    path.join('skills', 'review', 'SKILL.md'),
     /publish the snapshot before stopping[\s\S]{0,120}?`## Publishing run state`[\s\S]{0,60}?since no later\s+stage write in this run will do it/,
     'publish the snapshot at the 3-strike-cap/unattended-block stop, since no later stage write in this ' +
       'run will do it',
   ],
   [
-    path.join('commands', 'review.md'),
+    path.join('skills', 'review', 'SKILL.md'),
     /entry either way, with `scope\.js degraded add`[\s\S]{0,150}?`## Publishing run state`[\s\S]{0,60}?since an unattended block below reaches no later write/,
     'publish the snapshot after the denied fix-implementer dispatch, since the unattended block reaches ' +
       'no later write in this run',
   ],
   [
-    path.join('commands', 'review.md'),
+    path.join('skills', 'review', 'SKILL.md'),
     /Publish the snapshot after any of the writes above[\s\S]{0,150}?`## Publishing run state`/,
     'publish the snapshot after the clean-verdict writes (unresolved clear, the stage write, docs clear)',
   ],

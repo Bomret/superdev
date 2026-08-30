@@ -1,4 +1,5 @@
 ---
+name: ship
 description: Close out a superdev scope — tick the Definition of Done, close the scope anchor, open the PR, and clean up the run. The last step of the implement chain; run it after /superdev:review and /superdev:document.
 argument-hint: "[<scope>  (empty = the only run in this repo)]  [--unattended]"
 ---

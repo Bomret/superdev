@@ -7,7 +7,7 @@
 # Design sketch
 
 A throwaway HTML page that shows the operator the design `/superdev:plan` is holding, while changing it
-is still free. `commands/plan.md` §3 reads this after its grounding step and before it decomposes, and
+is still free. `skills/plan/SKILL.md` §3 reads this after its grounding step and before it decomposes, and
 only when the operator asked for a sketch (ADR 0036).
 
 The reader is the operator running the interview, not a later reviewer. The epic's `## Slice graph` and

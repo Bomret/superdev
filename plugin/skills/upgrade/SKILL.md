@@ -1,4 +1,5 @@
 ---
+name: upgrade
 description: Check for a newer superdev release and upgrade the plugin in place from the marketplace. Restart Claude Code afterward to load it.
 model: haiku
 allowed-tools: Bash(claude plugin marketplace update:*), Bash(claude plugin update:*)

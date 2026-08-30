@@ -1,5 +1,5 @@
 ---
-description: Configure this repo for superdev: slice store, code host, documentation convention, knowledge base, toolchain, and test command. Run once; /superdev:plan and /superdev:implement auto-invoke it if config is missing.
+description: "Configure this repo for superdev: slice store, code host, documentation convention, knowledge base, toolchain, and test command. Run once; /superdev/plan and /superdev/implement auto-invoke it if config is missing."
 ---
 
 # superdev setup
@@ -16,7 +16,7 @@ Write the six per-repo config docs the superdev skills read, so the workflow is 
   one) that arm the merge green-gate hook
 
 This is prompt-driven, not a script. **Explore, propose defaults, confirm one decision at a time, then
-write.** Seed templates live in `${CLAUDE_PLUGIN_ROOT}/references/`.
+write.** Seed templates live in `<plugin-root>/references/`.
 
 ## 1. Explore
 
@@ -59,10 +59,10 @@ choice, so never present the choices bare. Using `AskUserQuestion`? Mark the def
 - **Other** (GitLab Issues, Linear, …) — ask the user to describe create/read/list/update + the
   dependency-link mechanism in a paragraph; write `issue-tracker.md` from that prose.
 
-> **Trust boundary.** `/superdev:implement` loads slice specifications from this store and an implementer
+> **Trust boundary.** `/superdev/implement` loads slice specifications from this store and an implementer
 > executes them as build instructions. A store writable by anyone but the trusted planner is arbitrary
 > code execution by an autonomous agent — keep write access to the tracker (or the feature label)
-> restricted to trusted authors, and only run `/superdev:implement` on slices the run owner authored or
+> restricted to trusted authors, and only run `/superdev/implement` on slices the run owner authored or
 > approved.
 
 For an **issue backend whose statuses the seed doesn't already fix** (Jira / other — not the local file,
@@ -71,7 +71,7 @@ tracker's **status workflow**: probe or ask for the available statuses, the tran
 types for the scope anchor vs a slice. Agree a **status map** — superdev's canonical lifecycle (`todo` →
 `in-progress` → `in-review` → `merged`/done, plus `blocked`) → the tracker's real statuses, with how to
 perform each move (transition name/id or CLI verb). Record it in `issue-tracker.md`;
-`/superdev:implement` walks each issue along it. If the tracker lacks a state (no separate `in-review` or
+`/superdev/implement` walks each issue along it. If the tracker lacks a state (no separate `in-review` or
 `blocked`), map it to the nearest sensible status and note the collapse.
 
 Also capture **how a ticket is released** for any issue backend, recorded as a `## Release` section in
@@ -82,15 +82,15 @@ stating back to the user:
 
 - It sits on the **scope anchor** — the epic, or a single-slice feature's lone issue — since one release
   covers the whole feature.
-- It **survives the lifecycle moves** `/superdev:implement` makes. The status map's own `ready` label is
+- It **survives the lifecycle moves** `/superdev/implement` makes. The status map's own `ready` label is
   swapped to `in-progress` on dispatch, so it cannot double as the release signal: a separate label can,
   and is the default worth proposing.
 
-Record the signal plus the calls that **apply** it (what `/superdev:plan` fires on a release) and **read**
-it (what `/superdev:implement` and `/superdev:afk` check). A team that agrees plans elsewhere and wants
-every plan live on creation is a valid answer too — write that, and `/superdev:plan` stops asking.
+Record the signal plus the calls that **apply** it (what `/superdev/plan` fires on a release) and **read**
+it (what `/superdev/implement` and `/superdev/afk` check). A team that agrees plans elsewhere and wants
+every plan live on creation is a valid answer too — write that, and `/superdev/plan` stops asking.
 
-Also capture the **assignee** for any issue backend — the account every issue `/superdev:plan` creates is
+Also capture the **assignee** for any issue backend — the account every issue `/superdev/plan` creates is
 assigned to, recorded as `Assignee` in `issue-tracker.md` (`plan-contract.md` → *Assignee*). Propose the
 **API token's own identity** as the default: resolve it from the backend's whoami endpoint
 (`GET /api/v1/user` on Forgejo/Gitea, `GET /user` on GitHub, `GET /rest/api/3/myself` on Jira) and offer
@@ -129,7 +129,7 @@ Record the answer as the `## Writing standard` section of `docs/agents/documenta
 formation, and number format are the repo's to answer, and answering them later means two writers have
 already disagreed.
 
-Then ask which **documentation sits outside the default tree**. `/superdev:document audit` reads the
+Then ask which **documentation sits outside the default tree**. `/superdev/document audit` reads the
 `AGENTS.md` hierarchy, `README.md`, `CONTEXT.md`, and the local knowledge-base pages on its own; anything
 else is named here. Scan the repo for directories holding markdown that tree does not reach and **offer
 what you found**, so the user edits a list instead of writing one. Record it as the `## Audit set`
@@ -144,8 +144,8 @@ specifications, design overviews, ADR summaries)? Ask the user which of:
   page, and the **env-var names** for the API token + email (never the secrets). For a different wiki,
   capture its publish/find/update/**read**/**removal** commands as prose ("other") — a config with no
   removal convention leaves every `action: delete` staged page unpublishable, and one with no documented
-  read blocks the aggregate question below. Also record that `/superdev:publish-kb` is the only caller of
-  this backend and that `/superdev:plan`/`/superdev:document` stage its pages instead of sending them
+  read blocks the aggregate question below. Also record that `/superdev/publish-kb` is the only caller of
+  this backend and that `/superdev/plan`/`/superdev/document` stage its pages instead of sending them
   (ADR 0023) — the `## Staging` section the seeded templates carry.
 - **Local file storage** — markdown under `docs/kb/`. Seed: `references/knowledge-base-local.md`.
 - **None** — no separate KB; the in-repo docs are the only record.
@@ -162,7 +162,7 @@ Then **do a quick repo scan** (README, top-level structure) and **propose an aud
 a top-level section per audience with a few candidate topic headings under each (e.g. *User Guide →
 Getting started, FAQ*; *Developer Docs → Architecture, Setup, ADR summaries*). Present it, **discuss and
 adjust with the user**, and record the agreed outline in `knowledge-base.md`. It's a living skeleton —
-`/superdev:plan` and `/superdev:document` fill and extend it, not reinvent it.
+`/superdev/plan` and `/superdev/document` fill and extend it, not reinvent it.
 
 Then, for a **remote** backend, ask which of those pages **aggregate**: a page many scopes each
 contribute one section to — an index, a changelog, an ADR-summaries digest — rather than a page one scope
@@ -326,10 +326,10 @@ If neither `CLAUDE.md` nor `AGENTS.md` exists, ask the user which to create — 
 
 ## 4. Done
 
-Tell the user setup is complete and that `/superdev:plan` and `/superdev:implement` now read these files.
+Tell the user setup is complete and that `/superdev/plan` and `/superdev/implement` now read these files.
 They can edit `docs/agents/*.md` directly later; re-run this skill only to switch backends. Record only
 env-var **names** for secrets — never the token values.
 
-If §1 found **no `AGENTS.md` hierarchy**, point the user at **`/superdev:document`** — its bootstrap mode
-seeds the initial hierarchy + glossary from the existing code, so per-feature `/superdev:plan` doesn't
+If §1 found **no `AGENTS.md` hierarchy**, point the user at **`/superdev/document`** — its bootstrap mode
+seeds the initial hierarchy + glossary from the existing code, so per-feature `/superdev/plan` doesn't
 start blind.

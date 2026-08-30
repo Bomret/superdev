@@ -32,7 +32,7 @@ only the prose an agent writes or rewrites, so untouched text is never reformatt
 `README.md`'s hero and its before-and-after section are voiced prose, and are exempt by the standard's own
 scope rule. The reference material below them is not exempt.
 
-The plugin's own prompt prose (`plugin/commands/`, `plugin/agents/`, `plugin/references/`) sits outside
+The plugin's own prompt prose (`plugin/skills/`, `plugin/agents/`, `plugin/references/`) sits outside
 the standard's `## Scope` list, and root `AGENTS.md`'s prompt-architecture rules govern it instead. Those
 files appear in the `## Audit set` below for claim grounding, which is a separate pass from the writing
 standard.
@@ -55,7 +55,7 @@ Untranslated terms do not arise in an English repo, so this repo leaves that one
 `/superdev:document audit` reads these in addition to the default tree (`AGENTS.md` + `README.md` +
 `CONTEXT.md` + local KB):
 
-- `plugin/commands/*.md`
+- `plugin/skills/*/SKILL.md`
 - `plugin/agents/*.md`
 - `plugin/references/*.md`
 - `RELEASING.md`

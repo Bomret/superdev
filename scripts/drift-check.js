@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-// drift-check: the deterministic cross-document contract checks. Prose (commands/, agents/,
+// drift-check: the deterministic cross-document contract checks. Prose (skills/, agents/,
 // references/, docs/) drifts from what it restates — a renamed reference file, a dropped clause, a
 // glossary entry nobody executes — and no build step catches any of it. Every check that does is
 // registered in `drift/checks.js`, in the order `scripts/AGENTS.md` numbers them; this file walks that

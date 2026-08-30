@@ -60,7 +60,7 @@ plan runs test-first, inline in the scope worktree.
   lone record, which otherwise stays untouched. It refuses while a run against that feature is active
   elsewhere. It surfaces any parked questions the
   feature carries before asking anything new. A parked question is a load-bearing decision an earlier
-  interview could not resolve (`commands/plan.md` §0).
+  interview could not resolve (`skills/plan/SKILL.md` §0).
 - **`/superdev:implement`**. The controller drives the slices as a **dependency-ordered DAG**, sized to
   an execution tier derived fresh from the loaded slice count. The tier is never configured and never
   persisted.
@@ -130,7 +130,7 @@ plan runs test-first, inline in the scope worktree.
   **eligible scope anchor** through the whole chain, oldest first except where a plan says otherwise: an
   anchor recording an **anchor dependency** on another feature is **deferred** until that feature's anchor
   is closed or its scope has shipped, and the report names what it waits on. Eligibility needs an open,
-  unblocked anchor with no live run on its scope, among other conditions `commands/afk.md` §2 states in
+  unblocked anchor with no live run on its scope, among other conditions `skills/afk/SKILL.md` §2 states in
   full. It invokes `/superdev:implement`, `/superdev:review`, `/superdev:document`, and
   `/superdev:ship`, each carrying `--unattended`. That token is an argument to one invocation, not scope
   state. A stop with a **standing answer** takes it, and a stop with none **blocks** that anchor and
@@ -425,6 +425,71 @@ writes `CHANGELOG.md`, tags, and publishes a Codeberg Release from the Conventio
 - Claude Code, which provides `node` for the hooks.
 - For the chosen backends, the relevant CLI or token: `gh`, or a Jira or Forgejo token in an env var.
   The PR step degrades to a push plus a printed command when a host CLI is absent.
+
+## OpenCode
+
+superdev's chain also runs under **OpenCode**. `plugin/scripts/adapter.js` renders the same shipped
+`plugin/skills/` and `plugin/agents/` tree into OpenCode's own on-disk layout, so no second copy of the
+commands, the agents, or the guardrails exists to maintain.
+
+**Install and render**, from the OpenCode project you want superdev in:
+
+```
+git clone https://codeberg.org/bomret/superdev.git
+node superdev/plugin/scripts/adapter.js --dest . \
+  --model-map sonnet=<provider>/<model> \
+  --model-map opus=<provider>/<model> \
+  --model-map haiku=<provider>/<model>
+```
+
+`--dest` names the project root, where the render creates a `.opencode/` tree. `--model-map` resolves
+a rendered skill's or agent's `model:` alias (superdev ships `sonnet`, `opus`, and `haiku`) to the
+provider and model your OpenCode configuration names for that alias. An alias with no map entry
+refuses, and names the alias plus the skill or agent that carries it. `--plugin-root` defaults to the
+adapter script's own plugin root, resolved from the script's location, so the example above needs no
+such flag. Pass `--plugin-root` only to render a different plugin tree than the one the script lives
+in.
+
+The render creates:
+
+```
+.opencode/commands/superdev/<name>.md   one per skill, except afk
+.opencode/agents/<name>.md              one per subagent
+.opencode/plugins/superdev.js           the hook bridge, forwarding OpenCode's plugin events to the
+                                         eight shipped hooks, spawned as
+                                         node <plugin-root>/hooks/<hook>.js
+```
+
+Running the command again is safe. It removes its own generated content first — the commands
+directory wholesale, the bridge plugin file by name, and, in the shared `.opencode/agents/`
+directory, only the agent files it wrote in a past render — so a renamed or removed skill or agent
+leaves no stale file behind, while another plugin under `.opencode/plugins/` and a consumer's own
+agent under `.opencode/agents/` both survive untouched.
+
+**Verify each render target.** Confirm the three paths above exist under the project's `.opencode/`.
+Confirm the rendered commands appear once you type `/` in OpenCode's own interface, since that is how
+OpenCode lists them. Start an OpenCode session in the project and check its log for a plugin-loader
+error: a plugin whose module export is not a function fails to load and reports exactly that. After one
+session, confirm the bridge ran by checking that `<plugin-root>/.data/.update-check` now exists, the
+cache file the bridged `update-check` hook writes on `session.created`. From a subagent's session, run
+a command one of the guardrails blocks under Claude Code, for example `git merge`, and confirm OpenCode
+refuses it the same way.
+
+Four gaps stand in the render today, each a recorded triage record rather than a silent one. The
+`update-check` hook's version notice never reaches you, because the bridge runs the hook but has
+nowhere to print its output. The `model-explicit` check reads only the project's own
+`.opencode/agents/<type>.md`, so it names no model for an agent your OpenCode configuration points at
+from anywhere else. The rendered `upgrade` command still only drives Claude Code (`claude plugin
+update`, a restart of Claude Code itself). Running it under OpenCode reports the wrong steps. See
+[Updating](#updating) for the manual steps instead. A rendered agent's `tools:` map is written
+without regard to any `permission:` rules already in your own OpenCode configuration, including its
+default `.env` read guard. The render's own allowlist can compose to a wider effective access than
+your configuration meant to keep narrow. No plan yet states how a rendered pack should merge with
+an existing one.
+
+**afk is excluded.** `/superdev:afk` drives the chain through Claude Code's own Skill tool, so the
+render skips it: no `.opencode/commands/superdev/afk.md` exists. Run `implement`, `review`,
+`document`, and `ship` yourself, one at a time, under OpenCode.
 
 ## Attribution
 

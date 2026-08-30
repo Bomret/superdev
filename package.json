@@ -4,9 +4,10 @@
   "private": true,
   "description": "Release tooling for the superdev Claude Code plugin. Not published to npm; the plugin ships via the plugin/ subdirectory. semantic-release drives versioning off Conventional Commits.",
   "scripts": {
-    "test": "node plugin/hooks/merge-guard.js --selftest && node plugin/hooks/run-lock.js --selftest && node plugin/hooks/model-explicit.js --selftest && node plugin/hooks/green-gate.js --selftest && node plugin/hooks/update-check.js --selftest && node plugin/hooks/worktree-sweep.js --selftest && node plugin/hooks/scope-prune.js --selftest && node plugin/hooks/ledger-guard.js --selftest && node plugin/scripts/scope.js --selftest && node plugin/scripts/kb-patch.js --selftest && node scripts/eval-run.js --selftest && node scripts/drift-check.js --selftest && node scripts/drift-check.js && claude plugin validate ./plugin",
+    "test": "node plugin/hooks/merge-guard.js --selftest && node plugin/hooks/run-lock.js --selftest && node plugin/hooks/model-explicit.js --selftest && node plugin/hooks/green-gate.js --selftest && node plugin/hooks/update-check.js --selftest && node plugin/hooks/worktree-sweep.js --selftest && node plugin/hooks/scope-prune.js --selftest && node plugin/hooks/ledger-guard.js --selftest && node plugin/scripts/scope.js --selftest && node plugin/scripts/kb-patch.js --selftest && node plugin/scripts/adapter.js --selftest && node scripts/eval-run.js --selftest && node scripts/drift-check.js --selftest && node scripts/drift-check.js && claude plugin validate ./plugin",
     "eval": "node scripts/eval-run.js",
     "eval:plan": "node scripts/eval-run.js --case 'ab-plan-*'",
+    "render-fixtures": "node scripts/drift/opencode-fixtures.js --write",
     "release": "semantic-release --no-ci"
   },
   "engines": {

@@ -42,14 +42,14 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // fixture with a missing reference
   const tmp1 = fixture({
     'references/exists.md': '# exists\n',
-    'commands/foo.md':
+    'skills/foo/SKILL.md':
       'See ${CLAUDE_PLUGIN_ROOT}/references/exists.md and ${CLAUDE_PLUGIN_ROOT}/references/missing.md\n',
   });
 
   const missing1 = scan(tmp1);
   assert.equal(missing1.length, 1, 'detects exactly one missing reference');
   assert.equal(missing1[0].reference, 'references/missing.md', 'names the missing reference');
-  assert.equal(missing1[0].source, path.join('commands', 'foo.md'), 'names the source file');
+  assert.equal(missing1[0].source, path.join('skills', 'foo', 'SKILL.md'), 'names the source file');
 
   // fixture with all references present
   const tmp2 = fixture({
@@ -61,15 +61,15 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(missing2.length, 0, 'all-present fixture yields zero missing');
 
   // fixture with a bare (no ${CLAUDE_PLUGIN_ROOT} macro) reference to a missing file — the prose
-  // form used e.g. in commands/setup.md ("Seed: `references/issue-tracker-local.md`")
-  const tmp3 = fixture({ 'commands/baz.md': 'Seed: `references/missing-bare.md`\n' });
+  // form used e.g. in skills/setup/SKILL.md ("Seed: `references/issue-tracker-local.md`")
+  const tmp3 = fixture({ 'skills/baz/SKILL.md': 'Seed: `references/missing-bare.md`\n' });
 
   const missing3 = scan(tmp3);
   assert.equal(missing3.length, 1, 'detects a bare-form missing reference');
   assert.equal(missing3[0].reference, 'references/missing-bare.md', 'names the bare reference');
 
   // fixture where one reference cites another: the execution playbooks and scope-mode.md point at each
-  // other, so a rename inside references/ dangles exactly like one in commands/ or agents/
+  // other, so a rename inside references/ dangles exactly like one in skills/ or agents/
   const tmp3b = fixture({
     'references/exists.md': '# exists\n',
     'references/playbook.md':
@@ -326,20 +326,20 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // positive: the dispatching command paraphrases the pass instead of naming the reference that owns it.
   // This is the dispatch-prose half of the same contract (ADR 0035): a controller writes its dispatch from
-  // what `commands/document.md` says the writer does, so a paraphrase here is what reaches the writer —
+  // what `skills/document/SKILL.md` says the writer does, so a paraphrase here is what reaches the writer —
   // and the row above, on the agent alone, stays green while the two descriptions drift apart.
   const dp4 = fixture({
-    'commands/document.md':
+    'skills/document/SKILL.md':
       'Dispatch `superdev:doc-writer`. It runs two passes (in-repo docs, then the knowledge base), ' +
       'deleting stale text, and commits on the current branch.\n',
   });
   const dpGaps4 = scanContract(dp4, DOC_PASS_CONTRACTS);
   assert.equal(dpGaps4.length, 1, 'flags a document.md whose dispatch paraphrases the pass');
-  assert.equal(dpGaps4[0].source, path.join('commands', 'document.md'), 'names document.md');
+  assert.equal(dpGaps4[0].source, path.join('skills', 'document', 'SKILL.md'), 'names document.md');
 
   // negative: the dispatch names the reference as the authority the writer performs
   const dp5 = fixture({
-    'commands/document.md':
+    'skills/document/SKILL.md':
       'It performs the pass `references/doc-pass.md` states. **Name that reference in the dispatch**: it ' +
       'owns the pass end to end.\n',
   });
@@ -349,14 +349,14 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'a dispatch that names the reference satisfies the row',
   );
 
-  // --- scanAfkAnchorCount: `commands/afk.md`'s paragraph introducing `## Scope anchor` states how many
+  // --- scanAfkAnchorCount: `skills/afk/SKILL.md`'s paragraph introducing `## Scope anchor` states how many
   // things that section carries for this backend (ADR 0040 made it five, naming the anchor dependency as
   // the fifth). Both elements are independent, and the scan is narrowed to the one paragraph — a
   // restatement anywhere else in the same section must not satisfy a stale paragraph. ---
 
   // positive: the stale "four things" paragraph, naming only the original four, is two gaps
   const aacStale = fixture({
-    'commands/afk.md':
+    'skills/afk/SKILL.md':
       '`docs/agents/issue-tracker.md` carries a `## Scope anchor` section stating four things for this ' +
       'backend: how to recognise an anchor, how to list the candidates, how to list the slices beneath ' +
       'one, and how to tell that an anchor is itself a slice.\n',
@@ -366,7 +366,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // positive: the count fixed but the fifth thing still unnamed is one gap
   const aacCountOnly = fixture({
-    'commands/afk.md':
+    'skills/afk/SKILL.md':
       '`docs/agents/issue-tracker.md` carries a `## Scope anchor` section stating five things for this ' +
       'backend: how to recognise an anchor, how to list the candidates, how to list the slices beneath ' +
       'one, and how to tell that an anchor is itself a slice.\n',
@@ -379,7 +379,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // negative: both the count and the fifth element are named
   const aacFixed = fixture({
-    'commands/afk.md':
+    'skills/afk/SKILL.md':
       '`docs/agents/issue-tracker.md` carries a `## Scope anchor` section stating five things for this ' +
       'backend: how to recognise an anchor, how to list the candidates, how to list the slices beneath ' +
       'one, how to tell that an anchor is itself a slice, and how to read an anchor\'s own dependencies.\n',
@@ -390,7 +390,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // carries both phrases must not save a stale intro paragraph — a section-wide or document-wide match
   // would pass this fixture, which is exactly the false green extractParagraph() exists to prevent
   const aacNarrowed = fixture({
-    'commands/afk.md':
+    'skills/afk/SKILL.md':
       '`docs/agents/issue-tracker.md` carries a `## Scope anchor` section stating four things for this ' +
       'backend: how to recognise an anchor, how to list the candidates, how to list the slices beneath ' +
       'one, and how to tell that an anchor is itself a slice.\n\n' +
@@ -679,7 +679,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // negative: a neutral selection that points at the contract is clean
   assert.equal(
-    scanAfkSelectionNeutrality(fixture({ 'commands/afk.md': selection(neutral) })).length,
+    scanAfkSelectionNeutrality(fixture({ 'skills/afk/SKILL.md': selection(neutral) })).length,
     0,
     'a neutral selection naming the contract is clean',
   );
@@ -695,7 +695,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     ['Check that `fields.parent` is absent.', 'the Jira parent field'],
   ]) {
     const gaps = scanAfkSelectionNeutrality(
-      fixture({ 'commands/afk.md': selection(`${neutral} ${snippet}`) }),
+      fixture({ 'skills/afk/SKILL.md': selection(`${neutral} ${snippet}`) }),
     );
     assert.equal(gaps.length, 1, `flags ${why} in the selection step`);
     assert.match(gaps[0].expectation, /select without naming/, 'reports it as a mechanism');
@@ -704,7 +704,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // positive: naming no mechanism is only half — a selection pointing at no contract has nothing to
   // select by, so silence must not satisfy the check
   const silent = scanAfkSelectionNeutrality(
-    fixture({ 'commands/afk.md': selection('Take the oldest candidate and go.') }),
+    fixture({ 'skills/afk/SKILL.md': selection('Take the oldest candidate and go.') }),
   );
   assert.equal(silent.length, 1, 'a selection naming no contract is a gap');
   assert.match(silent[0].expectation, /point its selection at/, 'reports the missing contract');
@@ -713,7 +713,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // carries are excluded by name, so naming one real label no longer slips past as a path would.
   const concreteLabel = scanAfkSelectionNeutrality(
     fixture({
-      'commands/afk.md': selection(
+      'skills/afk/SKILL.md': selection(
         `${neutral} Select the anchor labelled \`feat/self-improvements\`.`,
       ),
     }),
@@ -726,7 +726,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // must still catch it: no further `/`-delimited segment follows `docs/`, so it reads as a label.
   const hyphenatedSlug = scanAfkSelectionNeutrality(
     fixture({
-      'commands/afk.md': selection(`${neutral} Select the anchor labelled \`docs/plans-refactor\`.`),
+      'skills/afk/SKILL.md': selection(`${neutral} Select the anchor labelled \`docs/plans-refactor\`.`),
     }),
   );
   assert.equal(hyphenatedSlug.length, 1, 'a hyphenated slug past the type is still a change-type prefix');
@@ -738,7 +738,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(
     scanAfkSelectionNeutrality(
       fixture({
-        'commands/afk.md': selection(
+        'skills/afk/SKILL.md': selection(
           'Read `docs/agents/issue-tracker.md`\'s `## Scope anchor` contract; a local store keeps plans under `docs/plans/`.',
         ),
       }),
@@ -753,7 +753,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(
     scanAfkSelectionNeutrality(
       fixture({
-        'commands/afk.md': selection(
+        'skills/afk/SKILL.md': selection(
           `${neutral} See \`docs/adr/0021-change-type-branch.md\` for why.`,
         ),
       }),
@@ -767,7 +767,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(
     scanAfkSelectionNeutrality(
       fixture({
-        'commands/afk.md':
+        'skills/afk/SKILL.md':
           selection(neutral) + '\n## 4. Blocks\n\nLabel the `epic` blocked and move on.\n',
       }),
     ).length,
@@ -778,7 +778,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // `epic` in plain prose is the same mechanism as a backticked one — the selection step is meant to
   // name no epic at all, so backticks must not be what decides it
   const plainEpic = scanAfkSelectionNeutrality(
-    fixture({ 'commands/afk.md': selection(`${neutral} Take the epic issue.`) }),
+    fixture({ 'skills/afk/SKILL.md': selection(`${neutral} Take the epic issue.`) }),
   );
   assert.equal(plainEpic.length, 1, 'an unbackticked `epic` is still a mechanism');
   assert.match(plainEpic[0].expectation, /select without naming/, 'reports it as a mechanism');
@@ -788,7 +788,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(
     scanAfkSelectionNeutrality(
       fixture({
-        'commands/afk.md': selection(
+        'skills/afk/SKILL.md': selection(
           `${neutral}\n\n\`\`\`sh\n# candidates\nls docs/plans/\n\`\`\`\n\nTake the issue labelled \`epic\`.`,
         ),
       }),
@@ -812,7 +812,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     ['retitled', `# afk\n\n## 2 Pick the work\n\nTake the \`epic\` label.\n\n## 3. Next\n\nGo.\n`],
     ['deleted', `# afk\n\nTake the \`epic\` label.\n\n## 3. Next\n\nGo.\n`],
   ]) {
-    const gaps = scanAfkSelectionNeutrality(fixture({ 'commands/afk.md': body }));
+    const gaps = scanAfkSelectionNeutrality(fixture({ 'skills/afk/SKILL.md': body }));
     assert.equal(gaps.length, 1, `flags a ${why} selection heading`);
     assert.match(gaps[0].expectation, /selection heading/, `names the missing heading for ${why}`);
   }
@@ -913,24 +913,24 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   });
   assert.equal(scanEvalShape(quotedScaffold).length, 0, 'a quoted scaffold_script resolves');
 
-  // --- scanCommandRefs: a `/superdev:<name>` reference must resolve to `commands/<name>.md`. The chain
+  // --- scanCommandRefs: a `/superdev:<name>` reference must resolve to `skills/<name>/SKILL.md`. The chain
   // hands the user from one command to the next by printing its name (ADR 0013), so a reference to a
   // command that does not exist sends the reader to a dead end. Same failure shape as scan() one level
   // over: that one resolves references/ paths, this one resolves command names. ---
 
   // positive: a command points at one that does not exist
   const cr1 = fixture({
-    'commands/implement.md': 'When every slice is merged, run `/superdev:ship <scope>`.\n',
+    'skills/implement/SKILL.md': 'When every slice is merged, run `/superdev:ship <scope>`.\n',
   });
   const crGaps1 = scanCommandRefs(cr1);
   assert.equal(crGaps1.length, 1, 'flags a reference to a command with no file');
   assert.equal(crGaps1[0].command, '/superdev:ship', 'names the unresolved command');
-  assert.equal(crGaps1[0].source, path.join('commands', 'implement.md'), 'names the source document');
+  assert.equal(crGaps1[0].source, path.join('skills', 'implement', 'SKILL.md'), 'names the source document');
 
   // negative: the same reference resolves once the command exists
   const cr2 = fixture({
-    'commands/implement.md': 'When every slice is merged, run `/superdev:ship <scope>`.\n',
-    'commands/ship.md': '# superdev ship\n',
+    'skills/implement/SKILL.md': 'When every slice is merged, run `/superdev:ship <scope>`.\n',
+    'skills/ship/SKILL.md': '# superdev ship\n',
   });
   assert.equal(scanCommandRefs(cr2).length, 0, 'a resolving reference yields zero gaps');
 
@@ -940,15 +940,15 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // a command naming itself resolves, and a trailing argument is not part of the name
   const cr4 = fixture({
-    'commands/document.md': 'Invoked as `/superdev:document audit` — see `/superdev:document`.\n',
+    'skills/document/SKILL.md': 'Invoked as `/superdev:document audit` — see `/superdev:document`.\n',
   });
   assert.equal(scanCommandRefs(cr4).length, 0, 'a trailing argument is not read as part of the name');
 
   // one missing command named by two documents is reported once per document, so every dead end is
   // fixable from the report alone
   const cr5 = fixture({
-    'commands/implement.md': 'Then `/superdev:ship`.\n',
-    'commands/document.md': 'Then `/superdev:ship`.\n',
+    'skills/implement/SKILL.md': 'Then `/superdev:ship`.\n',
+    'skills/document/SKILL.md': 'Then `/superdev:ship`.\n',
   });
   assert.equal(scanCommandRefs(cr5).length, 2, 'each source naming a missing command is reported');
 
@@ -962,27 +962,27 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // positive: review.md stopped naming its successor
   const ch1 = fixture({
     'references/run-handoff.md': handsOff('/superdev:review'),
-    'commands/review.md': '# review\n\nReport the findings and stop.\n',
-    'commands/document.md': handsOff('/superdev:ship'),
+    'skills/review/SKILL.md': '# review\n\nReport the findings and stop.\n',
+    'skills/document/SKILL.md': handsOff('/superdev:ship'),
   });
   const chGaps1 = scanChainHandoff(ch1);
   assert.equal(chGaps1.length, 1, 'flags the command that names no successor');
-  assert.equal(chGaps1[0].source, path.join('commands', 'review.md'), 'names review.md');
+  assert.equal(chGaps1[0].source, path.join('skills', 'review', 'SKILL.md'), 'names review.md');
   assert.equal(chGaps1[0].next, '/superdev:document', 'names the successor it should have');
 
   // negative: a fully wired chain is clean
   const ch2 = fixture({
     'references/run-handoff.md': handsOff('/superdev:review'),
-    'commands/review.md': handsOff('/superdev:document'),
-    'commands/document.md': handsOff('/superdev:ship'),
+    'skills/review/SKILL.md': handsOff('/superdev:document'),
+    'skills/document/SKILL.md': handsOff('/superdev:ship'),
   });
   assert.equal(scanChainHandoff(ch2).length, 0, 'a fully wired chain yields zero gaps');
 
   // every link is checked, not just the first: two broken handoffs are both reported
   const ch3 = fixture({
     'references/run-handoff.md': '# implement\n\nMerge the slices and stop.\n',
-    'commands/review.md': handsOff('/superdev:document'),
-    'commands/document.md': '# document\n\nReconcile the docs and stop.\n',
+    'skills/review/SKILL.md': handsOff('/superdev:document'),
+    'skills/document/SKILL.md': '# document\n\nReconcile the docs and stop.\n',
   });
   assert.equal(scanChainHandoff(ch3).length, 2, 'each broken link is reported');
 
@@ -990,13 +990,13 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // /superdev:plan is a legitimate reference that says nothing about the successor
   const ch4 = fixture({
     'references/run-handoff.md': handsOff('/superdev:review'),
-    'commands/review.md': 'To act on findings, run `/superdev:plan`, then `/superdev:implement`.\n',
-    'commands/document.md': handsOff('/superdev:ship'),
+    'skills/review/SKILL.md': 'To act on findings, run `/superdev:plan`, then `/superdev:implement`.\n',
+    'skills/document/SKILL.md': handsOff('/superdev:ship'),
   });
   assert.equal(scanChainHandoff(ch4).length, 1, 'naming an unrelated command is not a handoff');
 
   // an absent document is skipped, so a fixture carries only the links it exercises
-  const ch5 = fixture({ 'commands/document.md': handsOff('/superdev:ship') });
+  const ch5 = fixture({ 'skills/document/SKILL.md': handsOff('/superdev:ship') });
   assert.equal(scanChainHandoff(ch5).length, 0, 'an absent chain document is skipped');
 
   // --- scanAfkInvocations: every stage-table row that invokes one of the four chain commands must carry
@@ -1004,7 +1004,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // sweep stops there reporting no failure. The real table carries five rows — two of them
   // `/superdev:review` — so this checks per row, not once per command name. ---
 
-  // a fixture modeled on commands/afk.md §3's stage table plus its footnote and §5's maintainer-resume
+  // a fixture modeled on skills/afk/SKILL.md §3's stage table plus its footnote and §5's maintainer-resume
   // mention, both of which name a command on the same line as `--unattended` without being a table row
   const stageTable = (rows) =>
     '| Stage | Start at |\n' +
@@ -1023,14 +1023,14 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   ];
 
   // negative: every row carrying the token, plus the footnote and the §5 mention with no token, is clean
-  const afk1 = fixture({ 'commands/afk.md': stageTable(fullRows) });
+  const afk1 = fixture({ 'skills/afk/SKILL.md': stageTable(fullRows) });
   assert.equal(scanAfkInvocations(afk1).length, 0, 'a fully wired stage table is clean');
 
   // positive: each of the five rows is checked on its own — mutate one at a time, confirm it alone goes
   // red, and that the sibling row of the same command (`review` appears twice) does not mask it
   for (let i = 0; i < fullRows.length; i++) {
     const mutated = fullRows.map((row, j) => (j === i ? [row[0], row[1].replace(' --unattended', '')] : row));
-    const afk = fixture({ 'commands/afk.md': stageTable(mutated) });
+    const afk = fixture({ 'skills/afk/SKILL.md': stageTable(mutated) });
     const gaps = scanAfkInvocations(afk);
     assert.equal(gaps.length, 1, `mutating row ${i} (${fullRows[i][1]}) is caught on its own`);
     assert.match(gaps[0].expectation, new RegExp(fullRows[i][1].split(' ')[0].replace('/', '\\/')));
@@ -1039,7 +1039,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // the ship-command prose footnote (name + token on one line, not a table row) does not mask a missing
   // token on the actual ship table row
   const afkShipMasked = fixture({
-    'commands/afk.md': stageTable(
+    'skills/afk/SKILL.md': stageTable(
       fullRows.map((row) =>
         row[1].startsWith('/superdev:ship') ? [row[0], row[1].replace(' --unattended', '')] : row,
       ),
@@ -1052,7 +1052,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // §5's maintainer-resume mention (`/superdev:ship <slug>`, no token, not a table row) stays green on
   // its own — it is prose, not an invocation
   const afkResumeOnly = fixture({
-    'commands/afk.md': 'A maintainer runs `/superdev:ship <slug>` once the host is reachable.\n',
+    'skills/afk/SKILL.md': 'A maintainer runs `/superdev:ship <slug>` once the host is reachable.\n',
   });
   const resumeGaps = scanAfkInvocations(afkResumeOnly);
   assert.ok(
@@ -1064,7 +1064,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // afk silently dropped, which would make it skip reviewing or shipping and still report a clean sweep
   for (const dropped of ['implement', 'review', 'document', 'ship']) {
     const afkMissing = fixture({
-      'commands/afk.md': stageTable(fullRows.filter(([, cmd]) => !cmd.startsWith(`/superdev:${dropped} `))),
+      'skills/afk/SKILL.md': stageTable(fullRows.filter(([, cmd]) => !cmd.startsWith(`/superdev:${dropped} `))),
     });
     const gaps = scanAfkInvocations(afkMissing);
     assert.equal(gaps.length, 1, `dropping every /superdev:${dropped} row is caught`);
@@ -1120,7 +1120,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // unrelated stage gate above it still carries an "ask once" phrase for a different question — a
   // whole-file test is satisfied by that unrelated phrase and misses the drop
   const sg1 = fixture({
-    'commands/ship.md':
+    'skills/ship/SKILL.md':
       SHIP_UNRELATED_GATE +
       '**Entries standing.** Name every bullet. Declined → stop. Confirmed → proceed. **`--unattended` → ' +
       'refuse**: name what stands, open no pull request, and stop.\n\n' +
@@ -1133,13 +1133,13 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'flags a ship.md whose entries-standing paragraph drops the ask-once clause, even with the unrelated ' +
       'stage gate above it still carrying one',
   );
-  assert.equal(sgGaps1[0].source, path.join('commands', 'ship.md'), 'names ship.md');
+  assert.equal(sgGaps1[0].source, path.join('skills', 'ship', 'SKILL.md'), 'names ship.md');
 
   // positive (RED reproduction, the reviewer's exact case): the entries-standing paragraph drops its own
   // unattended-refuse clause, while the unrelated stage gate above it still carries the identical
   // `--unattended` → refuse phrase — the whole-file test used to pass wrongly here
   const sg2 = fixture({
-    'commands/ship.md':
+    'skills/ship/SKILL.md':
       SHIP_UNRELATED_GATE +
       '**Entries standing.** Name every bullet and **ask once** whether to ship with it standing. ' +
       'Declined → stop. Confirmed → proceed.\n\n' +
@@ -1152,11 +1152,11 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'flags a ship.md whose entries-standing paragraph drops the unattended-refuse clause, even with the ' +
       'unrelated stage gate above it still carrying the identical phrase',
   );
-  assert.equal(sgGaps2[0].source, path.join('commands', 'ship.md'), 'names ship.md');
+  assert.equal(sgGaps2[0].source, path.join('skills', 'ship', 'SKILL.md'), 'names ship.md');
 
   // negative: both halves carried in the entries-standing paragraph itself
   const sg3 = fixture({
-    'commands/ship.md':
+    'skills/ship/SKILL.md':
       SHIP_UNRELATED_GATE +
       '**Entries standing.** Name every bullet and **ask once** whether to ship with it standing. ' +
       'Declined → stop. Confirmed → proceed. **`--unattended` → refuse**: name what stands, open no ' +
@@ -1170,10 +1170,10 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   );
 
   // positive: no entries-standing paragraph at all
-  const sg4 = fixture({ 'commands/ship.md': SHIP_UNRELATED_GATE + '## 4. Definition of Done\n' });
+  const sg4 = fixture({ 'skills/ship/SKILL.md': SHIP_UNRELATED_GATE + '## 4. Definition of Done\n' });
   const sgGaps4 = scanShipGateContract(sg4);
   assert.equal(sgGaps4.length, 1, 'flags a ship.md with no entries-standing paragraph at all');
-  assert.equal(sgGaps4[0].source, path.join('commands', 'ship.md'), 'names ship.md');
+  assert.equal(sgGaps4[0].source, path.join('skills', 'ship', 'SKILL.md'), 'names ship.md');
 
   // absent files are skipped, matching every other contract scanner
   assert.equal(
@@ -1452,8 +1452,8 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   );
 
   // --- scanReleaseContract: every slice-store document states how its backend expresses a release
-  // (`plan-contract.md` → *Release*), and `commands/plan.md`, `commands/implement.md`, and
-  // `commands/afk.md` each name that section. Both halves fail silently, so both are asserted. ---
+  // (`plan-contract.md` → *Release*), and `skills/plan/SKILL.md`, `skills/implement/SKILL.md`, and
+  // `skills/afk/SKILL.md` each name that section. Both halves fail silently, so both are asserted. ---
 
   // positive: a store document with no release section is flagged
   const rl1 = fixture({ 'references/issue-tracker-acme.md': '# acme\n\nSlices are issues.\n' });
@@ -1484,17 +1484,17 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   );
 
   // positive: a consumer that no longer names the section is flagged, with the store half silent
-  const rlConsumer = fixture({ 'commands/plan.md': '# plan\n\nWrite the slices, then hand off.\n' });
+  const rlConsumer = fixture({ 'skills/plan/SKILL.md': '# plan\n\nWrite the slices, then hand off.\n' });
   const rlGapsConsumer = scanReleaseContract(rlConsumer);
   assert.equal(rlGapsConsumer.length, 1, 'flags the consumer that dropped the reference');
-  assert.equal(rlGapsConsumer[0].source, path.join('commands', 'plan.md'), 'names the consumer');
+  assert.equal(rlGapsConsumer[0].source, path.join('skills', 'plan', 'SKILL.md'), 'names the consumer');
   assert.match(rlGapsConsumer[0].expectation, /`## Release`/, 'names the section it must read');
 
   // negative: the same consumer naming the backticked section is clean — and the bare word alone is not,
   // since "release" recurs in ordinary prose
   assert.equal(
     scanReleaseContract(
-      fixture({ 'commands/plan.md': "# plan\n\nRead `docs/agents/issue-tracker.md`'s `## Release`.\n" }),
+      fixture({ 'skills/plan/SKILL.md': "# plan\n\nRead `docs/agents/issue-tracker.md`'s `## Release`.\n" }),
     ).length,
     0,
     'a consumer naming the backticked section yields zero gaps',
@@ -1502,9 +1502,9 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // all three consumers are held to it, so dropping the reference everywhere reports three gaps
   const rlAllThree = fixture({
-    'commands/plan.md': '# plan\n',
-    'commands/implement.md': '# implement\n',
-    'commands/afk.md': '# afk\n',
+    'skills/plan/SKILL.md': '# plan\n',
+    'skills/implement/SKILL.md': '# implement\n',
+    'skills/afk/SKILL.md': '# afk\n',
   });
   assert.equal(scanReleaseContract(rlAllThree).length, 3, 'every consumer is held to the reference');
 
@@ -1782,17 +1782,17 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // positive: nine reintroductions a future edit could reach for, none of them the two historical
   // wordings above — each pairs a directional verb (hand back, resume, continue, go back up, jump back,
   // return, back to) with a return target (the controller, the command body, /superdev:implement, or
-  // commands/implement.md) the two-verb/two-target net above would let straight through
+  // skills/implement/SKILL.md) the two-verb/two-target net above would let straight through
   for (const flagged of [
     'Once the loop caps out, hand control back to /superdev:implement.',
     'Once the loop caps out, resume at the controller.',
-    'Continue in commands/implement.md from where this left off.',
+    'Continue in skills/implement/SKILL.md from where this left off.',
     'Go back up to the command body to finish Final phase.',
     'Jump back to Final phase in the controller.',
     'When done, return to Final Phase.',
     'Hand off execution back to /superdev:implement now.',
     'back to the command body',
-    'return to commands/implement.md',
+    'return to skills/implement/SKILL.md',
   ]) {
     const flaggedRoot = fixture({ 'references/implement-lite.md': `${flagged}\n` });
     const flaggedGaps = scanReturnToController(flaggedRoot);
@@ -1818,7 +1818,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // mentioning /superdev:implement, the router, or "the controller" as the reader is not a violation
   const cleanRoot = fixture({
     'references/implement-full.md':
-      'The controller `Read`s this after computing tier = `full` (see `commands/implement.md`). ' +
+      'The controller `Read`s this after computing tier = `full` (see `skills/implement/SKILL.md`). ' +
       "Honor the controller's **Invariants** throughout. " +
       'Read `${CLAUDE_PLUGIN_ROOT}/references/run-init.md` before cutting the branch, and read ' +
       '`${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md` as your last step.\n',
@@ -1834,15 +1834,15 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'an ordinary mention of "the controller" as an actor is reported clean',
   );
 
-  // negative: a cross-reference to commands/implement.md, not an instruction to go there
+  // negative: a cross-reference to skills/implement/SKILL.md, not an instruction to go there
   assert.equal(
     scanReturnToController(
       fixture({
-        'references/implement-lite.md': 'See `commands/implement.md` for the tier the controller computed.\n',
+        'references/implement-lite.md': 'See `skills/implement/SKILL.md` for the tier the controller computed.\n',
       }),
     ).length,
     0,
-    'a cross-reference to commands/implement.md is reported clean',
+    'a cross-reference to skills/implement/SKILL.md is reported clean',
   );
 
   // negative: "back to" crossed with a path-shaped target catches an ordinary backward cross-reference
@@ -1851,11 +1851,11 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     scanReturnToController(
       fixture({
         'references/implement-lite.md':
-          'For the full command surface, refer back to `commands/implement.md`.\n',
+          'For the full command surface, refer back to `skills/implement/SKILL.md`.\n',
       }),
     ).length,
     0,
-    'a "refer back to" cross-reference to commands/implement.md is reported clean',
+    'a "refer back to" cross-reference to skills/implement/SKILL.md is reported clean',
   );
 
   // negative: the same shape against the other path-shaped target
@@ -2080,22 +2080,22 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // absent or unparsable manifest → nothing to scan, matching every other scanner's fixture rule
   assert.equal(scanMarketplaceSource(fixture({ 'README.md': '# repo\n' })).length, 0, 'absent manifest is skipped');
 
-  // --- scanReadmeCommands: README.md and commands/ name the same command set — a command the README
+  // --- scanReadmeCommands: README.md and skills/ name the same command set — a command the README
   // never names, or one it still names after a rename, is a router that lies. ---
 
-  // negative: README and commands/ agree
+  // negative: README and skills/ agree
   const rcOk = fixture({
     'README.md': '# p\n\nRun `/superdev:plan`, then `/superdev:implement`.\n',
-    'commands/plan.md': '# plan\n',
-    'commands/implement.md': '# implement\n',
+    'skills/plan/SKILL.md': '# plan\n',
+    'skills/implement/SKILL.md': '# implement\n',
   });
   assert.equal(scanReadmeCommands(rcOk).length, 0, 'a README naming every command yields zero gaps');
 
   // a shipped command the README never names
   const rcMissing = fixture({
     'README.md': '# p\n\nRun `/superdev:plan`.\n',
-    'commands/plan.md': '# plan\n',
-    'commands/ship.md': '# ship\n',
+    'skills/plan/SKILL.md': '# plan\n',
+    'skills/ship/SKILL.md': '# ship\n',
   });
   const rcMissingGaps = scanReadmeCommands(rcMissing);
   assert.equal(rcMissingGaps.length, 1, 'an unmentioned command is one gap');
@@ -2104,36 +2104,37 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // a README naming a command that does not exist (a rename left the old name behind)
   const rcGhost = fixture({
     'README.md': '# p\n\nRun `/superdev:plan` and `/superdev:retired` (twice: `/superdev:retired`).\n',
-    'commands/plan.md': '# plan\n',
+    'skills/plan/SKILL.md': '# plan\n',
   });
   const rcGhostGaps = scanReadmeCommands(rcGhost);
   assert.equal(rcGhostGaps.length, 1, 'a ghost command is one gap, deduped across repeated mentions');
   assert.match(rcGhostGaps[0].expectation, /\/superdev:retired/, 'the gap names the ghost command');
 
-  // absent README or absent commands dir → nothing to scan, matching every other scanner's fixture rule
-  assert.equal(scanReadmeCommands(fixture({ 'commands/plan.md': '# plan\n' })).length, 0, 'absent README is skipped');
-  assert.equal(scanReadmeCommands(fixture({ 'README.md': '# p\n' })).length, 0, 'absent commands dir is skipped');
+  // absent README or absent skills dir → nothing to scan, matching every other scanner's fixture rule
+  assert.equal(scanReadmeCommands(fixture({ 'skills/plan/SKILL.md': '# plan\n' })).length, 0, 'absent README is skipped');
+  assert.equal(scanReadmeCommands(fixture({ 'README.md': '# p\n' })).length, 0, 'absent skills dir is skipped');
 
   // the real repository is clean both ways
-  assert.equal(scanReadmeCommands(realRoot).length, 0, 'the real README and commands/ agree');
+  assert.equal(scanReadmeCommands(realRoot).length, 0, 'the real README and skills/ agree');
 
   // --- scanAuditSetGlobs: every pattern under `## Audit set` resolves to at least one file. A pattern
   // matching nothing makes `/superdev:document audit` read zero files and still report a clean pass. ---
 
-  // negative: every pattern resolves, both the glob and the plain-path shapes
+  // negative: every pattern resolves, the plain-path shape and both glob shapes (a final-segment `*`
+  // and a mid-segment one — `plugin/skills/*/SKILL.md` nests one directory per skill)
   const asOk = fixture({
-    'plugin/commands/plan.md': '# plan\n',
+    'plugin/skills/plan/SKILL.md': '# plan\n',
     'RELEASING.md': '# releasing\n',
     'docs/agents/documentation.md':
-      '# doc\n\n## Audit set\n\n- `plugin/commands/*.md`\n- `RELEASING.md`\n',
+      '# doc\n\n## Audit set\n\n- `plugin/skills/*/SKILL.md`\n- `RELEASING.md`\n',
   });
   assert.equal(scanAuditSetGlobs(asOk).length, 0, 'patterns that all resolve yield zero gaps');
 
   // a glob whose directory does not exist at the root — the audited-nothing bug, verbatim
   const asStale = fixture({
-    'plugin/commands/plan.md': '# plan\n',
+    'plugin/skills/plan/SKILL.md': '# plan\n',
     'docs/agents/documentation.md':
-      '# doc\n\n## Audit set\n\n- `commands/*.md`\n- `plugin/commands/*.md`\n',
+      '# doc\n\n## Audit set\n\n- `commands/*.md`\n- `plugin/skills/*/SKILL.md`\n',
   });
   const asStaleGaps = scanAuditSetGlobs(asStale);
   assert.equal(asStaleGaps.length, 1, 'a glob resolving to no file is one gap');
@@ -2183,12 +2184,12 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'each gap names the path that went missing, so the reader does not grep for it',
   );
 
-  // positive: `commands/afk.md` is among the paths this check collects, which is what lets the
+  // positive: `skills/afk/SKILL.md` is among the paths this check collects, which is what lets the
   // `afk-existence` special case go. Three tables pin that file, so the general rule now covers what
   // that check was written to catch on its own.
   assert.ok(
-    scanPinnedPaths(fixture({ 'README.md': '# r\n' })).some((g) => g.source === path.join('commands', 'afk.md')),
-    'commands/afk.md disappearing is still caught, now by the general check',
+    scanPinnedPaths(fixture({ 'README.md': '# r\n' })).some((g) => g.source === path.join('skills', 'afk', 'SKILL.md')),
+    'skills/afk/SKILL.md disappearing is still caught, now by the general check',
   );
 
   // positive: `READ_PATH_CONTRACTS`' second row pins `docs/agents/knowledge-base.md` with a `test()`
@@ -2224,11 +2225,11 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'the neutral placeholder yields no gap',
   );
 
-  // negative: commands/ is out of scope — setup.md names concrete commands legitimately, as examples
+  // negative: skills/ is out of scope — setup.md names concrete commands legitimately, as examples
   assert.equal(
-    scanAgentToolAgnostic(fixture({ 'commands/setup.md': 'e.g. `npm test`, `pytest -q`, `cargo test`\n' })).length,
+    scanAgentToolAgnostic(fixture({ 'skills/setup/SKILL.md': 'e.g. `npm test`, `pytest -q`, `cargo test`\n' })).length,
     0,
-    'commands/ examples stay out of scope',
+    'skills/ examples stay out of scope',
   );
 
   // positive: the shipped leak, verbatim

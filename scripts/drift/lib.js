@@ -109,7 +109,7 @@ function normalizeWhitespace(text) {
 
 // docPath(): where a checked file lives under a root. The shipped tree sits in the repo's plugin/
 // subdirectory (the marketplace's git-subdir source), so contract tables, scanners, and fixtures all
-// name its files relative to the plugin root — commands/…, agents/…, hooks/…, references/…,
+// name its files relative to the plugin root — skills/…, agents/…, hooks/…, references/…,
 // scripts/scope.js — while root-level docs (CONTEXT.md, scripts/AGENTS.md, docs/, evals/) resolve at
 // the repo root. Fixtures build plugin-relative paths directly under their tmp root, so the direct
 // path is tried first and plugin/ is the fallback; the two never both exist for one file.

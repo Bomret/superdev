@@ -1,6 +1,6 @@
 # Lite execution playbook (≤3 slices)
 
-The controller `Read`s this after computing tier = `lite` (see `commands/implement.md`). Small plans
+The controller `Read`s this after computing tier = `lite` (see `skills/implement/SKILL.md`). Small plans
 don't need per-slice worktrees or subagents: you (the controller) implement every slice yourself, inline,
 test-first, in a single dedicated scope worktree. This is the one deliberate exception to the "controller
 never implements inline" invariant (ADR 0001). Honor the controller's **Invariants** throughout. Once

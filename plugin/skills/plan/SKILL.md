@@ -1,4 +1,5 @@
 ---
+name: plan
 description: Plan a feature for superdev — a relentless interview that pins intent and the Definition of Done, then decomposes the work into independently-green vertical slices in the configured slice store. Run before /superdev:implement.
 argument-hint: "[an intent, or nothing]"
 ---

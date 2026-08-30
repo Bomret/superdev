@@ -6,6 +6,7 @@
 // owns how each gap is printed.
 
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 
 const {
@@ -84,13 +85,34 @@ const {
   RETURN_TO_CONTROLLER_PATTERNS,
 } = contracts;
 
-// scan() is pure over a root dir so it's unit-testable: reads commands/*.md, agents/*.md and
-// references/*.md, extracts every referenced references/<name>.md, and reports the ones that don't
-// exist. references/ is in the set because a reference cites another reference — the execution
-// playbooks point at scope-mode.md — and a rename there dangles like any other.
-function scan(root) {
-  const missing = [];
-  for (const dir of ['commands', 'agents', 'references']) {
+// skillEntries(): every skill surface under a root, as `[<name>, absolute SKILL.md path]` pairs.
+// skills/ nests one directory per surface where commands/ was a flat *.md dir, so the scanners that
+// walk the prompt prose share this one listing. An absent dir yields an empty list, the same
+// "nothing to scan" a missing commands/ gave.
+function skillEntries(root) {
+  let entries;
+  try {
+    entries = fs.readdirSync(docPath(root, 'skills'), { withFileTypes: true });
+  } catch {
+    return []; // no skills dir → nothing to scan
+  }
+  return entries
+    .filter((e) => e.isDirectory() && fs.existsSync(docPath(root, 'skills', e.name, 'SKILL.md')))
+    .map((e) => [e.name, docPath(root, 'skills', e.name, 'SKILL.md')]);
+}
+
+// proseDocuments(): every prompt-prose file the reference and command-resolution scanners read,
+// as `[plugin-relative source, absolute path]` pairs: skills/<name>/SKILL.md plus the flat
+// agents/*.md and references/*.md.
+function proseDocuments(root, dirs) {
+  const docs = [];
+  for (const dir of dirs) {
+    if (dir === 'skills') {
+      for (const [name, filePath] of skillEntries(root)) {
+        docs.push([path.join('skills', name, 'SKILL.md'), filePath]);
+      }
+      continue;
+    }
     const dirPath = docPath(root, dir);
     let entries;
     try {
@@ -100,14 +122,25 @@ function scan(root) {
     }
     for (const entry of entries) {
       if (!entry.endsWith('.md')) continue;
-      const filePath = path.join(dirPath, entry);
-      const text = fs.readFileSync(filePath, 'utf8');
-      for (const match of text.matchAll(REFERENCE_PATTERN)) {
-        const refName = match[1];
-        const refPath = docPath(root, 'references', refName);
-        if (!fs.existsSync(refPath)) {
-          missing.push({ source: path.join(dir, entry), reference: `references/${refName}` });
-        }
+      docs.push([path.join(dir, entry), path.join(dirPath, entry)]);
+    }
+  }
+  return docs;
+}
+
+// scan() is pure over a root dir so it's unit-testable: reads skills/<name>/SKILL.md, agents/*.md and
+// references/*.md, extracts every referenced references/<name>.md, and reports the ones that don't
+// exist. references/ is in the set because a reference cites another reference — the execution
+// playbooks point at scope-mode.md — and a rename there dangles like any other.
+function scan(root) {
+  const missing = [];
+  for (const [source, filePath] of proseDocuments(root, ['skills', 'agents', 'references'])) {
+    const text = fs.readFileSync(filePath, 'utf8');
+    for (const match of text.matchAll(REFERENCE_PATTERN)) {
+      const refName = match[1];
+      const refPath = docPath(root, 'references', refName);
+      if (!fs.existsSync(refPath)) {
+        missing.push({ source, reference: `references/${refName}` });
       }
     }
   }
@@ -270,25 +303,25 @@ function scanSpecialisingCitations(root) {
   return gaps;
 }
 
-// scanAfkSelectionNeutrality() is pure over a root dir: reads `commands/afk.md`, isolates the selection
+// scanAfkSelectionNeutrality() is pure over a root dir: reads `skills/afk/SKILL.md`, isolates the selection
 // section, and reports every store mechanism it names. An absent file or a missing section yields nothing
-// — `commands/afk.md`'s existence is asserted by the `pinned-paths` check, which collects every path the
+// — `skills/afk/SKILL.md`'s existence is asserted by the `pinned-paths` check, which collects every path the
 // contract tables pin (three of them pin this file).
 function scanAfkSelectionNeutrality(root) {
   const gaps = [];
   let text;
   try {
-    text = fs.readFileSync(docPath(root, 'commands', 'afk.md'), 'utf8');
+    text = fs.readFileSync(docPath(root, 'skills', 'afk', 'SKILL.md'), 'utf8');
   } catch {
     return gaps; // afk.md absent → nothing to scan
   }
   const section = extractSection(text, AFK_SELECTION_HEADING);
   if (section === null) {
     // A missing, renamed, or renumbered selection heading is itself a gap — the same reasoning as
-    // main()'s commands/afk.md-existence check: silently returning nothing here would let the section
+    // main()'s skills/afk/SKILL.md-existence check: silently returning nothing here would let the section
     // (and whatever store mechanism it names) drift out from under this check with nothing going red.
     gaps.push({
-      source: path.join('commands', 'afk.md'),
+      source: path.join('skills', 'afk', 'SKILL.md'),
       expectation:
         'carry a `## 2. …` selection heading — a missing or renumbered one leaves the neutrality check nothing to scan',
     });
@@ -297,7 +330,7 @@ function scanAfkSelectionNeutrality(root) {
   for (const [pattern, label] of STORE_MECHANISMS) {
     if (pattern.test(section)) {
       gaps.push({
-        source: path.join('commands', 'afk.md'),
+        source: path.join('skills', 'afk', 'SKILL.md'),
         expectation: `select without naming ${label} — read the store's \`## Scope anchor\` contract instead`,
       });
     }
@@ -307,22 +340,22 @@ function scanAfkSelectionNeutrality(root) {
   // says less.
   if (!/## Scope anchor/.test(section)) {
     gaps.push({
-      source: path.join('commands', 'afk.md'),
+      source: path.join('skills', 'afk', 'SKILL.md'),
       expectation: "point its selection at the store's `## Scope anchor` contract",
     });
   }
   return gaps;
 }
 
-// scanAfkAnchorCount() is pure over a root dir: reads `commands/afk.md`, isolates the one paragraph
+// scanAfkAnchorCount() is pure over a root dir: reads `skills/afk/SKILL.md`, isolates the one paragraph
 // AFK_ANCHOR_COUNT_HEADING names with extractParagraph() — narrower than a section, so a legitimate
 // restatement later in the same `## 2.` section (the eligibility bullet also reads the anchor dependency)
 // cannot satisfy this contract on the stale paragraph's behalf — and reports the elements missing from
-// that isolation alone. An absent file yields nothing; `commands/afk.md`'s existence is asserted by the
+// that isolation alone. An absent file yields nothing; `skills/afk/SKILL.md`'s existence is asserted by the
 // pinned-paths check.
 function scanAfkAnchorCount(root) {
   const gaps = [];
-  const rel = path.join('commands', 'afk.md');
+  const rel = path.join('skills', 'afk', 'SKILL.md');
   const text = readDoc(root, rel);
   if (text === null) return gaps; // afk.md absent (fixture / partial checkout) → nothing to scan
   const paragraph = extractParagraph(text, AFK_ANCHOR_COUNT_HEADING);
@@ -445,29 +478,20 @@ function scanEvalShape(root) {
 // Every document in the doc loop must still instruct itself to read the content-type lens (ADR 0014).
 const scanContentTypesContract = (root) => scanDocsCarry(root, CONTENT_TYPES_DOCS, CONTENT_TYPES_PATTERN);
 
-// scanCommandRefs() is pure over a root dir: reads commands/*.md and agents/*.md and reports every
-// command reference with no matching file under commands/. A document naming the same missing command is
-// reported once per document, so the report alone names every dead end.
+// scanCommandRefs() is pure over a root dir: reads skills/<name>/SKILL.md and agents/*.md and reports
+// every command reference with no matching skill under skills/. A document naming the same missing
+// command is reported once per document, so the report alone names every dead end.
 function scanCommandRefs(root) {
   const unresolved = [];
-  for (const dir of ['commands', 'agents']) {
-    let entries;
-    try {
-      entries = fs.readdirSync(docPath(root, dir));
-    } catch {
-      continue; // no such dir → nothing to scan
-    }
-    for (const entry of entries) {
-      if (!entry.endsWith('.md')) continue;
-      const text = fs.readFileSync(docPath(root, dir, entry), 'utf8');
-      const seen = new Set();
-      for (const match of text.matchAll(COMMAND_REFERENCE_PATTERN)) {
-        const name = match[1];
-        if (seen.has(name)) continue; // one report per document per command
-        seen.add(name);
-        if (!fs.existsSync(docPath(root, 'commands', `${name}.md`))) {
-          unresolved.push({ source: path.join(dir, entry), command: `/superdev:${name}` });
-        }
+  for (const [source, filePath] of proseDocuments(root, ['skills', 'agents'])) {
+    const text = fs.readFileSync(filePath, 'utf8');
+    const seen = new Set();
+    for (const match of text.matchAll(COMMAND_REFERENCE_PATTERN)) {
+      const name = match[1];
+      if (seen.has(name)) continue; // one report per document per command
+      seen.add(name);
+      if (!fs.existsSync(docPath(root, 'skills', name, 'SKILL.md'))) {
+        unresolved.push({ source, command: `/superdev:${name}` });
       }
     }
   }
@@ -487,14 +511,14 @@ function scanChainHandoff(root) {
   return gaps;
 }
 
-// scanAfkInvocations() is pure over a root dir: reads commands/afk.md and reports every stage-table row
+// scanAfkInvocations() is pure over a root dir: reads skills/afk/SKILL.md and reports every stage-table row
 // that names one of the four chain commands without carrying `--unattended` on that same row. Absent
 // afk.md is skipped, matching every other contract scanner.
 function scanAfkInvocations(root) {
   const gaps = [];
   let text;
   try {
-    text = fs.readFileSync(docPath(root, 'commands', 'afk.md'), 'utf8');
+    text = fs.readFileSync(docPath(root, 'skills', 'afk', 'SKILL.md'), 'utf8');
   } catch {
     return gaps; // afk.md absent → nothing to scan
   }
@@ -505,7 +529,7 @@ function scanAfkInvocations(root) {
     invoked.add(match[1]);
     if (!/--unattended/.test(line)) {
       gaps.push({
-        source: path.join('commands', 'afk.md'),
+        source: path.join('skills', 'afk', 'SKILL.md'),
         expectation: `invoke \`/superdev:${match[1]}\` with \`--unattended\` on its table row: \`${line.trim()}\``,
       });
     }
@@ -516,7 +540,7 @@ function scanAfkInvocations(root) {
   for (const name of AFK_NAMES) {
     if (!invoked.has(name)) {
       gaps.push({
-        source: path.join('commands', 'afk.md'),
+        source: path.join('skills', 'afk', 'SKILL.md'),
         expectation: `carry a stage-table row invoking \`/superdev:${name}\``,
       });
     }
@@ -524,7 +548,7 @@ function scanAfkInvocations(root) {
   return gaps;
 }
 
-// scanShipGateContract() is pure over a root dir: reads commands/ship.md, isolates the "Entries standing."
+// scanShipGateContract() is pure over a root dir: reads skills/ship/SKILL.md, isolates the "Entries standing."
 // paragraph, and reports every gate element that paragraph does not itself carry. An absent ship.md is
 // skipped, matching every other contract scanner; a ship.md with no such paragraph at all is one gap
 // naming the missing paragraph, the same shape scanAnchorContract() uses for a missing section.
@@ -540,20 +564,20 @@ function scanShipGateContract(root) {
   const gaps = [];
   let text;
   try {
-    text = fs.readFileSync(docPath(root, 'commands', 'ship.md'), 'utf8');
+    text = fs.readFileSync(docPath(root, 'skills', 'ship', 'SKILL.md'), 'utf8');
   } catch {
     return gaps; // ship.md absent → nothing to scan
   }
   const section = extractSection(text, SHIP_GATE_HEADING);
   if (section === null) {
     gaps.push({
-      source: path.join('commands', 'ship.md'),
+      source: path.join('skills', 'ship', 'SKILL.md'),
       expectation: "carry the entries-standing gate's own \"Entries standing.\" paragraph",
     });
     return gaps;
   }
   for (const [pattern, expectation] of SHIP_GATE_ELEMENTS) {
-    if (!pattern.test(section)) gaps.push({ source: path.join('commands', 'ship.md'), expectation });
+    if (!pattern.test(section)) gaps.push({ source: path.join('skills', 'ship', 'SKILL.md'), expectation });
   }
   return gaps;
 }
@@ -597,7 +621,7 @@ const scanKbNoBackendCall = (root) =>
 // the convention that lets a fixture carry only the files one assertion exercises, and lets a partial
 // checkout fail nothing — so a table reports zero gaps the moment its document is renamed or deleted, and
 // every check stays green while the contract it asserted is gone. Verified before this check existed:
-// `FIX_BOUNDARY_CONTRACTS` against a tree with no `commands/review.md` returned no gaps at all.
+// `FIX_BOUNDARY_CONTRACTS` against a tree with no `skills/review/SKILL.md` returned no gaps at all.
 //
 // The paths come from the tables themselves rather than a list kept beside them, so a table added later is
 // covered without anyone remembering to. `collectPinnedPaths()` recurses every exported value — arrays,
@@ -613,11 +637,11 @@ const scanKbNoBackendCall = (root) =>
 // root-level file to resolve to, so recursing into it would report the real
 // `references/issue-tracker-local.md` as missing.
 //
-// This holds the slot the `afk-existence` check held, which asserted `commands/afk.md` alone on the
+// This holds the slot the `afk-existence` check held, which asserted `skills/afk/SKILL.md` alone on the
 // stated grounds that nothing else in the plugin names `/superdev:afk` — already false when written:
-// `commands/implement.md` names it too, and `command-resolution` already resolves every `/superdev:`
-// reference under `commands/`, so it already caught that file's deletion. Three contract tables also
-// pin `commands/afk.md` directly, so the general rule here covers it a second way.
+// `skills/implement/SKILL.md` names it too, and `command-resolution` already resolves every `/superdev:`
+// reference under `skills/`, so it already caught that file's deletion. Three contract tables also
+// pin `skills/afk/SKILL.md` directly, so the general rule here covers it a second way.
 //
 // ponytail: shape-based, and its ceiling is the extension whitelist and the two container shapes it
 // recurses (arrays, plain objects). A future table that pins a path with no `.md`/`.json`/`.js`
@@ -671,7 +695,7 @@ const scanDocStepsNoSuite = (root) =>
 const scanDenialCapNumberSilence = (root) =>
   scanDocsAvoid(root, DENIAL_CAP_NUMBER_SILENCE_DOCS, DENIAL_CAP_NUMBER_MARKERS);
 
-// `commands/afk.md`'s eligibility bullet reads a scope's run lock, and `SCOPE_WORKTREE_CONTRACTS` pins
+// `skills/afk/SKILL.md`'s eligibility bullet reads a scope's run lock, and `SCOPE_WORKTREE_CONTRACTS` pins
 // its surviving fallback rule by presence — a row whose expectation describes an absence, which a
 // presence row cannot assert. The stale claim it means to keep out ("a run lock only ever exists for a
 // `lite`-tier scope", true before ADR 0045 gave both tiers one) can regrow as a sentence preceding that
@@ -835,28 +859,32 @@ function scanMarketplaceSource(root) {
   return gaps;
 }
 
-// scanReadmeCommands() is pure over a root dir: `README.md` and `commands/` agree — every
-// `commands/<name>.md` is mentioned in the README as `/superdev:<name>`, and every `/superdev:<name>`
-// the README names has a command file. The README is the user-facing map of the commands, so a command
-// it never names or a command it still names after a rename is a router that lies. Either half is
-// skipped when its side is absent (fixture / partial checkout), matching every other scanner.
+// scanReadmeCommands() is pure over a root dir: `README.md` and `skills/` agree — every
+// `skills/<name>/SKILL.md` is mentioned in the README as `/superdev:<name>`, and every
+// `/superdev:<name>` the README names has a skill. The README is the user-facing map of the commands,
+// so a command it never names or a command it still names after a rename is a router that lies. Either
+// half is skipped when its side is absent (fixture / partial checkout), matching every other scanner.
 function scanReadmeCommands(root) {
   const gaps = [];
   const readme = readDoc(root, 'README.md');
   if (readme === null) return gaps;
   let entries;
   try {
-    entries = fs.readdirSync(docPath(root, 'commands'));
+    entries = fs.readdirSync(docPath(root, 'skills'), { withFileTypes: true });
   } catch {
-    return gaps; // no commands dir → nothing to cross-check
+    return gaps; // no skills dir → nothing to cross-check
   }
-  const commands = new Set(entries.filter((e) => e.endsWith('.md')).map((e) => e.slice(0, -3)));
+  const commands = new Set(
+    entries
+      .filter((e) => e.isDirectory() && fs.existsSync(docPath(root, 'skills', e.name, 'SKILL.md')))
+      .map((e) => e.name),
+  );
   for (const name of [...commands].sort()) {
     if (!readme.includes(`/superdev:${name}`)) {
       gaps.push({
         source: 'README.md',
         expectation:
-          `mention \`/superdev:${name}\` — \`commands/${name}.md\` ships, and a README that never ` +
+          `mention \`/superdev:${name}\` — \`skills/${name}/SKILL.md\` ships, and a README that never ` +
           'names a command is a router that lies',
       });
     }
@@ -868,7 +896,7 @@ function scanReadmeCommands(root) {
       gaps.push({
         source: 'README.md',
         expectation:
-          `name only commands that exist — \`/superdev:${name}\` has no \`commands/${name}.md\`, ` +
+          `name only commands that exist — \`/superdev:${name}\` has no \`skills/${name}/SKILL.md\`, ` +
           'so the README routes users to a command the plugin does not carry',
       });
     }
@@ -877,20 +905,36 @@ function scanReadmeCommands(root) {
 }
 
 // auditSetMatches(): how many files an audit-set pattern resolves to under `root`. The section's own rule
-// makes every entry a repo-relative path, optionally with one `*` in its final segment — the one shape
-// `/superdev:document audit` expands — so this walks that segment's directory rather than depending on a
-// glob implementation whose availability varies by Node version.
+// makes every entry a repo-relative path, optionally with one `*` in a single segment — the shape
+// `/superdev:document audit` expands — so this walks the segments literally and expands the starred one
+// by reading that directory, rather than depending on a glob implementation whose availability varies
+// by Node version.
 function auditSetMatches(root, pattern) {
-  const slash = pattern.lastIndexOf('/');
-  const dir = slash === -1 ? '' : pattern.slice(0, slash);
-  const base = pattern.slice(slash + 1);
-  if (!base.includes('*')) return fs.existsSync(path.join(root, pattern)) ? 1 : 0;
-  const re = new RegExp(`^${base.split('*').map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`);
-  try {
-    return fs.readdirSync(path.join(root, dir)).filter((e) => re.test(e)).length;
-  } catch {
-    return 0; // the directory itself is gone, which is the same lie as an empty match
-  }
+  const segments = pattern.split('/');
+  const starAt = segments.findIndex((s) => s.includes('*'));
+  if (starAt === -1) return fs.existsSync(path.join(root, pattern)) ? 1 : 0;
+  const re = new RegExp(
+    `^${segments[starAt].split('*').map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`,
+  );
+  const walk = (dir, at) => {
+    if (at === segments.length) return 1;
+    let entries;
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return 0; // the directory itself is gone, which is the same lie as an empty match
+    }
+    let count = 0;
+    for (const entry of entries) {
+      const last = at === segments.length - 1;
+      const matches = at === starAt ? re.test(entry.name) : entry.name === segments[at];
+      if (!matches) continue;
+      if (last) count += 1;
+      else if (entry.isDirectory()) count += walk(path.join(dir, entry.name), at + 1);
+    }
+    return count;
+  };
+  return walk(root, 0);
 }
 
 // scanAuditSetGlobs() is pure over a root dir: every glob listed under `## Audit set` in this repo's own
@@ -921,6 +965,57 @@ function scanAuditSetGlobs(root) {
     }
   }
   return gaps;
+}
+
+// walkFiles(dir): every file under dir, as paths relative to dir, sorted. The fixture diff below
+// compares two rendered trees by exactly this list.
+function walkFiles(dir) {
+  const out = [];
+  const walk = (rel) => {
+    for (const entry of fs.readdirSync(path.join(dir, rel), { withFileTypes: true })) {
+      const r = path.join(rel, entry.name);
+      if (entry.isDirectory()) walk(r);
+      else out.push(r);
+    }
+  };
+  walk('.');
+  return out.map((rel) => rel.split(path.sep).join('/')).sort();
+}
+
+// scanOpencodeFixtures() is pure over a root dir: the committed golden render under
+// `scripts/drift/fixtures/opencode/` still matches a fresh render of the root's plugin tree. It
+// renders through `drift/opencode-fixtures.js`'s renderNormalized() into a temp dir and diffs the
+// two trees — a skills or agents edit that changes the render is a gap until the fixtures are
+// regenerated (`bun run render-fixtures`) in the same commit. The adapter module is required from
+// the real plugin tree, so a fixture root needs only the plugin's skills/agents and the fixtures
+// themselves; either side absent skips the check, matching every other scanner. Gaps are plain
+// strings: the registry entry's format is the identity.
+function scanOpencodeFixtures(root) {
+  const { FIXTURE_DIR, renderNormalized } = require('./opencode-fixtures');
+  const fixtureDir = path.join(root, FIXTURE_DIR);
+  if (!fs.existsSync(fixtureDir)) return []; // no committed fixtures → nothing to compare
+  if (!fs.existsSync(path.join(root, 'plugin', 'skills'))) return []; // fixture root may carry only one side
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'opencode-render-'));
+  try {
+    renderNormalized(root, tmp);
+    const gaps = [];
+    const expected = walkFiles(fixtureDir);
+    const actual = walkFiles(tmp);
+    for (const rel of expected.filter((rel) => !actual.includes(rel))) {
+      gaps.push(`${FIXTURE_DIR.split(path.sep).join('/')}/${rel} has no fresh render — regenerate the fixtures (bun run render-fixtures)`);
+    }
+    for (const rel of actual.filter((rel) => !expected.includes(rel))) {
+      gaps.push(`a fresh render produces ${rel}, which ${FIXTURE_DIR.split(path.sep).join('/')} does not carry — regenerate the fixtures (bun run render-fixtures)`);
+    }
+    for (const rel of expected.filter((rel) => actual.includes(rel))) {
+      if (fs.readFileSync(path.join(fixtureDir, rel), 'utf8') !== fs.readFileSync(path.join(tmp, rel), 'utf8')) {
+        gaps.push(`${FIXTURE_DIR.split(path.sep).join('/')}/${rel} no longer matches a fresh render of the plugin tree — regenerate the fixtures (bun run render-fixtures)`);
+      }
+    }
+    return gaps;
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
 }
 
 module.exports = {
@@ -956,4 +1051,5 @@ module.exports = {
   scanMarketplaceSource,
   scanReadmeCommands,
   scanAuditSetGlobs,
+  scanOpencodeFixtures,
 };

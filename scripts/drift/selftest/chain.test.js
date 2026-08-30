@@ -47,25 +47,25 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   // negative: both halves carried is clean
   const fa1 = fixture({
-    'commands/implement.md': takesLabel,
-    'commands/plan.md': handsOffLabel,
+    'skills/implement/SKILL.md': takesLabel,
+    'skills/plan/SKILL.md': handsOffLabel,
   });
   assert.equal(scanContract(fa1, FEATURE_ARG_CONTRACTS).length, 0, 'both halves carried yields zero gaps');
 
   // positive: implement.md declares no argument-hint
   const fa2 = fixture({
-    'commands/implement.md': 'Resolve `$ARGUMENTS` to one feature label.\n',
-    'commands/plan.md': handsOffLabel,
+    'skills/implement/SKILL.md': 'Resolve `$ARGUMENTS` to one feature label.\n',
+    'skills/plan/SKILL.md': handsOffLabel,
   });
   const faGaps2 = scanContract(fa2, FEATURE_ARG_CONTRACTS);
   assert.equal(faGaps2.length, 1, 'flags implement.md when it declares no argument-hint');
-  assert.equal(faGaps2[0].source, path.join('commands', 'implement.md'), 'names implement.md');
+  assert.equal(faGaps2[0].source, path.join('skills', 'implement', 'SKILL.md'), 'names implement.md');
   assert.match(faGaps2[0].expectation, /argument-hint/, 'says which half is missing');
 
   // positive: implement.md declares the hint but never resolves the argument, so the hint is decoration
   const fa3 = fixture({
-    'commands/implement.md': '---\nargument-hint: "[feat/<label>]"\n---\nLoad the slices.\n',
-    'commands/plan.md': handsOffLabel,
+    'skills/implement/SKILL.md': '---\nargument-hint: "[feat/<label>]"\n---\nLoad the slices.\n',
+    'skills/plan/SKILL.md': handsOffLabel,
   });
   const faGaps3 = scanContract(fa3, FEATURE_ARG_CONTRACTS);
   assert.equal(faGaps3.length, 1, 'a declared-but-unresolved argument is still a gap');
@@ -73,18 +73,18 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   // positive: plan.md stopped naming the resolved successor — the other half of the same contract
   const fa4 = fixture({
-    'commands/implement.md': takesLabel,
-    'commands/plan.md': 'Tell the user the plan is ready for `/superdev:implement`.\n',
+    'skills/implement/SKILL.md': takesLabel,
+    'skills/plan/SKILL.md': 'Tell the user the plan is ready for `/superdev:implement`.\n',
   });
   const faGaps4 = scanContract(fa4, FEATURE_ARG_CONTRACTS);
   assert.equal(faGaps4.length, 1, 'flags plan.md when it hands off without the label');
-  assert.equal(faGaps4[0].source, path.join('commands', 'plan.md'), 'names plan.md');
+  assert.equal(faGaps4[0].source, path.join('skills', 'plan', 'SKILL.md'), 'names plan.md');
 
   // an argument-hint that names some other argument is not this contract: `/superdev:review` and
   // `/superdev:ship` both declare hints of their own, so the presence of a hint proves nothing
   const fa5 = fixture({
-    'commands/implement.md': '---\nargument-hint: "[BASE..HEAD]"\n---\nResolve `$ARGUMENTS`.\n',
-    'commands/plan.md': handsOffLabel,
+    'skills/implement/SKILL.md': '---\nargument-hint: "[BASE..HEAD]"\n---\nResolve `$ARGUMENTS`.\n',
+    'skills/plan/SKILL.md': handsOffLabel,
   });
   assert.equal(
     scanContract(fa5, FEATURE_ARG_CONTRACTS).length,
@@ -93,17 +93,17 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   );
 
   // an absent document is skipped, so a fixture carries only the halves it exercises
-  const fa6 = fixture({ 'commands/plan.md': handsOffLabel });
+  const fa6 = fixture({ 'skills/plan/SKILL.md': handsOffLabel });
   assert.equal(scanContract(fa6, FEATURE_ARG_CONTRACTS).length, 0, 'an absent document is skipped');
 
   // a store whose feature label uses another notation satisfies the contract exactly as a slash-prefixed
   // one does. The label's shape belongs to the active slice-store document (ADR 0019), so pinning one
   // notation here would go red for a store that is perfectly well configured.
   const fa7 = fixture({
-    'commands/implement.md':
+    'skills/implement/SKILL.md':
       '---\nargument-hint: "[<feature-label>  (empty = the only plan in the store)]"\n---\n' +
       'Resolve `$ARGUMENTS` to one feature label, and derive the scope from it.\n',
-    'commands/plan.md': 'Then run `/superdev:implement lite-perf` with the real label substituted.\n',
+    'skills/plan/SKILL.md': 'Then run `/superdev:implement lite-perf` with the real label substituted.\n',
   });
   assert.equal(scanContract(fa7, FEATURE_ARG_CONTRACTS).length, 0, 'a prefixless label is clean');
 
@@ -111,12 +111,12 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // frontmatter says "Run before /superdev:implement." incidentally, and a reword that drops the trailing
   // period ("...to build it.") must not turn the row green with the real handoff deleted
   const fa8 = fixture({
-    'commands/implement.md': takesLabel,
-    'commands/plan.md': 'Run before /superdev:implement to build it.\n',
+    'skills/implement/SKILL.md': takesLabel,
+    'skills/plan/SKILL.md': 'Run before /superdev:implement to build it.\n',
   });
   const faGaps8 = scanContract(fa8, FEATURE_ARG_CONTRACTS);
   assert.equal(faGaps8.length, 1, 'a bare prose mention is not a resolved handoff');
-  assert.equal(faGaps8[0].source, path.join('commands', 'plan.md'), 'names plan.md');
+  assert.equal(faGaps8[0].source, path.join('skills', 'plan', 'SKILL.md'), 'names plan.md');
 
   // --- UNATTENDED_CONTRACTS: scope-mode.md defines the token, and every document carrying a stop names
   // it (ADR 0016). A document that drops it asks a question nobody is there to answer, so an unattended
@@ -129,10 +129,10 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'Carrying `--unattended` → block instead of asking, per `scope-mode.md`\'s **Unattended** section.\n';
   const everyStop = {
     'references/scope-mode.md': definesToken,
-    'commands/implement.md': namesToken,
-    'commands/review.md': namesToken,
-    'commands/document.md': namesToken,
-    'commands/ship.md': namesToken,
+    'skills/implement/SKILL.md': namesToken,
+    'skills/review/SKILL.md': namesToken,
+    'skills/document/SKILL.md': namesToken,
+    'skills/ship/SKILL.md': namesToken,
     'references/implement-full.md': namesToken,
     'references/implement-lite.md': namesToken,
     'references/run-init.md': namesToken,
@@ -161,10 +161,10 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // positive: each stop-carrying document is checked on its own, not just the first. Dropping everything
   // fails both the token row and the read/apply-instruction row for that one document.
   for (const rel of [
-    'commands/implement.md',
-    'commands/review.md',
-    'commands/document.md',
-    'commands/ship.md',
+    'skills/implement/SKILL.md',
+    'skills/review/SKILL.md',
+    'skills/document/SKILL.md',
+    'skills/ship/SKILL.md',
     'references/implement-full.md',
     'references/implement-lite.md',
     'references/run-init.md',
@@ -181,7 +181,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // section that routes a stop to block, so the token governs nothing.
   const shipShaped = fixture({
     ...everyStop,
-    'commands/ship.md': '# ship\n\nCarries `--unattended` but points nowhere.\n',
+    'skills/ship/SKILL.md': '# ship\n\nCarries `--unattended` but points nowhere.\n',
   });
   const shipShapedGaps = scanContract(shipShaped, UNATTENDED_CONTRACTS, unattendedOpts);
   assert.equal(shipShapedGaps.length, 1, 'flags the missing read/apply instruction alone');
@@ -190,7 +190,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // positive: `[--unattended]` in a command's own `argument-hint` frontmatter is not a standing answer in
   // its body. Deleting every real mention from review.md/document.md/ship.md and leaving only the
   // frontmatter echo must still be caught — the exact false-green `stripFrontmatterFirst` exists to close.
-  for (const rel of ['commands/review.md', 'commands/document.md', 'commands/ship.md']) {
+  for (const rel of ['skills/review/SKILL.md', 'skills/document/SKILL.md', 'skills/ship/SKILL.md']) {
     const frontmatterOnly = fixture({
       ...everyStop,
       [rel]: '---\nargument-hint: "[foo] [--unattended]"\n---\n\n# doc\n\nNo body mention.\n',
@@ -209,7 +209,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // and never strips it — confirms the two contract tables can disagree on `stripFrontmatterFirst` safely
   assert.equal(
     scanContract(
-      fixture({ 'commands/implement.md': takesLabel, 'commands/plan.md': handsOffLabel }),
+      fixture({ 'skills/implement/SKILL.md': takesLabel, 'skills/plan/SKILL.md': handsOffLabel }),
       FEATURE_ARG_CONTRACTS,
     ).length,
     0,
@@ -231,11 +231,11 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'A denied dispatch → work inline and write the `**Degraded:**` entry, per `## Degraded passes`.\n';
   const everyConsumer = {
     'references/scope-mode.md': definesDegraded,
-    'commands/implement.md': namesDegraded,
-    'commands/review.md': namesDegraded,
-    'commands/document.md': namesDegraded,
-    'commands/ship.md': namesDegraded,
-    'commands/status.md': namesDegraded,
+    'skills/implement/SKILL.md': namesDegraded,
+    'skills/review/SKILL.md': namesDegraded,
+    'skills/document/SKILL.md': namesDegraded,
+    'skills/ship/SKILL.md': namesDegraded,
+    'skills/status/SKILL.md': namesDegraded,
     'references/implement-full.md': namesDegraded,
     'references/implement-lite.md': namesDegraded,
     'references/run-handoff.md': namesDegraded,
@@ -276,11 +276,11 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // positive: each consumer is checked on its own, so one dropping the wire cannot hide behind its
   // siblings — the failure this guards is exactly one command going quiet
   for (const rel of [
-    'commands/implement.md',
-    'commands/review.md',
-    'commands/document.md',
-    'commands/ship.md',
-    'commands/status.md',
+    'skills/implement/SKILL.md',
+    'skills/review/SKILL.md',
+    'skills/document/SKILL.md',
+    'skills/ship/SKILL.md',
+    'skills/status/SKILL.md',
     'references/implement-full.md',
     'references/implement-lite.md',
     'references/run-handoff.md',
@@ -294,7 +294,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // positive: the entry named with no pointer to the section leaves a reader a token and no rule
   const entryOnly = fixture({
     ...everyConsumer,
-    'commands/ship.md': '# ship\n\nCopy any `**Degraded:**` bullet into the body.\n',
+    'skills/ship/SKILL.md': '# ship\n\nCopy any `**Degraded:**` bullet into the body.\n',
   });
   const entryOnlyGaps = scanContract(entryOnly, DEGRADED_CONTRACTS, degradedOpts);
   assert.equal(entryOnlyGaps.length, 1, 'flags the missing section pointer alone');
@@ -335,7 +335,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       '`docs set` or `docs clear` call.\n',
   };
 
-  // commands/document.md: 2 terminal sites (a denied doc-writer/doc-reader dispatch; its own stage write).
+  // skills/document/SKILL.md: 2 terminal sites (a denied doc-writer/doc-reader dispatch; its own stage write).
   const documentPieces = {
     denial:
       "Say so in §5's report and write the `**Degraded:**` entry, quoting the classifier's refusal.\n" +
@@ -365,7 +365,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       "`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md}'s `## Publishing run state`\nsection.\n",
   };
 
-  // commands/review.md: 6 terminal sites (denied final-reviewer, denied full suite in §4, the "Declined"
+  // skills/review/SKILL.md: 6 terminal sites (denied final-reviewer, denied full suite in §4, the "Declined"
   // stop, the 3-strike-cap/unattended-block stop, the denied fix implementer, the clean-verdict writes).
   const reviewPieces = {
     finalReviewer:
@@ -407,12 +407,12 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     "defining section's own citation (`## Publishing run state`) rather than repeating one here.\n";
   const everyPublishSite = {
     'references/scope-mode.md': joinAll(scopeModePieces),
-    'commands/document.md': joinAll(documentPieces),
+    'skills/document/SKILL.md': joinAll(documentPieces),
     'references/run-handoff.md': joinAll(runHandoffPieces),
-    'commands/review.md': joinAll(reviewPieces),
+    'skills/review/SKILL.md': joinAll(reviewPieces),
     'references/run-init.md': pointsAtPublish,
-    'commands/implement.md': pointsAtPublish,
-    'commands/ship.md': pointsAtPublish,
+    'skills/implement/SKILL.md': pointsAtPublish,
+    'skills/ship/SKILL.md': pointsAtPublish,
     'references/implement-full.md': implementFullPointsAtPublish,
   };
 
@@ -457,17 +457,17 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     dropOne('references/scope-mode.md', scopeModePieces, key, 'scope-mode.md');
   }
   for (const key of Object.keys(documentPieces)) {
-    dropOne('commands/document.md', documentPieces, key, 'document.md');
+    dropOne('skills/document/SKILL.md', documentPieces, key, 'document.md');
   }
   for (const key of Object.keys(runHandoffPieces)) {
     dropOne('references/run-handoff.md', runHandoffPieces, key, 'run-handoff.md');
   }
   for (const key of Object.keys(reviewPieces)) {
-    dropOne('commands/review.md', reviewPieces, key, 'review.md');
+    dropOne('skills/review/SKILL.md', reviewPieces, key, 'review.md');
   }
 
   // positive: each of the four single-citation files is checked on its own too
-  for (const rel of ['references/run-init.md', 'commands/implement.md', 'commands/ship.md', 'references/implement-full.md']) {
+  for (const rel of ['references/run-init.md', 'skills/implement/SKILL.md', 'skills/ship/SKILL.md', 'references/implement-full.md']) {
     const dropped = fixture({ ...everyPublishSite, [rel]: '# doc\n\nWrite the stage. Nothing else.\n' });
     const gaps = scanContract(dropped, PUBLISH_RUN_STATE_CONTRACTS);
     assert.equal(gaps.length, 1, `flags ${rel} alone for dropping its citation`);
@@ -649,7 +649,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // checkout` and `## The run lock`, six on implement-full.md's Branch model, Merge step, integration
   // branch, Resume worktree-first step, Resume's own run-lock check, and its own run-lock pointer, one on
   // implement-lite.md's run-lock pointer, one each on run-init.md's and run-handoff.md's now-unqualified
-  // `run.lock` mentions, three on commands/review.md's §4 (the scope-checkout branch test, the full-suite
+  // `run.lock` mentions, three on skills/review/SKILL.md's §4 (the scope-checkout branch test, the full-suite
   // run's working directory, and the fix-implementer dispatch's working directory), two more on
   // run-handoff.md's own only full-suite run (its working directory, and its Red-branch fix implementer's
   // working directory), and one on merge-conflicts.md's winner-picking-overlap abort. Each is anchored on
@@ -739,8 +739,8 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'references/run-init.md': runInitPiece,
     'references/run-handoff.md': joinAll(runHandoffWorktreePieces),
     'references/merge-conflicts.md': mergeConflictsPiece,
-    'commands/review.md': joinAll(reviewWorktreePieces),
-    'commands/afk.md': afkLockPiece,
+    'skills/review/SKILL.md': joinAll(reviewWorktreePieces),
+    'skills/afk/SKILL.md': afkLockPiece,
   };
 
   // A row can only be exercised by a fixture that names its document: `scanContract()` skips a document
@@ -786,10 +786,10 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   // positive: dropping afk.md's no-lock fallback fires exactly one gap naming that file — the shape
   // every other row in this table has, and the one the missing fixture key withheld from this row
-  const droppedAfkLock = fixture({ ...everyScopeWorktreeSite, 'commands/afk.md': '' });
+  const droppedAfkLock = fixture({ ...everyScopeWorktreeSite, 'skills/afk/SKILL.md': '' });
   const afkLockGaps = scanContract(droppedAfkLock, SCOPE_WORKTREE_CONTRACTS);
   assert.equal(afkLockGaps.length, 1, 'scope-worktree: flags afk.md for dropping the no-lock fallback');
-  assert.equal(afkLockGaps[0].source, path.join('commands', 'afk.md'), 'names afk.md');
+  assert.equal(afkLockGaps[0].source, path.join('skills', 'afk', 'SKILL.md'), 'names afk.md');
 
   // --- scanAfkLockTierClaim: the row above is a presence check, and its expectation describes an
   // absence — the stale "a run lock only ever exists for a `lite`-tier scope" claim can regrow as a
@@ -798,7 +798,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   // negative: the fallback rule alone, with no tier claim, reports nothing
   assert.equal(
-    scanAfkLockTierClaim(fixture({ 'commands/afk.md': afkLockPiece })).length,
+    scanAfkLockTierClaim(fixture({ 'skills/afk/SKILL.md': afkLockPiece })).length,
     0,
     'afk-lock-tier: the fallback rule with no tier claim reports nothing',
   );
@@ -810,9 +810,9 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'A run.lock exists only for a lite-tier scope.\n',
   ]) {
     for (const text of [claim + afkLockPiece, afkLockPiece + claim]) {
-      const gaps = scanAfkLockTierClaim(fixture({ 'commands/afk.md': text }));
+      const gaps = scanAfkLockTierClaim(fixture({ 'skills/afk/SKILL.md': text }));
       assert.equal(gaps.length, 1, `afk-lock-tier: reports the stale claim "${claim.trim()}"`);
-      assert.equal(gaps[0].source, path.join('commands', 'afk.md'), 'names afk.md');
+      assert.equal(gaps[0].source, path.join('skills', 'afk', 'SKILL.md'), 'names afk.md');
       assert.match(gaps[0].expectation, /both tiers/, 'names what is true instead');
     }
   }
@@ -821,8 +821,8 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // to the one document whose eligibility bullet reads the lock
   assert.equal(
     scanAfkLockTierClaim(fixture({
-      'commands/review.md': 'A run lock only ever exists for a `lite`-tier scope.\n',
-      'commands/afk.md': afkLockPiece,
+      'skills/review/SKILL.md': 'A run lock only ever exists for a `lite`-tier scope.\n',
+      'skills/afk/SKILL.md': afkLockPiece,
     })).length,
     0,
     'afk-lock-tier: a sibling command file is unaffected',
@@ -867,16 +867,16 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'names merge-conflicts.md',
   );
 
-  // positive: dropping any one commands/review.md clause fires exactly one gap naming that file
+  // positive: dropping any one skills/review/SKILL.md clause fires exactly one gap naming that file
   for (const key of Object.keys(reviewWorktreePieces)) {
     const remaining = Object.entries(reviewWorktreePieces)
       .filter(([k]) => k !== key)
       .map(([, v]) => v)
       .join('');
-    const dropped = fixture({ ...everyScopeWorktreeSite, 'commands/review.md': remaining });
+    const dropped = fixture({ ...everyScopeWorktreeSite, 'skills/review/SKILL.md': remaining });
     const gaps = scanContract(dropped, SCOPE_WORKTREE_CONTRACTS);
-    assert.equal(gaps.length, 1, `scope-worktree: flags commands/review.md alone for dropping its "${key}" clause`);
-    assert.equal(gaps[0].source, path.join('commands', 'review.md'), 'names commands/review.md');
+    assert.equal(gaps.length, 1, `scope-worktree: flags skills/review/SKILL.md alone for dropping its "${key}" clause`);
+    assert.equal(gaps[0].source, path.join('skills', 'review', 'SKILL.md'), 'names skills/review/SKILL.md');
   }
 
   // absent files are skipped, matching every other contract table
@@ -898,9 +898,9 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'and otherwise review inline and record the entry.\n';
   const everyDispatcher = {
     'references/scope-mode.md': definesAuthorship,
-    'commands/review.md': carriesAuthorship,
-    'commands/document.md': carriesAuthorship,
-    'commands/implement.md': carriesAuthorship,
+    'skills/review/SKILL.md': carriesAuthorship,
+    'skills/document/SKILL.md': carriesAuthorship,
+    'skills/implement/SKILL.md': carriesAuthorship,
     'references/implement-full.md': carriesAuthorship,
   };
   const authorshipOpts = { stripFrontmatterFirst: true };
@@ -915,9 +915,9 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // positive: each dispatcher is checked on its own, because one call site reverting to an unconditional
   // block is exactly the one-sided pin ADR 0035 names — the central rule reads enforced and never fires
   for (const rel of [
-    'commands/review.md',
-    'commands/document.md',
-    'commands/implement.md',
+    'skills/review/SKILL.md',
+    'skills/document/SKILL.md',
+    'skills/implement/SKILL.md',
     'references/implement-full.md',
   ]) {
     const reverted = fixture({
@@ -971,9 +971,9 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   const carriesFullCap = carriesCap + 'A denied simplicity-reviewer stays outside that cap.\n';
   const everyRecorder = {
     'references/scope-mode.md': definesCap,
-    'commands/review.md': carriesCap,
-    'commands/document.md': carriesCap,
-    'commands/implement.md': carriesCap,
+    'skills/review/SKILL.md': carriesCap,
+    'skills/document/SKILL.md': carriesCap,
+    'skills/implement/SKILL.md': carriesCap,
     'references/implement-full.md': carriesFullCap,
   };
   const capOpts = { stripFrontmatterFirst: true };
@@ -988,9 +988,9 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // positive: a call site reverting to plain `degraded add` writes a bullet the count cannot see, so the
   // cap never fires and the run rides on to the platform's own kill
   for (const rel of [
-    'commands/review.md',
-    'commands/document.md',
-    'commands/implement.md',
+    'skills/review/SKILL.md',
+    'skills/document/SKILL.md',
+    'skills/implement/SKILL.md',
     'references/implement-full.md',
   ]) {
     const plainAdd = fixture({
@@ -1008,9 +1008,9 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // positive: a call site that records but never reads the count continues inline on every denial, which
   // is the behaviour the cap exists to bound
   for (const rel of [
-    'commands/review.md',
-    'commands/document.md',
-    'commands/implement.md',
+    'skills/review/SKILL.md',
+    'skills/document/SKILL.md',
+    'skills/implement/SKILL.md',
     'references/implement-full.md',
   ]) {
     const noRead = fixture({
@@ -1043,9 +1043,9 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'Record the denial with `scope.js degraded add-denial`, then read `scope.js get denials`: block once\n' +
     'the count reaches that cap.\n';
   for (const rel of [
-    'commands/review.md',
-    'commands/document.md',
-    'commands/implement.md',
+    'skills/review/SKILL.md',
+    'skills/document/SKILL.md',
+    'skills/implement/SKILL.md',
     'references/implement-full.md',
   ]) {
     const untied = fixture({
@@ -1085,9 +1085,9 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // positive: a call site restating the number — even the correct one — is what the platform's own
   // three-denial kill silently outraces the day it drifts to a different one
   for (const rel of [
-    'commands/review.md',
-    'commands/document.md',
-    'commands/implement.md',
+    'skills/review/SKILL.md',
+    'skills/document/SKILL.md',
+    'skills/implement/SKILL.md',
     'references/implement-full.md',
   ]) {
     const restatesNumber = fixture({
@@ -1105,7 +1105,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   for (const phrase of ['Block on the second denial.\n', 'The cap is two.\n', 'Block at two denials.\n']) {
     const restatesShape = fixture({
       ...everyRecorder,
-      'commands/review.md': everyRecorder['commands/review.md'] + phrase,
+      'skills/review/SKILL.md': everyRecorder['skills/review/SKILL.md'] + phrase,
     });
     const gaps = scanDenialCapNumberSilence(restatesShape);
     assert.equal(gaps.length, 1, `flags "${phrase.trim()}" for restating the cap's own number`);
@@ -1219,11 +1219,11 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   // positive: reverting the dispatch to inlining the DoD text is caught
   const dc1 = fixture({
-    'commands/review.md': 'take `<run-root>/dod.md` as the `acceptance` for both reviewers.\n',
+    'skills/review/SKILL.md': 'take `<run-root>/dod.md` as the `acceptance` for both reviewers.\n',
   });
   const dcGaps1 = scanContract(dc1, DERIVED_CRITERIA_CONTRACTS);
   assert.equal(dcGaps1.length, 1, 'flags a dispatch that inlines the DoD instead of handing its path');
-  assert.equal(dcGaps1[0].source, path.join('commands', 'review.md'), 'names review.md');
+  assert.equal(dcGaps1[0].source, path.join('skills', 'review', 'SKILL.md'), 'names review.md');
 
   // positive from the reviewer's side: dropping the derivation step is the same drift
   const dc2 = fixture({
@@ -1252,30 +1252,30 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   assert.equal(lvGaps1[0].source, path.join('references', 'scope-mode.md'), 'names scope-mode.md');
 
   // positive from a consumer's side: a command that stopped pointing at the rule validates nothing
-  const lv2 = fixture({ 'commands/afk.md': '# superdev afk\n\nSelect the next scope anchor.\n' });
+  const lv2 = fixture({ 'skills/afk/SKILL.md': '# superdev afk\n\nSelect the next scope anchor.\n' });
   const lvGaps2 = scanContract(lv2, LABEL_VALIDATION_CONTRACTS);
   assert.equal(lvGaps2.length, 1, 'flags a consumer that dropped its wire to the rule');
-  assert.equal(lvGaps2[0].source, path.join('commands', 'afk.md'), 'names afk.md');
+  assert.equal(lvGaps2[0].source, path.join('skills', 'afk', 'SKILL.md'), 'names afk.md');
 
   // positive from the other consumer's side: implement.md dropping its wire is the same drift
   const lvImplement = fixture({
-    'commands/implement.md': '# superdev implement\n\nDerive the scope from the resolved feature label.\n',
+    'skills/implement/SKILL.md': '# superdev implement\n\nDerive the scope from the resolved feature label.\n',
   });
   const lvImplementGaps = scanContract(lvImplement, LABEL_VALIDATION_CONTRACTS);
   assert.equal(lvImplementGaps.length, 1, 'flags implement.md that dropped its wire to the rule');
-  assert.equal(lvImplementGaps[0].source, path.join('commands', 'implement.md'), 'names implement.md');
+  assert.equal(lvImplementGaps[0].source, path.join('skills', 'implement', 'SKILL.md'), 'names implement.md');
 
   // positive, the weaker revert: a consumer that reverted to the pre-change slug-only wording keeps its
   // wire to `scope-mode.md`'s scope-slug rule intact but never asserts both segments are validated — the
-  // exact text `commands/afk.md` carried before this scope, which a whole-file revert would restore
+  // exact text `skills/afk/SKILL.md` carried before this scope, which a whole-file revert would restore
   const lv3 = fixture({
-    'commands/afk.md':
+    'skills/afk/SKILL.md':
       "**Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s scope-slug rule before you go on.**\n\n" +
       "- Its feature label matches that scope-slug rule. A label that fails it is skipped (below),\n",
   });
   const lvGaps3 = scanContract(lv3, LABEL_VALIDATION_CONTRACTS);
   assert.equal(lvGaps3.length, 1, 'flags a consumer reverted to slug-only wording, wire intact');
-  assert.equal(lvGaps3[0].source, path.join('commands', 'afk.md'), 'names afk.md');
+  assert.equal(lvGaps3[0].source, path.join('skills', 'afk', 'SKILL.md'), 'names afk.md');
 
   // absent files are skipped, matching every other contract table
   assert.equal(
@@ -1380,25 +1380,25 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   // positive: a status.md that renders the report itself instead of running the verb
   const vc1 = fixture({
-    'commands/status.md': 'Read each ledger and print one block per scope.\n',
+    'skills/status/SKILL.md': 'Read each ledger and print one block per scope.\n',
   });
   const vcGaps1 = scanContract(vc1, VERB_CONTRACTS);
   assert.equal(vcGaps1.length, 1, 'flags a chain document that stopped invoking its verb');
-  assert.equal(vcGaps1[0].source, path.join('commands', 'status.md'), 'names status.md');
+  assert.equal(vcGaps1[0].source, path.join('skills', 'status', 'SKILL.md'), 'names status.md');
 
   // positive: naming scope.js without the verb is not enough — the pattern pins verb and argument
   const vc2 = fixture({
-    'commands/document.md': 'Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js` when done.\n',
+    'skills/document/SKILL.md': 'Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js` when done.\n',
   });
   const vcGaps2 = scanContract(vc2, VERB_CONTRACTS);
-  // Two, because `commands/document.md` carries two rows: its stage write and its read of the
+  // Two, because `skills/document/SKILL.md` carries two rows: its stage write and its read of the
   // inline-doc-pass record (ADR 0031). A bare mention satisfies neither.
   assert.equal(vcGaps2.length, 2, 'a bare scope.js mention without the verb is still a gap');
 
   // negative: the full invocation with the plugin-root path prefix satisfies the row — both of
-  // `commands/document.md`'s rows, so the fixture carries both invocations
+  // `skills/document/SKILL.md`'s rows, so the fixture carries both invocations
   const vc3 = fixture({
-    'commands/document.md':
+    'skills/document/SKILL.md':
       'Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js stage set documented --root <run-root>`.\n' +
       'Read it first with `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js get docs --root <run-root>`.\n',
   });
@@ -1414,11 +1414,11 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   // positive: afk.md reads a scope's stage from the ledger directly
   const vcAfk = fixture({
-    'commands/afk.md': 'Read the ledger header to find the stage.\n',
+    'skills/afk/SKILL.md': 'Read the ledger header to find the stage.\n',
   });
   const vcAfkGaps = scanContract(vcAfk, VERB_CONTRACTS);
   assert.equal(vcAfkGaps.length, 1, 'flags afk.md for reading the stage without `scope.js get stage`');
-  assert.equal(vcAfkGaps[0].source, path.join('commands', 'afk.md'), 'names afk.md');
+  assert.equal(vcAfkGaps[0].source, path.join('skills', 'afk', 'SKILL.md'), 'names afk.md');
 
   // positive: implement-full.md moves a slice row by hand-editing plan.md
   const vcImplementFull = fixture({
@@ -1449,19 +1449,19 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   // positive: publish-kb.md checks the scope branch some other way than the verb
   const vcPublishKb = fixture({
-    'commands/publish-kb.md': 'Confirm the scope branch is merged before staging any page.\n',
+    'skills/publish-kb/SKILL.md': 'Confirm the scope branch is merged before staging any page.\n',
   });
   const vcPublishKbGaps = scanContract(vcPublishKb, VERB_CONTRACTS);
   assert.equal(vcPublishKbGaps.length, 1, 'flags publish-kb.md for reading the scope branch without `scope.js get branch`');
-  assert.equal(vcPublishKbGaps[0].source, path.join('commands', 'publish-kb.md'), 'names publish-kb.md');
+  assert.equal(vcPublishKbGaps[0].source, path.join('skills', 'publish-kb', 'SKILL.md'), 'names publish-kb.md');
 
   // positive: plan.md reconstructs the scope branch from the label instead of reading it
   const vcPlan = fixture({
-    'commands/plan.md': 'Build the branch name from `<type>/<scope>` for the append refusal.\n',
+    'skills/plan/SKILL.md': 'Build the branch name from `<type>/<scope>` for the append refusal.\n',
   });
   const vcPlanGaps = scanContract(vcPlan, VERB_CONTRACTS);
   assert.equal(vcPlanGaps.length, 1, 'flags plan.md for reconstructing the branch instead of `scope.js get branch --root`');
-  assert.equal(vcPlanGaps[0].source, path.join('commands', 'plan.md'), 'names plan.md');
+  assert.equal(vcPlanGaps[0].source, path.join('skills', 'plan', 'SKILL.md'), 'names plan.md');
 
   // absent files are skipped, matching every other contract table
   assert.equal(
@@ -1473,7 +1473,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // positive: review.md and run-handoff.md keep their other verbs but drop the `unresolved add`/
   // `unresolved clear` pair, going back to hand-editing or hand-parsing the ledger's `**Unresolved:**` line
   const uvReview = fixture({
-    'commands/review.md':
+    'skills/review/SKILL.md':
       'Write its stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set reviewed --root <run-root>`. ' +
       'Read the anchor title with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get anchor --root <run-root>`. ' +
       'Clear the doc record with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs clear --root <run-root>`.\n',
@@ -1485,7 +1485,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'flags review.md for dropping both unresolved verbs and `deferred add` (ADR 0035)',
   );
   assert.ok(
-    uvReviewGaps.every((g) => g.source === path.join('commands', 'review.md')),
+    uvReviewGaps.every((g) => g.source === path.join('skills', 'review', 'SKILL.md')),
     'all three gaps name review.md',
   );
 
@@ -1502,7 +1502,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   // negative: review.md carrying all six of its rows — both unresolved verbs and `deferred add` — is clean
   const uvClean = fixture({
-    [path.join('commands', 'review.md')]:
+    [path.join('skills', 'review', 'SKILL.md')]:
       'Write its stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set reviewed --root <run-root>`. ' +
       'Read the anchor title with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get anchor --root <run-root>`. ' +
       'Write it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add "<text>" --root <run-root>`. ' +
@@ -1521,7 +1521,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // unwritten one, or one written and never carried — so each row is exercised on its own document.
   {
     const writeOnly = fixture({
-      'commands/review.md':
+      'skills/review/SKILL.md':
         'Write its stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set reviewed --root <run-root>`. ' +
         'Read the anchor with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get anchor --root <run-root>`. ' +
         'Write it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add "<text>" --root <run-root>`. ' +
@@ -1533,7 +1533,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     assert.match(writeGaps[0].expectation, /deferred add/, 'the gap names the verb it wants');
 
     const readOnly = fixture({
-      'commands/ship.md':
+      'skills/ship/SKILL.md':
         'Read the stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>`. ' +
         'Set it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set shipped --root <run-root>`. ' +
         'Read them with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get unresolved --root <run-root>` and ' +
@@ -1547,11 +1547,11 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // positive: ship.md drops the `scope.js get unresolved`/`get degraded` reads entirely, going back to
   // hand-reading the ledger (or the cwd-dependent `status`, which is the failure Important 2 closed)
   const shipNoStatus = fixture({
-    'commands/ship.md': 'Ask whether anything stands, from memory of the review.\n',
+    'skills/ship/SKILL.md': 'Ask whether anything stands, from memory of the review.\n',
   });
   const shipVerbGaps = scanContract(shipNoStatus, VERB_CONTRACTS);
   assert.ok(
-    shipVerbGaps.some((g) => g.source === path.join('commands', 'ship.md')),
+    shipVerbGaps.some((g) => g.source === path.join('skills', 'ship', 'SKILL.md')),
     'flags a ship.md that stopped reading the unresolved and degrade records through `scope.js get`',
   );
 
@@ -1564,7 +1564,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     path.join('agents', 'implementer.md'),
     path.join('references', 'implement-lite.md'),
     path.join('agents', 'slice-reviewer.md'),
-    path.join('commands', 'document.md'),
+    path.join('skills', 'document', 'SKILL.md'),
   ]) {
     const dropped = fixture({ [rel]: '# doc\n\nRuns its own test command, no reference to speak of.\n' });
     const tsGaps = scanContract(dropped, TEST_SELECTION_CONTRACTS);
@@ -1618,12 +1618,12 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   // positive: review.md drops the controller-run full suite and goes back to just handing over the command
   const fs1 = fixture({
-    'commands/review.md': 'Read `docs/agents/verification.md` for the test command and pass it to final-reviewer.\n',
+    'skills/review/SKILL.md': 'Read `docs/agents/verification.md` for the test command and pass it to final-reviewer.\n',
   });
   const fsGaps1 = scanContract(fs1, FULL_SUITE_CONTRACTS);
   assert.equal(fsGaps1.length, 4, 'flags a review.md missing all four of its rows: the controller-run suite, the dispatch clause, fail-is-Critical, and stage-not-advance');
   assert.ok(
-    fsGaps1.every((g) => g.source === path.join('commands', 'review.md')),
+    fsGaps1.every((g) => g.source === path.join('skills', 'review', 'SKILL.md')),
     'all four gaps name review.md',
   );
 
@@ -1640,19 +1640,19 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   // positive: review.md drops the failing-suite-is-Critical rule and the stage-not-advance rule
   const fs4 = fixture({
-    'commands/review.md': 'Run the full suite yourself, before dispatching `final-reviewer`.\n',
+    'skills/review/SKILL.md': 'Run the full suite yourself, before dispatching `final-reviewer`.\n',
   });
   const fsGaps4 = scanContract(fs4, FULL_SUITE_CONTRACTS);
   assert.equal(fsGaps4.length, 3, 'flags a review.md missing the dispatch clause, the failing-suite-is-Critical rule, and the stage-not-advance rule');
   assert.ok(
-    fsGaps4.every((g) => g.source === path.join('commands', 'review.md')),
+    fsGaps4.every((g) => g.source === path.join('skills', 'review', 'SKILL.md')),
     'all three gaps name review.md',
   );
 
   // positive (RED reproduction): review.md's dispatch sentence still leaks the optional-re-run wording
   // final-reviewer.md itself no longer carries — the exact live-path leak this row exists to close
   const fs9 = fixture({
-    'commands/review.md':
+    'skills/review/SKILL.md':
       "Run the full suite yourself, before dispatching `final-reviewer`. A `fail` here is itself a " +
       'Critical finding — fold it into the fix loop below. The stage does **not** advance while it ' +
       "stands. hand it that result instead, and tell it its own re-run stays optional, never the scope's " +
@@ -1660,7 +1660,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   });
   const fsGaps9 = scanContract(fs9, FULL_SUITE_CONTRACTS);
   assert.equal(fsGaps9.length, 1, "flags a review.md whose dispatch clause still leaks the optional re-run sentence");
-  assert.equal(fsGaps9[0].source, path.join('commands', 'review.md'), 'names review.md');
+  assert.equal(fsGaps9[0].source, path.join('skills', 'review', 'SKILL.md'), 'names review.md');
 
   // positive: final-reviewer.md drops the fail-means-No rule
   const fs5 = fixture({
@@ -1689,14 +1689,14 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // positive: review.md keeps the fail-is-Critical wording but drops the clause that actually blocks the
   // handoff — the anti-pattern the acceptance criteria for this row names directly
   const fs6 = fixture({
-    'commands/review.md':
+    'skills/review/SKILL.md':
       "Run the full suite yourself, before dispatching `final-reviewer`. A `fail` here is itself a " +
       'Critical finding — fold it into the fix loop below.\n',
   });
   const fsGaps6 = scanContract(fs6, FULL_SUITE_CONTRACTS);
   assert.equal(fsGaps6.length, 2, 'flags a review.md that names the finding but drops the dispatch clause and the stage-not-advance clause');
   assert.ok(
-    fsGaps6.every((g) => g.source === path.join('commands', 'review.md')),
+    fsGaps6.every((g) => g.source === path.join('skills', 'review', 'SKILL.md')),
     'both gaps name review.md',
   );
 
@@ -1724,7 +1724,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   // negative: all seven rows carried
   const fs3 = fixture({
-    'commands/review.md':
+    'skills/review/SKILL.md':
       "Run the full suite yourself, before dispatching `final-reviewer`. A `fail` here is itself a " +
       'Critical finding — fold it into the fix loop below. The stage does **not** advance while it ' +
       'stands. Scope mode: hand it that result and tell it to review against that result, running no ' +
@@ -1739,7 +1739,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // {0,20} to {0,60}, matching every other row in this table, since a {0,20} gap breaks on a rewording as
   // small as adding a few connecting words
   const fs10 = fixture({
-    'commands/review.md':
+    'skills/review/SKILL.md':
       'Run the full suite yourself, before dispatching `final-reviewer`. A `fail` here is itself a ' +
       'Critical finding — fold it into the fix loop below. The stage does **not** advance while it ' +
       'stands. Scope mode: hand it that result, and then be sure to tell it to review against that ' +
@@ -1768,20 +1768,20 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   // positive: §4 keeps its fix loop but states no boundary at all
   const fb1 = fixture({
-    'commands/review.md':
+    'skills/review/SKILL.md':
       'Ask once before fixing, then dispatch one `superdev:implementer` with the complete findings list.\n',
   });
   const fbGaps1 = scanContract(fb1, FIX_BOUNDARY_CONTRACTS);
   assert.equal(fbGaps1.length, 3, 'flags all three rows on a review.md whose fix loop states no scope boundary');
   assert.ok(
-    fbGaps1.every((g) => g.source === path.join('commands', 'review.md')),
+    fbGaps1.every((g) => g.source === path.join('skills', 'review', 'SKILL.md')),
     'every gap names review.md',
   );
 
   // positive: the boundary is stated but names no destination and no exit, so the finding has nowhere to
   // go and a deferred one still deadlocks the run
   const fb2 = fixture({
-    'commands/review.md':
+    'skills/review/SKILL.md':
       'The fix loop changes how the code meets the Definition of Done. A remedy that adds a capability ' +
       'the Definition of Done never named is outside it.\n',
   });
@@ -1795,7 +1795,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // would read satisfied while §4's instruction is gone — the one-sided pin this check exists to prevent,
   // and the shape its own first draft had
   const fb4 = fixture({
-    'commands/review.md':
+    'skills/review/SKILL.md':
       '### Deferred to a plan\n[a finding whose remedy would add a capability the Definition of Done ' +
       "never named — §4's boundary; one line each, with the follow-up `/superdev:plan`]\n",
   });
@@ -1808,7 +1808,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // positive (RED): boundary plus destination, but no exit — a deferred finding still deadlocks the run,
   // since nothing states that it skips the fix loop and counts toward a clean verdict
   const fb3 = fixture({
-    'commands/review.md':
+    'skills/review/SKILL.md':
       'The fix loop changes how the code meets the Definition of Done. A remedy that adds a capability ' +
       'the Definition of Done never named is recorded and handed to `/superdev:plan`, while repairing a ' +
       'defect in what the Definition of Done does name stays in this loop.\n',
@@ -1819,7 +1819,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   // negative (GREEN): boundary, destination, and exit together satisfy all three rows
   const fb5 = fixture({
-    'commands/review.md':
+    'skills/review/SKILL.md':
       'The fix loop changes how the code meets the Definition of Done. A remedy that adds a capability ' +
       'the Definition of Done never named is recorded and handed to `/superdev:plan`, while repairing a ' +
       `defect in what the Definition of Done does name stays in this loop. ${exitClause}\n`,
@@ -1837,8 +1837,8 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   // negative: three silent documents, plus ship.md's past-tense mention of a run that already happened
   const ds1 = fixture({
-    'commands/document.md': 'Dispatch `superdev:doc-writer` over the range, then dispatch `doc-reader`.\n',
-    'commands/ship.md':
+    'skills/document/SKILL.md': 'Dispatch `superdev:doc-writer` over the range, then dispatch `doc-reader`.\n',
+    'skills/ship/SKILL.md':
       "Stage the pull request only once `/superdev:implement`'s run handoff has run the full suite and " +
       'found it green.\n',
     'agents/doc-writer.md': 'Reconcile the in-repo docs with the code over the range you are handed.\n',
@@ -1850,21 +1850,21 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   );
 
   // positive: document.md grows a reflexive suite run
-  const ds2 = fixture({ 'commands/document.md': 'Run the full suite yourself before the doc pass.\n' });
+  const ds2 = fixture({ 'skills/document/SKILL.md': 'Run the full suite yourself before the doc pass.\n' });
   const dsGaps2 = scanDocStepsNoSuite(ds2);
   assert.equal(dsGaps2.length, 1, 'flags a document.md that runs the full suite itself');
-  assert.equal(dsGaps2[0].source, path.join('commands', 'document.md'), 'names document.md');
+  assert.equal(dsGaps2[0].source, path.join('skills', 'document', 'SKILL.md'), 'names document.md');
   assert.match(dsGaps2[0].expectation, /full suite/i, 'the gap names the run it found');
 
   // positive: ship.md grows the take-the-command-and-run-it shape run handoff uses
   const ds3 = fixture({
-    'commands/ship.md':
+    'skills/ship/SKILL.md':
       'Take the full command from `docs/agents/verification.md` and run it once over the scope branch ' +
       'before opening the request.\n',
   });
   const dsGaps3 = scanDocStepsNoSuite(ds3);
   assert.equal(dsGaps3.length, 1, 'flags a ship.md that takes the full command and runs it');
-  assert.equal(dsGaps3[0].source, path.join('commands', 'ship.md'), 'names ship.md');
+  assert.equal(dsGaps3[0].source, path.join('skills', 'ship', 'SKILL.md'), 'names ship.md');
 
   // positive: the doc-writer grows one too — a subagent's run is the same duplicate as a command's
   const ds4 = fixture({ 'agents/doc-writer.md': 'Run the full test suite itself once the docs agree.\n' });
@@ -1873,15 +1873,15 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   assert.equal(dsGaps4[0].source, path.join('agents', 'doc-writer.md'), 'names doc-writer.md');
 
   // positive: the bare imperative, no reflexive pronoun — the ordinary way this instruction gets written
-  const ds5 = fixture({ 'commands/document.md': 'Run the full suite before opening the pull request.\n' });
+  const ds5 = fixture({ 'skills/document/SKILL.md': 'Run the full suite before opening the pull request.\n' });
   const dsGaps5 = scanDocStepsNoSuite(ds5);
   assert.equal(dsGaps5.length, 1, 'flags a document.md with the bare imperative, no reflexive pronoun');
-  assert.equal(dsGaps5[0].source, path.join('commands', 'document.md'), 'names document.md');
+  assert.equal(dsGaps5[0].source, path.join('skills', 'document', 'SKILL.md'), 'names document.md');
 
-  const ds6 = fixture({ 'commands/ship.md': 'Re-run the full suite before staging the pull request.\n' });
+  const ds6 = fixture({ 'skills/ship/SKILL.md': 'Re-run the full suite before staging the pull request.\n' });
   const dsGaps6 = scanDocStepsNoSuite(ds6);
   assert.equal(dsGaps6.length, 1, 'flags a ship.md with the bare re-run imperative');
-  assert.equal(dsGaps6[0].source, path.join('commands', 'ship.md'), 'names ship.md');
+  assert.equal(dsGaps6[0].source, path.join('skills', 'ship', 'SKILL.md'), 'names ship.md');
 
   const ds7 = fixture({ 'agents/doc-writer.md': 'Run the full test suite once the docs agree.\n' });
   const dsGaps7 = scanDocStepsNoSuite(ds7);
@@ -1893,7 +1893,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   assert.equal(
     scanDocStepsNoSuite(
       fixture({
-        'commands/ship.md':
+        'skills/ship/SKILL.md':
           "Stage the pull request only once `/superdev:implement`'s run handoff has run the full suite " +
           'and found it green.\n',
       }),
@@ -1907,7 +1907,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   assert.equal(
     scanDocStepsNoSuite(
       fixture({
-        'commands/ship.md':
+        'skills/ship/SKILL.md':
           'The run handoff has already run the full suite and found it green.\n',
       }),
     ).length,
@@ -1917,7 +1917,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   assert.equal(
     scanDocStepsNoSuite(
       fixture({
-        'commands/document.md': 'Scopes that have not run the full suite block here.\n',
+        'skills/document/SKILL.md': 'Scopes that have not run the full suite block here.\n',
       }),
     ).length,
     0,
@@ -1926,7 +1926,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   assert.equal(
     scanDocStepsNoSuite(
       fixture({
-        'commands/ship.md': 'The run handoff has  \nrun the full suite and found it green.\n',
+        'skills/ship/SKILL.md': 'The run handoff has  \nrun the full suite and found it green.\n',
       }),
     ).length,
     0,
@@ -1936,18 +1936,18 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // positive: the bare imperative with "full" dropped — the ordinary way a maintainer writes this shape
   // without the word "full" in it
   const ds8 = fixture({
-    'commands/ship.md': 'Re-run the suite over the scope branch before the handoff.\n',
+    'skills/ship/SKILL.md': 'Re-run the suite over the scope branch before the handoff.\n',
   });
   const dsGaps8 = scanDocStepsNoSuite(ds8);
   assert.equal(dsGaps8.length, 1, 'flags a ship.md that re-runs the suite before the handoff');
-  assert.equal(dsGaps8[0].source, path.join('commands', 'ship.md'), 'names ship.md');
+  assert.equal(dsGaps8[0].source, path.join('skills', 'ship', 'SKILL.md'), 'names ship.md');
 
   const ds9 = fixture({
-    'commands/document.md': 'Run the whole suite once more before staging the pull request.\n',
+    'skills/document/SKILL.md': 'Run the whole suite once more before staging the pull request.\n',
   });
   const dsGaps9 = scanDocStepsNoSuite(ds9);
   assert.equal(dsGaps9.length, 1, 'flags a document.md that runs the whole suite once more');
-  assert.equal(dsGaps9[0].source, path.join('commands', 'document.md'), 'names document.md');
+  assert.equal(dsGaps9[0].source, path.join('skills', 'document', 'SKILL.md'), 'names document.md');
 
   // negative: the trailing "before" anchor is what keeps the bare-suite pattern off final-reviewer.md's
   // legitimate ad-hoc mention, which carries no "before" nearby
@@ -2057,14 +2057,14 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // positive: afk.md keeps the stage table but never reads the slice types — the shape that strands such
   // a scope in a review it skips, which is the defect this contract exists to catch
   const afkR1 = fixture({
-    'commands/afk.md':
+    'skills/afk/SKILL.md':
       '| `merged` | `/superdev:review <BASE>..<feature-label> --unattended` |\n' +
       '| `documented-unreviewed` | `/superdev:review <BASE>..<feature-label> --unattended` |\n',
   });
   const afkGaps1 = scanContract(afkR1, AFK_ROUTING_CONTRACTS);
   assert.equal(afkGaps1.length, 2, 'flags an afk.md that routes both stages into the review unconditionally');
   assert.ok(
-    afkGaps1.every((g) => g.source === path.join('commands', 'afk.md')),
+    afkGaps1.every((g) => g.source === path.join('skills', 'afk', 'SKILL.md')),
     'both gaps name afk.md',
   );
 
@@ -2072,20 +2072,20 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // half-fix that still cannot finish a sweep, since ship refuses a scope whose review never ran
   const afkGaps2 = scanContract(
     fixture({
-      'commands/afk.md':
+      'skills/afk/SKILL.md':
         'When no row reads `behavior`, `merged` routes to `/superdev:document <BASE>..<feature-label> ' +
         '--unattended`.\n`documented-unreviewed` routes to `/superdev:review` as always.\n',
     }),
     AFK_ROUTING_CONTRACTS,
   );
   assert.equal(afkGaps2.length, 1, 'flags an afk.md that fixes only the `merged` row');
-  assert.equal(afkGaps2[0].source, path.join('commands', 'afk.md'), 'names afk.md');
+  assert.equal(afkGaps2[0].source, path.join('skills', 'afk', 'SKILL.md'), 'names afk.md');
 
   // positive (RED reproduction): the real exception paragraph with both `--unattended` tokens stripped —
   // prose the stage-table row scan never reaches, so nothing else in this file would have caught it
   const afkGapsNoToken = scanContract(
     fixture({
-      'commands/afk.md':
+      'skills/afk/SKILL.md':
         'When no row reads `behavior`, `merged` routes to `/superdev:document <BASE>..<feature-label>` ' +
         'and `documented-unreviewed` routes to `/superdev:ship <scope>`, in place of the two review rows ' +
         'above.\n',
@@ -2094,30 +2094,30 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   );
   assert.equal(afkGapsNoToken.length, 2, 'flags both rows when `--unattended` is stripped from each');
   assert.ok(
-    afkGapsNoToken.every((g) => g.source === path.join('commands', 'afk.md')),
+    afkGapsNoToken.every((g) => g.source === path.join('skills', 'afk', 'SKILL.md')),
     'both gaps name afk.md',
   );
 
   // positive: ship.md drops its own half — the other side of the same agreement
   const afkGaps3 = scanContract(
     fixture({
-      'commands/ship.md':
+      'skills/ship/SKILL.md':
         'Name exactly what has not run (`/superdev:review`, `/superdev:document`, or both) and ask once.\n',
     }),
     AFK_ROUTING_CONTRACTS,
   );
   assert.equal(afkGaps3.length, 1, "flags a ship.md that stopped exempting an all-mechanical/docs scope");
-  assert.equal(afkGaps3[0].source, path.join('commands', 'ship.md'), 'names ship.md');
+  assert.equal(afkGaps3[0].source, path.join('skills', 'ship', 'SKILL.md'), 'names ship.md');
 
   // negative: both documents carry their halves, hard-wrapped the way the real prose is
   assert.equal(
     scanContract(
       fixture({
-        'commands/afk.md':
+        'skills/afk/SKILL.md':
           'Read each slice\'s `type`. When no\nrow reads `behavior`, `merged` routes to\n' +
           '`/superdev:document <BASE>..<feature-label> --unattended` and `documented-unreviewed` routes ' +
           'to\n`/superdev:ship <scope> --unattended`.\n',
-        'commands/ship.md':
+        'skills/ship/SKILL.md':
           '- **Every slice in the ledger is `mechanical` or `docs`** (the fourth, `type` field of\n' +
           '  `scope.js get slices`) → drop `/superdev:review` from that warning.\n',
       }),
@@ -2133,7 +2133,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // still needs. Tying row 1 to the same condition as row 0 catches it.
   const afkGapsUnconditional = scanContract(
     fixture({
-      'commands/afk.md':
+      'skills/afk/SKILL.md':
         'Every `documented-unreviewed` scope routes straight to `/superdev:ship <scope> --unattended`, no ' +
         'matter what its slices are.\n',
     }),
@@ -2147,7 +2147,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'fail row 1 too',
   );
   assert.ok(
-    afkGapsUnconditional.every((g) => g.source === path.join('commands', 'afk.md')),
+    afkGapsUnconditional.every((g) => g.source === path.join('skills', 'afk', 'SKILL.md')),
     'both gaps name afk.md',
   );
 
@@ -2276,19 +2276,19 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // ---------------------------------------------------------------------------
   // scanContract(): a clause the table spells with single spaces is met across a line break
   // ---------------------------------------------------------------------------
-  const wrapTable = [['commands/x.md', /the clause this table pins/, 'state the clause']];
+  const wrapTable = [['skills/x/SKILL.md', /the clause this table pins/, 'state the clause']];
   assert.equal(
-    scanContract(fixture({ 'commands/x.md': 'the clause this table pins\n' }), wrapTable).length,
+    scanContract(fixture({ 'skills/x/SKILL.md': 'the clause this table pins\n' }), wrapTable).length,
     0,
     'a clause on one line is met',
   );
   assert.equal(
-    scanContract(fixture({ 'commands/x.md': 'the clause this\ntable pins\n' }), wrapTable).length,
+    scanContract(fixture({ 'skills/x/SKILL.md': 'the clause this\ntable pins\n' }), wrapTable).length,
     0,
     'the same clause wrapped across a line break is still met',
   );
   assert.equal(
-    scanContract(fixture({ 'commands/x.md': 'the clause this table drops\n' }), wrapTable).length,
+    scanContract(fixture({ 'skills/x/SKILL.md': 'the clause this table drops\n' }), wrapTable).length,
     1,
     'a document that does not state the clause is still a gap',
   );
@@ -2307,7 +2307,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   // negative: both writer documents carry their clause
   const trFiles = {
-    [path.join('commands', 'review.md')]: triageWriter,
+    [path.join('skills', 'review', 'SKILL.md')]: triageWriter,
     [path.join('references', 'scope-mode.md')]: triageEntry,
   };
   assert.equal(
@@ -2321,13 +2321,13 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   const trOrder = scanContract(
     fixture({
       ...trFiles,
-      [path.join('commands', 'review.md')]:
+      [path.join('skills', 'review', 'SKILL.md')]:
         '`scope.js deferred add "<text>"` writes the bullet.\n\nA triage record is created afterwards.\n',
     }),
     TRIAGE_RECORD_CONTRACTS,
   );
   assert.equal(trOrder.length, 1, 'flags a review that defers the record until after the ledger write');
-  assert.equal(trOrder[0].source, path.join('commands', 'review.md'), 'names the review command');
+  assert.equal(trOrder[0].source, path.join('skills', 'review', 'SKILL.md'), 'names the review command');
 
   // positive: the entry section names the record but not the store document that owns the mechanics,
   // which is what keeps a tool-agnostic reference from growing a backend of its own
@@ -2342,13 +2342,13 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   assert.equal(trMechanics.length, 1, 'flags an entry section that states the mechanics itself');
   assert.equal(trMechanics[0].source, path.join('references', 'scope-mode.md'), 'names the reference');
 
-  // negative: the real commands/review.md, unmodified, yields zero gaps against its own row — proof the
+  // negative: the real skills/review/SKILL.md, unmodified, yields zero gaps against its own row — proof the
   // anchor matches where the create instruction actually sits, not merely inside an unrelated paragraph
   // (the dedupe paragraph's own "deferred add" mention, 58 characters from a stray "triage record", is
   // what the old `/triage record[\s\S]{0,800}deferred add/` anchor matched instead)
-  const realReview = fs.readFileSync(path.join(realRoot, 'plugin', 'commands', 'review.md'), 'utf8');
+  const realReview = fs.readFileSync(path.join(realRoot, 'plugin', 'skills', 'review', 'SKILL.md'), 'utf8');
   assert.equal(
-    scanContract(fixture({ [path.join('commands', 'review.md')]: realReview }), TRIAGE_RECORD_CONTRACTS)
+    scanContract(fixture({ [path.join('skills', 'review', 'SKILL.md')]: realReview }), TRIAGE_RECORD_CONTRACTS)
       .length,
     0,
     'the real review.md carries the create instruction ahead of the deferred add call',
@@ -2370,11 +2370,11 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'the excised fixture genuinely drops the create instruction',
   );
   const trNoCreate = scanContract(
-    fixture({ [path.join('commands', 'review.md')]: reviewNoCreate }),
+    fixture({ [path.join('skills', 'review', 'SKILL.md')]: reviewNoCreate }),
     TRIAGE_RECORD_CONTRACTS,
   );
   assert.equal(trNoCreate.length, 1, 'flags the real review.md with the create step deleted');
-  assert.equal(trNoCreate[0].source, path.join('commands', 'review.md'), 'names the review command');
+  assert.equal(trNoCreate[0].source, path.join('skills', 'review', 'SKILL.md'), 'names the review command');
 
   // --- BACKLOG_SURVEY_CONTRACTS: `/superdev:backlog` resolves the candidate and triage listings through
   // the store document, reads an in-flight scope's stage off the ledger `/superdev:status` also reads,
@@ -2391,7 +2391,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // negative: all four clauses present yields zero gaps
   assert.equal(
     scanContract(
-      fixture({ 'commands/backlog.md': backlogAnchor + backlogTriage + backlogStage + backlogReadOnly }),
+      fixture({ 'skills/backlog/SKILL.md': backlogAnchor + backlogTriage + backlogStage + backlogReadOnly }),
       BACKLOG_SURVEY_CONTRACTS,
       bsOpts,
     ).length,
@@ -2401,7 +2401,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   // positive: dropping the `## Scope anchor` reference
   const bsNoAnchor = scanContract(
-    fixture({ 'commands/backlog.md': backlogTriage + backlogStage + backlogReadOnly }),
+    fixture({ 'skills/backlog/SKILL.md': backlogTriage + backlogStage + backlogReadOnly }),
     BACKLOG_SURVEY_CONTRACTS,
     bsOpts,
   );
@@ -2410,7 +2410,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   // positive: dropping the `## Triage record` reference
   const bsNoTriage = scanContract(
-    fixture({ 'commands/backlog.md': backlogAnchor + backlogStage + backlogReadOnly }),
+    fixture({ 'skills/backlog/SKILL.md': backlogAnchor + backlogStage + backlogReadOnly }),
     BACKLOG_SURVEY_CONTRACTS,
     bsOpts,
   );
@@ -2419,7 +2419,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   // positive: dropping the `scope.js get stage` read
   const bsNoStage = scanContract(
-    fixture({ 'commands/backlog.md': backlogAnchor + backlogTriage + backlogReadOnly }),
+    fixture({ 'skills/backlog/SKILL.md': backlogAnchor + backlogTriage + backlogReadOnly }),
     BACKLOG_SURVEY_CONTRACTS,
     bsOpts,
   );
@@ -2432,7 +2432,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // below must be flagged now that the pattern is anchored on a bold run that opens its own line.
   const bsUnbolded = scanContract(
     fixture({
-      'commands/backlog.md':
+      'skills/backlog/SKILL.md':
         backlogAnchor +
         backlogTriage +
         backlogStage +
@@ -2446,7 +2446,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   const bsHedged = scanContract(
     fixture({
-      'commands/backlog.md':
+      'skills/backlog/SKILL.md':
         backlogAnchor +
         backlogTriage +
         backlogStage +

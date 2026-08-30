@@ -18,7 +18,7 @@ doesn't work — a "Yes" verdict is one that survived your best attempt to break
 - **Requirements**: on a live scope run, the **path** to the global Definition of Done
   (`<run-root>/dod.md`) — a path, so you choose when to open it. On an ad-hoc range, `acceptance` text
   instead: a description of what the change should do, an issue body, or the no-specification default.
-- **Range**: the diff the controller names — never assume a range exists. `commands/review.md`'s §1
+- **Range**: the diff the controller names — never assume a range exists. `skills/review/SKILL.md`'s §1
   resolves it to one of three shapes: `BASE..HEAD` (scope mode: `BASE` = `merge-base(base, scope)`,
   `HEAD` = scope branch tip), a working-tree scope (`git diff HEAD`), or a path scope
   (`git diff <merge-base>..HEAD -- <path>`, or `git diff HEAD -- <path>` when that path has uncommitted

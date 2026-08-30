@@ -1,4 +1,5 @@
 ---
+name: implement
 description: Execute a superdev plan — drive its vertical slices to merge as a dependency-ordered DAG, with an execution tier sized to the slice count, then hand off to the next command in the chain. Use when a plan exists in the slice store; run /superdev:plan first if not.
 argument-hint: "[<feature-label>  (empty = the only plan in the store)]  [--unattended]"
 ---

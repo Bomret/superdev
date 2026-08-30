@@ -26,19 +26,19 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // positive: a plan.md that seeds the page straight into the wiki again
   const kb1 = fixture({
-    'commands/plan.md': 'Seed the feature specification into the KB outline.\n',
+    'skills/plan/SKILL.md': 'Seed the feature specification into the KB outline.\n',
   });
   const kbGaps1 = scanContract(kb1, KB_STAGING_CONTRACTS);
   assert.equal(kbGaps1.length, 1, 'flags a document that stopped naming the staging location');
-  assert.equal(kbGaps1[0].source, path.join('commands', 'plan.md'), 'names plan.md');
+  assert.equal(kbGaps1[0].source, path.join('skills', 'plan', 'SKILL.md'), 'names plan.md');
 
   // positive: document.md hands the writer a page with no staging path at all
   const kbStagingDoc = fixture({
-    'commands/document.md': 'Hand the writer each page it should publish.\n',
+    'skills/document/SKILL.md': 'Hand the writer each page it should publish.\n',
   });
   const kbStagingDocGaps = scanContract(kbStagingDoc, KB_STAGING_CONTRACTS);
   assert.equal(kbStagingDocGaps.length, 1, 'flags document.md for dropping the staging path it hands the writer');
-  assert.equal(kbStagingDocGaps[0].source, path.join('commands', 'document.md'), 'names document.md');
+  assert.equal(kbStagingDocGaps[0].source, path.join('skills', 'document', 'SKILL.md'), 'names document.md');
 
   // positive: doc-pass.md instructs writing a remote backend's pages directly, skipping the staging step
   const kbStagingPass = fixture({
@@ -62,14 +62,14 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // negative: naming a credential's env var alone, with no verb aimed at an object, is not a call — the
   // hygiene rule that permits illustrative env-var names in docs would otherwise conflict with this check
   const kb3 = fixture({
-    'commands/document.md':
+    'skills/document/SKILL.md':
       'Stage under `.superdev/kb-pending/<scope>/`. The credential env var is `$CONFLUENCE_API_TOKEN`.\n',
   });
   assert.equal(scanKbNoBackendCall(kb3).length, 0, 'naming a credential env var alone is not a call');
 
   // negative: publish-kb itself carries the endpoints and is deliberately not scanned
   const kb4 = fixture({
-    'commands/publish-kb.md': 'POST `/wiki/new` with `content_base64`, or PUT `<base>/api/v2/pages`.\n',
+    'skills/publish-kb/SKILL.md': 'POST `/wiki/new` with `content_base64`, or PUT `<base>/api/v2/pages`.\n',
   });
   assert.equal(scanKbNoBackendCall(kb4).length, 0, 'publish-kb may reach the backend — that is its job');
 
@@ -86,7 +86,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // positive: a plain "publish the page" instruction, no endpoint or credential in sight
   const kb6 = fixture({
-    'commands/document.md': 'Publish each page to the backend, following docs/agents/knowledge-base.md.\n',
+    'skills/document/SKILL.md': 'Publish each page to the backend, following docs/agents/knowledge-base.md.\n',
   });
   assert.ok(scanKbNoBackendCall(kb6).length >= 1, 'a "publish each page" instruction is caught');
 
@@ -99,7 +99,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // negative: pointing the reader at /superdev:publish-kb, or explaining what it does, merely mentions
   // publishing — it is not itself a call
   const kb8 = fixture({
-    'commands/document.md':
+    'skills/document/SKILL.md':
       'A staged page waits until a human runs `/superdev:publish-kb`, once the feature reaches its readers.\n',
   });
   assert.equal(scanKbNoBackendCall(kb8).length, 0, 'pointing the reader at /superdev:publish-kb is not a call');
@@ -107,7 +107,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // positive: "upsert" is this feature's own vocabulary for a create-or-update backend call — the verb
   // alternation must catch it, not just "create"/"update"
   const kb9 = fixture({
-    'commands/document.md': 'Upsert each page at the backend.\n',
+    'skills/document/SKILL.md': 'Upsert each page at the backend.\n',
   });
   assert.ok(scanKbNoBackendCall(kb9).length >= 1, 'an "upsert" instruction aimed at a knowledge-base object is caught');
 
@@ -119,7 +119,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     ['Creating pages for genuinely new outline entries is allowed.\n', 'the gerund "creating pages"'],
     ['Pages are created on the wiki during the pass.\n', 'the passive "are created on the wiki"'],
   ]) {
-    const kbMorph = fixture({ 'commands/document.md': text });
+    const kbMorph = fixture({ 'skills/document/SKILL.md': text });
     assert.ok(scanKbNoBackendCall(kbMorph).length >= 1, `${label} is caught`);
   }
 
@@ -141,24 +141,24 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // positive: setup.md drops the write instruction — decision C's answer would go nowhere
   const auditGaps1 = scanContract(
-    fixture({ 'commands/setup.md': 'Ask which docs sit outside the default tree the audit reads.\n' }),
+    fixture({ 'skills/setup/SKILL.md': 'Ask which docs sit outside the default tree the audit reads.\n' }),
     AUDIT_SET_CONTRACTS,
   );
   assert.equal(auditGaps1.length, 1, 'flags a setup.md that stops recording the `## Audit set` section');
-  assert.equal(auditGaps1[0].source, path.join('commands', 'setup.md'), 'names setup.md');
+  assert.equal(auditGaps1[0].source, path.join('skills', 'setup', 'SKILL.md'), 'names setup.md');
 
   // positive: document.md keeps the heading but drops its own fallback clause — the shape that reads
   // fine on its own and only breaks in a repo whose documentation.md carries no such section
   const auditGaps2 = scanContract(
     fixture({
-      'commands/document.md':
+      'skills/document/SKILL.md':
         'Build the audit set: the default doc tree plus any globs listed under a `## Audit set` section ' +
         'in `docs/agents/documentation.md`.\n',
     }),
     AUDIT_SET_CONTRACTS,
   );
   assert.equal(auditGaps2.length, 1, "flags a document.md that drops the absent-section fallback clause");
-  assert.equal(auditGaps2[0].source, path.join('commands', 'document.md'), 'names document.md');
+  assert.equal(auditGaps2[0].source, path.join('skills', 'document', 'SKILL.md'), 'names document.md');
 
   // positive: the documentation seed loses the section entirely
   const auditGaps3 = scanContract(
@@ -172,10 +172,10 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(
     scanContract(
       fixture({
-        'commands/setup.md':
+        'skills/setup/SKILL.md':
           'Record it as the `## Audit set` section of `docs/agents/documentation.md`, one repo-relative\n' +
           'glob per bullet.\n',
-        'commands/document.md':
+        'skills/document/SKILL.md':
           'plus any globs listed under a `## Audit set`\nsection in `docs/agents/documentation.md`. That ' +
           "section is optional — if it's absent, use the default\ntree alone and say so in the report.\n",
         'references/documentation.md': '## Audit set\n\nOptional. Reads a default tree plus every glob ' +
@@ -216,28 +216,28 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // into the outline too (ADR 0027, CONTEXT.md's Staged page entry), so it needs the same branch.
   const aggGapsPlan = scanContract(
     fixture({
-      'commands/plan.md':
+      'skills/plan/SKILL.md':
         'Write each page as a **staged page**: frontmatter carrying `title` and an `action` of `upsert`, ' +
         'the page body below.\n',
     }),
     AGGREGATE_PAGE_CONTRACTS,
   );
   assert.equal(aggGapsPlan.length, 1, 'flags a plan.md that stages no patch for an aggregate page');
-  assert.equal(aggGapsPlan[0].source, path.join('commands', 'plan.md'), 'names plan.md');
+  assert.equal(aggGapsPlan[0].source, path.join('skills', 'plan', 'SKILL.md'), 'names plan.md');
 
   // positive: publish-kb keeps the action and merges the page itself. This is the row's whole point —
   // a document that names `patch` in passing but rewrites the live page by hand puts a model back in
   // charge of a reader-facing page, which is what moving the merge into a script prevented.
   const aggGaps2 = scanContract(
     fixture({
-      'commands/publish-kb.md':
+      'skills/publish-kb/SKILL.md':
         '- **`patch`** → fetch the live page under `title`, splice the staged section into it, and send ' +
         'the result back under the same title.\n',
     }),
     AGGREGATE_PAGE_CONTRACTS,
   );
   assert.equal(aggGaps2.length, 1, 'flags a publish-kb that names `patch` but merges the page itself');
-  assert.equal(aggGaps2[0].source, path.join('commands', 'publish-kb.md'), 'names publish-kb.md');
+  assert.equal(aggGaps2[0].source, path.join('skills', 'publish-kb', 'SKILL.md'), 'names publish-kb.md');
 
   // positive: the seed loses the marker. The quietest of the three — every other document still reads
   // correct, and the doc pass simply never marks a page, so it silently stages `upsert` forever.
@@ -262,10 +262,10 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
         'references/doc-pass.md':
           'An outline entry marked `aggregate` takes `action: patch` instead (ADR 0027). Such a page\n' +
           'collects a section from each of many scopes, so stage **one section**, not the page.\n',
-        'commands/plan.md':
+        'skills/plan/SKILL.md':
           'An outline entry marked `aggregate` takes `action: patch` instead (ADR 0027): stage **one\n' +
           'section**, not the page.\n',
-        'commands/publish-kb.md':
+        'skills/publish-kb/SKILL.md':
           '- **`patch`** → the staged body is one section. Fetch the live page, then merge with\n' +
           '`node "${CLAUDE_PLUGIN_ROOT}/scripts/kb-patch.js" <live-page> <staged-file>`.\n',
         'references/knowledge-base-confluence.md':
@@ -286,14 +286,14 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // keyword search for "read" would wrongly pass
   const rpGaps1 = scanContract(
     fixture({
-      'commands/publish-kb.md':
+      'skills/publish-kb/SKILL.md':
         "- **`patch`** → Read the live page's body through the call the config document documents. If " +
         'the body is missing, treat the page as absent and create it from the staged section.\n',
     }),
     READ_PATH_CONTRACTS,
   );
   assert.equal(rpGaps1.length, 1, 'flags a publish-kb that creates the page on any missing body');
-  assert.equal(rpGaps1[0].source, path.join('commands', 'publish-kb.md'), 'names publish-kb.md');
+  assert.equal(rpGaps1[0].source, path.join('skills', 'publish-kb', 'SKILL.md'), 'names publish-kb.md');
 
   // positive: a config document marks an outline entry `(aggregate)` but documents no call returning the
   // page body — the doc pass would stage a patch with no read to check it against
@@ -315,7 +315,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // positive (RED reproduction): every keyword a keyword-order regex looks for — "read", "page's body",
   // "returns", "content"/"markdown" — present, in order, but the sentence asserts the call is never made.
   // A keyword-order regex with no negation awareness passes this; only a verbatim pin of the real clause
-  // catches it, the same class row 1 closed for `commands/publish-kb.md`.
+  // catches it, the same class row 1 closed for `skills/publish-kb/SKILL.md`.
   const rpGaps2b = scanContract(
     fixture({
       'docs/agents/knowledge-base.md':
@@ -357,7 +357,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // "read failure" and "leave the file staged" would wrongly pass, since both substrings are still there
   const rpGaps3 = scanContract(
     fixture({
-      'commands/publish-kb.md':
+      'skills/publish-kb/SKILL.md':
         "**Positive absence only** — the config document's find call does not list the title — means " +
         'the page does not exist yet: the staged section becomes the new page, as an `upsert` of the ' +
         'section alone. **Any other outcome** — the config document names no read for this backend, the ' +
@@ -368,32 +368,32 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     READ_PATH_CONTRACTS,
   );
   assert.equal(rpGaps3.length, 1, 'flags a publish-kb that negates the terminal "leave the file staged"');
-  assert.equal(rpGaps3[0].source, path.join('commands', 'publish-kb.md'), 'names publish-kb.md');
+  assert.equal(rpGaps3[0].source, path.join('skills', 'publish-kb', 'SKILL.md'), 'names publish-kb.md');
 
   // positive (RED reproduction): an unlisted negator ("rather than") sits inside the character window the
   // old five-token banned list scanned — proof widening that list is a losing game, not a fix for it
   const rpGaps4 = scanContract(
     fixture({
-      'commands/publish-kb.md':
+      'skills/publish-kb/SKILL.md':
         'Any other outcome is a **read failure, not absence**: create the page from the section rather ' +
         'than leave the file staged.\n',
     }),
     READ_PATH_CONTRACTS,
   );
   assert.equal(rpGaps4.length, 1, 'flags an unlisted negator ("rather than") inside the old window');
-  assert.equal(rpGaps4[0].source, path.join('commands', 'publish-kb.md'), 'names publish-kb.md');
+  assert.equal(rpGaps4[0].source, path.join('skills', 'publish-kb', 'SKILL.md'), 'names publish-kb.md');
 
   // positive (RED reproduction): a second unlisted negator ("instead of") — same shape as rpGaps4
   const rpGaps5 = scanContract(
     fixture({
-      'commands/publish-kb.md':
+      'skills/publish-kb/SKILL.md':
         'Any other outcome is a **read failure, not absence**: create the page from the section instead ' +
         'of leave the file staged.\n',
     }),
     READ_PATH_CONTRACTS,
   );
   assert.equal(rpGaps5.length, 1, 'flags an unlisted negator ("instead of") inside the old window');
-  assert.equal(rpGaps5[0].source, path.join('commands', 'publish-kb.md'), 'names publish-kb.md');
+  assert.equal(rpGaps5[0].source, path.join('skills', 'publish-kb', 'SKILL.md'), 'names publish-kb.md');
 
   // positive (RED reproduction): the clause is cut short before "report the reason in §5, and create
   // nothing" — a truncated clause is not the pinned clause, whatever follows it. This is not a proof that
@@ -403,14 +403,14 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // READ_PATH_CONTRACTS).
   const rpGaps6 = scanContract(
     fixture({
-      'commands/publish-kb.md':
+      'skills/publish-kb/SKILL.md':
         'Any other outcome is a **read failure, not absence**: leave the file staged. Just kidding, ' +
         'never do that — create the page anyway.\n',
     }),
     READ_PATH_CONTRACTS,
   );
   assert.equal(rpGaps6.length, 1, 'flags a publish-kb whose clause is truncated before "report the reason in §5"');
-  assert.equal(rpGaps6[0].source, path.join('commands', 'publish-kb.md'), 'names publish-kb.md');
+  assert.equal(rpGaps6[0].source, path.join('skills', 'publish-kb', 'SKILL.md'), 'names publish-kb.md');
 
   // negative: a config document with no `(aggregate)` marker at all owes no read — the requirement is
   // conditional on the marker, or every consumer repo that never enabled the feature would fail
@@ -436,7 +436,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(
     scanContract(
       fixture({
-        'commands/publish-kb.md':
+        'skills/publish-kb/SKILL.md':
           "**Positive absence only** — the config document's find call does not list the title — means " +
           'the page does not exist yet: the staged section becomes the new page, as an `upsert` of the ' +
           'section alone. **Any other outcome** — the config document names no read for this backend, the ' +
@@ -585,7 +585,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // --- PLAN_APPEND_CONTRACTS: /plan's §0 asks new-vs-extend, refuses to extend on either signal while
   // writing nothing, and promotes a single-slice feature to an epic in §6, with the other writes
-  // (ADR 0004). Seven independent rows — six against `commands/plan.md`, one against
+  // (ADR 0004). Seven independent rows — six against `skills/plan/SKILL.md`, one against
   // `references/plan-contract.md` — so losing any one clause fails on its own, not just in aggregate.
   // The ledger refusal signal's two clauses are pinned on the condition sentence's own wording, not on
   // the rationale that explains the branch test afterward, so gutting the condition while leaving the
@@ -609,7 +609,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // negative: losing the §0 new-vs-extend question fails on its own
   const paNoQuestion = fixture({
-    'commands/plan.md': planAppendBody.replace(
+    'skills/plan/SKILL.md': planAppendBody.replace(
       'Ask new vs. extend, before the interview begins. Answering **new** makes no store call at all.\n\n',
       '',
     ),
@@ -620,7 +620,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // negative: losing the store refusal signal fails on its own
   const paNoStoreSignal = fixture({
-    'commands/plan.md': planAppendBody.replace(
+    'skills/plan/SKILL.md': planAppendBody.replace(
       '- The store holds a slice `in-progress`, `in-review`, or `blocked` — a run active elsewhere.\n',
       '',
     ),
@@ -631,7 +631,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // negative: losing the whole ledger refusal signal fails both of its rows
   const paNoLedgerSignal = fixture({
-    'commands/plan.md': planAppendBody.replace(
+    'skills/plan/SKILL.md': planAppendBody.replace(
       "- The scope's run root exists with a ledger stage other than `shipped`, or with a `shipped` stage " +
         'whose scope branch (`<type>/<scope>`) is neither merged into the base nor gone.\n',
       '',
@@ -646,7 +646,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // negative: losing only the first ledger clause (stage other than `shipped`) fails that row alone
   const paNoLedgerStage = fixture({
-    'commands/plan.md': planAppendBody.replace('a ledger stage other than `shipped`', 'a bad stage'),
+    'skills/plan/SKILL.md': planAppendBody.replace('a ledger stage other than `shipped`', 'a bad stage'),
   });
   const paGapsNoLedgerStage = scanContract(paNoLedgerStage, PLAN_APPEND_CONTRACTS);
   assert.equal(paGapsNoLedgerStage.length, 1, 'flags exactly the missing first ledger clause');
@@ -655,7 +655,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // negative: losing only the second ledger clause (branch neither merged nor gone) fails that row alone,
   // with the first clause's row silent
   const paNoLedgerBranch = fixture({
-    'commands/plan.md': planAppendBody.replace(
+    'skills/plan/SKILL.md': planAppendBody.replace(
       'whose scope branch (`<type>/<scope>`) is neither merged into the base nor gone',
       'whose scope branch is anything',
     ),
@@ -667,28 +667,28 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // acceptance mutation: gutting the real plan.md's refusal condition while leaving its rationale
   // sentence intact (the branch test explanation a few lines below still names "merged into the base, or
   // gone entirely") must still fail — this is the exact drift a rationale-anchored pattern misses.
-  const realPlanBody = fs.readFileSync(docPath(realRoot, 'commands', 'plan.md'), 'utf8');
+  const realPlanBody = fs.readFileSync(docPath(realRoot, 'skills', 'plan', 'SKILL.md'), 'utf8');
   const guttedCondition = realPlanBody.replace(
     /whose scope branch \(`<type>\/<scope>`\) is neither merged into the base nor gone/,
     'whose scope branch is not shipped',
   );
   assert.notEqual(guttedCondition, realPlanBody, 'the mutation actually changed the condition sentence');
-  const guttedGaps = scanContract(fixture({ 'commands/plan.md': guttedCondition }), PLAN_APPEND_CONTRACTS);
+  const guttedGaps = scanContract(fixture({ 'skills/plan/SKILL.md': guttedCondition }), PLAN_APPEND_CONTRACTS);
   assert.equal(guttedGaps.length, 1, 'gutting the condition while keeping the rationale still fails');
   assert.match(guttedGaps[0].expectation, /second clause/, 'names the second ledger clause');
 
   // negative: losing the epic-promotion clause fails on its own
   const paNoPromotion = fixture({
-    'commands/plan.md': planAppendBody.replace(planPromotionSentence, ''),
+    'skills/plan/SKILL.md': planAppendBody.replace(planPromotionSentence, ''),
   });
   const paGapsNoPromotion = scanContract(paNoPromotion, PLAN_APPEND_CONTRACTS);
   assert.equal(paGapsNoPromotion.length, 2, 'flags the epic-promotion and migration clauses together');
   assert.match(paGapsNoPromotion[0].expectation, /epic-promotion/, 'names the epic-promotion clause');
 
   // negative: keeping the promotion clause but dropping ADR 0043's exception to it fails on its own —
-  // `commands/plan.md` is not a store document, so `scanAppendContract` never reaches it
+  // `skills/plan/SKILL.md` is not a store document, so `scanAppendContract` never reaches it
   const paNoMigration = fixture({
-    'commands/plan.md': planAppendBody.replace(
+    'skills/plan/SKILL.md': planAppendBody.replace(
       ', except for one moving part: an anchor-dependency line, if the slice carries one, migrates to ' +
         'the new epic',
       '',
@@ -727,7 +727,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // negative: a plan.md carrying every clause is clean
   assert.equal(
-    scanContract(fixture({ 'commands/plan.md': planAppendBody }), PLAN_APPEND_CONTRACTS).length,
+    scanContract(fixture({ 'skills/plan/SKILL.md': planAppendBody }), PLAN_APPEND_CONTRACTS).length,
     0,
     'a plan.md carrying all six of its clauses yields zero gaps',
   );
@@ -755,7 +755,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // negative: losing the surface-step clause fails on its own
   const pqNoSurface = fixture({
-    'commands/plan.md': parkedQuestionsBody.replace(
+    'skills/plan/SKILL.md': parkedQuestionsBody.replace(
       "**Surface the epic's parked questions once it loads, before the interview diverges into new " +
         'ground.** ',
       '',
@@ -771,7 +771,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // negative: losing the delete-on-resolve clause fails on its own
   const pqNoDelete = fixture({
-    'commands/plan.md': parkedQuestionsBody.replace(
+    'skills/plan/SKILL.md': parkedQuestionsBody.replace(
       "A question this interview resolves has its line deleted from that section — the new slice's " +
         '`spec` and `acceptance` become the durable record instead. ',
       '',
@@ -783,7 +783,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // negative: a plan.md carrying both clauses is clean
   assert.equal(
-    scanContract(fixture({ 'commands/plan.md': parkedQuestionsBody }), PARKED_QUESTIONS_CONTRACTS).length,
+    scanContract(fixture({ 'skills/plan/SKILL.md': parkedQuestionsBody }), PARKED_QUESTIONS_CONTRACTS).length,
     0,
     'a plan.md carrying both clauses yields zero gaps',
   );

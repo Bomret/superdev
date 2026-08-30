@@ -1,4 +1,5 @@
 ---
+name: status
 description: Report per-scope DAG progress for every superdev run in this repo, from each scope's ledger. Read-only; makes no changes.
 model: haiku
 allowed-tools: Bash

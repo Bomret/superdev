@@ -2,6 +2,10 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0051](0051-the-opencode-agent-render-uses-a-tools-map-not-permission.md), which
+corrects the rendered agents' access-control mechanism named below from a `permission:` mapping to a
+`tools:` map.
+
 ## Context
 
 superdev shipped Claude Code-only: `plugin/commands/*.md` for slash commands, `plugin/agents/*.md` for

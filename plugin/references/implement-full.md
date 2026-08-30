@@ -1,6 +1,6 @@
 # Full execution playbook (>3 slices)
 
-The controller `Read`s this after computing tier = `full` (see `commands/implement.md`). Implementation
+The controller `Read`s this after computing tier = `full` (see `skills/implement/SKILL.md`). Implementation
 happens **only** in isolated `superdev:implementer` subagents — one per slice, each in its own worktree.
 The controller never implements inline; it dispatches, reviews via subagents, and integrates serially.
 Honor the controller's **Invariants** and **Issue status** map throughout. Once every slice is `merged`,

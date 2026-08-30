@@ -41,6 +41,7 @@ const {
   scanAuditSetGlobs,
   scanDenialCapNumberSilence,
   scanAfkLockTierClaim,
+  scanOpencodeFixtures,
 } = require('./scanners');
 const {
   ADR_STATUSES,
@@ -94,11 +95,11 @@ const table = (id, contracts, ok, opts) => ({
 });
 
 // `scanPinnedPaths` (in `drift/scanners.js`) occupies the slot the `afk-existence` check held. That one
-// asserted `commands/afk.md` alone, on the stated grounds that nothing else in the plugin names
-// `/superdev:afk` — already false when written: `commands/implement.md` names it too, and
-// `command-resolution` already resolves every `/superdev:` reference in `commands/`, so it already
+// asserted `skills/afk/SKILL.md` alone, on the stated grounds that nothing else in the plugin names
+// `/superdev:afk` — already false when written: `skills/implement/SKILL.md` names it too, and
+// `command-resolution` already resolves every `/superdev:` reference in `skills/`, so it already
 // caught the file's deletion. The general rule — every path a contract table pins still exists — covers
-// `commands/afk.md` a second way (three tables pin it) and the other thirty-odd besides, so the special
+// `skills/afk/SKILL.md` a second way (three tables pin it) and the other thirty-odd besides, so the special
 // case went. It sits here rather than at the end of the registry deliberately: replacing the entry in
 // place renumbers no ordinal in `scripts/AGENTS.md`, where appending would have shifted every one below
 // it.
@@ -156,7 +157,7 @@ module.exports = [
     id: 'command-resolution',
     ok: 'commands resolve',
     run: scanCommandRefs,
-    format: (d) => `${d.source} names \`${d.command}\`, which has no file under commands/`,
+    format: (d) => `${d.source} names \`${d.command}\`, which has no file under skills/`,
   },
   {
     id: 'chain-handoff',
@@ -314,7 +315,7 @@ module.exports = [
   },
   {
     id: 'readme-commands',
-    ok: 'the README and commands/ name the same command set',
+    ok: 'the README and skills/ name the same command set',
     run: scanReadmeCommands,
     format: contractGap,
   },
@@ -427,6 +428,12 @@ module.exports = [
       'ledger, and writes nothing',
     { stripFrontmatterFirst: true },
   ),
+  {
+    id: 'opencode-render',
+    ok: 'the committed OpenCode fixtures match a fresh render of the shipped skills, agents, and hook bridge',
+    run: scanOpencodeFixtures,
+    format: (gap) => gap,
+  },
 ];
 
 // The anchor contract and the afk-selection neutrality check report into the same sentence: a gap with

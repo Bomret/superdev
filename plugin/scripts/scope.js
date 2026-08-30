@@ -364,7 +364,7 @@ function verbDegraded(root, sub, text) {
   // `get denials` reads meaning from both prefixes, so a plain bullet able to carry one is a bullet able
   // to move the count. `add-denial` is only for the denied *verification* dispatches the cap counts
   // (scope-mode `## Degraded passes`); a denied Bash command or a denied *authoring* dispatch still
-  // takes plain `add` (`commands/implement.md`, `references/implement-full.md`) — so a text that quotes
+  // takes plain `add` (`skills/implement/SKILL.md`, `references/implement-full.md`) — so a text that quotes
   // such a denial verbatim, rather than getting routed to `add-denial`, reworks its wording instead.
   if (text.startsWith(DENIAL_PREFIX)) {
     fail(

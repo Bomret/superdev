@@ -14,7 +14,7 @@ const path = require('node:path');
 // shipped documents (rather than a fixture) read this.
 const realRoot = path.join(__dirname, '..', '..', '..');
 
-// A throwaway repository carrying only the documents one assertion exercises: `{ 'commands/x.md': '…' }`.
+// A throwaway repository carrying only the documents one assertion exercises: `{ 'skills/x/SKILL.md': '…' }`.
 // Every scanner skips a file it cannot read, so a fixture never carries a document it does not test.
 // Each directory is recorded and removed below, instead of being left in os.tmpdir() per run.
 const created = [];
@@ -63,6 +63,7 @@ try {
   require('./scanners.test')(context);
   require('./chain.test')(context);
   require('./kb-plan.test')(context);
+  require('./opencode.test')(context);
 
   // Every table any suite above scanned gets checked here, once, against what it actually observed —
   // not a curated subset. A table pins rows across many documents, and "a fixture is incomplete" leaves
