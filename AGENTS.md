@@ -201,6 +201,26 @@ subscription instead of a metered API key (ADR 0024). A maintainer creates the t
 `claude setup-token` and exports it. The runner refuses to start without it and never falls back to
 `ANTHROPIC_API_KEY`. Details: `scripts/AGENTS.md`.
 
+## Agent skills
+
+### Slice store
+Codeberg Issues (`bomret/superdev`). Slices as issues, feature labels, epics as scope anchors. See `docs/agents/issue-tracker.md`.
+
+### Code host
+Codeberg (Forgejo). Push scope branch, open ready PR against `main`, squash-merge with Conventional Commits title. See `docs/agents/code-management.md`.
+
+### Documentation
+`AGENTS.md` hierarchy (root + `scripts/AGENTS.md`). `controlled` writing standard, American English. See `docs/agents/documentation.md`.
+
+### Knowledge base
+Codeberg repo Wiki. Adopters first, maintainers second, English. `(aggregate)` pages: Concepts, ADR summaries. See `docs/agents/knowledge-base.md`.
+
+### Toolchain
+Bun dev toolchain, Node runtime for hooks. `bun run test` (green-gate), `bun run eval`, `bun run release`. No linter or formatter. See `docs/agents/toolchain.md`.
+
+### Verification
+`bun run test`. No focused command (suite finishes in seconds). Arms the merge green-gate. See `docs/agents/verification.md`.
+
 # DOX framework
 
 - AGENTS.md files are binding work contracts for their subtrees. Before editing, read this root doc
