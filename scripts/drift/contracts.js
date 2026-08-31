@@ -1905,9 +1905,10 @@ const specialisingHeading = (name) => new RegExp(`^#{2,3}\\s+${name}\\b`, 'm');
 // `scanAnchorContract`, `scanAppendContract`, `scanReleaseContract`, `scanTriageRecordContract` and
 // `scanRunStateContract` each pin their own member's `## <Section>` heading. `scanAssigneeContract` pins
 // two halves, the `- **Assignee:**` configuration bullet and the `## Assignee` heading, and finds the
-// heading through `specialisingHeading('Assignee')` so this list reaches it too. Adding a name here
-// without adding a store-side presence contract for it leaves the section's presence to the citation
-// check, which skips a store rendering none.
+// heading through `specialisingHeading('Assignee')` so this list reaches it too. Adding a name here with
+// no store-side presence contract for it is caught by `scripts/drift/selftest/scanners.test.js`'s
+// store-side presence coverage selftest, which runs the whole `checks.js` registry against a fixture
+// missing just that member's section and fails when nothing in it reports a new gap.
 //
 // **The membership rule:** a section is a member when `plan-contract.md` states its generic contract and
 // **at least one store document renders it as its own section**. `Assignee` passes — four of the five

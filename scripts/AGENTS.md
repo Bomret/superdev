@@ -1213,6 +1213,24 @@ The presence of a section is all this check claims. What that section must *say*
 call writes the snapshot, which reads it, that the section is machine-owned — stays a review's job, the
 same ceiling the release contract carries.
 
+**Beside the sixty-five checks, one selftest with no ordinal of its own** (`scripts/drift/selftest/scanners.test.js`,
+right after its `scanSpecialisingCitations` suite): store-side presence coverage for the whole
+specialising family. Each of the six members has its own store-side scanner, pinned in this file wherever
+that check's own ordinal sits — `anchor-contract`, `append-mode`, `release-contract`, `triage-record`, and
+`run-state-contract` above, `assignee-contract` back at the third check — and that per-member shape is
+exactly what let `Assignee` ship with a store-side hole `scanSpecialisingCitations`
+could not see — a citation check reads a section that is present and skips one that is not, so a member
+with *no* store-side scanner at all is invisible to every check individually, and nothing before this
+selftest ever asked the question at the family level. It builds one fixture rendering every real
+`SPECIALISING_SECTIONS` member as a bare heading plus its citation, then for each member reruns the whole
+`checks.js` registry against a copy with that member's section removed entirely, comparing the two gap
+sets by identity (`checkId::JSON.stringify(gap)`, not by count) — a member is covered when the
+section-removed run carries an identity the full run does not. It is a selftest, not a registered check,
+because running the registry from inside the registry recurses. A member added to `SPECIALISING_SECTIONS`
+with no store-side scanner for it is caught here with no fixture edit: proven by temporarily adding a
+seventh, unscanned name to the real list, which fails this assertion and names that member, then reverting
+both to restore green.
+
 The first and seventh checks are opposites. The first catches a reference to a file that does not exist.
 The seventh catches an agent that drops its wire to a file which still exists. That drift leaves the
 reference resolvable and the suite green, and the lens then does nothing in any dispatch.

@@ -38,6 +38,7 @@ const {
   scanAgentToolAgnostic,
 } = require('../scanners');
 const { ADR_STATUSES, DOC_PASS_CONTRACTS, PLAYBOOK_EDGE_CONTRACTS, SPECIALISING_SECTIONS } = require('../contracts');
+const CHECKS = require('../checks');
 
 module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // fixture with a missing reference
@@ -1958,6 +1959,48 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     0,
     'an absent document is skipped rather than reported',
   );
+
+  // --- Store-side presence coverage (a selftest, not a registered check — running the whole registry
+  // from inside the registry would recurse). scanSpecialisingCitations() above pins the citation between
+  // the generic and store sides; the six store-side scanners above each pin their own member's section.
+  // Neither half asks whether a member with NO store-side scanner at all — the presence contract itself,
+  // not any one element of it — would ever be missed. This is the hole `Assignee` already cost once
+  // (issue #386): the section was deletable with every check green until scanAssigneeContract's own
+  // heading half was written.
+  //
+  // One fixture renders every member as a bare `## <name>` heading plus its citation — the same shape
+  // citingDoc() above builds — so a member added to SPECIALISING_SECTIONS needs no fixture edit here: the
+  // loop below reads the real list. For each member, the fixture is rebuilt with that member's whole
+  // section omitted, the full `scripts/drift/checks.js` registry is run over both, and the two gap sets
+  // are compared by identity (`checkId::JSON.stringify(gap)`) rather than by count, since a check whose
+  // gap *shape* changes (an element gap swapping for a whole-section gap) is still a real signal even when
+  // its count does not change. The member is CAUGHT when the omitted run carries an identity the full run
+  // does not.
+  //
+  // This fixture carries one document. Every check that scans a document this fixture does not carry — all
+  // but the seven store-side checks above — reads no such document (`readDoc()`/`readdirSync()` return
+  // nothing) and contributes no gap either way, the same skip-on-absence convention every scanner in this
+  // file already follows. Nothing here swallows an error to reach that zero: an absent document is a
+  // normal, already-tested branch, not a caught exception, so the comparison below only ever attributes a
+  // caught member to a check that actually read this fixture.
+  const familyMember = (name) => `## ${name}\n\n\`plan-contract.md\` → *${name}*. text\n`;
+  const familyDoc = (omit) => SPECIALISING_SECTIONS.filter((n) => n !== omit).map(familyMember).join('\n');
+  const familyGapIds = (root) =>
+    new Set(CHECKS.flatMap((check) => check.run(root).map((gap) => `${check.id}::${JSON.stringify(gap)}`)));
+  const familyBaseline = familyGapIds(fixture({ 'references/issue-tracker-familycoupling.md': familyDoc(null) }));
+
+  for (const name of SPECIALISING_SECTIONS) {
+    const omittedGaps = familyGapIds(
+      fixture({ 'references/issue-tracker-familycoupling.md': familyDoc(name) }),
+    );
+    const caught = [...omittedGaps].some((id) => !familyBaseline.has(id));
+    assert.equal(
+      caught,
+      true,
+      `no check in the registry reports a new gap when the store-side \`## ${name}\` section is entirely ` +
+        'absent — this member has no store-side presence contract',
+    );
+  }
 
   // positive: every forcing-flag spelling is actually caught, not just `switch -C` / `worktree add -B`
   for (const flagged of [
