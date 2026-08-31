@@ -296,9 +296,22 @@ playbooks point at `scope-mode.md`, so a rename there dangles like any other. Se
 `references/scope-mode.md`, `agents/implementer.md`, `agents/slice-reviewer.md`,
 `agents/simplicity-reviewer.md`, and `agents/final-reviewer.md` address
 run-root artifacts by absolute `<run-root>/…` path. Third, the `assignee` contract: every
-issue-backend document carries the `**Assignee` config bullet. The filename alone triggers that
-check, with no content gate on how the doc phrases issue creation.
-`references/issue-tracker-local.md` is exempt, because it has no assignee concept. Fourth, the
+issue-backend document carries both halves of it, and each is reported apart. One half is the
+`**Assignee` config bullet, which is what a backend is actually configured with. The other is the
+`## Assignee` section, the store side of the generic contract, which `Assignee` shares with every other
+member of the specialising family. The section is found through `specialisingHeading('Assignee')` rather
+than a second copy of the pattern, so the family's heading anchoring reaches this check too. Both halves
+read fence-masked text, defensively: no store document renders either inside a fenced example today, and
+the seeds' habit of showing headings inside fenced examples elsewhere makes one plausible. The filename
+alone triggers the check, with no content gate on how the doc phrases issue creation.
+`references/issue-tracker-local.md` is exempt from both halves through one set, because it has no
+assignee concept and renders neither. Presence is all either half claims; what the section must say for
+its backend stays a review's job. Coverage is automatic — `storeDocuments()` picks up a
+`references/issue-tracker-*.md` seed added later with no scanner edit — but exemption is not: a backend
+with no assignee concept must be added to `ASSIGNEE_EXEMPT` by name, or it reports two gaps on a suite
+that was never wrong. The `run-state-contract` check (sixty-fifth, below) resolves the same shape the
+other way, exempting no store and letting a snapshot-less backend declare itself snapshot-less inside its
+own section instead. Fourth, the
 `anchor-contract`: every slice-store document (every `references/issue-tracker-*.md` plus this
 repo's own `docs/agents/issue-tracker.md`) carries a `## Scope anchor` section stating all five of
 its elements: how to recognise an anchor, list its candidates, list the slices beneath one, tell
@@ -1116,13 +1129,12 @@ returns `null` and the loop moves on: the local-file store has no assignee conce
 fence-masked section, so a citation shown only inside a fenced code example does not count.
 
 That skip is why membership alone is not a presence contract. A member a store renders nowhere is silently
-clean here, which is what five of the six store-side contracts above exist to catch:
-`scanAnchorContract`, `scanAppendContract`, `scanReleaseContract`, `scanTriageRecordContract`, and
-`scanRunStateContract` each pin a member's own `## <Section>` heading, and none exempts a store by name.
-The sixth, `scanAssigneeContract`, pins the `- **Assignee:**` configuration bullet instead of the `##
-Assignee` heading — it exempts the local-file store by name, which carries no such bullet — so
-`Assignee`'s own section presence stays unpinned: deleting the whole section from a seed leaves the suite
-green, because the bullet still matches. Triage record #386 tracks building that check.
+clean here, which is what the six store-side contracts above exist to catch. `scanAnchorContract`,
+`scanAppendContract`, `scanReleaseContract`, `scanTriageRecordContract`, and `scanRunStateContract` each
+pin a member's own `## <Section>` heading, and none exempts a store by name. `scanAssigneeContract` pins
+two halves: the `- **Assignee:**` configuration bullet, which is what a backend is actually configured
+with, and the `## Assignee` heading through `specialisingHeading('Assignee')`. It is the one that exempts
+a store by name, the local-file store, which has no assignee concept and renders neither half.
 
 One notation is pinned, not an alternation. Accepting `` `plan-contract.md`, *Section* `` beside the arrow
 would make both forms true forever and leave a new seed's author guessing which to copy, so every
@@ -1175,10 +1187,9 @@ own `## Run state` section (`plan-contract.md` → *Run state*, ADR 0042). It wa
 backend seed added later and this repo's own dogfooded `docs/agents/issue-tracker.md` are both covered
 without either being named. Without it, deleting a whole `## Run state` section from a store document
 leaves the suite green — the citation check reads a section that is present, and `extractSection()`
-returning `null` is the same branch that correctly skips a store rendering none. Five of the six
-specialising sections carry a store-side presence contract this way; `Assignee` does not —
-`scanAssigneeContract` pins its `- **Assignee:**` configuration bullet instead of the section, and triage
-record #386 tracks the missing check.
+returning `null` is the same branch that correctly skips a store rendering none. All six specialising
+sections carry a store-side presence contract this way. `Assignee`'s lives inside
+`scanAssigneeContract`, beside that contract's other half.
 
 **No store is exempt, and that is the point.** A snapshot-less backend declares itself snapshot-less
 *inside* this section — the Jira seed's own `## Run state` says the store carries no snapshot by default,
@@ -1189,11 +1200,12 @@ snapshot-less store would drop the check exactly where it matters most.
 **The heading may carry a trailing parenthetical.** The Jira seed writes `## Run state (fill in at setup)`
 on the sections a consumer completes at setup, the same suffix it puts on `## Configuration` and
 `## Status workflow`, so this check matches the heading through `specialisingHeading('Run state')` rather
-than a pattern of its own — the same word-boundary latitude the citation assertion and the generic-side
-rows already take, and the hand-written `## Epic visuals` row already took, so changing the anchoring in
-one place can never diverge from either. Three of the other four store-side presence contracts
-(`scanAnchorContract`, `scanAppendContract`, `scanTriageRecordContract`) still anchor their own pattern to
-end-of-line. Each also feeds `extractSection()` for element checks a word boundary would not serve.
+than a pattern of its own — the same word-boundary latitude the citation assertion, the generic-side
+rows, and `scanAssigneeContract`'s section half already take, and the hand-written `## Epic visuals` row
+already took, so changing the anchoring in one place can never diverge from any of them. Three of the
+other four store-side presence contracts (`scanAnchorContract`, `scanAppendContract`,
+`scanTriageRecordContract`) still anchor their own pattern to end-of-line. Each also feeds
+`extractSection()` for element checks a word boundary would not serve.
 `scanReleaseContract` anchors the same way, but tests raw text for presence alone: `RELEASE_PATTERN`
 carries no elements to extract.
 

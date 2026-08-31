@@ -35,6 +35,8 @@ const {
   ASSIGNEE_EXEMPT,
   EXTRA_ASSIGNEE_DOCS,
   ASSIGNEE_PATTERN,
+  ASSIGNEE_BULLET_EXPECTATION,
+  ASSIGNEE_SECTION_EXPECTATION,
   ANCHOR_DOCS_DIR,
   EXTRA_ANCHOR_DOCS,
   ANCHOR_PATTERN,
@@ -165,8 +167,27 @@ function scanRunRootPaths(root) {
 // scanAssigneeContract() is pure over a root dir: reads every issue-backend document and reports the
 // ones that never carry the assignee contract. Absent files are skipped, so fixtures need only the docs
 // they exercise.
+//
+// The contract has two halves, and each is reported apart. ASSIGNEE_PATTERN pins the
+// `- **Assignee:**` configuration bullet, which is what a backend is actually configured with.
+// specialisingHeading('Assignee') pins the `## Assignee` section the store renders for
+// `plan-contract.md`'s generic contract, which is the store-side presence contract every other member of
+// the specialising family already had. Pinning the bullet alone left the section deletable with every
+// check green: the citation contract skips a store rendering no section, and that is the same branch
+// which correctly exempts one that carries none by design.
+//
+// The heading comes from specialisingHeading() rather than a second copy of the pattern, so a change to
+// the family's heading anchoring reaches this check too — the store documents write `## Assignee`, and
+// the `#{2,3}` span accepts a deeper level the same way every other member's does.
+//
+// Both halves test fence-masked text, defensively: no store document renders either half inside a fenced
+// example today, and the seeds' habit of showing headings inside fenced examples elsewhere makes one
+// plausible. scanReleaseContract takes the opposite latitude and reads raw text.
+//
+// One exempt set covers both halves. The local-file store has no assignee concept, so it renders neither.
 function scanAssigneeContract(root) {
   const gaps = [];
+  const heading = specialisingHeading('Assignee');
   const candidates = storeDocuments(root, {
     dir: ASSIGNEE_DOCS_DIR,
     extra: EXTRA_ASSIGNEE_DOCS,
@@ -175,7 +196,9 @@ function scanAssigneeContract(root) {
   for (const rel of candidates) {
     const text = readDoc(root, rel);
     if (text === null) continue; // doc absent (fixture / partial checkout) → nothing to scan
-    if (!ASSIGNEE_PATTERN.test(text)) gaps.push({ source: rel });
+    const masked = maskFences(text);
+    if (!ASSIGNEE_PATTERN.test(masked)) gaps.push({ source: rel, expectation: ASSIGNEE_BULLET_EXPECTATION });
+    if (!heading.test(masked)) gaps.push({ source: rel, expectation: ASSIGNEE_SECTION_EXPECTATION });
   }
   return gaps;
 }

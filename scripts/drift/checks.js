@@ -120,11 +120,11 @@ module.exports = [
   },
   {
     id: 'assignee',
-    ok: 'assignee contract carried',
+    ok: 'assignee contract carried, both halves',
     run: scanAssigneeContract,
     format: (g) =>
-      `${g.source} carries no \`**Assignee\` config bullet — expected \`- **Assignee:** <value>\` or ` +
-      `\`- **Assignee**: <value>\` as a list item; see plan-contract.md → Assignee`,
+      `${g.source} no longer meets the assignee contract — expected it to ${g.expectation}; see ` +
+      `plan-contract.md → Assignee`,
   },
   {
     id: 'anchor-contract',

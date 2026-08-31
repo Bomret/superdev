@@ -60,6 +60,17 @@ const EXTRA_ASSIGNEE_DOCS = ['docs/agents/issue-tracker.md']; // this repo's own
 // this backend is actually configured with one.
 const ASSIGNEE_PATTERN = /^\s*[-*]\s+\*\*Assignee(?:\*\*:|:\*\*)/m;
 
+// The two halves report apart, so a maintainer reads which one is missing rather than which check fired.
+// The section half is the store-side presence contract `Assignee` shares with every other member of the
+// specialising family; `scanAssigneeContract` finds it through `specialisingHeading('Assignee')`.
+const ASSIGNEE_BULLET_EXPECTATION =
+  'carry the `- **Assignee:** <value>` configuration bullet (or the `- **Assignee**: <value>` spelling) ' +
+  'as a list item';
+
+const ASSIGNEE_SECTION_EXPECTATION =
+  'carry its own `## Assignee` section — the store side of the generic contract, which states how this ' +
+  'backend applies the configured assignee';
+
 // Every slice-store document must state how to identify a feature's scope anchor (ADR 0017). `/superdev:afk`
 // selects work by anchor and reads that contract rather than encoding any one store's shape, so a document
 // without it leaves the sweep with no way to recognise a candidate in that backend. Unlike the assignee
@@ -1872,16 +1883,17 @@ const NUMBER_TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'sev
 // `## Unattended` and `## Degraded passes` rows); this table is that treatment for the five canonical
 // sources that never got it.
 //
-// The heading `specialisingGenericRows()` and `scanSpecialisingCitations()` find a section by, and the
-// one pattern `scanRunStateContract` uses for its own store-side presence check. It stops at a word
-// boundary rather than end-of-line, because a real heading carries a trailing qualifier on both sides of
-// the family: the generic document writes `### Assignee — store configuration, not a slice field`, and
-// the Jira seed writes `## Run state (fill in at setup)` on the sections a consumer completes at setup.
-// Anchoring to end-of-line would read either as no section at all. Three of the other four store-side
-// presence contracts (`ANCHOR_PATTERN`, `APPEND_PATTERN`, `TRIAGE_RECORD_PATTERN`) still anchor to
-// end-of-line, because they also feed `extractSection()` for element checks, so widening them is not a
-// free swap. `RELEASE_PATTERN` anchors the same way but carries no elements: `scanReleaseContract` tests
-// it against raw text for presence alone.
+// The heading `specialisingGenericRows()` and `scanSpecialisingCitations()` find a section by, the one
+// pattern `scanRunStateContract` uses for its own store-side presence check, and the one
+// `scanAssigneeContract`'s section half uses for its own. It stops at a word boundary rather than
+// end-of-line, because a real heading carries a trailing qualifier on both sides of the family: the
+// generic document writes `### Assignee — store configuration, not a slice field`, and the Jira seed
+// writes `## Run state (fill in at setup)` on the sections a consumer completes at setup. Anchoring to
+// end-of-line would read either as no section at all. Three of the other four store-side presence
+// contracts (`ANCHOR_PATTERN`, `APPEND_PATTERN`, `TRIAGE_RECORD_PATTERN`) still anchor to end-of-line,
+// because they also feed `extractSection()` for element checks, so widening them is not a free swap.
+// `RELEASE_PATTERN` anchors the same way but carries no elements: `scanReleaseContract` tests it against
+// raw text for presence alone.
 const specialisingHeading = (name) => new RegExp(`^#{2,3}\\s+${name}\\b`, 'm');
 
 // The **specialising family**: the generic contracts in `references/plan-contract.md` that a slice-store
@@ -1892,11 +1904,10 @@ const specialisingHeading = (name) => new RegExp(`^#{2,3}\\s+${name}\\b`, 'm');
 // presence contract is the one side that stays per-section, because each has its own elements to assert:
 // `scanAnchorContract`, `scanAppendContract`, `scanReleaseContract`, `scanTriageRecordContract` and
 // `scanRunStateContract` each pin their own member's `## <Section>` heading. `scanAssigneeContract` pins
-// the `- **Assignee:**` configuration bullet instead of the `## Assignee` heading, so `Assignee`'s own
-// section presence stays unpinned — deleting the whole section from a seed leaves the suite green,
-// because the bullet still matches (triage record #386). Adding a name here without adding a store-side
-// presence contract for it leaves the section's presence to the citation check, which skips a store
-// rendering none.
+// two halves, the `- **Assignee:**` configuration bullet and the `## Assignee` heading, and finds the
+// heading through `specialisingHeading('Assignee')` so this list reaches it too. Adding a name here
+// without adding a store-side presence contract for it leaves the section's presence to the citation
+// check, which skips a store rendering none.
 //
 // **The membership rule:** a section is a member when `plan-contract.md` states its generic contract and
 // **at least one store document renders it as its own section**. `Assignee` passes — four of the five
@@ -2364,6 +2375,8 @@ module.exports = {
   ASSIGNEE_EXEMPT,
   EXTRA_ASSIGNEE_DOCS,
   ASSIGNEE_PATTERN,
+  ASSIGNEE_BULLET_EXPECTATION,
+  ASSIGNEE_SECTION_EXPECTATION,
   ANCHOR_DOCS_DIR,
   EXTRA_ANCHOR_DOCS,
   ANCHOR_PATTERN,
