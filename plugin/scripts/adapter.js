@@ -5,7 +5,7 @@
 // plugin/skills/<name>/SKILL.md commands, the plugin/agents/<name>.md subagents, and the
 // deterministic guardrails — into another harness's on-disk layout, so a superdev install there
 // carries the same chain. The only harness is `opencode`: skills render to
-// `.opencode/commands/superdev/<name>.md` (skill `afk` is skipped), agents to
+// `.opencode/commands/superdev/<name>.md` (skills `afk` and `upgrade` are skipped), agents to
 // `.opencode/agents/<name>.md`, with the Claude-specific tokens rewritten deterministically, and
 // the eight hooks are bridged by a generated OpenCode plugin at `.opencode/plugins/superdev.js`
 // (issue #376) that spawns them as `node <plugin-root>/hooks/<hook>.js` with a Claude-shaped
@@ -60,8 +60,10 @@ const HARNESSES = ['opencode'];
 const AGENT_MARKER = '# generated-by: superdev-adapter — a re-render overwrites this file';
 
 // The afk skill drives the chain unattended one anchor at a time; it is a Claude Code Skill-tool
-// driver and has no OpenCode command rendering (issue #375).
-const SKIPPED_SKILLS = new Set(['afk']);
+// driver and has no OpenCode command rendering (issue #375). upgrade's body only drives Claude
+// Code's own `claude plugin update`; OpenCode's real upgrade path is a git pull plus a re-render,
+// which is not this skill (issue #393), so it renders no OpenCode command either.
+const SKIPPED_SKILLS = new Set(['afk', 'upgrade']);
 
 function fail(msg) {
   const err = new Error(msg);
@@ -637,6 +639,15 @@ async function selftest() {
       '---',
       'name: afk',
       'description: Drive the chain unattended.',
+      '---',
+      '',
+      'body',
+      '',
+    ].join('\n'));
+    write(pluginRoot, 'skills/upgrade/SKILL.md', [
+      '---',
+      'name: upgrade',
+      'description: Upgrade the plugin via claude plugin update.',
       '---',
       '',
       'body',

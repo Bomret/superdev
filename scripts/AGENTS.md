@@ -157,8 +157,11 @@ whole page (ADR 0027, Consequences).
 shipped prompt surfaces into another harness's on-disk layout, so a superdev install there carries
 the same chain. The only harness is `opencode`, named by `--harness`. Skills render from
 `plugin/skills/<name>/SKILL.md` to `.opencode/commands/superdev/<name>.md` — the skill `afk` is
-skipped, since it drives the chain through Claude Code's Skill tool — and agents from
-`plugin/agents/<name>.md` to `.opencode/agents/<name>.md`. The rendered command frontmatter carries the `description`, the skill's `model:` alias resolved
+skipped, since it drives the chain through Claude Code's Skill tool, and the skill `upgrade` is
+skipped, since its body only drives Claude Code's own `claude plugin update`, which has no OpenCode
+equivalent — and agents from
+`plugin/agents/<name>.md` to `.opencode/agents/<name>.md`. The rendered command frontmatter carries
+the `description`, the skill's `model:` alias resolved
 through the same `--model-map` (a missing alias refuses nonzero and names the alias and the
 command), and the skill's `allowed-tools:` carried verbatim — OpenCode command frontmatter has no
 permission key, so the field is preserved rather than dropped silently. The rendered agent

@@ -453,7 +453,7 @@ in.
 The render creates:
 
 ```
-.opencode/commands/superdev/<name>.md   one per skill, except afk
+.opencode/commands/superdev/<name>.md   one per skill, except afk and upgrade
 .opencode/agents/<name>.md              one per subagent
 .opencode/plugins/superdev.js           the hook bridge, forwarding OpenCode's plugin events to the
                                          eight shipped hooks, spawned as
@@ -466,6 +466,9 @@ directory, only the agent files it wrote in a past render — so a renamed or re
 leaves no stale file behind, while another plugin under `.opencode/plugins/` and a consumer's own
 agent under `.opencode/agents/` both survive untouched.
 
+**Updating.** There is no OpenCode equivalent of `/superdev:upgrade` — `git pull` in the `superdev`
+clone, then re-run the render command above.
+
 **Verify each render target.** Confirm the three paths above exist under the project's `.opencode/`.
 Confirm the rendered commands appear once you type `/` in OpenCode's own interface, since that is how
 OpenCode lists them. Start an OpenCode session in the project and check its log for a plugin-loader
@@ -475,21 +478,21 @@ cache file the bridged `update-check` hook writes on `session.created`. From a s
 a command one of the guardrails blocks under Claude Code, for example `git merge`, and confirm OpenCode
 refuses it the same way.
 
-Four gaps stand in the render today, each a recorded triage record rather than a silent one. The
+Three gaps stand in the render today, each a recorded triage record rather than a silent one. The
 `update-check` hook's version notice never reaches you, because the bridge runs the hook but has
 nowhere to print its output. The `model-explicit` check reads only the project's own
 `.opencode/agents/<type>.md`, so it names no model for an agent your OpenCode configuration points at
-from anywhere else. The rendered `upgrade` command still only drives Claude Code (`claude plugin
-update`, a restart of Claude Code itself). Running it under OpenCode reports the wrong steps. See
-[Updating](#updating) for the manual steps instead. A rendered agent's `tools:` map is written
-without regard to any `permission:` rules already in your own OpenCode configuration, including its
-default `.env` read guard. The render's own allowlist can compose to a wider effective access than
-your configuration meant to keep narrow. No plan yet states how a rendered pack should merge with
-an existing one.
+from anywhere else. A rendered agent's `tools:` map is written without regard to any `permission:`
+rules already in your own OpenCode configuration, including its default `.env` read guard. The
+render's own allowlist can compose to a wider effective access than your configuration meant to keep
+narrow. No plan yet states how a rendered pack should merge with an existing one.
 
-**afk is excluded.** `/superdev:afk` drives the chain through Claude Code's own Skill tool, so the
-render skips it: no `.opencode/commands/superdev/afk.md` exists. Run `implement`, `review`,
-`document`, and `ship` yourself, one at a time, under OpenCode.
+**afk and upgrade are excluded.** `/superdev:afk` drives the chain through Claude Code's own Skill
+tool, so the render skips it: no `.opencode/commands/superdev/afk.md` exists. Run `implement`,
+`review`, `document`, and `ship` yourself, one at a time, under OpenCode. `/superdev:upgrade` drives
+Claude Code's own `claude plugin update`, which has no OpenCode equivalent, so the render skips it
+too: no `.opencode/commands/superdev/upgrade.md` exists. See **Updating** above for the real
+OpenCode upgrade path — a `git pull` in the clone, then a re-render.
 
 ## Attribution
 

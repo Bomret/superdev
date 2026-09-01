@@ -38,7 +38,7 @@ time.**
 - The six agent bodies stay single-source; the eight hook scripts stay position-independent Node.
 - A new runtime CLI, `plugin/scripts/adapter.js` (CommonJS, `--selftest`, same discipline as
   `scope.js` and `kb-patch.js`), is the only expansion point. Given `--harness`, `--plugin-root`, and
-  `--dest`, it renders a consumer repository's native surfaces: for OpenCode, eleven command files
+  `--dest`, it renders a consumer repository's native surfaces: for OpenCode, ten command files
   under `.opencode/commands/superdev/` (`/superdev/<name>` naming, subdir namespacing verified
   2026-08-30 against `src/config/entry-name.ts` on the `dev` branch), six `mode: subagent` agents with
   a permission mapping and an explicit `--model-map` for Claude's `sonnet`/`opus`/`haiku` aliases, and
@@ -62,7 +62,8 @@ time.**
 - The plugin's install stays a plain copy; per-harness wiring is an explicit, repeatable CLI step that
   the consumer (or a later setup step) runs.
 - afk is excluded from OpenCode renders until its driver mapping is resolved against a verified
-  OpenCode equivalent.
+  OpenCode equivalent. Upgrade is excluded outright, since its body drives Claude Code's own `claude
+  plugin update`, which has no OpenCode equivalent.
 - Each future harness costs a small mapping in `adapter.js` plus fixtures, not a fork of the pack.
 - Hook parity is unachievable on hookless harnesses (Roo Code, Continue today); those remain out of
   scope and are not claimed.
