@@ -183,12 +183,26 @@ keeps every run and every sweep from selecting it as work to build. Only a human
 _Avoid: "draft issue" (no backend the plugin supports has a draft issue state outside GitHub's project
 boards), "triage slice" (it has no spec, no acceptance, and no place in a DAG)_
 
+**Untriaged item**: an open record in the slice store that superdev never wrote — it carries neither a
+feature label nor the store's triage signal, so it is neither a **Scope anchor**, nor a slice, nor a
+**Triage record**. It is work a human filed and no `/superdev:plan` interview has yet reached. How a given
+store recognises and lists one is stated in that store's own `## Untriaged item` section; a store with no
+inbox of its own, such as the local plan-file store, states there that the set is empty. Only a human acts
+on it: reading one is what turns it into a plan or closes it.
+_Avoid: "unlabeled issue" (a human's own labels do not make an item triaged, and one backend's records
+carry no labels at all), "new issue" (age is not what defines it), "backlog item" (every row in a
+**Backlog survey** is one of those)_
+
 **Backlog survey**: the read-only report `/superdev:backlog` prints, grouping every open **Scope anchor**,
-every **Triage record**, and every **stranded run root** in the slice store by the action each one needs,
-and ending with one recommended move. A stranded run root is a run whose stage is short of `shipped` and
-matches no open anchor. It ranks as the most expensive item in the table. It reads the store where
-`/superdev:status` reads the runs' ledgers, and it shows the three things `/superdev:afk` passes over by
-design: an unreleased plan, an anchor nobody decomposed, and a triage record. It shares its facts with that
+every **Triage record**, every **stranded run root**, and every **Untriaged item** in the slice store by the
+action each one needs, and ending with one recommended move. A stranded run root is a run whose stage is
+short of `shipped` and matches no open anchor. It ranks as the most expensive item in the table, where an
+untriaged item ranks last: it is the furthest from finishing, and it is the one bucket the survey caps
+rather than printing whole, since a store with real reporters holds more of them than the rest of the
+table put together. It reads the store where
+`/superdev:status` reads the runs' ledgers, and it shows the four things `/superdev:afk` passes over by
+design: an unreleased plan, an anchor nobody decomposed, a triage record, and an untriaged item. It shares
+its facts with that
 command's selection and not its verdicts — a survey resolves an ambiguity toward showing the row, where an
 unattended sweep resolves one toward deferring (ADR 0049). It writes nothing and sits outside the implement
 chain.
