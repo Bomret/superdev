@@ -73,7 +73,7 @@ the text upstream.
   it resolved itself, or an inline fix it applied on an attended pass earlier in the same scope. Such a
   resolution composes two slices that were each already reviewed, so the residual exposure is the
   composition rather than the code.
-- `AGENTS.md`'s `## Known issues` names the delegation handoff classifier as the denying component. A
+- `docs/known-issues.md` names the delegation handoff classifier as the denying component. A
   SessionStart preamble can feed what that classifier reads and cannot itself deny a call.
 
 ## Considered options

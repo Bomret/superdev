@@ -31,46 +31,30 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
   .claude-plugin/
     plugin.json        — plugin manifest (name, version, author); version is the SINGLE source of truth.
                          No `hooks` field — Claude Code auto-loads the standard hooks/hooks.json.
-  skills/              — the twelve skill surfaces, one `<name>/SKILL.md` each (ADR 0050): brainstorm,
-                         setup, plan, implement, review, document, ship, afk, upgrade, status,
-                         backlog, publish-kb. Claude Code merges plugin skills and commands into one
-                         `/superdev:<name>` surface, so the move costs the user nothing. implement →
-                         review → document → ship is the chain a scope walks, each skill printing the
-                         next (ADR 0013). afk drives that chain unattended, one eligible scope anchor
-                         at a time, with the Skill tool (ADR 0015). Two skills sit outside the chain
-                         and afk drives neither: publish-kb sends a scope's staged knowledge-base
-                         pages to a remote backend on the operator's own clock (ADR 0023), and
-                         backlog surveys the slice store read-only, grouping every open scope anchor,
-                         triage record, and stranded run root by the action it needs and judging them
-                         more loosely than afk's own selection does (ADR 0049)
-  agents/              — subagents (*.md): implementer, slice-reviewer, simplicity-reviewer, final-reviewer,
-                         doc-writer, doc-reader
-  hooks/               — deterministic Node hooks + hooks.json: merge-guard, model-explicit, green-gate,
-                         run-lock, ledger-guard, worktree-sweep, scope-prune, update-check
+  skills/              — the twelve `/superdev:<name>` surfaces, one `<name>/SKILL.md` each (ADR 0050):
+                         brainstorm, setup, plan, implement, review, document, ship, afk, upgrade,
+                         status, backlog, publish-kb
+  agents/              — the six subagents (*.md): implementer, slice-reviewer, simplicity-reviewer,
+                         final-reviewer, doc-writer, doc-reader
+  hooks/               — the eight deterministic Node hooks + hooks.json: merge-guard, model-explicit,
+                         green-gate, run-lock, ledger-guard, worktree-sweep, scope-prune, update-check
   references/          — backend seed templates + the non-seed runtime references (plan-contract,
                          documentation convention, controlled-prose, content-types, doc pass, run init,
                          run handoff, execution playbooks, test-selection, scope-mode, authoring
                          disciplines, design sketch, diagnosis, prototype, merge-conflicts,
-                         review-checklist). Who reads what: the `references/` entry of the Child DOX
-                         Index below.
-  scripts/             — the runtime CLIs: `scope.js` (the run-state CLI,
-                         ADR 0022), `kb-patch.js` (the knowledge-base section merge, ADR 0027), and
-                         `adapter.js` (the OpenCode harness adapter, issue #375). The commands invoke
-                         the first two at runtime; `adapter.js` renders the prompt surfaces and the
-                         hook bridge plugin (`.opencode/plugins/superdev.js`, issue #376) for an
-                         OpenCode install
+                         review-checklist); its own AGENTS.md routes them
+  scripts/             — the three runtime CLIs: `scope.js`, `kb-patch.js`, `adapter.js`
   LICENSE · NOTICE     — copies of the root files, so the shipped tree carries its own attribution
 docs/adr/              — architecture decision records (why the plugin is built this way)
 docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, documentation, KB, toolchain, verification)
-scripts/               — maintainer-only deterministic code wired into `bun run test`: `eval-run.js`
-                         (the eval runner, ADR 0024) and `drift-check.js` with its `drift/` modules
-                         (registry, contract tables, scanners, shared helpers, selftest suites).
-                         What every script owns and guards — the two here and the three shipped ones in
-                         `plugin/scripts/` — is enumerated once, in `scripts/AGENTS.md`.
+docs/known-issues.md   — Claude Code platform behaviour superdev works around, each entry with its
+                         shipped mitigation and dated verification
+scripts/               — the two maintainer-only CLIs wired into `bun run test`: `eval-run.js` and
+                         `drift-check.js` with its `drift/` modules (registry, contract tables,
+                         scanners, shared helpers, selftest suites)
 evals/                 — cases (*/case.yaml + graders/*.md + the case's scaffold_script, a path
                          relative to the case dir — never an inline block); every case is one arm of
-                         the with/without-plugin A/B, run by `scripts/eval-run.js` on a Claude
-                         subscription (ADR 0024) — see `evals/README.md`
+                         the with/without-plugin A/B — see `evals/README.md`
 release.config.cjs     — semantic-release config (semantic-release-replace-plugin bumps plugin.json)
 package.json           — dev-only tooling (Bun); NOT published to npm
 CHANGELOG.md           — release-managed by semantic-release; do not hand-edit
@@ -80,15 +64,13 @@ README.md · RELEASING.md · NOTICE · LICENSE
 
 The plugin ships as markdown and JS hooks. There is **no build step**: the marketplace's `./plugin`
 source is what limits an install to the shipped tree, so releasing stays a plain commit. `skills/`,
-`agents/`, and `references/` are prose. `hooks/` and the two `scripts/` dirs are executable: `hooks/`
-holds Claude Code hooks, `plugin/scripts/` holds the three runtime CLIs, and the root `scripts/` holds
-maintainer-only checks like `drift-check.js`, which `package.json` runs. `hooks/` is also a runtime
-consumer of `plugin/scripts/`: `hooks/scope-prune.js` and `hooks/worktree-sweep.js` both `require`
-`../scripts/scope.js` for their shared ledger-header reader (ADR 0022). These are the only two
-dependencies `hooks/` has on a script. Every other hook stays standalone. Paths inside `plugin/` resolve
-against the plugin root at runtime, so prose there names them without the `plugin/` prefix.
-`scripts/drift/lib.js`'s `docPath()` resolves the same
-plugin-relative paths for the maintainer-side checks.
+`agents/`, and `references/` are prose. `hooks/` and the two `scripts/` dirs are executable. Paths inside
+`plugin/` resolve against the plugin root at runtime, so prose there names them without the `plugin/`
+prefix; `scripts/drift/lib.js`'s `docPath()` resolves the same plugin-relative paths for the
+maintainer-side checks.
+
+This tree is layout only. What each subtree owns, which working rule governs it, and how the pieces
+depend on each other is stated once, in the **Child DOX Index** at the end of this document.
 
 ## Stack
 
@@ -145,46 +127,18 @@ plugin-relative paths for the maintainer-side checks.
     `agents/`, pin the `skills/` sentence that dispatches it too, or write down why no dispatch can
     contradict it. A one-sided pin is a contract that reads enforced and stays green while the live path
     drifts: `FULL_SUITE_CONTRACTS` had exactly that shape, and the leak reached production prose.
-- **Platform-dependent claims carry dated verification.** An ADR, or a `## Known issues` entry below,
+- **Platform-dependent claims carry dated verification.** An ADR, or an entry in
+  [`docs/known-issues.md`](docs/known-issues.md),
   states a claim about Claude Code behaviour. When you re-check that claim, record a dated update naming
   the version and the observed evidence ("Verified 2026-08-19, on Claude Code 2.1.x, output …"). A stale
   platform claim then shows its age instead of silently misleading.
 
 ## Known issues (Claude Code platform)
 
-**SessionStart system-prompt preambles leak into subagent tool outputs** (tracked as issue #32). When a
-subagent is dispatched, the Claude Code harness includes the main conversation's SessionStart
-system-message in the subagent's prompt context. Examples are context-window protection and
-tool-bootstrap guidance. This creates a prompt-injection surface, in two ways:
-
-- Subagents receive meta-instructions they did not ask for.
-- Tool-call outputs may arrive wrapped in system-prompt tags instead of staying opaque.
-
-**Mitigation (implemented):** every subagent body carries explicit secret-hygiene discipline. Each agent
-identifies and disregards any injected system-reminder block, and uses only the standard tools it was
-given (`Read`, `Edit`, `Write`, `Bash`, and the rest). See `agents/implementer.md` for the pattern.
-
-**Fix required at:** the Claude Code platform layer. Subagent prompts need isolation from the main
-conversation's SessionStart preamble. Track this upstream with the Claude Code team.
-
-**A denied dispatch comes from the delegation handoff classifier.** Auto mode runs a transcript
-classifier over tool calls, and a subagent handoff carries a classifier at delegation that can deny, plus
-one at return that only warns. A SessionStart preamble denies nothing: it is informational, and its
-contribution is to the user-message stream the classifier reads, which is the leak above. A denial
-returns as a tool result carrying its reason, and three consecutive denials — or twenty in a session —
-stop the model and escalate to the human, while headless `claude -p` terminates instead. An unattended
-run stops itself before that, at the cap `references/scope-mode.md`'s `## Degraded passes` section states,
-so the stop happens through superdev's own block procedure and leaves a tracker record rather than a
-terminated session and a stranded run root (ADR 0041). The documented
-stage-2 false-positive rate is 0.4%, so a denial is not by itself evidence of a real hazard. Plugin
-subagents ignore the `permissionMode`, `hooks`, and `mcpServers` frontmatter fields, so superdev's own
-agents cannot change any of this; the levers are the consumer's `permissions.allow` and a copy of the
-agent under `.claude/agents/`. What the chain does about a denial is `references/scope-mode.md`'s
-`## Degraded passes`, and ADR 0039 records the decision.
-
-Verified 2026-08-23, against Anthropic's *How we built Claude Code auto mode* engineering post
-(`https://www.anthropic.com/engineering/claude-code-auto-mode`) and the *Create custom subagents*
-documentation (`https://code.claude.com/docs/en/sub-agents`), both read that day.
+Platform behaviour superdev works around, with the mitigation each one ships:
+[`docs/known-issues.md`](docs/known-issues.md). Two entries live there — the SessionStart preamble leak
+into subagent prompts (issue #32), and the delegation handoff classifier behind a denied dispatch
+(ADR 0039, ADR 0041). Read it before you change subagent prose or the unattended block.
 
 ## Common commands
 
@@ -239,10 +193,12 @@ Bun dev toolchain, Node runtime for hooks. `bun run test` (green-gate), `bun run
 
 ## Child DOX Index
 
-**One child exists: [`scripts/AGENTS.md`](scripts/AGENTS.md).** It owns what the five scripts guard:
-the two maintainer-only ones in `scripts/` and the three shipped ones in `plugin/scripts/`. That
-ownership includes the full drift-check contract narrative. Every other subtree's rules live in this
-root doc.
+**Two children exist.** [`scripts/AGENTS.md`](scripts/AGENTS.md) owns what the five scripts guard: the
+two maintainer-only ones in `scripts/` and the three shipped ones in `plugin/scripts/`. That ownership
+includes the full drift-check contract narrative.
+[`plugin/references/AGENTS.md`](plugin/references/AGENTS.md) owns the reference routing table: which
+reference owns which contract, and which runtime surface reads it. Every other subtree's rules live in
+this root doc.
 See `Structure` above for the current file inventory. Add a child only when a subtree becomes a
 durable boundary with rules of its own that do not fit here.
 
@@ -250,10 +206,17 @@ This root owns every other subtree directly:
 
 - `plugin/skills/`, `plugin/agents/`. Prose skill surfaces and subagents. Governed by **Working
   rules, Backends are pluggable**: stay tool-agnostic and never hardcode a backend. Behaviour contracts
-  live in the files.
+  live in the files. Claude Code merges plugin skills and commands into one `/superdev:<name>` surface.
+  implement → review → document → ship is the chain a scope walks, each skill printing the next
+  (ADR 0013). afk drives that chain unattended, one eligible scope anchor at a time, with the Skill tool
+  (ADR 0015). Two skills sit outside the chain and afk drives neither: publish-kb sends a scope's staged
+  knowledge-base pages to a remote backend on the operator's own clock (ADR 0023), and backlog surveys
+  the slice store read-only, grouping every open scope anchor, triage record, and stranded run root by
+  the action it needs and judging them more loosely than afk's own selection does (ADR 0049).
 - `plugin/hooks/`. Claude Code hooks, the plugin's deterministic guardrails. Governed by **Working
   rules, Hooks are CommonJS** and **Every hook ships a `--selftest`**. This is the strongest future
-  child-doc candidate, if its rules outgrow this root. `scope-prune.js` and `worktree-sweep.js` both
+  child-doc candidate, if its rules outgrow this root. `hooks/` is the only runtime consumer of
+  `plugin/scripts/`: `scope-prune.js` and `worktree-sweep.js` both
   `require` `../scripts/scope.js` for their ledger-header reader (ADR 0022). These are the only two
   places a hook depends on a script instead of standing alone. A `require` failure leaves either hook
   with no fallback reader: it sweeps/prunes nothing and says nothing.
@@ -262,7 +225,7 @@ This root owns every other subtree directly:
   `ledger.md` read and write path, and exports `readLedgerHeader` for `plugin/hooks/scope-prune.js` and
   `plugin/hooks/worktree-sweep.js`),
   `plugin/scripts/kb-patch.js` (the deterministic section merge behind a staged page's `action: patch`,
-  called by `/superdev:publish-kb`, ADR 0027),
+  called by `/superdev:publish-kb`, ADR 0027 — the commands invoke this and `scope.js` at runtime),
   `plugin/scripts/adapter.js` (the OpenCode harness adapter, issue #375: renders the shipped skills
   and agents into `.opencode/`, plus the OpenCode hook bridge plugin `.opencode/plugins/superdev.js`
   that forwards OpenCode's plugin events to the eight shipped hooks, issue #376; golden fixtures
@@ -271,27 +234,13 @@ This root owns every other subtree directly:
   runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the sixty-five cross-document contract checks: the
   CLI walks the `drift/checks.js` registry, which orders every scanner and contract table). What each
   guards, check by check, lives in that child doc.
-- `plugin/references/`. Backend seed templates plus the non-seed references below. Each reference's own
-  opening states its full contract. This index only routes.
-
-  | Reference | Owns | Read at runtime by |
-  |---|---|---|
-  | `plan-contract.md` | slice schema and lifecycle, plus the `## Scope anchor`, `## Feature label`, `## Release`, `## Run state`, `## Append mode`, `## Triage record`, and `### Assignee` generic contracts every store document specialises, including the anchor dependency `/afk` defers on (ADR 0004, 0010, 0017, 0019, 0021, 0034, 0040, 0042, 0046, 0048) | `/plan`, `/implement`, `/afk`, and the store seeds cite it |
-  | `documentation.md` | the in-repo documentation convention, which `/superdev:setup` fills at `## Writing standard` always and at `## Audit set` when needed | `/setup`, `/document` |
-  | `controlled-prose.md` | the writing standard (ADR 0012) | `doc-pass.md`'s callers apply it, `doc-reader` verifies it |
-  | `content-types.md` | the content-type lens, never configurable and never `none` (ADR 0014) | `doc-pass.md`'s callers, `doc-reader` |
-  | `doc-pass.md` | the documentation pass, stated once for its two callers (ADR 0031) | `doc-writer`, the `lite` playbook |
-  | `run-init.md`, `run-handoff.md` | run init and run handoff, tier-agnostic | both execution playbooks |
-  | `implement-full.md`, `implement-lite.md` | the tier-specific execution playbooks | `/implement`, once it computes the tier |
-  | `test-selection.md` | the focused-or-full test command rule (ADR 0025), which `hooks/green-gate.js` implements in code | focused: `implementer`, `slice-reviewer`, `implement-lite`, `/superdev:document` (over its own doc commits). Full suite: `/review`'s scope review, `run-handoff` |
-  | `scope-mode.md` | the shared scope rules: live-run detection, the scope checkout, the run lock, `## Unattended`, `## The scope slug`, `## The change type`, `## Degraded passes`, `## Unresolved defects`, `## Deferred findings`, `## The ledger` (deferring the schema to `scope.js`), `## Cutting the scope branch`, `## Publishing run state` (ADR 0007, 0013, 0016, 0018, 0021, 0022, 0026, 0028, 0035, 0039, 0041, 0042, 0046, 0048) | `/review`, `/document`, `/ship`, `/implement`, `/afk`, both playbooks |
-  | `cross-exam.md`, `domain-modeling.md`, `doc-verification.md` | the authoring disciplines, superdev's rendering of Matt Pocock's grilling and domain-modeling skills. `domain-modeling.md` also owns revise-in-place: a glossary entry is rewritten, an overturned ADR is superseded, and a qualified one is amended, never edited | `/plan`, `/brainstorm`. `implementer` reads `doc-verification.md` before acting on a third-party assumption |
-  | `design-sketch.md` | the throwaway HTML page showing the components a plan intends to add, change, or delete: the card contract, the self-contained no-JavaScript artifact, the skeleton, and the wait for the operator's approval (ADR 0036) | `/plan` §3, and only when the operator accepts the offer |
-  | `diagnosis.md` | the defect-diagnosis loop: the red-capable repro gate, the minimised repro, ranked hypotheses, tagged instrumentation (a rendering of Matt Pocock's diagnosing-bugs skill) | `/plan` on a `fix` feature, `implementer` on a defect-repair dispatch, `/review`'s fix loop |
-  | `prototype.md` | the prototype discipline: one stated question, liftable logic, throwaway-branch capture, the `spec` snippet exception (a rendering of Matt Pocock's prototype skill) | `/brainstorm` §4, and `plan-contract.md` cites the `spec` exception |
-  | `merge-conflicts.md` | conflict resolution by intent: the union on additive conflicts, composing compatible intents, abort-and-escalate on a winner-picking overlap | the full playbook's merge step |
-  | `review-checklist.md` | anti-patterns, design smells, vulnerability classes, a reuse-audit lens, a consistency lens | `final-reviewer` (all five), `slice-reviewer` (anti-patterns and vulnerabilities) |
+- `plugin/references/`. Backend seed templates plus the runtime references. Owned by
+  [`plugin/references/AGENTS.md`](plugin/references/AGENTS.md), which routes every reference to what it
+  owns and to the runtime surface that reads it. Each reference's own opening states its full contract.
 - `docs/adr/`. Architecture decision records. `docs/agents/`. This repo's own dogfooded backend config.
+  `docs/known-issues.md`. The platform workarounds, governed by **Working rules, Platform-dependent
+  claims carry dated verification**.
 - `.claude-plugin/`. Manifests. Governed by **Working rules, Version lives only in `plugin.json`**.
-- `CONTEXT.md`. The domain glossary. `evals/`. The with-plugin and without-plugin A/B, where
-  `evals/README.md` owns its grader-neutrality and result-reading rules.
+- `CONTEXT.md`. The domain glossary. `evals/`. The with-plugin and without-plugin A/B, run by
+  `scripts/eval-run.js` on a Claude subscription (ADR 0024), where `evals/README.md` owns its
+  grader-neutrality and result-reading rules.
