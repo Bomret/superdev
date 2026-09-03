@@ -49,6 +49,7 @@ const {
   TRIAGE_RECORD_PATTERN,
   TRIAGE_RECORD_ELEMENTS,
   SPECIALISING_SECTIONS,
+  GLOSSARY_ENTRY_TITLES,
   specialisingHeading,
   specialisingCitation,
   TRIAGE_RECORD_EXPECTATION,
@@ -344,6 +345,39 @@ function scanSpecialisingCitations(root) {
           expectation: `cite \`plan-contract.md\` → *${name}* somewhere in its own \`## ${name}\` section`,
         });
       }
+    }
+  }
+  return gaps;
+}
+
+// scanGlossarySpecialisingCitations() is pure over a root dir: reads `CONTEXT.md` and reports every
+// specialising member whose glossary entry no longer cites the generic contract it specialises — the
+// same citation scanSpecialisingCitations() already pins on the store side, applied to the glossary
+// instead. GLOSSARY_ENTRY_TITLES maps a member to its entry's own title (they diverge for `Run state`,
+// titled "Published snapshot"), and a member mapped to `null` (`Append mode`, which has no glossary
+// entry) is skipped, not flagged — the same permissive skip scanSpecialisingCitations() already takes
+// for a store document that legitimately carries no matching section. A member the map omits entirely
+// reads as `undefined` here, never a typo silently reading as `null`'s documented absence; the coverage
+// selftest in scanners.test.js is what keeps that case from ever reaching a real 7th member.
+// extractParagraph() finds the entry from its bold term to the next blank line, narrower than
+// extractSection()'s heading-to-heading span, because a glossary entry is a paragraph, not a section.
+// The citation test runs on the entry fence-masked with maskFences(), matching
+// scanSpecialisingCitations()'s own rule: a citation shown only inside a fenced example is not the real
+// one.
+function scanGlossarySpecialisingCitations(root) {
+  const gaps = [];
+  const text = readDoc(root, 'CONTEXT.md');
+  if (text === null) return gaps; // CONTEXT.md absent (fixture / partial checkout) → nothing to scan
+  for (const name of SPECIALISING_SECTIONS) {
+    const title = GLOSSARY_ENTRY_TITLES[name];
+    if (title === null) continue; // this member has no glossary entry, documented as null in GLOSSARY_ENTRY_TITLES (contracts.js)
+    const entry = extractParagraph(text, new RegExp(`\\*\\*${title}\\*\\*:`));
+    if (entry === null) continue; // the glossary entry itself is absent or the title was renamed; currently has no backstop check
+    if (!specialisingCitation(name).test(maskFences(entry))) {
+      gaps.push({
+        source: 'CONTEXT.md',
+        expectation: `cite \`plan-contract.md\` → *${name}* in its **${title}** glossary entry`,
+      });
     }
   }
   return gaps;
@@ -1074,6 +1108,7 @@ module.exports = {
   scanRunStateContract,
   scanTriageRecordContract,
   scanSpecialisingCitations,
+  scanGlossarySpecialisingCitations,
   scanAfkSelectionNeutrality,
   scanAfkAnchorCount,
   scanWritingStandardContract,

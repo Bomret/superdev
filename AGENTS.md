@@ -231,7 +231,7 @@ This root owns every other subtree directly:
   that forwards OpenCode's plugin events to the eight shipped hooks, issue #376; golden fixtures
   under `scripts/drift/fixtures/opencode/`),
   `scripts/eval-run.js` (the eval
-  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the sixty-five cross-document contract checks: the
+  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the sixty-six cross-document contract checks: the
   CLI walks the `drift/checks.js` registry, which orders every scanner and contract table). What each
   guards, check by check, lives in that child doc.
 - `plugin/references/`. Backend seed templates plus the runtime references. Owned by

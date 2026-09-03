@@ -20,10 +20,10 @@ _Avoid: "mode", "strategy", "level", "route", "path"_
 **Scope**: a feature's scope branch and all its run artifacts (the `.superdev/scopes/<scope>/` directory, holding the DoD, the ledger, progress logs, and worktrees). Scope is the namespace that lets multiple features' runs execute in parallel without colliding. `.superdev/` also holds non-scope areas nested outside `scopes/`, for example `.superdev/brainstorm/`. `/status` only scans `.superdev/scopes/*/`, so a sibling area can never be mistaken for a run root.
 _Avoid: "run", "branch", "feature branch" (too generic)_
 
-**Scope anchor**: a feature's root, the single slice-store issue that carries its scope-level status signal for a run. A multi-slice plan's anchor has slices beneath it. A single-slice plan's anchor is its own lone slice, so one rule covers both shapes. How a given store expresses this is stated in that store's own `## Scope anchor` section, never assumed by a command (ADR 0017).
+**Scope anchor**: a feature's root, the single slice-store issue that carries its scope-level status signal for a run. A multi-slice plan's anchor has slices beneath it. A single-slice plan's anchor is its own lone slice, so one rule covers both shapes. How a given store expresses this is stated in that store's own `## Scope anchor` section, which specialises `plan-contract.md` → *Scope anchor*, never assumed by a command (ADR 0017).
 _Avoid: "epic" (only an epic-bearing feature has one, and the anchor role also falls to a lone slice)_
 
-**Release**: the human agreement that a written plan may be built, carried as a durable signal on the scope anchor. A tracker holds a backlog of tickets written but not yet agreed, so writing a plan and releasing it are two acts: `/plan` asks which one it is doing, `/implement` asks for confirmation before building an unreleased feature, and `/afk` passes one over. The signal is distinct from the `ready` lifecycle state, which the dispatch swaps away. How a given store expresses it is stated in that store's own `## Release` section (ADR 0034).
+**Release**: the human agreement that a written plan may be built, carried as a durable signal on the scope anchor. A tracker holds a backlog of tickets written but not yet agreed, so writing a plan and releasing it are two acts: `/plan` asks which one it is doing, `/implement` asks for confirmation before building an unreleased feature, and `/afk` passes one over. The signal is distinct from the `ready` lifecycle state, which the dispatch swaps away. How a given store expresses it is stated in that store's own `## Release` section, which specialises `plan-contract.md` → *Release* (ADR 0034).
 _Avoid: "ready" (that is the `todo` lifecycle state, consumed the moment work starts), "approved" (unused elsewhere)_
 
 **Run root**: the part of `.superdev/scopes/<scope>/` that stays in the invoking checkout across both tiers: `dod.md`, `ledger.md`, `run.lock`, and on the full tier `interfaces.md` (the cross-slice interface record). Never moves into a worktree, so it survives worktree removal as the post-mortem trail and lets `/status` enumerate runs without touching any worktree.
@@ -35,7 +35,7 @@ _Avoid: "requirements", "specification", "checklist" (DoD is the integrated chec
 **Ledger**: the per-scope recovery map. It tracks the run's stage, the scope branch, each slice's status (todo, then in-progress, then in-review, then merged), its commit range when merged, and the mapping between slice id and issue key. Run init writes the branch as the ledger's `**Branch:**` line once, because a slug alone never names the branch. `.superdev/scopes/<scope>/ledger.md` is the authoritative state during a run, and after a compaction or a resume.
 _Avoid: "log", "status file", "tracker"_
 
-**Published snapshot**: the copy of a run's ledger that the scope anchor carries, written as a `## Run state` section after any ledger write the snapshot would show. The ledger stays authoritative and the snapshot is a mirror, so a run whose publish fails is unaffected. It is what lets a run's record outlive `scope-prune`'s reap, a run resume on another machine, and a run's progress be read without a terminal (ADR 0042). Where it lives on a given backend is stated in that store's own `## Run state` section.
+**Published snapshot**: the copy of a run's ledger that the scope anchor carries, written as a `## Run state` section after any ledger write the snapshot would show. The ledger stays authoritative and the snapshot is a mirror, so a run whose publish fails is unaffected. It is what lets a run's record outlive `scope-prune`'s reap, a run resume on another machine, and a run's progress be read without a terminal (ADR 0042). Where it lives on a given backend is stated in that store's own `## Run state` section, which specialises `plan-contract.md` → *Run state*.
 _Avoid: "remote ledger" (it carries no authority over control flow), "sync", "backup"_
 
 **Adopt**: rebuilding a run root from the anchor's published snapshot, where no local ledger exists and the snapshot's stage is not `shipped`. Run init adopts, writes `dod.md` from the anchor as it does for any run, and reports the run kind `resumed`. `scope.js adopt` reads a whole anchor body and extracts the section itself (ADR 0042).
@@ -179,7 +179,7 @@ unwelcome or off-topic)_
 the moment it defers. It records unplanned work. It is neither a slice nor a scope anchor, which is what
 keeps every run and every sweep from selecting it as work to build. Only a human acts on it, or a later
 `/superdev:plan` interview a human starts. How a given store expresses it is stated in that store's own
-`## Triage record` section (ADR 0046).
+`## Triage record` section, which specialises `plan-contract.md` → *Triage record* (ADR 0046).
 _Avoid: "draft issue" (no backend the plugin supports has a draft issue state outside GitHub's project
 boards), "triage slice" (it has no spec, no acceptance, and no place in a DAG)_
 
@@ -254,7 +254,7 @@ _Avoid: "template" alone (too generic), "backend file" (that names the `docs/age
 **Slice store**: the backend where a feature's plan and slices live: local files, or an issue tracker. Configured in `docs/agents/issue-tracker.md`.
 _Avoid: "issue tracker" as the concept name (that is one backend), "database"_
 
-**Assignee**: the slice-store account every issue a run creates is assigned to. It is a single store-native identifier (a login for Forgejo or GitHub, an `accountId` for Jira) recorded in `docs/agents/issue-tracker.md`, resolving to the API token's own identity when unconfigured and disabled by `none`. Store configuration rather than a slice field, applied at creation to the epic and every slice (ADR 0010).
+**Assignee**: the slice-store account every issue a run creates is assigned to. It is a single store-native identifier (a login for Forgejo or GitHub, an `accountId` for Jira), resolving to the API token's own identity when unconfigured and disabled by `none`. Store configuration rather than a slice field, applied at creation to the epic and every slice. How a given store configures it is stated in that store's own `## Assignee` section, which specialises `plan-contract.md` → *Assignee* (ADR 0010).
 _Avoid: "owner" (too generic), "creator" or "reporter" (the store already records who filed the issue, and assignee is who owns it), "reviewer" (a pull-request role, owned by the code host)_
 
 ## Portability

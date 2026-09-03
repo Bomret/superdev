@@ -1941,6 +1941,26 @@ const SPECIALISING_SECTIONS = [
   'Assignee',
 ];
 
+// CONTEXT.md's own glossary entries are a second citing side, beside the store documents above: a
+// glossary entry that defers to "that store's own section" for a specialising member owes the same
+// `` `plan-contract.md` → *Section* `` citation those store documents already carry
+// (`scanGlossarySpecialisingCitations()` in `scanners.js`). The glossary entry's own title diverges
+// from its member's name for one member — `Run state` is titled **Published snapshot** — and `Append
+// mode` has no glossary entry at all, so its value here is `null`: a documented absence, skipped rather
+// than flagged, the same way a store document that carries no matching section is skipped. This map is
+// total against `SPECIALISING_SECTIONS` — one key per member, `null` or a title, never omitted — so a
+// member added there with no matching key here is `undefined`, not `null`, and the coverage selftest in
+// `scripts/drift/selftest/scanners.test.js` catches that gap before `scanGlossarySpecialisingCitations()`
+// ever reads it.
+const GLOSSARY_ENTRY_TITLES = {
+  'Scope anchor': 'Scope anchor',
+  Release: 'Release',
+  'Run state': 'Published snapshot',
+  'Append mode': null,
+  'Triage record': 'Triage record',
+  Assignee: 'Assignee',
+};
+
 // One generic-side row per member: `references/plan-contract.md` still carries the section the store
 // documents specialise. Taking the names as an argument rather than closing over the list is what lets the
 // selftest assert the derivation itself — pass a name the real list has never held, and the row for it
@@ -2453,6 +2473,7 @@ module.exports = {
   AGENT_TOOLCHAIN_PATTERNS,
   SOURCE_SECTION_CONTRACTS,
   SPECIALISING_SECTIONS,
+  GLOSSARY_ENTRY_TITLES,
   specialisingGenericRows,
   specialisingHeading,
   specialisingCitation,

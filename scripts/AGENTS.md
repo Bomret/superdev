@@ -225,7 +225,7 @@ The committed golden render lives under `scripts/drift/fixtures/opencode/`, rege
 `bun run render-fixtures` (`node scripts/drift/opencode-fixtures.js --write`). The fixtures render
 with one fixed model map and the plugin root normalised to `<plugin-root>` — the bridge file
 bakes that root into its `PLUGIN_ROOT` constant, so the same normalisation keeps the fixture
-machine-independent; the sixty-fourth check below diffs a fresh render against them.
+machine-independent; the sixty-fifth check below diffs a fresh render against them.
 
 ### eval-run.js, the eval runner (ADR 0024)
 
@@ -289,7 +289,7 @@ every drift assertion by id, and it fell behind at five separate additions, beca
 maintained by hand at the moment its author is thinking about code. Naming the exceptions cannot drift
 when a new check lands.
 
-`drift-check.js` guards sixty-five things, in the order `drift/checks.js` registers them. First, the
+`drift-check.js` guards sixty-six things, in the order `drift/checks.js` registers them. First, the
 `reference` contract: every `references/*.md` path named in `skills/`, `agents/`, or `references/`
 itself resolves to a file that exists. A reference cites another reference, as both execution
 playbooks point at `scope-mode.md`, so a rename there dangles like any other. Second, the
@@ -312,7 +312,7 @@ assignee concept and renders neither. Presence is all either half claims; what t
 its backend stays a review's job. Coverage is automatic — `storeDocuments()` picks up a
 `references/issue-tracker-*.md` seed added later with no scanner edit — but exemption is not: a backend
 with no assignee concept must be added to `ASSIGNEE_EXEMPT` by name, or it reports two gaps on a suite
-that was never wrong. The `run-state-contract` check (sixty-fifth, below) resolves the same shape the
+that was never wrong. The `run-state-contract` check (sixty-sixth, below) resolves the same shape the
 other way, exempting no store and letting a snapshot-less backend declare itself snapshot-less inside its
 own section instead. Fourth, the
 `anchor-contract`: every slice-store document (every `references/issue-tracker-*.md` plus this
@@ -1145,7 +1145,20 @@ comma-form citation this repo's own `docs/agents/issue-tracker.md` carried was n
 instead of widened into the pattern. Its `## Assignee` section is held to the same one notation, as a
 member of the family like any other.
 
-Sixty-third, the `backlog-survey` contract (ADR 0049): four rows on `skills/backlog/SKILL.md`, the read-only
+Sixty-third, the `glossary-specialising-citations` contract: every `CONTEXT.md` glossary entry cites the
+generic contract the member it names specialises — the same citation the check above already pins on the
+store side. `scanGlossarySpecialisingCitations` reads `CONTEXT.md` alone and, for each member of the
+**specialising family** that `GLOSSARY_ENTRY_TITLES` maps to a glossary entry, reports an entry that no
+longer names `` `plan-contract.md` → *<section>* `` anywhere inside itself, on the fence-masked entry text,
+matching the check above's own fence rule. `Append mode` has no glossary entry and is mapped to `null` in
+`GLOSSARY_ENTRY_TITLES` — an explicit, deliberate absence — so it costs nothing, the same permissive skip
+a store document that carries no matching section already gets; the `scanGlossarySpecialisingCitations`
+selftest confirms `Object.keys(GLOSSARY_ENTRY_TITLES)` matches `SPECIALISING_SECTIONS` exactly (see the
+assertion in `scripts/drift/selftest/scanners.test.js`). `Run state`'s entry is titled **Published snapshot**, the one name the map translates.
+`extractParagraph()` finds the entry from its bold term to the next blank line, narrower than
+`extractSection()`'s heading-to-heading span, because a glossary entry is a paragraph, not a section.
+
+Sixty-fourth, the `backlog-survey` contract (ADR 0049): four rows on `skills/backlog/SKILL.md`, the read-only
 survey that reports every open scope anchor, every triage record, and every stranded run root by the
 action it needs. Two rows pin
 the coupling that matters — the command names `` `## Scope anchor` `` and `` `## Triage record` ``, so the
@@ -1170,7 +1183,7 @@ records that the two share their *facts* and not their *verdicts*: `/superdev:af
 resolves every ambiguity toward deferring, while the survey reports and resolves one toward showing the
 row. A row binding the two rule sets would assert a sameness that was decided against.
 
-Sixty-fourth, the `opencode-render` check, `scanOpencodeFixtures()`: the committed golden render under
+Sixty-fifth, the `opencode-render` check, `scanOpencodeFixtures()`: the committed golden render under
 `scripts/drift/fixtures/opencode/` still matches a fresh render of the shipped plugin tree. The scanner
 renders through `drift/opencode-fixtures.js`'s `renderNormalized()` — the same function
 `bun run render-fixtures` regenerates the fixtures with, so the check and the regeneration can never
@@ -1184,7 +1197,7 @@ The adapter module is required from the real plugin tree rather than from the sc
 fixture root in the selftest carries only the plugin's skills and agents plus the fixture tree, and
 either side absent skips the check, matching every other scanner's fixture rule.
 
-Sixty-fifth, the `run-state-contract` check, `scanRunStateContract()`: every store document carries its
+Sixty-sixth, the `run-state-contract` check, `scanRunStateContract()`: every store document carries its
 own `## Run state` section (`plan-contract.md` → *Run state*, ADR 0042). It walks the same
 `storeDocuments()` candidate list the anchor, append, release and triage-record contracts walk, so a
 backend seed added later and this repo's own dogfooded `docs/agents/issue-tracker.md` are both covered
@@ -1216,8 +1229,8 @@ The presence of a section is all this check claims. What that section must *say*
 call writes the snapshot, which reads it, that the section is machine-owned — stays a review's job, the
 same ceiling the release contract carries.
 
-**Beside the sixty-five checks, one selftest with no ordinal of its own** (`scripts/drift/selftest/scanners.test.js`,
-right after its `scanSpecialisingCitations` suite): store-side presence coverage for the whole
+**Beside the sixty-six checks, one selftest with no ordinal of its own** (`scripts/drift/selftest/scanners.test.js`,
+right after its `scanGlossarySpecialisingCitations` suite): store-side presence coverage for the whole
 specialising family. Each of the six members has its own store-side scanner, pinned in this file wherever
 that check's own ordinal sits — `anchor-contract`, `append-mode`, `release-contract`, `triage-record`, and
 `run-state-contract` above, `assignee-contract` back at the third check — and that per-member shape is
@@ -1269,7 +1282,7 @@ successor at all.
   *loudly*, the row goes red until the pattern catches up, so the presence tables in `drift/contracts.js`
   (`FIX_BOUNDARY_CONTRACTS` among them) carry none.
 - A new drift-check contract is one entry appended at the end of the `drift/checks.js` registry, plus
-  its section in the sixty-five-check narrative above and its selftest in the matching
+  its section in the sixty-six-check narrative above and its selftest in the matching
   `drift/selftest/*.test.js` suite. Append rather than insert unless the check belongs earlier for a
   reason, because every ordinal after an insertion point has to be rewritten by hand. The forty-fifth check,
   `narrative-coverage`, enforces two pieces of this by itself: the new id must appear backticked

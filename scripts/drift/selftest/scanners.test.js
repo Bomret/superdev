@@ -36,8 +36,15 @@ const {
   scanAuditSetGlobs,
   scanPinnedPaths,
   scanAgentToolAgnostic,
+  scanGlossarySpecialisingCitations,
 } = require('../scanners');
-const { ADR_STATUSES, DOC_PASS_CONTRACTS, PLAYBOOK_EDGE_CONTRACTS, SPECIALISING_SECTIONS } = require('../contracts');
+const {
+  ADR_STATUSES,
+  DOC_PASS_CONTRACTS,
+  PLAYBOOK_EDGE_CONTRACTS,
+  SPECIALISING_SECTIONS,
+  GLOSSARY_ENTRY_TITLES,
+} = require('../contracts');
 const CHECKS = require('../checks');
 
 module.exports = ({ assert, fs, path, fixture, realRoot }) => {
@@ -1958,6 +1965,85 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     scanSpecialisingCitations(fixture({ 'README.md': '# repo\n' })).length,
     0,
     'an absent document is skipped rather than reported',
+  );
+
+  // --- scanGlossarySpecialisingCitations: CONTEXT.md's glossary entries cite the generic contract
+  // each specialises too, the same citation scanSpecialisingCitations() already pins on the store
+  // side. GLOSSARY_ENTRY_TITLES maps a SPECIALISING_SECTIONS member to its glossary entry's own
+  // title, since the two names diverge for one member (`Run state` is titled "Published snapshot")
+  // and `Append mode` maps to `null` — no glossary entry at all — so it is skipped rather than
+  // flagged. The `null`-mapped members are filtered out below before building a fixture document,
+  // since there is no glossary entry to render for them. ---
+
+  const glossaryTitles = Object.entries(GLOSSARY_ENTRY_TITLES).filter(([, title]) => title !== null);
+
+  const glossaryDoc = (omit) =>
+    glossaryTitles
+      .map(([name, title]) =>
+        title === omit
+          ? `**${title}**: prose with no citation at all.\n`
+          : `**${title}**: prose. \`plan-contract.md\` → *${name}*. more prose.\n`,
+      )
+      .join('\n');
+
+  // positive: each glossary entry fails on its own, and the gap names CONTEXT.md
+  for (const [, title] of glossaryTitles) {
+    const gaps = scanGlossarySpecialisingCitations(fixture({ 'CONTEXT.md': glossaryDoc(title) }));
+    assert.equal(gaps.length, 1, `dropping the **${title}** citation flags exactly one gap`);
+    assert.equal(gaps[0].source, 'CONTEXT.md', `the **${title}** gap names CONTEXT.md`);
+  }
+
+  // every citation present yields zero gaps
+  assert.equal(
+    scanGlossarySpecialisingCitations(fixture({ 'CONTEXT.md': glossaryDoc(null) })).length,
+    0,
+    'a glossary citing every member it names yields zero gaps',
+  );
+
+  // `Append mode` has no glossary entry at all — costs nothing, same as a store section a document
+  // legitimately does not carry
+  assert.equal(
+    scanGlossarySpecialisingCitations(
+      fixture({ 'CONTEXT.md': '**Scope anchor**: prose. `plan-contract.md` → *Scope anchor*. only this one\n' }),
+    ).length,
+    0,
+    'a member with no glossary entry is skipped rather than reported',
+  );
+
+  // a citation sitting only inside a fenced code block, in the same paragraph, does not count —
+  // matching scanSpecialisingCitations()'s own fence-masking rule
+  assert.equal(
+    scanGlossarySpecialisingCitations(
+      fixture({
+        'CONTEXT.md': '**Release**: prose.\n```markdown\n`plan-contract.md` → *Release*.\n```\nmore prose.\n',
+      }),
+    ).length,
+    1,
+    'a citation shown only inside a fenced example is not a real citation',
+  );
+
+  // an absent CONTEXT.md is skipped, matching every other contract table on a partial checkout
+  assert.equal(
+    scanGlossarySpecialisingCitations(fixture({ 'README.md': '# repo\n' })).length,
+    0,
+    'an absent CONTEXT.md is skipped rather than reported',
+  );
+
+  // the real repo's CONTEXT.md cites plan-contract.md for every member it has a glossary entry for
+  assert.equal(
+    scanGlossarySpecialisingCitations(realRoot).length,
+    0,
+    "the real CONTEXT.md cites plan-contract.md for every member it glosses",
+  );
+
+  // GLOSSARY_ENTRY_TITLES is total against SPECIALISING_SECTIONS: every member is a key, either a
+  // glossary title (a string) or `null` (a documented absence, like `Append mode`). A member missing
+  // from the map entirely (not even a `null` entry) is a coding error the scanner above must not read
+  // the same as a documented absence — this catches the gap before a 7th member ever reaches it.
+  assert.deepEqual(
+    [...Object.keys(GLOSSARY_ENTRY_TITLES)].sort(),
+    [...SPECIALISING_SECTIONS].sort(),
+    'GLOSSARY_ENTRY_TITLES has exactly one key per SPECIALISING_SECTIONS member',
   );
 
   // --- Store-side presence coverage (a selftest, not a registered check — running the whole registry
