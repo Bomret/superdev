@@ -1,3 +1,13 @@
+## [0.40.1](https://codeberg.org/bomret/superdev/compare/v0.40.0...v0.40.1) (2026-09-03)
+
+
+### Bug Fixes
+
+* **drift:** assert the `## Assignee` section, not just the configuration bullet ([#390](https://codeberg.org/bomret/superdev/issues/390)) ([fb44189](https://codeberg.org/bomret/superdev/commit/fb441897ce28fee671394bf2651222f632bda950)), closes [#388](https://codeberg.org/bomret/superdev/issues/388) [#386](https://codeberg.org/bomret/superdev/issues/386)
+* **drift:** pin the specialising family's membership and the store side of `## Run state` ([#387](https://codeberg.org/bomret/superdev/issues/387)) ([99f40a5](https://codeberg.org/bomret/superdev/commit/99f40a568b1f4b4b66774863a095181823db57ca)), closes [#362](https://codeberg.org/bomret/superdev/issues/362) [#366](https://codeberg.org/bomret/superdev/issues/366) [#367](https://codeberg.org/bomret/superdev/issues/367) [#386](https://codeberg.org/bomret/superdev/issues/386)
+* **glossary:** cite plan-contract.md from the specialising entries ([#397](https://codeberg.org/bomret/superdev/issues/397)) ([44d9dca](https://codeberg.org/bomret/superdev/commit/44d9dcab5d882515f0a5a5d77056add4023a1aea)), closes [#395](https://codeberg.org/bomret/superdev/issues/395) [#396](https://codeberg.org/bomret/superdev/issues/396) [#395](https://codeberg.org/bomret/superdev/issues/395)
+* **opencode:** skip the upgrade skill in the OpenCode render ([#394](https://codeberg.org/bomret/superdev/issues/394)) ([d694ffc](https://codeberg.org/bomret/superdev/commit/d694ffc1e22cc5cb391a19f3143450e5df7e0b15)), closes [#393](https://codeberg.org/bomret/superdev/issues/393) [#393](https://codeberg.org/bomret/superdev/issues/393)
+
 # [0.40.0](https://codeberg.org/bomret/superdev/compare/v0.39.0...v0.40.0) (2026-08-30)
 
 
