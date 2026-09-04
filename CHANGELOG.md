@@ -1,3 +1,10 @@
+# [0.41.0](https://codeberg.org/bomret/superdev/compare/v0.40.1...v0.41.0) (2026-09-04)
+
+
+### Features
+
+* **backlog:** print the untriaged bucket ([#401](https://codeberg.org/bomret/superdev/issues/401)) ([070d992](https://codeberg.org/bomret/superdev/commit/070d9923bc0ee07286596b37deba7d80824aca26)), closes [#400](https://codeberg.org/bomret/superdev/issues/400) [#399](https://codeberg.org/bomret/superdev/issues/399)
+
 ## [0.40.1](https://codeberg.org/bomret/superdev/compare/v0.40.0...v0.40.1) (2026-09-03)
 
 
