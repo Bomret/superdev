@@ -178,6 +178,28 @@ On this store it is an ordinary issue in the configured project carrying the **T
 - **No pull-request URL.** `/superdev:review` runs before `/superdev:ship` opens one, so none exists at
   defer time and the description names none.
 
+## Untriaged item
+
+`CONTEXT.md`'s **Untriaged item** glossary entry: an open issue in the project this instance's own
+tooling never wrote — it carries no `<type>/<slug>` label, no `<triage>` label, and no `[triage] `
+summary prefix, the same two-halved triage signal *Triage record*'s **List the records** bullet above
+names — a label-only check misses exactly the restricted-label-field project that bullet's warning
+covers, and would misreport one of that project's own triage records as untriaged.
+
+- **Recognise one.** An open issue whose `fields.labels` carries no label matching `<type>/<slug>` and no
+  `<triage>` label, and whose `fields.summary` carries no `[triage] ` prefix.
+- **List them.** `GET <base>/rest/api/3/search/jql?jql=project=PROJ AND statusCategory!=Done
+  ORDER BY created ASC&fields=summary,labels,created` (paginated, per the
+  **Name the fields** rule *List feature slices* above states), keeping only the issues whose
+  `fields.labels` and `fields.summary` match the rule above — the summary-prefix half of that match
+  happens client-side, where a `[triage] ` prefix check can be made correctly; Jira's `~`/`!~` operator
+  is a word match, not a prefix match, and would exclude any issue whose summary merely contains the
+  bare word "triage". Jira mixes no pull request into an issue
+  search, so no result needs excluding on that account. `ORDER BY created ASC` pages the open-issue set
+  oldest first, the order `/superdev:backlog`'s cap wants, so the survey enumerates the full open set
+  and then takes the oldest 5 that pass the client-side filter.
+- **Read its age.** The issue's `fields.created` timestamp.
+
 ## Run state (fill in at setup)
 
 `plan-contract.md` → *Run state*. A Jira issue's `description` field is Atlassian Document Format (ADF) —

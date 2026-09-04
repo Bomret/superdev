@@ -289,7 +289,7 @@ every drift assertion by id, and it fell behind at five separate additions, beca
 maintained by hand at the moment its author is thinking about code. Naming the exceptions cannot drift
 when a new check lands.
 
-`drift-check.js` guards sixty-six things, in the order `drift/checks.js` registers them. First, the
+`drift-check.js` guards sixty-seven things, in the order `drift/checks.js` registers them. First, the
 `reference` contract: every `references/*.md` path named in `skills/`, `agents/`, or `references/`
 itself resolves to a file that exists. A reference cites another reference, as both execution
 playbooks point at `scope-mode.md`, so a rename there dangles like any other. Second, the
@@ -1229,7 +1229,26 @@ The presence of a section is all this check claims. What that section must *say*
 call writes the snapshot, which reads it, that the section is machine-owned — stays a review's job, the
 same ceiling the release contract carries.
 
-**Beside the sixty-six checks, one selftest with no ordinal of its own** (`scripts/drift/selftest/scanners.test.js`,
+Sixty-seventh, the `untriaged-item` check, `scanUntriagedContract()`: every store document carries a
+`## Untriaged item` section stating how that backend recognises an **untriaged item** — an open record
+superdev never wrote, carrying no feature label and no triage signal (`CONTEXT.md`'s glossary entry) —
+how it lists them, and how it reads one's age. It walks the same `storeDocuments()` candidate list the
+anchor, append, release, and triage-record contracts walk, so a backend seed added later and this repo's
+own dogfooded `docs/agents/issue-tracker.md` are both covered without either being named. Modeled
+directly on `scanTriageRecordContract()`, including its own asymmetry: the heading alone is not the whole
+contract, so a section stating only how to recognise one and never how to list them, one that lists them
+and never states how to recognise one, or one that lists them and never how to read one's age, still
+fails, the same gap that check corrects for its own section.
+`/superdev:backlog`'s `untriaged` bucket is the reader this check protects — a store document that lost
+its recognise bullet would leave that survey unable to tell an untriaged record from any other open one,
+one that lost its listing bullet would leave the survey unable to reach the backend's own untriaged
+items, and one that lost its age bullet would leave the survey unable to order and cap that bucket, all
+three with nothing going red. Unlike the other five members of the
+specialising family, `plan-contract.md` carries no generic `## Untriaged item` section to specialise:
+`CONTEXT.md`'s glossary entry already sends a reader straight to "that store's own `## Untriaged item`
+section", so this check has no citation half in `scanSpecialisingCitations` to pair with.
+
+**Beside the sixty-seven checks, one selftest with no ordinal of its own** (`scripts/drift/selftest/scanners.test.js`,
 right after its `scanGlossarySpecialisingCitations` suite): store-side presence coverage for the whole
 specialising family. Each of the six members has its own store-side scanner, pinned in this file wherever
 that check's own ordinal sits — `anchor-contract`, `append-mode`, `release-contract`, `triage-record`, and
@@ -1282,7 +1301,7 @@ successor at all.
   *loudly*, the row goes red until the pattern catches up, so the presence tables in `drift/contracts.js`
   (`FIX_BOUNDARY_CONTRACTS` among them) carry none.
 - A new drift-check contract is one entry appended at the end of the `drift/checks.js` registry, plus
-  its section in the sixty-six-check narrative above and its selftest in the matching
+  its section in the sixty-seven-check narrative above and its selftest in the matching
   `drift/selftest/*.test.js` suite. Append rather than insert unless the check belongs earlier for a
   reason, because every ordinal after an insertion point has to be rewritten by hand. The forty-fifth check,
   `narrative-coverage`, enforces two pieces of this by itself: the new id must appear backticked

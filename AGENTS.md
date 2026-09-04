@@ -211,8 +211,9 @@ This root owns every other subtree directly:
   (ADR 0013). afk drives that chain unattended, one eligible scope anchor at a time, with the Skill tool
   (ADR 0015). Two skills sit outside the chain and afk drives neither: publish-kb sends a scope's staged
   knowledge-base pages to a remote backend on the operator's own clock (ADR 0023), and backlog surveys
-  the slice store read-only, grouping every open scope anchor, triage record, and stranded run root by
-  the action it needs and judging them more loosely than afk's own selection does (ADR 0049).
+  the slice store read-only, grouping every open scope anchor, triage record, stranded run root, and
+  untriaged item by the action it needs and judging them more loosely than afk's own selection does
+  (ADR 0049).
 - `plugin/hooks/`. Claude Code hooks, the plugin's deterministic guardrails. Governed by **Working
   rules, Hooks are CommonJS** and **Every hook ships a `--selftest`**. This is the strongest future
   child-doc candidate, if its rules outgrow this root. `hooks/` is the only runtime consumer of
@@ -231,7 +232,7 @@ This root owns every other subtree directly:
   that forwards OpenCode's plugin events to the eight shipped hooks, issue #376; golden fixtures
   under `scripts/drift/fixtures/opencode/`),
   `scripts/eval-run.js` (the eval
-  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the sixty-six cross-document contract checks: the
+  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the sixty-seven cross-document contract checks: the
   CLI walks the `drift/checks.js` registry, which orders every scanner and contract table). What each
   guards, check by check, lives in that child doc.
 - `plugin/references/`. Backend seed templates plus the runtime references. Owned by

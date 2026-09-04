@@ -172,6 +172,21 @@ On this store it is an ordinary issue carrying the **Triage label** from *Config
 - **No pull-request URL.** `/superdev:review` runs before `/superdev:ship` opens one, so none exists at
   defer time and the body names none.
 
+## Untriaged item
+
+`CONTEXT.md`'s **Untriaged item** glossary entry: an open issue this instance's own tooling never wrote —
+it carries neither a feature label nor the `<triage>` label.
+
+- **Recognise one.** An open issue whose `labels` array carries no label matching `<type>/<slug>` and no
+  `<triage>` label.
+- **List them.** `GET /api/v1/repos/<owner>/<repo>/issues?state=open&type=issues&sort=oldest` (paginated),
+  then keep only the issues whose `labels` array matches the rule above. `type=issues` excludes pull
+  requests at the server — Forgejo's issue endpoint otherwise returns them alongside issues, each carrying
+  a `pull_request` field naming the pull request. `sort=oldest` pages the open-issue set oldest first, the
+  order `/superdev:backlog`'s cap wants, so the survey pages the full open-issue set and the oldest-first
+  order makes picking the 5 oldest and counting the total cheap once it has.
+- **Read its age.** The issue's own `created_at` field.
+
 ## Run state
 
 `plan-contract.md` → *Run state*. The snapshot lives in the anchor's own body, beside the DoD checklist and

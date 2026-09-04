@@ -17,6 +17,7 @@ const {
   scanReleaseContract,
   scanRunStateContract,
   scanTriageRecordContract,
+  scanUntriagedContract,
   scanSpecialisingCitations,
   scanGlossarySpecialisingCitations,
   scanAfkSelectionNeutrality,
@@ -453,6 +454,12 @@ module.exports = [
       `${g.source} carries no \`## Run state\` section — expected it to state how this backend mirrors ` +
       'the ledger onto the scope anchor, or that it carries no snapshot at all; see ' +
       '`references/plan-contract.md` → *Run state*',
+  },
+  {
+    id: 'untriaged-item',
+    ok: 'every slice-store document states how to recognise, list, and read the age of an untriaged item',
+    run: scanUntriagedContract,
+    format: contractGap,
   },
 ];
 

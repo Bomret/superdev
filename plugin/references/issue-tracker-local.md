@@ -176,6 +176,16 @@ date: <YYYY-MM-DD>
   `hooks/worktree-sweep.js`'s later `git worktree remove` on a dirty tree, and it rides the pull request
   the run opens.
 
+## Untriaged item
+
+`CONTEXT.md`'s **Untriaged item** glossary entry. This store has **no inbox**: nothing under
+`docs/plans/` exists unless a superdev command wrote it, and no human files a plan file directly.
+
+- **Recognise one.** Nothing on this store fits: every file under `docs/plans/` is either a feature
+  directory a superdev run created, or the `docs/plans/triage/` directory above.
+- **List them.** The set is always **empty** — there is nothing to enumerate.
+- **Read its age.** There is never one to read: the set holds nothing.
+
 ## Run state
 
 `plan-contract.md` → *Run state*. This store carries **no snapshot**. Its anchor is a tracked plan file

@@ -2432,32 +2432,37 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   assert.equal(trNoCreate.length, 1, 'flags the real review.md with the create step deleted');
   assert.equal(trNoCreate[0].source, path.join('skills', 'review', 'SKILL.md'), 'names the review command');
 
-  // --- BACKLOG_SURVEY_CONTRACTS: `/superdev:backlog` resolves the candidate and triage listings through
-  // the store document, reads an in-flight scope's stage off the ledger `/superdev:status` also reads,
-  // and states as a contract that it writes nothing (ADR 0049). Each of the four clauses fails silently
-  // on its own. ---
+  // --- BACKLOG_SURVEY_CONTRACTS: `/superdev:backlog` resolves the candidate, triage, and untriaged
+  // listings through the store document, reads an in-flight scope's stage off the ledger
+  // `/superdev:status` also reads, and states as a contract that it writes nothing (ADR 0049). Each of
+  // the five clauses fails silently on its own. ---
 
   const bsOpts = { stripFrontmatterFirst: true };
   const backlogAnchor = "Its `## Scope anchor` section states how to list the candidates. Follow it.\n";
   const backlogTriage = "Its `## Triage record` section states the listing call for this backend.\n";
+  const backlogUntriaged =
+    "Its `## Untriaged item` section states the listing call for this backend.\n";
   const backlogStage = 'For each, read its stage: `node "scope.js" get stage --root <run-root>`.\n';
   const backlogReadOnly =
     '**This survey writes nothing.** No issue, no label, no comment, no file, no `.superdev/` directory.\n';
 
-  // negative: all four clauses present yields zero gaps
+  // negative: all five clauses present yields zero gaps
   assert.equal(
     scanContract(
-      fixture({ 'skills/backlog/SKILL.md': backlogAnchor + backlogTriage + backlogStage + backlogReadOnly }),
+      fixture({
+        'skills/backlog/SKILL.md':
+          backlogAnchor + backlogTriage + backlogUntriaged + backlogStage + backlogReadOnly,
+      }),
       BACKLOG_SURVEY_CONTRACTS,
       bsOpts,
     ).length,
     0,
-    'all four backlog-survey clauses yield zero gaps',
+    'all five backlog-survey clauses yield zero gaps',
   );
 
   // positive: dropping the `## Scope anchor` reference
   const bsNoAnchor = scanContract(
-    fixture({ 'skills/backlog/SKILL.md': backlogTriage + backlogStage + backlogReadOnly }),
+    fixture({ 'skills/backlog/SKILL.md': backlogTriage + backlogUntriaged + backlogStage + backlogReadOnly }),
     BACKLOG_SURVEY_CONTRACTS,
     bsOpts,
   );
@@ -2466,16 +2471,25 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   // positive: dropping the `## Triage record` reference
   const bsNoTriage = scanContract(
-    fixture({ 'skills/backlog/SKILL.md': backlogAnchor + backlogStage + backlogReadOnly }),
+    fixture({ 'skills/backlog/SKILL.md': backlogAnchor + backlogUntriaged + backlogStage + backlogReadOnly }),
     BACKLOG_SURVEY_CONTRACTS,
     bsOpts,
   );
   assert.equal(bsNoTriage.length, 1, 'flags a survey with no `## Triage record` reference');
   assert.ok(/Triage record/.test(bsNoTriage[0].expectation), 'names the triage-record clause');
 
+  // positive: dropping the `## Untriaged item` reference
+  const bsNoUntriaged = scanContract(
+    fixture({ 'skills/backlog/SKILL.md': backlogAnchor + backlogTriage + backlogStage + backlogReadOnly }),
+    BACKLOG_SURVEY_CONTRACTS,
+    bsOpts,
+  );
+  assert.equal(bsNoUntriaged.length, 1, 'flags a survey with no `## Untriaged item` reference');
+  assert.ok(/Untriaged item/.test(bsNoUntriaged[0].expectation), 'names the untriaged-item clause');
+
   // positive: dropping the `scope.js get stage` read
   const bsNoStage = scanContract(
-    fixture({ 'skills/backlog/SKILL.md': backlogAnchor + backlogTriage + backlogReadOnly }),
+    fixture({ 'skills/backlog/SKILL.md': backlogAnchor + backlogTriage + backlogUntriaged + backlogReadOnly }),
     BACKLOG_SURVEY_CONTRACTS,
     bsOpts,
   );
@@ -2491,6 +2505,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'skills/backlog/SKILL.md':
         backlogAnchor +
         backlogTriage +
+        backlogUntriaged +
         backlogStage +
         'This survey writes nothing. No issue, no label, no comment, no file.\n',
     }),
@@ -2505,6 +2520,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'skills/backlog/SKILL.md':
         backlogAnchor +
         backlogTriage +
+        backlogUntriaged +
         backlogStage +
         'It mostly writes nothing, though a label update is fine.\n',
     }),

@@ -891,6 +891,31 @@ const TRIAGE_RECORD_ELEMENTS = [
   [/^[-*] \*\*[^*]*\blist\w*\b[^*]*\b(?:record\w*|them)\b/im, "how to list this backend's triage records"],
 ];
 
+// The Untriaged item survey slice (feat/backlog-untriaged, issue #400). An **untriaged item** is an open
+// store record superdev never wrote: no feature label, no triage signal (`CONTEXT.md`'s glossary entry).
+// `scanUntriagedContract()` (`scanners.js`) walks `storeDocuments()` for the presence half — the same
+// candidate list the anchor, release, and triage-record contracts already walk — rather than naming the
+// seeds here, so a fifth backend gets the requirement for free instead of a second hardcoded row. Unlike
+// the triage-record and anchor contracts, `plan-contract.md` carries no generic `## Untriaged item`
+// section to specialise: `CONTEXT.md`'s glossary entry already sends a reader to "that store's own
+// `## Untriaged item` section" directly, so this member has no citation half to enforce.
+const UNTRIAGED_PATTERN = /^#{2,3}\s+Untriaged item\s*$/m;
+
+const UNTRIAGED_EXPECTATION =
+  'carry a `## Untriaged item` section stating how this backend recognises an untriaged item, how it ' +
+  'lists them, and how it reads one\'s age';
+
+// The heading alone is not the whole contract, the same asymmetry `ANCHOR_ELEMENTS` corrects for its own
+// section: without the recognise element a backend never states what makes a record untriaged, without
+// the listing element it never states its listing call, and without the read-age element it never states
+// how to order one — any one missing leaves `/superdev:backlog` reaching no untriaged item on that
+// backend.
+const UNTRIAGED_ELEMENTS = [
+  [/^[-*] \*\*[^*]*recogni[sz]/im, 'how to recognise an untriaged item'],
+  [/^[-*] \*\*[^*]*\blist\w*\b[^*]*\b(?:item\w*|them)\b/im, "how to list this backend's untriaged items"],
+  [/^[-*] \*\*[^*]*\bread\w*\b[^*]*\bage\b/im, "how to read an untriaged item's age"],
+];
+
 // ADR 0049. `/superdev:backlog` surveys the slice store and reports every open scope anchor and every
 // triage record by the action it needs. Three clauses make it what it is, and each fails silently on its
 // own — a survey that has quietly started writing looks identical in its own output, one that has learned
@@ -898,7 +923,7 @@ const TRIAGE_RECORD_ELEMENTS = [
 // stage from git instead of the ledger disagrees with `/superdev:status` about the same scope with nothing
 // going red. It deliberately shares no eligibility reference with `/superdev:afk` (ADR 0049), so nothing
 // here pins the two rule sets to each other: the coupling that matters is to the store document, which
-// the first two rows below are.
+// the first three rows below are — the third added for the untriaged-item bucket.
 const BACKLOG_SURVEY_CONTRACTS = [
   [
     path.join('skills', 'backlog', 'SKILL.md'),
@@ -911,6 +936,12 @@ const BACKLOG_SURVEY_CONTRACTS = [
     /`## Triage record`/,
     "read the triage records through the store document's `## Triage record` section, which is where the " +
       'listing call for each backend lives',
+  ],
+  [
+    path.join('skills', 'backlog', 'SKILL.md'),
+    /`## Untriaged item`/,
+    "read the untriaged items through the store document's `## Untriaged item` section, which is where " +
+      'the listing call for each backend lives',
   ],
   [
     path.join('skills', 'backlog', 'SKILL.md'),
@@ -2489,5 +2520,8 @@ module.exports = {
   TRIAGE_RECORD_PATTERN,
   TRIAGE_RECORD_EXPECTATION,
   TRIAGE_RECORD_ELEMENTS,
+  UNTRIAGED_PATTERN,
+  UNTRIAGED_EXPECTATION,
+  UNTRIAGED_ELEMENTS,
   BACKLOG_SURVEY_CONTRACTS,
 };

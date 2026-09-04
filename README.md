@@ -82,11 +82,14 @@ plan runs test-first, inline in the scope worktree.
   **staged** knowledge-base pages, so a page nobody published yet stays visible instead of silent. It
   never writes, transitions, or merges anything.
 - **`/superdev:backlog`**. A read-only survey of the **slice store**, where `/superdev:status` reports the
-  **runs**. It groups every open scope anchor, every triage record, and every stranded run root by the
+  **runs**. It groups every open scope anchor, every triage record, every stranded run root, and every
+  **untriaged item** — an open record you filed and no `/superdev:plan` interview has yet reached — by the
   action it needs — blocked, stranded, in flight, waiting on another feature, needing a plan, unreleased,
-  or ready to build — and ends with one recommended next move. It shows the three things `/superdev:afk`
-  passes over by design: an unreleased plan, an anchor nobody decomposed, and a triage record a review
-  deferred. Its rules are looser than that command's, because it reports rather than acts
+  untriaged, or ready to build — and ends with one recommended next move. Untriaged items are capped at 5,
+  oldest first, so a store with real reporters doesn't drown the rest of the table. It shows the four
+  things `/superdev:afk` passes over by design: an unreleased plan, an anchor nobody decomposed, a triage
+  record a review deferred, and an untriaged item. Its rules are looser than that command's, because it
+  reports rather than acts
   ([ADR 0049](docs/adr/0049-an-advisory-survey-judges-the-backlog-more-loosely-than-an-actor.md)). It sits
   outside the implement chain, and writes nothing.
 - **`/superdev:review`**. Two modes. Given an ad-hoc diff, branch, path, or the working tree, it needs no

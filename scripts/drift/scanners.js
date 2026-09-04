@@ -48,6 +48,9 @@ const {
   RELEASE_CONSUMER_PATTERN,
   TRIAGE_RECORD_PATTERN,
   TRIAGE_RECORD_ELEMENTS,
+  UNTRIAGED_PATTERN,
+  UNTRIAGED_ELEMENTS,
+  UNTRIAGED_EXPECTATION,
   SPECIALISING_SECTIONS,
   GLOSSARY_ENTRY_TITLES,
   specialisingHeading,
@@ -314,6 +317,30 @@ function scanTriageRecordContract(root) {
       continue;
     }
     for (const [pattern, desc] of TRIAGE_RECORD_ELEMENTS) {
+      if (!pattern.test(section)) gaps.push({ source: rel, expectation: `state ${desc}` });
+    }
+  }
+  return gaps;
+}
+
+// scanUntriagedContract() is pure over a root dir: reads every slice-store document (the same candidate
+// list scanTriageRecordContract uses) and reports the ones carrying no `## Untriaged item` section, then
+// the ones carrying the section but not every element of it. Modeled directly on
+// scanTriageRecordContract(), which already walks storeDocuments() so a fifth backend added later
+// inherits the requirement without a second row. Absent files are skipped, so fixtures need only the
+// documents they exercise.
+function scanUntriagedContract(root) {
+  const gaps = [];
+  const candidates = storeDocuments(root, { dir: ANCHOR_DOCS_DIR, extra: EXTRA_ANCHOR_DOCS });
+  for (const rel of candidates) {
+    const text = readDoc(root, rel);
+    if (text === null) continue; // doc absent (fixture / partial checkout) → nothing to scan
+    const section = extractSection(text, UNTRIAGED_PATTERN);
+    if (section === null) {
+      gaps.push({ source: rel, expectation: UNTRIAGED_EXPECTATION });
+      continue;
+    }
+    for (const [pattern, desc] of UNTRIAGED_ELEMENTS) {
       if (!pattern.test(section)) gaps.push({ source: rel, expectation: `state ${desc}` });
     }
   }
@@ -1107,6 +1134,7 @@ module.exports = {
   scanReleaseContract,
   scanRunStateContract,
   scanTriageRecordContract,
+  scanUntriagedContract,
   scanSpecialisingCitations,
   scanGlossarySpecialisingCitations,
   scanAfkSelectionNeutrality,

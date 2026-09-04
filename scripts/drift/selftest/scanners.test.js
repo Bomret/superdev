@@ -15,6 +15,7 @@ const {
   scanReleaseContract,
   scanRunStateContract,
   scanTriageRecordContract,
+  scanUntriagedContract,
   scanSpecialisingCitations,
   scanAfkSelectionNeutrality,
   scanAfkAnchorCount,
@@ -1859,6 +1860,146 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     scanTriageRecordContract(fixture({ 'README.md': '# repo\n' })).length,
     0,
     'an absent document is skipped rather than reported',
+  );
+
+  // --- scanUntriagedContract: every slice-store document states how to recognise, list, and read the
+  // age of an untriaged item (an open record superdev never wrote), over the same storeDocuments()
+  // candidate list scanTriageRecordContract already walks. Modeled directly on that scanner. ---
+
+  // positive: a store document with no untriaged-item section is flagged
+  const unSeed1 = fixture({ 'references/issue-tracker-acme.md': '# acme\n\nSlices are issues.\n' });
+  const unGaps1 = scanUntriagedContract(unSeed1);
+  assert.equal(unGaps1.length, 1, 'flags a store document with no untriaged-item section');
+  assert.equal(unGaps1[0].source, path.join('references', 'issue-tracker-acme.md'), 'names the seed');
+
+  // negative: the same document carrying the section and its listing and age elements is clean
+  assert.equal(
+    scanUntriagedContract(
+      fixture({
+        'references/issue-tracker-acme.md':
+          '# acme\n\n## Untriaged item\n\n' +
+          '- **Recognise one.** An open issue with no feature label and no triage label.\n' +
+          '- **List them:** `GET /issues?state=open`, keeping the ones matching the rule above.\n' +
+          "- **Read its age:** the issue's `created_at` field.\n",
+      }),
+    ).length,
+    0,
+    'a store document carrying the section and its recognition, listing, and age elements yields zero gaps',
+  );
+
+  // positive: the section states recognition and age, never how to list them
+  const unRecogniseOnly = scanUntriagedContract(
+    fixture({
+      'references/issue-tracker-acme.md':
+        '# acme\n\n## Untriaged item\n\n' +
+        '- **Recognise one.** An open issue carrying neither a feature label nor the triage label.\n' +
+        "- **Read its age:** the issue's `created_at` field.\n",
+    }),
+  );
+  assert.equal(unRecogniseOnly.length, 1, 'flags a section that states recognition but no listing');
+  assert.match(unRecogniseOnly[0].expectation, /list this backend's untriaged items/, 'names the missing element');
+
+  // positive: the section states recognition and listing, never how to read one's age — the gap
+  // /superdev:backlog opens when a store never states how to order and select untriaged rows by age
+  const unAgeMissing = scanUntriagedContract(
+    fixture({
+      'references/issue-tracker-acme.md':
+        '# acme\n\n## Untriaged item\n\n' +
+        '- **Recognise one.** An open issue carrying neither a feature label nor the triage label.\n' +
+        '- **List them:** `GET /issues?state=open`, keeping the ones matching the rule above.\n',
+    }),
+  );
+  assert.equal(unAgeMissing.length, 1, 'flags a section that states listing but no age');
+  assert.match(unAgeMissing[0].expectation, /read an untriaged item's age/, 'names the missing element');
+
+  // positive: the section states listing and age, never how to recognise one
+  const unRecogniseMissing = scanUntriagedContract(
+    fixture({
+      'references/issue-tracker-acme.md':
+        '# acme\n\n## Untriaged item\n\n' +
+        '- **List them:** `GET /issues?state=open`, keeping the ones matching the rule above.\n' +
+        "- **Read its age:** the issue's `created_at` field.\n",
+    }),
+  );
+  assert.equal(unRecogniseMissing.length, 1, 'flags a section that states listing and age but no recognition');
+  assert.match(
+    unRecogniseMissing[0].expectation,
+    /recognise an untriaged item/,
+    'names the missing element',
+  );
+
+  // the element is scoped to the section: a listing bullet elsewhere in the document does not satisfy it
+  assert.equal(
+    scanUntriagedContract(
+      fixture({
+        'references/issue-tracker-acme.md':
+          '# acme\n\n## Scope anchor\n\n- **List them:** `GET /issues`.\n\n' +
+          '## Untriaged item\n\n' +
+          '- **Recognise one.** An open issue with neither label.\n' +
+          "- **Read its age:** the issue's `created_at` field.\n",
+      }),
+    ).length,
+    1,
+    'a listing bullet outside the section does not satisfy the element',
+  );
+
+  // positive: one of the real seeds loses it, and the gap names that seed
+  const untriagedSection =
+    '# store\n\n## Untriaged item\n\n' +
+    '- **Recognise one.** An open issue with no feature label and no triage label.\n' +
+    '- **List them:** `GET /issues?state=open`.\n' +
+    "- **Read its age:** the issue's `created_at` field.\n";
+  const unDropped = {
+    'references/issue-tracker-forgejo.md': untriagedSection,
+    'references/issue-tracker-github.md': untriagedSection,
+    'references/issue-tracker-jira.md': untriagedSection,
+    'references/issue-tracker-local.md': '# store\n\nNo inbox here.\n',
+  };
+  const unGaps = scanUntriagedContract(fixture(unDropped));
+  assert.equal(unGaps.length, 1, 'flags the seed that dropped the section');
+  assert.equal(
+    unGaps[0].source,
+    path.join('references', 'issue-tracker-local.md'),
+    'names the seed that dropped it',
+  );
+
+  // a `###` heading satisfies the row too, the same latitude every other section pattern allows
+  assert.equal(
+    scanUntriagedContract(
+      fixture({
+        'references/issue-tracker-jira.md':
+          '# store\n\n### Untriaged item\n\n- **Recognise one.** An issue with neither label.\n' +
+          '- **List them:** `GET /search`.\n' +
+          "- **Read its age:** the issue's `created` field.\n",
+      }),
+    ).length,
+    0,
+    'a deeper heading level still carries the section',
+  );
+
+  // this repo's own dogfooded store config is checked alongside the seeds
+  const unDogfood = scanUntriagedContract(fixture({ 'docs/agents/issue-tracker.md': '# Slice store\n\nIssues.\n' }));
+  assert.equal(unDogfood.length, 1, 'the dogfooded store config is checked too');
+  assert.equal(unDogfood[0].source, path.join('docs', 'agents', 'issue-tracker.md'), 'names it');
+
+  // a fifth backend seed dropped into references/ is covered without any change to this scanner
+  const unFifth = scanUntriagedContract(
+    fixture({ 'references/issue-tracker-acme.md': '# acme\n\nNo untriaged-item section here.\n' }),
+  );
+  assert.equal(unFifth.length, 1, 'a seed this scanner has never seen before is still held to the contract');
+
+  // an absent document is skipped, so a fixture carries only the docs it exercises
+  assert.equal(
+    scanUntriagedContract(fixture({ 'README.md': '# repo\n' })).length,
+    0,
+    'an absent document is skipped rather than reported',
+  );
+
+  // the real tree is green: every store document it ships carries the section and its listing element
+  assert.equal(
+    scanUntriagedContract(realRoot).length,
+    0,
+    'every store document in the real tree carries its `## Untriaged item` section',
   );
 
   // --- scanSpecialisingCitations: every store document cites the generic contract each section it
