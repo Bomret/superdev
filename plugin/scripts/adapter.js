@@ -15,7 +15,9 @@
 // Flags: --harness opencode, --plugin-root <abs-path> (default: this script's .., the plugin
 // root), --dest <dir>, a repeatable --model-map <alias>=<provider/model>, and --selftest.
 // Rendered agent and command frontmatter resolves each surface's `model:` alias through
-// --model-map; a missing alias is a named refusal, never a silent passthrough. Every rendered
+// --model-map. The CLI fills in a missing alias interactively before it ever renders: it queries
+// the OpenCode config for the models available and prompts for a pick, one prompt per still-missing
+// alias — an alias --model-map already covers is never asked about. Every rendered
 // string scalar is emitted JSON-quoted, so a description carrying `: ` stays valid YAML. A
 // command's `allowed-tools:` carries verbatim: OpenCode command frontmatter has no permission
 // key, and carrying the field beats dropping it silently.
@@ -30,6 +32,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const readline = require('node:readline');
 
 // Claude `tools:` list entry → the OpenCode `tools:` config key it enables. Edit and Write are
 // two distinct OpenCode tool primitives (each its own boolean), unlike the `permission:` config's
@@ -123,6 +126,138 @@ function resolveModel(fields, modelMap, what, name) {
     fail(`no --model-map entry for model alias '${fields.model}' (${what} ${name})`);
   }
   return model;
+}
+
+// Query OpenCode config and extract available model IDs. OpenCode loads configuration from
+// multiple sources in precedence order: project config (opencode.json), custom config
+// (OPENCODE_CONFIG env var), and global config (~/.config/opencode/opencode.json) — verified
+// 2026-09-06 against https://opencode.ai/docs/config/, whose merge order (later overrides earlier)
+// runs global, then OPENCODE_CONFIG, then project. Each config
+// can specify `model` and `small_model` fields with "provider/model-name" format. Returns an
+// array of unique model IDs found, or an empty array if no config is present or readable. Reads
+// only those two fields — not the richer `provider.*.models` or `agent.*.model` shapes OpenCode
+// config also supports — so the picker's list can be incomplete; the interactive prompt says so
+// (see selectModel's own header) rather than presenting a partial list as if it were complete.
+// opts: { cwd (default: process.cwd()), env (default: process.env) }
+function queryOpenCodeModels(opts) {
+  const cwd = (opts && opts.cwd) || process.cwd();
+  const env = (opts && opts.env) || process.env;
+  const models = new Set();
+
+  const loadConfig = (filePath) => {
+    try {
+      const text = fs.readFileSync(filePath, 'utf8');
+      const config = JSON.parse(text);
+      if (config.model && typeof config.model === 'string') models.add(config.model);
+      if (config.small_model && typeof config.small_model === 'string') models.add(config.small_model);
+    } catch {
+      // Ignore read/parse errors — missing or malformed config is not an error
+    }
+  };
+
+  // Project config: opencode.json in cwd (highest precedence among standard locations)
+  loadConfig(path.join(cwd, 'opencode.json'));
+
+  // Custom config: OPENCODE_CONFIG env var
+  if (env.OPENCODE_CONFIG) {
+    loadConfig(env.OPENCODE_CONFIG);
+  }
+
+  // Global config: ~/.config/opencode/opencode.json
+  const home = env.HOME || env.USERPROFILE; // USERPROFILE for Windows
+  if (home) {
+    loadConfig(path.join(home, '.config', 'opencode', 'opencode.json'));
+  }
+
+  return Array.from(models).sort();
+}
+
+// Confirms `model` is present among `availableModels` (as queryOpenCodeModels() reports them),
+// returning it unchanged — or refuses with a message naming the missing model and listing the
+// alternatives that are available. Distinct from resolveModel's own "no --model-map entry"
+// refusal, which fires before any concrete model name is even known. Performs no I/O itself, so
+// nothing is left broken for a caller (slice 02's interactive prompt, or a future resolveModel
+// integration) to unwind: the caller re-queries and calls this again once the user has added the
+// model to their OpenCode config, and the same call then succeeds. A non-array `availableModels`
+// (a caller that skipped queryOpenCodeModels()) is treated as an empty list rather than thrown on.
+function requireAvailableModel(model, availableModels) {
+  const models = Array.isArray(availableModels) ? availableModels : [];
+  if (models.includes(model)) return model;
+  const alternatives = models.length
+    ? `available models: ${models.join(', ')}`
+    : 'no models are configured in your OpenCode setup yet — pass --model-map <alias>=<provider/model> to set it manually';
+  fail(`model '${model}' is not available in your OpenCode configuration — ${alternatives}`);
+}
+
+// The three frontmatter `model:` aliases the shipped skills and agents carry (verified against
+// every plugin/skills/*/SKILL.md and plugin/agents/*.md frontmatter's `model:` field).
+const MODEL_ALIASES = ['haiku', 'sonnet', 'opus'];
+
+// Reads one line from `it` — an async iterator over an open readline interface
+// (rl[Symbol.asyncIterator]()), shared across every prompt in one resolution pass — after writing
+// `question` to `output` itself: async iteration reads raw lines with no built-in prompt the way
+// rl.question() has. Rejects when the input closes before a line arrives (EOF — a closed pipe, `<
+// /dev/null`, or any non-interactive invocation), so a caller never hangs waiting on an answer that
+// will never come. Deliberately not rl.question(): piped input that arrives in one chunk delivers
+// every line to readline's internal line handler in one synchronous pass, and rl.question() only
+// resolves the *next* line if a question is already pending when that line is processed — any
+// question asked afterward, even in the same prompting pass, finds its line already consumed and
+// discarded. The async iterator protocol has no such loss: it holds a line until the next
+// `it.next()` call actually asks for it (verified against Node's own readline docs: iterating an
+// Interface "will always consume the input stream fully," never dropping a buffered line).
+async function ask(it, output, question) {
+  output.write(question);
+  const { value, done } = await it.next();
+  if (done) throw new Error('input closed before an answer arrived');
+  return value;
+}
+
+// Interactively prompts for one alias's model from `models` (as queryOpenCodeModels() reports
+// them), re-prompting on an answer that is not a number in range, and returns the pick. Takes an
+// already-open `it`/`output` rather than opening its own readline interface, so a caller resolving
+// several aliases in one pass (promptForModelMap's own loop, resolveModelMap's per-missing-alias
+// loop) shares one interface and one async iterator across every prompt — a fresh interface per
+// alias would each buffer and then discard on close whatever the pipe still held for the *next*
+// prompt, starving every alias after the first on piped input. Refuses via fail(), naming `alias`
+// and pointing at --model-map as the manual override, when the input closes before this alias gets
+// an answer.
+async function selectModel(alias, models, it, output) {
+  output.write(`\nModels named in your OpenCode config, for '${alias}':\n`);
+  models.forEach((model, i) => { output.write(`  ${i + 1}) ${model}\n`); });
+  let choice;
+  while (choice === undefined) {
+    let answer;
+    try {
+      answer = (await ask(it, output, `Select a model for '${alias}': `)).trim();
+    } catch {
+      fail(`no answer for model alias '${alias}' before input closed — pass --model-map ${alias}=<provider/model> instead`);
+    }
+    const idx = Number(answer);
+    if (Number.isInteger(idx) && idx >= 1 && idx <= models.length) choice = models[idx - 1];
+    else output.write(`Enter a number between 1 and ${models.length}.\n`);
+  }
+  return choice;
+}
+
+// Interactively prompts for a model per alias, from the models queryOpenCodeModels found, and
+// returns the picks as a Map<alias, model>. Assumes a non-empty `models`: the missing/unavailable
+// case is slice 03's job, not this function's (see interfaces.md). Not itself wired into the CLI —
+// resolveModelMap() below is, and shares this function's own per-alias selectModel() helper.
+// opts: { input (default: process.stdin), output (default: process.stdout) }
+async function promptForModelMap(models, opts) {
+  const input = (opts && opts.input) || process.stdin;
+  const output = (opts && opts.output) || process.stdout;
+  const rl = readline.createInterface({ input, output });
+  const it = rl[Symbol.asyncIterator]();
+  const picks = new Map();
+  try {
+    for (const alias of MODEL_ALIASES) {
+      picks.set(alias, await selectModel(alias, models, it, output));
+    }
+  } finally {
+    rl.close();
+  }
+  return picks;
 }
 
 // plugin/skills/<name>/SKILL.md → .opencode/commands/superdev/<name>.md. The command name comes
@@ -440,6 +575,87 @@ function listDirs(dir, what) {
   return entries;
 }
 
+// The sorted skill directory names under skillsDir (SKIPPED_SKILLS included — callers filter as
+// needed) and the sorted agent names under agentsDir (the .md extension stripped). The one shared
+// walk render() and usedModelAliases() both need, so a future SKIPPED_SKILLS member or a renamed
+// skill-file convention only has one place to change.
+function discoverSkillNames(skillsDir) {
+  return listDirs(skillsDir, 'skills directory')
+    .filter((e) => e.isDirectory())
+    .map((e) => e.name)
+    .sort();
+}
+
+function discoverAgentNames(agentsDir) {
+  return listDirs(agentsDir, 'agents directory')
+    .filter((e) => e.isFile() && e.name.endsWith('.md'))
+    .map((e) => e.name.replace(/\.md$/, ''))
+    .sort();
+}
+
+// The model aliases the plugin root's own skills and agents actually carry — the exact set
+// resolveModel() will need a --model-map entry for once render() runs. Only reads frontmatter, so
+// it can run before --dest is known.
+function usedModelAliases(pluginRoot) {
+  const skillsDir = path.join(pluginRoot, 'skills');
+  const agentsDir = path.join(pluginRoot, 'agents');
+  const aliases = new Set();
+  const modelOf = (filePath) => readFrontmatter(fs.readFileSync(filePath, 'utf8'), filePath).fields.model;
+  for (const name of discoverSkillNames(skillsDir)) {
+    if (SKIPPED_SKILLS.has(name)) continue;
+    const skillPath = path.join(skillsDir, name, 'SKILL.md');
+    if (fs.existsSync(skillPath)) {
+      const model = modelOf(skillPath);
+      if (model) aliases.add(model);
+    }
+  }
+  for (const name of discoverAgentNames(agentsDir)) {
+    const model = modelOf(path.join(agentsDir, `${name}.md`));
+    if (model) aliases.add(model);
+  }
+  return aliases;
+}
+
+// Fills in modelMap's missing entries for the model aliases the plugin root's own skills and
+// agents actually carry — the ones resolveModel() would otherwise refuse — by querying the
+// OpenCode config for what's available (queryOpenCodeModels) and asking the user to pick, one
+// prompt per still-missing alias, in canonical order, through selectModel()'s shared per-alias
+// prompt. An alias modelMap already covers is left untouched and never reaches the prompt. Every
+// missing alias's prompt shares one readline interface, opened once before the loop and closed
+// once after it — not one per alias — so a piped multi-line answer (one line per missing alias)
+// resolves every alias instead of only the first: a fresh interface per alias would each buffer
+// and then discard on close whatever the pipe still held for the next prompt. An empty
+// available-models list refuses gracefully — before any readline interface ever opens over the
+// input, so that path never touches stdin — instead of prompting with nothing to offer. Each pick
+// is still checked with requireAvailableModel before use. opts forwards to queryOpenCodeModels
+// (cwd/env) and the interactive prompt (input/output).
+async function resolveModelMap(pluginRoot, modelMap, opts) {
+  const needed = usedModelAliases(pluginRoot);
+  const missing = MODEL_ALIASES.filter((alias) => needed.has(alias) && !modelMap.has(alias));
+  if (missing.length === 0) return modelMap;
+  const models = queryOpenCodeModels(opts);
+  if (models.length === 0) {
+    fail(`no models are configured in your OpenCode setup yet — pass --model-map ${missing[0]}=<provider/model> to set '${missing[0]}' manually`);
+  }
+  const resolved = new Map(modelMap);
+  const input = (opts && opts.input) || process.stdin;
+  const output = (opts && opts.output) || process.stdout;
+  const rl = readline.createInterface({ input, output });
+  const it = rl[Symbol.asyncIterator]();
+  try {
+    for (const alias of missing) {
+      const pick = await selectModel(alias, models, it, output);
+      // selectModel() only ever returns an entry of `models` itself, so this check can never
+      // actually refuse here — it stands as a guard against a future caller that draws `pick` from
+      // a different source than the `models` list it is checked against.
+      resolved.set(alias, requireAvailableModel(pick, models));
+    }
+  } finally {
+    rl.close();
+  }
+  return resolved;
+}
+
 // render({ harness, pluginRoot, dest, modelMap }) writes the full render target under
 // dest/.opencode and returns the sorted list of written paths, relative to dest. It removes its
 // own generated files first, so a re-run over the same dest is byte-identical and a renamed or
@@ -452,14 +668,8 @@ function render(opts) {
   const skillsDir = path.join(pluginRoot, 'skills');
   const agentsDir = path.join(pluginRoot, 'agents');
 
-  const skills = listDirs(skillsDir, 'skills directory')
-    .filter((e) => e.isDirectory())
-    .map((e) => e.name)
-    .sort();
-  const agents = listDirs(agentsDir, 'agents directory')
-    .filter((e) => e.isFile() && e.name.endsWith('.md'))
-    .map((e) => e.name.replace(/\.md$/, ''))
-    .sort();
+  const skills = discoverSkillNames(skillsDir);
+  const agents = discoverAgentNames(agentsDir);
   for (const name of skills) {
     const skillPath = path.join(skillsDir, name, 'SKILL.md');
     if (!SKIPPED_SKILLS.has(name) && !fs.existsSync(skillPath)) {
@@ -545,10 +755,11 @@ function parseArgs(argv) {
   return opts;
 }
 
-function main() {
+async function main() {
   let opts;
   try {
     opts = parseArgs(process.argv.slice(2));
+    opts.modelMap = await resolveModelMap(opts.pluginRoot, opts.modelMap, { cwd: opts.dest });
     const written = render(opts);
     for (const rel of written) console.log(`rendered ${rel.split(path.sep).join('/')}`);
   } catch (e) {
@@ -1027,6 +1238,121 @@ async function selftest() {
       assert.ok(res.stdout.includes('rendered .opencode/plugins/superdev.js'));
     }
 
+    // CLI integration: a --model-map missing the 'sonnet' alias prompts for exactly that alias —
+    // fed via spawnSync's own `input` (the one answer '1\n') — and never prompts for 'opus', which
+    // --model-map already covers: only one answer is queued, so a stray second prompt for 'opus'
+    // would starve on EOF and the render would fail instead of completing.
+    {
+      const cliDest2 = tmp();
+      write(cliDest2, 'opencode.json', JSON.stringify({ model: 'acme/interactive-sonnet-1' }));
+      // The invocation cwd carries no config at all — proves the query reads --dest's own project
+      // config, not whatever directory the adapter happens to be invoked from.
+      const invocationDir2 = tmp();
+      const res2 = require('node:child_process').spawnSync(
+        process.execPath,
+        [__filename, '--harness', 'opencode', '--plugin-root', pluginRoot, '--dest', cliDest2, '--model-map', 'opus=acme/opus-1'],
+        {
+          encoding: 'utf8',
+          input: '1\n',
+          cwd: invocationDir2,
+          env: Object.assign({}, process.env, { OPENCODE_CONFIG: '', HOME: invocationDir2 }),
+        },
+      );
+      assert.equal(res2.status, 0, res2.stderr);
+      const backlogCommand2 = fs.readFileSync(path.join(cliDest2, '.opencode', 'commands', 'superdev', 'backlog.md'), 'utf8');
+      assert.ok(backlogCommand2.includes('model: acme/interactive-sonnet-1'), 'the missing sonnet alias resolves to the interactively picked model');
+      const reviewer2 = fs.readFileSync(path.join(cliDest2, '.opencode', 'agents', 'final-reviewer.md'), 'utf8');
+      assert.ok(reviewer2.includes('model: acme/opus-1'), 'the opus alias --model-map already covers is never prompted for');
+    }
+
+    // Regression: closed/EOF stdin (`< /dev/null`, or any non-interactive invocation) with a
+    // --model-map missing an alias must refuse loudly instead of silently exiting 0 having
+    // rendered nothing — rl.question's callback never fires once the input has already ended, so
+    // the fix must notice the readline interface's own 'close' event instead of waiting on an
+    // answer that will never come. A bounded `timeout` turns "hangs forever" into an observable
+    // failure (a killed child, `res.signal` set) rather than stalling the whole suite.
+    {
+      // A real, non-empty OpenCode config in --dest itself: without one, the missing 'sonnet'
+      // alias refuses through the separate "no models configured" preflight before the prompt
+      // (and the EOF handling) is ever reached — this test is specifically for the prompt's own
+      // EOF handling.
+      const cliDest3 = tmp();
+      write(cliDest3, 'opencode.json', JSON.stringify({ model: 'acme/eof-1' }));
+      const eofInvocationDir = tmp(); // no config here — the query reads --dest's, not cwd's
+      const res3 = require('node:child_process').spawnSync(
+        process.execPath,
+        [__filename, '--harness', 'opencode', '--plugin-root', pluginRoot, '--dest', cliDest3],
+        {
+          encoding: 'utf8',
+          input: '',
+          cwd: eofInvocationDir,
+          env: Object.assign({}, process.env, { OPENCODE_CONFIG: '', HOME: eofInvocationDir }),
+          timeout: 5000,
+        },
+      );
+      assert.equal(res3.signal, null, 'the process refuses on its own instead of being killed by the test timeout');
+      assert.equal(res3.status, 1, 'EOF/non-interactive input refuses (nonzero exit) instead of hanging or silently exiting 0');
+      assert.ok(res3.stderr.includes('sonnet'), 'the refusal names the still-missing alias');
+      assert.ok(res3.stderr.includes('--model-map'), 'the refusal mentions --model-map as the escape hatch');
+      assert.ok(!fs.existsSync(path.join(cliDest3, '.opencode')), 'a refused render writes nothing to --dest');
+    }
+
+    // Regression: piped multi-alias input (2+ aliases missing from --model-map) must resolve every
+    // alias, not just the first — the bug routed each alias's prompt through its own fresh
+    // `readline` interface, so the first prompt's interface greedily buffered and then discarded
+    // the rest of the pipe on close, starving every prompt after it.
+    {
+      const cliDest4 = tmp();
+      write(cliDest4, 'opencode.json', JSON.stringify({ model: 'acme/multi-a', small_model: 'acme/multi-b' }));
+      const multiInvocationDir = tmp(); // no config here — the query reads --dest's, not cwd's
+      const res4 = require('node:child_process').spawnSync(
+        process.execPath,
+        [__filename, '--harness', 'opencode', '--plugin-root', pluginRoot, '--dest', cliDest4],
+        {
+          encoding: 'utf8',
+          // Distinct answers per alias ('1' then '2'), not the same line repeated: identical
+          // answers can't tell "each prompt consumed its own line" from "one line got replayed
+          // for every alias".
+          input: '1\n2\n',
+          cwd: multiInvocationDir,
+          env: Object.assign({}, process.env, { OPENCODE_CONFIG: '', HOME: multiInvocationDir }),
+          timeout: 5000,
+        },
+      );
+      assert.equal(res4.status, 0, res4.stderr);
+      const backlogCommand4 = fs.readFileSync(path.join(cliDest4, '.opencode', 'commands', 'superdev', 'backlog.md'), 'utf8');
+      assert.ok(backlogCommand4.includes('model: acme/multi-a'), "the first missing alias ('sonnet') resolves from the first queued answer");
+      const reviewer4 = fs.readFileSync(path.join(cliDest4, '.opencode', 'agents', 'final-reviewer.md'), 'utf8');
+      assert.ok(reviewer4.includes('model: acme/multi-b'), "the second missing alias ('opus') resolves from its own, distinct queued answer — the shared readline interface serves both prompts from the one piped input");
+    }
+
+    // Regression: the model picker must query the --dest project's own OpenCode config, not
+    // whatever directory the adapter happens to be invoked from — README documents "--dest names
+    // the project root". Two distinct opencode.json files, one beside the invocation cwd and one
+    // in --dest: the offered (and picked) model must come from --dest's config.
+    {
+      const invocationDir = tmp();
+      write(invocationDir, 'opencode.json', JSON.stringify({ model: 'acme/from-invocation-dir' }));
+      const cliDest5 = tmp();
+      write(cliDest5, 'opencode.json', JSON.stringify({ model: 'acme/from-dest-project' }));
+      const homeDir = tmp(); // no config here, so only the two opencode.json files above compete
+      const res5 = require('node:child_process').spawnSync(
+        process.execPath,
+        [__filename, '--harness', 'opencode', '--plugin-root', pluginRoot, '--dest', cliDest5],
+        {
+          encoding: 'utf8',
+          input: '1\n1\n',
+          cwd: invocationDir,
+          env: Object.assign({}, process.env, { OPENCODE_CONFIG: '', HOME: homeDir }),
+          timeout: 5000,
+        },
+      );
+      assert.equal(res5.status, 0, res5.stderr);
+      const backlogCommand5 = fs.readFileSync(path.join(cliDest5, '.opencode', 'commands', 'superdev', 'backlog.md'), 'utf8');
+      assert.ok(backlogCommand5.includes('model: acme/from-dest-project'), 'the picker offers the --dest project\'s own models, not the invocation directory\'s');
+      assert.ok(!backlogCommand5.includes('model: acme/from-invocation-dir'), 'the invocation directory\'s config is never consulted');
+    }
+
     delete process.env.BRIDGE_MARK;
 
     // Refusals and defaults: a missing harness defaults to opencode, an unknown harness, a
@@ -1049,6 +1375,165 @@ async function selftest() {
       'skills directory',
     );
 
+    // requireAvailableModel: a model absent from queryOpenCodeModels()'s own report — distinct
+    // from resolveModel's "no --model-map entry" refusal above, which fires before any concrete
+    // model name is even known — names the missing model in its refusal.
+    refuses(
+      () => requireAvailableModel('acme/ghost-1', ['acme/opus-1', 'acme/sonnet-1']),
+      "model 'acme/ghost-1' is not available",
+    );
+    refuses(
+      () => requireAvailableModel('acme/ghost-1', ['acme/opus-1', 'acme/sonnet-1']),
+      'available models: acme/opus-1, acme/sonnet-1',
+    );
+    // An empty availableModels list (no OpenCode config found at all) still reads as a helpful
+    // sentence, not a dangling "available models: ". The refusal itself is the only effect: a
+    // scratch directory the call is handed is untouched, so a caller never has to unwind a
+    // partial write before it retries.
+    refuses(
+      () => requireAvailableModel('acme/ghost-1', []),
+      'no models are configured in your OpenCode setup yet',
+    );
+    {
+      const scratch = tmp();
+      write(scratch, 'marker.txt', 'untouched');
+      const before = fs.readdirSync(scratch).sort();
+      refuses(() => requireAvailableModel('acme/ghost-1', []), 'not available');
+      assert.deepEqual(fs.readdirSync(scratch).sort(), before, 'requireAvailableModel performs no I/O — nothing to leave broken');
+    }
+    // Retry: the caller re-queries OpenCode config (queryOpenCodeModels()) after the user adds
+    // the model, then calls requireAvailableModel again with the same arguments shape — now the
+    // model is among the alternatives, and the call succeeds instead of refusing again.
+    assert.equal(
+      requireAvailableModel('acme/ghost-1', ['acme/ghost-1', 'acme/opus-1']),
+      'acme/ghost-1',
+      'once the model is present among the alternatives, the same call succeeds',
+    );
+    // A non-array availableModels (e.g. a caller that skipped queryOpenCodeModels() and passed
+    // undefined) refuses through the same fail() convention instead of throwing a raw TypeError —
+    // treated the same as an empty list, since no known available models can be named.
+    refuses(
+      () => requireAvailableModel('acme/ghost-1', undefined),
+      'no models are configured in your OpenCode setup yet',
+    );
+
+    // Interactive model-map prompt: prompts for every alias in order, and returns the picks. The
+    // fake terminal below feeds the next queued answer only once it sees the prompt that asks for
+    // it — a real terminal never hands over the next keystroke before the question is on screen,
+    // and readline drops a line typed before anyone asked for it.
+    const fakeTerminal = (answers) => {
+      const { PassThrough } = require('node:stream');
+      const input = new PassThrough();
+      const output = new PassThrough();
+      let out = '';
+      output.on('data', (chunk) => {
+        const text = chunk.toString();
+        out += text;
+        if (/Select a model for/.test(text) && answers.length) input.write(`${answers.shift()}\n`);
+      });
+      return { input, output, out: () => out };
+    };
+    {
+      const models = ['acme/haiku-1', 'acme/sonnet-1', 'acme/opus-1'];
+      const { input, output } = fakeTerminal(['1', '1', '1']);
+      const picks = await promptForModelMap(models, { input, output });
+      assert.deepEqual([...picks.keys()], ['haiku', 'sonnet', 'opus'], 'prompts for every alias, in order');
+    }
+
+    // Every offered model is displayed before each alias is prompted, not just picked blind.
+    {
+      const models = ['acme/haiku-1', 'acme/sonnet-1', 'acme/opus-1'];
+      const { input, output, out } = fakeTerminal(['1', '1', '1']);
+      await promptForModelMap(models, { input, output });
+      for (const model of models) assert.ok(out().includes(model), `${model} is shown to the user`);
+    }
+
+    // A different pick per alias, and a non-numeric, fractional, or out-of-range answer re-prompts
+    // instead of resolving to an undefined model. '2.5' pins Number.isInteger specifically: it is a
+    // valid, in-range Number, so a parseInt-based rewrite (which truncates it to the integer 2) would
+    // wrongly accept it as a pick, rather than rejecting it and re-prompting.
+    {
+      const models = ['acme/haiku-1', 'acme/sonnet-1', 'acme/opus-1'];
+      const { input, output } = fakeTerminal(['banana', '9', '2.5', '2', '3', '1']);
+      const picks = await promptForModelMap(models, { input, output });
+      assert.equal(
+        picks.get('haiku'),
+        models[1],
+        "the non-numeric answer 'banana', the out-of-range 9, and the fractional 2.5 are rejected, then 2 is accepted",
+      );
+      assert.equal(picks.get('sonnet'), models[2]);
+      assert.equal(picks.get('opus'), models[0]);
+    }
+
+    // The selection is returned to the caller as a Map carrying exactly the three aliases — the
+    // shape a later resolveModel()-integration slice reads.
+    {
+      const models = ['acme/haiku-1', 'acme/sonnet-1', 'acme/opus-1'];
+      const { input, output } = fakeTerminal(['1', '2', '3']);
+      const picks = await promptForModelMap(models, { input, output });
+      assert.ok(picks instanceof Map, 'the picks are returned as a Map');
+      assert.equal(picks.size, 3, 'exactly one pick per alias, no more, no fewer');
+    }
+
+    // resolveModelMap: an alias --model-map already covers never reaches queryOpenCodeModels or the
+    // interactive prompt at all — the same map comes back unchanged, and the fake terminal captures
+    // no output. This is the CI-safe path: no --model-map entry missing means nothing here ever
+    // touches stdin/stdout.
+    {
+      const root = tmp();
+      write(root, 'skills/onlysonnet/SKILL.md', ['---', 'name: onlysonnet', 'description: only sonnet', 'model: sonnet', '---', '', 'body', ''].join('\n'));
+      fs.mkdirSync(path.join(root, 'agents'), { recursive: true });
+      const covered = new Map([['sonnet', 'acme/sonnet-1']]);
+      const { input, output, out } = fakeTerminal([]);
+      const resolved = await resolveModelMap(root, covered, { input, output });
+      assert.equal(resolved, covered, 'every alias already covered — the same map comes back');
+      assert.equal(out(), '', 'no interactive output when nothing is missing');
+    }
+
+    // resolveModelMap: an alias missing from --model-map is resolved by querying the OpenCode
+    // config and prompting for exactly that alias — a sibling alias --model-map already covers
+    // keeps its own value and is never asked about.
+    {
+      const root = tmp();
+      write(root, 'skills/covered/SKILL.md', ['---', 'name: covered', 'description: sonnet, already mapped', 'model: sonnet', '---', '', 'body', ''].join('\n'));
+      write(root, 'skills/needsprompt/SKILL.md', ['---', 'name: needsprompt', 'description: opus, missing from --model-map', 'model: opus', '---', '', 'body', ''].join('\n'));
+      fs.mkdirSync(path.join(root, 'agents'), { recursive: true });
+      const configDir = tmp();
+      write(configDir, 'opencode.json', JSON.stringify({ model: 'acme/opus-1', small_model: 'acme/opus-2' }));
+      const partial = new Map([['sonnet', 'acme/sonnet-1']]);
+      const { input, output, out } = fakeTerminal(['2']);
+      const resolved = await resolveModelMap(root, partial, { input, output, cwd: configDir });
+      assert.equal(resolved.get('sonnet'), 'acme/sonnet-1', 'the covered alias keeps its --model-map value');
+      assert.equal(resolved.get('opus'), 'acme/opus-2', 'the missing alias resolves to the interactively picked model');
+      assert.ok(out().includes("in your OpenCode config, for 'opus'"), 'prompts for the missing alias');
+      assert.ok(!out().includes("in your OpenCode config, for 'sonnet'"), 'never prompts for the alias --model-map already covers');
+    }
+
+    // resolveModelMap: a missing alias with no models to offer (an empty queryOpenCodeModels()
+    // report, e.g. no OpenCode config found anywhere) refuses gracefully through
+    // requireAvailableModel's own message instead of looping forever on a picker with nothing to
+    // pick, or crashing with a raw error — and never opens a readline interface over the input at
+    // all, since there is nothing to prompt for.
+    {
+      const root = tmp();
+      write(root, 'skills/needsprompt/SKILL.md', ['---', 'name: needsprompt', 'description: no model configured anywhere', 'model: opus', '---', '', 'body', ''].join('\n'));
+      fs.mkdirSync(path.join(root, 'agents'), { recursive: true });
+      const emptyConfigDir = tmp(); // no opencode.json here, and no OPENCODE_CONFIG/HOME below
+      const { PassThrough } = require('node:stream');
+      const noPromptInput = new PassThrough();
+      // readline.createInterface attaches a 'data' listener to its input immediately, and
+      // rl.close() removes it again — so a post-hoc listenerCount check would pass even for code
+      // that opens and then closes an interface. 'newListener' catches the attach itself, whether
+      // or not it is later torn down.
+      let openedReadline = false;
+      noPromptInput.on('newListener', (event) => { if (event === 'data') openedReadline = true; });
+      const err = await thrown(() => resolveModelMap(root, new Map(), { cwd: emptyConfigDir, env: {}, input: noPromptInput, output: new PassThrough() }));
+      assert.ok(err, 'refuses instead of hanging or crashing when no models are configured');
+      assert.equal(err.isRefusal, true);
+      assert.ok(err.message.includes('no models are configured in your OpenCode setup yet'));
+      assert.equal(openedReadline, false, 'no readline interface is opened over the input when there is nothing to prompt for');
+    }
+
     console.log('adapter.js selftest ok');
   } finally {
     for (const dir of made) fs.rmSync(dir, { recursive: true, force: true });
@@ -1060,4 +1545,4 @@ if (require.main === module) {
   else main();
 }
 
-module.exports = { render };
+module.exports = { render, queryOpenCodeModels, requireAvailableModel, promptForModelMap };

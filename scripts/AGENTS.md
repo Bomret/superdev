@@ -163,7 +163,8 @@ equivalent — and agents from
 `plugin/agents/<name>.md` to `.opencode/agents/<name>.md`. The rendered command frontmatter carries
 the `description`, the skill's `model:` alias resolved
 through the same `--model-map` (a missing alias refuses nonzero and names the alias and the
-command), and the skill's `allowed-tools:` carried verbatim — OpenCode command frontmatter has no
+command — see below for how the CLI fills a missing alias in before this ever fires), and the
+skill's `allowed-tools:` carried verbatim — OpenCode command frontmatter has no
 permission key, so the field is preserved rather than dropped silently. The rendered agent
 frontmatter carries
 `description`, `mode: subagent`, a `tools:` map — a leading `"*": false` denying every OpenCode
@@ -180,7 +181,7 @@ security and only trades the repair tool's recoverable result for the executor's
 error — and
 `model` resolved from the agent's alias through the
 repeatable `--model-map <alias>=<provider/model>` — a missing alias refuses nonzero and names the
-alias and the agent. Every rendered string scalar (`description`, `allowed-tools`) is emitted
+alias and the agent, same caveat as above. Every rendered string scalar (`description`, `allowed-tools`) is emitted
 JSON-quoted, so a description carrying `: ` stays valid YAML, and the plugin root is normalized —
 a trailing slash included — before substitution, so no rendered path carries `//`. Every rendered
 file then gets three deterministic prose rewrites:
@@ -219,7 +220,24 @@ bridge ships. Refusals exit nonzero with a one-line stderr reason and cover an u
 `--harness` (default `opencode`), a missing `--dest`, a malformed `--model-map`, a skills or agents
 directory absent under `--plugin-root`, and a skill directory carrying no `SKILL.md`. The module
 guards its CLI entry with `require.main === module` — including its `--selftest`, so a `require`
-from the drift-check suite runs no CLI code — and exports `render`.
+from the drift-check suite runs no CLI code — and exports `render`, `queryOpenCodeModels`,
+`requireAvailableModel`, and `promptForModelMap`.
+
+Before `render()` ever runs, the CLI's `main()` fills in every `model:` alias `--model-map` left
+out (`resolveModelMap()`, not itself exported): it queries the OpenCode config for the models
+already named there (`queryOpenCodeModels()` — project `opencode.json`, the `OPENCODE_CONFIG`
+file, and the global `~/.config/opencode/opencode.json`, read from these locations and unioned,
+reading only their `model` and `small_model` fields) and prompts once per still-missing alias, sharing one `readline` interface
+(and one async iterator over it — `rl.question()` drops a buffered line that arrives before the
+next `question()` call, the async iterator protocol does not) across the whole pass, so a piped,
+multi-line answer resolves every missing alias instead of only the first. It refuses nonzero —
+naming the alias and pointing at `--model-map <alias>=<provider/model>` as the manual override —
+when no models are configured anywhere, or when the input closes (EOF, or a non-interactive
+process) before an answer arrives; `requireAvailableModel()` then confirms the pick is still among
+the queried models before it is used. The two per-surface refusals above (naming the alias and the
+command, or the alias and the agent) only fire when `render()` is called directly with a map still
+missing an alias — the CLI itself never reaches them, since `resolveModelMap()` has already filled
+every alias by the time `render()` runs.
 
 The committed golden render lives under `scripts/drift/fixtures/opencode/`, regenerated with
 `bun run render-fixtures` (`node scripts/drift/opencode-fixtures.js --write`). The fixtures render
