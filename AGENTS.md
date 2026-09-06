@@ -164,7 +164,7 @@ Codeberg Issues (`bomret/superdev`). Slices as issues, feature labels, epics as 
 Codeberg (Forgejo). Push scope branch, open ready PR against `main`, squash-merge with Conventional Commits title. See `docs/agents/code-management.md`.
 
 ### Documentation
-`AGENTS.md` hierarchy (root + `scripts/AGENTS.md`). `controlled` writing standard, American English. See `docs/agents/documentation.md`.
+`AGENTS.md` hierarchy (root + `scripts/AGENTS.md` + `plugin/references/AGENTS.md`). `controlled` writing standard, American English. See `docs/agents/documentation.md`.
 
 ### Knowledge base
 Codeberg repo Wiki. Adopters first, maintainers second, English. `(aggregate)` pages: Concepts, ADR summaries. See `docs/agents/knowledge-base.md`.
@@ -232,7 +232,7 @@ This root owns every other subtree directly:
   that forwards OpenCode's plugin events to the eight shipped hooks, issue #376; golden fixtures
   under `scripts/drift/fixtures/opencode/`),
   `scripts/eval-run.js` (the eval
-  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the sixty-seven cross-document contract checks: the
+  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the sixty-nine cross-document contract checks: the
   CLI walks the `drift/checks.js` registry, which orders every scanner and contract table). What each
   guards, check by check, lives in that child doc.
 - `plugin/references/`. Backend seed templates plus the runtime references. Owned by

@@ -34,18 +34,40 @@ files, unchanged, so it stays available for a key-funded cross-check.
 
 - **A capture failure scores nothing, on purpose.** The runner refuses to
   score an arm whose work it cannot see, and reports a capture failure
-  instead of a number. A leftover `.superdev/` worktree directory is one
-  known cause. A case scaffold that does not ignore `.superdev/` leaves it
-  tracked as a gitlink. That trips the check even though the arm's work is
-  fully captured. A `.gitignore` line for `.superdev/` in the case's
-  scaffold avoids it. This matters most for a full-tier plugin arm, which
-  creates that worktree.
+  instead of a number. A leftover `.superdev/` worktree directory left
+  untracked is one known cause: it lands in the captured diff as a gitlink
+  and trips the runner's capture check even though the arm's work is fully
+  captured. That worktree is created at run time, by a `full`-tier plugin
+  arm's own `/superdev:implement`, not authored by the scaffold — a case
+  whose plugin arm may reach that tier (`ab-implement-full`'s scaffold is the
+  example) gitignores `.superdev/` wholesale for exactly this, since nothing
+  the scaffold wrote pre-exists under it for `Grep` to need. A scaffold that
+  builds a branch and then checks the base branch back out is a second known
+  cause: the orphan guard cannot tell the scaffold's own setup commits from
+  an agent's stray branch, so every arm fails capture and the case scores
+  nothing while spending a full run. A scope-mode scaffold ends on the
+  branch it built, and `drift-check.js`'s `scaffold-ledger` check catches the
+  common form of the mistake. **A scaffold that pre-authors its own run
+  root** (`.superdev/scopes/<scope>/`, `ab-review-ceiling`'s scaffold is the
+  example) **must never gitignore it** — `Grep` is ripgrep-backed and skips
+  an ignored path even when it exists on disk, so an arm told to find its
+  specification there comes up empty. Commit that run root onto the base
+  branch instead, before the scope branch is cut: tracked, so `Grep` finds
+  it, and outside the range a review resolves, so it never shows up as an
+  added file in the diff under test.
 - **An arm with no superdev marker fails the run.** The broken-ablation check
   needs the plugin arm to show a superdev marker (a command, a subagent, or a
   hook) in at least one run of a case. An arm that only explores, and never
   invokes any of the three, shows none. `bun run eval` then reports the case
   as a broken ablation and exits non-zero, even when `--plugin-dir` isolated
   the arms correctly.
+- **The baseline arm's isolation is not a real sandbox.** The runner points
+  the baseline arm at a throwaway `HOME`, which stops the `claude` binary
+  from auto-loading the maintainer's installed copy of superdev as an active
+  extension. It does not sandbox the filesystem: an agent using its ordinary
+  `Read`/`Bash`/`Grep` tools can still browse and read the real `~/.claude`
+  tree underneath the throwaway `HOME`, because there is no chroot or
+  container. Filed as issue #403 for the actual fix, rather than solved here.
 
 ## The cases
 
@@ -55,6 +77,7 @@ files, unchanged, so it stays available for a key-funded cross-check.
 | `ab-plan-primed` | cheap, plan only | The same feature and the same graders as `ab-plan-edge-case`, from a **primed** prompt. What does the plugin add on top of good prompting, rather than on top of a bare request? |
 | `ab-plan-multi-slice` | cheap, plan only | Is a five-operation feature cut into vertical slices with an explicit dependency order, or into horizontal layers? Does every operation get a criterion? |
 | `ab-plan-multi-slice-primed` | cheap, plan only | The same feature and the same graders as `ab-plan-multi-slice`, from a **primed** prompt. Does wording buy vertical slicing, the one gap a bare prompt never closed? |
+| `ab-review-ceiling` | moderate–expensive, review only (same per-run timeout as an expensive case; a prose ablation runs it twice) | Given finished work that meets its specification and has no defects, what is a review worth? Does it find the recorded Definition of Done and check every criterion, does it name a concrete shallowness in correct code without relabelling it a defect, and does it stay read-only? **Primed**: its prompt names `/superdev:review`, because it doubles as the vehicle a prose ablation toggles the ceiling note across — see *Running a prose ablation*. |
 | `ab-implement-lite` | expensive, full build | Shipped code, tests, and docs in a runnable repo: are the two unnamed failure cases handled, are they tested, does the README stay true, is the suite honestly green, and is the diff proportionate? |
 | `ab-implement-full` | most expensive, full build | The same question over a five-operation feature with an auth rule, sized to invite more than three slices. Does every operation ship, get a test, and reach the README, does the auth split hold, does the work land in reviewable commits, and does the diff stay proportionate? The tier the plugin arm reaches is its own decision, so read the slice count before reading the result as a `full`-tier one. |
 
@@ -101,9 +124,18 @@ prompting. Both readings are useful, and neither is the headline on its own.
   rule), and the no-plugin arm reads them as ordinary repo docs. That hands the
   control arm hints it would not have in a bare repo. This is deliberate: a
   delta that survives a generous baseline is a real delta.
-- **The prompts name no slash command.** The plugin arm has to reach for its
-  own workflow the way a real user's prompt would, so discoverability is part
-  of what is being measured.
+- **The prompts name no slash command, except `ab-review-ceiling`.** Everywhere
+  else the plugin arm has to reach for its own workflow the way a real user's
+  prompt would, so discoverability is part of what is being measured. That case
+  names `/superdev:review` because it is also the vehicle a prose ablation runs
+  on, and the prose being ablated lives inside `final-reviewer`: an arm that
+  reviews inline never loads it, so the toggle changes nothing and the two runs
+  compare identical conditions. Observed on a real run — the arm made 17 Bash
+  calls, no `Task` call, opened no plugin file, and produced a perfectly good
+  review of its own. Both arms get the same wording, phrased so a baseline arm
+  with no such command reviews by hand instead, which is what it would do
+  anyway. The cost is that this case measures discoverability for nobody; the
+  other six still do.
 - **One run is an anecdote.** Cases default to `runs: 3`. A per-grader delta
   smaller than the spread across those runs is not a result.
 - **The two implement cases split the tiers.** `ab-implement-lite` runs the
@@ -122,9 +154,11 @@ prompting. Both readings are useful, and neither is the headline on its own.
   itself: the `trace` axis goes unmeasured on the arm that most needed it. Prefer `focus: files` for
   anything the diff can show, and read a `—` in a `trace` row as "the transcript outgrew the judge",
   not as "the arm did badly".
-- **`ab-implement-full` is the only case that allows `Task`.** The `full` tier
-  cannot dispatch a subagent without it. Both arms get it, so the baseline can
-  dispatch its own subagents too and the ablation stays one variable.
+- **Two cases allow `Task`: `ab-implement-full` and `ab-review-ceiling`.** The
+  `full` tier cannot dispatch a subagent without it, and neither can
+  `/superdev:review` reach `final-reviewer`. Both arms get it in both cases, so
+  the baseline can dispatch its own subagents too and the ablation stays one
+  variable.
 - **`readme-stays-true` measures discoverability, not just documentation.**
   `/superdev:implement` stops once the slices are on the scope branch, so the
   doc reconcile is two commands further along the chain, in
@@ -134,6 +168,61 @@ prompting. Both readings are useful, and neither is the headline on its own.
   prompt to close it.** The prompt names no slash command by design, and
   tuning either one fits the instrument to the result and hides the real
   cost the chain asks of a user.
+
+## Running a prose ablation
+
+Every case above measures superdev against no superdev. A **prose ablation**
+measures superdev against itself: one edit to the plugin's own prose, to settle
+whether a contested instruction earns its context (ADR 0038). It is how the
+prompt-architecture rule "a contested line gets an eval arm, not an argument"
+is actually carried out.
+
+The runner has no arm for this. `ARMS` is `plugin` and `baseline`, and the
+plugin arm always loads the working tree. So the ablation is two ordinary runs
+with a manual toggle between them:
+
+```sh
+git status --porcelain            # must be empty: see the warning below
+bun run eval --case ab-review-ceiling     # run A, prose as it stands
+
+git switch -c scratch/<what-you-cut>
+# make the ONE prose edit, and nothing else
+bun run eval --case ab-review-ceiling     # run B, prose removed
+
+git switch -                      # the scratch branch is throwaway
+```
+
+Read run A's **plugin** arm against run B's **plugin** arm, per grader. The
+baseline arm runs in both and is ignored: it loads no plugin, so it cannot
+show the difference an edit to the plugin made. That is wasted subscription
+window, and it is the price of leaving the runner alone.
+
+**The tree must be clean before run A, and the toggle must be the only change
+between the two.** The runner sees two ordinary invocations and cannot tell
+whether anything else moved. A pair made across an unrelated plugin edit
+measures two things at once and reports it as one number. This procedure is the
+whole guard.
+
+**Cut every document the instruction reaches, not just the one that explains
+it.** A contract in an agent body also holds in the dispatch prose that reaches
+it, and the dispatch wins a conflict (root `AGENTS.md`). The ceiling note lives
+in `agents/final-reviewer.md` *and* in `skills/review/SKILL.md`'s report template:
+removing only the agent leaves the controller still carrying a `### Ceiling`
+section, so run B is a half-removal that measures nothing clean. A passing
+cross-reference elsewhere is harmless; an instruction to emit the thing is not.
+
+**Confirm the ablated code path actually ran.** The runner's marker check is a
+bare `/superdev:[a-z-]+` match, which the plugin's own skills listing in the
+system prompt satisfies on every run — so a plugin arm that reviewed inline and
+dispatched nothing still reports as a healthy ablation. Before comparing, check
+the plugin arm's transcript for a real `Task` call naming the subagent whose
+prose was toggled. Prose that never loaded cannot differ between two runs.
+
+Everything under *Reading a result honestly* still applies, and the first rule
+applies hardest: one run is an anecdote. A per-grader difference smaller than
+the spread across a case's own runs is not a result, and "no measurable
+difference" is a real finding — it is what the rule predicts for a line the
+model already obeys.
 
 ## Adding a case
 

@@ -316,8 +316,8 @@ _Avoid: "developer", "coder"_
 **Slice-reviewer**: per-slice correctness gate (full tier, `behavior` slices). It verifies against the slice's acceptance, independently re-runs the suite, and reads the produced artifact, hunting uncovered input.
 _Avoid: "reviewer" (unqualified, so say which)_
 
-**Simplicity-reviewer**: per-slice over-engineering gate (full tier, `behavior` slices). It names what to delete and what a standard-library or native feature replaces. Read-only.
-_Avoid: "linter", "critic"_
+**Simplicity-reviewer**: the over-engineering reviewer. It names what to delete and what a standard-library or native feature replaces; its findings are advisory and gate nothing. Read-only. Two dispatch sites, one per tier: `full` runs it per `behavior` slice and applies the warranted cuts before the slice merges, and `/superdev:review` then skips it on that tier, leaving the cross-slice case to `final-reviewer`'s Brevity axis. `lite` has no per-slice review, so `/superdev:review`'s whole-scope dispatch is the only pass it gets (ADR 0037).
+_Avoid: "the simplicity review" unqualified (name the tier, because which site runs is what differs); "linter", "critic"_
 
 **Doc-writer**: reconciles the in-repo docs (the AGENTS.md tree) and the knowledge base with the merged code, removing stale text. Run by `/document`.
 _Avoid: "documenter", "technical writer"_

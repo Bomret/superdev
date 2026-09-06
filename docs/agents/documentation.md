@@ -1,7 +1,7 @@
 # Documentation: in-repo technical docs
 
-Durable in-repo docs live as a hierarchy of `AGENTS.md` files (this repo has a root `AGENTS.md` plus one
-child, `scripts/AGENTS.md`).
+Durable in-repo docs live as a hierarchy of `AGENTS.md` files (this repo has a root `AGENTS.md` plus two
+children, `scripts/AGENTS.md` and `plugin/references/AGENTS.md`).
 
 - **Hierarchy.** Root `AGENTS.md` holds project-wide instructions and the top-level index. Add a child
   `AGENTS.md` when a subtree becomes a durable boundary with its own rules.

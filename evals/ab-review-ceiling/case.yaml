@@ -1,0 +1,53 @@
+schema_version: "1.0"
+name: ab-review-ceiling
+description: >-
+  A/B arm: reviewing a finished, correct, shallow scope against its own
+  Definition of Done. The work has no defects to find, so what the review is
+  worth is what it says about work that already passes — with the plugin vs.
+  plain code review. Primed, in a different sense than `ab-plan-primed`'s
+  discipline-only wording: the prompt names the review command itself,
+  because this is also the vehicle a prose ablation toggles
+  `final-reviewer`'s ceiling note across (ADR 0038), and an ablation of prose
+  inside a subagent measures nothing unless that subagent runs.
+tags:
+  - ab
+  - review
+  - primed
+
+context:
+  scaffold_script: scaffold.sh
+
+execution:
+  prompt: |
+    The branch `feat/widget-search` in this repo holds finished work, already
+    committed. Review it against `main`.
+
+    If a `/superdev:review` command is available to you, invoke it on that
+    branch and let it produce the review. If it is not available, review the
+    branch yourself to the same standard.
+
+    Write the review to `review-report.md` at the repo root — the complete
+    report, every section it produces, verbatim rather than summarised. That
+    file is the only thing you change: leave the code under review untouched,
+    with no fixes, no commits on `feat/widget-search`, and no merges.
+
+    This run is non-interactive: answer every question you would have asked me
+    yourself, state each assumption inline, and never wait for a reply or for
+    approval. There is no network and no remote — never push.
+
+    What the work was supposed to deliver is recorded in the repository, in
+    the run's own scope directory. Find it and review against it rather than
+    against what you would have asked for.
+
+    Follow the repo's conventions in `docs/agents/`.
+  timeout_seconds: 2400
+  allowed_tools:
+    - Read
+    - Write
+    - Edit
+    - Glob
+    - Grep
+    - Bash
+    - Task
+
+runs: 3

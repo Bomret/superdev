@@ -42,6 +42,7 @@ const {
   scanMarketplaceSource,
   scanReadmeCommands,
   scanAuditSetGlobs,
+  scanScaffoldLedger,
   scanDenialCapNumberSilence,
   scanAfkLockTierClaim,
   scanOpencodeFixtures,
@@ -63,6 +64,7 @@ const {
   VERB_CONTRACTS,
   KB_STAGING_CONTRACTS,
   TEST_SELECTION_CONTRACTS,
+  TIER_SKIP_CONTRACTS,
   FULL_SUITE_CONTRACTS,
   FIX_BOUNDARY_CONTRACTS,
   AFK_ROUTING_CONTRACTS,
@@ -459,6 +461,17 @@ module.exports = [
     id: 'untriaged-item',
     ok: 'every slice-store document states how to recognise, list, and read the age of an untriaged item',
     run: scanUntriagedContract,
+    format: contractGap,
+  },
+  table(
+    'tier-skip',
+    TIER_SKIP_CONTRACTS,
+    'the full tier skips the whole-scope over-engineering pass, and still runs it per slice',
+  ),
+  {
+    id: 'scaffold-ledger',
+    ok: "every scope-mode eval scaffold writes a ledger scope.js's own reader can read",
+    run: scanScaffoldLedger,
     format: contractGap,
   },
 ];

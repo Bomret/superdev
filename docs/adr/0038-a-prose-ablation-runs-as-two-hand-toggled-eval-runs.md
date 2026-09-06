@@ -62,3 +62,6 @@ edit and nothing else.
 
 Should a second and third prose ablation follow, the runner change above becomes the cheaper option and
 this decision is the record of why it was not taken first.
+
+The first ablation ran against the ceiling note itself: `evals/ab-review-ceiling/verdict.md` records the
+result (keep, no delta exceeded its own spread) and the run count the instrument needed to reach it.

@@ -709,6 +709,46 @@ const FIX_BOUNDARY_CONTRACTS = [
   ],
 ];
 
+// ADR 0037. `/superdev:review` skips `simplicity-reviewer` on a `full`-tier scope, because that tier
+// already ran it per `behavior` slice and applied the cuts before each slice merged — a `mechanical`/`docs`
+// slice gets no per-slice pass either way, and the skip's own report line names that condition rather than
+// claiming blanket coverage. The skip is therefore not a
+// property of `skills/review/SKILL.md` alone: it is only sound while `implement-full.md` still dispatches
+// the reviewer per `behavior` slice. Three rows. Two sit one per end of that dependency, because either
+// row alone is a one-sided pin. A `skills/review/SKILL.md` that loses the skip costs a redundant pass and
+// nothing more, so the interesting direction is the other one: an `implement-full.md` that stops
+// dispatching `simplicity-reviewer` per `behavior` slice leaves a `full` run with no over-engineering pass
+// anywhere in the chain, while `skills/review/SKILL.md` goes on skipping on the strength of a per-slice
+// pass that no longer happens — green everywhere, covered nowhere. The `lite` half needs no row: that
+// tier dispatches nobody, so its whole-scope pass has no per-slice pass to be redundant against, and the
+// `skills/review/SKILL.md` row states the tier it fires on rather than the tiers it does not. The third
+// row pins the `behavior` qualifier itself, on the report line alone: the prose already drifted once, to
+// an unqualified "covered per slice", and neither of the first two rows' regexes mentions the word —
+// losing the qualifier would otherwise stay green.
+const TIER_SKIP_CONTRACTS = [
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /`?full`?[- ]tier[\s\S]{0,120}?skip\s+`?superdev:simplicity-reviewer`?[\s\S]{0,400}?[Bb]revity/,
+    'skip `superdev:simplicity-reviewer` on a `full`-tier scope, naming `final-reviewer`’s Brevity axis ' +
+      'as what covers the cross-slice case the per-slice passes could not see',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /dispatch[\s\S]{0,40}?`superdev:simplicity-reviewer`[\s\S]{0,60}?apply\s+warranted\s+cuts/i,
+    'dispatch `superdev:simplicity-reviewer` per `behavior` slice and apply the warranted cuts — the ' +
+      "per-slice pass `skills/review/SKILL.md`’s full-tier skip stands on",
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /skip\s+`?superdev:simplicity-reviewer`?[\s\S]{0,180}?covered per `?behavior`? slice/,
+    'qualify the full-tier skip’s coverage claim to `behavior` slices, on the bullet that states the skip ' +
+      'itself rather than on a copy of the phrase elsewhere — `implement-full.md` skips both per-slice ' +
+      'reviews for a `mechanical`/`docs` slice, so an unqualified "covered per slice" on that bullet is a ' +
+      'false statement about that slice’s code, and the phrase has already drifted once at exactly this ' +
+      'site while a second, unrelated occurrence elsewhere stayed correct',
+  ],
+];
+
 // ADR 0039. The unattended block on a denied dispatch exists to stop a pull request whose only review was
 // its author reviewing itself, so it fires on authorship rather than on the denial: a `full`-tier
 // controller wrote none of the code a denied `final-reviewer`, `slice-reviewer`, or `doc-reader` would
@@ -2481,6 +2521,7 @@ module.exports = {
   KB_BACKEND_CALL_MARKERS,
   HOOK_HEADER_REGEX,
   TEST_SELECTION_CONTRACTS,
+  TIER_SKIP_CONTRACTS,
   AFK_ROUTING_CONTRACTS,
   ARG_TOKEN_LINE,
   ARG_TOKEN_CONTRACTS,

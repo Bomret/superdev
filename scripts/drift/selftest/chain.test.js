@@ -22,6 +22,7 @@ const {
   TEST_SELECTION_CONTRACTS,
   FULL_SUITE_CONTRACTS,
   FIX_BOUNDARY_CONTRACTS,
+  TIER_SKIP_CONTRACTS,
   AFK_ROUTING_CONTRACTS,
   ARG_TOKEN_CONTRACTS,
   ARG_TOKEN_LINE,
@@ -1832,6 +1833,97 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     0,
     'boundary, destination, and exit together satisfy all three rows',
   );
+
+  // --- TIER_SKIP_CONTRACTS (ADR 0037): `/superdev:review` skips `simplicity-reviewer` on a `full`-tier
+  // scope, and the skip is sound only while `implement-full.md` still dispatches that reviewer per
+  // `behavior` slice. The second row is the one that matters most: losing the per-slice dispatch leaves a
+  // `full` run with no over-engineering pass anywhere while `skills/review/SKILL.md` goes on skipping,
+  // green everywhere and covered nowhere. The third row pins the `behavior` qualifier on the report line
+  // itself — the prose already drifted once, to an unqualified "covered per slice", with the first two
+  // rows both still green. ---
+
+  const perSliceDispatch =
+    'Then dispatch **`superdev:simplicity-reviewer`** (over-engineering); apply warranted cuts.\n';
+  const fullTierSkip =
+    "A `full`-tier scope → `final-reviewer` alone; skip `superdev:simplicity-reviewer`. That tier ran it " +
+    "per `behavior` slice, so what only the integrated view reveals is `final-reviewer`'s Brevity axis. " +
+    "Reporting: not dispatched — full tier, covered per `behavior` slice.\n";
+
+  // positive: all three rows unwritten — the skip is unstated, the qualifier that goes with it is
+  // therefore absent too, and the per-slice dispatch is gone
+  const ts1 = fixture({
+    'skills/review/SKILL.md': 'Dispatch both reviewers in parallel, each with an explicit model.\n',
+    'references/implement-full.md': 'Move the slice to `in-review`, then dispatch `superdev:slice-reviewer`.\n',
+  });
+  assert.equal(scanContract(ts1, TIER_SKIP_CONTRACTS).length, 3, 'flags all three rows when none is stated');
+
+  // positive: the costly direction. `skills/review/SKILL.md` still skips, but the per-slice pass it
+  // stands on is gone, so a `full` run has no over-engineering pass at all and only this row says so.
+  const ts2 = fixture({
+    'skills/review/SKILL.md': fullTierSkip,
+    'references/implement-full.md': 'Move the slice to `in-review`, then dispatch `superdev:slice-reviewer`.\n',
+  });
+  const tsGaps2 = scanContract(ts2, TIER_SKIP_CONTRACTS);
+  assert.equal(tsGaps2.length, 1, 'a skip standing on a per-slice dispatch that is gone leaves one gap');
+  assert.equal(
+    tsGaps2[0].source,
+    path.join('references', 'implement-full.md'),
+    'the gap names the playbook that dropped the per-slice dispatch, not the command that skips',
+  );
+
+  // positive: the skip names the tier but never the axis that covers what the per-slice passes could not
+  // see, which is the half that makes the skip defensible rather than a plain removal — and it also
+  // carries no `behavior` qualifier, so it fails that row too
+  const ts3 = fixture({
+    'skills/review/SKILL.md': 'A `full`-tier scope → `final-reviewer` alone; skip `superdev:simplicity-reviewer`.\n',
+    'references/implement-full.md': perSliceDispatch,
+  });
+  const tsGaps3 = scanContract(ts3, TIER_SKIP_CONTRACTS);
+  assert.equal(tsGaps3.length, 2, 'a skip that names no covering axis and no behavior qualifier leaves two gaps');
+  assert.ok(tsGaps3.some((g) => /Brevity/.test(g.expectation)), 'one gap names the axis the skip has to cite');
+  assert.ok(
+    tsGaps3.some((g) => /behavior/.test(g.expectation)),
+    'the other names the qualifier the report line has to carry',
+  );
+
+  // positive: the drift this row exists for — the skip cites the axis and the per-slice dispatch survives,
+  // but the report line drifted back to an unqualified "covered per slice"
+  const ts5 = fixture({
+    'skills/review/SKILL.md':
+      "A `full`-tier scope → `final-reviewer` alone; skip `superdev:simplicity-reviewer`. That tier ran it " +
+      "per slice, so what only the integrated view reveals is `final-reviewer`'s Brevity axis. Reporting: " +
+      'not dispatched — full tier, covered per slice.\n',
+    'references/implement-full.md': perSliceDispatch,
+  });
+  const tsGaps5 = scanContract(ts5, TIER_SKIP_CONTRACTS);
+  assert.equal(tsGaps5.length, 1, 'an unqualified report line is one gap even with the other two rows satisfied');
+  assert.match(tsGaps5[0].expectation, /behavior/, 'names the qualifier the report line dropped');
+
+  // positive: the qualifier drifted off the skip bullet itself but survives as a copy elsewhere in the
+  // document (an assessment-template example, say) — a whole-document presence test would read the copy
+  // and call this green, the exact shape a `mechanical`/`docs` slice's coverage claim already drifted in
+  const ts6 = fixture({
+    'skills/review/SKILL.md':
+      "A `full`-tier scope → `final-reviewer` alone; skip `superdev:simplicity-reviewer`. That tier ran it " +
+      "per slice, so what only the integrated view reveals is `final-reviewer`'s Brevity axis. Reporting: " +
+      'not dispatched — full tier, covered per slice.\n\n' +
+      'Elsewhere, an unrelated example: "not dispatched — full tier, covered per `behavior` slice".\n',
+    'references/implement-full.md': perSliceDispatch,
+  });
+  const tsGaps6 = scanContract(ts6, TIER_SKIP_CONTRACTS);
+  assert.equal(
+    tsGaps6.length,
+    1,
+    'a qualifier present only as a copy elsewhere, not on the skip bullet itself, is still one gap',
+  );
+  assert.match(tsGaps6[0].expectation, /behavior/, 'names the qualifier the skip bullet itself is missing');
+
+  // negative (GREEN): all three rows stated
+  const ts4 = fixture({
+    'skills/review/SKILL.md': fullTierSkip,
+    'references/implement-full.md': perSliceDispatch,
+  });
+  assert.equal(scanContract(ts4, TIER_SKIP_CONTRACTS).length, 0, 'all three rows stated satisfies the contract');
 
   // --- scanDocStepsNoSuite: the other side of ADR 0025. `/superdev:document`, `/superdev:ship`, and the
   // `doc-writer` instruct no full-suite run, so the scope's one run stays the review's. This asserts an

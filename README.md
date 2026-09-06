@@ -104,8 +104,11 @@ plan runs test-first, inline in the scope worktree.
   your backlog only once the scope that created it ships
   ([ADR 0046](docs/adr/0046-a-deferred-finding-becomes-a-triage-record.md),
   [ADR 0048](docs/adr/0048-a-local-store-triage-record-needs-its-scope-to-ship.md)). Nothing ever builds
-  it: no candidate listing and no slice loader selects it. Either way the command dispatches the same
-  `final-reviewer` and `simplicity-reviewer` subagents and reports one consolidated verdict.
+  it: no candidate listing and no slice loader selects it. Either way the command dispatches
+  `final-reviewer`, plus `simplicity-reviewer` on the `lite` tier. The `full` tier already ran that
+  reviewer per slice, so the whole-scope pass skips it rather than re-reading cut-down code
+  ([ADR 0037](docs/adr/0037-the-full-tier-skips-the-whole-scope-over-engineering-pass.md)). It reports
+  one consolidated verdict.
 - **`/superdev:document`**. Dispatches the `doc-writer` to reconcile the in-repo docs (the `AGENTS.md`
   hierarchy) and the optional knowledge base with the current code. It adds what is new and **removes
   stale or obsolete** text. For a remote knowledge-base backend it writes each page as a **staged page**
@@ -176,7 +179,10 @@ The **full** execution tier dispatches `implementer`, `slice-reviewer`, and `sim
 slice. The **lite** tier (3 slices or fewer) has the controller implement inline instead, and also
 performs the documentation pass itself, as the last step before hand-off (ADR 0031). Both tiers hand
 off to the same chain once every slice sits on the scope branch: `/superdev:review` dispatches
-`final-reviewer` and `simplicity-reviewer` over the whole scope, then `/superdev:document` dispatches
+`final-reviewer` over the whole scope, plus `simplicity-reviewer` too on the `lite` tier. The `full`
+tier already ran that reviewer per slice, so the whole-scope pass skips it
+([ADR 0037](docs/adr/0037-the-full-tier-skips-the-whole-scope-over-engineering-pass.md)). Then
+`/superdev:document` dispatches
 `doc-writer` to reconcile the docs, reader-tested by `doc-reader`. On a `lite` scope that already
 documented itself, it dispatches `doc-reader` alone instead. The doc reconcile always runs **after**
 the review, and never concurrent with it, so the `doc-writer`'s commits cannot shift the diff the reviewer

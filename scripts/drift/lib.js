@@ -151,10 +151,15 @@ function storeDocuments(root, { dir, extra, exempt = new Set() }) {
 
 // scanContract() is pure over a root dir and a contract table: reads each document the table names and
 // reports the expectations it no longer meets. Absent files are skipped, so fixtures need only the
-// documents they exercise. The tables above share this one scanner — they differ in what they assert,
-// not in how the assertion runs. `stripFrontmatterFirst` tests the body alone, so a document can't satisfy
-// a body contract by echoing the token into its own `argument-hint` frontmatter — `FEATURE_ARG_CONTRACTS`
-// needs the opposite (its first row asserts *inside* the frontmatter), so it leaves this off.
+// documents they exercise. This is what lets a table mix a hardcoded plugin path with an optional
+// `docs/agents/*.md` backend config file that a fresh consumer repo legitimately never created. A table's
+// hardcoded path going missing for real — a rename that outran its pin — is not silent, though: the
+// `pinned-paths` check (`scanPinnedPaths`, `drift/scanners.js`) walks every contract table's own literal
+// paths and fails loudly on any that no longer exist, independently of this skip. The tables above share
+// this one scanner — they differ in what they assert, not in how the assertion runs. `stripFrontmatterFirst`
+// tests the body alone, so a document can't satisfy a body contract by echoing the token into its own
+// `argument-hint` frontmatter — `FEATURE_ARG_CONTRACTS` needs the opposite (its first row asserts *inside*
+// the frontmatter), so it leaves this off.
 //
 // A pattern that misses the raw text is retried against the whitespace-normalized text. The documents are
 // hard-wrapped, so a clause a table spells with single spaces straddles a line break in the real file; the

@@ -36,6 +36,7 @@ const {
   scanReadmeCommands,
   scanAuditSetGlobs,
   scanPinnedPaths,
+  scanScaffoldLedger,
   scanAgentToolAgnostic,
   scanGlossarySpecialisingCitations,
 } = require('../scanners');
@@ -2714,6 +2715,73 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.ok(
     scanPinnedPaths(fixture({ 'README.md': '# r\n' })).some((g) => g.source === path.join('scripts', 'AGENTS.md')),
     'a document pinned by a String-shaped row is still caught',
+  );
+
+  // --- scanScaffoldLedger: a scope-mode eval scaffold hand-writes a ledger against a schema `scope.js`
+  // owns, and nothing else couples the two. The failure is silent — the case keeps running and keeps
+  // scoring, on arms that reviewed an ordinary branch instead of a scope. ---
+
+  const goodLedger =
+    'mkdir -p .superdev/scopes/demo\n' +
+    "cat > .superdev/scopes/demo/ledger.md <<'DOC'\n" +
+    '# Ledger — demo\n\n' +
+    '**Stage:** merged\n' +
+    '**Branch:** feat/demo\n' +
+    '**Anchor:** #41 — Demo\n\n' +
+    '| id | issue | title | type | depends-on | status | range |\n' +
+    '|---|---|---|---|---|---|---|\n' +
+    '| 01 | #42 | One | behavior | — | merged | a..b |\n' +
+    'DOC\n';
+
+  // negative: a scaffold whose ledger `scope.js`'s own reader reads end to end
+  assert.equal(
+    scanScaffoldLedger(fixture({ 'evals/ab-demo/scaffold.sh': goodLedger })).length,
+    0,
+    'a ledger scope.js can read leaves no gap',
+  );
+
+  // negative: a case that stages no run root is not a scope-mode case, so the check passes it over
+  assert.equal(
+    scanScaffoldLedger(fixture({ 'evals/ab-plain/scaffold.sh': 'git init -q -b main\ngit add -A\n' })).length,
+    0,
+    'a scaffold staging no run root is left alone',
+  );
+
+  // positive: the drift this exists for — the header spelling moves and the reader stops finding it
+  const slDrifted = goodLedger.replace('**Stage:** merged', 'Stage: merged');
+  const slGaps = scanScaffoldLedger(fixture({ 'evals/ab-demo/scaffold.sh': slDrifted }));
+  assert.equal(slGaps.length, 1, 'a header scope.js cannot read is one gap');
+  assert.equal(slGaps[0].source, path.join('evals', 'ab-demo', 'scaffold.sh'), 'the gap names the scaffold');
+  assert.match(slGaps[0].expectation, /Stage/, 'the gap names the header that stopped reading');
+
+  // positive: the slice table is the row count the tier derivation reads, so a column row that drifted
+  // leaves the tier underivable even while every header still reads
+  const noTable = goodLedger.replace('| id | issue | title | type | depends-on | status | range |', '| id | title |');
+  const slGaps2 = scanScaffoldLedger(fixture({ 'evals/ab-demo/scaffold.sh': noTable }));
+  assert.equal(slGaps2.length, 1, 'a drifted column row is one gap');
+  assert.match(slGaps2[0].expectation, /seven-column/, 'the gap names the table it expected');
+
+  // positive: an empty header line reads as absent, the same way `scope.js` reads one
+  assert.equal(
+    scanScaffoldLedger(fixture({ 'evals/ab-demo/scaffold.sh': goodLedger.replace('feat/demo', '') })).length,
+    1,
+    'a valueless Branch line is absent here exactly as it is to scope.js',
+  );
+
+  // positive: the scaffold returns to base after building the scope branch. captureDiff's orphan guard
+  // then reads the scaffold's own commits as stray work and fails every arm — the whole case spends a
+  // run and scores nothing. This is the defect `ab-review-ceiling` shipped with, caught after one run.
+  const backToBase = scanScaffoldLedger(
+    fixture({ 'evals/ab-demo/scaffold.sh': `${goodLedger}git checkout -q main\n` }),
+  );
+  assert.equal(backToBase.length, 1, 'returning to the base branch is one gap');
+  assert.match(backToBase[0].expectation, /stay on the scope branch/, 'the gap names what the scaffold must do');
+
+  // negative: `git switch -` and a checkout of some other branch are not this failure
+  assert.equal(
+    scanScaffoldLedger(fixture({ 'evals/ab-demo/scaffold.sh': `${goodLedger}git switch -c feat/demo main\n` })).length,
+    0,
+    'cutting a branch off main is not a return to base',
   );
 
   // --- scanAgentToolAgnostic: shipped agent prose names no concrete toolchain command — the class the

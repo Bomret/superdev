@@ -105,6 +105,20 @@ superdev subagent that omits one):
 Both subagents are **read-only** (`Read`, `Grep`, `Bash` — a hook blocks `git merge`/`push`/`rebase` and
 `gh`/`tea pr merge` from any subagent). Scale the dispatch to the diff:
 
+- **A `full`-tier scope** → `final-reviewer` alone; skip `simplicity-reviewer` (ADR 0037),
+  reporting `` not dispatched — full tier, covered per `behavior` slice ``. That tier dispatched it per
+  `behavior` slice and applied the warranted cuts before each slice merged, so a whole-scope pass re-reads
+  cut-down code for cuts. What only the integrated view reveals — the same logic in two slices, an
+  abstraction each half-builds — is `final-reviewer`'s **Brevity (whole-scope)** axis, which is carved for
+  exactly that. A `mechanical`/`docs` slice gets no per-slice pass either way, and this skip does not claim
+  otherwise. Derive the tier per `<plugin-root>/references/scope-mode.md`'s `## Degraded passes` section,
+  which already states it: `scope.js get slices`, three or fewer is `lite`. A **`lite`** scope keeps the
+  dispatch — that tier holds no per-slice review, so this is its only over-engineering pass. A ledger with
+  no slice rows leaves the tier unknown: dispatch, the same way an unknown tier blocks rather than assumes
+  there. The skip holds on a re-review after a fix cycle too; ADR 0037 records why that gap is accepted
+  rather than closed with a second condition. **An ad-hoc range has no tier** — the rules below decide
+  alone. This rule is evaluated first: a `full`-tier scope never reaches the tiny-diff or
+  nothing-to-cut bullets below — both are about `simplicity-reviewer`, which this rule already decided.
 - **Tiny diff** (a handful of lines) → `final-reviewer` alone; skip `simplicity-reviewer`.
 - **Nothing plausible to cut** (docs-only, or already lean) → skip `simplicity-reviewer`.
 - **Never skip `final-reviewer`** — correctness is always in scope.
@@ -152,14 +166,15 @@ line each, with the follow-up `/superdev/plan`. Omit this section when there is 
 
 ### Assessment
 Full-suite run: [pass | fail | not run | denied — degraded pass]
-Correctness: [ready | not ready]. Simplicity: [N cuts recommended, non-blocking | Lean already | not dispatched].
+Correctness: [ready | not ready]. Simplicity: [N cuts recommended, non-blocking | Lean already | not dispatched — <reason>].
 Ready to merge? [Yes | No | With fixes]
 Reasoning: [1–2 sentences]
 ```
 
 The per-axis line is additive, sourced from each reviewer's own verdict — final-reviewer's `Ready to
 merge?` line for Correctness, simplicity-reviewer's `net: -N lines possible` / `Lean already` for
-Simplicity (or "not dispatched" per §2's skip rules). It doesn't replace the combined `Ready to merge?`
+Simplicity (or "not dispatched — <reason>" per §2's skip rules, naming which one applied — e.g. "not
+dispatched — full tier, covered per `behavior` slice"). It doesn't replace the combined `Ready to merge?`
 verdict: over-engineering findings stay non-blocking, never gating merge on their own. `final-reviewer`
 has no notion of deferral and lands its own line at the finding's actual severity, so a verdict whose only
 remaining findings are `### Deferred to a plan` entries — §4's exit clause already treats that verdict as

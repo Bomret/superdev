@@ -289,7 +289,7 @@ every drift assertion by id, and it fell behind at five separate additions, beca
 maintained by hand at the moment its author is thinking about code. Naming the exceptions cannot drift
 when a new check lands.
 
-`drift-check.js` guards sixty-seven things, in the order `drift/checks.js` registers them. First, the
+`drift-check.js` guards sixty-nine things, in the order `drift/checks.js` registers them. First, the
 `reference` contract: every `references/*.md` path named in `skills/`, `agents/`, or `references/`
 itself resolves to a file that exists. A reference cites another reference, as both execution
 playbooks point at `scope-mode.md`, so a rename there dangles like any other. Second, the
@@ -1248,7 +1248,7 @@ specialising family, `plan-contract.md` carries no generic `## Untriaged item` s
 `CONTEXT.md`'s glossary entry already sends a reader straight to "that store's own `## Untriaged item`
 section", so this check has no citation half in `scanSpecialisingCitations` to pair with.
 
-**Beside the sixty-seven checks, one selftest with no ordinal of its own** (`scripts/drift/selftest/scanners.test.js`,
+**Beside the sixty-nine checks, one selftest with no ordinal of its own** (`scripts/drift/selftest/scanners.test.js`,
 right after its `scanGlossarySpecialisingCitations` suite): store-side presence coverage for the whole
 specialising family. Each of the six members has its own store-side scanner, pinned in this file wherever
 that check's own ordinal sits — `anchor-contract`, `append-mode`, `release-contract`, `triage-record`, and
@@ -1265,6 +1265,42 @@ because running the registry from inside the registry recurses. A member added t
 with no store-side scanner for it is caught here with no fixture edit: proven by temporarily adding a
 seventh, unscanned name to the real list, which fails this assertion and names that member, then reverting
 both to restore green.
+
+Sixty-eighth, the `tier-skip` contract (ADR 0037), three rows. Two sit one per end of a dependency between
+two documents. `skills/review/SKILL.md` skips `superdev:simplicity-reviewer` on a `full`-tier scope, and that
+skip is sound only because `references/implement-full.md` dispatches the same reviewer per `behavior`
+slice and applies its cuts before each slice merges — a `mechanical`/`docs` slice gets no per-slice pass
+either way, and the skip's own report line says so rather than claiming blanket coverage. Pinning
+`review/SKILL.md` alone would be a one-sided pin in the
+direction that matters least: a `review/SKILL.md` that loses the skip costs one redundant pass. The costly
+direction is the other one, so the second row sits on `implement-full.md`'s per-slice dispatch — remove it
+and a `full` run has no over-engineering pass anywhere, while `review/SKILL.md` goes on skipping on the
+strength of a pass that no longer happens, every check green and the coverage gone. The `lite` tier needs
+no row: it dispatches nobody, so its whole-scope pass has nothing to be redundant against, and the
+`review/SKILL.md` row names the tier it fires on rather than the tiers it does not. The third row pins the
+`behavior` qualifier itself, anchored to the bullet that states the skip rather than to any occurrence of
+the phrase in the document: the prose already drifted once, to an unqualified "covered per slice", and a
+whole-document presence test would have stayed green as long as a copy of the qualified phrase survived
+anywhere else in the file — an assessment-template example, say — which is exactly the shape the drift
+took. This is a presence table, so a paraphrase it does not recognise fails loudly rather than silently,
+and it carries no ceiling note for the same reason its sibling presence tables carry none.
+
+Sixty-ninth, the `scaffold-ledger` check, three assertions. An eval case that exercises scope mode has to
+hand its arms a run root, and a scaffold script is plain shell with no access to the plugin, so it writes
+the ledger by hand against a schema `scope.js` owns. Nothing else couples the two. The failure this
+catches is quiet: `scope.js` moves, the scaffold keeps writing the old shape, no command recognises the
+run root, and the case stops entering scope mode — while still running, still scoring, and still returning
+a number that reads like a result, because the arms simply review an ordinary branch instead. The check
+runs `scope.js`'s **own** `readLedgerHeader` over the scaffold text rather than a pattern of its own: the
+heredoc lines sit in the file verbatim, so the reader finds them where it would find them in a real
+ledger, and what is pinned is the reader itself instead of a copy of what the reader accepts today. Its
+third assertion is unrelated to the ledger schema: a scaffold that ends by returning to the base branch
+(`git checkout`/`switch main`/`master`) strands the scope branch's own setup commits outside `HEAD`, which
+fails every arm's diff capture and scores nothing while spending a full run. It fires only on a scaffold
+naming `.superdev/scopes/`, so the plan and implement cases are untouched. This is a shape-based guard,
+and its ceiling is written beside the code: the three headers, the column row, and the branch-return
+guard's own literal shape. A scaffold that writes a well-formed ledger, stays on its own branch, and then
+corrupts either in a later command passes here and fails at run time.
 
 The first and seventh checks are opposites. The first catches a reference to a file that does not exist.
 The seventh catches an agent that drops its wire to a file which still exists. That drift leaves the
@@ -1301,7 +1337,7 @@ successor at all.
   *loudly*, the row goes red until the pattern catches up, so the presence tables in `drift/contracts.js`
   (`FIX_BOUNDARY_CONTRACTS` among them) carry none.
 - A new drift-check contract is one entry appended at the end of the `drift/checks.js` registry, plus
-  its section in the sixty-seven-check narrative above and its selftest in the matching
+  its section in the sixty-nine-check narrative above and its selftest in the matching
   `drift/selftest/*.test.js` suite. Append rather than insert unless the check belongs earlier for a
   reason, because every ordinal after an insertion point has to be rewritten by hand. The forty-fifth check,
   `narrative-coverage`, enforces two pieces of this by itself: the new id must appear backticked
