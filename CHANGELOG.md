@@ -1,3 +1,21 @@
+# [0.42.0](https://codeberg.org/bomret/superdev/compare/v0.41.0...v0.42.0) (2026-09-06)
+
+
+### Bug Fixes
+
+* **drift:** require a store's triage-record section to state its own exclusion rule ([#410](https://codeberg.org/bomret/superdev/issues/410)) ([aab46cf](https://codeberg.org/bomret/superdev/commit/aab46cfd08b44739c723c853cc3624e4f3f0984f)), closes [#409](https://codeberg.org/bomret/superdev/issues/409)
+
+
+### Features
+
+* **adapter:** give OpenCode a real, native upgrade command ([#412](https://codeberg.org/bomret/superdev/issues/412)) ([2ea2849](https://codeberg.org/bomret/superdev/commit/2ea2849824a2c9105f3c4f7b2d39759b8b325b67)), closes [#411](https://codeberg.org/bomret/superdev/issues/411)
+* **adapter:** prompt interactively for missing OpenCode model-map aliases ([#406](https://codeberg.org/bomret/superdev/issues/406)) ([98ca7fe](https://codeberg.org/bomret/superdev/commit/98ca7feb7e424dc159e6f90aa63a5304359dc160)), closes [#382](https://codeberg.org/bomret/superdev/issues/382) [#385](https://codeberg.org/bomret/superdev/issues/385) [#383](https://codeberg.org/bomret/superdev/issues/383) [#384](https://codeberg.org/bomret/superdev/issues/384) [#381](https://codeberg.org/bomret/superdev/issues/381)
+
+
+### Performance Improvements
+
+* **review:** cut redundant review cost ([#404](https://codeberg.org/bomret/superdev/issues/404)) ([4724230](https://codeberg.org/bomret/superdev/commit/4724230f2ab663c82c6e09b7d15db56c2ae9ba96)), closes [#302](https://codeberg.org/bomret/superdev/issues/302) [#303](https://codeberg.org/bomret/superdev/issues/303) [#301](https://codeberg.org/bomret/superdev/issues/301) [#402](https://codeberg.org/bomret/superdev/issues/402) [#403](https://codeberg.org/bomret/superdev/issues/403)
+
 # [0.41.0](https://codeberg.org/bomret/superdev/compare/v0.40.1...v0.41.0) (2026-09-04)
 
 
