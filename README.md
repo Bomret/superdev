@@ -498,7 +498,7 @@ arrives (a non-interactive process, or stdin already at EOF).
 The render creates:
 
 ```
-.opencode/commands/superdev/<name>.md   one per skill, except afk and upgrade
+.opencode/commands/superdev/<name>.md   one per skill, except afk
 .opencode/agents/<name>.md              one per subagent
 .opencode/plugins/superdev.js           the hook bridge, forwarding OpenCode's plugin events to the
                                          eight shipped hooks, spawned as
@@ -511,8 +511,11 @@ directory, only the agent files it wrote in a past render — so a renamed or re
 leaves no stale file behind, while another plugin under `.opencode/plugins/` and a consumer's own
 agent under `.opencode/agents/` both survive untouched.
 
-**Updating.** There is no OpenCode equivalent of `/superdev:upgrade` — `git pull` in the `superdev`
-clone, then re-run the render command above.
+**Updating.** `/superdev/upgrade` is the OpenCode equivalent of `/superdev:upgrade`: it pulls the
+`superdev` clone and re-runs the render command above, then tells you to start a new OpenCode
+session so the refreshed commands, agents, and hook bridge load. Or do it by hand: `git pull` in the
+clone, then re-run the render command above, in case the rendered command itself is ever broken or
+unavailable.
 
 **Verify each render target.** Confirm the three paths above exist under the project's `.opencode/`.
 Confirm the rendered commands appear once you type `/` in OpenCode's own interface, since that is how
@@ -532,12 +535,9 @@ rules already in your own OpenCode configuration, including its default `.env` r
 render's own allowlist can compose to a wider effective access than your configuration meant to keep
 narrow. No plan yet states how a rendered pack should merge with an existing one.
 
-**afk and upgrade are excluded.** `/superdev:afk` drives the chain through Claude Code's own Skill
-tool, so the render skips it: no `.opencode/commands/superdev/afk.md` exists. Run `implement`,
-`review`, `document`, and `ship` yourself, one at a time, under OpenCode. `/superdev:upgrade` drives
-Claude Code's own `claude plugin update`, which has no OpenCode equivalent, so the render skips it
-too: no `.opencode/commands/superdev/upgrade.md` exists. See **Updating** above for the real
-OpenCode upgrade path — a `git pull` in the clone, then a re-render.
+**afk is excluded.** `/superdev:afk` drives the chain through Claude Code's own Skill tool, so the
+render skips it: no `.opencode/commands/superdev/afk.md` exists. Run `implement`, `review`,
+`document`, and `ship` yourself, one at a time, under OpenCode.
 
 ## Attribution
 

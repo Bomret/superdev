@@ -5,7 +5,8 @@
 // plugin/skills/<name>/SKILL.md commands, the plugin/agents/<name>.md subagents, and the
 // deterministic guardrails — into another harness's on-disk layout, so a superdev install there
 // carries the same chain. The only harness is `opencode`: skills render to
-// `.opencode/commands/superdev/<name>.md` (skills `afk` and `upgrade` are skipped), agents to
+// `.opencode/commands/superdev/<name>.md` (skill `afk` is skipped; `upgrade` renders synthesized,
+// OpenCode-native content instead of its Claude-Code-only body, ADR 0052), agents to
 // `.opencode/agents/<name>.md`, with the Claude-specific tokens rewritten deterministically, and
 // the eight hooks are bridged by a generated OpenCode plugin at `.opencode/plugins/superdev.js`
 // (issue #376) that spawns them as `node <plugin-root>/hooks/<hook>.js` with a Claude-shaped
@@ -63,10 +64,10 @@ const HARNESSES = ['opencode'];
 const AGENT_MARKER = '# generated-by: superdev-adapter — a re-render overwrites this file';
 
 // The afk skill drives the chain unattended one anchor at a time; it is a Claude Code Skill-tool
-// driver and has no OpenCode command rendering (issue #375). upgrade's body only drives Claude
-// Code's own `claude plugin update`; OpenCode's real upgrade path is a git pull plus a re-render,
-// which is not this skill (issue #393), so it renders no OpenCode command either.
-const SKIPPED_SKILLS = new Set(['afk', 'upgrade']);
+// driver and has no OpenCode command rendering (issue #375). upgrade renders too (see
+// renderOpencodeUpgradeCommand below, ADR 0052) — its OpenCode content is synthesized rather than
+// skipped, since its Claude-Code-only body is not this skill's only possible rendering.
+const SKIPPED_SKILLS = new Set(['afk']);
 
 function fail(msg) {
   const err = new Error(msg);
@@ -307,6 +308,82 @@ function renderAgent(name, agentPath, modelMap, rewrite) {
   for (const key of [...enabled].sort()) frontmatter += `  ${key}: true\n`;
   frontmatter += '---\n';
   return rewrite(`${frontmatter}\n${body.replace(/^\n+/, '')}`);
+}
+
+// renderOpencodeUpgradeCommand() emits .opencode/commands/superdev/upgrade.md: OpenCode's real
+// upgrade path — a git pull in the plugin's source clone, then a re-render — synthesized directly
+// here rather than derived from plugin/skills/upgrade/SKILL.md's body, which drives Claude Code's
+// own `claude plugin update` and has no OpenCode equivalent (ADR 0052, amending ADR 0050's outright
+// exclusion). The same treatment renderBridge() above already gives the hook-bridge plugin: both
+// are pure harness mechanics with no prose in common with their Claude Code counterpart. The model
+// alias still resolves from the shipped skill's own frontmatter (`model: haiku` today), so a future
+// retier of `upgrade` is inherited here rather than duplicated as a second magic string. The
+// "start a new OpenCode session" instruction is verified against OpenCode's own plugin docs
+// (https://opencode.ai/docs/plugins/, 2026-09-06): plugin/command/agent files are "loaded at
+// startup", with no documented hot-reload, so a fresh session is the correct load point.
+function renderOpencodeUpgradeCommand(skillPath, pluginRoot, modelMap) {
+  const { fields } = readFrontmatter(fs.readFileSync(skillPath, 'utf8'), skillPath);
+  // Kept as a literal `pluginRoot + '/..'` string, never path.dirname(pluginRoot)'s normalized
+  // parent: the golden-fixture normalizer (scripts/drift/opencode-fixtures.js) replaces only exact
+  // occurrences of the resolved plugin-root string with its `<plugin-root>` placeholder, so a
+  // normalized parent path would leak the real machine's absolute path into the committed fixture.
+  const repoRoot = `${pluginRoot}${path.sep}..`;
+  const adapterPath = path.join(pluginRoot, 'scripts', 'adapter.js');
+  // Every entry of the resolved model-map, re-emitted as its own `--model-map` flag: the CLI's
+  // parseArgs() has no positional-argument handling (every non-flag argv element is an "unknown
+  // flag" refusal), so the re-render must carry no bare subcommand word, and it must carry every
+  // alias's resolved value so the re-render never prompts — there is no TTY when a model runs this
+  // via the Bash tool, and re-prompting here would also silently discard the operator's original
+  // picks. Same JSON-quoting convention as the git/node invocations below.
+  const modelMapArgs = [...modelMap]
+    .map(([alias, value]) => ` --model-map ${JSON.stringify(`${alias}=${value}`)}`)
+    .join('');
+  let frontmatter = `---\ndescription: ${yamlString(
+    "Pull the latest superdev source and re-render this project's OpenCode surfaces (commands, agents, hook bridge) in place.",
+  )}\n`;
+  const model = resolveModel(fields, modelMap, 'command', 'upgrade');
+  if (model !== undefined) frontmatter += `model: ${model}\n`;
+  frontmatter += '---\n';
+  const body = [
+    '',
+    '# superdev upgrade (OpenCode)',
+    '',
+    "Upgrade this project's rendered superdev surfaces to the latest published source, hands-off.",
+    'You (the model) run the two commands below with the Bash tool, checking each one\'s exit',
+    'status before moving on. If either command fails, stop and tell the user the upgrade is',
+    '**stale/incomplete** instead of continuing to the next step or reporting success.',
+    '',
+    '## 1. Pull the latest source',
+    '',
+    '```',
+    `git -C ${JSON.stringify(repoRoot)} pull`,
+    '```',
+    '',
+    '## 2. Re-render',
+    '',
+    '```',
+    // --dest "$(pwd)" re-derives the destination at run time rather than baking in this render's
+    // own opts.dest: the golden-fixture normalizer above only placeholders exact pluginRoot
+    // occurrences, so baking a fixture's own absolute tmp --dest would leak a machine-local path
+    // into the committed fixture. $(pwd) resolves to the same directory whenever the command runs
+    // from the project root, which is where a rendered OpenCode command always executes.
+    `node ${JSON.stringify(adapterPath)} --dest "$(pwd)" --harness opencode${modelMapArgs}`,
+    '```',
+    '',
+    'Re-rendering rewrites every file this adapter generates — every command under',
+    '`.opencode/commands/superdev/`, every agent it wrote under `.opencode/agents/`, and',
+    '`.opencode/plugins/superdev.js` — to match the pulled source. The command above already',
+    "carries this project's resolved model-map, so it re-renders non-interactively with no prompts.",
+    '',
+    '## 3. Done',
+    '',
+    "Once both commands have succeeded, report both commands' output, then tell the user to",
+    '**start a new OpenCode session** in this project — OpenCode loads commands, agents, and',
+    'plugins at startup, with no documented hot-reload, so a running session keeps the old ones',
+    'until it restarts.',
+    '',
+  ].join('\n');
+  return frontmatter + body;
 }
 
 // --- the OpenCode hook bridge (issue #376) ---------------------------------
@@ -700,7 +777,11 @@ function render(opts) {
   for (const name of skills) {
     if (SKIPPED_SKILLS.has(name)) continue;
     const rel = path.join('.opencode', 'commands', 'superdev', `${name}.md`);
-    fs.writeFileSync(path.join(opts.dest, rel), renderCommand(name, path.join(skillsDir, name, 'SKILL.md'), opts.modelMap, rewrite));
+    const skillPath = path.join(skillsDir, name, 'SKILL.md');
+    const content = name === 'upgrade' && opts.harness === 'opencode'
+      ? renderOpencodeUpgradeCommand(skillPath, pluginRoot, opts.modelMap)
+      : renderCommand(name, skillPath, opts.modelMap, rewrite);
+    fs.writeFileSync(path.join(opts.dest, rel), content);
     written.push(rel);
   }
   for (const name of agents) {
@@ -790,6 +871,17 @@ async function selftest() {
   const refuses = (fn, needle) => {
     assert.throws(fn, (e) => e.isRefusal === true && e.message.includes(needle));
   };
+  // A minimal shell-line tokenizer for the round-trip check below: every token this adapter emits
+  // is either bare (a flag, a bare word like `opencode`) or JSON-double-quoted (a path, a
+  // `alias=value` pair), so splitting on whitespace outside a JSON-quoted run and JSON.parse-ing
+  // each quoted token reproduces the argv a real shell would hand to `process.argv`.
+  const tokenizeShellLine = (line) => {
+    const tokens = [];
+    for (const match of line.match(/"(?:[^"\\]|\\.)*"|\S+/g) || []) {
+      tokens.push(match.startsWith('"') ? JSON.parse(match) : match);
+    }
+    return tokens;
+  };
 
   try {
     // The tool-name mapping table.
@@ -861,7 +953,8 @@ async function selftest() {
       'description: Upgrade the plugin via claude plugin update.',
       '---',
       '',
-      'body',
+      'Run claude plugin marketplace update superdev, then claude plugin update superdev@superdev.',
+      'Restart Claude Code afterward.',
       '',
     ].join('\n'));
     write(pluginRoot, 'skills/setup/SKILL.md', [
@@ -920,8 +1013,81 @@ async function selftest() {
       path.join('.opencode', 'commands', 'superdev', 'implement.md'),
       path.join('.opencode', 'commands', 'superdev', 'plan.md'),
       path.join('.opencode', 'commands', 'superdev', 'setup.md'),
+      path.join('.opencode', 'commands', 'superdev', 'upgrade.md'),
       path.join('.opencode', 'plugins', 'superdev.js'),
     ]);
+    // afk stays excluded — its Skill-tool chain has no OpenCode equivalent (ADR 0050) — while
+    // upgrade, the sibling ADR 0050 also excluded, now renders (ADR 0052).
+    assert.ok(!written.includes(path.join('.opencode', 'commands', 'superdev', 'afk.md')), 'afk stays excluded');
+
+    // upgrade renders OpenCode-native content, synthesized rather than derived from the skill's own
+    // Claude-Code-only body: a real git-pull-then-re-render path, the model alias still resolved
+    // through --model-map, and none of the Claude-only commands or restart instruction.
+    const upgradeCommand = fs.readFileSync(path.join(dest, '.opencode', 'commands', 'superdev', 'upgrade.md'), 'utf8');
+    assert.ok(upgradeCommand.startsWith('---\ndescription:'), 'upgrade.md carries frontmatter');
+    assert.ok(upgradeCommand.includes(`git -C ${JSON.stringify(`${pluginRoot}${path.sep}..`)} pull`), 'names a git pull against the baked repo root, as a literal pluginRoot prefix the fixture normalizer can placeholder');
+    assert.ok(upgradeCommand.includes('start a new OpenCode session'), 'tells the user to start a new session, the verified OpenCode load point');
+    assert.ok(!upgradeCommand.includes('claude plugin'), 'carries no Claude-Code-only command');
+    assert.ok(!upgradeCommand.toLowerCase().includes('marketplace'), 'carries no marketplace mention');
+    assert.ok(!upgradeCommand.includes('restart Claude Code'), 'carries no Claude-Code restart instruction');
+    assert.ok(
+      /exit\s+status|exit\s+code/i.test(upgradeCommand) && /stale\/incomplete/.test(upgradeCommand),
+      'instructs the model to check each step\'s exit status and stop instead of reporting success over a stale render',
+    );
+
+    // The re-render line, round-tripped through the module's own parseArgs() — a plain substring
+    // check on the generator's own output would pass by construction and miss both real defects
+    // this closes: an emitted `render` positional word (parseArgs has no subcommand handling, so
+    // it refuses with "unknown flag 'render'"), and a re-render with no --model-map flags at all
+    // (which starves on a prompt with no TTY under the Bash tool).
+    const rerenderLine = upgradeCommand.match(/^node .+$/m)[0];
+    assert.ok(!/\brender\b/.test(rerenderLine), 'the emitted command carries no stray "render" word — parseArgs has no positional-argument handling');
+    const rerenderArgv = tokenizeShellLine(rerenderLine).slice(2); // drop "node" and the adapter.js path itself
+    const rerenderOpts = parseArgs(rerenderArgv);
+    assert.equal(rerenderOpts.harness, 'opencode');
+    assert.equal(rerenderOpts.dest, '$(pwd)', 're-derives the destination at run time from the shell it runs in');
+    assert.deepEqual(rerenderOpts.modelMap, modelMap, 're-render carries every resolved model-map entry, so it runs non-interactively and preserves the operator\'s original picks');
+
+    // The synthesized upgrade command's model alias still resolves through --model-map, exactly like
+    // every other rendered command — isolated from the shared pluginRoot fixture above (whose own
+    // upgrade skill carries no model) so this assertion never perturbs that fixture's other tests,
+    // several of which depend on an exact interactive-prompt count.
+    {
+      const upgradeRoot = tmp();
+      write(upgradeRoot, 'skills/upgrade/SKILL.md', [
+        '---',
+        'name: upgrade',
+        'description: Upgrade the plugin via claude plugin update.',
+        'model: haiku',
+        '---',
+        '',
+        'Run claude plugin marketplace update superdev.',
+        '',
+      ].join('\n'));
+      fs.mkdirSync(path.join(upgradeRoot, 'agents'), { recursive: true });
+      const upgradeDest = tmp();
+      const rendered = render({
+        harness: 'opencode',
+        pluginRoot: upgradeRoot,
+        dest: upgradeDest,
+        modelMap: new Map([['haiku', 'acme/haiku-1']]),
+      });
+      assert.ok(rendered.includes(path.join('.opencode', 'commands', 'superdev', 'upgrade.md')));
+      const rerendered = fs.readFileSync(path.join(upgradeDest, '.opencode', 'commands', 'superdev', 'upgrade.md'), 'utf8');
+      assert.ok(rerendered.includes('model: acme/haiku-1'), "upgrade's haiku alias resolves through --model-map, like any other command");
+      const rerenderedLine = rerendered.match(/^node .+$/m)[0];
+      const rerenderedOpts = parseArgs(tokenizeShellLine(rerenderedLine).slice(2));
+      assert.deepEqual(
+        rerenderedOpts.modelMap,
+        new Map([['haiku', 'acme/haiku-1']]),
+        'a single-alias model-map still round-trips through the emitted re-render command',
+      );
+
+      refuses(
+        () => render({ harness: 'opencode', pluginRoot: upgradeRoot, dest: tmp(), modelMap: new Map() }),
+        "--model-map entry for model alias 'haiku'",
+      );
+    }
 
     const command = fs.readFileSync(path.join(dest, '.opencode', 'commands', 'superdev', 'plan.md'), 'utf8');
     assert.ok(command.startsWith('---\ndescription: "Plan a feature. Run before /superdev/implement."\n---\n\n# superdev plan'));
@@ -1545,4 +1711,4 @@ if (require.main === module) {
   else main();
 }
 
-module.exports = { render, queryOpenCodeModels, requireAvailableModel, promptForModelMap };
+module.exports = { render, queryOpenCodeModels, requireAvailableModel, promptForModelMap, parseArgs };

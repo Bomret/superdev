@@ -157,9 +157,21 @@ whole page (ADR 0027, Consequences).
 shipped prompt surfaces into another harness's on-disk layout, so a superdev install there carries
 the same chain. The only harness is `opencode`, named by `--harness`. Skills render from
 `plugin/skills/<name>/SKILL.md` to `.opencode/commands/superdev/<name>.md` — the skill `afk` is
-skipped, since it drives the chain through Claude Code's Skill tool, and the skill `upgrade` is
-skipped, since its body only drives Claude Code's own `claude plugin update`, which has no OpenCode
-equivalent — and agents from
+skipped, since it drives the chain through Claude Code's Skill tool. The skill `upgrade` renders
+too, but its OpenCode command is synthesized directly in `renderOpencodeUpgradeCommand()` rather
+than derived from the skill's own Claude-Code-only body, which drives `claude plugin update` and has
+no OpenCode equivalent (ADR 0052, amending ADR 0050's earlier outright exclusion) — the same
+treatment `renderBridge()` already gives the hook-bridge plugin below, since both are pure harness
+mechanics with no prose in common with their Claude Code counterpart. The synthesized command still
+resolves its `model:` alias (`haiku`) from the shipped skill's own frontmatter through `--model-map`,
+and its body carries a `git pull` against the plugin's source clone — kept as a literal
+`<plugin-root>/..` string rather than a normalized parent path, so the golden-fixture normalizer's
+exact-substring placeholder swap still catches it. A re-render of the current directory follows,
+carrying one `--model-map <alias>=<value>` flag per resolved alias. The re-render then runs
+non-interactively and preserves the operator's original picks instead of prompting on a Bash tool
+with no TTY to answer it. The rendered body also tells the model to check each step's exit status
+before moving on. The rendered body then tells the model to stop, naming the upgrade stale or
+incomplete, rather than report success over a failed or partial re-render. Agents render from
 `plugin/agents/<name>.md` to `.opencode/agents/<name>.md`. The rendered command frontmatter carries
 the `description`, the skill's `model:` alias resolved
 through the same `--model-map` (a missing alias refuses nonzero and names the alias and the
