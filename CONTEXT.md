@@ -20,10 +20,10 @@ _Avoid: "mode", "strategy", "level", "route", "path"_
 **Scope**: a feature's scope branch and all its run artifacts (the `.superdev/scopes/<scope>/` directory, holding the DoD, the ledger, progress logs, and worktrees). Scope is the namespace that lets multiple features' runs execute in parallel without colliding. `.superdev/` also holds non-scope areas nested outside `scopes/`, for example `.superdev/brainstorm/`. `/status` only scans `.superdev/scopes/*/`, so a sibling area can never be mistaken for a run root.
 _Avoid: "run", "branch", "feature branch" (too generic)_
 
-**Scope anchor**: a feature's root, the single slice-store issue that carries its scope-level status signal for a run. A multi-slice plan's anchor has slices beneath it. A single-slice plan's anchor is its own lone slice, so one rule covers both shapes. How a given store expresses this is stated in that store's own `## Scope anchor` section, which specialises `plan-contract.md` → *Scope anchor*, never assumed by a command (ADR 0017).
+**Scope anchor**: a feature's root, the single record — an issue, or a `docs/plans/<type>/<feature-slug>/00-epic-*.md` file, or that feature's lone slice file — that carries its scope-level status signal for a run. How a given store expresses this is stated in that store's own `## Scope anchor` section, which specialises `plan-contract.md` → *Scope anchor*, never assumed by a command (ADR 0017).
 _Avoid: "epic" (only an epic-bearing feature has one, and the anchor role also falls to a lone slice)_
 
-**Release**: the human agreement that a written plan may be built, carried as a durable signal on the scope anchor. A tracker holds a backlog of tickets written but not yet agreed, so writing a plan and releasing it are two acts: `/plan` asks which one it is doing, `/implement` asks for confirmation before building an unreleased feature, and `/afk` passes one over. The signal is distinct from the `ready` lifecycle state, which the dispatch swaps away. How a given store expresses it is stated in that store's own `## Release` section, which specialises `plan-contract.md` → *Release* (ADR 0034).
+**Release**: the human agreement that a written plan may be built, carried as a durable signal on the scope anchor. It has three consumers: `/plan` asks which one it is doing, `/implement` asks for confirmation before building an unreleased feature, and `/afk` passes one over. How a given store expresses it is stated in that store's own `## Release` section, which specialises `plan-contract.md` → *Release* (ADR 0034).
 _Avoid: "ready" (that is the `todo` lifecycle state, consumed the moment work starts), "approved" (unused elsewhere)_
 
 **Run root**: the part of `.superdev/scopes/<scope>/` that stays in the invoking checkout across both tiers: `dod.md`, `ledger.md`, `run.lock`, and on the full tier `interfaces.md` (the cross-slice interface record). Never moves into a worktree, so it survives worktree removal as the post-mortem trail and lets `/status` enumerate runs without touching any worktree.
@@ -176,9 +176,8 @@ _Avoid: "scope growth", "out-of-scope finding" (the point is the DoD boundary, n
 unwelcome or off-topic)_
 
 **Triage record**: the slice-store record a **Deferred finding** gets, created by `/superdev:review` at
-the moment it defers. It records unplanned work. It is neither a slice nor a scope anchor, which is what
-keeps every run and every sweep from selecting it as work to build. Only a human acts on it, or a later
-`/superdev:plan` interview a human starts. How a given store expresses it is stated in that store's own
+the moment it defers. It is neither a slice nor a scope anchor, which is what keeps every run and every
+sweep from selecting it as work to build. How a given store expresses it is stated in that store's own
 `## Triage record` section, which specialises `plan-contract.md` → *Triage record* (ADR 0046).
 _Avoid: "draft issue" (no backend the plugin supports has a draft issue state outside GitHub's project
 boards), "triage slice" (it has no spec, no acceptance, and no place in a DAG)_
