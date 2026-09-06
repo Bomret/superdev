@@ -4,7 +4,8 @@
 
 **Amended by:** [ADR 0051](0051-the-opencode-agent-render-uses-a-tools-map-not-permission.md), which
 corrects the rendered agents' access-control mechanism named below from a `permission:` mapping to a
-`tools:` map.
+`tools:` map, and [ADR 0052](0052-opencode-gets-a-synthesized-native-upgrade-command.md), which reverses
+the Consequences' call to exclude `upgrade` outright, giving it a synthesized native command instead.
 
 ## Context
 
