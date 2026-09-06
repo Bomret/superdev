@@ -927,8 +927,17 @@ const TRIAGE_RECORD_EXPECTATION =
 // inside that lead-in: `references/issue-tracker-local.md` already carries a bullet whose bold ends on
 // "candidate listing" while stating the opposite — that a record is invisible to `/superdev:afk` — so a
 // bare `list` anchor would read that document's exclusion rule as its listing contract.
+// A second element, beside the listing one above: `plan-contract.md`'s own generic `## Triage record`
+// section already promises the outcome ("No candidate listing and no slice loader ever selects it"), but
+// nothing held a store's own section to restating it — a fifth backend seed could carry a create call and
+// a list call, omit the exclusion clause entirely, and this scanner passed it clean (issue #357). The
+// pattern requires the section to echo that same vocabulary, "candidate listing", which every seed already
+// does in its own exclusion bullet ("No feature label and no `ready` label. Those two are what
+// `/superdev:afk`'s candidate listing … select on", or the local seed's "invisible to `/superdev:afk`'s
+// candidate listing"), so no seed document needs editing — only the checker gains teeth.
 const TRIAGE_RECORD_ELEMENTS = [
   [/^[-*] \*\*[^*]*\blist\w*\b[^*]*\b(?:record\w*|them)\b/im, "how to list this backend's triage records"],
+  [/candidate listing/i, "how this backend keeps the record out of its own candidate listing"],
 ];
 
 // The Untriaged item survey slice (feat/backlog-untriaged, issue #400). An **untriaged item** is an open

@@ -1763,17 +1763,19 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(trSeedGaps1.length, 1, 'flags a store document with no triage-record section');
   assert.equal(trSeedGaps1[0].source, path.join('references', 'issue-tracker-acme.md'), 'names the seed');
 
-  // negative: the same document carrying the section and its listing element is clean
+  // negative: the same document carrying the section and both its elements is clean
   assert.equal(
     scanTriageRecordContract(
       fixture({
         'references/issue-tracker-acme.md':
           '# acme\n\n## Triage record\n\nAn issue carrying the `triage` label.\n\n' +
-          '- **List the records:** `GET /issues?labels=triage`.\n',
+          '- **List the records:** `GET /issues?labels=triage`.\n' +
+          "- **No feature label and no `ready` label.** Those two are what `/superdev:afk`'s candidate " +
+          'listing selects on.\n',
       }),
     ).length,
     0,
-    'a store document carrying the section and its listing element yields zero gaps',
+    'a store document carrying the section and both its elements yields zero gaps',
   );
 
   // positive: the section is there and states only how to create a record, never how to read one back —
@@ -1781,11 +1783,48 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   const trCreateOnly = scanTriageRecordContract(
     fixture({
       'references/issue-tracker-acme.md':
-        '# acme\n\n## Triage record\n\n- **Create it:** `POST /issues` with the `triage` label.\n',
+        '# acme\n\n## Triage record\n\n- **Create it:** `POST /issues` with the `triage` label.\n' +
+        "- **No feature label and no `ready` label.** Those two are what `/superdev:afk`'s candidate " +
+        'listing selects on.\n',
     }),
   );
   assert.equal(trCreateOnly.length, 1, 'flags a section that states creation but no listing');
   assert.match(trCreateOnly[0].expectation, /list this backend's triage records/, 'names the missing element');
+
+  // positive: the section states creation and listing but never why the record stays out of
+  // /superdev:afk's candidate listing — the outcome plan-contract.md's own generic section already
+  // promises ("No candidate listing and no slice loader ever selects it")
+  const trNoExclusion = scanTriageRecordContract(
+    fixture({
+      'references/issue-tracker-acme.md':
+        '# acme\n\n## Triage record\n\n- **Create it:** `POST /issues` with the `triage` label.\n' +
+        '- **List the records:** `GET /issues?labels=triage`.\n',
+    }),
+  );
+  assert.equal(trNoExclusion.length, 1, 'flags a section stating creation and listing but no exclusion rule');
+  assert.match(trNoExclusion[0].expectation, /candidate listing/, 'names the missing exclusion element');
+
+  // negative: the same document, carrying the exclusion vocabulary too, is clean
+  assert.equal(
+    scanTriageRecordContract(
+      fixture({
+        'references/issue-tracker-acme.md':
+          '# acme\n\n## Triage record\n\n- **Create it:** `POST /issues` with the `triage` label.\n' +
+          '- **List the records:** `GET /issues?labels=triage`.\n' +
+          "- **No feature label and no `ready` label.** Those two are what `/superdev:afk`'s candidate " +
+          'listing selects on.\n',
+      }),
+    ).length,
+    0,
+    'a section stating the exclusion vocabulary too is clean',
+  );
+
+  // the real tree is green: every seed's exclusion bullet already carries the vocabulary
+  assert.equal(
+    scanTriageRecordContract(realRoot).length,
+    0,
+    'every store document in the real tree states its exclusion rule',
+  );
 
   // the local seed's existing bullet says a record is *invisible* to /superdev:afk's "candidate listing".
   // A bare `list` anchor would read that exclusion rule as the listing contract, so it must not satisfy it.
@@ -1808,7 +1847,9 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
       fixture({
         'references/issue-tracker-acme.md':
           '# acme\n\n## Scope anchor\n\n- **List the records:** `GET /issues`.\n\n' +
-          '## Triage record\n\n- **Create it:** `POST /issues`.\n',
+          '## Triage record\n\n- **Create it:** `POST /issues`.\n' +
+          "- **No feature label and no `ready` label.** Those two are what `/superdev:afk`'s candidate " +
+          'listing selects on.\n',
       }),
     ).length,
     1,
@@ -1818,7 +1859,9 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // positive: one of the real seeds loses it, and the gap names that seed
   const triageSection =
     '# store\n\n## Triage record\n\nAn issue carrying the `triage` label.\n\n' +
-    '- **List the records:** `GET /issues?labels=triage`.\n';
+    '- **List the records:** `GET /issues?labels=triage`.\n' +
+    "- **No feature label and no `ready` label.** Those two are what `/superdev:afk`'s candidate " +
+    'listing selects on.\n';
   const trDropped = {
     'references/issue-tracker-forgejo.md': triageSection,
     'references/issue-tracker-github.md': triageSection,
@@ -1838,7 +1881,9 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     scanTriageRecordContract(
       fixture({
         'references/issue-tracker-jira.md':
-          '# store\n\n### Triage record\n\nAn issue.\n\n- **List the records:** `GET /search`.\n',
+          '# store\n\n### Triage record\n\nAn issue.\n\n- **List the records:** `GET /search`.\n' +
+          "- **No feature label and no ready status or label.** Those are what `/superdev:afk`'s " +
+          'candidate listing selects on.\n',
       }),
     ).length,
     0,

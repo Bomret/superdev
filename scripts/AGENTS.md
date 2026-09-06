@@ -1072,7 +1072,15 @@ consumer at all until `/superdev:backlog` needed one. The element is anchored on
 and requires both the listing verb and its object inside that lead-in, because
 `references/issue-tracker-local.md` carries a bullet whose bold ends on "candidate listing" while stating
 the opposite — that a record is invisible to `/superdev:afk` — and a bare `list` anchor would read that
-document's exclusion rule as its listing contract. Two more rows, a table
+document's exclusion rule as its listing contract. A second element holds every section to the same
+outcome `plan-contract.md`'s own generic `## Triage record` section already promises ("No candidate
+listing and no slice loader ever selects it"). The section must itself state how that backend keeps
+the record out of `/superdev:afk`'s candidate listing. Otherwise the checker passed a store carrying
+a create call and a list call but no exclusion clause clean. This is exactly the gap a fifth backend
+seed could have walked through (issue #357). The pattern requires the literal phrase "candidate
+listing" inside the section. This is the vocabulary every shipped seed's own exclusion bullet already
+carries, so no seed document needed editing when this element was added. Only the checker gained
+teeth. Two more rows, a table
 run through `scanContract()`, sit on `skills/review/SKILL.md` and `references/scope-mode.md`, the two
 documents that write it. The record is what makes a deferred finding outlive the run root
 `hooks/scope-prune.js` reaps and the scope anchor `/superdev:ship` closes — on the local plan-file
