@@ -86,9 +86,10 @@ An anchor is **eligible** when all of these hold:
   it is not evidence the blocker is gone, only that this attempt failed to confirm it. Closing an anchor is
   best-effort at ship time, so a closed state alone would strand a dependent on a feature that has in fact
   landed. **One such read failure is confirmable rather than ambiguous, and waits on a human:** the run
-  root is confirmedly absent (`hooks/scope-prune.js` deletes it seven days after a `shipped` stage merges,
-  ADR 0007) while the blocker's own anchor still reads open. Defer this anchor as usual, but name it in
-  §6's report as needing a human — closing the blocker's anchor by hand — rather than as ordinary progress,
+  root is confirmedly absent (`hooks/scope-prune.js` deletes it seven days after a `shipped` stage's
+  scope branch is contained in base or gone, ADR 0007, ADR 0053) while the blocker's own anchor still
+  reads open. Defer this anchor as usual, but name it in §6's report as needing a human — closing the
+  blocker's anchor by hand — rather than as ordinary progress,
   because no ledger is left to ever confirm `shipped` again. An anchor carrying an unsatisfied dependency
   is **deferred** (below), not blocked: it is waiting its turn, which is a state that clears itself.
 

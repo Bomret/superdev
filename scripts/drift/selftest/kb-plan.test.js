@@ -17,6 +17,7 @@ const {
   ROTATE_ON_SHIPPED_CONTRACTS,
   PARKED_QUESTIONS_CONTRACTS,
   RUN_KIND_CONTRACTS,
+  CONTAINMENT_DELEGATION_CONTRACTS,
 } = require('../contracts');
 
 module.exports = ({ assert, fs, path, fixture, realRoot }) => {
@@ -546,8 +547,8 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
           'that ledger belongs to a finished run — rename it to `ledger-shipped-<date>.md` and run ' +
           '`init` above, which writes a fresh ledger beside it: the rotation never overwrites an ' +
           'existing `ledger-shipped-<date>.md`, nothing is deleted, so ADR\n' +
-          "0007's seven-day trail and `scope-prune`'s reap-on-merge rule both stand unchanged. Any " +
-          'other stage — `implementing`, `merged`, `reviewed`, `documented`, or\n' +
+          "0007's seven-day trail and `scope-prune`'s contained-or-gone reap rule (ADR 0053) both stand " +
+          'unchanged. Any other stage — `implementing`, `merged`, `reviewed`, `documented`, or\n' +
           '`documented-unreviewed` — is a run init that already ran: skip `init`.\n',
       }),
       ROTATE_ON_SHIPPED_CONTRACTS,
@@ -564,8 +565,8 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
         '**`<run-root>/ledger.md` already present** — read its stage first. Stage **`shipped`** — ' +
         'that ledger belongs to a finished run — rename it to `ledger-shipped-<date>.md` and run ' +
         '`init` above, which writes a fresh ledger beside it: nothing is deleted, so ADR\n' +
-        "0007's seven-day trail and `scope-prune`'s reap-on-merge rule both stand unchanged. Any " +
-        'other stage — `implementing`, `merged`, `reviewed`, `documented`, or\n' +
+        "0007's seven-day trail and `scope-prune`'s contained-or-gone reap rule (ADR 0053) both stand " +
+        'unchanged. Any other stage — `implementing`, `merged`, `reviewed`, `documented`, or\n' +
         '`documented-unreviewed` — is a run init that already ran: skip `init`.\n',
     }),
     ROTATE_ON_SHIPPED_CONTRACTS,
@@ -597,7 +598,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'Refuse to extend, and write nothing, on either signal below:\n\n' +
     '- The store holds a slice `in-progress`, `in-review`, or `blocked` — a run active elsewhere.\n' +
     "- The scope's run root exists with a ledger stage other than `shipped`, or with a `shipped` stage " +
-    'whose scope branch (`<type>/<scope>`) is neither merged into the base nor gone.\n\n' +
+    'whose scope branch (`<type>/<scope>`) is neither contained in the base nor gone.\n\n' +
     "Create the epic, copy the lone slice's `acceptance` into it as the global DoD, and leave the lone " +
     'slice byte-identical, except for one moving part: an anchor-dependency line, if the slice carries ' +
     'one, migrates to the new epic.\n';
@@ -633,7 +634,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   const paNoLedgerSignal = fixture({
     'skills/plan/SKILL.md': planAppendBody.replace(
       "- The scope's run root exists with a ledger stage other than `shipped`, or with a `shipped` stage " +
-        'whose scope branch (`<type>/<scope>`) is neither merged into the base nor gone.\n',
+        'whose scope branch (`<type>/<scope>`) is neither contained in the base nor gone.\n',
       '',
     ),
   });
@@ -656,7 +657,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // with the first clause's row silent
   const paNoLedgerBranch = fixture({
     'skills/plan/SKILL.md': planAppendBody.replace(
-      'whose scope branch (`<type>/<scope>`) is neither merged into the base nor gone',
+      'whose scope branch (`<type>/<scope>`) is neither contained in the base nor gone',
       'whose scope branch is anything',
     ),
   });
@@ -669,7 +670,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // gone entirely") must still fail — this is the exact drift a rationale-anchored pattern misses.
   const realPlanBody = fs.readFileSync(docPath(realRoot, 'skills', 'plan', 'SKILL.md'), 'utf8');
   const guttedCondition = realPlanBody.replace(
-    /whose scope branch \(`<type>\/<scope>`\) is neither merged into the base nor gone/,
+    /whose scope branch \(`<type>\/<scope>`\) is neither contained in the base nor gone/,
     'whose scope branch is not shipped',
   );
   assert.notEqual(guttedCondition, realPlanBody, 'the mutation actually changed the condition sentence');
@@ -797,21 +798,39 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // --- RUN_KIND_CONTRACTS: scope-mode.md specifies the branch step for each of the three run kinds —
   // `fresh` cuts from base (and stops, cutting nothing, when a scope-prune reap left a same-named branch
-  // standing), `appended` reuses the branch only when it is present and base already contains it,
-  // `resumed` switches to it and cuts nothing (ADR 0028, ADR 0045). Four independent rows: losing one
-  // clause's specification fails on its own, not just in aggregate. ---
+  // standing), `appended` reuses the branch only when base already contains its content, `resumed`
+  // switches to it and cuts nothing (ADR 0028, ADR 0045). ADR 0053 added three rows: `appended`'s
+  // **Present** branch delegating to `## Containment`, that section's own canonical statement of the
+  // test, and the **No forcing flag** exception stated as conditional on the containment proof. A fix
+  // cycle added an eighth: the scope worktree must be clean before `appended` re-points a contained
+  // branch with `git reset --hard <base>`, because the containment proof covers the branch's committed
+  // history and says nothing about the index or working tree (Important 2). Eight independent rows:
+  // losing one clause's specification fails on its own, not just in aggregate. ---
 
   const runKindBody =
+    '## Containment\n\n' +
+    'A scope branch has reached base when merging it into base would change nothing.\n\n' +
+    '```sh\ntree=$(git merge-tree --write-tree <base> <branch>) && ' +
+    '[ "$tree" = "$(git rev-parse <base>^{tree})" ]\n```\n\n' +
+    'Equal tree is contained; a differing tree and a conflict exit are not. `--write-tree` needs git ' +
+    '2.38, and an older git falls back to `git merge-base --is-ancestor` and says so.\n\n' +
     '## Cutting the scope branch\n\n' +
     '- **`fresh`** — no ledger existed, so the scope branch does not exist either. Cut it from ' +
     '`<base>`. **The name already exists** — a scope-prune reap left it standing. Stop, name the ' +
     'branch found, and cut nothing.\n' +
     '- **`appended`** — a `shipped` ledger was rotated aside. Decide on the same test that decides a ' +
-    'scope is finished with (ADR 0007): merged into `<base>`, or gone entirely. Gone → cut fresh. ' +
-    'Present → test containment with `git merge-base --is-ancestor <branch> <base>`. **Contained** — ' +
-    'work in the scope worktree, then reuse it.\n' +
-    '- **`resumed`** — the branch holds unmerged slice work by design, so no ancestor test runs and ' +
-    'nothing is cut.\n';
+    'scope is finished with (ADR 0007): contained in `<base>`, or gone entirely. Gone → cut fresh. ' +
+    '**Present** — decide with `## Containment` above, which owns the test. **Contained** — ' +
+    'work in the scope worktree, then check the worktree is clean: `git -C .superdev/scopes/<scope>/' +
+    'worktree status --porcelain` returns nothing. The containment proof above covers the branch\'s ' +
+    'committed history, never the index or the working tree. **Dirty** — name what `status ' +
+    '--porcelain` reported and stop, cutting nothing. **`--unattended` →\nblock**. **Clean** — ' +
+    're-point it.\n' +
+    '- **`resumed`** — the branch holds unmerged slice work by design, so no containment test runs and ' +
+    'nothing is cut.\n\n' +
+    '**No forcing flag, at any run kind.** `git switch -C` and `git worktree add -B` strand merged ' +
+    'slices. Two re-pointings are permitted: fast-forwarding to `<base>`, and `git reset --hard <base>` ' +
+    'on a branch `## Containment` has just proved contained.\n';
 
   // negative: losing the `fresh` cut-from-base clause fails on its own
   const rkNoFresh = fixture({
@@ -836,23 +855,93 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(rkGapsNoFreshStop.length, 1, 'flags exactly the missing `fresh` existing-name stop clause');
   assert.match(rkGapsNoFreshStop[0].expectation, /`fresh` run kind/, 'names the `fresh` run kind');
 
-  // negative: losing the `appended` merged-or-gone clause fails on its own
+  // negative: losing the `appended` contained-or-gone clause fails on its own
   const rkNoAppended = fixture({
     'references/scope-mode.md': runKindBody.replace(
-      'Decide on the same test that decides a scope is finished with (ADR 0007): merged into ' +
+      'Decide on the same test that decides a scope is finished with (ADR 0007): contained in ' +
         '`<base>`, or gone entirely. Gone → cut fresh. ',
       '',
     ),
   });
   const rkGapsNoAppended = scanContract(rkNoAppended, RUN_KIND_CONTRACTS);
-  assert.equal(rkGapsNoAppended.length, 1, 'flags exactly the missing `appended` merged-or-gone clause');
+  assert.equal(rkGapsNoAppended.length, 1, 'flags exactly the missing `appended` contained-or-gone clause');
   assert.match(rkGapsNoAppended[0].expectation, /`appended` run kind/, 'names the `appended` run kind');
+
+  // negative: `appended`'s **Present** branch naming a git command of its own, instead of delegating to
+  // `## Containment`, fails on its own — the one-sided-delegation shape ADR 0053 closed
+  const rkNoDelegation = fixture({
+    'references/scope-mode.md': runKindBody.replace(
+      '**Present** — decide with `## Containment` above, which owns the test.',
+      '**Present** — test containment with `git merge-base --is-ancestor <branch> <base>`.',
+    ),
+  });
+  const rkGapsNoDelegation = scanContract(rkNoDelegation, RUN_KIND_CONTRACTS);
+  assert.equal(rkGapsNoDelegation.length, 1, 'flags exactly the missing `## Containment` delegation');
+  assert.match(
+    rkGapsNoDelegation[0].expectation,
+    /\*\*Present\*\* branch names/,
+    'names the delegation the **Present** branch owes',
+  );
+
+  // negative: deleting the `## Containment` section the two delegations point at fails on its own —
+  // a delegation to a section that no longer exists pins nothing
+  const rkNoContainment = fixture({
+    'references/scope-mode.md': runKindBody.slice(runKindBody.indexOf('## Cutting the scope branch')),
+  });
+  const rkGapsNoContainment = scanContract(rkNoContainment, RUN_KIND_CONTRACTS);
+  assert.equal(rkGapsNoContainment.length, 1, 'flags exactly the missing `## Containment` section');
+  assert.match(
+    rkGapsNoContainment[0].expectation,
+    /canonical `## Containment` section/,
+    'names the canonical section that went missing',
+  );
+
+  // negative: the **No forcing flag** rule stating the re-point as a general permission, rather than as
+  // conditional on the containment proof, fails on its own
+  const rkUnconditionalReset = fixture({
+    'references/scope-mode.md': runKindBody.replace(
+      '`git reset --hard <base>` on a branch `## Containment` has just proved contained',
+      '`git reset --hard <base>` at any run kind',
+    ),
+  });
+  const rkGapsUnconditionalReset = scanContract(rkUnconditionalReset, RUN_KIND_CONTRACTS);
+  assert.equal(
+    rkGapsUnconditionalReset.length,
+    1,
+    'flags exactly the unconditional re-point permission',
+  );
+  assert.match(
+    rkGapsUnconditionalReset[0].expectation,
+    /conditional on the containment proof/,
+    'names the precondition the exception owes',
+  );
+
+  // negative: dropping the clean-worktree guard ahead of the contained `appended` re-point fails on its
+  // own — the reset would then discard an uncommitted change the containment proof never vouched for
+  // (Important 2)
+  const rkNoCleanGuard = fixture({
+    'references/scope-mode.md': runKindBody.replace(
+      'work in the scope worktree, then check the worktree is clean: `git -C .superdev/scopes/<scope>/' +
+        'worktree status --porcelain` returns nothing. The containment proof above covers the branch\'s ' +
+        'committed history, never the index or the working tree. **Dirty** — name what `status ' +
+        '--porcelain` reported and stop, cutting nothing. **`--unattended` →\nblock**. **Clean** — ' +
+        're-point it.',
+      'work in the scope worktree, then re-point it.',
+    ),
+  });
+  const rkGapsNoCleanGuard = scanContract(rkNoCleanGuard, RUN_KIND_CONTRACTS);
+  assert.equal(rkGapsNoCleanGuard.length, 1, 'flags exactly the missing clean-worktree guard');
+  assert.match(
+    rkGapsNoCleanGuard[0].expectation,
+    /require the scope worktree clean/,
+    'names the clean-worktree guard the re-point owes',
+  );
 
   // negative: losing the `resumed` specification fails on its own
   const rkNoResumed = fixture({
     'references/scope-mode.md': runKindBody.replace(
-      '- **`resumed`** — the branch holds unmerged slice work by design, so no ancestor test runs and ' +
-        'nothing is cut.\n',
+      '- **`resumed`** — the branch holds unmerged slice work by design, so no containment test runs ' +
+        'and nothing is cut.\n',
       '',
     ),
   });
@@ -860,7 +949,8 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(rkGapsNoResumed.length, 1, 'flags exactly the missing `resumed` specification');
   assert.match(rkGapsNoResumed[0].expectation, /`resumed` run kind/, 'names the `resumed` run kind');
 
-  // negative: a scope-mode.md carrying all three is clean
+  // negative: a scope-mode.md carrying all three run kinds, the containment section, and the
+  // conditional forcing-flag exception is clean
   assert.equal(
     scanContract(fixture({ 'references/scope-mode.md': runKindBody }), RUN_KIND_CONTRACTS).length,
     0,
@@ -870,6 +960,92 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // absent file is skipped, matching every other contract table
   assert.equal(
     scanContract(fixture({ 'README.md': '# repo\n' }), RUN_KIND_CONTRACTS).length,
+    0,
+    'absent file is skipped',
+  );
+
+  // --- CONTAINMENT_DELEGATION_CONTRACTS: publish-kb §3 names the test it runs by delegating to
+  // scope-mode.md's `## Containment` section, and restates no git command of its own (ADR 0053). The
+  // pattern is a presence check that fires when §3 drops the delegating pointer; it does not assert
+  // the case where §3 keeps the pointer while restating the git command, because the pattern cannot
+  // see both forms at once. ---
+
+  const mergeCheckBody =
+    '## 3. Merge check — warn once, never block\n\n' +
+    'Find the scope branch per that file\'s `## The scope branch` section.\n\n' +
+    'Then decide whether the base branch already holds it, per ' +
+    '`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`\'s `## Containment` section, which owns the ' +
+    'test.\n\n' +
+    '**Not contained**, or **no branch resolves at all** → ask once whether to publish anyway.\n';
+
+  // negative: §3 dropping the delegation and reaching for an ancestry test of its own
+  const cdNoPointer = fixture({
+    'skills/publish-kb/SKILL.md': mergeCheckBody.replace(
+      "Then decide whether the base branch already holds it, per " +
+        "`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Containment` section, which owns the " +
+        'test.',
+      'Check whichever branch resolved against the base branch with ' +
+        '`git merge-base --is-ancestor <branch> <base>`.',
+    ),
+  });
+  const cdGapsNoPointer = scanContract(cdNoPointer, CONTAINMENT_DELEGATION_CONTRACTS);
+  assert.equal(cdGapsNoPointer.length, 1, 'flags a §3 that names its own test instead of delegating');
+  assert.match(
+    cdGapsNoPointer[0].expectation,
+    /delegating to `references\/scope-mode\.md`'s `## Containment` section/,
+    'names the section §3 owes its delegation to',
+  );
+
+  // negative: §3 mentioning the section in passing, without naming it as where the test lives, is not a
+  // delegation — this is the shape a restatement drifts into
+  const cdBareMention = fixture({
+    'skills/publish-kb/SKILL.md': mergeCheckBody.replace(
+      "Then decide whether the base branch already holds it, per " +
+        "`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Containment` section, which owns the " +
+        'test.',
+      'Containment is described in the `## Containment` section. Run ' +
+        '`git merge-tree --write-tree <base> <branch>` and compare the tree.',
+    ),
+  });
+  assert.equal(
+    scanContract(cdBareMention, CONTAINMENT_DELEGATION_CONTRACTS).length,
+    1,
+    'a bare mention beside a restated command is not a delegation',
+  );
+
+  // negative: §3 naming a different, closer file (`docs/agents/code-management.md`) right before the
+  // containment delegation, then pointing at "that same file's `## Containment` section" — the closer
+  // antecedent is the wrong file, so the delegation resolves to a document with no such section, exactly
+  // the ambiguity `plugin/skills/publish-kb/SKILL.md` §3 carried (Important 1). A pattern that only
+  // required the section name and "owns the test", with no `scope-mode.md` anchor, could not see this.
+  const cdWrongAntecedent = fixture({
+    'skills/publish-kb/SKILL.md': mergeCheckBody.replace(
+      "Then decide whether the base branch already holds it, per " +
+        "`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Containment` section, which owns the " +
+        'test.',
+      "Then decide whether the base branch named in `docs/agents/code-management.md` already holds " +
+        "that branch's work, per that same file's `## Containment` section, which owns the test.",
+    ),
+  });
+  assert.equal(
+    scanContract(cdWrongAntecedent, CONTAINMENT_DELEGATION_CONTRACTS).length,
+    1,
+    'a delegation reading "that same file" past a closer, wrong file reference is not a delegation to scope-mode.md',
+  );
+
+  // positive: a §3 that delegates yields zero gaps
+  assert.equal(
+    scanContract(
+      fixture({ 'skills/publish-kb/SKILL.md': mergeCheckBody }),
+      CONTAINMENT_DELEGATION_CONTRACTS,
+    ).length,
+    0,
+    'a §3 delegating to `## Containment` yields zero gaps',
+  );
+
+  // absent file is skipped, matching every other contract table
+  assert.equal(
+    scanContract(fixture({ 'README.md': '# repo\n' }), CONTAINMENT_DELEGATION_CONTRACTS).length,
     0,
     'absent file is skipped',
   );

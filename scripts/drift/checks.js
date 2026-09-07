@@ -65,6 +65,7 @@ const {
   KB_STAGING_CONTRACTS,
   TEST_SELECTION_CONTRACTS,
   TIER_SKIP_CONTRACTS,
+  CONTAINMENT_DELEGATION_CONTRACTS,
   FULL_SUITE_CONTRACTS,
   FIX_BOUNDARY_CONTRACTS,
   AFK_ROUTING_CONTRACTS,
@@ -474,6 +475,11 @@ module.exports = [
     run: scanScaffoldLedger,
     format: contractGap,
   },
+  table(
+    'containment-delegation',
+    CONTAINMENT_DELEGATION_CONTRACTS,
+    "publish-kb's merge check names scope-mode.md as owning the containment test",
+  ),
 ];
 
 // The anchor contract and the afk-selection neutrality check report into the same sentence: a gap with

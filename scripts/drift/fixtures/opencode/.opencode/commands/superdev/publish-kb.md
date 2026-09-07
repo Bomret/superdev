@@ -76,17 +76,23 @@ Find the scope branch per that file's `## The scope branch` section: a run root 
 back to that section's scan: a branch whose last segment is `<scope>` and whose leading segment is a
 change type, the rule `hooks/scope-prune.js` applies. This fallback is the steady-state path:
 `/superdev/ship` never deletes the scope branch, but `hooks/scope-prune.js` reaps the run root seven days
-after a shipped, merged scope, and publishing typically happens later than the merge.
+after a shipped scope's branch reads contained in base or gone (ADR 0007, ADR 0053), and publishing
+typically happens later than that.
 
-Check whichever branch resolved against the base branch named in `docs/agents/code-management.md`.
+Then decide whether the base branch named in `docs/agents/code-management.md` already holds that branch's
+work, per `<plugin-root>/references/scope-mode.md`'s `## Containment` section, which owns the
+test.
 
-**Not merged**, or **no branch resolves at all** (no ledger line and the fallback scan matches nothing) →
-the pages may describe work no reader can reach. Name what you found and **ask once** whether to publish
-anyway — a deliberate divergence from that file's "no branch matches → say so and stop" rule, because
-here a merge only warns and publishing is the operator's call. Declined → publish nothing, delete
+**Contained** → base holds this scope's work and its readers can reach it. Ask nothing, go straight to
+§4, and let §5's report carry no unmerged note for it.
+
+**Not contained**, or **no branch resolves at all** (no ledger line and the fallback scan matches
+nothing) → the pages may describe work no reader can reach. Name what you found and **ask once** whether
+to publish anyway — a deliberate divergence from that file's "no branch matches → say so and stop" rule,
+because here a merge only warns and publishing is the operator's call. Declined → publish nothing, delete
 nothing, stop. Confirmed → proceed, and record in §5's report that the scope was unmerged.
 
-This warns and never blocks. A merge is the one signal available for free, and it is weaker than the
+This warns and never blocks. Containment is the one signal available for free, and it is weaker than the
 judgment the operator is making: a repository that releases on a schedule has merged code no reader can
 reach yet, and one that deploys from a branch may have the reverse. The operator's answer wins.
 

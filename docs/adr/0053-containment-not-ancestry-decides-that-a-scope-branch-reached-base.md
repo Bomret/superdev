@@ -97,3 +97,10 @@ test compares.
 along with the conditions the forcing-flag exception requires. `hooks/worktree-sweep.js` is untouched: a
 slice branch merges into the scope branch normally, so its ancestry survives and ADR 0007's reasoning
 about it still holds.
+
+A **fourth** surface follows without deciding anything of its own. `skills/plan/SKILL.md` §0 refuses to
+extend a feature whose `shipped` scope branch has neither reached base nor gone, and it applies whatever
+test `hooks/scope-prune.js` applies. It restated that test inline as ancestry, so it moves to containment
+with the hook and delegates to `## Containment` for the command. Left behind, it would refuse every
+append against a squash-merged shipped feature — the same defect on the one surface this ADR did not
+count.

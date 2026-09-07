@@ -88,8 +88,9 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
   - **`shipped`** — a finished run — rename it to `ledger-shipped-<date>.md` (`date +%FT%H%M%S`, precise
     enough that two same-day rotations never collide), then run `init`, which writes a fresh ledger beside
     it. A rotation never overwrites an existing `ledger-shipped-<date>.md` and nothing is deleted, so ADR
-    0007's seven-day trail and `scope-prune`'s reap-on-merge rule both stand unchanged. Rotation, not
-    deletion, is what lets a second run over an appended feature (ADR 0004) begin.
+    0007's seven-day trail and `scope-prune`'s contained-or-gone reap rule (ADR 0053) both stand
+    unchanged. Rotation, not deletion, is what lets a second run over an appended feature (ADR 0004)
+    begin.
   - **`implementing`, `merged`, `reviewed`, `documented`, or `documented-unreviewed`** — run init already
     ran: skip `init`, go to your playbook; its **Resume** section reconciles the ledger against `git log`.
 

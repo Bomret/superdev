@@ -1552,7 +1552,7 @@ const STATUS_SEED_CONTRACTS = [
 // two signals while writing nothing, and promotes a single-slice feature to an epic in §6, where the
 // command's other writes happen. Five independent rows, so losing any one clause fails on its own. The
 // ledger refusal signal is one condition with two clauses (a stage other than `shipped`; a `shipped`
-// stage whose branch is neither merged into the base nor gone), so it is two rows rather than one — a
+// stage whose branch is neither contained in the base nor gone), so it is two rows rather than one — a
 // single lookahead pinning both clauses cannot report which one went missing. Each row anchors on the
 // condition sentence's own wording, not on the rationale sentence that explains the branch test
 // afterward, so a document that keeps the rationale but loses the condition still fails.
@@ -1574,9 +1574,9 @@ const PLAN_APPEND_CONTRACTS = [
   ],
   [
     path.join('skills', 'plan', 'SKILL.md'),
-    /scope branch \(`<type>\/<scope>`\) is neither merged into the base nor gone/,
+    /scope branch \(`<type>\/<scope>`\) is neither contained in the base nor gone/,
     'state the ledger refusal signal, second clause — a `shipped` stage whose scope branch is neither ' +
-      'merged into the base nor gone',
+      'contained in the base nor gone',
   ],
   [
     path.join('skills', 'plan', 'SKILL.md'),
@@ -1620,7 +1620,7 @@ const ROTATE_ON_SHIPPED_CONTRACTS = [
   ],
   [
     path.join('references', 'run-init.md'),
-    /nothing is deleted,\s*so ADR\s*0007's seven-day trail and `scope-prune`'s reap-on-merge rule both stand/,
+    /nothing is deleted,\s*so ADR\s*0007's seven-day trail and `scope-prune`'s contained-or-gone reap rule\s*\(ADR 0053\) both stand/,
     "state that nothing is deleted, so ADR 0007's seven-day trail and `scope-prune`'s rule stand unchanged",
   ],
   [
@@ -1676,15 +1676,44 @@ const RUN_KIND_CONTRACTS = [
   ],
   [
     path.join('references', 'scope-mode.md'),
-    /`appended`[\s\S]{0,650}?merged\s+into\s+`<base>`,\s+or\s+gone\s+entirely/,
-    'specify the `appended` run kind — key the branch decision on the same merged-or-gone test ' +
-      '`hooks/scope-prune.js` and `skills/plan/SKILL.md` run, not a bare `git merge-base --is-ancestor` ' +
-      'that exits 128 on a branch a squash-merging host already deleted',
+    /`appended`[\s\S]{0,650}?contained\s+in\s+`<base>`,\s+or\s+gone\s+entirely/,
+    'specify the `appended` run kind — key the branch decision on the same contained-or-gone test ' +
+      '`hooks/scope-prune.js` and `skills/plan/SKILL.md` run, so a squash-merged branch base already ' +
+      'holds is reused rather than read as unmerged forever',
   ],
   [
     path.join('references', 'scope-mode.md'),
-    /`resumed`[\s\S]{0,400}?[Nn]o\s+ancestor\s+test\s+runs\s+and\s+nothing\s+is\s+cut/,
-    'specify the `resumed` run kind — no ancestor test runs and nothing is cut, because the branch ' +
+    /\*\*Present\*\*[\s\S]{0,160}?`## Containment`/,
+    "specify the `appended` run kind — its **Present** branch names `scope-mode.md`'s own " +
+      '`## Containment` section as the section that owns the test',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /## Containment[\s\S]{0,2000}?git\s+merge-tree\s+--write-tree[\s\S]{0,2000}?2\.38/,
+    'carry the one canonical `## Containment` section — the `git merge-tree --write-tree` test, its ' +
+      'outcomes, and the git 2.38 floor its fallback covers — since two sections and a skill delegate ' +
+      'to it and a delegation to a deleted section pins nothing (ADR 0053)',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /\*\*No forcing flag[\s\S]{0,900}?`git reset --hard <base>`[\s\S]{0,200}?just\s+proved\s+contained/,
+    'state the **No forcing flag** exception as conditional on the containment proof — `git reset ' +
+      '--hard <base>` is admissible only on a branch `## Containment` has just proved contained, ' +
+      'never as a general permission (ADR 0053)',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /\*\*Contained\*\*[\s\S]{0,400}?status\s+--porcelain`\s+returns\s+nothing[\s\S]{0,250}?never\s+the\s+index\s+or[\s\S]{0,120}?working\s+tree[\s\S]{0,350}?\*\*Dirty\*\*[\s\S]{0,250}?stop,\s+cutting\s+nothing[\s\S]{0,150}?--unattended`\s*→\s*\n?\s*block/,
+    'require the scope worktree clean — `git -C .superdev/scopes/<scope>/worktree status --porcelain` ' +
+      'returns nothing — before re-pointing a contained `appended` branch with `git reset --hard ' +
+      '<base>`, because the containment proof covers the branch\'s committed history and says nothing ' +
+      'about the index or working tree; a dirty worktree stops, naming what is dirty, and blocks ' +
+      'unattended rather than losing an uncommitted change (ADR 0053)',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /`resumed`[\s\S]{0,400}?[Nn]o\s+containment\s+test\s+runs\s+and\s+nothing\s+is\s+cut/,
+    'specify the `resumed` run kind — no containment test runs and nothing is cut, because the branch ' +
       'holds unmerged slice work by design',
   ],
 ];
@@ -2468,7 +2497,34 @@ const RESUMED_WORKTREE_TRIGGER_CONTRACTS = [
   ],
 ];
 
+// The `containment-delegation` contract (ADR 0053), one row: `skills/publish-kb/SKILL.md` §3 names the
+// test it runs by pointing at `references/scope-mode.md`'s `## Containment` section, and states no git
+// command of its own. Its own table rather than a row on `RUN_KIND_CONTRACTS`, whose subject is
+// scope-mode.md's three run kinds — a publish-kb row there would make that check's `ok` phrase lie.
+//
+// The row pins the delegation's presence, so it catches only one half of the drift ADR 0053 names. §3
+// dropping the pointer leaves the step to reach for whatever ancestry test a reader already knows, which
+// is the state ADR 0053 measured: "not merged" on every squash-merged scope, and an operator trained to
+// wave the warning through. §3 keeping the pointer and restating the incantation beside it anyway is the
+// other half — the ADR's own decision is that scope-mode.md states the test *once* — but a presence
+// pattern cannot see a second copy sitting beside the one it requires, so that half has no assertion
+// here. Anchoring on the delegating sentence rather than a bare `## Containment` mention still buys
+// something real: the pattern requires `scope-mode.md` named immediately before that section reference,
+// not just the section name on its own. §3 also names `docs/agents/code-management.md` a few words
+// earlier for the base branch, and "that same file's `## Containment` section" reads correct while
+// resolving to the closer, wrong antecedent — a gap a bare `` `## Containment` section...owns the test ``
+// pattern cannot see, because it was satisfied by that ambiguous sentence too.
+const CONTAINMENT_DELEGATION_CONTRACTS = [
+  [
+    path.join('skills', 'publish-kb', 'SKILL.md'),
+    /scope-mode\.md`'s\s+`## Containment`\s+section[\s\S]{0,120}?owns\s+the\s+test/,
+    "name the containment test by delegating to `references/scope-mode.md`'s `## Containment` section, " +
+      'which owns it (ADR 0053)',
+  ],
+];
+
 module.exports = {
+  CONTAINMENT_DELEGATION_CONTRACTS,
   REFERENCE_PATTERN,
   RUN_ROOT_DOCS,
   RUN_ROOT_ARTIFACT_PATTERN,

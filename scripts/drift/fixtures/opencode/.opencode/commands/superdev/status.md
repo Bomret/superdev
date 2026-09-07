@@ -31,9 +31,9 @@ shipped. The stage says which of those already happened, so add nothing of your 
 
 A **shipped** scope prints as one line, `<scope>  (shipped)`, with no slice tally and no blocked list. It
 is finished with, and `hooks/scope-prune.js` reaps its run root once the staleness TTL elapses and its
-scope branch is merged into base or gone (ADR 0007), so it is not work in flight. Its degrade record,
-unresolved-defect record, deferred-finding record, and staged-page lines are the exceptions and still
-print in full: the run root is about to disappear, and the pull-request body is otherwise the only
+scope branch is contained in base or gone (ADR 0007, ADR 0053), so it is not work in flight. Its degrade
+record, unresolved-defect record, deferred-finding record, and staged-page lines are the exceptions and
+still print in full: the run root is about to disappear, and the pull-request body is otherwise the only
 surviving copy of a pass that ran degraded, a defect the run left standing, or a finding nobody has
 planned yet — see below.
 

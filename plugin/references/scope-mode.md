@@ -111,6 +111,57 @@ from a slug. Read the branch rather than compute it.
   whose slugs differ only by change type both match, and the scan cannot separate them. **No branch
   matches** → say so and stop, rather than proceeding against whatever HEAD happens to be.
 
+## Containment
+
+`## The scope branch` above finds the branch. This section decides the other question every caller of it
+asks: does `<base>` already hold that branch's work. The answer is about **content**, because a
+squash-merge rewrites a branch's commits into one new commit and leaves not one of them reachable from
+base, however completely base holds the result (ADR 0053). A scope branch has reached base when merging
+it into base would change nothing:
+
+```sh
+tree=$(git merge-tree --write-tree <base> <branch>) && [ "$tree" = "$(git rev-parse <base>^{tree})" ]
+```
+
+Three outcomes, and comparing the tree is what separates the first two — a clean merge exits 0 either
+way:
+
+- **Exit 0, and the tree equals `<base>`'s own tree** → **contained**. Base holds every byte of the
+  branch's work, whether it arrived by squash-merge, by a merge commit, or by fast-forward, and whether
+  or not base has moved on since.
+- **Exit 0, and the tree differs** → **not contained**. The merge is clean, and it would still change
+  base, so the branch carries content base does not hold.
+- **Exit 1** → **not contained** too, whichever of two causes: a real conflict, where the branch and base
+  disagree over the same lines, or an argument git cannot resolve at all — a branch name with no ref
+  behind it. Neither proves the tree equal to `<base>`'s, so this test does not need to tell them apart.
+
+**`--write-tree` needs git 2.38** (2022-10-02), and rejecting the flag itself exits **128 or 129** —
+distinct from the exit 1 above, so an old git is never mistaken for a conflicting branch. Where
+`--write-tree` is unavailable, fall back to `git merge-base --is-ancestor <branch> <base>` and **say the
+fallback route was taken**: that answer reads not contained for a squash-merged branch base holds in
+full, so a caller acting on it is acting on the older, weaker signal. **`hooks/scope-prune.js` is the one
+exception**: it is best-effort and silent by contract, so it says nothing on any path, including this
+one. Its own fallback is `git branch --merged`, the equivalent older, weaker signal in the hook's own git
+call — it just never announces taking it.
+
+**The test writes tree objects into the object database.** A caller that fires on every turn reaches it
+only for a scope it would otherwise act on, behind its own cheaper filters — `hooks/scope-prune.js`
+mirrors this test in JavaScript and orders its filters exactly that way.
+
+**Absence stands beside containment, unchanged.** A branch that is gone is finished with just as a
+contained one is, for the hosts that do delete a branch on merge. Each caller states which of the two it
+reads and what it does with each.
+
+**`<base>` is whatever the caller resolves it to, and this section does not pick one.**
+`hooks/scope-prune.js` uses `HEAD` — the current branch, exactly as `git branch --merged` with no argument
+already meant; `## Cutting the scope branch` below and `skills/publish-kb/SKILL.md` §3 use the base
+branch named in `docs/agents/code-management.md`. The test only ever compares the tree its caller hands
+it, so a ref that already holds the branch's content reads contained whether or not it is what the caller
+means by "landed." `HEAD` is safe for `hooks/scope-prune.js` on that basis, and only because ADR 0045
+keeps the invoking checkout off the scope branch at every tier: were `HEAD` ever the branch itself,
+`git merge-tree --write-tree HEAD <branch>` would yield `HEAD`'s own tree and the branch would read
+contained however little of its work base actually holds.
+
 ## Cutting the scope branch
 
 Run init computes this run's **run kind** — `CONTEXT.md`'s glossary names all
@@ -121,34 +172,41 @@ never switched (ADR 0045).
 
 - **`fresh`** — no ledger existed, so the scope branch does not exist either. Cut it from `<base>`:
   `git worktree add .superdev/scopes/<scope>/worktree -b <type>/<scope> <base>`. **The name already
-  exists** — a prior scope's branch survived a non-squash merge and outlived its reaped run root
-  (`hooks/scope-prune.js`'s seven-day TTL, ADR 0007): `-b` fails rather than reset it, which is the safe
-  outcome. Stop, name the branch found, and cut nothing — a human renames or deletes it before the run
+  exists** — a squash-merged scope's branch survives its own merge, since nothing deletes it, and
+  outlives its reaped run root too (`hooks/scope-prune.js`'s seven-day TTL, ADR 0007, ADR 0053): `-b`
+  fails rather than reset it, which is the safe outcome. Stop, name the branch found, and cut nothing — a
+  human renames or deletes it before the run
   retries.
 - **`appended`** — a `shipped` ledger was rotated aside, and the branch may have survived its pull
   request, because `/superdev:ship` opens the request from that branch and never deletes it. Read
   `<branch>` from the ledger's own line — `scope.js get branch --root <run-root>`, then `git rev-parse
   --verify <branch>` — rather than resolving it per `## The scope branch`, whose shape-scan fallback
   risks a foreign branch; this step cuts and hands the name onward, unlike that section's read-only
-  callers. Then decide on the same test that decides a scope is finished with (ADR 0007): merged into
+  callers. Then decide on the same test that decides a scope is finished with (ADR 0007): contained in
   `<base>`, or gone entirely — the test `hooks/scope-prune.js` runs and `skills/plan/SKILL.md`'s refusal
-  bullet reads back, not a bare `git merge-base --is-ancestor` on a name a squash-merging host already
-  deleted, which exits 128 rather than answering.
+  bullet reads back.
   - **Gone** — `<branch>` does not verify: nothing survives to reuse, so cut fresh from `<base>` exactly
     as `fresh` does.
-  - **Present** — test containment with `git merge-base --is-ancestor <branch> <base>`. **Contained** —
-    `<base>` holds every commit, so reuse loses nothing: work in the scope worktree, per `## The scope
+  - **Present** — decide with `## Containment` above, which owns the test. **Contained** —
+    `<base>` holds identical content, so reuse loses nothing: work in the scope worktree, per `## The scope
     checkout` below — creating it with `git worktree add .superdev/scopes/<scope>/worktree <branch>` when
     absent, and stopping first when a different worktree holds the branch, the same stop `resumed` takes —
-    then run `git merge --ff-only <base>` inside it. **Not contained** — commits live only on that branch: print
-    `git log <base>..<branch> --oneline` so the operator sees what is at risk, ask, and print
-    `git branch -m <branch> <branch>-<date>` as the remedy. **`--unattended` → block**, per
+    then **check the worktree is clean**: `git -C .superdev/scopes/<scope>/worktree status --porcelain`
+    returns nothing. The containment proof above covers the branch's committed history, never the index or
+    the working tree, so a dirty worktree could lose an uncommitted change the test never vouched for.
+    **Dirty** — name what `status --porcelain` reported and stop, cutting nothing. **`--unattended` →
+    block**, per `## Unattended`. **Clean** — **re-point it to `<base>` with `git reset --hard <base>`**
+    inside it. `git merge --ff-only <base>` exits 128 on a squash-merged branch, because base is no
+    descendant of it and a fast-forward has no ancestor to walk. **Not contained** — content lives only on
+    that branch: print `git log <base>..<branch> --oneline` so the operator sees what is at risk, ask, and
+    print `git branch -m <branch> <branch>-<date>` as the remedy. **`--unattended` → block**, per
     `## Unattended`.
 
   A host that squash-merges and deletes the branch reads gone; one that squash-merges without deleting
-  reads present and not contained, so it asks — the ordinary outcome there.
-- **`resumed`** — the branch holds unmerged slice work by design, so no ancestor test runs and nothing is
-  cut. Read `<branch>` from the ledger's own line — `scope.js get branch --root <run-root>`, verified
+  reads present and contained, and is reused — the ordinary outcome there. What still reaches the
+  question is a branch carrying real work base never took.
+- **`resumed`** — the branch holds unmerged slice work by design, so no containment test runs and nothing
+  is cut. Read `<branch>` from the ledger's own line — `scope.js get branch --root <run-root>`, verified
   with `git rev-parse --verify <branch>` — never by rebuilding `<type>/<scope>` and never through
   `## The scope branch`'s shape-scan fallback, which can return a foreign branch just as it can for
   `appended`. **A name that does not verify locally is fetched before anything else**: `git fetch
@@ -168,8 +226,12 @@ never switched (ADR 0045).
 
 **No forcing flag, at any run kind.** `git switch -C` and `git worktree add -B` reset the branch to
 `<base>` and leave every slice already merged into it unreachable from any ref, while the ledger still
-records those slices as `merged` — nothing in the run rebuilds what it lost (ADR 0028). Fast-forwarding
-to `<base>` is the one re-pointing this rule permits.
+records those slices as `merged` — nothing in the run rebuilds what it lost (ADR 0028). Two re-pointings
+are permitted, and no third. **Fast-forwarding to `<base>`.** And **`git reset --hard <base>` on a branch
+`## Containment` has just proved contained** — that proof is the precondition, never a general
+permission: containment establishes that base already holds identical content, so the commits the reset
+discards carry nothing to lose (ADR 0053). A branch that has not passed the test in this run keeps the
+whole rule.
 
 **Every stop above writes nothing.** No run starts and no ledger entry is written. None is a degraded
 pass either: `## Degraded passes` records work done a lesser way, and here no work happens.

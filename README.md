@@ -152,8 +152,8 @@ plan runs test-first, inline in the scope worktree.
   `/superdev:document` write a remote backend's pages under `.superdev/kb-pending/<scope>/` instead of
   sending them. A page sent from unmerged or unreleased work claims a feature no reader can reach
   ([ADR 0023](docs/adr/0023-the-knowledge-base-publish-is-its-own-command.md)). You decide when to run
-  it: it warns once when the scope branch is not merged, but a merge is not a release, so it never blocks
-  on that check. `/superdev:afk` never drives it.
+  it: it warns once when the base branch does not already hold the scope branch's work, but a merge is
+  not a release, so it never blocks on that check. `/superdev:afk` never drives it.
 
 ## After the PR
 
@@ -226,14 +226,18 @@ bash or PowerShell variants.
 - **scope-prune.** A `Stop` hook that deletes a scope's run root (`.superdev/scopes/<scope>/`, its
   `ledger.md` and `dod.md` post-mortem trail). The scope anchor keeps its own published snapshot of the
   ledger, so the record survives this reap on a backend that carries one. It waits for three conditions:
-  the scope branch is
-  **merged or gone**, the run root has sat untouched for 7 days or more, **and** the ledger's
-  `**Stage:**` line reads `shipped`. A squash merge leaves no ancestry, and a code host that
-  squash-merges deletes the branch, so absence is the merge's only local trace. It reads absence only
-  from refs the repository already holds: a
-  remote-tracking ref it has not fetched still counts as present, so it never prunes on stale
-  information. It never touches a scope branch that is present and unmerged, one whose worktree is still
-  present, or one whose ledger is unreadable or silent on the stage.
+  the run root has sat untouched for 7 days or more, the ledger's `**Stage:**` line reads `shipped`,
+  **and** the scope branch is **contained in the current branch or gone**. Containment is a content
+  question — does base already hold this work — and it is asked with `git merge-tree --write-tree`
+  rather than with ancestry, which a squash merge destroys by rewriting the branch's commits
+  ([ADR 0053](docs/adr/0053-containment-not-ancestry-decides-that-a-scope-branch-reached-base.md)).
+  The three run in that order, cheapest first, because the containment test writes tree objects and this
+  hook fires on every finished turn. Absence stands beside containment for the hosts that delete the
+  branch on merge, read only from refs the repository already holds: a remote-tracking ref it has not
+  fetched still counts as present, so it never prunes on stale information. It never touches a scope
+  branch carrying content base does not hold, one whose worktree is still present, or one whose ledger is
+  unreadable or silent on the stage. On a git older than 2.38, which has no `--write-tree`, it falls back
+  to ancestry and prunes what that finds.
 
 **update-check** is an eighth Node hook, and a `SessionStart` *notice* rather than a guardrail. See
 [Updating](#updating).

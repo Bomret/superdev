@@ -319,7 +319,7 @@ every drift assertion by id, and it fell behind at five separate additions, beca
 maintained by hand at the moment its author is thinking about code. Naming the exceptions cannot drift
 when a new check lands.
 
-`drift-check.js` guards sixty-nine things, in the order `drift/checks.js` registers them. First, the
+`drift-check.js` guards seventy things, in the order `drift/checks.js` registers them. First, the
 `reference` contract: every `references/*.md` path named in `skills/`, `agents/`, or `references/`
 itself resolves to a file that exists. A reference cites another reference, as both execution
 playbooks point at `scope-mode.md`, so a rename there dangles like any other. Second, the
@@ -621,7 +621,7 @@ Thirty-sixth, the `plan-append` contract (ADR 0004), seven rows: six against
 states that answering "new" makes no store call. It states the store refusal signal (a slice
 `in-progress`, `in-review`, or `blocked` elsewhere) as one row. It states the ledger refusal signal's two
 clauses as two further independent rows: a run root whose stage is other than `shipped`, and a `shipped`
-stage whose scope branch is neither merged into the base nor gone. Losing any one of the three therefore
+stage whose scope branch is neither contained in the base nor gone. Losing any one of the three therefore
 fails on its own rather than only in aggregate. It states the single-slice epic-promotion clause,
 including that the lone slice is left untouched. The last two rows pin ADR 0043's exception to that
 byte-identical rule. A promoted lone slice's anchor-dependency line migrates to the new epic. Each row
@@ -649,18 +649,31 @@ and `acceptance` standing as the sole record, because `references/domain-modelin
 rule forbids holding both. Losing either row independently: a document that keeps surfacing questions but
 stops deleting a resolved one's line leaves two records of the same decision, and one that stops
 surfacing them silently strands a load-bearing decision no later interview ever revisits. Thirty-ninth, the
-`run-kind` contract (ADR 0028, ADR 0045), four rows against `references/scope-mode.md`. Its
+`run-kind` contract (ADR 0028, ADR 0045, ADR 0053), eight rows against `references/scope-mode.md`. Its
 `## Cutting the scope branch` section specifies the branch step for each of the three run kinds. `fresh`
 cuts one from `<base>` and stops, cutting nothing, when a scope-prune reap left a same-named branch
-standing. `appended` decides on the same merged-or-gone test `hooks/scope-prune.js` and
-`skills/plan/SKILL.md` already run (ADR 0007) rather than a bare `git merge-base --is-ancestor`, which exits
-128 on a branch a squash-merging host already deleted. `resumed` runs no ancestor test and cuts nothing.
-`fresh` gets two rows because it carries two independent clauses; `appended` and `resumed` get one each.
+standing. `appended` decides on the same contained-or-gone test `hooks/scope-prune.js` and
+`skills/plan/SKILL.md` already run (ADR 0007), and its **Present** branch delegates that decision to the
+document's own `## Containment` section rather than naming a git command of its own. `resumed` runs no
+containment test and cuts nothing. `fresh` gets two rows because it carries two independent clauses;
+`appended` gets two, the contained-or-gone decision and the delegation; `resumed` gets one.
+Two further rows carry ADR 0053's other halves. One pins the `## Containment` section itself — the
+`git merge-tree --write-tree` test, and the git 2.38 floor its fallback covers — because
+two sections and `skills/publish-kb/SKILL.md` §3 all delegate to it, and a delegation pinned against a
+section nothing pins is the one-sided shape the root doc's prompt-architecture rules name. The other
+pins the **No forcing flag** rule's second exception as **conditional on the containment proof**:
+`git reset --hard <base>` is admissible only on a branch that test has just proved contained, because
+that proof is what establishes base already holds identical content. Written as a general permission it
+becomes the branch-stranding ADR 0028 exists to forbid. An eighth row pins the guard that precedes that
+same reset: the scope worktree must be clean (`git -C <worktree> status --porcelain` returns nothing)
+before the re-point, and a dirty one stops, naming what is dirty, and blocks unattended — because the
+containment proof covers the branch's committed history, never the index or the working tree, so
+`reset --hard` there would discard an uncommitted change no test vouched for.
 The rows sit against that one document rather than the two playbooks, which hold a pointer plus their own
 tier's command: pinning a pointer's prose goes red on a
 reflow while catching no revert. Losing any row independently: a document that stops specifying one
 clause leaves that run's branch step to whatever a reader infers, which is the gap three consecutive
-review fix cycles kept re-opening. This table used to carry a fifth row, pinning `appended`'s contained-reuse
+review fix cycles kept re-opening. This table used to carry a row pinning `appended`'s contained-reuse
 clause when it split by tier ("the `full` tier switches the invoking checkout … the `lite` tier works in
 its existing scope worktree"). ADR 0045 retired both the clause and the row: reuse now means working in
 the one scope worktree both tiers share, which the `scope-worktree` check (fifty-ninth, below) pins
@@ -1340,6 +1353,22 @@ and its ceiling is written beside the code: the three headers, the column row, a
 guard's own literal shape. A scaffold that writes a well-formed ledger, stays on its own branch, and then
 corrupts either in a later command passes here and fails at run time.
 
+Seventieth, the `containment-delegation` contract (ADR 0053), one row: `skills/publish-kb/SKILL.md` §3
+names the test behind its merge check by pointing at `references/scope-mode.md`'s `## Containment`
+section, and states no git command of its own. Its own table rather than a row on `RUN_KIND_CONTRACTS`,
+whose subject is scope-mode.md's three run kinds — a publish-kb row there would make that check's `ok`
+phrase lie about what it guards. The row is a presence pattern, so it catches only one half of the drift
+ADR 0053 names: §3 dropping the pointer leaves the step to reach for whatever ancestry test its reader
+already knows, which is the state ADR 0053 measured — "not merged" on every squash-merged scope, and an
+operator trained to wave through the one warning that is real. §3 keeping the pointer while restating the
+incantation beside it, against the ADR's own decision that scope-mode.md states the test once, is the
+other half — and a presence pattern cannot see a restated command sitting beside the pointer it requires,
+so that half has no assertion here. The row is anchored on the delegating clause — the section named as
+the thing that *owns* the test — rather than on a bare `## Containment` mention, because §3 also names a
+second file for the base branch a few words earlier, and "that same file's `## Containment` section"
+reads correct while resolving to that closer, wrong antecedent; the anchoring is what a bare-mention
+pattern would miss.
+
 The first and seventh checks are opposites. The first catches a reference to a file that does not exist.
 The seventh catches an agent that drops its wire to a file which still exists. That drift leaves the
 reference resolvable and the suite green, and the lens then does nothing in any dispatch.
@@ -1375,7 +1404,7 @@ successor at all.
   *loudly*, the row goes red until the pattern catches up, so the presence tables in `drift/contracts.js`
   (`FIX_BOUNDARY_CONTRACTS` among them) carry none.
 - A new drift-check contract is one entry appended at the end of the `drift/checks.js` registry, plus
-  its section in the sixty-nine-check narrative above and its selftest in the matching
+  its section in the seventy-check narrative above and its selftest in the matching
   `drift/selftest/*.test.js` suite. Append rather than insert unless the check belongs earlier for a
   reason, because every ordinal after an insertion point has to be rewritten by hand. The forty-fifth check,
   `narrative-coverage`, enforces two pieces of this by itself: the new id must appear backticked
