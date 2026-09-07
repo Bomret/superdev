@@ -2,6 +2,11 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0053](0053-containment-not-ancestry-decides-that-a-scope-branch-reached-base.md),
+which replaces the ancestor test the `appended` paragraph below runs for containment, and the
+`git merge --ff-only <base>` that follows a contained verdict. Verified 2026-09-07 on git 2.50.1:
+ff-only exits 128 on a squash-merged branch, because base is not a descendant of it.
+
 ## Context
 
 Both execution playbooks open with the same step: cut the scope branch `<type>/<scope>` from the base.

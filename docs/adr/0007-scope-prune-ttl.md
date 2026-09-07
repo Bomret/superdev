@@ -2,6 +2,14 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0053](0053-containment-not-ancestry-decides-that-a-scope-branch-reached-base.md),
+which replaces the ancestry half of the merged-or-gone test below with a containment test. The premise
+below that a squash-merging host deletes the branch holds — verified 2026-09-07, `git ls-remote --heads
+origin` on this repository returns `main` alone — but absence is read from the clone's refs, and both the
+local branch and the stale remote-tracking ref outlive that deletion with nothing in superdev removing
+them. Measured the same day: `git branch --merged main` returned `main` alone while seventeen shipped
+branches sat merged in base, and six run roots stood past the TTL unpruned.
+
 **Context.** ADR 0001 established the run root (`dod.md`, `ledger.md` under `.superdev/scopes/<scope>/`)
 as a post-mortem trail that survives worktree removal, and deliberately never deleted by `/implement` itself.
 Nothing else deletes it either: it is git-ignored, so it never pollutes the repo, but it also never goes
