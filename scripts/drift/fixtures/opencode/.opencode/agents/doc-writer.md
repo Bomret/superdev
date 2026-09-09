@@ -12,6 +12,12 @@ tools:
   invalid: true
   read: true
   write: true
+permission:
+  read:
+    "*": "allow"
+    "*.env": "ask"
+    "*.env.*": "ask"
+    "*.env.example": "allow"
 ---
 
 You reconcile documentation with reality. After work has landed, you make the in-repo docs and the

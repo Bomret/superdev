@@ -190,10 +190,26 @@ search under OpenCode), plus an always-`true` `invalid` regardless of the allowl
 OpenCode's tool-call repair sink (`experimental_repairToolCall`'s landing slot for a hallucinated or
 malformed call), excluded from the model's own tool schema by construction, so denying it buys no
 security and only trades the repair tool's recoverable result for the executor's own "Unknown tool"
-error — and
+error, and
 `model` resolved from the agent's alias through the
 repeatable `--model-map <alias>=<provider/model>` — a missing alias refuses nonzero and names the
-alias and the agent, same caveat as above. Every rendered string scalar (`description`, `allowed-tools`) is emitted
+alias and the agent, same caveat as above. The `tools:` map is itself converted into a permission
+rule per key (`read: true` becomes `read: {"*": "allow"}`), and where the frontmatter also carries
+an explicit `permission:` entry for that same key, the agent-config decoder's
+`Object.assign($, _.permission)` (a shallow assign at the top-level key — not `Permission.merge`,
+which is a plain concat, `(...j) => j.flat()`) replaces the `tools:`-derived rule with it rather
+than appending both (verified live against opencode 1.18.20, `opencode debug agent`: deleting the
+shipped block's `"*": "allow"` line removes the `tools:`-derived read-allow entry from the resolved
+permission array entirely, not merely shadows it) — which would otherwise silently defeat
+OpenCode's own built-in `read: {"*.env": "ask"}` default for every rendered agent whose `tools:`
+allowlist grants `read: true` (ADR 0054) — so the frontmatter for exactly those agents also carries
+a `permission:` block re-asserting that default
+(`read: {"*": "allow", "*.env": "ask", "*.env.*": "ask", "*.env.example": "allow"}`), narrower than
+the bare tool-level listing ADR 0051 rejected: a faithful copy of OpenCode's own built-in `read`
+default, blanket `"*": "allow"` included, rather than a tool-level allow/deny listing. An agent
+whose own `tools:` allowlist never grants `read: true` gets no `permission:` block at all —
+appending it regardless would grant the read access the `"*": false` wildcard was denying, rather
+than no-op. Every rendered string scalar (`description`, `allowed-tools`) is emitted
 JSON-quoted, so a description carrying `: ` stays valid YAML, and the plugin root is normalized —
 a trailing slash included — before substitution, so no rendered path carries `//`. Every rendered
 file then gets three deterministic prose rewrites:

@@ -9,6 +9,12 @@ tools:
   grep: true
   invalid: true
   read: true
+permission:
+  read:
+    "*": "allow"
+    "*.env": "ask"
+    "*.env.*": "ask"
+    "*.env.example": "allow"
 ---
 
 You are a Senior Code Reviewer. You review the **whole scope branch** — every slice, integrated —

@@ -530,14 +530,19 @@ cache file the bridged `update-check` hook writes on `session.created`. From a s
 a command one of the guardrails blocks under Claude Code, for example `git merge`, and confirm OpenCode
 refuses it the same way.
 
-Three gaps stand in the render today, each a recorded triage record rather than a silent one. The
+Two gaps stand in the render today, each a recorded triage record rather than a silent one. The
 `update-check` hook's version notice never reaches you, because the bridge runs the hook but has
 nowhere to print its output. The `model-explicit` check reads only the project's own
 `.opencode/agents/<type>.md`, so it names no model for an agent your OpenCode configuration points at
-from anywhere else. A rendered agent's `tools:` map is written without regard to any `permission:`
-rules already in your own OpenCode configuration, including its default `.env` read guard. The
-render's own allowlist can compose to a wider effective access than your configuration meant to keep
-narrow. No plan yet states how a rendered pack should merge with an existing one.
+from anywhere else.
+
+**A rendered agent's own configuration wins over your project's OpenCode permission rules** —
+OpenCode's own agent-beats-global precedence, not a superdev bug. That includes any custom rule you've
+written yourself, and a deliberate loosening of OpenCode's built-in `.env` read guard: both stay
+overridden by the six rendered agents' own `tools:`/`permission:` config. The render does re-assert
+OpenCode's own `.env`-ask default specifically for the `read` tool, so a plain install still asks
+before an agent reads a `.env` file through `read` — not through `bash` or `grep`, which every rendered
+agent keeps and which the guard does not cover.
 
 **afk is excluded.** `/superdev:afk` drives the chain through Claude Code's own Skill tool, so the
 render skips it: no `.opencode/commands/superdev/afk.md` exists. Run `implement`, `review`,

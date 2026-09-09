@@ -7,8 +7,8 @@ the rendered agent frontmatter carries a `tools:` map instead of a `permission:`
 `permission:` block" as the mechanism.
 
 **Context.** OpenCode resolves a subagent's effective permission list as an ordered array, last-match-wins.
-Verified live against opencode 1.18.20 (`opencode debug agent <name>`, in a scratch project carrying a
-consumer `opencode.json` with `bash: {"rm *": "deny"}` and OpenCode's own built-in
+Verified live against opencode 1.18.20 (`opencode debug agent <name>`, 2026-09-09, in a scratch project
+carrying a consumer `opencode.json` with `bash: {"rm *": "deny"}` and OpenCode's own built-in
 `read: {"*.env": "ask"}` default): the six rendered agents' `tools:` map is converted into `bash: allow *`
 and `read: allow *` rules appended at the very end of that array, after the consumer's rules and after
 OpenCode's own `.env` default. That silently switches every rendered agent's `.env` read confirmation off,
@@ -35,12 +35,23 @@ permission:
     "*.env.example": "allow"
 ```
 
-Verified live that an agent-level `permission:` entry resolves after the same agent's `tools:`-derived
-entries, so this wins and restores the `.env` guard. ADR 0051's decision stands: `tools:` still does the
-coarse allow/deny of which tools an agent can call at all, and a bare `permission:` listing of *those*
-would still be inert, per 0051's own finding. This is a different, narrower use of `permission:` —
-pattern-level re-assertion within one already-enabled tool (`read`) — not a return to using `permission:`
-for tool-level access control, so it does not reopen 0051's decision.
+Verified live (opencode 1.18.20, `opencode debug agent <name>`, 2026-09-09) that this is a replace, not
+an append: where the frontmatter carries a `permission:` entry for a key `tools:` also derives one for
+(`read` here), the agent-config decoder's `Object.assign($, _.permission)` (a shallow assign at the
+top-level key, not `Permission.merge` — that primitive is a plain concat, `(...j) => j.flat()`) drops the
+`tools:`-derived rule from the resolved array entirely and keeps only the frontmatter's own — deleting
+just the `"*": "allow"` line from the block above makes the `tools:`-derived
+`{"permission":"read","pattern":"*","action":"allow"}` entry disappear from `opencode debug agent`'s
+output too, rather than leaving it present but shadowed. That is why the block's own `"*": "allow"` is
+load-bearing: it is not restating a redundant allow next to the one `tools:` already grants, it is the
+only thing left standing in for what `tools: read: true` would otherwise have contributed — dropping just
+that line does not merely leave `.env` unguarded, it makes `read` resolve **deny** for every ordinary,
+non-`.env` path too, since the last rule left matching `read` would then be the `tools: "*": false`-derived
+`* * deny`. ADR 0051's decision stands: `tools:` still does the coarse allow/deny of which tools an agent
+can call at all, and a bare `permission:` listing of *those* would still be inert, per 0051's own finding.
+This is a different, narrower use of `permission:` — pattern-level re-assertion within one already-enabled
+tool (`read`) — not a return to using `permission:` for tool-level access control, so it does not reopen
+0051's decision.
 
 **What stays unfixed, on purpose.** A consumer's own custom permission rules — including one that
 deliberately *loosens* the `.env` guard at the global level — still get overridden by the six rendered
@@ -50,5 +61,5 @@ which is unverified and out of scope here. The OpenCode section of the docs stat
 plainly instead of leaving it silent.
 
 **Consequences.** All six rendered agents carry the `permission:` block above. The render is otherwise
-unchanged. `docs/agents/issue-tracker.md`'s adapter narrative and the OpenCode section of the docs name
+unchanged. `scripts/AGENTS.md`'s adapter narrative and the OpenCode section of the docs name
 the precedence rule, so a consumer reads it instead of discovering it by surprise.

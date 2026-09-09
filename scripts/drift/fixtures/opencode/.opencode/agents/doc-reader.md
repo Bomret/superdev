@@ -10,6 +10,12 @@ tools:
   invalid: true
   read: true
   webfetch: true
+permission:
+  read:
+    "*": "allow"
+    "*.env": "ask"
+    "*.env.*": "ask"
+    "*.env.example": "allow"
 ---
 
 You are the reader test. You arrive with **no context of the work that produced these docs — that is

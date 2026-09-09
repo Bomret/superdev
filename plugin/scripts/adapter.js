@@ -283,9 +283,23 @@ function renderCommand(name, skillPath, modelMap, rewrite) {
 // keys `false` instead denies only those eleven, reading a twelfth tool id (an MCP tool, a builtin
 // OpenCode adds later) as allowed — verified live against opencode 1.18.20 that a leading wildcard
 // denies an unenumerated key and that the same wildcard placed last flattens every explicit entry
-// after it to false. No `permission:` block: that config only restricts a tool it explicitly
-// denies, and a bare `allow` listing over its allow-by-default baseline (the shape this adapter
-// used to emit) restricts nothing.
+// after it to false. A bare `permission:` listing of the same tools this map already allows would
+// still be inert (ADR 0051) — that config only restricts a tool it explicitly denies, and a bare
+// `allow` entry over its allow-by-default baseline restricts nothing. But `tools:` itself is
+// converted into a permission rule per key (`read: true` → `read: {"*": "allow"}`), and where the
+// frontmatter also carries an explicit `permission:` entry for that same key, the agent-config
+// decoder's `Object.assign($, _.permission)` (a shallow assign at the top-level key, not
+// `Permission.merge` — that primitive is a plain concat, `(...j) => j.flat()`) replaces the
+// `tools:`-derived rule with it rather than appending both (verified live against
+// opencode 1.18.20, `opencode debug agent`: deleting only the `"*": "allow"` line from the block
+// below removes the `tools:`-derived `{"permission":"read","pattern":"*","action":"allow"}` entry
+// from the resolved array entirely, rather than leaving it present but shadowed) — which silently
+// defeats OpenCode's own built-in `read: {"*.env": "ask"}` default for every rendered agent, with
+// no consumer action involved. `permission:` comes back below for exactly that one pattern-level
+// re-assertion (ADR 0054): a faithful copy of OpenCode's own built-in `read` default, blanket
+// `"*": "allow"` included — that blanket allow is load-bearing, not decorative, since replacing
+// (not appending after) the `tools:`-derived rule means it is now the only thing standing in for
+// what `tools: read: true` would otherwise have contributed for that pattern.
 function renderAgent(name, agentPath, modelMap, rewrite) {
   const { fields, body } = readFrontmatter(fs.readFileSync(agentPath, 'utf8'), agentPath);
   if (!fields.description) fail(`${agentPath} carries no description`);
@@ -306,6 +320,13 @@ function renderAgent(name, agentPath, modelMap, rewrite) {
   }
   let frontmatter = `---\n${AGENT_MARKER}\ndescription: ${yamlString(fields.description)}\nmode: subagent\nmodel: ${model}\ntools:\n  "*": false\n`;
   for (const key of [...enabled].sort()) frontmatter += `  ${key}: true\n`;
+  // Only an agent whose own tools: allowlist grants read: true had a `read: {"*": "allow"}`
+  // permission rule to lose to the config-merge replace in the first place — appending this block
+  // for an agent that never granted read: true would instead grant it, overriding the "*": false
+  // wildcard's deny (see the fix commit message for the live-verified failure mode).
+  if (enabled.has('read')) {
+    frontmatter += 'permission:\n  read:\n    "*": "allow"\n    "*.env": "ask"\n    "*.env.*": "ask"\n    "*.env.example": "allow"\n';
+  }
   frontmatter += '---\n';
   return rewrite(`${frontmatter}\n${body.replace(/^\n+/, '')}`);
 }
@@ -1116,7 +1137,17 @@ async function selftest() {
     // three explicit keys after a trailing `"*": false` all resolved false). `invalid: true` always
     // rides along: it is OpenCode's tool-call repair sink, not a callable tool (see renderAgent).
     assert.ok(agent.includes('tools:\n  "*": false\n  bash: true\n  edit: true\n  invalid: true\n  read: true\n  write: true\n'));
-    assert.ok(!agent.includes('permission:'), 'the inert permission: block is not rendered');
+    // The tools: map above converts `read: true` into a `read: {"*": "allow"}` permission rule that
+    // silently defeats OpenCode's own built-in `.env` read-ask default (verified live against
+    // opencode 1.18.20, `opencode debug agent`). An explicit `permission:` entry for the same key
+    // replaces that tools:-derived rule rather than appending after it, so this block re-asserts the
+    // built-in default in full — its own `"*": "allow"` included — so it still holds.
+    assert.ok(
+      agent.includes(
+        'permission:\n  read:\n    "*": "allow"\n    "*.env": "ask"\n    "*.env.*": "ask"\n    "*.env.example": "allow"\n',
+      ),
+      'the .env read guard is restored after the tools: map',
+    );
     assert.ok(agent.includes(`Read ${pluginRoot}/references/test-selection.md.`));
 
     // A read-only agent (Read, Grep only) gets edit and write denied by the wildcard — the defect
@@ -1127,6 +1158,32 @@ async function selftest() {
     // still resolves true even for a read-only agent — it is denied nowhere.
     const reviewer = fs.readFileSync(path.join(dest, '.opencode', 'agents', 'final-reviewer.md'), 'utf8');
     assert.ok(reviewer.includes('tools:\n  "*": false\n  grep: true\n  invalid: true\n  read: true\n'));
+
+    // An agent whose own tools: allowlist carries no Read gets no permission: block at all — the
+    // block is a replace-per-key re-assertion of what tools: read: true itself would otherwise have
+    // contributed (see renderAgent), so emitting it for an agent that never granted read: true would
+    // instead grant read access the "*": false wildcard was denying (verified live against opencode
+    // 1.18.20, `opencode debug agent`: a rendered agent with no read: true entry and this block
+    // appended anyway resolves tools.read = true; without the block it resolves false).
+    {
+      const noReadRoot = tmp();
+      fs.mkdirSync(path.join(noReadRoot, 'skills'), { recursive: true });
+      write(noReadRoot, 'agents/no-read.md', [
+        '---',
+        'name: no-read',
+        'description: An agent with no Read in its tools allowlist.',
+        'tools: Grep, Bash',
+        'model: sonnet',
+        '---',
+        '',
+        'body',
+        '',
+      ].join('\n'));
+      const noReadDest = tmp();
+      render({ harness: 'opencode', pluginRoot: noReadRoot, dest: noReadDest, modelMap: new Map([['sonnet', 'acme/sonnet-1']]) });
+      const noReadAgent = fs.readFileSync(path.join(noReadDest, '.opencode', 'agents', 'no-read.md'), 'utf8');
+      assert.ok(!noReadAgent.includes('permission:'), 'no permission: block for an agent that never granted read: true');
+    }
 
     // No Claude-only token survives anywhere in the render.
     for (const rel of written) {

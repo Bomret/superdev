@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0054](0054-the-opencode-agent-render-restores-the-env-read-guard.md), which adds a
+narrow `permission:` block back for the `.env` read guard, without reopening this ADR's `tools:` decision.
+
 **Amends:** [ADR 0050](0050-carry-the-plugin-as-skills-canonical-prose-with-install-time-adapters.md),
 whose Decision names the rendered agents' access control as "a permission mapping".
 

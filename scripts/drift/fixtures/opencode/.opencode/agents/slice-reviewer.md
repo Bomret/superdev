@@ -9,6 +9,12 @@ tools:
   grep: true
   invalid: true
   read: true
+permission:
+  read:
+    "*": "allow"
+    "*.env": "ask"
+    "*.env.*": "ask"
+    "*.env.example": "allow"
 ---
 
 You review **one completed slice** before it merges. You are a separate set of eyes from the

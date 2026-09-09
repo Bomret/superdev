@@ -13,6 +13,12 @@ tools:
   read: true
   webfetch: true
   write: true
+permission:
+  read:
+    "*": "allow"
+    "*.env": "ask"
+    "*.env.*": "ask"
+    "*.env.example": "allow"
 ---
 
 You implement exactly **one vertical slice** of a larger plan, in an isolated git worktree on your own
