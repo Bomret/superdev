@@ -1,6 +1,6 @@
 ---
 # generated-by: superdev-adapter — a re-render overwrites this file
-description: "Fresh-eyes doc verifier. Reads just-reconciled docs cold and checks every claim against the repo, flagging ungrounded, stale, or ambiguous text. Read-only; dispatched by /superdev/document."
+description: "Fresh-eyes doc verifier. Reads just-reconciled docs cold and checks every claim against the repo, flagging ungrounded, stale, or ambiguous text. Read-only; dispatched by /superdev-document."
 mode: subagent
 model: anthropic/claude-sonnet-4-5
 tools:

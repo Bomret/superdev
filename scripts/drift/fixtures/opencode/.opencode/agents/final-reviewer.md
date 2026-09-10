@@ -1,6 +1,6 @@
 ---
 # generated-by: superdev-adapter — a re-render overwrites this file
-description: "Whole-scope reviewer. Reviews the integrated scope branch against the global Definition of Done before the PR. Read-only; dispatched by /superdev/review, in both its ad-hoc and scope modes."
+description: "Whole-scope reviewer. Reviews the integrated scope branch against the global Definition of Done before the PR. Read-only; dispatched by /superdev-review, in both its ad-hoc and scope modes."
 mode: subagent
 model: anthropic/claude-opus-4-1
 tools:
@@ -66,7 +66,7 @@ whatever it is about. The Critical/Important band is reserved for a derived crit
 **fails**. These are findings like any other, not a separate category.
 
 Your list is not a second Definition of Done. The DoD is what the run is verified against and what
-`/superdev/ship` ticks. Yours exists to show what the DoD left out.
+`/superdev-ship` ticks. Yours exists to show what the DoD left out.
 
 ## Read-only review
 

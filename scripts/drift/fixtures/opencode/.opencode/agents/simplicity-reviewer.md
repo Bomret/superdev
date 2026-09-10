@@ -1,6 +1,6 @@
 ---
 # generated-by: superdev-adapter — a re-render overwrites this file
-description: "Over-engineering reviewer. Reviews the diff it is handed for unnecessary complexity only. Read-only; dispatched by /superdev/implement and /superdev/review."
+description: "Over-engineering reviewer. Reviews the diff it is handed for unnecessary complexity only. Read-only; dispatched by /superdev-implement and /superdev-review."
 mode: subagent
 model: anthropic/claude-haiku-4-5
 tools:

@@ -46,6 +46,7 @@ const {
   scanDenialCapNumberSilence,
   scanAfkLockTierClaim,
   scanOpencodeFixtures,
+  scanOpencodeSurfaceSplit,
 } = require('./scanners');
 const {
   ADR_STATUSES,
@@ -480,6 +481,12 @@ module.exports = [
     CONTAINMENT_DELEGATION_CONTRACTS,
     "publish-kb's merge check names scope-mode.md as owning the containment test",
   ),
+  {
+    id: 'opencode-surface-split',
+    ok: 'afk renders as an OpenCode command and every step it drives renders as a skill',
+    run: scanOpencodeSurfaceSplit,
+    format: (gap) => gap,
+  },
 ];
 
 // The anchor contract and the afk-selection neutrality check report into the same sentence: a gap with

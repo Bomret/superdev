@@ -1,19 +1,21 @@
 ---
-description: "Plan a feature for superdev — a relentless interview that pins intent and the Definition of Done, then decomposes the work into independently-green vertical slices in the configured slice store. Run before /superdev/implement."
+# generated-by: superdev-adapter — a re-render overwrites this directory
+name: superdev-plan
+description: "Plan a feature for superdev — a relentless interview that pins intent and the Definition of Done, then decomposes the work into independently-green vertical slices in the configured slice store. Run before /superdev-implement."
 ---
 
 # superdev plan
 
 Turn an intent into a set of **independently-green vertical slices** with explicit dependencies, written
-to the slice store, ready for `/superdev/implement`. Interactive — this needs the user's judgment.
+to the slice store, ready for `/superdev-implement`. Interactive — this needs the user's judgment.
 
 ## 0. Config
 
-Read `docs/agents/issue-tracker.md` (the slice store). Missing → run **`/superdev/setup`** first, then
+Read `docs/agents/issue-tracker.md` (the slice store). Missing → run **`/superdev-setup`** first, then
 continue.
 
-**Toolchain freshness (advisory).** As in `/superdev/implement`'s **Config + input**: an absent
-`docs/agents/toolchain.md` alongside build/package manifests gets a non-blocking **`/superdev/setup`**
+**Toolchain freshness (advisory).** As in `/superdev-implement`'s **Config + input**: an absent
+`docs/agents/toolchain.md` alongside build/package manifests gets a non-blocking **`/superdev-setup`**
 suggestion, then planning continues.
 
 **Ask new vs. extend, before the interview begins.** **New** makes no store call at all — continue at §1.
@@ -51,13 +53,13 @@ from that section — the new slice's `spec` and `acceptance` become the durable
 
 ## 1. Interview (relentless, one question at a time)
 
-**`$ARGUMENTS` is the intent, when one is given.** It states what the user wants, never the design, so
+**the message that invoked this skill is the intent, when one is given.** It states what the user wants, never the design, so
 the interview still walks the whole tree — the same standing a picked brainstorm intent has. An argument
 present makes the brainstorm glob below a cross-check: only an intent whose slug matches it is offered.
 Empty → interview from the glob.
 
 **Seed from an existing brainstorm intent if there is one.** Glob `.superdev/brainstorm/*.md`, the
-git-ignored scratch intents `/superdev/brainstorm` may have left. Exactly one → offer it ("Found intent
+git-ignored scratch intents `/superdev-brainstorm` may have left. Exactly one → offer it ("Found intent
 `<slug>` — start from it?"); several → list them, let the user pick one or start fresh; none → interview
 from scratch. Never auto-select. A picked intent is a *starting point*, not a substitute for the
 interview.
@@ -104,7 +106,7 @@ cases"). **Implementation-level** edges — off-by-one, parser boundaries, encod
 implementer's TDD loop and the reviewers, who read code you never see; naming them here turns
 `acceptance` into a test script, against the plan-contract's **Negotiable** rule.
 
-Intent still vague — no clear problem, no checkable success criteria? Suggest `/superdev/brainstorm`
+Intent still vague — no clear problem, no checkable success criteria? Suggest `/superdev-brainstorm`
 first.
 
 **Read `<plugin-root>/references/doc-verification.md` and apply it whenever the interview leans
@@ -168,9 +170,9 @@ Two captures are **superdev-specific**:
   being the feature label's slug. Use an **absolute** path resolved from the invoking checkout. One `.md`
   file per page, named `<title-slug>.md` (the page `title`'s slug) so a re-run overwrites the same file
   instead of creating a rival: YAML frontmatter carrying the page `title` and an `action` of `upsert`,
-  the body below. `/superdev/publish-kb` sends no non-`.md` file; `/superdev/status` prints it as a stray
+  the body below. `/superdev-publish-kb` sends no non-`.md` file; `/superdev-status` prints it as a stray
 with a rename hint, so a misnamed page is visible rather than silently dropped.
-  `/superdev/publish-kb` sends it when the feature reaches its readers. A **local** `docs/kb/` backend
+  `/superdev-publish-kb` sends it when the feature reaches its readers. A **local** `docs/kb/` backend
   seeds as before — its pages are repository files that ride the branch.
 
   **An outline entry marked `(aggregate)` takes `action: patch` instead** (ADR 0027): name the file
@@ -181,16 +183,16 @@ with a rename hint, so a misnamed page is visible rather than silently dropped.
   block. `scripts/kb-patch.js` refuses a body with no heading, content before its first heading, more
   than one section, a setext heading, or an unterminated fence, and refuses a heading the live page
   already carries twice. The heading **level** is yours to get right — nothing checks it.
-  `/superdev/publish-kb` merges the
+  `/superdev-publish-kb` merges the
   section into the live page by that heading; an `upsert` here would replace every section other scopes
   wrote. Two sections staged in this pass whose headings kebab-case identically collide on that filename
-  before `/superdev/publish-kb` ever sees either — append `-2`, `-3`, … to the later ones'
+  before `/superdev-publish-kb` ever sees either — append `-2`, `-3`, … to the later ones'
   `<section-slug>`.
 
 Create these durable files **lazily** — only when the first term, decision, or rule crystallises, never
 as empty scaffolding. Follow `docs/agents/documentation.md` for where they live (update the relevant
 `AGENTS.md`; keep concise and current). You only seed the design docs here; the authoritative reconcile
-and stale removal happen in `/superdev/document` (ADR 0013).
+and stale removal happen in `/superdev-document` (ADR 0013).
 
 ## 3. Slice into tracer bullets
 
@@ -227,7 +229,7 @@ and schema):
   the fields are its own, because a `spec` is a contract of outcomes (ADR 0030). A slice needing no shape,
   or a repository whose language has none, gets none named.
 - **Don't create a documentation-only slice** to describe code other slices produce —
-  `/superdev/document` reconciles README, `AGENTS.md`, and the KB after the scope lands. Slice out `docs`
+  `/superdev-document` reconciles README, `AGENTS.md`, and the KB after the scope lands. Slice out `docs`
   only when documentation *is* the deliverable (e.g. a standalone guide).
 
 ## 4. Tag dependencies
@@ -302,11 +304,11 @@ re-surfaces as a stale option in the next glob. Delete only once every `Rejected
 has a durable home (§2) or was filtered out loud: this delete is irreversible and is exactly the
 silent-drop it exists to prevent. Delete only the file the user picked; leave other intents untouched.
 
-**Tell the user the expected execution tier** — informational only; `/superdev/plan` persists it nowhere.
-`/superdev/implement` derives it fresh from the final slice count — **≤3 slices → `lite`** (the
+**Tell the user the expected execution tier** — informational only; `/superdev-plan` persists it nowhere.
+`/superdev-implement` derives it fresh from the final slice count — **≤3 slices → `lite`** (the
 controller implements each slice inline in a single scope worktree, no per-slice review), **>3 slices →
 `full`** (parallel per-slice worktrees + implementer/reviewer subagents). Either tier hands off once
-every slice is on the scope branch — to `/superdev/review`, or straight to `/superdev/document` when
+every slice is on the scope branch — to `/superdev-review`, or straight to `/superdev-document` when
 every slice is `mechanical` or `docs` (ADR 0025).
 
 **Commit the durable design docs** you wrote — `CONTEXT.md`, any ADRs (`docs/adr/`), any
@@ -314,10 +316,10 @@ every slice is `mechanical` or `docs` (ADR 0025).
 when the invoking checkout is on the base branch.** Any other branch → name the branch you found and the
 base you wanted, write nothing, and stop; the plan is already in the store, so the maintainer switches to
 base and commits there — no interview, nothing re-planned — and the handoff below still prints, because
-only the commit is outstanding. `/superdev/implement` runs from a fresh worktree checkout of that branch,
+only the commit is outstanding. `/superdev-implement` runs from a fresh worktree checkout of that branch,
 so anything uncommitted never reaches it and a path-scoped rule that isn't on the branch can't auto-load.
 **Push the base branch** to its remote right after committing (if one is configured, per
-`docs/agents/code-management.md`): `/superdev/ship`'s PR is opened against the remote base, and an
+`docs/agents/code-management.md`): `/superdev-ship`'s PR is opened against the remote base, and an
 unpushed local commit there is stranded once the PR is squash-merged.
 
 **Ask whether to release the plan.** `plan-contract.md`'s *Release* section owns what a release is; the
@@ -327,14 +329,14 @@ question: **release this feature for execution now, or leave the release to a hu
 
 - **Release now** → apply the signal to the scope anchor, and say it is applied.
 - **Later** → apply nothing, and name what a human does to release it: the signal, and where it goes.
-  Say that `/superdev/implement` asks for confirmation until then.
+  Say that `/superdev-implement` asks for confirmation until then.
 
 A store whose `## Release` section says its features are released when written has nothing to ask: say
 the plan is live and move on. On every other store the answer is the user's, so **wait for it**, and a
 correction the user names on seeing the list is applied to the store before the question is put again.
 
 Then **print the next command with
-the feature label resolved** — `/superdev/implement <feature-label>`, carrying the real label this plan
+the feature label resolved** — `/superdev-implement <feature-label>`, carrying the real label this plan
 wrote, in the shape `docs/agents/issue-tracker.md` states (ADR 0019) — so the line is copy-pasteable.
 Every command in the chain hands off this way (ADR 0013), and the label is also what fixes the run's
 scope, its branch, and its run root.

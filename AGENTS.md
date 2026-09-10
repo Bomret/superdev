@@ -230,9 +230,11 @@ This root owns every other subtree directly:
   `plugin/scripts/adapter.js` (the OpenCode harness adapter, issue #375: renders the shipped skills
   and agents into `.opencode/`, plus the OpenCode hook bridge plugin `.opencode/plugins/superdev.js`
   that forwards OpenCode's plugin events to the eight shipped hooks, issue #376; golden fixtures
-  under `scripts/drift/fixtures/opencode/`),
+  under `scripts/drift/fixtures/opencode/`. Prompts render as skills, the only surface OpenCode's
+  model can invoke. `afk` alone renders as a command, which keeps that model from starting an
+  unattended sweep itself, ADR 0055),
   `scripts/eval-run.js` (the eval
-  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the seventy cross-document contract checks: the
+  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the seventy-one cross-document contract checks: the
   CLI walks the `drift/checks.js` registry, which orders every scanner and contract table). What each
   guards, check by check, lives in that child doc.
 - `plugin/references/`. Backend seed templates plus the runtime references. Owned by

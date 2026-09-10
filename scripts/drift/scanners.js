@@ -1207,6 +1207,56 @@ function scanOpencodeFixtures(root) {
   }
 }
 
+// scanOpencodeSurfaceSplit() is pure over a root dir: the committed OpenCode render puts each
+// surface on the side of the skill/command split that its role demands (ADR 0055).
+//
+// Two directions, and the check needs both. `afk` renders as a command and never as a skill —
+// a command is the one OpenCode surface the model cannot invoke, which is the whole mechanism
+// standing between a model and an unattended backlog sweep it started itself. And every step afk's
+// own chain table names renders as a skill and never as a command — a chain step rendered as a
+// command is one afk cannot invoke, which strands the sweep at that step.
+//
+// The chain-step list is read out of `plugin/skills/afk/SKILL.md`'s own routing section rather than
+// hand-copied here, so a step added to that table is a step this check immediately demands a skill
+// for. It reads the committed fixtures rather than rendering: `opencode-render` already pins those
+// to a fresh render, so the two together cover the live path. Either side absent skips the check,
+// matching every other scanner.
+function scanOpencodeSurfaceSplit(root) {
+  const { FIXTURE_DIR } = require('./opencode-fixtures');
+  const afkPath = path.join(root, 'plugin', 'skills', 'afk', 'SKILL.md');
+  const fixtureDir = path.join(root, FIXTURE_DIR);
+  if (!fs.existsSync(afkPath) || !fs.existsSync(fixtureDir)) return [];
+
+  const afk = fs.readFileSync(afkPath, 'utf8');
+  // The routing section, bounded at the next same-level heading: the `/superdev:<name>` tokens in it
+  // are the chain steps afk drives.
+  const section = afk.match(/\n## 3\. Take it through the chain\n([\s\S]*?)(?=\n## |$)/);
+  const steps = section ? [...new Set([...section[1].matchAll(/\/superdev:([a-z][a-z-]*)/g)].map((m) => m[1]))].sort() : [];
+
+  const skillOf = (name) => path.join(fixtureDir, '.opencode', 'skills', `superdev-${name}`, 'SKILL.md');
+  const commandOf = (name) => path.join(fixtureDir, '.opencode', 'commands', 'superdev', `${name}.md`);
+  const gaps = [];
+
+  if (fs.existsSync(skillOf('afk'))) {
+    gaps.push('afk renders as an OpenCode skill, which the model can invoke through the skill tool — it renders as a command precisely so it cannot (ADR 0055)');
+  }
+  if (!fs.existsSync(commandOf('afk'))) {
+    gaps.push('afk renders as no OpenCode command — the command render is what reproduces its disable-model-invocation (ADR 0055)');
+  }
+  if (steps.length === 0) {
+    gaps.push("skills/afk/SKILL.md's `## 3. Take it through the chain` section names no `/superdev:<name>` step — the surface-split check has nothing to hold the render to");
+  }
+  for (const step of steps) {
+    if (!fs.existsSync(skillOf(step))) {
+      gaps.push(`afk drives \`/superdev:${step}\`, which renders as no OpenCode skill — a step the model cannot invoke strands the sweep there (ADR 0055)`);
+    }
+    if (fs.existsSync(commandOf(step))) {
+      gaps.push(`afk drives \`/superdev:${step}\`, which renders as an OpenCode command — a command is not model-invocable, so afk cannot reach it (ADR 0055)`);
+    }
+  }
+  return gaps;
+}
+
 module.exports = {
   scan,
   scanScaffoldLedger,
@@ -1245,4 +1295,5 @@ module.exports = {
   scanReadmeCommands,
   scanAuditSetGlobs,
   scanOpencodeFixtures,
+  scanOpencodeSurfaceSplit,
 };

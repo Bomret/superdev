@@ -1,5 +1,7 @@
 ---
-description: "Execute a superdev plan — drive its vertical slices to merge as a dependency-ordered DAG, with an execution tier sized to the slice count, then hand off to the next command in the chain. Use when a plan exists in the slice store; run /superdev/plan first if not."
+# generated-by: superdev-adapter — a re-render overwrites this directory
+name: superdev-implement
+description: "Execute a superdev plan — drive its vertical slices to merge as a dependency-ordered DAG, with an execution tier sized to the slice count, then hand off to the next command in the chain. Use when a plan exists in the slice store; run /superdev-plan first if not."
 ---
 
 # superdev implement
@@ -15,7 +17,7 @@ worktree before run handoff (ADR 0031).
 
 **Core principle:** a slice's green suite proves its fixtures pass, not that it's correct. `full`
 re-verifies each slice with reviewer subagents and integrates serially; `lite` leans on the whole-scope
-review `/superdev/review` runs next.
+review `/superdev-review` runs next.
 
 `full` dispatches `implementer`, `slice-reviewer`, and `simplicity-reviewer`
 with per-slice specifics, not the whole plan; their discipline lives in their own bodies. `lite`
@@ -49,10 +51,10 @@ dispatches nothing — you carry the TDD discipline yourself. Narrate at most on
 - Read `docs/agents/issue-tracker.md` (slice store), `docs/agents/code-management.md` (code host),
   `docs/agents/documentation.md` (documentation convention), `docs/agents/knowledge-base.md` (optional
   KB), `docs/agents/verification.md` (test command). Slice store or code host missing → run
-  **`/superdev/setup`**, then continue. **Advisory:** `docs/agents/toolchain.md` absent while the repo has
+  **`/superdev-setup`**, then continue. **Advisory:** `docs/agents/toolchain.md` absent while the repo has
   build manifests (`package.json`, `*.csproj`/`*.sln`, `pom.xml`/`build.gradle*`, `pyproject.toml`,
-  `Cargo.toml`, `go.mod`, …) → suggest **`/superdev/setup`**; non-blocking, continue.
-- **Resolve `$ARGUMENTS` to one feature.** Take `--unattended` out first, wherever it sits. A **feature
+  `Cargo.toml`, `go.mod`, …) → suggest **`/superdev-setup`**; non-blocking, continue.
+- **Resolve the message that invoked this skill to one feature.** Take `--unattended` out first, wherever it sits. A **feature
   label** is the feature's slice-store label per `docs/agents/issue-tracker.md`, in that store's shape. It
   carries a **change type** and a slug (`<plugin-root>/references/scope-mode.md`'s
   `## The change type`): `fix/lite-perf` gives scope `lite-perf`, branch `fix/lite-perf`, run root
@@ -64,11 +66,11 @@ dispatches nothing — you carry the TDD discipline yourself. Narrate at most on
     single-slice plan (ADR 0017) — plus every slice carrying it. On a single-slice plan the anchor *is*
     the slice: load that one issue once, or you implement it twice. Label unknown to the store → say so
     and stop, creating no run root. **Anchor is an epic carrying no slices** → say so, point at
-    **`/superdev/plan`**, stop. **`--unattended` → block**.
+    **`/superdev-plan`**, stop. **`--unattended` → block**.
   - **Empty** → exactly one feature has slices ready → use it. Several → name them and ask which;
-    **`--unattended` → block**. None → run **`/superdev/plan`** first.
+    **`--unattended` → block**. None → run **`/superdev-plan`** first.
 - **Load the slices** (`id`, `depends-on`, `test-applicability`, `spec`, `acceptance`, + global DoD). No
-  slices → run **`/superdev/plan`** first. **One slice, no epic** → the epic is optional
+  slices → run **`/superdev-plan`** first. **One slice, no epic** → the epic is optional
   (`plan-contract.md`): the DoD is that slice's `acceptance`.
 - **Check the feature is released** (`plan-contract.md` → *Release*). The signal and the call that reads
   it live in `docs/agents/issue-tracker.md`'s `## Release` section; read it off the **scope anchor**, whose
@@ -79,14 +81,14 @@ dispatches nothing — you carry the TDD discipline yourself. Narrate at most on
   passes over an unreleased feature, so this stop means one was named on the command line.
 - **`--unattended` present** → read `<plugin-root>/references/scope-mode.md`'s **Unattended**
   section and follow it wherever this command or its playbook asks a question or starts an interview
-  command (`/superdev/setup`, `/superdev/plan`). The "slice store or code host missing" and "no slices"
+  command (`/superdev-setup`, `/superdev-plan`). The "slice store or code host missing" and "no slices"
   stops above are exactly that: block there instead of running the interview. Nothing else in that file
   applies here.
 - **Pre-flight scan:** read all slices once for contradictions (slice vs slice, slice vs DoD, a
   specification mandating something a review would flag). Batch what you find to the user; clean →
   proceed silently. **`--unattended` → block**, naming the contradictions.
 - **Compute the tier** — **≤3 slices → `lite`**, **>3 → `full`** — derived fresh every run, never
-  configured or persisted (`/superdev/plan` derives it the same way). `Read` your playbook and follow it
+  configured or persisted (`/superdev-plan` derives it the same way). `Read` your playbook and follow it
   start to finish:
   - `full` → `<plugin-root>/references/implement-full.md`
   - `lite` → `<plugin-root>/references/implement-lite.md`
@@ -102,7 +104,7 @@ flow, so log a failed status write and keep going. Points: dispatch → `in-prog
 review (behavior only) → `in-review`; BLOCKED → `blocked`; merged → `merged`/done.
 
 The **scope anchor** — the epic, or the lone slice on a single-slice plan — moves to `in-progress` when
-the run starts, and **`/superdev/ship` closes it**, not you. **On a single-slice plan the anchor rule
+the run starts, and **`/superdev-ship` closes it**, not you. **On a single-slice plan the anchor rule
 wins**: that one issue stays `in-progress` through the merge and closes once, at ship. (`lite` skips the
 `in-review` transition — it has no per-slice review.)
 

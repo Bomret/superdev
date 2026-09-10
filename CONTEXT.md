@@ -284,7 +284,7 @@ _Avoid: "extension" (that names a harness's own component kind, e.g. Gemini's), 
 **Canonical surface**: the single authored form a piece of the pack keeps in the repo — skills for prompts, agents for subagents, hook scripts for guardrails. Everything a harness loads derives from it, either natively (Claude Code) or through a **Harness adapter**.
 _Avoid: "source of truth" (the repo as a whole already claims that), "template" (that names a backend **Seed**), "primary"_
 
-**Render target**: one file set a harness adapter writes into a consumer's repository (for example `.opencode/commands/`, `.opencode/agents/`, `.opencode/plugins/`). Generated, never hand-edited, and reproducible by re-running the adapter.
+**Render target**: one file set a harness adapter writes into a consumer's repository (for example `.opencode/skills/`, `.opencode/commands/`, `.opencode/agents/`, `.opencode/plugins/`). Generated, never hand-edited, and reproducible by re-running the adapter.
 _Avoid: "artifact" (too generic), "output" (an invocation property), "install" (that is the whole flow, not the file set)_
 
 **Model-invocable surface**: a **Render target** the harness's own model can start, as against one only the operator can. Which target kind carries the property is the harness's to decide — on OpenCode a skill does and a command does not — and it is what decides where each surface renders: `/superdev:afk` chains four other surfaces itself, so those four must carry it, and afk must not (ADR 0055).

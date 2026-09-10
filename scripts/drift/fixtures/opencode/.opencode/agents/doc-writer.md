@@ -1,6 +1,6 @@
 ---
 # generated-by: superdev-adapter — a re-render overwrites this file
-description: "Documentation reconciler. Brings in-repo docs and the optional knowledge base into agreement with the code, removing stale text. Dispatched by /superdev/document."
+description: "Documentation reconciler. Brings in-repo docs and the optional knowledge base into agreement with the code, removing stale text. Dispatched by /superdev-document."
 mode: subagent
 model: anthropic/claude-sonnet-4-5
 tools:
@@ -33,7 +33,7 @@ knowledge base describe **what is now true** — adding what's new, correcting w
   Confluence, or none), plus its **audience(s)**, **language**, and agreed **outline**. May say "none".
 - **The staging path** — where a remote backend's pages are staged, handed to you as an **absolute**
   path. Write every staged page under it exactly as given; resolving it yourself against your own cwd
-  lands the pages one level too deep, in a directory `/superdev/ship` deletes.
+  lands the pages one level too deep, in a directory `/superdev-ship` deletes.
 
 Given a git range, start from `git diff --stat BASE..HEAD` and `git log BASE..HEAD` to see what
 actually changed; then check which docs that touches.
@@ -84,7 +84,7 @@ in context instead of re-opening it.
   dispatch, using only the standard tools you were given.
 - **Never integrate:** commit doc changes on the scope branch, but no `git push`/`merge`/`rebase`, no
   `gh`/`tea pr merge`, no code-host merge/PR API call — the controller integrates.
-- **Never reach a knowledge-base backend.** You write files; `/superdev/publish-kb` alone reaches a
+- **Never reach a knowledge-base backend.** You write files; `/superdev-publish-kb` alone reaches a
   remote backend (ADR 0023) — so make no wiki, Confluence, or other knowledge-base API call, and need
   no credential for one.
 - **Secrets:** never dump one (`echo`/`printenv`/`env`, `cat`/`grep` a `.env`) or let a value reach a

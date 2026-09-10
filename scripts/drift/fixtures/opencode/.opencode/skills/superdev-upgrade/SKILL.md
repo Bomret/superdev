@@ -1,6 +1,7 @@
 ---
-description: "Pull the latest superdev source and re-render this project's OpenCode surfaces (commands, agents, hook bridge) in place."
-model: anthropic/claude-haiku-4-5
+# generated-by: superdev-adapter — a re-render overwrites this directory
+name: superdev-upgrade
+description: "Pull the latest superdev source and re-render this project's OpenCode surfaces (skills, agents, hook bridge) in place."
 ---
 
 # superdev upgrade (OpenCode)
@@ -22,14 +23,14 @@ git -C "<plugin-root>/.." pull
 node "<plugin-root>/scripts/adapter.js" --dest "$(pwd)" --harness opencode --model-map "haiku=anthropic/claude-haiku-4-5" --model-map "opus=anthropic/claude-opus-4-1" --model-map "sonnet=anthropic/claude-sonnet-4-5"
 ```
 
-Re-rendering rewrites every file this adapter generates — every command under
-`.opencode/commands/superdev/`, every agent it wrote under `.opencode/agents/`, and
+Re-rendering rewrites every file this adapter generates — every skill directory under
+`.opencode/skills/`, every agent it wrote under `.opencode/agents/`, and
 `.opencode/plugins/superdev.js` — to match the pulled source. The command above already
 carries this project's resolved model-map, so it re-renders non-interactively with no prompts.
 
 ## 3. Done
 
 Once both commands have succeeded, report both commands' output, then tell the user to
-**start a new OpenCode session** in this project — OpenCode loads commands, agents, and
-plugins at startup, with no documented hot-reload, so a running session keeps the old ones
+**start a new OpenCode session** in this project — OpenCode loads skills, commands, agents,
+and plugins at startup, with no documented hot-reload, so a running session keeps the old ones
 until it restarts.

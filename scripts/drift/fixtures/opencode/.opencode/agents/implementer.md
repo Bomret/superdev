@@ -1,6 +1,6 @@
 ---
 # generated-by: superdev-adapter — a re-render overwrites this file
-description: "Slice implementer. Builds ONE vertical slice test-first, the laziest version that works. Dispatched by /superdev/implement — not for direct use."
+description: "Slice implementer. Builds ONE vertical slice test-first, the laziest version that works. Dispatched by /superdev-implement — not for direct use."
 mode: subagent
 model: anthropic/claude-sonnet-4-5
 tools:
@@ -46,7 +46,7 @@ off; never redo an increment that's already committed.
 whatever your language names a domain concept with: an interface or type, a class, a DTO, a dataclass or
 `TypedDict`, a schema. A `spec` naming none leaves nothing to declare. The names and their vocabulary are
 the `spec`'s; the fields are yours. A shape whose term `CONTEXT.md` lacks goes in your closing summary —
-never invent one, because `/superdev/document` proposes the term and the maintainer confirms it. A
+never invent one, because `/superdev-document` proposes the term and the maintainer confirms it. A
 `spec`-named shape is **requested**, so the minimalism ladder below still forbids every abstraction the
 `spec` did not name (ADR 0030).
 
@@ -182,7 +182,7 @@ Write correct **code-level comments** for the code you produce (the author can't
 don't leave a comment your change made false. That's your whole doc duty.
 
 **Do not** touch the `AGENTS.md` hierarchy or the knowledge base — those are reconciled **once** at the
-end of the scope by `/superdev/document` (the `doc-writer`), not per slice, to avoid churn when a later
+end of the scope by `/superdev-document` (the `doc-writer`), not per slice, to avoid churn when a later
 slice supersedes an earlier one's docs.
 
 ## Progress log & report

@@ -1,6 +1,6 @@
 ---
 # generated-by: superdev-adapter — a re-render overwrites this file
-description: "Per-slice correctness reviewer. Verifies one slice against its specification and independently re-runs the suite. Read-only; dispatched by /superdev/implement."
+description: "Per-slice correctness reviewer. Verifies one slice against its specification and independently re-runs the suite. Read-only; dispatched by /superdev-implement."
 mode: subagent
 model: anthropic/claude-sonnet-4-5
 tools:

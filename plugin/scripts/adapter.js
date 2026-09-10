@@ -2,31 +2,38 @@
 'use strict';
 
 // adapter.js: the harness adapter (issue #375). Renders the shipped surfaces — the
-// plugin/skills/<name>/SKILL.md commands, the plugin/agents/<name>.md subagents, and the
+// plugin/skills/<name>/SKILL.md prompts, the plugin/agents/<name>.md subagents, and the
 // deterministic guardrails — into another harness's on-disk layout, so a superdev install there
 // carries the same chain. The only harness is `opencode`: skills render to
-// `.opencode/commands/superdev/<name>.md` (skill `afk` is skipped; `upgrade` renders synthesized,
-// OpenCode-native content instead of its Claude-Code-only body, ADR 0052), agents to
+// `.opencode/skills/superdev-<name>/SKILL.md` (`upgrade` renders synthesized, OpenCode-native
+// content instead of its Claude-Code-only body, ADR 0052), agents to
 // `.opencode/agents/<name>.md`, with the Claude-specific tokens rewritten deterministically, and
 // the eight hooks are bridged by a generated OpenCode plugin at `.opencode/plugins/superdev.js`
 // (issue #376) that spawns them as `node <plugin-root>/hooks/<hook>.js` with a Claude-shaped
 // stdin payload. Exit nonzero with a one-line stderr reason on any refusal, the convention
 // scripts/scope.js uses.
 //
+// A skill is the model-invocable target: OpenCode exposes one through its built-in `skill` tool and
+// registers it as a `/superdev-<name>` slash command besides, where a command under
+// `.opencode/commands/` is only ever typed by the operator. That is what decides which surface
+// renders where — SKILL_ONLY_COMMANDS names the ones that stay commands (ADR 0055).
+//
 // Flags: --harness opencode, --plugin-root <abs-path> (default: this script's .., the plugin
 // root), --dest <dir>, a repeatable --model-map <alias>=<provider/model>, and --selftest.
-// Rendered agent and command frontmatter resolves each surface's `model:` alias through
-// --model-map. The CLI fills in a missing alias interactively before it ever renders: it queries
+// Rendered agent frontmatter resolves each agent's `model:` alias through
+// --model-map; a rendered skill carries no model at all, since OpenCode skill frontmatter has no
+// such key. The CLI fills in a missing alias interactively before it ever renders: it queries
 // the OpenCode config for the models available and prompts for a pick, one prompt per still-missing
 // alias — an alias --model-map already covers is never asked about. Every rendered
 // string scalar is emitted JSON-quoted, so a description carrying `: ` stays valid YAML. A
-// command's `allowed-tools:` carries verbatim: OpenCode command frontmatter has no permission
+// surface's `allowed-tools:` carries verbatim: OpenCode frontmatter has no permission
 // key, and carrying the field beats dropping it silently.
 //
 // A render is idempotent: it removes its own generated files before writing —
-// .opencode/commands/superdev/ wholesale (a namespaced subdirectory nothing foreign shares),
-// .opencode/plugins/superdev.js by name, and, in the shared .opencode/agents/ directory, only the
-// files carrying AGENT_MARKER from a past render — and touches nothing else in --dest.
+// .opencode/commands/superdev/ wholesale (a namespaced subdirectory nothing foreign shares, which
+// also clears an install rendered before ADR 0055), .opencode/plugins/superdev.js by name, and, in
+// the shared .opencode/agents/ and .opencode/skills/ directories, only the files and directories
+// carrying AGENT_MARKER or SKILL_MARKER from a past render — and touches nothing else in --dest.
 //
 // The module is require-able (guarded main), so the drift-check fixture diff and a harness hook
 // bridge drive render() in-process instead of spawning the CLI.
@@ -63,11 +70,30 @@ const HARNESSES = ['opencode'];
 // every other field correctly).
 const AGENT_MARKER = '# generated-by: superdev-adapter — a re-render overwrites this file';
 
-// The afk skill drives the chain unattended one anchor at a time; it is a Claude Code Skill-tool
-// driver and has no OpenCode command rendering (issue #375). upgrade renders too (see
-// renderOpencodeUpgradeCommand below, ADR 0052) — its OpenCode content is synthesized rather than
-// skipped, since its Claude-Code-only body is not this skill's only possible rendering.
-const SKIPPED_SKILLS = new Set(['afk']);
+// The same marker for a rendered skill, and for the same reason: .opencode/skills/ is a shared
+// OpenCode directory, so a re-render removes only the skill directories this adapter itself wrote.
+// Keying cleanup on the `superdev-` name prefix instead would delete a consumer's own skill that
+// happens to start that way. A YAML comment rather than a frontmatter field: OpenCode recognizes
+// `name`, `description`, `license`, `compatibility` and `metadata` and ignores everything else, and
+// a comment is invisible to a schema validator besides (verified live against opencode 1.18.20,
+// 2026-09-09 — a rendered skill carrying this exact line still resolved every other field
+// correctly, and `opencode debug skill` still listed it under its own `name`).
+const SKILL_MARKER = '# generated-by: superdev-adapter — a re-render overwrites this directory';
+
+// A rendered skill's name is the canonical skill name behind this prefix. OpenCode's skill registry
+// is flat and globally unique across every scan root, so an unprefixed `plan` or `review` would
+// collide with a consumer's own skill of that name (ADR 0055).
+const SKILL_NAME_PREFIX = 'superdev-';
+
+// OpenCode's own skill-name rule: lowercase alphanumerics in hyphen-separated segments, and the
+// name must match the directory holding the SKILL.md.
+const SKILL_NAME_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+// afk renders as an OpenCode *command*, never a skill: a command is not model-invocable there, which
+// is what reproduces Claude Code's `disable-model-invocation: true` and keeps the model from starting
+// an unattended backlog sweep on its own (ADR 0055). It is skipped by the skill render for that
+// reason, not for want of a rendering.
+const SKILL_ONLY_COMMANDS = new Set(['afk']);
 
 function fail(msg) {
   const err = new Error(msg);
@@ -96,14 +122,18 @@ function readFrontmatter(text, source) {
 
 // The three deterministic rewrites a rendered body gets, applied to the whole rendered file
 // (frontmatter descriptions name `/superdev:<cmd>` too, so rewriting only the body would leak the
-// token). `${CLAUDE_PLUGIN_ROOT}` becomes the --plugin-root value; `/superdev:<cmd>` becomes
-// `/superdev/<cmd>`; a bare `superdev:<agent>` becomes the bare agent name. Both name rewrites are
+// token). `${CLAUDE_PLUGIN_ROOT}` becomes the --plugin-root value; a bare `superdev:<agent>` becomes
+// the bare agent name; and `/superdev:<cmd>` becomes whichever slash-command name that surface
+// actually renders under — `/superdev-<cmd>` for a skill, which OpenCode registers flat, and
+// `/superdev/<cmd>` for a SKILL_ONLY_COMMANDS member, which renders into the namespaced commands
+// subdirectory instead (ADR 0055). Both name rewrites are
 // restricted to the names discovered under --plugin-root, so a token that is not a real skill or
 // agent (an HTML comment marker, a prose example) is never mangled.
 function rewriteProse(text, opts) {
   let out = text.split('${CLAUDE_PLUGIN_ROOT}').join(opts.pluginRoot);
   for (const name of opts.skills) {
-    out = out.replace(new RegExp(`/superdev:${name}\\b`, 'g'), `/superdev/${name}`);
+    const rendered = SKILL_ONLY_COMMANDS.has(name) ? `/superdev/${name}` : `/${SKILL_NAME_PREFIX}${name}`;
+    out = out.replace(new RegExp(`/superdev:${name}\\b`, 'g'), rendered);
   }
   for (const name of opts.agents) {
     out = out.replace(new RegExp(`(?<![/\\w-])superdev:${name}\\b`, 'g'), name);
@@ -261,8 +291,9 @@ async function promptForModelMap(models, opts) {
   return picks;
 }
 
-// plugin/skills/<name>/SKILL.md → .opencode/commands/superdev/<name>.md. The command name comes
-// from the filename, so the rendered frontmatter keeps the description, the resolved model when
+// plugin/skills/<name>/SKILL.md → .opencode/commands/superdev/<name>.md, the render target for a
+// SKILL_ONLY_COMMANDS member. The command name comes
+// from the directory, so the rendered frontmatter keeps the description, the resolved model when
 // the skill pins one, and the allowed-tools list verbatim.
 function renderCommand(name, skillPath, modelMap, rewrite) {
   const { fields, body } = readFrontmatter(fs.readFileSync(skillPath, 'utf8'), skillPath);
@@ -273,6 +304,52 @@ function renderCommand(name, skillPath, modelMap, rewrite) {
   if (fields['allowed-tools']) frontmatter += `allowed-tools: ${yamlString(fields['allowed-tools'])}\n`;
   frontmatter += '---\n';
   return rewrite(`${frontmatter}\n${body.replace(/^\n+/, '')}`);
+}
+
+// The canonical `$ARGUMENTS` token is Claude Code's own command-argument substitution: Claude Code
+// fills it in with whatever followed the invocation before the model ever reads the prompt.
+// OpenCode's built-in `skill` tool takes only a `name` (ADR 0055), so a model that invokes a rendered
+// skill that way substitutes nothing at all. A literal, unsubstituted `$ARGUMENTS` left in the render
+// would then read as empty to the model, which plausibly takes the documented empty-input branch and
+// silently drops whatever the invoker actually said (including `--unattended`, ADR 0016). Removing
+// the token is safe on the *other* path into the same rendered file — the slash command every skill
+// auto-registers — because OpenCode there appends the operator's typed arguments to the prompt
+// whenever it finds neither `$ARGUMENTS` nor a `$N` left to fill (verified 2026-09-10, opencode
+// 1.18.20: `SessionPrompt.command`). Rewritten here, in renderSkill, rather than in rewriteProse's
+// shared rewrites: it is true only of the skill surface, never of the command surface
+// renderCommand/renderOpencodeAfkCommand serve, where OpenCode's own slash-command
+// substitution still fills the token in exactly as Claude Code's does (verified 2026-09-10, opencode
+// 1.18.20: `SessionPrompt.command`'s `$ARGUMENTS` replacement) — folding it into rewriteProse
+// would need the function to know which surface its caller renders to, for one token rewriteProse's
+// other three never needed.
+const ARGUMENTS_TOKEN = '$ARGUMENTS';
+const OPENCODE_ARGUMENTS_PHRASE = 'the message that invoked this skill';
+
+// plugin/skills/<name>/SKILL.md → .opencode/skills/superdev-<name>/SKILL.md, the model-invocable
+// render target: OpenCode exposes a skill through its built-in `skill` tool and registers it as a
+// `/superdev-<name>` slash command besides, where a command carries only the second of those two
+// (ADR 0055). The rendered `name` must equal the directory holding it, so both come from the same
+// prefixed value.
+//
+// No `model:` line: OpenCode skill frontmatter recognizes `name`, `description`, `license`,
+// `compatibility` and `metadata`, so a canonical `model:` pin has nowhere to land and the skill runs
+// on the session's model. `allowed-tools` carries verbatim on the same reasoning renderCommand
+// already applies — an ignored field beats a silently dropped one.
+function renderSkill(name, skillPath, rewrite) {
+  const { fields, body } = readFrontmatter(fs.readFileSync(skillPath, 'utf8'), skillPath);
+  if (!fields.description) fail(`${skillPath} carries no description`);
+  const skillName = `${SKILL_NAME_PREFIX}${name}`;
+  if (!SKILL_NAME_PATTERN.test(skillName)) {
+    fail(`'${skillName}' is not a valid OpenCode skill name — lowercase alphanumeric segments joined by '-' (${skillPath})`);
+  }
+  let frontmatter = `---\n${SKILL_MARKER}\nname: ${skillName}\ndescription: ${yamlString(fields.description)}\n`;
+  if (fields['allowed-tools']) frontmatter += `allowed-tools: ${yamlString(fields['allowed-tools'])}\n`;
+  frontmatter += '---\n';
+  let result = rewrite(`${frontmatter}\n${body.replace(/^\n+/, '')}`);
+  // Rewrite $ARGUMENTS: handle backticked form first so backticks are consumed, then any bare token.
+  result = result.replace(/`\$ARGUMENTS`/g, OPENCODE_ARGUMENTS_PHRASE);
+  result = result.split(ARGUMENTS_TOKEN).join(OPENCODE_ARGUMENTS_PHRASE);
+  return result;
 }
 
 // plugin/agents/<name>.md → .opencode/agents/<name>.md: description, `mode: subagent`, the model
@@ -331,19 +408,19 @@ function renderAgent(name, agentPath, modelMap, rewrite) {
   return rewrite(`${frontmatter}\n${body.replace(/^\n+/, '')}`);
 }
 
-// renderOpencodeUpgradeCommand() emits .opencode/commands/superdev/upgrade.md: OpenCode's real
+// renderOpencodeUpgradeSkill() emits .opencode/skills/superdev-upgrade/SKILL.md: OpenCode's real
 // upgrade path — a git pull in the plugin's source clone, then a re-render — synthesized directly
 // here rather than derived from plugin/skills/upgrade/SKILL.md's body, which drives Claude Code's
 // own `claude plugin update` and has no OpenCode equivalent (ADR 0052, amending ADR 0050's outright
 // exclusion). The same treatment renderBridge() above already gives the hook-bridge plugin: both
-// are pure harness mechanics with no prose in common with their Claude Code counterpart. The model
-// alias still resolves from the shipped skill's own frontmatter (`model: haiku` today), so a future
-// retier of `upgrade` is inherited here rather than duplicated as a second magic string. The
+// are pure harness mechanics with no prose in common with their Claude Code counterpart. It carries
+// no `model:` line, for the reason renderSkill() states: OpenCode skill frontmatter has no such key
+// (ADR 0055). The
 // "start a new OpenCode session" instruction is verified against OpenCode's own plugin docs
 // (https://opencode.ai/docs/plugins/, 2026-09-06): plugin/command/agent files are "loaded at
 // startup", with no documented hot-reload, so a fresh session is the correct load point.
-function renderOpencodeUpgradeCommand(skillPath, pluginRoot, modelMap) {
-  const { fields } = readFrontmatter(fs.readFileSync(skillPath, 'utf8'), skillPath);
+function renderOpencodeUpgradeSkill(skillPath, pluginRoot, modelMap) {
+  readFrontmatter(fs.readFileSync(skillPath, 'utf8'), skillPath);
   // Kept as a literal `pluginRoot + '/..'` string, never path.dirname(pluginRoot)'s normalized
   // parent: the golden-fixture normalizer (scripts/drift/opencode-fixtures.js) replaces only exact
   // occurrences of the resolved plugin-root string with its `<plugin-root>` placeholder, so a
@@ -359,12 +436,9 @@ function renderOpencodeUpgradeCommand(skillPath, pluginRoot, modelMap) {
   const modelMapArgs = [...modelMap]
     .map(([alias, value]) => ` --model-map ${JSON.stringify(`${alias}=${value}`)}`)
     .join('');
-  let frontmatter = `---\ndescription: ${yamlString(
-    "Pull the latest superdev source and re-render this project's OpenCode surfaces (commands, agents, hook bridge) in place.",
-  )}\n`;
-  const model = resolveModel(fields, modelMap, 'command', 'upgrade');
-  if (model !== undefined) frontmatter += `model: ${model}\n`;
-  frontmatter += '---\n';
+  const frontmatter = `---\n${SKILL_MARKER}\nname: ${SKILL_NAME_PREFIX}upgrade\ndescription: ${yamlString(
+    "Pull the latest superdev source and re-render this project's OpenCode surfaces (skills, agents, hook bridge) in place.",
+  )}\n---\n`;
   const body = [
     '',
     '# superdev upgrade (OpenCode)',
@@ -391,20 +465,93 @@ function renderOpencodeUpgradeCommand(skillPath, pluginRoot, modelMap) {
     `node ${JSON.stringify(adapterPath)} --dest "$(pwd)" --harness opencode${modelMapArgs}`,
     '```',
     '',
-    'Re-rendering rewrites every file this adapter generates — every command under',
-    '`.opencode/commands/superdev/`, every agent it wrote under `.opencode/agents/`, and',
+    'Re-rendering rewrites every file this adapter generates — every skill directory under',
+    '`.opencode/skills/`, every agent it wrote under `.opencode/agents/`, and',
     '`.opencode/plugins/superdev.js` — to match the pulled source. The command above already',
     "carries this project's resolved model-map, so it re-renders non-interactively with no prompts.",
     '',
     '## 3. Done',
     '',
     "Once both commands have succeeded, report both commands' output, then tell the user to",
-    '**start a new OpenCode session** in this project — OpenCode loads commands, agents, and',
-    'plugins at startup, with no documented hot-reload, so a running session keeps the old ones',
+    '**start a new OpenCode session** in this project — OpenCode loads skills, commands, agents,',
+    'and plugins at startup, with no documented hot-reload, so a running session keeps the old ones',
     'until it restarts.',
     '',
   ].join('\n');
   return frontmatter + body;
+}
+
+// The sentence afk's canonical body uses to name its chain driver, and the OpenCode rendering that
+// replaces it. Claude Code's Skill tool has no OpenCode counterpart that takes arguments: OpenCode's
+// own `skill` tool takes a `name` and nothing else, so a step's arguments travel in the model's own
+// message rather than in the call (ADR 0055). renderOpencodeAfkCommand refuses when the canonical
+// sentence is absent, so an edit to afk's own prose surfaces here instead of silently shipping a
+// rendered afk that still names a tool OpenCode does not have.
+const AFK_SKILL_TOOL_SENTENCE = [
+  '**You invoke the real commands** with the Skill tool — the same commands a maintainer types, carrying',
+  '`--unattended` (ADR 0015). You never re-implement what they do, and you never edit a file yourself.',
+].join('\n');
+
+const AFK_OPENCODE_INVOCATION = [
+  "**You invoke the real commands** with OpenCode's own `skill` tool, naming the rendered skill —",
+  '`superdev-implement`, `superdev-review`, `superdev-document`, `superdev-ship` — the same commands a',
+  'maintainer types, carrying `--unattended` (ADR 0015). That tool takes a `name` and nothing else, so',
+  "state each step's arguments — the feature label, the commit range, and `--unattended` — in your own",
+  'message as you invoke it. You never re-implement what they do, and you never edit a file yourself.',
+  '',
+  '**The operator starts this sweep from a shell**, not from a slash command in a live session:',
+  '`opencode run --auto --command superdev/afk`. `--auto` approves every permission not explicitly',
+  'denied, which is what keeps `doom_loop` and `external_directory` — both `ask` by default — from',
+  'stalling a run nobody is watching. A headless run denies the `question` tool outright, which is the',
+  'behaviour the standing answers already assume: a stop with no standing answer is a block, never a',
+  'question.',
+].join('\n');
+
+// afk's own §3 chain table opens with this exact header, right above rows whose "Start at" cells are
+// Claude Code slash-command text — rewriteProse turns each into `/superdev-<cmd>` for OpenCode the
+// same way it does everywhere else in the body. That rewritten text still reads as a slash command,
+// though, and nothing on OpenCode expands one that was never typed — the model's own way to invoke a
+// step is the `skill` tool named in AFK_OPENCODE_INVOCATION above. AFK_CHAIN_TABLE_NOTE (below) is
+// what closes that gap for a model reading the table literally. Anchored on the header alone, not the
+// full table: the rows name real command surfaces (review, document, ship) that a caller's own
+// plugin root may not carry as discovered skills, and inserting text between the header and the first
+// row would break the table's own markdown syntax.
+const AFK_CHAIN_TABLE_HEADER = '| Stage | Start at |\n|---|---|';
+
+// Inserted right before the table: it maps a "Start at" cell's slash-command text to the call a model
+// actually has on OpenCode — the `skill` tool, by name — so a model that follows the table literally
+// still reaches for that tool instead of emitting inert slash-command text nothing expands.
+const AFK_CHAIN_TABLE_NOTE = [
+  'Each "Start at" cell below still reads as a slash command. On OpenCode, invoke it with the `skill`',
+  "tool instead — `name: superdev-<name>` for the command named `/superdev-<name>` — and state the",
+  "rest of the cell's text as your own message's arguments, exactly as the chain driver above already",
+  'does.',
+  '',
+].join('\n');
+
+// plugin/skills/afk/SKILL.md → .opencode/commands/superdev/afk.md. afk is the one surface that
+// renders as a command rather than a skill: an OpenCode command is not model-invocable, which is
+// what reproduces the canonical skill's own `disable-model-invocation: true` and keeps the model
+// from starting an unattended backlog sweep on its own judgment (ADR 0055). Everything else about
+// the body carries through renderCommand unchanged — the selection, blocking, and reporting prose is
+// harness-independent, and only the chain driver's own sentence and the chain table's header are
+// anchored. Both rewrites refuse when their own canonical anchor is absent, so an edit to afk's own
+// prose surfaces here instead of silently shipping a rendered afk that has drifted from what these
+// key on.
+function renderOpencodeAfkCommand(name, skillPath, modelMap, rewrite) {
+  const rendered = renderCommand(name, skillPath, modelMap, rewrite);
+
+  const sentenceTarget = rewrite(AFK_SKILL_TOOL_SENTENCE);
+  if (!rendered.includes(sentenceTarget)) {
+    fail(`${skillPath} no longer carries the chain-driver sentence adapter.js rewrites for OpenCode — update AFK_SKILL_TOOL_SENTENCE`);
+  }
+  const withInvocation = rendered.replace(sentenceTarget, AFK_OPENCODE_INVOCATION);
+
+  const tableHeader = rewrite(AFK_CHAIN_TABLE_HEADER);
+  if (!withInvocation.includes(tableHeader)) {
+    fail(`${skillPath} no longer carries the chain table's header adapter.js anchors for OpenCode — update AFK_CHAIN_TABLE_HEADER`);
+  }
+  return withInvocation.replace(tableHeader, `${AFK_CHAIN_TABLE_NOTE}\n${tableHeader}`);
 }
 
 // --- the OpenCode hook bridge (issue #376) ---------------------------------
@@ -673,10 +820,10 @@ function listDirs(dir, what) {
   return entries;
 }
 
-// The sorted skill directory names under skillsDir (SKIPPED_SKILLS included — callers filter as
-// needed) and the sorted agent names under agentsDir (the .md extension stripped). The one shared
-// walk render() and usedModelAliases() both need, so a future SKIPPED_SKILLS member or a renamed
-// skill-file convention only has one place to change.
+// The sorted skill directory names under skillsDir (SKILL_ONLY_COMMANDS included — callers filter
+// as needed) and the sorted agent names under agentsDir (the .md extension stripped). One shared
+// walk, so a future SKILL_ONLY_COMMANDS member or a renamed skill-file convention only has one
+// place to change.
 function discoverSkillNames(skillsDir) {
   return listDirs(skillsDir, 'skills directory')
     .filter((e) => e.isDirectory())
@@ -691,22 +838,19 @@ function discoverAgentNames(agentsDir) {
     .sort();
 }
 
-// The model aliases the plugin root's own skills and agents actually carry — the exact set
-// resolveModel() will need a --model-map entry for once render() runs. Only reads frontmatter, so
-// it can run before --dest is known.
+// The model aliases the plugin root's own agents carry — the exact set resolveModel() will need a
+// --model-map entry for once render() runs. Agents alone: a rendered skill carries no `model:` key
+// for OpenCode to read (ADR 0055), so a model alias one of the ten renderSkill surfaces pins reaches
+// no render target and asking the operator to resolve it would prompt for a value nothing consumes.
+// The one SKILL_ONLY_COMMANDS member (afk) is the exception this scan does not account for: it
+// renders through renderCommand, which does emit `model:`. Harmless today, since afk pins no model
+// and every alias any surface carries also appears on an agent — but a future withheld surface that
+// both pins a model and appears on no agent would hit resolveModel's "no --model-map entry" refusal
+// unresolved by this pre-scan. Only reads frontmatter, so it can run before --dest is known.
 function usedModelAliases(pluginRoot) {
-  const skillsDir = path.join(pluginRoot, 'skills');
   const agentsDir = path.join(pluginRoot, 'agents');
   const aliases = new Set();
   const modelOf = (filePath) => readFrontmatter(fs.readFileSync(filePath, 'utf8'), filePath).fields.model;
-  for (const name of discoverSkillNames(skillsDir)) {
-    if (SKIPPED_SKILLS.has(name)) continue;
-    const skillPath = path.join(skillsDir, name, 'SKILL.md');
-    if (fs.existsSync(skillPath)) {
-      const model = modelOf(skillPath);
-      if (model) aliases.add(model);
-    }
-  }
   for (const name of discoverAgentNames(agentsDir)) {
     const model = modelOf(path.join(agentsDir, `${name}.md`));
     if (model) aliases.add(model);
@@ -770,7 +914,7 @@ function render(opts) {
   const agents = discoverAgentNames(agentsDir);
   for (const name of skills) {
     const skillPath = path.join(skillsDir, name, 'SKILL.md');
-    if (!SKIPPED_SKILLS.has(name) && !fs.existsSync(skillPath)) {
+    if (!fs.existsSync(skillPath)) {
       fail(`${skillPath} does not exist — every skill directory carries a SKILL.md`);
     }
   }
@@ -778,10 +922,24 @@ function render(opts) {
   const rewrite = (text) => rewriteProse(text, { pluginRoot, skills, agents });
 
   const commandsDest = path.join(opts.dest, '.opencode', 'commands', 'superdev');
+  const skillsDest = path.join(opts.dest, '.opencode', 'skills');
   const agentsDest = path.join(opts.dest, '.opencode', 'agents');
+  // The commands subdirectory goes wholesale — it is namespaced to superdev, nothing foreign shares
+  // it, and an install rendered before ADR 0055 carries a full set of command files there that the
+  // skills render replaces. It is recreated below only if a SKILL_ONLY_COMMANDS member renders.
   fs.rmSync(commandsDest, { recursive: true, force: true });
-  fs.mkdirSync(commandsDest, { recursive: true });
+  fs.mkdirSync(skillsDest, { recursive: true });
   fs.mkdirSync(agentsDest, { recursive: true });
+  // .opencode/skills/ is shared with a consumer's own skills, so remove only the directories this
+  // adapter wrote — the ones whose SKILL.md frontmatter carries SKILL_MARKER. Matching on the
+  // `superdev-` name prefix instead would delete a consumer's own `superdev-notes` skill.
+  for (const entry of fs.readdirSync(skillsDest, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const skillFile = path.join(skillsDest, entry.name, 'SKILL.md');
+    if (!fs.existsSync(skillFile)) continue;
+    const match = fs.readFileSync(skillFile, 'utf8').match(/^---\n([\s\S]*?)\n---\n?/);
+    if (match && match[1].includes(SKILL_MARKER)) fs.rmSync(path.join(skillsDest, entry.name), { recursive: true, force: true });
+  }
   // .opencode/agents/ is a shared OpenCode directory, unlike the namespaced commands subdirectory
   // above — remove only the files this adapter itself wrote in a past render (AGENT_MARKER-tagged
   // in their frontmatter), so a renamed or removed superdev agent still leaves no orphan while a
@@ -796,12 +954,27 @@ function render(opts) {
 
   const written = [];
   for (const name of skills) {
-    if (SKIPPED_SKILLS.has(name)) continue;
-    const rel = path.join('.opencode', 'commands', 'superdev', `${name}.md`);
+    if (SKILL_ONLY_COMMANDS.has(name)) continue;
+    const rel = path.join('.opencode', 'skills', `${SKILL_NAME_PREFIX}${name}`, 'SKILL.md');
     const skillPath = path.join(skillsDir, name, 'SKILL.md');
     const content = name === 'upgrade' && opts.harness === 'opencode'
-      ? renderOpencodeUpgradeCommand(skillPath, pluginRoot, opts.modelMap)
+      ? renderOpencodeUpgradeSkill(skillPath, pluginRoot, opts.modelMap)
+      : renderSkill(name, skillPath, rewrite);
+    fs.mkdirSync(path.dirname(path.join(opts.dest, rel)), { recursive: true });
+    fs.writeFileSync(path.join(opts.dest, rel), content);
+    written.push(rel);
+  }
+  // The command render: every SKILL_ONLY_COMMANDS member, recreated under the namespaced
+  // subdirectory the cleanup above cleared. Only afk today, and only because a command is the
+  // surface OpenCode's model cannot invoke (ADR 0055).
+  for (const name of skills) {
+    if (!SKILL_ONLY_COMMANDS.has(name)) continue;
+    const rel = path.join('.opencode', 'commands', 'superdev', `${name}.md`);
+    const skillPath = path.join(skillsDir, name, 'SKILL.md');
+    const content = name === 'afk' && opts.harness === 'opencode'
+      ? renderOpencodeAfkCommand(name, skillPath, opts.modelMap, rewrite)
       : renderCommand(name, skillPath, opts.modelMap, rewrite);
+    fs.mkdirSync(path.dirname(path.join(opts.dest, rel)), { recursive: true });
     fs.writeFileSync(path.join(opts.dest, rel), content);
     written.push(rel);
   }
@@ -930,7 +1103,10 @@ async function selftest() {
       { pluginRoot: '/p', skills: ['plan', 'implement', 'afk'], agents: ['implementer', 'slice-reviewer'] },
     );
     assert.ok(rewritten.includes('node "/p/scripts/scope.js" get stage'));
-    assert.ok(rewritten.includes('/superdev/plan and `/superdev/implement`, dispatched by /superdev/afk'));
+    // A skill's own token becomes the flat `/superdev-<name>` OpenCode registers it under, while afk
+    // — the one SKILL_ONLY_COMMANDS member — becomes the namespaced `/superdev/afk` its command
+    // render actually answers to (ADR 0055).
+    assert.ok(rewritten.includes('/superdev-plan and `/superdev-implement`, dispatched by /superdev/afk'));
     assert.ok(rewritten.includes('dispatch `implementer` and slice-reviewer here'));
     assert.ok(rewritten.includes('/superdev:planet'));
     assert.ok(rewritten.includes('superdev:implementers'));
@@ -965,7 +1141,14 @@ async function selftest() {
       'description: Drive the chain unattended.',
       '---',
       '',
-      'body',
+      '# superdev afk',
+      '',
+      AFK_SKILL_TOOL_SENTENCE,
+      '',
+      AFK_CHAIN_TABLE_HEADER,
+      '| no run root | `/superdev:implement <feature-label> --unattended` |',
+      '',
+      'Then run /superdev:implement and /superdev:plan in order.',
       '',
     ].join('\n'));
     write(pluginRoot, 'skills/upgrade/SKILL.md', [
@@ -1030,22 +1213,105 @@ async function selftest() {
     assert.deepEqual(written, [
       path.join('.opencode', 'agents', 'final-reviewer.md'),
       path.join('.opencode', 'agents', 'implementer.md'),
-      path.join('.opencode', 'commands', 'superdev', 'backlog.md'),
-      path.join('.opencode', 'commands', 'superdev', 'implement.md'),
-      path.join('.opencode', 'commands', 'superdev', 'plan.md'),
-      path.join('.opencode', 'commands', 'superdev', 'setup.md'),
-      path.join('.opencode', 'commands', 'superdev', 'upgrade.md'),
+      path.join('.opencode', 'commands', 'superdev', 'afk.md'),
       path.join('.opencode', 'plugins', 'superdev.js'),
+      path.join('.opencode', 'skills', 'superdev-backlog', 'SKILL.md'),
+      path.join('.opencode', 'skills', 'superdev-implement', 'SKILL.md'),
+      path.join('.opencode', 'skills', 'superdev-plan', 'SKILL.md'),
+      path.join('.opencode', 'skills', 'superdev-setup', 'SKILL.md'),
+      path.join('.opencode', 'skills', 'superdev-upgrade', 'SKILL.md'),
     ]);
-    // afk stays excluded — its Skill-tool chain has no OpenCode equivalent (ADR 0050) — while
-    // upgrade, the sibling ADR 0050 also excluded, now renders (ADR 0052).
-    assert.ok(!written.includes(path.join('.opencode', 'commands', 'superdev', 'afk.md')), 'afk stays excluded');
+    // afk renders as a command and never as a skill — a command is the one OpenCode surface the
+    // model cannot invoke, which is what reproduces disable-model-invocation (ADR 0055).
+    assert.ok(!written.includes(path.join('.opencode', 'skills', 'superdev-afk', 'SKILL.md')), 'afk is never a skill');
+    assert.ok(!fs.existsSync(path.join(dest, '.opencode', 'skills', 'superdev-afk')), 'no afk skill directory exists');
+    assert.ok(fs.existsSync(path.join(dest, '.opencode', 'commands', 'superdev', 'afk.md')), 'afk renders as a command');
+
+    // The rendered afk names OpenCode's own skill tool and the rendered skill names it drives, never
+    // Claude Code's Skill tool, and it states the headless launch line the operator actually uses.
+    const afkCommand = fs.readFileSync(path.join(dest, '.opencode', 'commands', 'superdev', 'afk.md'), 'utf8');
+    assert.ok(afkCommand.includes("with OpenCode's own `skill` tool"), 'names the OpenCode skill tool');
+    for (const step of ['superdev-implement', 'superdev-review', 'superdev-document', 'superdev-ship']) {
+      assert.ok(afkCommand.includes(`\`${step}\``), `names the rendered ${step} skill`);
+    }
+    assert.ok(afkCommand.includes('opencode run --auto --command superdev/afk'), 'states the headless launch line');
+    assert.ok(!afkCommand.includes('with the Skill tool'), "carries none of Claude Code's own Skill-tool sentence");
+    assert.ok(afkCommand.includes('/superdev-implement and /superdev-plan'), 'the rest of the body carries through the ordinary rewrite');
+
+    // A rendered skill's `$ARGUMENTS` token is rewritten to name where OpenCode arguments actually
+    // are — the invoking message — since OpenCode's `skill` tool takes only a `name` and nothing
+    // substitutes the token the way Claude Code's own command runner does. The command surface afk
+    // renders to keeps the literal token untouched: OpenCode's own slash-command substitution still
+    // fills it in there.
+    {
+      const argsRoot = tmp();
+      fs.mkdirSync(path.join(argsRoot, 'agents'), { recursive: true });
+      write(argsRoot, 'skills/implement/SKILL.md', ['---', 'name: implement', 'description: Build a plan.', '---', '', 'Resolve `$ARGUMENTS` to one feature.', ''].join('\n'));
+      const argsDest = tmp();
+      render({ harness: 'opencode', pluginRoot: argsRoot, dest: argsDest, modelMap: new Map() });
+      const renderedSkill = fs.readFileSync(path.join(argsDest, '.opencode', 'skills', 'superdev-implement', 'SKILL.md'), 'utf8');
+      assert.ok(!renderedSkill.includes('$ARGUMENTS'), 'no literal $ARGUMENTS token survives a rendered skill');
+      assert.ok(renderedSkill.includes('the message that invoked this skill'), 'names the invoking message as where the arguments actually are');
+
+      write(argsRoot, 'skills/afk/SKILL.md', ['---', 'name: afk', 'description: Drive the chain unattended.', '---', '', AFK_SKILL_TOOL_SENTENCE, '', AFK_CHAIN_TABLE_HEADER, '| no run root | `/superdev:implement <feature-label> --unattended` |', '', 'Resolve `$ARGUMENTS` too.', ''].join('\n'));
+      const argsDest2 = tmp();
+      render({ harness: 'opencode', pluginRoot: argsRoot, dest: argsDest2, modelMap: new Map() });
+      const renderedAfkCommand = fs.readFileSync(path.join(argsDest2, '.opencode', 'commands', 'superdev', 'afk.md'), 'utf8');
+      assert.ok(renderedAfkCommand.includes('$ARGUMENTS'), "afk's own command render keeps the literal token — OpenCode substitutes it there itself");
+    }
+
+    // The rewrite is anchored on afk's own canonical sentence: an edit to that prose refuses the
+    // render instead of shipping an afk that still names a tool OpenCode does not have.
+    {
+      const driftedRoot = tmp();
+      write(driftedRoot, 'skills/afk/SKILL.md', ['---', 'name: afk', 'description: Drive the chain unattended.', '---', '', 'You invoke the chain some other way now.', ''].join('\n'));
+      fs.mkdirSync(path.join(driftedRoot, 'agents'), { recursive: true });
+      refuses(
+        () => render({ harness: 'opencode', pluginRoot: driftedRoot, dest: tmp(), modelMap: new Map() }),
+        'no longer carries the chain-driver sentence',
+      );
+    }
+
+    // The chain table's cells still read as slash-command text after the ordinary rewrite
+    // (`/superdev-review <BASE>..<feature-label> --unattended`), which nothing on OpenCode expands
+    // outside a live typed command. A sentence right before the table maps a cell to the actual
+    // OpenCode call — the `skill` tool, by name — so a model that follows the table literally still
+    // reaches for that tool instead of emitting inert slash-command text.
+    {
+      const tableRoot = tmp();
+      write(tableRoot, 'skills/review/SKILL.md', ['---', 'name: review', 'description: Review a slice.', '---', '', 'body', ''].join('\n'));
+      write(tableRoot, 'skills/afk/SKILL.md', [
+        '---', 'name: afk', 'description: Drive the chain unattended.', '---', '',
+        AFK_SKILL_TOOL_SENTENCE, '',
+        AFK_CHAIN_TABLE_HEADER,
+        '| `merged` | `/superdev:review <BASE>..<feature-label> --unattended` |',
+        '',
+      ].join('\n'));
+      fs.mkdirSync(path.join(tableRoot, 'agents'), { recursive: true });
+      const tableDest = tmp();
+      render({ harness: 'opencode', pluginRoot: tableRoot, dest: tableDest, modelMap: new Map() });
+      const renderedAfk = fs.readFileSync(path.join(tableDest, '.opencode', 'commands', 'superdev', 'afk.md'), 'utf8');
+      const headerIndex = renderedAfk.indexOf('| Stage | Start at |');
+      assert.ok(headerIndex > -1, 'the chain table itself still renders');
+      const beforeTable = renderedAfk.slice(Math.max(0, headerIndex - 400), headerIndex);
+      assert.ok(beforeTable.includes('`skill`') && beforeTable.includes('superdev-<name>'), 'a sentence right before the table maps a cell to the actual OpenCode call');
+      assert.ok(renderedAfk.includes('| `merged` | `/superdev-review <BASE>..<feature-label> --unattended` |'), 'the table row itself still renders through the ordinary rewrite');
+
+      const driftedTableRoot = tmp();
+      write(driftedTableRoot, 'skills/afk/SKILL.md', ['---', 'name: afk', 'description: Drive the chain unattended.', '---', '', AFK_SKILL_TOOL_SENTENCE, '', 'The chain table lives somewhere else now.', ''].join('\n'));
+      fs.mkdirSync(path.join(driftedTableRoot, 'agents'), { recursive: true });
+      refuses(
+        () => render({ harness: 'opencode', pluginRoot: driftedTableRoot, dest: tmp(), modelMap: new Map() }),
+        "no longer carries the chain table's header",
+      );
+    }
 
     // upgrade renders OpenCode-native content, synthesized rather than derived from the skill's own
-    // Claude-Code-only body: a real git-pull-then-re-render path, the model alias still resolved
-    // through --model-map, and none of the Claude-only commands or restart instruction.
-    const upgradeCommand = fs.readFileSync(path.join(dest, '.opencode', 'commands', 'superdev', 'upgrade.md'), 'utf8');
-    assert.ok(upgradeCommand.startsWith('---\ndescription:'), 'upgrade.md carries frontmatter');
+    // Claude-Code-only body: a real git-pull-then-re-render path, and none of the Claude-only
+    // commands or restart instruction.
+    const upgradeCommand = fs.readFileSync(path.join(dest, '.opencode', 'skills', 'superdev-upgrade', 'SKILL.md'), 'utf8');
+    assert.ok(upgradeCommand.startsWith(`---\n${SKILL_MARKER}\nname: superdev-upgrade\ndescription:`), 'the upgrade skill carries the marker and its prefixed name');
+    assert.ok(!/^model:/m.test(upgradeCommand), 'carries no model line — OpenCode skill frontmatter has no such key');
     assert.ok(upgradeCommand.includes(`git -C ${JSON.stringify(`${pluginRoot}${path.sep}..`)} pull`), 'names a git pull against the baked repo root, as a literal pluginRoot prefix the fixture normalizer can placeholder');
     assert.ok(upgradeCommand.includes('start a new OpenCode session'), 'tells the user to start a new session, the verified OpenCode load point');
     assert.ok(!upgradeCommand.includes('claude plugin'), 'carries no Claude-Code-only command');
@@ -1093,9 +1359,9 @@ async function selftest() {
         dest: upgradeDest,
         modelMap: new Map([['haiku', 'acme/haiku-1']]),
       });
-      assert.ok(rendered.includes(path.join('.opencode', 'commands', 'superdev', 'upgrade.md')));
-      const rerendered = fs.readFileSync(path.join(upgradeDest, '.opencode', 'commands', 'superdev', 'upgrade.md'), 'utf8');
-      assert.ok(rerendered.includes('model: acme/haiku-1'), "upgrade's haiku alias resolves through --model-map, like any other command");
+      assert.ok(rendered.includes(path.join('.opencode', 'skills', 'superdev-upgrade', 'SKILL.md')));
+      const rerendered = fs.readFileSync(path.join(upgradeDest, '.opencode', 'skills', 'superdev-upgrade', 'SKILL.md'), 'utf8');
+      assert.ok(!/^model:/m.test(rerendered), "the skill drops the canonical model pin rather than emitting a key OpenCode ignores");
       const rerenderedLine = rerendered.match(/^node .+$/m)[0];
       const rerenderedOpts = parseArgs(tokenizeShellLine(rerenderedLine).slice(2));
       assert.deepEqual(
@@ -1104,28 +1370,47 @@ async function selftest() {
         'a single-alias model-map still round-trips through the emitted re-render command',
       );
 
-      refuses(
-        () => render({ harness: 'opencode', pluginRoot: upgradeRoot, dest: tmp(), modelMap: new Map() }),
-        "--model-map entry for model alias 'haiku'",
-      );
+      // A skill's own `model:` pin reaches no render target, so a plugin root of skills alone needs
+      // no --model-map at all — where an agent's pin still refuses one (the two refuses() below).
+      const noMapDest = tmp();
+      render({ harness: 'opencode', pluginRoot: upgradeRoot, dest: noMapDest, modelMap: new Map() });
+      assert.ok(fs.existsSync(path.join(noMapDest, '.opencode', 'skills', 'superdev-upgrade', 'SKILL.md')));
     }
 
-    const command = fs.readFileSync(path.join(dest, '.opencode', 'commands', 'superdev', 'plan.md'), 'utf8');
-    assert.ok(command.startsWith('---\ndescription: "Plan a feature. Run before /superdev/implement."\n---\n\n# superdev plan'));
+    const command = fs.readFileSync(path.join(dest, '.opencode', 'skills', 'superdev-plan', 'SKILL.md'), 'utf8');
+    assert.ok(command.startsWith(`---\n${SKILL_MARKER}\nname: superdev-plan\ndescription: "Plan a feature. Run before /superdev-implement."\n---\n\n# superdev plan`));
     assert.ok(command.includes(`Read ${pluginRoot}/references/plan-contract.md, then dispatch \`implementer\`.`));
     assert.ok(command.includes('/superdev/afk'));
     assert.ok(!command.includes('argument-hint'));
 
     // A description carrying `: ` renders as a JSON-quoted YAML scalar, so the frontmatter parses.
-    const colonCommand = fs.readFileSync(path.join(dest, '.opencode', 'commands', 'superdev', 'setup.md'), 'utf8');
-    assert.ok(colonCommand.startsWith('---\ndescription: "Configure this repo for superdev: slice store, code host."\n---'));
+    const colonCommand = fs.readFileSync(path.join(dest, '.opencode', 'skills', 'superdev-setup', 'SKILL.md'), 'utf8');
+    assert.ok(colonCommand.startsWith(`---\n${SKILL_MARKER}\nname: superdev-setup\ndescription: "Configure this repo for superdev: slice store, code host."\n---`));
 
-    // A command's model alias resolves through the same --model-map, and its allowed-tools carry.
-    const backlogCommand = fs.readFileSync(path.join(dest, '.opencode', 'commands', 'superdev', 'backlog.md'), 'utf8');
-    assert.ok(backlogCommand.startsWith('---\ndescription: "Survey the backlog. Read-only."\nmodel: acme/sonnet-1\nallowed-tools: "Read, Bash"\n---'));
+    // A skill's allowed-tools carry verbatim, and its canonical `model:` pin is dropped: OpenCode
+    // skill frontmatter recognizes neither key, and carrying the one beats dropping it silently
+    // while the other has no rendered equivalent at all (ADR 0055).
+    const backlogCommand = fs.readFileSync(path.join(dest, '.opencode', 'skills', 'superdev-backlog', 'SKILL.md'), 'utf8');
+    assert.ok(backlogCommand.startsWith(`---\n${SKILL_MARKER}\nname: superdev-backlog\ndescription: "Survey the backlog. Read-only."\nallowed-tools: "Read, Bash"\n---`));
+    assert.ok(!/^model:/m.test(backlogCommand), 'the sonnet pin is dropped rather than emitted');
+
+    // $ARGUMENTS rewrite: the backticked form `$ARGUMENTS` becomes the phrase without surrounding
+    // backticks, reading as prose not a code token. Backticked form handled first, so any remaining
+    // bare token is also rewritten (the second form would be in unreplaced prose or a template marker).
+    {
+      const backtickRoot = tmp();
+      fs.mkdirSync(path.join(backtickRoot, 'agents'), { recursive: true });
+      write(backtickRoot, 'skills/test/SKILL.md', ['---', 'name: test', 'description: Test backtick rewrite.', '---', '', 'The backticked `$ARGUMENTS` token here.', 'Also a bare $ARGUMENTS token.', ''].join('\n'));
+      const backtickDest = tmp();
+      render({ harness: 'opencode', pluginRoot: backtickRoot, dest: backtickDest, modelMap: new Map() });
+      const rendered = fs.readFileSync(path.join(backtickDest, '.opencode', 'skills', 'superdev-test', 'SKILL.md'), 'utf8');
+      assert.ok(rendered.includes('the message that invoked this skill'), 'the phrase replaces both forms');
+      assert.ok(!rendered.includes('`the message that invoked'), 'no backticks remain adjacent to the phrase — backticked form consumed them');
+      assert.ok(!rendered.includes('$ARGUMENTS'), 'no literal token survives');
+    }
 
     const agent = fs.readFileSync(path.join(dest, '.opencode', 'agents', 'implementer.md'), 'utf8');
-    assert.ok(agent.includes('description: "Slice implementer. Dispatched by /superdev/implement."'));
+    assert.ok(agent.includes('description: "Slice implementer. Dispatched by /superdev-implement."'));
     assert.ok(agent.includes('mode: subagent'));
     assert.ok(agent.includes('model: acme/sonnet-1'));
     // tools: is OpenCode's real per-tool enable/disable gate — its permission: layer overlays an
@@ -1206,9 +1491,24 @@ async function selftest() {
     // not the whole file, or a quote like this reads as a stale superdev render and gets deleted.
     write(dest, '.opencode/agents/quoter.md', '---\ndescription: "quotes the marker"\nmode: subagent\nmodel: acme/sonnet-1\n---\n\nSee: `# generated-by: superdev-adapter — a re-render overwrites this file`\n');
     write(dest, '.opencode/plugins/other.js', '// a foreign plugin\n');
+    // The skills directory is shared the same way .opencode/agents/ is, so the same marker rule
+    // governs it: a stale superdev-rendered skill goes, a consumer's own skill stays — including one
+    // whose directory name begins `superdev-`, which a prefix-keyed cleanup would delete (ADR 0055).
+    write(dest, '.opencode/skills/superdev-ghost/SKILL.md', `---\n${SKILL_MARKER}\nname: superdev-ghost\ndescription: "ghost"\n---\n\nghost\n`);
+    write(dest, '.opencode/skills/superdev-notes/SKILL.md', '---\nname: superdev-notes\ndescription: "a consumer\'s own skill"\n---\n\nmine\n');
+    write(dest, '.opencode/skills/notes/SKILL.md', '---\nname: notes\ndescription: "another of the consumer\'s own"\n---\n\nalso mine\n');
+    // A previous, pre-ADR-0055 render's commands tree: the migration path every existing OpenCode
+    // install takes on its first re-render.
+    write(dest, '.opencode/commands/superdev/plan.md', '---\ndescription: "a command from the render before this one"\n---\n\nstale\n');
+    write(dest, '.opencode/commands/superdev/review.md', '---\ndescription: "another stale command"\n---\n\nstale\n');
     const rewritten2 = render(opts);
     assert.deepEqual(rewritten2, written);
     assert.ok(!fs.existsSync(path.join(dest, '.opencode', 'agents', 'ghost.md')), 'a stale superdev-rendered agent is cleaned');
+    assert.ok(!fs.existsSync(path.join(dest, '.opencode', 'skills', 'superdev-ghost')), 'a stale superdev-rendered skill directory is cleaned');
+    assert.equal(fs.readFileSync(path.join(dest, '.opencode', 'skills', 'superdev-notes', 'SKILL.md'), 'utf8'), '---\nname: superdev-notes\ndescription: "a consumer\'s own skill"\n---\n\nmine\n', "a consumer's own skill named superdev-* survives a re-render");
+    assert.ok(fs.existsSync(path.join(dest, '.opencode', 'skills', 'notes', 'SKILL.md')), "a consumer's own unprefixed skill survives too");
+    assert.ok(!fs.existsSync(path.join(dest, '.opencode', 'commands', 'superdev', 'plan.md')), 'a pre-ADR-0055 render\'s command files are cleared');
+    assert.ok(!fs.existsSync(path.join(dest, '.opencode', 'commands', 'superdev', 'review.md')), 'every one of them, not just the ones this render replaces');
     assert.equal(fs.readFileSync(path.join(dest, '.opencode', 'agents', 'mine.md'), 'utf8'), 'a consumer\'s own agent, not ours\n', 'a foreign agent file survives a re-render');
     assert.ok(fs.existsSync(path.join(dest, '.opencode', 'agents', 'quoter.md')), 'a foreign agent that merely quotes the marker in its body survives');
     assert.equal(fs.readFileSync(path.join(dest, '.opencode', 'plugins', 'other.js'), 'utf8'), '// a foreign plugin\n');
@@ -1218,7 +1518,7 @@ async function selftest() {
     // A trailing slash on the plugin root normalizes away instead of producing `//` paths.
     const slashDest = tmp();
     render({ harness: 'opencode', pluginRoot: pluginRoot + path.sep, dest: slashDest, modelMap });
-    const slashed = fs.readFileSync(path.join(slashDest, '.opencode', 'commands', 'superdev', 'plan.md'), 'utf8');
+    const slashed = fs.readFileSync(path.join(slashDest, '.opencode', 'skills', 'superdev-plan', 'SKILL.md'), 'utf8');
     assert.ok(slashed.includes(`Read ${pluginRoot}/references/plan-contract.md`));
     assert.ok(!slashed.includes(`${pluginRoot}//`));
 
@@ -1482,8 +1782,8 @@ async function selftest() {
         },
       );
       assert.equal(res2.status, 0, res2.stderr);
-      const backlogCommand2 = fs.readFileSync(path.join(cliDest2, '.opencode', 'commands', 'superdev', 'backlog.md'), 'utf8');
-      assert.ok(backlogCommand2.includes('model: acme/interactive-sonnet-1'), 'the missing sonnet alias resolves to the interactively picked model');
+      const sonnetAgent2 = fs.readFileSync(path.join(cliDest2, '.opencode', 'agents', 'implementer.md'), 'utf8');
+      assert.ok(sonnetAgent2.includes('model: acme/interactive-sonnet-1'), 'the missing sonnet alias resolves to the interactively picked model');
       const reviewer2 = fs.readFileSync(path.join(cliDest2, '.opencode', 'agents', 'final-reviewer.md'), 'utf8');
       assert.ok(reviewer2.includes('model: acme/opus-1'), 'the opus alias --model-map already covers is never prompted for');
     }
@@ -1543,8 +1843,8 @@ async function selftest() {
         },
       );
       assert.equal(res4.status, 0, res4.stderr);
-      const backlogCommand4 = fs.readFileSync(path.join(cliDest4, '.opencode', 'commands', 'superdev', 'backlog.md'), 'utf8');
-      assert.ok(backlogCommand4.includes('model: acme/multi-a'), "the first missing alias ('sonnet') resolves from the first queued answer");
+      const sonnetAgent4 = fs.readFileSync(path.join(cliDest4, '.opencode', 'agents', 'implementer.md'), 'utf8');
+      assert.ok(sonnetAgent4.includes('model: acme/multi-a'), "the first missing alias ('sonnet') resolves from the first queued answer");
       const reviewer4 = fs.readFileSync(path.join(cliDest4, '.opencode', 'agents', 'final-reviewer.md'), 'utf8');
       assert.ok(reviewer4.includes('model: acme/multi-b'), "the second missing alias ('opus') resolves from its own, distinct queued answer — the shared readline interface serves both prompts from the one piped input");
     }
@@ -1571,23 +1871,24 @@ async function selftest() {
         },
       );
       assert.equal(res5.status, 0, res5.stderr);
-      const backlogCommand5 = fs.readFileSync(path.join(cliDest5, '.opencode', 'commands', 'superdev', 'backlog.md'), 'utf8');
-      assert.ok(backlogCommand5.includes('model: acme/from-dest-project'), 'the picker offers the --dest project\'s own models, not the invocation directory\'s');
-      assert.ok(!backlogCommand5.includes('model: acme/from-invocation-dir'), 'the invocation directory\'s config is never consulted');
+      const sonnetAgent5 = fs.readFileSync(path.join(cliDest5, '.opencode', 'agents', 'implementer.md'), 'utf8');
+      assert.ok(sonnetAgent5.includes('model: acme/from-dest-project'), 'the picker offers the --dest project\'s own models, not the invocation directory\'s');
+      assert.ok(!sonnetAgent5.includes('model: acme/from-invocation-dir'), 'the invocation directory\'s config is never consulted');
     }
 
     delete process.env.BRIDGE_MARK;
 
     // Refusals and defaults: a missing harness defaults to opencode, an unknown harness, a
-    // missing dest, a malformed --model-map, a model alias with no mapping (named, for a command
-    // and for an agent), and a plugin root with no skills directory (named) all refuse.
+    // missing dest, a malformed --model-map, a model alias with no mapping (named, for each of the
+    // two agents), and a plugin root with no skills directory (named) all refuse. Agents are the
+    // only surface a model alias reaches now: a skill's own pin is dropped (ADR 0055).
     assert.equal(parseArgs(['--dest', 'x']).harness, 'opencode');
     refuses(() => parseArgs(['--harness', 'cursor', '--dest', 'x']), "unknown harness 'cursor'");
     refuses(() => parseArgs(['--harness', 'opencode']), 'missing --dest');
     refuses(() => parseArgs(['--harness', 'opencode', '--dest', 'x', '--model-map', 'sonnet']), '<alias>=<provider/model>');
     refuses(
       () => render({ harness: 'opencode', pluginRoot, dest: tmp(), modelMap: new Map([['opus', 'acme/opus-1']]) }),
-      "no --model-map entry for model alias 'sonnet' (command backlog)",
+      "no --model-map entry for model alias 'sonnet' (agent implementer)",
     );
     refuses(
       () => render({ harness: 'opencode', pluginRoot, dest: tmp(), modelMap: new Map([['sonnet', 'acme/sonnet-1']]) }),
@@ -1704,8 +2005,8 @@ async function selftest() {
     // touches stdin/stdout.
     {
       const root = tmp();
-      write(root, 'skills/onlysonnet/SKILL.md', ['---', 'name: onlysonnet', 'description: only sonnet', 'model: sonnet', '---', '', 'body', ''].join('\n'));
-      fs.mkdirSync(path.join(root, 'agents'), { recursive: true });
+      fs.mkdirSync(path.join(root, 'skills'), { recursive: true });
+      write(root, 'agents/onlysonnet.md', ['---', 'name: onlysonnet', 'description: only sonnet', 'model: sonnet', '---', '', 'body', ''].join('\n'));
       const covered = new Map([['sonnet', 'acme/sonnet-1']]);
       const { input, output, out } = fakeTerminal([]);
       const resolved = await resolveModelMap(root, covered, { input, output });
@@ -1718,9 +2019,9 @@ async function selftest() {
     // keeps its own value and is never asked about.
     {
       const root = tmp();
-      write(root, 'skills/covered/SKILL.md', ['---', 'name: covered', 'description: sonnet, already mapped', 'model: sonnet', '---', '', 'body', ''].join('\n'));
-      write(root, 'skills/needsprompt/SKILL.md', ['---', 'name: needsprompt', 'description: opus, missing from --model-map', 'model: opus', '---', '', 'body', ''].join('\n'));
-      fs.mkdirSync(path.join(root, 'agents'), { recursive: true });
+      fs.mkdirSync(path.join(root, 'skills'), { recursive: true });
+      write(root, 'agents/covered.md', ['---', 'name: covered', 'description: sonnet, already mapped', 'model: sonnet', '---', '', 'body', ''].join('\n'));
+      write(root, 'agents/needsprompt.md', ['---', 'name: needsprompt', 'description: opus, missing from --model-map', 'model: opus', '---', '', 'body', ''].join('\n'));
       const configDir = tmp();
       write(configDir, 'opencode.json', JSON.stringify({ model: 'acme/opus-1', small_model: 'acme/opus-2' }));
       const partial = new Map([['sonnet', 'acme/sonnet-1']]);
@@ -1739,8 +2040,8 @@ async function selftest() {
     // all, since there is nothing to prompt for.
     {
       const root = tmp();
-      write(root, 'skills/needsprompt/SKILL.md', ['---', 'name: needsprompt', 'description: no model configured anywhere', 'model: opus', '---', '', 'body', ''].join('\n'));
-      fs.mkdirSync(path.join(root, 'agents'), { recursive: true });
+      fs.mkdirSync(path.join(root, 'skills'), { recursive: true });
+      write(root, 'agents/needsprompt.md', ['---', 'name: needsprompt', 'description: no model configured anywhere', 'model: opus', '---', '', 'body', ''].join('\n'));
       const emptyConfigDir = tmp(); // no opencode.json here, and no OPENCODE_CONFIG/HOME below
       const { PassThrough } = require('node:stream');
       const noPromptInput = new PassThrough();

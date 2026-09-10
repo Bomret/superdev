@@ -38,6 +38,25 @@ Verified 2026-09-09, against `opencode.ai/docs` and `anomalyco/opencode@dev` (th
   `tools: { skill: false }` and a `permission.skill.<name>: "deny"` rule, both of which live in the
   consumer's own configuration rather than in anything the adapter writes.
 
+Verified live against a real OpenCode install, opencode 1.18.20:
+
+- **2026-09-09 — `opencode debug skill` lists all eleven rendered skills by their `superdev-` names.**
+- **2026-09-09 — the `SKILL_MARKER` YAML comment does not disturb OpenCode's frontmatter parsing.**
+  A rendered skill carrying that comment still resolved every other field correctly.
+- **2026-09-09 — `opencode run --command superdev/afk` resolves the subdirectory-namespaced name.**
+  With `--print-logs --log-level DEBUG`, an unknown command name throws inside
+  `SessionPrompt.command` before any model lookup, while `superdev/afk` reaches
+  `SessionPrompt.getModel` — the command was found.
+- **2026-09-10 — OpenCode's `skill` tool returns a skill's body carrying a literal `$ARGUMENTS`.**
+  The tool takes only a `name` parameter, so nothing on that surface substitutes Claude Code's own
+  command-argument token. The render rewrites it to name the invoking message instead (`renderSkill`
+  in `plugin/scripts/adapter.js`).
+- **2026-09-10 — a rendered skill's auto-registered slash command does substitute `$ARGUMENTS`.**
+  `SessionPrompt.command` replaces the token when the template carries it (`t.arguments`), and when
+  the template carries neither `$ARGUMENTS` nor a `$N`, it appends the operator's typed arguments to
+  the prompt instead of dropping them. That append fallback is what makes removing `$ARGUMENTS` from
+  a rendered skill safe on this second path too, since nothing the operator types is lost either way.
+
 afk is the one superdev surface Claude Code deliberately withholds from the model
 (`disable-model-invocation: true`): a model that could start an unattended backlog sweep on its own
 judgment is a hazard the plugin does not accept. Rendering afk as a skill would hand OpenCode's model

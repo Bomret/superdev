@@ -1,12 +1,13 @@
 ---
+# generated-by: superdev-adapter — a re-render overwrites this directory
+name: superdev-status
 description: "Report per-scope DAG progress for every superdev run in this repo, from each scope's ledger. Read-only; makes no changes."
-model: anthropic/claude-haiku-4-5
 allowed-tools: "Bash"
 ---
 
 # superdev status
 
-Give a compact, read-only snapshot of every in-flight `/superdev/implement` run in this repo. You never
+Give a compact, read-only snapshot of every in-flight `/superdev-implement` run in this repo. You never
 write, transition, or merge anything here — this is a report, not a control command.
 
 ## Run the report
@@ -38,10 +39,10 @@ surviving copy of a pass that ran degraded, a defect the run left standing, or a
 planned yet — see below.
 
 A `pending publish:` line means that scope holds **staged pages** — knowledge-base pages
-`/superdev/document` wrote but did not send, waiting for `/superdev/publish-kb` (ADR 0023). A shipped
+`/superdev-document` wrote but did not send, waiting for `/superdev-publish-kb` (ADR 0023). A shipped
 scope can still carry one: the pages go live when a human decides the feature reached its readers, which
 is later than the pull request and later than the merge. A block headed `(no ledger)` is staged pages
 with no run root — an `_adhoc` doc pass, or a run whose root was pruned.
 
 End with nothing further — no suggested next action, no mutation. If the caller wants to act on a
-blocked slice, that's `/superdev/implement` or manual intervention, not this command.
+blocked slice, that's `/superdev-implement` or manual intervention, not this command.

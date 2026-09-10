@@ -441,9 +441,9 @@ writes `CHANGELOG.md`, tags, and publishes a Codeberg Release from the Conventio
 
 ## OpenCode
 
-superdev's chain also runs under **OpenCode**. `plugin/scripts/adapter.js` renders the same shipped
-`plugin/skills/` and `plugin/agents/` tree into OpenCode's own on-disk layout, so no second copy of the
-commands, the agents, or the guardrails exists to maintain.
+superdev's chain also runs under **OpenCode**, unattended sweeps included. `plugin/scripts/adapter.js`
+renders the same shipped `plugin/skills/` and `plugin/agents/` tree into OpenCode's own on-disk layout,
+so no second copy of the prompts, the agents, or the guardrails exists to maintain.
 
 **Install and render**, from the OpenCode project you want superdev in:
 
@@ -456,8 +456,10 @@ node superdev/plugin/scripts/adapter.js --dest . \
 ```
 
 `--dest` names the project root, where the render creates a `.opencode/` tree. `--model-map` resolves
-a rendered skill's or agent's `model:` alias (superdev ships `sonnet`, `opus`, and `haiku`) to the
-provider and model your OpenCode configuration names for that alias. An alias with no map entry is
+a rendered agent's `model:` alias (superdev ships `sonnet`, `opus`, and `haiku`) to the
+provider and model your OpenCode configuration names for that alias. Agents are the only surface that
+takes one: OpenCode skill frontmatter has no `model` key, so the three skills that pin a cheap model
+under Claude Code — `backlog`, `status`, `upgrade` — run on your session's model instead. An alias with no map entry is
 resolved interactively instead of failing the render: the CLI queries the OpenCode config for the
 models it already knows, lists them, and asks for a pick — one prompt per alias `--model-map` doesn't
 cover, never for one it does. `--plugin-root` defaults to the adapter script's own plugin root,
@@ -502,29 +504,40 @@ arrives (a non-interactive process, or stdin already at EOF).
 The render creates:
 
 ```
-.opencode/commands/superdev/<name>.md   one per skill, except afk
-.opencode/agents/<name>.md              one per subagent
-.opencode/plugins/superdev.js           the hook bridge, forwarding OpenCode's plugin events to the
-                                         eight shipped hooks, spawned as
-                                         node <plugin-root>/hooks/<hook>.js
+.opencode/skills/superdev-<name>/SKILL.md   one per skill, except afk
+.opencode/commands/superdev/afk.md          afk alone (see below)
+.opencode/agents/<name>.md                  one per subagent
+.opencode/plugins/superdev.js               the hook bridge, forwarding OpenCode's plugin events to
+                                             the eight shipped hooks, spawned as
+                                             node <plugin-root>/hooks/<hook>.js
 ```
 
-Running the command again is safe. It removes its own generated content first — the commands
-directory wholesale, the bridge plugin file by name, and, in the shared `.opencode/agents/`
-directory, only the agent files it wrote in a past render — so a renamed or removed skill or agent
-leaves no stale file behind, while another plugin under `.opencode/plugins/` and a consumer's own
-agent under `.opencode/agents/` both survive untouched.
+You invoke a rendered skill by typing `/superdev-<name>`, the flat slash command OpenCode registers
+every skill under. The `superdev-` prefix is not decoration: OpenCode's skill registry is flat and
+globally unique across every directory it scans, so an unprefixed `plan` would collide with your own.
 
-**Updating.** `/superdev/upgrade` is the OpenCode equivalent of `/superdev:upgrade`: it pulls the
+Running the command again is safe. It removes its own generated content first — the `superdev/`
+commands directory wholesale, the bridge plugin file by name, and, in the shared `.opencode/agents/`
+and `.opencode/skills/` directories, only the files and skill directories it wrote in a past render —
+so a renamed or removed skill or agent leaves no stale file behind, while another plugin under
+`.opencode/plugins/`, your own agent under `.opencode/agents/`, and your own skill under
+`.opencode/skills/` all survive untouched. That last one holds even for a skill of yours named
+`superdev-something`, as long as it isn't one of the eleven canonical names: cleanup matches a marker
+the render writes, never the name. A skill of yours that shares one of those eleven names —
+`superdev-plan`, say — is not spared: the render writes that exact path unconditionally on every run,
+marker or not.
+
+**Updating.** `/superdev-upgrade` is the OpenCode equivalent of `/superdev:upgrade`: it pulls the
 `superdev` clone and re-runs the render command above, then tells you to start a new OpenCode
-session so the refreshed commands, agents, and hook bridge load. Or do it by hand: `git pull` in the
-clone, then re-run the render command above, in case the rendered command itself is ever broken or
+session so the refreshed skills, agents, and hook bridge load. Or do it by hand: `git pull` in the
+clone, then re-run the render command above, in case the rendered skill itself is ever broken or
 unavailable.
 
-**Verify each render target.** Confirm the three paths above exist under the project's `.opencode/`.
-Confirm the rendered commands appear once you type `/` in OpenCode's own interface, since that is how
-OpenCode lists them. Start an OpenCode session in the project and check its log for a plugin-loader
-error: a plugin whose module export is not a function fails to load and reports exactly that. After one
+**Verify each render target.** Confirm the four paths above exist under the project's `.opencode/`.
+Run `opencode debug skill` in the project and confirm it lists all eleven `superdev-` skills, which is
+how OpenCode reports what it actually loaded. Start an OpenCode session and check its log for a
+plugin-loader error: a plugin whose module export is not a function fails to load and reports exactly
+that. After one
 session, confirm the bridge ran by checking that `<plugin-root>/.data/.update-check` now exists, the
 cache file the bridged `update-check` hook writes on `session.created`. From a subagent's session, run
 a command one of the guardrails blocks under Claude Code, for example `git merge`, and confirm OpenCode
@@ -544,9 +557,24 @@ OpenCode's own `.env`-ask default specifically for the `read` tool, so a plain i
 before an agent reads a `.env` file through `read` — not through `bash` or `grep`, which every rendered
 agent keeps and which the guard does not cover.
 
-**afk is excluded.** `/superdev:afk` drives the chain through Claude Code's own Skill tool, so the
-render skips it: no `.opencode/commands/superdev/afk.md` exists. Run `implement`, `review`,
-`document`, and `ship` yourself, one at a time, under OpenCode.
+**afk is a command, not a skill — deliberately.** Every other surface renders as a skill so that afk
+can invoke it: a skill is the only prompt surface OpenCode's model can start on its own, through the
+built-in `skill` tool. A command is not, and that is exactly why afk is one. Under Claude Code afk
+carries `disable-model-invocation: true`, because a model that can start an unattended sweep over your
+whole backlog on its own judgment is a hazard. OpenCode has no such frontmatter key, so the command
+render reproduces it instead — with no configuration on your side to get right.
+
+You start a sweep from a shell:
+
+```
+opencode run --auto --command superdev/afk
+```
+
+`--auto` approves every permission not explicitly denied. Without it a sweep stalls the first time
+OpenCode's `doom_loop` or `external_directory` permission asks, both of which default to `ask` and
+neither of which anyone is there to answer. A headless run also denies the `question` tool outright,
+which is the behavior an unattended run already assumes: superdev's standing answers exist so nothing
+gets asked, and a stop with no standing answer is a block rather than a question.
 
 ## Attribution
 

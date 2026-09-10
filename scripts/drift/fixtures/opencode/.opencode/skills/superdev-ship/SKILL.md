@@ -1,5 +1,7 @@
 ---
-description: "Close out a superdev scope — tick the Definition of Done, close the scope anchor, open the PR, and clean up the run. The last step of the implement chain; run it after /superdev/review and /superdev/document."
+# generated-by: superdev-adapter — a re-render overwrites this directory
+name: superdev-ship
+description: "Close out a superdev scope — tick the Definition of Done, close the scope anchor, open the PR, and clean up the run. The last step of the implement chain; run it after /superdev-review and /superdev-document."
 ---
 
 # superdev ship
@@ -13,7 +15,7 @@ dispatches no subagents.
 **`--unattended`, if present, comes out first** — per `<plugin-root>/references/scope-mode.md`'s
 **Unattended** section, it is never part of the scope slug.
 
-Resolve `$ARGUMENTS` to one scope — a **run root**, per that file's `## A live scope run` section:
+Resolve the message that invoked this skill to one scope — a **run root**, per that file's `## A live scope run` section:
 
 - **A scope slug given** → use it. No run root by that name → say so and stop.
 - **Empty, exactly one run root** → use it.
@@ -40,22 +42,22 @@ all):
 - **`shipped`** → already shipped. Report that, print the existing pull request if the code host still
   lists one, and stop. Never open a second.
 - **`documented`** → the whole chain ran. Proceed silently.
-- **`documented-unreviewed`** → `/superdev/document` ran while the stage was earlier than `reviewed`, so
-  the review step never ran. Treat it exactly like the review-missing case below: name `/superdev/review`
+- **`documented-unreviewed`** → `/superdev-document` ran while the stage was earlier than `reviewed`, so
+  the review step never ran. Treat it exactly like the review-missing case below: name `/superdev-review`
   as missing and **ask once**.
 - **Anything earlier** (`implementing`, `merged`, `reviewed`), or **no line at all** → name exactly what
-  has not run (`/superdev/review`, `/superdev/document`, or both) and **ask once** whether to ship anyway.
+  has not run (`/superdev-review`, `/superdev-document`, or both) and **ask once** whether to ship anyway.
   Declined → stop and print the missing command. Confirmed → proceed and record in the report that the
   scope shipped without it. **`--unattended` → refuse**: name what is missing, open no pull request, and
   stop. A caller that drove the whole chain never reaches this bullet, so reaching it unattended means a
   step really was skipped — and shipping unreviewed code is not a decision a token stands in for.
 - **Every slice in the ledger is `mechanical` or `docs`** (the fourth, `type` field of
   `node "<plugin-root>/scripts/scope.js" get slices --root <run-root>`, one tab-separated row per
-  slice) → drop `/superdev/review` from that warning, whether it applies to this bullet or to
+  slice) → drop `/superdev-review` from that warning, whether it applies to this bullet or to
   `documented-unreviewed` above. Such a scope skips the whole-scope review by design — it reaches this
-  stage only once `/superdev/implement`'s run handoff has run the full suite and found it green, found no
+  stage only once `/superdev-implement`'s run handoff has run the full suite and found it green, found no
   test command configured, or recorded a denied test command and continued attended (ADR 0025) — so naming
-  `/superdev/review` as missing would train the reader to dismiss the question. If that drop empties the
+  `/superdev-review` as missing would train the reader to dismiss the question. If that drop empties the
   warning, proceed silently instead of asking about an empty list.
 
 **Entries standing.** Read every bullet with
@@ -101,7 +103,7 @@ distinct from `## Degraded passes` — the two answer different questions. **No 
 heading.
 
 **Carry a deferred finding into that body as well, under a third heading.** The ledger's `**Deferred:**`
-line lists every finding `/superdev/review` handed to `/superdev/plan` rather than fixing, per that file's
+line lists every finding `/superdev-review` handed to `/superdev-plan` rather than fixing, per that file's
 `## Deferred findings` section; `node "<plugin-root>/scripts/scope.js" get deferred --root
 <run-root>` reports it, one bullet per line. Copy every bullet under its own `## Deferred to a plan`
 heading, distinct from both headings above — the three answer different questions: what the run did not
@@ -130,9 +132,9 @@ you are standing in:
 
 ## 7. Point at the publish, when pages are waiting
 
-`.superdev/kb-pending/<scope>/` holds staged pages → print `/superdev/publish-kb <scope>` with one line on
+`.superdev/kb-pending/<scope>/` holds staged pages → print `/superdev-publish-kb <scope>` with one line on
 when to run it: **once the feature has reached its readers**, which is later than this pull request and
 later than its merge. Superdev cannot detect that moment, which is why nothing here does it for you.
 
-This is a pointer, not a chain handoff. `/superdev/ship` still ends the chain. **No staged pages** → print
+This is a pointer, not a chain handoff. `/superdev-ship` still ends the chain. **No staged pages** → print
 nothing; add no line saying there is nothing to publish.

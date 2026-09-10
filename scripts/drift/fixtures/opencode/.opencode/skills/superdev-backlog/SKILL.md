@@ -1,29 +1,30 @@
 ---
+# generated-by: superdev-adapter — a re-render overwrites this directory
+name: superdev-backlog
 description: "Backlog survey — what is planned, stuck, waiting, or unbuilt in the slice store, and what to work on next. Read-only."
-model: anthropic/claude-sonnet-4-5
 allowed-tools: "Read, Bash"
 ---
 
 # superdev backlog
 
 Survey the slice store and show the maintainer what is in it, grouped by **the action each item needs**.
-`/superdev/status` reports the runs already started, from their ledgers. This reports the **store**: the
+`/superdev-status` reports the runs already started, from their ledgers. This reports the **store**: the
 planned, the unplanned, the released, the waiting, and the stuck.
 
 **This survey writes nothing.** No issue, no label, no comment, no file, no `.superdev/` directory. It
-answers a question and stops. Acting on a row is `/superdev/plan`, `/superdev/implement`, or a human
+answers a question and stops. Acting on a row is `/superdev-plan`, `/superdev-implement`, or a human
 decision, in another invocation.
 
 **Its rules are looser than `/superdev/afk`'s, deliberately** (ADR 0049). That command acts unattended, so
 it resolves every ambiguity toward doing nothing. This one prints a table, so it resolves an ambiguity
 toward showing the row with what it saw. Where the two disagree about one anchor, the maintainer running
-`/superdev/implement` on it gets that command's own checks. Share no rule set with it and derive nothing
+`/superdev-implement` on it gets that command's own checks. Share no rule set with it and derive nothing
 from its eligibility list.
 
 ## 1. Config
 
 Read `docs/agents/issue-tracker.md`. **Absent** → say the slice store is unconfigured, point at
-**`/superdev/setup`**, and stop. List nothing and run `/superdev/setup` yourself for nobody: it is an
+**`/superdev-setup`**, and stop. List nothing and run `/superdev-setup` yourself for nobody: it is an
 interview.
 
 That document is where every backend mechanism this command uses already lives. Name no store's own query
@@ -42,7 +43,7 @@ Three listings, and the store document owns all three.
   common one on a consumer configured on 0.38.0 or earlier, since ADR 0046 shipped the section before this
   survey's listing call existed. That is a configuration gap, not an empty backlog — say so in the line
   above the table (§3), naming the remedy: copy the `List the records` bullet from the matching
-  `references/issue-tracker-*.md` seed — `/superdev/setup` only rewrites this file on a backend switch,
+  `references/issue-tracker-*.md` seed — `/superdev-setup` only rewrites this file on a backend switch,
   not to patch one section in place. Never invent a backend query to fill the gap.
 - **The untriaged items.** Its `## Untriaged item` section states the listing call for this backend. A
   store document carrying no such section has never named one — a configuration gap, the same shape the
@@ -66,7 +67,7 @@ the survey read, the same way `references/issue-tracker-local.md` names the bran
 List every run root **once**, up front: `<main-checkout>/.superdev/scopes/*/` — a run root is a
 directory there holding a `ledger.md` (`<plugin-root>/references/scope-mode.md`'s `## A live
 scope run`). For each, read its stage: `node "<plugin-root>/scripts/scope.js" get stage --root
-<run-root>`. This is the same ledger `/superdev/status` reports from, so the two agree about a scope by
+<run-root>`. This is the same ledger `/superdev-status` reports from, so the two agree about a scope by
 construction; deriving one from git state instead would stop agreeing with nothing to catch it.
 
 Match each run root to an anchor by **scope slug** — the anchor's feature label minus its change-type
@@ -79,7 +80,7 @@ A run root matching no open anchor, whose stage reads short of `shipped`, is a *
 row in the `stranded` bucket (§3), the item §5 ranks most expensive — unless its directory name is the
 scope slug of a feature label this same survey already gave a `blocked` row for; that row already names
 the act, so the run root beneath it earns no second one. A run root matching no open anchor whose stage
-reads `shipped` gets **no row at all** — `/superdev/ship` closes the anchor and sets that stage in the
+reads `shipped` gets **no row at all** — `/superdev-ship` closes the anchor and sets that stage in the
 same step, so this is the ordinary end state a finished run sits in until `hooks/scope-prune.js` reaps it,
 not a mismatch to report. The reciprocal case — an open anchor whose own run root reads `shipped` — is a
 row too; §3 buckets it.
@@ -108,9 +109,9 @@ issue query, say. A record already returned by the anchor or triage listing is n
 | `stranded` | a run root whose stage is short of `shipped` and matches no open anchor | a human, now — resume the run if its anchor still exists, otherwise delete the branch, worktree, and run root |
 | `in flight` | its scope has a run root whose stage is short of `shipped` | the chain command that stage has not reached |
 | `waiting` | an anchor dependency it records is unsatisfied | the anchor it waits on |
-| `needs planning` | a triage record, or an anchor that is neither itself a slice nor has slices beneath it | `/superdev/plan` |
+| `needs planning` | a triage record, or an anchor that is neither itself a slice nor has slices beneath it | `/superdev-plan` |
 | `unreleased` | an anchor carrying no release signal (`docs/agents/issue-tracker.md`'s `## Release` section) | a release decision |
-| `ready` | every remaining **anchor**: released, no run root, dependencies satisfied | `/superdev/implement <feature-label>` |
+| `ready` | every remaining **anchor**: released, no run root, dependencies satisfied | `/superdev-implement <feature-label>` |
 | `untriaged` | an open store record carrying neither a feature label nor the store's triage signal | read it — a human decides what to do next |
 
 **Every open anchor, every triage record and untriaged item the three listings returned, and every
@@ -132,7 +133,7 @@ feature label verbatim"), so a range argument is `<BASE>..<feature-label>` with 
 `git merge-base <base> <feature-label>`, `<base>` read from `docs/agents/code-management.md` (default
 `main`).
 
-A scope with a run root is **one row**, carrying its stage. Its individual slices are `/superdev/status`'s
+A scope with a run root is **one row**, carrying its stage. Its individual slices are `/superdev-status`'s
 report, not this one.
 
 ## 4. Report
@@ -142,11 +143,11 @@ copy-pasteable superdev command, or the human act in a few words. An `untriaged`
 age, since age is what the cap below picks rows by.
 
 ```
-#368 backlog survey        in flight       reviewed → /superdev/document main..feat/backlog
-#412 export formats        ready           /superdev/implement feat/export-formats
+#368 backlog survey        in flight       reviewed → /superdev-document main..feat/backlog
+#412 export formats        ready           /superdev-implement feat/export-formats
 #377 rate limiting         waiting         waits on #412
 #390 audit trail           unreleased      release it: the `released` label on #390
-#402 retry storms          needs planning  triage record → /superdev/plan "retry storms"
+#402 retry storms          needs planning  triage record → /superdev-plan "retry storms"
 #355 search indexer        blocked         label `Search_Indexer!` fails the scope-slug rule — rename it
 #421 flaky login on mobile untriaged       3d old — read it
 ```
@@ -163,7 +164,7 @@ which is ordered by age. Print the buckets that have rows and leave out the ones
 End with **one** line: the single thing you would do next, and why in half a sentence.
 
 **Finishing beats starting.** An in-flight scope outranks a `ready` anchor, which outranks a fresh
-`/superdev/plan`. A stranded run root is the most expensive item in the backlog: it holds a branch, a
+`/superdev-plan`. A stranded run root is the most expensive item in the backlog: it holds a branch, a
 worktree, and a lock, and every day it sits there the base moves further from it. A `blocked` row outranks
 all of it when one exists, because nothing else in the table moves until a human clears it. An `untriaged`
 item ranks last, for the opposite reason a stranded run root ranks first: it is the furthest thing from
@@ -176,7 +177,7 @@ Recommend one move, not a ranked list. The table is already the ranked list.
 - **Writing a store's own query into this file.** The store document owns every call. This command reads
   it.
 - **Reporting an empty backlog on a failed listing.** Say what failed.
-- **Expanding into `/superdev/status`.** A scope with a run root is one row. Per-slice detail is that
+- **Expanding into `/superdev-status`.** A scope with a run root is one row. Per-slice detail is that
   command's.
 - **Inheriting `/superdev/afk`'s defer-on-doubt.** Its skips hide unreleased anchors, undecomposed
   anchors, and triage records. Those are the rows this survey exists to show.

@@ -1,5 +1,7 @@
 ---
-description: "Reconcile the project's docs and optional knowledge base with the current state of the code, removing stale text. Third step of the implement chain, after /superdev/review; also runs standalone."
+# generated-by: superdev-adapter — a re-render overwrites this directory
+name: superdev-document
+description: "Reconcile the project's docs and optional knowledge base with the current state of the code, removing stale text. Third step of the implement chain, after /superdev-review; also runs standalone."
 ---
 
 # superdev document
@@ -10,15 +12,15 @@ Dispatch the isolated **`doc-writer`** to do the work, then reader-test the resu
 ## 1. Config
 
 - Read `docs/agents/documentation.md` (in-repo documentation convention) and `docs/agents/knowledge-base.md` (KB backend, audience, language, outline — may be "none").
-- Neither present → this repo hasn't been set up for superdev docs; suggest `/superdev/setup` and stop.
+- Neither present → this repo hasn't been set up for superdev docs; suggest `/superdev-setup` and stop.
 
 ## 2. Range
 
 **`--unattended`, if present, comes out first** — per `<plugin-root>/references/scope-mode.md`'s **Unattended** section, it is never part of the range or the area path.
 
-From `$ARGUMENTS`:
+From the message that invoked this skill:
 
-- **A git range** (`BASE..HEAD`) or an **area path** → a focused reconcile of what changed there. (`/superdev/review` hands on `merge-base(base, <type>/<scope>)..<type>/<scope>`.) A range or area **never** bootstraps (§7), so the chain's doc pass, which always passes a range, can't.
+- **A git range** (`BASE..HEAD`) or an **area path** → a focused reconcile of what changed there. (`/superdev-review` hands on `merge-base(base, <type>/<scope>)..<type>/<scope>`.) A range or area **never** bootstraps (§7), so the chain's doc pass, which always passes a range, can't.
 - **Empty** → a **full reconcile**: all in-repo docs (README + the whole `AGENTS.md` tree) + the KB against current repo state. **Exception:** the convention is the `AGENTS.md` hierarchy and the root `AGENTS.md` is **absent** → there is no doc tree to reconcile: skip §3-§5 and run **bootstrap** in §7.
 - **The literal word `audit`** → skip §3-§5; run the **reader-first audit** in §6.
 
@@ -39,7 +41,7 @@ work this section would dispatch is done:
 - **Those commits touched no doc file** → skip §4 as well, and say in §5 that the pass was already done and
   left nothing for a reader. This invocation dispatches nobody at all.
 - The record reads `absent` on every `full` run, on a `lite` run that ended before its doc step, and after
-  `/superdev/review` cleared it because its fix loop landed commits. Each takes the dispatch below,
+  `/superdev-review` cleared it because its fix loop landed commits. Each takes the dispatch below,
   unchanged.
 
 An ad-hoc range has no run root and so no record: dispatch below.
@@ -48,10 +50,10 @@ Dispatch **`doc-writer`** with an **explicit `model`** (`sonnet`; `haiku` for a 
 Hand it: the range (git range/area/"full"), the two config file paths, the **staging path** below, and — for a range — a reminder to start from `git diff --stat`/`git log` over that range.
 It performs the pass `<plugin-root>/references/doc-pass.md` states, and commits its doc changes on the current branch. **Name that reference in the dispatch**: it owns the pass, and a dispatch that describes the pass in its own words is the one the writer acts on (ADR 0031, ADR 0035).
 
-**The knowledge-base pass reaches no backend.** For a remote backend the doc-writer writes each page as a **staged page**, and `/superdev/publish-kb` sends it later, once a human decides the feature has reached its readers (ADR 0023). A local `docs/kb/` backend is unaffected: its pages are repository files that ride the branch.
+**The knowledge-base pass reaches no backend.** For a remote backend the doc-writer writes each page as a **staged page**, and `/superdev-publish-kb` sends it later, once a human decides the feature has reached its readers (ADR 0023). A local `docs/kb/` backend is unaffected: its pages are repository files that ride the branch.
 
 Hand the doc-writer the staging path as an **absolute** path — `.superdev/kb-pending/<scope>/` in the invoking checkout, or `.superdev/kb-pending/_adhoc/` when §2 found no live scope run — resolved before you dispatch, while the invoking checkout is your cwd.
-The scope checkout is `.superdev/scopes/<scope>/worktree`, inside `.superdev/` itself, so a checkout-relative path resolves one level too deep from the doc-writer's cwd and lands in a directory `/superdev/ship` deletes.
+The scope checkout is `.superdev/scopes/<scope>/worktree`, inside `.superdev/` itself, so a checkout-relative path resolves one level too deep from the doc-writer's cwd and lands in a directory `/superdev-ship` deletes.
 Ensure `.superdev/` is in the repo's `.gitignore` before you dispatch; add it if absent — an ad-hoc run may reach this command before either ran the check.
 
 ## 4. Reader test
@@ -87,7 +89,7 @@ same holds under `--unattended`: there is nothing to ask, so don't stop on it.
 
 Relay what the doc-writer changed: which `AGENTS.md`/docs were updated, what was removed as stale, which KB pages were written to `docs/kb/` or **staged** and under which action (or that the KB pass was none/skipped), the reader-test tally (including findings left unresolved after the fix round), the **writing standard** that applied (or that none did), and any concerns. Do not re-do its work.
 
-**Staged pages are named, with `/superdev/publish-kb`.** They are not on the knowledge base yet, and nothing later in the chain sends them. Say how many pages wait and under which scope.
+**Staged pages are named, with `/superdev-publish-kb`.** They are not on the knowledge base yet, and nothing later in the chain sends them. Say how many pages wait and under which scope.
 
 ## 6. Audit mode (`audit`)
 
@@ -116,4 +118,4 @@ Only when §2 found a live run. Everything above still applies; this adds the ru
 
 - **Find the scope checkout, and refresh the run lock.** Per `<plugin-root>/references/scope-mode.md`. Hand the doc-writer the scope checkout path as its working directory: this is where its commits must land.
 - **Write the stage.** Once §4 finishes, write the ledger's `**Stage:**` line with `node "<plugin-root>/scripts/scope.js" stage set <value> --root <run-root>`, per that file's rule that a stage write never undoes completed work — the verb enforces it and refuses a write that breaks it. Read the current stage first (`scope.js get stage`). `shipped` → leave the line alone and say so in one line; a shipped scope never regains an earlier stage. `reviewed` → write `documented`. `documented` → leave it; the docs are already recorded as reconciled. Anything else, including no line at all → write `documented-unreviewed`, which records that the review step never ran before this doc pass. A pass in which the doc-writer changed nothing still counts: the docs already agreed with the code, which is the state this stage records. **Wrote `documented` or `documented-unreviewed` above** → publish the snapshot, per `<plugin-root>/references/scope-mode.md`'s `## Publishing run state` section. The two leave-alone branches wrote nothing, so there is nothing to publish there.
-- **Print the next command:** `/superdev/ship <scope>`, with one line on what it does (tick the Definition of Done, close the scope anchor, open the pull request, and take the run down). Add that this conversation is disposable: the ledger's stage and `dod.md` carry everything `/superdev/ship` reads, so a `/clear` first costs nothing.
+- **Print the next command:** `/superdev-ship <scope>`, with one line on what it does (tick the Definition of Done, close the scope anchor, open the pull request, and take the run down). Add that this conversation is disposable: the ledger's stage and `dod.md` carry everything `/superdev-ship` reads, so a `/clear` first costs nothing.
