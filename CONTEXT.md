@@ -290,6 +290,9 @@ _Avoid: "artifact" (too generic), "output" (an invocation property), "install" (
 **Model-invocable surface**: a **Render target** the harness's own model can start, as against one only the operator can. Which target kind carries the property is the harness's to decide — on OpenCode a skill does and a command does not — and it is what decides where each surface renders: `/superdev:afk` chains four other surfaces itself, so those four must carry it, and afk must not (ADR 0055).
 _Avoid: "auto-invoked" (that names implicit activation by description match, a different property), "callable", "public"_
 
+**Guardrail parity**: how much of the shipped hook set a **Harness adapter**'s render can make decide on one harness, and what the render does where it cannot. A hook needs both a wiring the harness offers and the payload fields its own decision reads: Codex wires `merge-guard` and still cannot fire it, because no Codex tool event carries the subagent identity the guard decides on (ADR 0056). Parity short of full is stated to the operator and recorded in an ADR, never silently absent.
+_Avoid: "hook parity" (the wiring is only half of it — a wired hook with no field to read still decides nothing), "coverage", "degraded pass" (that names a run-level policy in `references/scope-mode.md`)_
+
 **Feature label**: the one slice-store identifier a feature's scope anchor and every one of its slices carry, its **change type** and its slug, in the notation the active `docs/agents/issue-tracker.md` states (a `<type>/<slug>` label on an issue-backed store, the `<type>/<slug>` path under `docs/plans/` on the local-file store). It names the feature to `/superdev:implement`, and it is the scope branch verbatim, so one value fixes which feature gets built and which branch and run root the build uses (ADR 0019, ADR 0021).
 _Avoid: "epic label" (`epic` is a different label on one backend, marking which issue is the anchor), "tag", "component"_
 
