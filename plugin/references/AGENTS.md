@@ -24,7 +24,7 @@ rules name.
 |---|---|---|
 | `plan-contract.md` | slice schema and lifecycle, plus the `## Scope anchor`, `## Feature label`, `## Release`, `## Run state`, `## Append mode`, `## Triage record`, and `### Assignee` generic contracts every store document specialises, including the anchor dependency `/afk` defers on (ADR 0004, 0010, 0017, 0019, 0021, 0034, 0040, 0042, 0046, 0048) | `/plan`, `/implement`, `/afk`, and the store seeds cite it |
 | `documentation.md` | the in-repo documentation convention, which `/superdev:setup` fills at `## Writing standard` always and at `## Audit set` when needed | `/setup`, `/document` |
-| `controlled-prose.md` | the writing standard (ADR 0012) | `doc-pass.md`'s callers apply it, `doc-reader` verifies it |
+| `controlled-prose.md` | the writing standard (ADR 0012) | `doc-pass.md`'s callers apply it, `doc-reader` verifies it, `prose-check` applies it unconditionally on demand (ADR 0057) |
 | `content-types.md` | the content-type lens, never configurable and never `none` (ADR 0014) | `doc-pass.md`'s callers, `doc-reader` |
 | `doc-pass.md` | the documentation pass, stated once for its two callers (ADR 0031) | `doc-writer`, the `lite` playbook |
 | `run-init.md`, `run-handoff.md` | run init and run handoff, tier-agnostic | both execution playbooks |

@@ -31,9 +31,9 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
   .claude-plugin/
     plugin.json        — plugin manifest (name, version, author); version is the SINGLE source of truth.
                          No `hooks` field — Claude Code auto-loads the standard hooks/hooks.json.
-  skills/              — the twelve `/superdev:<name>` surfaces, one `<name>/SKILL.md` each (ADR 0050):
+  skills/              — the thirteen `/superdev:<name>` surfaces, one `<name>/SKILL.md` each (ADR 0050):
                          brainstorm, setup, plan, implement, review, document, ship, afk, upgrade,
-                         status, backlog, publish-kb
+                         status, backlog, publish-kb, prose-check
   agents/              — the six subagents (*.md): implementer, slice-reviewer, simplicity-reviewer,
                          final-reviewer, doc-writer, doc-reader
   hooks/               — the eight deterministic Node hooks + hooks.json: merge-guard, model-explicit,
@@ -209,11 +209,12 @@ This root owns every other subtree directly:
   live in the files. Claude Code merges plugin skills and commands into one `/superdev:<name>` surface.
   implement → review → document → ship is the chain a scope walks, each skill printing the next
   (ADR 0013). afk drives that chain unattended, one eligible scope anchor at a time, with the Skill tool
-  (ADR 0015). Two skills sit outside the chain and afk drives neither: publish-kb sends a scope's staged
-  knowledge-base pages to a remote backend on the operator's own clock (ADR 0023), and backlog surveys
+  (ADR 0015). Three skills sit outside the chain and afk drives none of them: publish-kb sends a scope's
+  staged knowledge-base pages to a remote backend on the operator's own clock (ADR 0023), backlog surveys
   the slice store read-only, grouping every open scope anchor, triage record, stranded run root, and
   untriaged item by the action it needs and judging them more loosely than afk's own selection does
-  (ADR 0049).
+  (ADR 0049), and prose-check applies `references/controlled-prose.md` to one piece of prose on demand,
+  unconditionally rather than gated on a repo's own `## Writing standard` config (ADR 0057).
 - `plugin/hooks/`. Claude Code hooks, the plugin's deterministic guardrails. Governed by **Working
   rules, Hooks are CommonJS** and **Every hook ships a `--selftest`**. This is the strongest future
   child-doc candidate, if its rules outgrow this root. `hooks/` is the only runtime consumer of
