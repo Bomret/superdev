@@ -74,6 +74,9 @@ _Avoid: "scratch checkout", "session workspace"_
 **Run lock**: the `.superdev/scopes/<scope>/run.lock` file plus the `run-lock` hook that together enforce same-scope mutual exclusion, at both tiers (ADR 0045). Its mtime marks the run as live, so every command in the chain touches it and the lock spans the whole run rather than one invocation. A stale lock is reclaimable as a crash resume.
 _Avoid: "lockfile" (that names a dependency-manifest file elsewhere), "mutex" (too implementation-generic)_
 
+**Base lock**: the repo-level `.superdev/base.lock` file, `scope.js base-lock acquire`/`release` guard the base-branch design-docs commit `/superdev:plan` and `/superdev:implement`'s run init each perform (ADR 0058). `acquire` is an exclusive file-create: it fails when a fresh lock already exists and reclaims one older than 5 minutes. No hook backs it — the file-create's own atomicity is the guarantee, mirroring `Run lock`'s real backstop (`git worktree add -b`'s own refusal) rather than its hook.
+_Avoid: "run lock" (that spans a whole scope's run under `.superdev/scopes/<scope>/`; this guards one shared commit step at the `.superdev/` root), "mutex" (too implementation-generic, matching `Run lock`'s own avoid-list)_
+
 **Progress log**: the per-slice running record of what happened: agent dispatches, reviews, fixes, and merge results. `.superdev/scopes/<scope>/reports/<id>/progress.md` is append-only, oldest-first, git-ignored. Exists so a human or a resumed controller can see what unfolded without re-reading worktree state.
 _Avoid: "log", "report", "transcript" (logs are broader, and this is slice-specific narrative)_
 
