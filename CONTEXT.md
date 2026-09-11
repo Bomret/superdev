@@ -290,6 +290,9 @@ _Avoid: "source of truth" (the repo as a whole already claims that), "template" 
 **Render target**: one file set a harness adapter writes into a consumer's repository (for example `.opencode/skills/`, `.opencode/commands/`, `.opencode/agents/`, `.opencode/plugins/`). Generated, never hand-edited, and reproducible by re-running the adapter.
 _Avoid: "artifact" (too generic), "output" (an invocation property), "install" (that is the whole flow, not the file set)_
 
+**Render overlay**: the committed form of a **Render target** whose render is line-aligned with its **Canonical surface** — the rendered frontmatter in full, plus only the body lines that differ from the source, keyed by line number. It is what the `opencode-render` drift check pins the adapter against, so the committed artifact changes when a rewrite rule changes rather than when prose does. A target with no line-aligned source (the `afk` command render, the generated hook bridge, the synthesized `upgrade` skill) is committed whole instead, and a target whose alignment breaks is refused by name rather than overlaid onto the wrong lines (ADR 0060).
+_Avoid: "golden fixture" (that names the whole-body form this replaces for aligned targets), "diff" (there is no diff algorithm: alignment makes it a line-number map), "patch"_
+
 **Model-invocable surface**: a **Render target** the harness's own model can start, as against one only the operator can. Which target kind carries the property is the harness's to decide — on OpenCode a skill does and a command does not — and it is what decides where each surface renders: `/superdev:afk` chains four other surfaces itself, so those four must carry it, and afk must not (ADR 0055).
 _Avoid: "auto-invoked" (that names implicit activation by description match, a different property), "callable", "public"_
 
