@@ -1413,8 +1413,13 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'references/run-init.md': 'Create the run root directory and write a ledger header by hand.\n',
   });
   const vcRunInitGaps = scanContract(vcRunInit, VERB_CONTRACTS);
-  assert.equal(vcRunInitGaps.length, 1, 'flags run-init.md for creating the run root without `scope.js init`');
-  assert.equal(vcRunInitGaps[0].source, path.join('references', 'run-init.md'), 'names run-init.md');
+  // Three, because `references/run-init.md` carries three rows: `init`, plus the base lock's own
+  // acquire and release (ADR 0058). This fixture names none of them.
+  assert.equal(vcRunInitGaps.length, 3, 'flags run-init.md for creating the run root without `scope.js init`');
+  assert.ok(
+    vcRunInitGaps.every((g) => g.source === path.join('references', 'run-init.md')),
+    'names run-init.md'
+  );
 
   // positive: afk.md reads a scope's stage from the ledger directly
   const vcAfk = fixture({
@@ -1464,8 +1469,13 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'skills/plan/SKILL.md': 'Build the branch name from `<type>/<scope>` for the append refusal.\n',
   });
   const vcPlanGaps = scanContract(vcPlan, VERB_CONTRACTS);
-  assert.equal(vcPlanGaps.length, 1, 'flags plan.md for reconstructing the branch instead of `scope.js get branch --root`');
-  assert.equal(vcPlanGaps[0].source, path.join('skills', 'plan', 'SKILL.md'), 'names plan.md');
+  // Three, for the same reason run-init.md reports three: `get branch --root`, plus the base lock's
+  // acquire and release (ADR 0058), none of which this fixture names.
+  assert.equal(vcPlanGaps.length, 3, 'flags plan.md for reconstructing the branch instead of `scope.js get branch --root`');
+  assert.ok(
+    vcPlanGaps.every((g) => g.source === path.join('skills', 'plan', 'SKILL.md')),
+    'names plan.md'
+  );
 
   // absent files are skipped, matching every other contract table
   assert.equal(

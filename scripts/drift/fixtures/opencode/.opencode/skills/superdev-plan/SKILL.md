@@ -318,9 +318,20 @@ base you wanted, write nothing, and stop; the plan is already in the store, so t
 base and commits there — no interview, nothing re-planned — and the handoff below still prints, because
 only the commit is outstanding. `/superdev-implement` runs from a fresh worktree checkout of that branch,
 so anything uncommitted never reaches it and a path-scoped rule that isn't on the branch can't auto-load.
+**The moment that check reads the base branch, take the base lock** —
+`node "<plugin-root>/scripts/scope.js" base-lock acquire`, from the invoking checkout — **before
+you stage or commit `CONTEXT.md`, any `docs/adr/` file, or any `.claude/rules/` file**, whether or not
+anything turns out to be dirty, because a second `/superdev-plan` run, or an `/superdev-implement` run
+init in the same checkout, commits the same three groups to the same branch (ADR 0058). **A refused
+acquire names the session holding it: print that message and stop, having edited nothing — and released
+nothing, since this session never held the lock** — the plan is in the store already, exactly as on the
+wrong-branch stop above.
 **Push the base branch** to its remote right after committing (if one is configured, per
 `docs/agents/code-management.md`): `/superdev-ship`'s PR is opened against the remote base, and an
-unpushed local commit there is stranded once the PR is squash-merged.
+unpushed local commit there is stranded once the PR is squash-merged. **Release the lock this session
+acquired** once the push completes — `node "<plugin-root>/scripts/scope.js" base-lock release` —
+and equally on the path where nothing was dirty and nothing was committed, so the next session finds it
+free rather than waiting out the five-minute staleness window.
 
 **Ask whether to release the plan.** `plan-contract.md`'s *Release* section owns what a release is; the
 active `docs/agents/issue-tracker.md`'s `## Release` section owns this backend's signal and the call that

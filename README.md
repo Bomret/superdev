@@ -336,6 +336,9 @@ docs/kb/                  knowledge base, only if the local-file KB backend is c
 .superdev/design/<feature-slug>.html   git-ignored throwaway design sketch, written by /plan only when
                           the operator accepts it — sibling to .superdev/scopes/, not inside it;
                           overwritten per feature slug, never committed
+.superdev/base.lock       git-ignored repo-level lock, held while /plan or /implement commits the
+                          design docs above to the base branch — sibling to .superdev/scopes/, since
+                          those files belong to no scope; reclaimed after 5 minutes (ADR 0058)
 .superdev/kb-pending/<scope>/<title-slug>.md   git-ignored staged pages for a remote knowledge-base
                           backend (a `patch` page instead names itself
                           `<title-slug>--<section-slug>.md`, ADR 0027), written by /plan and /document

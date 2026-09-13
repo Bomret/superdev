@@ -48,6 +48,21 @@ staged-page lines survive the collapse, because each is otherwise recorded nowhe
 carries no `clear` counterpart: a defect stops being true once a run re-verifies the scope green, while
 unplanned work stays unplanned until somebody plans it (ADR 0035).
 
+`base-lock acquire|release` is the one verb that touches no ledger (ADR 0058). It guards
+`<cwd>/.superdev/base.lock`, a repo-level lock keyed on the invoking checkout rather than on a run root,
+because what it serialises — the base-branch commit of `CONTEXT.md`, `docs/adr/`, and `.claude/rules/`
+that both `/superdev:plan` §6 and run init perform — belongs to no scope. It therefore takes no `--root`.
+`acquire` creates the lock with an exclusive `wx` write, then git-ignores `.superdev/` — appending the
+line rather than rewriting `.gitignore` — only once that create lands, so a refused acquire touches
+nothing else. A standing lock younger than 5 minutes refuses, naming the live session (its own lock
+file's first line) and the retry, and leaves that lock's mtime untouched, so a retry never extends the
+holder's claim. An older one is a crashed session's: it is unlinked and re-created through the same
+exclusive write, ignoring `.superdev/` again once that reclaim lands, so two sessions reclaiming one
+stale lock still resolve to a single winner. `release` unlinks the file and treats an absent lock as the
+released state. No hook backs any of it. The exclusive create is atomic across processes, which is the
+backstop `hooks/run-lock.js` itself really rests on (`git worktree add -b`'s own refusal), and the
+selftest proves it with eight concurrent `acquire` processes racing one fresh lock.
+
 `publish` and `adopt` (ADR 0042) mirror the ledger to the scope anchor's **published snapshot**, and
 neither performs store I/O: slice-store I/O stays in-agent (ADR 0022). `publish --root <run-root>`
 prints the ledger on stdout as a single `## Run state` section: that heading, then the ledger — its
@@ -498,7 +513,12 @@ playbooks `slice`, `references/scope-mode.md` `degraded add`, `references/implem
 to dispatch a `doc-writer`), and `skills/review/SKILL.md` `docs clear` (when its fix loop lands commits). A
 document that drops its verb goes
 back to hand-editing or hand-parsing the ledger, which the `ledger-guard` hook only catches as a tool
-call at runtime, never as prose.
+call at runtime, never as prose. Four further rows pin the one verb that writes no ledger at all:
+`references/run-init.md` and `skills/plan/SKILL.md` each carry `base-lock acquire` and `base-lock
+release` (ADR 0058). Both halves are pinned per document, because nothing else enforces either. A
+document that stops acquiring returns to two sessions racing on the same base-branch design docs, and
+one that stops releasing makes every later session wait out the five-minute staleness window for a lock
+nobody holds.
 Nineteenth and twentieth, the ADR 0023 knowledge-base contracts, checked in two halves because either
 alone passes while the invariant is gone. Nineteenth, the `kb-staging` half: `skills/plan/SKILL.md`,
 `skills/document/SKILL.md`, and `references/doc-pass.md` each name `.superdev/kb-pending/` as the place a

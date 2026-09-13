@@ -554,6 +554,14 @@ const VERB_CONTRACTS = [
   [path.join('skills', 'document', 'SKILL.md'), /scope\.js["'`]?\s+get docs\b/, 'read the inline-doc-pass record with `scope.js get docs` before it dispatches a writer'],
   [path.join('skills', 'review', 'SKILL.md'), /scope\.js["'`]?\s+docs clear\b/, 'clear the inline-doc-pass record with `scope.js docs clear` when its fix loop lands commits'],
   [path.join('skills', 'publish-kb', 'SKILL.md'), /scope\.js["'`]?\s+get branch\b/, 'read the scope branch with `scope.js get branch` for its merge check'],
+  // ADR 0058's two call sites for the base lock, both halves of each. No hook backs this verb, so a
+  // document that stops acquiring goes straight back to two sessions racing on CONTEXT.md, the ADRs,
+  // and .claude/rules/ — and one that stops releasing leaves every later session waiting out the
+  // five-minute staleness window for a lock nobody holds.
+  [path.join('references', 'run-init.md'), /scope\.js["'`]?\s+base-lock acquire\b/, 'take the base lock with `scope.js base-lock acquire` before it edits a base-branch design doc'],
+  [path.join('references', 'run-init.md'), /scope\.js["'`]?\s+base-lock release\b/, 'release the base lock with `scope.js base-lock release` once its base push completes'],
+  [path.join('skills', 'plan', 'SKILL.md'), /scope\.js["'`]?\s+base-lock acquire\b/, 'take the base lock with `scope.js base-lock acquire` before it edits a base-branch design doc'],
+  [path.join('skills', 'plan', 'SKILL.md'), /scope\.js["'`]?\s+base-lock release\b/, 'release the base lock with `scope.js base-lock release` once its base push completes'],
   // /plan names `scope.js` once and then its two verbs, so the branch half wraps away from the path
   // prefix (`get\n  branch --root <run-root>`) and the `scope.js <verb>` shape above cannot reach it.
   // The `--root` argument is what separates the verb invocation from the words "get branch" in prose.

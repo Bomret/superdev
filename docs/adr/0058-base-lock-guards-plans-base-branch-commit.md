@@ -37,4 +37,9 @@ one was skipped — this record is what stops that.
 touches any file, not a race. A crashed session's lock self-clears after 5 minutes. A maintainer who
 hand-edits `CONTEXT.md`/an ADR outside `/plan` and `/implement` entirely bypasses the lock, same as
 `ledger.md`'s guard only covers the paths it actually inspects — out of scope, since the problem this
-solves is two *superdev* sessions racing, not an unrelated manual edit.
+solves is two *superdev* sessions racing, not an unrelated manual edit. The lock covers the stage,
+commit, and push, not the interview that precedes them: `/superdev:plan` writes `CONTEXT.md`, an ADR, or
+a `.claude/rules/` file to disk the moment each crystallises, well before §6 ever calls `acquire`. Two
+`/plan` interviews running concurrently in the same checkout can still edit the same design docs in the
+working tree before either reaches §6 — holding the lock from the interview's start would outlast this
+lock's own five-minute staleness window, so it is not held there.

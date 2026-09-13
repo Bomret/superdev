@@ -10,8 +10,17 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
   and only commit when the invoking checkout is on the base branch.** Any other branch → name the branch
   you found and the base you wanted, write nothing, stop. **`--unattended` → block**, per
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section. **Nothing dirty → the branch
-  check does not apply.** Then push `<base>` by explicit refspec (`git push <remote> <base>`) if it's
-  ahead of upstream — never by switching onto it. The PR diffs against the remote base.
+  check does not apply, and neither does the lock: there is nothing to serialize, so acquire nothing and
+  release nothing.** **Dirty/untracked, and that check reads the base branch → take the base lock first**
+  — `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" base-lock acquire`, from the invoking checkout —
+  **before you touch `CONTEXT.md`, any `docs/adr/` file, or any `.claude/rules/` file**, because a
+  `/superdev:plan` run in the same checkout commits the same three groups to the same branch (ADR 0058).
+  **A refused acquire names the session holding it: print that message and stop, having edited nothing —
+  and released nothing, since this session never held the lock.** Then push `<base>` by explicit refspec
+  (`git push <remote> <base>`) if it's ahead of upstream — never by switching onto it. The PR diffs
+  against the remote base. **Release the lock this session acquired** once the push completes, or once
+  the commit completes when no remote is configured —
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" base-lock release`.
 - **Run root (per scope).** Fix this run's **scope** `<scope>` and **change type** `<type>` now — off the
   feature label if one resolved, else a short feature-slug you choose (e.g. `lite-perf`) plus the
   Conventional Commits type (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The change type`). The

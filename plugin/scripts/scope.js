@@ -2,8 +2,10 @@
 'use strict';
 
 // scope.js: the run-state CLI (ADR 0022). Owns every ledger.md write and read in the chain.
-// Verbs: init, stage, slice, degraded, unresolved, deferred, get, status. Exit nonzero with a one-line stderr
-// reason on any refusal. hooks/ledger-guard.js makes this the only ledger write path.
+// Verbs: init, stage, slice, degraded, unresolved, deferred, get, status, base-lock. Exit nonzero with a
+// one-line stderr reason on any refusal. hooks/ledger-guard.js makes this the only ledger write path.
+// `base-lock` is the one verb that touches no ledger: it guards the base-branch design-docs commit
+// (ADR 0058).
 
 const fs = require('fs');
 const path = require('path');
@@ -201,6 +203,22 @@ function splitRow(line) {
 
 // --- verbs -------------------------------------------------------------------
 
+// Appended, never read-concat-written: `base-lock acquire` calls this from two sessions that may be
+// racing each other, and an append at worst leaves a duplicate line where a rewrite could truncate the
+// file.
+function ensureSuperdevIgnored(cwd) {
+  const gi = path.join(cwd, '.gitignore');
+  let giText = '';
+  try {
+    giText = fs.readFileSync(gi, 'utf8');
+  } catch (e) {
+    if (e.code !== 'ENOENT') throw e;
+  }
+  if (!giText.split('\n').some((l) => l.trim() === '.superdev/' || l.trim() === '.superdev')) {
+    fs.appendFileSync(gi, (giText && !giText.endsWith('\n') ? '\n' : '') + '.superdev/\n', 'utf8');
+  }
+}
+
 function validateLabel(label) {
   const cut = label.indexOf('/');
   if (cut < 0) fail(`label "${label}" has no "/" — a feature label is <type>/<slug>`);
@@ -252,16 +270,7 @@ function verbInit(cwd, label, stdinJson) {
 
   // Ensure .superdev/ is git-ignored before creating anything under it — but after every
   // refusal above, so a refused init leaves the repo untouched.
-  const gi = path.join(cwd, '.gitignore');
-  let giText = '';
-  try {
-    giText = fs.readFileSync(gi, 'utf8');
-  } catch (e) {
-    if (e.code !== 'ENOENT') throw e;
-  }
-  if (!giText.split('\n').some((l) => l.trim() === '.superdev/' || l.trim() === '.superdev')) {
-    fs.writeFileSync(gi, giText + (giText && !giText.endsWith('\n') ? '\n' : '') + '.superdev/\n', 'utf8');
-  }
+  ensureSuperdevIgnored(cwd);
 
   const doc = [
     `# Ledger — ${slug}`,
@@ -737,6 +746,85 @@ function verbStatus(cwd) {
   console.log(out.join('\n'));
 }
 
+// --- base lock ---------------------------------------------------------------
+//
+// ADR 0058: `/superdev:plan` §6 and `/superdev:implement`'s run init both commit CONTEXT.md, the
+// ADRs, and .claude/rules/ straight to the base branch from the invoking checkout. Two sessions can
+// pass the `git rev-parse --abbrev-ref HEAD` check at the same moment and race on those files, so
+// both acquire this lock first. It is repo-level, a sibling of .superdev/scopes/ rather than a run
+// root's own artifact, because the files it guards belong to no scope.
+//
+// No hook backs it. The exclusive create below is atomic across processes by construction, which is
+// the same backstop `hooks/run-lock.js` really rests on (`git worktree add -b`'s own refusal).
+const BASE_LOCK_STALE_MS = 5 * 60 * 1000;
+
+function baseLockPath(cwd) {
+  return path.join(cwd, '.superdev', 'base.lock');
+}
+
+function writeBaseLock(file) {
+  // 'wx' fails rather than truncating when the file is already there, which is the whole guarantee.
+  fs.writeFileSync(file, `pid ${process.pid}\nacquired ${new Date().toISOString()}\n`, { encoding: 'utf8', flag: 'wx' });
+}
+
+function readBaseLockHolder(file) {
+  try {
+    return fs.readFileSync(file, 'utf8').split('\n')[0] || null;
+  } catch {
+    return null;
+  }
+}
+
+function verbBaseLock(cwd, sub) {
+  const file = baseLockPath(cwd);
+  if (sub === 'acquire') {
+    // `.superdev/` has to exist before the exclusive create, but ignoring it is a side effect of a
+    // *successful* create only — a refused acquire (below) must touch nothing else (dod.md's own
+    // criterion), so the ignore write happens after each `writeBaseLock` that actually lands.
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    try {
+      writeBaseLock(file);
+      ensureSuperdevIgnored(cwd);
+    } catch (e) {
+      if (e.code !== 'EEXIST') throw e;
+      const ageMs = Date.now() - fs.statSync(file).mtimeMs;
+      if (ageMs < BASE_LOCK_STALE_MS) {
+        const holder = readBaseLockHolder(file);
+        fail(
+          `base lock held by another live session (${file}, ${Math.round(ageMs / 1000)}s old` +
+            (holder ? `, ${holder}` : '') +
+            ') — another /superdev:plan or /superdev:implement is committing design docs to the base branch. ' +
+            'Retry once it finishes; a crashed session\'s lock is reclaimed after 5 minutes.'
+        );
+      }
+      // Stale: unlink then re-create exclusively, so a second session reclaiming the same stale lock
+      // at the same moment still loses the create rather than sharing it.
+      try {
+        fs.unlinkSync(file);
+      } catch (e2) {
+        if (e2.code !== 'ENOENT') throw e2;
+      }
+      try {
+        writeBaseLock(file);
+        ensureSuperdevIgnored(cwd);
+      } catch (e2) {
+        if (e2.code !== 'EEXIST') throw e2;
+        fail(`base lock reclaimed by another live session while this one was clearing it (${file}) — retry.`);
+      }
+    }
+    return;
+  }
+  if (sub === 'release') {
+    try {
+      fs.unlinkSync(file);
+    } catch (e) {
+      if (e.code !== 'ENOENT') throw e; // absent is the released state, not an error
+    }
+    return;
+  }
+  fail(`unknown base-lock subcommand "${sub || ''}" — use acquire or release`);
+}
+
 // --- CLI ---------------------------------------------------------------------
 
 function usage() {
@@ -753,6 +841,7 @@ function usage() {
     '  status                             scans <cwd>/.superdev/scopes/*/',
     '  publish --root <run-root>          prints the ledger as one "## Run state" section on stdout',
     '  adopt --root <run-root>            stdin: a whole anchor body; extracts and writes the section',
+    '  base-lock acquire|release          guards <cwd>/.superdev/base.lock, the base-branch design-docs commit',
   ].join('\n');
 }
 
@@ -829,6 +918,10 @@ function run(argv, cwd, stdinJson) {
       verbAdopt(root, stdinJson);
       break;
     }
+    // No --root: the base lock is repo-level, resolved from cwd (the invoking checkout).
+    case 'base-lock':
+      verbBaseLock(cwd, args[0]);
+      break;
     default:
       fail('unknown verb "' + (verb || '') + '"\n' + usage());
   }
@@ -2275,6 +2368,97 @@ function selftest() {
         0,
         'scope.js defines no private maskFencedLines of its own'
       );
+    }
+
+    // --- base-lock: the base-branch design-docs commit guard (ADR 0058) ---------
+    //
+    // No hook backs this verb, so the exclusive file-create is the whole correctness guarantee —
+    // which makes the race at the end of this block the load-bearing assertion, not the per-case
+    // ones above it.
+    {
+      const cp = require('child_process');
+      // `call` above fixes cwd at `tmp`; base-lock resolves its lock from cwd, so it needs its own.
+      const callIn = (argv, cwd) => {
+        const logged = [];
+        const orig = console.log;
+        console.log = (s) => logged.push(String(s));
+        try {
+          run(argv, cwd, '');
+          return { ok: true, out: logged.join('\n') };
+        } catch (e) {
+          if (e.isRefusal) return { ok: false, err: e.message, out: logged.join('\n') };
+          throw e;
+        } finally {
+          console.log = orig;
+        }
+      };
+      const lockRepo = path.join(tmp, 'base-lock-repo');
+      fs.mkdirSync(lockRepo, { recursive: true });
+      const lockFile = path.join(lockRepo, '.superdev', 'base.lock');
+
+      let b = callIn(['base-lock', 'acquire'], lockRepo);
+      assert.ok(b.ok, 'acquire with no lock present succeeds: ' + (b.err || ''));
+      assert.ok(fs.existsSync(lockFile), 'acquire creates .superdev/base.lock');
+      assert.ok(
+        fs.readFileSync(path.join(lockRepo, '.gitignore'), 'utf8').includes('.superdev/'),
+        'acquire git-ignores .superdev/ before writing into it — an untracked lock file reads as a dirty base branch to the very step this guards'
+      );
+
+      // A fresh lock: refuse, and leave the standing lock's own mtime alone — a refusal that
+      // touched it would extend another session's hold every time this one retried.
+      const firstMtime = fs.statSync(lockFile).mtimeMs;
+      b = callIn(['base-lock', 'acquire'], lockRepo);
+      assert.ok(!b.ok, 'acquire refuses while a fresh lock stands');
+      assert.ok(/another/.test(b.err) && /retry/i.test(b.err), 'the refusal names another live session and says to retry: ' + b.err);
+      assert.strictEqual(fs.statSync(lockFile).mtimeMs, firstMtime, 'a refused acquire leaves the standing lock untouched');
+
+      // Older than 5 minutes: a crashed session's lock, reclaimed.
+      const staleMs = Date.now() - 6 * 60 * 1000;
+      fs.utimesSync(lockFile, staleMs / 1000, staleMs / 1000);
+      b = callIn(['base-lock', 'acquire'], lockRepo);
+      assert.ok(b.ok, 'acquire reclaims a lock older than 5 minutes: ' + (b.err || ''));
+      assert.ok(fs.statSync(lockFile).mtimeMs > staleMs, "the reclaimed lock carries this run's own mtime");
+
+      assert.ok(callIn(['base-lock', 'release'], lockRepo).ok, 'release succeeds while the lock stands');
+      assert.ok(!fs.existsSync(lockFile), 'release removes .superdev/base.lock');
+      assert.ok(callIn(['base-lock', 'release'], lockRepo).ok, 'release with no lock present is a no-op');
+
+      b = callIn(['base-lock', 'hold'], lockRepo);
+      assert.ok(!b.ok && /acquire/.test(b.err), 'an unknown base-lock subcommand refuses, naming the real ones: ' + (b.err || ''));
+
+      // A refused acquire touches nothing (dod.md's own criterion) — not even .gitignore. Set up a
+      // fresh lock left by "another session" directly (never through our own acquire), so this repo
+      // never ran the ignore step itself.
+      const refusalRepo = path.join(tmp, 'base-lock-refusal-repo');
+      fs.mkdirSync(path.join(refusalRepo, '.superdev'), { recursive: true });
+      const refusalLock = path.join(refusalRepo, '.superdev', 'base.lock');
+      fs.writeFileSync(refusalLock, 'pid 999999\nacquired ' + new Date().toISOString() + '\n');
+      const refusal = callIn(['base-lock', 'acquire'], refusalRepo);
+      assert.ok(!refusal.ok, 'acquire refuses against a fresh lock left by another session');
+      assert.ok(
+        !fs.existsSync(path.join(refusalRepo, '.gitignore')),
+        'a refused acquire writes no .gitignore — it never reaches the ignore step: ' + refusal.err
+      );
+      assert.ok(/pid 999999/.test(refusal.err), 'the refusal carries the lock file\'s own pid line: ' + refusal.err);
+      assert.ok(/another/.test(refusal.err) && /retry/i.test(refusal.err), 'still names another session and retry: ' + refusal.err);
+
+      // Eight real processes racing one fresh lock. Exactly one wins, because `wx` is atomic
+      // across processes — the property the two prose call sites rely on and cannot themselves
+      // provide.
+      const raceRepo = path.join(tmp, 'base-lock-race');
+      fs.mkdirSync(raceRepo, { recursive: true });
+      const winsFile = path.join(raceRepo, 'wins');
+      const race = cp.spawnSync(
+        'sh',
+        [
+          '-c',
+          `for i in 1 2 3 4 5 6 7 8; do "${process.execPath}" "${__filename}" base-lock acquire >/dev/null 2>&1 && echo won >> "${winsFile}" & done; wait`,
+        ],
+        { cwd: raceRepo, encoding: 'utf8' }
+      );
+      assert.strictEqual(race.status, 0, 'the race harness itself runs: ' + (race.stderr || ''));
+      const wins = fs.existsSync(winsFile) ? fs.readFileSync(winsFile, 'utf8').trim().split('\n').filter(Boolean) : [];
+      assert.strictEqual(wins.length, 1, `exactly one of eight concurrent acquires wins, got ${wins.length}`);
     }
 
     console.log('scope selftest ok');

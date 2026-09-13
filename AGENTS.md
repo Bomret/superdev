@@ -224,8 +224,10 @@ This root owns every other subtree directly:
   with no fallback reader: it sweeps/prunes nothing and says nothing.
 - `scripts/` and `plugin/scripts/`. Owned by [`scripts/AGENTS.md`](scripts/AGENTS.md):
   `plugin/scripts/scope.js` (the run-state CLI, ADR 0022: owns the ledger schema, is the only
-  `ledger.md` read and write path, and exports `readLedgerHeader` for `plugin/hooks/scope-prune.js` and
-  `plugin/hooks/worktree-sweep.js`),
+  `ledger.md` read and write path, exports `readLedgerHeader` for `plugin/hooks/scope-prune.js` and
+  `plugin/hooks/worktree-sweep.js`, and carries the one verb that touches no ledger — `base-lock`,
+  which serialises the base-branch design-docs commit `/superdev:plan` and run init both make, ADR
+  0058),
   `plugin/scripts/kb-patch.js` (the deterministic section merge behind a staged page's `action: patch`,
   called by `/superdev:publish-kb`, ADR 0027 — the commands invoke this and `scope.js` at runtime),
   `plugin/scripts/adapter.js` (the OpenCode harness adapter, issue #375: renders the shipped skills
