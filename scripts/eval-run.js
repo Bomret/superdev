@@ -696,13 +696,10 @@ function selftest() {
   try {
     // --- case.yaml reading -------------------------------------------------
     const yaml = [
-      'schema_version: "1.0"',
       'name: ab-plan-edge-case',
       'description: >-',
       '  prose that happens to mention',
       '  runs: 5 and timeout_seconds: 60 inline.',
-      'tags:',
-      '  - ab',
       'context:',
       '  scaffold_script: scaffold.sh',
       'execution:',

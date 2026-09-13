@@ -21,14 +21,17 @@ line-for-line source to overlay onto.
 
 **Why.** Every skill and every agent renders line-for-line in the body, verified across all fifteen. That
 alignment is what makes an overlay a plain line-number map rather than a diff: no diff algorithm, no new
-dependency in a repo that has none, and a fixture that changes only when a **rewrite rule** changes rather
-than when prose does. The three exceptions keep full fixtures because they have no aligned source, not as a
-special case bolted on.
+dependency in a repo that has none, and a fixture roughly 80% smaller than a whole-body render. Regenerating
+is still required whenever an edit changes the body's line count or touches a rewritten line — the map is
+keyed on absolute line numbers, so either kind of edit shifts or replaces an entry — but an edit that does
+neither leaves the fixture, and the check, untouched. The three exceptions keep full fixtures because they
+have no aligned source, not as a special case bolted on.
 
 **Considered options.**
 - *Store a unified diff per rendered file.* Rejected: a real diff needs either a dependency or a
-  hand-rolled algorithm, and the line alignment makes both unnecessary. A diff's hunk headers would also
-  churn on prose edits near a rewritten line, which is the churn this ADR exists to remove.
+  hand-rolled algorithm, and the line alignment makes both unnecessary — a plain line-number map is the
+  smaller mechanism, and the comparison it needs (line and content equality) is simpler than diffing two
+  hunk sets.
 - *Drop fixtures for derived surfaces and unit-test `rewriteProse` against inline inputs.* Rejected: it is
   the smallest artifact, but the check stops covering "this particular skill renders correctly end to
   end", and the frontmatter emission (JSON-quoted scalars, the marker comment, the `superdev-` prefix) is

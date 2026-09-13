@@ -7,14 +7,17 @@
 // — one fixed model map, and the plugin root normalised to the `<plugin-root>` placeholder so the
 // committed fixtures carry no machine-local absolute path — and, run as `node
 // scripts/drift/opencode-fixtures.js --write`, regenerates scripts/drift/fixtures/opencode/ from
-// it. scripts/drift/scanners.js's scanOpencodeFixtures renders the same way into a temp dir and
-// diffs, so a skills/agents edit that changes the render goes red until this regenerates the
-// fixtures in the same commit.
+// it. A file whose render is line-aligned with its source is committed as a Render overlay
+// (opencode-overlay.js, ADR 0060) instead of the raw render; scripts/drift/scanners.js's
+// scanOpencodeFixtures renders the same way into a temp dir, computes the same overlay, and
+// compares — so a skills/agents/adapter edit that changes the render goes red until this
+// regenerates the fixtures in the same commit.
 
 const fs = require('node:fs');
 const path = require('node:path');
 
 const adapter = require('../../plugin/scripts/adapter.js');
+const overlay = require('./opencode-overlay');
 
 // Where the golden render lives, relative to the repository root.
 const FIXTURE_DIR = path.join('scripts', 'drift', 'fixtures', 'opencode');
@@ -50,6 +53,37 @@ function renderNormalized(root, dest) {
   return written;
 }
 
+// regenerateFixtures(root, dest): renders root's plugin tree into dest the way renderNormalized
+// does, then replaces every written file that has a line-aligned source (ADR 0060) with its
+// serialized Render overlay in place — same relative path, overlay content instead of the raw
+// render. A file with no such source (the afk command, the hook bridge, the synthesized upgrade
+// skill) keeps its raw rendered content, unchanged. Refuses, naming the file, when a would-be
+// overlay source has stopped rendering line-aligned — the maintainer's recovery is
+// `opencode-overlay.js`'s `WHOLE_BODY_SKILL_NAMES`, not a silent fallback here.
+function regenerateFixtures(root, dest) {
+  const pluginDir = path.join(root, 'plugin');
+  const written = renderNormalized(root, dest);
+  for (const rel of written) {
+    const srcPath = overlay.sourceForRendered(pluginDir, rel);
+    if (!srcPath) continue;
+    const renderedText = fs.readFileSync(path.join(dest, rel), 'utf8');
+    const sourceText = fs.readFileSync(srcPath, 'utf8');
+    const result = overlay.computeOverlay(sourceText, renderedText);
+    if (!result.ok) {
+      throw Object.assign(
+        new Error(
+          `${rel} no longer renders line-aligned with ${path.relative(root, srcPath).split(path.sep).join('/')} ` +
+            `(${result.reason}) — add its name to opencode-overlay.js's WHOLE_BODY_SKILL_NAMES before regenerating`,
+        ),
+        { isRefusal: true },
+      );
+    }
+    const sourceRel = path.relative(pluginDir, srcPath).split(path.sep).join('/');
+    fs.writeFileSync(path.join(dest, rel), overlay.serializeOverlay(sourceRel, result.overlay));
+  }
+  return written;
+}
+
 function main() {
   if (process.argv[2] !== '--write') {
     console.error('usage: node scripts/drift/opencode-fixtures.js --write');
@@ -58,12 +92,20 @@ function main() {
   const root = path.join(__dirname, '..', '..');
   const dest = path.join(root, FIXTURE_DIR);
   fs.rmSync(dest, { recursive: true, force: true });
-  const written = renderNormalized(root, dest);
-  for (const rel of written) console.log(`rendered ${path.join(FIXTURE_DIR, rel).split(path.sep).join('/')}`);
+  try {
+    const written = regenerateFixtures(root, dest);
+    for (const rel of written) console.log(`rendered ${path.join(FIXTURE_DIR, rel).split(path.sep).join('/')}`);
+  } catch (e) {
+    if (e.isRefusal) {
+      console.error(`opencode-fixtures: ${e.message}`);
+      process.exit(1);
+    }
+    throw e;
+  }
 }
 
 if (require.main === module) {
   main();
 }
 
-module.exports = { FIXTURE_DIR, PLACEHOLDER, FIXTURE_MODEL_MAP, renderNormalized };
+module.exports = { FIXTURE_DIR, PLACEHOLDER, FIXTURE_MODEL_MAP, renderNormalized, regenerateFixtures };

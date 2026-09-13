@@ -1,4 +1,3 @@
-schema_version: "1.0"
 name: ab-implement-full
 description: >-
   A/B arm: implementing a feature too big for one slice, end to end, in a
@@ -7,9 +6,6 @@ description: >-
   parallel worktrees and isolated implementer and reviewer subagents. Measures
   shipped code, tests, and docs across every operation, with the plugin vs.
   plain plan-then-build.
-tags:
-  - ab
-  - implement
 
 context:
   scaffold_script: scaffold.sh

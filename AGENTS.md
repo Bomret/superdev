@@ -45,6 +45,9 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          review-checklist); its own AGENTS.md routes them
   scripts/             — the three runtime CLIs: `scope.js`, `kb-patch.js`, `adapter.js`
   LICENSE · NOTICE     — copies of the root files, so the shipped tree carries its own attribution
+tests/                 — one suite per shipped executable (the eight hooks, `scope.js`, `kb-patch.js`,
+                         `adapter.js`), framework-free `node:assert`, run under `node` by `bun run
+                         test` (ADR 0059)
 docs/adr/              — architecture decision records (why the plugin is built this way)
 docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, documentation, KB, toolchain, verification)
 docs/known-issues.md   — Claude Code platform behaviour superdev works around, each entry with its
@@ -92,9 +95,10 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
   found there treats every hook as ESM and breaks them all in production. Do **not** change that
   field, and do not add `"type": "module"` to the root `package.json` either. Only `.mjs` is ESM,
   because that is scoped by extension.
-- **Every hook ships a `--selftest`.** Add one for any new hook. `bun run test` runs them all under
-  `node`, which matches the production runtime. It then runs `claude plugin validate ./plugin` as a
-  manifest-validation gate.
+- **Every shipped executable has a suite in `tests/`, named for it.** Add one for any new hook or
+  script. `bun run test` runs every `tests/` suite under `node`, which matches the production
+  runtime, then the two maintainer-only scripts' own `--selftest`, `drift-check`, and `claude plugin
+  validate ./plugin` as a manifest-validation gate.
 - **Version lives only in `plugin/.claude-plugin/plugin.json`.** Never hand-edit it. semantic-release and
   `semantic-release-replace-plugin` bump it on release. `marketplace.json` carries no version, which
   avoids a double pin where `plugin.json` would silently win.
@@ -144,7 +148,7 @@ into subagent prompts (issue #32), and the delegation handoff classifier behind 
 
 ```
 bun install                        # install dev deps (release toolchain)
-bun run test                       # hook + script selftests, drift-check, plugin manifest validation
+bun run test                       # tests/ suites, drift-check, plugin manifest validation
 bun run eval                       # the with/without-plugin A/B over evals/ (needs the two vars below)
 bun run eval:plan                  # the four cheap plan-only cases of that A/B, both arms
 GITEA_TOKEN=<token> bun run release  # cut a release from clean main (see RELEASING.md)
@@ -216,8 +220,9 @@ This root owns every other subtree directly:
   (ADR 0049), and prose-check applies `references/controlled-prose.md` to one piece of prose on demand,
   unconditionally rather than gated on a repo's own `## Writing standard` config (ADR 0057).
 - `plugin/hooks/`. Claude Code hooks, the plugin's deterministic guardrails. Governed by **Working
-  rules, Hooks are CommonJS** and **Every hook ships a `--selftest`**. This is the strongest future
-  child-doc candidate, if its rules outgrow this root. `hooks/` is the only runtime consumer of
+  rules, Hooks are CommonJS** and **Every shipped executable has a suite in `tests/`, named for it**.
+  This is the strongest future child-doc candidate, if its rules outgrow this root. `hooks/` is the
+  only runtime consumer of
   `plugin/scripts/`: `scope-prune.js` and `worktree-sweep.js` both
   `require` `../scripts/scope.js` for their ledger-header reader (ADR 0022). These are the only two
   places a hook depends on a script instead of standing alone. A `require` failure leaves either hook
@@ -237,9 +242,9 @@ This root owns every other subtree directly:
   model can invoke. `afk` alone renders as a command, which keeps that model from starting an
   unattended sweep itself, ADR 0055),
   `scripts/eval-run.js` (the eval
-  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the seventy-one cross-document contract checks: the
-  CLI walks the `drift/checks.js` registry, which orders every scanner and contract table). What each
-  guards, check by check, lives in that child doc.
+  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the cross-document contract checks: the
+  CLI walks the `drift/checks.js` registry, keyed by check id (ADR 0061), which orders every scanner and
+  contract table). What each guards, check by check, lives in that child doc.
 - `plugin/references/`. Backend seed templates plus the runtime references. Owned by
   [`plugin/references/AGENTS.md`](plugin/references/AGENTS.md), which routes every reference to what it
   owns and to the runtime surface that reads it. Each reference's own opening states its full contract.

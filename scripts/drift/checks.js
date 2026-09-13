@@ -1,11 +1,12 @@
 'use strict';
 
-// The drift-check registry: every check, in the order `scripts/AGENTS.md` numbers them. One entry is
-// one check — what it scans (`run`), what the ok line says when it passes (`ok`), and how one gap is
-// printed (`format`). `scripts/drift-check.js` walks this array and does nothing else.
+// The drift-check registry: every check, keyed by its own `id`. One entry is one check — what it scans
+// (`run`), what the ok line says when it passes (`ok`), and how one gap is printed (`format`).
+// `scripts/drift-check.js` walks this array and does nothing else.
 //
-// A new contract is appended at the END of this array. Every ordinal after an insertion point has to be
-// rewritten by hand in `scripts/AGENTS.md`, which is the cost the append-at-the-end rule exists to avoid.
+// A new contract is registered wherever it belongs, beside the check it most resembles or at the end.
+// `scripts/AGENTS.md` keys each check's paragraph on its `id` (ADR 0061), so inserting one here needs no
+// edit to any other check's paragraph.
 
 const { scanContract } = require('./lib');
 const {
@@ -107,9 +108,7 @@ const table = (id, contracts, ok, opts) => ({
 // `command-resolution` already resolves every `/superdev:` reference in `skills/`, so it already
 // caught the file's deletion. The general rule — every path a contract table pins still exists — covers
 // `skills/afk/SKILL.md` a second way (three tables pin it) and the other thirty-odd besides, so the special
-// case went. It sits here rather than at the end of the registry deliberately: replacing the entry in
-// place renumbers no ordinal in `scripts/AGENTS.md`, where appending would have shifted every one below
-// it.
+// case went, replaced in place at the slot it had held.
 
 module.exports = [
   {
@@ -310,7 +309,7 @@ module.exports = [
   ),
   {
     id: 'narrative-coverage',
-    ok: "every registered check is written up in scripts/AGENTS.md, and both counts match the registry",
+    ok: 'every registered check is written up in scripts/AGENTS.md by its own id',
     run: scanNarrativeCoverage,
     format: contractGap,
   },
@@ -447,9 +446,6 @@ module.exports = [
     run: scanOpencodeFixtures,
     format: (gap) => gap,
   },
-  // Appended rather than filed beside `specialising-citations`, where it belongs by subject: the registry
-  // order is the ordinal `scripts/AGENTS.md` writes every check up against, so inserting in the middle
-  // renumbers every entry below it and appending renumbers none.
   {
     id: 'run-state-contract',
     ok: 'every store document carries its own `## Run state` section',

@@ -101,68 +101,8 @@ function main() {
   });
 }
 
-if (process.argv[2] === '--selftest') {
-  const assert = require('node:assert');
-  const file = (file_path) => decide({ tool_input: { file_path } });
-  const bash = (command) => decide({ tool_input: { command } });
-  const L = '.superdev/scopes/demo/ledger.md';
-
-  // Edit/Write on a scopes ledger → deny, message names scope.js.
-  assert.equal(file(L).block, true, 'relative ledger path denied');
-  assert.equal(file('/abs/repo/' + L).block, true, 'absolute ledger path denied');
-  assert.ok(/scope\.js/.test(file(L).reason), 'denial names scope.js');
-  // Edit/Write elsewhere → allow.
-  assert.equal(file('.superdev/scopes/demo/dod.md').block, false, 'dod.md passes');
-  assert.equal(file('.superdev/brainstorm/notes.md').block, false, 'brainstorm passes');
-  assert.equal(file('docs/ledger.md').block, false, 'a ledger.md outside .superdev/scopes passes');
-  assert.equal(file('src/index.js').block, false, 'ordinary file passes');
-
-  // Bash shell writes into a scopes ledger → deny, quoted/escaped forms included.
-  assert.equal(bash('echo "**Stage:** merged" > ' + L).block, true, 'redirect > denied');
-  assert.equal(bash('echo bullet >> /abs/' + L).block, true, 'append >> denied');
-  assert.equal(bash('echo x > ".superdev/scopes/demo/ledger.md"').block, true, 'double-quoted redirect denied');
-  assert.equal(bash("echo x >> '.superdev/scopes/demo/ledger.md'").block, true, 'single-quoted append denied');
-  assert.equal(bash('echo x > .superdev/scopes/my\\ demo/ledger.md').block, true, 'backslash-escaped path denied');
-  assert.equal(bash('cat new.md | tee ' + L).block, true, 'tee denied');
-  assert.equal(bash('cat new.md | tee -a "' + L + '"').block, true, 'tee -a quoted denied');
-  assert.equal(bash("sed -i '' 's/merged/reviewed/' " + L).block, true, 'sed -i denied');
-  assert.equal(bash('sed -i.bak "s/a/b/" "' + L + '"').block, true, 'sed -i.bak quoted denied');
-  assert.equal(bash('cp new.md ' + L).block, true, 'cp denied');
-  assert.equal(bash('mv new.md "' + L + '"').block, true, 'mv quoted denied');
-  assert.equal(bash('install -m 644 new.md ' + L).block, true, 'install denied');
-  assert.equal(bash('cp a b').block, false, 'cp elsewhere allowed');
-
-  // Compound commands: a write elsewhere followed by a pure ledger read stays allowed — the
-  // target scan is bounded to the writing command's own segment.
-  assert.equal(bash('cp a b && cat ' + L).block, false, 'cp elsewhere then a ledger read passes');
-  assert.equal(bash('mv x y; grep Stage ' + L).block, false, 'mv elsewhere then a ledger grep passes');
-  assert.equal(bash('echo hi | tee /tmp/log; cat ' + L).block, false, 'tee elsewhere then a ledger read passes');
-  assert.equal(bash('cat x; cp new.md ' + L).block, true, 'cp into the ledger after another command still denied');
-  assert.equal(bash('true && mv new.md ' + L).block, true, 'mv into the ledger after && still denied');
-  assert.equal(bash('echo x | tee /tmp/log ' + L).block, true, 'tee with the ledger as a later target still denied');
-
-  // scope.js invocations and reads → allow.
-  assert.equal(bash('node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set merged --root /abs/.superdev/scopes/demo').block, false, 'scope.js passes');
-  assert.equal(bash('node scripts/scope.js init feat/demo < slices.json').block, false, 'scope.js init with stdin redirect-in passes');
-  assert.equal(bash('node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" adopt --root /abs/.superdev/scopes/demo').block, false, 'scope.js adopt passes — the write it makes is the sanctioned one');
-  assert.equal(bash('cat ' + L).block, false, 'read passes');
-  assert.equal(bash('grep Stage ' + L).block, false, 'grep passes');
-  assert.equal(bash('sed -n "1,5p" ' + L).block, false, 'sed without -i passes');
-  assert.equal(bash('echo hi > /tmp/out.txt').block, false, 'redirect elsewhere passes');
-  assert.equal(bash('bun run test').block, false, 'unrelated bash passes');
-
-  // ARG mirrors merge-guard's token (comment at the declaration); hooks stay standalone, so pin
-  // the copy against the canonical one instead of sharing it — silent drift would be a bug.
-  {
-    const fs = require('node:fs');
-    const path = require('node:path');
-    const sibling = fs.readFileSync(path.join(__dirname, 'merge-guard.js'), 'utf8');
-    const m = sibling.match(/^const ARG = \/(.*)\/\.source;$/m);
-    assert.ok(m, 'merge-guard.js declares its ARG token where this pin expects it');
-    assert.equal(ARG, m[1], 'ledger-guard ARG is byte-identical to merge-guard ARG');
-  }
-
-  console.log('ledger-guard selftest ok');
-} else {
+if (require.main === module) {
   main();
 }
+
+module.exports = { decide, ARG };

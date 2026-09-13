@@ -469,18 +469,14 @@ cover, never for one it does. `--plugin-root` defaults to the adapter script's o
 resolved from the script's location, so the example above needs no such flag. Pass `--plugin-root` only
 to render a different plugin tree than the one the script lives in.
 
-**Model-selection helpers.** `adapter.js` also exports `queryOpenCodeModels()`,
-`promptForModelMap(models)`, and `requireAvailableModel(model, availableModels)`. The CLI's own
-interactive resolution (`resolveModelMap()`, not itself exported) calls `queryOpenCodeModels()` and
-`requireAvailableModel()` directly, and shares its per-alias selection step with
-`promptForModelMap(models)` through one internal helper — `promptForModelMap` itself always asks
-about all three aliases (`haiku`, `sonnet`, `opus`) unconditionally and is exercised only by the
-adapter's own tests, never called from the CLI. `queryOpenCodeModels()` reads the `model` and
+**Model selection.** `adapter.js` also exports `queryOpenCodeModels()`, which reads the `model` and
 `small_model` fields already configured in the project's `opencode.json`, the `OPENCODE_CONFIG`
 file, and the global `~/.config/opencode/opencode.json`, read from these locations and unioned, then
 returned sorted — it does not walk the richer `provider.*.models` or `agent.*.model` config shapes,
-so the list a prompt offers can be incomplete. `promptForModelMap(models)` asks for one of those models per alias, in
-turn:
+so the list a prompt offers can be incomplete.
+
+The CLI's own interactive resolution (`resolveModelMap()`, not itself exported) asks for one of
+those models per still-missing alias, in turn:
 
 ```
 Models named in your OpenCode config, for 'haiku':
@@ -490,19 +486,11 @@ Models named in your OpenCode config, for 'haiku':
 Select a model for 'haiku':
 ```
 
-It re-prompts on an answer that is not a number in range, and resolves once every alias
-(`haiku`, `sonnet`, `opus`) has a pick. `requireAvailableModel(model, availableModels)` refuses a
-model absent from that list. The refusal names the model, then either lists the available
-alternatives or — when the list is empty — states that none are configured yet and names
-`--model-map <alias>=<provider/model>` as the manual override.
-
-The CLI's own prompt (`resolveModelMap()`) asks each still-missing alias through that same
-selection helper, sharing a single `readline` interface across the whole pass — so a piped,
-multi-line answer resolves every missing alias instead of only the first — and an alias
-`--model-map` already covers is never asked about at all. It checks the pick with
-`requireAvailableModel()` before using it, and refuses the same way, naming the alias and
-`--model-map`, when no models are configured at all or when the input closes before an answer
-arrives (a non-interactive process, or stdin already at EOF).
+It re-prompts on an answer that is not a number in range, sharing a single `readline` interface
+across the whole pass — so a piped, multi-line answer resolves every missing alias instead of only
+the first — and an alias `--model-map` already covers is never asked about at all. It refuses,
+naming the alias and `--model-map`, when no models are configured at all or when the input closes
+before an answer arrives (a non-interactive process, or stdin already at EOF).
 
 The render creates:
 

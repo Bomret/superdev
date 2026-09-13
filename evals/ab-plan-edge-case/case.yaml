@@ -1,12 +1,8 @@
-schema_version: "1.0"
 name: ab-plan-edge-case
 description: >-
   A/B arm: planning a feature whose failure modes are left unstated. Measures
   whether the plan enumerates the domain-level failure and boundary cases the
   intent never names — with the plugin vs. plain plan-then-build.
-tags:
-  - ab
-  - plan
 
 context:
   scaffold_script: scaffold.sh

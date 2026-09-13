@@ -1,4 +1,3 @@
-schema_version: "1.0"
 name: ab-review-ceiling
 description: >-
   A/B arm: reviewing a finished, correct, shallow scope against its own
@@ -9,10 +8,6 @@ description: >-
   because this is also the vehicle a prose ablation toggles
   `final-reviewer`'s ceiling note across (ADR 0038), and an ablation of prose
   inside a subagent measures nothing unless that subagent runs.
-tags:
-  - ab
-  - review
-  - primed
 
 context:
   scaffold_script: scaffold.sh

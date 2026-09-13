@@ -1,4 +1,3 @@
-schema_version: "1.0"
 name: ab-plan-primed
 description: >-
   A/B arm: the same feature as `ab-plan-edge-case`, planned from a primed
@@ -6,9 +5,6 @@ description: >-
   by hand — derive the unstated failure cases, state every criterion as
   observable behaviour — so the delta measures what the plugin adds on top of
   good prompting rather than on top of a bare request.
-tags:
-  - ab
-  - plan
 
 context:
   # The same scaffold as ab-plan-edge-case, by path rather than by copy. The two

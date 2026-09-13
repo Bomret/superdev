@@ -24,9 +24,6 @@ const { readLedgerHeader } = require('../../plugin/scripts/scope.js');
 const contracts = require('./contracts');
 const {
   NARRATIVE_DOC,
-  CHECK_COUNT_CLAIMS,
-  NUMBER_ONES,
-  NUMBER_TENS,
   FORCING_FLAG_DOCS,
   FORCING_FLAG_PATTERNS,
   REFERENCE_PATTERN,
@@ -735,8 +732,8 @@ const scanKbNoBackendCall = (root) =>
 // covered without anyone remembering to. `collectPinnedPaths()` recurses every exported value — arrays,
 // plain objects (a row's `test()`-shaped second element), and strings — because a document is pinned in
 // more shapes than `[relPath, RegExp, expectation]`: `READ_PATH_CONTRACTS`'s second row carries a `test()`
-// function instead of a `RegExp`, `CHECK_COUNT_CLAIMS`'s rows carry a String template, and `RUN_ROOT_DOCS`
-// / `CONTENT_TYPES_DOCS` are bare path lists with no row shape at all. Gating on shape (`row[1] instanceof
+// function instead of a `RegExp`, and `RUN_ROOT_DOCS` / `CONTENT_TYPES_DOCS` are bare path lists with no
+// row shape at all. Gating on shape (`row[1] instanceof
 // RegExp`) missed exactly those; gating on a path-shaped string instead — one ending in `.md`, `.json`, or
 // `.js` — catches all of them, and a path-shape predicate still won't misreport a row whose first element
 // is a heading rather than a path. A `Set` is deliberately excluded from the recursion: every `Set` in
@@ -868,21 +865,8 @@ const scanForcingBranchFlag = (root) =>
       `name no forcing branch flag — \`${hit[0]}\` resets an existing branch instead of failing ` +
       'on it, stranding every slice already merged into it; see ADR 0028']));
 
-// numberWord(): a small integer spelled the way the narrative spells it — 43 → "forty-three". The
-// narrative states its count in prose, so a check comparing digits would never match the text it guards.
-// Above ninety-nine it gives up and returns null, which the caller reads as "no count to compare": a
-// registry that large has outgrown a hand-written narrative anyway, and a wrong guess would be worse
-// than an honest gap.
-function numberWord(n) {
-  if (n < 0 || n > 99) return null;
-  if (n < 20) return NUMBER_ONES[n];
-  const tens = NUMBER_TENS[Math.floor(n / 10)];
-  const ones = n % 10;
-  return ones === 0 ? tens : `${tens}-${NUMBER_ONES[ones]}`;
-}
-
 // scanNarrativeCoverage(): every registered check is written up in `scripts/AGENTS.md` by its backticked
-// `id`, and both documents that state how many checks there are agree with the registry.
+// `id`.
 //
 // The id half requires the exact `` `${id}` `` backtick pair rather than a bare substring: a check's id
 // is often a substring of unrelated prose (`reference` inside `references/…`), and a bare search on it
@@ -903,23 +887,6 @@ function scanNarrativeCoverage(root, ids = require('./checks').map((check) => ch
         expectation:
           `describe the \`${id}\` check — it is registered in \`drift/checks.js\` and written up ` +
           'nowhere by its own backticked id, so the only account of what it guards is its own code',
-      });
-    }
-  }
-
-  const word = numberWord(ids.length);
-  if (word === null) return gaps;
-  for (const [rel, template] of CHECK_COUNT_CLAIMS) {
-    const text = readDoc(root, rel);
-    if (text === null) continue;
-    const claim = template.replace('{n}', word);
-    if (!text.includes(claim)) {
-      gaps.push({
-        source: rel,
-        expectation:
-          `state the check count as \`${claim}\` — the registry holds ${ids.length}, and this document ` +
-          'counts them in prose, so the two drift on every addition — pinned in `drift/contracts.js`\'s ' +
-          '`CHECK_COUNT_CLAIMS`',
       });
     }
   }
@@ -1157,33 +1124,43 @@ function scanScaffoldLedger(root) {
 }
 
 // walkFiles(dir): every file under dir, as paths relative to dir, sorted. The fixture diff below
-// compares two rendered trees by exactly this list.
+// compares two rendered trees by exactly this list. `entry.parentPath` is Node's own name for the
+// directory an fs.Dirent came from (`entry.path` before it, removed in Node 24) — read either, so
+// this runs on the oldest Node this repo supports and the newest alike. `isFile()` excludes a
+// symlink deliberately — neither tree this walks (a fresh render, a committed fixture) ever
+// contains one.
 function walkFiles(dir) {
-  const out = [];
-  const walk = (rel) => {
-    for (const entry of fs.readdirSync(path.join(dir, rel), { withFileTypes: true })) {
-      const r = path.join(rel, entry.name);
-      if (entry.isDirectory()) walk(r);
-      else out.push(r);
-    }
-  };
-  walk('.');
-  return out.map((rel) => rel.split(path.sep).join('/')).sort();
+  const resolved = path.resolve(dir);
+  return fs
+    .readdirSync(resolved, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => path.relative(resolved, path.join(entry.parentPath ?? entry.path, entry.name)).split(path.sep).join('/'))
+    .sort();
 }
 
 // scanOpencodeFixtures() is pure over a root dir: the committed golden render under
 // `scripts/drift/fixtures/opencode/` still matches a fresh render of the root's plugin tree. It
 // renders through `drift/opencode-fixtures.js`'s renderNormalized() into a temp dir and diffs the
 // two trees — a skills or agents edit that changes the render is a gap until the fixtures are
-// regenerated (`bun run render-fixtures`) in the same commit. The adapter module is required from
-// the real plugin tree, so a fixture root needs only the plugin's skills/agents and the fixtures
-// themselves; either side absent skips the check, matching every other scanner. Gaps are plain
-// strings: the registry entry's format is the identity.
+// regenerated (`bun run render-fixtures`) in the same commit. A rendered file with a line-aligned
+// source (opencode-overlay.js's sourceForRendered, ADR 0060) is compared as a Render overlay —
+// frontmatter and body diffs recomputed fresh from the live source and render, then matched against
+// the committed overlay — rather than byte for byte, so a source-file edit that touches no rewritten
+// line stays green with the fixtures untouched. A file with no such source, or one whose render has
+// stopped being line-aligned with it, is compared byte for byte instead: the whole-body form ADR
+// 0060 keeps for the afk command, the hook bridge, the synthesized upgrade skill, and any surface
+// alignment has broken for. The adapter module is required from the real plugin tree, so a fixture
+// root needs only the plugin's skills/agents and the fixtures themselves; either side absent skips
+// the check, matching every other scanner. Gaps are plain strings: the registry entry's format is
+// the identity.
 function scanOpencodeFixtures(root) {
   const { FIXTURE_DIR, renderNormalized } = require('./opencode-fixtures');
+  const overlay = require('./opencode-overlay');
   const fixtureDir = path.join(root, FIXTURE_DIR);
   if (!fs.existsSync(fixtureDir)) return []; // no committed fixtures → nothing to compare
   if (!fs.existsSync(path.join(root, 'plugin', 'skills'))) return []; // fixture root may carry only one side
+  const fixtureLabel = FIXTURE_DIR.split(path.sep).join('/');
+  const pluginDir = path.join(root, 'plugin');
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'opencode-render-'));
   try {
     renderNormalized(root, tmp);
@@ -1191,14 +1168,38 @@ function scanOpencodeFixtures(root) {
     const expected = walkFiles(fixtureDir);
     const actual = walkFiles(tmp);
     for (const rel of expected.filter((rel) => !actual.includes(rel))) {
-      gaps.push(`${FIXTURE_DIR.split(path.sep).join('/')}/${rel} has no fresh render — regenerate the fixtures (bun run render-fixtures)`);
+      gaps.push(`${fixtureLabel}/${rel} has no fresh render — regenerate the fixtures (bun run render-fixtures)`);
     }
     for (const rel of actual.filter((rel) => !expected.includes(rel))) {
-      gaps.push(`a fresh render produces ${rel}, which ${FIXTURE_DIR.split(path.sep).join('/')} does not carry — regenerate the fixtures (bun run render-fixtures)`);
+      gaps.push(`a fresh render produces ${rel}, which ${fixtureLabel} does not carry — regenerate the fixtures (bun run render-fixtures)`);
     }
     for (const rel of expected.filter((rel) => actual.includes(rel))) {
-      if (fs.readFileSync(path.join(fixtureDir, rel), 'utf8') !== fs.readFileSync(path.join(tmp, rel), 'utf8')) {
-        gaps.push(`${FIXTURE_DIR.split(path.sep).join('/')}/${rel} no longer matches a fresh render of the plugin tree — regenerate the fixtures (bun run render-fixtures)`);
+      const committedText = fs.readFileSync(path.join(fixtureDir, rel), 'utf8');
+      const freshText = fs.readFileSync(path.join(tmp, rel), 'utf8');
+      const srcPath = overlay.sourceForRendered(pluginDir, rel);
+      if (!srcPath) {
+        if (committedText !== freshText) {
+          gaps.push(`${fixtureLabel}/${rel} no longer matches a fresh render of the plugin tree — regenerate the fixtures (bun run render-fixtures)`);
+        }
+        continue;
+      }
+      const result = overlay.computeOverlay(fs.readFileSync(srcPath, 'utf8'), freshText);
+      if (!result.ok) {
+        const srcRel = path.relative(root, srcPath).split(path.sep).join('/');
+        gaps.push(
+          `${fixtureLabel}/${rel}: alignment failed — its render is no longer line-for-line aligned with ` +
+            `${srcRel} (${result.reason}); move it onto the whole-body fixture list before regenerating (ADR 0060)`,
+        );
+        continue;
+      }
+      let committedOverlay;
+      try {
+        committedOverlay = overlay.parseOverlay(committedText);
+      } catch {
+        committedOverlay = null;
+      }
+      if (!committedOverlay || !overlay.overlaysEqual(committedOverlay, result.overlay)) {
+        gaps.push(`${fixtureLabel}/${rel} no longer matches a fresh render of the plugin tree — regenerate the fixtures (bun run render-fixtures)`);
       }
     }
     return gaps;

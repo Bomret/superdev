@@ -43,32 +43,8 @@ function main() {
   });
 }
 
-if (process.argv[2] === '--selftest') {
-  const assert = require('node:assert');
-  const d = (tool_input, tool_name = 'Agent') => decide({ tool_name, tool_input });
-  assert.equal(d({ subagent_type: 'implementer' }).block, true, 'ours, no model → block');
-  assert.equal(d({ subagent_type: 'superdev:final-reviewer' }).block, true, 'namespaced, no model');
-  assert.equal(d({ subagent_type: 'implementer', model: 'sonnet' }).block, false, 'ours + model → allow');
-  assert.equal(d({ subagent_type: 'implementer', model: '   ' }).block, true, 'blank model → block');
-  assert.equal(d({ subagent_type: 'superdev:doc-writer' }).block, true, 'doc-writer is ours');
-  assert.equal(d({ subagent_type: 'superdev:doc-reader' }).block, true, 'doc-reader is ours, no model');
-  assert.equal(d({ subagent_type: 'doc-reader', model: 'sonnet' }).block, false, 'doc-reader + model → allow');
-  assert.equal(d({ subagent_type: 'Explore' }).block, false, 'not ours → allow');
-  assert.equal(d({ subagent_type: 'implementer' }, 'Bash').block, false, 'wrong tool → allow');
-
-  // Drift assertion: every agent basename under sibling agents/ must be covered by OURS,
-  // so a future agent added without guard coverage fails this selftest.
-  const fs = require('node:fs');
-  const path = require('node:path');
-  const agentsDir = path.join(__dirname, '..', 'agents');
-  const basenames = fs
-    .readdirSync(agentsDir)
-    .filter((f) => f.endsWith('.md'))
-    .map((f) => f.slice(0, -3));
-  const uncovered = basenames.filter((name) => !OURS.test(name));
-  assert.deepEqual(uncovered, [], `agents/ uncovered by OURS: ${uncovered.join(', ')}`);
-
-  console.log('model-explicit selftest ok');
-} else {
+if (require.main === module) {
   main();
 }
+
+module.exports = { decide, OURS };

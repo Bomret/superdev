@@ -11,7 +11,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const https = require('node:https');
 
-const REMOTE = 'https://codeberg.org/bomret/superdev/raw/branch/main/plugin/.claude-plugin/plugin.json';
+// shortcut: overridable via env so tests/update-check.test.js's "spawned still runs main()" fixture
+// can point this at a loopback port instead of the real network — `bun run test` stays fully offline.
+const REMOTE =
+  process.env.SUPERDEV_UPDATE_CHECK_REMOTE ||
+  'https://codeberg.org/bomret/superdev/raw/branch/main/plugin/.claude-plugin/plugin.json';
 const CHECK_TTL_MS = 24 * 60 * 60 * 1000;
 
 // Positive if a>b, negative if a<b, 0 equal — numeric collation compares each dotted segment as a
@@ -89,17 +93,8 @@ async function main() {
   process.exit(0);
 }
 
-if (process.argv[2] === '--selftest') {
-  const assert = require('node:assert');
-  // The contract is the sign, not ±1 — localeCompare only promises negative/zero/positive, and the
-  // one real caller tests `> 0`.
-  assert.ok(cmpVersion('0.2.0', '0.1.0') > 0, 'newer minor');
-  assert.ok(cmpVersion('0.1.0', '0.2.0') < 0, 'older minor');
-  assert.equal(cmpVersion('0.2.0', '0.2.0'), 0, 'equal');
-  assert.ok(cmpVersion('0.2.1', '0.2') > 0, 'a longer version with the same prefix is newer');
-  assert.ok(cmpVersion('1.0.0', '0.9.9') > 0, 'major beats minor/patch');
-  assert.ok(cmpVersion('0.10.0', '0.9.0') > 0, 'numeric, not lexical');
-  console.log('update-check selftest ok');
-} else {
+if (require.main === module) {
   main();
 }
+
+module.exports = { cmpVersion };

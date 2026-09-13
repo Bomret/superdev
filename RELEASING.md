@@ -11,14 +11,14 @@ it:
 
 ```
 bun install       # install dev deps (semantic-release toolchain); writes bun.lock
-bun run test      # run the hook selftests, then validate the plugin manifest
+bun run test      # run the tests/ suites, then validate the plugin manifest
 bun run release   # cut a release (see below)
 ```
 
 The plugin's **hooks stay on `node`** (`hooks.json` invokes `node …`). `node` is guaranteed in every
-user's Claude Code environment, and Bun is not. Bun is a maintainer-only tool. `bun run test` executes the
-selftests with `node`, so they match the production runtime. It then runs `claude plugin validate ./plugin`
-as a manifest-validation gate.
+user's Claude Code environment, and Bun is not. Bun is a maintainer-only tool. `bun run test` runs the
+`tests/` suites with `node`, so they match the production runtime. It then runs `claude plugin validate
+./plugin` as a manifest-validation gate.
 
 ## What a release does
 

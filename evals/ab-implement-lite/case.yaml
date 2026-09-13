@@ -1,13 +1,9 @@
-schema_version: "1.0"
 name: ab-implement-lite
 description: >-
   A/B arm: implementing a small feature end to end in a runnable repo, with
   two failure cases the intent never names and a README that has to stay
   true. Measures shipped code, tests, and docs — with the plugin vs. plain
   plan-then-build.
-tags:
-  - ab
-  - implement
 
 context:
   scaffold_script: scaffold.sh

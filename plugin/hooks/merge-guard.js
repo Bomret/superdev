@@ -88,58 +88,8 @@ function main() {
   });
 }
 
-if (process.argv[2] === '--selftest') {
-  const assert = require('node:assert');
-  const sub = (command) => ({ agent_id: 'a1', tool_input: { command } });
-  assert.equal(decide({}).block, false, 'no agent_id → allow');
-  assert.equal(decide({ tool_input: { command: 'git merge scope' } }).block, false, 'controller merges');
-  assert.equal(decide(sub('npm test')).block, false);
-  assert.equal(decide(sub('git commit -m "x"')).block, false);
-  assert.equal(decide(sub('git status')).block, false);
-  assert.equal(decide(sub('forgit push')).block, false, 'no false positive on substrings');
-  assert.equal(decide(sub('git merge-base main HEAD')).block, false, 'merge-base is read-only, not a merge');
-  assert.equal(decide(sub('git merge-tree a b')).block, false, 'merge-tree is read-only');
-  assert.equal(decide(sub('git merge scope')).block, true);
-  assert.equal(decide(sub('  git push -u origin s')).block, true, 'leading spaces');
-  assert.equal(decide(sub('cd x && git push')).block, true, 'after &&');
-  assert.equal(decide(sub('git rebase main')).block, true);
-  assert.equal(decide(sub('git add -A\ngit commit -m x\ngit push')).block, true, 'push on a later line');
-  assert.equal(decide(sub('git -C ../scope push')).block, true, 'git -C <path> push');
-  assert.equal(decide(sub('git -C "path with spaces" push')).block, true, 'git -C <double-quoted path> push');
-  assert.equal(decide(sub("git -C 'path with spaces' push")).block, true, 'git -C <single-quoted path> push');
-  assert.equal(decide(sub('git -C "a \\" b" push')).block, true, 'git -C <double-quoted path with escaped quote> push');
-  assert.equal(decide(sub('git -C ~/my\\ path push')).block, true, 'git -C <backslash-escaped space, unquoted> push');
-  assert.equal(decide(sub('git -c k="v w" push')).block, true, 'git -c <unquoted key, quoted value> push');
-  assert.equal(decide(sub('git --git-dir="a b" push')).block, true, 'git --git-dir="quoted value with space" push');
-  assert.equal(decide(sub('git -C .superdev/scopes/x/worktree rebase main')).block, true, 'git -C rebase');
-  assert.equal(decide(sub('git --no-pager push origin s')).block, true, 'inline global flag before push');
-  assert.equal(decide(sub('git --work-tree /wt merge x')).block, true, 'git --work-tree <path> merge (space form)');
-  assert.equal(decide(sub('git --work-tree=/wt merge x')).block, true, 'git --work-tree=<path> merge');
-  assert.equal(decide(sub('git --git-dir /wt/.git push origin main')).block, true, 'git --git-dir <path> push (space form)');
-  assert.equal(decide(sub('git --git-dir /wt/.git --work-tree /wt merge x')).block, true, 'two space-form options before the verb');
-  assert.equal(decide(sub('git --work-tree "a b" merge x')).block, true, 'a quoted space-form value is one shell word');
-  assert.equal(decide(sub('git --no-pager merge x')).block, true, 'a valueless long option still reaches the verb');
-  assert.equal(decide(sub('git --exec-path merge x')).block, true, '--exec-path (not enumerated — git itself takes no value there) still reaches the verb, via the --ARG fallback');
-  assert.equal(decide(sub('git --shallow-file /dev/null merge x')).block, true, 'git --shallow-file <path> merge (space form)');
-  assert.equal(decide(sub('git --attr-source main merge x')).block, true, 'git --attr-source <tree> merge (space form)');
-
-  // a long run of enumerated option names with no verb must not backtrack exponentially (the comment
-  // above LONG_VALUE_OPT owns why) — this resolves well inside any hook timeout, not just eventually
-  {
-    const pathological = 'git ' + '--git-dir '.repeat(60) + 'x; git ' + 'merge main';
-    const t0 = Date.now();
-    decide(sub(pathological));
-    const elapsed = Date.now() - t0;
-    assert.ok(elapsed < 500, `a pathological long-option run must resolve quickly, took ${elapsed}ms`);
-  }
-  assert.equal(decide({ tool_input: { command: 'git --work-tree /wt merge x' } }).block, false, 'the controller still merges in the space form');
-  assert.equal(decide(sub('git --work-tree /wt status')).block, false, 'a space-form read command is fine');
-  assert.equal(decide(sub('git -c user.name=x commit -m x')).block, false, 'git -c commit is fine');
-  assert.equal(decide(sub('git -C ../scope status')).block, false, 'git -C read is fine');
-  assert.equal(decide(sub('gh pr merge 5 --squash')).block, true, 'gh pr merge');
-  assert.equal(decide(sub('tea pr merge 5')).block, true, 'tea pr merge');
-  assert.equal(decide(sub('gh pr view 5')).block, false, 'gh read is fine');
-  console.log('merge-guard selftest ok');
-} else {
+if (require.main === module) {
   main();
 }
+
+module.exports = { decide };

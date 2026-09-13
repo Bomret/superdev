@@ -1,4 +1,3 @@
-schema_version: "1.0"
 name: ab-plan-multi-slice-primed
 description: >-
   A/B arm: the same feature as `ab-plan-multi-slice`, planned from a primed
@@ -6,9 +5,6 @@ description: >-
   advantage on failure-case derivation. This case asks the same of the one gap
   a bare prompt never closed — cutting the work into vertical slices — so the
   pair separates what the plugin adds from what wording adds.
-tags:
-  - ab
-  - plan
 
 context:
   # The same scaffold as ab-plan-multi-slice, by path rather than by copy. The

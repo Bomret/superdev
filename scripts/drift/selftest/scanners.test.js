@@ -2488,28 +2488,28 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   );
 
   // ---------------------------------------------------------------------------
-  // scanNarrativeCoverage: every registered check is written up, and both counts agree
+  // scanNarrativeCoverage: every registered check is written up
   //
   // The `ids` parameter is passed explicitly throughout. Defaulting to the live registry would make
   // every fixture below shift each time a check is added — the narrative these fixtures carry would
-  // need a new id and a new count word on an edit that has nothing to do with them.
+  // need a new id on an edit that has nothing to do with them.
   // ---------------------------------------------------------------------------
 
   const twoIds = ['alpha-check', 'beta-check'];
-  // A narrative describing both, and all three count claims stated at two: what the shipped documents
-  // look like when the contract holds.
+  // A narrative describing both, keyed by id: what the shipped documents look like when the contract
+  // holds.
   const coveredNarrative =
-    '# scripts/\n\n`drift-check.js` guards two things, in the order `drift/checks.js` registers them.\n' +
-    'First, the `alpha-check` contract: it guards alpha.\n' +
-    'Second, the `beta-check` contract: it guards beta.\n\n' +
-    'A new contract is one entry, plus its section in the two-check narrative above, plus its selftest.\n';
-  const rootAgents = '# superdev\n\n`drift-check.js` with `drift/` (the two cross-document contract checks).\n';
+    '# scripts/\n\n`drift-check.js` guards the checks below, each keyed to its registered check id.\n' +
+    'The `alpha-check` contract: it guards alpha.\n' +
+    'The `beta-check` contract: it guards beta.\n\n' +
+    'A new contract is one entry, plus its section in the narrative above, plus its selftest.\n';
+  const rootAgents = '# superdev\n\n`drift-check.js` with `drift/` (the cross-document contract checks).\n';
   const covered = { 'scripts/AGENTS.md': coveredNarrative, 'AGENTS.md': rootAgents };
 
   assert.equal(
     scanNarrativeCoverage(fixture(covered), twoIds).length,
     0,
-    'every id described and every count claim stated yields zero gaps',
+    'every id described yields zero gaps',
   );
 
   // positive: a registered check nobody wrote up — the gap names the id, so the reader knows which
@@ -2524,42 +2524,14 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'the undescribed-check gap names the narrative',
   );
 
-  // positive: the count drifts on the same edit that adds the check. Three ids against a narrative
-  // still counting two fails all three count claims as well as the missing description.
-  const drifted = scanNarrativeCoverage(fixture(covered), [...twoIds, 'gamma-check']);
-  assert.equal(
-    drifted.filter((g) => /check count/.test(g.expectation)).length,
-    3,
-    'each of the three count claims is pinned separately',
-  );
-  assert.ok(
-    drifted.some((g) => g.source === 'AGENTS.md'),
-    'the root AGENTS.md count is pinned too, not only the narrative',
-  );
-
-  // positive: the count word appearing *somewhere* is not the claim. This narrative recounts past drift
-  // ("it read two") while its own claim still says two — the shape that would slip past a document-wide
-  // search for the current word.
-  const historical = {
-    ...covered,
-    'scripts/AGENTS.md':
-      coveredNarrative + '\nThe count once read two against a registry of three.\n',
-  };
-  assert.ok(
-    scanNarrativeCoverage(fixture(historical), [...twoIds, 'gamma-check']).some((g) =>
-      /guards three things/.test(g.expectation),
-    ),
-    'a historical mention of the number does not satisfy the claim',
-  );
-
   // positive: a bare, unbackticked mention of an id — a substring of a longer word, or plain prose — must
   // not satisfy coverage. `reference` inside `references/…` is the real shape this guards: the whole
   // write-up naming a check could vanish and a document-wide substring search would still pass.
   const bareMention = {
     ...covered,
     'scripts/AGENTS.md': coveredNarrative.replace(
-      'First, the `alpha-check` contract: it guards alpha.\n',
-      'First, alpha-check-related prose lives here, with no backticked id.\n',
+      'The `alpha-check` contract: it guards alpha.\n',
+      'alpha-check-related prose lives here, with no backticked id.\n',
     ),
   };
   assert.ok(
@@ -2574,22 +2546,11 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'an absent narrative is skipped rather than reported',
   );
 
-  // a count above what the narrative can spell yields no count gap rather than a wrong one
-  assert.equal(
-    scanNarrativeCoverage(fixture(covered), Array.from({ length: 120 }, (_, i) => `c${i}`))
-      .filter((g) => /check count/.test(g.expectation)).length,
-    0,
-    'a registry too large to spell reports no count gap rather than guessing',
-  );
-
-  // positive: stripping a check's own write-up from the shipped narrative is reported as a gap. Earlier
-  // this check reported clean here regardless — the forty-fourth paragraph's own historical sentence named
-  // `source-sections` in recounting past drift, so that mention alone kept it "covered" with its real
-  // write-up gone. The narrative no longer spells any check id there, so this now fails honestly.
+  // positive: stripping a check's own write-up from the shipped narrative is reported as a gap.
   const shippedScriptsAgents = fs.readFileSync(path.join(realRoot, 'scripts', 'AGENTS.md'), 'utf8');
   const shippedRootAgents = fs.readFileSync(path.join(realRoot, 'AGENTS.md'), 'utf8');
   const strippedOwnWriteUp = fixture({
-    'scripts/AGENTS.md': shippedScriptsAgents.replace('the `source-sections` contract', 'the omitted contract'),
+    'scripts/AGENTS.md': shippedScriptsAgents.replace('The `source-sections` contract', 'The omitted contract'),
     'AGENTS.md': shippedRootAgents,
   });
   assert.ok(
@@ -2755,11 +2716,11 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'a document pinned by a test()-shaped row is still caught',
   );
 
-  // positive: `CHECK_COUNT_CLAIMS` pins `scripts/AGENTS.md` with a String in row[1], another shape
+  // positive: `NARRATIVE_DOC` pins `scripts/AGENTS.md` as a bare top-level string export, another shape
   // the old `instanceof RegExp` gate could not see.
   assert.ok(
     scanPinnedPaths(fixture({ 'README.md': '# r\n' })).some((g) => g.source === path.join('scripts', 'AGENTS.md')),
-    'a document pinned by a String-shaped row is still caught',
+    'a document pinned by a bare string export is still caught',
   );
 
   // --- scanScaffoldLedger: a scope-mode eval scaffold hand-writes a ledger against a schema `scope.js`

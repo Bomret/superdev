@@ -1,12 +1,8 @@
-schema_version: "1.0"
 name: ab-plan-multi-slice
 description: >-
   A/B arm: planning a feature too big for one slice. Measures whether the work
   is cut into independently-shippable vertical slices with an explicit
   dependency order — with the plugin vs. plain plan-then-build.
-tags:
-  - ab
-  - plan
 
 context:
   scaffold_script: scaffold.sh

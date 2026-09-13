@@ -15,8 +15,9 @@ does:
 - `IS_MERGE`'s `-C` alternative carried a capturing group only through the first cut of ADR 0045's own
   work. JS resets every capture group inside a quantified group on each iteration, so a repeated group
   keeps only the last iteration's value. `git --work-tree /b -C /a merge` would lose `/b`. The capture
-  was dropped. `resolveMergeCwd()` instead re-scans the matched option region with `optionValue()` /
-  `optionValues()`, reading every occurrence of a named option out in order.
+  was dropped. `resolveMergeCwd()` instead parses the matched option region once into a token list and
+  reads it with `optionValue()` / `optionValues()`, which read every occurrence of a named option out of
+  that list in order.
 - The merge tree is no longer `-C` alone. `resolveMergeCwd()` reads both `-C` and `--work-tree`,  folds
   multiple `-C` options cumulatively (each resolved against the one before), resolves a relative
   `--work-tree` against that fold, and lets an absolute `--work-tree` win over a `-C` naming a different
