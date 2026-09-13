@@ -1,3 +1,18 @@
+# [0.43.0](https://codeberg.org/bomret/superdev/compare/v0.42.0...v0.43.0) (2026-09-13)
+
+
+### Bug Fixes
+
+* **adapter:** restore OpenCode's own .env read guard on every rendered agent ([#420](https://codeberg.org/bomret/superdev/issues/420)) ([9c5b431](https://codeberg.org/bomret/superdev/commit/9c5b431f4af8d4cf36f676debce37f077e89fcf8)), closes [#419](https://codeberg.org/bomret/superdev/issues/419)
+* **drift-check:** report a thrown scanner as that check's own gap ([#450](https://codeberg.org/bomret/superdev/issues/450)) ([ded25d4](https://codeberg.org/bomret/superdev/commit/ded25d44ec7d045932d179fa36c1910e564119bf)), closes [#434](https://codeberg.org/bomret/superdev/issues/434)
+* **scope:** decide that a scope branch reached base by containment, not ancestry ([#418](https://codeberg.org/bomret/superdev/issues/418)) ([9c5a2ac](https://codeberg.org/bomret/superdev/commit/9c5a2acdd794f12f4f033452146629e35935f664)), closes [#417](https://codeberg.org/bomret/superdev/issues/417)
+
+
+### Features
+
+* **adapter:** render OpenCode prompts as skills, and afk as a command ([#428](https://codeberg.org/bomret/superdev/issues/428)) ([6075623](https://codeberg.org/bomret/superdev/commit/6075623263bbbfb0e345f640a1b36cfb93ae0089)), closes [#422](https://codeberg.org/bomret/superdev/issues/422) [#423](https://codeberg.org/bomret/superdev/issues/423) [#424](https://codeberg.org/bomret/superdev/issues/424) [#425](https://codeberg.org/bomret/superdev/issues/425) [#426](https://codeberg.org/bomret/superdev/issues/426) [#427](https://codeberg.org/bomret/superdev/issues/427)
+* **scope:** guard the base-branch design-docs commit with a base lock ([#448](https://codeberg.org/bomret/superdev/issues/448)) ([b8fef2f](https://codeberg.org/bomret/superdev/commit/b8fef2fb07ae6f5c830e9fddbeec27153c06e65f)), closes [#436](https://codeberg.org/bomret/superdev/issues/436)
+
 # [0.42.0](https://codeberg.org/bomret/superdev/compare/v0.41.0...v0.42.0) (2026-09-06)
 
 
