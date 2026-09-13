@@ -14,23 +14,43 @@ const path = require('node:path');
 
 const CHECKS = require('./drift/checks');
 
+// Walks every check, catching a thrown run() as that check's own gap instead of crashing the whole
+// walk and skipping every check after it in registry order.
+function runChecks(checks, root) {
+  return checks.map((check) => {
+    try {
+      return { check, gaps: check.run(root) };
+    } catch (err) {
+      return { check, gaps: [], threw: err };
+    }
+  });
+}
+
 function main() {
   const root = path.join(__dirname, '..');
-  const results = CHECKS.map((check) => ({ check, gaps: check.run(root) }));
-  const failed = results.filter((r) => r.gaps.length > 0);
+  const results = runChecks(CHECKS, root);
+  const failed = results.filter((r) => r.threw || r.gaps.length > 0);
 
   if (failed.length === 0) {
     console.log('drift-check ok: ' + CHECKS.map((c) => c.ok).join(', '));
     process.exit(0);
   }
-  for (const { check, gaps } of failed) {
+  for (const { check, gaps, threw } of failed) {
+    if (threw) {
+      console.error(`${check.id}: run() threw — ${threw.message}`);
+      continue;
+    }
     for (const gap of gaps) console.error(check.format(gap));
   }
   process.exit(1);
 }
 
-if (process.argv[2] === '--selftest') {
-  require('./drift/selftest');
-} else {
-  main();
+module.exports = { runChecks };
+
+if (require.main === module) {
+  if (process.argv[2] === '--selftest') {
+    require('./drift/selftest');
+  } else {
+    main();
+  }
 }

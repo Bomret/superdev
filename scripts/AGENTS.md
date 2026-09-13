@@ -368,14 +368,14 @@ live beside it, in `scripts/drift/`.
 
 | File | Owns |
 |------|------|
-| `drift-check.js` | the CLI: `main()`, the ok line, the exit code, and the `--selftest` handoff |
+| `drift-check.js` | the CLI: `runChecks(checks, root)` (the per-check walk, catching a thrown `run()` as that check's own `threw` result instead of letting it crash the walk), `main()`, the ok line, the exit code, and the `--selftest` handoff. Guards its CLI dispatch with `require.main === module`, so a `require` of the file (the selftest's own `runChecks` import) runs neither branch |
 | `drift/checks.js` | the **registry**, one entry per check: `id`, `run`, its `ok` phrase, and how one gap prints. Its `id` is the key this narrative organizes each check's paragraph around |
 | `drift/contracts.js` | the contract tables and patterns. Data only |
 | `drift/scanners.js` | the bespoke scanners, every check whose assertion is more than one pattern over one document |
 | `drift/lib.js` | what they share: `maskFences`, `extractSection`, the frontmatter readers, `readDoc`, `storeDocuments`, and `scanContract` |
 | `drift/opencode-fixtures.js` | the golden-fixture half of the `opencode-render` check: the one normalised render both the check and `bun run render-fixtures` use |
 | `drift/opencode-overlay.js` | the Render overlay format (ADR 0060): `sourceForRendered`, `computeOverlay`, and its serialize/parse pair, shared by the check and `bun run render-fixtures` |
-| `drift/selftest/` | `index.js` (the `fixture` helper, `realRoot`, temp-dir cleanup) plus one suite per area: `scanners`, `chain`, `kb-plan`, `opencode` |
+| `drift/selftest/` | `index.js` (the `fixture` helper, `realRoot`, temp-dir cleanup) plus one suite per area: `scanners`, `chain`, `kb-plan`, `opencode`, `drift-check` |
 
 The checks named below are the exceptions, and every other one is a **drift assertion**: it compares a
 restated fact against its source. `forcing-branch-flag`, `kb-no-backend-call`, `no-second-reader`, and
