@@ -22,17 +22,18 @@ runs in parallel in isolated git worktrees, with separate implementer and review
 plan runs test-first, inline in the scope worktree.
 
 ```
-/superdev:setup      → configure backends in docs/agents/*.md (once per repo)
-/superdev:brainstorm → (optional) turn a vague idea into a plan-ready intent
-/superdev:plan       → interview + slice a feature into the slice store
-/superdev:implement  → drive the slices to merge onto the scope branch, then stop
-/superdev:status     → read-only DAG progress snapshot for in-flight runs
-/superdev:backlog    → read-only survey of the slice store: what needs what, and what to do next
-/superdev:review     → whole-scope review against the DoD, with a fix loop
-/superdev:document   → reconcile in-repo docs + knowledge base with the code
-/superdev:ship       → tick the DoD, close the scope anchor, open the PR, and clean up
-/superdev:afk        → sweep the planned backlog through the whole chain unattended
-/superdev:publish-kb → send a scope's staged knowledge-base pages to the configured backend
+/superdev:setup       → configure backends in docs/agents/*.md (once per repo)
+/superdev:brainstorm  → (optional) turn a vague idea into a plan-ready intent
+/superdev:plan        → interview + slice a feature into the slice store
+/superdev:implement   → drive the slices to merge onto the scope branch, then stop
+/superdev:status      → read-only DAG progress snapshot for in-flight runs
+/superdev:backlog     → read-only survey of the slice store: what needs what, and what to do next
+/superdev:review      → whole-scope review against the DoD, with a fix loop
+/superdev:document    → reconcile in-repo docs + knowledge base with the code
+/superdev:ship        → tick the DoD, close the scope anchor, open the PR, and clean up
+/superdev:afk         → sweep the planned backlog through the whole chain unattended
+/superdev:publish-kb  → send a scope's staged knowledge-base pages to the configured backend
+/superdev:prose-check → check one file, range, or pasted text against the controlled-prose standard
 ```
 
 ## What it does
@@ -154,6 +155,13 @@ plan runs test-first, inline in the scope worktree.
   ([ADR 0023](docs/adr/0023-the-knowledge-base-publish-is-its-own-command.md)). You decide when to run
   it: it warns once when the base branch does not already hold the scope branch's work, but a merge is
   not a release, so it never blocks on that check. `/superdev:afk` never drives it.
+- **`/superdev:prose-check`**. Checks one file, one commit range, or pasted text against the
+  **controlled-prose** writing standard, and reports each violation under the standard's own section
+  heading. It reads that standard by name in every repo, so it works where the repo's own docs follow a
+  different guide or none at all
+  ([ADR 0057](docs/adr/0057-prose-check-applies-controlled-prose-unconditionally.md)). The default is a
+  read-only report. A trailing `-- fix` rewrites the file in place, or prints the rewrite for pasted
+  text. `/superdev:afk` never drives it.
 
 ## After the PR
 
@@ -513,8 +521,8 @@ and `.opencode/skills/` directories, only the files and skill directories it wro
 so a renamed or removed skill or agent leaves no stale file behind, while another plugin under
 `.opencode/plugins/`, your own agent under `.opencode/agents/`, and your own skill under
 `.opencode/skills/` all survive untouched. That last one holds even for a skill of yours named
-`superdev-something`, as long as it isn't one of the eleven canonical names: cleanup matches a marker
-the render writes, never the name. A skill of yours that shares one of those eleven names —
+`superdev-something`, as long as it isn't one of the twelve canonical names: cleanup matches a marker
+the render writes, never the name. A skill of yours that shares one of those twelve names —
 `superdev-plan`, say — is not spared: the render writes that exact path unconditionally on every run,
 marker or not.
 
@@ -525,7 +533,7 @@ clone, then re-run the render command above, in case the rendered skill itself i
 unavailable.
 
 **Verify each render target.** Confirm the four paths above exist under the project's `.opencode/`.
-Run `opencode debug skill` in the project and confirm it lists all eleven `superdev-` skills, which is
+Run `opencode debug skill` in the project and confirm it lists all twelve `superdev-` skills, which is
 how OpenCode reports what it actually loaded. Start an OpenCode session and check its log for a
 plugin-loader error: a plugin whose module export is not a function fails to load and reports exactly
 that. After one

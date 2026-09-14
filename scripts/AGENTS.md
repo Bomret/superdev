@@ -171,7 +171,7 @@ whole page (ADR 0027, Consequences).
 `adapter.js` is the third shipped CLI, and the one no command in the chain invokes: it renders the
 shipped prompt surfaces into another harness's on-disk layout, so a superdev install there carries
 the same chain. The only harness is `opencode`, named by `--harness`. Skills render from
-`plugin/skills/<name>/SKILL.md` to `.opencode/skills/superdev-<name>/SKILL.md` for the eleven
+`plugin/skills/<name>/SKILL.md` to `.opencode/skills/superdev-<name>/SKILL.md` for the twelve
 surfaces the operator or the model may invoke. OpenCode exposes a skill through its built-in
 `skill` tool and auto-registers it as a `/superdev-<name>` slash command besides. `afk` alone
 renders to `.opencode/commands/superdev/afk.md` (`SKILL_ONLY_COMMANDS`): an OpenCode command is not
@@ -196,7 +196,7 @@ rendered body then tells the model to stop, naming the upgrade stale or incomple
 report success over a failed or partial re-render. Agents render from `plugin/agents/<name>.md` to
 `.opencode/agents/<name>.md`.
 
-The rendered skill frontmatter (`renderSkill()`, the eleven surfaces above) carries `SKILL_MARKER`,
+The rendered skill frontmatter (`renderSkill()`, the twelve surfaces above) carries `SKILL_MARKER`,
 `name: superdev-<name>`, the `description`, and the skill's `allowed-tools:` carried verbatim. It
 refuses when that prefixed name fails OpenCode's own skill-name pattern (lowercase alphanumeric
 segments joined by `-`). No `model:` line: OpenCode skill frontmatter recognizes `name`,
