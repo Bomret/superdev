@@ -115,9 +115,6 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
   `references/` prose:
   - **Prompt the positive.** Steering by prohibition drags the forbidden behaviour into context and makes
     it more available. Phrase the wanted behaviour, and reserve `never` for real contracts.
-  - **A contested line gets an eval arm, not an argument.** An instruction the model already obeys by
-    default is pure context load, and whether a line is such a no-op is model-relative. `bun run eval`
-    settles it by running the document.
   - **Completion criteria demand.** "Every modified model accounted for" forces thorough work where
     "produce a change list" does not. Write every done-condition in the demanding form.
   - **Hiding later steps needs a real context boundary.** A subagent dispatch, or a path handed instead

@@ -173,9 +173,8 @@ prompting. Both readings are useful, and neither is the headline on its own.
 
 Every case above measures superdev against no superdev. A **prose ablation**
 measures superdev against itself: one edit to the plugin's own prose, to settle
-whether a contested instruction earns its context (ADR 0038). It is how the
-prompt-architecture rule "a contested line gets an eval arm, not an argument"
-is actually carried out.
+whether a contested instruction earns its context (ADR 0038). No rule demands
+one: reach for it when a line's cost justifies the subscription window.
 
 The runner has no arm for this. `ARMS` is `plugin` and `baseline`, and the
 plugin arm always loads the working tree. So the ablation is two ordinary runs
