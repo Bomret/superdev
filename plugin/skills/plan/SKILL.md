@@ -96,6 +96,15 @@ global DoD once with that question and write what you find into the criterion it
 tick it in one configuration while it is false in another — the same lens the per-slice enumeration below
 applies, aimed at the whole-scope DoD instead of one slice's `acceptance`.
 
+**Emit the reachability criterion into the Definition of Done.** It holds on every change type, including
+a refactor whose honest answer is `none — entrance unchanged` — there is always a branch that fits. Ask
+how a user reaches this feature — which endpoint, command, or screen — and write the answer as a
+`Reachable:` criterion, or as `Reachable: none` carrying the reason.
+`${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md`'s *The reachability criterion* owns the full rule: read
+it there rather than reconstructing it here. Where the entrance is not reachable yet, §3 gives it a slice, so
+the wiring belongs to somebody instead of to nobody — a feature the running application cannot reach ships
+as dead code with every gate reporting success.
+
 **Enumerate the failure and boundary cases, don't leave them to the implementer.** A `behavior` slice's
 `acceptance` names its **domain-level** edge cases alongside the happy path — the ones derivable from the
 interview without reading the implementation: empty or absent input, missing configuration, a duplicate,

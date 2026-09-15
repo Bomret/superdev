@@ -44,7 +44,10 @@ plan runs test-first, inline in the scope worktree.
   which routes each rejected direction to a durable home. Near read-only: it writes nothing to the slice
   store.
 - **`/superdev:plan`**. A relentless interview pins the intent and a Definition of Done, and captures
-  ADRs and a glossary as decisions surface. Before it decomposes, it offers a **design sketch**: a
+  ADRs and a glossary as decisions surface. Every Definition of Done it writes carries a `Reachable:`
+  criterion naming the entrance a user reaches the feature through — or `none` and the reason, such as no
+  in-repo consumer or an unchanged entrance on a refactor — so a feature cannot be planned without
+  deciding what wires it into the running application. Before it decomposes, it offers a **design sketch**: a
   throwaway HTML page you open in your browser, inventorying the components the plan intends to add,
   change, or delete and how they interact. The command waits there, so a design you did not expect gets
   corrected while no slice has been cut yet. It then decomposes the work into **independently-green

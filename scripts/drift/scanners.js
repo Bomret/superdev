@@ -73,9 +73,16 @@ const {
   AFK_NAMES,
   AFK_ROW_PATTERN,
   SHIP_GATE_HEADING,
+  ORPHAN_LENS_DOC,
+  ORPHAN_LENS_ENTRY,
+  ORPHAN_LENS_DESIGN_HEADING,
+  ORPHAN_LENS_ANTIPATTERN_HEADING,
+  ORPHAN_LENS_SCOPE_CLAUSE,
   SHIP_GATE_ELEMENTS,
   UNRESOLVED_GLOSSARY_CONTRACTS,
   KB_NO_CALL_DOCS,
+  AGENT_LENS_AVOID_DOCS,
+  AGENT_LENS_AVOID_MARKERS,
   DOC_STEP_SILENCE_DOCS,
   SUITE_RUN_INSTRUCTIONS,
   AGENT_TOOLCHAIN_PATTERNS,
@@ -687,6 +694,45 @@ function scanShipGateContract(root) {
   return gaps;
 }
 
+// scanOrphanLensPlacement() is pure over a root dir: reports the orphan production symbol lens missing
+// from `## Design smells`, stated there without its own scoping clause, or also present under
+// `## Anti-patterns`, the section `slice-reviewer` reads. An absent document is skipped, matching every
+// other contract scanner.
+function scanOrphanLensPlacement(root) {
+  const gaps = [];
+  const text = readDoc(root, ORPHAN_LENS_DOC);
+  if (text === null) return gaps; // document absent (fixture / partial checkout) → nothing to scan
+  const design = extractSection(text, ORPHAN_LENS_DESIGN_HEADING);
+  if (design === null || !ORPHAN_LENS_ENTRY.test(design)) {
+    gaps.push({
+      source: ORPHAN_LENS_DOC,
+      expectation:
+        'name **Orphan production symbol** under `## Design smells` — the section `final-reviewer` reads and `slice-reviewer` does not',
+    });
+  } else if (!ORPHAN_LENS_SCOPE_CLAUSE.test(design)) {
+    gaps.push({
+      source: ORPHAN_LENS_DOC,
+      expectation:
+        'scope the orphan lens to the integrated scope in its own wording — on one slice diff, a caller arriving in a later slice reads as an orphan',
+    });
+  }
+  const antiPatterns = extractSection(text, ORPHAN_LENS_ANTIPATTERN_HEADING);
+  if (antiPatterns === null) {
+    gaps.push({
+      source: ORPHAN_LENS_DOC,
+      expectation:
+        'carry an `## Anti-patterns` (or `### Anti-patterns`) section — its absence hides whether the orphan lens leaked into it beside `slice-reviewer`\'s own lenses',
+    });
+  } else if (ORPHAN_LENS_ENTRY.test(antiPatterns)) {
+    gaps.push({
+      source: ORPHAN_LENS_DOC,
+      expectation:
+        'keep **Orphan production symbol** out of `## Anti-patterns` — `slice-reviewer` reads that section and would report every not-yet-called symbol',
+    });
+  }
+  return gaps;
+}
+
 // scanUnresolvedGlossaryContract() is pure over a root dir: reads every document UNRESOLVED_GLOSSARY_CONTRACTS
 // names and reports the rows whose canonical clause is not present verbatim, after whitespace normalization
 // on both sides. Absent files are skipped, matching every other contract scanner.
@@ -721,6 +767,11 @@ function scanDocsAvoid(root, docs, markers) {
 const scanKbNoBackendCall = (root) =>
   scanDocsAvoid(root, KB_NO_CALL_DOCS, KB_BACKEND_CALL_MARKERS.map(([pattern, what]) =>
     [pattern, () => `reach no knowledge-base backend — it still carries ${what}`]));
+
+// `slice-reviewer.md` may carry no `design-smell` token anywhere: that lens reaches only
+// `final-reviewer` (ADR 0062).
+const scanAgentLensNoDesignSmell = (root) =>
+  scanDocsAvoid(root, AGENT_LENS_AVOID_DOCS, AGENT_LENS_AVOID_MARKERS);
 
 // Every document a contract table pins still exists. `scanContract()` skips a document it cannot read —
 // the convention that lets a fixture carry only the files one assertion exercises, and lets a partial
@@ -1281,8 +1332,10 @@ module.exports = {
   scanChainHandoff,
   scanAfkInvocations,
   scanShipGateContract,
+  scanOrphanLensPlacement,
   scanUnresolvedGlossaryContract,
   scanKbNoBackendCall,
+  scanAgentLensNoDesignSmell,
   scanPinnedPaths,
   scanDocStepsNoSuite,
   scanDenialCapNumberSilence,

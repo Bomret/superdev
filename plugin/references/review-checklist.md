@@ -76,6 +76,13 @@ The classical catalogue (Fowler), each one nameable and huntable:
 - **Single-adapter seam** — a port/interface with exactly one adapter behind it and no second in sight:
   a hypothetical seam, which is indirection, not architecture. Two adapters make a seam real — one of
   them may be the in-memory test adapter of a true external dependency.
+- **Orphan production symbol** — a new production symbol the running application cannot reach: nothing
+  registers it with the container or a manifest/configuration file (`hooks.json`, a skill the harness
+  dispatches by name), no route or handler maps to it, and no non-test code references it.
+  The feature was built and tested in isolation and never wired in, so the suite is green while the
+  capability does not exist. Name the symbol and the entrance it never reached. `final-reviewer` owns
+  this on the integrated scope, where the whole feature is in view: one slice diff **cannot tell an
+  orphan from a caller** that arrives in a later slice.
 
 ## Vulnerability classes
 

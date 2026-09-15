@@ -20,7 +20,9 @@ screen — in the same interface vocabulary a `spec` uses. A feature with no in-
 `Reachable: none` followed by the reason.
 
 The rule holds for every change type. A behaviour-preserving refactor answers `none — entrance
-unchanged`, a prose feature answers `none — prose only`. It is feature-level: a single-slice feature
+unchanged`. A prose feature names the surface that reaches the running system as its entrance — a skill
+step that runs, a reference a surface is routed to read — since that is how prose reaches anything at
+all. It is feature-level: a single-slice feature
 carries it through the lone slice's `acceptance`, because that `acceptance` is already the Definition of
 Done. Append mode adds a further `Reachable:` criterion for the extension rather than editing the
 existing one, which the amend-in-place invariant already requires.
@@ -62,9 +64,10 @@ for the same reason.
 - *A deterministic hook grepping for uncalled exports at merge.* Rejected: it is language-specific,
   reflection and assembly scanning defeat it, and its false positives block sound merges.
 
-**Consequences.** A documentation or refactor plan writes one line of ceremony it gains nothing from. The
-uniform rule is what keeps `/superdev:plan` from judging whether the rule fires, which is the judgment the
-two superseded adjectives got wrong.
+**Consequences.** A refactor plan writes one line of ceremony it gains nothing from. A documentation
+plan's line names the surface that actually reaches the running system, so it catches a reference nobody
+routes to instead of being ceremony. The uniform rule is what keeps `/superdev:plan` from judging whether
+the rule fires, which is the judgment the two superseded adjectives got wrong.
 
 The criterion covers an in-process orphan, where the composition root never registers the symbol. A
 cross-process orphan — an endpoint no client calls, a message no producer sends — is invisible to it,

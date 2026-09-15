@@ -440,6 +440,105 @@ const DERIVED_CRITERIA_CONTRACTS = [
   ],
 ];
 
+// A feature reaches merge built well and unreachable from the running application, because two rules
+// that already demand a complete path through every layer are adjectives an agent grades its own
+// compliance against (ADR 0062). The `Reachable:` criterion is the artifact that replaces them, and it
+// is only an artifact while the token is the same word in both halves: `plan-contract.md` states the
+// rule, and `skills/plan/SKILL.md` is the live path that emits one into a real plan. Renaming the token
+// in the rule alone leaves every plan still emitting the old word, and renaming it in the surface alone
+// leaves the rule describing a criterion nothing writes — either way the documents read correct
+// separately and the contract between them is gone, which is the one-sided-pin shape the root
+// AGENTS.md's prompt-architecture rules name.
+//
+// The token rows pin `Reachable:` inside its own backticks rather than the bare word, so prose that
+// merely discusses reachability satisfies neither.
+const REACHABLE_CRITERION_CONTRACTS = [
+  [
+    path.join('references', 'plan-contract.md'),
+    /^###\s+The reachability criterion\s*$/m,
+    'carry the `### The reachability criterion` section — the rule the plan surface is sent to read',
+  ],
+  [
+    path.join('references', 'plan-contract.md'),
+    /\*\*led by `Reachable:`\*\*/,
+    'name `Reachable:` as the token the criterion is led by, so the rule and the surface emitting it agree on one word',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /\*\*Emit the reachability criterion into the Definition of Done\.\*\*/,
+    'carry the **Emit the reachability criterion into the Definition of Done.** step — the live path that puts one in a plan',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /`Reachable:` criterion/,
+    'emit a `Reachable:` criterion by that name, so a rename in the rule cannot leave this surface writing the old token',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /on every change type/,
+    'carry the every-change-type clause on its own, rather than only the one `no in-repo consumer exists` reason plan-contract.md gives for `none` — a refactor whose honest answer is `none — entrance unchanged` needs a branch to fit too',
+  ],
+  [
+    path.join('references', 'plan-contract.md'),
+    /The rule holds on \*\*every change type\*\*/,
+    'state the every-change-type clause on the reference that owns the rule, not only on the SKILL.md surface it is dispatched to',
+  ],
+];
+
+// The orphan lens works only from `## Design smells`. `final-reviewer` reads the anti-pattern,
+// design-smell, and remaining lenses, while `slice-reviewer` reads anti-patterns and vulnerability
+// classes alone. A slice legitimately lands a symbol whose caller arrives two slices later, so from
+// either section `slice-reviewer` reads, the lens reports noise on correct work, and only the integrated
+// scope can tell an orphan from a symbol nothing calls yet. The placement is the whole contract, and it
+// is invisible in review: both sections are lists of named smells in one file, so moving an entry
+// between them reads as tidying (ADR 0062). It is pinned in both directions, because a copy added to
+// `## Anti-patterns` while the original stays put leaves the section check green and still reaches
+// `slice-reviewer`. The scoping clause is pinned on wording unique to this entry — `## Design smells`
+// already carries `whole-scope range` in `speculative generality`, so the looser phrase would pass on
+// that neighbour alone.
+// The placement above is only meaningful while each agent's own lens list matches the narrative: the
+// orphan lens reaches `final-reviewer` and not `slice-reviewer` because the former reads design smells
+// and the latter doesn't. Nothing pinned either list before this table, so widening
+// `slice-reviewer.md`'s to add design smells routed the orphan lens into per-slice review with every
+// other check here still green (ADR 0062). The dispatch prose that reaches each agent
+// (`references/implement-full.md`, `skills/review/SKILL.md`) was checked and defers to the agent body
+// without restating a lens list, so these two rows close the contract alone — no dispatch-side row is
+// needed.
+const AGENT_LENS_LIST_CONTRACTS = [
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /apply its \*\*anti-pattern\*\* and \*\*vulnerability-class\*\*\s+lenses/,
+    'read only the anti-pattern and vulnerability-class lenses — no design smell, so the orphan lens never reaches per-slice review',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /apply its anti-pattern, design-smell,\s+vulnerability-class, reuse-audit, and consistency lenses/,
+    'read the anti-pattern, design-smell, vulnerability-class, reuse-audit, and consistency lenses — design-smell is what carries the orphan lens to the integrated scope',
+  ],
+];
+
+// `slice-reviewer.md`'s sentence pin above only asserts that ONE sentence still names the
+// anti-pattern/vulnerability-class pair; it says nothing about a second sentence appended anywhere
+// else in the file that also names design-smell. Appending "Also apply the design-smell lens…"
+// leaves the pinned sentence untouched and returns zero gaps, while the orphan lens reaches
+// per-slice review anyway (ADR 0062). The negative check below closes that: the token itself must
+// not appear in this file at all, in either its hyphenated or spaced form.
+const AGENT_LENS_AVOID_DOCS = [path.join('agents', 'slice-reviewer.md')];
+// ponytail: a literal-token tripwire — it catches a `design-smell` / `design smell` token, hyphenated
+// or spaced, case-insensitively, and nothing else. A paraphrase evades it: appending "Apply every lens
+// the checklist names, not only the two above." to slice-reviewer.md routes design smells into
+// per-slice review while this check reports zero gaps. Closing that evasion is out of scope here; the
+// upgrade path is a stricter grammar over the checklist's own lens names, in place of a fixed token.
+const AGENT_LENS_AVOID_MARKERS = [
+  [/design[-\s]smell/i, () => 'carry no `design-smell` / `design smell` token anywhere — that lens reaches only `final-reviewer`'],
+];
+
+const ORPHAN_LENS_DOC = path.join('references', 'review-checklist.md');
+const ORPHAN_LENS_ENTRY = /\*\*Orphan production symbol\*\*/;
+const ORPHAN_LENS_DESIGN_HEADING = /^##\s+Design smells\s*$/m;
+const ORPHAN_LENS_ANTIPATTERN_HEADING = /^#{2,3}\s+Anti-patterns\s*$/m;
+const ORPHAN_LENS_SCOPE_CLAUSE = /cannot\s+tell\s+an\s+orphan\s+from\s+a\s+caller/;
+
 // A feature label is external input that becomes a branch name and a run-root path segment. Both of
 // its segments reach `git worktree add … -b`, so both are validated — the leading one against the
 // closed change-type set, which is strictly stronger than a charset test on it. A rule that guards the
@@ -2553,6 +2652,15 @@ module.exports = {
   UNATTENDED_CONTRACTS,
   DEGRADED_CONTRACTS,
   DERIVED_CRITERIA_CONTRACTS,
+  REACHABLE_CRITERION_CONTRACTS,
+  AGENT_LENS_LIST_CONTRACTS,
+  AGENT_LENS_AVOID_DOCS,
+  AGENT_LENS_AVOID_MARKERS,
+  ORPHAN_LENS_DOC,
+  ORPHAN_LENS_ENTRY,
+  ORPHAN_LENS_DESIGN_HEADING,
+  ORPHAN_LENS_ANTIPATTERN_HEADING,
+  ORPHAN_LENS_SCOPE_CLAUSE,
   LABEL_VALIDATION_CONTRACTS,
   AFK_NAMES,
   AFK_ROW_PATTERN,

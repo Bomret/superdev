@@ -24,6 +24,39 @@ Both `acceptance` and the DoD state **observable, user-facing behaviour** — no
 a proxy count appears at all it's a signal a reviewer reads, never a gate an agent optimizes toward (ADR
 0002).
 
+### The reachability criterion
+
+Every feature's Definition of Done carries at least one criterion **led by `Reachable:`**, naming the
+entrance a user reaches the feature through — an endpoint, a command, a screen — in the interface
+vocabulary the `spec` field already uses. It names no file path and no test file: which test proves it is
+the implementer's to choose, exactly as **Negotiable** below already says. A feature no in-repo consumer
+calls answers `Reachable: none` and states why, because a bare `none` reads exactly like the oversight the
+criterion exists to catch.
+
+```
+- [ ] Reachable: POST /orders (OrderApi) returns 201 and persists the order
+- [ ] Reachable: the checkout page's Place Order button calls POST /orders
+- [ ] Reachable: none — published SDK, consumers are external
+```
+
+The rule holds on **every change type**. A behaviour-preserving refactor answers `none — entrance
+unchanged`. A prose feature names the surface that reaches the running system as its entrance — a skill
+step that runs, a reference a surface is routed to read, a checklist section a named agent applies — since
+that is how prose reaches anything at all; a reference nobody routes to is dead code in exactly the sense
+ADR 0062 is about. Staying uniform is what leaves `/plan` no judgment about whether the rule fires, and
+that judgment is exactly where a rule of this kind drifts.
+
+It is **feature-level**. A single-slice feature carries it in the lone slice's `acceptance`, which is
+already that feature's Definition of Done, so no slice gains a criterion of its own. **Append mode** adds
+a further `Reachable:` criterion for the extension rather than editing an existing one, which the
+amend-in-place invariant below already requires.
+
+Where the entrance is not reachable yet, making it reachable is one of the plan's slices — in the
+consuming workspace when that is a different one from the feature's own. The criterion covers an orphan
+inside one process, where the composition root never registers the symbol. It does not see across a
+process boundary: an endpoint no client calls leaves both sides green, and the consuming side's own slice
+is what covers that (ADR 0062).
+
 **The epic is optional.** A plan with a single slice needs no epic: that slice IS the whole plan, so its
 `acceptance` doubles as the global DoD, and the slice is its own scope anchor. A plan with ≥2 slices
 always carries a global DoD (the epic) on top of the per-slice `acceptance` fields, as above.

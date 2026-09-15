@@ -449,7 +449,7 @@ a command that does not exist. The `chain-handoff` contract: `skills/implement/S
 `skills/ship/SKILL.md` ends the chain and is deliberately outside that check.
 
 The `feature-label-argument`, `unattended-token`, `change-type`, `degraded-pass`, `derived-criteria`,
-`label-validation`, `green-gate-timeout`, and `verb-pointer` checks
+`reachable-criterion`, `label-validation`, `green-gate-timeout`, and `verb-pointer` checks
 share one scanner, `drift/lib.js`'s `scanContract()`, run over
 a table of `[document, pattern, expectation]` rows in `drift/contracts.js` instead of one function each.
 It reads every
@@ -486,6 +486,47 @@ tells a genuine safety block from one of auto mode's documented false positives 
 because a prompt arrives at once. DoD text inlined in the dispatch is already read by the time the
 instruction asks for a derivation. Losing either half degrades the derivation into theater: references
 still resolve, the suite stays green, and the reviewer reads the DoD first exactly as before.
+The `reachable-criterion` contract (ADR 0062), six rows: `references/plan-contract.md` carries the
+`### The reachability criterion` section, names `Reachable:` as the token the criterion is led by, and
+states the every-change-type clause itself — the rule the reference owns, not only the surface it is
+dispatched to — and `skills/plan/SKILL.md` carries the **Emit the reachability criterion into the
+Definition of Done.** step, emits a criterion by that same token, and carries the every-change-type
+clause on its own rather than only the one `no in-repo consumer exists` reason `plan-contract.md` gives
+for `none` — the fuller reference list also covers a behaviour-preserving refactor's `none — entrance
+unchanged`, a branch the narrower surface clause used to leave with nothing to fit. The rule is the artifact that replaces two adjectives an
+agent grades its own compliance against — "each slice is a tracer bullet" and "the Definition of Done
+states observable, user-facing behaviour" — so it is an artifact only while both halves say one word.
+Renaming the token in the rule alone leaves every plan emitting the old one, and renaming it in the
+surface alone leaves the rule describing a criterion nothing writes. Either way both documents read
+correct on their own, which is the one-sided-pin shape the root `AGENTS.md`'s prompt-architecture rules
+name. The token rows pin `Reachable:` inside its own backticks, so prose that merely discusses
+reachability satisfies neither.
+The `agent-lens-list` contract (ADR 0062), two rows plus `scanAgentLensNoDesignSmell()`:
+`agents/slice-reviewer.md` reads only the anti-pattern and vulnerability-class lenses from
+`references/review-checklist.md`, and `agents/final-reviewer.md` reads the anti-pattern, design-smell,
+vulnerability-class, reuse-audit, and consistency lenses. The `orphan-lens-placement` contract below is
+meaningful only because these two lists differ — the orphan lens reaches `final-reviewer` through
+`design-smell` and never reaches `slice-reviewer`. The two sentence rows alone pin only the sentence
+each file already carries, so appending a further sentence that names design-smell — without touching
+either pinned sentence — would still route the orphan lens into per-slice review with every other check
+here green: exactly the one-sided-pin shape the root `AGENTS.md` names. `scanAgentLensNoDesignSmell()`
+closes that gap the sentence rows cannot: it asserts `agents/slice-reviewer.md` carries no
+`design-smell` / `design smell` token anywhere in the file, not only outside its pinned sentence. The
+dispatch prose that reaches each agent (`references/implement-full.md`, `skills/review/SKILL.md`)
+defers to the agent body without restating a lens list, so these rows close the contract alone.
+The `orphan-lens-placement` contract (ADR 0062), `scanOrphanLensPlacement()`:
+`references/review-checklist.md` names **Orphan production symbol** under `## Design smells`, states it
+with its own scoping clause, and does **not** also carry it under `## Anti-patterns`. Which section an
+entry sits in is the whole contract, because that is what decides who reads it: `final-reviewer` applies
+the anti-pattern, design-smell, and remaining lenses, while `slice-reviewer` applies anti-patterns and
+vulnerability classes alone. A slice legitimately lands a symbol whose caller arrives two slices later,
+so from either section `slice-reviewer` reads, the lens reports noise on correct work, and only the
+integrated scope tells an orphan from a symbol nothing calls yet. Both sections are lists of named smells
+in one file, so moving an entry between them reads as tidying and nothing else would catch it. The
+negative half matters on its own: a copy added under `## Anti-patterns` while the original stays put
+leaves the section check green and still reaches `slice-reviewer`. The scoping clause is pinned on
+wording unique to this entry, because `## Design smells` already carries `whole-scope range` in
+`speculative generality`, and the looser phrase would pass on that neighbour alone.
 The `label-validation` contract:
 `references/scope-mode.md` carries the **Validate both segments.** rule, and `skills/implement/SKILL.md`
 and `skills/afk/SKILL.md` each point at it. The whole feature label becomes the branch name, so the type
@@ -1495,9 +1536,9 @@ file, `chain-handoff` a command that names no successor at all.
   gone and stays green while it is still there. Write the ceiling down next to the patterns for one of
   these — a `ponytail:` comment naming it is the house idiom — or every reviewer who finds one more
   evadable phrasing reports a defect, and the guard grows by discovery instead of by decision. The
-  convention governs seven checks of this shape, and all seven carry their note: `doc-steps-no-suite`,
+  convention governs eight checks of this shape, and all eight carry their note: `doc-steps-no-suite`,
   `forcing-branch-flag`, `kb-no-backend-call`, `no-second-reader`, `return-to-controller`,
-  `afk-selection-neutrality`, and `agent-tool-agnostic`. An eighth of this shape adds its own. `no-second-reader`'s reads differently
+  `afk-selection-neutrality`, `agent-tool-agnostic`, and `agent-lens-list`. `no-second-reader`'s reads differently
   from the rest on purpose: its gap is closed by an orphan test in `tests/scope-prune.test.js`
   rather than left open, and the note says so instead of claiming a ceiling it does not have. A **presence table** — the document must say X, one row per
   `[document, pattern, expectation]` — needs no such note: a paraphrase it doesn't recognize fails

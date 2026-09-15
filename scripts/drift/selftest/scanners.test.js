@@ -39,6 +39,8 @@ const {
   scanScaffoldLedger,
   scanAgentToolAgnostic,
   scanGlossarySpecialisingCitations,
+  scanOrphanLensPlacement,
+  scanAgentLensNoDesignSmell,
 } = require('../scanners');
 const {
   ADR_STATUSES,
@@ -46,6 +48,8 @@ const {
   PLAYBOOK_EDGE_CONTRACTS,
   SPECIALISING_SECTIONS,
   GLOSSARY_ENTRY_TITLES,
+  REACHABLE_CRITERION_CONTRACTS,
+  AGENT_LENS_LIST_CONTRACTS,
 } = require('../contracts');
 const CHECKS = require('../checks');
 
@@ -2830,4 +2834,287 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // negative: the real tree carries none
   assert.equal(scanAgentToolAgnostic(realRoot).length, 0, 'the shipped agents are clean');
+
+  // --- REACHABLE_CRITERION_CONTRACTS: the `Reachable:` criterion rule (plan-contract.md) and the plan
+  // surface that emits one into a Definition of Done (skills/plan/SKILL.md) agree on the token and on
+  // the every-change-type clause (ADR 0062) ---
+
+  const RC_PLAN_CONTRACT_CLEAN =
+    '### The reachability criterion\n\n' +
+    "Every feature's Definition of Done carries at least one criterion **led by `Reachable:`**, naming " +
+    'what it reaches.\n\n' +
+    'The rule holds on **every change type**, including a behaviour-preserving refactor.\n';
+  const RC_PLAN_SKILL_CLEAN =
+    '**Emit the reachability criterion into the Definition of Done.** It holds on every change type, ' +
+    'including a refactor. Emit a `Reachable:` criterion, or `Reachable: none` carrying the reason.\n';
+
+  assert.equal(
+    scanContract(
+      fixture({
+        'references/plan-contract.md': RC_PLAN_CONTRACT_CLEAN,
+        'skills/plan/SKILL.md': RC_PLAN_SKILL_CLEAN,
+      }),
+      REACHABLE_CRITERION_CONTRACTS,
+    ).length,
+    0,
+    'both halves carried yields zero gaps',
+  );
+
+  // positive: the token is renamed on the reference only — plan-contract.md now leads with `Ready:`,
+  // while skills/plan/SKILL.md still emits the old `Reachable:` token
+  const rcRefRenamed = scanContract(
+    fixture({
+      'references/plan-contract.md':
+        '### The reachability criterion\n\n' +
+        "Every feature's Definition of Done carries at least one criterion **led by `Ready:`**, naming " +
+        'what it reaches.\n\n' +
+        'The rule holds on **every change type**, including a behaviour-preserving refactor.\n',
+      'skills/plan/SKILL.md': RC_PLAN_SKILL_CLEAN,
+    }),
+    REACHABLE_CRITERION_CONTRACTS,
+  );
+  assert.equal(rcRefRenamed.length, 1, 'flags the reference renaming the token while the surface still emits the old one');
+  assert.equal(rcRefRenamed[0].source, path.join('references', 'plan-contract.md'), 'names plan-contract.md');
+
+  // positive: the token is renamed on the surface only — skills/plan/SKILL.md now emits `Ready:`
+  // criteria, while plan-contract.md still names `Reachable:` as the token
+  const rcSurfaceRenamed = scanContract(
+    fixture({
+      'references/plan-contract.md': RC_PLAN_CONTRACT_CLEAN,
+      'skills/plan/SKILL.md':
+        '**Emit the reachability criterion into the Definition of Done.** It holds on every change type, ' +
+        'including a refactor. Emit a `Ready:` criterion, or `Ready: none` carrying the reason.\n',
+    }),
+    REACHABLE_CRITERION_CONTRACTS,
+  );
+  assert.equal(rcSurfaceRenamed.length, 1, 'flags the surface renaming the token while the reference still names the old one');
+  assert.equal(rcSurfaceRenamed[0].source, path.join('skills', 'plan', 'SKILL.md'), 'names skills/plan/SKILL.md');
+
+  // positive: the every-change-type clause is dropped from the reference — plan-contract.md no longer
+  // states the rule holds on every change type
+  const rcRefClauseDropped = scanContract(
+    fixture({
+      'references/plan-contract.md':
+        '### The reachability criterion\n\n' +
+        "Every feature's Definition of Done carries at least one criterion **led by `Reachable:`**, naming " +
+        'what it reaches.\n',
+      'skills/plan/SKILL.md': RC_PLAN_SKILL_CLEAN,
+    }),
+    REACHABLE_CRITERION_CONTRACTS,
+  );
+  assert.equal(rcRefClauseDropped.length, 1, 'flags the reference dropping its own every-change-type clause');
+  assert.equal(rcRefClauseDropped[0].source, path.join('references', 'plan-contract.md'), 'names plan-contract.md');
+
+  // positive: the every-change-type clause is dropped from the surface — skills/plan/SKILL.md no longer
+  // states the clause on its own
+  const rcSurfaceClauseDropped = scanContract(
+    fixture({
+      'references/plan-contract.md': RC_PLAN_CONTRACT_CLEAN,
+      'skills/plan/SKILL.md':
+        '**Emit the reachability criterion into the Definition of Done.** Emit a `Reachable:` criterion, ' +
+        'or `Reachable: none` carrying the reason.\n',
+    }),
+    REACHABLE_CRITERION_CONTRACTS,
+  );
+  assert.equal(rcSurfaceClauseDropped.length, 1, 'flags the surface dropping its own every-change-type clause');
+  assert.equal(rcSurfaceClauseDropped[0].source, path.join('skills', 'plan', 'SKILL.md'), 'names skills/plan/SKILL.md');
+
+  // negative: the real tree carries both halves
+  assert.equal(scanContract(realRoot, REACHABLE_CRITERION_CONTRACTS).length, 0, 'the shipped rule and surface agree');
+
+  // --- AGENT_LENS_LIST_CONTRACTS + scanAgentLensNoDesignSmell: each reviewer agent reads its own named
+  // lens list off review-checklist.md, and slice-reviewer.md carries no design-smell token that would
+  // widen its list in place (ADR 0062) ---
+
+  const ALL_SLICE_CLEAN =
+    'Read the checklist and apply its **anti-pattern** and **vulnerability-class**\n' +
+    'lenses throughout the checks below.\n';
+  const ALL_FINAL_CLEAN =
+    'Read the checklist and apply its anti-pattern, design-smell,\n' +
+    'vulnerability-class, reuse-audit, and consistency lenses throughout the checks below.\n';
+
+  assert.equal(
+    scanContract(
+      fixture({ 'agents/slice-reviewer.md': ALL_SLICE_CLEAN, 'agents/final-reviewer.md': ALL_FINAL_CLEAN }),
+      AGENT_LENS_LIST_CONTRACTS,
+    ).length,
+    0,
+    'both lens lists carried yields zero gaps',
+  );
+
+  // positive: slice-reviewer.md's lens sentence narrowed in place — vulnerability-class dropped
+  const allSliceNarrowed = scanContract(
+    fixture({
+      'agents/slice-reviewer.md': 'Read the checklist and apply its **anti-pattern**\nlens throughout the checks below.\n',
+      'agents/final-reviewer.md': ALL_FINAL_CLEAN,
+    }),
+    AGENT_LENS_LIST_CONTRACTS,
+  );
+  assert.equal(allSliceNarrowed.length, 1, 'flags the narrowed slice-reviewer lens sentence');
+  assert.equal(allSliceNarrowed[0].source, path.join('agents', 'slice-reviewer.md'), 'names slice-reviewer.md');
+
+  // positive: slice-reviewer.md's lens sentence widened in place — design-smell folded into the same
+  // sentence rather than appended as a separate one
+  const allSliceWidened = scanContract(
+    fixture({
+      'agents/slice-reviewer.md':
+        'Read the checklist and apply its **anti-pattern**, design-smell, and **vulnerability-class**\n' +
+        'lenses throughout the checks below.\n',
+      'agents/final-reviewer.md': ALL_FINAL_CLEAN,
+    }),
+    AGENT_LENS_LIST_CONTRACTS,
+  );
+  assert.equal(allSliceWidened.length, 1, 'flags the widened slice-reviewer lens sentence');
+  assert.equal(allSliceWidened[0].source, path.join('agents', 'slice-reviewer.md'), 'names slice-reviewer.md');
+
+  // positive: final-reviewer.md's lens sentence altered — reuse-audit dropped from the list
+  const allFinalAltered = scanContract(
+    fixture({
+      'agents/slice-reviewer.md': ALL_SLICE_CLEAN,
+      'agents/final-reviewer.md':
+        'Read the checklist and apply its anti-pattern, design-smell,\nvulnerability-class, and consistency lenses throughout the checks below.\n',
+    }),
+    AGENT_LENS_LIST_CONTRACTS,
+  );
+  assert.equal(allFinalAltered.length, 1, 'flags the altered final-reviewer lens sentence');
+  assert.equal(allFinalAltered[0].source, path.join('agents', 'final-reviewer.md'), 'names final-reviewer.md');
+
+  // negative: the real tree carries both lists
+  assert.equal(scanContract(realRoot, AGENT_LENS_LIST_CONTRACTS).length, 0, 'the shipped lens lists are clean');
+
+  // scanAgentLensNoDesignSmell(): slice-reviewer.md carries no `design-smell` / `design smell` token
+  // anywhere, in either spelling, case-insensitively — negative check closing the one-sided-pin gap the
+  // sentence rows above cannot (a sentence appended elsewhere in the file, naming the token, still
+  // leaves the pinned sentence untouched)
+
+  assert.equal(
+    scanAgentLensNoDesignSmell(fixture({ 'agents/slice-reviewer.md': ALL_SLICE_CLEAN })).length,
+    0,
+    'a slice-reviewer.md with no design-smell token is clean',
+  );
+
+  // positive: the hyphenated token appears, case-insensitively, anywhere in the file
+  const dsHyphenGaps = scanAgentLensNoDesignSmell(
+    fixture({
+      'agents/slice-reviewer.md': `${ALL_SLICE_CLEAN}\nAlso apply the Design-Smell lens.\n`,
+    }),
+  );
+  assert.equal(dsHyphenGaps.length, 1, 'flags a literal `design-smell` token appended anywhere in the file');
+  assert.equal(dsHyphenGaps[0].source, path.join('agents', 'slice-reviewer.md'), 'names slice-reviewer.md');
+
+  // positive: the space-separated form counts too — the marker is case-insensitive and covers both spellings
+  const dsSpaceGaps = scanAgentLensNoDesignSmell(
+    fixture({
+      'agents/slice-reviewer.md': `${ALL_SLICE_CLEAN}\nAlso apply the design smell lens.\n`,
+    }),
+  );
+  assert.equal(dsSpaceGaps.length, 1, 'flags a `design smell` (space form) token appended anywhere in the file');
+  assert.equal(dsSpaceGaps[0].source, path.join('agents', 'slice-reviewer.md'), 'names slice-reviewer.md');
+
+  // absent document is skipped, matching every other scanDocsAvoid consumer
+  assert.equal(
+    scanAgentLensNoDesignSmell(fixture({ 'README.md': '# repo\n' })).length,
+    0,
+    'no slice-reviewer.md is skipped',
+  );
+
+  // negative: the real tree carries no design-smell token in slice-reviewer.md
+  assert.equal(scanAgentLensNoDesignSmell(realRoot).length, 0, 'the shipped slice-reviewer.md is clean');
+
+  // --- scanOrphanLensPlacement: the orphan production symbol lens sits under `## Design smells` (the
+  // section `final-reviewer` reads and `slice-reviewer` does not), carries its own scoping clause, and
+  // never also sits under `## Anti-patterns` (ADR 0062) ---
+
+  const OL_CLEAN = fixture({
+    'references/review-checklist.md':
+      '## Anti-patterns\n\n- **Parameter sprawl** — too many params.\n\n' +
+      '## Design smells\n\n' +
+      '- **Mysterious name** — a name that requires reading the body to learn what it does.\n' +
+      '- **Orphan production symbol** — a new production symbol the running application cannot reach. ' +
+      '`final-reviewer` owns this on the integrated scope: one slice diff cannot tell an orphan from a ' +
+      'caller that arrives in a later slice.\n\n' +
+      '## Vulnerability classes\n\n- **SQL injection** — unparameterized query.\n',
+  });
+  assert.equal(scanOrphanLensPlacement(OL_CLEAN).length, 0, 'the shipped placement is clean');
+
+  // positive: the entry is absent from `## Design smells` entirely
+  const OL_ABSENT = fixture({
+    'references/review-checklist.md':
+      '## Anti-patterns\n\n- **Parameter sprawl** — too many params.\n\n' +
+      '## Design smells\n\n' +
+      '- **Mysterious name** — a name that requires reading the body to learn what it does.\n\n' +
+      '## Vulnerability classes\n\n- **SQL injection** — unparameterized query.\n',
+  });
+  const olAbsentGaps = scanOrphanLensPlacement(OL_ABSENT);
+  assert.equal(olAbsentGaps.length, 1, 'flags the entry missing from `## Design smells`');
+  assert.match(olAbsentGaps[0].expectation, /under `## Design smells`/, 'names the missing section');
+
+  // positive: the entry sits under `## Design smells` but also under `## Anti-patterns`
+  const OL_DUPLICATED = fixture({
+    'references/review-checklist.md':
+      '## Anti-patterns\n\n- **Parameter sprawl** — too many params.\n' +
+      '- **Orphan production symbol** — a new production symbol the running application cannot reach.\n\n' +
+      '## Design smells\n\n' +
+      '- **Orphan production symbol** — a new production symbol the running application cannot reach. ' +
+      '`final-reviewer` owns this on the integrated scope: one slice diff cannot tell an orphan from a ' +
+      'caller that arrives in a later slice.\n\n' +
+      '## Vulnerability classes\n\n- **SQL injection** — unparameterized query.\n',
+  });
+  const olDupGaps = scanOrphanLensPlacement(OL_DUPLICATED);
+  assert.equal(olDupGaps.length, 1, 'flags the entry also present under `## Anti-patterns`');
+  assert.match(olDupGaps[0].expectation, /out of `## Anti-patterns`/, 'names the section to drop it from');
+
+  // positive: the same duplicate, but under an `### Anti-patterns` (level-3) heading — proves the
+  // `#{2,3}` widening in ORPHAN_LENS_ANTIPATTERN_HEADING actually catches it, not just `##`
+  const OL_DUPLICATED_H3 = fixture({
+    'references/review-checklist.md':
+      '### Anti-patterns\n\n- **Parameter sprawl** — too many params.\n' +
+      '- **Orphan production symbol** — a new production symbol the running application cannot reach.\n\n' +
+      '## Design smells\n\n' +
+      '- **Orphan production symbol** — a new production symbol the running application cannot reach. ' +
+      '`final-reviewer` owns this on the integrated scope: one slice diff cannot tell an orphan from a ' +
+      'caller that arrives in a later slice.\n\n' +
+      '## Vulnerability classes\n\n- **SQL injection** — unparameterized query.\n',
+  });
+  const olDupH3Gaps = scanOrphanLensPlacement(OL_DUPLICATED_H3);
+  assert.equal(olDupH3Gaps.length, 1, 'flags the entry also present under `### Anti-patterns`');
+  assert.match(olDupH3Gaps[0].expectation, /out of `## Anti-patterns`/, 'names the section to drop it from');
+
+  // positive: `## Anti-patterns` is absent (renamed or removed) — this must fail loud, not skip
+  // silently the way it did before the duplicate check gained an explicit absent-section gap
+  const OL_ANTIPATTERNS_ABSENT = fixture({
+    'references/review-checklist.md':
+      '## Not Anti-patterns\n\n- **Parameter sprawl** — too many params.\n\n' +
+      '## Design smells\n\n' +
+      '- **Orphan production symbol** — a new production symbol the running application cannot reach. ' +
+      '`final-reviewer` owns this on the integrated scope: one slice diff cannot tell an orphan from a ' +
+      'caller that arrives in a later slice.\n\n' +
+      '## Vulnerability classes\n\n- **SQL injection** — unparameterized query.\n',
+  });
+  const olAntiAbsentGaps = scanOrphanLensPlacement(OL_ANTIPATTERNS_ABSENT);
+  assert.equal(olAntiAbsentGaps.length, 1, 'flags the missing `## Anti-patterns` section instead of skipping the duplicate check silently');
+  assert.match(olAntiAbsentGaps[0].expectation, /carry an `## Anti-patterns`/, 'names the missing section');
+
+  // positive: the scope clause is reworded so it no longer matches
+  const OL_UNSCOPED = fixture({
+    'references/review-checklist.md':
+      '## Anti-patterns\n\n- **Parameter sprawl** — too many params.\n\n' +
+      '## Design smells\n\n' +
+      '- **Orphan production symbol** — a new production symbol the running application cannot reach. ' +
+      '`final-reviewer` owns this on the integrated scope; a per-slice review may report it too early.\n\n' +
+      '## Vulnerability classes\n\n- **SQL injection** — unparameterized query.\n',
+  });
+  const olUnscopedGaps = scanOrphanLensPlacement(OL_UNSCOPED);
+  assert.equal(olUnscopedGaps.length, 1, 'flags the reworded scope clause');
+  assert.match(olUnscopedGaps[0].expectation, /own wording/, 'names the missing scoping clause');
+
+  // absent document is skipped, matching every other contract scanner
+  assert.equal(
+    scanOrphanLensPlacement(fixture({ 'README.md': '# repo\n' })).length,
+    0,
+    'no review-checklist.md is skipped',
+  );
+
+  // negative: the real tree carries the placement correctly
+  assert.equal(scanOrphanLensPlacement(realRoot).length, 0, 'the shipped placement is clean');
 };
