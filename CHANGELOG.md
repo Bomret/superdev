@@ -1,3 +1,11 @@
+# [0.44.0](https://codeberg.org/bomret/superdev/compare/v0.43.0...v0.44.0) (2026-09-15)
+
+
+### Features
+
+* **plan:** require a Reachable: criterion in every Definition of Done ([#456](https://codeberg.org/bomret/superdev/issues/456)) ([c4a6246](https://codeberg.org/bomret/superdev/commit/c4a624658b394c7c3496a90f1d890f7228c6651f)), closes [#455](https://codeberg.org/bomret/superdev/issues/455) [#454](https://codeberg.org/bomret/superdev/issues/454) [#453](https://codeberg.org/bomret/superdev/issues/453)
+* **prose-check:** apply controlled-prose to one piece of prose on demand ([#452](https://codeberg.org/bomret/superdev/issues/452)) ([c7182b3](https://codeberg.org/bomret/superdev/commit/c7182b35d99890824288e1613861292db7e21905)), closes [#435](https://codeberg.org/bomret/superdev/issues/435)
+
 # [0.43.0](https://codeberg.org/bomret/superdev/compare/v0.42.0...v0.43.0) (2026-09-13)
 
 
