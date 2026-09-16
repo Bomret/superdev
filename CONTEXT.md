@@ -174,6 +174,9 @@ _Avoid: "independent criteria", "own criteria" (the point is where they come fro
 **Ceiling note**: the single advisory observation `final-reviewer` may add when a scope met a Definition of Done criterion **shallowly**. The review found the criterion satisfied and the code correct, but the work stopped at the first thing that passed. It is admissible only against four gates: it names the criterion this review found satisfied, it names a concrete consequence, there is exactly one, and the review found nothing Critical or Important. It never gates a merge and never triggers the fix loop, exactly like an over-engineering finding (ADR 0020).
 _Avoid: "quality note", "improvement suggestion", "nit" (a ceiling note describes correct code, so it is not a defect at any severity)_
 
+**Standing code**: the subject of an ad-hoc `/superdev:review` when the path it was given exists on disk and its scoped diff is empty — the files under that path at `HEAD`, reviewed as they are rather than as a change. It is the fourth range shape, beside `BASE..HEAD`, a working-tree scope, and a path scope with a non-empty diff. `simplicity-reviewer` is skipped on it: its rubric reads a diff (ADR 0063).
+_Avoid: "audit mode" (no flag selects it; an empty scoped diff is what resolves to it), "file review" (names the input, not what makes it a distinct shape)_
+
 **Deferred finding**: a fix-loop finding whose remedy adds a capability the Definition of Done never
 named. It starts no fix loop, holds no run stage, and is not an **Unresolved defect**. The scope review
 records it under its report's `### Deferred to a plan` heading instead and hands it to `/superdev:plan`.
