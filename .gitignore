@@ -1,9 +1,6 @@
 # superdev run scratch (ledger, worktree bookkeeping)
 .superdev/
 
-# eval run artifacts (transcripts, diffs, scores)
-evals/results/
-
 # release tooling
 node_modules/
 

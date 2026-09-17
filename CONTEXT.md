@@ -244,7 +244,7 @@ _Avoid: "dry run" (the leg does its real work, it just does not act on it), "rea
 
 ## Doc loop
 
-**Audit**: the reader-first mode of `/superdev:document` (invoked as `/superdev:document audit`). The doc-reader reads the whole audit set cold and grounds every claim against the repo before any doc-writer involvement. Findings get the standard single doc-writer fix round.
+**Audit**: the reader-first mode of `/superdev:document` (invoked as `/superdev:document audit`). The doc-reader reads the whole audit set cold and grounds every claim against the repo before any doc-writer involvement. Findings get the standard single doc-writer fix round, except under **Chained posture**.
 _Avoid: "full reader-test" (the mechanism, not the mode), "doc review" (review is the code-review family)_
 
 **Audit set**: the file set an audit reads: the documentation convention's own tree (`AGENTS.md` hierarchy, `README.md`, `CONTEXT.md`, local KB pages) by default, extended per repo by an `## Audit set` section in `docs/agents/documentation.md`.
@@ -252,18 +252,6 @@ _Avoid: "doc tree" (that is only the default, and the set may include other pros
 
 **Drift assertion**: a deterministic check in the repo's test chain that a fact restated outside its source (a guard regex's coverage of `agents/`, a referenced plugin path) still matches the artifact it derives from.
 _Avoid: "drift test" (it is an assertion inside the existing chain, not a suite), "consistency check" (too generic, because that names a review lens)_
-
-**Eval-shape check**: the `drift-check.js` check that a grader's frontmatter is one the **Eval runner** can act on, which is narrower than what `claude plugin eval` accepts (ADR 0067). It requires a `type` that runner grades (`llm` or `regex`), a positive `weight`, and a `focus` or `target`. It also checks that every case's `scaffold_script` resolves. This check compares a document against a schema, not a fact restated outside its source, so it differs from a Drift assertion.
-_Avoid: "drift assertion" (a drift assertion compares a restated fact against its source, and this check compares a document against a schema)_
-
-**Arm**: one of the two runs an eval case produces from the same prompt, the same scaffold, and the same graders. The **plugin arm** loads superdev, and the **baseline arm** loads nothing. The single difference between them is what the delta measures, so a baseline arm that reaches an installed copy of the plugin destroys the case rather than weakening it.
-_Avoid: "run" (a case runs each arm several times, and the runs sit inside an arm), "variant", "control" or "treatment" alone (name which arm)_
-
-**Prose ablation**: a pair of whole eval runs of one case, whose plugin arms differ by a single edit to the plugin's own prose, read plugin arm against plugin arm. It is how a contested instruction is settled by running the document rather than by argument. The runner knows nothing of it: the toggle is a manual edit between two ordinary invocations, and the baseline arm runs in both and is ignored (ADR 0038).
-_Avoid: "arm" (an arm sits inside one run, and a prose ablation spans two), "variant" (the same reason the Arm entry rejects it), "A/B" alone (every case is already an A/B against no plugin)_
-
-**Eval runner**: `scripts/eval-run.js`, the standalone script that reads `evals/*/case.yaml`, spawns `claude -p` per arm with a throwaway `HOME` and a subscription token, grades the captured transcript and diff against `graders/*.md`, and reports the per-grader delta. `bun run eval` invokes it. It reads the same case and grader files as `claude plugin eval`, which stays available for a key-funded cross-check (ADR 0024).
-_Avoid: "the eval harness" (that names `claude plugin eval`, the other reader of the same files), "eval command", "test runner" (`bun run test` is a different thing)_
 
 **Bootstrap** (mode): the brownfield-seed mode of `/superdev:document` (empty args, `AGENTS.md`-hierarchy convention, root `AGENTS.md` absent). The doc-writer seeds the root and child `AGENTS.md` files from the existing code and proposes `CONTEXT.md` candidate terms, which the controller confirms or prunes with the user before committing. A range or area invocation never bootstraps.
 _Avoid: "init", "scaffold" (bootstrap seeds from what already exists, and it does not scaffold empty structure)_
@@ -301,7 +289,7 @@ _Avoid: "owner" (too generic), "creator" or "reporter" (the store already record
 
 ## Portability
 
-**Harness**: an agent runtime a portable pack renders for (Claude Code, OpenCode, Codex, …). The pack treats one as its runtime home (Claude Code today) and every other as a render target. Not the eval runner's `claude plugin eval` reader, which is the **Eval runner**'s own avoid-list.
+**Harness**: an agent runtime a portable pack renders for (Claude Code, OpenCode, Codex, …). The pack treats one as its runtime home (Claude Code today) and every other as a render target.
 _Avoid: "agent" (that is the subagent role the controller dispatches), "tool", "plugin host"_
 
 **Harness adapter**: the install-time render from a **Canonical surface** to one harness's native surface set (commands, agents, a hook bridge), together with the generated artifacts it writes. Owns no semantics of its own: every rendered file's meaning derives from the canonical source it came from.

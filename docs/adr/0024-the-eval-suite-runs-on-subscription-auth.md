@@ -1,6 +1,9 @@
 # 0024: The eval suite runs on subscription auth
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0071](0071-the-ab-eval-harness-is-removed.md). The runner this decision built is
+deleted.
 
 ## Context
 

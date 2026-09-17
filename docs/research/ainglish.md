@@ -180,10 +180,9 @@ Adopting Ainglish is not a small edit. A full adoption touches, at minimum:
 - A pinned upstream version. The register changes by vote, and superdev's prose would track a moving
   vocabulary it does not control.
 
-The honest measurement path costs more than the edits. ADR 0038 sets the bar for a contested line: a prose
-ablation, two full eval runs of one case, compared plugin arm against plugin arm. Ainglish is not one
-contested line. It is a vocabulary, and settling it against superdev's own prose would take many such
-pairs.
+The honest measurement path costs more than the edits, and superdev carries no instrument for it
+(ADR 0071). Ainglish is not one contested line. It is a vocabulary, and settling it against superdev's own
+prose would take a measurement apparatus this repository deliberately does not keep.
 
 ## Recommendation
 

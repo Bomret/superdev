@@ -1,6 +1,9 @@
 # 0038: A prose ablation runs as two hand-toggled eval runs, not a third arm
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0071](0071-the-ab-eval-harness-is-removed.md). The eval runs this technique is
+built from are deleted.
 
 ## Context
 

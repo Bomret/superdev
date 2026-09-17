@@ -220,22 +220,6 @@ const ADR_STATUSES = ['Accepted', 'Proposed', 'Superseded', 'Rejected'];
 
 const ADR_STATUS_PATTERN = new RegExp(`^\\*\\*Status:\\*\\* (?:${ADR_STATUSES.join('|')})\\s*$`, 'm');
 
-// An eval grader is prose with frontmatter its readers parse, and nothing else validates it: `claude
-// plugin validate` reads only the marketplace manifest, so a grader with `weight: notanumber` passes the
-// suite and surfaces part-way through a run that costs real API spend. Same for a case whose
-// `scaffold_script` points at a file that isn't there. This is a shape check rather than a drift
-// assertion — it compares a document against a schema, not against a source it restates — but it belongs
-// with the others: this file is where the repo keeps its deterministic prose assertions.
-// The types `scripts/eval-run.js` grades, which is the gate's measure rather than the wider set `claude
-// plugin eval` accepts (ADR 0067). A type the runner cannot grade errors mid-run, where `scoreArm` drops
-// it from both arms and its row prints a bare `—`, so the weight silently never applies. Refusing it here
-// is what the check was added for: the fault surfaces before the run spends.
-const GRADER_TYPES = new Set(['llm', 'regex']);
-
-// Which types carry a `focus`/`target`. It holds the same members as GRADER_TYPES today and stays its own
-// predicate: a type the runner grades without one would otherwise become a silent rule change here.
-const FOCUS_TYPES = new Set(['llm', 'regex']);
-
 // Both sides of the doc loop must wire the content-type lens (ADR 0014). scan() above catches a
 // reference to a file that does not exist. The reverse drift is invisible to it: a document that stops
 // referencing a file which still exists leaves the reference resolvable, the suite green, and the lens
@@ -2763,8 +2747,6 @@ module.exports = {
   ADR_DIR,
   ADR_STATUSES,
   ADR_STATUS_PATTERN,
-  GRADER_TYPES,
-  FOCUS_TYPES,
   CONTENT_TYPES_DOCS,
   DOC_PASS_CONTRACTS,
   CONTENT_TYPES_PATTERN,

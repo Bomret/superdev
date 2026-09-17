@@ -5,9 +5,8 @@
 Standalone deterministic code that `package.json` runs, alongside `plugin/hooks/`.
 The shipped CLIs live in `plugin/scripts/`: `scope.js` (the run-state CLI, ADR 0022), `kb-patch.js`
 (the knowledge-base section merge, ADR 0027), and `adapter.js` (the OpenCode harness adapter, issue
-#375). The maintainer-only ones live here in `scripts/`:
-`eval-run.js` (the eval runner, ADR 0024) and `drift-check.js` (the cross-document contract checks).
-This doc owns them all regardless of which dir each lives in.
+#375). The maintainer-only one lives here in `scripts/`: `drift-check.js` (the cross-document contract
+checks). This doc owns them all regardless of which dir each lives in.
 
 ## Ownership
 
@@ -325,49 +324,6 @@ with one fixed model map and the plugin root normalised to `<plugin-root>` — t
 bakes that root into its `PLUGIN_ROOT` constant, so the same normalisation keeps the fixture
 machine-independent; the `opencode-render` check diffs a fresh render against them.
 
-### eval-run.js, the eval runner (ADR 0024)
-
-`eval-run.js` runs every `evals/` case as two arms on a Claude subscription instead of a metered
-API key. The plugin arm loads superdev through `claude -p --plugin-dir`. The baseline arm loads
-nothing. It scores each arm's diff and transcript against the case's `graders/*.md`. It refuses to
-start without `CLAUDE_CODE_OAUTH_TOKEN` and never falls back to a billed `ANTHROPIC_API_KEY`. It
-exits non-zero wherever the measurement collapsed. A case scores nothing. The ablation looks
-broken: the plugin arm shows no superdev marker in any of its runs, or the baseline arm shows one.
-An arm never completed a run, so the other arm's score has nothing to compare against. An arm's
-transcript shows a mutating tool call, but the captured diff stays empty. A grader errored, so its
-weight applied in neither arm (ADR 0067). It reports each of these as an error, never as a silent
-zero. `claude plugin eval` still reads the same `case.yaml` and `graders/*.md` files, unchanged,
-for a key-funded cross-check.
-
-Its selftest covers:
-
-- the case-YAML reader
-- the child-environment scrub
-- the two arms' argument difference
-- the run classifier
-- the diff-capture failure paths (an empty scaffold, work committed off HEAD, a nested repository
-  tracked as a gitlink)
-- the two shapes a `scaffold_script` may leave behind. A scaffold that writes files and stops, and a
-  scaffold that runs `git init` and commits its own tree, both yield a base commit carrying the
-  scaffold's files. `scaffold()` measures an empty scaffold with `git ls-files`, so a workspace with
-  nothing staged is scaffolded rather than failed.
-- the grader and judge machinery, including a grader that cannot be evaluated at all (an unknown
-  focus, a judge that never returns a verdict, `regex` criteria that will not compile, or a `type` this
-  runner does not grade), reported as a grader error and left out of the score, never as a fail and
-  never as a thrown `SyntaxError` that ends the run
-- the symmetry of that exclusion. A grader that errored on one arm is dropped from **both** arms'
-  scores, computed in `aggregate()` where both arms of a run are in hand. `scoreArm` runs per arm and
-  cannot see the other one, so an exclusion left to it scores the arms over different weight totals
-  and turns the delta into arithmetic about which grader failed to run. The per-grader row still
-  reports the arm that could not be judged, so the exclusion stays visible.
-- that the exclusion is **named**, and fails the exit. `aggregate()` collects each errored grader once
-  by name, `renderTable()` prints it as its own `! grader` line, and `shouldFailExit()` counts it
-  (ADR 0067). Without that line the row prints the same `—` a long transcript produces, and a weight
-  the case meant to apply silently never applied — the whole-case `! every grader errored` fires only
-  when nothing scored, so one errored grader among several said nothing at all.
-- aggregation across runs
-- the missing-token exit
-
 ### drift-check.js, the cross-document contract checks
 
 `drift-check.js` is the entry point only: it walks the check registry and reports. The checks themselves
@@ -387,8 +343,8 @@ live beside it, in `scripts/drift/`.
 The checks named below are the exceptions, and every other one is a **drift assertion**: it compares a
 restated fact against its source. `forcing-branch-flag`, `kb-no-backend-call`, `no-second-reader`, and
 `return-to-controller` are **negative** assertions. Each reports a document that still says something,
-rather than one that stopped saying it. `eval-shape` and `adr-status` compare a document against a
-**schema**. `pinned-paths` and `marketplace-source` are plain **existence** assertions.
+rather than one that stopped saying it. `adr-status` compares a document against a **schema**.
+`pinned-paths` and `marketplace-source` are plain **existence** assertions.
 
 The exceptions are named and the rule covers the rest, deliberately. This sentence used to enumerate
 every drift assertion by id, and it fell behind at five separate additions, because a list of forty is
@@ -742,13 +698,7 @@ exports today. It holds the slot the `afk-existence` check held, which asserted
 `/superdev:afk` there and already catches the file's deletion. Three contract tables also pin
 `skills/afk/SKILL.md` directly, so the general rule covers it a second way, and the special case went,
 replaced in place at the slot it had held.
-The `eval-shape` contract: every
-`evals/*/graders/*.md` declares a `type` `scripts/eval-run.js` grades — `llm` or `regex` — and a
-positive `weight`, declares a `focus` or `target` with it, and every case's `scaffold_script` resolves.
-Nothing else validates a grader, so without this a typo surfaces part-way through a run that costs real
-API spend. The type set tracks the runner rather than the wider one `claude plugin eval` accepts
-(ADR 0067): a grader the runner cannot grade errors mid-run, scores in neither arm, and prints a bare
-`—` that reads like a long transcript. The `adr-status` contract: every `docs/adr/*.md` states a `**Status:**` line
+The `adr-status` contract: every `docs/adr/*.md` states a `**Status:**` line
 carrying one of `Accepted`,
 `Proposed`, `Superseded`, or `Rejected`. An ADR with no status line reads as accepted whether or not
 anything implements it, which is how a decision reaches the glossary and the command bodies while the
@@ -1508,23 +1458,6 @@ anywhere else in the file — an assessment-template example, say — which is e
 took. This is a presence table, so a paraphrase it does not recognise fails loudly rather than silently,
 and it carries no ceiling note for the same reason its sibling presence tables carry none.
 
-The `scaffold-ledger` check, three assertions. An eval case that exercises scope mode has to
-hand its arms a run root, and a scaffold script is plain shell with no access to the plugin, so it writes
-the ledger by hand against a schema `scope.js` owns. Nothing else couples the two. The failure this
-catches is quiet: `scope.js` moves, the scaffold keeps writing the old shape, no command recognises the
-run root, and the case stops entering scope mode — while still running, still scoring, and still returning
-a number that reads like a result, because the arms simply review an ordinary branch instead. The check
-runs `scope.js`'s **own** `readLedgerHeader` over the scaffold text rather than a pattern of its own: the
-heredoc lines sit in the file verbatim, so the reader finds them where it would find them in a real
-ledger, and what is pinned is the reader itself instead of a copy of what the reader accepts today. Its
-third assertion is unrelated to the ledger schema: a scaffold that ends by returning to the base branch
-(`git checkout`/`switch main`/`master`) strands the scope branch's own setup commits outside `HEAD`, which
-fails every arm's diff capture and scores nothing while spending a full run. It fires only on a scaffold
-naming `.superdev/scopes/`, so the plan and implement cases are untouched. This is a shape-based guard,
-and its ceiling is written beside the code: the three headers, the column row, and the branch-return
-guard's own literal shape. A scaffold that writes a well-formed ledger, stays on its own branch, and then
-corrupts either in a later command passes here and fails at run time.
-
 The `containment-delegation` contract (ADR 0053), one row: `skills/publish-kb/SKILL.md` §3
 names the test behind its merge check by pointing at `references/scope-mode.md`'s `## Containment`
 section, and states no git command of its own. Its own table rather than a row on `RUN_KIND_CONTRACTS`,
@@ -1595,7 +1528,7 @@ file, `chain-handoff` a command that names no successor at all.
   illustrative example, so the marker scan needs the same fence-masking `kb-patch.js`'s
   `extractSection()` already owns.
 - The shipped scripts each have a suite in `tests/`, same convention as the hooks (ADR 0059).
-  `eval-run.js` and `drift-check.js` are maintainer-only and keep their inline `--selftest`.
+  `drift-check.js` is maintainer-only and keeps its inline `--selftest`.
 - A **shape-based prose guard that asserts an absence states its ceiling beside itself.** A pattern over
   English catches the phrasings it names and not every paraphrase, and on an absence check — the document
   must *not* say X — a missed paraphrase is a **silent pass**: the check reads the reworded instruction as
@@ -1620,7 +1553,7 @@ file, `chain-handoff` a command that names no successor at all.
 ## Verification
 
 `bun run test` (repo root) runs each shipped script's suite under `tests/`, then
-`eval-run.js`'s and `drift-check.js`'s own `--selftest`, all under `node`, which matches the
+`drift-check.js`'s own `--selftest`, all under `node`, which matches the
 production runtime.
 
 ## Child DOX Index

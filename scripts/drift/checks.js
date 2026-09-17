@@ -38,7 +38,6 @@ const {
   scanDocStepsNoSuite,
   scanAgentToolAgnostic,
   scanHookLedgerParsers,
-  scanEvalShape,
   scanAdrStatus,
   scanForcingBranchFlag,
   scanReturnToController,
@@ -46,7 +45,6 @@ const {
   scanMarketplaceSource,
   scanReadmeCommands,
   scanAuditSetGlobs,
-  scanScaffoldLedger,
   scanDenialCapNumberSilence,
   scanAfkLockTierClaim,
   scanOpencodeFixtures,
@@ -264,12 +262,6 @@ module.exports = [
       'documents the call that returns the body',
   ),
   { id: 'pinned-paths', ok: 'every document a contract table pins still exists', run: scanPinnedPaths, format: contractGap },
-  {
-    id: 'eval-shape',
-    ok: 'eval graders and scaffolds well-formed',
-    run: scanEvalShape,
-    format: (p) => `${p.source}: ${p.problem}`,
-  },
   {
     id: 'adr-status',
     ok: 'every ADR states a status',
@@ -493,12 +485,6 @@ module.exports = [
     TIER_SKIP_CONTRACTS,
     'the full tier skips the whole-scope over-engineering pass, and still runs it per slice',
   ),
-  {
-    id: 'scaffold-ledger',
-    ok: "every scope-mode eval scaffold writes a ledger scope.js's own reader can read",
-    run: scanScaffoldLedger,
-    format: contractGap,
-  },
   table(
     'containment-delegation',
     CONTAINMENT_DELEGATION_CONTRACTS,

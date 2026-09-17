@@ -16,11 +16,8 @@ const {
   extractSection,
   extractParagraph,
   maskFences,
-  scalar,
-  frontmatter,
   normalizeWhitespace,
 } = require('./lib');
-const { readLedgerHeader } = require('../../plugin/scripts/scope.js');
 const contracts = require('./contracts');
 const {
   NARRATIVE_DOC,
@@ -64,8 +61,6 @@ const {
   WRITING_STANDARD_PATTERN,
   ADR_DIR,
   ADR_STATUS_PATTERN,
-  GRADER_TYPES,
-  FOCUS_TYPES,
   CONTENT_TYPES_DOCS,
   CONTENT_TYPES_PATTERN,
   COMMAND_REFERENCE_PATTERN,
@@ -521,73 +516,6 @@ function scanAdrStatus(root) {
     .sort()
     .filter((n) => !ADR_STATUS_PATTERN.test(fs.readFileSync(path.join(root, ADR_DIR, n), 'utf8')))
     .map((n) => ({ source: path.join(ADR_DIR, n) }));
-}
-
-// scanEvalShape() is pure over a root dir: reads every eval case and reports graders whose frontmatter
-// the eval runner could not act on, plus cases whose scaffold_script does not resolve. An absent evals/ dir,
-// or a case with no graders/ dir, yields nothing — there is no shape to be wrong.
-function scanEvalShape(root) {
-  const problems = [];
-  let cases;
-  try {
-    cases = fs.readdirSync(path.join(root, 'evals'), { withFileTypes: true });
-  } catch {
-    return problems; // no evals/ → nothing to check
-  }
-  for (const entry of cases) {
-    if (!entry.isDirectory()) continue;
-    const caseDir = path.join(root, 'evals', entry.name);
-
-    let caseYaml;
-    try {
-      caseYaml = fs.readFileSync(path.join(caseDir, 'case.yaml'), 'utf8');
-    } catch {
-      caseYaml = null; // not a case dir (e.g. a shared fixtures dir) → only its graders matter
-    }
-    if (caseYaml) {
-      const script = caseYaml.replace(/\r\n/g, '\n').match(/^\s*scaffold_script:\s*(.+)$/m);
-      const scriptPath = script && scalar(script[1]);
-      if (scriptPath && !fs.existsSync(path.join(caseDir, scriptPath))) {
-        problems.push({
-          source: path.join('evals', entry.name, 'case.yaml'),
-          problem: `scaffold_script \`${scriptPath}\` does not resolve relative to the case directory`,
-        });
-      }
-    }
-
-    let graders;
-    try {
-      graders = fs.readdirSync(path.join(caseDir, 'graders'));
-    } catch {
-      continue; // no graders/ → nothing to check
-    }
-    for (const file of graders) {
-      if (!file.endsWith('.md')) continue;
-      const rel = path.join('evals', entry.name, 'graders', file);
-      const fields = frontmatter(fs.readFileSync(path.join(caseDir, 'graders', file), 'utf8'));
-      if (!fields) {
-        problems.push({ source: rel, problem: 'has no `---` frontmatter block' });
-        continue;
-      }
-      if (!GRADER_TYPES.has(fields.type)) {
-        problems.push({
-          source: rel,
-          problem: `\`type: ${fields.type ?? '(missing)'}\` is not one of ${[...GRADER_TYPES].join(', ')}`,
-        });
-      }
-      const weight = Number(fields.weight);
-      if (!fields.weight || !Number.isFinite(weight) || weight <= 0) {
-        problems.push({
-          source: rel,
-          problem: `\`weight: ${fields.weight || '(missing)'}\` is not a positive number`,
-        });
-      }
-      if (FOCUS_TYPES.has(fields.type) && fields.focus === undefined && fields.target === undefined) {
-        problems.push({ source: rel, problem: 'declares neither `focus` nor `target`' });
-      }
-    }
-  }
-  return problems;
 }
 
 // Every document in the doc loop must still instruct itself to read the content-type lens (ADR 0014).
@@ -1133,87 +1061,6 @@ function scanAuditSetGlobs(root) {
   return gaps;
 }
 
-// An eval case that exercises scope mode has to hand the arm a run root, and a scaffold script is plain
-// shell with no access to the plugin — so it writes the ledger by hand, against a schema `scope.js` owns
-// (ADR 0022). Nothing else couples the two. A schema change then leaves the scaffold writing a ledger no
-// command recognises, the case quietly stops entering scope mode, and it still runs and still scores:
-// the arms review an ordinary branch instead, and the number that comes back looks like a result.
-//
-// The check runs `scope.js`'s own `readLedgerHeader` over the scaffold text, rather than a pattern of its
-// own. The heredoc lines sit in the file verbatim, so the reader finds them where it would find them in a
-// real ledger, and the coupling is to the reader itself instead of to a copy of what the reader currently
-// accepts. `require`d statically, so the check moves the moment `scope.js` does.
-//
-// This one function makes two unrelated assertions over the same scaffold text — the ledger schema shape
-// above, and the scope-branch position below — because both are things a scope-mode scaffold can get
-// wrong silently, and both are cheap to check together over the same file read.
-//
-// ponytail: shape-based, and its ceiling is the three headers plus the column row below, for the ledger
-// half. The branch-return guard below carries its own ceiling: it matches exactly two verbs
-// (`checkout`/`switch`), exactly two branch names (`main`/`master`), anchored at line start — a chained or
-// quoted checkout, or any other branch name, passes here and fails at run time. A scaffold that writes a
-// well-formed ledger and then corrupts it in a later command passes this and fails at run time too. A
-// fourth limit sits before either assertion runs: the file read is hardcoded to `scaffold.sh`, not
-// `case.yaml`'s own `scaffold_script` — a case whose script carries a different name is skipped here
-// with no gap, the same silent-miss shape this check exists to catch in the scaffold's own ledger.
-const LEDGER_HEADERS = ['Stage', 'Branch', 'Anchor'];
-const LEDGER_COLUMNS = '| id | issue | title | type | depends-on | status | range |';
-
-function scanScaffoldLedger(root) {
-  const problems = [];
-  let entries;
-  try {
-    entries = fs.readdirSync(path.join(root, 'evals'), { withFileTypes: true });
-  } catch {
-    return problems; // no evals/ → nothing to check
-  }
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    const scaffold = path.join(root, 'evals', entry.name, 'scaffold.sh');
-    let text;
-    try {
-      text = fs.readFileSync(scaffold, 'utf8');
-    } catch {
-      continue; // a case with no scaffold of its own (a primed case names a sibling's)
-    }
-    if (!text.includes('.superdev/scopes/')) continue; // not a scope-mode case
-
-    const source = path.join('evals', entry.name, 'scaffold.sh');
-    for (const name of LEDGER_HEADERS) {
-      if (readLedgerHeader(text, name) === null) {
-        problems.push({
-          source,
-          expectation:
-            `write a \`**${name}:**\` ledger line \`scope.js\`'s own \`readLedgerHeader\` can read — it ` +
-            `stages a run root, so the ledger it writes is the schema \`scope.js\` owns (ADR 0022)`,
-        });
-      }
-    }
-    if (!text.includes(LEDGER_COLUMNS)) {
-      problems.push({
-        source,
-        expectation:
-          `write the ledger's seven-column slice table header verbatim (\`${LEDGER_COLUMNS}\`) — a row ` +
-          `count is what the tier derivation reads, so a table no verb parses leaves the tier unknown`,
-      });
-    }
-    // The scaffold's own scope-branch commits have to stay reachable from HEAD. `captureDiff`'s orphan
-    // guard refuses to score a workspace where any ref carries a commit HEAD cannot reach, and it cannot
-    // tell a scaffold's setup commits from an agent's stray branch — so a scaffold that builds the branch
-    // and then returns to base fails every arm's capture, scores nothing, and spends the whole run doing
-    // it. Observed: `ab-review-ceiling`'s first run, six arms, no graders.
-    if (/^\s*git\s+(?:checkout|switch)\s+(?:-q\s+)?(?:main|master)\s*$/m.test(text)) {
-      problems.push({
-        source,
-        expectation:
-          'stay on the scope branch it built, rather than returning to the base branch — the runner ' +
-          "reads the scaffold's own off-HEAD commits as stray work and fails every arm's diff capture",
-      });
-    }
-  }
-  return problems;
-}
-
 // walkFiles(dir): every file under dir, as paths relative to dir, sorted. The fixture diff below
 // compares two rendered trees by exactly this list. `entry.parentPath` is Node's own name for the
 // directory an fs.Dirent came from (`entry.path` before it, removed in Node 24) — read either, so
@@ -1351,7 +1198,6 @@ function scanOpencodeSurfaceSplit(root) {
 
 module.exports = {
   scan,
-  scanScaffoldLedger,
   scanRunRootPaths,
   scanAssigneeContract,
   scanAnchorContract,
@@ -1366,7 +1212,6 @@ module.exports = {
   scanAfkAnchorCount,
   scanWritingStandardContract,
   scanAdrStatus,
-  scanEvalShape,
   scanContentTypesContract,
   scanCommandRefs,
   scanChainHandoff,

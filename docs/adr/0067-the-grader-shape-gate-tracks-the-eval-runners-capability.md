@@ -1,6 +1,9 @@
 # 0067: The grader-shape gate tracks the eval runner's capability
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0071](0071-the-ab-eval-harness-is-removed.md). The gate this decision aims and
+the runner it aims at are both deleted.
 
 **Amended by:** [ADR 0070](0070-the-gate-derives-its-grader-schema-from-the-runner.md), which reverses the
 Consequence accepting the gate and the runner as one fact in two places. The Decision below stands.

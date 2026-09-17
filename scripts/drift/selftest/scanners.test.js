@@ -27,7 +27,6 @@ const {
   scanShipGateContract,
   scanUnresolvedGlossaryContract,
   scanHookLedgerParsers,
-  scanEvalShape,
   scanAdrStatus,
   scanForcingBranchFlag,
   scanNarrativeCoverage,
@@ -36,7 +35,6 @@ const {
   scanReadmeCommands,
   scanAuditSetGlobs,
   scanPinnedPaths,
-  scanScaffoldLedger,
   scanAgentToolAgnostic,
   scanGlossarySpecialisingCitations,
   scanOrphanLensPlacement,
@@ -359,8 +357,8 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // fixture() builds a throwaway repo tree for a selftest case: given a `files` object (a checkout-
   // relative path → its content), it creates each file's parent directory as needed and writes it,
-  // returning the tmp root. Shared by every fixture below (content-types, eval-shape, stage, command-refs,
-  // chain-handoff) — one general helper instead of five near-identical ones that only differed in which
+  // returning the tmp root. Shared by every fixture below (content-types, stage, command-refs,
+  // chain-handoff) — one general helper instead of four near-identical ones that only differed in which
   // directory they mkdir'd upfront.
   const wired = 'Read `${CLAUDE_PLUGIN_ROOT}/references/content-types.md` and apply it.\n';
   const unwired = '# doc agent\n\nNo lens here.\n';
@@ -941,106 +939,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     assert.equal(gaps.length, 1, `flags a ${why} selection heading`);
     assert.match(gaps[0].expectation, /selection heading/, `names the missing heading for ${why}`);
   }
-
-  // --- scanEvalShape: a grader's frontmatter must be something the eval runner can act on, and a case's
-  // scaffold_script must resolve ---
-
-  const goodGrader = '---\ntype: llm\nfocus: files\nweight: 2\n---\nJudge the plan.\n';
-  const goodCase = 'name: c\ncontext:\n  scaffold_script: scaffold.sh\n';
-
-  // a well-formed case yields nothing
-  const ok = fixture({
-    'evals/c/case.yaml': goodCase,
-    'evals/c/scaffold.sh': '#!/bin/sh\n',
-    'evals/c/graders/g.md': goodGrader,
-  });
-  assert.equal(scanEvalShape(ok).length, 0, 'a well-formed case yields no problems');
-
-  // each rule fires on its own, and names the offending file
-  const badType = fixture({
-    'evals/c/graders/g.md': '---\ntype: vibes\nfocus: files\nweight: 2\n---\nb\n',
-  });
-  const typeProblems = scanEvalShape(badType);
-  assert.equal(typeProblems.length, 1, 'an unknown type is flagged');
-  assert.equal(typeProblems[0].source, path.join('evals', 'c', 'graders', 'g.md'), 'names the grader');
-
-  // ADR 0067: the gate tracks what `scripts/eval-run.js` grades, never the wider set
-  // `claude plugin eval` accepts. Each of these passed here until the runner's own two-type subset
-  // became the rule, and then errored mid-run, where an errored grader scores in neither arm.
-  for (const type of ['file_exists', 'tool_order', 'tool_used', 'baseline']) {
-    const ungradeable = fixture({
-      'evals/c/graders/g.md': `---\ntype: ${type}\nweight: 2\n---\nb\n`,
-    });
-    const problems = scanEvalShape(ungradeable);
-    assert.equal(problems.length, 1, `\`${type}\` is refused — the eval runner cannot grade it`);
-    assert.match(problems[0].problem, new RegExp(type), `names \`${type}\``);
-  }
-
-  const badWeight = fixture({
-    'evals/c/graders/g.md': '---\ntype: llm\nfocus: files\nweight: notanumber\n---\nb\n',
-  });
-  assert.equal(scanEvalShape(badWeight).length, 1, 'a non-numeric weight is flagged');
-
-  const noFocus = fixture({
-    'evals/c/graders/g.md': '---\ntype: llm\nweight: 2\n---\nb\n',
-  });
-  assert.equal(scanEvalShape(noFocus).length, 1, 'neither focus nor target is flagged');
-
-  // `target` is the regex graders' spelling and satisfies the same rule
-  const withTarget = fixture({
-    'evals/c/graders/g.md': '---\ntype: regex\ntarget: files\nweight: 1\n---\nb\n',
-  });
-  assert.equal(scanEvalShape(withTarget).length, 0, '`target` satisfies the focus/target rule');
-
-  const noFrontmatter = fixture({
-    'evals/c/graders/g.md': 'Just prose, no frontmatter.\n',
-  });
-  assert.equal(scanEvalShape(noFrontmatter).length, 1, 'a missing frontmatter block is flagged');
-
-  const badScaffold = fixture({
-    'evals/c/case.yaml': 'name: c\ncontext:\n  scaffold_script: missing.sh\n',
-    'evals/c/graders/g.md': goodGrader,
-  });
-  const scaffoldProblems = scanEvalShape(badScaffold);
-  assert.equal(scaffoldProblems.length, 1, 'an unresolvable scaffold_script is flagged');
-  assert.match(scaffoldProblems[0].problem, /scaffold_script/, 'says what is wrong');
-
-  // nothing to check is not a failure
-  const noEvals = fixture({ 'README.md': '# repo\n' });
-  assert.equal(scanEvalShape(noEvals).length, 0, 'an absent evals/ directory yields no problems');
-
-  const noGraders = fixture({
-    'evals/c/case.yaml': goodCase,
-    'evals/c/scaffold.sh': '#!/bin/sh\n',
-  });
-  assert.equal(scanEvalShape(noGraders).length, 0, 'a case with no graders/ dir yields no problems');
-
-  // The eval runner declares weight as a positive number, so zero, a negative, and a blank are
-  // malformed.
-  for (const weight of ['0', '-1', '']) {
-    const bad = fixture({
-      'evals/c/graders/g.md': `---\ntype: llm\nfocus: files\nweight: ${weight}\n---\nb\n`,
-    });
-    assert.equal(scanEvalShape(bad).length, 1, `\`weight: ${weight}\` is not a positive number`);
-  }
-
-  // YAML a maintainer can legally write: CRLF endings, a quoted scalar, a trailing comment.
-  const crlf = fixture({
-    'evals/c/graders/g.md': '---\r\ntype: llm\r\nfocus: files\r\nweight: 2\r\n---\r\nb\r\n',
-  });
-  assert.equal(scanEvalShape(crlf).length, 0, 'CRLF frontmatter is read, not rejected');
-
-  const quoted = fixture({
-    'evals/c/graders/g.md': '---\ntype: "llm"\nfocus: \'files\'\nweight: 2  # weighted\n---\nb\n',
-  });
-  assert.equal(scanEvalShape(quoted).length, 0, 'quoted scalars and trailing comments are read');
-
-  const quotedScaffold = fixture({
-    'evals/c/case.yaml': 'context:\n  scaffold_script: "scaffold.sh"  # relative to the case dir\n',
-    'evals/c/scaffold.sh': '#!/bin/sh\n',
-    'evals/c/graders/g.md': goodGrader,
-  });
-  assert.equal(scanEvalShape(quotedScaffold).length, 0, 'a quoted scaffold_script resolves');
 
   // --- scanCommandRefs: a `/superdev:<name>` reference must resolve to `skills/<name>/SKILL.md`. The chain
   // hands the user from one command to the next by printing its name (ADR 0013), so a reference to a
@@ -2731,73 +2629,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.ok(
     scanPinnedPaths(fixture({ 'README.md': '# r\n' })).some((g) => g.source === path.join('scripts', 'AGENTS.md')),
     'a document pinned by a bare string export is still caught',
-  );
-
-  // --- scanScaffoldLedger: a scope-mode eval scaffold hand-writes a ledger against a schema `scope.js`
-  // owns, and nothing else couples the two. The failure is silent — the case keeps running and keeps
-  // scoring, on arms that reviewed an ordinary branch instead of a scope. ---
-
-  const goodLedger =
-    'mkdir -p .superdev/scopes/demo\n' +
-    "cat > .superdev/scopes/demo/ledger.md <<'DOC'\n" +
-    '# Ledger — demo\n\n' +
-    '**Stage:** merged\n' +
-    '**Branch:** feat/demo\n' +
-    '**Anchor:** #41 — Demo\n\n' +
-    '| id | issue | title | type | depends-on | status | range |\n' +
-    '|---|---|---|---|---|---|---|\n' +
-    '| 01 | #42 | One | behavior | — | merged | a..b |\n' +
-    'DOC\n';
-
-  // negative: a scaffold whose ledger `scope.js`'s own reader reads end to end
-  assert.equal(
-    scanScaffoldLedger(fixture({ 'evals/ab-demo/scaffold.sh': goodLedger })).length,
-    0,
-    'a ledger scope.js can read leaves no gap',
-  );
-
-  // negative: a case that stages no run root is not a scope-mode case, so the check passes it over
-  assert.equal(
-    scanScaffoldLedger(fixture({ 'evals/ab-plain/scaffold.sh': 'git init -q -b main\ngit add -A\n' })).length,
-    0,
-    'a scaffold staging no run root is left alone',
-  );
-
-  // positive: the drift this exists for — the header spelling moves and the reader stops finding it
-  const slDrifted = goodLedger.replace('**Stage:** merged', 'Stage: merged');
-  const slGaps = scanScaffoldLedger(fixture({ 'evals/ab-demo/scaffold.sh': slDrifted }));
-  assert.equal(slGaps.length, 1, 'a header scope.js cannot read is one gap');
-  assert.equal(slGaps[0].source, path.join('evals', 'ab-demo', 'scaffold.sh'), 'the gap names the scaffold');
-  assert.match(slGaps[0].expectation, /Stage/, 'the gap names the header that stopped reading');
-
-  // positive: the slice table is the row count the tier derivation reads, so a column row that drifted
-  // leaves the tier underivable even while every header still reads
-  const noTable = goodLedger.replace('| id | issue | title | type | depends-on | status | range |', '| id | title |');
-  const slGaps2 = scanScaffoldLedger(fixture({ 'evals/ab-demo/scaffold.sh': noTable }));
-  assert.equal(slGaps2.length, 1, 'a drifted column row is one gap');
-  assert.match(slGaps2[0].expectation, /seven-column/, 'the gap names the table it expected');
-
-  // positive: an empty header line reads as absent, the same way `scope.js` reads one
-  assert.equal(
-    scanScaffoldLedger(fixture({ 'evals/ab-demo/scaffold.sh': goodLedger.replace('feat/demo', '') })).length,
-    1,
-    'a valueless Branch line is absent here exactly as it is to scope.js',
-  );
-
-  // positive: the scaffold returns to base after building the scope branch. captureDiff's orphan guard
-  // then reads the scaffold's own commits as stray work and fails every arm — the whole case spends a
-  // run and scores nothing. This is the defect `ab-review-ceiling` shipped with, caught after one run.
-  const backToBase = scanScaffoldLedger(
-    fixture({ 'evals/ab-demo/scaffold.sh': `${goodLedger}git checkout -q main\n` }),
-  );
-  assert.equal(backToBase.length, 1, 'returning to the base branch is one gap');
-  assert.match(backToBase[0].expectation, /stay on the scope branch/, 'the gap names what the scaffold must do');
-
-  // negative: `git switch -` and a checkout of some other branch are not this failure
-  assert.equal(
-    scanScaffoldLedger(fixture({ 'evals/ab-demo/scaffold.sh': `${goodLedger}git switch -c feat/demo main\n` })).length,
-    0,
-    'cutting a branch off main is not a return to base',
   );
 
   // --- scanAgentToolAgnostic: shipped agent prose names no concrete toolchain command — the class the

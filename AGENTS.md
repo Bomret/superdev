@@ -52,12 +52,9 @@ docs/adr/              — architecture decision records (why the plugin is buil
 docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, documentation, KB, toolchain, verification)
 docs/known-issues.md   — Claude Code platform behaviour superdev works around, each entry with its
                          shipped mitigation and dated verification
-scripts/               — the maintainer-only CLIs wired into `bun run test`: `eval-run.js` and
-                         `drift-check.js` with its `drift/` modules (registry, contract tables,
-                         scanners, shared helpers, selftest suites)
-evals/                 — cases (*/case.yaml + graders/*.md + the case's scaffold_script, a path
-                         relative to the case dir — never an inline block); every case is one arm of
-                         the with/without-plugin A/B — see `evals/README.md`
+scripts/               — the maintainer-only CLI wired into `bun run test`: `drift-check.js` with its
+                         `drift/` modules (registry, contract tables, scanners, shared helpers,
+                         selftest suites)
 release.config.cjs     — semantic-release config (semantic-release-replace-plugin bumps plugin.json)
 package.json           — dev-only tooling (Bun); NOT published to npm
 CHANGELOG.md           — release-managed by semantic-release; do not hand-edit
@@ -97,7 +94,7 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
   because that is scoped by extension.
 - **Every shipped executable has a suite in `tests/`, named for it.** Add one for any new hook or
   script. `bun run test` runs every `tests/` suite under `node`, which matches the production
-  runtime, then the maintainer-only scripts' own `--selftest`, `drift-check`, and `claude plugin
+  runtime, then `drift-check`'s own `--selftest`, `drift-check` itself, and `claude plugin
   validate ./plugin` as a manifest-validation gate.
 - **Version lives only in `plugin/.claude-plugin/plugin.json`.** Never hand-edit it. semantic-release and
   `semantic-release-replace-plugin` bump it on release. `marketplace.json` carries no version, which
@@ -150,15 +147,11 @@ into subagent prompts (issue #32), and the delegation handoff classifier behind 
 ```
 bun install                        # install dev deps (release toolchain)
 bun run test                       # tests/ suites, drift-check, plugin manifest validation
-bun run eval                       # the with/without-plugin A/B over evals/ (needs the vars below)
-bun run eval:plan                  # the cheap plan-only cases of that A/B, both arms
 GITEA_TOKEN=<token> bun run release  # cut a release from clean main (see RELEASING.md)
 ```
 
-**`bun run eval` needs `CLAUDE_CODE_OAUTH_TOKEN`.** `scripts/eval-run.js` runs on a Claude
-subscription instead of a metered API key (ADR 0024). A maintainer creates the token once with
-`claude setup-token` and exports it. The runner refuses to start without it and never falls back to
-`ANTHROPIC_API_KEY`. Details: `scripts/AGENTS.md`.
+superdev carries no A/B harness measuring it against a no-plugin baseline (ADR 0071). `tests/` and
+`drift-check` check that the plugin does what its prose says, never that saying it helps.
 
 ## Agent skills
 
@@ -175,7 +168,7 @@ Codeberg (Forgejo). Push scope branch, open ready PR against `main`, squash-merg
 Codeberg repo Wiki. Adopters first, maintainers second, English. `(aggregate)` pages: Concepts, ADR summaries. See `docs/agents/knowledge-base.md`.
 
 ### Toolchain
-Bun dev toolchain, Node runtime for hooks. `bun run test` (green-gate), `bun run eval`, `bun run release`. No linter or formatter. See `docs/agents/toolchain.md`.
+Bun dev toolchain, Node runtime for hooks. `bun run test` (green-gate), `bun run release`. No linter or formatter. See `docs/agents/toolchain.md`.
 
 ### Verification
 `bun run test`. No focused command (suite finishes in seconds). Arms the merge green-gate. See `docs/agents/verification.md`.
@@ -245,8 +238,7 @@ This root owns every other subtree directly:
   under `scripts/drift/fixtures/opencode/`. Prompts render as skills, the only surface OpenCode's
   model can invoke. `afk` alone renders as a command, which keeps that model from starting an
   unattended sweep itself, ADR 0055),
-  `scripts/eval-run.js` (the eval
-  runner, ADR 0024), and `scripts/drift-check.js` with `drift/` (the cross-document contract checks: the
+  and `scripts/drift-check.js` with `drift/` (the cross-document contract checks: the
   CLI walks the `drift/checks.js` registry, keyed by check id (ADR 0061), which orders every scanner and
   contract table). What each guards, check by check, lives in that child doc.
 - `plugin/references/`. Backend seed templates plus the runtime references. Owned by
@@ -256,6 +248,4 @@ This root owns every other subtree directly:
   `docs/known-issues.md`. The platform workarounds, governed by **Working rules, Platform-dependent
   claims carry dated verification**.
 - `.claude-plugin/`. Manifests. Governed by **Working rules, Version lives only in `plugin.json`**.
-- `CONTEXT.md`. The domain glossary. `evals/`. The with-plugin and without-plugin A/B, run by
-  `scripts/eval-run.js` on a Claude subscription (ADR 0024), where `evals/README.md` owns its
-  grader-neutrality and result-reading rules.
+- `CONTEXT.md`. The domain glossary.
