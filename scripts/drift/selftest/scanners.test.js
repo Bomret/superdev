@@ -941,7 +941,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     assert.match(gaps[0].expectation, /selection heading/, `names the missing heading for ${why}`);
   }
 
-  // --- scanEvalShape: a grader's frontmatter must be something the harness can act on, and a case's
+  // --- scanEvalShape: a grader's frontmatter must be something the eval runner can act on, and a case's
   // scaffold_script must resolve ---
 
   const goodGrader = '---\ntype: llm\nfocus: files\nweight: 2\n---\nJudge the plan.\n';
@@ -962,6 +962,18 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   const typeProblems = scanEvalShape(badType);
   assert.equal(typeProblems.length, 1, 'an unknown type is flagged');
   assert.equal(typeProblems[0].source, path.join('evals', 'c', 'graders', 'g.md'), 'names the grader');
+
+  // ADR 0067: the gate tracks what `scripts/eval-run.js` grades, never the wider set
+  // `claude plugin eval` accepts. Each of these passed here until the runner's own two-type subset
+  // became the rule, and then errored mid-run, where an errored grader scores in neither arm.
+  for (const type of ['file_exists', 'tool_order', 'tool_used', 'baseline']) {
+    const ungradeable = fixture({
+      'evals/c/graders/g.md': `---\ntype: ${type}\nweight: 2\n---\nb\n`,
+    });
+    const problems = scanEvalShape(ungradeable);
+    assert.equal(problems.length, 1, `\`${type}\` is refused — the eval runner cannot grade it`);
+    assert.match(problems[0].problem, new RegExp(type), `names \`${type}\``);
+  }
 
   const badWeight = fixture({
     'evals/c/graders/g.md': '---\ntype: llm\nfocus: files\nweight: notanumber\n---\nb\n',
@@ -1002,16 +1014,8 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   });
   assert.equal(scanEvalShape(noGraders).length, 0, 'a case with no graders/ dir yields no problems');
 
-  // The harness accepts six grader types, and only `llm` and `regex` carry a focus/target. The other
-  // four are `.strict()`, so adding `focus:` to satisfy this check would make the harness reject them.
-  for (const type of ['tool_order', 'tool_used', 'file_exists', 'baseline']) {
-    const other = fixture({
-      'evals/c/graders/g.md': `---\ntype: ${type}\nweight: 1\n---\nb\n`,
-    });
-    assert.equal(scanEvalShape(other).length, 0, `\`${type}\` is a valid type and needs no focus`);
-  }
-
-  // The harness declares weight as a positive number, so zero, a negative, and a blank are malformed.
+  // The eval runner declares weight as a positive number, so zero, a negative, and a blank are
+  // malformed.
   for (const weight of ['0', '-1', '']) {
     const bad = fixture({
       'evals/c/graders/g.md': `---\ntype: llm\nfocus: files\nweight: ${weight}\n---\nb\n`,
