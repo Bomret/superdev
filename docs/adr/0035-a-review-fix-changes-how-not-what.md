@@ -74,7 +74,7 @@ somebody runs `/superdev:plan`.
 The boundary needs judgment at exactly one seam — whether a finding names a defect in planned behaviour or
 asks for unplanned behaviour — and prose is what carries that judgment. If the boundary misfires in either
 direction (a defect repair refused as scope growth, or growth admitted as a repair), the next step is an
-eval arm rather than another paragraph, per the prompt-architecture rule that a contested line is settled
-by running the document.
+argument over this prose and the cases it misjudged. superdev holds no mechanism for settling a contested
+prompt line by running the document (ADR 0071).
 
 Nothing changes for an ad-hoc review, which applies no fixes at all.
