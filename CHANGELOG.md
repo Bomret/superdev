@@ -1,3 +1,18 @@
+# [0.45.0](https://codeberg.org/bomret/superdev/compare/v0.44.0...v0.45.0) (2026-09-17)
+
+
+### Bug Fixes
+
+* **eval:** the grader-shape gate tracks what the eval runner grades ([#490](https://codeberg.org/bomret/superdev/issues/490)) ([2dc7a05](https://codeberg.org/bomret/superdev/commit/2dc7a05a25eab70bb93da5445978c15d9c838d59)), closes [#477](https://codeberg.org/bomret/superdev/issues/477) [#476](https://codeberg.org/bomret/superdev/issues/476) [#479](https://codeberg.org/bomret/superdev/issues/479)
+* **hooks:** reap the scope branch with its run root ([#478](https://codeberg.org/bomret/superdev/issues/478)) ([#502](https://codeberg.org/bomret/superdev/issues/502)) ([fb67372](https://codeberg.org/bomret/superdev/commit/fb673724deb6790b15f0e9d976d894a64302a859))
+* **scope-mode:** refetch the base before answering not contained ([#487](https://codeberg.org/bomret/superdev/issues/487)) ([9853e7a](https://codeberg.org/bomret/superdev/commit/9853e7ae63a18dc6fc0cf81603aa3b15b5b83580)), closes [#469](https://codeberg.org/bomret/superdev/issues/469)
+
+
+### Features
+
+* **review-tests:** a measured, whole-tree test audit ([#503](https://codeberg.org/bomret/superdev/issues/503)) ([1802a83](https://codeberg.org/bomret/superdev/commit/1802a83a6ac8b28bc6324bb8153d9aaa641d15e8)), closes [#473](https://codeberg.org/bomret/superdev/issues/473) [#474](https://codeberg.org/bomret/superdev/issues/474) [#472](https://codeberg.org/bomret/superdev/issues/472)
+* **review:** test cost is a review lens, and review can read standing code ([#464](https://codeberg.org/bomret/superdev/issues/464)) ([6e67de7](https://codeberg.org/bomret/superdev/commit/6e67de761ce4540bfda78173333473a33b993d0e)), closes [#459](https://codeberg.org/bomret/superdev/issues/459) [#461](https://codeberg.org/bomret/superdev/issues/461) [#460](https://codeberg.org/bomret/superdev/issues/460) [#462](https://codeberg.org/bomret/superdev/issues/462) [#463](https://codeberg.org/bomret/superdev/issues/463) [#458](https://codeberg.org/bomret/superdev/issues/458) [#459](https://codeberg.org/bomret/superdev/issues/459) [#460](https://codeberg.org/bomret/superdev/issues/460) [#461](https://codeberg.org/bomret/superdev/issues/461)
+
 # [0.44.0](https://codeberg.org/bomret/superdev/compare/v0.43.0...v0.44.0) (2026-09-15)
 
 
