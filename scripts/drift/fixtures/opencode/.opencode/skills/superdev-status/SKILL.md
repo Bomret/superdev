@@ -1,6 +1,6 @@
 superdev-render-overlay
 source: skills/status/SKILL.md
-body-lines: 43
+body-lines: 44
 ---
 # generated-by: superdev-adapter — a re-render overwrites this directory
 name: superdev-status
@@ -13,7 +13,7 @@ Give a compact, read-only snapshot of every in-flight `/superdev-implement` run 
 node "<plugin-root>/scripts/scope.js" status
 @18
 `<plugin-root>/references/scope-mode.md`'s `## Degraded passes` section — its unresolved-defect
-@36
+@37
 `/superdev-document` wrote but did not send, waiting for `/superdev-publish-kb` (ADR 0023). A shipped
-@42
+@43
 blocked slice, that's `/superdev-implement` or manual intervention, not this command.

@@ -1,6 +1,6 @@
 superdev-render-overlay
 source: skills/publish-kb/SKILL.md
-body-lines: 173
+body-lines: 180
 ---
 # generated-by: superdev-adapter — a re-render overwrites this directory
 name: superdev-publish-kb
@@ -26,11 +26,9 @@ count `/superdev-status` reports. Resolve the message that invoked this skill to
 `<plugin-root>/references/scope-mode.md`'s `## A live scope run` section.
 @71
 `node "<plugin-root>/scripts/scope.js" get branch --root <run-root>` and verify it with
-@75
-`/superdev-ship` never deletes the scope branch, but `hooks/scope-prune.js` reaps the run root seven days
-@80
+@82
 work, per `<plugin-root>/references/scope-mode.md`'s `## Containment` section, which owns the
-@139
+@146
   `node "<plugin-root>/scripts/kb-patch.js" <live-page> <staged-file> > <merged-file>`. A live
-@163
+@170
 `/superdev-status` there is nothing outstanding.

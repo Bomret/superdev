@@ -1,11 +1,14 @@
-# 0068: The prune reaps the scope branch with its run root
+# 0071: The prune reaps the scope branch with its run root
 
 **Status:** Accepted
 
 **Amends:** [ADR 0007](0007-scope-prune-ttl.md), which gave the reap its TTL and its subject — the run
-root alone — and [ADR 0053](0053-containment-not-ancestry-decides-that-a-scope-branch-reached-base.md),
-whose Context records "Nothing removes the local `<type>/<scope>` branch … and no later step returns for
-it" as an observed fact about the clone rather than as a gap anybody owns.
+root alone. [ADR 0053](0053-containment-not-ancestry-decides-that-a-scope-branch-reached-base.md)'s
+Context records "Nothing removes the local `<type>/<scope>` branch … and no later step returns for it."
+It treats that as an observed fact about the clone, not as a gap anybody owns.
+[ADR 0065](0065-containment-refetches-the-base-before-it-answers-not-contained.md)'s rejected
+`git fetch --prune` option reasons that "nothing deletes the local `<type>/<scope>` branch," an assumption
+this decision retires.
 
 **Context.** `/superdev:ship` leaves the scope branch standing, correctly: the pull request is open from
 it, and deleting it closes the request. Nothing else in superdev returns for it. The local
@@ -67,11 +70,11 @@ work in flight instead of every feature since the repository began, and `/superd
 `/superdev:implement`'s `appended` run kind, and `/superdev:publish-kb` §3 each meet a smaller, truer ref
 set — every one of them already treats a gone branch as finished with.
 
-`references/scope-mode.md`'s `fresh` run kind states that a squash-merged branch "survives its own merge,
-since nothing deletes it" and outlives its reaped run root. The first clause holds only until the TTL now,
-and the collision it warns about — `-b` failing on a name already taken — survives on the two paths this
-decision leaves untouched: a shape-scanned name, and a branch whose delete failed. The stop it prescribes
-is unchanged; its reasoning is narrower.
+`references/scope-mode.md`'s `fresh` run kind states that a squash-merged scope's branch stands until
+`hooks/scope-prune.js` reaps it with its run root. It stands indefinitely only where that reap cannot name
+it (ADR 0007, ADR 0071). The collision it warns about is `-b` failing on a name already taken. That still
+survives on the two paths this decision leaves untouched: a shape-scanned name, and a branch whose delete
+failed. The stop it prescribes is unchanged; its reasoning is narrower.
 
 The reap stays invisible, so a branch deleted in error is recovered from the reflog, and only within the
 reflog's own expiry. That is the same exposure the run-root reap has carried since ADR 0007, against a

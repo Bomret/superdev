@@ -76,23 +76,30 @@ Find the scope branch per that file's `## The scope branch` section: a run root 
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get branch --root <run-root>` and verify it with
 `git rev-parse --verify <branch>`. No run root, no such line, or the named branch does not verify → fall
 back to that section's scan: a branch whose last segment is `<scope>` and whose leading segment is a
-change type, the rule `hooks/scope-prune.js` applies. This fallback is the steady-state path:
-`/superdev:ship` never deletes the scope branch, but `hooks/scope-prune.js` reaps the run root seven days
-after a shipped scope's branch reads contained in base or gone (ADR 0007, ADR 0053), and publishing
-typically happens later than that.
+change type, the rule `hooks/scope-prune.js` applies. `hooks/scope-prune.js` reaps a shipped scope's run
+root together with its branch, once that branch reads contained in base or gone, seven days after the run
+root's newest file was last written (ADR 0007, ADR 0053, ADR 0071). The steady-state path is a
+fully-reaped scope: publishing typically happens later than that TTL, when the run root is gone — though a
+ledger written before the `**Branch:**` line existed can leave its branch behind even past that reap,
+which is exactly what the fallback scan is for.
 
 Then decide whether the base branch named in `docs/agents/code-management.md` already holds that branch's
 work, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Containment` section, which owns the
 test.
 
-**Contained** → base holds this scope's work and its readers can reach it. Ask nothing, go straight to
-§4, and let §5's report carry no unmerged note for it.
+**Contained, or no branch resolves and no run root survives to check** → base holds this scope's work, or
+nothing remains to name a branch because a scope reaches that reap only once shipped
+(`hooks/scope-prune.js`'s own gate) — either way its readers can reach it, per that file's "absence
+stands beside containment" rule. Ask nothing, go straight to §4, and let §5's report carry no unmerged
+note for it.
 
-**Not contained**, or **no branch resolves at all** (no ledger line and the fallback scan matches
-nothing) → the pages may describe work no reader can reach. Name what you found and **ask once** whether
-to publish anyway — a deliberate divergence from that file's "no branch matches → say so and stop" rule,
-because here a merge only warns and publishing is the operator's call. Declined → publish nothing, delete
-nothing, stop. Confirmed → proceed, and record in §5's report that the scope was unmerged.
+**Not contained, or a run root survives whose ledger names no verifying branch and whose fallback scan
+matches nothing** → the pages may describe work no reader can reach: work not yet merged, a run that died
+before it cut the branch, or a branch an operator deleted while it was still unmerged. Name what you
+found and **ask once** whether to publish anyway — a deliberate divergence from that file's "no branch
+matches → say so and stop" rule, because here a merge only warns and publishing is the operator's call.
+Declined → publish nothing, delete nothing, stop. Confirmed → proceed, and record in §5's report that the
+scope was unmerged.
 
 This warns and never blocks. Containment is free on a hit and one fetch on a miss, and either way it is
 weaker than the judgment the operator is making: a repository that releases on a schedule has merged code

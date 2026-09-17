@@ -191,8 +191,8 @@ never switched (ADR 0045).
 
 - **`fresh`** — no ledger existed, so the scope branch does not exist either. Cut it from `<base>`:
   `git worktree add .superdev/scopes/<scope>/worktree -b <type>/<scope> <base>`. **The name already
-  exists** — a squash-merged scope's branch survives its own merge, since nothing deletes it, and
-  outlives its reaped run root too (`hooks/scope-prune.js`'s seven-day TTL, ADR 0007, ADR 0053): `-b`
+  exists** — a squash-merged scope's branch stands until `hooks/scope-prune.js` reaps it with its run
+  root, and stands indefinitely where that reap cannot name it (ADR 0007, ADR 0071): `-b`
   fails rather than reset it, which is the safe outcome. Stop, name the branch found, and cut nothing — a
   human renames or deletes it before the run
   retries.

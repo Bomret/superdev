@@ -1,6 +1,6 @@
 superdev-render-overlay
 source: skills/ship/SKILL.md
-body-lines: 136
+body-lines: 137
 ---
 # generated-by: superdev-adapter — a re-render overwrites this directory
 name: superdev-ship
@@ -48,7 +48,7 @@ line lists every finding `/superdev-review` handed to `/superdev-plan` rather th
 `node "<plugin-root>/scripts/scope.js" stage set shipped --root <run-root>`. Publish the snapshot
 @111
 afterwards, per `<plugin-root>/references/scope-mode.md`'s `## Publishing run state` section.
-@130
+@131
 `.superdev/kb-pending/<scope>/` holds staged pages → print `/superdev-publish-kb <scope>` with one line on
-@134
+@135
 This is a pointer, not a chain handoff. `/superdev-ship` still ends the chain. **No staged pages** → print

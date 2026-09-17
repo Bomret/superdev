@@ -8,8 +8,11 @@
 // Containment is content, not ancestry: `git merge-tree --write-tree` yielding base's own tree. A
 // squash merge rewrites the branch's commits into one new commit, so `git branch --merged` never lists
 // the branch however completely base holds the work. Absence stands beside containment, for the hosts
-// that delete the branch on merge — but it is read from *this clone's* refs, and neither the local
-// branch nor a stale remote-tracking ref goes away on its own, so absence alone never arrived here.
+// that delete the branch on merge — but it is read from *this clone's* refs, which outlive the host's own
+// deletion, so containment is what carries nearly every reap.
+// The same pass deletes the branch it just proved contained — the local ref and every remote-tracking
+// copy — immediately before the run root, so the clone stops accumulating one dead branch per shipped
+// feature (ADR 0071). `reapBranch` below states the bounds that delete keeps to.
 // hooks/worktree-sweep.js keeps ancestry alone one level down, correctly: a slice branch merges into the
 // scope branch normally, so its ancestry survives.
 // Same "safe by default" shape throughout: never touches a run whose branch is still there carrying
@@ -130,9 +133,9 @@ function resolveBranch(branchSet, scope, exactBranch) {
 // completely base holds the work. Absence stands beside containment for the hosts that delete the branch
 // on merge, and it is read from refs *this clone* already holds, so an unfetched remote-tracking ref
 // still counts as present and the scope survives — this fails closed, which is the only safe direction
-// for a delete. Absence on its own never arrived, which is the gap ADR 0053 measured: nothing removes
-// the local `<type>/<scope>` branch, and the stale `origin/<type>/<scope>` ref outlives the host's
-// deletion until somebody runs `git fetch --prune`.
+// for a delete. Absence reaches this test in two narrow shapes, and containment carries every other reap:
+// a clone that has run `git fetch --prune` since the host deleted the branch, and this hook's own reap of
+// a scope whose run root outlived its refs because the `rmSync` below failed (ADR 0071).
 //
 // `git merge-tree --write-tree HEAD <branch>` also trivially yields HEAD's own tree when `<branch>` is
 // HEAD itself. Neither tier ever switches the invoking checkout onto the scope branch (ADR 0045), so
@@ -282,6 +285,47 @@ function newestMtimeMs(dir) {
   return newest;
 }
 
+// Every ref `branch` still holds in this clone, read off the `for-each-ref` output the run already has:
+// its own `refs/heads/<branch>`, and a `refs/remotes/<remote>/<branch>` for every remote that tracks it.
+// The remote-tracking ref is parsed exactly as `branchNamesFrom` parses it — first segment is the remote,
+// whatever it is called — so a remote named after part of a branch never swallows the comparison.
+function refsFor(refLines, branch) {
+  const refs = [];
+  for (const raw of refLines) {
+    const ref = raw.trim();
+    if (ref === `refs/heads/${branch}`) {
+      refs.push(ref);
+      continue;
+    }
+    if (!ref.startsWith('refs/remotes/')) continue;
+    const rest = ref.slice('refs/remotes/'.length);
+    const cut = rest.indexOf('/');
+    if (cut > 0 && rest.slice(cut + 1) === branch) refs.push(ref);
+  }
+  return refs;
+}
+
+// Deletes the refs of a scope branch the caller has already proved contained (ADR 0071), and reports
+// whether the clone is now rid of it. True with nothing deleted is the honest answer in two cases: a
+// ledger that names no branch — `resolveBranch`'s shape scan can match a foreign branch whose slug drifted,
+// and a guess is never enough to delete on — and a branch already gone.
+//
+// `git branch -D` for the local ref, because its refusals are the safety this relies on: it declines a
+// branch the invoking checkout or another worktree has checked out, and that refusal is what keeps the run
+// root standing. `-d` would be the wrong verb entirely — it applies the ancestry test ADR 0053 replaced,
+// so it refuses every squash-merged branch. A remote-tracking ref can be checked out nowhere, so
+// `update-ref -d` deletes it directly.
+function reapBranch(branch, refLines, cwd) {
+  if (!branch) return true;
+  for (const ref of refsFor(refLines, branch)) {
+    const deleted = ref.startsWith('refs/heads/')
+      ? gitTry(['branch', '-D', branch], cwd)
+      : gitTry(['update-ref', '-d', ref], cwd);
+    if (deleted.status !== 0) return false;
+  }
+  return true;
+}
+
 function main(cwd) {
   if (!readLedgerHeader) return; // shared reader unavailable → prune nothing, say nothing
   const scopesRoot = path.join(cwd, '.superdev', 'scopes');
@@ -289,13 +333,12 @@ function main(cwd) {
 
   let allBranches;
   let branchRefs;
+  let refLines;
   try {
     // Throwing `git()`, deliberately: an empty branch set would read as "every scope's branch is gone"
     // and prune the lot, so a failure here has to bail before absence is computed rather than yield one.
     // This call writes nothing, so it stays eager while the containment test below does not.
-    const refLines = git(['for-each-ref', '--format=%(refname)', 'refs/heads', 'refs/remotes'], cwd).split(
-      '\n'
-    );
+    refLines = git(['for-each-ref', '--format=%(refname)', 'refs/heads', 'refs/remotes'], cwd).split('\n');
     allBranches = branchNamesFrom(refLines);
     branchRefs = qualifyBranchRefs(refLines);
   } catch {
@@ -326,6 +369,10 @@ function main(cwd) {
     const dir = path.join(scopesRoot, scope);
     // Never prune while a worktree is still present — that's an interrupted cleanup, not a finished run.
     if (fs.existsSync(path.join(dir, 'worktree')) || fs.existsSync(path.join(dir, 'worktrees'))) continue;
+    // The branch is contained by proof here, so it goes before the ledger that names it (ADR 0071). A
+    // failed delete leaves the run root standing: the ledger is the only record of the name, so pruning
+    // it now strands the branch with nothing left to find it by. The next Stop retries both.
+    if (!reapBranch(readBranch(dir), refLines, cwd)) continue;
     try {
       fs.rmSync(dir, { recursive: true, force: true });
     } catch {

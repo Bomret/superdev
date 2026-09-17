@@ -260,7 +260,11 @@ bash or PowerShell variants.
   fetched still counts as present, so it never prunes on stale information. It never touches a scope
   branch carrying content base does not hold, one whose worktree is still present, or one whose ledger is
   unreadable or silent on the stage. On a git older than 2.38, which has no `--write-tree`, it falls back
-  to ancestry and prunes what that finds.
+  to ancestry and prunes what that finds. The branch goes with the run root — the local ref and every
+  remote-tracking copy of it — so a clone stops collecting one dead branch per shipped feature
+  ([ADR 0071](docs/adr/0071-the-prune-reaps-the-scope-branch-with-its-run-root.md)). Only a branch the
+  ledger names is deleted, never one matched by shape, and a delete git refuses — this checkout or
+  another worktree holds the branch — keeps the run root standing for the next `Stop` to retry.
 
 **update-check** is an eighth Node hook, and a `SessionStart` *notice* rather than a guardrail. See
 [Updating](#updating).

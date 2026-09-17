@@ -129,6 +129,7 @@ you are standing in:
   knowledge-base pages, which outlive the run by design (ADR 0023).
 
 **Never delete the scope branch.** The pull request is from it, and deleting it closes the request.
+`hooks/scope-prune.js` reaps it later, with the run root, once base holds its content (ADR 0071).
 
 ## 7. Point at the publish, when pages are waiting
 
