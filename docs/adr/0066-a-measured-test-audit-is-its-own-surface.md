@@ -5,6 +5,10 @@
 **Amends:** [ADR 0063](0063-test-cost-is-a-review-lens.md), whose decision stands. One of its rejected
 options reverses.
 
+**Amended by:**
+[ADR 0068](0068-a-repository-sweep-chains-the-read-only-surfaces.md), which keeps this surface and adds a
+chained posture to it.
+
 **Context.** ADR 0063 made test cost a review lens and rejected "a dedicated test-audit skill" as "a
 fourteenth surface with its own drift rows and suite, for what ad-hoc review already has the shape to do".
 Its own Consequences name what the lens leaves undone: "Nothing measures whether a suite got faster. The

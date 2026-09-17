@@ -235,6 +235,12 @@ _Avoid: "command" (the playbook is the file the command delegates to, not the co
 **Review checklist**: the shared file (`references/review-checklist.md`) naming concrete anti-patterns, vulnerability classes, design smells, a reuse-audit lens, a consistency lens (convention drift, cross-slice divergence), and a test-cost lens, read at dispatch time. `final-reviewer` applies every lens its own list names, `slice-reviewer` applies anti-patterns and vulnerability classes, and `test-auditor` applies the test lenses plus `## Test cost`, which only it reads because those two need a measured duration (ADR 0066). It follows the same shared-file-read-at-dispatch pattern as `Execution playbook`, one level down: a checklist of things to look for, not a procedure to follow.
 _Avoid: "checklist" alone (ambiguous with the DoD's own checklist), "linter rules" (it is read and reasoned about, not mechanically run)_
 
+**Sweep**: a read-only pass over a whole tree, where a review resolves a range. It is what finds a property of a pair — a redundant implementation, a fact stated twice — because the covering half lives wherever it lives and no range is guaranteed to contain it. `/superdev:sweep` is the chain-runner over four legs (code, docs, tests, config); `/superdev:review-tests` sweeps the test tree alone (ADR 0066, ADR 0068).
+_Avoid: "audit" (that names the reader-first mode of `/superdev:document`), "scan" (a sweep reasons, it does not pattern-match)_
+
+**Chained posture**: the mode a surface runs in when `/superdev:sweep` invokes it as a leg — it returns its findings and writes nothing. The doc leg dispatches no `doc-writer` and commits nothing; the test leg runs no agreement round and writes no intent. The sweep's own intent is the run's only write. Each surface's unchained behaviour is unchanged (ADR 0068).
+_Avoid: "dry run" (the leg does its real work, it just does not act on it), "read-only mode" (every leg's reviewers are already read-only; this is about the surface's own writes)_
+
 ## Doc loop
 
 **Audit**: the reader-first mode of `/superdev:document` (invoked as `/superdev:document audit`). The doc-reader reads the whole audit set cold and grounds every claim against the repo before any doc-writer involvement. Findings get the standard single doc-writer fix round.
