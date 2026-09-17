@@ -149,6 +149,9 @@ _Avoid: "partial test command" (it is narrowed, not incomplete), "incremental te
 **Changed-path set**: the paths a caller substitutes for `{paths}` in the focused test command, those changed in the range that caller judges. `references/test-selection.md` owns which range each caller uses and why an **empty** set runs the full command instead of a focused run over nothing (ADR 0025).
 _Avoid: "diff" (that names the content, not the path list), "touched files" (`Touch map` already claims that phrasing for a different artifact)_
 
+**Timing command**: the optional `## Timing command` section of `docs/agents/verification.md`, whose command reports what the suite's tests cost — per-test durations where the runner gives them, total wall clock otherwise. It holds its command in a backtick span, never a fenced block: `hooks/green-gate.js` reads fenced blocks and takes the first two as the full and focused commands, so a fenced third would run as the focused suite in any repository that configures none. A **test audit** is its only reader, and an absent section makes that audit `unmeasured` rather than failing it (ADR 0066).
+_Avoid: "benchmark command" (it prices an existing suite, it does not measure throughput), "profiling command" (that names a per-line attribution nothing here asks for), "third block" (it is not a fenced block, which is the whole point)_
+
 ## Controller discipline
 
 **Controller**: the agent driving a plan's slices to merge (you). You dispatch implementers and reviewers, you merge, and you integrate serially. You never implement or merge inside a subagent.
@@ -221,12 +224,15 @@ chain.
 _Avoid: "backlog sweep" (a sweep is `/superdev:afk`, which acts; this only reports), "status" (that
 command reports runs from their ledgers, not the store)_
 
+**Test audit**: the read-only whole-tree sweep `/superdev:review-tests` runs, pricing a suite that many scopes have grown. It measures where a **timing command** is configured, dispatches `test-auditor` over every test file in one pass, ranks its findings by cost, and hands the survivors to `/superdev:plan` as an intent. It reaches what a review cannot: a duration is invisible to reading, and a redundant pair has a second half outside any range. A dead or ignored test reports as a fact, and every remaining finding is a judgment the operator may reject before it survives. It writes no tracked file and sits outside the implement chain and outside `/superdev:afk` (ADR 0066).
+_Avoid: "test review" (review is the code-review family, and this one neither resolves a range nor gates a merge), "suite audit" (`Audit` already names the doc loop's reader-first mode), "coverage audit" (it prices the tests that exist, and never asks for more)_
+
 ## Separation of concerns
 
 **Execution playbook**: the linear, tier-specific procedure that runs a scope's whole `/implement` execution, start to finish. It is `references/implement-full.md` (full tier) or `references/implement-lite.md` (lite tier), computed and `Read` by the controller once the tier is known. Each playbook opens by reading `references/run-init.md` (run init) and closes by reading `references/run-handoff.md` (run handoff). The `/implement` command body therefore keeps config and input, the tier computation, the invariants, the model table, the issue-status map, and red flags. Control never returns to it once a playbook starts.
 _Avoid: "command" (the playbook is the file the command delegates to, not the command itself)_
 
-**Review checklist**: the shared file (`references/review-checklist.md`) naming concrete anti-patterns, vulnerability classes, design smells, a reuse-audit lens, and a consistency lens (convention drift, cross-slice divergence), read at dispatch time. `final-reviewer` applies every lens, and `slice-reviewer` applies anti-patterns and vulnerability classes. It follows the same shared-file-read-at-dispatch pattern as `Execution playbook`, one level down: a checklist of things to look for, not a procedure to follow.
+**Review checklist**: the shared file (`references/review-checklist.md`) naming concrete anti-patterns, vulnerability classes, design smells, a reuse-audit lens, a consistency lens (convention drift, cross-slice divergence), and a test-cost lens, read at dispatch time. `final-reviewer` applies every lens its own list names, `slice-reviewer` applies anti-patterns and vulnerability classes, and `test-auditor` applies the test lenses plus `## Test cost`, which only it reads because those two need a measured duration (ADR 0066). It follows the same shared-file-read-at-dispatch pattern as `Execution playbook`, one level down: a checklist of things to look for, not a procedure to follow.
 _Avoid: "checklist" alone (ambiguous with the DoD's own checklist), "linter rules" (it is read and reasoned about, not mechanically run)_
 
 ## Doc loop
