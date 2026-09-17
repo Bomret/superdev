@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0070](0070-the-gate-derives-its-grader-schema-from-the-runner.md), which reverses the
+Consequence accepting the gate and the runner as one fact in two places. The Decision below stands.
+
 **Context.** `evals/*/case.yaml` and `evals/*/graders/*.md` have two readers. `claude plugin eval` accepts
 six grader types. `scripts/eval-run.js`, the runner `bun run eval` invokes, grades `llm` and `regex` and
 reports anything else as a grader error (ADR 0024 names those two deliberately).
