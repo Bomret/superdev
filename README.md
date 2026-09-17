@@ -22,18 +22,19 @@ runs in parallel in isolated git worktrees, with separate implementer and review
 plan runs test-first, inline in the scope worktree.
 
 ```
-/superdev:setup       → configure backends in docs/agents/*.md (once per repo)
-/superdev:brainstorm  → (optional) turn a vague idea into a plan-ready intent
-/superdev:plan        → interview + slice a feature into the slice store
-/superdev:implement   → drive the slices to merge onto the scope branch, then stop
-/superdev:status      → read-only DAG progress snapshot for in-flight runs
-/superdev:backlog     → read-only survey of the slice store: what needs what, and what to do next
-/superdev:review      → whole-scope review against the DoD, with a fix loop
-/superdev:document    → reconcile in-repo docs + knowledge base with the code
-/superdev:ship        → tick the DoD, close the scope anchor, open the PR, and clean up
-/superdev:afk         → sweep the planned backlog through the whole chain unattended
-/superdev:publish-kb  → send a scope's staged knowledge-base pages to the configured backend
-/superdev:prose-check → check one file, range, or pasted text against the controlled-prose standard
+/superdev:setup        → configure backends in docs/agents/*.md (once per repo)
+/superdev:brainstorm   → (optional) turn a vague idea into a plan-ready intent
+/superdev:plan         → interview + slice a feature into the slice store
+/superdev:implement    → drive the slices to merge onto the scope branch, then stop
+/superdev:status       → read-only DAG progress snapshot for in-flight runs
+/superdev:backlog      → read-only survey of the slice store: what needs what, and what to do next
+/superdev:review       → whole-scope review against the DoD, with a fix loop
+/superdev:document     → reconcile in-repo docs + knowledge base with the code
+/superdev:ship         → tick the DoD, close the scope anchor, open the PR, and clean up
+/superdev:afk          → sweep the planned backlog through the whole chain unattended
+/superdev:publish-kb   → send a scope's staged knowledge-base pages to the configured backend
+/superdev:prose-check  → check one file, range, or pasted text against the controlled-prose standard
+/superdev:review-tests → read-only audit of what the test suite costs, ranked and handed to plan
 ```
 
 ## What it does
@@ -168,6 +169,14 @@ plan runs test-first, inline in the scope worktree.
   ([ADR 0057](docs/adr/0057-prose-check-applies-controlled-prose-unconditionally.md)). The default is a
   read-only report. A trailing `-- fix` rewrites the file in place, or prints the rewrite for pasted
   text. `/superdev:afk` never drives it.
+- **`/superdev:review-tests`**. Audits what the test suite costs. It sweeps the whole test tree in one
+  pass, runs the repo's optional **timing command** to measure it, and reports redundant coverage,
+  overweight fixtures, tautological tests, dead tests, and expensive tests, ranked by measured duration
+  — or labelled `unmeasured` and ranked by judgment where no timing command is configured
+  ([ADR 0066](docs/adr/0066-a-measured-test-audit-is-its-own-surface.md)). Every finding is a judgment
+  you can reject before it survives. Its only writes are the intent for `/superdev:plan` and the
+  one-line `.gitignore` entry that keeps its scratch directory ignored when absent. `/superdev:afk`
+  never drives it.
 
 ## After the PR
 
@@ -186,8 +195,8 @@ stop condition and an explicit turn ceiling (for example, "stop after N tries").
 ## Roles (subagents)
 
 The subagents are `implementer`, `slice-reviewer`, `simplicity-reviewer`, `final-reviewer`,
-`doc-writer`, and `doc-reader`. Each runs in an isolated context, and only its result returns to the
-controller.
+`doc-writer`, `doc-reader`, and `test-auditor`. Each runs in an isolated context, and only its result
+returns to the controller.
 
 The **full** execution tier dispatches `implementer`, `slice-reviewer`, and `simplicity-reviewer` per
 slice. The **lite** tier (3 slices or fewer) has the controller implement inline instead, and also

@@ -352,6 +352,26 @@ assert.deepEqual(
   'parses both the full and the focused command',
 );
 
+// ADR 0066: a `## Timing command` section holds its command in a backtick span, so the gate never
+// sees it. A repository with a full command, no focused command, and a timing section keeps running
+// the full command after a merge — a fenced timing block would land in the focused slot instead.
+fs.writeFileSync(
+  path.join(dir, VERIFICATION_DOC),
+  '# Verification\n\n```sh\nnpm test\n```\n\n**No focused test command.**\n\n' +
+    '## Timing command\n\n`npm test -- --reporter=verbose`\n',
+);
+assert.deepEqual(
+  readVerification(dir),
+  { full: 'npm test', focused: null },
+  'a `## Timing command` backtick span is invisible to the gate',
+);
+{
+  let ran;
+  const spy = (tc) => { ran = tc; return green(); };
+  decide(merge('git merge --no-ff slice/s1'), () => readVerification(dir), spy, () => ['a.js']);
+  assert.equal(ran, 'npm test', 'the merge gate runs the full command, never the timing command');
+}
+
 // --- the option region is walked exactly once per decision — resolveVerification()'s own call
 // graph used to walk it up to four times: once each for -C, --work-tree, and --git-dir inside
 // resolveMergeCwd, once more inside namesOnlyGitDir or resolvingOption ---

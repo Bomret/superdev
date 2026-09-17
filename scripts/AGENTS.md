@@ -534,19 +534,23 @@ of the `final-reviewer` dispatch bullet it names. The seventh row's pattern is o
 requires the staging clause's own heading text to appear, followed eventually by the `- **Range**` bullet
 that opens the range list, so moving the clause back below that bullet — the original defect — fails the
 row exactly as removing the clause does.
-The `agent-lens-list` contract (ADR 0062), two rows plus `scanAgentLensNoDesignSmell()`:
+The `agent-lens-list` contract (ADR 0062), one sentence row per audited agent's own lens list, a further
+row where a dispatch restates that list instead of deferring to it, and `scanAgentLensNoDesignSmell()`:
 `agents/slice-reviewer.md` reads only the anti-pattern and vulnerability-class lenses from
 `references/review-checklist.md`, and `agents/final-reviewer.md` reads the anti-pattern, design-smell,
 vulnerability-class, reuse-audit, and consistency lenses. The `orphan-lens-placement` contract below is
 meaningful only because these two lists differ — the orphan lens reaches `final-reviewer` through
-`design-smell` and never reaches `slice-reviewer`. The two sentence rows alone pin only the sentence
+`design-smell` and never reaches `slice-reviewer`. The sentence rows alone pin only the sentence
 each file already carries, so appending a further sentence that names design-smell — without touching
 either pinned sentence — would still route the orphan lens into per-slice review with every other check
 here green: exactly the one-sided-pin shape the root `AGENTS.md` names. `scanAgentLensNoDesignSmell()`
 closes that gap the sentence rows cannot: it asserts `agents/slice-reviewer.md` carries no
 `design-smell` / `design smell` token anywhere in the file, not only outside its pinned sentence. The
-dispatch prose that reaches each agent (`references/implement-full.md`, `skills/review/SKILL.md`)
-defers to the agent body without restating a lens list, so these rows close the contract alone.
+dispatch prose that reaches `slice-reviewer` and `final-reviewer` (`references/implement-full.md`,
+`skills/review/SKILL.md`) defers to the agent body without restating a lens list, so those two agents'
+rows close the contract alone. `agents/test-auditor.md` reads the test-cost lenses (ADR 0066), and its
+own dispatch — `skills/review-tests/SKILL.md` — restates the lens set instead of deferring to the agent
+body, so that dispatch carries a pinned row of its own alongside the agent-body row.
 The `orphan-lens-placement` contract (ADR 0062), `scanOrphanLensPlacement()`:
 `references/review-checklist.md` names **Orphan production symbol** under `## Design smells`, states it
 with its own scoping clause, and does **not** also carry it under `## Anti-patterns`. Which section an
@@ -560,6 +564,15 @@ negative half matters on its own: a copy added under `## Anti-patterns` while th
 leaves the section check green and still reaches `slice-reviewer`. The scoping clause is pinned on
 wording unique to this entry, because `## Design smells` already carries `whole-scope range` in
 `speculative generality`, and the looser phrase would pass on that neighbour alone.
+The `test-cost-lens-placement` contract (ADR 0066), `scanTestCostLensPlacement()`:
+`references/review-checklist.md` names **Dead test** and **Expensive test** under `## Test cost`, and
+carries neither under `## Anti-patterns`. It is the orphan contract's shape on the test-cost lenses,
+and for a second reason: each is judged against a measured duration over a whole test tree, which only
+a test audit holds. `slice-reviewer` reads `## Anti-patterns` on every slice with no durations at all,
+so an entry that drifts there is guessed at rather than measured. `agents/test-auditor.md`'s own lens
+sentence is the other half, pinned as a third row of the `agent-lens-list` table above: the placement
+decides who can read the section, and that row decides that the one agent routed to it still is. The
+absent-`## Anti-patterns` gap fires on its own, so a renamed section never hides a leak into it.
 The `label-validation` contract:
 `references/scope-mode.md` carries the **Validate both segments.** rule, and `skills/implement/SKILL.md`
 and `skills/afk/SKILL.md` each point at it. The whole feature label becomes the branch name, so the type

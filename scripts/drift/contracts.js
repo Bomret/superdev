@@ -548,10 +548,12 @@ const REVIEW_RANGE_SHAPES_CONTRACTS = [
 // orphan lens reaches `final-reviewer` and not `slice-reviewer` because the former reads design smells
 // and the latter doesn't. Nothing pinned either list before this table, so widening
 // `slice-reviewer.md`'s to add design smells routed the orphan lens into per-slice review with every
-// other check here still green (ADR 0062). The dispatch prose that reaches each agent
-// (`references/implement-full.md`, `skills/review/SKILL.md`) was checked and defers to the agent body
-// without restating a lens list, so these two rows close the contract alone — no dispatch-side row is
-// needed.
+// other check here still green (ADR 0062). The dispatch prose that reaches `slice-reviewer` and
+// `final-reviewer` (`references/implement-full.md`, `skills/review/SKILL.md`) was checked and defers to
+// the agent body without restating a lens list, so those two rows close the contract alone. The
+// `test-auditor` row below needs a dispatch-side row of its own instead, because its dispatch
+// (`skills/review-tests/SKILL.md`) restates the lens set rather than deferring — see the comment above
+// that row.
 const AGENT_LENS_LIST_CONTRACTS = [
   [
     path.join('agents', 'slice-reviewer.md'),
@@ -562,6 +564,20 @@ const AGENT_LENS_LIST_CONTRACTS = [
     path.join('agents', 'final-reviewer.md'),
     /apply its anti-pattern, design-smell,\s+vulnerability-class, reuse-audit, and consistency lenses/,
     'read the anti-pattern, design-smell, vulnerability-class, reuse-audit, and consistency lenses — design-smell is what carries the orphan lens to the integrated scope',
+  ],
+  [
+    path.join('agents', 'test-auditor.md'),
+    /apply its \*\*test-cost\*\* lenses —\s+\*\*dead test\*\* and \*\*expensive test\*\*/,
+    'read the test-cost lenses — `## Test cost` reaches this agent alone, because its lenses need a measured duration no diff-scoped reviewer holds',
+  ],
+  // The dispatch half of the row above. The two other rows need none: their dispatch prose defers to
+  // the agent body without restating a lens list. This one's does restate it — a sweep states the lens
+  // set it is asking for — and a dispatch is the later, more specific instruction, so a dispatch naming
+  // four categories would silently narrow the agent's five (CONTEXT.md → *Dispatch prose*, ADR 0035).
+  [
+    path.join('skills', 'review-tests', 'SKILL.md'),
+    /five categories are the whole set/,
+    "state that the five categories are the whole set — a dispatch that names fewer overrides `test-auditor`'s own lens sentence",
   ],
 ];
 
@@ -586,6 +602,19 @@ const ORPHAN_LENS_ENTRY = /\*\*Orphan production symbol\*\*/;
 const ORPHAN_LENS_DESIGN_HEADING = /^##\s+Design smells\s*$/m;
 const ORPHAN_LENS_ANTIPATTERN_HEADING = /^#{2,3}\s+Anti-patterns\s*$/m;
 const ORPHAN_LENS_SCOPE_CLAUSE = /cannot\s+tell\s+an\s+orphan\s+from\s+a\s+caller/;
+
+// The same placement failure ADR 0062 records for the orphan lens, on the test-cost lenses
+// (ADR 0066). Each needs a measured duration, which only a test audit holds: under `## Anti-patterns`
+// they would reach `slice-reviewer` on every slice, which has no duration to judge either one by and
+// sees one half of a suite. `## Test cost` is the section only `test-auditor`'s own lens sentence
+// routes to, so this check keeps the two halves — the section's membership and `## Anti-patterns`'
+// non-membership — pinned together, exactly as the orphan row above does.
+const TEST_COST_LENS_DOC = path.join('references', 'review-checklist.md');
+const TEST_COST_LENS_HEADING = /^##\s+Test cost\s*$/m;
+const TEST_COST_LENS_ENTRIES = [
+  ['Dead test', /\*\*Dead test\*\*/],
+  ['Expensive test', /\*\*Expensive test\*\*/],
+];
 
 // A feature label is external input that becomes a branch name and a run-root path segment. Both of
 // its segments reach `git worktree add … -b`, so both are validated — the leading one against the
@@ -2756,6 +2785,9 @@ module.exports = {
   ORPHAN_LENS_DESIGN_HEADING,
   ORPHAN_LENS_ANTIPATTERN_HEADING,
   ORPHAN_LENS_SCOPE_CLAUSE,
+  TEST_COST_LENS_DOC,
+  TEST_COST_LENS_HEADING,
+  TEST_COST_LENS_ENTRIES,
   LABEL_VALIDATION_CONTRACTS,
   AFK_NAMES,
   AFK_ROW_PATTERN,

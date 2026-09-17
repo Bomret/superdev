@@ -7,7 +7,7 @@
 // session model — usually the most expensive tier. We only police OUR agents, so
 // the user's other subagent dispatches are untouched.
 
-const OURS = /^(superdev[:_-])?(implementer|slice-reviewer|simplicity-reviewer|final-reviewer|doc-writer|doc-reader)$/;
+const OURS = /^(superdev[:_-])?(implementer|slice-reviewer|simplicity-reviewer|final-reviewer|doc-writer|doc-reader|test-auditor)$/;
 
 function decide(input) {
   if (!input || input.tool_name !== 'Agent') return { block: false };

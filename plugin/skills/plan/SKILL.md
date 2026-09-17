@@ -59,9 +59,10 @@ present makes the brainstorm glob below a cross-check: only an intent whose slug
 Empty → interview from the glob.
 
 **Seed from an existing brainstorm intent if there is one.** Glob `.superdev/brainstorm/*.md`, the
-git-ignored scratch intents `/superdev:brainstorm` may have left. Exactly one → offer it ("Found intent
-`<slug>` — start from it?"); several → list them, let the user pick one or start fresh; none → interview
-from scratch. Never auto-select. A picked intent is a *starting point*, not a substitute for the
+git-ignored scratch intents `/superdev:brainstorm` or `/superdev:review-tests` may have left. Exactly
+one → offer it ("Found intent `<slug>` — start from it?"); several → list them, let the user pick one
+or start fresh; none → interview from scratch. Never auto-select. A picked intent is a *starting
+point*, not a substitute for the
 interview.
 
 An intent carrying **Rejected directions** hands you ground already covered: treat those as settled

@@ -33,9 +33,9 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          No `hooks` field — Claude Code auto-loads the standard hooks/hooks.json.
   skills/              — the `/superdev:<name>` surfaces, one `<name>/SKILL.md` each (ADR 0050):
                          brainstorm, setup, plan, implement, review, document, ship, afk, upgrade,
-                         status, backlog, publish-kb, prose-check
+                         status, backlog, publish-kb, prose-check, review-tests
   agents/              — the subagents (*.md): implementer, slice-reviewer, simplicity-reviewer,
-                         final-reviewer, doc-writer, doc-reader
+                         final-reviewer, doc-writer, doc-reader, test-auditor
   hooks/               — the deterministic Node hooks + hooks.json: merge-guard, model-explicit,
                          green-gate, run-lock, ledger-guard, worktree-sweep, scope-prune, update-check
   references/          — backend seed templates + the non-seed runtime references (plan-contract,
@@ -218,8 +218,11 @@ This root owns every other subtree directly:
   staged knowledge-base pages to a remote backend on the operator's own clock (ADR 0023), backlog surveys
   the slice store read-only, grouping every open scope anchor, triage record, stranded run root, and
   untriaged item by the action it needs and judging them more loosely than afk's own selection does
-  (ADR 0049), and prose-check applies `references/controlled-prose.md` to one piece of prose on demand,
-  unconditionally rather than gated on a repo's own `## Writing standard` config (ADR 0057).
+  (ADR 0049), prose-check applies `references/controlled-prose.md` to one piece of prose on demand,
+  unconditionally rather than gated on a repo's own `## Writing standard` config (ADR 0057), and
+  review-tests audits what a test suite costs, sweeping the whole test tree in one `test-auditor`
+  dispatch, measuring it through the repo's optional timing command, and handing the findings the
+  operator keeps to `/superdev:plan` as an intent (ADR 0066).
 - `plugin/hooks/`. Claude Code hooks, the plugin's deterministic guardrails. Governed by **Working
   rules, Hooks are CommonJS** and **Every shipped executable has a suite in `tests/`, named for it**.
   This is the strongest future child-doc candidate, if its rules outgrow this root. `hooks/` is the

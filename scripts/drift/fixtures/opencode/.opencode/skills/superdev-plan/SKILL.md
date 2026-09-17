@@ -1,6 +1,6 @@
 superdev-render-overlay
 source: skills/plan/SKILL.md
-body-lines: 358
+body-lines: 359
 ---
 # generated-by: superdev-adapter — a re-render overwrites this directory
 name: superdev-plan
@@ -21,58 +21,58 @@ Read `docs/agents/issue-tracker.md` (the slice store). Missing → run **`/super
 @51
 **the message that invoked this skill is the intent, when one is given.** It states what the user wants, never the design, so
 @57
-git-ignored scratch intents `/superdev-brainstorm` may have left. Exactly one → offer it ("Found intent
-@77
+git-ignored scratch intents `/superdev-brainstorm` or `/superdev-review-tests` may have left. Exactly
+@78
 **Read `<plugin-root>/references/cross-exam.md` and run the interview by it.** This is the **main
-@98
+@99
 `<plugin-root>/references/plan-contract.md`'s *The reachability criterion* owns the full rule: read
-@113
+@114
 Intent still vague — no clear problem, no checkable success criteria? Suggest `/superdev-brainstorm`
-@116
+@117
 **Read `<plugin-root>/references/doc-verification.md` and apply it whenever the interview leans
-@123
+@124
 (`<plugin-root>/references/plan-contract.md` → *Feature label*). The type is what the feature
-@130
+@131
 `<plugin-root>/references/diagnosis.md` and hold the plan to it: the **red-capable command** —
-@137
+@138
 **Read `<plugin-root>/references/domain-modeling.md` and apply it as you interview.** Read any
-@177
+@178
   the body below. `/superdev-publish-kb` sends no non-`.md` file; `/superdev-status` prints it as a stray
-@179
+@180
   `/superdev-publish-kb` sends it when the feature reaches its readers. A **local** `docs/kb/` backend
-@190
+@191
   `/superdev-publish-kb` merges the
-@193
+@194
   before `/superdev-publish-kb` ever sees either — append `-2`, `-3`, … to the later ones'
-@199
+@200
 and stale removal happen in `/superdev-document` (ADR 0013).
-@212
+@213
 `<plugin-root>/references/design-sketch.md` and follow it through to the operator's approval of
-@216
+@217
 Decompose into **vertical slices** (`<plugin-root>/references/plan-contract.md` owns the rules
-@226
+@227
   (`<plugin-root>/references/plan-contract.md` → *Wide refactors*): expand, migrate in batches,
-@236
+@237
   `/superdev-document` reconciles README, `AGENTS.md`, and the KB after the scope lands. Slice out `docs`
-@299
+@300
 *Scope anchor*, ADR 0040). It is what lets `/superdev/afk` reach the two in the right order. Ask nothing
-@311
-**Tell the user the expected execution tier** — informational only; `/superdev-plan` persists it nowhere.
 @312
+**Tell the user the expected execution tier** — informational only; `/superdev-plan` persists it nowhere.
+@313
 `/superdev-implement` derives it fresh from the final slice count — **≤3 slices → `lite`** (the
-@315
+@316
 every slice is on the scope branch — to `/superdev-review`, or straight to `/superdev-document` when
-@323
+@324
 only the commit is outstanding. `/superdev-implement` runs from a fresh worktree checkout of that branch,
-@326
+@327
 `node "<plugin-root>/scripts/scope.js" base-lock acquire`, from the invoking checkout — **before
-@328
+@329
 anything turns out to be dirty, because a second `/superdev-plan` run, or an `/superdev-implement` run
-@334
+@335
 `docs/agents/code-management.md`): `/superdev-ship`'s PR is opened against the remote base, and an
-@336
+@337
 acquired** once the push completes — `node "<plugin-root>/scripts/scope.js" base-lock release` —
-@347
+@348
   Say that `/superdev-implement` asks for confirmation until then.
-@354
+@355
 the feature label resolved** — `/superdev-implement <feature-label>`, carrying the real label this plan

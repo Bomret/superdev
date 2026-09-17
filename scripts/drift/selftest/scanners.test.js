@@ -40,6 +40,7 @@ const {
   scanAgentToolAgnostic,
   scanGlossarySpecialisingCitations,
   scanOrphanLensPlacement,
+  scanTestCostLensPlacement,
   scanAgentLensNoDesignSmell,
 } = require('../scanners');
 const {
@@ -3331,9 +3332,63 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(olUnscopedGaps.length, 1, 'flags the reworded scope clause');
   assert.match(olUnscopedGaps[0].expectation, /own wording/, 'names the missing scoping clause');
 
+  // --- scanTestCostLensPlacement: *dead test* and *expensive test* sit under `## Test cost`, the
+  // section only `test-auditor` reads, and never under `## Anti-patterns`, which `slice-reviewer`
+  // reads and which holds no measured duration to judge either one by (ADR 0066) ---
+
+  const TC_SECTIONS =
+    '## Anti-patterns\n\n- **Parameter sprawl** — too many params.\n\n' +
+    '## Test cost\n\n' +
+    '- **Dead test** — a test whose subject is gone, or which the runner skips.\n' +
+    '- **Expensive test** — a test whose measured duration is out of proportion to what it proves.\n\n' +
+    '## Vulnerability classes\n\n- **SQL injection** — unparameterized query.\n';
+  assert.equal(
+    scanTestCostLensPlacement(fixture({ 'references/review-checklist.md': TC_SECTIONS })).length,
+    0,
+    'the shipped test-cost placement is clean',
+  );
+
+  // positive: the section is absent entirely — the lenses reach no reader at all
+  const tcAbsentGaps = scanTestCostLensPlacement(
+    fixture({
+      'references/review-checklist.md':
+        '## Anti-patterns\n\n- **Parameter sprawl** — too many params.\n\n' +
+        '## Vulnerability classes\n\n- **SQL injection** — unparameterized query.\n',
+    }),
+  );
+  assert.equal(tcAbsentGaps.length, 2, 'flags both lenses missing from `## Test cost`');
+  assert.match(tcAbsentGaps[0].expectation, /under `## Test cost`/, 'names the missing section');
+
+  // positive: one lens moved into `## Anti-patterns`, where `slice-reviewer` would read it
+  const tcMovedGaps = scanTestCostLensPlacement(
+    fixture({
+      'references/review-checklist.md':
+        '## Anti-patterns\n\n- **Parameter sprawl** — too many params.\n' +
+        '- **Expensive test** — a test whose measured duration is out of proportion to what it proves.\n\n' +
+        '## Test cost\n\n' +
+        '- **Dead test** — a test whose subject is gone, or which the runner skips.\n\n' +
+        '## Vulnerability classes\n\n- **SQL injection** — unparameterized query.\n',
+    }),
+  );
+  assert.equal(tcMovedGaps.length, 2, 'flags the moved lens as both missing from `## Test cost` and present in `## Anti-patterns`');
+  assert.ok(
+    tcMovedGaps.some((g) => /out of `## Anti-patterns`/.test(g.expectation)),
+    'names the section to drop it from',
+  );
+
+  // positive: `## Anti-patterns` renamed away — the duplicate check must fail loud, not skip silently
+  const tcAntiAbsentGaps = scanTestCostLensPlacement(
+    fixture({ 'references/review-checklist.md': TC_SECTIONS.replace('## Anti-patterns', '## Not Anti-patterns') }),
+  );
+  assert.equal(tcAntiAbsentGaps.length, 1, 'flags the missing `## Anti-patterns` section');
+  assert.match(tcAntiAbsentGaps[0].expectation, /carry an `## Anti-patterns`/, 'names the missing section');
+
+  // negative: the real tree's own checklist places both lenses correctly
+  assert.equal(scanTestCostLensPlacement(realRoot).length, 0, 'the shipped review-checklist.md is clean');
+
   // absent document is skipped, matching every other contract scanner
   assert.equal(
-    scanOrphanLensPlacement(fixture({ 'README.md': '# repo\n' })).length,
+    scanTestCostLensPlacement(fixture({ 'README.md': '# repo\n' })).length,
     0,
     'no review-checklist.md is skipped',
   );

@@ -224,7 +224,8 @@ chain.
 _Avoid: "backlog sweep" (a sweep is `/superdev:afk`, which acts; this only reports), "status" (that
 command reports runs from their ledgers, not the store)_
 
-**Test audit**: the read-only whole-tree sweep `/superdev:review-tests` runs, pricing a suite that many scopes have grown. It measures where a **timing command** is configured, dispatches `test-auditor` over every test file in one pass, ranks its findings by cost, and hands the survivors to `/superdev:plan` as an intent. It reaches what a review cannot: a duration is invisible to reading, and a redundant pair has a second half outside any range. A dead or ignored test reports as a fact, and every remaining finding is a judgment the operator may reject before it survives. It writes no tracked file and sits outside the implement chain and outside `/superdev:afk` (ADR 0066).
+**Test audit**: the read-only whole-tree sweep `/superdev:review-tests` runs, pricing a suite that many scopes have grown. It measures where a **timing command** is configured, dispatches `test-auditor` over every test file in one pass, ranks its findings by cost, and hands the survivors to `/superdev:plan` as an intent. It reaches what a review cannot: a duration is invisible to reading, and a redundant pair has a second half outside any range. A dead or ignored test reports as a fact, and every remaining finding is a judgment the operator may reject before it survives. Its only writes are the intent and the one-line `.gitignore` entry that keeps `.superdev/` ignored when
+absent, and it sits outside the implement chain and outside `/superdev:afk` (ADR 0066).
 _Avoid: "test review" (review is the code-review family, and this one neither resolves a range nor gates a merge), "suite audit" (`Audit` already names the doc loop's reader-first mode), "coverage audit" (it prices the tests that exist, and never asks for more)_
 
 ## Separation of concerns
@@ -363,6 +364,9 @@ _Avoid: "documenter", "technical writer"_
 
 **Doc-reader**: the reader test, a fresh-context, read-only verifier that reads the doc-writer's changed docs cold and checks their claims against the repo (paths, commands, described behavior). Run by `/document` after the doc-writer. Findings trigger one doc-writer fix round.
 _Avoid: "doc-reviewer" (it tests grounding and first-read clarity, not prose quality)_
+
+**Test-auditor**: read-only. Prices a whole test tree in one pass against a duration table, naming what each test costs against what it proves. Dispatched once, over the whole swept set, by `/superdev:review-tests` (ADR 0066).
+_Avoid: "test reviewer" (review is the code-review family; this prices cost, not correctness)_
 
 **Dispatch prose**: the text a command sends to a subagent, as distinct from that subagent's own body. Both reach the model in one prompt, and the dispatch is the later, more specific instruction, so it wins a conflict between them. A behaviour contract stated in an agent body therefore also has to hold in every dispatch that reaches it, which is why a drift row pins both halves rather than the body alone (ADR 0035).
 _Avoid: "the prompt" (ambiguous between the two halves)_

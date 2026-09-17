@@ -1,6 +1,6 @@
 superdev-render-overlay
 source: skills/setup/SKILL.md
-body-lines: 333
+body-lines: 356
 ---
 # generated-by: superdev-adapter — a re-render overwrites this directory
 name: superdev-setup
@@ -32,9 +32,9 @@ Then ask which **documentation sits outside the default tree**. `/superdev-docum
   this backend and that `/superdev-plan`/`/superdev-document` stage its pages instead of sending them
 @162
 `/superdev-plan` and `/superdev-document` fill and extend it, not reinvent it.
-@326
+@349
 Tell the user setup is complete and that `/superdev-plan` and `/superdev-implement` now read these files.
-@330
+@353
 If §1 found **no `AGENTS.md` hierarchy**, point the user at **`/superdev-document`** — its bootstrap mode
-@331
+@354
 seeds the initial hierarchy + glossary from the existing code, so per-feature `/superdev-plan` doesn't

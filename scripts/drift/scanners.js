@@ -78,6 +78,9 @@ const {
   ORPHAN_LENS_DESIGN_HEADING,
   ORPHAN_LENS_ANTIPATTERN_HEADING,
   ORPHAN_LENS_SCOPE_CLAUSE,
+  TEST_COST_LENS_DOC,
+  TEST_COST_LENS_HEADING,
+  TEST_COST_LENS_ENTRIES,
   SHIP_GATE_ELEMENTS,
   UNRESOLVED_GLOSSARY_CONTRACTS,
   KB_NO_CALL_DOCS,
@@ -733,6 +736,43 @@ function scanOrphanLensPlacement(root) {
   return gaps;
 }
 
+// scanTestCostLensPlacement() is pure over a root dir: reads the review checklist and reports each
+// test-cost lens that left `## Test cost` or reached `## Anti-patterns`. Mirrors
+// scanOrphanLensPlacement() above, over the test-cost lens entries instead of orphan's single entry,
+// and with no scoping clause of its own — the section's own prose carries that, and `test-auditor`'s
+// lens sentence is pinned by the `agent-lens-list` table. An absent `## Anti-patterns` is its own gap,
+// so a renamed section never hides a leak into it. Absent documents are skipped, matching every other
+// scanner.
+function scanTestCostLensPlacement(root) {
+  const gaps = [];
+  const text = readDoc(root, TEST_COST_LENS_DOC);
+  if (text === null) return gaps; // document absent (fixture / partial checkout) → nothing to scan
+  const section = extractSection(text, TEST_COST_LENS_HEADING);
+  const antiPatterns = extractSection(text, ORPHAN_LENS_ANTIPATTERN_HEADING);
+  if (antiPatterns === null) {
+    gaps.push({
+      source: TEST_COST_LENS_DOC,
+      expectation:
+        'carry an `## Anti-patterns` (or `### Anti-patterns`) section — its absence hides whether a test-cost lens leaked into it, where `slice-reviewer` reads with no measured duration to judge it by',
+    });
+  }
+  for (const [name, entry] of TEST_COST_LENS_ENTRIES) {
+    if (section === null || !entry.test(section)) {
+      gaps.push({
+        source: TEST_COST_LENS_DOC,
+        expectation: `name **${name}** under \`## Test cost\` — the section \`test-auditor\` reads and no diff-scoped reviewer does`,
+      });
+    }
+    if (antiPatterns !== null && entry.test(antiPatterns)) {
+      gaps.push({
+        source: TEST_COST_LENS_DOC,
+        expectation: `keep **${name}** out of \`## Anti-patterns\` — \`slice-reviewer\` reads that section, and judging this lens needs a measured duration it never holds`,
+      });
+    }
+  }
+  return gaps;
+}
+
 // scanUnresolvedGlossaryContract() is pure over a root dir: reads every document UNRESOLVED_GLOSSARY_CONTRACTS
 // names and reports the rows whose canonical clause is not present verbatim, after whitespace normalization
 // on both sides. Absent files are skipped, matching every other contract scanner.
@@ -1333,6 +1373,7 @@ module.exports = {
   scanAfkInvocations,
   scanShipGateContract,
   scanOrphanLensPlacement,
+  scanTestCostLensPlacement,
   scanUnresolvedGlossaryContract,
   scanKbNoBackendCall,
   scanAgentLensNoDesignSmell,

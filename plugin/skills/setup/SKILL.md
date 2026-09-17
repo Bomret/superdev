@@ -13,8 +13,8 @@ Write the per-repo config docs the superdev skills read, so the workflow is back
 - `docs/agents/knowledge-base.md` — the optional **knowledge base** (software / local file / none)
 - `docs/agents/toolchain.md` — the detected **toolchain** profile (package manager + build/lint/format/
   release commands + style pointers), one section per workspace
-- `docs/agents/verification.md` — the optional **test commands** (a full one, plus an optional focused
-  one) that arm the merge green-gate hook
+- `docs/agents/verification.md` — the optional **test commands**: a full one plus an optional focused
+  one, which arm the merge green-gate hook, and an optional **timing command**, which a test audit reads
 
 This is prompt-driven, not a script. **Explore, propose defaults, confirm one decision at a time, then
 write.** Seed templates live in `${CLAUDE_PLUGIN_ROOT}/references/`.
@@ -206,6 +206,17 @@ picks `none` anyway** records the same, but here **ask what makes that the right
 the reason** in `verification.md` beside the single block — a suite that finishes in seconds is a good
 one, and the next reader learns which reason applied.
 
+**A repo with a full command settles the timing command too**: the command that reports what the tests
+cost, which a **test audit** runs to rank its findings by measured duration (ADR 0066).
+`references/test-selection.md` owns its contract — read it. **Derive the proposal from the
+full command and the runner the §1 scan detected** (`vitest --reporter=verbose`, `pytest --durations=0`,
+`go test -v ./...`, or the full command alone where the runner times only the whole suite), and write the
+section on the user's confirmation. **A runner that reports no durations at all** records no section, and
+setup already knows the reason is the runner: state it and record it as prose. **A user who declines**
+records the same, and here **ask what makes that the right answer here, and record the reason** — a suite
+that finishes in seconds is one, because a ranked cost table over noise orders nothing. **No suite at
+all** → skip this too.
+
 **F — Toolchain (optional).** From §1's scan, propose the repo's toolchain profile — the package manager
 and the build/lint/format/release commands agents should use, plus pointers to the linter/formatter
 configs and style-prose docs. Record **pointers, not copied rules**; the config files stay the source of
@@ -297,6 +308,18 @@ Write:
   **No focused test command, deliberately.** This suite finishes in seconds, so narrowing a run saves
   nothing worth the second block, and every caller runs the full command
   (`references/test-selection.md`, ADR 0025).
+  ````
+
+  Add the **`## Timing command`** section decision **E** settled, its command in a **backtick span,
+  never a fenced block** — a fence lands in the focused slot wherever no focused command is configured,
+  and the merge gate then runs it as its suite. **No timing command** — whether the runner reports no
+  durations or the user declined — writes the one-line reason **E** recorded, as prose, in place of the
+  section. Example, with one configured:
+
+  ````markdown
+  ## Timing command
+
+  `npx vitest run --reporter=verbose`
   ````
 - Add an `## Agent skills` block to whichever of `CLAUDE.md` / `AGENTS.md` already exists (edit that one;
   never create the other; never duplicate an existing block):
