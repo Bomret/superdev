@@ -331,11 +331,13 @@ machine-independent; the `opencode-render` check diffs a fresh render against th
 API key. The plugin arm loads superdev through `claude -p --plugin-dir`. The baseline arm loads
 nothing. It scores each arm's diff and transcript against the case's `graders/*.md`. It refuses to
 start without `CLAUDE_CODE_OAUTH_TOKEN` and never falls back to a billed `ANTHROPIC_API_KEY`. It
-exits non-zero in three cases. A case scores nothing. The ablation looks broken: the plugin arm
-shows no superdev marker in any of its runs, or the baseline arm shows one. An arm's transcript
-shows a mutating tool call, but the captured diff stays empty. It reports that capture failure as
-an error, never as a silent zero. `claude plugin eval` still reads the same `case.yaml` and
-`graders/*.md` files, unchanged, for a key-funded cross-check.
+exits non-zero wherever the measurement collapsed. A case scores nothing. The ablation looks
+broken: the plugin arm shows no superdev marker in any of its runs, or the baseline arm shows one.
+An arm never completed a run, so the other arm's score has nothing to compare against. An arm's
+transcript shows a mutating tool call, but the captured diff stays empty. A grader errored, so its
+weight applied in neither arm (ADR 0067). It reports each of these as an error, never as a silent
+zero. `claude plugin eval` still reads the same `case.yaml` and `graders/*.md` files, unchanged,
+for a key-funded cross-check.
 
 Its selftest covers:
 
@@ -350,14 +352,19 @@ Its selftest covers:
   scaffold's files. `scaffold()` measures an empty scaffold with `git ls-files`, so a workspace with
   nothing staged is scaffolded rather than failed.
 - the grader and judge machinery, including a grader that cannot be evaluated at all (an unknown
-  focus, a judge that never returns a verdict, or `regex` criteria that will not compile), reported as
-  a grader error and left out of the score, never as a fail and never as a thrown `SyntaxError` that
-  ends the run
+  focus, a judge that never returns a verdict, `regex` criteria that will not compile, or a `type` this
+  runner does not grade), reported as a grader error and left out of the score, never as a fail and
+  never as a thrown `SyntaxError` that ends the run
 - the symmetry of that exclusion. A grader that errored on one arm is dropped from **both** arms'
   scores, computed in `aggregate()` where both arms of a run are in hand. `scoreArm` runs per arm and
   cannot see the other one, so an exclusion left to it scores the arms over different weight totals
   and turns the delta into arithmetic about which grader failed to run. The per-grader row still
   reports the arm that could not be judged, so the exclusion stays visible.
+- that the exclusion is **named**, and fails the exit. `aggregate()` collects each errored grader once
+  by name, `renderTable()` prints it as its own `! grader` line, and `shouldFailExit()` counts it
+  (ADR 0067). Without that line the row prints the same `—` a long transcript produces, and a weight
+  the case meant to apply silently never applied — the whole-case `! every grader errored` fires only
+  when nothing scored, so one errored grader among several said nothing at all.
 - aggregation across runs
 - the missing-token exit
 
@@ -723,10 +730,12 @@ exports today. It holds the slot the `afk-existence` check held, which asserted
 `skills/afk/SKILL.md` directly, so the general rule covers it a second way, and the special case went,
 replaced in place at the slot it had held.
 The `eval-shape` contract: every
-`evals/*/graders/*.md` declares a known `type` and a positive `weight`, an `llm` or `regex`
-grader also declares a `focus` or `target`, and every case's `scaffold_script` resolves. Nothing
-else validates a grader, so without this a typo surfaces part-way through a run that costs real API
-spend. The `adr-status` contract: every `docs/adr/*.md` states a `**Status:**` line
+`evals/*/graders/*.md` declares a `type` `scripts/eval-run.js` grades — `llm` or `regex` — and a
+positive `weight`, declares a `focus` or `target` with it, and every case's `scaffold_script` resolves.
+Nothing else validates a grader, so without this a typo surfaces part-way through a run that costs real
+API spend. The type set tracks the runner rather than the wider one `claude plugin eval` accepts
+(ADR 0067): a grader the runner cannot grade errors mid-run, scores in neither arm, and prints a bare
+`—` that reads like a long transcript. The `adr-status` contract: every `docs/adr/*.md` states a `**Status:**` line
 carrying one of `Accepted`,
 `Proposed`, `Superseded`, or `Rejected`. An ADR with no status line reads as accepted whether or not
 anything implements it, which is how a decision reaches the glossary and the command bodies while the

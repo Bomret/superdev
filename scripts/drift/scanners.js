@@ -521,7 +521,7 @@ function scanAdrStatus(root) {
 }
 
 // scanEvalShape() is pure over a root dir: reads every eval case and reports graders whose frontmatter
-// the harness could not act on, plus cases whose scaffold_script does not resolve. An absent evals/ dir,
+// the eval runner could not act on, plus cases whose scaffold_script does not resolve. An absent evals/ dir,
 // or a case with no graders/ dir, yields nothing — there is no shape to be wrong.
 function scanEvalShape(root) {
   const problems = [];

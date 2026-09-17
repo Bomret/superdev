@@ -152,8 +152,9 @@ prompting. Both readings are useful, and neither is the headline on its own.
   baseline fine. The score stays honest, because a grader that errored on either arm is dropped from
   both, so the two halves remain fractions over the same weight total. What is lost is the comparison
   itself: the `trace` axis goes unmeasured on the arm that most needed it. Prefer `focus: files` for
-  anything the diff can show, and read a `—` in a `trace` row as "the transcript outgrew the judge",
-  not as "the arm did badly".
+  anything the diff can show, and read a `—` in a `trace` row with no `!` line beside it as "the
+  transcript outgrew the judge", not as "the arm did badly". A `—` that carries a `! grader` line
+  names its own reason: that grader errored and scored in neither arm, and the run exits non-zero.
 - **`ab-implement-full` and `ab-review-ceiling` allow `Task`.** The
   `full` tier cannot dispatch a subagent without it, and neither can
   `/superdev:review` reach `final-reviewer`. Both arms get it in both cases, so
@@ -227,13 +228,14 @@ model already obeys.
 
 A case is `case.yaml` and `graders/*.md`, plus a `scaffold_script` path relative
 to the case directory (never an inline block). A grader is frontmatter plus
-criteria prose. The harness accepts these grader types: `llm`, `regex`,
-`file_exists`, `tool_order`, `tool_used`, `baseline`. Every grader needs a
-positive `weight`. An `llm` or `regex` grader also needs a `focus` or
-`target`. The graders here use `files`, which scores the diff, and `trace`,
-which scores the whole transcript. The harness accepts more values than those
-two. It is early access and carries no public schema, so read the values off
-the harness rather than from a list here. Prefer `regex` when the check is
+criteria prose. `bun run eval` grades two types: `llm` and `regex`.
+`claude plugin eval` accepts more, and a grader written for it alone would
+error here and score in neither arm, so `drift-check.js` refuses one
+(ADR 0067). Every grader needs a positive `weight` and a `focus` or
+`target`. `bun run eval` honours two `focus` values: `files`, which scores
+the diff, and `trace`, which scores the whole transcript. A grader written
+for another `focus` errors at grading time instead of scoring, even though
+`claude plugin eval` accepts it. Prefer `regex` when the check is
 mechanical: it is free and deterministic. `scripts/drift-check.js` checks
 this shape, so a malformed grader fails `bun run test` instead of surfacing
 part-way through a paid run. Keep new graders arm-neutral for the same reason

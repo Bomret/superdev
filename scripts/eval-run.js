@@ -547,10 +547,26 @@ function aggregate(name, runs) {
   // `noScore` does not catch it, because one surviving arm still produces a number — and a table
   // showing the plugin arm alone is the most flattering wrong answer this runner can print.
   const armNeverRan = { plugin: pluginOk.length === 0, baseline: baselineOk.length === 0 };
+  // A grader that errored is excluded from both arms above, which keeps the delta honest and says
+  // nothing. Its row then prints the same `—` a judged-but-unscored grader does, so the reader cannot
+  // tell a collapsed measurement from a long transcript. Collected here by name, first reason wins, so a
+  // grader that errored on both arms or across runs is reported once rather than once per occurrence.
+  const graderErrors = [];
+  const seenError = new Set();
+  for (const r of runs) {
+    for (const arm of ARMS) {
+      for (const x of (r[arm] && r[arm].graders) || []) {
+        if (!x.error || seenError.has(x.name)) continue;
+        seenError.add(x.name);
+        graderErrors.push({ name: x.name, reason: x.error });
+      }
+    }
+  }
   return {
     case: name,
     runs: runs.length,
     graders,
+    graderErrors,
     score: { plugin: p, baseline: b, delta: delta(p, b) },
     errors,
     markers,
@@ -579,6 +595,12 @@ function renderTable(aggregates) {
     const d = a.score.delta === null ? '  —' : (a.score.delta >= 0 ? '+' : '') + a.score.delta.toFixed(2);
     out.push(`  ${'SCORE'.padEnd(30)} ${''.padEnd(3)} ${fmt(a.score.plugin).padEnd(9)} ${fmt(a.score.baseline).padEnd(9)} ${d}`);
     for (const e of a.errors) out.push(`  ! errored run: ${e}`);
+    // `gradeOne` prefixes its own message with the grader's name, so strip that before printing it
+    // again — the line names the grader once and then says what went wrong.
+    for (const e of a.graderErrors || []) {
+      const reason = e.reason.startsWith(`${e.name}: `) ? e.reason.slice(e.name.length + 2) : e.reason;
+      out.push(`  ! grader \`${e.name}\`: ${reason} — scored in neither arm`);
+    }
     if (a.failed) out.push(a.ranNothing ? '  ! every run errored — this case scored nothing' : '  ! every grader errored — this case scored nothing');
     if (a.brokenAblation) {
       const bits = [];
@@ -679,6 +701,7 @@ function shouldFailExit(aggregates) {
       a.brokenAblation ||
       a.emptyDiffDespiteWork.plugin ||
       a.emptyDiffDespiteWork.baseline ||
+      (a.graderErrors && a.graderErrors.length > 0) ||
       (a.armNeverRan && (a.armNeverRan.plugin || a.armNeverRan.baseline)),
   );
 }
@@ -1231,6 +1254,27 @@ function selftest() {
       'the grader row still reports the arm that could not be judged, so the exclusion is visible rather than silent',
     );
 
+    // ADR 0067: one errored grader among several scores in neither arm, and said nothing. The row's
+    // `—` is the same symbol a long transcript produces, so the reader had no way to tell them apart.
+    assert.deepStrictEqual(
+      oneArmGraderError.graderErrors,
+      [{ name: 'flaky', reason: 'judge returned no verdict' }],
+      'an errored grader is reported with its reason, so the silent drop is visible',
+    );
+    const oneArmTable = renderTable([oneArmGraderError]);
+    assert.ok(oneArmTable.includes('flaky'), 'the table names the errored grader');
+    assert.ok(oneArmTable.includes('judge returned no verdict'), 'and the reason it could not be graded');
+    assert.strictEqual(
+      (oneArmTable.match(/judge returned no verdict/g) || []).length,
+      1,
+      'a grader that errored on one arm is reported once, not once per arm',
+    );
+    assert.strictEqual(
+      shouldFailExit([{ ...oneArmGraderError, emptyDiffDespiteWork: { plugin: false, baseline: false } }]),
+      true,
+      'an errored grader collapses part of the measurement, the same class as an empty diff despite work',
+    );
+
     // no run completed vs. every grader errored are different faults with different fixes
     const gradersAllErrored = aggregate('c', [
       {
@@ -1322,6 +1366,13 @@ function selftest() {
 
     // --- a broken ablation is a non-zero exit, the same class as a failed case -----
     const noEDW = { plugin: false, baseline: false };
+    // a real aggregate() result, not a hand-built literal — graderErrors is `[]` here, and the guard
+    // must not read that empty array as truthy
+    const cleanRun = aggregate('c', [
+      { plugin: armOf(1, [g('a', true)], ['ran with superdev']), baseline: armOf(0, [g('a', false)]) },
+    ]);
+    assert.strictEqual(cleanRun.brokenAblation, false, 'the plugin arm is marked, so this fixture is a genuinely clean run');
+    assert.strictEqual(shouldFailExit([cleanRun]), false, 'a real, clean aggregate exits zero');
     assert.strictEqual(shouldFailExit([{ failed: false, brokenAblation: false, emptyDiffDespiteWork: noEDW }]), false, 'a clean run exits zero');
     assert.strictEqual(shouldFailExit([{ failed: true, brokenAblation: false, emptyDiffDespiteWork: noEDW }]), true, 'a failed case still exits non-zero');
     assert.strictEqual(
