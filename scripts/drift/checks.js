@@ -64,6 +64,7 @@ const {
   BACKLOG_SURVEY_CONTRACTS,
   DERIVED_CRITERIA_CONTRACTS,
   REACHABLE_CRITERION_CONTRACTS,
+  REVIEW_RANGE_SHAPES_CONTRACTS,
   AGENT_LENS_LIST_CONTRACTS,
   LABEL_VALIDATION_CONTRACTS,
   GREEN_GATE_TIMEOUT_CONTRACTS,
@@ -189,6 +190,7 @@ module.exports = [
   table('degraded-pass', DEGRADED_CONTRACTS, 'degrade record carried', { stripFrontmatterFirst: true }),
   table('derived-criteria', DERIVED_CRITERIA_CONTRACTS, 'criteria derived before the DoD is read'),
   table('reachable-criterion', REACHABLE_CRITERION_CONTRACTS, 'the `Reachable:` criterion rule and the surface emitting it agree'),
+  table('review-range-shapes', REVIEW_RANGE_SHAPES_CONTRACTS, 'the review surface and final-reviewer agree on the standing-code range shape'),
   {
     id: 'agent-lens-list',
     ok: 'each reviewer agent reads its own named lens list from review-checklist.md, and slice-reviewer.md carries no design-smell token to widen it in place',

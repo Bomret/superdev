@@ -44,6 +44,15 @@ Every smell is a labelled judgment call ("possible feature envy"), never a hard 
 - **Happy-path-only suite** — new behaviour whose tests exercise only the success path, with no assertion
   for the failure and boundary cases named in its acceptance criteria. Name the specific uncovered case,
   not a vague "add more tests."
+- **Redundant test coverage** — a new test re-proving a case an existing test already covers. Name the
+  covering test's location, so the reader can decide which of the two survives. This is the counterweight
+  to the three lenses above, which all argue for more coverage; a suite pays for every test it carries on
+  every run. Distinct from **weakened net**: that one loosens a test already there, this one adds a test
+  nothing needed.
+- **Overweight fixture** — a test standing up a heavier fixture than the behaviour it proves requires: a
+  container, a real database, or a live network where an in-memory fake, a stub, or a direct call proves
+  the same thing. Name the lighter form. A heavy fixture is right where that integration is itself the
+  behaviour under test; the smell is the case where it is merely the most realistic option available.
 - **Justified workaround** — if it takes a paragraph-long comment to justify why a workaround is OK, the
   code is wrong — fix the code. Stubbing a function out to silence a compile/test failure is the same
   smell.

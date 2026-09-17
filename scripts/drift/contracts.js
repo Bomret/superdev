@@ -485,6 +485,51 @@ const REACHABLE_CRITERION_CONTRACTS = [
   ],
 ];
 
+// Ad-hoc review is diff-based, so a path on a clean checkout resolves to an empty diff and reviews
+// nothing (ADR 0063). The standing-code shape fixes that: the files under the path at `HEAD`, reviewed as
+// they are. It only works while both halves agree — `skills/review/SKILL.md`'s §1 is the surface that
+// emits the shape, and `agents/final-reviewer.md`'s Range bullet is the brief that has to accept a
+// subject with no diff behind it. Pinning one half alone is the `FULL_SUITE_CONTRACTS` shape: the surface
+// could start emitting a shape the reviewer's own brief still enumerates away, or the brief could name a
+// shape nothing emits, and each document reads correct on its own.
+const REVIEW_RANGE_SHAPES_CONTRACTS = [
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /\*\*Standing code\*\*/,
+    'emit the **Standing code** range shape — the fallback that reviews a path with no scoped diff',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /nothing to review/,
+    'report that there is nothing to review when the path holds no files, rather than dispatching a reviewer at an empty set',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /\*\*A standing-code target\*\*(?:(?!- \*\*)[\s\S])*?skip `simplicity-reviewer`/,
+    'skip `simplicity-reviewer` on a standing-code target, which is diff-only by its core contract',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /\*\*`superdev:final-reviewer`\*\*(?:(?!- \*\*)[\s\S])*?the path and its file set at `HEAD` in place of a range/,
+    "hand `final-reviewer` the path and its file set at `HEAD` in place of a range on a standing-code target, since there is no diff to derive a summary or a range from",
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /one of four shapes/,
+    'enumerate four range shapes, not three, so the surface cannot emit one the brief has already counted away',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /standing code/,
+    'name standing code as a subject it accepts, so a range shape the review surface emits reaches a brief that knows what to do with it',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /\*\*Include untracked files before resolving the range below\.\*\*[\s\S]*?- \*\*Range\*\* — whatever remains/,
+    'stage untracked files with `git add -N .` before resolving the range bullets below, not after — staged only after, an untracked-only path\'s scoped diff comes back empty and falls into the standing-code shape instead of being seen',
+  ],
+];
+
 // The orphan lens works only from `## Design smells`. `final-reviewer` reads the anti-pattern,
 // design-smell, and remaining lenses, while `slice-reviewer` reads anti-patterns and vulnerability
 // classes alone. A slice legitimately lands a symbol whose caller arrives two slices later, so from
@@ -2653,6 +2698,7 @@ module.exports = {
   DEGRADED_CONTRACTS,
   DERIVED_CRITERIA_CONTRACTS,
   REACHABLE_CRITERION_CONTRACTS,
+  REVIEW_RANGE_SHAPES_CONTRACTS,
   AGENT_LENS_LIST_CONTRACTS,
   AGENT_LENS_AVOID_DOCS,
   AGENT_LENS_AVOID_MARKERS,

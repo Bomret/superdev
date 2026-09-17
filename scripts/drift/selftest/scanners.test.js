@@ -49,6 +49,7 @@ const {
   SPECIALISING_SECTIONS,
   GLOSSARY_ENTRY_TITLES,
   REACHABLE_CRITERION_CONTRACTS,
+  REVIEW_RANGE_SHAPES_CONTRACTS,
   AGENT_LENS_LIST_CONTRACTS,
 } = require('../contracts');
 const CHECKS = require('../checks');
@@ -2921,6 +2922,224 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // negative: the real tree carries both halves
   assert.equal(scanContract(realRoot, REACHABLE_CRITERION_CONTRACTS).length, 0, 'the shipped rule and surface agree');
+
+  // --- REVIEW_RANGE_SHAPES_CONTRACTS: the review surface that emits the standing-code range shape
+  // (skills/review/SKILL.md) and the reviewer brief that has to accept a subject with no diff behind it
+  // (agents/final-reviewer.md) agree on the shape and on the count (ADR 0063) ---
+
+  const RRS_DISPATCH_CLAUSE_CLEAN =
+    "- **`superdev:final-reviewer`** Give it the git range — on a standing-code target, the path and its " +
+    'file set at `HEAD` in place of a range, with the summary derived from that file set.\n';
+  const RRS_UNTRACKED_CLEAN =
+    '**Include untracked files before resolving the range below.** Stage them with `git add -N .` first.\n\n' +
+    '- **Range** — whatever remains, resolved to a concrete git range:\n';
+  const RRS_REVIEW_CLEAN =
+    RRS_UNTRACKED_CLEAN +
+    '- **Standing code** — a path whose scoped diff comes back empty resolves to the files under it at ' +
+    '`HEAD`. The path holds no files → say there is nothing to review and dispatch nobody.\n' +
+    '- **A standing-code target** → skip `simplicity-reviewer`, which is diff-only.\n' +
+    RRS_DISPATCH_CLAUSE_CLEAN;
+  const RRS_FINAL_CLEAN =
+    "- **Range**: `skills/review/SKILL.md`'s §1 resolves it to one of four shapes, the fourth being " +
+    'standing code — a path whose scoped diff is empty, handed to you as a file set at `HEAD`.\n';
+
+  assert.equal(
+    scanContract(
+      fixture({
+        'skills/review/SKILL.md': RRS_REVIEW_CLEAN,
+        'agents/final-reviewer.md': RRS_FINAL_CLEAN,
+      }),
+      REVIEW_RANGE_SHAPES_CONTRACTS,
+    ).length,
+    0,
+    'both halves carried yields zero gaps',
+  );
+
+  // positive: the surface emits the shape and the brief still counts three — the one-sided pin this
+  // check exists to catch, where each document reads correct on its own
+  const rrsBriefBehind = scanContract(
+    fixture({
+      'skills/review/SKILL.md': RRS_REVIEW_CLEAN,
+      'agents/final-reviewer.md':
+        "- **Range**: `skills/review/SKILL.md`'s §1 resolves it to one of three shapes: a commit range, " +
+        'a working-tree scope, or a path scope.\n',
+    }),
+    REVIEW_RANGE_SHAPES_CONTRACTS,
+  );
+  assert.equal(rrsBriefBehind.length, 2, 'flags both the stale count and the unnamed shape');
+  assert.deepEqual(
+    rrsBriefBehind.map((gap) => gap.source),
+    [path.join('agents', 'final-reviewer.md'), path.join('agents', 'final-reviewer.md')],
+    'names final-reviewer.md for both',
+  );
+
+  // positive: the reverse direction — the brief names a shape the surface no longer emits
+  const rrsSurfaceBehind = scanContract(
+    fixture({
+      'skills/review/SKILL.md':
+        RRS_UNTRACKED_CLEAN +
+        '- **A path/area** → the diff of the current branch vs base, scoped to that path.\n' +
+        '- **A standing-code target** → skip `simplicity-reviewer`, which is diff-only.\n' +
+        'There is nothing to review on an empty set.\n' +
+        RRS_DISPATCH_CLAUSE_CLEAN,
+      'agents/final-reviewer.md': RRS_FINAL_CLEAN,
+    }),
+    REVIEW_RANGE_SHAPES_CONTRACTS,
+  );
+  assert.equal(rrsSurfaceBehind.length, 1, 'flags the surface dropping the shape the brief still names');
+  assert.equal(
+    rrsSurfaceBehind[0].source,
+    path.join('skills', 'review', 'SKILL.md'),
+    'names skills/review/SKILL.md',
+  );
+
+  // positive: the simplicity-reviewer skip is dropped, so the diff-only reviewer is dispatched at a file set
+  const rrsSkipDropped = scanContract(
+    fixture({
+      'skills/review/SKILL.md':
+        RRS_UNTRACKED_CLEAN +
+        '- **Standing code** — a path whose scoped diff comes back empty resolves to the files under it ' +
+        'at `HEAD`. The path holds no files → say there is nothing to review and dispatch nobody.\n' +
+        RRS_DISPATCH_CLAUSE_CLEAN,
+      'agents/final-reviewer.md': RRS_FINAL_CLEAN,
+    }),
+    REVIEW_RANGE_SHAPES_CONTRACTS,
+  );
+  assert.equal(rrsSkipDropped.length, 1, 'flags the dropped simplicity-reviewer skip');
+  assert.equal(
+    rrsSkipDropped[0].source,
+    path.join('skills', 'review', 'SKILL.md'),
+    'names skills/review/SKILL.md',
+  );
+
+  // positive: the standing-code bullet's body is reversed to dispatch both reviewers, but a *later*
+  // bullet (Tiny diff) still carries the literal `skip \`simplicity-reviewer\`` text — the weakened-body
+  // path an unbounded capture crosses into and reads as still-satisfied (Finding 2, ADR 0063)
+  const rrsSkipWeakened = scanContract(
+    fixture({
+      'skills/review/SKILL.md':
+        RRS_UNTRACKED_CLEAN +
+        '- **Standing code** — a path whose scoped diff comes back empty resolves to the files under it ' +
+        'at `HEAD`. The path holds no files → say there is nothing to review and dispatch nobody.\n' +
+        RRS_DISPATCH_CLAUSE_CLEAN +
+        "- **A standing-code target** (§1's fourth shape) → dispatch BOTH reviewers,\n" +
+        '  reporting `` not dispatched — standing code, no diff to review ``. It is diff-only by its core\n' +
+        '  contract and its tags target the production lines a change introduced, so a file set at ' +
+        '`HEAD` gives it\n' +
+        "  nothing to work from. The checklist's own over-engineering lenses still reach this target, " +
+        'through\n' +
+        '  `final-reviewer`.\n' +
+        '- **Tiny diff** (a handful of lines) → `final-reviewer` alone; skip `simplicity-reviewer`.\n',
+      'agents/final-reviewer.md': RRS_FINAL_CLEAN,
+    }),
+    REVIEW_RANGE_SHAPES_CONTRACTS,
+  );
+  assert.equal(
+    rrsSkipWeakened.length,
+    1,
+    'flags the reversed standing-code bullet even though a later bullet still carries the skip',
+  );
+  assert.equal(
+    rrsSkipWeakened[0].source,
+    path.join('skills', 'review', 'SKILL.md'),
+    'names skills/review/SKILL.md',
+  );
+
+  // positive: §2's dispatch sentence never grew the standing-code clause, so it would still hand a git
+  // range on a target that has none (Finding 1, ADR 0063)
+  const rrsDispatchClauseMissing = scanContract(
+    fixture({
+      'skills/review/SKILL.md': RRS_REVIEW_CLEAN.replace(RRS_DISPATCH_CLAUSE_CLEAN, ''),
+      'agents/final-reviewer.md': RRS_FINAL_CLEAN,
+    }),
+    REVIEW_RANGE_SHAPES_CONTRACTS,
+  );
+  assert.equal(
+    rrsDispatchClauseMissing.length,
+    1,
+    'flags the dispatch sentence with no standing-code clause',
+  );
+  assert.equal(
+    rrsDispatchClauseMissing[0].source,
+    path.join('skills', 'review', 'SKILL.md'),
+    'names skills/review/SKILL.md',
+  );
+
+  // positive: the untracked-files staging clause is dropped entirely, so a path scope diffed against
+  // `HEAD` can still miss a brand-new untracked file (second whole-scope review, finding 1)
+  const rrsUntrackedClauseMissing = scanContract(
+    fixture({
+      'skills/review/SKILL.md': RRS_REVIEW_CLEAN.replace(RRS_UNTRACKED_CLEAN, ''),
+      'agents/final-reviewer.md': RRS_FINAL_CLEAN,
+    }),
+    REVIEW_RANGE_SHAPES_CONTRACTS,
+  );
+  assert.equal(rrsUntrackedClauseMissing.length, 1, 'flags the removed untracked-files staging clause');
+  assert.equal(
+    rrsUntrackedClauseMissing[0].source,
+    path.join('skills', 'review', 'SKILL.md'),
+    'names skills/review/SKILL.md',
+  );
+
+  // positive: the untracked-files staging clause still exists, but sits *after* the `- **Range**` bullet
+  // it must precede — the original defect, where a path scope's scoped diff is resolved before staging
+  // ever runs and an untracked-only path falls through to the standing-code shape (second whole-scope
+  // review, finding 1)
+  const rrsUntrackedOrderWrong = scanContract(
+    fixture({
+      'skills/review/SKILL.md':
+        '- **Range** — whatever remains, resolved to a concrete git range:\n' +
+        '- **Standing code** — a path whose scoped diff comes back empty resolves to the files under it ' +
+        'at `HEAD`. The path holds no files → say there is nothing to review and dispatch nobody.\n' +
+        '- **A standing-code target** → skip `simplicity-reviewer`, which is diff-only.\n' +
+        RRS_DISPATCH_CLAUSE_CLEAN +
+        '**Include untracked files before resolving the range below.** Stage them with `git add -N .` ' +
+        'first.\n',
+      'agents/final-reviewer.md': RRS_FINAL_CLEAN,
+    }),
+    REVIEW_RANGE_SHAPES_CONTRACTS,
+  );
+  assert.equal(
+    rrsUntrackedOrderWrong.length,
+    1,
+    'flags the staging clause sitting after the range bullet it must precede',
+  );
+  assert.equal(
+    rrsUntrackedOrderWrong[0].source,
+    path.join('skills', 'review', 'SKILL.md'),
+    'names skills/review/SKILL.md',
+  );
+
+  // positive: the dispatch clause moves out of the `superdev:final-reviewer` bullet into an unrelated
+  // spot later in the document — the phrase still appears somewhere in SKILL.md, which is exactly what a
+  // document-scoped pattern would miss (second whole-scope review, finding 2)
+  const rrsDispatchClauseMovedOut = scanContract(
+    fixture({
+      'skills/review/SKILL.md':
+        RRS_REVIEW_CLEAN.replace(
+          RRS_DISPATCH_CLAUSE_CLEAN,
+          "- **`superdev:final-reviewer`** Give it the git range.\n" +
+            "- **`superdev:simplicity-reviewer`** Give it the same git range.\n" +
+            'Elsewhere, unrelated to that bullet: the path and its file set at `HEAD` in place of a range ' +
+            'is mentioned here.\n',
+        ),
+      'agents/final-reviewer.md': RRS_FINAL_CLEAN,
+    }),
+    REVIEW_RANGE_SHAPES_CONTRACTS,
+  );
+  assert.equal(
+    rrsDispatchClauseMovedOut.length,
+    1,
+    'flags the clause moved out of the final-reviewer dispatch bullet even though the phrase still appears elsewhere',
+  );
+  assert.equal(
+    rrsDispatchClauseMovedOut[0].source,
+    path.join('skills', 'review', 'SKILL.md'),
+    'names skills/review/SKILL.md',
+  );
+
+  // negative: the real tree carries both halves
+  assert.equal(scanContract(realRoot, REVIEW_RANGE_SHAPES_CONTRACTS).length, 0, 'the shipped surface and brief agree');
 
   // --- AGENT_LENS_LIST_CONTRACTS + scanAgentLensNoDesignSmell: each reviewer agent reads its own named
   // lens list off review-checklist.md, and slice-reviewer.md carries no design-smell token that would

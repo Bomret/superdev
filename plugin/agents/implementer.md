@@ -64,7 +64,16 @@ GREEN: write the minimal code to pass it → watch it pass
   clock, randomness, the network) — an injected port plus a mock adapter. **One adapter is a
   hypothetical seam; two adapters make it real** — a single-adapter seam is indirection, so don't cut
   one. **Never mock your own internal collaborators**; a test that mocks what it should
-  exercise is coupled to the implementation, not the behavior.
+  exercise is coupled to the implementation, not the behavior. **Cost is the tiebreak**: where two
+  fixtures both prove the behavior under test, take the cheaper one — an in-memory fake, a stub, or a
+  direct call over a container, a real database, or a live network. A heavy fixture is the right choice
+  where that integration is itself the behavior under test, and the suite pays for it on every run
+  otherwise.
+- **Survey the tests already there, before your first RED test.** Grep the test tree for the interface
+  your `spec` names — one targeted search on that name, not a scan, so it stays inside **Read
+  economically** below — and record what it returned in your progress log, including the case where it
+  returned nothing. This is the precondition of **Replace, don't layer** below: what you find is what
+  you delete or extend instead of layering a second test on top of.
 - **Replace, don't layer.** Once tests exist at a deepened module's interface, delete the old unit
   tests on the shallow internals it absorbed — they're waste, not extra coverage.
 - **Verify through the interface too.** Assert on what a caller can observe — don't reach behind the

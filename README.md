@@ -97,14 +97,17 @@ plan runs test-first, inline in the scope worktree.
   ([ADR 0049](docs/adr/0049-an-advisory-survey-judges-the-backlog-more-loosely-than-an-actor.md)). It sits
   outside the implement chain, and writes nothing.
 - **`/superdev:review`**. Two modes. Given an ad-hoc diff, branch, path, or the working tree, it needs no
-  plan and no slice store, and it stays read-only end to end. Given a live scope branch, it is the
-  whole-scope review gate in the implement chain: it checks the scope against that run's `dod.md`, and it
-  can drive one fix loop after asking once. That loop changes how the code meets the Definition of Done; a
-  finding whose remedy would add a capability nobody planned goes to `/superdev:plan` instead of growing
-  the scope under review (ADR 0035). Such a finding gets a **triage record** in your slice store as the
-  review defers it: an issue carrying a `triage` label, or a file under `docs/plans/triage/` on the local
-  plan-file store. On an issue backend, the record reaches your backlog, not just the run's ledger and
-  the pull-request body, both of which end with the run. On the local plan-file store, the record reaches
+  plan and no slice store, and it stays read-only end to end. A path whose diff is empty — an area you
+  never changed — is reviewed as **standing code**, the files under it at `HEAD`, so pointing a review at
+  an existing module or test tree reports findings rather than an empty range (ADR 0063). Given a live
+  scope branch, it is the whole-scope review gate in the implement chain: it checks the scope against
+  that run's `dod.md`, and it can drive one fix loop after asking once. That loop changes how the code
+  meets the Definition of Done; a finding whose remedy would add a capability nobody planned goes to
+  `/superdev:plan` instead of growing the scope under review (ADR 0035). Such a finding gets a
+  **triage record** in your slice store as the review defers it: an issue carrying a `triage` label,
+  or a file under `docs/plans/triage/` on the local plan-file store. On an issue backend, the record
+  reaches your backlog, not just the run's ledger and the pull-request body, both of which end with
+  the run. On the local plan-file store, the record reaches
   your backlog only once the scope that created it ships
   ([ADR 0046](docs/adr/0046-a-deferred-finding-becomes-a-triage-record.md),
   [ADR 0048](docs/adr/0048-a-local-store-triage-record-needs-its-scope-to-ship.md)). Nothing ever builds

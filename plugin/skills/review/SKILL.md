@@ -52,6 +52,13 @@ Parse `$ARGUMENTS` into a **range** and an optional trailing description of what
   titles + bodies into `acceptance`. No tracker configured, or no ref found → acceptance = "no formal
   specification — general correctness, security, and quality". Never runs when an explicit description
   was given — discovery is a fallback, not an override.
+
+**Include untracked files before resolving the range below.** `git diff HEAD` shows modified/staged files
+but **not new untracked files**, so a path scope diffed against `HEAD`, or a working-tree review, could
+miss the whole subject. Run `git add -N :/` (intent-to-add, repo-root pathspec — a plain `.` only covers
+the current working directory, missing an untracked file outside it) so brand-new files appear, or check
+`git status --porcelain` and, if you can't include them, **say so** in the range announcement.
+
 - **Range** — whatever remains, resolved to a concrete git range:
   - **`BASE..HEAD`** (or `BASE...HEAD`, contains `..`) → use verbatim.
   - **A branch** (no `..`; resolves via `git rev-parse --verify --quiet <name>`) → range is
@@ -59,13 +66,15 @@ Parse `$ARGUMENTS` into a **range** and an optional trailing description of what
   - **A path/area** (exists on disk, isn't a ref) → the diff of the current branch vs base, scoped to
     that path (`git diff <merge-base>..HEAD -- <path>`, or `git diff HEAD -- <path>` if there are
     uncommitted changes there).
+  - **Standing code** — that same path, where the scoped diff above comes back **empty** → the files
+    under it at `HEAD`, reviewed as they are rather than as a change. This is what makes "review this
+    existing area" work: on a clean checkout a path has no diff, so the diff shapes above review nothing.
+    A **fallback, never a replacement** — a path with a non-empty scoped diff resolves to that diff
+    exactly as it does above, so no existing invocation changes meaning. **The path exists and holds no
+    files** → say there is nothing to review and dispatch nobody. Read-only like every other ad-hoc
+    range: nothing is edited, committed, or merged.
   - **Empty** → the working tree: `git diff HEAD` if it's non-empty, else the current branch vs base
     (`merge-base(base, HEAD)..HEAD`).
-
-**Include untracked files.** `git diff HEAD` shows modified/staged files but **not new untracked files**,
-so "review what I just wrote" could miss the whole subject. Before diffing the working tree, run
-`git add -N .` (intent-to-add) so brand-new files appear, or check `git status --porcelain` and, if you
-can't include them, **say so** in the range announcement.
 
 **State the concrete range/target** (e.g. "Reviewing `a1b2c3..d4e5f6`" or "Reviewing working tree changes
 incl. untracked") before dispatching.
@@ -83,7 +92,9 @@ superdev subagent that omits one):
 - **`superdev:final-reviewer`** (`model: opus`) — correctness, consistency, whole-scope brevity,
   security, performance, applied adversarially per axis. Give it: a one-line summary of what changed
   (derive it from the diff if the trailing description didn't supply one), the `acceptance` from §1, and
-  the git range (it reads the review checklist itself via `${CLAUDE_PLUGIN_ROOT}`).
+  the git range — **on a standing-code target (§1's fourth shape), the path and its file set at `HEAD` in
+  place of a range, with the summary derived from that file set instead of a diff** (it reads the review
+  checklist itself via `${CLAUDE_PLUGIN_ROOT}`).
   **In scope mode both of those change shape**, so the reviewer can write its own criteria before it sees
   the answer key (ADR 0020):
   - The summary is **the scope anchor's title**, read with
@@ -121,6 +132,11 @@ Both subagents are **read-only** (`Read`, `Grep`, `Bash` — a hook blocks `git 
   rather than closed with a second condition. **An ad-hoc range has no tier** — the rules below decide
   alone. This rule is evaluated first: a `full`-tier scope never reaches the tiny-diff or
   nothing-to-cut bullets below — both are about `simplicity-reviewer`, which this rule already decided.
+- **A standing-code target** (§1's fourth shape) → `final-reviewer` alone; skip `simplicity-reviewer`,
+  reporting `` not dispatched — standing code, no diff to review ``. It is diff-only by its core
+  contract and its tags target the production lines a change introduced, so a file set at `HEAD` gives it
+  nothing to work from. The checklist's own over-engineering lenses still reach this target, through
+  `final-reviewer`.
 - **Tiny diff** (a handful of lines) → `final-reviewer` alone; skip `simplicity-reviewer`.
 - **Nothing plausible to cut** (docs-only, or already lean) → skip `simplicity-reviewer`.
 - **Never skip `final-reviewer`** — correctness is always in scope.

@@ -18,12 +18,17 @@ doesn't work — a "Yes" verdict is one that survived your best attempt to break
 - **Requirements**: on a live scope run, the **path** to the global Definition of Done
   (`<run-root>/dod.md`) — a path, so you choose when to open it. On an ad-hoc range, `acceptance` text
   instead: a description of what the change should do, an issue body, or the no-specification default.
-- **Range**: the diff the controller names — never assume a range exists. `skills/review/SKILL.md`'s §1
-  resolves it to one of three shapes: `BASE..HEAD` (scope mode: `BASE` = `merge-base(base, scope)`,
-  `HEAD` = scope branch tip), a working-tree scope (`git diff HEAD`), or a path scope
+- **Range**: the subject the controller names — never assume a range exists. `skills/review/SKILL.md`'s §1
+  resolves it to one of four shapes: `BASE..HEAD` (scope mode: `BASE` = `merge-base(base, scope)`,
+  `HEAD` = scope branch tip), a working-tree scope (`git diff HEAD`), a path scope
   (`git diff <merge-base>..HEAD -- <path>`, or `git diff HEAD -- <path>` when that path has uncommitted
-  changes). For the working-tree scope and a path scope diffed against `HEAD`, the controller stages
-  untracked files with `git add -N .` before dispatching you, or says it could not — you mutate nothing.
+  changes), or **standing code** — a path whose scoped diff is empty, handed to you as the files under it
+  at `HEAD`. For the working-tree scope and a path scope diffed against `HEAD`, the controller stages
+  untracked files with `git add -N :/` before dispatching you, or says it could not — you mutate nothing.
+  **On standing code there is no diff to obtain**: read those files as they stand and report findings
+  against them, applying every check below to the code itself rather than to a change. Everything else
+  about your brief holds unchanged — read-only, adversarial, and reviewing against the `acceptance` you
+  were handed.
 - **Test command or result** (optional). On an ad-hoc range, the command from `docs/agents/verification.md`,
   when the controller found one configured — you may re-run the suite over the range to confirm green
   rather than trust the diff alone. **On a live scope run**, the controller already ran the full suite
@@ -102,9 +107,9 @@ is flawed on that dimension and actively try to break it; the axis passes only w
 functionality present and every edge case handled? Sound error handling; type safety where it applies;
 the slices compose without integration seams leaking; backward compatibility / migration handled if a
 schema changed; nothing
-half-wired between slices. Tests verify real behaviour, not mocks; integration tests exist where they
-matter; the suite passes; name any uncovered cross-slice case. *Break it:* find the input that yields a
-wrong result, or the seam where two slices disagree.
+half-wired between slices. Tests prove the behaviour itself — a test asserting only that a mock was
+called proves nothing about it; the suite passes; name any uncovered cross-slice case. *Break it:* find
+the input that yields a wrong result, or the seam where two slices disagree.
 
 **Consistency** — does the change match the conventions, naming, and patterns already in this codebase?
 If `docs/agents/toolchain.md` records the repo's tooling, check the change honors it — the recorded

@@ -501,6 +501,32 @@ surface alone leaves the rule describing a criterion nothing writes. Either way 
 correct on their own, which is the one-sided-pin shape the root `AGENTS.md`'s prompt-architecture rules
 name. The token rows pin `Reachable:` inside its own backticks, so prose that merely discusses
 reachability satisfies neither.
+The `review-range-shapes` contract (ADR 0063), seven rows: `skills/review/SKILL.md`'s §1 emits the
+**Standing code** range shape, reports that there is nothing to review on a path holding no files, and
+skips `simplicity-reviewer` on that target; its §2 dispatch sentence hands `final-reviewer` the path and
+its file set at `HEAD` in place of a range on that same target, since there is no diff behind it to derive
+a range or a summary from; `agents/final-reviewer.md` enumerates four range shapes rather than three and
+names standing code as a subject it accepts. The seventh row pins §1's own staging clause: it stages
+untracked files with `git add -N :/` **before** the range bullets resolve, not after them, so a path scope
+diffed against `HEAD` (or a working-tree review) sees a brand-new untracked file too — staged only after
+the bullets resolve, the path/area bullet's scoped diff comes back empty for an untracked-only path,
+falling into the standing-code shape and silently reviewing nothing instead of the file the caller just
+wrote. Ad-hoc review is diff-based in every other shape, so a path
+on a clean checkout resolves to an empty diff and reviews nothing — the shape is what makes "review this
+existing area" work at all. Both halves have to agree, and each reads correct alone: a surface emitting a
+shape the reviewer's brief has already counted away leaves the reviewer looking for a diff that does not
+exist, and a brief naming a shape nothing emits is a contract with no live path behind it. That is the
+`FULL_SUITE_CONTRACTS` shape the root `AGENTS.md`'s prompt-architecture rules name, which is why neither
+half is pinned on its own. The four-shapes row pins the count itself, because adding a fifth shape to the
+surface without touching the brief is the same drift one step later. The third and fourth rows' patterns
+are bullet-bounded — each disallows the substring `- **` (a bullet's own opening) inside its capture, in
+both the raw and whitespace-normalized text `scanContract` tries — so a standing-code bullet rewritten to
+dispatch both reviewers cannot pass by reaching a later bullet's own `skip` text, and the fourth row's own
+clause cannot pass by reaching the `simplicity-reviewer` bullet's unrelated text once it is no longer part
+of the `final-reviewer` dispatch bullet it names. The seventh row's pattern is order-bounded instead: it
+requires the staging clause's own heading text to appear, followed eventually by the `- **Range**` bullet
+that opens the range list, so moving the clause back below that bullet — the original defect — fails the
+row exactly as removing the clause does.
 The `agent-lens-list` contract (ADR 0062), two rows plus `scanAgentLensNoDesignSmell()`:
 `agents/slice-reviewer.md` reads only the anti-pattern and vulnerability-class lenses from
 `references/review-checklist.md`, and `agents/final-reviewer.md` reads the anti-pattern, design-smell,

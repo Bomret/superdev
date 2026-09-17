@@ -49,6 +49,13 @@ shipped.
   nothing to declare, the fields are yours, and a shape whose term `CONTEXT.md` lacks is reported rather
   than invented. A `spec`-named shape is requested, so the minimalism ladder still forbids every
   abstraction the `spec` did not name (ADR 0030).
+- **Survey the tests already there, and take the cheapest fixture** — the same two steps
+  `agents/implementer.md` carries, for the tier that dispatches nobody. Before a `behavior` slice's first
+  RED test, grep the test tree for the interface its `spec` names — one targeted search on that name, not
+  a scan — and say what it returned, including the case where it returned nothing. What you find is what
+  you delete or extend rather than layer a second test on top of. Then, where two fixtures both prove the
+  behavior, take the cheaper one; a heavy fixture is the right choice where that integration is itself the
+  behavior under test. Your own report carries both.
 - **Every acceptance criterion gets at least one increment.** On a `behavior` slice the loop terminates on
   acceptance coverage, not on the specification's happy path — each criterion, including the failure and
   boundary cases the criteria name, is the RED test of its own increment.
