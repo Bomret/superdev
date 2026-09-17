@@ -18,6 +18,7 @@ const {
   PARKED_QUESTIONS_CONTRACTS,
   RUN_KIND_CONTRACTS,
   CONTAINMENT_DELEGATION_CONTRACTS,
+  CONTAINMENT_REFETCH_CONTRACTS,
 } = require('../contracts');
 
 module.exports = ({ assert, fs, path, fixture, realRoot }) => {
@@ -1048,5 +1049,126 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     scanContract(fixture({ 'README.md': '# repo\n' }), CONTAINMENT_DELEGATION_CONTRACTS).length,
     0,
     'absent file is skipped',
+  );
+
+  // --- CONTAINMENT_REFETCH_CONTRACTS: the `## Containment` section refetches the base before it answers
+  // not contained (ADR 0065). The four rows are pinned apart because each fails on its own: a second pass
+  // retesting the local `<base>` re-asks the stale ref, the `--is-ancestor` route is the weaker signal
+  // left without a fresh base, a section that stops excluding `hooks/scope-prune.js` invites a network
+  // call onto a `Stop` hook, and a section that stops stating the failure posture turns an unreachable
+  // host into an unexplained verdict. ---
+
+  const containmentSection =
+    '## Containment\n\n' +
+    'A scope branch has reached base when merging it into base would change nothing:\n\n' +
+    '```sh\ntree=$(git merge-tree --write-tree <base> <branch>)\n```\n\n' +
+    '**A not-contained verdict against a local base is provisional, and the second pass settles it.** ' +
+    'Fetch the base branch once from the remote `docs/agents/code-management.md` names — ' +
+    '`git fetch <remote> <base>` — and run the same test again against `FETCH_HEAD`, which holds exactly ' +
+    'what that fetch wrote. **The second verdict is the answer.** A contained first verdict ends the test ' +
+    'where it stands. The `--is-ancestor` fallback below takes the same second pass.\n\n' +
+    '**`hooks/scope-prune.js` runs the local test alone and never fetches.** It fires on every finished ' +
+    'turn.\n\n' +
+    '**No remote configured, or a fetch that fails** — an unreachable host, a rejected credential — ' +
+    '**leaves the first verdict standing, and the caller says the second pass did not run.**\n';
+
+  // positive: the whole second pass stated yields zero gaps
+  assert.equal(
+    scanContract(
+      fixture({ 'references/scope-mode.md': containmentSection }),
+      CONTAINMENT_REFETCH_CONTRACTS,
+    ).length,
+    0,
+    'a section stating the second pass yields zero gaps',
+  );
+
+  // negative: a second pass that refetches and then retests the local `<base>` — the ref `git fetch`
+  // never moves — so the retest re-asks the stale ref and can only agree with the first verdict
+  const crStaleRetest = fixture({
+    'references/scope-mode.md': containmentSection.replace(
+      'run the same test again against `FETCH_HEAD`, which holds exactly what that fetch wrote',
+      'run the same test again against `<base>`',
+    ),
+  });
+  const crStaleGaps = scanContract(crStaleRetest, CONTAINMENT_REFETCH_CONTRACTS);
+  assert.equal(crStaleGaps.length, 1, 'flags a second pass that retests the ref the fetch never moves');
+  assert.match(
+    crStaleGaps[0].expectation,
+    /retest against `FETCH_HEAD`/,
+    'names the ref the retest owes its answer to',
+  );
+
+  // negative: the `--is-ancestor` fallback left on the single-pass route, where a squash-merged branch
+  // it already reads as not contained never gets the fresh base that would settle it
+  assert.equal(
+    scanContract(
+      fixture({
+        'references/scope-mode.md': containmentSection.replace(
+          'The `--is-ancestor` fallback below takes the same second pass.',
+          'The `--is-ancestor` fallback below is unaffected.',
+        ),
+      }),
+      CONTAINMENT_REFETCH_CONTRACTS,
+    ).length,
+    1,
+    'flags a fallback route left without the second pass',
+  );
+
+  // negative: the hook's exclusion dropped, which invites the JavaScript mirror to fetch on every turn
+  assert.equal(
+    scanContract(
+      fixture({
+        'references/scope-mode.md': containmentSection.replace(
+          '**`hooks/scope-prune.js` runs the local test alone and never fetches.**',
+          '**`hooks/scope-prune.js` mirrors this test in JavaScript.**',
+        ),
+      }),
+      CONTAINMENT_REFETCH_CONTRACTS,
+    ).length,
+    1,
+    'flags a section that stops excluding the hook from the fetch',
+  );
+
+  // negative: the failure posture dropped, leaving an unreachable host with no stated verdict
+  assert.equal(
+    scanContract(
+      fixture({
+        'references/scope-mode.md': containmentSection.replace(
+          /\*\*No remote configured[\s\S]*$/,
+          '',
+        ),
+      }),
+      CONTAINMENT_REFETCH_CONTRACTS,
+    ).length,
+    1,
+    'flags a section that states no failure posture for the fetch',
+  );
+
+  // a section with none of it — the state ADR 0065 found — reports every row
+  assert.equal(
+    scanContract(
+      fixture({
+        'references/scope-mode.md':
+          '## Containment\n\nA scope branch has reached base when merging it into base would change ' +
+          'nothing:\n\n```sh\ntree=$(git merge-tree --write-tree <base> <branch>)\n```\n',
+      }),
+      CONTAINMENT_REFETCH_CONTRACTS,
+    ).length,
+    CONTAINMENT_REFETCH_CONTRACTS.length,
+    'a single-pass section reports every row',
+  );
+
+  // absent file is skipped, matching every other contract table
+  assert.equal(
+    scanContract(fixture({ 'README.md': '# repo\n' }), CONTAINMENT_REFETCH_CONTRACTS).length,
+    0,
+    'absent file is skipped',
+  );
+
+  // the shipped reference satisfies every row
+  assert.equal(
+    scanContract(realRoot, CONTAINMENT_REFETCH_CONTRACTS).length,
+    0,
+    'the shipped `## Containment` section states the second pass',
   );
 };

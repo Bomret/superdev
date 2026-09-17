@@ -1841,7 +1841,9 @@ const RUN_KIND_CONTRACTS = [
   ],
   [
     path.join('references', 'scope-mode.md'),
-    /## Containment[\s\S]{0,2000}?git\s+merge-tree\s+--write-tree[\s\S]{0,2000}?2\.38/,
+    // The second span reaches past the second pass `CONTAINMENT_REFETCH_CONTRACTS` pins (ADR 0065),
+    // which sits between the test and the git floor, so the window is sized to the section as written.
+    /## Containment[\s\S]{0,2000}?git\s+merge-tree\s+--write-tree[\s\S]{0,4000}?2\.38/,
     'carry the one canonical `## Containment` section — the `git merge-tree --write-tree` test, its ' +
       'outcomes, and the git 2.38 floor its fallback covers — since two sections and a skill delegate ' +
       'to it and a delegation to a deleted section pins nothing (ADR 0053)',
@@ -2656,8 +2658,52 @@ const CONTAINMENT_DELEGATION_CONTRACTS = [
   ],
 ];
 
+// The `containment-refetch` contract (ADR 0065), four rows, all on `references/scope-mode.md`'s
+// `## Containment` section: the test that decides a scope branch reached base runs a second pass before
+// it answers not contained. ADR 0053 fixed what the test asks — content, not ancestry — and left the ref
+// it asks of alone, so a pull request squash-merged on the host reads not contained until the clone
+// pulls. Every consumer inherits the section's answer, which is what makes a single-document contract
+// enough here: `skills/publish-kb/SKILL.md` §3 asks the operator to confirm a publish,
+// `skills/plan/SKILL.md`'s refusal bullet blocks an append, and `## Cutting the scope branch`'s
+// `appended` run kind offers to rename a branch whose work is already safe.
+//
+// Each row pins a clause that fails differently on its own. The fetch row pins the retested ref by name:
+// `git fetch <remote> <base>` populates `refs/remotes/<remote>/<base>` and never the local branch, so a
+// second pass rewritten to retest `<base>` re-asks the stale ref and always agrees with the first
+// verdict — a contract that reads enforced while the defect stands. The fallback row covers the git
+// older than 2.38 route, which is the weaker signal to begin with and the one most in need of a fresh
+// base. The scope-prune row is the negative half: that hook mirrors this section in JavaScript and is
+// the one caller excluded from the fetch, so a section that stops naming the exclusion invites the
+// mirror to grow a network call on a `Stop` hook firing every turn. The failure row keeps the second
+// pass advisory — an unreachable host leaves the first verdict standing rather than ending the caller.
+const CONTAINMENT_REFETCH_CONTRACTS = [
+  [
+    path.join('references', 'scope-mode.md'),
+    /Fetch the base branch once from the remote `docs\/agents\/code-management\.md` names[\s\S]{0,400}?run the same test again against `FETCH_HEAD`[\s\S]{0,400}?The second verdict is the answer/,
+    'state the second pass: fetch the base once from the remote `docs/agents/code-management.md` names, ' +
+      'retest against `FETCH_HEAD`, and take that second verdict as the answer (ADR 0065)',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /`--is-ancestor` fallback[\s\S]{0,120}?takes the same second pass/,
+    'state that the `--is-ancestor` fallback takes the same second pass as the `--write-tree` test',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /`hooks\/scope-prune\.js` runs the local test alone and never fetches/,
+    'name `hooks/scope-prune.js` as the one caller that runs the local test alone and never fetches',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /No remote configured, or a fetch that fails[\s\S]{0,400}?leaves the first verdict standing, and the caller says the second pass did not run/,
+    'state that no remote, or a failed fetch, leaves the first verdict standing and has the caller say ' +
+      'the second pass did not run',
+  ],
+];
+
 module.exports = {
   CONTAINMENT_DELEGATION_CONTRACTS,
+  CONTAINMENT_REFETCH_CONTRACTS,
   REFERENCE_PATTERN,
   RUN_ROOT_DOCS,
   RUN_ROOT_ARTIFACT_PATTERN,

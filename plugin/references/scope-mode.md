@@ -135,6 +135,25 @@ way:
   disagree over the same lines, or an argument git cannot resolve at all — a branch name with no ref
   behind it. Neither proves the tree equal to `<base>`'s, so this test does not need to tell them apart.
 
+**A not-contained verdict against a local base is provisional, and the second pass settles it.** The code
+host squash-merges the pull request and the clone learns nothing about it until something fetches, so such
+a verdict is as likely to be stale as it is to be true (ADR 0065). Fetch the base branch once from the
+remote `docs/agents/code-management.md` names — `GIT_TERMINAL_PROMPT=0 git fetch <remote> <base>`, so a
+missing credential fails the fetch instead of prompting — and run the same test again against
+`FETCH_HEAD`, substituting it for `<base>` throughout, in both positions the shell line above names:
+`FETCH_HEAD` holds exactly what that fetch wrote, whichever refs the clone's own refspec maps. **The
+second verdict is the answer**, contained or not. A contained first verdict ends the test where it
+stands, so the fetch is paid where the local answer would otherwise be wrong and nowhere else. The
+`--is-ancestor` fallback below takes the same second pass, against that same `FETCH_HEAD`.
+
+**`hooks/scope-prune.js` runs the local test alone and never fetches.** It is a `Stop` hook firing on every
+finished turn, and a stale base defers a reap that ADR 0007's seven-day TTL has already delayed — the safe
+direction, and the same best-effort posture that keeps the hook silent below.
+
+**No remote configured, or a fetch that fails** — an unreachable host, a rejected credential, a branch the
+remote does not carry — **leaves the first verdict standing, and the caller says the second pass did not
+run**, the way the fallback route below is said out loud. The caller then acts on an answer named as local.
+
 **`--write-tree` needs git 2.38** (2022-10-02), and rejecting the flag itself exits **128 or 129** —
 distinct from the exit 1 above, so an old git is never mistaken for a conflicting branch. Where
 `--write-tree` is unavailable, fall back to `git merge-base --is-ancestor <branch> <base>` and **say the
@@ -183,16 +202,17 @@ never switched (ADR 0045).
   --verify <branch>` — rather than resolving it per `## The scope branch`, whose shape-scan fallback
   risks a foreign branch; this step cuts and hands the name onward, unlike that section's read-only
   callers. Then decide on the same test that decides a scope is finished with (ADR 0007): contained in
-  `<base>`, or gone entirely — the test `hooks/scope-prune.js` runs and `skills/plan/SKILL.md`'s refusal
+  `<base>`, or gone entirely — the test `## Containment` above owns, and `skills/plan/SKILL.md`'s refusal
   bullet reads back.
   - **Gone** — `<branch>` does not verify: nothing survives to reuse, so cut fresh from `<base>` exactly
     as `fresh` does.
   - **Present** — decide with `## Containment` above, which owns the test. **Contained** —
-    `<base>` holds identical content, so reuse loses nothing: work in the scope worktree, per `## The scope
+    the content already landed, so reuse loses nothing: work in the scope worktree, per `## The scope
     checkout` below — creating it with `git worktree add .superdev/scopes/<scope>/worktree <branch>` when
     absent, and stopping first when a different worktree holds the branch, the same stop `resumed` takes —
     then **check the worktree is clean**: `git -C .superdev/scopes/<scope>/worktree status --porcelain`
-    returns nothing. The containment proof above covers the branch's committed history, never the index or
+    returns nothing. The content is already landed on `<base>` or on the base the second pass fetched, and
+    the containment proof above covers the branch's committed history, never the index or
     the working tree, so a dirty worktree could lose an uncommitted change the test never vouched for.
     **Dirty** — name what `status --porcelain` reported and stop, cutting nothing. **`--unattended` →
     block**, per `## Unattended`. **Clean** — **re-point it to `<base>` with `git reset --hard <base>`**
@@ -229,8 +249,9 @@ never switched (ADR 0045).
 records those slices as `merged` — nothing in the run rebuilds what it lost (ADR 0028). Two re-pointings
 are permitted, and no third. **Fast-forwarding to `<base>`.** And **`git reset --hard <base>` on a branch
 `## Containment` has just proved contained** — that proof is the precondition, never a general
-permission: containment establishes that base already holds identical content, so the commits the reset
-discards carry nothing to lose (ADR 0053). A branch that has not passed the test in this run keeps the
+permission: containment establishes that the content is already landed, on `<base>` or on the base the
+second pass fetched, so the commits the reset discards carry nothing to lose (ADR 0053). A branch that
+has not passed the test in this run keeps the
 whole rule.
 
 **Every stop above writes nothing.** No run starts and no ledger entry is written. None is a degraded

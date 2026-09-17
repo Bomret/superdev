@@ -67,3 +67,7 @@ which is today's behaviour plus an explanation.
 `hooks/scope-prune.js` and the interactive callers can now disagree about one scope: the hook defers a
 reap the operator's own `/superdev:publish-kb` treats as landed. The disagreement resolves itself the next
 time anything updates the local base.
+
+The `appended` run kind changes what an operator sees on a clone behind a squash-merge: the branch now
+reuses and re-points silently, where it previously printed `git log <base>..<branch>`, asked, and blocked
+under `--unattended`.

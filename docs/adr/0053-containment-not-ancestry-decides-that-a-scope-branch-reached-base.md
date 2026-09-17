@@ -2,6 +2,10 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0065](0065-containment-refetches-the-base-before-it-answers-not-contained.md), which
+adds a second pass to the test below: a not-contained verdict against the local base fetches base from the
+remote and retests against `FETCH_HEAD`, whose answer wins.
+
 **Amends:** [ADR 0007](0007-scope-prune-ttl.md), whose Decision rests on "A code host that squash-merges
 also deletes the branch, which is why absence carries the signal that ancestry lost", and
 [ADR 0028](0028-the-scope-branch-is-cut-once-and-reused-losslessly.md), whose `appended` paragraph runs

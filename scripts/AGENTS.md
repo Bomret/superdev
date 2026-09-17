@@ -792,9 +792,9 @@ surfacing them silently strands a load-bearing decision no later interview ever 
 `run-kind` contract (ADR 0028, ADR 0045, ADR 0053), eight rows against `references/scope-mode.md`. Its
 `## Cutting the scope branch` section specifies the branch step for each of the three run kinds. `fresh`
 cuts one from `<base>` and stops, cutting nothing, when a scope-prune reap left a same-named branch
-standing. `appended` decides on the same contained-or-gone test `hooks/scope-prune.js` and
-`skills/plan/SKILL.md` already run (ADR 0007), and its **Present** branch delegates that decision to the
-document's own `## Containment` section rather than naming a git command of its own. `resumed` runs no
+standing. `appended` decides on the same contained-or-gone test `## Containment` owns (ADR 0007), and its
+**Present** branch delegates that decision to the document's own `## Containment` section rather than
+naming a git command of its own. `resumed` runs no
 containment test and cuts nothing. `fresh` gets two rows because it carries two independent clauses;
 `appended` gets two, the contained-or-gone decision and the delegation; `resumed` gets one.
 Two further rows carry ADR 0053's other halves. One pins the `## Containment` section itself — the
@@ -803,8 +803,9 @@ two sections and `skills/publish-kb/SKILL.md` §3 all delegate to it, and a dele
 section nothing pins is the one-sided shape the root doc's prompt-architecture rules name. The other
 pins the **No forcing flag** rule's second exception as **conditional on the containment proof**:
 `git reset --hard <base>` is admissible only on a branch that test has just proved contained, because
-that proof is what establishes base already holds identical content. Written as a general permission it
-becomes the branch-stranding ADR 0028 exists to forbid. An eighth row pins the guard that precedes that
+that proof is what establishes the content is already landed, on `<base>` or on the base the second pass
+fetched. Written as a general permission it becomes the branch-stranding ADR 0028 exists to forbid. An
+eighth row pins the guard that precedes that
 same reset: the scope worktree must be clean (`git -C <worktree> status --porcelain` returns nothing)
 before the re-point, and a dirty one stops, naming what is dirty, and blocks unattended — because the
 containment proof covers the branch's committed history, never the index or the working tree, so
@@ -1517,6 +1518,23 @@ the thing that *owns* the test — rather than on a bare `## Containment` mentio
 second file for the base branch a few words earlier, and "that same file's `## Containment` section"
 reads correct while resolving to that closer, wrong antecedent; the anchoring is what a bare-mention
 pattern would miss.
+
+The `containment-refetch` contract (ADR 0065), four rows, all on `references/scope-mode.md`'s
+`## Containment` section: that test refetches the base before it answers not contained. ADR 0053 fixed
+what the test asks — content, not ancestry — and left the ref it asks of alone, so a pull request
+squash-merged on the host reads not contained until the clone pulls, and every consumer inherits that
+answer: `skills/publish-kb/SKILL.md` §3 asks the operator to confirm a publish, `skills/plan/SKILL.md`'s
+refusal bullet blocks an append, and `## Cutting the scope branch`'s `appended` run kind offers to rename
+a branch whose work is already safe. One document carries the whole contract, because that inheritance is
+what the delegation above already pins. The rows sit apart because each fails on its own. The fetch row
+pins the retested ref by name: `git fetch <remote> <base>` populates `refs/remotes/<remote>/<base>` and
+never the local branch, so a second pass rewritten to retest `<base>` re-asks the stale ref and can only
+agree with the first verdict — a contract that reads enforced while the defect stands. The fallback row
+covers the git older than 2.38 route, the weaker signal to begin with and the one most in need of a fresh
+base. The scope-prune row is the negative half: that hook mirrors this section in JavaScript and is the
+one caller excluded from the fetch, so a section that stops naming the exclusion invites a network call
+onto a `Stop` hook firing every turn. The failure row keeps the second pass advisory, so an unreachable
+host leaves the first verdict standing, named as local, rather than ending the caller.
 
 The `opencode-surface-split` check, `scanOpencodeSurfaceSplit()` (ADR 0055): the committed
 OpenCode fixtures put each surface on the side of the skill/command split its role demands. Two

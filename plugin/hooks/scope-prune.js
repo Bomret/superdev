@@ -178,6 +178,11 @@ function selectPrunable(scopeNames, isContained, mtimeOf, stageOf, allBranchSet,
 // Comparing the tree is what separates the first two: a clean merge exits 0 whether or not it changes
 // anything. Every other outcome — a git that has no `--write-tree`, a broken repository, no git at all —
 // is false, which fails closed: a hook that cannot answer must never conclude a scope is finished with.
+//
+// The mirror stops at the local test. That section's second pass fetches the base and retests against
+// `FETCH_HEAD` before it answers not contained, and names this hook as the one caller that never does
+// (ADR 0065): a `Stop` hook fires on every finished turn, and a stale base only defers a reap ADR 0007's
+// seven-day TTL has already delayed — the same direction every other failure here falls.
 function containedInBase(branch, cwd) {
   const merged = gitTry(['merge-tree', '--write-tree', 'HEAD', branch], cwd);
   if (merged.status !== 0) return false;

@@ -73,6 +73,7 @@ const {
   TEST_SELECTION_CONTRACTS,
   TIER_SKIP_CONTRACTS,
   CONTAINMENT_DELEGATION_CONTRACTS,
+  CONTAINMENT_REFETCH_CONTRACTS,
   FULL_SUITE_CONTRACTS,
   FIX_BOUNDARY_CONTRACTS,
   AFK_ROUTING_CONTRACTS,
@@ -495,6 +496,11 @@ module.exports = [
     'containment-delegation',
     CONTAINMENT_DELEGATION_CONTRACTS,
     "publish-kb's merge check names scope-mode.md as owning the containment test",
+  ),
+  table(
+    'containment-refetch',
+    CONTAINMENT_REFETCH_CONTRACTS,
+    'the containment test refetches the base before it answers not contained',
   ),
   {
     id: 'opencode-surface-split',

@@ -17,7 +17,7 @@ Read `docs/agents/issue-tracker.md` (the slice store). Missing → run **`/super
 @28
   Read both with `node "<plugin-root>/scripts/scope.js" get stage --root <run-root>` and `get
 @30
-  contained in the base, per `<plugin-root>/references/scope-mode.md`'s `## Containment` section
+  `<plugin-root>/references/scope-mode.md`'s `## Containment` section which owns the test, or gone
 @51
 **the message that invoked this skill is the intent, when one is given.** It states what the user wants, never the design, so
 @57

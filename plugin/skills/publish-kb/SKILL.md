@@ -94,9 +94,10 @@ to publish anyway — a deliberate divergence from that file's "no branch matche
 because here a merge only warns and publishing is the operator's call. Declined → publish nothing, delete
 nothing, stop. Confirmed → proceed, and record in §5's report that the scope was unmerged.
 
-This warns and never blocks. Containment is the one signal available for free, and it is weaker than the
-judgment the operator is making: a repository that releases on a schedule has merged code no reader can
-reach yet, and one that deploys from a branch may have the reverse. The operator's answer wins.
+This warns and never blocks. Containment is free on a hit and one fetch on a miss, and either way it is
+weaker than the judgment the operator is making: a repository that releases on a schedule has merged code
+no reader can reach yet, and one that deploys from a branch may have the reverse. The operator's answer
+wins.
 
 ## 4. Apply each staged page
 

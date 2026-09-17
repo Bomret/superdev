@@ -31,9 +31,9 @@ escape is fixing the state. Name which signal fired and what clears it:
 - The scope's run root (`.superdev/scopes/<slug>/`) exists with a ledger stage other than `shipped`, or
   with a `shipped` stage whose scope branch (`<type>/<scope>`) is neither contained in the base nor gone.
   Read both with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>` and `get
-  branch --root <run-root>`, then apply the branch test `hooks/scope-prune.js` runs (ADR 0007, ADR 0053):
-  contained in the base, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Containment` section
-  which owns the test, or gone entirely. A stage other than `shipped` means the chain has not shipped, so
+  branch --root <run-root>`, then apply the branch test (ADR 0007, ADR 0053): contained in the base, per
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Containment` section which owns the test, or gone
+  entirely. A stage other than `shipped` means the chain has not shipped, so
   appending adds DoD criteria the open pull request never carries. A `shipped` stage with a live branch
   means the pull request is still open, so appending grows a request already reviewed.
 
