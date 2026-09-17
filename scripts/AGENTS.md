@@ -2,12 +2,12 @@
 
 ## Purpose
 
-Standalone deterministic code that `package.json` runs, alongside `plugin/hooks/`. Five executables.
-Three shipped CLIs live in `plugin/scripts/`: `scope.js` (the run-state CLI, ADR 0022), `kb-patch.js`
+Standalone deterministic code that `package.json` runs, alongside `plugin/hooks/`.
+The shipped CLIs live in `plugin/scripts/`: `scope.js` (the run-state CLI, ADR 0022), `kb-patch.js`
 (the knowledge-base section merge, ADR 0027), and `adapter.js` (the OpenCode harness adapter, issue
-#375). Two maintainer-only ones live here in `scripts/`:
+#375). The maintainer-only ones live here in `scripts/`:
 `eval-run.js` (the eval runner, ADR 0024) and `drift-check.js` (the cross-document contract checks).
-This doc owns all five regardless of which of the two dirs each lives in.
+This doc owns them all regardless of which dir each lives in.
 
 ## Ownership
 
@@ -171,7 +171,7 @@ whole page (ADR 0027, Consequences).
 `adapter.js` is the third shipped CLI, and the one no command in the chain invokes: it renders the
 shipped prompt surfaces into another harness's on-disk layout, so a superdev install there carries
 the same chain. The only harness is `opencode`, named by `--harness`. Skills render from
-`plugin/skills/<name>/SKILL.md` to `.opencode/skills/superdev-<name>/SKILL.md` for the twelve
+`plugin/skills/<name>/SKILL.md` to `.opencode/skills/superdev-<name>/SKILL.md` for the
 surfaces the operator or the model may invoke. OpenCode exposes a skill through its built-in
 `skill` tool and auto-registers it as a `/superdev-<name>` slash command besides. `afk` alone
 renders to `.opencode/commands/superdev/afk.md` (`SKILL_ONLY_COMMANDS`): an OpenCode command is not
@@ -196,7 +196,7 @@ rendered body then tells the model to stop, naming the upgrade stale or incomple
 report success over a failed or partial re-render. Agents render from `plugin/agents/<name>.md` to
 `.opencode/agents/<name>.md`.
 
-The rendered skill frontmatter (`renderSkill()`, the twelve surfaces above) carries `SKILL_MARKER`,
+The rendered skill frontmatter (`renderSkill()`, the surfaces above) carries `SKILL_MARKER`,
 `name: superdev-<name>`, the `description`, and the skill's `allowed-tools:` carried verbatim. It
 refuses when that prefixed name fails OpenCode's own skill-name pattern (lowercase alphanumeric
 segments joined by `-`). No `model:` line: OpenCode skill frontmatter recognizes `name`,
@@ -269,7 +269,7 @@ cleanup keys on the marker rather than the name prefix. A foreign file that mere
 sentence in its body, rather than carrying it in frontmatter, survives too.
 
 The render also emits the **OpenCode hook bridge** (issue #376) at `.opencode/plugins/superdev.js`:
-a generated CommonJS OpenCode plugin that forwards OpenCode's plugin events to the eight shipped
+a generated CommonJS OpenCode plugin that forwards OpenCode's plugin events to the shipped
 hooks, spawning each as `node <plugin-root>/hooks/<hook>.js` with the plugin root baked in at
 render time and passed to the child env as `CLAUDE_PLUGIN_ROOT`. The event map, dated and verified
 against opencode.ai's plugins and agents docs in the adapter's own comment: `tool.execute.before`
@@ -602,7 +602,7 @@ publish, create, update, or upsert, in any morphology, so a passive "is publishe
 be aimed at a page, wiki, space, or backend object.
 `skills/publish-kb/SKILL.md` is exempt, because reaching the backend is its job. The check reads the
 instruction's shape rather than a backend's literal endpoint or credential name, because
-**Backends are pluggable** already forbids these four documents from naming a backend at all, so a
+**Backends are pluggable** already forbids these documents from naming a backend at all, so a
 literal-only marker would catch almost nothing.
 The `no-second-reader` contract (ADR 0022), `scanHookLedgerParsers()` scans every
 `hooks/*.js` file for a literal `**…:**`-shaped header regex. This pattern marks whether a hook grows a
@@ -672,12 +672,12 @@ reached `main` in the first place. The `arg-token` contract: `hooks/merge-guard.
 token **verbatim**. The three parse the same shape out of a Bash command line by hand, and nothing links
 the copies, so this pins the literal rather than testing mutual equality. A token that narrows in one
 hook reopens the quoted-argument bypass there (`git -C "my repo" merge` walking past the guard), and a
-deliberate improvement is meant to reach all three files and this pin in one commit. Same shape as the
+deliberate improvement is meant to reach every one of them and this pin in one commit. Same shape as the
 scope-slug charset assertion in `tests/scope.test.js`.
 The `audit-set` contract: `skills/setup/SKILL.md` still records decision C's answer as the
 `## Audit set` section of `docs/agents/documentation.md`, `skills/document/SKILL.md` still reads that
 section back with its stated fallback for when it is absent, and `references/documentation.md` still
-seeds the section as optional, for `/setup` to fill in. Three documents agree on the section only in
+seeds the section as optional, for `/setup` to fill in. These documents agree on the section only in
 prose, the same shape as the `afk-routing` and `arg-token` pairs. A renamed heading or a dropped
 fallback clause leaves the section unreachable in every repo that carries it, unnoticed, until a doc
 audit runs on one and finds nothing there.
@@ -717,7 +717,7 @@ table that pins a path with none of those extensions, as an object key instead o
 `Map`, goes uncollected without either check going red — measured clean against every table this file
 exports today. It holds the slot the `afk-existence` check held, which asserted
 `skills/afk/SKILL.md` on its own. That check's stated reason — nothing else in the plugin names
-`/superdev:afk` — was already false when it was written: nine plugin documents name the command, and
+`/superdev:afk` — was already false when it was written: plugin documents name the command, and
 `skills/implement/SKILL.md` is one of them, so the `command-resolution` check already resolves
 `/superdev:afk` there and already catches the file's deletion. Three contract tables also pin
 `skills/afk/SKILL.md` directly, so the general rule covers it a second way, and the special case went,
@@ -767,7 +767,7 @@ including that the lone slice is left untouched. The last two rows pin ADR 0043'
 byte-identical rule. A promoted lone slice's anchor-dependency line migrates to the new epic. Each row
 falls on one of the two documents `scanAppendContract` cannot reach, since neither is a store document:
 `references/plan-contract.md`, which states the generic contract every store specialises, and
-`skills/plan/SKILL.md`, which performs the promotion. Without them the five store documents would be pinned
+`skills/plan/SKILL.md`, which performs the promotion. Without them the store documents would be pinned
 around a hole.
 Each ledger-signal row is anchored on the refusal condition's own wording, not on the rationale sentence
 that explains the branch test a few lines below it, so a document that keeps the rationale but loses the
@@ -997,12 +997,12 @@ the phrasings above, not every paraphrase.
 
 The `denial-cap` check (ADR 0041), the sibling of `denial-authorship` from the other side. That
 rule decides what a *single* denial costs; this one bounds how many an unattended run absorbs. It runs two
-scans under one id: `DENIAL_CAP_CONTRACTS`, sixteen rows of presence checks, and `scanDenialCapNumberSilence`,
-an absence check over the same four call sites. Three of the sixteen rows sit on
-`references/scope-mode.md`: the cap itself (an unattended run blocks on its **second denied verification
-dispatch**), the recording verb `degraded add-denial`, and the read `get denials`. Eight more are two rows
-each on `skills/review/SKILL.md`, `skills/document/SKILL.md`, `skills/implement/SKILL.md`, and
-`references/implement-full.md` — the same four documents `denial-authorship`'s table pins, because a document that
+scans under one id: `DENIAL_CAP_CONTRACTS`, a table of presence checks, and `scanDenialCapNumberSilence`,
+an absence check over the same call sites. The rows on
+`references/scope-mode.md` are the cap itself (an unattended run blocks on its **second denied verification
+dispatch**), the recording verb `degraded add-denial`, and the read `get denials`. Two rows each sit on
+`skills/review/SKILL.md`, `skills/document/SKILL.md`, `skills/implement/SKILL.md`, and
+`references/implement-full.md` — the same documents `denial-authorship`'s table pins, because a document that
 dispatches a verification pass is exactly one that records its denial. Each carries both halves, and each
 half fails on its own: a call site recording with plain `degraded add` writes a bullet the count cannot
 see, and one that never reads `get denials` continues inline on every denial. Either leaves the cap stated
@@ -1279,20 +1279,20 @@ anywhere inside itself.
 second edit: the generic-side row in `SOURCE_SECTION_CONTRACTS` (built by `specialisingGenericRows()`),
 this citation assertion, and the heading each is found by (`specialisingHeading()`). The store-side
 presence contract is the one side that stays per-section, because each has its own elements to assert.
-The list holds six names: `Scope anchor`, `Release`, `Run state`, `Append mode`, `Triage record`, and
+The list holds `Scope anchor`, `Release`, `Run state`, `Append mode`, `Triage record`, and
 `Assignee`.
 
 **The membership rule:** a section is a member when `plan-contract.md` states its generic contract **and
-at least one store document renders it as its own section**. `Assignee` passes — four of the five store
-documents carry a `## Assignee` section and all four cite it — and was the cost of the two lists this
+at least one store document renders it as its own section**. `Assignee` passes — every store
+document but one carries a `## Assignee` section and each of those cites it — and was the cost of the two lists this
 one replaced. Its store side was pinned by `scanAssigneeContract` while nothing pinned its generic side
-and nothing pinned those four citations, because the rows were written out by hand beside the list rather
+and nothing pinned those citations, because the rows were written out by hand beside the list rather
 than derived from it. Root `AGENTS.md`'s reference table names one more: it includes `## Feature label`,
 which fails the rule's second half. That table describes what `plan-contract.md` owns rather than what
 this list checks, and stays prose.
 
 `Feature label` keeps a hand-written row instead of joining the list, beside `Fields`,
-`Slice lifecycle & status` and `Epic visuals` — the four sections cited by name that no store renders as a
+`Slice lifecycle & status` and `Epic visuals` — the sections cited by name that no store renders as a
 section of its own. Every seed folds the feature label into a configuration bullet, so there is no store
 side for a citation to come from.
 
@@ -1322,7 +1322,7 @@ returns `null` and the loop moves on: the local-file store has no assignee conce
 fence-masked section, so a citation shown only inside a fenced code example does not count.
 
 That skip is why membership alone is not a presence contract. A member a store renders nowhere is silently
-clean here, which is what the six store-side contracts exist to catch. `scanAnchorContract`,
+clean here, which is what the store-side contracts exist to catch. `scanAnchorContract`,
 `scanAppendContract`, `scanReleaseContract`, `scanTriageRecordContract`, and `scanRunStateContract` each
 pin a member's own `## <Section>` heading, and none exempts a store by name. `scanAssigneeContract` pins
 two halves: the `- **Assignee:**` configuration bullet, which is what a backend is actually configured
@@ -1403,8 +1403,8 @@ own `## Run state` section (`plan-contract.md` → *Run state*, ADR 0042). It wa
 backend seed added later and this repo's own dogfooded `docs/agents/issue-tracker.md` are both covered
 without either being named. Without it, deleting a whole `## Run state` section from a store document
 leaves the suite green — the citation check reads a section that is present, and `extractSection()`
-returning `null` is the same branch that correctly skips a store rendering none. All six specialising
-sections carry a store-side presence contract this way. `Assignee`'s lives inside
+returning `null` is the same branch that correctly skips a store rendering none. Every specialising
+section carries a store-side presence contract this way. `Assignee`'s lives inside
 `scanAssigneeContract`, beside that contract's other half.
 
 **No store is exempt, and that is the point.** A snapshot-less backend declares itself snapshot-less
@@ -1418,9 +1418,9 @@ on the sections a consumer completes at setup, the same suffix it puts on `## Co
 `## Status workflow`, so this check matches the heading through `specialisingHeading('Run state')` rather
 than a pattern of its own — the same word-boundary latitude the citation assertion, the generic-side
 rows, and `scanAssigneeContract`'s section half already take, and the hand-written `## Epic visuals` row
-already took, so changing the anchoring in one place can never diverge from any of them. Three of the
-other four store-side presence contracts (`scanAnchorContract`, `scanAppendContract`,
-`scanTriageRecordContract`) still anchor their own pattern to end-of-line. Each also feeds
+already took, so changing the anchoring in one place can never diverge from any of them. Among the
+other store-side presence contracts, `scanAnchorContract`, `scanAppendContract`, and
+`scanTriageRecordContract` still anchor their own pattern to end-of-line. Each also feeds
 `extractSection()` for element checks a word boundary would not serve.
 `scanReleaseContract` anchors the same way, but tests raw text for presence alone: `RELEASE_PATTERN`
 carries no elements to extract.
@@ -1450,7 +1450,7 @@ section", so this check has no citation half in `scanSpecialisingCitations` to p
 
 **Beside the specialising family's own checks, one selftest with no id of its own in the registry** (`scripts/drift/selftest/scanners.test.js`,
 right after its `scanGlossarySpecialisingCitations` suite): store-side presence coverage for the whole
-specialising family. Each of the six members has its own store-side scanner, pinned in this file beside
+specialising family. Each member has its own store-side scanner, pinned in this file beside
 that member's own check — `anchor-contract`, `append-mode`, `release-contract`, `triage-record`,
 `run-state-contract`, and `assignee` — and that per-member shape is
 exactly what let `Assignee` ship with a store-side hole `scanSpecialisingCitations`
@@ -1554,7 +1554,7 @@ file, `chain-handoff` a command that names no successor at all.
   payload boundary is a pair of markers, not a heading, but a marker can still be shown inside a fenced
   illustrative example, so the marker scan needs the same fence-masking `kb-patch.js`'s
   `extractSection()` already owns.
-- The three shipped scripts each have a suite in `tests/`, same convention as the hooks (ADR 0059).
+- The shipped scripts each have a suite in `tests/`, same convention as the hooks (ADR 0059).
   `eval-run.js` and `drift-check.js` are maintainer-only and keep their inline `--selftest`.
 - A **shape-based prose guard that asserts an absence states its ceiling beside itself.** A pattern over
   English catches the phrasings it names and not every paraphrase, and on an absence check — the document
@@ -1562,7 +1562,7 @@ file, `chain-handoff` a command that names no successor at all.
   gone and stays green while it is still there. Write the ceiling down next to the patterns for one of
   these — a `ponytail:` comment naming it is the house idiom — or every reviewer who finds one more
   evadable phrasing reports a defect, and the guard grows by discovery instead of by decision. The
-  convention governs eight checks of this shape, and all eight carry their note: `doc-steps-no-suite`,
+  convention governs these checks of this shape, and each carries its note: `doc-steps-no-suite`,
   `forcing-branch-flag`, `kb-no-backend-call`, `no-second-reader`, `return-to-controller`,
   `afk-selection-neutrality`, `agent-tool-agnostic`, and `agent-lens-list`. `no-second-reader`'s reads differently
   from the rest on purpose: its gap is closed by an orphan test in `tests/scope-prune.test.js`
@@ -1579,7 +1579,7 @@ file, `chain-handoff` a command that names no successor at all.
 
 ## Verification
 
-`bun run test` (repo root) runs each of the three shipped scripts' suite under `tests/`, then
+`bun run test` (repo root) runs each shipped script's suite under `tests/`, then
 `eval-run.js`'s and `drift-check.js`'s own `--selftest`, all under `node`, which matches the
 production runtime.
 

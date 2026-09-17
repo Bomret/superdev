@@ -176,7 +176,7 @@ whole-scope review substitutes for the per-slice ones. The table above (and the 
 ## Append mode
 
 `/superdev:plan` can also **extend** a feature that already has slices, instead of planning a new one.
-Append mode holds five invariants, and every backend renders all five:
+Append mode holds these invariants, and every backend renders all of them:
 
 - **Merged slices are immutable.** Append never edits, renumbers, closes, or deletes a merged slice's
   file or issue — except the anchor-dependency line, which migrates to the new epic when append promotes
@@ -239,7 +239,7 @@ from the `todo`/`ready` lifecycle state above — a signal the lifecycle consume
 moves off, a label the dispatch swaps) reads as unreleased the moment work starts, and a resumed run then
 stops on a feature the human already released.
 
-Three consumers act on it, and each reads the active `docs/agents/issue-tracker.md`'s own `## Release`
+Its consumers act on it, and each reads the active `docs/agents/issue-tracker.md`'s own `## Release`
 section for the backend's signal and the calls that set and read it:
 
 - **`/superdev:plan`** asks, once the plan is written, whether to release it now or leave that to a human
@@ -281,7 +281,7 @@ die with the run: the run root is reaped and the pull request is merged. On an i
 outlives them regardless of whether the scope ever ships; on the local plan-file store, it outlives them
 only once the scope branch carrying it merges (ADR 0046, ADR 0048).
 
-Five invariants fix its shape, and every backend renders all five:
+These invariants fix its shape, and every backend renders all of them:
 
 - **`/superdev:review` writes it, at the moment it defers.** A run reviewed and then abandoned never
   reaches `/superdev:ship`, and its run root is pruned with the findings still inside, so the command that

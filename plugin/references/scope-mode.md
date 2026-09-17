@@ -530,7 +530,7 @@ both, where writing "only on the first cycle" covers only the loop.
 
 ## The stage never moves backwards
 
-Four writers move the ledger's `**Stage:**` line — `/superdev:review`, `/superdev:document`, run handoff
+These writers move the ledger's `**Stage:**` line — `/superdev:review`, `/superdev:document`, run handoff
 (`merged`), and `/superdev:ship` (`shipped`) — all through `scope.js stage set`, which enforces every rule
 in this section in code and refuses a write that breaks one: **a stage write never undoes completed
 work.** `shipped` is what stops `/superdev:ship` from opening a second pull request, so a later command

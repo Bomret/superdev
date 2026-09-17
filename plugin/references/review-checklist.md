@@ -8,7 +8,7 @@
 Concrete lenses for a reviewer to apply on top of its own judgment — named smells and vulnerability
 classes beat a generic "check code quality" / "check security."
 
-Two rules bind every lens below:
+These rules bind every lens below:
 
 - **The repo overrides.** A documented repo standard wins; where it endorses something a lens would
   flag, suppress the finding.
@@ -46,7 +46,7 @@ Every smell is a labelled judgment call ("possible feature envy"), never a hard 
   not a vague "add more tests."
 - **Redundant test coverage** — a new test re-proving a case an existing test already covers. Name the
   covering test's location, so the reader can decide which of the two survives. This is the counterweight
-  to the three lenses above, which all argue for more coverage; a suite pays for every test it carries on
+  to the lenses above, which all argue for more coverage; a suite pays for every test it carries on
   every run. Distinct from **weakened net**: that one loosens a test already there, this one adds a test
   nothing needed.
 - **Overweight fixture** — a test standing up a heavier fixture than the behaviour it proves requires: a
@@ -122,5 +122,5 @@ correct. Prefer extending or calling the existing one over adding a parallel imp
   what's there rather than introduce a second way to do one thing.
 - **Cross-slice divergence** — the same concept given a different name, API shape, or vocabulary across
   slices; two seams that should agree but don't.
-- **Duplicated fact** — the same fact (a count, a name-list, a described behavior) stated in two places
+- **Duplicated fact** — the same fact (a name-list, a described behavior) stated in two places
   where one owns it and the other should link; flag the copy that drifted.

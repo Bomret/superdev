@@ -1,7 +1,7 @@
 # Documentation: in-repo technical docs
 
-Durable in-repo docs live as a hierarchy of `AGENTS.md` files (this repo has a root `AGENTS.md` plus two
-children, `scripts/AGENTS.md` and `plugin/references/AGENTS.md`).
+Durable in-repo docs live as a hierarchy of `AGENTS.md` files (this repo has a root `AGENTS.md`, plus
+`scripts/AGENTS.md` and `plugin/references/AGENTS.md`).
 
 - **Hierarchy.** Root `AGENTS.md` holds project-wide instructions and the top-level index. Add a child
   `AGENTS.md` when a subtree becomes a durable boundary with its own rules.
@@ -11,10 +11,10 @@ children, `scripts/AGENTS.md` and `plugin/references/AGENTS.md`).
   rules change, update the nearest owning `AGENTS.md`, plus every parent whose child-index changed.
 - **Keep it operational.** Concise, current, stable contracts, not diary entries. **Delete stale or
   contradictory text immediately.** Write present-tense, state-of-the-world prose, with no history.
-- **Single-source.** A derivable or shared fact (a count, a name-list, a described behavior) lives in
-  exactly one owning place. This repo's own file, agent, and hook counts belong to the `Structure`
-  listing in root `AGENTS.md`, and are restated nowhere else. Every other doc links to the owning place
-  instead of restating the fact.
+- **Single-source.** A derivable or shared fact (a name-list, a described behavior) lives in exactly one
+  owning place. Root `AGENTS.md`'s `Structure` listing is where this repo's `skills/`, `agents/`,
+  `hooks/`, and `scripts/` are named. Every other doc links to the owning place instead of restating the
+  fact.
 
 superdev usage: `/superdev:plan` records ADRs (`docs/adr/`), the glossary (`CONTEXT.md`), and path-scoped
 rules (`.claude/rules/`) in their conventional locations. `/superdev:document` reconciles the `AGENTS.md`

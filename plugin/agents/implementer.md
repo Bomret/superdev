@@ -126,7 +126,7 @@ Never commit commented-out code or `TODO` placeholders.
 
 ## Touch only what must (surgical edits)
 
-The slice bounds the diff, not just the feature. Five rules:
+The slice bounds the diff, not just the feature. The rules:
 
 - **No drive-by edits.** Don't reformat, rename, or "improve" anything the slice doesn't require —
   adjacent code, a neighbouring comment, formatting you'd have written differently.

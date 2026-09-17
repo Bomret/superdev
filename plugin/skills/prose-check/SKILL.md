@@ -58,7 +58,7 @@ file alone.
   pointer selects a standard for a repo's **own** docs, and this command is a tool the user reached for
   (ADR 0057).
 - **`docs/agents/documentation.md`'s `Declare per language` answers, when they are there.** They settle
-  the six rules `controlled-prose.md` leaves to each repo: spelling convention, compound formation, case
+  the rules `controlled-prose.md` leaves to each repo: spelling convention, compound formation, case
   and possessive forms, number and date format, quotation marks, and terms left in another language.
   Apply each answer the file gives. **Missing file, missing section, or an unanswered rule** → skip that
   sub-rule alone, keep every other rule, and name what you skipped in the report's opening line.

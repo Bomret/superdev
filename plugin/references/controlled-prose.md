@@ -6,7 +6,7 @@ The writing standard for documentation. A repo selects it in the `## Writing sta
 `docs/agents/documentation.md` (ADR 0012). The `doc-writer` agent applies it. The `doc-reader` agent
 verifies it.
 
-The standard is **language-neutral**. Three catalogues reach the same core rules from different
+The standard is **language-neutral**. Independent catalogues reach the same core rules from different
 languages, and that convergence is what makes the rules portable. Every rule below holds in any language
 you write documentation in. Rules that depend on one language live in *Declare per language* near the
 end, and each repo answers those for itself.
@@ -56,6 +56,10 @@ other rule.
   is true, or state that you do not know.
 - Do not evaluate. Remove "seamless", "robust", "powerful", "cutting-edge", "effortless", "world-class",
   "next-generation", and "revolutionary". Describe what the thing does instead.
+- Do not count a set the repository can grow or shrink. Name the set, or name its members. A numeral
+  stays where the number is the fact itself: a cap, a limit, a threshold, or a contract of fixed arity.
+  Write "the hooks in `hooks/`", not "the eight shipped hooks". Keep "the two halves of the contract",
+  where two is what the contract says.
 - Do not use stock phrases. Remove "at the end of the day", "when it comes to", and "in order to".
 - Do not use regional words, slang, or jargon as a technical term.
 - Write a technical term of more than three words in full one time. Then give a shorter form, or join
@@ -110,7 +114,7 @@ other rule.
 
 ## Definitions
 
-A glossary entry and a first-use definition are prose, so every rule above applies. Three more rules
+A glossary entry and a first-use definition are prose, so every rule above applies. More rules
 apply to a definition:
 
 - Name the category the term belongs to, then name what separates it from the rest of that category.

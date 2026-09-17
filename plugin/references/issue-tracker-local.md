@@ -63,14 +63,14 @@ blocked-by: [<type>/<feature-slug>]
 <fenced file tree: which slices touch which files, collisions marked>
 ```
 
-`blocked-by:` is optional too, but unlike the four sections below it is a header line, and
+`blocked-by:` is optional too, but unlike the optional sections below it is a header line, and
 `/superdev:afk` does read it (`## Scope anchor` below, ADR 0040) — omit it unless the interview named a
 prerequisite feature. `## Parked questions`, `## Non-goals`, `## Slice graph`, and `## Touch map` are all
 optional, advisory-only sections that `/implement` never reads — omit `## Parked questions` when
 nothing's been parked, omit `## Non-goals` when nothing was deliberately dropped from scope, and write
 `## Slice graph`/`## Touch map` per `plan-contract.md`'s *Epic visuals* section, which owns their shape,
 their independence from each other, and the rule for when each is written. A single-slice feature has no
-epic file, so none of the four exist there — see `plan-contract.md`.
+epic file, so none of them exist there — see `plan-contract.md`.
 
 Each slice file `NN-<test-applicability>-<summary>.md`:
 

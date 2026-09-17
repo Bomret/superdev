@@ -5,7 +5,7 @@ description: Configure this repo for superdev: slice store, code host, documenta
 
 # superdev setup
 
-Write the six per-repo config docs the superdev skills read, so the workflow is backend-agnostic:
+Write the per-repo config docs the superdev skills read, so the workflow is backend-agnostic:
 
 - `docs/agents/issue-tracker.md` — the **slice store** (where slices live + how to CRUD them)
 - `docs/agents/code-management.md` — the **code host** (push + open PR/MR + default posture)
@@ -226,7 +226,7 @@ truth. Discipline:
 
 ## 3. Confirm, then write
 
-Show the user a draft of all six files (and the `## Agent skills` block) and let them edit before
+Show the user a draft of every file (and the `## Agent skills` block) and let them edit before
 writing.
 
 Write:

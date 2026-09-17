@@ -12,15 +12,15 @@ arm is the control: same prompt, same scaffold, same graders, no superdev.
 ## Running it
 
 ```sh
-bun run eval        # all cases, both arms — includes the two expensive implement cases
-bun run eval:plan   # the four plan cases only, both arms — cheap iteration
+bun run eval        # all cases, both arms — includes the expensive implement cases
+bun run eval:plan   # the plan cases only, both arms — cheap iteration
 ```
 
 Both need `CLAUDE_CODE_OAUTH_TOKEN`. Create it once with `claude setup-token`
 and export it. The runner refuses to start without it and never falls back to
 a billed `ANTHROPIC_API_KEY`.
 
-Four flags adjust a run. `--case <glob>` selects cases by name. `--runs <n>`
+These flags adjust a run. `--case <glob>` selects cases by name. `--runs <n>`
 overrides a case's own run count. `--judge-model <model>` overrides the judge,
 which defaults to `haiku`, because judging spends the same subscription window
 as the arms. `--output-dir <dir>` overrides where transcripts, diffs, and the
@@ -58,7 +58,7 @@ files, unchanged, so it stays available for a key-funded cross-check.
 - **An arm with no superdev marker fails the run.** The broken-ablation check
   needs the plugin arm to show a superdev marker (a command, a subagent, or a
   hook) in at least one run of a case. An arm that only explores, and never
-  invokes any of the three, shows none. `bun run eval` then reports the case
+  invokes any of them, shows none. `bun run eval` then reports the case
   as a broken ablation and exits non-zero, even when `--plugin-dir` isolated
   the arms correctly.
 - **The baseline arm's isolation is not a real sandbox.** The runner points
@@ -83,7 +83,7 @@ files, unchanged, so it stays available for a key-funded cross-check.
 
 ### The primed pairs
 
-Two pairs run this way: `ab-plan-edge-case` with `ab-plan-primed`, and
+The pairs that run this way are `ab-plan-edge-case` with `ab-plan-primed`, and
 `ab-plan-multi-slice` with `ab-plan-multi-slice-primed`. Each pair is one
 experiment in two halves, so the halves share their scaffold and their graders
 rather than copying either. The primed case names the bare case's `scaffold.sh`
@@ -135,10 +135,10 @@ prompting. Both readings are useful, and neither is the headline on its own.
   review of its own. Both arms get the same wording, phrased so a baseline arm
   with no such command reviews by hand instead, which is what it would do
   anyway. The cost is that this case measures discoverability for nobody; the
-  other six still do.
+  other cases still do.
 - **One run is an anecdote.** Cases default to `runs: 3`. A per-grader delta
   smaller than the spread across those runs is not a result.
-- **The two implement cases split the tiers.** `ab-implement-lite` runs the
+- **The implement cases split the tiers.** `ab-implement-lite` runs the
   `lite` tier (3 slices or fewer). `ab-implement-full` sizes its feature past
   that threshold, so the plugin arm reaches the `full` tier's parallel
   worktrees and its isolated implementer and reviewer subagents. The tier is
@@ -154,7 +154,7 @@ prompting. Both readings are useful, and neither is the headline on its own.
   itself: the `trace` axis goes unmeasured on the arm that most needed it. Prefer `focus: files` for
   anything the diff can show, and read a `—` in a `trace` row as "the transcript outgrew the judge",
   not as "the arm did badly".
-- **Two cases allow `Task`: `ab-implement-full` and `ab-review-ceiling`.** The
+- **`ab-implement-full` and `ab-review-ceiling` allow `Task`.** The
   `full` tier cannot dispatch a subagent without it, and neither can
   `/superdev:review` reach `final-reviewer`. Both arms get it in both cases, so
   the baseline can dispatch its own subagents too and the ablation stays one
@@ -227,7 +227,7 @@ model already obeys.
 
 A case is `case.yaml` and `graders/*.md`, plus a `scaffold_script` path relative
 to the case directory (never an inline block). A grader is frontmatter plus
-criteria prose. The harness accepts six grader types: `llm`, `regex`,
+criteria prose. The harness accepts these grader types: `llm`, `regex`,
 `file_exists`, `tool_order`, `tool_used`, `baseline`. Every grader needs a
 positive `weight`. An `llm` or `regex` grader also needs a `focus` or
 `target`. The graders here use `files`, which scores the diff, and `trace`,

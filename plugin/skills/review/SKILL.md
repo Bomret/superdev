@@ -27,7 +27,7 @@ Either way the reviewers themselves are the same read-only subagents.
 - Read `docs/agents/issue-tracker.md`, if present, for its `## Triage record` section — §4's deferral
   branch creates a triage record there when a finding is deferred, and needs to know whether that section
   exists before it reaches that branch.
-- **None of the three files is required.** This command works in any repo, including one never set up
+- **None of the files above is required.** This command works in any repo, including one never set up
   for superdev — it just loses the corresponding hint.
 
 ## 1. Range

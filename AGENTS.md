@@ -31,28 +31,28 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
   .claude-plugin/
     plugin.json        — plugin manifest (name, version, author); version is the SINGLE source of truth.
                          No `hooks` field — Claude Code auto-loads the standard hooks/hooks.json.
-  skills/              — the thirteen `/superdev:<name>` surfaces, one `<name>/SKILL.md` each (ADR 0050):
+  skills/              — the `/superdev:<name>` surfaces, one `<name>/SKILL.md` each (ADR 0050):
                          brainstorm, setup, plan, implement, review, document, ship, afk, upgrade,
                          status, backlog, publish-kb, prose-check
-  agents/              — the six subagents (*.md): implementer, slice-reviewer, simplicity-reviewer,
+  agents/              — the subagents (*.md): implementer, slice-reviewer, simplicity-reviewer,
                          final-reviewer, doc-writer, doc-reader
-  hooks/               — the eight deterministic Node hooks + hooks.json: merge-guard, model-explicit,
+  hooks/               — the deterministic Node hooks + hooks.json: merge-guard, model-explicit,
                          green-gate, run-lock, ledger-guard, worktree-sweep, scope-prune, update-check
   references/          — backend seed templates + the non-seed runtime references (plan-contract,
                          documentation convention, controlled-prose, content-types, doc pass, run init,
                          run handoff, execution playbooks, test-selection, scope-mode, authoring
                          disciplines, design sketch, diagnosis, prototype, merge-conflicts,
                          review-checklist); its own AGENTS.md routes them
-  scripts/             — the three runtime CLIs: `scope.js`, `kb-patch.js`, `adapter.js`
+  scripts/             — the runtime CLIs: `scope.js`, `kb-patch.js`, `adapter.js`
   LICENSE · NOTICE     — copies of the root files, so the shipped tree carries its own attribution
-tests/                 — one suite per shipped executable (the eight hooks, `scope.js`, `kb-patch.js`,
+tests/                 — one suite per shipped executable (the hooks, `scope.js`, `kb-patch.js`,
                          `adapter.js`), framework-free `node:assert`, run under `node` by `bun run
                          test` (ADR 0059)
 docs/adr/              — architecture decision records (why the plugin is built this way)
 docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, documentation, KB, toolchain, verification)
 docs/known-issues.md   — Claude Code platform behaviour superdev works around, each entry with its
                          shipped mitigation and dated verification
-scripts/               — the two maintainer-only CLIs wired into `bun run test`: `eval-run.js` and
+scripts/               — the maintainer-only CLIs wired into `bun run test`: `eval-run.js` and
                          `drift-check.js` with its `drift/` modules (registry, contract tables,
                          scanners, shared helpers, selftest suites)
 evals/                 — cases (*/case.yaml + graders/*.md + the case's scaffold_script, a path
@@ -67,7 +67,7 @@ README.md · RELEASING.md · NOTICE · LICENSE
 
 The plugin ships as markdown and JS hooks. There is **no build step**: the marketplace's `./plugin`
 source is what limits an install to the shipped tree, so releasing stays a plain commit. `skills/`,
-`agents/`, and `references/` are prose. `hooks/` and the two `scripts/` dirs are executable. Paths inside
+`agents/`, and `references/` are prose. `hooks/` and both `scripts/` dirs are executable. Paths inside
 `plugin/` resolve against the plugin root at runtime, so prose there names them without the `plugin/`
 prefix; `scripts/drift/lib.js`'s `docPath()` resolves the same plugin-relative paths for the
 maintainer-side checks.
@@ -97,7 +97,7 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
   because that is scoped by extension.
 - **Every shipped executable has a suite in `tests/`, named for it.** Add one for any new hook or
   script. `bun run test` runs every `tests/` suite under `node`, which matches the production
-  runtime, then the two maintainer-only scripts' own `--selftest`, `drift-check`, and `claude plugin
+  runtime, then the maintainer-only scripts' own `--selftest`, `drift-check`, and `claude plugin
   validate ./plugin` as a manifest-validation gate.
 - **Version lives only in `plugin/.claude-plugin/plugin.json`.** Never hand-edit it. semantic-release and
   `semantic-release-replace-plugin` bump it on release. `marketplace.json` carries no version, which
@@ -128,6 +128,10 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
     `agents/`, pin the `skills/` sentence that dispatches it too, or write down why no dispatch can
     contradict it. A one-sided pin is a contract that reads enforced and stays green while the live path
     drifts: `FULL_SUITE_CONTRACTS` had exactly that shape, and the leak reached production prose.
+  - **Prose states no count of a growing set.** "The eight shipped hooks" reads as a fact and is a
+    hostage: adding a hook makes it false in every document repeating it, and nothing fails. Name the
+    set, or name its members, and keep a numeral only where the number is the fact — a cap, a
+    threshold, or a fixed arity (ADR 0064).
 - **Platform-dependent claims carry dated verification.** An ADR, or an entry in
   [`docs/known-issues.md`](docs/known-issues.md),
   states a claim about Claude Code behaviour. When you re-check that claim, record a dated update naming
@@ -137,7 +141,7 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
 ## Known issues (Claude Code platform)
 
 Platform behaviour superdev works around, with the mitigation each one ships:
-[`docs/known-issues.md`](docs/known-issues.md). Two entries live there — the SessionStart preamble leak
+[`docs/known-issues.md`](docs/known-issues.md). It covers the SessionStart preamble leak
 into subagent prompts (issue #32), and the delegation handoff classifier behind a denied dispatch
 (ADR 0039, ADR 0041). Read it before you change subagent prose or the unattended block.
 
@@ -146,8 +150,8 @@ into subagent prompts (issue #32), and the delegation handoff classifier behind 
 ```
 bun install                        # install dev deps (release toolchain)
 bun run test                       # tests/ suites, drift-check, plugin manifest validation
-bun run eval                       # the with/without-plugin A/B over evals/ (needs the two vars below)
-bun run eval:plan                  # the four cheap plan-only cases of that A/B, both arms
+bun run eval                       # the with/without-plugin A/B over evals/ (needs the vars below)
+bun run eval:plan                  # the cheap plan-only cases of that A/B, both arms
 GITEA_TOKEN=<token> bun run release  # cut a release from clean main (see RELEASING.md)
 ```
 
@@ -194,8 +198,8 @@ Bun dev toolchain, Node runtime for hooks. `bun run test` (green-gate), `bun run
 
 ## Child DOX Index
 
-**Two children exist.** [`scripts/AGENTS.md`](scripts/AGENTS.md) owns what the five scripts guard: the
-two maintainer-only ones in `scripts/` and the three shipped ones in `plugin/scripts/`. That ownership
+**The children of this root.** [`scripts/AGENTS.md`](scripts/AGENTS.md) owns what the scripts guard: the
+maintainer-only ones in `scripts/` and the shipped ones in `plugin/scripts/`. That ownership
 includes the full drift-check contract narrative.
 [`plugin/references/AGENTS.md`](plugin/references/AGENTS.md) owns the reference routing table: which
 reference owns which contract, and which runtime surface reads it. Every other subtree's rules live in
@@ -210,7 +214,7 @@ This root owns every other subtree directly:
   live in the files. Claude Code merges plugin skills and commands into one `/superdev:<name>` surface.
   implement → review → document → ship is the chain a scope walks, each skill printing the next
   (ADR 0013). afk drives that chain unattended, one eligible scope anchor at a time, with the Skill tool
-  (ADR 0015). Three skills sit outside the chain and afk drives none of them: publish-kb sends a scope's
+  (ADR 0015). Some skills sit outside the chain, and afk drives none of them: publish-kb sends a scope's
   staged knowledge-base pages to a remote backend on the operator's own clock (ADR 0023), backlog surveys
   the slice store read-only, grouping every open scope anchor, triage record, stranded run root, and
   untriaged item by the action it needs and judging them more loosely than afk's own selection does
@@ -221,7 +225,7 @@ This root owns every other subtree directly:
   This is the strongest future child-doc candidate, if its rules outgrow this root. `hooks/` is the
   only runtime consumer of
   `plugin/scripts/`: `scope-prune.js` and `worktree-sweep.js` both
-  `require` `../scripts/scope.js` for their ledger-header reader (ADR 0022). These are the only two
+  `require` `../scripts/scope.js` for their ledger-header reader (ADR 0022). These are the only
   places a hook depends on a script instead of standing alone. A `require` failure leaves either hook
   with no fallback reader: it sweeps/prunes nothing and says nothing.
 - `scripts/` and `plugin/scripts/`. Owned by [`scripts/AGENTS.md`](scripts/AGENTS.md):
@@ -234,7 +238,7 @@ This root owns every other subtree directly:
   called by `/superdev:publish-kb`, ADR 0027 — the commands invoke this and `scope.js` at runtime),
   `plugin/scripts/adapter.js` (the OpenCode harness adapter, issue #375: renders the shipped skills
   and agents into `.opencode/`, plus the OpenCode hook bridge plugin `.opencode/plugins/superdev.js`
-  that forwards OpenCode's plugin events to the eight shipped hooks, issue #376; golden fixtures
+  that forwards OpenCode's plugin events to the shipped hooks, issue #376; golden fixtures
   under `scripts/drift/fixtures/opencode/`. Prompts render as skills, the only surface OpenCode's
   model can invoke. `afk` alone renders as a command, which keeps that model from starting an
   unattended sweep itself, ADR 0055),

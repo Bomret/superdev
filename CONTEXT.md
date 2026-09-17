@@ -23,7 +23,7 @@ _Avoid: "run", "branch", "feature branch" (too generic)_
 **Scope anchor**: a feature's root, the single record — an issue, or a `docs/plans/<type>/<feature-slug>/00-epic-*.md` file, or that feature's lone slice file — that carries its scope-level status signal for a run. How a given store expresses this is stated in that store's own `## Scope anchor` section, which specialises `plan-contract.md` → *Scope anchor*, never assumed by a command (ADR 0017).
 _Avoid: "epic" (only an epic-bearing feature has one, and the anchor role also falls to a lone slice)_
 
-**Release**: the human agreement that a written plan may be built, carried as a durable signal on the scope anchor. It has three consumers: `/plan` asks which one it is doing, `/implement` asks for confirmation before building an unreleased feature, and `/afk` passes one over. How a given store expresses it is stated in that store's own `## Release` section, which specialises `plan-contract.md` → *Release* (ADR 0034).
+**Release**: the human agreement that a written plan may be built, carried as a durable signal on the scope anchor. Its consumers are `/plan`, which asks which one it is doing, `/implement` asks for confirmation before building an unreleased feature, and `/afk` passes one over. How a given store expresses it is stated in that store's own `## Release` section, which specialises `plan-contract.md` → *Release* (ADR 0034).
 _Avoid: "ready" (that is the `todo` lifecycle state, consumed the moment work starts), "approved" (unused elsewhere)_
 
 **Run root**: the part of `.superdev/scopes/<scope>/` that stays in the invoking checkout across both tiers: `dod.md`, `ledger.md`, `run.lock`, and on the full tier `interfaces.md` (the cross-slice interface record). Never moves into a worktree, so it survives worktree removal as the post-mortem trail and lets `/status` enumerate runs without touching any worktree.
@@ -165,7 +165,7 @@ _Avoid: "final review", "scope review" (the role and the agent, not just the ste
 **3-strike fix loop**: when a final-review or per-slice-review fix cycle exposes a new defect, dispatch a fresh fix with a RED test, and repeat. On 3 strikes (3 fix cycles each surfacing a new bug), stop: it is a wrong cut (hidden dependency, boundary too big), not a buggy slice. Move it to blocked and escalate.
 _Avoid: "retry limit", "attempt count" (the 3 strikes are cycles, not attempts)_
 
-**Judge discipline**: the verification principle shared verbatim by all three review agents. Verify the artifact and the behaviour yourself, and never defer to the implementer's or controller's narrative of what was done. Length or an elaborate structure is not its own evidence of correctness or of warranted complexity. Reject a completion claim resting only on proxy counts (coverage percentage, line count, lint score), and confirm the observable behaviour instead (ADR 0002).
+**Judge discipline**: the verification principle every review agent carries verbatim. Verify the artifact and the behaviour yourself, and never defer to the implementer's or controller's narrative of what was done. Length or an elaborate structure is not its own evidence of correctness or of warranted complexity. Reject a completion claim resting only on proxy counts (coverage percentage, line count, lint score), and confirm the observable behaviour instead (ADR 0002).
 _Avoid: "verification discipline" (too generic, because this means not trusting the builder's account of its own work)_
 
 **Derived criteria**: the acceptance criteria `final-reviewer` writes itself, from the feature's intent alone, before it reads the Definition of Done or the diff. Diffing them against the DoD surfaces criteria the plan never wrote. Scope mode only: it needs a DoD written by someone else to diff against, so `/superdev:review` hands over `dod.md`'s **path** rather than its text and the reviewer opens it after its own list exists (ADR 0020).
@@ -180,7 +180,7 @@ _Avoid: "audit mode" (no flag selects it; an empty scoped diff is what resolves 
 **Deferred finding**: a fix-loop finding whose remedy adds a capability the Definition of Done never
 named. It starts no fix loop, holds no run stage, and is not an **Unresolved defect**. The scope review
 records it under its report's `### Deferred to a plan` heading instead and hands it to `/superdev:plan`.
-It reaches three homes at once: a **Triage record** in the slice store, a `**Deferred:**` bullet in the
+It reaches several homes at once: a **Triage record** in the slice store, a `**Deferred:**` bullet in the
 run's ledger carrying that record's reference, and the pull-request body `/superdev:ship` copies the
 bullet into. On an issue backend, the triage record outlives the run root and the closed scope anchor
 regardless of whether the scope ever ships. On the local plan-file store, it outlives the run root and
@@ -212,7 +212,7 @@ short of `shipped` and matches no open anchor. It ranks as the most expensive it
 untriaged item ranks last: it is the furthest from finishing, and it is the one bucket the survey caps
 rather than printing whole, since a store with real reporters holds more of them than the rest of the
 table put together. It reads the store where
-`/superdev:status` reads the runs' ledgers, and it shows the four things `/superdev:afk` passes over by
+`/superdev:status` reads the runs' ledgers, and it shows what `/superdev:afk` passes over by
 design: an unreleased plan, an anchor nobody decomposed, a triage record, and an untriaged item. It shares
 its facts with that
 command's selection and not its verdicts — a survey resolves an ambiguity toward showing the row, where an
@@ -226,7 +226,7 @@ command reports runs from their ledgers, not the store)_
 **Execution playbook**: the linear, tier-specific procedure that runs a scope's whole `/implement` execution, start to finish. It is `references/implement-full.md` (full tier) or `references/implement-lite.md` (lite tier), computed and `Read` by the controller once the tier is known. Each playbook opens by reading `references/run-init.md` (run init) and closes by reading `references/run-handoff.md` (run handoff). The `/implement` command body therefore keeps config and input, the tier computation, the invariants, the model table, the issue-status map, and red flags. Control never returns to it once a playbook starts.
 _Avoid: "command" (the playbook is the file the command delegates to, not the command itself)_
 
-**Review checklist**: the shared file (`references/review-checklist.md`) naming concrete anti-patterns, vulnerability classes, a reuse-audit lens, and a consistency lens (convention drift, cross-slice divergence), read at dispatch time. `final-reviewer` applies all four lenses, and `slice-reviewer` applies anti-patterns and vulnerability classes. It follows the same shared-file-read-at-dispatch pattern as `Execution playbook`, one level down: a checklist of things to look for, not a procedure to follow.
+**Review checklist**: the shared file (`references/review-checklist.md`) naming concrete anti-patterns, vulnerability classes, design smells, a reuse-audit lens, and a consistency lens (convention drift, cross-slice divergence), read at dispatch time. `final-reviewer` applies every lens, and `slice-reviewer` applies anti-patterns and vulnerability classes. It follows the same shared-file-read-at-dispatch pattern as `Execution playbook`, one level down: a checklist of things to look for, not a procedure to follow.
 _Avoid: "checklist" alone (ambiguous with the DoD's own checklist), "linter rules" (it is read and reasoned about, not mechanically run)_
 
 ## Doc loop
@@ -272,7 +272,7 @@ _Avoid: "inline documentation" (that names code comments), "doc step" (names one
 
 ## Backends
 
-superdev is tool-agnostic: three pluggable backends, each chosen by `/setup` and recorded under `docs/agents/`. The commands and agents never hardcode one.
+superdev is tool-agnostic: its backends are pluggable, each chosen by `/setup` and recorded under `docs/agents/`. The commands and agents never hardcode one.
 
 **Seed** (seed template): a backend-config template file under `references/` (for example `issue-tracker-jira.md` or `code-management-github.md`) that `/setup` reads and fills in with repo-specific specifics to produce the matching `docs/agents/*.md`. Adding a backend means a new seed plus the setup step that consumes it.
 _Avoid: "template" alone (too generic), "backend file" (that names the `docs/agents/*.md` output, not the `references/` input)_

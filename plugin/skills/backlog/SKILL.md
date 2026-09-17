@@ -32,7 +32,7 @@ here: a call written into this file is right on one backend and blind on the res
 
 ## 2. Survey the store
 
-Three listings, and the store document owns all three.
+The listings below, and the store document owns each one.
 
 - **The scope anchors.** Its `## Scope anchor` section states how to list the candidates, how to
   recognise one, how to tell an anchor that is itself a slice, how to list the slices beneath one, and how
@@ -98,7 +98,7 @@ in one line above the table (§2), never as a `needs planning` row.
 Each open anchor, each triage record, each stranded run root, and each untriaged item lands in **exactly
 one** bucket. Take the first that fits, reading down:
 
-**Dedupe by store reference across the three listings before building the table.** The same record can
+**Dedupe by store reference across the listings before building the table.** The same record can
 come back from more than one listing — an anchor's own issue also matching the untriaged listing's open-
 issue query, say. A record already returned by the anchor or triage listing is never re-classified as
 `untriaged`.
@@ -114,7 +114,7 @@ issue query, say. A record already returned by the anchor or triage listing is n
 | `ready` | every remaining **anchor**: released, no run root, dependencies satisfied | `/superdev:implement <feature-label>` |
 | `untriaged` | an open store record carrying neither a feature label nor the store's triage signal | read it — a human decides what to do next |
 
-**Every open anchor, every triage record and untriaged item the three listings returned, and every
+**Every open anchor, every triage record and untriaged item the listings returned, and every
 stranded run root appears in the table.** An item you cannot classify is a `blocked` row naming what you
 could not read about it, never an item left out — a missing row reads as work that does not exist.
 

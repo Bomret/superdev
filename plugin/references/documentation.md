@@ -21,7 +21,7 @@ Technical docs live in the repo as a hierarchy of `AGENTS.md` files:
 - **Keep it operational.** Concise, current, stable contracts — not diary entries. Broad rules in
   parent docs, concrete details in child docs. **Delete stale or contradictory text immediately**;
   don't narrate history. Present-tense state-of-the-world prose.
-- **Single-source.** A derivable or shared fact (a count, a name-list, a described behavior) lives in
+- **Single-source.** A derivable or shared fact (a name-list, a described behavior) lives in
   exactly one owning place. Every other doc that needs it links to the owning place instead of
   restating it — a restated fact drifts the moment the owning place changes.
 

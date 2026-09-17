@@ -100,7 +100,7 @@ it and check the diff complies. No `.claude/rules/` directory, or no rule's glob
 in the Issues section below, the same as every other check — a rule violation has no fixed severity of
 its own.
 
-Then review the integrated scope across **five axes, adversarially** — for each axis, assume the change
+Then review the integrated scope across **the axes below, adversarially** — for each axis, assume the change
 is flawed on that dimension and actively try to break it; the axis passes only when your attack fails.
 
 **Correctness** — does the integrated result do what the plan specifies, end-to-end, with all
@@ -180,7 +180,7 @@ Ready to merge? [Yes | No | With fixes]
 Reasoning: [1–2 sentences]
 ```
 
-`Full-suite run: fail` makes the verdict `Ready to merge? No`, regardless of what the five axes above
+`Full-suite run: fail` makes the verdict `Ready to merge? No`, regardless of what the axes above
 found — a red suite is disqualifying on its own, not one more input the verdict weighs against the rest.
 
 `### Ceiling` sits outside the severity ladder deliberately. The Issues format is

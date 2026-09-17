@@ -239,13 +239,13 @@ bash or PowerShell variants.
   alone too. `/superdev:ship` removes it at the end of the chain.
 - **scope-prune.** A `Stop` hook that deletes a scope's run root (`.superdev/scopes/<scope>/`, its
   `ledger.md` and `dod.md` post-mortem trail). The scope anchor keeps its own published snapshot of the
-  ledger, so the record survives this reap on a backend that carries one. It waits for three conditions:
+  ledger, so the record survives this reap on a backend that carries one. It waits for these conditions:
   the run root has sat untouched for 7 days or more, the ledger's `**Stage:**` line reads `shipped`,
   **and** the scope branch is **contained in the current branch or gone**. Containment is a content
   question — does base already hold this work — and it is asked with `git merge-tree --write-tree`
   rather than with ancestry, which a squash merge destroys by rewriting the branch's commits
   ([ADR 0053](docs/adr/0053-containment-not-ancestry-decides-that-a-scope-branch-reached-base.md)).
-  The three run in that order, cheapest first, because the containment test writes tree objects and this
+  They run in that order, cheapest first, because the containment test writes tree objects and this
   hook fires on every finished turn. Absence stands beside containment for the hosts that delete the
   branch on merge, read only from refs the repository already holds: a remote-tracking ref it has not
   fetched still counts as present, so it never prunes on stale information. It never touches a scope
@@ -318,7 +318,7 @@ never hardcode a tool. Edit those files directly at any time. Re-run setup only 
 - **Verification** *(optional)*. The repo's test command, the first fenced block of
   `docs/agents/verification.md`. Recorded, it **arms the green-gate** hook. Omitted, the gate stays
   inactive. A second fenced block holds the focused test command, which setup derives from the runner it
-  detected wherever that runner can narrow a run. It narrows five callers to a set of changed paths. They
+  detected wherever that runner can narrow a run. It narrows its callers to a set of changed paths. They
   are the implementer's TDD loop, the lite tier's inline loop, the slice-reviewer's Lens 2 re-run, the
   green-gate hook, and the documentation step's own run over its doc commits. A runner that cannot narrow
   records no such command, with the reason, and every caller runs the full one.
@@ -331,7 +331,7 @@ changes.
 ## What superdev writes to your repo
 
 ```
-docs/agents/*.md          backend config — the six docs above (committed)
+docs/agents/*.md          backend config — the docs above (committed)
 docs/plans/<type>/<slug>/ slices + Definition of Done (local store): 00-epic-* = DoD + description,
                           NN-<test-applicability>-* = one file per slice (number = id)
 CONTEXT.md                glossary / ubiquitous language, authored by /plan
@@ -475,7 +475,7 @@ node superdev/plugin/scripts/adapter.js --dest . \
 `--dest` names the project root, where the render creates a `.opencode/` tree. `--model-map` resolves
 a rendered agent's `model:` alias (superdev ships `sonnet`, `opus`, and `haiku`) to the
 provider and model your OpenCode configuration names for that alias. Agents are the only surface that
-takes one: OpenCode skill frontmatter has no `model` key, so the three skills that pin a cheap model
+takes one: OpenCode skill frontmatter has no `model` key, so the skills that pin a cheap model
 under Claude Code — `backlog`, `status`, `upgrade` — run on your session's model instead. An alias with no map entry is
 resolved interactively instead of failing the render: the CLI queries the OpenCode config for the
 models it already knows, lists them, and asks for a pick — one prompt per alias `--model-map` doesn't
@@ -513,7 +513,7 @@ The render creates:
 .opencode/commands/superdev/afk.md          afk alone (see below)
 .opencode/agents/<name>.md                  one per subagent
 .opencode/plugins/superdev.js               the hook bridge, forwarding OpenCode's plugin events to
-                                             the eight shipped hooks, spawned as
+                                             the shipped hooks, spawned as
                                              node <plugin-root>/hooks/<hook>.js
 ```
 
@@ -527,8 +527,8 @@ and `.opencode/skills/` directories, only the files and skill directories it wro
 so a renamed or removed skill or agent leaves no stale file behind, while another plugin under
 `.opencode/plugins/`, your own agent under `.opencode/agents/`, and your own skill under
 `.opencode/skills/` all survive untouched. That last one holds even for a skill of yours named
-`superdev-something`, as long as it isn't one of the twelve canonical names: cleanup matches a marker
-the render writes, never the name. A skill of yours that shares one of those twelve names —
+`superdev-something`, as long as it isn't one of the canonical names: cleanup matches a marker
+the render writes, never the name. A skill of yours that shares one of those names —
 `superdev-plan`, say — is not spared: the render writes that exact path unconditionally on every run,
 marker or not.
 
@@ -538,8 +538,8 @@ session so the refreshed skills, agents, and hook bridge load. Or do it by hand:
 clone, then re-run the render command above, in case the rendered skill itself is ever broken or
 unavailable.
 
-**Verify each render target.** Confirm the four paths above exist under the project's `.opencode/`.
-Run `opencode debug skill` in the project and confirm it lists all twelve `superdev-` skills, which is
+**Verify each render target.** Confirm the paths above exist under the project's `.opencode/`.
+Run `opencode debug skill` in the project and confirm it lists every `superdev-` skill, which is
 how OpenCode reports what it actually loaded. Start an OpenCode session and check its log for a
 plugin-loader error: a plugin whose module export is not a function fails to load and reports exactly
 that. After one
@@ -548,7 +548,7 @@ cache file the bridged `update-check` hook writes on `session.created`. From a s
 a command one of the guardrails blocks under Claude Code, for example `git merge`, and confirm OpenCode
 refuses it the same way.
 
-Two gaps stand in the render today, each a recorded triage record rather than a silent one. The
+Gaps stand in the render today, each a recorded triage record rather than a silent one. The
 `update-check` hook's version notice never reaches you, because the bridge runs the hook but has
 nowhere to print its output. The `model-explicit` check reads only the project's own
 `.opencode/agents/<type>.md`, so it names no model for an agent your OpenCode configuration points at
@@ -557,7 +557,7 @@ from anywhere else.
 **A rendered agent's own configuration wins over your project's OpenCode permission rules** —
 OpenCode's own agent-beats-global precedence, not a superdev bug. That includes any custom rule you've
 written yourself, and a deliberate loosening of OpenCode's built-in `.env` read guard: both stay
-overridden by the six rendered agents' own `tools:`/`permission:` config. The render does re-assert
+overridden by the rendered agents' own `tools:`/`permission:` config. The render does re-assert
 OpenCode's own `.env`-ask default specifically for the `read` tool, so a plain install still asks
 before an agent reads a `.env` file through `read` — not through `bash` or `grep`, which every rendered
 agent keeps and which the guard does not cover.
