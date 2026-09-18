@@ -1580,6 +1580,114 @@ const AUDIT_SET_CONTRACTS = [
   ],
 ];
 
+// ADR 0068 gives `/superdev:document audit` a **chained posture** for `/superdev:sweep`'s doc leg:
+// reader findings only, no `doc-writer` dispatch, no commit. The signal and the posture live in one
+// document, so both rows pin the same file — losing either half silently ships a leg that repairs what
+// a sweep found instead of only reporting it, which is exactly the mid-sweep commit ADR 0068 rejects.
+const CHAINED_DOC_AUDIT_CONTRACTS = [
+  [
+    path.join('skills', 'document', 'SKILL.md'),
+    /--chained/,
+    'name `--chained`, the signal `/superdev:sweep` passes its doc leg',
+  ],
+  [
+    path.join('skills', 'document', 'SKILL.md'),
+    /--chained[\s\S]{0,400}[Dd]ispatch no `doc-writer` and commit nothing/,
+    'dispatch no `doc-writer` and commit nothing once `--chained` is present, whatever the reader found',
+  ],
+];
+
+// ADR 0068 gives `/superdev:review-tests` the same **chained posture** for `/superdev:sweep`'s test leg:
+// no agreement round, no intent write, the ranked findings returned to the caller instead, with the
+// dead-or-ignored-test facts still distinguishable from the judgments — the sweep's own agreement round
+// asks about judgments alone. Four rows, because the signal (§1) and its three behaviours (§5's round,
+// §5's label, §6's write) live in three places in the file, with §5 alone hosting two of the four, and a
+// row anchored where each lives is what keeps a later edit to just one of them from reading correct
+// while the others go silent.
+const CHAINED_TEST_AUDIT_CONTRACTS = [
+  [
+    path.join('skills', 'review-tests', 'SKILL.md'),
+    /--chained/,
+    'name `--chained`, the signal `/superdev:sweep` passes its test leg',
+  ],
+  [
+    path.join('skills', 'review-tests', 'SKILL.md'),
+    /--chained[\s\S]{0,200}[Rr]un no `AskUserQuestion`/,
+    'run no `AskUserQuestion` round once `--chained` is present',
+  ],
+  [
+    path.join('skills', 'review-tests', 'SKILL.md'),
+    /--chained[\s\S]{0,400}[Ll]abel every dead-or-ignored-test finding `fact` and every remaining\s+finding `judgment`/,
+    'label every dead-or-ignored-test finding `fact` and every remaining finding `judgment`, so the ' +
+      'fact/judgment split stays distinguishable in what a chained run returns',
+  ],
+  [
+    path.join('skills', 'review-tests', 'SKILL.md'),
+    /\*\*`--chained`\s+present\*\*[\s\S]{0,20}write no intent and print no handoff/,
+    'write no intent and print no handoff once `--chained` is present, returning the findings to the ' +
+      'caller instead',
+  ],
+];
+
+// ADR 0068 gives `/superdev:review` the same **chained posture** for `/superdev:sweep`'s code leg: no
+// `git add -N :/` (which would write the index and retarget a path scope onto an intent-to-add entry
+// instead of the standing tree), and no entry into scope mode, whatever the invoking checkout's `HEAD` is
+// — the write paths scope mode opens are foreclosed by construction rather than by a guard the caller
+// must check first. Three rows: the signal itself, and each of its two behaviours, anchored where each
+// lives in §1.
+const CHAINED_CODE_REVIEW_CONTRACTS = [
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /--chained/,
+    'name `--chained`, the signal `/superdev:sweep` passes its code leg',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /--chained[\s\S]{0,300}run no `git add -N :\/`/,
+    'run no `git add -N :/` once `--chained` is present, so the leg writes no index entry',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /`--chained` wins over scope mode[\s\S]{0,200}resolves ad-hoc/,
+    'never enter scope mode once `--chained` is present, whatever the invoking checkout\'s `HEAD` is',
+  ],
+];
+
+// The three contracts above pin the **callee** side of ADR 0068's chained posture: `/superdev:review`,
+// `/superdev:document audit`, and `/superdev:review-tests` each still read `--chained` and behave the
+// chained way once it's present. None pins the **caller** — nothing asserted that `/superdev:sweep` itself
+// still dispatches each leg with the flag, so an edit dropping it from the sweep's own dispatch table
+// would leave a leg reading and repairing the sweep's own tree mid-sweep, unchained, while every callee
+// contract above stayed green. This table closes the other half, anchored on §2's dispatch table row for
+// each leg rather than on the bare invocation string — §3's report header repeats each leg's invocation
+// verbatim (`### Docs — /superdev:document audit --chained`), so a pattern with no table anchor stays
+// green off that header alone once §2's own row drops the flag. The config row has no `--chained` to
+// drop — `/superdev:setup check` needs no signal (CONTEXT.md, `## Chained posture`) — so it pins the
+// literal `check` argument instead: the failure mode there is a caller that dispatches bare
+// `/superdev:setup` and starts the full interactive interview mid-sweep.
+const SWEEP_CHAINED_LEG_CONTRACTS = [
+  [
+    path.join('skills', 'sweep', 'SKILL.md'),
+    /\|\s*Code\s*\|\s*`\/superdev:review <path> --chained`\s*\|/,
+    'dispatch the code leg as `/superdev:review <path> --chained`, the flag that puts it in the chained posture',
+  ],
+  [
+    path.join('skills', 'sweep', 'SKILL.md'),
+    /\|\s*Docs\s*\|\s*`\/superdev:document audit --chained`\s*\|/,
+    'dispatch the doc leg as `/superdev:document audit --chained`, the flag that puts it in the chained posture',
+  ],
+  [
+    path.join('skills', 'sweep', 'SKILL.md'),
+    /\|\s*Tests\s*\|\s*`\/superdev:review-tests <path> --chained`\s*\|/,
+    'dispatch the test leg with `--chained`, the flag that puts it in the chained posture',
+  ],
+  [
+    path.join('skills', 'sweep', 'SKILL.md'),
+    /\|\s*Config\s*\|\s*`\/superdev:setup check`\s*\|/,
+    'dispatch the config leg as `/superdev:setup check`, the mode that reports drift without opening the interview',
+  ],
+];
+
 // ADR 0027's `patch` action is a four-document agreement of the same shape as the three above:
 // `references/doc-pass.md` and `skills/plan/SKILL.md` — the two stagers — each stage one section for a
 // page the outline marks aggregate, `skills/publish-kb/SKILL.md` applies it through
@@ -2717,9 +2825,50 @@ const CONTAINMENT_REFETCH_CONTRACTS = [
   ],
 ];
 
+// `agents/final-reviewer.md`'s Brevity axis and `references/review-checklist.md`'s Cross-slice
+// divergence bullet are both written for a scope with slices to compare — a standing-code target has
+// none, so a literal reading of either flags nothing there, and `simplicity-reviewer` is skipped on that
+// target (`skills/review/SKILL.md`), leaving no other lens to pick up the slack. Each sentence carries its
+// own standing-code reading rather than relying on `agents/final-reviewer.md`'s blanket re-aim
+// ("applying every check below to the code itself rather than to a change"): that sentence re-aims a
+// check's *target*, not what a slice-scoped clause like "spans slices" or "across slices" cashes out to
+// once there are no slices at all.
+const STANDING_CODE_LENS_CONTRACTS = [
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /flag that same class within\s+the code itself instead/,
+    'give the Brevity axis its own standing-code reading — duplicated logic and a divergent second way ' +
+      'to do one job within the code itself, since standing code has no slices to span',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /On standing code, with no slices to compare, this reads\s+as a divergent second way to do one job/,
+    'give Cross-slice divergence its own standing-code reading — a divergent second way to do one job ' +
+      'living inside the code itself, since standing code has no slices to compare',
+  ],
+];
+
+// ADR 0068's fourth sweep leg is `/superdev:setup check`: a read-only drift check, named by a literal
+// word the way `/superdev:document audit` is, rather than sniffed. The two rows pin the signal and the
+// posture in the same document — losing either half silently ships a `check` mode that starts asking
+// interview questions, or a mode nothing can reach at all because the argument-hint never named it.
+const SETUP_CHECK_CONTRACTS = [
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /^argument-hint:.*check/m,
+    'declare an `argument-hint` naming `check`',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /check[\s\S]{0,200}writes no file, makes no slice-store call, and starts no interview/,
+    'state that `check` mode writes no file, makes no slice-store call, and starts no interview',
+  ],
+];
+
 module.exports = {
   CONTAINMENT_DELEGATION_CONTRACTS,
   CONTAINMENT_REFETCH_CONTRACTS,
+  STANDING_CODE_LENS_CONTRACTS,
   REFERENCE_PATTERN,
   RUN_ROOT_DOCS,
   RUN_ROOT_ARTIFACT_PATTERN,
@@ -2797,6 +2946,10 @@ module.exports = {
   ARG_TOKEN_LINE,
   ARG_TOKEN_CONTRACTS,
   AUDIT_SET_CONTRACTS,
+  CHAINED_CODE_REVIEW_CONTRACTS,
+  CHAINED_DOC_AUDIT_CONTRACTS,
+  CHAINED_TEST_AUDIT_CONTRACTS,
+  SWEEP_CHAINED_LEG_CONTRACTS,
   AGGREGATE_PAGE_CONTRACTS,
   READ_PATH_CONTRACTS,
   STATUS_SEED_CONTRACTS,
@@ -2833,4 +2986,5 @@ module.exports = {
   UNTRIAGED_EXPECTATION,
   UNTRIAGED_ELEMENTS,
   BACKLOG_SURVEY_CONTRACTS,
+  SETUP_CHECK_CONTRACTS,
 };

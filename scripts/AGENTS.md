@@ -657,6 +657,47 @@ seeds the section as optional, for `/setup` to fill in. These documents agree on
 prose, the same shape as the `afk-routing` and `arg-token` pairs. A renamed heading or a dropped
 fallback clause leaves the section unreachable in every repo that carries it, unnoticed, until a doc
 audit runs on one and finds nothing there.
+The `chained-code-review` contract (ADR 0068), three rows on `skills/review/SKILL.md`: it still names
+`--chained`, the signal a sweep passes its code leg; it still runs no `git add -N :/` once that flag is
+present, so the leg never writes an intent-to-add entry into the index; and it still never enters scope
+mode, whatever the invoking checkout's `HEAD` is. Three rows because the signal and its two behaviours sit
+in three places in §1 — the extraction, the untracked-files step, and the scope-mode bullet — and a row
+anchored where each lives is what keeps an edit to just one of them from leaving the others silently
+unpinned, the same shape `chained-doc-audit` and `chained-test-audit` already use. Only the code leg can
+reach scope mode — the other three legs never could — so this contract closes that one risk by
+construction: `--chained` makes every write path scope mode opens unreachable from the code leg, with
+nothing for `/superdev:sweep` itself to check or refuse first.
+The `chained-doc-audit` contract (ADR 0068), two rows on `skills/document/SKILL.md`: it still names
+`--chained`, the signal a sweep passes its doc leg, and it still dispatches no `doc-writer` and commits
+nothing once that flag is present, whatever the reader found. Both rows pin the same document because
+the signal and the posture it triggers live in one place — losing either half silently reopens the
+mid-sweep commit ADR 0068 rejects, while the suite stays green and the prose still reads correct on its
+own.
+The `chained-test-audit` contract (ADR 0068), four rows on `skills/review-tests/SKILL.md`: it still
+names `--chained`, the signal a sweep passes its test leg; it still runs no `AskUserQuestion` once that
+flag is present; it still labels every dead-or-ignored-test finding `fact` and every remaining finding
+`judgment`, keeping that split distinguishable in what it returns — the sweep's own agreement round asks
+about judgments alone; and it still writes no intent and prints no handoff, returning the findings to
+the caller instead. Four rows because the signal and its three behaviours sit in three places in the
+file — §1's extraction, §5's round and its label, and §6's write — with §5 alone hosting two of the
+four. A row anchored where each lives is what keeps an edit to just one of them from leaving the others
+silently unpinned, the same one-sided-pin shape `chained-doc-audit` guards against on the doc leg. The
+§6 row is anchored on that section's own bolded clause (`**\`--chained\` present** — write no intent and
+print no handoff`), not on a `--chained`-then-window match: an earlier, unrelated bullet in §1 also pairs
+`--chained` with the phrase "write no intent and print no handoff" within the same window, so a looser
+pattern stays green even once §6's own clause is rewritten to write something.
+The `sweep-chained-legs` contract (ADR 0068), four rows on `skills/sweep/SKILL.md`: it still dispatches
+its code leg as `/superdev:review <path> --chained`, its doc leg as `/superdev:document audit --chained`,
+its test leg with `--chained`, and its config leg as `/superdev:setup check` rather than bare
+`/superdev:setup`. Each row is anchored on §2's dispatch table row for that leg, never on the bare
+invocation string — §3's report header repeats every leg's invocation verbatim, so an unanchored pattern
+stays green off that header alone once §2's own row drops the flag or the argument, the false green a
+whole-tree review found in the doc and test rows before this contract anchored them. `chained-code-review`,
+`chained-doc-audit`, and `chained-test-audit` each pin only the callee's own reading of the flag; nothing
+pinned the caller side until `/superdev:sweep` existed to dispatch it, so a later edit could drop the flag
+(or, on the config leg, the `check` argument) from the sweep's own table while every callee contract stayed
+green — the code, doc, or test leg would then read and repair the sweep's own tree mid-sweep, unchained, or
+the config leg would open the full interactive interview mid-sweep, with nothing failing to say so.
 The `aggregate-page` contract (ADR 0027), four rows. `references/doc-pass.md` and
 `skills/plan/SKILL.md`, the two stagers, each stage `action: patch` carrying one section for an outline
 entry marked aggregate. `skills/publish-kb/SKILL.md` applies it by merging through `scripts/kb-patch.js`,
@@ -1508,6 +1549,13 @@ What it does not check is the rendered *content* on either side — that the `af
 `skill` tool rather than Claude Code's, and refuses the render when its canonical sentence moves, is
 `tests/adapter.test.js`'s own job, not a contract row here.
 
+The `setup-check` contract (ADR 0068), two rows on `skills/setup/SKILL.md`: it declares an
+`argument-hint` naming `check`, the literal word `/superdev:document audit` already established for a
+sniff-free mode switch, and it states that mode's posture — writes no file, makes no slice-store call,
+and starts no interview — in that same document. Losing the first row strands the mode behind an
+argument-hint that never mentions it; losing the second lets `check` silently grow a write or drift
+into the ordinary interview, the exact mid-sweep mutation ADR 0068 rejects for every leg.
+
 The `reference` and `content-types` checks are opposites. `reference` catches a reference to a file that
 does not exist. `content-types` catches an agent that drops its wire to a file which still exists. That
 drift leaves the reference resolvable and the suite green, and the lens then does nothing in any dispatch.
@@ -1516,6 +1564,17 @@ drift leaves the reference resolvable and the suite green, and the lens then doe
 the other a command name. `command-resolution` and `chain-handoff` are opposites in the same way as
 `reference` and `content-types`: `command-resolution` catches a handoff that points at a command with no
 file, `chain-handoff` a command that names no successor at all.
+
+The `standing-code-lens` contract, two rows: `agents/final-reviewer.md`'s Brevity axis and
+`references/review-checklist.md`'s Cross-slice divergence bullet each still carry a standing-code
+reading beside their slice-scoped one. Both sentences are written for a scope with slices to compare —
+"spans slices", "across slices" — and a standing-code target has none, so a literal reading of either
+flags nothing there, while `simplicity-reviewer` is skipped on that same target
+(`skills/review/SKILL.md`), leaving no other lens to pick up the slack. `final-reviewer.md`'s own blanket
+re-aim for standing code ("applying every check below to the code itself rather than to a change")
+re-aims a check's *target*, not what a slice-scoped clause cashes out to once there are no slices at all,
+so it does not reach these two on its own. Losing either sentence leaves the matching lens reading
+correct in prose and silent on a standing-code review.
 
 ## Work Guidance
 

@@ -61,6 +61,7 @@ const {
   DENIAL_RESET_CONTRACTS,
   TRIAGE_RECORD_CONTRACTS,
   BACKLOG_SURVEY_CONTRACTS,
+  SETUP_CHECK_CONTRACTS,
   DERIVED_CRITERIA_CONTRACTS,
   REACHABLE_CRITERION_CONTRACTS,
   REVIEW_RANGE_SHAPES_CONTRACTS,
@@ -78,6 +79,10 @@ const {
   AFK_ROUTING_CONTRACTS,
   ARG_TOKEN_CONTRACTS,
   AUDIT_SET_CONTRACTS,
+  CHAINED_CODE_REVIEW_CONTRACTS,
+  CHAINED_DOC_AUDIT_CONTRACTS,
+  CHAINED_TEST_AUDIT_CONTRACTS,
+  SWEEP_CHAINED_LEG_CONTRACTS,
   AGGREGATE_PAGE_CONTRACTS,
   READ_PATH_CONTRACTS,
   STATUS_SEED_CONTRACTS,
@@ -92,6 +97,7 @@ const {
   PUBLISH_RUN_STATE_CONTRACTS,
   ADOPT_RUN_STATE_CONTRACTS,
   RESUMED_WORKTREE_TRIGGER_CONTRACTS,
+  STANDING_CODE_LENS_CONTRACTS,
 } = require('./contracts');
 
 // The printer the table-driven checks share. A gap is `{ source, expectation }` and reads the
@@ -249,6 +255,16 @@ module.exports = [
     'audit-set',
     AUDIT_SET_CONTRACTS,
     'setup, document, and the documentation seed agree on the `## Audit set` section',
+  ),
+  table(
+    'chained-code-review',
+    CHAINED_CODE_REVIEW_CONTRACTS,
+    'a chained code review runs no `git add -N :/` and never enters scope mode',
+  ),
+  table(
+    'chained-doc-audit',
+    CHAINED_DOC_AUDIT_CONTRACTS,
+    'a chained document audit dispatches no doc-writer and commits nothing',
   ),
   table(
     'aggregate-page',
@@ -501,6 +517,28 @@ module.exports = [
     run: scanOpencodeSurfaceSplit,
     format: (gap) => gap,
   },
+  table(
+    'standing-code-lens',
+    STANDING_CODE_LENS_CONTRACTS,
+    'the Brevity axis and Cross-slice divergence each carry their own standing-code reading',
+  ),
+  table(
+    'setup-check',
+    SETUP_CHECK_CONTRACTS,
+    '`/superdev:setup check` is a named, read-only drift-check mode',
+  ),
+  table(
+    'chained-test-audit',
+    CHAINED_TEST_AUDIT_CONTRACTS,
+    'a chained test audit runs no agreement round and writes no intent, returning fact/judgment-labelled ' +
+      'findings to the caller instead',
+  ),
+  table(
+    'sweep-chained-legs',
+    SWEEP_CHAINED_LEG_CONTRACTS,
+    '/superdev:sweep still dispatches its code, doc, and test legs with `--chained` and its config leg as ' +
+      '`/superdev:setup check`',
+  ),
 ];
 
 // The anchor contract and the afk-selection neutrality check report into the same sentence: a gap with

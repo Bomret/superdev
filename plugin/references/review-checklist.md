@@ -139,6 +139,7 @@ guessed at rather than measured.
   naming, file/module layout, error-handling style, the idiom used for the same job elsewhere. Match
   what's there rather than introduce a second way to do one thing.
 - **Cross-slice divergence** — the same concept given a different name, API shape, or vocabulary across
-  slices; two seams that should agree but don't.
+  slices; two seams that should agree but don't. On standing code, with no slices to compare, this reads
+  as a divergent second way to do one job living inside the code itself.
 - **Duplicated fact** — the same fact (a name-list, a described behavior) stated in two places
   where one owns it and the other should link; flag the copy that drifted.

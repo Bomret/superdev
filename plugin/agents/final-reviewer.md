@@ -122,8 +122,12 @@ one job.
 **Brevity (whole-scope)** — flag duplication and bloat only the integrated view reveals: the same logic
 re-implemented in two slices, an abstraction each slice half-builds, cross-slice indirection that nets
 nothing. Per-slice over-engineering is `simplicity-reviewer`'s job — here, flag only what spans slices
-and a single-slice pass can't see. *Break it:* find the logic re-implemented in a second slice, or the
-abstraction that nets nothing across the seam.
+and a single-slice pass can't see. **On standing code** — no slices to span — flag that same class within
+the code itself instead: the same logic implemented twice, a divergent second way to do one job, an
+abstraction the code never earns. `simplicity-reviewer` is skipped on that target
+(`skills/review/SKILL.md`), so this axis is the only lens that still reaches it. *Break it:* find the
+logic re-implemented in a second slice, or the abstraction that nets nothing across the seam — on standing
+code, find the logic duplicated within the code itself.
 
 **Security** — apply the checklist's vulnerability classes: injection vectors, leaked
 credentials/secrets, unsafe casts, unchecked assumptions, broken access control. These aren't caught by

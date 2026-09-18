@@ -221,11 +221,11 @@ its facts with that
 command's selection and not its verdicts — a survey resolves an ambiguity toward showing the row, where an
 unattended sweep resolves one toward deferring (ADR 0049). It writes nothing and sits outside the implement
 chain.
-_Avoid: "backlog sweep" (a sweep is `/superdev:afk`, which acts; this only reports), "status" (that
-command reports runs from their ledgers, not the store)_
+_Avoid: "backlog sweep" (a **Sweep** reads a whole tree; the backlog survey reads the slice store
+instead), "status" (that command reports runs from their ledgers, not the store)_
 
-**Test audit**: the read-only whole-tree sweep `/superdev:review-tests` runs, pricing a suite that many scopes have grown. It measures where a **timing command** is configured, dispatches `test-auditor` over every test file in one pass, ranks its findings by cost, and hands the survivors to `/superdev:plan` as an intent. It reaches what a review cannot: a duration is invisible to reading, and a redundant pair has a second half outside any range. A dead or ignored test reports as a fact, and every remaining finding is a judgment the operator may reject before it survives. Its only writes are the intent and the one-line `.gitignore` entry that keeps `.superdev/` ignored when
-absent, and it sits outside the implement chain and outside `/superdev:afk` (ADR 0066).
+**Test audit**: the read-only whole-tree sweep `/superdev:review-tests` runs, pricing a suite that many scopes have grown. It measures where a **timing command** is configured, dispatches `test-auditor` over every test file in one pass, ranks its findings by cost, and hands the survivors to `/superdev:plan` as an intent, except under **Chained posture**. It reaches what a review cannot: a duration is invisible to reading, and a redundant pair has a second half outside any range. A dead or ignored test reports as a fact, and every remaining finding is a judgment the operator may reject before it survives. Unchained, its only writes are the intent and the one-line `.gitignore` entry that keeps `.superdev/` ignored when
+absent; chained, it writes nothing at all. It sits outside the implement chain and outside `/superdev:afk` (ADR 0066).
 _Avoid: "test review" (review is the code-review family, and this one neither resolves a range nor gates a merge), "suite audit" (`Audit` already names the doc loop's reader-first mode), "coverage audit" (it prices the tests that exist, and never asks for more)_
 
 ## Separation of concerns
@@ -239,7 +239,7 @@ _Avoid: "checklist" alone (ambiguous with the DoD's own checklist), "linter rule
 **Sweep**: a read-only pass over a whole tree, where a review resolves a range. It is what finds a property of a pair — a redundant implementation, a fact stated twice — because the covering half lives wherever it lives and no range is guaranteed to contain it. `/superdev:sweep` is the chain-runner over four legs (code, docs, tests, config); `/superdev:review-tests` sweeps the test tree alone (ADR 0066, ADR 0068).
 _Avoid: "audit" (that names the reader-first mode of `/superdev:document`), "scan" (a sweep reasons, it does not pattern-match)_
 
-**Chained posture**: the mode a surface runs in when `/superdev:sweep` invokes it as a leg — it returns its findings and writes nothing. The doc leg dispatches no `doc-writer` and commits nothing; the test leg runs no agreement round and writes no intent. The sweep's own intent is the run's only write. Each surface's unchained behaviour is unchanged (ADR 0068).
+**Chained posture**: the mode a surface runs in when `/superdev:sweep` invokes it as a leg — it returns its findings and writes nothing. The doc leg dispatches no `doc-writer` and commits nothing; the test leg runs no agreement round and writes no intent. The test leg still labels each finding fact or judgment, returning that split directly to the caller instead of running the round. The code leg reads the same `--chained` signal: it runs no `git add -N :/` and never enters scope mode, whatever the invoking checkout's `HEAD` is, which keeps the leg's path resolving to ad-hoc standing code or an ad-hoc diff, never a live run's own. The config leg needs no signal either — `/superdev:setup check` already writes nothing, so the mode is already the chained posture. The sweep's own intent is the run's only write. Each surface's unchained behaviour is unchanged (ADR 0068).
 _Avoid: "dry run" (the leg does its real work, it just does not act on it), "read-only mode" (every leg's reviewers are already read-only; this is about the surface's own writes)_
 
 ## Doc loop

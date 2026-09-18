@@ -1,7 +1,7 @@
 ---
 name: document
 description: Reconcile the project's docs and optional knowledge base with the current state of the code, removing stale text. Third step of the implement chain, after /superdev:review; also runs standalone.
-argument-hint: "[BASE..HEAD | area/path | audit | (empty = full reconcile)]  [--unattended]"
+argument-hint: "[BASE..HEAD | area/path | audit [--chained] | (empty = full reconcile)]  [--unattended]"
 ---
 
 # superdev document
@@ -17,6 +17,10 @@ Dispatch the isolated **`superdev:doc-writer`** to do the work, then reader-test
 ## 2. Range
 
 **`--unattended`, if present, comes out first** — per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section, it is never part of the range or the area path.
+
+**`--chained`, if present, comes out the same way** — never part of the range or the area path either. It
+signals that `/superdev:sweep` dispatched this run as its doc leg, in the **chained posture** CONTEXT.md
+and ADR 0068 define. Only `audit` (§6) reads it; every other mode ignores it.
 
 From `$ARGUMENTS`:
 
@@ -97,8 +101,12 @@ Inverts the usual order: **reader first**, writer only to fix what it finds.
 
 1. **Build the audit set:** the default doc tree (`AGENTS.md` hierarchy + `README.md` + `CONTEXT.md` + local KB pages, when the KB backend is local `docs/kb/`) plus any globs listed under a `## Audit set` section in `docs/agents/documentation.md`. That section is optional — absent, use the default tree alone and say so in the report.
 2. Dispatch **`superdev:doc-reader`** with an **explicit `model`** (`sonnet`), the full audit set, and the `docs/agents/documentation.md` path — cold, and with **no writer commit range**, which is what tells it to skip the writing-standard pass: an audit has no writer, so no prose is newly-written. Tell it explicitly: hook/guardrail-enforcement claims ("a hook blocks X", "the gate re-runs Y") are **always load-bearing** and must be verified against the hooks' actual source (`hooks/*.js`), not assumed from prose.
-3. If it reports findings, run **one doc-writer fix round** exactly as in §4 (dispatch once with the findings, in the reader's most-severe-first order; don't re-loop the reader; unresolved findings go in the report) — including §4's test-selection run afterward, over the commits that fix round lands.
-4. **Report** per §5.
+3. **`--chained` present** — this run is `/superdev:sweep`'s doc leg, in the **chained posture**
+   (CONTEXT.md, ADR 0068). Dispatch no `doc-writer` and commit nothing, whatever the reader found. Return
+   its findings to the caller **most-severe-first**, exactly as it ordered them — an empty list when it
+   found none — and stop here: §5's report shape doesn't apply, since there is no writer work to relay.
+4. **`--chained` absent** — if it reports findings, run **one doc-writer fix round** exactly as in §4 (dispatch once with the findings, in the reader's most-severe-first order; don't re-loop the reader; unresolved findings go in the report) — including §4's test-selection run afterward, over the commits that fix round lands.
+5. **Report** per §5.
 
 ## 7. Bootstrap mode (brownfield seed)
 

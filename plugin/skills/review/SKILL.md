@@ -1,15 +1,15 @@
 ---
 name: review
 description: Review a change — a commit range, a branch, a path, or the working tree — for correctness, architecture, security, and over-engineering. Read-only on an ad-hoc range; on a live superdev scope it reviews against the DoD and can drive the fix loop.
-argument-hint: "[BASE..HEAD | branch | path | (empty = working tree)]  [--unattended]  [-- what it should do]"
+argument-hint: "[BASE..HEAD | branch | path | (empty = working tree)]  [--unattended]  [--chained]  [-- what it should do]"
 ---
 
 # superdev review
 
 Review a change end to end. Two modes, and §1 decides which:
 
-- **Ad-hoc** — a spot-check, a pre-PR pass, a second opinion on someone else's branch. No plan behind it,
-  and **read-only end to end** (§3).
+- **Ad-hoc** — a spot-check, a pre-PR pass, a second opinion on someone else's branch, or
+  `/superdev:sweep`'s code leg under `--chained` (§1). No plan behind it, and **read-only end to end** (§3).
 - **Scope** — the range is a live superdev scope branch, so this is the whole-scope review gate in the
   implement chain (ADR 0013). It reviews against that run's Definition of Done, may drive the fix loop
   after asking once, and hands off to `/superdev:document`. **§4 owns everything that differs.**
@@ -35,16 +35,26 @@ Either way the reviewers themselves are the same read-only subagents.
 **`--unattended`, if present, comes out first** — per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
 **Unattended** section, it is never part of the range or the trailing description.
 
+**`--chained`, if present, comes out the same way** — never part of the range or the trailing description
+either. It signals that `/superdev:sweep` dispatched this run as its code leg, in the **chained posture**
+(CONTEXT.md, ADR 0068): run no `git add -N :/` below, and never enter scope mode, whatever the invoking
+checkout's `HEAD` is — both are covered where they apply, further down.
+
 Parse `$ARGUMENTS` into a **range** and an optional trailing description of what the change should do:
 
 - **Trailing description** — everything after a ` -- ` separator, or (no `--` present) a clear trailing
   natural-language sentence. This is handed to `final-reviewer` as its `acceptance`.
-- **Scope mode wins over both.** Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md` for what makes the
-  resolved range a live superdev run. When it is, capture `<run-root>` and take `<run-root>/dod.md` as
-  the `acceptance` for `final-reviewer` — **as a path, never as text you read and paste into the
-  dispatch**. That is the run's own verification plan, so no trailing description and no issue-ref
-  discovery is wanted. **No `dod.md` in the run root** → say so in one line and fall back to the rules
-  below. Then follow **§4** as well as §2 and §3.
+- **`--chained` wins over scope mode.** Skip the bullet below entirely: the range resolves ad-hoc, whatever
+  the invoking checkout's `HEAD` is. This is what forecloses, by construction rather than by a guard the
+  caller must remember to check, the write paths scope mode opens — the run-lock refresh, the
+  `**Degraded:**` ledger entries, publishing the run-state snapshot to the remote anchor issue, and the fix
+  loop's commits.
+- **Scope mode wins over both, otherwise.** Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md` for what
+  makes the resolved range a live superdev run. When it is, capture `<run-root>` and take
+  `<run-root>/dod.md` as the `acceptance` for `final-reviewer` — **as a path, never as text you read and
+  paste into the dispatch**. That is the run's own verification plan, so no trailing description and no
+  issue-ref discovery is wanted. **No `dod.md` in the run root** → say so in one line and fall back to the
+  rules below. Then follow **§4** as well as §2 and §3.
 - **No description given → try issue-ref discovery.** If `docs/agents/issue-tracker.md` is configured,
   grep the resolved range's `git log` for issue references — keyword-qualified
   (`Close[sd]?`/`Fix(e[sd])?`/`Resolve[sd]?\s+#<n>`, case-insensitive), falling back to a bare `#<n>`.
@@ -55,9 +65,13 @@ Parse `$ARGUMENTS` into a **range** and an optional trailing description of what
 
 **Include untracked files before resolving the range below.** `git diff HEAD` shows modified/staged files
 but **not new untracked files**, so a path scope diffed against `HEAD`, or a working-tree review, could
-miss the whole subject. Run `git add -N :/` (intent-to-add, repo-root pathspec — a plain `.` only covers
-the current working directory, missing an untracked file outside it) so brand-new files appear, or check
-`git status --porcelain` and, if you can't include them, **say so** in the range announcement.
+miss the whole subject. Run `git add -N :/` (intent-to-add, repo-root
+pathspec — a plain `.` only covers the current working directory, missing an untracked file outside it) so
+brand-new files appear, or check `git status --porcelain` and, if you can't include them, **say so** in the
+range announcement. **`--chained`** → run no `git add -N :/`: standing code reads files at `HEAD`, where an
+untracked file never appears, so staging it would write the index for no gain a chained run can use — and
+would retarget a path scope onto that intent-to-add entry as an "uncommitted change" instead of the
+standing tree `/superdev:sweep` asked this leg to read.
 
 - **Range** — whatever remains, resolved to a concrete git range:
   - **`BASE..HEAD`** (or `BASE...HEAD`, contains `..`) → use verbatim.

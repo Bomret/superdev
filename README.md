@@ -35,6 +35,7 @@ plan runs test-first, inline in the scope worktree.
 /superdev:publish-kb   → send a scope's staged knowledge-base pages to the configured backend
 /superdev:prose-check  → check one file, range, or pasted text against the controlled-prose standard
 /superdev:review-tests → read-only audit of what the test suite costs, ranked and handed to plan
+/superdev:sweep        → read-only chain over code, docs, tests, and config, merged into one plan-ready intent
 ```
 
 ## What it does
@@ -177,6 +178,14 @@ plan runs test-first, inline in the scope worktree.
   you can reject before it survives. Its only writes are the intent for `/superdev:plan` and the
   one-line `.gitignore` entry that keeps its scratch directory ignored when absent. `/superdev:afk`
   never drives it.
+- **`/superdev:sweep`**. Chains `/superdev:review`, `/superdev:document audit`, `/superdev:review-tests`,
+  and `/superdev:setup check` over a whole repository (or the path you give it) into one merged, ranked
+  report, each finding attributed to the leg that found it. Every leg runs read-only, in a **chained
+  posture**: the doc and test legs return findings instead of repairing or asking on their own
+  ([ADR 0068](docs/adr/0068-a-repository-sweep-chains-the-read-only-surfaces.md)). A checkable fact — a
+  grounded doc claim, a config drift verdict, a dead or ignored test — reaches the intent directly; every
+  other finding is a judgment you confirm or reject in one `AskUserQuestion` round. Its only write is the
+  intent for `/superdev:plan`. `/superdev:afk` never drives it.
 
 ## After the PR
 

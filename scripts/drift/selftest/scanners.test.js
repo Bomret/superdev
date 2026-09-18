@@ -50,6 +50,12 @@ const {
   REACHABLE_CRITERION_CONTRACTS,
   REVIEW_RANGE_SHAPES_CONTRACTS,
   AGENT_LENS_LIST_CONTRACTS,
+  STANDING_CODE_LENS_CONTRACTS,
+  CHAINED_CODE_REVIEW_CONTRACTS,
+  CHAINED_DOC_AUDIT_CONTRACTS,
+  CHAINED_TEST_AUDIT_CONTRACTS,
+  SWEEP_CHAINED_LEG_CONTRACTS,
+  SETUP_CHECK_CONTRACTS,
 } = require('../contracts');
 const CHECKS = require('../checks');
 
@@ -3226,4 +3232,367 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // negative: the real tree carries the placement correctly
   assert.equal(scanOrphanLensPlacement(realRoot).length, 0, 'the shipped placement is clean');
+
+  // --- STANDING_CODE_LENS_CONTRACTS: final-reviewer.md's Brevity axis and review-checklist.md's
+  // Cross-slice divergence bullet each carry their own standing-code reading, since neither's
+  // slice-scoped wording is true of a target with no slices at all ---
+
+  const SCL_FINAL_CLEAN =
+    '**Brevity (whole-scope)** — flag duplication across slices. **On standing code** — no slices to ' +
+    'span — flag that same class within\nthe code itself instead: the same logic implemented twice.\n';
+  const SCL_CHECKLIST_CLEAN =
+    '- **Cross-slice divergence** — the same concept given a different name across slices. On standing ' +
+    'code, with no slices to compare, this reads\nas a divergent second way to do one job living inside ' +
+    'the code itself.\n';
+
+  assert.equal(
+    scanContract(
+      fixture({
+        'agents/final-reviewer.md': SCL_FINAL_CLEAN,
+        'references/review-checklist.md': SCL_CHECKLIST_CLEAN,
+      }),
+      STANDING_CODE_LENS_CONTRACTS,
+    ).length,
+    0,
+    'both standing-code readings carried yields zero gaps',
+  );
+
+  // positive: final-reviewer.md's Brevity axis loses its standing-code reading, leaving the axis silent
+  // on a target with no slices
+  const sclFinalDropped = scanContract(
+    fixture({
+      'agents/final-reviewer.md': '**Brevity (whole-scope)** — flag duplication across slices.\n',
+      'references/review-checklist.md': SCL_CHECKLIST_CLEAN,
+    }),
+    STANDING_CODE_LENS_CONTRACTS,
+  );
+  assert.equal(sclFinalDropped.length, 1, 'flags the dropped Brevity standing-code reading');
+  assert.equal(sclFinalDropped[0].source, path.join('agents', 'final-reviewer.md'), 'names final-reviewer.md');
+
+  // positive: review-checklist.md's Cross-slice divergence bullet loses its standing-code reading
+  const sclChecklistDropped = scanContract(
+    fixture({
+      'agents/final-reviewer.md': SCL_FINAL_CLEAN,
+      'references/review-checklist.md':
+        '- **Cross-slice divergence** — the same concept given a different name across slices.\n',
+    }),
+    STANDING_CODE_LENS_CONTRACTS,
+  );
+  assert.equal(sclChecklistDropped.length, 1, 'flags the dropped Cross-slice divergence standing-code reading');
+  assert.equal(
+    sclChecklistDropped[0].source,
+    path.join('references', 'review-checklist.md'),
+    'names review-checklist.md',
+  );
+
+  // negative: the real tree carries both standing-code readings
+  assert.equal(
+    scanContract(realRoot, STANDING_CODE_LENS_CONTRACTS).length,
+    0,
+    'the shipped readings are both carried',
+  );
+
+  // --- CHAINED_DOC_AUDIT_CONTRACTS: `/superdev:document audit` still names `--chained`, the signal a
+  // sweep passes its doc leg, and still dispatches no doc-writer and commits nothing once it is present ---
+
+  const CDA_CLEAN =
+    '**`--chained`, if present, comes out the same way** — never part of the range or the area path ' +
+    'either. It signals that `/superdev:sweep` dispatched this run as its doc leg, in the **chained ' +
+    'posture** CONTEXT.md (ADR 0068).\n\n' +
+    "3. **`--chained` present** — this run is `/superdev:sweep`'s doc leg, in the **chained posture**\n" +
+    '   (CONTEXT.md, ADR 0068). Dispatch no `doc-writer` and commit nothing, whatever the reader found. ' +
+    'Return\n   the reader\'s findings to the caller instead of writing a report file.\n';
+
+  assert.equal(
+    scanContract(fixture({ 'skills/document/SKILL.md': CDA_CLEAN }), CHAINED_DOC_AUDIT_CONTRACTS).length,
+    0,
+    'both the signal and the chained posture carried yields zero gaps',
+  );
+
+  // positive: the whole `--chained` signal drops out, taking the posture's own anchor with it
+  const cdaSignalDropped = scanContract(
+    fixture({ 'skills/document/SKILL.md': CDA_CLEAN.replace(/--chained/g, '') }),
+    CHAINED_DOC_AUDIT_CONTRACTS,
+  );
+  assert.equal(cdaSignalDropped.length, 2, 'flags both rows once every `--chained` mention is gone');
+
+  // positive: the signal stays, but the posture clause is rewritten to dispatch and commit after all
+  const cdaPostureDropped = scanContract(
+    fixture({
+      'skills/document/SKILL.md': CDA_CLEAN.replace(
+        'Dispatch no `doc-writer` and commit nothing',
+        'Dispatch `doc-writer` and commit the fix',
+      ),
+    }),
+    CHAINED_DOC_AUDIT_CONTRACTS,
+  );
+  assert.equal(cdaPostureDropped.length, 1, 'flags the dropped chained-posture clause alone');
+  assert.equal(cdaPostureDropped[0].source, path.join('skills', 'document', 'SKILL.md'), 'names document.md');
+
+  // negative: the real tree carries both halves
+  assert.equal(
+    scanContract(realRoot, CHAINED_DOC_AUDIT_CONTRACTS).length,
+    0,
+    'the shipped doc leg still carries both halves',
+  );
+
+  // --- CHAINED_TEST_AUDIT_CONTRACTS: `/superdev:review-tests` still names `--chained`, runs no
+  // `AskUserQuestion`, keeps the fact/judgment label, and writes no intent once it is present. Row 4 is
+  // anchored on §6's own bolded clause rather than on a `--chained`-then-window match, because an
+  // unrelated §1 bullet also pairs `--chained` with "write no intent and print no handoff" within the
+  // same window and would otherwise keep a rewritten §6 clause looking carried ---
+
+  const CTA_CLEAN =
+    "**`--chained`, if present, comes out of `$ARGUMENTS` first** — never part of the path argument.\n\n" +
+    '- **No test files at all** → say so. **`--chained`** → return an empty finding set to the caller ' +
+    'instead\n  of blocking the sweep; otherwise write no intent and print no handoff.\n\n' +
+    "**`--chained` present** — this run is `/superdev:sweep`'s test leg, in the **chained posture**\n" +
+    '(CONTEXT.md, ADR 0068). Run no `AskUserQuestion`; there is no operator turn inside a sweep to run it\n' +
+    'against. Label every dead-or-ignored-test finding `fact` and every remaining finding `judgment`, in\n' +
+    "§4's own most-cost-first order.\n\n" +
+    "**`--chained` present** — write no intent and print no handoff. Return §5's labelled, ranked " +
+    'findings to\nthe caller instead.\n';
+
+  assert.equal(
+    scanContract(fixture({ 'skills/review-tests/SKILL.md': CTA_CLEAN }), CHAINED_TEST_AUDIT_CONTRACTS).length,
+    0,
+    'all four chained-posture behaviours carried yields zero gaps',
+  );
+
+  // positive: §5's own agreement-round skip is rewritten to still ask
+  const ctaRound = scanContract(
+    fixture({
+      'skills/review-tests/SKILL.md': CTA_CLEAN.replace(
+        'Run no `AskUserQuestion`',
+        'Run a fresh `AskUserQuestion`',
+      ),
+    }),
+    CHAINED_TEST_AUDIT_CONTRACTS,
+  );
+  assert.equal(ctaRound.length, 1, 'flags the dropped no-agreement-round clause');
+
+  // positive: the fact/judgment label is dropped
+  const ctaLabel = scanContract(
+    fixture({
+      'skills/review-tests/SKILL.md': CTA_CLEAN.replace(
+        'Label every dead-or-ignored-test finding `fact` and every remaining finding `judgment`',
+        'Report every finding the same way',
+      ),
+    }),
+    CHAINED_TEST_AUDIT_CONTRACTS,
+  );
+  assert.equal(ctaLabel.length, 1, 'flags the dropped fact/judgment label');
+
+  // positive (RED-first proof): §6's own clause is rewritten to write after all, while the unrelated §1
+  // decoy bullet still pairs `--chained` with "write no intent and print no handoff" a short distance
+  // away — the loose `--chained[\s\S]{0,200}write no intent…` shape this replaces stayed green here
+  const ctaWriteDropped = scanContract(
+    fixture({
+      'skills/review-tests/SKILL.md': CTA_CLEAN.replace(
+        "**`--chained` present** — write no intent and print no handoff. Return",
+        "**`--chained` present** — write the intent and print the handoff. Return",
+      ),
+    }),
+    CHAINED_TEST_AUDIT_CONTRACTS,
+  );
+  assert.equal(ctaWriteDropped.length, 1, 'flags the rewritten §6 write clause despite the §1 decoy bullet');
+  assert.equal(
+    ctaWriteDropped[0].source,
+    path.join('skills', 'review-tests', 'SKILL.md'),
+    'names review-tests SKILL.md',
+  );
+
+  // negative: the real tree carries all four behaviours
+  assert.equal(
+    scanContract(realRoot, CHAINED_TEST_AUDIT_CONTRACTS).length,
+    0,
+    'the shipped test leg still carries all four behaviours',
+  );
+
+  // --- CHAINED_CODE_REVIEW_CONTRACTS: `/superdev:review` still names `--chained`, runs no
+  // `git add -N :/` once it is present, and never enters scope mode regardless of the invoking
+  // checkout's `HEAD` ---
+
+  const CCR_CLEAN =
+    '**`--chained`, if present, comes out the same way** — never part of the range or the trailing ' +
+    "description either. It signals that `/superdev:sweep` dispatched this run as its code leg, in the " +
+    '**chained posture** (CONTEXT.md, ADR 0068).\n\n' +
+    '**`--chained`** → run no `git add -N :/`: standing code reads files at `HEAD`, where an untracked ' +
+    'file never appears.\n\n' +
+    "- **`--chained` wins over scope mode.** Skip the bullet below entirely: the range resolves ad-hoc, " +
+    "whatever the invoking checkout's `HEAD` is.\n";
+
+  assert.equal(
+    scanContract(fixture({ 'skills/review/SKILL.md': CCR_CLEAN }), CHAINED_CODE_REVIEW_CONTRACTS).length,
+    0,
+    'the signal and both chained-posture behaviours carried yields zero gaps',
+  );
+
+  // positive: the whole `--chained` signal drops out, taking every anchor with it
+  const ccrSignalDropped = scanContract(
+    fixture({ 'skills/review/SKILL.md': CCR_CLEAN.replace(/--chained/g, '') }),
+    CHAINED_CODE_REVIEW_CONTRACTS,
+  );
+  assert.equal(ccrSignalDropped.length, 3, 'flags all three rows once every `--chained` mention is gone');
+
+  // positive: the signal stays, but the index-write clause is rewritten to stage after all
+  const ccrIndexWrite = scanContract(
+    fixture({
+      'skills/review/SKILL.md': CCR_CLEAN.replace(
+        'run no `git add -N :/`',
+        'run `git add -N :/` first',
+      ),
+    }),
+    CHAINED_CODE_REVIEW_CONTRACTS,
+  );
+  assert.equal(ccrIndexWrite.length, 1, 'flags the dropped no-index-write clause alone');
+  assert.equal(ccrIndexWrite[0].source, path.join('skills', 'review', 'SKILL.md'), 'names review SKILL.md');
+
+  // positive: the signal stays, but the scope-mode clause is rewritten to enter scope mode after all
+  const ccrScopeMode = scanContract(
+    fixture({
+      'skills/review/SKILL.md': CCR_CLEAN.replace(
+        'Skip the bullet below entirely: the range resolves ad-hoc',
+        'Follow the bullet below: the range still resolves as scope mode',
+      ),
+    }),
+    CHAINED_CODE_REVIEW_CONTRACTS,
+  );
+  assert.equal(ccrScopeMode.length, 1, 'flags the dropped never-enters-scope-mode clause alone');
+
+  // negative: the real tree carries all three behaviours
+  assert.equal(
+    scanContract(realRoot, CHAINED_CODE_REVIEW_CONTRACTS).length,
+    0,
+    'the shipped code leg still carries all three behaviours',
+  );
+
+  // --- SWEEP_CHAINED_LEG_CONTRACTS: `/superdev:sweep` still dispatches its code, doc, and test legs with
+  // `--chained` and its config leg as `/superdev:setup check`. Each row is anchored on §2's dispatch
+  // table row, never on the bare invocation string §3's report header also repeats verbatim ---
+
+  const SCL_CLEAN =
+    '| Leg | Invocation |\n|---|---|\n' +
+    '| Code | `/superdev:review <path> --chained` |\n' +
+    '| Docs | `/superdev:document audit --chained` |\n' +
+    '| Tests | `/superdev:review-tests <path> --chained` |\n' +
+    '| Config | `/superdev:setup check` |\n\n' +
+    '### Code — /superdev:review --chained\n' +
+    '### Docs — /superdev:document audit --chained\n' +
+    '### Tests — /superdev:review-tests --chained\n' +
+    '### Config — /superdev:setup check\n';
+
+  assert.equal(
+    scanContract(fixture({ 'skills/sweep/SKILL.md': SCL_CLEAN }), SWEEP_CHAINED_LEG_CONTRACTS).length,
+    0,
+    'all four dispatch-table rows carried yields zero gaps',
+  );
+
+  // positive (RED-first proof): the code leg's dispatch-table row drops `--chained`, while §3's report
+  // header keeps repeating the flag verbatim — the un-anchored `/\/superdev:review --chained/` this
+  // replaces stayed green off that header alone
+  const sclCode = scanContract(
+    fixture({
+      'skills/sweep/SKILL.md': SCL_CLEAN.replace(
+        '| Code | `/superdev:review <path> --chained` |',
+        '| Code | `/superdev:review <path>` |',
+      ),
+    }),
+    SWEEP_CHAINED_LEG_CONTRACTS,
+  );
+  assert.equal(sclCode.length, 1, 'flags the code leg dispatch-table row despite the report-header decoy');
+  assert.equal(sclCode[0].source, path.join('skills', 'sweep', 'SKILL.md'), 'names sweep SKILL.md');
+
+  // positive (RED-first proof): the doc leg's dispatch-table row drops `--chained`, while §3's report
+  // header keeps repeating the flag verbatim — the un-anchored `/\/superdev:document audit --chained/`
+  // this replaces stayed green off that header alone
+  const sclDoc = scanContract(
+    fixture({
+      'skills/sweep/SKILL.md': SCL_CLEAN.replace(
+        '| Docs | `/superdev:document audit --chained` |',
+        '| Docs | `/superdev:document audit` |',
+      ),
+    }),
+    SWEEP_CHAINED_LEG_CONTRACTS,
+  );
+  assert.equal(sclDoc.length, 1, 'flags the doc leg dispatch-table row despite the report-header decoy');
+  assert.equal(sclDoc[0].source, path.join('skills', 'sweep', 'SKILL.md'), 'names sweep SKILL.md');
+
+  // positive: the test leg's dispatch-table row drops `--chained`
+  const sclTest = scanContract(
+    fixture({
+      'skills/sweep/SKILL.md': SCL_CLEAN.replace(
+        '| Tests | `/superdev:review-tests <path> --chained` |',
+        '| Tests | `/superdev:review-tests <path>` |',
+      ),
+    }),
+    SWEEP_CHAINED_LEG_CONTRACTS,
+  );
+  assert.equal(sclTest.length, 1, 'flags the test leg dispatch-table row despite the report-header decoy');
+
+  // positive: the config leg's dispatch-table row drops `check`, sending it into the full interview
+  const sclConfig = scanContract(
+    fixture({
+      'skills/sweep/SKILL.md': SCL_CLEAN.replace(
+        '| Config | `/superdev:setup check` |',
+        '| Config | `/superdev:setup` |',
+      ),
+    }),
+    SWEEP_CHAINED_LEG_CONTRACTS,
+  );
+  assert.equal(sclConfig.length, 1, 'flags the config leg dispatch-table row losing `check`');
+
+  // negative: the real tree still dispatches all three legs correctly
+  assert.equal(
+    scanContract(realRoot, SWEEP_CHAINED_LEG_CONTRACTS).length,
+    0,
+    'the shipped sweep still dispatches all four legs correctly',
+  );
+
+  // --- SETUP_CHECK_CONTRACTS: `/superdev:setup` still declares an `argument-hint` naming `check`, and
+  // still states that mode's read-only posture ---
+
+  const SETC_CLEAN =
+    '---\nname: setup\nargument-hint: "[check | (empty = full interview)]"\n---\n\n' +
+    '`$ARGUMENTS` carrying the literal word `check` runs a **read-only drift check** instead of the\n' +
+    'interview below — it writes no file, makes no slice-store call, and starts no interview. Skip ' +
+    '§1-§4\nentirely.\n';
+
+  assert.equal(
+    scanContract(fixture({ 'skills/setup/SKILL.md': SETC_CLEAN }), SETUP_CHECK_CONTRACTS).length,
+    0,
+    'both the argument-hint and the stated posture carried yields zero gaps',
+  );
+
+  // positive: the argument-hint stops naming `check`, stranding the mode behind an unreachable flag
+  const setcHint = scanContract(
+    fixture({
+      'skills/setup/SKILL.md': SETC_CLEAN.replace(
+        'argument-hint: "[check | (empty = full interview)]"',
+        'argument-hint: "[(empty = full interview)]"',
+      ),
+    }),
+    SETUP_CHECK_CONTRACTS,
+  );
+  assert.equal(setcHint.length, 1, 'flags the argument-hint that no longer names `check`');
+
+  // positive: the read-only posture is dropped, letting `check` drift into a writing mode
+  const setcPosture = scanContract(
+    fixture({
+      'skills/setup/SKILL.md': SETC_CLEAN.replace(
+        'it writes no file, makes no slice-store call, and starts no interview',
+        'it writes a short summary',
+      ),
+    }),
+    SETUP_CHECK_CONTRACTS,
+  );
+  assert.equal(setcPosture.length, 1, 'flags the dropped read-only posture statement');
+  assert.equal(setcPosture[0].source, path.join('skills', 'setup', 'SKILL.md'), 'names setup SKILL.md');
+
+  // negative: the real tree carries both halves
+  assert.equal(
+    scanContract(realRoot, SETUP_CHECK_CONTRACTS).length,
+    0,
+    'the shipped `check` mode still carries both halves',
+  );
 };

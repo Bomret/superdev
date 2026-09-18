@@ -1,7 +1,7 @@
 ---
 name: review-tests
 description: Audit what a test suite costs — sweep the whole test tree, measure it, rank the findings, and hand the survivors to /superdev:plan. Read-only.
-argument-hint: "[path]"
+argument-hint: "[path] [--chained]"
 model: sonnet
 ---
 
@@ -23,6 +23,11 @@ halves of a redundant pair.
 
 ## 1. Derive the swept file set
 
+**`--chained`, if present, comes out of `$ARGUMENTS` first** — never part of the path argument. It
+signals that `/superdev:sweep` dispatched this run as its test leg, in the **chained posture** (CONTEXT.md,
+ADR 0068): skip §5's agreement round and §6's intent write, and return the ranked findings to the caller
+instead. Absent, this run keeps its own round and its own intent write, unchanged.
+
 Read `docs/agents/verification.md` for the test command and `docs/agents/toolchain.md` for the runner,
 and derive the test tree from them — the directories and glob the command itself runs (`tests/`,
 `**/*_test.go`, `src/**/*.spec.ts`). Cross-check with the files on disk.
@@ -37,7 +42,8 @@ about nothing, and the operator is the cheapest check on it.
 
 - **A path argument** narrows the sweep to that path, and the verdict says so.
 - **A path that does not exist** is an error: name it and stop.
-- **No test files at all** → say so, write no intent, and print no handoff.
+- **No test files at all** → say so. **`--chained`** → return an empty finding set to the caller
+  instead of blocking the sweep; otherwise write no intent and print no handoff.
 - **A tree too large for one `test-auditor` context** → say which part you can sweep and point at the
   path argument. One pass is what lets the audit see both halves of a redundant pair, so splitting the
   sweep across agents is not the remedy.
@@ -105,6 +111,14 @@ disagrees with any of them at no cost, which is what §5 is for.
 
 ## 5. Put the judgments to the operator
 
+**`--chained` present** — this run is `/superdev:sweep`'s test leg, in the **chained posture** (CONTEXT.md,
+ADR 0068). Run no `AskUserQuestion`; there is no operator turn inside a sweep to run it against. Label every
+dead-or-ignored-test finding `fact` and every remaining finding `judgment`, in §4's own most-cost-first
+order, and carry that labelled ranking straight into §6 — the sweep's own agreement round asks about
+judgments alone, so the fact/judgment split has to survive the handoff.
+
+**`--chained` absent** — this run keeps its own round:
+
 - **A dead or ignored test is a fact**, not a judgment: it reaches the intent with no question asked.
 - **Every other finding enters one `AskUserQuestion` call, asked as a single multi-select question**,
   ranked highest cost first, where **a ticked box means the operator disagrees** with that finding. Say
@@ -118,7 +132,12 @@ disagrees with any of them at no cost, which is what §5 is for.
 
 ## 6. Hand off to plan
 
-Write the survivors as a plan-ready intent under `.superdev/brainstorm/test-audit-<date>-<swept-slug>.md`,
+**`--chained` present** — write no intent and print no handoff. Return §5's labelled, ranked findings to
+the caller instead: this run's report **is** the return, and `/superdev:plan` sits past `/superdev:sweep`'s
+own intent, not past this leg's.
+
+**`--chained` absent** — write the survivors as a plan-ready intent under
+`.superdev/brainstorm/test-audit-<date>-<swept-slug>.md`,
 the git-ignored scratch location `/superdev:brainstorm` already uses (append `.superdev/` to `.gitignore`
 when absent). `<swept-slug>` is §1's path argument with each `/` turned into `-`, charset-safe per
 `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope slug`; a whole-tree sweep (no path
@@ -134,8 +153,9 @@ just wrote reaches it through its own glob instead of being named on the line:
 /superdev:plan
 ```
 
-**A run that finds nothing says so, writes no file, and prints no handoff.** A suite that earns its
-runtime is a result.
+**A run that finds nothing says so.** Unchained, it writes no file and prints no handoff. Chained, it
+returns an empty finding set. A suite that earns its runtime is a result, and so is a sweep that finds no
+fault.
 
 ## Red flags
 

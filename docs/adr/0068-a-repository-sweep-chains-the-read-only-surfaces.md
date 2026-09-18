@@ -38,16 +38,19 @@ graph LR
   INT --> PLAN["/superdev:plan"]
 ```
 
-Every leg runs in a **chained posture**: it returns findings and writes nothing. The doc leg dispatches no
-`doc-writer` and commits nothing. The test leg runs no agreement round and writes no intent. The intent the
-sweep writes is the run's only write, which is `/superdev:review-tests`'s own rule applied to the chain.
+Every leg runs in a **chained posture**: it returns findings and writes nothing. The code leg runs as
+`/superdev:review <path> --chained`, which stages no untracked file into the index (no `git add -N :/`) and
+never enters scope mode, whatever the invoking checkout's `HEAD` is — the write paths scope mode opens are
+foreclosed by construction, not by a guard the sweep checks first. The doc leg dispatches no `doc-writer`
+and commits nothing. The test leg runs no agreement round and writes no intent. The intent the sweep writes
+is the run's only write, which is `/superdev:review-tests`'s own rule applied to the chain.
 
 **`/superdev:setup check`** is the fourth leg and a new read-only mode on `/superdev:setup`, named by a
 literal word the way `/superdev:document audit` is. The operator names the mode; the command sniffs nothing,
 which is what ADR 0066 rejected when it refused a `--audit` flag on `/superdev:review`.
 
 The per-context ceiling is unchanged. It lives inside the legs, and the sweep answers it the way ADR 0066
-does: an optional path argument reaching every leg, and a stated swept set.
+does: an optional path argument reaching the code and test legs, and a stated swept set.
 
 **Why.** Every leg already exists or is one mode away, so the sweep buys composition rather than capability.
 The chained posture is what makes composition honest: a merged report whose value is a triaged intent for
@@ -85,7 +88,7 @@ The chained posture is what makes composition honest: a merged report whose valu
 - *Naming the command `/superdev:audit`.* Rejected: `CONTEXT.md` defines **Audit** as the reader-first mode
   of `/superdev:document`, with an `_Avoid:_` line guarding it. ADR 0066 already calls this shape a sweep.
 
-**Consequences.** A fifteenth surface's description loads in every session, whether or not a sweep ever
+**Consequences.** `/superdev:sweep`'s own description loads in every session, whether or not a sweep ever
 runs. No new subagent does.
 
 `/superdev:document` and `/superdev:review-tests` each carry a second posture, so a change to either must

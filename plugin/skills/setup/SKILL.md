@@ -1,6 +1,7 @@
 ---
 name: setup
 description: Configure this repo for superdev: slice store, code host, documentation convention, knowledge base, toolchain, and test command. Run once; /superdev:plan and /superdev:implement auto-invoke it if config is missing.
+argument-hint: "[check | (empty = full interview)]"
 ---
 
 # superdev setup
@@ -18,6 +19,44 @@ Write the per-repo config docs the superdev skills read, so the workflow is back
 
 This is prompt-driven, not a script. **Explore, propose defaults, confirm one decision at a time, then
 write.** Seed templates live in `${CLAUDE_PLUGIN_ROOT}/references/`.
+
+## 0. Check mode (`check`)
+
+`$ARGUMENTS` carrying the literal word `check` runs a **read-only drift check** instead of the
+interview below — it writes no file, makes no slice-store call, and starts no interview. Skip §1-§4
+entirely. Any other `$ARGUMENTS`, including none, runs the full interview unchanged: the operator names
+the mode, the command sniffs nothing (ADR 0068).
+
+Report one of three verdicts for each config document this skill owns —
+`issue-tracker.md`, `code-management.md`, `documentation.md`, `knowledge-base.md`, `toolchain.md`,
+`verification.md` — under `docs/agents/`:
+
+- **Absent.** The file does not exist. A repo that never ran `/superdev:setup` reports all of them this
+  way, and that is not a failure — it starts no interview either.
+- **Present, consistent.** The file exists and every fact it records still holds against the repo.
+- **Present, drifted.** The file exists and names a fact the repo no longer supports. State the fact
+  and what the repo shows instead of it, never just "drift found."
+
+Check each present document's own facts against the repo, never against a remote call — the slice
+store and code host stay unqueried:
+
+- `verification.md`, `toolchain.md` — every command named (the full and focused test commands, the
+  timing command, each toolchain entry) still resolves: a package-manager script is still declared in
+  the manifest (`package.json`, `pyproject.toml`, a `Makefile` target, …), and a bare executable is
+  still reachable. A command the document names that the manifest no longer defines is drift.
+- `issue-tracker.md`, `code-management.md` — a recorded host/owner/repo (or base URL) still matches
+  `git remote -v`. Compare the **host/owner/repo path alone** — a remote of the form
+  `https://user:TOKEN@host/owner/repo.git` carries userinfo that plays no part in the comparison — and
+  report the remote with any userinfo stripped, never verbatim: a caller (`/superdev:sweep`'s config leg
+  among them) can write this verdict into a report or an intent file, and a token belongs in an env var,
+  never in one. A document naming no such fact (the local-file store, an "Other" backend written as
+  prose) has nothing to check here, and reports consistent once confirmed present.
+- `documentation.md` — a `## Writing standard` naming a repo-relative path still resolves to a file,
+  and each `## Audit set` glob still matches at least one file.
+- `knowledge-base.md` — a local `docs/kb/` path still exists. A software backend records no local fact
+  this check can reach, and reports consistent once confirmed present.
+
+Report the verdicts and stop.
 
 ## 1. Explore
 
