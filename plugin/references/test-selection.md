@@ -1,6 +1,6 @@
 # Test selection
 
-The rule that picks between the full test command and the focused one (ADR 0025). Every prose caller
+The rule that picks between the full test command and the focused one (ADR 0025, ADR 0074). Every prose caller
 reads this file at runtime, the same shared-file-read-at-dispatch pattern as `references/scope-mode.md`.
 `hooks/green-gate.js` is the exception: it reimplements the same rule in code, because a hook fires
 without a dispatch to read a reference at.
@@ -10,9 +10,11 @@ without a dispatch to read a reference at.
 `docs/agents/verification.md` carries one or two fenced code blocks.
 
 - **The full command** is the first fenced block. Run it verbatim.
-- **The focused command** is the optional second fenced block. It scopes a run to a set of changed
-  paths. A second fenced block is **only ever** the focused command — never a watch command, a coverage
-  command, or sample failure output.
+- **The focused command** is the optional second fenced block, and it is the command every step inside
+  the loop runs. What defines it is that it **costs less than the full suite**: a run scoped to a set of
+  changed paths qualifies, and so does a fast subset — the unit tests, with the slow integration tests
+  left out. A second fenced block is **only ever** the focused command — never a watch command, a
+  coverage command, or sample failure output.
 
 Both commands are taken **by position**, so a fence is reserved for them alone. A watch command, a
 coverage command, sample failure output, the reason a repository records for configuring no focused
@@ -37,13 +39,24 @@ cost: per-test durations where the runner gives them, total wall clock otherwise
 ## The `{paths}` token
 
 Where the focused command contains the token `{paths}`, substitute the shell-quoted changed-path set
-for it. Where it contains no such token, run the command verbatim, for a runner that detects the change
-set on its own (for example `vitest --changed` or `jest -o`).
+for it. **A `{paths}` form belongs to a runner that maps a source file to the tests covering it** — for
+example `vitest related` or `jest --findRelatedTests`. The changed-path set holds source files and prose
+alongside tests, and a runner without that mapping collects nothing from them. Such a form also carries
+that runner's pass-with-no-tests flag, so a change set holding no tests reports green: the documentation
+step reaches exactly that case on every scope, since its range is its own prose commits.
+
+Where the focused command contains no such token, run it verbatim. Two shapes take this form: a **fixed
+fast subset** (`pytest tests/unit`, `go test ./internal/...`) always collects tests, since it names them
+itself rather than deriving them from the change set. A **self-detecting runner flag** (`vitest --changed`,
+`jest -o`) computes the change set on its own, exactly as a `{paths}` form does, and collects nothing from
+an empty one — it carries that runner's own pass-with-no-tests flag for the same reason a `{paths}` form
+does (`vitest --changed --passWithNoTests`, `jest -o --passWithNoTests`).
 
 Quoting a changed path keeps the shell from word-splitting it; it does not keep the runner from reading
-it as an option. A template puts `{paths}` after a `--` separator, where the runner supports one (for
-example `pytest -- {paths}`), so a changed path shaped like `--config.js` still reaches the runner as a
-path argument instead of a flag.
+it as an option. A `--` separator would protect a changed path shaped like `--config.js` from being read
+as a flag — check the runner's own CLI reference before relying on one: neither `vitest related` nor
+`jest --findRelatedTests`, the two runners a `{paths}` form now targets, documents a `--` separator for its
+own argument parsing.
 
 ## The changed-path set
 
@@ -65,5 +78,9 @@ Two conditions fall back to the full command instead of the focused one:
 
 - **No second fenced block is configured.** A repository that configures nothing keeps its full-suite
   behavior unchanged.
-- **The changed-path set is empty.** A focused run over no paths would report green having tested
-  nothing.
+- **The changed-path set is empty, and the focused command consumes `{paths}`.** A substitution over no
+  paths would report green having tested nothing. A fixed fast subset carries no such token and always
+  collects tests on its own, so an empty set costs it nothing and it runs unchanged. A self-detecting
+  runner flag carries no `{paths}` token either, but computes the change set itself and can collect
+  nothing from an empty one — its own pass-with-no-tests flag is what keeps that case green, not this
+  fallback.

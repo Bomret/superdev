@@ -1,6 +1,6 @@
 superdev-render-overlay
 source: skills/review/SKILL.md
-body-lines: 358
+body-lines: 373
 ---
 # generated-by: superdev-adapter — a re-render overwrites this directory
 name: superdev-review
@@ -30,73 +30,77 @@ standing tree `/superdev-sweep` asked this leg to read.
     `node "<plugin-root>/scripts/scope.js" get anchor --root <run-root>` — the ledger's
 @112
     `<plugin-root>/references/scope-mode.md`'s `## The ledger` section), not derived from the
-@124
+@127
 - **`simplicity-reviewer`** (`model: haiku`) — over-engineering only (unnecessary complexity,
-@130
+@133
 - **A `full`-tier scope** → `final-reviewer` alone; skip `simplicity-reviewer` (ADR 0037),
-@136
+@139
   otherwise. Derive the tier per `<plugin-root>/references/scope-mode.md`'s `## Degraded passes` section,
-@153
+@156
 **Exclude `slice-reviewer`.** It verifies one slice's diff against that slice's own
-@157
+@160
 `<plugin-root>/references/scope-mode.md`'s `## Degraded passes` section and follow it: review
-@192
+@195
 line each, with the follow-up `/superdev-plan`. Omit this section when there is none]
-@212
+@215
 on findings, run `/superdev-plan` to slice the fix, then `/superdev-implement`. **Scope mode is the one
-@221
-  `<plugin-root>/references/scope-mode.md`. **The scope checkout not on `<type>/<scope>`** →
 @224
+  `<plugin-root>/references/scope-mode.md`. **The scope checkout not on `<type>/<scope>`** →
+@227
   `docs/agents/verification.md` per `<plugin-root>/references/test-selection.md` and run it **in
-@233
+@236
   `/superdev-ship` with none behind it. Write the `**Degraded:**` entry either way, then publish the
-@235
+@238
   `<plugin-root>/references/scope-mode.md`'s `## Publishing run state` section — since the block
-@237
+@240
   **Unattended** → **block**, per `<plugin-root>/references/scope-mode.md`'s `## Unattended`
 @245
+  — per `<plugin-root>/references/test-selection.md`, over the commits that cycle's implementer
+@257
+  `<plugin-root>/references/scope-mode.md`'s `## Publishing run state` section. **Attended** →
+@260
   capability the Definition of Done never named** is recorded and handed to **`/superdev-plan`**: report it
-@252
+@267
   second `/superdev-review` invocation on the same run, which remembers nothing of the first. "Only on the
-@258
+@273
   backend `/superdev-setup` seeds a section for, re-running it is what adds one; on an "Other" backend the
-@265
+@280
   anchor's reference, and a copy-pasteable `/superdev-plan "<the finding>"` line — and **no pull-request
-@266
+@281
   URL**, because this command runs before `/superdev-ship` opens
-@268
+@283
   `node "<plugin-root>/scripts/scope.js" deferred add "<text>" --root <run-root>` — **the bullet
-@270
+@285
   `/superdev-status` to the record. **The create fails** → the bullet names the failure in the
-@279
+@294
   carries the finding to the pull request `/superdev-ship` opens (ADR 0035). An ad-hoc range has no run
-@295
+@310
     `node "<plugin-root>/scripts/scope.js" unresolved add "<text>" --root <run-root>`, publish the
-@296
+@311
     snapshot before stopping — per `<plugin-root>/references/scope-mode.md`'s `## Publishing run
-@300
+@315
   - **Confirmed** → dispatch **one** `implementer` (`model: sonnet`; `haiku` only for a
-@304
+@319
     loop first (`<plugin-root>/references/diagnosis.md` — the implementer reads it on any
-@309
+@324
     `<plugin-root>/references/scope-mode.md`'s `## Publishing run state` section — since no later
-@314
-  Follow `<plugin-root>/references/scope-mode.md`'s `## Degraded passes` section. Write the
-@327
-  re-verified clean — with `node "<plugin-root>/scripts/scope.js" unresolved clear --root
 @329
-  `**Stage:**` line with `node "<plugin-root>/scripts/scope.js" stage set <value> --root
-@336
-    `/superdev-ship` ask for the doc pass again.
+  Follow `<plugin-root>/references/scope-mode.md`'s `## Degraded passes` section. Write the
 @342
-  `node "<plugin-root>/scripts/scope.js" docs clear --root <run-root>`. A `lite` run wrote that
+  re-verified clean — with `node "<plugin-root>/scripts/scope.js" unresolved clear --root
 @344
-  stale, so the next `/superdev-document` must run the full `doc-writer` rather than the reader alone (ADR
-@350
-  clear` alike — per `<plugin-root>/references/scope-mode.md`'s `## Publishing run state` section.
-@352
-  Then print the next command with the range already resolved — `/superdev-document <range>`, carrying
-@355
-  stage and the scope branch carry everything `/superdev-document` reads, so a `/clear` first costs
+  `**Stage:**` line with `node "<plugin-root>/scripts/scope.js" stage set <value> --root
+@351
+    `/superdev-ship` ask for the doc pass again.
 @357
+  `node "<plugin-root>/scripts/scope.js" docs clear --root <run-root>`. A `lite` run wrote that
+@359
+  stale, so the next `/superdev-document` must run the full `doc-writer` rather than the reader alone (ADR
+@365
+  clear` alike — per `<plugin-root>/references/scope-mode.md`'s `## Publishing run state` section.
+@367
+  Then print the next command with the range already resolved — `/superdev-document <range>`, carrying
+@370
+  stage and the scope branch carry everything `/superdev-document` reads, so a `/clear` first costs
+@372
 - **Never merge, push, or open a pull request.** `/superdev-ship` ends the chain.

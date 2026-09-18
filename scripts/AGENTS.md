@@ -669,25 +669,59 @@ The `test-selection-wiring` contract (ADR 0025): `agents/implementer.md`,
 themselves to read `references/test-selection.md` **and run the command it selects**. The row is anchored
 on that clause, not the bare mention, so a document that keeps the path in a passing aside but drops the
 run instruction still fails. The fourth consumer is the odd one out: the other three narrow a run inside
-the implement loop, before the review's one full-suite run, while `skills/document/SKILL.md` runs after it —
+the implement loop, before the review's full-suite runs, while `skills/document/SKILL.md` runs after them —
 a doc commit lands on the scope branch once the review has already passed, and nothing else re-verifies
 it before the pull request, so the documentation step judges just what it changed with the same focused
-command, never the full suite (ADR 0025). The `full-suite` contract (ADR 0025), seven rows. `skills/review/SKILL.md` still
+command, never the full suite (ADR 0025). The `full-suite` contract (ADR 0025, ADR 0075). `skills/review/SKILL.md` still
 runs the full suite itself, before dispatching `final-reviewer`. It states that a `fail` there is itself
 a Critical finding folded into the fix loop. It states that the stage does **not** advance while a
 full-suite fail, or a Critical or Important finding, stands. That last clause is the one that blocks a
-red scope, distinct from the finding merely being named. `agents/final-reviewer.md` still reviews a live
-scope against the result the controller hands it, running no suite of its own, and states that
+red scope, distinct from the finding merely being named. ADR 0075 adds the loop's own rows: each fix
+cycle runs the focused command over the fix diff and hands that result to the re-review; a full suite
+runs once more when a verdict first comes back clean, with a red result there counting toward the
+3-strike cap; and a denied exit run takes the entry run's own local deviation — record and continue
+attended, block unattended — rather than the generic record-and-continue default, since it is the gate
+the stage advances on. Each row lost has its own failure — dropping the exit run advances a stage on a
+suite that never saw the fixes, dropping the focused cycle run silently reinstates a full suite per
+cycle, the cost ADR 0075 removed, and dropping the exit run's own local deviation advances an unattended
+stage on the entry run's suite alone. `agents/final-reviewer.md` reviews a live
+scope against whichever result the controller hands it — full entering or leaving the loop, focused
+inside a cycle — running no suite of its own, and states that
 `Full-suite run: fail` makes the verdict `Ready to merge? No` on its own. Its ad-hoc branch keeps its own
 re-run, which is the only verification a range with no controller behind it gets. The `skills/review/SKILL.md`
-dispatch row pins that command's own dispatch sentence — the prose that reaches `final-reviewer` at
-runtime alongside the agent body — so it hands the result and tells the reviewer to review against it,
+dispatch rows pin that command's own dispatch sentence — the prose that reaches `final-reviewer` at
+runtime alongside the agent body — so it hands the result, names which run it is, and tells the reviewer
+to review against it,
 running no suite of its own, never that its own re-run "stays optional." That sentence is the live path: a
 leak there reopens the duplicate run regardless of what `agents/final-reviewer.md` itself still says. The
 `references/run-handoff.md` row covers the other end: its run handoff still runs the scope's one full
 suite itself, in place of the review an all-`mechanical` or all-`docs` scope skips. It is the one
 full-suite run no other row covers, and the `afk-routing` check sends such a scope past `/superdev:review`
 on the strength of it. Losing any one row quietly reopens the gap ADR 0025 closed.
+The `paths-derivation` contract (ADR 0074), one row per branch `skills/setup/SKILL.md`'s decision **E**
+takes, plus one row per section of `references/test-selection.md` that states the self-detecting-flag
+clause — the `{paths}`-token section, anchored on the worked `vitest --changed --passWithNoTests` and
+`jest -o --passWithNoTests` forms that appear only there, and the fallback section, anchored on its own
+"never a self-detecting runner flag" exclusion. Anchoring both on the generic wording made the first row
+satisfiable by the second section, so deleting a whole statement left the table green. What the rows say: a
+runner that maps source files to the tests covering them gets a `{paths}` form, a runner that maps
+nothing gets a `{paths}`-less fast subset instead of being routed to `none`, a self-detecting `{paths}`-less
+runner flag carries that runner's own pass-with-no-tests flag for the same reason a `{paths}` form does,
+and `none` itself is reached only where the full suite is already cheap or no cheaper subset exists, with
+the case recorded. Losing a row leaves a repository on the wrong command while the rest keep the check
+green, and losing the fast-subset row is the expensive direction: it routes every non-mapping runner back
+to `none`, which is the full suite at every in-loop caller — the cost ADR 0025 removed.
+The `unmapped-paths-form` check (ADR 0074), `scanUnmappedPathsForms()`, is that contract's negative half,
+and neither is worth much alone: the table above cannot see a bad example, and this scan cannot see a
+derivation that vanished. It denylists a `{paths}` form proposed to a runner that maps nothing — `pytest`,
+`go test`, `cargo test`, `mvn`, `gradle`, `dotnet test`, `rspec`, `phpunit` — across the two documents
+that propose a focused command, `skills/setup/SKILL.md` and `references/test-selection.md`. Such a runner
+is handed source paths it collects nothing from, and reports RED on a change set holding no tests, which
+is the documentation step's own range on every scope. `pytest {paths}` shipped in exactly that position,
+and is where ADR 0074 came from. The scan reads a **command**, never a mention: only flags, path
+arguments, or a bare `--` separator may sit between the runner and the token, which is what keeps it off
+the prose that explains the rule and necessarily names both. Its ceiling is the denylist itself — a runner
+outside it passes silently until a row names it.
 The `entries-standing-gate` contract (ADR 0026), `scanShipGateContract()`: `skills/ship/SKILL.md`
 §3's own "Entries standing." paragraph asks once whether to ship a standing unresolved defect, and refuses
 outright under `--unattended`. §3 also carries an unrelated, pre-existing gate (the warning about a

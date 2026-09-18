@@ -816,8 +816,8 @@ const FULL_SUITE_CONTRACTS = [
   ],
   [
     path.join('agents', 'final-reviewer.md'),
-    /the scope's one full-suite run[\s\S]{0,60}review against it[\s\S]{0,60}running no suite of your own/i,
-    'state that on a live scope run it reviews against the handed result and runs no suite of its own',
+    /review against whichever result you are handed[\s\S]{0,120}running no suite of your own/i,
+    'state that on a live scope run it reviews against whichever result it is handed — full or focused — and runs no suite of its own',
   ],
   [
     path.join('skills', 'review', 'SKILL.md'),
@@ -838,6 +838,34 @@ const FULL_SUITE_CONTRACTS = [
     path.join('skills', 'review', 'SKILL.md'),
     /the stage does\s+\*\*not\*\*\s+advance while it stands/i,
     'state that the stage does **not** advance while a full-suite fail or Critical/Important finding stands',
+  ],
+  // ADR 0075's own rows, on both ends of the same dispatch. The entry run above is unchanged; these pin
+  // the loop: the cycle's own focused run, the exit run that is the actual gate (with its denied-run local
+  // deviation, the same shape the entry run's own row above pins), and the dispatch prose that reaches
+  // `final-reviewer` at runtime — the live path, and the half this table has already lost once. A
+  // `review.md` that keeps the entry run and drops the exit run reads complete and advances a stage on a
+  // suite that never saw the fixes; one that drops the focused cycle run silently reinstates a full suite
+  // per cycle, which is the cost ADR 0075 removed; one that drops the exit run's own local deviation
+  // advances an unattended stage on the entry run's suite alone.
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /focused command over the fix diff[\s\S]{0,200}?hand that result to the re-review/i,
+    'run the focused command over the fix diff inside each cycle and hand that result to the re-review',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /fix cycle's re-review verdict first comes back clean[\s\S]{0,160}?run the full suite once more[\s\S]{0,400}?counts toward the 3-strike cap/i,
+    "run the full suite once more when a fix cycle's re-review verdict first comes back clean, and count a red result there toward the 3-strike cap",
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /denied exit run takes the entry run's\s+own local deviation[\s\S]{0,600}?\*\*Unattended\*\*\s*→\s*\*\*block\*\*/i,
+    'give a denied exit run the entry run\'s own local deviation — record and continue attended, block unattended — rather than the generic record-and-continue default',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /whichever result you hand it[\s\S]{0,120}(?:full or focused|focused or full)/i,
+    'tell `final-reviewer` it reviews against whichever result it is handed, full or focused',
   ],
   // The `references/run-handoff.md` row: its run handoff is the other end of ADR 0025. An
   // all-`mechanical`/`docs` scope has no whole-scope review to attach a suite run to, so run handoff runs
@@ -1341,6 +1369,82 @@ const SUITE_RUN_INSTRUCTIONS = [
 const AGENT_TOOLCHAIN_PATTERNS = [
   /\b(?:bun|npm|pnpm|yarn)\s+(?:run\s+[\w:.-]+|test\b)/i,
   /\b(?:pytest|vitest|jest)\b/i,
+];
+
+// ADR 0074: a `{paths}` form belongs to a runner that maps a source file to the tests covering it —
+// `vitest related`, `jest --findRelatedTests`. The changed-path set holds source files and prose
+// alongside tests, so a runner without that mapping collects nothing from them and reports red: pytest
+// exits 5 on an empty collection, and vitest fails on no test files unless `passWithNoTests` is set.
+// The documentation step reaches that case on every scope, since its range is its own prose commits.
+// Shipped prose proposed `pytest {paths}` exactly that way, which is where ADR 0074 came from.
+//
+// The scan matches a runner token immediately followed by `{paths}` — with optional flags, path
+// arguments, or a bare `--` separator between them — whether that shape is a live proposal or a
+// backticked anti-example naming the same command (a mention such as `` `pytest {paths}` collects
+// nothing `` still fires it). It stays off the prose explaining the rule only because the shipped docs
+// never write a non-mapping runner and `{paths}` adjacent like that: they name both in one sentence but
+// keep the token separated from the runner, which the pattern does not match.
+//
+// ponytail: a denylist, and its ceiling is the runners named below. One outside them passes silently
+// until a row names it. A mapping runner is rare enough to enumerate; a non-mapping one is the default,
+// so the list names the common ecosystems rather than trying to be complete.
+const UNMAPPED_PATHS_RUNNERS =
+  /\b(?:pytest|go test|cargo test|mvn|gradle|dotnet test|rspec|phpunit)\b(?:\s+-{1,2}[\w-]+(?:=\S+)?|\s+\S*\/\S*)*\s+(?:--\s+)?\{paths\}/i;
+
+// The documents that propose a focused command to a repository. `skills/setup/SKILL.md` derives it and
+// `references/test-selection.md` defines it; no other shipped document writes one.
+const UNMAPPED_PATHS_DOCS = [
+  path.join('skills', 'setup', 'SKILL.md'),
+  path.join('references', 'test-selection.md'),
+];
+
+// The positive half of ADR 0074, and the denylist above is useless without it: a `skills/setup/SKILL.md`
+// that stops deriving anything trips no denylist, and routes every non-mapping runner back to `none` —
+// which is the full suite at every in-loop caller, the cost ADR 0025 was written to remove. Each row pins
+// one branch the derivation takes, or one shape inside a branch, because losing any single row leaves a
+// repository on the wrong command while the rest keep the check green.
+//
+// The self-detecting-flag rows guard the regression a `{paths}`-less fast subset and a `{paths}`-less
+// self-detecting runner flag (`vitest --changed`, `jest -o`) once shared: both take the same shape in the
+// derivation's second branch, but only the fast subset always collects. The flag computes the change set
+// itself, exactly as a `{paths}` form does, so it needs that form's own pass-with-no-tests flag for the
+// same reason — an empty set otherwise reports red on a suite that found nothing to run.
+const PATHS_DERIVATION_CONTRACTS = [
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /maps?\s+source\s+files?\s+to\s+the\s+tests[\s\S]{0,160}?\{paths\}`?\s+form/i,
+    'derive a `{paths}` form only for a runner that maps source files to the tests covering them',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /runner\s+that\s+maps\s+nothing[\s\S]{0,200}?fast\s+subset/i,
+    'offer a fast subset to a runner that maps nothing, rather than routing it to `none`',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /`?none`?[\s\S]{0,240}?already\s+cheap[\s\S]{0,200}?no\s+cheaper\s+subset/i,
+    'reach `none` only where the full suite is already cheap or no cheaper subset exists, recording which',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /self-detecting\s+runner\s+flag[\s\S]{0,250}?pass-with-no-tests\s+flag/i,
+    "carry a self-detecting `{paths}`-less runner flag's own pass-with-no-tests flag, the same as a `{paths}` form",
+  ],
+  // Anchored on the worked exemplars, which live only in the `## The {paths} token` section. The
+  // generic "self-detecting runner flag … pass-with-no-tests flag" wording also appears in the
+  // `## Fallback to the full command` paragraph the next row pins, so a row spelled that way is
+  // satisfied by that paragraph alone: deleting this section's statement outright left the table green,
+  // and the pair `scripts/AGENTS.md` bills as two independent guards was one and a half.
+  [
+    path.join('references', 'test-selection.md'),
+    /vitest\s+--changed\s+--passWithNoTests[\s\S]{0,80}?jest\s+-o\s+--passWithNoTests/i,
+    "state that a self-detecting `{paths}`-less runner flag carries its own pass-with-no-tests flag, in the `{paths}`-token section that names the worked forms",
+  ],
+  [
+    path.join('references', 'test-selection.md'),
+    /self-detecting\s+runner\s+flag[\s\S]{0,200}?not\s+this\s+fallback/i,
+    'state that the empty-set fallback covers a fixed fast subset, never a self-detecting runner flag, which relies on its own pass-with-no-tests flag instead',
+  ],
 ];
 
 // `/superdev:ship` §3 gates on a standing unresolved defect (ADR 0026): a defect the run left standing is
@@ -3009,6 +3113,9 @@ module.exports = {
   FORCING_FLAG_PATTERNS,
   NARRATIVE_DOC,
   AGENT_TOOLCHAIN_PATTERNS,
+  UNMAPPED_PATHS_RUNNERS,
+  UNMAPPED_PATHS_DOCS,
+  PATHS_DERIVATION_CONTRACTS,
   SOURCE_SECTION_CONTRACTS,
   SPECIALISING_SECTIONS,
   GLOSSARY_ENTRY_TITLES,

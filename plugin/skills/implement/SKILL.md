@@ -44,7 +44,8 @@ dispatches nothing — you carry the TDD discipline yourself. Narrate at most on
   the pass inline as above, up to that section's cap: read `scope.js get denials` after writing the entry
   and block once the count reaches it.
 - **Agents carry their own discipline.** Pass specifics, not lectures. `mechanical`/`docs` slices invent
-  no tests — the loop's runs plus the scope's one full-suite run are the net (ADR 0025).
+  no tests — the loop's runs plus the scope's full-suite run at `/superdev:review` are the net
+  (ADR 0025, ADR 0075).
 
 ## Config + input
 

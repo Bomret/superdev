@@ -35,18 +35,23 @@ unit tests with the integration tests excluded — is another, and `hooks/green-
 
 **`{paths}` requires a runner that maps source files to the tests covering them.** `/superdev:setup` derives
 a `{paths}` form only for such a runner, and that form carries the runner's pass-with-no-tests flag, which
-is what keeps a test-less change set from reporting red. Every other runner gets a `{paths}`-less fast
-subset, which always collects tests and so never reaches the failure at all. One rule covers both branches,
-and neither branch needs superdev to decide what a test path looks like.
+is what keeps a test-less change set from reporting red. Every other runner gets a `{paths}`-less command,
+in one of two shapes. A **fixed fast subset** (`pytest tests/unit`) names its tests itself, so it always
+collects and never reaches the failure at all. A **self-detecting runner flag** (`vitest --changed`,
+`jest -o`) derives the change set exactly as a `{paths}` form does. It collects nothing from an empty one
+and carries that runner's pass-with-no-tests flag for the same reason. What decides the requirement is
+whether the command computes a change set, not whether it spells the `{paths}` token. Neither branch
+needs superdev to decide what a test path looks like.
 
 **`none` survives for two cases, and setup records which applied**: the full suite is already cheap, or no
 cheaper subset exists to name. "The runner cannot narrow" stops being one of them, because that case now
 routes to a fast subset.
 
 **The empty-changed-path-set fallback applies only to a command that consumes `{paths}`.** A `{paths}`
-substitution over no paths would report green having tested nothing; a command that ignores the path set
-runs its own fixed selection and proves what it always proves. `pickCommand()` reorders its two branches to
-match.
+substitution over no paths would report green having tested nothing; a fixed fast subset runs its own
+selection and proves what it always proves. A self-detecting flag is the case this fallback does not
+cover. Its own pass-with-no-tests flag is what keeps an empty set green, not a fallback to the full
+command. `pickCommand()` reorders its two branches to match.
 
 ## Considered options
 
@@ -69,9 +74,14 @@ An adopter whose runner cannot narrow by path gets a cheap in-loop command inste
 is the outcome ADR 0025 intended and its definition prevented. An adopter whose runner does narrow gets the
 same path-scoped command as before, with a flag that keeps a prose-only or test-less change set green.
 
-A repository configured before this decision is unaffected. An absent second fenced block still falls back
-to the full command at every caller, and a configured `{paths}` form still behaves as it did. The change
-reaches an existing repository when its operator re-runs `/superdev:setup`; there is no migration.
+A repository configured before this decision is unaffected, with one exception: a self-detecting
+`{paths}`-less runner flag (`vitest --changed`, `jest -o`) configured before this decision carries no
+pass-with-no-tests flag, because that requirement did not yet reach the `{paths}`-less branch. The
+documentation step's prose-only change set then exits non-zero, and the merge gate blocks on a suite that
+found nothing to run. An absent second fenced block still falls back to the full command at every caller,
+and a configured `{paths}` form still behaves as it did. The change reaches an existing repository when
+its operator re-runs `/superdev:setup` — the same path that derives a fresh command adds the missing flag
+to a self-detecting one already configured; there is no other migration.
 
 `none` keeps a legitimate home, so this repository's own `docs/agents/verification.md` stays correct: its
 suite finishes in seconds, which is the first of the two surviving cases.

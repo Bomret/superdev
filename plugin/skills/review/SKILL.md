@@ -124,8 +124,11 @@ superdev subagent that omits one):
     `dod.md`'s own directory, so no separate path needs passing.
 
   **Ad-hoc mode**, if a test command is configured (`docs/agents/verification.md`), tell it it may re-run
-  the suite over the range rather than trust the diff alone. **Scope mode** — §4 already ran the full
-  suite; hand it that result and tell it to review against that result, running no suite of its own.
+  the suite over the range rather than trust the diff alone. **Scope mode** — §4 already ran a suite for
+  this dispatch; hand it that result and tell it to review against that result, running no suite of its
+  own. Say which run it is: `final-reviewer` reviews against whichever result you hand it, full or
+  focused (ADR 0075). The entry and exit dispatches hand a full-suite result, and a fix cycle's
+  re-review hands that cycle's focused run.
 - **`superdev:simplicity-reviewer`** (`model: haiku`) — over-engineering only (unnecessary complexity,
   what stdlib/native replaces, what to delete). Give it the same git range.
 
@@ -243,9 +246,21 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   section. Carry the result (pass/fail, and any failure output) into §2's dispatch when you continue.
   **A `fail` here is itself a Critical finding** — fold it into the fix loop exactly like a
   `final-reviewer` finding, whether or not that dispatch returned findings of its own. The stage does
-  **not** advance while it stands. After any fix cycle that touches it, **re-run the full suite yourself
-  again** before treating the verdict as clean — this run is the scope's verification, and `final-reviewer`
-  reviews against the result you hand it.
+  **not** advance while it stands. **Inside each fix cycle, run the focused command over the fix diff**
+  — per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`, over the commits that cycle's implementer
+  just landed — and **hand that result to the re-review**, saying it is the focused run. **When a fix
+  cycle's re-review verdict first comes back clean, run the full suite once more** in the scope checkout:
+  that run is the gate the stage advances on. A scope whose first verdict is already clean runs none of
+  this — the entry run above *is* that gate, so the full suite is paid exactly once. A **red result
+  there is itself a Critical finding** too — it re-enters the fix loop and **counts toward the 3-strike
+  cap** below, the same shape as a cycle exposing a defect elsewhere, so the loop needs no bound of its
+  own (ADR 0075). **A denied exit run takes the entry run's
+  own local deviation**, not `## Degraded passes`'s record-and-continue default: this run is the gate the
+  stage advances on, and an unattended run left on the default would advance it on the entry run's suite
+  alone — taken before this cycle's fix commits existed. Write the `**Degraded:**` entry either way, then
+  publish the snapshot before deciding which branch applies, per
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section. **Attended** →
+  continue. **Unattended** → **block**, per that file's `## Unattended` section.
 - **The fix loop changes how the code meets the Definition of Done.** A finding whose remedy **adds a
   capability the Definition of Done never named** is recorded and handed to **`/superdev:plan`**: report it
   under §3's `### Deferred to a plan` heading, name the follow-up command, and give the finding a home

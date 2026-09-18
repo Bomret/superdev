@@ -6,9 +6,15 @@
 // Run by ./index.js, which owns the shared fixture() helper, realRoot, and the temp-dir cleanup.
 
 const { scanContract } = require('../lib');
-const { scanDocStepsNoSuite, scanDenialCapNumberSilence, scanAfkLockTierClaim } = require('../scanners');
+const {
+  scanDocStepsNoSuite,
+  scanDenialCapNumberSilence,
+  scanAfkLockTierClaim,
+  scanUnmappedPathsForms,
+} = require('../scanners');
 const {
   FEATURE_ARG_CONTRACTS,
+  PATHS_DERIVATION_CONTRACTS,
   UNATTENDED_CONTRACTS,
   CHANGE_TYPE_CONTRACTS,
   DEGRADED_CONTRACTS,
@@ -1626,15 +1632,34 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // chain (ADR 0025) — the controller runs it itself, before dispatching final-reviewer, and
   // final-reviewer reviews against the result it is handed, running no suite of its own. ---
 
+  // Derived, never hand-counted: ADR 0075 added rows to this table and every literal count here became
+  // wrong at once. The count is not the contract — "every row review.md owns" is.
+  const fsReviewRows = FULL_SUITE_CONTRACTS.filter(
+    ([rel]) => rel === path.join('skills', 'review', 'SKILL.md'),
+  ).length;
+
+  // The clauses ADR 0075 added. A fixture whose assertion is about some *other* row carries them, so its
+  // count stays about the row it names instead of drifting every time this table grows.
+  const fs0075 =
+    'Inside each fix cycle, run the focused command over the fix diff and hand that result to the ' +
+    "re-review. When a fix cycle's re-review verdict first comes back clean, run the full suite once " +
+    'more: a red result there re-enters the loop and counts toward the 3-strike cap. A denied exit run ' +
+    "takes the entry run's own local deviation, not the generic default. **Attended** → continue. " +
+    '**Unattended** → **block**. `final-reviewer` reviews against whichever result you hand it, full or focused.\n';
+
   // positive: review.md drops the controller-run full suite and goes back to just handing over the command
   const fs1 = fixture({
     'skills/review/SKILL.md': 'Read `docs/agents/verification.md` for the test command and pass it to final-reviewer.\n',
   });
   const fsGaps1 = scanContract(fs1, FULL_SUITE_CONTRACTS);
-  assert.equal(fsGaps1.length, 4, 'flags a review.md missing all four of its rows: the controller-run suite, the dispatch clause, fail-is-Critical, and stage-not-advance');
+  assert.equal(
+    fsGaps1.length,
+    fsReviewRows,
+    "flags a review.md missing every one of its rows — the entry suite, the dispatch clause, fail-is-Critical, stage-not-advance, and ADR 0075's cycle run, exit run, exit-run denied-run deviation, and which-result clause",
+  );
   assert.ok(
     fsGaps1.every((g) => g.source === path.join('skills', 'review', 'SKILL.md')),
-    'all four gaps name review.md',
+    'every gap names review.md',
   );
 
   // positive: final-reviewer.md reads like the run is its own again on a live scope run
@@ -1653,10 +1678,14 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'skills/review/SKILL.md': 'Run the full suite yourself, before dispatching `final-reviewer`.\n',
   });
   const fsGaps4 = scanContract(fs4, FULL_SUITE_CONTRACTS);
-  assert.equal(fsGaps4.length, 3, 'flags a review.md missing the dispatch clause, the failing-suite-is-Critical rule, and the stage-not-advance rule');
+  assert.equal(
+    fsGaps4.length,
+    fsReviewRows - 1,
+    'flags a review.md carrying only the entry run — the dispatch clause, fail-is-Critical, stage-not-advance, and the rest of the ADR 0075 rows all missing',
+  );
   assert.ok(
     fsGaps4.every((g) => g.source === path.join('skills', 'review', 'SKILL.md')),
-    'all three gaps name review.md',
+    'every gap names review.md',
   );
 
   // positive (RED reproduction): review.md's dispatch sentence still leaks the optional-re-run wording
@@ -1666,7 +1695,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       "Run the full suite yourself, before dispatching `final-reviewer`. A `fail` here is itself a " +
       'Critical finding — fold it into the fix loop below. The stage does **not** advance while it ' +
       "stands. hand it that result instead, and tell it its own re-run stays optional, never the scope's " +
-      'only full-suite run.\n',
+      'only full-suite run.\n' + fs0075,
   });
   const fsGaps9 = scanContract(fs9, FULL_SUITE_CONTRACTS);
   assert.equal(fsGaps9.length, 1, "flags a review.md whose dispatch clause still leaks the optional re-run sentence");
@@ -1675,7 +1704,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // positive: final-reviewer.md drops the fail-means-No rule
   const fs5 = fixture({
     'agents/final-reviewer.md':
-      'That is the scope\'s one full-suite run, and you review against it, running no suite of your own.\n',
+      'You review against whichever result you are handed, running no suite of your own.\n',
   });
   const fsGaps5 = scanContract(fs5, FULL_SUITE_CONTRACTS);
   assert.equal(fsGaps5.length, 1, 'flags a final-reviewer.md that drops the fail-means-No rule');
@@ -1701,7 +1730,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   const fs6 = fixture({
     'skills/review/SKILL.md':
       "Run the full suite yourself, before dispatching `final-reviewer`. A `fail` here is itself a " +
-      'Critical finding — fold it into the fix loop below.\n',
+      'Critical finding — fold it into the fix loop below.\n' + fs0075,
   });
   const fsGaps6 = scanContract(fs6, FULL_SUITE_CONTRACTS);
   assert.equal(fsGaps6.length, 2, 'flags a review.md that names the finding but drops the dispatch clause and the stage-not-advance clause');
@@ -1709,6 +1738,33 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     fsGaps6.every((g) => g.source === path.join('skills', 'review', 'SKILL.md')),
     'both gaps name review.md',
   );
+
+  // positive, one per ADR 0075 row: each is the only clause missing, so each gap names its own row
+  for (const [what, body, expectation] of [
+    ['the focused cycle run', fs0075.replace(/Inside each fix cycle[^.]*\. /, ''), /focused command over the fix diff/],
+    [
+      'the exit run',
+      fs0075.replace(/When a fix cycle's re-review verdict first[\s\S]*?3-strike cap\. /, ''),
+      /run the full suite once more/,
+    ],
+    [
+      "the exit run's denied-run local deviation",
+      fs0075.replace(/A denied exit run[\s\S]*?\*\*block\*\*\. /, ''),
+      /entry run's own local deviation/,
+    ],
+    ['the which-result clause', fs0075.replace(/`final-reviewer` reviews against[\s\S]*$/, ''), /whichever result it is handed/],
+  ]) {
+    const only = fixture({
+      'skills/review/SKILL.md':
+        'Run the full suite yourself, before dispatching `final-reviewer`. A `fail` here is itself a ' +
+        'Critical finding — fold it into the fix loop below. The stage does **not** advance while it ' +
+        'stands. hand it that result and tell it to review against that result, running no suite of ' +
+        'its own.\n' + body,
+    });
+    const gaps = scanContract(only, FULL_SUITE_CONTRACTS);
+    assert.equal(gaps.length, 1, `flags a review.md missing ${what} alone`);
+    assert.match(gaps[0].expectation, expectation, `the gap names ${what}`);
+  }
 
   // positive: run-handoff.md's run handoff stops running the scope's one full suite itself — the row that
   // covers an all-`mechanical`/`docs` scope, which has no whole-scope review to attach a run to
@@ -1732,18 +1788,18 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'a run-handoff.md carrying the run-handoff full-suite run yields no gap',
   );
 
-  // negative: all seven rows carried
+  // negative: every row carried
   const fs3 = fixture({
     'skills/review/SKILL.md':
       "Run the full suite yourself, before dispatching `final-reviewer`. A `fail` here is itself a " +
       'Critical finding — fold it into the fix loop below. The stage does **not** advance while it ' +
       'stands. Scope mode: hand it that result and tell it to review against that result, running no ' +
-      'suite of its own.\n',
+      'suite of its own.\n' + fs0075,
     'agents/final-reviewer.md':
-      "That is the scope's one full-suite run, and you review against it, running no suite of your own. " +
+      'You review against whichever result you are handed, running no suite of your own. ' +
       '`Full-suite run: fail` makes the verdict `Ready to merge? No`.\n',
   });
-  assert.equal(scanContract(fs3, FULL_SUITE_CONTRACTS).length, 0, 'all seven rows carried yields zero gaps');
+  assert.equal(scanContract(fs3, FULL_SUITE_CONTRACTS).length, 0, 'every row carried yields zero gaps');
 
   // negative: the dispatch row's gaps tolerate an innocuous rewording between its anchors — widened from
   // {0,20} to {0,60}, matching every other row in this table, since a {0,20} gap breaks on a rewording as
@@ -1753,9 +1809,9 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'Run the full suite yourself, before dispatching `final-reviewer`. A `fail` here is itself a ' +
       'Critical finding — fold it into the fix loop below. The stage does **not** advance while it ' +
       'stands. Scope mode: hand it that result, and then be sure to tell it to review against that ' +
-      'result, running no suite of its own.\n',
+      'result, running no suite of its own.\n' + fs0075,
     'agents/final-reviewer.md':
-      "That is the scope's one full-suite run, and you review against it, running no suite of your own. " +
+      'You review against whichever result you are handed, running no suite of your own. ' +
       '`Full-suite run: fail` makes the verdict `Ready to merge? No`.\n',
   });
   assert.equal(
@@ -2627,4 +2683,138 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   );
   assert.equal(bsHedged.length, 1, 'flags a survey that hedges "writes nothing" instead of stating it flatly');
   assert.ok(/writes nothing/.test(bsHedged[0].expectation), 'names the read-only clause');
+
+  // --- PATHS_DERIVATION_CONTRACTS (ADR 0074): the positive half. The denylist below catches a bad
+  // `{paths}` form; this catches a setup that derives nothing at all and routes every non-mapping runner
+  // back to `none` — the full suite at every in-loop caller, which is the cost ADR 0025 removed.
+  const pdMapping =
+    'A runner that maps source files to the tests covering them gets a `{paths}` form, carrying that ' +
+    "runner's pass-with-no-tests flag.\n";
+  const pdSubset =
+    'A runner that maps nothing gets a `{paths}`-less fast subset — the unit tests, with the slow ' +
+    'integration tests left out.\n';
+  const pdSelfDetect =
+    "A self-detecting runner flag computes the change set on its own, exactly as a `{paths}` form " +
+    "does, and collects nothing from an empty one. It carries that runner's own pass-with-no-tests " +
+    'flag for the same reason.\n';
+  const pdNone =
+    '`none` is for two cases: the full suite is already cheap, or no cheaper subset exists to name.\n';
+
+  assert.equal(
+    scanContract(
+      fixture({ 'skills/setup/SKILL.md': pdMapping + pdSubset + pdSelfDetect + pdNone }),
+      PATHS_DERIVATION_CONTRACTS,
+    ).length,
+    0,
+    'every derivation branch present yields no gap',
+  );
+
+  for (const [dropped, missing, expectation] of [
+    ['the mapping branch', pdSubset + pdSelfDetect + pdNone, /maps source files to the tests/],
+    ['the fast-subset branch', pdMapping + pdSelfDetect + pdNone, /fast subset/],
+    ['the self-detecting-flag branch', pdMapping + pdSubset + pdNone, /pass-with-no-tests flag, the same as/],
+    ['the `none` branch', pdMapping + pdSubset + pdSelfDetect, /already cheap/],
+  ]) {
+    const gaps = scanContract(fixture({ 'skills/setup/SKILL.md': missing }), PATHS_DERIVATION_CONTRACTS);
+    assert.equal(gaps.length, 1, `flags a setup missing ${dropped}`);
+    assert.match(gaps[0].expectation, expectation, `the gap names ${dropped}`);
+  }
+
+  // The two `references/test-selection.md` rows: the `{paths}` token section's self-detecting sentence,
+  // and the fallback bullet's own carve-out for it — a self-detecting flag needs its own
+  // pass-with-no-tests flag, not the empty-set fallback.
+  assert.equal(
+    scanContract(
+      fixture({
+        'references/test-selection.md':
+          "A self-detecting runner flag computes the change set on its own, exactly as a `{paths}` form " +
+          "does, and collects nothing from an empty one — it carries that runner's own pass-with-no-tests " +
+          'flag for the same reason a `{paths}` form does (`vitest --changed --passWithNoTests`, ' +
+          '`jest -o --passWithNoTests`). The empty-set fallback covers a fixed fast ' +
+          'subset, never a self-detecting runner flag, which relies on its own pass-with-no-tests flag ' +
+          'instead, not this fallback.\n',
+      }),
+      PATHS_DERIVATION_CONTRACTS,
+    ).length,
+    0,
+    'test-selection.md carrying both self-detecting-flag clauses yields no gap',
+  );
+  assert.equal(
+    scanContract(
+      fixture({ 'references/test-selection.md': 'The focused command runs verbatim.\n' }),
+      PATHS_DERIVATION_CONTRACTS,
+    ).length,
+    2,
+    'flags a test-selection.md missing both self-detecting-flag clauses',
+  );
+
+  // --- scanUnmappedPathsForms (ADR 0074): a `{paths}` form belongs to a runner that maps a source file
+  // to the tests covering it. pytest and its kind collect nothing from a source path, so such a form
+  // reports red on a change set holding no tests — which is the documentation step's own range, on every
+  // scope. The shipped `pytest {paths}` proposal is what ADR 0074 came from, so this scan is a denylist
+  // of the runners that map nothing, read as a command rather than as a mention.
+  assert.equal(
+    scanUnmappedPathsForms(realRoot).length,
+    0,
+    'the shipped tree proposes no `{paths}` form to a runner that maps nothing',
+  );
+
+  const up1 = fixture({
+    'skills/setup/SKILL.md': 'Derive the focused command, for example `pytest -- {paths}`.\n',
+  });
+  const upGaps1 = scanUnmappedPathsForms(up1);
+  assert.equal(upGaps1.length, 1, 'flags a `pytest -- {paths}` proposal');
+  assert.equal(upGaps1[0].source, path.join('skills', 'setup', 'SKILL.md'), 'names the proposing document');
+  assert.match(upGaps1[0].expectation, /maps a source file/, 'the gap names the mapping requirement');
+
+  assert.equal(
+    scanUnmappedPathsForms(
+      fixture({ 'references/test-selection.md': 'For example `pytest {paths}`.\n' }),
+    ).length,
+    1,
+    'flags a bare `pytest {paths}`',
+  );
+  assert.equal(
+    scanUnmappedPathsForms(
+      fixture({ 'references/test-selection.md': 'For example `go test ./... {paths}`.\n' }),
+    ).length,
+    1,
+    'flags a `{paths}` form carrying a path argument',
+  );
+  assert.equal(
+    scanUnmappedPathsForms(
+      fixture({ 'references/test-selection.md': 'For example `pytest --rootdir=. {paths}`.\n' }),
+    ).length,
+    1,
+    'flags a `{paths}` form whose flag carries a `=value`',
+  );
+  assert.equal(
+    scanUnmappedPathsForms(
+      fixture({ 'references/test-selection.md': 'For example `PYTEST {paths}`.\n' }),
+    ).length,
+    1,
+    'flags a `{paths}` form naming the runner in a different case',
+  );
+
+  // negative: a mapping runner's form is the shape this rule wants, pass-with-no-tests flag and all
+  assert.equal(
+    scanUnmappedPathsForms(
+      fixture({ 'skills/setup/SKILL.md': 'Derive `npx vitest related --passWithNoTests {paths}`.\n' }),
+    ).length,
+    0,
+    "a mapping runner's `{paths}` form stays silent",
+  );
+
+  // negative: the prose explaining why pytest takes no `{paths}` form names both tokens in one sentence,
+  // and is the opposite of a proposal — only a command reads as one, never a mention
+  assert.equal(
+    scanUnmappedPathsForms(
+      fixture({
+        'skills/setup/SKILL.md':
+          'pytest maps no source file to its tests, so it takes no `{paths}` form at all.\n',
+      }),
+    ).length,
+    0,
+    'prose naming a non-mapping runner and `{paths}` in one sentence stays silent',
+  );
 };

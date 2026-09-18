@@ -144,7 +144,7 @@ unrendered; the touch map is plain text and unaffected.
 - `behavior` — implementer does full TDD; **slice-reviewer runs** (correctness + independent
   verification); **simplicity-reviewer runs** (over-engineering).
 - `mechanical` — pure move/rename/format: no new test — the runs already in the loop, plus the scope's
-  one full-suite run (ADR 0025), are the net; **both per-slice reviews skipped**; correctness is caught
+  full-suite run at `/superdev:review` (ADR 0025, ADR 0075), are the net; **both per-slice reviews skipped**; correctness is caught
   there, not by a dedicated per-slice review.
 - `docs` — documentation only: no test, **reviews skipped**.
 

@@ -308,13 +308,18 @@ function shQuote(p) {
   return `'${p.replace(/'/g, `'\\''`)}'`;
 }
 
-// references/test-selection.md, "Fallback to the full command": no focused block, or an empty
-// changed-path set, both run the full command instead.
+// references/test-selection.md, "Fallback to the full command": no focused block runs the full
+// command, and so does an empty changed-path set — but only for a focused command that consumes
+// `{paths}`, whose substitution over no paths would report green having tested nothing. A focused
+// command carrying no such token runs verbatim on an empty set too: a fixed fast subset always
+// collects its own tests, and a self-detecting runner flag computes the change set itself and
+// collects nothing from an empty one — its own pass-with-no-tests flag, part of the configured
+// command, is what keeps that case green (ADR 0074).
 function pickCommand(verification, getChangedPaths) {
   if (!verification.focused) return verification.full;
+  if (!verification.focused.includes('{paths}')) return verification.focused;
   const paths = getChangedPaths();
   if (!paths.length) return verification.full;
-  if (!verification.focused.includes('{paths}')) return verification.focused;
   const quoted = paths.map(shQuote).join(' ');
   // A replacer function, not a plain string: a global regex substitutes every `{paths}` token, not
   // just the first, and a function's return value is inserted literally — a changed path containing a

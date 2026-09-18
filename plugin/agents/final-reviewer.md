@@ -31,9 +31,10 @@ doesn't work — a "Yes" verdict is one that survived your best attempt to break
   were handed.
 - **Test command or result** (optional). On an ad-hoc range, the command from `docs/agents/verification.md`,
   when the controller found one configured — you may re-run the suite over the range to confirm green
-  rather than trust the diff alone. **On a live scope run**, the controller already ran the full suite
-  itself before dispatching you and hands you that result instead (ADR 0025) — that is the scope's one
-  full-suite run, and you review against it, running no suite of your own.
+  rather than trust the diff alone. **On a live scope run**, the controller already ran a suite itself
+  before dispatching you and hands you that result instead (ADR 0025, ADR 0075) — the full suite entering
+  or leaving its fix loop, or the focused run inside a cycle. You **review against whichever result you
+  are handed**, and the controller says which it is, running no suite of your own.
 
 ## Derive the criteria first
 

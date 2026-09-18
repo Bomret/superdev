@@ -343,11 +343,14 @@ answer lands outside that tree: the slice store's **assignee** goes to the git-i
   `docs/agents/toolchain.md`.
 - **Verification** *(optional)*. The repo's test command, the first fenced block of
   `docs/agents/verification.md`. Recorded, it **arms the green-gate** hook. Omitted, the gate stays
-  inactive. A second fenced block holds the focused test command, which setup derives from the runner it
-  detected wherever that runner can narrow a run. It narrows its callers to a set of changed paths. They
-  are the implementer's TDD loop, the lite tier's inline loop, the slice-reviewer's Lens 2 re-run, the
-  green-gate hook, and the documentation step's own run over its doc commits. A runner that cannot narrow
-  records no such command, with the reason, and every caller runs the full one.
+  inactive. A second fenced block holds the focused test command, the one every step inside the loop
+  runs: the implementer's TDD loop, the lite tier's inline loop, the slice-reviewer's Lens 2 re-run, the
+  green-gate hook, and the documentation step's own run over its doc commits. What defines it is that it
+  costs less than the full suite. Setup derives it from the runner it detected — a runner that maps
+  source files to the tests covering them gets a `{paths}` form carrying that runner's pass-with-no-tests
+  flag, and every other runner gets a fast subset instead. A repo records no such command only where the
+  full suite is already cheap or no cheaper subset exists, with the reason, and every caller then runs
+  the full one.
   [`references/test-selection.md`](plugin/references/test-selection.md) owns the full-versus-focused rule. The
   answer goes to `docs/agents/verification.md`.
 

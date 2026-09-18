@@ -125,7 +125,7 @@ Repeat until every slice is `merged`:
      (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section) rather than
      repeating one here.
    - **`mechanical`** / **`docs`** slice → **skip both per-slice reviews** (the merge's focused run, plus
-     the scope's one full-suite run — at `/superdev:review`, or the run-handoff run when every slice in
+     the scope's full-suite run — at `/superdev:review`, or the run-handoff run when every slice in
      the scope is `mechanical`/`docs` — are the net; ADR 0025).
 4. **Merge (you, serially)** — in the scope worktree: `git -C .superdev/scopes/<scope>/worktree merge
    --no-ff slice/<scope>/<id>`. Resolve

@@ -296,6 +296,17 @@ assert.equal(
   assert.equal(ran, 'npm test', 'empty changed-path set falls back to the full command');
 }
 
+// empty changed-path set, focused command consuming no {paths} → still the focused command. It picks
+// its own tests, so an empty set costs it nothing and the full-command fallback would charge a
+// slow-suite repo for a merge that changed nothing (ADR 0074).
+{
+  let ran;
+  const spy = (tc) => { ran = tc; return green(); };
+  const verification = { full: 'pytest', focused: 'pytest tests/unit' };
+  decide(merge('git merge --no-ff slice/s1'), () => verification, spy, () => []);
+  assert.equal(ran, 'pytest tests/unit', 'empty changed-path set keeps a {paths}-less focused command');
+}
+
 // a changed path with a space reaches the command as a single shell-quoted argument
 {
   let ran;

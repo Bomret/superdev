@@ -272,21 +272,34 @@ per-slice merges are simply where the implement loop meets it most. Detect a lik
 scripts, a Makefile `test` target, `pyproject.toml`) and propose it. No suite (e.g. a docs-only repo) →
 skip; the gate stays inactive. (The **F** scan finds the same manifests — draw the proposal from it.)
 
-**A repo with a full command settles the focused test command too**: the command that scopes a run to a
-set of changed paths (e.g. `vitest related {paths}`, `pytest {paths}`, or a runner flag that detects the
-change set on its own, like `vitest --changed`). Every step inside the implement loop runs it, so a repo
-without one runs its whole suite on every RED→GREEN increment — hours per scope on a slow suite.
-`references/test-selection.md` owns the full contract. Read it, **derive the focused command from the full
-one and the runner the §1 scan detected, and write it on the user's confirmation.** A runner that narrows
-gets a focused command out of this interview. **No suite at all** → skip this too; there is no full
-command to narrow.
+**A repo with a full command settles the focused test command too**: the command every step inside the
+implement loop runs, defined by costing less than the full suite. A repo without one runs its whole suite
+on every RED→GREEN increment — hours per scope on a slow suite. `references/test-selection.md` owns the
+full contract. Read it, **derive the focused command from the full one and the runner the §1 scan
+detected, and write it on the user's confirmation.** **No suite at all** → skip this too; there is nothing
+to derive it from. The derivation takes one of two branches:
 
-**A runner that cannot narrow records no focused command, and every caller runs the full one** — setup
-already knows the reason is the runner, so there's nothing to ask: **state it and record it** in
-`verification.md` beside the single block, the same place a user-given reason lands below. **A user who
-picks `none` anyway** records the same, but here **ask what makes that the right answer here, and record
-the reason** in `verification.md` beside the single block — a suite that finishes in seconds is a good
-one, and the next reader learns which reason applied.
+- **A runner that maps source files to the tests covering them gets a `{paths}` form**, carrying that
+  runner's pass-with-no-tests flag — `npx vitest related --passWithNoTests {paths}`, `npx jest
+  --passWithNoTests --findRelatedTests {paths}`. The flag is what keeps a change set holding no tests
+  green: the documentation step's range is its own prose commits, and a runner that fails on an empty
+  collection reports that as RED.
+- **A runner that maps nothing gets a `{paths}`-less form** — either a fixed fast subset, or a flag that
+  detects the change set on its own. **Propose no `{paths}` form here**: such a runner is handed source
+  paths it collects nothing from.
+  - **A fixed fast subset** — the unit tests, with the slow integration tests left out (`pytest
+    tests/unit`, `go test ./internal/...`, `cargo test --lib`). It always collects tests, so the
+    empty-collection failure never arises.
+  - **A self-detecting runner flag** (`vitest --changed`, `jest -o`) computes the change set itself,
+    exactly as a `{paths}` form does, and collects nothing from an empty one. It carries that runner's own
+    pass-with-no-tests flag for the same reason a `{paths}` form does: `npx vitest --changed
+    --passWithNoTests`, `npx jest -o --passWithNoTests`.
+
+**`none` is for two cases, and which one applied gets recorded.** The full suite is **already cheap**, so
+a second command saves nothing worth the block — or **no cheaper subset exists** to name, because every
+test in the suite is a slow one. **Ask what makes `none` right here, and record the reason** in
+`verification.md` beside the single block, so the next reader learns which case applied. A runner that
+maps nothing is not one of these cases: it takes the fast subset above.
 
 **A repo with a full command settles the timing command too**: the command that reports what the tests
 cost, which a **test audit** runs to rank its findings by measured duration (ADR 0066).
@@ -361,9 +374,9 @@ Write:
   - Style prose: `CONTRIBUTING.md §Style`
   ````
 - `docs/agents/verification.md` — the full test command as the first fenced block. Skip the file entirely
-  if there's no suite. Add the focused command, which decision **E** derives wherever the runner narrows,
-  as a second fenced block. **No focused command** — whether the runner can't narrow or the user picked
-  `none` — writes the first block plus the one-line reason **E** recorded for it, **as prose outside the
+  if there's no suite. Add the focused command decision **E** derived, as a second fenced block.
+  **No focused command** — the suite is already cheap, or no cheaper subset exists — writes the first
+  block plus the one-line reason **E** recorded for which case applied, **as prose outside the
   fence, never fenced itself** — `hooks/green-gate.js` takes a fenced block by index, so a reason fenced
   by mistake becomes the "focused" command the hook runs after every merge. Example, with a focused
   command configured:
@@ -376,7 +389,7 @@ Write:
   ```
 
   ```sh
-  npx vitest related {paths}
+  npx vitest related --passWithNoTests {paths}
   ```
   ````
 
@@ -390,9 +403,9 @@ Write:
   npm test
   ```
 
-  **No focused test command, deliberately.** This suite finishes in seconds, so narrowing a run saves
+  **No focused test command, deliberately.** This suite finishes in seconds, so a cheaper command saves
   nothing worth the second block, and every caller runs the full command
-  (`references/test-selection.md`, ADR 0025).
+  (`references/test-selection.md`, ADR 0025, ADR 0074).
   ````
 
   Add the **`## Timing command`** section decision **E** settled, its command in a **backtick span,

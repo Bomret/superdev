@@ -2,6 +2,12 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0074](0074-the-focused-test-command-is-the-loops-cheap-command.md), which redefines
+the focused command below by what it costs rather than by narrowing, requires a source-to-test mapping
+for `{paths}`, and narrows the empty-changed-path-set fallback to a command consuming that token — and
+[ADR 0075](0075-the-scope-review-gates-on-a-full-suite-entering-and-leaving.md), which makes the review's
+one full-suite run two, one entering its fix loop and one leaving it. Everything else below holds.
+
 ## Context
 
 `docs/agents/verification.md` named one test command, and five places in the chain ran it: the

@@ -84,6 +84,8 @@ const {
   DOC_STEP_SILENCE_DOCS,
   SUITE_RUN_INSTRUCTIONS,
   AGENT_TOOLCHAIN_PATTERNS,
+  UNMAPPED_PATHS_RUNNERS,
+  UNMAPPED_PATHS_DOCS,
   DENIAL_CAP_NUMBER_SILENCE_DOCS,
   DENIAL_CAP_NUMBER_MARKERS,
   AFK_LOCK_TIER_SILENCE_DOCS,
@@ -851,6 +853,20 @@ function scanAgentToolAgnostic(root) {
   );
 }
 
+// ADR 0074: no shipped document proposes a `{paths}` form to a runner that maps no source file to the
+// tests covering it. See UNMAPPED_PATHS_RUNNERS' note in `drift/contracts.js` for the class, what still
+// fires it, and the denylist's own ceiling.
+const scanUnmappedPathsForms = (root) =>
+  scanDocsAvoid(root, UNMAPPED_PATHS_DOCS, [
+    [
+      UNMAPPED_PATHS_RUNNERS,
+      (hit) =>
+        `propose a \`{paths}\` form only to a runner that maps a source file to the tests covering it — ` +
+        `it still proposes \`${normalizeWhitespace(hit[0])}\`, and that runner collects nothing from a ` +
+        `source path, so the run reports red on a change set holding no tests`,
+    ],
+  ]);
+
 function scanHookLedgerParsers(root) {
   const dir = docPath(root, 'hooks');
   let names = [];
@@ -1228,6 +1244,7 @@ module.exports = {
   scanDenialCapNumberSilence,
   scanAfkLockTierClaim,
   scanAgentToolAgnostic,
+  scanUnmappedPathsForms,
   scanHookLedgerParsers,
   scanForcingBranchFlag,
   scanReturnToController,

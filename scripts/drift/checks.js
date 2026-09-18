@@ -49,6 +49,7 @@ const {
   scanAfkLockTierClaim,
   scanOpencodeFixtures,
   scanOpencodeSurfaceSplit,
+  scanUnmappedPathsForms,
 } = require('./scanners');
 const {
   ADR_STATUSES,
@@ -75,6 +76,7 @@ const {
   CONTAINMENT_DELEGATION_CONTRACTS,
   CONTAINMENT_REFETCH_CONTRACTS,
   FULL_SUITE_CONTRACTS,
+  PATHS_DERIVATION_CONTRACTS,
   FIX_BOUNDARY_CONTRACTS,
   AFK_ROUTING_CONTRACTS,
   ARG_TOKEN_CONTRACTS,
@@ -238,6 +240,17 @@ module.exports = [
     FULL_SUITE_CONTRACTS,
     'the scope review runs the full suite itself while final-reviewer reviews against the result it is handed',
   ),
+  table(
+    'paths-derivation',
+    PATHS_DERIVATION_CONTRACTS,
+    'setup derives a `{paths}` form only for a mapping runner, a fast subset otherwise, and reaches `none` for two named cases',
+  ),
+  {
+    id: 'unmapped-paths-form',
+    ok: 'no shipped document proposes a `{paths}` form to a runner that maps nothing',
+    run: scanUnmappedPathsForms,
+    format: contractGap,
+  },
   {
     id: 'entries-standing-gate',
     ok: 'ship asks once and refuses unattended on a standing unresolved defect',
