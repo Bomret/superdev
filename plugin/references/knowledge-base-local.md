@@ -18,6 +18,8 @@ The KB is **human-consumption first**. Recorded at setup:
 
 ## Location
 
+- **Backend:** local file storage.
+
 `docs/kb/` — one markdown file per document, e.g. `docs/kb/<feature>-spec.md`,
 `docs/kb/adr-summary.md`. A `docs/kb/README.md` index lists them.
 

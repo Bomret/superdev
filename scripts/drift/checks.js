@@ -85,6 +85,7 @@ const {
   SWEEP_CHAINED_LEG_CONTRACTS,
   AGGREGATE_PAGE_CONTRACTS,
   READ_PATH_CONTRACTS,
+  PUBLISH_KB_INVOCATION_CONTRACTS,
   STATUS_SEED_CONTRACTS,
   PLAN_APPEND_CONTRACTS,
   ROTATE_ON_SHIPPED_CONTRACTS,
@@ -274,8 +275,13 @@ module.exports = [
   table(
     'read-path',
     READ_PATH_CONTRACTS,
-    'publish-kb separates a read failure from a genuinely absent page while a marked config document ' +
-      'documents the call that returns the body',
+    'a config document marking an outline entry `(aggregate)` documents the call that returns the ' +
+      "page's body",
+  ),
+  table(
+    'publish-kb-invocation',
+    PUBLISH_KB_INVOCATION_CONTRACTS,
+    'the publish-kb skill invokes the script rather than hand-running its mechanics',
   ),
   { id: 'pinned-paths', ok: 'every document a contract table pins still exists', run: scanPinnedPaths, format: contractGap },
   {
@@ -504,7 +510,8 @@ module.exports = [
   table(
     'containment-delegation',
     CONTAINMENT_DELEGATION_CONTRACTS,
-    "publish-kb's merge check names scope-mode.md as owning the containment test",
+    "publish-kb.js delegates its containment check to scope.js's testContainment rather than " +
+      'reimplementing the ancestry test itself',
   ),
   table(
     'containment-refetch',

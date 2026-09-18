@@ -1,6 +1,6 @@
 superdev-render-overlay
 source: skills/setup/SKILL.md
-body-lines: 394
+body-lines: 416
 ---
 # generated-by: superdev-adapter — a re-render overwrites this directory
 name: superdev-setup
@@ -34,15 +34,13 @@ every plan live on creation is a valid answer too — write that, and `/superdev
 Also capture the **assignee** for any issue backend — the account every issue `/superdev-plan` creates is
 @167
 Then ask which **documentation sits outside the default tree**. `/superdev-document audit` reads the
-@182
-  read blocks the aggregate question below. Also record that `/superdev-publish-kb` is the only caller of
 @183
-  this backend and that `/superdev-plan`/`/superdev-document` stage its pages instead of sending them
+  `/superdev-publish-kb` is the only caller of this backend and that `/superdev-plan`/`/superdev-document`
 @200
 `/superdev-plan` and `/superdev-document` fill and extend it, not reinvent it.
-@387
+@409
 Tell the user setup is complete and that `/superdev-plan` and `/superdev-implement` now read these files.
-@391
+@413
 If §1 found **no `AGENTS.md` hierarchy**, point the user at **`/superdev-document`** — its bootstrap mode
-@392
+@414
 seeds the initial hierarchy + glossary from the existing code, so per-feature `/superdev-plan` doesn't

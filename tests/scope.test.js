@@ -12,7 +12,7 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
 const scopePath = require.resolve('../plugin/scripts/scope.js');
-const { run, publishText, SLUG_RE, readLedgerHeader } = require(scopePath);
+const { run, publishText, SLUG_RE, readLedgerHeader, testContainment } = require(scopePath);
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-selftest-'));
 
@@ -1511,6 +1511,236 @@ try {
     assert.strictEqual(race.status, 0, 'the race harness itself runs: ' + (race.stderr || ''));
     const wins = fs.existsSync(winsFile) ? fs.readFileSync(winsFile, 'utf8').trim().split('\n').filter(Boolean) : [];
     assert.strictEqual(wins.length, 1, `exactly one of eight concurrent acquires wins, got ${wins.length}`);
+  }
+
+  // --- testContainment: the exported containment test (ADR 0053, ADR 0065) ---------------------
+  //
+  // No CLI verb — a sibling script `require`s this directly, the same shape `readLedgerHeader` already
+  // gives `hooks/scope-prune.js`. Real git repositories throughout, the same way tests/scope-prune.test.js's
+  // own containment fixtures do: the git plumbing is the thing under test, not a stub over it.
+  {
+    function gitTest(args, cwd) {
+      execFileSync('git', args, { cwd, stdio: 'ignore' });
+    }
+
+    function makeRepo() {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-containment-'));
+      gitTest(['init', '-q', '-b', 'main'], dir);
+      gitTest(['config', 'user.email', 'test@example.com'], dir);
+      gitTest(['config', 'user.name', 'test'], dir);
+      fs.writeFileSync(path.join(dir, 'README.md'), 'x\n');
+      gitTest(['add', '.'], dir);
+      gitTest(['commit', '-q', '-m', 'init'], dir);
+      return dir;
+    }
+
+    function makeWorkBranch(repoDir, branch, file, body) {
+      gitTest(['checkout', '-q', '-b', branch], repoDir);
+      fs.writeFileSync(path.join(repoDir, file), body);
+      gitTest(['add', '.'], repoDir);
+      gitTest(['commit', '-q', '-m', `work on ${branch}`], repoDir);
+      gitTest(['checkout', '-q', 'main'], repoDir);
+    }
+
+    // #squash-merged: ancestry never lists this branch, since its commits were rewritten into one new
+    // commit on main — the exact gap ADR 0053 closed.
+    const squashRepo = makeRepo();
+    makeWorkBranch(squashRepo, 'fix/squashed', 'app.txt', 'v2\n');
+    gitTest(['merge', '--squash', 'fix/squashed'], squashRepo);
+    gitTest(['commit', '-q', '-m', 'fix: squashed (#1)'], squashRepo);
+    assert.strictEqual(
+      testContainment(squashRepo, 'main', 'fix/squashed'),
+      'contained',
+      'a squash-merged branch reads contained'
+    );
+    fs.rmSync(squashRepo, { recursive: true, force: true });
+
+    // #genuinely-unmerged-with-remote: the branch's content lives nowhere base can reach, not locally
+    // and not on the remote either — so a refetch cannot flip the answer. The verdict must still only
+    // land after the refetch actually ran (ADR 0065's second pass is not skipped just because the first
+    // pass already looked conclusive): FETCH_HEAD carries whatever that fetch wrote, and its presence is
+    // the one observable trace of the attempt.
+    const unmergedRepo = makeRepo();
+    const unmergedOrigin = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-containment-origin-'));
+    gitTest(['init', '-q', '--bare', '-b', 'main'], unmergedOrigin);
+    gitTest(['remote', 'add', 'origin', unmergedOrigin], unmergedRepo);
+    gitTest(['push', '-q', 'origin', 'main'], unmergedRepo);
+    makeWorkBranch(unmergedRepo, 'fix/unmerged', 'app.txt', 'v2\n');
+    assert.strictEqual(
+      fs.existsSync(path.join(unmergedRepo, '.git', 'FETCH_HEAD')),
+      false,
+      'no fetch has run yet in this fixture'
+    );
+    assert.strictEqual(
+      testContainment(unmergedRepo, 'main', 'fix/unmerged'),
+      'not-contained',
+      'content living only on the branch reads not contained'
+    );
+    assert.strictEqual(
+      fs.existsSync(path.join(unmergedRepo, '.git', 'FETCH_HEAD')),
+      true,
+      'a not-contained local verdict triggers the refetch before answering'
+    );
+    fs.rmSync(unmergedRepo, { recursive: true, force: true });
+    fs.rmSync(unmergedOrigin, { recursive: true, force: true });
+
+    // #remote-only-branch: the local branch is gone (a host that squash-merges and never deletes the
+    // remote-tracking ref) but `origin/fix/onremote-squashed` still names the exact commit — a bare
+    // `merge-tree`/`merge-base` call never checks that qualified shape on its own (ADR 0053 Important
+    // 3), so without qualifyBranch this reads could-not-resolve however completely base holds the work.
+    const remoteOnlyRepo = makeRepo();
+    const remoteOnlyOrigin = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-containment-origin-'));
+    gitTest(['init', '-q', '--bare', '-b', 'main'], remoteOnlyOrigin);
+    gitTest(['remote', 'add', 'origin', remoteOnlyOrigin], remoteOnlyRepo);
+    gitTest(['checkout', '-q', '-b', 'fix/onremote-squashed'], remoteOnlyRepo);
+    fs.writeFileSync(path.join(remoteOnlyRepo, 'remote-squash.txt'), 'z\n');
+    gitTest(['add', '.'], remoteOnlyRepo);
+    gitTest(['commit', '-q', '-m', 'work on the remote branch'], remoteOnlyRepo);
+    gitTest(['push', '-q', 'origin', 'fix/onremote-squashed'], remoteOnlyRepo);
+    gitTest(['checkout', '-q', 'main'], remoteOnlyRepo);
+    gitTest(['merge', '--squash', 'fix/onremote-squashed'], remoteOnlyRepo);
+    gitTest(['commit', '-q', '-m', 'fix: onremote-squashed (#1)'], remoteOnlyRepo);
+    gitTest(['branch', '-q', '-D', 'fix/onremote-squashed'], remoteOnlyRepo); // local gone, remote-tracking stays
+    assert.strictEqual(
+      testContainment(remoteOnlyRepo, 'main', 'fix/onremote-squashed'),
+      'contained',
+      'a branch gone locally but present as a remote-tracking ref is resolved and tested, not reported unresolvable'
+    );
+    fs.rmSync(remoteOnlyRepo, { recursive: true, force: true });
+    fs.rmSync(remoteOnlyOrigin, { recursive: true, force: true });
+
+    // #no-write-tree: a git that rejects `merge-tree --write-tree` falls back to `git merge-base
+    // --is-ancestor` (scope-mode `## Containment`) rather than erroring. A shell wrapper on PATH stands
+    // in for git 2.37 and earlier — it rejects only that one flag combination and forwards every other
+    // call to the real git, exactly what an old git's own `merge-tree` does (three tree-ish arguments,
+    // nonzero on `--write-tree`).
+    const realGit = execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim();
+    const fakeGitDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-containment-oldgit-'));
+    fs.writeFileSync(
+      path.join(fakeGitDir, 'git'),
+      '#!/bin/sh\n' +
+        'if [ "$1" = "merge-tree" ] && [ "$2" = "--write-tree" ]; then exit 129; fi\n' +
+        `exec "${realGit}" "$@"\n`,
+      { mode: 0o755 }
+    );
+    const oldGitRepo = makeRepo();
+    makeWorkBranch(oldGitRepo, 'fix/mergecommit', 'app.txt', 'v2\n');
+    gitTest(['merge', '-q', '--no-ff', '-m', 'merge', 'fix/mergecommit'], oldGitRepo);
+    const savedPath = process.env.PATH;
+    process.env.PATH = fakeGitDir + path.delimiter + savedPath;
+    try {
+      assert.strictEqual(
+        testContainment(oldGitRepo, 'main', 'fix/mergecommit'),
+        'contained',
+        'a git without --write-tree falls back to the ancestry test rather than erroring'
+      );
+    } finally {
+      process.env.PATH = savedPath;
+    }
+    fs.rmSync(oldGitRepo, { recursive: true, force: true });
+    fs.rmSync(fakeGitDir, { recursive: true, force: true });
+
+    // #unresolvable: a branch name naming no ref anywhere in the repository — a typo, or a scope whose
+    // branch was renamed by hand — reads could-not-resolve, distinct from not-contained: a consumer
+    // reading "not contained" as "hasn't landed yet" would warn about the wrong thing for a branch that
+    // never existed at all.
+    const noBranchRepo = makeRepo();
+    assert.strictEqual(
+      testContainment(noBranchRepo, 'main', 'fix/does-not-exist'),
+      'could-not-resolve',
+      'a branch naming no ref at all reports could-not-resolve'
+    );
+    fs.rmSync(noBranchRepo, { recursive: true, force: true });
+
+    // #no-remote: no remote configured at all, and the branch is genuinely not contained — the fetch
+    // ADR 0065 wants can't even be attempted, and the local verdict must stand rather than throw.
+    const noRemoteRepo = makeRepo();
+    makeWorkBranch(noRemoteRepo, 'fix/noremote', 'app.txt', 'v2\n');
+    assert.strictEqual(
+      testContainment(noRemoteRepo, 'main', 'fix/noremote'),
+      'not-contained',
+      'a repository with no remote configured answers from the local base without erroring'
+    );
+    fs.rmSync(noRemoteRepo, { recursive: true, force: true });
+
+    // #unreachable-host: a dropped VPN or a firewalled host is ordinary, not exotic, and the refetch
+    // must still return within a bounded window rather than leaving `git fetch` blocked on a connect
+    // that never resolves. 192.0.2.1 is TEST-NET-1 (RFC 5737): reserved and never routed anywhere, so
+    // the connect attempt stalls the way a genuinely black-holed remote would, unlike `#no-remote`
+    // above, which fails fast because there is no remote to dial at all.
+    const unreachableRepo = makeRepo();
+    makeWorkBranch(unreachableRepo, 'fix/unreachable', 'app.txt', 'v2\n');
+    gitTest(['remote', 'add', 'origin', 'http://192.0.2.1/nowhere.git'], unreachableRepo);
+    const unreachableStart = Date.now();
+    const unreachableVerdict = testContainment(unreachableRepo, 'main', 'fix/unreachable');
+    const unreachableElapsedMs = Date.now() - unreachableStart;
+    assert.strictEqual(
+      unreachableVerdict,
+      'not-contained',
+      'an unreachable host still degrades to the local verdict'
+    );
+    assert.ok(
+      unreachableElapsedMs < 8000,
+      `the refetch returns within a bounded window instead of hanging, took ${unreachableElapsedMs}ms`
+    );
+    fs.rmSync(unreachableRepo, { recursive: true, force: true });
+
+    // #argument-injection-base: `base` shaped like a git option must never reach `spawnSync` as one —
+    // `git fetch <remote> <base>` carries no separator, so `base = '--upload-pack=<script>'` runs that
+    // script as the (fake) remote's upload-pack before `git` ever complains about the ref. `branch` here
+    // is an ordinary, genuinely not-contained branch so the call reaches the vulnerable fetch line
+    // rather than exiting early on an unresolved branch.
+    const injectionRepo = makeRepo();
+    makeWorkBranch(injectionRepo, 'fix/injected', 'app.txt', 'v2\n');
+    const injectionOrigin = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-containment-origin-'));
+    gitTest(['init', '-q', '--bare', '-b', 'main'], injectionOrigin);
+    gitTest(['remote', 'add', 'origin', injectionOrigin], injectionRepo);
+    const payloadDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-containment-payload-'));
+    const markerFile = path.join(payloadDir, 'marker');
+    const payloadScript = path.join(payloadDir, 'evil.sh');
+    fs.writeFileSync(payloadScript, `#!/bin/sh\ntouch "${markerFile}"\n`, { mode: 0o755 });
+    const injectionVerdict = testContainment(
+      injectionRepo,
+      `--upload-pack=${payloadScript}`,
+      'fix/injected',
+      'origin'
+    );
+    assert.strictEqual(
+      fs.existsSync(markerFile),
+      false,
+      'an option-shaped base never runs as an argument to git fetch'
+    );
+    assert.notStrictEqual(injectionVerdict, 'contained', 'an option-shaped base never reads contained');
+    fs.rmSync(injectionRepo, { recursive: true, force: true });
+    fs.rmSync(injectionOrigin, { recursive: true, force: true });
+    fs.rmSync(payloadDir, { recursive: true, force: true });
+
+    // #argument-injection-branch: an option-shaped `branch` must resolve safely too, through
+    // `qualifyBranch`/`refResolves` (both `rev-parse` calls) — could-not-resolve, never a crash and
+    // never contained.
+    const injectionBranchRepo = makeRepo();
+    const injectionBranchVerdict = testContainment(injectionBranchRepo, 'main', '-C/tmp');
+    assert.notStrictEqual(
+      injectionBranchVerdict,
+      'contained',
+      'an option-shaped branch never reads contained'
+    );
+    fs.rmSync(injectionBranchRepo, { recursive: true, force: true });
+
+    // #real-conflict: the branch and base edit the same line differently — `git merge-tree` exits 1 on
+    // a genuine conflict, the other cause besides an unresolved ref (scope-mode `## Containment`). Must
+    // read not-contained, never crash and never contained — the wrong-direction failure this slice's
+    // brief names explicitly.
+    const conflictRepo = makeRepo();
+    fs.writeFileSync(path.join(conflictRepo, 'README.md'), 'base change\n');
+    gitTest(['commit', '-q', '-am', 'base edits the shared line'], conflictRepo);
+    makeWorkBranch(conflictRepo, 'fix/conflicting', 'README.md', 'branch change\n');
+    assert.strictEqual(
+      testContainment(conflictRepo, 'main', 'fix/conflicting'),
+      'not-contained',
+      'a real conflict between branch and base reads not-contained, not a crash'
+    );
+    fs.rmSync(conflictRepo, { recursive: true, force: true });
   }
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true });

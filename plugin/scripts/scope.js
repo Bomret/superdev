@@ -9,6 +9,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('child_process');
 // `adopt`'s marker scan needs the exact fence-masking rule kb-patch.js's own extractSection() uses
 // (ADR 0022's second-reader lesson: a masking rule restated by hand drifts from the one it copies),
 // so it requires the function rather than growing a second copy. A marker shown inside a fenced
@@ -746,6 +747,122 @@ function verbStatus(cwd) {
   console.log(out.join('\n'));
 }
 
+// --- containment test (ADR 0053, ADR 0065) ------------------------------------
+//
+// Whether `<base>` already holds `<branch>`'s work, on content rather than ancestry
+// (`references/scope-mode.md` `## Containment`). Exported for a sibling script to `require` — the same
+// shape `readLedgerHeader` already gives `hooks/scope-prune.js` and `hooks/worktree-sweep.js` — and no
+// CLI verb, because this touches no ledger.
+//
+// A Containment verdict is one of three strings:
+//   'contained'         — base already holds every byte of branch's work
+//   'not-contained'     — branch carries content base does not hold, checked only after the refetch
+//                          below has had its say
+//   'could-not-resolve' — branch names no ref this repository can find at all: a different situation
+//                          from "not contained" a consumer must warn about differently
+//
+// `hooks/scope-prune.js` mirrors the same git plumbing (`containedInBase`, `supportsWriteTree`,
+// `qualifyBranchRefs`) without ADR 0065's refetch — it is a `Stop` hook firing on every finished turn,
+// and a stale local base only defers a reap the TTL has already delayed. This export is not that hook:
+// a not-contained verdict against the local base refetches `<base>` from `<remote>` and retests against
+// `FETCH_HEAD` before it answers, because a code host squash-merges the pull request and the operator's
+// clone learns nothing until somebody pulls.
+//
+// spawnSync throughout, never the throwing `git()`-style helper above: every git call here is a real
+// answer to read off its exit status (a conflict, an unresolved ref, a git without `--write-tree`), not
+// an error to propagate. A git call that cannot even start (no git on PATH) reads as `status !== 0` here
+// exactly like a real nonzero exit, which keeps the fail-closed direction: this function never throws,
+// and every path that cannot answer falls toward 'not-contained' or 'could-not-resolve', never toward
+// 'contained'. The refetch alone also carries a `timeout` (below): a dropped VPN or a firewalled host
+// leaves `git fetch` itself blocked on the network with nothing to read off, so the fail-closed exit
+// status this comment describes never arrives on its own there.
+//
+// `--end-of-options` opens every args array below, ahead of `base`/`ref`/`branch` — every one of them a
+// revision-shaped string, and nothing here requires it came from trusted config. Git's own option parser
+// cannot otherwise tell `base = '--upload-pack=/some/script'` from a real option, and `git fetch` really
+// does run whatever `--upload-pack` names.
+function gitSpawn(args, cwd, opts) {
+  return spawnSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8', ...opts });
+}
+
+// Short enough to be tolerable inside an interactive command, and an order of magnitude past a healthy
+// LAN or VPN round trip to the code host: a black-holed remote degrades to the local verdict in seconds,
+// never in the minutes a kernel TCP timeout would otherwise take.
+const FETCH_TIMEOUT_MS = 5000;
+
+function refResolves(ref, cwd) {
+  return gitSpawn(['rev-parse', '--verify', '--quiet', '--end-of-options', ref + '^{commit}'], cwd).status === 0;
+}
+
+// Bare name -> the ref `merge-tree`/`merge-base` can actually resolve: the bare name itself when a
+// local `refs/heads/<name>` exists (gitrevisions(7) already walks to it), and `<remote>/<name>` for a
+// name that survives only as a remote-tracking ref — mirroring `hooks/scope-prune.js`'s
+// `qualifyBranchRefs`, because a bare name only ever resolves the unqualified `refs/remotes/<name>`
+// shape on its own, never `refs/remotes/<remote>/<name>` (ADR 0053).
+function qualifyBranch(branch, cwd) {
+  if (refResolves(branch, cwd)) return branch;
+  const refs = gitSpawn(['for-each-ref', '--format=%(refname)', 'refs/remotes'], cwd);
+  if (refs.status !== 0) return branch;
+  for (const raw of refs.stdout.split('\n')) {
+    const ref = raw.trim();
+    if (!ref.startsWith('refs/remotes/')) continue;
+    const rest = ref.slice('refs/remotes/'.length);
+    const cut = rest.indexOf('/');
+    if (cut < 1) continue;
+    if (rest.slice(cut + 1) === branch) return rest; // '<remote>/<branch>'
+  }
+  return branch;
+}
+
+// `--write-tree` needs git 2.38 (2022-10-02). Probing costs one `merge-tree` of `HEAD` with itself,
+// whose result tree already exists, so the probe writes no object of its own.
+function supportsWriteTree(cwd) {
+  return gitSpawn(['merge-tree', '--write-tree', '--end-of-options', 'HEAD', 'HEAD'], cwd).status === 0;
+}
+
+// One local test against whatever `base` the caller hands (a branch name on the first pass,
+// `FETCH_HEAD` on the second) — the tree comparison ADR 0053 states, or the ancestry fallback for a
+// git without `--write-tree`.
+function containedAgainst(ref, base, cwd, writeTreeSupported) {
+  if (writeTreeSupported) {
+    const merged = gitSpawn(['merge-tree', '--write-tree', '--end-of-options', base, ref], cwd);
+    if (merged.status !== 0) return false;
+    // `--verify` ahead of `--end-of-options`: bare `rev-parse` echoes an unrecognized flag back on
+    // stdout instead of treating it as the end-of-options marker, which would corrupt the tree-hash
+    // comparison below for every caller, not only an option-shaped `base`.
+    const baseTree = gitSpawn(['rev-parse', '--verify', '--quiet', '--end-of-options', base + '^{tree}'], cwd);
+    if (baseTree.status !== 0) return false;
+    return merged.stdout.trim() === baseTree.stdout.trim();
+  }
+  return gitSpawn(['merge-base', '--is-ancestor', '--end-of-options', ref, base], cwd).status === 0;
+}
+
+// The exported test. `remote` is the name `docs/agents/code-management.md` config names; a caller with
+// no such config passes its own default. Never throws, and safe on any `base`/`branch` string, not only
+// one sourced from trusted config: an option-shaped value (`--upload-pack=...`, `-C<path>`) never runs
+// as an argument to any git subcommand this function calls, and a genuinely unreachable `remote` degrades
+// to the local verdict within `FETCH_TIMEOUT_MS` rather than blocking on the network indefinitely.
+function testContainment(cwd, base, branch, remote = 'origin') {
+  const ref = qualifyBranch(branch, cwd);
+  if (!refResolves(ref, cwd)) return 'could-not-resolve';
+
+  const writeTreeSupported = supportsWriteTree(cwd);
+  if (containedAgainst(ref, base, cwd, writeTreeSupported)) return 'contained';
+
+  // Not contained against the local base — refetch before answering (ADR 0065). A fetch that fails
+  // (no remote configured, an unreachable host, a rejected credential) leaves the local verdict
+  // standing rather than erroring. `timeout`/`killSignal` bound a black-holed host to the same short
+  // wait: `spawnSync` otherwise blocks on the connect for as long as the kernel's own TCP timeout runs,
+  // which is minutes, not the "leaves the first verdict standing" scope-mode.md already promises.
+  const fetched = gitSpawn(['fetch', '--end-of-options', remote, base], cwd, {
+    env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+    timeout: FETCH_TIMEOUT_MS,
+    killSignal: 'SIGKILL',
+  });
+  if (fetched.status !== 0) return 'not-contained';
+  return containedAgainst(ref, 'FETCH_HEAD', cwd, writeTreeSupported) ? 'contained' : 'not-contained';
+}
+
 // --- base lock ---------------------------------------------------------------
 //
 // ADR 0058: `/superdev:plan` §6 and `/superdev:implement`'s run init both commit CONTEXT.md, the
@@ -954,11 +1071,12 @@ function main() {
 }
 
 // The CLI runs only when this file is executed directly. `hooks/scope-prune.js` requires it for
-// `readLedgerHeader` (ADR 0022), and `tests/scope.test.js` requires it for `run`, `publishText`, and
-// `SLUG_RE` besides (ADR 0059). An unguarded `main()` parses the *caller's* argv: measured, a
-// requiring process dies with `unknown verb ""` and exit 1 before its own first statement, because a
-// refusal calls process.exit. Had the caller's argv happened to start with `init`, the same path waits
-// on stdin instead and hangs. Either way the require, not the CLI, is what fails.
+// `readLedgerHeader` (ADR 0022), a sibling script requires it for `testContainment` (ADR 0053, ADR
+// 0065), and `tests/scope.test.js` requires it for `run`, `publishText`, and `SLUG_RE` besides (ADR
+// 0059). An unguarded `main()` parses the *caller's* argv: measured, a requiring process dies with
+// `unknown verb ""` and exit 1 before its own first statement, because a refusal calls process.exit.
+// Had the caller's argv happened to start with `init`, the same path waits on stdin instead and hangs.
+// Either way the require, not the CLI, is what fails.
 if (require.main === module) main();
 
-module.exports = { readLedgerHeader, run, publishText, SLUG_RE };
+module.exports = { readLedgerHeader, run, publishText, SLUG_RE, testContainment };

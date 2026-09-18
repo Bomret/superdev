@@ -4,9 +4,10 @@
 
 Standalone deterministic code that `package.json` runs, alongside `plugin/hooks/`.
 The shipped CLIs live in `plugin/scripts/`: `scope.js` (the run-state CLI, ADR 0022), `kb-patch.js`
-(the knowledge-base section merge, ADR 0027), and `adapter.js` (the OpenCode harness adapter, issue
-#375). The maintainer-only one lives here in `scripts/`: `drift-check.js` (the cross-document contract
-checks). This doc owns them all regardless of which dir each lives in.
+(the knowledge-base section merge, ADR 0027), `adapter.js` (the OpenCode harness adapter, issue
+#375), and `publish-kb.js` (the backend-independent half of publishing a scope's staged
+knowledge-base pages, ADR 0069). The maintainer-only one lives here in `scripts/`: `drift-check.js`
+(the cross-document contract checks). This doc owns them all regardless of which dir each lives in.
 
 ## Ownership
 
@@ -164,6 +165,11 @@ merges exactly as an LF one does, the way `scope.js` reads a CRLF ledger.
 
 Removing a single section is out of scope: `patch` replaces or appends, and `delete` still removes a
 whole page (ADR 0027, Consequences).
+
+`kb-patch.js` also exports `headingKeyOf`, the same key function the merge uses internally.
+`scripts/publish-kb.js` `require`s it, together with `maskFencedLines`. It detects two sibling staged
+files naming the identical section heading before either one applies, rather than growing a second
+copy of the key logic.
 
 ### adapter.js, the OpenCode harness adapter (issue #375)
 
@@ -323,6 +329,69 @@ The committed golden render lives under `scripts/drift/fixtures/opencode/`, rege
 with one fixed model map and the plugin root normalised to `<plugin-root>` — the bridge file
 bakes that root into its `PLUGIN_ROOT` constant, so the same normalisation keeps the fixture
 machine-independent; the `opencode-render` check diffs a fresh render against them.
+
+### publish-kb.js, the backend-independent knowledge-base publish (ADR 0069)
+
+`publish-kb.js` is the fourth shipped CLI. `skills/publish-kb/SKILL.md` invokes it and relays its
+report, and keeps no publishing mechanics of its own. It resolves the main checkout from any current
+directory, a scope worktree included, using `git rev-parse --path-format=absolute --git-common-dir`.
+This is what makes `.superdev/kb-pending/` resolve against the repository root, not one level too
+deep, from inside `.superdev/scopes/<scope>/worktree`. `--scope <slug>` selects which pending scope to
+publish. Left out, the script publishes the one pending scope there is. It refuses when there is more
+than one pending scope or none, and names every pending scope with its staged-page count on refusal.
+
+It classifies `docs/agents/knowledge-base.md`'s `- **Backend:**` bullet. A `local` or `none` value
+publishes nothing, since a local backend keeps its pages as repository files (ADR 0023). A remote
+backend with no `## Commands` section refuses and names `/superdev:setup`. A remote backend that
+carries one parses its five `### <verb>` subsections, `find`, `read`, `create`, `update`, and
+`delete`, by heading name, never by position. A fenced block inserted or removed elsewhere therefore
+never shifts which template a later verb reads. Each template runs under `/bin/sh -c`. Every value
+passes to it as an environment variable, never interpolated into the command string. A title carrying
+a quote, a `$`, a backtick, or a newline therefore reaches the backend unchanged and starts no shell of
+its own.
+
+`find`'s exit code is the contract the other four verbs rest on (ADR 0069's table). Exit `0` with a
+JSON object on stdout means `found`, and each key in that object becomes a `SUPERDEV_KB_<KEY>`
+variable for the later verbs. Exit `3` means `absent`, the only verdict that may create a page. Any
+other exit means `unknown`, which leaves the page staged instead of guessing. `action: upsert` finds,
+then creates or updates. `action: delete` finds, then deletes, or reports `already-absent` when `find`
+already answers `absent`. `action: patch` requires a `read` template, since a backend declaring none
+leaves every `patch` page staged. It reads the live body, merges the staged section into it through
+`kb-patch.js`'s exported `merge()`, and creates or updates with the merged result. A `read` call that
+returns no body for a title `find` did list counts as a read failure, never as an empty live page. It
+therefore never wipes an aggregate page's other sections (ADR 0027, 0069).
+
+Two or more staged files sharing one title are the aggregate-page case, since a `patch` filename is
+`<title-slug>--<section-slug>.md` and an outline entry's sections arrive as sibling files.
+`processTitleGroup` applies each file in turn, re-reading the live page as it then stands, so the
+second file's merge sees the first file's own section already landed. It leaves both files staged and
+unresolved when two siblings name the identical section heading. A group where not every file carries
+`action: patch` is ambiguous, and nothing in it publishes. A staged file's backend call landing is
+what deletes it. A call that fails leaves the file staged, so the next run retries exactly what did
+not make it. A malformed file (no frontmatter, no title, or an unknown action) is reported and left
+untouched.
+
+Before publishing, `checkContainment` refuses a scope whose branch is not confirmed merged into
+`docs/agents/code-management.md`'s base branch. It resolves the branch from the ledger's
+`**Branch:**` header, falling back to the same branch-shape scan `hooks/scope-prune.js` applies. A scope
+whose branch and run root are both gone reads as contained rather than as a refusal: `hooks/scope-prune.js`
+reaps the two together, and gates that reap on the branch already reading contained in base or gone, so
+their joint absence is the fully-reaped steady state a publish meets (ADR 0071). A run root that survives
+without a resolving branch is the real unreachable case, and still refuses. It
+delegates the ancestry test to `scope.js`'s exported `testContainment` instead of reimplementing it.
+`--allow-unmerged` overrides the refusal once the operator confirms. `_adhoc`, the literal value
+`/superdev:document` writes for a doc pass outside a live scope, skips the check entirely. The report
+a run prints never carries a page's body, only filenames, titles, and reasons.
+
+The module guards its CLI entry with `require.main === module`. It exports every function above,
+`resolveMainCheckout`, `listPendingScopes`, `resolveScope`, `classifyBackend`,
+`parseCommandsTemplates`, `parseStagedPage`, `runTemplate`, `runFind`, `publishUpsert`,
+`publishDelete`, `publishPatch`, `processFile`, `processStagedFiles`, `resolveScopeBranch`,
+`parseBaseBranch`, `parseRemote`, `checkContainment`, `renderReport`, and `run`.
+`tests/publish-kb.test.js` imports `run`, `parseCommandsTemplates`, `parseStagedPage`,
+`classifyBackend`, `parseBaseBranch`, and `parseRemote` by name, and separately imports and calls
+`runFind` for one JSON-array edge case. It otherwise exercises the module through its exported
+`run()`, the way `tests/scope.test.js` exercises `scope.js`'s own CLI verbs (ADR 0059).
 
 ### drift-check.js, the cross-document contract checks
 
@@ -551,14 +620,18 @@ and `unresolved clear`, `skills/document/SKILL.md` `stage set`, `skills/ship/SKI
 `stage set shipped`, `get unresolved` (for the unresolved-defect record its §3 gate and §5 body
 read), and `get degraded` (for the degrade record its §5 body reads),
 `skills/status/SKILL.md` `status`, `skills/afk/SKILL.md` `get stage`,
-`skills/publish-kb/SKILL.md` `get branch` for its merge check, `skills/plan/SKILL.md` `get branch --root` (for
+`skills/plan/SKILL.md` `get branch --root` (for
 the refusal signal its §0 reads before extending a feature), both execution
 playbooks `slice`, `references/scope-mode.md` `degraded add`, `references/implement-lite.md` `docs set`
 (the inline-doc-pass record, ADR 0031), `skills/document/SKILL.md` `get docs` (read before it decides whether
 to dispatch a `doc-writer`), and `skills/review/SKILL.md` `docs clear` (when its fix loop lands commits). A
 document that drops its verb goes
 back to hand-editing or hand-parsing the ledger, which the `ledger-guard` hook only catches as a tool
-call at runtime, never as prose. Four further rows pin the one verb that writes no ledger at all:
+call at runtime, never as prose. The table used to carry a `skills/publish-kb/SKILL.md` row for `get
+branch`, retired (ADR 0069): `plugin/scripts/publish-kb.js` reads the scope branch by `require`ing
+`readLedgerHeader` directly, real code no verb-invocation pattern can match, and
+`tests/publish-kb.test.js`'s ledger-route assertions cover the behavior instead. Four further rows pin
+the one verb that writes no ledger at all:
 `references/run-init.md` and `skills/plan/SKILL.md` each carry `base-lock acquire` and `base-lock
 release` (ADR 0058). Both halves are pinned per document, because nothing else enforces either. A
 document that stops acquiring returns to two sessions racing on the same base-branch design docs, and
@@ -576,7 +649,10 @@ could add a backend call to its own framing without touching the reference at al
 publish, create, update, or upsert, in any morphology, so a passive "is published to" or a gerund
 "updating the wiki page" counts too. An HTTP `POST`, `PUT`, or `DELETE` counts as well. The verb must
 be aimed at a page, wiki, space, or backend object.
-`skills/publish-kb/SKILL.md` is exempt, because reaching the backend is its job. The check reads the
+`skills/publish-kb/SKILL.md` is exempt, because dispatching the one path to the backend is its job, and
+`plugin/scripts/publish-kb.js` — the script that job now runs as (ADR 0069) — is exempt too, for the
+opposite reason: it is real code making a real `/bin/sh -c` call, not prose this instruction-shape scan
+reads at all, so the list was never asked to carry it. The check reads the
 instruction's shape rather than a backend's literal endpoint or credential name, because
 **Backends are pluggable** already forbids these documents from naming a backend at all, so a
 literal-only marker would catch almost nothing.
@@ -698,29 +774,38 @@ pinned the caller side until `/superdev:sweep` existed to dispatch it, so a late
 (or, on the config leg, the `check` argument) from the sweep's own table while every callee contract stayed
 green — the code, doc, or test leg would then read and repair the sweep's own tree mid-sweep, unchained, or
 the config leg would open the full interactive interview mid-sweep, with nothing failing to say so.
-The `aggregate-page` contract (ADR 0027), four rows. `references/doc-pass.md` and
+The `aggregate-page` contract (ADR 0027), three rows. `references/doc-pass.md` and
 `skills/plan/SKILL.md`, the two stagers, each stage `action: patch` carrying one section for an outline
-entry marked aggregate. `skills/publish-kb/SKILL.md` applies it by merging through `scripts/kb-patch.js`,
-and `references/knowledge-base-confluence.md` documents the `(aggregate)` marker that decides which
-pages get one. The `publish-kb` row is anchored on
-the **call**, not on the word `patch`: a document that names the action and then merges the page in its
-own prose puts a model back in charge of rewriting a reader-facing page, which is exactly what moving the
-merge into a script prevented. The marker row is the quietest to lose. Every other document still reads
-correct, the doc pass never marks a page, and it stages `upsert` forever, replacing an aggregate
-page with the one section a scope can see. That is the state that left this repository's own
-`ADR summaries` page four decisions stale.
-The `read-path` contract (ADR 0027), two rows: `skills/publish-kb/SKILL.md` reads a
-`patch`'s live body through the call the config document documents, and splits the outcome into two
-branches. **Positive absence**, where the find call does not list the title, creates the page. **Any
-other outcome** is a **read failure**, not absence, and must leave the file staged: no documented read,
-a transport or authorisation failure, the read itself reporting the page absent for a listed title, or
-an empty body for a listed title. The row is anchored on that branch, not on the word "read": a document
-that mentions reading the live page and then creates it on *any* missing body passes a keyword search
-while destroying a published page on the very failure the branch exists to catch, which is the defect
-that reached a whole-scope review before ADR 0027 pinned it. `docs/agents/knowledge-base.md`'s row is
+entry marked aggregate. `plugin/scripts/publish-kb.js` applies it by merging through `kb-patch.js`'s
+exported `merge()`, and `references/knowledge-base-confluence.md` documents the `(aggregate)` marker
+that decides which pages get one. The `publish-kb` row retargeted from `skills/publish-kb/SKILL.md`'s
+prose onto the script (ADR 0069): it is anchored on the `require`/call shape, not on the word `patch`, so
+a script that keeps the action but splices the section in by hand still fails — a script cannot
+paraphrase its own merge call away the way a document's prose could drift from what it describes. The
+marker row is the quietest to lose. Every other document still reads correct, the doc pass never marks a
+page, and it stages `upsert` forever, replacing an aggregate page with the one section a scope can see.
+That is the state that left this repository's own `ADR summaries` page four decisions stale.
+The `read-path` contract (ADR 0027), one row on `docs/agents/knowledge-base.md`: a config document that
+marks an outline entry `(aggregate)` documents the call that returns a `patch`'s live body. The row is
 conditional rather than a bare pattern: it documents a call returning the page body only when it marks
 some outline entry `(aggregate)`, so a config document that marks none owes no read, and the row is
-implemented as a `test()` function rather than a literal `RegExp` to express that. The
+implemented as a `test()` function rather than a literal `RegExp` to express that. The table used to
+carry a second row pinning `skills/publish-kb/SKILL.md`'s own read-failure branch — **positive
+absence**, where the find call does not list the title, creates the page; **any other outcome** (no
+documented read, a transport or authorisation failure, the read itself reporting the page absent for a
+listed title, or an empty body for a listed title) is a **read failure**, not absence, and must leave the
+file staged. That row retired (ADR 0069): `plugin/scripts/publish-kb.js`'s `publishPatch` runs this
+branch as code, not prose a document could drift from, and `tests/publish-kb.test.js` proves every arm
+directly — a read failure, an empty body, and a missing `read` template each leave the staged file on
+disk, name the reason, and create nothing.
+The `publish-kb-invocation` contract (slice #493, ADR 0069), one row: `skills/publish-kb/SKILL.md` still
+invokes `node "${CLAUDE_PLUGIN_ROOT}/scripts/publish-kb.js"`. Once the skill's own job shrank to the two
+human stops and relaying the script's report, nothing else stops a future edit from having a model hand-run
+the old mechanics again instead of calling the script — a reviewer flagged exactly this gap on the slice
+that thinned the skill down. The row is anchored on the real invocation string rather than a prose mention
+of the script's name, so a rewrite that talks about `publish-kb.js` without ever running it still fails,
+the same anchoring principle `aggregate-page`'s `require`/call row and `containment-delegation` already
+apply to the script's own delegation. The
 `pinned-paths` contract, `scanPinnedPaths()`: every document a contract table pins still exists.
 `scanContract()` skips a document it cannot read — the convention that lets a fixture carry only the files
 one assertion exercises, and lets a partial checkout fail nothing — so a table reports zero gaps the
@@ -1499,21 +1584,21 @@ anywhere else in the file — an assessment-template example, say — which is e
 took. This is a presence table, so a paraphrase it does not recognise fails loudly rather than silently,
 and it carries no ceiling note for the same reason its sibling presence tables carry none.
 
-The `containment-delegation` contract (ADR 0053), one row: `skills/publish-kb/SKILL.md` §3
-names the test behind its merge check by pointing at `references/scope-mode.md`'s `## Containment`
-section, and states no git command of its own. Its own table rather than a row on `RUN_KIND_CONTRACTS`,
-whose subject is scope-mode.md's three run kinds — a publish-kb row there would make that check's `ok`
-phrase lie about what it guards. The row is a presence pattern, so it catches only one half of the drift
-ADR 0053 names: §3 dropping the pointer leaves the step to reach for whatever ancestry test its reader
-already knows, which is the state ADR 0053 measured — "not merged" on every squash-merged scope, and an
-operator trained to wave through the one warning that is real. §3 keeping the pointer while restating the
-incantation beside it, against the ADR's own decision that scope-mode.md states the test once, is the
-other half — and a presence pattern cannot see a restated command sitting beside the pointer it requires,
-so that half has no assertion here. The row is anchored on the delegating clause — the section named as
-the thing that *owns* the test — rather than on a bare `## Containment` mention, because §3 also names a
-second file for the base branch a few words earlier, and "that same file's `## Containment` section"
-reads correct while resolving to that closer, wrong antecedent; the anchoring is what a bare-mention
-pattern would miss.
+The `containment-delegation` contract (ADR 0053), one row, retargeted onto code (ADR 0069):
+`plugin/scripts/publish-kb.js`'s `checkContainment` delegates the test by `require`ing `testContainment`
+from `scope.js` and calling it directly, rather than stating an ancestry check of its own — the same
+delegation `skills/publish-kb/SKILL.md` §3 used to state in prose, by pointing at
+`references/scope-mode.md`'s `## Containment` section, before the mechanics moved into the script. A
+dispatch cannot contradict this the way a skill's restated incantation could: `checkContainment` is code
+the script always runs, not prose a model re-reads and might paraphrase into its own git command. Its
+own table rather than a row on `RUN_KIND_CONTRACTS`, whose subject is scope-mode.md's three run kinds —
+a publish-kb row there would make that check's `ok` phrase lie about what it guards. The row is a
+presence pattern, so it catches only one half of the drift ADR 0053 names: `checkContainment` dropping
+the `require`/call and reaching for whatever ancestry test replaces it is the state ADR 0053 measured —
+"not merged" on every squash-merged scope, and an operator trained to wave through the one warning that
+is real. A script that keeps the real call *and* grows a second, redundant ancestry test beside it is the
+other half — a presence pattern cannot see a second implementation sitting beside the one it requires, so
+that half has no assertion here.
 
 The `containment-refetch` contract (ADR 0065), four rows, all on `references/scope-mode.md`'s
 `## Containment` section: that test refetches the base before it answers not contained. ADR 0053 fixed

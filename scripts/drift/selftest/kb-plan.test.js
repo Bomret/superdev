@@ -227,19 +227,22 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(aggGapsPlan.length, 1, 'flags a plan.md that stages no patch for an aggregate page');
   assert.equal(aggGapsPlan[0].source, path.join('skills', 'plan', 'SKILL.md'), 'names plan.md');
 
-  // positive: publish-kb keeps the action and merges the page itself. This is the row's whole point —
-  // a document that names `patch` in passing but rewrites the live page by hand puts a model back in
-  // charge of a reader-facing page, which is what moving the merge into a script prevented.
+  // positive: publish-kb.js keeps the action and splices the page itself instead of merging through
+  // kb-patch.js. This is the row's whole point — code that names `patch` but rewrites the live page in
+  // its own logic puts a model-free process back in charge of a reader-facing page, which is exactly
+  // what moving the merge into a script was meant to prevent.
   const aggGaps2 = scanContract(
     fixture({
-      'skills/publish-kb/SKILL.md':
-        '- **`patch`** → fetch the live page under `title`, splice the staged section into it, and send ' +
-        'the result back under the same title.\n',
+      'scripts/publish-kb.js':
+        "function publishPatch(title, stagedRaw, templates) {\n" +
+        "  // splice the staged section into the live body directly, no kb-patch.js involved\n" +
+        "  return { ok: true, action: 'updated' };\n" +
+        "}\n",
     }),
     AGGREGATE_PAGE_CONTRACTS,
   );
-  assert.equal(aggGaps2.length, 1, 'flags a publish-kb that names `patch` but merges the page itself');
-  assert.equal(aggGaps2[0].source, path.join('skills', 'publish-kb', 'SKILL.md'), 'names publish-kb.md');
+  assert.equal(aggGaps2.length, 1, "flags a publish-kb.js that never merges through kb-patch.js's merge()");
+  assert.equal(aggGaps2[0].source, path.join('scripts', 'publish-kb.js'), 'names publish-kb.js');
 
   // positive: the seed loses the marker. The quietest of the three — every other document still reads
   // correct, and the doc pass simply never marks a page, so it silently stages `upsert` forever.
@@ -267,9 +270,12 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
         'skills/plan/SKILL.md':
           'An outline entry marked `aggregate` takes `action: patch` instead (ADR 0027): stage **one\n' +
           'section**, not the page.\n',
-        'skills/publish-kb/SKILL.md':
-          '- **`patch`** → the staged body is one section. Fetch the live page, then merge with\n' +
-          '`node "${CLAUDE_PLUGIN_ROOT}/scripts/kb-patch.js" <live-page> <staged-file>`.\n',
+        'scripts/publish-kb.js':
+          "const { merge } = require('./kb-patch.js');\n\n" +
+          'function publishPatch(title, stagedRaw, templates) {\n' +
+          '  const merged = merge(liveText, stagedRaw);\n' +
+          '  return merged;\n' +
+          '}\n',
         'references/knowledge-base-confluence.md':
           '- `Developer Docs` → `ADR summaries` **(aggregate)**\n\n`(aggregate)` marks a page many\n' +
           'scopes contribute to. The doc pass stages one section for it, as `action: patch`.\n',
@@ -277,25 +283,14 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
       AGGREGATE_PAGE_CONTRACTS,
     ).length,
     0,
-    'all four halves carried, across a line wrap, yields zero gaps',
+    'all three halves carried, across a line wrap, yields zero gaps',
   );
 
-  // --- READ_PATH_CONTRACTS: publish-kb.md separates a read failure from a genuinely absent page, and a
-  // config document that marks `(aggregate)` documents the call that returns the body (ADR 0027). ---
-
-  // positive (RED reproduction): publish-kb mentions reading the live page, but creates it on *any*
-  // missing body instead of separating a read failure from a genuinely absent page — the exact shape a
-  // keyword search for "read" would wrongly pass
-  const rpGaps1 = scanContract(
-    fixture({
-      'skills/publish-kb/SKILL.md':
-        "- **`patch`** → Read the live page's body through the call the config document documents. If " +
-        'the body is missing, treat the page as absent and create it from the staged section.\n',
-    }),
-    READ_PATH_CONTRACTS,
-  );
-  assert.equal(rpGaps1.length, 1, 'flags a publish-kb that creates the page on any missing body');
-  assert.equal(rpGaps1[0].source, path.join('skills', 'publish-kb', 'SKILL.md'), 'names publish-kb.md');
+  // --- READ_PATH_CONTRACTS: a config document that marks `(aggregate)` documents the call that returns
+  // a `patch`'s live body (ADR 0027). The skill-side read-failure separation this table used to pin on
+  // `skills/publish-kb/SKILL.md` retired (ADR 0069): `plugin/scripts/publish-kb.js`'s `publishPatch`
+  // runs that branch as code now, proven directly by `tests/publish-kb.test.js`, not prose this table
+  // reads. ---
 
   // positive: a config document marks an outline entry `(aggregate)` but documents no call returning the
   // page body — the doc pass would stage a patch with no read to check it against
@@ -317,7 +312,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // positive (RED reproduction): every keyword a keyword-order regex looks for — "read", "page's body",
   // "returns", "content"/"markdown" — present, in order, but the sentence asserts the call is never made.
   // A keyword-order regex with no negation awareness passes this; only a verbatim pin of the real clause
-  // catches it, the same class row 1 closed for `skills/publish-kb/SKILL.md`.
+  // catches it.
   const rpGaps2b = scanContract(
     fixture({
       'docs/agents/knowledge-base.md':
@@ -354,66 +349,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'names knowledge-base.md',
   );
 
-  // positive (RED reproduction): every required phrase present, in order, but the terminal instruction
-  // itself is negated — "never leave the file staged ... anyway" — the half a bare keyword search for
-  // "read failure" and "leave the file staged" would wrongly pass, since both substrings are still there
-  const rpGaps3 = scanContract(
-    fixture({
-      'skills/publish-kb/SKILL.md':
-        "**Positive absence only** — the config document's find call does not list the title — means " +
-        'the page does not exist yet: the staged section becomes the new page, as an `upsert` of the ' +
-        'section alone. **Any other outcome** — the config document names no read for this backend, the ' +
-        'read call fails for any other reason, or it returns an empty body for a title the find call ' +
-        'does list — is a **read failure, not absence**: never leave the file staged, and create the ' +
-        'page from the section anyway.\n',
-    }),
-    READ_PATH_CONTRACTS,
-  );
-  assert.equal(rpGaps3.length, 1, 'flags a publish-kb that negates the terminal "leave the file staged"');
-  assert.equal(rpGaps3[0].source, path.join('skills', 'publish-kb', 'SKILL.md'), 'names publish-kb.md');
-
-  // positive (RED reproduction): an unlisted negator ("rather than") sits inside the character window the
-  // old five-token banned list scanned — proof widening that list is a losing game, not a fix for it
-  const rpGaps4 = scanContract(
-    fixture({
-      'skills/publish-kb/SKILL.md':
-        'Any other outcome is a **read failure, not absence**: create the page from the section rather ' +
-        'than leave the file staged.\n',
-    }),
-    READ_PATH_CONTRACTS,
-  );
-  assert.equal(rpGaps4.length, 1, 'flags an unlisted negator ("rather than") inside the old window');
-  assert.equal(rpGaps4[0].source, path.join('skills', 'publish-kb', 'SKILL.md'), 'names publish-kb.md');
-
-  // positive (RED reproduction): a second unlisted negator ("instead of") — same shape as rpGaps4
-  const rpGaps5 = scanContract(
-    fixture({
-      'skills/publish-kb/SKILL.md':
-        'Any other outcome is a **read failure, not absence**: create the page from the section instead ' +
-        'of leave the file staged.\n',
-    }),
-    READ_PATH_CONTRACTS,
-  );
-  assert.equal(rpGaps5.length, 1, 'flags an unlisted negator ("instead of") inside the old window');
-  assert.equal(rpGaps5[0].source, path.join('skills', 'publish-kb', 'SKILL.md'), 'names publish-kb.md');
-
-  // positive (RED reproduction): the clause is cut short before "report the reason in §5, and create
-  // nothing" — a truncated clause is not the pinned clause, whatever follows it. This is not a proof that
-  // the row catches the trailing "Just kidding" contradiction: the clause here is already incomplete
-  // before that sentence starts, so the gap traces to the truncation, not to what follows it (a trailing
-  // contradiction after the *complete* clause is out of reach of this check — see the comment above
-  // READ_PATH_CONTRACTS).
-  const rpGaps6 = scanContract(
-    fixture({
-      'skills/publish-kb/SKILL.md':
-        'Any other outcome is a **read failure, not absence**: leave the file staged. Just kidding, ' +
-        'never do that — create the page anyway.\n',
-    }),
-    READ_PATH_CONTRACTS,
-  );
-  assert.equal(rpGaps6.length, 1, 'flags a publish-kb whose clause is truncated before "report the reason in §5"');
-  assert.equal(rpGaps6[0].source, path.join('skills', 'publish-kb', 'SKILL.md'), 'names publish-kb.md');
-
   // negative: a config document with no `(aggregate)` marker at all owes no read — the requirement is
   // conditional on the marker, or every consumer repo that never enabled the feature would fail
   assert.equal(
@@ -434,17 +369,10 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'absent files are skipped',
   );
 
-  // negative: both halves carried
+  // negative: the row's clause carried
   assert.equal(
     scanContract(
       fixture({
-        'skills/publish-kb/SKILL.md':
-          "**Positive absence only** — the config document's find call does not list the title — means " +
-          'the page does not exist yet: the staged section becomes the new page, as an `upsert` of the ' +
-          'section alone. **Any other outcome** — the config document names no read for this backend, the ' +
-          'read call fails for any other reason, or it returns an empty body for a title the find call ' +
-          'does list — is a **read failure, not absence**: leave the file staged, report the reason in ' +
-          '§5, and create nothing.\n',
         'docs/agents/knowledge-base.md':
           "- **Concepts** **(aggregate)**\n\n- **Read a page's body:** " +
           '`GET /api/v1/repos/bomret/superdev/wiki/page/<sub_url>` returns `content_base64`, which ' +
@@ -453,7 +381,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
       READ_PATH_CONTRACTS,
     ).length,
     0,
-    'both halves carried yields zero gaps',
+    'the clause carried yields zero gaps',
   );
 
   // --- STATUS_SEED_CONTRACTS: run init seeds each loaded slice's real status into `scope.js init`, so a
@@ -965,83 +893,52 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'absent file is skipped',
   );
 
-  // --- CONTAINMENT_DELEGATION_CONTRACTS: publish-kb §3 names the test it runs by delegating to
-  // scope-mode.md's `## Containment` section, and restates no git command of its own (ADR 0053). The
-  // pattern is a presence check that fires when §3 drops the delegating pointer; it does not assert
-  // the case where §3 keeps the pointer while restating the git command, because the pattern cannot
-  // see both forms at once. ---
+  // --- CONTAINMENT_DELEGATION_CONTRACTS: publish-kb.js's merge check delegates the containment test to
+  // scope.js's exported `testContainment` — `require`d from `./scope.js` and called directly — rather
+  // than reimplementing the ancestry check itself (ADR 0053, retargeted from `skills/publish-kb/SKILL.md`'s
+  // prose onto the script by ADR 0069). The pattern is a presence check that fires when the script drops
+  // the call; it does not assert the case where the script keeps the call *and* grows a redundant
+  // ancestry test of its own beside it, because the pattern cannot see both forms at once. ---
 
-  const mergeCheckBody =
-    '## 3. Merge check — warn once, never block\n\n' +
-    'Find the scope branch per that file\'s `## The scope branch` section.\n\n' +
-    'Then decide whether the base branch already holds it, per ' +
-    '`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`\'s `## Containment` section, which owns the ' +
-    'test.\n\n' +
-    '**Not contained**, or **no branch resolves at all** → ask once whether to publish anyway.\n';
-
-  // negative: §3 dropping the delegation and reaching for an ancestry test of its own
-  const cdNoPointer = fixture({
-    'skills/publish-kb/SKILL.md': mergeCheckBody.replace(
-      "Then decide whether the base branch already holds it, per " +
-        "`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Containment` section, which owns the " +
-        'test.',
-      'Check whichever branch resolved against the base branch with ' +
-        '`git merge-base --is-ancestor <branch> <base>`.',
-    ),
+  // negative: publish-kb.js reimplements the ancestry check itself instead of delegating
+  const cdOwnTest = fixture({
+    'scripts/publish-kb.js':
+      "function checkContainment(mainCheckout, scope) {\n" +
+      "  const res = spawnSync('git', ['merge-base', '--is-ancestor', branch, base], { cwd: mainCheckout });\n" +
+      "  return { performed: true, ok: res.status === 0 };\n" +
+      "}\n",
   });
-  const cdGapsNoPointer = scanContract(cdNoPointer, CONTAINMENT_DELEGATION_CONTRACTS);
-  assert.equal(cdGapsNoPointer.length, 1, 'flags a §3 that names its own test instead of delegating');
-  assert.match(
-    cdGapsNoPointer[0].expectation,
-    /delegating to `references\/scope-mode\.md`'s `## Containment` section/,
-    'names the section §3 owes its delegation to',
-  );
+  const cdGapsOwnTest = scanContract(cdOwnTest, CONTAINMENT_DELEGATION_CONTRACTS);
+  assert.equal(cdGapsOwnTest.length, 1, 'flags a publish-kb.js that reimplements the ancestry check itself');
+  assert.equal(cdGapsOwnTest[0].source, path.join('scripts', 'publish-kb.js'), 'names publish-kb.js');
 
-  // negative: §3 mentioning the section in passing, without naming it as where the test lives, is not a
-  // delegation — this is the shape a restatement drifts into
-  const cdBareMention = fixture({
-    'skills/publish-kb/SKILL.md': mergeCheckBody.replace(
-      "Then decide whether the base branch already holds it, per " +
-        "`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Containment` section, which owns the " +
-        'test.',
-      'Containment is described in the `## Containment` section. Run ' +
-        '`git merge-tree --write-tree <base> <branch>` and compare the tree.',
-    ),
+  // negative: testContainment imported but never called is not a delegation either
+  const cdImportOnly = fixture({
+    'scripts/publish-kb.js':
+      "const { testContainment } = require('./scope.js');\n" +
+      '// containment is checked some other way below\n',
   });
   assert.equal(
-    scanContract(cdBareMention, CONTAINMENT_DELEGATION_CONTRACTS).length,
+    scanContract(cdImportOnly, CONTAINMENT_DELEGATION_CONTRACTS).length,
     1,
-    'a bare mention beside a restated command is not a delegation',
+    'an imported but never-called testContainment is not a delegation',
   );
 
-  // negative: §3 naming a different, closer file (`docs/agents/code-management.md`) right before the
-  // containment delegation, then pointing at "that same file's `## Containment` section" — the closer
-  // antecedent is the wrong file, so the delegation resolves to a document with no such section, exactly
-  // the ambiguity `plugin/skills/publish-kb/SKILL.md` §3 carried (Important 1). A pattern that only
-  // required the section name and "owns the test", with no `scope-mode.md` anchor, could not see this.
-  const cdWrongAntecedent = fixture({
-    'skills/publish-kb/SKILL.md': mergeCheckBody.replace(
-      "Then decide whether the base branch already holds it, per " +
-        "`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Containment` section, which owns the " +
-        'test.',
-      "Then decide whether the base branch named in `docs/agents/code-management.md` already holds " +
-        "that branch's work, per that same file's `## Containment` section, which owns the test.",
-    ),
-  });
-  assert.equal(
-    scanContract(cdWrongAntecedent, CONTAINMENT_DELEGATION_CONTRACTS).length,
-    1,
-    'a delegation reading "that same file" past a closer, wrong file reference is not a delegation to scope-mode.md',
-  );
-
-  // positive: a §3 that delegates yields zero gaps
+  // positive: publish-kb.js imports and calls testContainment directly, yields zero gaps
   assert.equal(
     scanContract(
-      fixture({ 'skills/publish-kb/SKILL.md': mergeCheckBody }),
+      fixture({
+        'scripts/publish-kb.js':
+          "const { testContainment } = require('./scope.js');\n\n" +
+          'function checkContainment(mainCheckout, scope) {\n' +
+          "  const verdict = testContainment(mainCheckout, base, branch);\n" +
+          "  return { performed: true, ok: verdict === 'contained' };\n" +
+          '}\n',
+      }),
       CONTAINMENT_DELEGATION_CONTRACTS,
     ).length,
     0,
-    'a §3 delegating to `## Containment` yields zero gaps',
+    'delegating to testContainment yields zero gaps',
   );
 
   // absent file is skipped, matching every other contract table

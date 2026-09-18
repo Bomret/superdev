@@ -181,12 +181,12 @@ specifications, design overviews, ADR summaries)? Ask the user which of:
 
 - **Knowledge base software available** — e.g. **Confluence**. Seed:
   `references/knowledge-base-confluence.md`. Ask base URL, space key, what to publish, optional parent
-  page, and the **env-var names** for the API token + email (never the secrets). For a different wiki,
-  capture its publish/find/update/**read**/**removal** commands as prose ("other") — a config with no
-  removal convention leaves every `action: delete` staged page unpublishable, and one with no documented
-  read blocks the aggregate question below. Also record that `/superdev:publish-kb` is the only caller of
-  this backend and that `/superdev:plan`/`/superdev:document` stage its pages instead of sending them
-  (ADR 0023) — the `## Staging` section the seeded templates carry.
+  page, and the **env-var names** for the API token + email (never the secrets). For a different wiki
+  ("other"), capture the same **backend command contract** (below) that every remote backend declares —
+  a backend declaring no `delete` template leaves every `action: delete` staged page unpublishable, and
+  one declaring no `read` template blocks the aggregate question below. Also record that
+  `/superdev:publish-kb` is the only caller of this backend and that `/superdev:plan`/`/superdev:document`
+  stage its pages instead of sending them (ADR 0023) — the `## Staging` section the seeded templates carry.
 - **Local file storage** — markdown under `docs/kb/`. Seed: `references/knowledge-base-local.md`.
 - **None** — no separate KB; the in-repo docs are the only record.
 
@@ -204,12 +204,31 @@ Getting started, FAQ*; *Developer Docs → Architecture, Setup, ADR summaries*).
 adjust with the user**, and record the agreed outline in `knowledge-base.md`. It's a living skeleton —
 `/superdev:plan` and `/superdev:document` fill and extend it, not reinvent it.
 
+For a **remote** backend, also capture its **backend command contract** (ADR 0069): the shell command
+each of `find`, `read`, `create`, `update`, and `delete` runs against it. Ask for each verb's command in
+turn and write it under a `## Commands` section of `knowledge-base.md`, one `### <verb>` subsection each
+holding a single fenced `sh` block — a verb the backend has no use for is simply an absent subsection.
+State every placeholder name to the user, so a template reaches for the placeholder instead of shell
+interpolation: `SUPERDEV_KB_TITLE` reaches every call, `SUPERDEV_KB_BODY_FILE` (a path to the staged
+body, never the body inline) reaches `create` and `update`, and one `SUPERDEV_KB_<KEY>` per key the
+`find` template's JSON object carries — uppercased — reaches `update` and `delete`. `find` carries the
+contract the other four rest on: exit `0` with a JSON object on stdout means the page exists, exit `3` means
+the page is genuinely absent, anything else means the backend could not answer. **Probe the `find`
+template before writing the section**: run it with `SUPERDEV_KB_TITLE` set to a title that cannot exist
+(a random UUID works) and require exit `3` — this is what stands between the template and a duplicated or
+overwritten page. Any other outcome — report it to the user, fix the template, probe again — leaves the
+`## Commands` section unwritten. A **local** or **none** knowledge base is asked for no commands at all.
+
+**On re-run**, when `knowledge-base.md` already carries a `## Commands` section: show the delta between
+the newly captured templates and the existing ones, and keep the operator's own template for a verb
+unless they choose to replace it — never rewrite a working command silently.
+
 Then, for a **remote** backend, ask which of those pages **aggregate**: a page many scopes each
 contribute one section to — an index, a changelog, an ADR-summaries digest — rather than a page one scope
 owns end to end. **A documented read is a precondition of this question** (ADR 0027): before any entry can
-carry the marker, the config document you are writing must name a call returning a page body and how to
-reach its identifier from a staged `title`. The Confluence seed names none, because its XHTML pages need
-no body read (below); a bespoke backend needs one captured in the read verb you asked for above. Mark
+carry the marker, the `## Commands` section above must hold a `### read` subsection — a backend declaring
+none can carry no `(aggregate)` entry, because nothing can fetch a live body to merge into. The Confluence
+seed declares no `read`, because its XHTML pages need no body read (below). Mark
 each answer in the outline with `(aggregate)`, and pin the heading level its sections take (e.g.
 `## <concept>`) — the writer reaches no backend and cannot see the live page's nesting, and a level left
 unpinned lets a staged heading as shallow as the page's own title carry the whole page away when it
@@ -290,7 +309,10 @@ Write:
   documentation outside the default tree.
 - `docs/agents/knowledge-base.md` — from the chosen KB seed (`knowledge-base-confluence.md` /
   `knowledge-base-local.md`) filled in, or the "other" prose. For **None**, write a one-line
-  `knowledge-base.md` stating there is no separate KB (or skip the file).
+  `knowledge-base.md` stating there is no separate KB (or skip the file). A **remote** backend also
+  carries the `## Commands` section decision **D** captured, written only once the `find` probe passed.
+  **On re-run**, when that section already exists, show the delta against the newly captured templates
+  and write only the verbs the operator chose to replace.
 - `docs/agents/toolchain.md` — the detected profile (decision **F**), freeform markdown, **one section
   per workspace** (a single section for a non-monorepo). Each command is an intent phrase + its
   invocation; `test` points at `docs/agents/verification.md`; orphaned tooling is noted; unclear

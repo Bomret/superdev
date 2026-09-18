@@ -33,6 +33,7 @@ markdown conversion is named and a matching read documented.
 
 ## Configuration (fill in at setup)
 
+- **Backend:** Confluence.
 - **Base URL**: `<https://your-domain.atlassian.net/wiki>`
 - **Space key**: `<SPACE>`
 - **Auth**: API token in env var `<CONFLUENCE_API_TOKEN>`, user email in `<CONFLUENCE_EMAIL>`. Record
@@ -62,6 +63,67 @@ What `/superdev:publish-kb` applies. Auth: `-u "$CONFLUENCE_EMAIL:$CONFLUENCE_AP
 - **Update a page**: `PUT <base>/api/v2/pages/<id>` with the new body and incremented `version.number`.
 - **Delete a page** (an `action: delete` staged page): `DELETE <base>/api/v2/pages/<id>`. Already absent
   is the intended end state, not a failure.
+
+## Commands
+
+The **backend command contract** (ADR 0069) `scripts/publish-kb.js` runs. `find`'s JSON keys reach
+`update` and `delete` as `SUPERDEV_KB_ID`/`SUPERDEV_KB_VERSION`; `create`/`update` also receive
+`SUPERDEV_KB_BODY_FILE`, a path to the staged body. Fill in `<base>` and `<space-id>` at setup. **No
+`read`** — Confluence stores a page as XHTML `storage`, not markdown, so no outline entry here may carry
+`(aggregate)` (above). `find` first checks that the response actually carries a `results` array — a
+malformed 200 body with no such key (an error object, say) leaves `.results` reading `null` rather than
+erroring, which would otherwise read exactly like a genuine empty match list — and answers exit 2 when it
+does not. It then maps `jq -e`'s exit 1 (a genuine no-match) to exit 3, the only outcome
+`scripts/publish-kb.js` reads as positive absence; any other `jq` exit — a parse error, a usage error —
+maps to exit 2, "could not answer," so a page never gets created from a listing `jq` failed to read. The
+listing is also capped at `limit=2`: a title is meant to be unique within a space, so two or more matches
+mean the result cannot be trusted to hold the one canonical page, and `find` answers exit 2 rather than
+picking `.results[0]` at random.
+
+### find
+
+```sh
+resp=$(curl -sf -u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN" \
+  --get "<base>/api/v2/pages" \
+  --data-urlencode "title=$SUPERDEV_KB_TITLE" \
+  --data-urlencode "space-id=<space-id>" \
+  --data-urlencode "limit=2") || exit 2
+printf '%s' "$resp" | jq -e '.results | type == "array"' >/dev/null 2>&1 || exit 2
+count=$(printf '%s' "$resp" | jq '.results | length') || exit 2
+[ "$count" -ge 2 ] && exit 2
+page=$(printf '%s' "$resp" | jq -e '.results[0]')
+status=$?
+[ "$status" -eq 1 ] && exit 3
+[ "$status" -ne 0 ] && exit 2
+printf '%s' "$page" | jq -c '{id, version: (.version.number | tostring)}'
+```
+
+### create
+
+```sh
+body=$(jq -n --arg title "$SUPERDEV_KB_TITLE" --rawfile content "$SUPERDEV_KB_BODY_FILE" \
+  '{spaceId: "<space-id>", title: $title, body: {representation: "storage", value: $content}}')
+curl -sf -u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN" -H "Content-Type: application/json" \
+  -X POST "<base>/api/v2/pages" -d "$body" >/dev/null
+```
+
+### update
+
+```sh
+next_version=$((SUPERDEV_KB_VERSION + 1))
+body=$(jq -n --arg title "$SUPERDEV_KB_TITLE" --arg id "$SUPERDEV_KB_ID" --argjson version "$next_version" \
+  --rawfile content "$SUPERDEV_KB_BODY_FILE" \
+  '{id: $id, status: "current", title: $title, version: {number: $version}, body: {representation: "storage", value: $content}}')
+curl -sf -u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN" -H "Content-Type: application/json" \
+  -X PUT "<base>/api/v2/pages/$SUPERDEV_KB_ID" -d "$body" >/dev/null
+```
+
+### delete
+
+```sh
+curl -sf -u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN" \
+  -X DELETE "<base>/api/v2/pages/$SUPERDEV_KB_ID" >/dev/null
+```
 
 ## superdev usage
 

@@ -713,7 +713,16 @@ const VERB_CONTRACTS = [
   [path.join('references', 'implement-lite.md'), /scope\.js["'`]?\s+docs set\b/, 'record its inline doc pass with `scope.js docs set`'],
   [path.join('skills', 'document', 'SKILL.md'), /scope\.js["'`]?\s+get docs\b/, 'read the inline-doc-pass record with `scope.js get docs` before it dispatches a writer'],
   [path.join('skills', 'review', 'SKILL.md'), /scope\.js["'`]?\s+docs clear\b/, 'clear the inline-doc-pass record with `scope.js docs clear` when its fix loop lands commits'],
-  [path.join('skills', 'publish-kb', 'SKILL.md'), /scope\.js["'`]?\s+get branch\b/, 'read the scope branch with `scope.js get branch` for its merge check'],
+  // Retired (ADR 0069): `skills/publish-kb/SKILL.md` used to read the scope branch through a hand-run
+  // `scope.js get branch` CLI call. `plugin/scripts/publish-kb.js`'s `resolveScopeBranch` reads it
+  // instead by `require`ing `readLedgerHeader` from `scope.js` directly and verifying the result with
+  // `git rev-parse --verify` — real code, not a CLI verb a document could stop naming, so a
+  // verb-invocation-shaped row can never match it and a `require` failure surfaces as every publish
+  // falling back to the shape scan rather than as silent drift. The contract's intent — read the
+  // branch from the ledger, verified, ahead of guessing from branch-name shape — lives on as
+  // `tests/publish-kb.test.js`'s ledger-route assertions: "the ledger's Branch line, once it verifies,
+  // is trusted ahead of the shape scan" and "the ledger's Branch line is what gets tested, not merely
+  // consulted then discarded", both of which exercise `resolveScopeBranch` against a real git repo.
   // ADR 0058's two call sites for the base lock, both halves of each. No hook backs this verb, so a
   // document that stops acquiring goes straight back to two sessions racing on CONTEXT.md, the ADRs,
   // and .claude/rules/ — and one that stops releasing leaves every later session waiting out the
@@ -1389,6 +1398,10 @@ const UNRESOLVED_GLOSSARY_CONTRACTS = [
 
 // The documents that must reach no knowledge-base backend, and the markers that say one does.
 // `/superdev:publish-kb` is deliberately absent from the document list: reaching the backend is its job.
+// ADR 0069 moved that job into `plugin/scripts/publish-kb.js`, a real `/bin/sh -c` call this
+// instruction-shape scan has no purchase on and was never asked to reach — this list stays scoped to
+// the prose surfaces that must merely *describe* the backend rather than call it, and
+// `skills/publish-kb/SKILL.md` (which dispatches the script) is exempt the same way it always was.
 //
 // A marker built from a backend's literal endpoint or credential (`api/v2/pages`,
 // `CONFLUENCE_API_TOKEN`) catches almost nothing: AGENTS.md's "Backends are pluggable" rule already
@@ -1688,18 +1701,23 @@ const SWEEP_CHAINED_LEG_CONTRACTS = [
   ],
 ];
 
-// ADR 0027's `patch` action is a four-document agreement of the same shape as the three above:
+// ADR 0027's `patch` action is a four-way agreement of the same shape as the three above:
 // `references/doc-pass.md` and `skills/plan/SKILL.md` — the two stagers — each stage one section for a
-// page the outline marks aggregate, `skills/publish-kb/SKILL.md` applies it through
-// `scripts/kb-patch.js`, and `references/knowledge-base-confluence.md` documents the marker that
-// decides which pages get one. Nothing links them. The failure that matters is not a dropped action
-// name but a `publish-kb` that keeps the name and merges the page itself — the reader-facing page
-// then gets rewritten by a model reading 25 KB of prose, which is the whole reason the merge is a
-// script. So the publish-kb row is anchored on the call, not on the word `patch`; a document that
-// names the action in passing and merges by hand still fails. Losing the marker row is the quietest
-// of the four: the doc pass falls back to `upsert` and silently replaces an aggregate page with the
-// one section it can see, which is the loss ADR 0027 exists to prevent and the state that left this
-// repo's own `ADR summaries` page four decisions stale.
+// page the outline marks aggregate, `plugin/scripts/publish-kb.js` applies it through `kb-patch.js`'s
+// exported `merge()`, and `references/knowledge-base-confluence.md` documents the marker that decides
+// which pages get one. Nothing links them. The failure that matters is not a dropped action name but a
+// publish path that keeps the name and merges the page itself — the reader-facing page then gets
+// rewritten by a model reading 25 KB of prose, which is the whole reason the merge is a script. The
+// third row retargeted from `skills/publish-kb/SKILL.md`'s prose onto the script itself (ADR 0069): the
+// merge now runs as real code inside `publishPatch`, not an incantation a document could describe and
+// then quietly stop following, so the row is anchored on the `require`/call shape rather than a prose
+// mention of the path — a script that keeps `action: patch` but splices the section in by hand still
+// fails, the same anchoring principle the old row applied to prose. A dispatch cannot contradict this
+// row's clause the way a skill's prose could: `publishPatch` is code the script always runs, not an
+// instruction a model re-reads and might paraphrase away. Losing the marker row is the quietest of the
+// four: the doc pass falls back to `upsert` and silently replaces an aggregate page with the one
+// section it can see, which is the loss ADR 0027 exists to prevent and the state that left this repo's
+// own `ADR summaries` page four decisions stale.
 const AGGREGATE_PAGE_CONTRACTS = [
   [
     path.join('references', 'doc-pass.md'),
@@ -1712,9 +1730,12 @@ const AGGREGATE_PAGE_CONTRACTS = [
     'stage `action: patch` carrying one section for an outline entry marked aggregate',
   ],
   [
-    path.join('skills', 'publish-kb', 'SKILL.md'),
-    /`?patch`?[\s\S]{0,600}scripts\/kb-patch\.js/i,
-    'apply `patch` by merging through `scripts/kb-patch.js` rather than rewriting the page itself',
+    path.join('scripts', 'publish-kb.js'),
+    {
+      test: (text) =>
+        /\{[^}]*\bmerge\b[^}]*\}\s*=\s*require\(['"]\.\/kb-patch\.js['"]\)/.test(text) && /\bmerge\(/.test(text),
+    },
+    "apply `action: patch` by merging through kb-patch.js's exported `merge()`, never by rewriting the page itself",
   ],
   [
     path.join('references', 'knowledge-base-confluence.md'),
@@ -1723,14 +1744,25 @@ const AGGREGATE_PAGE_CONTRACTS = [
   ],
 ];
 
-// ADR 0027's `patch` read is a two-document agreement, the same shape as AGGREGATE_PAGE_CONTRACTS above.
-// `skills/publish-kb/SKILL.md` reads the live body through the call the config document documents, and splits
-// the outcome into **positive absence** — the find call does not list the title — which creates the
-// page, and **any other outcome** — no documented read, a transport or authorisation failure, the read
-// itself reporting the page absent (e.g. a 404) for a title the find call does list, or an empty body for
-// a title the find call does list — which is a **read failure**, not absence, and must leave the file
-// staged. The read identifier only ever exists for a title the find call already listed, so a 404 there
-// is a read failure, never positive evidence of absence.
+// ADR 0027's `patch` read was a two-document agreement, the same shape as AGGREGATE_PAGE_CONTRACTS
+// above: `skills/publish-kb/SKILL.md` read the live body through the call the config document
+// documents, splitting the outcome into **positive absence** — the find call does not list the title —
+// which creates the page, and **any other outcome** — no documented read, a transport or authorisation
+// failure, the read itself reporting the page absent (e.g. a 404) for a title the find call does list,
+// or an empty body for a title the find call does list — a **read failure**, not absence, which must
+// leave the file staged. The read identifier only ever exists for a title the find call already listed,
+// so a 404 there is a read failure, never positive evidence of absence.
+//
+// The skill-side row retired (ADR 0069): `plugin/scripts/publish-kb.js`'s `publishPatch` runs this
+// branch as real code now, not prose a model interprets, so it can no longer drift the way
+// `skills/publish-kb/SKILL.md`'s hand-run incantation could — a script does not paraphrase its own
+// `if` statement away. `tests/publish-kb.test.js` proves every arm directly against a real fake
+// backend: "a read failure (nonzero exit) leaves the file staged, creates nothing, states the reason",
+// "read returning an empty body for a title find DID list is a read failure, not an empty page", and "a
+// configuration declaring no read template leaves every patch page staged with that reason" — each
+// asserts the staged file survives on disk, the report names the reason, and no create/update call ever
+// lands. The row below is the other half of the original agreement: the config-document side, still
+// prose, still capable of drifting on its own.
 //
 // What separates a document that still means this from one that no longer does is coreference and scope —
 // which clause a trailing "instead of", "rather than", or a later sentence's "never mind that" reaches
@@ -1738,59 +1770,41 @@ const AGGREGATE_PAGE_CONTRACTS = [
 // banned-token list scoped to a fixed character window is not a fix for that: there is always another
 // negator, and a negation placed after the window closes never gets inspected at all. A keyword-order
 // regex has the identical wall: a sentence that carries every keyword the regex looks for, in order, but
-// asserts the call is never made (row 2's own RED fixture below) satisfies it just as wrongly. So both
-// rows drop pattern-matching meaning and instead pin the sentence itself: a verbatim canonical clause,
+// asserts the call is never made (this row's own RED fixture below) satisfies it just as wrongly. So the
+// row drops pattern-matching meaning and instead pins the sentence itself: a verbatim canonical clause,
 // matched against the document after `normalizeWhitespace` on both sides (reused from
 // `UNRESOLVED_GLOSSARY_CONTRACTS` below), so the real hard-wrapped document still matches. Reword the
 // clause, negate it, or drop it, and the match fails identically — there is no separate "negated" case to
 // special-case, and no new negator ever needs adding to a list. The trade-off is the one every row in this
 // idiom carries: a legitimate rewording of the pinned sentence now fails this check too, until the pin is
 // updated to match — deliberately, since a silent pass on a reworded safety sentence is the failure mode
-// these rows exist to close. Neither pin proves the document still *means* the clause afterward: a
+// this row exists to close. The pin does not prove the document still *means* the clause afterward: a
 // document that carries a pin intact and then contradicts it in a later sentence, or an earlier one that
 // frames or negates the whole clause, is out of reach of this check, exactly as it is for
-// `UNRESOLVED_GLOSSARY_CONTRACTS` above — no positive-presence check catches such a contradiction, and neither row attempts to.
+// `UNRESOLVED_GLOSSARY_CONTRACTS` above — no positive-presence check catches such a contradiction, and
+// this row does not attempt to.
 //
-// Row 1 pins `READ_PATH_CLAUSE`, the read-failure consequence clause alone — the outcome ("read failure,
-// not absence") and the three things to do about it: leave the file staged, report the reason in §5, and
-// create nothing. It does not pin the antecedent that names the read-failure enumeration (no documented
-// read, a transport/authorisation failure, an empty body for a listed title) or the positive-absence
-// contrast that precedes it in the real document — a document could carry this exact clause verbatim
-// while describing a different antecedent, and this row would not catch that. Row 1's expectation message
-// states only what the pin covers, for the same reason.
-//
-// Row 2 is unrelated and conditional, not a bare pattern: a config document that marks no outline entry
+// The row is conditional, not a bare pattern: a config document that marks no outline entry
 // `(aggregate)` documents no read at all, and must not be required to — only a document that actually uses
 // the marker owes the call it selects, or every consumer repo that never enabled the feature would fail
-// this check. When the marker is present, row 2 pins `AGGREGATE_READ_CLAUSE`, the whole list item, from
+// this check. When the marker is present, the row pins `AGGREGATE_READ_CLAUSE`, the whole list item, from
 // its bold label through the call and what it returns.
 //
 // A verbatim pin resists a negator prefixed onto the real sentence only if no negator can be inserted
 // *inside* the pinned span — which requires the span to start at a sentence or list-item boundary, not
-// mid-clause. `READ_PATH_CLAUSE` holds despite starting mid-sentence because its own first two words are
-// "is a": the idiomatic negation of "X is a Y" inserts "not" between them ("is not a"), corrupting the
-// pin's own opening rather than landing safely in front of it. A pin that instead opens on a bare verb
-// (e.g. "returns …") has no such trap — "never returns …" leaves the verb and everything after it intact
-// as a substring, so the pin survives verbatim and the check wrongly passes. `AGGREGATE_READ_CLAUSE`
-// starts at the list item's bold label and carries the endpoint through to the verb, so the same "never
-// returns" negation must corrupt text *inside* the span (between the endpoint and "returns") to take
-// effect. The label-to-clause span also pins this repo's host in the endpoint URL, so a repo move forces
-// a re-pin — accepted deliberately, in favour of one span over a two-part pin that would leave the
-// trailing half open to the same bare-verb prefix attack this span closes.
-const READ_PATH_CLAUSE =
-  'is a **read failure, not absence**: leave the file staged, report the reason in §5, and create nothing.';
-
+// mid-clause. `AGGREGATE_READ_CLAUSE` starts at the list item's bold label and carries the endpoint
+// through to the verb, so a "never returns" negation must corrupt text *inside* the span (between the
+// endpoint and "returns") to take effect — a pin that instead opened on the bare verb "returns …" would
+// have no such trap, since "never returns …" leaves the verb and everything after it intact as a
+// substring, and the pin would wrongly survive verbatim. The label-to-clause span also pins this repo's
+// host in the endpoint URL, so a repo move forces a re-pin — accepted deliberately, in favour of one span
+// over a two-part pin that would leave the trailing half open to the same bare-verb prefix attack this
+// span closes.
 const AGGREGATE_READ_CLAUSE =
   "**Read a page's body:** `GET /api/v1/repos/bomret/superdev/wiki/page/<sub_url>` returns " +
   '`content_base64`, which decodes to the page markdown.';
 
 const READ_PATH_CONTRACTS = [
-  [
-    path.join('skills', 'publish-kb', 'SKILL.md'),
-    { test: (text) => normalizeWhitespace(text).includes(normalizeWhitespace(READ_PATH_CLAUSE)) },
-    'state, verbatim after whitespace normalization, that the outcome is a read failure, not absence: ' +
-      'leave the file staged, report the reason in §5, and create nothing',
-  ],
   [
     path.join('docs', 'agents', 'knowledge-base.md'),
     {
@@ -1808,6 +1822,22 @@ const READ_PATH_CONTRACTS = [
       '`GET /api/v1/repos/bomret/superdev/wiki/page/<sub_url>`, which returns `content_base64` decoding ' +
       'to the page markdown — the call an outline entry marked `(aggregate)` is read through ' +
       'before it is patched',
+  ],
+];
+
+// The `publish-kb-invocation` contract (slice #493, ADR 0069): once the skill's own job shrank to the two
+// human stops and relaying the script's report, nothing else stops a future edit from having a model
+// hand-run the old mechanics again instead of calling the script — the exact gap a reviewer flagged on the
+// slice that thinned the skill down. Anchored on the real invocation shape rather than a prose mention of
+// the script's name, so a rewrite that talks about `publish-kb.js` without ever running it still fails,
+// the same anchoring principle `AGGREGATE_PAGE_CONTRACTS`'s `require`/call row and
+// `CONTAINMENT_DELEGATION_CONTRACTS` already apply to the script's own delegation.
+const PUBLISH_KB_INVOCATION_CONTRACTS = [
+  [
+    path.join('skills', 'publish-kb', 'SKILL.md'),
+    /node\s+"\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/publish-kb\.js"/,
+    'invoke `node "${CLAUDE_PLUGIN_ROOT}/scripts/publish-kb.js"` rather than re-deriving its mechanics ' +
+      'by hand',
   ],
 ];
 
@@ -2756,29 +2786,37 @@ const RESUMED_WORKTREE_TRIGGER_CONTRACTS = [
   ],
 ];
 
-// The `containment-delegation` contract (ADR 0053), one row: `skills/publish-kb/SKILL.md` §3 names the
-// test it runs by pointing at `references/scope-mode.md`'s `## Containment` section, and states no git
-// command of its own. Its own table rather than a row on `RUN_KIND_CONTRACTS`, whose subject is
-// scope-mode.md's three run kinds — a publish-kb row there would make that check's `ok` phrase lie.
+// The `containment-delegation` contract (ADR 0053) retargeted onto code (ADR 0069): the row used to pin
+// `skills/publish-kb/SKILL.md` §3 naming the test it runs by pointing at `references/scope-mode.md`'s
+// `## Containment` section rather than stating a git command of its own. That prose delegation moved
+// into `plugin/scripts/publish-kb.js`'s `checkContainment`, which now delegates the same way in code:
+// it `require`s `testContainment` from `scope.js` and calls it directly, rather than reimplementing its
+// own ancestry test — the ADR's own decision that the test is stated *once* still holds, just in the
+// function `scope.js` exports instead of a section a document points a reader at. A dispatch cannot
+// contradict this the way a skill's restated incantation could: `checkContainment` is code the script
+// always runs, not prose a model re-reads and might paraphrase into its own git command. Its own table
+// rather than a row on `RUN_KIND_CONTRACTS`, whose subject is scope-mode.md's three run kinds — a
+// publish-kb row there would make that check's `ok` phrase lie.
 //
-// The row pins the delegation's presence, so it catches only one half of the drift ADR 0053 names. §3
-// dropping the pointer leaves the step to reach for whatever ancestry test a reader already knows, which
-// is the state ADR 0053 measured: "not merged" on every squash-merged scope, and an operator trained to
-// wave the warning through. §3 keeping the pointer and restating the incantation beside it anyway is the
-// other half — the ADR's own decision is that scope-mode.md states the test *once* — but a presence
-// pattern cannot see a second copy sitting beside the one it requires, so that half has no assertion
-// here. Anchoring on the delegating sentence rather than a bare `## Containment` mention still buys
-// something real: the pattern requires `scope-mode.md` named immediately before that section reference,
-// not just the section name on its own. §3 also names `docs/agents/code-management.md` a few words
-// earlier for the base branch, and "that same file's `## Containment` section" reads correct while
-// resolving to the closer, wrong antecedent — a gap a bare `` `## Containment` section...owns the test ``
-// pattern cannot see, because it was satisfied by that ambiguous sentence too.
+// The row pins the delegation's presence, so, like its prose predecessor, it catches only one half of
+// the drift ADR 0053 names: `checkContainment` dropping the `require`/call and reaching for its own
+// ancestry test instead (e.g. a raw `git merge-base --is-ancestor`) is exactly the state ADR 0053
+// measured — "not merged" on every squash-merged scope, and an operator trained to wave the warning
+// through. A `testContainment` imported but never called (dead code sitting beside a hand-rolled
+// replacement) reads the same way and is caught the same way, since the pattern requires both the
+// `require` destructure and a call site. It cannot see the other half — a script that keeps the real
+// call *and* grows a second, redundant ancestry test beside it — the same blind spot the prose version
+// carried for a restated incantation sitting beside its pointer.
 const CONTAINMENT_DELEGATION_CONTRACTS = [
   [
-    path.join('skills', 'publish-kb', 'SKILL.md'),
-    /scope-mode\.md`'s\s+`## Containment`\s+section[\s\S]{0,120}?owns\s+the\s+test/,
-    "name the containment test by delegating to `references/scope-mode.md`'s `## Containment` section, " +
-      'which owns it (ADR 0053)',
+    path.join('scripts', 'publish-kb.js'),
+    {
+      test: (text) =>
+        /\{[^}]*\btestContainment\b[^}]*\}\s*=\s*require\(['"]\.\/scope\.js['"]\)/.test(text) &&
+        /\btestContainment\(/.test(text),
+    },
+    "delegate the containment test to scope.js's exported `testContainment` — imported and called " +
+      'directly — rather than reimplementing the ancestry check itself (ADR 0053)',
   ],
 ];
 
@@ -2952,6 +2990,7 @@ module.exports = {
   SWEEP_CHAINED_LEG_CONTRACTS,
   AGGREGATE_PAGE_CONTRACTS,
   READ_PATH_CONTRACTS,
+  PUBLISH_KB_INVOCATION_CONTRACTS,
   STATUS_SEED_CONTRACTS,
   PLAN_APPEND_CONTRACTS,
   ROTATE_ON_SHIPPED_CONTRACTS,

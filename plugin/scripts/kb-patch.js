@@ -238,6 +238,6 @@ function main() {
 // (ADR 0022's second-reader lesson, ADR 0042) reads a fenced `#`/marker line exactly as
 // extractSection()/merge() above do, instead of growing a second copy of the same masking rule.
 // `tests/kb-patch.test.js` requires this for `merge` besides (ADR 0059).
-module.exports = { maskFencedLines, merge };
+module.exports = { maskFencedLines, merge, headingKeyOf };
 
 if (require.main === module) main();

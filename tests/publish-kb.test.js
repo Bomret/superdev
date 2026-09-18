@@ -1,0 +1,1235 @@
+'use strict';
+
+// Suite for plugin/scripts/publish-kb.js. Requires the module (silent — it already guards its CLI
+// entry with require.main === module, per ADR 0059) and calls its exported `run()` directly, the
+// way tests/scope.test.js exercises scope.js's own CLI verbs.
+//
+// The backend is a real fake command (tests/fixtures/fake-kb-backend.js), never a mocked exec
+// function: the contract under test is what publish-kb.js does to a real `/bin/sh -c` child
+// process, so the module under test needs no seam of its own to make that observable.
+
+const assert = require('node:assert');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { execFileSync, spawnSync } = require('node:child_process');
+
+const publishKbPath = require.resolve('../plugin/scripts/publish-kb.js');
+const { run, parseCommandsTemplates, parseStagedPage, classifyBackend, parseBaseBranch, parseRemote } = require(publishKbPath);
+
+const FAKE_BACKEND = require.resolve('./fixtures/fake-kb-backend.js');
+
+function git(args, cwd) {
+  return execFileSync('git', args, { cwd, encoding: 'utf8' });
+}
+
+function makeRepo() {
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'kb-repo-')));
+  git(['init', '-q', '-b', 'main'], dir);
+  git(['config', 'user.email', 'test@example.com'], dir);
+  git(['config', 'user.name', 'test'], dir);
+  fs.writeFileSync(path.join(dir, 'base.txt'), 'x\n');
+  git(['add', '.'], dir);
+  git(['commit', '-q', '-m', 'base'], dir);
+  fs.mkdirSync(path.join(dir, 'docs', 'agents'), { recursive: true });
+  fs.writeFileSync(
+    path.join(dir, 'docs', 'agents', 'code-management.md'),
+    '# Code host\n\n- **Base branch:** `main`.\n',
+  );
+  return dir;
+}
+
+// Every staged scope other than `_adhoc` gets a `feat/<scope>` branch at the current tip, so it
+// reads `contained` against `main` (same commit, same tree) unless a test deliberately diverges it.
+// This is what keeps every pre-existing test — none of which is about the merge check — green once
+// publish-kb.js starts refusing an unmerged or unresolvable scope branch by default.
+function ensureContainedBranch(repo, scope) {
+  if (scope === '_adhoc') return;
+  const branch = `feat/${scope}`;
+  if (spawnSync('git', ['rev-parse', '--verify', '--quiet', branch], { cwd: repo }).status === 0) return;
+  git(['branch', branch], repo);
+}
+
+function commandsDoc(backendLine, verbs = ['find', 'create', 'update', 'delete']) {
+  const sections = verbs
+    .map((v) => `### ${v}\n\n\`\`\`sh\nnode ${JSON.stringify(FAKE_BACKEND)} ${v}\n\`\`\``)
+    .join('\n\n');
+  return `# Knowledge base\n\n## Configuration\n\n${backendLine}\n\n## Commands\n\n${sections}\n`;
+}
+
+function writeKbDoc(repo, text) {
+  fs.mkdirSync(path.join(repo, 'docs', 'agents'), { recursive: true });
+  fs.writeFileSync(path.join(repo, 'docs', 'agents', 'knowledge-base.md'), text);
+}
+
+function stagePage(repo, scope, filename, frontmatter, body = 'body text.\n') {
+  ensureContainedBranch(repo, scope);
+  const dir = path.join(repo, '.superdev', 'kb-pending', scope);
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, filename), `---\n${frontmatter}\n---\n${body}`);
+}
+
+function call(argv, cwd) {
+  const logged = [];
+  const orig = console.log;
+  console.log = (s) => logged.push(String(s));
+  try {
+    run(argv, cwd);
+    return { ok: true, out: logged.join('\n') };
+  } catch (e) {
+    if (e.isRefusal) return { ok: false, err: e.message, out: logged.join('\n') };
+    throw e;
+  } finally {
+    console.log = orig;
+  }
+}
+
+// Isolate the fake backend's persistent state (and, where used, its env-capture directory) per
+// scenario, restoring the ambient env afterwards.
+function withState(fn) {
+  const stateFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'kb-state-')), 'state.json');
+  const prevState = process.env.FAKE_KB_STATE_FILE;
+  const prevCapture = process.env.FAKE_KB_CAPTURE_DIR;
+  process.env.FAKE_KB_STATE_FILE = stateFile;
+  delete process.env.FAKE_KB_CAPTURE_DIR;
+  try {
+    fn(stateFile);
+  } finally {
+    if (prevState === undefined) delete process.env.FAKE_KB_STATE_FILE;
+    else process.env.FAKE_KB_STATE_FILE = prevState;
+    if (prevCapture === undefined) delete process.env.FAKE_KB_CAPTURE_DIR;
+    else process.env.FAKE_KB_CAPTURE_DIR = prevCapture;
+  }
+}
+
+// --- parseCommandsTemplates: resolution by heading name, never by position -------------------
+{
+  const section = '### update\n\n```sh\nUPDATE_CMD\n```\n\n### find\n\n```sh\nFIND_CMD\n```\n';
+  const t = parseCommandsTemplates(section);
+  assert.equal(t.find, 'FIND_CMD', 'find resolves by its own heading regardless of order');
+  assert.equal(t.update, 'UPDATE_CMD', 'update resolves by its own heading regardless of order');
+  assert.equal(t.create, undefined, 'a verb with no subsection is simply absent');
+}
+
+// --- parseStagedPage: frontmatter + quoting -----------------------------------------------------
+{
+  const p = parseStagedPage('---\ntitle: Plain title\naction: upsert\n---\nbody.\n');
+  assert.equal(p.title, 'Plain title');
+  assert.equal(p.action, 'upsert');
+  assert.equal(p.body, 'body.\n');
+
+  const tricky = 'a "quote", a $dollar, a `backtick`, and a\nnewline';
+  const q = parseStagedPage(
+    `---\ntitle: ${JSON.stringify(tricky)}\naction: upsert\n---\nb.\n`,
+  );
+  assert.equal(q.title, tricky, 'a double-quoted YAML scalar round-trips quotes/$/backtick/newline');
+}
+
+// --- classifyBackend ------------------------------------------------------------------------
+{
+  assert.equal(classifyBackend(null).kind, 'none', 'a missing knowledge-base doc reads as backend none');
+  assert.equal(classifyBackend('- **Backend:** local file storage.\n').kind, 'local');
+  assert.equal(classifyBackend('- **Backend:** none.\n').kind, 'none');
+  assert.equal(
+    classifyBackend('- **Backend:** Some Wiki.\n\nno commands section here\n').kind,
+    'unconfigured',
+    'a real backend with no ## Commands section is unconfigured, not local/none',
+  );
+  const b = classifyBackend(commandsDoc('- **Backend:** Some Wiki.'));
+  assert.equal(b.kind, 'remote');
+  assert.ok(b.templates.find && b.templates.create && b.templates.update && b.templates.delete);
+}
+
+// --- end-to-end: upsert creates when find reports absent (exit 3) ----------------------------
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  stagePage(repo, 'demo', 'new-page.md', 'title: New Page\naction: upsert', 'first body.\n');
+
+  const res = call(['--scope', 'demo'], repo);
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  assert.match(res.out, /published \(created\): New Page/);
+
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.equal(state['New Page'].body, 'first body.\n', 'the created page carries the staged body');
+  assert.ok(
+    !fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', 'new-page.md')),
+    'the staged file is deleted once the create call lands',
+  );
+  assert.ok(
+    !fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo')),
+    'a scope directory left with no pages is removed',
+  );
+});
+
+// --- end-to-end: upsert updates, never duplicates, when find locates the page ----------------
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  fs.writeFileSync(stateFile, JSON.stringify({ 'Existing Page': { id: 'id-7', body: 'old.\n' } }));
+  stagePage(repo, 'demo', 'existing.md', 'title: Existing Page\naction: upsert', 'new body.\n');
+
+  const res = call(['--scope', 'demo'], repo);
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  assert.match(res.out, /published \(updated\): Existing Page/);
+
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.equal(Object.keys(state).length, 1, 'the page is updated in place, never duplicated');
+  assert.equal(state['Existing Page'].id, 'id-7', 'the same identifier is kept');
+  assert.equal(state['Existing Page'].body, 'new body.\n');
+});
+
+// --- every key find emitted reaches the later verb as SUPERDEV_KB_<KEY> ----------------------
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  fs.writeFileSync(stateFile, JSON.stringify({ 'Keyed Page': { id: 'id-42', body: 'old.\n' } }));
+  stagePage(repo, 'demo', 'keyed.md', 'title: Keyed Page\naction: upsert', 'new.\n');
+
+  const captureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-capture-'));
+  process.env.FAKE_KB_CAPTURE_DIR = captureDir;
+
+  const origWrite = process.stderr.write;
+  const capturedStderr = [];
+  process.stderr.write = (chunk) => {
+    capturedStderr.push(String(chunk));
+    return true;
+  };
+
+  try {
+    const res = call(['--scope', 'demo'], repo);
+    assert.ok(res.ok, `expected success, got: ${res.err}`);
+  } finally {
+    process.stderr.write = origWrite;
+    delete process.env.FAKE_KB_CAPTURE_DIR;
+  }
+  const updateCall = fs
+    .readdirSync(captureDir)
+    .filter((f) => f.startsWith('update-'))
+    .map((f) => JSON.parse(fs.readFileSync(path.join(captureDir, f), 'utf8')))[0];
+  assert.equal(updateCall.env.SUPERDEV_KB_ID, 'id-42', 'the id key find emitted reaches update as SUPERDEV_KB_ID');
+  assert.equal(updateCall.env.SUPERDEV_KB_TITLE, 'Keyed Page');
+  assert.equal(capturedStderr.join(''), '', 'a safe key produces no stderr warning');
+});
+
+// --- a find-returned title field must never shadow the staged title; controller wins -----------
+withState((stateFile) => {
+  const repo = makeRepo();
+  // The find command here returns a title field; our implementation must NOT use it
+  const findCmd = `echo '{"id": "id-1", "title": "Found Title"}'`;
+  const createCmd = `node ${JSON.stringify(FAKE_BACKEND)} create`;
+  const updateCmd = `node ${JSON.stringify(FAKE_BACKEND)} update`;
+  const deleteCmd = `node ${JSON.stringify(FAKE_BACKEND)} delete`;
+  const doc = `# KB\n\n## Configuration\n\n- **Backend:** Override Wiki.\n\n## Commands\n\n### find\n\n\`\`\`sh\n${findCmd}\n\`\`\`\n\n### create\n\n\`\`\`sh\n${createCmd}\n\`\`\`\n\n### update\n\n\`\`\`sh\n${updateCmd}\n\`\`\`\n\n### delete\n\n\`\`\`sh\n${deleteCmd}\n\`\`\`\n`;
+  writeKbDoc(repo, doc);
+  fs.writeFileSync(stateFile, JSON.stringify({ 'Staged Title': { id: 'id-1' } }));
+  stagePage(repo, 'demo', 'override.md', 'title: Staged Title\naction: upsert', 'body.\n');
+
+  const captureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-capture-'));
+  process.env.FAKE_KB_CAPTURE_DIR = captureDir;
+  try {
+    const res = call(['--scope', 'demo'], repo);
+    assert.ok(res.ok, `expected success, got: ${res.err}`);
+  } finally {
+    delete process.env.FAKE_KB_CAPTURE_DIR;
+  }
+  const updateCall = fs
+    .readdirSync(captureDir)
+    .filter((f) => f.startsWith('update-'))
+    .map((f) => JSON.parse(fs.readFileSync(path.join(captureDir, f), 'utf8')))[0];
+  assert.equal(updateCall.env.SUPERDEV_KB_TITLE, 'Staged Title', 'the staged title wins, not the find-returned one');
+});
+
+// --- a find-returned body_file field must never shadow the staged body_file; controller wins ---
+withState((stateFile) => {
+  const repo = makeRepo();
+  // The find command here returns a body_file field; our implementation must NOT use it
+  const findCmd = `echo '{"id": "id-1", "body_file": "/wrong/path"}'`;
+  const createCmd = `node ${JSON.stringify(FAKE_BACKEND)} create`;
+  const updateCmd = `node ${JSON.stringify(FAKE_BACKEND)} update`;
+  const deleteCmd = `node ${JSON.stringify(FAKE_BACKEND)} delete`;
+  const doc = `# KB\n\n## Configuration\n\n- **Backend:** Override Wiki.\n\n## Commands\n\n### find\n\n\`\`\`sh\n${findCmd}\n\`\`\`\n\n### create\n\n\`\`\`sh\n${createCmd}\n\`\`\`\n\n### update\n\n\`\`\`sh\n${updateCmd}\n\`\`\`\n\n### delete\n\n\`\`\`sh\n${deleteCmd}\n\`\`\`\n`;
+  writeKbDoc(repo, doc);
+  fs.writeFileSync(stateFile, JSON.stringify({ 'Staged': { id: 'id-1' } }));
+  stagePage(repo, 'demo', 'override2.md', 'title: Staged\naction: upsert', 'body.\n');
+
+  const captureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-capture-'));
+  process.env.FAKE_KB_CAPTURE_DIR = captureDir;
+  try {
+    const res = call(['--scope', 'demo'], repo);
+    assert.ok(res.ok, `expected success, got: ${res.err}`);
+  } finally {
+    delete process.env.FAKE_KB_CAPTURE_DIR;
+  }
+  const updateCall = fs
+    .readdirSync(captureDir)
+    .filter((f) => f.startsWith('update-'))
+    .map((f) => JSON.parse(fs.readFileSync(path.join(captureDir, f), 'utf8')))[0];
+  assert.ok(updateCall.env.SUPERDEV_KB_BODY_FILE && !updateCall.env.SUPERDEV_KB_BODY_FILE.includes('/wrong/path'), 'the staged body_file path wins, not the find-returned one');
+});
+
+// --- a find key that a POSIX shell cannot address as a variable is still forwarded, but warned ---
+withState(() => {
+  const repo = makeRepo();
+  const doc = `# KB\n\n## Configuration\n\n- **Backend:** Hyphen Wiki.\n\n## Commands\n\n### find\n\n\`\`\`sh\necho '{"sub-url": "https://example.com/x", "id": "id-1"}'\n\`\`\`\n\n### create\n\n\`\`\`sh\nexit 0\n\`\`\`\n\n### update\n\n\`\`\`sh\nexit 0\n\`\`\`\n\n### delete\n\n\`\`\`sh\nexit 0\n\`\`\`\n`;
+  writeKbDoc(repo, doc);
+  stagePage(repo, 'demo', 'p.md', 'title: Hyphen Page\naction: upsert');
+
+  const origWrite = process.stderr.write;
+  const captured = [];
+  process.stderr.write = (chunk) => {
+    captured.push(String(chunk));
+    return true;
+  };
+  let res;
+  try {
+    res = call(['--scope', 'demo'], repo);
+  } finally {
+    process.stderr.write = origWrite;
+  }
+
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  assert.match(res.out, /published \(updated\): Hyphen Page/, 'the hyphenated key does not block the update call');
+  const warnings = captured.join('');
+  assert.match(warnings, /sub-url/, 'the warning names the offending key');
+  assert.match(warnings, /SUPERDEV_KB_SUB-URL/, 'the warning names the variable the key would have to be addressed as');
+});
+
+// --- exit 3 is the only absence outcome; any other nonzero leaves the page staged with its reason ---
+withState(() => {
+  const repo = makeRepo();
+  // A `find` template that always exits 5 (neither 0 nor 3) — the backend "could not answer".
+  const doc = `# KB\n\n## Configuration\n\n- **Backend:** Flaky Wiki.\n\n## Commands\n\n### find\n\n\`\`\`sh\nexit 5\n\`\`\`\n\n### create\n\n\`\`\`sh\nexit 0\n\`\`\`\n\n### update\n\n\`\`\`sh\nexit 0\n\`\`\`\n\n### delete\n\n\`\`\`sh\nexit 0\n\`\`\`\n`;
+  writeKbDoc(repo, doc);
+  stagePage(repo, 'demo', 'flaky.md', 'title: Flaky Page\naction: upsert');
+
+  const res = call(['--scope', 'demo'], repo);
+  assert.ok(res.ok);
+  assert.match(res.out, /left staged: Flaky Page — find exited 5/);
+  assert.ok(
+    fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', 'flaky.md')),
+    'a find failure other than exit 3 leaves the page staged',
+  );
+});
+
+// --- find exiting 0 with non-JSON-object stdout is a failure, not a find ---------------------
+withState(() => {
+  const repo = makeRepo();
+  const doc = `# KB\n\n## Configuration\n\n- **Backend:** Odd Wiki.\n\n## Commands\n\n### find\n\n\`\`\`sh\necho 'not json'\n\`\`\`\n\n### create\n\n\`\`\`sh\nexit 0\n\`\`\`\n\n### update\n\n\`\`\`sh\nexit 0\n\`\`\`\n\n### delete\n\n\`\`\`sh\nexit 0\n\`\`\`\n`;
+  writeKbDoc(repo, doc);
+  stagePage(repo, 'demo', 'odd.md', 'title: Odd Page\naction: upsert');
+
+  const res = call(['--scope', 'demo'], repo);
+  assert.ok(res.ok);
+  assert.match(res.out, /left staged: Odd Page — find exited 0 but stdout was not a JSON object/);
+});
+
+{
+  // A JSON array is not an object either.
+  const doc = `# KB\n\n## Configuration\n\n- **Backend:** Odd Wiki.\n\n## Commands\n\n### find\n\n\`\`\`sh\necho '[1,2]'\n\`\`\`\n`;
+  const backend = classifyBackend(doc);
+  const { runFind } = require(publishKbPath);
+  const r = runFind('X', backend.templates);
+  assert.equal(r.verdict, 'unknown');
+}
+
+// --- title with a quote, a $, a backtick, and a newline publishes unchanged, no nested shell ---
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  const tricky = 'a "quote", a $dollar, a `backtick`, and a\nnewline';
+  stagePage(repo, 'demo', 'tricky.md', `title: ${JSON.stringify(tricky)}\naction: upsert`, 'b.\n');
+
+  const res = call(['--scope', 'demo'], repo);
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.ok(Object.hasOwn(state, tricky), 'the title reached the backend byte-for-byte');
+});
+
+// --- delete for an already-absent page counts as done, not a failure ------------------------
+withState(() => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  stagePage(repo, 'demo', 'gone.md', 'title: Gone Page\naction: delete');
+
+  const res = call(['--scope', 'demo'], repo);
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  assert.match(res.out, /already absent, done: Gone Page/);
+  assert.ok(
+    !fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', 'gone.md')),
+    'the staged delete of an already-absent page is cleared',
+  );
+});
+
+// --- delete for an existing page calls delete, with find's keys, and removes it --------------
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  fs.writeFileSync(stateFile, JSON.stringify({ 'Live Page': { id: 'id-1', body: 'x' } }));
+  stagePage(repo, 'demo', 'live.md', 'title: Live Page\naction: delete');
+
+  const captureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-capture-'));
+  process.env.FAKE_KB_CAPTURE_DIR = captureDir;
+  let res;
+  try {
+    res = call(['--scope', 'demo'], repo);
+  } finally {
+    delete process.env.FAKE_KB_CAPTURE_DIR;
+  }
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  assert.match(res.out, /^deleted: Live Page$/m);
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.ok(!Object.hasOwn(state, 'Live Page'));
+
+  const deleteCall = fs
+    .readdirSync(captureDir)
+    .filter((f) => f.startsWith('delete-'))
+    .map((f) => JSON.parse(fs.readFileSync(path.join(captureDir, f), 'utf8')))[0];
+  assert.equal(deleteCall.env.SUPERDEV_KB_ID, 'id-1', 'the id key find emitted reaches delete as SUPERDEV_KB_ID too');
+});
+
+// --- partial run: exactly the failures stay staged, the directory is never wiped wholesale ---
+withState(() => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  stagePage(repo, 'demo', 'ok.md', 'title: OK Page\naction: upsert');
+  stagePage(repo, 'demo', 'bad.md', 'title: Bad Page\naction: delete-unknown-action-typo');
+
+  const res = call(['--scope', 'demo'], repo);
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  const dir = path.join(repo, '.superdev', 'kb-pending', 'demo');
+  assert.ok(!fs.existsSync(path.join(dir, 'ok.md')), 'the succeeding page is cleared');
+  assert.ok(fs.existsSync(path.join(dir, 'bad.md')), 'the failing page stays staged, alone');
+});
+
+// --- a cleanup failure after a landed call never aborts the batch: the rest is still attempted ---
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  stagePage(repo, 'demo', 'first.md', 'title: First Page\naction: upsert');
+  stagePage(repo, 'demo', 'second.md', 'title: Second Page\naction: upsert');
+
+  const firstPath = path.join(repo, '.superdev', 'kb-pending', 'demo', 'first.md');
+  const origUnlink = fs.unlinkSync;
+  fs.unlinkSync = (p, ...rest) => {
+    if (p === firstPath) throw new Error('EACCES: simulated cleanup failure');
+    return origUnlink.call(fs, p, ...rest);
+  };
+  let res;
+  try {
+    res = call(['--scope', 'demo'], repo);
+  } finally {
+    fs.unlinkSync = origUnlink;
+  }
+
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.ok(Object.hasOwn(state, 'First Page'), 'the backend call for the first page landed despite the later cleanup failure');
+  assert.ok(Object.hasOwn(state, 'Second Page'), 'the second page is still attempted after the first one fails to clear');
+  assert.match(res.out, /published \(created\) but not cleared: First Page — .*simulated cleanup failure/);
+  assert.match(res.out, /published \(created\): Second Page/);
+  assert.ok(fs.existsSync(firstPath), 'the staged file stays because clearing it failed');
+});
+
+// --- a temp-body-dir cleanup failure (the `finally { fs.rmSync }`) never aborts the batch either ---
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  stagePage(repo, 'demo', 'first.md', 'title: First Page\naction: upsert');
+  stagePage(repo, 'demo', 'second.md', 'title: Second Page\naction: upsert');
+
+  const origRm = fs.rmSync;
+  fs.rmSync = () => {
+    throw new Error('simulated temp-dir cleanup failure');
+  };
+  let res;
+  try {
+    res = call(['--scope', 'demo'], repo);
+  } finally {
+    fs.rmSync = origRm;
+  }
+
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.ok(Object.hasOwn(state, 'First Page'), 'the first page still publishes despite the temp-dir cleanup failure');
+  assert.ok(Object.hasOwn(state, 'Second Page'), 'the second page is still attempted');
+  assert.match(res.out, /published \(created\): First Page/);
+  assert.match(res.out, /published \(created\): Second Page/);
+});
+
+// --- spawnSync's own launch failure (res.error) leaves the page staged as unknown, never absent ---
+withState(() => {
+  const repo = makeRepo();
+  // Exceeding spawnSync's own maxBuffer is a real, portable way to force `res.error` (Node kills
+  // the child and reports ENOBUFS) without depending on a missing binary or a broken shell.
+  const doc = `# KB\n\n## Configuration\n\n- **Backend:** Loud Wiki.\n\n## Commands\n\n### find\n\n\`\`\`sh\nhead -c 11000000 /dev/zero\n\`\`\`\n\n### create\n\n\`\`\`sh\nexit 0\n\`\`\`\n\n### update\n\n\`\`\`sh\nexit 0\n\`\`\`\n\n### delete\n\n\`\`\`sh\nexit 0\n\`\`\`\n`;
+  writeKbDoc(repo, doc);
+  stagePage(repo, 'demo', 'loud.md', 'title: Loud Page\naction: upsert');
+
+  const res = call(['--scope', 'demo'], repo);
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  assert.match(res.out, /left staged: Loud Page — find could not run/);
+  assert.ok(!/absent/i.test(res.out), 'a spawn launch failure is never treated as absence');
+  assert.ok(
+    fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', 'loud.md')),
+    'a launch failure leaves the page staged',
+  );
+});
+
+// --- malformed frontmatter: no title, or an unknown action, is reported, skipped, untouched ---
+withState(() => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  stagePage(repo, 'demo', 'no-title.md', 'action: upsert');
+  stagePage(repo, 'demo', 'bad-action.md', 'title: Bad\naction: nonsense');
+
+  const res = call(['--scope', 'demo'], repo);
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  assert.match(res.out, /malformed frontmatter, left untouched: no-title\.md — no title/);
+  assert.match(res.out, /malformed frontmatter, left untouched: bad-action\.md — unknown action "nonsense"/);
+  const dir = path.join(repo, '.superdev', 'kb-pending', 'demo');
+  assert.ok(fs.existsSync(path.join(dir, 'no-title.md')));
+  assert.ok(fs.existsSync(path.join(dir, 'bad-action.md')));
+});
+
+// --- action: patch --------------------------------------------------------------------------
+const PATCH_VERBS = ['find', 'read', 'create', 'update', 'delete'];
+
+// --- a patch against a live page merges its section by heading and sends the merged body back
+// under the same title, through update ---------------------------------------------------------
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.', PATCH_VERBS));
+  fs.writeFileSync(
+    stateFile,
+    JSON.stringify({
+      'Aggregate Page': {
+        id: 'id-1',
+        body: '# Aggregate Page\n\n## Section A\n\nold A.\n\n## Section B\n\nold B.\n',
+      },
+    }),
+  );
+  stagePage(repo, 'demo', 'aggregate--section-a.md', 'title: Aggregate Page\naction: patch', '## Section A\n\nnew A.\n');
+
+  const res = call(['--scope', 'demo'], repo);
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  assert.match(res.out, /published \(updated\): Aggregate Page/);
+
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.match(state['Aggregate Page'].body, /new A\./);
+  assert.match(state['Aggregate Page'].body, /old B\./, 'the sibling section survives the merge');
+  assert.ok(
+    !fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', 'aggregate--section-a.md')),
+    'the staged file is cleared once the merged update lands',
+  );
+});
+
+// --- a patch whose title find reports absent (exit 3) creates the page from that section alone ---
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.', PATCH_VERBS));
+  stagePage(repo, 'demo', 'new--section-a.md', 'title: New Aggregate\naction: patch', '## Section A\n\nfirst content.\n');
+
+  const res = call(['--scope', 'demo'], repo);
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  assert.match(res.out, /published \(created\): New Aggregate/);
+
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.match(state['New Aggregate'].body, /first content\./);
+});
+
+// --- a read failure (nonzero exit) leaves the file staged, creates nothing, states the reason ---
+withState(() => {
+  const repo = makeRepo();
+  const doc = `# KB\n\n## Configuration\n\n- **Backend:** Flaky Wiki.\n\n## Commands\n\n### find\n\n\`\`\`sh\necho '{"id": "id-1"}'\n\`\`\`\n\n### read\n\n\`\`\`sh\nexit 7\n\`\`\`\n\n### create\n\n\`\`\`sh\nexit 0\n\`\`\`\n\n### update\n\n\`\`\`sh\nexit 0\n\`\`\`\n\n### delete\n\n\`\`\`sh\nexit 0\n\`\`\`\n`;
+  writeKbDoc(repo, doc);
+  stagePage(repo, 'demo', 'flaky--section-a.md', 'title: Flaky Page\naction: patch', '## Section A\n\nx.\n');
+
+  const res = call(['--scope', 'demo'], repo);
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  assert.match(res.out, /left staged: Flaky Page — read exited 7/);
+  assert.ok(fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', 'flaky--section-a.md')));
+});
+
+// --- read returning an empty body for a title find DID list is a read failure, not an empty page ---
+withState(() => {
+  const repo = makeRepo();
+  const doc = `# KB\n\n## Configuration\n\n- **Backend:** Empty Wiki.\n\n## Commands\n\n### find\n\n\`\`\`sh\necho '{"id": "id-1"}'\n\`\`\`\n\n### read\n\n\`\`\`sh\ntrue\n\`\`\`\n\n### create\n\n\`\`\`sh\nexit 1\n\`\`\`\n\n### update\n\n\`\`\`sh\nexit 1\n\`\`\`\n\n### delete\n\n\`\`\`sh\nexit 0\n\`\`\`\n`;
+  writeKbDoc(repo, doc);
+  stagePage(repo, 'demo', 'empty--section-a.md', 'title: Empty Body Page\naction: patch', '## Section A\n\nx.\n');
+
+  const res = call(['--scope', 'demo'], repo);
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  assert.match(res.out, /left staged: Empty Body Page — read returned an empty body/);
+  assert.ok(
+    fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', 'empty--section-a.md')),
+    'an empty read never creates the page from the lone section',
+  );
+});
+
+// --- a configuration declaring no read template leaves every patch page staged with that reason ---
+withState(() => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.', ['find', 'create', 'update', 'delete']));
+  stagePage(repo, 'demo', 'noread--section-a.md', 'title: No Read Page\naction: patch', '## Section A\n\nx.\n');
+
+  const res = call(['--scope', 'demo'], repo);
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  assert.match(res.out, /left staged: No Read Page — no read command configured/);
+});
+
+// --- two or more staged files sharing a title where at least one is not action: patch: --------
+// none published, every filename in the group reported
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.', PATCH_VERBS));
+  fs.writeFileSync(stateFile, JSON.stringify({ 'Mixed Page': { id: 'id-1', body: '# Mixed Page\n\nold.\n' } }));
+  stagePage(repo, 'demo', 'mixed--section-a.md', 'title: Mixed Page\naction: patch', '## Section A\n\nnew.\n');
+  stagePage(repo, 'demo', 'mixed-whole.md', 'title: Mixed Page\naction: upsert', 'a whole replacement.\n');
+
+  const res = call(['--scope', 'demo'], repo);
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  assert.match(res.out, /left staged: Mixed Page — .*mixed--section-a\.md/);
+  assert.match(res.out, /left staged: Mixed Page — .*mixed-whole\.md/);
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.equal(state['Mixed Page'].body, '# Mixed Page\n\nold.\n', 'the live page is untouched');
+  assert.ok(fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', 'mixed--section-a.md')));
+  assert.ok(fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', 'mixed-whole.md')));
+});
+
+// --- two or more sharing one title and all patch: applied in turn, every section lands --------
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.', PATCH_VERBS));
+  fs.writeFileSync(stateFile, JSON.stringify({ 'Combo Page': { id: 'id-1', body: '# Combo Page\n' } }));
+  stagePage(repo, 'demo', 'combo--section-a.md', 'title: Combo Page\naction: patch', '## Section A\n\nfrom A.\n');
+  stagePage(repo, 'demo', 'combo--section-b.md', 'title: Combo Page\naction: patch', '## Section B\n\nfrom B.\n');
+
+  const res = call(['--scope', 'demo'], repo);
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.match(state['Combo Page'].body, /from A\./, 'the first section lands');
+  assert.match(state['Combo Page'].body, /from B\./, 'the second section lands too, rather than overwriting the first');
+  assert.ok(!fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', 'combo--section-a.md')));
+  assert.ok(!fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', 'combo--section-b.md')));
+});
+
+// --- once one file in a group has created the page, absence is settled for the rest: a later ---
+// stale "absent" answer never triggers a second create
+withState(() => {
+  const repo = makeRepo();
+  const doc = `# KB\n\n## Configuration\n\n- **Backend:** Stale Wiki.\n\n## Commands\n\n### find\n\n\`\`\`sh\nexit 3\n\`\`\`\n\n### read\n\n\`\`\`sh\nexit 1\n\`\`\`\n\n### create\n\n\`\`\`sh\nnode ${JSON.stringify(FAKE_BACKEND)} create\n\`\`\`\n\n### update\n\n\`\`\`sh\nnode ${JSON.stringify(FAKE_BACKEND)} update\n\`\`\`\n\n### delete\n\n\`\`\`sh\nexit 0\n\`\`\`\n`;
+  writeKbDoc(repo, doc);
+  stagePage(repo, 'demo', 'stale--section-a.md', 'title: Stale Page\naction: patch', '## Section A\n\nfrom A.\n');
+  stagePage(repo, 'demo', 'stale--section-b.md', 'title: Stale Page\naction: patch', '## Section B\n\nfrom B.\n');
+
+  const captureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-capture-'));
+  process.env.FAKE_KB_CAPTURE_DIR = captureDir;
+  let res;
+  try {
+    res = call(['--scope', 'demo'], repo);
+  } finally {
+    delete process.env.FAKE_KB_CAPTURE_DIR;
+  }
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  const createCalls = fs.readdirSync(captureDir).filter((f) => f.startsWith('create-'));
+  assert.equal(createCalls.length, 1, 'find always answering absent never triggers a second create once the group has settled');
+  assert.match(res.out, /published \(created\): Stale Page/);
+  assert.match(res.out, /left staged: Stale Page/);
+});
+
+// --- two patch files in one group carrying the same section heading: both reported and skipped ---
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.', PATCH_VERBS));
+  fs.writeFileSync(stateFile, JSON.stringify({ 'Dup Page': { id: 'id-1', body: '# Dup Page\n' } }));
+  stagePage(repo, 'demo', 'dup--a.md', 'title: Dup Page\naction: patch', '## Same Heading\n\nfrom first.\n');
+  stagePage(repo, 'demo', 'dup--b.md', 'title: Dup Page\naction: patch', '## Same Heading\n\nfrom second.\n');
+
+  const res = call(['--scope', 'demo'], repo);
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  assert.match(res.out, /left staged: Dup Page — .*dup--a\.md|left staged: Dup Page — .*dup--b\.md/);
+  const out = res.out;
+  const mentionsA = /dup--a\.md/.test(out);
+  const mentionsB = /dup--b\.md/.test(out);
+  assert.ok(mentionsA && mentionsB, 'both colliding files are named in the report');
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.equal(state['Dup Page'].body, '# Dup Page\n', 'neither colliding section is merged');
+  assert.ok(fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', 'dup--a.md')));
+  assert.ok(fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', 'dup--b.md')));
+});
+
+// --- two patch files whose headings differ only by CommonMark-equivalent spelling (closed ATX,
+// or marker whitespace) still collide: both reported and skipped, neither section silently lost ---
+for (const [labelSuffix, headingA, headingB] of [
+  ['closed ATX', '## Same Heading', '## Same Heading ##'],
+  ['marker whitespace', '## Same Heading', '##  Same Heading'],
+]) {
+  withState((stateFile) => {
+    const repo = makeRepo();
+    writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.', PATCH_VERBS));
+    fs.writeFileSync(stateFile, JSON.stringify({ 'Combo Page': { id: 'id-1', body: '# Combo Page\n' } }));
+    stagePage(repo, 'demo', 'combo--a.md', 'title: Combo Page\naction: patch', `${headingA}\n\nfrom A.\n`);
+    stagePage(repo, 'demo', 'combo--b.md', 'title: Combo Page\naction: patch', `${headingB}\n\nfrom B.\n`);
+
+    const res = call(['--scope', 'demo'], repo);
+    assert.ok(res.ok, `expected success, got: ${res.err}`);
+    assert.match(res.out, /left staged: Combo Page/, `${labelSuffix}: at least one sibling reported as left staged`);
+    const out = res.out;
+    assert.ok(/combo--a\.md/.test(out) && /combo--b\.md/.test(out), `${labelSuffix}: both colliding files are named in the report`);
+    const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+    assert.equal(state['Combo Page'].body, '# Combo Page\n', `${labelSuffix}: neither colliding section is merged`);
+    assert.ok(fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', 'combo--a.md')), `${labelSuffix}: A stays staged`);
+    assert.ok(fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', 'combo--b.md')), `${labelSuffix}: B stays staged`);
+  });
+}
+
+// --- merge() refusing (e.g. no heading) leaves that one file staged with its reason, the rest continue ---
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.', PATCH_VERBS));
+  fs.writeFileSync(stateFile, JSON.stringify({ 'Bad Section Page': { id: 'id-1', body: '# Bad Section Page\n' } }));
+  stagePage(repo, 'demo', 'noheading--section.md', 'title: Bad Section Page\naction: patch', 'just prose, no heading.\n');
+  stagePage(repo, 'demo', 'good.md', 'title: Good Page\naction: upsert', 'good body.\n');
+
+  const res = call(['--scope', 'demo'], repo);
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  assert.match(res.out, /left staged: Bad Section Page — .*no heading/);
+  assert.match(res.out, /published \(created\): Good Page/);
+  assert.ok(fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', 'noheading--section.md')));
+});
+
+// --- no ## Commands section: nothing published, refusal names /superdev:setup ----------------
+withState(() => {
+  const repo = makeRepo();
+  writeKbDoc(repo, '# Knowledge base\n\n## Configuration\n\n- **Backend:** Some Wiki, old style.\n');
+  stagePage(repo, 'demo', 'p.md', 'title: P\naction: upsert');
+
+  const res = call(['--scope', 'demo'], repo);
+  assert.equal(res.ok, false);
+  assert.match(res.err, /## Commands/);
+  assert.match(res.err, /\/superdev:setup/);
+  assert.ok(fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', 'p.md')), 'nothing is deleted on refusal');
+});
+
+// --- a local or none knowledge base: nothing published, nothing deleted, reason stated -------
+for (const backendLine of ['- **Backend:** local file storage.', '- **Backend:** none.']) {
+  withState(() => {
+    const repo = makeRepo();
+    writeKbDoc(repo, `# Knowledge base\n\n## Configuration\n\n${backendLine}\n`);
+    stagePage(repo, 'demo', 'p.md', 'title: P\naction: upsert');
+
+    const res = call(['--scope', 'demo'], repo);
+    assert.equal(res.ok, false);
+    assert.match(res.err, /nothing to publish/);
+    assert.ok(fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', 'p.md')));
+  });
+}
+
+// --- no knowledge-base doc at all reads the same as backend none -----------------------------
+withState(() => {
+  const repo = makeRepo();
+  stagePage(repo, 'demo', 'p.md', 'title: P\naction: upsert');
+  const res = call(['--scope', 'demo'], repo);
+  assert.equal(res.ok, false);
+  assert.match(res.err, /nothing to publish/);
+});
+
+// --- a declared verb the run needs but the config omits leaves that page staged with a reason ---
+withState(() => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.', ['find'])); // no create/update/delete
+  stagePage(repo, 'demo', 'p.md', 'title: Missing Verb Page\naction: upsert');
+
+  const res = call(['--scope', 'demo'], repo);
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  assert.match(res.out, /left staged: Missing Verb Page — no create command configured/);
+});
+
+// --- more than one pending scope and no --scope: lists every scope with its page count -------
+withState(() => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  stagePage(repo, 'alpha', 'a.md', 'title: A\naction: upsert');
+  stagePage(repo, 'beta', 'b1.md', 'title: B1\naction: upsert');
+  stagePage(repo, 'beta', 'b2.md', 'title: B2\naction: upsert');
+
+  const res = call([], repo);
+  assert.equal(res.ok, false);
+  assert.match(res.err, /alpha: 1 staged page/);
+  assert.match(res.err, /beta: 2 staged pages/);
+  assert.ok(fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'alpha', 'a.md')), 'nothing is published');
+  assert.ok(fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'beta', 'b1.md')));
+});
+
+// --- --scope naming a slug with no staged pages says so and stops; an invalid slug names why ---
+withState(() => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  stagePage(repo, 'alpha', 'a.md', 'title: A\naction: upsert');
+
+  const missing = call(['--scope', 'ghost'], repo);
+  assert.equal(missing.ok, false);
+  assert.match(missing.err, /no staged knowledge-base pages under scope "ghost"/);
+
+  const invalid = call(['--scope', '-bad/slug'], repo);
+  assert.equal(invalid.ok, false);
+  assert.match(invalid.err, /scope-slug charset/);
+});
+
+// --- the literal _adhoc passes through as a scope slug without slug validation ----------------
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  stagePage(repo, '_adhoc', 'p.md', 'title: Adhoc Page\naction: upsert');
+
+  const res = call(['--scope', '_adhoc'], repo);
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.ok(Object.hasOwn(state, 'Adhoc Page'));
+});
+
+// --- no page body a backend returned appears anywhere in the report --------------------------
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  fs.writeFileSync(
+    stateFile,
+    JSON.stringify({ 'Body Page': { id: 'id-9', body: 'SECRET LIVE BODY CONTENT' } }),
+  );
+  stagePage(repo, 'demo', 'body.md', 'title: Body Page\naction: upsert', 'STAGED BODY CONTENT\n');
+
+  const res = call(['--scope', 'demo'], repo);
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  assert.ok(!res.out.includes('SECRET LIVE BODY CONTENT'));
+  assert.ok(!res.out.includes('STAGED BODY CONTENT'));
+});
+
+// --- the merge check: a scope branch base does not contain refuses, naming the branch and why ---
+withState(() => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  stagePage(repo, 'notcontained', 'p.md', 'title: P\naction: upsert');
+  // Diverge the branch from main: a commit only the branch carries, never merged into main.
+  git(['checkout', '-q', 'feat/notcontained'], repo);
+  fs.writeFileSync(path.join(repo, 'branch-only.txt'), 'x\n');
+  git(['add', 'branch-only.txt'], repo);
+  git(['commit', '-q', '-m', 'branch-only work'], repo);
+  git(['checkout', '-q', 'main'], repo);
+
+  const res = call(['--scope', 'notcontained'], repo);
+  assert.equal(res.ok, false, 'a not-contained scope branch refuses rather than publishing');
+  assert.match(res.err, /feat\/notcontained/, 'the refusal names the branch');
+  assert.match(res.err, /not contained/, 'the refusal states what was found');
+  assert.ok(
+    fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'notcontained', 'p.md')),
+    'nothing is published, and the staged page is not deleted',
+  );
+});
+
+// --- --allow-unmerged publishes a not-contained scope, and the report records it as unmerged ----
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  stagePage(repo, 'override', 'p.md', 'title: Override Page\naction: upsert');
+  git(['checkout', '-q', 'feat/override'], repo);
+  fs.writeFileSync(path.join(repo, 'branch-only.txt'), 'x\n');
+  git(['add', 'branch-only.txt'], repo);
+  git(['commit', '-q', '-m', 'branch-only work'], repo);
+  git(['checkout', '-q', 'main'], repo);
+
+  const res = call(['--scope', 'override', '--allow-unmerged'], repo);
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  assert.match(res.out, /published \(created\): Override Page/, '--allow-unmerged still publishes');
+  assert.match(res.out, /unmerged/i, 'the report records that the scope was unmerged');
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.ok(Object.hasOwn(state, 'Override Page'));
+});
+
+// --- a contained scope publishes silently: no refusal, no unmerged note in the report -----------
+withState(() => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  stagePage(repo, 'clean', 'p.md', 'title: Clean Page\naction: upsert');
+
+  const res = call(['--scope', 'clean'], repo);
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  assert.doesNotMatch(res.out, /unmerged/i, 'a contained scope carries no unmerged note');
+});
+
+// --- no branch resolves while a run root survives: refuses stating nothing resolved -------------
+withState(() => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  // Stage the page by hand, bypassing stagePage's helper, so no `feat/<scope>` branch is ever cut.
+  const dir = path.join(repo, '.superdev', 'kb-pending', 'noresolve');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'p.md'), '---\ntitle: P\naction: upsert\n---\nbody.\n');
+  // A surviving run root is what makes this the unreachable case rather than the reaped one: the run
+  // died before it cut its branch, or an operator deleted the branch while it was still unmerged.
+  fs.mkdirSync(path.join(repo, '.superdev', 'scopes', 'noresolve'), { recursive: true });
+
+  const res = call(['--scope', 'noresolve'], repo);
+  assert.equal(res.ok, false, 'a scope with no resolvable branch refuses');
+  assert.match(res.err, /no branch resolved/, 'states nothing resolved');
+  assert.doesNotMatch(res.err, /not contained/, 'never reads as a branch that simply has not landed yet');
+  assert.ok(fs.existsSync(path.join(dir, 'p.md')), 'nothing is published or deleted');
+});
+
+// --- --allow-unmerged proceeds on an unresolvable branch too, not only a not-contained one -------
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  const dir = path.join(repo, '.superdev', 'kb-pending', 'noresolve2');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'p.md'), '---\ntitle: Unresolvable Page\naction: upsert\n---\nbody.\n');
+  fs.mkdirSync(path.join(repo, '.superdev', 'scopes', 'noresolve2'), { recursive: true });
+
+  const res = call(['--scope', 'noresolve2', '--allow-unmerged'], repo);
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  assert.match(res.out, /unmerged/i);
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.ok(Object.hasOwn(state, 'Unresolvable Page'));
+});
+
+// --- neither branch nor run root survives: the reaped steady state publishes silently ------------
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  // No branch is ever cut and no run root is written: `hooks/scope-prune.js` reaps both together, and
+  // gates that reap on the branch already reading contained in base or gone (ADR 0071). So this is the
+  // fully-reaped shipped scope, the steady state a publish meets — absence stands beside containment.
+  const dir = path.join(repo, '.superdev', 'kb-pending', 'reaped');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'p.md'), '---\ntitle: Reaped Page\naction: upsert\n---\nbody.\n');
+
+  const res = call(['--scope', 'reaped'], repo);
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  assert.doesNotMatch(res.out, /unmerged/i, 'a fully-reaped scope carries no unmerged note');
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.ok(Object.hasOwn(state, 'Reaped Page'));
+});
+
+// --- _adhoc publishes with no containment check performed at all, even with no base configured ---
+withState((stateFile) => {
+  const repo = makeRepo();
+  fs.rmSync(path.join(repo, 'docs', 'agents', 'code-management.md'));
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  stagePage(repo, '_adhoc', 'p.md', 'title: Adhoc Page 2\naction: upsert');
+
+  const res = call(['--scope', '_adhoc'], repo);
+  assert.ok(res.ok, `expected success despite no base branch configured, got: ${res.err}`);
+  assert.doesNotMatch(res.out, /unmerged/i, '_adhoc runs no containment check to report on');
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.ok(Object.hasOwn(state, 'Adhoc Page 2'));
+});
+
+// --- a scope whose run root is gone resolves its branch through the scan fallback ----------------
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  stagePage(repo, 'gone', 'p.md', 'title: Gone Root Page\naction: upsert');
+  const root = path.join(repo, '.superdev', 'scopes', 'gone');
+  fs.mkdirSync(root, { recursive: true });
+  fs.writeFileSync(path.join(root, 'ledger.md'), '# Ledger\n\n**Branch:** feat/gone\n');
+  // `hooks/scope-prune.js` reaps the whole run root well before most `publish-kb` runs happen — no
+  // ledger.md survives to read, so resolution has to fall through to the shape scan, which still
+  // finds this scope's `feat/gone` branch (cut by `stagePage`'s helper above).
+  fs.rmSync(root, { recursive: true, force: true });
+
+  const res = call(['--scope', 'gone'], repo);
+  assert.ok(res.ok, `expected success via the scan fallback, got: ${res.err}`);
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.ok(Object.hasOwn(state, 'Gone Root Page'));
+});
+
+// --- the ledger's Branch line, once it verifies, is trusted ahead of the shape scan --------------
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  stagePage(repo, 'ledgered', 'p.md', 'title: Ledgered Page\naction: upsert');
+  const root = path.join(repo, '.superdev', 'scopes', 'ledgered');
+  fs.mkdirSync(root, { recursive: true });
+  fs.writeFileSync(path.join(root, 'ledger.md'), '# Ledger\n\n**Branch:** feat/ledgered\n');
+
+  const res = call(['--scope', 'ledgered'], repo);
+  assert.ok(res.ok, `expected success via the ledger route, got: ${res.err}`);
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.ok(Object.hasOwn(state, 'Ledgered Page'));
+});
+
+// --- the ledger's Branch line is what gets tested, not merely consulted then discarded ------------
+// The ledger names a branch that verifies AND is contained; a different branch also matches the
+// shape scan for this scope, and it is NOT contained. An implementation that read the ledger but
+// still fell through to the scan would refuse here — success proves the ledger's branch is the one
+// `testContainment` actually ran against.
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  stagePage(repo, 'distinguish', 'p.md', 'title: Distinguish Page\naction: upsert'); // cuts feat/distinguish
+  git(['branch', 'other/ledger-branch'], repo); // contained: same tip as main right now
+
+  // Diverge the shape-scan candidate (feat/distinguish) from main, so the scan route would refuse.
+  git(['checkout', '-q', 'feat/distinguish'], repo);
+  fs.writeFileSync(path.join(repo, 'branch-only.txt'), 'x\n');
+  git(['add', 'branch-only.txt'], repo);
+  git(['commit', '-q', '-m', 'branch-only work'], repo);
+  git(['checkout', '-q', 'main'], repo);
+
+  const root = path.join(repo, '.superdev', 'scopes', 'distinguish');
+  fs.mkdirSync(root, { recursive: true });
+  fs.writeFileSync(path.join(root, 'ledger.md'), '# Ledger\n\n**Branch:** other/ledger-branch\n');
+
+  const res = call(['--scope', 'distinguish'], repo);
+  assert.ok(res.ok, `expected success via the ledger's contained branch, got: ${res.err}`);
+  assert.doesNotMatch(res.out, /unmerged/i, 'the ledger branch is contained, no override needed');
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.ok(Object.hasOwn(state, 'Distinguish Page'));
+});
+
+// --- a ledger Branch line naming a branch that was never cut falls back to the shape scan --------
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  stagePage(repo, 'diedearly', 'p.md', 'title: Died Early Page\naction: upsert');
+  const root = path.join(repo, '.superdev', 'scopes', 'diedearly');
+  fs.mkdirSync(root, { recursive: true });
+  // Run init wrote this line before cutting the branch; the run died before the branch existed.
+  fs.writeFileSync(path.join(root, 'ledger.md'), '# Ledger\n\n**Branch:** feat/never-cut\n');
+
+  const res = call(['--scope', 'diedearly'], repo);
+  assert.ok(res.ok, `expected success via the scan fallback, got: ${res.err}`);
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.ok(Object.hasOwn(state, 'Died Early Page'));
+});
+
+// --- docs/agents/code-management.md with no base branch recorded refuses, never crashes ---------
+withState(() => {
+  const repo = makeRepo();
+  fs.writeFileSync(path.join(repo, 'docs', 'agents', 'code-management.md'), '# Code host\n\nno base branch bullet here.\n');
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  stagePage(repo, 'nobase', 'p.md', 'title: P\naction: upsert');
+
+  const res = call(['--scope', 'nobase'], repo);
+  assert.equal(res.ok, false);
+  assert.match(res.err, /no base branch/);
+  assert.ok(fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'nobase', 'p.md')));
+});
+
+// --- an unfilled seed placeholder reads as "not configured", never as a literal base branch -------
+withState(() => {
+  const repo = makeRepo();
+  fs.writeFileSync(
+    path.join(repo, 'docs', 'agents', 'code-management.md'),
+    '# Code host\n\n- **Base branch**: the branch the scope branch was cut from (default `main`).\n',
+  );
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  stagePage(repo, 'placeholder', 'p.md', 'title: P\naction: upsert');
+
+  const res = call(['--scope', 'placeholder'], repo);
+  assert.equal(res.ok, false);
+  assert.match(res.err, /no base branch/, 'names the real problem: nothing configured');
+  assert.doesNotMatch(res.err, /not contained in/, 'never reads the unfilled sentence as a base branch');
+  assert.ok(fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'placeholder', 'p.md')));
+});
+
+// --- parseBaseBranch also decodes the colon-outside-bold spelling both seed templates ship --------
+{
+  const base = parseBaseBranch('# Code host\n\n- **Base branch**: `develop`.\n');
+  assert.equal(base, 'develop');
+}
+
+// --- that spelling drives containment too: the parsed value is what gets tested, not `main` -------
+withState((stateFile) => {
+  const repo = makeRepo();
+  fs.writeFileSync(
+    path.join(repo, 'docs', 'agents', 'code-management.md'),
+    '# Code host\n\n- **Base branch**: `develop`.\n',
+  );
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  // `develop` carries a commit `main` never gets; the scope branch is cut from `develop`'s tip, so
+  // it is contained in `develop` and NOT in `main` — a pass here only happens if the parsed `develop`
+  // value, not `main`, is what containment was tested against.
+  git(['branch', 'develop'], repo);
+  git(['checkout', '-q', 'develop'], repo);
+  fs.writeFileSync(path.join(repo, 'develop-only.txt'), 'x\n');
+  git(['add', 'develop-only.txt'], repo);
+  git(['commit', '-q', '-m', 'develop-only work'], repo);
+  git(['checkout', '-q', '-b', 'feat/altspell'], repo);
+  git(['checkout', '-q', 'main'], repo);
+  stagePage(repo, 'altspell', 'p.md', 'title: Alt Spelling Page\naction: upsert');
+
+  const res = call(['--scope', 'altspell'], repo);
+  assert.ok(res.ok, `expected success via the develop base, got: ${res.err}`);
+  assert.doesNotMatch(res.out, /unmerged/i, 'contained in the configured base, no override needed');
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.ok(Object.hasOwn(state, 'Alt Spelling Page'));
+});
+
+// --- several branches matching the shape scan: no crash on the ambiguity, whichever one is picked --
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  stagePage(repo, 'multi', 'p.md', 'title: Multi Page\naction: upsert'); // cuts feat/multi
+  git(['branch', 'fix/multi'], repo); // a second branch also matching the scan shape
+
+  const res = call(['--scope', 'multi'], repo);
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.ok(Object.hasOwn(state, 'Multi Page'));
+});
+
+// --- parseRemote takes the first token of the `- **Remote:**` bullet, unlike parseBaseBranch's ------
+// whitespace rejection: every shipped Remote bullet carries a trailing sentence.
+{
+  assert.equal(parseRemote('# Code host\n\n- **Remote:** `upstream`.\n'), 'upstream');
+  assert.equal(parseRemote('# Code host\n\n- **Remote**: `upstream`.\n'), 'upstream', 'the colon-outside-bold spelling too');
+  assert.equal(parseRemote('# Code host\n\nno remote bullet here.\n'), null, 'absent bullet -> null, not a refusal');
+  assert.equal(
+    parseRemote('# Code host\n\n- **Remote:** `origin`. Confirm with `git remote -v`.\n'),
+    'origin',
+    'the real shipped bullet shape (docs/agents/code-management.md and both seeds) carries a trailing sentence',
+  );
+  assert.equal(parseRemote(null), null);
+}
+
+// --- checkContainment's refetch uses the remote docs/agents/code-management.md names, not `origin` -
+// The scope branch is NOT contained against local `main`, but IS contained against `main` on a remote
+// named `other` (a host that squash-merged the work; the operator's clone has not pulled yet). No
+// `origin` remote exists at all, so a refetch that (wrongly) defaults to `origin` cannot succeed —
+// success here is only reachable by fetching the configured `other` remote. The Remote bullet below
+// carries the trailing sentence every shipped one does ("Confirm with `git remote -v`.") rather than a
+// bare token, which is exactly the shape that left the previous cycle's fix inert.
+withState((stateFile) => {
+  const repo = makeRepo();
+  fs.writeFileSync(
+    path.join(repo, 'docs', 'agents', 'code-management.md'),
+    '# Code host\n\n- **Base branch:** `main`.\n- **Remote:** `other`. Confirm with `git remote -v`.\n',
+  );
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+
+  git(['checkout', '-q', '-b', 'feat/viaremote'], repo);
+  fs.writeFileSync(path.join(repo, 'viaremote-only.txt'), 'x\n');
+  git(['add', 'viaremote-only.txt'], repo);
+  git(['commit', '-q', '-m', 'work on feat/viaremote'], repo);
+  git(['checkout', '-q', 'main'], repo);
+
+  const remoteDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-remote-'));
+  git(['init', '-q', '--bare', '-b', 'main'], remoteDir);
+  git(['remote', 'add', 'other', remoteDir], repo);
+  git(['push', '-q', 'other', 'main'], repo);
+
+  // Advance the remote's `main` past the scope branch's work (a squash merge), then roll the local
+  // `main` back — local containment must fail, remote containment must succeed.
+  git(['merge', '--squash', 'feat/viaremote'], repo);
+  git(['commit', '-q', '-m', 'feat: viaremote (#1)'], repo);
+  git(['push', '-q', 'other', 'main:main'], repo);
+  git(['reset', '-q', '--hard', 'HEAD^'], repo);
+
+  stagePage(repo, 'viaremote', 'p.md', 'title: Via Remote Page\naction: upsert');
+
+  const res = call(['--scope', 'viaremote'], repo);
+  assert.ok(res.ok, `expected success via the configured remote, got: ${res.err}`);
+  assert.doesNotMatch(res.out, /unmerged/i, 'contained after fetching the configured remote, no override needed');
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.ok(Object.hasOwn(state, 'Via Remote Page'));
+  fs.rmSync(remoteDir, { recursive: true, force: true });
+});
+
+// --- the real `### find` template in docs/agents/knowledge-base.md separates "genuinely absent"
+// from a jq failure that is not absence, and refuses to answer 3 once its own listing hits its
+// pagination ceiling. The runFind-level mapping (exit 3 -> absent, anything else -> unknown) is
+// already pinned above (`find exited 5` and the JSON-array case) — this pins the template text
+// itself, the thing that decides which of those exit codes a real find call actually produces.
+{
+  const realDoc = fs.readFileSync(path.join(__dirname, '..', 'docs', 'agents', 'knowledge-base.md'), 'utf8');
+  const findTemplate = classifyBackend(realDoc).templates.find;
+  assert.ok(findTemplate, 'docs/agents/knowledge-base.md still configures a find template');
+
+  // Stubs `curl` on PATH so the template runs against canned stdin instead of the real network.
+  const stubDir = fs.mkdtempSync(path.join(os.tmpdir(), 'curl-stub-'));
+  fs.writeFileSync(path.join(stubDir, 'curl'), '#!/bin/sh\nprintf "%s" "$CURL_STUB_BODY"\n', { mode: 0o755 });
+
+  function runFindTemplate(body) {
+    return spawnSync('/bin/sh', ['-c', findTemplate], {
+      env: {
+        ...process.env,
+        PATH: stubDir + path.delimiter + process.env.PATH,
+        CURL_STUB_BODY: body,
+        SUPERDEV_KB_TITLE: 'Missing Page',
+        GITEA_TOKEN: 'x',
+      },
+      encoding: 'utf8',
+    });
+  }
+
+  const notThere = runFindTemplate(JSON.stringify([{ title: 'Other Page', sub_url: 'x' }]));
+  assert.equal(notThere.status, 3, 'a listing that plainly lacks the title answers absent (3)');
+
+  const there = runFindTemplate(JSON.stringify([{ title: 'Missing Page', sub_url: 'missing-page' }]));
+  assert.equal(there.status, 0, 'a listing that carries the title answers found (0)');
+  assert.deepEqual(JSON.parse(there.stdout), { sub_url: 'missing-page' });
+
+  const malformed = runFindTemplate('not json at all');
+  assert.equal(malformed.status, 2, 'a jq parse failure is not absence — must answer 2, never 3');
+
+  const atCeiling = JSON.stringify(Array.from({ length: 50 }, (_, i) => ({ title: `Page ${i}`, sub_url: `s${i}` })));
+  const ceilingHit = runFindTemplate(atCeiling);
+  assert.equal(ceilingHit.status, 2, 'a listing at its own 50-entry ceiling must not answer absent either');
+
+  fs.rmSync(stubDir, { recursive: true, force: true });
+}
+
+// --- the real `### find` template in plugin/references/knowledge-base-confluence.md separates -------
+// "genuinely absent" from a JSON object that carries no `results` key at all: a 200 response like
+// `{"message":"err"}` makes `.results` read `null` instead of erroring, so `.results | length` reads 0
+// and `.results[0]` reads `null` — indistinguishable from a genuine empty-results absence unless the
+// template checks for the key first.
+{
+  const confluenceDoc = fs.readFileSync(
+    path.join(__dirname, '..', 'plugin', 'references', 'knowledge-base-confluence.md'),
+    'utf8',
+  );
+  const findTemplate = classifyBackend(confluenceDoc).templates.find;
+  assert.ok(findTemplate, 'the Confluence seed still configures a find template');
+
+  // Stubs `curl` on PATH so the template runs against canned stdin instead of the real network.
+  const stubDir = fs.mkdtempSync(path.join(os.tmpdir(), 'curl-stub-'));
+  fs.writeFileSync(path.join(stubDir, 'curl'), '#!/bin/sh\nprintf "%s" "$CURL_STUB_BODY"\n', { mode: 0o755 });
+
+  function runFindTemplate(body) {
+    return spawnSync('/bin/sh', ['-c', findTemplate], {
+      env: {
+        ...process.env,
+        PATH: stubDir + path.delimiter + process.env.PATH,
+        CURL_STUB_BODY: body,
+        SUPERDEV_KB_TITLE: 'Missing Page',
+        CONFLUENCE_EMAIL: 'x',
+        CONFLUENCE_API_TOKEN: 'x',
+      },
+      encoding: 'utf8',
+    });
+  }
+
+  const there = runFindTemplate(JSON.stringify({ results: [{ id: '123', version: { number: 5 } }] }));
+  assert.equal(there.status, 0, 'a results array carrying a match answers found (0)');
+  assert.deepEqual(JSON.parse(there.stdout), { id: '123', version: '5' });
+
+  const notThere = runFindTemplate(JSON.stringify({ results: [] }));
+  assert.equal(notThere.status, 3, 'an empty results array answers absent (3)');
+
+  const malformed = runFindTemplate('not json at all');
+  assert.equal(malformed.status, 2, 'a jq parse failure is not absence — must answer 2, never 3');
+
+  const noResultsKey = runFindTemplate(JSON.stringify({ message: 'err' }));
+  assert.equal(
+    noResultsKey.status,
+    2,
+    'a 200 response carrying no "results" key cannot answer absent — it could not answer at all',
+  );
+
+  fs.rmSync(stubDir, { recursive: true, force: true });
+}
+
+console.log('publish-kb.test.js: all assertions passed');

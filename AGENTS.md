@@ -43,11 +43,11 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          run handoff, execution playbooks, test-selection, scope-mode, authoring
                          disciplines, design sketch, diagnosis, prototype, merge-conflicts,
                          review-checklist); its own AGENTS.md routes them
-  scripts/             — the runtime CLIs: `scope.js`, `kb-patch.js`, `adapter.js`
+  scripts/             — the runtime CLIs: `scope.js`, `kb-patch.js`, `adapter.js`, `publish-kb.js`
   LICENSE · NOTICE     — copies of the root files, so the shipped tree carries its own attribution
 tests/                 — one suite per shipped executable (the hooks, `scope.js`, `kb-patch.js`,
-                         `adapter.js`), framework-free `node:assert`, run under `node` by `bun run
-                         test` (ADR 0059)
+                         `adapter.js`, `publish-kb.js`), framework-free `node:assert`, run under
+                         `node` by `bun run test` (ADR 0059)
 docs/adr/              — architecture decision records (why the plugin is built this way)
 docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, documentation, KB, toolchain, verification)
 docs/known-issues.md   — Claude Code platform behaviour superdev works around, each entry with its
@@ -235,6 +235,12 @@ This root owns every other subtree directly:
   0058),
   `plugin/scripts/kb-patch.js` (the deterministic section merge behind a staged page's `action: patch`,
   called by `/superdev:publish-kb`, ADR 0027 — the commands invoke this and `scope.js` at runtime),
+  `plugin/scripts/publish-kb.js` (the backend-independent half of publishing a scope's staged
+  knowledge-base pages, ADR 0069: resolves the five-verb backend command contract from
+  `docs/agents/knowledge-base.md` by heading name, carries `action: upsert`, `action: delete`, and
+  `action: patch` end to end — `patch` merging through `kb-patch.js`'s `merge()` — delegates the
+  containment check to `scope.js`'s `testContainment`, and is the invocation
+  `skills/publish-kb/SKILL.md` runs),
   `plugin/scripts/adapter.js` (the OpenCode harness adapter, issue #375: renders the shipped skills
   and agents into `.opencode/`, plus the OpenCode hook bridge plugin `.opencode/plugins/superdev.js`
   that forwards OpenCode's plugin events to the shipped hooks, issue #376; golden fixtures

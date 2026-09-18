@@ -2620,7 +2620,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'skills/afk/SKILL.md disappearing is still caught, now by the general check',
   );
 
-  // positive: `READ_PATH_CONTRACTS`' second row pins `docs/agents/knowledge-base.md` with a `test()`
+  // positive: `READ_PATH_CONTRACTS`' one row pins `docs/agents/knowledge-base.md` with a `test()`
   // function in row[1] rather than a `RegExp` — the shape the old `row[1] instanceof RegExp` gate
   // could not see, so this document was one of the seven a whole-scope review found uncollected.
   assert.ok(

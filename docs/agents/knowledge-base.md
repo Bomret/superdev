@@ -63,4 +63,69 @@ once the feature has reached the adopters this wiki is written for.
   staged**, reports why, and deletes nothing. A later run retries exactly the pages that did not land.
   The in-repo docs are the record meanwhile. Do not fail.
 
+## Commands
+
+The **backend command contract** (ADR 0069) `scripts/publish-kb.js` runs. `find` lists every wiki page
+and filters by title, emitting the matching entry's `sub_url`; `read`, `update`, and `delete` take
+`$SUPERDEV_KB_SUB_URL` from it. `update` always sends `title`, even when it is unchanged — an omitted
+`title` is the hazard the REST conventions above name: Forgejo reads it as a rename to `unnamed` and
+destroys the page. `find` maps `jq -e`'s exit 1 (a genuine no-match) to exit 3, the only outcome
+`scripts/publish-kb.js` reads as positive absence; any other `jq` exit — a parse error, a usage
+error — maps to exit 2, "could not answer," so a page never gets created from a listing `jq` failed to
+read. The listing itself is capped at `limit=50`, Forgejo's own `max_response_items` ceiling
+(`https://forgejo.org/docs/latest/user/api/usage/`); a listing that returns exactly that many entries
+without finding the title also answers exit 2, since the title could sit on a page this call never
+fetched.
+
+### find
+
+```sh
+pages=$(curl -sf -H "Authorization: token $GITEA_TOKEN" \
+  "https://codeberg.org/api/v1/repos/bomret/superdev/wiki/pages?limit=50") || exit 2
+count=$(printf '%s' "$pages" | jq 'length') || exit 2
+page=$(printf '%s' "$pages" | jq -e --arg title "$SUPERDEV_KB_TITLE" '[.[] | select(.title == $title)][0]')
+status=$?
+if [ "$status" -eq 1 ]; then
+  [ "$count" -ge 50 ] && exit 2
+  exit 3
+fi
+[ "$status" -ne 0 ] && exit 2
+printf '%s' "$page" | jq -c '{sub_url}'
+```
+
+### read
+
+```sh
+curl -sf -H "Authorization: token $GITEA_TOKEN" \
+  "https://codeberg.org/api/v1/repos/bomret/superdev/wiki/page/$SUPERDEV_KB_SUB_URL" \
+  | jq -r '.content_base64' | base64 -d
+```
+
+### create
+
+```sh
+content_base64=$(base64 < "$SUPERDEV_KB_BODY_FILE" | tr -d '\n')
+body=$(jq -n --arg title "$SUPERDEV_KB_TITLE" --arg content "$content_base64" \
+  '{title: $title, content_base64: $content, message: "superdev: publish"}')
+curl -sf -H "Authorization: token $GITEA_TOKEN" -H "Content-Type: application/json" \
+  -X POST "https://codeberg.org/api/v1/repos/bomret/superdev/wiki/new" -d "$body" >/dev/null
+```
+
+### update
+
+```sh
+content_base64=$(base64 < "$SUPERDEV_KB_BODY_FILE" | tr -d '\n')
+body=$(jq -n --arg title "$SUPERDEV_KB_TITLE" --arg content "$content_base64" \
+  '{title: $title, content_base64: $content, message: "superdev: publish"}')
+curl -sf -H "Authorization: token $GITEA_TOKEN" -H "Content-Type: application/json" \
+  -X PATCH "https://codeberg.org/api/v1/repos/bomret/superdev/wiki/page/$SUPERDEV_KB_SUB_URL" -d "$body" >/dev/null
+```
+
+### delete
+
+```sh
+curl -sf -H "Authorization: token $GITEA_TOKEN" \
+  -X DELETE "https://codeberg.org/api/v1/repos/bomret/superdev/wiki/page/$SUPERDEV_KB_SUB_URL" >/dev/null
+```
+
 Human-consumption first: shape pages around the audience, write in English, follow the outline above.

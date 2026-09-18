@@ -1456,13 +1456,9 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   assert.equal(vcScopeModeGaps.length, 1, 'flags scope-mode.md for writing the degrade entry without `scope.js degraded add`');
   assert.equal(vcScopeModeGaps[0].source, path.join('references', 'scope-mode.md'), 'names scope-mode.md');
 
-  // positive: publish-kb.md checks the scope branch some other way than the verb
-  const vcPublishKb = fixture({
-    'skills/publish-kb/SKILL.md': 'Confirm the scope branch is merged before staging any page.\n',
-  });
-  const vcPublishKbGaps = scanContract(vcPublishKb, VERB_CONTRACTS);
-  assert.equal(vcPublishKbGaps.length, 1, 'flags publish-kb.md for reading the scope branch without `scope.js get branch`');
-  assert.equal(vcPublishKbGaps[0].source, path.join('skills', 'publish-kb', 'SKILL.md'), 'names publish-kb.md');
+  // The `skills/publish-kb/SKILL.md` `get branch` row retired (ADR 0069): `plugin/scripts/publish-kb.js`
+  // reads the ledger branch via `readLedgerHeader`, real code no verb-invocation pattern can match.
+  // `tests/publish-kb.test.js`'s ledger-route assertions cover it instead.
 
   // positive: plan.md reconstructs the scope branch from the label instead of reading it
   const vcPlan = fixture({
