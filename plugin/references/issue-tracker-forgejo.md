@@ -13,9 +13,6 @@ the Forgejo REST API (or the `tea` CLI if installed).
   epic + its slices, so the feature's issues are listable. `<type>` is the **change type** — the
   Conventional Commits type of the work, per `references/scope-mode.md` — and the label doubles as the
   scope branch name.
-- **Assignee:** `<login>` — the Forgejo login every issue a run creates is assigned to (see
-  *Assignee* below). Set to `none` to create issues unassigned; remove the line entirely to fall back to
-  whoever the token belongs to.
 - **Triage label:** `<triage>` — the label a **triage record** carries (*Triage record* below), and the
   only label it carries. Default `triage`.
 
@@ -53,7 +50,8 @@ the Forgejo REST API (or the `tea` CLI if installed).
 
 - **Create an issue:** `POST /api/v1/repos/<owner>/<repo>/issues` with
   `{ "title": "...", "body": "<specification + acceptance checklist>", "labels": [<label ids>],
-  "assignees": ["<login>"] }` — omit `assignees` entirely when `Assignee: none`. Capture the returned
+  "assignees": ["<assignee>"] }` — omit `assignees` entirely when the assignee resolves to `none`.
+  Capture the returned
   `number` as the slice's `id`. Pass `labels` and `assignees` **at creation** — no separate label or
   assignee POST for the create path.
 - **Parallel-safe creation order:** create the epic first (slices reference `#<epic>`), then fire **all
@@ -112,16 +110,22 @@ feature label, and on a single-slice feature it is the lone issue carrying that 
 
 ## Assignee
 
-Store configuration, not a slice field (`plan-contract.md` → *Assignee*; ADR 0010). The **Assignee**
-value above is applied to the **epic and every slice** in the create call, never a follow-up pass. The
-two failure shapes below are the general *Assignee* recovery rule (`plan-contract.md`) made concrete for
-Forgejo.
+Operator configuration, not a slice field (`plan-contract.md` → *Assignee*; ADR 0010, ADR 0073). The
+identifier is a Forgejo **login**, read from `.superdev/info.json` under `issue-tracker.assignee`, and
+applied to the **epic and every slice** in the create call, never a follow-up pass. The two failure shapes
+below are the general *Assignee* recovery rule (`plan-contract.md`) made concrete for Forgejo.
+
+```json
+{
+  "issue-tracker": { "assignee": "<login>" }
+}
+```
 
 - Forgejo's `CreateIssueOption.assignees` is an **array**, so the single configured login is sent as a
   one-element `["<login>"]`. `EditIssueOption.assignees` is the same shape if an issue ever needs it later.
-- **No `Assignee` line** in the configuration above → resolve the token's own identity with
+- **No file, no `issue-tracker` key, or no `assignee`** → resolve the token's own identity with
   `GET /api/v1/user` and use its `login`.
-- **`Assignee: none`** → omit `assignees` entirely. No warning, no error.
+- **`"assignee": "none"`** → omit `assignees` entirely. No warning, no error.
 - **A login that doesn't exist or isn't a collaborator rejects the whole create**: `422 Assignee does not
   exist` or `422 canBeAssigned` (`ErrUserDoesNotHaveAccessToRepo`). Retry that one create with
   `assignees` omitted; report it once per run.
@@ -129,6 +133,8 @@ Forgejo.
   create succeeds but the returned `assignees` is empty or `null`. Read it back from the create response;
   if it's empty while an assignee was configured, report it once per run.
 - Either way the issue is created and nothing is retried more than that one time or rolled back.
+- **A leftover `Assignee:` bullet** in this repo's `docs/agents/issue-tracker.md` is configuration nothing
+  reads. Report it once per run, naming the file and the move to `.superdev/info.json`.
 
 ## Release
 
@@ -153,7 +159,8 @@ On this store it is an ordinary issue carrying the **Triage label** from *Config
   `{ "title": "<the finding, one line>", "body": "<the finding, why no Definition of Done criterion
   covered it, the date, the feature label, the scope branch, the scope anchor's reference, and a
   copy-pasteable /superdev:plan \"<the finding>\" line>", "labels": [<the triage label's id>] }`. Omit
-  `assignees` entirely: a triage record is created **unassigned**, whatever *Assignee* configures, because
+  `assignees` entirely: a triage record is created **unassigned**, whatever the operator configuration
+  names, because
   nobody has picked the work up. Capture the returned `number` as the record's reference —
   `/superdev:review` puts it in the ledger bullet.
 - **List the records:** `GET /api/v1/repos/<owner>/<repo>/issues?labels=<triage>&state=open` (paginated).

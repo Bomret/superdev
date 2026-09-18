@@ -14,9 +14,6 @@ Slices live as GitHub issues — one slice = one issue. Use the GitHub REST API 
   + its slices, so the feature's issues are listable. `<type>` is the **change type** — the Conventional
   Commits type of the work, per `references/scope-mode.md` — and the label doubles as the scope branch
   name.
-- **Assignee**: `<login>` — the GitHub login every issue a run creates is assigned to (see *Assignee*
-  below). Set to `none` to create issues unassigned; remove the line entirely to fall back to whoever the
-  token belongs to.
 - **Triage label**: `<triage>` — the label a **triage record** carries (*Triage record* below), and the
   only label it carries. Default `triage`.
 - **Tooling**: `<rest>` or `<gh CLI>` (see *Tooling* below).
@@ -112,7 +109,8 @@ like a typo.
 
 - **Create an issue:** `POST /repos/<owner>/<repo>/issues` with
   `{ "title": "...", "body": "<specification + acceptance checklist>", "labels": ["<label>", …],
-  "assignees": ["<assignee>"] }` — omit `assignees` entirely when `Assignee: none`. Capture the returned
+  "assignees": ["<assignee>"] }` — omit `assignees` entirely when the assignee resolves to `none`.
+  Capture the returned
   `number` (the slice's `id`) **and** `id` (for the relation calls). Pass `labels` and `assignees` **at
   creation** — no separate label or assignee POST for the create path.
 - **Link a slice to its epic (sub-issue):** `POST /repos/<owner>/<repo>/issues/<epic-number>/sub_issues`
@@ -159,15 +157,22 @@ like a typo.
 
 ## Assignee
 
-Store configuration, not a slice field (`plan-contract.md` → *Assignee*; ADR 0010). The **Assignee** value
-above is applied to the **epic and every slice** in the create call, never a follow-up pass. The failure
-shape below is the general *Assignee* recovery rule (`plan-contract.md`) made concrete for GitHub.
+Operator configuration, not a slice field (`plan-contract.md` → *Assignee*; ADR 0010, ADR 0073). The
+identifier is a GitHub **login**, read from `.superdev/info.json` under `issue-tracker.assignee`, and
+applied to the **epic and every slice** in the create call, never a follow-up pass. The failure shape below
+is the general *Assignee* recovery rule (`plan-contract.md`) made concrete for GitHub.
+
+```json
+{
+  "issue-tracker": { "assignee": "<login>" }
+}
+```
 
 - GitHub's `assignees` is an **array**, so the single configured login is sent as a one-element
   `["<assignee>"]`. The singular `assignee` field is documented as **closing down** — don't use it.
-- **No `Assignee` line** in the configuration above → resolve the token's own identity with
+- **No file, no `issue-tracker` key, or no `assignee`** → resolve the token's own identity with
   `GET /user` and use its `login`.
-- **`Assignee: none`** → omit `assignees` entirely. No warning, no error.
+- **`"assignee": "none"`** → omit `assignees` entirely. No warning, no error.
 - **A token without push access silently drops the assignment** — and `labels` and `milestone` with it.
   The create **succeeds**, returns `201`, and the returned `assignees` is empty. Nothing is retried or
   rolled back.
@@ -175,10 +180,12 @@ shape below is the general *Assignee* recovery rule (`plan-contract.md`) made co
   not refused. The retry-once-without-the-assignee path in `plan-contract.md` applies to trackers that
   reject; it never triggers here.
 - **Check the returned `labels`, not just `assignees`.** Labels are sent on every create; an assignee is
-  not sent at all under `Assignee: none`, so assignee-based detection is blind in exactly that
+  not sent at all under `"assignee": "none"`, so assignee-based detection is blind in exactly that
   configuration. An empty `labels` array on the response means the labels didn't stick — the documented
   cause is a token without push access — and since the feature label is the only listing path, those
-  issues are unfindable. Report it **once** per run, independently of what `Assignee` is set to.
+  issues are unfindable. Report it **once** per run, independently of what the assignee is set to.
+- **A leftover `Assignee:` bullet** in this repo's `docs/agents/issue-tracker.md` is configuration nothing
+  reads. Report it once per run, naming the file and the move to `.superdev/info.json`.
 
 ## Release
 
@@ -202,7 +209,8 @@ On this store it is an ordinary issue carrying the **Triage label** from *Config
   `{ "title": "<the finding, one line>", "body": "<the finding, why no Definition of Done criterion
   covered it, the date, the feature label, the scope branch, the scope anchor's reference, and a
   copy-pasteable /superdev:plan \"<the finding>\" line>", "labels": ["<triage>"] }`. Omit `assignees`
-  entirely: a triage record is created **unassigned**, whatever *Assignee* configures, because nobody has
+  entirely: a triage record is created **unassigned**, whatever the operator configuration names, because
+  nobody has
   picked the work up. Capture the returned `number` as the record's reference — `/superdev:review` puts it
   in the ledger bullet. No sub-issue link: a triage record belongs to no epic.
 - **List the records:** `GET /repos/<owner>/<repo>/issues?labels=<triage>&state=open`. It returns every

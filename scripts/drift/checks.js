@@ -137,7 +137,7 @@ module.exports = [
   },
   {
     id: 'assignee',
-    ok: 'assignee contract carried, both halves',
+    ok: 'every store document carries its `## Assignee` section and no tracked assignee bullet',
     run: scanAssigneeContract,
     format: (g) =>
       `${g.source} no longer meets the assignee contract — expected it to ${g.expectation}; see ` +

@@ -430,20 +430,22 @@ playbooks point at `scope-mode.md`, so a rename there dangles like any other. Th
 `references/scope-mode.md`, `agents/implementer.md`, `agents/slice-reviewer.md`,
 `agents/simplicity-reviewer.md`, and `agents/final-reviewer.md` address
 run-root artifacts by absolute `<run-root>/…` path. The `assignee` contract: every
-issue-backend document carries both halves of it, and each is reported apart. One half is the
-`**Assignee` config bullet, which is what a backend is actually configured with. The other is the
+issue-backend document carries both halves of it, and each is reported apart. One half **requires** the
 `## Assignee` section, the store side of the generic contract, which `Assignee` shares with every other
-member of the specialising family. The section is found through `specialisingHeading('Assignee')` rather
-than a second copy of the pattern, so the family's heading anchoring reaches this check too. Both halves
-read fence-masked text, defensively: no store document renders either inside a fenced example today, and
-the seeds' habit of showing headings inside fenced examples elsewhere makes one plausible. The filename
-alone triggers the check, with no content gate on how the doc phrases issue creation.
-`references/issue-tracker-local.md` is exempt from both halves through one set, because it has no
-assignee concept and renders neither. Presence is all either half claims; what the section must say for
-its backend stays a review's job. Coverage is automatic — `storeDocuments()` picks up a
-`references/issue-tracker-*.md` seed added later with no scanner edit — but exemption is not: a backend
-with no assignee concept must be added to `ASSIGNEE_EXEMPT` by name, or it reports two gaps on a suite
-that was never wrong. The `run-state-contract` check resolves the same shape the
+member of the specialising family. The other **forbids** the `- **Assignee:**` config bullet: the
+assignee is read from the untracked `.superdev/info.json` (ADR 0073), so a bullet is a personal account
+identifier committed to a repository other people maintain, and configuration nothing reads. This is the
+one member of the family whose halves pull opposite ways. The section is found through
+`specialisingHeading('Assignee')` rather than a second copy of the pattern, so the family's heading
+anchoring reaches this check too. Both halves read fence-masked text, defensively: no store document
+renders either inside a fenced example today, and the seeds' habit of showing headings inside fenced
+examples elsewhere makes one plausible. The filename alone triggers the check, with no content gate on
+how the doc phrases issue creation. `references/issue-tracker-local.md` is exempt from both halves
+through one set, because it has no assignee concept and renders neither. Presence and absence are all
+either half claims; what the section must say for its backend stays a review's job. Coverage is automatic
+— `storeDocuments()` picks up a `references/issue-tracker-*.md` seed added later with no scanner edit —
+but exemption is not: a backend with no assignee concept must be added to `ASSIGNEE_EXEMPT` by name, or
+it reports a section gap on a suite that was never wrong. The `run-state-contract` check resolves the same shape the
 other way, exempting no store and letting a snapshot-less backend declare itself snapshot-less inside its
 own section instead. The
 `anchor-contract`: every slice-store document (every `references/issue-tracker-*.md` plus this
@@ -1424,9 +1426,10 @@ That skip is why membership alone is not a presence contract. A member a store r
 clean here, which is what the store-side contracts exist to catch. `scanAnchorContract`,
 `scanAppendContract`, `scanReleaseContract`, `scanTriageRecordContract`, and `scanRunStateContract` each
 pin a member's own `## <Section>` heading, and none exempts a store by name. `scanAssigneeContract` pins
-two halves: the `- **Assignee:**` configuration bullet, which is what a backend is actually configured
-with, and the `## Assignee` heading through `specialisingHeading('Assignee')`. It is the one that exempts
-a store by name, the local-file store, which has no assignee concept and renders neither half.
+two halves: the `## Assignee` heading through `specialisingHeading('Assignee')`, and the
+`- **Assignee:**` configuration bullet, which it forbids rather than requires, because the assignee lives
+in the untracked `.superdev/info.json` (ADR 0073). It is the one that exempts a store by name, the
+local-file store, which has no assignee concept and renders neither half.
 
 One notation is pinned, not an alternation. Accepting `` `plan-contract.md`, *Section* `` beside the arrow
 would make both forms true forever and leave a new seed's author guessing which to copy, so every

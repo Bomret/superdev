@@ -17,6 +17,13 @@ Write the per-repo config docs the superdev skills read, so the workflow is back
 - `docs/agents/verification.md` — the optional **test commands**: a full one plus an optional focused
   one, which arm the merge green-gate hook, and an optional **timing command**, which a test audit reads
 
+Plus one file that is **not** a config doc, because what it holds belongs to a person rather than to the
+repository:
+
+- `.superdev/info.json` — the **operator configuration** (`CONTEXT.md`), holding the slice store's
+  assignee under the `issue-tracker` role key. Git-ignored, so it stays out of a repository other people
+  maintain (ADR 0073).
+
 This is prompt-driven, not a script. **Explore, propose defaults, confirm one decision at a time, then
 write.** Seed templates live in `${CLAUDE_PLUGIN_ROOT}/references/`.
 
@@ -131,13 +138,30 @@ it (what `/superdev:implement` and `/superdev:afk` check). A team that agrees pl
 every plan live on creation is a valid answer too — write that, and `/superdev:plan` stops asking.
 
 Also capture the **assignee** for any issue backend — the account every issue `/superdev:plan` creates is
-assigned to, recorded as `Assignee` in `issue-tracker.md` (`plan-contract.md` → *Assignee*). Propose the
-**API token's own identity** as the default: resolve it from the backend's whoami endpoint
-(`GET /api/v1/user` on Forgejo/Gitea, `GET /user` on GitHub, `GET /rest/api/3/myself` on Jira) and offer
-that login or `accountId`. Accept a different account — the case that matters when a shared or bot token
-files the issues — provided it can actually be assigned there (a repo collaborator, an assignable project
-user), since an unassignable one fails. Or `none`, to create the issues unassigned. An omitted line
-behaves as the default. The local-file store has no assignee: don't ask.
+assigned to (`plan-contract.md` → *Assignee*). Propose the **API token's own identity** as the default:
+resolve it from the backend's whoami endpoint (`GET /api/v1/user` on Forgejo/Gitea, `GET /user` on GitHub,
+`GET /rest/api/3/myself` on Jira) and offer that login or `accountId`. Accept a different account — the
+case that matters when a shared or bot token files the issues — provided it can actually be assigned there
+(a repo collaborator, an assignable project user), since an unassignable one fails. Or `none`, to create
+the issues unassigned. The local-file store has no assignee: don't ask.
+
+**Write the answer to `.superdev/info.json`, never to `issue-tracker.md`** (ADR 0073). The identifier
+belongs to the person running superdev, and `issue-tracker.md` is tracked, so a repository maintained by
+several people would carry one maintainer's account in its history and file everyone's issues against it.
+`.superdev/` is git-ignored, which makes the file untracked by construction:
+
+```json
+{
+  "issue-tracker": { "assignee": "<the answer, or \"none\">" }
+}
+```
+
+- **Merge into an existing file**, setting `issue-tracker.assignee` alone, so another role's key survives.
+- **Ensure `.superdev/` is in `.gitignore`**, adding it when absent.
+- **Say the path you wrote and that the file is untracked**, so an operator who went looking in
+  `docs/agents/` knows why it is not there, and knows a teammate inherits nothing from this answer.
+- **Declining leaves no file.** An absent file resolves to the token's own identity anyway, so every
+  issue-backed repo gets owned issues with nothing configured.
 
 **B — Code host.** Where does code live / where do PRs go? (Independent of A — code may be on GitHub
 while slices live in Jira.)
@@ -412,8 +436,10 @@ If neither `CLAUDE.md` nor `AGENTS.md` exists, ask the user which to create — 
 ## 4. Done
 
 Tell the user setup is complete and that `/superdev:plan` and `/superdev:implement` now read these files.
-They can edit `docs/agents/*.md` directly later; re-run this skill only to switch backends. Record only
-env-var **names** for secrets — never the token values.
+They can edit `docs/agents/*.md` directly later; re-run this skill only to switch backends. Say that
+`.superdev/info.json` is theirs alone and travels with no clone, so a fresh checkout configures it again
+or falls back to the API token's own identity. Record only env-var **names** for secrets — never the token
+values, and never in `.superdev/info.json` either, which holds identifiers only.
 
 If §1 found **no `AGENTS.md` hierarchy**, point the user at **`/superdev:document`** — its bootstrap mode
 seeds the initial hierarchy + glossary from the existing code, so per-feature `/superdev:plan` doesn't

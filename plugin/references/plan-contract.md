@@ -376,24 +376,50 @@ When the slice store is an issue tracker, each slice is one issue:
 
 The exact commands and vocabulary live in the active `docs/agents/issue-tracker.md`.
 
-### Assignee — store configuration, not a slice field
+### Assignee — operator configuration, not a slice field
 
-Every issue a run creates — the epic and each slice — is assigned to the account named by the
-**`Assignee`** setting in the active `docs/agents/issue-tracker.md`: a single store-native identifier (a
-login on Forgejo/GitHub, an `accountId` on Jira). It deliberately gains **no row in the *Fields* table
-above**. Assignee names who owns work inside a tracker — a property of the store and the run, not of a
-slice — and the local-file store has no equivalent, so a schema field would be one that backend could
-never honour (ADR 0010).
+Every issue a run creates — the epic and each slice — is assigned to the account named by
+`.superdev/info.json`, the **operator configuration** file: a single store-native identifier (a login on
+Forgejo/GitHub, an `accountId` on Jira), under the `issue-tracker` role key.
 
-- **Absent setting** — no `Assignee` line in `issue-tracker.md` → resolve the API token's own identity
-  from the store's whoami endpoint and assign that. Every issue-backed repo gets owned issues without
-  configuring anything.
-- **`Assignee: none`** — create the issues unassigned. A deliberate choice, not a failure: no warning,
+```json
+{
+  "issue-tracker": { "assignee": "<identifier>" }
+}
+```
+
+It deliberately gains **no row in the *Fields* table above**. Assignee names who owns work inside a
+tracker — a property of the store and the run, not of a slice — and the local-file store has no
+equivalent, so a schema field would be one that backend could never honour (ADR 0010).
+
+**The file is untracked, and that is the decision.** `.superdev/` is git-ignored, so an identifier
+belonging to one person never reaches a repository several people maintain (ADR 0073). It holds
+identifiers and never credentials: a token stays in the environment variable the active
+`docs/agents/issue-tracker.md` names.
+
+- **Read it from the main checkout, never from a path relative to the working directory.** `git
+  rev-parse --path-format=absolute --git-common-dir` resolves the main checkout's `.git` from either the
+  invoking checkout `/superdev:plan` commits its design docs from today, or the scope worktree ADR 0072
+  moves a design-docs-producing plan into — a linked worktree carries no `.superdev/` of its own, so a
+  path relative to the working directory would find nothing there. The file sits at `<its
+  parent>/.superdev/info.json` from either location, which is why the primitive needs no edit once that
+  move lands.
+- **No file, no `issue-tracker` key, or no `assignee`** → resolve the API token's own identity from the
+  store's whoami endpoint and assign that, reporting nothing. Every issue-backed repo gets owned issues
+  without configuring anything.
+- **`"assignee": "none"`** — create the issues unassigned. A deliberate choice, not a failure: no warning,
   no error.
+- **An unusable file never costs the run its issues** — malformed JSON, or an `assignee` present but
+  empty, falls through to the token's own identity and is reported **once** for the whole run, naming the
+  file. A typo costs a line of output, never a completed interview.
+- **A tracked `Assignee:` bullet is reported once per run.** A repository configured before ADR 0073
+  carries one in its `docs/agents/issue-tracker.md`, and nothing reads it. Report it **once**, naming the
+  file and the move to `.superdev/info.json`, so the identifier already committed gets removed rather than
+  lingering. A repository carrying no such bullet reports nothing.
 - **Applied at creation** — the assignee goes in the same create call that already carries the title,
   body, and labels, for the epic and every slice. Never a follow-up pass, so it costs no extra request.
 - **A bad assignee must never cost the run its issues** — `/plan` fires every slice create in parallel, so
-  one misconfigured `Assignee` must not fail the batch. A store rejects an unassignable configuration one
+  one misconfigured identifier must not fail the batch. A store rejects an unassignable configuration one
   of two ways, each with its own recovery:
   - **The create itself is rejected because of the assignee** (the account doesn't exist, or can't be
     assigned on this repo) — retry that one create **once, without the assignee**, so the issue still
@@ -405,5 +431,6 @@ never honour (ADR 0010).
   Either way every issue is still created, and nothing is retried more than that one time or rolled back.
 
 The field name, identifier format, which of the two shapes a given backend fails with, and the whoami
-endpoint are per-backend and live in the active `docs/agents/issue-tracker.md`. The local-file store has
-no assignee: `issue-tracker-local.md` neither carries the setting nor honours it.
+endpoint are per-backend and live in the active `docs/agents/issue-tracker.md`'s own `## Assignee`
+section. The local-file store has no assignee: `issue-tracker-local.md` neither reads the file nor honours
+it.

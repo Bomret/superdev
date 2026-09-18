@@ -40,32 +40,38 @@ const RUN_ROOT_DOCS = [
 const RUN_ROOT_ARTIFACT_PATTERN =
   /\.superdev\/scopes\/[^\s/]+\/(?:ledger\.md|dod\.md|run\.lock|interfaces\.md|reports)/g;
 
-// An issue-backend document must carry the assignee contract (plan-contract.md → Assignee). A seed that
-// omits it makes /superdev:setup write a config doc with no assignee, and the feature silently does
-// nothing for that backend — the exact failure the contract exists to prevent, and one no build step
-// would catch. The local-file store is exempt: it has no assignee concept and deliberately never gains
-// one. Every other references/issue-tracker-*.md is an issue backend by definition — a slice store that
-// isn't the local-file store creates issues — so the filename alone is the trigger; no content gate on
-// how the doc phrases "create an issue" (CLI, REST, or plain prose all count, and a content gate misses
-// forms it wasn't written to expect, e.g. `gh issue create`).
+// An issue-backend document must carry the assignee contract (plan-contract.md → Assignee): the
+// `## Assignee` section, and no `- **Assignee:**` configuration bullet. A seed that omits the section
+// makes /superdev:setup write a config doc that states nothing about how this backend applies an
+// assignee, and the feature silently does nothing for that backend. A seed that carries the bullet puts a
+// personal account identifier back into a tracked file, which is the leak ADR 0073 removes: the assignee
+// is read from `.superdev/info.json`, untracked, so a tracked bullet is configuration nothing reads and
+// everything commits. Neither failure is one a build step would catch. The local-file store is exempt
+// from both halves: it has no assignee concept and deliberately never gains one. Every other
+// references/issue-tracker-*.md is an issue backend by definition — a slice store that isn't the
+// local-file store creates issues — so the filename alone is the trigger; no content gate on how the doc
+// phrases "create an issue" (CLI, REST, or plain prose all count, and a content gate misses forms it
+// wasn't written to expect, e.g. `gh issue create`).
 const ASSIGNEE_DOCS_DIR = 'references';
 
 const ASSIGNEE_EXEMPT = new Set(['issue-tracker-local.md']);
 
 const EXTRA_ASSIGNEE_DOCS = ['docs/agents/issue-tracker.md']; // this repo's own dogfooded store config
 
-// The config bullet itself — a list item, in either of the two spellings the real documents use
-// (`- **Assignee:** …` and `- **Assignee**: …`). Matching a bare bolded `**Assignee**` would be
-// satisfied by any running prose that merely refers to the setting, which says nothing about whether
-// this backend is actually configured with one.
+// The forbidden config bullet itself — a list item, in either of the two spellings the documents used
+// before ADR 0073 (`- **Assignee:** …` and `- **Assignee**: …`). Matching a bare bolded `**Assignee**`
+// would fire on any running prose that merely refers to the setting, and every rewritten `## Assignee`
+// section refers to it; only the list-item form states a tracked configured value.
 const ASSIGNEE_PATTERN = /^\s*[-*]\s+\*\*Assignee(?:\*\*:|:\*\*)/m;
 
-// The two halves report apart, so a maintainer reads which one is missing rather than which check fired.
-// The section half is the store-side presence contract `Assignee` shares with every other member of the
-// specialising family; `scanAssigneeContract` finds it through `specialisingHeading('Assignee')`.
+// The two halves report apart, so a maintainer reads which one fired rather than which check did. The
+// section half is the store-side presence contract `Assignee` shares with every other member of the
+// specialising family; `scanAssigneeContract` finds it through `specialisingHeading('Assignee')`. The
+// bullet half is this contract's own, and it is the one member of the family that forbids rather than
+// requires — the value it names belongs in `.superdev/info.json`, which no commit can carry.
 const ASSIGNEE_BULLET_EXPECTATION =
-  'carry the `- **Assignee:** <value>` configuration bullet (or the `- **Assignee**: <value>` spelling) ' +
-  'as a list item';
+  'carry no `- **Assignee:** <value>` configuration bullet (nor the `- **Assignee**: <value>` spelling) — ' +
+  'the assignee is read from the untracked `.superdev/info.json` (ADR 0073)';
 
 const ASSIGNEE_SECTION_EXPECTATION =
   'carry its own `## Assignee` section — the store side of the generic contract, which states how this ' +

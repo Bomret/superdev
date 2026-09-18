@@ -139,30 +139,32 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(offenders5.length, 0, 'absolute form + worktree dir paths yield zero offenders');
 
   // --- scanAssigneeContract: an issue-backend doc that describes creating an issue must carry the
-  // assignee contract, both halves — the `- **Assignee:**` configuration bullet and the `## Assignee`
-  // section. The local-file store is exempt from both. The cases below each isolate one half by
-  // supplying the other, so a fixture reports the gap it is about. ---
+  // `## Assignee` section, and must NOT carry a `- **Assignee:**` configuration bullet. The assignee is
+  // read from `.superdev/info.json` (ADR 0073), so a tracked bullet is a personal identifier committed to
+  // a shared repository — the leak the decision removes. The local-file store is exempt from both halves.
+  // The cases below each isolate one half by satisfying the other, so a fixture reports the gap it is
+  // about. ---
 
-  // positive: an issue-backend seed with no `**Assignee` config bullet is flagged
+  // negative: an issue-backend seed carrying the section and no config bullet is the target state
   const tmp6 = fixture({
     'references/issue-tracker-acme.md':
       '**Create a slice issue**: `POST /api/v1/repos/o/r/issues` with `{ "title": "...", "labels": [] }`.\n\n' +
-      '## Assignee\n\nApplied at creation.\n',
+      '## Assignee\n\nRead from `.superdev/info.json`, applied at creation.\n',
   });
   const gaps6 = scanAssigneeContract(tmp6);
-  assert.equal(gaps6.length, 1, 'flags a create-issue seed with no assignee contract');
-  assert.equal(gaps6[0].source, path.join('references', 'issue-tracker-acme.md'), 'names the seed');
+  assert.equal(gaps6.length, 0, 'a seed with the section and no config bullet yields zero gaps');
 
-  // negative: the same seed carrying the assignee contract is clean
+  // positive: the same seed re-growing the tracked config bullet is flagged
   const tmp7 = fixture({
     'references/issue-tracker-acme.md':
       '- **Assignee:** `<login>` — the account every issue a run creates is assigned to.\n\n' +
-      '**Create a slice issue**: `POST /api/v1/repos/o/r/issues` with `{ "title": "...", "assignees": ["x"] }`.\n' +
-      'No **Assignee** configured → resolve the token identity; `none` disables assignment.\n\n' +
-      '## Assignee\n\nThe configured value is applied to the epic and every slice at creation.\n',
+      '**Create a slice issue**: `POST /api/v1/repos/o/r/issues` with `{ "title": "...", "assignees": ["x"] }`.\n\n' +
+      '## Assignee\n\nApplied at creation.\n',
   });
   const gaps7 = scanAssigneeContract(tmp7);
-  assert.equal(gaps7.length, 0, 'a seed carrying the assignee contract yields zero gaps');
+  assert.equal(gaps7.length, 1, 'flags a seed carrying a tracked assignee config bullet');
+  assert.equal(gaps7[0].source, path.join('references', 'issue-tracker-acme.md'), 'names the seed');
+  assert.match(gaps7[0].expectation, /bullet/, 'the gap names the bullet half');
 
   // the local-file store creates slice FILES, not issues, and is exempt even though it is an
   // issue-tracker-*.md document
@@ -174,37 +176,27 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(gaps8.length, 0, 'the local-file store is exempt from the assignee contract');
 
   // positive: a seed describing the `gh issue create` CLI form (no "create an issue" prose, no
-  // `POST .../issues`) still creates issues and must carry the assignee contract too — every
+  // `POST .../issues`) still creates issues and must carry the section too — every
   // references/issue-tracker-*.md not in ASSIGNEE_EXEMPT is an issue backend by definition, so the
   // filename alone is the trigger
   const tmp9 = fixture({
-    'references/issue-tracker-ghcli.md':
-      '`gh issue create -t "<title>" -b "<body>" -l "<label>"`\n\n## Assignee\n\nApplied at creation.\n',
+    'references/issue-tracker-ghcli.md': '`gh issue create -t "<title>" -b "<body>" -l "<label>"`\n',
   });
   const gaps9 = scanAssigneeContract(tmp9);
-  assert.equal(gaps9.length, 1, 'flags a gh-issue-create seed with no assignee contract');
+  assert.equal(gaps9.length, 1, 'flags a gh-issue-create seed with no assignee section');
+  assert.match(gaps9[0].expectation, /section/, 'the gap names the section half');
 
-  // negative: a bare substring mention ("no assignee field; skip it") must not satisfy the contract —
-  // only the config-bullet form does
-  const tmp10 = fixture({
-    'references/issue-tracker-bare.md':
-      '`gh issue create -t "<title>" -b "<body>"`. This tracker has no assignee field; skip it.\n\n' +
-      '## Assignee\n\nApplied at creation.\n',
-  });
-  const gaps10 = scanAssigneeContract(tmp10);
-  assert.equal(gaps10.length, 1, 'a bare "assignee" mention does not satisfy the contract');
-
-  // a **bolded** mention in running prose is not a config bullet either. The contract lives in a
-  // `- **Assignee:** <value>` list item; prose that merely refers to "the **Assignee** value" says
-  // nothing about what this backend is configured with.
+  // a **bolded** mention in running prose is not a config bullet. The forbidden form is the
+  // `- **Assignee:** <value>` list item; prose that refers to "the **Assignee** value" states no
+  // tracked configuration and is left alone.
   const tmp11 = fixture({
     'references/issue-tracker-prose.md':
-      '## Assignee\n\nThe **Assignee** value above is applied to the epic and every slice.\n',
+      '## Assignee\n\nThe **Assignee** is read from `.superdev/info.json` and applied to every slice.\n',
   });
   const gaps11 = scanAssigneeContract(tmp11);
-  assert.equal(gaps11.length, 1, 'a bolded prose mention is not a config bullet');
+  assert.equal(gaps11.length, 0, 'a bolded prose mention is not a config bullet');
 
-  // both real spellings of the config bullet satisfy it
+  // both real spellings of the config bullet are caught, so neither survives as a loophole
   const tmp12 = fixture({
     'references/issue-tracker-colon-inside.md':
       '- **Assignee:** `someone` — the account every issue is assigned to.\n\n## Assignee\n\nApplied at creation.\n',
@@ -212,45 +204,37 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
       '- **Assignee**: `<accountId>` — the account every issue is assigned to.\n\n## Assignee\n\nApplied at creation.\n',
   });
   const gaps12 = scanAssigneeContract(tmp12);
-  assert.equal(gaps12.length, 0, 'both `**Assignee:**` and `**Assignee**:` bullets satisfy it');
+  assert.equal(gaps12.length, 2, 'both `**Assignee:**` and `**Assignee**:` bullets are flagged');
 
-  // --- the assignee contract has two halves, and this scanner asserts both. `ASSIGNEE_PATTERN` pins the
-  // `- **Assignee:**` configuration bullet; `specialisingHeading('Assignee')` pins the `## Assignee`
-  // section the store renders for `plan-contract.md`'s generic contract. Pinning the bullet alone left
-  // the section deletable with every check green: the citation contract skips a store rendering no
-  // section, which is the same branch that correctly exempts one that carries none by design. ---
+  // --- the contract still has two halves, and this scanner asserts both. `ASSIGNEE_PATTERN` pins the
+  // forbidden `- **Assignee:**` configuration bullet; `specialisingHeading('Assignee')` pins the required
+  // `## Assignee` section the store renders for `plan-contract.md`'s generic contract. Without the section
+  // half the section stays deletable with every check green: the citation contract skips a store rendering
+  // no section, which is the same branch that correctly exempts one that carries none by design. ---
 
-  // positive: the bullet present and the section gone — the shape that shipped green
+  // the bullet present and the section gone reports both halves, rather than stopping at the first
   const asBulletOnly = fixture({
     'references/issue-tracker-acme.md':
-      '# acme\n\n## Configuration\n\n- **Assignee:** `bomret`\n\nNo section anywhere.\n',
+      '# acme\n\n## Configuration\n\n- **Assignee:** `<login>`\n\nNo section anywhere.\n',
   });
   const asBulletOnlyGaps = scanAssigneeContract(asBulletOnly);
-  assert.equal(asBulletOnlyGaps.length, 1, 'flags a store document carrying the bullet but no section');
+  assert.equal(asBulletOnlyGaps.length, 2, 'a document carrying the bullet and no section reports both gaps');
   assert.equal(
     asBulletOnlyGaps[0].source,
     path.join('references', 'issue-tracker-acme.md'),
-    'names the document that dropped the section',
+    'names the document',
   );
-  assert.match(asBulletOnlyGaps[0].expectation, /section/, 'the gap says which half is missing');
 
-  // the two halves report apart: a document missing only the bullet names the bullet, not the section
+  // the two halves report apart: a document carrying neither is missing only the section
   const asSectionOnly = scanAssigneeContract(
-    fixture({ 'references/issue-tracker-acme.md': '# acme\n\n## Assignee\n\nApplied at creation.\n' }),
+    fixture({ 'references/issue-tracker-acme.md': '# acme\n\nSlices are issues.\n' }),
   );
-  assert.equal(asSectionOnly.length, 1, 'flags a store document carrying the section but no bullet');
-  assert.match(asSectionOnly[0].expectation, /bullet/, 'the gap says which half is missing');
+  assert.equal(asSectionOnly.length, 1, 'flags a store document carrying neither the bullet nor the section');
+  assert.match(asSectionOnly[0].expectation, /section/, 'the gap says which half is missing');
   assert.notStrictEqual(
     asSectionOnly[0].expectation,
-    asBulletOnlyGaps[0].expectation,
+    asBulletOnlyGaps.find((g) => /bullet/.test(g.expectation)).expectation,
     'the two halves do not report as the same gap',
-  );
-
-  // a document carrying neither reports both, rather than stopping at the first
-  assert.equal(
-    scanAssigneeContract(fixture({ 'references/issue-tracker-acme.md': '# acme\n\nSlices are issues.\n' })).length,
-    2,
-    'a document carrying neither half reports both gaps',
   );
 
   // a `###` heading satisfies the section half, the same latitude every family heading takes —
@@ -258,26 +242,27 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(
     scanAssigneeContract(
       fixture({
-        'references/issue-tracker-acme.md': '# acme\n\n- **Assignee:** `x`\n\n### Assignee\n\nApplied at creation.\n',
+        'references/issue-tracker-acme.md': '# acme\n\n### Assignee\n\nApplied at creation.\n',
       }),
     ).length,
     0,
     'a deeper heading level still carries the section',
   );
 
-  // a heading shown only inside a fenced code example is not the section. Both halves read fence-masked
-  // text, defensively: the store seeds do render headings inside fenced examples elsewhere.
+  // a heading shown only inside a fenced code example is not the section, and a bullet shown only inside
+  // one is not tracked configuration. Both halves read fence-masked text, defensively: the store seeds do
+  // render headings inside fenced examples elsewhere.
   const asFenced = scanAssigneeContract(
     fixture({
       'references/issue-tracker-acme.md':
-        '# acme\n\n- **Assignee:** `x`\n\n```markdown\n## Assignee\n\nApplied at creation.\n```\n',
+        '# acme\n\n```markdown\n## Assignee\n\n- **Assignee:** `x`\n```\n',
     }),
   );
-  assert.equal(asFenced.length, 1, 'a section shown only inside a fenced example does not satisfy the check');
+  assert.equal(asFenced.length, 1, 'a fenced example satisfies neither half and trips neither');
   assert.match(asFenced[0].expectation, /section/, 'and the gap names the section half');
 
   // the local-file store is exempt from both halves, through the one ASSIGNEE_EXEMPT set: it has no
-  // assignee concept, so it renders neither the bullet nor the section
+  // assignee concept, so it renders neither the section nor a bullet
   assert.equal(
     scanAssigneeContract(
       fixture({ 'references/issue-tracker-local.md': '# store\n\nA slice is a file under `docs/plans/`.\n' }),
@@ -288,17 +273,18 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // this repo's own dogfooded store config is held to both halves alongside the seeds
   const asDogfood = scanAssigneeContract(
-    fixture({ 'docs/agents/issue-tracker.md': '# Slice store\n\n- **Assignee:** `bomret`\n' }),
+    fixture({ 'docs/agents/issue-tracker.md': '# Slice store\n\n- **Assignee:** `<login>`\n\n## Assignee\n\nApplied.\n' }),
   );
   assert.equal(asDogfood.length, 1, 'the dogfooded store config is checked too');
   assert.equal(asDogfood[0].source, path.join('docs', 'agents', 'issue-tracker.md'), 'names it');
+  assert.match(asDogfood[0].expectation, /bullet/, 'a tracked identifier in the dogfooded config is the gap');
 
   // a seed added to references/ later is covered without editing this scanner
   assert.equal(
     scanAssigneeContract(
       fixture({ 'references/issue-tracker-newstore.md': '# newstore\n\n- **Assignee:** `x`\n' }),
     ).length,
-    1,
+    2,
     'a seed this scanner has never seen before is held to both halves',
   );
 
@@ -309,11 +295,11 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'an absent document is skipped rather than reported',
   );
 
-  // the real tree is green: every non-exempt store document carries both halves
+  // the real tree is green: every non-exempt store document carries the section and no config bullet
   assert.equal(
     scanAssigneeContract(realRoot).length,
     0,
-    'every store document in the real tree carries both halves of the assignee contract',
+    'every store document in the real tree carries the section and no tracked assignee bullet',
   );
 
   // --- scanWritingStandardContract: the documentation seed must carry the `## Writing standard`

@@ -176,12 +176,13 @@ function scanRunRootPaths(root) {
 // they exercise.
 //
 // The contract has two halves, and each is reported apart. ASSIGNEE_PATTERN pins the
-// `- **Assignee:**` configuration bullet, which is what a backend is actually configured with.
-// specialisingHeading('Assignee') pins the `## Assignee` section the store renders for
-// `plan-contract.md`'s generic contract, which is the store-side presence contract every other member of
-// the specialising family already had. Pinning the bullet alone left the section deletable with every
-// check green: the citation contract skips a store rendering no section, and that is the same branch
-// which correctly exempts one that carries none by design.
+// `- **Assignee:**` configuration bullet, which is **forbidden**: the assignee is read from the
+// untracked `.superdev/info.json` (ADR 0073), so a bullet is a personal account identifier committed to a
+// repository other people maintain. specialisingHeading('Assignee') pins the `## Assignee` section the
+// store renders for `plan-contract.md`'s generic contract, which is the store-side presence contract
+// every other member of the specialising family already had. Without the section half the section stays
+// deletable with every check green: the citation contract skips a store rendering no section, and that is
+// the same branch which correctly exempts one that carries none by design.
 //
 // The heading comes from specialisingHeading() rather than a second copy of the pattern, so a change to
 // the family's heading anchoring reaches this check too — the store documents write `## Assignee`, and
@@ -204,7 +205,7 @@ function scanAssigneeContract(root) {
     const text = readDoc(root, rel);
     if (text === null) continue; // doc absent (fixture / partial checkout) → nothing to scan
     const masked = maskFences(text);
-    if (!ASSIGNEE_PATTERN.test(masked)) gaps.push({ source: rel, expectation: ASSIGNEE_BULLET_EXPECTATION });
+    if (ASSIGNEE_PATTERN.test(masked)) gaps.push({ source: rel, expectation: ASSIGNEE_BULLET_EXPECTATION });
     if (!heading.test(masked)) gaps.push({ source: rel, expectation: ASSIGNEE_SECTION_EXPECTATION });
   }
   return gaps;

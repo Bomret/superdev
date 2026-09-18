@@ -12,9 +12,6 @@ Slices live as Codeberg issues in `bomret/superdev`, one slice per issue. Use th
   applied to the epic and its slices, so the feature's issues are listable. `<type>` is the **change
   type**, the Conventional Commits type of the work, per `references/scope-mode.md`. The label doubles
   as the scope branch name.
-- **Assignee:** `bomret`, the Codeberg login every issue a run creates is assigned to (see
-  *Assignee* below). Set it to `none` to create issues unassigned. Remove the line entirely to fall back
-  to whoever `GITEA_TOKEN` belongs to.
 - **Triage label:** `triage`, the label a triage record carries (*Triage record* below), and the only
   label it carries.
 
@@ -52,7 +49,8 @@ Slices live as Codeberg issues in `bomret/superdev`, one slice per issue. Use th
 
 - **Create an issue:** `POST /api/v1/repos/bomret/superdev/issues` with
   `{ "title": "...", "body": "<specification + acceptance checklist>", "labels": [<label ids>],
-  "assignees": ["bomret"] }`. Omit `assignees` entirely when `Assignee: none`. Capture the returned
+  "assignees": ["<assignee>"] }`. Omit `assignees` entirely when the assignee resolves to `none`.
+  Capture the returned
   `number` as the slice's `id`. Pass `labels` and `assignees` **at creation**. The create path needs no
   separate label or assignee POST.
 - **Parallel-safe creation order:** create the epic first (slices reference `#<epic>`), then fire **all
@@ -110,15 +108,24 @@ label, and on a single-slice feature it is the lone issue carrying that label (A
 
 ## Assignee
 
-Store configuration, not a slice field (`plan-contract.md` → *Assignee*; ADR 0010). The create call applies
-the **Assignee** value above to the **epic and every slice**, never a follow-up pass. The two failure
-shapes below make the general *Assignee* recovery rule (`plan-contract.md`) concrete for Forgejo.
+Operator configuration, not a slice field (`plan-contract.md` → *Assignee*; ADR 0010, ADR 0073). The
+identifier is a Codeberg **login**, read from `.superdev/info.json` under `issue-tracker.assignee`. The
+create call applies it to the **epic and every slice**, never a follow-up pass. The file is untracked,
+so this repository records no maintainer's account. The two failure shapes below make the general
+*Assignee* recovery rule (`plan-contract.md`) concrete for Forgejo.
+
+```json
+{
+  "issue-tracker": { "assignee": "<your Codeberg login>" }
+}
+```
 
 - Forgejo's `CreateIssueOption.assignees` is an **array**, so the single configured login is sent as a
-  one-element `["bomret"]`. `EditIssueOption.assignees` is the same shape if an issue ever needs it later.
-- **No `Assignee` line** in the configuration above: resolve the token's own identity with
+  one-element `["<assignee>"]`. `EditIssueOption.assignees` is the same shape if an issue ever needs it
+  later.
+- **No file, no `issue-tracker` key, or no `assignee`**: resolve the token's own identity with
   `GET /api/v1/user` and use its `login`.
-- **`Assignee: none`**: omit `assignees` entirely. No warning, no error.
+- **`"assignee": "none"`**: omit `assignees` entirely. No warning, no error.
 - **A login that does not exist or is not a collaborator rejects the whole create**: `422 Assignee does not
   exist` or `422 canBeAssigned` (`ErrUserDoesNotHaveAccessToRepo`). Retry that one create with
   `assignees` omitted, and report it once per run.
@@ -126,6 +133,8 @@ shapes below make the general *Assignee* recovery rule (`plan-contract.md`) conc
   create succeeds, but the returned `assignees` is empty or `null`. Read it back from the create response.
   When it is empty while an assignee was configured, report it once per run.
 - Either way the issue is created and nothing is retried more than that one time or rolled back.
+- **A leftover `Assignee:` bullet** in this file is configuration nothing reads. Report it once per run,
+  naming the file and the move to `.superdev/info.json`.
 
 ## Release
 
@@ -149,7 +158,8 @@ Here it is an ordinary Codeberg issue carrying the label **`triage`** and nothin
   `{ "title": "<the finding, one line>", "body": "<the finding, why no Definition of Done criterion
   covered it, the date, the feature label, the scope branch, the scope anchor's `#<n>`, and a
   copy-pasteable /superdev:plan \"<the finding>\" line>", "labels": [<the `triage` label id>] }`. Omit
-  `assignees` entirely, whatever *Assignee* above configures: nobody has picked the work up. Capture the
+  `assignees` entirely, whatever the operator configuration names: nobody has picked the work up.
+  Capture the
   returned `number` as the record's reference, which `/superdev:review` puts in the ledger bullet.
 - **List the records:** `GET /api/v1/repos/bomret/superdev/issues?labels=triage&state=open` (paginated).
   It returns every open triage record with its `number`, `title`, and `body`, which is the whole record —

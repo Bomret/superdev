@@ -281,7 +281,9 @@ bash or PowerShell variants.
 ## Configuration and backends
 
 `/superdev:setup` records your choices in `docs/agents/*.md`, one small doc per concern, so the commands
-never hardcode a tool. Edit those files directly at any time. Re-run setup only to switch a backend.
+never hardcode a tool. Edit those files directly at any time. Re-run setup only to switch a backend. One
+answer lands outside that tree: the slice store's **assignee** goes to the git-ignored
+`.superdev/info.json`, because it identifies you rather than the repository.
 
 - **Slice store.** Where a feature's plan lives: the global **Definition of Done** plus every vertical
   slice (`id`, `depends-on`, `test-applicability`, `spec`, `acceptance`). `/plan` writes it. `/implement`
@@ -302,8 +304,10 @@ never hardcode a tool. Edit those files directly at any time. Re-run setup only 
   - *other*: you describe your tracker's CRUD and dependency link in prose.
 
   For any issue-backed choice, setup also asks who owns the created issues. That **assignee** is a login
-  or an `accountId`, and it defaults to the API token's own identity, or to `none`. The answers go to
-  `docs/agents/issue-tracker.md`.
+  or an `accountId`, and it defaults to the API token's own identity, or to `none`. The answer goes to
+  `.superdev/info.json`, not to a config doc: the account is yours rather than the repository's, and
+  `.superdev/` is git-ignored, so a repository several people maintain records none of them. A checkout
+  without the file assigns to whoever the API token belongs to.
 
   Each slice-store backend also states where it mirrors a run's ledger, the **published snapshot** it
   writes to the scope anchor as a `## Run state` section. `/superdev:implement` reads a live snapshot back

@@ -19,9 +19,6 @@ user has it installed); the user records which below.
   only label it carries. Default `triage`.
 - **Release signal**: `<released>` — the label on the scope anchor that marks the feature agreed for
   execution (*Release* below).
-- **Assignee**: `<accountId>` — the account every issue a run creates is assigned to (see *Assignee*
-  below). `none` creates issues unassigned; omit the line entirely to fall back to whoever the API token
-  belongs to.
 - **Tooling**: `<rest>` or `<jira CLI>`.
 - **Status map**: canonical lifecycle → Jira status + transition — fill in the table below at setup.
 
@@ -32,8 +29,8 @@ Auth header: `-u "$JIRA_EMAIL:$JIRA_API_TOKEN"`, `-H "Content-Type: application/
 - **Create a slice issue**:
   `POST <base>/rest/api/3/issue` with `{ "fields": { "project": {"key":"PROJ"}, "summary": "<title>",
   "issuetype": {"name":"Task"}, "description": <ADF body: specification + acceptance checklist>,
-  "assignee": {"accountId":"<assignee>"} } }` — omit the `assignee` field entirely when
-  `Assignee: none`. Capture the returned `key` (e.g. `PROJ-123`) as this slice's external id.
+  "assignee": {"accountId":"<assignee>"} } }` — omit the `assignee` field entirely when the assignee
+  resolves to `none`. Capture the returned `key` (e.g. `PROJ-123`) as this slice's external id.
 - **Link a dependency** (`depends-on`):
   `POST <base>/rest/api/3/issueLink` with
   `{ "type": {"name":"Blocks"}, "inwardIssue":{"key":"<this slice>"}, "outwardIssue":{"key":"<blocker>"} }`
@@ -110,15 +107,22 @@ Epic Link either (ADR 0017).
 
 ## Assignee
 
-Store configuration, not a slice field (`plan-contract.md` → *Assignee*). The **Assignee** value above is
-applied to the **Epic and every slice** in the create call, never a follow-up pass. The failure shape
-below is the general *Assignee* recovery rule (`plan-contract.md`) made concrete for Jira.
+Operator configuration, not a slice field (`plan-contract.md` → *Assignee*; ADR 0010, ADR 0073). The
+identifier is a Jira **`accountId`**, read from `.superdev/info.json` under `issue-tracker.assignee`, and
+applied to the **Epic and every slice** in the create call, never a follow-up pass. The failure shape below
+is the general *Assignee* recovery rule (`plan-contract.md`) made concrete for Jira.
+
+```json
+{
+  "issue-tracker": { "assignee": "<accountId>" }
+}
+```
 
 - Jira takes **exactly one** assignee, as `{"accountId": "<id>"}` — unlike the array Forgejo and GitHub
   accept. Two reserved values: `"-1"` assigns the project's default assignee, and `null` unassigns.
-- **No `Assignee` line** in the configuration above → resolve the token's own identity with
+- **No file, no `issue-tracker` key, or no `assignee`** → resolve the token's own identity with
   `GET <base>/rest/api/3/myself` and use its `accountId`.
-- **`Assignee: none`** → omit the `assignee` field entirely. No warning, no error.
+- **`"assignee": "none"`** → omit the `assignee` field entirely. No warning, no error.
 - **Assignment is a separate permission.** *Assign Issues* is distinct from *Edit Issues*, so a token that
   can transition an issue may still be unable to assign it. Jira rejects the create outright rather than
   stripping the field: a `400` naming `assignee` (in `errors`, or in `errorMessages` — Jira uses both
@@ -127,6 +131,8 @@ below is the general *Assignee* recovery rule (`plan-contract.md`) made concrete
   time or rolled back.
 - To assign an existing issue instead: `PUT <base>/rest/api/3/issue/<key>/assignee` with
   `{ "accountId": "<id>" }`.
+- **A leftover `Assignee:` bullet** in this repo's `docs/agents/issue-tracker.md` is configuration nothing
+  reads. Report it once per run, naming the file and the move to `.superdev/info.json`.
 
 ## Release
 
@@ -154,7 +160,8 @@ On this store it is an ordinary issue in the configured project carrying the **T
   criterion covered it, the date, the feature label, the scope branch, the scope anchor's key, and a
   copy-pasteable /superdev:plan "<the finding>" line>,
   "labels": ["<triage>"] } }`. Omit the `assignee` field entirely: a triage record is created
-  **unassigned**, whatever *Assignee* configures, because nobody has picked the work up. Capture the
+  **unassigned**, whatever the operator configuration names, because nobody has picked the work up.
+  Capture the
   returned `key` as the record's reference — `/superdev:review` puts it in the ledger bullet. No issue
   link and no parent: a triage record belongs to no feature.
 - **List the records:**

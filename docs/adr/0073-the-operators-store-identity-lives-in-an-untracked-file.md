@@ -15,7 +15,7 @@ file keyed by backend **role**:
 
 ```json
 {
-  "issue-tracker": { "assignee": "5b10a2844c20165700ede21g" }
+  "issue-tracker": { "assignee": "<accountId>" }
 }
 ```
 
@@ -26,10 +26,12 @@ kept as a third level, so there is exactly one place an identifier can live.
 
 Four boundaries keep the change local:
 
-- **The read anchors on the main checkout.** `/superdev:plan` works in the scope worktree (ADR 0045),
-  which carries no `.superdev/` of its own, so a path relative to the working directory finds nothing.
-  `git rev-parse --path-format=absolute --git-common-dir` resolves the main checkout's `.git`, whose
-  parent holds the file.
+- **The read anchors on the main checkout.** `/superdev:plan` commits from the invoking checkout today.
+  ADR 0072 is the pending move that would put a new-feature, design-docs-producing plan into its own
+  scope worktree. That worktree carries no `.superdev/` of its own, so a path relative to the working
+  directory would find nothing there. `git rev-parse --path-format=absolute --git-common-dir` resolves the
+  main checkout's `.git` from either location, whose parent holds the file. This is why the mechanism
+  needs no edit when that move lands.
 - **An unusable file never costs the run its issues.** Malformed JSON, or an absent or empty
   `issue-tracker.assignee`, falls through to the token's identity and is reported once for the whole run
   — the posture `plan-contract.md` already takes toward an assignee the store rejects.
@@ -75,8 +77,10 @@ maintainer-only.
 - **A fresh clone has no `.superdev/info.json`.** Every maintainer configures it again per checkout, and
   a clone that skips the step assigns to the token's identity silently. This is the price of keeping the
   file repository-local rather than putting it under the user's home directory, and is accepted.
-- `drift-check`'s assignee check loses its configuration-bullet half and keeps its section half. The two
-  halves stopped being symmetric, so the check reports one expectation instead of two.
+- `drift-check`'s assignee check inverts its configuration-bullet half: it forbids the `- **Assignee:**`
+  bullet where it once required it, and keeps requiring the `## Assignee` section. This makes `assignee`
+  the one member of the specialising family whose halves pull opposite ways, and the check reports both
+  expectations rather than losing one.
 - `.superdev/` gains a file that is not run scratch. `scope-prune` and `worktree-sweep` both operate on
   `.superdev/scopes/<scope>/` alone, so neither reaps it, but the directory is no longer purely
   disposable.
