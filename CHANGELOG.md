@@ -1,3 +1,11 @@
+# [0.46.0](https://codeberg.org/bomret/superdev/compare/v0.45.0...v0.46.0) (2026-09-18)
+
+
+### Features
+
+* **publish-kb:** publish through a five-verb backend command contract ([#522](https://codeberg.org/bomret/superdev/issues/522)) ([22a63a3](https://codeberg.org/bomret/superdev/commit/22a63a3d00577909cd2e7dcd1e2e4d1bcccff9a3)), closes [#494](https://codeberg.org/bomret/superdev/issues/494) [#495](https://codeberg.org/bomret/superdev/issues/495) [#492](https://codeberg.org/bomret/superdev/issues/492) [#491](https://codeberg.org/bomret/superdev/issues/491) [#497](https://codeberg.org/bomret/superdev/issues/497) [#496](https://codeberg.org/bomret/superdev/issues/496) [#493](https://codeberg.org/bomret/superdev/issues/493) [#511](https://codeberg.org/bomret/superdev/issues/511) [#519](https://codeberg.org/bomret/superdev/issues/519)
+* **sweep:** one read-only sweep over code, docs, tests, and config ([#520](https://codeberg.org/bomret/superdev/issues/520)) ([a815f21](https://codeberg.org/bomret/superdev/commit/a815f21dc06a301eacdae4fe8c19df6787a8ff74)), closes [#483](https://codeberg.org/bomret/superdev/issues/483) [#485](https://codeberg.org/bomret/superdev/issues/485) [#481](https://codeberg.org/bomret/superdev/issues/481) [#484](https://codeberg.org/bomret/superdev/issues/484) [#482](https://codeberg.org/bomret/superdev/issues/482)
+
 # [0.45.0](https://codeberg.org/bomret/superdev/compare/v0.44.0...v0.45.0) (2026-09-17)
 
 
