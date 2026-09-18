@@ -2,6 +2,10 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0076](0076-plan-writes-its-design-docs-in-the-scope-worktree.md), which moves the
+design-doc *writes* into the scope worktree as well, so the invoking checkout holds no residue for a
+later run init to commit to base.
+
 **Context.** `/superdev:plan` §6 and `/superdev:implement`'s run init both commit `CONTEXT.md`, ADRs, and
 `.claude/rules/` to the base branch from the shared invoking checkout. ADR 0058 serializes that step with
 `.superdev/base.lock`, which removes the concurrent-write race without removing what makes it possible:
