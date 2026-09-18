@@ -59,3 +59,4 @@ Untranslated terms do not arise in an English repo, so this repo leaves that one
 - `plugin/agents/*.md`
 - `plugin/references/*.md`
 - `RELEASING.md`
+- `docs/known-issues.md`

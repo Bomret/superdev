@@ -5,6 +5,7 @@
 - Package manager: **Bun** (`bun.lock`). A dev-only toolchain, not published to npm.
 - Commands:
   - Tests: see docs/agents/verification.md. It runs every suite under `tests/`, then `drift-check.js`'s own `--selftest`, `drift-check.js`, and `claude plugin validate ./plugin`, and it arms the green-gate.
+  - Regenerate the OpenCode golden fixtures: `bun run render-fixtures` rewrites `scripts/drift/fixtures/opencode/` from the shipped plugin tree, which `drift-check`'s `opencode-render` check compares against. Run it in the same commit as a skills, agents, or adapter edit that changes the render.
   - Release: `bun run release` runs semantic-release from clean `main`. It needs `GITEA_TOKEN` (see RELEASING.md).
 - Runtime: **Node** runs the hooks in production (`hooks.json` invokes `node`, guaranteed in every Claude Code environment). Bun is maintainer-only.
 - No linter or formatter configs. There is no `.editorconfig`, `.prettierrc`, or `.eslintrc`. The plugin ships as prose plus CommonJS hooks, with no build step.

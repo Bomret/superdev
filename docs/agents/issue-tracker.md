@@ -26,9 +26,10 @@ Slices live as Codeberg issues in `bomret/superdev`, one slice per issue. Use th
 - `spec` maps to the issue body ("What to build").
 - `acceptance` maps to a `- [ ]` checklist in the body.
 - `test-applicability` maps to a label: `behavior`, `mechanical`, or `docs`.
-- `depends-on` maps to a `**Depends on:** #<n>` line in the issue body (one per blocker). Forgejo's native
-  issue-dependencies unit is **disabled** on this repo, so the body line is the source of truth `/implement`
-  parses.
+- `depends-on` maps to a `**Depends on:** #<n>` line in the issue body (one per blocker). The body line is
+  the source of truth `/implement` parses. This repo leaves Forgejo's native issue-dependencies unit
+  unused, even though the instance enables it, so that one parse path serves every blocker relation and the
+  relation renders in the issue body a reader already has open.
 - **Anchor dependency** (optional) maps to a `**Blocked by feature:** #<n>` line in the **anchor's own**
   body — the epic on a multi-slice feature, the lone slice issue on a single-slice one. Distinct from the
   `**Depends on:** #<n>` line above: it names another feature's scope anchor (`plan-contract.md` → *Scope
@@ -58,9 +59,9 @@ Slices live as Codeberg issues in `bomret/superdev`, one slice per issue. Use th
   slice creates in parallel**, then the `depends-on` body-patches in parallel once every `number` is
   known. Only the ordering of epic, then slices, then depends-on is required. Within each step the calls
   are independent, so `/plan` issues them concurrently.
-- **Record a dependency (`depends-on`):** append a `**Depends on:** #<blocker>` line to the issue body
-  (the native `POST .../issues/<index>/dependencies` endpoint 404s, because the dependencies unit is
-  disabled).
+- **Record a dependency (`depends-on`):** append a `**Depends on:** #<blocker>` line to the issue body.
+  Never the native `POST .../issues/<index>/dependencies` endpoint, which this repo leaves unused (see the
+  field mapping above).
 - **Record an anchor dependency:** append a `**Blocked by feature:** #<blocker-anchor>` line to the
   **anchor issue's own** body — the epic on a multi-slice feature, the lone slice issue on a single-slice
   one. Always a body-append, never the native dependencies endpoint above, so the slice-level and
@@ -72,9 +73,9 @@ Slices live as Codeberg issues in `bomret/superdev`, one slice per issue. Use th
 
 ## Scope anchor
 
-A feature's scope anchor is its root (`plan-contract.md` → *Scope anchor*). Forgejo's issue-dependencies
-unit is disabled here and this store uses no sub-issue relation, so it expresses the root with labels
-rather than natively: on a multi-slice feature the anchor is the `epic`-labelled issue carrying the feature
+A feature's scope anchor is its root (`plan-contract.md` → *Scope anchor*). This store uses neither the
+native issue-dependencies unit nor a sub-issue relation, so it expresses the root with labels rather than
+natively: on a multi-slice feature the anchor is the `epic`-labelled issue carrying the feature
 label, and on a single-slice feature it is the lone issue carrying that label (ADR 0017).
 
 - **Recognise one.** Among the issues carrying a feature label, the anchor is the one labelled `epic`. If
