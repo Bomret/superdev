@@ -1,3 +1,16 @@
+# [0.47.0](https://codeberg.org/bomret/superdev/compare/v0.46.0...v0.47.0) (2026-09-18)
+
+
+### Bug Fixes
+
+* **publish-kb:** bound every backend command with a timeout ([#534](https://codeberg.org/bomret/superdev/issues/534)) ([f9d78e9](https://codeberg.org/bomret/superdev/commit/f9d78e9c0f01dca5711d7218b728a15dbb755f2d)), closes [#530](https://codeberg.org/bomret/superdev/issues/530) [#531](https://codeberg.org/bomret/superdev/issues/531)
+* **test-selection:** the in-loop test command is the cheap one ([#532](https://codeberg.org/bomret/superdev/issues/532)) ([5088447](https://codeberg.org/bomret/superdev/commit/508844726a036290439cedbc03385fe12d4bfe85)), closes [#517](https://codeberg.org/bomret/superdev/issues/517) [#516](https://codeberg.org/bomret/superdev/issues/516) [#517](https://codeberg.org/bomret/superdev/issues/517) [#515](https://codeberg.org/bomret/superdev/issues/515) [#521](https://codeberg.org/bomret/superdev/issues/521)
+
+
+### Features
+
+* **operator-identity:** move the slice-store assignee to untracked .superdev/info.json ([#528](https://codeberg.org/bomret/superdev/issues/528)) ([99a34e9](https://codeberg.org/bomret/superdev/commit/99a34e9b81c8dca359f2651a9554cef202e928fe)), closes [#514](https://codeberg.org/bomret/superdev/issues/514) [#513](https://codeberg.org/bomret/superdev/issues/513)
+
 # [0.46.0](https://codeberg.org/bomret/superdev/compare/v0.45.0...v0.46.0) (2026-09-18)
 
 
