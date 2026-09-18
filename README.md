@@ -162,7 +162,11 @@ plan runs test-first, inline in the scope worktree.
   sending them. A page sent from unmerged or unreleased work claims a feature no reader can reach
   ([ADR 0023](docs/adr/0023-the-knowledge-base-publish-is-its-own-command.md)). You decide when to run
   it: it warns once when the base branch does not already hold the scope branch's work, but a merge is
-  not a release, so it never blocks on that check. `/superdev:afk` never drives it.
+  not a release, so it never blocks on that check. `/superdev:afk` never drives it. Every backend command
+  runs under a 30-second bound, and a command that exhausts it **stops the run** — a host that stops
+  answering one call stops answering the next, so the remaining pages are reported untried and stay
+  staged for a later run
+  ([ADR 0076](docs/adr/0076-a-backend-command-runs-under-a-time-bound.md)).
 - **`/superdev:prose-check`**. Checks one file, one commit range, or pasted text against the
   **controlled-prose** writing standard, and reports each violation under the standard's own section
   heading. It reads that standard by name in every repo, so it works where the repo's own docs follow a

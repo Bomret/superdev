@@ -77,6 +77,11 @@ read. The listing itself is capped at `limit=50`, Forgejo's own `max_response_it
 without finding the title also answers exit 2, since the title could sit on a page this call never
 fetched.
 
+Every command below runs under a **30-second bound** (ADR 0076), or whatever
+`SUPERDEV_PUBLISH_KB_TIMEOUT_MS` names. `scripts/publish-kb.js` applies it at the spawn, so none of these
+templates carries a `--max-time` of its own. A command killed at the bound leaves its page staged and
+**stops the run**: the remaining pages are reported untried and stay staged for the next one.
+
 ### find
 
 ```sh

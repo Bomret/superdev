@@ -350,6 +350,21 @@ passes to it as an environment variable, never interpolated into the command str
 a quote, a `$`, a backtick, or a newline therefore reaches the backend unchanged and starts no shell of
 its own.
 
+Every template runs under a **30-second bound** (ADR 0076), applied at `runTemplate`'s own `spawnSync`
+with `killSignal: 'SIGKILL'` — the same shape `scope.js`'s `testContainment` bounds its `git fetch`
+with. The bound sits in the script rather than in the templates, so it covers an operator-written
+template carrying no `curl --max-time` of its own. `SUPERDEV_PUBLISH_KB_TIMEOUT_MS` overrides it, and
+sits outside the `SUPERDEV_KB_` prefix on purpose: `fieldsToEnv` forwards every key a `find` result
+carries under that prefix, so a backend returning `timeout_ms` would otherwise rewrite the bound from
+the wire. A value that is not a positive integer reads as absent, never as "no bound" or "kill at once".
+
+**A timeout stops the batch, and nothing else does.** `processStagedFiles` walks the title groups and
+breaks on the first result carrying `timedOut`, reporting every remaining file as `untried` and leaving
+all of them staged. A host that black-holes one call black-holes the next, so continuing would spend the
+bound once per staged page and reproduce the hang the bound removes. `spawnFailure` is the single site
+that tells a timeout from any other `res.error`: a `maxBuffer` overflow and a shell that will not start
+say nothing about the host, so each still fails only its own page.
+
 `find`'s exit code is the contract the other four verbs rest on (ADR 0069's table). Exit `0` with a
 JSON object on stdout means `found`, and each key in that object becomes a `SUPERDEV_KB_<KEY>`
 variable for the later verbs. Exit `3` means `absent`, the only verdict that may create a page. Any
@@ -369,7 +384,9 @@ unresolved when two siblings name the identical section heading. A group where n
 `action: patch` is ambiguous, and nothing in it publishes. A staged file's backend call landing is
 what deletes it. A call that fails leaves the file staged, so the next run retries exactly what did
 not make it. A malformed file (no frontmatter, no title, or an unknown action) is reported and left
-untouched.
+untouched. A timeout on one sibling stops the rest of that group untried, the same stop the outer
+batch loop applies between groups (ADR 0076, time-bound). A host that black-holes one call
+black-holes the next, regardless of which loop is calling it.
 
 Before publishing, `checkContainment` refuses a scope whose branch is not confirmed merged into
 `docs/agents/code-management.md`'s base branch. It resolves the branch from the ledger's

@@ -239,7 +239,8 @@ This root owns every other subtree directly:
   knowledge-base pages, ADR 0069: resolves the five-verb backend command contract from
   `docs/agents/knowledge-base.md` by heading name, carries `action: upsert`, `action: delete`, and
   `action: patch` end to end — `patch` merging through `kb-patch.js`'s `merge()` — delegates the
-  containment check to `scope.js`'s `testContainment`, and is the invocation
+  containment check to `scope.js`'s `testContainment`, runs every backend command under a time bound
+  whose exhaustion stops the batch (ADR 0076), and is the invocation
   `skills/publish-kb/SKILL.md` runs),
   `plugin/scripts/adapter.js` (the OpenCode harness adapter, issue #375: renders the shipped skills
   and agents into `.opencode/`, plus the OpenCode hook bridge plugin `.opencode/plugins/superdev.js`

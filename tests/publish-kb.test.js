@@ -90,6 +90,7 @@ function withState(fn) {
   const stateFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'kb-state-')), 'state.json');
   const prevState = process.env.FAKE_KB_STATE_FILE;
   const prevCapture = process.env.FAKE_KB_CAPTURE_DIR;
+  const prevTimeout = process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS;
   process.env.FAKE_KB_STATE_FILE = stateFile;
   delete process.env.FAKE_KB_CAPTURE_DIR;
   try {
@@ -99,7 +100,22 @@ function withState(fn) {
     else process.env.FAKE_KB_STATE_FILE = prevState;
     if (prevCapture === undefined) delete process.env.FAKE_KB_CAPTURE_DIR;
     else process.env.FAKE_KB_CAPTURE_DIR = prevCapture;
+    if (prevTimeout === undefined) delete process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS;
+    else process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = prevTimeout;
   }
+}
+
+// A `## Commands` doc where exactly one verb hangs past the bound and every other verb is the real
+// fake backend. `sleep` is the cheapest fixture that reproduces a host which accepts the call and
+// never answers — no socket, no listener, and nothing for the harness to tear down.
+function hangingVerbDoc(backendLine, hangingVerb, verbs = ['find', 'read', 'create', 'update', 'delete']) {
+  const sections = verbs
+    .map((v) => {
+      const cmd = v === hangingVerb ? 'sleep 30' : `node ${JSON.stringify(FAKE_BACKEND)} ${v}`;
+      return `### ${v}\n\n\`\`\`sh\n${cmd}\n\`\`\``;
+    })
+    .join('\n\n');
+  return `# Knowledge base\n\n## Configuration\n\n${backendLine}\n\n## Commands\n\n${sections}\n`;
 }
 
 // --- parseCommandsTemplates: resolution by heading name, never by position -------------------
@@ -1231,5 +1247,195 @@ withState((stateFile) => {
 
   fs.rmSync(stubDir, { recursive: true, force: true });
 }
+
+// --- the time bound (ADR 0076) ------------------------------------------------------------------
+
+// --- a find that never answers is killed at the bound, and its page stays staged -----------------
+withState(() => {
+  const repo = makeRepo();
+  writeKbDoc(repo, hangingVerbDoc('- **Backend:** Some Wiki.', 'find'));
+  stagePage(repo, 'hang', 'p.md', 'title: Hung Page\naction: upsert');
+  process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = '150';
+
+  const started = Date.now();
+  const res = call(['--scope', 'hang'], repo);
+  const elapsed = Date.now() - started;
+
+  assert.ok(res.ok, `expected a report, got: ${res.err}`);
+  assert.match(res.out, /left staged: Hung Page — find timed out after 150ms/);
+  assert.ok(elapsed < 5000, `expected the bound to end it, took ${elapsed}ms`);
+  assert.ok(
+    fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'hang', 'p.md')),
+    'a timed-out page stays staged',
+  );
+});
+
+// --- every verb is bounded, not just find --------------------------------------------------------
+for (const verb of ['find', 'create', 'update', 'delete']) {
+  withState((stateFile) => {
+    const repo = makeRepo();
+    writeKbDoc(repo, hangingVerbDoc('- **Backend:** Some Wiki.', verb));
+    // `update` and `delete` need the page to already exist, so find locates it and routes there.
+    if (verb === 'update' || verb === 'delete') {
+      fs.writeFileSync(stateFile, JSON.stringify({ 'Verb Page': { id: 'id-0', body: 'old.\n' } }));
+    }
+    const action = verb === 'delete' ? 'delete' : 'upsert';
+    stagePage(repo, `verb-${verb}`, 'p.md', `title: Verb Page\naction: ${action}`);
+    process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = '150';
+
+    const res = call(['--scope', `verb-${verb}`], repo);
+    assert.ok(res.ok, `[${verb}] expected a report, got: ${res.err}`);
+    assert.match(res.out, new RegExp(`left staged: Verb Page — ${verb} timed out after 150ms`));
+  });
+}
+
+// --- the read inside an action: patch is bounded on the same terms --------------------------------
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, hangingVerbDoc('- **Backend:** Some Wiki.', 'read'));
+  fs.writeFileSync(stateFile, JSON.stringify({ Aggregate: { id: 'id-0', body: '## A\n\nold.\n' } }));
+  stagePage(repo, 'patchhang', 'aggregate--b.md', 'title: Aggregate\naction: patch', '## B\n\nnew.\n');
+  process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = '150';
+
+  const res = call(['--scope', 'patchhang'], repo);
+  assert.ok(res.ok, `expected a report, got: ${res.err}`);
+  assert.match(res.out, /left staged: Aggregate — read timed out after 150ms/);
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.equal(state.Aggregate.body, '## A\n\nold.\n', 'a timed-out read overwrites nothing');
+});
+
+// --- the override parses: unset, empty, and unparseable all fall back to the 30s default ----------
+{
+  const { timeoutMs } = require(publishKbPath);
+  const prev = process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS;
+  try {
+    delete process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS;
+    assert.equal(timeoutMs(), 30000, 'unset uses the default');
+    for (const bad of ['', '   ', 'soon', '0', '-5', '1.5e9x', 'NaN']) {
+      process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = bad;
+      assert.equal(timeoutMs(), 30000, `"${bad}" falls back to the default rather than to no bound or a zero-length one`);
+    }
+    process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = '250';
+    assert.equal(timeoutMs(), 250, 'a positive integer overrides');
+  } finally {
+    if (prev === undefined) delete process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS;
+    else process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = prev;
+  }
+}
+
+// --- a timeout stops the batch: the rest are named untried, staged, and never spawned -------------
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, hangingVerbDoc('- **Backend:** Some Wiki.', 'find'));
+  for (const t of ['Alpha', 'Bravo', 'Charlie']) {
+    stagePage(repo, 'batch', `${t.toLowerCase()}.md`, `title: ${t}\naction: upsert`);
+  }
+  process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = '150';
+
+  const started = Date.now();
+  const res = call(['--scope', 'batch'], repo);
+  const elapsed = Date.now() - started;
+
+  assert.ok(res.ok, `expected a report, got: ${res.err}`);
+  assert.match(res.out, /timed out after 150ms/);
+  assert.match(res.out, /stopped after a timeout: 2 page\(s\) left untried/);
+  assert.ok(elapsed < 2000, `expected roughly one bound, not one per page; took ${elapsed}ms`);
+  for (const f of ['alpha.md', 'bravo.md', 'charlie.md']) {
+    assert.ok(
+      fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'batch', f)),
+      `${f} stays staged`,
+    );
+  }
+  assert.ok(!fs.existsSync(stateFile), 'the untried pages never reached the backend');
+});
+
+// --- a timeout inside a multi-page patch group stops the group, not just the sibling it hit --------
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, hangingVerbDoc('- **Backend:** Some Wiki.', 'read', PATCH_VERBS));
+  fs.writeFileSync(stateFile, JSON.stringify({ 'Combo Page': { id: 'id-1', body: '# Combo Page\n' } }));
+  stagePage(repo, 'demo', 'combo--section-a.md', 'title: Combo Page\naction: patch', '## Section A\n\nfrom A.\n');
+  stagePage(repo, 'demo', 'combo--section-b.md', 'title: Combo Page\naction: patch', '## Section B\n\nfrom B.\n');
+  stagePage(repo, 'demo', 'combo--section-c.md', 'title: Combo Page\naction: patch', '## Section C\n\nfrom C.\n');
+  process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = '150';
+
+  const captureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-capture-'));
+  process.env.FAKE_KB_CAPTURE_DIR = captureDir;
+  let res;
+  try {
+    res = call(['--scope', 'demo'], repo);
+  } finally {
+    delete process.env.FAKE_KB_CAPTURE_DIR;
+  }
+
+  assert.ok(res.ok, `expected a report, got: ${res.err}`);
+  assert.match(res.out, /left staged: Combo Page — read timed out after 150ms/);
+  assert.match(res.out, /left staged, never tried: combo--section-b\.md — the run stopped after a timeout/);
+  assert.match(res.out, /left staged, never tried: combo--section-c\.md — the run stopped after a timeout/);
+  assert.match(res.out, /stopped after a timeout: 2 page\(s\) left untried/);
+  const findCalls = fs.readdirSync(captureDir).filter((f) => f.startsWith('find-'));
+  assert.equal(
+    findCalls.length,
+    1,
+    'a timeout on the first sibling must stop the group, not burn a bound per remaining sibling',
+  );
+  for (const f of ['combo--section-a.md', 'combo--section-b.md', 'combo--section-c.md']) {
+    assert.ok(
+      fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', f)),
+      `${f} stays staged`,
+    );
+  }
+});
+
+// --- a spawn failure that is NOT a timeout still fails one page and lets the rest run -------------
+withState((stateFile) => {
+  const repo = makeRepo();
+  // A `find` whose command cannot start at all: the shell exits nonzero, which is a per-page
+  // failure and says nothing about the host, so the batch carries on to the next title.
+  const doc = commandsDoc('- **Backend:** Some Wiki.').replace(
+    `### find\n\n\`\`\`sh\nnode ${JSON.stringify(FAKE_BACKEND)} find\n\`\`\``,
+    '### find\n\n```sh\nif [ "$SUPERDEV_KB_TITLE" = "Doomed" ]; then exit 9; fi\nexit 3\n```',
+  );
+  writeKbDoc(repo, doc);
+  stagePage(repo, 'mixed', 'a-doomed.md', 'title: Doomed\naction: upsert');
+  stagePage(repo, 'mixed', 'b-fine.md', 'title: Fine\naction: upsert');
+  process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = '5000';
+
+  const res = call(['--scope', 'mixed'], repo);
+  assert.ok(res.ok, `expected a report, got: ${res.err}`);
+  assert.match(res.out, /left staged: Doomed — find exited 9/);
+  assert.match(res.out, /published \(created\): Fine/);
+  assert.doesNotMatch(res.out, /left untried/, 'a non-timeout failure stops nothing');
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.ok(Object.hasOwn(state, 'Fine'), 'the later page still published');
+});
+
+// --- a page retried after a timeout publishes once: the killed create becomes an update -----------
+withState((stateFile) => {
+  const repo = makeRepo();
+  // First run: `create` hangs, but the page it was sending did land on the backend — the shape a
+  // write killed in flight leaves behind. The staged file survives, so the next run retries it.
+  const hanging = hangingVerbDoc('- **Backend:** Some Wiki.', 'create');
+  writeKbDoc(repo, hanging);
+  stagePage(repo, 'retry', 'p.md', 'title: Retried Page\naction: upsert', 'second body.\n');
+  process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = '150';
+  const first = call(['--scope', 'retry'], repo);
+  assert.match(first.out, /left staged: Retried Page — create timed out after 150ms/);
+  fs.writeFileSync(stateFile, JSON.stringify({ 'Retried Page': { id: 'id-0', body: 'landed anyway.\n' } }));
+
+  // Second run against a healthy backend: find locates the page, so this is an update, not a
+  // duplicate create.
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  const second = call(['--scope', 'retry'], repo);
+  assert.ok(second.ok, `expected success, got: ${second.err}`);
+  assert.match(second.out, /published \(updated\): Retried Page/);
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.equal(Object.keys(state).length, 1, 'retrying publishes once, never twice');
+  assert.equal(state['Retried Page'].body, 'second body.\n');
+  assert.ok(
+    !fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'retry', 'p.md')),
+    'the landed page is cleared from staging',
+  );
+});
 
 console.log('publish-kb.test.js: all assertions passed');

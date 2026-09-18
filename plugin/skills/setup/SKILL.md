@@ -243,6 +243,15 @@ template before writing the section**: run it with `SUPERDEV_KB_TITLE` set to a 
 overwritten page. Any other outcome — report it to the user, fix the template, probe again — leaves the
 `## Commands` section unwritten. A **local** or **none** knowledge base is asked for no commands at all.
 
+**Run that probe under the same bound every backend command runs under** (ADR 0076): pass the Bash tool's
+own `timeout` parameter, set to 30000, or to `SUPERDEV_PUBLISH_KB_TIMEOUT_MS`'s own value when the
+operator has set it — both are already milliseconds, the unit the Bash tool's `timeout` parameter takes,
+so no conversion is needed. The probe reaches the same host `/superdev:publish-kb` does, so an unbounded
+one hangs this interview for as long as the kernel's own TCP timeout runs. A probe that exhausts the bound
+is a probe failure like any other: report it, leave `## Commands` unwritten, and probe again once the
+template or the host is fixed. **State the bound to the operator while capturing the templates**, so a
+command they write is one they expect to be killed at it.
+
 **On re-run**, when `knowledge-base.md` already carries a `## Commands` section: show the delta between
 the newly captured templates and the existing ones, and keep the operator's own template for a verb
 unless they choose to replace it — never rewrite a working command silently.

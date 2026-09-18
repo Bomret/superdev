@@ -189,12 +189,46 @@ function parseStagedPage(text) {
 
 // Every value crosses as an environment variable, never interpolated into the command string, so
 // no value can start a shell of its own. `/bin/sh -c <template>` is the only shell invoked.
+// ADR 0076. A host that accepts the connection and never answers blocks `spawnSync` for as long as
+// the kernel's own TCP connect timeout runs — minutes, per page. The bound lives here rather than in
+// the templates, so it covers an operator-written template that carries no `curl --max-time` of its
+// own. `scope.js`'s `testContainment` bounds its own `git fetch` the same way.
+//
+// The override deliberately sits OUTSIDE the `SUPERDEV_KB_` prefix: `fieldsToEnv` forwards every key
+// a `find` result carries as `SUPERDEV_KB_<KEY>`, so a backend returning `timeout_ms` would
+// otherwise rewrite the bound from the wire. A value that is not a positive integer — empty, a word,
+// zero, negative — reads as absent rather than as "no bound" or "kill immediately".
+const DEFAULT_TIMEOUT_MS = 30000;
+
+function timeoutMs() {
+  const raw = process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS;
+  if (!raw || !/^\d+$/.test(raw.trim())) return DEFAULT_TIMEOUT_MS;
+  const n = Number(raw.trim());
+  return n > 0 ? n : DEFAULT_TIMEOUT_MS;
+}
+
+// `spawnSync` reports an exhausted `timeout` as an `ETIMEDOUT` error. A `maxBuffer` overflow and a
+// shell that will not start land in the same `error` field and are NOT this: neither says anything
+// about the host, so neither stops the batch below.
+function timedOut(res) {
+  return Boolean(res.error) && res.error.code === 'ETIMEDOUT';
+}
+
 function runTemplate(template, env) {
   return spawnSync('/bin/sh', ['-c', template], {
     env: { ...process.env, ...env },
     encoding: 'utf8',
     maxBuffer: 10 * 1024 * 1024,
+    timeout: timeoutMs(),
+    killSignal: 'SIGKILL',
   });
+}
+
+// The one reason shape a timeout produces, and the flag that stops the batch. Every `res.error` site
+// routes through this so the two never drift apart.
+function spawnFailure(verb, res) {
+  if (timedOut(res)) return { reason: `${verb} timed out after ${timeoutMs()}ms`, timedOut: true };
+  return { reason: `${verb} could not run (${res.error.message})` };
 }
 
 // The `SUPERDEV_KB_` prefix already makes any key harmless to forward (it can never clobber PATH,
@@ -224,7 +258,7 @@ function fieldsToEnv(fields) {
 function runFind(title, templates) {
   if (!templates.find) return { verdict: 'unknown', reason: 'no find command configured' };
   const res = runTemplate(templates.find, { SUPERDEV_KB_TITLE: title });
-  if (res.error) return { verdict: 'unknown', reason: `find could not run (${res.error.message})` };
+  if (res.error) return { verdict: 'unknown', ...spawnFailure('find', res) };
   if (res.status === 3) return { verdict: 'absent' };
   if (res.status === 0) {
     let obj = null;
@@ -241,30 +275,30 @@ function runFind(title, templates) {
 
 function publishUpsert(title, bodyFile, templates) {
   const found = runFind(title, templates);
-  if (found.verdict === 'unknown') return { ok: false, reason: found.reason };
+  if (found.verdict === 'unknown') return { ok: false, reason: found.reason, timedOut: found.timedOut };
   if (found.verdict === 'absent') {
     if (!templates.create) return { ok: false, reason: 'no create command configured' };
     const res = runTemplate(templates.create, { SUPERDEV_KB_TITLE: title, SUPERDEV_KB_BODY_FILE: bodyFile });
-    if (res.error) return { ok: false, reason: `create could not run (${res.error.message})` };
+    if (res.error) return { ok: false, ...spawnFailure('create', res) };
     if (res.status !== 0) return { ok: false, reason: `create exited ${res.status}` };
     return { ok: true, action: 'created' };
   }
   if (!templates.update) return { ok: false, reason: 'no update command configured' };
   const env = { ...fieldsToEnv(found.fields), SUPERDEV_KB_TITLE: title, SUPERDEV_KB_BODY_FILE: bodyFile };
   const res = runTemplate(templates.update, env);
-  if (res.error) return { ok: false, reason: `update could not run (${res.error.message})` };
+  if (res.error) return { ok: false, ...spawnFailure('update', res) };
   if (res.status !== 0) return { ok: false, reason: `update exited ${res.status}` };
   return { ok: true, action: 'updated' };
 }
 
 function publishDelete(title, templates) {
   const found = runFind(title, templates);
-  if (found.verdict === 'unknown') return { ok: false, reason: found.reason };
+  if (found.verdict === 'unknown') return { ok: false, reason: found.reason, timedOut: found.timedOut };
   if (found.verdict === 'absent') return { ok: true, action: 'already-absent' };
   if (!templates.delete) return { ok: false, reason: 'no delete command configured' };
   const env = { ...fieldsToEnv(found.fields), SUPERDEV_KB_TITLE: title };
   const res = runTemplate(templates.delete, env);
-  if (res.error) return { ok: false, reason: `delete could not run (${res.error.message})` };
+  if (res.error) return { ok: false, ...spawnFailure('delete', res) };
   if (res.status !== 0) return { ok: false, reason: `delete exited ${res.status}` };
   return { ok: true, action: 'deleted' };
 }
@@ -282,7 +316,7 @@ function publishDelete(title, templates) {
 function publishPatch(title, stagedRaw, templates, assumeExists) {
   if (!templates.read) return { ok: false, reason: 'no read command configured' };
   const found = runFind(title, templates);
-  if (found.verdict === 'unknown') return { ok: false, reason: found.reason };
+  if (found.verdict === 'unknown') return { ok: false, reason: found.reason, timedOut: found.timedOut };
   if (found.verdict === 'absent' && assumeExists) {
     return {
       ok: false,
@@ -294,7 +328,7 @@ function publishPatch(title, stagedRaw, templates, assumeExists) {
   if (!isAbsent) {
     const env = { ...fieldsToEnv(found.fields), SUPERDEV_KB_TITLE: title };
     const res = runTemplate(templates.read, env);
-    if (res.error) return { ok: false, reason: `read could not run (${res.error.message})` };
+    if (res.error) return { ok: false, ...spawnFailure('read', res) };
     if (res.status !== 0) return { ok: false, reason: `read exited ${res.status}` };
     // A read call answering with no body for a title `find` DID list is a read failure, never an
     // empty live page (ADR 0027's amendment) — treating it as one would create the page from this
@@ -315,14 +349,14 @@ function publishPatch(title, stagedRaw, templates, assumeExists) {
     if (isAbsent) {
       if (!templates.create) return { ok: false, reason: 'no create command configured' };
       const res = runTemplate(templates.create, { SUPERDEV_KB_TITLE: title, SUPERDEV_KB_BODY_FILE: bodyFile });
-      if (res.error) return { ok: false, reason: `create could not run (${res.error.message})` };
+      if (res.error) return { ok: false, ...spawnFailure('create', res) };
       if (res.status !== 0) return { ok: false, reason: `create exited ${res.status}` };
       return { ok: true, action: 'created' };
     }
     if (!templates.update) return { ok: false, reason: 'no update command configured' };
     const env = { ...fieldsToEnv(found.fields), SUPERDEV_KB_TITLE: title, SUPERDEV_KB_BODY_FILE: bodyFile };
     const res = runTemplate(templates.update, env);
-    if (res.error) return { ok: false, reason: `update could not run (${res.error.message})` };
+    if (res.error) return { ok: false, ...spawnFailure('update', res) };
     if (res.status !== 0) return { ok: false, reason: `update exited ${res.status}` };
     return { ok: true, action: 'updated' };
   } finally {
@@ -385,19 +419,19 @@ function processFile(entry, templates) {
   }
   if (parsed.action === 'patch') {
     const result = publishPatch(parsed.title, raw, templates, false);
-    if (!result.ok) return { filename, title: parsed.title, kind: 'left-staged', reason: result.reason };
+    if (!result.ok) return { filename, title: parsed.title, kind: 'left-staged', reason: result.reason, timedOut: result.timedOut };
     return clearStagedFile(filePath, filename, parsed.title, result.action);
   }
   if (parsed.action === 'delete') {
     const result = publishDelete(parsed.title, templates);
-    if (!result.ok) return { filename, title: parsed.title, kind: 'left-staged', reason: result.reason };
+    if (!result.ok) return { filename, title: parsed.title, kind: 'left-staged', reason: result.reason, timedOut: result.timedOut };
     return clearStagedFile(filePath, filename, parsed.title, result.action === 'already-absent' ? 'already-absent' : 'deleted');
   }
   // upsert
   const bodyFile = writeTempBody(parsed.body);
   try {
     const result = publishUpsert(parsed.title, bodyFile, templates);
-    if (!result.ok) return { filename, title: parsed.title, kind: 'left-staged', reason: result.reason };
+    if (!result.ok) return { filename, title: parsed.title, kind: 'left-staged', reason: result.reason, timedOut: result.timedOut };
     return clearStagedFile(filePath, filename, parsed.title, result.action);
   } finally {
     try {
@@ -461,7 +495,8 @@ function processTitleGroup(title, group, templates) {
 
   const results = [];
   let assumeExists = false;
-  for (const e of group) {
+  for (let i = 0; i < group.length; i++) {
+    const e = group[i];
     if (duplicated.has(e.filename)) {
       const siblings = filenamesByHeading.get(headingOf.get(e.filename)).filter((n) => n !== e.filename);
       results.push({
@@ -474,7 +509,18 @@ function processTitleGroup(title, group, templates) {
     }
     const result = publishPatch(title, e.raw, templates, assumeExists);
     if (!result.ok) {
-      results.push({ filename: e.filename, title, kind: 'left-staged', reason: result.reason });
+      results.push({ filename: e.filename, title, kind: 'left-staged', reason: result.reason, timedOut: result.timedOut });
+      if (result.timedOut) {
+        // A host that black-holes one call black-holes the next: carrying on to the next sibling
+        // in this same group would burn another full bound per remaining page (ADR 0076). Mark
+        // them untried, exactly as the outer loop already marks a later group's pages, and stop
+        // here — the group's own result still carries `timedOut`, so the outer loop's own
+        // `some(r => r.timedOut)` check keeps carrying the stop outward.
+        for (const rest of group.slice(i + 1)) {
+          results.push({ filename: rest.filename, kind: 'untried', reason: 'the run stopped after a timeout' });
+        }
+        break;
+      }
       continue;
     }
     assumeExists = true;
@@ -503,7 +549,23 @@ function processStagedFiles(files, templates) {
     if (!groups.has(parsed.title)) groups.set(parsed.title, []);
     groups.get(parsed.title).push(e);
   }
-  for (const [title, group] of groups) results.push(...processTitleGroup(title, group, templates));
+  // ADR 0076. A host that black-holes one call black-holes the next, so carrying on would spend the
+  // bound once per staged page and reproduce the very hang the bound removes. The remaining titles
+  // are reported untried and stay staged, so the next run retries exactly them. Only a timeout stops
+  // the walk: every other failure is per page, as it has always been.
+  const remaining = [...groups.entries()];
+  while (remaining.length > 0) {
+    const [title, group] = remaining.shift();
+    const groupResults = processTitleGroup(title, group, templates);
+    results.push(...groupResults);
+    if (groupResults.some((r) => r.timedOut)) {
+      const untried = remaining.flatMap(([, g]) => g).map((e) => e.filename);
+      for (const filename of untried) {
+        results.push({ filename, kind: 'untried', reason: 'the run stopped after a timeout' });
+      }
+      break;
+    }
+  }
   return results;
 }
 
@@ -666,6 +728,11 @@ function renderReport(scope, backendKind, results, unmerged = false) {
     }
     else if (r.kind === 'left-staged') lines.push(`left staged: ${r.title} — ${r.reason}`);
     else if (r.kind === 'malformed') lines.push(`malformed frontmatter, left untouched: ${r.filename} — ${r.reason}`);
+    else if (r.kind === 'untried') lines.push(`left staged, never tried: ${r.filename} — ${r.reason}`);
+  }
+  const untried = results.filter((r) => r.kind === 'untried').length;
+  if (untried > 0) {
+    lines.push(`stopped after a timeout: ${untried} page(s) left untried — retry once the host answers`);
   }
   if (results.length === 0) lines.push('nothing staged for this scope');
   return lines.join('\n');
@@ -760,6 +827,7 @@ module.exports = {
   parseBaseBranch,
   parseRemote,
   checkContainment,
+  timeoutMs,
   renderReport,
   run,
 };
