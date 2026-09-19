@@ -166,7 +166,7 @@ Two captures are **superdev-specific**:
   All API handlers must validate input with Zod before processing.
   ```
 
-  A rule is a **standing constraint** the harness auto-loads when a matching file is edited, so
+  A rule is a **standing constraint** the harness auto-loads when a matching file is read, so
   implementers pick it up exactly when it applies, at zero always-on cost. Reserve it for genuinely
   path-scoped, repeatable constraints: a whole-project norm belongs in the docs convention, a
   slice-specific requirement in that slice's `spec`.
