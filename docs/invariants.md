@@ -11,3 +11,12 @@ Concepts: Base branch, Scope branch, Scopetree, Run root
 Breaks: silently
 Check: scripts/drift-check.js — no shipped prose instructs a commit to the base branch
 Paths: plugin/skills/**, plugin/references/**
+
+### INV-0002
+
+Class: process
+Statement: A load-bearing commitment that reaches /superdev:plan leaves the run either as an invariant register entry or as a reason, named out loud, that it implies no entry. None is dropped in silence.
+Concepts: Load-bearing commitment, Invariant register, Intent
+Breaks: silently
+Check: scripts/drift-check.js — the commitment contract, pinned together in brainstorm's prose, plan's prose, and domain-modeling.md
+Paths: plugin/skills/brainstorm/**, plugin/skills/plan/**, plugin/references/domain-modeling.md

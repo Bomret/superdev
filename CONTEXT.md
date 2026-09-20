@@ -86,7 +86,7 @@ _Avoid: "log", "report", "transcript" (logs are broader, and this is slice-speci
 **Warrant**: the justification a piece of work carries. It scales both cost (which model a dispatch uses) and rigor (which review gates run). Derived from a slice's test-applicability and complexity, never a plan field. A `behavior` slice warrants more than a `mechanical` one. A hook blocks any dispatch that omits an explicit model, so cost stays warrant-scaled.
 _Avoid: "priority", "estimate", "weight"_
 
-**Intent**: a rough idea sharpened into something plan-ready: the problem, a few candidate directions, the MLP, the open questions, and the rejected directions. Output of `/brainstorm`, input to `/plan`.
+**Intent**: a rough idea sharpened into something plan-ready: the problem, a few candidate directions, the MLP, the open questions, the rejected directions, and the load-bearing commitments. Output of `/brainstorm`, input to `/plan`.
 _Avoid: "idea", "requirements", "specification"_
 
 **Minimal Lovable Product (MLP)**: the smallest end-to-end version of the chosen direction that delivers real value. A complete, if narrow, path through the system a user could use, not a fragment of the final thing. Found in `/brainstorm` step 3, carried into `Intent`'s rough scope.
@@ -94,6 +94,9 @@ _Avoid: "skateboard" (Kniberg's MVP-evolution analogy, unclear without the backs
 
 **Load-bearing decision**: a decision the plan cannot ship without. Leaving it unresolved means the plan is not decided, not just thin on detail. It triggers `Parked questions` when the interview cannot resolve it, on a multi-slice plan only. On a single-slice plan, an unresolved one signals the plan is not single-slice-simple yet, rather than something to park.
 _Avoid: "blocker", "important question" (any open question can be unimportant, and load-bearing means the plan cannot ship without it resolved)_
+
+**Load-bearing commitment**: a principle a discovery or an interview settled that constrains later decisions, carried as a pair — the principle, then the rule it implies. Distinct from a `Load-bearing decision`, which is a question the plan must answer; a commitment is already answered and its risk is being outranked rather than left open. `/brainstorm` names them in the `Intent`; `/plan` converts each into an `Invariant register` entry, or names out loud that it constrains nothing or is an authoring rule this repository has no home for (ADR 0081).
+_Avoid: "principle" (that is half of one, and the half that loses), "rationale", "guiding principle", "value"_
 
 **Parked questions**: a load-bearing decision that survived `/plan`'s interview still unresolved, written to the epic's `## Parked questions` section. Advisory only: `/implement` never reads it, and nothing gates on it.
 _Avoid: "open questions" (that is Intent's pre-interview concept), "blocker", "TODO"_
