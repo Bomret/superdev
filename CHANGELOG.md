@@ -1,3 +1,15 @@
+# [0.48.0](https://codeberg.org/bomret/superdev/compare/v0.47.0...v0.48.0) (2026-09-20)
+
+
+### Bug Fixes
+
+* **scope-mode:** one cascade resolves an empty argument ([#547](https://codeberg.org/bomret/superdev/issues/547)) ([f0f71e0](https://codeberg.org/bomret/superdev/commit/f0f71e0edc13c29bf1e8bb2480e6d37e062d7ac6)), closes [#544](https://codeberg.org/bomret/superdev/issues/544) [#546](https://codeberg.org/bomret/superdev/issues/546)
+
+
+### Features
+
+* **invariant-register:** invariants live in one central register ([#542](https://codeberg.org/bomret/superdev/issues/542)) ([9b6e7b5](https://codeberg.org/bomret/superdev/commit/9b6e7b51fa7e62a2ae409b2da6724297fe87985b)), closes [#537](https://codeberg.org/bomret/superdev/issues/537) [#538](https://codeberg.org/bomret/superdev/issues/538) [#539](https://codeberg.org/bomret/superdev/issues/539) [#536](https://codeberg.org/bomret/superdev/issues/536) [#535](https://codeberg.org/bomret/superdev/issues/535)
+
 # [0.47.0](https://codeberg.org/bomret/superdev/compare/v0.46.0...v0.47.0) (2026-09-18)
 
 
