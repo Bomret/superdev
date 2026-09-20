@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0079](0079-a-planned-ledger-hands-the-scope-branch-from-plan-to-implement.md),
+which extends the scopetree write to append mode and pairs the cut with a `planned` ledger.
+
 **Context.** ADR 0072 moved a new-feature `/superdev:plan`'s design-docs commit onto the scope branch,
 which is what keeps an abandoned plan's glossary entries and ADRs off base. §2 still writes those files
 into the shared invoking checkout as they crystallise, and nothing consumes them there, so the residue

@@ -5,6 +5,9 @@
 **Amended by:** [ADR 0076](0076-plan-writes-its-design-docs-in-the-scope-scopetree.md), which moves the
 design-doc *writes* into the scopetree as well, so the invoking checkout holds no residue for a
 later run init to commit to base.
+**Amended by:** [ADR 0079](0079-a-planned-ledger-hands-the-scope-branch-from-plan-to-implement.md),
+which drops all three boundaries below: every plan run cuts the scopetree and writes a `planned`
+ledger, and append mode takes the same path instead of committing to base.
 
 **Context.** `/superdev:plan` §6 and `/superdev:implement`'s run init both commit `CONTEXT.md`, ADRs, and
 `.claude/rules/` to the base branch from the shared invoking checkout. ADR 0058 serializes that step with
