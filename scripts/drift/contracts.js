@@ -523,6 +523,65 @@ const REVIEW_RANGE_SHAPES_CONTRACTS = [
   ],
 ];
 
+// `/superdev:implement`, `/superdev:ship`, and `/superdev:review` each take a run as their subject and
+// accept no argument, and each used to spell out its own words for what that means (ADR 0078).
+// `scope-mode.md`'s `## Resolving an empty argument` section owns the cascade once; every command that
+// enters through an empty argument cites it rather than restating a branch of it in its own words. A
+// document that drops the section leaves every citation pointing at nothing, and a document that drops
+// its own citation goes back to writing the cascade over in its own words — the defect the section exists
+// to remove.
+const EMPTY_ARGUMENT_CONTRACTS = [
+  [
+    path.join('references', 'scope-mode.md'),
+    /^#{2,3}\s+Resolving an empty argument\s*$/m,
+    'carry the `## Resolving an empty argument` section owning the shared cascade',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /`## Resolving an empty argument`/,
+    'cite `## Resolving an empty argument` for its own empty-argument cascade rather than restating it',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /dirty working tree is reviewed as it always was/,
+    "put a dirty working tree ahead of the shared cascade, reviewed as it always was, rather than folding that local rule into the cascade itself",
+  ],
+  // Order-bounded, the same shape `REVIEW_RANGE_SHAPES_CONTRACTS`' seventh row uses: the slug bullet's
+  // own "reached only once" clause has to follow the standing-code bullet's fallback text, so a slug
+  // resolution moved ahead of the four range shapes — the original defect this row exists to catch —
+  // fails it exactly as removing the bullet does.
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /A \*\*fallback, never a replacement\*\*(?:[\s\S]*?)\*\*A scope slug\*\*(?:[\s\S]*?)reached only once the four shapes above all fail/,
+    'resolve a scope slug only after the four range shapes above all fail, so no invocation that resolves today changes meaning',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /`## The scope branch`\s+shape-scan fallback and say which route was taken/,
+    "take `## The scope branch`'s shape-scan fallback, and say which route was taken, when the run root's ledger names no branch or a branch that does not verify",
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /`## Resolving an empty argument`/,
+    'cite `## Resolving an empty argument` for its own empty-argument cascade rather than restating it',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /every run root whose stage is not `shipped`/,
+    'name its own candidate set — every run root whose stage is not `shipped` — ahead of the cascade citation',
+  ],
+  [
+    path.join('skills', 'implement', 'SKILL.md'),
+    /`## Resolving an empty argument`/,
+    'cite `## Resolving an empty argument` for its own empty-argument cascade rather than restating it',
+  ],
+  [
+    path.join('skills', 'implement', 'SKILL.md'),
+    /the features whose slices are ready/,
+    'name its own candidate set — the features whose slices are ready — ahead of the cascade citation',
+  ],
+];
+
 // The orphan lens works only from `## Design smells`. `final-reviewer` reads the anti-pattern,
 // design-smell, and remaining lenses, while `slice-reviewer` reads anti-patterns and vulnerability
 // classes alone. A slice legitimately lands a symbol whose caller arrives two slices later, so from
@@ -3127,6 +3186,7 @@ module.exports = {
   DERIVED_CRITERIA_CONTRACTS,
   REACHABLE_CRITERION_CONTRACTS,
   REVIEW_RANGE_SHAPES_CONTRACTS,
+  EMPTY_ARGUMENT_CONTRACTS,
   AGENT_LENS_LIST_CONTRACTS,
   AGENT_LENS_AVOID_DOCS,
   AGENT_LENS_AVOID_MARKERS,

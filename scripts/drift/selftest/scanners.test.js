@@ -49,6 +49,7 @@ const {
   GLOSSARY_ENTRY_TITLES,
   REACHABLE_CRITERION_CONTRACTS,
   REVIEW_RANGE_SHAPES_CONTRACTS,
+  EMPTY_ARGUMENT_CONTRACTS,
   AGENT_LENS_LIST_CONTRACTS,
   STANDING_CODE_LENS_CONTRACTS,
   CHAINED_CODE_REVIEW_CONTRACTS,
@@ -2969,6 +2970,172 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // negative: the real tree carries both halves
   assert.equal(scanContract(realRoot, REVIEW_RANGE_SHAPES_CONTRACTS).length, 0, 'the shipped surface and brief agree');
+
+  // --- EMPTY_ARGUMENT_CONTRACTS: `references/scope-mode.md` owns the shared empty-argument cascade once,
+  // and `skills/review/SKILL.md` cites it for its own cascade and states its own dirty-tree precedence
+  // rather than restating either in its own words (ADR 0078) ---
+
+  const EA_SCOPE_MODE_CLEAN = '## Resolving an empty argument\n\nExactly one candidate is used.\n';
+  const EA_REVIEW_CLEAN =
+    "A dirty working tree is reviewed as it always was. Otherwise run `references/scope-mode.md`'s " +
+    '`## Resolving an empty argument` cascade.\n\n' +
+    '- A path/area resolves to a diff.\n' +
+    "- **Standing code** — that same path. A **fallback, never a replacement** — a path with a non-empty " +
+    'scoped diff resolves to that diff exactly as it does above.\n' +
+    "- **A scope slug** — reached only once the four shapes above all fail. **No such line, or the named " +
+    "branch does not verify** → take `## The scope branch`\n" +
+    'shape-scan fallback and say which route was taken.\n';
+
+  assert.equal(
+    scanContract(
+      fixture({
+        'references/scope-mode.md': EA_SCOPE_MODE_CLEAN,
+        'skills/review/SKILL.md': EA_REVIEW_CLEAN,
+      }),
+      EMPTY_ARGUMENT_CONTRACTS,
+    ).length,
+    0,
+    'both halves carried yields zero gaps',
+  );
+
+  // positive: the section heading is dropped from scope-mode.md
+  const eaSectionDropped = scanContract(
+    fixture({
+      'references/scope-mode.md': 'No such section here.\n',
+      'skills/review/SKILL.md': EA_REVIEW_CLEAN,
+    }),
+    EMPTY_ARGUMENT_CONTRACTS,
+  );
+  assert.equal(eaSectionDropped.length, 1, 'flags the dropped section heading');
+  assert.equal(
+    eaSectionDropped[0].source,
+    path.join('references', 'scope-mode.md'),
+    'names references/scope-mode.md',
+  );
+
+  const EA_REVIEW_SLUG_TAIL =
+    '\n\n' +
+    '- A path/area resolves to a diff.\n' +
+    "- **Standing code** — that same path. A **fallback, never a replacement** — a path with a non-empty " +
+    'scoped diff resolves to that diff exactly as it does above.\n' +
+    "- **A scope slug** — reached only once the four shapes above all fail. **No such line, or the named " +
+    "branch does not verify** → take `## The scope branch`\n" +
+    'shape-scan fallback and say which route was taken.\n';
+
+  // positive: skills/review/SKILL.md drops its citation of the shared section
+  const eaCitationDropped = scanContract(
+    fixture({
+      'references/scope-mode.md': EA_SCOPE_MODE_CLEAN,
+      'skills/review/SKILL.md': 'A dirty working tree is reviewed as it always was.\n' + EA_REVIEW_SLUG_TAIL,
+    }),
+    EMPTY_ARGUMENT_CONTRACTS,
+  );
+  assert.equal(eaCitationDropped.length, 1, 'flags the dropped citation');
+  assert.equal(
+    eaCitationDropped[0].source,
+    path.join('skills', 'review', 'SKILL.md'),
+    'names skills/review/SKILL.md',
+  );
+
+  // positive: skills/review/SKILL.md drops its dirty-tree precedence sentence
+  const eaPrecedenceDropped = scanContract(
+    fixture({
+      'references/scope-mode.md': EA_SCOPE_MODE_CLEAN,
+      'skills/review/SKILL.md':
+        "Run `references/scope-mode.md`'s `## Resolving an empty argument` cascade.\n" + EA_REVIEW_SLUG_TAIL,
+    }),
+    EMPTY_ARGUMENT_CONTRACTS,
+  );
+  assert.equal(eaPrecedenceDropped.length, 1, 'flags the dropped dirty-tree precedence sentence');
+  assert.equal(
+    eaPrecedenceDropped[0].source,
+    path.join('skills', 'review', 'SKILL.md'),
+    'names skills/review/SKILL.md',
+  );
+
+  // positive: the scope-slug resolution is missing entirely
+  const eaSlugMissing = scanContract(
+    fixture({
+      'references/scope-mode.md': EA_SCOPE_MODE_CLEAN,
+      'skills/review/SKILL.md':
+        "A dirty working tree is reviewed as it always was. Otherwise run `references/scope-mode.md`'s " +
+        '`## Resolving an empty argument` cascade.\n',
+    }),
+    EMPTY_ARGUMENT_CONTRACTS,
+  );
+  assert.equal(eaSlugMissing.length, 2, 'flags both the missing slug bullet and the missing fallback citation');
+
+  // positive: the scope-slug bullet moved ahead of the four range shapes it must follow
+  const eaSlugMovedAhead = scanContract(
+    fixture({
+      'references/scope-mode.md': EA_SCOPE_MODE_CLEAN,
+      'skills/review/SKILL.md':
+        "- **A scope slug** — reached only once the four shapes above all fail. **No such line, or the " +
+        "named branch does not verify** → take `## The scope branch`\nshape-scan fallback and say which " +
+        'route was taken.\n' +
+        "A dirty working tree is reviewed as it always was. Otherwise run `references/scope-mode.md`'s " +
+        '`## Resolving an empty argument` cascade.\n\n' +
+        '- A path/area resolves to a diff.\n' +
+        "- **Standing code** — that same path. A **fallback, never a replacement** — a path with a " +
+        'non-empty scoped diff resolves to that diff exactly as it does above.\n',
+    }),
+    EMPTY_ARGUMENT_CONTRACTS,
+  );
+  assert.equal(eaSlugMovedAhead.length, 1, 'flags the slug bullet moved ahead of the range shapes it must follow');
+
+  // positive: skills/ship/SKILL.md drops its citation and its own candidate-set sentence
+  const eaShipMissing = scanContract(
+    fixture({ 'skills/ship/SKILL.md': 'Resolve the run root some other way.\n' }),
+    EMPTY_ARGUMENT_CONTRACTS,
+  );
+  assert.equal(eaShipMissing.length, 2, 'flags both the missing citation and the missing candidate-set sentence');
+  assert.deepEqual(
+    eaShipMissing.map((gap) => gap.source),
+    [path.join('skills', 'ship', 'SKILL.md'), path.join('skills', 'ship', 'SKILL.md')],
+    'names skills/ship/SKILL.md for both',
+  );
+
+  // negative: skills/ship/SKILL.md carries both
+  assert.equal(
+    scanContract(
+      fixture({
+        'skills/ship/SKILL.md':
+          "The candidate set is every run root whose stage is not `shipped`. Run `## Resolving an empty " +
+          "argument`.\n",
+      }),
+      EMPTY_ARGUMENT_CONTRACTS,
+    ).length,
+    0,
+    'both halves carried yields zero gaps',
+  );
+
+  // positive: skills/implement/SKILL.md drops its citation and its own candidate-set sentence
+  const eaImplementMissing = scanContract(
+    fixture({ 'skills/implement/SKILL.md': 'Resolve the feature some other way.\n' }),
+    EMPTY_ARGUMENT_CONTRACTS,
+  );
+  assert.equal(eaImplementMissing.length, 2, 'flags both the missing citation and the missing candidate-set sentence');
+  assert.deepEqual(
+    eaImplementMissing.map((gap) => gap.source),
+    [path.join('skills', 'implement', 'SKILL.md'), path.join('skills', 'implement', 'SKILL.md')],
+    'names skills/implement/SKILL.md for both',
+  );
+
+  // negative: skills/implement/SKILL.md carries both
+  assert.equal(
+    scanContract(
+      fixture({
+        'skills/implement/SKILL.md':
+          "The candidate set is the features whose slices are ready. Run `## Resolving an empty argument`.\n",
+      }),
+      EMPTY_ARGUMENT_CONTRACTS,
+    ).length,
+    0,
+    'both halves carried yields zero gaps',
+  );
+
+  // negative: the real tree carries every half
+  assert.equal(scanContract(realRoot, EMPTY_ARGUMENT_CONTRACTS).length, 0, 'the shipped section and its citations agree');
 
   // --- AGENT_LENS_LIST_CONTRACTS + scanAgentLensNoDesignSmell: each reviewer agent reads its own named
   // lens list off review-checklist.md, and slice-reviewer.md carries no design-smell token that would

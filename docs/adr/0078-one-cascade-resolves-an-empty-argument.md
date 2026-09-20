@@ -1,5 +1,7 @@
 # 0078 — One cascade resolves an empty argument
 
+**Status:** Accepted
+
 ## Context
 
 Three commands take a run as their subject and accept no argument: `/superdev:implement`,

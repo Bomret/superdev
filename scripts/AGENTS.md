@@ -578,6 +578,19 @@ of the `final-reviewer` dispatch bullet it names. The seventh row's pattern is o
 requires the staging clause's own heading text to appear, followed eventually by the `- **Range**` bullet
 that opens the range list, so moving the clause back below that bullet — the original defect — fails the
 row exactly as removing the clause does.
+The `empty-argument` contract (ADR 0078), nine rows: `references/scope-mode.md` carries the `##
+Resolving an empty argument` section heading; `skills/review/SKILL.md` cites that section for its own
+empty-argument cascade and states its own dirty-working-tree precedence rather than folding either into
+the shared section's own words; two more rows pin `skills/review/SKILL.md`'s scope-slug resolution —
+order-bounded, the same shape `REVIEW_RANGE_SHAPES_CONTRACTS`' seventh row uses, so a slug bullet moved
+ahead of the four range shapes it must follow fails the row exactly as removing the bullet does — and its
+`## The scope branch` shape-scan fallback for a run root whose ledger names no branch or a stale one; and
+two rows apiece pin `skills/ship/SKILL.md` and `skills/implement/SKILL.md`, one citing the shared section
+and one naming that command's own candidate set (run roots not `shipped` for ship, features whose slices
+are ready for implement) ahead of the citation. Anchored on the section's own heading and on each
+citing document's literal citation and candidate-set sentences, the same shape `UNATTENDED_CONTRACTS`
+uses, because a document that restates the cascade in its own words instead of citing the section reads
+correct in isolation and is exactly the defect ADR 0078 removes.
 The `agent-lens-list` contract (ADR 0062), one sentence row per audited agent's own lens list, a further
 row where a dispatch restates that list instead of deferring to it, and `scanAgentLensNoDesignSmell()`:
 `agents/slice-reviewer.md` reads only the anti-pattern and vulnerability-class lenses from

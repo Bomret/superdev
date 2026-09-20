@@ -9,8 +9,10 @@ execution playbooks read `## Unattended`, `## Degraded passes`, `## The run lock
 checkout` (ADR 0045 — both tiers now cut and work in the scopetree); `/superdev:implement` and
 `/superdev:afk` read `## The scope slug`, which sends both to `## The change type`; `/superdev:afk` also
 relies on `## The run lock` and `## The scope checkout`; `## The ledger` is read by
-`/superdev:implement`, `/superdev:status`, and `/superdev:ship` besides `/superdev:review`. A run is
-unattended from its first command, so the token cannot wait for the stage where the other rules begin.
+`/superdev:implement`, `/superdev:status`, and `/superdev:ship` besides `/superdev:review`; `##
+Resolving an empty argument` is read by all three of `/superdev:implement`, `/superdev:review`, and
+`/superdev:ship` on their own empty-argument entrance. A run is unattended from its first command, so the
+token cannot wait for the stage where the other rules begin.
 
 ## The scope slug
 
@@ -56,6 +58,34 @@ holding a `ledger.md`.
 Capture `<run-root>` as the absolute path to `.superdev/scopes/<scope>/`, while the invoking checkout is
 still the current directory. Address every artifact by that absolute path: `<run-root>/ledger.md`,
 `<run-root>/dod.md`, `<run-root>/run.lock`.
+
+## Resolving an empty argument
+
+`/superdev:implement`, `/superdev:ship`, and `/superdev:review` each take a run as their subject and
+accept no argument. Each names its own **candidate set** (CONTEXT.md); this section owns the one cascade
+that resolves whichever set a caller hands it, so the rule is stated once instead of in each command's
+own words:
+
+- **Exactly one candidate** — use it.
+- **Several candidates** — list each one with its stage, and ask the operator which one to use.
+  **`--unattended`** → block instead of asking, per `## Unattended`, naming the candidates found.
+- **No candidate** — report that none exists, together with every run root the repository does hold and
+  that run root's own stage, and stop. Never guess at a subject nothing named.
+
+**Run-root enumeration.** A run root is a `.superdev/scopes/*/` directory holding a `ledger.md`, per
+`## A live scope run` above. The calling command names the stages that qualify — `/superdev:ship` names
+every stage but `shipped`, `/superdev:review` names `merged` and `documented-unreviewed` — and this
+section scans every run root, reads each one's stage with `scope.js get stage --root <run-root>`, and
+keeps only the ones whose stage is named. A directory holding no `ledger.md` is no run root, and is never
+a candidate. A run root whose `get stage` prints `absent` matches no named stage either, so it is never a
+candidate. `/superdev:implement` computes its own candidate set a different way — the features whose
+slices are ready, read from the slice store — and hands that set straight to this same cascade, so this
+section never enumerates run roots on its behalf.
+
+**A caller that cannot ask stops and lists instead.** `plugin/scripts/publish-kb.js` resolves its own
+scope with no interview loop behind it (ADR 0069): several candidates, or none, and it refuses and lists
+them — the same shape this section's own several-candidate and no-candidate branches print — because a
+script cannot put a question.
 
 ## The ledger
 

@@ -1,6 +1,6 @@
 superdev-render-overlay
 source: skills/implement/SKILL.md
-body-lines: 130
+body-lines: 133
 ---
 # generated-by: superdev-adapter — a re-render overwrites this directory
 name: superdev-implement
@@ -26,25 +26,27 @@ review `/superdev-review` runs next.
   `<plugin-root>/references/scope-mode.md`'s scope-slug rule, both segments** — the whole label
 @65
     **`/superdev-plan`**, stop. **`--unattended` → block**.
-@67
-    **`--unattended` → block**. None → run **`/superdev-plan`** first.
-@69
+@68
+    `<plugin-root>/references/scope-mode.md`'s `## Resolving an empty argument` cascade,
+@70
+    **`/superdev-plan`** first, rather than the cascade's own report-and-stop.
+@72
   slices → run **`/superdev-plan`** first. **One slice, no epic** → the epic is optional
-@76
+@79
   releasing the plan in the tracker stays the human's own act. **`--unattended` → block** — `/superdev/afk`
-@78
+@81
 - **`--unattended` present** → read `<plugin-root>/references/scope-mode.md`'s **Unattended**
-@80
+@83
   command (`/superdev-setup`, `/superdev-plan`). The "slice store or code host missing" and "no slices"
-@87
-  configured or persisted (`/superdev-plan` derives it the same way). `Read` your playbook and follow it
-@89
-  - `full` → `<plugin-root>/references/implement-full.md`
 @90
+  configured or persisted (`/superdev-plan` derives it the same way). `Read` your playbook and follow it
+@92
+  - `full` → `<plugin-root>/references/implement-full.md`
+@93
   - `lite` → `<plugin-root>/references/implement-lite.md`
-@91
+@94
   Each playbook ends by reading `<plugin-root>/references/run-handoff.md`.
-@103
+@106
 the run starts, and **`/superdev-ship` closes it**, not you. **On a single-slice plan the anchor rule
-@109
+@112
 `full` dispatches every row; `<plugin-root>/references/run-handoff.md`'s run handoff dispatches the

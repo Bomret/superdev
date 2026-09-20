@@ -102,8 +102,10 @@ plan runs test-first, inline in the scopetree.
   plan and no slice store, and it stays read-only end to end. A path whose diff is empty — an area you
   never changed — is reviewed as **standing code**, the files under it at `HEAD`, so pointing a review at
   an existing module or test tree reports findings rather than an empty range (ADR 0063). Given a live
-  scope branch, it is the whole-scope review gate in the implement chain: it checks the scope against
-  that run's `dod.md`, and it can drive one fix loop after asking once. That loop changes how the code
+  scope branch, or a bare invocation on a clean checkout that finds one run in progress, it is the
+  whole-scope review gate in the implement chain: it checks the scope against that run's `dod.md`, and it
+  can drive one fix loop after asking once. Several runs in progress get listed for you to pick; naming a
+  scope by its slug works too (ADR 0078). That loop changes how the code
   meets the Definition of Done; a finding whose remedy would add a capability nobody planned goes to
   `/superdev:plan` instead of growing the scope under review (ADR 0035). Such a finding gets a
   **triage record** in your slice store as the review defers it: an issue carrying a `triage` label,

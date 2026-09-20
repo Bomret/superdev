@@ -18,12 +18,10 @@ dispatches no subagents.
 Resolve `$ARGUMENTS` to one scope — a **run root**, per that file's `## A live scope run` section:
 
 - **A scope slug given** → use it. No run root by that name → say so and stop.
-- **Empty, exactly one run root** → use it.
-- **Empty, no run root** → report `No superdev run found in this repo.` and stop. Create nothing.
-- **Empty, more than one run root** → list them with each one's stage and ask which to ship. Never guess.
-  **`--unattended` → block** instead of asking, per that file's **Unattended** section: afk always names a
-  slug, so this bullet is unreachable from a sweep, and the catch-all is what keeps an otherwise-silent
-  stop safe if that ever stops holding.
+- **Empty** → this command's own **candidate set** (CONTEXT.md) is every run root whose stage is not
+  `shipped` — every other stage is shippable here, after §3's own question. Run
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Resolving an empty argument` cascade over that
+  set, restating no part of it here: nothing is created before the cascade resolves one run root.
 
 Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md` for how to capture `<run-root>` and how the run lock
 behaves. Refresh `<run-root>/run.lock` now, per that file's rule.

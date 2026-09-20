@@ -1,7 +1,7 @@
 ---
 name: review
 description: Review a change — a commit range, a branch, a path, or the working tree — for correctness, architecture, security, and over-engineering. Read-only on an ad-hoc range; on a live superdev scope it reviews against the DoD and can drive the fix loop.
-argument-hint: "[BASE..HEAD | branch | path | (empty = working tree)]  [--unattended]  [--chained]  [-- what it should do]"
+argument-hint: "[BASE..HEAD | branch | path | scope-slug | (empty = working tree)]  [--unattended]  [--chained]  [-- what it should do]"
 ---
 
 # superdev review
@@ -87,8 +87,38 @@ standing tree `/superdev:sweep` asked this leg to read.
     exactly as it does above, so no existing invocation changes meaning. **The path exists and holds no
     files** → say there is nothing to review and dispatch nobody. Read-only like every other ad-hoc
     range: nothing is edited, committed, or merged.
-  - **Empty** → the working tree: `git diff HEAD` if it's non-empty, else the current branch vs base
-    (`merge-base(base, HEAD)..HEAD`).
+  - **Empty** → a three-step cascade:
+    1. **The working tree carries uncommitted changes** (`git diff HEAD` non-empty) → review those,
+       exactly as before. A dirty working tree is reviewed as it always was, and the command says in one
+       line which eligible scope it passed over, when one exists — the single run root step 3 below would
+       have found, named with a quick, best-effort scan; several or none, say nothing extra.
+    2. **Otherwise `merge-base(base, HEAD)..HEAD` is non-empty** → review that, exactly as before.
+    3. **Otherwise** → run `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Resolving an empty
+       argument` cascade over the run roots at stage `merged` or `documented-unreviewed` — the same two
+       stages `skills/afk/SKILL.md` routes into this review, so the attended and unattended paths select
+       the same scopes. Its resolved candidate is a scope slug: take that scope's `**Branch:**` line
+       (`## The scope branch`) as `<branch>`. **No such line, or the named branch does not verify** —
+       take `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope branch` shape-scan fallback
+       and say which route was taken. The range becomes `merge-base(base, branch)..branch`,
+       which the **Scope mode wins** bullet above then recognizes as a live run.
+       **No candidate at all** — cite `## Resolving an empty argument`'s own **No candidate** wording,
+       adding a `/superdev:review <scope-slug>` line for the operator to type directly, and dispatch
+       nobody.
+  - **A scope slug** — reached only once the four shapes above all fail: no `..`, no ref
+    (`git rev-parse --verify --quiet <name>` fails), and no path on disk. **Validate it against
+    `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope slug` charset
+    (`[a-zA-Z0-9][a-zA-Z0-9_-]*`) before addressing `.superdev/scopes/<arg>/` with it** — the same test
+    `scope.js`'s `SLUG_RE` applies to a label's slug segment. A shape that fails it (a `../`-shaped
+    argument among them) refuses with that charset named, rather than reading whatever path the
+    argument resolves to. **It passes** — a run root exists for it
+    (a `<run-root>/ledger.md` per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## A live scope
+    run`). Resolve the branch with
+    `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get branch --root <run-root>` and verify it
+    (`git rev-parse --verify <branch>`); the range becomes `merge-base(base, branch)..branch`, which the
+    **Scope mode wins** bullet above then recognizes as a live run. **No such line, or the named branch
+    does not verify** → take `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope branch`
+    shape-scan fallback and say which route was taken. **No run root names the argument** → fall through
+    to the **Empty** shape above, exactly as an unresolved argument does today.
 
 **State the concrete range/target** (e.g. "Reviewing `a1b2c3..d4e5f6`" or "Reviewing working tree changes
 incl. untracked") before dispatching.

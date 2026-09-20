@@ -68,8 +68,11 @@ dispatches nothing — you carry the TDD discipline yourself. Narrate at most on
     the slice: load that one issue once, or you implement it twice. Label unknown to the store → say so
     and stop, creating no run root. **Anchor is an epic carrying no slices** → say so, point at
     **`/superdev:plan`**, stop. **`--unattended` → block**.
-  - **Empty** → exactly one feature has slices ready → use it. Several → name them and ask which;
-    **`--unattended` → block**. None → run **`/superdev:plan`** first.
+  - **Empty** → this command's own **candidate set** (CONTEXT.md) is the features whose slices are ready,
+    computed from the slice store over that store's own calls. Hand that set to
+    `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Resolving an empty argument` cascade,
+    restating no part of it here. **One local override ahead of the cascade**: no candidate runs
+    **`/superdev:plan`** first, rather than the cascade's own report-and-stop.
 - **Load the slices** (`id`, `depends-on`, `test-applicability`, `spec`, `acceptance`, + global DoD). No
   slices → run **`/superdev:plan`** first. **One slice, no epic** → the epic is optional
   (`plan-contract.md`): the DoD is that slice's `acceptance`.
