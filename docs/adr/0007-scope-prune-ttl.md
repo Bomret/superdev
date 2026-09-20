@@ -11,7 +11,7 @@ them. Measured the same day: `git branch --merged main` returned `main` alone wh
 branches sat merged in base, and six run roots stood past the TTL unpruned.
 
 **Context.** ADR 0001 established the run root (`dod.md`, `ledger.md` under `.superdev/scopes/<scope>/`)
-as a post-mortem trail that survives worktree removal, and deliberately never deleted by `/implement` itself.
+as a post-mortem trail that survives scopetree removal, and deliberately never deleted by `/implement` itself.
 Nothing else deletes it either: it is git-ignored, so it never pollutes the repo, but it also never goes
 away. A long-lived repo run through many `/superdev:implement` scopes accumulates one leftover directory
 per scope indefinitely, with no built-in way to reclaim it short of a manual `rm -rf`.
@@ -19,8 +19,8 @@ per scope indefinitely, with no built-in way to reclaim it short of a manual `rm
 **Decision.** A `Stop` hook, `hooks/scope-prune.js`, silently deletes a scope's run root once **all**
 hold: (a) the scope's work is finished with, (b) the ledger's stage reads `shipped`, and (c) the run
 root's newest file is older than a 7-day TTL. It never touches a scope whose
-`worktree` or `worktrees/` subdirectory is still present. That is an interrupted cleanup, not a finished
-run, and it is left for a human to look at, the same caution `worktree-sweep.js` already applies at the
+`scopetree` or `slicetrees/` subdirectory is still present. That is an interrupted cleanup, not a finished
+run, and it is left for a human to look at, the same caution `slicetree-sweep.js` already applies at the
 per-slice level.
 
 **A scope's work is finished with when its branch is merged into the current branch, or when the branch
@@ -30,7 +30,7 @@ also deletes the branch, which is why absence carries the signal that ancestry l
 offline, from local and remote-tracking refs together: an unfetched remote-tracking ref still present
 means the hook does not prune, which fails closed.
 
-`worktree-sweep.js` keeps ancestry alone at the per-slice level, correctly: a slice branch merges into
+`slicetree-sweep.js` keeps ancestry alone at the per-slice level, correctly: a slice branch merges into
 the scope branch normally, so its ancestry survives.
 
 The hook reads the scope's branch from the ledger's `**Branch:**` line, written by `scope.js init`,
@@ -62,7 +62,7 @@ the branch is gone, rather than guessing from shape.
 crash, and it drops off fast once the PR has been merged for a week. 7 days balances that against
 unbounded disk growth. A flat TTL is simpler than a per-scope config knob nobody has asked for yet.
 Piggybacking on the existing `Stop` hook lifecycle (same event, same best-effort and silent contract as
-`worktree-sweep.js`) needed no new hook event or wiring beyond one more entry in `hooks.json`'s `Stop`
+`slicetree-sweep.js`) needed no new hook event or wiring beyond one more entry in `hooks.json`'s `Stop`
 array.
 
 **Consequences.** `hooks/hooks.json` gains a second `Stop` hook. `package.json`'s `test` script gains

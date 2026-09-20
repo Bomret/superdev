@@ -6,7 +6,7 @@
 unloaded, an order total equals the sum of its lines, the domain layer imports no infrastructure. A
 feature built in isolation breaks one without noticing, because the rule lives somewhere the work never
 looks — a wiki page, or a comment in a class the change does not touch. The suite stays green. superdev's
-full tier sharpens this: each slice is built in its own worktree by an implementer that sees one slice
+full tier sharpens this: each slice is built in its own slicetree by an implementer that sees one slice
 and nothing else, and nothing in the plan, the implement loop, or the review carries a system's standing
 rules into that isolation.
 
@@ -47,7 +47,7 @@ the case where the path boundary is itself the invariant, as in a layering rule,
 a change to the decision rather than drift away from it.
 
 superdev is its own transport. Because `/superdev:plan` writes the matching invariant into the slice `spec`
-that the implementer already reads, the register reaches the isolated worktree with no change to
+that the implementer already reads, the register reaches the isolated slicetree with no change to
 `/superdev:implement` or either execution playbook, and with no dependency on a harness feature — which is
 what keeps the OpenCode rendering whole.
 

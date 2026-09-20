@@ -751,7 +751,7 @@ function verbStatus(cwd) {
 //
 // Whether `<base>` already holds `<branch>`'s work, on content rather than ancestry
 // (`references/scope-mode.md` `## Containment`). Exported for a sibling script to `require` — the same
-// shape `readLedgerHeader` already gives `hooks/scope-prune.js` and `hooks/worktree-sweep.js` — and no
+// shape `readLedgerHeader` already gives `hooks/scope-prune.js` and `hooks/slicetree-sweep.js` — and no
 // CLI verb, because this touches no ledger.
 //
 // A Containment verdict is one of three strings:

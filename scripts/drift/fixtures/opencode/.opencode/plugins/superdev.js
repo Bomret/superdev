@@ -47,7 +47,7 @@ const TASK_TOOLS = ["task"];
 const SHELL_BEFORE_HOOKS = ["merge-guard","run-lock","ledger-guard"];
 const SESSION_CREATED = ["session.created"];
 const SESSION_ENDED = ["session.idle","session.deleted"];
-const SESSION_END_HOOKS = ["worktree-sweep","scope-prune"];
+const SESSION_END_HOOKS = ["slicetree-sweep","scope-prune"];
 
 function bridgeSpawnEnv(root) {
   return Object.assign({}, process.env, { CLAUDE_PLUGIN_ROOT: root });

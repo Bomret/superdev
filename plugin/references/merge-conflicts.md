@@ -17,6 +17,6 @@ its progress log, its commit messages.
   sources already claim; a "better" third version is a drive-by change wearing a conflict as cover.
 - **A genuine winner-picking overlap escalates.** The same decision decided two incompatible ways —
   where honouring one spec means violating the other — is not the controller's to guess:
-  `git -C .superdev/scopes/<scope>/worktree merge --abort` and escalate to the human, and
+  `git -C .superdev/scopes/<scope>/scopetree merge --abort` and escalate to the human, and
   **`--unattended` → block** (`scope-mode.md`'s **Unattended** section). This is narrower than "the same
   lines conflict": compatible intents on the same lines compose above; only competing intents escalate.

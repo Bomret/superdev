@@ -1,4 +1,4 @@
-# 0076: /superdev:plan writes its design docs in the scope worktree, never in the invoking checkout
+# 0076: /superdev:plan writes its design docs in the scopetree, never in the invoking checkout
 
 **Status:** Accepted
 
@@ -15,12 +15,12 @@ checkout both revise `CONTEXT.md`, unstaged — `/superdev:plan` stages nothing 
 rather than only the caller's. Git offers no operation that removes one writer's edits from a blob two
 writers share, so no cleanup scoped by authorship can be correct.
 
-**Decision.** A new-feature `/superdev:plan` writes each design-doc capture **inside the scope
-worktree**, and never in the invoking checkout. §2 cuts
-`.superdev/scopes/<scope>/worktree` lazily, at the first capture that crystallises, and writes there from
-then on; §6 commits what the worktree already holds. A capture that crystallises before §1 settles the
-feature label is held in the conversation until the label exists, because the label names the worktree
-path. A label revised after the cut removes the worktree, deletes the branch, re-cuts both under the
+**Decision.** A new-feature `/superdev:plan` writes each design-doc capture **inside the
+scopetree**, and never in the invoking checkout. §2 cuts
+`.superdev/scopes/<scope>/scopetree` lazily, at the first capture that crystallises, and writes there from
+then on; §6 commits what the scopetree already holds. A capture that crystallises before §1 settles the
+feature label is held in the conversation until the label exists, because the label names the scopetree
+path. A label revised after the cut removes the scopetree, deletes the branch, re-cuts both under the
 revised label, and re-writes the held captures — sound because the branch carries nothing but this
 session's own design docs.
 
@@ -47,10 +47,10 @@ made one step earlier and for the same reason.
 
 **Consequences.** No `/superdev:plan` step reads or writes the invoking checkout's design docs on the
 new-feature path, so no cleanup, no lock, and no restore runs there, and a maintainer's own uncommitted
-edits are untouched by a plan run. The scope worktree is cut earlier than ADR 0072 cut it — at the first
+edits are untouched by a plan run. The scopetree is cut earlier than ADR 0072 cut it — at the first
 capture rather than at §6 — which widens two known windows already recorded as triage records rather
 than closed here: a run root stranded by an abandoned plan (invisible to `/superdev:backlog` and
 unreapable by `hooks/scope-prune.js`), and two sessions planning the *same* feature, who now share files
-inside one worktree instead of in the invoking checkout. A capture held before the label settles lives
+inside one scopetree instead of in the invoking checkout. A capture held before the label settles lives
 only in the conversation, so a session that ends there loses it — bounded by the label pick, which §1
 reaches early.

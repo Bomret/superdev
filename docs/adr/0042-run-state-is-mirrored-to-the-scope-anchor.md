@@ -92,7 +92,7 @@ the fence markers a round trip needs, so a default Jira instance is snapshot-les
   precisely because the ledger drives control flow, `hooks/ledger-guard.js` cannot guard a remote
   document, concurrent runs race on one anchor body, and an offline run becomes impossible.
 - **Commit the run root** — track `.superdev/scopes/<scope>/` on the scope branch. The full tier merges
-  per-slice worktrees into that branch, so a tracked ledger conflicts on every merge; it lands in the
+  per-slice slicetrees into that branch, so a tracked ledger conflicts on every merge; it lands in the
   pull-request diff, which `references/run-init.md` rules out; and it leaves the anchor as blank as before.
 - **A comment on the anchor rather than a body section.** Append-only history of the run's progress, at
   the cost of no single truth: a reader hunts for the newest comment, and replacing the right one needs
@@ -131,5 +131,5 @@ rebuilds a ledger from it.
 
 Drift-check gains three contracts — `publish-run-state`, that a ledger write which changes the snapshot
 publishes after it; `adopt-run-state`, the mirror image, that run init adopts a live snapshot correctly;
-and `resumed-worktree-trigger`, that a `resumed` run reattaches its worktree — rather than one per command,
+and `resumed-scopetree-trigger`, that a `resumed` run reattaches its scopetree — rather than one per command,
 because each rule is stated once in `references/scope-mode.md` or `references/run-init.md`.

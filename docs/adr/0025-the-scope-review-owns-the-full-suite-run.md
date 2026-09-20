@@ -92,7 +92,7 @@ where one happens, judges only its own doc commits and is not a gate either.
 A cross-slice break surfaces later than it did. On the full tier the green-gate still catches it at the
 merge that introduced it, because the focused run covers the paths that merge brought in. On the **lite
 tier there is no merge at all**, because slices commit straight to the scope branch, so no gate fires between
-the first slice and `/superdev:review`. A lite run is at most three slices in one worktree and hands off
+the first slice and `/superdev:review`. A lite run is at most three slices in one scopetree and hands off
 to the review immediately, so the window is accepted rather than closed.
 
 A focused command reaches only what the repository's own runner maps to the changed paths. superdev

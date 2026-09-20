@@ -56,7 +56,7 @@ mode:
   re-litigated.
 
 **Why.** Hard to reverse: once ids are referenced by merge history and `depends-on` edges across
-possibly-parallel worktrees, renumbering or rewriting them corrupts the record `/implement` and its
+possibly-parallel slicetrees, renumbering or rewriting them corrupts the record `/implement` and its
 reviewers already gated on. Surprising without context: `/plan`'s one-shot "exhaust the tree" design
 (this AGENTS.md / `cross-exam.md`) reads as if a feature is planned exactly once, so silent overwrite-on-
 rerun would surprise a user who reasonably expects to grow a shipped feature's scope later. Genuine

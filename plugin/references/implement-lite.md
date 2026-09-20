@@ -1,8 +1,8 @@
 # Lite execution playbook (≤3 slices)
 
 The controller `Read`s this after computing tier = `lite` (see `skills/implement/SKILL.md`). Small plans
-don't need per-slice worktrees or subagents: you (the controller) implement every slice yourself, inline,
-test-first, in a single dedicated scope worktree. This is the one deliberate exception to the "controller
+don't need per-slice slicetrees or subagents: you (the controller) implement every slice yourself, inline,
+test-first, in a single dedicated scopetree. This is the one deliberate exception to the "controller
 never implements inline" invariant (ADR 0001). Honor the controller's **Invariants** throughout. Once
 every slice is committed, perform the documentation pass (`## Document, before you hand off` below), then
 read `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md` as your last step.
@@ -10,23 +10,23 @@ read `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md` as your last step.
 ## Branch model
 
 - **Read `${CLAUDE_PLUGIN_ROOT}/references/run-init.md`** — the controller's run opening — before cutting
-  the worktree.
-- **Scope branch into a dedicated worktree, per this run's kind.** Read
+  the scopetree.
+- **Scope branch into a dedicated scopetree, per this run's kind.** Read
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Cutting the scope branch` and do what it says for
   the run kind the controller handed you — `fresh`, `appended`, or `resumed` (ADR 0028). Never derive that
   value yourself. Call whatever it leaves you on `<branch>` for the rest of this file: for `fresh` that is
-  literally `git worktree add .superdev/scopes/<scope>/worktree -b <type>/<scope> <base>` (`<path>` there
-  is always `.superdev/scopes/<scope>/worktree`; base from `code-management.md`, default `main`), while
+  literally `git worktree add .superdev/scopes/<scope>/scopetree -b <type>/<scope> <base>` (`<path>` there
+  is always `.superdev/scopes/<scope>/scopetree`; base from `code-management.md`, default `main`), while
   `appended` and `resumed` resolve `<branch>` per that same section, never by reconstructing the name.
   The invoking checkout is **never switched** — it stays where it was, so a second session can run in the
-  same repo. All inline implementation happens **in this worktree**. Then move the **scope anchor** →
+  same repo. All inline implementation happens **in this scopetree**. Then move the **scope anchor** →
   `in-progress` (per `issue-tracker.md`; best-effort).
 
 ## Run lock
 
 Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The run lock` and write
 `<run-root>/run.lock` as it says (the absolute run-init run-root path in the invoking checkout — never a
-`.superdev/scopes/<scope>/…` path from the worktree cwd, which resolves one level too deep). Leave the
+`.superdev/scopes/<scope>/…` path from the scopetree cwd, which resolves one level too deep). Leave the
 lock in place when you finish: it spans the whole chain, and `/superdev:ship` removes it once the run is
 shipped.
 
@@ -39,8 +39,8 @@ shipped.
   minimal GREEN code, repeat; every hunk traces to an acceptance criterion or the specification — remove
   only what your own edit orphaned, name pre-existing dead code instead of deleting it, and **grep for a
   sentence before you replace it**, since a clause restated in a sibling document keeps the old contract
-  alive while the suite stays green), **directly in the scope worktree at `.superdev/scopes/<scope>/worktree/`**.
-  All file edits, test runs, `git` commands, and commits happen **in the scope worktree as the cwd** —
+  alive while the suite stays green), **directly in the scopetree at `.superdev/scopes/<scope>/scopetree/`**.
+  All file edits, test runs, `git` commands, and commits happen **in the scopetree as the cwd** —
   never in the invoking checkout. `mechanical` / `docs` slices need no new test — the existing suite is
   the net. Read `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run the command it selects for
   each run.
@@ -66,7 +66,7 @@ shipped.
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section: a wrong cut is re-planning
   work, which needs the interview `/superdev:plan` runs.
 - **Commit per slice** on the scope branch (Conventional Commits) as each goes green — all commits in the
-  scope worktree. Update the ledger with
+  scopetree. Update the ledger with
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" slice <id> <status> --root <run-root>` (add
   `--range <commit-range>` on the `merged` write to record the slice's commit range, when you have one):
   `todo` → `in-progress` → `merged`, where `merged` means "committed to the scope branch" — there is no
@@ -82,20 +82,20 @@ shipped.
 
 ## Document, before you hand off
 
-Once every slice is committed, **you** perform the documentation pass, in this same worktree, while the
+Once every slice is committed, **you** perform the documentation pass, in this same scopetree, while the
 scope is still in your context. That is the point of doing it here: a `doc-writer` dispatched later would
 rebuild the same picture from a diff, and `/superdev:document` keeps only the cold `doc-reader` that hot
 context cannot replace (ADR 0031). The `full` tier does not do this — its slices are built in parallel
-worktrees and would collide on shared doc files.
+slicetrees and would collide on shared doc files.
 
 - **Read `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md` and perform the pass it states**, both passes,
   over the range `<base>..<branch>` — this scope's own commits. It owns the content-type lens, the writing
   standard, the in-repo docs pass, and the knowledge-base pass; this step owns only when it runs and what
   it records.
 - **Hand the pass the staging path as an absolute path** — `.superdev/kb-pending/<scope>/` in the
-  **invoking checkout**, not a `.superdev/…` path resolved from this worktree's cwd, which lands one level
+  **invoking checkout**, not a `.superdev/…` path resolved from this scopetree's cwd, which lands one level
   too deep in a directory `/superdev:ship` deletes.
-- **Commit the doc changes on the scope branch**, in this worktree, as their own commit.
+- **Commit the doc changes on the scope branch**, in this scopetree, as their own commit.
 - **Record the pass** with
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs set inline --root <run-root>`. That record is what
   tells `/superdev:document` to dispatch the `doc-reader` alone. Write it **after** the pass, never before:
@@ -116,20 +116,20 @@ worktrees and would collide on shared doc files.
 
 Read the ledger — `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>` and
 `get stage` — and cross-check it against `git log <base>..<branch>` (`<branch>` from the branch step
-above, never rebuilt as `<type>/<scope>`) in the scope worktree. A slice the ledger marks `merged` is
+above, never rebuilt as `<type>/<scope>`) in the scopetree. A slice the ledger marks `merged` is
 done; pick up at the next `todo` slice in `depends-on` order.
 
-An interrupted `in-progress` slice may have left partial, uncommitted changes in the scope worktree.
+An interrupted `in-progress` slice may have left partial, uncommitted changes in the scopetree.
 Before resuming, check `<run-root>/run.lock`: it exists and is fresh (mtime under 1 hour old, the run-lock
-hook's staleness threshold) → another session is live in this worktree; escalate or wait. **This worktree
+hook's staleness threshold) → another session is live in this scopetree; escalate or wait. **This scopetree
 already exists** — unlike `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope checkout`
-recreate path, where the worktree is absent and the same fresh lock is this run's own instead. Stale or
-absent → a crash resume: run `git status` / `git diff` in the scope worktree and decide whether to continue
+recreate path, where the scopetree is absent and the same fresh lock is this run's own instead. Stale or
+absent → a crash resume: run `git status` / `git diff` in the scopetree and decide whether to continue
 that slice's uncommitted work or discard it, before resuming.
 
-## Leave the worktree standing
+## Leave the scopetree standing
 
-Do **not** remove the scope worktree when the last slice is committed. `/superdev:review` and
+Do **not** remove the scopetree when the last slice is committed. `/superdev:review` and
 `/superdev:document` run in it — a fix commit and the doc commit both land on the scope branch there — and
 `/superdev:ship` removes it at the end of the chain. Read `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md`
-next, with the worktree, the run root, and the lock all in place.
+next, with the scopetree, the run root, and the lock all in place.

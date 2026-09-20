@@ -1,6 +1,6 @@
 {
   "name": "superdev",
-  "description": "Zero-prereq plan→implement loop: interview-driven vertical slicing, parallel worktree execution with isolated implementer/reviewer subagents, deterministic guardrails, and a pluggable slice store + code host.",
+  "description": "Zero-prereq plan→implement loop: interview-driven vertical slicing, parallel slicetree execution with isolated implementer/reviewer subagents, deterministic guardrails, and a pluggable slice store + code host.",
   "version": "0.47.0",
   "author": {
     "name": "Stefan Reichel",
@@ -14,7 +14,7 @@
     "planning",
     "vertical-slicing",
     "subagents",
-    "worktrees",
+    "slicetrees",
     "code-review",
     "workflow"
   ]

@@ -195,11 +195,11 @@ A command you invoked blocked instead of finishing
 (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section says when, and does the
 labelling and the comment). Then:
 
-- **Leave the scope standing.** Its branch, worktree, run root and lock all stay, so a maintainer resolves
+- **Leave the scope standing.** Its branch, scopetree, run root and lock all stay, so a maintainer resolves
   the decision and finishes that scope by hand. **Record `<feature-label>` in the block comment** (append
   it to what the invoked command wrote, or — for the error-stop case below — include it in the comment
-  you write yourself) and **name it in §6's report row**, so resuming by hand is one `cd` into the scope
-  worktree (`.superdev/scopes/<scope>/worktree`) away.
+  you write yourself) and **name it in §6's report row**, so resuming by hand is one `cd` into the
+  scopetree (`.superdev/scopes/<scope>/scopetree`) away.
 - **Add one to the consecutive-block count** — read `.superdev/afk-blocks`, write it back incremented —
   and go back to §2 for the next anchor.
 

@@ -44,7 +44,7 @@ tiers: record that slice execution finished, name what comes next.
   line is what tells the next command, or a resumed run, that every slice is on the scope branch. Publish
   the snapshot afterwards, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state`
   section.
-- **Leave the run standing.** Keep the worktrees and `<run-root>/run.lock`, leave
+- **Leave the run standing.** Keep the scopetree and `<run-root>/run.lock`, leave
   `<run-root>/dod.md` unticked and the anchor at `in-progress`. `/superdev:review` and
   `/superdev:document` work in the scope checkout you leave behind; `/superdev:ship` takes the run down.
 - **Print the next command, resolved.** Compute `BASE = git merge-base <base> <branch>` (`<base>` from

@@ -1,32 +1,32 @@
 #!/usr/bin/env node
 'use strict';
 
-// worktree-sweep: Stop hook. Deterministically removes finished superdev slice
-// worktrees so they don't pile up when the controller skips the prompted cleanup.
+// slicetree-sweep: Stop hook. Deterministically removes finished superdev
+// slicetrees so they don't pile up when the controller skips the prompted cleanup.
 //
-// superdev lays worktrees out per scope run: .superdev/scopes/<scope>/worktrees/<id>, on a
-// scoped branch slice/<scope>/<id>. A worktree is removed only when its branch is BOTH:
+// superdev lays slicetrees out per scope run: .superdev/scopes/<scope>/slicetrees/<id>, on a
+// scoped branch slice/<scope>/<id>. A slicetree is removed only when its branch is BOTH:
 //   (a) fully merged into ITS OWN scope run's scope branch (integrated), AND
 //   (b) "worked" — it has ≥1 commit not reachable from the repo's default branch.
 // (a) is asked per scope run, not of the invoking checkout's current branch: a full run leaves the
 // invoking checkout on the base branch throughout, so `git branch --merged` with no argument would
-// never see a slice worktree as merged at all. Each scope's branch is read from that scope's own
+// never see a slicetree as merged at all. Each scope's branch is read from that scope's own
 // ledger (the `**Branch:**` line, via `scripts/scope.js`'s shared `readLedgerHeader`, ADR 0022), so two
 // scope runs present at once are judged independently, and a scope whose ledger is unreadable or names
 // no branch sweeps nothing for itself while every other scope sweeps normally.
 // (b) is the critical guard: a freshly-created slice branch with zero commits is
 // trivially an ancestor of (hence "merged" into) its base, so `--merged` alone would
-// sweep active, not-yet-committed worktrees out from under running implementers. An
+// sweep active, not-yet-committed slicetrees out from under running implementers. An
 // unmerged in-progress slice fails (a); a fresh empty slice fails (b); only a genuinely
 // integrated slice satisfies both. Safe to fire every turn, self-corrects on reverts.
-// Best-effort and silent: any git error, a dirty worktree, an unreadable ledger, or no .superdev/ →
+// Best-effort and silent: any git error, a dirty slicetree, an unreadable ledger, or no .superdev/ →
 // no-op for the affected scope (or the whole sweep, where the failure isn't scope-specific).
 
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 
-// argv-based (no shell) — a repo-derived value (branch name, worktree path) containing a
+// argv-based (no shell) — a repo-derived value (branch name, slicetree path) containing a
 // quote/backtick/$() can't break out and inject.
 function git(args, cwd) {
   return execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' }).trim();
@@ -54,7 +54,7 @@ function defaultBranch(cwd) {
 // set, and the absolute path to ONE scope's own directory (`.superdev/scopes/<scope>`), return the
 // {wt, br} entries safe to remove for that scope. `mergedSet` is that scope's own branch's merge
 // state, so the porcelain scan must stay inside that same scope's directory too — scanning the whole
-// `.superdev/` tree here would let a sibling scope's worktree be judged by this scope's `mergedSet`,
+// `.superdev/` tree here would let a sibling scope's slicetree be judged by this scope's `mergedSet`,
 // sweeping it whenever its slice branch happens to be an ancestor of this scope's branch as well.
 function selectRemovable(porcelain, mergedSet, workedSet, scopeRoot) {
   const prefix = scopeRoot.endsWith(path.sep) ? scopeRoot : scopeRoot + path.sep;
@@ -63,8 +63,8 @@ function selectRemovable(porcelain, mergedSet, workedSet, scopeRoot) {
     const wt = (block.match(/^worktree (.+)$/m) || [])[1];
     const br = (block.match(/^branch refs\/heads\/(.+)$/m) || [])[1];
     if (!wt || !br) continue; // detached or main worktree — skip
-    if (!wt.startsWith(prefix)) continue; // only this scope's own worktrees
-    if (path.basename(path.dirname(wt)) !== 'worktrees') continue; // .../<scope>/worktrees/<id>
+    if (!wt.startsWith(prefix)) continue; // only this scope's own slicetrees
+    if (path.basename(path.dirname(wt)) !== 'slicetrees') continue; // .../<scope>/slicetrees/<id>
     if (!/^slice\//.test(br)) continue; // only slice/* branches
     if (!mergedSet.has(br)) continue; // (a) integrated into this scope's own branch
     if (!workedSet.has(br)) continue; // (b) has real committed work — not a fresh empty branch

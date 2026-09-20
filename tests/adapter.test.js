@@ -516,7 +516,7 @@ const {
     assert.deepEqual(BRIDGE_SHELL_BEFORE_HOOKS, ['merge-guard', 'run-lock', 'ledger-guard']);
     assert.deepEqual(BRIDGE_SESSION_CREATED, ['session.created']);
     assert.deepEqual(BRIDGE_SESSION_ENDED, ['session.idle', 'session.deleted']);
-    assert.deepEqual(BRIDGE_SESSION_END_HOOKS, ['worktree-sweep', 'scope-prune']);
+    assert.deepEqual(BRIDGE_SESSION_END_HOOKS, ['slicetree-sweep', 'scope-prune']);
 
     // The stdin builder emits the Claude shape the hooks parse, and omits what it has no value for.
     assert.deepEqual(buildHookPayload('PreToolUse', 'Bash', { command: 'ls' }, '/repo', 'a1'), {
@@ -569,7 +569,7 @@ const {
     write(pluginRoot, 'hooks/model-explicit.js', fakeHook('process.stderr.write(raw);process.exit(2);'));
     write(pluginRoot, 'hooks/green-gate.js', fakeHook(`if(input.tool_input.command.includes('jsondeny')){process.stdout.write(JSON.stringify({hookSpecificOutput:{permissionDecision:'deny',permissionDecisionReason:'json says no'}}));process.exit(0);}if(input.tool_input.command.includes('merge')){process.stderr.write('gated');process.exit(2);}process.exit(0);`));
     write(pluginRoot, 'hooks/update-check.js', fakeHook('process.exit(0);'));
-    write(pluginRoot, 'hooks/worktree-sweep.js', fakeHook('process.exit(0);'));
+    write(pluginRoot, 'hooks/slicetree-sweep.js', fakeHook('process.exit(0);'));
     write(pluginRoot, 'hooks/scope-prune.js', fakeHook('process.exit(0);'));
 
     const bridgeDest = tmp();
@@ -681,7 +681,7 @@ const {
     assert.equal(count('green-gate'), gatesBefore + 1, 'no green-gate spawn for a non-shell tool');
 
     // Regression: a hook that never reads stdin (a require() failure before main() runs, the
-    // documented worktree-sweep/scope-prune shape) must not turn a >64KB command payload into an
+    // documented slicetree-sweep/scope-prune shape) must not turn a >64KB command payload into an
     // uncaught EPIPE that crashes the whole plugin host, and a hook's multi-byte stdout/stderr
     // must survive a Buffer chunk boundary uncorrupted. A dedicated, minimal fixture — its own
     // merge-guard/green-gate bodies — so these two hooks' unusual shapes never interact with the
@@ -721,17 +721,17 @@ const {
       );
     }
 
-    // Session events: created → update-check; idle and deleted → worktree-sweep + scope-prune;
+    // Session events: created → update-check; idle and deleted → slicetree-sweep + scope-prune;
     // an unknown event spawns nothing.
     await plugin.event({ event: { type: 'session.created' } });
     assert.equal(count('update-check'), 1);
     await plugin.event({ event: { type: 'session.idle' } });
     await plugin.event({ event: { type: 'session.deleted' } });
-    assert.equal(count('worktree-sweep'), 2);
+    assert.equal(count('slicetree-sweep'), 2);
     assert.equal(count('scope-prune'), 2);
     await plugin.event({ event: { type: 'session.updated' } });
     await plugin.event({});
-    assert.equal(count('worktree-sweep'), 2, 'unknown and malformed events spawn nothing');
+    assert.equal(count('slicetree-sweep'), 2, 'unknown and malformed events spawn nothing');
 
     // CLI integration: the CLI writes the bridge into --dest and reports it.
     {

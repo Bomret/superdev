@@ -114,7 +114,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(scan(tmp3c).length, 0, 'a bare filename with no references/ component is not a reference');
 
   // --- scanRunRootPaths: run-root artifacts must use the absolute <run-root>/… form, never a
-  // checkout-relative .superdev/scopes/<scope>/<artifact> path (wrong from a worktree cwd) ---
+  // checkout-relative .superdev/scopes/<scope>/<artifact> path (wrong from a scopetree or slicetree cwd) ---
 
   // positive: an execution doc with checkout-relative run-root artifact paths is flagged
   const tmp4 = fixture({
@@ -128,15 +128,15 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'names the source doc',
   );
 
-  // negative: the absolute <run-root>/… form plus worktree *directory* paths are clean
+  // negative: the absolute <run-root>/… form plus scopetree/slicetree *directory* paths are clean
   const tmp5 = fixture({
     'references/implement-lite.md':
-      'Update the ledger at `<run-root>/ledger.md`; cut `.superdev/scopes/<scope>/worktree`.\n',
+      'Update the ledger at `<run-root>/ledger.md`; cut `.superdev/scopes/<scope>/scopetree`.\n',
     'agents/implementer.md':
-      'Append to `<run-root>/reports/<id>/progress.md`; worktree at `.superdev/scopes/<scope>/worktrees/<id>`.\n',
+      'Append to `<run-root>/reports/<id>/progress.md`; slicetree at `.superdev/scopes/<scope>/slicetrees/<id>`.\n',
   });
   const offenders5 = scanRunRootPaths(tmp5);
-  assert.equal(offenders5.length, 0, 'absolute form + worktree dir paths yield zero offenders');
+  assert.equal(offenders5.length, 0, 'absolute form + scopetree/slicetree dir paths yield zero offenders');
 
   // --- scanAssigneeContract: an issue-backend doc that describes creating an issue must carry the
   // `## Assignee` section, and must NOT carry a `- **Assignee:**` configuration bullet. The assignee is

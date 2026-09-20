@@ -25,7 +25,7 @@ try {
   // decide() reads the session cwd from the top-level payload (input.cwd), NOT tool_input —
   // this helper builds the payload matching the real Bash hook shape, so a regression in the cwd source fails.
   const at = (command) => decide({ tool_input: { command }, cwd: testRunDir });
-  const add = `git worktree add .superdev/scopes/${testScope}/worktree `;
+  const add = `git worktree add .superdev/scopes/${testScope}/scopetree `;
 
   // Test 1: fresh lock on the guarded create op → block
   fs.writeFileSync(lockPath, 'locked', 'utf8');
@@ -40,21 +40,21 @@ try {
   fs.unlinkSync(lockPath);
   assert.strictEqual(at(add).block, false, 'Test 3 FAIL: absent lock should allow');
 
-  // Test 4: non-worktree command → allow (even under a fresh lock)
+  // Test 4: non-scopetree command → allow (even under a fresh lock)
   fs.writeFileSync(lockPath, 'locked', 'utf8');
-  assert.strictEqual(at('echo hello').block, false, 'Test 4 FAIL: non-worktree should allow');
+  assert.strictEqual(at('echo hello').block, false, 'Test 4 FAIL: non-scopetree should allow');
 
   // Test 5: `git worktree remove` is not the guarded create op → allow
-  assert.strictEqual(at(`git worktree remove .superdev/scopes/${testScope}/worktree`).block, false, 'Test 5 FAIL: worktree remove should not block');
+  assert.strictEqual(at(`git worktree remove .superdev/scopes/${testScope}/scopetree`).block, false, 'Test 5 FAIL: worktree remove should not block');
 
-  // Test 6: owner working IN its own worktree (cd/grep/bun) → allow, not blocked by its own lock
-  assert.strictEqual(at(`cd .superdev/scopes/${testScope}/worktree && bun run test`).block, false, 'Test 6 FAIL: cd into worktree must not block on a fresh lock');
+  // Test 6: owner working IN its own scopetree (cd/grep/bun) → allow, not blocked by its own lock
+  assert.strictEqual(at(`cd .superdev/scopes/${testScope}/scopetree && bun run test`).block, false, 'Test 6 FAIL: cd into scopetree must not block on a fresh lock');
 
-  // Test 7: `git -C <worktree> …` (and other non-add ops) → allow
-  assert.strictEqual(at(`git -C .superdev/scopes/${testScope}/worktree status`).block, false, 'Test 7 FAIL: git -C worktree must not block on a fresh lock');
+  // Test 7: `git -C <scopetree> …` (and other non-add ops) → allow
+  assert.strictEqual(at(`git -C .superdev/scopes/${testScope}/scopetree status`).block, false, 'Test 7 FAIL: git -C scopetree must not block on a fresh lock');
 
   // Test 8: the guarded create op still blocks under a fresh lock
-  assert.strictEqual(at(`git worktree add .superdev/scopes/${testScope}/worktree -b b base`).block, true, 'Test 8 FAIL: git worktree add must block on a fresh lock');
+  assert.strictEqual(at(`git worktree add .superdev/scopes/${testScope}/scopetree -b b base`).block, true, 'Test 8 FAIL: git worktree add must block on a fresh lock');
 
   // Test 9: a slug leading outside `[a-zA-Z0-9]` is not canonical (references/scope-mode.md's
   // `[a-zA-Z0-9][a-zA-Z0-9_-]*`) — extractScope must return null for it. Proven with a fresh lock
@@ -64,7 +64,7 @@ try {
   const badLockDir = path.join(testRunDir, '.superdev', 'scopes', '-bad');
   fs.mkdirSync(badLockDir, { recursive: true });
   fs.writeFileSync(path.join(badLockDir, 'run.lock'), 'locked', 'utf8');
-  assert.strictEqual(at('git worktree add .superdev/scopes/-bad/worktree').block, false, 'Test 9 FAIL: leading `-` must not be extracted as a scope');
+  assert.strictEqual(at('git worktree add .superdev/scopes/-bad/scopetree').block, false, 'Test 9 FAIL: leading `-` must not be extracted as a scope');
 
   // Protocol validation (exit 2 on block, exit 0 on allow) is tested at hook invocation time by
   // Claude Code; this suite covers the decide() logic. The main() function properly translates

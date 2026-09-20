@@ -98,7 +98,7 @@ test compares.
 
 `/superdev:publish-kb` stops asking about a squash-merged scope, so its warning means something again.
 `references/scope-mode.md` gains the one canonical statement of the test, and the drift check pins it
-along with the conditions the forcing-flag exception requires. `hooks/worktree-sweep.js` is untouched: a
+along with the conditions the forcing-flag exception requires. `hooks/slicetree-sweep.js` is untouched: a
 slice branch merges into the scope branch normally, so its ancestry survives and ADR 0007's reasoning
 about it still holds.
 

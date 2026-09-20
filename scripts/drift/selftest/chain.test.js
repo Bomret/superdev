@@ -38,8 +38,8 @@ const {
   specialisingCitation,
   PUBLISH_RUN_STATE_CONTRACTS,
   ADOPT_RUN_STATE_CONTRACTS,
-  RESUMED_WORKTREE_TRIGGER_CONTRACTS,
-  SCOPE_WORKTREE_CONTRACTS,
+  RESUMED_SCOPETREE_TRIGGER_CONTRACTS,
+  SCOPETREE_CONTRACTS,
   TRIAGE_RECORD_CONTRACTS,
   BACKLOG_SURVEY_CONTRACTS,
 } = require('../contracts');
@@ -619,45 +619,45 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   assert.equal(buggyVerifyGaps.length, 1, 'adopt-run-state: flags a re-verify against the bare branch name');
   assert.equal(buggyVerifyGaps[0].source, path.join('references', 'scope-mode.md'), 'names scope-mode.md');
 
-  // --- RESUMED_WORKTREE_TRIGGER_CONTRACTS: the worktree step fires on either cause the scope worktree
+  // --- RESUMED_SCOPETREE_TRIGGER_CONTRACTS: the scopetree step fires on either cause the scopetree
   // can be absent for — `/superdev:ship` removed it, or this checkout never held it at all — not
   // only the first. A regression back to the single-cause sentence must fail on its own. ---
 
-  const broadenedWorktreeStep =
-    'Create or reattach the scope worktree, at both tiers, whenever it is absent — because ' +
+  const broadenedScopetreeStep =
+    'Create or reattach the scopetree, at both tiers, whenever it is absent — because ' +
     '`/superdev:ship` already removed it, or because this checkout never held it (a resumed run adopted ' +
     'from the anchor on a fresh clone) — and otherwise work in the one already there.\n';
 
   assert.equal(
-    scanContract(fixture({ 'references/scope-mode.md': broadenedWorktreeStep }), RESUMED_WORKTREE_TRIGGER_CONTRACTS)
+    scanContract(fixture({ 'references/scope-mode.md': broadenedScopetreeStep }), RESUMED_SCOPETREE_TRIGGER_CONTRACTS)
       .length,
     0,
-    'resumed-worktree-trigger: the broadened sentence yields zero gaps',
+    'resumed-scopetree-trigger: the broadened sentence yields zero gaps',
   );
 
   // positive: the pre-fix-cycle, single-cause sentence (ship-removed only) fires the gap — the exact
   // regression this check exists to catch
-  const narrowedWorktreeStep =
-    'Work in the existing scope worktree, and reattach the branch with `git worktree ' +
-    'add <path> <branch>` when `/superdev:ship` has already removed that worktree.\n';
+  const narrowedScopetreeStep =
+    'Work in the existing scopetree, and reattach the branch with `git worktree ' +
+    'add <path> <branch>` when `/superdev:ship` has already removed that scopetree.\n';
   const narrowedGaps = scanContract(
-    fixture({ 'references/scope-mode.md': narrowedWorktreeStep }),
-    RESUMED_WORKTREE_TRIGGER_CONTRACTS,
+    fixture({ 'references/scope-mode.md': narrowedScopetreeStep }),
+    RESUMED_SCOPETREE_TRIGGER_CONTRACTS,
   );
-  assert.equal(narrowedGaps.length, 1, 'resumed-worktree-trigger: flags the narrowed, single-cause sentence');
+  assert.equal(narrowedGaps.length, 1, 'resumed-scopetree-trigger: flags the narrowed, single-cause sentence');
   assert.equal(narrowedGaps[0].source, path.join('references', 'scope-mode.md'), 'names scope-mode.md');
 
   // absent files are skipped, matching every other contract table
   assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), RESUMED_WORKTREE_TRIGGER_CONTRACTS).length,
+    scanContract(fixture({ 'README.md': '# repo\n' }), RESUMED_SCOPETREE_TRIGGER_CONTRACTS).length,
     0,
-    'resumed-worktree-trigger: absent documents are skipped',
+    'resumed-scopetree-trigger: absent documents are skipped',
   );
 
-  // --- SCOPE_WORKTREE_CONTRACTS (ADR 0045): the `full` tier cuts and merges in the same scope worktree
+  // --- SCOPETREE_CONTRACTS (ADR 0045): the `full` tier cuts and merges in the same scopetree
   // the `lite` tier uses, never the invoking checkout. Five rows on scope-mode.md's `## The scope
   // checkout` and `## The run lock`, six on implement-full.md's Branch model, Merge step, integration
-  // branch, Resume worktree-first step, Resume's own run-lock check, and its own run-lock pointer, one on
+  // branch, Resume scopetree-first step, Resume's own run-lock check, and its own run-lock pointer, one on
   // implement-lite.md's run-lock pointer, one each on run-init.md's and run-handoff.md's now-unqualified
   // `run.lock` mentions, three on skills/review/SKILL.md's §4 (the scope-checkout branch test, the full-suite
   // run's working directory, and the fix-implementer dispatch's working directory), two more on
@@ -666,30 +666,30 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // text unique to its own clause, so dropping one fires exactly one gap. ---
 
   const scwScopeModePieces = {
-    location: '`.superdev/scopes/<scope>/worktree` is the scope checkout, at both tiers.\n\n',
+    location: '`.superdev/scopes/<scope>/scopetree` is the scope checkout, at both tiers.\n\n',
     recreate:
-      '**Absent** → recreate it: `git worktree add .superdev/scopes/<scope>/worktree <branch>`.\n\n',
+      '**Absent** → recreate it: `git worktree add .superdev/scopes/<scope>/scopetree <branch>`.\n\n',
     lockNotCompeting:
       "**`run-lock` refuses the call, naming another session** → that lock is this run's own.\n\n",
     stop:
       '**A different working tree already holds `<branch>`** → say so and stop, writing nothing.\n\n',
     runLock:
-      '**Write `<run-root>/run.lock` once `## Cutting the scope branch` above has cut the worktree, ' +
+      '**Write `<run-root>/run.lock` once `## Cutting the scope branch` above has cut the scopetree, ' +
       'at both tiers**.\n',
   };
 
   const implementFullPieces = {
     branchModel:
-      'every later command in this file — every merge — addresses the scope worktree, ' +
-      '`.superdev/scopes/<scope>/worktree`, with `git -C`, and the invoking checkout is never switched.\n\n',
+      'every later command in this file — every merge — addresses the scopetree, ' +
+      '`.superdev/scopes/<scope>/scopetree`, with `git -C`, and the invoking checkout is never switched.\n\n',
     merge:
-      '**Merge (you, serially)** — in the scope worktree: `git -C .superdev/scopes/<scope>/worktree ' +
+      '**Merge (you, serially)** — in the scopetree: `git -C .superdev/scopes/<scope>/scopetree ' +
       'merge --no-ff slice/<scope>/<id>`.\n\n',
     integration:
-      'cut `integration/<scope>` from `<branch>` at run start, keep it checked out **in the scope ' +
-      "worktree**, and merge every slice into it. The plan's final integrate-and-verify slice is where " +
-      'you switch that same scope worktree back to `<branch>`.\n\n',
-    resume: '**Find the scope worktree first**, per `## The scope checkout`.\n\n',
+      'cut `integration/<scope>` from `<branch>` at run start, keep it checked out **in the ' +
+      "scopetree**, and merge every slice into it. The plan's final integrate-and-verify slice is where " +
+      'you switch that same scopetree back to `<branch>`.\n\n',
+    resume: '**Find the scopetree first**, per `## The scope checkout`.\n\n',
     resumeLock:
       '**Found already present? Check the run lock before dispatching anything.** Read ' +
       '`<run-root>/run.lock`.\n\n',
@@ -708,9 +708,9 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     "The run root (`dod.md`, `ledger.md`, `run.lock`, per that file's `## The run lock`) stays in the " +
     'invoking checkout.\n';
 
-  const runHandoffWorktreePieces = {
+  const runHandoffScopetreePieces = {
     lockMention:
-      '**Leave the run standing.** Keep the worktrees and `<run-root>/run.lock`, leave ' +
+      '**Leave the run standing.** Keep the scopetree and `<run-root>/run.lock`, leave ' +
       '`<run-root>/dod.md` unticked.\n\n',
     suiteDir:
       'Take the full command and run it once **in that checkout**, over the scope branch.\n\n',
@@ -721,10 +721,10 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   };
 
   const mergeConflictsPiece =
-    'A genuine winner-picking overlap escalates: `git -C .superdev/scopes/<scope>/worktree merge ' +
+    'A genuine winner-picking overlap escalates: `git -C .superdev/scopes/<scope>/scopetree merge ' +
     '--abort` and escalate to the human.\n';
 
-  const reviewWorktreePieces = {
+  const reviewScopetreePieces = {
     branchTest:
       'Find the scope checkout, and refresh the run lock. **The scope checkout not on ' +
       '`<type>/<scope>`** → report that and review read-only.\n\n',
@@ -742,14 +742,14 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'Check `.superdev/scopes/<scope>/run.lock`: newer than an hour means another session owns that ' +
     'scope. **No lock present is not by itself eligibility**: fall back to the ledger mtime.\n';
 
-  const everyScopeWorktreeSite = {
+  const everyScopetreeSite = {
     'references/scope-mode.md': joinAll(scwScopeModePieces),
     'references/implement-full.md': joinAll(implementFullPieces),
     'references/implement-lite.md': joinAll(implementLitePieces),
     'references/run-init.md': runInitPiece,
-    'references/run-handoff.md': joinAll(runHandoffWorktreePieces),
+    'references/run-handoff.md': joinAll(runHandoffScopetreePieces),
     'references/merge-conflicts.md': mergeConflictsPiece,
-    'skills/review/SKILL.md': joinAll(reviewWorktreePieces),
+    'skills/review/SKILL.md': joinAll(reviewScopetreePieces),
     'skills/afk/SKILL.md': afkLockPiece,
   };
 
@@ -761,9 +761,9 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   // negative: every clause present is clean
   assert.equal(
-    scanContract(fixture(everyScopeWorktreeSite), SCOPE_WORKTREE_CONTRACTS).length,
+    scanContract(fixture(everyScopetreeSite), SCOPETREE_CONTRACTS).length,
     0,
-    'scope-worktree: every clause present yields zero gaps',
+    'scopetree: every clause present yields zero gaps',
   );
 
   // positive: dropping any one scope-mode.md clause fires exactly one gap naming that file
@@ -772,9 +772,9 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       .filter(([k]) => k !== key)
       .map(([, v]) => v)
       .join('');
-    const dropped = fixture({ ...everyScopeWorktreeSite, 'references/scope-mode.md': remaining });
-    const gaps = scanContract(dropped, SCOPE_WORKTREE_CONTRACTS);
-    assert.equal(gaps.length, 1, `scope-worktree: flags scope-mode.md alone for dropping its "${key}" clause`);
+    const dropped = fixture({ ...everyScopetreeSite, 'references/scope-mode.md': remaining });
+    const gaps = scanContract(dropped, SCOPETREE_CONTRACTS);
+    assert.equal(gaps.length, 1, `scopetree: flags scope-mode.md alone for dropping its "${key}" clause`);
     assert.equal(gaps[0].source, path.join('references', 'scope-mode.md'), 'names scope-mode.md');
   }
 
@@ -784,21 +784,21 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       .filter(([k]) => k !== key)
       .map(([, v]) => v)
       .join('');
-    const dropped = fixture({ ...everyScopeWorktreeSite, 'references/implement-full.md': remaining });
-    const gaps = scanContract(dropped, SCOPE_WORKTREE_CONTRACTS);
+    const dropped = fixture({ ...everyScopetreeSite, 'references/implement-full.md': remaining });
+    const gaps = scanContract(dropped, SCOPETREE_CONTRACTS);
     assert.equal(
       gaps.length,
       1,
-      `scope-worktree: flags implement-full.md alone for dropping its "${key}" clause`,
+      `scopetree: flags implement-full.md alone for dropping its "${key}" clause`,
     );
     assert.equal(gaps[0].source, path.join('references', 'implement-full.md'), 'names implement-full.md');
   }
 
   // positive: dropping afk.md's no-lock fallback fires exactly one gap naming that file — the shape
   // every other row in this table has, and the one the missing fixture key withheld from this row
-  const droppedAfkLock = fixture({ ...everyScopeWorktreeSite, 'skills/afk/SKILL.md': '' });
-  const afkLockGaps = scanContract(droppedAfkLock, SCOPE_WORKTREE_CONTRACTS);
-  assert.equal(afkLockGaps.length, 1, 'scope-worktree: flags afk.md for dropping the no-lock fallback');
+  const droppedAfkLock = fixture({ ...everyScopetreeSite, 'skills/afk/SKILL.md': '' });
+  const afkLockGaps = scanContract(droppedAfkLock, SCOPETREE_CONTRACTS);
+  assert.equal(afkLockGaps.length, 1, 'scopetree: flags afk.md for dropping the no-lock fallback');
   assert.equal(afkLockGaps[0].source, path.join('skills', 'afk', 'SKILL.md'), 'names afk.md');
 
   // --- scanAfkLockTierClaim: the row above is a presence check, and its expectation describes an
@@ -840,37 +840,37 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   // positive: dropping the implement-lite.md run-lock pointer fires exactly one gap naming that file —
   // the sentence it exists to catch is a reintroduced restatement of who writes the lock and when
-  const droppedLitePointer = fixture({ ...everyScopeWorktreeSite, 'references/implement-lite.md': '' });
-  const liteGaps = scanContract(droppedLitePointer, SCOPE_WORKTREE_CONTRACTS);
-  assert.equal(liteGaps.length, 1, 'scope-worktree: flags implement-lite.md for dropping the run-lock pointer');
+  const droppedLitePointer = fixture({ ...everyScopetreeSite, 'references/implement-lite.md': '' });
+  const liteGaps = scanContract(droppedLitePointer, SCOPETREE_CONTRACTS);
+  assert.equal(liteGaps.length, 1, 'scopetree: flags implement-lite.md for dropping the run-lock pointer');
   assert.equal(liteGaps[0].source, path.join('references', 'implement-lite.md'), 'names implement-lite.md');
 
   // positive: dropping run-init.md's unqualified `run.lock` mention fires exactly one gap naming it —
   // the sentence it exists to catch is a reintroduced `— lite tier only` qualifier
-  const droppedRunInit = fixture({ ...everyScopeWorktreeSite, 'references/run-init.md': '' });
-  const runInitGaps = scanContract(droppedRunInit, SCOPE_WORKTREE_CONTRACTS);
-  assert.equal(runInitGaps.length, 1, 'scope-worktree: flags run-init.md for dropping the unqualified mention');
+  const droppedRunInit = fixture({ ...everyScopetreeSite, 'references/run-init.md': '' });
+  const runInitGaps = scanContract(droppedRunInit, SCOPETREE_CONTRACTS);
+  assert.equal(runInitGaps.length, 1, 'scopetree: flags run-init.md for dropping the unqualified mention');
   assert.equal(runInitGaps[0].source, path.join('references', 'run-init.md'), 'names run-init.md');
 
   // positive: dropping any one run-handoff.md clause (the unqualified `run.lock` mention, its own
   // full-suite working directory, or its Red-branch fix implementer's working directory) fires exactly
   // one gap naming that file
-  for (const key of Object.keys(runHandoffWorktreePieces)) {
-    const remaining = Object.entries(runHandoffWorktreePieces)
+  for (const key of Object.keys(runHandoffScopetreePieces)) {
+    const remaining = Object.entries(runHandoffScopetreePieces)
       .filter(([k]) => k !== key)
       .map(([, v]) => v)
       .join('');
-    const dropped = fixture({ ...everyScopeWorktreeSite, 'references/run-handoff.md': remaining });
-    const gaps = scanContract(dropped, SCOPE_WORKTREE_CONTRACTS);
-    assert.equal(gaps.length, 1, `scope-worktree: flags run-handoff.md alone for dropping its "${key}" clause`);
+    const dropped = fixture({ ...everyScopetreeSite, 'references/run-handoff.md': remaining });
+    const gaps = scanContract(dropped, SCOPETREE_CONTRACTS);
+    assert.equal(gaps.length, 1, `scopetree: flags run-handoff.md alone for dropping its "${key}" clause`);
     assert.equal(gaps[0].source, path.join('references', 'run-handoff.md'), 'names run-handoff.md');
   }
 
-  // positive: dropping merge-conflicts.md's scope-worktree abort fires exactly one gap naming it — the
+  // positive: dropping merge-conflicts.md's scopetree abort fires exactly one gap naming it — the
   // sentence it exists to catch is a reintroduced bare `git merge --abort`
-  const droppedMergeConflicts = fixture({ ...everyScopeWorktreeSite, 'references/merge-conflicts.md': '' });
-  const mergeConflictsGaps = scanContract(droppedMergeConflicts, SCOPE_WORKTREE_CONTRACTS);
-  assert.equal(mergeConflictsGaps.length, 1, 'scope-worktree: flags merge-conflicts.md for dropping the scope-worktree abort');
+  const droppedMergeConflicts = fixture({ ...everyScopetreeSite, 'references/merge-conflicts.md': '' });
+  const mergeConflictsGaps = scanContract(droppedMergeConflicts, SCOPETREE_CONTRACTS);
+  assert.equal(mergeConflictsGaps.length, 1, 'scopetree: flags merge-conflicts.md for dropping the scopetree abort');
   assert.equal(
     mergeConflictsGaps[0].source,
     path.join('references', 'merge-conflicts.md'),
@@ -878,22 +878,22 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   );
 
   // positive: dropping any one skills/review/SKILL.md clause fires exactly one gap naming that file
-  for (const key of Object.keys(reviewWorktreePieces)) {
-    const remaining = Object.entries(reviewWorktreePieces)
+  for (const key of Object.keys(reviewScopetreePieces)) {
+    const remaining = Object.entries(reviewScopetreePieces)
       .filter(([k]) => k !== key)
       .map(([, v]) => v)
       .join('');
-    const dropped = fixture({ ...everyScopeWorktreeSite, 'skills/review/SKILL.md': remaining });
-    const gaps = scanContract(dropped, SCOPE_WORKTREE_CONTRACTS);
-    assert.equal(gaps.length, 1, `scope-worktree: flags skills/review/SKILL.md alone for dropping its "${key}" clause`);
+    const dropped = fixture({ ...everyScopetreeSite, 'skills/review/SKILL.md': remaining });
+    const gaps = scanContract(dropped, SCOPETREE_CONTRACTS);
+    assert.equal(gaps.length, 1, `scopetree: flags skills/review/SKILL.md alone for dropping its "${key}" clause`);
     assert.equal(gaps[0].source, path.join('skills', 'review', 'SKILL.md'), 'names skills/review/SKILL.md');
   }
 
   // absent files are skipped, matching every other contract table
   assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), SCOPE_WORKTREE_CONTRACTS).length,
+    scanContract(fixture({ 'README.md': '# repo\n' }), SCOPETREE_CONTRACTS).length,
     0,
-    'scope-worktree: absent documents are skipped',
+    'scopetree: absent documents are skipped',
   );
 
   // --- DENIAL_AUTHORSHIP_CONTRACTS: the unattended block fires on authorship, not on the denial, and

@@ -105,8 +105,8 @@ other rule.
 - Do not interrupt a sentence with a list. End the sentence, then start the list.
 - Give a pronoun exactly one possible referent. If two nouns come before it, repeat the noun instead.
 - Attach a modifying phrase to the word it describes. A phrase at the start of a sentence describes
-  the subject that follows it. Write "after you merge the branch, the hook removes the worktree", not
-  "after merging the branch, the worktree is removed".
+  the subject that follows it. Write "after you merge the branch, the hook removes the slicetree", not
+  "after merging the branch, the slicetree is removed".
 - Put the parts of a sentence in the order the reader needs them. State a condition before the action it
   governs.
 - Use the same sentence pattern for the same kind of statement. A reader who recognises the pattern

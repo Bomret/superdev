@@ -4,7 +4,7 @@
 
 **Context.** The implement chain ends with `/superdev:implement`, then `/superdev:review`, then `/superdev:document`, then
 `/superdev:ship` (ADR 0013). On the `lite` tier the controller implements every slice itself, inline, in
-one scope worktree, the deliberate exception ADR 0001 records, so it reaches the end of the run holding
+one scopetree, the deliberate exception ADR 0001 records, so it reaches the end of the run holding
 the whole scope in its own context. `/superdev:document` then dispatches a cold `doc-writer` that rebuilds
 that same scope from a diff, and a cold `doc-reader` after it. Two dispatches pay to reconstruct what
 existed minutes earlier and was discarded. ADR 0003 settled **when** the reconcile runs relative to the
@@ -21,7 +21,7 @@ stale. The procedure both callers follow lives in `references/doc-pass.md`. The 
 **Why.** Writing wants hot context and checking wants fresh eyes. The `lite` controller already holds the
 scope, so a cold writer buys nothing there but the tokens to rebuild it. The `doc-reader`'s value is the
 opposite property, that it never saw the work, so it stays. The `full` tier keeps its writer because its
-implementers sit in isolated parallel worktrees while the controller merges serially: per-slice doc edits
+implementers sit in isolated parallel slicetrees while the controller merges serially: per-slice doc edits
 would collide on shared doc files, which is the one conflict class with no mechanical resolution.
 
 The pass runs before the review rather than after it, which does not reopen the race ADR 0003 closed. That
@@ -35,9 +35,9 @@ the documentation. ADR 0003's ordering continues to govern every `doc-writer` di
 - *Per-slice doc edits inside the lite loop*. Rejected: a later slice supersedes an earlier slice's
   paragraph, so the churn `agents/implementer.md`'s ban prevents across a run returns inside one scope.
 - *The pass moves into `agents/implementer.md` for both tiers*. Rejected: the `full` tier's parallel
-  worktrees collide on shared doc files, and per-slice doc overhead multiplied by the slice count costs
+  slicetrees collide on shared doc files, and per-slice doc overhead multiplied by the slice count costs
   more than the single pass it replaces.
-- *Infer the pass from the scope worktree instead of recording it*. Rejected: inference cannot separate
+- *Infer the pass from the scopetree instead of recording it*. Rejected: inference cannot separate
   "nothing needed documenting" from "the run ended before its doc step", so it must dispatch the writer on
   exactly the cheap scope this decision optimizes.
 - *The knowledge-base pass stays with `doc-writer`*. Rejected: the writer is then dispatched on every

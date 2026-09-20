@@ -63,7 +63,7 @@ Decompose into **vertical slices** (`<plugin-root>/references/plan-contract.md` 
 @316
 every slice is on the scope branch — to `/superdev-review`, or straight to `/superdev-document` when
 @324
-only the commit is outstanding. `/superdev-implement` runs from a fresh worktree checkout of that branch,
+only the commit is outstanding. `/superdev-implement` runs from a fresh scopetree checkout of that branch,
 @327
 `node "<plugin-root>/scripts/scope.js" base-lock acquire`, from the invoking checkout — **before
 @329

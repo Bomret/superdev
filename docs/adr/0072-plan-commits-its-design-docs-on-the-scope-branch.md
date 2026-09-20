@@ -2,8 +2,8 @@
 
 **Status:** Accepted
 
-**Amended by:** [ADR 0076](0076-plan-writes-its-design-docs-in-the-scope-worktree.md), which moves the
-design-doc *writes* into the scope worktree as well, so the invoking checkout holds no residue for a
+**Amended by:** [ADR 0076](0076-plan-writes-its-design-docs-in-the-scope-scopetree.md), which moves the
+design-doc *writes* into the scopetree as well, so the invoking checkout holds no residue for a
 later run init to commit to base.
 
 **Context.** `/superdev:plan` §6 and `/superdev:implement`'s run init both commit `CONTEXT.md`, ADRs, and
@@ -13,9 +13,9 @@ two sessions writing the same files in the same checkout. A lock is the right an
 the wrong answer to a step that never needed to be shared.
 
 **Decision.** A new-feature `/superdev:plan` that produced design docs cuts the scope branch into its own
-scope worktree — `git worktree add .superdev/scopes/<scope>/worktree -b <type>/<scope> <base>`, the call
+scopetree — `git worktree add .superdev/scopes/<scope>/scopetree -b <type>/<scope> <base>`, the call
 `references/scope-mode.md`'s `## Cutting the scope branch` already states — writes the three file groups
-there, and commits on the scope branch. Two sessions planning two features hold two worktrees and share
+there, and commits on the scope branch. Two sessions planning two features hold two scopetrees and share
 no file, so nothing is left to serialize.
 
 Three boundaries keep the change local:
@@ -27,7 +27,7 @@ Three boundaries keep the change local:
   it. Leaving append mode on base preserves that path untouched, and the lock stays live for it rather
   than becoming dead code.
 - **Run kind stays derived from the ledger alone.** `fresh`'s branch step gains one reuse case — a
-  present, clean scope worktree beside a ledger-less run root — instead of the run kind gaining a fourth
+  present, clean scopetree beside a ledger-less run root — instead of the run kind gaining a fourth
   value. ADR 0028's one-determination rule is untouched, and nothing threads a new value through both
   execution playbooks.
 
@@ -41,13 +41,13 @@ either — `/superdev:ship` does that.
   ADRs already constrain. Lost because the lock treats the symptom: every future step writing a shared
   file in the invoking checkout needs its own serialization, and this removes the category.
 - **A fourth run kind (`planned`).** Explicit and self-documenting. Lost because run-init would have to
-  inspect the worktree and the branch to compute a value ADR 0028, ADR 0042, and ADR 0045 all describe as
+  inspect the scopetree and the branch to compute a value ADR 0028, ADR 0042, and ADR 0045 all describe as
   ledger-derived, which is a larger semantic change than the reuse case it buys.
 - **Uniform behaviour across new and append mode.** Lost on the `reset --hard` conflict above: teaching
   `appended` to distinguish a fresh docs commit from the stale history it exists to discard complicates
   the one path ADR 0053 built to be safe to reset.
-- **Cut the worktree on every plan.** Lost because `backlog`, `status`, and `afk` each define a run root
-  as a directory holding `ledger.md`, so a worktree left by a plan that is never implemented accumulates
+- **Cut the scopetree on every plan.** Lost because `backlog`, `status`, and `afk` each define a run root
+  as a directory holding `ledger.md`, so a scopetree left by a plan that is never implemented accumulates
   invisibly to every survey command.
 
 **Consequences.**

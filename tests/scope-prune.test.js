@@ -86,11 +86,11 @@ assert.deepEqual(
   assert.equal(calls, 1, 'and reaches it exactly once');
 }
 
-// Neither tier switches the invoking checkout onto the scope branch (ADR 0045), and both leave a scope
-// worktree standing until `/superdev:ship` removes it, so the containment test and the worktree guard
+// Neither tier switches the invoking checkout onto the scope branch (ADR 0045), and both leave a
+// scopetree standing until `/superdev:ship` removes it, so the containment test and the scopetree guard
 // already protect a run mid-chain. The stage gate is the second, independent signal, exercised here on
 // its own: a merged, stale scope whose ledger stage is `reviewed` (review ran, ship never did) must
-// still not be pruned, whatever the branch or worktree checks would otherwise say.
+// still not be pruned, whatever the branch or scopetree checks would otherwise say.
 // The branch matcher takes the change type from the branch, because the run root's directory name is
 // the slug alone. Only a Conventional Commits type counts: a slice branch (`slice/<scope>/<id>`) and a
 // maintainer's own `wip/<scope>` both name the scope somewhere, and pruning a run root on either one
@@ -524,27 +524,27 @@ assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix')
   );
   fs.rmSync(reviewedRepo, { recursive: true, force: true });
 
-  // #gone-shipped-with-worktree: same as #gone-and-shipped — branch gone, stage `shipped`, mtime past
-  // the TTL — but the run root also holds a `worktree/` dir: an interrupted cleanup, not a finished
+  // #gone-shipped-with-scopetree: same as #gone-and-shipped — branch gone, stage `shipped`, mtime past
+  // the TTL — but the run root also holds a `scopetree/` dir: an interrupted cleanup, not a finished
   // run. main() must leave it for a human to look at, not delete it.
   const cleanupRepo = makeRepo();
   const cleanupScopeDir = makeScope(cleanupRepo, 'mid-cleanup');
-  fs.mkdirSync(path.join(cleanupScopeDir, 'worktree'));
+  fs.mkdirSync(path.join(cleanupScopeDir, 'scopetree'));
   main(cleanupRepo);
-  assert.equal(fs.existsSync(cleanupScopeDir), true, 'a run root with a worktree/ dir survives main() end to end');
+  assert.equal(fs.existsSync(cleanupScopeDir), true, 'a run root with a scopetree/ dir survives main() end to end');
   fs.rmSync(cleanupRepo, { recursive: true, force: true });
 
-  // #gone-shipped-with-worktrees: same as #gone-shipped-with-worktree, but the plural `worktrees/` dir
+  // #gone-shipped-with-slicetrees: same as #gone-shipped-with-scopetree, but the plural `slicetrees/` dir
   // — the full tier's layout (references/implement-full.md), which actually holds nested git
   // worktrees, and so is the more consequential half of the guard to lose.
   const cleanupFullRepo = makeRepo();
   const cleanupFullScopeDir = makeScope(cleanupFullRepo, 'mid-cleanup-full');
-  fs.mkdirSync(path.join(cleanupFullScopeDir, 'worktrees'));
+  fs.mkdirSync(path.join(cleanupFullScopeDir, 'slicetrees'));
   main(cleanupFullRepo);
   assert.equal(
     fs.existsSync(cleanupFullScopeDir),
     true,
-    'a run root with a worktrees/ dir survives main() end to end'
+    'a run root with a slicetrees/ dir survives main() end to end'
   );
   fs.rmSync(cleanupFullRepo, { recursive: true, force: true });
 

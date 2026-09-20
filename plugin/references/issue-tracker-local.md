@@ -173,7 +173,7 @@ date: <YYYY-MM-DD>
   defer time and the file names none.
 - **`/superdev:review` commits the file on the scope branch**, in the scope checkout, the moment it
   creates it — like every other plan file here — so an uncommitted record never blocks
-  `hooks/worktree-sweep.js`'s later `git worktree remove` on a dirty tree, and it rides the pull request
+  `hooks/slicetree-sweep.js`'s later `git worktree remove` on a dirty tree, and it rides the pull request
   the run opens.
 
 ## Untriaged item

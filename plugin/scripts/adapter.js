@@ -550,7 +550,7 @@ const BRIDGE_TASK_TOOLS = ['task'];
 const BRIDGE_SHELL_BEFORE_HOOKS = ['merge-guard', 'run-lock', 'ledger-guard'];
 const BRIDGE_SESSION_CREATED = ['session.created'];
 const BRIDGE_SESSION_ENDED = ['session.idle', 'session.deleted'];
-const BRIDGE_SESSION_END_HOOKS = ['worktree-sweep', 'scope-prune'];
+const BRIDGE_SESSION_END_HOOKS = ['slicetree-sweep', 'scope-prune'];
 
 // The four helpers below are serialized verbatim into the generated bridge via
 // Function.prototype.toString, so they stay self-contained: the free names they reference

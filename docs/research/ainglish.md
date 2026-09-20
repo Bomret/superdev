@@ -145,7 +145,7 @@ subagent to do a thing, and whether the subagent may delegate it is often implic
 platform fact that was true at the last check.
 
 superdev already resolves those in plain English, and resolves them more explicitly than a marker would.
-`plugin/agents/implementer.md` writes "You never talk to the user" and "Work only inside that worktree,
+`plugin/agents/implementer.md` writes "You never talk to the user" and "Work only inside that slicetree,
 only on that slice", which is `no-delegation` plus a scope bound, stated so a model cannot misread it.
 Root `AGENTS.md` requires a dated verification for every platform-dependent claim, naming the version and
 the observed evidence, which is `still(<as-of>)` with the evidence attached. The repo's rule is stronger

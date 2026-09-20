@@ -7,12 +7,12 @@ the user's reference. It was previously undefined where, so it landed as a loose
 wherever `cwd` happened to be (whatever branch was checked out), unlike every other superdev artifact,
 which has a defined, git-ignored home. The natural fix is a scratch dir alongside the existing per-scope
 run roots, for example `.superdev/brainstorm/`. That collides with how `/status` (and `hooks/run-lock.js`,
-`hooks/worktree-sweep.js`) previously treated *every* top-level `.superdev/*/` directory as a scope run
+`hooks/slicetree-sweep.js`) previously treated *every* top-level `.superdev/*/` directory as a scope run
 root. A `.superdev/brainstorm/` directory sitting next to `.superdev/review-gaps/` or
 `.superdev/impl-tier-split/` would be indistinguishable from a real scope until read.
 
 **Decision.** All scope run roots move one level deeper: `.superdev/<scope>/` becomes
-`.superdev/scopes/<scope>/` everywhere (DoD, ledger, progress logs, per-slice and scope worktrees, run
+`.superdev/scopes/<scope>/` everywhere (DoD, ledger, progress logs, the scopetree and slicetrees, run
 lock). Non-scope areas become siblings of `scopes/`, never nested inside it. Currently the only one is
 `.superdev/brainstorm/<feature-slug>.md`. `/status` scans `.superdev/scopes/*/` exclusively.
 
@@ -23,11 +23,11 @@ named non-scope area (human-scratch, never scanned). There is no ambiguous middl
 backend could misinterpret as a scope.
 
 **Consequences.** `hooks/run-lock.js`'s guarded-create regex and lock path gain a `scopes/` segment (its
-selftest fixtures updated to match). `hooks/worktree-sweep.js` needed no logic change. It already only
-checks that a worktree path starts with `.superdev/` and that its immediate parent is named `worktrees/`,
+selftest fixtures updated to match). `hooks/slicetree-sweep.js` needed no logic change. It already only
+checks that a slicetree path starts with `.superdev/` and that its immediate parent is named `slicetrees/`,
 independent of nesting depth. Only its explanatory comment was updated. `commands/status.md`,
 `commands/implement.md`, `references/implement-{full,lite}.md`, the three review-agent progress-log
-mentions, `docs/adr/0001-lite-scope-worktree.md`, `CONTEXT.md`, and `README.md` all had their
+mentions, `docs/adr/0001-lite-scope-scopetree.md`, `CONTEXT.md`, and `README.md` all had their
 `.superdev/<scope>/` path literals updated to `.superdev/scopes/<scope>/`. Git branch-range expressions
 of the form `<base>..superdev/<scope>` (the scope *branch*, no `.superdev/` path involved) were
 deliberately left untouched. A sed pass initially over-matched these, because `..superdev/<scope>` is a

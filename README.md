@@ -18,8 +18,8 @@ before it merges, and a hook — not a prompt — blocks the merge outright if t
 A self-contained Claude Code plugin for the full **brainstorm, plan, implement, review, document, ship**
 loop, with **no prerequisite plugins**. It gives you interview-driven vertical slicing, an execution tier
 sized to the plan, deterministic guardrails, and a pluggable slice store plus code host. A larger plan
-runs in parallel in isolated git worktrees, with separate implementer and reviewer subagents. A small
-plan runs test-first, inline in the scope worktree.
+runs in parallel in isolated slicetrees, with separate implementer and reviewer subagents. A small
+plan runs test-first, inline in the scopetree.
 
 ```
 /superdev:setup        → configure backends in docs/agents/*.md (once per repo)
@@ -71,14 +71,14 @@ plan runs test-first, inline in the scope worktree.
   an execution tier derived fresh from the loaded slice count. The tier is never configured and never
   persisted.
   With **more than 3 slices the tier is `full`**: unblocked slices run in **parallel** as `implementer`
-  subagents in isolated worktrees, with TDD and lazy minimalism. A separate **slice-reviewer**
+  subagents in isolated slicetrees, with TDD and lazy minimalism. A separate **slice-reviewer**
   (correctness) and **simplicity-reviewer** (over-engineering) gate each behavior slice, and the
   controller merges **serially**.
   With **3 or fewer slices the tier is `lite`**: the controller implements each slice inline and
-  test-first, in a single dedicated **scope worktree** (`.superdev/scopes/<scope>/worktree/`). The
+  test-first, in a single dedicated **scopetree** (`.superdev/scopes/<scope>/scopetree/`). The
   invoking checkout is never switched, and a same-scope run lock guards against a second concurrent run.
-  There are no per-slice worktrees and no per-slice reviewers. Once every slice is merged, the controller
-  also performs the documentation pass itself, in that same worktree, as the last step before hand-off
+  There are no per-slice slicetrees and no per-slice reviewers. Once every slice is merged, the controller
+  also performs the documentation pass itself, in that same scopetree, as the last step before hand-off
   ([ADR 0031](docs/adr/0031-the-lite-tier-writes-its-own-documentation.md)). The `/superdev:document`
   entry below describes what that changes downstream.
   Either tier stops here, once every slice sits on the scope branch. `/superdev:review` runs next: one
@@ -246,18 +246,18 @@ bash or PowerShell variants.
   while reading refs from another repository, and a `-C` path carrying no `docs/agents/verification.md`
   while your own checkout does is a path pointing somewhere other than the merge. Run such a merge as
   `git -C <path> merge …`. A green the gate never verified is worth less than a block naming why.
-- **run-lock.** Blocks a `git worktree add` on a scope worktree (`.superdev/scopes/<scope>/worktree`)
+- **run-lock.** Blocks a `git worktree add` on a scopetree (`.superdev/scopes/<scope>/scopetree`)
   while a fresh `.superdev/scopes/<scope>/run.lock` exists, so two concurrent lite runs on one scope
   cannot collide. A stale lock (older than the staleness threshold) or no lock at all passes through,
   which covers a crash resume and a new run.
 - **ledger-guard.** Blocks every write to a scope's `ledger.md`: an `Edit`, a `Write`, and a `Bash`
   write (redirect, `tee`, `sed -i`, `cp`, `mv`, `install`) are all denied. Only `scripts/scope.js`,
   the run-state CLI that owns the ledger's schema, may write it.
-- **worktree-sweep.** A `Stop` hook that removes each per-slice worktree and branch once its slice is
-  fully merged. Finished worktrees therefore cannot pile up when the controller skips the prompted
+- **slicetree-sweep.** A `Stop` hook that removes each slicetree and branch once its slice is
+  fully merged. Finished slicetrees therefore cannot pile up when the controller skips the prompted
   cleanup. It
-  touches only merged `slice/*` worktrees under `.superdev/`, and leaves in-progress and reverted slices
-  alone. A lite-tier run's single scope worktree is not a per-slice worktree, so this hook leaves it
+  touches only merged `slice/*` slicetrees under `.superdev/`, and leaves in-progress and reverted slices
+  alone. A lite-tier run's single scopetree is not a slicetree, so this hook leaves it
   alone too. `/superdev:ship` removes it at the end of the chain.
 - **scope-prune.** A `Stop` hook that deletes a scope's run root (`.superdev/scopes/<scope>/`, its
   `ledger.md` and `dod.md` post-mortem trail). The scope anchor keeps its own published snapshot of the
@@ -271,7 +271,7 @@ bash or PowerShell variants.
   hook fires on every finished turn. Absence stands beside containment for the hosts that delete the
   branch on merge, read only from refs the repository already holds: a remote-tracking ref it has not
   fetched still counts as present, so it never prunes on stale information. It never touches a scope
-  branch carrying content base does not hold, one whose worktree is still present, or one whose ledger is
+  branch carrying content base does not hold, one whose scopetree or slicetrees are still present, or one whose ledger is
   unreadable or silent on the stage. On a git older than 2.38, which has no `--write-tree`, it falls back
   to ancestry and prunes what that finds. The branch goes with the run root — the local ref and every
   remote-tracking copy of it — so a clone stops collecting one dead branch per shipped feature
@@ -374,7 +374,7 @@ docs/kb/                  knowledge base, only if the local-file KB backend is c
 .superdev/scopes/<scope>/  git-ignored run scratch, namespaced per scope branch so parallel runs
                           don't collide: the concrete DoD + ledger (both execution tiers), plus
                           per-slice progress logs + the cross-slice interface record + per-slice
-                          worktrees (full tier only, >3 slices), or a single scope worktree +
+                          slicetrees (full tier only, >3 slices), or a single scopetree +
                           run.lock (lite tier only, ≤3 slices) — never committed, never in the PR
 .superdev/brainstorm/<intent-slug>.md   git-ignored scratch intent notes, optionally written by
                           /brainstorm — sibling to .superdev/scopes/, not inside it, so /status (which
@@ -394,9 +394,9 @@ docs/kb/                  knowledge base, only if the local-file KB backend is c
 ```
 
 Everything except `.superdev/` is committed. The design docs (the glossary, the ADRs, and the rules)
-**must** be on the branch. Both tiers work from fresh worktree checkouts, and a checkout sees only what
+**must** be on the branch. Both tiers work from fresh scopetree or slicetree checkouts, and a checkout sees only what
 is committed. On the full tier those checkouts belong to the per-slice `implementer` subagents. On the
-lite tier the controller itself works in the scope worktree.
+lite tier the controller itself works in the scopetree.
 
 ## Worked example
 
@@ -413,10 +413,10 @@ A tiny feature end to end, with the local-file slice store and GitHub as the cod
   the tier it runs under. Two slices is 3 or fewer, so the tier is **lite**.
 - **`/superdev:implement feat/health-check`**. Sets up `.superdev/scopes/health-check/`, the git-ignored run
   scratch holding the concrete DoD and the ledger. Two slices selects the **lite** tier. The controller
-  cuts a single scope worktree at `.superdev/scopes/health-check/worktree/` for the branch
+  cuts a single scopetree at `.superdev/scopes/health-check/scopetree/` for the branch
   `feat/health-check`, which is the feature label verbatim. It never switches the
-  invoking checkout. It implements slice 01 test-first in that worktree and commits. Slice 02 then
-  unblocks and follows the same loop. There are no per-slice worktrees and no reviewer subagents. Once
+  invoking checkout. It implements slice 01 test-first in that scopetree and commits. Slice 02 then
+  unblocks and follows the same loop. There are no per-slice slicetrees and no reviewer subagents. Once
   both slices sit on the scope branch, the controller **stops** and prints the resolved
   `/superdev:review` call. You see a one-line status per slice as it lands.
 - **`/superdev:review <range>`**. Dispatches `final-reviewer` and `simplicity-reviewer` against `dod.md`.
@@ -424,7 +424,7 @@ A tiny feature end to end, with the local-file slice store and GitHub as the cod
 - **`/superdev:document <range>`**. Reconciles `README.md` and the `AGENTS.md` hierarchy with the two
   merged slices. It sets the stage to `documented` and prints `/superdev:ship health-check`.
 - **`/superdev:ship health-check`**. Ticks `dod.md` and the anchor's own Definition of Done, opens the
-  pull request, removes the scope worktree, and closes the scope anchor. You see the pull-request URL.
+  pull request, removes the scopetree, and closes the scope anchor. You see the pull-request URL.
 - **After.** Review comments and flaky CI on the open pull request are a `/loop` job, not this chain's
   concern. See [After the PR](#after-the-pr).
 

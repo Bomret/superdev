@@ -19,7 +19,7 @@ rather than being read as no run; an anchor dependency it cannot confirm satisfi
 proceeds. Every ambiguity resolves toward doing nothing.
 
 `/superdev:backlog` prints a table and stops. A wrong verdict there costs the reader one glance at a row
-that turns out to be stale. It has no `--unattended` path, opens no worktree, and writes nothing. Its
+that turns out to be stale. It has no `--unattended` path, opens no scopetree, and writes nothing. Its
 readership is a human who is about to make the judgment themselves.
 
 `/superdev:backlog` also reports on what `/superdev:afk` deliberately hides. An unreleased anchor, an

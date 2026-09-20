@@ -60,7 +60,7 @@ there tells the maintainer the backlog is clear, which is the one wrong answer t
 
 Resolve the checkout once, not per anchor: the main checkout is the PARENT of
 `git rev-parse --path-format=absolute --git-common-dir`, which resolves identically from the repo root
-and from inside a scope worktree (ADR 0045 leaves the operator in one for the whole implement chain).
+and from inside a scopetree (ADR 0045 leaves the operator in one for the whole implement chain).
 Address every run root by that absolute path — `scope.js`'s `--root` wants one — and note which checkout
 the survey read, the same way `references/issue-tracker-local.md` names the branch its own listing read.
 
@@ -106,7 +106,7 @@ issue query, say. A record already returned by the anchor or triage listing is n
 | Bucket | What is in it | What it needs |
 |---|---|---|
 | `blocked` | the anchor carries the store's blocked signal, an open one among the slices its `## Scope anchor` listing returns beneath it does, its feature label fails the scope-slug rule, its feature label matches two or more anchor candidates, or its matched run root's stage reads `shipped` while the anchor is still open — close the anchor | a human, now |
-| `stranded` | a run root whose stage is short of `shipped` and matches no open anchor | a human, now — resume the run if its anchor still exists, otherwise delete the branch, worktree, and run root |
+| `stranded` | a run root whose stage is short of `shipped` and matches no open anchor | a human, now — resume the run if its anchor still exists, otherwise delete the branch, scopetree, and run root |
 | `in flight` | its scope has a run root whose stage is short of `shipped` | the chain command that stage has not reached |
 | `waiting` | an anchor dependency it records is unsatisfied | the anchor it waits on |
 | `needs planning` | a triage record, or an anchor that is neither itself a slice nor has slices beneath it | `/superdev:plan` |
@@ -165,7 +165,7 @@ End with **one** line: the single thing you would do next, and why in half a sen
 
 **Finishing beats starting.** An in-flight scope outranks a `ready` anchor, which outranks a fresh
 `/superdev:plan`. A stranded run root is the most expensive item in the backlog: it holds a branch, a
-worktree, and a lock, and every day it sits there the base moves further from it. A `blocked` row outranks
+scopetree, and a lock, and every day it sits there the base moves further from it. A `blocked` row outranks
 all of it when one exists, because nothing else in the table moves until a human clears it. An `untriaged`
 item ranks last, for the opposite reason a stranded run root ranks first: it is the furthest thing from
 finished.

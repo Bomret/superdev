@@ -93,13 +93,13 @@ const {
   ROTATE_ON_SHIPPED_CONTRACTS,
   PARKED_QUESTIONS_CONTRACTS,
   RUN_KIND_CONTRACTS,
-  SCOPE_WORKTREE_CONTRACTS,
+  SCOPETREE_CONTRACTS,
   SOURCE_SECTION_CONTRACTS,
   PLAYBOOK_EDGE_CONTRACTS,
   DOC_PASS_CONTRACTS,
   PUBLISH_RUN_STATE_CONTRACTS,
   ADOPT_RUN_STATE_CONTRACTS,
-  RESUMED_WORKTREE_TRIGGER_CONTRACTS,
+  RESUMED_SCOPETREE_TRIGGER_CONTRACTS,
   STANDING_CODE_LENS_CONTRACTS,
 } = require('./contracts');
 
@@ -439,9 +439,9 @@ module.exports = [
     'run init adopts a live snapshot, and the resumed branch step fetches it from the remote first',
   ),
   table(
-    'resumed-worktree-trigger',
-    RESUMED_WORKTREE_TRIGGER_CONTRACTS,
-    'the resumed worktree step fires whenever the scope worktree is absent, not only when ship removed it',
+    'resumed-scopetree-trigger',
+    RESUMED_SCOPETREE_TRIGGER_CONTRACTS,
+    'the resumed scopetree step fires whenever the scopetree is absent, not only when ship removed it',
   ),
   {
     id: 'agent-tool-agnostic',
@@ -450,12 +450,12 @@ module.exports = [
     format: contractGap,
   },
   {
-    id: 'scope-worktree',
+    id: 'scopetree',
     ok:
-      'the full tier cuts and merges in the same scope worktree the lite tier uses, never the invoking ' +
+      'the full tier cuts and merges in the same scopetree the lite tier uses, never the invoking ' +
       'checkout',
     run: (root) => [
-      ...scanContract(root, SCOPE_WORKTREE_CONTRACTS),
+      ...scanContract(root, SCOPETREE_CONTRACTS),
       ...scanAfkLockTierClaim(root),
     ],
     format: contractGap,

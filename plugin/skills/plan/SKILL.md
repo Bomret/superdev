@@ -316,8 +316,8 @@ silent-drop it exists to prevent. Delete only the file the user picked; leave ot
 
 **Tell the user the expected execution tier** — informational only; `/superdev:plan` persists it nowhere.
 `/superdev:implement` derives it fresh from the final slice count — **≤3 slices → `lite`** (the
-controller implements each slice inline in a single scope worktree, no per-slice review), **>3 slices →
-`full`** (parallel per-slice worktrees + implementer/reviewer subagents). Either tier hands off once
+controller implements each slice inline in a single scopetree, no per-slice review), **>3 slices →
+`full`** (parallel slicetrees + implementer/reviewer subagents). Either tier hands off once
 every slice is on the scope branch — to `/superdev:review`, or straight to `/superdev:document` when
 every slice is `mechanical` or `docs` (ADR 0025).
 
@@ -326,7 +326,7 @@ every slice is `mechanical` or `docs` (ADR 0025).
 when the invoking checkout is on the base branch.** Any other branch → name the branch you found and the
 base you wanted, write nothing, and stop; the plan is already in the store, so the maintainer switches to
 base and commits there — no interview, nothing re-planned — and the handoff below still prints, because
-only the commit is outstanding. `/superdev:implement` runs from a fresh worktree checkout of that branch,
+only the commit is outstanding. `/superdev:implement` runs from a fresh scopetree checkout of that branch,
 so anything uncommitted never reaches it and a path-scoped rule that isn't on the branch can't auto-load.
 **The moment that check reads the base branch, take the base lock** —
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" base-lock acquire`, from the invoking checkout — **before

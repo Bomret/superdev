@@ -35,7 +35,7 @@ assert.equal(decide(sub('git -C "a \\" b" push')).block, true, 'git -C <double-q
 assert.equal(decide(sub('git -C ~/my\\ path push')).block, true, 'git -C <backslash-escaped space, unquoted> push');
 assert.equal(decide(sub('git -c k="v w" push')).block, true, 'git -c <unquoted key, quoted value> push');
 assert.equal(decide(sub('git --git-dir="a b" push')).block, true, 'git --git-dir="quoted value with space" push');
-assert.equal(decide(sub('git -C .superdev/scopes/x/worktree rebase main')).block, true, 'git -C rebase');
+assert.equal(decide(sub('git -C .superdev/scopes/x/scopetree rebase main')).block, true, 'git -C rebase');
 assert.equal(decide(sub('git --no-pager push origin s')).block, true, 'inline global flag before push');
 assert.equal(decide(sub('git --work-tree /wt merge x')).block, true, 'git --work-tree <path> merge (space form)');
 assert.equal(decide(sub('git --work-tree=/wt merge x')).block, true, 'git --work-tree=<path> merge');

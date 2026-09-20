@@ -1181,7 +1181,7 @@ try {
 
   // adopt: a payload whose Stage reads "shipped" refuses. `shipped` is terminal (`## The stage
   // never moves backwards`), so adopting one would write dod.md, name the run kind `resumed`, and
-  // cut a worktree — only to have every later `stage set` then refuse the ledger it just built.
+  // cut a scopetree — only to have every later `stage set` then refuse the ledger it just built.
   const shippedRoot = path.join(tmp, 'adopted-elsewhere', 'shipped-snapshot');
   fs.mkdirSync(path.dirname(shippedRoot), { recursive: true });
   const shippedBody =

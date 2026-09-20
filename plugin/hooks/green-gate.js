@@ -15,8 +15,8 @@
 // them pre-run), so a merge here is always the controller's; the agent_id check is
 // belt-and-suspenders. The doc read, the suite run, the changed-path diff, the in-progress
 // check, and the branch read all run in the merge's own working tree: a `-C <path>` or
-// `--work-tree <path>` on the merge command when the controller merges from another worktree,
-// resolveMergeCwd()'s job, or the session cwd unchanged for a bare `git merge`. A scope worktree
+// `--work-tree <path>` on the merge command when the controller merges from another scopetree,
+// resolveMergeCwd()'s job, or the session cwd unchanged for a bare `git merge`. A scopetree
 // carries its own `docs/agents/verification.md` on its own branch, so a full run reading it from
 // the session's invoking checkout instead would gate a merged scope with a stale or absent command.
 // ponytail: the suite runs inside the hook, under the 600s `timeout` hooks.json sets on this

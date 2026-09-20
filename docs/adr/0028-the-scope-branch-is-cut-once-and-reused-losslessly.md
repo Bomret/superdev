@@ -53,9 +53,9 @@ to decide containment. **Contained** means base contains every commit on that br
 one. The full tier switches the invoking checkout to it, then runs `git merge --ff-only <base>`. It stops
 first, naming what it found, on the same dirty-checkout and held-elsewhere conditions `resumed` stops on
 below, rather than raising the raw git fatal that switch would otherwise produce. The lite tier works in
-its existing scope worktree when one already holds the branch, stopping first when a different worktree
+its existing scopetree when one already holds the branch, stopping first when a different worktree
 holds it instead, or otherwise runs `git worktree add <path> <branch>`. Either way it then fast-forwards
-inside that worktree.
+inside that scopetree.
 **Not contained** means commits live only on that branch: print `git log <base>..<branch> --oneline` so the
 operator sees exactly what is at risk, and ask. `--unattended` blocks. The stop prints `git branch -m
 <branch> <branch>-<date>` as its remedy.
@@ -63,8 +63,8 @@ operator sees exactly what is at risk, and ask. `--unattended` blocks. The stop 
 **`resumed`.** The branch exists and holds unmerged slice work by design, so no ancestor test runs and
 nothing is cut. The branch name comes from `scripts/scope.js get branch` (ADR 0022). The full tier switches
 the invoking checkout onto it, and stops, naming what it found, when that checkout is dirty or the branch is
-held in another worktree. The lite tier works in its existing scope worktree, or reattaches the branch with
-`git worktree add <path> <branch>` when the worktree is gone.
+held in another worktree. The lite tier works in its existing scopetree, or reattaches the branch with
+`git worktree add <path> <branch>` when the scopetree is gone.
 
 **No forcing flag appears in either playbook**, at any run kind. Fast-forwarding to base is the one form
 of re-pointing the rule permits, and it is a stronger version of run init's cut-from-base guarantee rather

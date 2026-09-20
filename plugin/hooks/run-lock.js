@@ -2,7 +2,7 @@
 'use strict';
 
 // run-lock: deterministic PreToolUse(Bash) guard for parallel-safe runs, at both tiers.
-// When a bash command tries to create/enter a scope worktree (.superdev/scopes/<scope>/worktree),
+// When a bash command tries to create/enter a scopetree (.superdev/scopes/<scope>/scopetree),
 // check if a fresh .superdev/scopes/<scope>/run.lock exists. If so, another session is live on
 // this scope — block. If the lock is stale or absent, allow (crash resume or new run).
 // ponytail: mtime staleness threshold is 1 hour; if long-running runs exceed this,
@@ -28,11 +28,11 @@ function isLockFresh(lockPath) {
 }
 
 function extractScope(cmd) {
-  // Guard ONLY the create op: `git worktree add … .superdev/scopes/<scope>/worktree`. Every other command
-  // that names the path — `cd`/`grep`/`bun` in the worktree, `git -C <worktree> …`, `git worktree
+  // Guard ONLY the create op: `git worktree add … .superdev/scopes/<scope>/scopetree`. Every other command
+  // that names the path — `cd`/`grep`/`bun` in the scopetree, `git -C <scopetree> …`, `git worktree
   // remove` — is the owner working in its own tree and must never be blocked by its own lock. Keying
   // on the whole `git worktree add` phrase (not just the path) is what keeps the owner unblocked.
-  const match = cmd.match(/git\s+worktree\s+add\b[^\n]*?\.superdev\/scopes\/([a-zA-Z0-9][a-zA-Z0-9_-]*)\/worktree\b/);
+  const match = cmd.match(/git\s+worktree\s+add\b[^\n]*?\.superdev\/scopes\/([a-zA-Z0-9][a-zA-Z0-9_-]*)\/scopetree\b/);
   return match ? match[1] : null;
 }
 
@@ -40,9 +40,9 @@ function decide(input) {
   const cmd = (input && input.tool_input && input.tool_input.command) || '';
   const scope = extractScope(cmd);
 
-  if (!scope) return { block: false }; // not a scope worktree op → allow
+  if (!scope) return { block: false }; // not a scopetree op → allow
 
-  // Scope worktree op detected. Check the lock. The session cwd is on the top-level payload
+  // Scopetree op detected. Check the lock. The session cwd is on the top-level payload
   // (`input.cwd`), not inside tool_input — the Bash tool_input carries only `command`.
   const cwd = (input && input.cwd) || process.cwd();
   const lockPath = path.join(cwd, '.superdev', 'scopes', scope, 'run.lock');

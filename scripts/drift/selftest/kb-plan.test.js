@@ -731,7 +731,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // switches to it and cuts nothing (ADR 0028, ADR 0045). ADR 0053 added three rows: `appended`'s
   // **Present** branch delegating to `## Containment`, that section's own canonical statement of the
   // test, and the **No forcing flag** exception stated as conditional on the containment proof. A fix
-  // cycle added an eighth: the scope worktree must be clean before `appended` re-points a contained
+  // cycle added an eighth: the scopetree must be clean before `appended` re-points a contained
   // branch with `git reset --hard <base>`, because the containment proof covers the branch's committed
   // history and says nothing about the index or working tree (Important 2). Eight independent rows:
   // losing one clause's specification fails on its own, not just in aggregate. ---
@@ -750,8 +750,8 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     '- **`appended`** — a `shipped` ledger was rotated aside. Decide on the same test that decides a ' +
     'scope is finished with (ADR 0007): contained in `<base>`, or gone entirely. Gone → cut fresh. ' +
     '**Present** — decide with `## Containment` above, which owns the test. **Contained** — ' +
-    'work in the scope worktree, then check the worktree is clean: `git -C .superdev/scopes/<scope>/' +
-    'worktree status --porcelain` returns nothing. The containment proof above covers the branch\'s ' +
+    'work in the scopetree, then check the scopetree is clean: `git -C .superdev/scopes/<scope>/' +
+    'scopetree status --porcelain` returns nothing. The containment proof above covers the branch\'s ' +
     'committed history, never the index or the working tree. **Dirty** — name what `status ' +
     '--porcelain` reported and stop, cutting nothing. **`--unattended` →\nblock**. **Clean** — ' +
     're-point it.\n' +
@@ -845,25 +845,25 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'names the precondition the exception owes',
   );
 
-  // negative: dropping the clean-worktree guard ahead of the contained `appended` re-point fails on its
+  // negative: dropping the clean-scopetree guard ahead of the contained `appended` re-point fails on its
   // own — the reset would then discard an uncommitted change the containment proof never vouched for
   // (Important 2)
   const rkNoCleanGuard = fixture({
     'references/scope-mode.md': runKindBody.replace(
-      'work in the scope worktree, then check the worktree is clean: `git -C .superdev/scopes/<scope>/' +
-        'worktree status --porcelain` returns nothing. The containment proof above covers the branch\'s ' +
+      'work in the scopetree, then check the scopetree is clean: `git -C .superdev/scopes/<scope>/' +
+        'scopetree status --porcelain` returns nothing. The containment proof above covers the branch\'s ' +
         'committed history, never the index or the working tree. **Dirty** — name what `status ' +
         '--porcelain` reported and stop, cutting nothing. **`--unattended` →\nblock**. **Clean** — ' +
         're-point it.',
-      'work in the scope worktree, then re-point it.',
+      'work in the scopetree, then re-point it.',
     ),
   });
   const rkGapsNoCleanGuard = scanContract(rkNoCleanGuard, RUN_KIND_CONTRACTS);
-  assert.equal(rkGapsNoCleanGuard.length, 1, 'flags exactly the missing clean-worktree guard');
+  assert.equal(rkGapsNoCleanGuard.length, 1, 'flags exactly the missing clean-scopetree guard');
   assert.match(
     rkGapsNoCleanGuard[0].expectation,
-    /require the scope worktree clean/,
-    'names the clean-worktree guard the re-point owes',
+    /require the scopetree clean/,
+    'names the clean-scopetree guard the re-point owes',
   );
 
   // negative: losing the `resumed` specification fails on its own

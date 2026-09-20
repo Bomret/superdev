@@ -822,7 +822,7 @@ const scanDocStepsNoSuite = (root) =>
 const scanDenialCapNumberSilence = (root) =>
   scanDocsAvoid(root, DENIAL_CAP_NUMBER_SILENCE_DOCS, DENIAL_CAP_NUMBER_MARKERS);
 
-// `skills/afk/SKILL.md`'s eligibility bullet reads a scope's run lock, and `SCOPE_WORKTREE_CONTRACTS` pins
+// `skills/afk/SKILL.md`'s eligibility bullet reads a scope's run lock, and `SCOPETREE_CONTRACTS` pins
 // its surviving fallback rule by presence — a row whose expectation describes an absence, which a
 // presence row cannot assert. The stale claim it means to keep out ("a run lock only ever exists for a
 // `lite`-tier scope", true before ADR 0045 gave both tiers one) can regrow as a sentence preceding that

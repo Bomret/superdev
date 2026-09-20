@@ -2,8 +2,8 @@
 
 A self-contained **Claude Code plugin** for the plan and implement loop. It gives you interview-driven
 vertical slicing, an execution tier sized to the plan, deterministic hook guardrails, and a pluggable
-slice store plus code host. A plan of more than 3 slices runs in parallel worktrees with isolated
-implementer and reviewer subagents. A plan of 3 or fewer runs test-first, inline in the scope worktree.
+slice store plus code host. A plan of more than 3 slices runs in parallel slicetrees with isolated
+implementer and reviewer subagents. A plan of 3 or fewer runs test-first, inline in the scopetree.
 No prerequisite plugins.
 
 ## Need something? Read this
@@ -37,7 +37,7 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
   agents/              — the subagents (*.md): implementer, slice-reviewer, simplicity-reviewer,
                          final-reviewer, doc-writer, doc-reader, test-auditor
   hooks/               — the deterministic Node hooks + hooks.json: merge-guard, model-explicit,
-                         green-gate, run-lock, ledger-guard, worktree-sweep, scope-prune, update-check
+                         green-gate, run-lock, ledger-guard, slicetree-sweep, scope-prune, update-check
   references/          — backend seed templates + the non-seed runtime references (plan-contract,
                          documentation convention, controlled-prose, content-types, doc pass, run init,
                          run handoff, execution playbooks, test-selection, scope-mode, authoring
@@ -223,14 +223,14 @@ This root owns every other subtree directly:
   rules, Hooks are CommonJS** and **Every shipped executable has a suite in `tests/`, named for it**.
   This is the strongest future child-doc candidate, if its rules outgrow this root. `hooks/` is the
   only runtime consumer of
-  `plugin/scripts/`: `scope-prune.js` and `worktree-sweep.js` both
+  `plugin/scripts/`: `scope-prune.js` and `slicetree-sweep.js` both
   `require` `../scripts/scope.js` for their ledger-header reader (ADR 0022). These are the only
   places a hook depends on a script instead of standing alone. A `require` failure leaves either hook
   with no fallback reader: it sweeps/prunes nothing and says nothing.
 - `scripts/` and `plugin/scripts/`. Owned by [`scripts/AGENTS.md`](scripts/AGENTS.md):
   `plugin/scripts/scope.js` (the run-state CLI, ADR 0022: owns the ledger schema, is the only
   `ledger.md` read and write path, exports `readLedgerHeader` for `plugin/hooks/scope-prune.js` and
-  `plugin/hooks/worktree-sweep.js`, and carries the one verb that touches no ledger — `base-lock`,
+  `plugin/hooks/slicetree-sweep.js`, and carries the one verb that touches no ledger — `base-lock`,
   which serialises the base-branch design-docs commit `/superdev:plan` and run init both make, ADR
   0058),
   `plugin/scripts/kb-patch.js` (the deterministic section merge behind a staged page's `action: patch`,

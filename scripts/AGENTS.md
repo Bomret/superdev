@@ -31,7 +31,7 @@ returns the whole budget while every recorded denial stays on the line (ADR 0044
 structural, so plain `degraded add` refuses a text beginning with either and names the subcommand that
 owns it. `get degraded` prints every bullet whatever its prefix, prefixes intact.
 It also exports `readLedgerHeader` as a module
-API. This per-header ledger-line reader is what `hooks/scope-prune.js` and `hooks/worktree-sweep.js`
+API. This per-header ledger-line reader is what `hooks/scope-prune.js` and `hooks/slicetree-sweep.js`
 both use instead of carrying their own regex. The API guards its CLI entry with
 `require.main === module`, so a `require` for that reader alone runs no CLI code. Normalisation is per
 header: `Stage` and `Branch` are single tokens,
@@ -283,7 +283,7 @@ ledger-guard, resolving the edited path from the tool's own `filePath` argument 
 `apply_patch` tool (which carries no `filePath`, only `{ callId, operation: { type, path, diff } }`),
 from `operation.path` instead; on the `task` dispatch tool, model-explicit; `tool.execute.after` on a shell tool
 runs green-gate; `session.created` runs update-check; `session.idle` and `session.deleted` run
-worktree-sweep and scope-prune. The stdin payload is Claude-shaped — `hook_event_name`,
+slicetree-sweep and scope-prune. The stdin payload is Claude-shaped — `hook_event_name`,
 `tool_name` mapped back to the Claude name (`Bash`, `Edit`/`Write`, `Agent`), snake_case
 `tool_input`, top-level `cwd`, and `agent_id` when the calling session has a parent — because that
 is the shape the hook scripts parse. OpenCode's `task` tool takes no `model` argument, so the
@@ -334,9 +334,9 @@ machine-independent; the `opencode-render` check diffs a fresh render against th
 
 `publish-kb.js` is the fourth shipped CLI. `skills/publish-kb/SKILL.md` invokes it and relays its
 report, and keeps no publishing mechanics of its own. It resolves the main checkout from any current
-directory, a scope worktree included, using `git rev-parse --path-format=absolute --git-common-dir`.
+directory, a scopetree included, using `git rev-parse --path-format=absolute --git-common-dir`.
 This is what makes `.superdev/kb-pending/` resolve against the repository root, not one level too
-deep, from inside `.superdev/scopes/<scope>/worktree`. `--scope <slug>` selects which pending scope to
+deep, from inside `.superdev/scopes/<scope>/scopetree`. `--scope <slug>` selects which pending scope to
 publish. Left out, the script publishes the one pending scope there is. It refuses when there is more
 than one pending scope or none, and names every pending scope with its staged-page count on refusal.
 
@@ -957,7 +957,7 @@ pins the **No forcing flag** rule's second exception as **conditional on the con
 that proof is what establishes the content is already landed, on `<base>` or on the base the second pass
 fetched. Written as a general permission it becomes the branch-stranding ADR 0028 exists to forbid. An
 eighth row pins the guard that precedes that
-same reset: the scope worktree must be clean (`git -C <worktree> status --porcelain` returns nothing)
+same reset: the scopetree must be clean (`git -C <scopetree> status --porcelain` returns nothing)
 before the re-point, and a dirty one stops, naming what is dirty, and blocks unattended — because the
 containment proof covers the branch's committed history, never the index or the working tree, so
 `reset --hard` there would discard an uncommitted change no test vouched for.
@@ -967,8 +967,8 @@ reflow while catching no revert. Losing any row independently: a document that s
 clause leaves that run's branch step to whatever a reader infers, which is the gap three consecutive
 review fix cycles kept re-opening. This table used to carry a row pinning `appended`'s contained-reuse
 clause when it split by tier ("the `full` tier switches the invoking checkout … the `lite` tier works in
-its existing scope worktree"). ADR 0045 retired both the clause and the row: reuse now means working in
-the one scope worktree both tiers share, which the `scope-worktree` check pins
+its existing scopetree"). ADR 0045 retired both the clause and the row: reuse now means working in
+the one scopetree both tiers share, which the `scopetree` check pins
 instead.
 The `forcing-branch-flag` contract (ADR 0028), `scanForcingBranchFlag()`: neither execution
 playbook names a forcing branch flag, in any of its spellings.
@@ -1253,16 +1253,16 @@ after two review passes read the wrong-ref sentence as correct; and that the sto
 finds nothing either, still names the branch it looked for and blocks rather than asks under
 `--unattended`.
 
-The `resumed-worktree-trigger` contract (ADR 0042, ADR 0045), one row: `references/scope-mode.md`'s action in
-that same `resumed` branch bullet creates or reattaches the scope worktree, at both tiers, whenever it is absent for either
+The `resumed-scopetree-trigger` contract (ADR 0042, ADR 0045), one row: `references/scope-mode.md`'s action in
+that same `resumed` branch bullet creates or reattaches the scopetree, at both tiers, whenever it is absent for either
 cause — `/superdev:ship` already removed it, or this checkout never held it at all, the case
 `adopt-run-state` makes reachable on a fresh clone. A fix cycle found the sentence named only the first
-cause, so `references/implement-lite.md`'s Resume step — which works "in the scope worktree"
-unconditionally, assuming it exists — had nothing creating that worktree on a fresh clone; `implement-lite.md`
+cause, so `references/implement-lite.md`'s Resume step — which works "in the scopetree"
+unconditionally, assuming it exists — had nothing creating that scopetree on a fresh clone; `implement-lite.md`
 itself needed no change once the bullet it delegates to was broadened, because its own Branch model step
-already runs `## Cutting the scope branch` in full before Resume ever reads the worktree. Split into its
+already runs `## Cutting the scope branch` in full before Resume ever reads the scopetree. Split into its
 own check rather than folded into `adopt-run-state`'s table, because the two answer different questions —
-which branch gets fetched, versus which worktree gets created — and no fixture anywhere previously
+which branch gets fetched, versus which scopetree gets created — and no fixture anywhere previously
 distinguished "removed by ship" from "never created", so a regression narrowing the sentence back to one
 cause would have passed silently.
 
@@ -1276,31 +1276,31 @@ table, so a new agent is covered the day its file lands. `skills/setup/SKILL.md`
 name such commands legitimately, as interview and focused-command examples, which is why the scan covers
 `agents/` alone.
 
-The `scope-worktree` contract (ADR 0045), twenty-one rows: the `full` tier cuts its scope
-branch into the same dedicated scope worktree the `lite` tier uses, `.superdev/scopes/<scope>/worktree`,
+The `scopetree` contract (ADR 0045), twenty-one rows: the `full` tier cuts its scope
+branch into the same dedicated scopetree the `lite` tier uses, `.superdev/scopes/<scope>/scopetree`,
 and does every merge there — the invoking checkout is never switched, at either tier. Five rows sit on
 `references/scope-mode.md`. `## The scope checkout` resolves to that one location for both tiers, states
-the `git worktree add .superdev/scopes/<scope>/worktree <branch>` call that recreates an absent one,
+the `git worktree add .superdev/scopes/<scope>/scopetree <branch>` call that recreates an absent one,
 states that a `run-lock` refusal met while recreating is this run's own lock rather than a competing
 session's and names the remedy (remove and retry) — a fix cycle otherwise found the recreate path
 unreachable inside a live run, since the same run's own lock, refreshed by every earlier command in the
 chain, is what blocks it — and names a stop, writing nothing, when a different working tree already holds
 the branch — the same reuse the retired `run-kind` row used to describe split by tier. `## The run
 lock` states that both tiers write `<run-root>/run.lock`, and only once `## Cutting the scope branch` has
-already cut the worktree, or the `run-lock` hook's own guard on `git worktree add` would block the run
+already cut the scopetree, or the `run-lock` hook's own guard on `git worktree add` would block the run
 making that very call. Six more rows sit on `references/implement-full.md`, the tier ADR 0045 actually
-changed: its Branch model states that every later command in the file — every merge — addresses the scope
-worktree with `git -C` rather than the invoking checkout, once the cutting/reuse command itself has run
-from that checkout the way any `git worktree add` does; its DAG loop's merge step addresses that worktree
+changed: its Branch model states that every later command in the file — every merge — addresses the
+scopetree with `git -C` rather than the invoking checkout, once the cutting/reuse command itself has run
+from that checkout the way any `git worktree add` does; its DAG loop's merge step addresses that scopetree
 with `git -C`; its integration-branch bullet keeps `integration/<scope>` there too, and the
-integrate-and-verify slice switches that same worktree, never the invoking checkout, for the final merge;
-its Resume step finds the worktree — present, recreated, or a named stop — before reading anything out of
+integrate-and-verify slice switches that same scopetree, never the invoking checkout, for the final merge;
+its Resume step finds the scopetree — present, recreated, or a named stop — before reading anything out of
 it; its own `## Run lock` section reads scope-mode.md's `## The run lock` — a fix cycle otherwise found
 this file with no lock section at all while two other documents still claimed the lock was lite tier only;
-and a sixth row states that Resume checks the run lock once the worktree is found already present, naming
-the worktree-present/absent qualifier that distinguishes this check from the recreate path's own fresh-lock
+and a sixth row states that Resume checks the run lock once the scopetree is found already present, naming
+the scopetree-present/absent qualifier that distinguishes this check from the recreate path's own fresh-lock
 reading — a fix cycle otherwise found a second full-tier `/superdev:implement` of a live scope reading no
-lock at all in its `resumed`-worktree-already-there path, so the Definition of Done's "refused by name, on
+lock at all in its `resumed`-scopetree-already-there path, so the Definition of Done's "refused by name, on
 the `full` tier as well as `lite`" went unmet. One more row sits on `references/implement-lite.md`: its
 `## Run lock` section reads scope-mode.md's `## The run lock` rather than restating who writes the lock
 and when, now that the rule covers both tiers there — the same caller-reads-the-rule shape the `doc-pass`
@@ -1320,10 +1320,10 @@ naming no working directory reached the invoking checkout on the full tier — s
 then — reading `docs/agents/verification.md` off base, running the suite over base's tree, and landing any
 fix commit on base in the operator's own clone; the rows pin the full suite running in the scope checkout
 and the fix implementer taking that same checkout as its working directory. The last row sits on
-`references/merge-conflicts.md`: its winner-picking-overlap abort names the scope worktree with `git -C`,
+`references/merge-conflicts.md`: its winner-picking-overlap abort names the scopetree with `git -C`,
 not a bare `git merge --abort` — this file is read after `implement-full.md` delegates the whole
 conflict-resolution step to it, so its own unqualified abort used to win the conflict, exiting 128 in the
-invoking checkout and leaving the scope worktree sitting on `MERGE_HEAD`, which `hooks/green-gate.js`'s
+invoking checkout and leaving the scopetree sitting on `MERGE_HEAD`, which `hooks/green-gate.js`'s
 `mergeInProgress()` then reads as a deferral that gates nothing. The last row sits on `skills/afk/SKILL.md`'s
 eligibility bullet: the no-lock case falls back to the ledger mtime, with no claim that a full run never
 gets a lock — a fix cycle found the bullet still asserting a run lock "only ever exists for a `lite`-tier
@@ -1332,7 +1332,7 @@ opposite. Losing any one row independently reopens exactly the cost ADR 0045 rem
 a second session's checkout on its own branch, a merge landing in a tree `/superdev:ship` never expects, a
 restated lock rule drifting from the shared one, a full run that writes no lock at all, a second full-tier
 run never meeting its own fresh-lock refusal, a whole-scope review or run-handoff full-suite pass that
-writes to the wrong checkout, a merge abort that silently ungates the next merge in the scope worktree, or
+writes to the wrong checkout, a merge abort that silently ungates the next merge in the scopetree, or
 an unattended controller told to distrust a lock signal it can actually trust.
 
 **This check runs a second scanner beside its table, `scanAfkLockTierClaim`.** The `skills/afk/SKILL.md` row
@@ -1717,7 +1717,7 @@ correct in prose and silent on a standing-code review.
 
 ## Work Guidance
 
-- Scripts are CommonJS, like the hooks. `hooks/scope-prune.js` and `hooks/worktree-sweep.js` both
+- Scripts are CommonJS, like the hooks. `hooks/scope-prune.js` and `hooks/slicetree-sweep.js` both
   `require` `scope.js`, so `scope.js` must stay `require`-able under plain `node`. These are the only
   two dependencies `hooks/` has on `scripts/`.
   `scope.js` in turn `require`s `kb-patch.js` for `maskFencedLines`, so `kb-patch.js` must stay

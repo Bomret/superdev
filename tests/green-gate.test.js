@@ -565,7 +565,7 @@ assert.deepEqual(
     fs.rmSync(target, { recursive: true, force: true });
   }
 
-  // the verification doc itself is read from the -C target, not the session — a scope worktree
+  // the verification doc itself is read from the -C target, not the session — a scopetree
   // carries its own docs/agents/verification.md on its own branch, so a full run must gate on ITS
   // command. Two facets: a doc the target introduces (absent at session) still gates, and a doc
   // that differs from the session's runs the target's own command, never the session's.

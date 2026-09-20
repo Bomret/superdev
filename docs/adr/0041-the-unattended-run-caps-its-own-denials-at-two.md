@@ -18,8 +18,8 @@ three consecutive denials, or twenty in a session, stop the model and escalate t
 
 Termination is the shape that matters, because `/superdev:afk` is what runs unattended and it runs
 headless. The platform's stop is not superdev's block: no `blocked` label reaches the scope anchor, no
-comment names the stop, the ledger stage stays where the chain left it, and the run lock and scope
-worktree stay standing. A maintainer finds a sweep that ended without saying why, and the tracker still
+comment names the stop, the ledger stage stays where the chain left it, and the run lock and
+scopetree stay standing. A maintainer finds a sweep that ended without saying why, and the tracker still
 shows the feature in progress.
 
 An environmental cause makes a run of denials likely rather than freakish. A prompt-rewriting plugin

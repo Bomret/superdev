@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 
-**Amends:** [ADR 0045](0045-the-full-tier-runs-in-a-scope-worktree.md), whose Decision and Consequences
+**Amends:** [ADR 0045](0045-the-full-tier-runs-in-a-scope-scopetree.md), whose Decision and Consequences
 describe `hooks/green-gate.js` as capturing the merge command's `-C` argument. That mechanism was never
 shipped this way and no longer matches the hook.
 
@@ -36,12 +36,13 @@ one (folding a relative path against every `-C` in the same command, applied in 
 `optionValues()` read it back out of the region by walking it option-by-option instead
 (`plugin/hooks/green-gate.js`, the comment above `IS_MERGE` and above `resolveMergeCwd()`).
 
-**Why.** ADR 0045's decision still holds: a scope worktree carries the merge, and the gate must read that
-worktree, not the invoking session's. Superseding it would mark that decision as replaced, which is
+**Why.** ADR 0045's decision still holds: a scopetree carries the merge, and the gate must read that
+scopetree, not the invoking session's. Superseding it would mark that decision as replaced, which is
 false. Amending leaves the record intact and adds only the one qualification the mechanism needed.
 
 **Consequences.** ADR 0045's own text is unchanged. The `**Amended by:**` pointer on its status line
 sends a reader here for the corrected mechanism. No behavior changes: a `full`-tier merge still runs
-`git -C <scope-worktree> merge`, and the gate still resolves that worktree correctly. The correction is
+`git -C <scopetree> merge`, and the gate still resolves that scopetree correctly. The correction is
 legibility only. This ADR now names the actual read path so drift-check's ADR-narrative checks and any
 future reader find the code and the record in agreement.
+

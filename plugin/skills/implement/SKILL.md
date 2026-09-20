@@ -13,7 +13,7 @@ and follow. This file holds what both share.
 **You stop when the code is on the scope branch.** Review, docs, and the pull request are the next three
 commands in the chain, each run by the maintainer (ADR 0013) — hand off rather than running them here. The
 one exception is the `lite` tier's inline documentation pass, which that playbook runs in this same
-worktree before run handoff (ADR 0031).
+scopetree before run handoff (ADR 0031).
 
 **Core principle:** a slice's green suite proves its fixtures pass, not that it's correct. `full`
 re-verifies each slice with reviewer subagents and integrates serially; `lite` leans on the whole-scope

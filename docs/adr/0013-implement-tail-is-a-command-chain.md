@@ -13,8 +13,8 @@ that moment. The flow also contradicts the rest of the plugin, where `/superdev:
 resolved. `/superdev:implement` stops once every slice sits on the scope branch. `/superdev:review`
 reviews a scope range against `<run-root>/dod.md` and asks once before it fixes anything.
 `/superdev:document` commits in the scope's checkout. A new command, `/superdev:ship`, ticks the
-Definition of Done, closes the scope anchor, opens the pull request, and removes the run's worktrees and
-lock. The ledger carries a `Stage` line that records the last completed stage: `implementing`, `merged`,
+Definition of Done, closes the scope anchor, opens the pull request, and removes the run's scopetree,
+slicetrees, and lock. The ledger carries a `Stage` line that records the last completed stage: `implementing`, `merged`,
 `reviewed`, `documented` (or `documented-unreviewed`, when `/superdev:document` ran before
 `/superdev:review` did), or `shipped`. `/superdev:status` reports it.
 
@@ -56,10 +56,10 @@ all.
   report file breaks quietly when a person commits documentation by hand.
 
 **Consequences.** `/superdev:review` writes when it reviews a live scope, and stays read-only everywhere
-else. The one-time question marks that boundary for the reader. The lite tier's scope worktree must
+else. The one-time question marks that boundary for the reader. The lite tier's scopetree must
 survive until `/superdev:ship`, because a lite run's documentation commit and any fix commit land there,
-so worktree cleanup moves out of both execution playbooks. Each chained command finds its checkout from
-disk: a scope worktree means a lite run, and no worktree means a full run whose scope branch sits in the
+so scopetree cleanup moves out of both execution playbooks. Each chained command finds its checkout from
+disk: a scopetree means a lite run, and no scopetree means a full run whose scope branch sits in the
 invoking checkout. The run lock spans four invocations only on the `lite` tier, because only the `lite`
 tier's worktree-add needs the `run-lock` hook's guard. A `full` run never creates the lock. Each chained
 command refreshes the lock's mtime when the file already exists, and never creates it, so a `full` run

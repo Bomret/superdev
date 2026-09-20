@@ -32,8 +32,8 @@ slug, which is the scope those pages belong to. A documentation pass outside a l
 before, because its pages are repository files with no external surface.
 
 The staging path is absolute, resolved from the invoking checkout. A lite-tier scope checkout is
-`.superdev/scopes/<scope>/worktree`, inside `.superdev/` itself, and `/superdev:ship` removes it. A
-working-directory-relative path would stage pages into the worktree and lose them at cleanup.
+`.superdev/scopes/<scope>/scopetree`, inside `.superdev/` itself, and `/superdev:ship` removes it. A
+working-directory-relative path would stage pages into the scopetree and lose them at cleanup.
 
 `/superdev:publish-kb` is the only path from superdev to a remote knowledge-base backend. It applies each
 staged page's action, removes the file once the call lands, and leaves a failed page staged. It resolves

@@ -28,11 +28,11 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
   Every artifact lives under the run root **`.superdev/scopes/<scope>/`** — bare slug, so the type never
   becomes a second path segment — **git-ignored** (add `.superdev/` to `.gitignore` if absent). The run
   root (`dod.md`, `ledger.md`, `run.lock`, per that file's `## The run lock`) stays in
-  the **invoking checkout** and never moves into a worktree; only the code checkout does.
+  the **invoking checkout** and never moves into a scopetree; only the code checkout does.
   **Capture `<run-root>` as an absolute path now**, while the invoking checkout is your cwd, and address
   every artifact as `<run-root>/dod.md`, `<run-root>/ledger.md`, `<run-root>/run.lock`,
   `<run-root>/reports/<id>/…`, `<run-root>/interfaces.md`. Hand subagents that absolute path: a relative
-  one resolves a level too deep from a worktree cwd. Namespacing by `<scope>` is what lets scope runs go
+  one resolves a level too deep from a scopetree or slicetree cwd. Namespacing by `<scope>` is what lets scope runs go
   in parallel. Nothing in the run root is committed or lands in the PR.
 - **Write the DoD** — the global verification plan, made concrete and checkable — to `<run-root>/dod.md`.
   `/superdev:review` reviews against it and `/superdev:ship` ticks it. No DoD → don't proceed. **No epic**

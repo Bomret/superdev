@@ -19,7 +19,7 @@ per shipped feature and nothing ever removes either.
 
 `hooks/scope-prune.js` already establishes exactly what a delete needs, for a different purpose. Before it
 removes a run root it has proved four things: the run root has sat untouched past the seven-day TTL, its
-ledger stage reads `shipped`, no worktree remains under it, and its branch is contained in the base by
+ledger stage reads `shipped`, no scopetree or slicetrees remain under it, and its branch is contained in the base by
 content or gone (ADR 0053, ADR 0065). It reads the branch name off the ledger to run that containment test,
 and it resolves the exact ref — local, or `<remote>/<name>` — to hand git. A branch that survives all four
 gates is redundant by proof, and the hook is holding its name at the moment it discards the only record of

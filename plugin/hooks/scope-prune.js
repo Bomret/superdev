@@ -13,14 +13,14 @@
 // The same pass deletes the branch it just proved contained — the local ref and every remote-tracking
 // copy — immediately before the run root, so the clone stops accumulating one dead branch per shipped
 // feature (ADR 0071). `reapBranch` below states the bounds that delete keeps to.
-// hooks/worktree-sweep.js keeps ancestry alone one level down, correctly: a slice branch merges into the
+// hooks/slicetree-sweep.js keeps ancestry alone one level down, correctly: a slice branch merges into the
 // scope branch normally, so its ancestry survives.
 // Same "safe by default" shape throughout: never touches a run whose branch is still there carrying
-// content base does not hold (still active), never touches one whose worktree is still present (an
-// interrupted cleanup, not a finished run — leave it for a human to look at), and never touches one that
-// isn't recorded as `shipped` — a run mid-chain, at either tier, has its scope worktree standing until
-// `/superdev:ship` removes it, so the worktree guard alone already protects it; the stage gate is the
-// second, independent signal (ADR 0013, ADR 0045).
+// content base does not hold (still active), never touches one whose scopetree or slicetrees are still
+// present (an interrupted cleanup, not a finished run — leave it for a human to look at), and never
+// touches one that isn't recorded as `shipped` — a run mid-chain, at either tier, has its scopetree or
+// slicetrees standing until `/superdev:ship` removes it, so that guard alone already protects it; the
+// stage gate is the second, independent signal (ADR 0013, ADR 0045).
 // ponytail: TTL is one flat value for every scope; a per-scope override would need its own config
 // knob — add one if varying retention actually comes up, but YAGNI for now.
 // Best-effort and silent: any git error, or no .superdev/scopes/ → no-op.
@@ -279,7 +279,7 @@ function newestMtimeMs(dir) {
   let newest = null;
   for (const name of fs.readdirSync(dir)) {
     const stat = fs.statSync(path.join(dir, name));
-    if (!stat.isFile()) continue; // a worktree/ or worktrees/ dir here means an interrupted run — skip below
+    if (!stat.isFile()) continue; // a scopetree/ or slicetrees/ dir here means an interrupted run — skip below
     if (newest === null || stat.mtimeMs > newest) newest = stat.mtimeMs;
   }
   return newest;
@@ -367,8 +367,8 @@ function main(cwd) {
 
   for (const scope of prunable) {
     const dir = path.join(scopesRoot, scope);
-    // Never prune while a worktree is still present — that's an interrupted cleanup, not a finished run.
-    if (fs.existsSync(path.join(dir, 'worktree')) || fs.existsSync(path.join(dir, 'worktrees'))) continue;
+    // Never prune while a scopetree or slicetrees are still present — that's an interrupted cleanup, not a finished run.
+    if (fs.existsSync(path.join(dir, 'scopetree')) || fs.existsSync(path.join(dir, 'slicetrees'))) continue;
     // The branch is contained by proof here, so it goes before the ledger that names it (ADR 0071). A
     // failed delete leaves the run root standing: the ledger is the only record of the name, so pruning
     // it now strands the branch with nothing left to find it by. The next Stop retries both.

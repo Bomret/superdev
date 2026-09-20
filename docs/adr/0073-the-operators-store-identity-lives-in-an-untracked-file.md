@@ -28,7 +28,7 @@ Four boundaries keep the change local:
 
 - **The read anchors on the main checkout.** `/superdev:plan` commits from the invoking checkout today.
   ADR 0072 is the pending move that would put a new-feature, design-docs-producing plan into its own
-  scope worktree. That worktree carries no `.superdev/` of its own, so a path relative to the working
+  scopetree. That scopetree carries no `.superdev/` of its own, so a path relative to the working
   directory would find nothing there. `git rev-parse --path-format=absolute --git-common-dir` resolves the
   main checkout's `.git` from either location, whose parent holds the file. This is why the mechanism
   needs no edit when that move lands.
@@ -81,6 +81,6 @@ maintainer-only.
   bullet where it once required it, and keeps requiring the `## Assignee` section. This makes `assignee`
   the one member of the specialising family whose halves pull opposite ways, and the check reports both
   expectations rather than losing one.
-- `.superdev/` gains a file that is not run scratch. `scope-prune` and `worktree-sweep` both operate on
+- `.superdev/` gains a file that is not run scratch. `scope-prune` and `slicetree-sweep` both operate on
   `.superdev/scopes/<scope>/` alone, so neither reaps it, but the directory is no longer purely
   disposable.
