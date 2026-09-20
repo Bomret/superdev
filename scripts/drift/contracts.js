@@ -731,8 +731,8 @@ const VERB_CONTRACTS = [
   // consulted then discarded", both of which exercise `resolveScopeBranch` against a real git repo.
   // ADR 0058's two call sites for the base lock, both halves of each. No hook backs this verb, so a
   // document that stops acquiring goes straight back to two sessions racing on CONTEXT.md, the ADRs,
-  // and .claude/rules/ — and one that stops releasing leaves every later session waiting out the
-  // five-minute staleness window for a lock nobody holds.
+  // and the invariant register — and one that stops releasing leaves every later session waiting out
+  // the five-minute staleness window for a lock nobody holds.
   [path.join('references', 'run-init.md'), /scope\.js["'`]?\s+base-lock acquire\b/, 'take the base lock with `scope.js base-lock acquire` before it edits a base-branch design doc'],
   [path.join('references', 'run-init.md'), /scope\.js["'`]?\s+base-lock release\b/, 'release the base lock with `scope.js base-lock release` once its base push completes'],
   [path.join('skills', 'plan', 'SKILL.md'), /scope\.js["'`]?\s+base-lock acquire\b/, 'take the base lock with `scope.js base-lock acquire` before it edits a base-branch design doc'],
@@ -3013,10 +3013,81 @@ const SETUP_CHECK_CONTRACTS = [
   ],
 ];
 
+// ADR 0077: the invariant register lives at one fixed path, and `domain-modeling.md` is what tells
+// `/plan` and a human where it is. A copy that stops naming `docs/invariants.md` sends both looking
+// for the register at the `.claude/rules/` home ADR 0077 retired.
+const INVARIANT_REGISTER_CONTRACTS = [
+  [path.join('references', 'domain-modeling.md'), /docs\/invariants\.md/, "name the register's fixed path, `docs/invariants.md`"],
+];
+
+// ADR 0077's consequences: a repository carrying `.claude/rules/` loses its rule-compliance check, and
+// `/superdev:setup check` is what tells its operator — naming `docs/invariants.md` as the register the
+// content moves into, and that the move is by hand, because `Class` and `Concepts` are mandatory fields
+// a glob-scoped rule records nowhere. Losing this row lets `check` mode go silent on a leftover
+// `.claude/rules/` directory, stranding the operator with no signal that the directory's content wants
+// migrating.
+const SETUP_CHECK_RULES_CONTRACTS = [
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /\.claude\/rules\/[\s\S]{0,400}docs\/invariants\.md[\s\S]{0,400}by hand/,
+    'report a leftover `.claude/rules/` directory, naming `docs/invariants.md` as where its content ' +
+      'belongs and that the move is by hand',
+  ],
+];
+
+// ADR 0077: the doc pass resolves the register's `Paths:`/`Symbols:` entries against the repo, and
+// doc-reader carries the same lens cold, since it is the surface that checks a doc's claims against the
+// repo with no prior context. Either row losing the instruction leaves the register's own claims to
+// drift unnoticed alongside the code they name — the same one-sided-pin shape CONTENT_TYPES_DOCS guards
+// on the content-type lens, applied to this lens instead.
+const INVARIANT_REGISTER_DOC_PASS_PATTERN =
+  /resolve every entry's `Paths:` glob and every `Symbols:` entry against the repository/;
+
+const INVARIANT_REGISTER_DOC_PASS_CONTRACTS = [
+  [
+    path.join('references', 'doc-pass.md'),
+    INVARIANT_REGISTER_DOC_PASS_PATTERN,
+    "resolve every invariant entry's `Paths:` glob and `Symbols:` entry against the repository, " +
+      'reporting one that matches nothing by its entry id',
+  ],
+  [
+    path.join('agents', 'doc-reader.md'),
+    INVARIANT_REGISTER_DOC_PASS_PATTERN,
+    "carry the same lens cold: resolve every invariant entry's `Paths:` glob and `Symbols:` entry " +
+      'against the repository',
+  ],
+];
+
+// ADR 0077: an invariant crystallised in the interview is only reachable by an implementer working in
+// an isolated worktree once /plan judges it against the register during grounding — before any slice
+// exists — and then routes the held match into both the Definition of Done and the touching slice's
+// `spec` once that slice is cut, and final-reviewer only checks against it, not the `.claude/rules/`
+// home the register replaced. The judging half and the writing half are two different points in /plan's
+// own flow, so they are two separate rows here — losing any one of the three leaves a stage of that
+// routing recorded but unread.
+const INVARIANT_COMPLIANCE_CONTRACTS = [
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /docs\/invariants\.md[\s\S]{0,400}[Jj]udge each entry/,
+    'judge the decomposition against the invariant register during grounding, reading `docs/invariants.md` whole',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /Definition-of-Done criterion naming the entry's id[\s\S]{0,200}`spec` of (?:that|the) slice/,
+    "route a held register match into a Definition-of-Done criterion naming its id, and into the touching slice's `spec`",
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /\*\*Invariant compliance\*\*[\s\S]{0,300}docs\/invariants\.md[\s\S]{0,400}plan-coverage gap[\s\S]{0,200}skip this check silently/,
+    'carry the Invariant compliance check: read `docs/invariants.md`, report a break as a finding and a DoD-omitted entry as a plan-coverage gap, skip silently when the register is absent',
+  ],
+];
+
 module.exports = {
   CONTAINMENT_DELEGATION_CONTRACTS,
   CONTAINMENT_REFETCH_CONTRACTS,
   STANDING_CODE_LENS_CONTRACTS,
+  SETUP_CHECK_RULES_CONTRACTS,
   REFERENCE_PATTERN,
   RUN_ROOT_DOCS,
   RUN_ROOT_ARTIFACT_PATTERN,
@@ -3139,4 +3210,7 @@ module.exports = {
   UNTRIAGED_ELEMENTS,
   BACKLOG_SURVEY_CONTRACTS,
   SETUP_CHECK_CONTRACTS,
+  INVARIANT_REGISTER_CONTRACTS,
+  INVARIANT_REGISTER_DOC_PASS_CONTRACTS,
+  INVARIANT_COMPLIANCE_CONTRACTS,
 };

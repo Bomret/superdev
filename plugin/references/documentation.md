@@ -63,8 +63,9 @@ the default tree alone and says so in its report.
 
 superdev usage:
 
-- `/superdev:plan` records the glossary (`CONTEXT.md`), ADRs (`docs/adr/`), and any path-scoped rules
-  (`.claude/rules/`) in their conventional locations; the `AGENTS.md` tree indexes and points to them.
+- `/superdev:plan` records the glossary (`CONTEXT.md`), ADRs (`docs/adr/`), and any invariants (the
+  register, `docs/invariants.md`) in their conventional locations; the `AGENTS.md` tree indexes and
+  points to them.
 - `/superdev:document` runs the **documentation pass**: it brings the affected `AGENTS.md` (and other
   in-repo docs) up to the current state and removes stale text. It is the third command of the implement
   chain (`/superdev:implement` → `/superdev:review` → `/superdev:document` → `/superdev:ship`), and it

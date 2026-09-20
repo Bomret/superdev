@@ -54,6 +54,39 @@ edge a sentence can't state plainly. One component, or a relation prose already 
 diagram. An ADR is a point-in-time record, so its diagram documents what was decided and never goes stale
 the way a live architecture picture would. Every node must be a component the prose also names.
 
+### Invariants → `docs/invariants.md`
+
+A rule the system may never break — "a module is loaded once", "the domain layer imports no
+infrastructure", "an order total equals the sum of its lines" — goes to the **invariant register**,
+`docs/invariants.md`, one file at a fixed path. Create it only when the first invariant crystallises;
+an empty register is never scaffolded.
+
+Each entry carries an id, a `Class`, the `Concepts` it governs, its `Statement`, and how it `Breaks`,
+plus the optional `Symbols` and `Paths` it governs. `Concepts` is mandatory and draws on `CONTEXT.md`'s
+vocabulary — a concept survives the refactor that unbinds a path or renames a symbol, which is why it
+is the coordinate every entry carries. An entry whose `Breaks` reads `silently` also answers `Check:`,
+naming the executable proof, or `none` with the reason an invariant nobody can cheaply test today stays
+recorded anyway.
+
+**Id form:** `INV-NNNN`, zero-padded to four digits. Number by scanning `docs/invariants.md` for the
+highest existing id + 1 — the same allocation rule the ADR home above uses for its own filenames,
+applied to entries in one file instead of files in one directory.
+
+A worked example, showing every field's rendering: every field carries a colon, and the optional
+`Symbols:` and `Paths:` are the two a resolver greps for.
+
+```
+### INV-0001
+
+Class: architecture
+Concepts: Order, OrderLine
+Statement: An order total equals the sum of its lines.
+Breaks: silently
+Check: tests/order-total.test.ts
+Symbols: Order.total
+Paths: src/domain/order/**
+```
+
 ### Rejected directions → an ADR's `Considered options`, or the epic's non-goals
 
 A direction explored and dropped is worth keeping only where a future reader will look for it. When
@@ -78,13 +111,15 @@ only when no source, rejects included, has anything for it; an empty one is wors
 ### Revise in place
 
 When a later answer changes a decision you already recorded, bring the record into line where that
-decision lives. Never leave the store holding two contradictory decisions. Three treatments cover it,
-split first by home and then — inside the ADR home — by how much of the decision the later answer leaves
-standing: a decision **overturned** is superseded, a decision that **stands with a narrow qualification**
-is amended.
+decision lives. Never leave the store holding two contradictory decisions. Treatments split first by
+home, and then — inside the ADR home — by how much of the decision the later answer leaves standing: a
+decision **overturned** is superseded, a decision that **stands with a narrow qualification** is amended.
 
 - **A glossary entry is revised in place.** It states current truth, not its history, so rewrite the
   entry and keep exactly one per term.
+- **An invariant register entry is revised in place, the same way.** Find the existing entry by the
+  `Concepts` it already names — never by re-deriving the rule from scratch — and edit it, rather than
+  appending a second, differently-worded entry for a rule the register already records.
 - **An overturned ADR is superseded, never edited.** It is a dated record of what was decided at the
   time, and editing it destroys the record the ADR exists to be. Superseding has three parts: write the
   replacement ADR, set the old one's `**Status:**` line to `Superseded`, adding that line under

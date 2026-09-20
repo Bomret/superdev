@@ -1,6 +1,6 @@
 superdev-render-overlay
 source: skills/plan/SKILL.md
-body-lines: 359
+body-lines: 356
 ---
 # generated-by: superdev-adapter — a re-render overwrites this directory
 name: superdev-plan
@@ -36,43 +36,43 @@ Intent still vague — no clear problem, no checkable success criteria? Suggest 
 `<plugin-root>/references/diagnosis.md` and hold the plan to it: the **red-capable command** —
 @138
 **Read `<plugin-root>/references/domain-modeling.md` and apply it as you interview.** Read any
-@178
+@165
   the body below. `/superdev-publish-kb` sends no non-`.md` file; `/superdev-status` prints it as a stray
-@180
+@167
   `/superdev-publish-kb` sends it when the feature reaches its readers. A **local** `docs/kb/` backend
-@191
+@178
   `/superdev-publish-kb` merges the
-@194
+@181
   before `/superdev-publish-kb` ever sees either — append `-2`, `-3`, … to the later ones'
-@200
+@187
 and stale removal happen in `/superdev-document` (ADR 0013).
-@213
+@206
 `<plugin-root>/references/design-sketch.md` and follow it through to the operator's approval of
-@217
+@210
 Decompose into **vertical slices** (`<plugin-root>/references/plan-contract.md` owns the rules
-@227
+@220
   (`<plugin-root>/references/plan-contract.md` → *Wide refactors*): expand, migrate in batches,
-@237
+@233
   `/superdev-document` reconciles README, `AGENTS.md`, and the KB after the scope lands. Slice out `docs`
-@300
+@296
 *Scope anchor*, ADR 0040). It is what lets `/superdev/afk` reach the two in the right order. Ask nothing
-@312
+@308
 **Tell the user the expected execution tier** — informational only; `/superdev-plan` persists it nowhere.
-@313
+@309
 `/superdev-implement` derives it fresh from the final slice count — **≤3 slices → `lite`** (the
-@316
+@312
 every slice is on the scope branch — to `/superdev-review`, or straight to `/superdev-document` when
+@320
+still prints, because only the commit is outstanding. `/superdev-implement` runs from a fresh scopetree
 @324
-only the commit is outstanding. `/superdev-implement` runs from a fresh scopetree checkout of that branch,
-@327
 `node "<plugin-root>/scripts/scope.js" base-lock acquire`, from the invoking checkout — **before
-@329
+@326
 anything turns out to be dirty, because a second `/superdev-plan` run, or an `/superdev-implement` run
-@335
+@332
 `docs/agents/code-management.md`): `/superdev-ship`'s PR is opened against the remote base, and an
-@337
+@334
 acquired** once the push completes — `node "<plugin-root>/scripts/scope.js" base-lock release` —
-@348
+@345
   Say that `/superdev-implement` asks for confirmation until then.
-@355
+@352
 the feature label resolved** — `/superdev-implement <feature-label>`, carrying the real label this plan

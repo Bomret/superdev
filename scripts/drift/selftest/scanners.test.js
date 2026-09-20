@@ -56,6 +56,7 @@ const {
   CHAINED_TEST_AUDIT_CONTRACTS,
   SWEEP_CHAINED_LEG_CONTRACTS,
   SETUP_CHECK_CONTRACTS,
+  SETUP_CHECK_RULES_CONTRACTS,
 } = require('../contracts');
 const CHECKS = require('../checks');
 
@@ -3580,5 +3581,40 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     scanContract(realRoot, SETUP_CHECK_CONTRACTS).length,
     0,
     'the shipped `check` mode still carries both halves',
+  );
+
+  // --- SETUP_CHECK_RULES_CONTRACTS (ADR 0077): `/superdev:setup check` reports a leftover
+  // `.claude/rules/` directory, naming `docs/invariants.md` and that the move is by hand ---
+
+  const SETCR_CLEAN =
+    'Beyond the six config documents, check for a leftover `.claude/rules/` directory holding at ' +
+    'least one `.md` file. Report its path and how many `.md` files it holds, naming ' +
+    '`docs/invariants.md` as where the content belongs, and state that the move is by hand: ' +
+    '`Class` and `Concepts` are mandatory register fields a glob-scoped rule records nowhere.\n';
+
+  assert.equal(
+    scanContract(fixture({ 'skills/setup/SKILL.md': SETCR_CLEAN }), SETUP_CHECK_RULES_CONTRACTS).length,
+    0,
+    'naming `.claude/rules/`, `docs/invariants.md`, and the by-hand move together yields zero gaps',
+  );
+
+  // positive: `.claude/rules/` drops out, leaving the check silent on a leftover directory
+  const setcrGaps = scanContract(
+    fixture({
+      'skills/setup/SKILL.md': SETCR_CLEAN.replace(
+        'a leftover `.claude/rules/` directory holding at least one `.md` file',
+        'a leftover rules directory',
+      ),
+    }),
+    SETUP_CHECK_RULES_CONTRACTS,
+  );
+  assert.equal(setcrGaps.length, 1, 'flags the mode once it stops naming `.claude/rules/`');
+  assert.equal(setcrGaps[0].source, path.join('skills', 'setup', 'SKILL.md'), 'names setup SKILL.md');
+
+  // negative: the real tree still carries the leg
+  assert.equal(
+    scanContract(realRoot, SETUP_CHECK_RULES_CONTRACTS).length,
+    0,
+    'the shipped `check` mode still reports a leftover `.claude/rules/` directory',
   );
 };

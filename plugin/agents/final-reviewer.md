@@ -95,11 +95,12 @@ First, the checks that sit before the quality axes:
 **Plan alignment** — does the integrated result satisfy the global DoD? Is all planned functionality
 present? Are deviations justified, or problems?
 
-**Rule compliance** — for each `.claude/rules/*.md` whose `paths:` glob matches a file in this diff, read
-it and check the diff complies. No `.claude/rules/` directory, or no rule's globs match anything changed
-→ skip this check silently, don't report an empty section. Categorize any violation by actual severity
-in the Issues section below, the same as every other check — a rule violation has no fixed severity of
-its own.
+**Invariant compliance** — read `docs/invariants.md` yourself, when the repository carries one, and check
+each entry the integrated scope touches against the code. A break is a finding, at the severity it
+actually warrants in the Issues section below — an invariant violation has no fixed severity of its own.
+An entry the Definition of Done never turned into a criterion is a plan-coverage gap: report it as Minor,
+the same treatment `Derive the criteria first` above gives a criterion the DoD leaves out. No
+`docs/invariants.md` → skip this check silently, don't report an empty section.
 
 Then review the integrated scope across **the axes below, adversarially** — for each axis, assume the change
 is flawed on that dimension and actively try to break it; the axis passes only when your attack fails.

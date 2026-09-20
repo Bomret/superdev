@@ -16,11 +16,11 @@ Durable in-repo docs live as a hierarchy of `AGENTS.md` files (this repo has a r
   `hooks/`, and `scripts/` are named. Every other doc links to the owning place instead of restating the
   fact.
 
-superdev usage: `/superdev:plan` records ADRs (`docs/adr/`), the glossary (`CONTEXT.md`), and path-scoped
-rules (`.claude/rules/`) in their conventional locations. `/superdev:document` reconciles the `AGENTS.md`
-tree and `README.md` with the code. It is the third command of the implement chain (`/superdev:implement`,
-then `/superdev:review`, then `/superdev:document`, then `/superdev:ship`), and it also runs on demand at
-any time.
+superdev usage: `/superdev:plan` records ADRs (`docs/adr/`), the glossary (`CONTEXT.md`), and the
+invariant register (`docs/invariants.md`) in their conventional locations. `/superdev:document`
+reconciles the `AGENTS.md` tree and `README.md` with the code. It is the third command of the implement
+chain (`/superdev:implement`, then `/superdev:review`, then `/superdev:document`, then `/superdev:ship`),
+and it also runs on demand at any time.
 
 ## Writing standard
 

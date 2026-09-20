@@ -4,16 +4,17 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
 
 ## Run init — definition of done + ledger (always first)
 
-- **Commit + push the base first.** The glossary (`CONTEXT.md`), ADRs (`docs/adr/`), and `.claude/rules/`
-  must be committed on the base branch — worktrees are clean checkouts, so uncommitted design docs never
-  reach them. Any dirty/untracked → commit to base, but **check `git rev-parse --abbrev-ref HEAD` first
-  and only commit when the invoking checkout is on the base branch.** Any other branch → name the branch
-  you found and the base you wanted, write nothing, stop. **`--unattended` → block**, per
+- **Commit + push the base first.** The glossary (`CONTEXT.md`), ADRs (`docs/adr/`), and the invariant
+  register (`docs/invariants.md`) must be committed on the base branch — worktrees are clean checkouts,
+  so uncommitted design docs never reach them. Any dirty/untracked → commit to base, but **check `git
+  rev-parse --abbrev-ref HEAD` first and only commit when the invoking checkout is on the base branch.**
+  Any other branch → name the branch you found and the base you wanted, write nothing, stop.
+  **`--unattended` → block**, per
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section. **Nothing dirty → the branch
   check does not apply, and neither does the lock: there is nothing to serialize, so acquire nothing and
   release nothing.** **Dirty/untracked, and that check reads the base branch → take the base lock first**
   — `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" base-lock acquire`, from the invoking checkout —
-  **before you touch `CONTEXT.md`, any `docs/adr/` file, or any `.claude/rules/` file**, because a
+  **before you touch `CONTEXT.md`, any `docs/adr/` file, or `docs/invariants.md`**, because a
   `/superdev:plan` run in the same checkout commits the same three groups to the same branch (ADR 0058).
   **A refused acquire names the session holding it: print that message and stop, having edited nothing —
   and released nothing, since this session never held the lock.** Then push `<base>` by explicit refspec

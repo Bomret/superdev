@@ -63,6 +63,13 @@ store and code host stay unqueried:
 - `knowledge-base.md` — a local `docs/kb/` path still exists. A software backend records no local fact
   this check can reach, and reports consistent once confirmed present.
 
+Beyond the six config documents, check for a leftover `.claude/rules/` directory holding at least one
+`.md` file — superdev's retired rule-compliance home (ADR 0077). Report its path and how many `.md`
+files it holds, naming `docs/invariants.md` as where the content belongs, and state that the move is by
+hand: `Class` and `Concepts` are mandatory register fields a glob-scoped rule records nowhere, so a
+conversion would invent them. An absent `.claude/rules/`, or one holding no `.md` file, gets no line in
+the report.
+
 Report the verdicts and stop.
 
 ## 1. Explore

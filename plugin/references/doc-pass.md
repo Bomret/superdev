@@ -90,6 +90,12 @@ reconcile). For each affected `AGENTS.md`:
 Also update the **top-level in-repo docs** the change affects — especially `README.md` (its usage and
 examples must match real behavior), and any `CONTRIBUTING` / `docs/*.md` that drifted.
 
+**Resolve the invariant register.** Where `docs/invariants.md` exists, resolve every entry's `Paths:`
+glob and every `Symbols:` entry against the repository, and report — never gate on — one that matches
+nothing, naming the entry's id. `Concepts` already carries the invariant's own matching, so a stale
+`Paths:` or `Symbols:` costs precision, not correctness. An entry naming neither field needs no
+resolution, and a repository with no `docs/invariants.md` needs no check at all.
+
 Do not touch code or tests — docs only.
 
 ## Pass 2 — knowledge base

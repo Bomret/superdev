@@ -326,9 +326,9 @@ answer lands outside that tree: the slice store's **assignee** goes to the git-i
   printed compare URL and a ready-to-run command. The answers go to `docs/agents/code-management.md`.
 - **Documentation (in-repo).** How durable technical docs are kept: an **`AGENTS.md` hierarchy**, where
   the root is project-wide and each child covers one boundary. `/plan` also records the glossary
-  (`CONTEXT.md`), ADRs (`docs/adr/`), and path-scoped rules (`.claude/rules/`) under this convention, and
-  `/document` reconciles it after a scope lands. This doc also names the **writing standard** the doc
-  agents write to: `controlled` (the language-neutral rule set in
+  (`CONTEXT.md`), ADRs (`docs/adr/`), and invariants (the register, `docs/invariants.md`) under this
+  convention, and `/document` reconciles it after a scope lands. This doc also names the **writing
+  standard** the doc agents write to: `controlled` (the language-neutral rule set in
   [`references/controlled-prose.md`](plugin/references/controlled-prose.md)), a path to your own style guide, or
   `none`. The answers go to `docs/agents/documentation.md`.
 - **Knowledge base** *(optional)*. A **separate, human-first** record for *readers* rather than agents:
@@ -369,7 +369,7 @@ docs/plans/<type>/<slug>/ slices + Definition of Done (local store): 00-epic-* =
                           NN-<test-applicability>-* = one file per slice (number = id)
 CONTEXT.md                glossary / ubiquitous language, authored by /plan
 docs/adr/NNNN-*.md        architecture decision records, authored by /plan
-.claude/rules/*.md        path-scoped conventions the implementers auto-load, authored by /plan
+docs/invariants.md        invariant register — rules the system may never break, authored by /plan
 docs/kb/                  knowledge base, only if the local-file KB backend is chosen
 .superdev/scopes/<scope>/  git-ignored run scratch, namespaced per scope branch so parallel runs
                           don't collide: the concrete DoD + ledger (both execution tiers), plus
@@ -393,8 +393,8 @@ docs/kb/                  knowledge base, only if the local-file KB backend is c
                           root, so /ship never removes it
 ```
 
-Everything except `.superdev/` is committed. The design docs (the glossary, the ADRs, and the rules)
-**must** be on the branch. Both tiers work from fresh scopetree or slicetree checkouts, and a checkout sees only what
+Everything except `.superdev/` is committed. The design docs (the glossary, the ADRs, and the invariant
+register) **must** be on the branch. Both tiers work from fresh scopetree or slicetree checkouts, and a checkout sees only what
 is committed. On the full tier those checkouts belong to the per-slice `implementer` subagents. On the
 lite tier the controller itself works in the scopetree.
 

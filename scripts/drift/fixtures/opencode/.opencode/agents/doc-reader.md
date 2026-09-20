@@ -1,6 +1,6 @@
 superdev-render-overlay
 source: agents/doc-reader.md
-body-lines: 123
+body-lines: 128
 ---
 # generated-by: superdev-adapter — a re-render overwrites this file
 description: "Fresh-eyes doc verifier. Reads just-reconciled docs cold and checks every claim against the repo, flagging ungrounded, stale, or ambiguous text. Read-only; dispatched by /superdev-document."
@@ -24,5 +24,5 @@ permission:
 Read `<plugin-root>/references/content-types.md` first — it names the four kinds of information a
 @46
   that matters, Read `<plugin-root>/references/doc-verification.md` and apply its discipline:
-@57
+@62
 `controlled` points at `<plugin-root>/references/controlled-prose.md`; any other value is a

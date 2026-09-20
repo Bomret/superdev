@@ -42,6 +42,9 @@ const {
   SCOPETREE_CONTRACTS,
   TRIAGE_RECORD_CONTRACTS,
   BACKLOG_SURVEY_CONTRACTS,
+  INVARIANT_REGISTER_CONTRACTS,
+  INVARIANT_REGISTER_DOC_PASS_CONTRACTS,
+  INVARIANT_COMPLIANCE_CONTRACTS,
 } = require('../contracts');
 
 module.exports = ({ assert, path, fixture, fs, realRoot }) => {
@@ -2816,5 +2819,200 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     ).length,
     0,
     'prose naming a non-mapping runner and `{paths}` in one sentence stays silent',
+  );
+
+  // --- INVARIANT_REGISTER_CONTRACTS (ADR 0077): domain-modeling.md is what tells /plan and a human
+  // where the invariant register lives. A copy that stops naming docs/invariants.md sends both looking
+  // for the register at the .claude/rules/ home ADR 0077 retired. ---
+
+  // negative: the reference still names the register's fixed path
+  assert.equal(
+    scanContract(
+      fixture({ 'references/domain-modeling.md': 'The invariant register lives at `docs/invariants.md`.\n' }),
+      INVARIANT_REGISTER_CONTRACTS,
+    ).length,
+    0,
+    'the reference naming the register path yields zero gaps',
+  );
+
+  // positive: the reference stops naming the path
+  const invariantGaps = scanContract(
+    fixture({ 'references/domain-modeling.md': 'The invariant register lives at a fixed path.\n' }),
+    INVARIANT_REGISTER_CONTRACTS,
+  );
+  assert.equal(invariantGaps.length, 1, 'flags domain-modeling.md once it stops naming the register path');
+  assert.equal(
+    invariantGaps[0].source,
+    path.join('references', 'domain-modeling.md'),
+    'names the reference that drifted',
+  );
+
+  // --- INVARIANT_REGISTER_DOC_PASS_CONTRACTS (ADR 0077): both the doc pass and doc-reader must resolve
+  // the register's Paths:/Symbols: entries against the repo. Either one dropping the instruction leaves
+  // a stale entry unreported and the suite green — the same one-sided-pin shape CONTENT_TYPES_DOCS
+  // guards on the content-type lens. ---
+
+  const resolvesRegister =
+    "Where the register exists, resolve every entry's `Paths:` glob and every `Symbols:` entry against " +
+    'the repository.\n';
+
+  // negative: both halves still carry the instruction
+  assert.equal(
+    scanContract(
+      fixture({
+        'references/doc-pass.md': resolvesRegister,
+        'agents/doc-reader.md': resolvesRegister,
+      }),
+      INVARIANT_REGISTER_DOC_PASS_CONTRACTS,
+    ).length,
+    0,
+    'both doc-pass.md and doc-reader.md carrying the resolution instruction yields zero gaps',
+  );
+
+  // positive: doc-pass.md stops naming the resolution
+  const docPassGaps = scanContract(
+    fixture({
+      'references/doc-pass.md': 'Reconcile the docs with reality.\n',
+      'agents/doc-reader.md': resolvesRegister,
+    }),
+    INVARIANT_REGISTER_DOC_PASS_CONTRACTS,
+  );
+  assert.equal(docPassGaps.length, 1, 'flags doc-pass.md once it stops naming the register resolution');
+  assert.equal(
+    docPassGaps[0].source,
+    path.join('references', 'doc-pass.md'),
+    'names the reference that drifted',
+  );
+
+  // positive: doc-reader.md stops naming the resolution — the same drift from the other side
+  const docReaderGaps = scanContract(
+    fixture({
+      'references/doc-pass.md': resolvesRegister,
+      'agents/doc-reader.md': 'Read the docs cold and verify their claims.\n',
+    }),
+    INVARIANT_REGISTER_DOC_PASS_CONTRACTS,
+  );
+  assert.equal(docReaderGaps.length, 1, 'flags doc-reader.md once it stops naming the register resolution');
+  assert.equal(
+    docReaderGaps[0].source,
+    path.join('agents', 'doc-reader.md'),
+    'names the agent that drifted',
+  );
+
+  // --- INVARIANT_COMPLIANCE_CONTRACTS: /plan judges the register during grounding — before any slice
+  // exists — then routes a held match into the DoD and the touching slice's spec once a slice is cut,
+  // and final-reviewer checks the register itself instead of `.claude/rules/`. The judging and the
+  // routing are two different points in /plan's own flow and so two separate rows: losing either
+  // strands an invariant an implementer's isolated worktree never sees. ---
+
+  const planJudgingAndRouting =
+    '**Judge the decomposition against the invariant register.** Read `docs/invariants.md` whole ' +
+    'while grounding. Judge each entry and hold every match.\n\n' +
+    'Write each held match into the slice it touches: as a Definition-of-Done criterion naming the ' +
+    "entry's id, and into the `spec` of that slice.\n";
+
+  // negative: plan still judges the register during grounding and routes a held match into the DoD
+  // criterion and the slice's spec
+  assert.equal(
+    scanContract(
+      fixture({ 'skills/plan/SKILL.md': planJudgingAndRouting }),
+      INVARIANT_COMPLIANCE_CONTRACTS,
+    ).length,
+    0,
+    'plan naming both the register judging and the DoD/spec routing yields zero gaps',
+  );
+
+  // positive: plan stops judging the register during grounding (the routing half still there)
+  const planJudgingGaps = scanContract(
+    fixture({
+      'skills/plan/SKILL.md':
+        'Write each held match into the slice it touches: as a Definition-of-Done criterion naming the ' +
+        "entry's id, and into the `spec` of that slice.\n",
+    }),
+    INVARIANT_COMPLIANCE_CONTRACTS,
+  );
+  assert.equal(
+    planJudgingGaps.length,
+    1,
+    'flags plan/SKILL.md once it stops judging the register during grounding',
+  );
+  assert.equal(
+    planJudgingGaps[0].source,
+    path.join('skills', 'plan', 'SKILL.md'),
+    'names the plan skill as the drifted document',
+  );
+
+  // positive: plan stops routing a held match into the DoD/spec (the judging half still there)
+  const planRoutingGaps = scanContract(
+    fixture({
+      'skills/plan/SKILL.md':
+        '**Judge the decomposition against the invariant register.** Read `docs/invariants.md` whole ' +
+        'while grounding. Judge each entry and hold every match.\n',
+    }),
+    INVARIANT_COMPLIANCE_CONTRACTS,
+  );
+  assert.equal(planRoutingGaps.length, 1, 'flags plan/SKILL.md once it stops routing a held register match');
+  assert.equal(
+    planRoutingGaps[0].source,
+    path.join('skills', 'plan', 'SKILL.md'),
+    'names the plan skill as the drifted document',
+  );
+
+  // positive: plan still routes into a `spec`, but no longer names the touching slice's own —
+  // the tightened pattern must not credit "`spec` of" alone
+  const planRoutingWrongSpecGaps = scanContract(
+    fixture({
+      'skills/plan/SKILL.md':
+        '**Judge the decomposition against the invariant register.** Read `docs/invariants.md` whole ' +
+        'while grounding. Judge each entry and hold every match.\n\n' +
+        'Write each held match into the slice it touches: as a Definition-of-Done criterion naming the ' +
+        "entry's id, and into the `spec` of the epic.\n",
+    }),
+    INVARIANT_COMPLIANCE_CONTRACTS,
+  );
+  assert.equal(
+    planRoutingWrongSpecGaps.length,
+    1,
+    'flags plan/SKILL.md when "of that slice" drops even though a `spec` mention survives',
+  );
+  assert.equal(
+    planRoutingWrongSpecGaps[0].source,
+    path.join('skills', 'plan', 'SKILL.md'),
+    'names the plan skill as the drifted document',
+  );
+
+  // negative: final-reviewer still carries the invariant-compliance check
+  assert.equal(
+    scanContract(
+      fixture({
+        'agents/final-reviewer.md':
+          '**Invariant compliance** — read `docs/invariants.md` yourself and check each entry the ' +
+          'integrated scope touches. An entry the Definition of Done never turned into a criterion is a ' +
+          'plan-coverage gap. No `docs/invariants.md` → skip this check silently.\n',
+      }),
+      INVARIANT_COMPLIANCE_CONTRACTS,
+    ).length,
+    0,
+    'final-reviewer naming the invariant-compliance check yields zero gaps',
+  );
+
+  // positive: final-reviewer reverts to (or never carries) the invariant-compliance check
+  const reviewerComplianceGaps = scanContract(
+    fixture({
+      'agents/final-reviewer.md':
+        '**Rule compliance** — for each `.claude/rules/*.md` whose `paths:` glob matches a file in this ' +
+        'diff, read it and check the diff complies.\n',
+    }),
+    INVARIANT_COMPLIANCE_CONTRACTS,
+  );
+  assert.equal(
+    reviewerComplianceGaps.length,
+    1,
+    'flags final-reviewer.md once it stops naming the invariant-compliance check',
+  );
+  assert.equal(
+    reviewerComplianceGaps[0].source,
+    path.join('agents', 'final-reviewer.md'),
+    'names final-reviewer as the drifted document',
   );
 };

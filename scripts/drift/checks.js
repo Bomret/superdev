@@ -63,6 +63,7 @@ const {
   TRIAGE_RECORD_CONTRACTS,
   BACKLOG_SURVEY_CONTRACTS,
   SETUP_CHECK_CONTRACTS,
+  SETUP_CHECK_RULES_CONTRACTS,
   DERIVED_CRITERIA_CONTRACTS,
   REACHABLE_CRITERION_CONTRACTS,
   REVIEW_RANGE_SHAPES_CONTRACTS,
@@ -101,6 +102,9 @@ const {
   ADOPT_RUN_STATE_CONTRACTS,
   RESUMED_SCOPETREE_TRIGGER_CONTRACTS,
   STANDING_CODE_LENS_CONTRACTS,
+  INVARIANT_REGISTER_CONTRACTS,
+  INVARIANT_REGISTER_DOC_PASS_CONTRACTS,
+  INVARIANT_COMPLIANCE_CONTRACTS,
 } = require('./contracts');
 
 // The printer the table-driven checks share. A gap is `{ source, expectation }` and reads the
@@ -548,6 +552,11 @@ module.exports = [
     '`/superdev:setup check` is a named, read-only drift-check mode',
   ),
   table(
+    'setup-check-claude-rules',
+    SETUP_CHECK_RULES_CONTRACTS,
+    '`/superdev:setup check` still reports a leftover `.claude/rules/` directory',
+  ),
+  table(
     'chained-test-audit',
     CHAINED_TEST_AUDIT_CONTRACTS,
     'a chained test audit runs no agreement round and writes no intent, returning fact/judgment-labelled ' +
@@ -558,6 +567,22 @@ module.exports = [
     SWEEP_CHAINED_LEG_CONTRACTS,
     '/superdev:sweep still dispatches its code, doc, and test legs with `--chained` and its config leg as ' +
       '`/superdev:setup check`',
+  ),
+  table(
+    'invariant-register-path',
+    INVARIANT_REGISTER_CONTRACTS,
+    'domain-modeling.md still names the invariant register\'s fixed path, `docs/invariants.md`',
+  ),
+  table(
+    'invariant-register-doc-pass',
+    INVARIANT_REGISTER_DOC_PASS_CONTRACTS,
+    'the doc pass and doc-reader still resolve the invariant register\'s `Paths:`/`Symbols:` entries ' +
+      'against the repo',
+  ),
+  table(
+    'invariant-compliance',
+    INVARIANT_COMPLIANCE_CONTRACTS,
+    'plan still routes a matched register entry into the DoD and the touching slice\'s spec, and final-reviewer still checks the register itself',
   ),
 ];
 

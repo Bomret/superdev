@@ -51,6 +51,11 @@ Extract every **checkable claim** from the docs and verify it against the repo:
   load-bearing when a doc leans on it. Well-known stable behavior stays exempt — no ceremony. For a claim
   that matters, Read `${CLAUDE_PLUGIN_ROOT}/references/doc-verification.md` and apply its discipline:
   verify against official docs via WebFetch/WebSearch (official sources only), citing what you checked.
+- **The invariant register** — where `docs/invariants.md` is among the docs you were handed, resolve
+  every entry's `Paths:` glob and every `Symbols:` entry against the repository the same way, and report
+  a match-nothing entry under `stale:`, naming its id. `Concepts` already carries the invariant's own
+  matching, so this costs precision, not correctness — never a reason to call the invariant itself wrong.
+  An entry naming neither field needs no resolution.
 
 ## Pass 3 — writing standard
 

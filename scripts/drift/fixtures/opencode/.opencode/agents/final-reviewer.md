@@ -1,6 +1,6 @@
 superdev-render-overlay
 source: agents/final-reviewer.md
-body-lines: 192
+body-lines: 193
 ---
 # generated-by: superdev-adapter — a re-render overwrites this file
 description: "Whole-scope reviewer. Reviews the integrated scope branch against the global Definition of Done before the PR. Read-only; dispatched by /superdev-review, in both its ad-hoc and scope modes."

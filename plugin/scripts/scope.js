@@ -866,8 +866,9 @@ function testContainment(cwd, base, branch, remote = 'origin') {
 // --- base lock ---------------------------------------------------------------
 //
 // ADR 0058: `/superdev:plan` §6 and `/superdev:implement`'s run init both commit CONTEXT.md, the
-// ADRs, and .claude/rules/ straight to the base branch from the invoking checkout. Two sessions can
-// pass the `git rev-parse --abbrev-ref HEAD` check at the same moment and race on those files, so
+// ADRs, and the invariant register (docs/invariants.md) straight to the base branch from the invoking
+// checkout. Two sessions can pass the `git rev-parse --abbrev-ref HEAD` check at the same moment and
+// race on those files, so
 // both acquire this lock first. It is repo-level, a sibling of .superdev/scopes/ rather than a run
 // root's own artifact, because the files it guards belong to no scope.
 //

@@ -143,33 +143,20 @@ reproduce yet is what that first slice delivers, not a detail left for the imple
 **Read `${CLAUDE_PLUGIN_ROOT}/references/domain-modeling.md` and apply it as you interview.** Read any
 existing `CONTEXT.md` first — it's this project's canonical language. Then run the active moves:
 challenge terms against the glossary, sharpen fuzzy language, probe boundaries with concrete scenarios,
-cross-check claims against the code, and **capture the glossary + ADRs the moment they crystallise —
-never batch**. That reference owns the `CONTEXT.md` and ADR formats, the three-part test for an ADR, the
-component-diagram rule, the routing of a seeded intent's **Rejected directions**, and revise-in-place.
+cross-check claims against the code, and **capture the glossary + ADRs + invariants the moment they
+crystallise — never batch**. That reference owns the `CONTEXT.md` and ADR formats, the invariant
+register's entry format, the three-part test for an ADR, the component-diagram rule, the routing of a
+seeded intent's **Rejected directions**, and revise-in-place.
 
 **Route the seeded rejects before this plan ends.** Every rejected direction §1 carried in lands where
 the reference says — an ADR's `Considered options` for a dropped approach, the epic's non-goals for
 dropped scope — or is filtered out loud. None disappears silently.
 
-Two captures are **superdev-specific**:
+**Record an invariant the interview settles**, in the register `references/domain-modeling.md` (above)
+describes — reserve it for a rule the system may never break; a slice-specific requirement still goes to
+that slice's `spec` instead.
 
-- **Rules** — an **enforceable, file-scoped** convention ("API handlers validate input with Zod",
-  "migrations are append-only") goes to `.claude/rules/<name>.md` with a `paths:` frontmatter listing the
-  globs it governs:
-
-  ```markdown
-  ---
-  paths:
-    - "src/api/**"
-    - "**/*.handler.ts"
-  ---
-  All API handlers must validate input with Zod before processing.
-  ```
-
-  A rule is a **standing constraint** the harness auto-loads when a matching file is read, so
-  implementers pick it up exactly when it applies, at zero always-on cost. Reserve it for genuinely
-  path-scoped, repeatable constraints: a whole-project norm belongs in the docs convention, a
-  slice-specific requirement in that slice's `spec`.
+One capture is **superdev-specific**:
 
 - **Knowledge base** — if `docs/agents/knowledge-base.md` defines one, seed the feature specification /
   ADR summaries into its agreed **outline**, in its **language**, for its **audience(s)** (human-first).
@@ -211,6 +198,12 @@ agents in parallel — each mapping a different aspect (similar existing feature
 architecture of the area you'll touch) and returning a ranked list of key files. Read those files, then
 decompose. Skip for a small change in familiar code.
 
+**Judge the decomposition against the invariant register.** Read `docs/invariants.md` whole, when the
+file is present, while the grounding above settles what this feature touches. Judge each entry against
+the vocabulary this interview settled and the file structure the grounding mapped, and hold every match —
+no slice exists yet to write it into. No register, or no entry the feature reaches → nothing further to
+hold.
+
 **Offer the design sketch, before you decompose.** The grounding above just mapped what exists and no
 slice is cut yet, so this is the one point where the operator can still change the design for free. Ask
 whether to write one. **Yes** → run that grounding first even where it would otherwise be skipped, since
@@ -238,6 +231,9 @@ and schema):
   vocabulary, and never as field lists. The implementer declares them before its first failing test, and
   the fields are its own, because a `spec` is a contract of outcomes (ADR 0030). A slice needing no shape,
   or a repository whose language has none, gets none named.
+- **Write each register match held above into the slice it touches.** As a Definition-of-Done criterion
+  naming the entry's id, and into the `spec` of that slice — the route by which the invariant reaches an
+  implementer who only ever sees its own isolated worktree. No match held → nothing to write here.
 - **Don't create a documentation-only slice** to describe code other slices produce —
   `/superdev:document` reconciles README, `AGENTS.md`, and the KB after the scope lands. Slice out `docs`
   only when documentation *is* the deliverable (e.g. a standalone guide).
@@ -321,16 +317,17 @@ controller implements each slice inline in a single scopetree, no per-slice revi
 every slice is on the scope branch — to `/superdev:review`, or straight to `/superdev:document` when
 every slice is `mechanical` or `docs` (ADR 0025).
 
-**Commit the durable design docs** you wrote — `CONTEXT.md`, any ADRs (`docs/adr/`), any
-`.claude/rules/` — to the base branch. **Check `git rev-parse --abbrev-ref HEAD` first, and only commit
-when the invoking checkout is on the base branch.** Any other branch → name the branch you found and the
-base you wanted, write nothing, and stop; the plan is already in the store, so the maintainer switches to
-base and commits there — no interview, nothing re-planned — and the handoff below still prints, because
-only the commit is outstanding. `/superdev:implement` runs from a fresh scopetree checkout of that branch,
-so anything uncommitted never reaches it and a path-scoped rule that isn't on the branch can't auto-load.
+**Commit the durable design docs** you wrote — `CONTEXT.md`, any ADRs (`docs/adr/`), `docs/invariants.md`
+if an invariant crystallised — to the base branch. **Check `git rev-parse --abbrev-ref HEAD` first, and
+only commit when the invoking checkout is on the base branch.** Any other branch → name the branch you
+found and the base you wanted, write nothing, and stop; the plan is already in the store, so the
+maintainer switches to base and commits there — no interview, nothing re-planned — and the handoff below
+still prints, because only the commit is outstanding. `/superdev:implement` runs from a fresh scopetree
+checkout of that branch, so anything uncommitted never reaches it and an invariant that isn't on the
+branch never reaches the register.
 **The moment that check reads the base branch, take the base lock** —
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" base-lock acquire`, from the invoking checkout — **before
-you stage or commit `CONTEXT.md`, any `docs/adr/` file, or any `.claude/rules/` file**, whether or not
+you stage or commit `CONTEXT.md`, any `docs/adr/` file, or `docs/invariants.md`**, whether or not
 anything turns out to be dirty, because a second `/superdev:plan` run, or an `/superdev:implement` run
 init in the same checkout, commits the same three groups to the same branch (ADR 0058). **A refused
 acquire names the session holding it: print that message and stop, having edited nothing — and released

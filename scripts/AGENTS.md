@@ -50,7 +50,7 @@ unplanned work stays unplanned until somebody plans it (ADR 0035).
 
 `base-lock acquire|release` is the one verb that touches no ledger (ADR 0058). It guards
 `<cwd>/.superdev/base.lock`, a repo-level lock keyed on the invoking checkout rather than on a run root,
-because what it serialises — the base-branch commit of `CONTEXT.md`, `docs/adr/`, and `.claude/rules/`
+because what it serialises — the base-branch commit of `CONTEXT.md`, `docs/adr/`, and `docs/invariants.md`
 that both `/superdev:plan` §6 and run init perform — belongs to no scope. It therefore takes no `--root`.
 `acquire` creates the lock with an exclusive `wx` write, then git-ignores `.superdev/` — appending the
 line rather than rewriting `.gitignore` — only once that create lands, so a refused acquire touches
@@ -1714,6 +1714,40 @@ re-aim for standing code ("applying every check below to the code itself rather 
 re-aims a check's *target*, not what a slice-scoped clause cashes out to once there are no slices at all,
 so it does not reach these two on its own. Losing either sentence leaves the matching lens reading
 correct in prose and silent on a standing-code review.
+
+The `invariant-register-path` contract (ADR 0077), one row on `references/domain-modeling.md`: it still
+names the register's fixed path, `docs/invariants.md`. `/superdev:plan` and a human both find the
+register by that path, so a copy that stops naming it strands both back at the `.claude/rules/` home
+the register replaced, with nothing failing to say so.
+
+The `setup-check-claude-rules` contract (ADR 0077), one row on `skills/setup/SKILL.md`: `check` mode
+still reports a leftover `.claude/rules/` directory, naming `docs/invariants.md` as where its content
+belongs and that the move is by hand. A repository that still carries `.claude/rules/` lost its
+rule-compliance check the day the register replaced it; losing this row leaves `check` mode silent on
+that directory, with no signal telling the operator the content wants migrating — by hand, because
+`Class` and `Concepts` are mandatory register fields a glob-scoped rule records nowhere.
+
+The `invariant-register-doc-pass` contract (ADR 0077), two rows sharing one pattern:
+`references/doc-pass.md` and `agents/doc-reader.md` each still instruct themselves to resolve every
+`docs/invariants.md` entry's `Paths:` glob and `Symbols:` entry against the repository, reporting one
+that matches nothing by its entry id. The two share the shape `content-types` guards on its own lens:
+the writing side (`doc-pass.md`, performed by `doc-writer` and the `lite` playbook alike) and the
+cold-reading side (`doc-reader`) can each drop the instruction independently, leaving a stale path or
+symbol unreported and the suite green. Neither row asserts that the check's *logic* runs correctly — the
+register carries no parser or script of its own, by design, so only a human reading a live repository can
+tell a resolved entry from a stale one. What the row pins is narrower: that the instruction to look is
+still there.
+
+The `invariant-compliance` contract (ADR 0077), three rows: `skills/plan/SKILL.md` still judges the
+decomposition against the invariant register during grounding, reading `docs/invariants.md` whole and
+holding every match before any slice exists; `skills/plan/SKILL.md` also still routes a held match into a
+Definition-of-Done criterion naming its id and into the touching slice's `spec` once that slice is cut;
+and `agents/final-reviewer.md` still carries the Invariant compliance check — reading `docs/invariants.md`
+itself, reporting a break as a finding and a Definition-of-Done omission as a plan-coverage gap, skipping
+silently when the register is absent. The judging and the routing are two different points in `/plan`'s
+own flow, so they are two separate rows: any one of the three losing its wording strands an invariant
+somewhere on the route between the interview that settles it and the implementer's isolated worktree that
+never reads the register directly.
 
 ## Work Guidance
 

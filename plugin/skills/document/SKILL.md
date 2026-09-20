@@ -100,7 +100,7 @@ Relay what the doc-writer changed: which `AGENTS.md`/docs were updated, what was
 
 Inverts the usual order: **reader first**, writer only to fix what it finds.
 
-1. **Build the audit set:** the default doc tree (`AGENTS.md` hierarchy + `README.md` + `CONTEXT.md` + local KB pages, when the KB backend is local `docs/kb/`) plus any globs listed under a `## Audit set` section in `docs/agents/documentation.md`. That section is optional — absent, use the default tree alone and say so in the report.
+1. **Build the audit set:** the default doc tree (`AGENTS.md` hierarchy + `README.md` + `CONTEXT.md` + `docs/invariants.md` (when present) + local KB pages, when the KB backend is local `docs/kb/`) plus any globs listed under a `## Audit set` section in `docs/agents/documentation.md`. That section is optional — absent, use the default tree alone and say so in the report.
 2. Dispatch **`superdev:doc-reader`** with an **explicit `model`** (`sonnet`), the full audit set, and the `docs/agents/documentation.md` path — cold, and with **no writer commit range**, which is what tells it to skip the writing-standard pass: an audit has no writer, so no prose is newly-written. Tell it explicitly: hook/guardrail-enforcement claims ("a hook blocks X", "the gate re-runs Y") are **always load-bearing** and must be verified against the hooks' actual source (`hooks/*.js`), not assumed from prose.
 3. **`--chained` present** — this run is `/superdev:sweep`'s doc leg, in the **chained posture**
    (CONTEXT.md, ADR 0068). Dispatch no `doc-writer` and commit nothing, whatever the reader found. Return
