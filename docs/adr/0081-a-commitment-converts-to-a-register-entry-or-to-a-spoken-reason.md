@@ -94,6 +94,41 @@ sentence reads as a system rule here and as a process rule everywhere else.
   leftover scratch intent resurfaces as a stale option, and the gate refuses to drop anything without a
   durable home. The fix is to give commitments a home, not to keep the scratch file.
 
+**Amended: an oracle's effect on the record depends on what it enforces.** The brain-agent option above
+rejects a queryable knowledge holder partly on the ground that an oracle which can always be asked removes
+the reason to write anything down. Two sessions running that pattern on unrelated work — one holding
+research, one implementing against hardware — were asked about it on 2026-09-21, and the observation
+splits that ground in two. The implementer reported the opposite effect: the researcher refused a forum
+thread as a primary source and required dated readings, so the standard it held raised the quality of what
+was written. The researcher reported the ground as stated, from inside the role: everything it verified
+after writing its note stayed in its transcript and reached the file only because the operator asked
+whether anything unwritten remained. Both hold. A second party enforcing a standard improves what gets
+written; one supplying only answers defers capture. The ground covers capture, which is what it was about,
+and is not evidence about quality.
+
+Two further observations from the same pair. The decay ground is untested: no compaction had occurred in
+the holding session, and it declined to fill the gap with a guess. And a risk the option does not name
+appeared — both sessions wrote to one file with no lock, and came close to overwriting each other. That
+breaks before any throughput limit does, and it worsens with every additional writer.
+
+**Amended: the context-economy case is measured, and it favours the artifact.** The strongest argument for
+a queryable holder is one this record did not make — a session reading a long source pays once, while a
+caller asking pays only for the answer. The same pair measured it. The initial research cost 101,538
+tokens across 77 tool calls and produced a 31.5 KB note; reading that note whole costs roughly 10,000
+tokens, and four query-and-answer exchanges cost 8,000 to 12,000 on each side. Querying stops being
+cheaper than reading around the third question. The saving is the compression from 100k to 10k, and that
+compression is the artifact rather than the session.
+
+The measurement does favour one thing: a researcher that goes and looks. Every check the holding session
+made after its note was written was new work, whose cost fell in that session while the caller paid only
+for the answer. That describes a subagent dispatch, which superdev already has, rather than a session kept
+alive to be queried.
+
+An artifact still needs a home, and the repository a note was produced in is not automatically that home:
+the note behind this measurement was moved out of this repository rather than committed into it, because a
+note about unrelated hardware is no artifact of this project. Compression names what the saving is, never
+where it belongs.
+
 **Consequences.** A whole category of real commitment — the authoring rule — has no durable home in a
 consuming repository, and the interview says so out loud rather than pretending otherwise. That is the
 live cost of deferring the authoring half, and it is paid visibly.
