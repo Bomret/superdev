@@ -105,7 +105,7 @@ issue query, say. A record already returned by the anchor or triage listing is n
 
 | Bucket | What is in it | What it needs |
 |---|---|---|
-| `blocked` | the anchor carries the store's blocked signal, an open one among the slices its `## Scope anchor` listing returns beneath it does, its feature label fails the scope-slug rule, its feature label matches two or more anchor candidates, or its matched run root's stage reads `shipped` while the anchor is still open — close the anchor | a human, now |
+| `blocked` | the anchor carries the store's blocked signal, an open one among the slices its `## Scope anchor` listing returns beneath it does, its feature label fails the scope-slug rule, its feature label's candidates are `Ambiguous` per the active `docs/agents/issue-tracker.md`'s own `## Scope anchor` section, or its matched run root's stage reads `shipped` while the anchor is still open — close the anchor | a human, now |
 | `stranded` | a run root whose stage is short of `shipped` and matches no open anchor | a human, now — resume the run if its anchor still exists, otherwise delete the branch, scopetree, and run root |
 | `in flight` | its scope has a run root whose stage is short of `shipped` and not `planned` | the chain command that stage has not reached |
 | `waiting` | an anchor dependency it records is unsatisfied | the anchor it waits on |

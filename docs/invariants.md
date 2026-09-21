@@ -30,3 +30,21 @@ Breaks: silently
 Check: tests/scope.test.js, tests/scope-prune.test.js — each failure path asserted to answer not contained
 Symbols: testContainment, baseHistoryHasPatch, containedInBase
 Paths: plugin/scripts/scope.js, plugin/hooks/scope-prune.js
+
+### INV-0004
+
+Class: architecture
+Concepts: Definition of Done, Append mode, Scope anchor
+Statement: A Definition of Done is a claim verified at one moment against one change. A ticked criterion is always readable against the change it was verified against, and is never pooled in one record with criteria from another run.
+Breaks: silently
+Check: scripts/drift-check.js — /superdev:plan's extend path refuses a shipped feature on either signal
+Paths: plugin/skills/plan/**, plugin/references/run-init.md
+
+### INV-0005
+
+Class: process
+Concepts: Release, Append mode, Scope anchor
+Statement: A release decision covers the work that existed when it was made. Work added to a feature after its release does not inherit that release.
+Breaks: silently
+Check: scripts/drift-check.js — plan's release question applies the operator's answer in both directions on an append
+Paths: plugin/skills/plan/**, plugin/references/plan-contract.md

@@ -43,6 +43,15 @@ const {
   RELEASE_PATTERN,
   RELEASE_CONSUMERS,
   RELEASE_CONSUMER_PATTERN,
+  RELEASE_REMOVE_PATTERN,
+  RELEASE_REMOVE_EXEMPT,
+  RELEASE_REMOVE_EXPECTATION,
+  LOCAL_RELEASE_DOC,
+  LOCAL_NO_REMOVAL_PATTERN,
+  LOCAL_NO_REMOVAL_EXPECTATION,
+  RELEASE_BOTH_DIRECTIONS_DOC,
+  RELEASE_BOTH_DIRECTIONS_PATTERN,
+  RELEASE_BOTH_DIRECTIONS_EXPECTATION,
   TRIAGE_RECORD_PATTERN,
   TRIAGE_RECORD_ELEMENTS,
   UNTRIAGED_PATTERN,
@@ -289,7 +298,28 @@ function scanReleaseContract(root) {
   for (const rel of candidates) {
     const text = readDoc(root, rel);
     if (text === null) continue; // doc absent (fixture / partial checkout) → nothing to scan
-    if (!RELEASE_PATTERN.test(text)) gaps.push({ source: rel });
+    if (!RELEASE_PATTERN.test(text)) {
+      gaps.push({ source: rel });
+      continue; // no section → the removal bullet has nowhere to live; one gap, not two
+    }
+    // ADR 0083: a declined release on an append removes the signal, so a store whose signal is removable
+    // states the call that removes it. The exempt store releases at write and states the opposite below.
+    if (RELEASE_REMOVE_EXEMPT.has(path.basename(rel))) continue;
+    const section = extractSection(text, RELEASE_PATTERN);
+    if (section === null || !RELEASE_REMOVE_PATTERN.test(section)) {
+      gaps.push({ source: rel, expectation: RELEASE_REMOVE_EXPECTATION });
+    }
+  }
+  const localText = readDoc(root, LOCAL_RELEASE_DOC);
+  if (localText !== null && RELEASE_PATTERN.test(localText)) {
+    const localSection = extractSection(localText, RELEASE_PATTERN);
+    if (localSection === null || !LOCAL_NO_REMOVAL_PATTERN.test(localSection)) {
+      gaps.push({ source: LOCAL_RELEASE_DOC, expectation: LOCAL_NO_REMOVAL_EXPECTATION });
+    }
+  }
+  const bothDirections = readDoc(root, RELEASE_BOTH_DIRECTIONS_DOC);
+  if (bothDirections !== null && !RELEASE_BOTH_DIRECTIONS_PATTERN.test(bothDirections)) {
+    gaps.push({ source: RELEASE_BOTH_DIRECTIONS_DOC, expectation: RELEASE_BOTH_DIRECTIONS_EXPECTATION });
   }
   for (const rel of RELEASE_CONSUMERS) {
     const text = readDoc(root, rel);

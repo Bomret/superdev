@@ -196,6 +196,16 @@ Append mode holds these invariants, and every backend renders all of them:
   Nothing else about the slice changes. Leaving it behind would strand it on a record `/superdev:afk` no
   longer reads as this feature's anchor.
 - **Append refuses, and writes nothing, while a run is active.**
+- **A shipped feature takes no append.** Amending a shipped feature's Definition of Done in place pools
+  criteria verified against a merged pull request with criteria nobody has verified (ADR 0083,
+  INV-0004), and the run root's reap removes the local half of that mixture while the scope anchor keeps
+  its own. `/superdev:plan`'s extend path refuses on either signal alone — a run root whose ledger stage
+  reads `shipped`, and a scope anchor at the store's done status — and names the remedy: a new feature
+  carrying the anchor dependency `**Blocked by feature:** #<anchor>` (*Scope anchor* below). Appending at
+  `planned` is unchanged: an earlier plan run cut the branch but no slice has run yet, so appending
+  revises that plan before anything started. A run root from `implementing` through `documented` refuses
+  too. That chain ends at `shipped`, which the rule above already refuses. Waiting clears nothing, and
+  the remedy is the same new feature, opened now rather than waited for.
 
 Only one part of this is backend-specific: **numbering continuation.** The local-file store's `id` is the
 zero-padded file number `/plan` itself assigns, so append continues that numbering from the highest
@@ -211,6 +221,14 @@ own status — reads the active `docs/agents/issue-tracker.md`'s own `## Scope a
 assuming any one store's shape. How to recognise an anchor, list the candidates, list the slices beneath
 one, tell that an anchor is itself a slice, and read an anchor's own dependencies are backend mechanism,
 and belong there.
+
+A backend whose candidate listing spans every state, so a shipped feature's closed epic can resolve at
+all (ADR 0083), can also return a retired label's closed root beside a reused label's open one. **The
+open candidate is the anchor there. `Ambiguous` is two or more *open* candidates — never a closed one
+sitting beside a single open one — and a single closed candidate is itself the anchor**, the shape the
+shipped-anchor refusal above reads as its own done signal. Each store's own `## Scope anchor` section
+specialises *Recognise one* and *Ambiguous* to this rule. The local-file store's candidate listing is a
+directory listing, which carries no state at all, so it is outside this rule and specialises neither.
 
 An anchor may carry an **anchor dependency**: a recorded relation naming another feature's anchor that must
 land first (ADR 0040). It is the feature-level counterpart of a slice's `depends-on`, and the same honesty

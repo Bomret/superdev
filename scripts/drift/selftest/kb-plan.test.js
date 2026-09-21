@@ -1,7 +1,7 @@
 'use strict';
 
 // The knowledge-base and plan/ledger contract tables: staging and publishing a page, and the run-init
-// and /plan §0 rules a second run over an appended feature depends on. One section per table.
+// and /plan §0 rules a second run over a partly merged feature depends on. One section per table.
 //
 // Run by ./index.js, which owns the shared fixture() helper, realRoot, and the temp-dir cleanup.
 
@@ -14,6 +14,8 @@ const {
   READ_PATH_CONTRACTS,
   STATUS_SEED_CONTRACTS,
   PLAN_APPEND_CONTRACTS,
+  SHIPPED_APPEND_CONTRACTS,
+  ANCHOR_CANDIDATE_ALL_STATES_CONTRACTS,
   ROTATE_ON_SHIPPED_CONTRACTS,
   PARKED_QUESTIONS_CONTRACTS,
   RUN_KIND_CONTRACTS,
@@ -385,7 +387,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   );
 
   // --- STATUS_SEED_CONTRACTS: run init seeds each loaded slice's real status into `scope.js init`, so a
-  // second run over an appended feature (ADR 0004) never re-dispatches an already-merged slice. ---
+  // second run over a partly merged feature (ADR 0004) never re-dispatches an already-merged slice. ---
 
   // positive: implement.md's init call drops the `status` field — every loaded slice would seed the
   // bare `todo` default again, exactly the re-dispatch bug this contract exists to catch. The
@@ -450,7 +452,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // --- ROTATE_ON_SHIPPED_CONTRACTS: a `shipped` ledger belongs to a finished run (ADR 0007's seven-day
   // trail keeps `ledger.md` on disk past merge), so run init must rotate it aside and run `init` again
-  // rather than resume it — the exact landing a second run over an appended feature (ADR 0004) needs. ---
+  // rather than resume it — the exact landing a new feature reusing a retired label (ADR 0083) needs. ---
 
   // positive: implement.md loses the rotate-on-shipped rule and falls back to the old always-resume text
   const rotateGaps1 = scanContract(
@@ -513,21 +515,20 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'absent file is skipped',
   );
 
-  // --- PLAN_APPEND_CONTRACTS: /plan's §0 asks new-vs-extend, refuses to extend on either signal while
-  // writing nothing, and promotes a single-slice feature to an epic in §6, with the other writes
-  // (ADR 0004). Seven independent rows — six against `skills/plan/SKILL.md`, one against
+  // --- PLAN_APPEND_CONTRACTS: /plan's §0 asks new-vs-extend, refuses to extend on any of its signals
+  // while writing nothing, and promotes a single-slice feature to an epic in §6, with the other writes
+  // (ADR 0004). Six independent rows — five against `skills/plan/SKILL.md`, one against
   // `references/plan-contract.md` — so losing any one clause fails on its own, not just in aggregate.
-  // The ledger refusal signal's two clauses are pinned on the condition sentence's own wording, not on
-  // the rationale that explains the branch test afterward, so gutting the condition while leaving the
-  // rationale intact still fails. ---
+  // The refusal rows are pinned on the condition sentence's own wording, not on the rationale that
+  // explains it afterward, so gutting the condition while leaving the rationale intact still fails. The
+  // shipped half of the refusal is SHIPPED_APPEND_CONTRACTS' own (ADR 0083), below. ---
 
   const planAppendBody =
     '## 0. Config\n\n' +
     'Ask new vs. extend, before the interview begins. Answering **new** makes no store call at all.\n\n' +
-    'Refuse to extend, and write nothing, on either signal below:\n\n' +
+    'Refuse to extend, and write nothing, on any signal below:\n\n' +
     '- The store holds a slice `in-progress`, `in-review`, or `blocked` — a run active elsewhere.\n' +
-    "- The scope's run root exists with a ledger stage other than `shipped`, or with a `shipped` stage " +
-    'whose scope branch (`<type>/<scope>`) is neither contained in the base nor gone.\n\n' +
+    "- The scope's run root exists with a ledger stage other than `planned`.\n\n" +
     "Create the epic, copy the lone slice's `acceptance` into it as the global DoD, and leave the lone " +
     'slice byte-identical, except for one moving part: an anchor-dependency line, if the slice carries ' +
     'one, migrates to the new epic.\n';
@@ -559,53 +560,29 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(paGapsNoStoreSignal.length, 1, 'flags exactly the missing store refusal signal');
   assert.match(paGapsNoStoreSignal[0].expectation, /store refusal signal/, 'names the store signal');
 
-  // negative: losing the whole ledger refusal signal fails both of its rows
+  // negative: losing the ledger refusal signal fails on its own
   const paNoLedgerSignal = fixture({
     'skills/plan/SKILL.md': planAppendBody.replace(
-      "- The scope's run root exists with a ledger stage other than `shipped`, or with a `shipped` stage " +
-        'whose scope branch (`<type>/<scope>`) is neither contained in the base nor gone.\n',
+      "- The scope's run root exists with a ledger stage other than `planned`.\n",
       '',
     ),
   });
   const paGapsNoLedgerSignal = scanContract(paNoLedgerSignal, PLAN_APPEND_CONTRACTS);
-  assert.equal(paGapsNoLedgerSignal.length, 2, 'flags both ledger refusal signal rows');
-  assert.ok(
-    paGapsNoLedgerSignal.every((g) => /ledger refusal signal/.test(g.expectation)),
-    'both gaps name the ledger signal',
-  );
+  assert.equal(paGapsNoLedgerSignal.length, 1, 'flags exactly the missing ledger refusal signal');
+  assert.match(paGapsNoLedgerSignal[0].expectation, /ledger refusal signal/, 'names the ledger signal');
 
-  // negative: losing only the first ledger clause (stage other than `shipped`) fails that row alone
-  const paNoLedgerStage = fixture({
-    'skills/plan/SKILL.md': planAppendBody.replace('a ledger stage other than `shipped`', 'a bad stage'),
-  });
-  const paGapsNoLedgerStage = scanContract(paNoLedgerStage, PLAN_APPEND_CONTRACTS);
-  assert.equal(paGapsNoLedgerStage.length, 1, 'flags exactly the missing first ledger clause');
-  assert.match(paGapsNoLedgerStage[0].expectation, /first clause/, 'names the first ledger clause');
-
-  // negative: losing only the second ledger clause (branch neither merged nor gone) fails that row alone,
-  // with the first clause's row silent
-  const paNoLedgerBranch = fixture({
-    'skills/plan/SKILL.md': planAppendBody.replace(
-      'whose scope branch (`<type>/<scope>`) is neither contained in the base nor gone',
-      'whose scope branch is anything',
-    ),
-  });
-  const paGapsNoLedgerBranch = scanContract(paNoLedgerBranch, PLAN_APPEND_CONTRACTS);
-  assert.equal(paGapsNoLedgerBranch.length, 1, 'flags exactly the missing second ledger clause');
-  assert.match(paGapsNoLedgerBranch[0].expectation, /second clause/, 'names the second ledger clause');
-
-  // acceptance mutation: gutting the real plan.md's refusal condition while leaving its rationale
-  // sentence intact (the branch test explanation a few lines below still names "merged into the base, or
-  // gone entirely") must still fail — this is the exact drift a rationale-anchored pattern misses.
+  // acceptance mutation: gutting the real plan.md's refusal condition while leaving the rationale
+  // sentences that follow it intact must still fail — this is the exact drift a rationale-anchored
+  // pattern misses.
   const realPlanBody = fs.readFileSync(docPath(realRoot, 'skills', 'plan', 'SKILL.md'), 'utf8');
   const guttedCondition = realPlanBody.replace(
-    /whose scope branch \(`<type>\/<scope>`\) is neither contained in the base nor gone/,
-    'whose scope branch is not shipped',
+    /exists with a ledger stage other than `planned`/,
+    'exists at all',
   );
   assert.notEqual(guttedCondition, realPlanBody, 'the mutation actually changed the condition sentence');
   const guttedGaps = scanContract(fixture({ 'skills/plan/SKILL.md': guttedCondition }), PLAN_APPEND_CONTRACTS);
   assert.equal(guttedGaps.length, 1, 'gutting the condition while keeping the rationale still fails');
-  assert.match(guttedGaps[0].expectation, /second clause/, 'names the second ledger clause');
+  assert.match(guttedGaps[0].expectation, /ledger refusal signal/, 'names the ledger signal');
 
   // negative: losing the epic-promotion clause fails on its own
   const paNoPromotion = fixture({
@@ -659,12 +636,301 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(
     scanContract(fixture({ 'skills/plan/SKILL.md': planAppendBody }), PLAN_APPEND_CONTRACTS).length,
     0,
-    'a plan.md carrying all six of its clauses yields zero gaps',
+    'a plan.md carrying all five of its clauses yields zero gaps',
   );
 
   // absent file is skipped, matching every other contract table
   assert.equal(
     scanContract(fixture({ 'README.md': '# repo\n' }), PLAN_APPEND_CONTRACTS).length,
+    0,
+    'absent file is skipped',
+  );
+
+  // --- SHIPPED_APPEND_CONTRACTS: a feature whose anchor has shipped takes no append, on either signal
+  // alone, and the refusal names the new-feature remedy (ADR 0083, INV-0004). Four independent rows —
+  // three against `skills/plan/SKILL.md`, one against `references/plan-contract.md`. ---
+
+  const shippedAppendBody =
+    '## 0. Config\n\n' +
+    '**A feature whose anchor has shipped takes no append** (ADR 0083, INV-0004). The two shipped ' +
+    'signals above are read together and **either one alone refuses** — a run root whose ledger stage ' +
+    "reads `shipped`, and a scope anchor at the store's done status. So the refusal names the remedy " +
+    'instead — plan the follow-up as a **new feature** carrying `**Blocked by feature:** #<anchor>`.\n';
+
+  // negative: losing the refusal itself fails on its own
+  const saNoRefusal = fixture({
+    'skills/plan/SKILL.md': shippedAppendBody.replace('takes no append', 'is appendable'),
+  });
+  const saGapsNoRefusal = scanContract(saNoRefusal, SHIPPED_APPEND_CONTRACTS);
+  assert.equal(saGapsNoRefusal.length, 1, 'flags exactly the missing refusal');
+  assert.match(saGapsNoRefusal[0].expectation, /takes no append/, 'names the refusal');
+
+  // negative: naming one signal without the other fails the signals row — neither answers alone
+  const saOneSignal = fixture({
+    'skills/plan/SKILL.md': shippedAppendBody.replace(
+      ", and a scope anchor at the store's done status",
+      '',
+    ),
+  });
+  const saGapsOneSignal = scanContract(saOneSignal, SHIPPED_APPEND_CONTRACTS);
+  assert.equal(saGapsOneSignal.length, 1, 'flags exactly the signals row');
+  assert.match(saGapsOneSignal[0].expectation, /either one alone refuses/, 'names both signals');
+
+  // negative: a refusal with no remedy is a dead end, and fails on its own
+  const saNoRemedy = fixture({
+    'skills/plan/SKILL.md': shippedAppendBody.replace(
+      'plan the follow-up as a **new feature** carrying `**Blocked by feature:** #<anchor>`',
+      'plan the follow-up somewhere else',
+    ),
+  });
+  const saGapsNoRemedy = scanContract(saNoRemedy, SHIPPED_APPEND_CONTRACTS);
+  assert.equal(saGapsNoRemedy.length, 1, 'flags exactly the missing remedy');
+  assert.match(saGapsNoRemedy[0].expectation, /Blocked by feature/, 'names the remedy');
+
+  // positive: a plan.md carrying all three of its clauses yields zero gaps
+  assert.equal(
+    scanContract(fixture({ 'skills/plan/SKILL.md': shippedAppendBody }), SHIPPED_APPEND_CONTRACTS).length,
+    0,
+    'a plan.md carrying every shipped-append clause yields zero gaps',
+  );
+
+  // `references/plan-contract.md` carries the fourth row, so the boundary cannot live in the command alone
+  const shippedContractBody =
+    '## Append mode\n\n- **A shipped feature takes no append.** Amending it in place pools verified ' +
+    'criteria with unverified ones.\n';
+  assert.equal(
+    scanContract(fixture({ 'references/plan-contract.md': shippedContractBody }), SHIPPED_APPEND_CONTRACTS)
+      .length,
+    0,
+    'a plan-contract.md stating the boundary yields zero gaps',
+  );
+  const scGaps = scanContract(
+    fixture({
+      'references/plan-contract.md': shippedContractBody.replace(
+        'A shipped feature takes no append.',
+        'A shipped feature is extended like any other.',
+      ),
+    }),
+    SHIPPED_APPEND_CONTRACTS,
+  );
+  assert.equal(scGaps.length, 1, 'a plan-contract.md dropping the boundary flags its own row');
+  assert.equal(
+    scGaps[0].source,
+    path.join('references', 'plan-contract.md'),
+    'names plan-contract.md, not one of the plan.md rows',
+  );
+
+  // absent file is skipped, matching every other contract table
+  assert.equal(
+    scanContract(fixture({ 'README.md': '# repo\n' }), SHIPPED_APPEND_CONTRACTS).length,
+    0,
+    'absent file is skipped',
+  );
+
+  // --- ANCHOR_CANDIDATE_ALL_STATES_CONTRACTS: the per-feature-label candidate listing queries every
+  // state, not just `state=open`, so a shipped feature's closed epic still resolves through *Recognise
+  // one* (ADR 0083). The rationale sentence alone is not the contract — the query string itself must
+  // carry `state=all`, or a revert that leaves the rationale in place would pass unnoticed. A `state=all`
+  // listing can also return a retired label's closed root beside a reused label's open one, so the open
+  // candidate must win *Recognise one* and *Ambiguous* must fire only among open candidates. Every row
+  // below targets the same handful of documents, so each fixture carries every clause that document's
+  // own rows pin — a fixture missing one clause fails that row alone, in isolation. ---
+
+  // Forgejo-shaped: the query-form row, plus the open-preference Recognise-one and Ambiguous rows.
+  const forgejoShapedBody =
+    '- **List the candidates.** The feature labels themselves: `GET /api/v1/repos/<owner>/<repo>/labels` ' +
+    "(paginated), keeping the names whose first segment is a change type. Per feature label: " +
+    '`GET /api/v1/repos/<owner>/<repo>/issues?labels=<type>%2F<feature>&state=all` (URL-encode the ' +
+    "label's `/`), then apply the rule above to the result. `state=all`, not `state=open`: a shipped " +
+    "feature's epic is closed, and a `state=open` listing would drop it from the candidates a picked " +
+    "feature resolves against, so `/superdev:plan`'s shipped-anchor refusal (ADR 0083) never sees it.\n" +
+    '- **Recognise one.** Apply the rule to the **open** issues carrying a feature label first: the ' +
+    'anchor is the one labelled `epic`.\n' +
+    '- **Ambiguous.** No `epic`-labelled open issue and two or more open issues carrying the same ' +
+    'feature label.\n';
+
+  for (const doc of ['docs/agents/issue-tracker.md', 'references/issue-tracker-forgejo.md']) {
+    // positive: every clause present yields zero gaps
+    assert.equal(
+      scanContract(fixture({ [doc]: forgejoShapedBody }), ANCHOR_CANDIDATE_ALL_STATES_CONTRACTS).length,
+      0,
+      `${doc} carrying every clause yields zero gaps`,
+    );
+
+    // negative: dropping every clause fails all three of that document's rows
+    const gapsNoBullets = scanContract(
+      fixture({ [doc]: 'Some other section entirely.\n' }),
+      ANCHOR_CANDIDATE_ALL_STATES_CONTRACTS,
+    );
+    assert.equal(gapsNoBullets.length, 3, `${doc}: dropping every clause flags all three of its rows`);
+    const expectedSource = path.join(...doc.split('/'));
+    assert.ok(
+      gapsNoBullets.every((gap) => gap.source === expectedSource),
+      `${doc}: every gap names it`,
+    );
+
+    // negative: the query-only revert — `state=all` reverted to `state=open` in the query string alone,
+    // rationale untouched. The rationale-only pattern missed this shape; pinning the query catches it.
+    const gapsQueryOnlyRevert = scanContract(
+      fixture({
+        [doc]: forgejoShapedBody.replace(
+          'labels=<type>%2F<feature>&state=all` (URL-encode',
+          'labels=<type>%2F<feature>&state=open` (URL-encode',
+        ),
+      }),
+      ANCHOR_CANDIDATE_ALL_STATES_CONTRACTS,
+    );
+    assert.equal(gapsQueryOnlyRevert.length, 1, `${doc}: a query reverted to \`state=open\` is flagged alone`);
+
+    // negative: dropping the open preference in Recognise one, alone
+    const recogniseGaps = scanContract(
+      fixture({
+        [doc]: forgejoShapedBody.replace(
+          'Recognise one.** Apply the rule to the **open** issues',
+          'Recognise one.** Apply the rule to the issues',
+        ),
+      }),
+      ANCHOR_CANDIDATE_ALL_STATES_CONTRACTS,
+    );
+    assert.equal(recogniseGaps.length, 1, `${doc}: dropping the open preference in Recognise one is flagged alone`);
+
+    // negative: dropping the open-only Ambiguous shape, alone
+    const ambiguousGaps = scanContract(
+      fixture({
+        [doc]: forgejoShapedBody.replace(
+          'No `epic`-labelled open issue and two or more open issues',
+          'No `epic`-labelled issue and two or more issues',
+        ),
+      }),
+      ANCHOR_CANDIDATE_ALL_STATES_CONTRACTS,
+    );
+    assert.equal(ambiguousGaps.length, 1, `${doc}: dropping the open-only Ambiguous shape is flagged alone`);
+  }
+
+  // GitHub-shaped: the query-form row, plus the open-root and open-only-Ambiguous rows.
+  const githubShapedBody =
+    '- **List the candidates.** `GET /repos/<owner>/<repo>/issues?labels=<type>%2F<feature>&state=all` ' +
+    '(URL-encode the label\'s `/`). Where the roots span both states, the open\n  root is the anchor.\n' +
+    '- **Ambiguous.** Two or more **open** roots under one feature label.\n';
+
+  assert.equal(
+    scanContract(
+      fixture({ 'references/issue-tracker-github.md': githubShapedBody }),
+      ANCHOR_CANDIDATE_ALL_STATES_CONTRACTS,
+    ).length,
+    0,
+    'issue-tracker-github.md carrying every clause yields zero gaps',
+  );
+  const ghGapsQueryOnlyRevert = scanContract(
+    fixture({
+      'references/issue-tracker-github.md': githubShapedBody.replace(
+        'labels=<type>%2F<feature>&state=all` (URL-encode',
+        'labels=<type>%2F<feature>&state=open` (URL-encode',
+      ),
+    }),
+    ANCHOR_CANDIDATE_ALL_STATES_CONTRACTS,
+  );
+  assert.equal(ghGapsQueryOnlyRevert.length, 1, "issue-tracker-github.md: a query reverted to `state=open` is flagged alone");
+  const ghOpenRootGaps = scanContract(
+    fixture({
+      'references/issue-tracker-github.md': githubShapedBody.replace(
+        'the open\n  root is the anchor',
+        'any root is the anchor',
+      ),
+    }),
+    ANCHOR_CANDIDATE_ALL_STATES_CONTRACTS,
+  );
+  assert.equal(ghOpenRootGaps.length, 1, 'issue-tracker-github.md: dropping the open-root preference is flagged alone');
+  const ghAmbiguousGaps = scanContract(
+    fixture({
+      'references/issue-tracker-github.md': githubShapedBody.replace(
+        'Two or more **open** roots',
+        'Two or more roots',
+      ),
+    }),
+    ANCHOR_CANDIDATE_ALL_STATES_CONTRACTS,
+  );
+  assert.equal(ghAmbiguousGaps.length, 1, 'issue-tracker-github.md: dropping the open-only Ambiguous shape is flagged alone');
+
+  // Jira-shaped: no query-form row (Jira's per-label listing runs no status filter at all), just the
+  // not-`<Done>`-preference Recognise-one and Ambiguous rows, phrased against `fields.status.name`
+  // rather than "open" since Jira has no open/closed issue state.
+  const jiraShapedBody =
+    '- **Recognise one.** A root has no parent. prefer the root whose `fields.status.name` is not ' +
+    '`<Done>`.\n' +
+    '- **Ambiguous.** Two or more parentless issues under one feature label whose `fields.status.name` ' +
+    'is not `<Done>`.\n';
+
+  assert.equal(
+    scanContract(
+      fixture({ 'references/issue-tracker-jira.md': jiraShapedBody }),
+      ANCHOR_CANDIDATE_ALL_STATES_CONTRACTS,
+    ).length,
+    0,
+    'issue-tracker-jira.md carrying every clause yields zero gaps',
+  );
+  const jiraRecogniseGaps = scanContract(
+    fixture({
+      'references/issue-tracker-jira.md': jiraShapedBody.replace(
+        'prefer the root whose `fields.status.name` is not `<Done>`',
+        'prefer whichever root is returned first',
+      ),
+    }),
+    ANCHOR_CANDIDATE_ALL_STATES_CONTRACTS,
+  );
+  assert.equal(
+    jiraRecogniseGaps.length,
+    1,
+    'issue-tracker-jira.md: dropping the not-`<Done>` preference in Recognise one is flagged alone',
+  );
+  const jiraAmbiguousGaps = scanContract(
+    fixture({
+      'references/issue-tracker-jira.md': jiraShapedBody.replace(
+        'Two or more parentless issues under one feature label whose `fields.status.name` is not `<Done>`',
+        'Two or more parentless issues under one feature label',
+      ),
+    }),
+    ANCHOR_CANDIDATE_ALL_STATES_CONTRACTS,
+  );
+  assert.equal(
+    jiraAmbiguousGaps.length,
+    1,
+    'issue-tracker-jira.md: dropping the not-`<Done>`-only Ambiguous shape is flagged alone',
+  );
+
+  // plan-contract.md: the single generic row stating both the open-candidate and open-only-Ambiguous rules
+  const openPreferenceContractBody =
+    '## Scope anchor\n\n' +
+    'A backend whose candidate listing spans every state can also return a retired label\'s closed root ' +
+    'beside a reused label\'s open one. **The open candidate is the anchor there. `Ambiguous` is two or ' +
+    'more *open* candidates** — never a closed one sitting beside a single open one.\n';
+  assert.equal(
+    scanContract(
+      fixture({ 'references/plan-contract.md': openPreferenceContractBody }),
+      ANCHOR_CANDIDATE_ALL_STATES_CONTRACTS,
+    ).length,
+    0,
+    'a plan-contract.md carrying the open-preference clause yields zero gaps',
+  );
+  const pcGapsNoOpenPreference = scanContract(
+    fixture({
+      'references/plan-contract.md': openPreferenceContractBody.replace(
+        'The open candidate is the anchor there. `Ambiguous` is two or more *open* candidates',
+        'The anchor is whichever candidate is returned first',
+      ),
+    }),
+    ANCHOR_CANDIDATE_ALL_STATES_CONTRACTS,
+  );
+  assert.equal(pcGapsNoOpenPreference.length, 1, 'flags plan-contract.md for dropping the open-preference clause');
+  assert.equal(
+    pcGapsNoOpenPreference[0].source,
+    path.join('references', 'plan-contract.md'),
+    'names plan-contract.md',
+  );
+
+  // absent file is skipped, matching every other contract table
+  assert.equal(
+    scanContract(fixture({ 'README.md': '# repo\n' }), ANCHOR_CANDIDATE_ALL_STATES_CONTRACTS).length,
     0,
     'absent file is skipped',
   );
@@ -725,16 +991,16 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'absent file is skipped',
   );
 
-  // --- RUN_KIND_CONTRACTS: scope-mode.md specifies the branch step for each of the three run kinds —
-  // `fresh` cuts from base (and stops, cutting nothing, when a scope-prune reap left a same-named branch
-  // standing), `appended` reuses the branch only when base already contains its content, `resumed`
-  // switches to it and cuts nothing (ADR 0028, ADR 0045). ADR 0053 added three rows: `appended`'s
-  // **Present** branch delegating to `## Containment`, that section's own canonical statement of the
-  // test, and the **No forcing flag** exception stated as conditional on the containment proof. A fix
-  // cycle added an eighth: the scopetree must be clean before `appended` re-points a contained
-  // branch with `git reset --hard <base>`, because the containment proof covers the branch's committed
-  // history and says nothing about the index or working tree (Important 2). Eight independent rows:
-  // losing one clause's specification fails on its own, not just in aggregate. ---
+  // --- RUN_KIND_CONTRACTS: scope-mode.md specifies the branch step for both run kinds — `fresh` cuts
+  // from base and, where a squash-merging host or a scope-prune reap left a same-named branch standing,
+  // reuses it only when base already contains its content; `resumed` switches to it and cuts nothing
+  // (ADR 0028, ADR 0045, ADR 0083). ADR 0053 added three rows: the **Present** branch delegating to
+  // `## Containment`, that section's own canonical statement of the test, and the **No forcing flag**
+  // exception stated as conditional on the containment proof. A fix cycle added an eighth: the
+  // scopetree must be clean before a contained branch is re-pointed with `git reset --hard <base>`,
+  // because the containment proof covers the branch's committed history and says nothing about the
+  // index or working tree (Important 2). Eight independent rows: losing one clause's specification
+  // fails on its own, not just in aggregate. ---
 
   const runKindBody =
     '## Containment\n\n' +
@@ -746,11 +1012,11 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     '## Cutting the scope branch\n\n' +
     '- **`fresh`** — no ledger existed, so the run itself has never cut this branch before. Cut it ' +
     'from `<base>`. **The name already exists** — a scope-prune reap left it standing. The branch is ' +
-    'decided exactly as `appended` decides its own reused branch below — contained in `<base>` and ' +
-    'reused, or not contained and stopped, per `## Containment` above — rather than an unconditional ' +
-    'stop.\n' +
-    '- **`appended`** — a `shipped` ledger was rotated aside. Decide on the same test that decides a ' +
-    'scope is finished with (ADR 0007): contained in `<base>`, or gone entirely. Gone → cut fresh. ' +
+    'then decided rather than stopped on unconditionally — contained in `<base>` and ' +
+    'reused, or not contained and stopped, per `## Containment` above. ' +
+    'Decide on the same test that decides a ' +
+    'scope is finished with (ADR 0007): contained in `<base>`, or gone entirely. Gone → the cut above ' +
+    'is the whole step. ' +
     '**Present** — decide with `## Containment` above, which owns the test. **Contained** — ' +
     'work in the scopetree, then check the scopetree is clean: `git -C .superdev/scopes/<scope>/' +
     'scopetree status --porcelain` returns nothing. The containment proof above covers the branch\'s ' +
@@ -777,10 +1043,9 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // negative: losing the `fresh` existing-name stop clause fails on its own
   const rkNoFreshStop = fixture({
     'references/scope-mode.md': runKindBody.replace(
-      ' **The name already exists** — a scope-prune reap left it standing. The branch is decided ' +
-        'exactly as `appended` decides its own reused branch below — contained in `<base>` and ' +
-        'reused, or not contained and stopped, per `## Containment` above — rather than an ' +
-        'unconditional stop.',
+      ' **The name already exists** — a scope-prune reap left it standing. The branch is then ' +
+        'decided rather than stopped on unconditionally — contained in `<base>` and ' +
+        'reused, or not contained and stopped, per `## Containment` above.',
       '',
     ),
   });
@@ -788,19 +1053,19 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(rkGapsNoFreshStop.length, 1, 'flags exactly the missing `fresh` existing-name stop clause');
   assert.match(rkGapsNoFreshStop[0].expectation, /`fresh` run kind/, 'names the `fresh` run kind');
 
-  // negative: losing the `appended` contained-or-gone clause fails on its own
-  const rkNoAppended = fixture({
+  // negative: losing the reused-branch contained-or-gone clause fails on its own
+  const rkNoReuse = fixture({
     'references/scope-mode.md': runKindBody.replace(
       'Decide on the same test that decides a scope is finished with (ADR 0007): contained in ' +
-        '`<base>`, or gone entirely. Gone → cut fresh. ',
+        '`<base>`, or gone entirely. Gone → the cut above is the whole step. ',
       '',
     ),
   });
-  const rkGapsNoAppended = scanContract(rkNoAppended, RUN_KIND_CONTRACTS);
-  assert.equal(rkGapsNoAppended.length, 1, 'flags exactly the missing `appended` contained-or-gone clause');
-  assert.match(rkGapsNoAppended[0].expectation, /`appended` run kind/, 'names the `appended` run kind');
+  const rkGapsNoReuse = scanContract(rkNoReuse, RUN_KIND_CONTRACTS);
+  assert.equal(rkGapsNoReuse.length, 1, 'flags exactly the missing contained-or-gone clause');
+  assert.match(rkGapsNoReuse[0].expectation, /`fresh` run kind/, 'names the `fresh` run kind');
 
-  // negative: `appended`'s **Present** branch naming a git command of its own, instead of delegating to
+  // negative: the **Present** branch naming a git command of its own, instead of delegating to
   // `## Containment`, fails on its own — the one-sided-delegation shape ADR 0053 closed
   const rkNoDelegation = fixture({
     'references/scope-mode.md': runKindBody.replace(
@@ -849,7 +1114,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'names the precondition the exception owes',
   );
 
-  // negative: dropping the clean-scopetree guard ahead of the contained `appended` re-point fails on its
+  // negative: dropping the clean-scopetree guard ahead of the contained re-point fails on its
   // own — the reset would then discard an uncommitted change the containment proof never vouched for
   // (Important 2)
   const rkNoCleanGuard = fixture({

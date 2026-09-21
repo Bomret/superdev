@@ -1627,8 +1627,14 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   );
 
   // --- scanReleaseContract: every slice-store document states how its backend expresses a release
-  // (`plan-contract.md` → *Release*), and `skills/plan/SKILL.md`, `skills/implement/SKILL.md`, and
-  // `skills/afk/SKILL.md` each name that section. Both halves fail silently, so both are asserted. ---
+  // (`plan-contract.md` → *Release*), carries the **Remove** bullet a declined release on an append
+  // calls (ADR 0083), and `skills/plan/SKILL.md`, `skills/implement/SKILL.md`, and `skills/afk/SKILL.md`
+  // each name that section. `/plan`'s §6 states the both-directions rule, and the local-file seed states
+  // it has nothing to remove. Every half fails silently, so every half is asserted. ---
+
+  const acmeRelease =
+    '# acme\n\n## Release\n\nLabel `released` on the scope anchor.\n\n' +
+    '- **Remove** (`/superdev:plan`, on an append the user declines): `DELETE /labels/released`.\n';
 
   // positive: a store document with no release section is flagged
   const rl1 = fixture({ 'references/issue-tracker-acme.md': '# acme\n\nSlices are issues.\n' });
@@ -1637,16 +1643,42 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(rlGaps1[0].source, path.join('references', 'issue-tracker-acme.md'), 'names the seed');
   assert.equal(rlGaps1[0].expectation, undefined, 'a missing section carries no expectation');
 
-  // negative: the same document carrying the section is clean
+  // negative: the same document carrying the section and its Remove bullet is clean
+  assert.equal(
+    scanReleaseContract(fixture({ 'references/issue-tracker-acme.md': acmeRelease })).length,
+    0,
+    'a store document carrying the section yields zero gaps',
+  );
+
+  // positive: the section without the Remove bullet is flagged — Apply and Read alone leave a declined
+  // release on an append with no call to make
+  const rlNoRemove = fixture({
+    'references/issue-tracker-acme.md':
+      '# acme\n\n## Release\n\n- **Apply**: add the label.\n- **Read**: the labels array.\n',
+  });
+  const rlGapsNoRemove = scanReleaseContract(rlNoRemove);
+  assert.equal(rlGapsNoRemove.length, 1, 'flags a store document carrying no Remove bullet');
+  assert.match(rlGapsNoRemove[0].expectation, /\*\*Remove\*\* bullet/, 'names the Remove bullet');
+
+  // positive: the local-file seed is exempt from the bullet and states the opposite instead — a seed
+  // saying neither is flagged once, for the statement it owes
+  const rlLocalSilent = fixture({
+    'references/issue-tracker-local.md': '# local\n\n## Release\n\nA plan file is released when written.\n',
+  });
+  const rlGapsLocal = scanReleaseContract(rlLocalSilent);
+  assert.equal(rlGapsLocal.length, 1, 'flags the released-at-write seed for stating no removal rule');
+  assert.match(rlGapsLocal[0].expectation, /nothing to remove/, 'names what it owes');
+
+  // negative: the same seed stating it, with no Remove bullet anywhere, is clean
   assert.equal(
     scanReleaseContract(
       fixture({
-        'references/issue-tracker-acme.md':
-          '# acme\n\n## Release\n\nLabel `released` on the scope anchor.\n',
+        'references/issue-tracker-local.md':
+          '# local\n\n## Release\n\nA plan file is released when written. There is nothing to remove.\n',
       }),
     ).length,
     0,
-    'a store document carrying the section yields zero gaps',
+    'the released-at-write seed owes the statement, never the bullet',
   );
 
   // positive: prose about releasing is not the section — the heading is what `/superdev:setup` carries
@@ -1658,8 +1690,13 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'a prose mention is not the section',
   );
 
+  const planRelease =
+    "# plan\n\nRead `docs/agents/issue-tracker.md`'s `## Release`.\n\n" +
+    'On an append the answer applies in both directions: **Later** removes the signal from the scope ' +
+    'anchor.\n';
+
   // positive: a consumer that no longer names the section is flagged, with the store half silent
-  const rlConsumer = fixture({ 'skills/plan/SKILL.md': '# plan\n\nWrite the slices, then hand off.\n' });
+  const rlConsumer = fixture({ 'skills/plan/SKILL.md': planRelease.replace('`## Release`', 'the release rules') });
   const rlGapsConsumer = scanReleaseContract(rlConsumer);
   assert.equal(rlGapsConsumer.length, 1, 'flags the consumer that dropped the reference');
   assert.equal(rlGapsConsumer[0].source, path.join('skills', 'plan', 'SKILL.md'), 'names the consumer');
@@ -1668,20 +1705,28 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // negative: the same consumer naming the backticked section is clean — and the bare word alone is not,
   // since "release" recurs in ordinary prose
   assert.equal(
-    scanReleaseContract(
-      fixture({ 'skills/plan/SKILL.md': "# plan\n\nRead `docs/agents/issue-tracker.md`'s `## Release`.\n" }),
-    ).length,
+    scanReleaseContract(fixture({ 'skills/plan/SKILL.md': planRelease })).length,
     0,
     'a consumer naming the backticked section yields zero gaps',
   );
 
-  // all three consumers are held to it, so dropping the reference everywhere reports three gaps
+  // positive: /plan keeping the reference but dropping §6's both-directions rule is flagged on its own —
+  // a declined release on an append would leave the signal standing over slices nobody released
+  const rlNoBothDirections = fixture({
+    'skills/plan/SKILL.md': "# plan\n\nRead `docs/agents/issue-tracker.md`'s `## Release`. Later applies nothing.\n",
+  });
+  const rlGapsBoth = scanReleaseContract(rlNoBothDirections);
+  assert.equal(rlGapsBoth.length, 1, "flags /plan for dropping §6's both-directions rule");
+  assert.match(rlGapsBoth[0].expectation, /declining branch removes/, 'names the removal on an append');
+
+  // all three consumers are held to it, so dropping the reference everywhere reports three gaps, plus
+  // /plan's own both-directions row
   const rlAllThree = fixture({
     'skills/plan/SKILL.md': '# plan\n',
     'skills/implement/SKILL.md': '# implement\n',
     'skills/afk/SKILL.md': '# afk\n',
   });
-  assert.equal(scanReleaseContract(rlAllThree).length, 3, 'every consumer is held to the reference');
+  assert.equal(scanReleaseContract(rlAllThree).length, 4, 'every consumer is held to the reference');
 
   // an absent document is skipped, so a fixture carries only the docs it exercises
   assert.equal(

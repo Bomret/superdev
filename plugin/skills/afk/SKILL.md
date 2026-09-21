@@ -128,9 +128,11 @@ over on every sweep until somebody acts, and nothing else in this command would 
 `/superdev:plan` to decompose the anchor, or the release signal `docs/agents/issue-tracker.md` names. The
 sixth is the unsatisfied dependency — the **deferral**, with its own paragraph below.
 
-**A third condition is reported the same way.** A feature label presenting **two or more roots** is a
-malformed plan: there is no single Definition of Done to build against, so there is nothing to select and
-nothing to label. Skip it and name it in §6's report. It needs a human, exactly like the three above.
+**A third condition is reported the same way.** A feature label whose candidates are `Ambiguous` — the
+active `docs/agents/issue-tracker.md`'s own `## Scope anchor` section names the shape, among **open**
+roots only — is a malformed plan: there is no single Definition of Done to build against, so there is
+nothing to select and nothing to label. Skip it and name it in §6's report. It needs a human, exactly
+like the three above.
 
 **A deferred anchor is reported too, and names what it waits on.** It clears itself, so it is not one of
 the three above — but three shapes of a deferral wait on a human just as they do, and the row is the only
@@ -252,9 +254,9 @@ Cache_Sweep!   skipped    label fails the scope-slug rule — rename it
 #141 cache     untouched  halted before it
 ```
 
-A `skipped` row appears for the three permanent conditions of §2: a feature label with two or more roots,
-a label that fails the scope-slug rule, and an anchor that was never decomposed. Each row names what the
-condition needs. The transient skips — a live run, a shipped run — stay out of the table.
+A `skipped` row appears for the three permanent conditions of §2: a feature label whose candidates are
+`Ambiguous`, a label that fails the scope-slug rule, and an anchor that was never decomposed. Each row
+names what the condition needs. The transient skips — a live run, a shipped run — stay out of the table.
 
 A `deferred` row names the anchor waited on and what became of it — the three shapes that need a human are
 §2's, and the third (a still-open anchor behind a pruned run root) names what it needs — closing that

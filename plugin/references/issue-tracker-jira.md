@@ -75,6 +75,10 @@ Epic Link either (ADR 0017).
 
 - **Recognise one.** A root has no parent: treat an absent `fields.parent` key and a `null` value alike.
   Jira models the Epic relation as parent and child, so a slice always carries one and a root never does.
+  **List the candidates** below runs no status filter, so it can return a retired label's `<Done>`-status
+  root beside a reused label's not-`<Done>` one; prefer the root whose `fields.status.name` is not `<Done>`
+  (the **Status workflow** table below names it) — a single `<Done>` root with no other candidate is the
+  anchor too (`plan-contract.md` → *Scope anchor*, ADR 0083).
 - **List the candidates.** The feature labels themselves: `GET <base>/rest/api/3/label` (paginated
   `values` array of every label used in the instance), keeping the values whose first segment is a change
   type (`references/scope-mode.md` lists them). Per
@@ -101,9 +105,11 @@ Epic Link either (ADR 0017).
   means closed — because a consumer holds the dependency against the blocker's own label and status, not
   the label of the record carrying this line. `/superdev:plan` writes one through the same **Record an
   anchor dependency** description edit above.
-- **Ambiguous.** Two or more parentless issues under one feature label. `/superdev:plan` never writes that
-  shape, and there is no single Definition of Done to build against, so a consumer reports it instead of
-  choosing.
+- **Ambiguous.** Two or more parentless issues under one feature label whose `fields.status.name` is not
+  `<Done>`. A `<Done>` root never makes the shape ambiguous by itself — a label reused after retirement
+  stays a single, resolvable anchor at every point (`plan-contract.md` → *Scope anchor*, ADR 0083).
+  `/superdev:plan` never writes that shape, and there is no single Definition of Done to build against, so
+  a consumer reports it instead of choosing.
 
 ## Assignee
 
@@ -146,6 +152,10 @@ and the ready status/label marks a slice rather than the feature.
   `test-applicability` label in place.
 - **Read** (`/superdev:implement`, `/superdev:afk`): the anchor's `labels` field, which the JQL search that
   found the feature already returns.
+- **Remove** (`/superdev:plan`, on an append the user declines): `PUT <base>/rest/api/3/issue/<key>` with
+  `{ "update": { "labels": [{ "remove": "<released>" }] } }` — the mirror of **Apply**, which leaves the
+  feature label and the `test-applicability` label in place. Removing a label the anchor does not carry
+  changes nothing and reports no error.
 - A feature whose anchor lacks the label is unreleased. No status and no other label means it.
 
 ## Triage record

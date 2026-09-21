@@ -64,7 +64,9 @@ plan runs test-first, inline in the scopetree.
   **anchor dependency** is a recorded relation saying this feature waits on another feature. But
   promoting a single-slice feature to an epic migrates its line onto the new epic, removing it from the
   lone record, which otherwise stays untouched. It refuses while a run against that feature is active
-  elsewhere. It surfaces any parked questions the
+  elsewhere, and once that feature has **shipped** — a Definition of Done amended after the fact would
+  mix criteria verified against a merged pull request with criteria nobody has verified, so follow-up
+  work becomes a new feature holding an anchor dependency on the old one. It surfaces any parked questions the
   feature carries before asking anything new. A parked question is a load-bearing decision an earlier
   interview could not resolve (`skills/plan/SKILL.md` §0).
 - **`/superdev:implement`**. The controller drives the slices as a **dependency-ordered DAG**, sized to

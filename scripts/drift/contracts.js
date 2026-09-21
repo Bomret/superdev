@@ -154,6 +154,33 @@ const RELEASE_CONSUMERS = [
 
 const RELEASE_CONSUMER_PATTERN = /`## Release`/;
 
+// ADR 0083 + INV-0005: a release decision covers the work that existed when it was made, so on an append
+// the answer applies in both directions — declining removes the signal from the scope anchor, releasing
+// applies it. `/superdev:afk` selects on that signal, so a signal left standing over slices added
+// afterwards is what sends an unattended sweep at work nobody released. Two halves, each silent on its
+// own: a store document carrying **Apply** and **Read** and no **Remove** leaves `/superdev:plan` with
+// no call to make, and a §6 that still reads "apply nothing" makes the call nobody wrote anyway.
+// `issue-tracker-local.md` is exempt from the bullet and carries the opposite statement instead — its
+// plans are released when written, so there is nothing to remove and the plan says so rather than
+// attempting a call.
+const RELEASE_REMOVE_PATTERN = /^[-*]\s+\*\*Remove\*\*/m;
+const RELEASE_REMOVE_EXEMPT = new Set(['issue-tracker-local.md']);
+const RELEASE_REMOVE_EXPECTATION =
+  'carry a `## Release` **Remove** bullet naming the call that takes the signal off the scope anchor, ' +
+  'beside **Apply** and **Read** — a declined release on an append removes it (ADR 0083, INV-0005)';
+
+const LOCAL_RELEASE_DOC = path.join('references', 'issue-tracker-local.md');
+const LOCAL_NO_REMOVAL_PATTERN = /nothing to remove/i;
+const LOCAL_NO_REMOVAL_EXPECTATION =
+  'state in its `## Release` section that a store releasing its features at write has nothing to ' +
+  'remove, so a declined release on an append attempts no call (ADR 0083)';
+
+const RELEASE_BOTH_DIRECTIONS_DOC = path.join('skills', 'plan', 'SKILL.md');
+const RELEASE_BOTH_DIRECTIONS_PATTERN = /On an append[\s\S]{0,300}?removes? the signal/;
+const RELEASE_BOTH_DIRECTIONS_EXPECTATION =
+  "state that §6's declining branch removes the release signal from the scope anchor on an append, " +
+  'where a first plan still applies nothing (ADR 0083, INV-0005)';
+
 // `references/issue-tracker-local.md` alone needs a continuation rule: its `id` is the zero-padded file
 // number `/plan` itself assigns, so append must continue numbering from the highest one already present
 // and never reuse a number. An issue backend's `id` is server-assigned at creation, already unique and
@@ -792,10 +819,11 @@ const VERB_CONTRACTS = [
   // No superdev command commits to the base branch (INV-0001) — a dirty design doc in the invoking
   // checkout moves into the scopetree and is committed on the scope branch instead, so nothing left
   // ever needs the lock that used to serialise a base-branch write.
-  // /plan names `scope.js` once and then its two verbs, so the branch half wraps away from the path
-  // prefix (`get\n  branch --root <run-root>`) and the `scope.js <verb>` shape above cannot reach it.
-  // The `--root` argument is what separates the verb invocation from the words "get branch" in prose.
-  [path.join('skills', 'plan', 'SKILL.md'), /get\s+branch\s+--root/, 'read the scope branch with `scope.js get branch` for its append refusal, never by reconstructing `<type>/<scope>`'],
+  // Retired (ADR 0083): `skills/plan/SKILL.md` used to read the scope branch with `get branch --root`
+  // and run the containment test on it, to decide whether a `shipped` scope could still be appended to.
+  // A shipped feature takes no append at all now, so that refusal reads one stage value and no branch —
+  // `SHIPPED_APPEND_CONTRACTS` pins what replaced it.
+  [path.join('skills', 'plan', 'SKILL.md'), /scope\.js["'`]?\s+get stage\b/, 'read a run root\'s ledger stage with `scope.js get stage`, never by hand-parsing `ledger.md`'],
 ];
 
 // ADR 0079/0080: the planned handoff. `/superdev:plan` cuts the branch and scopetree itself, commits its
@@ -2061,8 +2089,8 @@ const PUBLISH_KB_INVOCATION_CONTRACTS = [
   ],
 ];
 
-// ADR 0004: append mode never renumbers a merged slice, so a second `/superdev:implement` run over an
-// appended feature must never re-dispatch one. Run init's `init` call is the one place that seeds the
+// ADR 0004: append mode never renumbers a merged slice, so a second `/superdev:implement` run over a
+// feature whose earlier slices merged must never re-dispatch one. Run init's `init` call is the one place that seeds the
 // ledger's per-slice status, so it must carry each loaded slice's real `status` rather than defaulting
 // every row to `todo`.
 const STATUS_SEED_CONTRACTS = [
@@ -2074,14 +2102,14 @@ const STATUS_SEED_CONTRACTS = [
   ],
 ];
 
-// ADR 0004: `/plan`'s §0 asks new-vs-extend before the interview begins, refuses to extend on either of
-// two signals while writing nothing, and promotes a single-slice feature to an epic in §6, where the
-// command's other writes happen. Five independent rows, so losing any one clause fails on its own. The
-// ledger refusal signal is one condition with two clauses (a stage other than `shipped`; a `shipped`
-// stage whose branch is neither contained in the base nor gone), so it is two rows rather than one — a
-// single lookahead pinning both clauses cannot report which one went missing. Each row anchors on the
-// condition sentence's own wording, not on the rationale sentence that explains the branch test
-// afterward, so a document that keeps the rationale but loses the condition still fails.
+// ADR 0004: `/plan`'s §0 asks new-vs-extend before the interview begins, refuses to extend on any of its
+// signals while writing nothing, and promotes a single-slice feature to an epic in §6, where the
+// command's other writes happen. Independent rows, so losing any one clause fails on its own. Each row
+// anchors on the condition sentence's own wording, not on the rationale sentence that explains it
+// afterward, so a document that keeps the rationale but loses the condition still fails. The shipped
+// signals and the refusal they trigger belong to `SHIPPED_APPEND_CONTRACTS` below (ADR 0083), which is
+// where the second ledger clause this table used to carry went: a `shipped` stage refuses outright now,
+// so no branch test decides it and there is no second clause left to pin.
 const PLAN_APPEND_CONTRACTS = [
   [
     path.join('skills', 'plan', 'SKILL.md'),
@@ -2095,14 +2123,8 @@ const PLAN_APPEND_CONTRACTS = [
   ],
   [
     path.join('skills', 'plan', 'SKILL.md'),
-    /ledger stage other than `shipped`/,
-    'state the ledger refusal signal, first clause — a run root whose stage is other than `shipped`',
-  ],
-  [
-    path.join('skills', 'plan', 'SKILL.md'),
-    /scope branch \(`<type>\/<scope>`\) is neither contained in the base nor gone/,
-    'state the ledger refusal signal, second clause — a `shipped` stage whose scope branch is neither ' +
-      'contained in the base nor gone',
+    /ledger stage other than `planned`/,
+    'state the ledger refusal signal — a run root whose stage is other than `planned`',
   ],
   [
     path.join('skills', 'plan', 'SKILL.md'),
@@ -2126,8 +2148,129 @@ const PLAN_APPEND_CONTRACTS = [
   ],
 ];
 
-// ADR 0007 + ADR 0004: `scope-prune` keeps a run root, and its shipped `ledger.md`, for seven days past
-// merge, so a second `/superdev:implement` run over an appended feature can land while that ledger is
+// ADR 0083 + INV-0004: a feature whose anchor has shipped takes no append — amending its Definition of
+// Done in place pools criteria verified against a merged pull request with criteria nobody has verified,
+// and `hooks/scope-prune.js` reaps the local half while the anchor's half stays. `/superdev:plan`'s
+// extend path is where the refusal is emitted, and `references/plan-contract.md`'s *Append mode* section
+// owns the boundary every backend renders, so both documents are pinned and neither can state the rule
+// alone. Four independent rows, because each clause fails on its own: the refusal itself, the two
+// signals that trigger it (a run root reading `shipped`; an anchor at the store's done status — neither
+// is sufficient alone, so a document naming one is as broken as one naming neither), and the remedy
+// (`**Blocked by feature:** #<anchor>`), which is what makes the refusal actionable rather than a dead
+// end.
+const SHIPPED_APPEND_CONTRACTS = [
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /takes no append/,
+    'state that a feature whose anchor has shipped takes no append',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /either one alone refuses[\s\S]{0,400}?done status/,
+    'name both shipped signals and state that either one alone refuses — a run root whose ledger stage ' +
+      "reads `shipped`, and a scope anchor at the store's done status",
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /new feature\*\* carrying `\*\*Blocked by feature:\*\* #<anchor>`/,
+    'name the remedy — a new feature carrying `**Blocked by feature:** #<anchor>`',
+  ],
+  [
+    path.join('references', 'plan-contract.md'),
+    /shipped feature takes no append/,
+    'state the same boundary in its *Append mode* section, so the contract and the command that ' +
+      'performs it cannot drift apart',
+  ],
+];
+
+// ADR 0083's second signal — a scope anchor at the store's done status — only fires if the anchor a
+// picked feature resolves to can be a closed record at all. Both issue-tracker backends' *List the
+// candidates* call once queried `state=open` for the per-feature-label listing `## Scope anchor`'s
+// *Recognise one* rule resolves against, so a shipped feature's closed epic never reached that rule and
+// the shipped-anchor refusal above had nothing to trigger on. Each backend already states the identical
+// hazard for its *List the slices beneath it* call (a `state=open` listing presents a closed epic as
+// never decomposed); this table pins the same `state=all` fix on the candidate listing itself, one row
+// per backend that filters by state.
+const ANCHOR_CANDIDATE_ALL_STATES_CONTRACTS = [
+  [
+    path.join('docs', 'agents', 'issue-tracker.md'),
+    /List the candidates\.[\s\S]{0,350}?labels=<type>%2F<feature>&state=all/,
+    "query the per-feature-label candidate listing itself with `labels=<type>%2F<feature>&state=all`, " +
+      "so a shipped feature's closed epic still resolves through *Recognise one* (ADR 0083)",
+  ],
+  [
+    path.join('references', 'issue-tracker-forgejo.md'),
+    /List the candidates\.[\s\S]{0,350}?labels=<type>%2F<feature>&state=all/,
+    "query the per-feature-label candidate listing itself with `labels=<type>%2F<feature>&state=all`, " +
+      "so a shipped feature's closed epic still resolves through *Recognise one* (ADR 0083)",
+  ],
+  [
+    path.join('references', 'issue-tracker-github.md'),
+    /List the candidates\.[\s\S]{0,350}?labels=<type>%2F<feature>&state=all/,
+    "query the per-feature-label candidate listing itself with `labels=<type>%2F<feature>&state=all`, " +
+      "so a shipped feature's closed epic still resolves through *Recognise one* (ADR 0083)",
+  ],
+  // A `state=all` listing can also return a retired label's closed root beside a reused label's open
+  // one. The open candidate must win *Recognise one*, and *Ambiguous* must fire only among open
+  // candidates, or a well-formed label reuse (ADR 0083) reports ambiguous.
+  [
+    path.join('references', 'plan-contract.md'),
+    /open candidate is the anchor there[\s\S]{0,300}?two or more \*open\* candidates/,
+    'state that the open candidate is the anchor and that `Ambiguous` is two or more *open* candidates, ' +
+      'once a backend lists every state (ADR 0083)',
+  ],
+  [
+    path.join('docs', 'agents', 'issue-tracker.md'),
+    /Recognise one\.\*\*\s+Apply the rule to the \*\*open\*\* issues/,
+    "prefer an open candidate in *Recognise one*, so a retired label's closed root never wins over a " +
+      'reused label\'s open one (ADR 0083)',
+  ],
+  [
+    path.join('docs', 'agents', 'issue-tracker.md'),
+    /Ambiguous\.\*\*\s+No `epic`-labelled open issue and two or more open issues/,
+    '`Ambiguous` only among open issues, so a closed candidate never makes the shape ambiguous by itself',
+  ],
+  [
+    path.join('references', 'issue-tracker-forgejo.md'),
+    /Recognise one\.\*\*\s+Apply the rule to the \*\*open\*\* issues/,
+    "prefer an open candidate in *Recognise one*, so a retired label's closed root never wins over a " +
+      'reused label\'s open one (ADR 0083)',
+  ],
+  [
+    path.join('references', 'issue-tracker-forgejo.md'),
+    /Ambiguous\.\*\*\s+No `epic`-labelled open issue and two or more open issues/,
+    '`Ambiguous` only among open issues, so a closed candidate never makes the shape ambiguous by itself',
+  ],
+  [
+    path.join('references', 'issue-tracker-github.md'),
+    /the open\s+root is the anchor/,
+    "prefer an open root in *List the candidates*, so a retired label's closed root never wins over a " +
+      'reused label\'s open one (ADR 0083)',
+  ],
+  [
+    path.join('references', 'issue-tracker-github.md'),
+    /Ambiguous\.\*\*\s+Two or more \*\*open\*\* roots/,
+    '`Ambiguous` only among open roots, so a closed root never makes the shape ambiguous by itself',
+  ],
+  // Jira's per-label listing spans every state unconditionally (no query parameter to pin), so the
+  // shape this family guards against reaches it too: a retired label's `<Done>`-status root beside a
+  // reused label's not-`<Done>` one. Jira has no open/closed issue state, so both rows phrase against
+  // `fields.status.name` versus the `<Done>` status the Status workflow table names, instead of "open".
+  [
+    path.join('references', 'issue-tracker-jira.md'),
+    /Recognise one\.\*\*[\s\S]{0,400}?prefer the root whose `fields\.status\.name` is not `<Done>`/,
+    "prefer a not-`<Done>` root in *Recognise one*, so a retired label's `<Done>` root never wins over a " +
+      'reused label\'s open one (ADR 0083)',
+  ],
+  [
+    path.join('references', 'issue-tracker-jira.md'),
+    /Ambiguous\.\*\*\s+Two or more parentless issues under one feature label whose `fields\.status\.name` is not\s+`<Done>`/,
+    '`Ambiguous` only among not-`<Done>` roots, so a `<Done>` root never makes the shape ambiguous by itself',
+  ],
+];
+
+// ADR 0007 + ADR 0083: `scope-prune` keeps a run root, and its shipped `ledger.md`, for seven days past
+// merge, so a new feature reusing that retired label can land while the finished run's ledger is
 // still on disk. A `shipped` ledger belongs to a finished run and gets rotated aside, never resumed, and
 // never deleted — `scope-prune` still reaps the whole run root on its own terms. `init` performs the
 // rotation itself (Important review finding B, ADR 0079/0080: `scope.js` is the sole ledger read and
@@ -2179,17 +2322,19 @@ const PARKED_QUESTIONS_CONTRACTS = [
 ];
 
 // ADR 0028: the scope branch is cut once, and a later run reuses it only losslessly.
-// `references/scope-mode.md` owns the rule and both execution playbooks read it, so the three run kinds
-// are pinned there rather than in either playbook — a pointer's prose is not worth pinning, and a
-// tier-specific line that drifts still leaves the rule itself intact. Four independent rows: losing the
-// specification for one clause fails on its own. `fresh` gets two rows because it carries two clauses (a
-// scope-prune reap can leave a same-named branch standing with no ledger to match it, so `fresh` is not
-// always a guaranteed-absent name). The regexes span the bullet from its run-kind label (or its own
-// distinguishing clause, for a row anchored past that label) to the sentence that distinguishes it, so a
-// prose reflow inside that bullet does not go red while a deleted clause does. ADR 0045 retired the fifth
-// row this table used to carry — the `appended` contained-reuse clause split by tier ("the `full` tier
-// switches the invoking checkout … the `lite` tier works in its existing scopetree") — because both
-// tiers now share one scopetree-based reuse, pinned instead by `SCOPETREE_CONTRACTS` below.
+// `references/scope-mode.md` owns the rule and both execution playbooks read it, so both run kinds —
+// `fresh` and `resumed` — are pinned there rather than in either playbook; a pointer's prose is not
+// worth pinning, and a tier-specific line that drifts still leaves the rule itself intact. Independent
+// rows: losing the specification for one clause fails on its own. `fresh` carries most of them, because
+// a scope-prune reap can leave a same-named branch standing with no ledger to match it, so `fresh` is
+// not always a guaranteed-absent name and owns the whole reused-branch decision. The regexes span the
+// bullet from its run-kind label (or its own distinguishing clause, for a row anchored past that label)
+// to the sentence that distinguishes it, so a prose reflow inside that bullet does not go red while a
+// deleted clause does. ADR 0045 retired the tier-split contained-reuse clause ("the `full` tier switches
+// the invoking checkout … the `lite` tier works in its existing scopetree"), since both tiers now share
+// one scopetree-based reuse, pinned instead by `SCOPETREE_CONTRACTS` below. ADR 0083 retired the
+// `appended` run kind's own rows with the run kind: a shipped feature takes no append, so no run ever
+// finds a `shipped` ledger to rotate, and `fresh` states the containment test it used to cite.
 const RUN_KIND_CONTRACTS = [
   [
     path.join('references', 'scope-mode.md'),
@@ -2198,22 +2343,22 @@ const RUN_KIND_CONTRACTS = [
   ],
   [
     path.join('references', 'scope-mode.md'),
-    /\*\*The name already exists\*\*[\s\S]{0,400}?decides\s+its\s+own\s+reused\s+branch[\s\S]{0,80}?contained\s+in\s+`<base>`\s+and\s+reused,\s+or\s+not\s+contained\s+and\s+stopped/,
+    /\*\*The name already exists\*\*[\s\S]{0,500}?contained\s+in\s+`<base>`\s+and\s+reused,\s+or\s+not\s+contained\s+and\s+stopped/,
     'specify the `fresh` run kind — a same-named branch a scope-prune reap left standing makes `-b` fail; ' +
-      'decide it with the same containment test `appended` uses, rather than stopping unconditionally ' +
-      '(closes triage #417)',
+      'decide it on the containment test, contained and reused or not contained and stopped, rather ' +
+      'than stopping unconditionally (closes triage #417)',
   ],
   [
     path.join('references', 'scope-mode.md'),
-    /`appended`[\s\S]{0,650}?contained\s+in\s+`<base>`,\s+or\s+gone\s+entirely/,
-    'specify the `appended` run kind — key the branch decision on the same contained-or-gone test ' +
+    /finished\s+with\s+\(ADR 0007\)[\s\S]{0,120}?contained\s+in\s*\n?\s*`<base>`,\s+or\s+gone\s+entirely/,
+    'specify the `fresh` run kind — key the reused-branch decision on the same contained-or-gone test ' +
       '`hooks/scope-prune.js` and `skills/plan/SKILL.md` run, so a squash-merged branch base already ' +
       'holds is reused rather than read as unmerged forever',
   ],
   [
     path.join('references', 'scope-mode.md'),
     /\*\*Present\*\*[\s\S]{0,160}?`## Containment`/,
-    "specify the `appended` run kind — its **Present** branch names `scope-mode.md`'s own " +
+    "specify the `fresh` run kind — its **Present** branch names `scope-mode.md`'s own " +
       '`## Containment` section as the section that owns the test',
   ],
   [
@@ -2236,7 +2381,7 @@ const RUN_KIND_CONTRACTS = [
     path.join('references', 'scope-mode.md'),
     /\*\*Contained\*\*[\s\S]{0,400}?status\s+--porcelain`\s+returns\s+nothing[\s\S]{0,250}?never\s+the\s+index\s+or[\s\S]{0,120}?working\s+tree[\s\S]{0,350}?\*\*Dirty\*\*[\s\S]{0,250}?stop,\s+cutting\s+nothing[\s\S]{0,150}?--unattended`\s*→\s*\n?\s*block/,
     'require the scopetree clean — `git -C .superdev/scopes/<scope>/scopetree status --porcelain` ' +
-      'returns nothing — before re-pointing a contained `appended` branch with `git reset --hard ' +
+      'returns nothing — before re-pointing a contained reused branch with `git reset --hard ' +
       '<base>`, because the containment proof covers the branch\'s committed history and says nothing ' +
       'about the index or working tree; a dirty scopetree stops, naming what is dirty, and blocks ' +
       'unattended rather than losing an uncommitted change (ADR 0053)',
@@ -2255,8 +2400,9 @@ const RUN_KIND_CONTRACTS = [
 // so a prose reflow elsewhere in the same section or file does not fire it.
 //
 // Five rows sit on `references/scope-mode.md`. `## The scope checkout` resolving to one location covers
-// the `appended` contained-reuse clause `RUN_KIND_CONTRACTS` retired above: reuse now means working in
-// that one scopetree, creating it with `git worktree add` when absent and stopping, naming what it found,
+// reuse for both remaining run kinds (`appended`'s own contained-reuse clause retired with the run kind,
+// ADR 0083): reuse now means working in that one scopetree, creating it with `git worktree add` when
+// absent and stopping, naming what it found,
 // when a different worktree already holds the branch — the same stop `## Cutting the scope branch`'s
 // `resumed` bullet already took before this ADR, so this is a location change, not a new behaviour. A
 // fifth row on that same section states that a `run-lock` refusal met while recreating is this run's own
@@ -3048,9 +3194,10 @@ const CONTAINMENT_DELEGATION_CONTRACTS = [
 // it answers not contained. ADR 0053 fixed what the test asks — content, not ancestry — and left the ref
 // it asks of alone, so a pull request squash-merged on the host reads not contained until the clone
 // pulls. Every consumer inherits the section's answer, which is what makes a single-document contract
-// enough here: `skills/publish-kb/SKILL.md` §3 asks the operator to confirm a publish,
-// `skills/plan/SKILL.md`'s refusal bullet blocks an append, and `## Cutting the scope branch`'s
-// `appended` run kind offers to rename a branch whose work is already safe.
+// enough here: `skills/publish-kb/SKILL.md` §3 asks the operator to confirm a publish, and
+// `## Cutting the scope branch`'s `fresh` run kind offers to rename a branch whose work is already safe.
+// `/superdev:plan`'s extend path reads no containment: ADR 0083 made a shipped feature's refusal a plain
+// ledger-stage read, with no branch test behind it.
 //
 // Each row pins a clause that fails differently on its own. The fetch row pins the retested ref by name:
 // `git fetch <remote> <base>` populates `refs/remotes/<remote>/<base>` and never the local branch, so a
@@ -3303,6 +3450,15 @@ module.exports = {
   RELEASE_PATTERN,
   RELEASE_CONSUMERS,
   RELEASE_CONSUMER_PATTERN,
+  RELEASE_REMOVE_PATTERN,
+  RELEASE_REMOVE_EXEMPT,
+  RELEASE_REMOVE_EXPECTATION,
+  LOCAL_RELEASE_DOC,
+  LOCAL_NO_REMOVAL_PATTERN,
+  LOCAL_NO_REMOVAL_EXPECTATION,
+  RELEASE_BOTH_DIRECTIONS_DOC,
+  RELEASE_BOTH_DIRECTIONS_PATTERN,
+  RELEASE_BOTH_DIRECTIONS_EXPECTATION,
   LOCAL_APPEND_DOC,
   LOCAL_CONTINUATION_ELEMENT,
   AFK_SELECTION_HEADING,
@@ -3372,6 +3528,8 @@ module.exports = {
   PUBLISH_KB_INVOCATION_CONTRACTS,
   STATUS_SEED_CONTRACTS,
   PLAN_APPEND_CONTRACTS,
+  SHIPPED_APPEND_CONTRACTS,
+  ANCHOR_CANDIDATE_ALL_STATES_CONTRACTS,
   ROTATE_ON_SHIPPED_CONTRACTS,
   PARKED_QUESTIONS_CONTRACTS,
   RUN_KIND_CONTRACTS,

@@ -1471,18 +1471,17 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // reads the ledger branch via `readLedgerHeader`, real code no verb-invocation pattern can match.
   // `tests/publish-kb.test.js`'s ledger-route assertions cover it instead.
 
-  // positive: plan.md reconstructs the scope branch from the label instead of reading it
+  // The `skills/plan/SKILL.md` `get branch` row retired (ADR 0083): a shipped feature takes no append,
+  // so §0's refusal reads one ledger stage and tests no branch. `SHIPPED_APPEND_CONTRACTS` pins what
+  // replaced it, in kb-plan.test.js.
+
+  // positive: plan.md reads a run root's ledger stage by hand instead of running the verb
   const vcPlan = fixture({
-    'skills/plan/SKILL.md': 'Build the branch name from `<type>/<scope>` for the append refusal.\n',
+    'skills/plan/SKILL.md': 'Read the ledger header to find the stage.\n',
   });
   const vcPlanGaps = scanContract(vcPlan, VERB_CONTRACTS);
-  // One: `get branch --root`. plan.md carries no base-lock row (ADR 0079) — its design docs land in the
-  // scopetree, on the scope branch, never on base.
-  assert.equal(vcPlanGaps.length, 1, 'flags plan.md for reconstructing the branch instead of `scope.js get branch --root`');
-  assert.ok(
-    vcPlanGaps.every((g) => g.source === path.join('skills', 'plan', 'SKILL.md')),
-    'names plan.md'
-  );
+  assert.equal(vcPlanGaps.length, 1, 'flags plan.md for reading the stage without `scope.js get stage`');
+  assert.equal(vcPlanGaps[0].source, path.join('skills', 'plan', 'SKILL.md'), 'names plan.md');
 
   // absent files are skipped, matching every other contract table
   assert.equal(

@@ -6,6 +6,10 @@
 which replaces the ancestor test the `appended` paragraph below runs for containment, and the
 `git merge --ff-only <base>` that follows a contained verdict. Verified 2026-09-07 on git 2.50.1:
 ff-only exits 128 on a squash-merged branch, because base is not a descendant of it.
+**Amended by:** [ADR 0083](0083-a-shipped-scope-takes-no-append.md), which retires the `appended` run
+kind the `## Decision` below names: closing the path that produces a `shipped` ledger for
+`/superdev:plan` to append onto makes `appended` unreachable, leaving `fresh` and `resumed` as the two
+live run kinds.
 
 ## Context
 

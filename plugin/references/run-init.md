@@ -101,8 +101,8 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
   **Otherwise, create one with `scope.js init`**, from the invoking checkout, carrying each slice's real
   **`status`**, mapped through `${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md`'s
   `## Slice lifecycle & status`. A slice the store reports as **merged seeds `merged`, and is never
-  dispatched**. Omit the field and every row seeds `todo`, so a second run over an appended feature
-  (`docs/adr/0004-plan-append-semantics.md`) rebuilds what already shipped:
+  dispatched**. Omit the field and every row seeds `todo`, so a second run over a feature whose earlier
+  slices already merged (`docs/adr/0004-plan-append-semantics.md`) rebuilds what already shipped:
 
   ```sh
   echo '{"anchor": "<key> — <title>", "slices": [{"id": "01", "issue": "…", "title": "…", "type": "…", "depends-on": "…", "status": "…"}, …]}' \
@@ -131,8 +131,9 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
     collide) before writing the fresh one. A rotation never overwrites an existing
     `ledger-shipped-<date>.md` and nothing is deleted, so ADR
     0007's seven-day trail and `scope-prune`'s contained-or-gone reap rule (ADR 0053) both stand
-    unchanged. Rotation, not deletion, is what lets a second run over an appended feature (ADR 0004)
-    begin.
+    unchanged. Rotation, not deletion, is what lets a new feature reusing a retired label begin beside a
+    finished run's trail (ADR 0083). The ledger `init` then writes is this run's own, so the run kind is
+    `fresh`.
   - **`planned`** — the normal entry for a feature `/superdev:plan` cut (ADR 0079): skip `init`, move the
     stage forward now, before your playbook's first dispatch —
     `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set implementing --root <run-root>` — then go to
@@ -158,9 +159,9 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
   The stage names the last completed step (`documented-unreviewed` = `/superdev:document` ran before
   `/superdev:review`; ADR 0013). You own `implementing` and `merged`. Every later ledger write goes
   through a `scope.js` verb (`stage`, `slice`, `degraded add`) — `ledger-guard` denies any other path.
-- **Name this run's kind.** A ledger you wrote with `init` is **`fresh`**, a `shipped` ledger you rotated
-  aside is **`appended`**, a live ledger — one already on disk, or one you just adopted from the anchor's
-  snapshot — is **`resumed`**. The carve-out above (an empty `planned` ledger re-inited from the store's
+- **Name this run's kind.** A ledger you wrote with `init` is **`fresh`** — including one `init` wrote
+  after rotating a `shipped` ledger aside — and a live ledger — one already on disk, or one you just
+  adopted from the anchor's snapshot — is **`resumed`**. The carve-out above (an empty `planned` ledger re-inited from the store's
   slices) still counts as **`resumed`** despite going through `init`: `/superdev:plan` already cut the
   branch and the scopetree, so nothing here is cut. Carry the kind into your playbook's branch step; its
   branch model acts on that value, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Cutting the

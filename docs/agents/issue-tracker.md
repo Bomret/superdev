@@ -76,13 +76,21 @@ native issue-dependencies unit nor a sub-issue relation, so it expresses the roo
 natively: on a multi-slice feature the anchor is the `epic`-labelled issue carrying the feature
 label, and on a single-slice feature it is the lone issue carrying that label (ADR 0017).
 
-- **Recognise one.** Among the issues carrying a feature label, the anchor is the one labelled `epic`. If
-  none is, and exactly one issue carries the label, that issue is the anchor.
+- **Recognise one.** Apply the rule to the **open** issues carrying a feature label first: the anchor is
+  the one labelled `epic`; if none is, and exactly one open issue carries the label, that issue is the
+  anchor. A closed candidate never wins over an open one this way (`plan-contract.md` → *Scope anchor*).
+  Where no open issue carries the label and exactly one closed issue does, that closed issue is the
+  anchor — the shape the shipped-anchor refusal reads as its own done signal (ADR 0083).
 - **List the candidates.** The feature labels themselves: `GET /api/v1/repos/bomret/superdev/labels`
   (paginated), keeping the names whose first segment is a change type (`references/scope-mode.md` lists
   them). Per feature label:
-  `GET /api/v1/repos/bomret/superdev/issues?labels=<type>%2F<feature>&state=open` (URL-encode the label's
-  `/`), then apply the rule above to the result.
+  `GET /api/v1/repos/bomret/superdev/issues?labels=<type>%2F<feature>&state=all&type=issues` (URL-encode
+  the label's `/`), then apply the rule above to the result. `state=all`, not `state=open`: a shipped
+  feature's epic is closed, and a `state=open` listing would drop it from the candidates a picked feature
+  resolves against, so `/superdev:plan`'s shipped-anchor refusal (ADR 0083) never sees it. `type=issues`
+  excludes pull requests at the server, the same exclusion **List them** below states — without it, a
+  closed feature-labelled pull request would sit as a permanent extra candidate once the listing spans
+  every state, not the transient one the untriaged listing already guards against.
 - **List the slices beneath it.** Use the **List feature slices** call above (`state=all`), not the
   candidate listing. A merged slice is closed, and closing the epic is best-effort. An anchor left open
   with every slice closed therefore still has slices beneath it, and a `state=open` listing presents it as
@@ -101,10 +109,12 @@ label, and on a single-slice feature it is the lone issue carrying that label (A
   and its `state` is open or closed — because a consumer holds the dependency against the blocker's own
   label and state, not the label of the record carrying this line. `/superdev:plan` writes one through the
   same **Record an anchor dependency** body-append above.
-- **Ambiguous.** No `epic`-labelled issue and two or more issues carrying the same feature label. This
-  store has no parent relation to fall back on, so the shape cannot be resolved: `/superdev:plan` never
-  writes it, there is no single Definition of Done to build against, and a consumer reports it instead of
-  choosing.
+- **Ambiguous.** No `epic`-labelled open issue and two or more open issues carrying the same feature
+  label. A closed candidate never makes the shape ambiguous by itself — a label reused after retirement
+  stays a single, resolvable anchor at every point (`plan-contract.md` → *Scope anchor*, ADR 0083). This
+  store has no parent relation to fall back on, so an ambiguous shape cannot be resolved: `/superdev:plan`
+  never writes it, there is no single Definition of Done to build against, and a consumer reports it
+  instead of choosing.
 
 ## Assignee
 
@@ -146,6 +156,10 @@ swaps that one to `in-progress`.
   Labels go by id, so resolve `released` through `GET /api/v1/repos/bomret/superdev/labels` first.
 - **Read** (`/superdev:implement`, `/superdev:afk`): the anchor's own `labels` array, already returned by
   the issue listing that found it.
+- **Remove** (`/superdev:plan`, on an append the user declines):
+  `DELETE /api/v1/repos/bomret/superdev/issues/<index>/labels/<released label id>`, resolving the id
+  through the same `GET /api/v1/repos/bomret/superdev/labels` call **Apply** makes. An anchor that does
+  not carry the label is already unreleased, so a `404` there is the wanted state, not a failure.
 - An anchor without the label is unreleased: `/superdev:implement` asks before building it, and
   `/superdev:afk` passes over it.
 

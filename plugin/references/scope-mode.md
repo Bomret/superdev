@@ -252,8 +252,8 @@ contained however little of its work base actually holds.
 
 ## Cutting the scope branch
 
-Run init computes this run's **run kind** — `CONTEXT.md`'s glossary names all
-three values — and hands it to the execution playbook; `/superdev:plan` computes the same value for its
+Run init computes this run's **run kind** — `CONTEXT.md`'s glossary names both
+values — and hands it to the execution playbook; `/superdev:plan` computes the same value for its
 own cut, ahead of any slice run (ADR 0079). Every caller acts on that value instead of deriving it a
 second time from git state. One call cuts or reuses the branch at every run kind, into the same
 **scopetree** — `<run-root>/scopetree` — at both tiers: the invoking checkout is never switched
@@ -264,19 +264,13 @@ second time from git state. One call cuts or reuses the branch at every run kind
   exists** — a squash-merging host leaves a scope's branch standing after its pull request merges, and
   `hooks/scope-prune.js` reaps it only alongside its run root (ADR 0007, ADR 0071), so a taken name is
   the ordinary case in such a repository, not an error (closes triage #417): `-b` fails rather than reset
-  it, which is the safe outcome, and the branch is decided exactly as `appended` decides its own reused
-  branch below — contained in `<base>` and reused, or not contained and stopped, per `## Containment`
-  above — rather than an unconditional stop.
-- **`appended`** — a `shipped` ledger was rotated aside, and the branch may have survived its pull
-  request, because `/superdev:ship` opens the request from that branch and never deletes it. Read
-  `<branch>` from the ledger's own line — `scope.js get branch --root <run-root>`, then `git rev-parse
-  --verify <branch>` — rather than resolving it per `## The scope branch`, whose shape-scan fallback
-  risks a foreign branch; this step cuts and hands the name onward, unlike that section's read-only
-  callers. Then decide on the same test that decides a scope is finished with (ADR 0007): contained in
-  `<base>`, or gone entirely — the test `## Containment` above owns, `skills/plan/SKILL.md`'s refusal
-  bullet reads back, and the one `fresh` reaches above on a taken name.
-  - **Gone** — `<branch>` does not verify: nothing survives to reuse, so cut fresh from `<base>` exactly
-    as `fresh` does.
+  it, which is the safe outcome, and the branch is then decided rather than stopped on unconditionally —
+  contained in `<base>` and reused, or not contained and stopped, per `## Containment` above: the same
+  test that decides a scope is finished with (ADR 0007), contained in `<base>`, or gone entirely.
+  `/superdev:plan` runs no containment test of its own; its own cut defers to this whole section instead
+  of restating the test.
+  - **Gone** — `<branch>` does not verify: nothing survives to reuse, so the `-b` cut above is the whole
+    step.
   - **Present** — decide with `## Containment` above, which owns the test. **Contained** —
     the content already landed, so reuse loses nothing: work in the scopetree, per `## The scope
     checkout` below — creating it with `git worktree add <run-root>/scopetree <branch>` when
@@ -304,8 +298,8 @@ second time from git state. One call cuts or reuses the branch at every run kind
   already in flight, or nothing at all beyond `/superdev:plan`'s own design-docs commit, for one just
   handed off. Read `<branch>` from the ledger's own line — `scope.js get branch --root <run-root>`,
   verified with `git rev-parse --verify <branch>` — never by rebuilding `<type>/<scope>` and never through
-  `## The scope branch`'s shape-scan fallback, which can return a foreign branch just as it can for
-  `appended`. **A name that does not verify locally is fetched before anything else**: `git fetch
+  `## The scope branch`'s shape-scan fallback, which can return a foreign branch.
+  **A name that does not verify locally is fetched before anything else**: `git fetch
   <remote> <branch>` (`<remote>` from `docs/agents/code-management.md`) — a fresh clone, or a ledger just
   adopted from the anchor's snapshot, holds no scope branch until this runs. **Verify the fetch's own
   ref afterwards, `git rev-parse --verify <remote>/<branch>`, never the bare name a second time**: fetching

@@ -13,13 +13,13 @@ read `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md` as your last step.
   the scopetree.
 - **Scope branch into a dedicated scopetree, per this run's kind.** Read
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Cutting the scope branch` and do what it says for
-  the run kind the controller handed you — `fresh`, `appended`, or `resumed` (ADR 0028). Never derive that
+  the run kind the controller handed you — `fresh` or `resumed` (ADR 0028). Never derive that
   value yourself. Call whatever it leaves you on `<branch>` for the rest of this file: for `fresh` that is
   literally `git worktree add <run-root>/scopetree -b <type>/<scope> <base>` (`<path>` there
   is always `<run-root>/scopetree`; base from `code-management.md`, default `main`), while
-  `appended` and `resumed` resolve `<branch>` per that same section, never by reconstructing the name.
+  `resumed` resolves `<branch>` per that same section, never by reconstructing the name.
   The invoking checkout is **never switched** — it stays where it was, so a second session can run in the
-  same repo. **On `fresh` or `appended`, do `references/run-init.md`'s deferred copy/commit/revert now**
+  same repo. **On `fresh`, do `references/run-init.md`'s deferred copy/commit/revert now**
   — it names this exact point; on `resumed` it already ran in run init, so there is nothing to do here.
   All inline implementation happens **in this scopetree**. Then move the **scope anchor** →
   `in-progress` (per `issue-tracker.md`; best-effort).
@@ -35,7 +35,7 @@ shipped.
 ## Implement
 
 - **In `depends-on` order, inline, test-first, skipping every slice the ledger already marks `merged`**
-  (an appended feature's already-shipped slices seed `merged`, per the `status` field run init carried into
+  (a slice the store already reports as merged seeds `merged`, per the `status` field run init carried into
   `scope.js init`, and are never dispatched). For each slice: read its `spec` + `acceptance`, then carry
   the same tracer-bullet **and surgical-edit** disciplines an implementer subagent would (one RED test,
   minimal GREEN code, repeat; every hunk traces to an acceptance criterion or the specification — remove

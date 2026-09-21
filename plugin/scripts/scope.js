@@ -312,8 +312,8 @@ function verbInit(cwd, label, stage, stdinJson) {
   });
 
   if (priorStage === 'shipped') {
-    // A finished run's ledger — ADR 0007's seven-day trail keeps it on disk past merge, so a second
-    // run over an appended feature (ADR 0004) lands here. Rotate aside rather than refuse. Done only
+    // A finished run's ledger — ADR 0007's seven-day trail keeps it on disk past merge, so a new
+    // feature reusing a retired label (ADR 0083) lands here. Rotate aside rather than refuse. Done only
     // after every refusal above, so a refused init leaves the shipped ledger untouched.
     rotateShippedLedger(root);
   }

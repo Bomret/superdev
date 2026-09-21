@@ -5,6 +5,9 @@
 **Amended by:** [ADR 0043](0043-appends-immutability-rule-excepts-the-anchor-dependency-migration.md),
 which excepts one line from the immutability rule below: an anchor dependency recorded on a lone slice
 migrates to the epic that promotion creates.
+**Amended by:** [ADR 0083](0083-a-shipped-scope-takes-no-append.md), which narrows the refusal rule
+below: a `shipped` ledger refuses append outright, rather than only when its stage differs from
+`shipped`.
 
 **Context.** `/plan` writes a feature's slice DAG **once**, in full. The interview (`cross-exam.md`) runs
 until "the design tree is exhausted," and step 6 creates `docs/plans/<feature-slug>/` (or the equivalent

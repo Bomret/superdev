@@ -12,15 +12,15 @@ read `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md` as your last step.
   anything here.
 - **Scope branch, into the scopetree, per this run's kind.** Read
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Cutting the scope branch` and do what it says for
-  the run kind the controller handed you — `fresh`, `appended`, or `resumed` (ADR 0028, ADR 0045). Never
+  the run kind the controller handed you — `fresh` or `resumed` (ADR 0028, ADR 0045). Never
   derive that value yourself. Call whatever it leaves you on `<branch>` for the rest of this file: for
   `fresh` that is literally `git worktree add <run-root>/scopetree -b <type>/<scope> <base>`
   (`<type>` and `<scope>` chosen in run init; base from `code-management.md`, default `main`), while
-  `appended` and `resumed` resolve `<branch>` per that same section, never by reconstructing the name.
+  `resumed` resolves `<branch>` per that same section, never by reconstructing the name.
   The cutting/reuse command itself runs from the invoking checkout, like any `git worktree add`; every
   later command in this file — every merge — addresses the scopetree, `<run-root>/scopetree`,
-  with `git -C`, and the invoking checkout is never switched onto the branch. **On `fresh` or
-  `appended`, do `references/run-init.md`'s deferred copy/commit/revert now** — it names this exact
+  with `git -C`, and the invoking checkout is never switched onto the branch. **On `fresh`,
+  do `references/run-init.md`'s deferred copy/commit/revert now** — it names this exact
   point; on `resumed` it already ran in run init, so there is nothing to do here. Then move the **scope
   anchor** → `in-progress` (per `issue-tracker.md`; best-effort).
 - **Per slice**, a branch off scope in its own **slicetree** under this run's root:

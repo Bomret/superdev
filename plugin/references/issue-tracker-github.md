@@ -60,13 +60,19 @@ lone slice, which is nobody's sub-issue either (ADR 0017).
   a slice, and `404` when the issue has none. A `404` marks a root.
 - **List the candidates.** The feature labels themselves: `GET /repos/<owner>/<repo>/labels` (paginated),
   keeping the names whose first segment is a change type — the **Feature label** shape above. Per feature label:
-  `GET /repos/<owner>/<repo>/issues?labels=<type>%2F<feature>&state=open` (URL-encode the label's `/`),
-  keeping the issues whose `/parent` is `404`. That endpoint carries the two behaviours **List feature
-  slices** below states — it returns pull requests, and it paginates at 30 — and both apply here: a
-  feature-labelled pull request is nobody's sub-issue, so an unskipped one presents as a second root and
-  triggers the **Ambiguous** report below on a plan that is perfectly well formed. **Cost:** one `/parent`
-  call per issue in that response, every sweep iteration — accepted as the simplest correct check; nothing
-  caches it.
+  `GET /repos/<owner>/<repo>/issues?labels=<type>%2F<feature>&state=all` (URL-encode the label's `/`),
+  keeping the issues whose `/parent` is `404`. `state=all`, not `state=open`: a shipped feature's epic is
+  closed, and a `state=open` listing would drop it from the candidates a picked feature resolves against,
+  so `/superdev:plan`'s shipped-anchor refusal (ADR 0083) never sees it. Where the roots this bullet keeps
+  span both states — a label reused after retirement returns a closed root beside an open one — the open
+  root is the anchor (`plan-contract.md` → *Scope anchor*); a single closed root with no open one is the
+  anchor too, and **Ambiguous** below is reported only among open roots. That endpoint carries the two
+  behaviours **List feature slices** below states — it returns pull requests, and it paginates at 30 —
+  and both apply here: a feature-labelled pull request is nobody's sub-issue, so an unskipped one presents
+  as a second root and triggers the **Ambiguous** report below on a plan that is perfectly well formed.
+  **Cost:** one `/parent` call per issue in that response, every sweep iteration — the response spans
+  every state, so every closed issue and pull request ever carrying the label counts too, and the call
+  count only grows over a feature's history; accepted as the simplest correct check, nothing caches it.
 - **List the slices beneath it.** Use the **List feature slices** call below (`state=all`), not the
   candidate listing: a merged slice is closed, and closing the epic is best-effort, so an anchor left open
   with every slice closed still has slices beneath it and a `state=open` listing would present it as never
@@ -84,7 +90,9 @@ lone slice, which is nobody's sub-issue either (ADR 0017).
   `state` is open or closed — because a consumer holds the dependency against the blocker's own label and
   state, not the label of the record carrying this line. `/superdev:plan` writes one through the same
   **Record an anchor dependency** body-append below.
-- **Ambiguous.** Two or more roots under one feature label. `/superdev:plan` never writes that shape, and
+- **Ambiguous.** Two or more **open** roots under one feature label. A closed root never makes the shape
+  ambiguous by itself — a label reused after retirement stays a single, resolvable anchor at every point
+  (`plan-contract.md` → *Scope anchor*, ADR 0083). `/superdev:plan` never writes an ambiguous shape, and
   there is no single Definition of Done to build against, so a consumer reports it instead of choosing.
 
 ## Two identifiers per issue — `number` vs `id`
@@ -197,6 +205,9 @@ dispatch swaps to `in-progress`.
   `POST /repos/<owner>/<repo>/issues/<number>/labels` with `{ "labels": ["released"] }`.
 - **Read** (`/superdev:implement`, `/superdev:afk`): the anchor's own `labels` array, which the listing
   that found the anchor already returned — no extra call.
+- **Remove** (`/superdev:plan`, on an append the user declines):
+  `DELETE /repos/<owner>/<repo>/issues/<number>/labels/released`. An anchor that does not carry the
+  label is already unreleased, so a `404` there is the wanted state, not a failure.
 - A feature whose anchor lacks the label is unreleased. Nothing else about the issue says so, and no other
   label means it.
 

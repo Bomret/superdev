@@ -95,6 +95,8 @@ const {
   PUBLISH_KB_INVOCATION_CONTRACTS,
   STATUS_SEED_CONTRACTS,
   PLAN_APPEND_CONTRACTS,
+  SHIPPED_APPEND_CONTRACTS,
+  ANCHOR_CANDIDATE_ALL_STATES_CONTRACTS,
   ROTATE_ON_SHIPPED_CONTRACTS,
   PARKED_QUESTIONS_CONTRACTS,
   RUN_KIND_CONTRACTS,
@@ -347,6 +349,18 @@ module.exports = [
       'single-slice feature to an epic',
   ),
   table(
+    'shipped-append',
+    SHIPPED_APPEND_CONTRACTS,
+    "/plan's extend path refuses a feature whose anchor has shipped, on either signal alone, and names " +
+      'the new-feature remedy',
+  ),
+  table(
+    'anchor-candidate-all-states',
+    ANCHOR_CANDIDATE_ALL_STATES_CONTRACTS,
+    "the anchor candidate listing queries every state, so a shipped feature's closed epic still " +
+      'resolves, and the open candidate wins over a closed one a retired label left behind',
+  ),
+  table(
     'rotate-on-shipped',
     ROTATE_ON_SHIPPED_CONTRACTS,
     'run init rotates a shipped ledger aside before running it again',
@@ -357,7 +371,7 @@ module.exports = [
     "/plan's §0 surfaces an epic's parked questions before the interview diverges and deletes a " +
       "resolved one's line",
   ),
-  table('run-kind', RUN_KIND_CONTRACTS, 'scope-mode.md specifies the branch step for all three run kinds'),
+  table('run-kind', RUN_KIND_CONTRACTS, 'scope-mode.md specifies the branch step for both run kinds'),
   {
     id: 'forcing-branch-flag',
     ok: 'neither execution playbook names a forcing branch flag',

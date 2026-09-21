@@ -24,25 +24,37 @@ candidates*) for the user to pick one, then loads that feature's epic, its slice
 Done — **before §1's first question**, because the append interview needs that context from the start
 (`references/plan-contract.md` → *Append mode*, ADR 0004).
 
-**Refuse to extend, and write nothing, on either signal below — a `planned` stage is exempt from the
-second one.** There is no override argument; the only escape is fixing the state. Name which signal
-fired and what clears it:
+**Refuse to extend, and write nothing, on any signal below.** There is no override argument; the only
+escape is fixing the state. Name which signal fired and what clears it:
 
 - The store holds a slice `in-progress`, `in-review`, or `blocked` — a run active elsewhere. Clears once
   that slice leaves the state.
 - The scope's run root — `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" root <slug>`'s printed path
-  (ADR 0080) — exists with a ledger stage other than `shipped` or `planned`, or with a `shipped` stage
-  whose scope branch (`<type>/<scope>`) is neither contained in the base nor gone. Read the stage with
-  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>` and the branch with `get
-  branch --root <run-root>`, then apply the branch test (ADR 0007, ADR 0053): contained in the base, per
-  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Containment` section which owns the test, or gone
-  entirely. A stage from `implementing` through `documented` means the chain has not shipped, so appending
-  adds DoD criteria the open pull request never carries — clears once the scope reaches `shipped`. A
-  `shipped` stage with a live branch means the pull request is still open, so appending grows a request
-  already reviewed — clears once that branch is contained in the base, per `## Containment`, or gone. A
-  `planned` stage means an earlier plan run cut the branch and the scopetree but no slice has run yet
-  (ADR 0079): appending revises that plan before anything started, so it proceeds — §2 and §6 below carry
-  it through as the `planned`-ledger case of their own steps.
+  (ADR 0080) — exists with a ledger stage other than `planned`. Read the stage with
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>`. A stage from
+  `implementing` through `documented` means the chain has not shipped, so appending adds DoD criteria the
+  open pull request never carries; waiting clears nothing, because that chain ends at `shipped`, which
+  the shipped rule below refuses in turn, so the remedy is the same new feature that rule names, opened
+  now rather than waited for. A `shipped` stage is that rule's first signal. A `planned` stage means an
+  earlier plan run cut the branch and the scopetree but no slice has run yet (ADR 0079): appending
+  revises that plan before anything started, so it proceeds — §2 and §6 below carry it through as the
+  `planned`-ledger case of their own steps. A run root that **exists** with no `ledger.md` to read, or
+  whose `get stage` call errors, refuses too — the gate fails closed on a state it cannot read rather
+  than proceeding on a guess. A run root that does not exist at all carries no first signal, and falls
+  through to the second.
+- The scope anchor sits at the store's **done** status, per the status map in
+  `docs/agents/issue-tracker.md`. This is the shipped rule's second signal, and the one still standing
+  once `hooks/scope-prune.js` has reaped the run root.
+
+**A feature whose anchor has shipped takes no append** (ADR 0083, INV-0004): amending its Definition of
+Done in place would pool criteria verified against a merged pull request with criteria nobody has
+verified, and the reap takes the local half of that mixture while the anchor keeps its own. The two
+shipped signals above are read together and **either one alone refuses** — a run root whose ledger stage
+reads `shipped`, and a scope anchor at the store's done status. Neither covers the other's gap on its
+own: a reaped run root leaves no ledger to read, and `/superdev:ship`'s anchor close is best-effort, so a
+failed close leaves the anchor open beside a `shipped` ledger. Nothing clears either one, so the refusal
+names the remedy instead — plan the follow-up as a **new feature** carrying `**Blocked by feature:**
+#<anchor>`, which ties it back to this one (`references/plan-contract.md` → *Scope anchor*, ADR 0040).
 
 **A picked feature with no epic (a single-slice feature) is promoted to one.** §6 creates the epic,
 copies the lone slice's `acceptance` into it as the global DoD, then amends that DoD in place with the
@@ -410,6 +422,13 @@ question: **release this feature for execution now, or leave the release to a hu
 - **Release now** → apply the signal to the scope anchor, and say it is applied.
 - **Later** → apply nothing, and name what a human does to release it: the signal, and where it goes.
   Say that `/superdev:implement` asks for confirmation until then.
+
+**On an append the answer applies in both directions** (ADR 0083, INV-0005): a release decision covers
+the work that existed when it was made, and this feature's anchor may already carry the signal from an
+earlier run. **Later** there **removes the signal** from the scope anchor, through the `## Release`
+section's own **Remove** call, and says it is removed — leaving it standing would hand
+`/superdev:afk` slices nobody released. **Release now** applies it as it always does. On a first plan
+there is nothing to remove, so declining applies nothing, exactly as the branch above reads.
 
 A store whose `## Release` section says its features are released when written has nothing to ask: say
 the plan is live and move on. On every other store the answer is the user's, so **wait for it**, and a

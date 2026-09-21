@@ -130,6 +130,10 @@ the file landing in `docs/plans/<type>/<feature-slug>/` is that agreement. So `/
 release question on this store, `/superdev:implement` treats every feature as released, and
 `/superdev:afk` finds every well-formed anchor eligible.
 
+**There is nothing to remove, either.** A store that releases its features at write carries no signal an
+append could leave standing over new slices, so `/superdev:plan` says so on a declined release rather
+than attempting a removal call (ADR 0083).
+
 A team that wants a release gate on plan files configures a different store, or records the signal here
 instead — a `released: yes` line in the epic file's header, read where the status line is read.
 

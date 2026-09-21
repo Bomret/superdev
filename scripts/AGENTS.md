@@ -982,16 +982,15 @@ its own. The
 `status-seed` contract (ADR 0004), two rows against `references/run-init.md`: it carries a `"status"` field
 in the JSON its run init pipes into `scope.js init`, and it states that a slice the store reports as merged
 seeds `merged` and is never dispatched. Append mode never renumbers or re-merges a slice already shipped,
-so a second run over an appended feature must seed each loaded slice's real status rather than defaulting
+so a second run over a feature whose earlier slices merged must seed each loaded slice's real status rather than defaulting
 every row to `todo`, and skip every row already seeded `merged` rather than re-dispatching it. A document
 that drops the field, or drops the never-dispatched clause while keeping the field, silently re-dispatches
 a merged slice either way, so the two rows fail independently.
-The `plan-append` contract (ADR 0004), seven rows: six against
+The `plan-append` contract (ADR 0004), six rows: five against
 `skills/plan/SKILL.md` and one against `references/plan-contract.md`. Its §0 asks whether the feature is new or extended before the interview begins, and
 states that answering "new" makes no store call. It states the store refusal signal (a slice
-`in-progress`, `in-review`, or `blocked` elsewhere) as one row. It states the ledger refusal signal's two
-clauses as two further independent rows: a run root whose stage is other than `shipped`, and a `shipped`
-stage whose scope branch is neither contained in the base nor gone. Losing any one of the three therefore
+`in-progress`, `in-review`, or `blocked` elsewhere) as one row, and the ledger refusal signal — a run
+root whose stage is other than `planned` — as another. Losing either therefore
 fails on its own rather than only in aggregate. It states the single-slice epic-promotion clause,
 including that the lone slice is left untouched. The last two rows pin ADR 0043's exception to that
 byte-identical rule. A promoted lone slice's anchor-dependency line migrates to the new epic. Each row
@@ -999,9 +998,55 @@ falls on one of the two documents `scanAppendContract` cannot reach, since neith
 `references/plan-contract.md`, which states the generic contract every store specialises, and
 `skills/plan/SKILL.md`, which performs the promotion. Without them the store documents would be pinned
 around a hole.
-Each ledger-signal row is anchored on the refusal condition's own wording, not on the rationale sentence
-that explains the branch test a few lines below it, so a document that keeps the rationale but loses the
-condition still fails. The `rotate-on-shipped` contract (ADR 0004, ADR 0007, ADR 0079/0080's Important review finding B):
+Each refusal row is anchored on the condition's own wording, not on the rationale sentence
+that explains it a few lines below, so a document that keeps the rationale but loses the
+condition still fails.
+The `shipped-append` contract (ADR 0083, INV-0004), four rows: three against `skills/plan/SKILL.md` and
+one against `references/plan-contract.md`. `/superdev:plan`'s extend path states that a feature whose
+anchor has shipped takes no append, names both signals that trigger the refusal and that either one
+alone refuses — a run root whose ledger stage reads `shipped`, and a scope anchor at the store's done
+status — and names the remedy, a new feature carrying `**Blocked by feature:** #<anchor>`.
+`references/plan-contract.md`'s *Append mode* section states the same boundary, because it owns what an
+append may do and every backend renders it. The signals are pinned as one row rather than two, since
+neither answers the question alone: a reaped run root leaves no ledger, and a best-effort anchor close
+leaves the anchor open beside a `shipped` ledger, so a document naming one signal is as broken as one
+naming neither. The remedy has a row of its own because a refusal without it is a dead end, which is the
+failure a reader works around by appending anyway. The `anchor-candidate-all-states` contract (ADR 0083)
+carries two families of row, both scoped to the issue-tracker documents that filter their anchor-candidate
+listing by state: `docs/agents/issue-tracker.md`, `references/issue-tracker-forgejo.md`, and
+`references/issue-tracker-github.md`.
+
+The first family, one row per document, is anchored on the query string itself —
+`` labels=<type>%2F<feature>&state=all `` — never on the rationale sentence beside it. A shipped
+feature's epic is closed, so a `state=open` candidate listing never returns it for *Recognise one* to
+resolve, and the shipped-anchor refusal above has no anchor to refuse on — the exact dead end ADR 0083
+exists to close, reached anyway because the second signal's anchor never surfaced. Each document already
+states the identical hazard for its *List the slices beneath it* call, which already runs `state=all`;
+this contract pins the same fix on the candidate listing itself. Anchoring on the query string, not the
+rationale, matters: the rationale sentence ("`state=all`, not `state=open`: a shipped feature's epic is
+closed…") reads true on its own even when the query beside it reverts to `state=open`, so a row matching
+only the rationale stays green through that revert. Jira and the local file store carry no row in this
+first family, because neither has a query parameter to pin: Jira's *List the candidates* call runs no
+status filter at all — it already spans every state unconditionally — and the local store lists
+directories, not issue state.
+
+The second family pins the rule a listing spanning every state forces once a feature label is reused
+after retirement: the listing can then return a retired label's closed (or, on Jira, `<Done>`-status)
+root beside a reused label's open (not-`<Done>`) one, and *Recognise one*/*Ambiguous* must resolve that
+shape without reporting a well-formed plan as ambiguous. This family's precondition is a listing that
+spans every state, not a state query to pin, so it reaches Jira too — its label listing spans every
+status inherently, the same property the first family's exemption reasoning names. Only the local-file
+store is exempt from both families: a directory listing carries no state to span.
+`references/plan-contract.md`'s generic `## Scope anchor` section carries one row stating the rule once —
+the open candidate is the anchor, and `Ambiguous` is two or more *open* candidates, never a closed one
+beside a single open one — and each store document's own section specialises it: the Forgejo-shaped
+documents (`docs/agents/issue-tracker.md`, `references/issue-tracker-forgejo.md`) carry one row each for
+*Recognise one*'s open preference and one each for *Ambiguous*'s open-only shape;
+`references/issue-tracker-github.md` carries the same two, phrased against its root/`/parent` shape;
+`references/issue-tracker-jira.md` carries the same two, phrased against its `fields.status.name` versus
+`<Done>` shape, since Jira has no open/closed issue state to phrase against. Every
+row in both families is exercised by its own selftest in `drift/selftest/kb-plan.test.js`, including the
+query-only-revert mutation the first family exists to catch. The `rotate-on-shipped` contract (ADR 0004, ADR 0007, ADR 0079/0080's Important review finding B):
 `references/run-init.md` states that run init reads a present ledger's stage before choosing between
 resume and init, that stage `shipped` runs `init` directly and `init` itself rotates the existing ledger
 aside to `ledger-shipped-<date>.md` before writing the fresh one, that every other stage (`implementing`,
@@ -1009,8 +1054,8 @@ aside to `ledger-shipped-<date>.md` before writing the fresh one, that every oth
 nothing is deleted, so `scope-prune`'s seven-day post-merge reap still runs on its own terms. A fourth
 clause states that the rotation never overwrites an existing `ledger-shipped-<date>.md`, so a scope that
 ships twice in one calendar day keeps both trails instead of the second rotation clobbering the first.
-`scope-prune` keeps a shipped run root on disk past merge, so a second `/superdev:implement` run over an
-appended feature can land while that ledger is still there. A document that goes back to treating any
+`scope-prune` keeps a shipped run root on disk past merge, so a new feature reusing that retired label
+can land while the finished run's ledger is still there (ADR 0083). A document that goes back to treating any
 present ledger as an in-progress resume re-dispatches a finished run instead of beginning the new one.
 `init` owns the rotation mechanics — `plugin/scripts/scope.js`'s `rotateShippedLedger()`, called only
 after `verbInit` has validated stdin, so a refused `init` never rotates a ledger it is about to leave
@@ -1029,14 +1074,17 @@ and `acceptance` standing as the sole record, because `references/domain-modelin
 rule forbids holding both. Losing either row independently: a document that keeps surfacing questions but
 stops deleting a resolved one's line leaves two records of the same decision, and one that stops
 surfacing them silently strands a load-bearing decision no later interview ever revisits. The
-`run-kind` contract (ADR 0028, ADR 0045, ADR 0053), eight rows against `references/scope-mode.md`. Its
-`## Cutting the scope branch` section specifies the branch step for each of the three run kinds. `fresh`
-cuts one from `<base>` and stops, cutting nothing, when a scope-prune reap left a same-named branch
-standing. `appended` decides on the same contained-or-gone test `## Containment` owns (ADR 0007), and its
-**Present** branch delegates that decision to the document's own `## Containment` section rather than
+`run-kind` contract (ADR 0028, ADR 0045, ADR 0053, ADR 0083), eight rows against
+`references/scope-mode.md`. Its
+`## Cutting the scope branch` section specifies the branch step for both run kinds. `fresh`
+cuts one from `<base>`, and where a squash-merging host or a scope-prune reap left a same-named branch
+standing it decides on the same contained-or-gone test `## Containment` owns (ADR 0007) — its
+**Present** branch delegating that decision to the document's own `## Containment` section rather than
 naming a git command of its own. `resumed` runs no
-containment test and cuts nothing. `fresh` gets two rows because it carries two independent clauses;
-`appended` gets two, the contained-or-gone decision and the delegation; `resumed` gets one.
+containment test and cuts nothing. `fresh` gets four rows, one per clause it carries — the cut, the
+taken name, the contained-or-gone decision, and the delegation; `resumed` gets one. ADR 0083 retired the
+`appended` run kind and its rows with it: a shipped feature takes no append, so no run finds a `shipped`
+ledger rotated aside mid-chain, and `fresh` states the containment test it used to cite.
 Two further rows carry ADR 0053's other halves. One pins the `## Containment` section itself — the
 `git merge-tree --write-tree` test, and the git 2.38 floor its fallback covers — because
 two sections and `skills/publish-kb/SKILL.md` §3 all delegate to it, and a delegation pinned against a
@@ -1054,7 +1102,7 @@ The rows sit against that one document rather than the two playbooks, which hold
 tier's command: pinning a pointer's prose goes red on a
 reflow while catching no revert. Losing any row independently: a document that stops specifying one
 clause leaves that run's branch step to whatever a reader infers, which is the gap three consecutive
-review fix cycles kept re-opening. This table used to carry a row pinning `appended`'s contained-reuse
+review fix cycles kept re-opening. This table used to carry a row pinning the contained-reuse
 clause when it split by tier ("the `full` tier switches the invoking checkout … the `lite` tier works in
 its existing scopetree"). ADR 0045 retired both the clause and the row: reuse now means working in
 the one scopetree both tiers share, which the `scopetree` check pins
@@ -1170,6 +1218,18 @@ consumers no signal to read, and a consumer that drops the reference builds what
 is the gate gone with every command still valid prose. The consumer half matches the backticked
 `` `## Release` `` rather than the bare word, since "release" recurs in ordinary prose. Absent documents
 are skipped, matching every other scanner.
+
+The same check carries ADR 0083's removal half (INV-0005), because a release signal nothing removes is
+the same gate failing from the other side. A release decision covers the work that existed when it was
+made, so on an append `/superdev:plan`'s §6 applies the answer in both directions: declining removes the
+signal from the scope anchor, releasing applies it. Three further assertions, each silent alone. Every
+store document whose signal is removable carries a `## Release` **Remove** bullet naming the concrete
+call, beside **Apply** and **Read** — without it the command has nothing to invoke.
+`references/issue-tracker-local.md` is exempt from the bullet and owes the opposite statement, that a
+store releasing its features at write has nothing to remove, so `/superdev:plan` says so rather than
+attempting a call. And `skills/plan/SKILL.md` states the both-directions rule itself, since a store
+document carrying the call while §6 still reads "apply nothing" leaves the signal standing over slices
+nobody released — which is exactly what `/superdev:afk` then selects.
 
 The `doc-steps-no-suite` check, `scanDocStepsNoSuite()`: `skills/document/SKILL.md`,
 `skills/ship/SKILL.md`, `agents/doc-writer.md`, and `agents/final-reviewer.md` name no full-suite run of
@@ -1747,9 +1807,10 @@ The `containment-refetch` contract (ADR 0065), four rows, all on `references/sco
 `## Containment` section: that test refetches the base before it answers not contained. ADR 0053 fixed
 what the test asks — content, not ancestry — and left the ref it asks of alone, so a pull request
 squash-merged on the host reads not contained until the clone pulls, and every consumer inherits that
-answer: `skills/publish-kb/SKILL.md` §3 asks the operator to confirm a publish, `skills/plan/SKILL.md`'s
-refusal bullet blocks an append, and `## Cutting the scope branch`'s `appended` run kind offers to rename
-a branch whose work is already safe. One document carries the whole contract, because that inheritance is
+answer: `skills/publish-kb/SKILL.md` §3 asks the operator to confirm a publish, and
+`## Cutting the scope branch`'s `fresh` run kind offers to rename a branch whose work is already safe.
+`/superdev:plan`'s extend path reads no containment: ADR 0083 made a shipped feature's refusal a plain
+ledger-stage read, with no branch test behind it. One document carries the whole contract, because that inheritance is
 what the delegation above already pins. The rows sit apart because each fails on its own. The fetch row
 pins the retested ref by name: `git fetch <remote> <base>` populates `refs/remotes/<remote>/<base>` and
 never the local branch, so a second pass rewritten to retest `<base>` re-asks the stale ref and can only
