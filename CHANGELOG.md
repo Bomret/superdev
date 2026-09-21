@@ -1,3 +1,10 @@
+## [0.48.2](https://codeberg.org/bomret/superdev/compare/v0.48.1...v0.48.2) (2026-09-21)
+
+
+### Bug Fixes
+
+* **scope:** containment answers a conflicting merge-tree from base's history ([#563](https://codeberg.org/bomret/superdev/issues/563)) ([9737b19](https://codeberg.org/bomret/superdev/commit/9737b193845353eab234f327f2e8f383a6380cc3)), closes [#560](https://codeberg.org/bomret/superdev/issues/560) [#561](https://codeberg.org/bomret/superdev/issues/561) [#561](https://codeberg.org/bomret/superdev/issues/561) [#562](https://codeberg.org/bomret/superdev/issues/562)
+
 ## [0.48.1](https://codeberg.org/bomret/superdev/compare/v0.48.0...v0.48.1) (2026-09-21)
 
 
