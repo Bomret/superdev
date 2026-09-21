@@ -2,6 +2,10 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0082](0082-containment-asks-whether-base-history-took-the-patch.md), which overturns
+the `Considered options` entry below that rejects fixing the conflicting-base case. The Decision here
+stands unchanged.
+
 **Amends:** [ADR 0053](0053-containment-not-ancestry-decides-that-a-scope-branch-reached-base.md), whose
 Decision states the containment test as a single pass against whatever `<base>` the caller resolves.
 
@@ -53,7 +57,9 @@ the second pass without a line of their own — the same inheritance ADR 0053 es
 - *Also fix the conflicting-base case.* A base that edits the branch's files after taking its work
   conflicts against the fork point, exits 1, and reads not contained. Rejected: no git primitive decides
   whether a patch is already applied under later edits, so the test would need a heuristic that can be
-  wrong in the unsafe direction.
+  wrong in the unsafe direction. (Overturned by
+  [ADR 0082](0082-containment-asks-whether-base-history-took-the-patch.md), which asks the decidable
+  neighbouring question — whether base's history took the patch — with `git patch-id`.)
 - *`git fetch --prune`, so a host-deleted branch reads gone.* Rejected: nothing deletes the local
   `<type>/<scope>` branch, so the branch reads present whether or not the remote-tracking ref survives.
 

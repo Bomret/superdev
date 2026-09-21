@@ -4,7 +4,11 @@
 
 **Amended by:** [ADR 0065](0065-containment-refetches-the-base-before-it-answers-not-contained.md), which
 adds a second pass to the test below: a not-contained verdict against the local base fetches base from the
-remote and retests against `FETCH_HEAD`, whose answer wins.
+remote and retests against `FETCH_HEAD`, whose answer wins. And
+[ADR 0082](0082-containment-asks-whether-base-history-took-the-patch.md), which adds a second tier: an
+exit 1 below takes the patch id of the branch's cumulative diff and looks for it among the commits base
+gained since the fork point, so a base that edits the branch's files after taking its work still reads
+contained.
 
 **Amends:** [ADR 0007](0007-scope-prune-ttl.md), whose Decision rests on "A code host that squash-merges
 also deletes the branch, which is why absence carries the signal that ancestry lost", and
