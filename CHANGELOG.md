@@ -1,3 +1,10 @@
+## [0.48.1](https://codeberg.org/bomret/superdev/compare/v0.48.0...v0.48.1) (2026-09-21)
+
+
+### Bug Fixes
+
+* **plan:** a planned ledger hands the scope branch from plan to implement ([#558](https://codeberg.org/bomret/superdev/issues/558)) ([aefc2bc](https://codeberg.org/bomret/superdev/commit/aefc2bcefe42522a1024561d8036e4acbab95636)), closes [#417](https://codeberg.org/bomret/superdev/issues/417) [#510](https://codeberg.org/bomret/superdev/issues/510) [#509](https://codeberg.org/bomret/superdev/issues/509) [#554](https://codeberg.org/bomret/superdev/issues/554) [#549](https://codeberg.org/bomret/superdev/issues/549) [#550](https://codeberg.org/bomret/superdev/issues/550) [#551](https://codeberg.org/bomret/superdev/issues/551) [#553](https://codeberg.org/bomret/superdev/issues/553) [#552](https://codeberg.org/bomret/superdev/issues/552)
+
 # [0.48.0](https://codeberg.org/bomret/superdev/compare/v0.47.0...v0.48.0) (2026-09-20)
 
 
