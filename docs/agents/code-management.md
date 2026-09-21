@@ -35,3 +35,20 @@ Do not fail. Push the branch, then print the compare URL
 
 `git merge-base main <scope-branch>` gives the commit the final-reviewer diffs against (`BASE..HEAD`,
 where `HEAD` is the scope tip).
+
+## Has this branch landed
+
+PRs are squash-merged, so a merged scope branch is never an ancestor of `main`. Ask about **content**,
+never ancestry:
+
+```sh
+tree=$(git merge-tree --write-tree main <branch>) && [ "$tree" = "$(git rev-parse main^{tree})" ]
+```
+
+Equal trees means `main` holds the branch's work and the branch is safe to delete. `git merge-base
+--is-ancestor` and `git branch -d` both run the ancestry test instead, so they report every merged scope
+branch here as unmerged — which trains the reflex to reach for `git branch -D`, and that one destroys a
+branch that genuinely is unmerged. Delete a branch this test calls landed, and investigate any other.
+A conflicting `merge-tree` answers nothing on its own: `plugin/scripts/scope.js`'s `testContainment`
+settles that case from base's own history (ADR 0053, ADR 0082), and `references/scope-mode.md`'s
+`## Containment` states the full contract superdev's own checks follow.
