@@ -79,6 +79,7 @@ const {
   TIER_SKIP_CONTRACTS,
   CONTAINMENT_DELEGATION_CONTRACTS,
   CONTAINMENT_REFETCH_CONTRACTS,
+  CONTAINMENT_PROBE_CONTRACTS,
   FULL_SUITE_CONTRACTS,
   PATHS_DERIVATION_CONTRACTS,
   FIX_BOUNDARY_CONTRACTS,
@@ -552,6 +553,12 @@ module.exports = [
     'containment-refetch',
     CONTAINMENT_REFETCH_CONTRACTS,
     'the containment test refetches the base before it answers not contained',
+  ),
+  table(
+    'containment-probe',
+    CONTAINMENT_PROBE_CONTRACTS,
+    "a conflicting tree comparison asks whether base's history took the branch's patch, under a " +
+      'commit cap, and fails closed',
   ),
   {
     id: 'opencode-surface-split',

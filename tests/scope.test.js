@@ -12,7 +12,14 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
 const scopePath = require.resolve('../plugin/scripts/scope.js');
-const { run, publishText, SLUG_RE, readLedgerHeader, testContainment } = require(scopePath);
+const {
+  run,
+  publishText,
+  SLUG_RE,
+  readLedgerHeader,
+  testContainment,
+  baseHistoryHasPatch,
+} = require(scopePath);
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-selftest-'));
 
@@ -1904,6 +1911,169 @@ try {
       'a real conflict between branch and base reads not-contained, not a crash'
     );
     fs.rmSync(conflictRepo, { recursive: true, force: true });
+
+    // The second tier (ADR 0082): where the tree comparison conflicts, ask whether base's history
+    // already took the branch's patch. Fixtures below share one shape — a branch squash-merged onto
+    // main, after which main edits the same line again, so `merge-tree` conflicts on a branch base
+    // holds in full.
+    function makeConflictingSquashRepo() {
+      const dir = makeRepo();
+      fs.writeFileSync(path.join(dir, 'app.txt'), 'l1\nl2\nl3\n');
+      gitTest(['add', '.'], dir);
+      gitTest(['commit', '-q', '-m', 'app'], dir);
+      makeWorkBranch(dir, 'fix/took-it', 'app.txt', 'l1\nB2\nl3\n');
+      gitTest(['merge', '--squash', 'fix/took-it'], dir);
+      gitTest(['commit', '-q', '-m', 'fix: took-it (#1)'], dir);
+      fs.writeFileSync(path.join(dir, 'app.txt'), 'l1\nB2 revised\nl3\n');
+      gitTest(['commit', '-q', '-am', 'base revises the same line'], dir);
+      return dir;
+    }
+
+    // A fake git on PATH, standing in for a condition a real fixture cannot cheaply build — the same
+    // wrapper shape `#no-write-tree` above already uses. `body` is shell, run before the real git.
+    function withFakeGit(body, fn) {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-containment-fakegit-'));
+      fs.writeFileSync(path.join(dir, 'git'), `#!/bin/sh\n${body}\nexec "${realGit}" "$@"\n`, {
+        mode: 0o755,
+      });
+      const saved = process.env.PATH;
+      process.env.PATH = dir + path.delimiter + saved;
+      try {
+        return fn(dir);
+      } finally {
+        process.env.PATH = saved;
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    }
+
+    // #conflicting-squash: the case ADR 0082 measured. The tree comparison exits 1, and base's history
+    // carries a commit whose diff is the branch's own cumulative diff, so the probe answers contained.
+    const tookItRepo = makeConflictingSquashRepo();
+    assert.strictEqual(
+      testContainment(tookItRepo, 'main', 'fix/took-it'),
+      'contained',
+      'a squash-merged branch whose files base edited afterward reads contained'
+    );
+    fs.rmSync(tookItRepo, { recursive: true, force: true });
+
+    // #probe-large-diff: the probe's `git diff` call carries no `maxBuffer`, so it inherits
+    // `spawnSync`'s 1 MiB default — a cumulative diff past that reports `ENOBUFS`, which the probe
+    // reads as a failed call and answers not-contained. Same shape as #conflicting-squash, but the
+    // branch also appends a large, purely-additive block so the mergeBase..branch diff exceeds 1 MiB.
+    const largeDiffRepo = makeRepo();
+    fs.writeFileSync(path.join(largeDiffRepo, 'app.txt'), 'l1\nl2\nl3\n');
+    gitTest(['add', '.'], largeDiffRepo);
+    gitTest(['commit', '-q', '-m', 'app'], largeDiffRepo);
+    const bulk = Array.from({ length: 80000 }, (_, i) => `bulk-line-${i}`).join('\n') + '\n';
+    makeWorkBranch(largeDiffRepo, 'fix/took-it-large', 'app.txt', `l1\nB2\nl3\n${bulk}`);
+    gitTest(['merge', '--squash', 'fix/took-it-large'], largeDiffRepo);
+    gitTest(['commit', '-q', '-m', 'fix: took-it-large (#1)'], largeDiffRepo);
+    fs.writeFileSync(path.join(largeDiffRepo, 'app.txt'), `l1\nB2 revised\nl3\n${bulk}`);
+    gitTest(['commit', '-q', '-am', 'base revises the same line'], largeDiffRepo);
+    assert.strictEqual(
+      testContainment(largeDiffRepo, 'main', 'fix/took-it-large'),
+      'contained',
+      'a cumulative diff past 1 MiB still reads contained, not the ENOBUFS not-contained'
+    );
+    fs.rmSync(largeDiffRepo, { recursive: true, force: true });
+
+    // #probe-exports: slice 2 (`hooks/scope-prune.js`) calls the probe directly, so it is exported
+    // beside `testContainment`, takes the checkout plus two refs, and answers a boolean.
+    const probeRepo = makeConflictingSquashRepo();
+    assert.strictEqual(
+      baseHistoryHasPatch(probeRepo, 'main', 'fix/took-it'),
+      true,
+      'the exported probe answers true for work base history took'
+    );
+    fs.rmSync(probeRepo, { recursive: true, force: true });
+
+    // #probe-rejects-unheld-work: a conflicting branch base never took. No patch id matches, so the
+    // first tier's not-contained verdict stands.
+    const unheldRepo = makeRepo();
+    fs.writeFileSync(path.join(unheldRepo, 'app.txt'), 'l1\nl2\nl3\n');
+    gitTest(['add', '.'], unheldRepo);
+    gitTest(['commit', '-q', '-m', 'app'], unheldRepo);
+    makeWorkBranch(unheldRepo, 'fix/unheld', 'app.txt', 'l1\nBRANCH\nl3\n');
+    fs.writeFileSync(path.join(unheldRepo, 'app.txt'), 'l1\nBASE\nl3\n');
+    gitTest(['commit', '-q', '-am', 'base writes its own line'], unheldRepo);
+    assert.strictEqual(
+      baseHistoryHasPatch(unheldRepo, 'main', 'fix/unheld'),
+      false,
+      'the probe answers false for work base history never took'
+    );
+    assert.strictEqual(
+      testContainment(unheldRepo, 'main', 'fix/unheld'),
+      'not-contained',
+      'a conflicting branch carrying work base does not hold still reads not-contained'
+    );
+    fs.rmSync(unheldRepo, { recursive: true, force: true });
+
+    // #commit-cap: past the cap the scan is skipped entirely. A real fixture would need the cap's worth
+    // of commits, so the fake git reports the count instead and marks any `git log` that runs — the
+    // assertion is that none does.
+    const cappedRepo = makeConflictingSquashRepo();
+    const capMarker = path.join(cappedRepo, 'log-ran');
+    const capVerdict = withFakeGit(
+      'if [ "$1" = "rev-list" ]; then echo 999999; exit 0; fi\n' +
+        `if [ "$1" = "log" ]; then touch "${capMarker}"; fi`,
+      () => testContainment(cappedRepo, 'main', 'fix/took-it')
+    );
+    assert.strictEqual(capVerdict, 'not-contained', 'a range past the commit cap reads not-contained');
+    assert.strictEqual(fs.existsSync(capMarker), false, 'a range past the cap walks no patches');
+    fs.rmSync(cappedRepo, { recursive: true, force: true });
+
+    // #probe-on-the-ancestry-path: a git without `--write-tree` answers no on `--is-ancestor` for a
+    // squash-merged branch, and reaches the probe from there.
+    const oldGitProbeRepo = makeConflictingSquashRepo();
+    assert.strictEqual(
+      withFakeGit(
+        'if [ "$1" = "merge-tree" ] && [ "$2" = "--write-tree" ]; then exit 129; fi',
+        () => testContainment(oldGitProbeRepo, 'main', 'fix/took-it')
+      ),
+      'contained',
+      'a git without --write-tree reaches the probe and reads contained for a squash-merged branch'
+    );
+    fs.rmSync(oldGitProbeRepo, { recursive: true, force: true });
+
+    // #probe-fails-closed: INV-0003. Every git call the probe makes is a step that can fail, and each
+    // failure answers not-contained rather than throwing.
+    for (const failing of ['merge-base', 'diff', 'patch-id', 'rev-list', 'log']) {
+      const failRepo = makeConflictingSquashRepo();
+      const verdict = withFakeGit(`if [ "$1" = "${failing}" ]; then exit 3; fi`, () =>
+        testContainment(failRepo, 'main', 'fix/took-it')
+      );
+      assert.strictEqual(
+        verdict,
+        'not-contained',
+        `a failing git ${failing} on a probe step reads not-contained rather than throwing`
+      );
+      fs.rmSync(failRepo, { recursive: true, force: true });
+    }
+
+    // #probe-argument-injection: an option-shaped `base` reaches the probe, because the tree comparison
+    // it follows cannot resolve one either. No probe call may run it as a git option.
+    const probeInjectionRepo = makeConflictingSquashRepo();
+    const probePayloadDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-containment-payload-'));
+    const probeMarker = path.join(probePayloadDir, 'marker');
+    const probePayload = path.join(probePayloadDir, 'evil.sh');
+    fs.writeFileSync(probePayload, `#!/bin/sh\ntouch "${probeMarker}"\n`, { mode: 0o755 });
+    assert.strictEqual(
+      baseHistoryHasPatch(probeInjectionRepo, `--upload-pack=${probePayload}`, 'fix/took-it'),
+      false,
+      'an option-shaped base never reads as a probe match'
+    );
+    assert.strictEqual(
+      baseHistoryHasPatch(probeInjectionRepo, 'main', `--upload-pack=${probePayload}`),
+      false,
+      'an option-shaped branch never reads as a probe match'
+    );
+    assert.strictEqual(
+      fs.existsSync(probeMarker),
+      false,
+      'no probe call runs an option-shaped ref as a git option'
+    );
+    fs.rmSync(probeInjectionRepo, { recursive: true, force: true });
+    fs.rmSync(probePayloadDir, { recursive: true, force: true });
   }
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true });

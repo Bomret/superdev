@@ -176,11 +176,18 @@ function selectPrunable(scopeNames, isContained, mtimeOf, stageOf, allBranchSet,
 //
 //   exit 0, tree equal to base's own tree → contained
 //   exit 0, tree differing                → not contained (a clean merge that would still change base)
-//   exit 1, a conflict                    → not contained
+//   exit 1, a conflict                    → the probe below decides
 //
 // Comparing the tree is what separates the first two: a clean merge exits 0 whether or not it changes
-// anything. Every other outcome — a git that has no `--write-tree`, a broken repository, no git at all —
-// is false, which fails closed: a hook that cannot answer must never conclude a scope is finished with.
+// anything.
+//
+// A base that edits the branch's files after taking its work conflicts on a branch it holds in full, so
+// the conflict alone is no answer (ADR 0082). `baseHistoryHasPatch` — the probe `scripts/scope.js`
+// exports, required below — asks whether base's history holds a commit whose diff is this branch's own
+// cumulative diff, and a match is what a reap needs: the work sits in base's history, so deleting the
+// branch loses nothing. The probe absent leaves the tree comparison as the whole test, and a failed
+// `rev-parse` below, or `git` itself missing or broken, answers false the same way — fail closed, the
+// direction everywhere else in this hook takes too.
 //
 // The mirror stops at the local test. That section's second pass fetches the base and retests against
 // `FETCH_HEAD` before it answers not contained, and names this hook as the one caller that never does
@@ -188,7 +195,7 @@ function selectPrunable(scopeNames, isContained, mtimeOf, stageOf, allBranchSet,
 // seven-day TTL has already delayed — the same direction every other failure here falls.
 function containedInBase(branch, cwd) {
   const merged = gitTry(['merge-tree', '--write-tree', 'HEAD', branch], cwd);
-  if (merged.status !== 0) return false;
+  if (merged.status !== 0) return baseHistoryHasPatch ? baseHistoryHasPatch(cwd, 'HEAD', branch) : false;
   const baseTree = gitTry(['rev-parse', 'HEAD^{tree}'], cwd);
   if (baseTree.status !== 0) return false;
   return merged.stdout.trim() === baseTree.stdout.trim();
@@ -208,13 +215,16 @@ function supportsWriteTree(cwd) {
 }
 
 // The branch predicate `selectPrunable` calls, built lazily so nothing here runs until a scope has
-// already passed the TTL and stage gates. Both the probe and the older-git fallback set are memoised:
-// a repository with nothing prunable makes no git call at all, and one with several prunable scopes
-// probes once.
+// already passed the TTL and stage gates. Both the `--write-tree` support check and the older-git
+// fallback set are memoised: a repository with nothing prunable makes no git call at all, and one with
+// several prunable scopes probes support once. `baseHistoryHasPatch` (ADR 0082) is not memoised here —
+// it runs once per prunable branch that conflicts, inside `containedInBase`.
 //
 // **The fallback is today's ancestry test**, `git branch --merged`, so a git older than 2.38 prunes
 // exactly what it prunes now rather than erroring. A failed read there yields an empty set, which reads
-// as "nothing is contained" and prunes nothing — the same fail-closed direction as everywhere else.
+// as "nothing is contained" and prunes nothing — the same fail-closed direction as everywhere else. This
+// path never reaches `containedInBase`, so the second tier is unreachable on a git this old here — unlike
+// `scripts/scope.js`'s own `--is-ancestor` fallback, a different primitive that does reach the probe.
 //
 // `qualify` (`qualifyBranchRefs` above, or the identity default) resolves a bare branch name to what
 // `git merge-tree` can actually find before the containment test ever sees it — the ancestry fallback
@@ -246,9 +256,16 @@ function readMergedSet(cwd) {
 // hook carried its own regex and drifted from it on four axes while being hardened — anchoring, capture
 // width, newline crossing, normalisation — and none of those fixes travelled back. There is one reader
 // now, and no fallback: a fallback is the second reader again, and the second reader is the defect.
+//
+// `baseHistoryHasPatch` rides the same require, and the two fall back differently (ADR 0082): the
+// ledger reader missing stops the sweep outright, while the probe missing only narrows the containment
+// test back to the tree comparison. Destructuring both in one `try` covers the version-skewed install
+// as well as the failed load — an older sibling carries the reader and no probe, which leaves this
+// `null` and the hook silent, exactly as a throwing `require` would.
 let readLedgerHeader = null;
+let baseHistoryHasPatch = null;
 try {
-  ({ readLedgerHeader } = require('../scripts/scope.js'));
+  ({ readLedgerHeader, baseHistoryHasPatch } = require('../scripts/scope.js'));
 } catch {
   // Left null. main() prunes nothing below — the same fail-closed direction a git error takes, because
   // a hook that cannot read a stage must never conclude a scope is finished with.

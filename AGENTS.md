@@ -224,13 +224,17 @@ This root owns every other subtree directly:
   This is the strongest future child-doc candidate, if its rules outgrow this root. `hooks/` is the
   only runtime consumer of
   `plugin/scripts/`: `scope-prune.js` and `slicetree-sweep.js` both
-  `require` `../scripts/scope.js` for their ledger-header reader (ADR 0022). These are the only
+  `require` `../scripts/scope.js` for their ledger-header reader (ADR 0022), and `scope-prune.js`
+  takes the containment probe `baseHistoryHasPatch` off that same call (ADR 0082). These are the only
   places a hook depends on a script instead of standing alone. A `require` failure leaves either hook
-  with no fallback reader: it sweeps/prunes nothing and says nothing.
+  with no fallback reader: it sweeps/prunes nothing and says nothing. The probe has its own, narrower
+  fallback — `scope-prune.js` prunes by tree comparison alone, still silently.
 - `scripts/` and `plugin/scripts/`. Owned by [`scripts/AGENTS.md`](scripts/AGENTS.md):
   `plugin/scripts/scope.js` (the run-state CLI, ADR 0022: owns the ledger schema, is the only
   `ledger.md` read and write path, exports `readLedgerHeader` for `plugin/hooks/scope-prune.js` and
-  `plugin/hooks/slicetree-sweep.js`, and carries the one verb that touches no ledger — `root <slug>`,
+  `plugin/hooks/slicetree-sweep.js`, exports the containment test `testContainment` and its second-tier
+  probe `baseHistoryHasPatch` for `plugin/scripts/publish-kb.js` and `plugin/hooks/scope-prune.js`
+  (ADR 0053, ADR 0065, ADR 0082), and carries the one verb that touches no ledger — `root <slug>`,
   which resolves a run root's absolute path against the repository's main working tree from any cwd,
   ADR 0080 — and writes the `planned` stage on `init`, which `/superdev:implement`'s run init moves
   forward out of, ADR 0079),

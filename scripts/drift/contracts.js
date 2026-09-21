@@ -3086,6 +3086,38 @@ const CONTAINMENT_REFETCH_CONTRACTS = [
   ],
 ];
 
+// The `containment-probe` contract (ADR 0082), three rows on `references/scope-mode.md`'s
+// `## Containment` section: where the tree comparison conflicts, the test asks the neighbouring question
+// — whether base's history took the branch's patch. Two callers read the section's answer and neither
+// restates it, so pinning the section alone pins the contract: `plugin/scripts/scope.js` implements it,
+// and `plugin/hooks/scope-prune.js` calls that implementation.
+//
+// Each row fails on its own. The tier row pins the probe's existence and its trigger; a section that
+// stops naming the exit 1 trigger invites the implementation back to the ADR 0053 verdict that left
+// twenty branches standing. The cap row pins the bound as a commit count — a wall clock swapped in lets
+// one repository state answer two ways, which is the property the ADR rejected it for. The fail-closed
+// row pins INV-0003 across every probe step, the direction a probe that guesses would break first.
+const CONTAINMENT_PROBE_CONTRACTS = [
+  [
+    path.join('references', 'scope-mode.md'),
+    /second tier asks whether base's history took the patch[\s\S]{0,600}?git patch-id --stable[\s\S]{0,600}?A match → \*\*contained\*\*/,
+    "state the second tier: on the tree comparison's exit 1, match the patch id of the branch's " +
+      "cumulative diff from the merge base against the patch ids of the commits base gained since, and " +
+      'read a match as contained (ADR 0082)',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /rev-list --count[\s\S]{0,200}?gates the scan, at a cap of \d+ commits[\s\S]{0,400}?commit count rather than a wall clock/,
+    'gate the probe on a commit count with a stated cap, never a wall clock, so one repository state ' +
+      'gives one verdict (ADR 0082)',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /Every probe step that cannot answer answers not contained[\s\S]{0,300}?exhausted cap/,
+    'hold INV-0003 across the probe — a failed git call and an exhausted cap alike answer not contained',
+  ],
+];
+
 // `agents/final-reviewer.md`'s Brevity axis and `references/review-checklist.md`'s Cross-slice
 // divergence bullet are both written for a scope with slices to compare — a standing-code target has
 // none, so a literal reading of either flags nothing there, and `simplicity-reviewer` is skipped on that
@@ -3199,6 +3231,7 @@ const INVARIANT_COMPLIANCE_CONTRACTS = [
 module.exports = {
   CONTAINMENT_DELEGATION_CONTRACTS,
   CONTAINMENT_REFETCH_CONTRACTS,
+  CONTAINMENT_PROBE_CONTRACTS,
   STANDING_CODE_LENS_CONTRACTS,
   SETUP_CHECK_RULES_CONTRACTS,
   REFERENCE_PATTERN,

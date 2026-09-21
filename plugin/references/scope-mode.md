@@ -163,9 +163,45 @@ way:
   or not base has moved on since.
 - **Exit 0, and the tree differs** → **not contained**. The merge is clean, and it would still change
   base, so the branch carries content base does not hold.
-- **Exit 1** → **not contained** too, whichever of two causes: a real conflict, where the branch and base
+- **Exit 1** → **inconclusive**, whichever of two causes: a real conflict, where the branch and base
   disagree over the same lines, or an argument git cannot resolve at all — a branch name with no ref
-  behind it. Neither proves the tree equal to `<base>`'s, so this test does not need to tell them apart.
+  behind it. Neither proves the tree equal to `<base>`'s, and a base that edits the branch's files after
+  taking its work conflicts here on a branch it holds in full, so **the second tier below decides this
+  outcome**.
+
+**The second tier asks whether base's history took the patch** (ADR 0082). It runs on the exit 1 above,
+and on a `no` from the `git merge-base --is-ancestor` fallback a git older than 2.38 takes. Resolve the
+merge base of `<base>` and `<branch>`, take the patch id of the branch's cumulative diff from it, and look
+for that id among the patch ids of the commits `<base>` gained since that same merge base:
+
+```sh
+mb=$(git merge-base <base> <branch>)
+pid=$(git diff "$mb" <branch> | git patch-id --stable | cut -d' ' -f1)
+git log -p --no-color "$mb..<base>" | git patch-id --stable | grep -q "^$pid "
+```
+
+A match → **contained**: `git patch-id --stable` hashes the normalized diff content, so a match is the
+same change and not a guess. No match → **not contained**, the verdict the first tier already reached. The
+vocabulary stays at the three verdicts above, and the **exit 0, tree differs** outcome never reaches here —
+that comparison already settled it.
+
+**`git rev-list --count "$mb..<base>"` gates the scan, at a cap of 1000 commits.** Past the cap the probe
+is skipped and the answer is not contained, so a base that has diverged far from an abandoned branch pays
+one counting call instead of a full patch walk. The bound is a commit count rather than a wall clock: one
+repository state gives one verdict.
+
+**Every probe step that cannot answer answers not contained** (INV-0003): a failed `merge-base`, `diff`,
+`patch-id`, `rev-list`, or `log`, an unreadable count, and an exhausted cap alike. The scan writes no
+objects, unlike the tree comparison it follows.
+
+**A base that takes the branch's work and then reverts it in a way that also conflicts with base's own
+later edits reads contained.** The work stays reachable from base's history, so deleting the branch
+destroys nothing unique, and retracting a knowledge-base page published for a reverted feature is the
+operator's own act. A revert that does not conflict never reaches the probe — the tree comparison settles
+it on its own, and which way depends on how the work arrived: reverting a true merge commit leaves the
+branch an ancestor of base still, so the tree comparison finds base's own tree unchanged and reads
+contained; reverting a squash-merge leaves the branch's tip outside base's history entirely, so re-merging
+it reapplies content the revert just removed and the tree comparison reads not contained.
 
 **A not-contained verdict against a local base is provisional, and the second pass settles it.** The code
 host squash-merges the pull request and the clone learns nothing about it until something fetches, so such
@@ -189,8 +225,9 @@ run**, the way the fallback route below is said out loud. The caller then acts o
 **`--write-tree` needs git 2.38** (2022-10-02), and rejecting the flag itself exits **128 or 129** —
 distinct from the exit 1 above, so an old git is never mistaken for a conflicting branch. Where
 `--write-tree` is unavailable, fall back to `git merge-base --is-ancestor <branch> <base>` and **say the
-fallback route was taken**: that answer reads not contained for a squash-merged branch base holds in
-full, so a caller acting on it is acting on the older, weaker signal. **`hooks/scope-prune.js` is the one
+fallback route was taken**: a `no` there reaches the second tier above, which answers a squash-merged
+branch base holds in full, and where that probe finds no match the caller is acting on the older, weaker
+signal. **`hooks/scope-prune.js` is the one
 exception**: it is best-effort and silent by contract, so it says nothing on any path, including this
 one. Its own fallback is `git branch --merged`, the equivalent older, weaker signal in the hook's own git
 call — it just never announces taking it.

@@ -645,6 +645,151 @@ assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix')
   );
   fs.rmSync(conflictRepo, { recursive: true, force: true });
 
+  // --- The second tier end to end (ADR 0082) -----------------------------------------------------
+  //
+  // A base that edits the branch's files after taking its work conflicts with a branch it holds in
+  // full, which is what left twenty shipped run roots and their branches standing. The hook calls the
+  // probe `plugin/scripts/scope.js` exports, keeping `HEAD` as its base and making no fetch.
+  function makeConflictingSquashRepo(branch) {
+    const dir = makeRepo();
+    fs.writeFileSync(path.join(dir, 'app.txt'), 'l1\nl2\nl3\n');
+    gitTest(['add', '.'], dir);
+    gitTest(['commit', '-q', '-m', 'app'], dir);
+    makeWorkBranch(dir, branch, 'app.txt', 'l1\nB2\nl3\n');
+    gitTest(['merge', '--squash', branch], dir);
+    gitTest(['commit', '-q', '-m', 'took it (#1)'], dir);
+    fs.writeFileSync(path.join(dir, 'app.txt'), 'l1\nB2 revised\nl3\n');
+    gitTest(['commit', '-q', '-am', 'base revises the same line'], dir);
+    return dir;
+  }
+
+  // A fake git on PATH, the same wrapper shape `#no-write-tree-support` below uses.
+  function withFakeGit(body, fn) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-fakegit-'));
+    const realGit = execFileSync('which', ['git'], { encoding: 'utf8' }).trim();
+    fs.writeFileSync(path.join(dir, 'git'), `#!/bin/sh\n${body}\nexec "${realGit}" "$@"\n`, {
+      mode: 0o755,
+    });
+    const saved = process.env.PATH;
+    process.env.PATH = dir + path.delimiter + saved;
+    try {
+      return fn();
+    } finally {
+      process.env.PATH = saved;
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  // #conflicting-squash-pruned: the epic's red-capable case for this surface. The tree comparison
+  // conflicts, base's history holds the patch, and both the run root and the branch go.
+  const tookItRepo = makeConflictingSquashRepo('fix/took-it');
+  const tookItScopeDir = makeScope(tookItRepo, 'took-it', '**Stage:** shipped\n**Branch:** fix/took-it\n');
+  main(tookItRepo);
+  assert.equal(
+    fs.existsSync(tookItScopeDir),
+    false,
+    'a shipped, past-TTL scope whose branch conflicts with HEAD but whose work HEAD holds is pruned'
+  );
+  assert.equal(
+    refExists(tookItRepo, 'refs/heads/fix/took-it'),
+    false,
+    'and its branch goes with the run root'
+  );
+  fs.rmSync(tookItRepo, { recursive: true, force: true });
+
+  // #no-fetch-on-any-path: a `Stop` hook fires on every finished turn, so it stays off the network
+  // whatever the probe decides (ADR 0065, ADR 0082).
+  const noFetchRepo = makeConflictingSquashRepo('fix/nofetch');
+  const noFetchMarker = path.join(noFetchRepo, 'fetch-ran');
+  makeScope(noFetchRepo, 'nofetch', '**Stage:** shipped\n**Branch:** fix/nofetch\n');
+  withFakeGit(`if [ "$1" = "fetch" ]; then touch "${noFetchMarker}"; fi`, () => main(noFetchRepo));
+  assert.equal(fs.existsSync(noFetchMarker), false, 'the hook makes no git fetch on any path');
+  fs.rmSync(noFetchRepo, { recursive: true, force: true });
+
+  // #gates-before-the-probe: the TTL and stage reads still gate every git call the probe would make,
+  // so a repository with nothing prunable walks no patches. `git log` is probe-only here.
+  for (const [scope, ledger, touchNow] of [
+    ['not-shipped', '**Stage:** reviewed\n**Branch:** fix/not-shipped\n', false],
+    ['still-fresh', '**Stage:** shipped\n**Branch:** fix/still-fresh\n', true],
+  ]) {
+    const gateRepo = makeConflictingSquashRepo(`fix/${scope}`);
+    const gateScopeDir = makeScope(gateRepo, scope, ledger);
+    if (touchNow) fs.utimesSync(path.join(gateScopeDir, 'ledger.md'), new Date(), new Date());
+    const gateMarker = path.join(gateRepo, 'log-ran');
+    withFakeGit(`if [ "$1" = "log" ]; then touch "${gateMarker}"; fi`, () => main(gateRepo));
+    assert.equal(fs.existsSync(gateScopeDir), true, `a ${scope} scope survives`);
+    assert.equal(fs.existsSync(gateMarker), false, `a ${scope} scope is never probed at all`);
+    fs.rmSync(gateRepo, { recursive: true, force: true });
+  }
+
+  // #probe-fails-closed: INV-0003 on this surface. Every git call the probe makes can fail, and each
+  // failure leaves the scope standing rather than crashing the turn.
+  for (const failing of ['merge-base', 'diff', 'patch-id', 'rev-list', 'log']) {
+    const failRepo = makeConflictingSquashRepo('fix/failing');
+    const failScopeDir = makeScope(failRepo, 'failing', '**Stage:** shipped\n**Branch:** fix/failing\n');
+    withFakeGit(`if [ "$1" = "${failing}" ]; then exit 3; fi`, () => main(failRepo));
+    assert.equal(
+      fs.existsSync(failScopeDir),
+      true,
+      `a failing git ${failing} on a probe step leaves the scope standing`
+    );
+    assert.equal(
+      refExists(failRepo, 'refs/heads/fix/failing'),
+      true,
+      `and leaves its branch standing too, on a failing git ${failing}`
+    );
+    fs.rmSync(failRepo, { recursive: true, force: true });
+  }
+
+  // #probe-unavailable: the sibling script is there but carries no probe — a version-skewed install.
+  // The hook drops to the tree comparison alone, pruning what that test can prove and saying nothing,
+  // the same fallback posture its `readLedgerHeader` require already takes (ADR 0022, ADR 0082). The
+  // hook is copied beside a stub sibling so the real `require` resolves to it.
+  {
+    const skewDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-skew-'));
+    fs.mkdirSync(path.join(skewDir, 'hooks'));
+    fs.mkdirSync(path.join(skewDir, 'scripts'));
+    fs.copyFileSync(hookPath, path.join(skewDir, 'hooks', 'scope-prune.js'));
+    fs.writeFileSync(
+      path.join(skewDir, 'scripts', 'scope.js'),
+      `'use strict';\nconst { readLedgerHeader } = require(${JSON.stringify(
+        require.resolve('../plugin/scripts/scope.js')
+      )});\nmodule.exports = { readLedgerHeader };\n`
+    );
+    const skewed = require(path.join(skewDir, 'hooks', 'scope-prune.js'));
+
+    const skewProbeRepo = makeConflictingSquashRepo('fix/skew-probe');
+    const skewProbeScopeDir = makeScope(
+      skewProbeRepo,
+      'skew-probe',
+      '**Stage:** shipped\n**Branch:** fix/skew-probe\n'
+    );
+    const skewPlainRepo = makeRepo();
+    makeWorkBranch(skewPlainRepo, 'fix/skew-plain', 'app.txt', 'v2\n');
+    gitTest(['merge', '--squash', 'fix/skew-plain'], skewPlainRepo);
+    gitTest(['commit', '-q', '-m', 'fix: skew-plain (#1)'], skewPlainRepo);
+    const skewPlainScopeDir = makeScope(
+      skewPlainRepo,
+      'skew-plain',
+      '**Stage:** shipped\n**Branch:** fix/skew-plain\n'
+    );
+    skewed.main(skewProbeRepo);
+    skewed.main(skewPlainRepo);
+    assert.equal(
+      fs.existsSync(skewProbeScopeDir),
+      true,
+      'with no probe available the hook leaves a conflicting scope standing, exactly as it did before'
+    );
+    assert.equal(
+      fs.existsSync(skewPlainScopeDir),
+      false,
+      'and still prunes what the tree comparison alone can prove'
+    );
+    fs.rmSync(skewProbeRepo, { recursive: true, force: true });
+    fs.rmSync(skewPlainRepo, { recursive: true, force: true });
+    fs.rmSync(skewDir, { recursive: true, force: true });
+  }
+
   // #no-write-tree-support: a git older than 2.38 has no `--write-tree`, and the hook must prune
   // exactly what it prunes today rather than error. Shimmed rather than version-gated, because the
   // property under test is the fallback path, not this machine's git. Both arms are asserted from one

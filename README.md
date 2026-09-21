@@ -269,6 +269,9 @@ bash or PowerShell variants.
   question — does base already hold this work — and it is asked with `git merge-tree --write-tree`
   rather than with ancestry, which a squash merge destroys by rewriting the branch's commits
   ([ADR 0053](docs/adr/0053-containment-not-ancestry-decides-that-a-scope-branch-reached-base.md)).
+  Where that comparison conflicts — base edited the branch's files after taking its work — it asks
+  instead whether base's history carries a commit with the branch's own patch, under a 1000-commit cap
+  ([ADR 0082](docs/adr/0082-containment-asks-whether-base-history-took-the-patch.md)).
   They run in that order, cheapest first, because the containment test writes tree objects and this
   hook fires on every finished turn. Absence stands beside containment for the hosts that delete the
   branch on merge, read only from refs the repository already holds: a remote-tracking ref it has not

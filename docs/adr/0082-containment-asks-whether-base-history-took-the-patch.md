@@ -82,9 +82,14 @@ repository, a 64-commit range costs 0.12s batched through one `git log -p | git 
   Rejected: the hook's wrong verdict is what leaves twenty run roots and twenty branches standing, and the
   delete it gates loses nothing a patch id match has not already found in base's history.
 
-**Consequences.** A base that takes the branch's work and then reverts it reads contained. The work stays
-reachable from base's history, so the branch delete destroys nothing unique, and a knowledge-base page
-published for a reverted feature is the operator's to retract.
+**Consequences.** A base that takes the branch's work and then reverts it in a way that also conflicts
+with base's own later edits — so the tree comparison reaches the probe at all — reads contained. The work
+stays reachable from base's history, so the branch delete destroys nothing unique, and a knowledge-base
+page published for a reverted feature is the operator's to retract. A revert that does not conflict never
+reaches the probe: the tree comparison settles it, and which way depends on how the work arrived.
+Reverting a true merge leaves the branch an ancestor of base still, so the comparison reads contained.
+Reverting a squash-merge leaves the branch's tip outside base's history, so the comparison reads not
+contained.
 
 `hooks/scope-prune.js` gains a second `require` of `plugin/scripts/scope.js`, beside `readLedgerHeader`.
 Both fall back rather than crash when the `require` fails, and the fallbacks differ: the ledger reader

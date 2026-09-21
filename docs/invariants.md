@@ -28,5 +28,5 @@ Concepts: Containment, Scope branch, Base branch
 Statement: A containment test answers contained only on positive evidence that base holds the branch's work — an equal tree, or a patch id base's history carries. Every path that cannot answer, whether a failed git call, an exhausted bound, or an unresolved ref, answers not contained.
 Breaks: silently
 Check: tests/scope.test.js, tests/scope-prune.test.js — each failure path asserted to answer not contained
-Symbols: testContainment, containedInBase
+Symbols: testContainment, baseHistoryHasPatch, containedInBase
 Paths: plugin/scripts/scope.js, plugin/hooks/scope-prune.js

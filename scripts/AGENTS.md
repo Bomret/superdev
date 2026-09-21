@@ -33,7 +33,10 @@ structural, so plain `degraded add` refuses a text beginning with either and nam
 owns it. `get degraded` prints every bullet whatever its prefix, prefixes intact.
 It also exports `readLedgerHeader` as a module
 API. This per-header ledger-line reader is what `hooks/scope-prune.js` and `hooks/slicetree-sweep.js`
-both use instead of carrying their own regex. The API guards its CLI entry with
+both use instead of carrying their own regex. `hooks/scope-prune.js` takes a second export off the same
+`require`, `baseHistoryHasPatch` — the containment probe (ADR 0082) — and the two fall back
+differently: the reader missing stops that hook's sweep outright, while the probe missing narrows its
+containment test back to the tree comparison alone, silently. The API guards its CLI entry with
 `require.main === module`, so a `require` for that reader alone runs no CLI code. Normalisation is per
 header: `Stage` and `Branch` are single tokens,
 cut to the first whitespace-delimited token and stripped of markup and trailing punctuation.
@@ -1756,6 +1759,17 @@ base. The scope-prune row is the negative half: that hook mirrors this section i
 one caller excluded from the fetch, so a section that stops naming the exclusion invites a network call
 onto a `Stop` hook firing every turn. The failure row keeps the second pass advisory, so an unreachable
 host leaves the first verdict standing, named as local, rather than ending the caller.
+
+The `containment-probe` contract (ADR 0082), three rows, all on the same `## Containment` section: where
+the tree comparison conflicts, the test asks the neighbouring question — whether base's history took the
+branch's patch. A base that edits the branch's files after taking its work conflicts on a branch it holds
+in full, which is what left twenty shipped run roots and their branches standing. One document carries
+the contract for the same reason the refetch rows do: `plugin/scripts/scope.js` implements the section's
+answer and `plugin/hooks/scope-prune.js` calls that implementation, so neither restates it. The tier row
+pins the probe's existence and its exit 1 trigger, without which the implementation drifts back to the
+verdict that caused the symptom. The cap row pins the bound as a commit count: a wall clock swapped in
+lets one repository state answer two ways, the property ADR 0082 rejected it for. The fail-closed row
+pins INV-0003 across every probe step, the direction a probe that guesses breaks first.
 
 The `opencode-surface-split` check, `scanOpencodeSurfaceSplit()` (ADR 0055): the committed
 OpenCode fixtures put each surface on the side of the skill/command split its role demands. Two
