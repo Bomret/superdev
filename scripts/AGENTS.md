@@ -1849,6 +1849,24 @@ own flow, so they are two separate rows: any one of the three losing its wording
 somewhere on the route between the interview that settles it and the implementer's isolated worktree that
 never reads the register directly.
 
+The `commitment-capture` contract (ADR 0081) spans six rows across three documents.
+`skills/brainstorm/SKILL.md` still names a discovery's load-bearing commitments in the intent as a pair,
+the principle and the rule it implies. `skills/plan/SKILL.md` still routes every commitment — one a
+seeded intent handed over and one its own interview originated — through
+`references/domain-modeling.md`'s conversion, and still covers commitments in the seeded intent's
+delete-gate beside `Rejected direction`. `references/domain-modeling.md` still carries the
+conversion itself, in three rows of its own. Each half reads correct alone while another is gone: an
+intent can name commitments nothing converts, a conversion can exist that plan never routes to, and both
+can stand while the delete-gate drops a commitment that found no home.
+
+The reference's three rows guard branches that fail in opposite directions. The sort still asks what
+later decision a commitment constrains, which is the question the whole conversion turns on. The
+authoring-rule guard is still asked first. So a rule about how the work is done is named out loud rather
+than answering that question yes and landing in a consuming repository's register — a mis-route, not a
+gap, and invisible once made. And the `Check: none` branch still keeps an untestable commitment as an
+entry carrying its reason. So the sort cannot revert from what a commitment constrains to whether it can
+be tested, which would drop a commitment binding a hundred decisions and no single test.
+
 ## Work Guidance
 
 - Scripts are CommonJS, like the hooks. `hooks/scope-prune.js` and `hooks/slicetree-sweep.js` both

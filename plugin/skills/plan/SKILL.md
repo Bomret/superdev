@@ -200,6 +200,12 @@ capture already held, so the scopetree and the branch always carry the label the
 the reference says — an ADR's `Considered options` for a dropped approach, the epic's non-goals for
 dropped scope — or is filtered out loud. None disappears silently.
 
+**Route the seeded commitments, and every commitment this interview originates.** Each one is converted
+by the move `references/domain-modeling.md` states — into an invariant register entry, or into a reason
+said out loud that it constrains nothing, or that it is an authoring rule this repository's register never
+receives (ADR 0081). A commitment the interview originates is the more common source than one an intent
+handed over, and reaches the same conversion.
+
 **Record an invariant the interview settles**, in the register `references/domain-modeling.md` (above)
 describes — reserve it for a rule the system may never break; a slice-specific requirement still goes to
 that slice's `spec` instead.
@@ -356,9 +362,9 @@ built first, because a needless one serializes an unattended sweep for nothing.
 
 **Delete the seeded brainstorm intent.** If this plan started from a `.superdev/brainstorm/<slug>.md`
 file (§1), delete it now that its intent is durably in the slice store — a leftover scratch intent
-re-surfaces as a stale option in the next glob. Delete only once every `Rejected direction` it carried
-has a durable home (§2) or was filtered out loud: this delete is irreversible and is exactly the
-silent-drop it exists to prevent. Delete only the file the user picked; leave other intents untouched.
+re-surfaces as a stale option in the next glob. Delete only once every `Rejected direction` **and every
+`Load-bearing commitment`** it carried has a durable home (§2) or was resolved out loud: this delete is
+irreversible and is exactly the silent-drop it exists to prevent. Delete only the file the user picked; leave other intents untouched.
 
 **Tell the user the expected execution tier** — informational only; `/superdev:plan` persists it nowhere.
 `/superdev:implement` derives it fresh from the final slice count — **≤3 slices → `lite`** (the

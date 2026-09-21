@@ -46,6 +46,7 @@ Once the space has been explored, pull it together into a short intent:
 - **Success criteria** — checkable, not vibes.
 - **Rough scope + non-goals** — the MLP, and what's deliberately excluded.
 - **Still-open decisions** — what remains genuinely undecided.
+- **Load-bearing commitments** — a commitment the discovery settled that will constrain later decisions, written as a pair: the principle, then the rule it implies. The pairing is the test — a principle alone is cheap to invent, a principle carrying its implied rule is not — so naming the rule is what separates a commitment from a mood. `/superdev:plan` converts each one into an invariant register entry, or names out loud the reason it implies none (`domain-modeling.md`, ADR 0081). A discovery that settled none writes no section and says so.
 - **Rejected directions** — a direction explored and dropped, and why it lost. Include only what a future reader would plausibly re-propose; a divergent conversation generates dead ends nobody needs recorded. Nothing worth keeping → omit the bullet entirely rather than write an empty one. `/superdev:plan` makes these durable (`domain-modeling.md`).
 
 You may jot this intent to a scratch file for the user's reference — write it under the git-ignored `.superdev/brainstorm/<intent-slug>.md` (ensure `.superdev/` is in the repo's `.gitignore`; add it if absent).

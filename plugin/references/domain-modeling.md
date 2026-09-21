@@ -87,6 +87,40 @@ Symbols: Order.total
 Paths: src/domain/order/**
 ```
 
+#### From a principle to the rule it implies
+
+A **load-bearing commitment** arrives as a principle — a sentence about how the system should be, not a
+rule with a subject. "The record is why this is a binary and not `curl`" is a rationale and belongs in no
+register; the rule under it, *every call that reaches the service writes a record*, is an entry with a
+`Breaks: silently` and a test. Convert before you record, and ask what later decision the commitment
+constrains (ADR 0081):
+
+- **A rule about how the work is done** — how acceptance criteria are written, what a review must cover,
+  when a test is required — is an **authoring rule**. Name it out loud as one, and record it nowhere: this
+  register holds rules about the system a repository builds, and an authoring rule belongs to the working
+  rules of whatever writes the criteria. Ask this first, because such a rule does constrain later
+  decisions and would otherwise answer yes below.
+- **A rule about the system the repository builds** that constrains a later decision, where the constraint
+  is cheaply testable → a register entry, its `Check:` naming the proof.
+- **The same, where nothing cheaply tests it** → a register entry all the same, with `Check: none` and its
+  reason. A commitment binding a hundred decisions and no single test is what `none` exists for, so sort
+  on what a commitment constrains rather than on whether it is testable: treating untestability as
+  disqualifying drops exactly the commitments most worth keeping.
+- **A commitment that constrains no later decision** is a mood. Say so in the conversation, with the
+  reason, and write nothing.
+
+Name the implied rule out loud even where the principle already sounds like one. A principle is cheap to
+invent under the pressure of an empty field, and the rule it implies is not, so naming it is the test of
+whether a commitment is load-bearing.
+
+The last branch is **guidance rather than a check** — a single run sees one plan and cannot know its own
+sort rate, and a run sorting *every* commitment there has certainly mis-sorted. Reading the rate across
+runs is a human's job, and nothing enforces it.
+
+Both sources reach this same conversion: a commitment `/superdev:plan` originates in its own interview,
+which is the more common one, and a commitment a seeded intent carried in its `## Load-bearing
+commitments` section (`skills/brainstorm/SKILL.md` §5).
+
 ### Rejected directions → an ADR's `Considered options`, or the epic's non-goals
 
 A direction explored and dropped is worth keeping only where a future reader will look for it. When

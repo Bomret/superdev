@@ -3228,7 +3228,58 @@ const INVARIANT_COMPLIANCE_CONTRACTS = [
   ],
 ];
 
+// ADR 0081: a load-bearing commitment leaves a run either as an invariant register entry or as a reason,
+// named out loud, that it implies none. Three documents carry that agreement between them, and each half
+// reads correct alone while the contract is gone from another: `skills/brainstorm/SKILL.md` can keep
+// naming commitments in the intent while `references/domain-modeling.md` loses the sort that converts
+// them, leaving an intent full of principles nobody ranks; `references/domain-modeling.md` can carry the
+// whole conversion while `skills/plan/SKILL.md` stops routing to it, so a commitment `/superdev:plan`
+// originates — the more common source — reaches no sort at all; and both can be intact while plan's
+// delete-gate reverts to covering `Rejected direction` alone, which lets the irreversible intent delete
+// drop a commitment that found no home. That is the one-sided-pin shape `FULL_SUITE_CONTRACTS` already
+// shipped in this repository, so all three are pinned together here rather than as separate checks.
+//
+// Two rows guard the sort's own branches, because each fails silently and in opposite directions. Losing
+// the authoring-rule guard (review finding, ADR 0081) lets a rule about how the work is done answer yes
+// to "does it constrain a later decision" and land in a consuming repository's register, which the
+// feature forbids — a mis-route rather than a gap, and invisible. Losing the `Check: none` branch
+// reverts the sort from what a commitment constrains to whether it can be tested, which drops exactly
+// the commitments worth keeping: one binding a hundred decisions and no single test.
+const COMMITMENT_CAPTURE_CONTRACTS = [
+  [
+    path.join('skills', 'brainstorm', 'SKILL.md'),
+    /\*\*Load-bearing commitments\*\*[\s\S]{0,300}the rule it implies/,
+    'name load-bearing commitments in the intent as a pair, the principle and the rule it implies (ADR 0081)',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /Route the seeded commitments[\s\S]{0,300}references\/domain-modeling\.md[\s\S]{0,200}register entry/,
+    "route every commitment — seeded or originated — through `references/domain-modeling.md`'s conversion (ADR 0081)",
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /`Load-bearing commitment`\*\*\s+it carried has a durable home/,
+    "cover load-bearing commitments in the seeded intent's delete-gate, beside `Rejected direction` (ADR 0081)",
+  ],
+  [
+    path.join('references', 'domain-modeling.md'),
+    /ask what later decision the commitment\s+constrains/,
+    'sort a commitment on what later decision it constrains (ADR 0081)',
+  ],
+  [
+    path.join('references', 'domain-modeling.md'),
+    /\*\*authoring rule\*\*[\s\S]{0,200}record it nowhere/,
+    'ask the authoring-rule guard first, and record such a rule in no register (ADR 0081)',
+  ],
+  [
+    path.join('references', 'domain-modeling.md'),
+    /where nothing cheaply tests it[\s\S]{0,150}`Check: none`/,
+    'keep an untestable commitment as a register entry carrying `Check: none` and its reason (ADR 0081)',
+  ],
+];
+
 module.exports = {
+  COMMITMENT_CAPTURE_CONTRACTS,
   CONTAINMENT_DELEGATION_CONTRACTS,
   CONTAINMENT_REFETCH_CONTRACTS,
   CONTAINMENT_PROBE_CONTRACTS,

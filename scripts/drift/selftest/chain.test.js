@@ -46,6 +46,7 @@ const {
   INVARIANT_REGISTER_CONTRACTS,
   INVARIANT_REGISTER_DOC_PASS_CONTRACTS,
   INVARIANT_COMPLIANCE_CONTRACTS,
+  COMMITMENT_CAPTURE_CONTRACTS,
 } = require('../contracts');
 
 module.exports = ({ assert, path, fixture, fs, realRoot }) => {
@@ -3267,5 +3268,123 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     reviewerComplianceGaps[0].source,
     path.join('agents', 'final-reviewer.md'),
     'names final-reviewer as the drifted document',
+  );
+
+  // --- COMMITMENT_CAPTURE_CONTRACTS (ADR 0081): a load-bearing commitment leaves a run as a register
+  // entry or as a named reason it implies none. Three documents carry that between them, and each half
+  // is asserted apart — the shape a one-sided pin cannot prove. ---
+
+  // negative: one fixture carrying every row's clause, all three documents at once — this is also what
+  // gives the selftest-coverage assertion in ./index.js a `readDoc` hit against every row's document.
+  const ccFiles = {
+    'skills/brainstorm/SKILL.md':
+      '- **Load-bearing commitments** — a commitment the discovery settled that will constrain later ' +
+      'decisions, written as a pair: the principle, then the rule it implies. `/superdev:plan` converts ' +
+      'each one into an invariant register entry (`domain-modeling.md`, ADR 0081). A discovery that ' +
+      'settled none writes no section and says so.\n',
+    'skills/plan/SKILL.md':
+      '**Route the seeded commitments, and every commitment this interview originates.** Each one is ' +
+      'converted by the move `references/domain-modeling.md` states — into an invariant register entry, ' +
+      'or into a reason said out loud that it constrains nothing (ADR 0081).\n' +
+      'Delete only once every `Rejected direction` **and every `Load-bearing commitment`** it carried ' +
+      'has a durable home (§2) or was resolved out loud.\n',
+    'references/domain-modeling.md':
+      '#### From a principle to the rule it implies\n\n' +
+      'Convert before you record, and ask what later decision the commitment constrains (ADR 0081):\n' +
+      '- **A rule about how the work is done** is an **authoring rule**. Name it out loud as one, and ' +
+      'record it nowhere. Ask this first, because such a rule does constrain later decisions.\n' +
+      '- **The same, where nothing cheaply tests it** → a register entry all the same, with ' +
+      '`Check: none` and its reason.\n',
+  };
+  const ccClean = fixture(ccFiles);
+  assert.equal(scanContract(ccClean, COMMITMENT_CAPTURE_CONTRACTS).length, 0, 'every commitment-capture clause present yields zero gaps');
+
+  // positive: brainstorm keeps a commitments bullet but drops the implied rule, so the intent collects
+  // principles nobody converted — the mood-filled section ADR 0081's pairing exists to prevent.
+  const ccNoPair = fixture({
+    ...ccFiles,
+    'skills/brainstorm/SKILL.md':
+      '- **Load-bearing commitments** — a commitment the discovery settled that will constrain later ' +
+      'decisions.\n',
+  });
+  const ccNoPairGaps = scanContract(ccNoPair, COMMITMENT_CAPTURE_CONTRACTS);
+  assert.equal(ccNoPairGaps.length, 1, 'flags brainstorm for losing the principle/implied-rule pair');
+  assert.equal(ccNoPairGaps[0].source, path.join('skills', 'brainstorm', 'SKILL.md'), 'names brainstorm');
+
+  // positive: plan stops routing commitments through the one conversion, so a commitment it originates
+  // reaches no sort at all while brainstorm still names them.
+  const ccNoRouting = fixture({
+    ...ccFiles,
+    'skills/plan/SKILL.md':
+      'Delete only once every `Rejected direction` **and every `Load-bearing commitment`** it carried ' +
+      'has a durable home (§2) or was resolved out loud.\n',
+  });
+  const ccNoRoutingGaps = scanContract(ccNoRouting, COMMITMENT_CAPTURE_CONTRACTS);
+  assert.equal(ccNoRoutingGaps.length, 1, 'flags plan for losing the commitment routing bullet');
+  assert.equal(ccNoRoutingGaps[0].source, path.join('skills', 'plan', 'SKILL.md'), 'names plan');
+
+  // positive: plan's delete-gate reverts to covering rejected directions alone, so a converted-nowhere
+  // commitment stops blocking the irreversible intent delete.
+  const ccNoGate = fixture({
+    ...ccFiles,
+    'skills/plan/SKILL.md':
+      '**Route the seeded commitments, and every commitment this interview originates.** Each one is ' +
+      'converted by the move `references/domain-modeling.md` states — into an invariant register entry, ' +
+      'or into a reason said out loud that it constrains nothing (ADR 0081).\n' +
+      'Delete only once every `Rejected direction` it carried has a durable home (§2).\n',
+  });
+  const ccNoGateGaps = scanContract(ccNoGate, COMMITMENT_CAPTURE_CONTRACTS);
+  assert.equal(ccNoGateGaps.length, 1, "flags plan for losing the delete-gate's commitment clause");
+  assert.equal(ccNoGateGaps[0].source, path.join('skills', 'plan', 'SKILL.md'), 'names plan');
+
+  // positive: the reference keeps the section but drops the sort question, so the conversion stops
+  // asking what a commitment constrains and both skills cite prose that decides nothing.
+  const ccNoSort = fixture({
+    ...ccFiles,
+    'references/domain-modeling.md':
+      '#### From a principle to the rule it implies\n\n' +
+      '- **A rule about how the work is done** is an **authoring rule**. Name it out loud as one, and ' +
+      'record it nowhere. Ask this first, because such a rule does constrain later decisions.\n' +
+      '- **The same, where nothing cheaply tests it** → a register entry all the same, with ' +
+      '`Check: none` and its reason.\n',
+  });
+  const ccNoSortGaps = scanContract(ccNoSort, COMMITMENT_CAPTURE_CONTRACTS);
+  assert.equal(ccNoSortGaps.length, 1, 'flags domain-modeling.md for losing the sort question');
+  assert.equal(ccNoSortGaps[0].source, path.join('references', 'domain-modeling.md'), 'names domain-modeling.md');
+
+  // positive: the authoring-rule guard goes, and an authoring rule answers yes to the sort question and
+  // lands in a consuming repository's register — the mis-sort the deferral would otherwise cause.
+  const ccNoAuthoringGuard = fixture({
+    ...ccFiles,
+    'references/domain-modeling.md':
+      '#### From a principle to the rule it implies\n\n' +
+      'Convert before you record, and ask what later decision the commitment constrains (ADR 0081):\n' +
+      '- **The same, where nothing cheaply tests it** → a register entry all the same, with ' +
+      '`Check: none` and its reason.\n',
+  });
+  const ccNoAuthoringGuardGaps = scanContract(ccNoAuthoringGuard, COMMITMENT_CAPTURE_CONTRACTS);
+  assert.equal(ccNoAuthoringGuardGaps.length, 1, 'flags domain-modeling.md for losing the authoring-rule guard');
+  assert.equal(
+    ccNoAuthoringGuardGaps[0].source,
+    path.join('references', 'domain-modeling.md'),
+    'names domain-modeling.md',
+  );
+
+  // positive: the `Check: none` branch goes, so an untestable commitment is dropped for being untestable
+  // — the sort silently reverting from what a commitment constrains to whether it can be tested.
+  const ccNoCheckNone = fixture({
+    ...ccFiles,
+    'references/domain-modeling.md':
+      '#### From a principle to the rule it implies\n\n' +
+      'Convert before you record, and ask what later decision the commitment constrains (ADR 0081):\n' +
+      '- **A rule about how the work is done** is an **authoring rule**. Name it out loud as one, and ' +
+      'record it nowhere. Ask this first, because such a rule does constrain later decisions.\n',
+  });
+  const ccNoCheckNoneGaps = scanContract(ccNoCheckNone, COMMITMENT_CAPTURE_CONTRACTS);
+  assert.equal(ccNoCheckNoneGaps.length, 1, 'flags domain-modeling.md for losing the `Check: none` branch');
+  assert.equal(
+    ccNoCheckNoneGaps[0].source,
+    path.join('references', 'domain-modeling.md'),
+    'names domain-modeling.md',
   );
 };

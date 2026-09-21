@@ -109,6 +109,7 @@ const {
   INVARIANT_REGISTER_CONTRACTS,
   INVARIANT_REGISTER_DOC_PASS_CONTRACTS,
   INVARIANT_COMPLIANCE_CONTRACTS,
+  COMMITMENT_CAPTURE_CONTRACTS,
   PLANNED_HANDOFF_CONTRACTS,
 } = require('./contracts');
 
@@ -608,6 +609,12 @@ module.exports = [
     'invariant-compliance',
     INVARIANT_COMPLIANCE_CONTRACTS,
     'plan still routes a matched register entry into the DoD and the touching slice\'s spec, and final-reviewer still checks the register itself',
+  ),
+  table(
+    'commitment-capture',
+    COMMITMENT_CAPTURE_CONTRACTS,
+    'brainstorm still names load-bearing commitments as pairs, plan still routes and gates them, and ' +
+      "domain-modeling.md still carries the sort, its authoring-rule guard, and its `Check: none` branch",
   ),
 ];
 
