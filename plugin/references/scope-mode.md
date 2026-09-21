@@ -11,8 +11,9 @@ checkout` (ADR 0045 — both tiers now cut and work in the scopetree); `/superde
 relies on `## The run lock` and `## The scope checkout`; `## The ledger` is read by
 `/superdev:implement`, `/superdev:status`, and `/superdev:ship` besides `/superdev:review`; `##
 Resolving an empty argument` is read by all three of `/superdev:implement`, `/superdev:review`, and
-`/superdev:ship` on their own empty-argument entrance. A run is unattended from its first command, so the
-token cannot wait for the stage where the other rules begin.
+`/superdev:ship` on their own empty-argument entrance. `/superdev:plan` reads `## Cutting the scope
+branch`, `## Containment`, and `## The run lock` for its own cut (ADR 0079). A run is unattended from its
+first command, so the token cannot wait for the stage where the other rules begin.
 
 ## The scope slug
 
@@ -55,9 +56,10 @@ A range or a scope slug names a live run when two conditions hold: its head is t
 `<type>/<scope>`, and a run root exists for that scope. A run root is a `.superdev/scopes/*/` directory
 holding a `ledger.md`.
 
-Capture `<run-root>` as the absolute path to `.superdev/scopes/<scope>/`, while the invoking checkout is
-still the current directory. Address every artifact by that absolute path: `<run-root>/ledger.md`,
-`<run-root>/dod.md`, `<run-root>/run.lock`.
+Capture `<run-root>` with `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js root <scope>`'s printed absolute
+path — the repository's main working tree, whichever checkout the command runs from (ADR 0080), never a
+path built against the invoking checkout's own cwd. Address every artifact by that absolute path:
+`<run-root>/ledger.md`, `<run-root>/dod.md`, `<run-root>/run.lock`.
 
 ## Resolving an empty argument
 
@@ -214,33 +216,35 @@ contained however little of its work base actually holds.
 ## Cutting the scope branch
 
 Run init computes this run's **run kind** — `CONTEXT.md`'s glossary names all
-three values — and hands it to the execution playbook. Both playbooks act on that value instead of
-deriving it a second time from git state. One call cuts or reuses the branch at every run kind, into the
-same **scopetree** — `.superdev/scopes/<scope>/scopetree` — at both tiers: the invoking checkout is
-never switched (ADR 0045).
+three values — and hands it to the execution playbook; `/superdev:plan` computes the same value for its
+own cut, ahead of any slice run (ADR 0079). Every caller acts on that value instead of deriving it a
+second time from git state. One call cuts or reuses the branch at every run kind, into the same
+**scopetree** — `<run-root>/scopetree` — at both tiers: the invoking checkout is never switched
+(ADR 0045).
 
-- **`fresh`** — no ledger existed, so the scope branch does not exist either. Cut it from `<base>`:
-  `git worktree add .superdev/scopes/<scope>/scopetree -b <type>/<scope> <base>`. **The name already
-  exists** — a squash-merged scope's branch stands until `hooks/scope-prune.js` reaps it with its run
-  root, and stands indefinitely where that reap cannot name it (ADR 0007, ADR 0071): `-b`
-  fails rather than reset it, which is the safe outcome. Stop, name the branch found, and cut nothing — a
-  human renames or deletes it before the run
-  retries.
+- **`fresh`** — no ledger existed, so the run itself has never cut this branch before. Cut it from
+  `<base>`: `git worktree add <run-root>/scopetree -b <type>/<scope> <base>`. **The name already
+  exists** — a squash-merging host leaves a scope's branch standing after its pull request merges, and
+  `hooks/scope-prune.js` reaps it only alongside its run root (ADR 0007, ADR 0071), so a taken name is
+  the ordinary case in such a repository, not an error (closes triage #417): `-b` fails rather than reset
+  it, which is the safe outcome, and the branch is decided exactly as `appended` decides its own reused
+  branch below — contained in `<base>` and reused, or not contained and stopped, per `## Containment`
+  above — rather than an unconditional stop.
 - **`appended`** — a `shipped` ledger was rotated aside, and the branch may have survived its pull
   request, because `/superdev:ship` opens the request from that branch and never deletes it. Read
   `<branch>` from the ledger's own line — `scope.js get branch --root <run-root>`, then `git rev-parse
   --verify <branch>` — rather than resolving it per `## The scope branch`, whose shape-scan fallback
   risks a foreign branch; this step cuts and hands the name onward, unlike that section's read-only
   callers. Then decide on the same test that decides a scope is finished with (ADR 0007): contained in
-  `<base>`, or gone entirely — the test `## Containment` above owns, and `skills/plan/SKILL.md`'s refusal
-  bullet reads back.
+  `<base>`, or gone entirely — the test `## Containment` above owns, `skills/plan/SKILL.md`'s refusal
+  bullet reads back, and the one `fresh` reaches above on a taken name.
   - **Gone** — `<branch>` does not verify: nothing survives to reuse, so cut fresh from `<base>` exactly
     as `fresh` does.
   - **Present** — decide with `## Containment` above, which owns the test. **Contained** —
     the content already landed, so reuse loses nothing: work in the scopetree, per `## The scope
-    checkout` below — creating it with `git worktree add .superdev/scopes/<scope>/scopetree <branch>` when
+    checkout` below — creating it with `git worktree add <run-root>/scopetree <branch>` when
     absent, and stopping first when a different worktree holds the branch, the same stop `resumed` takes —
-    then **check the scopetree is clean**: `git -C .superdev/scopes/<scope>/scopetree status --porcelain`
+    then **check the scopetree is clean**: `git -C <run-root>/scopetree status --porcelain`
     returns nothing. The content is already landed on `<base>` or on the base the second pass fetched, and
     the containment proof above covers the branch's committed history, never the index or
     the working tree, so a dirty scopetree could lose an uncommitted change the test never vouched for.
@@ -255,9 +259,14 @@ never switched (ADR 0045).
   A host that squash-merges and deletes the branch reads gone; one that squash-merges without deleting
   reads present and contained, and is reused — the ordinary outcome there. What still reaches the
   question is a branch carrying real work base never took.
-- **`resumed`** — the branch holds unmerged slice work by design, so no containment test runs and nothing
-  is cut. Read `<branch>` from the ledger's own line — `scope.js get branch --root <run-root>`, verified
-  with `git rev-parse --verify <branch>` — never by rebuilding `<type>/<scope>` and never through
+- **`resumed`** — the branch holds unmerged work by design, so no containment test runs and nothing is
+  cut. A **`planned`** ledger is one instance of this run kind (ADR 0079): `/superdev:plan` already cut,
+  and where the name was taken, decided and re-pointed the branch under the rule `fresh` follows above, so
+  run init cuts nothing, tests no containment, and re-points nothing either — it moves the stage past
+  `planned` and works in the scopetree already there. The branch may carry unmerged slice work, for a run
+  already in flight, or nothing at all beyond `/superdev:plan`'s own design-docs commit, for one just
+  handed off. Read `<branch>` from the ledger's own line — `scope.js get branch --root <run-root>`,
+  verified with `git rev-parse --verify <branch>` — never by rebuilding `<type>/<scope>` and never through
   `## The scope branch`'s shape-scan fallback, which can return a foreign branch just as it can for
   `appended`. **A name that does not verify locally is fetched before anything else**: `git fetch
   <remote> <branch>` (`<remote>` from `docs/agents/code-management.md`) — a fresh clone, or a ledger just
@@ -267,7 +276,7 @@ never switched (ADR 0045).
   `refs/heads/<branch>`, so the pre-fetch check above and this one deliberately verify two different refs.
   A `resumed` branch is expected to exist, so a name whose remote-tracking ref still does not verify — the
   fetch found nothing either — is a stop, naming the branch it looked for, not a guess.
-  **`--unattended` → block**, per `## Unattended`. `git worktree add .superdev/scopes/<scope>/scopetree
+  **`--unattended` → block**, per `## Unattended`. `git worktree add <run-root>/scopetree
   <branch>` below still names the bare branch, not the remote-tracking ref: it DWIM-creates the local
   branch from the sole matching remote-tracking ref the moment one exists. Create or reattach the
   scopetree, at both tiers, whenever it is absent — because `/superdev:ship` already removed it, or
@@ -292,8 +301,8 @@ pass either: `## Degraded passes` records work done a lesser way, and here no wo
 **Resolve the scope branch first**, per `## The scope branch`, never from the slug alone. Then find the
 working tree holding it, from disk.
 
-`.superdev/scopes/<scope>/scopetree` is the scope checkout, at both tiers (ADR 0045). Run every git
-command that writes to the scope branch there — `git -C .superdev/scopes/<scope>/scopetree ...` — never in
+`<run-root>/scopetree` is the scope checkout, at both tiers (ADR 0045). Run every git
+command that writes to the scope branch there — `git -C <run-root>/scopetree ...` — never in
 the invoking checkout, which stays wherever it was.
 
 - **Present** → work there.
@@ -301,7 +310,7 @@ the invoking checkout, which stays wherever it was.
   removed it by design. On a read-only command (`/superdev:review`, `/superdev:document`), say so and
   review or reconcile read-only rather than recreating it; a writing command has nothing left to write to
   a shipped scope in the first place.
-- **Absent** → recreate it: `git worktree add .superdev/scopes/<scope>/scopetree <branch>`, the same call
+- **Absent** → recreate it: `git worktree add <run-root>/scopetree <branch>`, the same call
   the `resumed` run kind already makes. **`run-lock` refuses the call, naming another session** → that
   lock is this run's own: the scopetree this step just found absent is what makes that safe, not the ledger
   — no session can be working inside a tree that does not exist, however many sessions could in principle
@@ -317,19 +326,23 @@ the invoking checkout, which stays wherever it was.
 ## The run lock
 
 **Write `<run-root>/run.lock` once `## Cutting the scope branch` above has cut the scopetree, at both
-tiers** — never before: the `run-lock` hook guards `git worktree add` on the scopetree, and a lock
-written ahead of that call would make the run block on its own scopetree creation. Refresh the file if it
-already exists, the case a `resumed` run finds. This is the execution playbooks' own write. **On a
-`resumed` run, the playbook's own Resume section reads the lock's mtime first** — that read is what tells
-a live second session from this run's own stale or absent lock — **and only then does this refresh
-happen**, at the playbook's first write past that check.
+tiers** — and once `/superdev:plan` has made its own cut (ADR 0079) — never before: the `run-lock` hook
+guards `git worktree add` on the scopetree, and a lock written ahead of that call would make the run block
+on its own scopetree creation. Refresh the file if it already exists, the case a `resumed` run finds. This
+is the execution playbooks' own write, and `/superdev:plan`'s: each writes the lock into the run root
+right after its own cut, and refreshes it again at its own §6. **On a `resumed` run, the playbook's own
+Resume section reads the lock's mtime first** — that read is what tells a live second session from this
+run's own stale or absent lock — **and only then does this refresh happen**, at the playbook's first write
+past that check. **`/superdev:plan` takes the same read before its own cut**: a fresh lock naming another
+session means a second plan session is already working the same feature, so it stops rather than cutting
+alongside it (triage #510).
 
 **Every other caller — `/superdev:review`, `/superdev:document`, `/superdev:ship` — only ever refreshes
-this file. Never create it.** A tail command reaches a scope only after an execution playbook already ran,
-so a missing lock there means no live run to refresh, not a gap to fill. **The one exception** is
-`## The scope checkout` above's recreate path: recreating an absent scopetree removes a stale lock of this
-run's own first, and what writes it back is this section's own write, made again as part of that
-recreate — not a second creation rule belonging to the tail.
+this file. Never create it.** A tail command reaches a scope only after an execution playbook, or
+`/superdev:plan`, already ran, so a missing lock there means no live run to refresh, not a gap to fill.
+**The one exception** is `## The scope checkout` above's recreate path: recreating an absent scopetree
+removes a stale lock of this run's own first, and what writes it back is this section's own write, made
+again as part of that recreate — not a second creation rule belonging to the tail.
 
 The lock's mtime marks the run as live across the whole chain. The `run-lock` hook treats a lock older
 than an hour as dead. Each command in the chain refreshes the mtime at its own step.
@@ -597,7 +610,7 @@ documented too early"; `reviewed` is the value that gets the doc pass re-run, wh
 ## Publishing run state
 
 **Publishing follows any ledger write the snapshot would show** — `scope.js init`'s first write of
-`**Stage:** implementing`, every later `stage set`, every `degraded add`/`degraded
+`**Stage:**` (the caller's own entry stage — ADR 0079), every later `stage set`, every `degraded add`/`degraded
 add-denial`/`degraded reset-denials`, every `unresolved add`/`unresolved clear`, every `deferred add`,
 and every `docs set`/`docs clear` — one rule
 rather than a list of call sites. Each site below cites this section instead of restating it. **One

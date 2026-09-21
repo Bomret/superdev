@@ -2,10 +2,10 @@
 'use strict';
 
 // scope.js: the run-state CLI (ADR 0022). Owns every ledger.md write and read in the chain.
-// Verbs: init, stage, slice, degraded, unresolved, deferred, get, status, base-lock. Exit nonzero with a
+// Verbs: init, stage, slice, degraded, unresolved, deferred, get, status, root. Exit nonzero with a
 // one-line stderr reason on any refusal. hooks/ledger-guard.js makes this the only ledger write path.
-// `base-lock` is the one verb that touches no ledger: it guards the base-branch design-docs commit
-// (ADR 0058).
+// `root` is the one verb that touches no ledger: it resolves a run root's absolute path, anchored to
+// the repository's main working tree regardless of which checkout invoked it (ADR 0080).
 
 const fs = require('fs');
 const path = require('path');
@@ -29,7 +29,11 @@ const SLICE_STATUSES = ['todo', 'in-progress', 'in-review', 'blocked', 'merged']
 // every other same-rank move (e.g. reviewed → documented-unreviewed) refuses, and `documented`/
 // `shipped` are terminal in the way rank already gives them: nothing outranks `shipped`, and
 // `documented`'s only higher rank is `shipped` itself.
+// `planned` (ADR 0079): the scope branch and scopetree a plan cut, before any slice has run — ranked
+// below `implementing` so `stage set implementing` moves forward out of it, and no write moves back
+// to it once a run leaves it. `init` is the only writer of this value.
 const STAGE_RANK = {
+  planned: -1,
   implementing: 0,
   merged: 1,
   reviewed: 2,
@@ -204,9 +208,8 @@ function splitRow(line) {
 
 // --- verbs -------------------------------------------------------------------
 
-// Appended, never read-concat-written: `base-lock acquire` calls this from two sessions that may be
-// racing each other, and an append at worst leaves a duplicate line where a rewrite could truncate the
-// file.
+// Appended, never read-concat-written: two `init` calls racing each other on the same fresh
+// repository at worst leave a duplicate line, where a rewrite could truncate the file.
 function ensureSuperdevIgnored(cwd) {
   const gi = path.join(cwd, '.gitignore');
   let giText = '';
@@ -218,6 +221,30 @@ function ensureSuperdevIgnored(cwd) {
   if (!giText.split('\n').some((l) => l.trim() === '.superdev/' || l.trim() === '.superdev')) {
     fs.appendFileSync(gi, (giText && !giText.endsWith('\n') ? '\n' : '') + '.superdev/\n', 'utf8');
   }
+}
+
+// `init`'s entry stage (Critical review finding, ADR 0079): the caller states which stage its own
+// ledger enters at, because only the caller knows who is writing it — a default would guess wrong for
+// every caller but one. `/superdev:plan` cuts the branch and scopetree itself and enters at `planned`;
+// run init's own `fresh` path (no plan ever ran, or an append onto a ledger that was never `planned`)
+// enters straight at `implementing`, because no further plan step follows it. No other stage is a valid
+// entry point, so `init` refuses anything else by name rather than accepting the full `STAGES` set.
+const INIT_ENTRY_STAGES = ['planned', 'implementing'];
+
+// `init` owns the `shipped` ledger's rotation (Important review finding B, ADR 0079/0080): `scope.js`
+// is the sole ledger read and write path (ADR 0022), the rotation is a ledger operation, and
+// `references/run-init.md` merely describes it rather than instructing a reader to perform it by hand.
+// Renamed aside to `ledger-shipped-<date>.md`, `date +%FT%H%M%S` precision — fine enough that two
+// same-day rotations essentially never collide, and the loop below still never overwrites one that does.
+// Nothing is deleted, so ADR 0007's seven-day trail and `scope-prune`'s contained-or-gone reap rule
+// (ADR 0053) both stand unchanged.
+function rotateShippedLedger(root) {
+  const stamp = new Date().toISOString().slice(0, 19).replace(/:/g, '');
+  let name = `ledger-shipped-${stamp}.md`;
+  for (let n = 2; fs.existsSync(path.join(root, name)); n++) name = `ledger-shipped-${stamp}-${n}.md`;
+  const dest = path.join(root, name);
+  fs.renameSync(ledgerPath(root), dest);
+  console.log(`rotated shipped ledger to ${dest}`);
 }
 
 function validateLabel(label) {
@@ -232,13 +259,28 @@ function validateLabel(label) {
   return { type, slug };
 }
 
-function verbInit(cwd, label, stdinJson) {
+function verbInit(cwd, label, stage, stdinJson) {
+  if (!INIT_ENTRY_STAGES.includes(stage)) {
+    fail(`init needs an entry stage, one of ${INIT_ENTRY_STAGES.join('|')} — got "${stage || ''}"`);
+  }
   const { slug } = validateLabel(label);
-  const root = path.join(cwd, '.superdev', 'scopes', slug);
+  const workTree = mainWorkTree(cwd) || cwd;
+  const root = path.join(workTree, '.superdev', 'scopes', slug);
   // The real double-init signal is an existing ledger.md, not the run-root directory: run init
   // writes dod.md into the run root before calling init, so the directory legitimately exists
-  // on every fresh run.
-  if (fs.existsSync(ledgerPath(root))) fail(`ledger already exists: ${ledgerPath(root)}`);
+  // on every fresh run. A ledger at stage `planned` is the one exception (ADR 0079): it names a
+  // scope branch a plan cut but no slice has started on, so a re-init over it — an append-mode
+  // plan revising it, or `/superdev:plan`'s own §6 filling in the slice table §2 left empty —
+  // regenerates the ledger instead of refusing.
+  let priorStage;
+  if (fs.existsSync(ledgerPath(root))) {
+    priorStage = getHeader(readLines(root), 'Stage');
+    if (priorStage !== 'shipped' && priorStage !== 'planned') {
+      fail(`ledger already exists: ${ledgerPath(root)}`);
+    } else if (priorStage === 'planned') {
+      console.log(`ledger already exists at stage "planned" (no slice has run) — overwriting`);
+    }
+  }
 
   let spec;
   try {
@@ -269,14 +311,21 @@ function verbInit(cwd, label, stdinJson) {
     );
   });
 
-  // Ensure .superdev/ is git-ignored before creating anything under it — but after every
+  if (priorStage === 'shipped') {
+    // A finished run's ledger — ADR 0007's seven-day trail keeps it on disk past merge, so a second
+    // run over an appended feature (ADR 0004) lands here. Rotate aside rather than refuse. Done only
+    // after every refusal above, so a refused init leaves the shipped ledger untouched.
+    rotateShippedLedger(root);
+  }
+
+  // Ensure .superdev/ is git-ignored in the main working tree that holds it — but after every
   // refusal above, so a refused init leaves the repo untouched.
-  ensureSuperdevIgnored(cwd);
+  ensureSuperdevIgnored(workTree);
 
   const doc = [
     `# Ledger — ${slug}`,
     '',
-    '**Stage:** implementing',
+    `**Stage:** ${stage}`,
     `**Branch:** ${label}`,
     // Not sanitizeCell: the Anchor is a header line, not a table cell, and no header reader
     // unescapes `\|` — only the one-line shape matters here.
@@ -591,6 +640,12 @@ function verbAdopt(root, body) {
 // counting it as staged would be wrong and dropping it silently would be the exact loss this contract
 // exists to prevent. `strays` carries it instead, so `verbStatus` can surface it.
 function stagedPageCounts(cwd) {
+  // ponytail: raw `cwd`, not `mainWorkTree(cwd)` — `verbStatus` is internally asymmetric, resolving its
+  // scope scan through the main working tree (ADR 0080) while this staged-page scan does not. The fix is
+  // wider than one function: `skills/plan/SKILL.md` and `skills/document/SKILL.md` both instruct staging
+  // in the invoking checkout, while `plugin/scripts/publish-kb.js` already resolves `.superdev/kb-pending`
+  // through `--git-common-dir`. Upgrade path: settle where a staged page lives (main working tree, to
+  // match `publish-kb.js`) and update the two staging instructions alongside this call.
   const dir = path.join(cwd, '.superdev', 'kb-pending');
   const counts = new Map();
   const strays = new Map();
@@ -637,7 +692,7 @@ function verbStatus(cwd) {
   const { counts: pending, strays, loose } = stagedPageCounts(cwd);
   const pendingShown = new Set();
   const straysShown = new Set();
-  const scopesDir = path.join(cwd, '.superdev', 'scopes');
+  const scopesDir = scopesDirFor(cwd);
   let entries = [];
   try {
     entries = fs
@@ -863,84 +918,40 @@ function testContainment(cwd, base, branch, remote = 'origin') {
   return containedAgainst(ref, 'FETCH_HEAD', cwd, writeTreeSupported) ? 'contained' : 'not-contained';
 }
 
-// --- base lock ---------------------------------------------------------------
+// --- root: the run-root path resolver (ADR 0080) ------------------------------
 //
-// ADR 0058: `/superdev:plan` §6 and `/superdev:implement`'s run init both commit CONTEXT.md, the
-// ADRs, and the invariant register (docs/invariants.md) straight to the base branch from the invoking
-// checkout. Two sessions can pass the `git rev-parse --abbrev-ref HEAD` check at the same moment and
-// race on those files, so
-// both acquire this lock first. It is repo-level, a sibling of .superdev/scopes/ rather than a run
-// root's own artifact, because the files it guards belong to no scope.
+// Every run root lives under the repository's main working tree, whatever checkout the command was
+// invoked from: `git rev-parse --git-common-dir` names the shared git directory, and its parent is
+// the main working tree. This is what keeps a plan's scopetree, a slicetree, and the main checkout
+// all naming the same run root for one scope. `verbInit` and `verbStatus` resolve their own run-root
+// paths through this same function (review finding, ADR 0080) — building them from `cwd` directly, as
+// `verbRoot` alone used to, is exactly the divergence that leaves a ledger `init` writes from inside a
+// scopetree or slicetree invisible to a `root <slug>` call — or a `status` scan — made from the main
+// working tree.
 //
-// No hook backs it. The exclusive create below is atomic across processes by construction, which is
-// the same backstop `hooks/run-lock.js` really rests on (`git worktree add -b`'s own refusal).
-const BASE_LOCK_STALE_MS = 5 * 60 * 1000;
-
-function baseLockPath(cwd) {
-  return path.join(cwd, '.superdev', 'base.lock');
+// Returns `null` rather than failing when `cwd` is not inside a git repository: `init` and `status`
+// both tolerate that (a `status` scan of a plain, non-superdev directory reports "no runs found" rather
+// than refusing), so they fall back to `cwd` itself on a `null`. `verbRoot` is the one caller that turns
+// a `null` into a refusal — a bare path with no git repository behind it answers a question `root`'s one
+// caller (`references/run-init.md`, `skills/plan/SKILL.md`) never asks outside a checkout.
+function mainWorkTree(cwd) {
+  const commonDir = gitSpawn(['rev-parse', '--git-common-dir'], cwd);
+  if (commonDir.status !== 0) return null;
+  const gitDir = path.resolve(cwd, commonDir.stdout.trim());
+  return path.dirname(gitDir);
 }
 
-function writeBaseLock(file) {
-  // 'wx' fails rather than truncating when the file is already there, which is the whole guarantee.
-  fs.writeFileSync(file, `pid ${process.pid}\nacquired ${new Date().toISOString()}\n`, { encoding: 'utf8', flag: 'wx' });
+function scopesDirFor(cwd) {
+  return path.join(mainWorkTree(cwd) || cwd, '.superdev', 'scopes');
 }
 
-function readBaseLockHolder(file) {
-  try {
-    return fs.readFileSync(file, 'utf8').split('\n')[0] || null;
-  } catch {
-    return null;
-  }
-}
-
-function verbBaseLock(cwd, sub) {
-  const file = baseLockPath(cwd);
-  if (sub === 'acquire') {
-    // `.superdev/` has to exist before the exclusive create, but ignoring it is a side effect of a
-    // *successful* create only — a refused acquire (below) must touch nothing else (dod.md's own
-    // criterion), so the ignore write happens after each `writeBaseLock` that actually lands.
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    try {
-      writeBaseLock(file);
-      ensureSuperdevIgnored(cwd);
-    } catch (e) {
-      if (e.code !== 'EEXIST') throw e;
-      const ageMs = Date.now() - fs.statSync(file).mtimeMs;
-      if (ageMs < BASE_LOCK_STALE_MS) {
-        const holder = readBaseLockHolder(file);
-        fail(
-          `base lock held by another live session (${file}, ${Math.round(ageMs / 1000)}s old` +
-            (holder ? `, ${holder}` : '') +
-            ') — another /superdev:plan or /superdev:implement is committing design docs to the base branch. ' +
-            'Retry once it finishes; a crashed session\'s lock is reclaimed after 5 minutes.'
-        );
-      }
-      // Stale: unlink then re-create exclusively, so a second session reclaiming the same stale lock
-      // at the same moment still loses the create rather than sharing it.
-      try {
-        fs.unlinkSync(file);
-      } catch (e2) {
-        if (e2.code !== 'ENOENT') throw e2;
-      }
-      try {
-        writeBaseLock(file);
-        ensureSuperdevIgnored(cwd);
-      } catch (e2) {
-        if (e2.code !== 'EEXIST') throw e2;
-        fail(`base lock reclaimed by another live session while this one was clearing it (${file}) — retry.`);
-      }
-    }
-    return;
-  }
-  if (sub === 'release') {
-    try {
-      fs.unlinkSync(file);
-    } catch (e) {
-      if (e.code !== 'ENOENT') throw e; // absent is the released state, not an error
-    }
-    return;
-  }
-  fail(`unknown base-lock subcommand "${sub || ''}" — use acquire or release`);
+function verbRoot(cwd, slug) {
+  if (!slug) fail('root needs a <slug>');
+  if (slug.includes('/') || slug.includes('\\')) fail(`slug "${slug}" must not contain a path separator`);
+  if (slug.startsWith('.')) fail(`slug "${slug}" must not start with "."`);
+  const mwt = mainWorkTree(cwd);
+  if (mwt === null) fail(`not inside a git repository (cwd: ${cwd})`);
+  console.log(path.join(mwt, '.superdev', 'scopes', slug));
 }
 
 // --- CLI ---------------------------------------------------------------------
@@ -948,7 +959,8 @@ function verbBaseLock(cwd, sub) {
 function usage() {
   return [
     'usage: node scope.js <verb> …   (ledger CLI — the only ledger.md write path)',
-    '  init <type>/<slug>                 stdin: {"anchor":"…","slices":[{id,issue,title,type,…}]}',
+    '  init <type>/<slug> <stage>          stage is planned|implementing (ADR 0079, no default) —',
+    '                                      stdin: {"anchor":"…","slices":[{id,issue,title,type,…}]}',
     '  stage set <value> --root <run-root>',
     '  slice <id> <status> [--range <r>]   --root <run-root>',
     '  degraded add|add-denial|reset-denials <text>   --root <run-root>',
@@ -959,7 +971,7 @@ function usage() {
     '  status                             scans <cwd>/.superdev/scopes/*/',
     '  publish --root <run-root>          prints the ledger as one "## Run state" section on stdout',
     '  adopt --root <run-root>            stdin: a whole anchor body; extracts and writes the section',
-    '  base-lock acquire|release          guards <cwd>/.superdev/base.lock, the base-branch design-docs commit',
+    '  root <slug>                        prints <main-worktree>/.superdev/scopes/<slug>, resolved via git',
   ].join('\n');
 }
 
@@ -978,7 +990,7 @@ function run(argv, cwd, stdinJson) {
   switch (verb) {
     case 'init':
       if (!args[0]) fail('init needs a <type>/<slug> label');
-      verbInit(cwd, args[0], stdinJson);
+      verbInit(cwd, args[0], args[1], stdinJson);
       break;
     case 'stage': {
       const root = takeRoot(args);
@@ -1036,9 +1048,9 @@ function run(argv, cwd, stdinJson) {
       verbAdopt(root, stdinJson);
       break;
     }
-    // No --root: the base lock is repo-level, resolved from cwd (the invoking checkout).
-    case 'base-lock':
-      verbBaseLock(cwd, args[0]);
+    // No --root: root resolves the run-root path itself, from cwd (ADR 0080).
+    case 'root':
+      verbRoot(cwd, args[0]);
       break;
     default:
       fail('unknown verb "' + (verb || '') + '"\n' + usage());

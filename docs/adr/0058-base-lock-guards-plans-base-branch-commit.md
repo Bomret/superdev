@@ -1,6 +1,8 @@
 # 0058: A base lock guards the base-branch design-docs commit, atomic file-create only, no hook
 
-**Status:** Superseded by [ADR 0079](0079-a-planned-ledger-hands-the-scope-branch-from-plan-to-implement.md),
+**Status:** Superseded
+
+**Superseded by:** [ADR 0079](0079-a-planned-ledger-hands-the-scope-branch-from-plan-to-implement.md),
 which removes the base-branch commit the lock guards, and with it the lock.
 
 **Context.** `/superdev:plan` §6 and `/superdev:implement`'s run init both commit `CONTEXT.md`, ADRs, and

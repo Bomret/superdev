@@ -9,6 +9,8 @@ const { scanContract } = require('../lib');
 const {
   scan,
   scanRunRootPaths,
+  scanScopetreeRunRootPaths,
+  scanNoBaseBranchCommit,
   scanAssigneeContract,
   scanAnchorContract,
   scanAppendContract,
@@ -139,6 +141,158 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   });
   const offenders5 = scanRunRootPaths(tmp5);
   assert.equal(offenders5.length, 0, 'absolute form + scopetree/slicetree dir paths yield zero offenders');
+
+  // --- scanScopetreeRunRootPaths (ADR 0080): the four documents that address another run's scopetree
+  // from their own cwd must use the absolute <run-root>/scopetree form, never the checkout-relative
+  // .superdev/scopes/<scope>/scopetree literal RUN_ROOT_ARTIFACT_PATTERN above deliberately never
+  // catches (most of its occurrences elsewhere are real git-worktree commands run from the checkout on
+  // purpose). ---
+
+  // positive: ship.md reverts to the checkout-relative literal
+  const tmp5b = fixture({
+    'skills/ship/SKILL.md': 'Remove this run\'s scopetree: `.superdev/scopes/<scope>/scopetree`.\n',
+  });
+  const offenders5b = scanScopetreeRunRootPaths(tmp5b);
+  assert.equal(offenders5b.length, 1, 'flags the checkout-relative scopetree literal');
+  assert.equal(offenders5b[0].source, path.join('skills', 'ship', 'SKILL.md'), 'names ship.md');
+
+  // negative: the absolute <run-root>/scopetree form is clean, and a plain checkout-relative scopetree
+  // *directory* cut elsewhere (e.g. scope-mode.md's own git-worktree command) is out of this scanner's
+  // four-document list entirely, so it is never even read
+  const tmp5c = fixture({
+    'skills/ship/SKILL.md': 'Remove this run\'s scopetree: `<run-root>/scopetree`.\n',
+    'references/scope-mode.md': 'git worktree add `.superdev/scopes/<scope>/scopetree` -b <branch>\n',
+  });
+  assert.equal(scanScopetreeRunRootPaths(tmp5c).length, 0, 'the absolute form yields zero offenders');
+
+  // --- scanNoBaseBranchCommit (INV-0001, docs/invariants.md): no shipped file under skills/ or
+  // references/ instructs a commit or a push to the base branch — every write a run makes lands on the
+  // run's own scope branch, in its own scopetree. ---
+
+  // positive: reintroducing the retired base-branch commit instruction is flagged, by file and line
+  const tmp5d = fixture({
+    'skills/plan/SKILL.md':
+      'Ask the interview questions first.\n' +
+      '**Commit the durable design docs** you wrote — `CONTEXT.md`, any ADRs (`docs/adr/`) — to the base branch.\n',
+  });
+  const offenders5d = scanNoBaseBranchCommit(tmp5d);
+  assert.equal(offenders5d.length, 1, 'flags the reintroduced base-branch commit instruction');
+  assert.equal(offenders5d[0].source, 'skills/plan/SKILL.md', 'names plan.md');
+  assert.equal(offenders5d[0].line, 2, 'names the line the instruction starts on');
+
+  // negative: a caution *against* committing onto the base branch reads correct, not as a violation —
+  // references/prototype.md carries exactly this shape
+  const tmp5e = fixture({
+    'references/prototype.md':
+      'Commit the prototype itself to a throwaway branch off the base — never onto the base branch — ' +
+      'and leave a pointer to that branch where the decision landed.\n',
+  });
+  assert.equal(scanNoBaseBranchCommit(tmp5e).length, 0, 'a never-onto-base caution is not itself a violation');
+
+  // negative: a `push-only` PR-posture value sitting near an unrelated "base branch" config field is not
+  // a violation either — skills/setup/SKILL.md and the code-management seeds carry exactly this shape
+  const tmp5f = fixture({
+    'skills/setup/SKILL.md':
+      'Confirm the default PR posture (`draft` | `ready` | `push-only`) and the\n' +
+      '**base branch** (default `main`).\n',
+  });
+  assert.equal(scanNoBaseBranchCommit(tmp5f).length, 0, "a `push-only` config value near an unrelated base-branch field is not flagged");
+
+  // positive: a `never` sitting between the verb and "base branch" but negating something else entirely
+  // is a live bypass, not a caution — the exclusion only holds for a `never` that sits right next to
+  // "base branch" itself (the shape prototype.md's own caution carries), not one anywhere in the window
+  const tmp5g = fixture({
+    'skills/plan/SKILL.md': 'Commit the docs now (never mind the formatting) directly to the base branch.\n',
+  });
+  const offenders5g = scanNoBaseBranchCommit(tmp5g);
+  assert.equal(offenders5g.length, 1, 'a `never` far from "base branch" does not excuse the instruction');
+
+  // positive: the base branch named by its own configured name (read from docs/agents/code-management.md's
+  // `**Base branch:**` bullet), rather than the words "base branch", is still an instruction to commit or
+  // push onto it
+  const tmp5h = fixture({
+    'docs/agents/code-management.md': '- **Base branch:** `main`.\n',
+    'skills/ship/SKILL.md': 'Commit the design docs directly onto `main`.\n',
+    'references/run-init.md': 'git push origin main\n',
+  });
+  const offenders5h = scanNoBaseBranchCommit(tmp5h);
+  assert.equal(offenders5h.length, 2, 'flags both the backtick-named and the `origin`-pushed base branch');
+  assert.deepEqual(
+    offenders5h.map((g) => g.source).sort(),
+    ['references/run-init.md', 'skills/ship/SKILL.md'],
+    'names both offending files',
+  );
+
+  // negative: an ordinary, non-git use of the base branch's own name is not itself a violation — "main"
+  // is common English too, and only a backtick-quoted or `origin`-pushed mention is a git target
+  const tmp5i = fixture({
+    'docs/agents/code-management.md': '- **Base branch:** `main`.\n',
+    'skills/backlog/SKILL.md':
+      'Resolve the checkout once, not per anchor: the main checkout is the PARENT of the scopetree, and ' +
+      'a run root never commits anything there.\n',
+  });
+  assert.equal(scanNoBaseBranchCommit(tmp5i).length, 0, 'the adjective "main" near an unrelated commit is not flagged');
+
+  // ponytail: the sliding window is 4 lines / 150 chars — a proven heuristic, not a parser. An
+  // instruction split across 5 or more lines is missed; lift the ceiling by widening
+  // BASE_BRANCH_COMMIT_WINDOW (and, in step, the 150-char proximity bound) if that shape shows up for
+  // real.
+  const tmp5j = fixture({
+    'skills/plan/SKILL.md':
+      'Commit\n' +
+      'the\n' +
+      'durable\n' +
+      'design\n' +
+      'docs to the base branch.\n',
+  });
+  assert.equal(scanNoBaseBranchCommit(tmp5j).length, 0, 'known ceiling: a 5-line-split instruction is missed');
+
+  // negative: a `never` that negates the *verb* itself, sitting right before it rather than right
+  // before the target, is a caution too — the most natural phrasing of one
+  const tmp5k = fixture({
+    'references/prototype.md': 'Never commit prototype code to the base branch.\n',
+  });
+  assert.equal(scanNoBaseBranchCommit(tmp5k).length, 0, 'a never-before-the-verb caution is not a violation');
+
+  const tmp5l = fixture({
+    'references/prototype.md': 'Never push a prototype branch to the base branch.\n',
+  });
+  assert.equal(scanNoBaseBranchCommit(tmp5l).length, 0, 'a never-before-the-verb push caution is not a violation');
+
+  // negative: a never-before-the-verb caution split across a line break is still a caution — `negated()`
+  // must test the full document up to the match's absolute offset, never only the sliding window that
+  // happened to find it, or the same physical instruction re-matches with no negating context once the
+  // window's own start has slid past the `never` line (review finding).
+  const tmp5lb = fixture({
+    'references/prototype.md': 'Do the work. This is fine, but never\ncommit it to the base branch afterwards.\n',
+  });
+  assert.equal(
+    scanNoBaseBranchCommit(tmp5lb).length,
+    0,
+    'a never-before-the-verb caution split across a line break is not a violation',
+  );
+
+  // positive: a genuine violation later in the same file must still be reported even though an earlier,
+  // correctly-excused caution shares its exact verb/target shape — the scan must not stop at its first
+  // hit, negated or not (review finding).
+  const tmp5lc = fixture({
+    'references/prototype.md':
+      'Do the work. This is fine, but never\n' +
+      'commit it to the base branch afterwards.\n' +
+      'Later, actually commit this straight to the base branch for real.\n',
+  });
+  const offenders5lc = scanNoBaseBranchCommit(tmp5lc);
+  assert.equal(offenders5lc.length, 1, 'the later real violation is reported, not masked by the earlier caution');
+  assert.equal(offenders5lc[0].line, 3, 'names the line the real violation starts on');
+
+  // negative: docs/agents/code-management.md missing, or carrying no `**Base branch:**` bullet, degrades
+  // to phrase-based matching ("base branch") rather than throwing — the base's own name simply never
+  // gets its own pattern
+  const tmp5m = fixture({
+    'skills/plan/SKILL.md': 'Ask the interview questions first.\n',
+  });
+  assert.doesNotThrow(() => scanNoBaseBranchCommit(tmp5m), 'no code-management.md at all does not throw');
+  assert.equal(scanNoBaseBranchCommit(tmp5m).length, 0, 'and reports nothing when no instruction is present');
 
   // --- scanAssigneeContract: an issue-backend doc that describes creating an issue must carry the
   // `## Assignee` section, and must NOT carry a `- **Assignee:**` configuration bullet. The assignee is

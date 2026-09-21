@@ -788,19 +788,70 @@ const VERB_CONTRACTS = [
   // `tests/publish-kb.test.js`'s ledger-route assertions: "the ledger's Branch line, once it verifies,
   // is trusted ahead of the shape scan" and "the ledger's Branch line is what gets tested, not merely
   // consulted then discarded", both of which exercise `resolveScopeBranch` against a real git repo.
-  // ADR 0058's two call sites for the base lock, both halves of each. No hook backs this verb, so a
-  // document that stops acquiring goes straight back to two sessions racing on CONTEXT.md, the ADRs,
-  // and the invariant register — and one that stops releasing leaves every later session waiting out
-  // the five-minute staleness window for a lock nobody holds.
-  [path.join('references', 'run-init.md'), /scope\.js["'`]?\s+base-lock acquire\b/, 'take the base lock with `scope.js base-lock acquire` before it edits a base-branch design doc'],
-  [path.join('references', 'run-init.md'), /scope\.js["'`]?\s+base-lock release\b/, 'release the base lock with `scope.js base-lock release` once its base push completes'],
-  [path.join('skills', 'plan', 'SKILL.md'), /scope\.js["'`]?\s+base-lock acquire\b/, 'take the base lock with `scope.js base-lock acquire` before it edits a base-branch design doc'],
-  [path.join('skills', 'plan', 'SKILL.md'), /scope\.js["'`]?\s+base-lock release\b/, 'release the base lock with `scope.js base-lock release` once its base push completes'],
+  // Retired (ADR 0079): `scope.js base-lock` and its two rows on `references/run-init.md` are gone.
+  // No superdev command commits to the base branch (INV-0001) — a dirty design doc in the invoking
+  // checkout moves into the scopetree and is committed on the scope branch instead, so nothing left
+  // ever needs the lock that used to serialise a base-branch write.
   // /plan names `scope.js` once and then its two verbs, so the branch half wraps away from the path
   // prefix (`get\n  branch --root <run-root>`) and the `scope.js <verb>` shape above cannot reach it.
   // The `--root` argument is what separates the verb invocation from the words "get branch" in prose.
   [path.join('skills', 'plan', 'SKILL.md'), /get\s+branch\s+--root/, 'read the scope branch with `scope.js get branch` for its append refusal, never by reconstructing `<type>/<scope>`'],
 ];
+
+// ADR 0079/0080: the planned handoff. `/superdev:plan` cuts the branch and scopetree itself, commits its
+// design docs there on the scope branch, and writes a ledger at stage `planned` — the fact that hands the
+// scope branch to `/superdev:implement` as ready, without either side ever touching the base branch. Four
+// documents carry the agreement, and each pinned half reads correct alone: `scope.js` can rank `planned`
+// below `implementing` and carry the `root <slug>` verb while `skills/plan/SKILL.md` stops writing the
+// ledger or committing in the scopetree; `references/run-init.md` can still take a `planned` ledger while
+// `scope-mode.md`'s cut rule stops naming it a `resumed` run kind; and either dispatch sentence in
+// `skills/plan/SKILL.md` can stop citing `scope-mode.md`'s own rule while that rule still states it. Each
+// row below is one of those halves.
+const PLANNED_HANDOFF_CONTRACTS = [
+  [path.join('scripts', 'scope.js'), /planned:\s*-1,\s*implementing:\s*0/, 'rank `planned` below `implementing` in `STAGE_RANK` (ADR 0079)'],
+  [path.join('scripts', 'scope.js'), /case 'root':/, 'carry the `root <slug>` verb that resolves a run-root path with no ledger touch (ADR 0080)'],
+  [path.join('skills', 'plan', 'SKILL.md'), /\*\*Write the ledger with `scope\.js init`, from the invoking checkout\*\*/, 'write the ledger with `scope.js init`, from the invoking checkout'],
+  [path.join('skills', 'plan', 'SKILL.md'), /\*\*Commit what the scopetree holds, on the scope branch\.\*\*/, 'commit its design docs in the scopetree, on the scope branch, before writing the ledger'],
+  [path.join('references', 'run-init.md'), /\*\*`planned`\*\*[\s\S]{0,120}skip `init`, move the\s+stage forward/, 'take a `planned` ledger by skipping `init` and moving the stage forward to `implementing`'],
+  [path.join('references', 'scope-mode.md'), /A \*\*`planned`\*\* ledger is one instance of this run kind \(ADR 0079\)/, 'name a `planned` ledger as the `resumed` run kind `/superdev:plan` already cut'],
+  [path.join('references', 'scope-mode.md'), /once `\/superdev:plan` has made its own cut \(ADR 0079\)/, 'name `/superdev:plan` as a second run-lock writer beside the execution playbooks'],
+  [path.join('skills', 'plan', 'SKILL.md'), /scope-mode\.md`'s `## Cutting the scope branch` \(ADR 0079\)/, "cite `scope-mode.md`'s `## Cutting the scope branch` for its own cut rather than restating it"],
+  [path.join('skills', 'plan', 'SKILL.md'), /write `<run-root>\/run\.lock` right after, per `## The run lock`/, 'write `<run-root>/run.lock` right after its own cut, per `## The run lock`'],
+  // Critical review finding: `init` took no stage argument and stamped `planned` unconditionally, so
+  // run init's own `fresh` path — the one caller with no `/superdev:plan` interval to enter through —
+  // silently ran its whole implementation at stage `planned`. `init` now takes the entry stage as a
+  // required argument with no default, and this is the `fresh` half of that fix: it must keep asking
+  // for `implementing` by name, never rely on a default `scope.js` might grow back.
+  [path.join('scripts', 'scope.js'), /INIT_ENTRY_STAGES\s*=\s*\['planned', 'implementing'\]/, "carry `init`'s entry-stage argument with no default (ADR 0079)"],
+  [path.join('references', 'run-init.md'), /scope\.js"\s+init\s+<type>\/<scope>\s+implementing/, "pass `implementing` as `init`'s entry stage on the `fresh` path — the one caller with no `planned` interval to enter through"],
+  // Triage #509/#510 closures: §2 moved its ledger write and its run-lock read to the cut itself, rather
+  // than leaving either to §6, so both halves of that move are pinned rather than left to restate
+  // themselves silently drifting apart from what §6 actually still does.
+  [path.join('skills', 'plan', 'SKILL.md'), /"slices": \[\]\}` to `scope\.js init <type>\/<scope> planned`/, 'pass `planned`, never `implementing`, as `init`\'s entry stage for its own cut-time ledger write'],
+  [path.join('skills', 'plan', 'SKILL.md'), /\*\*Write the ledger right here, at the cut — never wait for §6\.\*\*/, 'write the ledger right at the cut rather than waiting for §6 (closes triage #509)'],
+  [path.join('skills', 'plan', 'SKILL.md'), /\*\*Read `<run-root>\/run\.lock` before this step's first write, whether or not a cut happens below\.\*\*/, "read `<run-root>/run.lock` before §2's first write, whether or not a cut happens below (closes triage #510)"],
+  // Important review finding A: a `planned` ledger carrying no slice rows is an interview abandoned
+  // between the cut and the slice-table write, not a normal `resumed`/adopted run — both the local-ledger
+  // `planned` bullet and the adopt path check the store's slices before choosing `stage set` vs a re-init.
+  [path.join('references', 'run-init.md'), /A `planned` ledger carrying no slice rows never reaches this stage-forward move/, 'name a `planned` ledger with no slice rows as an unresumed interview needing a store check, not a `stage set`'],
+  [path.join('references', 'run-init.md'), /A successful adopt whose stage is `planned` and slice table is empty/, "apply the same store-check the local-ledger `planned` bullet does when an adopted snapshot lands at `planned` with an empty slice table"],
+  [path.join('skills', 'plan', 'SKILL.md'), /adapted to a plan-time call passing[\s\S]{0,60}scope\.js init <type>\/\<scope\> planned/, "pass `planned` as `init`'s entry stage in the resume step (§6) where no `/superdev:plan` interval exists to enter through"],
+];
+
+// The four documents ADR 0080 flags as still building a run-root scopetree path against the invoking
+// checkout's own cwd, rather than resolving it through `scope.js root <slug>`: unlike the artifact paths
+// `RUN_ROOT_ARTIFACT_PATTERN` guards, a `scopetree` *directory* path is deliberately outside that
+// alternation everywhere else, because most of its occurrences are real `git worktree add`-style commands
+// run from the invoking checkout on purpose. These four instead address another run's scopetree from
+// their own cwd, which may not be that checkout, so a reverted cwd-relative literal here is the same bug
+// class with no legitimate reading.
+const SCOPETREE_RUN_ROOT_DOCS = [
+  path.join('skills', 'afk', 'SKILL.md'),
+  path.join('skills', 'ship', 'SKILL.md'),
+  path.join('skills', 'document', 'SKILL.md'),
+  path.join('scripts', 'publish-kb.js'),
+];
+const SCOPETREE_RUN_ROOT_PATTERN = /\.superdev\/scopes\/[^\s`/]+\/scopetree\b/g;
 
 // ADR 0023: a remote knowledge base is a reader-facing surface, and a page sent from an unmerged branch
 // claims a feature no reader can reach. `/superdev:plan` and `/superdev:document` therefore write pages
@@ -2077,15 +2128,17 @@ const PLAN_APPEND_CONTRACTS = [
 
 // ADR 0007 + ADR 0004: `scope-prune` keeps a run root, and its shipped `ledger.md`, for seven days past
 // merge, so a second `/superdev:implement` run over an appended feature can land while that ledger is
-// still on disk. Run init must read the stage before choosing resume-vs-init: a `shipped` ledger belongs
-// to a finished run and gets rotated aside, never resumed, and never deleted — `scope-prune` still reaps
-// the whole run root on its own terms. The rotation must also never clobber an existing
+// still on disk. A `shipped` ledger belongs to a finished run and gets rotated aside, never resumed, and
+// never deleted — `scope-prune` still reaps the whole run root on its own terms. `init` performs the
+// rotation itself (Important review finding B, ADR 0079/0080: `scope.js` is the sole ledger read and
+// write path, ADR 0022), so `references/run-init.md` describes what `init` does rather than instructing a
+// reader to rename the file by hand first. The rotation must also never clobber an existing
 // `ledger-shipped-<date>.md`, so a scope that ships twice in one calendar day keeps both trails.
 const ROTATE_ON_SHIPPED_CONTRACTS = [
   [
     path.join('references', 'run-init.md'),
-    /rename it to `ledger-shipped-<date>\.md`/,
-    'rotate a `shipped` ledger to `ledger-shipped-<date>.md` before running `init` again',
+    /`init`\s+itself\s+rotates\s+the\s+existing\s+ledger\s+aside\s+to\s+`ledger-shipped-<date>\.md`/,
+    'state that `init` itself rotates a `shipped` ledger aside to `ledger-shipped-<date>.md` before writing the fresh one',
   ],
   [
     path.join('references', 'run-init.md'),
@@ -2141,13 +2194,14 @@ const RUN_KIND_CONTRACTS = [
   [
     path.join('references', 'scope-mode.md'),
     /`fresh`[\s\S]{0,240}?[Cc]ut\s+it\s+from\s+`<base>`/,
-    'specify the `fresh` run kind — no branch exists, so the run cuts one from `<base>`',
+    'specify the `fresh` run kind — no ledger existed, so the run cuts the branch from `<base>`',
   ],
   [
     path.join('references', 'scope-mode.md'),
-    /\*\*The name already exists\*\*[\s\S]{0,300}?[Ss]top,\s+name\s+the\s+branch\s+found,\s+and\s+cut\s+nothing/,
+    /\*\*The name already exists\*\*[\s\S]{0,400}?decides\s+its\s+own\s+reused\s+branch[\s\S]{0,80}?contained\s+in\s+`<base>`\s+and\s+reused,\s+or\s+not\s+contained\s+and\s+stopped/,
     'specify the `fresh` run kind — a same-named branch a scope-prune reap left standing makes `-b` fail; ' +
-      'stop and name it rather than forcing a reset',
+      'decide it with the same containment test `appended` uses, rather than stopping unconditionally ' +
+      '(closes triage #417)',
   ],
   [
     path.join('references', 'scope-mode.md'),
@@ -2191,7 +2245,7 @@ const RUN_KIND_CONTRACTS = [
     path.join('references', 'scope-mode.md'),
     /`resumed`[\s\S]{0,400}?[Nn]o\s+containment\s+test\s+runs\s+and\s+nothing\s+is\s+cut/,
     'specify the `resumed` run kind — no containment test runs and nothing is cut, because the branch ' +
-      'holds unmerged slice work by design',
+      'holds work by design, whether unmerged slice work or a `planned` ledger\'s own design-docs commit',
   ],
 ];
 
@@ -2268,15 +2322,15 @@ const RUN_KIND_CONTRACTS = [
 const SCOPETREE_CONTRACTS = [
   [
     path.join('references', 'scope-mode.md'),
-    /`\.superdev\/scopes\/<scope>\/scopetree`\s+is\s+the\s+scope\s+checkout,\s+at\s+both\s+tiers/,
-    'state that the scope checkout resolves to one location, `.superdev/scopes/<scope>/scopetree`, at ' +
+    /`<run-root>\/scopetree`\s+is\s+the\s+scope\s+checkout,\s+at\s+both\s+tiers/,
+    'state that the scope checkout resolves to one location, `<run-root>/scopetree`, at ' +
       'both tiers',
   ],
   [
     path.join('references', 'scope-mode.md'),
-    /\*\*Absent\*\*[\s\S]{0,120}?git\s+worktree\s+add\s+\.superdev\/scopes\/<scope>\/scopetree\s+<branch>/,
+    /\*\*Absent\*\*[\s\S]{0,120}?git\s+worktree\s+add\s+<run-root>\/scopetree\s+<branch>/,
     'state that an absent scope checkout is recreated with `git worktree add ' +
-      '.superdev/scopes/<scope>/scopetree <branch>`',
+      '<run-root>/scopetree <branch>`',
   ],
   [
     path.join('references', 'scope-mode.md'),
@@ -2302,7 +2356,7 @@ const SCOPETREE_CONTRACTS = [
   ],
   [
     path.join('references', 'implement-full.md'),
-    /\*\*Merge \(you, serially\)\*\*[\s\S]{0,80}?git\s+-C\s+\.superdev\/scopes\/<scope>\/scopetree\s+merge/,
+    /\*\*Merge \(you, serially\)\*\*[\s\S]{0,80}?git\s+-C\s+<run-root>\/scopetree\s+merge/,
     'address the DAG loop merge step at the scopetree with `git -C`',
   ],
   [
@@ -2369,7 +2423,7 @@ const SCOPETREE_CONTRACTS = [
   ],
   [
     path.join('references', 'merge-conflicts.md'),
-    /git\s+-C\s+\.superdev\/scopes\/<scope>\/scopetree\s+merge\s+--abort`?\s+and\s+escalate\s+to\s+the\s+human/,
+    /git\s+-C\s+<run-root>\/scopetree\s+merge\s+--abort`?\s+and\s+escalate\s+to\s+the\s+human/,
     'abort a winner-picking conflict in the scopetree with `git -C`, not the invoking checkout',
   ],
   [
@@ -3273,4 +3327,7 @@ module.exports = {
   INVARIANT_REGISTER_CONTRACTS,
   INVARIANT_REGISTER_DOC_PASS_CONTRACTS,
   INVARIANT_COMPLIANCE_CONTRACTS,
+  PLANNED_HANDOFF_CONTRACTS,
+  SCOPETREE_RUN_ROOT_DOCS,
+  SCOPETREE_RUN_ROOT_PATTERN,
 };

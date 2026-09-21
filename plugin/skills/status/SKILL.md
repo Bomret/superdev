@@ -29,6 +29,8 @@ found in this repo.` when there are none. Do not create `.superdev/` or any file
 
 Every slice `merged` does not mean the run is done: the scope still has to be reviewed, documented, and
 shipped. The stage says which of those already happened, so add nothing of your own — no `complete` note.
+A run at stage `planned` prints the same way, its slice tally at zero and `stage: planned` named — a plan
+cut the branch and scopetree, but no slice has run yet (ADR 0079).
 
 A **shipped** scope prints as one line, `<scope>  (shipped)`, with no slice tally and no blocked list. It
 is finished with, and `hooks/scope-prune.js` reaps its run root together with its scope branch once the

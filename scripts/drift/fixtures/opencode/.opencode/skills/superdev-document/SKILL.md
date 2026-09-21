@@ -31,7 +31,7 @@ It performs the pass `<plugin-root>/references/doc-pass.md` states, and commits 
 @52
 **The knowledge-base pass reaches no backend.** For a remote backend the doc-writer writes each page as a **staged page**, and `/superdev-publish-kb` sends it later, once a human decides the feature has reached its readers (ADR 0023). A local `docs/kb/` backend is unaffected: its pages are repository files that ride the branch.
 @55
-The scope checkout is `.superdev/scopes/<scope>/scopetree`, inside `.superdev/` itself, so a checkout-relative path resolves one level too deep from the doc-writer's cwd and lands in a directory `/superdev-ship` deletes.
+The scope checkout is `<run-root>/scopetree`, inside `.superdev/` itself, so a checkout-relative path resolves one level too deep from the doc-writer's cwd and lands in a directory `/superdev-ship` deletes.
 @63
 Dispatch **`doc-reader`** with an **explicit `model`** (`sonnet`), that file list, the `docs/agents/documentation.md` path, and the doc-writer's **commit range** (`<first>^..<last>`, covering both passes) — no narrative, no summary of the work: it reads the docs cold and verifies their claims against the repo, read-only.
 @67

@@ -155,8 +155,9 @@ sweep ends there rather than re-testing the same candidates. That is what keeps 
 ## 3. Take it through the chain
 
 Read the scope's stage — `node "<plugin-root>/scripts/scope.js" get stage --root <run-root>`
-(`<run-root>` is `.superdev/scopes/<scope>/`) — and start at the step that stage has not reached. Resume
-rather than restart: a merged slice is never rebuilt.
+(`<run-root>` is `node "<plugin-root>/scripts/scope.js" root <scope>`'s printed absolute path,
+per `<plugin-root>/references/scope-mode.md`'s `<run-root>` capture) — and start at the step that
+stage has not reached. Resume rather than restart: a merged slice is never rebuilt.
 
 Each "Start at" cell below still reads as a slash command. On OpenCode, invoke it with the `skill`
 tool instead — `name: superdev-<name>` for the command named `/superdev-<name>` — and state the
@@ -165,7 +166,7 @@ does.
 
 | Stage | Start at |
 |---|---|
-| no run root, or `implementing` | `/superdev-implement <feature-label> --unattended` |
+| no run root, `planned`, or `implementing` | `/superdev-implement <feature-label> --unattended` |
 | `merged` | `/superdev-review <BASE>..<feature-label> --unattended` |
 | `reviewed` | `/superdev-document <BASE>..<feature-label> --unattended` |
 | `documented-unreviewed` | `/superdev-review <BASE>..<feature-label> --unattended` |
@@ -212,7 +213,7 @@ labelling and the comment). Then:
   the decision and finishes that scope by hand. **Record `<feature-label>` in the block comment** (append
   it to what the invoked command wrote, or — for the error-stop case below — include it in the comment
   you write yourself) and **name it in §6's report row**, so resuming by hand is one `cd` into the
-  scopetree (`.superdev/scopes/<scope>/scopetree`) away.
+  scopetree (`<run-root>/scopetree`) away.
 - **Add one to the consecutive-block count** — read `.superdev/afk-blocks`, write it back incremented —
   and go back to §2 for the next anchor.
 

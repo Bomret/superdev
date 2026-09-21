@@ -12,6 +12,8 @@ const { scanContract } = require('./lib');
 const {
   scan,
   scanRunRootPaths,
+  scanScopetreeRunRootPaths,
+  scanNoBaseBranchCommit,
   scanAssigneeContract,
   scanAnchorContract,
   scanAppendContract,
@@ -106,6 +108,7 @@ const {
   INVARIANT_REGISTER_CONTRACTS,
   INVARIANT_REGISTER_DOC_PASS_CONTRACTS,
   INVARIANT_COMPLIANCE_CONTRACTS,
+  PLANNED_HANDOFF_CONTRACTS,
 } = require('./contracts');
 
 // The printer the table-driven checks share. A gap is `{ source, expectation }` and reads the
@@ -227,7 +230,20 @@ module.exports = [
   table('label-validation', LABEL_VALIDATION_CONTRACTS, 'both label segments validated'),
   table('green-gate-timeout', GREEN_GATE_TIMEOUT_CONTRACTS, "green-gate's hooks.json timeout matches its own comment"),
   table('verb-pointer', VERB_CONTRACTS, 'every chain document invokes its scope.js verb'),
+  table('planned-handoff', PLANNED_HANDOFF_CONTRACTS, 'the planned handoff from /superdev:plan to /superdev:implement is carried on both sides'),
   table('kb-staging', KB_STAGING_CONTRACTS, 'knowledge-base pages are staged'),
+  {
+    id: 'scopetree-run-root',
+    ok: 'the four scopetree-addressing documents use the absolute run-root path',
+    run: scanScopetreeRunRootPaths,
+    format: (o) => `checkout-relative scopetree path \`${o.match}\` in ${o.source} — use \`<run-root>/scopetree\``,
+  },
+  {
+    id: 'no-base-branch-commit',
+    ok: 'no shipped prose instructs a commit or a push to the base branch (INV-0001)',
+    run: scanNoBaseBranchCommit,
+    format: (g) => `${g.source}:${g.line} instructs a commit or a push to the base branch — no superdev command commits to the base branch (INV-0001, docs/invariants.md)`,
+  },
   {
     id: 'kb-no-backend-call',
     ok: 'no document but publish-kb reaches a backend',

@@ -24,18 +24,25 @@ candidates*) for the user to pick one, then loads that feature's epic, its slice
 Done — **before §1's first question**, because the append interview needs that context from the start
 (`references/plan-contract.md` → *Append mode*, ADR 0004).
 
-**Refuse to extend, and write nothing, on either signal below.** There is no override argument; the only
-escape is fixing the state. Name which signal fired and what clears it:
+**Refuse to extend, and write nothing, on either signal below — a `planned` stage is exempt from the
+second one.** There is no override argument; the only escape is fixing the state. Name which signal
+fired and what clears it:
 
-- The store holds a slice `in-progress`, `in-review`, or `blocked` — a run active elsewhere.
-- The scope's run root (`.superdev/scopes/<slug>/`) exists with a ledger stage other than `shipped`, or
-  with a `shipped` stage whose scope branch (`<type>/<scope>`) is neither contained in the base nor gone.
-  Read both with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>` and `get
+- The store holds a slice `in-progress`, `in-review`, or `blocked` — a run active elsewhere. Clears once
+  that slice leaves the state.
+- The scope's run root — `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" root <slug>`'s printed path
+  (ADR 0080) — exists with a ledger stage other than `shipped` or `planned`, or with a `shipped` stage
+  whose scope branch (`<type>/<scope>`) is neither contained in the base nor gone. Read the stage with
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>` and the branch with `get
   branch --root <run-root>`, then apply the branch test (ADR 0007, ADR 0053): contained in the base, per
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Containment` section which owns the test, or gone
-  entirely. A stage other than `shipped` means the chain has not shipped, so
-  appending adds DoD criteria the open pull request never carries. A `shipped` stage with a live branch
-  means the pull request is still open, so appending grows a request already reviewed.
+  entirely. A stage from `implementing` through `documented` means the chain has not shipped, so appending
+  adds DoD criteria the open pull request never carries — clears once the scope reaches `shipped`. A
+  `shipped` stage with a live branch means the pull request is still open, so appending grows a request
+  already reviewed — clears once that branch is contained in the base, per `## Containment`, or gone. A
+  `planned` stage means an earlier plan run cut the branch and the scopetree but no slice has run yet
+  (ADR 0079): appending revises that plan before anything started, so it proceeds — §2 and §6 below carry
+  it through as the `planned`-ledger case of their own steps.
 
 **A picked feature with no epic (a single-slice feature) is promoted to one.** §6 creates the epic,
 copies the lone slice's `acceptance` into it as the global DoD, then amends that DoD in place with the
@@ -148,6 +155,47 @@ crystallise — never batch**. That reference owns the `CONTEXT.md` and ADR form
 register's entry format, the three-part test for an ADR, the component-diagram rule, the routing of a
 seeded intent's **Rejected directions**, and revise-in-place.
 
+**Read `<run-root>/run.lock` before this step's first write, whether or not a cut happens below.**
+Append onto a `planned` ledger finds `<run-root>/scopetree` already there, from the earlier plan run's own
+cut (ADR 0079) — nothing here is cut, but the lock still names whether a second session already holds
+this feature, and this step is about to write captures into that shared scopetree. A fresh lock naming
+another session stops the run now, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The run
+lock` (triage #510). No `<run-root>/scopetree` yet → no lock either, nothing to read; proceed to the cut
+below.
+
+**Cut the scope branch at the first capture that crystallises.** The moment a glossary term, an ADR, or
+an invariant first crystallises — never earlier — cut `<type>/<scope>` into `<run-root>/scopetree`
+(`<run-root>` is `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" root <slug>`'s printed path, ADR 0080),
+following the one cut rule `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Cutting the scope
+branch` states for `/superdev:plan` (ADR 0079). Write that capture, and every capture from then on —
+`CONTEXT.md`, every `docs/adr/` file, `docs/invariants.md` — into the scopetree. Nothing this step writes
+ever lands in the invoking checkout. **Write `<run-root>/run.lock` right after the cut**, per
+`## The run lock` (never before — the `run-lock` hook guards the `git worktree add` call itself): a fresh
+lock naming another session stops the run here, rather than cutting alongside it (triage #510). **On the
+append case above, where the scopetree already exists and nothing is cut, refresh the lock right after
+the read instead** — the read already passed, so the refresh is this session's own claim on it before any
+capture is written.
+
+**Write the ledger right here, at the cut — never wait for §6.** Pipe `{"anchor": "<key> — <title>",
+"slices": []}` to `scope.js init <type>/<scope> planned` (§6 below carries the full envelope shape): no
+slice exists yet, and a ledger carrying a header and no slice rows is a valid, documented state
+(`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The ledger`), not a corrupt one — `/superdev:status`
+renders it as a run with no slices yet. This is what closes triage #509: an interview abandoned right
+after this point still leaves a `ledger.md` beside the branch and the scopetree, so `/superdev:status` and
+`/superdev:backlog` see it. An append onto a `planned` ledger finds one already there from the earlier
+session — nothing to write here; §6 revises it in place once the slices are known. This same call is
+also what ensures `.superdev/` is git-ignored (`init` runs `ensureSuperdevIgnored` before writing): moving
+the ledger write to right after the cut, rather than leaving it to §6, is what closes the gap where the
+freshly cut `<run-root>/scopetree` could otherwise sit ignored by nothing for the rest of the interview.
+
+A capture that crystallises before §1 has settled the feature label has nowhere to cut yet: hold it in
+the conversation until the label exists, then cut and write it the moment it does. **A label §1 revises
+after the cut** undoes it under the old label — remove the scopetree
+(`git worktree remove <run-root>/scopetree`) and delete the branch (`git branch -D <old-type>/<old-slug>`)
+— safe because the branch at that point can carry nothing but this session's own design docs, and an
+append never revises a picked label — then re-cuts both under the revised label and re-writes every
+capture already held, so the scopetree and the branch always carry the label the plan ends with.
+
 **Route the seeded rejects before this plan ends.** Every rejected direction §1 carried in lands where
 the reference says — an ADR's `Considered options` for a dropped approach, the epic's non-goals for
 dropped scope — or is filtered out loud. None disappears silently.
@@ -164,7 +212,9 @@ One capture is **superdev-specific**:
   **A remote backend gets a staged page, never a call** (ADR 0023): at plan time none of the feature is
   built, so a page sent now claims a feature that does not exist. Write each page under
   `.superdev/kb-pending/<slug>/` (ensure `.superdev/` is in `.gitignore`; add it if absent), `<slug>`
-  being the feature label's slug. Use an **absolute** path resolved from the invoking checkout. One `.md`
+  being the feature label's slug. Use an **absolute** path resolved from the invoking checkout — this is
+  git-ignored scratch, not a durable capture, so it stays outside the "nothing lands in the invoking
+  checkout" rule above the same way an untracked file always does. One `.md`
   file per page, named `<title-slug>.md` (the page `title`'s slug) so a re-run overwrites the same file
   instead of creating a rival: YAML frontmatter carrying the page `title` and an `action` of `upsert`,
   the body below. `/superdev:publish-kb` sends no non-`.md` file; `/superdev:status` prints it as a stray
@@ -317,28 +367,34 @@ controller implements each slice inline in a single scopetree, no per-slice revi
 every slice is on the scope branch — to `/superdev:review`, or straight to `/superdev:document` when
 every slice is `mechanical` or `docs` (ADR 0025).
 
-**Commit the durable design docs** you wrote — `CONTEXT.md`, any ADRs (`docs/adr/`), `docs/invariants.md`
-if an invariant crystallised — to the base branch. **Check `git rev-parse --abbrev-ref HEAD` first, and
-only commit when the invoking checkout is on the base branch.** Any other branch → name the branch you
-found and the base you wanted, write nothing, and stop; the plan is already in the store, so the
-maintainer switches to base and commits there — no interview, nothing re-planned — and the handoff below
-still prints, because only the commit is outstanding. `/superdev:implement` runs from a fresh scopetree
-checkout of that branch, so anything uncommitted never reaches it and an invariant that isn't on the
-branch never reaches the register.
-**The moment that check reads the base branch, take the base lock** —
-`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" base-lock acquire`, from the invoking checkout — **before
-you stage or commit `CONTEXT.md`, any `docs/adr/` file, or `docs/invariants.md`**, whether or not
-anything turns out to be dirty, because a second `/superdev:plan` run, or an `/superdev:implement` run
-init in the same checkout, commits the same three groups to the same branch (ADR 0058). **A refused
-acquire names the session holding it: print that message and stop, having edited nothing — and released
-nothing, since this session never held the lock** — the plan is in the store already, exactly as on the
-wrong-branch stop above.
-**Push the base branch** to its remote right after committing (if one is configured, per
-`docs/agents/code-management.md`): `/superdev:ship`'s PR is opened against the remote base, and an
-unpushed local commit there is stranded once the PR is squash-merged. **Release the lock this session
-acquired** once the push completes — `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" base-lock release` —
-and equally on the path where nothing was dirty and nothing was committed, so the next session finds it
-free rather than waiting out the five-minute staleness window.
+**Cut the scopetree now, if `<run-root>/scopetree` does not exist yet.** An append onto a `planned` ledger
+already carries the branch and the scopetree from the earlier plan run, whatever this session's interview
+captured — the absence of the scopetree is the test, not the absence of a crystallised capture. Run the
+cut the way §2's own cut rule would have, per
+`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Cutting the scope branch` (ADR 0079) — the same
+reference §2 already defers to, which decides what to do when the branch or scopetree is already
+present — write `<run-root>/run.lock` right after, per `## The run lock`, and write the ledger the same
+way §2 does at its own cut — `{"anchor": "<key> — <title>", "slices": []}` piped to `scope.js init
+<type>/<scope> planned` — since no capture ever crystallised to trigger §2's own write. Every plan run
+ends the same shape — a branch, a scopetree, and the ledger below — whether or not a design doc ever
+crystallised.
+
+**Commit what the scopetree holds, on the scope branch.** `git -C <run-root>/scopetree add` and `commit`
+whatever `CONTEXT.md`, `docs/adr/`, and `docs/invariants.md` changes §2 wrote there — nothing, on a run
+where no capture ever crystallised. This commit lands only inside the scopetree, never in the invoking
+checkout, which is never staged, committed, or switched (ADR 0045).
+
+**Write the ledger with `scope.js init`, from the invoking checkout** — the JSON envelope
+`${CLAUDE_PLUGIN_ROOT}/references/run-init.md`'s `## Run init — definition of done + ledger` section
+pipes to it, `{"anchor": "<key> — <title>", "slices": [...]}`, adapted to a plan-time call passing
+`planned` as `init`'s entry stage (`scope.js init <type>/<scope> planned`, ADR 0079 — no default, and
+`planned` is what hands the scope branch to `/superdev:implement` as ready): carry the anchor this plan
+created or amended, and every slice this plan wrote, each row's `status` field `todo` — no slice has run
+yet, whether this is a new feature or an append. **This call always overwrites**, never creates: the cut
+above already wrote a ledger at `planned` carrying no slice rows (or, on an append, the earlier session's
+own held slices), so this is `init`'s own overwrite-a-`planned`-ledger path filling in the real table, on
+every run kind, not only an append.
+**Refresh `<run-root>/run.lock`** once `init` returns, per `## The run lock`.
 
 **Ask whether to release the plan.** `plan-contract.md`'s *Release* section owns what a release is; the
 active `docs/agents/issue-tracker.md`'s `## Release` section owns this backend's signal and the call that

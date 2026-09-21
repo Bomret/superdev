@@ -15,11 +15,13 @@ read `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md` as your last step.
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Cutting the scope branch` and do what it says for
   the run kind the controller handed you — `fresh`, `appended`, or `resumed` (ADR 0028). Never derive that
   value yourself. Call whatever it leaves you on `<branch>` for the rest of this file: for `fresh` that is
-  literally `git worktree add .superdev/scopes/<scope>/scopetree -b <type>/<scope> <base>` (`<path>` there
-  is always `.superdev/scopes/<scope>/scopetree`; base from `code-management.md`, default `main`), while
+  literally `git worktree add <run-root>/scopetree -b <type>/<scope> <base>` (`<path>` there
+  is always `<run-root>/scopetree`; base from `code-management.md`, default `main`), while
   `appended` and `resumed` resolve `<branch>` per that same section, never by reconstructing the name.
   The invoking checkout is **never switched** — it stays where it was, so a second session can run in the
-  same repo. All inline implementation happens **in this scopetree**. Then move the **scope anchor** →
+  same repo. **On `fresh` or `appended`, do `references/run-init.md`'s deferred copy/commit/revert now**
+  — it names this exact point; on `resumed` it already ran in run init, so there is nothing to do here.
+  All inline implementation happens **in this scopetree**. Then move the **scope anchor** →
   `in-progress` (per `issue-tracker.md`; best-effort).
 
 ## Run lock
@@ -39,7 +41,7 @@ shipped.
   minimal GREEN code, repeat; every hunk traces to an acceptance criterion or the specification — remove
   only what your own edit orphaned, name pre-existing dead code instead of deleting it, and **grep for a
   sentence before you replace it**, since a clause restated in a sibling document keeps the old contract
-  alive while the suite stays green), **directly in the scopetree at `.superdev/scopes/<scope>/scopetree/`**.
+  alive while the suite stays green), **directly in the scopetree at `<run-root>/scopetree/`**.
   All file edits, test runs, `git` commands, and commits happen **in the scopetree as the cwd** —
   never in the invoking checkout. `mechanical` / `docs` slices need no new test — the existing suite is
   the net. Read `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run the command it selects for

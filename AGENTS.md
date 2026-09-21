@@ -230,9 +230,10 @@ This root owns every other subtree directly:
 - `scripts/` and `plugin/scripts/`. Owned by [`scripts/AGENTS.md`](scripts/AGENTS.md):
   `plugin/scripts/scope.js` (the run-state CLI, ADR 0022: owns the ledger schema, is the only
   `ledger.md` read and write path, exports `readLedgerHeader` for `plugin/hooks/scope-prune.js` and
-  `plugin/hooks/slicetree-sweep.js`, and carries the one verb that touches no ledger — `base-lock`,
-  which serialises the base-branch design-docs commit `/superdev:plan` and run init both make, ADR
-  0058),
+  `plugin/hooks/slicetree-sweep.js`, and carries the one verb that touches no ledger — `root <slug>`,
+  which resolves a run root's absolute path against the repository's main working tree from any cwd,
+  ADR 0080 — and writes the `planned` stage on `init`, which `/superdev:implement`'s run init moves
+  forward out of, ADR 0079),
   `plugin/scripts/kb-patch.js` (the deterministic section merge behind a staged page's `action: patch`,
   called by `/superdev:publish-kb`, ADR 0027 — the commands invoke this and `scope.js` at runtime),
   `plugin/scripts/publish-kb.js` (the backend-independent half of publishing a scope's staged

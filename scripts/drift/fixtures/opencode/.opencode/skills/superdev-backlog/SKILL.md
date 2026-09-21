@@ -32,7 +32,7 @@ reads `shipped` gets **no row at all** — `/superdev-ship` closes the anchor an
 @106
 | `needs planning` | a triage record, or an anchor that is neither itself a slice nor has slices beneath it | `/superdev-plan` |
 @108
-| `ready` | every remaining **anchor**: released, no run root, dependencies satisfied | `/superdev-implement <feature-label>` |
+| `ready` | every remaining **anchor**: released, dependencies satisfied, and no run root or a matched run root at stage `planned` — `/superdev-plan` already cut the branch and scopetree, but no slice has run (triage #509) | `/superdev-implement <feature-label>` |
 @122
 The `in flight` row's act is the chain command its stage has not reached — `<plugin-root>/references/run-handoff.md`
 @123

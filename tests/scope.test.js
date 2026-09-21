@@ -42,11 +42,11 @@ const sliceJson = JSON.stringify({
 
 try {
   // init: valid label creates root + schema-shaped ledger.
-  let r = call(['init', 'feat/demo'], sliceJson);
+  let r = call(['init', 'feat/demo', 'planned'], sliceJson);
   assert.ok(r.ok, 'init should pass: ' + (r.err || ''));
   const root = path.join(tmp, '.superdev', 'scopes', 'demo');
   const text = fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
-  assert.ok(text.includes('**Stage:** implementing'), 'ledger carries Stage');
+  assert.ok(text.includes('**Stage:** planned'), 'ledger carries Stage');
   assert.ok(text.includes('**Branch:** feat/demo'), 'ledger carries Branch');
   assert.ok(text.includes('**Anchor:** #187'), 'ledger carries Anchor');
   assert.ok(text.includes('| id | issue | title | type | depends-on | status | range |'), 'ledger carries the 7-column table');
@@ -63,7 +63,7 @@ try {
       { id: '02', issue: '#189', title: 'ledger-guard hook', type: 'behavior', 'depends-on': '01' },
     ],
   });
-  r = call(['init', 'feat/appended'], mergedSliceJson);
+  r = call(['init', 'feat/appended', 'planned'], mergedSliceJson);
   assert.ok(r.ok, 'init should pass with a merged slice: ' + (r.err || ''));
   const appendedText = fs.readFileSync(
     path.join(tmp, '.superdev', 'scopes', 'appended', 'ledger.md'),
@@ -92,7 +92,7 @@ try {
   const origFullyShipped = console.log;
   console.log = () => {};
   try {
-    run(['init', 'feat/fully-shipped'], fullyShipped, allMergedJson);
+    run(['init', 'feat/fully-shipped', 'planned'], fullyShipped, allMergedJson);
   } finally {
     console.log = origFullyShipped;
   }
@@ -107,16 +107,127 @@ try {
   );
   fs.rmSync(fullyShipped, { recursive: true, force: true });
 
-  // init: a run root whose ledger.md already exists is refused (the real double-init signal).
-  r = call(['init', 'feat/demo'], sliceJson);
+  // init: a ledger at stage `planned` (no slice has run) is overwritten rather than refused, and
+  // init says so on stdout (ADR 0079 — this is what retires plan's append-mode base-lock carve-out).
+  r = call(['init', 'feat/demo', 'planned'], sliceJson);
+  assert.ok(r.ok, 'init over a planned ledger overwrites: ' + (r.err || ''));
+  assert.ok(/overwrit/i.test(r.out), 'init reports the overwrite on stdout: ' + r.out);
+
+  // init: once a scope moves off `planned`, a ledger.md that already exists is refused (the real
+  // double-init signal).
+  assert.ok(call(['stage', 'set', 'implementing', '--root', root]).ok);
+  r = call(['init', 'feat/demo', 'planned'], sliceJson);
   assert.ok(!r.ok && /already exists/.test(r.err), 'existing ledger refused');
+
+  // init: the entry stage is a required argument, with no default (Critical review finding, ADR 0079)
+  // — `init` never guesses which caller is writing the ledger. Omitting it, or naming anything but
+  // `planned`/`implementing`, refuses rather than silently stamping `planned`.
+  r = call(['init', 'feat/entry-stage'], sliceJson);
+  assert.ok(!r.ok && /entry stage/.test(r.err), 'init with no stage argument refuses: ' + (r.err || ''));
+  r = call(['init', 'feat/entry-stage', 'shipped'], sliceJson);
+  assert.ok(!r.ok && /entry stage/.test(r.err), 'init with a non-entry stage refuses: ' + (r.err || ''));
+  assert.ok(
+    !fs.existsSync(path.join(tmp, '.superdev', 'scopes', 'entry-stage')),
+    'no root created when the entry stage is missing or invalid',
+  );
+
+  // init: run init's own `fresh` path enters straight at `implementing` — no plan ever cut this
+  // ledger, so there is no `planned` interval to move it out of afterwards (Critical review finding).
+  r = call(['init', 'feat/run-init-fresh', 'implementing'], sliceJson);
+  assert.ok(r.ok, 'init implementing should pass: ' + (r.err || ''));
+  assert.strictEqual(
+    call(['get', 'stage', '--root', path.join(tmp, '.superdev', 'scopes', 'run-init-fresh')]).out,
+    'implementing',
+    'init implementing writes stage implementing directly, never planned',
+  );
+
+  // init: every stage short of `shipped` still refuses outright (the real double-init signal) —
+  // `shipped` alone rotates instead (Important review finding B, ADR 0079/0080: `init` owns the
+  // rotation, since `scope.js` is the sole ledger read and write path, ADR 0022).
+  for (const stage of ['implementing', 'merged', 'reviewed', 'documented-unreviewed', 'documented']) {
+    const slug = 'refuse-' + stage;
+    assert.ok(call(['init', 'feat/' + slug, 'planned'], sliceJson).ok);
+    const r2 = path.join(tmp, '.superdev', 'scopes', slug);
+    assert.ok(call(['stage', 'set', stage, '--root', r2]).ok, `advance ${slug} to ${stage}`);
+    const reinit = call(['init', 'feat/' + slug, 'planned'], sliceJson);
+    assert.ok(!reinit.ok && /already exists/.test(reinit.err), `init over stage "${stage}" still refuses`);
+  }
+
+  // init: a `shipped` ledger rotates aside to `ledger-shipped-<date>.md` rather than refusing — the
+  // rotation `references/run-init.md` used to instruct the reader to perform by hand, now `init`'s own
+  // job (Important review finding B). The fresh ledger lands at the requested entry stage, the rotated
+  // file carries the old (shipped) content byte for byte, and init announces the rotation on stdout.
+  {
+    const slug = 'rotate-shipped';
+    assert.ok(call(['init', 'feat/' + slug, 'planned'], sliceJson).ok);
+    const rotRoot = path.join(tmp, '.superdev', 'scopes', slug);
+    assert.ok(call(['stage', 'set', 'shipped', '--root', rotRoot]).ok, 'advance to shipped');
+    const shippedText = fs.readFileSync(path.join(rotRoot, 'ledger.md'), 'utf8');
+    const rotated = call(['init', 'feat/' + slug, 'implementing'], sliceJson);
+    assert.ok(rotated.ok, 'init over a shipped ledger rotates rather than refuses: ' + (rotated.err || ''));
+    assert.ok(/rotat/i.test(rotated.out), 'init announces the rotation on stdout: ' + rotated.out);
+    const rotatedFiles = fs
+      .readdirSync(rotRoot)
+      .filter((f) => /^ledger-shipped-.*\.md$/.test(f));
+    assert.strictEqual(rotatedFiles.length, 1, 'exactly one rotated file: ' + rotatedFiles.join(', '));
+    assert.strictEqual(
+      fs.readFileSync(path.join(rotRoot, rotatedFiles[0]), 'utf8'),
+      shippedText,
+      'the rotated file carries the shipped ledger byte for byte',
+    );
+    assert.strictEqual(
+      call(['get', 'stage', '--root', rotRoot]).out,
+      'implementing',
+      'the fresh ledger lands at the requested entry stage',
+    );
+
+    // A second rotation on the same day never overwrites the first, and nothing is deleted.
+    assert.ok(call(['stage', 'set', 'shipped', '--root', rotRoot]).ok, 'advance to shipped again');
+    const secondShippedText = fs.readFileSync(path.join(rotRoot, 'ledger.md'), 'utf8');
+    assert.ok(call(['init', 'feat/' + slug, 'implementing'], sliceJson).ok, 'second rotation passes');
+    const rotatedFiles2 = fs
+      .readdirSync(rotRoot)
+      .filter((f) => /^ledger-shipped-.*\.md$/.test(f));
+    assert.strictEqual(rotatedFiles2.length, 2, 'a second same-day rotation adds a file rather than overwriting: ' + rotatedFiles2.join(', '));
+    assert.strictEqual(
+      fs.readFileSync(path.join(rotRoot, rotatedFiles[0]), 'utf8'),
+      shippedText,
+      'the first rotated file is untouched by the second rotation',
+    );
+    assert.ok(
+      rotatedFiles2.some((f) => fs.readFileSync(path.join(rotRoot, f), 'utf8') === secondShippedText),
+      'the second rotation is captured under its own file',
+    );
+  }
+
+  // init: a refused init over a `shipped` ledger leaves it in place and rotates nothing — rotation
+  // happens only after every validation of stdin passes (Important review finding G), so a malformed
+  // payload never destroys the run's ledger.
+  {
+    const slug = 'refuse-shipped-malformed';
+    assert.ok(call(['init', 'feat/' + slug, 'planned'], sliceJson).ok);
+    const refuseRoot = path.join(tmp, '.superdev', 'scopes', slug);
+    assert.ok(call(['stage', 'set', 'shipped', '--root', refuseRoot]).ok, 'advance to shipped');
+    const shippedBefore = fs.readFileSync(path.join(refuseRoot, 'ledger.md'), 'utf8');
+    const refused = call(['init', 'feat/' + slug, 'implementing'], 'not json');
+    assert.ok(!refused.ok, 'init with malformed stdin JSON is refused: ' + refused.out);
+    assert.strictEqual(
+      fs.readFileSync(path.join(refuseRoot, 'ledger.md'), 'utf8'),
+      shippedBefore,
+      'the shipped ledger is untouched by the refused init',
+    );
+    const rotatedOnRefusal = fs
+      .readdirSync(refuseRoot)
+      .filter((f) => /^ledger-shipped-.*\.md$/.test(f));
+    assert.strictEqual(rotatedOnRefusal.length, 0, 'no rotation happens on a refused init');
+  }
 
   // init: a run root directory that exists but holds no ledger.md yet (run init writes dod.md
   // before calling init) is tolerated — init still writes the ledger into it.
   const preexistingRoot = path.join(tmp, '.superdev', 'scopes', 'preexisting');
   fs.mkdirSync(preexistingRoot, { recursive: true });
   fs.writeFileSync(path.join(preexistingRoot, 'dod.md'), '# DoD\n', 'utf8');
-  r = call(['init', 'feat/preexisting'], sliceJson);
+  r = call(['init', 'feat/preexisting', 'planned'], sliceJson);
   assert.ok(r.ok, 'init tolerates a pre-existing dir with no ledger.md: ' + (r.err || ''));
   assert.ok(fs.existsSync(path.join(preexistingRoot, 'ledger.md')), 'ledger written into the pre-existing dir');
   assert.ok(fs.existsSync(path.join(preexistingRoot, 'dod.md')), 'dod.md untouched');
@@ -130,7 +241,7 @@ try {
     ['feat/', /empty slug/],
     ['feat/-lead', /slug/],
   ]) {
-    r = call(['init', label], sliceJson);
+    r = call(['init', label, 'planned'], sliceJson);
     assert.ok(!r.ok, `init "${label}" should refuse`);
     assert.ok(re.test(r.err), `refusal for "${label}" names the segment: ${r.err}`);
   }
@@ -144,7 +255,7 @@ try {
       { id: '01', issue: '#2', title: 'b', type: 'behavior' },
     ],
   });
-  r = call(['init', 'feat/dup'], dupJson);
+  r = call(['init', 'feat/dup', 'planned'], dupJson);
   assert.ok(!r.ok && /duplicate slice id/.test(r.err), 'duplicate slice id refused');
   assert.ok(!fs.existsSync(path.join(tmp, '.superdev', 'scopes', 'dup')), 'no root created on duplicate id');
 
@@ -154,7 +265,7 @@ try {
     const origRefused = console.log;
     console.log = () => {};
     try {
-      run(['init', 'feat/refused'], refusedDir, dupJson);
+      run(['init', 'feat/refused', 'planned'], refusedDir, dupJson);
       assert.fail('duplicate-id init should refuse');
     } catch (e) {
       if (!e.isRefusal) throw e;
@@ -171,7 +282,7 @@ try {
     anchor: '#1 — anchor',
     slices: [{ id: 'ID', issue: '#1', title: 'a', type: 'behavior' }],
   });
-  r = call(['init', 'feat/idslice'], idSliceJson);
+  r = call(['init', 'feat/idslice', 'planned'], idSliceJson);
   assert.ok(!r.ok && /reserved/.test(r.err), 'slice id "ID" refused as reserved: ' + (r.err || ''));
 
   // init: an anchor with a pipe is a header line, not a table cell — it reads back as written,
@@ -180,7 +291,7 @@ try {
     anchor: '#5 — a | b',
     slices: [{ id: '01', issue: '#1', title: 'a', type: 'behavior' }],
   });
-  r = call(['init', 'feat/pipe-anchor'], pipeAnchorJson);
+  r = call(['init', 'feat/pipe-anchor', 'planned'], pipeAnchorJson);
   assert.ok(r.ok, 'pipe-anchor init passes: ' + (r.err || ''));
   assert.strictEqual(
     call(['get', 'anchor', '--root', path.join(tmp, '.superdev', 'scopes', 'pipe-anchor')]).out,
@@ -188,9 +299,43 @@ try {
     'an anchor with a pipe reads back unescaped',
   );
 
+  // init: an empty slice list is a valid, documented state — the ledger `/superdev:plan` writes at the
+  // scope-branch cut, before any slice is decomposed (Important review finding 3, ADR 0079). It carries
+  // a header and no slice rows, never refused as malformed, and `status` renders it as a run with no
+  // slices yet rather than reporting nothing or erroring.
+  const emptySlicesJson = JSON.stringify({ anchor: '#9 — cut before slicing', slices: [] });
+  r = call(['init', 'feat/header-only', 'planned'], emptySlicesJson);
+  assert.ok(r.ok, 'init with an empty slice list passes: ' + (r.err || ''));
+  const headerOnlyRoot = path.join(tmp, '.superdev', 'scopes', 'header-only');
+  assert.deepStrictEqual(call(['get', 'slices', '--root', headerOnlyRoot]).out, '', 'no slice rows yet');
+  assert.ok(
+    call(['status']).out.includes('header-only  (0 slices, stage: planned)'),
+    'status renders a header-only ledger as a run with no slices yet',
+  );
+  // §6 fills in the table later, overwriting the same `planned` ledger init already allows overwriting.
+  r = call(['init', 'feat/header-only', 'planned'], sliceJson);
+  assert.ok(r.ok, 'a later init fills in the slice table over the same header-only ledger: ' + (r.err || ''));
+  assert.strictEqual(
+    call(['get', 'slices', '--root', headerOnlyRoot]).out.split('\n').length,
+    2,
+    'the slice table now carries both slices',
+  );
+
+  // stage: `planned` (ADR 0079) is a fresh ledger's own stage, accepted as a same-value write, and
+  // `stage set implementing` moves forward out of it.
+  assert.ok(call(['init', 'feat/planned-fwd', 'planned'], sliceJson).ok);
+  const plannedRoot = path.join(tmp, '.superdev', 'scopes', 'planned-fwd');
+  assert.strictEqual(call(['get', 'stage', '--root', plannedRoot]).out, 'planned', 'init writes stage planned');
+  assert.ok(call(['stage', 'set', 'planned', '--root', plannedRoot]).ok, 'same-value planned write is a no-op');
+  assert.ok(call(['stage', 'set', 'implementing', '--root', plannedRoot]).ok, 'planned → implementing moves forward');
+
+  // stage: no write moves back to `planned` once a run has left it.
+  const rBack = call(['stage', 'set', 'planned', '--root', plannedRoot]);
+  assert.ok(!rBack.ok && /allowed:/.test(rBack.err), 'implementing → planned refused, naming the allowed stages: ' + (rBack.err || ''));
+
   // stage: get, unknown value, backwards, terminal, sanctioned move.
   const R = ['--root', root];
-  assert.strictEqual(call(['get', 'stage', ...R]).out, 'implementing', 'get stage reads the fresh stage');
+  assert.strictEqual(call(['get', 'stage', ...R]).out, 'implementing', 'get stage reads back the advanced stage');
   r = call(['stage', 'get', ...R]);
   assert.ok(!r.ok && /use set/.test(r.err), 'stage is set-only — get stage is the read path');
   r = call(['stage', 'set', 'polished', ...R]);
@@ -213,7 +358,7 @@ try {
   // out of documented-unreviewed reaching documented (no fix cycle ran) is allowed too. Each gets its
   // own scratch scope so it doesn't disturb the pipeline walk above.
   const mkStageRoot = (slug) => {
-    assert.ok(call(['init', 'feat/' + slug], sliceJson).ok);
+    assert.ok(call(['init', 'feat/' + slug, 'planned'], sliceJson).ok);
     return path.join(tmp, '.superdev', 'scopes', slug);
   };
   let sr = mkStageRoot('stage-fwd-reviewed');
@@ -615,7 +760,7 @@ try {
     anchor: '#1 — anchor',
     slices: [{ id: '01', issue: '#1', title: 'add a|b parser', type: 'behavior' }],
   });
-  let pr = call(['init', 'feat/pipe-title'], pipeJson);
+  let pr = call(['init', 'feat/pipe-title', 'planned'], pipeJson);
   assert.ok(pr.ok, 'init with a `|` in the title should pass: ' + (pr.err || ''));
   const pipeRoot = path.join(tmp, '.superdev', 'scopes', 'pipe-title');
   const P2 = ['--root', pipeRoot];
@@ -631,7 +776,7 @@ try {
     anchor: '#2 — anchor',
     slices: [{ id: '01', issue: '#2', title: 'line one\nline two', type: 'behavior' }],
   });
-  pr = call(['init', 'feat/newline-title'], newlineJson);
+  pr = call(['init', 'feat/newline-title', 'planned'], newlineJson);
   assert.ok(pr.ok, 'init with a newline in the title should pass: ' + (pr.err || ''));
   const nlRoot = path.join(tmp, '.superdev', 'scopes', 'newline-title');
   const N2 = ['--root', nlRoot];
@@ -732,6 +877,20 @@ try {
   assert.ok(stFlight.out.includes('  blocked: 02 two'), 'and its blocked slices');
   assert.ok(stFlight.out.includes('  degraded: doc pass denied (2026-08-11)'), 'and its degrade record');
   assert.ok(stFlight.out.includes('  unresolved: fix declined by the operator (2026-08-12)'), 'and its unresolved record');
+
+  // A `planned` run — a plan cut the branch and scopetree but no slice has run — prints with its
+  // stage named, not as an unknown or in-flight run (ADR 0079).
+  const plannedStatusRoot = path.join(tmp, '.superdev', 'scopes', 'planned-status');
+  fs.mkdirSync(plannedStatusRoot, { recursive: true });
+  fs.writeFileSync(
+    path.join(plannedStatusRoot, 'ledger.md'),
+    '# Ledger — planned-status\n\n**Stage:** planned\n\n' +
+      '| id | issue | title | type | depends-on | status | range |\n' +
+      '|---|---|---|---|---|---|---|\n',
+    'utf8'
+  );
+  const stPlanned = call(['status']);
+  assert.ok(stPlanned.out.includes('planned-status  (0 slices, stage: planned)'), 'a planned run names its stage: ' + stPlanned.out);
 
   // status with zero scopes.
   const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-selftest-empty-'));
@@ -1044,7 +1203,7 @@ try {
   // fresh scope, added last, so it doesn't show up in an earlier `status` scan of `tmp` that asserts no
   // scope carries an unresolved line.
   const commaJson = JSON.stringify({ anchor: '#1 — anchor', slices: [{ id: '01', issue: '#1', title: 'a', type: 'behavior' }] });
-  assert.ok(call(['init', 'feat/comma-bullet'], commaJson).ok);
+  assert.ok(call(['init', 'feat/comma-bullet', 'planned'], commaJson).ok);
   const commaRoot = path.join(tmp, '.superdev', 'scopes', 'comma-bullet');
   const CB = ['--root', commaRoot];
   assert.ok(call(['unresolved', 'add', 'suite red: a, b, and c all fail', ...CB]).ok);
@@ -1058,7 +1217,7 @@ try {
 
   // publish|adopt round trip on a minimal ledger — Stage, Branch, Anchor, and a slice table only,
   // the shape a fresh init leaves behind before any of Degraded/Unresolved/Deferred/Docs exist.
-  assert.ok(call(['init', 'feat/publish-minimal'], sliceJson).ok);
+  assert.ok(call(['init', 'feat/publish-minimal', 'planned'], sliceJson).ok);
   const minimalRoot = path.join(tmp, '.superdev', 'scopes', 'publish-minimal');
   const minimalOriginal = fs.readFileSync(path.join(minimalRoot, 'ledger.md'), 'utf8');
   const minimalPublished = publishText(minimalRoot);
@@ -1085,7 +1244,7 @@ try {
 
   // The same round trip on a ledger carrying every header line — Stage, Branch, Anchor, Degraded,
   // Unresolved, Deferred, Docs — plus a slice table.
-  assert.ok(call(['init', 'feat/publish-full'], sliceJson).ok);
+  assert.ok(call(['init', 'feat/publish-full', 'planned'], sliceJson).ok);
   const fullRoot = path.join(tmp, '.superdev', 'scopes', 'publish-full');
   const F = ['--root', fullRoot];
   assert.ok(call(['degraded', 'add', 'a denied pass', ...F]).ok);
@@ -1244,7 +1403,7 @@ try {
   // Done checkboxes, Non-goals bullets, and a Slice graph mermaid fence — with the Run state section
   // placed last. Hand-built fixtures are exactly what let both the truncation and the false-refusal
   // through the last two review cycles, so this one uses the real output instead.
-  assert.ok(call(['init', 'feat/real-publish-splice'], sliceJson).ok);
+  assert.ok(call(['init', 'feat/real-publish-splice', 'planned'], sliceJson).ok);
   const realRoot = path.join(tmp, '.superdev', 'scopes', 'real-publish-splice');
   const RS = ['--root', realRoot];
   assert.ok(call(['degraded', 'add', 'a denied pass', ...RS]).ok);
@@ -1344,7 +1503,7 @@ try {
   // "Hand-built fixtures are exactly what let both the truncation and the false-refusal through the
   // last two review cycles" (above) stopped one step short of exercising that fold — this closes it,
   // running kb-patch.js as a real subprocess rather than importing its merge().
-  assert.ok(call(['init', 'feat/kb-patch-fold'], sliceJson).ok);
+  assert.ok(call(['init', 'feat/kb-patch-fold', 'planned'], sliceJson).ok);
   const foldRoot = path.join(tmp, '.superdev', 'scopes', 'kb-patch-fold');
   const kbPatchPath = path.join(path.dirname(scopePath), 'kb-patch.js');
   const foldDir = path.join(tmp, 'kb-patch-fold-fixtures');
@@ -1422,20 +1581,15 @@ try {
     );
   }
 
-  // --- base-lock: the base-branch design-docs commit guard (ADR 0058) ---------
-  //
-  // No hook backs this verb, so the exclusive file-create is the whole correctness guarantee —
-  // which makes the race at the end of this block the load-bearing assertion, not the per-case
-  // ones above it.
+  // --- root: the run-root path resolver, anchored to the main working tree (ADR 0080) -----------
   {
-    const cp = require('child_process');
-    // `call` above fixes cwd at `tmp`; base-lock resolves its lock from cwd, so it needs its own.
-    const callIn = (argv, cwd) => {
+    // `call` above fixes cwd at `tmp`; `root` resolves relative to cwd, so it needs its own.
+    const callIn = (argv, cwd, stdinJson) => {
       const logged = [];
       const orig = console.log;
       console.log = (s) => logged.push(String(s));
       try {
-        run(argv, cwd, '');
+        run(argv, cwd, stdinJson || '');
         return { ok: true, out: logged.join('\n') };
       } catch (e) {
         if (e.isRefusal) return { ok: false, err: e.message, out: logged.join('\n') };
@@ -1444,73 +1598,82 @@ try {
         console.log = orig;
       }
     };
-    const lockRepo = path.join(tmp, 'base-lock-repo');
-    fs.mkdirSync(lockRepo, { recursive: true });
-    const lockFile = path.join(lockRepo, '.superdev', 'base.lock');
+    function gitRoot(args, cwd) {
+      execFileSync('git', args, { cwd, stdio: 'ignore' });
+    }
 
-    let b = callIn(['base-lock', 'acquire'], lockRepo);
-    assert.ok(b.ok, 'acquire with no lock present succeeds: ' + (b.err || ''));
-    assert.ok(fs.existsSync(lockFile), 'acquire creates .superdev/base.lock');
+    // realpathSync: git resolves symlinks (e.g. macOS's /tmp -> /private/tmp) when it reports paths,
+    // so the expectation below has to compare against the same resolved path.
+    const mainRepo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-root-')));
+    gitRoot(['init', '-q', '-b', 'main'], mainRepo);
+    gitRoot(['config', 'user.email', 'test@example.com'], mainRepo);
+    gitRoot(['config', 'user.name', 'test'], mainRepo);
+    fs.writeFileSync(path.join(mainRepo, 'README.md'), 'x\n');
+    gitRoot(['add', '.'], mainRepo);
+    gitRoot(['commit', '-q', '-m', 'init'], mainRepo);
+
+    const expectedRoot = path.join(mainRepo, '.superdev', 'scopes', 'demo');
+    assert.strictEqual(
+      callIn(['root', 'demo'], mainRepo).out,
+      expectedRoot,
+      'root resolves from the main working tree, which holds no linked worktree'
+    );
+
+    // A linked worktree (a scopetree or a slicetree) resolves the same run root.
+    const worktreeDir = path.join(mainRepo, '..', path.basename(mainRepo) + '-wt');
+    gitRoot(['worktree', 'add', '-q', '-b', 'feat/wt', worktreeDir], mainRepo);
+    assert.strictEqual(
+      callIn(['root', 'demo'], worktreeDir).out,
+      expectedRoot,
+      'root resolves the same path from a linked worktree'
+    );
+    fs.rmSync(worktreeDir, { recursive: true, force: true });
+
+    // Outside a git repository entirely.
+    const noGitDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-root-nogit-'));
+    const noGit = callIn(['root', 'demo'], noGitDir);
+    assert.ok(!noGit.ok && /not inside a git repository/.test(noGit.err), 'root refuses outside a git repository: ' + (noGit.err || ''));
+    fs.rmSync(noGitDir, { recursive: true, force: true });
+
+    // A slug carrying a path separator or a leading dot.
+    for (const bad of ['a/b', '../escape', '.hidden']) {
+      const r2 = callIn(['root', bad], mainRepo);
+      assert.ok(!r2.ok, `root refuses slug "${bad}"`);
+    }
+
+    // `init` and `status`, run from a linked worktree (a scopetree or a slicetree), resolve the same
+    // run root `root` resolves from the main working tree — never one nested inside the worktree itself
+    // (Important review finding 4, ADR 0080). This is the exact shape of `/superdev:plan` cutting the
+    // scopetree under the main working tree while run init's own `init` call, made from inside it,
+    // would otherwise write the ledger one level too deep.
+    const wtRoot = path.join(mainRepo, '..', path.basename(mainRepo) + '-init-wt');
+    gitRoot(['worktree', 'add', '-q', '-b', 'feat/init-wt', wtRoot], mainRepo);
+    const initFromWt = callIn(
+      ['init', 'feat/init-wt-scope', 'planned'],
+      wtRoot,
+      JSON.stringify({ anchor: '#1 — init from a worktree', slices: [] }),
+    );
+    assert.ok(initFromWt.ok, 'init from a linked worktree passes: ' + (initFromWt.err || ''));
+    const expectedInitRoot = path.join(mainRepo, '.superdev', 'scopes', 'init-wt-scope');
     assert.ok(
-      fs.readFileSync(path.join(lockRepo, '.gitignore'), 'utf8').includes('.superdev/'),
-      'acquire git-ignores .superdev/ before writing into it — an untracked lock file reads as a dirty base branch to the very step this guards'
+      fs.existsSync(path.join(expectedInitRoot, 'ledger.md')),
+      'init from a linked worktree writes the ledger under the main working tree, not the worktree itself',
     );
-
-    // A fresh lock: refuse, and leave the standing lock's own mtime alone — a refusal that
-    // touched it would extend another session's hold every time this one retried.
-    const firstMtime = fs.statSync(lockFile).mtimeMs;
-    b = callIn(['base-lock', 'acquire'], lockRepo);
-    assert.ok(!b.ok, 'acquire refuses while a fresh lock stands');
-    assert.ok(/another/.test(b.err) && /retry/i.test(b.err), 'the refusal names another live session and says to retry: ' + b.err);
-    assert.strictEqual(fs.statSync(lockFile).mtimeMs, firstMtime, 'a refused acquire leaves the standing lock untouched');
-
-    // Older than 5 minutes: a crashed session's lock, reclaimed.
-    const staleMs = Date.now() - 6 * 60 * 1000;
-    fs.utimesSync(lockFile, staleMs / 1000, staleMs / 1000);
-    b = callIn(['base-lock', 'acquire'], lockRepo);
-    assert.ok(b.ok, 'acquire reclaims a lock older than 5 minutes: ' + (b.err || ''));
-    assert.ok(fs.statSync(lockFile).mtimeMs > staleMs, "the reclaimed lock carries this run's own mtime");
-
-    assert.ok(callIn(['base-lock', 'release'], lockRepo).ok, 'release succeeds while the lock stands');
-    assert.ok(!fs.existsSync(lockFile), 'release removes .superdev/base.lock');
-    assert.ok(callIn(['base-lock', 'release'], lockRepo).ok, 'release with no lock present is a no-op');
-
-    b = callIn(['base-lock', 'hold'], lockRepo);
-    assert.ok(!b.ok && /acquire/.test(b.err), 'an unknown base-lock subcommand refuses, naming the real ones: ' + (b.err || ''));
-
-    // A refused acquire touches nothing (dod.md's own criterion) — not even .gitignore. Set up a
-    // fresh lock left by "another session" directly (never through our own acquire), so this repo
-    // never ran the ignore step itself.
-    const refusalRepo = path.join(tmp, 'base-lock-refusal-repo');
-    fs.mkdirSync(path.join(refusalRepo, '.superdev'), { recursive: true });
-    const refusalLock = path.join(refusalRepo, '.superdev', 'base.lock');
-    fs.writeFileSync(refusalLock, 'pid 999999\nacquired ' + new Date().toISOString() + '\n');
-    const refusal = callIn(['base-lock', 'acquire'], refusalRepo);
-    assert.ok(!refusal.ok, 'acquire refuses against a fresh lock left by another session');
     assert.ok(
-      !fs.existsSync(path.join(refusalRepo, '.gitignore')),
-      'a refused acquire writes no .gitignore — it never reaches the ignore step: ' + refusal.err
+      !fs.existsSync(path.join(wtRoot, '.superdev', 'scopes', 'init-wt-scope', 'ledger.md')),
+      'init from a linked worktree nests no run root inside the worktree',
     );
-    assert.ok(/pid 999999/.test(refusal.err), 'the refusal carries the lock file\'s own pid line: ' + refusal.err);
-    assert.ok(/another/.test(refusal.err) && /retry/i.test(refusal.err), 'still names another session and retry: ' + refusal.err);
+    assert.ok(
+      callIn(['status'], mainRepo).out.includes('init-wt-scope'),
+      'status from the main working tree sees the run root init wrote from the linked worktree',
+    );
+    assert.ok(
+      callIn(['status'], wtRoot).out.includes('init-wt-scope'),
+      'status from the linked worktree resolves the same scopes directory as the main working tree',
+    );
+    fs.rmSync(wtRoot, { recursive: true, force: true });
 
-    // Eight real processes racing one fresh lock. Exactly one wins, because `wx` is atomic
-    // across processes — the property the two prose call sites rely on and cannot themselves
-    // provide.
-    const raceRepo = path.join(tmp, 'base-lock-race');
-    fs.mkdirSync(raceRepo, { recursive: true });
-    const winsFile = path.join(raceRepo, 'wins');
-    const race = cp.spawnSync(
-      'sh',
-      [
-        '-c',
-        `for i in 1 2 3 4 5 6 7 8; do "${process.execPath}" "${scopePath}" base-lock acquire >/dev/null 2>&1 && echo won >> "${winsFile}" & done; wait`,
-      ],
-      { cwd: raceRepo, encoding: 'utf8' }
-    );
-    assert.strictEqual(race.status, 0, 'the race harness itself runs: ' + (race.stderr || ''));
-    const wins = fs.existsSync(winsFile) ? fs.readFileSync(winsFile, 'utf8').trim().split('\n').filter(Boolean) : [];
-    assert.strictEqual(wins.length, 1, `exactly one of eight concurrent acquires wins, got ${wins.length}`);
+    fs.rmSync(mainRepo, { recursive: true, force: true });
   }
 
   // --- testContainment: the exported containment test (ADR 0053, ADR 0065) ---------------------

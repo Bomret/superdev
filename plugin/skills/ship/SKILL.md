@@ -118,8 +118,8 @@ afterwards, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishin
 **From the invoking checkout, not the scopetree** — `git worktree remove` refuses to remove the tree
 you are standing in:
 
-- Remove this run's scopetree: `.superdev/scopes/<scope>/scopetree`, plus any leftover slicetrees at
-  `.superdev/scopes/<scope>/slicetrees/*`, then `git worktree prune`.
+- Remove this run's scopetree: `<run-root>/scopetree`, plus any leftover slicetrees at
+  `<run-root>/slicetrees/*`, then `git worktree prune`.
 - Delete any leftover `slice/<scope>/*` branch (merged into the scope branch, so it only clutters).
 - Remove `<run-root>/run.lock` to signal the run is done, if it exists.
 - Keep the rest of `<run-root>` — the ledger and the ticked DoD are the git-ignored paper trail.

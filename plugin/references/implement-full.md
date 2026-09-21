@@ -14,15 +14,17 @@ read `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md` as your last step.
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Cutting the scope branch` and do what it says for
   the run kind the controller handed you — `fresh`, `appended`, or `resumed` (ADR 0028, ADR 0045). Never
   derive that value yourself. Call whatever it leaves you on `<branch>` for the rest of this file: for
-  `fresh` that is literally `git worktree add .superdev/scopes/<scope>/scopetree -b <type>/<scope> <base>`
+  `fresh` that is literally `git worktree add <run-root>/scopetree -b <type>/<scope> <base>`
   (`<type>` and `<scope>` chosen in run init; base from `code-management.md`, default `main`), while
   `appended` and `resumed` resolve `<branch>` per that same section, never by reconstructing the name.
   The cutting/reuse command itself runs from the invoking checkout, like any `git worktree add`; every
-  later command in this file — every merge — addresses the scopetree, `.superdev/scopes/<scope>/scopetree`,
-  with `git -C`, and the invoking checkout is never switched onto the branch. Then move the **scope
+  later command in this file — every merge — addresses the scopetree, `<run-root>/scopetree`,
+  with `git -C`, and the invoking checkout is never switched onto the branch. **On `fresh` or
+  `appended`, do `references/run-init.md`'s deferred copy/commit/revert now** — it names this exact
+  point; on `resumed` it already ran in run init, so there is nothing to do here. Then move the **scope
   anchor** → `in-progress` (per `issue-tracker.md`; best-effort).
 - **Per slice**, a branch off scope in its own **slicetree** under this run's root:
-  `git worktree add .superdev/scopes/<scope>/slicetrees/<id> -b slice/<scope>/<id> <branch>`. The slice
+  `git worktree add <run-root>/slicetrees/<id> -b slice/<scope>/<id> <branch>`. The slice
   branch is **scoped** (`slice/<scope>/<id>`) so parallel runs never collide even when slice ids repeat.
   Filesystem isolation lets independent slices run in parallel; `.superdev/` being git-ignored keeps the
   nested slicetrees out of the parent's status.
@@ -74,7 +76,7 @@ Repeat until every slice is `merged`:
 2. **Dispatch implementers in parallel, capped** — one `superdev:implementer` per runnable slice, each in
    its own slicetree, each with its `model` from the controller's model table. Give each only its own
    specifics: the slice `spec` + `acceptance` + `test-applicability`, its slicetree path
-   (`.superdev/scopes/<scope>/slicetrees/<id>`) + branch (`slice/<scope>/<id>`), base/head, its
+   (`<run-root>/slicetrees/<id>`) + branch (`slice/<scope>/<id>`), base/head, its
    **progress-log** path (`<run-root>/reports/<id>/progress.md` — seed it first), the global constraints,
    and the **interface file** path (`<run-root>/interfaces.md`). Not the whole plan.
 
@@ -127,7 +129,7 @@ Repeat until every slice is `merged`:
    - **`mechanical`** / **`docs`** slice → **skip both per-slice reviews** (the merge's focused run, plus
      the scope's full-suite run — at `/superdev:review`, or the run-handoff run when every slice in
      the scope is `mechanical`/`docs` — are the net; ADR 0025).
-4. **Merge (you, serially)** — in the scopetree: `git -C .superdev/scopes/<scope>/scopetree merge
+4. **Merge (you, serially)** — in the scopetree: `git -C <run-root>/scopetree merge
    --no-ff slice/<scope>/<id>`. Resolve
    conflicts yourself, per `${CLAUDE_PLUGIN_ROOT}/references/merge-conflicts.md` (you hold cross-slice
    context; dispatch a fix subagent only if a conflict needs real code work): trace both sides to their
@@ -135,7 +137,7 @@ Repeat until every slice is `merged`:
    from both sides — never delete a sibling's test to make the merge compile), and compose compatible
    intents. A **genuine winner-picking overlap** — the *same* decision decided two incompatible ways,
    where honouring one spec means violating the other —
-   is not yours to guess: `git -C .superdev/scopes/<scope>/scopetree merge --abort` and escalate to the
+   is not yours to guess: `git -C <run-root>/scopetree merge --abort` and escalate to the
    human. **`--unattended` → block** after
    the abort, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section: picking a
    winner is exactly the human decision the token cannot stand in for.
@@ -145,7 +147,7 @@ Repeat until every slice is `merged`:
    changed paths (`${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` owns which command that is) and
    blocks with a RED report you must fix or revert before continuing.
 
-   Then clean up: `git worktree remove .superdev/scopes/<scope>/slicetrees/<id>` and
+   Then clean up: `git worktree remove <run-root>/slicetrees/<id>` and
    `git branch -D slice/<scope>/<id>` (merged; leaving it clutters the repo). The **slicetree-sweep** `Stop`
    hook removes any merged slicetree you forget, but do it anyway. **Append the interfaces this slice
    decided** to `<run-root>/interfaces.md` (skip if it decided none). Move the slice → `merged`/done in the
@@ -175,11 +177,11 @@ the DAG loop at step 1.
 - **Reconcile before dispatching.** Read the ledger through
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>` (and `get stage`), plus
   `<run-root>/interfaces.md` (your pre-compaction context is gone; this file is what survives), and
-  cross-check the ledger against `git -C .superdev/scopes/<scope>/scopetree log <base>..<branch>`
+  cross-check the ledger against `git -C <run-root>/scopetree log <base>..<branch>`
   (`<branch>` from the branch step above, never rebuilt as `<type>/<scope>`; merge commits name the slice
   branch) and the store's slice statuses. A slice the ledger — or the merge log — marks `merged` is done:
   **never re-dispatch it**, no matter what a stale in-progress slicetree suggests.
-- **Reconcile leftover slicetrees.** For each `.superdev/scopes/<scope>/slicetrees/<id>` still present,
+- **Reconcile leftover slicetrees.** For each `<run-root>/slicetrees/<id>` still present,
   check its branch against the ledger: already merged → clean it up (`git worktree remove` +
   `git branch -D slice/<scope>/<id>`); not yet merged → resume it in place (dispatch there with its
   existing commits intact, per the implementer's own resume discipline) rather than recreating it.
@@ -188,7 +190,7 @@ the DAG loop at step 1.
 ## Leave the run standing
 
 Per-slice slicetrees are already removed at merge (DAG step 4). Anything left — a stray
-`.superdev/scopes/<scope>/slicetrees/*`, a leftover `slice/<scope>/*` branch, the run root, the
+`<run-root>/slicetrees/*`, a leftover `slice/<scope>/*` branch, the run root, the
 scopetree, `<run-root>/run.lock` — stays for `/superdev:ship`, which takes the run down at the end of the
 chain. The scopetree keeps `<branch>` checked out: that is the scope checkout `/superdev:review` and
 `/superdev:document` work in, on this tier as on `lite`; the invoking checkout is never touched. Read

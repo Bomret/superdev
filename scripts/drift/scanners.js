@@ -26,6 +26,8 @@ const {
   REFERENCE_PATTERN,
   RUN_ROOT_DOCS,
   RUN_ROOT_ARTIFACT_PATTERN,
+  SCOPETREE_RUN_ROOT_DOCS,
+  SCOPETREE_RUN_ROOT_PATTERN,
   ASSIGNEE_DOCS_DIR,
   ASSIGNEE_EXEMPT,
   EXTRA_ASSIGNEE_DOCS,
@@ -167,6 +169,23 @@ function scanRunRootPaths(root) {
     const text = readDoc(root, rel);
     if (text === null) continue; // doc absent (fixture / partial checkout) → nothing to scan
     for (const match of text.matchAll(RUN_ROOT_ARTIFACT_PATTERN)) {
+      offenders.push({ source: rel, match: match[0] });
+    }
+  }
+  return offenders;
+}
+
+// scanScopetreeRunRootPaths() is the same shape as scanRunRootPaths() above, over the four documents
+// (ADR 0080) that address another run's scopetree from their own cwd — which may not be the invoking
+// checkout — rather than a `scopetree` directory a real `git worktree add`-style command builds against
+// the checkout it is already running from. `RUN_ROOT_ARTIFACT_PATTERN` deliberately excludes `scopetree`
+// for that reason, so a reverted cwd-relative literal in one of these four needs its own pattern.
+function scanScopetreeRunRootPaths(root) {
+  const offenders = [];
+  for (const rel of SCOPETREE_RUN_ROOT_DOCS) {
+    const text = readDoc(root, rel);
+    if (text === null) continue; // doc absent (fixture / partial checkout) → nothing to scan
+    for (const match of text.matchAll(SCOPETREE_RUN_ROOT_PATTERN)) {
       offenders.push({ source: rel, match: match[0] });
     }
   }
@@ -1093,6 +1112,113 @@ function walkFiles(dir) {
     .sort();
 }
 
+// INV-0001 (docs/invariants.md): no shipped prose instructs a commit or a push to the base branch,
+// whether it names the target by the words "base branch" or by the base's own configured name (e.g.
+// `main`, read from docs/agents/code-management.md's own `**Base branch:**` bullet — a consumer repo
+// whose base is named something else still gets a check that is true for it). The verb and the target
+// have to sit close together, or a legitimate "never commit … onto the base branch" caution —
+// `references/prototype.md` carries exactly that shape — would itself read as an instruction to do the
+// thing it forbids. A `never` excuses the match only when it sits right next to the *verb* ("Never
+// commit … to the base branch") or right next to the *target* ("commit … never onto the base branch"),
+// each within NEVER_NEGATION_WINDOW chars — not merely somewhere between the verb and the target — a
+// `never` negating an unrelated aside earlier in the same sentence ("commit … (never mind the
+// formatting) … to the base branch") is a live instruction, not a caution.
+// The window is a small sliding join of consecutive lines rather than the whole normalized document,
+// both so a `never` near the target reliably sits inside the same window and so the reported line is
+// close to where the instruction actually starts.
+// ponytail: the window is 4 lines / 150 chars, a heuristic proximity bound, not a parser — an
+// instruction split across 5 or more lines is missed. Widen BASE_BRANCH_COMMIT_WINDOW (and the 150-char
+// bound below, in step) if that shape turns up for real.
+const NEVER_NEGATION_WINDOW = 20;
+const BASE_BRANCH_COMMIT_WINDOW = 4;
+const BASE_BRANCH_VERB = '\\b(?:commit(?:s|ted|ting)?|push(?:es|ed|ing)?)\\b(?!-)';
+function verbTargetPattern(targetSource) {
+  return new RegExp(`${BASE_BRANCH_VERB}([\\s\\S]{0,150}?)(?:${targetSource})`, 'i');
+}
+const BASE_BRANCH_PHRASE_PATTERN = verbTargetPattern('\\bbase branch\\b');
+
+// The base's own configured name is a git target only in an unambiguous shape — backtick-quoted (like
+// the `**Base branch:**` bullet's own value) or pushed to `origin` — never a bare word, since a base
+// branch is commonly named "main" and that word is also ordinary English ("the main checkout", "the
+// main working tree").
+function baseNamePattern(name) {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return verbTargetPattern(`\`${escaped}\`|\\borigin\\s+${escaped}\\b`);
+}
+
+// negated(): true when a `never` sits right next to the instruction — either right before the
+// *target* (the text between verb and target ends in "never", the shape `never onto the base
+// branch` carries) or right before the *verb* itself (the text before the verb ends in "never", the
+// shape `Never commit … to the base branch` carries). Either shape is a caution; a `never` anywhere
+// else in the window (an earlier aside, an unrelated clause) is not.
+function negated(beforeVerbText, betweenText) {
+  return (
+    /\bnever\b\s*$/i.test(beforeVerbText.slice(-NEVER_NEGATION_WINDOW)) ||
+    /\bnever\b/i.test(betweenText.slice(-NEVER_NEGATION_WINDOW))
+  );
+}
+
+// scanNoBaseBranchCommit() is pure over a root dir: walks every file under `skills/` and `references/`
+// (INV-0001's own `Paths:`) and reports the line of every commit-or-push-to-base-branch instruction it
+// finds, not only the first — one gap per real instance, however many a file carries. Fenced examples
+// are masked first, the same way every other scanner here avoids reading a `#` inside a code block as
+// prose. The window joins real newlines (rather than collapsing them, the way `normalizeWhitespace`
+// does for a plain contract row) so a match's own line is recoverable by counting the newlines ahead of
+// it, which is what lets a wrapped sentence still report the line it starts on rather than only the
+// window's.
+function scanNoBaseBranchCommit(root) {
+  const gaps = [];
+  const codeManagement = readDoc(root, 'docs/agents/code-management.md');
+  const baseNameMatch = codeManagement && codeManagement.match(/\*\*Base branch:?\*\*:?\s*`([^`]+)`/i);
+  const patterns = [BASE_BRANCH_PHRASE_PATTERN];
+  if (baseNameMatch) patterns.push(baseNamePattern(baseNameMatch[1]));
+  for (const dir of ['skills', 'references']) {
+    const dirPath = docPath(root, dir);
+    let files;
+    try {
+      files = walkFiles(dirPath).filter((f) => f.endsWith('.md'));
+    } catch {
+      continue; // no such dir → nothing to scan
+    }
+    for (const rel of files) {
+      const text = fs.readFileSync(path.join(dirPath, rel), 'utf8');
+      const masked = maskFences(text);
+      const lines = masked.split('\n');
+      // Each line's absolute character offset in `masked`, so a match found by a window starting
+      // partway through the file can still test negation against everything that came before it in
+      // the real document — never only the window slice that happened to find it. A `never` one
+      // line above the verb sits outside the window once the window's own start has slid past that
+      // line, which is exactly how the same physical instruction was previously re-matched, at a
+      // later starting line, with no negating context left to see.
+      const lineOffsets = [];
+      let offset = 0;
+      for (const l of lines) {
+        lineOffsets.push(offset);
+        offset += l.length + 1;
+      }
+      // Every sliding window re-finds the same physical match for as long as it stays in range, so
+      // dedup on the match's absolute offset — never on "the first hit in this file" — is what lets
+      // a real violation later in the file still get reported instead of being masked by an earlier
+      // one, negated or not.
+      const reportedAt = new Set();
+      for (let i = 0; i < lines.length; i++) {
+        const window = lines.slice(i, i + BASE_BRANCH_COMMIT_WINDOW).join('\n');
+        for (const pattern of patterns) {
+          const match = pattern.exec(window);
+          if (!match) continue;
+          const absIndex = lineOffsets[i] + match.index;
+          if (reportedAt.has(absIndex)) continue;
+          if (negated(masked.slice(0, absIndex), match[1])) continue;
+          reportedAt.add(absIndex);
+          const lineOffset = window.slice(0, match.index).split('\n').length - 1;
+          gaps.push({ source: path.join(dir, rel).split(path.sep).join('/'), line: i + 1 + lineOffset });
+        }
+      }
+    }
+  }
+  return gaps;
+}
+
 // scanOpencodeFixtures() is pure over a root dir: the committed golden render under
 // `scripts/drift/fixtures/opencode/` still matches a fresh render of the root's plugin tree. It
 // renders through `drift/opencode-fixtures.js`'s renderNormalized() into a temp dir and diffs the
@@ -1216,6 +1342,8 @@ function scanOpencodeSurfaceSplit(root) {
 module.exports = {
   scan,
   scanRunRootPaths,
+  scanScopetreeRunRootPaths,
+  scanNoBaseBranchCommit,
   scanAssigneeContract,
   scanAnchorContract,
   scanAppendContract,

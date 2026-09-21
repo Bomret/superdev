@@ -25,6 +25,7 @@ const {
   LABEL_VALIDATION_CONTRACTS,
   GREEN_GATE_TIMEOUT_CONTRACTS,
   VERB_CONTRACTS,
+  PLANNED_HANDOFF_CONTRACTS,
   TEST_SELECTION_CONTRACTS,
   FULL_SUITE_CONTRACTS,
   FIX_BOUNDARY_CONTRACTS,
@@ -669,9 +670,9 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // text unique to its own clause, so dropping one fires exactly one gap. ---
 
   const scwScopeModePieces = {
-    location: '`.superdev/scopes/<scope>/scopetree` is the scope checkout, at both tiers.\n\n',
+    location: '`<run-root>/scopetree` is the scope checkout, at both tiers.\n\n',
     recreate:
-      '**Absent** → recreate it: `git worktree add .superdev/scopes/<scope>/scopetree <branch>`.\n\n',
+      '**Absent** → recreate it: `git worktree add <run-root>/scopetree <branch>`.\n\n',
     lockNotCompeting:
       "**`run-lock` refuses the call, naming another session** → that lock is this run's own.\n\n",
     stop:
@@ -684,9 +685,9 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   const implementFullPieces = {
     branchModel:
       'every later command in this file — every merge — addresses the scopetree, ' +
-      '`.superdev/scopes/<scope>/scopetree`, with `git -C`, and the invoking checkout is never switched.\n\n',
+      '`<run-root>/scopetree`, with `git -C`, and the invoking checkout is never switched.\n\n',
     merge:
-      '**Merge (you, serially)** — in the scopetree: `git -C .superdev/scopes/<scope>/scopetree ' +
+      '**Merge (you, serially)** — in the scopetree: `git -C <run-root>/scopetree ' +
       'merge --no-ff slice/<scope>/<id>`.\n\n',
     integration:
       'cut `integration/<scope>` from `<branch>` at run start, keep it checked out **in the ' +
@@ -724,7 +725,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   };
 
   const mergeConflictsPiece =
-    'A genuine winner-picking overlap escalates: `git -C .superdev/scopes/<scope>/scopetree merge ' +
+    'A genuine winner-picking overlap escalates: `git -C <run-root>/scopetree merge ' +
     '--abort` and escalate to the human.\n';
 
   const reviewScopetreePieces = {
@@ -1422,9 +1423,9 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'references/run-init.md': 'Create the run root directory and write a ledger header by hand.\n',
   });
   const vcRunInitGaps = scanContract(vcRunInit, VERB_CONTRACTS);
-  // Three, because `references/run-init.md` carries three rows: `init`, plus the base lock's own
-  // acquire and release (ADR 0058). This fixture names none of them.
-  assert.equal(vcRunInitGaps.length, 3, 'flags run-init.md for creating the run root without `scope.js init`');
+  // One, because `references/run-init.md` carries one row here: `init`. Its base-lock rows are gone
+  // (ADR 0079) — no superdev command commits to the base branch any more.
+  assert.equal(vcRunInitGaps.length, 1, 'flags run-init.md for creating the run root without `scope.js init`');
   assert.ok(
     vcRunInitGaps.every((g) => g.source === path.join('references', 'run-init.md')),
     'names run-init.md'
@@ -1474,9 +1475,9 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'skills/plan/SKILL.md': 'Build the branch name from `<type>/<scope>` for the append refusal.\n',
   });
   const vcPlanGaps = scanContract(vcPlan, VERB_CONTRACTS);
-  // Three, for the same reason run-init.md reports three: `get branch --root`, plus the base lock's
-  // acquire and release (ADR 0058), none of which this fixture names.
-  assert.equal(vcPlanGaps.length, 3, 'flags plan.md for reconstructing the branch instead of `scope.js get branch --root`');
+  // One: `get branch --root`. plan.md carries no base-lock row (ADR 0079) — its design docs land in the
+  // scopetree, on the scope branch, never on base.
+  assert.equal(vcPlanGaps.length, 1, 'flags plan.md for reconstructing the branch instead of `scope.js get branch --root`');
   assert.ok(
     vcPlanGaps.every((g) => g.source === path.join('skills', 'plan', 'SKILL.md')),
     'names plan.md'
@@ -1573,6 +1574,258 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     shipVerbGaps.some((g) => g.source === path.join('skills', 'ship', 'SKILL.md')),
     'flags a ship.md that stopped reading the unresolved and degrade records through `scope.js get`',
   );
+
+  // --- PLANNED_HANDOFF_CONTRACTS (ADR 0079, ADR 0080): `/superdev:plan` cuts the branch and scopetree,
+  // commits its design docs there, and writes a ledger at stage `planned` — the fact that hands the scope
+  // branch to `/superdev:implement` as ready. Four documents carry the agreement, and each half is
+  // asserted apart. ---
+
+  // negative: one fixture carrying every row's clause, all four documents at once — this is also what
+  // gives the selftest-coverage assertion in ./index.js a `readDoc` hit against every row's document, so
+  // this table's own fixtures are checked the same way every other table's are.
+  const phClean = fixture({
+    'scripts/scope.js':
+      "const STAGE_RANK = {\n  planned: -1,\n  implementing: 0,\n};\n" +
+      "    case 'root':\n      verbRoot(cwd, args[0]);\n      break;\n" +
+      "const INIT_ENTRY_STAGES = ['planned', 'implementing'];\n",
+    'skills/plan/SKILL.md':
+      '**Read `<run-root>/run.lock` before this step\'s first write, whether or not a cut happens below.**\n' +
+      '**Write the ledger right here, at the cut — never wait for §6.** Pipe `"slices": []}` to `scope.js init <type>/<scope> planned`.\n' +
+      '**Cut the scopetree now** per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`\'s `## Cutting the scope branch` (ADR 0079) — the same reference.\n' +
+      '**Commit what the scopetree holds, on the scope branch.** Nothing to commit on a run where no capture crystallised.\n' +
+      '**Write the ledger with `scope.js init`, from the invoking checkout** — the JSON envelope, adapted to a plan-time call passing `scope.js init <type>/<scope> planned`.\n' +
+      'Refresh `<run-root>/run.lock`: write `<run-root>/run.lock` right after, per `## The run lock`.\n',
+    'references/run-init.md':
+      '- **`planned`** — the normal entry for a feature `/superdev:plan` cut (ADR 0079): skip `init`, move the\n' +
+      "  stage forward now, before your playbook's first dispatch.\n" +
+      '  | node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" init <type>/<scope> implementing\n' +
+      '\n  A `planned` ledger carrying no slice rows never reaches this stage-forward move — check the store.\n' +
+      '\n  A successful adopt whose stage is `planned` and slice table is empty gets the same store check.\n',
+    'references/scope-mode.md':
+      'A **`planned`** ledger is one instance of this run kind (ADR 0079): `/superdev:plan` already cut, and works in the scopetree already there.\n' +
+      '**Write `<run-root>/run.lock`** once `## Cutting the scope branch` above has cut the scopetree, at both tiers — and once `/superdev:plan` has made its own cut (ADR 0079) — never before.\n',
+  });
+  assert.equal(scanContract(phClean, PLANNED_HANDOFF_CONTRACTS).length, 0, 'every planned-handoff clause present yields zero gaps');
+
+  // positive: scope.js drops the `planned` rank but keeps the `root` verb
+  const phNoStage = fixture({
+    'scripts/scope.js':
+      "const STAGE_RANK = {\n  implementing: 0,\n};\n    case 'root':\n      verbRoot(cwd, args[0]);\n      break;\n" +
+      "const INIT_ENTRY_STAGES = ['planned', 'implementing'];\n",
+  });
+  const phNoStageGaps = scanContract(phNoStage, PLANNED_HANDOFF_CONTRACTS);
+  assert.equal(phNoStageGaps.length, 1, 'flags scope.js for losing the `planned` stage rank');
+  assert.equal(phNoStageGaps[0].source, path.join('scripts', 'scope.js'), 'names scope.js');
+
+  // positive: scope.js keeps the `planned` rank but drops the `root` verb
+  const phNoRootVerb = fixture({
+    'scripts/scope.js':
+      "const STAGE_RANK = {\n  planned: -1,\n  implementing: 0,\n};\n" +
+      "const INIT_ENTRY_STAGES = ['planned', 'implementing'];\n",
+  });
+  const phNoRootVerbGaps = scanContract(phNoRootVerb, PLANNED_HANDOFF_CONTRACTS);
+  assert.equal(phNoRootVerbGaps.length, 1, 'flags scope.js for losing the `root` verb');
+  assert.equal(phNoRootVerbGaps[0].source, path.join('scripts', 'scope.js'), 'names scope.js');
+
+  // positive: plan.md stops writing the ledger with `scope.js init` (the acceptance case: deleting the
+  // ledger write from skills/plan/SKILL.md makes this pinned row report a gap)
+  const phNoLedgerWrite = fixture({
+    'skills/plan/SKILL.md':
+      '**Read `<run-root>/run.lock` before this step\'s first write, whether or not a cut happens below.**\n' +
+      '**Write the ledger right here, at the cut — never wait for §6.** Pipe `"slices": []}` to `scope.js init <type>/<scope> planned`.\n' +
+      '**Commit what the scopetree holds, on the scope branch.** Nothing to commit.\n' +
+      'Write the ledger.\n' +
+      'Refresh `<run-root>/run.lock`: write `<run-root>/run.lock` right after, per `## The run lock`.\n' +
+      "scope-mode.md`'s `## Cutting the scope branch` (ADR 0079)\n",
+  });
+  const phNoLedgerWriteGaps = scanContract(phNoLedgerWrite, PLANNED_HANDOFF_CONTRACTS);
+  assert.equal(phNoLedgerWriteGaps.length, 2, 'flags plan.md for no longer writing the ledger with `scope.js init` (both the section and §6\'s init call)');
+  assert.ok(
+    phNoLedgerWriteGaps.every((g) => g.source === path.join('skills', 'plan', 'SKILL.md')),
+    'both gaps name plan.md',
+  );
+
+  // positive: plan.md stops committing the scopetree's design docs before writing the ledger
+  const phNoCommit = fixture({
+    'skills/plan/SKILL.md':
+      '**Read `<run-root>/run.lock` before this step\'s first write, whether or not a cut happens below.**\n' +
+      '**Write the ledger right here, at the cut — never wait for §6.** Pipe `"slices": []}` to `scope.js init <type>/<scope> planned`.\n' +
+      '**Write the ledger with `scope.js init`, from the invoking checkout** — the JSON envelope.\n' +
+      'Refresh `<run-root>/run.lock`: write `<run-root>/run.lock` right after, per `## The run lock`.\n' +
+      "scope-mode.md`'s `## Cutting the scope branch` (ADR 0079)\n",
+  });
+  const phNoCommitGaps = scanContract(phNoCommit, PLANNED_HANDOFF_CONTRACTS);
+  assert.equal(phNoCommitGaps.length, 2, 'flags plan.md for no longer committing the scopetree and missing §6');
+  assert.ok(
+    phNoCommitGaps.every((g) => g.source === path.join('skills', 'plan', 'SKILL.md')),
+    'both gaps name plan.md',
+  );
+
+  // positive: scope.js drops `init`'s entry-stage argument (Critical review finding: `init` reverts to
+  // guessing `planned` for every caller)
+  const phNoEntryStages = fixture({
+    'scripts/scope.js':
+      "const STAGE_RANK = {\n  planned: -1,\n  implementing: 0,\n};\n" +
+      "    case 'root':\n      verbRoot(cwd, args[0]);\n      break;\n",
+  });
+  const phNoEntryStagesGaps = scanContract(phNoEntryStages, PLANNED_HANDOFF_CONTRACTS);
+  assert.equal(phNoEntryStagesGaps.length, 1, "flags scope.js for losing init's entry-stage argument");
+  assert.equal(phNoEntryStagesGaps[0].source, path.join('scripts', 'scope.js'), 'names scope.js');
+
+  // positive: run-init.md's `fresh` path stops naming `implementing` as its entry stage
+  const phNoFreshImplementing = fixture({
+    'references/run-init.md':
+      '- **`planned`** — the normal entry for a feature `/superdev:plan` cut (ADR 0079): skip `init`, move the\n' +
+      "  stage forward now, before your playbook's first dispatch.\n" +
+      '| node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" init <type>/<scope>\n' +
+      '\n  A `planned` ledger carrying no slice rows never reaches this stage-forward move — check the store.\n' +
+      '\n  A successful adopt whose stage is `planned` and slice table is empty gets the same store check.\n',
+  });
+  const phNoFreshImplementingGaps = scanContract(phNoFreshImplementing, PLANNED_HANDOFF_CONTRACTS);
+  assert.equal(phNoFreshImplementingGaps.length, 1, "flags run-init.md for no longer naming `implementing` as the fresh path's entry stage");
+  assert.equal(phNoFreshImplementingGaps[0].source, path.join('references', 'run-init.md'), 'names run-init.md');
+
+  // positive: run-init.md stops taking the `planned` ledger by skipping `init` and moving the stage
+  const phNoPlannedTake = fixture({
+    'references/run-init.md':
+      'A `planned` ledger is handled the same as any other: run `init` again.\n' +
+      '| node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" init <type>/<scope> implementing\n' +
+      '\n  A `planned` ledger carrying no slice rows never reaches this stage-forward move — check the store.\n' +
+      '\n  A successful adopt whose stage is `planned` and slice table is empty gets the same store check.\n',
+  });
+  const phNoPlannedTakeGaps = scanContract(phNoPlannedTake, PLANNED_HANDOFF_CONTRACTS);
+  assert.equal(phNoPlannedTakeGaps.length, 1, 'flags run-init.md for no longer taking a `planned` ledger by skipping `init`');
+  assert.equal(phNoPlannedTakeGaps[0].source, path.join('references', 'run-init.md'), 'names run-init.md');
+
+  // positive: scope-mode.md drops both the `planned`-is-`resumed` naming and the run-lock-writer naming
+  const phNoScopeMode = fixture({
+    'references/scope-mode.md': 'A live ledger is a `resumed` run.\n',
+  });
+  const phNoScopeModeGaps = scanContract(phNoScopeMode, PLANNED_HANDOFF_CONTRACTS);
+  assert.equal(phNoScopeModeGaps.length, 2, 'flags scope-mode.md for dropping both the planned-run-kind and run-lock-writer clauses');
+  assert.ok(
+    phNoScopeModeGaps.every((g) => g.source === path.join('references', 'scope-mode.md')),
+    'both gaps name scope-mode.md',
+  );
+
+  // positive: plan.md restates its own cut and run-lock mechanics rather than citing scope-mode.md's rule
+  const phNoDispatchCitation = fixture({
+    'skills/plan/SKILL.md':
+      '**Read `<run-root>/run.lock` before this step\'s first write, whether or not a cut happens below.**\n' +
+      '**Write the ledger right here, at the cut — never wait for §6.** Pipe `"slices": []}` to `scope.js init <type>/<scope> planned`.\n' +
+      '**Write the ledger with `scope.js init`, from the invoking checkout** — the JSON envelope.\n' +
+      '**Commit what the scopetree holds, on the scope branch.** Nothing to commit.\n' +
+      'Cut the scope branch the usual way and write the run lock afterwards.\n',
+  });
+  const phNoDispatchCitationGaps = scanContract(phNoDispatchCitation, PLANNED_HANDOFF_CONTRACTS);
+  assert.equal(phNoDispatchCitationGaps.length, 3, "flags plan.md for restating scope-mode.md's cut rule and run-lock section, and missing §6's init call");
+  assert.ok(
+    phNoDispatchCitationGaps.every((g) => g.source === path.join('skills', 'plan', 'SKILL.md')),
+    'all gaps name plan.md',
+  );
+
+  // positive: plan.md's §2 and §6 both stop passing `planned` at all (minor D / triage #509, #510
+  // closures: three new rows pin what the previous fix cycle newly moved to §2)
+  const phNoPlannedArg = fixture({
+    'skills/plan/SKILL.md':
+      '**Read `<run-root>/run.lock` before this step\'s first write, whether or not a cut happens below.**\n' +
+      '**Write the ledger right here, at the cut — never wait for §6.** Pipe it to `scope.js init <type>/<scope>`.\n' +
+      '**Write the ledger with `scope.js init`, from the invoking checkout** — the JSON envelope.\n' +
+      '**Commit what the scopetree holds, on the scope branch.** Nothing to commit.\n' +
+      "scope-mode.md`'s `## Cutting the scope branch` (ADR 0079)\n" +
+      'write `<run-root>/run.lock` right after, per `## The run lock`\n',
+  });
+  const phNoPlannedArgGaps = scanContract(phNoPlannedArg, PLANNED_HANDOFF_CONTRACTS);
+  assert.equal(phNoPlannedArgGaps.length, 2, "flags plan.md for no longer passing `planned` in both §2 and §6");
+  assert.ok(
+    phNoPlannedArgGaps.every((g) => g.source === path.join('skills', 'plan', 'SKILL.md')),
+    'both gaps name plan.md',
+  );
+
+  // positive: plan.md's §2 stops writing the ledger at the cut (triage #509's own gap reopens)
+  const phNoLedgerAtCut = fixture({
+    'skills/plan/SKILL.md':
+      '**Read `<run-root>/run.lock` before this step\'s first write, whether or not a cut happens below.**\n' +
+      '**Write the ledger with `scope.js init`, from the invoking checkout** — the JSON envelope, `scope.js init <type>/<scope> planned`.\n' +
+      '**Commit what the scopetree holds, on the scope branch.** Nothing to commit.\n' +
+      "scope-mode.md`'s `## Cutting the scope branch` (ADR 0079)\n" +
+      'write `<run-root>/run.lock` right after, per `## The run lock`\n',
+  });
+  const phNoLedgerAtCutGaps = scanContract(phNoLedgerAtCut, PLANNED_HANDOFF_CONTRACTS);
+  // Three gaps: dropping §2's own sentence also drops its cut-time `planned` call (minor I —
+  // that call is now anchored to this sentence's surrounding text), and dropping §6's
+  // "adapted to a plan-time call passing" phrase also drops §6's init call.
+  assert.equal(phNoLedgerAtCutGaps.length, 3, 'flags plan.md for no longer writing the ledger at the cut and missing §6');
+  assert.ok(
+    phNoLedgerAtCutGaps.every((g) => g.source === path.join('skills', 'plan', 'SKILL.md')),
+    'all gaps name plan.md',
+  );
+
+  // positive: plan.md's §2 stops reading the run lock unconditionally before its first write (triage
+  // #510's own gap reopens)
+  const phNoUnconditionalLockRead = fixture({
+    'skills/plan/SKILL.md':
+      '**Write the ledger right here, at the cut — never wait for §6.** Pipe `"slices": []}` to `scope.js init <type>/<scope> planned`.\n' +
+      '**Write the ledger with `scope.js init`, from the invoking checkout** — the JSON envelope, `scope.js init <type>/<scope> planned`.\n' +
+      '**Commit what the scopetree holds, on the scope branch.** Nothing to commit.\n' +
+      "scope-mode.md`'s `## Cutting the scope branch` (ADR 0079)\n" +
+      'write `<run-root>/run.lock` right after, per `## The run lock`\n',
+  });
+  const phNoUnconditionalLockReadGaps = scanContract(phNoUnconditionalLockRead, PLANNED_HANDOFF_CONTRACTS);
+  assert.equal(phNoUnconditionalLockReadGaps.length, 2, "flags plan.md for no longer reading the run lock and missing §6");
+  assert.ok(
+    phNoUnconditionalLockReadGaps.every((g) => g.source === path.join('skills', 'plan', 'SKILL.md')),
+    'both gaps name plan.md',
+  );
+
+  // positive: run-init.md's `planned` bullet stops naming the empty-slice-rows / store-check clause
+  // (Important review finding A)
+  const phNoEmptyPlannedCheck = fixture({
+    'references/run-init.md':
+      '- **`planned`** — the normal entry for a feature `/superdev:plan` cut (ADR 0079): skip `init`, move the\n' +
+      "  stage forward now, before your playbook's first dispatch.\n" +
+      '| node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" init <type>/<scope> implementing\n' +
+      '\n  A successful adopt whose stage is `planned` and slice table is empty gets the same store check.\n',
+  });
+  const phNoEmptyPlannedCheckGaps = scanContract(phNoEmptyPlannedCheck, PLANNED_HANDOFF_CONTRACTS);
+  assert.equal(
+    phNoEmptyPlannedCheckGaps.length,
+    1,
+    'flags run-init.md for no longer naming the empty-slice-rows store check on the local-ledger `planned` bullet',
+  );
+  assert.equal(phNoEmptyPlannedCheckGaps[0].source, path.join('references', 'run-init.md'), 'names run-init.md');
+
+  // positive: run-init.md's adopt path stops naming the same check for an adopted `planned` snapshot
+  // carrying no slice rows (Important review finding A)
+  const phNoAdoptEmptyPlannedCheck = fixture({
+    'references/run-init.md':
+      '- **`planned`** — the normal entry for a feature `/superdev:plan` cut (ADR 0079): skip `init`, move the\n' +
+      "  stage forward now, before your playbook's first dispatch.\n" +
+      '| node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" init <type>/<scope> implementing\n' +
+      '\n  A `planned` ledger carrying no slice rows never reaches this stage-forward move — check the store.\n',
+  });
+  const phNoAdoptEmptyPlannedCheckGaps = scanContract(phNoAdoptEmptyPlannedCheck, PLANNED_HANDOFF_CONTRACTS);
+  assert.equal(
+    phNoAdoptEmptyPlannedCheckGaps.length,
+    1,
+    "flags run-init.md for no longer naming the adopt path's own empty-slice-rows store check",
+  );
+  assert.equal(phNoAdoptEmptyPlannedCheckGaps[0].source, path.join('references', 'run-init.md'), 'names run-init.md');
+
+  // positive: plan.md's §6 stops passing `planned` as `init`'s entry stage (minor: §6's own entry-stage row
+  // pins the unique prefix "adapted to a plan-time call passing" so it does not match §2's different prefix)
+  const phNoSectionSixPlanned = fixture({
+    'skills/plan/SKILL.md':
+      '**Read `<run-root>/run.lock` before this step\'s first write, whether or not a cut happens below.**\n' +
+      '**Write the ledger right here, at the cut — never wait for §6.** Pipe `"slices": []}` to `scope.js init <type>/<scope> planned`.\n' +
+      '**Cut the scopetree now** per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`\'s `## Cutting the scope branch` (ADR 0079) — the same reference.\n' +
+      '**Commit what the scopetree holds, on the scope branch.** Nothing to commit on a run where no capture crystallised.\n' +
+      '**Write the ledger with `scope.js init`, from the invoking checkout** — the JSON envelope, adapted to a plan-time call passing `scope.js init <type>/<scope>`.\n' +
+      'Refresh `<run-root>/run.lock`: write `<run-root>/run.lock` right after, per `## The run lock`.\n',
+  });
+  const phNoSectionSixPlannedGaps = scanContract(phNoSectionSixPlanned, PLANNED_HANDOFF_CONTRACTS);
+  assert.equal(phNoSectionSixPlannedGaps.length, 1, "flags plan.md for no longer passing `planned` as `init`'s entry stage in §6");
+  assert.equal(phNoSectionSixPlannedGaps[0].source, path.join('skills', 'plan', 'SKILL.md'), 'names plan.md');
 
   // --- TEST_SELECTION_CONTRACTS: the TDD loop, the inline loop, Lens 2's independent re-run, and the
   // documentation step's own commits each read references/test-selection.md rather than restating the

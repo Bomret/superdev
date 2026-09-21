@@ -473,9 +473,9 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
       fixture({
         'references/run-init.md':
           '**`<run-root>/ledger.md` already present** — read its stage first. Stage **`shipped`** — ' +
-          'that ledger belongs to a finished run — rename it to `ledger-shipped-<date>.md` and run ' +
-          '`init` above, which writes a fresh ledger beside it: the rotation never overwrites an ' +
-          'existing `ledger-shipped-<date>.md`, nothing is deleted, so ADR\n' +
+          'that ledger belongs to a finished run: run `init` directly. `init` itself rotates the existing ' +
+          'ledger aside to `ledger-shipped-<date>.md` before writing the fresh one: the rotation never ' +
+          'overwrites an existing `ledger-shipped-<date>.md`, nothing is deleted, so ADR\n' +
           "0007's seven-day trail and `scope-prune`'s contained-or-gone reap rule (ADR 0053) both stand " +
           'unchanged. Any other stage — `implementing`, `merged`, `reviewed`, `documented`, or\n' +
           '`documented-unreviewed` — is a run init that already ran: skip `init`.\n',
@@ -492,8 +492,8 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     fixture({
       'references/run-init.md':
         '**`<run-root>/ledger.md` already present** — read its stage first. Stage **`shipped`** — ' +
-        'that ledger belongs to a finished run — rename it to `ledger-shipped-<date>.md` and run ' +
-        '`init` above, which writes a fresh ledger beside it: nothing is deleted, so ADR\n' +
+        'that ledger belongs to a finished run: run `init` directly. `init` itself rotates the existing ' +
+        'ledger aside to `ledger-shipped-<date>.md` before writing the fresh one: nothing is deleted, so ADR\n' +
         "0007's seven-day trail and `scope-prune`'s contained-or-gone reap rule (ADR 0053) both stand " +
         'unchanged. Any other stage — `implementing`, `merged`, `reviewed`, `documented`, or\n' +
         '`documented-unreviewed` — is a run init that already ran: skip `init`.\n',
@@ -744,9 +744,11 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'Equal tree is contained; a differing tree and a conflict exit are not. `--write-tree` needs git ' +
     '2.38, and an older git falls back to `git merge-base --is-ancestor` and says so.\n\n' +
     '## Cutting the scope branch\n\n' +
-    '- **`fresh`** — no ledger existed, so the scope branch does not exist either. Cut it from ' +
-    '`<base>`. **The name already exists** — a scope-prune reap left it standing. Stop, name the ' +
-    'branch found, and cut nothing.\n' +
+    '- **`fresh`** — no ledger existed, so the run itself has never cut this branch before. Cut it ' +
+    'from `<base>`. **The name already exists** — a scope-prune reap left it standing. The branch is ' +
+    'decided exactly as `appended` decides its own reused branch below — contained in `<base>` and ' +
+    'reused, or not contained and stopped, per `## Containment` above — rather than an unconditional ' +
+    'stop.\n' +
     '- **`appended`** — a `shipped` ledger was rotated aside. Decide on the same test that decides a ' +
     'scope is finished with (ADR 0007): contained in `<base>`, or gone entirely. Gone → cut fresh. ' +
     '**Present** — decide with `## Containment` above, which owns the test. **Contained** — ' +
@@ -764,7 +766,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // negative: losing the `fresh` cut-from-base clause fails on its own
   const rkNoFresh = fixture({
     'references/scope-mode.md': runKindBody.replace(
-      'no ledger existed, so the scope branch does not exist either. Cut it from `<base>`. ',
+      'no ledger existed, so the run itself has never cut this branch before. Cut it from `<base>`. ',
       '',
     ),
   });
@@ -775,8 +777,10 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // negative: losing the `fresh` existing-name stop clause fails on its own
   const rkNoFreshStop = fixture({
     'references/scope-mode.md': runKindBody.replace(
-      ' **The name already exists** — a scope-prune reap left it standing. Stop, name the branch ' +
-        'found, and cut nothing.',
+      ' **The name already exists** — a scope-prune reap left it standing. The branch is decided ' +
+        'exactly as `appended` decides its own reused branch below — contained in `<base>` and ' +
+        'reused, or not contained and stopped, per `## Containment` above — rather than an ' +
+        'unconditional stop.',
       '',
     ),
   });

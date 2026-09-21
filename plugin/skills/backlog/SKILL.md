@@ -107,11 +107,11 @@ issue query, say. A record already returned by the anchor or triage listing is n
 |---|---|---|
 | `blocked` | the anchor carries the store's blocked signal, an open one among the slices its `## Scope anchor` listing returns beneath it does, its feature label fails the scope-slug rule, its feature label matches two or more anchor candidates, or its matched run root's stage reads `shipped` while the anchor is still open — close the anchor | a human, now |
 | `stranded` | a run root whose stage is short of `shipped` and matches no open anchor | a human, now — resume the run if its anchor still exists, otherwise delete the branch, scopetree, and run root |
-| `in flight` | its scope has a run root whose stage is short of `shipped` | the chain command that stage has not reached |
+| `in flight` | its scope has a run root whose stage is short of `shipped` and not `planned` | the chain command that stage has not reached |
 | `waiting` | an anchor dependency it records is unsatisfied | the anchor it waits on |
 | `needs planning` | a triage record, or an anchor that is neither itself a slice nor has slices beneath it | `/superdev:plan` |
 | `unreleased` | an anchor carrying no release signal (`docs/agents/issue-tracker.md`'s `## Release` section) | a release decision |
-| `ready` | every remaining **anchor**: released, no run root, dependencies satisfied | `/superdev:implement <feature-label>` |
+| `ready` | every remaining **anchor**: released, dependencies satisfied, and no run root or a matched run root at stage `planned` — `/superdev:plan` already cut the branch and scopetree, but no slice has run (triage #509) | `/superdev:implement <feature-label>` |
 | `untriaged` | an open store record carrying neither a feature label nor the store's triage signal | read it — a human decides what to do next |
 
 **Every open anchor, every triage record and untriaged item the listings returned, and every

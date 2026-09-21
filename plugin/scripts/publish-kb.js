@@ -34,7 +34,7 @@ function fail(msg) {
 
 // --- staging root --------------------------------------------------------------------------
 //
-// `.superdev/scopes/<scope>/scopetree` sits INSIDE `.superdev/`, so a checkout-relative
+// `<run-root>/scopetree` sits INSIDE `.superdev/`, so a checkout-relative
 // `.superdev/kb-pending/` resolves one level too deep from a scopetree's own cwd. Resolving
 // from the parent of `git rev-parse --path-format=absolute --git-common-dir` reaches the
 // repository's main checkout from any cwd, scopetree included (skills/publish-kb/SKILL.md §1).

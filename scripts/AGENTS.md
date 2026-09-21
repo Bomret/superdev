@@ -22,7 +22,8 @@ This doc owns what each script guards and the contracts between them. Repo-wide 
 `init`, `stage set`, `slice`, `degraded add|add-denial|reset-denials`, `unresolved add|clear`,
 `deferred add`,
 `docs set <value>|clear`, `get stage|branch|anchor|slices|unresolved|degraded|deferred|denials|docs`,
-`status` (which renders the whole `/superdev:status` report), `publish`, and `adopt`. `degraded
+`status` (which renders the whole `/superdev:status` report), `publish`, `adopt`, and `root <slug>`.
+`degraded
 add-denial` prefixes its bullet `denied: `, which is what separates a denied verification dispatch from
 the other degraded shape sharing that line, and `get denials` counts those prefixed bullets — the number
 an unattended run caps at two (ADR 0041). `degraded reset-denials` appends a bullet prefixed
@@ -48,20 +49,19 @@ staged-page lines survive the collapse, because each is otherwise recorded nowhe
 carries no `clear` counterpart: a defect stops being true once a run re-verifies the scope green, while
 unplanned work stays unplanned until somebody plans it (ADR 0035).
 
-`base-lock acquire|release` is the one verb that touches no ledger (ADR 0058). It guards
-`<cwd>/.superdev/base.lock`, a repo-level lock keyed on the invoking checkout rather than on a run root,
-because what it serialises — the base-branch commit of `CONTEXT.md`, `docs/adr/`, and `docs/invariants.md`
-that both `/superdev:plan` §6 and run init perform — belongs to no scope. It therefore takes no `--root`.
-`acquire` creates the lock with an exclusive `wx` write, then git-ignores `.superdev/` — appending the
-line rather than rewriting `.gitignore` — only once that create lands, so a refused acquire touches
-nothing else. A standing lock younger than 5 minutes refuses, naming the live session (its own lock
-file's first line) and the retry, and leaves that lock's mtime untouched, so a retry never extends the
-holder's claim. An older one is a crashed session's: it is unlinked and re-created through the same
-exclusive write, ignoring `.superdev/` again once that reclaim lands, so two sessions reclaiming one
-stale lock still resolve to a single winner. `release` unlinks the file and treats an absent lock as the
-released state. No hook backs any of it. The exclusive create is atomic across processes, which is the
-backstop `hooks/run-lock.js` itself really rests on (`git worktree add -b`'s own refusal), and the
-selftest proves it with eight concurrent `acquire` processes racing one fresh lock.
+`root <slug>` is the one verb that touches no ledger (ADR 0080). It resolves and prints a run root's
+absolute path — `<main-worktree>/.superdev/scopes/<slug>`, where `<main-worktree>` is the parent of
+`git rev-parse --git-common-dir` — so it takes no `--root` of its own. The result is identical whichever
+checkout it runs from: the invoking checkout, a scopetree, or a slicetree of the same repository, which is
+what lets every prose caller resolve `<run-root>` the same way regardless of its own cwd. It refuses
+outside a git repository, and refuses a slug carrying a path separator or a leading `.`, since either
+would path a ledger read or write outside `.superdev/scopes/`.
+
+`init` writes a fresh ledger at stage `planned` (ADR 0079) — the one stage that precedes the four-command
+chain rather than naming a step within it, ranked below `implementing` so `stage set implementing` (or any
+higher stage) moves forward out of it and no later write moves back. `init` over an existing ledger at
+stage `planned` overwrites it, since a plan that cut the branch and scopetree but ran no slice yet has
+nothing to lose; any other stage still refuses.
 
 `publish` and `adopt` (ADR 0042) mirror the ledger to the scope anchor's **published snapshot**, and
 neither performs store I/O: slice-store I/O stays in-agent (ADR 0022). `publish --root <run-root>`
@@ -446,7 +446,15 @@ playbooks point at `scope-mode.md`, so a rename there dangles like any other. Th
 `references/implement-lite.md`, `references/run-init.md`, `references/run-handoff.md`,
 `references/scope-mode.md`, `agents/implementer.md`, `agents/slice-reviewer.md`,
 `agents/simplicity-reviewer.md`, and `agents/final-reviewer.md` address
-run-root artifacts by absolute `<run-root>/…` path. The `assignee` contract: every
+run-root artifacts by absolute `<run-root>/…` path. The `scopetree-run-root` contract (ADR 0080) is the
+same shape over a narrower, deliberately separate list: `skills/afk/SKILL.md`, `skills/ship/SKILL.md`,
+`skills/document/SKILL.md`, and `plugin/scripts/publish-kb.js` each address another run's scopetree from
+their own cwd, which may not be the invoking checkout, so each names it `<run-root>/scopetree` rather
+than the checkout-relative `.superdev/scopes/<scope>/scopetree` a real `git worktree add`-style command
+legitimately builds elsewhere. The `run-root` check's own artifact pattern deliberately excludes
+`scopetree` for that reason — most of its occurrences across `RUN_ROOT_DOCS` are exactly those
+legitimate, cwd-relative commands — so a reversion in one of these four needs a pattern of its own rather
+than widening the shared one and flagging every legitimate cut. The `assignee` contract: every
 issue-backend document carries both halves of it, and each is reported apart. One half **requires** the
 `## Assignee` section, the store side of the generic contract, which `Assignee` shares with every other
 member of the specialising family. The other **forbids** the `- **Assignee:**` config bullet: the
@@ -659,16 +667,71 @@ playbooks `slice`, `references/scope-mode.md` `degraded add`, `references/implem
 to dispatch a `doc-writer`), and `skills/review/SKILL.md` `docs clear` (when its fix loop lands commits). A
 document that drops its verb goes
 back to hand-editing or hand-parsing the ledger, which the `ledger-guard` hook only catches as a tool
-call at runtime, never as prose. The table used to carry a `skills/publish-kb/SKILL.md` row for `get
-branch`, retired (ADR 0069): `plugin/scripts/publish-kb.js` reads the scope branch by `require`ing
-`readLedgerHeader` directly, real code no verb-invocation pattern can match, and
-`tests/publish-kb.test.js`'s ledger-route assertions cover the behavior instead. Four further rows pin
-the one verb that writes no ledger at all:
-`references/run-init.md` and `skills/plan/SKILL.md` each carry `base-lock acquire` and `base-lock
-release` (ADR 0058). Both halves are pinned per document, because nothing else enforces either. A
-document that stops acquiring returns to two sessions racing on the same base-branch design docs, and
-one that stops releasing makes every later session wait out the five-minute staleness window for a lock
-nobody holds.
+call at runtime, never as prose. No row pins `skills/publish-kb/SKILL.md` to `get branch` (ADR 0069):
+`plugin/scripts/publish-kb.js` reads the scope branch by `require`ing `readLedgerHeader` directly, real
+code no verb-invocation pattern can match, and `tests/publish-kb.test.js`'s ledger-route assertions cover
+the behavior instead. No row pins a `scope.js` verb on `references/run-init.md` or `skills/plan/SKILL.md`
+for a base-branch write (ADR 0079): no superdev command commits to the base branch, and the
+`no-base-branch-commit` check (INV-0001, below) is what catches a reintroduction of that commit, not this
+table.
+The `planned-handoff` contract (ADR 0079, ADR 0080), sixteen rows: `plugin/scripts/scope.js` ranks `planned`
+below `implementing` in `STAGE_RANK` and carries the `root <slug>` verb; `skills/plan/SKILL.md` writes the
+ledger with `scope.js init` and commits what the scopetree holds on the scope branch before writing it;
+`references/run-init.md` takes a `planned` ledger by skipping `init` and moving the stage forward to
+`implementing`; `references/scope-mode.md` names a `planned` ledger as the `resumed` run kind
+`/superdev:plan` already cut, and names `/superdev:plan` as a second run-lock writer beside the
+execution playbooks; and two further rows are `skills/plan/SKILL.md`'s own dispatch sentences citing
+`scope-mode.md`'s cut rule and its run-lock section rather than restating either. Each half reads correct
+alone — `scope.js` can carry the stage and verb while `skills/plan/SKILL.md` stops writing the ledger or
+committing in the scopetree, and `scope-mode.md` can still state the rule while `skills/plan/SKILL.md`
+stops citing it — which is the one-sided-pin shape the root `AGENTS.md`'s prompt-architecture rules name.
+Two further rows close a Critical review finding that `init` stamped `**Stage:** planned` unconditionally
+regardless of who was writing the ledger: `plugin/scripts/scope.js` carries `INIT_ENTRY_STAGES`, `init`'s
+required entry-stage argument with no default, and `references/run-init.md`'s own `init` call — the one
+caller with no `/superdev:plan` interval to enter through — names `implementing` rather than leaving the
+argument to a default `scope.js` might grow back.
+Three more rows close the review's Minor D finding — the two triage closures the prior fix cycle left
+unpinned: `skills/plan/SKILL.md` passes `planned`, never `implementing`, at its own cut-time write
+(`scope.js init <type>/<scope> planned`); it writes the ledger right at the cut rather than waiting for
+§6 (triage #509's own closure); and it reads `<run-root>/run.lock` unconditionally before §2's first
+write, whether or not a cut happens below (triage #510's own closure). A document that drops any one of
+the three silently reopens the exact gap that closure named.
+Two final rows close the review's Important A finding: `references/run-init.md` names a `planned` ledger
+carrying no slice rows as an interview abandoned between the cut and the slice-table write, never a normal
+`resumed` run — the `planned` bullet's own text says to check the store's slices before choosing `stage
+set` (an interview that finished) or a re-init at `implementing` (one that did not) — and the adopt path
+carries the same check for an adopted snapshot that lands at `planned` with an empty slice table. Losing
+either row lets `/superdev:implement` silently adopt a header-only ledger as ready work.
+The `no-base-branch-commit` contract (INV-0001, `docs/invariants.md`), `scanNoBaseBranchCommit()`: no
+file under `skills/` or `references/` instructs a commit or a push to the base branch, whether the
+target is named by the phrase `base branch` or by the base's own configured name (read from
+`docs/agents/code-management.md`'s `**Base branch:**` bullet, so a consumer repo whose base is named
+something else still gets a check that is true for it). The verb (`commit`/`push`, any inflection) and
+the target have to sit within a small sliding window of joined lines, one file at a time. A `never`
+excuses the match only when it sits immediately next to the *verb* ("Never commit … to the base
+branch") or immediately next to the *target* ("commit … never onto the base branch",
+`references/prototype.md`'s own caution) — not merely somewhere between the verb and the target: a
+`never` negating an unrelated aside earlier in the same sentence ("commit … (never mind the formatting)
+… to the base branch") is still a live instruction. The configured name is a git
+target only when backtick-quoted or pushed to `origin` (`` `main` ``, `origin main`), never as a bare
+word, since a base branch's name (`main`) is also ordinary English ("the main checkout"). `push-only` (a
+PR posture value `skills/setup/SKILL.md` and the code-management seeds carry) is excluded by requiring
+the verb not be immediately followed by a hyphen, since the hyphenated compound names a config value,
+not an instruction to push anywhere. The reported line is the sliding window's own start line, which
+sits close enough to the offending sentence's own first line even across its hard wrap. The window is a
+4-line/150-char proximity heuristic, not a parser — an instruction split across 5 or more lines is
+missed (a documented ceiling, widen `BASE_BRANCH_COMMIT_WINDOW` if that shape turns up for real).
+`negated()` tests the full document up to a match's absolute offset, never only the sliding window that
+found it, so a caution split across a line break — "but never\ncommit it to the base branch" — reads
+correctly even once the window's own start has slid past the `never` line; every hit in a file is
+reported, keyed on its absolute offset so a real violation later in the same file is never masked by an
+earlier one the scan already excused. **Its reach is narrow: it catches a verbatim revert of prose this
+scope deleted, never a paraphrase.** The verb/target pattern is fixed shape (`commit`/`push`, any
+inflection, near `base branch` or the base's own configured name), so it misses a target stated before
+its verb ("to the base branch, commit…"), a `<base>` placeholder spelling instead of the literal phrase
+or name, and anything sitting inside a fenced code block (masked out, the same way every other scanner
+here treats a fence). A green `no-base-branch-commit` is evidence against one specific phrasing, not
+proof that no shipped document instructs a base-branch write.
 The `kb-staging` and `kb-no-backend-call` checks are the ADR 0023 knowledge-base contracts, checked in two
 halves because either alone passes while the invariant is gone. The `kb-staging` half: `skills/plan/SKILL.md`,
 `skills/document/SKILL.md`, and `references/doc-pass.md` each name `.superdev/kb-pending/` as the place a
@@ -935,17 +998,27 @@ falls on one of the two documents `scanAppendContract` cannot reach, since neith
 around a hole.
 Each ledger-signal row is anchored on the refusal condition's own wording, not on the rationale sentence
 that explains the branch test a few lines below it, so a document that keeps the rationale but loses the
-condition still fails. The `rotate-on-shipped` contract (ADR 0004, ADR 0007):
+condition still fails. The `rotate-on-shipped` contract (ADR 0004, ADR 0007, ADR 0079/0080's Important review finding B):
 `references/run-init.md` states that run init reads a present ledger's stage before choosing between
-resume and init, that stage `shipped` rotates `ledger.md` to `ledger-shipped-<date>.md` and then runs
-`init` again, that every other stage (`implementing`, `merged`, `reviewed`, `documented`,
-`documented-unreviewed`) keeps the existing resume path, and that nothing is deleted, so
-`scope-prune`'s seven-day post-merge reap still runs on its own terms. A fourth clause states that the
-rotation never overwrites an existing `ledger-shipped-<date>.md`, so a scope that ships twice in one
-calendar day keeps both trails instead of the second rotation clobbering the first. `scope-prune` keeps
-a shipped run root on disk past merge, so a second `/superdev:implement` run over an appended feature
-can land while that ledger is still there. A document that goes back to treating any present ledger as
-an in-progress resume re-dispatches a finished run instead of beginning the new one. The
+resume and init, that stage `shipped` runs `init` directly and `init` itself rotates the existing ledger
+aside to `ledger-shipped-<date>.md` before writing the fresh one, that every other stage (`implementing`,
+`merged`, `reviewed`, `documented`, `documented-unreviewed`) keeps the existing resume path, and that
+nothing is deleted, so `scope-prune`'s seven-day post-merge reap still runs on its own terms. A fourth
+clause states that the rotation never overwrites an existing `ledger-shipped-<date>.md`, so a scope that
+ships twice in one calendar day keeps both trails instead of the second rotation clobbering the first.
+`scope-prune` keeps a shipped run root on disk past merge, so a second `/superdev:implement` run over an
+appended feature can land while that ledger is still there. A document that goes back to treating any
+present ledger as an in-progress resume re-dispatches a finished run instead of beginning the new one.
+`init` owns the rotation mechanics — `plugin/scripts/scope.js`'s `rotateShippedLedger()`, called only
+after `verbInit` has validated stdin, so a refused `init` never rotates a ledger it is about to leave
+in place (Important review finding G) — because `scope.js` is the
+sole `ledger.md` read and write path (ADR 0022) and the rotation is a ledger operation; `references/
+run-init.md` describes what `init` does rather than instructing a reader to rename the file by hand
+first, which is what let the instruction die stranded after the branch, scopetree, and run lock already
+existed when `/superdev:plan` itself became an `init` caller over a `shipped` ledger (`docs/agents/
+issue-tracker.md`'s ADR 0004 append flow). `tests/scope.test.js` carries the rotation's own coverage: the
+fresh ledger lands at the requested entry stage, the rotated file carries the shipped ledger byte for
+byte, a second same-day rotation never overwrites the first, and nothing is deleted. The
 `parked-questions` contract (ADR 0004, ADR 0005), two rows against `skills/plan/SKILL.md`. It surfaces an
 epic's `## Parked questions` the moment §0 loads it, before the interview diverges into new ground. A
 question the interview resolves has its line deleted from that section, with the new slice's `spec`
