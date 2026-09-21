@@ -1,3 +1,10 @@
+## [0.49.1](https://codeberg.org/bomret/superdev/compare/v0.49.0...v0.49.1) (2026-09-21)
+
+
+### Bug Fixes
+
+* **plan:** a shipped scope takes no append ([#579](https://codeberg.org/bomret/superdev/issues/579)) ([7a94c36](https://codeberg.org/bomret/superdev/commit/7a94c36956995a27afe210b4f9f08857d8d0a2bf)), closes [#10](https://codeberg.org/bomret/superdev/issues/10) [#570](https://codeberg.org/bomret/superdev/issues/570) [#571](https://codeberg.org/bomret/superdev/issues/571) [#569](https://codeberg.org/bomret/superdev/issues/569) [#574](https://codeberg.org/bomret/superdev/issues/574)
+
 # [0.49.0](https://codeberg.org/bomret/superdev/compare/v0.48.2...v0.49.0) (2026-09-21)
 
 
