@@ -1,3 +1,10 @@
+# [0.49.0](https://codeberg.org/bomret/superdev/compare/v0.48.2...v0.49.0) (2026-09-21)
+
+
+### Features
+
+* **plan:** load-bearing commitments reach the invariant register ([#572](https://codeberg.org/bomret/superdev/issues/572)) ([1f2c6ab](https://codeberg.org/bomret/superdev/commit/1f2c6ab49c79d96907a1276f5982f1e4b6763f39)), closes [#556](https://codeberg.org/bomret/superdev/issues/556) [#557](https://codeberg.org/bomret/superdev/issues/557)
+
 ## [0.48.2](https://codeberg.org/bomret/superdev/compare/v0.48.1...v0.48.2) (2026-09-21)
 
 
