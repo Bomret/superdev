@@ -581,6 +581,16 @@ session so the refreshed skills, agents, and hook bridge load. Or do it by hand:
 clone, then re-run the render command above, in case the rendered skill itself is ever broken or
 unavailable.
 
+**The bridge's ceiling is baked in at render time.** `.opencode/plugins/superdev.js` bounds each
+spawned hook at the value `hooks/hooks.json`'s own `green-gate` entry carried when you last rendered,
+not whatever that entry says now. Raise the entry — your suite has grown, say — and green-gate's own
+bound rises immediately, but the bridge's ceiling does not, until you re-render: the bridge then kills
+the hook at the stale, shorter bound, and that kill **blocks the tool call it was gating**. Raising the
+entry makes the bridge fail harder, not later, until the next render picks the new value up. The
+rendered `.codex/hooks.json`'s own `green-gate` timeout is baked from the same value and goes stale the
+same way, more mildly: Codex's own host enforces that ceiling directly, with no bridge to kill a call
+early over it.
+
 **Verify each render target.** Confirm the paths above exist under the project's `.opencode/`.
 Run `opencode debug skill` in the project and confirm it lists every `superdev-` skill, which is
 how OpenCode reports what it actually loaded. Start an OpenCode session and check its log for a

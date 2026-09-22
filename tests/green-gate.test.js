@@ -28,6 +28,7 @@ const {
   resetOptionRegionWalks,
   getOptionRegionWalks,
   readHookTimeoutMs,
+  suiteBoundMs,
   SUITE_MARGIN_MS,
 } = require(hookPath);
 
@@ -219,9 +220,36 @@ assert.equal(
   }));
   assert.equal(readHookTimeoutMs(noTimeoutField), 600 * 1000, 'an entry naming no timeout falls back to the platform default');
 
+  // #607: the derived bound must never degenerate to unbounded. Node reads `timeout: 0` as no
+  // timeout at all, so a consumer who *lowers* the entry below the margin — the field is theirs and
+  // the header only discusses raising it — would silently get an unbounded suite spawn, which is the
+  // failure INV-0009 exists to prevent reached through the code added to prevent it.
+  assert.ok(suiteBoundMs(600 * 1000) > 0, 'the shipped ceiling yields a bounded suite');
+  assert.equal(suiteBoundMs(600 * 1000), 600 * 1000 - SUITE_MARGIN_MS, 'and it is the margin below it');
+  assert.ok(suiteBoundMs(30 * 1000) > 0, 'an entry equal to the margin still bounds the suite');
+  assert.ok(suiteBoundMs(1000) > 0, 'and so does one far below it');
+  assert.ok(suiteBoundMs(1000) <= 1000, 'without ever exceeding the ceiling it derives from');
+  // The monotonicity fix (#608) dropped the explicit floor the max(1, …) used to carry — the only
+  // assertion above that pins zero is suiteBoundMs(1000), a value the bug cannot reach.
+  // suiteBoundMs(1) === 0 without it, and readHookTimeoutMs accepts any positive number.
+  assert.ok(suiteBoundMs(1) > 0, 'the floor holds even at the smallest possible ceiling');
+
+  // The bound must not fall as the ceiling it derives from rises: a consumer nudging the entry up
+  // from 30s to 31s used to get a fifteen-times-tighter bound (15s → 1s), because the margin branch
+  // fell off a cliff at exactly the margin.
+  assert.ok(suiteBoundMs(31 * 1000) >= suiteBoundMs(30 * 1000), 'a higher ceiling never yields a lower bound');
+
+  // The relation itself, which nothing pinned: the enforced bound stays strictly inside the
+  // platform ceiling. An inverted margin was already caught; a *removed* one was not, because the
+  // assertion below used to subtract the same constant it was checking.
+
   // The shipped hooks.json (default argument, no path) still yields the current 570s bound.
   const { SUITE_TIMEOUT_MS } = require(hookPath);
   assert.equal(SUITE_TIMEOUT_MS, 600 * 1000 - SUITE_MARGIN_MS, 'the production ceiling derives from the shipped hooks.json entry, margin below it');
+  // The relation itself, which nothing pinned: a *removed* margin used to pass here, because the
+  // assertion above subtracts the same constant it is checking. These two do not.
+  assert.ok(SUITE_TIMEOUT_MS > 0, 'the enforced bound never degenerates to unbounded');
+  assert.ok(SUITE_TIMEOUT_MS < readHookTimeoutMs(), 'and stays strictly inside the platform ceiling');
 }
 
 // INV-0009 / ADR 0086: a killed suite (no verdict) blocks the merge, naming that it was killed

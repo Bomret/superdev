@@ -427,7 +427,15 @@ function readHookTimeoutMs(manifestPath = HOOKS_MANIFEST) {
 // SUITE_TIMEOUT_MS bounds just the spawned suite, margin below the manifest's own ceiling, so the
 // hook itself — not the platform — always ends a suite that runs too long.
 const SUITE_MARGIN_MS = 30 * 1000;
-const SUITE_TIMEOUT_MS = Math.max(0, readHookTimeoutMs() - SUITE_MARGIN_MS);
+// The margin comes off the ceiling, and the result is never allowed to reach zero: Node reads
+// `timeout: 0` as no timeout at all, so a consumer who lowers this hook's `hooks.json` entry below
+// the margin would otherwise get an unbounded suite spawn — the failure INV-0009 exists to prevent,
+// arrived at through the code that prevents it. Below the margin the bound becomes a fraction of the
+// ceiling instead, which keeps the hook alive to observe its own kill (#607).
+function suiteBoundMs(hookTimeoutMs) {
+  return Math.max(hookTimeoutMs - SUITE_MARGIN_MS, Math.floor(hookTimeoutMs / 2), 1);
+}
+const SUITE_TIMEOUT_MS = suiteBoundMs(readHookTimeoutMs());
 
 // timeoutMs and maxBufferBytes are parameters (not read from the module constants directly) so
 // tests can exercise the kill paths without waiting for the production bound or writing 64 MiB.
@@ -448,7 +456,13 @@ function runTests(testCommand, cwd, timeoutMs = SUITE_TIMEOUT_MS, maxBufferBytes
     // status == null with no signal means the suite never started at all — e.g. a -C cwd that
     // doesn't exist (ENOENT): the OS never got as far as running a process to kill. That's not
     // "no verdict", it's "the merge's own working tree can't even run the suite", so it gates
-    // like a RED verdict rather than failing open.
+    // like a RED verdict rather than failing open. On the same condition
+    // the bridge lets the call through, with a notice: a Spawn failure sits outside INV-0009, and
+    // each gate answers it for its own reasons (ADR 0087). This one fires only on a merge, so
+    // blocking costs one merge and leaves every other call free to repair the tree. The bridge fires
+    // on every tool call, where a block would close the surface the repair is made through. The
+    // divergence is deliberate, and each gate names the other's answer so neither reads as an
+    // oversight.
     if (e.status == null && e.signal == null) return { ok: false, output: (e.message || '').trim() };
     // status == null with a signal means the suite started and was killed (SUITE_TIMEOUT_MS,
     // ENOBUFS, or another signal) — it produced no verdict. INV-0009 / ADR 0086: no gate reads
@@ -584,7 +598,8 @@ module.exports = {
   resetOptionRegionWalks,
   getOptionRegionWalks,
   readHookTimeoutMs,
-  SUITE_TIMEOUT_MS,
+  suiteBoundMs,
   SUITE_MARGIN_MS,
+  SUITE_TIMEOUT_MS,
 };
 

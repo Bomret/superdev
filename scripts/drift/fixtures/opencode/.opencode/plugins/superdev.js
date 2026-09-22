@@ -48,6 +48,8 @@ const SHELL_BEFORE_HOOKS = ["merge-guard","run-lock","ledger-guard"];
 const SESSION_CREATED = ["session.created"];
 const SESSION_ENDED = ["session.idle","session.deleted"];
 const SESSION_END_HOOKS = ["slicetree-sweep","scope-prune"];
+const BRIDGE_HOOK_TIMEOUT_MS = 600000;
+let spawnFailureNoticedByHook = {};
 
 function bridgeSpawnEnv(root) {
   return Object.assign({}, process.env, { CLAUDE_PLUGIN_ROOT: root });
@@ -62,6 +64,15 @@ function buildHookPayload(eventName, toolName, toolInput, cwd, agentId) {
 }
 
 function hookBlockReason(hook, result) {
+  // A spawn its own bound ended carries no verdict, and no gate reads its absence as a pass
+  // (INV-0009, ADR 0087). `close` reports a killed child as a null status beside a signal, and on
+  // OpenCode this bridge is the only gate there is: a green-gate killed at the ceiling would
+  // otherwise pass the merge it was gating. The reason names the kill, never a refusal the hook
+  // never made. Codex never reaches this function — its hooks are wired directly through
+  // `.codex/hooks.json`, never through this bridge.
+  if (result.signal) {
+    return `superdev hook ${hook} was killed (${result.signal}) before it produced a verdict — blocking the call it was gating`;
+  }
   if (result.status === 2) {
     return (result.stderr && result.stderr.trim()) || `superdev hook ${hook} refused the call`;
   }
@@ -79,6 +90,20 @@ function hookBlockReason(hook, result) {
   return null;
 }
 
+function spawnFailureNotice(hook) {
+  if (spawnFailureNoticedByHook[hook]) return null;
+  spawnFailureNoticedByHook[hook] = true;
+  return (
+    `superdev: hook ${hook} could not start, so it is not gating this session — the call proceeded ` +
+    'unchecked. This is an installation problem (a missing `node`, a wrong plugin path, a broken ' +
+    'install), not a verdict. Repair it; this notice appears once per hook, per session boundary.'
+  );
+}
+
+function resetSpawnFailureNotices() {
+  spawnFailureNoticedByHook = {};
+}
+
 function runBridgeHook(hook, payload) {
   return new Promise((resolve) => {
     const child = spawn('node', [path.join(PLUGIN_ROOT, 'hooks', `${hook}.js`)], {
@@ -87,7 +112,7 @@ function runBridgeHook(hook, payload) {
     let stdout = '';
     let stderr = '';
     let settled = false;
-    const timer = setTimeout(() => child.kill(), 600000);
+    const timer = setTimeout(() => child.kill(), BRIDGE_HOOK_TIMEOUT_MS);
     const finish = (result) => {
       if (settled) return;
       settled = true;
@@ -99,7 +124,7 @@ function runBridgeHook(hook, payload) {
     child.stdout.on('data', (chunk) => (stdout += chunk));
     child.stderr.on('data', (chunk) => (stderr += chunk));
     child.on('error', () => finish({ error: true }));
-    child.on('close', (code) => finish({ status: code, stdout, stderr }));
+    child.on('close', (code, signal) => finish({ status: code, signal, stdout, stderr }));
     // A hook that exits before ever reading stdin (a require() failure before main() runs, e.g.)
     // turns a payload larger than the pipe buffer into an EPIPE write error; spawnSync's `input`
     // option contained that internally, but a plain child.stdin write does not — an unlistened
@@ -108,7 +133,11 @@ function runBridgeHook(hook, payload) {
     child.stdin.write(JSON.stringify(payload));
     child.stdin.end();
   }).then((result) => {
-    if (!result || result.error) return;
+    if (!result || result.error) {
+      const notice = spawnFailureNotice(hook);
+      if (notice) console.error(notice);
+      return;
+    }
     const reason = hookBlockReason(hook, result);
     if (reason) throw new Error(reason);
   });
@@ -170,6 +199,10 @@ const SuperdevPlugin = async (ctx) => {
     event: async ({ event }) => {
       if (!event || typeof event.type !== 'string') return;
       if (SESSION_CREATED.includes(event.type)) {
+        // A fresh session is the notice's own boundary (ADR 0087): clear every hook's flag before
+        // this session's own spawns, so a failure this session hits is noticed again rather than
+        // staying silent because some earlier session already hit it once.
+        resetSpawnFailureNotices();
         try {
           await runBridgeHook('update-check', buildHookPayload('SessionStart', undefined, undefined, cwd));
         } catch {

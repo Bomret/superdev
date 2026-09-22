@@ -241,7 +241,15 @@ This root owns every other subtree directly:
   takes the containment probe `baseHistoryHasPatch` off that same call (ADR 0082). These are the only
   places a hook depends on a script instead of standing alone. A `require` failure leaves either hook
   with no fallback reader: it sweeps/prunes nothing and says nothing. The probe has its own, narrower
-  fallback — `scope-prune.js` prunes by tree comparison alone, still silently.
+  fallback — `scope-prune.js` prunes by tree comparison alone, still silently. **One dependency runs
+  the other way**, and it is the only one: `plugin/scripts/adapter.js` requires
+  `plugin/hooks/green-gate.js`'s `readHookTimeoutMs`, so both harness renders derive their hook
+  timeout from the ceiling `hooks/hooks.json` already sets for the gate, rather than a literal free to
+  drift from it (ADR 0087): the OpenCode hook bridge bounds its own hook spawn at that ceiling at
+  runtime, and the rendered `.codex/hooks.json` carries the same value as its own `timeout` field,
+  enforced by Codex's own host rather than by superdev code — Codex wires every hook directly, never
+  through a bridge. The renderer reads the value once and bakes it into both outputs, so neither
+  running surface requires anything at runtime.
 - `scripts/` and `plugin/scripts/`. Owned by [`scripts/AGENTS.md`](scripts/AGENTS.md):
   `plugin/scripts/scope.js` (the run-state CLI, ADR 0022: owns the ledger schema, is the only
   `ledger.md` read and write path, exports `readLedgerHeader` for `plugin/hooks/scope-prune.js` and

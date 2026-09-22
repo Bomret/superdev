@@ -14,6 +14,7 @@ const os = require('node:os');
 const { assertSpawnDecided } = require('./spawn-verdict');
 
 const adapterPath = require.resolve('../plugin/scripts/adapter.js');
+const { readHookTimeoutMs } = require('../plugin/hooks/green-gate.js');
 const {
   render,
   queryOpenCodeModels,
@@ -23,6 +24,8 @@ const {
   buildHookPayload,
   bridgeSpawnEnv,
   hookBlockReason,
+  BRIDGE_HOOK_TIMEOUT_MS,
+  spawnFailureNotice,
   TOOL_MAP,
   SKILL_MARKER,
   CODEX_SKILL_MARKER,
@@ -556,6 +559,44 @@ const {
     const allow = JSON.stringify({ hookSpecificOutput: { permissionDecision: 'allow' } });
     assert.equal(hookBlockReason('x', { status: 0, stdout: allow, stderr: '' }), null);
 
+    // INV-0009, ADR 0087: a hook the bridge's own ceiling killed carries no verdict, and on
+    // OpenCode this bridge is the only gate there is — so it blocks, naming the kill rather than
+    // a refusal the hook never made. `close` reports a killed child as a null status beside a
+    // signal, which is the field the handler used to discard.
+    const killed = hookBlockReason('green-gate', { status: null, signal: 'SIGTERM', stdout: '', stderr: '' });
+    assert.match(killed, /killed/i, 'a killed hook blocks, naming the kill');
+    assert.match(killed, /green-gate/, 'and names the hook it killed');
+    assert.doesNotMatch(killed, /refus|denied/i, 'a kill is not a refusal the hook made');
+    assert.equal(
+      hookBlockReason('green-gate', { status: 0, signal: null, stdout: '', stderr: '' }),
+      null,
+      'a hook that decided on its own is unaffected by the signal check'
+    );
+
+    // ADR 0087: the bridge's ceiling follows hooks/hooks.json's own green-gate entry rather than a
+    // literal of its own, so raising that entry raises both bounds. The renderer reads the manifest
+    // and bakes the value in, which is why the generated bridge needs no reader of its own.
+    assert.equal(
+      BRIDGE_HOOK_TIMEOUT_MS,
+      readHookTimeoutMs(),
+      "the bridge's ceiling is the manifest's own green-gate entry, not a second literal"
+    );
+    assert.ok(BRIDGE_HOOK_TIMEOUT_MS > 0, 'and it is bounded');
+
+    // ADR 0087: a hook that never started is a Spawn failure, not a No verdict — the gate never
+    // ran, so the absence is evidence about the installation rather than about the code under the
+    // gate. The call proceeds, because every repair for a broken install is made through the
+    // surface a block would close. The notice fires once per session: one nobody can read past is
+    // the same failure as none.
+    const first = spawnFailureNotice('green-gate');
+    assert.match(first, /green-gate/, 'the notice names the hook that could not start');
+    assert.match(first, /start/i, 'and says it never started');
+    assert.equal(spawnFailureNotice('green-gate'), null, 'a second spawn failure for the same hook is silent in the same session');
+    // Keyed by hook, not one session-wide flag: a different hook still gets its own first notice —
+    // one transient failure must not silence every other hook for the life of the process.
+    assert.match(spawnFailureNotice('merge-guard'), /merge-guard/, 'a different hook still gets its own notice');
+    assert.equal(spawnFailureNotice('merge-guard'), null, 'and is then silent for itself too');
+
     // The rendered bridge module, exercised end to end against fake hooks under the fixture
     // plugin root. Every fake appends a marker line carrying its name, the payload's tool_name,
     // and its CLAUDE_PLUGIN_ROOT, so routing, payload shape, and the spawn env are all asserted
@@ -682,6 +723,60 @@ const {
     assert.equal(count('green-gate'), gatesBefore + 1, 'a green after-hook run still spawns the hook');
     await plugin['tool.execute.after']({ tool: 'edit', sessionID: 's1', args: { filePath: '/x' } }, { title: '', output: '', metadata: {} });
     assert.equal(count('green-gate'), gatesBefore + 1, 'no green-gate spawn for a non-shell tool');
+
+    // ADR 0087, end to end through the rendered bridge: a hook that never starts leaves the call
+    // proceeding, and says so once. Emptying PATH makes `node` itself unspawnable, which is a real
+    // ENOENT reaching `child.on('error')` rather than a hand-built shape — the discipline
+    // tests/spawn-verdict.test.js takes with the result shapes it asserts against.
+    {
+      const realPath = process.env.PATH;
+      const realWrite = process.stderr.write;
+      const captured = [];
+      process.env.PATH = '';
+      process.stderr.write = (chunk) => (captured.push(String(chunk)), true);
+      let threw = null;
+      try {
+        // The before-hook spawns three SHELL_BEFORE_HOOKS in turn — with PATH empty every one of
+        // them fails to spawn, so the first call gets one notice per distinct hook, never one
+        // session-wide flag silencing the other two.
+        await plugin['tool.execute.before']({ tool: 'bash', sessionID: 'sf1' }, { args: { command: 'ls' } });
+        await plugin['tool.execute.before']({ tool: 'bash', sessionID: 'sf2' }, { args: { command: 'ls' } });
+      } catch (e) {
+        threw = e;
+      } finally {
+        process.stderr.write = realWrite;
+        process.env.PATH = realPath;
+      }
+      assert.equal(threw, null, 'a hook that never started blocks nothing — the call proceeds');
+      const text = captured.join('');
+      assert.match(text, /could not start/, 'and the operator is told the hook never started');
+      assert.equal(
+        text.split('could not start').length - 1,
+        BRIDGE_SHELL_BEFORE_HOOKS.length,
+        'once per hook for the session, not once per tool call, and not silenced session-wide by one hook',
+      );
+
+      // The session boundary the bridge already has — session.created — clears the per-hook flags,
+      // so the next session's first spawn failure is noticed again rather than staying silent for
+      // the life of the process.
+      process.env.PATH = '';
+      process.stderr.write = (chunk) => (captured.push(String(chunk)), true);
+      try {
+        // update-check (PATH still empty) also fails to spawn here and gets its own first-time
+        // notice — irrelevant to what this asserts, so it's cleared off before the check below.
+        await plugin.event({ event: { type: 'session.created' } });
+        captured.length = 0;
+        await plugin['tool.execute.before']({ tool: 'bash', sessionID: 'sf3' }, { args: { command: 'ls' } });
+      } finally {
+        process.stderr.write = realWrite;
+        process.env.PATH = realPath;
+      }
+      assert.equal(
+        captured.join('').split('could not start').length - 1,
+        BRIDGE_SHELL_BEFORE_HOOKS.length,
+        'a fresh session.created resets the per-hook notice flags',
+      );
+    }
 
     // Regression: a hook that never reads stdin (a require() failure before main() runs, the
     // documented slicetree-sweep/scope-prune shape) must not turn a >64KB command payload into an
@@ -1059,7 +1154,11 @@ const {
 
       const bashPost = codexHooks.hooks.PostToolUse.find((e) => e.matcher === 'Bash');
       assert.equal(bashPost.hooks[0].command, `node ${JSON.stringify(hookPath('green-gate'))}`, 'PostToolUse/Bash wires green-gate');
-      assert.equal(bashPost.hooks[0].timeout, 600, 'green-gate keeps its 600s timeout under Codex');
+      assert.equal(
+        bashPost.hooks[0].timeout,
+        Math.round(BRIDGE_HOOK_TIMEOUT_MS / 1000),
+        "green-gate's Codex timeout is derived from BRIDGE_HOOK_TIMEOUT_MS, not a literal of its own",
+      );
 
       assert.deepEqual(
         commandsOf(codexHooks.hooks.Stop),
@@ -1234,6 +1333,71 @@ const {
       assert.equal(res.status, 0, res.stderr);
       assert.ok(fs.existsSync(path.join(cliCodexDest, '.agents', 'skills', 'superdev-plan', 'SKILL.md')), 'renders the skill with no prompt');
       assert.ok(fs.existsSync(path.join(cliCodexDest, '.codex', 'agents', 'superdev-implementer.toml')), 'renders the agent with the given --model-map, no prompt');
+    }
+
+    // End to end, the kill path: a fake hook that sleeps past a short bound, killed by a real
+    // SIGTERM, reaching hookBlockReason with a real signal rather than the hand-built shape the
+    // unit-level assertion above uses. BRIDGE_HOOK_TIMEOUT_MS is a module-load-time constant, baked
+    // into the rendered bridge as a literal declaration at render time (600s in production, far too
+    // long to wait on here). Rather than lowering the *tracked* hooks.json (a SIGTERM here runs no
+    // `finally`, so a killed test process could leave the shipped manifest permanently bricked at a
+    // 1s ceiling — the same kill path the merge gate itself relies on, post-merge, unattended), this
+    // renders the bridge with the real adapter to an untracked temp destination and rewrites the
+    // baked constant in that *emitted* file before loading it — the tracked hooks.json, and the
+    // already-cached adapterPath module, are never touched.
+    {
+      const killRoot = tmp();
+      fs.mkdirSync(path.join(killRoot, 'skills'), { recursive: true });
+      fs.mkdirSync(path.join(killRoot, 'agents'), { recursive: true });
+      // Sleeps well past the 1s bound, then would exit cleanly if never killed — proving the
+      // bridge's own kill, not the hook's own exit code, is what the assertion below observes.
+      write(killRoot, 'hooks/merge-guard.js', 'const start = Date.now(); while (Date.now() - start < 3000) {} process.exit(0);\n');
+      write(killRoot, 'hooks/run-lock.js', 'process.exit(0);\n');
+      write(killRoot, 'hooks/ledger-guard.js', 'process.exit(0);\n');
+      const killDest = tmp();
+      render({ harness: 'opencode', pluginRoot: killRoot, dest: killDest, modelMap: new Map() });
+      const bridgePath = path.join(killDest, '.opencode', 'plugins', 'superdev.js');
+      const renderedBridge = fs.readFileSync(bridgePath, 'utf8');
+      const bakedConstant = `const BRIDGE_HOOK_TIMEOUT_MS = ${JSON.stringify(BRIDGE_HOOK_TIMEOUT_MS)};`;
+      assert.ok(renderedBridge.includes(bakedConstant), 'the emitted bridge bakes the real ceiling as a literal declaration');
+      fs.writeFileSync(bridgePath, renderedBridge.replace(bakedConstant, 'const BRIDGE_HOOK_TIMEOUT_MS = 1000;'));
+      delete require.cache[bridgePath];
+      const { server: KillPlugin } = require(bridgePath);
+      const killPlugin = await KillPlugin({ directory: killDest });
+      const killErr = await (async () => {
+        try {
+          await killPlugin['tool.execute.before']({ tool: 'bash', sessionID: 'kill1' }, { args: { command: 'ls' } });
+          return null;
+        } catch (e) {
+          return e;
+        }
+      })();
+      assert.ok(killErr, 'the bridge blocks the call it was gating once the ceiling kills the hook');
+      assert.match(killErr.message, /killed/i, 'naming the kill');
+      assert.match(killErr.message, /merge-guard/, 'and naming the hook the ceiling killed');
+
+      // Ride-along: the Codex timeout derivation was asserted only by mirroring the same formula
+      // the implementation uses (Math.round(BRIDGE_HOOK_TIMEOUT_MS / 1000)) — with the real constant
+      // at 600000, a hand-written `timeout: 600` satisfies that mirror exactly, so a regression to a
+      // literal would stay green. Proving genuine derivation needs a render whose own
+      // BRIDGE_HOOK_TIMEOUT_MS actually differs from 600000 — a lowered manifest, read by a second,
+      // independently-loaded copy of green-gate.js and adapter.js at a fresh, untracked path (never
+      // the cached adapterPath, never the tracked hooks.json).
+      const loweredPluginRoot = tmp();
+      fs.mkdirSync(path.join(loweredPluginRoot, 'hooks'), { recursive: true });
+      fs.mkdirSync(path.join(loweredPluginRoot, 'scripts'), { recursive: true });
+      fs.copyFileSync(require.resolve('../plugin/hooks/green-gate.js'), path.join(loweredPluginRoot, 'hooks', 'green-gate.js'));
+      fs.copyFileSync(adapterPath, path.join(loweredPluginRoot, 'scripts', 'adapter.js'));
+      const realManifest = fs.readFileSync(path.join(path.dirname(require.resolve('../plugin/hooks/green-gate.js')), 'hooks.json'), 'utf8');
+      fs.writeFileSync(path.join(loweredPluginRoot, 'hooks', 'hooks.json'), realManifest.replace('"timeout": 600', '"timeout": 1'));
+      const loweredAdapter = require(path.join(loweredPluginRoot, 'scripts', 'adapter.js'));
+      assert.equal(loweredAdapter.BRIDGE_HOOK_TIMEOUT_MS, 1000, 'the independently-loaded copy picks up its own lowered manifest');
+
+      const codexKillDest = tmp();
+      loweredAdapter.render({ harness: 'codex', pluginRoot: killRoot, dest: codexKillDest, modelMap: new Map() });
+      const codexKillHooks = JSON.parse(fs.readFileSync(path.join(codexKillDest, '.codex', 'hooks.json'), 'utf8'));
+      const bashPostKill = codexKillHooks.hooks.PostToolUse.find((e) => e.matcher === 'Bash');
+      assert.equal(bashPostKill.hooks[0].timeout, 1, 'the emitted Codex timeout is the small derived value, which a hardcoded 600 could not satisfy');
     }
   } finally {
     for (const dir of made) fs.rmSync(dir, { recursive: true, force: true });

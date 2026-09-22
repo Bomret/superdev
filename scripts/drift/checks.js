@@ -117,6 +117,7 @@ const {
   VERIFICATION_CEILING_CONTRACTS,
   DOD_SUITE_CRITERION_CONTRACTS,
   CRITERION_STATES_A_REQUIREMENT_CONTRACTS,
+  SPAWN_FAILURE_ANSWER_CONTRACTS,
 } = require('./contracts');
 
 // The printer the table-driven checks share. A gap is `{ source, expectation }` and reads the
@@ -269,6 +270,11 @@ module.exports = [
     'full-suite',
     FULL_SUITE_CONTRACTS,
     'the scope review runs the full suite itself while final-reviewer reviews against the result it is handed',
+  ),
+  table(
+    'spawn-failure-answers',
+    SPAWN_FAILURE_ANSWER_CONTRACTS,
+    "each gate states what it does with a spawn that never started, and names the other gate's opposite answer as deliberate",
   ),
   table(
     'verification-ceiling',

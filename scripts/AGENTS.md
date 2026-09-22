@@ -540,6 +540,15 @@ a command that does not exist. The `chain-handoff` contract: `skills/implement/S
 `skills/review/SKILL.md`, and `skills/document/SKILL.md` each name their successor in the chain.
 `skills/ship/SKILL.md` ends the chain and is deliberately outside that check.
 
+`spawn-failure-answers` holds the one place two gates answer the same condition differently on purpose.
+A spawn that never started is a **Spawn failure**, outside INV-0009 (ADR 0087): `plugin/hooks/green-gate.js`
+blocks, because it fires only on a merge and a tree that cannot run its suite is a defect in the thing being
+gated; `plugin/scripts/adapter.js`'s hook bridge lets the call through with a notice, because it fires on
+every tool call and every repair for a broken install is made through the surface a block would close. Each
+row pins its surface's **reason** and the clause naming the other surface's answer, not the behaviour alone.
+Pinning behaviours alone is what let the bridge's own fail-open read as an oversight for as long as it did,
+which is what #606 was: a reader meeting one gate could not tell a deliberate divergence from a missed case.
+
 The `verification-ceiling` contract (ADR 0084, INV-0006), six rows: verifying a Definition-of-Done
 criterion observes, and changes no system outside the repository. `references/scope-mode.md` states the
 rule once, in its own `## Verification ceiling` section, and the six rows pin the clause on both

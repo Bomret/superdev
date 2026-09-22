@@ -46,6 +46,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const readline = require('node:readline');
+const { readHookTimeoutMs } = require('../hooks/green-gate.js');
 
 // Claude `tools:` list entry → the OpenCode `tools:` config key it enables. Edit and Write are
 // two distinct OpenCode tool primitives (each its own boolean), unlike the `permission:` config's
@@ -612,6 +613,12 @@ const BRIDGE_SHELL_BEFORE_HOOKS = ['merge-guard', 'run-lock', 'ledger-guard'];
 const BRIDGE_SESSION_CREATED = ['session.created'];
 const BRIDGE_SESSION_ENDED = ['session.idle', 'session.deleted'];
 const BRIDGE_SESSION_END_HOOKS = ['slicetree-sweep', 'scope-prune'];
+// The bridge's own ceiling on a hook child, taken from `hooks/hooks.json`'s green-gate entry rather
+// than restated as a literal here (ADR 0087). `green-gate.js` owns that reader, so `adapter.js`
+// requires a hook — the one inversion of the direction the root `AGENTS.md`'s Child DOX Index
+// documents, recorded there. The renderer bakes the value into the generated plugin's constants, so
+// the bridge running inside OpenCode's host needs no reader, and no second reader exists to drift.
+const BRIDGE_HOOK_TIMEOUT_MS = readHookTimeoutMs();
 
 // The four helpers below are serialized verbatim into the generated bridge via
 // Function.prototype.toString, so they stay self-contained: the free names they reference
@@ -642,6 +649,15 @@ function buildHookPayload(eventName, toolName, toolInput, cwd, agentId) {
 // `hookSpecificOutput.permissionDecision: 'deny'`. Anything else — exit 0, a hook crash, a
 // non-JSON notice like update-check's newer-version line — never blocks.
 function hookBlockReason(hook, result) {
+  // A spawn its own bound ended carries no verdict, and no gate reads its absence as a pass
+  // (INV-0009, ADR 0087). `close` reports a killed child as a null status beside a signal, and on
+  // OpenCode this bridge is the only gate there is: a green-gate killed at the ceiling would
+  // otherwise pass the merge it was gating. The reason names the kill, never a refusal the hook
+  // never made. Codex never reaches this function — its hooks are wired directly through
+  // `.codex/hooks.json`, never through this bridge.
+  if (result.signal) {
+    return `superdev hook ${hook} was killed (${result.signal}) before it produced a verdict — blocking the call it was gating`;
+  }
   if (result.status === 2) {
     return (result.stderr && result.stderr.trim()) || `superdev hook ${hook} refused the call`;
   }
@@ -659,10 +675,52 @@ function hookBlockReason(hook, result) {
   return null;
 }
 
+// A hook that never started carries a **Spawn failure**, not a **No verdict** (ADR 0087): the gate
+// never ran, so the absence is evidence about the installation — a missing `node`, a wrong plugin
+// path, a broken install — rather than about the code under the gate. INV-0009 does not govern it,
+// and the call proceeds, because every repair for those conditions is made through the very surface
+// a block would close. On the same condition `hooks/green-gate.js` blocks, for its own stated
+// reason: it fires only on a merge, where a tree that cannot run its suite is a defect in the thing
+// being gated, so blocking costs one merge rather than the session. The divergence is deliberate,
+// and each gate names the other's answer so neither reads as the other's oversight.
+//
+// The notice fires once per hook, per session boundary, rather than once per tool call, which this
+// bridge runs on: a notice nobody can read past is the same failure as no notice. Keyed by hook, not
+// one session-wide flag — the host runs every tool call, hook, and event for every concurrent
+// session on one process, so a single boolean would let one hook's transient failure silence every
+// other hook's notice for the rest of the process's life. Returns the text the first time for that
+// hook and `null` after, so the rule is the function's rather than its caller's. Cleared by
+// resetSpawnFailureNotices() at the session boundary the bridge already has (session.created).
+// ponytail: the map, and the reset, are both process-global rather than keyed by session — a second
+// concurrent session's own session.created re-arms every hook's notice for every other running
+// session, not just its own, so "per session" above is really "per session boundary, host-wide".
+// Upgrade to true per-session scoping (a Map keyed by sessionID, threaded through runBridgeHook and
+// cleared only for the session that started) if that cross-session re-notification proves noisy.
+let spawnFailureNoticedByHook = {};
+function spawnFailureNotice(hook) {
+  if (spawnFailureNoticedByHook[hook]) return null;
+  spawnFailureNoticedByHook[hook] = true;
+  return (
+    `superdev: hook ${hook} could not start, so it is not gating this session — the call proceeded ` +
+    'unchecked. This is an installation problem (a missing `node`, a wrong plugin path, a broken ' +
+    'install), not a verdict. Repair it; this notice appears once per hook, per session boundary.'
+  );
+}
+
+// The session boundary the bridge already has: a fresh session.created clears every hook's own
+// notice flag, so a session that outlives the one that hit the failure is noticed again rather than
+// staying silent for the life of the process. Host-wide, not scoped to the session that just started
+// (the ponytail note above) — a concurrent session's own failure is noticed again too, which is
+// over-notification, never under-notification.
+function resetSpawnFailureNotices() {
+  spawnFailureNoticedByHook = {};
+}
+
 // Spawn one hook and translate its verdict: a block reason throws, so the deny reaches the model
-// the way Claude's exit-2 blocking does; a spawn error or a killed child fails open, the same
-// posture Claude takes for a hook that errors. The 600s ceiling mirrors the green-gate entry's
-// own timeout in hooks/hooks.json. child_process.spawn (never spawnSync): OpenCode's plugin host
+// the way Claude's exit-2 blocking does; a killed child blocks too (INV-0009, ADR 0087), and only
+// a spawn error — the hook never started — fails open, noticed once. BRIDGE_HOOK_TIMEOUT_MS is
+// read from the green-gate entry in hooks/hooks.json at render time, not a literal of its own, so
+// raising that entry raises this ceiling too. child_process.spawn (never spawnSync): OpenCode's plugin host
 // runs every tool call, hook, and event on one JS thread, so a blocking spawnSync would hold the
 // whole session — its TUI, its SSE stream, every concurrent session — for as long as the spawned
 // hook runs, and green-gate alone can run the repo's full suite. A Promise wrapper keeps the
@@ -675,7 +733,7 @@ function runBridgeHook(hook, payload) {
     let stdout = '';
     let stderr = '';
     let settled = false;
-    const timer = setTimeout(() => child.kill(), 600000);
+    const timer = setTimeout(() => child.kill(), BRIDGE_HOOK_TIMEOUT_MS);
     const finish = (result) => {
       if (settled) return;
       settled = true;
@@ -687,7 +745,7 @@ function runBridgeHook(hook, payload) {
     child.stdout.on('data', (chunk) => (stdout += chunk));
     child.stderr.on('data', (chunk) => (stderr += chunk));
     child.on('error', () => finish({ error: true }));
-    child.on('close', (code) => finish({ status: code, stdout, stderr }));
+    child.on('close', (code, signal) => finish({ status: code, signal, stdout, stderr }));
     // A hook that exits before ever reading stdin (a require() failure before main() runs, e.g.)
     // turns a payload larger than the pipe buffer into an EPIPE write error; spawnSync's `input`
     // option contained that internally, but a plain child.stdin write does not — an unlistened
@@ -696,7 +754,11 @@ function runBridgeHook(hook, payload) {
     child.stdin.write(JSON.stringify(payload));
     child.stdin.end();
   }).then((result) => {
-    if (!result || result.error) return;
+    if (!result || result.error) {
+      const notice = spawnFailureNotice(hook);
+      if (notice) console.error(notice);
+      return;
+    }
     const reason = hookBlockReason(hook, result);
     if (reason) throw new Error(reason);
   });
@@ -714,8 +776,17 @@ function renderBridge(pluginRoot) {
     `const SESSION_CREATED = ${JSON.stringify(BRIDGE_SESSION_CREATED)};`,
     `const SESSION_ENDED = ${JSON.stringify(BRIDGE_SESSION_ENDED)};`,
     `const SESSION_END_HOOKS = ${JSON.stringify(BRIDGE_SESSION_END_HOOKS)};`,
+    `const BRIDGE_HOOK_TIMEOUT_MS = ${JSON.stringify(BRIDGE_HOOK_TIMEOUT_MS)};`,
+    'let spawnFailureNoticedByHook = {};',
   ].join('\n');
-  const helpers = [bridgeSpawnEnv, buildHookPayload, hookBlockReason, runBridgeHook]
+  const helpers = [
+    bridgeSpawnEnv,
+    buildHookPayload,
+    hookBlockReason,
+    spawnFailureNotice,
+    resetSpawnFailureNotices,
+    runBridgeHook,
+  ]
     .map((fn) => fn.toString())
     .join('\n\n');
   const body = `
@@ -775,6 +846,10 @@ const SuperdevPlugin = async (ctx) => {
     event: async ({ event }) => {
       if (!event || typeof event.type !== 'string') return;
       if (SESSION_CREATED.includes(event.type)) {
+        // A fresh session is the notice's own boundary (ADR 0087): clear every hook's flag before
+        // this session's own spawns, so a failure this session hits is noticed again rather than
+        // staying silent because some earlier session already hit it once.
+        resetSpawnFailureNotices();
         try {
           await runBridgeHook('update-check', buildHookPayload('SessionStart', undefined, undefined, cwd));
         } catch {
@@ -1016,9 +1091,10 @@ function codexRenderAgent(name, agentPath, ctx) {
 // field is omitted, and accept an explicit `timeout` in seconds the same way Claude Code's
 // hooks.json does (verified 2026-09-22, https://learn.chatgpt.com/docs/hooks: "timeout is in
 // seconds", "If timeout is omitted, Codex uses 600 seconds for most hooks."). green-gate's own
-// 600s ceiling (hooks/hooks.json's PostToolUse entry) is carried forward explicitly below, matching
-// what Codex would already default to, so a future default change on either side never silently
-// desyncs the two.
+// ceiling (hooks/hooks.json's PostToolUse entry) is carried forward explicitly below, derived from
+// BRIDGE_HOOK_TIMEOUT_MS rather than restated as a second literal — a second reader is a second
+// thing to drift, the same reason BRIDGE_HOOK_TIMEOUT_MS itself reads the manifest instead of a
+// literal (ADR 0087).
 function codexHookCommand(pluginRoot, hook) {
   return `node ${JSON.stringify(path.join(pluginRoot, 'hooks', `${hook}.js`))}`;
 }
@@ -1033,7 +1109,7 @@ function codexHooksJson(pluginRoot) {
         { matcher: 'Edit|Write|apply_patch', hooks: [cmd('ledger-guard')] },
       ],
       PostToolUse: [
-        { matcher: 'Bash', hooks: [Object.assign(cmd('green-gate'), { timeout: 600 })] },
+        { matcher: 'Bash', hooks: [Object.assign(cmd('green-gate'), { timeout: Math.round(BRIDGE_HOOK_TIMEOUT_MS / 1000) })] },
       ],
       Stop: [{ hooks: [cmd('slicetree-sweep'), cmd('scope-prune')] }],
     },
@@ -1300,6 +1376,8 @@ module.exports = {
   buildHookPayload,
   bridgeSpawnEnv,
   hookBlockReason,
+  BRIDGE_HOOK_TIMEOUT_MS,
+  spawnFailureNotice,
   TOOL_MAP,
   SKILL_MARKER,
   CODEX_SKILL_MARKER,
