@@ -1,3 +1,10 @@
+## [0.50.2](https://codeberg.org/bomret/superdev/compare/v0.50.1...v0.50.2) (2026-09-22)
+
+
+### Bug Fixes
+
+* **slicetree-sweep:** a slice cut from a moved-on scope branch is not worked ([f4fa2f7](https://codeberg.org/bomret/superdev/commit/f4fa2f7b405275dbc3417c163333f11325c4c380))
+
 ## [0.50.1](https://codeberg.org/bomret/superdev/compare/v0.50.0...v0.50.1) (2026-09-22)
 
 
