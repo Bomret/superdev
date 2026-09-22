@@ -3862,11 +3862,13 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   }
 
   // --- OBSERVATION_CAPTURE_CONTRACTS: an observation — a real defect a run meets that no slice covers
-  // and the scope did not cause — is recorded, never judged (ADR 0088, INV-0010). Six rows pin
+  // and the scope did not cause — is recorded, never judged (ADR 0088, INV-0010). Every row pins
   // scope-mode.md's own `## Observations` section (definition-and-moment, only-artifact,
   // recorded-never-judged, read-first, uncertain-match-writes/asymmetry, best-effort), each its own
-  // clause; three rows pin the rule's call sites in implement-full.md, implement-lite.md, and
-  // review/SKILL.md §4. ---
+  // clause. Where a controller is reminded of the rule is the `observation-capture-reminders` scanner's
+  // subject, above, which derives it from every dispatching document rather than naming call sites — with
+  // one standing exception: the last row pins `references/implement-lite.md`'s own capture clause by
+  // name, since that tier dispatches no subagent and so is no subject of that derived scanner. ---
   const ocDefinitionOnlyClause =
     'real defect a run meets that no slice of it covers, and that the scope did not cause';
   const ocMomentOnlyClause =
@@ -3898,16 +3900,11 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'and each still writes the record, the possible duplicate the asymmetry above prefers over a ' +
     'dropped observation. A create that fails, and a create a permission classifier denies, are each ' +
     'reported once too, with the run continuing regardless.';
-  const ocFullSuiteClause =
-    "An observation is captured the moment you meet it. Read scope-mode.md's `## Observations` section " +
-    'and follow it: a defect that no slice of this scope covers and the scope did not cause gets a ' +
-    'triage record from you, the controller, right here — never held until the handoff.';
-  const ocReviewClause =
-    "An observation is captured the moment you meet it. Read scope-mode.md's `## Observations` section " +
-    'and follow it: a defect that no slice of this scope covers and the scope did not cause gets a ' +
-    'triage record from you, the controller, right here — never folded into the fix loop below and ' +
-    'never held until the handoff.';
-
+  const ocLiteClause =
+    'An observation is captured the moment you meet it. Read `references/scope-mode.md`\'s ' +
+    "`## Observations` section and follow it: a defect you meet while implementing inline, that no " +
+    'slice of this scope covers and the scope did not cause, gets a triage record from you, the ' +
+    'controller, right here — never held until the handoff at the end of the chain.';
   const ocClauses = {
     'references/scope-mode.md':
       [
@@ -3919,9 +3916,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
         ocAsymmetryClause,
         ocBestEffortClause,
       ].join(' ') + '\n',
-    'references/implement-full.md': ocFullSuiteClause + '\n',
-    'references/implement-lite.md': ocFullSuiteClause + '\n',
-    'skills/review/SKILL.md': ocReviewClause + '\n',
+    'references/implement-lite.md': ocLiteClause + '\n',
   };
 
 
@@ -3939,9 +3934,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     { label: 'the read-first clause', rel: 'references/scope-mode.md', clause: ocReadFirstClause },
     { label: 'the uncertain-match/asymmetry clause', rel: 'references/scope-mode.md', clause: ocAsymmetryClause },
     { label: 'the best-effort clause', rel: 'references/scope-mode.md', clause: ocBestEffortClause },
-    { label: "implement-full.md's capture step", rel: 'references/implement-full.md', clause: ocFullSuiteClause },
-    { label: "implement-lite.md's capture step", rel: 'references/implement-lite.md', clause: ocFullSuiteClause },
-    { label: "review/SKILL.md §4's capture step", rel: 'skills/review/SKILL.md', clause: ocReviewClause },
+    { label: "implement-lite.md's own capture clause", rel: 'references/implement-lite.md', clause: ocLiteClause },
   ];
 
   for (const { label, rel, clause } of ocMutations) {

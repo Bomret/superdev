@@ -1,6 +1,6 @@
 superdev-render-overlay
 source: skills/document/SKILL.md
-body-lines: 126
+body-lines: 128
 ---
 # generated-by: superdev-adapter — a re-render overwrites this directory
 name: superdev-document
@@ -42,17 +42,19 @@ If it reports findings, re-dispatch **`doc-writer`** (as in §3) with the findin
 **Two things here are degraded passes**, per `<plugin-root>/references/scope-mode.md`'s `## Degraded passes` section — read it and follow it, on either one:
 @85
 - **A dispatch the permission classifier denies.** A denied `doc-writer` means you reconcile inline; a denied `doc-reader` means the docs went unread by fresh eyes. Say so in §5's report and, on a live scope run, write the `**Degraded:**` entry that section defines: `scope.js degraded add` for the denied `doc-writer`, an authoring dispatch, and `scope.js degraded add-denial` for the denied `doc-reader`, a verification dispatch, quoting the classifier's refusal. Publish the snapshot afterwards, per `<plugin-root>/references/scope-mode.md`'s `## Publishing run state` section. **`--unattended`** → a denied `doc-writer` blocks, since reconciling inline is the controller writing the docs itself; a denied `doc-reader` follows that section's authorship rule, blocking where the controller authored the docs under review and otherwise reading them inline — up to the cap, so read `scope.js get denials` after writing the entry and block once the count reaches it.
-@92
+@88
+**An observation is captured the moment you meet it.** Read `<plugin-root>/references/scope-mode.md`'s `## Observations` section and follow it: a defect a `doc-writer` or `doc-reader` report surfaces, or one the test command above shows, that no slice of this scope covers and the scope did not cause gets a triage record from you, the controller, right here — never held until §5's report.
+@94
 **Staged pages are named, with `/superdev-publish-kb`.** They are not on the knowledge base yet, and nothing later in the chain sends them. Say how many pages wait and under which scope.
-@99
+@101
 2. Dispatch **`doc-reader`** with an **explicit `model`** (`sonnet`), the full audit set, and the `docs/agents/documentation.md` path — cold, and with **no writer commit range**, which is what tells it to skip the writing-standard pass: an audit has no writer, so no prose is newly-written. Tell it explicitly: hook/guardrail-enforcement claims ("a hook blocks X", "the gate re-runs Y") are **always load-bearing** and must be verified against the hooks' actual source (`hooks/*.js`), not assumed from prose.
-@100
+@102
 3. **`--chained` present** — this run is `/superdev-sweep`'s doc leg, in the **chained posture**
-@115
+@117
 3. **Dispatch `doc-writer`** with an **explicit `model`** (`sonnet`) in **bootstrap** mode. Hand it: "bootstrap" (no diff, no prior tree), the recon maps (or "small repo — explore directly"), and the two config file paths. It seeds root `AGENTS.md` + child `AGENTS.md` only at genuine boundaries, mines existing README/`docs/` as input, and **proposes `CONTEXT.md` candidate terms in its report** without committing `CONTEXT.md`.
-@123
-- **Find the scope checkout, and refresh the run lock.** Per `<plugin-root>/references/scope-mode.md`. Hand the doc-writer the scope checkout path as its working directory: this is where its commits must land.
-@124
-- **Write the stage.** Once §4 finishes, write the ledger's `**Stage:**` line with `node "<plugin-root>/scripts/scope.js" stage set <value> --root <run-root>`, per that file's rule that a stage write never undoes completed work — the verb enforces it and refuses a write that breaks it. Read the current stage first (`scope.js get stage`). `shipped` → leave the line alone and say so in one line; a shipped scope never regains an earlier stage. `reviewed` → write `documented`. `documented` → leave it; the docs are already recorded as reconciled. Anything else, including no line at all → write `documented-unreviewed`, which records that the review step never ran before this doc pass. A pass in which the doc-writer changed nothing still counts: the docs already agreed with the code, which is the state this stage records. **Wrote `documented` or `documented-unreviewed` above** → publish the snapshot, per `<plugin-root>/references/scope-mode.md`'s `## Publishing run state` section. The two leave-alone branches wrote nothing, so there is nothing to publish there.
 @125
+- **Find the scope checkout, and refresh the run lock.** Per `<plugin-root>/references/scope-mode.md`. Hand the doc-writer the scope checkout path as its working directory: this is where its commits must land.
+@126
+- **Write the stage.** Once §4 finishes, write the ledger's `**Stage:**` line with `node "<plugin-root>/scripts/scope.js" stage set <value> --root <run-root>`, per that file's rule that a stage write never undoes completed work — the verb enforces it and refuses a write that breaks it. Read the current stage first (`scope.js get stage`). `shipped` → leave the line alone and say so in one line; a shipped scope never regains an earlier stage. `reviewed` → write `documented`. `documented` → leave it; the docs are already recorded as reconciled. Anything else, including no line at all → write `documented-unreviewed`, which records that the review step never ran before this doc pass. A pass in which the doc-writer changed nothing still counts: the docs already agreed with the code, which is the state this stage records. **Wrote `documented` or `documented-unreviewed` above** → publish the snapshot, per `<plugin-root>/references/scope-mode.md`'s `## Publishing run state` section. The two leave-alone branches wrote nothing, so there is nothing to publish there.
+@127
 - **Print the next command:** `/superdev-ship <scope>`, with one line on what it does (tick the Definition of Done, close the scope anchor, open the pull request, and take the run down). Add that this conversation is disposable: the ledger's stage and `dod.md` carry everything `/superdev-ship` reads, so a `/clear` first costs nothing.

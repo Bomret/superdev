@@ -1,6 +1,6 @@
 superdev-render-overlay
 source: skills/review-tests/SKILL.md
-body-lines: 163
+body-lines: 168
 ---
 # generated-by: superdev-adapter — a re-render overwrites this directory
 name: superdev-review-tests
@@ -26,21 +26,23 @@ signals that `/superdev-sweep` dispatched this run as its test leg, in the **cha
 Dispatch `test-auditor` **once, over the whole swept set**, with the duration table attached
 @90
 **A denied dispatch is a degraded pass.** Follow `<plugin-root>/references/scope-mode.md`'s
-@109
+@99
+`<plugin-root>/references/scope-mode.md`'s `## Observations` section and follow it: a defect the
+@114
 **`--chained` present** — this run is `/superdev-sweep`'s test leg, in the **chained posture** (CONTEXT.md,
-@125
+@130
 - **Findings past that round's capacity** reach the intent labelled `unconfirmed`. `/superdev-plan`'s
-@131
-the caller instead: this run's report **is** the return, and `/superdev-plan` sits past `/superdev-sweep`'s
 @136
+the caller instead: this run's report **is** the return, and `/superdev-plan` sits past `/superdev-sweep`'s
+@141
 the git-ignored scratch location `/superdev-brainstorm` already uses (append `.superdev/` to `.gitignore`
-@138
-`<plugin-root>/references/scope-mode.md`'s `## The scope slug`; a whole-tree sweep (no path
 @143
-Then print the copy-pasteable handoff, the same bare form `/superdev-brainstorm` prints for the same
-@144
-`.superdev/brainstorm/` write target: `/superdev-plan` takes no path argument, so the intent this run
+`<plugin-root>/references/scope-mode.md`'s `## The scope slug`; a whole-tree sweep (no path
 @148
+Then print the copy-pasteable handoff, the same bare form `/superdev-brainstorm` prints for the same
+@149
+`.superdev/brainstorm/` write target: `/superdev-plan` takes no path argument, so the intent this run
+@153
 /superdev-plan
-@157
+@162
 - **Applying a finding.** This command reports. `/superdev-plan` is where one becomes work.

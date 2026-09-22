@@ -91,8 +91,8 @@ Class: process
 Concepts: Observation, Triage record, Finding
 Statement: An observation a run meets is recorded, never judged. It carries no severity, holds no stage, enters no fix loop, and blocks no run.
 Breaks: silently
-Check: scripts/drift-check.js — the capture rule pinned on scope-mode.md's own section and on every surface that acts on it
-Paths: plugin/references/scope-mode.md, plugin/references/implement-full.md, plugin/references/implement-lite.md, plugin/skills/review/**
+Check: scripts/drift-check.js — `observation-capture` pins the rule's own statement in scope-mode.md, and `observation-capture-reminders` pins the reminder at every document that dispatches a `superdev:` subagent
+Paths: plugin/references/**, plugin/skills/**, plugin/agents/**
 
 ### INV-0011
 

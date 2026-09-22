@@ -100,6 +100,11 @@ so that section's own rule applies — report the degraded pass in this output a
   which part you swept and point at the path argument. Splitting the sweep further is still not the
   remedy, inline or dispatched.
 
+**An observation is captured the moment you meet it.** Read
+`<plugin-root>/references/scope-mode.md`'s `## Observations` section and follow it: a defect the
+auditor's report surfaces, or one you meet yourself sweeping inline, that is no finding of this audit
+gets a triage record from you, the controller, right here — never held until §4's report.
+
 ## 4. Report, ranked by cost
 
 One table, highest cost first: location, category, measured duration or `unmeasured`, what it proves and

@@ -1,6 +1,6 @@
 superdev-render-overlay
 source: skills/implement/SKILL.md
-body-lines: 141
+body-lines: 146
 ---
 # generated-by: superdev-adapter — a re-render overwrites this directory
 name: superdev-implement
@@ -10,45 +10,47 @@ description: "Execute a superdev plan — drive its vertical slices to merge as 
 review `/superdev-review` runs next.
 @17
 `full` dispatches `implementer`, `slice-reviewer`, and `simplicity-reviewer`
-@33
+@29
+  `<plugin-root>/references/scope-mode.md`'s `## Observations` section and follow it: a defect a
+@38
   `<plugin-root>/references/scope-mode.md`'s `## Degraded passes` section: work inline, say so,
-@43
+@48
   no tests — the loop's runs plus the scope's full-suite run at `/superdev-review` are the net
-@51
+@56
   **`/superdev-setup`**, then continue. **`docs/agents/verification.md` carrying one fenced block** is
-@53
-  **`/superdev-setup`**, then continue; a repository with no `docs/agents/verification.md` at all needs no
-@57
-  `Cargo.toml`, `go.mod`, …) → suggest **`/superdev-setup`**; non-blocking, continue.
 @58
-- **Resolve the message that invoked this skill to one feature.** Take `--unattended` out first, wherever it sits. A **feature
-@60
-  carries a **change type** and a slug (`<plugin-root>/references/scope-mode.md`'s
+  **`/superdev-setup`**, then continue; a repository with no `docs/agents/verification.md` at all needs no
+@62
+  `Cargo.toml`, `go.mod`, …) → suggest **`/superdev-setup`**; non-blocking, continue.
 @63
+- **Resolve the message that invoked this skill to one feature.** Take `--unattended` out first, wherever it sits. A **feature
+@65
+  carries a **change type** and a slug (`<plugin-root>/references/scope-mode.md`'s
+@68
   `<plugin-root>/references/scope-mode.md`'s scope-slug rule, both segments** — the whole label
-@70
-    **`/superdev-plan`**, stop. **`--unattended` → block**.
-@73
-    `<plugin-root>/references/scope-mode.md`'s `## Resolving an empty argument` cascade,
 @75
+    **`/superdev-plan`**, stop. **`--unattended` → block**.
+@78
+    `<plugin-root>/references/scope-mode.md`'s `## Resolving an empty argument` cascade,
+@80
     **`/superdev-plan`** first, rather than the cascade's own report-and-stop.
-@77
+@82
   slices → run **`/superdev-plan`** first. **One slice, no epic** → the epic is optional
-@87
+@92
   releasing the plan in the tracker stays the human's own act. **`--unattended` → block** — `/superdev/afk`
-@89
+@94
 - **`--unattended` present** → read `<plugin-root>/references/scope-mode.md`'s **Unattended**
-@91
+@96
   command (`/superdev-setup`, `/superdev-plan`). The "slice store or code host missing" and "no slices"
-@98
+@103
   configured or persisted (`/superdev-plan` derives it the same way). `Read` your playbook and follow it
-@100
+@105
   - `full` → `<plugin-root>/references/implement-full.md`
-@101
+@106
   - `lite` → `<plugin-root>/references/implement-lite.md`
-@102
+@107
   Each playbook ends by reading `<plugin-root>/references/run-handoff.md`.
-@114
+@119
 the run starts, and **`/superdev-ship` closes it**, not you. **On a single-slice plan the anchor rule
-@120
+@125
 `full` dispatches every row; `<plugin-root>/references/run-handoff.md`'s run handoff dispatches the

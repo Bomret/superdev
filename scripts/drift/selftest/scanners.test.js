@@ -24,6 +24,7 @@ const {
   scanWritingStandardContract,
   scanContentTypesContract,
   scanCommandRefs,
+  scanObservationCaptureReminders,
   scanChainHandoff,
   scanAfkInvocations,
   scanShipGateContract,
@@ -1126,6 +1127,55 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'skills/document/SKILL.md': 'Then `/superdev:ship`.\n',
   });
   assert.equal(scanCommandRefs(cr5).length, 2, 'each source naming a missing command is reported');
+
+  // --- scanObservationCaptureReminders: every shipped document that dispatches a `superdev:` subagent
+  // names the observation-capture rule (ADR 0088, INV-0010). The subject set is derived from the
+  // documents themselves — which agents exist, and which documents name one — rather than enumerated,
+  // so the next document that gains a dispatch is pinned the moment it gains it (ADR 0064). ---
+
+  const ocrReminder =
+    'An observation is captured the moment you meet it. Read `references/scope-mode.md`\'s ' +
+    '`## Observations` section and follow it: gets a triage record from you, the controller, right ' +
+    'here.\n';
+  const ocrDispatch = 'Dispatch **`superdev:implementer`** with the slice specification.\n';
+  const ocrAgents = { 'agents/implementer.md': '# implementer\n' };
+
+  // positive: a document dispatching a subagent and naming no capture rule is flagged, and the report
+  // names both the document and what it must state
+  const ocr1 = fixture({ ...ocrAgents, 'skills/implement/SKILL.md': ocrDispatch });
+  const ocrGaps1 = scanObservationCaptureReminders(ocr1);
+  assert.equal(ocrGaps1.length, 1, 'flags a dispatching document carrying no capture reminder');
+  assert.equal(ocrGaps1[0].source, path.join('skills', 'implement', 'SKILL.md'), 'names the source document');
+  assert.match(ocrGaps1[0].expectation, /## Observations/, 'names what the document must state');
+
+  // negative: the same document carrying the reminder reports nothing
+  const ocr2 = fixture({ ...ocrAgents, 'skills/implement/SKILL.md': ocrDispatch + ocrReminder });
+  assert.deepEqual(scanObservationCaptureReminders(ocr2), [], 'a dispatching document naming the rule passes');
+
+  // negative: a document that names the rule and dispatches nothing passes, so the check reports only
+  // what is missing
+  const ocr3 = fixture({ ...ocrAgents, 'references/scope-mode.md': ocrReminder });
+  assert.deepEqual(scanObservationCaptureReminders(ocr3), [], 'a document naming the rule without dispatching passes');
+
+  // negative: a document that dispatches nothing and names no rule is outside the subject set
+  const ocr4 = fixture({ ...ocrAgents, 'skills/status/SKILL.md': 'Report each run root and its stage.\n' });
+  assert.deepEqual(scanObservationCaptureReminders(ocr4), [], 'a document dispatching nothing is not a subject');
+
+  // a `/superdev:<name>` command reference is not a dispatch — the leading slash is what separates the
+  // two, and every command in the chain names its successor
+  const ocr5 = fixture({ ...ocrAgents, 'skills/review/SKILL.md': 'Then print `/superdev:implementer <scope>`.\n' });
+  assert.deepEqual(scanObservationCaptureReminders(ocr5), [], 'a command reference is not a subagent dispatch');
+
+  // positive: a half-stated reminder — the opening sentence and the `## Observations` pointer, without
+  // the "the controller, right here" clause — is flagged too. A regex loosened to drop that clause
+  // would pass this fixture, so it is what catches that regression (a looser pattern only ever admits
+  // more documents, so drift-check against the real tree cannot catch it).
+  const ocrHalfReminder =
+    'An observation is captured the moment you meet it. Read `references/scope-mode.md`\'s ' +
+    '`## Observations` section.\n';
+  const ocr6 = fixture({ ...ocrAgents, 'skills/implement/SKILL.md': ocrDispatch + ocrHalfReminder });
+  const ocrGaps6 = scanObservationCaptureReminders(ocr6);
+  assert.equal(ocrGaps6.length, 1, 'flags a dispatching document carrying only the half-stated reminder');
 
   // --- scanChainHandoff: each command in the chain must name its successor. scanCommandRefs above
   // catches a handoff that points at a command with no file; it cannot catch a command that names no

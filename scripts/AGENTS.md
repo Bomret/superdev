@@ -2063,7 +2063,7 @@ fourth cycle" prohibition while dropping what the standing finding becomes, is t
 without it a controller reading only the surface that runs the loop has no standing instruction to stop,
 and a finding a clean verdict left behind is one a controller may read as still owed a cycle.
 
-The `observation-capture` contract (ADR 0088, INV-0010), nine rows: `references/scope-mode.md`'s own
+The `observation-capture` contract (ADR 0088, INV-0010): `references/scope-mode.md`'s own
 `## Observations` section states what an observation is — a real defect a run meets that no slice covers
 and the scope did not cause — that its triage record is written the moment it is met, never at a handoff;
 that the record is the only artifact, no ledger line and no pull-request body; that an observation is
@@ -2078,13 +2078,26 @@ and dropped, not recorded — that section is what names the create call, so non
 which is the one case in the section where an observation reaches no record; and that capture is
 otherwise best-effort, the same posture every other store write in the chain takes, with a failed or
 denied open-records read and a failed or denied create each reported once — the first still writing the
-record as the possible duplicate the asymmetry favors. The remaining three rows pin the rule's call sites
-— the point where a controller reads a subagent's report or meets a failure itself, never a handoff — in
-`references/implement-full.md`'s DAG
-step where the implementer returns, `references/implement-lite.md`'s inline equivalent, and
-`skills/review/SKILL.md` §4's fix loop. A call site that lost the capture instruction would read correct
-in isolation, exactly the one-sided-pin shape the root `AGENTS.md`'s prompt-architecture rules name, which
-is why each site is its own row rather than one row on the defining section alone.
+record as the possible duplicate the asymmetry favors. Every row pins that section's own statement of the
+rule; where a controller is reminded of it is the `observation-capture-reminders` check below. The last
+row pins `references/implement-lite.md`'s own capture clause directly, because the tier it governs
+dispatches no subagent by design (ADR 0001) and so is no subject of that derived check — it is exactly
+the tier where the controller meets a defect itself rather than reading a report, and a growing-set
+scanner that skips it would leave that clause enforced by nothing.
+
+The `observation-capture-reminders` check (`scanObservationCaptureReminders`, ADR 0088, INV-0010,
+ADR 0064): every shipped document that dispatches a `superdev:` subagent names the observation-capture
+rule. A controller standing at a dispatch reads a subagent's report, which is exactly where an
+observation is met, so a dispatching document that carries no reminder leaves that controller with no
+standing instruction at the one hop it needs one — and it reads correct in isolation, the one-sided-pin
+shape the root `AGENTS.md`'s prompt-architecture rules name. The subject set is derived, never
+enumerated: a `superdev:<name>` mention whose `<name>` is a file under `agents/`, with the leading slash
+of a `/superdev:<command>` reference ruling that one out. A row per call site would be a count of a
+growing set (ADR 0064), and the next document to gain a dispatch would be silently unpinned.
+`references/scope-mode.md` dispatches nobody, so it is no subject here; the `observation-capture`
+contract above pins its statement instead — and that contract's last row pins
+`references/implement-lite.md` by name, since the derived check cannot reach a tier that dispatches
+nobody either.
 
 The `label-revision-at-decomposition` contract, two rows on `skills/plan/SKILL.md`: §1 states, where it
 picks the feature label, that a later answer that changes what the feature does revises the label in

@@ -277,6 +277,17 @@ const CONTENT_TYPES_PATTERN =
 // resolves command names, and both catch a pointer no build step would follow.
 const COMMAND_REFERENCE_PATTERN = /\/superdev:([a-z][a-z-]*)/g;
 
+// Every shipped document that dispatches a `superdev:` subagent reminds its controller of the
+// observation-capture rule (ADR 0088, INV-0010): a controller standing at a dispatch reads a subagent's
+// report, which is exactly where an observation is met. Which documents those are is a growing set, so
+// the subject set is derived rather than enumerated (ADR 0064) — a `superdev:<name>` mention whose
+// `<name>` is a file under `agents/`, with the leading slash of a `/superdev:<command>` reference ruling
+// that one out. `references/scope-mode.md` owns the rule itself and dispatches nobody, so it is no
+// subject of this check; the `observation-capture` table pins its statement instead.
+const SUBAGENT_DISPATCH_PATTERN = /(?<!\/)superdev:([a-z][a-z-]*)/g;
+const OBSERVATION_CAPTURE_REMINDER_PATTERN =
+  /An observation is captured the moment you meet it[\s\S]{0,300}`## Observations` section[\s\S]{0,300}the controller, right here/;
+
 // Each command in the chain must name its successor, because printing the next command with its range
 // resolved is the whole handoff (ADR 0013). scanCommandRefs above catches a handoff that points at a
 // command with no file. The reverse drift is invisible to it: a command that names no successor at all
@@ -3673,12 +3684,14 @@ const CLEAN_VERDICT_ENDS_LOOP_CONTRACTS = [
 // comparison a judgment rather than a string match; that an uncertain match writes the record, and why the
 // two errors are not symmetrical (ADR 0088, triage record #505); and that capture is best-effort (a store
 // carrying no `## Triage record` section, a failed or denied open-records read, and a failed or denied
-// create are each reported once, the first three still writing the record). The last three rows pin the
-// rule's call sites — the point where a controller reads a subagent's report or meets a failure itself,
-// never a handoff — in `references/implement-full.md`'s DAG step where the implementer returns,
-// `references/implement-lite.md`'s inline equivalent, and `skills/review/SKILL.md` §4's fix loop. Losing
-// any one call site leaves a controller at that exact hop with no standing instruction to capture what it
-// just met, which is the gap ADR 0088 observed reaching a record only because a human filed one by hand.
+// create are each reported once, the first three still writing the record). Where a controller is
+// *reminded* of the rule is the `observation-capture-reminders` check's own subject, derived from every
+// document that dispatches a `superdev:` subagent rather than enumerated here: a row per call site is a
+// count of a growing set (ADR 0064), and the next document to gain a dispatch would be silently unpinned.
+// The last row is the one standing exception: `references/implement-lite.md` dispatches no subagent by
+// design (ADR 0001), so the derived scanner never subjects it, yet it is exactly the tier where the
+// controller meets a defect itself rather than reading a report. Losing that row leaves lite's own
+// capture clause enforced by nothing.
 const OBSERVATION_CAPTURE_CONTRACTS = [
   [
     path.join('references', 'scope-mode.md'),
@@ -3721,23 +3734,10 @@ const OBSERVATION_CAPTURE_CONTRACTS = [
       'and still writing the record) and a failed or denied create (each reported once, run continuing)',
   ],
   [
-    path.join('references', 'implement-full.md'),
-    /observation is captured the moment you meet it[\s\S]{0,120}## Observations`? section[\s\S]{0,400}no slice of this scope covers and the scope did not cause[\s\S]{0,150}triage record from you, the controller, right here[\s\S]{0,150}never held until the handoff/,
-    'capture an observation the implementer report surfaces, or one the controller meets itself, at the ' +
-      'DAG step where the implementer returns — per `scope-mode.md`\'s `## Observations` section — never ' +
-      'held until the handoff',
-  ],
-  [
     path.join('references', 'implement-lite.md'),
     /observation is captured the moment you meet it[\s\S]{0,120}## Observations`? section[\s\S]{0,400}no slice of this scope covers and the scope did not cause[\s\S]{0,150}triage record from you, the controller, right here[\s\S]{0,150}never held until the handoff/,
     "capture an observation the controller meets while implementing inline — per `scope-mode.md`'s " +
       '`## Observations` section — never held until the handoff',
-  ],
-  [
-    path.join('skills', 'review', 'SKILL.md'),
-    /observation is captured the moment you meet it[\s\S]{0,120}## Observations`? section[\s\S]{0,400}no slice of this scope covers and the scope did not cause[\s\S]{0,150}triage record from you, the controller, right here[\s\S]{0,200}never folded into the fix loop below and never held until the handoff/,
-    "capture an observation in §4's fix loop — per `scope-mode.md`'s `## Observations` section — never " +
-      'folded into the fix loop and never held until the handoff',
   ],
 ];
 
@@ -3903,6 +3903,8 @@ module.exports = {
   DOC_PASS_CONTRACTS,
   CONTENT_TYPES_PATTERN,
   COMMAND_REFERENCE_PATTERN,
+  SUBAGENT_DISPATCH_PATTERN,
+  OBSERVATION_CAPTURE_REMINDER_PATTERN,
   CHAIN_HANDOFFS,
   CHANGE_TYPE_CONTRACTS,
   FEATURE_ARG_CONTRACTS,

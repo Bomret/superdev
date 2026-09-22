@@ -28,6 +28,7 @@ const {
   scanWritingStandardContract,
   scanContentTypesContract,
   scanCommandRefs,
+  scanObservationCaptureReminders,
   scanChainHandoff,
   scanAfkInvocations,
   scanShipGateContract,
@@ -697,10 +698,16 @@ module.exports = [
       'recorded never judged, that capture reads the store\'s open triage records before it writes and ' +
       'names the comparison a judgment rather than a string match, that an uncertain match writes the ' +
       'record and why the two errors are not symmetrical, that a store defining no `## Triage record` ' +
-      'section is reported and dropped rather than recorded, and that capture is otherwise best-effort ' +
-      '— and every call site (implement-full\'s DAG step, implement-lite\'s inline equivalent, and review ' +
-      '§4\'s fix loop) still names the capture',
+      'section is reported and dropped rather than recorded, that capture is otherwise best-effort, and ' +
+      "that implement-lite.md's own capture clause still states the rule for the tier that dispatches " +
+      'nobody',
   ),
+  {
+    id: 'observation-capture-reminders',
+    ok: 'every document that dispatches a `superdev:` subagent names the observation-capture rule',
+    run: scanObservationCaptureReminders,
+    format: contractGap,
+  },
   table(
     'label-revision-at-decomposition',
     LABEL_REVISION_AT_DECOMPOSITION_CONTRACTS,

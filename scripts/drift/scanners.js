@@ -75,6 +75,8 @@ const {
   CONTENT_TYPES_DOCS,
   CONTENT_TYPES_PATTERN,
   COMMAND_REFERENCE_PATTERN,
+  SUBAGENT_DISPATCH_PATTERN,
+  OBSERVATION_CAPTURE_REMINDER_PATTERN,
   CHAIN_HANDOFFS,
   AFK_NAMES,
   AFK_ROW_PATTERN,
@@ -593,6 +595,39 @@ function scanCommandRefs(root) {
     }
   }
   return unresolved;
+}
+
+// scanObservationCaptureReminders() is pure over a root dir: reads skills/<name>/SKILL.md, agents/*.md,
+// and references/*.md, and reports every document that dispatches a `superdev:` subagent without naming
+// the observation-capture rule (ADR 0088, INV-0010). A controller standing at a dispatch reads a
+// subagent's report, which is where an observation is met, so the reminder belongs at every one of them.
+// The subject set is derived from the documents themselves — a `superdev:<name>` mention whose `<name>`
+// is a file under `agents/` — rather than enumerated, so a document that gains a dispatch is pinned the
+// moment it gains it (ADR 0064). The reminder is matched against the whitespace-normalized text, because
+// these documents are hard-wrapped and the clause straddles a line break wherever it lands.
+function scanObservationCaptureReminders(root) {
+  const agents = new Set();
+  for (const [source] of proseDocuments(root, ['agents'])) {
+    agents.add(path.basename(source, '.md'));
+  }
+  const gaps = [];
+  for (const [source, filePath] of proseDocuments(root, ['skills', 'agents', 'references'])) {
+    const text = fs.readFileSync(filePath, 'utf8');
+    const dispatched = [...text.matchAll(SUBAGENT_DISPATCH_PATTERN)]
+      .map((match) => match[1])
+      .find((name) => agents.has(name));
+    if (!dispatched) continue; // dispatches nobody → no controller stands here reading a report
+    if (OBSERVATION_CAPTURE_REMINDER_PATTERN.test(normalizeWhitespace(text))) continue;
+    gaps.push({
+      source,
+      expectation:
+        `name the observation-capture rule — it dispatches \`superdev:${dispatched}\`, so a controller ` +
+        "reads a subagent's report here — by stating that an observation is captured the moment you " +
+        "meet it and pointing at `references/scope-mode.md`'s `## Observations` section (ADR 0088, " +
+        'INV-0010)',
+    });
+  }
+  return gaps;
 }
 
 // scanChainHandoff() is pure over a root dir: reads each command in the chain and reports the ones that
@@ -1437,6 +1472,7 @@ module.exports = {
   scanAdrStatus,
   scanContentTypesContract,
   scanCommandRefs,
+  scanObservationCaptureReminders,
   scanChainHandoff,
   scanAfkInvocations,
   scanShipGateContract,

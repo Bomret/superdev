@@ -40,6 +40,11 @@ tiers: record that slice execution finished, name what comes next.
     `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section — since no later
     stage write in this run will do it: the run root stands unresolved until a human resumes it, and
     `scope-prune` reaps it in seven days.
+- **An observation is captured the moment you meet it.** Read
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Observations` section and follow it: a defect
+  the failing output shows, or one the implementer's own report surfaces, that no slice of this scope
+  covers and the scope did not cause gets a triage record from you, the controller, right here — never
+  folded into the fix loop above and never held until the handoff at the end of the chain.
 - **Set the stage to `merged`:**
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set merged --root <run-root>`. The `**Stage:**`
   line is what tells the next command, or a resumed run, that every slice is on the scope branch. Publish

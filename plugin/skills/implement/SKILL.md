@@ -30,6 +30,11 @@ dispatches nothing — you carry the TDD discipline yourself. Narrate at most on
   fourth cycle. **A clean verdict ends the loop the same way, attended or unattended** — a finding still
   standing when it lands is a follow-up, never a fourth cycle.
 - **Every fix opens with a RED test** reproducing the bug.
+- **An observation is captured the moment you meet it.** Read
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Observations` section and follow it: a defect a
+  dispatched agent's report surfaces, or one you meet yourself, that no slice of this scope covers and the
+  scope did not cause gets a triage record from you, the controller, right here — never held until the
+  handoff at the end of the chain.
 - **The ledger is your recovery map.** After compaction, trust the ledger and `git log` over memory. A
   slice marked `merged` is done — never re-dispatch it.
 - **Hook-enforced, don't restate:** only the controller merges/pushes (`merge-guard`); every dispatch sets
