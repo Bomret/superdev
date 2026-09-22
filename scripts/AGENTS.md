@@ -174,11 +174,13 @@ whole page (ADR 0027, Consequences).
 files naming the identical section heading before either one applies, rather than growing a second
 copy of the key logic.
 
-### adapter.js, the OpenCode harness adapter (issue #375)
+### adapter.js, the OpenCode and Codex harness adapter (issue #375)
 
 `adapter.js` is the third shipped CLI, and the one no command in the chain invokes: it renders the
 shipped prompt surfaces into another harness's on-disk layout, so a superdev install there carries
-the same chain. The only harness is `opencode`, named by `--harness`. Skills render from
+the same chain. `--harness` selects the target, `opencode` (default) or `codex` (ADR 0056); an
+unknown value refuses nonzero and names the harnesses `HARNESS_REGISTRY` carries. Under OpenCode,
+skills render from
 `plugin/skills/<name>/SKILL.md` to `.opencode/skills/superdev-<name>/SKILL.md` for the
 surfaces the operator or the model may invoke. OpenCode exposes a skill through its built-in
 `skill` tool and auto-registers it as a `/superdev-<name>` slash command besides. `afk` alone
@@ -186,7 +188,7 @@ renders to `.opencode/commands/superdev/afk.md` (`SKILL_ONLY_COMMANDS`): an Open
 model-invocable, which is what reproduces the canonical skill's own
 `disable-model-invocation: true` and keeps the model from starting an unattended backlog sweep on
 its own judgment (ADR 0055). The skill `upgrade` renders too, but as OpenCode-native content
-synthesized directly in `renderOpencodeUpgradeSkill()` rather than derived from the skill's own
+synthesized directly in `renderUpgradeSkill()` — shared with the Codex render below — rather than derived from the skill's own
 Claude-Code-only body. That body drives `claude plugin update` and has no OpenCode equivalent (ADR
 0052, amending ADR 0050's earlier outright exclusion). `renderBridge()` gives the hook-bridge plugin
 below the same treatment, since both are pure harness mechanics with no prose in common with their
@@ -308,8 +310,31 @@ no CLI code, and exports `render`, `queryOpenCodeModels`, and `parseArgs`, plus 
 `TOOL_MAP`/`SKILL_MARKER`/`AFK_SKILL_TOOL_SENTENCE`/`AFK_CHAIN_TABLE_HEADER`/`BRIDGE_*` constants
 `tests/adapter.test.js` calls and reads directly (ADR 0059).
 
+Under `--harness codex` (ADR 0056), skills render to
+`.agents/skills/superdev-<name>/SKILL.md`, the Agent Skills standard's own shared scan root, and
+every shipped agent to `.codex/agents/superdev-<name>.toml` — a `developer_instructions` TOML
+string carrying the rewritten body, `model` resolved through `--model-map` the same way, and a
+`sandbox_mode` derived from the source agent's own `tools:` frontmatter (`workspace-write` for an
+agent whose allowlist grants Edit or Write, `read-only` otherwise; Codex offers no per-agent tool
+restriction, so `sandbox_mode` is the whole access-control story a rendered agent carries). `afk`,
+the one `SKILL_ONLY_COMMANDS` member, renders nowhere under Codex. `--model-map` is mandatory
+there: `render()` walks every agent before writing anything under `--dest` and refuses, naming the
+alias and the agent, on the first one `--model-map` leaves unresolved — Codex offers no
+configuration `queryOpenCodeModels()` could read, so a Codex render gets no interactive fallback
+(above). The render also emits `.codex/hooks.json`, wiring every shipped hook but `model-explicit`
+(structurally satisfied instead: every rendered agent TOML already carries an explicit `model`
+line) to Codex's own `SessionStart`, `PreToolUse`, `PostToolUse`, and `Stop` events, each command an
+absolute `node <plugin-root>/hooks/<hook>.js` path since Codex resolves no `${CLAUDE_PLUGIN_ROOT}`
+token. JSON carries no comment to hold a marker, so a pre-existing `.codex/hooks.json` this render
+did not itself produce refuses before any write unless it is byte-identical to what this render
+would produce — the identity preflight standing in for the marker check the skills and agents
+renders use.
+
 Before `render()` runs, the CLI's `main()` fills in every `model:` alias `--model-map` left
-out (`resolveModelMap()`, not itself exported). It does so for the aliases `usedModelAliases()` finds
+out, but only for `--harness opencode` (`resolveModelMap()`, not itself exported): querying an
+OpenCode configuration says nothing about what a Codex install can run, so Codex renders with
+whatever `--model-map` already carries and no interactive fallback (ADR 0056). Under OpenCode,
+`resolveModelMap()` acts for the aliases `usedModelAliases()` finds
 among the plugin root's own **agents**. A rendered skill carries no `model:` key for OpenCode to
 read, so a skill's alias reaches no render target. Asking the operator to resolve it would prompt for
 a value nothing consumes. It queries the OpenCode config for the models
@@ -323,15 +348,19 @@ naming the alias and pointing at `--model-map <alias>=<provider/model>` as the m
 when no models are configured anywhere, or when the input closes (EOF, or a non-interactive
 process) before an answer arrives. The two per-surface refusals above (naming the alias and the
 command — afk today, the one surface still rendered through `renderCommand()` — or the alias and the
-agent) only fire when `render()` is called directly with a map still missing an alias — the CLI
-itself never reaches them, since `resolveModelMap()` has already filled every alias by the time
-`render()` runs.
+agent) only fire when `render()` is called directly with a map still missing an alias — the OpenCode
+CLI path never reaches them, since `resolveModelMap()` has already filled every alias by the time
+`render()` runs. `render()` itself, before writing anything under `--dest`, walks every agent and
+refuses the same way — naming the alias and the agent — when a Codex render's `--model-map` still
+leaves one unresolved, which is the only path a Codex render's missing alias ever takes.
 
-The committed golden render lives under `scripts/drift/fixtures/opencode/`, regenerated with
-`bun run render-fixtures` (`node scripts/drift/opencode-fixtures.js --write`). The fixtures render
-with one fixed model map and the plugin root normalised to `<plugin-root>` — the bridge file
-bakes that root into its `PLUGIN_ROOT` constant, so the same normalisation keeps the fixture
-machine-independent; the `opencode-render` check diffs a fresh render against them.
+The committed golden render for OpenCode lives under `scripts/drift/fixtures/opencode/`, for Codex
+under `scripts/drift/fixtures/codex/`; `bun run render-fixtures` regenerates both
+(`node scripts/drift/opencode-fixtures.js --write && node scripts/drift/codex-fixtures.js --write`).
+The fixtures render with one fixed model map and the plugin root normalised to `<plugin-root>` — the
+OpenCode bridge file bakes that root into its `PLUGIN_ROOT` constant, so the same normalisation keeps
+the fixture machine-independent; the `opencode-render` and `codex-render` checks each diff a fresh
+render against their own fixture tree.
 
 ### publish-kb.js, the backend-independent knowledge-base publish (ADR 0069)
 
@@ -426,6 +455,7 @@ live beside it, in `scripts/drift/`.
 | `drift/scanners.js` | the bespoke scanners, every check whose assertion is more than one pattern over one document |
 | `drift/lib.js` | what they share: `maskFences`, `extractSection`, the frontmatter readers, `readDoc`, `storeDocuments`, and `scanContract` |
 | `drift/opencode-fixtures.js` | the golden-fixture half of the `opencode-render` check: the one normalised render both the check and `bun run render-fixtures` use |
+| `drift/codex-fixtures.js` | the golden-fixture half of the `codex-render` check: the one normalised Codex render both the check and `bun run render-fixtures` use, compared byte for byte rather than through the Render overlay below |
 | `drift/opencode-overlay.js` | the Render overlay format (ADR 0060): `sourceForRendered`, `computeOverlay`, and its serialize/parse pair, shared by the check and `bun run render-fixtures` |
 | `drift/selftest/` | `index.js` (the `fixture` helper, `realRoot`, temp-dir cleanup) plus one suite per area: `scanners`, `chain`, `kb-plan`, `opencode`, `drift-check` |
 
@@ -1698,6 +1728,17 @@ ships while the fixtures a consumer's render is judged against quietly describe 
 The adapter module is required from the real plugin tree rather than from the scanned root, so a
 fixture root in the selftest carries only the plugin's skills and agents plus the fixture tree, and
 either side absent skips the check, matching every other scanner's fixture rule.
+
+The `codex-render` check, `scanCodexFixtures()`: the committed golden render under
+`scripts/drift/fixtures/codex/` still matches a fresh render of the shipped skills (issue #431) and
+agents (issue #432, `.codex/agents/superdev-<name>.toml`, `sandbox_mode` derived from each agent's own
+`tools:` frontmatter — never a hardcoded name list, ADR 0056). It
+follows the `opencode-render` check's own shape — `drift/codex-fixtures.js`'s `renderNormalized()`
+renders into a temp dir with the same `<plugin-root>` normalisation, and `bun run render-fixtures`
+regenerates both fixture trees with the same function, so neither check can drift on the model map or
+the placeholder — but every file compares byte for byte: this render carries no Render overlay (ADR
+0060 is `opencode-fixtures.js`'s own optimisation over a render this many times larger, not adopted
+here). Either side absent skips the check, matching every other scanner's fixture rule.
 
 The `run-state-contract` check, `scanRunStateContract()`: every store document carries its
 own `## Run state` section (`plan-contract.md` → *Run state*, ADR 0042). It walks the same

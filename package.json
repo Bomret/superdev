@@ -5,7 +5,7 @@
   "description": "Release tooling for the superdev Claude Code plugin. Not published to npm; the plugin ships via the plugin/ subdirectory. semantic-release drives versioning off Conventional Commits.",
   "scripts": {
     "test": "node tests/merge-guard.test.js && node tests/run-lock.test.js && node tests/model-explicit.test.js && node tests/green-gate.test.js && node tests/update-check.test.js && node tests/slicetree-sweep.test.js && node tests/scope-prune.test.js && node tests/ledger-guard.test.js && node tests/scope.test.js && node tests/kb-patch.test.js && node tests/publish-kb.test.js && node tests/adapter.test.js && node scripts/drift-check.js --selftest && node scripts/drift-check.js && claude plugin validate ./plugin",
-    "render-fixtures": "node scripts/drift/opencode-fixtures.js --write",
+    "render-fixtures": "node scripts/drift/opencode-fixtures.js --write && node scripts/drift/codex-fixtures.js --write",
     "release": "semantic-release --no-ci"
   },
   "engines": {

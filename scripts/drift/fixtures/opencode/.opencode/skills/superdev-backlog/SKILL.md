@@ -1,6 +1,6 @@
 superdev-render-overlay
 source: skills/backlog/SKILL.md
-body-lines: 180
+body-lines: 186
 ---
 # generated-by: superdev-adapter — a re-render overwrites this directory
 name: superdev-backlog
@@ -41,15 +41,15 @@ and `<plugin-root>/skills/afk/SKILL.md`'s `## 3. Take it through the chain` tabl
 feature label verbatim (`<plugin-root>/references/scope-mode.md`, "The scope branch is the
 @130
 A scope with a run root is **one row**, carrying its stage. Its individual slices are `/superdev-status`'s
-@140
+@146
 #368 backlog survey        in flight       reviewed → /superdev-document main..feat/backlog
-@141
+@147
 #412 export formats        ready           /superdev-implement feat/export-formats
-@144
+@150
 #402 retry storms          needs planning  triage record → /superdev-plan "retry storms"
-@161
+@167
 `/superdev-plan`. A stranded run root is the most expensive item in the backlog: it holds a branch, a
-@174
+@180
 - **Expanding into `/superdev-status`.** A scope with a run root is one row. Per-slice detail is that
-@176
+@182
 - **Inheriting `/superdev/afk`'s defer-on-doubt.** Its skips hide unreleased anchors, undecomposed

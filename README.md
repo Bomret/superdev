@@ -619,6 +619,55 @@ neither of which anyone is there to answer. A headless run also denies the `ques
 which is the behavior an unattended run already assumes: superdev's standing answers exist so nothing
 gets asked, and a stop with no standing answer is a block rather than a question.
 
+## Codex
+
+superdev's chain also runs under the **Codex CLI**. `plugin/scripts/adapter.js` renders the same
+shipped `plugin/skills/` and `plugin/agents/` tree into Codex's own on-disk layout, so no second copy
+of the prompts, the agents, or the guardrails exists to maintain.
+
+**Install and render**, from the Codex project you want superdev in:
+
+```
+git clone https://codeberg.org/bomret/superdev.git
+node superdev/plugin/scripts/adapter.js --dest . --harness codex \
+  --model-map sonnet=<provider>/<model> \
+  --model-map opus=<provider>/<model> \
+  --model-map haiku=<provider>/<model>
+```
+
+`--model-map` is **mandatory** on Codex, for every alias a rendered agent's `model:` frontmatter names:
+Codex's model map carries no interactive fallback the way OpenCode's does, so an unmapped alias refuses
+the render outright, before anything under `--dest` is touched, rather than prompting for a pick.
+
+The render creates:
+
+```
+.agents/skills/superdev-<name>/SKILL.md   one per skill, except afk, which renders nowhere on Codex
+.codex/agents/superdev-<name>.toml        one per subagent
+.codex/hooks.json                         every shipped hook except model-explicit, wired to Codex's
+                                           own events
+```
+
+Re-running the command is safe: it removes its own generated content first, marker-keyed the same way
+OpenCode's cleanup is, so a renamed or removed skill or agent leaves no stale file behind. A pre-existing
+`.codex/hooks.json` this render did not itself produce refuses the render instead of being overwritten —
+remove or rename it first.
+
+**`[features] hooks = false` in the project's Codex `config.toml` disables every guardrail this render
+wires**, hooks.json included: Codex's own hooks engine stops loading any hook at all, so merge-guard,
+green-gate, run-lock, and the rest go silent together rather than one at a time.
+
+**Two named parity gaps against the Claude Code chain:**
+
+- **merge-guard never fires under Codex.** It is wired to `Bash` the same way Claude Code's own
+  `hooks.json` wires it, but no Codex tool event carries an `agent_id`, the field merge-guard requires
+  before it ever blocks. This is a known, permanent gap, not a silent omission.
+- **Whether green-gate's `PostToolUse` block actually stops a denied write under Codex is not
+  verified.** green-gate is wired the same `PostToolUse` way Claude Code wires it, exit code 2 included,
+  but whether Codex treats that exit code as a denial the way Claude Code does has not been checked
+  against a real Codex session. Tracked as triage #581. Treat green-gate as unverified on Codex until
+  that triage resolves, not as either working or broken.
+
 ## Attribution
 
 Distills MIT-licensed material from [superpowers](https://github.com/obra/superpowers) (© Jesse

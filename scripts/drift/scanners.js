@@ -1319,6 +1319,45 @@ function scanOpencodeFixtures(root) {
   }
 }
 
+// scanCodexFixtures() is pure over a root dir: the committed golden render under
+// `scripts/drift/fixtures/codex/` still matches a fresh render of the root's plugin tree. It renders
+// through `drift/codex-fixtures.js`'s renderNormalized() into a temp dir and diffs the two trees — a
+// skills or agents edit that changes the render is a gap until the fixtures are regenerated (`bun run
+// render-fixtures`) in the same commit. Every file is compared byte for byte: this render carries no
+// Render overlay (ADR 0060 is opencode-fixtures.js's own optimisation, not adopted here). The adapter
+// module is required from the real plugin tree, so a fixture root needs only the plugin's skills and
+// agents plus the fixtures themselves; either side absent skips the check, matching every other scanner.
+function scanCodexFixtures(root) {
+  const { FIXTURE_DIR, renderNormalized } = require('./codex-fixtures');
+  const fixtureDir = path.join(root, FIXTURE_DIR);
+  if (!fs.existsSync(fixtureDir)) return []; // no committed fixtures → nothing to compare
+  if (!fs.existsSync(path.join(root, 'plugin', 'skills'))) return []; // fixture root may carry only one side
+  const fixtureLabel = FIXTURE_DIR.split(path.sep).join('/');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-render-'));
+  try {
+    renderNormalized(root, tmp);
+    const gaps = [];
+    const expected = walkFiles(fixtureDir);
+    const actual = walkFiles(tmp);
+    for (const rel of expected.filter((rel) => !actual.includes(rel))) {
+      gaps.push(`${fixtureLabel}/${rel} has no fresh render — regenerate the fixtures (bun run render-fixtures)`);
+    }
+    for (const rel of actual.filter((rel) => !expected.includes(rel))) {
+      gaps.push(`a fresh render produces ${rel}, which ${fixtureLabel} does not carry — regenerate the fixtures (bun run render-fixtures)`);
+    }
+    for (const rel of expected.filter((rel) => actual.includes(rel))) {
+      const committedText = fs.readFileSync(path.join(fixtureDir, rel), 'utf8');
+      const freshText = fs.readFileSync(path.join(tmp, rel), 'utf8');
+      if (committedText !== freshText) {
+        gaps.push(`${fixtureLabel}/${rel} no longer matches a fresh render of the plugin tree — regenerate the fixtures (bun run render-fixtures)`);
+      }
+    }
+    return gaps;
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
 // scanOpencodeSurfaceSplit() is pure over a root dir: the committed OpenCode render puts each
 // surface on the side of the skill/command split that its role demands (ADR 0055).
 //
@@ -1412,4 +1451,5 @@ module.exports = {
   scanAuditSetGlobs,
   scanOpencodeFixtures,
   scanOpencodeSurfaceSplit,
+  scanCodexFixtures,
 };
