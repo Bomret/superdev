@@ -238,7 +238,9 @@ This root owns every other subtree directly:
   only runtime consumer of
   `plugin/scripts/`: `scope-prune.js` and `slicetree-sweep.js` both
   `require` `../scripts/scope.js` for their ledger-header reader (ADR 0022), and `scope-prune.js`
-  takes the containment probe `baseHistoryHasPatch` off that same call (ADR 0082). These are the only
+  takes the containment probe `baseHistoryHasPatch` off that same call (ADR 0082). `slicetree-sweep.js`
+  tests a worked slice branch's tip against its scope branch's first-parent chain, alongside the
+  default-branch content check (ADR 0089). These are the only
   places a hook depends on a script instead of standing alone. A `require` failure leaves either hook
   with no fallback reader: it sweeps/prunes nothing and says nothing. The probe has its own, narrower
   fallback — `scope-prune.js` prunes by tree comparison alone, still silently. **One dependency runs

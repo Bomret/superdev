@@ -85,6 +85,15 @@ Breaks: silently
 Check: tests/spawn-verdict.test.js — the helper's throw-or-not and message for the killed, never-started, EPIPE-but-decided, and genuinely-decided result shapes; tests/green-gate.test.js — a killed suite blocks the merge; tests/scope.test.js — the refetch asserts the kill signal rather than the clock; tests/adapter.test.js — the OpenCode hook bridge blocks a killed hook and lets a call through when the hook never started, noticing once per hook
 Paths: plugin/hooks/green-gate.js, plugin/scripts/scope.js, plugin/scripts/adapter.js, scripts/drift/fixtures/opencode/**, tests/**
 
+### INV-0012
+
+Class: architecture
+Concepts: Slicetree, Scope branch, Scopetree
+Statement: A sweep removes a working tree only on positive evidence that it holds work of its own — a commit unreachable from the default branch, and a tip off its scope branch's first-parent chain. Every path that cannot answer, whether an unreadable ledger, a ledger naming no branch, or a branch that does not resolve, leaves that scope's directories alone. The first-parent half distinguishes a worked slice from a fresh one only because `plugin/references/implement-full.md`'s merge step folds each slice with `--no-ff`; a fast-forward merge would land a worked slice's tip back on that chain and the sweep would stop reaping it.
+Breaks: silently
+Check: tests/slicetree-sweep.test.js — a slice cut from a scope branch ahead of base survives; an unreadable ledger and an unresolvable branch each sweep nothing for their own scope while siblings sweep normally; its `fold()` helper merges with `--no-ff`, matching the merge step's own flag
+Paths: plugin/hooks/slicetree-sweep.js, plugin/references/implement-full.md, tests/slicetree-sweep.test.js
+
 ### INV-0013
 
 Class: process
