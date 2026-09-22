@@ -51,6 +51,7 @@ const {
   scanAfkLockTierClaim,
   scanOpencodeFixtures,
   scanOpencodeSurfaceSplit,
+  scanCodexFixtures,
   scanUnmappedPathsForms,
 } = require('./scanners');
 const {
@@ -536,6 +537,12 @@ module.exports = [
     id: 'opencode-render',
     ok: 'the committed OpenCode fixtures match a fresh render of the shipped skills, agents, and hook bridge',
     run: scanOpencodeFixtures,
+    format: (gap) => gap,
+  },
+  {
+    id: 'codex-render',
+    ok: 'the committed Codex fixtures match a fresh render of the shipped skills and agents',
+    run: scanCodexFixtures,
     format: (gap) => gap,
   },
   {

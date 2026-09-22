@@ -4,19 +4,24 @@
 // adapter.js: the harness adapter (issue #375). Renders the shipped surfaces — the
 // plugin/skills/<name>/SKILL.md prompts, the plugin/agents/<name>.md subagents, and the
 // deterministic guardrails — into another harness's on-disk layout, so a superdev install there
-// carries the same chain. The only harness is `opencode`: skills render to
+// carries the same chain. Under `opencode`: skills render to
 // `.opencode/skills/superdev-<name>/SKILL.md` (`upgrade` renders synthesized, OpenCode-native
 // content instead of its Claude-Code-only body, ADR 0052), agents to
 // `.opencode/agents/<name>.md`, with the Claude-specific tokens rewritten deterministically, and
 // the eight hooks are bridged by a generated OpenCode plugin at `.opencode/plugins/superdev.js`
 // (issue #376) that spawns them as `node <plugin-root>/hooks/<hook>.js` with a Claude-shaped
-// stdin payload. Exit nonzero with a one-line stderr reason on any refusal, the convention
-// scripts/scope.js uses.
+// stdin payload. Under `codex`: skills render to `.agents/skills/superdev-<name>/SKILL.md`
+// (issue #431) and agents to `.codex/agents/superdev-<name>.toml`, a `developer_instructions`
+// TOML string carrying the rewritten body and a `sandbox_mode` derived from the source agent's
+// own `tools:` frontmatter (issue #432, ADR 0056). Exit nonzero with a one-line stderr reason on
+// any refusal, the convention scripts/scope.js uses.
 //
 // A skill is the model-invocable target: OpenCode exposes one through its built-in `skill` tool and
 // registers it as a `/superdev-<name>` slash command besides, where a command under
 // `.opencode/commands/` is only ever typed by the operator. That is what decides which surface
-// renders where — SKILL_ONLY_COMMANDS names the ones that stay commands (ADR 0055).
+// renders where — SKILL_ONLY_COMMANDS names the ones that stay commands (ADR 0055). Codex's own
+// hooks wire to `.codex/hooks.json` (issue #433): every shipped hook except `model-explicit`,
+// every command path absolute since Codex resolves no `${CLAUDE_PLUGIN_ROOT}` token.
 //
 // Flags: --harness opencode, --plugin-root <abs-path> (default: this script's .., the plugin
 // root), --dest <dir>, and a repeatable --model-map <alias>=<provider/model>.
@@ -60,7 +65,8 @@ const TOOL_MAP = {
   TodoWrite: 'todowrite',
 };
 
-const HARNESSES = ['opencode'];
+// HARNESS_REGISTRY (defined after the render-target functions it wires, below) is the shared
+// render()'s only way to reach a harness's own layout. Its keys are the available --harness values.
 
 // The line every rendered agent's frontmatter carries, so a re-render can tell "a stale file this
 // adapter wrote in a past render" from "a consumer's own agent that happens to share this
@@ -79,6 +85,12 @@ const AGENT_MARKER = '# generated-by: superdev-adapter — a re-render overwrite
 // 2026-09-09 — a rendered skill carrying this exact line still resolved every other field
 // correctly, and `opencode debug skill` still listed it under its own `name`).
 const SKILL_MARKER = '# generated-by: superdev-adapter — a re-render overwrites this directory';
+
+// The same marker's Codex-render counterpart (issue #431): `.agents/skills/` is a directory a
+// consumer's own skills share too, so cleanup there is marker-keyed the same way. Declared here,
+// ahead of the rest of the Codex harness registry entry further down, because renderUpgradeSkill's
+// per-harness table below needs it at module-load time.
+const CODEX_SKILL_MARKER = '# generated-by: superdev-adapter — a re-render overwrites this directory';
 
 // A rendered skill's name is the canonical skill name behind this prefix. OpenCode's skill registry
 // is flat and globally unique across every scan root, so an unprefixed `plan` or `review` would
@@ -123,20 +135,32 @@ function readFrontmatter(text, source) {
 // The three deterministic rewrites a rendered body gets, applied to the whole rendered file
 // (frontmatter descriptions name `/superdev:<cmd>` too, so rewriting only the body would leak the
 // token). `${CLAUDE_PLUGIN_ROOT}` becomes the --plugin-root value; a bare `superdev:<agent>` becomes
-// the bare agent name; and `/superdev:<cmd>` becomes whichever slash-command name that surface
+// whichever agent name that harness's registry actually carries — the bare name for OpenCode, the
+// prefixed `superdev-<agent>` for Codex, whose rendered TOML is named that way too (ADR 0056); and
+// `/superdev:<cmd>` becomes whichever slash-command name that surface
 // actually renders under — `/superdev-<cmd>` for a skill, which OpenCode registers flat, and
 // `/superdev/<cmd>` for a SKILL_ONLY_COMMANDS member, which renders into the namespaced commands
 // subdirectory instead (ADR 0055). Both name rewrites are
 // restricted to the names discovered under --plugin-root, so a token that is not a real skill or
 // agent (an HTML comment marker, a prose example) is never mangled.
+// Codex has no invocation Codex itself never expands, the way OpenCode expands its own
+// `/superdev-<name>` slash command: Codex's own explicit invocation is `$superdev-<name>`, a skill
+// mention (ADR 0056). afk renders nowhere on Codex, so a reference to it carries no invocation token
+// at all — its plain name, exactly the way a reader would name a surface with nothing to invoke.
+function renderedInvocation(harness, name) {
+  if (harness === 'codex') return SKILL_ONLY_COMMANDS.has(name) ? name : `$${SKILL_NAME_PREFIX}${name}`;
+  return SKILL_ONLY_COMMANDS.has(name) ? `/superdev/${name}` : `/${SKILL_NAME_PREFIX}${name}`;
+}
+
 function rewriteProse(text, opts) {
+  const harness = opts.harness || 'opencode';
   let out = text.split('${CLAUDE_PLUGIN_ROOT}').join(opts.pluginRoot);
   for (const name of opts.skills) {
-    const rendered = SKILL_ONLY_COMMANDS.has(name) ? `/superdev/${name}` : `/${SKILL_NAME_PREFIX}${name}`;
-    out = out.replace(new RegExp(`/superdev:${name}\\b`, 'g'), rendered);
+    out = out.replace(new RegExp(`/superdev:${name}\\b`, 'g'), renderedInvocation(harness, name));
   }
   for (const name of opts.agents) {
-    out = out.replace(new RegExp(`(?<![/\\w-])superdev:${name}\\b`, 'g'), name);
+    const rendered = harness === 'codex' ? `${SKILL_NAME_PREFIX}${name}` : name;
+    out = out.replace(new RegExp(`(?<![/\\w-])superdev:${name}\\b`, 'g'), rendered);
   }
   return out;
 }
@@ -296,14 +320,14 @@ const OPENCODE_ARGUMENTS_PHRASE = 'the message that invoked this skill';
 // `compatibility` and `metadata`, so a canonical `model:` pin has nowhere to land and the skill runs
 // on the session's model. `allowed-tools` carries verbatim on the same reasoning renderCommand
 // already applies — an ignored field beats a silently dropped one.
-function renderSkill(name, skillPath, rewrite) {
+function renderSkill(name, skillPath, rewrite, marker) {
   const { fields, body } = readFrontmatter(fs.readFileSync(skillPath, 'utf8'), skillPath);
   if (!fields.description) fail(`${skillPath} carries no description`);
   const skillName = `${SKILL_NAME_PREFIX}${name}`;
   if (!SKILL_NAME_PATTERN.test(skillName)) {
-    fail(`'${skillName}' is not a valid OpenCode skill name — lowercase alphanumeric segments joined by '-' (${skillPath})`);
+    fail(`'${skillName}' is not a valid skill name — lowercase alphanumeric segments joined by '-' (${skillPath})`);
   }
-  let frontmatter = `---\n${SKILL_MARKER}\nname: ${skillName}\ndescription: ${yamlString(fields.description)}\n`;
+  let frontmatter = `---\n${marker}\nname: ${skillName}\ndescription: ${yamlString(fields.description)}\n`;
   if (fields['allowed-tools']) frontmatter += `allowed-tools: ${yamlString(fields['allowed-tools'])}\n`;
   frontmatter += '---\n';
   let result = rewrite(`${frontmatter}\n${body.replace(/^\n+/, '')}`);
@@ -369,43 +393,85 @@ function renderAgent(name, agentPath, modelMap, rewrite) {
   return rewrite(`${frontmatter}\n${body.replace(/^\n+/, '')}`);
 }
 
-// renderOpencodeUpgradeSkill() emits .opencode/skills/superdev-upgrade/SKILL.md: OpenCode's real
-// upgrade path — a git pull in the plugin's source clone, then a re-render — synthesized directly
-// here rather than derived from plugin/skills/upgrade/SKILL.md's body, which drives Claude Code's
-// own `claude plugin update` and has no OpenCode equivalent (ADR 0052, amending ADR 0050's outright
-// exclusion). The same treatment renderBridge() above already gives the hook-bridge plugin: both
-// are pure harness mechanics with no prose in common with their Claude Code counterpart. It carries
-// no `model:` line, for the reason renderSkill() states: OpenCode skill frontmatter has no such key
-// (ADR 0055). The
-// "start a new OpenCode session" instruction is verified against OpenCode's own plugin docs
+// The per-harness detail renderUpgradeSkill() below fills in: everything else about the synthesized
+// upgrade skill — the two-command shape, the model-map re-emission, the marker, the refusal on
+// failure — is identical prose across harnesses. rewriteParagraph and closingLines are the two
+// places the two harnesses' rendered upgrade bodies genuinely differ in substance (what a
+// re-render touches on disk, and what "start a new session" means); tool names the surface the
+// model runs the commands with.
+const UPGRADE_HARNESS = {
+  opencode: {
+    label: 'OpenCode',
+    flag: 'opencode',
+    tool: 'Bash',
+    marker: SKILL_MARKER,
+    description: "Pull the latest superdev source and re-render this project's OpenCode surfaces (skills, agents, hook bridge) in place.",
+    rewriteParagraph: [
+      'Re-rendering rewrites every file this adapter generates — every skill directory under',
+      '`.opencode/skills/`, every agent it wrote under `.opencode/agents/`, and',
+      '`.opencode/plugins/superdev.js` — to match the pulled source. The command above already',
+      "carries this project's resolved model-map, so it re-renders non-interactively with no prompts.",
+    ],
+    closingLines: [
+      '**start a new OpenCode session** in this project — OpenCode loads skills, commands, agents,',
+      'and plugins at startup, with no documented hot-reload, so a running session keeps the old ones',
+      'until it restarts.',
+    ],
+  },
+  codex: {
+    label: 'Codex',
+    flag: 'codex',
+    tool: 'shell',
+    marker: CODEX_SKILL_MARKER,
+    description: "Pull the latest superdev source and re-render this project's Codex surfaces in place.",
+    rewriteParagraph: [
+      'Re-rendering rewrites every skill directory this adapter generates under `.agents/skills/` to',
+      "match the pulled source. The command above already carries this project's resolved model-map, so",
+      'it re-renders non-interactively with no prompts.',
+    ],
+    closingLines: [
+      '**start a new Codex session** in this project, so it loads the freshly rendered skills.',
+    ],
+  },
+};
+
+// renderUpgradeSkill() emits the synthesized upgrade skill for either harness — a git pull in the
+// plugin's source clone, then a re-render with `--harness <harness>` — rather than deriving it from
+// plugin/skills/upgrade/SKILL.md's body, which drives Claude Code's own `claude plugin update` and
+// has no equivalent on either rendered harness (ADR 0052 for OpenCode, amending ADR 0050's outright
+// exclusion; ADR 0056 for Codex, naming no `claude plugin` command). The same treatment
+// renderBridge() above already gives the hook-bridge plugin: both are pure harness mechanics with no
+// prose in common with their Claude Code counterpart. OpenCode's frontmatter carries no `model:`
+// line, for the reason renderSkill() states: OpenCode skill frontmatter has no such key (ADR 0055).
+// The "start a new OpenCode session" instruction is verified against OpenCode's own plugin docs
 // (https://opencode.ai/docs/plugins/, 2026-09-06): plugin/command/agent files are "loaded at
 // startup", with no documented hot-reload, so a fresh session is the correct load point.
-function renderOpencodeUpgradeSkill(skillPath, pluginRoot, modelMap) {
+function renderUpgradeSkill(harness, skillPath, pluginRoot, modelMap) {
   readFrontmatter(fs.readFileSync(skillPath, 'utf8'), skillPath);
+  const cfg = UPGRADE_HARNESS[harness];
   // Kept as a literal `pluginRoot + '/..'` string, never path.dirname(pluginRoot)'s normalized
-  // parent: the golden-fixture normalizer (scripts/drift/opencode-fixtures.js) replaces only exact
-  // occurrences of the resolved plugin-root string with its `<plugin-root>` placeholder, so a
-  // normalized parent path would leak the real machine's absolute path into the committed fixture.
+  // parent: the golden-fixture normalizer (scripts/drift/opencode-fixtures.js and
+  // scripts/drift/codex-fixtures.js) replaces only exact occurrences of the resolved plugin-root
+  // string with its `<plugin-root>` placeholder, so a normalized parent path would leak the real
+  // machine's absolute path into the committed fixture.
   const repoRoot = `${pluginRoot}${path.sep}..`;
   const adapterPath = path.join(pluginRoot, 'scripts', 'adapter.js');
   // Every entry of the resolved model-map, re-emitted as its own `--model-map` flag: the CLI's
   // parseArgs() has no positional-argument handling (every non-flag argv element is an "unknown
   // flag" refusal), so the re-render must carry no bare subcommand word, and it must carry every
   // alias's resolved value so the re-render never prompts — there is no TTY when a model runs this
-  // via the Bash tool, and re-prompting here would also silently discard the operator's original
-  // picks. Same JSON-quoting convention as the git/node invocations below.
+  // via the harness's tool, and re-prompting here would also silently discard the operator's
+  // original picks. Same JSON-quoting convention as the git/node invocations below.
   const modelMapArgs = [...modelMap]
     .map(([alias, value]) => ` --model-map ${JSON.stringify(`${alias}=${value}`)}`)
     .join('');
-  const frontmatter = `---\n${SKILL_MARKER}\nname: ${SKILL_NAME_PREFIX}upgrade\ndescription: ${yamlString(
-    "Pull the latest superdev source and re-render this project's OpenCode surfaces (skills, agents, hook bridge) in place.",
-  )}\n---\n`;
+  const frontmatter = `---\n${cfg.marker}\nname: ${SKILL_NAME_PREFIX}upgrade\ndescription: ${yamlString(cfg.description)}\n---\n`;
   const body = [
     '',
-    '# superdev upgrade (OpenCode)',
+    `# superdev upgrade (${cfg.label})`,
     '',
     "Upgrade this project's rendered superdev surfaces to the latest published source, hands-off.",
-    'You (the model) run the two commands below with the Bash tool, checking each one\'s exit',
+    `You (the model) run the two commands below with the ${cfg.tool} tool, checking each one's exit`,
     'status before moving on. If either command fails, stop and tell the user the upgrade is',
     '**stale/incomplete** instead of continuing to the next step or reporting success.',
     '',
@@ -422,21 +488,16 @@ function renderOpencodeUpgradeSkill(skillPath, pluginRoot, modelMap) {
     // own opts.dest: the golden-fixture normalizer above only placeholders exact pluginRoot
     // occurrences, so baking a fixture's own absolute tmp --dest would leak a machine-local path
     // into the committed fixture. $(pwd) resolves to the same directory whenever the command runs
-    // from the project root, which is where a rendered OpenCode command always executes.
-    `node ${JSON.stringify(adapterPath)} --dest "$(pwd)" --harness opencode${modelMapArgs}`,
+    // from the project root, which is where a rendered command always executes.
+    `node ${JSON.stringify(adapterPath)} --dest "$(pwd)" --harness ${cfg.flag}${modelMapArgs}`,
     '```',
     '',
-    'Re-rendering rewrites every file this adapter generates — every skill directory under',
-    '`.opencode/skills/`, every agent it wrote under `.opencode/agents/`, and',
-    '`.opencode/plugins/superdev.js` — to match the pulled source. The command above already',
-    "carries this project's resolved model-map, so it re-renders non-interactively with no prompts.",
+    ...cfg.rewriteParagraph,
     '',
     '## 3. Done',
     '',
     "Once both commands have succeeded, report both commands' output, then tell the user to",
-    '**start a new OpenCode session** in this project — OpenCode loads skills, commands, agents,',
-    'and plugins at startup, with no documented hot-reload, so a running session keeps the old ones',
-    'until it restarts.',
+    ...cfg.closingLines,
     '',
   ].join('\n');
   return frontmatter + body;
@@ -768,6 +829,239 @@ module.exports = { id: 'superdev', server: SuperdevPlugin };
   ].join('\n\n');
 }
 
+// --- the OpenCode harness registry entry --------------------------------------
+//
+// A harness registry entry is the layout half of render(): where a rendered surface lands, which of
+// its own generated files it re-cleans before writing, and how each surface type renders. render()
+// builds one `ctx = { pluginRoot, dest, modelMap, rewrite, skills, agents }` and hands it to every
+// method below; a method never reaches back into render()'s own discovery or validation. An entry
+// implements:
+//   cleanup(ctx): void — remove the harness's own generated files under ctx.dest (wholesale or
+//     marker-keyed) before the write loop runs.
+//   renderSkill(name, skillPath, ctx): { rel, content } — rel is dest-relative.
+//   renderCommand(name, skillPath, ctx): { rel, content } — called only for a SKILL_ONLY_COMMANDS name.
+//   renderAgent(name, agentPath, ctx): { rel, content }
+//   extras(ctx): Array<{ rel, content }> — any generated file outside the skill/command/agent shape
+//     (OpenCode's hook bridge plugin).
+
+// Walks a directory, reads each SKILL.md's frontmatter, and removes entries whose frontmatter
+// includes the marker. Shared by opencodeCleanup and codexCleanup to avoid duplication.
+function cleanupByMarker(skillsDest, marker) {
+  for (const entry of fs.readdirSync(skillsDest, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const skillFile = path.join(skillsDest, entry.name, 'SKILL.md');
+    if (!fs.existsSync(skillFile)) continue;
+    const match = fs.readFileSync(skillFile, 'utf8').match(/^---\n([\s\S]*?)\n---\n?/);
+    if (match && match[1].includes(marker)) {
+      fs.rmSync(path.join(skillsDest, entry.name), { recursive: true, force: true });
+    }
+  }
+}
+
+// .opencode/commands/superdev/ goes wholesale (namespaced, nothing foreign shares it), the hook
+// bridge is removed by name, and .opencode/skills/ and .opencode/agents/ are shared OpenCode
+// directories that keep only the files/directories a past render tagged with SKILL_MARKER /
+// AGENT_MARKER — a consumer's own agent or skill there survives.
+function opencodeCleanup(ctx) {
+  const commandsDest = path.join(ctx.dest, '.opencode', 'commands', 'superdev');
+  const skillsDest = path.join(ctx.dest, '.opencode', 'skills');
+  const agentsDest = path.join(ctx.dest, '.opencode', 'agents');
+  const bridgeDest = path.join(ctx.dest, '.opencode', 'plugins', 'superdev.js');
+  fs.rmSync(commandsDest, { recursive: true, force: true });
+  fs.rmSync(bridgeDest, { force: true });
+  fs.mkdirSync(skillsDest, { recursive: true });
+  fs.mkdirSync(agentsDest, { recursive: true });
+  cleanupByMarker(skillsDest, SKILL_MARKER);
+  for (const entry of fs.readdirSync(agentsDest, { withFileTypes: true })) {
+    if (!entry.isFile()) continue;
+    const full = path.join(agentsDest, entry.name);
+    const match = fs.readFileSync(full, 'utf8').match(/^---\n([\s\S]*?)\n---\n?/);
+    if (match && match[1].includes(AGENT_MARKER)) fs.rmSync(full);
+  }
+}
+
+// upgrade renders synthesized OpenCode-native content instead of its Claude-Code-only body (ADR
+// 0052); every other skill renders through the shared renderSkill().
+function opencodeRenderSkill(name, skillPath, ctx) {
+  const rel = path.join('.opencode', 'skills', `${SKILL_NAME_PREFIX}${name}`, 'SKILL.md');
+  const content = name === 'upgrade'
+    ? renderUpgradeSkill('opencode', skillPath, ctx.pluginRoot, ctx.modelMap)
+    : renderSkill(name, skillPath, ctx.rewrite, SKILL_MARKER);
+  return { rel, content };
+}
+
+// afk is the one SKILL_ONLY_COMMANDS member today; its OpenCode rendering replaces the Skill-tool
+// sentence and chain-table header with OpenCode's own `skill`-tool invocation (ADR 0055). Every
+// other SKILL_ONLY_COMMANDS name (there are none yet) would render through the shared renderCommand().
+function opencodeRenderCommand(name, skillPath, ctx) {
+  const rel = path.join('.opencode', 'commands', 'superdev', `${name}.md`);
+  const content = name === 'afk'
+    ? renderOpencodeAfkCommand(name, skillPath, ctx.modelMap, ctx.rewrite)
+    : renderCommand(name, skillPath, ctx.modelMap, ctx.rewrite);
+  return { rel, content };
+}
+
+function opencodeRenderAgent(name, agentPath, ctx) {
+  const rel = path.join('.opencode', 'agents', `${name}.md`);
+  return { rel, content: renderAgent(name, agentPath, ctx.modelMap, ctx.rewrite) };
+}
+
+// The hook bridge: the one generated file outside the skill/command/agent shape.
+function opencodeExtras(ctx) {
+  return [{ rel: path.join('.opencode', 'plugins', 'superdev.js'), content: renderBridge(ctx.pluginRoot) }];
+}
+
+// --- the Codex harness registry entry (issues #431, #432) -------------------
+//
+// Skills render to `.agents/skills/superdev-<name>/SKILL.md`, the Agent Skills standard's own shared
+// scan root rather than a superdev-owned directory (ADR 0056), so cleanup there is marker-keyed the
+// same way `.opencode/skills/` already is — never keyed on the bare `superdev-` name prefix, which a
+// consumer's own skill might also start with. afk renders nowhere: Codex's only non-model-invocable
+// surface is a deprecated feature living outside the project tree this adapter writes to (ADR 0056),
+// so codexRenderCommand returns null for afk, its one SKILL_ONLY_COMMANDS name, and the shared
+// write() below skips a null result the same way it skips no entry at all. Every shipped agent
+// renders to `.codex/agents/superdev-<name>.toml` (issue #432, below `codexRenderAgent`). extras is a
+// minimal stub for this slice — a later slice (#433) fills in `.codex/hooks.json`. CODEX_SKILL_MARKER
+// itself is declared earlier, alongside SKILL_MARKER.
+
+// The marker a rendered agent TOML carries, as a leading `#` comment line — a TOML comment, unlike
+// AGENT_MARKER's YAML-comment form, and its own constant even though the text is identical, the same
+// distinct-constant-same-text convention CODEX_SKILL_MARKER already follows for the skills render.
+// `.codex/agents/` is a directory a consumer's own agents share, so cleanup here is marker-keyed the
+// same way `.agents/skills/` already is — never keyed on the bare `superdev-` name prefix.
+const CODEX_AGENT_MARKER = '# generated-by: superdev-adapter — a re-render overwrites this file';
+
+function codexCleanup(ctx) {
+  const skillsDest = path.join(ctx.dest, '.agents', 'skills');
+  const agentsDest = path.join(ctx.dest, '.codex', 'agents');
+  fs.mkdirSync(skillsDest, { recursive: true });
+  fs.mkdirSync(agentsDest, { recursive: true });
+  cleanupByMarker(skillsDest, CODEX_SKILL_MARKER);
+  for (const entry of fs.readdirSync(agentsDest, { withFileTypes: true })) {
+    if (!entry.isFile()) continue;
+    const full = path.join(agentsDest, entry.name);
+    // The marker check reads the leading line only — where codexRenderAgent puts it — not the
+    // whole file: a foreign agent whose developer_instructions merely quotes the marker sentence is
+    // not itself marker-tagged, the same way opencodeCleanup's own frontmatter-only test protects a
+    // foreign agent that quotes AGENT_MARKER in its body.
+    const [firstLine] = fs.readFileSync(full, 'utf8').split('\n', 1);
+    if (firstLine === CODEX_AGENT_MARKER) fs.rmSync(full);
+  }
+}
+
+function codexRenderSkill(name, skillPath, ctx) {
+  const rel = path.join('.agents', 'skills', `${SKILL_NAME_PREFIX}${name}`, 'SKILL.md');
+  const content = name === 'upgrade'
+    ? renderUpgradeSkill('codex', skillPath, ctx.pluginRoot, ctx.modelMap)
+    : renderSkill(name, skillPath, ctx.rewrite, CODEX_SKILL_MARKER);
+  return { rel, content };
+}
+
+// afk is the one SKILL_ONLY_COMMANDS member, and it renders nowhere on Codex (ADR 0056).
+function codexRenderCommand() {
+  return null;
+}
+
+// plugin/agents/<name>.md → .codex/agents/superdev-<name>.toml (issue #432). Codex resolves agent
+// names flat — a project agent overrides a global one, a custom agent overrides a built-in — so the
+// rendered name is prefixed the same way a rendered skill's is (ADR 0056). Codex offers no per-agent
+// tool restriction: a subagent inherits the parent's tools, so `sandbox_mode` is the whole
+// access-control story a rendered agent carries, derived from the source agent's own `tools:`
+// frontmatter rather than a hardcoded name list — an agent whose allowlist grants Edit or Write gets
+// `workspace-write`, every other agent gets `read-only` (ADR 0056 names six agents' worth of a
+// Claude-Code-only `tools:`-to-`sandbox_mode` table; deriving it here instead means a newly shipped
+// agent needs no table edit and test-auditor, the table's own omission, still renders correctly).
+//
+// `developer_instructions` carries the canonical body as a TOML basic string, via JSON.stringify: a
+// TOML basic string's escape set (\b \t \n \f \r \" \\ \uXXXX) is exactly JSON's own, so JSON's
+// escaping produces a valid TOML string with no separate writer — the one line the ladder's stdlib
+// rung asks for. shortcut: a raw DEL (U+007F) byte in a body would round-trip through JSON.stringify
+// unescaped, which TOML's basic-string grammar forbids raw; that byte is not prose any shipped agent
+// carries, so the ceiling is undetected until one does — escape it explicitly (or switch to a literal
+// multi-line string) if that ever changes.
+function codexSandboxMode(toolsField) {
+  const tools = (toolsField || '').split(',').map((t) => t.trim());
+  return tools.includes('Edit') || tools.includes('Write') ? 'workspace-write' : 'read-only';
+}
+
+function codexRenderAgent(name, agentPath, ctx) {
+  const { fields, body } = readFrontmatter(fs.readFileSync(agentPath, 'utf8'), agentPath);
+  if (!fields.description) fail(`${agentPath} carries no description`);
+  if (!fields.model) fail(`${agentPath} carries no model alias`);
+  const model = resolveModel(fields, ctx.modelMap, 'agent', name);
+  const rel = path.join('.codex', 'agents', `${SKILL_NAME_PREFIX}${name}.toml`);
+  const content = [
+    CODEX_AGENT_MARKER,
+    `name = ${JSON.stringify(`${SKILL_NAME_PREFIX}${name}`)}`,
+    `description = ${JSON.stringify(ctx.rewrite(fields.description))}`,
+    `model = ${JSON.stringify(model)}`,
+    `sandbox_mode = ${JSON.stringify(codexSandboxMode(fields.tools))}`,
+    `developer_instructions = ${JSON.stringify(ctx.rewrite(body.replace(/^\n+/, '')))}`,
+    '',
+  ].join('\n');
+  return { rel, content };
+}
+
+// `.codex/hooks.json` (issue #433): every shipped hook except model-explicit, wired to Codex's own
+// events, every command path absolute — Codex resolves no `${CLAUDE_PLUGIN_ROOT}` token, unlike
+// Claude Code's own hooks.json (verified 2026-09-22 against https://learn.chatgpt.com/docs/hooks,
+// whose config example carries a literal command string with no such expansion). model-explicit is
+// withheld: Codex has no Agent tool, and every rendered agent TOML already carries an explicit
+// `model` line, so the render satisfies that hook's contract structurally rather than by wiring it
+// to nothing (ADR 0056). merge-guard is wired to Bash the same way Claude Code's own hooks.json
+// wires it, and stays inert under Codex: no Codex tool event carries an `agent_id`, the field
+// merge-guard requires before it ever blocks — a documented parity gap, not a silent omission.
+//
+// Per-hook `timeout` is honoured: Codex's own docs state hooks default to 600 seconds when the
+// field is omitted, and accept an explicit `timeout` in seconds the same way Claude Code's
+// hooks.json does (verified 2026-09-22, https://learn.chatgpt.com/docs/hooks: "timeout is in
+// seconds", "If timeout is omitted, Codex uses 600 seconds for most hooks."). green-gate's own
+// 600s ceiling (hooks/hooks.json's PostToolUse entry) is carried forward explicitly below, matching
+// what Codex would already default to, so a future default change on either side never silently
+// desyncs the two.
+function codexHookCommand(pluginRoot, hook) {
+  return `node ${JSON.stringify(path.join(pluginRoot, 'hooks', `${hook}.js`))}`;
+}
+
+function codexHooksJson(pluginRoot) {
+  const cmd = (hook) => ({ type: 'command', command: codexHookCommand(pluginRoot, hook) });
+  const config = {
+    hooks: {
+      SessionStart: [{ hooks: [cmd('update-check')] }],
+      PreToolUse: [
+        { matcher: 'Bash', hooks: [cmd('merge-guard'), cmd('run-lock'), cmd('ledger-guard')] },
+        { matcher: 'Edit|Write|apply_patch', hooks: [cmd('ledger-guard')] },
+      ],
+      PostToolUse: [
+        { matcher: 'Bash', hooks: [Object.assign(cmd('green-gate'), { timeout: 600 })] },
+      ],
+      Stop: [{ hooks: [cmd('slicetree-sweep'), cmd('scope-prune')] }],
+    },
+  };
+  return `${JSON.stringify(config, null, 2)}\n`;
+}
+
+function codexExtras(ctx) {
+  return [{ rel: path.join('.codex', 'hooks.json'), content: codexHooksJson(ctx.pluginRoot) }];
+}
+
+const HARNESS_REGISTRY = {
+  opencode: {
+    cleanup: opencodeCleanup,
+    renderSkill: opencodeRenderSkill,
+    renderCommand: opencodeRenderCommand,
+    renderAgent: opencodeRenderAgent,
+    extras: opencodeExtras,
+  },
+  codex: {
+    cleanup: codexCleanup,
+    renderSkill: codexRenderSkill,
+    renderCommand: codexRenderCommand,
+    renderAgent: codexRenderAgent,
+    extras: codexExtras,
+  },
+};
+
 // --- the render --------------------------------------------------------------
 
 function listDirs(dir, what) {
@@ -877,79 +1171,64 @@ function render(opts) {
     }
   }
 
-  const rewrite = (text) => rewriteProse(text, { pluginRoot, skills, agents });
+  const rewrite = (text) => rewriteProse(text, { pluginRoot, skills, agents, harness: opts.harness });
+  const target = HARNESS_REGISTRY[opts.harness];
+  if (!target) fail(`unknown harness '${opts.harness}' — supported: ${Object.keys(HARNESS_REGISTRY).join(', ')}`);
+  const ctx = { pluginRoot, dest: opts.dest, modelMap: opts.modelMap, rewrite, skills, agents };
 
-  const commandsDest = path.join(opts.dest, '.opencode', 'commands', 'superdev');
-  const skillsDest = path.join(opts.dest, '.opencode', 'skills');
-  const agentsDest = path.join(opts.dest, '.opencode', 'agents');
-  // The commands subdirectory goes wholesale — it is namespaced to superdev, nothing foreign shares
-  // it, and an install rendered before ADR 0055 carries a full set of command files there that the
-  // skills render replaces. It is recreated below only if a SKILL_ONLY_COMMANDS member renders.
-  fs.rmSync(commandsDest, { recursive: true, force: true });
-  fs.mkdirSync(skillsDest, { recursive: true });
-  fs.mkdirSync(agentsDest, { recursive: true });
-  // .opencode/skills/ is shared with a consumer's own skills, so remove only the directories this
-  // adapter wrote — the ones whose SKILL.md frontmatter carries SKILL_MARKER. Matching on the
-  // `superdev-` name prefix instead would delete a consumer's own `superdev-notes` skill.
-  for (const entry of fs.readdirSync(skillsDest, { withFileTypes: true })) {
-    if (!entry.isDirectory()) continue;
-    const skillFile = path.join(skillsDest, entry.name, 'SKILL.md');
-    if (!fs.existsSync(skillFile)) continue;
-    const match = fs.readFileSync(skillFile, 'utf8').match(/^---\n([\s\S]*?)\n---\n?/);
-    if (match && match[1].includes(SKILL_MARKER)) fs.rmSync(path.join(skillsDest, entry.name), { recursive: true, force: true });
+  // Every agent's model alias must resolve before anything under --dest is touched: an agent renders
+  // after every skill in the write loop below, so resolving models this late would otherwise leave a
+  // Codex render's already-written skills on disk when a later agent's alias turns out unmapped — the
+  // OpenCode CLI path never hits this, since main() resolves every alias interactively before render()
+  // ever runs, but Codex's model map carries no such fallback (ADR 0056) and a caller of render()
+  // itself, for either harness, gets the same "writes nothing" guarantee.
+  for (const name of agents) {
+    const agentPath = path.join(agentsDir, `${name}.md`);
+    const { fields } = readFrontmatter(fs.readFileSync(agentPath, 'utf8'), agentPath);
+    if (!fields.model) fail(`${agentPath} carries no model alias`);
+    resolveModel(fields, opts.modelMap, 'agent', name);
   }
-  // .opencode/agents/ is a shared OpenCode directory, unlike the namespaced commands subdirectory
-  // above — remove only the files this adapter itself wrote in a past render (AGENT_MARKER-tagged
-  // in their frontmatter), so a renamed or removed superdev agent still leaves no orphan while a
-  // consumer's own agent file survives. The check reads only the frontmatter block, not the whole
-  // file: a foreign file whose body merely quotes the marker sentence is not itself tagged.
-  for (const entry of fs.readdirSync(agentsDest, { withFileTypes: true })) {
-    if (!entry.isFile()) continue;
-    const full = path.join(agentsDest, entry.name);
-    const match = fs.readFileSync(full, 'utf8').match(/^---\n([\s\S]*?)\n---\n?/);
-    if (match && match[1].includes(AGENT_MARKER)) fs.rmSync(full);
+
+  // A pre-existing .codex/hooks.json this render did not itself produce refuses here, before
+  // target.cleanup(ctx) or any write — the same "writes nothing at all" guarantee the model
+  // preflight above gives. JSON carries no comment to hold a marker (unlike a rendered skill's
+  // frontmatter or a rendered agent TOML's leading comment line), so the only way to tell "mine"
+  // from "not mine" is exact content: a byte-identical file is what an earlier render of this exact
+  // plugin root already produced, and rewriting it is a no-op; anything else — a hand-edited file,
+  // a stale render from an older adapter version — refuses rather than silently overwriting it.
+  if (opts.harness === 'codex') {
+    const hooksJsonPath = path.join(opts.dest, '.codex', 'hooks.json');
+    if (fs.existsSync(hooksJsonPath) && fs.readFileSync(hooksJsonPath, 'utf8') !== codexHooksJson(pluginRoot)) {
+      fail(`${hooksJsonPath} already exists and was not written by this adapter — remove it before rendering Codex hooks`);
+    }
   }
+
+  target.cleanup(ctx);
+
+  // A registry method may answer null for a surface its harness renders nowhere (afk on Codex, or
+  // this slice's agent/extras stubs) — skipped here rather than written as an empty file.
+  const write = (file, written) => {
+    if (!file) return;
+    fs.mkdirSync(path.dirname(path.join(opts.dest, file.rel)), { recursive: true });
+    fs.writeFileSync(path.join(opts.dest, file.rel), file.content);
+    written.push(file.rel);
+  };
 
   const written = [];
   for (const name of skills) {
     if (SKILL_ONLY_COMMANDS.has(name)) continue;
-    const rel = path.join('.opencode', 'skills', `${SKILL_NAME_PREFIX}${name}`, 'SKILL.md');
-    const skillPath = path.join(skillsDir, name, 'SKILL.md');
-    const content = name === 'upgrade' && opts.harness === 'opencode'
-      ? renderOpencodeUpgradeSkill(skillPath, pluginRoot, opts.modelMap)
-      : renderSkill(name, skillPath, rewrite);
-    fs.mkdirSync(path.dirname(path.join(opts.dest, rel)), { recursive: true });
-    fs.writeFileSync(path.join(opts.dest, rel), content);
-    written.push(rel);
+    write(target.renderSkill(name, path.join(skillsDir, name, 'SKILL.md'), ctx), written);
   }
-  // The command render: every SKILL_ONLY_COMMANDS member, recreated under the namespaced
-  // subdirectory the cleanup above cleared. Only afk today, and only because a command is the
-  // surface OpenCode's model cannot invoke (ADR 0055).
+  // The command render: every SKILL_ONLY_COMMANDS member. Only afk today, and only because a
+  // command is the one OpenCode surface its model cannot invoke (ADR 0055).
   for (const name of skills) {
     if (!SKILL_ONLY_COMMANDS.has(name)) continue;
-    const rel = path.join('.opencode', 'commands', 'superdev', `${name}.md`);
-    const skillPath = path.join(skillsDir, name, 'SKILL.md');
-    const content = name === 'afk' && opts.harness === 'opencode'
-      ? renderOpencodeAfkCommand(name, skillPath, opts.modelMap, rewrite)
-      : renderCommand(name, skillPath, opts.modelMap, rewrite);
-    fs.mkdirSync(path.dirname(path.join(opts.dest, rel)), { recursive: true });
-    fs.writeFileSync(path.join(opts.dest, rel), content);
-    written.push(rel);
+    write(target.renderCommand(name, path.join(skillsDir, name, 'SKILL.md'), ctx), written);
   }
   for (const name of agents) {
-    const rel = path.join('.opencode', 'agents', `${name}.md`);
-    fs.writeFileSync(path.join(opts.dest, rel), renderAgent(name, path.join(agentsDir, `${name}.md`), opts.modelMap, rewrite));
-    written.push(rel);
+    write(target.renderAgent(name, path.join(agentsDir, `${name}.md`), ctx), written);
   }
-
-  // The hook bridge: one file in .opencode/plugins/, removed and rewritten rather than the whole
-  // directory, so a consumer's own plugins beside it survive a re-render.
-  const bridgeRel = path.join('.opencode', 'plugins', 'superdev.js');
-  const bridgeDest = path.join(opts.dest, bridgeRel);
-  fs.rmSync(bridgeDest, { force: true });
-  fs.mkdirSync(path.dirname(bridgeDest), { recursive: true });
-  fs.writeFileSync(bridgeDest, renderBridge(pluginRoot));
-  written.push(bridgeRel);
+  for (const file of target.extras(ctx)) write(file, written);
 
   return written.sort();
 }
@@ -981,8 +1260,8 @@ function parseArgs(argv) {
     } else fail(`unknown flag '${arg}'`);
   }
   if (opts.harness === undefined) opts.harness = 'opencode';
-  if (!HARNESSES.includes(opts.harness)) {
-    fail(`unknown harness '${opts.harness}' — supported: ${HARNESSES.join(', ')}`);
+  if (!Object.keys(HARNESS_REGISTRY).includes(opts.harness)) {
+    fail(`unknown harness '${opts.harness}' — supported: ${Object.keys(HARNESS_REGISTRY).join(', ')}`);
   }
   if (opts.dest === undefined) fail('missing --dest <dir>');
   return opts;
@@ -992,7 +1271,12 @@ async function main() {
   let opts;
   try {
     opts = parseArgs(process.argv.slice(2));
-    opts.modelMap = await resolveModelMap(opts.pluginRoot, opts.modelMap, { cwd: opts.dest });
+    // The interactive fallback queries an OpenCode configuration, which says nothing about what a
+    // Codex (or any future harness's) install can run — so only opencode gets it; every other
+    // harness runs with whatever --model-map already carries (ADR 0056).
+    if (opts.harness === 'opencode') {
+      opts.modelMap = await resolveModelMap(opts.pluginRoot, opts.modelMap, { cwd: opts.dest });
+    }
     const written = render(opts);
     for (const rel of written) console.log(`rendered ${rel.split(path.sep).join('/')}`);
   } catch (e) {
@@ -1018,6 +1302,8 @@ module.exports = {
   hookBlockReason,
   TOOL_MAP,
   SKILL_MARKER,
+  CODEX_SKILL_MARKER,
+  CODEX_AGENT_MARKER,
   AFK_SKILL_TOOL_SENTENCE,
   AFK_CHAIN_TABLE_HEADER,
   BRIDGE_SHELL_TOOLS,

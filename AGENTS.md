@@ -247,12 +247,17 @@ This root owns every other subtree directly:
   containment check to `scope.js`'s `testContainment`, runs every backend command under a time bound
   whose exhaustion stops the batch (ADR 0076), and is the invocation
   `skills/publish-kb/SKILL.md` runs),
-  `plugin/scripts/adapter.js` (the OpenCode harness adapter, issue #375: renders the shipped skills
-  and agents into `.opencode/`, plus the OpenCode hook bridge plugin `.opencode/plugins/superdev.js`
-  that forwards OpenCode's plugin events to the shipped hooks, issue #376; golden fixtures
-  under `scripts/drift/fixtures/opencode/`. Prompts render as skills, the only surface OpenCode's
-  model can invoke. `afk` alone renders as a command, which keeps that model from starting an
-  unattended sweep itself, ADR 0055),
+  `plugin/scripts/adapter.js` (the OpenCode and Codex harness adapter: renders the shipped skills
+  and agents into a harness's own on-disk layout, one `--harness` flag choosing between them. Under
+  OpenCode (issue #375) that is `.opencode/`, plus the OpenCode hook bridge plugin
+  `.opencode/plugins/superdev.js` that forwards OpenCode's plugin events to the shipped hooks (issue
+  #376); golden fixtures under `scripts/drift/fixtures/opencode/`. Under Codex (ADR 0056) that is
+  `.agents/skills/` for skills, `.codex/agents/` for agents as TOML, and `.codex/hooks.json` wiring
+  every shipped hook but `model-explicit`; golden fixtures under `scripts/drift/fixtures/codex/`.
+  `bun run render-fixtures` regenerates both fixture trees. Prompts render as skills, the only surface
+  either harness's model can invoke. `afk` renders as a command under OpenCode and nowhere under
+  Codex, which keeps either harness's model from starting an unattended sweep itself, ADR 0055 and
+  ADR 0056),
   and `scripts/drift-check.js` with `drift/` (the cross-document contract checks: the
   CLI walks the `drift/checks.js` registry, keyed by check id (ADR 0061), which orders every scanner and
   contract table). What each guards, check by check, lives in that child doc.

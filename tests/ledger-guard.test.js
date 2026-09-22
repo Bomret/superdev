@@ -15,6 +15,11 @@ const { decide, ARG } = require(hookPath);
 
 const file = (file_path) => decide({ tool_input: { file_path } });
 const bash = (command) => decide({ tool_input: { command } });
+// Codex's apply_patch tool shares the Bash shape's `tool_input.command` field, but carries the
+// patch envelope text instead of a shell command — tool_name: 'apply_patch' is what disambiguates
+// the two (verified 2026-09-22 against https://learn.chatgpt.com/docs/hooks: "tool_name: canonical
+// tool name (e.g. 'Bash' or 'apply_patch')", "Bash and apply_patch use tool_input.command").
+const applyPatch = (command) => decide({ tool_name: 'apply_patch', tool_input: { command } });
 const L = '.superdev/scopes/demo/ledger.md';
 
 // Edit/Write on a scopes ledger → deny, message names scope.js.
@@ -60,6 +65,35 @@ assert.equal(bash('grep Stage ' + L).block, false, 'grep passes');
 assert.equal(bash('sed -n "1,5p" ' + L).block, false, 'sed without -i passes');
 assert.equal(bash('echo hi > /tmp/out.txt').block, false, 'redirect elsewhere passes');
 assert.equal(bash('bun run test').block, false, 'unrelated bash passes');
+
+// Codex's apply_patch shape: tool_input.command carries the patch envelope text, never a shell
+// command — target paths come from its own `*** Add File:` / `*** Update File:` / `*** Delete
+// File:` / `*** Move to:` headers (verified 2026-09-22 against the apply_patch grammar at
+// https://raw.githubusercontent.com/openai/codex/main/codex-rs/core/assets/tools/apply_patch.lark,
+// which names these four headers; it leaves the filename rule as a bare `/(.+)/`, so it does not
+// itself settle whether a target path is relative or absolute).
+assert.equal(applyPatch(`*** Begin Patch\n*** Update File: ${L}\n@@\n-old\n+new\n*** End Patch\n`).block, true, 'apply_patch updating the ledger denied');
+assert.equal(applyPatch(`*** Begin Patch\n*** Add File: ${L}\n+line\n*** End Patch\n`).block, true, 'apply_patch adding the ledger denied');
+assert.equal(applyPatch(`*** Begin Patch\n*** Delete File: ${L}\n*** End Patch\n`).block, true, 'apply_patch deleting the ledger denied');
+assert.equal(applyPatch('*** Begin Patch\n*** Update File: notes.md\n*** Move to: ' + L + '\n@@\n-a\n+b\n*** End Patch\n').block, true, 'apply_patch moving a file onto the ledger denied');
+assert.ok(/scope\.js/.test(applyPatch(`*** Begin Patch\n*** Update File: ${L}\n@@\n-old\n+new\n*** End Patch\n`).reason), 'apply_patch denial names scope.js');
+assert.equal(applyPatch('*** Begin Patch\n*** Update File: .superdev/scopes/demo/dod.md\n@@\n-a\n+b\n*** End Patch\n').block, false, 'apply_patch touching dod.md passes');
+assert.equal(applyPatch('*** Begin Patch\n*** Add File: run.lock\n+lock\n*** End Patch\n').block, false, 'apply_patch touching run.lock passes');
+assert.equal(applyPatch('*** Begin Patch\n*** Update File: .superdev/brainstorm/notes.md\n@@\n-a\n+b\n*** End Patch\n').block, false, 'apply_patch touching a brainstorm file passes');
+
+// A header target is a whole shell/patch word too: trailing whitespace, a tab, or a trailing \r
+// from a CRLF envelope must not let the path dodge the `ledger.md$` suffix test.
+assert.equal(applyPatch(`*** Begin Patch\n*** Update File: ${L}  \n@@\n-old\n+new\n*** End Patch\n`).block, true, 'apply_patch target with trailing spaces still denied');
+assert.equal(applyPatch(`*** Begin Patch\r\n*** Update File: ${L}\r\n@@\r\n-old\r\n+new\r\n*** End Patch\r\n`).block, true, 'apply_patch target on a CRLF envelope still denied');
+assert.equal(applyPatch(`*** Begin Patch\n*** Update File: ${L}\t\n@@\n-old\n+new\n*** End Patch\n`).block, true, 'apply_patch target with a trailing tab still denied');
+
+// A multi-file envelope: only one header among several names the ledger — the scan must not stop
+// at (or be fooled by) the other, unrelated headers.
+assert.equal(applyPatch(`*** Begin Patch\n*** Add File: a.txt\n+x\n*** Update File: ${L}\n@@\n-old\n+new\n*** Delete File: b.txt\n*** End Patch\n`).block, true, 'multi-file envelope with the ledger among unrelated files still denied');
+
+// A `*** Move to:` target buried between unrelated hunks, before and after — proves the loop scans
+// every header rather than returning on the first.
+assert.equal(applyPatch(`*** Begin Patch\n*** Update File: unrelated1.md\n@@\n-a\n+b\n*** Update File: notes.md\n*** Move to: ${L}\n@@\n-a\n+b\n*** Update File: unrelated2.md\n@@\n-c\n+d\n*** End Patch\n`).block, true, 'a Move to target sandwiched between unrelated hunks still denied');
 
 // ARG mirrors merge-guard's token (comment at the declaration); hooks stay standalone, so pin the
 // copy against the canonical one instead of sharing it — silent drift would be a bug.

@@ -24,6 +24,8 @@ const {
   hookBlockReason,
   TOOL_MAP,
   SKILL_MARKER,
+  CODEX_SKILL_MARKER,
+  CODEX_AGENT_MARKER,
   AFK_SKILL_TOOL_SENTENCE,
   AFK_CHAIN_TABLE_HEADER,
   BRIDGE_SHELL_TOOLS,
@@ -956,6 +958,278 @@ const {
       assert.equal(err.isRefusal, true);
       assert.ok(err.message.includes('no models are configured in your OpenCode setup yet'));
       assert.equal(openedReadline, false, 'no readline interface is opened over the input when there is nothing to prompt for');
+    }
+
+    // The Codex harness (issue #431): every shipped skill except afk renders to
+    // .agents/skills/superdev-<name>/SKILL.md, name equal to its directory, afk renders nowhere, and
+    // the prose rewrite uses Codex's own $superdev-<name> invocation and a plain name for a withheld
+    // surface.
+    {
+      const codexRoot = tmp();
+      write(codexRoot, 'skills/plan/SKILL.md', [
+        '---',
+        'name: plan',
+        'description: Plan a feature. Run before /superdev:implement.',
+        '---',
+        '',
+        '# superdev plan',
+        '',
+        'Read ${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md, then dispatch `superdev:implementer`.',
+        'Mentions /superdev:afk stay rewritten even though afk itself is not rendered.',
+        '',
+      ].join('\n'));
+      write(codexRoot, 'skills/implement/SKILL.md', ['---', 'name: implement', 'description: Build a plan.', '---', '', 'Resolve `$ARGUMENTS` to one feature.', ''].join('\n'));
+      write(codexRoot, 'skills/afk/SKILL.md', ['---', 'name: afk', 'description: Drive the chain unattended.', '---', '', '# superdev afk', '', 'body', ''].join('\n'));
+      write(codexRoot, 'skills/upgrade/SKILL.md', ['---', 'name: upgrade', 'description: Upgrade via claude plugin update.', '---', '', 'Run claude plugin marketplace update superdev.', ''].join('\n'));
+      write(codexRoot, 'agents/implementer.md', ['---', 'name: implementer', 'description: Slice implementer.', 'tools: Read, Edit, Write, Bash', 'model: sonnet', '---', '', 'body', ''].join('\n'));
+      write(codexRoot, 'agents/reviewer.md', ['---', 'name: reviewer', 'description: Read-only reviewer. Dispatched by /superdev:implement — not for direct use.', 'tools: Read, Grep, Bash', 'model: sonnet', '---', '', 'reviewer body', ''].join('\n'));
+
+      const codexDest = tmp();
+      write(codexDest, 'unrelated/keep.txt', 'not generated\n');
+      const codexModelMap = new Map([['sonnet', 'acme/sonnet-1']]);
+      const codexWritten = render({ harness: 'codex', pluginRoot: codexRoot, dest: codexDest, modelMap: codexModelMap });
+
+      assert.deepEqual(codexWritten, [
+        path.join('.agents', 'skills', 'superdev-implement', 'SKILL.md'),
+        path.join('.agents', 'skills', 'superdev-plan', 'SKILL.md'),
+        path.join('.agents', 'skills', 'superdev-upgrade', 'SKILL.md'),
+        path.join('.codex', 'agents', 'superdev-implementer.toml'),
+        path.join('.codex', 'agents', 'superdev-reviewer.toml'),
+        path.join('.codex', 'hooks.json'),
+      ]);
+      assert.ok(fs.existsSync(path.join(codexDest, 'unrelated', 'keep.txt')), 'a foreign file under --dest survives');
+
+      const codexImplementerToml = fs.readFileSync(path.join(codexDest, '.codex', 'agents', 'superdev-implementer.toml'), 'utf8');
+      assert.ok(codexImplementerToml.startsWith(`${CODEX_AGENT_MARKER}\n`), 'carries the agent marker as a leading TOML comment');
+      assert.ok(codexImplementerToml.includes('name = "superdev-implementer"'), 'name is prefixed the same way a rendered skill is');
+      assert.ok(codexImplementerToml.includes('description = "Slice implementer."'));
+      assert.ok(codexImplementerToml.includes('model = "acme/sonnet-1"'), 'model is the mapped provider model, never the Claude alias');
+      assert.ok(codexImplementerToml.includes('sandbox_mode = "workspace-write"'), 'Edit/Write in tools: maps to workspace-write');
+      assert.ok(codexImplementerToml.includes('developer_instructions = "body\\n"'), 'the canonical body becomes developer_instructions');
+
+      const codexReviewerToml = fs.readFileSync(path.join(codexDest, '.codex', 'agents', 'superdev-reviewer.toml'), 'utf8');
+      assert.ok(codexReviewerToml.includes('sandbox_mode = "read-only"'), 'no Edit/Write in tools: maps to read-only');
+      assert.ok(!codexReviewerToml.includes('workspace-write'), 'a read-only agent never carries workspace-write');
+      assert.ok(codexReviewerToml.includes('description = "Read-only reviewer. Dispatched by $superdev-implement'), "description gets the same /superdev:<cmd> rewrite the body does");
+      assert.ok(!codexReviewerToml.includes('/superdev:implement'), 'no raw /superdev:<cmd> token survives in a rendered agent description');
+
+      const codexPlan = fs.readFileSync(path.join(codexDest, '.agents', 'skills', 'superdev-plan', 'SKILL.md'), 'utf8');
+      assert.ok(codexPlan.startsWith(`---\n${CODEX_SKILL_MARKER}\nname: superdev-plan\ndescription:`), 'carries the marker and the prefixed name');
+      assert.ok(codexPlan.includes('dispatch `superdev-implementer`'), 'a bare agent token becomes the name the rendered Codex agent TOML actually carries');
+      assert.ok(codexPlan.includes('Mentions afk stay rewritten'), 'a withheld surface renders as its plain name, with no invocation token');
+      assert.ok(!codexPlan.includes('$superdev-afk'), 'afk never carries the $superdev-afk invocation token');
+      assert.ok(codexPlan.includes('$superdev-implement'), "a skill's own token becomes Codex's own $superdev-<name> invocation");
+
+      const codexImplement = fs.readFileSync(path.join(codexDest, '.agents', 'skills', 'superdev-implement', 'SKILL.md'), 'utf8');
+      assert.ok(!codexImplement.includes('$ARGUMENTS'), 'no literal $ARGUMENTS token survives a rendered Codex skill');
+
+      const codexUpgrade = fs.readFileSync(path.join(codexDest, '.agents', 'skills', 'superdev-upgrade', 'SKILL.md'), 'utf8');
+      assert.ok(!codexUpgrade.includes('claude plugin'), "upgrade's synthesized Codex body names no claude plugin command");
+      assert.ok(codexUpgrade.includes('--harness codex'), 're-runs the adapter with --harness codex');
+      assert.ok(codexUpgrade.includes('--model-map "sonnet=acme/sonnet-1"'), "carries the resolved model-map forward, re-emitted verbatim");
+
+      assert.ok(!fs.existsSync(path.join(codexDest, '.agents', 'skills', 'superdev-afk')), 'afk renders nowhere on Codex');
+
+      // .codex/hooks.json (issue #433): every shipped hook except model-explicit, wired to Codex's
+      // own events, every command path absolute (Codex resolves no ${CLAUDE_PLUGIN_ROOT}).
+      const codexHooks = JSON.parse(fs.readFileSync(path.join(codexDest, '.codex', 'hooks.json'), 'utf8'));
+      const hookPath = (name) => path.join(codexRoot, 'hooks', `${name}.js`);
+      const commandsOf = (entries) => entries.flatMap((e) => e.hooks.map((h) => h.command));
+
+      assert.deepEqual(
+        commandsOf(codexHooks.hooks.SessionStart),
+        [`node ${JSON.stringify(hookPath('update-check'))}`],
+        'SessionStart wires update-check',
+      );
+
+      const bashPre = codexHooks.hooks.PreToolUse.find((e) => e.matcher === 'Bash');
+      assert.deepEqual(
+        commandsOf([bashPre]),
+        ['merge-guard', 'run-lock', 'ledger-guard'].map((h) => `node ${JSON.stringify(hookPath(h))}`),
+        'PreToolUse/Bash wires merge-guard, run-lock, ledger-guard',
+      );
+
+      const editPre = codexHooks.hooks.PreToolUse.find((e) => e.matcher !== 'Bash');
+      assert.ok(/apply_patch/.test(editPre.matcher), 'the edit matcher covers apply_patch');
+      assert.ok(/Edit/.test(editPre.matcher) && /Write/.test(editPre.matcher), 'the edit matcher still covers Edit and Write');
+      assert.deepEqual(commandsOf([editPre]), [`node ${JSON.stringify(hookPath('ledger-guard'))}`], 'the edit matcher wires ledger-guard');
+
+      const bashPost = codexHooks.hooks.PostToolUse.find((e) => e.matcher === 'Bash');
+      assert.equal(bashPost.hooks[0].command, `node ${JSON.stringify(hookPath('green-gate'))}`, 'PostToolUse/Bash wires green-gate');
+      assert.equal(bashPost.hooks[0].timeout, 600, 'green-gate keeps its 600s timeout under Codex');
+
+      assert.deepEqual(
+        commandsOf(codexHooks.hooks.Stop),
+        ['slicetree-sweep', 'scope-prune'].map((h) => `node ${JSON.stringify(hookPath(h))}`),
+        'Stop wires slicetree-sweep and scope-prune',
+      );
+
+      const rendered = JSON.stringify(codexHooks);
+      assert.ok(!/model-explicit/.test(rendered), 'model-explicit appears nowhere in the rendered file (ADR 0056)');
+
+      // Rendered against the real plugin root (not the synthetic codexRoot fixture, which carries
+      // no hooks/ directory), every emitted command path resolves to a file that actually exists.
+      const realRoot = path.join(__dirname, '..', 'plugin');
+      const realDest = tmp();
+      const realModelMap = new Map([['haiku', 'acme/haiku'], ['sonnet', 'acme/sonnet'], ['opus', 'acme/opus']]);
+      render({ harness: 'codex', pluginRoot: realRoot, dest: realDest, modelMap: realModelMap });
+      const realHooks = JSON.parse(fs.readFileSync(path.join(realDest, '.codex', 'hooks.json'), 'utf8'));
+      const realCommands = [
+        ...commandsOf(realHooks.hooks.SessionStart),
+        ...commandsOf(realHooks.hooks.PreToolUse),
+        ...commandsOf(realHooks.hooks.PostToolUse),
+        ...commandsOf(realHooks.hooks.Stop),
+      ];
+      for (const command of realCommands) {
+        const p = JSON.parse(command.slice('node '.length));
+        assert.ok(path.isAbsolute(p), `${p} is an absolute path`);
+        assert.ok(fs.existsSync(p), `${p} resolves to a file that exists`);
+      }
+
+      // A pre-existing .codex/hooks.json this render did not itself produce refuses before anything
+      // else is written — no other render target left half-written — and the file itself is
+      // untouched (issue #433).
+      {
+        const refusedDest = tmp();
+        write(refusedDest, '.codex/hooks.json', '{"hooks": {"custom": true}}\n');
+        const before = fs.readFileSync(path.join(refusedDest, '.codex', 'hooks.json'), 'utf8');
+        refuses(
+          () => render({ harness: 'codex', pluginRoot: codexRoot, dest: refusedDest, modelMap: codexModelMap }),
+          '.codex/hooks.json',
+        );
+        const after = fs.readFileSync(path.join(refusedDest, '.codex', 'hooks.json'), 'utf8');
+        assert.equal(after, before, 'the pre-existing hooks.json is left untouched');
+        assert.ok(!fs.existsSync(path.join(refusedDest, '.agents')), 'no other render target is left half-written');
+        assert.ok(!fs.existsSync(path.join(refusedDest, '.codex', 'agents')), 'no other render target is left half-written');
+      }
+
+      // Idempotent: a consumer's own skill and agent survive a re-render untouched, a removed
+      // shipped skill or agent leaves no orphan, and a second render over the same dest is
+      // byte-identical.
+      write(codexDest, '.agents/skills/superdev-notes/SKILL.md', ['---', 'name: superdev-notes', 'description: a consumer skill', '---', '', 'mine', ''].join('\n'));
+      write(codexDest, '.codex/agents/reviewer.toml', 'name = "reviewer"\ndescription = "a consumer agent"\n');
+      // A foreign agent TOML whose developer_instructions merely quotes the marker sentence
+      // (documenting it, say) is not itself marker-tagged — the marker check must look only at the
+      // leading comment line, not the whole file, or a quote like this reads as a stale superdev
+      // render and gets deleted.
+      write(codexDest, '.codex/agents/quoter.toml', `name = "quoter"\ndescription = "quotes the marker"\ndeveloper_instructions = ${JSON.stringify(`See: \`${CODEX_AGENT_MARKER}\``)}\n`);
+      fs.rmSync(path.join(codexRoot, 'skills', 'implement'), { recursive: true, force: true });
+      fs.rmSync(path.join(codexRoot, 'agents', 'reviewer.md'));
+      render({ harness: 'codex', pluginRoot: codexRoot, dest: codexDest, modelMap: codexModelMap });
+      assert.ok(fs.existsSync(path.join(codexDest, '.agents', 'skills', 'superdev-notes', 'SKILL.md')), "a consumer's own skill survives a re-render");
+      assert.ok(!fs.existsSync(path.join(codexDest, '.agents', 'skills', 'superdev-implement')), 'a skill removed from the shipped tree leaves no orphan');
+      assert.ok(fs.existsSync(path.join(codexDest, '.codex', 'agents', 'reviewer.toml')), "a consumer's own .codex/agents/reviewer.toml survives a re-render untouched");
+      assert.ok(!fs.existsSync(path.join(codexDest, '.codex', 'agents', 'superdev-reviewer.toml')), 'an agent removed from the shipped tree leaves no orphan');
+      assert.ok(fs.existsSync(path.join(codexDest, '.codex', 'agents', 'quoter.toml')), 'a foreign agent that merely quotes the marker in its body survives');
+
+      const beforeSecond = fs.readFileSync(path.join(codexDest, '.agents', 'skills', 'superdev-plan', 'SKILL.md'), 'utf8');
+      const beforeSecondAgent = fs.readFileSync(path.join(codexDest, '.codex', 'agents', 'superdev-implementer.toml'), 'utf8');
+      render({ harness: 'codex', pluginRoot: codexRoot, dest: codexDest, modelMap: codexModelMap });
+      const afterSecond = fs.readFileSync(path.join(codexDest, '.agents', 'skills', 'superdev-plan', 'SKILL.md'), 'utf8');
+      const afterSecondAgent = fs.readFileSync(path.join(codexDest, '.codex', 'agents', 'superdev-implementer.toml'), 'utf8');
+      assert.equal(beforeSecond, afterSecond, 'a second render over the same dest is byte-identical (skill)');
+      assert.equal(beforeSecondAgent, afterSecondAgent, 'a second render over the same dest is byte-identical (agent)');
+
+      // A dest with no .agents/skills/ or .codex/agents/ yet renders cleanly.
+      const freshDest = tmp();
+      render({ harness: 'codex', pluginRoot: codexRoot, dest: freshDest, modelMap: codexModelMap });
+      assert.ok(fs.existsSync(path.join(freshDest, '.agents', 'skills', 'superdev-plan', 'SKILL.md')));
+      assert.ok(fs.existsSync(path.join(freshDest, '.codex', 'agents', 'superdev-implementer.toml')));
+    }
+
+    // Every shipped agent renders (issue #432): asserted over the discovered set, never a hardcoded
+    // count (ADR 0064) — a plugin root carrying N agents produces N rendered .toml files, each
+    // carrying name/description/developer_instructions/model.
+    {
+      const allAgentsRoot = tmp();
+      write(allAgentsRoot, 'skills/plan/SKILL.md', ['---', 'name: plan', 'description: Plan.', '---', '', 'body', ''].join('\n'));
+      const agentDefs = [
+        ['a-one', 'Read'],
+        ['a-two', 'Read, Grep, Bash'],
+        ['a-three', 'Read, Edit, Bash'],
+      ];
+      for (const [name, tools] of agentDefs) {
+        write(allAgentsRoot, `agents/${name}.md`, ['---', `name: ${name}`, `description: Agent ${name}.`, `tools: ${tools}`, 'model: sonnet', '---', '', `${name} body`, ''].join('\n'));
+      }
+      const allAgentsDest = tmp();
+      const allAgentsWritten = render({ harness: 'codex', pluginRoot: allAgentsRoot, dest: allAgentsDest, modelMap: new Map([['sonnet', 'acme/sonnet-1']]) });
+      const renderedAgentFiles = allAgentsWritten.filter((rel) => rel.startsWith(path.join('.codex', 'agents')));
+      assert.equal(renderedAgentFiles.length, agentDefs.length, 'every shipped agent renders, exactly one .toml apiece');
+      for (const [name] of agentDefs) {
+        const text = fs.readFileSync(path.join(allAgentsDest, '.codex', 'agents', `superdev-${name}.toml`), 'utf8');
+        for (const key of ['name', 'description', 'developer_instructions', 'model']) {
+          assert.ok(text.includes(`${key} = `), `superdev-${name}.toml carries ${key}`);
+        }
+      }
+    }
+
+    // A TOML round-trip: a body carrying a triple-quote, a backslash, a `#`, and `: ` renders as a
+    // valid TOML string that reads back byte-identical (verified against Python's stdlib `tomllib`
+    // parser during development — no TOML dependency is installed in this repo, so this assertion
+    // reads the rendered string back with the adapter's own escaping rules, run in reverse via
+    // JSON.parse: a TOML basic string's escape set is exactly JSON's, so the value this produces is
+    // simultaneously valid JSON and valid TOML, and JSON.parse is a correct, independent reader of it).
+    {
+      const tomlRoot = tmp();
+      write(tomlRoot, 'skills/plan/SKILL.md', ['---', 'name: plan', 'description: Plan.', '---', '', 'body', ''].join('\n'));
+      const trickyBody = 'has """triple""" quotes, a back\\slash, a # hash, and a key: value pair.';
+      write(tomlRoot, 'agents/tricky.md', ['---', 'name: tricky', 'description: Tricky body.', 'tools: Read', 'model: sonnet', '---', '', trickyBody, ''].join('\n'));
+      const tomlDest = tmp();
+      render({ harness: 'codex', pluginRoot: tomlRoot, dest: tomlDest, modelMap: new Map([['sonnet', 'acme/sonnet-1']]) });
+      const tomlText = fs.readFileSync(path.join(tomlDest, '.codex', 'agents', 'superdev-tricky.toml'), 'utf8');
+      const match = tomlText.match(/^developer_instructions = (".*")$/m);
+      assert.ok(match, 'developer_instructions renders as one quoted TOML/JSON string');
+      assert.equal(JSON.parse(match[1]), `${trickyBody}\n`, 'the TOML string parses back to the byte-identical source body');
+    }
+
+    // A --model-map miss on an alias an agent uses exits nonzero naming the alias and the flag, and
+    // writes nothing — not even the skills a working model map would otherwise render.
+    {
+      const missingRoot = tmp();
+      write(missingRoot, 'skills/plan/SKILL.md', ['---', 'name: plan', 'description: Plan.', '---', '', 'body', ''].join('\n'));
+      write(missingRoot, 'agents/implementer.md', ['---', 'name: implementer', 'description: Slice implementer.', 'tools: Read', 'model: opus', '---', '', 'body', ''].join('\n'));
+      const missingDest = tmp();
+      const err = await thrown(() => render({ harness: 'codex', pluginRoot: missingRoot, dest: missingDest, modelMap: new Map() }));
+      assert.ok(err, 'refuses instead of rendering with an unresolved model alias');
+      assert.equal(err.isRefusal, true);
+      assert.ok(err.message.includes("'opus'"), 'names the unresolved alias');
+      assert.ok(err.message.includes('--model-map'), 'names the flag to pass instead');
+      assert.ok(!fs.existsSync(path.join(missingDest, '.codex')), 'writes nothing under .codex on refusal');
+      assert.ok(!fs.existsSync(path.join(missingDest, '.agents')), 'writes nothing at all on refusal, not even the skills a working model map would render');
+    }
+
+    // --harness codex is a valid CLI value, and its interactive model-map fallback never runs (ADR
+    // 0056: querying an OpenCode config says nothing about a Codex install): a plugin root whose
+    // agent needs a --model-map entry the CLI is never given exits nonzero immediately — never hangs
+    // waiting on a prompt nobody can answer over EOF stdin — naming the alias and the flag. The same
+    // CLI given a covering --model-map renders both the skill and the agent TOML successfully.
+    {
+      const cliCodexRoot = tmp();
+      write(cliCodexRoot, 'skills/plan/SKILL.md', ['---', 'name: plan', 'description: Plan a feature.', '---', '', 'body', ''].join('\n'));
+      write(cliCodexRoot, 'agents/implementer.md', ['---', 'name: implementer', 'description: Slice implementer.', 'tools: Read', 'model: sonnet', '---', '', 'body', ''].join('\n'));
+
+      const cliCodexDestRefused = tmp();
+      const refusedRes = require('node:child_process').spawnSync(
+        process.execPath,
+        [adapterPath, '--harness', 'codex', '--plugin-root', cliCodexRoot, '--dest', cliCodexDestRefused],
+        { input: '', encoding: 'utf8', timeout: 5000 },
+      );
+      assert.equal(refusedRes.signal, null, 'refuses on its own instead of hanging over EOF stdin waiting for a prompt no harness offers');
+      assert.equal(refusedRes.status, 1);
+      assert.ok(refusedRes.stderr.includes("'sonnet'"), 'names the unresolved alias');
+      assert.ok(refusedRes.stderr.includes('--model-map'), 'names the flag to pass instead');
+      assert.ok(!fs.existsSync(path.join(cliCodexDestRefused, '.agents')), 'a refused Codex render writes nothing to --dest');
+      assert.ok(!fs.existsSync(path.join(cliCodexDestRefused, '.codex')), 'a refused Codex render writes nothing to --dest');
+
+      const cliCodexDest = tmp();
+      const res = require('node:child_process').spawnSync(
+        process.execPath,
+        [adapterPath, '--harness', 'codex', '--plugin-root', cliCodexRoot, '--dest', cliCodexDest, '--model-map', 'sonnet=acme/sonnet-1'],
+        { input: '', encoding: 'utf8', timeout: 5000 },
+      );
+      assert.equal(res.status, 0, res.stderr);
+      assert.ok(fs.existsSync(path.join(cliCodexDest, '.agents', 'skills', 'superdev-plan', 'SKILL.md')), 'renders the skill with no prompt');
+      assert.ok(fs.existsSync(path.join(cliCodexDest, '.codex', 'agents', 'superdev-implementer.toml')), 'renders the agent with the given --model-map, no prompt');
     }
   } finally {
     for (const dir of made) fs.rmSync(dir, { recursive: true, force: true });
