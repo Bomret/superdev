@@ -10,6 +10,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
+const { assertSpawnDecided } = require('./spawn-verdict');
 
 const scopePath = require.resolve('../plugin/scripts/scope.js');
 const {
@@ -1128,6 +1129,7 @@ try {
     'utf8'
   );
   const required = cp.spawnSync(process.execPath, [probe], { cwd: requirer, encoding: 'utf8', timeout: 10000 });
+  assertSpawnDecided(required, 'requiring scope.js from a probe process');
   assert.strictEqual(required.status, 0, 'requiring the module exits 0 rather than hanging or erroring');
   assert.strictEqual(required.stdout, 'function|shipped', 'the export works from a requiring process');
   assert.strictEqual(required.stderr, '', 'requiring the module prints no usage and no refusal');
@@ -1823,35 +1825,72 @@ try {
     fs.rmSync(noBranchRepo, { recursive: true, force: true });
 
     // #no-remote: no remote configured at all, and the branch is genuinely not contained — the fetch
-    // ADR 0065 wants can't even be attempted, and the local verdict must stand rather than throw.
+    // ADR 0065 wants can't even be attempted, and the local verdict must stand rather than throw. This
+    // is an ordinary, expected refetch failure (no bound ever ran), not the #591 case — the diagnostic
+    // must stay silent here rather than printing a "finding" about a bound that was never in play.
     const noRemoteRepo = makeRepo();
     makeWorkBranch(noRemoteRepo, 'fix/noremote', 'app.txt', 'v2\n');
+    const origNoRemoteStderrWrite = process.stderr.write;
+    const noRemoteStderr = [];
+    process.stderr.write = (chunk) => {
+      noRemoteStderr.push(String(chunk));
+      return true;
+    };
+    let noRemoteVerdict;
+    try {
+      noRemoteVerdict = testContainment(noRemoteRepo, 'main', 'fix/noremote');
+    } finally {
+      process.stderr.write = origNoRemoteStderrWrite;
+    }
     assert.strictEqual(
-      testContainment(noRemoteRepo, 'main', 'fix/noremote'),
+      noRemoteVerdict,
       'not-contained',
       'a repository with no remote configured answers from the local base without erroring'
+    );
+    assert.strictEqual(
+      noRemoteStderr.length,
+      0,
+      `an unkilled refetch failure prints no diagnostic, got: ${noRemoteStderr.join('')}`
     );
     fs.rmSync(noRemoteRepo, { recursive: true, force: true });
 
     // #unreachable-host: a dropped VPN or a firewalled host is ordinary, not exotic, and the refetch
-    // must still return within a bounded window rather than leaving `git fetch` blocked on a connect
-    // that never resolves. 192.0.2.1 is TEST-NET-1 (RFC 5737): reserved and never routed anywhere, so
-    // the connect attempt stalls the way a genuinely black-holed remote would, unlike `#no-remote`
-    // above, which fails fast because there is no remote to dial at all.
+    // must still degrade to the local verdict rather than leaving `git fetch` blocked on a connect that
+    // never resolves. 192.0.2.1 is TEST-NET-1 (RFC 5737): reserved and never routed anywhere, so the
+    // connect attempt stalls the way a genuinely black-holed remote would, unlike `#no-remote` above,
+    // which fails fast because there is no remote to dial at all.
+    //
+    // The assertion is on the seam ADR 0086 names, not a clock: a duration only ever reports the
+    // scheduler, which is what flaked this same case at 118965ms under load with the bound intact
+    // (ADR 0086). `spawnSync`'s `signal` is the discriminator — set exactly when the refetch's own
+    // `timeout`/`killSignal` ended it, absent when `git` exited on its own — so the refetch's outcome is
+    // read off stderr, the only surface `testContainment` exposes it on, instead of off elapsed time. A
+    // recurrence of #591 would show up here as no diagnostic line at all — the write only fires when
+    // `fetched.signal` is set, so a bound that silently stopped catching the kill leaves this assertion
+    // failing on a missing line, which is what makes it self-diagnosing rather than a duration to eyeball.
     const unreachableRepo = makeRepo();
     makeWorkBranch(unreachableRepo, 'fix/unreachable', 'app.txt', 'v2\n');
     gitTest(['remote', 'add', 'origin', 'http://192.0.2.1/nowhere.git'], unreachableRepo);
-    const unreachableStart = Date.now();
-    const unreachableVerdict = testContainment(unreachableRepo, 'main', 'fix/unreachable');
-    const unreachableElapsedMs = Date.now() - unreachableStart;
+    const origStderrWrite = process.stderr.write;
+    const capturedStderr = [];
+    process.stderr.write = (chunk) => {
+      capturedStderr.push(String(chunk));
+      return true;
+    };
+    let unreachableVerdict;
+    try {
+      unreachableVerdict = testContainment(unreachableRepo, 'main', 'fix/unreachable');
+    } finally {
+      process.stderr.write = origStderrWrite;
+    }
     assert.strictEqual(
       unreachableVerdict,
       'not-contained',
       'an unreachable host still degrades to the local verdict'
     );
     assert.ok(
-      unreachableElapsedMs < 8000,
-      `the refetch returns within a bounded window instead of hanging, took ${unreachableElapsedMs}ms`
+      capturedStderr.some((line) => line.includes('ended by its own bound')),
+      `expected the refetch outcome on stderr, got: ${capturedStderr.join('')}`
     );
     fs.rmSync(unreachableRepo, { recursive: true, force: true });
 

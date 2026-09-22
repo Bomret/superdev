@@ -1,0 +1,69 @@
+'use strict';
+
+// Suite for tests/spawn-verdict.js. Tests the assertSpawnDecided helper that guards against
+// misattributing kills (timeout, signal) and launch failures to behaviour verdicts. Each case is a
+// real spawnSync call — not a hand-built object literal — so what's asserted is the helper's
+// verdict on what Node actually returns, the premise a hand-built literal only restates. That
+// premise mattered here: an earlier revision of this suite hand-built the launch-failure shape as
+// `{status: null, signal: null, error}`, which is also what a real ENOENT produces, but is NOT what
+// a real EPIPE produces (`{status: 0, signal: null, error}` — a completed run) — the literal
+// couldn't tell the two apart, and the helper's guard shipped reading every `error` as "never
+// started" until a real spawn exposed the gap.
+
+const assert = require('node:assert');
+const { spawnSync } = require('node:child_process');
+const { assertSpawnDecided } = require('./spawn-verdict');
+
+// timeout kill: a real child outliving a short timeout. Node sets both signal (killSignal) and
+// error (ETIMEDOUT). The helper must check signal first, so it names the kill, not "never started".
+{
+  const result = spawnSync('sleep', ['5'], { timeout: 100, killSignal: 'SIGKILL' });
+  try {
+    assertSpawnDecided(result, 'timeout kill test');
+    assert.fail('timeout kill should throw');
+  } catch (e) {
+    assert.match(e.message, /killed by its own bound/, 'timeout kill message names the kill, not a behaviour');
+    assert.match(e.message, /SIGKILL/, 'timeout kill message includes the signal name');
+  }
+}
+
+// launch failure: a real nonexistent binary. status and signal are both null — the OS never got as
+// far as running a process to report a status or kill.
+{
+  const result = spawnSync('this-binary-does-not-exist-spawn-verdict-selftest');
+  try {
+    assertSpawnDecided(result, 'launch failure test');
+    assert.fail('launch failure should throw');
+  } catch (e) {
+    assert.match(e.message, /spawn never started/, 'launch failure message says it never started');
+  }
+}
+
+// genuine decided failure: a real child that exits non-zero. status is set, signal and error are
+// both absent. The helper must not throw — the call site's own assertion then checks the status.
+{
+  const result = spawnSync(process.execPath, ['-e', 'process.exit(1)']);
+  assert.doesNotThrow(() => {
+    assertSpawnDecided(result, 'genuine failure test');
+  }, 'genuine decided failure must not throw');
+}
+
+// EPIPE on a completed run: a real child that exits before draining a payload larger than the pipe
+// buffer. status is set (the process ran to completion) and error is EPIPE — a process that
+// reported a status started, whatever error also carries. Not producible with a literal one-liner
+// spawn portably (it depends on a pipe actually backing up before the writer notices the reader is
+// gone), so this drives it directly: pipe stdin into a child that exits immediately without ever
+// reading it.
+{
+  const result = spawnSync(process.execPath, ['-e', 'process.exit(0)'], {
+    input: Buffer.alloc(2 * 1024 * 1024, 'x'), // larger than the OS pipe buffer
+  });
+  // Confirms the case this block claims to exercise actually happened — without this, a platform
+  // that stops racing the EPIPE here would leave `doesNotThrow` trivially true on a plain success,
+  // and the EPIPE-but-decided shape would silently drop out of coverage.
+  assert.ok(result.error, 'the write must have raced an EPIPE for this case to test what it claims');
+  assert.equal(result.error.code, 'EPIPE', 'the raced error is EPIPE specifically');
+  assert.doesNotThrow(() => {
+    assertSpawnDecided(result, 'EPIPE-on-success test');
+  }, 'a completed run must not throw, even when writing its input raced an EPIPE');
+}

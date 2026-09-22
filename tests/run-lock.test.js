@@ -10,6 +10,8 @@ const os = require('node:os');
 const path = require('node:path');
 const cp = require('node:child_process');
 
+const { assertSpawnDecided } = require('./spawn-verdict');
+
 const hookPath = require.resolve('../plugin/hooks/run-lock.js');
 const { decide, STALENESS_MS } = require(hookPath);
 
@@ -79,11 +81,13 @@ try {
     const required = cp.spawnSync(process.execPath, ['-e', `require(${JSON.stringify(hookPath)})`], {
       input: payload, encoding: 'utf8', timeout: 5000,
     });
+    assertSpawnDecided(required, 'requiring run-lock.js');
     assert.equal(required.status, 0, 'requiring run-lock.js never blocks');
     assert.equal(required.stdout, '', 'requiring run-lock.js prints nothing');
     assert.equal(required.stderr, '', 'requiring run-lock.js runs no decision');
 
     const spawned = cp.spawnSync(process.execPath, [hookPath], { input: payload, encoding: 'utf8', timeout: 5000 });
+    assertSpawnDecided(spawned, 'spawning run-lock.js directly');
     assert.equal(spawned.status, 2, 'spawning run-lock.js directly still blocks on a fresh lock');
     assert.match(spawned.stderr, /another session is running this scope/, 'and still reports the run-lock reason');
   }
@@ -102,6 +106,7 @@ try {
         encoding: 'utf8', timeout: 5000,
         env: Object.assign({}, process.env, { SUPERDEV_ARGV_GUARD_TEST: '1' }),
       });
+      assertSpawnDecided(outer, 'a parent process requiring run-lock.js under --selftest');
       assert.equal(outer.status, 0, 'a parent whose own argv[2] is --selftest still exits cleanly when it requires run-lock.js');
       assert.equal(outer.stdout, '', "and never runs run-lock.js's own selftest as a side effect");
     } finally {

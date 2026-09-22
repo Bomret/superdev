@@ -10,6 +10,8 @@ const os = require('node:os');
 const path = require('node:path');
 const cp = require('node:child_process');
 
+const { assertSpawnDecided } = require('./spawn-verdict');
+
 const hookPath = require.resolve('../plugin/hooks/model-explicit.js');
 const { decide, OURS } = require(hookPath);
 
@@ -42,11 +44,13 @@ assert.deepEqual(uncovered, [], `agents/ uncovered by OURS: ${uncovered.join(', 
   const required = cp.spawnSync(process.execPath, ['-e', `require(${JSON.stringify(hookPath)})`], {
     input: payload, encoding: 'utf8', timeout: 5000,
   });
+  assertSpawnDecided(required, 'requiring model-explicit.js');
   assert.equal(required.status, 0, 'requiring model-explicit.js never blocks');
   assert.equal(required.stdout, '', 'requiring model-explicit.js prints nothing');
   assert.equal(required.stderr, '', 'requiring model-explicit.js runs no decision');
 
   const spawned = cp.spawnSync(process.execPath, [hookPath], { input: payload, encoding: 'utf8', timeout: 5000 });
+  assertSpawnDecided(spawned, 'spawning model-explicit.js directly');
   assert.equal(spawned.status, 2, 'spawning model-explicit.js directly still blocks a modelless dispatch');
   assert.match(spawned.stderr, /must set an explicit model/, 'and still reports the model-explicit reason');
 }
@@ -65,6 +69,7 @@ if (!process.env.SUPERDEV_ARGV_GUARD_TEST) {
       encoding: 'utf8', timeout: 5000,
       env: Object.assign({}, process.env, { SUPERDEV_ARGV_GUARD_TEST: '1' }),
     });
+    assertSpawnDecided(outer, 'a parent process requiring model-explicit.js under --selftest');
     assert.equal(outer.status, 0, 'a parent whose own argv[2] is --selftest still exits cleanly when it requires model-explicit.js');
     assert.equal(outer.stdout, '', "and never runs model-explicit.js's own selftest as a side effect");
   } finally {

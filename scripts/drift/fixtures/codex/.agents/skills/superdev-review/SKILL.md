@@ -158,7 +158,10 @@ superdev subagent that omits one):
   this dispatch; hand it that result and tell it to review against that result, running no suite of its
   own. Say which run it is: `final-reviewer` reviews against whichever result you hand it, full or
   focused (ADR 0075). The entry and exit dispatches hand a full-suite result, and a fix cycle's
-  re-review hands that cycle's focused run.
+  re-review hands that cycle's focused run. Confirming a `dod.md` criterion observes; it changes no
+  system outside the repository (ADR 0084, INV-0006). A criterion needing a deploy, a migration, or any
+  other outward-facing change to confirm gets reported as unverifiable on the branch, needing
+  verification after merge, naming the outward-facing change it needs.
 - **`superdev-simplicity-reviewer`** (`model: haiku`) — over-engineering only (unnecessary complexity,
   what stdlib/native replaces, what to delete). Give it the same git range.
 

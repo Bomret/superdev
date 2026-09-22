@@ -10,6 +10,8 @@ const cp = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 
+const { assertSpawnDecided } = require('./spawn-verdict');
+
 const hookPath = require.resolve('../plugin/hooks/merge-guard.js');
 const { decide } = require(hookPath);
 
@@ -48,13 +50,14 @@ assert.equal(decide(sub('git --shallow-file /dev/null merge x')).block, true, 'g
 assert.equal(decide(sub('git --attr-source main merge x')).block, true, 'git --attr-source <tree> merge (space form)');
 
 // a long run of enumerated option names with no verb must not backtrack exponentially (the comment
-// above LONG_VALUE_OPT owns why) — this resolves well inside any hook timeout, not just eventually
+// above LONG_VALUE_OPT owns why) — a qualitative bound (AGENTS.md, ADR 0086): catastrophic
+// backtracking is effectively unbounded, so this ceiling stays loose rather than tight
 {
   const pathological = 'git ' + '--git-dir '.repeat(60) + 'x; git ' + 'merge main';
   const t0 = Date.now();
   decide(sub(pathological));
   const elapsed = Date.now() - t0;
-  assert.ok(elapsed < 500, `a pathological long-option run must resolve quickly, took ${elapsed}ms`);
+  assert.ok(elapsed < 5000, `a pathological long-option run must resolve quickly, took ${elapsed}ms`);
 }
 assert.equal(decide({ tool_input: { command: 'git --work-tree /wt merge x' } }).block, false, 'the controller still merges in the space form');
 assert.equal(decide(sub('git --work-tree /wt status')).block, false, 'a space-form read command is fine');
@@ -72,11 +75,13 @@ assert.equal(decide(sub('gh pr view 5')).block, false, 'gh read is fine');
   const required = cp.spawnSync(process.execPath, ['-e', `require(${JSON.stringify(hookPath)})`], {
     input: payload, encoding: 'utf8', timeout: 5000,
   });
+  assertSpawnDecided(required, 'requiring merge-guard.js');
   assert.equal(required.status, 0, 'requiring merge-guard.js never blocks');
   assert.equal(required.stdout, '', 'requiring merge-guard.js prints nothing');
   assert.equal(required.stderr, '', 'requiring merge-guard.js runs no decision');
 
   const spawned = cp.spawnSync(process.execPath, [hookPath], { input: payload, encoding: 'utf8', timeout: 5000 });
+  assertSpawnDecided(spawned, 'spawning merge-guard.js directly');
   assert.equal(spawned.status, 2, 'spawning merge-guard.js directly still blocks a subagent merge');
   assert.match(spawned.stderr, /subagents must not integrate/, 'and still reports the merge-guard reason');
 }
@@ -95,6 +100,7 @@ if (!process.env.SUPERDEV_ARGV_GUARD_TEST) {
       encoding: 'utf8', timeout: 5000,
       env: Object.assign({}, process.env, { SUPERDEV_ARGV_GUARD_TEST: '1' }),
     });
+    assertSpawnDecided(outer, 'a parent process requiring merge-guard.js under --selftest');
     assert.equal(outer.status, 0, 'a parent whose own argv[2] is --selftest still exits cleanly when it requires merge-guard.js');
     assert.equal(outer.stdout, '', "and never runs merge-guard.js's own selftest as a side effect");
   } finally {

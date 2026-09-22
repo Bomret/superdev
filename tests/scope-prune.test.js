@@ -10,6 +10,8 @@ const os = require('node:os');
 const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
 
+const { assertSpawnDecided } = require('./spawn-verdict');
+
 const hookPath = require.resolve('../plugin/hooks/scope-prune.js');
 const {
   TTL_MS,
@@ -898,6 +900,7 @@ assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix')
   const reapRun = spawnSync(process.execPath, [hookPath], {
     input: JSON.stringify({ cwd: reapRepo }), encoding: 'utf8', timeout: 15000,
   });
+  assertSpawnDecided(reapRun, 'spawning scope-prune.js to reap a merged scope');
   assert.equal(reapRun.status, 0, 'the reap exits 0');
   assert.equal(reapRun.stdout, '', 'and prints nothing, delete included');
   assert.equal(fs.existsSync(reapScopeDir), false, 'the reaped scope loses its run root');
@@ -1044,6 +1047,7 @@ assert.equal(
   const orphan = cp.spawnSync(process.execPath, [path.join(away, 'scope-prune.js')], {
     input: JSON.stringify({ cwd: repo }), encoding: 'utf8', timeout: 15000,
   });
+  assertSpawnDecided(orphan, 'spawning scope-prune.js with an unavailable reader');
   assert.equal(orphan.status, 0, 'a hook that cannot load the reader still exits 0');
   assert.equal(orphan.stdout, '', 'and prints nothing');
   assert.equal(
@@ -1078,6 +1082,7 @@ assert.equal(
   const required = cp.spawnSync(process.execPath, ['-e', `require(${JSON.stringify(hookPath)})`], {
     input: JSON.stringify({ cwd: repo }), encoding: 'utf8', timeout: 15000,
   });
+  assertSpawnDecided(required, 'requiring scope-prune.js');
   assert.equal(required.status, 0, 'requiring scope-prune.js exits cleanly');
   assert.equal(required.stdout, '', 'requiring scope-prune.js prints nothing');
   assert.equal(fs.existsSync(scopeDir), true, 'requiring scope-prune.js prunes nothing');
@@ -1085,6 +1090,7 @@ assert.equal(
   const spawned = cp.spawnSync(process.execPath, [hookPath], {
     input: JSON.stringify({ cwd: repo }), encoding: 'utf8', timeout: 15000,
   });
+  assertSpawnDecided(spawned, 'spawning scope-prune.js directly');
   assert.equal(spawned.status, 0, 'spawning scope-prune.js directly still exits 0');
   assert.equal(fs.existsSync(scopeDir), false, 'spawning scope-prune.js directly still prunes the gone, shipped, stale scope');
 
@@ -1106,6 +1112,7 @@ if (!process.env.SUPERDEV_ARGV_GUARD_TEST) {
       encoding: 'utf8', timeout: 15000,
       env: Object.assign({}, process.env, { SUPERDEV_ARGV_GUARD_TEST: '1' }),
     });
+    assertSpawnDecided(outer, 'a parent process requiring scope-prune.js under --selftest');
     assert.equal(outer.status, 0, 'a parent whose own argv[2] is --selftest still exits cleanly when it requires scope-prune.js');
     assert.equal(outer.stdout, '', "and never runs scope-prune.js's own selftest as a side effect");
   } finally {

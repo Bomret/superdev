@@ -70,7 +70,27 @@ Confirmed → proceed and record in the report that the scope shipped with the d
 
 Confirm every item in `<run-root>/dod.md` against the integrated scope branch, ticking each verified one
 (`- [ ]` → `- [x]`). Leave an unmet item unchecked with a one-line note on why. Verify the items yourself:
-a passing review earlier in the chain is evidence, not a substitute.
+a passing review earlier in the chain is evidence, not a substitute. Verifying an item observes; it
+changes no system outside the repository (ADR 0084, INV-0006). An item needing a deploy, a migration, or
+any other outward-facing change to verify stays unticked, with a note, for the operator to verify after
+merge.
+
+**A criterion naming the test suite is ticked from the run's own recorded result, never by running it**
+(ADR 0084). Read the ledger's stage with
+`node "<plugin-root>/scripts/scope.js" get stage --root <run-root>` and its degrade record with
+`node "<plugin-root>/scripts/scope.js" get degraded --root <run-root>`. `$superdev-review` does
+not advance the stage while a red full suite stands, and `references/run-handoff.md` runs an
+all-`mechanical`/`docs` scope's own full suite — in place of the review such a scope skips — before
+writing the stage, so a stage of `reviewed`, `documented`, or `shipped` is a green full suite on this
+scope branch, and so is `documented-unreviewed` where every ledger slice is `mechanical`/`docs`
+(`node "<plugin-root>/scripts/scope.js" get slices --root <run-root>`) — that stand-in run's own
+terminal stage. Any other stage leaves the criterion unticked, naming that stage as the note. Given one
+of those stages: a degrade bullet naming that full-suite run as denied — the exit run's own denial, or
+the stand-in run's — leaves the criterion unticked too, with that bullet as the note, and
+`docs/agents/verification.md` naming no test command at all does the same, with `no test command
+configured` as the note: **a scope whose recorded result is a denied or absent test command leaves such
+a criterion unticked, with that record as its note.** Otherwise, tick it. Ship runs no test command
+anywhere.
 
 **Apply the same verdict to the anchor's own Definition of Done checklist**, through the sanctioned body
 edit the active store's own `## Run state` section names (`docs/agents/issue-tracker.md`, or whichever

@@ -75,3 +75,12 @@ Statement: A Definition-of-Done criterion states a requirement the feature meets
 Breaks: silently
 Check: scripts/drift-check.js `criterion-states-a-requirement` — the rule pinned on plan-contract.md and plan's interview
 Paths: plugin/skills/plan/**, plugin/references/plan-contract.md
+
+### INV-0009
+
+Class: architecture
+Concepts: No verdict, Containment
+Statement: On `plugin/hooks/green-gate.js` and `plugin/scripts/scope.js`, a process that did not finish carries no verdict. No gate reads its absence as a pass, and no assertion about behaviour stands on it. A spawn ended by its own bound is reported as killed, never as a decision it never made. The OpenCode/Codex hook bridge (`plugin/scripts/adapter.js`'s `runBridgeHook`) reads a killed or errored hook spawn as a pass — triage record #606 tracks bringing it under this invariant; until then this Statement does not cover it.
+Breaks: silently
+Check: tests/spawn-verdict.test.js — the helper's throw-or-not and message for the killed, never-started, EPIPE-but-decided, and genuinely-decided result shapes; tests/green-gate.test.js — a killed suite blocks the merge; tests/scope.test.js — the refetch asserts the kill signal rather than the clock
+Paths: plugin/hooks/green-gate.js, plugin/scripts/scope.js, tests/**

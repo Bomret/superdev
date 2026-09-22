@@ -47,7 +47,9 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
   LICENSE · NOTICE     — copies of the root files, so the shipped tree carries its own attribution
 tests/                 — one suite per shipped executable (the hooks, `scope.js`, `kb-patch.js`,
                          `adapter.js`, `publish-kb.js`), framework-free `node:assert`, run under
-                         `node` by `bun run test` (ADR 0059)
+                         `node` by `bun run test` (ADR 0059); `spawn-verdict.js` is the one shared
+                         helper, not itself a suite — `assertSpawnDecided` (INV-0009), asserted by
+                         `spawn-verdict.test.js` and called from every other suite's bounded-spawn sites
 docs/adr/              — architecture decision records (why the plugin is built this way)
 docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, documentation, KB, toolchain, verification)
 docs/known-issues.md   — Claude Code platform behaviour superdev works around, each entry with its
@@ -96,6 +98,16 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
   script. `bun run test` runs every `tests/` suite under `node`, which matches the production
   runtime, then `drift-check`'s own `--selftest`, `drift-check` itself, and `claude plugin
   validate ./plugin` as a manifest-validation gate.
+- **A duration assertion is legitimate only against a same-run baseline, or a qualitative ceiling.**
+  A process that did not finish carries no verdict (INV-0009): never bracket a bounded `spawnSync`
+  with `Date.now()` and assert an absolute elapsed ceiling, because wall clock includes every
+  millisecond the process spent descheduled, and a correctly bounded call under scheduler starvation
+  produces the same reading as a real defect (ADR 0086). Compare against what the same run itself
+  measured instead (`tests/adapter.test.js`'s serialized-pair-vs-solo-call), or against the bound the
+  test itself configured (`tests/publish-kb.test.js`'s `HANG_MS`-relative checks). Where the failure
+  the assertion catches is qualitative — catastrophic backtracking is effectively unbounded — a loose
+  ceiling still falsifies exactly what a tight one did, so keep the ceiling and loosen it rather than
+  drop it (`tests/green-gate.test.js` and `tests/merge-guard.test.js`'s `LONG_VALUE_OPT` guards).
 - **Version lives only in `plugin/.claude-plugin/plugin.json`.** Never hand-edit it. semantic-release and
   `semantic-release-replace-plugin` bump it on release. `marketplace.json` carries no version, which
   avoids a double pin where `plugin.json` would silently win.

@@ -11,6 +11,8 @@ const os = require('node:os');
 const path = require('node:path');
 const cp = require('node:child_process');
 
+const { assertSpawnDecided } = require('./spawn-verdict');
+
 const hookPath = require.resolve('../plugin/hooks/update-check.js');
 const { cmpVersion } = require(hookPath);
 
@@ -37,6 +39,7 @@ assert.ok(cmpVersion('0.10.0', '0.9.0') > 0, 'numeric, not lexical');
     encoding: 'utf8', timeout: 5000,
     env: Object.assign({}, process.env, { CLAUDE_PLUGIN_ROOT: pluginRoot, CLAUDE_PLUGIN_DATA: requiredDataDir }),
   });
+  assertSpawnDecided(required, 'requiring update-check.js');
   assert.equal(required.status, 0, 'requiring update-check.js exits cleanly');
   assert.equal(required.stdout, '', 'requiring update-check.js prints nothing');
   assert.equal(fs.existsSync(path.join(requiredDataDir, '.update-check')), false, 'requiring update-check.js checks nothing');
@@ -50,6 +53,7 @@ assert.ok(cmpVersion('0.10.0', '0.9.0') > 0, 'numeric, not lexical');
       SUPERDEV_UPDATE_CHECK_REMOTE: 'https://127.0.0.1:1/plugin.json',
     }),
   });
+  assertSpawnDecided(spawned, 'spawning update-check.js directly');
   assert.equal(spawned.status, 0, 'spawning update-check.js directly still exits 0');
   assert.equal(fs.existsSync(path.join(spawnedDataDir, '.update-check')), true, 'spawning update-check.js directly still stamps the check');
 
@@ -72,6 +76,7 @@ if (!process.env.SUPERDEV_ARGV_GUARD_TEST) {
       encoding: 'utf8', timeout: 5000,
       env: Object.assign({}, process.env, { SUPERDEV_ARGV_GUARD_TEST: '1' }),
     });
+    assertSpawnDecided(outer, 'a parent process requiring update-check.js under --selftest');
     assert.equal(outer.status, 0, 'a parent whose own argv[2] is --selftest still exits cleanly when it requires update-check.js');
     assert.equal(outer.stdout, '', "and never runs update-check.js's own selftest as a side effect");
   } finally {

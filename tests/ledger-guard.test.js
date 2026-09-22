@@ -10,6 +10,8 @@ const os = require('node:os');
 const path = require('node:path');
 const cp = require('node:child_process');
 
+const { assertSpawnDecided } = require('./spawn-verdict');
+
 const hookPath = require.resolve('../plugin/hooks/ledger-guard.js');
 const { decide, ARG } = require(hookPath);
 
@@ -112,11 +114,13 @@ assert.equal(applyPatch(`*** Begin Patch\n*** Update File: unrelated1.md\n@@\n-a
   const required = cp.spawnSync(process.execPath, ['-e', `require(${JSON.stringify(hookPath)})`], {
     input: payload, encoding: 'utf8', timeout: 5000,
   });
+  assertSpawnDecided(required, 'requiring ledger-guard.js');
   assert.equal(required.status, 0, 'requiring ledger-guard.js never blocks');
   assert.equal(required.stdout, '', 'requiring ledger-guard.js prints nothing');
   assert.equal(required.stderr, '', 'requiring ledger-guard.js runs no decision');
 
   const spawned = cp.spawnSync(process.execPath, [hookPath], { input: payload, encoding: 'utf8', timeout: 5000 });
+  assertSpawnDecided(spawned, 'spawning ledger-guard.js directly');
   assert.equal(spawned.status, 2, 'spawning ledger-guard.js directly still blocks a ledger edit');
   assert.match(spawned.stderr, /scope\.js/, 'and still reports the ledger-guard reason');
 }
@@ -135,6 +139,7 @@ if (!process.env.SUPERDEV_ARGV_GUARD_TEST) {
       encoding: 'utf8', timeout: 5000,
       env: Object.assign({}, process.env, { SUPERDEV_ARGV_GUARD_TEST: '1' }),
     });
+    assertSpawnDecided(outer, 'a parent process requiring ledger-guard.js under --selftest');
     assert.equal(outer.status, 0, 'a parent whose own argv[2] is --selftest still exits cleanly when it requires ledger-guard.js');
     assert.equal(outer.stdout, '', "and never runs ledger-guard.js's own selftest as a side effect");
   } finally {

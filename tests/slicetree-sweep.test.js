@@ -8,6 +8,8 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
 
+const { assertSpawnDecided } = require('./spawn-verdict');
+
 const hookPath = require.resolve('../plugin/hooks/slicetree-sweep.js');
 const { selectRemovable, main, git } = require(hookPath);
 
@@ -224,6 +226,7 @@ assert.deepEqual(
     const orphan = cp.spawnSync(process.execPath, [path.join(away, 'slicetree-sweep.js')], {
       input: JSON.stringify({ cwd: repo }), encoding: 'utf8', timeout: 15000,
     });
+    assertSpawnDecided(orphan, 'spawning slicetree-sweep.js with an unavailable reader');
     assert.equal(orphan.status, 0, 'a hook that cannot load the reader still exits 0');
     assert.equal(orphan.stdout, '', 'and prints nothing');
     assert.ok(
@@ -253,6 +256,7 @@ assert.deepEqual(
     const required = cp.spawnSync(process.execPath, ['-e', `require(${JSON.stringify(hookPath)})`], {
       input: JSON.stringify({ cwd: repo }), encoding: 'utf8', timeout: 15000,
     });
+    assertSpawnDecided(required, 'requiring slicetree-sweep.js');
     assert.equal(required.status, 0, 'requiring slicetree-sweep.js exits cleanly');
     assert.equal(required.stdout, '', 'requiring slicetree-sweep.js prints nothing');
     assert.ok(fs.existsSync(wt), 'requiring slicetree-sweep.js sweeps nothing');
@@ -260,6 +264,7 @@ assert.deepEqual(
     const spawned = cp.spawnSync(process.execPath, [hookPath], {
       input: JSON.stringify({ cwd: repo }), encoding: 'utf8', timeout: 15000,
     });
+    assertSpawnDecided(spawned, 'spawning slicetree-sweep.js directly');
     assert.equal(spawned.status, 0, 'spawning slicetree-sweep.js directly still exits 0');
     assert.ok(!fs.existsSync(wt), 'spawning slicetree-sweep.js directly still sweeps the merged-and-worked slice');
 
@@ -281,6 +286,7 @@ assert.deepEqual(
         encoding: 'utf8', timeout: 15000,
         env: Object.assign({}, process.env, { SUPERDEV_ARGV_GUARD_TEST: '1' }),
       });
+      assertSpawnDecided(outer, 'a parent process requiring slicetree-sweep.js under --selftest');
       assert.equal(outer.status, 0, 'a parent whose own argv[2] is --selftest still exits cleanly when it requires slicetree-sweep.js');
       assert.equal(outer.stdout, '', "and never runs slicetree-sweep.js's own selftest as a side effect");
     } finally {

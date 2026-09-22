@@ -1269,7 +1269,8 @@ withState(() => {
 
   assert.ok(res.ok, `expected a report, got: ${res.err}`);
   assert.match(res.out, new RegExp(`left staged: Hung Page — find timed out after ${HANG_MS}ms`));
-  assert.ok(elapsed < 5000, `expected the bound to end it, took ${elapsed}ms`);
+  // relative to the configured bound (AGENTS.md, ADR 0086), not an absolute ceiling
+  assert.ok(elapsed < HANG_MS * 2, `expected the bound to end it, took ${elapsed}ms`);
   assert.ok(
     fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'hang', 'p.md')),
     'a timed-out page stays staged',

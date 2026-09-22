@@ -8,6 +8,7 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
 const cp = require('node:child_process');
+const { assertSpawnDecided } = require('./spawn-verdict');
 
 const hookPath = require.resolve('../plugin/hooks/green-gate.js');
 const {
@@ -26,6 +27,8 @@ const {
   resolveVerification,
   resetOptionRegionWalks,
   getOptionRegionWalks,
+  readHookTimeoutMs,
+  SUITE_MARGIN_MS,
 } = require(hookPath);
 
 const green = () => ({ ok: true, output: '' });
@@ -132,12 +135,112 @@ assert.equal(
   true,
   'a green suite with >1 MiB of output stays GREEN (maxBuffer above the Node default)',
 );
-assert.equal(runTests('kill -9 $$').ok, true, 'a killed suite (status null) is no verdict — fails open, not RED');
+assert.equal(runTests('kill -9 $$').ok, false, 'a killed suite (status null, signal set) carries no verdict — INV-0009 blocks, it does not fail open');
+assert.equal(runTests('kill -9 $$').killed, 'SIGKILL', 'the killed result names the signal that ended the suite');
+{
+  // Same sink as the RED tail below, same treatment: the killed branch's output can run up to
+  // maxBuffer (64 MiB) and must not land whole in the block reason.
+  const killedOutput = runTests('for i in $(seq 1 100); do echo line$i; done; kill -9 $$').output;
+  assert.equal(killedOutput.split('\n').length, 40, 'the killed branch tails its output the same way the RED branch does');
+  assert.match(killedOutput, /^line61/, 'the tail keeps the last lines, not the first');
+}
+{
+  // ENOBUFS: the suite may have been GREEN and merely chatty — maxBuffer was raised precisely so
+  // that would not read as RED. The message names that case, rather than telling the operator to
+  // find out why a suite that finished did not finish. maxBufferBytes overrides the production
+  // 64 MiB so the test can trip ENOBUFS without writing that much output.
+  const result = runTests(
+    `node -e "process.stdout.write('x'.repeat(1024))"`,
+    undefined,
+    undefined,
+    64,
+  );
+  assert.equal(result.killed, 'SIGKILL', 'a suite too chatty for maxBuffer is still killed, naming the signal');
+  assert.match(
+    result.killedReason,
+    /more output than maxBuffer allows, not necessarily a failure/,
+    'the ENOBUFS reason names that the suite may simply have been chatty, not RED'
+  );
+}
 assert.equal(
   runTests('exit 0', '/definitely/does/not/exist-gg-selftest').ok,
   false,
   'a cwd that does not exist at all could not even start the suite — blocks rather than failing open',
 );
+assert.equal(
+  runTests('exit 0', '/definitely/does/not/exist-gg-selftest').killed,
+  undefined,
+  'a spawn that never started is not "killed" — the two RED branches stay distinct',
+);
+
+// ADR 0086's headline case: a suite slower than the hook's own ceiling must be ended by the hook
+// itself, not by Claude Code killing the hook process out from under it — otherwise the hook never
+// reaches this catch, never returns `{ killed }`, and the merge proceeds silently. runTests's own
+// execSync timeout is what makes that observable; the third argument overrides the production bound
+// so the test doesn't wait for it.
+{
+  const result = runTests('sleep 5', undefined, 200);
+  assert.equal(result.ok, false, 'a suite the hook itself times out is not GREEN');
+  assert.equal(result.killed, 'SIGKILL', 'runTests names the signal its own timeout used to end the suite');
+}
+
+// readHookTimeoutMs: the suite bound derives from hooks.json's own green-gate entry, so raising
+// that entry's timeout actually raises the ceiling runTests enforces — the escape hatch the header
+// comment promises. A manifest-driven reader closes the gap a hardcoded constant could not: nothing
+// caught SUITE_TIMEOUT_MS drifting past the platform's own ceiling, because nothing tied it to the
+// manifest at all.
+{
+  const dir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'gg-manifest-'));
+  const manifestAt = (body) => {
+    const p = path.join(dir, `${Math.random()}.json`);
+    fs.writeFileSync(p, body);
+    return p;
+  };
+  const raised = manifestAt(JSON.stringify({
+    hooks: { PostToolUse: [{ matcher: 'Bash', hooks: [
+      { type: 'command', command: 'node "${CLAUDE_PLUGIN_ROOT}/hooks/green-gate.js"', timeout: 1200 },
+    ] }] },
+  }));
+  assert.equal(readHookTimeoutMs(raised), 1200 * 1000, 'a raised entry timeout raises the derived ceiling');
+
+  const missingFile = path.join(dir, 'does-not-exist.json');
+  assert.equal(readHookTimeoutMs(missingFile), 600 * 1000, 'an unreadable manifest falls back to the platform default (600s), not zero or unbounded');
+
+  const malformed = manifestAt('{ not json');
+  assert.equal(readHookTimeoutMs(malformed), 600 * 1000, 'malformed JSON falls back to the platform default');
+
+  const noEntry = manifestAt(JSON.stringify({ hooks: { PostToolUse: [] } }));
+  assert.equal(readHookTimeoutMs(noEntry), 600 * 1000, 'no matching green-gate entry falls back to the platform default');
+
+  const noTimeoutField = manifestAt(JSON.stringify({
+    hooks: { PostToolUse: [{ matcher: 'Bash', hooks: [
+      { type: 'command', command: 'node "${CLAUDE_PLUGIN_ROOT}/hooks/green-gate.js"' },
+    ] }] },
+  }));
+  assert.equal(readHookTimeoutMs(noTimeoutField), 600 * 1000, 'an entry naming no timeout falls back to the platform default');
+
+  // The shipped hooks.json (default argument, no path) still yields the current 570s bound.
+  const { SUITE_TIMEOUT_MS } = require(hookPath);
+  assert.equal(SUITE_TIMEOUT_MS, 600 * 1000 - SUITE_MARGIN_MS, 'the production ceiling derives from the shipped hooks.json entry, margin below it');
+}
+
+// INV-0009 / ADR 0086: a killed suite (no verdict) blocks the merge, naming that it was killed
+// rather than claiming a failure the suite never produced.
+{
+  const killed = () => ({ ok: false, killed: 'SIGKILL', output: '' });
+  const result = decide(merge('git merge --no-ff slice/s1'), full('npm test'), killed, notCalled);
+  assert.equal(result.block, true, 'a killed suite blocks the merge');
+  assert.match(result.reason, /killed/i, 'the reason names that the suite was killed');
+  assert.doesNotMatch(result.reason, /\bfailed\b/i, 'the reason does not claim a failure the suite never produced');
+}
+
+// A killed(ENOBUFS) suite may have been GREEN and merely chatty — the block reason says so instead
+// of asking the operator to find out why a suite that finished did not finish.
+{
+  const chatty = () => ({ ok: false, killed: 'SIGKILL', killedReason: 'the suite produced more output than maxBuffer allows, not necessarily a failure', output: '' });
+  const result = decide(merge('git merge --no-ff slice/s1'), full('npm test'), chatty, notCalled);
+  assert.match(result.reason, /more output than maxBuffer allows/i, 'the reason names the chatty-suite case, not just the kill');
+}
 
 // ARG mirrors merge-guard's token (the comment above owns why); hooks stay standalone, so pin
 // the copy against the canonical one instead of sharing it — silent drift would be a bug.
@@ -149,13 +252,14 @@ assert.equal(
 }
 
 // a long run of enumerated option names with no verb must not backtrack exponentially (the comment
-// above LONG_VALUE_OPT owns why) — this resolves well inside any hook timeout, not just eventually
+// above LONG_VALUE_OPT owns why) — a qualitative bound (AGENTS.md, ADR 0086): catastrophic
+// backtracking is effectively unbounded, so this ceiling stays loose rather than tight
 {
   const pathological = 'git ' + '--git-dir '.repeat(60) + 'x; git ' + 'merge main';
   const t0 = Date.now();
   IS_MERGE.test(pathological);
   const elapsed = Date.now() - t0;
-  assert.ok(elapsed < 500, `a pathological long-option run must resolve quickly, took ${elapsed}ms`);
+  assert.ok(elapsed < 5000, `a pathological long-option run must resolve quickly, took ${elapsed}ms`);
 }
 
 // --- resolveMergeCwd(): the merge's own working tree, from -C or the session cwd fallback ---
@@ -551,7 +655,9 @@ fs.writeFileSync(
     fs.writeFileSync(path.join(dir, VERIFICATION_DOC), `# Verification\n\n${blocks}`);
   }
   function runHook(inputObj) {
-    return cp.spawnSync(process.execPath, [hookPath], { input: JSON.stringify(inputObj), encoding: 'utf8', timeout: 15000 });
+    const result = cp.spawnSync(process.execPath, [hookPath], { input: JSON.stringify(inputObj), encoding: 'utf8', timeout: 15000 });
+    assertSpawnDecided(result, 'spawning green-gate.js directly');
+    return result;
   }
   function tmp(prefix) {
     return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -907,6 +1013,7 @@ fs.writeFileSync(
     const required = cp.spawnSync(process.execPath, ['-e', `require(${JSON.stringify(hookPath)})`], {
       input: JSON.stringify(inputObj), encoding: 'utf8', timeout: 15000,
     });
+    assertSpawnDecided(required, 'requiring green-gate.js');
     assert.equal(required.status, 0, 'requiring green-gate.js never blocks');
     assert.equal(required.stdout, '', 'requiring green-gate.js prints nothing');
     assert.equal(required.stderr, '', 'requiring green-gate.js runs no suite');
@@ -930,6 +1037,7 @@ fs.writeFileSync(
         encoding: 'utf8', timeout: 15000,
         env: Object.assign({}, process.env, { SUPERDEV_ARGV_GUARD_TEST: '1' }),
       });
+      assertSpawnDecided(outer, 'a parent process requiring green-gate.js under --selftest');
       assert.equal(outer.status, 0, 'a parent whose own argv[2] is --selftest still exits cleanly when it requires green-gate.js');
       assert.equal(outer.stdout, '', "and never runs green-gate.js's own selftest as a side effect");
     } finally {

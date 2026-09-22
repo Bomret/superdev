@@ -14,6 +14,12 @@ to the slice store, ready for `$superdev-implement`. Interactive — this needs 
 Read `docs/agents/issue-tracker.md` (the slice store). Missing → run **`$superdev-setup`** first, then
 continue.
 
+**Focused-command configuration.** As in `$superdev-implement`'s **Config + input**:
+`docs/agents/verification.md` carrying one fenced block is missing configuration too — its focused
+command was never recorded (ADR 0085, INV-0007) → run **`$superdev-setup`** first, then continue; a
+repository with no `docs/agents/verification.md` at all needs no such command, and neither does one
+carrying zero fenced blocks — `hooks/green-gate.js` reads that exactly as it reads an absent file.
+
 **Toolchain freshness (advisory).** As in `$superdev-implement`'s **Config + input**: an absent
 `docs/agents/toolchain.md` alongside build/package manifests gets a non-blocking **`$superdev-setup`**
 suggestion, then planning continues.
@@ -115,6 +121,19 @@ nobody wrote, a unit the host has disabled, a runner that cannot do what the cri
 global DoD once with that question and write what you find into the criterion itself, so a run cannot
 tick it in one configuration while it is false in another — the same lens the per-slice enumeration below
 applies, aimed at the whole-scope DoD instead of one slice's `acceptance`.
+
+**Write a Definition-of-Done criterion as a bare requirement.** State what must be true, leaving the
+command that checks it unnamed: a criterion names the requirement, not the procedure superdev runs to
+verify it. `<plugin-root>/references/plan-contract.md`'s Definition-of-Done rules own the full
+rule (ADR 0084, INV-0008); `Reachable:` is the standing exception, because it names an entrance, never a
+verification step.
+
+**Surface a criterion verifiable only on a live system.** A criterion true only after a deploy, a
+migration, or another outward-facing change forces exactly that change before merge to tick it — the
+verification ceiling forbids it (`references/scope-mode.md`'s `## Verification ceiling`, ADR 0084), so the
+criterion would reach `$superdev-ship` unticked. Name the pre-merge deploy it would force, and offer to
+keep it out of the branch-verifiable Definition of Done, noting it for the operator to verify after merge
+instead.
 
 **Emit the reachability criterion into the Definition of Done.** It holds on every change type, including
 a refactor whose honest answer is `none — entrance unchanged` — there is always a branch that fits. Ask

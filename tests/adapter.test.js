@@ -11,6 +11,7 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
+const { assertSpawnDecided } = require('./spawn-verdict');
 
 const adapterPath = require.resolve('../plugin/scripts/adapter.js');
 const {
@@ -800,7 +801,7 @@ const {
           timeout: 5000,
         },
       );
-      assert.equal(res3.signal, null, 'the process refuses on its own instead of being killed by the test timeout');
+      assertSpawnDecided(res3, 'spawning the adapter CLI over EOF stdin');
       assert.equal(res3.status, 1, 'EOF/non-interactive input refuses (nonzero exit) instead of hanging or silently exiting 0');
       assert.ok(res3.stderr.includes('sonnet'), 'the refusal names the still-missing alias');
       assert.ok(res3.stderr.includes('--model-map'), 'the refusal mentions --model-map as the escape hatch');
@@ -829,6 +830,7 @@ const {
           timeout: 5000,
         },
       );
+      assertSpawnDecided(res4, 'spawning the adapter CLI with piped multi-alias input');
       assert.equal(res4.status, 0, res4.stderr);
       const sonnetAgent4 = fs.readFileSync(path.join(cliDest4, '.opencode', 'agents', 'implementer.md'), 'utf8');
       assert.ok(sonnetAgent4.includes('model: acme/multi-a'), "the first missing alias ('sonnet') resolves from the first queued answer");
@@ -857,6 +859,7 @@ const {
           timeout: 5000,
         },
       );
+      assertSpawnDecided(res5, 'spawning the adapter CLI with a --dest-scoped model config');
       assert.equal(res5.status, 0, res5.stderr);
       const sonnetAgent5 = fs.readFileSync(path.join(cliDest5, '.opencode', 'agents', 'implementer.md'), 'utf8');
       assert.ok(sonnetAgent5.includes('model: acme/from-dest-project'), 'the picker offers the --dest project\'s own models, not the invocation directory\'s');
@@ -1214,7 +1217,7 @@ const {
         [adapterPath, '--harness', 'codex', '--plugin-root', cliCodexRoot, '--dest', cliCodexDestRefused],
         { input: '', encoding: 'utf8', timeout: 5000 },
       );
-      assert.equal(refusedRes.signal, null, 'refuses on its own instead of hanging over EOF stdin waiting for a prompt no harness offers');
+      assertSpawnDecided(refusedRes, 'spawning the adapter CLI under --harness codex over EOF stdin');
       assert.equal(refusedRes.status, 1);
       assert.ok(refusedRes.stderr.includes("'sonnet'"), 'names the unresolved alias');
       assert.ok(refusedRes.stderr.includes('--model-map'), 'names the flag to pass instead');
@@ -1227,6 +1230,7 @@ const {
         [adapterPath, '--harness', 'codex', '--plugin-root', cliCodexRoot, '--dest', cliCodexDest, '--model-map', 'sonnet=acme/sonnet-1'],
         { input: '', encoding: 'utf8', timeout: 5000 },
       );
+      assertSpawnDecided(res, 'spawning the adapter CLI under --harness codex with a covering --model-map');
       assert.equal(res.status, 0, res.stderr);
       assert.ok(fs.existsSync(path.join(cliCodexDest, '.agents', 'skills', 'superdev-plan', 'SKILL.md')), 'renders the skill with no prompt');
       assert.ok(fs.existsSync(path.join(cliCodexDest, '.codex', 'agents', 'superdev-implementer.toml')), 'renders the agent with the given --model-map, no prompt');

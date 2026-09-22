@@ -56,7 +56,8 @@ by the auditor's judgment instead.
 - **A `## Timing command` fenced in a backtick block** is a hand-written mistake, not a configured
   command: report it, pointing at `<plugin-root>/references/test-selection.md`'s rule that a
   fence is reserved for the full and focused commands alone, and that a fenced timing section lands in
-  the focused slot `hooks/green-gate.js` runs, in every repository that configures no focused command.
+  the focused slot `hooks/green-gate.js` runs, in a repository that has not yet recorded a focused
+  command.
 
 **A timing run is a full suite run, and costs exactly what that suite costs in wall clock.** Say so, then
 ask once with `AskUserQuestion` — proceed with the timing run, or skip straight to `unmeasured` —

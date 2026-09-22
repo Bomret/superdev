@@ -22,9 +22,22 @@
 // the session's invoking checkout instead would gate a merged scope with a stale or absent command.
 // ponytail: the suite runs inside the hook, under the 600s `timeout` hooks.json sets on this
 // hook's entry. That is also Claude Code's own default for a `command` hook, and it is set
-// explicitly so the ceiling is stated where the suite runs. A suite slower than it is killed and
-// the gate silently doesn't fire. A consumer repo whose suite needs more raises the `timeout` on
-// this hook's hooks.json entry.
+// explicitly so the ceiling is stated where the suite runs. A consumer repo whose suite needs more
+// raises the `timeout` on this hook's hooks.json entry — readHookTimeoutMs() below reads that same
+// entry back at hook startup, so raising it actually raises the bound `runTests` enforces, rather
+// than a second, unread number.
+//
+// That 600s bound belongs to the platform, not to `runTests`: it is Claude Code's timeout on the
+// hook *process*. An unbounded `execSync` would leave a suite slower than 600s to the platform's own
+// kill, which reaches the hook process from outside — never `runTests`'s `catch`, never a `{ killed }`
+// return, never a decision, the merge proceeding silently (the failure INV-0009 and ADR 0086 name).
+// SUITE_TIMEOUT_MS bounds `execSync` itself, margin below whatever hooks.json's own entry says, so
+// the hook always ends the suite and observes the signal before the platform ceiling could.
+// SUITE_MARGIN_MS is 30s: room for the hook's own JSON stdin read, doc read, and the process
+// exit/output write around the spawn, comfortably inside the platform ceiling without eating into a
+// slow-but-finishing suite's real budget. Deriving the bound from the manifest, instead of repeating
+// its number as a second literal, is also what would catch SUITE_TIMEOUT_MS drifting past the
+// platform's own ceiling — a hardcoded constant carried no such check.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -364,6 +377,16 @@ function decide(input, getVerification, runTests, getChangedPaths, mergeInProgre
   // ADR 0085: verification.notice (one fenced block, ADR 0085) rides along on whatever decision
   // the suite result produces — the missing focused command never blocks by itself.
   if (result.ok) return verification.notice ? { block: false, notice: verification.notice } : { block: false };
+  if (result.killed) {
+    return {
+      block: true,
+      reason:
+        `superdev: scope suite was killed (${result.killed}) after merging, before it produced a verdict` +
+        (result.killedReason ? ` — ${result.killedReason}` : '') +
+        `. A killed suite is not a pass (INV-0009) — find out why it didn't finish \`${testCommand}\` before continuing.\n\n${result.output}`,
+      ...(verification.notice ? { notice: verification.notice } : {}),
+    };
+  }
   return {
     block: true,
     reason:
@@ -372,11 +395,54 @@ function decide(input, getVerification, runTests, getChangedPaths, mergeInProgre
   };
 }
 
-function runTests(testCommand, cwd) {
+// hooks.json's own green-gate entry, read directly rather than assumed — the manifest is the one
+// place the platform ceiling is configured, and a consumer who raises it there should raise the bound
+// `runTests` actually enforces. 600s is also Claude Code's own default for a `command` hook: the
+// fallback below when the entry can't be read at all, so a parse failure, a missing entry, or a
+// missing file never leaves the suite unbounded.
+const HOOKS_MANIFEST = path.join(__dirname, 'hooks.json');
+const DEFAULT_HOOK_TIMEOUT_MS = 600 * 1000;
+
+// manifestPath is a parameter (not read from HOOKS_MANIFEST directly) so tests can point it at a
+// fixture manifest instead of the shipped one.
+function readHookTimeoutMs(manifestPath = HOOKS_MANIFEST) {
+  try {
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    const groups = (manifest.hooks && manifest.hooks.PostToolUse) || [];
+    for (const group of groups) {
+      for (const hook of group.hooks || []) {
+        if (typeof hook.command === 'string' && hook.command.includes('green-gate.js')) {
+          return typeof hook.timeout === 'number' && hook.timeout > 0
+            ? hook.timeout * 1000
+            : DEFAULT_HOOK_TIMEOUT_MS;
+        }
+      }
+    }
+  } catch {
+    // unreadable or malformed manifest → the platform default below
+  }
+  return DEFAULT_HOOK_TIMEOUT_MS;
+}
+
+// SUITE_TIMEOUT_MS bounds just the spawned suite, margin below the manifest's own ceiling, so the
+// hook itself — not the platform — always ends a suite that runs too long.
+const SUITE_MARGIN_MS = 30 * 1000;
+const SUITE_TIMEOUT_MS = Math.max(0, readHookTimeoutMs() - SUITE_MARGIN_MS);
+
+// timeoutMs and maxBufferBytes are parameters (not read from the module constants directly) so
+// tests can exercise the kill paths without waiting for the production bound or writing 64 MiB.
+function runTests(testCommand, cwd, timeoutMs = SUITE_TIMEOUT_MS, maxBufferBytes = 64 * 1024 * 1024) {
   try {
     // maxBuffer well above Node's 1 MiB default: a chatty green suite killed with ENOBUFS would
     // land in the catch and read as RED.
-    execSync(testCommand, { cwd, stdio: 'pipe', encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+    execSync(testCommand, {
+      cwd,
+      stdio: 'pipe',
+      encoding: 'utf8',
+      maxBuffer: maxBufferBytes,
+      timeout: timeoutMs,
+      killSignal: 'SIGKILL',
+    });
     return { ok: true, output: '' };
   } catch (e) {
     // status == null with no signal means the suite never started at all — e.g. a -C cwd that
@@ -384,9 +450,24 @@ function runTests(testCommand, cwd) {
     // "no verdict", it's "the merge's own working tree can't even run the suite", so it gates
     // like a RED verdict rather than failing open.
     if (e.status == null && e.signal == null) return { ok: false, output: (e.message || '').trim() };
-    // status == null with a signal means the suite started and was killed (signal, ENOBUFS) — no
-    // verdict, so fail open, same as the 600s hook timeout ceiling documented above.
-    if (e.status == null) return { ok: true, output: '' };
+    // status == null with a signal means the suite started and was killed (SUITE_TIMEOUT_MS,
+    // ENOBUFS, or another signal) — it produced no verdict. INV-0009 / ADR 0086: no gate reads
+    // that absence as a pass, so this blocks the merge like a RED result, naming the signal
+    // rather than a failure the suite never produced.
+    if (e.status == null) {
+      const out = ((e.stdout || '') + (e.stderr || '')).trim();
+      // Same reasoning as the RED tail below: the killed suite's own buffer can run up to
+      // maxBuffer (64 MiB) and none of that floods the block reason.
+      const reason = e.code === 'ENOBUFS'
+        ? 'the suite produced more output than maxBuffer allows, not necessarily a failure'
+        : null;
+      return {
+        ok: false,
+        killed: e.signal,
+        ...(reason ? { killedReason: reason } : {}),
+        output: out.split('\n').slice(-40).join('\n'),
+      };
+    }
     const out = ((e.stdout || '') + (e.stderr || '')).trim();
     // tail — the failing assertions are at the end, and we don't want to flood context
     return { ok: false, output: out.split('\n').slice(-40).join('\n') };
@@ -502,5 +583,8 @@ module.exports = {
   resolveVerification,
   resetOptionRegionWalks,
   getOptionRegionWalks,
+  readHookTimeoutMs,
+  SUITE_TIMEOUT_MS,
+  SUITE_MARGIN_MS,
 };
 

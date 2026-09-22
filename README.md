@@ -240,7 +240,10 @@ bash or PowerShell variants.
 - **green-gate.** After a controller merge, runs the command
   [`references/test-selection.md`](plugin/references/test-selection.md) picks and blocks on a RED result. That
   file owns the full-versus-focused rule the gate follows. "Tests pass on scope after merging" is
-  therefore enforced, not merely prompted. The gate is inactive until `docs/agents/verification.md`
+  therefore enforced, not merely prompted. A killed suite blocks the merge too, rather than passing it: a
+  process the gate's own bound ended carries no verdict (INV-0009, ADR 0086). The gate spawns the
+  suite under a bound from its hook ceiling. The gate, not the platform, ends a runaway suite and
+  reports the kill. The gate is inactive until `docs/agents/verification.md`
   records a test command, which `/superdev:setup` does. Once it is active, the gate runs the suite in the
   tree the merge names — a `-C <path>` or a `--work-tree <path>`, whichever the command carries, with
   `--work-tree` winning when both are there and a relative `--work-tree` resolved against `-C`, not

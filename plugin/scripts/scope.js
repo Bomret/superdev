@@ -990,7 +990,19 @@ function testContainment(cwd, base, branch, remote = 'origin') {
     timeout: FETCH_TIMEOUT_MS,
     killSignal: 'SIGKILL',
   });
-  if (fetched.status !== 0) return 'not-contained';
+  if (fetched.status !== 0) {
+    // The discriminator ADR 0086 names: `spawnSync` sets `signal` exactly when the `timeout`/
+    // `killSignal` above ended the fetch before it could return a status of its own — a killed process
+    // carries "No verdict" (INV-0009), never a duration to eyeball. `fetched.status !== 0` alone covers
+    // every ordinary refetch failure too (no remote configured, offline, a rejected credential, all
+    // expected above) — this line fires only on the one case issue #591 needs to self-diagnose: the
+    // fetch was actually killed by its own bound. An unkilled failure says nothing here; there was no
+    // bound in play to have a finding about.
+    if (fetched.signal != null) {
+      process.stderr.write(`refetch ended by its own bound (signal ${fetched.signal}) — no verdict\n`);
+    }
+    return 'not-contained';
+  }
   const fresh = containedAgainst(ref, 'FETCH_HEAD', cwd, writeTreeSupported);
   if (fresh === 'contained') return 'contained';
   if (fresh === 'inconclusive' && baseHistoryHasPatch(cwd, 'FETCH_HEAD', ref)) return 'contained';

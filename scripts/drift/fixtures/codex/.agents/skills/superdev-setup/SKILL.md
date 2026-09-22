@@ -14,8 +14,9 @@ Write the per-repo config docs the superdev skills read, so the workflow is back
 - `docs/agents/knowledge-base.md` — the optional **knowledge base** (software / local file / none)
 - `docs/agents/toolchain.md` — the detected **toolchain** profile (package manager + build/lint/format/
   release commands + style pointers), one section per workspace
-- `docs/agents/verification.md` — the optional **test commands**: a full one plus an optional focused
-  one, which arm the merge green-gate hook, and an optional **timing command**, which a test audit reads
+- `docs/agents/verification.md` — the optional **test commands**: a full one plus, for every repository
+  with a suite, a required focused one, which arm the merge green-gate hook, and an optional **timing
+  command**, which a test audit reads
 
 Plus one file that is **not** a config doc, because what it holds belongs to a person rather than to the
 repository:
@@ -311,11 +312,12 @@ to derive it from. The derivation takes one of two branches:
     pass-with-no-tests flag for the same reason a `{paths}` form does: `npx vitest --changed
     --passWithNoTests`, `npx jest -o --passWithNoTests`.
 
-**`none` is for two cases, and which one applied gets recorded.** The full suite is **already cheap**, so
-a second command saves nothing worth the block — or **no cheaper subset exists** to name, because every
-test in the suite is a slow one. **Ask what makes `none` right here, and record the reason** in
-`verification.md` beside the single block, so the next reader learns which case applied. A runner that
-maps nothing is not one of these cases: it takes the fast subset above.
+**A repository with a suite never reaches `none`.** The full suite may be **already cheap**, so a
+distinct focused command would save nothing worth naming — or **no cheaper subset exists** to narrow to,
+because every test in the suite is a slow one. Either way, **ask which case applies, and record the
+answer as prose**: the second fence carries the **full** command again, duplicated deliberately, and the
+reason beside it is what tells a later reader the duplication is not a copy-paste mistake (ADR 0085,
+INV-0007). A runner that maps nothing is not one of these cases: it takes the fast subset above.
 
 **A repo with a full command settles the timing command too**: the command that reports what the tests
 cost, which a **test audit** runs to rank its findings by measured duration (ADR 0066).
@@ -390,12 +392,12 @@ Write:
   - Style prose: `CONTRIBUTING.md §Style`
   ````
 - `docs/agents/verification.md` — the full test command as the first fenced block. Skip the file entirely
-  if there's no suite. Add the focused command decision **E** derived, as a second fenced block.
-  **No focused command** — the suite is already cheap, or no cheaper subset exists — writes the first
-  block plus the one-line reason **E** recorded for which case applied, **as prose outside the
-  fence, never fenced itself** — `hooks/green-gate.js` takes a fenced block by index, so a reason fenced
-  by mistake becomes the "focused" command the hook runs after every merge. Example, with a focused
-  command configured:
+  if there's no suite. A repository with a suite always carries a **second fenced block** too: the
+  focused command decision **E** derived, or, for the already-cheap and cannot-narrow cases, the **full**
+  command again — `none` is never an outcome once a suite exists (ADR 0085, INV-0007). Either way, record
+  beside the second fence, **as prose outside the fence, never fenced itself**, the reason for its
+  content — `hooks/green-gate.js` takes a fenced block by index, so a reason fenced by mistake becomes the
+  "focused" command the hook runs after every merge. Example, with a focused command configured:
 
   ````markdown
   # Verification
@@ -409,8 +411,8 @@ Write:
   ```
   ````
 
-  Example, single block, the reason recorded as prose beside it (this repo's own
-  `docs/agents/verification.md` is exactly this shape):
+  Example, the suite already cheap, the full command duplicated in the second fence and the reason
+  recorded as prose beside it (this repo's own `docs/agents/verification.md` is exactly this shape):
 
   ````markdown
   # Verification
@@ -419,14 +421,36 @@ Write:
   npm test
   ```
 
-  **No focused test command, deliberately.** This suite finishes in seconds, so a cheaper command saves
-  nothing worth the second block, and every caller runs the full command
-  (`references/test-selection.md`, ADR 0025, ADR 0074).
+  ```sh
+  npm test
+  ```
+
+  **No cheaper focused command, deliberately.** This suite finishes in seconds, so a distinct focused
+  command saves nothing worth naming, and every caller runs the full command
+  (`references/test-selection.md`, ADR 0025, ADR 0074, ADR 0085).
+  ````
+
+  Example, a runner that cannot narrow, the full command duplicated the same way:
+
+  ````markdown
+  # Verification
+
+  ```sh
+  go test ./...
+  ```
+
+  ```sh
+  go test ./...
+  ```
+
+  **No cheaper focused command, deliberately.** This runner has no subset narrower than the full suite to
+  name, so every caller runs the full command (`references/test-selection.md`, ADR 0025, ADR 0074, ADR
+  0085).
   ````
 
   Add the **`## Timing command`** section decision **E** settled, its command in a **backtick span,
-  never a fenced block** — a fence lands in the focused slot wherever no focused command is configured,
-  and the merge gate then runs it as its suite. **No timing command** — whether the runner reports no
+  never a fenced block** — a fence lands in the focused slot of a repository that has not yet recorded a
+  focused command, and the merge gate then runs it as its suite. **No timing command** — whether the runner reports no
   durations or the user declined — writes the one-line reason **E** recorded, as prose, in place of the
   section. Example, with one configured:
 
