@@ -58,8 +58,21 @@ assert.deepEqual(
     return scopeDir;
   }
 
-  // #two-scopes-independent: `demo`'s slice/1 is folded onto scope/demo (`branch -f`, no checkout
-  // needed) and worked → swept. `demo`'s slice/2 carries no commit beyond base, so it reads as
+  // Folds a slice branch into a scope branch the way a run's step 4 does — `git merge --no-ff`, in a
+  // checkout of the scope branch — without moving the invoking checkout's own HEAD. The merge style is
+  // load-bearing: it is what puts the slice's commits on the scope branch as second parents, which is
+  // how the hook tells a worked slice from one freshly cut off that same branch.
+  function fold(repoDir, scopeBranchName, sliceBranch) {
+    const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ws-fold-')));
+    const wt = path.join(tmp, 'wt');
+    git(['worktree', 'add', '-q', wt, scopeBranchName], repoDir);
+    git(['merge', '--no-ff', '-q', '-m', `merge ${sliceBranch}`, sliceBranch], wt);
+    git(['worktree', 'remove', wt], repoDir);
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+
+  // #two-scopes-independent: `demo`'s slice/1 is folded onto scope/demo and worked → swept. `demo`'s
+  // slice/2 carries no commit beyond base, so it reads as
   // trivially merged into everything but fails the "worked" guard → left for its implementer. `other`'s
   // slice/1 is worked but never folded into scope/other → left alone, independently of `demo`'s
   // outcome. HEAD never leaves `main` (the base branch) anywhere in this scenario.
@@ -83,8 +96,7 @@ assert.deepEqual(
     fs.writeFileSync(path.join(wtOther, 'o1.txt'), 'y\n');
     g(['add', '.'], wtOther);
     g(['commit', '-q', '-m', 'o1'], wtOther);
-    // Folds slice/demo/1 into scope/demo without ever checking scope/demo out.
-    g(['branch', '-f', 'scope/demo', 'slice/demo/1'], repo);
+    fold(repo, 'scope/demo', 'slice/demo/1');
 
     assert.equal(git(['symbolic-ref', '--short', 'HEAD'], repo), 'main', 'HEAD is on the base branch');
     main(repo);
@@ -96,6 +108,43 @@ assert.deepEqual(
     );
     assert.ok(fs.existsSync(wtFresh), 'a slice with no commits beyond base is left for its implementer');
     assert.ok(fs.existsSync(wtOther), 'a worked slice never folded into its own scope branch is left alone');
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+
+  // #scope-branch-ahead-of-base: the scope branch carries commits of its own — a plan's design-docs
+  // commit, plus one already-merged slice — and a fresh slice is cut from that moved-on tip. It reaches
+  // the scope branch's commits, so it has work "beyond the default branch" without having any of its
+  // own, and it is trivially merged. Judged on those two alone it reads as integrated and is swept out
+  // from under its running implementer, mid-run, with nothing committed yet.
+  {
+    const repo = makeRepo();
+    const g = (args, cwd) => git(args, cwd);
+    g(['branch', 'scope/ahead'], repo);
+    makeScope(repo, 'ahead', '**Branch:** scope/ahead\n');
+
+    // A design-docs commit on the scope branch, so it stands ahead of main before any slice runs.
+    const docs = path.join(repo, '.superdev/scopes/ahead/scopetree');
+    g(['worktree', 'add', '-q', docs, 'scope/ahead'], repo);
+    fs.writeFileSync(path.join(docs, 'design.md'), 'plan\n');
+    g(['add', '.'], docs);
+    g(['commit', '-q', '-m', 'design docs'], docs);
+
+    const wtFirst = path.join(repo, '.superdev/scopes/ahead/slicetrees/1');
+    g(['worktree', 'add', '-q', '-b', 'slice/ahead/1', wtFirst], repo);
+    fs.writeFileSync(path.join(wtFirst, 's1.txt'), 'y\n');
+    g(['add', '.'], wtFirst);
+    g(['commit', '-q', '-m', 's1'], wtFirst);
+    // Merged in the scopetree, the checkout of the scope branch a run holds open — step 4 exactly.
+    g(['merge', '--no-ff', '-q', '-m', 'merge slice/ahead/1', 'slice/ahead/1'], docs);
+
+    // Slice 2 is cut from the scope branch as it now stands, and its implementer has committed nothing.
+    const wtLive = path.join(repo, '.superdev/scopes/ahead/slicetrees/2');
+    g(['worktree', 'add', '-q', '-b', 'slice/ahead/2', wtLive, 'scope/ahead'], repo);
+
+    main(repo);
+    assert.ok(fs.existsSync(wtLive), 'a slice cut from a scope branch ahead of base is left for its implementer');
+    git(['show-ref', '--verify', '--quiet', 'refs/heads/slice/ahead/2'], repo); // throws if the branch went
+    assert.ok(!fs.existsSync(wtFirst), 'the merged slice on that same scope branch is still swept');
     fs.rmSync(repo, { recursive: true, force: true });
   }
 
@@ -118,7 +167,7 @@ assert.deepEqual(
     g(['add', '.'], wtA);
     g(['commit', '-q', '-m', 'a1'], wtA);
     // Folds slice/a/1 into scope/b — a different scope's branch — never into scope/a itself.
-    g(['branch', '-f', 'scope/b', 'slice/a/1'], repo);
+    fold(repo, 'scope/b', 'slice/a/1');
 
     main(repo);
     assert.ok(
@@ -152,7 +201,7 @@ assert.deepEqual(
       g(['add', '.'], wt);
       g(['commit', '-q', '-m', `work on ${label}`], wt);
     }
-    g(['branch', '-f', 'scope/ok', 'slice/ok/1'], repo);
+    fold(repo, 'scope/ok', 'slice/ok/1');
 
     main(repo);
     assert.ok(!fs.existsSync(wtOk), 'a normal scope sweeps its merged-and-worked slice as usual');
@@ -181,7 +230,7 @@ assert.deepEqual(
       g(['add', '.'], wt);
       g(['commit', '-q', '-m', `work on ${label}`], wt);
     }
-    g(['branch', '-f', 'scope/present', 'slice/present/1'], repo);
+    fold(repo, 'scope/present', 'slice/present/1');
 
     main(repo);
     assert.ok(fs.existsSync(wtGhost), 'a scope naming an unresolvable branch sweeps nothing for itself');
@@ -221,7 +270,7 @@ assert.deepEqual(
     fs.writeFileSync(path.join(wtOrphan, 'w.txt'), 'y\n');
     g(['add', '.'], wtOrphan);
     g(['commit', '-q', '-m', 'work'], wtOrphan);
-    g(['branch', '-f', 'scope/orphan', 'slice/orphan/1'], repo);
+    fold(repo, 'scope/orphan', 'slice/orphan/1');
 
     const orphan = cp.spawnSync(process.execPath, [path.join(away, 'slicetree-sweep.js')], {
       input: JSON.stringify({ cwd: repo }), encoding: 'utf8', timeout: 15000,
@@ -251,7 +300,7 @@ assert.deepEqual(
     fs.writeFileSync(path.join(wt, 'w.txt'), 'y\n');
     g(['add', '.'], wt);
     g(['commit', '-q', '-m', 'work'], wt);
-    g(['branch', '-f', 'scope/guard', 'slice/guard/1'], repo);
+    fold(repo, 'scope/guard', 'slice/guard/1');
 
     const required = cp.spawnSync(process.execPath, ['-e', `require(${JSON.stringify(hookPath)})`], {
       input: JSON.stringify({ cwd: repo }), encoding: 'utf8', timeout: 15000,

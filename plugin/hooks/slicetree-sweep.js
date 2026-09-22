@@ -7,7 +7,8 @@
 // superdev lays slicetrees out per scope run: .superdev/scopes/<scope>/slicetrees/<id>, on a
 // scoped branch slice/<scope>/<id>. A slicetree is removed only when its branch is BOTH:
 //   (a) fully merged into ITS OWN scope run's scope branch (integrated), AND
-//   (b) "worked" — it has ≥1 commit not reachable from the repo's default branch.
+//   (b) "worked" — it has ≥1 commit not reachable from the repo's default branch, AND its tip is
+//       off the scope branch's own first-parent chain.
 // (a) is asked per scope run, not of the invoking checkout's current branch: a full run leaves the
 // invoking checkout on the base branch throughout, so `git branch --merged` with no argument would
 // never see a slicetree as merged at all. Each scope's branch is read from that scope's own
@@ -19,6 +20,14 @@
 // sweep active, not-yet-committed slicetrees out from under running implementers. An
 // unmerged in-progress slice fails (a); a fresh empty slice fails (b); only a genuinely
 // integrated slice satisfies both. Safe to fire every turn, self-corrects on reverts.
+// The default-branch half of (b) only recognises a fresh slice while the scope branch still sits at the
+// default branch. Past the run's first merge, a slice cut from the moved-on scope branch reaches that
+// branch's own commits, so it reads as worked with nothing on it — and, being trivially merged, gets
+// swept out from under its implementer. The first-parent half is what recognises it: a slice branch cut
+// from the scope branch points AT a commit on that branch's first-parent chain, while the `--no-ff`
+// merges the run makes carry slice commits in as second parents, so a slice that did work never has its
+// tip on that chain. A fast-forwarded slice branch does land on it, and is left standing — a slicetree
+// that outlives its slice, never one removed while live.
 // Best-effort and silent: any git error, a dirty slicetree, an unreadable ledger, or no .superdev/ →
 // no-op for the affected scope (or the whole sweep, where the failure isn't scope-specific).
 
@@ -101,14 +110,17 @@ function main(cwd) {
   const def = defaultBranch(cwd);
   if (!def) return; // can't establish a base → don't risk sweeping
 
-  let worked, porcelain;
+  let worked, tips, porcelain;
   try {
     // slice branches with ≥1 commit not in the default branch = genuinely worked
     worked = new Set();
-    const sliceBranches = git(['for-each-ref', '--format=%(refname:short)', 'refs/heads/slice'], cwd)
+    tips = new Map(); // branch -> tip sha, for the per-scope first-parent test below
+    const sliceBranches = git(['for-each-ref', '--format=%(objectname) %(refname:short)', 'refs/heads/slice'], cwd)
       .split('\n')
-      .filter(Boolean);
-    for (const b of sliceBranches) {
+      .filter(Boolean)
+      .map((line) => line.split(' '));
+    for (const [sha, b] of sliceBranches) {
+      tips.set(b, sha);
       if (git(['rev-list', '-n1', b, '--not', def], cwd)) worked.add(b);
     }
     porcelain = git(['worktree', 'list', '--porcelain'], cwd);
@@ -134,7 +146,7 @@ function main(cwd) {
     const branch = scopeBranch(path.join(scopesRoot, scope));
     if (!branch) continue; // unreadable ledger, or no Branch line → sweep nothing for this scope
 
-    let merged;
+    let merged, mainline;
     try {
       merged = new Set(
         git(['branch', '--merged', branch], cwd)
@@ -142,11 +154,18 @@ function main(cwd) {
           .map((s) => s.replace(/^[*+ ]+/, '').trim())
           .filter(Boolean)
       );
+      // The scope branch's own first-parent chain, past the default branch: every commit a slice can be
+      // cut from without doing any work of its own. Bounded by the run's own commits, not the repo's.
+      mainline = new Set(git(['rev-list', '--first-parent', branch, '--not', def], cwd).split('\n').filter(Boolean));
     } catch {
       continue; // the scope's branch doesn't resolve → sweep nothing for this scope
     }
 
-    toRemove.push(...selectRemovable(porcelain, merged, worked, path.join(scopesRoot, scope)));
+    // A slice branch still parked on that chain has no commit of its own, whatever the default-branch
+    // test said, so it is not worked for this scope.
+    const workedHere = new Set([...worked].filter((b) => !mainline.has(tips.get(b))));
+
+    toRemove.push(...selectRemovable(porcelain, merged, workedHere, path.join(scopesRoot, scope)));
   }
 
   for (const { wt, br } of toRemove) {
