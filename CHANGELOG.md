@@ -1,3 +1,10 @@
+## [0.50.1](https://codeberg.org/bomret/superdev/compare/v0.50.0...v0.50.1) (2026-09-22)
+
+
+### Bug Fixes
+
+* **green-gate:** a spawn that was killed carries no verdict ([#608](https://codeberg.org/bomret/superdev/issues/608)) ([c6081e2](https://codeberg.org/bomret/superdev/commit/c6081e2d16bc8c4d944f77b70b707c8c5b5c0f2c)), closes [#591](https://codeberg.org/bomret/superdev/issues/591) [#591](https://codeberg.org/bomret/superdev/issues/591) [#594](https://codeberg.org/bomret/superdev/issues/594) [#595](https://codeberg.org/bomret/superdev/issues/595) [#596](https://codeberg.org/bomret/superdev/issues/596) [#597](https://codeberg.org/bomret/superdev/issues/597) [#606](https://codeberg.org/bomret/superdev/issues/606) [#590](https://codeberg.org/bomret/superdev/issues/590) [#592](https://codeberg.org/bomret/superdev/issues/592) [#598](https://codeberg.org/bomret/superdev/issues/598)
+
 # [0.50.0](https://codeberg.org/bomret/superdev/compare/v0.49.1...v0.50.0) (2026-09-22)
 
 
