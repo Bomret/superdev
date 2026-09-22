@@ -1,3 +1,16 @@
+# [0.50.0](https://codeberg.org/bomret/superdev/compare/v0.49.1...v0.50.0) (2026-09-22)
+
+
+### Bug Fixes
+
+* **backlog:** the survey names the moment the store was read ([ab8c961](https://codeberg.org/bomret/superdev/commit/ab8c961ac1b90c12e494865556cdb90ee888cc96)), closes [#573](https://codeberg.org/bomret/superdev/issues/573)
+
+
+### Features
+
+* **adapter:** render superdev for the Codex CLI harness ([#590](https://codeberg.org/bomret/superdev/issues/590)) ([1bc564e](https://codeberg.org/bomret/superdev/commit/1bc564e26b4710c54a606e482edd052a0115393a)), closes [#430](https://codeberg.org/bomret/superdev/issues/430) [#431](https://codeberg.org/bomret/superdev/issues/431) [#432](https://codeberg.org/bomret/superdev/issues/432) [#433](https://codeberg.org/bomret/superdev/issues/433)
+* **verification:** the verification ceiling, and the focused command as required configuration ([#592](https://codeberg.org/bomret/superdev/issues/592)) ([edf20ed](https://codeberg.org/bomret/superdev/commit/edf20edda3cce20909cd52de9bc14427e37b7c23)), closes [#584](https://codeberg.org/bomret/superdev/issues/584) [#585](https://codeberg.org/bomret/superdev/issues/585) [#586](https://codeberg.org/bomret/superdev/issues/586) [#583](https://codeberg.org/bomret/superdev/issues/583) [#588](https://codeberg.org/bomret/superdev/issues/588) [#589](https://codeberg.org/bomret/superdev/issues/589)
+
 ## [0.49.1](https://codeberg.org/bomret/superdev/compare/v0.49.0...v0.49.1) (2026-09-21)
 
 
