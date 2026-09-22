@@ -350,7 +350,15 @@ const tmp = require('node:os').tmpdir();
 const dir = fs.mkdtempSync(path.join(tmp, 'gg-'));
 fs.mkdirSync(path.join(dir, 'docs/agents'), { recursive: true });
 fs.writeFileSync(path.join(dir, VERIFICATION_DOC), '# Verification\n\n```sh\nnpm test\n```\n');
-assert.deepEqual(readVerification(dir), { full: 'npm test', focused: null }, 'parses full command, no focused block');
+// ADR 0085: one fenced block is a missing-configuration gap, not a safety gap — the gate runs the
+// full command anyway and carries a one-line notice naming /superdev:setup, rather than the blind
+// block a resolvable-but-unconfigured tree would otherwise get.
+{
+  const oneBlock = readVerification(dir);
+  assert.equal(oneBlock.full, 'npm test', 'one fenced block still parses as the full command');
+  assert.equal(oneBlock.focused, null, 'one fenced block → no focused command');
+  assert.match(oneBlock.notice, /\/superdev:setup/, 'one fenced block carries a notice naming /superdev:setup');
+}
 assert.deepEqual(readVerification(path.join(dir, 'nope')), { full: null, focused: null }, 'missing doc → nulls');
 
 fs.writeFileSync(
@@ -360,7 +368,7 @@ fs.writeFileSync(
 assert.deepEqual(
   readVerification(dir),
   { full: 'npm test', focused: 'npm test -- {paths}' },
-  'parses both the full and the focused command',
+  'two fenced blocks parse as today, notice-free',
 );
 
 // ADR 0066: a `## Timing command` section holds its command in a backtick span, so the gate never
@@ -371,16 +379,18 @@ fs.writeFileSync(
   '# Verification\n\n```sh\nnpm test\n```\n\n**No focused test command.**\n\n' +
     '## Timing command\n\n`npm test -- --reporter=verbose`\n',
 );
-assert.deepEqual(
-  readVerification(dir),
-  { full: 'npm test', focused: null },
-  'a `## Timing command` backtick span is invisible to the gate',
-);
+{
+  const timing = readVerification(dir);
+  assert.equal(timing.full, 'npm test', 'a `## Timing command` backtick span is invisible to the gate');
+  assert.equal(timing.focused, null, 'the timing command is never read as a focused command');
+}
 {
   let ran;
   const spy = (tc) => { ran = tc; return green(); };
-  decide(merge('git merge --no-ff slice/s1'), () => readVerification(dir), spy, () => ['a.js']);
+  const result = decide(merge('git merge --no-ff slice/s1'), () => readVerification(dir), spy, () => ['a.js']);
   assert.equal(ran, 'npm test', 'the merge gate runs the full command, never the timing command');
+  assert.equal(result.block, false, 'one fenced block never blocks the merge');
+  assert.match(result.notice, /\/superdev:setup/, 'the decision carries the one-fenced-block notice');
 }
 
 // --- the option region is walked exactly once per decision — resolveVerification()'s own call
@@ -850,6 +860,37 @@ assert.deepEqual(
     assert.equal(withC.stderr, '', 'and prints nothing');
     fs.rmSync(session, { recursive: true, force: true });
     fs.rmSync(target, { recursive: true, force: true });
+  }
+
+  // ADR 0085: a verification.md carrying exactly one fenced block runs it as the full command and
+  // never blocks on that condition. The notice reaches the operator on stdout, matching
+  // update-check.js's precedent for a non-blocking notice.
+  {
+    const session = tmp('gg-session-');
+    initRepo(session);
+    commitFile(session, 'base.txt', 'x\n');
+    writeVerification(session, 'node -e "process.exit(0)"'); // one fenced block, green
+    const result = runHook({ cwd: session, tool_input: { command: 'git merge --no-ff other' } });
+    assert.equal(result.status, 0, 'one fenced block never blocks the merge');
+    assert.match(result.stdout, /\/superdev:setup/, 'the notice names /superdev:setup on stdout');
+    assert.equal(result.stderr, '', 'the notice never lands on stderr on a non-blocking decision');
+    fs.rmSync(session, { recursive: true, force: true });
+  }
+
+  // a red suite still blocks even with only one fenced block configured — the notice is about the
+  // missing configuration, not a pass on the suite's own verdict. Claude Code reads stderr, not
+  // stdout, on a blocking exit(2), so the notice folds into the stderr write beside the reason
+  // instead of the stdout write the non-blocking case above uses.
+  {
+    const session = tmp('gg-session-');
+    initRepo(session);
+    commitFile(session, 'base.txt', 'x\n');
+    writeVerification(session, 'node -e "process.exit(1)"'); // one fenced block, red
+    const result = runHook({ cwd: session, tool_input: { command: 'git merge --no-ff other' } });
+    assert.equal(result.status, 2, 'a red suite still blocks with one fenced block configured');
+    assert.match(result.stderr, /\/superdev:setup/, 'the notice names /superdev:setup on stderr, where a blocking decision surfaces');
+    assert.equal(result.stdout, '', 'the notice never lands on stdout on a blocking decision');
+    fs.rmSync(session, { recursive: true, force: true });
   }
 
   // require.main guard: requiring this file must never run main()'s stdin/decide dispatch, and

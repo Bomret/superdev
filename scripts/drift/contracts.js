@@ -1560,8 +1560,8 @@ const PATHS_DERIVATION_CONTRACTS = [
   ],
   [
     path.join('skills', 'setup', 'SKILL.md'),
-    /`?none`?[\s\S]{0,240}?already\s+cheap[\s\S]{0,200}?no\s+cheaper\s+subset/i,
-    'reach `none` only where the full suite is already cheap or no cheaper subset exists, recording which',
+    /never\s+reaches\s+`?none`?[\s\S]{0,240}?already\s+cheap[\s\S]{0,200}?no\s+cheaper\s+subset/i,
+    'never reach `none` for a repository with a suite — record which of the already-cheap or cannot-narrow cases applied (ADR 0085)',
   ],
   [
     path.join('skills', 'setup', 'SKILL.md'),
@@ -1582,6 +1582,53 @@ const PATHS_DERIVATION_CONTRACTS = [
     path.join('references', 'test-selection.md'),
     /self-detecting\s+runner\s+flag[\s\S]{0,200}?not\s+this\s+fallback/i,
     'state that the empty-set fallback covers a fixed fast subset, never a self-detecting runner flag, which relies on its own pass-with-no-tests flag instead',
+  ],
+  // ADR 0085 / INV-0007: the write step always carries a second fence in a repository with a suite. Losing
+  // this row leaves setup free to write only one fence again for the already-cheap/cannot-narrow cases,
+  // which is the `none` outcome ADR 0085 removed, just moved from the derivation prose into the write step.
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /second\s+fenced\s+block[\s\S]{0,200}?`?none`?\s+is\s+never\s+an\s+outcome[\s\S]{0,80}?ADR\s+0085/i,
+    'write a second fenced block for every repository with a suite — never an outcome of `none` (ADR 0085, INV-0007)',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /runner\s+that\s+cannot\s+narrow[\s\S]{0,200}?duplicated\s+the\s+same\s+way/i,
+    'show the cannot-narrow case as a worked example, the full command duplicated in the second fence with the reason recorded as prose beside it',
+  ],
+  // ADR 0085 / INV-0007: a repository carrying one fenced block never falls back to the full command
+  // silently. Losing either half below reopens that silent inference in the shape it took before ADR
+  // 0085 — a prose caller (or `/superdev:plan`/`/superdev:implement`'s own config step) that runs a
+  // command instead of stopping, or a `hooks/green-gate.js` narrative that stops describing its one
+  // documented exception.
+  [
+    path.join('references', 'test-selection.md'),
+    /reports\s+the\s+missing\s+configuration\s+and\s+names\s+`\/superdev:setup`,\s+running\s+no\s+command[\s\S]{0,250}?auto-invoke\s+`\/superdev:setup`\s+on\s+missing\s+configuration/i,
+    'stop naming `/superdev:setup` on one fenced block, unreachable once `/superdev:plan`/`/superdev:implement` have auto-invoked setup (ADR 0085, INV-0007)',
+  ],
+  [
+    path.join('references', 'test-selection.md'),
+    /hooks\/green-gate\.js`?\s+is\s+the\s+one\s+exception[\s\S]{0,200}?emits\s+a\s+one-line\s+notice\s+naming\s+`\/superdev:setup`/i,
+    'name `hooks/green-gate.js` as the one exception that runs the full command and emits a notice instead of stopping (ADR 0085)',
+  ],
+  // A stop with no run root has no ledger to write `scope.js degraded add` to, so it takes only the
+  // report half of `## Degraded passes`' "pass that cannot complete its own work" shape. Losing this
+  // row reopens the silent-skip gap ADR 0085's degraded-pass sentence closed: a caller with no run root
+  // reading only the neighbouring two rows above still has no instruction naming which half it can take.
+  [
+    path.join('references', 'test-selection.md'),
+    /`## Degraded passes`[\s\S]{0,150}?pass that cannot complete its own work[\s\S]{0,250}?no run root[\s\S]{0,150}?report half/i,
+    'route the stop through `references/scope-mode.md`\'s `## Degraded passes` "pass that cannot complete its own work" shape, and say that a caller with no run root takes only its report half',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /carrying\s+one\s+fenced\s+block[\s\S]{0,40}?missing\s+configuration\s+too[\s\S]{0,120}?ADR\s+0085,\s+INV-0007[\s\S]{0,60}?\/superdev:setup/i,
+    "treat `docs/agents/verification.md` carrying one fenced block as missing configuration, auto-invoking `/superdev:setup` (ADR 0085, INV-0007)",
+  ],
+  [
+    path.join('skills', 'implement', 'SKILL.md'),
+    /carrying\s+one\s+fenced\s+block[\s\S]{0,40}?missing\s+configuration\s+too[\s\S]{0,120}?ADR\s+0085,\s+INV-0007[\s\S]{0,60}?\/superdev:setup/i,
+    "treat `docs/agents/verification.md` carrying one fenced block as missing configuration, auto-invoking `/superdev:setup` (ADR 0085, INV-0007)",
   ],
 ];
 
@@ -3425,8 +3472,113 @@ const COMMITMENT_CAPTURE_CONTRACTS = [
   ],
 ];
 
+// ADR 0084, INV-0006: verifying a Definition-of-Done criterion observes, and changes no system outside
+// the repository. `references/scope-mode.md` owns the rule; the seven rows below pin its own section
+// plus both verifying agent bodies (`final-reviewer.md`, `implementer.md`) and all four
+// surfaces that verify a criterion or dispatch an agent that does (`skills/review/SKILL.md`,
+// `skills/implement/SKILL.md`, `references/run-handoff.md` — whose red-full-suite implementer dispatch
+// sits outside `skills/implement/SKILL.md` entirely — and `skills/ship/SKILL.md`). A contract in an
+// agent body also has to hold in the prose that dispatches it (root `AGENTS.md`'s prompt-architecture
+// rule), so `implementer.md`'s single body clause is pinned once and reached by two dispatch rows.
+const VERIFICATION_CEILING_CONTRACTS = [
+  [
+    path.join('references', 'scope-mode.md'),
+    /[Vv]erif\w+ a Definition-of-Done criterion observes[\s\S]{0,40}changes no system outside the repository/,
+    'carry the `## Verification ceiling` section stating that verifying a Definition-of-Done criterion observes and changes no system outside the repository (ADR 0084, INV-0006)',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /[Vv]erif\w+ a criterion observes[\s\S]{0,40}changes no system outside the repository[\s\S]{0,200}report\w* as unverifiable on the branch, needing\s*\n?\s*verification after merge/,
+    'state that verifying a criterion observes and changes no system outside the repository, and that a criterion needing an outward-facing change gets reported as unverifiable on the branch, needing verification after merge (ADR 0084, INV-0006)',
+  ],
+  [
+    path.join('agents', 'implementer.md'),
+    /[Vv]erif\w+ a criterion observes[\s\S]{0,40}changes no system outside the repository[\s\S]{0,300}gets no increment[\s\S]{0,150}report\w* it as needing verification after merge/,
+    'state that verifying a criterion observes and changes no system outside the repository, and that a criterion needing an outward-facing change gets no increment and is reported as needing verification after merge (ADR 0084, INV-0006)',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /[Cc]onfirming a `dod\.md` criterion observes[\s\S]{0,40}changes no system outside the repository[\s\S]{0,200}report\w* as unverifiable on the branch, needing\s*\n?\s*verification after merge/,
+    "state that confirming a `dod.md` criterion observes and changes no system outside the repository, and that a criterion needing an outward-facing change gets reported as unverifiable on the branch, needing verification after merge (ADR 0084, INV-0006)",
+  ],
+  [
+    path.join('skills', 'implement', 'SKILL.md'),
+    /[Vv]erif\w+ an `acceptance` criterion observes[\s\S]{0,40}changes no system outside the repository[\s\S]{0,300}gets no increment[\s\S]{0,150}report\w* it as needing verification after merge/,
+    'state that verifying an `acceptance` criterion observes and changes no system outside the repository, and that a criterion needing an outward-facing change gets no increment and is reported as needing verification after merge (ADR 0084, INV-0006)',
+  ],
+  [
+    path.join('references', 'run-handoff.md'),
+    /[Vv]erif\w+ the fix observes[\s\S]{0,40}changes no system outside the repository/,
+    'state that verifying the red-full-suite fix observes and changes no system outside the repository (ADR 0084, INV-0006)',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /[Vv]erif\w+ an item observes[\s\S]{0,40}changes no system outside the repository/,
+    'state, beside "Verify the items yourself", that verifying an item observes and changes no system outside the repository (ADR 0084, INV-0006)',
+  ],
+];
+
+// ADR 0084's own closing decision: `/superdev:ship` §4 ticks a criterion naming the test suite from the
+// run's own recorded result — the ledger's stage together with its degrade record — rather than running
+// that suite itself. `DOC_STEP_SILENCE_DOCS`/`SUITE_RUN_INSTRUCTIONS` above already assert the negative
+// (`skills/ship/SKILL.md` carries no suite-run instruction of its own); this table asserts the positive
+// clause that replaces one — the read path and the "runs no test command anywhere" statement — so a
+// document that goes silent about the suite entirely, rather than reading the ledger for it, still trips
+// this row even though it trips no negative scanner.
+const DOD_SUITE_CRITERION_CONTRACTS = [
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /ticked from the run's own recorded result, never by running it/i,
+    'tick a criterion naming the test suite from the run\'s own recorded result, never by running it (ADR 0084)',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /get stage[\s\S]{0,300}get degraded/,
+    'read both the ledger stage and its degrade record to decide that criterion',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /[Ss]hip runs no test command anywhere/,
+    'state plainly that ship runs no test command anywhere',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /scope whose recorded result is a denied or absent test command leaves such a criterion unticked[\s\S]{0,60}that record as its note/,
+    'state that a scope whose recorded result is a denied or absent test command leaves such a criterion unticked, with that record as its note (ADR 0084)',
+  ],
+];
+
+
+// ADR 0084, INV-0008: a Definition-of-Done criterion states a requirement the feature meets, never a
+// procedure superdev executes to verify it, so it names no command superdev runs to check it. The two
+// rows pin the rule on `plan-contract.md`, the reference that states it, and on the two interview steps
+// `skills/plan/SKILL.md` carries beside it: writing no verification command into a criterion, and
+// surfacing a criterion verifiable only on a live system so it never forces a pre-merge deploy the
+// verification ceiling already forbids (ADR 0084). Losing the reference row leaves the rule unstated
+// while `Reachable:` looks like an unexplained exception; losing either skill row leaves the interview
+// still capable of writing a criterion naming a test command or a live-system-only check with no offer to
+// keep it out of the branch-verifiable set.
+const CRITERION_STATES_A_REQUIREMENT_CONTRACTS = [
+  [
+    path.join('references', 'plan-contract.md'),
+    /criterion states a requirement the feature meets, never a procedure superdev executes to verify it/,
+    'state that a criterion states a requirement the feature meets, never a procedure superdev executes to verify it, naming no command it runs to check it (ADR 0084, INV-0008)',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /\*\*Write a Definition-of-Done criterion as a bare requirement\.\*\*[\s\S]{0,200}leaving the command that checks it unnamed/,
+    'carry the **Write a Definition-of-Done criterion as a bare requirement.** step, leaving the command that checks it unnamed',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /\*\*Surface a criterion verifiable only on a live system\.\*\*[\s\S]{0,400}keep it out of the branch-verifiable Definition of Done/,
+    'surface a criterion verifiable only on a live system, name the pre-merge deploy it would force, and offer to keep it out of the branch-verifiable Definition of Done',
+  ],
+];
+
 module.exports = {
   COMMITMENT_CAPTURE_CONTRACTS,
+  DOD_SUITE_CRITERION_CONTRACTS,
   CONTAINMENT_DELEGATION_CONTRACTS,
   CONTAINMENT_REFETCH_CONTRACTS,
   CONTAINMENT_PROBE_CONTRACTS,
@@ -3572,4 +3724,6 @@ module.exports = {
   PLANNED_HANDOFF_CONTRACTS,
   SCOPETREE_RUN_ROOT_DOCS,
   SCOPETREE_RUN_ROOT_PATTERN,
+  VERIFICATION_CEILING_CONTRACTS,
+  CRITERION_STATES_A_REQUIREMENT_CONTRACTS,
 };

@@ -114,6 +114,9 @@ const {
   INVARIANT_COMPLIANCE_CONTRACTS,
   COMMITMENT_CAPTURE_CONTRACTS,
   PLANNED_HANDOFF_CONTRACTS,
+  VERIFICATION_CEILING_CONTRACTS,
+  DOD_SUITE_CRITERION_CONTRACTS,
+  CRITERION_STATES_A_REQUIREMENT_CONTRACTS,
 } = require('./contracts');
 
 // The printer the table-driven checks share. A gap is `{ source, expectation }` and reads the
@@ -268,9 +271,19 @@ module.exports = [
     'the scope review runs the full suite itself while final-reviewer reviews against the result it is handed',
   ),
   table(
+    'verification-ceiling',
+    VERIFICATION_CEILING_CONTRACTS,
+    'verifying a Definition-of-Done criterion observes, and changes no system outside the repository, on both verifying agent bodies and all four surfaces that verify a criterion or dispatch one that does',
+  ),
+  table(
+    'dod-suite-criterion',
+    DOD_SUITE_CRITERION_CONTRACTS,
+    "ship ticks a criterion naming the test suite from the run's own recorded result, reading the ledger stage and its degrade record, and runs no test command of its own",
+  ),
+  table(
     'paths-derivation',
     PATHS_DERIVATION_CONTRACTS,
-    'setup derives a `{paths}` form only for a mapping runner, a fast subset otherwise, and reaches `none` for two named cases',
+    'setup derives a `{paths}` form only for a mapping runner, a fast subset otherwise, and never reaches `none` for a repository with a suite — the second fence carries the full command again, with the reason recorded — and a one-fence verification.md stops with /superdev:setup named, everywhere from the hook to plan and implement',
   ),
   {
     id: 'unmapped-paths-form',
@@ -636,6 +649,13 @@ module.exports = [
     COMMITMENT_CAPTURE_CONTRACTS,
     'brainstorm still names load-bearing commitments as pairs, plan still routes and gates them, and ' +
       "domain-modeling.md still carries the sort, its authoring-rule guard, and its `Check: none` branch",
+  ),
+  table(
+    'criterion-states-a-requirement',
+    CRITERION_STATES_A_REQUIREMENT_CONTRACTS,
+    'plan-contract.md still states that a criterion names no command superdev runs to verify it, and ' +
+      "plan's interview still writes no verification command into a criterion and still surfaces a " +
+      'live-system-only criterion with the pre-merge deploy it would force',
   ),
 ];
 

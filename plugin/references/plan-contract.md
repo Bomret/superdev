@@ -24,6 +24,10 @@ Both `acceptance` and the DoD state **observable, user-facing behaviour** — no
 a proxy count appears at all it's a signal a reviewer reads, never a gate an agent optimizes toward (ADR
 0002).
 
+A criterion states a requirement the feature meets, never a procedure superdev executes to verify it: it
+names no command superdev runs to check it (ADR 0084, INV-0008). `Reachable:` below is the standing
+exception, because it names the entrance a user reaches the feature through, never a verification step.
+
 ### The reachability criterion
 
 Every feature's Definition of Done carries at least one criterion **led by `Reachable:`**, naming the

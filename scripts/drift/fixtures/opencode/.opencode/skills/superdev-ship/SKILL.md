@@ -1,6 +1,6 @@
 superdev-render-overlay
 source: skills/ship/SKILL.md
-body-lines: 135
+body-lines: 155
 ---
 # generated-by: superdev-adapter — a re-render overwrites this directory
 name: superdev-ship
@@ -36,21 +36,27 @@ Find the scope checkout per `<plugin-root>/references/scope-mode.md`. You need i
 `node "<plugin-root>/scripts/scope.js" get unresolved --root <run-root>` — one bullet per line,
 @58
 never through cwd-dependent `status` — per `<plugin-root>/references/scope-mode.md`'s
-@86
+@75
+`node "<plugin-root>/scripts/scope.js" get stage --root <run-root>` and its degrade record with
+@76
+`node "<plugin-root>/scripts/scope.js" get degraded --root <run-root>`. `/superdev-review` does
+@81
+(`node "<plugin-root>/scripts/scope.js" get slices --root <run-root>`) — that stand-in run's own
+@106
 `<plugin-root>/references/scope-mode.md`'s `## Degraded passes` section;
-@87
+@107
 `node "<plugin-root>/scripts/scope.js" get degraded --root <run-root>` reports it, one bullet per
-@93
+@113
 `node "<plugin-root>/scripts/scope.js" get unresolved --root <run-root>` reports it, one bullet
-@99
+@119
 line lists every finding `/superdev-review` handed to `/superdev-plan` rather than fixing, per that file's
-@100
+@120
 `## Deferred findings` section; `node "<plugin-root>/scripts/scope.js" get deferred --root
-@108
+@128
 `node "<plugin-root>/scripts/scope.js" stage set shipped --root <run-root>`. Publish the snapshot
-@109
-afterwards, per `<plugin-root>/references/scope-mode.md`'s `## Publishing run state` section.
 @129
+afterwards, per `<plugin-root>/references/scope-mode.md`'s `## Publishing run state` section.
+@149
 `.superdev/kb-pending/<scope>/` holds staged pages → print `/superdev-publish-kb <scope>` with one line on
-@133
+@153
 This is a pointer, not a chain handoff. `/superdev-ship` still ends the chain. **No staged pages** → print

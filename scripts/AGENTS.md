@@ -540,6 +540,27 @@ a command that does not exist. The `chain-handoff` contract: `skills/implement/S
 `skills/review/SKILL.md`, and `skills/document/SKILL.md` each name their successor in the chain.
 `skills/ship/SKILL.md` ends the chain and is deliberately outside that check.
 
+The `verification-ceiling` contract (ADR 0084, INV-0006), six rows: verifying a Definition-of-Done
+criterion observes, and changes no system outside the repository. `references/scope-mode.md` states the
+rule once, in its own `## Verification ceiling` section, and the six rows pin the clause on both
+verifying agent bodies (`agents/final-reviewer.md`, `agents/implementer.md`) and on all four surfaces
+that verify a criterion or dispatch an agent that does (`skills/review/SKILL.md`,
+`skills/implement/SKILL.md`, `references/run-handoff.md` — whose red-full-suite implementer dispatch
+sits outside `skills/implement/SKILL.md` entirely — and `skills/ship/SKILL.md`, beside its own "Verify
+the items yourself" instruction). A contract in an agent body also has to hold in the prose that
+dispatches it, so `implementer.md`'s one body clause is reached by two dispatch rows, `skills/implement/SKILL.md`'s
+and `references/run-handoff.md`'s.
+
+The `dod-suite-criterion` contract (ADR 0084), three rows, all on `skills/ship/SKILL.md`: §4 ticks a
+criterion naming the test suite from the run's own recorded result — the ledger's stage, read together
+with its degrade record — rather than running that suite. One row pins the "ticked from the run's own
+recorded result, never by running it" clause, one pins that both `scope.js get stage` and
+`scope.js get degraded` are read, and one pins the plain "ship runs no test command anywhere" statement.
+This is the positive half of the negative `DOC_STEP_SILENCE_DOCS`/`SUITE_RUN_INSTRUCTIONS` scan below,
+which only asserts that `skills/ship/SKILL.md` proposes no suite run of its own — a document silent about
+the suite criterion entirely still passes that scan, so this table pins the read path that replaces the
+run instead.
+
 The `feature-label-argument`, `unattended-token`, `change-type`, `degraded-pass`, `derived-criteria`,
 `reachable-criterion`, `label-validation`, `green-gate-timeout`, and `verb-pointer` checks
 share one scanner, `drift/lib.js`'s `scanContract()`, run over
@@ -833,10 +854,21 @@ satisfiable by the second section, so deleting a whole statement left the table 
 runner that maps source files to the tests covering them gets a `{paths}` form, a runner that maps
 nothing gets a `{paths}`-less fast subset instead of being routed to `none`, a self-detecting `{paths}`-less
 runner flag carries that runner's own pass-with-no-tests flag for the same reason a `{paths}` form does,
-and `none` itself is reached only where the full suite is already cheap or no cheaper subset exists, with
-the case recorded. Losing a row leaves a repository on the wrong command while the rest keep the check
-green, and losing the fast-subset row is the expensive direction: it routes every non-mapping runner back
-to `none`, which is the full suite at every in-loop caller — the cost ADR 0025 removed.
+and a repository with a suite never reaches `none` at all (ADR 0085, INV-0007): the already-cheap and
+cannot-narrow cases both write the full command again as the second fence, with the reason recorded as
+prose beside it, and the write step's own examples are pinned the same way, including the cannot-narrow
+one. Losing a row leaves a repository on the wrong command while the rest keep the check green, and
+losing the fast-subset row is the expensive direction: it routes every non-mapping runner back to `none`,
+which is the full suite at every in-loop caller — the cost ADR 0025 removed.
+Four more rows guard the stop half of ADR 0085 / INV-0007, the side that replaced silent inference with a
+loud one: two on `references/test-selection.md` — its `## Stop on a missing focused command` section
+naming `/superdev:setup` on one fenced block, unreachable once `/superdev:plan`/`/superdev:implement`
+have auto-invoked setup, and its naming of `hooks/green-gate.js` as the one exception that runs the full
+command and emits a notice instead of stopping — plus one row each on `skills/plan/SKILL.md` and
+`skills/implement/SKILL.md`, pinning that their existing config steps treat `docs/agents/verification.md`
+carrying one fenced block as missing configuration too. Losing either `test-selection.md` row reopens the
+silent full-command inference the fallback used to take; losing a skill row leaves that command's own
+config step never reaching `/superdev:setup` for a repository stuck on one fence.
 The `unmapped-paths-form` check (ADR 0074), `scanUnmappedPathsForms()`, is that contract's negative half,
 and neither is worth much alone: the table above cannot see a bad example, and this scan cannot see a
 derivation that vanished. It denylists a `{paths}` form proposed to a runner that maps nothing — `pytest`,
@@ -1264,11 +1296,12 @@ nobody released — which is exactly what `/superdev:afk` then selects.
 The `doc-steps-no-suite` check, `scanDocStepsNoSuite()`: `skills/document/SKILL.md`,
 `skills/ship/SKILL.md`, `agents/doc-writer.md`, and `agents/final-reviewer.md` name no full-suite run of
 their own (ADR 0025). That is narrower than "performs no full-suite run": `skills/document/SKILL.md` reads
-`references/test-selection.md` and runs the focused command it selects over its own doc commits, and that
-rule falls back to the full command wherever a repository configures no second fenced block — the same
-fallback this repository dogfoods for every other focused caller. What this check forbids is a document
-*instructing* a full run in its own prose; the fallback producing one at runtime is `test-selection.md`'s
-contract, not a gap this check would catch or should. `/superdev:review`'s scope mode owns the scope's one
+`references/test-selection.md` and runs the focused command it selects over its own doc commits, and a
+repository whose runner cannot narrow, or whose suite is already cheap enough not to need a distinct one,
+records the full command again in that second fence — the same duplication this repository dogfoods for
+every other focused caller (ADR 0085). What this check forbids is a document *instructing* a full run in
+its own prose; the second fence producing one at runtime is `test-selection.md`'s contract, not a gap this
+check would catch or should. `/superdev:review`'s scope mode owns the scope's one
 **review** run, so an instruction named in any of the first three is a second pass over a tree the review
 already verified — and on a slow suite that is minutes per scope, spent proving what was just proved.
 `agents/final-reviewer.md` joins the list for a
@@ -1968,6 +2001,18 @@ than answering that question yes and landing in a consuming repository's registe
 gap, and invisible once made. And the `Check: none` branch still keeps an untestable commitment as an
 entry carrying its reason. So the sort cannot revert from what a commitment constrains to whether it can
 be tested, which would drop a commitment binding a hundred decisions and no single test.
+
+The `criterion-states-a-requirement` contract (ADR 0084, INV-0008), three rows: `references/plan-contract.md`
+still states that a Definition-of-Done criterion states a requirement the feature meets, never a procedure
+superdev executes to verify it, naming no command superdev runs to check it; `skills/plan/SKILL.md` still
+carries the **Write a Definition-of-Done criterion as a bare requirement.** interview step; and
+`skills/plan/SKILL.md` still carries the **Surface a criterion verifiable only on a live system.** step,
+naming the pre-merge deploy such a criterion would force and offering to keep it out of the
+branch-verifiable Definition of Done. `Reachable:` stays the one standing exception, because it names an
+entrance, never a verification step. Losing the reference row leaves that exception unexplained; losing
+either skill row leaves the interview free to write a criterion naming a test command, or a live-system-only
+criterion with no offer to keep it out of the branch-verifiable set — the exact shape ADR 0084 observed
+forcing a pre-merge deploy.
 
 ## Work Guidance
 

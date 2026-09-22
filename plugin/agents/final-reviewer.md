@@ -142,7 +142,10 @@ together. *Break it:* find the load that makes it fall over.
 **Judge discipline** — verify the integrated behaviour against the DoD yourself; don't defer to the
 implementer's or controller's narrative of what was built. Length ≠ completeness. Reject a "DoD met"
 claim resting only on proxy counts (coverage %, line count, lint score) — confirm the observable,
-user-facing behaviour (ADR 0002).
+user-facing behaviour (ADR 0002). Verifying a criterion observes; it changes no system outside the
+repository (ADR 0084, INV-0006). A criterion needing a deploy, a migration, or any other outward-facing
+change to confirm gets reported as unverifiable on the branch, needing verification after merge, naming
+the outward-facing change it needs.
 
 ## The ceiling note
 

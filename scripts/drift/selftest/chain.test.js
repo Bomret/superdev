@@ -28,6 +28,7 @@ const {
   PLANNED_HANDOFF_CONTRACTS,
   TEST_SELECTION_CONTRACTS,
   FULL_SUITE_CONTRACTS,
+  VERIFICATION_CEILING_CONTRACTS,
   FIX_BOUNDARY_CONTRACTS,
   TIER_SKIP_CONTRACTS,
   AFK_ROUTING_CONTRACTS,
@@ -47,6 +48,7 @@ const {
   INVARIANT_REGISTER_DOC_PASS_CONTRACTS,
   INVARIANT_COMPLIANCE_CONTRACTS,
   COMMITMENT_CAPTURE_CONTRACTS,
+  DOD_SUITE_CRITERION_CONTRACTS,
 } = require('../contracts');
 
 module.exports = ({ assert, path, fixture, fs, realRoot }) => {
@@ -2954,11 +2956,21 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     "does, and collects nothing from an empty one. It carries that runner's own pass-with-no-tests " +
     'flag for the same reason.\n';
   const pdNone =
-    '`none` is for two cases: the full suite is already cheap, or no cheaper subset exists to name.\n';
+    'A repository with a suite never reaches `none`: the full suite may be already cheap, or no cheaper ' +
+    'subset exists to narrow to, so the second fence duplicates the full command.\n';
+  const pdWriteStepFence =
+    'A repository with a suite always carries a second fenced block too — `none` is never an outcome ' +
+    'once a suite exists (ADR 0085).\n';
+  const pdWriteStepExample =
+    'Example, a runner that cannot narrow, the full command duplicated the same way, the reason ' +
+    'recorded as prose beside it.\n';
 
   assert.equal(
     scanContract(
-      fixture({ 'skills/setup/SKILL.md': pdMapping + pdSubset + pdSelfDetect + pdNone }),
+      fixture({
+        'skills/setup/SKILL.md':
+          pdMapping + pdSubset + pdSelfDetect + pdNone + pdWriteStepFence + pdWriteStepExample,
+      }),
       PATHS_DERIVATION_CONTRACTS,
     ).length,
     0,
@@ -2966,43 +2978,111 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   );
 
   for (const [dropped, missing, expectation] of [
-    ['the mapping branch', pdSubset + pdSelfDetect + pdNone, /maps source files to the tests/],
-    ['the fast-subset branch', pdMapping + pdSelfDetect + pdNone, /fast subset/],
-    ['the self-detecting-flag branch', pdMapping + pdSubset + pdNone, /pass-with-no-tests flag, the same as/],
-    ['the `none` branch', pdMapping + pdSubset + pdSelfDetect, /already cheap/],
+    [
+      'the mapping branch',
+      pdSubset + pdSelfDetect + pdNone + pdWriteStepFence + pdWriteStepExample,
+      /maps source files to the tests/,
+    ],
+    [
+      'the fast-subset branch',
+      pdMapping + pdSelfDetect + pdNone + pdWriteStepFence + pdWriteStepExample,
+      /fast subset/,
+    ],
+    [
+      'the self-detecting-flag branch',
+      pdMapping + pdSubset + pdNone + pdWriteStepFence + pdWriteStepExample,
+      /pass-with-no-tests flag, the same as/,
+    ],
+    [
+      'the `none` branch',
+      pdMapping + pdSubset + pdSelfDetect + pdWriteStepFence + pdWriteStepExample,
+      /already-cheap/,
+    ],
+    [
+      'the write-step second-fence clause',
+      pdMapping + pdSubset + pdSelfDetect + pdNone + pdWriteStepExample,
+      /second fenced block/,
+    ],
+    [
+      'the write-step cannot-narrow example',
+      pdMapping + pdSubset + pdSelfDetect + pdNone + pdWriteStepFence,
+      /cannot-narrow case as a worked example/,
+    ],
   ]) {
     const gaps = scanContract(fixture({ 'skills/setup/SKILL.md': missing }), PATHS_DERIVATION_CONTRACTS);
     assert.equal(gaps.length, 1, `flags a setup missing ${dropped}`);
     assert.match(gaps[0].expectation, expectation, `the gap names ${dropped}`);
   }
 
-  // The two `references/test-selection.md` rows: the `{paths}` token section's self-detecting sentence,
-  // and the fallback bullet's own carve-out for it — a self-detecting flag needs its own
-  // pass-with-no-tests flag, not the empty-set fallback.
+  // The four `references/test-selection.md` rows: the `{paths}` token section's self-detecting
+  // sentence, the fallback bullet's own carve-out for it (a self-detecting flag needs its own
+  // pass-with-no-tests flag, not the empty-set fallback), and ADR 0085 / INV-0007's stop half — the
+  // prose stop naming `/superdev:setup` on one fenced block, and the `hooks/green-gate.js` exception
+  // that runs the full command and emits a notice instead of stopping.
+  const pdSelfDetectClause =
+    "A self-detecting runner flag computes the change set on its own, exactly as a `{paths}` form " +
+    "does, and collects nothing from an empty one — it carries that runner's own pass-with-no-tests " +
+    'flag for the same reason a `{paths}` form does (`vitest --changed --passWithNoTests`, ' +
+    '`jest -o --passWithNoTests`). The empty-set fallback covers a fixed fast ' +
+    'subset, never a self-detecting runner flag, which relies on its own pass-with-no-tests flag ' +
+    'instead, not this fallback.\n';
+  const stopClause =
+    'A prose caller finding one fenced block reports the missing configuration and names ' +
+    '`/superdev:setup`, running no command. `/superdev:plan` and `/superdev:implement` already ' +
+    'auto-invoke `/superdev:setup` on missing configuration.\n';
+  const greenGateExceptionClause =
+    '`hooks/green-gate.js` is the one exception: it runs the full command it found and emits a ' +
+    'one-line notice naming `/superdev:setup`.\n';
+  const degradedPassClause =
+    'A caller that stops here records a degraded pass per `## Degraded passes` — the "pass that ' +
+    'cannot complete its own work" shape. A caller with no run root has no ledger to write ' +
+    '`scope.js degraded add` to, so it takes only that shape\'s report half.\n';
+
   assert.equal(
     scanContract(
       fixture({
         'references/test-selection.md':
-          "A self-detecting runner flag computes the change set on its own, exactly as a `{paths}` form " +
-          "does, and collects nothing from an empty one — it carries that runner's own pass-with-no-tests " +
-          'flag for the same reason a `{paths}` form does (`vitest --changed --passWithNoTests`, ' +
-          '`jest -o --passWithNoTests`). The empty-set fallback covers a fixed fast ' +
-          'subset, never a self-detecting runner flag, which relies on its own pass-with-no-tests flag ' +
-          'instead, not this fallback.\n',
+          pdSelfDetectClause + stopClause + greenGateExceptionClause + degradedPassClause,
       }),
       PATHS_DERIVATION_CONTRACTS,
     ).length,
     0,
-    'test-selection.md carrying both self-detecting-flag clauses yields no gap',
+    'test-selection.md carrying every self-detecting-flag, stop, and degraded-pass clause yields no gap',
   );
   assert.equal(
     scanContract(
       fixture({ 'references/test-selection.md': 'The focused command runs verbatim.\n' }),
       PATHS_DERIVATION_CONTRACTS,
     ).length,
-    2,
-    'flags a test-selection.md missing both self-detecting-flag clauses',
+    5,
+    'flags a test-selection.md missing the self-detecting-flag, stop, and degraded-pass clauses',
   );
+  assert.equal(
+    scanContract(
+      fixture({
+        'references/test-selection.md': pdSelfDetectClause + stopClause + greenGateExceptionClause,
+      }),
+      PATHS_DERIVATION_CONTRACTS,
+    ).length,
+    1,
+    'flags a test-selection.md missing only the degraded-pass clause',
+  );
+
+  const skillConfigClause =
+    '`docs/agents/verification.md` carrying one fenced block is missing configuration too (ADR 0085, ' +
+    'INV-0007) → run `/superdev:setup`.\n';
+  for (const skillPath of [path.join('skills', 'plan', 'SKILL.md'), path.join('skills', 'implement', 'SKILL.md')]) {
+    assert.equal(
+      scanContract(fixture({ [skillPath]: skillConfigClause }), PATHS_DERIVATION_CONTRACTS).length,
+      0,
+      `${skillPath} treating one fenced block as missing configuration yields no gap`,
+    );
+    assert.equal(
+      scanContract(fixture({ [skillPath]: 'Read the config files.\n' }), PATHS_DERIVATION_CONTRACTS).length,
+      1,
+      `flags ${skillPath} missing the auto-invoke-on-one-fence clause`,
+    );
+  }
 
   // --- scanUnmappedPathsForms (ADR 0074): a `{paths}` form belongs to a runner that maps a source file
   // to the tests covering it. pytest and its kind collect nothing from a source path, so such a form
@@ -3386,4 +3466,160 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     path.join('references', 'domain-modeling.md'),
     'names domain-modeling.md',
   );
+
+  // --- VERIFICATION_CEILING_CONTRACTS: ADR 0084, INV-0006 — verifying a Definition-of-Done criterion
+  // observes, and changes no system outside the repository. Seven halves: the owning reference
+  // (references/scope-mode.md), both verifying agent bodies (final-reviewer.md, implementer.md), and
+  // all four surfaces that verify a criterion or dispatch an agent that does (review/SKILL.md,
+  // implement/SKILL.md, run-handoff.md, ship/SKILL.md). ---
+  const vcClauses = {
+    'references/scope-mode.md':
+      'Verifying a Definition-of-Done criterion observes. It changes no system outside the repository.\n',
+    'agents/final-reviewer.md':
+      'Verifying a criterion observes; it changes no system outside the repository. A criterion ' +
+      'needing a deploy gets reported as unverifiable on the branch, needing verification after merge.\n',
+    'agents/implementer.md':
+      'Verifying a criterion observes; it changes no system outside the repository. A criterion ' +
+      'needing a deploy gets no increment: report it as needing verification after merge.\n',
+    'skills/review/SKILL.md':
+      'Confirming a `dod.md` criterion observes; it changes no system outside the repository. A ' +
+      'criterion needing a deploy gets reported as unverifiable on the branch, needing verification ' +
+      'after merge.\n',
+    'skills/implement/SKILL.md':
+      'Verifying an `acceptance` criterion observes; it changes no system outside the repository. A ' +
+      'criterion needing a deploy gets no increment: report it as needing verification after merge.\n',
+    'references/run-handoff.md':
+      'Verifying the fix observes; it changes no system outside the repository.\n',
+    'skills/ship/SKILL.md':
+      'Verifying an item observes; it changes no system outside the repository.\n',
+  };
+
+  // negative: a fixture carrying all six halves reports no gap
+  const vcFullGaps = scanContract(fixture(vcClauses), VERIFICATION_CEILING_CONTRACTS);
+  assert.deepEqual(vcFullGaps, [], 'a fixture carrying all six halves reports no gap');
+
+  // positive: dropping any single half reports exactly that gap
+  for (const rel of Object.keys(vcClauses)) {
+    const vcDropped = fixture({ ...vcClauses, [rel]: 'Nothing about the verification ceiling here.\n' });
+    const vcGaps = scanContract(vcDropped, VERIFICATION_CEILING_CONTRACTS);
+    assert.equal(vcGaps.length, 1, `flags ${rel} for dropping its verification-ceiling half`);
+    assert.equal(vcGaps[0].source, rel, `names ${rel}`);
+  }
+
+  // positive: implementer.md and its lite-tier paste report a gap for keeping the observes/changes
+  // clause but losing the "gets no increment ... report it as needing verification after merge"
+  // continuation — the implementer's half of the ceiling, not the reviewer's.
+  for (const rel of ['agents/implementer.md', 'skills/implement/SKILL.md']) {
+    const vcNoIncrement = fixture({
+      ...vcClauses,
+      [rel]: vcClauses[rel].split('. A criterion needing a deploy')[0] + '.\n',
+    });
+    const vcGaps = scanContract(vcNoIncrement, VERIFICATION_CEILING_CONTRACTS);
+    assert.equal(vcGaps.length, 1, `flags ${rel} for losing the gets-no-increment continuation`);
+    assert.equal(vcGaps[0].source, rel, `names ${rel}`);
+  }
+
+  // positive: final-reviewer.md and its review/SKILL.md dispatch report a gap for keeping the
+  // observes/changes clause but losing the "gets reported as unverifiable on the branch, needing
+  // verification after merge" continuation — the reviewer's own actionable form, distinct from the
+  // implementer's "gets no increment" form and from ship's "stays unticked" form.
+  for (const rel of ['agents/final-reviewer.md', 'skills/review/SKILL.md']) {
+    const vcNoReport = fixture({
+      ...vcClauses,
+      [rel]: vcClauses[rel].split('. A criterion needing a deploy')[0] + '.\n',
+    });
+    const vcGaps = scanContract(vcNoReport, VERIFICATION_CEILING_CONTRACTS);
+    assert.equal(vcGaps.length, 1, `flags ${rel} for losing the reported-as-unverifiable continuation`);
+    assert.equal(vcGaps[0].source, rel, `names ${rel}`);
+  }
+
+  // positive: implementer.md and its lite-tier paste report a gap for keeping both the "observes" lead-in
+  // and the "gets no increment" continuation, but losing only the "changes no system outside the
+  // repository" half between them — the wide `[\s\S]{0,300}` gap the two rows must not let this half
+  // slip through.
+  for (const rel of ['agents/implementer.md', 'skills/implement/SKILL.md']) {
+    const vcNoOutsideSystem = fixture({
+      ...vcClauses,
+      [rel]: vcClauses[rel].replace('; it changes no system outside the repository', ''),
+    });
+    const vcGaps = scanContract(vcNoOutsideSystem, VERIFICATION_CEILING_CONTRACTS);
+    assert.equal(vcGaps.length, 1, `flags ${rel} for losing the changes-no-system-outside half`);
+    assert.equal(vcGaps[0].source, rel, `names ${rel}`);
+  }
+
+  // --- DOD_SUITE_CRITERION_CONTRACTS: ADR 0084's closing decision — ship ticks a criterion naming the
+  // test suite from the run's own recorded result (the ledger stage plus its degrade record), running no
+  // suite of its own. Four rows, all on skills/ship/SKILL.md. ---
+  const dscClause =
+    'A criterion naming the test suite is ticked from the run\'s own recorded result, never by running it. ' +
+    'Read the ledger stage with `scope.js get stage` and its degrade record with `scope.js get degraded`. ' +
+    'A scope whose recorded result is a denied or absent test command leaves such a criterion unticked, ' +
+    'with that record as its note. Ship runs no test command anywhere.\n';
+
+  // negative: a fixture carrying all four halves reports no gap
+  const dscFullGaps = scanContract(
+    fixture({ 'skills/ship/SKILL.md': dscClause }),
+    DOD_SUITE_CRITERION_CONTRACTS,
+  );
+  assert.deepEqual(dscFullGaps, [], 'a fixture carrying all four halves reports no gap');
+
+  const dscDeniedOrAbsent =
+    'A scope whose recorded result is a denied or absent test command leaves such a criterion unticked, ' +
+    'with that record as its note. ';
+
+  // positive: dropping the "ticked from the run's own recorded result" clause reports that row alone
+  const dscNoTickedGaps = scanContract(
+    fixture({
+      'skills/ship/SKILL.md':
+        'Read the ledger stage with `scope.js get stage` and its degrade record with `scope.js get degraded`. ' +
+        dscDeniedOrAbsent +
+        'Ship runs no test command anywhere.\n',
+    }),
+    DOD_SUITE_CRITERION_CONTRACTS,
+  );
+  assert.equal(dscNoTickedGaps.length, 1, 'flags ship/SKILL.md for dropping the run-result clause');
+  assert.equal(dscNoTickedGaps[0].source, path.join('skills', 'ship', 'SKILL.md'), 'names ship/SKILL.md');
+
+  // positive: dropping the `get degraded` read reports that row alone
+  const dscNoDegradedGaps = scanContract(
+    fixture({
+      'skills/ship/SKILL.md':
+        'A criterion naming the test suite is ticked from the run\'s own recorded result, never by ' +
+        'running it. Read the ledger stage with `scope.js get stage`. ' +
+        dscDeniedOrAbsent +
+        'Ship runs no test command anywhere.\n',
+    }),
+    DOD_SUITE_CRITERION_CONTRACTS,
+  );
+  assert.equal(dscNoDegradedGaps.length, 1, 'flags ship/SKILL.md for dropping the `get degraded` read');
+
+  // positive: dropping the "denied or absent test command" clause reports that row alone
+  const dscNoDeniedOrAbsentGaps = scanContract(
+    fixture({
+      'skills/ship/SKILL.md':
+        'A criterion naming the test suite is ticked from the run\'s own recorded result, never by ' +
+        'running it. Read the ledger stage with `scope.js get stage` and its degrade record with ' +
+        '`scope.js get degraded`. Ship runs no test command anywhere.\n',
+    }),
+    DOD_SUITE_CRITERION_CONTRACTS,
+  );
+  assert.equal(
+    dscNoDeniedOrAbsentGaps.length,
+    1,
+    'flags ship/SKILL.md for dropping the denied-or-absent clause',
+  );
+
+  // positive: dropping the "runs no test command anywhere" statement reports that row alone
+  const dscNoSilenceGaps = scanContract(
+    fixture({
+      'skills/ship/SKILL.md':
+        'A criterion naming the test suite is ticked from the run\'s own recorded result, never by ' +
+        'running it. Read the ledger stage with `scope.js get stage` and its degrade record with ' +
+        '`scope.js get degraded`. ' +
+        dscDeniedOrAbsent +
+        '\n',
+    }),
+    DOD_SUITE_CRITERION_CONTRACTS,
+  );
+  assert.equal(dscNoSilenceGaps.length, 1, 'flags ship/SKILL.md for dropping the no-suite statement');
 };

@@ -4,9 +4,12 @@
 
 **Amended by:** [ADR 0074](0074-the-focused-test-command-is-the-loops-cheap-command.md), which redefines
 the focused command below by what it costs rather than by narrowing, requires a source-to-test mapping
-for `{paths}`, and narrows the empty-changed-path-set fallback to a command consuming that token — and
+for `{paths}`, and narrows the empty-changed-path-set fallback to a command consuming that token —
 [ADR 0075](0075-the-scope-review-gates-on-a-full-suite-entering-and-leaving.md), which makes the review's
-one full-suite run two, one entering its fix loop and one leaving it. Everything else below holds.
+one full-suite run two, one entering its fix loop and one leaving it — and
+[ADR 0085](0085-the-focused-test-command-is-required-configuration.md), which makes the focused command
+required configuration and supersedes the "no second block configured" fallback this record still
+describes below. Everything else below holds.
 
 ## Context
 
@@ -103,4 +106,6 @@ A merge that leaves `HEAD` unmoved, which is a conflict, produces an empty chang
 above is what keeps the gate from passing such a merge silently.
 
 This repository configures no focused command. Its suite is fast enough not to need one, so the path it
-dogfoods is the no-block fallback.
+dogfoods is the no-block fallback. **Superseded by ADR 0085:** the focused command is required
+configuration, so this repository's `docs/agents/verification.md` now records the full command a second
+time, with that reason as prose beside it, rather than configuring nothing.

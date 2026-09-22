@@ -7,20 +7,21 @@ without a dispatch to read a reference at.
 
 ## The two commands
 
-`docs/agents/verification.md` carries one or two fenced code blocks.
+`docs/agents/verification.md` carries two fenced code blocks in every repository with a suite (ADR 0085).
+A repository with no suite at all carries no such file.
 
 - **The full command** is the first fenced block. Run it verbatim.
-- **The focused command** is the optional second fenced block, and it is the command every step inside
+- **The focused command** is the second fenced block, and it is the command every step inside
   the loop runs. What defines it is that it **costs less than the full suite**: a run scoped to a set of
   changed paths qualifies, and so does a fast subset — the unit tests, with the slow integration tests
-  left out. A second fenced block is **only ever** the focused command — never a watch command, a
-  coverage command, or sample failure output.
+  left out. Where narrowing is impossible, the second fence records the full command again, with prose
+  beside it stating why. A second fenced block is **only ever** the focused command — never a watch
+  command, a coverage command, or sample failure output.
 
 Both commands are taken **by position**, so a fence is reserved for them alone. A watch command, a
-coverage command, sample failure output, the reason a repository records for configuring no focused
-command, or anything else a repository keeps in `verification.md` stays **unfenced** — prose, or a
-backtick span. A repository that configures no focused command has a free second slot, and a third
-fence in one that does is read as nothing at all.
+coverage command, sample failure output, the reason a repository records for duplicating the full command
+as the focused one, or anything else a repository keeps in `verification.md` stays **unfenced** — prose,
+or a backtick span. A third fence is read as nothing at all.
 
 ## Timing command
 
@@ -28,13 +29,13 @@ An optional **`## Timing command`** section, holding one command that reports wh
 cost: per-test durations where the runner gives them, total wall clock otherwise.
 
 - **Its command lives in a backtick span**, per the rule above — a fenced block would land in the
-  focused slot in every repository that configures no focused command, and `hooks/green-gate.js` would
-  then run the timing command as the merge gate's suite.
+  focused slot of a repository that has not yet recorded a focused command, silencing the one-fence
+  notice, and `hooks/green-gate.js` would then run the timing command as the merge gate's suite.
 - **A test audit is its only reader.** `/superdev:review-tests` runs it to rank its findings by
   measured cost (ADR 0066). Nothing in the implement loop reads it, and neither does the green-gate.
 - **An absent section leaves the audit `unmeasured`**, ranking by judgment instead, and every other
   caller unaffected. A repository states the reason it configures none as prose beside the section's
-  absence, the same shape an absent focused command already takes.
+  absence.
 
 ## The `{paths}` token
 
@@ -74,13 +75,32 @@ Each caller judges its own range and builds the set from it:
 
 ## Fallback to the full command
 
-Two conditions fall back to the full command instead of the focused one:
+One condition falls back to the full command instead of the focused one:
 
-- **No second fenced block is configured.** A repository that configures nothing keeps its full-suite
-  behavior unchanged.
 - **The changed-path set is empty, and the focused command consumes `{paths}`.** A substitution over no
   paths would report green having tested nothing. A fixed fast subset carries no such token and always
   collects tests on its own, so an empty set costs it nothing and it runs unchanged. A self-detecting
   runner flag carries no `{paths}` token either, but computes the change set itself and can collect
   nothing from an empty one — its own pass-with-no-tests flag is what keeps that case green, not this
   fallback.
+
+## Stop on a missing focused command
+
+`docs/agents/verification.md` carrying exactly one fenced block records a repository whose focused
+command was never configured (ADR 0085, INV-0007). A prose caller finding one fenced block reports the
+missing configuration and names `/superdev:setup`, running no command. `/superdev:plan` and
+`/superdev:implement` already auto-invoke `/superdev:setup` on missing configuration, so this case is
+unreachable once a repository has been configured. A `verification.md` carrying **zero** fenced blocks —
+prose-only, or gutted by a hand edit — is not this case: `hooks/green-gate.js` reads it exactly as it
+reads an absent file, `{ full: null, focused: null }`, no gate at all.
+
+A caller that stops here runs no suite and records a **degraded pass** rather than a silent skip, per
+`references/scope-mode.md`'s `## Degraded passes` — the "pass that cannot complete its own work" shape.
+A caller with no run root has no ledger to write `scope.js degraded add` to, so it takes only that
+shape's report half: say so in its own output. A standalone `/superdev:document` or `/superdev:review`
+on an unmigrated repository is exactly this caller: it falls outside the auto-invoke argument — neither
+`/superdev:plan` nor `/superdev:implement` sits ahead of it in that dispatch — so it reaches this stop
+with nothing else recording that no suite ran.
+
+`hooks/green-gate.js` is the one exception: a hook fires with no operator to ask, so it runs the full
+command it found and emits a one-line notice naming `/superdev:setup`, rather than stopping.

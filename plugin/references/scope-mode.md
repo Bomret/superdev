@@ -408,6 +408,12 @@ status write is — the ledger drives control flow, so a failed write is logged 
 
 **Without the token nothing changes.** Every command asks exactly what it asks today, in the same words.
 
+## Verification ceiling
+
+**Verifying a Definition-of-Done criterion observes.** It changes no system outside the repository
+(ADR 0084, INV-0006). A criterion needing a deploy, a migration, or any other outward-facing change to
+verify stays unticked, with a note naming what it needs, for the operator to verify after merge.
+
 ## Degraded passes
 
 A **degraded pass** is a step of the chain that did not get the assurance the chain promises. Two shapes

@@ -52,7 +52,10 @@ GREEN: write the minimal code to pass it → watch it pass
   and GREEN run.**
 - **Every acceptance criterion gets at least one increment.** The loop terminates on acceptance coverage,
   not on the specification's happy path — each criterion, including the failure and boundary cases the
-  criteria name, is the RED test of its own increment.
+  criteria name, is the RED test of its own increment. Verifying a criterion observes; it changes no
+  system outside the repository (ADR 0084, INV-0006). A criterion needing a deploy, a migration, or any
+  other outward-facing change to verify gets no increment: report it as needing verification after merge,
+  naming the outward-facing change it needs.
 - Test **behavior through the interface named in the slice specification**, not implementation details. A good
   test survives an internal refactor. If renaming an internal function breaks a test, that test was
   wrong.

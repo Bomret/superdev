@@ -2,6 +2,10 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0085](0085-the-focused-test-command-is-required-configuration.md), which makes the
+focused command required configuration and supersedes the "absent second fenced block" fallback this
+record still describes below.
+
 ## Context
 
 ADR 0025 introduced the second fenced block of `docs/agents/verification.md` and defined it as **the
@@ -78,8 +82,9 @@ A repository configured before this decision is unaffected, with one exception: 
 `{paths}`-less runner flag (`vitest --changed`, `jest -o`) configured before this decision carries no
 pass-with-no-tests flag, because that requirement did not yet reach the `{paths}`-less branch. The
 documentation step's prose-only change set then exits non-zero, and the merge gate blocks on a suite that
-found nothing to run. An absent second fenced block still falls back to the full command at every caller,
-and a configured `{paths}` form still behaves as it did. The change reaches an existing repository when
+found nothing to run. **Superseded by ADR 0085:** an absent second fenced block no longer falls back to the full command at
+every caller — it stops instead, naming `/superdev:setup`. A configured `{paths}` form still behaves as it
+did. The change reaches an existing repository when
 its operator re-runs `/superdev:setup` — the same path that derives a fresh command adds the missing flag
 to a self-detecting one already configured; there is no other migration.
 

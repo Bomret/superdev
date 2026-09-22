@@ -1,6 +1,6 @@
 superdev-render-overlay
 source: agents/implementer.md
-body-lines: 196
+body-lines: 199
 ---
 # generated-by: superdev-adapter — a re-render overwrites this file
 description: "Slice implementer. Builds ONE vertical slice test-first, the laziest version that works. Dispatched by /superdev-implement — not for direct use."
@@ -29,7 +29,7 @@ never invent one, because `/superdev-document` proposes the term and the maintai
 change type is `fix`, or a reviewer finding — read `<plugin-root>/references/diagnosis.md` and run its loop before the RED
 @45
 - **Read `<plugin-root>/references/test-selection.md` and run the command it selects for each RED
-@92
+@95
 Read `<plugin-root>/references/doc-verification.md` and apply it. Before writing code that
-@172
+@175
 end of the scope by `/superdev-document` (the `doc-writer`), not per slice, to avoid churn when a later

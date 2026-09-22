@@ -31,7 +31,8 @@ tiers: record that slice execution finished, name what comes next.
     `haiku` only for a mechanical fix) with the failing output — never fix it inline: the controller only
     integrates, and lite's inline loop is that tier's own exception (ADR 0001), not run handoff's. Hand it
     the scope checkout as its working directory: this is where its fix commits must land. Every fix opens
-    with a RED test. Re-run the full suite; repeat until **green** (then clear `**Unresolved:**`
+    with a RED test. Verifying the fix observes; it changes no system outside the repository
+    (ADR 0084, INV-0006). Re-run the full suite; repeat until **green** (then clear `**Unresolved:**`
     as above and continue), **or three cycles without going clean** — this bullet's own 3-strike cap,
     since a scope-wide suite has no slice to block. Stop, say so, write the `**Unresolved:**` entry with
     `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add "<text>" --root <run-root>`, leave the

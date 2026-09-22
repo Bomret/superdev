@@ -9,9 +9,10 @@
 // controller MUST fix or revert before continuing.
 //
 // The full test command lives in the first fenced block of docs/agents/verification.md
-// (written by /superdev:setup); an optional second fenced block is the focused command
-// (references/test-selection.md owns the full-versus-focused rule). No file / no command →
-// no gate (zero-config repos are unaffected). Subagents can't merge (merge-guard blocks
+// (written by /superdev:setup); the second fenced block is the focused command, required for every
+// repository with a suite (references/test-selection.md owns the full-versus-focused rule, ADR 0085).
+// No file / no command → no gate (zero-config repos are unaffected). A file carrying only the first
+// fence runs the full command and emits NOTICE_ONE_FENCE below, rather than blocking. Subagents can't merge (merge-guard blocks
 // them pre-run), so a merge here is always the controller's; the agent_id check is
 // belt-and-suspenders. The doc read, the suite run, the changed-path diff, the in-progress
 // check, and the branch read all run in the merge's own working tree: a `-C <path>` or
@@ -290,8 +291,17 @@ function resolveVerification(parsed, cmd, sessionCwd) {
   return target;
 }
 
-// references/test-selection.md: the first fenced block is the full command, the optional
-// second is the focused one. Both trimmed; { full: null } when the doc is missing.
+// ADR 0085: a repository that cannot supply a focused command records the full command a second
+// time, with prose beside it. One a reader has not yet migrated stops with this notice instead —
+// a hook cannot ask an operator, and the full command sitting in the first fence is still correct,
+// so blocking the merge over the missing second fence would be worse than just running it.
+const NOTICE_ONE_FENCE =
+  'superdev: green-gate found one fenced command in docs/agents/verification.md and ran it as the ' +
+  'full command. Run /superdev:setup to configure a focused command.';
+
+// references/test-selection.md: the first fenced block is the full command, the second the
+// focused one, required for every repository with a suite (ADR 0085). Both trimmed; { full: null }
+// when the doc is missing. Exactly one fenced block carries `notice` (ADR 0085) instead of stopping.
 function readVerification(cwd) {
   let raw;
   try {
@@ -300,6 +310,7 @@ function readVerification(cwd) {
     return { full: null, focused: null }; // no verification doc → no gate
   }
   const blocks = [...raw.matchAll(/```[a-zA-Z0-9]*\n([\s\S]*?)```/g)].map((m) => m[1].trim());
+  if (blocks.length === 1) return { full: blocks[0], focused: null, notice: NOTICE_ONE_FENCE };
   return { full: blocks[0] || null, focused: blocks[1] || null };
 }
 
@@ -350,11 +361,14 @@ function decide(input, getVerification, runTests, getChangedPaths, mergeInProgre
   if (mergeInProgress && mergeInProgress()) return { block: false };
   const testCommand = pickCommand(verification, getChangedPaths);
   const result = runTests(testCommand);
-  if (result.ok) return { block: false };
+  // ADR 0085: verification.notice (one fenced block, ADR 0085) rides along on whatever decision
+  // the suite result produces — the missing focused command never blocks by itself.
+  if (result.ok) return verification.notice ? { block: false, notice: verification.notice } : { block: false };
   return {
     block: true,
     reason:
       `superdev: scope suite is RED after merging. The green-gate re-ran \`${testCommand}\` and it failed — fix the break or revert this merge before continuing.\n\n${result.output}`,
+    ...(verification.notice ? { notice: verification.notice } : {}),
   };
 }
 
@@ -454,11 +468,16 @@ function main() {
     // read all happen in the merge's own working tree (a `-C` or `--work-tree`, or the session cwd
     // when the command names neither) — decideMerge()'s job.
     const sessionCwd = (input && input.cwd) || process.cwd();
-    const { block, reason } = decideMerge(input, sessionCwd);
+    const { block, reason, notice } = decideMerge(input, sessionCwd);
+    // The notice (ADR 0085, one fenced block) rides on whichever stream the decision itself uses:
+    // stdout on a non-blocking decision, matching update-check.js's precedent for a non-blocking
+    // hook notice; folded into the stderr write beside `reason` on a blocking one, since Claude
+    // Code reads stderr, not stdout, on exit(2).
     if (block) {
-      process.stderr.write(reason + '\n');
+      process.stderr.write(reason + (notice ? '\n\n' + notice : '') + '\n');
       process.exit(2);
     }
+    if (notice) process.stdout.write(notice + '\n');
     process.exit(0);
   });
 }

@@ -171,7 +171,8 @@ Codeberg repo Wiki. Adopters first, maintainers second, English. `(aggregate)` p
 Bun dev toolchain, Node runtime for hooks. `bun run test` (green-gate), `bun run release`. No linter or formatter. See `docs/agents/toolchain.md`.
 
 ### Verification
-`bun run test`. No focused command (suite finishes in seconds). Arms the merge green-gate. See `docs/agents/verification.md`.
+`bun run test` in both fences: the suite finishes in seconds, so the second fence repeats the full
+command rather than narrowing it. Arms the merge green-gate. See `docs/agents/verification.md`.
 
 # DOX framework
 

@@ -359,9 +359,11 @@ answer lands outside that tree: the slice store's **assignee** goes to the git-i
   green-gate hook, and the documentation step's own run over its doc commits. What defines it is that it
   costs less than the full suite. Setup derives it from the runner it detected — a runner that maps
   source files to the tests covering them gets a `{paths}` form carrying that runner's pass-with-no-tests
-  flag, and every other runner gets a fast subset instead. A repo records no such command only where the
-  full suite is already cheap or no cheaper subset exists, with the reason, and every caller then runs
-  the full one.
+  flag, and every other runner gets a fast subset instead. Where the full suite is already cheap or no
+  cheaper subset exists, the second fence records the full command again, with the reason as prose beside
+  it. A `verification.md` carrying only the first fence records a repository whose focused command was
+  never configured: a prose caller finding it stops and names `/superdev:setup`, running no command, and
+  `hooks/green-gate.js` runs the full command it found and emits a one-line notice instead of stopping.
   [`references/test-selection.md`](plugin/references/test-selection.md) owns the full-versus-focused rule. The
   answer goes to `docs/agents/verification.md`.
 
