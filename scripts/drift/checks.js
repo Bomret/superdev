@@ -49,6 +49,7 @@ const {
   scanAuditSetGlobs,
   scanDenialCapNumberSilence,
   scanAfkLockTierClaim,
+  scanRunLockLivenessSilence,
   scanOpencodeFixtures,
   scanOpencodeSurfaceSplit,
   scanCodexFixtures,
@@ -108,6 +109,7 @@ const {
   PUBLISH_RUN_STATE_CONTRACTS,
   ADOPT_RUN_STATE_CONTRACTS,
   RESUMED_SCOPETREE_TRIGGER_CONTRACTS,
+  RUN_LOCK_LIVENESS_CONTRACTS,
   STANDING_CODE_LENS_CONTRACTS,
   INVARIANT_REGISTER_CONTRACTS,
   INVARIANT_REGISTER_DOC_PASS_CONTRACTS,
@@ -501,6 +503,15 @@ module.exports = [
     RESUMED_SCOPETREE_TRIGGER_CONTRACTS,
     'the resumed scopetree step fires whenever the scopetree is absent, not only when ship removed it',
   ),
+  {
+    id: 'run-lock-liveness',
+    ok: "/superdev:implement's own entry into an existing run root checks the ledger's stage and the lock's " +
+      "freshness together before its first write, scoped to that one caller — never review/document/ship's " +
+      "ordinary hand-off, which carries no such language of its own — and /superdev:plan keeps its own " +
+      'separate, narrower check',
+    run: (root) => [...scanContract(root, RUN_LOCK_LIVENESS_CONTRACTS), ...scanRunLockLivenessSilence(root)],
+    format: contractGap,
+  },
   {
     id: 'agent-tool-agnostic',
     ok: 'shipped agent prose names no concrete toolchain command',

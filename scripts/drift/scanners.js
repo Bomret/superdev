@@ -101,6 +101,8 @@ const {
   DENIAL_CAP_NUMBER_MARKERS,
   AFK_LOCK_TIER_SILENCE_DOCS,
   AFK_LOCK_TIER_MARKERS,
+  RUN_LOCK_LIVENESS_SILENCE_DOCS,
+  RUN_LOCK_LIVENESS_SILENCE_MARKERS,
   KB_BACKEND_CALL_MARKERS,
   HOOK_HEADER_REGEX,
   RETURN_TO_CONTROLLER_DOCS,
@@ -880,6 +882,13 @@ const scanDenialCapNumberSilence = (root) =>
 const scanAfkLockTierClaim = (root) =>
   scanDocsAvoid(root, AFK_LOCK_TIER_SILENCE_DOCS, AFK_LOCK_TIER_MARKERS);
 
+// The absence half of `RUN_LOCK_LIVENESS_CONTRACTS`'s scoping decision (INV-0013, ADR 0090):
+// review/document/ship may carry no liveness-check language of their own, so a skill edit re-widening
+// the check onto their ordinary hand-off — the exact regression a first cycle of this feature shipped —
+// fails here even though nothing pins their prose's presence.
+const scanRunLockLivenessSilence = (root) =>
+  scanDocsAvoid(root, RUN_LOCK_LIVENESS_SILENCE_DOCS, RUN_LOCK_LIVENESS_SILENCE_MARKERS);
+
 // Shipped agent briefs run in consumer repos, so their prose names no concrete toolchain command; see
 // AGENT_TOOLCHAIN_PATTERNS' note for the class and its ceiling. The doc list is the `agents/` directory
 // read at scan time, not a pinned table, so a new agent is covered the day its file lands.
@@ -1440,6 +1449,7 @@ module.exports = {
   scanDocStepsNoSuite,
   scanDenialCapNumberSilence,
   scanAfkLockTierClaim,
+  scanRunLockLivenessSilence,
   scanAgentToolAgnostic,
   scanUnmappedPathsForms,
   scanHookLedgerParsers,

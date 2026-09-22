@@ -1487,6 +1487,39 @@ which branch gets fetched, versus which scopetree gets created — and no fixtur
 distinguished "removed by ship" from "never created", so a regression narrowing the sentence back to one
 cause would have passed silently.
 
+The `run-lock-liveness` contract (INV-0013, ADR 0090), eight rows across `references/scope-mode.md`,
+`references/run-init.md`, and both execution playbooks. Two sessions dispatched onto one released
+feature both worked its run root: the only liveness check that existed lived in each playbook's own
+`Resume` section, reached after `run-init.md` had already written `dod.md` and advanced the ledger's
+stage — a plain file write consults no lock, and `hooks/run-lock.js` guards only `git worktree add`, the
+scopetree's own creation, never an entry into one that already exists. Five rows pin the rule itself,
+stated once in `scope-mode.md`'s `## The run lock`: `/superdev:implement`'s own entry into an existing run
+root reads the ledger's stage together with the lock's mtime before its first write, a `planned` stage at
+any lock age is the ordinary hand-off from `/superdev:plan`'s own cut and never a collision, any stage
+past `planned` with a lock under an hour old names a live implement run, the check governs `/superdev:implement`'s
+own entry alone — never `/superdev:review`, `/superdev:document`, or `/superdev:ship`'s ordinary
+hand-off, each the chain's single designed entry right after the previous command's own exit — and
+`/superdev:plan` keeps its own separate, narrower check (triage #510) rather than folding into this one.
+A fresh lock and a stage past `planned` are both true by construction at every ordinary chain
+hand-off, since each command refreshes the lock and advances the stage at its own exit — which is why the
+rule is scoped to `/superdev:implement` alone: that is the one caller a second, independent invocation can
+redispatch onto a live implement run, where review/document/ship's entry is instead the chain's own single designed
+hand-off. The remaining three rows
+pin `run-init.md`'s and both playbooks' own deferral — `run-init.md` takes the check as its first step,
+ahead of the DoD write and the ledger-stage advance, naming `<scope>` as the feature label the calling
+command already resolved; both playbooks' `Resume` sections state that run init's own entry step already
+checked liveness, so `Resume` itself only reconciles the ledger against `git log` from there. The rule
+does not close the gap where a live implement run's lock goes stale past `planned` because nothing refreshes it
+mid-run (triage #620) — a different remedy, named as a stated limit rather than folded into this
+contract.
+
+The scoping decision above is a presence pin only — nothing in `RUN_LOCK_LIVENESS_CONTRACTS` would notice
+`review`, `document`, or `ship` re-acquiring liveness-check language of their own, which is exactly the
+regression a first cycle of this feature shipped and a whole-scope review caught. `scanRunLockLivenessSilence`
+(`scanners.js`) is the absence half, the same shape `scanAfkLockTierClaim` already takes: it asserts those
+three `SKILL.md` files carry no "liveness check" phrase and no "ledger's stage … lock's mtime/freshness/age"
+phrase, wired into the `run-lock-liveness` check's own `run` alongside the presence table.
+
 The `agent-tool-agnostic` contract: no `agents/*.md` names a concrete package-manager or
 test-runner command. The test command is `references/test-selection.md`'s to select from the consumer
 repo's own configuration, and the shipped briefs execute in consumer repos, so a literal command there
@@ -1509,7 +1542,7 @@ chain, is what blocks it — and names a stop, writing nothing, when a different
 the branch — the same reuse the retired `run-kind` row used to describe split by tier. `## The run
 lock` states that both tiers write `<run-root>/run.lock`, and only once `## Cutting the scope branch` has
 already cut the scopetree, or the `run-lock` hook's own guard on `git worktree add` would block the run
-making that very call. Six more rows sit on `references/implement-full.md`, the tier ADR 0045 actually
+making that very call. Five more rows sit on `references/implement-full.md`, the tier ADR 0045 actually
 changed: its Branch model states that every later command in the file — every merge — addresses the
 scopetree with `git -C` rather than the invoking checkout, once the cutting/reuse command itself has run
 from that checkout the way any `git worktree add` does; its DAG loop's merge step addresses that scopetree
@@ -1517,12 +1550,9 @@ with `git -C`; its integration-branch bullet keeps `integration/<scope>` there t
 integrate-and-verify slice switches that same scopetree, never the invoking checkout, for the final merge;
 its Resume step finds the scopetree — present, recreated, or a named stop — before reading anything out of
 it; its own `## Run lock` section reads scope-mode.md's `## The run lock` — a fix cycle otherwise found
-this file with no lock section at all while two other documents still claimed the lock was lite tier only;
-and a sixth row states that Resume checks the run lock once the scopetree is found already present, naming
-the scopetree-present/absent qualifier that distinguishes this check from the recreate path's own fresh-lock
-reading — a fix cycle otherwise found a second full-tier `/superdev:implement` of a live scope reading no
-lock at all in its `resumed`-scopetree-already-there path, so the Definition of Done's "refused by name, on
-the `full` tier as well as `lite`" went unmet. One more row sits on `references/implement-lite.md`: its
+this file with no lock section at all while two other documents still claimed the lock was lite tier only.
+(Its Resume step's own liveness-check deferral is the `run-lock-liveness` contract's own row — INV-0013,
+ADR 0090 — pinned there once rather than restated here.) One more row sits on `references/implement-lite.md`: its
 `## Run lock` section reads scope-mode.md's `## The run lock` rather than restating who writes the lock
 and when, now that the rule covers both tiers there — the same caller-reads-the-rule shape the `doc-pass`
 contract already uses. Two more rows sit on `references/run-init.md` and `references/run-handoff.md`: each
@@ -1551,8 +1581,8 @@ gets a lock — a fix cycle found the bullet still asserting a run lock "only ev
 scope" and citing `## The run lock` for that claim, a section ADR 0045 had already flipped to state the
 opposite. Losing any one row independently reopens exactly the cost ADR 0045 removed: a full run parking
 a second session's checkout on its own branch, a merge landing in a tree `/superdev:ship` never expects, a
-restated lock rule drifting from the shared one, a full run that writes no lock at all, a second full-tier
-run never meeting its own fresh-lock refusal, a whole-scope review or run-handoff full-suite pass that
+restated lock rule drifting from the shared one, a full run that writes no lock at all, a whole-scope
+review or run-handoff full-suite pass that
 writes to the wrong checkout, a merge abort that silently ungates the next merge in the scopetree, or
 an unattended controller told to distrust a lock signal it can actually trust.
 

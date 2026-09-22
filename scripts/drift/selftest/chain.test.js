@@ -10,6 +10,7 @@ const {
   scanDocStepsNoSuite,
   scanDenialCapNumberSilence,
   scanAfkLockTierClaim,
+  scanRunLockLivenessSilence,
   scanUnmappedPathsForms,
 } = require('../scanners');
 const {
@@ -42,6 +43,7 @@ const {
   PUBLISH_RUN_STATE_CONTRACTS,
   ADOPT_RUN_STATE_CONTRACTS,
   RESUMED_SCOPETREE_TRIGGER_CONTRACTS,
+  RUN_LOCK_LIVENESS_CONTRACTS,
   SCOPETREE_CONTRACTS,
   TRIAGE_RECORD_CONTRACTS,
   BACKLOG_SURVEY_CONTRACTS,
@@ -662,10 +664,141 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'resumed-scopetree-trigger: absent documents are skipped',
   );
 
+  // --- RUN_LOCK_LIVENESS_CONTRACTS (INV-0013, ADR 0090): /superdev:implement's own entry into an
+  // existing run root reads the ledger's stage together with the lock's mtime before its first write.
+  // Scoped to that one caller alone, never review/document/ship's ordinary hand-off (each is the
+  // chain's single designed entry right after the previous command's own exit, so testing them the
+  // same way would trip on every routine hand-off); /superdev:plan keeps its own separate, narrower
+  // check. Eight rows: five pin the rule itself (including the two exclusion/scoping statements) in
+  // scope-mode.md's `## The run lock`, three pin the callers that do carry it. ---
+
+  const runLockLivenessPieces = {
+    'references/scope-mode.md':
+      "own entry into an existing run root consults liveness before its first write**\n" +
+      '(INV-0013, ADR 0090).\n\n' +
+      "Stage `planned`, any lock age** — `/superdev:plan` cut this and nobody has implemented a slice yet.\n" +
+      '  This is the ordinary hand-off, not a collision: proceed.\n\n' +
+      "Any stage other than `planned`, with a lock under an hour old** — a live implement run (`CONTEXT.md`). Attended:\n" +
+      "  name the lock's age and content and the ledger's stage.\n\n" +
+      "governs `/superdev:implement`'s own entry alone, never `/superdev:review`,\n" +
+      "`/superdev:document`, or `/superdev:ship`.** Each of those three is the chain's single designed hand-off.\n\n" +
+      "`/superdev:plan` keeps its own, narrower check, unaffected by the rule above** (triage #510): before its\n" +
+      "own cut, a lock already present always means a second plan session.\n",
+    'references/run-init.md':
+      "- **A run root already on disk for this scope's `<scope>` — the feature label your command already\n" +
+      '  resolved before reading this file — gets the liveness check first, ahead of every other step below.**\n',
+    'references/implement-full.md':
+      "- **Found already present? Run init's own entry step already checked the run lock's liveness before this\n" +
+      '  playbook started** (per scope-mode.md).\n',
+    'references/implement-lite.md':
+      "Run init's own entry step already checked the lock's liveness before this playbook ever started\n" +
+      '(per scope-mode.md), so this step reconciles state.\n',
+  };
+
+  // negative: every clause present is clean
+  assert.equal(
+    scanContract(fixture(runLockLivenessPieces), RUN_LOCK_LIVENESS_CONTRACTS).length,
+    0,
+    'run-lock-liveness: every clause present yields zero gaps',
+  );
+
+  // positive: dropping scope-mode.md's own rule statement flags all five of its rows, and nothing
+  // downstream, since scanContract only ever reports the document it read
+  {
+    const droppedRule = fixture({ ...runLockLivenessPieces, 'references/scope-mode.md': '# doc\n\nNothing about the run lock here.\n' });
+    const gaps = scanContract(droppedRule, RUN_LOCK_LIVENESS_CONTRACTS);
+    assert.equal(gaps.length, 5, 'run-lock-liveness: dropping the rule flags all five scope-mode.md rows');
+    assert.ok(gaps.every((g) => g.source === path.join('references', 'scope-mode.md')), 'all five name scope-mode.md');
+  }
+
+  // positive: a caller regressing to no mention of the liveness check is caught on its own row — the
+  // exact regression this table exists to catch
+  {
+    const droppedCaller = fixture({
+      ...runLockLivenessPieces,
+      'references/implement-lite.md': "Read \`\${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md\`'s \`## The run lock\` and write \`<run-root>/run.lock\` as it says.\n",
+    });
+    const gaps = scanContract(droppedCaller, RUN_LOCK_LIVENESS_CONTRACTS);
+    assert.equal(gaps.length, 1, 'run-lock-liveness: flags implement-lite.md alone when it drops the liveness mention');
+    assert.equal(gaps[0].source, path.join('references', 'implement-lite.md'));
+  }
+
+  // positive: review/document/ship's own "refresh the run lock" bullets carry no liveness-check
+  // mention at all, by design — this table has no row for them, so their absence never gaps
+  assert.equal(
+    scanContract(
+      fixture({
+        ...runLockLivenessPieces,
+        'skills/review/SKILL.md': 'Find the scope checkout, and refresh the run lock. Per scope-mode.md.\n',
+        'skills/document/SKILL.md': 'Find the scope checkout, and refresh the run lock. Per scope-mode.md.\n',
+        'skills/ship/SKILL.md': "Refresh \`<run-root>/run.lock\` now, per that file's rule.\n",
+      }),
+      RUN_LOCK_LIVENESS_CONTRACTS,
+    ).length,
+    0,
+    'run-lock-liveness: review/document/ship carry no row, since the check does not govern their ordinary hand-off',
+  );
+
+  // absent files are skipped, matching every other contract table
+  assert.equal(
+    scanContract(fixture({ 'README.md': '# repo\n' }), RUN_LOCK_LIVENESS_CONTRACTS).length,
+    0,
+    'run-lock-liveness: absent documents are skipped',
+  );
+
+  // --- scanRunLockLivenessSilence: the absence half. RUN_LOCK_LIVENESS_CONTRACTS pins only the rule's
+  // presence in scope-mode.md, so a skill edit re-widening the liveness check onto review/document/ship's
+  // ordinary hand-off would ship green there — the exact regression a first cycle of this feature shipped.
+  // This scanner catches the words regrowing on the three skills the rule does not govern. ---
+
+  // negative: the ordinary "refresh the run lock" prose, unconditional, reports nothing
+  assert.equal(
+    scanRunLockLivenessSilence(
+      fixture({
+        'skills/review/SKILL.md': 'Find the scope checkout, and refresh the run lock. Per scope-mode.md.\n',
+        'skills/document/SKILL.md': 'Find the scope checkout, and refresh the run lock. Per scope-mode.md.\n',
+        'skills/ship/SKILL.md': "Refresh `<run-root>/run.lock` now, per that file's rule.\n",
+      }),
+    ).length,
+    0,
+    'run-lock-liveness-silence: the ordinary refresh prose reports nothing',
+  );
+
+  // positive: the liveness check regrowing on any one of the three is caught on that document alone
+  for (const [rel, regrown] of [
+    [
+      'skills/review/SKILL.md',
+      "Find the scope checkout, and refresh the run lock — taking that section's liveness check first.\n",
+    ],
+    [
+      'skills/document/SKILL.md',
+      "Find the scope checkout, and refresh the run lock, reading the ledger's stage alongside the lock's mtime first.\n",
+    ],
+    ['skills/ship/SKILL.md', "Refresh `<run-root>/run.lock` now, taking its liveness check first.\n"],
+  ]) {
+    const gaps = scanRunLockLivenessSilence(
+      fixture({
+        'skills/review/SKILL.md': 'Find the scope checkout, and refresh the run lock. Per scope-mode.md.\n',
+        'skills/document/SKILL.md': 'Find the scope checkout, and refresh the run lock. Per scope-mode.md.\n',
+        'skills/ship/SKILL.md': "Refresh `<run-root>/run.lock` now, per that file's rule.\n",
+        [rel]: regrown,
+      }),
+    );
+    assert.equal(gaps.length, 1, `run-lock-liveness-silence: catches the check regrowing on ${rel}`);
+    assert.equal(gaps[0].source, rel.split('/').join(path.sep), `names ${rel}`);
+  }
+
+  // absent files are skipped
+  assert.equal(
+    scanRunLockLivenessSilence(fixture({ 'README.md': '# repo\n' })).length,
+    0,
+    'run-lock-liveness-silence: absent documents are skipped',
+  );
+
   // --- SCOPETREE_CONTRACTS (ADR 0045): the `full` tier cuts and merges in the same scopetree
   // the `lite` tier uses, never the invoking checkout. Five rows on scope-mode.md's `## The scope
-  // checkout` and `## The run lock`, six on implement-full.md's Branch model, Merge step, integration
-  // branch, Resume scopetree-first step, Resume's own run-lock check, and its own run-lock pointer, one on
+  // checkout` and `## The run lock`, five on implement-full.md's Branch model, Merge step, integration
+  // branch, Resume scopetree-first step, and its own run-lock pointer, one on
   // implement-lite.md's run-lock pointer, one each on run-init.md's and run-handoff.md's now-unqualified
   // `run.lock` mentions, three on skills/review/SKILL.md's §4 (the scope-checkout branch test, the full-suite
   // run's working directory, and the fix-implementer dispatch's working directory), two more on
@@ -698,9 +831,6 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       "scopetree**, and merge every slice into it. The plan's final integrate-and-verify slice is where " +
       'you switch that same scopetree back to `<branch>`.\n\n',
     resume: '**Find the scopetree first**, per `## The scope checkout`.\n\n',
-    resumeLock:
-      '**Found already present? Check the run lock before dispatching anything.** Read ' +
-      '`<run-root>/run.lock`.\n\n',
     runLockPointer:
       "Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The run lock` and write " +
       '`<run-root>/run.lock` as it says.\n',

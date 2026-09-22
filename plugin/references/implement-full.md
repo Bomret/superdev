@@ -165,15 +165,10 @@ the DAG loop at step 1.
 - **Find the scopetree first**, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope
   checkout` — present, recreated when absent, or a named stop when another working tree holds `<branch>`
   — before reading anything out of it.
-- **Found already present? Check the run lock before dispatching anything.** Read `<run-root>/run.lock`'s
-  mtime: fresh (under an hour old, the `run-lock` hook's staleness threshold) → another session is live in
-  that scopetree — escalate, or **`--unattended` → block**, per
-  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Unattended` section, rather than dispatching
-  implementers into a scopetree a second session is already writing to. This is the scopetree-present case
-  `## The scope checkout`'s recreate bullet contrasts itself against — a fresh lock met there, against a
-  scopetree that step itself just recreated because it was absent, is this run's own and never blocks.
-  Stale or absent → an interrupted run: continue below, and `## The run lock` above refreshes the file at
-  your first write.
+- **Found already present? Run init's own entry step already checked the run lock's liveness before this
+  playbook started** (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The run lock`), so this step
+  reconciles rather than detects a live second session — no further lock read of its own. Continue below;
+  `## The run lock` above refreshes the file at your first write.
 - **Reconcile before dispatching.** Read the ledger through
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>` (and `get stage`), plus
   `<run-root>/interfaces.md` (your pre-compaction context is gone; this file is what survives), and

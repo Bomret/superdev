@@ -345,8 +345,7 @@ the invoking checkout, which stays wherever it was.
   the `resumed` run kind already makes. **`run-lock` refuses the call, naming another session** → that
   lock is this run's own: the scopetree this step just found absent is what makes that safe, not the ledger
   — no session can be working inside a tree that does not exist, however many sessions could in principle
-  read the same live ledger. (Contrast a Resume step's own lock check, met against a scopetree already
-  present, where the same fresh lock does mean another session.) Remove `<run-root>/run.lock` and retry
+  read the same live ledger. Remove `<run-root>/run.lock` and retry
   the `git worktree add` call, then let `## The run lock` below rewrite it once the scopetree is back. `##
   The run lock`'s ordering caveat covers only the very first cut; this is the same self-block, met later
   in the same run.
@@ -356,17 +355,53 @@ the invoking checkout, which stays wherever it was.
 
 ## The run lock
 
+**`/superdev:implement`'s own entry into an existing run root consults liveness before its first write**
+(INV-0013, ADR 0090) — the one caller a second, independent invocation can redispatch onto a scope already
+mid-implementation, since nothing stops a human (or a script) typing `/superdev:implement <label>` twice.
+`run-init.md`'s entry step reads the ledger's stage (`scope.js get stage`) and the lock's mtime together,
+before `dod.md` is written or the ledger's stage moves:
+
+- **Stage `planned`, any lock age** — `/superdev:plan` cut this and nobody has implemented a slice yet.
+  This is the ordinary hand-off, not a collision: proceed, exactly as the rest of this section describes.
+- **Any stage other than `planned`, with a lock under an hour old** — a live implement run (`CONTEXT.md`). Attended:
+  name the lock's age and content and the ledger's stage, and ask whether to continue. Unattended: block,
+  per `## Unattended` below.
+- **A stale (over an hour) or absent lock, at any stage** — proceed, exactly as the rest of this section
+  describes.
+
+**This check governs `/superdev:implement`'s own entry alone, never `/superdev:review`,
+`/superdev:document`, or `/superdev:ship`.** Each of those three is the chain's single designed hand-off
+immediately after the previous command's own exit — its own ordinary entry stage (`merged`, `reviewed`,
+`documented-unreviewed`) is fresh by construction every time, refreshed by the very write that just handed
+the scope off. A caller re-invoked on the *same* command mid-run is the hazard this check exists for;
+the next command in a chain that already finished is not, and testing them the same way would stop every
+ordinary hand-off in the chain, unattended `/superdev:afk` included. It does not cover a lock that goes
+stale while its run is genuinely still in progress — a long attended run whose slow steps write no lock
+between them can outlive the hook's threshold without ever having stopped, a distinct, unclosed gap
+(triage #620) this check does not reach. Nor does it add any identity scheme to the lock's content: the
+content stays freeform text, and a human reads it, where the check asks, to judge self from another
+session. **Nor does it close the `planned`-stage window itself**: two `/superdev:implement` invocations
+that both enter while the stage still reads `planned` — before `run-init.md`'s own ledger-stage advance
+runs — both read the ordinary-hand-off branch and both proceed, since nothing distinguishes them from the
+`/superdev:plan`-to-`/superdev:implement` hand-off the `planned` carve-out exists to admit. Only the
+stage's own advance to `implementing` closes that window, not this check.
+
+**`/superdev:plan` keeps its own, narrower check, unaffected by the rule above** (triage #510): before its
+own cut, a lock already present always means a second plan session — this checkpoint runs before `/plan`
+has written anything of its own, so no stage exists yet to distinguish a hand-off from a collision the way
+`/superdev:implement`'s check does, and none is needed: nothing but a second `/plan` session could have
+left a lock here.
+
 **Write `<run-root>/run.lock` once `## Cutting the scope branch` above has cut the scopetree, at both
 tiers** — and once `/superdev:plan` has made its own cut (ADR 0079) — never before: the `run-lock` hook
 guards `git worktree add` on the scopetree, and a lock written ahead of that call would make the run block
-on its own scopetree creation. Refresh the file if it already exists, the case a `resumed` run finds. This
-is the execution playbooks' own write, and `/superdev:plan`'s: each writes the lock into the run root
-right after its own cut, and refreshes it again at its own §6. **On a `resumed` run, the playbook's own
-Resume section reads the lock's mtime first** — that read is what tells a live second session from this
-run's own stale or absent lock — **and only then does this refresh happen**, at the playbook's first write
-past that check. **`/superdev:plan` takes the same read before its own cut**: a fresh lock naming another
-session means a second plan session is already working the same feature, so it stops rather than cutting
-alongside it (triage #510).
+on its own scopetree creation. Refresh the file if it already exists, the case a `resumed` run finds, once
+`/superdev:implement`'s own liveness check above has passed. This is the execution playbooks' own write,
+and `/superdev:plan`'s: each writes the lock into the run root right after its own cut, and refreshes it
+again at its own §6. **On a `resumed` run, the liveness check above is what tells a live second
+`/superdev:implement` invocation from this run's own stale or absent lock** — the playbook's own Resume
+section, further down the chain, only reconciles the ledger against `git log` from here on; it performs no
+liveness check of its own.
 
 **Every other caller — `/superdev:review`, `/superdev:document`, `/superdev:ship` — only ever refreshes
 this file. Never create it.** A tail command reaches a scope only after an execution playbook, or

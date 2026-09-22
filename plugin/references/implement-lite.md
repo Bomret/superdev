@@ -121,13 +121,12 @@ Read the ledger — `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --
 above, never rebuilt as `<type>/<scope>`) in the scopetree. A slice the ledger marks `merged` is
 done; pick up at the next `todo` slice in `depends-on` order.
 
-An interrupted `in-progress` slice may have left partial, uncommitted changes in the scopetree.
-Before resuming, check `<run-root>/run.lock`: it exists and is fresh (mtime under 1 hour old, the run-lock
-hook's staleness threshold) → another session is live in this scopetree; escalate or wait. **This scopetree
-already exists** — unlike `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope checkout`
-recreate path, where the scopetree is absent and the same fresh lock is this run's own instead. Stale or
-absent → a crash resume: run `git status` / `git diff` in the scopetree and decide whether to continue
-that slice's uncommitted work or discard it, before resuming.
+**Run init's own entry step already checked the lock's liveness before this playbook ever started
+(`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The run lock`), so this step reconciles state
+rather than detecting a live second session — no further lock read of its own.** An interrupted
+`in-progress` slice may have left partial, uncommitted changes in the scopetree: run `git status` /
+`git diff` in the scopetree and decide whether to continue that slice's uncommitted work or discard it,
+before resuming.
 
 ## Leave the scopetree standing
 

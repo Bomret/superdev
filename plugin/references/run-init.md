@@ -4,6 +4,14 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
 
 ## Run init — definition of done + ledger (always first)
 
+- **`/superdev:implement`'s own entry: a run root already on disk for this scope's `<scope>` — the
+  feature label your command already resolved before reading this file — gets the liveness check first,
+  ahead of every other step below.** `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" root <scope>` names
+  the path; a `ledger.md` there means this is a `resumed` run, not a `fresh` one, and
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The run lock` owns the check itself — the
+  ledger's stage read together with the lock's mtime, before the DoD write, the ledger-stage advance, or
+  the playbook's own later `## Run lock` step touch anything. No existing run root → nothing to check
+  yet; continue to the next bullet, which is where a `fresh` run's own root gets created.
 - **Run root (per scope).** Fix this run's **scope** `<scope>` and **change type** `<type>` now — off the
   feature label if one resolved, else a short feature-slug you choose (e.g. `lite-perf`) plus the
   Conventional Commits type (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The change type`). The

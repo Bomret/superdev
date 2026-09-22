@@ -2459,7 +2459,7 @@ const RUN_KIND_CONTRACTS = [
 // or the `run-lock` hook's own guard on `git worktree add` would block the run that is about to make that
 // call.
 //
-// Six rows sit on `references/implement-full.md`, the tier that changed: its Branch model states that
+// Five rows sit on `references/implement-full.md`, the tier that changed: its Branch model states that
 // every later command in the file — every merge — addresses the scopetree with `git -C` rather than
 // the invoking checkout; its DAG loop's merge step addresses that scopetree with `git -C`; its
 // integration-branch bullet keeps `integration/<scope>` there too, and the integrate-and-verify slice
@@ -2467,10 +2467,8 @@ const RUN_KIND_CONTRACTS = [
 // the scopetree before reading anything out of it; its own `## Run lock` section reads scope-mode.md's
 // `## The run lock` rather than leaving the full tier with no pointer at all — a fix cycle found two other
 // documents still claiming the lock was lite-only with this file carrying no lock section to contradict
-// them; and a sixth row states that Resume checks the run lock once the scopetree is found already present
-// — a fix cycle otherwise found this tier's own `resumed` Resume path taking no lock reading at all, so a
-// second full-tier `/superdev:implement` of a live scope never met the fresh-lock refusal
-// `references/implement-lite.md`'s Resume already carries.
+// them. (Its Resume step's own liveness-check deferral is `RUN_LOCK_LIVENESS_CONTRACTS`'s own row —
+// INV-0013, ADR 0090 — not restated here, so one sentence has one pin.)
 //
 // One row sits on `references/implement-lite.md`: its `## Run lock` section reads scope-mode.md's
 // `## The run lock` rather than restating who writes the lock and when — the shared rule now lives once,
@@ -2598,11 +2596,6 @@ const SCOPETREE_CONTRACTS = [
     path.join('skills', 'review', 'SKILL.md'),
     /Hand it the scope checkout as its working directory:\s+this is where its fix commits must land/,
     'hand the fix-cycle implementer the scope checkout as its working directory',
-  ],
-  [
-    path.join('references', 'implement-full.md'),
-    /\*\*Found already present\?\s+Check the run lock before dispatching anything\.\*\*/,
-    "check the run lock, against the scopetree-present case, before Resume dispatches into it",
   ],
   [
     path.join('references', 'run-handoff.md'),
@@ -3202,6 +3195,80 @@ const RESUMED_SCOPETREE_TRIGGER_CONTRACTS = [
   ],
 ];
 
+// INV-0013 / ADR 0090: a caller entering a run root it did not itself create in this invocation reads the
+// ledger's stage together with the lock's mtime before its first write — a stage past `planned` with a
+// lock under an hour old is a live implement run, which stops the caller rather than letting it join silently. The
+// rule is stated once, in scope-mode.md's `## The run lock`; every other document defers to it rather
+// than restating it, so this table pins the rule's own presence plus each caller's own deferral.
+const RUN_LOCK_LIVENESS_CONTRACTS = [
+  [
+    path.join('references', 'scope-mode.md'),
+    /own entry into an existing run root consults liveness before its first write/,
+    'state the liveness-check rule at the top of `## The run lock`',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /Any stage other than `planned`, with a lock under an hour old[\s\S]{0,40}?a live implement run/,
+    'name any stage other than `planned`, with a fresh lock, as a live implement run — not an enumeration a new stage value could fall outside of',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /Stage `planned`, any lock age[\s\S]{0,120}?ordinary hand-off, not a collision/,
+    'name a `planned` stage with any lock age as the ordinary hand-off, never a collision',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /governs `\/superdev:implement`'s own entry alone, never `\/superdev:review`,\s+`\/superdev:document`, or `\/superdev:ship`/,
+    'state that the liveness check governs `/superdev:implement`\'s own entry alone, never review/document/ship\'s ordinary hand-off',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /`\/superdev:plan` keeps its own, narrower check, unaffected by the rule above/,
+    "keep /superdev:plan's own pre-existing, narrower lock check distinct from the new rule, rather than folding it into the stage-based one",
+  ],
+  [
+    path.join('references', 'run-init.md'),
+    /already on disk for this scope's `<scope>`[\s\S]{0,150}?gets the liveness check first, ahead of every other step/,
+    'take the liveness check as its own first step, ahead of the DoD write, the ledger-stage advance, or the playbook\'s own lock refresh, naming `<scope>` as already resolved',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /Run init's own entry step already checked the run lock's liveness before this\s+playbook started/,
+    "state that run init's own entry step already checked liveness, so this step reconciles rather than detects a live second session",
+  ],
+  [
+    path.join('references', 'implement-lite.md'),
+    /Run init's own entry step already checked the lock's liveness before this\s+playbook ever started/,
+    "state that run init's own entry step already checked liveness, so this step reconciles rather than detects a live second session",
+  ],
+];
+
+// The absence half of the scoping decision above (`scanRunLockLivenessSilence` in `scanners.js` runs it):
+// review/document/ship's own "refresh the run lock" bullets may carry no liveness-check language of their
+// own. A one-sided pin — asserting the rule's presence in scope-mode.md alone — reads as enforced while a
+// skill edit re-widens the check onto these three without drift-check ever noticing, which is exactly the
+// regression a first cycle of this feature shipped and a whole-scope review caught (ADR 0090).
+const RUN_LOCK_LIVENESS_SILENCE_DOCS = [
+  path.join('skills', 'review', 'SKILL.md'),
+  path.join('skills', 'document', 'SKILL.md'),
+  path.join('skills', 'ship', 'SKILL.md'),
+];
+
+const RUN_LOCK_LIVENESS_SILENCE_MARKERS = [
+  [
+    /liveness check/i,
+    (hit) =>
+      "carry no run-lock liveness check of its own — that check governs /superdev:implement's entry " +
+      `alone (INV-0013, ADR 0090): "${normalizeWhitespace(hit[0])}"`,
+  ],
+  [
+    /ledger'?s stage[^.]{0,80}?lock'?s (?:mtime|freshness|age)/i,
+    (hit) =>
+      "carry no ledger-stage-plus-lock-freshness check of its own — that check governs /superdev:implement's " +
+      `entry alone (INV-0013, ADR 0090): "${normalizeWhitespace(hit[0])}"`,
+  ],
+];
+
 // The `containment-delegation` contract (ADR 0053) retargeted onto code (ADR 0069): the row used to pin
 // `skills/publish-kb/SKILL.md` §3 naming the test it runs by pointing at `references/scope-mode.md`'s
 // `## Containment` section rather than stating a git command of its own. That prose delegation moved
@@ -3750,5 +3817,8 @@ module.exports = {
   SCOPETREE_RUN_ROOT_PATTERN,
   VERIFICATION_CEILING_CONTRACTS,
   CRITERION_STATES_A_REQUIREMENT_CONTRACTS,
+  RUN_LOCK_LIVENESS_CONTRACTS,
+  RUN_LOCK_LIVENESS_SILENCE_DOCS,
+  RUN_LOCK_LIVENESS_SILENCE_MARKERS,
   SPAWN_FAILURE_ANSWER_CONTRACTS,
 };

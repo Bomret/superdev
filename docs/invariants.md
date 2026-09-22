@@ -84,3 +84,12 @@ Statement: A spawn its own bound ended carries no verdict, on `plugin/hooks/gree
 Breaks: silently
 Check: tests/spawn-verdict.test.js — the helper's throw-or-not and message for the killed, never-started, EPIPE-but-decided, and genuinely-decided result shapes; tests/green-gate.test.js — a killed suite blocks the merge; tests/scope.test.js — the refetch asserts the kill signal rather than the clock; tests/adapter.test.js — the OpenCode hook bridge blocks a killed hook and lets a call through when the hook never started, noticing once per hook
 Paths: plugin/hooks/green-gate.js, plugin/scripts/scope.js, plugin/scripts/adapter.js, scripts/drift/fixtures/opencode/**, tests/**
+
+### INV-0013
+
+Class: process
+Concepts: Run lock, Live implement run
+Statement: `/superdev:implement` entering a run root it did not itself create in this invocation reads the ledger's stage and the lock's freshness before its first write into that run. Any stage other than `planned`, with a lock under an hour old, is a live implement run: attended, the caller asks before writing; unattended, it blocks. A `planned` stage, or a stale or absent lock, imposes no such stop. This governs `/superdev:implement`'s own entry alone — `/superdev:review`, `/superdev:document`, and `/superdev:ship`'s ordinary hand-off is each the chain's own single designed entry, not a case this rule tests, and `/superdev:plan` keeps its own separate, narrower check (triage #510).
+Breaks: silently
+Check: scripts/drift-check.js — the stage-plus-freshness check is pinned on scope-mode.md's own `## The run lock` section, scoped to `/superdev:implement`'s entry, on run-init.md and both execution playbooks, which cite it, and (the absence half) `scanRunLockLivenessSilence` asserting review/document/ship carry no such language of their own
+Paths: plugin/references/scope-mode.md, plugin/references/run-init.md, plugin/references/implement-full.md, plugin/references/implement-lite.md, plugin/skills/review/SKILL.md, plugin/skills/document/SKILL.md, plugin/skills/ship/SKILL.md
