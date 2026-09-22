@@ -207,6 +207,16 @@ append case above, where the scopetree already exists and nothing is cut, refres
 the read instead** — the read already passed, so the refresh is this session's own claim on it before any
 capture is written.
 
+**Check a shared-identifier capture against other live plan runs, before writing it.** An invariant id, an
+ADR number, and a glossary term each take the next free slot in `docs/invariants.md`, `docs/adr/`, or
+`CONTEXT.md` (`${CLAUDE_PLUGIN_ROOT}/references/domain-modeling.md`'s numbering rule) — a slot this
+scopetree's own copy cannot see a concurrent plan run has already filled. Before committing such a
+capture, scan the other run roots under `.superdev/scopes/*/`
+(`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## A live scope run` → *Run-root enumeration*) whose
+ledger stage (`scope.js get stage --root <run-root>`) reads `planned` or later, and read the captures
+already committed on each one's scope branch — `CONTEXT.md`, `docs/adr/`, `docs/invariants.md` at the
+branch tip. A number or term already taken there is skipped for the next free one, never reused.
+
 **Write the ledger right here, at the cut — never wait for §6.** Pipe `{"anchor": "<key> — <title>",
 "slices": []}` to `scope.js init <type>/<scope> planned` (§6 below carries the full envelope shape): no
 slice exists yet, and a ledger carrying a header and no slice rows is a valid, documented state
@@ -220,8 +230,8 @@ the ledger write to right after the cut, rather than leaving it to §6, is what 
 freshly cut `<run-root>/scopetree` could otherwise sit ignored by nothing for the rest of the interview.
 
 A capture that crystallises before §1 has settled the feature label has nowhere to cut yet: hold it in
-the conversation until the label exists, then cut and write it the moment it does. **A label §1 revises
-after the cut** undoes it under the old label — remove the scopetree
+the conversation until the label exists, then cut and write it the moment it does. **A label revised
+before §6 writes to the store** undoes it under the old label — remove the scopetree
 (`git worktree remove <run-root>/scopetree`) and delete the branch (`git branch -D <old-type>/<old-slug>`)
 — safe because the branch at that point can carry nothing but this session's own design docs, and an
 append never revises a picked label — then re-cuts both under the revised label and re-writes every
@@ -279,6 +289,11 @@ as empty scaffolding. Follow `docs/agents/documentation.md` for where they live 
 and stale removal happen in `/superdev:document` (ADR 0013).
 
 ## 3. Slice into tracer bullets
+
+**Decomposition can still change the label.** Cutting slices sometimes shows the feature does something
+the type §1 picked no longer describes — a `fix` that turns out to add behaviour, a `refactor` that turns
+out to change it. A later answer that changes what the feature does revises the label in place, whenever
+it lands — during the interview or here, while decomposing.
 
 **Ground the decomposition first.** For a large or unfamiliar feature, fan out 2-3 read-only `Explore`
 agents in parallel — each mapping a different aspect (similar existing features, integration points, the
@@ -340,6 +355,9 @@ plan so the controller expects it. Prefer restructuring so parallel slices touch
 never reaches a slice `spec` (a `spec` names an interface, never file paths).
 
 ## 5. Quiz the user
+
+Before you present the decomposition, state, for each file you opened while grounding it, what it says
+about the proposal itself — not about the question you opened it for.
 
 Present the breakdown as a numbered list: per slice, title, `depends-on`, and which DoD criteria it
 covers. Ask: is the granularity right? are the dependencies correct? should any slice split or merge?
@@ -450,8 +468,11 @@ section's own **Remove** call, and says it is removed — leaving it standing wo
 there is nothing to remove, so declining applies nothing, exactly as the branch above reads.
 
 A store whose `## Release` section says its features are released when written has nothing to ask: say
-the plan is live and move on. On every other store the answer is the user's, so **wait for it**, and a
-correction the user names on seeing the list is applied to the store before the question is put again.
+the plan is live and move on. On every other store the answer is the user's, so **wait for it** — an
+authorization to run the whole chain unattended answers a different question, whether an unattended run
+may proceed once this feature is released, never whether to release it now, so it is not that answer —
+and a correction the user names on seeing the list is applied to the store before the question is put
+again.
 
 Then **print the next command with
 the feature label resolved** — `/superdev:implement <feature-label>`, carrying the real label this plan

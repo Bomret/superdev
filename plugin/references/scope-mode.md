@@ -664,6 +664,52 @@ both, where writing "only on the first cycle" covers only the loop.
 
 **Publish the snapshot afterwards**, per `## Publishing run state` above, on every `deferred add` call.
 
+## Observations
+
+An **observation** is a real defect a run meets that no slice of it covers, and that the scope did not
+cause: a flaky test in untouched code, a failure the green-gate hook reports on a merge, a defect an
+implementer reports alongside its own slice (ADR 0088, INV-0010).
+
+**Write its triage record the moment you meet it** — reading a subagent's report, or meeting a failure
+yourself — never at a handoff. A run that blocks or is abandoned has already written every record an
+observation earned, because each was made at the meeting, not saved for the end.
+
+**The controller tests "no slice covers it" against the plan, which it alone holds.** A dispatched agent
+sees only its own slice and cannot make that call; it reports what it met, and the controller decides. The
+controller's own observations are in scope too: it runs the merges and the gate, so it is the participant
+most likely to meet one itself.
+
+**The triage record is the only artifact.** No ledger line, no pull-request body. It already carries the
+finding, the conditions, the date, the feature label, the scope branch, the anchor, and a copy-pasteable
+`/superdev:plan` line, and it outlives the run on its own.
+
+**An observation is recorded, never judged.** It carries no severity, holds no stage, enters no fix loop,
+and blocks no run.
+
+**Capture reads before it writes.** List the store's open triage records before creating one —
+`docs/agents/issue-tracker.md`'s `## Triage record` section names both the list call and the create call
+— and compare each listed record's finding against what was just met. That comparison is a judgment
+about two prose descriptions of a defect, never a string match, and it is yours to make every time: no
+test can check whether two findings describe the same thing.
+
+**An uncertain match writes the record.** The two errors are not symmetrical: a duplicate record is noise
+a human deletes at triage, while a false match silently drops the observation this whole rule exists to
+preserve — the same asymmetry triage record #505 argues from structural reasoning alone, against
+`/superdev:review`'s own run-scoped `## Deferred findings` read above. Match only where a listed record
+plainly describes the same defect, and write a new one everywhere else, including every case that stays
+genuinely unclear.
+
+**The active store document carrying no `## Triage record` section is reported, not recorded.** That
+section is what names the create call; with none, an observation reaches no artifact at all. Report it
+to the operator once, naming why — the store document defines no create call to make — and continue.
+This is the one case here where an observation is reported and dropped rather than recorded.
+
+**Capture is otherwise best-effort, exactly as every other store write in the chain.** An open-records
+read that fails, and a read a permission classifier denies, are each reported once — and each still
+writes the record, the possible duplicate the asymmetry above prefers over a dropped observation. A
+create that fails, and a create a permission classifier denies, are each reported once too, with the run
+continuing regardless.
+
 ## The stage never moves backwards
 
 These writers move the ledger's `**Stage:**` line — `/superdev:review`, `/superdev:document`, run handoff

@@ -160,20 +160,25 @@ and the ready status/label marks a slice rather than the feature.
 
 ## Triage record
 
-`plan-contract.md` → *Triage record*. `/superdev:review` creates one the moment it defers a finding.
+`plan-contract.md` → *Triage record*. `/superdev:review` creates one the moment it defers a finding; the
+controller creates one the same way the moment it meets an observation
+(`references/scope-mode.md`'s `## Observations` section).
 On this store it is an ordinary issue in the configured project carrying the **Triage label** from
 *Configuration* and nothing else.
 
 - **Create it:** `POST <base>/rest/api/3/issue` with
   `{ "fields": { "project": {"key":"<PROJ>"}, "summary": "<the finding, one line>",
-  "issuetype": {"name":"<Story|Task>"}, "description": <ADF body: the finding, why no Definition of Done
-  criterion covered it, the date, the feature label, the scope branch, the scope anchor's key, and a
-  copy-pasteable /superdev:plan "<the finding>" line>,
+  "issuetype": {"name":"<Story|Task>"}, "description": <ADF body: the finding, why it needed a record —
+  for a deferred finding, why no Definition of Done criterion covered it; for an observation, that no
+  slice of the scope covers it and the scope did not cause it — the date, the feature label, the scope
+  branch, the scope anchor's key, and a copy-pasteable /superdev:plan "<the finding>" line>,
   "labels": ["<triage>"] } }`. Omit the `assignee` field entirely: a triage record is created
   **unassigned**, whatever the operator configuration names, because nobody has picked the work up.
   Capture the
-  returned `key` as the record's reference — `/superdev:review` puts it in the ledger bullet. No issue
-  link and no parent: a triage record belongs to no feature.
+  returned `key` as the record's reference: **the deferred trigger** is what `/superdev:review` puts in
+  the ledger bullet; **an observation** instead reports that reference to the operator and writes no
+  ledger bullet of its own, since the record is its own identity (`references/scope-mode.md`'s
+  `## Observations` section). No issue link and no parent: a triage record belongs to no feature.
 - **List the records:**
   `GET <base>/rest/api/3/search/jql?jql=project=PROJ AND (labels="<triage>" OR summary~"\[triage\]") AND
   statusCategory!=Done&fields=summary,description,status,labels` — the same endpoint and the same
@@ -192,8 +197,8 @@ On this store it is an ordinary issue in the configured project carrying the **T
   `/superdev:implement`'s slice loading select on, so a triage record carrying either would be picked up as
   work to build. It is a record of unplanned work, not a slice, so it also takes no status transition from
   the status map below.
-- **No pull-request URL.** `/superdev:review` runs before `/superdev:ship` opens one, so none exists at
-  defer time and the description names none.
+- **No pull-request URL.** Every trigger — a deferred finding or an observation — runs before
+  `/superdev:ship` opens one, so none exists yet and the description names none.
 
 ## Untriaged item
 

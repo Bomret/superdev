@@ -165,16 +165,23 @@ swaps that one to `in-progress`.
 
 ## Triage record
 
-`plan-contract.md` → *Triage record*. `/superdev:review` creates one the moment it defers a finding.
+`plan-contract.md` → *Triage record*. `/superdev:review` creates one the moment it defers a finding; the
+controller creates one the same way the moment it meets an observation
+(`references/scope-mode.md`'s `## Observations` section).
 Here it is an ordinary Codeberg issue carrying the label **`triage`** and nothing else.
 
 - **Create it:** `POST /api/v1/repos/bomret/superdev/issues` with
-  `{ "title": "<the finding, one line>", "body": "<the finding, why no Definition of Done criterion
-  covered it, the date, the feature label, the scope branch, the scope anchor's `#<n>`, and a
-  copy-pasteable /superdev:plan \"<the finding>\" line>", "labels": [<the `triage` label id>] }`. Omit
+  `{ "title": "<the finding, one line>", "body": "<the finding, why it needed a record — for a deferred
+  finding, why no Definition of Done criterion covered it; for an observation, that no slice of the scope
+  covers it and the scope did not cause it — the date, the feature label, the scope branch, the scope
+  anchor's `#<n>`, and a copy-pasteable /superdev:plan \"<the finding>\" line>", "labels": [<the `triage`
+  label id>] }`. Omit
   `assignees` entirely, whatever the operator configuration names: nobody has picked the work up.
   Capture the
-  returned `number` as the record's reference, which `/superdev:review` puts in the ledger bullet.
+  returned `number` as the record's reference: **the deferred trigger** is what `/superdev:review` puts
+  in the ledger bullet; **an observation** instead reports that reference to the operator and writes no
+  ledger bullet of its own, since the record is its own identity (`references/scope-mode.md`'s
+  `## Observations` section).
 - **List the records:** `GET /api/v1/repos/bomret/superdev/issues?labels=triage&state=open` (paginated).
   It returns every open triage record with its `number`, `title`, and `body`, which is the whole record —
   a triage record carries no other state. No `triage` label existing yet means no record has ever been
@@ -187,7 +194,8 @@ Here it is an ordinary Codeberg issue carrying the label **`triage`** and nothin
   label-less record is invisible to the query that is the point of writing it.
 - **No feature label and no `ready` label.** Those two are what `/superdev:afk`'s candidate listing and
   `/superdev:implement`'s slice loading select on, so a record carrying either would be built as work.
-- **No pull-request URL.** `/superdev:review` runs before `/superdev:ship` opens one, so none exists yet.
+- **No pull-request URL.** Every trigger — a deferred finding or an observation — runs before
+  `/superdev:ship` opens one, so none exists yet.
 
 ## Untriaged item
 

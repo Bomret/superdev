@@ -1250,22 +1250,23 @@ const DENIAL_RESET_CONTRACTS = [
   ],
 ];
 
-// ADR 0046. A **triage record** is the store-native record a deferred finding gets
-// (`references/plan-contract.md` → `## Triage record`), and it is the only home that outlives the run root
-// `hooks/scope-prune.js` reaps and the scope anchor `/superdev:ship` closes — on the local plan-file store,
-// only once the scope branch carrying it merges (ADR 0048). `/superdev:review` writes it
-// through the active store document, so a store document with no `## Triage record` section leaves the
-// command asking a backend for a record that backend never defined: the review defers, the ledger bullet
-// is written, and the finding reaches no backlog anywhere. `scanTriageRecordContract()` (`scanners.js`) walks
-// `storeDocuments()` for the presence half — the same candidate list the anchor and release contracts
-// already walk, including a backend seed added later and this repo's own dogfooded
-// `docs/agents/issue-tracker.md` — rather than naming the seeds here, so a fifth backend gets the
-// requirement for free instead of a second row nobody remembers to add.
+// ADR 0046, ADR 0088. A **triage record** is the store-native record a deferred finding or an
+// observation gets (`references/plan-contract.md` → `## Triage record`), and it is the only home
+// that outlives the run root `hooks/scope-prune.js` reaps and the scope anchor `/superdev:ship`
+// closes — on the local plan-file store, only once the scope branch carrying it merges (ADR
+// 0048). `/superdev:review` writes it for the deferred trigger, and the controller writes it for
+// the observation trigger, each through the active store document, so a store document with no
+// `## Triage record` section leaves the command asking a backend for a record that backend never
+// defined. `scanTriageRecordContract()` (`scanners.js`) walks `storeDocuments()` for the presence
+// half — the same candidate list the anchor and release contracts already walk, including a
+// backend seed added later and this repo's own dogfooded `docs/agents/issue-tracker.md` — rather
+// than naming the seeds here, so a fifth backend gets the requirement for free instead of a second
+// row nobody remembers to add.
 const TRIAGE_RECORD_PATTERN = /^#{2,3}\s+Triage record\s*$/m;
 
 const TRIAGE_RECORD_EXPECTATION =
-  'carry a `## Triage record` section stating how this backend creates the record a deferred finding ' +
-  'gets, per ADR 0046';
+  'carry a `## Triage record` section stating how this backend creates the record a deferred ' +
+  'finding or an observation gets, per ADR 0046 and ADR 0088';
 
 // The heading alone is not the whole contract, the same asymmetry `ANCHOR_ELEMENTS` corrects for its own
 // section. Every store document states how to **create** a record and, without this element, none states
@@ -3643,6 +3644,177 @@ const CRITERION_STATES_A_REQUIREMENT_CONTRACTS = [
   ],
 ];
 
+// The fix loop ends on a clean verdict, findings or not: a loop that keeps cycling on a finding a clean
+// verdict left standing is running a fourth cycle in substance, whatever it is called. Two halves — the
+// catalogue (`skills/implement/SKILL.md`'s `## Invariants (both playbooks)`) and the acting surface
+// (`skills/review/SKILL.md` §4's fix loop, which actually runs it) — both name the standing finding a
+// follow-up rather than only forbidding the cycle, and both read the same with or without `--unattended`,
+// so each row also pins the `attended or unattended` phrase.
+const CLEAN_VERDICT_ENDS_LOOP_CONTRACTS = [
+  [
+    path.join('skills', 'implement', 'SKILL.md'),
+    /clean verdict ends the loop[\s\S]{0,60}attended or unattended[\s\S]{0,150}follow-up[\s\S]{0,60}never a fourth cycle/,
+    'state, in `## Invariants (both playbooks)`, that a clean verdict ends the fix loop the same way attended or unattended, and that a finding still standing when it lands is a follow-up, never a fourth cycle',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /clean verdict ends the loop[\s\S]{0,60}attended or unattended[\s\S]{0,150}follow-up[\s\S]{0,60}never a fourth cycle/,
+    'state, in §4\'s fix loop, that a clean verdict ends the loop the same way attended or unattended, and that a finding it leaves standing is a follow-up, never a fourth cycle',
+  ],
+];
+
+// ADR 0088, INV-0010: an observation — a real defect a run meets that no slice covers and the scope did
+// not cause — is recorded, never judged. `references/scope-mode.md` owns the rule in its own
+// `## Observations` section, beside `## Degraded passes`, `## Unresolved defects`, and `## Deferred
+// findings`. The first six rows pin that section's own clauses: what an observation is and that its
+// triage record is written the moment it is met, never at a handoff; that the triage record is the only
+// artifact (no ledger line, no pull-request body); that it is recorded, never judged (no severity, no
+// stage, no fix loop); that capture reads the store's open triage records before it writes and names the
+// comparison a judgment rather than a string match; that an uncertain match writes the record, and why the
+// two errors are not symmetrical (ADR 0088, triage record #505); and that capture is best-effort (a store
+// carrying no `## Triage record` section, a failed or denied open-records read, and a failed or denied
+// create are each reported once, the first three still writing the record). The last three rows pin the
+// rule's call sites — the point where a controller reads a subagent's report or meets a failure itself,
+// never a handoff — in `references/implement-full.md`'s DAG step where the implementer returns,
+// `references/implement-lite.md`'s inline equivalent, and `skills/review/SKILL.md` §4's fix loop. Losing
+// any one call site leaves a controller at that exact hop with no standing instruction to capture what it
+// just met, which is the gap ADR 0088 observed reaching a record only because a human filed one by hand.
+const OBSERVATION_CAPTURE_CONTRACTS = [
+  [
+    path.join('references', 'scope-mode.md'),
+    /real defect a run meets that no slice of it covers[\s\S]{0,80}scope did not cause[\s\S]{0,500}moment you meet it[\s\S]{0,80}never at a handoff/,
+    'state, in its own `## Observations` section, that an observation is a real defect a run meets that ' +
+      'no slice of it covers and the scope did not cause, and that its triage record is written the ' +
+      'moment the controller meets it, never at a handoff (ADR 0088, INV-0010)',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /triage record is the only artifact[\s\S]{0,60}No ledger line, no pull-request body/,
+    'state that the triage record is the only artifact an observation produces — no ledger line, no ' +
+      'pull-request body',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /recorded, never judged[\s\S]{0,80}no severity, holds no stage, enters no fix loop/,
+    'state that an observation is recorded, never judged: no severity, no stage held, no fix loop entered',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /Capture reads before it writes[\s\S]{0,150}List the store's open triage records before creating one[\s\S]{0,250}judgment about two prose descriptions of\s+a defect, never a string match/,
+    "state that capture reads the store's open triage records before it writes, and that the comparison " +
+      'against what was just met is a judgment about two prose descriptions of a defect, never a string ' +
+      'match',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /An uncertain match writes the record[\s\S]{0,300}duplicate record is noise\s+a human deletes at triage, while a false match silently drops the observation[\s\S]{0,150}triage record #505/,
+    'state that an uncertain match writes the record, and why the two errors are not symmetrical — a ' +
+      'duplicate is noise a human deletes, a false match silently drops the observation — citing triage ' +
+      'record #505',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /no `## Triage record` section is reported, not recorded[\s\S]{0,300}defines no create call to make[\s\S]{0,400}open-records read that fails, and a read a permission\s+classifier denies[\s\S]{0,120}each still writes the record[\s\S]{0,200}create that fails, and a create a permission\s+classifier denies[\s\S]{0,80}reported once too, with the run continuing/,
+    'state that a store document carrying no `## Triage record` section is reported, not recorded — the ' +
+      'section is what names the create call, so none means no artifact at all — apart from the ' +
+      'best-effort posture that still applies to a failed or denied open-records read (each reported once ' +
+      'and still writing the record) and a failed or denied create (each reported once, run continuing)',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /observation is captured the moment you meet it[\s\S]{0,120}## Observations`? section[\s\S]{0,400}no slice of this scope covers and the scope did not cause[\s\S]{0,150}triage record from you, the controller, right here[\s\S]{0,150}never held until the handoff/,
+    'capture an observation the implementer report surfaces, or one the controller meets itself, at the ' +
+      'DAG step where the implementer returns — per `scope-mode.md`\'s `## Observations` section — never ' +
+      'held until the handoff',
+  ],
+  [
+    path.join('references', 'implement-lite.md'),
+    /observation is captured the moment you meet it[\s\S]{0,120}## Observations`? section[\s\S]{0,400}no slice of this scope covers and the scope did not cause[\s\S]{0,150}triage record from you, the controller, right here[\s\S]{0,150}never held until the handoff/,
+    "capture an observation the controller meets while implementing inline — per `scope-mode.md`'s " +
+      '`## Observations` section — never held until the handoff',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /observation is captured the moment you meet it[\s\S]{0,120}## Observations`? section[\s\S]{0,400}no slice of this scope covers and the scope did not cause[\s\S]{0,150}triage record from you, the controller, right here[\s\S]{0,200}never folded into the fix loop below and never held until the handoff/,
+    "capture an observation in §4's fix loop — per `scope-mode.md`'s `## Observations` section — never " +
+      'folded into the fix loop and never held until the handoff',
+  ],
+];
+
+// A decision revised after the label is cut still has one answer: a later answer that changes what the
+// feature does revises the label in place. `skills/plan/SKILL.md` §1 states it where the label is first
+// picked; the second row pins the same clause restated at §3, the decomposition step where a controller
+// most often discovers the change — cutting slices is what shows a `fix` adding behaviour or a `refactor`
+// changing it. Losing either row leaves a controller at the surface it lost with no standing answer: one
+// at the interview, the other mid-decomposition.
+const LABEL_REVISION_AT_DECOMPOSITION_CONTRACTS = [
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /type is what the feature does to the codebase[\s\S]{0,450}A later answer that changes what the feature does revises the label in place\./,
+    'state, where §1 picks the feature label, that a later answer that changes what the feature does revises the label in place',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /Decomposition can still change the label\.[\s\S]{0,400}A later answer that changes what the feature does revises the label in place/,
+    'restate, at §3\'s decomposition step, that a later answer that changes what the feature does revises the label in place',
+  ],
+];
+
+// A Definition-of-Done criterion `/superdev:ship` §4 cannot tick stays unchecked with a one-line note on
+// why — that is ship's own rule, and the only surface that states it. `/superdev:review`'s own §4 (scope
+// mode) meets an unmet criterion earlier, so the second row pins the sibling rule stated there: every
+// unmet criterion but the verification-ceiling one enters the fix loop like any other finding, and
+// either way review itself ticks nothing in `dod.md` (only `/superdev:ship` does, ADR 0084). Losing the
+// ship row leaves the rule unstated anywhere; losing the review row lets an unmet criterion reach the
+// ask-once gate with no standing instruction on whether it is chased.
+const UNMET_CRITERION_AT_REVIEW_CONTRACTS = [
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /Leave an unmet item unchecked with a one-line note on why/,
+    'state, in §4, that an unmet Definition-of-Done item is left unchecked with a one-line note on why',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /enters this loop like any other finding[\s\S]{0,400}verification-ceiling case is the one reported and not chased[\s\S]{0,250}ticks nothing in `dod\.md`/,
+    'state, in §4, that a criterion `final-reviewer` reports unmet enters the fix loop like any other finding, except the verification-ceiling case, which is reported and not chased since no work on this branch can close it, and that either way review itself ticks nothing in `dod.md`',
+  ],
+];
+
+// The release question names who may answer it — `plan-contract.md`'s own Release section, quoting ADR
+// 0034, says a feature is released once a human has said its plan may be built. `skills/plan/SKILL.md`
+// §6 restates that the answer is the user's, and closes the gap ADR 0034 alone leaves open: an
+// authorization to run the whole chain unattended answers a different question (whether an unattended
+// run may proceed once released) and is never itself the release answer. Losing the reference row leaves
+// "a human" unstated as ADR 0034's own claim; losing the skill row reopens the exact confusion observed —
+// a controller reading a standing authorization to run unattended as the release answer.
+const RELEASE_ANSWER_NOT_INFERRED_CONTRACTS = [
+  [
+    path.join('references', 'plan-contract.md'),
+    /once a human has said its plan may be built/,
+    'state, in its own `## Release` section, that a feature is released once a human has said its plan may be built (ADR 0034)',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /the answer is the user's[\s\S]{0,60}wait for it[\s\S]{0,150}authorization to run the whole chain unattended[\s\S]{0,300}not that answer/,
+    'state, in §6, that the release answer is the user\'s alone, and that an authorization to run the whole chain unattended is not that answer',
+  ],
+];
+
+// A capture allocating a shared identifier — an invariant id, an ADR number, a glossary term — has no
+// existing answer to restate: nothing in the repo states, before this slice, that such a capture is
+// checked against a concurrent plan run's own allocations. The single row below pins §2's new clause on
+// its own presence, the same way a source-backed row pins a copy against what it restates — there is
+// simply no earlier surface for this one to restate. Losing it reopens the exact collision this clause
+// closes: two plan runs allocating the same identifier on the same afternoon, each on its own unmerged
+// branch, found only by hand.
+const CAPTURE_CHECKS_CONCURRENT_PLANS_CONTRACTS = [
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /Check a shared-identifier capture against other live plan runs, before writing it\.[\s\S]{0,700}captures already committed on each one's scope branch/,
+    'state, in §2, that a capture allocating a shared identifier is checked against the other run roots under `.superdev/scopes/*/` whose ledger stage reads `planned` or later, and the captures already committed on their scope branches, before it is written',
+  ],
+];
+
 // ADR 0087: a spawn that never started is a **Spawn failure**, outside INV-0009, and the two gates
 // answer it differently on purpose. `hooks/green-gate.js` blocks, because it fires only on a merge and
 // a tree that cannot run its suite is a defect in the thing being gated. `scripts/adapter.js`'s hook
@@ -3667,7 +3839,23 @@ const SPAWN_FAILURE_ANSWER_CONTRACTS = [
   ],
 ];
 
+// The decomposition a controller presents in §5 is grounded in files opened for other questions along
+// the way; nothing in the repo states, before this slice, that the proposal itself is checked against
+// what those files said. The single row below pins that clause on its own presence alone, the same way
+// CAPTURE_CHECKS_CONCURRENT_PLANS_CONTRACTS pins §2's clause — there is no earlier surface to restate.
+// Losing it reopens the six observed instances this clause exists to close: a proposal formed against a
+// rule a file already open contradicted, caught by a reader instead of named by the controller itself.
+const DECOMPOSITION_NAMES_WHAT_IT_CHECKED_CONTRACTS = [
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /Before you present the decomposition, state, for each file you opened while grounding it, what it says about the proposal itself[\s\S]{0,150}not about the question you opened it for/,
+    'state, in §5, before the decomposition is presented, for each file opened while grounding it, what it says about the proposal itself — not about the question it was opened for. The demanding form covers every file opened, not only the ones a controller chose to call "checked"',
+  ],
+];
+
 module.exports = {
+  OBSERVATION_CAPTURE_CONTRACTS,
+  CLEAN_VERDICT_ENDS_LOOP_CONTRACTS,
   COMMITMENT_CAPTURE_CONTRACTS,
   DOD_SUITE_CRITERION_CONTRACTS,
   CONTAINMENT_DELEGATION_CONTRACTS,
@@ -3817,8 +4005,13 @@ module.exports = {
   SCOPETREE_RUN_ROOT_PATTERN,
   VERIFICATION_CEILING_CONTRACTS,
   CRITERION_STATES_A_REQUIREMENT_CONTRACTS,
+  LABEL_REVISION_AT_DECOMPOSITION_CONTRACTS,
+  UNMET_CRITERION_AT_REVIEW_CONTRACTS,
+  RELEASE_ANSWER_NOT_INFERRED_CONTRACTS,
+  CAPTURE_CHECKS_CONCURRENT_PLANS_CONTRACTS,
   RUN_LOCK_LIVENESS_CONTRACTS,
   RUN_LOCK_LIVENESS_SILENCE_DOCS,
   RUN_LOCK_LIVENESS_SILENCE_MARKERS,
   SPAWN_FAILURE_ANSWER_CONTRACTS,
+  DECOMPOSITION_NAMES_WHAT_IT_CHECKED_CONTRACTS,
 };

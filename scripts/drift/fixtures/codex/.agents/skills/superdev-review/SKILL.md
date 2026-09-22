@@ -294,6 +294,11 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   publish the snapshot before deciding which branch applies, per
   `<plugin-root>/references/scope-mode.md`'s `## Publishing run state` section. **Attended** →
   continue. **Unattended** → **block**, per that file's `## Unattended` section.
+- **An observation is captured the moment you meet it.** Read
+  `<plugin-root>/references/scope-mode.md`'s `## Observations` section and follow it: a defect the
+  full suite or `final-reviewer`'s own report surfaces, that no slice of this scope covers and the scope
+  did not cause, gets a triage record from you, the controller, right here — never folded into the fix
+  loop below and never held until the handoff.
 - **The fix loop changes how the code meets the Definition of Done.** A finding whose remedy **adds a
   capability the Definition of Done never named** is recorded and handed to **`$superdev-plan`**: report it
   under §3's `### Deferred to a plan` heading, name the follow-up command, and give the finding a home
@@ -363,6 +368,8 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
     stage write in this run will do it.
     **`--unattended` → block** at that cap, per that file's **Unattended** section, writing the same entry,
     publishing the same way, and leaving the stage where it is.
+    **A clean verdict ends the loop here too, attended or unattended** — a finding it leaves standing is a
+    follow-up, never a fourth cycle.
 - **The fix implementer's own dispatch is a degraded pass too, if the permission classifier denies it.**
   Follow `<plugin-root>/references/scope-mode.md`'s `## Degraded passes` section. Write the
   `**Degraded:**` entry either way, with `scope.js degraded add` — the fix implementer is an authoring
@@ -376,6 +383,14 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
 - **A ceiling note never gates either.** `final-reviewer`'s `### Ceiling` section (ADR 0020) is an
   observation about work that is already correct: it holds up no handoff, starts no fix cycle, and
   changes no stage, attended or unattended. Carry it into the report and move on.
+- **A criterion `final-reviewer` reports unmet enters this loop like any other finding** — the code does
+  not yet do what the Definition of Done named, and repairing that is loop work like any other defect
+  repair.
+- **The verification-ceiling case is the one reported and not chased**
+  (`<plugin-root>/references/scope-mode.md`'s `## Verification ceiling`): no work on this branch
+  can close it, so carry it into §3's report as unmet with a one-line note on why.
+- **Either way, this command ticks nothing in `dod.md`** — `$superdev-ship` §4 is what leaves an unmet
+  item unchecked with a one-line note.
 - **On a clean verdict**, and only then: clear any standing `**Unresolved:**` entry — the run has just
   re-verified clean — with `node "<plugin-root>/scripts/scope.js" unresolved clear --root
   <run-root>`, which succeeds and changes nothing when there is none. Then write the ledger's

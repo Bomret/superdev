@@ -305,26 +305,35 @@ only once the scope branch carrying it merges (ADR 0046, ADR 0048).
 
 These invariants fix its shape, and every backend renders all of them:
 
-- **`/superdev:review` writes it, at the moment it defers.** A run reviewed and then abandoned never
-  reaches `/superdev:ship`, and its run root is pruned with the findings still inside, so the command that
-  finds the work is the one that records it.
+- **The controller writes it, at the trigger moment.** `/superdev:review` writes a deferred finding's
+  record the moment it defers; whichever chain command is running writes an observation's record the
+  moment a controller meets one (`references/scope-mode.md`'s `## Observations` section). A run reviewed
+  and then abandoned never reaches `/superdev:ship`, and its run root is pruned with the findings still
+  inside, so the command that finds the work is the one that records it.
 - **It is neither a slice nor a scope anchor.** No candidate listing and no slice loader ever selects it.
   How a given store guarantees that — a label it withholds, a file shape no walk reaches — is the active
   store's own `## Triage record` section. It records unplanned work; only a human, or a later
   `/superdev:plan` interview a human starts, acts on it.
-- **Provenance is what exists at defer time.** The record names the finding, why no Definition of Done
-  criterion covered it, the date, the feature label, the scope branch, and the scope anchor's reference. It
-  never names a pull request: `/superdev:review` runs before `/superdev:ship` opens one.
-- **The write is best-effort**, exactly as a status label is. A failure or a denial leaves the ledger
-  bullet written and the review unblocked, reported once per run, because the ledger drives control flow.
+- **Provenance is what exists at the trigger moment.** The record names the finding, why it needed one —
+  for a deferred finding, why no Definition of Done criterion covered it; for an observation, that no
+  slice of the scope covers it and the scope did not cause it — the date, the feature label, the scope
+  branch, and the scope anchor's reference. It never names a pull request: every trigger runs before
+  `/superdev:ship` opens one.
+- **The write is best-effort**, exactly as a status label is. **The deferred trigger's** failure or
+  denial leaves the ledger bullet written and the review unblocked, reported once per run, because the
+  ledger drives control flow. **The observation trigger writes no ledger bullet at all**: its own failure
+  or denial is reported once by whichever chain command met it, per `references/scope-mode.md`'s
+  `## Observations` section, since the triage record is that trigger's only artifact.
 - **It is listable.** `/superdev:backlog` is the consumer: its survey groups every triage record the active
   store returns by the action it needs, so a record no listing call can reach stays invisible to it.
 
 Every backend mechanism — the label a record carries or the directory it lives in, and the call that
 creates it and the call that lists them — belongs to the active `docs/agents/issue-tracker.md`'s own
 `## Triage record` section, when that document carries one. A store document that states none leaves
-`/superdev:review` writing only the ledger bullet, `no triage record — store defines none` in the
-reference's place.
+the **deferred trigger** — `/superdev:review`'s own fix loop — writing only the ledger bullet, `no
+triage record — store defines none` in the reference's place. **The observation trigger** meets the same
+gap by reporting it to the operator and dropping the capture, per `references/scope-mode.md`'s
+`## Observations` section, rather than falling back to a ledger bullet of its own.
 
 ## Feature label
 

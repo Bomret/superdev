@@ -211,8 +211,17 @@ the closed scope anchor only once the scope branch carrying it merges (ADR 0035,
 _Avoid: "scope growth", "out-of-scope finding" (the point is the DoD boundary, not that the finding is
 unwelcome or off-topic)_
 
-**Triage record**: the slice-store record a **Deferred finding** gets, created by `/superdev:review` at
-the moment it defers. It is neither a slice nor a scope anchor, which is what keeps every run and every
+**Observation**: a real defect a run meets that no slice of it covers, and that the scope did not cause —
+a flaky test in untouched code, a failure the green-gate hook reports on a merge, a defect an implementer
+reports alongside its own slice. The controller writes it a **Triage record** the moment it meets one, and
+that record is its only artifact: no ledger line, no pull-request heading. It is recorded, never judged,
+so it carries no severity, holds no stage, and enters no fix loop (ADR 0088, INV-0010). Distinct from a
+**Deferred finding**, which the scope review judged inside its own range and handed to `/superdev:plan`;
+an observation was never in range to judge.
+_Avoid: "out-of-range finding" (it is not a finding — nothing judged it)_
+
+**Triage record**: the slice-store record a **Deferred finding** or an **Observation** gets — created by
+`/superdev:review` at the moment it defers, and by the controller at the moment it meets an observation. It is neither a slice nor a scope anchor, which is what keeps every run and every
 sweep from selecting it as work to build. How a given store expresses it is stated in that store's own
 `## Triage record` section, which specialises `plan-contract.md` → *Triage record* (ADR 0046).
 _Avoid: "draft issue" (no backend the plugin supports has a draft issue state outside GitHub's project

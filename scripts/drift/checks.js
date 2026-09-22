@@ -119,7 +119,14 @@ const {
   VERIFICATION_CEILING_CONTRACTS,
   DOD_SUITE_CRITERION_CONTRACTS,
   CRITERION_STATES_A_REQUIREMENT_CONTRACTS,
+  CLEAN_VERDICT_ENDS_LOOP_CONTRACTS,
+  OBSERVATION_CAPTURE_CONTRACTS,
+  LABEL_REVISION_AT_DECOMPOSITION_CONTRACTS,
+  UNMET_CRITERION_AT_REVIEW_CONTRACTS,
+  RELEASE_ANSWER_NOT_INFERRED_CONTRACTS,
+  CAPTURE_CHECKS_CONCURRENT_PLANS_CONTRACTS,
   SPAWN_FAILURE_ANSWER_CONTRACTS,
+  DECOMPOSITION_NAMES_WHAT_IT_CHECKED_CONTRACTS,
 } = require('./contracts');
 
 // The printer the table-driven checks share. A gap is `{ source, expectation }` and reads the
@@ -537,7 +544,8 @@ module.exports = [
   ),
   {
     id: 'triage-record',
-    ok: 'every slice-store seed states where a deferred finding\'s triage record lives',
+    ok: 'every slice-store seed states where a triage record lives, for a deferred finding or an ' +
+      'observation alike',
     run: (root) => [
       ...scanTriageRecordContract(root),
       ...scanContract(root, TRIAGE_RECORD_CONTRACTS),
@@ -673,6 +681,58 @@ module.exports = [
     'plan-contract.md still states that a criterion names no command superdev runs to verify it, and ' +
       "plan's interview still writes no verification command into a criterion and still surfaces a " +
       'live-system-only criterion with the pre-merge deploy it would force',
+  ),
+  table(
+    'clean-verdict-ends-loop',
+    CLEAN_VERDICT_ENDS_LOOP_CONTRACTS,
+    'a clean verdict ends the fix loop the same way attended or unattended, in both implement\'s ' +
+      'Invariants and review\'s own fix loop, and a finding still standing when it lands is a follow-up, ' +
+      'never a fourth cycle',
+  ),
+  table(
+    'observation-capture',
+    OBSERVATION_CAPTURE_CONTRACTS,
+    'scope-mode.md\'s own `## Observations` section states what an observation is, that its triage ' +
+      'record is written the moment it is met, that the record is the only artifact, that it is ' +
+      'recorded never judged, that capture reads the store\'s open triage records before it writes and ' +
+      'names the comparison a judgment rather than a string match, that an uncertain match writes the ' +
+      'record and why the two errors are not symmetrical, that a store defining no `## Triage record` ' +
+      'section is reported and dropped rather than recorded, and that capture is otherwise best-effort ' +
+      '— and every call site (implement-full\'s DAG step, implement-lite\'s inline equivalent, and review ' +
+      '§4\'s fix loop) still names the capture',
+  ),
+  table(
+    'label-revision-at-decomposition',
+    LABEL_REVISION_AT_DECOMPOSITION_CONTRACTS,
+    'plan/SKILL.md still states, both where §1 picks the feature label and again at §3\'s decomposition ' +
+      'step, that a later answer changing what the feature does revises the label in place',
+  ),
+  table(
+    'unmet-criterion-at-review',
+    UNMET_CRITERION_AT_REVIEW_CONTRACTS,
+    'ship/SKILL.md §4 still leaves an unmet Definition-of-Done item unchecked with a one-line note, and ' +
+      'review/SKILL.md §4 still states that an unmet criterion enters the fix loop like any other ' +
+      'finding except the verification-ceiling case, and that either way review itself ticks nothing in ' +
+      '`dod.md`',
+  ),
+  table(
+    'release-answer-not-inferred',
+    RELEASE_ANSWER_NOT_INFERRED_CONTRACTS,
+    'plan-contract.md\'s `## Release` section still credits the release answer to a human (ADR 0034), ' +
+      'and plan/SKILL.md §6 still states that answer is the user\'s alone and that an authorization to ' +
+      'run the whole chain unattended is not it',
+  ),
+  table(
+    'capture-checks-concurrent-plans',
+    CAPTURE_CHECKS_CONCURRENT_PLANS_CONTRACTS,
+    'plan/SKILL.md §2 still checks a shared-identifier capture against the other live plan runs\' own ' +
+      'allocations before writing it',
+  ),
+  table(
+    'decomposition-names-what-it-checked',
+    DECOMPOSITION_NAMES_WHAT_IT_CHECKED_CONTRACTS,
+    'plan/SKILL.md §5 still states, before the decomposition is presented, for each file opened while ' +
+      'grounding it, what it says about the proposal itself',
   ),
 ];
 

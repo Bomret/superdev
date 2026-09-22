@@ -139,7 +139,9 @@ instead — a `released: yes` line in the epic file's header, read where the sta
 
 ## Triage record
 
-`plan-contract.md` → *Triage record*. `/superdev:review` creates one the moment it defers a finding.
+`plan-contract.md` → *Triage record*. `/superdev:review` creates one the moment it defers a finding; the
+controller creates one the same way the moment it meets an observation
+(`references/scope-mode.md`'s `## Observations` section).
 This store has no labels, so the record is a **file**: `docs/plans/triage/<slug>.md`, where `<slug>` is a
 short kebab-case summary of the finding. A file already at that path takes a `-2`, `-3`, … suffix, so two
 findings summarised the same way stay two records.
@@ -152,7 +154,8 @@ feature-label: <type>/<feature-slug>
 anchor: docs/plans/<type>/<feature-slug>/00-epic-<summary>.md
 date: <YYYY-MM-DD>
 
-<the finding, and why no Definition of Done criterion covered it>
+<the finding, and why it needed a record — for a deferred finding, why no Definition of Done criterion
+covered it; for an observation, that no slice of the scope covers it and the scope did not cause it>
 
 /superdev:plan "<the finding>"
 ```
@@ -173,12 +176,15 @@ date: <YYYY-MM-DD>
   change-type test. It carries no `ready` status either, which is the second thing `/superdev:implement`
   selects on.
 - **The anchor line is a path, not an issue reference**, since that is what this store's scope anchor is.
-- **No pull-request URL.** `/superdev:review` runs before `/superdev:ship` opens one, so none exists at
-  defer time and the file names none.
-- **`/superdev:review` commits the file on the scope branch**, in the scope checkout, the moment it
+- **No pull-request URL.** Every trigger — a deferred finding or an observation — runs before
+  `/superdev:ship` opens one, so none exists yet and the file names none.
+- **The command creating it commits the file on the scope branch**, in the scope checkout, the moment it
   creates it — like every other plan file here — so an uncommitted record never blocks
   `hooks/slicetree-sweep.js`'s later `git worktree remove` on a dirty tree, and it rides the pull request
-  the run opens.
+  the run opens. The file path is the record's reference: **the deferred trigger** is what
+  `/superdev:review` puts in the ledger bullet; **an observation** instead reports that path to the
+  operator and writes no ledger bullet of its own, since the record is its own identity
+  (`references/scope-mode.md`'s `## Observations` section).
 
 ## Untriaged item
 

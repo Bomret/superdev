@@ -27,7 +27,8 @@ dispatches nothing — you carry the TDD discipline yourself. Narrate at most on
 
 - **The 3-strike fix loop caps at a wrong cut, not a bug.** 3 cycles without going clean → the slice is a
   hidden dependency or too big: move it → `blocked` and escalate (re-slice, or hand to the human). Never a
-  fourth cycle.
+  fourth cycle. **A clean verdict ends the loop the same way, attended or unattended** — a finding still
+  standing when it lands is a follow-up, never a fourth cycle.
 - **Every fix opens with a RED test** reproducing the bug.
 - **The ledger is your recovery map.** After compaction, trust the ledger and `git log` over memory. A
   slice marked `merged` is done — never re-dispatch it.

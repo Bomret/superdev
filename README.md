@@ -117,9 +117,13 @@ plan runs test-first, inline in the scopetree.
   your backlog only once the scope that created it ships
   ([ADR 0046](docs/adr/0046-a-deferred-finding-becomes-a-triage-record.md),
   [ADR 0048](docs/adr/0048-a-local-store-triage-record-needs-its-scope-to-ship.md)). Nothing ever builds
-  it: no candidate listing and no slice loader selects it. Either way the command dispatches
-  `final-reviewer`, plus `simplicity-reviewer` on the `lite` tier. The `full` tier already ran that
-  reviewer per slice, so the whole-scope pass skips it rather than re-reading cut-down code
+  it: no candidate listing and no slice loader selects it. A real defect the run meets that no slice
+  covers, and that the scope did not cause, earns the same kind of record. A flaky test in untouched
+  code is an example. Whichever chain command meets
+  it writes the record then, never at a handoff
+  ([ADR 0088](docs/adr/0088-an-observation-is-recorded-where-it-is-met.md)). Either way the command
+  dispatches `final-reviewer`, plus `simplicity-reviewer` on the `lite` tier. The `full` tier already
+  ran that reviewer per slice, so the whole-scope pass skips it rather than re-reading cut-down code
   ([ADR 0037](docs/adr/0037-the-full-tier-skips-the-whole-scope-over-engineering-pass.md)). It reports
   one consolidated verdict.
 - **`/superdev:document`**. Dispatches the `doc-writer` to reconcile the in-repo docs (the `AGENTS.md`

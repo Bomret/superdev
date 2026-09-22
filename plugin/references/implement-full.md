@@ -99,6 +99,11 @@ Repeat until every slice is `merged`:
    **`--unattended` → block** once the cheap remedies are spent, per
    `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section, rather than escalating to a
    human who is not there):
+   - **An observation is captured the moment you meet it.** Read
+     `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Observations` section and follow it: a
+     defect the implementer reports, or one you meet yourself in its report, that no slice of this scope
+     covers and the scope did not cause gets a triage record from you, the controller, right here — never
+     held until the handoff at the end of the chain.
    - **`behavior`** slice → move it → `in-review`, then dispatch **`superdev:slice-reviewer`**
      (correctness + independent verification; it reads the review checklist itself via
      `${CLAUDE_PLUGIN_ROOT}`). For each **Critical/Important** finding, dispatch a fresh

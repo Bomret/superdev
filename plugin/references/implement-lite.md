@@ -61,6 +61,11 @@ shipped.
 - **Every acceptance criterion gets at least one increment.** On a `behavior` slice the loop terminates on
   acceptance coverage, not on the specification's happy path — each criterion, including the failure and
   boundary cases the criteria name, is the RED test of its own increment.
+- **An observation is captured the moment you meet it.** Read
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Observations` section and follow it: a defect
+  you meet while implementing inline, that no slice of this scope covers and the scope did not cause,
+  gets a triage record from you, the controller, right here — never held until the handoff at the end of
+  the chain.
 - **Carry the implementer's escalation discipline.** Can't get a slice green after reasonable effort →
   the Invariants' BLOCKED / 3-strike case: a **wrong cut**, not something to force through. Move the slice
   → `blocked` and escalate (re-slice or hand to the human) rather than grinding on it inline.

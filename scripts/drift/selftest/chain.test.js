@@ -52,6 +52,13 @@ const {
   INVARIANT_COMPLIANCE_CONTRACTS,
   COMMITMENT_CAPTURE_CONTRACTS,
   DOD_SUITE_CRITERION_CONTRACTS,
+  CLEAN_VERDICT_ENDS_LOOP_CONTRACTS,
+  OBSERVATION_CAPTURE_CONTRACTS,
+  LABEL_REVISION_AT_DECOMPOSITION_CONTRACTS,
+  UNMET_CRITERION_AT_REVIEW_CONTRACTS,
+  RELEASE_ANSWER_NOT_INFERRED_CONTRACTS,
+  CAPTURE_CHECKS_CONCURRENT_PLANS_CONTRACTS,
+  DECOMPOSITION_NAMES_WHAT_IT_CHECKED_CONTRACTS,
 } = require('../contracts');
 
 module.exports = ({ assert, path, fixture, fs, realRoot }) => {
@@ -3805,4 +3812,272 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     DOD_SUITE_CRITERION_CONTRACTS,
   );
   assert.equal(dscNoSilenceGaps.length, 1, 'flags ship/SKILL.md for dropping the no-suite statement');
+
+  // --- CLEAN_VERDICT_ENDS_LOOP_CONTRACTS: a clean verdict ends the fix loop, findings or not. Two
+  // halves — implement's `## Invariants (both playbooks)` catalogue and review §4's own fix loop — each
+  // naming the standing finding a follow-up, unconditional on `--unattended`. ---
+  const cvClauses = {
+    'skills/implement/SKILL.md':
+      'A clean verdict ends the loop the same way, attended or unattended — a finding still standing ' +
+      'when it lands is a follow-up, never a fourth cycle.\n',
+    'skills/review/SKILL.md':
+      'A clean verdict ends the loop here too, attended or unattended — a finding it leaves standing ' +
+      'is a follow-up, never a fourth cycle.\n',
+  };
+
+  // negative: a fixture carrying both halves reports no gap
+  const cvFullGaps = scanContract(fixture(cvClauses), CLEAN_VERDICT_ENDS_LOOP_CONTRACTS);
+  assert.deepEqual(cvFullGaps, [], 'a fixture carrying both halves reports no gap');
+
+  // positive: dropping either half reports exactly that gap
+  for (const rel of Object.keys(cvClauses)) {
+    const cvDropped = fixture({ ...cvClauses, [rel]: 'Nothing about the fix loop here.\n' });
+    const cvGaps = scanContract(cvDropped, CLEAN_VERDICT_ENDS_LOOP_CONTRACTS);
+    assert.equal(cvGaps.length, 1, `flags ${rel} for dropping its clean-verdict-ends-loop half`);
+    assert.equal(cvGaps[0].source, rel, `names ${rel}`);
+  }
+
+  // positive: keeping the clause but making it conditional on attendance still reports a gap — the rule
+  // reads the same with or without `--unattended`, so losing the phrase is losing the rule.
+  for (const rel of Object.keys(cvClauses)) {
+    const cvConditional = fixture({
+      ...cvClauses,
+      [rel]: cvClauses[rel].replace(', attended or unattended', ' when attended'),
+    });
+    const cvGaps = scanContract(cvConditional, CLEAN_VERDICT_ENDS_LOOP_CONTRACTS);
+    assert.equal(cvGaps.length, 1, `flags ${rel} for making the rule conditional on attendance`);
+    assert.equal(cvGaps[0].source, rel, `names ${rel}`);
+  }
+
+  // positive: keeping the clause but forbidding the cycle with no mention of a follow-up still reports a
+  // gap — the standing finding needs a name, not only a prohibition.
+  for (const rel of Object.keys(cvClauses)) {
+    const cvNoFollowUp = fixture({
+      ...cvClauses,
+      [rel]: cvClauses[rel].replace('is a follow-up, ', 'is '),
+    });
+    const cvGaps = scanContract(cvNoFollowUp, CLEAN_VERDICT_ENDS_LOOP_CONTRACTS);
+    assert.equal(cvGaps.length, 1, `flags ${rel} for losing the follow-up half`);
+    assert.equal(cvGaps[0].source, rel, `names ${rel}`);
+  }
+
+  // --- OBSERVATION_CAPTURE_CONTRACTS: an observation — a real defect a run meets that no slice covers
+  // and the scope did not cause — is recorded, never judged (ADR 0088, INV-0010). Six rows pin
+  // scope-mode.md's own `## Observations` section (definition-and-moment, only-artifact,
+  // recorded-never-judged, read-first, uncertain-match-writes/asymmetry, best-effort), each its own
+  // clause; three rows pin the rule's call sites in implement-full.md, implement-lite.md, and
+  // review/SKILL.md §4. ---
+  const ocDefinitionOnlyClause =
+    'real defect a run meets that no slice of it covers, and that the scope did not cause';
+  const ocMomentOnlyClause =
+    'Write its triage record the moment you meet it, never at a handoff';
+  const ocArtifactClause = 'The triage record is the only artifact. No ledger line, no pull-request body.';
+  const ocJudgedClause =
+    'An observation is recorded, never judged. It carries no severity, holds no stage, enters no fix ' +
+    'loop, and blocks no run.';
+  const ocReadFirstClause =
+    "Capture reads before it writes. List the store's open triage records before creating one — " +
+    "`docs/agents/issue-tracker.md`'s `## Triage record` section names the call — and compare each " +
+    'listed record\'s finding against what was just met. That comparison is a judgment about two prose ' +
+    'descriptions of a defect, never a string match, and it is yours to make every time: no test can ' +
+    'check whether two findings describe the same thing.';
+  const ocAsymmetryClause =
+    'An uncertain match writes the record. The two errors are not symmetrical: a duplicate record is ' +
+    'noise a human deletes at triage, while a false match silently drops the observation this whole ' +
+    'rule exists to preserve — the same asymmetry triage record #505 argues from structural reasoning ' +
+    "alone, against `/superdev:review`'s own run-scoped `## Deferred findings` read above. Match only " +
+    'where a listed record plainly describes the same defect, and write a new one everywhere else, ' +
+    'including every case that stays genuinely unclear.';
+  const ocBestEffortClause =
+    'The active store document carrying no `## Triage record` section is reported, not recorded. That ' +
+    'section is what names the create call; with none, an observation reaches no artifact at all. ' +
+    'Report it to the operator once, naming why — the store document defines no create call to make — ' +
+    'and continue. This is the one case here where an observation is reported and dropped rather than ' +
+    'recorded. Capture is otherwise best-effort, exactly as every other store write in the chain. An ' +
+    'open-records read that fails, and a read a permission classifier denies, are each reported once — ' +
+    'and each still writes the record, the possible duplicate the asymmetry above prefers over a ' +
+    'dropped observation. A create that fails, and a create a permission classifier denies, are each ' +
+    'reported once too, with the run continuing regardless.';
+  const ocFullSuiteClause =
+    "An observation is captured the moment you meet it. Read scope-mode.md's `## Observations` section " +
+    'and follow it: a defect that no slice of this scope covers and the scope did not cause gets a ' +
+    'triage record from you, the controller, right here — never held until the handoff.';
+  const ocReviewClause =
+    "An observation is captured the moment you meet it. Read scope-mode.md's `## Observations` section " +
+    'and follow it: a defect that no slice of this scope covers and the scope did not cause gets a ' +
+    'triage record from you, the controller, right here — never folded into the fix loop below and ' +
+    'never held until the handoff.';
+
+  const ocClauses = {
+    'references/scope-mode.md':
+      [
+        ocDefinitionOnlyClause,
+        ocMomentOnlyClause,
+        ocArtifactClause,
+        ocJudgedClause,
+        ocReadFirstClause,
+        ocAsymmetryClause,
+        ocBestEffortClause,
+      ].join(' ') + '\n',
+    'references/implement-full.md': ocFullSuiteClause + '\n',
+    'references/implement-lite.md': ocFullSuiteClause + '\n',
+    'skills/review/SKILL.md': ocReviewClause + '\n',
+  };
+
+
+  // negative: a fixture carrying every clause reports no gap
+  const ocFullGaps = scanContract(fixture(ocClauses), OBSERVATION_CAPTURE_CONTRACTS);
+  assert.deepEqual(ocFullGaps, [], 'a fixture carrying every observation-capture clause reports no gap');
+
+  // positive: dropping exactly one clause reports exactly that row's gap, leaving the other rows —
+  // including the other five clauses sharing scope-mode.md — untouched.
+  const ocMutations = [
+    { label: 'the definition part of the definition-and-moment clause', rel: 'references/scope-mode.md', clause: ocDefinitionOnlyClause },
+    { label: 'the moment part of the definition-and-moment clause', rel: 'references/scope-mode.md', clause: ocMomentOnlyClause },
+    { label: 'the only-artifact clause', rel: 'references/scope-mode.md', clause: ocArtifactClause },
+    { label: 'the recorded-never-judged clause', rel: 'references/scope-mode.md', clause: ocJudgedClause },
+    { label: 'the read-first clause', rel: 'references/scope-mode.md', clause: ocReadFirstClause },
+    { label: 'the uncertain-match/asymmetry clause', rel: 'references/scope-mode.md', clause: ocAsymmetryClause },
+    { label: 'the best-effort clause', rel: 'references/scope-mode.md', clause: ocBestEffortClause },
+    { label: "implement-full.md's capture step", rel: 'references/implement-full.md', clause: ocFullSuiteClause },
+    { label: "implement-lite.md's capture step", rel: 'references/implement-lite.md', clause: ocFullSuiteClause },
+    { label: "review/SKILL.md §4's capture step", rel: 'skills/review/SKILL.md', clause: ocReviewClause },
+  ];
+
+  for (const { label, rel, clause } of ocMutations) {
+    const ocMutated = fixture({ ...ocClauses, [rel]: ocClauses[rel].replace(clause, 'Nothing here.') });
+    const ocGaps = scanContract(ocMutated, OBSERVATION_CAPTURE_CONTRACTS);
+    assert.equal(ocGaps.length, 1, `dropping ${label} reports exactly one gap`);
+    assert.equal(ocGaps[0].source, rel, `names ${rel}`);
+  }
+
+  // --- LABEL_REVISION_AT_DECOMPOSITION_CONTRACTS: a later answer that changes what the feature does
+  // revises the label in place — stated where §1 picks the label, restated where §3 decomposes. Both
+  // rows share one fixture file, `skills/plan/SKILL.md`, since both clauses live there. ---
+  const lrPickClause =
+    'The type is what the feature does to the codebase, not what it feels like. A later answer that ' +
+    'changes what the feature does revises the label in place.';
+  const lrDecompositionClause =
+    'Decomposition can still change the label. A later answer that changes what the feature does ' +
+    'revises the label in place, whenever it lands.';
+
+  const lrClauses = {
+    'skills/plan/SKILL.md': [lrPickClause, lrDecompositionClause].join('\n\n') + '\n',
+  };
+
+  // negative: a fixture carrying both clauses reports no gap
+  const lrFullGaps = scanContract(fixture(lrClauses), LABEL_REVISION_AT_DECOMPOSITION_CONTRACTS);
+  assert.deepEqual(lrFullGaps, [], 'a fixture carrying both the §1 and §3 clauses reports no gap');
+
+  // positive: dropping the §1 clause alone reports exactly that row's gap
+  const lrNoPick = fixture({
+    'skills/plan/SKILL.md': [lrDecompositionClause].join('\n\n') + '\n',
+  });
+  const lrNoPickGaps = scanContract(lrNoPick, LABEL_REVISION_AT_DECOMPOSITION_CONTRACTS);
+  assert.equal(lrNoPickGaps.length, 1, 'dropping the §1 clause reports exactly one gap');
+  assert.equal(lrNoPickGaps[0].source, 'skills/plan/SKILL.md', 'names plan/SKILL.md');
+
+  // positive: dropping the §3 clause alone reports exactly that row's gap
+  const lrNoDecomposition = fixture({
+    'skills/plan/SKILL.md': [lrPickClause].join('\n\n') + '\n',
+  });
+  const lrNoDecompositionGaps = scanContract(lrNoDecomposition, LABEL_REVISION_AT_DECOMPOSITION_CONTRACTS);
+  assert.equal(lrNoDecompositionGaps.length, 1, 'dropping the §3 clause reports exactly one gap');
+  assert.equal(lrNoDecompositionGaps[0].source, 'skills/plan/SKILL.md', 'names plan/SKILL.md');
+
+  // --- UNMET_CRITERION_AT_REVIEW_CONTRACTS: an unmet Definition-of-Done item is left unchecked with a
+  // one-line note — ship/SKILL.md §4's own rule, restated as review/SKILL.md §4's sibling rule (an unmet
+  // criterion enters the fix loop like any other finding, except the verification-ceiling case, and
+  // either way review ticks nothing in dod.md). ---
+  const ucShipClause = 'Leave an unmet item unchecked with a one-line note on why.';
+  const ucReviewClause =
+    'A criterion final-reviewer reports unmet enters this loop like any other finding. ' +
+    'The verification-ceiling case is the one reported and not chased. It ticks nothing in `dod.md`.';
+
+  const ucClauses = {
+    'skills/ship/SKILL.md': ucShipClause + '\n',
+    'skills/review/SKILL.md': ucReviewClause + '\n',
+  };
+
+  // negative: a fixture carrying both halves reports no gap
+  const ucFullGaps = scanContract(fixture(ucClauses), UNMET_CRITERION_AT_REVIEW_CONTRACTS);
+  assert.deepEqual(ucFullGaps, [], 'a fixture carrying both halves reports no gap');
+
+  // positive: dropping either half reports exactly that gap
+  for (const rel of Object.keys(ucClauses)) {
+    const ucDropped = fixture({ ...ucClauses, [rel]: 'Nothing about an unmet criterion here.\n' });
+    const ucGaps = scanContract(ucDropped, UNMET_CRITERION_AT_REVIEW_CONTRACTS);
+    assert.equal(ucGaps.length, 1, `flags ${rel} for dropping its unmet-criterion-at-review half`);
+    assert.equal(ucGaps[0].source, rel, `names ${rel}`);
+  }
+
+  // --- RELEASE_ANSWER_NOT_INFERRED_CONTRACTS: a feature is released once a human has said so (ADR
+  // 0034); plan/SKILL.md §6 restates that the answer is the user's alone and that an authorization to
+  // run the chain unattended is not it. ---
+  const raReferenceClause = 'A feature is released once a human has said its plan may be built.';
+  const raSkillClause =
+    "On every other store the answer is the user's, so wait for it — an authorization to run the whole " +
+    'chain unattended is not that answer.';
+
+  const raClauses = {
+    'references/plan-contract.md': raReferenceClause + '\n',
+    'skills/plan/SKILL.md': raSkillClause + '\n',
+  };
+
+  // negative: a fixture carrying both halves reports no gap
+  const raFullGaps = scanContract(fixture(raClauses), RELEASE_ANSWER_NOT_INFERRED_CONTRACTS);
+  assert.deepEqual(raFullGaps, [], 'a fixture carrying both halves reports no gap');
+
+  // positive: dropping either half reports exactly that gap
+  for (const rel of Object.keys(raClauses)) {
+    const raDropped = fixture({ ...raClauses, [rel]: 'Nothing about the release answer here.\n' });
+    const raGaps = scanContract(raDropped, RELEASE_ANSWER_NOT_INFERRED_CONTRACTS);
+    assert.equal(raGaps.length, 1, `flags ${rel} for dropping its release-answer-not-inferred half`);
+    assert.equal(raGaps[0].source, rel, `names ${rel}`);
+  }
+
+  // --- CAPTURE_CHECKS_CONCURRENT_PLANS_CONTRACTS: a capture allocating a shared identifier is checked
+  // against another live plan run's own allocations, before it is written — a new clause with no source
+  // to restate, so the single row is pinned on its own presence. ---
+  const ccClause =
+    'Check a shared-identifier capture against other live plan runs, before writing it. Scan the other ' +
+    "run roots under .superdev/scopes/*/ whose ledger stage reads planned or later, and read the " +
+    "captures already committed on each one's scope branch.";
+
+  // negative: a fixture carrying the clause reports no gap
+  const ccFullGaps = scanContract(
+    fixture({ 'skills/plan/SKILL.md': ccClause + '\n' }),
+    CAPTURE_CHECKS_CONCURRENT_PLANS_CONTRACTS,
+  );
+  assert.deepEqual(ccFullGaps, [], 'a fixture carrying the clause reports no gap');
+
+  // positive: dropping the clause reports exactly one gap
+  const ccGaps = scanContract(
+    fixture({ 'skills/plan/SKILL.md': 'Nothing about checking concurrent plan runs here.\n' }),
+    CAPTURE_CHECKS_CONCURRENT_PLANS_CONTRACTS,
+  );
+  assert.equal(ccGaps.length, 1, 'dropping the clause reports exactly one gap');
+  assert.equal(ccGaps[0].source, 'skills/plan/SKILL.md', 'names plan/SKILL.md');
+
+  // --- DECOMPOSITION_NAMES_WHAT_IT_CHECKED_CONTRACTS: before presenting the decomposition, state which
+  // files opened while grounding it were checked against the proposal itself — a new clause with no
+  // source to restate, so the single row is pinned on its own presence. ---
+  const dnClause =
+    'Before you present the decomposition, state, for each file you opened while grounding it, what it ' +
+    'says about the proposal itself — not about the question you opened it for.';
+
+  // negative: a fixture carrying the clause reports no gap
+  const dnFullGaps = scanContract(
+    fixture({ 'skills/plan/SKILL.md': dnClause + '\n' }),
+    DECOMPOSITION_NAMES_WHAT_IT_CHECKED_CONTRACTS,
+  );
+  assert.deepEqual(dnFullGaps, [], 'a fixture carrying the clause reports no gap');
+
+  // positive: dropping the clause reports exactly one gap
+  const dnGaps = scanContract(
+    fixture({ 'skills/plan/SKILL.md': 'Nothing about checking the proposal against grounding files here.\n' }),
+    DECOMPOSITION_NAMES_WHAT_IT_CHECKED_CONTRACTS,
+  );
+  assert.equal(dnGaps.length, 1, 'dropping the clause reports exactly one gap');
+  assert.equal(dnGaps[0].source, 'skills/plan/SKILL.md', 'names plan/SKILL.md');
 };

@@ -85,6 +85,23 @@ Breaks: silently
 Check: tests/spawn-verdict.test.js — the helper's throw-or-not and message for the killed, never-started, EPIPE-but-decided, and genuinely-decided result shapes; tests/green-gate.test.js — a killed suite blocks the merge; tests/scope.test.js — the refetch asserts the kill signal rather than the clock; tests/adapter.test.js — the OpenCode hook bridge blocks a killed hook and lets a call through when the hook never started, noticing once per hook
 Paths: plugin/hooks/green-gate.js, plugin/scripts/scope.js, plugin/scripts/adapter.js, scripts/drift/fixtures/opencode/**, tests/**
 
+### INV-0010
+
+Class: process
+Concepts: Observation, Triage record, Finding
+Statement: An observation a run meets is recorded, never judged. It carries no severity, holds no stage, enters no fix loop, and blocks no run.
+Breaks: silently
+Check: scripts/drift-check.js — the capture rule pinned on scope-mode.md's own section and on every surface that acts on it
+Paths: plugin/references/scope-mode.md, plugin/references/implement-full.md, plugin/references/implement-lite.md, plugin/skills/review/**
+
+### INV-0011
+
+Class: process
+Concepts: Definition of Done, Run state, Verification
+Statement: A run's record never claims more than the run earned. A cap reads as held only where it held, a criterion as verified only where it was verified, a release as decided only where somebody decided it.
+Breaks: silently
+Check: none — a general rule with no single test. Its instances carry their own: INV-0004 (criteria are never pooled), INV-0009 (a process that did not finish carries no verdict), ADR 0084 (verifying observes only).
+Paths: plugin/skills/**, plugin/references/**
 ### INV-0012
 
 Class: architecture

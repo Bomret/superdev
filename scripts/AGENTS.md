@@ -1625,7 +1625,7 @@ comment, and the way back is a section away. The fourth row's pattern spans from
 to `reset-denials`, so it matches inside the block procedure rather than anywhere the file happens to say
 both words.
 
-The `triage-record` contract (ADR 0046): a scanner plus two rows. `scanTriageRecordContract`
+The `triage-record` contract (ADR 0046, ADR 0088): a scanner plus two rows. `scanTriageRecordContract`
 (`scripts/drift/scanners.js`) walks `storeDocuments()` for the presence half — the same call
 `scanAnchorContract` and `scanReleaseContract` already make over the same candidate list, every
 `references/issue-tracker-*.md` seed plus this repo's own dogfooded `docs/agents/issue-tracker.md` — and
@@ -2052,6 +2052,80 @@ entrance, never a verification step. Losing the reference row leaves that except
 either skill row leaves the interview free to write a criterion naming a test command, or a live-system-only
 criterion with no offer to keep it out of the branch-verifiable set — the exact shape ADR 0084 observed
 forcing a pre-merge deploy.
+
+The `clean-verdict-ends-loop` contract, two rows: a clean verdict ends the scope-mode fix loop the same
+way attended or unattended, findings or not, and a finding still standing when it lands is a follow-up,
+never a fourth cycle. `skills/implement/SKILL.md`'s `## Invariants (both playbooks)` carries the
+catalogue half; `skills/review/SKILL.md` §4's fix loop carries the acting half — the surface that
+actually runs the loop when a re-review comes back clean with a finding still on the page. Either half
+losing the clause, or keeping it but making it conditional on `--unattended`, or keeping the "never a
+fourth cycle" prohibition while dropping what the standing finding becomes, is the drift this pins:
+without it a controller reading only the surface that runs the loop has no standing instruction to stop,
+and a finding a clean verdict left behind is one a controller may read as still owed a cycle.
+
+The `observation-capture` contract (ADR 0088, INV-0010), nine rows: `references/scope-mode.md`'s own
+`## Observations` section states what an observation is — a real defect a run meets that no slice covers
+and the scope did not cause — that its triage record is written the moment it is met, never at a handoff;
+that the record is the only artifact, no ledger line and no pull-request body; that an observation is
+recorded, never judged, carrying no severity, no stage, and no fix loop; that capture reads the store's
+open triage records before it writes, comparing each against what was just met — a judgment about two
+prose descriptions of a defect, never a string match, stated where the reader applies it rather than as a
+mechanic alone; that an uncertain match writes the record, because the two errors are not symmetrical — a
+duplicate is noise a human deletes, a false match silently drops the observation this rule exists to
+preserve, the same asymmetry triage record #505 argues against `/superdev:review`'s own run-scoped
+deferral read; that a store document defining no `## Triage record` section is reported to the operator
+and dropped, not recorded — that section is what names the create call, so none means no artifact at all,
+which is the one case in the section where an observation reaches no record; and that capture is
+otherwise best-effort, the same posture every other store write in the chain takes, with a failed or
+denied open-records read and a failed or denied create each reported once — the first still writing the
+record as the possible duplicate the asymmetry favors. The remaining three rows pin the rule's call sites
+— the point where a controller reads a subagent's report or meets a failure itself, never a handoff — in
+`references/implement-full.md`'s DAG
+step where the implementer returns, `references/implement-lite.md`'s inline equivalent, and
+`skills/review/SKILL.md` §4's fix loop. A call site that lost the capture instruction would read correct
+in isolation, exactly the one-sided-pin shape the root `AGENTS.md`'s prompt-architecture rules name, which
+is why each site is its own row rather than one row on the defining section alone.
+
+The `label-revision-at-decomposition` contract, two rows on `skills/plan/SKILL.md`: §1 states, where it
+picks the feature label, that a later answer that changes what the feature does revises the label in
+place; §3 restates the same clause at the decomposition step, where cutting slices is what most often
+shows a `fix` adding behaviour or a `refactor` changing it. A controller who only reaches §3 with a
+changed answer has no standing instruction there without the second row.
+
+The `unmet-criterion-at-review` contract, two rows: `skills/ship/SKILL.md` §4 states that an unmet
+Definition-of-Done item stays unchecked with a one-line note on why — the rule's only source, and the
+only place `dod.md` is ever ticked. `skills/review/SKILL.md` §4 restates the sibling rule: an unmet
+criterion enters the fix loop like any other finding, except the verification-ceiling case, which is
+reported and not chased because no work on this branch can close it — and either way review itself ticks
+nothing in `dod.md`, carrying an unmet criterion into §3's report for `/superdev:ship` to act on.
+
+The `release-answer-not-inferred` contract, two rows: `references/plan-contract.md`'s own `## Release`
+section credits the release answer to a human (ADR 0034); `skills/plan/SKILL.md` §6 restates that the
+answer is the user's alone and closes the gap ADR 0034 leaves open on its own — an authorization to run
+the whole chain unattended answers a different question (whether an unattended run may proceed once
+released) and is never itself the release answer. This pins the exact confusion observed: a controller
+holding a standing authorization to run unattended, read as the release question's own answer.
+
+The `capture-checks-concurrent-plans` contract, one row on `skills/plan/SKILL.md` §2: a capture
+allocating a shared identifier — an invariant id, an ADR number, a glossary term — is checked against the
+other run roots under `.superdev/scopes/*/` whose ledger stage reads `planned` or later, and the captures
+already committed on their scope branches, before it is written. This clause restates nothing — no
+earlier surface stated it before this row — so it is pinned on its own presence alone, the way every
+other row here is pinned against a source it copies. Losing it reopens the collision this clause was
+written to close: two plan runs allocating the same identifier the same afternoon, each on its own
+unmerged branch, found only because the two operators compared notes by hand.
+
+The `decomposition-names-what-it-checked` contract, one row on `skills/plan/SKILL.md` §5: before the
+decomposition is presented, state, for each file opened while grounding it, what it says about the
+proposal itself — never what it said about the question it was opened for. The demanding form names
+every file opened, not a self-selected subset the controller calls "checked": a controller who checked
+nothing could truthfully answer "none" to the weaker form and satisfy it, exactly the reporting-form gap
+the root `AGENTS.md`'s *Completion criteria demand* rule closes. This clause restates nothing — no
+earlier surface named the check before this row — so it is pinned on its own presence alone, the same
+convention `capture-checks-concurrent-plans` uses. Losing it reopens the six observed instances it
+exists to close: a proposal formed against a rule a file already open contradicted, in every case caught
+by a reader — a peer session, a reviewer, an operator — rather than named by the controller that formed
+the proposal.
 
 ## Work Guidance
 
