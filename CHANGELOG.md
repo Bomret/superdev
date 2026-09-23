@@ -1,3 +1,17 @@
+# [0.51.0](https://codeberg.org/bomret/superdev/compare/v0.50.2...v0.51.0) (2026-09-23)
+
+
+### Bug Fixes
+
+* **bridge:** a killed gate is not a passing gate, and a gate that never ran is neither ([#630](https://codeberg.org/bomret/superdev/issues/630)) ([7026c9f](https://codeberg.org/bomret/superdev/commit/7026c9f66144f0a4fbc7c2427a3173228b6390e6)), closes [#616](https://codeberg.org/bomret/superdev/issues/616) [#617](https://codeberg.org/bomret/superdev/issues/617) [#618](https://codeberg.org/bomret/superdev/issues/618) [#606](https://codeberg.org/bomret/superdev/issues/606) [#607](https://codeberg.org/bomret/superdev/issues/607) [#607](https://codeberg.org/bomret/superdev/issues/607)
+* **drift-check:** pin the observation-capture reminder at every subagent dispatch ([#636](https://codeberg.org/bomret/superdev/issues/636)) ([820ee22](https://codeberg.org/bomret/superdev/commit/820ee222934594dcc482aa35170aed93ae7c5081)), closes [#635](https://codeberg.org/bomret/superdev/issues/635)
+* **scope-mode:** a caller consults the run lock before it writes, not after ([#632](https://codeberg.org/bomret/superdev/issues/632)) ([025a6b1](https://codeberg.org/bomret/superdev/commit/025a6b1000c411406ece248850e38a0fd55af1f5)), closes [#621](https://codeberg.org/bomret/superdev/issues/621) [#510](https://codeberg.org/bomret/superdev/issues/510) [#510](https://codeberg.org/bomret/superdev/issues/510) [#620](https://codeberg.org/bomret/superdev/issues/620) [#623](https://codeberg.org/bomret/superdev/issues/623)
+
+
+### Features
+
+* **run-surfacings:** a run's surfacings get an owner ([#634](https://codeberg.org/bomret/superdev/issues/634)) ([4d0b0ac](https://codeberg.org/bomret/superdev/commit/4d0b0acc0988890be7f67bfda3b86c0548e58587)), closes [#600](https://codeberg.org/bomret/superdev/issues/600) [#603](https://codeberg.org/bomret/superdev/issues/603) [#601](https://codeberg.org/bomret/superdev/issues/601) [#605](https://codeberg.org/bomret/superdev/issues/605) [#602](https://codeberg.org/bomret/superdev/issues/602)
+
 ## [0.50.2](https://codeberg.org/bomret/superdev/compare/v0.50.1...v0.50.2) (2026-09-22)
 
 
