@@ -2760,26 +2760,6 @@ const SPECIALISING_SECTIONS = [
   'Assignee',
 ];
 
-// CONTEXT.md's own glossary entries are a second citing side, beside the store documents above: a
-// glossary entry that defers to "that store's own section" for a specialising member owes the same
-// `` `plan-contract.md` → *Section* `` citation those store documents already carry
-// (`scanGlossarySpecialisingCitations()` in `scanners.js`). The glossary entry's own title diverges
-// from its member's name for one member — `Run state` is titled **Published snapshot** — and `Append
-// mode` has no glossary entry at all, so its value here is `null`: a documented absence, skipped rather
-// than flagged, the same way a store document that carries no matching section is skipped. This map is
-// total against `SPECIALISING_SECTIONS` — one key per member, `null` or a title, never omitted — so a
-// member added there with no matching key here is `undefined`, not `null`, and the coverage selftest in
-// `scripts/drift/selftest/scanners.test.js` catches that gap before `scanGlossarySpecialisingCitations()`
-// ever reads it.
-const GLOSSARY_ENTRY_TITLES = {
-  'Scope anchor': 'Scope anchor',
-  Release: 'Release',
-  'Run state': 'Published snapshot',
-  'Append mode': null,
-  'Triage record': 'Triage record',
-  Assignee: 'Assignee',
-};
-
 // One generic-side row per member: `references/plan-contract.md` still carries the section the store
 // documents specialise. Taking the names as an argument rather than closing over the list is what lets the
 // selftest assert the derivation itself — pass a name the real list has never held, and the row for it
@@ -2881,6 +2861,13 @@ const SOURCE_SECTION_CONTRACTS = [
 // Matching a literal space would report that as drift, so every space in the whole citation — in the
 // section name and at either joint around the arrow — matches any run of whitespace instead.
 const specialisingCitation = (name) => new RegExp(`\`plan-contract\\.md\` → \\*${name}\\*`.replace(/ /g, '\\s+'));
+
+// CONTEXT.md's glossary is a second citing side, beside the store documents: a glossary paragraph naming a
+// member's backticked `## <member>` heading owes the citation above (`scanGlossarySpecialisingCitations()` in
+// `scanners.js`). The same whitespace rule applies, since the reference wraps in prose too.
+// ponytail: triggers on the backticked heading only — an entry deferring in unbackticked prose ("that
+// store's own Scope anchor section") owes the citation and passes silently; widen the trigger if one appears.
+const glossaryHeadingReference = (name) => new RegExp(`\`#{2,3} ${name}\``.replace(/ /g, '\\s+'));
 
 // Both new run references are read forward, at a step: `implement-full.md` and `implement-lite.md`
 // each say "read `references/run-init.md`" and "read `references/run-handoff.md`" as instructions to
@@ -3978,7 +3965,7 @@ module.exports = {
   PATHS_DERIVATION_CONTRACTS,
   SOURCE_SECTION_CONTRACTS,
   SPECIALISING_SECTIONS,
-  GLOSSARY_ENTRY_TITLES,
+  glossaryHeadingReference,
   specialisingGenericRows,
   specialisingHeading,
   specialisingCitation,

@@ -58,9 +58,9 @@ const {
   UNTRIAGED_ELEMENTS,
   UNTRIAGED_EXPECTATION,
   SPECIALISING_SECTIONS,
-  GLOSSARY_ENTRY_TITLES,
   specialisingHeading,
   specialisingCitation,
+  glossaryHeadingReference,
   TRIAGE_RECORD_EXPECTATION,
   LOCAL_APPEND_DOC,
   LOCAL_CONTINUATION_ELEMENT,
@@ -437,33 +437,29 @@ function scanSpecialisingCitations(root) {
 }
 
 // scanGlossarySpecialisingCitations() is pure over a root dir: reads `CONTEXT.md` and reports every
-// specialising member whose glossary entry no longer cites the generic contract it specialises — the
-// same citation scanSpecialisingCitations() already pins on the store side, applied to the glossary
-// instead. GLOSSARY_ENTRY_TITLES maps a member to its entry's own title (they diverge for `Run state`,
-// titled "Published snapshot"), and a member mapped to `null` (`Append mode`, which has no glossary
-// entry) is skipped, not flagged — the same permissive skip scanSpecialisingCitations() already takes
-// for a store document that legitimately carries no matching section. A member the map omits entirely
-// reads as `undefined` here, never a typo silently reading as `null`'s documented absence; the coverage
-// selftest in scanners.test.js is what keeps that case from ever reaching a real 7th member.
-// extractParagraph() finds the entry from its bold term to the next blank line, narrower than
-// extractSection()'s heading-to-heading span, because a glossary entry is a paragraph, not a section.
-// The citation test runs on the entry fence-masked with maskFences(), matching
-// scanSpecialisingCitations()'s own rule: a citation shown only inside a fenced example is not the real
-// one.
+// glossary paragraph that names a specialising member's backticked `## <member>` heading without citing
+// `plan-contract.md` → *<member>* — the same citation scanSpecialisingCitations() already pins on the
+// store side, applied to the glossary instead. Which entries owe it follows from what each one names, so
+// `SPECIALISING_SECTIONS` is the only membership source: a second entry deferring to the same member
+// (`Anchor dependency` beside `Scope anchor`) owes the citation too, and a paragraph naming only a
+// non-member heading (`## Untriaged item`) owes nothing. Paragraphs split at blank lines on the
+// fence-masked text, matching extractParagraph()'s own rule, so a heading reference or a citation shown
+// only inside a fenced example neither triggers the check nor satisfies it.
 function scanGlossarySpecialisingCitations(root) {
   const gaps = [];
   const text = readDoc(root, 'CONTEXT.md');
   if (text === null) return gaps; // CONTEXT.md absent (fixture / partial checkout) → nothing to scan
-  for (const name of SPECIALISING_SECTIONS) {
-    const title = GLOSSARY_ENTRY_TITLES[name];
-    if (title === null) continue; // this member has no glossary entry, documented as null in GLOSSARY_ENTRY_TITLES (contracts.js)
-    const entry = extractParagraph(text, new RegExp(`\\*\\*${title}\\*\\*:`));
-    if (entry === null) continue; // the glossary entry itself is absent or the title was renamed; currently has no backstop check
-    if (!specialisingCitation(name).test(maskFences(entry))) {
-      gaps.push({
-        source: 'CONTEXT.md',
-        expectation: `cite \`plan-contract.md\` → *${name}* in its **${title}** glossary entry`,
-      });
+  for (const paragraph of maskFences(text).split(/\n[ \t]*\n/)) {
+    const term = paragraph.match(/^\s*\*\*([^*]+)\*\*/);
+    const entry = term ? term[1] : paragraph.trim().split('\n')[0];
+    for (const name of SPECIALISING_SECTIONS) {
+      if (!glossaryHeadingReference(name).test(paragraph)) continue;
+      if (!specialisingCitation(name).test(paragraph)) {
+        gaps.push({
+          source: 'CONTEXT.md',
+          expectation: `cite \`plan-contract.md\` → *${name}* in its **${entry}** glossary entry`,
+        });
+      }
     }
   }
   return gaps;

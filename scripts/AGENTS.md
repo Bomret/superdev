@@ -1740,17 +1740,19 @@ instead of widened into the pattern. Its `## Assignee` section is held to the sa
 member of the family like any other.
 
 The `glossary-specialising-citations` contract: every `CONTEXT.md` glossary entry cites the
-generic contract the member it names specialises — the same citation the `specialising-citations` check
-already pins on the store side. `scanGlossarySpecialisingCitations` reads `CONTEXT.md` alone and, for each member of the
-**specialising family** that `GLOSSARY_ENTRY_TITLES` maps to a glossary entry, reports an entry that no
-longer names `` `plan-contract.md` → *<section>* `` anywhere inside itself, on the fence-masked entry text,
-matching the `specialising-citations` check's own fence rule. `Append mode` has no glossary entry and is mapped to `null` in
-`GLOSSARY_ENTRY_TITLES` — an explicit, deliberate absence — so it costs nothing, the same permissive skip
-a store document that carries no matching section already gets; the `scanGlossarySpecialisingCitations`
-selftest confirms `Object.keys(GLOSSARY_ENTRY_TITLES)` matches `SPECIALISING_SECTIONS` exactly (see the
-assertion in `scripts/drift/selftest/scanners.test.js`). `Run state`'s entry is titled **Published snapshot**, the one name the map translates.
-`extractParagraph()` finds the entry from its bold term to the next blank line, narrower than
-`extractSection()`'s heading-to-heading span, because a glossary entry is a paragraph, not a section.
+generic contract the member it names specialises. This is the citation the `specialising-citations`
+check already pins on the store side. `scanGlossarySpecialisingCitations` reads `CONTEXT.md` alone and
+splits it into paragraphs at blank lines, on the fence-masked text. A paragraph that names a
+**specialising family** member's backticked `` `## <member>` `` heading owes
+`` `plan-contract.md` → *<member>* ``. Each paragraph that does not carry it is a gap naming the
+entry's bold term. `SPECIALISING_SECTIONS` is the only membership source.
+
+Two entries naming one member
+both owe the citation, as **Scope anchor** and **Anchor dependency** do for `Scope anchor`. A paragraph
+naming only a non-member heading, such as `` `## Untriaged item` ``, owes nothing. A heading reference or
+a citation inside a fenced example neither triggers the check nor satisfies it. The trigger is the
+backticked heading alone: an entry that defers in unbackticked prose passes silently. The
+`ponytail:` note beside `glossaryHeadingReference` in `drift/contracts.js` states that ceiling.
 
 The `backlog-survey` contract (ADR 0049): four rows on `skills/backlog/SKILL.md`, the read-only
 survey that reports every open scope anchor, every triage record, and every stranded run root by the
