@@ -5,7 +5,7 @@
 // Verbs: init, stage, slice, degraded, unresolved, deferred, suite, get, status, root, dod-line. Exit
 // nonzero with a one-line stderr reason on any refusal. hooks/ledger-guard.js makes this the only
 // ledger write path.
-// `root` and `dod-line` are the two verbs that touch no ledger: `root` resolves a run root's absolute
+// `root` and `dod-line` touch no ledger: `root` resolves a run root's absolute
 // path, anchored to the repository's main working tree regardless of which checkout invoked it (ADR
 // 0080); `dod-line` edits one Definition-of-Done checklist line handed to it on stdin, on behalf of a
 // store seed's own fetch/write pair (references/dod-ticks.md, INV-0014).

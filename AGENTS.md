@@ -259,7 +259,7 @@ This root owns every other subtree directly:
   `ledger.md` read and write path, exports `readLedgerHeader` for `plugin/hooks/scope-prune.js` and
   `plugin/hooks/slicetree-sweep.js`, exports the containment test `testContainment` and its second-tier
   probe `baseHistoryHasPatch` for `plugin/scripts/publish-kb.js` and `plugin/hooks/scope-prune.js`
-  (ADR 0053, ADR 0065, ADR 0082), and carries the one verb that touches no ledger — `root <slug>`,
+  (ADR 0053, ADR 0065, ADR 0082), and carries a verb that touches no ledger — `root <slug>`,
   which resolves a run root's absolute path against the repository's main working tree from any cwd,
   ADR 0080 — and writes the `planned` stage on `init`, which `/superdev:implement`'s run init moves
   forward out of, ADR 0079),

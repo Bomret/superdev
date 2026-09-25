@@ -67,7 +67,7 @@ staged-page lines survive the collapse, because each is otherwise recorded nowhe
 carries no `clear` counterpart: a defect stops being true once a run re-verifies the scope green, while
 unplanned work stays unplanned until somebody plans it (ADR 0035).
 
-`root <slug>` is the one verb that touches no ledger (ADR 0080). It resolves and prints a run root's
+`root <slug>` is a verb that touches no ledger (ADR 0080). It resolves and prints a run root's
 absolute path — `<main-worktree>/.superdev/scopes/<slug>`, where `<main-worktree>` is the parent of
 `git rev-parse --git-common-dir` — so it takes no `--root` of its own. The result is identical whichever
 checkout it runs from: the invoking checkout, a scopetree, or a slicetree of the same repository, which is
@@ -75,7 +75,7 @@ what lets every prose caller resolve `<run-root>` the same way regardless of its
 outside a git repository, and refuses a slug carrying a path separator or a leading `.`, since either
 would path a ledger read or write outside `.superdev/scopes/`.
 
-`dod-line` is the other verb that touches no ledger, and makes no store call of its own
+`dod-line` is another verb that touches no ledger, and makes no store call of its own
 (`references/dod-ticks.md`, INV-0014, triage #664): `--match <criterion text> --verdict
 met|not-met|ceiling --note <text> [--line]`. It is the one Definition-of-Done checklist-line edit every
 store's own `## Definition of Done ticks` section now cites instead of restating by hand — a store seed
