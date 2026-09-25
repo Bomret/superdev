@@ -129,10 +129,13 @@ Only when §2 found a live run. Everything above still applies; this adds the ru
 
 - **Find the scope checkout, and refresh the run lock.** Per `<plugin-root>/references/scope-mode.md`. Hand the doc-writer the scope checkout path as its working directory: this is where its commits must land.
 - **Re-check the ticks this pass's own commits could touch,** per `<plugin-root>/references/dod-ticks.md`'s Document's case: read `<run-root>/dod.md` for every ticked line naming a file, an ADR, a glossary entry, or a fixture the doc commits landed in this run touched — the `doc-writer`'s commits when §3 dispatched one, or the inline pass's own commits when §3's no-writer path applied instead. A line the branch still satisfies stays exactly as it stood, with no note added; a line your own change broke gets unticked, with a one-line note on what broke it (INV-0014). Apply the same verdict to the anchor's own Definition of Done checklist, through the active store's own `## Definition of Done ticks` section (`docs/agents/issue-tracker.md`) — best-effort, a failed write reported once and never stopping the pass. **An untick here also writes the ledger's `**Unresolved:**` entry, naming the criterion it broke** — `node "<plugin-root>/scripts/scope.js" unresolved add "<text>" --root <run-root>` — and publishes the snapshot, per `<plugin-root>/references/scope-mode.md`'s `## Publishing run state` section (INV-0016: the stage never advances past review while a criterion stands unmet, except a ceiling one, and this untick is what keeps ship's own gate from opening a pull request over it). The entry is cleared the next time `$superdev-review` returns a clean verdict, the same as any other `**Unresolved:**` entry. Verifying a tick observes; it changes no system outside the repository (ADR 0084, INV-0006). This step runs no test command of its own.
-- **Write the stage — unless the re-check above unticked a line.** The stage never advances past
-  `reviewed` while a criterion stands unmet (INV-0016), so an untick this pass just wrote leaves the
-  ledger's `**Stage:**` line exactly as it stands: write nothing, and skip straight to the next-command
-  bullet below. **No untick this pass** → write the line with
+- **Write the stage — unless the re-check above unticked a line, or a standing `**Unresolved:**` entry
+  already stands.** Run `node "<plugin-root>/scripts/scope.js" get unresolved --root <run-root>`
+  first: printing anything means an earlier pass's untick still stands unresolved, and this pass writing
+  `documented` over it would advance the stage past review while a criterion stands unmet (INV-0016), the
+  same violation an untick of this pass's own would cause. Either case leaves the ledger's `**Stage:**`
+  line exactly as it stands: write nothing, and skip straight to the next-command bullet below. **Neither
+  case** → write the line with
   `node "<plugin-root>/scripts/scope.js" stage set <value> --root <run-root>`, per that file's
   rule that a stage write never undoes completed work — the verb enforces it and refuses a write that
   breaks it. Read the current stage first (`scope.js get stage`). `shipped` → leave the line alone and
@@ -144,11 +147,12 @@ Only when §2 found a live run. Everything above still applies; this adds the ru
   publish the snapshot, per `<plugin-root>/references/scope-mode.md`'s `## Publishing run state`
   section. The two leave-alone branches, and the untick branch above, wrote nothing, so there is nothing
   to publish there.
-- **Print the next command.** **This pass unticked a line above** → print `$superdev-review <range>`,
-  naming the criterion it unticked and that review's fix loop is what re-ticks it once the branch meets
-  it again; print no `$superdev-ship` in the same breath — the stage still reads `reviewed` or below, and
-  the step that opens the pull request asks once when attended and refuses only when unattended, on a
-  scope with an unmet criterion. **No untick this pass** → print
+- **Print the next command.** **This pass unticked a line above, or the standing-entry check above
+  printed one** → print `$superdev-review <range>`, naming the criterion that stands unmet (this pass's
+  own untick, or the earlier one the standing entry already named) and that review's fix loop is what
+  re-ticks it once the branch meets it again; print no `$superdev-ship` in the same breath — the stage
+  still reads `reviewed` or below, and the step that opens the pull request asks once when attended and
+  refuses only when unattended, on a scope with an unmet criterion. **Neither case** → print
   `$superdev-ship <scope>`, with one line on what it does (close the scope anchor, open the pull request,
   and take the run down). Add that this conversation is disposable: the ledger's stage and `dod.md` carry
   everything the next command reads, so a `/clear` first costs nothing.

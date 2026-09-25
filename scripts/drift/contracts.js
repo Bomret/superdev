@@ -1916,6 +1916,21 @@ const AFK_ROUTING_CONTRACTS = [
     'block a second document-to-review send-back of the same anchor in the same sweep, through the ' +
       'ordinary unattended block path, counting it toward the consecutive-block cap (triage #661)',
   ],
+  // INV-0016: a `reviewed` stage read at the top of the routing table can already carry a standing
+  // `**Unresolved:**` entry an earlier pass wrote — not just one this sweep's own `/superdev:document`
+  // call just produced (the row above). Routing it to `/superdev:document` again risks nothing on its
+  // own, since document's own standing-entry check holds the stage, but wastes a doc pass with nothing
+  // new to reconcile instead of going straight to the review the criterion needs.
+  [
+    path.join('skills', 'afk', 'SKILL.md'),
+    /`reviewed`, with a standing `\*\*Unresolved:\*\*` entry \| `\/superdev:review <BASE>\.\.<feature-label> --unattended`/,
+    'route a `reviewed` stage carrying a standing `**Unresolved:**` entry to `/superdev:review`, not `/superdev:document`',
+  ],
+  [
+    path.join('skills', 'afk', 'SKILL.md'),
+    /Both the table's own reviewed-with-a-standing-entry route above[\s\S]{0,200}counts as this anchor's first send-back in the sweep/,
+    "count the table's own reviewed-with-a-standing-entry route as this anchor's first send-back in the sweep, same as the after-document re-check's route",
+  ],
 ];
 
 // Three hooks parse the same shell-word shape out of a Bash command line: `merge-guard` and `green-gate`
@@ -4040,13 +4055,28 @@ const DOC_UNTICK_ON_BREAK_CONTRACTS = [
   // this pass writes must gate the stage write that follows it, not just the Unresolved entry above.
   [
     path.join('skills', 'document', 'SKILL.md'),
-    /unless the re-check above unticked a line[\s\S]{0,250}leaves the ledger's `\*\*Stage:\*\*` line exactly as it stands: write nothing/,
+    /unless the re-check above unticked a line[\s\S]{0,600}leaves the ledger's `\*\*Stage:\*\*` line exactly as it stands: write nothing/,
     'leave the ledger\'s `**Stage:**` line exactly as it stands, writing nothing, when this pass unticked a line',
   ],
   [
     path.join('skills', 'document', 'SKILL.md'),
-    /This pass unticked a line above[\s\S]{0,150}print `\/superdev:review <range>`, naming the criterion it unticked/,
-    'print `/superdev:review <range>` instead of `/superdev:ship`, naming the unticked criterion, when this pass unticked a line',
+    /This pass unticked a line above[\s\S]{0,150}print `\/superdev:review <range>`, naming the criterion that stands unmet/,
+    'print `/superdev:review <range>` instead of `/superdev:ship`, naming the unmet criterion, when this pass unticked a line',
+  ],
+  // INV-0016: a standing `**Unresolved:**` entry from an earlier pass is a criterion still unmet even
+  // when this pass itself unticks nothing — writing `documented` over it would advance the stage past
+  // review while that criterion stands unmet, the same violation an untick of this pass's own would
+  // cause, so the stage write and the next-command print both gate on it exactly as they gate on this
+  // pass's own untick.
+  [
+    path.join('skills', 'document', 'SKILL.md'),
+    /or a standing `\*\*Unresolved:\*\*` entry\s*\n?\s*already stands[\s\S]{0,300}get unresolved --root <run-root>/,
+    "check `scope.js get unresolved` for a standing entry from an earlier pass, gating the stage write on it exactly as this pass's own untick",
+  ],
+  [
+    path.join('skills', 'document', 'SKILL.md'),
+    /or the standing-entry check above printed one[\s\S]{0,150}print `\/superdev:review <range>`/,
+    'print `/superdev:review <range>` when the standing-entry check finds an earlier pass\'s unresolved criterion, same as this pass\'s own untick',
   ],
   // Triage #660: this bullet once said "ship's own gate refuses a scope with an unmet criterion", but
   // the step that opens the pull request only refuses unattended — attended, it asks once. A row losing

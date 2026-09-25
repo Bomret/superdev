@@ -144,7 +144,7 @@ Class: process
 Concepts: Stage, Definition of Done, Verification ceiling
 Statement: A scope's stage never advances past review while a Definition-of-Done criterion stands unmet, except one only a deploy can verify. Every scope passes review, whatever its slice types.
 Breaks: silently
-Check: scripts/drift-check.js — review's stage-write condition pinned beside its unmet-criterion rule; run handoff names `/superdev:review` as the next command for every scope; document's closing step (`doc-untick-on-break`) writes no stage and prints `/superdev:review` rather than `/superdev:ship` after it unticks a criterion its own commits broke
+Check: scripts/drift-check.js — review's stage-write condition pinned beside its unmet-criterion rule; run handoff names `/superdev:review` as the next command for every scope; document's closing step (`doc-untick-on-break`) writes no stage and prints `/superdev:review` rather than `/superdev:ship` when it unticks a criterion its own commits broke, or when a standing `**Unresolved:**` entry from an earlier pass already stands; afk's routing table (`afk-routing`) sends a `reviewed` stage carrying either shape of that standing entry to `/superdev:review`, not `/superdev:document`
 Paths: plugin/skills/review/**, plugin/references/run-handoff.md, plugin/skills/afk/**, plugin/skills/document/**
 
 ### INV-0017

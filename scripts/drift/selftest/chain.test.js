@@ -2755,12 +2755,32 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     "blocks it instead, through §4's ordinary block path — the block comment names the unresolved " +
     'criteria the ledger\'s consecutive-block count.\n';
 
+  // INV-0016: a `reviewed` stage read at the top of the routing table can already carry a standing
+  // `**Unresolved:**` entry an earlier pass wrote, not just one this sweep's own document call produced.
+  const afkStandingEntryRouteText =
+    '| `reviewed`, with a standing `**Unresolved:**` entry | `/superdev:review <BASE>..<feature-label> --unattended` |\n';
+
+  const afkStandingEntryCountText =
+    "Both the table's own reviewed-with-a-standing-entry route above and the after-`/superdev:document`\n" +
+    're-check\'s route below send this same anchor back to review over the same unresolved criterion, so ' +
+    "either\ncounts as this anchor's first send-back in the sweep.\n";
+
+  const afkAllRoutingText =
+    'Every scope passes review, whatever its slice types: the stage table above\n' +
+    'routes every scope through `/superdev:review`, with no special case for an all-`mechanical`/' +
+    '`docs` ledger.\n' +
+    afkStandingEntryRouteText +
+    afkStandingEntryCountText +
+    afkSendBackBlockText;
+
   // positive: afk.md drops the always-review statement, the shape a re-added special case would leave
   const afkGaps1 = scanContract(
     fixture({
       'skills/afk/SKILL.md':
         '| `merged` | `/superdev:review <BASE>..<feature-label> --unattended` |\n' +
         '| `documented-unreviewed` | `/superdev:review <BASE>..<feature-label> --unattended` |\n' +
+        afkStandingEntryRouteText +
+        afkStandingEntryCountText +
         afkSendBackBlockText,
     }),
     AFK_ROUTING_CONTRACTS,
@@ -2770,16 +2790,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   // negative: the always-review statement carried
   assert.equal(
-    scanContract(
-      fixture({
-        'skills/afk/SKILL.md':
-          'Every scope passes review, whatever its slice types: the stage table above\n' +
-          'routes every scope through `/superdev:review`, with no special case for an all-`mechanical`/' +
-          '`docs` ledger.\n' +
-          afkSendBackBlockText,
-      }),
-      AFK_ROUTING_CONTRACTS,
-    ).length,
+    scanContract(fixture({ 'skills/afk/SKILL.md': afkAllRoutingText }), AFK_ROUTING_CONTRACTS).length,
     0,
     'an afk.md carrying the always-review statement yields no gap',
   );
@@ -2791,27 +2802,52 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'skills/afk/SKILL.md':
         'Every scope passes review, whatever its slice types: the stage table above\n' +
         'routes every scope through `/superdev:review`, with no special case for an all-`mechanical`/' +
-        '`docs` ledger.\n',
+        '`docs` ledger.\n' +
+        afkStandingEntryRouteText +
+        afkStandingEntryCountText,
     }),
     AFK_ROUTING_CONTRACTS,
   );
   assert.equal(afkGaps3.length, 1, 'flags an afk.md carrying no second-send-back block rule');
   assert.equal(afkGaps3[0].source, path.join('skills', 'afk', 'SKILL.md'), 'names afk.md');
 
-  // negative: both statements carried
+  // positive: afk.md keeps every other routing statement but drops the standing-entry table row
+  // (INV-0016) — a `reviewed` stage carrying an earlier pass's standing entry routes to `/superdev:document`
+  // again instead of straight to `/superdev:review`
+  const afkGaps4 = scanContract(
+    fixture({
+      'skills/afk/SKILL.md':
+        'Every scope passes review, whatever its slice types: the stage table above\n' +
+        'routes every scope through `/superdev:review`, with no special case for an all-`mechanical`/' +
+        '`docs` ledger.\n' +
+        afkStandingEntryCountText +
+        afkSendBackBlockText,
+    }),
+    AFK_ROUTING_CONTRACTS,
+  );
+  assert.equal(afkGaps4.length, 1, 'flags an afk.md carrying no standing-entry table row');
+  assert.equal(afkGaps4[0].source, path.join('skills', 'afk', 'SKILL.md'), 'names afk.md');
+
+  // positive: afk.md carries the standing-entry table row but never counts it as a send-back
+  const afkGaps5 = scanContract(
+    fixture({
+      'skills/afk/SKILL.md':
+        'Every scope passes review, whatever its slice types: the stage table above\n' +
+        'routes every scope through `/superdev:review`, with no special case for an all-`mechanical`/' +
+        '`docs` ledger.\n' +
+        afkStandingEntryRouteText +
+        afkSendBackBlockText,
+    }),
+    AFK_ROUTING_CONTRACTS,
+  );
+  assert.equal(afkGaps5.length, 1, 'flags an afk.md that never counts the standing-entry route as a send-back');
+  assert.equal(afkGaps5[0].source, path.join('skills', 'afk', 'SKILL.md'), 'names afk.md');
+
+  // negative: every routing statement carried
   assert.equal(
-    scanContract(
-      fixture({
-        'skills/afk/SKILL.md':
-          'Every scope passes review, whatever its slice types: the stage table above\n' +
-          'routes every scope through `/superdev:review`, with no special case for an all-`mechanical`/' +
-          '`docs` ledger.\n' +
-          afkSendBackBlockText,
-      }),
-      AFK_ROUTING_CONTRACTS,
-    ).length,
+    scanContract(fixture({ 'skills/afk/SKILL.md': afkAllRoutingText }), AFK_ROUTING_CONTRACTS).length,
     0,
-    'an afk.md carrying both routing statements yields no gap',
+    'an afk.md carrying every routing statement yields no gap',
   );
 
   // --- ARG_TOKEN_CONTRACTS: merge-guard, green-gate, and ledger-guard each parse the same shell-word
@@ -4961,8 +4997,10 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'An untick here also writes the ledger\'s `**Unresolved:**` entry, naming the criterion it broke — `scope.js unresolved add` — and publishes the snapshot, per `Publishing run state`. ' +
       'Write the stage — unless the re-check above unticked a line. This pass unticked a line — ' +
       'leaves the ledger\'s `**Stage:**` line exactly as it stands: write nothing. ' +
-      'This pass unticked a line above — print `/superdev:review <range>`, naming the criterion it unticked ' +
+      'This pass unticked a line above — print `/superdev:review <range>`, naming the criterion that stands unmet ' +
       'and that review\'s fix loop is what re-ticks it. ' +
+      'or a standing `**Unresolved:**` entry already stands — run `scope.js get unresolved --root <run-root>` first. ' +
+      'or the standing-entry check above printed one — print `/superdev:review <range>` too. ' +
       'No untick this pass — print `/superdev:ship`; the step that opens the pull request asks once when ' +
       'attended and refuses only when unattended, on a scope with an unmet criterion.\n',
   };
@@ -4978,11 +5016,12 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   assert.equal(dubGaps1[0].source, 'references/dod-ticks.md', 'names references/dod-ticks.md');
 
   // skills/document/SKILL.md carries rows for the untick clause, the tick-section routing clause,
-  // the Unresolved-write clause, the stage-write gate (INV-0016), the next-command gate, and the
-  // step-that-opens-the-pull-request gate on an unmet criterion
+  // the Unresolved-write clause, the stage-write gate (INV-0016), the next-command gate, the
+  // step-that-opens-the-pull-request gate on an unmet criterion, and the two standing-`**Unresolved:**`-entry
+  // gates (INV-0016) that hold the stage and route to review even when this pass unticks nothing itself
   const dubDropped2 = fixture({ ...dubClauses, 'skills/document/SKILL.md': 'Nothing about ticks here.\n' });
   const dubGaps2 = scanContract(dubDropped2, DOC_UNTICK_ON_BREAK_CONTRACTS);
-  assert.equal(dubGaps2.length, 6, 'flags skills/document/SKILL.md six times for dropping all six clauses');
+  assert.equal(dubGaps2.length, 8, 'flags skills/document/SKILL.md eight times for dropping all eight clauses');
   assert.ok(
     dubGaps2.every((g) => g.source === 'skills/document/SKILL.md'),
     'every gap names skills/document/SKILL.md',
@@ -5016,8 +5055,10 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'An untick here also writes the ledger\'s `**Unresolved:**` entry, naming the criterion it broke — `scope.js unresolved add` — and publishes the snapshot, per `Publishing run state`. ' +
       'Write the stage — unless the re-check above unticked a line. This pass unticked a line — ' +
       'leaves the ledger\'s `**Stage:**` line exactly as it stands: write nothing. ' +
-      'This pass unticked a line above — print `/superdev:review <range>`, naming the criterion it unticked ' +
+      'This pass unticked a line above — print `/superdev:review <range>`, naming the criterion that stands unmet ' +
       'and that review\'s fix loop is what re-ticks it. ' +
+      'or a standing `**Unresolved:**` entry already stands — run `scope.js get unresolved --root <run-root>` first. ' +
+      'or the standing-entry check above printed one — print `/superdev:review <range>` too. ' +
       'No untick this pass — print `/superdev:ship`; the step that opens the pull request asks once when ' +
       'attended and refuses only when unattended, on a scope with an unmet criterion.\n',
   });
@@ -5038,8 +5079,10 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'An untick here also writes the ledger\'s `**Unresolved:**` entry, naming the criterion it broke — `scope.js unresolved add` — and publishes the snapshot, per `Publishing run state`. ' +
       'Write the stage — unless the re-check above unticked a line. This pass unticked a line — ' +
       'leaves the ledger\'s `**Stage:**` line exactly as it stands: write nothing. ' +
-      'This pass unticked a line above — print `/superdev:review <range>`, naming the criterion it unticked ' +
+      'This pass unticked a line above — print `/superdev:review <range>`, naming the criterion that stands unmet ' +
       'and that review\'s fix loop is what re-ticks it. ' +
+      'or a standing `**Unresolved:**` entry already stands — run `scope.js get unresolved --root <run-root>` first. ' +
+      'or the standing-entry check above printed one — print `/superdev:review <range>` too. ' +
       'No untick this pass — print `/superdev:ship`; the step that opens the pull request asks once when ' +
       'attended and refuses only when unattended, on a scope with an unmet criterion.\n',
   });

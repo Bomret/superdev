@@ -157,10 +157,17 @@ stage has not reached. Resume rather than restart: a merged slice is never rebui
 |---|---|
 | no run root, `planned`, or `implementing` | `/superdev:implement <feature-label> --unattended` |
 | `merged` | `/superdev:review <BASE>..<feature-label> --unattended` |
-| `reviewed` | `/superdev:document <BASE>..<feature-label> --unattended` |
+| `reviewed`, no standing `**Unresolved:**` entry | `/superdev:document <BASE>..<feature-label> --unattended` |
+| `reviewed`, with a standing `**Unresolved:**` entry | `/superdev:review <BASE>..<feature-label> --unattended` |
 | `documented-unreviewed` | `/superdev:review <BASE>..<feature-label> --unattended` |
 | `documented` | `/superdev:ship <scope> --unattended` |
 | `shipped` | skip — §2's shipped skip already caught this anchor; the run is done |
+
+A `reviewed` stage carrying a standing `**Unresolved:**` entry is an earlier pass's untick still
+unresolved (`references/dod-ticks.md`'s Document's case, INV-0016): dispatching `/superdev:document`
+over it risks nothing on its own — document's own standing-entry check holds the stage rather than
+advancing it — but routes straight to the review the criterion actually needs instead of a doc pass with
+nothing new to reconcile.
 
 Then run each remaining step in order — **except after `/superdev:document` runs, re-read the stage
 before continuing to the next one.** Its own re-check (`references/dod-ticks.md`'s Document's case,
@@ -171,7 +178,9 @@ the broken criterion in §6's report — never straight to `/superdev:ship`, whi
 anyway and name `/superdev:document` as the missing step, not the review the criterion actually needs.
 
 **Count this anchor's own send-backs, in your own working memory alone, and write none of it to disk.**
-The first one in this sweep takes the route above. A second one for the same anchor, in the same sweep,
+Both the table's own reviewed-with-a-standing-entry route above and the after-`/superdev:document`
+re-check's route below send this same anchor back to review over the same unresolved criterion, so either
+counts as this anchor's first send-back in the sweep. A second one for the same anchor, in the same sweep,
 blocks it instead, through §4's ordinary block path — the block comment names the unresolved criteria the
 ledger's `**Unresolved:**` line carries, and the block adds to the consecutive-block count exactly as any
 other block does. This count needs no reset rule: you drive one anchor through the whole chain before you
