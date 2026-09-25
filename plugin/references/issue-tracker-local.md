@@ -214,9 +214,9 @@ Done (global)` section on a multi-slice feature, or the lone slice's `acceptance
 snapshot, and ticks the checklist all the same.
 
 - **Set a criterion to its judged state:** write the criterion text and the judgment's note each to
-  their own file, through a quoted heredoc (`<<'EOF'`) rather than as a shell-interpolated argument —
+  their own file, through a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`) rather than as a shell-interpolated argument —
   either may carry a quote, a backtick, or a `$(` (`references/dod-ticks.md`, triage #680) — then pipe
-  the criterion file's own text through
+  the anchor plan file's own text through
   `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js dod-line --match-file <path> --verdict
   met|not-met|ceiling|accepted --note-file <path>` on stdin, write its stdout back over the file
   (`scripts/AGENTS.md` → *scope.js, the run-state CLI*), then **commit the file on the scope branch, in the scope checkout**,

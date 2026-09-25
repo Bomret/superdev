@@ -266,7 +266,7 @@ node. Verify the real shape against your own instance's stored description befor
 report the gap if the live shape differs.
 
 - **Set a criterion to its judged state:** write the criterion text and the judgment's note each to
-  their own file, through a quoted heredoc (`<<'EOF'`) rather than as a shell-interpolated argument —
+  their own file, through a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`) rather than as a shell-interpolated argument —
   either may carry a quote, a backtick, or a `$(` (`references/dod-ticks.md`, triage #680). `GET <base>/rest/api/3/issue/<key>?fields=description`, find
   the checklist line's text node whose text starts `[ ] ` or `[x] `, and pipe that text through
   `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js dod-line --line --match-file <path> --verdict

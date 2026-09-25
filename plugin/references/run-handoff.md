@@ -51,7 +51,7 @@ tiers: record that slice execution finished, name what comes next.
     bullet's own cap, since a scope-wide suite has no slice to block — the same shape as a cycle exposing a
     defect elsewhere, so the loop needs no bound of its own.
   - **Three cycles without going clean** → stop, say so, write the `**Unresolved:**` entry with a quoted
-    heredoc (`<<'EOF'`) piped to
+    heredoc (`<<'SUPERDEV_TEXT_EOF'`) piped to
     `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add - --root <run-root>` — the sole word
     `-` reads the bullet text from stdin rather than a shell-interpolated argument
     (`references/dod-ticks.md`, triage #680) — leave the

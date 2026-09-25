@@ -607,7 +607,7 @@ status in the ledger's slice table (`plan-contract.md`). This line is for scope-
 none.
 
 **The entry.** An `**Unresolved:**` line in `<run-root>/ledger.md`, beside `**Stage:**`, carrying one
-bullet per unresolved defect. Write each with a quoted heredoc (`<<'EOF'`) piped to
+bullet per unresolved defect. Write each with a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`) piped to
 `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js unresolved add - --root <run-root>` — the sole word `-`
 reads the bullet text from stdin rather than a shell-interpolated argument, since a report-derived
 bullet may carry a quote, a backtick, or a `$(` (`references/dod-ticks.md`, triage #680) — which creates
@@ -655,7 +655,7 @@ candidate listing walks, whatever that backend renders. The write is best-effort
 status write in the chain takes: a failure is reported once per run and the bullet still gets written.
 
 **The entry.** A `**Deferred:**` line in `<run-root>/ledger.md`, beside `**Stage:**`, carrying one bullet
-per deferred finding. Write each with a quoted heredoc (`<<'EOF'`) piped to
+per deferred finding. Write each with a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`) piped to
 `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js deferred add - --root <run-root>` — the sole word `-` reads
 the bullet text from stdin rather than a shell-interpolated argument, since a report-derived bullet may
 carry a quote, a backtick, or a `$(` (`references/dod-ticks.md`, triage #680) — which creates the

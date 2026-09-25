@@ -346,7 +346,7 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   anchor's reference, and a copy-pasteable `/superdev:plan "<the finding>"` line — and **no pull-request
   URL**, because this command runs before `/superdev:ship` opens
   one and none exists yet. Capture the record's reference, then write it to the run with a quoted
-  heredoc (`<<'EOF'`) piped to
+  heredoc (`<<'SUPERDEV_TEXT_EOF'`) piped to
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deferred add - --root <run-root>` — the sole word `-`
   reads the bullet text from stdin rather than a shell-interpolated argument
   (`references/dod-ticks.md`, triage #680) — **the bullet

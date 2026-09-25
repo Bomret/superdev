@@ -290,7 +290,7 @@ one (`## Scope anchor` above).
 not this store carries a snapshot.
 
 - **Tick a criterion:** write the criterion text and the judgment's note each to their own file, through
-  a quoted heredoc (`<<'EOF'`) rather than as a shell-interpolated argument — either may carry a quote, a
+  a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`) rather than as a shell-interpolated argument — either may carry a quote, a
   backtick, or a `$(` (`references/dod-ticks.md`, triage #680). `GET /repos/<owner>/<repo>/issues/<number>` (the same call *Run state*'s own read
   above uses) for the anchor body, pipe it through
   `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js dod-line --match-file <path> --verdict
