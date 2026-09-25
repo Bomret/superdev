@@ -265,10 +265,12 @@ documented shape, the mechanics below match the **text** superdev itself writes 
 node. Verify the real shape against your own instance's stored description before relying on this, and
 report the gap if the live shape differs.
 
-- **Set a criterion to its judged state:** `GET <base>/rest/api/3/issue/<key>?fields=description`, find
+- **Set a criterion to its judged state:** write the criterion text and the judgment's note each to
+  their own file, through a quoted heredoc (`<<'EOF'`) rather than as a shell-interpolated argument —
+  either may carry a quote, a backtick, or a `$(` (`references/dod-ticks.md`, triage #680). `GET <base>/rest/api/3/issue/<key>?fields=description`, find
   the checklist line's text node whose text starts `[ ] ` or `[x] `, and pipe that text through
-  `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js dod-line --line --match "<criterion text>" --verdict
-  met|not-met|ceiling --note "<text>"` on stdin — `--line` transforms the one text-node string rather
+  `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js dod-line --line --match-file <path> --verdict
+  met|not-met|ceiling|accepted --note-file <path>` on stdin — `--line` transforms the one text-node string rather
   than a markdown body, since an ADF body is a JSON node tree, not markdown lines — and set the node's
   text to its stdout. Then `PUT <base>/rest/api/3/issue/<key>` with
   `{ "fields": { "description": <amended ADF body> } }` — the same call shape the Epic amendment under

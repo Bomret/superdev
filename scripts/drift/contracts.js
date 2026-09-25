@@ -4048,7 +4048,7 @@ const DOC_UNTICK_ON_BREAK_CONTRACTS = [
   // opens a pull request over a criterion this very pass just broke.
   [
     path.join('skills', 'document', 'SKILL.md'),
-    /An untick here also writes the ledger's `\*\*Unresolved:\*\*` entry, naming the criterion it broke[\s\S]{0,200}unresolved add[\s\S]{0,200}Publishing run state/,
+    /An untick here also writes the ledger's `\*\*Unresolved:\*\*` entry, naming the criterion it broke[\s\S]{0,200}unresolved add[\s\S]{0,400}Publishing run state/,
     "write the ledger's `**Unresolved:**` entry naming the broken criterion (`scope.js unresolved add`) and publish the snapshot when this pass unticks a line",
   ],
   // INV-0016: the stage never advances past `reviewed` while a criterion stands unmet, so an untick

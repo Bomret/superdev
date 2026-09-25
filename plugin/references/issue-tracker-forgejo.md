@@ -236,10 +236,12 @@ single-slice one (`## Scope anchor` above).
 `## Run state` section above — ticking is independent of that section: it lands the same way whether or
 not this store carries a snapshot.
 
-- **Tick a criterion:** `GET /api/v1/repos/<owner>/<repo>/issues/<index>` (the same call *Run state*'s own
+- **Tick a criterion:** write the criterion text and the judgment's note each to their own file, through
+  a quoted heredoc (`<<'EOF'`) rather than as a shell-interpolated argument — either may carry a quote, a
+  backtick, or a `$(` (`references/dod-ticks.md`, triage #680). `GET /api/v1/repos/<owner>/<repo>/issues/<index>` (the same call *Run state*'s own
   read above uses) for the anchor body, pipe it through
-  `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js dod-line --match "<criterion text>" --verdict
-  met|not-met|ceiling --note "<text>"` on stdin, then `PATCH /api/v1/repos/<owner>/<repo>/issues/<index>`
+  `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js dod-line --match-file <path> --verdict
+  met|not-met|ceiling|accepted --note-file <path>` on stdin, then `PATCH /api/v1/repos/<owner>/<repo>/issues/<index>`
   with `{ "body": "<dod-line's stdout>" }` — the same call shape the *Run state* write above already
   uses. **Best-effort:** a failed write is reported once per run and never stops the run; `dod.md` stays
   authoritative.

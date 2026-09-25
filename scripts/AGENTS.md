@@ -46,6 +46,10 @@ an unattended run caps at two (ADR 0041). `degraded reset-denials` appends a bul
 returns the whole budget while every recorded denial stays on the line (ADR 0044). Both prefixes are
 structural, so plain `degraded add` refuses a text beginning with either and names the subcommand that
 owns it. `get degraded` prints every bullet whatever its prefix, prefixes intact.
+`unresolved add -`, `deferred add -`, and `degraded add -` — the sole word `-` past `add` — read the
+bullet text from stdin, one trailing newline stripped, instead of a shell-interpolated argument
+(`references/dod-ticks.md`, triage #680); any other shape of `add`'s own arguments keeps joining its
+positional words with spaces as it always has.
 It also exports `readLedgerHeader` as a module
 API. This per-header ledger-line reader is what `hooks/scope-prune.js` and `hooks/slicetree-sweep.js`
 both use instead of carrying their own regex. `hooks/scope-prune.js` takes a second export off the same

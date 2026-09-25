@@ -213,10 +213,13 @@ Done (global)` section on a multi-slice feature, or the lone slice's `acceptance
 (`## Scope anchor` above) — ticking is independent of `## Run state` above: this store carries no
 snapshot, and ticks the checklist all the same.
 
-- **Set a criterion to its judged state:** pipe the criterion file's own text through
-  `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js dod-line --match "<criterion text>" --verdict
-  met|not-met|ceiling --note "<text>"` on stdin, write its stdout back over the file (`scripts/AGENTS.md`
-  → *scope.js, the run-state CLI*), then **commit the file on the scope branch, in the scope checkout**,
+- **Set a criterion to its judged state:** write the criterion text and the judgment's note each to
+  their own file, through a quoted heredoc (`<<'EOF'`) rather than as a shell-interpolated argument —
+  either may carry a quote, a backtick, or a `$(` (`references/dod-ticks.md`, triage #680) — then pipe
+  the criterion file's own text through
+  `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js dod-line --match-file <path> --verdict
+  met|not-met|ceiling|accepted --note-file <path>` on stdin, write its stdout back over the file
+  (`scripts/AGENTS.md` → *scope.js, the run-state CLI*), then **commit the file on the scope branch, in the scope checkout**,
   the same way the store already commits every other plan-file edit (*Triage record* above).
   **Best-effort:** a failed commit is reported once per run and never stops the run; `dod.md` stays
   authoritative.

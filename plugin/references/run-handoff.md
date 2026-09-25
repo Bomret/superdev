@@ -50,8 +50,11 @@ tiers: record that slice execution finished, name what comes next.
     continue to the handoff pass. **A red re-run counts toward this loop's own 3-strike cap** — this
     bullet's own cap, since a scope-wide suite has no slice to block — the same shape as a cycle exposing a
     defect elsewhere, so the loop needs no bound of its own.
-  - **Three cycles without going clean** → stop, say so, write the `**Unresolved:**` entry with
-    `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add "<text>" --root <run-root>`, leave the
+  - **Three cycles without going clean** → stop, say so, write the `**Unresolved:**` entry with a quoted
+    heredoc (`<<'EOF'`) piped to
+    `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add - --root <run-root>` — the sole word
+    `-` reads the bullet text from stdin rather than a shell-interpolated argument
+    (`references/dod-ticks.md`, triage #680) — leave the
     stage where it is, and publish the snapshot before stopping — per
     `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section — since no later
     stage write in this run will do it: the run root stands unresolved until a human resumes it, and

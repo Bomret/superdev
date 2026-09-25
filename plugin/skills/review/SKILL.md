@@ -344,8 +344,11 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   Definition of Done criterion covered it, the date, the feature label, the scope branch, the scope
   anchor's reference, and a copy-pasteable `/superdev:plan "<the finding>"` line — and **no pull-request
   URL**, because this command runs before `/superdev:ship` opens
-  one and none exists yet. Capture the record's reference, then write it to the run with
-  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deferred add "<text>" --root <run-root>` — **the bullet
+  one and none exists yet. Capture the record's reference, then write it to the run with a quoted
+  heredoc (`<<'EOF'`) piped to
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deferred add - --root <run-root>` — the sole word `-`
+  reads the bullet text from stdin rather than a shell-interpolated argument
+  (`references/dod-ticks.md`, triage #680) — **the bullet
   text carries that reference**, which is what leads a reader of the ledger, the pull-request body, or
   `/superdev:status` to the record. **The create fails** → the bullet names the failure in the
   reference's place instead — `no triage record — create failed`, or, when a permission classifier is what
@@ -398,8 +401,11 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
 - **Ask once before fixing.** `final-reviewer` returned **Critical or Important** findings, a broken
   criterion, or the full
   suite came back `fail` → report them per §3 first, then ask whether to fix them now.
-  - **Declined** → stop. The findings stand: write the `**Unresolved:**` entry with
-    `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add "<text>" --root <run-root>`, publish the
+  - **Declined** → stop. The findings stand: write the `**Unresolved:**` entry with a quoted heredoc
+    (`<<'EOF'`) piped to
+    `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add - --root <run-root>` — the sole word
+    `-` reads the bullet text from stdin rather than a shell-interpolated argument
+    (`references/dod-ticks.md`, triage #680) — publish the
     snapshot before stopping — per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run
     state` section, since no later write in this run will do it — and the stage does **not** advance.
   - **`--unattended` → fix**, without asking: the fix loop is the point of this gate, and a review that

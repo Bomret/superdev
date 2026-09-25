@@ -493,6 +493,48 @@ try {
     'get unresolved prints one bullet per line'
   );
 
+  // unresolved add -, deferred add -, degraded add -: the sole word "-" past "add" reads the bullet
+  // text from stdin instead of a shell-interpolated argument (triage #680), one trailing newline
+  // stripped; text carrying a quote, a backtick, a `$(`, still lands byte for byte.
+  {
+    const tricky = 'report says `$(rm -rf /)` and "quotes" too';
+    assert.ok(call(['unresolved', 'add', '-', ...R], tricky + '\n').ok, 'unresolved add - reads stdin');
+    assert.ok(
+      call(['get', 'unresolved', ...R]).out.includes(tricky),
+      'the stdin-supplied unresolved text lands verbatim'
+    );
+    assert.ok(call(['deferred', 'add', '-', ...R], tricky + '\n').ok, 'deferred add - reads stdin');
+    assert.ok(
+      call(['get', 'deferred', ...R]).out.includes(tricky),
+      'the stdin-supplied deferred text lands verbatim'
+    );
+    assert.ok(call(['degraded', 'add', '-', ...R], tricky + '\n').ok, 'degraded add - reads stdin');
+    assert.ok(
+      call(['get', 'degraded', ...R]).out.includes(tricky),
+      'the stdin-supplied degraded text lands verbatim'
+    );
+
+    // A newline embedded in the stdin text (past the one trailing newline stripped) is still refused.
+    const d = call(['unresolved', 'add', '-', ...R], 'line one\nline two\n');
+    assert.ok(!d.ok && /newline/.test(d.err), 'an embedded newline in stdin text is still refused: ' + d.err);
+  }
+
+  // The real CLI (a subprocess, not the mocked `run()` call above) actually waits on stdin for the
+  // "-" sentinel — the case main()'s own needsStdin gate has to recognise.
+  {
+    const cliRoot = path.join(tmp, '.superdev', 'scopes', 'demo');
+    const out = execFileSync(
+      process.execPath,
+      [scopePath, 'unresolved', 'add', '-', '--root', cliRoot],
+      { input: 'from the real CLI\n', encoding: 'utf8' }
+    );
+    assert.strictEqual(out, '', 'unresolved add - prints nothing on success');
+    assert.ok(
+      fs.readFileSync(path.join(cliRoot, 'ledger.md'), 'utf8').includes('from the real CLI'),
+      'the real CLI actually read stdin for the "-" sentinel'
+    );
+  }
+
   // degraded add-denial / get denials: a denied verification dispatch is recorded distinguishably from
   // the other degraded shape, and counted, so an unattended run caps itself at two before the
   // platform's own three-denial kill stops it outside superdev's block procedure (ADR 0041). Its own

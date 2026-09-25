@@ -402,6 +402,16 @@ function verbSlice(root, id, status, range) {
 // names the invoked subcommand verbatim (`degraded add`, `degraded reset-denials`, …), so a refusal
 // names what the caller actually typed rather than a sibling subcommand's shape; `noun` names what the
 // missing text is called there — `reset-denials` takes a reason, everything else a bullet.
+// `unresolved add -`, `deferred add -`, and `degraded add -` read their bullet text from stdin instead
+// of a shell-interpolated argument (triage #680): the sentinel `-` as the sole word past `add` means
+// "read stdin," one trailing newline stripped, exactly as `dod-line`'s own stdin path already strips
+// it. Any other subcommand, or any other shape of `add`'s own arguments, keeps joining its positional
+// words with spaces as it always has.
+function resolveBulletText(sub, rest, stdinJson) {
+  if (sub === 'add' && rest.length === 1 && rest[0] === '-') return stdinJson.replace(/\r?\n$/, '');
+  return rest.join(' ');
+}
+
 function addBullet(root, name, verb, text, noun = 'bullet text') {
   if (!text) fail(`${verb} needs the ${noun}`);
   if (text.includes('\n')) fail(`${verb} text must not contain a newline`);
@@ -620,28 +630,49 @@ function takeOption(args, flag) {
   return value;
 }
 
+// A caller-supplied file's text, one trailing newline stripped, exactly as `--line` mode already
+// strips it off stdin. Report-derived text (a `"`, a backtick, a `$(`, an embedded newline) reaches
+// `dod-line` this way rather than as a shell-interpolated argument (triage #680).
+function readOptionFile(flag, filePath) {
+  let raw;
+  try {
+    raw = fs.readFileSync(filePath, 'utf8');
+  } catch (e) {
+    fail(`${flag} could not read "${filePath}": ${e.message}`);
+  }
+  return raw.replace(/\r?\n$/, '');
+}
+
 function verbDodLine(args, stdinRaw) {
   const match = takeOption(args, '--match');
+  const matchFile = takeOption(args, '--match-file');
   const verdict = takeOption(args, '--verdict');
   const note = takeOption(args, '--note');
+  const noteFile = takeOption(args, '--note-file');
   const lineIdx = args.indexOf('--line');
   const lineMode = lineIdx >= 0;
   if (lineMode) args.splice(lineIdx, 1);
 
-  if (!match) fail('dod-line needs --match <criterion text>');
+  if (match !== undefined && matchFile !== undefined) fail('dod-line takes --match or --match-file, not both');
+  if (note !== undefined && noteFile !== undefined) fail('dod-line takes --note or --note-file, not both');
+
+  const resolvedMatch = matchFile !== undefined ? readOptionFile('--match-file', matchFile) : match;
+  const resolvedNote = noteFile !== undefined ? readOptionFile('--note-file', noteFile) : note;
+
+  if (!resolvedMatch) fail('dod-line needs --match <criterion text> or --match-file <path>');
   if (!DOD_VERDICTS[verdict]) {
     fail(`dod-line needs --verdict one of ${Object.keys(DOD_VERDICTS).join('|')} — got "${verdict || ''}"`);
   }
-  if (note === undefined) fail('dod-line needs --note <text>');
-  if (/[\n\r]/.test(note)) fail('dod-line --note must not contain a newline — it would inject a free-text line into the body');
+  if (resolvedNote === undefined) fail('dod-line needs --note <text> or --note-file <path>');
+  if (/[\n\r]/.test(resolvedNote)) fail('dod-line --note must not contain a newline — it would inject a free-text line into the body');
 
   if (lineMode) {
     const line = stdinRaw.replace(/\r?\n$/, '');
-    const [out] = transformDodLines([line], match, verdict, note);
+    const [out] = transformDodLines([line], resolvedMatch, verdict, resolvedNote);
     console.log(out);
     return;
   }
-  const out = transformDodLines(splitLines(stdinRaw), match, verdict, note);
+  const out = transformDodLines(splitLines(stdinRaw), resolvedMatch, verdict, resolvedNote);
   // process.stdout.write, not console.log: console.log always appends its own trailing newline, which
   // would double up on the one splitLines/join already reproduce when stdinRaw itself ended in one.
   process.stdout.write(out.join('\n'));
@@ -1302,7 +1333,8 @@ function usage() {
     '  publish --root <run-root>          prints the ledger as one "## Run state" section on stdout',
     '  adopt --root <run-root>            stdin: a whole anchor body; extracts and writes the section',
     '  root <slug>                        prints <main-worktree>/.superdev/scopes/<slug>, resolved via git',
-    '  dod-line --match <text> --verdict met|not-met|ceiling --note <text> [--line]',
+    '  dod-line --match <text>|--match-file <path> --verdict met|not-met|ceiling|accepted',
+    '            --note <text>|--note-file <path> [--line]',
     '                                     stdin: a body (default) or one checklist line (--line);',
     '                                     stdout: the same, with the matching line judged',
   ].join('\n');
@@ -1345,17 +1377,20 @@ function run(argv, cwd, stdinJson) {
     }
     case 'degraded': {
       const root = takeRoot(args);
-      verbDegraded(root, args[0], args.slice(1).join(' '));
+      const sub = args[0];
+      verbDegraded(root, sub, resolveBulletText(sub, args.slice(1), stdinJson));
       break;
     }
     case 'unresolved': {
       const root = takeRoot(args);
-      verbUnresolved(root, args[0], args.slice(1).join(' '));
+      const sub = args[0];
+      verbUnresolved(root, sub, resolveBulletText(sub, args.slice(1), stdinJson));
       break;
     }
     case 'deferred': {
       const root = takeRoot(args);
-      verbDeferred(root, args[0], args.slice(1).join(' '));
+      const sub = args[0];
+      verbDeferred(root, sub, resolveBulletText(sub, args.slice(1), stdinJson));
       break;
     }
     case 'docs': {
@@ -1417,9 +1452,22 @@ function run(argv, cwd, stdinJson) {
   }
 }
 
+// True for `unresolved add -`, `deferred add -`, and `degraded add -` (any `--root <path>` position
+// tolerated), which is what tells `main()` to wait on stdin before dispatching — the same sentinel
+// `resolveBulletText` reads once the ledger root is known.
+const BULLET_STDIN_VERBS = ['degraded', 'unresolved', 'deferred'];
+function isBulletStdinInvocation(argv) {
+  if (!BULLET_STDIN_VERBS.includes(argv[0])) return false;
+  const rest = argv.slice(1);
+  const ri = rest.indexOf('--root');
+  if (ri >= 0) rest.splice(ri, 2);
+  return rest.length === 2 && rest[0] === 'add' && rest[1] === '-';
+}
+
 function main() {
   const argv = process.argv.slice(2);
-  const needsStdin = argv[0] === 'init' || argv[0] === 'adopt' || argv[0] === 'dod-line';
+  const needsStdin =
+    argv[0] === 'init' || argv[0] === 'adopt' || argv[0] === 'dod-line' || isBulletStdinInvocation(argv);
   const go = (stdinJson) => {
     try {
       run(argv, process.cwd(), stdinJson);
