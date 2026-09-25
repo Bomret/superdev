@@ -160,7 +160,7 @@ _Avoid: "mapping" alone (the tag is the written form), "owner" (a slice delivers
 **Tick**: a controller's judgment on one Definition-of-Done line, on the scope anchor and in `dod.md`: checked with its evidence as the note, or unchecked with the reason it is not met or that only a deploy can verify it. A line nobody has judged yet carries no note; a bare tick is invalid (INV-0014). Only a controller writes one (INV-0015).
 _Avoid: "check off", "verify" (verification is what earns a tick, not the tick itself)_
 
-**Suite record**: the ledger's record of the last full-suite run — its result and the commit it ran on. A later step reuses a green record whose commit is the scope branch's current tip instead of running the suite again (INV-0017).
+**Suite record**: the ledger's record of the last full-suite run — its result and the commit it ran on. A later step reuses a green record whose commit is the scope branch's current tip, or an earlier commit that differs from the tip only in the active store's own plan files, instead of running the suite again (INV-0017).
 _Avoid: "suite status", "last run" (the record names its commit, which is what makes it reusable)_
 
 **Test-applicability**: the class of changes a slice carries. `behavior` is new functionality, and needs TDD plus a per-slice reviewer plus a simplicity-reviewer. `mechanical` is a move, a rename, or a format change, uses the existing suite as the net, and skips per-slice reviews. `docs` is documentation-only, and skips reviews.
