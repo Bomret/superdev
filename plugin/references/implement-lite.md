@@ -81,6 +81,15 @@ shipped.
   no per-slice review.
 - **No per-slice review, no per-slice progress log.** Your own context is the record of how each slice
   unfolded; the ledger is the durable trace once that context is gone.
+- **Tick from your own report, the same way the full tier's controller ticks from an implementer's**
+  (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`). You dispatch nobody, so you write the report to
+  yourself: as each slice goes green, judge the listed lines the mapping gate matches to that slice — every
+  `dod.md` line whose tag names it, by `id` or by its `issue` (or, on a `dod.md` with no tags at all **and
+  a ledger listing exactly one slice**, every line) — met with evidence, not met with a reason, or ceiling
+  with partial evidence — and tick what earns it, on `<run-root>/dod.md` and on the anchor, once the slice
+  is committed. An untagged line on a multi-slice `dod.md` is no slice's listed line — nor is any line on a
+  `dod.md` with no tags at all when the ledger lists more than one slice (a run begun before tagging
+  existed); leave it for run handoff's own handoff pass, read next, which settles it as if it read `scope`.
 - **No dispatch degrades here.** This tier dispatches nobody, so a denied dispatch cannot happen and the
   `**Degraded:**` line that `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes`
   section defines stays absent through slice execution. The doc step below can still write one, for that

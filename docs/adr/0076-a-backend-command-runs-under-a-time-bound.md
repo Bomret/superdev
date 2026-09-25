@@ -37,3 +37,9 @@ it leaves exactly the case ADR 0069 opened — an operator-written template — 
 rejected as four numbers to justify where the failure being fixed is indifferent to which verb hit it.
 An operator-configurable bound in `docs/agents/knowledge-base.md`: rejected as a new config surface for
 a value that has no reason to vary between repositories.
+
+**Note (2026-09-25, ADR 0094).** A retried create is recognised by a `created-by-publish` marker,
+written into the staged file before the create call, rather than by comparing content. A retried create
+that landed as staged, and carries no recorded `live-hash`, publishes as an update with no further check.
+A page whose live body differs from the staged body is refused rather than updated, marker or not, where
+the staged file also carries a `live-hash`.

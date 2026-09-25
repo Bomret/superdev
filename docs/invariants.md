@@ -55,8 +55,8 @@ Class: architecture
 Concepts: Definition of Done, Verification ceiling, Scope branch
 Statement: Verifying a Definition-of-Done criterion observes. It changes no system outside the repository. An item that needs an outward-facing change to verify stays unticked, with a note, for the operator to verify after merge.
 Breaks: silently
-Check: scripts/drift-check.js — VERIFICATION_CEILING_CONTRACTS pins the ceiling on scope-mode.md's own `## Verification ceiling` section, on both verifying agent bodies, and on every prose that dispatches them
-Paths: plugin/references/scope-mode.md, plugin/agents/final-reviewer.md, plugin/agents/implementer.md, plugin/skills/review/**, plugin/skills/implement/**, plugin/skills/ship/**, plugin/references/run-handoff.md
+Check: scripts/drift-check.js — VERIFICATION_CEILING_CONTRACTS pins the ceiling on scope-mode.md's own `## Verification ceiling` section, on both verifying agent bodies, and on every surface that verifies a criterion or dispatches one that does
+Paths: plugin/references/scope-mode.md, plugin/agents/final-reviewer.md, plugin/agents/implementer.md, plugin/skills/review/**, plugin/skills/implement/**, plugin/skills/document/**, plugin/references/run-handoff.md, plugin/references/dod-ticks.md
 
 ### INV-0007
 
@@ -119,3 +119,48 @@ Statement: `/superdev:implement` entering a run root it did not itself create in
 Breaks: silently
 Check: scripts/drift-check.js — the stage-plus-freshness check is pinned on scope-mode.md's own `## The run lock` section, scoped to `/superdev:implement`'s entry, on run-init.md and both execution playbooks, which cite it, and (the absence half) `scanRunLockLivenessSilence` asserting review/document/ship carry no such language of their own
 Paths: plugin/references/scope-mode.md, plugin/references/run-init.md, plugin/references/implement-full.md, plugin/references/implement-lite.md, plugin/skills/review/SKILL.md, plugin/skills/document/SKILL.md, plugin/skills/ship/SKILL.md
+
+### INV-0014
+
+Class: process
+Concepts: Definition of Done, Tick, Verification
+Statement: Every judged Definition-of-Done line carries a note. A ticked criterion names its evidence; an unticked one names why it is not met, or that only a deploy can verify it, with any partial evidence. A bare tick is invalid, and a line nobody has judged yet carries no note.
+Breaks: silently
+Check: scripts/drift-check.js — the note rule pinned on the shared tick reference and on every surface that writes or takes back a tick (implement's playbooks and run handoff, review, document)
+Paths: plugin/references/**, plugin/skills/implement/**, plugin/skills/review/**, plugin/skills/document/**
+
+### INV-0015
+
+Class: process
+Concepts: Definition of Done, Tick, Criterion tag, Controller
+Statement: Only a controller writes a Definition-of-Done tick. It ticks a criterion from an implementer's report only where the criterion's tag names that implementer's slice, and settles every other criterion only in run handoff's own pass or in review. Review's controller may also tick a criterion straight from `final-reviewer`'s own `holds` verdict, with the verdict's evidence as the note. No subagent writes a tick, and `/superdev:ship` writes none.
+Breaks: silently
+Check: scripts/drift-check.js — the mapping gate pinned on the shared tick reference and both playbooks; no agent under plugin/agents/ and no ship step instructs a tick
+Paths: plugin/references/**, plugin/agents/**, plugin/skills/implement/**, plugin/skills/review/**, plugin/skills/ship/**
+
+### INV-0016
+
+Class: process
+Concepts: Stage, Definition of Done, Verification ceiling
+Statement: A scope's stage never advances past review while a Definition-of-Done criterion stands unmet, except one only a deploy can verify. Every scope passes review, whatever its slice types.
+Breaks: silently
+Check: scripts/drift-check.js — review's stage-write condition pinned beside its unmet-criterion rule; run handoff names `/superdev:review` as the next command for every scope; document's closing step (`doc-untick-on-break`) writes no stage and prints `/superdev:review` rather than `/superdev:ship` after it unticks a criterion its own commits broke
+Paths: plugin/skills/review/**, plugin/references/run-handoff.md, plugin/skills/afk/**, plugin/skills/document/**
+
+### INV-0017
+
+Class: process
+Concepts: Focused test command, Suite record
+Statement: A slice implementer and a fix cycle run only the focused command. The full suite runs at run handoff, once more when a fix loop there first comes back clean, and after review's first clean re-review. A green result recorded on the commit a step would run on, or on an earlier commit that differs only in the store's own plan files, is reused rather than run again.
+Breaks: silently
+Check: scripts/drift-check.js — the full-suite contract rows on run handoff and review; tests/scope.test.js — the suite record's read and write, and `suite reusable`'s tip-match and plan-file-scoped cases
+Paths: plugin/references/run-handoff.md, plugin/skills/review/**, plugin/agents/implementer.md, plugin/scripts/scope.js
+
+### INV-0091
+
+Class: architecture
+Concepts: Staged page, Knowledge base
+Statement: `/superdev:publish-kb` never replaces a live non-aggregate page its staged `upsert` was not built from. An `upsert` whose recorded body hash differs from the live page's is refused and stays staged, with the refusal reported per page, whether or not the staged file carries a `created-by-publish` marker. A hashless `upsert` on an existing page is refused the same way, unless the staged file carries that marker, which shows the page is this publish's own create landing; the marker substitutes for a hash only where none was recorded.
+Breaks: silently
+Check: tests/publish-kb.test.js — the mismatched-hash and hashless-existing-page refusals, the hashless new-page create, and the marker retry that sends an update instead of a refusal
+Paths: plugin/scripts/publish-kb.js, plugin/references/doc-pass.md, plugin/agents/doc-writer.md

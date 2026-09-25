@@ -67,5 +67,13 @@ On success the script prints its report on stdout: the scope, the backend it rea
 published, every page removed, and every page left staged with its reason, plus an `unmerged:` line when
 §2's second stop was confirmed. Relay that report as the result.
 
+A page left staged for carrying no recorded `live-hash` and no `created-by-publish` marker, or a
+recorded hash that no longer matches the live page (ADR 0094, INV-0091), needs no action here beyond
+relaying the reason: re-running `$superdev-document` re-reads the live page and re-stages it with a
+fresh hash, so the next publish either checks out clean or reports a genuine, still-current mismatch.
+A page carrying the marker, and no recorded `live-hash`, is not refused: it is this same script's own
+retry of a create that landed after a prior run was killed, and it publishes as an update. A recorded
+`live-hash` is checked regardless of the marker.
+
 Nothing was staged, or the operator declined at §2 → say that in one line. Report no success that did not
 happen.

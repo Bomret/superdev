@@ -142,4 +142,5 @@ guessed at rather than measured.
   slices; two seams that should agree but don't. On standing code, with no slices to compare, this reads
   as a divergent second way to do one job living inside the code itself.
 - **Duplicated fact** — the same fact (a name-list, a described behavior) stated in two places
-  where one owns it and the other should link; flag the copy that drifted.
+  where one owns it and the other should link; flag the copy that drifted. A drift contract table's row
+  count is a growing-set count, not a fixed arity (ADR 0064); flag prose that states one.

@@ -94,7 +94,7 @@ script cannot put a question.
 `<run-root>/ledger.md` is one document: labeled header lines, then a slice table.
 `${CLAUDE_PLUGIN_ROOT}/scripts/scope.js` owns its schema and is its only read and write path (ADR 0022):
 `init` creates the document, `stage` / `slice` / `degraded add|add-denial|reset-denials` / `unresolved
-add|clear` / `docs set|clear` move it, `get` / `status` read it back.
+add|clear` / `docs set|clear` / `suite set` move it, `get` / `status` read it back.
 No command or playbook edits or parses the file directly — the `ledger-guard` hook denies any other
 write, naming `scope.js`.
 
@@ -122,9 +122,18 @@ write, naming `scope.js`.
   a pass that already ran from one still owed. A single whitespace-free token, which `docs set` enforces.
   Publish the snapshot afterwards, per `## Publishing run state` below, on every `docs set` or `docs clear`
   call.
+- **`**Suite:** <result> @ <sha>`** — the **suite record** (CONTEXT.md): the last full-suite run's
+  result — `green`, `red`, `denied` (a run the permission classifier denied), or `none` (no test command
+  configured) — and the commit it ran on. Read with `get suite`, which prints `<result> <sha>` or nothing
+  on a ledger with no record; written with `suite set <result> <sha>`, which refuses a sha that does not
+  resolve to a commit in the repository. A later step reuses a green record `scope.js suite reusable`
+  calls reusable against the scope branch's current tip — an exact match, or a diff confined to the
+  active store's own plan files since the recorded commit — instead of running the suite again
+  (INV-0017).
 
 A ledger written before a line existed carries none of it — `scope.js` parses a pre-CLI ledger unchanged,
-and `get` reports an absent header line as `absent`, never as a parse error.
+and `get` reports an absent header line as `absent`, never as a parse error — except `get suite`, which
+prints nothing on an absent Suite line rather than the literal word `absent`.
 
 ## The scope branch
 
@@ -337,7 +346,7 @@ command that writes to the scope branch there — `git -C <run-root>/scopetree .
 the invoking checkout, which stays wherever it was.
 
 - **Present** → work there.
-- **The ledger's `**Stage:**` reads `shipped`, and the checkout is absent** → `/superdev:ship`'s §6
+- **The ledger's `**Stage:**` reads `shipped`, and the checkout is absent** → `/superdev:ship`'s §5
   removed it by design. On a read-only command (`/superdev:review`, `/superdev:document`), say so and
   review or reconcile read-only rather than recreating it; a writing command has nothing left to write to
   a shipped scope in the first place.
@@ -581,9 +590,10 @@ unattended block.
 ## Unresolved defects
 
 An **unresolved defect** is a defect the run finds in the code and leaves standing: a full suite still
-red at the three-strike cap, a finding the operator declines to fix, or an unattended block reached at
-that cap. It answers a different question than `## Degraded passes` — that section says how much of the
-chain ran, this one says whether the branch is sound (ADR 0026).
+red at the three-strike cap, a finding the operator declines to fix, an unattended block reached at
+that cap, or a Definition-of-Done criterion the doc pass's own re-check unticks (`references/dod-ticks.md`'s
+Document's case, INV-0016). It answers a different question than `## Degraded passes` — that section says
+how much of the chain ran, this one says whether the branch is sound (ADR 0026).
 
 **A command writes the entry where the run gives up**, never where the defect first appears. A defect
 found and then fixed leaves no trace.

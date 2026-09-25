@@ -16,6 +16,7 @@ const {
   scanAppendContract,
   scanReleaseContract,
   scanRunStateContract,
+  scanDodTicksContract,
   scanTriageRecordContract,
   scanUntriagedContract,
   scanSpecialisingCitations,
@@ -1225,8 +1226,8 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // --- scanAfkInvocations: every stage-table row that invokes one of the four chain commands must carry
   // the token on that same row (ADR 0015). A row that loses it asks a question nobody answers, and the
-  // sweep stops there reporting no failure. The real table carries five rows — two of them
-  // `/superdev:review` — so this checks per row, not once per command name. ---
+  // sweep stops there reporting no failure. The real table's rows include `/superdev:review` twice —
+  // so this checks per row, not once per command name. ---
 
   // a fixture modeled on skills/afk/SKILL.md §3's stage table plus its footnote and §5's maintainer-resume
   // mention, both of which name a command on the same line as `--unattended` without being a table row
@@ -1250,7 +1251,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   const afk1 = fixture({ 'skills/afk/SKILL.md': stageTable(fullRows) });
   assert.equal(scanAfkInvocations(afk1).length, 0, 'a fully wired stage table is clean');
 
-  // positive: each of the five rows is checked on its own — mutate one at a time, confirm it alone goes
+  // positive: each row is checked on its own — mutate one at a time, confirm it alone goes
   // red, and that the sibling row of the same command (`review` appears twice) does not mask it
   for (let i = 0; i < fullRows.length; i++) {
     const mutated = fullRows.map((row, j) => (j === i ? [row[0], row[1].replace(' --unattended', '')] : row));
@@ -1348,7 +1349,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
       SHIP_UNRELATED_GATE +
       '**Entries standing.** Name every bullet. Declined → stop. Confirmed → proceed. **`--unattended` → ' +
       'refuse**: name what stands, open no pull request, and stop.\n\n' +
-      '## 4. Definition of Done\n',
+      '## 4. Pull request\n',
   });
   const sgGaps1 = scanShipGateContract(sg1);
   assert.equal(
@@ -1367,7 +1368,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
       SHIP_UNRELATED_GATE +
       '**Entries standing.** Name every bullet and **ask once** whether to ship with it standing. ' +
       'Declined → stop. Confirmed → proceed.\n\n' +
-      '## 4. Definition of Done\n',
+      '## 4. Pull request\n',
   });
   const sgGaps2 = scanShipGateContract(sg2);
   assert.equal(
@@ -1385,7 +1386,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
       '**Entries standing.** Name every bullet and **ask once** whether to ship with it standing. ' +
       'Declined → stop. Confirmed → proceed. **`--unattended` → refuse**: name what stands, open no ' +
       'pull request, and stop.\n\n' +
-      '## 4. Definition of Done\n',
+      '## 4. Pull request\n',
   });
   assert.equal(
     scanShipGateContract(sg3).length,
@@ -1394,7 +1395,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   );
 
   // positive: no entries-standing paragraph at all
-  const sg4 = fixture({ 'skills/ship/SKILL.md': SHIP_UNRELATED_GATE + '## 4. Definition of Done\n' });
+  const sg4 = fixture({ 'skills/ship/SKILL.md': SHIP_UNRELATED_GATE + '## 4. Pull request\n' });
   const sgGaps4 = scanShipGateContract(sg4);
   assert.equal(sgGaps4.length, 1, 'flags a ship.md with no entries-standing paragraph at all');
   assert.equal(sgGaps4[0].source, path.join('skills', 'ship', 'SKILL.md'), 'names ship.md');
@@ -1784,123 +1785,195 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'an absent document is skipped rather than reported',
   );
 
-  // --- scanRunStateContract: every slice-store document carries its own `## Run state` section
-  // (`plan-contract.md` → *Run state*), over the same storeDocuments() candidate list the anchor,
-  // append, release and triage contracts already walk. No store is exempt: a snapshot-less backend
-  // declares itself snapshot-less *inside* that section, which is the single yes-or-no answer
-  // `references/run-init.md` reads before it adopts, so a store without the section leaves that
-  // question unanswerable rather than answered "no". ---
+  // --- scanRunStateContract and scanDodTicksContract: every slice-store document carries sections
+  // matching `## Run state` and `## Definition of Done ticks` (plan-contract.md → *Run state*, ADR 0091),
+  // over the same storeDocuments() candidate list the anchor, append, release and triage contracts walk.
+  // Both scanners share one implementation shape; test cases run for both headings. ---
 
-  // positive: a store document with no run-state section is flagged
-  const rsSeed1 = fixture({ 'references/issue-tracker-acme.md': '# acme\n\nSlices are issues.\n' });
-  const rsGaps1 = scanRunStateContract(rsSeed1);
-  assert.equal(rsGaps1.length, 1, 'flags a store document with no run-state section');
-  assert.equal(rsGaps1[0].source, path.join('references', 'issue-tracker-acme.md'), 'names the seed');
+  const testStoreSectionScanner = (scanner, heading, sectionName) => {
+    // missing section gap
+    const gaps1 = scanner(fixture({ 'references/issue-tracker-acme.md': '# acme\n\nSlices are issues.\n' }));
+    assert.equal(gaps1.length, 1, `flags a store document with no ${sectionName} section`);
+    assert.equal(gaps1[0].source, path.join('references', 'issue-tracker-acme.md'), 'names the seed');
 
-  // negative: the same document carrying the section is clean
-  assert.equal(
-    scanRunStateContract(
+    // document with section is clean (the body cites dod-line and states the failed-write posture,
+    // which scanDodTicksContract's own content checks require — harmless extra text for
+    // scanRunStateContract, which has none)
+    assert.equal(
+      scanner(
+        fixture({
+          'references/issue-tracker-acme.md':
+            `# acme\n\n## ${heading}\n\nSection body here, piping the checklist text through dod-line. ` +
+            'A failed write is reported once per run and never stops the run.\n',
+        }),
+      ).length,
+      0,
+      'a store document carrying the section yields zero gaps',
+    );
+
+    // The `(fill in at setup)` suffix is the seed-template convention for sections a consumer must
+    // complete. A pattern anchored to end-of-line would report the one store that most needs the
+    // section — the snapshot-less one — as carrying none at all, so the pattern matches with
+    // the suffix stripped.
+    assert.equal(
+      scanner(
+        fixture({
+          'references/issue-tracker-jira.md':
+            `# jira\n\n### ${heading} (fill in at setup)\n\nSection body, piping the text through dod-line. ` +
+            'A failed write is reported once per run and never stops the run.\n',
+        }),
+      ).length,
+      0,
+      'a deeper heading level with seed-template suffix still carries the section',
+    );
+
+    // Prose mentioning the section's topic, without a heading, is not the section. The heading is
+    // what `/superdev:setup` carries to a consumer.
+    assert.equal(
+      scanner(
+        fixture({ 'references/issue-tracker-acme.md': `# acme\n\nThe ${sectionName} mirrors the ledger.\n` }),
+      ).length,
+      1,
+      'a prose mention is not the section',
+    );
+
+    // One of multiple real seeds loses it, and the gap names that seed.
+    const sectionContent =
+      `# store\n\n## ${heading}\n\nSection content here, piping the text through dod-line. A failed ` +
+      'write is reported once per run and never stops the run.\n';
+    const sectionGaps = scanner(
       fixture({
-        'references/issue-tracker-acme.md':
-          '# acme\n\n## Run state\n\nThe snapshot lives in the anchor body.\n',
+        'references/issue-tracker-forgejo.md': sectionContent,
+        'references/issue-tracker-github.md': sectionContent,
+        'references/issue-tracker-jira.md': sectionContent,
+        'references/issue-tracker-local.md': '# store\n\nNo section here.\n',
       }),
-    ).length,
-    0,
-    'a store document carrying the section yields zero gaps',
-  );
+    );
+    assert.equal(sectionGaps.length, 1, 'flags the seed that dropped the section');
+    assert.equal(
+      sectionGaps[0].source,
+      path.join('references', 'issue-tracker-local.md'),
+      'names the seed that dropped it',
+    );
 
-  // a seed heading may carry the `(fill in at setup)` suffix the Jira seed uses on the sections a
-  // consumer must complete. The suffix is the seed-template convention, not a different section, so a
-  // pattern anchored to end-of-line would report the one store that most needs the section — the
-  // snapshot-less one, whose whole declaration lives in it — as carrying none at all.
-  assert.equal(
-    scanRunStateContract(
-      fixture({
-        'references/issue-tracker-jira.md':
-          '# jira\n\n## Run state (fill in at setup)\n\nThis store carries **no snapshot** by default.\n',
-      }),
-    ).length,
-    0,
-    'a heading suffixed `(fill in at setup)` still carries the section',
-  );
+    // fenced heading should be ignored — fence-masking prevents examples in a doc from being
+    // mistaken for the real section.
+    assert.equal(
+      scanner(
+        fixture({
+          'references/issue-tracker-local.md':
+            `# store\n\nA seed renders it like this:\n\n\`\`\`markdown\n## ${heading}\nSection body.\n\`\`\`\n`,
+        }),
+      ).length,
+      1,
+      'a heading shown only inside a fenced code example is not the real section',
+    );
 
-  // positive: prose about run state is not the section — the heading is what `/superdev:setup` carries
-  assert.equal(
-    scanRunStateContract(
-      fixture({ 'references/issue-tracker-acme.md': '# acme\n\nThe run state mirrors the ledger.\n' }),
-    ).length,
-    1,
-    'a prose mention is not the section',
-  );
+    // dogfood doc
+    const dogfood = scanner(fixture({ 'docs/agents/issue-tracker.md': '# Slice store\n\nIssues.\n' }));
+    assert.equal(dogfood.length, 1, 'the dogfooded store config is checked too');
+    assert.equal(dogfood[0].source, path.join('docs', 'agents', 'issue-tracker.md'), 'names it');
 
-  // positive: one of the real seeds loses it, and the gap names that seed
-  const runStateSection = '# store\n\n## Run state\n\n`plan-contract.md` → *Run state*.\n';
-  const rsGaps = scanRunStateContract(
+    // A fifth backend seed dropped into references/ is covered without any scanner change.
+    assert.equal(
+      scanner(
+        fixture({ 'references/issue-tracker-newstore.md': '# newstore\n\nNo section here.\n' }),
+      ).length,
+      1,
+      'a seed this scanner has never seen before is still held to the contract',
+    );
+
+    // absent doc skipped
+    assert.equal(
+      scanner(fixture({ 'README.md': '# repo\n' })).length,
+      0,
+      'an absent document is skipped rather than reported',
+    );
+
+    // real tree green
+    assert.equal(
+      scanner(realRoot).length,
+      0,
+      `every store document in the real tree carries its \`## ${heading}\` section`,
+    );
+  };
+
+  testStoreSectionScanner(scanRunStateContract, 'Run state', 'run-state');
+  testStoreSectionScanner(scanDodTicksContract, 'Definition of Done ticks', 'dod-ticks');
+
+  // --- scanDodTicksContract's content check (INV-0014): a `## Definition of Done ticks` section
+  // cites `dod-line` for the target-state line edit itself, rather than restating it by hand, and
+  // never describes the write as "append the note"/"note appended", which contradicts dod-line's own
+  // replace rule.
+  const dodNoCitationGaps = scanDodTicksContract(
     fixture({
-      'references/issue-tracker-forgejo.md': runStateSection,
-      'references/issue-tracker-github.md': runStateSection,
-      'references/issue-tracker-jira.md': runStateSection,
-      'references/issue-tracker-local.md': '# store\n\nA plan file records its own run.\n',
+      'references/issue-tracker-local.md':
+        '# store\n\n## Definition of Done ticks\n\nSet the marker to the target state; the new note ' +
+        'replaces any previous note on that line. A failed write is reported once per run and never ' +
+        'stops the run.\n',
     }),
   );
-  assert.equal(rsGaps.length, 1, 'flags the seed that dropped the section');
+  assert.equal(dodNoCitationGaps.length, 1, 'flags a seed whose tick section restates the edit without citing dod-line');
   assert.equal(
-    rsGaps[0].source,
+    dodNoCitationGaps[0].source,
     path.join('references', 'issue-tracker-local.md'),
-    'names the seed that dropped it',
+    'names the offending seed',
   );
 
-  // a `###` heading satisfies the row too, the same latitude every other section pattern allows
+  const dodAppendGaps = scanDodTicksContract(
+    fixture({
+      'references/issue-tracker-local.md':
+        '# store\n\n## Definition of Done ticks\n\nPipe the checklist text through dod-line and append ' +
+        'the note. A failed write is reported once per run and never stops the run.\n',
+    }),
+  );
+  assert.equal(dodAppendGaps.length, 1, 'flags a seed whose tick section still says "append the note"');
   assert.equal(
-    scanRunStateContract(
-      fixture({ 'references/issue-tracker-jira.md': '# store\n\n### Run state\n\nNo snapshot.\n' }),
-    ).length,
-    0,
-    'a deeper heading level still carries the section',
+    dodAppendGaps[0].source,
+    path.join('references', 'issue-tracker-local.md'),
+    'names the offending seed',
   );
 
-  // this repo's own dogfooded store config is checked alongside the seeds
-  const rsDogfood = scanRunStateContract(fixture({ 'docs/agents/issue-tracker.md': '# Slice store\n\nIssues.\n' }));
-  assert.equal(rsDogfood.length, 1, 'the dogfooded store config is checked too');
-  assert.equal(rsDogfood[0].source, path.join('docs', 'agents', 'issue-tracker.md'), 'names it');
+  const dodCleanGaps = scanDodTicksContract(
+    fixture({
+      'references/issue-tracker-local.md':
+        '# store\n\n## Definition of Done ticks\n\nPipe the checklist text through dod-line, which sets ' +
+        'the marker to the target state and replaces the note. A failed write is reported once per run ' +
+        'and never stops the run.\n',
+    }),
+  );
+  assert.deepEqual(dodCleanGaps, [], 'a section citing dod-line with no append language reports no gap');
 
-  // a fifth backend seed dropped into references/ is covered without any change to this scanner
+  // --- scanDodTicksContract's third content check (triage #662): the section states that a failed
+  // anchor write — the tick write itself — is reported once per run and never stops the run, the same
+  // clause plan-contract.md's own section states.
+  const dodNoOncePerRunGaps = scanDodTicksContract(
+    fixture({
+      'references/issue-tracker-local.md':
+        '# store\n\n## Definition of Done ticks\n\nPipe the checklist text through dod-line, which sets ' +
+        'the marker to the target state and replaces the note.\n',
+    }),
+  );
   assert.equal(
-    scanRunStateContract(
-      fixture({ 'references/issue-tracker-newstore.md': '# newstore\n\nNo run-state section here.\n' }),
-    ).length,
+    dodNoOncePerRunGaps.length,
     1,
-    'a seed this scanner has never seen before is still held to the contract',
+    'flags a seed whose tick section drops the failed-write-never-stops-the-run sentence',
+  );
+  assert.equal(
+    dodNoOncePerRunGaps[0].source,
+    path.join('references', 'issue-tracker-local.md'),
+    'names the offending seed',
   );
 
-  // an absent document is skipped, so a fixture carries only the docs it exercises
-  assert.equal(
-    scanRunStateContract(fixture({ 'README.md': '# repo\n' })).length,
-    0,
-    'an absent document is skipped rather than reported',
+  const dodOncePerRunGaps = scanDodTicksContract(
+    fixture({
+      'references/issue-tracker-local.md':
+        '# store\n\n## Definition of Done ticks\n\nPipe the checklist text through dod-line, which sets ' +
+        'the marker to the target state and replaces the note. A failed write is reported once per run ' +
+        'and never stops the run.\n',
+    }),
   );
-
-  // a heading shown only inside a fenced code example is not the real section — defensive: no store
-  // document renders one this way today, but the store seeds' own habit of showing a heading inside a
-  // fenced example elsewhere makes it plausible
-  assert.equal(
-    scanRunStateContract(
-      fixture({
-        'references/issue-tracker-local.md':
-          '# store\n\nA seed renders it like this:\n\n```markdown\n## Run state (fill in at setup)\n' +
-          'This store carries no snapshot.\n```\n',
-      }),
-    ).length,
-    1,
-    'a heading shown only inside a fenced code example is not the real section',
-  );
-
-  // the real tree is green: every store document it ships carries the section
-  assert.equal(
-    scanRunStateContract(realRoot).length,
-    0,
-    'every store document in the real tree carries its `## Run state` section',
-  );
+  assert.deepEqual(dodOncePerRunGaps, [], 'a section stating the failed-write posture reports no gap');
 
   // --- scanTriageRecordContract: every slice-store document states where a deferred finding's triage
   // record lives (ADR 0046), over the same storeDocuments() candidate list scanAnchorContract and

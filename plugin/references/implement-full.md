@@ -78,7 +78,11 @@ Repeat until every slice is `merged`:
    specifics: the slice `spec` + `acceptance` + `test-applicability`, its slicetree path
    (`<run-root>/slicetrees/<id>`) + branch (`slice/<scope>/<id>`), base/head, its
    **progress-log** path (`<run-root>/reports/<id>/progress.md` — seed it first), the global constraints,
-   and the **interface file** path (`<run-root>/interfaces.md`). Not the whole plan.
+   and the **interface file** path (`<run-root>/interfaces.md`). Not the whole plan. Also hand it the
+   **path** to `<run-root>/dod.md`, never its text, plus the exact **listed lines** this slice's dispatch
+   covers — the `dod.md` lines the mapping gate matches to this slice's own `id`
+   (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s mapping gate, ADR 0092): build only this slice, and
+   report on those listed lines.
 
    **Pilot the first wave.** On a fresh scope (nothing merged yet), dispatch a single slice first and take
    it through review + merge before filling the cap — a systemic problem (a mis-specified convention, a
@@ -132,8 +136,7 @@ Repeat until every slice is `merged`:
      (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section) rather than
      repeating one here.
    - **`mechanical`** / **`docs`** slice → **skip both per-slice reviews** (the merge's focused run, plus
-     the scope's full-suite run — at `/superdev:review`, or the run-handoff run when every slice in
-     the scope is `mechanical`/`docs` — are the net; ADR 0025).
+     the full suite run-handoff runs once for every scope, are the net; ADR 0025, ADR 0091).
 4. **Merge (you, serially)** — in the scopetree: `git -C <run-root>/scopetree merge
    --no-ff slice/<scope>/<id>`. Resolve
    conflicts yourself, per `${CLAUDE_PLUGIN_ROOT}/references/merge-conflicts.md` (you hold cross-slice
@@ -159,6 +162,11 @@ Repeat until every slice is `merged`:
    store, and `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" slice <id> merged --root <run-root>` in the
    ledger (add `--range <commit-range>` to record the slice's commit range, when you have one). Merging
    unblocks dependents.
+
+   **Now tick from the implementer's report** (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`) — after
+   the merge lands, never before: a tick claims the scope branch holds the work, and before this point it
+   does not yet. Apply the mapping gate to each line the report carried and write every tick it earns,
+   on `<run-root>/dod.md` and on the anchor.
 5. Recompute the runnable set and continue.
 
 ## Resume (re-running on an existing scope)

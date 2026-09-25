@@ -2,6 +2,11 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0091](0091-the-definition-of-done-is-ticked-while-the-run-works.md), which routes
+a held register match's id into the touching slice's `spec` and `acceptance` instead of a
+Definition-of-Done criterion under that id; the epic states the behaviour the entry protects, and
+`final-reviewer` judges an entry covered by either half.
+
 **Context.** A system holds rules that must never break: a module is loaded once, a removed module is
 unloaded, an order total equals the sum of its lines, the domain layer imports no infrastructure. A
 feature built in isolation breaks one without noticing, because the rule lives somewhere the work never

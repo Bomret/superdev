@@ -1,6 +1,6 @@
 superdev-render-overlay
 source: skills/document/SKILL.md
-body-lines: 128
+body-lines: 150
 ---
 # generated-by: superdev-adapter — a re-render overwrites this directory
 name: superdev-document
@@ -29,7 +29,7 @@ Dispatch **`doc-writer`** with an **explicit `model`** (`sonnet`; `haiku` for a 
 @50
 It performs the pass `<plugin-root>/references/doc-pass.md` states, and commits its doc changes on the current branch. **Name that reference in the dispatch**: it owns the pass, and a dispatch that describes the pass in its own words is the one the writer acts on (ADR 0031, ADR 0035).
 @52
-**The knowledge-base pass reaches no backend.** For a remote backend the doc-writer writes each page as a **staged page**, and `/superdev-publish-kb` sends it later, once a human decides the feature has reached its readers (ADR 0023). A local `docs/kb/` backend is unaffected: its pages are repository files that ride the branch.
+**The knowledge-base pass reads a remote backend, and never writes to it** (ADR 0094, INV-0091). For a remote backend the doc-writer writes each page as a **staged page**, reading an existing non-aggregate page first to reconcile against and record its `live-hash`, and `/superdev-publish-kb` writes it later, once a human decides the feature has reached its readers (ADR 0023). A local `docs/kb/` backend is unaffected: its pages are repository files that ride the branch.
 @55
 The scope checkout is `<run-root>/scopetree`, inside `.superdev/` itself, so a checkout-relative path resolves one level too deep from the doc-writer's cwd and lands in a directory `/superdev-ship` deletes.
 @63
@@ -55,6 +55,14 @@ If it reports findings, re-dispatch **`doc-writer`** (as in §3) with the findin
 @125
 - **Find the scope checkout, and refresh the run lock.** Per `<plugin-root>/references/scope-mode.md`. Hand the doc-writer the scope checkout path as its working directory: this is where its commits must land.
 @126
-- **Write the stage.** Once §4 finishes, write the ledger's `**Stage:**` line with `node "<plugin-root>/scripts/scope.js" stage set <value> --root <run-root>`, per that file's rule that a stage write never undoes completed work — the verb enforces it and refuses a write that breaks it. Read the current stage first (`scope.js get stage`). `shipped` → leave the line alone and say so in one line; a shipped scope never regains an earlier stage. `reviewed` → write `documented`. `documented` → leave it; the docs are already recorded as reconciled. Anything else, including no line at all → write `documented-unreviewed`, which records that the review step never ran before this doc pass. A pass in which the doc-writer changed nothing still counts: the docs already agreed with the code, which is the state this stage records. **Wrote `documented` or `documented-unreviewed` above** → publish the snapshot, per `<plugin-root>/references/scope-mode.md`'s `## Publishing run state` section. The two leave-alone branches wrote nothing, so there is nothing to publish there.
-@127
-- **Print the next command:** `/superdev-ship <scope>`, with one line on what it does (tick the Definition of Done, close the scope anchor, open the pull request, and take the run down). Add that this conversation is disposable: the ledger's stage and `dod.md` carry everything `/superdev-ship` reads, so a `/clear` first costs nothing.
+- **Re-check the ticks this pass's own commits could touch,** per `<plugin-root>/references/dod-ticks.md`'s Document's case: read `<run-root>/dod.md` for every ticked line naming a file, an ADR, a glossary entry, or a fixture the doc commits landed in this run touched — the `doc-writer`'s commits when §3 dispatched one, or the inline pass's own commits when §3's no-writer path applied instead. A line the branch still satisfies stays exactly as it stood, with no note added; a line your own change broke gets unticked, with a one-line note on what broke it (INV-0014). Apply the same verdict to the anchor's own Definition of Done checklist, through the active store's own `## Definition of Done ticks` section (`docs/agents/issue-tracker.md`) — best-effort, a failed write reported once and never stopping the pass. **An untick here also writes the ledger's `**Unresolved:**` entry, naming the criterion it broke** — `node "<plugin-root>/scripts/scope.js" unresolved add "<text>" --root <run-root>` — and publishes the snapshot, per `<plugin-root>/references/scope-mode.md`'s `## Publishing run state` section (INV-0016: the stage never advances past review while a criterion stands unmet, except a ceiling one, and this untick is what keeps ship's own gate from opening a pull request over it). The entry is cleared the next time `/superdev-review` returns a clean verdict, the same as any other `**Unresolved:**` entry. Verifying a tick observes; it changes no system outside the repository (ADR 0084, INV-0006). This step runs no test command of its own.
+@131
+  `node "<plugin-root>/scripts/scope.js" stage set <value> --root <run-root>`, per that file's
+@139
+  publish the snapshot, per `<plugin-root>/references/scope-mode.md`'s `## Publishing run state`
+@142
+- **Print the next command.** **This pass unticked a line above** → print `/superdev-review <range>`,
+@144
+  it again; print no `/superdev-ship` in the same breath — the stage still reads `reviewed` or below, and
+@147
+  `/superdev-ship <scope>`, with one line on what it does (close the scope anchor, open the pull request,

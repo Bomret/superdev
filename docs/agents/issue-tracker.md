@@ -224,11 +224,29 @@ single-slice one (`## Scope anchor` above).
   per run and the run continues; the ledger stays authoritative.
 - **Read** (every publish, including run init and adopting a run): `GET /api/v1/repos/bomret/superdev/issues/<index>` — the same call
   **Read a slice** above already names — and take the body back out of the response.
-- **Ticking the anchor's own Definition of Done checklist** (`/superdev:ship`, toggling a body `- [ ]` to
-  `- [x]`) is a second sanctioned body edit, beside the epic amendment under *Append mode*.
 - **The section is machine-owned.** A deeper subsection an operator adds under `## Run state` — a
   `### Operator notes` heading, say — is replaced along with the rest on the next publish. Keep an
   operator note outside the section.
+
+## Definition of Done ticks
+
+`plan-contract.md` → *Definition of Done ticks*. The checklist lives in the anchor's own body, beside the
+`## Run state` section above — ticking is independent of that section: it lands the same way whether or
+not this store carries a snapshot.
+
+- **Tick a criterion:** `GET /api/v1/repos/bomret/superdev/issues/<index>` (the same call *Run state*'s
+  own read above uses) for the anchor body, pipe it through
+  `node plugin/scripts/scope.js dod-line --match "<criterion text>" --verdict met|not-met|ceiling --note
+  "<text>"` on stdin, then `PATCH /api/v1/repos/bomret/superdev/issues/<index>` with
+  `{ "body": "<dod-line's stdout>" }` — the same call shape the *Run state* write above already uses.
+  **Best-effort:** a failed write is reported once per run and never stops the run; `dod.md` stays
+  authoritative.
+- **A criterion's tag renders as `#<n>`** (the slice issue's index). `/superdev:plan` §6 writes the tag
+  in `plan-contract.md`'s own notation (a slice `id`, or `scope`) when it creates the epic, before any
+  slice issue exists. Once every slice issue is created, the controller rewrites each slice-id tag into
+  `#<n>`, in the same parallel body-patch step **Record a dependency** above uses to write
+  `**Depends on:** #<n>` — both need the same resolved indexes and both wait on the same event; a `scope`
+  tag is left as `scope`.
 
 ## Status workflow
 

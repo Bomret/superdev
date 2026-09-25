@@ -24,11 +24,17 @@ const {
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-selftest-'));
 
-// Capture console.log output per call.
+// Capture console.log output per call, plus a direct process.stdout.write (dod-line's body mode
+// writes its exact bytes that way, rather than through console.log's own added trailing newline).
 const call = (argv, stdinJson) => {
   const logged = [];
   const orig = console.log;
+  const origWrite = process.stdout.write;
   console.log = (s) => logged.push(String(s));
+  process.stdout.write = (s) => {
+    logged.push(String(s));
+    return true;
+  };
   try {
     run(argv, tmp, stdinJson || '');
     return { ok: true, out: logged.join('\n') };
@@ -37,6 +43,7 @@ const call = (argv, stdinJson) => {
     throw e;
   } finally {
     console.log = orig;
+    process.stdout.write = origWrite;
   }
 };
 
@@ -734,6 +741,30 @@ try {
     beforeDocsRefusal,
     'nothing written on any docs refusal'
   );
+
+  // docs set / suite set: a hand-edited ledger carrying bullets directly after the last header
+  // line — non-standard, but scope.js parses a pre-CLI ledger unchanged — gets the new header line
+  // placed after that whole block, never spliced between the header and its bullets.
+  {
+    const glued2Root = path.join(tmp, 'docs-suite-glued');
+    fs.mkdirSync(glued2Root, { recursive: true });
+    const glued2Text =
+      '# Ledger — docs-suite-glued\n\n**Stage:** merged\n**Branch:** feat/docs-suite-glued\n' +
+      '**Anchor:** #1 — glued\n- a hand-added bullet directly after Anchor, not a real Unresolved/Degraded/Deferred block\n\n' +
+      '| id | issue | title | type | depends-on | status | range |\n' +
+      '|---|---|---|---|---|---|---|\n' +
+      '| 01 | #2 | x | behavior | — | merged | — |\n';
+    fs.writeFileSync(path.join(glued2Root, 'ledger.md'), glued2Text, 'utf8');
+    const G2 = ['--root', glued2Root];
+    assert.ok(call(['docs', 'set', 'inline', ...G2]).ok, 'docs set on a ledger with a bullet glued to Anchor');
+    const glued2Docs = fs.readFileSync(path.join(glued2Root, 'ledger.md'), 'utf8');
+    assert.ok(
+      /a hand-added bullet directly after Anchor, not a real Unresolved\/Degraded\/Deferred block\n\*\*Docs:\*\* inline/.test(
+        glued2Docs
+      ),
+      'the Docs line lands after the glued bullet, not between Anchor and it: ' + glued2Docs
+    );
+  }
 
   // docs clear: removes the line and leaves every other byte alone.
   const beforeDocsClear = fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
@@ -1685,6 +1716,237 @@ try {
     fs.rmSync(mainRepo, { recursive: true, force: true });
   }
 
+  // --- suite: the suite record, the last full-suite run's result and the commit it ran on
+  // (`references/scope-mode.md` `## The ledger`, INV-0017) ---------------------------------------
+  {
+    function gitSuite(args, cwd) {
+      execFileSync('git', args, { cwd, stdio: 'ignore' });
+    }
+    const callIn = (argv, cwd, stdinJson) => {
+      const logged = [];
+      const orig = console.log;
+      console.log = (s) => logged.push(String(s));
+      try {
+        run(argv, cwd, stdinJson || '');
+        return { ok: true, out: logged.join('\n') };
+      } catch (e) {
+        if (e.isRefusal) return { ok: false, err: e.message, out: logged.join('\n') };
+        throw e;
+      } finally {
+        console.log = orig;
+      }
+    };
+
+    const suiteRepo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-suite-')));
+    gitSuite(['init', '-q', '-b', 'main'], suiteRepo);
+    gitSuite(['config', 'user.email', 'test@example.com'], suiteRepo);
+    gitSuite(['config', 'user.name', 'test'], suiteRepo);
+    fs.writeFileSync(path.join(suiteRepo, 'README.md'), 'x\n');
+    gitSuite(['add', '.'], suiteRepo);
+    gitSuite(['commit', '-q', '-m', 'init'], suiteRepo);
+    const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: suiteRepo, encoding: 'utf8' }).trim();
+
+    const suiteSliceJson = JSON.stringify({
+      anchor: '#1 — suite record',
+      slices: [{ id: '01', issue: '#2', title: 'x', type: 'behavior', 'depends-on': '—' }],
+    });
+    assert.ok(
+      callIn(['init', 'feat/suite-demo', 'planned'], suiteRepo, suiteSliceJson).ok,
+      'init for the suite fixture'
+    );
+    const suiteRoot = path.join(suiteRepo, '.superdev', 'scopes', 'suite-demo');
+    const SR = ['--root', suiteRoot];
+
+    // suite set: writes the header line, and get suite prints it back.
+    assert.ok(callIn(['suite', 'set', 'green', sha, ...SR], suiteRepo).ok, 'suite set green');
+    const suiteText = fs.readFileSync(path.join(suiteRoot, 'ledger.md'), 'utf8');
+    assert.ok(new RegExp(`\\*\\*Suite:\\*\\* green @ ${sha}`).test(suiteText), 'ledger carries the Suite line');
+    assert.strictEqual(callIn(['get', 'suite', ...SR], suiteRepo).out, `green ${sha}`, 'get suite prints result and sha');
+
+    // suite set: a second write overwrites rather than adding a second line.
+    assert.ok(callIn(['suite', 'set', 'red', sha, ...SR], suiteRepo).ok, 'suite set red');
+    const suiteTwice = fs.readFileSync(path.join(suiteRoot, 'ledger.md'), 'utf8');
+    assert.strictEqual((suiteTwice.match(/\*\*Suite:\*\*/g) || []).length, 1, 'one Suite line, not two');
+    assert.strictEqual(callIn(['get', 'suite', ...SR], suiteRepo).out, `red ${sha}`, 'the second write wins');
+
+    // suite set: an unknown result is refused, and writes nothing.
+    const beforeUnknownResult = fs.readFileSync(path.join(suiteRoot, 'ledger.md'), 'utf8');
+    let r = callIn(['suite', 'set', 'yellow', sha, ...SR], suiteRepo);
+    assert.ok(!r.ok && /unknown suite result "yellow"/.test(r.err), 'unknown suite result refused: ' + (r.err || ''));
+    assert.strictEqual(
+      fs.readFileSync(path.join(suiteRoot, 'ledger.md'), 'utf8'),
+      beforeUnknownResult,
+      'nothing written on an unknown-result refusal'
+    );
+
+    // suite set: a sha that resolves to no commit in this repository is refused, and writes nothing.
+    r = callIn(['suite', 'set', 'green', 'not-a-real-sha', ...SR], suiteRepo);
+    assert.ok(
+      !r.ok && /does not resolve to a commit/.test(r.err),
+      'a sha that does not resolve is refused: ' + (r.err || '')
+    );
+    assert.strictEqual(
+      fs.readFileSync(path.join(suiteRoot, 'ledger.md'), 'utf8'),
+      beforeUnknownResult,
+      'nothing written on an unresolved-sha refusal'
+    );
+
+    // get suite: on a ledger with no record, prints nothing and exits zero.
+    const noSuiteRoot = path.join(suiteRepo, '.superdev', 'scopes', 'suite-demo-none');
+    fs.mkdirSync(noSuiteRoot, { recursive: true });
+    fs.writeFileSync(
+      path.join(noSuiteRoot, 'ledger.md'),
+      '# Ledger — suite-demo-none\n\n**Stage:** implementing\n\n' +
+        '| id | issue | title | type | depends-on | status | range |\n|---|---|---|---|---|---|---|\n',
+      'utf8'
+    );
+    const noSuite = callIn(['get', 'suite', '--root', noSuiteRoot], suiteRepo);
+    assert.ok(noSuite.ok && noSuite.out === '', 'get suite on a ledger with no record prints nothing and exits zero');
+
+    // A ledger carrying the Suite line still parses for every existing verb.
+    assert.strictEqual(callIn(['get', 'stage', ...SR], suiteRepo).out, 'planned', 'get stage still parses');
+    assert.ok(callIn(['slice', '01', 'merged', ...SR], suiteRepo).ok, 'slice still parses');
+    assert.ok(callIn(['publish', ...SR], suiteRepo).out.includes('**Suite:** red'), 'publish still parses, and carries the Suite line');
+    const publishedSuite = callIn(['publish', ...SR], suiteRepo).out;
+    // adopt matches its run-root basename against the payload's branch slug (ADR 0042), which is
+    // still "suite-demo" — parked outside .superdev/scopes/ so it never collides with suiteRoot above.
+    const adoptRoot = path.join(suiteRepo, 'adopt-check', 'suite-demo');
+    const adopted = callIn(
+      ['adopt', '--root', adoptRoot],
+      suiteRepo,
+      `# Anchor\n\n${publishedSuite}\n`
+    );
+    assert.ok(adopted.ok, 'adopt still parses a Suite-bearing snapshot: ' + (adopted.err || ''));
+    assert.strictEqual(
+      callIn(['get', 'suite', '--root', adoptRoot], suiteRepo).out,
+      'red ' + sha,
+      'adopt reconstructs the Suite line'
+    );
+
+    // suite set: a ref like HEAD records the resolved full commit, not the literal ref — a later
+    // reuse compares the recorded sha against the scope branch's tip sha (INV-0017), and "HEAD"
+    // never string-matches a real tip sha.
+    assert.ok(callIn(['suite', 'set', 'green', 'HEAD', ...SR], suiteRepo).ok, 'suite set green HEAD');
+    assert.strictEqual(
+      callIn(['get', 'suite', ...SR], suiteRepo).out,
+      `green ${sha}`,
+      'HEAD resolves to the full commit, not the literal ref'
+    );
+
+    // suite set: a short sha also records the full commit.
+    const shortSha = sha.slice(0, 8);
+    assert.ok(callIn(['suite', 'set', 'green', shortSha, ...SR], suiteRepo).ok, 'suite set green <short sha>');
+    assert.strictEqual(
+      callIn(['get', 'suite', ...SR], suiteRepo).out,
+      `green ${sha}`,
+      'a short sha resolves to the full commit'
+    );
+
+    // suite set: a record made against the current tip no longer matches once the branch moves on —
+    // the recorded sha stays put, the new HEAD is what changed.
+    fs.writeFileSync(path.join(suiteRepo, 'README.md'), 'x\ny\n');
+    gitSuite(['add', '.'], suiteRepo);
+    gitSuite(['commit', '-q', '-m', 'second'], suiteRepo);
+    const newSha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: suiteRepo, encoding: 'utf8' }).trim();
+    assert.notStrictEqual(
+      callIn(['get', 'suite', ...SR], suiteRepo).out,
+      `green ${newSha}`,
+      'the recorded sha no longer equals the new HEAD'
+    );
+
+    // suite set: no <sha> argument is refused, and writes nothing.
+    const beforeNoSha = fs.readFileSync(path.join(suiteRoot, 'ledger.md'), 'utf8');
+    r = callIn(['suite', 'set', 'green', ...SR], suiteRepo);
+    assert.ok(!r.ok && /needs a <sha>/.test(r.err), 'suite set with no sha is refused: ' + (r.err || ''));
+    assert.strictEqual(
+      fs.readFileSync(path.join(suiteRoot, 'ledger.md'), 'utf8'),
+      beforeNoSha,
+      'nothing written on a missing-sha refusal'
+    );
+
+    // suite reusable: a green record on the exact tip is reusable (path-scoped reuse, INV-0017).
+    assert.ok(callIn(['suite', 'set', 'green', newSha, ...SR], suiteRepo).ok, 'suite set green newSha');
+    assert.ok(
+      callIn(['suite', 'reusable', '--branch', 'main', ...SR], suiteRepo).ok,
+      'a green record on the exact tip is reusable'
+    );
+
+    // suite reusable: a diff confined to the active store's own plan dir since the recorded commit
+    // keeps a green record reusable — a tick commit never invalidates the suite it rides on. The
+    // directory is derived from the ledger's own **Branch:** value (`feat/suite-demo`), never a
+    // caller-supplied path.
+    const planDir = path.join('docs', 'plans', 'feat', 'suite-demo');
+    fs.mkdirSync(path.join(suiteRepo, planDir), { recursive: true });
+    fs.writeFileSync(path.join(suiteRepo, planDir, '01-tick.md'), 'ticked\n');
+    gitSuite(['add', '.'], suiteRepo);
+    gitSuite(['commit', '-q', '-m', 'tick'], suiteRepo);
+    assert.ok(
+      callIn(['suite', 'reusable', '--branch', 'main', '--plan-files', ...SR], suiteRepo).ok,
+      'a plan-dir-only diff since the recorded commit is still reusable'
+    );
+
+    // suite reusable: with no --plan-files given, reuse reduces to the exact-tip-match case — a remote
+    // store commits nothing on the scope branch, so it never has one to pass.
+    r = callIn(['suite', 'reusable', '--branch', 'main', ...SR], suiteRepo);
+    assert.ok(!r.ok && /no --plan-files/.test(r.err), 'no --plan-files reduces reuse to the tip match: ' + (r.err || ''));
+
+    // suite reusable --plan-files: a ledger with no **Branch:** value has no directory to derive
+    // the plan dir from, and is refused rather than guessing one.
+    const noBranchRoot = path.join(suiteRepo, '.superdev', 'scopes', 'no-branch-demo');
+    fs.mkdirSync(noBranchRoot, { recursive: true });
+    fs.writeFileSync(
+      path.join(noBranchRoot, 'ledger.md'),
+      '# Ledger — no-branch-demo\n\n**Stage:** merged\n' +
+        `**Suite:** green @ ${sha}\n` +
+        '**Anchor:** #1 — no branch line\n\n' +
+        '| id | issue | title | type | depends-on | status | range |\n' +
+        '|---|---|---|---|---|---|---|\n' +
+        '| 01 | #2 | x | behavior | — | merged | — |\n',
+      'utf8'
+    );
+    r = callIn(['suite', 'reusable', '--branch', 'main', '--plan-files', '--root', noBranchRoot], suiteRepo);
+    assert.ok(
+      !r.ok && /no ledger \*\*Branch:\*\* value/.test(r.err),
+      'a ledger with no **Branch:** value is refused, not guessed: ' + (r.err || '')
+    );
+
+    // suite reusable: a code change outside the plan dir since the recorded commit is not reusable.
+    fs.writeFileSync(path.join(suiteRepo, 'README.md'), 'x\ny\nz\n');
+    gitSuite(['add', '.'], suiteRepo);
+    gitSuite(['commit', '-q', '-m', 'third'], suiteRepo);
+    r = callIn(['suite', 'reusable', '--branch', 'main', '--plan-files', ...SR], suiteRepo);
+    assert.ok(
+      !r.ok && /changed outside the plan dir/.test(r.err),
+      'a code change outside the plan dir is not reusable: ' + (r.err || '')
+    );
+
+    // suite reusable: a code file *renamed* into the plan dir still counts at its pre-rename path,
+    // outside the plan dir — `git diff` follows renames by default, and
+    // a rename-tracked diff would otherwise report no path outside the plan dir at all. Note the
+    // directory itself is never caller-supplied: there is no flag to name one, so a sibling
+    // scope's plan dir, or a parent like `docs/`, is never even expressible.
+    assert.ok(callIn(['suite', 'set', 'green', 'HEAD', ...SR], suiteRepo).ok, 'suite set green HEAD (pre-rename)');
+    fs.renameSync(path.join(suiteRepo, 'README.md'), path.join(suiteRepo, planDir, 'README.md'));
+    gitSuite(['add', '-A'], suiteRepo);
+    gitSuite(['commit', '-q', '-m', 'rename README into the plan dir'], suiteRepo);
+    r = callIn(['suite', 'reusable', '--branch', 'main', '--plan-files', ...SR], suiteRepo);
+    assert.ok(
+      !r.ok && /changed outside the plan dir/.test(r.err),
+      'a code file renamed into the plan dir still counts its pre-rename path: ' + (r.err || '')
+    );
+
+    // suite reusable: a non-green record is never reusable, whatever changed.
+    assert.ok(callIn(['suite', 'set', 'red', newSha, ...SR], suiteRepo).ok, 'suite set red for the non-green case');
+    r = callIn(['suite', 'reusable', '--branch', 'main', ...SR], suiteRepo);
+    assert.ok(!r.ok && /not green/.test(r.err), 'a red record is not reusable: ' + (r.err || ''));
+
+    // suite reusable: no record at all is not reusable.
+    r = callIn(['suite', 'reusable', '--branch', 'main', '--root', noSuiteRoot], suiteRepo);
+    assert.ok(!r.ok && /no suite record/.test(r.err), 'no suite record is not reusable: ' + (r.err || ''));
+
+    fs.rmSync(suiteRepo, { recursive: true, force: true });
+  }
+
   // --- testContainment: the exported containment test (ADR 0053, ADR 0065) ---------------------
   //
   // No CLI verb — a sibling script `require`s this directly, the same shape `readLedgerHeader` already
@@ -2113,6 +2375,267 @@ try {
     );
     fs.rmSync(probeInjectionRepo, { recursive: true, force: true });
     fs.rmSync(probePayloadDir, { recursive: true, force: true });
+  }
+
+  // dod-line: sets a `met` line, keeping the tag, ticking the marker.
+  {
+    const body = [
+      '# dod.md',
+      '',
+      '- [ ] the widget renders — 01',
+      '- [ ] the gadget spins — 02',
+      '',
+    ].join('\n');
+    r = call(
+      ['dod-line', '--match', 'the widget renders', '--verdict', 'met', '--note', 'screenshot attached'],
+      body
+    );
+    assert.ok(r.ok, 'dod-line met should pass: ' + (r.err || ''));
+    assert.ok(
+      r.out.includes('- [x] the widget renders — 01 — met: screenshot attached'),
+      'dod-line renders a met line ticked, with its note, keeping the tag: ' + r.out
+    );
+    assert.ok(r.out.includes('- [ ] the gadget spins — 02'), 'dod-line leaves the other line untouched');
+  }
+
+  // dod-line: sets `not-met` and `ceiling` lines unticked, with their own note, keeping the tag.
+  {
+    const body = ['- [ ] the widget renders — 01, 02', '- [x] the gadget spins — #667'].join('\n');
+    r = call(
+      ['dod-line', '--match', 'the widget renders', '--verdict', 'not-met', '--note', 'no evidence yet'],
+      body
+    );
+    assert.ok(r.ok, 'dod-line not-met should pass: ' + (r.err || ''));
+    assert.ok(
+      r.out.includes('- [ ] the widget renders — 01, 02 — not met: no evidence yet'),
+      'dod-line renders a not-met line unticked, keeping a multi-id tag: ' + r.out
+    );
+
+    r = call(
+      ['dod-line', '--match', 'the gadget spins', '--verdict', 'ceiling', '--note', 'needs a deploy'],
+      body
+    );
+    assert.ok(r.ok, 'dod-line ceiling should pass: ' + (r.err || ''));
+    assert.ok(
+      r.out.includes('- [ ] the gadget spins — #667 — ceiling: needs a deploy'),
+      'dod-line renders a ceiling line unticked, keeping a store-ref tag: ' + r.out
+    );
+  }
+
+  // dod-line: a second write replaces the earlier note rather than adding a second one, and a
+  // same-verdict write leaves the marker unchanged (INV-0014).
+  {
+    const firstPass = call(
+      ['dod-line', '--match', 'the widget renders', '--verdict', 'met', '--note', 'first pass'],
+      '- [ ] the widget renders — 01'
+    ).out;
+    r = call(
+      ['dod-line', '--match', 'the widget renders', '--verdict', 'met', '--note', 'second pass'],
+      firstPass
+    );
+    assert.ok(r.ok, 'dod-line re-write should pass: ' + (r.err || ''));
+    assert.strictEqual(
+      r.out,
+      '- [x] the widget renders — 01 — met: second pass',
+      'a same-verdict re-write replaces the note and leaves the marker ticked: ' + r.out
+    );
+
+    const ceilingPass = call(
+      ['dod-line', '--match', 'the widget renders', '--verdict', 'ceiling', '--note', 'needs a deploy'],
+      '- [ ] the widget renders — 01'
+    ).out;
+    r = call(
+      ['dod-line', '--match', 'the widget renders', '--verdict', 'ceiling', '--note', 'still needs a deploy'],
+      ceilingPass
+    );
+    assert.strictEqual(
+      r.out,
+      '- [ ] the widget renders — 01 — ceiling: still needs a deploy',
+      'a same-verdict ceiling re-write stays unticked: ' + r.out
+    );
+  }
+
+  // dod-line: a note containing a substring shaped like " — <tag> — <verdict>: " does not fool a
+  // later write into splitting at that embedded boundary instead of the real, leftmost one.
+  {
+    const firstPass = call(
+      [
+        'dod-line',
+        '--match',
+        'the widget renders',
+        '--verdict',
+        'not-met',
+        '--note',
+        'X — 02 — met: fake',
+      ],
+      '- [ ] the widget renders — 01'
+    ).out;
+    assert.strictEqual(
+      firstPass,
+      '- [ ] the widget renders — 01 — not met: X — 02 — met: fake',
+      'the first write embeds the look-alike boundary in the note: ' + firstPass
+    );
+
+    r = call(
+      ['dod-line', '--match', 'the widget renders', '--verdict', 'met', '--note', 'real evidence'],
+      firstPass
+    );
+    assert.ok(r.ok, 'the second write should still match the criterion: ' + (r.err || ''));
+    assert.strictEqual(
+      r.out,
+      '- [x] the widget renders — 01 — met: real evidence',
+      'the second write replaces the whole note rather than misparsing the embedded boundary: ' + r.out
+    );
+  }
+
+  // dod-line: a --match argument whose own whitespace — including an embedded newline — collapses
+  // before comparing, still matches the same single physical checklist line; a criterion carrying its
+  // own " — " parses off the tag from the right, per plan-contract.md's worked example.
+  {
+    r = call(
+      ['dod-line', '--match', 'the widget   renders\nacross a wrap', '--verdict', 'met', '--note', 'ok'],
+      '- [ ] the widget renders across a wrap — 01'
+    );
+    assert.ok(r.ok, 'dod-line matches through a --match argument\'s own collapsed whitespace: ' + (r.err || ''));
+
+    r = call(
+      ['dod-line', '--match', 'Reachable: none — entrance unchanged; nothing else moved', '--verdict', 'met', '--note', 'ok'],
+      '- [ ] Reachable: none — entrance unchanged; nothing else moved — scope'
+    );
+    assert.ok(r.ok, 'dod-line parses a criterion containing " — " off the tag: ' + (r.err || ''));
+    assert.strictEqual(
+      r.out,
+      '- [x] Reachable: none — entrance unchanged; nothing else moved — scope — met: ok',
+      'the em-dash-bearing criterion and the "scope" tag both survive intact: ' + r.out
+    );
+  }
+
+  // dod-line: a matching line inside a fenced block is never matched.
+  {
+    const body = ['```', '- [ ] the widget renders — 01', '```', '- [ ] the widget renders — 02'].join('\n');
+    r = call(['dod-line', '--match', 'the widget renders', '--verdict', 'met', '--note', 'ok'], body);
+    assert.ok(r.ok, 'dod-line should pass, matching only the unfenced line: ' + (r.err || ''));
+    assert.ok(r.out.includes('- [x] the widget renders — 02 — met: ok'), 'the unfenced line is ticked: ' + r.out);
+    assert.ok(r.out.includes('- [ ] the widget renders — 01'), 'the fenced line is untouched: ' + r.out);
+  }
+
+  // dod-line: a checklist line carrying trailing whitespace still matches, with or without a note
+  // already on it, and the trailing whitespace is dropped only on the line dod-line itself rewrites —
+  // an untouched sibling line's own trailing whitespace survives byte for byte.
+  {
+    const body = ['- [ ] the widget renders — 01   ', '- [ ] the gadget spins — 02   '].join('\n');
+    r = call(['dod-line', '--match', 'the widget renders', '--verdict', 'met', '--note', 'ok'], body);
+    assert.ok(r.ok, 'dod-line should match a no-note line with trailing whitespace: ' + (r.err || ''));
+    assert.strictEqual(
+      r.out,
+      ['- [x] the widget renders — 01 — met: ok', '- [ ] the gadget spins — 02   '].join('\n'),
+      'the edited line drops its trailing whitespace; the untouched line keeps its own: ' + r.out
+    );
+
+    const notedBody = '- [ ] the widget renders — 01 — not met: no evidence yet   ';
+    r = call(['dod-line', '--match', 'the widget renders', '--verdict', 'met', '--note', 'ok'], notedBody);
+    assert.ok(r.ok, 'dod-line should match a with-note line with trailing whitespace: ' + (r.err || ''));
+    assert.strictEqual(
+      r.out,
+      '- [x] the widget renders — 01 — met: ok',
+      'the re-write drops the trailing whitespace along with the earlier note: ' + r.out
+    );
+  }
+
+  // dod-line: refusals — zero matches, two-or-more matches, a bad --verdict, a missing --match.
+  {
+    r = call(['dod-line', '--match', 'nothing matches this', '--verdict', 'met', '--note', 'x'], '- [ ] a line — 01');
+    assert.ok(!r.ok, 'dod-line should refuse on zero matches');
+    assert.strictEqual(r.out, '', 'a zero-match refusal prints nothing');
+
+    r = call(
+      ['dod-line', '--match', 'dup', '--verdict', 'met', '--note', 'x'],
+      ['- [ ] dup — 01', '- [ ] dup — 02'].join('\n')
+    );
+    assert.ok(!r.ok, 'dod-line should refuse on two matches');
+    assert.strictEqual(r.out, '', 'a two-match refusal prints nothing');
+
+    r = call(['dod-line', '--match', 'a line', '--verdict', 'bogus', '--note', 'x'], '- [ ] a line — 01');
+    assert.ok(!r.ok, 'dod-line should refuse a bad --verdict');
+    assert.strictEqual(r.out, '', 'a bad-verdict refusal prints nothing');
+
+    r = call(['dod-line', '--verdict', 'met', '--note', 'x'], '- [ ] a line — 01');
+    assert.ok(!r.ok, 'dod-line should refuse a missing --match');
+
+    r = call(['dod-line', '--match', 'a line', '--verdict', 'met'], '- [ ] a line — 01');
+    assert.ok(!r.ok, 'dod-line should refuse a missing --note');
+    assert.strictEqual(r.out, '', 'a missing-note refusal prints nothing');
+
+    r = call(['dod-line', '--match', 'a line', '--verdict', 'met', '--note', 'evidence\ninjected line'], '- [ ] a line — 01');
+    assert.ok(!r.ok, 'dod-line should refuse a --note containing a newline');
+    assert.strictEqual(r.out, '', 'a newline-note refusal prints nothing');
+
+    r = call(['dod-line', '--match', 'a line', '--verdict', 'met', '--note', 'evidence\rinjected'], '- [ ] a line — 01');
+    assert.ok(!r.ok, 'dod-line should refuse a --note containing a carriage return');
+    assert.strictEqual(r.out, '', 'a carriage-return-note refusal prints nothing');
+  }
+
+  // dod-line: --line mode transforms a single line, for the Jira ADF text node.
+  {
+    r = call(
+      ['dod-line', '--line', '--match', 'the widget renders', '--verdict', 'met', '--note', 'ok'],
+      '[ ] the widget renders — 01'
+    );
+    assert.ok(r.ok, '--line mode should pass: ' + (r.err || ''));
+    assert.strictEqual(r.out, '[x] the widget renders — 01 — met: ok', '--line mode transforms the one line: ' + r.out);
+  }
+
+  // dod-line: a Jira issue-key tag (`PROJ-<n>`, references/issue-tracker-jira.md's own rewritten
+  // notation), single and as part of a comma list, in both --line and body mode.
+  {
+    r = call(
+      ['dod-line', '--line', '--match', 'the widget renders', '--verdict', 'met', '--note', 'ok'],
+      '[ ] the widget renders — PROJ-12'
+    );
+    assert.ok(r.ok, 'dod-line should accept a Jira issue-key tag: ' + (r.err || ''));
+    assert.strictEqual(
+      r.out,
+      '[x] the widget renders — PROJ-12 — met: ok',
+      '--line mode keeps the Jira issue-key tag: ' + r.out
+    );
+
+    r = call(
+      ['dod-line', '--match', 'the widget renders', '--verdict', 'met', '--note', 'ok'],
+      '- [ ] the widget renders — PROJ-12, PROJ-13'
+    );
+    assert.ok(r.ok, 'dod-line should accept a comma list of Jira issue-key tags: ' + (r.err || ''));
+    assert.strictEqual(
+      r.out,
+      '- [x] the widget renders — PROJ-12, PROJ-13 — met: ok',
+      'body mode keeps the Jira issue-key comma list: ' + r.out
+    );
+  }
+
+  // dod-line: body mode's real stdout (a subprocess, not the mocked console.log above) reproduces the
+  // input byte for byte everywhere but the edited line, including the input's own trailing newline —
+  // it gains no second one.
+  {
+    const body = ['- [ ] the widget renders — 01', '- [ ] the gadget spins — 02', ''].join('\n');
+    const out = execFileSync(process.execPath, [scopePath, 'dod-line', '--match', 'the widget renders', '--verdict', 'met', '--note', 'ok'], {
+      input: body,
+      encoding: 'utf8',
+    });
+    assert.strictEqual(
+      out,
+      ['- [x] the widget renders — 01 — met: ok', '- [ ] the gadget spins — 02', ''].join('\n'),
+      'a body ending in a trailing newline gains no second one: ' + JSON.stringify(out)
+    );
+
+    const noTrailing = ['- [ ] the widget renders — 01', '- [ ] the gadget spins — 02'].join('\n');
+    const out2 = execFileSync(process.execPath, [scopePath, 'dod-line', '--match', 'the widget renders', '--verdict', 'met', '--note', 'ok'], {
+      input: noTrailing,
+      encoding: 'utf8',
+    });
+    assert.strictEqual(
+      out2,
+      ['- [x] the widget renders — 01 — met: ok', '- [ ] the gadget spins — 02'].join('\n'),
+      'a body with no trailing newline gains none either: ' + JSON.stringify(out2)
+    );
   }
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true });

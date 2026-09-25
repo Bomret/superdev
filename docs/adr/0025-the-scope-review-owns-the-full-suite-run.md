@@ -9,7 +9,11 @@ for `{paths}`, and narrows the empty-changed-path-set fallback to a command cons
 one full-suite run two, one entering its fix loop and one leaving it — and
 [ADR 0085](0085-the-focused-test-command-is-required-configuration.md), which makes the focused command
 required configuration and supersedes the "no second block configured" fallback this record still
-describes below. Everything else below holds.
+describes below — and
+[ADR 0091](0091-the-definition-of-done-is-ticked-while-the-run-works.md), which supersedes this record's
+skip of the whole-scope review for an all-`mechanical`/`docs` scope, and that skip's stand-in full-suite
+run at run handoff: every scope now passes `/superdev:review`, and run handoff's full-suite run is the
+same one every scope gets, never a stand-in for it. Everything else below holds.
 
 ## Context
 

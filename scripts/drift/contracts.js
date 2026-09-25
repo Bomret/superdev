@@ -471,6 +471,30 @@ const DERIVED_CRITERIA_CONTRACTS = [
   ],
 ];
 
+// ADR 0091: `final-reviewer` gates on every `dod.md` line, ticked or not, in its own `### Criteria`
+// verdict list — the input review/SKILL.md's §4 fix loop unticks and re-ticks from. A contract in an
+// agent body also has to hold in the dispatch prose that reaches it (root AGENTS.md's prompt-architecture
+// rule): a `final-reviewer.md` that keeps `## Judge every criterion` while the dispatch stops asking for
+// it never produces the list §4 depends on, and a dispatch that asks for it while the agent body drops
+// the section asks for something nothing in the brief promises.
+const PER_CRITERION_VERDICT_CONTRACTS = [
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /^##\s+Judge every criterion\s*$/m,
+    'carry the `## Judge every criterion` step — a verdict for every `dod.md` line, ticked or not',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /### Criteria\n\[\*\*scope mode only\*\*/,
+    "carry the `### Criteria` output section listing a verdict for every `dod.md` line",
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /judge every `dod\.md` line, ticked or not[\s\S]{0,300}### Criteria` section/,
+    'tell `final-reviewer` to judge every `dod.md` line, ticked or not, returning its verdicts in `### Criteria`',
+  ],
+];
+
 // A feature reaches merge built well and unreachable from the running application, because two rules
 // that already demand a complete path through every layer are adjectives an agent grades its own
 // compliance against (ADR 0062). The `Reachable:` criterion is the artifact that replaces them, and it
@@ -789,11 +813,13 @@ const VERB_CONTRACTS = [
   [path.join('references', 'run-handoff.md'), /scope\.js["'`]?\s+stage set merged\b/, 'record slice completion with `scope.js stage set merged`'],
   [path.join('references', 'run-handoff.md'), /scope\.js["'`]?\s+unresolved add\b/, 'record a give-up point with `scope.js unresolved add`'],
   [path.join('references', 'run-handoff.md'), /scope\.js["'`]?\s+unresolved clear\b/, 'clear a standing defect on Green with `scope.js unresolved clear`'],
+  [path.join('references', 'run-handoff.md'), /scope\.js["'`]?\s+suite set\b/, 'record the full suite result with `scope.js suite set`'],
   [path.join('skills', 'review', 'SKILL.md'), /scope\.js["'`]?\s+stage set\b/, 'write its stage with `scope.js stage set`'],
   [path.join('skills', 'review', 'SKILL.md'), /scope\.js["'`]?\s+get anchor\b/, 'read the scope anchor\'s title with `scope.js get anchor`'],
   [path.join('skills', 'review', 'SKILL.md'), /scope\.js["'`]?\s+unresolved add\b/, 'record a give-up point with `scope.js unresolved add`'],
   [path.join('skills', 'review', 'SKILL.md'), /scope\.js["'`]?\s+unresolved clear\b/, 'clear a standing defect on a clean verdict with `scope.js unresolved clear`'],
   [path.join('skills', 'document', 'SKILL.md'), /scope\.js["'`]?\s+stage set\b/, 'write its stage with `scope.js stage set`'],
+  [path.join('skills', 'document', 'SKILL.md'), /scope\.js["'`]?\s+unresolved add\b/, 'record a tick its own re-check broke with `scope.js unresolved add`'],
   [path.join('skills', 'ship', 'SKILL.md'), /scope\.js["'`]?\s+get stage\b/, 'read the stage with `scope.js get stage`'],
   [path.join('skills', 'ship', 'SKILL.md'), /scope\.js["'`]?\s+stage set shipped\b/, 'set the terminal stage with `scope.js stage set shipped`'],
   [path.join('skills', 'ship', 'SKILL.md'), /scope\.js["'`]?\s+get unresolved\b/, 'read the unresolved-defect record with `scope.js get unresolved`, never through cwd-dependent `status`'],
@@ -816,6 +842,13 @@ const VERB_CONTRACTS = [
   [path.join('references', 'implement-lite.md'), /scope\.js["'`]?\s+docs set\b/, 'record its inline doc pass with `scope.js docs set`'],
   [path.join('skills', 'document', 'SKILL.md'), /scope\.js["'`]?\s+get docs\b/, 'read the inline-doc-pass record with `scope.js get docs` before it dispatches a writer'],
   [path.join('skills', 'review', 'SKILL.md'), /scope\.js["'`]?\s+docs clear\b/, 'clear the inline-doc-pass record with `scope.js docs clear` when its fix loop lands commits'],
+  // ADR 0091, ADR 0075: a green record reused against the scope branch's current tip, or a tip
+  // differing from it only inside the active store's own plan dir (INV-0017), is never run again, and
+  // review is the one caller of both halves — it asks
+  // `scope.js suite reusable` before running its entry suite and writes the record with `suite set`
+  // after every run its own gate performs (entry, and the exit run after a clean re-review).
+  [path.join('skills', 'review', 'SKILL.md'), /scope\.js["'`]?\s+suite reusable\b/, "ask the scope's suite record is reusable with `scope.js suite reusable`"],
+  [path.join('skills', 'review', 'SKILL.md'), /scope\.js["'`]?\s+suite set\b/, "record a full-suite run's result with `scope.js suite set`"],
   // Retired (ADR 0069): `skills/publish-kb/SKILL.md` used to read the scope branch through a hand-run
   // `scope.js get branch` CLI call. `plugin/scripts/publish-kb.js`'s `resolveScopeBranch` reads it
   // instead by `require`ing `readLedgerHeader` from `scope.js` directly and verifying the result with
@@ -907,6 +940,17 @@ const KB_STAGING_CONTRACTS = [
   [path.join('references', 'doc-pass.md'), /\.superdev\/kb-pending\//, 'write a remote backend\'s pages under `.superdev/kb-pending/`'],
 ];
 
+// ADR 0094, INV-0091: the doc pass may read a remote knowledge base and never writes to it — the
+// dispatch prose in `skills/document/SKILL.md` states that rule the same way `references/doc-pass.md`
+// (which owns the pass) and `agents/doc-writer.md` (which performs it) both do, per the rule that a
+// dispatch and the agent body it reaches must agree (ADR 0035). Independent rows: losing the
+// clause from any one document fails on its own.
+const KB_READ_NEVER_WRITE_CONTRACTS = [
+  [path.join('references', 'doc-pass.md'), /Read the knowledge base, never write to it/, "carry the rule that the doc pass may read a remote knowledge-base backend and never writes to it (ADR 0094, INV-0091)"],
+  [path.join('agents', 'doc-writer.md'), /Read the knowledge base, never write to it/, 'carry the same read-permitted, write-forbidden rule in its own hygiene section (ADR 0094, INV-0091)'],
+  [path.join('skills', 'document', 'SKILL.md'), /reads a remote backend, and never writes to it/, 'state, in its own dispatch prose, that the knowledge-base pass reads a remote backend and never writes to it (ADR 0094, INV-0091)'],
+];
+
 // ADR 0031: the documentation pass is stated once, in `references/doc-pass.md`, and performed by two
 // callers — the dispatched `doc-writer`, and the `lite` execution playbook's controller in its own
 // context. A caller that stops reading the reference keeps performing a pass it no longer has the rules
@@ -914,11 +958,11 @@ const KB_STAGING_CONTRACTS = [
 // Anchored on the `Read` instruction rather than a bare path, for the reason CONTENT_TYPES_PATTERN
 // states: a passing mention is not a read.
 //
-// The third row is the **dispatch-prose half** (ADR 0035, and root `AGENTS.md`'s rule of the same name).
+// The dispatch-prose row is the **dispatch-prose half** (ADR 0035, and root `AGENTS.md`'s rule of the same name).
 // A contract the agent body carries also has to hold in the prose that dispatches it, because a
 // controller writes its dispatch from what `skills/document/SKILL.md` says the writer does. That command used
 // to paraphrase the pass ("It runs two passes, deleting stale text"), so a dispatch built from the
-// paraphrase reached the writer while the two rows above stayed green — the reference owned the pass and
+// paraphrase reached the writer while the rows above stayed green — the reference owned the pass and
 // nothing kept the dispatch pointing at it. `references/implement-lite.md` needs no such pairing: it is
 // the caller, not a dispatcher, and its own row is already the instruction it acts on.
 const DOC_PASS_CONTRACTS = [
@@ -947,7 +991,7 @@ const DOC_PASS_CONTRACTS = [
 // leaving that run to the subagent, and a reviewer that stops deferring to the result it was handed runs
 // the same suite a second time, which is the duplicate run this row exists to keep out. The ad-hoc branch
 // is untouched — a range with no controller-run suite behind it is the one place the reviewer's own re-run
-// is the only verification there is. Two more rows guard the fail path itself, added on
+// is the only verification there is. Further rows guard the fail path itself, added on
 // re-review: a `review.md` that stops folding a red full suite into the fix loop as a Critical finding
 // lets a red gate pass through unfixed, and a `final-reviewer.md` that stops making `Full-suite run: fail`
 // disqualifying on its own lets the other four axes argue a red suite back to "Yes". The `skills/review/SKILL.md`
@@ -1003,7 +1047,7 @@ const FULL_SUITE_CONTRACTS = [
   ],
   [
     path.join('skills', 'review', 'SKILL.md'),
-    /fix cycle's re-review verdict first comes back clean[\s\S]{0,160}?run the full suite once more[\s\S]{0,400}?counts toward the 3-strike cap/i,
+    /fix cycle's re-review verdict first comes back clean[\s\S]{0,160}?run the full suite once more[\s\S]{0,700}?counts toward the 3-strike cap/i,
     "run the full suite once more when a fix cycle's re-review verdict first comes back clean, and count a red result there toward the 3-strike cap",
   ],
   [
@@ -1016,16 +1060,46 @@ const FULL_SUITE_CONTRACTS = [
     /whichever result you hand it[\s\S]{0,120}(?:full or focused|focused or full)/i,
     'tell `final-reviewer` it reviews against whichever result it is handed, full or focused',
   ],
-  // The `references/run-handoff.md` row: its run handoff is the other end of ADR 0025. An
-  // all-`mechanical`/`docs` scope has no whole-scope review to attach a suite run to, so run handoff runs
-  // the scope's one full suite in its place. It is the one full-suite run no row above covers, and it is
-  // load-bearing twice over — the routing contract below sends such a scope past `/superdev:review` on
-  // the strength of it. A run handoff that stops running the suite leaves that scope reaching a pull
-  // request with no suite run behind it anywhere in the chain, while every other check here stays green.
+  // ADR 0091's own addition to ADR 0075/INV-0017: a green suite record on the scope branch's current tip
+  // is reused rather than run again. Rows, because each fails silently in its own direction — losing
+  // the reuse clause pays a full suite on every review even when handoff or a prior review already
+  // proved the tip, and losing the recording clause leaves every run this gate performs unreadable to the
+  // next one, so the reuse clause above never finds anything to reuse.
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /Reuse a green suite record the tip still earns[\s\S]{0,600}Exit 0\s+→\s+reused, running nothing/i,
+    "reuse a `green` suite record `scope.js suite reusable` still calls reusable against the scope branch's current tip, rather than run the entry suite again (INV-0017)",
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /scope\.js["'`]?\s+suite set[\s\S]{0,80}<green\|red\|denied\|none>/i,
+    "record the entry (and exit) suite run's result with `scope.js suite set`",
+  ],
+  // The `references/run-handoff.md` row: its run handoff is implement's own full-suite run, once per
+  // scope, whatever the slice types (ADR 0091). It is the one full-suite run no row above covers, and
+  // every scope reaches `/superdev:review` afterwards regardless of what this run recorded — a run
+  // handoff that stops running the suite leaves every scope reaching the review with no recorded result
+  // for `/superdev:review` to reuse (INV-0017), while every other check here stays green.
   [
     path.join('references', 'run-handoff.md'),
-    /attempts that scope's one full-suite run itself[\s\S]{0,60}in place of that review/i,
-    "run the scope's one full-suite run itself, in place of the review an all-`mechanical`/`docs` scope skips",
+    /every scope gets exactly\s+this one full-suite run from implement[\s\S]{0,40}whatever its slice types/i,
+    "run the scope's one full-suite run itself, once, whatever the slice types",
+  ],
+  // The fix loop's own two clauses: a cycle inside it runs only the focused command (ADR 0091 gives run
+  // handoff's own fix loop the same shape ADR 0075 gave review's), and a cycle's clean focused run is
+  // followed by exactly one full re-run, whose own red result counts toward the loop's 3-strike cap. A
+  // row that drops the focused-only clause silently reinstates a full suite per cycle; one that drops the
+  // exit run reads a fix as done the moment its own diff passes narrowly, with the full suite never run
+  // again.
+  [
+    path.join('references', 'run-handoff.md'),
+    /[Ii]nside each cycle, run only the focused command[\s\S]{0,300}never\s+the full suite/i,
+    'run only the focused command inside each fix cycle, never the full suite',
+  ],
+  [
+    path.join('references', 'run-handoff.md'),
+    /cycle's focused run first comes back clean, re-run the full suite once[\s\S]{0,300}red re-run counts toward this loop's own 3-strike cap/i,
+    "re-run the full suite once when a cycle's focused run first comes back clean, and count a red re-run toward the loop's own 3-strike cap",
   ],
 ];
 
@@ -1035,18 +1109,18 @@ const FULL_SUITE_CONTRACTS = [
 // which is why the boundary is drawn at the Definition of Done rather than at "behaviour" — a defect
 // repair is frequently behavioural.
 //
-// Three rows, because any one alone is useless. A boundary with no destination leaves the finding
+// Rows, because any one alone is useless. A boundary with no destination leaves the finding
 // nowhere to go, so the fix cycle builds it anyway; a destination with no boundary never fires; and a
 // boundary with no exit deadlocks the run the moment a finding actually gets deferred — every path §4
 // offers to advance past a Critical finding either fires on it anyway (`--unattended → fix`) or never
 // fires at all (the clean-verdict advance), with no record class standing in for it (ADR 0035 refuses the
 // run state a new field). Nothing else in the chain notices a boundary that has quietly become advice —
 // the review just returns a bigger diff, green, and the scope grows by however much the remedy was.
-// All three patterns avoid the bare "capability the Definition of Done never named" phrase, which §3's report
+// Every pattern avoids the bare "capability the Definition of Done never named" phrase, which §3's report
 // template also carries (`### Deferred to a plan`). A row anchored on the phrase alone is satisfied by that
 // template while §4's instruction is gone — which is the same one-sided-pin failure ADR 0035 came from,
-// reproduced inside the check meant to prevent it. Row one takes §4's own "changes how" framing, row two
-// takes the boundary together with the verb that sends the finding somewhere, row three takes the exit
+// reproduced inside the check meant to prevent it. One row takes §4's own "changes how" framing, another
+// takes the boundary together with the verb that sends the finding somewhere, and another takes the exit
 // together with the "counts as clean" clause that actually lets a run advance past a deferred finding.
 const FIX_BOUNDARY_CONTRACTS = [
   [
@@ -1074,16 +1148,16 @@ const FIX_BOUNDARY_CONTRACTS = [
 // slice gets no per-slice pass either way, and the skip's own report line names that condition rather than
 // claiming blanket coverage. The skip is therefore not a
 // property of `skills/review/SKILL.md` alone: it is only sound while `implement-full.md` still dispatches
-// the reviewer per `behavior` slice. Three rows. Two sit one per end of that dependency, because either
+// the reviewer per `behavior` slice. Rows sit one per end of that dependency, because either
 // row alone is a one-sided pin. A `skills/review/SKILL.md` that loses the skip costs a redundant pass and
 // nothing more, so the interesting direction is the other one: an `implement-full.md` that stops
 // dispatching `simplicity-reviewer` per `behavior` slice leaves a `full` run with no over-engineering pass
 // anywhere in the chain, while `skills/review/SKILL.md` goes on skipping on the strength of a per-slice
 // pass that no longer happens — green everywhere, covered nowhere. The `lite` half needs no row: that
 // tier dispatches nobody, so its whole-scope pass has no per-slice pass to be redundant against, and the
-// `skills/review/SKILL.md` row states the tier it fires on rather than the tiers it does not. The third
+// `skills/review/SKILL.md` row states the tier it fires on rather than the tiers it does not. A further
 // row pins the `behavior` qualifier itself, on the report line alone: the prose already drifted once, to
-// an unqualified "covered per slice", and neither of the first two rows' regexes mentions the word —
+// an unqualified "covered per slice", and neither of the other rows' regexes mentions the word —
 // losing the qualifier would otherwise stay green.
 const TIER_SKIP_CONTRACTS = [
   [
@@ -1333,7 +1407,8 @@ const UNTRIAGED_ELEMENTS = [
 // stage from git instead of the ledger disagrees with `/superdev:status` about the same scope with nothing
 // going red. It deliberately shares no eligibility reference with `/superdev:afk` (ADR 0049), so nothing
 // here pins the two rule sets to each other: the coupling that matters is to the store document, which
-// the first three rows below are — the third added for the untriaged-item bucket.
+// the rows naming `## Scope anchor` and `## Triage record` below are — a further row was added for the
+// untriaged-item bucket.
 const BACKLOG_SURVEY_CONTRACTS = [
   [
     path.join('skills', 'backlog', 'SKILL.md'),
@@ -1645,7 +1720,7 @@ const PATHS_DERIVATION_CONTRACTS = [
 ];
 
 // `/superdev:ship` §3 gates on a standing unresolved defect (ADR 0026): a defect the run left standing is
-// named once, and shipping with it is asked about rather than assumed. A consumer that keeps the §5
+// named once, and shipping with it is asked about rather than assumed. A consumer that keeps the §4
 // `## Unresolved defects` pull-request heading but drops either half of the gate reads right and ships a
 // broken branch anyway — the exact failure shape the ask (attended) and the refuse (unattended) exist to
 // prevent. Both halves live in one paragraph, §3's "Entries standing." bullet — but §3 also carries an
@@ -1819,36 +1894,27 @@ const TEST_SELECTION_CONTRACTS = [
   ],
 ];
 
-// ADR 0025 again, one level up: an all-`mechanical`/`docs` scope skips `/superdev:review` by design, so
-// `references/run-handoff.md`'s run handoff runs its one full suite instead (the sixth full-suite row above).
-// Two documents have to agree about what that scope does next, and they agree only in prose.
-// `skills/ship/SKILL.md` drops `/superdev:review` from its missing-step warning for such a scope, and
-// `skills/afk/SKILL.md`'s stage table routes it past the review rather than into it. A table that keeps
-// routing `merged` to the review strands the scope: `/superdev:review` has no Definition-of-Done judgment
-// to make, `/superdev:ship --unattended` refuses a scope whose review never ran, and the sweep never
-// finishes the feature. Both sides are pinned, because either alone reads correct while the pair
-// disagrees. Each afk.md row also requires `--unattended` past the command name — a prose sentence that
-// drops it strands an unattended sweep at an interactive question with nothing reported, the failure
-// ADR 0015's token check exists to prevent, and this is prose the stage-table row scan
-// (`scanAfkInvocations`) never reaches.
+// ADR 0091: every scope passes `/superdev:review` now, whatever its slice types — the special-cased
+// `mechanical`/`docs` route that once sent such a scope from `merged` straight to `/superdev:document`,
+// and from `documented-unreviewed` straight to `/superdev:ship`, is gone (it superseded ADR 0025's skip
+// of the whole-scope review). The row below pins that afk's stage table carries no such special case any
+// more — a re-added one strands nothing today, but re-opens exactly the drift a fix cycle already found
+// once, so its absence is asserted rather than trusted. `skills/ship/SKILL.md` dropped its own half of
+// the retired agreement — the all-`mechanical`/`docs` exemption from its own missing-step warning — so
+// this table no longer carries a ship row; `/superdev:ship` §3 now names `/superdev:review` as missing
+// for such a scope like any other.
 const AFK_ROUTING_CONTRACTS = [
   [
     path.join('skills', 'afk', 'SKILL.md'),
-    /no\s+row\s+reads\s+`?behavior`?[\s\S]{0,160}`?merged`?\s+routes\s+to\s+`?\/superdev:document[\s\S]{0,50}--unattended/i,
-    'route an all-`mechanical`/`docs` scope from `merged` to `/superdev:document ... --unattended`, read ' +
-      "off the ledger's slice types",
+    /[Ee]very scope passes review[\s\S]{0,120}routes every scope through\s+`?\/superdev:review`?[\s\S]{0,160}no special case for an all-`?mechanical`?\/`?docs`?\s+ledger/i,
+    'route every scope through `/superdev:review`, with no special case for an all-`mechanical`/`docs` ' +
+      'ledger (ADR 0091)',
   ],
   [
     path.join('skills', 'afk', 'SKILL.md'),
-    /no\s+row\s+reads\s+`?behavior`?[\s\S]{0,200}`?documented-unreviewed`?\s+routes\s+to\s+`?\/superdev:ship[\s\S]{0,50}--unattended/i,
-    'route that same all-`mechanical`/`docs` scope from `documented-unreviewed` to `/superdev:ship ... ' +
-      '--unattended`, not back to the review — tied to the same condition as the `merged` row above, not ' +
-      'every scope',
-  ],
-  [
-    path.join('skills', 'ship', 'SKILL.md'),
-    /every slice in the ledger is\s+\*{0,2}`?mechanical`?[\s\S]{0,240}drop\s+`?\/superdev:review`?\s+from that warning/i,
-    'drop `/superdev:review` from its missing-step warning for an all-`mechanical`/`docs` scope',
+    /second one for the same anchor, in the same sweep,\s*\n?\s*blocks it instead, through §4's ordinary block path[\s\S]{0,300}consecutive-block count/i,
+    'block a second document-to-review send-back of the same anchor in the same sweep, through the ' +
+      'ordinary unattended block path, counting it toward the consecutive-block cap (triage #661)',
   ],
 ];
 
@@ -1920,8 +1986,8 @@ const CHAINED_DOC_AUDIT_CONTRACTS = [
 // ADR 0068 gives `/superdev:review-tests` the same **chained posture** for `/superdev:sweep`'s test leg:
 // no agreement round, no intent write, the ranked findings returned to the caller instead, with the
 // dead-or-ignored-test facts still distinguishable from the judgments — the sweep's own agreement round
-// asks about judgments alone. Four rows, because the signal (§1) and its three behaviours (§5's round,
-// §5's label, §6's write) live in three places in the file, with §5 alone hosting two of the four, and a
+// asks about judgments alone. Rows, because the signal (§1) and its behaviours (§5's round,
+// §5's label, §6's write) live in separate places in the file, with §5 alone hosting more than one, and a
 // row anchored where each lives is what keeps a later edit to just one of them from reading correct
 // while the others go silent.
 const CHAINED_TEST_AUDIT_CONTRACTS = [
@@ -1953,7 +2019,7 @@ const CHAINED_TEST_AUDIT_CONTRACTS = [
 // `git add -N :/` (which would write the index and retarget a path scope onto an intent-to-add entry
 // instead of the standing tree), and no entry into scope mode, whatever the invoking checkout's `HEAD` is
 // — the write paths scope mode opens are foreclosed by construction rather than by a guard the caller
-// must check first. Three rows: the signal itself, and each of its two behaviours, anchored where each
+// must check first. Rows: the signal itself, and each of its behaviours, anchored where each
 // lives in §1.
 const CHAINED_CODE_REVIEW_CONTRACTS = [
   [
@@ -2455,23 +2521,23 @@ const RUN_KIND_CONTRACTS = [
 
 // ADR 0045: the `full` tier cuts its scope branch into the same dedicated scopetree the `lite` tier
 // uses, `.superdev/scopes/<scope>/scopetree`, and does every merge there — the invoking checkout is never
-// switched, at either tier. Twenty-one independent rows, each anchored on text unique to its own clause
+// switched, at either tier. Independent rows, each anchored on text unique to its own clause
 // so a prose reflow elsewhere in the same section or file does not fire it.
 //
-// Five rows sit on `references/scope-mode.md`. `## The scope checkout` resolving to one location covers
+// Rows sit on `references/scope-mode.md`. `## The scope checkout` resolving to one location covers
 // reuse for both remaining run kinds (`appended`'s own contained-reuse clause retired with the run kind,
 // ADR 0083): reuse now means working in that one scopetree, creating it with `git worktree add` when
 // absent and stopping, naming what it found,
 // when a different worktree already holds the branch — the same stop `## Cutting the scope branch`'s
 // `resumed` bullet already took before this ADR, so this is a location change, not a new behaviour. A
-// fifth row on that same section states that a `run-lock` refusal met while recreating is this run's own
+// further row on that same section states that a `run-lock` refusal met while recreating is this run's own
 // lock, not a competing session's, and names the remedy (remove and retry) rather than leaving the two
 // sections contradicting each other — a fix cycle found the recreate path unreachable inside a live run
 // otherwise. `## The run lock` states that both tiers write the lock, and only after the scopetree is cut,
 // or the `run-lock` hook's own guard on `git worktree add` would block the run that is about to make that
 // call.
 //
-// Five rows sit on `references/implement-full.md`, the tier that changed: its Branch model states that
+// Rows sit on `references/implement-full.md`, the tier that changed: its Branch model states that
 // every later command in the file — every merge — addresses the scopetree with `git -C` rather than
 // the invoking checkout; its DAG loop's merge step addresses that scopetree with `git -C`; its
 // integration-branch bullet keeps `integration/<scope>` there too, and the integrate-and-verify slice
@@ -2482,16 +2548,16 @@ const RUN_KIND_CONTRACTS = [
 // them. (Its Resume step's own liveness-check deferral is `RUN_LOCK_LIVENESS_CONTRACTS`'s own row —
 // INV-0013, ADR 0090 — not restated here, so one sentence has one pin.)
 //
-// One row sits on `references/implement-lite.md`: its `## Run lock` section reads scope-mode.md's
+// Another row sits on `references/implement-lite.md`: its `## Run lock` section reads scope-mode.md's
 // `## The run lock` rather than restating who writes the lock and when — the shared rule now lives once,
 // in scope-mode.md, and this row is the same shape as the `doc-pass` contract's caller-reads-the-rule row.
 //
-// Two rows sit on `references/run-init.md` and `references/run-handoff.md`: the run root prose lists
+// Further rows sit on `references/run-init.md` and `references/run-handoff.md`: the run root prose lists
 // `run.lock` with no `lite tier only`/`(lite tier)` qualifier, since scope-mode.md's `## The run lock`
 // is the one place that states who writes it and when (ADR 0045) — a qualifier reintroduced on either
 // side makes it the later, more specific instruction and silences the shared rule for the full tier.
 //
-// Three rows sit on `skills/review/SKILL.md` — a fix cycle found this chain-tail command naming no working
+// More rows sit on `skills/review/SKILL.md` — a fix cycle found this chain-tail command naming no working
 // directory anywhere, so its scope-mode read against `<type>/<scope>` tested the controller's own cwd
 // instead of the scope checkout, its full-suite run had nowhere stated to run, and its fix-implementer
 // dispatch could land commits on the base branch in the operator's own clone: §4 tests the *scope
@@ -2499,7 +2565,7 @@ const RUN_KIND_CONTRACTS = [
 // the fix implementer that same checkout as its working directory — the same pattern `implement-full.md`
 // and `document.md` already carry.
 //
-// Two more rows sit on `references/run-handoff.md`, the one full-suite run a scope of all `mechanical`/
+// More rows sit on `references/run-handoff.md`, the one full-suite run a scope of all `mechanical`/
 // `docs` slices ever gets: a fix cycle found its full-suite run and its Red-branch fix dispatch both naming
 // no working directory, so on the full tier both acted on the invoking checkout — sitting on the base
 // branch by the time this step runs — reading `docs/agents/verification.md` off base, running the suite
@@ -2508,7 +2574,7 @@ const RUN_KIND_CONTRACTS = [
 // same checkout as its working directory, the identical clause `skills/review/SKILL.md` already carries for
 // its own fix dispatch.
 //
-// One more row sits on `references/merge-conflicts.md`: its winner-picking-overlap abort names the
+// Another row sits on `references/merge-conflicts.md`: its winner-picking-overlap abort names the
 // scopetree with `git -C`, not a bare `git merge --abort`. `implement-full.md`'s own merge and
 // `merge --abort` calls are already pinned above, but this file is read *after* it — the later, more
 // specific instruction — and delegates the whole conflict-resolution step, so its own unqualified abort
@@ -2758,6 +2824,7 @@ const SPECIALISING_SECTIONS = [
   'Append mode',
   'Triage record',
   'Assignee',
+  'Definition of Done ticks',
 ];
 
 // One generic-side row per member: `references/plan-contract.md` still carries the section the store
@@ -2775,8 +2842,8 @@ const specialisingGenericRows = (names) =>
 // plugin: a store document rendering one of them for its own backend is following a section that has to
 // exist to be followed. Its **specialising-family** rows are derived from `SPECIALISING_SECTIONS` above
 // rather than written out here — one list decides membership, and both the generic-side row and the
-// citation assertion follow from it. The four rows below it are hand-written because those sections are
-// cited by name without being members. The other four files are cited only as whole files, so their rows
+// citation assertion follow from it. The rows below it are hand-written because those sections are
+// cited by name without being members. The other files are cited only as whole files, so their rows
 // pin the sections that hold the rule the citing document promises its reader.
 const SOURCE_SECTION_CONTRACTS = [
   ...specialisingGenericRows(SPECIALISING_SECTIONS),
@@ -2970,8 +3037,8 @@ const AFK_ANCHOR_COUNT_ELEMENTS = [
 // use for a rule several call sites cite in their own words around one fixed noun.
 //
 // The rule was originally scoped to `stage set` alone, and a fix cycle broadened it: a scope-wide suite's
-// 3-strike halt writes `**Unresolved:**` and deliberately leaves the stage untouched, so the original five
-// stage-only rows never covered it. The five rows below pin that `references/scope-mode.md` states, once,
+// 3-strike halt writes `**Unresolved:**` and deliberately leaves the stage untouched, so the original
+// stage-only rows never covered it. The rows below pin that `references/scope-mode.md` states, once,
 // the criterion for which write gets a direct citation (`## Publishing run state`'s own "Which sites cite
 // this directly" paragraph) and that its own defining sections — `## Degraded passes`, `## Unresolved
 // defects`, `## Deferred findings`, and the `**Docs:**` bullet in `## The ledger` — each carry the
@@ -3104,11 +3171,11 @@ const PUBLISH_RUN_STATE_CONTRACTS = [
 ];
 
 // The `adopt-run-state` contract (ADR 0042), the mirror image of the table above: where publishing
-// writes the ledger onto the anchor, adopting reads it back. Six rows pin `references/run-init.md`'s
+// writes the ledger onto the anchor, adopting reads it back. Rows pin `references/run-init.md`'s
 // adopt branch — the trigger condition and its snapshot-less skip, the read-failure fallthrough, the
 // shipped-or-section-less fallthrough, the adopt call itself (`dod.md` written before `adopt`, per
 // ADR 0042's own ordering), the reconciliation sentence that keeps the adopted slice table from gating a
-// re-dispatch on its own, and the `resumed` naming for an adopted ledger — plus three on
+// re-dispatch on its own, and the `resumed` naming for an adopted ledger — plus further rows on
 // `references/scope-mode.md`'s `resumed` branch bullet: the remote fetch a name that does not verify
 // locally now takes before the stop, the fetch's own remote-tracking ref that the post-fetch check
 // verifies instead of the bare name (`git fetch <remote> <branch>` only ever populates
@@ -3171,7 +3238,7 @@ const ADOPT_RUN_STATE_CONTRACTS = [
   ],
 ];
 
-// The `resumed-scopetree-trigger` contract (ADR 0042), one row: `references/scope-mode.md`'s scopetree
+// The `resumed-scopetree-trigger` contract (ADR 0042) pins a row: `references/scope-mode.md`'s scopetree
 // step in the `resumed` branch bullet must create or reattach the scopetree whenever it is absent for
 // *either* cause — `/superdev:ship` already removed it, or this checkout never held it at
 // all (a resumed run adopted from the anchor on a fresh clone, the scenario `adopt-run-state` makes
@@ -3302,7 +3369,7 @@ const CONTAINMENT_DELEGATION_CONTRACTS = [
   ],
 ];
 
-// The `containment-refetch` contract (ADR 0065), four rows, all on `references/scope-mode.md`'s
+// The `containment-refetch` contract (ADR 0065) pins rows, all on `references/scope-mode.md`'s
 // `## Containment` section: the test that decides a scope branch reached base runs a second pass before
 // it answers not contained. ADR 0053 fixed what the test asks — content, not ancestry — and left the ref
 // it asks of alone, so a pull request squash-merged on the host reads not contained until the clone
@@ -3346,7 +3413,7 @@ const CONTAINMENT_REFETCH_CONTRACTS = [
   ],
 ];
 
-// The `containment-probe` contract (ADR 0082), three rows on `references/scope-mode.md`'s
+// The `containment-probe` contract (ADR 0082) pins rows on `references/scope-mode.md`'s
 // `## Containment` section: where the tree comparison conflicts, the test asks the neighbouring question
 // — whether base's history took the branch's patch. Two callers read the section's answer and neither
 // restates it, so pinning the section alone pins the contract: `plugin/scripts/scope.js` implements it,
@@ -3402,7 +3469,7 @@ const STANDING_CODE_LENS_CONTRACTS = [
 ];
 
 // ADR 0068's fourth sweep leg is `/superdev:setup check`: a read-only drift check, named by a literal
-// word the way `/superdev:document audit` is, rather than sniffed. The two rows pin the signal and the
+// word the way `/superdev:document audit` is, rather than sniffed. The rows pin the signal and the
 // posture in the same document — losing either half silently ships a `check` mode that starts asking
 // interview questions, or a mode nothing can reach at all because the argument-hint never named it.
 const SETUP_CHECK_CONTRACTS = [
@@ -3465,11 +3532,12 @@ const INVARIANT_REGISTER_DOC_PASS_CONTRACTS = [
 
 // ADR 0077: an invariant crystallised in the interview is only reachable by an implementer working in
 // an isolated worktree once /plan judges it against the register during grounding — before any slice
-// exists — and then routes the held match into both the Definition of Done and the touching slice's
-// `spec` once that slice is cut, and final-reviewer only checks against it, not the `.claude/rules/`
-// home the register replaced. The judging half and the writing half are two different points in /plan's
-// own flow, so they are two separate rows here — losing any one of the three leaves a stage of that
-// routing recorded but unread.
+// exists — and then routes the held match's id into the touching slice's own `spec` and `acceptance`
+// once that slice is cut, leaving the epic's own criterion stated as the behaviour the invariant
+// protects (ADR 0091), and final-reviewer only checks against it, not the `.claude/rules/` home the
+// register replaced. The judging half and the writing half are two different points in /plan's own
+// flow, so they are two separate rows here — losing any one of the three leaves a stage of that routing
+// recorded but unread.
 const INVARIANT_COMPLIANCE_CONTRACTS = [
   [
     path.join('skills', 'plan', 'SKILL.md'),
@@ -3478,13 +3546,301 @@ const INVARIANT_COMPLIANCE_CONTRACTS = [
   ],
   [
     path.join('skills', 'plan', 'SKILL.md'),
-    /Definition-of-Done criterion naming the entry's id[\s\S]{0,200}`spec` of (?:that|the) slice/,
-    "route a held register match into a Definition-of-Done criterion naming its id, and into the touching slice's `spec`",
+    /entry's id goes into that slice's `spec` and `acceptance`[\s\S]{0,300}epic states the behaviour the invariant protects/,
+    "route a held register match's id into the touching slice's `spec` and `acceptance`, and state the epic's own criterion as the behaviour the invariant protects",
   ],
   [
     path.join('agents', 'final-reviewer.md'),
-    /\*\*Invariant compliance\*\*[\s\S]{0,300}docs\/invariants\.md[\s\S]{0,400}plan-coverage gap[\s\S]{0,200}skip this check silently/,
-    'carry the Invariant compliance check: read `docs/invariants.md`, report a break as a finding and a DoD-omitted entry as a plan-coverage gap, skip silently when the register is absent',
+    /\*\*Invariant compliance\*\*[\s\S]{0,300}docs\/invariants\.md[\s\S]{0,400}covered when[\s\S]{0,300}plan-coverage gap[\s\S]{0,300}neither holds[\s\S]{0,200}skip this check silently/,
+    "carry the Invariant compliance check: read `docs/invariants.md`, judge an entry covered when an epic criterion states the behaviour it protects or the touching slice's `spec`/`acceptance` carries its id, report a plan-coverage gap only when neither holds, skip silently when the register is absent",
+  ],
+];
+
+// ADR 0091, INV-0014: a controller ticks a Definition-of-Done criterion from an implementer's report, and
+// the tag on the criterion — the slice `id`s that deliver it, or `scope` — is what decides which criteria
+// a report can tick at all. `plan-contract.md` owns the line format and the untagged single-slice case;
+// `skills/plan/SKILL.md` is where the tag is actually written, once decomposition (§3) settles which
+// slice delivers what, shown back to the operator at the quiz (§5) and formatted into the store at write
+// time (§6). Losing any one row leaves the tag rule stated somewhere the write path never reaches, or
+// leaves plan writing an untagged checklist the rule says it never should.
+const CRITERION_TAG_CONTRACTS = [
+  [
+    path.join('references', 'plan-contract.md'),
+    /### Criterion tags[\s\S]{0,400}slice `id`s that deliver it, or `scope`[\s\S]{0,600}- \[ \] <criterion> — <ids\|scope>/,
+    'state the `### Criterion tags` rule: every epic criterion tagged with the slice ids that deliver it, or `scope`, in the `- [ ] <criterion> — <ids|scope>` line format',
+  ],
+  [
+    path.join('references', 'plan-contract.md'),
+    /A judged line carries one note[\s\S]{0,100}met: <evidence>[\s\S]{0,60}not met: <reason>[\s\S]{0,60}ceiling: <partial evidence>[\s\S]{0,60}never a bare tick/,
+    'state the judged-line note format: `— met: <evidence>`, `— not met: <reason>`, or `— ceiling: <partial evidence>`, never a bare tick (INV-0014)',
+  ],
+  [
+    path.join('references', 'plan-contract.md'),
+    /single-slice feature carries no tags/,
+    'state that a single-slice feature carries no tags',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /\*\*Tag every Definition-of-Done criterion with the slice `id`s that deliver it, or `scope`/,
+    'tag every Definition-of-Done criterion with the slice ids that deliver it, or `scope`, once decomposition settles which slice delivers what',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /which DoD criteria it[\s\S]{0,20}covers — the same tags §3 wrote/,
+    'show the operator the same tags §3 wrote, at the §5 quiz',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /write the global DoD \(epic\), each criterion tagged in `plan-contract\.md`'s line[\s\S]{0,20}format/,
+    'format the epic DoD checklist in `plan-contract.md`\'s tag line format at write time',
+  ],
+];
+
+// ADR 0091, ADR 0092, INV-0014, INV-0015: `references/dod-ticks.md` is the shared statement of how a
+// controller ticks a Definition-of-Done criterion from an implementer's report — the mapping gate a
+// dispatch's own listed lines decide, the note rule, and that only a controller ticks. Both execution
+// playbooks are the live paths that act on it: `implement-full.md` hands each implementer the `dod.md`
+// path and ticks from its report once the merge lands, `implement-lite.md` writes that same report to
+// itself, since it dispatches nobody, and ticks the same way. `agents/implementer.md` is the third live
+// path, and its own dispatch-prose half: it carries the three-shape, one-line-per-listed-criterion
+// report format the controller ticks from, and `implement-full.md`'s row above is the dispatch sentence
+// that reaches it (root AGENTS.md's dispatch-prose rule — a contract in an agent body also holds in the
+// dispatch prose that reaches it). Each row is asserted apart — losing the reference's own wording
+// leaves the gate or the note rule stated nowhere at all, losing a playbook's row leaves the rule stated
+// only in a reference neither live path ever reaches, and losing the implementer's own row leaves the
+// report format stated only as a summary its dispatcher never restates in full.
+const DOD_TICKS_CONTRACTS = [
+  // INV-0014: a write onto a line whose current state already equals its target — a `not met:` write
+  // landing on a line already unticked, say — replaces only the note and never flips the marker; an
+  // unconditional "toggle it the other way" would tick a line the judgment left unmet.
+  [
+    path.join('references', 'plan-contract.md'),
+    /sets its line's marker to the \*\*target\s+state\*\*[\s\S]{0,400}never appending a second note beside it[\s\S]{0,250}only replaces the note; the marker stays as it was/,
+    'state that a write sets the line\'s marker to the target state (`- [x]` when met, `- [ ]` otherwise), replaces the previous note rather than appending a second one, and that a write whose target state equals the current one only replaces the note',
+  ],
+  [
+    path.join('references', 'dod-ticks.md'),
+    /A dispatch hands the worker the `dod\.md` path plus the exact criterion lines it must report on[\s\S]{0,120}\*\*listed lines\*\*\.[\s\S]{0,150}A controller ticks only a line its own dispatch listed/,
+    'state the mapping gate: a dispatch hands the worker the dod.md path plus the exact criterion lines it must report on (the listed lines), and a controller ticks only a line its own dispatch listed',
+  ],
+  [
+    path.join('references', 'dod-ticks.md'),
+    /A\s+bare tick with no note is invalid\.[\s\S]{0,60}\*\*A listed line the report never touches is a report defect, not an unjudged line\.\*\*[\s\S]{0,500}sends the report back for that line before merging or ticking/,
+    'state the note rule (INV-0014): a bare tick is invalid, and a listed line the report never touches is a report defect — the controller sends the report back for that line rather than ticking around it',
+  ],
+  [
+    path.join('references', 'dod-ticks.md'),
+    /Writing a tick is the controller's own act, never a subagent's[\s\S]{0,300}One\s+criterion is judged at a time/,
+    "state that only a controller writes a tick (INV-0015), never a subagent's and never ship's, one criterion at a time",
+  ],
+  [
+    path.join('references', 'dod-ticks.md'),
+    /## Definition of Done ticks` section/,
+    "cite the active store's own `## Definition of Done ticks` section as the anchor's own tick write",
+  ],
+  // A tag in store notation (`#<n>`, `PROJ-<n>`) names no slice on its own — the mapping gate is what
+  // says the ledger's `issue` column is the lookup, or the report ends up matched against nothing once
+  // `/superdev:plan` rewrites a tag off its `id`.
+  [
+    path.join('references', 'dod-ticks.md'),
+    /\*\*Matching a tag to a slice\.\*\*[\s\S]{0,400}ledger's `issue`\s+column[\s\S]{0,250}`scope` never resolves through that column/,
+    "state that a controller matches a tag to a slice through the ledger's `issue` column (`scope.js get slices`: `id` ↔ `issue`), and that `scope` never resolves through it",
+  ],
+  // Triage #662: a failed anchor write (the DoD tick write) has to leave the run running, since
+  // `dod.md` stays the authoritative record regardless — a row losing this leaves plan-contract.md
+  // itself stating no rule for the store-side sentences `scanDodTicksContract` pins on each seed below.
+  [
+    path.join('references', 'plan-contract.md'),
+    /a failed tick write is \*\*reported once per run and never stops the run\*\*[\s\S]{0,40}`dod\.md` stays\s+authoritative regardless/,
+    "state that a failed tick write is reported once per run and never stops the run — `dod.md` stays authoritative regardless",
+  ],
+  // A single-slice `dod.md` carries no tags at all (`plan-contract.md`'s own untagged case), and a
+  // multi-slice `dod.md` can still carry a pre-existing or appended untagged line — a row losing either
+  // clause leaves one of the two cases with no listed-lines rule to settle it under.
+  [
+    path.join('references', 'dod-ticks.md'),
+    /\*\*No tags at all\.\*\*[\s\S]{0,300}every line is a\s+listed line of that lone slice[\s\S]{0,700}settles it as if it read `scope`/,
+    "state that a `dod.md` with no tags at all makes every line a listed line of the lone slice, and that an untagged line on a `dod.md` that also carries tags is settled by run handoff's handoff pass as if it read `scope`",
+  ],
+  // A `dod.md` with no tags at all resolves no line to any slice on a ledger listing more than one
+  // slice — a run begun before tagging existed. Losing this clause leaves such a run's every criterion
+  // ticked wholesale off a single slice's own report, never settled by run handoff's handoff pass.
+  [
+    path.join('references', 'dod-ticks.md'),
+    /A `dod\.md`\s+carrying no tags anywhere on a ledger listing more than one slice[\s\S]{0,250}every line is treated as if it read `scope`/,
+    "state that a `dod.md` with no tags at all on a ledger listing more than one slice resolves no line to any slice — every line is treated as `scope`, settled by run handoff's handoff pass",
+  ],
+  [
+    path.join('references', 'implement-lite.md'),
+    /a\s+`dod\.md` with no tags at all \*\*and\s+a ledger listing exactly one slice\*\*[\s\S]{0,300}nor is any line on a\s+`dod\.md` with no tags at all when the ledger lists more than one slice/,
+    "judge every line as the lone slice's listed line only when the ledger lists exactly one slice, and leave every line unjudged for run handoff's handoff pass when a `dod.md` with no tags at all sits on a ledger listing more than one slice",
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /hand it the\s+\*\*path\*\* to `<run-root>\/dod\.md`, never its text, plus the exact \*\*listed lines\*\* this slice's dispatch\s+covers/,
+    'hand each implementer the **path** to `<run-root>/dod.md`, never its text, plus the exact listed lines this slice\'s dispatch covers (the mapping gate\'s match), and state that it builds only its own slice and reports on those listed lines',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /\*\*Now tick from the implementer's report\*\*[\s\S]{0,200}after\s+the merge lands, never before/,
+    'tick from the implementer\'s report after its merge lands, never before',
+  ],
+  [
+    path.join('references', 'implement-lite.md'),
+    /\*\*Tick from your own report, the same way the full tier's controller ticks from an implementer's\*\*/,
+    'tick from its own per-slice report the same way the full tier\'s controller ticks from an implementer\'s',
+  ],
+  // implement-lite's own tick bullet is the lite tier's copy of the mapping gate — it dispatches
+  // nobody, so it is both controller and worker, and needs the same id-or-issue match and the same
+  // untagged-line carve-out the full tier's dispatch clause states.
+  [
+    path.join('references', 'implement-lite.md'),
+    /judge the listed lines the mapping gate matches to that slice[\s\S]{0,120}by `id` or by its `issue`[\s\S]{0,300}An untagged line on a\s+multi-slice `dod\.md` is no slice's listed line/,
+    "judge the listed lines the mapping gate matches to that slice — by `id` or by its `issue`, or every line on an untagged `dod.md` — and leave an untagged line on a multi-slice `dod.md` for run handoff's handoff pass",
+  ],
+  [
+    path.join('agents', 'implementer.md'),
+    /the exact \*\*listed lines\*\* your\s+dispatch names/,
+    "state that the dispatch hands the exact listed lines alongside the `dod.md` path, per dod-ticks.md's mapping gate",
+  ],
+  [
+    path.join('agents', 'implementer.md'),
+    /one line for\s+every Definition-of-Done criterion your dispatch listed[\s\S]{0,900}Every listed criterion gets exactly one of these three lines[\s\S]{0,150}an omitted line is a report defect the\s+controller sends back/,
+    'report one line for every Definition-of-Done criterion the dispatch listed, in the three shapes (met + evidence, not met + reason, or ceiling + partial evidence), never omitting a listed line',
+  ],
+  [
+    path.join('agents', 'implementer.md'),
+    /A criterion tagged with several slices gets the same three shapes[\s\S]{0,200}never naming the other tagged slices or whether they have merged/,
+    'state that a criterion tagged with several slices gets the same three shapes, reporting only what this slice delivered, never a sibling slice or whether it merged — the implementer cannot see that, the controller resolves the joint line from the ledger',
+  ],
+  [
+    path.join('references', 'dod-ticks.md'),
+    /\*\*Review's case:\*\*[\s\S]{0,200}returns its own verdict[\s\S]{0,300}fix cycle's dispatch then lists exactly the lines that cycle unticked or found broken/,
+    "state review's own case: `final-reviewer` returns a verdict for every `dod.md` line, and a fix cycle's dispatch lists exactly the lines that cycle unticked or found broken",
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /the fix cycle's dispatch below hands the\s+fix implementer the `dod\.md` path plus exactly the lines this cycle unticked or found broken/,
+    "state, in §4, that the fix cycle's dispatch hands the fix implementer the `dod.md` path plus exactly the lines this cycle unticked or found broken (dod-ticks.md's mapping gate, restated on the dispatch surface that reaches it)",
+  ],
+  [
+    path.join('references', 'dod-ticks.md'),
+    /A line tagged with several slices never\s+ticks while any other slice in its tag stands unmerged, per the ledger[\s\S]{0,250}A `met` report on such a line, with another tagged slice\s+still unmerged, is recorded as `not met: <the report's evidence>; remaining: <the unmerged ids>`, never\s+ticked\. Only the report from the \*\*last\*\* tagged slice to merge can tick the line, and only when that\s+report itself says `met` \*\*and no earlier tagged slice's recorded note on that line is a real `not\s+met:`\*\*[\s\S]{0,400}for run handoff's handoff pass to settle/,
+    "state the joint-tag controller rule: a line tagged with several slices never ticks while any other slice in its tag stands unmerged (per the ledger), a `met` report on such a line is recorded as `not met: <evidence>; remaining: <unmerged ids>`, and only the last tagged slice's `met` report ticks it — and only when no earlier tagged slice's note on that line is a real `not met:` rather than the unmerged-sibling placeholder, otherwise the line stays unticked with both notes' gist for the handoff pass",
+  ],
+  // ADR 0091's fourth live path: run handoff's own fix loop is a listed-lines case of the mapping gate
+  // too, one no slice `id` decides — it lists the `scope`-tagged lines the red suite itself blocks. A row
+  // dropping the dod.md path, or the gate citation, leaves the fix implementer either reporting nothing
+  // the controller can tick from, or ticking outside the gate the reference exists to enforce.
+  [
+    path.join('references', 'run-handoff.md'),
+    /listed-lines case of[\s\S]{0,80}dod-ticks\.md[\s\S]{0,60}mapping gate[\s\S]{0,200}the\s+`dod\.md`\s+\*\*path\*\*\s+plus\s+the\s+`scope`-tagged Definition-of-Done lines this red suite blocks/,
+    "state that the fix dispatch is a listed-lines case of dod-ticks.md's mapping gate, handing the dod.md path plus the `scope`-tagged lines this red suite blocks",
+  ],
+  // The handoff pass runs only once the fix loop above has settled the suite — green, none, or denied.
+  // A red suite still standing at the 3-strike cap stops the run before this pass, so it ticks nothing:
+  // a row that drops this gate lets the pass tick `scope`-tagged criteria against a scope the suite
+  // itself never went green on.
+  [
+    path.join('references', 'run-handoff.md'),
+    /\*\*The handoff pass\.\*\*[\s\S]{0,60}[Rr]eached only[\s\S]{0,60}`green`[\s\S]{0,20}`none`[\s\S]{0,20}`denied`[\s\S]{0,250}cap stops the run before this pass/,
+    "state that the handoff pass is reached only once the suite is green, none, or denied — the fix loop's own 3-strike cap stops the run before this pass when a red suite never goes clean",
+  ],
+  // The handoff pass, run handoff's own settling step (ADR 0091, INV-0016): it reads dod-ticks.md, ticks
+  // every `scope`-tagged criterion it can now judge, and re-checks every earlier tick against the
+  // integrated branch — a preservation claim that held at one slice's merge and broke at a later one is
+  // exactly what this pass exists to catch. A row pinning only the settle clause leaves a broken earlier
+  // tick standing forever; one pinning only the re-check leaves an unmapped claim never settled.
+  [
+    path.join('references', 'run-handoff.md'),
+    /\*\*The handoff pass\.\*\*[\s\S]{0,400}Read[\s\S]{0,60}dod-ticks\.md[\s\S]{0,300}Settle every `scope`-tagged criterion/,
+    'read dod-ticks.md and settle every `scope`-tagged Definition-of-Done criterion, inline, with no dispatch',
+  ],
+  // An untagged line on a multi-slice `dod.md` never gets a slice's own listed-lines dispatch, so this
+  // pass is where it is finally settled — dropping this clause leaves such a line stuck unjudged
+  // forever, with no other pass in the chain that lists it.
+  [
+    path.join('references', 'run-handoff.md'),
+    /every untagged line on a multi-slice `dod\.md`[\s\S]{0,400}as if it read `scope`/,
+    "settle every untagged line on a multi-slice `dod.md` here too, as if it read `scope` (dod-ticks.md's mapping gate)",
+  ],
+  // A `dod.md` with no tags at all, on a ledger listing more than one slice (a run begun before
+  // tagging existed), needs the same handoff-pass settling an untagged line on a tagged `dod.md` gets —
+  // dropping this clause leaves such a legacy run's every criterion stuck unjudged, the same gap the
+  // row above closes for the tagged case.
+  [
+    path.join('references', 'run-handoff.md'),
+    /every\s+line on a `dod\.md` with no tags at all when the ledger lists more than one slice[\s\S]{0,300}settles each of the latter two as if it read `scope`/,
+    "settle every line on a `dod.md` with no tags at all here too, when the ledger lists more than one slice, as if it read `scope`",
+  ],
+  [
+    path.join('references', 'run-handoff.md'),
+    /Re-check every earlier tick against the integrated branch[\s\S]{0,400}broke/,
+    're-check every earlier tick against the integrated branch, taking back one a later merge broke',
+  ],
+  [
+    path.join('references', 'run-handoff.md'),
+    /An unmet result leaves the line unticked with its reason, and never blocks this handoff[\s\S]{0,60}review is the gate/,
+    'state that an unmet result leaves the line unticked with its reason and never blocks this handoff — review is the gate (INV-0016)',
+  ],
+  // Triage #660: run handoff's closing line once listed "no DoD tick" among what it skips, even though
+  // the handoff pass just above it ticks. A row losing this leaves that contradiction free to return.
+  [
+    path.join('references', 'run-handoff.md'),
+    /Then stop: no\s+review, no doc pass, no pull request, no cleanup\./,
+    'state, on its closing line, that it stops with no review, no doc pass, no pull request, and no cleanup — never "no DoD tick", since the handoff pass just above it ticks',
+  ],
+  // Triage #660: the settle bullet named only `scope`-tagged and untagged lines, leaving a joint
+  // criterion an earlier slice's genuine `not met:`/`ceiling:` note left unticked with no pass that ever
+  // settles it — dod-ticks.md hands exactly those lines to this pass.
+  [
+    path.join('references', 'run-handoff.md'),
+    /\*\*Also settle every joint criterion — tagged with several slices — that an earlier tagged\s+slice's genuine `not met:` or `ceiling:` note left unticked\*\*[\s\S]{0,200}hands\s+this pass exactly those lines, alongside the ones above/,
+    "settle every joint criterion — tagged with several slices — that an earlier tagged slice's genuine `not met:` or `ceiling:` note left unticked, alongside the `scope`-tagged and untagged lines above",
+  ],
+];
+
+// User decision (2026-09-24): a `holds` verdict with evidence and no fix needed ticks the line it holds
+// on, instead of only re-ticking through a fix cycle's report — a joint criterion a slice under-reported,
+// a `scope` line judged too early, or an implementer that misjudged its own work all close this way.
+// `dod-ticks.md` states the rule once; `skills/review/SKILL.md` §4 restates it on the dispatch surface
+// (root AGENTS.md's dispatch-prose rule). Rows per surface: the general unticked-with-`not met:`-or-
+// unjudged case, and the narrower ceiling case, which needs the no-deploy-and-branch-evidence statement
+// or the tick never lands — a version of the rule that lets `holds` tick a ceiling line without that
+// statement is exactly what the ceiling row of each pair catches.
+const HOLDS_VERDICT_TICKS_CONTRACTS = [
+  [
+    path.join('references', 'dod-ticks.md'),
+    /A `holds` verdict on a line that stands unticked with `not\s+met:`, or carries no note at all, ticks that line[\s\S]{0,150}verdict's own evidence as\s+the note \(INV-0015\)/,
+    "state that a `holds` verdict on a line unticked with `not met:`, or carrying no note at all, ticks that line, with the verdict's own evidence as the note (INV-0015)",
+  ],
+  [
+    path.join('references', 'dod-ticks.md'),
+    /A line unticked with\s+`ceiling:` takes a holds tick only when the verdict itself states the criterion needs no deploy or other\s+outward-facing change to verify and cites evidence observed on the branch[\s\S]{0,200}A `holds` verdict never ticks a line that genuinely needs a\s+deploy to verify \(INV-0006\)/,
+    'state that a `ceiling:` line takes a holds tick only when the verdict states the criterion needs no deploy or other outward-facing change to verify and cites branch evidence, and that a `holds` verdict never ticks a line that genuinely needs a deploy (INV-0006)',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /A `holds` verdict on a line unticked with `not met:`, or carrying no note at\s+all, ticks that line[\s\S]{0,150}verdict's own evidence as the\s+note \(INV-0015\)/,
+    "state, in §4, that a `holds` verdict on a line unticked with `not met:`, or carrying no note at all, ticks that line, with the verdict's own evidence as the note (INV-0015)",
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /A line unticked with `ceiling:` takes a\s+holds tick only when the verdict itself states the criterion needs no deploy or other outward-facing\s+change to verify and cites evidence observed on the branch[\s\S]{0,200}A `holds` verdict never ticks a line that genuinely needs a deploy to\s+verify \(INV-0006\)/,
+    'state, in §4, that a `ceiling:` line takes a holds tick only when the verdict states the criterion needs no deploy or other outward-facing change to verify and cites branch evidence, and that a `holds` verdict never ticks a line that genuinely needs a deploy (INV-0006)',
+  ],
+];
+
+// INV-0016: run handoff names `/superdev:review` as the next command for every scope, whatever its
+// slice types. This is the same "always review" fact `AFK_ROUTING_CONTRACTS` pins for afk's own stage
+// table, asserted here on the document that actually prints the handoff — a `references/run-handoff.md`
+// that quietly re-grows a `/superdev:document`-instead-of-review branch (ADR 0025's retired shape) would
+// leave the invariant's own name stated nowhere true.
+const ALWAYS_REVIEW_CONTRACTS = [
+  [
+    path.join('references', 'run-handoff.md'),
+    /print\s+`?\/superdev:review[\s\S]{0,300}\*\*every scope\*\*,\s+whatever its slice types/i,
+    'print `/superdev:review <range>` for every scope, whatever its slice types (INV-0016)',
   ],
 ];
 
@@ -3499,7 +3855,7 @@ const INVARIANT_COMPLIANCE_CONTRACTS = [
 // drop a commitment that found no home. That is the one-sided-pin shape `FULL_SUITE_CONTRACTS` already
 // shipped in this repository, so all three are pinned together here rather than as separate checks.
 //
-// Two rows guard the sort's own branches, because each fails silently and in opposite directions. Losing
+// Rows guard the sort's own branches, because each fails silently and in opposite directions. Losing
 // the authoring-rule guard (review finding, ADR 0081) lets a rule about how the work is done answer yes
 // to "does it constrain a later decision" and land in a consuming repository's register, which the
 // feature forbids — a mis-route rather than a gap, and invisible. Losing the `Check: none` branch
@@ -3539,13 +3895,18 @@ const COMMITMENT_CAPTURE_CONTRACTS = [
 ];
 
 // ADR 0084, INV-0006: verifying a Definition-of-Done criterion observes, and changes no system outside
-// the repository. `references/scope-mode.md` owns the rule; the seven rows below pin its own section
-// plus both verifying agent bodies (`final-reviewer.md`, `implementer.md`) and all four
-// surfaces that verify a criterion or dispatch an agent that does (`skills/review/SKILL.md`,
+// the repository. `references/scope-mode.md` owns the rule; the rows below pin its own section
+// plus both verifying agent bodies (`final-reviewer.md`, `implementer.md`) and every
+// surface that verifies a criterion or dispatches an agent that does (`skills/review/SKILL.md`,
 // `skills/implement/SKILL.md`, `references/run-handoff.md` — whose red-full-suite implementer dispatch
-// sits outside `skills/implement/SKILL.md` entirely — and `skills/ship/SKILL.md`). A contract in an
-// agent body also has to hold in the prose that dispatches it (root `AGENTS.md`'s prompt-architecture
-// rule), so `implementer.md`'s single body clause is pinned once and reached by two dispatch rows.
+// sits outside `skills/implement/SKILL.md` entirely, and whose own handoff pass re-checks every
+// `scope`-tagged and earlier-ticked criterion, `skills/document/SKILL.md`'s §8 re-check bullet, and
+// `references/dod-ticks.md`'s Document's case those two dispatch through). `skills/ship/SKILL.md` carries
+// no row here any more: ADR 0091 retires ship's own verification step, so ship copies what an earlier
+// step already recorded rather than verifying anything itself (see `SHIP_TICKS_NOTHING_CONTRACTS`
+// below). A contract in an agent body also has to hold in the prose that dispatches it (root
+// `AGENTS.md`'s prompt-architecture rule), so `implementer.md`'s single body clause is pinned once and
+// reached by two dispatch rows.
 const VERIFICATION_CEILING_CONTRACTS = [
   [
     path.join('references', 'scope-mode.md'),
@@ -3578,42 +3939,125 @@ const VERIFICATION_CEILING_CONTRACTS = [
     'state that verifying the red-full-suite fix observes and changes no system outside the repository (ADR 0084, INV-0006)',
   ],
   [
-    path.join('skills', 'ship', 'SKILL.md'),
-    /[Vv]erif\w+ an item observes[\s\S]{0,40}changes no system outside the repository/,
-    'state, beside "Verify the items yourself", that verifying an item observes and changes no system outside the repository (ADR 0084, INV-0006)',
+    path.join('references', 'run-handoff.md'),
+    /[Vv]erif\w+ a criterion observes[\s\S]{0,40}changes no system outside the repository/,
+    'state that verifying a criterion in the handoff pass observes and changes no system outside the repository (ADR 0084, INV-0006)',
+  ],
+  [
+    path.join('skills', 'document', 'SKILL.md'),
+    /[Vv]erif\w+ a tick observes[\s\S]{0,40}changes no system outside the repository/,
+    "state that verifying a tick in §8's re-check bullet observes and changes no system outside the repository (ADR 0084, INV-0006)",
+  ],
+  [
+    path.join('references', 'dod-ticks.md'),
+    /[Vv]erif\w+ a line observes[\s\S]{0,40}changes no system outside the repository/,
+    "state that verifying a line in Document's case observes and changes no system outside the repository (ADR 0084, INV-0006)",
   ],
 ];
 
-// ADR 0084's own closing decision: `/superdev:ship` §4 ticks a criterion naming the test suite from the
-// run's own recorded result — the ledger's stage together with its degrade record — rather than running
-// that suite itself. `DOC_STEP_SILENCE_DOCS`/`SUITE_RUN_INSTRUCTIONS` above already assert the negative
-// (`skills/ship/SKILL.md` carries no suite-run instruction of its own); this table asserts the positive
-// clause that replaces one — the read path and the "runs no test command anywhere" statement — so a
-// document that goes silent about the suite entirely, rather than reading the ledger for it, still trips
-// this row even though it trips no negative scanner.
-const DOD_SUITE_CRITERION_CONTRACTS = [
+// ADR 0091's closing half: `/superdev:ship` ticks nothing — the suite-criterion logic ADR 0084 once put
+// in ship's own §4 moved to `/superdev:review`'s §4 (`UNMET_CRITERION_AT_REVIEW_CONTRACTS`,
+// `VERIFICATION_CEILING_CONTRACTS`) once every scope started passing review. What ship does instead: it
+// copies a criterion `/superdev:review` or `/superdev:document` already left unticked with a `ceiling:`
+// note into the pull-request body, as a post-merge checklist, and it still closes the scope anchor — the
+// one write §5 kept that is not a tick. The rows below pin `skills/ship/SKILL.md`'s "ship writes no tick"
+// statement, the post-merge-checklist paragraph (the heading, the source note, and the no-heading-when-
+// none rule), and the anchor-close paragraph (`stage set shipped` is already pinned by `verb-pointer`
+// below; this row pins the sentence that still moves the scope anchor issue to done alongside it, so a
+// consumer that keeps the verb call but drops the anchor-close clause still trips this row).
+const SHIP_TICKS_NOTHING_CONTRACTS = [
   [
     path.join('skills', 'ship', 'SKILL.md'),
-    /ticked from the run's own recorded result, never by running it/i,
-    'tick a criterion naming the test suite from the run\'s own recorded result, never by running it (ADR 0084)',
+    /[Ss]hip writes no tick anywhere/,
+    'state plainly that ship writes no tick anywhere',
   ],
   [
     path.join('skills', 'ship', 'SKILL.md'),
-    /get stage[\s\S]{0,300}get degraded/,
-    'read both the ledger stage and its degrade record to decide that criterion',
+    /`?##\s*Post-merge checklist`?\s+heading[\s\S]{0,400}No such criterion[\s\S]{0,60}add no empty heading/,
+    'carry every `— ceiling:` criterion from `dod.md` into the pull-request body under a `## Post-merge checklist` heading, adding no empty heading when none exist',
   ],
   [
     path.join('skills', 'ship', 'SKILL.md'),
-    /[Ss]hip runs no test command anywhere/,
-    'state plainly that ship runs no test command anywhere',
-  ],
-  [
-    path.join('skills', 'ship', 'SKILL.md'),
-    /scope whose recorded result is a denied or absent test command leaves such a criterion unticked[\s\S]{0,60}that record as its note/,
-    'state that a scope whose recorded result is a denied or absent test command leaves such a criterion unticked, with that record as its note (ADR 0084)',
+    /move the \*\*scope anchor\*\* issue[\s\S]{0,80}to done/,
+    'still move the scope anchor issue to done, whatever tick logic left the run root',
   ],
 ];
 
+// Triage #654: a store whose anchor close is a commit on the scope branch (the local store) commits that
+// close before ship's push, so it rides the pull request and reaches base exactly when the pull request
+// merges — never as a commit straight to base (INV-0001). A store whose close is an API call keeps
+// closing after the pull request opens, unaffected: `skills/ship/SKILL.md` states the scope-branch-commit
+// case at its push step (§4), and `references/issue-tracker-local.md` restates its own close line to
+// match. A later feature is free to replace the `done` value with its own status; the before-the-push
+// mechanism stays either way.
+const ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS = [
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /anchor close is a commit on the scope branch commits that close[\s\S]{0,40}before this push/,
+    'state, at its push step, that a store whose anchor close is a commit on the scope branch commits that close before this push, so it reaches base with the merge',
+  ],
+  [
+    path.join('references', 'issue-tracker-local.md'),
+    /commit it `done` on the scope branch[\s\S]{0,60}before\s*\n?\s*ship pushes[\s\S]{0,60}reaches base with the merge/,
+    "state that `/superdev:ship` commits the anchor `done` on the scope branch before ship pushes, so it reaches base with the merge",
+  ],
+];
+
+// ADR 0091's other closing half: the doc pass unticks, with a note, a ticked criterion its own commits
+// broke — the doc-writer's brief never sees `dod.md`, so this is the document controller's own direct
+// check against the branch, `dod-ticks.md`'s **Document's case** paragraph (the mapping gate's third
+// listed-lines case, alongside implement's and review's). `dod-ticks.md` states the case — the listed
+// lines are exactly the ticked lines the pass's own commits could touch, an unaffected line stays
+// untouched, and a broken one is unticked with a note — and `skills/document/SKILL.md` §8 restates the
+// same clause on its own dispatch-free re-check bullet (root `AGENTS.md`'s dispatch-prose rule).
+const DOC_UNTICK_ON_BREAK_CONTRACTS = [
+  [
+    path.join('references', 'dod-ticks.md'),
+    /Document's case:[\s\S]{0,400}left exactly as it stood, with no note added[\s\S]{0,150}broke is unticked, with a one-line note on what broke it/,
+    "state the Document's case: the pass's own listed lines are the ticked lines its commits could touch, " +
+      'an unaffected line stays untouched, and a broken one is unticked with a one-line note on what broke it',
+  ],
+  [
+    path.join('skills', 'document', 'SKILL.md'),
+    /doc commits landed in this run touched[\s\S]{0,300}stays exactly as it stood, with no note added[\s\S]{0,200}broke gets unticked, with a one-line note on what broke it/,
+    're-check every ticked `dod.md` line the doc commits landed in this run could touch, leaving an ' +
+      'unaffected line untouched and unticking a broken one with a one-line note',
+  ],
+  [
+    path.join('skills', 'document', 'SKILL.md'),
+    /Apply the same verdict to the anchor[\s\S]{0,150}through the active store's own `## Definition of Done ticks` section/,
+    'route the anchor tick update through the active store\'s own `## Definition of Done ticks` section',
+  ],
+  // INV-0016: an untick this pass writes leaves a broken criterion standing with no record ship's own
+  // gate reads — without the Unresolved entry, ship's stage-and-Unresolved check sees nothing wrong and
+  // opens a pull request over a criterion this very pass just broke.
+  [
+    path.join('skills', 'document', 'SKILL.md'),
+    /An untick here also writes the ledger's `\*\*Unresolved:\*\*` entry, naming the criterion it broke[\s\S]{0,200}unresolved add[\s\S]{0,200}Publishing run state/,
+    "write the ledger's `**Unresolved:**` entry naming the broken criterion (`scope.js unresolved add`) and publish the snapshot when this pass unticks a line",
+  ],
+  // INV-0016: the stage never advances past `reviewed` while a criterion stands unmet, so an untick
+  // this pass writes must gate the stage write that follows it, not just the Unresolved entry above.
+  [
+    path.join('skills', 'document', 'SKILL.md'),
+    /unless the re-check above unticked a line[\s\S]{0,250}leaves the ledger's `\*\*Stage:\*\*` line exactly as it stands: write nothing/,
+    'leave the ledger\'s `**Stage:**` line exactly as it stands, writing nothing, when this pass unticked a line',
+  ],
+  [
+    path.join('skills', 'document', 'SKILL.md'),
+    /This pass unticked a line above[\s\S]{0,150}print `\/superdev:review <range>`, naming the criterion it unticked/,
+    'print `/superdev:review <range>` instead of `/superdev:ship`, naming the unticked criterion, when this pass unticked a line',
+  ],
+  // Triage #660: this bullet once said "ship's own gate refuses a scope with an unmet criterion", but
+  // the step that opens the pull request only refuses unattended — attended, it asks once. A row losing
+  // this leaves the overstatement free to return, and it is worded around the step rather than the
+  // command name since a later feature renames ship.
+  [
+    path.join('skills', 'document', 'SKILL.md'),
+    /the step that opens the pull request asks once when attended and refuses only when unattended, on a\s+scope with an unmet criterion/,
+    'state that the step that opens the pull request asks once when attended and refuses only when unattended, on a scope with an unmet criterion',
+  ],
+];
 
 // ADR 0084, INV-0008: a Definition-of-Done criterion states a requirement the feature meets, never a
 // procedure superdev executes to verify it, so it names no command superdev runs to check it. The two
@@ -3664,7 +4108,7 @@ const CLEAN_VERDICT_ENDS_LOOP_CONTRACTS = [
 // ADR 0088, INV-0010: an observation — a real defect a run meets that no slice covers and the scope did
 // not cause — is recorded, never judged. `references/scope-mode.md` owns the rule in its own
 // `## Observations` section, beside `## Degraded passes`, `## Unresolved defects`, and `## Deferred
-// findings`. The first six rows pin that section's own clauses: what an observation is and that its
+// findings`. The rows above the last pin that section's own clauses: what an observation is and that its
 // triage record is written the moment it is met, never at a handoff; that the triage record is the only
 // artifact (no ledger line, no pull-request body); that it is recorded, never judged (no severity, no
 // stage, no fix loop); that capture reads the store's open triage records before it writes and names the
@@ -3747,23 +4191,41 @@ const LABEL_REVISION_AT_DECOMPOSITION_CONTRACTS = [
   ],
 ];
 
-// A Definition-of-Done criterion `/superdev:ship` §4 cannot tick stays unchecked with a one-line note on
-// why — that is ship's own rule, and the only surface that states it. `/superdev:review`'s own §4 (scope
-// mode) meets an unmet criterion earlier, so the second row pins the sibling rule stated there: every
-// unmet criterion but the verification-ceiling one enters the fix loop like any other finding, and
-// either way review itself ticks nothing in `dod.md` (only `/superdev:ship` does, ADR 0084). Losing the
-// ship row leaves the rule unstated anywhere; losing the review row lets an unmet criterion reach the
-// ask-once gate with no standing instruction on whether it is chased.
+// `/superdev:review`'s own §4 (scope mode) meets an unmet criterion and gates on it directly (ADR 0091):
+// a broken line is unticked with a note and folded into the fix loop — whether the line stood ticked or
+// already unticked, both count — the stage does not advance while any criterion but a `ceiling` one
+// stands unmet, and a clean re-review re-ticks only what the fix implementer's report calls met.
+// `/superdev:ship` carries no row here any more: ADR 0091 moved the unmet-criterion gate to review, so
+// ship never meets one of its own — an unticked line reaches ship already noted, and ship's own
+// `SHIP_TICKS_NOTHING_CONTRACTS` row pins what ship does with a `ceiling:` one. Losing a review row lets
+// a broken criterion reach the ask-once gate with no standing instruction on whether it is unticked,
+// chased, or re-ticked — or lets a version of the bullet that only catches an already-ticked broken line
+// pass, silently dropping the already-unticked case.
 const UNMET_CRITERION_AT_REVIEW_CONTRACTS = [
   [
-    path.join('skills', 'ship', 'SKILL.md'),
-    /Leave an unmet item unchecked with a one-line note on why/,
-    'state, in §4, that an unmet Definition-of-Done item is left unchecked with a one-line note on why',
+    path.join('skills', 'review', 'SKILL.md'),
+    /calls broken is a Critical finding, and you untick it[\s\S]{0,300}Untick it, with a one-line note naming why/,
+    "state, in §4, that a `final-reviewer` line called broken is a Critical finding the controller unticks with a one-line note",
   ],
   [
     path.join('skills', 'review', 'SKILL.md'),
-    /enters this loop like any other finding[\s\S]{0,400}verification-ceiling case is the one reported and not chased[\s\S]{0,250}ticks nothing in `dod\.md`/,
-    'state, in §4, that a criterion `final-reviewer` reports unmet enters the fix loop like any other finding, except the verification-ceiling case, which is reported and not chased since no work on this branch can close it, and that either way review itself ticks nothing in `dod.md`',
+    /stage does \*\*not\*\* advance while any `dod\.md`\s+criterion stands unmet, except a `ceiling` one \(INV-0016\)/,
+    'state, in §4, that the stage does not advance while any `dod.md` criterion stands unmet, except a `ceiling` one (INV-0016)',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /verification-ceiling case is the one reported and not chased[\s\S]{0,250}never fold it into\s+the fix loop/,
+    'state, in §4, that the verification-ceiling case is reported and not chased since no work on this branch can close it, and never folded into the fix loop',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /re-tick only the criteria that cycle's fix\s+implementer reported met/,
+    "state, in §4, that a clean re-review re-ticks only the criteria that cycle's fix implementer reported met",
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /ticked or not — a ticked line the branch no longer satisfies, or\s+an already-unticked line the branch still fails, both count/,
+    'state, in §4, that a broken finding covers a line ticked or not — a ticked line the branch no longer satisfies, and an already-unticked line the branch still fails, both count',
   ],
 ];
 
@@ -3808,7 +4270,7 @@ const CAPTURE_CHECKS_CONCURRENT_PLANS_CONTRACTS = [
 // bridge lets the call through with a notice, because it fires on every tool call and every repair for
 // a broken install is made through the surface a block would close.
 //
-// Two rows, one per surface, and each pins the **reason** rather than the behaviour alone. A divergence
+// Rows, one per surface, and each pins the **reason** rather than the behaviour alone. A divergence
 // between two implementations of one rule reads as an oversight when only the behaviours are pinned —
 // which is how the bridge's own fail-open read before #606, and why it survived as long as it did. Each
 // row also requires the clause naming what the *other* surface does, so a reader meeting either one
@@ -3844,7 +4306,8 @@ module.exports = {
   OBSERVATION_CAPTURE_CONTRACTS,
   CLEAN_VERDICT_ENDS_LOOP_CONTRACTS,
   COMMITMENT_CAPTURE_CONTRACTS,
-  DOD_SUITE_CRITERION_CONTRACTS,
+  SHIP_TICKS_NOTHING_CONTRACTS,
+  DOC_UNTICK_ON_BREAK_CONTRACTS,
   CONTAINMENT_DELEGATION_CONTRACTS,
   CONTAINMENT_REFETCH_CONTRACTS,
   CONTAINMENT_PROBE_CONTRACTS,
@@ -3898,6 +4361,7 @@ module.exports = {
   UNATTENDED_CONTRACTS,
   DEGRADED_CONTRACTS,
   DERIVED_CRITERIA_CONTRACTS,
+  PER_CRITERION_VERDICT_CONTRACTS,
   REACHABLE_CRITERION_CONTRACTS,
   REVIEW_RANGE_SHAPES_CONTRACTS,
   EMPTY_ARGUMENT_CONTRACTS,
@@ -3918,6 +4382,7 @@ module.exports = {
   GREEN_GATE_TIMEOUT_CONTRACTS,
   VERB_CONTRACTS,
   KB_STAGING_CONTRACTS,
+  KB_READ_NEVER_WRITE_CONTRACTS,
   FULL_SUITE_CONTRACTS,
   FIX_BOUNDARY_CONTRACTS,
   DENIAL_AUTHORSHIP_CONTRACTS,
@@ -4003,4 +4468,9 @@ module.exports = {
   RUN_LOCK_LIVENESS_SILENCE_MARKERS,
   SPAWN_FAILURE_ANSWER_CONTRACTS,
   DECOMPOSITION_NAMES_WHAT_IT_CHECKED_CONTRACTS,
+  CRITERION_TAG_CONTRACTS,
+  DOD_TICKS_CONTRACTS,
+  HOLDS_VERDICT_TICKS_CONTRACTS,
+  ALWAYS_REVIEW_CONTRACTS,
+  ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS,
 };

@@ -42,7 +42,7 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          documentation convention, controlled-prose, content-types, doc pass, run init,
                          run handoff, execution playbooks, test-selection, scope-mode, authoring
                          disciplines, design sketch, diagnosis, prototype, merge-conflicts,
-                         review-checklist); its own AGENTS.md routes them
+                         review-checklist, dod-ticks); its own AGENTS.md routes them
   scripts/             — the runtime CLIs: `scope.js`, `kb-patch.js`, `adapter.js`, `publish-kb.js`
   LICENSE · NOTICE     — copies of the root files, so the shipped tree carries its own attribution
 tests/                 — one suite per shipped executable (the hooks, `scope.js`, `kb-patch.js`,
@@ -140,7 +140,9 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
   - **Prose states no count of a growing set.** "The eight shipped hooks" reads as a fact and is a
     hostage: adding a hook makes it false in every document repeating it, and nothing fails. Name the
     set, or name its members, and keep a numeral only where the number is the fact — a cap, a
-    threshold, or a fixed arity (ADR 0064).
+    threshold, or a fixed arity (ADR 0064). A drift contract table's row count is a growing-set count,
+    not a fixed arity: a table grows every time a slice pins another clause, so its row count is never
+    the fact itself.
 - **Platform-dependent claims carry dated verification.** An ADR, or an entry in
   [`docs/known-issues.md`](docs/known-issues.md),
   states a claim about Claude Code behaviour. When you re-check that claim, record a dated update naming

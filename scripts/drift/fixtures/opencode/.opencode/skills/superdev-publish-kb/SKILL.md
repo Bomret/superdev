@@ -1,6 +1,6 @@
 superdev-render-overlay
 source: skills/publish-kb/SKILL.md
-body-lines: 67
+body-lines: 75
 ---
 # generated-by: superdev-adapter — a re-render overwrites this directory
 name: superdev-publish-kb
@@ -18,3 +18,5 @@ Pass `--scope <value>` when the message that invoked this skill names one; call 
   operator answers, re-invoke `node "<plugin-root>/scripts/publish-kb.js" --scope <the chosen
 @56
   `/superdev-setup` pointer.
+@67
+relaying the reason: re-running `/superdev-document` re-reads the live page and re-stages it with a

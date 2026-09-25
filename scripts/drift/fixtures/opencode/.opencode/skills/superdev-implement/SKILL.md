@@ -14,8 +14,6 @@ review `/superdev-review` runs next.
   `<plugin-root>/references/scope-mode.md`'s `## Observations` section and follow it: a defect a
 @38
   `<plugin-root>/references/scope-mode.md`'s `## Degraded passes` section: work inline, say so,
-@48
-  no tests — the loop's runs plus the scope's full-suite run at `/superdev-review` are the net
 @56
   **`/superdev-setup`**, then continue. **`docs/agents/verification.md` carrying one fenced block** is
 @58

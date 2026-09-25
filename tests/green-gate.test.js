@@ -806,6 +806,16 @@ fs.writeFileSync(
       assert.equal(result.status, 2, `a merge naming only ${options} blocks`);
       assert.match(result.stderr, /git -C <path> merge/, 'the block names the way to run it');
       assert.match(result.stderr, /--git-dir/, 'the block names the option it could not resolve a tree from');
+      assert.match(
+        result.stderr,
+        /this merge (?:has landed|landed).*(?:unverified|nobody verified it)/is,
+        'the message states the merge already landed and nobody verified it',
+      );
+      assert.match(
+        result.stderr,
+        /run the (?:full )?test command.*(?:or revert this merge|or revert (?:the|this) merge)/is,
+        'the message names the recovery: run the test command in that tree, or revert the merge',
+      );
     }
     fs.rmSync(session, { recursive: true, force: true });
     fs.rmSync(target, { recursive: true, force: true });
@@ -959,6 +969,16 @@ fs.writeFileSync(
       const result = runHook({ cwd: session, tool_input: { command } });
       assert.equal(result.status, 2, `a directory-changing merge blocks: ${command}`);
       assert.match(result.stderr, /git -C <path> merge/, 'the block names the way to run it');
+      assert.match(
+        result.stderr,
+        /this merge (?:has landed|landed).*(?:unverified|nobody verified it)/is,
+        'the message states the merge already landed and nobody verified it',
+      );
+      assert.match(
+        result.stderr,
+        /run the (?:full )?test command.*(?:or revert this merge|or revert (?:the|this) merge)/is,
+        'the message names the recovery: run the test command in that tree, or revert the merge',
+      );
     }
     // the same command with an explicit -C is knowable again, and gates on that target
     const withC = runHook({ cwd: session, tool_input: { command: `cd /tmp && git -C '${session}' merge --no-ff other` } });

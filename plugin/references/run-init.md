@@ -58,7 +58,8 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
   wrote" and "the paths another run wrote" name the same file, and no ownership test can tell them apart
   (ADR 0076). A content match can.
 - **Write the DoD** — the global verification plan, made concrete and checkable — to `<run-root>/dod.md`.
-  `/superdev:review` reviews against it and `/superdev:ship` ticks it. No DoD → don't proceed. **No epic**
+  `/superdev:review` reviews against it, and a controller ticks it while the run works, from an
+  implementer's report (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`, ADR 0091). No DoD → don't proceed. **No epic**
   → write the lone slice's `acceptance` verbatim.
 - **Create the ledger.** **No `<run-root>/ledger.md` yet** → before running `init`, check the scope
   anchor for a snapshot to adopt, unless the active store declares itself snapshot-less

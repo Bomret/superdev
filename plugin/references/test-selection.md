@@ -72,6 +72,7 @@ Each caller judges its own range and builds the set from it:
   the first parent where `ORIG_HEAD` does not resolve.
 - **The documentation step.** Its own doc commits — the ones the doc-writer just landed on the scope
   branch, never the wider range the chain is reconciling.
+- **Run handoff's own fix loop.** The commits that cycle's implementer just landed, on the scope checkout.
 
 ## Fallback to the full command
 

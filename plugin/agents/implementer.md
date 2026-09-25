@@ -14,8 +14,13 @@ slice branch. You are dispatched by a controller and report back to it. You neve
 - Its **`test-applicability`**: `behavior`, `mechanical`, or `docs`.
 - The **slicetree path** and **slice branch** to work on, and a **progress-log path** to append to.
 - Global constraints and any interfaces decided by earlier slices.
+- The **path** to `<run-root>/dod.md` (never its text inlined), plus the exact **listed lines** your
+  dispatch names — the Definition-of-Done criteria this slice's dispatch lists
+  (`references/dod-ticks.md`'s mapping gate).
 
-Work only inside that slicetree, only on that slice. Do not expand scope.
+Work only inside that slicetree, only on that slice. Do not expand scope — reading the whole DoD informs
+your report; it widens nothing you build, and your slice `spec` and `acceptance` stay the boundary of
+the work.
 
 ## Resume, don't restart
 
@@ -191,7 +196,22 @@ The controller gives you a **progress-log** path (under this run's scope root, e
 - a short **closing summary** — what you built, the test command run + its result, any concerns.
 
 Append (never overwrite); the file may already hold a header or earlier agents' entries. Then **return
-to the controller only**: a status, the commit range, a one-line test summary, and concerns.
+to the controller only**: a status, the commit range, a one-line test summary, concerns, and one line for
+every Definition-of-Done criterion your dispatch listed — the exact lines the dispatch named (the
+controller ticks from this, never from anywhere else — `references/dod-ticks.md`):
+
+- **met** — the criterion, and the evidence it is met.
+- **not met** — the criterion, and the reason.
+- **ceiling** — a criterion only a deploy or another outward-facing change can verify (INV-0006), and
+  whatever partial evidence you already gathered.
+
+A criterion tagged with several slices gets the same three shapes — report only what **this slice**
+delivered, with its evidence, never naming the other tagged slices or whether they have merged. You
+cannot see that; the controller can, from the ledger, and resolves the joint line from it
+(`references/dod-ticks.md`'s mapping gate).
+
+Every listed criterion gets exactly one of these three lines — an omitted line is a report defect the
+controller sends back, never a verdict left for later.
 
 Status is one of:
 

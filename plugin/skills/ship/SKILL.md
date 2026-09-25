@@ -1,6 +1,6 @@
 ---
 name: ship
-description: Close out a superdev scope — tick the Definition of Done, close the scope anchor, open the PR, and clean up the run. The last step of the implement chain; run it after /superdev:review and /superdev:document.
+description: Close out a superdev scope — close the scope anchor, open the PR, and clean up the run. The last step of the implement chain; run it after /superdev:review and /superdev:document.
 argument-hint: "[<scope>  (empty = the only run in this repo)]  [--unattended]"
 ---
 
@@ -28,8 +28,8 @@ behaves. Refresh `<run-root>/run.lock` now, per that file's rule.
 
 ## 2. Scope checkout
 
-Find the scope checkout per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`. You need it for §5's git
-commands. **§6 runs from the invoking checkout instead** — see there.
+Find the scope checkout per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`. You need it for §4's git
+commands. **§5 runs from the invoking checkout instead** — see there.
 
 ## 3. Stage gate (ask once attended, refuse unattended)
 
@@ -49,14 +49,6 @@ all):
   scope shipped without it. **`--unattended` → refuse**: name what is missing, open no pull request, and
   stop. A caller that drove the whole chain never reaches this bullet, so reaching it unattended means a
   step really was skipped — and shipping unreviewed code is not a decision a token stands in for.
-- **Every slice in the ledger is `mechanical` or `docs`** (the fourth, `type` field of
-  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>`, one tab-separated row per
-  slice) → drop `/superdev:review` from that warning, whether it applies to this bullet or to
-  `documented-unreviewed` above. Such a scope skips the whole-scope review by design — it reaches this
-  stage only once `/superdev:implement`'s run handoff has run the full suite and found it green, found no
-  test command configured, or recorded a denied test command and continued attended (ADR 0025) — so naming
-  `/superdev:review` as missing would train the reader to dismiss the question. If that drop empties the
-  warning, proceed silently instead of asking about an empty list.
 
 **Entries standing.** Read every bullet with
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get unresolved --root <run-root>` — one bullet per line,
@@ -66,40 +58,12 @@ and **ask once** whether to ship with it standing. Declined → stop, open no pu
 Confirmed → proceed and record in the report that the scope shipped with the defect standing.
 **`--unattended` → refuse**: name what stands, open no pull request, and stop.
 
-## 4. Definition of Done
+## 4. Pull request
 
-Confirm every item in `<run-root>/dod.md` against the integrated scope branch, ticking each verified one
-(`- [ ]` → `- [x]`). Leave an unmet item unchecked with a one-line note on why. Verify the items yourself:
-a passing review earlier in the chain is evidence, not a substitute. Verifying an item observes; it
-changes no system outside the repository (ADR 0084, INV-0006). An item needing a deploy, a migration, or
-any other outward-facing change to verify stays unticked, with a note, for the operator to verify after
-merge.
-
-**A criterion naming the test suite is ticked from the run's own recorded result, never by running it**
-(ADR 0084). Read the ledger's stage with
-`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>` and its degrade record with
-`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get degraded --root <run-root>`. `/superdev:review` does
-not advance the stage while a red full suite stands, and `references/run-handoff.md` runs an
-all-`mechanical`/`docs` scope's own full suite — in place of the review such a scope skips — before
-writing the stage, so a stage of `reviewed`, `documented`, or `shipped` is a green full suite on this
-scope branch, and so is `documented-unreviewed` where every ledger slice is `mechanical`/`docs`
-(`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>`) — that stand-in run's own
-terminal stage. Any other stage leaves the criterion unticked, naming that stage as the note. Given one
-of those stages: a degrade bullet naming that full-suite run as denied — the exit run's own denial, or
-the stand-in run's — leaves the criterion unticked too, with that bullet as the note, and
-`docs/agents/verification.md` naming no test command at all does the same, with `no test command
-configured` as the note: **a scope whose recorded result is a denied or absent test command leaves such
-a criterion unticked, with that record as its note.** Otherwise, tick it. Ship runs no test command
-anywhere.
-
-**Apply the same verdict to the anchor's own Definition of Done checklist**, through the sanctioned body
-edit the active store's own `## Run state` section names (`docs/agents/issue-tracker.md`, or whichever
-seed is active). Best-effort: a failed write is reported once and never stops the ship. Leave an unmet
-item's one-line note on the local copy alone — the anchor carries tick state, and the pull-request body
-already carries the reasons. A store whose `## Run state` section declares it snapshot-less has no anchor
-body to edit: tick the local copy only and say so in one line.
-
-## 5. Pull request
+**A scope-branch-commit anchor close happens first.** Per `docs/agents/issue-tracker.md`, a store whose
+anchor close is a commit on the scope branch commits that close now, before this push, so it reaches base
+exactly when the pull request merges — never as a commit straight to base (INV-0001). A store whose close
+is an API call skips this and closes below instead, after the pull request opens.
 
 Per `docs/agents/code-management.md`: push the scope branch, then open the pull request at the configured
 posture, with a body built from the Definition of Done and the slice list. No host CLI or API access →
@@ -128,12 +92,20 @@ heading, distinct from both headings above — the three answer different questi
 get, what is broken, and what nobody has planned yet (ADR 0035). The pull request is where a reader meets
 it, and where it outlives the review that found it. **No output** → add no empty heading.
 
-Then move the **scope anchor** issue (the epic, or the lone slice on a single-slice plan) to done per
-`docs/agents/issue-tracker.md`, and set the ledger's `**Stage:**` line to `shipped` with
+**Carry every ceiling criterion into that body too, as a post-merge checklist.** Copy every `dod.md`
+line carrying `— ceiling: <partial evidence>` — its note format is
+`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s note rule — under its own `## Post-merge checklist`
+heading, as a checkbox, distinct from the three headings above. Ship writes no tick anywhere: this step
+only copies what an earlier step already recorded. **No such criterion** → add no empty heading.
+
+Then move the **scope anchor** issue (the epic, or the lone slice on a single-slice plan) to done — per
+`docs/agents/issue-tracker.md`, right here for a store whose close is an API call; a store whose close is a
+scope-branch commit already carries it, committed before the push above — and set the ledger's
+`**Stage:**` line to `shipped` with
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set shipped --root <run-root>`. Publish the snapshot
 afterwards, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section.
 
-## 6. Clean up
+## 5. Clean up
 
 **From the invoking checkout, not the scopetree** — `git worktree remove` refuses to remove the tree
 you are standing in:
@@ -149,7 +121,7 @@ you are standing in:
 **Never delete the scope branch.** The pull request is from it, and deleting it closes the request.
 `hooks/scope-prune.js` reaps it later, with the run root, once base holds its content (ADR 0071).
 
-## 7. Point at the publish, when pages are waiting
+## 6. Point at the publish, when pages are waiting
 
 `.superdev/kb-pending/<scope>/` holds staged pages → print `/superdev:publish-kb <scope>` with one line on
 when to run it: **once the feature has reached its readers**, which is later than this pull request and

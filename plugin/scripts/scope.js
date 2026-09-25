@@ -2,10 +2,13 @@
 'use strict';
 
 // scope.js: the run-state CLI (ADR 0022). Owns every ledger.md write and read in the chain.
-// Verbs: init, stage, slice, degraded, unresolved, deferred, get, status, root. Exit nonzero with a
-// one-line stderr reason on any refusal. hooks/ledger-guard.js makes this the only ledger write path.
-// `root` is the one verb that touches no ledger: it resolves a run root's absolute path, anchored to
-// the repository's main working tree regardless of which checkout invoked it (ADR 0080).
+// Verbs: init, stage, slice, degraded, unresolved, deferred, suite, get, status, root, dod-line. Exit
+// nonzero with a one-line stderr reason on any refusal. hooks/ledger-guard.js makes this the only
+// ledger write path.
+// `root` and `dod-line` are the two verbs that touch no ledger: `root` resolves a run root's absolute
+// path, anchored to the repository's main working tree regardless of which checkout invoked it (ADR
+// 0080); `dod-line` edits one Definition-of-Done checklist line handed to it on stdin, on behalf of a
+// store seed's own fetch/write pair (references/dod-ticks.md, INV-0014).
 
 const fs = require('fs');
 const path = require('path');
@@ -23,6 +26,10 @@ const CHANGE_TYPES = ['feat', 'fix', 'refactor', 'docs', 'perf', 'test', 'build'
 const SLUG_RE = /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/;
 // references/plan-contract.md status vocabulary.
 const SLICE_STATUSES = ['todo', 'in-progress', 'in-review', 'blocked', 'merged'];
+// references/scope-mode.md `## The ledger` — the suite record's result vocabulary (INV-0017). `none`
+// records a repository with no test command configured; `denied` a run the permission classifier
+// denied a verification dispatch for.
+const SUITE_RESULTS = ['green', 'red', 'denied', 'none'];
 // references/scope-mode.md `## The stage never moves backwards`: a write is allowed exactly when
 // it does not lower the stage's rank. `reviewed` and `documented-unreviewed` share a rank — the
 // chain can do either doc pass first — so a same-rank move between them needs its own allowlist;
@@ -148,6 +155,18 @@ function getHeader(lines, name) {
 // value-less header can never capture the next line's token.
 function readLedgerHeader(content, name) {
   return getHeader(splitLines(content), name);
+}
+
+// Where `verbDocs`/`verbSuite` insert a header line that was absent: after the *whole* header block,
+// never spliced between one of `names`' header lines and any bullets that immediately follow it — a
+// hand-edited ledger can carry a bullet glued directly to a header line.
+// `readBullets`'s own `- ` prefix test is the shape to skip past; `-1` (nothing found) means "no such
+// header at all", the same signal `Math.max` already gave its caller.
+function lastHeaderLineIndex(lines, names) {
+  let end = Math.max(...names.map((n) => lines.findIndex((l) => headerRe(n).test(l))));
+  if (end < 0) return -1;
+  while (end + 1 < lines.length && lines[end + 1].startsWith('- ')) end++;
+  return end;
 }
 
 // The bullet list under a header line, if any: `**Degraded:**` (scope-mode `## Degraded passes`) and
@@ -486,14 +505,205 @@ function verbDocs(root, sub, value) {
     return;
   }
   // Absent: sit with the other header lines rather than above them, which is where `setHeader`'s
-  // title-anchored fallback would put it.
-  const last = Math.max(...['Stage', 'Branch', 'Anchor'].map((n) => lines.findIndex((l) => headerRe(n).test(l))));
+  // title-anchored fallback would put it — after the whole block, never inside a bullet list glued to
+  // one of its lines (`lastHeaderLineIndex`).
+  const last = lastHeaderLineIndex(lines, ['Stage', 'Branch', 'Anchor']);
   if (last < 0) {
     writeLines(root, setHeader(lines, 'Docs', value));
     return;
   }
   lines.splice(last + 1, 0, `**Docs:** ${value}`);
   writeLines(root, lines);
+}
+
+// --- dod-line: the Definition-of-Done checklist-line edit (references/dod-ticks.md, INV-0014) -----
+//
+// The one line edit every store's own `## Definition of Done ticks` section names (`plan-contract.md`
+// → *Definition of Done ticks*). `dod-line` touches no ledger and makes no store call: a store seed
+// pipes its own fetched body through it and writes back whatever comes out on stdout. Two modes share
+// one core (`transformDodLines` below) — the default, a whole markdown body on stdin/stdout, and
+// `--line`, one checklist line in and one out, for the Jira seed's ADF text node, which is JSON, not
+// markdown lines.
+//
+// A checklist line is `- [ ] <criterion> — <tag>[ — <verdict>: <note>]` (`plan-contract.md`'s line
+// format). The tag is slice ids (`01`, `01, 02`), store refs (`#667`, `#672, #673`), a Jira issue key
+// (`PROJ-12`, `PROJ-12, PROJ-13` — `references/issue-tracker-jira.md`'s own rewritten notation), or the
+// literal `scope` — never free text. A line with no note takes its tag from the *rightmost* ` — <tag>`
+// at the end of the line, greedily handing everything else to the criterion: that is what keeps a
+// criterion carrying its own " — " (`plan-contract.md`'s own worked example, "Reachable: none —
+// entrance unchanged; … — scope") intact. A line with a note instead splits at the *leftmost* ` —
+// <tag> — <verdict>: ` boundary, because the note itself is free text and may contain that same shape
+// (a re-write's own earlier note, say) — everything past the leftmost boundary is the note, however
+// many look-alike dashes it carries.
+const DOD_TAG_TOKEN = '(?:#?\\d+|[A-Z][A-Z0-9_]*-\\d+)';
+const DOD_TAG_PATTERN = `(?:scope|${DOD_TAG_TOKEN}(?:,\\s*${DOD_TAG_TOKEN})*)`;
+const DOD_VERDICTS = {
+  met: { marker: 'x', label: 'met' },
+  'not-met': { marker: ' ', label: 'not met' },
+  ceiling: { marker: ' ', label: 'ceiling' },
+};
+// A checklist line's marker and its text past `] `. The leading `- ` is optional: a markdown body
+// carries it, but the Jira ADF text node this feeds in `--line` mode carries only the bracket
+// (`references/issue-tracker-jira.md`'s own text-node shape, "a `paragraph` or `listItem` node whose
+// text begins `[ ] <criterion>`").
+// Trailing whitespace is tolerated on either shape (an editor's or a store's own habit) and dropped
+// only where a matched line is actually rewritten — an untouched line keeps its own trailing bytes.
+const DOD_LINE_RE = /^(\s*(?:-\s*)?)\[[ xX]\]\s*(.*)$/;
+const DOD_WITH_NOTE_RE = new RegExp(`^(.+?) — (${DOD_TAG_PATTERN}) — (met|not met|ceiling): (.*?)\\s*$`);
+const DOD_NO_NOTE_RE = new RegExp(`^(.+) — (${DOD_TAG_PATTERN})\\s*$`);
+
+// Whitespace-insensitive equality (`--match`'s own contract), collapsed within one physical line only:
+// a `--match` argument itself carrying an embedded newline, or a run of spaces a web UI's autoformat
+// left behind, still matches the same single-line criterion. A checklist line an editor reflowed onto
+// two physical lines is a different, unmatched line — matching never joins lines.
+function collapseWhitespace(s) {
+  return s.trim().replace(/\s+/g, ' ');
+}
+
+// The checklist line's leading marker prefix (the `- ` a markdown body carries, absent from the bare
+// `[ ]`/`[x]` a Jira ADF text node carries — `references/issue-tracker-jira.md`'s own text-node
+// shape), its criterion, and its tag. `null` when the line carries no task-list marker at all, or
+// carries one but not in the `<criterion> — <tag>[ — <verdict>: <note>]` shape.
+function parseDodLine(line) {
+  const m = line.match(DOD_LINE_RE);
+  if (!m) return null;
+  const [, prefix, rest] = m;
+  const withNote = rest.match(DOD_WITH_NOTE_RE);
+  if (withNote) return { prefix, criterion: withNote[1], tag: withNote[2] };
+  const noNote = rest.match(DOD_NO_NOTE_RE);
+  if (noNote) return { prefix, criterion: noNote[1], tag: noNote[2] };
+  return null;
+}
+
+function renderDodLine(prefix, criterion, tag, verdict) {
+  const v = DOD_VERDICTS[verdict];
+  return `${prefix}[${v.marker}] ${criterion} — ${tag}`;
+}
+
+// The core: find the one non-fenced checklist line whose criterion equals `match` once both sides
+// collapse whitespace, and replace it with the judged line. Matching runs on `maskFencedLines()`'s
+// output (kb-patch.js's own fence rule), so a line inside a fenced illustrative example is never a
+// candidate — the same posture `scope.js`'s own `adopt` marker scan already takes. Refuses, changing
+// nothing, on zero or on two-or-more matches.
+function transformDodLines(lines, match, verdict, note) {
+  const masked = maskFencedLines(lines, 'dod-line input', 'edited');
+  const wanted = collapseWhitespace(match);
+  const hits = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    const parsed = parseDodLine(masked[i]);
+    if (parsed && collapseWhitespace(parsed.criterion) === wanted) hits.push(i);
+  }
+  if (hits.length === 0) fail(`no checklist line matches criterion "${match}"`);
+  if (hits.length > 1) {
+    fail(`${hits.length} checklist lines match criterion "${match}" — which one to edit cannot be resolved`);
+  }
+  const i = hits[0];
+  const { prefix, criterion, tag } = parseDodLine(lines[i]);
+  const out = lines.slice();
+  out[i] = `${renderDodLine(prefix, criterion, tag, verdict)} — ${DOD_VERDICTS[verdict].label}: ${note}`;
+  return out;
+}
+
+function takeOption(args, flag) {
+  const i = args.indexOf(flag);
+  if (i < 0) return undefined;
+  const value = args[i + 1];
+  args.splice(i, 2);
+  return value;
+}
+
+function verbDodLine(args, stdinRaw) {
+  const match = takeOption(args, '--match');
+  const verdict = takeOption(args, '--verdict');
+  const note = takeOption(args, '--note');
+  const lineIdx = args.indexOf('--line');
+  const lineMode = lineIdx >= 0;
+  if (lineMode) args.splice(lineIdx, 1);
+
+  if (!match) fail('dod-line needs --match <criterion text>');
+  if (!DOD_VERDICTS[verdict]) {
+    fail(`dod-line needs --verdict one of ${Object.keys(DOD_VERDICTS).join('|')} — got "${verdict || ''}"`);
+  }
+  if (note === undefined) fail('dod-line needs --note <text>');
+  if (/[\n\r]/.test(note)) fail('dod-line --note must not contain a newline — it would inject a free-text line into the body');
+
+  if (lineMode) {
+    const line = stdinRaw.replace(/\r?\n$/, '');
+    const [out] = transformDodLines([line], match, verdict, note);
+    console.log(out);
+    return;
+  }
+  const out = transformDodLines(splitLines(stdinRaw), match, verdict, note);
+  // process.stdout.write, not console.log: console.log always appends its own trailing newline, which
+  // would double up on the one splitLines/join already reproduce when stdinRaw itself ended in one.
+  process.stdout.write(out.join('\n'));
+}
+
+// `**Suite:**` records the last full-suite run: its result and the commit it ran on (`references/
+// scope-mode.md` `## The ledger`, INV-0017 — a later step reuses a green record whose commit is the
+// scope branch's current tip instead of running the suite again). Set-only: the read half is `get
+// suite`. `sha` must resolve to a commit in the caller's repository — a refusal here is what keeps a
+// typo or a stale sha from being trusted as a real record later. The record carries the *resolved*
+// full commit, never the literal argument: a ref like `HEAD` moves, and a short sha never
+// string-matches the branch tip's full sha that a later reuse compares it against (INV-0017).
+function verbSuite(cwd, root, sub, result, sha) {
+  if (sub !== 'set') fail(`unknown suite subcommand "${sub}" — use set`);
+  if (!SUITE_RESULTS.includes(result)) fail(`unknown suite result "${result}" (${SUITE_RESULTS.join('|')})`);
+  if (!sha) fail('suite set needs a <sha>');
+  const commit = resolveCommit(sha, cwd);
+  if (!commit) fail(`sha "${sha}" does not resolve to a commit in this repository`);
+  const lines = readLines(root);
+  const value = `${result} @ ${commit}`;
+  const at = lines.findIndex((l) => headerRe('Suite').test(l));
+  if (at >= 0) {
+    lines[at] = `**Suite:** ${value}`;
+    writeLines(root, lines);
+    return;
+  }
+  // Absent: sit with the other header lines, after the whole block — the same placement `verbDocs`
+  // gives `**Docs:**`, rather than `setHeader`'s title-anchored fallback.
+  const last = lastHeaderLineIndex(lines, ['Stage', 'Branch', 'Anchor', 'Docs']);
+  if (last < 0) {
+    writeLines(root, setHeader(lines, 'Suite', value));
+    return;
+  }
+  lines.splice(last + 1, 0, `**Suite:** ${value}`);
+  writeLines(root, lines);
+}
+
+// The path-scoped half of INV-0017's reuse rule: a green suite record recorded on an earlier commit
+// is still reusable when every path `branch`'s tip has changed since that commit lies inside the
+// active store's own plan files — on the local plan-file store, its `docs/plans/<type>/<slug>/`
+// directory, whose tick commits never touch the code a suite run exercises. `--plan-files` only
+// *declares* that this run's backend commits plan files on the scope branch (the local-file store);
+// scope.js derives the directory itself from the ledger's own `**Branch:**` value
+// (`docs/plans/<branch>/`, `## The scope slug` in scope-mode.md) rather than trusting a caller-supplied
+// path — a caller can name no directory but its own scope's, so it can never declare an unrelated file
+// (this suite's own command doc, a sibling scope's plan dir) harmless. A remote store commits nothing
+// on the scope branch, so passing no `--plan-files` reduces this to the exact-tip-match case a caller
+// already had. `--no-renames` on the diff so a code file renamed into the plan dir still counts at its
+// pre-rename path, outside it. Reads via `fail()` (a thrown refusal, exit 1) for "not reusable" — the
+// same channel every other verb already uses to report a no — and prints `reusable` (exit 0) when it is.
+function verbSuiteReusable(cwd, root, branch, planFiles) {
+  const raw = getHeader(readLines(root), 'Suite');
+  if (!raw) fail('no suite record to reuse');
+  const m = raw.match(/^(\S+)\s+@\s+(\S+)$/);
+  if (!m) fail(`unreadable suite record: ${raw}`);
+  const [, result, recordedSha] = m;
+  if (result !== 'green') fail(`suite record is ${result}, not green — not reusable`);
+  const tip = resolveCommit(branch, cwd);
+  if (!tip) fail(`branch "${branch}" does not resolve to a commit`);
+  if (tip !== recordedSha) {
+    if (!planFiles) fail(`suite record @ ${recordedSha} predates tip ${tip}, and no --plan-files was given`);
+    const branchName = getHeader(readLines(root), 'Branch');
+    if (!branchName) fail('no ledger **Branch:** value to derive the plan dir from');
+    const prefix = `docs/plans/${branchName}/`;
+    const diff = gitSpawn(['diff', '--no-renames', '--name-only', '--end-of-options', `${recordedSha}..${tip}`], cwd);
+    if (diff.status !== 0) fail(`git diff ${recordedSha}..${tip} failed resolving reuse`);
+    const outside = diff.stdout.split('\n').filter(Boolean).filter((p) => !p.startsWith(prefix));
+    if (outside.length) fail(`not reusable — changed outside the plan dir: ${outside.join(', ')}`);
+  }
+  console.log('reusable');
 }
 
 function verbGet(root, field) {
@@ -527,9 +737,19 @@ function verbGet(root, field) {
     console.log(String(bullets.slice(lastReset + 1).filter((b) => b.startsWith(DENIAL_PREFIX)).length));
     return;
   }
+  if (field === 'suite') {
+    // The read half of `suite set`: `<result> <sha>`, or nothing on a ledger with no record — never
+    // the "absent" token the other header fields print, because a caller (`references/run-handoff.md`)
+    // tests for output at all rather than parsing a sentinel value.
+    const v = getHeader(readLines(root), 'Suite');
+    if (v === null) return;
+    const m = v.match(/^(\S+) @ (\S+)$/);
+    console.log(m ? `${m[1]} ${m[2]}` : v);
+    return;
+  }
   const names = { stage: 'Stage', branch: 'Branch', anchor: 'Anchor', docs: 'Docs' };
   const name = names[field];
-  if (!name) fail(`unknown field "${field}" — use stage|branch|anchor|docs|slices|unresolved|degraded|deferred|denials`);
+  if (!name) fail(`unknown field "${field}" — use stage|branch|anchor|docs|slices|unresolved|degraded|deferred|denials|suite`);
   const v = getHeader(readLines(root), name);
   console.log(v === null ? 'absent' : v);
 }
@@ -845,8 +1065,17 @@ function gitSpawn(args, cwd, opts) {
 // never in the minutes a kernel TCP timeout would otherwise take.
 const FETCH_TIMEOUT_MS = 5000;
 
+// The full 40-hex commit `ref` resolves to in `cwd`, or `null` when it resolves to nothing —
+// the one `rev-parse --verify` call both `refResolves` and `verbSuite` need, the latter for the
+// resolved sha itself (INV-0017 needs the full commit on record, never a short sha or a moving ref
+// like `HEAD`).
+function resolveCommit(ref, cwd) {
+  const result = gitSpawn(['rev-parse', '--verify', '--quiet', '--end-of-options', ref + '^{commit}'], cwd);
+  return result.status === 0 ? result.stdout.trim() : null;
+}
+
 function refResolves(ref, cwd) {
-  return gitSpawn(['rev-parse', '--verify', '--quiet', '--end-of-options', ref + '^{commit}'], cwd).status === 0;
+  return resolveCommit(ref, cwd) !== null;
 }
 
 // Bare name -> the ref `merge-tree`/`merge-base` can actually resolve: the bare name itself when a
@@ -1058,11 +1287,16 @@ function usage() {
     '  unresolved add <text>|clear   --root <run-root>',
     '  deferred add <text>   --root <run-root>',
     '  docs set <value>|clear   --root <run-root>',
-    '  get stage|branch|anchor|docs|slices|unresolved|degraded|deferred|denials --root <run-root>',
+    '  suite set <green|red|denied|none> <sha>   --root <run-root>',
+    '  suite reusable --branch <b> [--plan-files]   --root <run-root>   exits 0 (reusable) or 1',
+    '  get stage|branch|anchor|docs|slices|unresolved|degraded|deferred|denials|suite --root <run-root>',
     '  status                             scans <cwd>/.superdev/scopes/*/',
     '  publish --root <run-root>          prints the ledger as one "## Run state" section on stdout',
     '  adopt --root <run-root>            stdin: a whole anchor body; extracts and writes the section',
     '  root <slug>                        prints <main-worktree>/.superdev/scopes/<slug>, resolved via git',
+    '  dod-line --match <text> --verdict met|not-met|ceiling --note <text> [--line]',
+    '                                     stdin: a body (default) or one checklist line (--line);',
+    '                                     stdout: the same, with the matching line judged',
   ].join('\n');
 }
 
@@ -1121,6 +1355,29 @@ function run(argv, cwd, stdinJson) {
       verbDocs(root, args[0], args[1]);
       break;
     }
+    case 'suite': {
+      const root = takeRoot(args);
+      if (args[0] === 'reusable') {
+        let branch;
+        const bi = args.indexOf('--branch');
+        if (bi >= 0) {
+          branch = args[bi + 1];
+          if (!branch) fail('--branch needs a value');
+          args.splice(bi, 2);
+        }
+        if (!branch) fail('suite reusable needs --branch <branch>');
+        let planFiles = false;
+        const pi = args.indexOf('--plan-files');
+        if (pi >= 0) {
+          planFiles = true;
+          args.splice(pi, 1);
+        }
+        verbSuiteReusable(cwd, root, branch, planFiles);
+        break;
+      }
+      verbSuite(cwd, root, args[0], args[1], args[2]);
+      break;
+    }
     case 'get': {
       const root = takeRoot(args);
       verbGet(root, args[0]);
@@ -1143,6 +1400,10 @@ function run(argv, cwd, stdinJson) {
     case 'root':
       verbRoot(cwd, args[0]);
       break;
+    // No --root: dod-line touches no ledger, and makes no store call (references/dod-ticks.md).
+    case 'dod-line':
+      verbDodLine(args, stdinJson);
+      break;
     default:
       fail('unknown verb "' + (verb || '') + '"\n' + usage());
   }
@@ -1150,7 +1411,7 @@ function run(argv, cwd, stdinJson) {
 
 function main() {
   const argv = process.argv.slice(2);
-  const needsStdin = argv[0] === 'init' || argv[0] === 'adopt';
+  const needsStdin = argv[0] === 'init' || argv[0] === 'adopt' || argv[0] === 'dod-line';
   const go = (stdinJson) => {
     try {
       run(argv, process.cwd(), stdinJson);

@@ -9,6 +9,7 @@ const { docPath, scanContract } = require('../lib');
 const { scanKbNoBackendCall } = require('../scanners');
 const {
   KB_STAGING_CONTRACTS,
+  KB_READ_NEVER_WRITE_CONTRACTS,
   AUDIT_SET_CONTRACTS,
   AGGREGATE_PAGE_CONTRACTS,
   READ_PATH_CONTRACTS,
@@ -137,6 +138,76 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     scanKbNoBackendCall(fixture({ 'README.md': '# repo\n' })).length,
     0,
     'absent files are skipped (no-call half)',
+  );
+
+  // --- KB_READ_NEVER_WRITE_CONTRACTS: the doc pass may read a remote knowledge-base backend and never
+  // writes to it (ADR 0094, INV-0091). Three independent rows — the reference that owns the pass, the
+  // agent that performs it, and the dispatch prose that reaches that agent all state the same rule. ---
+
+  const krnwBody = {
+    'references/doc-pass.md':
+      '## Read the knowledge base, never write to it\n\nYou may **read** one before an `upsert` ' +
+      'replaces an existing page.\n',
+    'agents/doc-writer.md':
+      '- **Read the knowledge base, never write to it.** Reading needs a credential; writing is not ' +
+      'yours.\n',
+    'skills/document/SKILL.md':
+      '**The knowledge-base pass reads a remote backend, and never writes to it** (ADR 0094, ' +
+      'INV-0091).\n',
+  };
+
+  // negative: all three carried
+  assert.equal(
+    scanContract(fixture(krnwBody), KB_READ_NEVER_WRITE_CONTRACTS).length,
+    0,
+    'all three documents carrying the rule yields zero gaps',
+  );
+
+  // positive: doc-pass.md reverts to the old write-nothing-at-all framing
+  const krnwNoPass = fixture({
+    ...krnwBody,
+    'references/doc-pass.md': 'Never reach a knowledge-base backend at all — reading included.\n',
+  });
+  const krnwGapsPass = scanContract(krnwNoPass, KB_READ_NEVER_WRITE_CONTRACTS);
+  assert.equal(krnwGapsPass.length, 1, 'flags doc-pass.md alone for dropping the read-permitted rule');
+  assert.equal(
+    krnwGapsPass[0].source,
+    path.join('references', 'doc-pass.md'),
+    'names doc-pass.md',
+  );
+
+  // positive: doc-writer.md loses its own hygiene-section restatement of the rule
+  const krnwNoWriter = fixture({
+    ...krnwBody,
+    'agents/doc-writer.md': '- **Never reach a knowledge-base backend.** Make no call at all.\n',
+  });
+  const krnwGapsWriter = scanContract(krnwNoWriter, KB_READ_NEVER_WRITE_CONTRACTS);
+  assert.equal(krnwGapsWriter.length, 1, 'flags doc-writer.md alone for dropping the rule');
+  assert.equal(
+    krnwGapsWriter[0].source,
+    path.join('agents', 'doc-writer.md'),
+    'names doc-writer.md',
+  );
+
+  // positive: the dispatch prose (skills/document/SKILL.md) reverts to "reaches no backend", leaving
+  // the reference and the agent body agreeing with each other but not with their own dispatch
+  const krnwNoDispatch = fixture({
+    ...krnwBody,
+    'skills/document/SKILL.md': '**The knowledge-base pass reaches no backend.**\n',
+  });
+  const krnwGapsDispatch = scanContract(krnwNoDispatch, KB_READ_NEVER_WRITE_CONTRACTS);
+  assert.equal(krnwGapsDispatch.length, 1, 'flags skills/document/SKILL.md alone for dropping the rule');
+  assert.equal(
+    krnwGapsDispatch[0].source,
+    path.join('skills', 'document', 'SKILL.md'),
+    'names skills/document/SKILL.md',
+  );
+
+  // absent files are skipped, matching every other contract table
+  assert.equal(
+    scanContract(fixture({ 'README.md': '# repo\n' }), KB_READ_NEVER_WRITE_CONTRACTS).length,
+    0,
+    'absent files are skipped',
   );
 
   // --- AUDIT_SET_CONTRACTS: `/superdev:setup` writes the `## Audit set` section, `/superdev:document`
@@ -994,12 +1065,12 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // --- RUN_KIND_CONTRACTS: scope-mode.md specifies the branch step for both run kinds — `fresh` cuts
   // from base and, where a squash-merging host or a scope-prune reap left a same-named branch standing,
   // reuses it only when base already contains its content; `resumed` switches to it and cuts nothing
-  // (ADR 0028, ADR 0045, ADR 0083). ADR 0053 added three rows: the **Present** branch delegating to
+  // (ADR 0028, ADR 0045, ADR 0083). ADR 0053 added rows: the **Present** branch delegating to
   // `## Containment`, that section's own canonical statement of the test, and the **No forcing flag**
-  // exception stated as conditional on the containment proof. A fix cycle added an eighth: the
+  // exception stated as conditional on the containment proof. A fix cycle added another: the
   // scopetree must be clean before a contained branch is re-pointed with `git reset --hard <base>`,
   // because the containment proof covers the branch's committed history and says nothing about the
-  // index or working tree (Important 2). Eight independent rows: losing one clause's specification
+  // index or working tree (Important 2). Independent rows: losing one clause's specification
   // fails on its own, not just in aggregate. ---
 
   const runKindBody =
@@ -1218,7 +1289,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   );
 
   // --- CONTAINMENT_REFETCH_CONTRACTS: the `## Containment` section refetches the base before it answers
-  // not contained (ADR 0065). The four rows are pinned apart because each fails on its own: a second pass
+  // not contained (ADR 0065). The rows are pinned apart because each fails on its own: a second pass
   // retesting the local `<base>` re-asks the stale ref, the `--is-ancestor` route is the weaker signal
   // left without a fresh base, a section that stops excluding `hooks/scope-prune.js` invites a network
   // call onto a `Stop` hook, and a section that stops stating the failure posture turns an unreachable

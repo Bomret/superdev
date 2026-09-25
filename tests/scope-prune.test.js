@@ -125,7 +125,7 @@ assert.equal(readStage(tmp), 'shipped', 'reads the stage value off the ledger li
 assert.equal(readStage(path.join(tmp, 'no-such-dir')), null, 'an unreadable ledger yields null');
 fs.rmSync(tmp, { recursive: true, force: true });
 
-// `/superdev:ship` §5 sets the stage line with the value in backticks (`` **Stage:** `shipped` ``), so
+// `/superdev:ship` §4 sets the stage line with the value in backticks (`` **Stage:** `shipped` ``), so
 // an agent may well write it that way. The capture must still read `shipped`, or the gate never
 // matches and pruning is silently disabled forever.
 const tmpBacktick = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-'));
@@ -276,7 +276,7 @@ assert.deepEqual(
   );
   fs.rmSync(preDir, { recursive: true, force: true });
 
-  // A hand-written ledger's `**Branch:**` line may carry the same markup `/superdev:ship` §5 writes on
+  // A hand-written ledger's `**Branch:**` line may carry the same markup `/superdev:ship` §4 writes on
   // `**Stage:**` — hand-written is exactly the population that produces it. Unlike Stage, Branch's
   // failure direction is destructive: an unstripped value matches nothing in the branch set,
   // `resolveBranch` reads a live, unmerged branch as gone, and the run root is deleted instead of

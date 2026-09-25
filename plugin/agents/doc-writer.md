@@ -15,7 +15,9 @@ knowledge base describe **what is now true** — adding what's new, correcting w
   whole docs tree + KB against current repo state.
 - **`docs/agents/documentation.md`** — the in-repo doc convention.
 - **`docs/agents/knowledge-base.md`** — the KB config: backend (local `docs/kb/` or software like
-  Confluence, or none), plus its **audience(s)**, **language**, and agreed **outline**. May say "none".
+  Confluence, or none), plus its **audience(s)**, **language**, and agreed **outline**. May say "none". A
+  remote backend's existing pages are reachable **read-only**, through `references/doc-pass.md`'s read
+  step (ADR 0094) — never written to directly.
 - **The staging path** — where a remote backend's pages are staged, handed to you as an **absolute**
   path. Write every staged page under it exactly as given; resolving it yourself against your own cwd
   lands the pages one level too deep, in a directory `/superdev:ship` deletes.
@@ -69,9 +71,10 @@ in context instead of re-opening it.
   dispatch, using only the standard tools you were given.
 - **Never integrate:** commit doc changes on the scope branch, but no `git push`/`merge`/`rebase`, no
   `gh`/`tea pr merge`, no code-host merge/PR API call — the controller integrates.
-- **Never reach a knowledge-base backend.** You write files; `/superdev:publish-kb` alone reaches a
-  remote backend (ADR 0023) — so make no wiki, Confluence, or other knowledge-base API call, and need
-  no credential for one.
+- **Read the knowledge base, never write to it.** You write files; `/superdev:publish-kb` alone writes to
+  a remote backend (ADR 0023) — so make no wiki, Confluence, or other knowledge-base `create`, `update`,
+  `delete`, or `upsert` call. You may read one (ADR 0094, INV-0091), per `references/doc-pass.md`'s read
+  step before an `upsert`, and need a credential only for that read.
 - **Secrets:** never dump one (`echo`/`printenv`/`env`, `cat`/`grep` a `.env`) or let a value reach a
   commit message, a doc, or your report. Illustrative env **names** (e.g. `$GITEA_TOKEN`) are fine —
   never a real value.

@@ -152,6 +152,11 @@ superdev subagent that omits one):
     reviewer's own instruction asks it to derive first, and no instruction can undo that. The reviewer
     also reads `<run-root>/ledger.md`'s slice list for step 1 of its derivation — `<run-root>` is
     `dod.md`'s own directory, so no separate path needs passing.
+  - **Also tell it to judge every `dod.md` line, ticked or not.** `final-reviewer` returns a verdict for
+    each — holds, broken, or ceiling — in its own `### Criteria` section (`agents/final-reviewer.md`'s
+    `## Judge every criterion`). §4 below unticks and re-ticks from that list; the axes above (Correctness,
+    Consistency, whole-scope Brevity, Security, Performance) are what it judges the *code* on, and this is
+    the DoD gate the same dispatch also carries.
 
   **Ad-hoc mode**, if a test command is configured (`docs/agents/verification.md`), tell it it may re-run
   the suite over the range rather than trust the diff alone. **Scope mode** — §4 already ran a suite for
@@ -261,30 +266,47 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
 - **Find the scope checkout, and refresh the run lock.** Per
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`. **The scope checkout not on `<type>/<scope>`** →
   report that and review read-only rather than writing to the wrong branch.
-- **Run the full suite yourself, before dispatching `final-reviewer`.** Take the full command from
+- **Reuse a green suite record the tip still earns; otherwise run the full suite yourself, before
+  dispatching `final-reviewer`.**
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> [--plan-files]
+  --root <run-root>` **in the scope checkout above** — `--plan-files` declares that the active store
+  commits plan files on the scope branch (the local plan-file store's own tick commits land there);
+  `scope.js` derives the directory itself from the ledger's own `**Branch:**` value, never from a path
+  this dispatch supplies. A store committing nothing on the scope branch passes no `--plan-files`. Exit
+  0 → reused,
+  running nothing (INV-0017: an exact tip match, or a diff confined to that directory since the recorded
+  commit). Exit 1, or no record at all, means: take the full command from
   `docs/agents/verification.md` per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run it **in
-  the scope checkout above**, over the scope branch. This happens whether or not the dispatch below
+  the scope checkout above**, over the scope branch, then record what happened with
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set <green|red|denied|none> <sha> --root <run-root>`
+  (`<sha>` = the scope branch's own current tip). This happens whether or not the dispatch below
   succeeds, so a denied dispatch is a
-  degraded review, not a missing verification (ADR 0025). **No test command configured** → say so and
-  continue; this never blocks the review. **State the outcome** — pass, fail, no command configured, or
+  degraded review, not a missing verification (ADR 0025). **No test command configured** → say so, record
+  `none`, and
+  continue; this never blocks the review. **State the outcome** — reused, pass, fail, no command
+  configured, or
   denied — in your own output, the same way §1 states the range, **independent of whether the
   `final-reviewer` dispatch succeeds**. **Denied** → `## Degraded passes`'s second shape: the pass ran and
-  could not reach what it needed. Its default is record and continue regardless of attendance; **local
+  could not reach what it needed, recorded `denied`. Its default is record and continue regardless of attendance; **local
   deviation**, because this is the chain's only full-suite verification gate and unattended would reach
   `/superdev:ship` with none behind it. Write the `**Degraded:**` entry either way, then publish the
   snapshot before deciding which branch applies — per
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section — since the block
   branch reaches no later write in this run. **Attended** → continue.
   **Unattended** → **block**, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Unattended`
-  section. Carry the result (pass/fail, and any failure output) into §2's dispatch when you continue.
+  section. Carry the result (reused/pass/fail, and any failure output) into §2's dispatch when you
+  continue.
   **A `fail` here is itself a Critical finding** — fold it into the fix loop exactly like a
   `final-reviewer` finding, whether or not that dispatch returned findings of its own. The stage does
   **not** advance while it stands. **Inside each fix cycle, run the focused command over the fix diff**
   — per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`, over the commits that cycle's implementer
-  just landed — and **hand that result to the re-review**, saying it is the focused run. **When a fix
-  cycle's re-review verdict first comes back clean, run the full suite once more** in the scope checkout:
+  just landed — and **hand that result to the re-review**, saying it is the focused run: fix cycles never
+  run the full suite. **When a fix cycle's re-review verdict first comes back clean, run the full suite
+  once more** in the scope checkout, and record it the same way
+  (`scope.js suite set <result> <sha> --root <run-root>`, `<sha>` = the tip after the fix commits):
   that run is the gate the stage advances on. A scope whose first verdict is already clean runs none of
-  this — the entry run above *is* that gate, so the full suite is paid exactly once. A **red result
+  this — the entry check above already reused a green record or ran and recorded that gate, so the full
+  suite is paid at most once. A **red result
   there is itself a Critical finding** too — it re-enters the fix loop and **counts toward the 3-strike
   cap** below, the same shape as a cycle exposing a defect elsewhere, so the loop needs no bound of its
   own (ADR 0075). **A denied exit run takes the entry run's
@@ -347,7 +369,34 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   a real defect without asking, and a deferred finding is not one, so it never reaches that rule. A verdict
   whose only remaining findings are deferred counts as clean, for the ask-once gate right after this bullet,
   the 3-strike cap, and the clean-verdict stage advance alike.
-- **Ask once before fixing.** `final-reviewer` returned **Critical or Important** findings, or the full
+- **A line `final-reviewer`'s `### Criteria` calls broken is a Critical finding, and you untick it
+  first.** Read the `<run-root>/dod.md`, ticked or not — a ticked line the branch no longer satisfies, or
+  an already-unticked line the branch still fails, both count. Untick it, with a one-line note naming why
+  (INV-0014), on `<run-root>/dod.md` and the anchor's checklist, through the active store's own
+  `## Definition of Done ticks` section (`docs/agents/issue-tracker.md`) (controller-only, INV-0015), then
+  fold it into the findings list below alongside whatever
+  `final-reviewer`'s Issues section returned. This is a listed-lines case of
+  `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s mapping gate: the fix cycle's dispatch below hands the
+  fix implementer the `dod.md` path plus exactly the lines this cycle unticked or found broken, and its
+  report carries one line per listed line (met/not met/ceiling), per `dod-ticks.md`. A line called
+  **ceiling** is left exactly as it stood — the verification-ceiling bullet below covers it, never this
+  one, unless the **holds** clause just below turns it over. A **holds** verdict on an already-ticked
+  line changes nothing. **A `holds` verdict on a line unticked with `not met:`, or carrying no note at
+  all, ticks that line** — you, the controller, write the tick, with the verdict's own evidence as the
+  note (INV-0015): a joint criterion a slice under-reported, a `scope` line judged too early, or an
+  implementer that misjudged its own work all take this shape. A line unticked with `ceiling:` takes a
+  holds tick only when the verdict itself states the criterion needs no deploy or other outward-facing
+  change to verify and cites evidence observed on the branch — the ceiling claim was wrong, and the line
+  was never a ceiling criterion. A `holds` verdict never ticks a line that genuinely needs a deploy to
+  verify (INV-0006). Re-ticking after a fix cycle still follows the fix implementer's report, once that
+  cycle's re-review comes back clean. The stage does **not** advance while any `dod.md`
+  criterion stands unmet, except a `ceiling` one (INV-0016) — the same non-advance rule the full-suite fail
+  and Critical-finding rows above already apply.
+- **A criterion `final-reviewer` finds missing from `dod.md` is not a tick to add.** It is a `### Deferred
+  to a plan` finding like any other, under the fix-loop boundary above (ADR 0035, INV-0004) — review writes
+  no new line into `dod.md`.
+- **Ask once before fixing.** `final-reviewer` returned **Critical or Important** findings, a broken
+  criterion, or the full
   suite came back `fail` → report them per §3 first, then ask whether to fix them now.
   - **Declined** → stop. The findings stand: write the `**Unresolved:**` entry with
     `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add "<text>" --root <run-root>`, publish the
@@ -383,14 +432,19 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
 - **A ceiling note never gates either.** `final-reviewer`'s `### Ceiling` section (ADR 0020) is an
   observation about work that is already correct: it holds up no handoff, starts no fix cycle, and
   changes no stage, attended or unattended. Carry it into the report and move on.
-- **A criterion `final-reviewer` reports unmet enters this loop like any other finding** — the code does
-  not yet do what the Definition of Done named, and repairing that is loop work like any other defect
-  repair.
 - **The verification-ceiling case is the one reported and not chased**
   (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Verification ceiling`): no work on this branch
-  can close it, so carry it into §3's report as unmet with a one-line note on why.
-- **Either way, this command ticks nothing in `dod.md`** — `/superdev:ship` §4 is what leaves an unmet
-  item unchecked with a one-line note.
+  can close it, so carry it into §3's report as unmet with a one-line note on why, and never fold it into
+  the fix loop.
+- **After a fix cycle's re-review comes back clean, re-tick only the criteria that cycle's fix
+  implementer reported met** — with that evidence as the note, on `<run-root>/dod.md` and the anchor's
+  checklist, through the active store's own `## Definition of Done ticks` section
+  (`docs/agents/issue-tracker.md`) (controller-only, INV-0015), per
+  `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## Reading the report`. A listed line the fix
+  implementer's report calls not met or ceiling stays unticked, with that reason or partial evidence as
+  the note; a listed line its report omits is a report defect, sent back rather than ticked around
+  (`dod-ticks.md`'s note rule, INV-0014). Every other `dod.md` line — one this cycle never listed — keeps
+  whatever state and note it already carried.
 - **On a clean verdict**, and only then: clear any standing `**Unresolved:**` entry — the run has just
   re-verified clean — with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root
   <run-root>`, which succeeds and changes nothing when there is none. Then write the ledger's

@@ -59,8 +59,22 @@ code already satisfies the criterion, that is a plan-coverage gap, not a code de
 whatever it is about. The Critical/Important band is reserved for a derived criterion the code actually
 **fails**. These are findings like any other, not a separate category.
 
-Your list is not a second Definition of Done. The DoD is what the run is verified against and what
-`/superdev:ship` ticks. Yours exists to show what the DoD left out.
+Your list is not a second Definition of Done. The DoD is what the run is verified against, ticked by a
+controller while the run works, never by you (ADR 0091). Yours exists to show what the DoD left out.
+
+## Judge every criterion
+
+**Scope mode only** — the requirements arrived as a `<run-root>/dod.md` path. Ad-hoc mode reviews against
+the `acceptance` text it was given and skips this section; there is no DoD line to judge.
+
+Read every line in `dod.md`, ticked and unticked alike, and give each one its own verdict against the
+integrated branch: **holds** (a ticked line the branch still satisfies, or an unticked one you find the
+branch already meets), **broken** (a ticked line the branch no longer satisfies, or an unticked line still
+unmet) with the reason, or **ceiling** (needs a deploy or another outward-facing change to verify —
+INV-0006, ADR 0084). **Check an unticked line's own reason too** — a `not met:` note may already be stale
+if the branch now meets it, and a claimed `ceiling:` may not really be one, if this branch can verify it
+without an outward-facing change. Every line gets exactly one verdict; list them all in `### Criteria`
+below, whatever the review found elsewhere.
 
 ## Read-only review
 
@@ -98,8 +112,9 @@ present? Are deviations justified, or problems?
 **Invariant compliance** — read `docs/invariants.md` yourself, when the repository carries one, and check
 each entry the integrated scope touches against the code. A break is a finding, at the severity it
 actually warrants in the Issues section below — an invariant violation has no fixed severity of its own.
-An entry the Definition of Done never turned into a criterion is a plan-coverage gap: report it as Minor,
-the same treatment `Derive the criteria first` above gives a criterion the DoD leaves out. No
+An entry is covered when an epic criterion states the behaviour it protects, or the touching slice's
+`spec`/`acceptance` carries its id (ADR 0091). Report a plan-coverage gap, the same Minor severity
+`Derive the criteria first` above gives a criterion the DoD leaves out, only when neither holds. No
 `docs/invariants.md` → skip this check silently, don't report an empty section.
 
 Then review the integrated scope across **the axes below, adversarially** — for each axis, assume the change
@@ -179,6 +194,10 @@ silence, because it trains the reader to skip the heading.
 #### Minor (nice to have)   [style, optimization, doc polish]
 
 For each: file:line · what's wrong · why it matters · how to fix (if not obvious).
+
+### Criteria
+[**scope mode only**; omit this section entirely on an ad-hoc range. One line per `dod.md` line, in
+document order: `<criterion>` — holds | broken: <why> | ceiling: <partial evidence>]
 
 ### Ceiling
 [one note, per the four gates above; omit this section entirely when nothing qualifies]

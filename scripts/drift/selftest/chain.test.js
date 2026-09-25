@@ -23,6 +23,7 @@ const {
   DENIAL_CAP_CONTRACTS,
   DENIAL_RESET_CONTRACTS,
   DERIVED_CRITERIA_CONTRACTS,
+  PER_CRITERION_VERDICT_CONTRACTS,
   LABEL_VALIDATION_CONTRACTS,
   GREEN_GATE_TIMEOUT_CONTRACTS,
   VERB_CONTRACTS,
@@ -50,8 +51,11 @@ const {
   INVARIANT_REGISTER_CONTRACTS,
   INVARIANT_REGISTER_DOC_PASS_CONTRACTS,
   INVARIANT_COMPLIANCE_CONTRACTS,
+  CRITERION_TAG_CONTRACTS,
   COMMITMENT_CAPTURE_CONTRACTS,
-  DOD_SUITE_CRITERION_CONTRACTS,
+  SHIP_TICKS_NOTHING_CONTRACTS,
+  ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS,
+  DOC_UNTICK_ON_BREAK_CONTRACTS,
   CLEAN_VERDICT_ENDS_LOOP_CONTRACTS,
   OBSERVATION_CAPTURE_CONTRACTS,
   LABEL_REVISION_AT_DECOMPOSITION_CONTRACTS,
@@ -59,6 +63,8 @@ const {
   RELEASE_ANSWER_NOT_INFERRED_CONTRACTS,
   CAPTURE_CHECKS_CONCURRENT_PLANS_CONTRACTS,
   DECOMPOSITION_NAMES_WHAT_IT_CHECKED_CONTRACTS,
+  DOD_TICKS_CONTRACTS,
+  HOLDS_VERDICT_TICKS_CONTRACTS,
 } = require('../contracts');
 
 module.exports = ({ assert, path, fixture, fs, realRoot }) => {
@@ -381,7 +387,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'Write the `**Degraded:**` entry either way naming the denial, then publish the snapshot before\n' +
       "deciding which branch below applies — per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s\n" +
       '`## Publishing run state` section — since the block\nbranch reaches no later write in this run.\n' +
-      '**Attended** → continue to the stage write. **Unattended** → block.\n\n',
+      '**Attended** → continue to the handoff pass. **Unattended** → block.\n\n',
     redCap:
       'Stop, say so, write the `**Unresolved:**` entry, leave the\nstage where it is, and publish the\n' +
       "snapshot before stopping — per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md}'s `## Publishing run\n" +
@@ -536,8 +542,8 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'absent documents are skipped',
   );
 
-  // --- ADOPT_RUN_STATE_CONTRACTS: the mirror image of the table above — run-init.md's adopt branch (six
-  // rows) plus scope-mode.md's `resumed`-branch fetch (two rows). Each row is anchored on text unique to
+  // --- ADOPT_RUN_STATE_CONTRACTS: the mirror image of the table above — run-init.md's adopt branch
+  // plus scope-mode.md's `resumed`-branch fetch. Each row is anchored on text unique to
   // its own clause, so dropping any one leaves the others intact and fires exactly one gap. ---
 
   const adoptRunInitPieces = {
@@ -676,8 +682,8 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // Scoped to that one caller alone, never review/document/ship's ordinary hand-off (each is the
   // chain's single designed entry right after the previous command's own exit, so testing them the
   // same way would trip on every routine hand-off); /superdev:plan keeps its own separate, narrower
-  // check. Eight rows: five pin the rule itself (including the two exclusion/scoping statements) in
-  // scope-mode.md's `## The run lock`, three pin the callers that do carry it. ---
+  // check. Rows pin the rule itself (including the exclusion/scoping statements) in
+  // scope-mode.md's `## The run lock`, and rows pin the callers that do carry it. ---
 
   const runLockLivenessPieces = {
     'references/scope-mode.md':
@@ -803,14 +809,14 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   );
 
   // --- SCOPETREE_CONTRACTS (ADR 0045): the `full` tier cuts and merges in the same scopetree
-  // the `lite` tier uses, never the invoking checkout. Five rows on scope-mode.md's `## The scope
-  // checkout` and `## The run lock`, five on implement-full.md's Branch model, Merge step, integration
-  // branch, Resume scopetree-first step, and its own run-lock pointer, one on
-  // implement-lite.md's run-lock pointer, one each on run-init.md's and run-handoff.md's now-unqualified
-  // `run.lock` mentions, three on skills/review/SKILL.md's §4 (the scope-checkout branch test, the full-suite
-  // run's working directory, and the fix-implementer dispatch's working directory), two more on
+  // the `lite` tier uses, never the invoking checkout. Rows sit on scope-mode.md's `## The scope
+  // checkout` and `## The run lock`, on implement-full.md's Branch model, Merge step, integration
+  // branch, Resume scopetree-first step, and its own run-lock pointer, on
+  // implement-lite.md's run-lock pointer, on run-init.md's and run-handoff.md's now-unqualified
+  // `run.lock` mentions, on skills/review/SKILL.md's §4 (the scope-checkout branch test, the full-suite
+  // run's working directory, and the fix-implementer dispatch's working directory), on
   // run-handoff.md's own only full-suite run (its working directory, and its Red-branch fix implementer's
-  // working directory), and one on merge-conflicts.md's winner-picking-overlap abort. Each is anchored on
+  // working directory), and on merge-conflicts.md's winner-picking-overlap abort. Each is anchored on
   // text unique to its own clause, so dropping one fires exactly one gap. ---
 
   const scwScopeModePieces = {
@@ -901,8 +907,8 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // A row can only be exercised by a fixture that names its document: `scanContract()` skips a document
   // it cannot read, so a missing key makes the "every clause present yields zero gaps" assertion below
   // pass without ever running that row. `./index.js`'s coverage guard names both the table and the
-  // document, because "a fixture is incomplete" sends the reader hunting through twenty-one rows across
-  // eight files.
+  // document, because "a fixture is incomplete" sends the reader hunting through every row across
+  // every file the table pins.
 
   // negative: every clause present is clean
   assert.equal(
@@ -1395,6 +1401,43 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'absent files are skipped',
   );
 
+  // --- PER_CRITERION_VERDICT_CONTRACTS (ADR 0091): `final-reviewer` gates on every `dod.md` line in its
+  // own `### Criteria` verdict list, and review/SKILL.md's dispatch asks for it — the dispatch-prose
+  // pin the root AGENTS.md's rules demand for a contract stated in an agent body. ---
+
+  const pcvClean = fixture({
+    'agents/final-reviewer.md':
+      '## Judge every criterion\n\nRead every line.\n\n' +
+      '### Criteria\n[**scope mode only**; one line per `dod.md` line]\n',
+    'skills/review/SKILL.md':
+      'Also tell it to judge every `dod.md` line, ticked or not, returning a verdict for each in its own ' +
+      '`### Criteria` section.\n',
+  });
+  assert.equal(
+    scanContract(pcvClean, PER_CRITERION_VERDICT_CONTRACTS).length,
+    0,
+    'every row carried across both documents yields zero gaps',
+  );
+
+  // positive: final-reviewer.md drops the `## Judge every criterion` step
+  const pcv1 = fixture({
+    'agents/final-reviewer.md': '## What to check\n\nFirst, the **gate**.\n',
+  });
+  const pcvGaps1 = scanContract(pcv1, PER_CRITERION_VERDICT_CONTRACTS);
+  assert.equal(pcvGaps1.length, 2, 'flags a final-reviewer.md missing both its rows: the step and the output section');
+  assert.ok(
+    pcvGaps1.every((g) => g.source === path.join('agents', 'final-reviewer.md')),
+    'both gaps name final-reviewer.md',
+  );
+
+  // positive: review.md's dispatch stops asking `final-reviewer` for the per-criterion verdict list
+  const pcv2 = fixture({
+    'skills/review/SKILL.md': 'Hand it the `acceptance` and the range, and dispatch it.\n',
+  });
+  const pcvGaps2 = scanContract(pcv2, PER_CRITERION_VERDICT_CONTRACTS);
+  assert.equal(pcvGaps2.length, 1, "flags a review.md dispatch that stops asking for the per-criterion verdict list");
+  assert.equal(pcvGaps2[0].source, path.join('skills', 'review', 'SKILL.md'), 'names review.md');
+
   // --- LABEL_VALIDATION_CONTRACTS: both segments of a feature label reach git, so both are validated,
   // and every command that builds a path or a branch out of one points at the rule. ---
 
@@ -1546,16 +1589,18 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'skills/document/SKILL.md': 'Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js` when done.\n',
   });
   const vcGaps2 = scanContract(vc2, VERB_CONTRACTS);
-  // Two, because `skills/document/SKILL.md` carries two rows: its stage write and its read of the
-  // inline-doc-pass record (ADR 0031). A bare mention satisfies neither.
-  assert.equal(vcGaps2.length, 2, 'a bare scope.js mention without the verb is still a gap');
+  // Because `skills/document/SKILL.md` carries rows for its stage write, its read of the
+  // inline-doc-pass record (ADR 0031), and its Unresolved write on a broken re-check tick (INV-0016). A
+  // bare mention satisfies none of them.
+  assert.equal(vcGaps2.length, 3, 'a bare scope.js mention without the verb is still a gap');
 
-  // negative: the full invocation with the plugin-root path prefix satisfies the row — both of
-  // `skills/document/SKILL.md`'s rows, so the fixture carries both invocations
+  // negative: the full invocation with the plugin-root path prefix satisfies every one of
+  // `skills/document/SKILL.md`'s rows, so the fixture carries every invocation those rows pin
   const vc3 = fixture({
     'skills/document/SKILL.md':
       'Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js stage set documented --root <run-root>`.\n' +
-      'Read it first with `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js get docs --root <run-root>`.\n',
+      'Read it first with `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js get docs --root <run-root>`.\n' +
+      'On a broken tick: `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js unresolved add "…" --root <run-root>`.\n',
   });
   assert.equal(scanContract(vc3, VERB_CONTRACTS).length, 0, 'a full verb invocation is clean');
 
@@ -1564,7 +1609,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'references/run-init.md': 'Create the run root directory and write a ledger header by hand.\n',
   });
   const vcRunInitGaps = scanContract(vcRunInit, VERB_CONTRACTS);
-  // One, because `references/run-init.md` carries one row here: `init`. Its base-lock rows are gone
+  // Because `references/run-init.md` carries a row here: `init`. Its base-lock rows are gone
   // (ADR 0079) — no superdev command commits to the base branch any more.
   assert.equal(vcRunInitGaps.length, 1, 'flags run-init.md for creating the run root without `scope.js init`');
   assert.ok(
@@ -1636,7 +1681,9 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'skills/review/SKILL.md':
       'Write its stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set reviewed --root <run-root>`. ' +
       'Read the anchor title with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get anchor --root <run-root>`. ' +
-      'Clear the doc record with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs clear --root <run-root>`.\n',
+      'Clear the doc record with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs clear --root <run-root>`. ' +
+      'Ask reuse with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch main --root <run-root>`. ' +
+      'Record it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set green <sha> --root <run-root>`.\n',
   });
   const uvReviewGaps = scanContract(uvReview, VERB_CONTRACTS);
   assert.equal(
@@ -1654,13 +1701,14 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'Record slice completion with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set merged --root <run-root>`.\n',
   });
   const uvImplementGaps = scanContract(uvImplement, VERB_CONTRACTS);
-  assert.equal(uvImplementGaps.length, 2, 'flags run-handoff.md for dropping both unresolved verbs');
+  assert.equal(uvImplementGaps.length, 3, 'flags run-handoff.md for dropping both unresolved verbs and `suite set`');
   assert.ok(
     uvImplementGaps.every((g) => g.source === path.join('references', 'run-handoff.md')),
     'both gaps name run-handoff.md',
   );
 
-  // negative: review.md carrying all six of its rows — both unresolved verbs and `deferred add` — is clean
+  // negative: review.md carrying all eight of its rows — both unresolved verbs, `deferred add`, and the
+  // suite-record pair (ADR 0091) — is clean
   const uvClean = fixture({
     [path.join('skills', 'review', 'SKILL.md')]:
       'Write its stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set reviewed --root <run-root>`. ' +
@@ -1668,12 +1716,44 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'Write it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add "<text>" --root <run-root>`. ' +
       'On a clean verdict, `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`. ' +
       'A deferred finding goes to `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deferred add "<text>" --root <run-root>`. ' +
-      'A fix cycle that committed also runs `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs clear --root <run-root>`.\n',
+      'A fix cycle that committed also runs `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs clear --root <run-root>`. ' +
+      'Ask reuse with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch main --root <run-root>`. ' +
+      'Record it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set green <sha> --root <run-root>`.\n',
   });
   assert.equal(
     scanContract(uvClean, VERB_CONTRACTS).length,
     0,
-    'a review.md carrying all its verbs, including both unresolved ones and `deferred add`, is clean',
+    'a review.md carrying all its verbs, including both unresolved ones, `deferred add`, and the suite-record pair, is clean',
+  );
+
+  // negative: run-handoff.md carrying all four of its own verbs — `stage set merged`, both unresolved
+  // ones, and `suite set` — is clean
+  const vcRunHandoffClean = fixture({
+    'references/run-handoff.md':
+      'Record slice completion with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set merged --root <run-root>`. ' +
+      'Record a give-up point with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add "<text>" --root <run-root>`. ' +
+      'Clear a standing defect with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`. ' +
+      'Record the result with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set green <sha> --root <run-root>`.\n',
+  });
+  assert.equal(
+    scanContract(vcRunHandoffClean, VERB_CONTRACTS).length,
+    0,
+    'a run-handoff.md carrying all four of its own verbs, including `suite set`, is clean',
+  );
+
+  // positive: run-handoff.md keeps its other three verbs but drops `suite set`
+  const vcRunHandoffNoSuite = fixture({
+    'references/run-handoff.md':
+      'Record slice completion with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set merged --root <run-root>`. ' +
+      'Record a give-up point with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add "<text>" --root <run-root>`. ' +
+      'Clear a standing defect with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`.\n',
+  });
+  const vcRunHandoffNoSuiteGaps = scanContract(vcRunHandoffNoSuite, VERB_CONTRACTS);
+  assert.equal(vcRunHandoffNoSuiteGaps.length, 1, 'flags run-handoff.md for dropping `suite set`');
+  assert.equal(
+    vcRunHandoffNoSuiteGaps[0].source,
+    path.join('references', 'run-handoff.md'),
+    'names run-handoff.md',
   );
 
   // The deferred record's two halves, pinned separately (ADR 0035): the review writes the bullet and the
@@ -1686,7 +1766,9 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
         'Read the anchor with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get anchor --root <run-root>`. ' +
         'Write it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add "<text>" --root <run-root>`. ' +
         'On a clean verdict, `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`. ' +
-        'A fix cycle that committed runs `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs clear --root <run-root>`.\n',
+        'A fix cycle that committed runs `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs clear --root <run-root>`. ' +
+        'Ask reuse with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch main --root <run-root>`. ' +
+        'Record it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set green <sha> --root <run-root>`.\n',
     });
     const writeGaps = scanContract(writeOnly, VERB_CONTRACTS);
     assert.equal(writeGaps.length, 1, 'a review.md with every other verb but no `deferred add` is flagged');
@@ -1865,7 +1947,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   );
 
   // positive: plan.md's §2 and §6 both stop passing `planned` at all (minor D / triage #509, #510
-  // closures: three new rows pin what the previous fix cycle newly moved to §2)
+  // closures: further rows pin what the previous fix cycle newly moved to §2)
   const phNoPlannedArg = fixture({
     'skills/plan/SKILL.md':
       '**Read `<run-root>/run.lock` before this step\'s first write, whether or not a cut happens below.**\n' +
@@ -2041,7 +2123,11 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     "re-review. When a fix cycle's re-review verdict first comes back clean, run the full suite once " +
     'more: a red result there re-enters the loop and counts toward the 3-strike cap. A denied exit run ' +
     "takes the entry run's own local deviation, not the generic default. **Attended** → continue. " +
-    '**Unattended** → **block**. `final-reviewer` reviews against whichever result you hand it, full or focused.\n';
+    '**Unattended** → **block**. Reuse a green suite record the tip still earns; ' +
+    '`scope.js suite reusable` still calls it reusable against the scope branch. ' +
+    'Exit 0 → reused, running nothing. Record the result with ' +
+    '`scope.js suite set <green|red|denied|none> <sha>`. ' +
+    '`final-reviewer` reviews against whichever result you hand it, full or focused.\n';
 
   // positive: review.md drops the controller-run full suite and goes back to just handing over the command
   const fs1 = fixture({
@@ -2162,27 +2248,42 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     assert.match(gaps[0].expectation, expectation, `the gap names ${what}`);
   }
 
-  // positive: run-handoff.md's run handoff stops running the scope's one full suite itself — the row that
-  // covers an all-`mechanical`/`docs` scope, which has no whole-scope review to attach a run to
+  // positive: run-handoff.md's run handoff carries none of its own rows — the entry run for every
+  // scope (ADR 0091), and the fix loop's own focused-per-cycle and exit-run clauses
   const fs7 = fixture({
     'references/run-handoff.md': 'Set the stage to `merged`, then print the next command.\n',
   });
   const fsGaps7 = scanContract(fs7, FULL_SUITE_CONTRACTS);
-  assert.equal(fsGaps7.length, 1, "flags a run-handoff.md whose run handoff runs no full suite of its own");
-  assert.equal(fsGaps7[0].source, path.join('references', 'run-handoff.md'), 'names run-handoff.md');
-
-  // negative: that same run-handoff.md row carried
-  assert.equal(
-    scanContract(
-      fixture({
-        'references/run-handoff.md':
-          "Run handoff attempts that scope's one full-suite run itself, once, in place of that review.\n",
-      }),
-      FULL_SUITE_CONTRACTS,
-    ).length,
-    0,
-    'a run-handoff.md carrying the run-handoff full-suite run yields no gap',
+  assert.equal(fsGaps7.length, 3, "flags a run-handoff.md whose run handoff runs no full suite of its own");
+  assert.ok(
+    fsGaps7.every((g) => g.source === path.join('references', 'run-handoff.md')),
+    'every gap names run-handoff.md',
   );
+
+  const runHandoffFullSuite =
+    "Every scope gets exactly this one full-suite run from implement, whatever its slice types.\n\n" +
+    'Inside each cycle, run only the focused command — over the fix diff plus the failing tests — never ' +
+    'the full suite.\n\n' +
+    "When a cycle's focused run first comes back clean, re-run the full suite once. A red re-run counts " +
+    "toward this loop's own 3-strike cap.\n";
+
+  // negative: every row carried
+  assert.equal(
+    scanContract(fixture({ 'references/run-handoff.md': runHandoffFullSuite }), FULL_SUITE_CONTRACTS).length,
+    0,
+    "a run-handoff.md carrying the entry run and the fix loop's own two rows yields no gap",
+  );
+
+  // positive, one per row: each is the only clause missing
+  for (const [what, body] of [
+    ['the entry run', runHandoffFullSuite.split('\n\n').slice(1).join('\n\n')],
+    ['the focused-only clause', runHandoffFullSuite.split('\n\n').filter((_, i) => i !== 1).join('\n\n')],
+    ['the exit-run clause', runHandoffFullSuite.split('\n\n').slice(0, 2).join('\n\n')],
+  ]) {
+    const gaps = scanContract(fixture({ 'references/run-handoff.md': body }), FULL_SUITE_CONTRACTS);
+    assert.equal(gaps.length, 1, `flags a run-handoff.md missing ${what} alone`);
+    assert.equal(gaps[0].source, path.join('references', 'run-handoff.md'), `names run-handoff.md for ${what}`);
+  }
 
   // negative: every row carried
   const fs3 = fixture({
@@ -2214,6 +2315,48 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     scanContract(fs10, FULL_SUITE_CONTRACTS).length,
     0,
     'the dispatch row tolerates a longer connecting phrase between "that result" and "tell it"',
+  );
+
+  // positive: ADR 0091's reuse-on-matching-tip and recording rows, each the only clause missing
+  const fs11Base =
+    'Run the full suite yourself, before dispatching `final-reviewer`. A `fail` here is itself a ' +
+    'Critical finding — fold it into the fix loop below. The stage does **not** advance while it ' +
+    'stands. Scope mode: hand it that result and tell it to review against that result, running no ' +
+    'suite of its own.\n' + fs0075;
+  const fs11NoReuse = fixture({
+    'skills/review/SKILL.md': fs11Base.replace(
+      'Reuse a green suite record the tip still earns; ' +
+        '`scope.js suite reusable` still calls it reusable against the scope branch. ' +
+        'Exit 0 → reused, running nothing. ',
+      '',
+    ),
+  });
+  assert.equal(
+    scanContract(fs11NoReuse, FULL_SUITE_CONTRACTS).length,
+    1,
+    'flags a review.md missing the reuse-on-matching-tip clause alone',
+  );
+  assert.match(
+    scanContract(fs11NoReuse, FULL_SUITE_CONTRACTS)[0].expectation,
+    /reuse a `?green`? suite record/i,
+    'the gap names the reuse clause',
+  );
+
+  const fs11NoRecord = fixture({
+    'skills/review/SKILL.md': fs11Base.replace(
+      'Record the result with `scope.js suite set <green|red|denied|none> <sha>`. ',
+      '',
+    ),
+  });
+  assert.equal(
+    scanContract(fs11NoRecord, FULL_SUITE_CONTRACTS).length,
+    1,
+    'flags a review.md missing the suite-record recording clause alone',
+  );
+  assert.match(
+    scanContract(fs11NoRecord, FULL_SUITE_CONTRACTS)[0].expectation,
+    /scope\.js suite set/i,
+    'the gap names the recording clause',
   );
 
   // --- FIX_BOUNDARY_CONTRACTS (ADR 0035): `/superdev:review`'s fix loop may change how the code meets
@@ -2279,7 +2422,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   assert.equal(fbGaps3.length, 1, 'boundary plus destination alone still leaves the exit-less deadlock');
   assert.match(fbGaps3[0].expectation, /counts as|deferred finding|deadlock/i, 'names the missing exit');
 
-  // negative (GREEN): boundary, destination, and exit together satisfy all three rows
+  // negative (GREEN): boundary, destination, and exit together satisfy every row
   const fb5 = fixture({
     'skills/review/SKILL.md':
       'The fix loop changes how the code meets the Definition of Done. A remedy that adds a capability ' +
@@ -2294,11 +2437,11 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   // --- TIER_SKIP_CONTRACTS (ADR 0037): `/superdev:review` skips `simplicity-reviewer` on a `full`-tier
   // scope, and the skip is sound only while `implement-full.md` still dispatches that reviewer per
-  // `behavior` slice. The second row is the one that matters most: losing the per-slice dispatch leaves a
-  // `full` run with no over-engineering pass anywhere while `skills/review/SKILL.md` goes on skipping,
-  // green everywhere and covered nowhere. The third row pins the `behavior` qualifier on the report line
-  // itself — the prose already drifted once, to an unqualified "covered per slice", with the first two
-  // rows both still green. ---
+  // `behavior` slice. The row on `implement-full.md`'s per-slice dispatch is the one that matters most:
+  // losing it leaves a `full` run with no over-engineering pass anywhere while `skills/review/SKILL.md`
+  // goes on skipping, green everywhere and covered nowhere. A further row pins the `behavior` qualifier
+  // on the report line itself — the prose already drifted once, to an unqualified "covered per slice",
+  // with the other rows still green. ---
 
   const perSliceDispatch =
     'Then dispatch **`superdev:simplicity-reviewer`** (over-engineering); apply warranted cuts.\n';
@@ -2307,7 +2450,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     "per `behavior` slice, so what only the integrated view reveals is `final-reviewer`'s Brevity axis. " +
     "Reporting: not dispatched — full tier, covered per `behavior` slice.\n";
 
-  // positive: all three rows unwritten — the skip is unstated, the qualifier that goes with it is
+  // positive: every row unwritten — the skip is unstated, the qualifier that goes with it is
   // therefore absent too, and the per-slice dispatch is gone
   const ts1 = fixture({
     'skills/review/SKILL.md': 'Dispatch both reviewers in parallel, each with an explicit model.\n',
@@ -2376,7 +2519,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   );
   assert.match(tsGaps6[0].expectation, /behavior/, 'names the qualifier the skip bullet itself is missing');
 
-  // negative (GREEN): all three rows stated
+  // negative (GREEN): every row stated
   const ts4 = fixture({
     'skills/review/SKILL.md': fullTierSkip,
     'references/implement-full.md': perSliceDispatch,
@@ -2602,106 +2745,73 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'the real final-reviewer.md carries neither a full-suite run nor the optionality clause',
   );
 
-  // --- AFK_ROUTING_CONTRACTS: an all-`mechanical`/`docs` scope skips the whole-scope review by design,
-  // so afk's stage table routes it past `/superdev:review` and ship drops the review from its own
-  // missing-step warning. Either document alone reads correct while the pair disagrees, so both are
-  // pinned. ---
+  // --- AFK_ROUTING_CONTRACTS (ADR 0091): the retired `mechanical`/`docs` special case is gone — afk's
+  // stage table routes every scope through `/superdev:review`, with no re-added exception. ship carries
+  // no row here any more: it dropped its own half of the retired agreement, so this table has nothing
+  // left to pin on skills/ship/SKILL.md. ---
 
-  // positive: afk.md keeps the stage table but never reads the slice types — the shape that strands such
-  // a scope in a review it skips, which is the defect this contract exists to catch
-  const afkR1 = fixture({
-    'skills/afk/SKILL.md':
-      '| `merged` | `/superdev:review <BASE>..<feature-label> --unattended` |\n' +
-      '| `documented-unreviewed` | `/superdev:review <BASE>..<feature-label> --unattended` |\n',
-  });
-  const afkGaps1 = scanContract(afkR1, AFK_ROUTING_CONTRACTS);
-  assert.equal(afkGaps1.length, 2, 'flags an afk.md that routes both stages into the review unconditionally');
-  assert.ok(
-    afkGaps1.every((g) => g.source === path.join('skills', 'afk', 'SKILL.md')),
-    'both gaps name afk.md',
-  );
+  const afkSendBackBlockText =
+    'A second one for the same anchor, in the same sweep,\n' +
+    "blocks it instead, through §4's ordinary block path — the block comment names the unresolved " +
+    'criteria the ledger\'s consecutive-block count.\n';
 
-  // positive: afk.md carries the `merged` half but sends `documented-unreviewed` back to the review — the
-  // half-fix that still cannot finish a sweep, since ship refuses a scope whose review never ran
-  const afkGaps2 = scanContract(
+  // positive: afk.md drops the always-review statement, the shape a re-added special case would leave
+  const afkGaps1 = scanContract(
     fixture({
       'skills/afk/SKILL.md':
-        'When no row reads `behavior`, `merged` routes to `/superdev:document <BASE>..<feature-label> ' +
-        '--unattended`.\n`documented-unreviewed` routes to `/superdev:review` as always.\n',
+        '| `merged` | `/superdev:review <BASE>..<feature-label> --unattended` |\n' +
+        '| `documented-unreviewed` | `/superdev:review <BASE>..<feature-label> --unattended` |\n' +
+        afkSendBackBlockText,
     }),
     AFK_ROUTING_CONTRACTS,
   );
-  assert.equal(afkGaps2.length, 1, 'flags an afk.md that fixes only the `merged` row');
-  assert.equal(afkGaps2[0].source, path.join('skills', 'afk', 'SKILL.md'), 'names afk.md');
+  assert.equal(afkGaps1.length, 1, 'flags an afk.md whose stage table carries no always-review statement');
+  assert.equal(afkGaps1[0].source, path.join('skills', 'afk', 'SKILL.md'), 'names afk.md');
 
-  // positive (RED reproduction): the real exception paragraph with both `--unattended` tokens stripped —
-  // prose the stage-table row scan never reaches, so nothing else in this file would have caught it
-  const afkGapsNoToken = scanContract(
-    fixture({
-      'skills/afk/SKILL.md':
-        'When no row reads `behavior`, `merged` routes to `/superdev:document <BASE>..<feature-label>` ' +
-        'and `documented-unreviewed` routes to `/superdev:ship <scope>`, in place of the two review rows ' +
-        'above.\n',
-    }),
-    AFK_ROUTING_CONTRACTS,
-  );
-  assert.equal(afkGapsNoToken.length, 2, 'flags both rows when `--unattended` is stripped from each');
-  assert.ok(
-    afkGapsNoToken.every((g) => g.source === path.join('skills', 'afk', 'SKILL.md')),
-    'both gaps name afk.md',
-  );
-
-  // positive: ship.md drops its own half — the other side of the same agreement
-  const afkGaps3 = scanContract(
-    fixture({
-      'skills/ship/SKILL.md':
-        'Name exactly what has not run (`/superdev:review`, `/superdev:document`, or both) and ask once.\n',
-    }),
-    AFK_ROUTING_CONTRACTS,
-  );
-  assert.equal(afkGaps3.length, 1, "flags a ship.md that stopped exempting an all-mechanical/docs scope");
-  assert.equal(afkGaps3[0].source, path.join('skills', 'ship', 'SKILL.md'), 'names ship.md');
-
-  // negative: both documents carry their halves, hard-wrapped the way the real prose is
+  // negative: the always-review statement carried
   assert.equal(
     scanContract(
       fixture({
         'skills/afk/SKILL.md':
-          'Read each slice\'s `type`. When no\nrow reads `behavior`, `merged` routes to\n' +
-          '`/superdev:document <BASE>..<feature-label> --unattended` and `documented-unreviewed` routes ' +
-          'to\n`/superdev:ship <scope> --unattended`.\n',
-        'skills/ship/SKILL.md':
-          '- **Every slice in the ledger is `mechanical` or `docs`** (the fourth, `type` field of\n' +
-          '  `scope.js get slices`) → drop `/superdev:review` from that warning.\n',
+          'Every scope passes review, whatever its slice types: the stage table above\n' +
+          'routes every scope through `/superdev:review`, with no special case for an all-`mechanical`/' +
+          '`docs` ledger.\n' +
+          afkSendBackBlockText,
       }),
       AFK_ROUTING_CONTRACTS,
     ).length,
     0,
-    'both halves carried, across a line wrap, yields zero gaps',
+    'an afk.md carrying the always-review statement yields no gap',
   );
 
-  // positive (RED reproduction, MINOR 7): `documented-unreviewed` routes to ship unconditionally, for
-  // every scope, with no all-mechanical/docs condition anywhere nearby — the shape row 1 alone used to
-  // pass, which would ship a behavior scope's `documented-unreviewed` anchor straight past the review it
-  // still needs. Tying row 1 to the same condition as row 0 catches it.
-  const afkGapsUnconditional = scanContract(
+  // positive: afk.md keeps the always-review statement but drops the second-send-back block rule
+  // (triage #661) — an unbounded document-to-review send-back loop
+  const afkGaps3 = scanContract(
     fixture({
       'skills/afk/SKILL.md':
-        'Every `documented-unreviewed` scope routes straight to `/superdev:ship <scope> --unattended`, no ' +
-        'matter what its slices are.\n',
+        'Every scope passes review, whatever its slice types: the stage table above\n' +
+        'routes every scope through `/superdev:review`, with no special case for an all-`mechanical`/' +
+        '`docs` ledger.\n',
     }),
     AFK_ROUTING_CONTRACTS,
   );
+  assert.equal(afkGaps3.length, 1, 'flags an afk.md carrying no second-send-back block rule');
+  assert.equal(afkGaps3[0].source, path.join('skills', 'afk', 'SKILL.md'), 'names afk.md');
+
+  // negative: both statements carried
   assert.equal(
-    afkGapsUnconditional.length,
-    2,
-    'flags both the missing merged-routing condition and the unconditional ship route — an afk.md that ' +
-      'routes every scope from `documented-unreviewed` to ship, not just the all-mechanical/docs one, must ' +
-      'fail row 1 too',
-  );
-  assert.ok(
-    afkGapsUnconditional.every((g) => g.source === path.join('skills', 'afk', 'SKILL.md')),
-    'both gaps name afk.md',
+    scanContract(
+      fixture({
+        'skills/afk/SKILL.md':
+          'Every scope passes review, whatever its slice types: the stage table above\n' +
+          'routes every scope through `/superdev:review`, with no special case for an all-`mechanical`/' +
+          '`docs` ledger.\n' +
+          afkSendBackBlockText,
+      }),
+      AFK_ROUTING_CONTRACTS,
+    ).length,
+    0,
+    'an afk.md carrying both routing statements yields no gap',
   );
 
   // --- ARG_TOKEN_CONTRACTS: merge-guard, green-gate, and ledger-guard each parse the same shell-word
@@ -2760,7 +2870,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'references/plan-contract.md':
       '# Plan-file contract\n\n## Fields\n\n## Epic visuals (optional, epic-only)\n\n' +
       '## Slice lifecycle & status\n\n## Append mode\n\n## Scope anchor\n\n## Release\n\n' +
-      '## Run state\n\n## Triage record\n\n' +
+      '## Run state\n\n## Definition of Done ticks\n\n## Triage record\n\n' +
       // the real document carries this one at `###`, under `## Issue-backend mapping (general)`, with a
       // trailing qualifier — both are why the derived rows match `#{2,3}` up to a word boundary
       '### Assignee — store configuration, not a slice field\n\n## Feature label\n',
@@ -2789,6 +2899,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     ['references/plan-contract.md', '## Scope anchor\n\n'],
     ['references/plan-contract.md', '## Release\n\n'],
     ['references/plan-contract.md', '## Run state\n\n'],
+    ['references/plan-contract.md', '## Definition of Done ticks\n\n'],
     ['references/plan-contract.md', '## Triage record\n\n'],
     ['references/plan-contract.md', '### Assignee — store configuration, not a slice field\n\n'],
     ['references/plan-contract.md', '## Feature label\n'],
@@ -3371,34 +3482,37 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   );
 
   // --- INVARIANT_COMPLIANCE_CONTRACTS: /plan judges the register during grounding — before any slice
-  // exists — then routes a held match into the DoD and the touching slice's spec once a slice is cut,
-  // and final-reviewer checks the register itself instead of `.claude/rules/`. The judging and the
-  // routing are two different points in /plan's own flow and so two separate rows: losing either
-  // strands an invariant an implementer's isolated worktree never sees. ---
+  // exists — then routes a held match's id into the touching slice's own spec and acceptance once a
+  // slice is cut, leaving the epic's own criterion stated as the behaviour the invariant protects, and
+  // final-reviewer checks the register itself instead of `.claude/rules/`. The judging and the routing
+  // are two different points in /plan's own flow and so two separate rows: losing either strands an
+  // invariant an implementer's isolated worktree never sees. ---
 
   const planJudgingAndRouting =
     '**Judge the decomposition against the invariant register.** Read `docs/invariants.md` whole ' +
     'while grounding. Judge each entry and hold every match.\n\n' +
-    'Write each held match into the slice it touches: as a Definition-of-Done criterion naming the ' +
-    "entry's id, and into the `spec` of that slice.\n";
+    'Write each held match into the slice it touches: the ' +
+    "entry's id goes into that slice's `spec` and `acceptance`, never into the epic. The " +
+    'epic states the behaviour the invariant protects.\n';
 
-  // negative: plan still judges the register during grounding and routes a held match into the DoD
-  // criterion and the slice's spec
+  // negative: plan still judges the register during grounding and routes a held match's id into the
+  // slice's spec and acceptance, leaving the epic stated as behaviour
   assert.equal(
     scanContract(
       fixture({ 'skills/plan/SKILL.md': planJudgingAndRouting }),
       INVARIANT_COMPLIANCE_CONTRACTS,
     ).length,
     0,
-    'plan naming both the register judging and the DoD/spec routing yields zero gaps',
+    'plan naming both the register judging and the spec/acceptance routing yields zero gaps',
   );
 
   // positive: plan stops judging the register during grounding (the routing half still there)
   const planJudgingGaps = scanContract(
     fixture({
       'skills/plan/SKILL.md':
-        'Write each held match into the slice it touches: as a Definition-of-Done criterion naming the ' +
-        "entry's id, and into the `spec` of that slice.\n",
+        'Write each held match into the slice it touches: the ' +
+        "entry's id goes into that slice's `spec` and `acceptance`, never into the epic. The " +
+        'epic states the behaviour the invariant protects.\n',
     }),
     INVARIANT_COMPLIANCE_CONTRACTS,
   );
@@ -3413,7 +3527,8 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'names the plan skill as the drifted document',
   );
 
-  // positive: plan stops routing a held match into the DoD/spec (the judging half still there)
+  // positive: plan stops routing a held match's id into the slice's spec/acceptance (the judging half
+  // still there)
   const planRoutingGaps = scanContract(
     fixture({
       'skills/plan/SKILL.md':
@@ -3429,42 +3544,44 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'names the plan skill as the drifted document',
   );
 
-  // positive: plan still routes into a `spec`, but no longer names the touching slice's own —
-  // the tightened pattern must not credit "`spec` of" alone
-  const planRoutingWrongSpecGaps = scanContract(
+  // positive: plan still routes the id into a slice's `spec` and `acceptance`, but no longer states the
+  // epic's own criterion as behaviour — the tightened pattern must not credit the spec/acceptance half
+  // alone
+  const planRoutingWrongEpicGaps = scanContract(
     fixture({
       'skills/plan/SKILL.md':
         '**Judge the decomposition against the invariant register.** Read `docs/invariants.md` whole ' +
         'while grounding. Judge each entry and hold every match.\n\n' +
-        'Write each held match into the slice it touches: as a Definition-of-Done criterion naming the ' +
-        "entry's id, and into the `spec` of the epic.\n",
+        'Write each held match into the slice it touches: the ' +
+        "entry's id goes into that slice's `spec` and `acceptance`, never into the epic.\n",
     }),
     INVARIANT_COMPLIANCE_CONTRACTS,
   );
   assert.equal(
-    planRoutingWrongSpecGaps.length,
+    planRoutingWrongEpicGaps.length,
     1,
-    'flags plan/SKILL.md when "of that slice" drops even though a `spec` mention survives',
+    'flags plan/SKILL.md when the epic-states-behaviour half drops even though the spec/acceptance half survives',
   );
   assert.equal(
-    planRoutingWrongSpecGaps[0].source,
+    planRoutingWrongEpicGaps[0].source,
     path.join('skills', 'plan', 'SKILL.md'),
     'names the plan skill as the drifted document',
   );
 
-  // negative: final-reviewer still carries the invariant-compliance check
+  // negative: final-reviewer still carries the invariant-compliance check, judging coverage by either
+  // half of the routing
+  const finalReviewerComplianceText =
+    '**Invariant compliance** — read `docs/invariants.md` yourself and check each entry the ' +
+    'integrated scope touches. An entry is covered when an epic criterion states the behaviour it ' +
+    "protects, or the touching slice's `spec`/`acceptance` carries its id. Report a plan-coverage gap " +
+    'only when neither holds. No `docs/invariants.md` → skip this check silently.\n';
   assert.equal(
     scanContract(
-      fixture({
-        'agents/final-reviewer.md':
-          '**Invariant compliance** — read `docs/invariants.md` yourself and check each entry the ' +
-          'integrated scope touches. An entry the Definition of Done never turned into a criterion is a ' +
-          'plan-coverage gap. No `docs/invariants.md` → skip this check silently.\n',
-      }),
+      fixture({ 'agents/final-reviewer.md': finalReviewerComplianceText }),
       INVARIANT_COMPLIANCE_CONTRACTS,
     ).length,
     0,
-    'final-reviewer naming the invariant-compliance check yields zero gaps',
+    'final-reviewer naming the invariant-compliance check and its either-half coverage judgment yields zero gaps',
   );
 
   // positive: final-reviewer reverts to (or never carries) the invariant-compliance check
@@ -3486,6 +3603,985 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     path.join('agents', 'final-reviewer.md'),
     'names final-reviewer as the drifted document',
   );
+
+  // positive: final-reviewer keeps the check but reverts to the old id-under-DoD coverage rule (ADR
+  // 0077's original wording, superseded by ADR 0091) — the tightened pattern must not credit that
+  const reviewerOldCoverageGaps = scanContract(
+    fixture({
+      'agents/final-reviewer.md':
+        '**Invariant compliance** — read `docs/invariants.md` yourself and check each entry the ' +
+        'integrated scope touches. An entry the Definition of Done never turned into a criterion is a ' +
+        'plan-coverage gap. No `docs/invariants.md` → skip this check silently.\n',
+    }),
+    INVARIANT_COMPLIANCE_CONTRACTS,
+  );
+  assert.equal(
+    reviewerOldCoverageGaps.length,
+    1,
+    'flags final-reviewer.md when it reverts to the old id-under-DoD coverage rule',
+  );
+  assert.equal(
+    reviewerOldCoverageGaps[0].source,
+    path.join('agents', 'final-reviewer.md'),
+    'names final-reviewer as the drifted document',
+  );
+
+  // --- CRITERION_TAG_CONTRACTS (ADR 0091, INV-0014): plan-contract.md owns the tag line format, the
+  // judged-line note grammar, and the untagged single-slice case; skills/plan/SKILL.md is where the tag
+  // is actually written (decomposition), shown back at the quiz, and formatted into the store at write
+  // time. Rows, each asserted apart — losing one leaves the write path unaware of a rule stated only
+  // in the reference, or plan-contract.md stating a format nothing in the write path ever produces. ---
+
+  const criterionTagPlanContract =
+    '### Criterion tags\n\n' +
+    'Every Definition-of-Done criterion is tagged with the slice `id`s that deliver it, or `scope`. ' +
+    'Format: `- [ ] <criterion> — <ids|scope>`.\n\n' +
+    'A judged line carries one note: `— met: <evidence>`, `— not met: <reason>`, or ' +
+    '`— ceiling: <partial evidence>`, never a bare tick.\n\n' +
+    'A single-slice feature carries no tags.\n';
+
+  const criterionTagPlanSkill =
+    '**Tag every Definition-of-Done criterion with the slice `id`s that deliver it, or `scope`**, ' +
+    'once decomposition settles which slice delivers what.\n\n' +
+    'At the quiz, show the operator which DoD criteria it covers — the same tags §3 wrote.\n\n' +
+    "At write time, write the global DoD (epic), each criterion tagged in `plan-contract.md`'s line " +
+    'format.\n';
+
+  // negative: every row carried across both documents yields zero gaps
+  assert.equal(
+    scanContract(
+      fixture({
+        'references/plan-contract.md': criterionTagPlanContract,
+        'skills/plan/SKILL.md': criterionTagPlanSkill,
+      }),
+      CRITERION_TAG_CONTRACTS,
+    ).length,
+    0,
+    'plan-contract.md and plan/SKILL.md carrying every tag-contract row yields zero gaps',
+  );
+
+  // positive: plan-contract.md drops the `### Criterion tags` section's tag-line format
+  const tagLineGaps = scanContract(
+    fixture({
+      'references/plan-contract.md':
+        'Every Definition-of-Done criterion is tagged with the slice `id`s that deliver it, or `scope`.\n\n' +
+        'A judged line carries one note: `— met: <evidence>`, `— not met: <reason>`, or ' +
+        '`— ceiling: <partial evidence>`, never a bare tick.\n\n' +
+        'A single-slice feature carries no tags.\n',
+      'skills/plan/SKILL.md': criterionTagPlanSkill,
+    }),
+    CRITERION_TAG_CONTRACTS,
+  );
+  assert.equal(tagLineGaps.length, 1, 'flags plan-contract.md once it drops the `### Criterion tags` line format');
+  assert.equal(
+    tagLineGaps[0].source,
+    path.join('references', 'plan-contract.md'),
+    'names plan-contract.md as the drifted document',
+  );
+
+  // positive: plan-contract.md drops the judged-line note grammar
+  const judgedLineGaps = scanContract(
+    fixture({
+      'references/plan-contract.md':
+        '### Criterion tags\n\n' +
+        'Every Definition-of-Done criterion is tagged with the slice `id`s that deliver it, or `scope`. ' +
+        'Format: `- [ ] <criterion> — <ids|scope>`.\n\n' +
+        'A single-slice feature carries no tags.\n',
+      'skills/plan/SKILL.md': criterionTagPlanSkill,
+    }),
+    CRITERION_TAG_CONTRACTS,
+  );
+  assert.equal(judgedLineGaps.length, 1, 'flags plan-contract.md once it drops the judged-line note grammar');
+  assert.equal(
+    judgedLineGaps[0].source,
+    path.join('references', 'plan-contract.md'),
+    'names plan-contract.md as the drifted document',
+  );
+
+  // positive: plan-contract.md drops the untagged single-slice case
+  const untaggedSliceGaps = scanContract(
+    fixture({
+      'references/plan-contract.md':
+        '### Criterion tags\n\n' +
+        'Every Definition-of-Done criterion is tagged with the slice `id`s that deliver it, or `scope`. ' +
+        'Format: `- [ ] <criterion> — <ids|scope>`.\n\n' +
+        'A judged line carries one note: `— met: <evidence>`, `— not met: <reason>`, or ' +
+        '`— ceiling: <partial evidence>`, never a bare tick.\n',
+      'skills/plan/SKILL.md': criterionTagPlanSkill,
+    }),
+    CRITERION_TAG_CONTRACTS,
+  );
+  assert.equal(untaggedSliceGaps.length, 1, 'flags plan-contract.md once it drops the untagged single-slice case');
+  assert.equal(
+    untaggedSliceGaps[0].source,
+    path.join('references', 'plan-contract.md'),
+    'names plan-contract.md as the drifted document',
+  );
+
+  // positive: plan/SKILL.md drops the decomposition-time tag instruction
+  const decompositionTagGaps = scanContract(
+    fixture({
+      'references/plan-contract.md': criterionTagPlanContract,
+      'skills/plan/SKILL.md':
+        'At the quiz, show the operator which DoD criteria it covers — the same tags §3 wrote.\n\n' +
+        "At write time, write the global DoD (epic), each criterion tagged in `plan-contract.md`'s line " +
+        'format.\n',
+    }),
+    CRITERION_TAG_CONTRACTS,
+  );
+  assert.equal(
+    decompositionTagGaps.length,
+    1,
+    'flags plan/SKILL.md once it drops the decomposition-time tag instruction',
+  );
+  assert.equal(
+    decompositionTagGaps[0].source,
+    path.join('skills', 'plan', 'SKILL.md'),
+    'names plan/SKILL.md as the drifted document',
+  );
+
+  // positive: plan/SKILL.md drops the §5 quiz's tag callback
+  const quizTagGaps = scanContract(
+    fixture({
+      'references/plan-contract.md': criterionTagPlanContract,
+      'skills/plan/SKILL.md':
+        '**Tag every Definition-of-Done criterion with the slice `id`s that deliver it, or `scope`**, ' +
+        'once decomposition settles which slice delivers what.\n\n' +
+        "At write time, write the global DoD (epic), each criterion tagged in `plan-contract.md`'s line " +
+        'format.\n',
+    }),
+    CRITERION_TAG_CONTRACTS,
+  );
+  assert.equal(quizTagGaps.length, 1, "flags plan/SKILL.md once it drops the §5 quiz's tag callback");
+  assert.equal(
+    quizTagGaps[0].source,
+    path.join('skills', 'plan', 'SKILL.md'),
+    'names plan/SKILL.md as the drifted document',
+  );
+
+  // positive: plan/SKILL.md drops the §6 write-time tag-line-format instruction
+  const writeTagGaps = scanContract(
+    fixture({
+      'references/plan-contract.md': criterionTagPlanContract,
+      'skills/plan/SKILL.md':
+        '**Tag every Definition-of-Done criterion with the slice `id`s that deliver it, or `scope`**, ' +
+        'once decomposition settles which slice delivers what.\n\n' +
+        'At the quiz, show the operator which DoD criteria it covers — the same tags §3 wrote.\n',
+    }),
+    CRITERION_TAG_CONTRACTS,
+  );
+  assert.equal(
+    writeTagGaps.length,
+    1,
+    'flags plan/SKILL.md once it drops the §6 write-time tag-line-format instruction',
+  );
+  assert.equal(
+    writeTagGaps[0].source,
+    path.join('skills', 'plan', 'SKILL.md'),
+    'names plan/SKILL.md as the drifted document',
+  );
+
+  // --- DOD_TICKS_CONTRACTS (ADR 0091, ADR 0092, INV-0014, INV-0015): `references/dod-ticks.md` states
+  // the mapping gate, the note rule, and that only a controller ticks; both execution playbooks and
+  // `agents/implementer.md` act on it — full hands the implementer the `dod.md` path and ticks after the
+  // merge, lite ticks from its own per-slice report the same way, and the implementer itself carries the
+  // three-shape, one-line-per-listed-criterion report format the controller ticks from.
+  // Asserted apart. ---
+
+  const dodTicksReviewCase =
+    "**Review's case:** `final-reviewer` judges every `dod.md` line, ticked or not, and returns its own " +
+    'verdict for each — holds, broken, or ceiling. The controller unticks a line it calls broken, with a ' +
+    "note, and a fix cycle's dispatch then lists exactly the lines that cycle unticked or found broken.\n";
+
+  const dodTicksJointTag =
+    'A line tagged with several slices never\n' +
+    'ticks while any other slice in its tag stands unmerged, per the ledger. A `met` report on such a ' +
+    "line, with another tagged slice\nstill unmerged, is recorded as `not met: <the report's evidence>; " +
+    "remaining: <the unmerged ids>`, never\nticked. Only the report from the **last** tagged slice to " +
+    'merge can tick the line, and only when that\nreport itself says `met` **and no earlier tagged ' +
+    "slice's recorded note on that line is a real `not\nmet:`** — a placeholder note this same rule " +
+    'recorded for an unmerged sibling names no real defect. A\ngenuine `not met:`/`ceiling:` note from ' +
+    'an earlier tagged slice leaves the line unticked, carrying\nboth notes\' gist, for run handoff\'s ' +
+    'handoff pass to settle.\n';
+
+  // The mapping gate's tag-matching and no-tags-at-all clauses.
+  const dodTicksMatchingAndUntagged =
+    '**Matching a tag to a slice.** A controller matches a tag to a slice through the ledger\'s `issue`\n' +
+    "column (`scope.js get slices`: `id` ↔ `issue`). `scope` never resolves through that column.\n\n" +
+    '**No tags at all.** A `dod.md` carrying no tags anywhere, on a ledger listing exactly one slice: ' +
+    'every line is a\n' +
+    'listed line of that lone slice. **A `dod.md` carrying no tags anywhere on a ledger listing more ' +
+    'than one slice** — every line is treated as if it read `scope`, settled by run handoff\'s handoff ' +
+    'pass. An untagged line in a `dod.md` that also\n' +
+    "carries tags is not a listed line for any slice; run handoff's handoff pass\n" +
+    "settles it as if it read `scope`.\n\n";
+
+  const dodTicksReference =
+    "A dispatch hands the worker the `dod.md` path plus the exact criterion lines it must report on — " +
+    'the **listed lines**. A controller ticks only a line its own dispatch listed; a report claiming ' +
+    "any other criterion is not ticked from: the controller records the claim as a note on the local " +
+    "`dod.md` copy alone, and leaves it there for run handoff's own settling pass.\n\n" +
+    dodTicksMatchingAndUntagged +
+    'A bare tick with no note is invalid.\n\n' +
+    '**A listed line the report never touches is a report defect, not an unjudged line.** The ' +
+    'controller never ticks an omitted listed line, and sends the report back for that line before ' +
+    'merging or ticking anything else from it.\n\n' +
+    "Writing a tick is the controller's own act, never a subagent's, and never ship's. One criterion is " +
+    'judged at a time, from one report.\n\n' +
+    "The scope anchor, through the active store's own `## Definition of Done ticks` section.\n\n" +
+    dodTicksJointTag +
+    '\n' +
+    dodTicksReviewCase;
+
+  const dodTicksFull =
+    'Also hand it the\n' +
+    '   **path** to `<run-root>/dod.md`, never its text, plus the exact **listed lines** this slice\'s dispatch\n' +
+    '   covers.\n\n' +
+    "**Now tick from the implementer's report** — after\n" +
+    '   the merge lands, never before.\n';
+
+  const dodTicksLite =
+    "**Tick from your own report, the same way the full tier's controller ticks from an implementer's**.\n" +
+    'judge the listed lines the mapping gate matches to that slice — every\n' +
+    "line whose tag names it, by `id` or by its `issue` (or, on a `dod.md` with no tags at all **and\n" +
+    "a ledger listing exactly one slice**, every line).\n\n" +
+    "An untagged line on a\n" +
+    "  multi-slice `dod.md` is no slice's listed line — nor is any line on a\n" +
+    "  `dod.md` with no tags at all when the ledger lists more than one slice; leave it for run " +
+    "handoff's own handoff pass.\n";
+
+  const dodTicksImplementer =
+    'It hands you the exact **listed lines** your\n' +
+    "dispatch names.\n\n" +
+    'Then **return to the controller only**: a status, one line for\n' +
+    'every Definition-of-Done criterion your dispatch listed:\n\n' +
+    '- **met** — the criterion, and the evidence it is met.\n' +
+    '- **not met** — the criterion, and the reason.\n' +
+    '- **ceiling** — a criterion only a deploy can verify.\n\n' +
+    'A criterion tagged with several slices gets the same three shapes — report only what this slice\n' +
+    'delivered, never naming the other tagged slices or whether they have merged.\n\n' +
+    'Every listed criterion gets exactly one of these three lines — an omitted line is a report defect the\n' +
+    'controller sends back.\n';
+
+  const dodTicksReviewSkill =
+    "This is a listed-lines case of dod-ticks.md's mapping gate: the fix cycle's dispatch below hands the\n" +
+    "fix implementer the `dod.md` path plus exactly the lines this cycle unticked or found broken.\n";
+
+  // ADR 0091's fourth live path: run handoff's own fix loop and handoff pass.
+  const dodTicksRunHandoff =
+    "This dispatch is a listed-lines case of `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s mapping " +
+    'gate: hand it the `dod.md` **path** plus the `scope`-tagged Definition-of-Done lines this red suite ' +
+    'blocks — there may be none.\n\n' +
+    '**The handoff pass.** Reached only once the suite record is `green`, `none`, or `denied` — the fix ' +
+    "loop's own 3-strike cap stops the run before this pass when a red suite never goes clean. Inline, " +
+    'right here — no dispatch, on both tiers. Read ' +
+    '`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`, then, over `<run-root>/dod.md`:\n' +
+    "- **Settle every `scope`-tagged criterion, every untagged line on a multi-slice `dod.md`, and " +
+    "every line on a `dod.md` with no tags at all when the ledger lists more than one slice** " +
+    'as if it read `scope`. Judge each against the integrated branch, settles each of the latter ' +
+    'two as if it read `scope`.\n' +
+    "**Also settle every joint criterion — tagged with several slices — that an earlier tagged\n" +
+    "slice's genuine `not met:` or `ceiling:` note left unticked** — `dod-ticks.md`'s mapping gate hands\n" +
+    "this pass exactly those lines, alongside the ones above.\n" +
+    '- **Re-check every earlier tick against the integrated branch** — a tick that no longer holds comes ' +
+    'back off, with a note naming what broke.\n' +
+    '- **An unmet result leaves the line unticked with its reason, and never blocks this handoff** — ' +
+    'review is the gate.\n' +
+    'Then stop: no review, no doc pass, no pull request, no cleanup.\n';
+
+  // The generic set-to-target-state / note-replace rule, on plan-contract.md (INV-0014).
+  const dodTicksPlanContract =
+    "A write sets its line's marker to the **target\n" +
+    "state** the judgment reached and replaces the line's previous note rather than\n" +
+    "never appending a second note beside it. A write whose target state equals the\n" +
+    "line's current state only replaces the note; the marker stays as it was.\n" +
+    "that a failed tick write is **reported once per run and never stops the run** — " +
+    "`dod.md` stays authoritative regardless.\n";
+
+  // negative: every row carried across all seven documents yields zero gaps
+  assert.equal(
+    scanContract(
+      fixture({
+        'references/dod-ticks.md': dodTicksReference,
+        'references/implement-full.md': dodTicksFull,
+        'references/implement-lite.md': dodTicksLite,
+        'agents/implementer.md': dodTicksImplementer,
+        'skills/review/SKILL.md': dodTicksReviewSkill,
+        'references/run-handoff.md': dodTicksRunHandoff,
+        'references/plan-contract.md': dodTicksPlanContract,
+      }),
+      DOD_TICKS_CONTRACTS,
+    ).length,
+    0,
+    'dod-ticks.md, both playbooks, implementer.md, review/SKILL.md, run-handoff.md, and plan-contract.md carrying every row yields zero gaps',
+  );
+
+  // positive: plan-contract.md drops the failed-anchor-write posture (triage #662) — a failed tick
+  // write is reported once per run and never stops the run, dod.md staying authoritative regardless.
+  const planContractOncePerRunGaps = scanContract(
+    fixture({
+      'references/dod-ticks.md': dodTicksReference,
+      'references/implement-full.md': dodTicksFull,
+      'references/implement-lite.md': dodTicksLite,
+      'agents/implementer.md': dodTicksImplementer,
+      'skills/review/SKILL.md': dodTicksReviewSkill,
+      'references/run-handoff.md': dodTicksRunHandoff,
+      'references/plan-contract.md':
+        "A write sets its line's marker to the **target\n" +
+        "state** the judgment reached and replaces the line's previous note rather than\n" +
+        "never appending a second note beside it. A write whose target state equals the\n" +
+        "line's current state only replaces the note; the marker stays as it was.\n",
+    }),
+    DOD_TICKS_CONTRACTS,
+  );
+  assert.equal(
+    planContractOncePerRunGaps.length,
+    1,
+    'flags plan-contract.md once it drops the failed-tick-write-never-stops-the-run clause',
+  );
+  assert.equal(
+    planContractOncePerRunGaps[0].source,
+    path.join('references', 'plan-contract.md'),
+    'names plan-contract.md as the drifted document',
+  );
+
+  // positive: run-handoff.md drops the fix dispatch's mapping-gate citation
+  const runHandoffGateGaps = scanContract(
+    fixture({
+      'references/dod-ticks.md': dodTicksReference,
+      'references/implement-full.md': dodTicksFull,
+      'references/implement-lite.md': dodTicksLite,
+      'agents/implementer.md': dodTicksImplementer,
+      'references/run-handoff.md':
+        '**The handoff pass.** Reached only once the suite record is `green`, `none`, or `denied` — the ' +
+        "fix loop's own 3-strike cap stops the run before this pass when a red suite never goes clean. " +
+        'Inline, right here — no dispatch, on both tiers. Read ' +
+        '`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`, then, over `<run-root>/dod.md`:\n' +
+        "- **Settle every `scope`-tagged criterion, every untagged line on a multi-slice `dod.md`, and every line on a `dod.md` with no tags at all when the ledger lists more than one slice** " +
+        'as if it read `scope`. Judge each against the integrated branch, settles each of the latter two as if it read `scope`.\n' +
+        "**Also settle every joint criterion — tagged with several slices — that an earlier tagged\n" +
+        "slice's genuine `not met:` or `ceiling:` note left unticked** — `dod-ticks.md`'s mapping gate hands\n" +
+        "this pass exactly those lines, alongside the ones above.\n" +
+        '- **Re-check every earlier tick against the integrated branch** — a tick that no longer holds ' +
+        'comes back off, with a note naming what broke.\n' +
+        '- **An unmet result leaves the line unticked with its reason, and never blocks this handoff** — ' +
+        'review is the gate.\n' +
+        'Then stop: no review, no doc pass, no pull request, no cleanup.\n',
+    }),
+    DOD_TICKS_CONTRACTS,
+  );
+  assert.equal(runHandoffGateGaps.length, 1, "flags run-handoff.md once it drops the fix dispatch's mapping-gate citation");
+  assert.equal(
+    runHandoffGateGaps[0].source,
+    path.join('references', 'run-handoff.md'),
+    'names run-handoff.md as the drifted document',
+  );
+
+  // positive: run-handoff.md drops the handoff pass's settle clause — the same line also carries the
+  // untagged-line clause and the no-tags-multi-slice clause, so dropping it costs every one of those rows
+  const runHandoffSettleGaps = scanContract(
+    fixture({
+      'references/dod-ticks.md': dodTicksReference,
+      'references/implement-full.md': dodTicksFull,
+      'references/implement-lite.md': dodTicksLite,
+      'agents/implementer.md': dodTicksImplementer,
+      'references/run-handoff.md':
+        dodTicksRunHandoff
+          .split('\n')
+          .filter((l) => !l.includes('Settle every `scope`-tagged criterion'))
+          .join('\n'),
+    }),
+    DOD_TICKS_CONTRACTS,
+  );
+  assert.equal(runHandoffSettleGaps.length, 3, "flags run-handoff.md thrice for dropping the settle clause and the two listed-lines clauses riding the same line");
+  assert.equal(
+    runHandoffSettleGaps[0].source,
+    path.join('references', 'run-handoff.md'),
+    'names run-handoff.md as the drifted document',
+  );
+
+  // positive: run-handoff.md drops the handoff pass's own gate on the suite record — it would then read
+  // as running unconditionally, ticking `scope`-tagged criteria even when the fix loop's cap stopped the
+  // run with the suite still red
+  const runHandoffGateOnSuiteGaps = scanContract(
+    fixture({
+      'references/dod-ticks.md': dodTicksReference,
+      'references/implement-full.md': dodTicksFull,
+      'references/implement-lite.md': dodTicksLite,
+      'agents/implementer.md': dodTicksImplementer,
+      'references/run-handoff.md':
+        dodTicksRunHandoff.split('.\n\n')[0] +
+        '.\n\n**The handoff pass.** Inline, right here — no dispatch, on both tiers. Read ' +
+        '`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`, then, over `<run-root>/dod.md`:\n' +
+        "- **Settle every `scope`-tagged criterion, every untagged line on a multi-slice `dod.md`, and every line on a `dod.md` with no tags at all when the ledger lists more than one slice** " +
+        'as if it read `scope`. Judge each against the integrated branch, settles each of the latter two as if it read `scope`.\n' +
+        "**Also settle every joint criterion — tagged with several slices — that an earlier tagged\n" +
+        "slice's genuine `not met:` or `ceiling:` note left unticked** — `dod-ticks.md`'s mapping gate hands\n" +
+        "this pass exactly those lines, alongside the ones above.\n" +
+        '- **Re-check every earlier tick against the integrated branch** — a tick that no longer holds ' +
+        'comes back off, with a note naming what broke.\n' +
+        '- **An unmet result leaves the line unticked with its reason, and never blocks this handoff** — ' +
+        'review is the gate.\n' +
+        'Then stop: no review, no doc pass, no pull request, no cleanup.\n',
+    }),
+    DOD_TICKS_CONTRACTS,
+  );
+  assert.equal(
+    runHandoffGateOnSuiteGaps.length,
+    1,
+    'flags run-handoff.md once its handoff pass drops the green/none/denied gate',
+  );
+  assert.equal(
+    runHandoffGateOnSuiteGaps[0].source,
+    path.join('references', 'run-handoff.md'),
+    'names run-handoff.md as the drifted document',
+  );
+
+  // positive: run-handoff.md drops the re-check-earlier-ticks clause
+  const runHandoffRecheckGaps = scanContract(
+    fixture({
+      'references/dod-ticks.md': dodTicksReference,
+      'references/implement-full.md': dodTicksFull,
+      'references/implement-lite.md': dodTicksLite,
+      'agents/implementer.md': dodTicksImplementer,
+      'references/run-handoff.md':
+        dodTicksRunHandoff
+          .split('\n')
+          .filter((l) => !l.includes('Re-check every earlier tick'))
+          .join('\n'),
+    }),
+    DOD_TICKS_CONTRACTS,
+  );
+  assert.equal(runHandoffRecheckGaps.length, 1, 'flags run-handoff.md once it drops the re-check-earlier-ticks clause');
+  assert.equal(
+    runHandoffRecheckGaps[0].source,
+    path.join('references', 'run-handoff.md'),
+    'names run-handoff.md as the drifted document',
+  );
+
+  // positive: run-handoff.md drops the never-blocks-this-handoff clause
+  const runHandoffNeverBlocksGaps = scanContract(
+    fixture({
+      'references/dod-ticks.md': dodTicksReference,
+      'references/implement-full.md': dodTicksFull,
+      'references/implement-lite.md': dodTicksLite,
+      'agents/implementer.md': dodTicksImplementer,
+      'references/run-handoff.md':
+        dodTicksRunHandoff
+          .split('\n')
+          .filter((l) => !l.includes('never blocks this handoff'))
+          .join('\n'),
+    }),
+    DOD_TICKS_CONTRACTS,
+  );
+  assert.equal(
+    runHandoffNeverBlocksGaps.length,
+    1,
+    'flags run-handoff.md once it drops the never-blocks-this-handoff clause',
+  );
+  assert.equal(
+    runHandoffNeverBlocksGaps[0].source,
+    path.join('references', 'run-handoff.md'),
+    'names run-handoff.md as the drifted document',
+  );
+
+  // positive (triage #660): run-handoff.md drops the joint-criteria settle clause
+  const runHandoffJointSettleGaps = scanContract(
+    fixture({
+      'references/dod-ticks.md': dodTicksReference,
+      'references/implement-full.md': dodTicksFull,
+      'references/implement-lite.md': dodTicksLite,
+      'agents/implementer.md': dodTicksImplementer,
+      'references/run-handoff.md':
+        dodTicksRunHandoff
+          .split('\n')
+          .filter((l) => !l.includes('Also settle every joint criterion'))
+          .join('\n'),
+    }),
+    DOD_TICKS_CONTRACTS,
+  );
+  assert.equal(
+    runHandoffJointSettleGaps.length,
+    1,
+    'flags run-handoff.md once it drops the joint-criteria settle clause',
+  );
+  assert.equal(
+    runHandoffJointSettleGaps[0].source,
+    path.join('references', 'run-handoff.md'),
+    'names run-handoff.md as the drifted document',
+  );
+
+  // positive (triage #660): run-handoff.md's closing line once again lists "no DoD tick" among what it
+  // skips, even though the handoff pass just above it ticks
+  const runHandoffClosingLineGaps = scanContract(
+    fixture({
+      'references/dod-ticks.md': dodTicksReference,
+      'references/implement-full.md': dodTicksFull,
+      'references/implement-lite.md': dodTicksLite,
+      'agents/implementer.md': dodTicksImplementer,
+      'references/run-handoff.md':
+        dodTicksRunHandoff.replace(
+          'Then stop: no review, no doc pass, no pull request, no cleanup.\n',
+          'Then stop: no review, no doc pass, no pull request, no DoD tick, no cleanup.\n',
+        ),
+    }),
+    DOD_TICKS_CONTRACTS,
+  );
+  assert.equal(
+    runHandoffClosingLineGaps.length,
+    1,
+    'flags run-handoff.md once its closing line lists "no DoD tick" among what it skips',
+  );
+  assert.equal(
+    runHandoffClosingLineGaps[0].source,
+    path.join('references', 'run-handoff.md'),
+    'names run-handoff.md as the drifted document',
+  );
+
+  // positive: dod-ticks.md drops the mapping gate
+  const mappingGateGaps = scanContract(
+    fixture({
+      'references/dod-ticks.md':
+        dodTicksMatchingAndUntagged +
+        'A bare tick with no note is invalid.\n\n' +
+        '**A listed line the report never touches is a report defect, not an unjudged line.** The ' +
+        'controller never ticks an omitted listed line, and sends the report back for that line before ' +
+        'merging or ticking anything else from it.\n\n' +
+        "Writing a tick is the controller's own act, never a subagent's, and never ship's. One criterion " +
+        'is judged at a time, from one report.\n\n' +
+        "The scope anchor, through the active store's own `## Definition of Done ticks` section.\n\n" +
+        dodTicksJointTag +
+        '\n' +
+        dodTicksReviewCase,
+      'references/implement-full.md': dodTicksFull,
+      'references/implement-lite.md': dodTicksLite,
+      'agents/implementer.md': dodTicksImplementer,
+    }),
+    DOD_TICKS_CONTRACTS,
+  );
+  assert.equal(mappingGateGaps.length, 1, 'flags dod-ticks.md once it drops the mapping gate');
+  assert.equal(
+    mappingGateGaps[0].source,
+    path.join('references', 'dod-ticks.md'),
+    'names dod-ticks.md as the drifted document',
+  );
+
+  // positive: dod-ticks.md drops the no-tags-on-a-multi-slice-ledger clause alone, keeping the
+  // single-slice no-tags clause and the tagged-untagged-line clause intact
+  const noTagsMultiSliceGaps = scanContract(
+    fixture({
+      'references/dod-ticks.md':
+        '**Matching a tag to a slice.** A controller matches a tag to a slice through the ledger\'s ' +
+        "`issue` column (`scope.js get slices`: `id` ↔ `issue`). `scope` never resolves through that " +
+        'column.\n\n' +
+        '**No tags at all.** A `dod.md` carrying no tags anywhere, on a ledger listing exactly one ' +
+        'slice: every line is a listed line of that lone slice. An untagged line in a `dod.md` that ' +
+        "also carries tags is not a listed line for any slice; run handoff's handoff pass settles it " +
+        'as if it read `scope`.\n\n' +
+        'A bare tick with no note is invalid.\n\n' +
+        '**A listed line the report never touches is a report defect, not an unjudged line.** The ' +
+        'controller never ticks an omitted listed line, and sends the report back for that line before ' +
+        'merging or ticking anything else from it.\n\n' +
+        "Writing a tick is the controller's own act, never a subagent's, and never ship's. One criterion " +
+        'is judged at a time, from one report.\n\n' +
+        "The scope anchor, through the active store's own `## Definition of Done ticks` section.\n\n" +
+        dodTicksJointTag +
+        '\n' +
+        dodTicksReviewCase,
+      'references/implement-full.md': dodTicksFull,
+      'references/implement-lite.md': dodTicksLite,
+      'agents/implementer.md': dodTicksImplementer,
+    }),
+    DOD_TICKS_CONTRACTS,
+  );
+  // Two, not one: this fixture also omits the mapping gate's own opening paragraph (as
+  // `mappingGateGaps` above does), so the mapping-gate row gaps too, alongside the dropped clause.
+  assert.equal(
+    noTagsMultiSliceGaps.length,
+    2,
+    'flags dod-ticks.md for the mapping-gate opening and the dropped no-tags-multi-slice clause',
+  );
+  assert.equal(
+    noTagsMultiSliceGaps[0].source,
+    path.join('references', 'dod-ticks.md'),
+    'names dod-ticks.md as the drifted document',
+  );
+
+  // positive: dod-ticks.md drops the note rule
+  const noteRuleGaps = scanContract(
+    fixture({
+      'references/dod-ticks.md':
+        "A dispatch hands the worker the `dod.md` path plus the exact criterion lines it must report " +
+        'on — the **listed lines**. A controller ticks only a line its own dispatch listed; a report ' +
+        'claiming any other criterion is not ticked from: the controller records the claim as a note ' +
+        "on the local `dod.md` copy alone, and leaves it there for run handoff's own settling pass.\n\n" +
+        dodTicksMatchingAndUntagged +
+        "Writing a tick is the controller's own act, never a subagent's, and never ship's. One criterion " +
+        'is judged at a time, from one report.\n\n' +
+        "The scope anchor, through the active store's own `## Definition of Done ticks` section.\n\n" +
+        dodTicksJointTag +
+        '\n' +
+        dodTicksReviewCase,
+      'references/implement-full.md': dodTicksFull,
+      'references/implement-lite.md': dodTicksLite,
+      'agents/implementer.md': dodTicksImplementer,
+    }),
+    DOD_TICKS_CONTRACTS,
+  );
+  assert.equal(noteRuleGaps.length, 1, 'flags dod-ticks.md once it drops the note rule');
+  assert.equal(
+    noteRuleGaps[0].source,
+    path.join('references', 'dod-ticks.md'),
+    'names dod-ticks.md as the drifted document',
+  );
+
+  // positive: dod-ticks.md drops the controller-only / one-at-a-time rule
+  const controllerOnlyGaps = scanContract(
+    fixture({
+      'references/dod-ticks.md':
+        "A dispatch hands the worker the `dod.md` path plus the exact criterion lines it must report " +
+        'on — the **listed lines**. A controller ticks only a line its own dispatch listed; a report ' +
+        'claiming any other criterion is not ticked from: the controller records the claim as a note ' +
+        "on the local `dod.md` copy alone, and leaves it there for run handoff's own settling pass.\n\n" +
+        dodTicksMatchingAndUntagged +
+        'A bare tick with no note is invalid.\n\n' +
+        '**A listed line the report never touches is a report defect, not an unjudged line.** The ' +
+        'controller never ticks an omitted listed line, and sends the report back for that line before ' +
+        'merging or ticking anything else from it.\n\n' +
+        "The scope anchor, through the active store's own `## Definition of Done ticks` section.\n\n" +
+        dodTicksJointTag +
+        '\n' +
+        dodTicksReviewCase,
+      'references/implement-full.md': dodTicksFull,
+      'references/implement-lite.md': dodTicksLite,
+      'agents/implementer.md': dodTicksImplementer,
+    }),
+    DOD_TICKS_CONTRACTS,
+  );
+  assert.equal(
+    controllerOnlyGaps.length,
+    1,
+    'flags dod-ticks.md once it drops the controller-only, one-at-a-time rule',
+  );
+  assert.equal(
+    controllerOnlyGaps[0].source,
+    path.join('references', 'dod-ticks.md'),
+    'names dod-ticks.md as the drifted document',
+  );
+
+  // positive: dod-ticks.md drops the store's tick-section citation
+  const tickSectionGaps = scanContract(
+    fixture({
+      'references/dod-ticks.md':
+        "A dispatch hands the worker the `dod.md` path plus the exact criterion lines it must report " +
+        'on — the **listed lines**. A controller ticks only a line its own dispatch listed; a report ' +
+        'claiming any other criterion is not ticked from: the controller records the claim as a note ' +
+        "on the local `dod.md` copy alone, and leaves it there for run handoff's own settling pass.\n\n" +
+        dodTicksMatchingAndUntagged +
+        'A bare tick with no note is invalid.\n\n' +
+        '**A listed line the report never touches is a report defect, not an unjudged line.** The ' +
+        'controller never ticks an omitted listed line, and sends the report back for that line before ' +
+        'merging or ticking anything else from it.\n\n' +
+        "Writing a tick is the controller's own act, never a subagent's, and never ship's. One criterion " +
+        'is judged at a time, from one report.\n\n' +
+        dodTicksJointTag +
+        '\n' +
+        dodTicksReviewCase,
+      'references/implement-full.md': dodTicksFull,
+      'references/implement-lite.md': dodTicksLite,
+      'agents/implementer.md': dodTicksImplementer,
+    }),
+    DOD_TICKS_CONTRACTS,
+  );
+  assert.equal(tickSectionGaps.length, 1, "flags dod-ticks.md once it drops the store's tick-section citation");
+  assert.equal(
+    tickSectionGaps[0].source,
+    path.join('references', 'dod-ticks.md'),
+    'names dod-ticks.md as the drifted document',
+  );
+
+  // positive: dod-ticks.md drops review's own listed-lines case
+  const reviewCaseGaps = scanContract(
+    fixture({
+      'references/dod-ticks.md':
+        "A dispatch hands the worker the `dod.md` path plus the exact criterion lines it must report " +
+        'on — the **listed lines**. A controller ticks only a line its own dispatch listed; a report ' +
+        'claiming any other criterion is not ticked from: the controller records the claim as a note ' +
+        "on the local `dod.md` copy alone, and leaves it there for run handoff's own settling pass.\n\n" +
+        dodTicksMatchingAndUntagged +
+        'A bare tick with no note is invalid.\n\n' +
+        '**A listed line the report never touches is a report defect, not an unjudged line.** The ' +
+        'controller never ticks an omitted listed line, and sends the report back for that line before ' +
+        'merging or ticking anything else from it.\n\n' +
+        "Writing a tick is the controller's own act, never a subagent's, and never ship's. One criterion " +
+        'is judged at a time, from one report.\n\n' +
+        "The scope anchor, through the active store's own `## Definition of Done ticks` section.\n\n" +
+        dodTicksJointTag,
+      'references/implement-full.md': dodTicksFull,
+      'references/implement-lite.md': dodTicksLite,
+      'agents/implementer.md': dodTicksImplementer,
+    }),
+    DOD_TICKS_CONTRACTS,
+  );
+  assert.equal(reviewCaseGaps.length, 1, "flags dod-ticks.md once it drops review's own listed-lines case");
+  assert.equal(
+    reviewCaseGaps[0].source,
+    path.join('references', 'dod-ticks.md'),
+    "names dod-ticks.md as the drifted document",
+  );
+
+  // positive: implement-full.md drops the dod.md-path dispatch clause
+  const fullDispatchGaps = scanContract(
+    fixture({
+      'references/dod-ticks.md': dodTicksReference,
+      'references/implement-full.md':
+        "**Now tick from the implementer's report** — after\n   the merge lands, never before.\n",
+      'references/implement-lite.md': dodTicksLite,
+      'agents/implementer.md': dodTicksImplementer,
+    }),
+    DOD_TICKS_CONTRACTS,
+  );
+  assert.equal(
+    fullDispatchGaps.length,
+    1,
+    'flags implement-full.md once it drops the dod.md-path dispatch clause',
+  );
+  assert.equal(
+    fullDispatchGaps[0].source,
+    path.join('references', 'implement-full.md'),
+    'names implement-full.md as the drifted document',
+  );
+
+  // positive: implement-full.md drops the tick-after-merge clause
+  const fullTickGaps = scanContract(
+    fixture({
+      'references/dod-ticks.md': dodTicksReference,
+      'references/implement-full.md':
+        'Also hand it the\n' +
+        '   **path** to `<run-root>/dod.md`, never its text, plus the exact **listed lines** this ' +
+        "slice's dispatch\n   covers.\n",
+      'references/implement-lite.md': dodTicksLite,
+      'agents/implementer.md': dodTicksImplementer,
+    }),
+    DOD_TICKS_CONTRACTS,
+  );
+  assert.equal(fullTickGaps.length, 1, 'flags implement-full.md once it drops the tick-after-merge clause');
+  assert.equal(
+    fullTickGaps[0].source,
+    path.join('references', 'implement-full.md'),
+    'names implement-full.md as the drifted document',
+  );
+
+  // positive: implement-lite.md drops its own tick-the-same-way clause
+  const liteTickGaps = scanContract(
+    fixture({
+      'references/dod-ticks.md': dodTicksReference,
+      'references/implement-full.md': dodTicksFull,
+      'references/implement-lite.md':
+        'Commit per slice on the scope branch as each goes green.\n' +
+        'judge the listed lines the mapping gate matches to that slice — every\n' +
+        "line whose tag names it, by `id` or by its `issue` (or, on a `dod.md` with no tags at all **and\n" +
+        "a ledger listing exactly one slice**, every line).\n\n" +
+        "An untagged line on a\n" +
+        "  multi-slice `dod.md` is no slice's listed line — nor is any line on a\n" +
+        "  `dod.md` with no tags at all when the ledger lists more than one slice; leave it for run " +
+        "handoff's own handoff pass.\n",
+      'agents/implementer.md': dodTicksImplementer,
+    }),
+    DOD_TICKS_CONTRACTS,
+  );
+  assert.equal(liteTickGaps.length, 1, "flags implement-lite.md once it drops its own tick-the-same-way clause");
+  assert.equal(
+    liteTickGaps[0].source,
+    path.join('references', 'implement-lite.md'),
+    'names implement-lite.md as the drifted document',
+  );
+
+  // positive: implementer.md drops all three of its own rows — the exact-listed-lines dispatch bullet,
+  // the one-line-per-listed-criterion report rule, and the joint-criterion "same three shapes" sentence
+  const implementerReportGaps = scanContract(
+    fixture({
+      'references/dod-ticks.md': dodTicksReference,
+      'references/implement-full.md': dodTicksFull,
+      'references/implement-lite.md': dodTicksLite,
+      'agents/implementer.md': 'Append to the progress log as you work.\n',
+    }),
+    DOD_TICKS_CONTRACTS,
+  );
+  assert.equal(
+    implementerReportGaps.length,
+    3,
+    'flags all three implementer.md rows once it drops everything',
+  );
+  assert.ok(
+    implementerReportGaps.every((g) => g.source === path.join('agents', 'implementer.md')),
+    'names implementer.md as the drifted document for both gaps',
+  );
+
+  // positive: review/SKILL.md drops its own restatement of the fix cycle's dispatch clause
+  const reviewDispatchGaps = scanContract(
+    fixture({
+      'references/dod-ticks.md': dodTicksReference,
+      'references/implement-full.md': dodTicksFull,
+      'references/implement-lite.md': dodTicksLite,
+      'agents/implementer.md': dodTicksImplementer,
+      'skills/review/SKILL.md': 'Nothing about the fix cycle dispatch here.\n',
+    }),
+    DOD_TICKS_CONTRACTS,
+  );
+  assert.equal(
+    reviewDispatchGaps.length,
+    1,
+    "flags review/SKILL.md once it drops its own restatement of the fix cycle's dispatch clause",
+  );
+  assert.equal(
+    reviewDispatchGaps[0].source,
+    path.join('skills', 'review', 'SKILL.md'),
+    'names skills/review/SKILL.md as the drifted document',
+  );
+
+  // positive: dod-ticks.md drops the joint-tag controller rule — a version that would let a controller
+  // tick a joint line while another tagged slice is still unmerged is flagged.
+  const jointTagGaps = scanContract(
+    fixture({
+      'references/dod-ticks.md':
+        "A dispatch hands the worker the `dod.md` path plus the exact criterion lines it must report " +
+        'on — the **listed lines**. A controller ticks only a line its own dispatch listed; a report ' +
+        'claiming any other criterion is not ticked from: the controller records the claim as a note ' +
+        "on the local `dod.md` copy alone, and leaves it there for run handoff's own settling pass.\n\n" +
+        dodTicksMatchingAndUntagged +
+        'A bare tick with no note is invalid.\n\n' +
+        '**A listed line the report never touches is a report defect, not an unjudged line.** The ' +
+        'controller never ticks an omitted listed line, and sends the report back for that line before ' +
+        'merging or ticking anything else from it.\n\n' +
+        "Writing a tick is the controller's own act, never a subagent's, and never ship's. One criterion " +
+        'is judged at a time, from one report.\n\n' +
+        "The scope anchor, through the active store's own `## Definition of Done ticks` section.\n\n" +
+        'A line tagged with several slices ticks as soon as any tagged slice reports `met`.\n\n' +
+        dodTicksReviewCase,
+      'references/implement-full.md': dodTicksFull,
+      'references/implement-lite.md': dodTicksLite,
+      'agents/implementer.md': dodTicksImplementer,
+      'skills/review/SKILL.md': dodTicksReviewSkill,
+    }),
+    DOD_TICKS_CONTRACTS,
+  );
+  assert.equal(jointTagGaps.length, 1, 'flags dod-ticks.md once it drops the joint-tag controller rule');
+  assert.equal(
+    jointTagGaps[0].source,
+    path.join('references', 'dod-ticks.md'),
+    'names dod-ticks.md as the drifted document',
+  );
+
+  // positive: implementer.md drops the joint-criterion "same three shapes" sentence
+  const jointShapeGaps = scanContract(
+    fixture({
+      'references/dod-ticks.md': dodTicksReference,
+      'references/implement-full.md': dodTicksFull,
+      'references/implement-lite.md': dodTicksLite,
+      'agents/implementer.md':
+        'It hands you the exact **listed lines** your\ndispatch names.\n\n' +
+        'Then **return to the controller only**: a status, one line for\n' +
+        'every Definition-of-Done criterion your dispatch listed:\n\n' +
+        '- **met** — the criterion, and the evidence it is met.\n' +
+        '- **not met** — the criterion, and the reason.\n' +
+        '- **ceiling** — a criterion only a deploy can verify.\n\n' +
+        'Every listed criterion gets exactly one of these three lines — an omitted line is a report defect the\n' +
+        'controller sends back.\n',
+      'skills/review/SKILL.md': dodTicksReviewSkill,
+    }),
+    DOD_TICKS_CONTRACTS,
+  );
+  assert.equal(
+    jointShapeGaps.length,
+    1,
+    'flags implementer.md once it drops the joint-criterion "same three shapes" sentence',
+  );
+  assert.equal(
+    jointShapeGaps[0].source,
+    path.join('agents', 'implementer.md'),
+    'names implementer.md as the drifted document',
+  );
+
+  // --- HOLDS_VERDICT_TICKS_CONTRACTS (user decision, 2026-09-24; INV-0015): a `holds` verdict with
+  // evidence and no fix needed ticks the line it holds on — dod-ticks.md states the rule, review/SKILL.md
+  // §4 restates it on the dispatch surface. Rows per document: the general unticked-with-`not met:`-
+  // or-unjudged case, and the narrower ceiling case, which needs the no-deploy-and-branch-evidence
+  // statement or the tick never lands. Asserted apart. ---
+  const hvGeneralRef =
+    'A `holds` verdict on a line that stands unticked with `not\nmet:`, or carries no note at all, ticks ' +
+    "that line — the review's controller writes the tick, with the\nverdict's own evidence as\nthe note " +
+    '(INV-0015).\n';
+  const hvCeilingRef =
+    'A line unticked with\n`ceiling:` takes a holds tick only when the verdict itself states the ' +
+    'criterion needs no deploy or other\noutward-facing change to verify and cites evidence observed on ' +
+    "the branch — the ceiling claim was wrong. A `holds` verdict never ticks a line that genuinely needs " +
+    'a\ndeploy to verify (INV-0006).\n';
+  const hvGeneralSkill =
+    "A `holds` verdict on a line unticked with `not met:`, or carrying no note at\nall, ticks that line — " +
+    "you, the controller, write the tick, with the\nverdict's own evidence as the\nnote (INV-0015).\n";
+  const hvCeilingSkill =
+    'A line unticked with `ceiling:` takes a\nholds tick only when the verdict itself states the ' +
+    'criterion needs no deploy or other outward-facing\nchange to verify and cites evidence observed on ' +
+    "the branch — that claim was wrong. A `holds` verdict never ticks a line that genuinely needs a " +
+    'deploy to\nverify (INV-0006).\n';
+
+  const hvClauses = {
+    'references/dod-ticks.md': [hvGeneralRef, hvCeilingRef].join('\n'),
+    'skills/review/SKILL.md': [hvGeneralSkill, hvCeilingSkill].join('\n'),
+  };
+
+  // negative: every row carried across both documents yields zero gaps
+  const hvFullGaps = scanContract(fixture(hvClauses), HOLDS_VERDICT_TICKS_CONTRACTS);
+  assert.deepEqual(hvFullGaps, [], 'dod-ticks.md and review/SKILL.md carrying every holds-tick row yields zero gaps');
+
+  // positive: dod-ticks.md drops the general unticked-line clause
+  const hvNoGeneralRefGaps = scanContract(
+    fixture({ ...hvClauses, 'references/dod-ticks.md': hvCeilingRef }),
+    HOLDS_VERDICT_TICKS_CONTRACTS,
+  );
+  assert.equal(hvNoGeneralRefGaps.length, 1, 'flags dod-ticks.md once it drops the general unticked-line clause');
+  assert.equal(hvNoGeneralRefGaps[0].source, path.join('references', 'dod-ticks.md'), 'names dod-ticks.md');
+
+  // positive: dod-ticks.md drops the ceiling clause
+  const hvNoCeilingRefGaps = scanContract(
+    fixture({ ...hvClauses, 'references/dod-ticks.md': hvGeneralRef }),
+    HOLDS_VERDICT_TICKS_CONTRACTS,
+  );
+  assert.equal(hvNoCeilingRefGaps.length, 1, 'flags dod-ticks.md once it drops the ceiling clause');
+  assert.equal(hvNoCeilingRefGaps[0].source, path.join('references', 'dod-ticks.md'), 'names dod-ticks.md');
+
+  // positive: review/SKILL.md drops the general unticked-line clause
+  const hvNoGeneralSkillGaps = scanContract(
+    fixture({ ...hvClauses, 'skills/review/SKILL.md': hvCeilingSkill }),
+    HOLDS_VERDICT_TICKS_CONTRACTS,
+  );
+  assert.equal(hvNoGeneralSkillGaps.length, 1, 'flags review/SKILL.md once it drops the general unticked-line clause');
+  assert.equal(hvNoGeneralSkillGaps[0].source, path.join('skills', 'review', 'SKILL.md'), 'names skills/review/SKILL.md');
+
+  // positive: review/SKILL.md drops the ceiling clause
+  const hvNoCeilingSkillGaps = scanContract(
+    fixture({ ...hvClauses, 'skills/review/SKILL.md': hvGeneralSkill }),
+    HOLDS_VERDICT_TICKS_CONTRACTS,
+  );
+  assert.equal(hvNoCeilingSkillGaps.length, 1, 'flags review/SKILL.md once it drops the ceiling clause');
+  assert.equal(hvNoCeilingSkillGaps[0].source, path.join('skills', 'review', 'SKILL.md'), 'names skills/review/SKILL.md');
+
+  // positive: a weakened ceiling clause that lets `holds` tick a ceiling line without stating the
+  // no-deploy-needed condition is flagged too — the row demands that exact statement, not just any
+  // mention of a holds tick on a ceiling line.
+  const hvWeakCeilingRef =
+    'A line unticked with `ceiling:` takes a holds tick whenever `final-reviewer` returns `holds` for it.\n';
+  const hvWeakCeilingGaps = scanContract(
+    fixture({ ...hvClauses, 'references/dod-ticks.md': [hvGeneralRef, hvWeakCeilingRef].join('\n') }),
+    HOLDS_VERDICT_TICKS_CONTRACTS,
+  );
+  assert.equal(
+    hvWeakCeilingGaps.length,
+    1,
+    'flags a weakened ceiling clause that omits the no-deploy-needed, branch-evidence condition',
+  );
+  assert.equal(hvWeakCeilingGaps[0].source, path.join('references', 'dod-ticks.md'), 'names dod-ticks.md');
 
   // --- COMMITMENT_CAPTURE_CONTRACTS (ADR 0081): a load-bearing commitment leaves a run as a register
   // entry or as a named reason it implies none. Three documents carry that between them, and each half
@@ -3658,10 +4754,12 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   assert.equal(mergeReasonGaps[0].source, 'hooks/green-gate.js', 'names hooks/green-gate.js');
 
   // --- VERIFICATION_CEILING_CONTRACTS: ADR 0084, INV-0006 — verifying a Definition-of-Done criterion
-  // observes, and changes no system outside the repository. Seven halves: the owning reference
+  // observes, and changes no system outside the repository. The owning reference
   // (references/scope-mode.md), both verifying agent bodies (final-reviewer.md, implementer.md), and
-  // all four surfaces that verify a criterion or dispatch an agent that does (review/SKILL.md,
-  // implement/SKILL.md, run-handoff.md, ship/SKILL.md). ---
+  // every surface that verifies a criterion or dispatches an agent that does (review/SKILL.md,
+  // implement/SKILL.md, run-handoff.md's fix dispatch and its own handoff pass, document/SKILL.md's
+  // §8 re-check bullet, and dod-ticks.md's Document's case). ship/SKILL.md carries no row: ADR 0091
+  // retired its own verification step. ---
   const vcClauses = {
     'references/scope-mode.md':
       'Verifying a Definition-of-Done criterion observes. It changes no system outside the repository.\n',
@@ -3679,21 +4777,41 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'Verifying an `acceptance` criterion observes; it changes no system outside the repository. A ' +
       'criterion needing a deploy gets no increment: report it as needing verification after merge.\n',
     'references/run-handoff.md':
-      'Verifying the fix observes; it changes no system outside the repository.\n',
-    'skills/ship/SKILL.md':
-      'Verifying an item observes; it changes no system outside the repository.\n',
+      'Verifying the fix observes; it changes no system outside the repository.\n' +
+      'Verifying a criterion observes; it changes no system outside the repository.\n',
+    'skills/document/SKILL.md':
+      'Verifying a tick observes; it changes no system outside the repository.\n',
+    'references/dod-ticks.md':
+      'Verifying a line observes; it changes no system outside the repository.\n',
   };
 
-  // negative: a fixture carrying all six halves reports no gap
+  // negative: a fixture carrying every half reports no gap
   const vcFullGaps = scanContract(fixture(vcClauses), VERIFICATION_CEILING_CONTRACTS);
-  assert.deepEqual(vcFullGaps, [], 'a fixture carrying all six halves reports no gap');
+  assert.deepEqual(vcFullGaps, [], 'a fixture carrying every half reports no gap');
 
-  // positive: dropping any single half reports exactly that gap
+  // positive: dropping any single path's content reports one gap per row that path carries
+  // (`references/run-handoff.md` carries two: the fix-dispatch clause and the handoff-pass clause)
+  const vcRowCountByPath = {};
+  for (const [rel] of VERIFICATION_CEILING_CONTRACTS) {
+    vcRowCountByPath[rel] = (vcRowCountByPath[rel] || 0) + 1;
+  }
   for (const rel of Object.keys(vcClauses)) {
     const vcDropped = fixture({ ...vcClauses, [rel]: 'Nothing about the verification ceiling here.\n' });
     const vcGaps = scanContract(vcDropped, VERIFICATION_CEILING_CONTRACTS);
-    assert.equal(vcGaps.length, 1, `flags ${rel} for dropping its verification-ceiling half`);
-    assert.equal(vcGaps[0].source, rel, `names ${rel}`);
+    assert.equal(vcGaps.length, vcRowCountByPath[rel], `flags ${rel} for dropping its verification-ceiling half(s)`);
+    for (const gap of vcGaps) assert.equal(gap.source, rel, `names ${rel}`);
+  }
+
+  // positive: run-handoff.md losing only its handoff-pass clause, while keeping the fix-dispatch
+  // clause, reports exactly the handoff-pass row's gap
+  {
+    const vcNoHandoffPass = fixture({
+      ...vcClauses,
+      'references/run-handoff.md': 'Verifying the fix observes; it changes no system outside the repository.\n',
+    });
+    const vcGaps = scanContract(vcNoHandoffPass, VERIFICATION_CEILING_CONTRACTS);
+    assert.equal(vcGaps.length, 1, 'flags run-handoff.md for losing the handoff-pass clause alone');
+    assert.equal(vcGaps[0].source, 'references/run-handoff.md', 'names references/run-handoff.md');
   }
 
   // positive: implementer.md and its lite-tier paste report a gap for keeping the observes/changes
@@ -3737,81 +4855,216 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     assert.equal(vcGaps[0].source, rel, `names ${rel}`);
   }
 
-  // --- DOD_SUITE_CRITERION_CONTRACTS: ADR 0084's closing decision — ship ticks a criterion naming the
-  // test suite from the run's own recorded result (the ledger stage plus its degrade record), running no
-  // suite of its own. Four rows, all on skills/ship/SKILL.md. ---
-  const dscClause =
-    'A criterion naming the test suite is ticked from the run\'s own recorded result, never by running it. ' +
-    'Read the ledger stage with `scope.js get stage` and its degrade record with `scope.js get degraded`. ' +
-    'A scope whose recorded result is a denied or absent test command leaves such a criterion unticked, ' +
-    'with that record as its note. Ship runs no test command anywhere.\n';
+  // --- SHIP_TICKS_NOTHING_CONTRACTS (ADR 0091): ship writes no tick anywhere, copies every `— ceiling:`
+  // criterion into the pull-request body as a post-merge checklist, and closes the scope anchor. The
+  // rows below pin skills/ship/SKILL.md's no-tick statement, the post-merge-checklist handling, and
+  // the anchor-close sentence. ---
+  const stnClause =
+    'Ship writes no tick anywhere. Copy every `— ceiling:` criterion under its own `## Post-merge ' +
+    'checklist` heading. No such criterion → add no empty heading. Then move the **scope anchor** issue ' +
+    'to done.\n';
 
-  // negative: a fixture carrying all four halves reports no gap
-  const dscFullGaps = scanContract(
-    fixture({ 'skills/ship/SKILL.md': dscClause }),
-    DOD_SUITE_CRITERION_CONTRACTS,
+  // negative: a fixture carrying all three halves reports no gap
+  const stnFullGaps = scanContract(
+    fixture({ 'skills/ship/SKILL.md': stnClause }),
+    SHIP_TICKS_NOTHING_CONTRACTS,
   );
-  assert.deepEqual(dscFullGaps, [], 'a fixture carrying all four halves reports no gap');
+  assert.deepEqual(stnFullGaps, [], 'a fixture carrying all three halves reports no gap');
 
-  const dscDeniedOrAbsent =
-    'A scope whose recorded result is a denied or absent test command leaves such a criterion unticked, ' +
-    'with that record as its note. ';
-
-  // positive: dropping the "ticked from the run's own recorded result" clause reports that row alone
-  const dscNoTickedGaps = scanContract(
+  // positive: dropping the "writes no tick anywhere" statement reports that row alone
+  const stnNoTickGaps = scanContract(
     fixture({
       'skills/ship/SKILL.md':
-        'Read the ledger stage with `scope.js get stage` and its degrade record with `scope.js get degraded`. ' +
-        dscDeniedOrAbsent +
-        'Ship runs no test command anywhere.\n',
+        'Copy every `— ceiling:` criterion under its own `## Post-merge checklist` heading. No such ' +
+        'criterion → add no empty heading. Then move the **scope anchor** issue to done.\n',
     }),
-    DOD_SUITE_CRITERION_CONTRACTS,
+    SHIP_TICKS_NOTHING_CONTRACTS,
   );
-  assert.equal(dscNoTickedGaps.length, 1, 'flags ship/SKILL.md for dropping the run-result clause');
-  assert.equal(dscNoTickedGaps[0].source, path.join('skills', 'ship', 'SKILL.md'), 'names ship/SKILL.md');
+  assert.equal(stnNoTickGaps.length, 1, 'flags ship/SKILL.md for dropping the no-tick statement');
+  assert.equal(stnNoTickGaps[0].source, path.join('skills', 'ship', 'SKILL.md'), 'names ship/SKILL.md');
 
-  // positive: dropping the `get degraded` read reports that row alone
-  const dscNoDegradedGaps = scanContract(
+  // positive: dropping the post-merge-checklist paragraph reports that row alone
+  const stnNoChecklistGaps = scanContract(
     fixture({
       'skills/ship/SKILL.md':
-        'A criterion naming the test suite is ticked from the run\'s own recorded result, never by ' +
-        'running it. Read the ledger stage with `scope.js get stage`. ' +
-        dscDeniedOrAbsent +
-        'Ship runs no test command anywhere.\n',
+        'Ship writes no tick anywhere. Then move the **scope anchor** issue to done.\n',
     }),
-    DOD_SUITE_CRITERION_CONTRACTS,
+    SHIP_TICKS_NOTHING_CONTRACTS,
   );
-  assert.equal(dscNoDegradedGaps.length, 1, 'flags ship/SKILL.md for dropping the `get degraded` read');
+  assert.equal(stnNoChecklistGaps.length, 1, 'flags ship/SKILL.md for dropping the post-merge checklist');
 
-  // positive: dropping the "denied or absent test command" clause reports that row alone
-  const dscNoDeniedOrAbsentGaps = scanContract(
+  // positive: dropping the anchor-close sentence reports that row alone
+  const stnNoAnchorGaps = scanContract(
     fixture({
       'skills/ship/SKILL.md':
-        'A criterion naming the test suite is ticked from the run\'s own recorded result, never by ' +
-        'running it. Read the ledger stage with `scope.js get stage` and its degrade record with ' +
-        '`scope.js get degraded`. Ship runs no test command anywhere.\n',
+        'Ship writes no tick anywhere. Copy every `— ceiling:` criterion under its own `## Post-merge ' +
+        'checklist` heading. No such criterion → add no empty heading.\n',
     }),
-    DOD_SUITE_CRITERION_CONTRACTS,
+    SHIP_TICKS_NOTHING_CONTRACTS,
   );
+  assert.equal(stnNoAnchorGaps.length, 1, 'flags ship/SKILL.md for dropping the anchor-close sentence');
+
+  // --- ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS (triage #654): a store whose anchor close is a scope-branch
+  // commit commits that close before ship's push, so it reaches base with the merge. Pins
+  // skills/ship/SKILL.md's push-step sentence and references/issue-tracker-local.md's own close line. ---
+  const acbpClauses = {
+    'skills/ship/SKILL.md':
+      'A store whose anchor close is a commit on the scope branch commits that close now, before this ' +
+      'push, so it reaches base exactly when the pull request merges.\n',
+    'references/issue-tracker-local.md':
+      '**`/superdev:ship`** — commit it `done` on the scope branch before ship pushes, so it reaches ' +
+      'base with the merge.\n',
+  };
+
+  // negative: a fixture carrying both halves reports no gap
+  const acbpFullGaps = scanContract(fixture(acbpClauses), ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS);
+  assert.deepEqual(acbpFullGaps, [], 'a fixture carrying both halves reports no gap');
+
+  // positive: dropping the ship push-step sentence reports that row alone
+  const acbpNoShipGaps = scanContract(
+    fixture({ ...acbpClauses, 'skills/ship/SKILL.md': 'Push the scope branch, then open the pull request.\n' }),
+    ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS,
+  );
+  assert.equal(acbpNoShipGaps.length, 1, 'flags ship/SKILL.md for dropping the push-step sentence');
+  assert.equal(acbpNoShipGaps[0].source, path.join('skills', 'ship', 'SKILL.md'), 'names ship/SKILL.md');
+
+  // positive: reverting the local store's close line to the old "once the scope branch merges" wording
+  // reports that row alone
+  const acbpOldLocalGaps = scanContract(
+    fixture({
+      ...acbpClauses,
+      'references/issue-tracker-local.md':
+        '**`/superdev:ship`** — set it `done` once the scope branch merges.\n',
+    }),
+    ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS,
+  );
+  assert.equal(acbpOldLocalGaps.length, 1, 'flags issue-tracker-local.md for the old close wording');
   assert.equal(
-    dscNoDeniedOrAbsentGaps.length,
-    1,
-    'flags ship/SKILL.md for dropping the denied-or-absent clause',
+    acbpOldLocalGaps[0].source,
+    path.join('references', 'issue-tracker-local.md'),
+    'names issue-tracker-local.md',
   );
 
-  // positive: dropping the "runs no test command anywhere" statement reports that row alone
-  const dscNoSilenceGaps = scanContract(
-    fixture({
-      'skills/ship/SKILL.md':
-        'A criterion naming the test suite is ticked from the run\'s own recorded result, never by ' +
-        'running it. Read the ledger stage with `scope.js get stage` and its degrade record with ' +
-        '`scope.js get degraded`. ' +
-        dscDeniedOrAbsent +
-        '\n',
-    }),
-    DOD_SUITE_CRITERION_CONTRACTS,
+  // --- DOC_UNTICK_ON_BREAK_CONTRACTS (ADR 0091): the doc pass unticks, with a note, a ticked criterion
+  // its own commits broke, and leaves every other tick untouched. Pins dod-ticks.md's Document's
+  // case and document/SKILL.md §8's own re-check bullet. ---
+  const dubClauses = {
+    'references/dod-ticks.md':
+      "Document's case: the pass's own listed lines are the ticked lines its own commits could touch. A " +
+      'line the branch still satisfies is left exactly as it stood, with no note added; a line its own ' +
+      'change broke is unticked, with a one-line note on what broke it.\n',
+    'skills/document/SKILL.md':
+      'Re-check every ticked line naming a file the doc commits landed in this run touched. A line the ' +
+      'branch still satisfies stays exactly as it stood, with no note added. A line your own change ' +
+      'broke gets unticked, with a one-line note on what broke it. ' +
+      'Apply the same verdict to the anchor\'s own Definition of Done checklist, through the active store\'s own `## Definition of Done ticks` section — best-effort. ' +
+      'An untick here also writes the ledger\'s `**Unresolved:**` entry, naming the criterion it broke — `scope.js unresolved add` — and publishes the snapshot, per `Publishing run state`. ' +
+      'Write the stage — unless the re-check above unticked a line. This pass unticked a line — ' +
+      'leaves the ledger\'s `**Stage:**` line exactly as it stands: write nothing. ' +
+      'This pass unticked a line above — print `/superdev:review <range>`, naming the criterion it unticked ' +
+      'and that review\'s fix loop is what re-ticks it. ' +
+      'No untick this pass — print `/superdev:ship`; the step that opens the pull request asks once when ' +
+      'attended and refuses only when unattended, on a scope with an unmet criterion.\n',
+  };
+
+  // negative: a fixture carrying both halves reports no gap
+  const dubFullGaps = scanContract(fixture(dubClauses), DOC_UNTICK_ON_BREAK_CONTRACTS);
+  assert.deepEqual(dubFullGaps, [], 'a fixture carrying both halves reports no gap');
+
+  // positive: dropping either half reports exactly that gap (or gaps, if multiple rows check the same file)
+  const dubDropped = fixture({ ...dubClauses, 'references/dod-ticks.md': 'Nothing about Document\'s case here.\n' });
+  const dubGaps1 = scanContract(dubDropped, DOC_UNTICK_ON_BREAK_CONTRACTS);
+  assert.equal(dubGaps1.length, 1, 'flags references/dod-ticks.md for dropping Document\'s case');
+  assert.equal(dubGaps1[0].source, 'references/dod-ticks.md', 'names references/dod-ticks.md');
+
+  // skills/document/SKILL.md carries rows for the untick clause, the tick-section routing clause,
+  // the Unresolved-write clause, the stage-write gate (INV-0016), the next-command gate, and the
+  // step-that-opens-the-pull-request gate on an unmet criterion
+  const dubDropped2 = fixture({ ...dubClauses, 'skills/document/SKILL.md': 'Nothing about ticks here.\n' });
+  const dubGaps2 = scanContract(dubDropped2, DOC_UNTICK_ON_BREAK_CONTRACTS);
+  assert.equal(dubGaps2.length, 6, 'flags skills/document/SKILL.md six times for dropping all six clauses');
+  assert.ok(
+    dubGaps2.every((g) => g.source === 'skills/document/SKILL.md'),
+    'every gap names skills/document/SKILL.md',
   );
-  assert.equal(dscNoSilenceGaps.length, 1, 'flags ship/SKILL.md for dropping the no-suite statement');
+
+  // positive: writing `documented` unconditionally after an untick (no stage-write gate) reports that gap
+  const dubNoStageGate = fixture({
+    ...dubClauses,
+    'skills/document/SKILL.md':
+      dubClauses['skills/document/SKILL.md'].replace(
+        "Write the stage — unless the re-check above unticked a line. This pass unticked a line — " +
+          "leaves the ledger's `**Stage:**` line exactly as it stands: write nothing. ",
+        'Write the stage: `reviewed` writes `documented`, always. ',
+      ),
+  });
+  const dubNoStageGateGaps = scanContract(dubNoStageGate, DOC_UNTICK_ON_BREAK_CONTRACTS);
+  assert.equal(dubNoStageGateGaps.length, 1, 'flags document/SKILL.md for writing the stage unconditionally after an untick');
+  assert.equal(dubNoStageGateGaps[0].source, 'skills/document/SKILL.md', 'names document/SKILL.md');
+
+  // negative: document/SKILL.md routing through the correct `## Definition of Done ticks` section passes
+  const tickRoutingCorrect = fixture({
+    'references/dod-ticks.md':
+      "Document's case: the pass's own listed lines are the ticked lines its own commits could touch. A " +
+      'line the branch still satisfies is left exactly as it stood, with no note added; a line its own ' +
+      'change broke is unticked, with a one-line note on what broke it.\n',
+    'skills/document/SKILL.md':
+      'Re-check every ticked line naming a file the doc commits landed in this run touched. A line the ' +
+      'branch still satisfies stays exactly as it stood, with no note added. A line your own change ' +
+      'broke gets unticked, with a one-line note on what broke it. ' +
+      'Apply the same verdict to the anchor\'s own Definition of Done checklist, through the active store\'s own `## Definition of Done ticks` section — best-effort. ' +
+      'An untick here also writes the ledger\'s `**Unresolved:**` entry, naming the criterion it broke — `scope.js unresolved add` — and publishes the snapshot, per `Publishing run state`. ' +
+      'Write the stage — unless the re-check above unticked a line. This pass unticked a line — ' +
+      'leaves the ledger\'s `**Stage:**` line exactly as it stands: write nothing. ' +
+      'This pass unticked a line above — print `/superdev:review <range>`, naming the criterion it unticked ' +
+      'and that review\'s fix loop is what re-ticks it. ' +
+      'No untick this pass — print `/superdev:ship`; the step that opens the pull request asks once when ' +
+      'attended and refuses only when unattended, on a scope with an unmet criterion.\n',
+  });
+  const tickRoutingGaps = scanContract(tickRoutingCorrect, DOC_UNTICK_ON_BREAK_CONTRACTS);
+  assert.deepEqual(tickRoutingGaps, [], 'document/SKILL.md routing through `## Definition of Done ticks` passes');
+
+  // positive: document/SKILL.md routing through the incorrect `## Run state` section is flagged
+  const tickRoutingWrong = fixture({
+    'references/dod-ticks.md':
+      "Document's case: the pass's own listed lines are the ticked lines its own commits could touch. A " +
+      'line the branch still satisfies is left exactly as it stood, with no note added; a line its own ' +
+      'change broke is unticked, with a one-line note on what broke it.\n',
+    'skills/document/SKILL.md':
+      'Re-check every ticked line naming a file the doc commits landed in this run touched. A line the ' +
+      'branch still satisfies stays exactly as it stood, with no note added. A line your own change ' +
+      'broke gets unticked, with a one-line note on what broke it. ' +
+      'Apply the same verdict to the anchor\'s own Definition of Done checklist, through the sanctioned body edit the active store\'s own `## Run state` section names — best-effort. ' +
+      'An untick here also writes the ledger\'s `**Unresolved:**` entry, naming the criterion it broke — `scope.js unresolved add` — and publishes the snapshot, per `Publishing run state`. ' +
+      'Write the stage — unless the re-check above unticked a line. This pass unticked a line — ' +
+      'leaves the ledger\'s `**Stage:**` line exactly as it stands: write nothing. ' +
+      'This pass unticked a line above — print `/superdev:review <range>`, naming the criterion it unticked ' +
+      'and that review\'s fix loop is what re-ticks it. ' +
+      'No untick this pass — print `/superdev:ship`; the step that opens the pull request asks once when ' +
+      'attended and refuses only when unattended, on a scope with an unmet criterion.\n',
+  });
+  const tickRoutingWrongGaps = scanContract(tickRoutingWrong, DOC_UNTICK_ON_BREAK_CONTRACTS);
+  assert.equal(tickRoutingWrongGaps.length, 1, 'flags document/SKILL.md for routing through `## Run state` instead of `## Definition of Done ticks`');
+  assert.equal(tickRoutingWrongGaps[0].source, 'skills/document/SKILL.md', 'names document/SKILL.md');
+
+  // positive (triage #660): document/SKILL.md overstates the gate as an outright refusal instead of the
+  // attended-ask/unattended-refusal shape the step that opens the pull request actually takes
+  const dubOverstatedGate = fixture({
+    ...dubClauses,
+    'skills/document/SKILL.md': dubClauses['skills/document/SKILL.md'].replace(
+      "No untick this pass — print `/superdev:ship`; the step that opens the pull request asks once when " +
+        'attended and refuses only when unattended, on a scope with an unmet criterion.\n',
+      "No untick this pass — print `/superdev:ship`; ship's own gate refuses a scope with an unmet " +
+        'criterion.\n',
+    ),
+  });
+  const dubOverstatedGateGaps = scanContract(dubOverstatedGate, DOC_UNTICK_ON_BREAK_CONTRACTS);
+  assert.equal(
+    dubOverstatedGateGaps.length,
+    1,
+    "flags document/SKILL.md for overstating the pull-request step's gate as an outright refusal",
+  );
+  assert.equal(dubOverstatedGateGaps[0].source, 'skills/document/SKILL.md', 'names document/SKILL.md');
 
   // --- CLEAN_VERDICT_ENDS_LOOP_CONTRACTS: a clean verdict ends the fix loop, findings or not. Two
   // halves — implement's `## Invariants (both playbooks)` catalogue and review §4's own fix loop — each
@@ -3978,30 +5231,56 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   assert.equal(lrNoDecompositionGaps.length, 1, 'dropping the §3 clause reports exactly one gap');
   assert.equal(lrNoDecompositionGaps[0].source, 'skills/plan/SKILL.md', 'names plan/SKILL.md');
 
-  // --- UNMET_CRITERION_AT_REVIEW_CONTRACTS: an unmet Definition-of-Done item is left unchecked with a
-  // one-line note — ship/SKILL.md §4's own rule, restated as review/SKILL.md §4's sibling rule (an unmet
-  // criterion enters the fix loop like any other finding, except the verification-ceiling case, and
-  // either way review ticks nothing in dod.md). ---
-  const ucShipClause = 'Leave an unmet item unchecked with a one-line note on why.';
-  const ucReviewClause =
-    'A criterion final-reviewer reports unmet enters this loop like any other finding. ' +
-    'The verification-ceiling case is the one reported and not chased. It ticks nothing in `dod.md`.';
+  // --- UNMET_CRITERION_AT_REVIEW_CONTRACTS (ADR 0091): review/SKILL.md §4 gates on an unmet criterion
+  // directly: a broken line is a Critical finding the controller unticks with a note, that finding covers
+  // a ticked line the branch no longer satisfies as well as an already-unticked line the branch still
+  // fails, the stage does not advance while any criterion but a `ceiling` one stands unmet, the
+  // verification-ceiling case is reported and not chased, and a clean re-review re-ticks only what the
+  // fix implementer's report calls met. ship/SKILL.md carries no row: ADR 0091 moved the gate to review.
+  // Every review row asserted apart. ---
+  const ucReviewClauses = [
+    'A line `final-reviewer`\'s `### Criteria` calls broken is a Critical finding, and you untick it ' +
+      'first. Untick it, with a one-line note naming why.',
+    'The stage does **not** advance while any `dod.md` criterion stands unmet, except a `ceiling` one ' +
+      '(INV-0016).',
+    'The verification-ceiling case is the one reported and not chased since no work on this branch can ' +
+      'close it, and never fold it into the fix loop.',
+    "After a fix cycle's re-review comes back clean, re-tick only the criteria that cycle's fix " +
+      'implementer reported met.',
+    'Read the dod.md ticked or not — a ticked line the branch no longer satisfies, or an ' +
+      'already-unticked line the branch still fails, both count.',
+  ];
+  const ucReviewClause = ucReviewClauses.join(' ');
 
   const ucClauses = {
-    'skills/ship/SKILL.md': ucShipClause + '\n',
     'skills/review/SKILL.md': ucReviewClause + '\n',
   };
 
-  // negative: a fixture carrying both halves reports no gap
+  // negative: a fixture carrying the review half reports no gap
   const ucFullGaps = scanContract(fixture(ucClauses), UNMET_CRITERION_AT_REVIEW_CONTRACTS);
-  assert.deepEqual(ucFullGaps, [], 'a fixture carrying both halves reports no gap');
+  assert.deepEqual(ucFullGaps, [], 'a fixture carrying the review half reports no gap');
 
-  // positive: dropping either half reports exactly that gap
-  for (const rel of Object.keys(ucClauses)) {
-    const ucDropped = fixture({ ...ucClauses, [rel]: 'Nothing about an unmet criterion here.\n' });
-    const ucGaps = scanContract(ucDropped, UNMET_CRITERION_AT_REVIEW_CONTRACTS);
-    assert.equal(ucGaps.length, 1, `flags ${rel} for dropping its unmet-criterion-at-review half`);
-    assert.equal(ucGaps[0].source, rel, `names ${rel}`);
+  // positive: dropping every review row reports every one, and each drops one at a time reports one
+  const ucReviewDropped = fixture({ ...ucClauses, 'skills/review/SKILL.md': 'Nothing about an unmet criterion here.\n' });
+  const ucReviewGaps = scanContract(ucReviewDropped, UNMET_CRITERION_AT_REVIEW_CONTRACTS);
+  assert.equal(
+    ucReviewGaps.length,
+    ucReviewClauses.length,
+    'flags every review row once review/SKILL.md drops the whole clause',
+  );
+  assert.ok(
+    ucReviewGaps.every((g) => g.source === 'skills/review/SKILL.md'),
+    'every gap names skills/review/SKILL.md',
+  );
+
+  for (let i = 0; i < ucReviewClauses.length; i++) {
+    const only = fixture({
+      ...ucClauses,
+      'skills/review/SKILL.md': ucReviewClauses.filter((_, j) => j !== i).join(' ') + '\n',
+    });
+    const gaps = scanContract(only, UNMET_CRITERION_AT_REVIEW_CONTRACTS);
+    assert.equal(gaps.length, 1, `flags review/SKILL.md for dropping row ${i} alone`);
+    assert.equal(gaps[0].source, 'skills/review/SKILL.md', 'names skills/review/SKILL.md');
   }
 
   // --- RELEASE_ANSWER_NOT_INFERRED_CONTRACTS: a feature is released once a human has said so (ADR

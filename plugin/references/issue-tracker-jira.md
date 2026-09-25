@@ -231,8 +231,8 @@ section heading nor the markers survive a round trip through the API, so `adopt`
 every anchor this backend ever wrote. This store therefore carries **no snapshot** by default, the same
 posture the local-file store takes when its anchor cannot safely carry a mirrored write.
 
-A run on a default Jira instance publishes nothing, adopts nothing, and ticks only `<run-root>/dod.md` —
-never the anchor's own Definition of Done checklist.
+A run on a default Jira instance publishes nothing and adopts nothing. Ticking the anchor's own
+Definition of Done checklist is independent of this posture — see `## Definition of Done ticks` below.
 
 **Unless your Jira instance stores the description as markdown or wiki markup** — a Jira Server/Data
 Center instance configured for wiki markup, or a Jira Cloud app that exposes a plain-text body — the
@@ -247,12 +247,44 @@ reads this section for a single yes-or-no answer to "does this store carry a sna
 - **Read** (every publish, including run init and adopting a run): `GET <base>/rest/api/3/issue/<key>?fields=description` — the same
   field the **Read an anchor's dependencies** call above already reads — and take the description back
   out of the response.
-- **Ticking the anchor's own Definition of Done checklist** (`/superdev:ship`, toggling a description
-  `- [ ]` to `- [x]`) is a second sanctioned description edit, beside the Epic amendment under
-  *Append mode*.
 - **The section is machine-owned.** A deeper subsection an operator adds under `## Run state` — a
   `### Operator notes` heading, say — is replaced along with the rest on the next publish. Keep an
   operator note outside the section.
+
+## Definition of Done ticks (fill in at setup)
+
+`plan-contract.md` → *Definition of Done ticks*. Ticking is independent of `## Run state` above: this
+store ticks the anchor's own checklist even on a default (ADF) instance that carries no snapshot.
+
+**Default (ADF) posture — node shape unverified.** Atlassian's public ADF structure reference
+(`developer.atlassian.com/cloud/jira/platform/apis/document/structure/`, checked 2026-09-24) documents
+`blockTaskItem` as a child block node with no structural detail, and documents neither `taskList` nor
+`taskItem` at all, though third-party schema dumps report both exist in the live schema. Absent a
+documented shape, the mechanics below match the **text** superdev itself writes for a checklist line — a
+`paragraph` or `listItem` node whose text begins `[ ] <criterion>` — never a `taskItem`/`blockTaskItem`
+node. Verify the real shape against your own instance's stored description before relying on this, and
+report the gap if the live shape differs.
+
+- **Set a criterion to its judged state:** `GET <base>/rest/api/3/issue/<key>?fields=description`, find
+  the checklist line's text node whose text starts `[ ] ` or `[x] `, and pipe that text through
+  `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js dod-line --line --match "<criterion text>" --verdict
+  met|not-met|ceiling --note "<text>"` on stdin — `--line` transforms the one text-node string rather
+  than a markdown body, since an ADF body is a JSON node tree, not markdown lines — and set the node's
+  text to its stdout. Then `PUT <base>/rest/api/3/issue/<key>` with
+  `{ "fields": { "description": <amended ADF body> } }` — the same call shape the Epic amendment under
+  *Append mode* below uses. **Best-effort:** a failed write is reported once per run and never stops the
+  run; `dod.md` stays authoritative.
+- **A criterion's tag renders as the issue `key`** (`PROJ-<n>`). `/superdev:plan` §6 writes the tag in
+  `plan-contract.md`'s own notation (a slice `id`, or `scope`) when it creates the Epic, before any slice
+  issue exists. Once every slice issue is created, the controller rewrites each slice-id tag into its
+  `key`, in the same parallel step **Link a dependency** above uses to write the "is blocked by" links —
+  both need the same resolved keys and both wait on the same event; a `scope` tag is left as `scope`.
+
+**On an instance storing the description as markdown or wiki markup** (the alternate posture `## Run
+state` above names), fetch the description the same way, pipe the whole body through the same
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js dod-line` call in its default **body** mode rather than
+`--line` — the description is markdown lines here, not a JSON node tree — and write its stdout back the
+same way. No node-shape question applies.
 
 ## Status workflow (fill in at setup)
 

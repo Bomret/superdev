@@ -18,10 +18,24 @@
 // value as an environment variable — never interpolated into the command string — so a title
 // carrying a quote, a `$`, a backtick, or a newline reaches the backend unchanged and runs no shell
 // of its own.
+//
+// `--read <title>` is a read-only entry point (ADR 0094, INV-0091): `find` then `read`, under the
+// same time bound as every other call, writing nothing and moving no staged file. It prints
+// `{"title","exists","body","hash"}` on stdout, where `hash` is the sha256 of `read`'s stdout
+// normalised for CRLF and a trailing newline, so two reads of an unchanged page agree. A staged
+// `upsert` may carry the hash it was built from as a `live-hash` frontmatter key; before an upsert
+// replaces an existing page, that recorded hash is checked against the live page, and the upsert is
+// refused (staying staged, with the refusal reported per page) when it differs or is absent — unless
+// the staged file instead carries a `created-by-publish` marker (ADR 0094, ADR 0076), written just
+// before this same run sent it as a `create`: a page found existing under that marker is this run's
+// own create landing, and is sent as an `update` with no live-hash check. A recorded `live-hash`
+// always wins over the marker: the marker only ever substitutes for a live-hash that was never
+// recorded, never overrides one that was.
 
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const crypto = require('crypto');
 const { execFileSync, spawnSync } = require('child_process');
 const { SLUG_RE, readLedgerHeader, testContainment } = require('./scope.js');
 const { maskFencedLines, merge, headingKeyOf } = require('./kb-patch.js');
@@ -85,6 +99,19 @@ function resolveScope(pending, requested) {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([s, n]) => `  ${s}: ${n} staged page${n === 1 ? '' : 's'}`);
   fail(`more than one pending scope — pass --scope <slug>:\n${lines.join('\n')}`);
+}
+
+// --- the live-body hash (ADR 0094) -----------------------------------------------------------
+//
+// The sha256 of a `read` call's stdout, normalised for CRLF line endings and a trailing newline,
+// so two reads of an unchanged page agree regardless of which line-ending convention or trailing
+// newline the backend happens to hand back on a given call.
+function normalizeBody(text) {
+  return text.replace(/\r\n/g, '\n').replace(/\n+$/, '');
+}
+
+function hashBody(text) {
+  return crypto.createHash('sha256').update(normalizeBody(text), 'utf8').digest('hex');
 }
 
 // --- backend config -------------------------------------------------------------------------
@@ -182,7 +209,54 @@ function parseStagedPage(text) {
     const m = line.match(/^([A-Za-z_][\w-]*):\s*(.*)$/);
     if (m) data[m[1]] = parseScalar(m[2]);
   }
-  return { title: data.title || null, action: data.action || null, body };
+  return {
+    title: data.title || null,
+    action: data.action || null,
+    liveHash: data['live-hash'] || null,
+    createdByPublish: data['created-by-publish'] || null,
+    body,
+  };
+}
+
+// Writes the `created-by-publish` marker into a staged file's frontmatter, ahead of the `create`
+// call it precedes: the staged file still holds every previous byte, and now also names the
+// moment this run sent it as a create. A create killed before it returns leaves the marker on
+// disk, so a later run's `find` seeing the page land reads it as this run's own retry (ADR 0076)
+// rather than someone else's page (INV-0091), with no `read` call needed to tell the two apart.
+//
+// Atomic write, the way `scope.js`'s `writeLines` writes its ledger: a temp file in the same
+// directory, then a rename over the staged file, so a reader never observes a half-written marker.
+// Any fs error here (a read-only staging directory, say) is caught and reported rather than thrown:
+// `publishUpsert` never sends the `create` it precedes when the marker itself could not be written.
+function markStagedCreate(filePath) {
+  let raw;
+  try {
+    raw = fs.readFileSync(filePath, 'utf8');
+  } catch {
+    return { ok: false, reason: 'could not write the retry marker' };
+  }
+  const t = raw.replace(/\r\n/g, '\n');
+  if (!t.startsWith('---\n')) return { ok: true };
+  const end = t.indexOf('\n---', 3);
+  if (end === -1) return { ok: true };
+  // Already marked: a retry re-marks ahead of every `create` call it sends, so writing
+  // unconditionally would append a fresh line on each one instead of leaving the first attempt's own
+  // timestamp alone.
+  if (/^created-by-publish:/m.test(t.slice(4, end))) return { ok: true };
+  const marked = `${t.slice(0, end)}\ncreated-by-publish: ${new Date().toISOString()}${t.slice(end)}`;
+  const tmpFile = `${filePath}.tmp-${process.pid}-${Date.now()}`;
+  try {
+    fs.writeFileSync(tmpFile, marked, 'utf8');
+    fs.renameSync(tmpFile, filePath);
+    return { ok: true };
+  } catch {
+    try {
+      fs.unlinkSync(tmpFile);
+    } catch {
+      // the write itself already failed — a stray temp file must not mask that
+    }
+    return { ok: false, reason: 'could not write the retry marker' };
+  }
 }
 
 // --- running a backend template -------------------------------------------------------------
@@ -273,15 +347,52 @@ function runFind(title, templates) {
   return { verdict: 'unknown', reason: `find exited ${res.status}` };
 }
 
-function publishUpsert(title, bodyFile, templates) {
+// The hash guard on an existing page (ADR 0094, INV-0091): a staged `upsert` replacing a page that
+// already exists is checked against the live body it was built from before it is allowed to
+// overwrite it. `publishUpsert` skips this only where the page carries a `created-by-publish`
+// marker AND no recorded `live-hash` — a marked retry with no hash to check is this run's own
+// create landing, and sends `update` directly instead. A recorded `live-hash` is always checked,
+// marker or not.
+//   a recorded hash that differs from the live body's   -> refuse
+//   no recorded hash at all                              -> refuse (nothing to check it against)
+//   a recorded hash that matches                          -> proceed
+// A backend with no `read` command can never answer the check, so an existing page is refused
+// under it regardless of what the staged page recorded.
+function checkLiveHash(title, templates, found, recordedHash) {
+  if (!recordedHash) {
+    return { ok: false, reason: 'no live-hash recorded for an existing page — refusing to overwrite it blind' };
+  }
+  if (!templates.read) {
+    return { ok: false, reason: 'no read command configured — an existing page cannot be checked against its recorded live-hash' };
+  }
+  const env = { ...fieldsToEnv(found.fields), SUPERDEV_KB_TITLE: title };
+  const res = runTemplate(templates.read, env);
+  if (res.error) return { ok: false, ...spawnFailure('read', res) };
+  if (res.status !== 0) return { ok: false, reason: `read exited ${res.status}` };
+  if (!res.stdout) return { ok: false, reason: 'read returned an empty body' };
+  if (hashBody(res.stdout) !== recordedHash) {
+    return { ok: false, reason: 'the live page has changed since this page was staged (live-hash mismatch) — refusing to overwrite it' };
+  }
+  return { ok: true };
+}
+
+function publishUpsert(title, bodyFile, templates, recordedHash, hasCreateMarker, filePath) {
   const found = runFind(title, templates);
   if (found.verdict === 'unknown') return { ok: false, reason: found.reason, timedOut: found.timedOut };
   if (found.verdict === 'absent') {
     if (!templates.create) return { ok: false, reason: 'no create command configured' };
+    if (!recordedHash) {
+      const marker = markStagedCreate(filePath);
+      if (!marker.ok) return { ok: false, reason: marker.reason };
+    }
     const res = runTemplate(templates.create, { SUPERDEV_KB_TITLE: title, SUPERDEV_KB_BODY_FILE: bodyFile });
     if (res.error) return { ok: false, ...spawnFailure('create', res) };
     if (res.status !== 0) return { ok: false, reason: `create exited ${res.status}` };
     return { ok: true, action: 'created' };
+  }
+  if (recordedHash || !hasCreateMarker) {
+    const guard = checkLiveHash(title, templates, found, recordedHash);
+    if (!guard.ok) return { ok: false, reason: guard.reason, timedOut: guard.timedOut };
   }
   if (!templates.update) return { ok: false, reason: 'no update command configured' };
   const env = { ...fieldsToEnv(found.fields), SUPERDEV_KB_TITLE: title, SUPERDEV_KB_BODY_FILE: bodyFile };
@@ -430,7 +541,7 @@ function processFile(entry, templates) {
   // upsert
   const bodyFile = writeTempBody(parsed.body);
   try {
-    const result = publishUpsert(parsed.title, bodyFile, templates);
+    const result = publishUpsert(parsed.title, bodyFile, templates, parsed.liveHash, !!parsed.createdByPublish, filePath);
     if (!result.ok) return { filename, title: parsed.title, kind: 'left-staged', reason: result.reason, timedOut: result.timedOut };
     return clearStagedFile(filePath, filename, parsed.title, result.action);
   } finally {
@@ -711,6 +822,51 @@ function checkContainment(mainCheckout, scope) {
   return { performed: true, ok: false, message: `scope branch "${branch}" ${what}` };
 }
 
+// --- the read entry (ADR 0094) ------------------------------------------------------------------
+//
+// A read-only invocation for one page title: `find` then `read`, under the same bound as every
+// other backend call. Writes nothing to the backend and moves no staged file. A page `find` does
+// not find reads as not existing, and that is a success (exit 0), not a refusal.
+function readPage(title, templates) {
+  if (!templates.read) return { ok: false, reason: 'no read command configured' };
+  const found = runFind(title, templates);
+  if (found.verdict === 'unknown') return { ok: false, reason: found.reason, timedOut: found.timedOut };
+  if (found.verdict === 'absent') return { ok: true, exists: false };
+  const env = { ...fieldsToEnv(found.fields), SUPERDEV_KB_TITLE: title };
+  const res = runTemplate(templates.read, env);
+  if (res.error) return { ok: false, ...spawnFailure('read', res) };
+  if (res.status !== 0) return { ok: false, reason: `read exited ${res.status}` };
+  if (!res.stdout) return { ok: false, reason: 'read returned an empty body' };
+  return { ok: true, exists: true, body: res.stdout, hash: hashBody(res.stdout) };
+}
+
+// Resolves the backend the same way `run()` does, then runs the read entry and prints its JSON
+// report on stdout. Refuses (via `fail`, caught by `main()`) the same way `run()`'s own backend
+// resolution does, plus every reason `readPage` names.
+function runReadEntry(cwd, title) {
+  const mainCheckout = resolveMainCheckout(cwd);
+  const docPath = path.join(mainCheckout, 'docs', 'agents', 'knowledge-base.md');
+  let docText = null;
+  try {
+    docText = fs.readFileSync(docPath, 'utf8');
+  } catch (e) {
+    if (e.code !== 'ENOENT') throw e;
+  }
+  const backend = classifyBackend(docText);
+  if (backend.kind === 'local' || backend.kind === 'none') fail(backend.reason);
+  if (backend.kind === 'unconfigured') {
+    fail(
+      `docs/agents/knowledge-base.md carries no "## Commands" section — run /superdev:setup to configure the backend`,
+    );
+  }
+  const result = readPage(title, backend.templates);
+  if (!result.ok) fail(result.reason);
+  const out = result.exists
+    ? { title, exists: true, body: result.body, hash: result.hash }
+    : { title, exists: false, body: null, hash: null };
+  console.log(JSON.stringify(out));
+}
+
 // --- report -----------------------------------------------------------------------------------
 //
 // A page's body never appears here — every line names a filename/title/reason, never stdout a
@@ -742,6 +898,12 @@ function renderReport(scope, backendKind, results, unmerged = false) {
 
 function run(argv, cwd) {
   const args = argv.slice();
+  const ri = args.indexOf('--read');
+  if (ri >= 0) {
+    const title = args[ri + 1];
+    if (!title) fail('--read needs a title');
+    return runReadEntry(cwd, title);
+  }
   let scope = null;
   const si = args.indexOf('--scope');
   if (si >= 0) {
@@ -828,6 +990,8 @@ module.exports = {
   parseRemote,
   checkContainment,
   timeoutMs,
+  hashBody,
+  readPage,
   renderReport,
   run,
 };

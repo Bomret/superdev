@@ -203,9 +203,33 @@ riding the scope branch — `00-epic-<summary>.md` on a multi-slice feature, the
 a single-slice one (`## Scope anchor` above) — and a snapshot written into it is the rejected "commit the
 run root" option under another name: it conflicts on every slice merge and lands in the pull request.
 
-A run on this store publishes nothing, adopts nothing, and ticks only `<run-root>/dod.md` — never the
-anchor file's own `## Definition of Done (global)` checklist, or the lone slice's `acceptance` on a
-single-slice feature.
+A run on this store publishes nothing and adopts nothing. Ticking the anchor file's own checklist is
+independent of this posture — see `## Definition of Done ticks` below.
+
+## Definition of Done ticks
+
+`plan-contract.md` → *Definition of Done ticks*. The checklist is the anchor file's own `## Definition of
+Done (global)` section on a multi-slice feature, or the lone slice's `acceptance` on a single-slice one
+(`## Scope anchor` above) — ticking is independent of `## Run state` above: this store carries no
+snapshot, and ticks the checklist all the same.
+
+- **Set a criterion to its judged state:** pipe the criterion file's own text through
+  `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js dod-line --match "<criterion text>" --verdict
+  met|not-met|ceiling --note "<text>"` on stdin, write its stdout back over the file (`scripts/AGENTS.md`
+  → *scope.js, the run-state CLI*), then **commit the file on the scope branch, in the scope checkout**,
+  the same way the store already commits every other plan-file edit (*Triage record* above).
+  **Best-effort:** a failed commit is reported once per run and never stops the run; `dod.md` stays
+  authoritative.
+- **A criterion's tag needs no rewrite.** It already names a slice `id` (this store's own file number) or
+  `scope`, in `plan-contract.md`'s own notation — the notation this store's `depends-on` already uses
+  directly (*Layout* above), so the parallel step every other store spends rewriting tags into its own
+  notation, once every slice file exists, is a no-op here.
+- **A tick commit keeps a green suite record reusable.** Each tick is a commit on the scope branch
+  (*Set a criterion to its judged state* above), so a tick landing after the recorded commit moves the scope branch's tip
+  away from it. `scope.js suite reusable --branch <b> --plan-files` (INV-0017) still calls the record
+  reusable when every path changed since it lies inside `docs/plans/<type>/<feature-slug>/` — the
+  directory `scope.js` derives itself from the ledger's own `**Branch:**` value — because a tick commit
+  never touches code, so it never costs a step the suite it rides on.
 
 ## Append mode
 
@@ -262,7 +286,8 @@ during execution; the slice files' `status:` is the durable record.
 
 Edit the anchor's own `status:` line — the same field and vocabulary as a slice's, since the anchor is
 either the epic file or, on a single-slice plan, the lone slice file itself (see *Scope anchor* above).
-**Run start** — set it `in-progress`. **`/superdev:ship`** — set it `done` once the scope branch merges.
+**Run start** — set it `in-progress`. **`/superdev:ship`** — commit it `done` on the scope branch before
+ship pushes, so it reaches base with the merge.
 On a single-slice plan there is no second file: the anchor signal rides the lone slice's own `status:`
 line, so this transition and the slice's own status update are the same edit.
 

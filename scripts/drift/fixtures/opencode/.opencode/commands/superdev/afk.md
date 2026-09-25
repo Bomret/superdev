@@ -175,7 +175,22 @@ does.
 | `documented` | `/superdev-ship <scope> --unattended` |
 | `shipped` | skip — §2's shipped skip already caught this anchor; the run is done |
 
-Then run each remaining step in order. `BASE` is `git merge-base <base> <feature-label>`, with the base
+Then run each remaining step in order — **except after `/superdev-document` runs, re-read the stage
+before continuing to the next one.** Its own re-check (`references/dod-ticks.md`'s Document's case,
+INV-0016) can leave the stage at `reviewed` and write a `**Unresolved:**` entry rather than advancing it,
+when its own commits broke a criterion. A `reviewed` stage still carrying that entry after
+`/superdev-document` ran routes to `/superdev-review <BASE>..<feature-label> --unattended` next, naming
+the broken criterion in §6's report — never straight to `/superdev-ship`, which would refuse the scope
+anyway and name `/superdev-document` as the missing step, not the review the criterion actually needs.
+
+**Count this anchor's own send-backs, in your own working memory alone, and write none of it to disk.**
+The first one in this sweep takes the route above. A second one for the same anchor, in the same sweep,
+blocks it instead, through §4's ordinary block path — the block comment names the unresolved criteria the
+ledger's `**Unresolved:**` line carries, and the block adds to the consecutive-block count exactly as any
+other block does. This count needs no reset rule: you drive one anchor through the whole chain before you
+take the next (§2), so no later anchor ever inherits it.
+
+`BASE` is `git merge-base <base> <feature-label>`, with the base
 branch from `docs/agents/code-management.md`.
 
 `<feature-label>` is the anchor's own label, in the shape `docs/agents/issue-tracker.md` states — a change
@@ -185,19 +200,14 @@ own: a label this command invented is one `/superdev-implement` cannot resolve, 
 rather than a question, which §4 turns into a block.
 
 `documented-unreviewed` routes to the review, not the ship, because `/superdev-ship --unattended` refuses
-a scope whose review never ran. The review is what clears that state.
+a scope whose review never ran. The review is what clears that state — whatever produced the stage: a
+hand-run `/superdev-document` invoked before a `reviewed` stage lands there too, and this table sends it
+back to the review exactly like any other `documented-unreviewed` anchor.
 
-**A scope whose slices are every one `mechanical` or `docs` takes two different rows.** Read each slice's
-`type` — the fourth, tab-separated field of `node "<plugin-root>/scripts/scope.js" get slices
---root <run-root>`, one row per slice. When no row reads `behavior`, `merged` routes to
-`/superdev-document <BASE>..<feature-label> --unattended` and `documented-unreviewed` routes to
-`/superdev-ship <scope> --unattended`, in place of the two review rows. Such a scope skips the whole-scope
-review by design: there is no Definition-of-Done judgment to attach one to, so `/superdev-implement`'s
-run handoff already ran the scope's one full suite in its place (ADR 0025), and `skills/ship/SKILL.md` drops
-`/superdev-review` from its own missing-step warning for the same reason. Routing it into the review
-instead strands the feature — the review has nothing to judge, and the ship that follows still refuses a
-scope whose review never ran. **A ledger with no slice rows at all is not such a scope**: it says nothing
-about what the slices are, so route it to the review as any other scope.
+Every scope passes review, whatever its slice types: the stage table above
+routes every scope through `/superdev-review`, with no special case for an all-`mechanical`/`docs`
+ledger (ADR 0091) — `/superdev-implement`'s run handoff runs its own full-suite pass for every scope, but
+that pass is never a stand-in for the review.
 
 A feature reaches one of two ends: **shipped** (a pull request is open) or **blocked**. A command can also
 stop with an **error** rather than a question — `/superdev-implement`'s "No DoD → don't proceed",

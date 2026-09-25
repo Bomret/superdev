@@ -21,8 +21,23 @@ This doc owns what each script guards and the contracts between them. Repo-wide 
 `scope.js` owns the ledger's schema and is the only `ledger.md` read and write path in the chain:
 `init`, `stage set`, `slice`, `degraded add|add-denial|reset-denials`, `unresolved add|clear`,
 `deferred add`,
-`docs set <value>|clear`, `get stage|branch|anchor|slices|unresolved|degraded|deferred|denials|docs`,
-`status` (which renders the whole `/superdev:status` report), `publish`, `adopt`, and `root <slug>`.
+`docs set <value>|clear`, `suite set <green|red|denied|none> <sha>`,
+`suite reusable --branch <b> [--plan-files]`,
+`get stage|branch|anchor|slices|unresolved|degraded|deferred|denials|docs|suite`,
+`status` (which renders the whole `/superdev:status` report), `publish`, `adopt`, `root <slug>`, and
+`dod-line`.
+`suite set` writes the **suite record** (CONTEXT.md) — the last full-suite run's result and the commit
+it ran on, as `**Suite:** <result> @ <sha>` — refusing a sha that does not resolve to a commit in the
+repository; `get suite` prints `<result> <sha>` back, or nothing on a ledger with no record (INV-0017).
+`suite reusable` is the path-scoped half of that same reuse rule: it exits 0 (printing `reusable`) when
+the record is `green` and `<branch>`'s tip either matches the recorded commit exactly or differs from it
+only in paths under `docs/plans/<branch>/` (`git diff --no-renames --name-only`, so a file renamed into
+that directory still counts at its pre-rename path), and refuses (exit 1) otherwise. `--plan-files`
+declares that this run's backend commits plan files on the scope branch; `scope.js` derives the
+directory itself from the ledger's own `**Branch:**` value rather than trusting a caller-supplied path,
+so a caller can never declare an unrelated directory (a sibling scope's own plan dir, or a parent like
+`docs/`) harmless — a caller passes no `--plan-files` when its backend commits nothing on the scope
+branch, which reduces the check to the exact-tip match.
 `degraded
 add-denial` prefixes its bullet `denied: `, which is what separates a denied verification dispatch from
 the other degraded shape sharing that line, and `get denials` counts those prefixed bullets — the number
@@ -59,6 +74,30 @@ checkout it runs from: the invoking checkout, a scopetree, or a slicetree of the
 what lets every prose caller resolve `<run-root>` the same way regardless of its own cwd. It refuses
 outside a git repository, and refuses a slug carrying a path separator or a leading `.`, since either
 would path a ledger read or write outside `.superdev/scopes/`.
+
+`dod-line` is the other verb that touches no ledger, and makes no store call of its own
+(`references/dod-ticks.md`, INV-0014, triage #664): `--match <criterion text> --verdict
+met|not-met|ceiling --note <text> [--line]`. It is the one Definition-of-Done checklist-line edit every
+store's own `## Definition of Done ticks` section now cites instead of restating by hand — a store seed
+fetches the checklist text through its own call, pipes it through `dod-line` on stdin, and writes back
+whatever comes out on stdout, the same shape `kb-patch.js` already gives a staged knowledge-base patch
+(ADR 0027). The default mode takes a whole markdown body on stdin and prints the transformed body;
+`--line` takes and prints exactly one checklist line instead, for the Jira seed's ADF text node, which is
+JSON, not markdown lines. A checklist line is `- [ ] <criterion> — <tag>[ — <verdict>: <note>]`
+(`plan-contract.md`'s line format); `--line` mode accepts the same line with no leading `- `, the shape a
+Jira text node's own string carries. The tag — slice ids (`01`, `01, 02`), store refs (`#667`, `#672,
+#673`), or the literal `scope` — and any verdict note past it are parsed off the line's *right* end,
+greedily handing everything before that to the criterion, which is what keeps a criterion carrying its
+own " — " (`plan-contract.md`'s own worked example, "Reachable: none — entrance unchanged; … — scope")
+intact instead of splitting at its first dash. Matching runs after both the line's own criterion text and
+`--match` collapse internal whitespace to one space and trim, so a criterion an editor reflowed onto two
+lines is still found, and after `kb-patch.js`'s own `maskFencedLines` blanks every fenced line, so a line
+shown inside a fenced illustrative example is never a candidate. `met` renders `- [x] <criterion> —
+<tag> — met: <note>`; `not-met` and `ceiling` render `- [ ]` with `not met:`/`ceiling:` — the marker is
+derived from the verdict alone, so a same-verdict re-write always leaves it unchanged, and the new note
+always replaces whatever note the line carried (INV-0014's own note rule, never appended beside it).
+Refuses, printing nothing, on zero matching lines, on two or more (which one to edit cannot be resolved),
+on a `--verdict` outside the three named values, or on a missing `--match` or `--note`.
 
 `init` writes a fresh ledger at stage `planned` (ADR 0079) — the one stage that precedes the four-command
 chain rather than naming a step within it, ranked below `implementing` so `stage set implementing` (or any
@@ -420,6 +459,33 @@ untouched. A timeout on one sibling stops the rest of that group untried, the sa
 batch loop applies between groups (ADR 0076, time-bound). A host that black-holes one call
 black-holes the next, regardless of which loop is calling it.
 
+`--read <title>` is a read-only entry (ADR 0094, INV-0091), invoked directly rather than through
+`run()`'s scope-and-staging path: it resolves the backend the same way, then runs `find` and `read`
+under the same bound as every other call, and never writes to it or moves a staged file. It prints
+`{"title","exists","body","hash"}` as one JSON object on stdout — `hash` the sha256 of `read`'s
+stdout, normalised for CRLF and a trailing newline, so two reads of an unchanged page agree — and a
+page `find` does not find prints `exists: false` and exits 0, never as a refusal. A backend
+declaring no `read` template, a failed call, or an exhausted bound each refuse with a one-line
+reason, the same shape `main()`'s `isRefusal` catch already gives every other refusal.
+
+A staged `upsert`'s frontmatter may carry the `live-hash` key: the hash of the live body the page
+was staged against. Before an `upsert` replaces a page `find` reports as already existing,
+`publishUpsert` checks that recorded hash against a fresh `read` of the live page (`checkLiveHash`)
+and refuses — leaving the page staged, with the refusal reported per page exactly like any other
+`left-staged` reason — when the recorded hash differs from the live one, or when the staged page
+carries no recorded hash at all: a writer that never read the live page has nothing to check an
+overwrite against, so it is refused precisely like a mismatch, never treated as leave-it-blank means
+overwrite-it-blind. A backend with no `read` template refuses the same way, since the check cannot
+run at all. `action: delete` and `action: patch` are untouched by the guard.
+
+Before a hashless `upsert` finds the page absent and sends `create`, `markStagedCreate` writes a
+`created-by-publish: <ISO-8601 time>` line into the staged file's own frontmatter, ahead of the
+`create` call — a call this same run then sends. A create killed after it lands leaves that marker
+on the staged file that survives it, so a later run whose `find` locates the page reads the marker
+and sends `update` directly (ADR 0076), never the hash guard and never a `read` call. A hashless
+`upsert` `find` reports existing, carrying no marker, is refused exactly as before: only a page this
+run itself just created skips the guard.
+
 Before publishing, `checkContainment` refuses a scope whose branch is not confirmed merged into
 `docs/agents/code-management.md`'s base branch. It resolves the branch from the ledger's
 `**Branch:**` header, falling back to the same branch-shape scan `hooks/scope-prune.js` applies. A scope
@@ -436,9 +502,10 @@ The module guards its CLI entry with `require.main === module`. It exports every
 `resolveMainCheckout`, `listPendingScopes`, `resolveScope`, `classifyBackend`,
 `parseCommandsTemplates`, `parseStagedPage`, `runTemplate`, `runFind`, `publishUpsert`,
 `publishDelete`, `publishPatch`, `processFile`, `processStagedFiles`, `resolveScopeBranch`,
-`parseBaseBranch`, `parseRemote`, `checkContainment`, `renderReport`, and `run`.
-`tests/publish-kb.test.js` imports `run`, `parseCommandsTemplates`, `parseStagedPage`,
-`classifyBackend`, `parseBaseBranch`, and `parseRemote` by name, and separately imports and calls
+`parseBaseBranch`, `parseRemote`, `checkContainment`, `hashBody`, `readPage`, `renderReport`, and
+`run`. `tests/publish-kb.test.js` imports `run`, `parseCommandsTemplates`, `parseStagedPage`,
+`classifyBackend`, `parseBaseBranch`, `parseRemote`, and `hashBody` by name — the last one to build a
+staged page's `live-hash` frontmatter against a known live body — and separately imports and calls
 `runFind` for one JSON-array edge case. It otherwise exercises the module through its exported
 `run()`, the way `tests/scope.test.js` exercises `scope.js`'s own CLI verbs (ADR 0059).
 
@@ -549,26 +616,50 @@ row pins its surface's **reason** and the clause naming the other surface's answ
 Pinning behaviours alone is what let the bridge's own fail-open read as an oversight for as long as it did,
 which is what #606 was: a reader meeting one gate could not tell a deliberate divergence from a missed case.
 
-The `verification-ceiling` contract (ADR 0084, INV-0006), six rows: verifying a Definition-of-Done
+The `verification-ceiling` contract (ADR 0084, INV-0006): verifying a Definition-of-Done
 criterion observes, and changes no system outside the repository. `references/scope-mode.md` states the
-rule once, in its own `## Verification ceiling` section, and the six rows pin the clause on both
-verifying agent bodies (`agents/final-reviewer.md`, `agents/implementer.md`) and on all four surfaces
-that verify a criterion or dispatch an agent that does (`skills/review/SKILL.md`,
+rule once, in its own `## Verification ceiling` section, and the rows pin the clause on both
+verifying agent bodies (`agents/final-reviewer.md`, `agents/implementer.md`) and on every surface
+that verifies a criterion or dispatches an agent that does (`skills/review/SKILL.md`,
 `skills/implement/SKILL.md`, `references/run-handoff.md` — whose red-full-suite implementer dispatch
-sits outside `skills/implement/SKILL.md` entirely — and `skills/ship/SKILL.md`, beside its own "Verify
-the items yourself" instruction). A contract in an agent body also has to hold in the prose that
-dispatches it, so `implementer.md`'s one body clause is reached by two dispatch rows, `skills/implement/SKILL.md`'s
-and `references/run-handoff.md`'s.
+sits outside `skills/implement/SKILL.md` entirely, and whose own handoff pass re-checks every
+`scope`-tagged and earlier-ticked criterion, `skills/document/SKILL.md`'s §8 re-check bullet, and
+`references/dod-ticks.md`'s Document's case those two dispatch through). A contract in an agent body
+also has to hold in the prose that dispatches it, so `implementer.md`'s one body clause is reached by
+a dispatch row in each of `skills/implement/SKILL.md` and `references/run-handoff.md`. `skills/ship/SKILL.md`
+carries no row here: ADR 0091 retired ship's own verification step, and the row that once pinned its
+"Verifying an item observes" sentence went with it (see `ship-ticks-nothing` below).
 
-The `dod-suite-criterion` contract (ADR 0084), three rows, all on `skills/ship/SKILL.md`: §4 ticks a
-criterion naming the test suite from the run's own recorded result — the ledger's stage, read together
-with its degrade record — rather than running that suite. One row pins the "ticked from the run's own
-recorded result, never by running it" clause, one pins that both `scope.js get stage` and
-`scope.js get degraded` are read, and one pins the plain "ship runs no test command anywhere" statement.
-This is the positive half of the negative `DOC_STEP_SILENCE_DOCS`/`SUITE_RUN_INSTRUCTIONS` scan below,
-which only asserts that `skills/ship/SKILL.md` proposes no suite run of its own — a document silent about
-the suite criterion entirely still passes that scan, so this table pins the read path that replaces the
-run instead.
+The `ship-ticks-nothing` contract (ADR 0091), all on `skills/ship/SKILL.md`: it replaces the
+retired `dod-suite-criterion` contract, which once pinned §4's suite-criterion tick logic — that logic
+moved to `/superdev:review`'s own §4 once every scope started passing review, so ship ticks nothing at
+all. One row pins the plain "ship writes no tick anywhere" statement; one pins the `## Post-merge
+checklist` paragraph — every `dod.md` line noted `— ceiling:` copied into the pull-request body under
+that heading, with no empty heading when none exist; one pins that ship still moves the scope anchor
+issue to done, the one write from the old §4/§5 pair that survived (`stage set shipped` is `verb-pointer`'s
+own row, below).
+
+The `anchor-close-before-push` contract (triage #654) pins rows on a store whose anchor close is a commit
+on the scope branch — the local store — commits that close before ship's own push, so it reaches base
+exactly when the pull request merges rather than never reaching base at all, and no command ever commits
+straight to base (INV-0001). One row pins `skills/ship/SKILL.md`'s §4 sentence stating the
+scope-branch-commit case at the push step; the other pins `references/issue-tracker-local.md`'s own close
+line, reworded to match. A store whose close is an API call is unaffected and keeps closing after the pull
+request opens, as `ship-ticks-nothing`'s own anchor-close row already pins. A later feature is free to
+replace the `done` value with its own status; the before-the-push mechanism stays either way.
+
+The `doc-untick-on-break` contract (ADR 0091) pins the doc pass unticking, with a note, a ticked
+`dod.md` criterion its own commits broke, and leaving every other tick untouched. `references/dod-ticks.md`
+states the case — **Document's case**, the mapping gate's third listed-lines case alongside implement's
+and review's: the pass's own listed lines are exactly the ticked lines its own doc commits could touch,
+judged directly against the branch those commits just landed on, never from a dispatched report. The doc
+pass also routes the anchor's tick update through the active store's own `## Definition of Done ticks`
+section (`docs/agents/issue-tracker.md`), best-effort. `skills/document/SKILL.md` §8 restates the same
+re-check on its own dispatch-free bullet, per root `AGENTS.md`'s dispatch-prose rule. A further row pins
+that same file's print-next-command bullet: the step that opens the pull request asks once when attended
+and refuses only when unattended, on a scope with an unmet criterion — never an outright refusal, which
+overstated what that step actually does (triage #660). Both surfaces also
+carry the verification-ceiling clause the `verification-ceiling` contract pins (ADR 0084, INV-0006).
 
 The `feature-label-argument`, `unattended-token`, `change-type`, `degraded-pass`, `derived-criteria`,
 `reachable-criterion`, `label-validation`, `green-gate-timeout`, and `verb-pointer` checks
@@ -608,7 +699,14 @@ tells a genuine safety block from one of auto mode's documented false positives 
 because a prompt arrives at once. DoD text inlined in the dispatch is already read by the time the
 instruction asks for a derivation. Losing either half degrades the derivation into theater: references
 still resolve, the suite stays green, and the reviewer reads the DoD first exactly as before.
-The `reachable-criterion` contract (ADR 0062), six rows: `references/plan-contract.md` carries the
+The `per-criterion-verdict` contract (ADR 0091) pins the reviewer's own verdict shape and the dispatch
+that asks for it: `agents/final-reviewer.md` carries its
+`## Judge every criterion` step and the `### Criteria` output section it feeds — a verdict (holds,
+broken, or ceiling) for every `dod.md` line, ticked or not — and `skills/review/SKILL.md`'s scope-mode
+dispatch tells it to produce that list. The dispatch-prose pin the root AGENTS.md's rules demand for a
+contract stated in an agent body: `review/SKILL.md`'s §4 fix loop unticks and re-ticks from that list, so
+a dispatch that stops asking for it starves the loop of the input it reads from.
+The `reachable-criterion` contract (ADR 0062) pins rows on `references/plan-contract.md`, which carries the
 `### The reachability criterion` section, names `Reachable:` as the token the criterion is led by, and
 states the every-change-type clause itself — the rule the reference owns, not only the surface it is
 dispatched to — and `skills/plan/SKILL.md` carries the **Emit the reachability criterion into the
@@ -623,7 +721,7 @@ surface alone leaves the rule describing a criterion nothing writes. Either way 
 correct on their own, which is the one-sided-pin shape the root `AGENTS.md`'s prompt-architecture rules
 name. The token rows pin `Reachable:` inside its own backticks, so prose that merely discusses
 reachability satisfies neither.
-The `review-range-shapes` contract (ADR 0063), seven rows: `skills/review/SKILL.md`'s §1 emits the
+The `review-range-shapes` contract (ADR 0063) pins rows on `skills/review/SKILL.md`'s §1, which emits the
 **Standing code** range shape, reports that there is nothing to review on a path holding no files, and
 skips `simplicity-reviewer` on that target; its §2 dispatch sentence hands `final-reviewer` the path and
 its file set at `HEAD` in place of a range on that same target, since there is no diff behind it to derive
@@ -649,14 +747,14 @@ of the `final-reviewer` dispatch bullet it names. The seventh row's pattern is o
 requires the staging clause's own heading text to appear, followed eventually by the `- **Range**` bullet
 that opens the range list, so moving the clause back below that bullet — the original defect — fails the
 row exactly as removing the clause does.
-The `empty-argument` contract (ADR 0078), nine rows: `references/scope-mode.md` carries the `##
+The `empty-argument` contract (ADR 0078) pins rows on `references/scope-mode.md`, which carries the `##
 Resolving an empty argument` section heading; `skills/review/SKILL.md` cites that section for its own
 empty-argument cascade and states its own dirty-working-tree precedence rather than folding either into
-the shared section's own words; two more rows pin `skills/review/SKILL.md`'s scope-slug resolution —
+the shared section's own words; further rows pin `skills/review/SKILL.md`'s scope-slug resolution —
 order-bounded, the same shape `REVIEW_RANGE_SHAPES_CONTRACTS`' seventh row uses, so a slug bullet moved
 ahead of the four range shapes it must follow fails the row exactly as removing the bullet does — and its
 `## The scope branch` shape-scan fallback for a run root whose ledger names no branch or a stale one; and
-two rows apiece pin `skills/ship/SKILL.md` and `skills/implement/SKILL.md`, one citing the shared section
+rows pin `skills/ship/SKILL.md` and `skills/implement/SKILL.md`, one citing the shared section
 and one naming that command's own candidate set (run roots not `shipped` for ship, features whose slices
 are ready for implement) ahead of the citation. Anchored on the section's own heading and on each
 citing document's literal citation and candidate-set sentences, the same shape `UNATTENDED_CONTRACTS`
@@ -720,8 +818,8 @@ The `verb-pointer` contract (ADR 0022): every ledger touchpoint in the chain inv
 `scope.js` verb, as `references/run-init.md` does `init`, `references/run-handoff.md` `stage set merged`,
 `unresolved add`, and `unresolved clear`, `skills/review/SKILL.md` `stage set`, `get anchor`, `unresolved add`,
 and `unresolved clear`, `skills/document/SKILL.md` `stage set`, `skills/ship/SKILL.md` `get stage`,
-`stage set shipped`, `get unresolved` (for the unresolved-defect record its §3 gate and §5 body
-read), and `get degraded` (for the degrade record its §5 body reads),
+`stage set shipped`, `get unresolved` (for the unresolved-defect record its §3 gate and §4 body
+read), and `get degraded` (for the degrade record its §4 body reads),
 `skills/status/SKILL.md` `status`, `skills/afk/SKILL.md` `get stage`,
 `skills/plan/SKILL.md` `get branch --root` (for
 the refusal signal its §0 reads before extending a feature), both execution
@@ -737,29 +835,29 @@ the behavior instead. No row pins a `scope.js` verb on `references/run-init.md` 
 for a base-branch write (ADR 0079): no superdev command commits to the base branch, and the
 `no-base-branch-commit` check (INV-0001, below) is what catches a reintroduction of that commit, not this
 table.
-The `planned-handoff` contract (ADR 0079, ADR 0080), sixteen rows: `plugin/scripts/scope.js` ranks `planned`
+The `planned-handoff` contract (ADR 0079, ADR 0080) pins rows on `plugin/scripts/scope.js`, which ranks `planned`
 below `implementing` in `STAGE_RANK` and carries the `root <slug>` verb; `skills/plan/SKILL.md` writes the
 ledger with `scope.js init` and commits what the scopetree holds on the scope branch before writing it;
 `references/run-init.md` takes a `planned` ledger by skipping `init` and moving the stage forward to
 `implementing`; `references/scope-mode.md` names a `planned` ledger as the `resumed` run kind
 `/superdev:plan` already cut, and names `/superdev:plan` as a second run-lock writer beside the
-execution playbooks; and two further rows are `skills/plan/SKILL.md`'s own dispatch sentences citing
+execution playbooks; and further rows are `skills/plan/SKILL.md`'s own dispatch sentences citing
 `scope-mode.md`'s cut rule and its run-lock section rather than restating either. Each half reads correct
 alone — `scope.js` can carry the stage and verb while `skills/plan/SKILL.md` stops writing the ledger or
 committing in the scopetree, and `scope-mode.md` can still state the rule while `skills/plan/SKILL.md`
 stops citing it — which is the one-sided-pin shape the root `AGENTS.md`'s prompt-architecture rules name.
-Two further rows close a Critical review finding that `init` stamped `**Stage:** planned` unconditionally
+Further rows close a Critical review finding that `init` stamped `**Stage:** planned` unconditionally
 regardless of who was writing the ledger: `plugin/scripts/scope.js` carries `INIT_ENTRY_STAGES`, `init`'s
 required entry-stage argument with no default, and `references/run-init.md`'s own `init` call — the one
 caller with no `/superdev:plan` interval to enter through — names `implementing` rather than leaving the
 argument to a default `scope.js` might grow back.
-Three more rows close the review's Minor D finding — the two triage closures the prior fix cycle left
+Rows close the review's Minor D finding — the two triage closures the prior fix cycle left
 unpinned: `skills/plan/SKILL.md` passes `planned`, never `implementing`, at its own cut-time write
 (`scope.js init <type>/<scope> planned`); it writes the ledger right at the cut rather than waiting for
 §6 (triage #509's own closure); and it reads `<run-root>/run.lock` unconditionally before §2's first
 write, whether or not a cut happens below (triage #510's own closure). A document that drops any one of
 the three silently reopens the exact gap that closure named.
-Two final rows close the review's Important A finding: `references/run-init.md` names a `planned` ledger
+Final rows close the review's Important A finding: `references/run-init.md` names a `planned` ledger
 carrying no slice rows as an interview abandoned between the cut and the slice-table write, never a normal
 `resumed` run — the `planned` bullet's own text says to check the store's slices before choosing `stage
 set` (an interview that finished) or a re-init at `implementing` (one that did not) — and the adopt path
@@ -814,6 +912,11 @@ reads at all, so the list was never asked to carry it. The check reads the
 instruction's shape rather than a backend's literal endpoint or credential name, because
 **Backends are pluggable** already forbids these documents from naming a backend at all, so a
 literal-only marker would catch almost nothing.
+The `kb-read-never-write` check (ADR 0094, INV-0091) pins the rule `kb-no-backend-call` still forbids a
+write to: `references/doc-pass.md`, `agents/doc-writer.md`, and `skills/document/SKILL.md`'s own dispatch
+prose each carry the sentence stating the doc pass may **read** a remote knowledge-base backend and never
+**writes** to it — the reference and the agent body verbatim, the dispatch prose in its own words that
+agree (ADR 0035). Losing the clause from any one of the three fails that row alone.
 The `no-second-reader` contract (ADR 0022), `scanHookLedgerParsers()` scans every
 `hooks/*.js` file for a literal `**…:**`-shaped header regex. This pattern marks whether a hook grows a
 ledger-header reader of its own instead of `require`ing `scope.js`'s `readLedgerHeader`. It reads the
@@ -849,11 +952,15 @@ dispatch rows pin that command's own dispatch sentence — the prose that reache
 runtime alongside the agent body — so it hands the result, names which run it is, and tells the reviewer
 to review against it,
 running no suite of its own, never that its own re-run "stays optional." That sentence is the live path: a
-leak there reopens the duplicate run regardless of what `agents/final-reviewer.md` itself still says. The
-`references/run-handoff.md` row covers the other end: its run handoff still runs the scope's one full
-suite itself, in place of the review an all-`mechanical` or all-`docs` scope skips. It is the one
-full-suite run no other row covers, and the `afk-routing` check sends such a scope past `/superdev:review`
-on the strength of it. Losing any one row quietly reopens the gap ADR 0025 closed.
+leak there reopens the duplicate run regardless of what `agents/final-reviewer.md` itself still says.
+Further rows sit on `references/run-handoff.md`, implement's own full-suite run — every scope gets exactly
+this one, whatever its slice types (ADR 0091): the entry run itself, and the fix loop's own two clauses —
+a cycle inside it runs only the focused command over the commits that cycle's implementer just landed, and
+a cycle's clean focused run is followed by exactly one full re-run, whose own red result counts toward the
+loop's 3-strike cap. Losing any one row quietly reopens a gap: dropping the entry run leaves every scope
+reaching `/superdev:review` with nothing for it to reuse (INV-0017); dropping the focused-only clause
+reinstates a full suite per cycle, the cost ADR 0075's loop shape avoids; dropping the exit run lets a fix
+read as done the moment its own diff passes narrowly, with the full suite never run again.
 The `paths-derivation` contract (ADR 0074), one row per branch `skills/setup/SKILL.md`'s decision **E**
 takes, plus one row per section of `references/test-selection.md` that states the self-detecting-flag
 clause — the `{paths}`-token section, anchored on the worked `vitest --changed --passWithNoTests` and
@@ -869,8 +976,8 @@ prose beside it, and the write step's own examples are pinned the same way, incl
 one. Losing a row leaves a repository on the wrong command while the rest keep the check green, and
 losing the fast-subset row is the expensive direction: it routes every non-mapping runner back to `none`,
 which is the full suite at every in-loop caller — the cost ADR 0025 removed.
-Four more rows guard the stop half of ADR 0085 / INV-0007, the side that replaced silent inference with a
-loud one: two on `references/test-selection.md` — its `## Stop on a missing focused command` section
+Further rows guard the stop half of ADR 0085 / INV-0007, the side that replaced silent inference with a
+loud one: rows on `references/test-selection.md` — its `## Stop on a missing focused command` section
 naming `/superdev:setup` on one fenced block, unreachable once `/superdev:plan`/`/superdev:implement`
 have auto-invoked setup, and its naming of `hooks/green-gate.js` as the one exception that runs the full
 command and emits a notice instead of stopping — plus one row each on `skills/plan/SKILL.md` and
@@ -896,7 +1003,7 @@ missing review or document step) using the identical ask-once and refuse-under-`
 for a different question. Both halves are therefore matched inside the "Entries standing." paragraph
 alone, extracted with the same `extractSection()` helper `scanAnchorContract()` uses, anchored on the
 paragraph's bolded lead-in rather than a markdown heading. A whole-file match lets the unrelated gate
-satisfy either half after the entries-standing gate's own clause is deleted. A consumer that keeps §5's
+satisfy either half after the entries-standing gate's own clause is deleted. A consumer that keeps §4's
 `## Unresolved defects` pull-request heading and loses either half still reads right and ships a broken
 branch, the exact failure every other contract in this file exists to catch. The `unresolved-glossary` contract
 (ADR 0026), `scanUnresolvedGlossaryContract()`: `CONTEXT.md`'s **Degraded pass** and **Unresolved defect**
@@ -911,18 +1018,19 @@ does anywhere else in this file. Both sides of the comparison are whitespace-nor
 whitespace, including a line break, collapse to a single space. That matters because `CONTEXT.md` and
 `references/scope-mode.md` are hard-wrapped and a canonical clause can span a line break in the real
 document. Nothing executes the glossary, so it is the copy most likely to drift.
-The `afk-routing` contract (ADR 0025), three rows: `skills/afk/SKILL.md`'s stage table reads each
-slice's `type` off the ledger and routes an all-`mechanical` or all-`docs` scope from `merged` to
-`/superdev:document ... --unattended` and from `documented-unreviewed` to `/superdev:ship ...
---unattended`, and `skills/ship/SKILL.md` drops `/superdev:review` from its own missing-step warning for that
-same scope. Such a scope skips the whole-scope review by design, because there is no Definition-of-Done
-judgment to attach one to. A table that routes it into the review therefore strands the feature: the
-review has nothing to judge, and `/superdev:ship --unattended` still refuses a scope whose review never
-ran, which no sweep can clear. Each afk.md row also requires `--unattended` past the command name: this
-paragraph is prose, not a stage-table row, so `scanAfkInvocations`'s row scan never reaches it, and a row
-that drops the token strands an unattended sweep at an interactive question with nothing reported. Both
-documents are pinned because either alone reads correct while the pair disagrees, which is how the defect
-reached `main` in the first place. The `arg-token` contract: `hooks/merge-guard.js`,
+The `afk-routing` contract (ADR 0091) pins `skills/afk/SKILL.md` stating that every scope passes
+review, whatever its slice types, and that its stage table routes every scope through `/superdev:review`
+with no special case for an all-`mechanical`/`docs` ledger — the retired route that once sent such a
+scope from `merged` straight to `/superdev:document`, and from `documented-unreviewed` straight to
+`/superdev:ship`, is gone (it superseded ADR 0025's skip of the whole-scope review). `skills/ship/SKILL.md`
+dropped its own half of that retired agreement too — the all-`mechanical`/`docs` exemption from its own
+missing-step warning — so this table carries no ship row: `/superdev:ship` §3 now names
+`/superdev:review` as missing for such a scope like any other. The same table's second row (triage #661)
+pins that `skills/afk/SKILL.md` blocks a second document-to-review send-back of the same anchor in the
+same sweep, through the ordinary unattended block path and counting toward the consecutive-block cap,
+rather than sending it back to `/superdev:review` a second time — afk carries this count in its own
+working memory alone, so nothing pins a written record of it. The
+`arg-token` contract: `hooks/merge-guard.js`,
 `hooks/green-gate.js`, and `hooks/ledger-guard.js` each carry the canonical `const ARG = …` shell-word
 token **verbatim**. The three parse the same shape out of a Bash command line by hand, and nothing links
 the copies, so this pins the literal rather than testing mutual equality. A token that narrows in one
@@ -936,36 +1044,36 @@ seeds the section as optional, for `/setup` to fill in. These documents agree on
 prose, the same shape as the `afk-routing` and `arg-token` pairs. A renamed heading or a dropped
 fallback clause leaves the section unreachable in every repo that carries it, unnoticed, until a doc
 audit runs on one and finds nothing there.
-The `chained-code-review` contract (ADR 0068), three rows on `skills/review/SKILL.md`: it still names
+The `chained-code-review` contract (ADR 0068) pins rows on `skills/review/SKILL.md`: it still names
 `--chained`, the signal a sweep passes its code leg; it still runs no `git add -N :/` once that flag is
 present, so the leg never writes an intent-to-add entry into the index; and it still never enters scope
-mode, whatever the invoking checkout's `HEAD` is. Three rows because the signal and its two behaviours sit
-in three places in §1 — the extraction, the untracked-files step, and the scope-mode bullet — and a row
+mode, whatever the invoking checkout's `HEAD` is. Separate rows because the signal and its behaviours sit
+in separate places in §1 — the extraction, the untracked-files step, and the scope-mode bullet — and a row
 anchored where each lives is what keeps an edit to just one of them from leaving the others silently
 unpinned, the same shape `chained-doc-audit` and `chained-test-audit` already use. Only the code leg can
 reach scope mode — the other three legs never could — so this contract closes that one risk by
 construction: `--chained` makes every write path scope mode opens unreachable from the code leg, with
 nothing for `/superdev:sweep` itself to check or refuse first.
-The `chained-doc-audit` contract (ADR 0068), two rows on `skills/document/SKILL.md`: it still names
+The `chained-doc-audit` contract (ADR 0068) pins rows on `skills/document/SKILL.md`: it still names
 `--chained`, the signal a sweep passes its doc leg, and it still dispatches no `doc-writer` and commits
 nothing once that flag is present, whatever the reader found. Both rows pin the same document because
 the signal and the posture it triggers live in one place — losing either half silently reopens the
 mid-sweep commit ADR 0068 rejects, while the suite stays green and the prose still reads correct on its
 own.
-The `chained-test-audit` contract (ADR 0068), four rows on `skills/review-tests/SKILL.md`: it still
+The `chained-test-audit` contract (ADR 0068) pins rows on `skills/review-tests/SKILL.md`: it still
 names `--chained`, the signal a sweep passes its test leg; it still runs no `AskUserQuestion` once that
 flag is present; it still labels every dead-or-ignored-test finding `fact` and every remaining finding
 `judgment`, keeping that split distinguishable in what it returns — the sweep's own agreement round asks
 about judgments alone; and it still writes no intent and prints no handoff, returning the findings to
-the caller instead. Four rows because the signal and its three behaviours sit in three places in the
-file — §1's extraction, §5's round and its label, and §6's write — with §5 alone hosting two of the
-four. A row anchored where each lives is what keeps an edit to just one of them from leaving the others
+the caller instead. Separate rows because the signal and its behaviours sit in separate places in the
+file — §1's extraction, §5's round and its label, and §6's write — with §5 alone hosting more than one
+of them. A row anchored where each lives is what keeps an edit to just one of them from leaving the others
 silently unpinned, the same one-sided-pin shape `chained-doc-audit` guards against on the doc leg. The
 §6 row is anchored on that section's own bolded clause (`**\`--chained\` present** — write no intent and
 print no handoff`), not on a `--chained`-then-window match: an earlier, unrelated bullet in §1 also pairs
 `--chained` with the phrase "write no intent and print no handoff" within the same window, so a looser
 pattern stays green even once §6's own clause is rewritten to write something.
-The `sweep-chained-legs` contract (ADR 0068), four rows on `skills/sweep/SKILL.md`: it still dispatches
+The `sweep-chained-legs` contract (ADR 0068) pins rows on `skills/sweep/SKILL.md`: it still dispatches
 its code leg as `/superdev:review <path> --chained`, its doc leg as `/superdev:document audit --chained`,
 its test leg with `--chained`, and its config leg as `/superdev:setup check` rather than bare
 `/superdev:setup`. Each row is anchored on §2's dispatch table row for that leg, never on the bare
@@ -977,7 +1085,7 @@ pinned the caller side until `/superdev:sweep` existed to dispatch it, so a late
 (or, on the config leg, the `check` argument) from the sweep's own table while every callee contract stayed
 green — the code, doc, or test leg would then read and repair the sweep's own tree mid-sweep, unchained, or
 the config leg would open the full interactive interview mid-sweep, with nothing failing to say so.
-The `aggregate-page` contract (ADR 0027), three rows. `references/doc-pass.md` and
+The `aggregate-page` contract (ADR 0027) pins rows. `references/doc-pass.md` and
 `skills/plan/SKILL.md`, the two stagers, each stage `action: patch` carrying one section for an outline
 entry marked aggregate. `plugin/scripts/publish-kb.js` applies it by merging through `kb-patch.js`'s
 exported `merge()`, and `references/knowledge-base-confluence.md` documents the `(aggregate)` marker
@@ -988,7 +1096,7 @@ paraphrase its own merge call away the way a document's prose could drift from w
 marker row is the quietest to lose. Every other document still reads correct, the doc pass never marks a
 page, and it stages `upsert` forever, replacing an aggregate page with the one section a scope can see.
 That is the state that left this repository's own `ADR summaries` page four decisions stale.
-The `read-path` contract (ADR 0027), one row on `docs/agents/knowledge-base.md`: a config document that
+The `read-path` contract (ADR 0027) pins a row on `docs/agents/knowledge-base.md`: a config document that
 marks an outline entry `(aggregate)` documents the call that returns a `patch`'s live body. The row is
 conditional rather than a bare pattern: it documents a call returning the page body only when it marks
 some outline entry `(aggregate)`, so a config document that marks none owes no read, and the row is
@@ -1001,7 +1109,7 @@ file staged. That row retired (ADR 0069): `plugin/scripts/publish-kb.js`'s `publ
 branch as code, not prose a document could drift from, and `tests/publish-kb.test.js` proves every arm
 directly — a read failure, an empty body, and a missing `read` template each leave the staged file on
 disk, name the reason, and create nothing.
-The `publish-kb-invocation` contract (slice #493, ADR 0069), one row: `skills/publish-kb/SKILL.md` still
+The `publish-kb-invocation` contract (slice #493, ADR 0069) pins a row: `skills/publish-kb/SKILL.md` still
 invokes `node "${CLAUDE_PLUGIN_ROOT}/scripts/publish-kb.js"`. Once the skill's own job shrank to the two
 human stops and relaying the script's report, nothing else stops a future edit from having a model hand-run
 the old mechanics again instead of calling the script — a reviewer flagged exactly this gap on the slice
@@ -1050,20 +1158,20 @@ carries it. A document stating the migration in running prose alone matches noth
 from the highest number already present and never reuses one. Its `id` is the file number `/plan`
 itself assigns, unlike an issue backend's server-assigned key, which already satisfies the id rule on
 its own. The
-`status-seed` contract (ADR 0004), two rows against `references/run-init.md`: it carries a `"status"` field
+`status-seed` contract (ADR 0004) pins rows against `references/run-init.md`: it carries a `"status"` field
 in the JSON its run init pipes into `scope.js init`, and it states that a slice the store reports as merged
 seeds `merged` and is never dispatched. Append mode never renumbers or re-merges a slice already shipped,
 so a second run over a feature whose earlier slices merged must seed each loaded slice's real status rather than defaulting
 every row to `todo`, and skip every row already seeded `merged` rather than re-dispatching it. A document
 that drops the field, or drops the never-dispatched clause while keeping the field, silently re-dispatches
-a merged slice either way, so the two rows fail independently.
-The `plan-append` contract (ADR 0004), six rows: five against
-`skills/plan/SKILL.md` and one against `references/plan-contract.md`. Its §0 asks whether the feature is new or extended before the interview begins, and
+a merged slice either way, so the rows fail independently.
+The `plan-append` contract (ADR 0004) pins rows against
+`skills/plan/SKILL.md` and `references/plan-contract.md`. Its §0 asks whether the feature is new or extended before the interview begins, and
 states that answering "new" makes no store call. It states the store refusal signal (a slice
 `in-progress`, `in-review`, or `blocked` elsewhere) as one row, and the ledger refusal signal — a run
 root whose stage is other than `planned` — as another. Losing either therefore
 fails on its own rather than only in aggregate. It states the single-slice epic-promotion clause,
-including that the lone slice is left untouched. The last two rows pin ADR 0043's exception to that
+including that the lone slice is left untouched. Further rows pin ADR 0043's exception to that
 byte-identical rule. A promoted lone slice's anchor-dependency line migrates to the new epic. Each row
 falls on one of the two documents `scanAppendContract` cannot reach, since neither is a store document:
 `references/plan-contract.md`, which states the generic contract every store specialises, and
@@ -1072,8 +1180,8 @@ around a hole.
 Each refusal row is anchored on the condition's own wording, not on the rationale sentence
 that explains it a few lines below, so a document that keeps the rationale but loses the
 condition still fails.
-The `shipped-append` contract (ADR 0083, INV-0004), four rows: three against `skills/plan/SKILL.md` and
-one against `references/plan-contract.md`. `/superdev:plan`'s extend path states that a feature whose
+The `shipped-append` contract (ADR 0083, INV-0004) pins rows against `skills/plan/SKILL.md` and
+`references/plan-contract.md`. `/superdev:plan`'s extend path states that a feature whose
 anchor has shipped takes no append, names both signals that trigger the refusal and that either one
 alone refuses — a run root whose ledger stage reads `shipped`, and a scope anchor at the store's done
 status — and names the remedy, a new feature carrying `**Blocked by feature:** #<anchor>`.
@@ -1138,25 +1246,25 @@ existed when `/superdev:plan` itself became an `init` caller over a `shipped` le
 issue-tracker.md`'s ADR 0004 append flow). `tests/scope.test.js` carries the rotation's own coverage: the
 fresh ledger lands at the requested entry stage, the rotated file carries the shipped ledger byte for
 byte, a second same-day rotation never overwrites the first, and nothing is deleted. The
-`parked-questions` contract (ADR 0004, ADR 0005), two rows against `skills/plan/SKILL.md`. It surfaces an
+`parked-questions` contract (ADR 0004, ADR 0005) pins rows against `skills/plan/SKILL.md`. It surfaces an
 epic's `## Parked questions` the moment §0 loads it, before the interview diverges into new ground. A
 question the interview resolves has its line deleted from that section, with the new slice's `spec`
 and `acceptance` standing as the sole record, because `references/domain-modeling.md`'s revise-in-place
 rule forbids holding both. Losing either row independently: a document that keeps surfacing questions but
 stops deleting a resolved one's line leaves two records of the same decision, and one that stops
 surfacing them silently strands a load-bearing decision no later interview ever revisits. The
-`run-kind` contract (ADR 0028, ADR 0045, ADR 0053, ADR 0083), eight rows against
+`run-kind` contract (ADR 0028, ADR 0045, ADR 0053, ADR 0083) pins rows against
 `references/scope-mode.md`. Its
 `## Cutting the scope branch` section specifies the branch step for both run kinds. `fresh`
 cuts one from `<base>`, and where a squash-merging host or a scope-prune reap left a same-named branch
 standing it decides on the same contained-or-gone test `## Containment` owns (ADR 0007) — its
 **Present** branch delegating that decision to the document's own `## Containment` section rather than
 naming a git command of its own. `resumed` runs no
-containment test and cuts nothing. `fresh` gets four rows, one per clause it carries — the cut, the
+containment test and cuts nothing. `fresh` gets one row per clause it carries — the cut, the
 taken name, the contained-or-gone decision, and the delegation; `resumed` gets one. ADR 0083 retired the
 `appended` run kind and its rows with it: a shipped feature takes no append, so no run finds a `shipped`
 ledger rotated aside mid-chain, and `fresh` states the containment test it used to cite.
-Two further rows carry ADR 0053's other halves. One pins the `## Containment` section itself — the
+Further rows carry ADR 0053's other halves. One pins the `## Containment` section itself — the
 `git merge-tree --write-tree` test, and the git 2.38 floor its fallback covers — because
 two sections and `skills/publish-kb/SKILL.md` §3 all delegate to it, and a delegation pinned against a
 section nothing pins is the one-sided shape the root doc's prompt-architecture rules name. The other
@@ -1213,7 +1321,7 @@ shape until this check, so a later edit could reintroduce "return to the control
 enumerates, with the suite staying green throughout. A bare mention of the controller, the command body,
 or `/superdev:implement` is legitimate prose on its own. Only a directional verb paired with one of those
 targets is a gap.
-The `playbook-edges` contract (ADR 0029), four rows: both execution playbooks still name
+The `playbook-edges` contract (ADR 0029) pins rows: both execution playbooks still name
 `references/run-init.md` as their opening step and `references/run-handoff.md` as their closing one. The
 `return-to-controller` check is the negative half of the run's one-directional shape, an instruction
 to go back. This is the positive half, that a playbook still points forward at all. Deleting "read
@@ -1222,7 +1330,7 @@ still resolves and nothing points back to the controller either. The run then en
 `scope.js stage set merged` write and, on an all-`mechanical` or all-`docs` scope, with no full-suite run
 anywhere in the chain.
 
-The `doc-pass` contract (ADR 0031), three rows. `agents/doc-writer.md` and
+The `doc-pass` contract (ADR 0031) pins rows. `agents/doc-writer.md` and
 `references/implement-lite.md` each read `references/doc-pass.md`, the file that states the documentation
 pass they perform. The pass has two callers, the dispatched writer and the `lite` execution playbook's
 controller working in its own context, so it is stated once and read by both. A caller that drops the
@@ -1341,7 +1449,7 @@ prompt-the-positive rule keeps a "never run the suite" line out of always-loaded
 is enforced by test instead. This is a shape-based prose guard, not a grammar: it catches the phrasings
 named above, not every paraphrase a maintainer could write, and the reviewer's eye covers the rest.
 
-The `fix-boundary` contract (ADR 0035), three rows on `skills/review/SKILL.md`. §4's fix loop
+The `fix-boundary` contract (ADR 0035) pins rows on `skills/review/SKILL.md`. §4's fix loop
 states that it changes **how** the code meets the Definition of Done, that a remedy adding a
 capability the Definition of Done never named is recorded and handed to `/superdev:plan`, and that a
 deferred finding enters no fix loop and is not an unresolved defect — taking precedence over
@@ -1355,10 +1463,10 @@ That is not hypothetical: it is what the run this check comes from did, and two 
 settling the addition. The boundary sits at the Definition of Done rather than at "behaviour", since
 repairing a defect in planned behaviour is frequently behavioural and stays in the loop.
 
-The `denial-authorship` contract (ADR 0039), seven rows. Three sit on
+The `denial-authorship` contract (ADR 0039) pins rows. Rows sit on
 `references/scope-mode.md`: the rule names the **verification dispatch**es it governs, keys the unattended
 stop on whether the controller authored what the denied pass verifies, and derives the tier from the
-ledger's slice rows. The other four sit on `skills/review/SKILL.md`, `skills/document/SKILL.md`,
+ledger's slice rows. Further rows sit on `skills/review/SKILL.md`, `skills/document/SKILL.md`,
 `skills/implement/SKILL.md`, and `references/implement-full.md`, the documents that dispatch one of those passes. A dispatch is the later,
 more specific instruction, so a call site still reading "unattended → block" wins the conflict and the
 central rule becomes prose nothing executes — the one-sided pin ADR 0035 names, which is why the call
@@ -1373,7 +1481,7 @@ rule decides what a *single* denial costs; this one bounds how many an unattende
 scans under one id: `DENIAL_CAP_CONTRACTS`, a table of presence checks, and `scanDenialCapNumberSilence`,
 an absence check over the same call sites. The rows on
 `references/scope-mode.md` are the cap itself (an unattended run blocks on its **second denied verification
-dispatch**), the recording verb `degraded add-denial`, and the read `get denials`. Two rows each sit on
+dispatch**), the recording verb `degraded add-denial`, and the read `get denials`. Rows also sit on
 `skills/review/SKILL.md`, `skills/document/SKILL.md`, `skills/implement/SKILL.md`, and
 `references/implement-full.md` — the same documents `denial-authorship`'s table pins, because a document that
 dispatches a verification pass is exactly one that records its denial. Each carries both halves, and each
@@ -1383,8 +1491,8 @@ centrally and executed nowhere, so the run rides on to Claude Code's own three-d
 terminates a headless sweep outright, with no `blocked` label, no comment, and a stranded run root. The
 presence check on `add-denial` is deliberate where an absence check on `degraded add` would be wrong: the
 plain verb stays correct for the other degraded shape, and `references/implement-lite.md` legitimately
-uses it for a knowledge-base pass it could not stage. Same shape-based ceiling as its siblings. The last
-five rows tie the plain verb to an *authoring* dispatch by name on `skills/review/SKILL.md`,
+uses it for a knowledge-base pass it could not stage. Same shape-based ceiling as its siblings. Further
+rows tie the plain verb to an *authoring* dispatch by name on `skills/review/SKILL.md`,
 `skills/document/SKILL.md`, `skills/implement/SKILL.md`, and `references/implement-full.md` (a document that
 dispatches both an authoring pass and a verification one has to say which is which, or every denial in
 that breath reads as the classifier's, and the plain-verb branch goes dead), plus one narrowing
@@ -1408,14 +1516,14 @@ paragraph itself with `extractParagraph()`, narrower than `anchor-contract`'s se
 (the eligibility bullet reads it) — a section-wide match would pass on that restatement alone even after
 the intro paragraph itself reverted to "four".
 
-The `publish-run-state` contract (ADR 0042), twenty-one rows. `references/scope-mode.md`
+The `publish-run-state` contract (ADR 0042) pins rows. `references/scope-mode.md`
 carries the `## Publishing run state` section, stating that publishing follows any ledger write the
 snapshot would show — not `stage set` alone — with one exception, a slice-row move, and stating the
 criterion for which write cites the section *directly*, in its own "Which sites cite this directly"
 paragraph: a write whose own instruction can end the command — a block, a stop, a refusal — before any
 later write in the same run reaches a site that already cites the section gets a direct citation at the
 write; every other write relies on its defining section's own citation instead, since the run is guaranteed
-to reach a citing site regardless of which branch it takes. Four more rows sit on that same file: its
+to reach a citing site regardless of which branch it takes. Further rows sit on that same file: its
 `## Degraded passes`, `## Unresolved defects`, and `## Deferred findings` sections, and `## The ledger`'s
 `**Docs:**` bullet, each carry the publish instruction where they name their own write.
 
@@ -1427,7 +1535,7 @@ too weak the moment a file carries more than one citation: `skills/review/SKILL.
 `references/run-handoff.md` each already satisfied a bare per-file row from an unrelated branch's citation
 (the clean-verdict write, the `stage set merged` write), so three sites where a denied dispatch or a denied
 full-suite run writes `**Degraded:**` and then blocks unattended — reaching no later write in the same run —
-sat uncited with the check green throughout. The remaining fifteen rows are the sites that write one of
+sat uncited with the check green throughout. The remaining rows are the sites that write one of
 those ledger lines, each anchored on text unique to its own write wherever its file carries more than one
 citation, not merely the repeated section name: six on `skills/review/SKILL.md` (a denied `final-reviewer`
 dispatch, a denied full-suite dispatch in its own scope-mode fix loop, the "Declined" stop, the 3-strike-cap
@@ -1455,7 +1563,7 @@ no notion of position, and an ordering regression there would need a human or a 
 way these three fix cycles did.
 
 The `adopt-run-state` contract (ADR 0042), the mirror image of the `publish-run-state` check: where
-publishing writes the ledger onto the anchor, adopting reads it back. Six rows sit on
+publishing writes the ledger onto the anchor, adopting reads it back. Rows sit on
 `references/run-init.md`'s `## Run init` step: that a missing local ledger triggers a check of the scope
 anchor for a snapshot to adopt, skipping straight to `init` on a store that declares itself
 snapshot-less; that a failed anchor read falls through to `init` too, reported once rather than treated as
@@ -1463,7 +1571,7 @@ a stop; that a `shipped` stage or a section-less anchor is not adopted, also fal
 that adopting writes `<run-root>/dod.md` from the anchor body before piping it to `scope.js adopt`, the
 ordering ADR 0042 states explicitly; that the adopted slice table gates no re-dispatch on its own, because
 the playbook's own Resume reconciliation against `git log` decides that instead; and that the run kind for
-an adopted ledger is named `resumed`, beside a ledger already on disk. Three more rows sit on
+an adopted ledger is named `resumed`, beside a ledger already on disk. Further rows sit on
 `references/scope-mode.md`'s `resumed` branch bullet: that a name which does not verify locally is fetched
 from the remote `docs/agents/code-management.md` names before the stop, since a fresh clone or a
 just-adopted ledger holds no scope branch until that runs; that the post-fetch check re-verifies the
@@ -1474,7 +1582,7 @@ after two review passes read the wrong-ref sentence as correct; and that the sto
 finds nothing either, still names the branch it looked for and blocks rather than asks under
 `--unattended`.
 
-The `resumed-scopetree-trigger` contract (ADR 0042, ADR 0045), one row: `references/scope-mode.md`'s action in
+The `resumed-scopetree-trigger` contract (ADR 0042, ADR 0045) pins a row: `references/scope-mode.md`'s action in
 that same `resumed` branch bullet creates or reattaches the scopetree, at both tiers, whenever it is absent for either
 cause — `/superdev:ship` already removed it, or this checkout never held it at all, the case
 `adopt-run-state` makes reachable on a fresh clone. A fix cycle found the sentence named only the first
@@ -1487,12 +1595,12 @@ which branch gets fetched, versus which scopetree gets created — and no fixtur
 distinguished "removed by ship" from "never created", so a regression narrowing the sentence back to one
 cause would have passed silently.
 
-The `run-lock-liveness` contract (INV-0013, ADR 0090), eight rows across `references/scope-mode.md`,
+The `run-lock-liveness` contract (INV-0013, ADR 0090) pins rows across `references/scope-mode.md`,
 `references/run-init.md`, and both execution playbooks. Two sessions dispatched onto one released
 feature both worked its run root: the only liveness check that existed lived in each playbook's own
 `Resume` section, reached after `run-init.md` had already written `dod.md` and advanced the ledger's
 stage — a plain file write consults no lock, and `hooks/run-lock.js` guards only `git worktree add`, the
-scopetree's own creation, never an entry into one that already exists. Five rows pin the rule itself,
+scopetree's own creation, never an entry into one that already exists. Rows pin the rule itself,
 stated once in `scope-mode.md`'s `## The run lock`: `/superdev:implement`'s own entry into an existing run
 root reads the ledger's stage together with the lock's mtime before its first write, a `planned` stage at
 any lock age is the ordinary hand-off from `/superdev:plan`'s own cut and never a collision, any stage
@@ -1504,7 +1612,7 @@ A fresh lock and a stage past `planned` are both true by construction at every o
 hand-off, since each command refreshes the lock and advances the stage at its own exit — which is why the
 rule is scoped to `/superdev:implement` alone: that is the one caller a second, independent invocation can
 redispatch onto a live implement run, where review/document/ship's entry is instead the chain's own single designed
-hand-off. The remaining three rows
+hand-off. The remaining rows
 pin `run-init.md`'s and both playbooks' own deferral — `run-init.md` takes the check as its first step,
 ahead of the DoD write and the ledger-stage advance, naming `<scope>` as the feature label the calling
 command already resolved; both playbooks' `Resume` sections state that run init's own entry step already
@@ -1530,9 +1638,9 @@ table, so a new agent is covered the day its file lands. `skills/setup/SKILL.md`
 name such commands legitimately, as interview and focused-command examples, which is why the scan covers
 `agents/` alone.
 
-The `scopetree` contract (ADR 0045), twenty-one rows: the `full` tier cuts its scope
+The `scopetree` contract (ADR 0045) pins rows: the `full` tier cuts its scope
 branch into the same dedicated scopetree the `lite` tier uses, `.superdev/scopes/<scope>/scopetree`,
-and does every merge there — the invoking checkout is never switched, at either tier. Five rows sit on
+and does every merge there — the invoking checkout is never switched, at either tier. Rows sit on
 `references/scope-mode.md`. `## The scope checkout` resolves to that one location for both tiers, states
 the `git worktree add .superdev/scopes/<scope>/scopetree <branch>` call that recreates an absent one,
 states that a `run-lock` refusal met while recreating is this run's own lock rather than a competing
@@ -1542,7 +1650,7 @@ chain, is what blocks it — and names a stop, writing nothing, when a different
 the branch — the same reuse the retired `run-kind` row used to describe split by tier. `## The run
 lock` states that both tiers write `<run-root>/run.lock`, and only once `## Cutting the scope branch` has
 already cut the scopetree, or the `run-lock` hook's own guard on `git worktree add` would block the run
-making that very call. Five more rows sit on `references/implement-full.md`, the tier ADR 0045 actually
+making that very call. Further rows sit on `references/implement-full.md`, the tier ADR 0045 actually
 changed: its Branch model states that every later command in the file — every merge — addresses the
 scopetree with `git -C` rather than the invoking checkout, once the cutting/reuse command itself has run
 from that checkout the way any `git worktree add` does; its DAG loop's merge step addresses that scopetree
@@ -1552,19 +1660,19 @@ its Resume step finds the scopetree — present, recreated, or a named stop — 
 it; its own `## Run lock` section reads scope-mode.md's `## The run lock` — a fix cycle otherwise found
 this file with no lock section at all while two other documents still claimed the lock was lite tier only.
 (Its Resume step's own liveness-check deferral is the `run-lock-liveness` contract's own row — INV-0013,
-ADR 0090 — pinned there once rather than restated here.) One more row sits on `references/implement-lite.md`: its
+ADR 0090 — pinned there once rather than restated here.) Another row sits on `references/implement-lite.md`: its
 `## Run lock` section reads scope-mode.md's `## The run lock` rather than restating who writes the lock
 and when, now that the rule covers both tiers there — the same caller-reads-the-rule shape the `doc-pass`
-contract already uses. Two more rows sit on `references/run-init.md` and `references/run-handoff.md`: each
+contract already uses. Further rows sit on `references/run-init.md` and `references/run-handoff.md`: each
 lists `run.lock` with no `lite tier only`/`(lite tier)` qualifier, since a qualifier is the later, more
-specific instruction and silences scope-mode.md's shared rule for the full tier. Three more rows sit on
+specific instruction and silences scope-mode.md's shared rule for the full tier. More rows sit on
 `skills/review/SKILL.md` — a fix cycle found this chain-tail command naming no working directory anywhere, so
 its §4 tested the controller's own invoking checkout against `<type>/<scope>` instead of the scope
 checkout, ran the full suite nowhere in particular, and could hand a fix-cycle implementer no working
 directory at all, landing commits on the base branch in the operator's own clone. The rows pin its
 scope-checkout branch test, its full-suite run in the scope checkout, and its fix-implementer dispatch
 handing over the scope checkout as a working directory — the same working-directory statement
-`implement-full.md` and `document.md` already carry. Two more rows sit on `references/run-handoff.md` for
+`implement-full.md` and `document.md` already carry. More rows sit on `references/run-handoff.md` for
 the same class of gap on its own only full-suite run: a scope of all `mechanical`/`docs` slices reaches no
 other verification before `/superdev:ship`, so its full-suite run and its Red-branch fix dispatch each
 naming no working directory reached the invoking checkout on the full tier — sitting on the base branch by
@@ -1604,28 +1712,28 @@ above sat unexercised: the table pins eight documents and the fixture named seve
 wraps `scanContract` for the run and records, per table, every document any call actually resolves (via
 `readDoc`, so a `realRoot` call counts too); once every suite has run, it asserts each table's recorded
 set covers every document the table pins, naming both the table and the document, since "a fixture is
-incomplete" leaves the reader searching twenty-one rows. This covers every table any suite scans, with no
+incomplete" leaves the reader searching every row the table pins. This covers every table any suite scans, with no
 per-table call and no hand-typed document list to fall out of sync with the fixtures — including a table
 like `FULL_SUITE_CONTRACTS` whose fixtures are legitimately split across many small calls, since the
 recorded set just accumulates across the run instead of needing one fixture to carry every document at once.
 
-The `denial-reset` contract (ADR 0044), four rows, all on `references/scope-mode.md`: the cap
+The `denial-reset` contract (ADR 0044) pins rows, all on `references/scope-mode.md`: the cap
 the `denial-cap` check pins has a way back, and it is only reachable where two of that file's sections
 state it.
-Three rows sit on `## Degraded passes` — the reset command with its required reason
+Rows sit on `## Degraded passes` — the reset command with its required reason
 (`degraded reset-denials '<reason>'`), what it does to the count and to the record (the count runs from
 the last reset marker, so every recorded denial survives), and that a reset is a human act no command in
-the chain performs. The fourth sits on `## Unattended`'s block procedure, which names the reset command in
+the chain performs. Another sits on `## Unattended`'s block procedure, which names the reset command in
 the comment a capped run leaves on the anchor. The two halves fail independently and for different
 reasons. A section that drops the reset leaves the cap append-only, which is the state ADR 0044 amends:
 the maintainer adds the denied dispatch to `permissions.allow`, resumes, and the resumed run reads the
 same bullets and blocks on the next denial from any cause. A block that stops naming the command leaves
 the reset stated in a document nobody reaching that block is reading — the quoted refusal is in the
-comment, and the way back is a section away. The fourth row's pattern spans from `comment on the anchor`
+comment, and the way back is a section away. That row's pattern spans from `comment on the anchor`
 to `reset-denials`, so it matches inside the block procedure rather than anywhere the file happens to say
 both words.
 
-The `triage-record` contract (ADR 0046, ADR 0088): a scanner plus two rows. `scanTriageRecordContract`
+The `triage-record` contract (ADR 0046, ADR 0088): a scanner plus rows. `scanTriageRecordContract`
 (`scripts/drift/scanners.js`) walks `storeDocuments()` for the presence half — the same call
 `scanAnchorContract` and `scanReleaseContract` already make over the same candidate list, every
 `references/issue-tracker-*.md` seed plus this repo's own dogfooded `docs/agents/issue-tracker.md` — and
@@ -1646,7 +1754,7 @@ a create call and a list call but no exclusion clause clean. This is exactly the
 seed could have walked through (issue #357). The pattern requires the literal phrase "candidate
 listing" inside the section. This is the vocabulary every shipped seed's own exclusion bullet already
 carries, so no seed document needed editing when this element was added. Only the checker gained
-teeth. Two more rows, a table
+teeth. Further rows, a table
 run through `scanContract()`, sit on `skills/review/SKILL.md` and `references/scope-mode.md`, the two
 documents that write it. The record is what makes a deferred finding outlive the run root
 `hooks/scope-prune.js` reaps and the scope anchor `/superdev:ship` closes — on the local plan-file
@@ -1674,7 +1782,7 @@ selects as work to build, and no pattern here catches that.
 The `specialising-citations` contract: every store document cites the generic contract each
 section it carries specialises. `scanSpecialisingCitations` (`scripts/drift/scanners.js`) walks the same
 `storeDocuments()` candidate list that `anchor-contract`, `append-mode`, `release-contract`,
-`triage-record`, `run-state-contract`, and `assignee` each walk, and for each member of the
+`triage-record`, `run-state-contract`, `dod-ticks-contract`, and `assignee` each walk, and for each member of the
 **specialising family** reports a section that no longer names `` `plan-contract.md` → *<section>* ``
 anywhere inside itself.
 
@@ -1682,8 +1790,8 @@ anywhere inside itself.
 second edit: the generic-side row in `SOURCE_SECTION_CONTRACTS` (built by `specialisingGenericRows()`),
 this citation assertion, and the heading each is found by (`specialisingHeading()`). The store-side
 presence contract is the one side that stays per-section, because each has its own elements to assert.
-The list holds `Scope anchor`, `Release`, `Run state`, `Append mode`, `Triage record`, and
-`Assignee`.
+The list holds `Scope anchor`, `Release`, `Run state`, `Append mode`, `Triage record`,
+`Assignee`, and `Definition of Done ticks`.
 
 **The membership rule:** a section is a member when `plan-contract.md` states its generic contract **and
 at least one store document renders it as its own section**. `Assignee` passes — every store
@@ -1754,21 +1862,21 @@ a citation inside a fenced example neither triggers the check nor satisfies it. 
 backticked heading alone: an entry that defers in unbackticked prose passes silently. The
 `ponytail:` note beside `glossaryHeadingReference` in `drift/contracts.js` states that ceiling.
 
-The `backlog-survey` contract (ADR 0049): four rows on `skills/backlog/SKILL.md`, the read-only
+The `backlog-survey` contract (ADR 0049) pins rows on `skills/backlog/SKILL.md`, the read-only
 survey that reports every open scope anchor, every triage record, and every stranded run root by the
-action it needs. Two rows pin
+action it needs. Rows pin
 the coupling that matters — the command names `` `## Scope anchor` `` and `` `## Triage record` ``, so the
 candidate listing and the triage listing both resolve through whichever `docs/agents/issue-tracker.md` is
-active rather than through a query written into the command. A third pins `scope.js get stage`, the same
+active rather than through a query written into the command. Another pins `scope.js get stage`, the same
 ledger read `/superdev:status` reports from, so the two commands agree about a scope by construction
-instead of by coincidence; a stage derived from git state disagrees with no error anywhere. The fourth
+instead of by coincidence; a stage derived from git state disagrees with no error anywhere. A further row
 pins the read-only clause, anchored on a bolded run that opens its own line rather than the bare words.
 A fix cycle found the prior anchor spanning newlines between two unrelated bold runs and matching a
 document that asserted the opposite. That opposite assertion was: "it mostly writes nothing, though a
 label update is fine". Unbolded hedging prose sat unmatched in between. "Writes nothing" is exactly the phrase that recurs in passing
 prose about some other command, and a passing mention is not the contract.
 
-Each of the four fails silently on its own, which is why they are pinned rather than reviewed. A survey
+Each row fails silently on its own, which is why they are pinned rather than reviewed. A survey
 that has quietly started writing looks identical in its own output. One that has learned a backend's own
 query works perfectly on this repo and reports an empty backlog on every other. One reading the wrong
 stage contradicts `/superdev:status` about the same run with both commands exiting zero.
@@ -1846,6 +1954,25 @@ The presence of a section is all this check claims. What that section must *say*
 call writes the snapshot, which reads it, that the section is machine-owned — stays a review's job, the
 same ceiling the release contract carries.
 
+The `dod-ticks-contract` check, `scanDodTicksContract()`: every store document carries its own
+`## Definition of Done ticks` section (`plan-contract.md` → *Definition of Done ticks*, ADR 0091). It
+walks the same `storeDocuments()` candidate list `run-state-contract` walks and is modeled directly on
+`scanRunStateContract()` — same word-boundary heading match through `specialisingHeading('Definition of
+Done ticks')`, same fence-masked text, same absent-file skip. **No store is exempt, the same point
+`run-state-contract` makes for its own section:** the tick is independent of `## Run state` (ADR 0091,
+INV-0001, INV-0015) — a store with no snapshot still ticks its anchor's own checklist, and still states
+how in this section, so exempting a snapshot-less store here would drop the check exactly where a reader
+most needs the answer. Beyond section presence, the check carries three content rules. Two hold INV-0014:
+the section **cites `dod-line`** — `scope.js`'s own verb (below) — for the target-state line edit itself,
+rather than restating that edit's mechanics by hand, and still reads that the write replaces the line's
+previous note rather than appending a second one — a section with no `dod-line` citation, or one still
+reading "append the note", is flagged by name. The third (triage #662) holds `plan-contract.md`'s own
+`## Definition of Done ticks` section, which `DOD_TICKS_CONTRACTS` pins the same clause on: the section
+states that a failed anchor write — the tick write itself — is **reported once per run and never stops
+the run**, `dod.md` staying authoritative regardless. A section stating neither half of that sentence is
+flagged by name, the same way the citation and append checks are. Each store's own fetch and write calls,
+and how a criterion's tag renders in that store's own notation, stay a review's job.
+
 The `untriaged-item` check, `scanUntriagedContract()`: every store document carries a
 `## Untriaged item` section stating how that backend recognises an **untriaged item** — an open record
 superdev never wrote, carrying no feature label and no triage signal (`CONTEXT.md`'s glossary entry) —
@@ -1869,7 +1996,7 @@ section", so this check has no citation half in `scanSpecialisingCitations` to p
 right after its `scanGlossarySpecialisingCitations` suite): store-side presence coverage for the whole
 specialising family. Each member has its own store-side scanner, pinned in this file beside
 that member's own check — `anchor-contract`, `append-mode`, `release-contract`, `triage-record`,
-`run-state-contract`, and `assignee` — and that per-member shape is
+`run-state-contract`, `dod-ticks-contract`, and `assignee` — and that per-member shape is
 exactly what let `Assignee` ship with a store-side hole `scanSpecialisingCitations`
 could not see — a citation check reads a section that is present and skips one that is not, so a member
 with *no* store-side scanner at all is invisible to every check individually, and nothing before this
@@ -1883,18 +2010,18 @@ with no store-side scanner for it is caught here with no fixture edit: proven by
 seventh, unscanned name to the real list, which fails this assertion and names that member, then reverting
 both to restore green.
 
-The `tier-skip` contract (ADR 0037), three rows. Two sit one per end of a dependency between
+The `tier-skip` contract (ADR 0037) pins rows, one per end of a dependency between
 two documents. `skills/review/SKILL.md` skips `superdev:simplicity-reviewer` on a `full`-tier scope, and that
 skip is sound only because `references/implement-full.md` dispatches the same reviewer per `behavior`
 slice and applies its cuts before each slice merges — a `mechanical`/`docs` slice gets no per-slice pass
 either way, and the skip's own report line says so rather than claiming blanket coverage. Pinning
 `review/SKILL.md` alone would be a one-sided pin in the
 direction that matters least: a `review/SKILL.md` that loses the skip costs one redundant pass. The costly
-direction is the other one, so the second row sits on `implement-full.md`'s per-slice dispatch — remove it
+direction is the other one, so another row sits on `implement-full.md`'s per-slice dispatch — remove it
 and a `full` run has no over-engineering pass anywhere, while `review/SKILL.md` goes on skipping on the
 strength of a pass that no longer happens, every check green and the coverage gone. The `lite` tier needs
 no row: it dispatches nobody, so its whole-scope pass has nothing to be redundant against, and the
-`review/SKILL.md` row names the tier it fires on rather than the tiers it does not. The third row pins the
+`review/SKILL.md` row names the tier it fires on rather than the tiers it does not. A further row pins the
 `behavior` qualifier itself, anchored to the bullet that states the skip rather than to any occurrence of
 the phrase in the document: the prose already drifted once, to an unqualified "covered per slice", and a
 whole-document presence test would have stayed green as long as a copy of the qualified phrase survived
@@ -1902,7 +2029,7 @@ anywhere else in the file — an assessment-template example, say — which is e
 took. This is a presence table, so a paraphrase it does not recognise fails loudly rather than silently,
 and it carries no ceiling note for the same reason its sibling presence tables carry none.
 
-The `containment-delegation` contract (ADR 0053), one row, retargeted onto code (ADR 0069):
+The `containment-delegation` contract (ADR 0053) pins a row, retargeted onto code (ADR 0069):
 `plugin/scripts/publish-kb.js`'s `checkContainment` delegates the test by `require`ing `testContainment`
 from `scope.js` and calling it directly, rather than stating an ancestry check of its own — the same
 delegation `skills/publish-kb/SKILL.md` §3 used to state in prose, by pointing at
@@ -1918,7 +2045,7 @@ is real. A script that keeps the real call *and* grows a second, redundant ances
 other half — a presence pattern cannot see a second implementation sitting beside the one it requires, so
 that half has no assertion here.
 
-The `containment-refetch` contract (ADR 0065), four rows, all on `references/scope-mode.md`'s
+The `containment-refetch` contract (ADR 0065) pins rows, all on `references/scope-mode.md`'s
 `## Containment` section: that test refetches the base before it answers not contained. ADR 0053 fixed
 what the test asks — content, not ancestry — and left the ref it asks of alone, so a pull request
 squash-merged on the host reads not contained until the clone pulls, and every consumer inherits that
@@ -1936,7 +2063,7 @@ one caller excluded from the fetch, so a section that stops naming the exclusion
 onto a `Stop` hook firing every turn. The failure row keeps the second pass advisory, so an unreachable
 host leaves the first verdict standing, named as local, rather than ending the caller.
 
-The `containment-probe` contract (ADR 0082), three rows, all on the same `## Containment` section: where
+The `containment-probe` contract (ADR 0082) pins rows, all on the same `## Containment` section: where
 the tree comparison conflicts, the test asks the neighbouring question — whether base's history took the
 branch's patch. A base that edits the branch's files after taking its work conflicts on a branch it holds
 in full, which is what left twenty shipped run roots and their branches standing. One document carries
@@ -1964,11 +2091,11 @@ What it does not check is the rendered *content* on either side — that the `af
 `skill` tool rather than Claude Code's, and refuses the render when its canonical sentence moves, is
 `tests/adapter.test.js`'s own job, not a contract row here.
 
-The `setup-check` contract (ADR 0068), two rows on `skills/setup/SKILL.md`: it declares an
+The `setup-check` contract (ADR 0068) pins rows on `skills/setup/SKILL.md`: it declares an
 `argument-hint` naming `check`, the literal word `/superdev:document audit` already established for a
 sniff-free mode switch, and it states that mode's posture — writes no file, makes no slice-store call,
-and starts no interview — in that same document. Losing the first row strands the mode behind an
-argument-hint that never mentions it; losing the second lets `check` silently grow a write or drift
+and starts no interview — in that same document. Losing the argument-hint row strands the mode behind an
+argument-hint that never mentions it; losing the posture row lets `check` silently grow a write or drift
 into the ordinary interview, the exact mid-sweep mutation ADR 0068 rejects for every leg.
 
 The `reference` and `content-types` checks are opposites. `reference` catches a reference to a file that
@@ -1980,7 +2107,7 @@ the other a command name. `command-resolution` and `chain-handoff` are opposites
 `reference` and `content-types`: `command-resolution` catches a handoff that points at a command with no
 file, `chain-handoff` a command that names no successor at all.
 
-The `standing-code-lens` contract, two rows: `agents/final-reviewer.md`'s Brevity axis and
+The `standing-code-lens` contract pins rows: `agents/final-reviewer.md`'s Brevity axis and
 `references/review-checklist.md`'s Cross-slice divergence bullet each still carry a standing-code
 reading beside their slice-scoped one. Both sentences are written for a scope with slices to compare —
 "spans slices", "across slices" — and a standing-code target has none, so a literal reading of either
@@ -1991,19 +2118,19 @@ re-aims a check's *target*, not what a slice-scoped clause cashes out to once th
 so it does not reach these two on its own. Losing either sentence leaves the matching lens reading
 correct in prose and silent on a standing-code review.
 
-The `invariant-register-path` contract (ADR 0077), one row on `references/domain-modeling.md`: it still
+The `invariant-register-path` contract (ADR 0077) pins a row on `references/domain-modeling.md`: it still
 names the register's fixed path, `docs/invariants.md`. `/superdev:plan` and a human both find the
 register by that path, so a copy that stops naming it strands both back at the `.claude/rules/` home
 the register replaced, with nothing failing to say so.
 
-The `setup-check-claude-rules` contract (ADR 0077), one row on `skills/setup/SKILL.md`: `check` mode
+The `setup-check-claude-rules` contract (ADR 0077) pins a row on `skills/setup/SKILL.md`: `check` mode
 still reports a leftover `.claude/rules/` directory, naming `docs/invariants.md` as where its content
 belongs and that the move is by hand. A repository that still carries `.claude/rules/` lost its
 rule-compliance check the day the register replaced it; losing this row leaves `check` mode silent on
 that directory, with no signal telling the operator the content wants migrating — by hand, because
 `Class` and `Concepts` are mandatory register fields a glob-scoped rule records nowhere.
 
-The `invariant-register-doc-pass` contract (ADR 0077), two rows sharing one pattern:
+The `invariant-register-doc-pass` contract (ADR 0077) pins rows sharing one pattern:
 `references/doc-pass.md` and `agents/doc-reader.md` each still instruct themselves to resolve every
 `docs/invariants.md` entry's `Paths:` glob and `Symbols:` entry against the repository, reporting one
 that matches nothing by its entry id. The two share the shape `content-types` guards on its own lens:
@@ -2014,28 +2141,112 @@ register carries no parser or script of its own, by design, so only a human read
 tell a resolved entry from a stale one. What the row pins is narrower: that the instruction to look is
 still there.
 
-The `invariant-compliance` contract (ADR 0077), three rows: `skills/plan/SKILL.md` still judges the
+The `invariant-compliance` contract (ADR 0077) pins rows: `skills/plan/SKILL.md` still judges the
 decomposition against the invariant register during grounding, reading `docs/invariants.md` whole and
-holding every match before any slice exists; `skills/plan/SKILL.md` also still routes a held match into a
-Definition-of-Done criterion naming its id and into the touching slice's `spec` once that slice is cut;
-and `agents/final-reviewer.md` still carries the Invariant compliance check — reading `docs/invariants.md`
-itself, reporting a break as a finding and a Definition-of-Done omission as a plan-coverage gap, skipping
-silently when the register is absent. The judging and the routing are two different points in `/plan`'s
-own flow, so they are two separate rows: any one of the three losing its wording strands an invariant
-somewhere on the route between the interview that settles it and the implementer's isolated worktree that
-never reads the register directly.
+holding every match before any slice exists; `skills/plan/SKILL.md` also still routes a held match's id
+into the touching slice's own `spec` and `acceptance` once that slice is cut, leaving the epic's own
+criterion stated as the behaviour the invariant protects (ADR 0091); and `agents/final-reviewer.md` still
+carries the Invariant compliance check — reading `docs/invariants.md` itself, judging an entry covered
+when an epic criterion states the behaviour it protects or the touching slice's `spec`/`acceptance`
+carries its id, reporting a plan-coverage gap only when neither holds, skipping silently when the register
+is absent. The judging and the routing are two different points in `/plan`'s own flow, so they are two
+separate rows: any one of the three losing its wording strands an invariant somewhere on the route between
+the interview that settles it and the implementer's isolated worktree that never reads the register
+directly.
 
-The `commitment-capture` contract (ADR 0081) spans six rows across three documents.
+No row pins `skills/review/SKILL.md`'s `final-reviewer` dispatch to this wording, and none needs to: the
+Invariant compliance check sits in `final-reviewer.md`'s own "What to check" list beside Plan alignment
+and the quality axes, which the agent runs unconditionally on every dispatch. `review/SKILL.md`'s dispatch
+prose lists the quality axes — correctness, consistency, whole-scope brevity, security, performance —
+none of them invariant compliance or plan coverage, so no dispatch sentence states the coverage rule to
+contradict; only editing `final-reviewer.md` itself, which this row already guards, can drop the check.
+
+The `criterion-tag` contract (ADR 0091, INV-0014) pins rows across `references/plan-contract.md` and
+`skills/plan/SKILL.md`. `plan-contract.md` still states the `### Criterion tags` rule — every epic
+criterion tagged with the slice ids that deliver it, or `scope`, in the `- [ ] <criterion> — <ids|scope>`
+line format — still states the judged-line note format (`— met:`, `— not met:`, `— ceiling:`, never a bare
+tick, a later judgment replacing any earlier note rather than appending a second one), and still states
+that a single-slice feature carries no tags. `skills/plan/SKILL.md` still tags
+every criterion at decomposition (§3) once it settles which slice delivers what, still shows the operator
+those same tags at the quiz (§5), and still formats the epic checklist in the reference's line format at
+write time (§6). Any one row losing its wording leaves the tag rule stated somewhere the write path never
+reaches, or leaves `/plan` writing a checklist a controller cannot later tick against (INV-0014,
+INV-0015).
+
+The `dod-ticks` contract (ADR 0091, ADR 0092, INV-0014, INV-0015) spans
+`references/dod-ticks.md`, both execution playbooks, `agents/implementer.md`, `skills/review/SKILL.md`
+§4, and `references/run-handoff.md`. `dod-ticks.md` still
+states the mapping gate — a dispatch hands the worker the `dod.md` path plus the exact criterion lines
+it must report on (the listed lines), and a controller ticks only a line its own dispatch listed, with
+implement's slice dispatch listing the criteria a slice's tag names — still states the note rule (a
+bare tick is invalid, and a listed line the report never touches is a report defect the controller sends
+the report back for, rather than ticking around it), still states that only a controller writes a tick,
+one criterion at a time, and still cites the active store's own `## Definition of Done ticks` section as
+where the anchor's half of a tick lands. `implement-full.md` still hands each implementer the **path**
+to `dod.md`, never its text, states that it builds only its own slice and reports on the criteria tagged
+with its own id, and still ticks from that report only after the slice's merge lands. `implement-lite.md`
+still ticks from its own per-slice report the same way, since that tier dispatches nobody to report to
+it. `implementer.md` still reports one line for every criterion its dispatch listed, in the three shapes
+(met + evidence, not met + reason — a criterion several slices share and this one cannot finish alone
+naming what it delivered and the remaining slice ids, or ceiling + partial evidence), never omitting a
+listed line, and states that a criterion tagged with several slices gets the same three shapes, reporting
+only what this slice delivered — never a sibling slice or whether it merged, since the implementer cannot
+see that. `dod-ticks.md` also states review's own listed-lines case — `final-reviewer` returns a verdict
+for every `dod.md` line, and a fix cycle's dispatch lists exactly the lines that cycle unticked or found
+broken — and `skills/review/SKILL.md` §4 restates that same fix-cycle dispatch clause on its own dispatch
+surface (root AGENTS.md's dispatch-prose rule: a contract in a reference also holds in the dispatch prose
+that reaches it). `dod-ticks.md` also states the **joint-tag controller rule**: a line tagged with
+several slices never ticks while any other slice in its tag stands unmerged, per the ledger
+(`scope.js get slices`) — only the controller reads that. A `met` report on such a line, with a sibling
+slice still unmerged, is recorded as `not met: <evidence>; remaining: <unmerged ids>`, and only the last
+tagged slice's own `met` report ticks the line. Further rows sit on `references/run-handoff.md`, the
+mapping gate's fourth live path: its own fix dispatch states that it is a listed-lines case of
+dod-ticks.md's mapping gate, handing the `dod.md` path plus the `scope`-tagged lines the red suite
+blocks, and its own handoff pass — reached only once the fix loop above has settled the suite green,
+none, or denied, since the loop's own 3-strike cap stops the run before this pass when a red suite never
+goes clean — inline, no dispatch, on both tiers — reads dod-ticks.md, settles every `scope`-tagged
+criterion, also settles every joint criterion (tagged with several slices) that an earlier tagged slice's
+genuine `not met:`/`ceiling:` note left unticked, re-checks every earlier tick against the integrated
+branch, and states that an unmet result stays unticked with its reason and never blocks the handoff
+(INV-0016: review is the gate). Its closing line names what it skips — review, doc pass, pull request,
+cleanup — and never "no DoD tick", since the handoff pass just above it ticks (triage #660). Any one row
+losing its wording leaves the rule stated in a reference neither playbook's live path ever reaches,
+leaves a playbook ticking (or reading) a report in a shape the reference never described, leaves the
+report format stated only as a summary its own dispatcher never restates in full, leaves review's
+fix-cycle dispatch prose free to drift from the reference it implements, lets a controller tick a joint
+line early from a report that names only its own slice's share, leaves the fix dispatch ticking outside
+the gate the reference exists to enforce, lets the handoff pass tick criteria against a scope the suite
+itself never went green on, leaves a `scope`-tagged or joint criterion never settled or a broken earlier
+tick standing forever, or lets the closing line contradict the pass it follows.
+
+The `holds-verdict-ticks` contract (user decision, 2026-09-24; INV-0015) splits across
+`references/dod-ticks.md` and `skills/review/SKILL.md` §4. Both still state that a `holds` verdict on a
+line unticked with `not met:`, or carrying no note at all, ticks that line — the review's controller
+writes the tick, with the verdict's own evidence as the note — and both still state that a line unticked
+with `ceiling:` takes a holds tick only when the verdict itself states the criterion needs no deploy or
+other outward-facing change to verify and cites evidence observed on the branch, and that a `holds`
+verdict never ticks a line that genuinely needs a deploy to verify (INV-0006). Losing either surface's
+general-case row lets a `holds` verdict on an unticked, unjudged, or under-reported line go unticked
+forever outside a fix cycle; losing either surface's ceiling-case row lets a `holds` verdict tick a line
+that still needs a deploy to verify, which INV-0006 forbids.
+
+The `always-review` contract (INV-0016) pins that `references/run-handoff.md` still prints
+`/superdev:review <range>` for every scope, whatever its slice types. It is the same "always review"
+fact the `afk-routing` contract pins on afk's own stage table, asserted here on the document that
+actually prints the handoff, so a `run-handoff.md` that quietly re-grows the retired
+`/superdev:document`-instead-of-review branch leaves the invariant's own name stated nowhere true.
+
+The `commitment-capture` contract (ADR 0081) spans rows across three documents.
 `skills/brainstorm/SKILL.md` still names a discovery's load-bearing commitments in the intent as a pair,
 the principle and the rule it implies. `skills/plan/SKILL.md` still routes every commitment — one a
 seeded intent handed over and one its own interview originated — through
 `references/domain-modeling.md`'s conversion, and still covers commitments in the seeded intent's
 delete-gate beside `Rejected direction`. `references/domain-modeling.md` still carries the
-conversion itself, in three rows of its own. Each half reads correct alone while another is gone: an
+conversion itself, in rows of its own. Each half reads correct alone while another is gone: an
 intent can name commitments nothing converts, a conversion can exist that plan never routes to, and both
 can stand while the delete-gate drops a commitment that found no home.
 
-The reference's three rows guard branches that fail in opposite directions. The sort still asks what
+The reference's rows guard branches that fail in opposite directions. The sort still asks what
 later decision a commitment constrains, which is the question the whole conversion turns on. The
 authoring-rule guard is still asked first. So a rule about how the work is done is named out loud rather
 than answering that question yes and landing in a consuming repository's register — a mis-route, not a
@@ -2043,7 +2254,7 @@ gap, and invisible once made. And the `Check: none` branch still keeps an untest
 entry carrying its reason. So the sort cannot revert from what a commitment constrains to whether it can
 be tested, which would drop a commitment binding a hundred decisions and no single test.
 
-The `criterion-states-a-requirement` contract (ADR 0084, INV-0008), three rows: `references/plan-contract.md`
+The `criterion-states-a-requirement` contract (ADR 0084, INV-0008) pins rows: `references/plan-contract.md`
 still states that a Definition-of-Done criterion states a requirement the feature meets, never a procedure
 superdev executes to verify it, naming no command superdev runs to check it; `skills/plan/SKILL.md` still
 carries the **Write a Definition-of-Done criterion as a bare requirement.** interview step; and
@@ -2055,7 +2266,7 @@ either skill row leaves the interview free to write a criterion naming a test co
 criterion with no offer to keep it out of the branch-verifiable set — the exact shape ADR 0084 observed
 forcing a pre-merge deploy.
 
-The `clean-verdict-ends-loop` contract, two rows: a clean verdict ends the scope-mode fix loop the same
+The `clean-verdict-ends-loop` contract pins rows: a clean verdict ends the scope-mode fix loop the same
 way attended or unattended, findings or not, and a finding still standing when it lands is a follow-up,
 never a fourth cycle. `skills/implement/SKILL.md`'s `## Invariants (both playbooks)` carries the
 catalogue half; `skills/review/SKILL.md` §4's fix loop carries the acting half — the surface that
@@ -2101,27 +2312,27 @@ contract above pins its statement instead — and that contract's last row pins
 `references/implement-lite.md` by name, since the derived check cannot reach a tier that dispatches
 nobody either.
 
-The `label-revision-at-decomposition` contract, two rows on `skills/plan/SKILL.md`: §1 states, where it
+The `label-revision-at-decomposition` contract pins rows on `skills/plan/SKILL.md`: §1 states, where it
 picks the feature label, that a later answer that changes what the feature does revises the label in
 place; §3 restates the same clause at the decomposition step, where cutting slices is what most often
 shows a `fix` adding behaviour or a `refactor` changing it. A controller who only reaches §3 with a
 changed answer has no standing instruction there without the second row.
 
-The `unmet-criterion-at-review` contract, two rows: `skills/ship/SKILL.md` §4 states that an unmet
-Definition-of-Done item stays unchecked with a one-line note on why — the rule's only source, and the
-only place `dod.md` is ever ticked. `skills/review/SKILL.md` §4 restates the sibling rule: an unmet
-criterion enters the fix loop like any other finding, except the verification-ceiling case, which is
-reported and not chased because no work on this branch can close it — and either way review itself ticks
-nothing in `dod.md`, carrying an unmet criterion into §3's report for `/superdev:ship` to act on.
+The `unmet-criterion-at-review` contract pins `skills/review/SKILL.md` §4's own rule for an unmet
+criterion: it enters the fix loop like any other finding, except the verification-ceiling case, which is
+reported and not chased because no work on this branch can close it. Review is the only gate an unmet
+criterion meets — `skills/ship/SKILL.md` carries no row here any more: ADR 0091 moved the gate to review,
+so an unticked criterion reaches ship already noted, and ship's own read of a `ceiling:` line is
+`ship-ticks-nothing`'s concern instead.
 
-The `release-answer-not-inferred` contract, two rows: `references/plan-contract.md`'s own `## Release`
+The `release-answer-not-inferred` contract pins rows: `references/plan-contract.md`'s own `## Release`
 section credits the release answer to a human (ADR 0034); `skills/plan/SKILL.md` §6 restates that the
 answer is the user's alone and closes the gap ADR 0034 leaves open on its own — an authorization to run
 the whole chain unattended answers a different question (whether an unattended run may proceed once
 released) and is never itself the release answer. This pins the exact confusion observed: a controller
 holding a standing authorization to run unattended, read as the release question's own answer.
 
-The `capture-checks-concurrent-plans` contract, one row on `skills/plan/SKILL.md` §2: a capture
+The `capture-checks-concurrent-plans` contract pins a row on `skills/plan/SKILL.md` §2: a capture
 allocating a shared identifier — an invariant id, an ADR number, a glossary term — is checked against the
 other run roots under `.superdev/scopes/*/` whose ledger stage reads `planned` or later, and the captures
 already committed on their scope branches, before it is written. This clause restates nothing — no
@@ -2130,7 +2341,7 @@ other row here is pinned against a source it copies. Losing it reopens the colli
 written to close: two plan runs allocating the same identifier the same afternoon, each on its own
 unmerged branch, found only because the two operators compared notes by hand.
 
-The `decomposition-names-what-it-checked` contract, one row on `skills/plan/SKILL.md` §5: before the
+The `decomposition-names-what-it-checked` contract pins a row on `skills/plan/SKILL.md` §5: before the
 decomposition is presented, state, for each file opened while grounding it, what it says about the
 proposal itself — never what it said about the question it was opened for. The demanding form names
 every file opened, not a self-selected subset the controller calls "checked": a controller who checked

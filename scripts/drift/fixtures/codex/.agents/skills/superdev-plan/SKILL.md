@@ -128,6 +128,11 @@ verify it. `<plugin-root>/references/plan-contract.md`'s Definition-of-Done rule
 rule (ADR 0084, INV-0008); `Reachable:` is the standing exception, because it names an entrance, never a
 verification step.
 
+**Write the criterion in the reader's vocabulary.** The epic states the behaviour the feature delivers —
+a file path, an invariant register id, or a verification procedure has no place there once §3 cuts the
+slice that owns it: that detail goes into the slice's own `spec` and `acceptance` instead. §3 tags the
+criterion with that slice's `id` once it exists.
+
 **Surface a criterion verifiable only on a live system.** A criterion true only after a deploy, a
 migration, or another outward-facing change forces exactly that change before merge to tick it — the
 verification ceiling forbids it (`references/scope-mode.md`'s `## Verification ceiling`, ADR 0084), so the
@@ -333,9 +338,14 @@ and schema):
   vocabulary, and never as field lists. The implementer declares them before its first failing test, and
   the fields are its own, because a `spec` is a contract of outcomes (ADR 0030). A slice needing no shape,
   or a repository whose language has none, gets none named.
-- **Write each register match held above into the slice it touches.** As a Definition-of-Done criterion
-  naming the entry's id, and into the `spec` of that slice — the route by which the invariant reaches an
-  implementer who only ever sees its own isolated worktree. No match held → nothing to write here.
+- **Tag every Definition-of-Done criterion with the slice `id`s that deliver it, or `scope` when no single
+  slice does** (`plan-contract.md` → *Criterion tags*), now that decomposition has settled which slice
+  delivers what.
+- **Write each register match held above into the slice it touches, and its epic criterion in the reader's
+  vocabulary.** The entry's id goes into that slice's `spec` and `acceptance` — the route by which the
+  invariant reaches an implementer who only ever sees its own isolated worktree — never into the epic. The
+  epic states the behaviour the invariant protects, tagged with that slice's id like every other
+  criterion. No match held → nothing to write here.
 - **Don't create a documentation-only slice** to describe code other slices produce —
   `$superdev-document` reconciles README, `AGENTS.md`, and the KB after the scope lands. Slice out `docs`
   only when documentation *is* the deliverable (e.g. a standalone guide).
@@ -360,8 +370,8 @@ Before you present the decomposition, state, for each file you opened while grou
 about the proposal itself — not about the question you opened it for.
 
 Present the breakdown as a numbered list: per slice, title, `depends-on`, and which DoD criteria it
-covers. Ask: is the granularity right? are the dependencies correct? should any slice split or merge?
-Iterate until they approve.
+covers — the same tags §3 wrote. Ask: is the granularity right? are the dependencies correct? should any
+slice split or merge? Iterate until they approve.
 
 **Extending a feature:** present only the **new** slices — a merged slice isn't re-litigated.
 
@@ -376,10 +386,11 @@ plan files or as issues.
 
 - **Exactly one slice** — the epic is optional (plan-contract.md): fold the global DoD into that slice's
   `acceptance` and write only the slice. No `00-epic-…` file / no epic issue.
-- **Two or more slices** — write the global DoD (epic) plus each slice.
+- **Two or more slices** — write the global DoD (epic), each criterion tagged in `plan-contract.md`'s line
+  format (*Criterion tags*), plus each slice.
 - **Extending a feature** — create only the **new** slice records; never edit, close, renumber, or delete
-  a merged one. Amend the epic's Definition of Done **in place** (never replace it) with the new criteria.
-  `docs/agents/issue-tracker.md` → *Append mode* owns the per-backend mechanics.
+  a merged one. Amend the epic's Definition of Done **in place** (never replace it) with the new criteria,
+  tagged the same way. `docs/agents/issue-tracker.md` → *Append mode* owns the per-backend mechanics.
 
 **Add the epic visuals the plan earned.** Apply plan-contract.md's *Epic visuals* → *When to write them*,
 write `## Slice graph` and/or `## Touch map` into the epic body (the touch map from §4's file list), then

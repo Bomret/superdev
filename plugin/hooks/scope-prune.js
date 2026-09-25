@@ -150,8 +150,7 @@ function resolveBranch(branchSet, scope, exactBranch) {
 // the end of the chain, and it is stronger than containment on every tier. An unreadable ledger, or one
 // with no stage line, is never prunable — that is not evidence a run finished, only evidence nothing can
 // be read. The stage is also what keeps absence narrow: a branch deleted without ever merging looks
-// identical here, and only `/superdev:ship` writes `shipped`, after ticking the DoD and opening a pull
-// request.
+// identical here, and only `/superdev:ship` writes `shipped`, after opening a pull request.
 function selectPrunable(scopeNames, isContained, mtimeOf, stageOf, allBranchSet, branchOf) {
   const out = [];
   for (const scope of scopeNames) {

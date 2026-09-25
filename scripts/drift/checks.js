@@ -19,6 +19,7 @@ const {
   scanAppendContract,
   scanReleaseContract,
   scanRunStateContract,
+  scanDodTicksContract,
   scanTriageRecordContract,
   scanUntriagedContract,
   scanSpecialisingCitations,
@@ -70,6 +71,7 @@ const {
   SETUP_CHECK_CONTRACTS,
   SETUP_CHECK_RULES_CONTRACTS,
   DERIVED_CRITERIA_CONTRACTS,
+  PER_CRITERION_VERDICT_CONTRACTS,
   REACHABLE_CRITERION_CONTRACTS,
   REVIEW_RANGE_SHAPES_CONTRACTS,
   EMPTY_ARGUMENT_CONTRACTS,
@@ -78,6 +80,7 @@ const {
   GREEN_GATE_TIMEOUT_CONTRACTS,
   VERB_CONTRACTS,
   KB_STAGING_CONTRACTS,
+  KB_READ_NEVER_WRITE_CONTRACTS,
   TEST_SELECTION_CONTRACTS,
   TIER_SKIP_CONTRACTS,
   CONTAINMENT_DELEGATION_CONTRACTS,
@@ -118,7 +121,8 @@ const {
   COMMITMENT_CAPTURE_CONTRACTS,
   PLANNED_HANDOFF_CONTRACTS,
   VERIFICATION_CEILING_CONTRACTS,
-  DOD_SUITE_CRITERION_CONTRACTS,
+  SHIP_TICKS_NOTHING_CONTRACTS,
+  DOC_UNTICK_ON_BREAK_CONTRACTS,
   CRITERION_STATES_A_REQUIREMENT_CONTRACTS,
   CLEAN_VERDICT_ENDS_LOOP_CONTRACTS,
   OBSERVATION_CAPTURE_CONTRACTS,
@@ -128,6 +132,11 @@ const {
   CAPTURE_CHECKS_CONCURRENT_PLANS_CONTRACTS,
   SPAWN_FAILURE_ANSWER_CONTRACTS,
   DECOMPOSITION_NAMES_WHAT_IT_CHECKED_CONTRACTS,
+  CRITERION_TAG_CONTRACTS,
+  DOD_TICKS_CONTRACTS,
+  HOLDS_VERDICT_TICKS_CONTRACTS,
+  ALWAYS_REVIEW_CONTRACTS,
+  ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS,
 } = require('./contracts');
 
 // The printer the table-driven checks share. A gap is `{ source, expectation }` and reads the
@@ -225,6 +234,11 @@ module.exports = [
   table('change-type', CHANGE_TYPE_CONTRACTS, 'change-type set matches the scope-prune hook and scope.js'),
   table('degraded-pass', DEGRADED_CONTRACTS, 'degrade record carried', { stripFrontmatterFirst: true }),
   table('derived-criteria', DERIVED_CRITERIA_CONTRACTS, 'criteria derived before the DoD is read'),
+  table(
+    'per-criterion-verdict',
+    PER_CRITERION_VERDICT_CONTRACTS,
+    'final-reviewer carries `## Judge every criterion` and its `### Criteria` output section, and review/SKILL.md\'s dispatch asks it to judge every `dod.md` line',
+  ),
   table('reachable-criterion', REACHABLE_CRITERION_CONTRACTS, 'the `Reachable:` criterion rule and the surface emitting it agree'),
   table('review-range-shapes', REVIEW_RANGE_SHAPES_CONTRACTS, 'the review surface and final-reviewer agree on the standing-code range shape'),
   table('empty-argument', EMPTY_ARGUMENT_CONTRACTS, 'the shared empty-argument cascade is defined once and cited, not restated'),
@@ -251,6 +265,7 @@ module.exports = [
   table('verb-pointer', VERB_CONTRACTS, 'every chain document invokes its scope.js verb'),
   table('planned-handoff', PLANNED_HANDOFF_CONTRACTS, 'the planned handoff from /superdev:plan to /superdev:implement is carried on both sides'),
   table('kb-staging', KB_STAGING_CONTRACTS, 'knowledge-base pages are staged'),
+  table('kb-read-never-write', KB_READ_NEVER_WRITE_CONTRACTS, 'the doc pass may read a remote knowledge-base backend and never writes to it'),
   {
     id: 'scopetree-run-root',
     ok: 'the four scopetree-addressing documents use the absolute run-root path',
@@ -279,7 +294,7 @@ module.exports = [
   table(
     'full-suite',
     FULL_SUITE_CONTRACTS,
-    'the scope review runs the full suite itself while final-reviewer reviews against the result it is handed',
+    'the scope review reuses a green suite record on the current tip or runs and records the full suite itself, while final-reviewer reviews against the result it is handed',
   ),
   table(
     'spawn-failure-answers',
@@ -289,12 +304,22 @@ module.exports = [
   table(
     'verification-ceiling',
     VERIFICATION_CEILING_CONTRACTS,
-    'verifying a Definition-of-Done criterion observes, and changes no system outside the repository, on both verifying agent bodies and all four surfaces that verify a criterion or dispatch one that does',
+    'verifying a Definition-of-Done criterion observes, and changes no system outside the repository, on both verifying agent bodies and every surface that verifies a criterion or dispatches one that does',
   ),
   table(
-    'dod-suite-criterion',
-    DOD_SUITE_CRITERION_CONTRACTS,
-    "ship ticks a criterion naming the test suite from the run's own recorded result, reading the ledger stage and its degrade record, and runs no test command of its own",
+    'ship-ticks-nothing',
+    SHIP_TICKS_NOTHING_CONTRACTS,
+    'ship writes no tick anywhere, copies every `— ceiling:` criterion into the pull-request body as a post-merge checklist, and still closes the scope anchor',
+  ),
+  table(
+    'anchor-close-before-push',
+    ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS,
+    "a store whose anchor close is a scope-branch commit commits that close before ship's push, so it reaches base with the merge, and the local store's own close line says so",
+  ),
+  table(
+    'doc-untick-on-break',
+    DOC_UNTICK_ON_BREAK_CONTRACTS,
+    "document's closing step re-checks a ticked criterion its own commits could touch and unticks a broken one with a note",
   ),
   table(
     'paths-derivation',
@@ -319,7 +344,7 @@ module.exports = [
     run: scanUnresolvedGlossaryContract,
     format: contractGap,
   },
-  table('afk-routing', AFK_ROUTING_CONTRACTS, 'afk and ship agree on where an all-mechanical/docs scope goes next'),
+  table('afk-routing', AFK_ROUTING_CONTRACTS, 'afk routes every scope through review, with no special case for an all-mechanical/docs ledger'),
   table('arg-token', ARG_TOKEN_CONTRACTS, 'the three Bash hooks carry the same ARG shell-word token'),
   table(
     'audit-set',
@@ -594,6 +619,18 @@ module.exports = [
       '`references/plan-contract.md` → *Run state*',
   },
   {
+    id: 'dod-ticks-contract',
+    ok: 'every store document carries its own `## Definition of Done ticks` section, citing `dod-line` for the line edit with a replace-not-append note, and stating that a failed anchor write is reported once per run and never stops the run',
+    run: scanDodTicksContract,
+    format: (g) =>
+      g.expectation
+        ? `${g.source}'s \`## Definition of Done ticks\` section fails to ${g.expectation}; see ` +
+          '`references/plan-contract.md` → *Definition of Done ticks*'
+        : `${g.source} carries no \`## Definition of Done ticks\` section — expected it to state how a ` +
+          'controller ticks the anchor\'s own checklist, independent of `## Run state`; see ' +
+          '`references/plan-contract.md` → *Definition of Done ticks*',
+  },
+  {
     id: 'untriaged-item',
     ok: 'every slice-store document states how to recognise, list, and read the age of an untriaged item',
     run: scanUntriagedContract,
@@ -668,7 +705,7 @@ module.exports = [
   table(
     'invariant-compliance',
     INVARIANT_COMPLIANCE_CONTRACTS,
-    'plan still routes a matched register entry into the DoD and the touching slice\'s spec, and final-reviewer still checks the register itself',
+    'plan still routes a matched register entry\'s id into the touching slice\'s spec and acceptance, states the epic\'s own criterion as the behaviour the invariant protects, and final-reviewer still checks the register itself',
   ),
   table(
     'commitment-capture',
@@ -717,10 +754,10 @@ module.exports = [
   table(
     'unmet-criterion-at-review',
     UNMET_CRITERION_AT_REVIEW_CONTRACTS,
-    'ship/SKILL.md §4 still leaves an unmet Definition-of-Done item unchecked with a one-line note, and ' +
-      'review/SKILL.md §4 still states that an unmet criterion enters the fix loop like any other ' +
-      'finding except the verification-ceiling case, and that either way review itself ticks nothing in ' +
-      '`dod.md`',
+    'review/SKILL.md §4 still unticks a broken criterion with a note as a Critical finding, whether the ' +
+      'line was ticked or already unticked, holds the stage while any criterion but a ceiling one stands ' +
+      'unmet, reports the verification-ceiling case without chasing it, and re-ticks only what a clean ' +
+      're-review\'s fix implementer reported met',
   ),
   table(
     'release-answer-not-inferred',
@@ -740,6 +777,41 @@ module.exports = [
     DECOMPOSITION_NAMES_WHAT_IT_CHECKED_CONTRACTS,
     'plan/SKILL.md §5 still states, before the decomposition is presented, for each file opened while ' +
       'grounding it, what it says about the proposal itself',
+  ),
+  table(
+    'criterion-tag',
+    CRITERION_TAG_CONTRACTS,
+    'plan-contract.md still states the criterion-tag line format and the untagged single-slice case, and ' +
+      'plan/SKILL.md still tags every criterion at decomposition, shows the tags at the quiz, and formats ' +
+      'them into the store at write time',
+  ),
+  table(
+    'dod-ticks',
+    DOD_TICKS_CONTRACTS,
+    'dod-ticks.md still states the mapping gate over the listed lines, that a controller matches a tag to ' +
+      "a slice through the ledger's `issue` column, that a `dod.md` with no tags lists every line and an " +
+      "untagged line on a tagged one is settled by run handoff as `scope`, the note rule, that only a " +
+      'controller ticks, ' +
+      'review\'s own listed-lines case, and the joint-tag controller rule (never ticks a multi-slice line ' +
+      'while a sibling slice in its tag is unmerged, per the ledger), both execution playbooks still hand ' +
+      'the implementer the `dod.md` path plus its listed lines and tick from its report, ' +
+      'agents/implementer.md still reports one line for every criterion its dispatch listed and states ' +
+      'that a joint line gets the same three shapes reporting only what this slice delivered, ' +
+      'review/SKILL.md still restates the fix cycle\'s dispatch clause on its own dispatch surface, and ' +
+      "run-handoff.md's own fix loop and handoff pass still cite the mapping gate, settle every " +
+      '`scope`-tagged criterion, and re-check every earlier tick',
+  ),
+  table(
+    'holds-verdict-ticks',
+    HOLDS_VERDICT_TICKS_CONTRACTS,
+    'dod-ticks.md and review/SKILL.md §4 still state that a `holds` verdict ticks a line unticked with ' +
+      '`not met:` or carrying no note, with the verdict\'s evidence as the note, and that a `ceiling:` ' +
+      'line needs the no-deploy-and-branch-evidence statement before a `holds` verdict can tick it',
+  ),
+  table(
+    'always-review',
+    ALWAYS_REVIEW_CONTRACTS,
+    'run handoff names `/superdev:review` as the next command for every scope, whatever its slice types (INV-0016)',
   ),
 ];
 

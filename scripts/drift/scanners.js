@@ -346,14 +346,69 @@ function scanReleaseContract(root) {
 // makes one plausible. scanReleaseContract() takes the opposite latitude and tests raw text, because a
 // `## Release` heading has no seed-template convention that puts it inside a fenced example. Absent files
 // are skipped, so a fixture carries only the docs it exercises.
-function scanRunStateContract(root) {
+// scanStoreSectionContract() is pure over a root dir: reads every slice-store document and reports the
+// ones carrying no section matching the provided heading name. The heading is matched by
+// specialisingHeading(heading), the same pattern citation and generic-side rows use, so changing the
+// anchoring in one place can never diverge from the other places it is pinned. The test runs on the text
+// fence-masked with maskFences(), defensively. Absent files are skipped, so a fixture carries only the
+// docs it exercises.
+function scanStoreSectionContract(root, heading) {
   const gaps = [];
   const candidates = storeDocuments(root, { dir: ANCHOR_DOCS_DIR, extra: EXTRA_ANCHOR_DOCS });
-  const pattern = specialisingHeading('Run state');
+  const pattern = specialisingHeading(heading);
   for (const rel of candidates) {
     const text = readDoc(root, rel);
     if (text === null) continue; // doc absent (fixture / partial checkout) → nothing to scan
     if (!pattern.test(maskFences(text))) gaps.push({ source: rel });
+  }
+  return gaps;
+}
+
+function scanRunStateContract(root) {
+  return scanStoreSectionContract(root, 'Run state');
+}
+
+// scanDodTicksContract() extends the section-presence check above with one content check: a store's
+// `## Definition of Done ticks` section cites `dod-line` (`scope.js`'s own verb, ADR 0091's target-state
+// set — INV-0014) for the line edit itself, rather than restating that edit's mechanics by hand — every
+// store's own fetch and write calls are the only mechanics left for it to state. A section still
+// describing the edit without citing the helper, by name, is one place drift between the helper's real
+// behaviour and a store's own restatement of it could reopen — flagged by name, distinct from the
+// missing-section gap above. A section that does cite the helper is still checked for the one shape a
+// citation cannot rule out on its own: a leftover sentence still reading "append the note"/"note
+// appended" beside it, which contradicts the helper's own replace rule. A third check (triage #662)
+// requires the section to state that a failed anchor write — the tick write itself — is reported once
+// per run and never stops the run, the same clause `plan-contract.md`'s own section states and asks
+// each store to restate for its own mechanism.
+function scanDodTicksContract(root) {
+  const gaps = scanStoreSectionContract(root, 'Definition of Done ticks');
+  const missing = new Set(gaps.map((g) => g.source));
+  const candidates = storeDocuments(root, { dir: ANCHOR_DOCS_DIR, extra: EXTRA_ANCHOR_DOCS });
+  for (const rel of candidates) {
+    if (missing.has(rel)) continue; // no section at all — already reported above
+    const text = readDoc(root, rel);
+    if (text === null) continue;
+    const section = extractSection(text, specialisingHeading('Definition of Done ticks'));
+    if (!section) continue;
+    if (!/\bdod-line\b/i.test(section)) {
+      gaps.push({
+        source: rel,
+        expectation: 'cite `dod-line` for the target-state line edit, rather than restating it by hand',
+      });
+    }
+    if (/\bappend(?:s|ed|ing)?\b[\s\S]{0,40}\bnote\b|\bnote\b[\s\S]{0,40}\bappend/i.test(section)) {
+      gaps.push({
+        source: rel,
+        expectation: "state that the write replaces the line's previous note, never appending one",
+      });
+    }
+    if (!/reported\s+once\s+per\s+run/i.test(section) || !/never\s+stops\s+the\s+run/i.test(section)) {
+      gaps.push({
+        source: rel,
+        expectation:
+          'state that a failed anchor write is reported once per run and never stops the run',
+      });
+    }
   }
   return gaps;
 }
@@ -683,7 +738,7 @@ function scanAfkInvocations(root) {
 //
 // Ordering dependency: extractSection() runs from SHIP_GATE_HEADING to the next markdown heading, and
 // "Entries standing." carries no heading of its own — so this check's specificity holds only as long as
-// that paragraph stays the LAST one in §3, immediately before "## 4. Definition of Done". Move it above
+// that paragraph stays the LAST one in §3, immediately before "## 4. Pull request". Move it above
 // the stage-gate bullets and the extracted section would swallow them too; §3's other gate uses the
 // identical "ask once" / `--unattended` → refuse phrasing for an unrelated question, so it would then
 // satisfy SHIP_GATE_ELEMENTS on its own and this check would silently degrade to the whole-file match
@@ -1458,6 +1513,7 @@ module.exports = {
   scanAppendContract,
   scanReleaseContract,
   scanRunStateContract,
+  scanDodTicksContract,
   scanTriageRecordContract,
   scanUntriagedContract,
   scanSpecialisingCitations,

@@ -28,6 +28,34 @@ A criterion states a requirement the feature meets, never a procedure superdev e
 names no command superdev runs to check it (ADR 0084, INV-0008). `Reachable:` below is the standing
 exception, because it names the entrance a user reaches the feature through, never a verification step.
 
+A DoD criterion is written in the reader's vocabulary: the behaviour the feature delivers, not how it is
+built. A file path, an invariant register id, or a verification procedure belongs to the slice that
+delivers it — its `spec` and `acceptance` — never to the epic. The epic states what an invariant protects,
+never the id of the entry that requires it.
+
+### Criterion tags
+
+Every epic Definition-of-Done criterion carries a **tag**: the slice `id`s that deliver it, or `scope`
+when no single slice does (a sweep, a preservation claim, a scope-wide check `/implement`'s run handoff
+settles). The tag decides which criteria a slice's report *can* tick; it is not itself a tick. A
+single-slice feature carries no tags — its lone slice's `acceptance` doubles as the DoD, so every
+criterion is already that slice's.
+
+The line format:
+
+```
+- [ ] <criterion> — <ids|scope>
+```
+
+A line nobody has judged yet carries only its tag. A judged line carries one note — `— met: <evidence>`,
+`— not met: <reason>`, or `— ceiling: <partial evidence>` — never a bare tick (INV-0014). A later judgment
+replaces that note rather than adding a second one beside it:
+
+```
+- [x] Reachable: POST /orders (OrderApi) returns 201 and persists the order — 02 — met: implementer's report, evidence X
+- [ ] every criterion states behaviour, not a proxy count — scope — not met: reason Y
+```
+
 ### The reachability criterion
 
 Every feature's Definition of Done carries at least one criterion **led by `Reachable:`**, naming the
@@ -188,7 +216,9 @@ Append mode holds these invariants, and every backend renders all of them:
 - **Ids are never reused or renumbered.** A new slice's `depends-on` may name an already-merged slice's
   `id` as a satisfied root.
 - **The global Definition of Done is amended in place, never replaced.** New criteria are appended to the
-  checklist; a criterion merged slices already satisfy is never removed retroactively.
+  checklist, tagged the same way as every other criterion (*Criterion tags* above) with the new slices'
+  ids — which continue the id sequence already running — or `scope`; a criterion merged slices already
+  satisfy is never removed retroactively.
 - **Extending a single-slice feature creates the epic first.** A single-slice feature has no epic — its
   lone slice's `acceptance` doubles as the global DoD (see *Fields* above), and the slice is its own scope
   anchor. Append copies that `acceptance` into the new epic as the global DoD, amends it with the new
@@ -285,14 +315,46 @@ write the snapshot would show, not `stage set` alone, one rule rather than a lis
 is **best-effort**: a failed publish is reported once and the run continues, exactly as a failed status
 label is, because the ledger drives control flow, not the anchor.
 
-`/superdev:ship` ticks the anchor's own Definition of Done checklist too, a second sanctioned body edit
-beside the epic amendment *Append mode* above already names, so those ticks also outlive the run root.
+*Definition of Done ticks* below states how a controller ticks the anchor's own Definition of Done
+checklist, independent of this snapshot.
 
 Every backend mechanism — where the section lives, the call that writes it, and the call that reads it
 back — belongs to the active `docs/agents/issue-tracker.md`'s own `## Run state` section, which resolves
 the anchor for both feature shapes by citing that store's own `## Scope anchor` section rather than
 restating it. A store whose anchor cannot safely carry a mirrored write declares itself snapshot-less
 there instead.
+
+## Definition of Done ticks
+
+A controller ticks the anchor's own Definition of Done checklist **independent of `## Run state`
+above** (ADR 0091, INV-0001, INV-0015): a store with no snapshot still ticks its anchor's own checklist,
+exactly as a store that mirrors one does. `<run-root>/dod.md` stays authoritative regardless of whether
+an anchor tick lands — the anchor edit is a second, best-effort mirror of a judgment `dod.md` already
+holds, never a second source of truth for it.
+
+Recording a judgment on a criterion (*Criterion tags* above) sets its line's marker to the **target
+state** the judgment reached — `- [x]` when met, `- [ ]` otherwise — and carries the line's own note —
+`— met: <evidence>`, `— not met: <reason>`, or `— ceiling: <partial evidence>` — into the store's own
+notation for the edit (INV-0014). The write **replaces** the line's previous note: a new judgment
+overwrites what an earlier one wrote there, never appending a second note beside it. **A write whose
+target state equals the line's current state — a `not met:` judgment landing on a line already
+unticked, say — only replaces the note; the marker stays as it was.** `scope.js dod-line` (`scripts/
+AGENTS.md` → *scope.js, the run-state CLI*) is the one line edit this shape describes: every store pipes
+its own fetched checklist text through it rather than performing the edit by hand.
+
+`/superdev:plan` §6 writes a criterion's tag in `plan-contract.md`'s own notation (a slice `id`, or
+`scope`) because the epic is created before any slice exists, so no store-native identifier is known
+yet. Once every slice is created, the controller rewrites each tag into the store's own notation, in the
+**same parallel patch step** each store document's own dependency-recording call already uses to write
+`depends-on` — both edits need the same resolved identifiers and both wait on the same event, every
+slice's `id`/number/key known.
+
+Each store's own `## Definition of Done ticks` section states, citing this section:
+
+- the call the controller makes to tick a criterion, and to rewrite a tag into the store's own notation;
+- how a criterion's tag renders in this store's own notation;
+- that a failed tick write is **reported once per run and never stops the run** — `dod.md` stays
+  authoritative regardless.
 
 ## Triage record
 

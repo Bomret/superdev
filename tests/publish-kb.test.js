@@ -15,7 +15,7 @@ const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
 
 const publishKbPath = require.resolve('../plugin/scripts/publish-kb.js');
-const { run, parseCommandsTemplates, parseStagedPage, classifyBackend, parseBaseBranch, parseRemote } = require(publishKbPath);
+const { run, parseCommandsTemplates, parseStagedPage, classifyBackend, parseBaseBranch, parseRemote, hashBody } = require(publishKbPath);
 
 const FAKE_BACKEND = require.resolve('./fixtures/fake-kb-backend.js');
 
@@ -187,9 +187,9 @@ withState((stateFile) => {
 // --- end-to-end: upsert updates, never duplicates, when find locates the page ----------------
 withState((stateFile) => {
   const repo = makeRepo();
-  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.', ['find', 'read', 'create', 'update', 'delete']));
   fs.writeFileSync(stateFile, JSON.stringify({ 'Existing Page': { id: 'id-7', body: 'old.\n' } }));
-  stagePage(repo, 'demo', 'existing.md', 'title: Existing Page\naction: upsert', 'new body.\n');
+  stagePage(repo, 'demo', 'existing.md', `title: Existing Page\naction: upsert\nlive-hash: ${hashBody('old.\n')}`, 'new body.\n');
 
   const res = call(['--scope', 'demo'], repo);
   assert.ok(res.ok, `expected success, got: ${res.err}`);
@@ -204,9 +204,9 @@ withState((stateFile) => {
 // --- every key find emitted reaches the later verb as SUPERDEV_KB_<KEY> ----------------------
 withState((stateFile) => {
   const repo = makeRepo();
-  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.', ['find', 'read', 'create', 'update', 'delete']));
   fs.writeFileSync(stateFile, JSON.stringify({ 'Keyed Page': { id: 'id-42', body: 'old.\n' } }));
-  stagePage(repo, 'demo', 'keyed.md', 'title: Keyed Page\naction: upsert', 'new.\n');
+  stagePage(repo, 'demo', 'keyed.md', `title: Keyed Page\naction: upsert\nlive-hash: ${hashBody('old.\n')}`, 'new.\n');
 
   const captureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-capture-'));
   process.env.FAKE_KB_CAPTURE_DIR = captureDir;
@@ -239,13 +239,14 @@ withState((stateFile) => {
   const repo = makeRepo();
   // The find command here returns a title field; our implementation must NOT use it
   const findCmd = `echo '{"id": "id-1", "title": "Found Title"}'`;
+  const readCmd = `node ${JSON.stringify(FAKE_BACKEND)} read`;
   const createCmd = `node ${JSON.stringify(FAKE_BACKEND)} create`;
   const updateCmd = `node ${JSON.stringify(FAKE_BACKEND)} update`;
   const deleteCmd = `node ${JSON.stringify(FAKE_BACKEND)} delete`;
-  const doc = `# KB\n\n## Configuration\n\n- **Backend:** Override Wiki.\n\n## Commands\n\n### find\n\n\`\`\`sh\n${findCmd}\n\`\`\`\n\n### create\n\n\`\`\`sh\n${createCmd}\n\`\`\`\n\n### update\n\n\`\`\`sh\n${updateCmd}\n\`\`\`\n\n### delete\n\n\`\`\`sh\n${deleteCmd}\n\`\`\`\n`;
+  const doc = `# KB\n\n## Configuration\n\n- **Backend:** Override Wiki.\n\n## Commands\n\n### find\n\n\`\`\`sh\n${findCmd}\n\`\`\`\n\n### read\n\n\`\`\`sh\n${readCmd}\n\`\`\`\n\n### create\n\n\`\`\`sh\n${createCmd}\n\`\`\`\n\n### update\n\n\`\`\`sh\n${updateCmd}\n\`\`\`\n\n### delete\n\n\`\`\`sh\n${deleteCmd}\n\`\`\`\n`;
   writeKbDoc(repo, doc);
-  fs.writeFileSync(stateFile, JSON.stringify({ 'Staged Title': { id: 'id-1' } }));
-  stagePage(repo, 'demo', 'override.md', 'title: Staged Title\naction: upsert', 'body.\n');
+  fs.writeFileSync(stateFile, JSON.stringify({ 'Staged Title': { id: 'id-1', body: 'old.\n' } }));
+  stagePage(repo, 'demo', 'override.md', `title: Staged Title\naction: upsert\nlive-hash: ${hashBody('old.\n')}`, 'body.\n');
 
   const captureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-capture-'));
   process.env.FAKE_KB_CAPTURE_DIR = captureDir;
@@ -267,13 +268,14 @@ withState((stateFile) => {
   const repo = makeRepo();
   // The find command here returns a body_file field; our implementation must NOT use it
   const findCmd = `echo '{"id": "id-1", "body_file": "/wrong/path"}'`;
+  const readCmd = `node ${JSON.stringify(FAKE_BACKEND)} read`;
   const createCmd = `node ${JSON.stringify(FAKE_BACKEND)} create`;
   const updateCmd = `node ${JSON.stringify(FAKE_BACKEND)} update`;
   const deleteCmd = `node ${JSON.stringify(FAKE_BACKEND)} delete`;
-  const doc = `# KB\n\n## Configuration\n\n- **Backend:** Override Wiki.\n\n## Commands\n\n### find\n\n\`\`\`sh\n${findCmd}\n\`\`\`\n\n### create\n\n\`\`\`sh\n${createCmd}\n\`\`\`\n\n### update\n\n\`\`\`sh\n${updateCmd}\n\`\`\`\n\n### delete\n\n\`\`\`sh\n${deleteCmd}\n\`\`\`\n`;
+  const doc = `# KB\n\n## Configuration\n\n- **Backend:** Override Wiki.\n\n## Commands\n\n### find\n\n\`\`\`sh\n${findCmd}\n\`\`\`\n\n### read\n\n\`\`\`sh\n${readCmd}\n\`\`\`\n\n### create\n\n\`\`\`sh\n${createCmd}\n\`\`\`\n\n### update\n\n\`\`\`sh\n${updateCmd}\n\`\`\`\n\n### delete\n\n\`\`\`sh\n${deleteCmd}\n\`\`\`\n`;
   writeKbDoc(repo, doc);
-  fs.writeFileSync(stateFile, JSON.stringify({ 'Staged': { id: 'id-1' } }));
-  stagePage(repo, 'demo', 'override2.md', 'title: Staged\naction: upsert', 'body.\n');
+  fs.writeFileSync(stateFile, JSON.stringify({ 'Staged': { id: 'id-1', body: 'old.\n' } }));
+  stagePage(repo, 'demo', 'override2.md', `title: Staged\naction: upsert\nlive-hash: ${hashBody('old.\n')}`, 'body.\n');
 
   const captureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-capture-'));
   process.env.FAKE_KB_CAPTURE_DIR = captureDir;
@@ -293,9 +295,10 @@ withState((stateFile) => {
 // --- a find key that a POSIX shell cannot address as a variable is still forwarded, but warned ---
 withState(() => {
   const repo = makeRepo();
-  const doc = `# KB\n\n## Configuration\n\n- **Backend:** Hyphen Wiki.\n\n## Commands\n\n### find\n\n\`\`\`sh\necho '{"sub-url": "https://example.com/x", "id": "id-1"}'\n\`\`\`\n\n### create\n\n\`\`\`sh\nexit 0\n\`\`\`\n\n### update\n\n\`\`\`sh\nexit 0\n\`\`\`\n\n### delete\n\n\`\`\`sh\nexit 0\n\`\`\`\n`;
+  const liveBody = 'live body content';
+  const doc = `# KB\n\n## Configuration\n\n- **Backend:** Hyphen Wiki.\n\n## Commands\n\n### find\n\n\`\`\`sh\necho '{"sub-url": "https://example.com/x", "id": "id-1"}'\n\`\`\`\n\n### read\n\n\`\`\`sh\nprintf '${liveBody}'\n\`\`\`\n\n### create\n\n\`\`\`sh\nexit 0\n\`\`\`\n\n### update\n\n\`\`\`sh\nexit 0\n\`\`\`\n\n### delete\n\n\`\`\`sh\nexit 0\n\`\`\`\n`;
   writeKbDoc(repo, doc);
-  stagePage(repo, 'demo', 'p.md', 'title: Hyphen Page\naction: upsert');
+  stagePage(repo, 'demo', 'p.md', `title: Hyphen Page\naction: upsert\nlive-hash: ${hashBody(liveBody)}`);
 
   const origWrite = process.stderr.write;
   const captured = [];
@@ -1287,7 +1290,10 @@ for (const verb of ['find', 'create', 'update', 'delete']) {
       fs.writeFileSync(stateFile, JSON.stringify({ 'Verb Page': { id: 'id-0', body: 'old.\n' } }));
     }
     const action = verb === 'delete' ? 'delete' : 'upsert';
-    stagePage(repo, `verb-${verb}`, 'p.md', `title: Verb Page\naction: ${action}`);
+    const frontmatter = verb === 'update'
+      ? `title: Verb Page\naction: ${action}\nlive-hash: ${hashBody('old.\n')}`
+      : `title: Verb Page\naction: ${action}`;
+    stagePage(repo, `verb-${verb}`, 'p.md', frontmatter);
     process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = String(HANG_MS);
 
     const res = call(['--scope', `verb-${verb}`], repo);
@@ -1417,32 +1423,276 @@ withState((stateFile) => {
   assert.ok(Object.hasOwn(state, 'Fine'), 'the later page still published');
 });
 
-// --- a page retried after a timeout publishes once: the killed create becomes an update -----------
+// --- a create killed after landing is recognised on retry by its own marker, and sent as an ------
+// update (ADR 0076, ADR 0094, INV-0091): before publish-kb sends a hashless `create`, it writes a
+// `created-by-publish` marker into the staged file, so a later run whose `find` locates the page
+// the killed call already landed knows this is its own retry rather than someone else's page.
 withState((stateFile) => {
   const repo = makeRepo();
   // First run: `create` hangs, but the page it was sending did land on the backend — the shape a
-  // write killed in flight leaves behind. The staged file survives, so the next run retries it.
+  // write killed in flight leaves behind. The staged file survives, marker and all, so the next
+  // run retries it.
   const hanging = hangingVerbDoc('- **Backend:** Some Wiki.', 'create');
   writeKbDoc(repo, hanging);
   stagePage(repo, 'retry', 'p.md', 'title: Retried Page\naction: upsert', 'second body.\n');
   process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = String(HANG_MS);
   const first = call(['--scope', 'retry'], repo);
   assert.match(first.out, new RegExp(`left staged: Retried Page — create timed out after ${HANG_MS}ms`));
+  const stagedPath = path.join(repo, '.superdev', 'kb-pending', 'retry', 'p.md');
+  assert.match(
+    fs.readFileSync(stagedPath, 'utf8'),
+    /created-by-publish: /,
+    'the marker is written before the create call, so it survives the kill',
+  );
   fs.writeFileSync(stateFile, JSON.stringify({ 'Retried Page': { id: 'id-0', body: 'landed anyway.\n' } }));
 
-  // Second run against a healthy backend: find locates the page, so this is an update, not a
-  // duplicate create.
-  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  // Second run against a healthy backend: find now locates the page the first run's killed create
+  // landed. The staged file carries no live-hash, but does carry the marker, so the retry sends
+  // `update` — no `read` call needed to tell the two cases apart.
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.', ['find', 'create', 'update', 'delete']));
   const second = call(['--scope', 'retry'], repo);
-  assert.ok(second.ok, `expected success, got: ${second.err}`);
+  assert.ok(second.ok, `expected a report, got: ${second.err}`);
   assert.match(second.out, /published \(updated\): Retried Page/);
   const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
-  assert.equal(Object.keys(state).length, 1, 'retrying publishes once, never twice');
-  assert.equal(state['Retried Page'].body, 'second body.\n');
-  assert.ok(
-    !fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'retry', 'p.md')),
-    'the landed page is cleared from staging',
+  assert.equal(state['Retried Page'].body, 'second body.\n', 'the retry lands the staged body via update');
+  assert.ok(!fs.existsSync(stagedPath), 'a landed retry clears the staged file like any other publish');
+});
+
+// --- a second retry writes no second marker: the first attempt's own timestamp survives -----------
+// (ADR 0076, ADR 0094). Every retry re-marks the staged file ahead of its own `create` call; without
+// a presence check that appends a fresh `created-by-publish:` line on every attempt instead of leaving
+// the first one alone.
+withState(() => {
+  const repo = makeRepo();
+  const hanging = hangingVerbDoc('- **Backend:** Some Wiki.', 'create');
+  writeKbDoc(repo, hanging);
+  stagePage(repo, 'retry-twice', 'p.md', 'title: Retried Twice\naction: upsert', 'body.\n');
+  process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = String(HANG_MS);
+  const stagedPath = path.join(repo, '.superdev', 'kb-pending', 'retry-twice', 'p.md');
+
+  call(['--scope', 'retry-twice'], repo);
+  const afterFirst = fs.readFileSync(stagedPath, 'utf8');
+  const markers = (t) => t.match(/created-by-publish: \S+/g) || [];
+  assert.equal(markers(afterFirst).length, 1, 'the first attempt writes exactly one marker');
+
+  call(['--scope', 'retry-twice'], repo);
+  const afterSecond = fs.readFileSync(stagedPath, 'utf8');
+  assert.equal(markers(afterSecond).length, 1, 'the second attempt writes no second marker');
+  assert.deepEqual(markers(afterSecond), markers(afterFirst), 'the marker keeps the first attempt\'s own timestamp');
+});
+
+// --- a create that failed without landing, then retried: the page is absent, so the retry -------
+// creates rather than sending an update meant for a page that never existed.
+withState(() => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.', ['find', 'create', 'update', 'delete']));
+  stagePage(repo, 'retry-absent', 'p.md', 'title: Never Landed\naction: upsert', 'body.\n');
+
+  const res = call(['--scope', 'retry-absent'], repo);
+  assert.ok(res.ok, `expected a report, got: ${res.err}`);
+  assert.match(res.out, /published \(created\): Never Landed/);
+});
+
+// --- a hashless upsert with no marker on an existing page is still refused -----------------------
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.', ['find', 'read', 'create', 'update', 'delete']));
+  fs.writeFileSync(stateFile, JSON.stringify({ 'Someone Elses Page': { id: 'id-0', body: 'their body.\n' } }));
+  stagePage(repo, 'no-marker', 'p.md', 'title: Someone Elses Page\naction: upsert', 'my body.\n');
+
+  const res = call(['--scope', 'no-marker'], repo);
+  assert.ok(res.ok, `expected a report, got: ${res.err}`);
+  assert.match(res.out, /left staged: Someone Elses Page — no live-hash recorded for an existing page/);
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.equal(state['Someone Elses Page'].body, 'their body.\n', 'the refused upsert leaves the live page untouched');
+});
+
+// --- a recorded live-hash is checked even under a `created-by-publish` marker (ADR 0094): a stale --
+// marker never overrides a live-hash that sits in the same frontmatter. The marker applies only
+// where no live-hash is recorded.
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.', ['find', 'read', 'create', 'update', 'delete']));
+  fs.writeFileSync(stateFile, JSON.stringify({ 'Marked And Hashed Page': { id: 'id-0', body: 'changed live body.\n' } }));
+  stagePage(
+    repo,
+    'marker-and-hash',
+    'p.md',
+    `title: Marked And Hashed Page\naction: upsert\ncreated-by-publish: 2020-01-01T00:00:00.000Z\nlive-hash: ${hashBody('stale body.\n')}`,
+    'my body.\n',
   );
+
+  const res = call(['--scope', 'marker-and-hash'], repo);
+  assert.ok(res.ok, `expected a report, got: ${res.err}`);
+  assert.match(res.out, /left staged: Marked And Hashed Page — the live page has changed since this page was staged \(live-hash mismatch\)/);
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.equal(state['Marked And Hashed Page'].body, 'changed live body.\n', 'the refused upsert leaves the live page untouched');
+});
+
+// --- a marker retry works against a backend with no `read` verb at all ---------------------------
+withState((stateFile) => {
+  const repo = makeRepo();
+  // No `read` verb configured at all — a marker retry needs none, unlike the live-hash guard.
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.', ['find', 'create', 'update']));
+  stagePage(repo, 'retry-noread', 'p.md', 'title: No Read Backend Page\naction: upsert', 'second.\n');
+  const hangingCreate = hangingVerbDoc('- **Backend:** Some Wiki.', 'create', ['find', 'create', 'update']);
+  writeKbDoc(repo, hangingCreate);
+  process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = String(HANG_MS);
+  call(['--scope', 'retry-noread'], repo);
+  fs.writeFileSync(stateFile, JSON.stringify({ 'No Read Backend Page': { id: 'id-0', body: 'landed anyway.\n' } }));
+
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.', ['find', 'create', 'update']));
+  const res = call(['--scope', 'retry-noread'], repo);
+  assert.ok(res.ok, `expected a report, got: ${res.err}`);
+  assert.match(res.out, /published \(updated\): No Read Backend Page/);
+});
+
+// --- an fs error writing the retry marker leaves the page staged and sends no create -------------
+// (the marker is written through a temp file and rename, the way scope.js writes its ledger; a
+// staging directory that cannot be written to at all reproduces that failure without touching the
+// staged file's own permissions).
+withState(() => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.', ['find', 'create', 'update']));
+  stagePage(repo, 'marker-write-fails', 'p.md', 'title: Unwritable Marker Page\naction: upsert', 'body.\n');
+  const scopeDir = path.join(repo, '.superdev', 'kb-pending', 'marker-write-fails');
+  fs.chmodSync(scopeDir, 0o555);
+  try {
+    const res = call(['--scope', 'marker-write-fails'], repo);
+    assert.ok(res.ok, `expected a report, got: ${res.err}`);
+    assert.match(res.out, /left staged: Unwritable Marker Page — could not write the retry marker/);
+  } finally {
+    fs.chmodSync(scopeDir, 0o755);
+  }
+  assert.ok(
+    fs.existsSync(path.join(scopeDir, 'p.md')),
+    'the page stays staged when the marker cannot be written',
+  );
+});
+
+// --- the --read entry (ADR 0094): finds and reads one page, writes nothing --------------------
+
+// --- an existing page prints its body and a hash; the read call writes nothing, moves nothing --
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.', ['find', 'read', 'create', 'update', 'delete']));
+  fs.writeFileSync(stateFile, JSON.stringify({ 'Read Page': { id: 'id-1', body: 'live body.\n' } }));
+
+  const res = call(['--read', 'Read Page'], repo);
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  const out = JSON.parse(res.out);
+  assert.equal(out.title, 'Read Page');
+  assert.equal(out.exists, true);
+  assert.equal(out.body, 'live body.\n');
+  assert.equal(out.hash, hashBody('live body.\n'));
+  assert.equal(
+    JSON.parse(fs.readFileSync(stateFile, 'utf8'))['Read Page'].body,
+    'live body.\n',
+    'the read entry never writes to the backend',
+  );
+});
+
+// --- two reads of an unchanged page agree, even across a CRLF/trailing-newline difference -------
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.', ['find', 'read', 'create', 'update', 'delete']));
+  fs.writeFileSync(stateFile, JSON.stringify({ 'Stable Page': { id: 'id-1', body: 'line one.\nline two.\n' } }));
+  const first = JSON.parse(call(['--read', 'Stable Page'], repo).out);
+
+  fs.writeFileSync(stateFile, JSON.stringify({ 'Stable Page': { id: 'id-1', body: 'line one.\r\nline two.' } }));
+  const second = JSON.parse(call(['--read', 'Stable Page'], repo).out);
+
+  assert.equal(first.hash, second.hash, 'a CRLF and trailing-newline difference alone does not change the hash');
+});
+
+// --- a page find does not find reads as not existing, and that is success, not a refusal --------
+withState(() => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.', ['find', 'read', 'create', 'update', 'delete']));
+
+  const res = call(['--read', 'Missing Page'], repo);
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  const out = JSON.parse(res.out);
+  assert.equal(out.title, 'Missing Page');
+  assert.equal(out.exists, false);
+});
+
+// --- a backend with no read command refuses the read entry, naming why --------------------------
+withState(() => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.', ['find', 'create', 'update', 'delete']));
+
+  const res = call(['--read', 'Any Page'], repo);
+  assert.equal(res.ok, false);
+  assert.match(res.err, /no read command configured/);
+});
+
+// --- a `none` backend refuses the read entry, naming why ------------------------------------------
+withState(() => {
+  const repo = makeRepo();
+  writeKbDoc(repo, '# Knowledge base\n\n## Configuration\n\n- **Backend:** none.\n');
+
+  const res = call(['--read', 'Any Page'], repo);
+  assert.equal(res.ok, false);
+  assert.match(res.err, /nothing to publish/);
+});
+
+// --- a `local` backend refuses the read entry, naming why -----------------------------------------
+withState(() => {
+  const repo = makeRepo();
+  writeKbDoc(repo, '# Knowledge base\n\n## Configuration\n\n- **Backend:** local file storage.\n');
+
+  const res = call(['--read', 'Any Page'], repo);
+  assert.equal(res.ok, false);
+  assert.match(res.err, /nothing to publish/);
+});
+
+// --- a failed read call refuses the read entry, naming why ---------------------------------------
+withState(() => {
+  const repo = makeRepo();
+  const doc = `# KB\n\n## Configuration\n\n- **Backend:** Flaky Wiki.\n\n## Commands\n\n### find\n\n\`\`\`sh\necho '{"id": "id-1"}'\n\`\`\`\n\n### read\n\n\`\`\`sh\nexit 7\n\`\`\`\n`;
+  writeKbDoc(repo, doc);
+
+  const res = call(['--read', 'Flaky Page'], repo);
+  assert.equal(res.ok, false);
+  assert.match(res.err, /read exited 7/);
+});
+
+// --- an exhausted bound refuses the read entry, naming the timeout --------------------------------
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, hangingVerbDoc('- **Backend:** Some Wiki.', 'read', ['find', 'read']));
+  fs.writeFileSync(stateFile, JSON.stringify({ 'Hung Page': { id: 'id-1', body: 'x.\n' } }));
+  process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = String(HANG_MS);
+
+  const res = call(['--read', 'Hung Page'], repo);
+  assert.equal(res.ok, false);
+  assert.match(res.err, new RegExp(`read timed out after ${HANG_MS}ms`));
+});
+
+// --- the live-hash guard on upsert (ADR 0094, INV-0091) -----------------------------------------
+
+// --- a recorded hash that differs from the live body refuses; the rest of the batch still runs ---
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.', ['find', 'read', 'create', 'update', 'delete']));
+  fs.writeFileSync(stateFile, JSON.stringify({ 'Changed Page': { id: 'id-1', body: 'edited elsewhere.\n' } }));
+  stagePage(
+    repo,
+    'demo',
+    'changed.md',
+    `title: Changed Page\naction: upsert\nlive-hash: ${hashBody('stale body the pass saw.\n')}`,
+    'new body.\n',
+  );
+  stagePage(repo, 'demo', 'fine.md', 'title: Fine Page\naction: upsert', 'fine body.\n');
+
+  const res = call(['--scope', 'demo'], repo);
+  assert.ok(res.ok, `expected a report, got: ${res.err}`);
+  assert.match(res.out, /left staged: Changed Page — .*live-hash mismatch/);
+  assert.match(res.out, /published \(created\): Fine Page/, 'the rest of the batch still publishes');
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.equal(state['Changed Page'].body, 'edited elsewhere.\n', 'the live page is untouched');
+  assert.ok(fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', 'changed.md')));
 });
 
 console.log('publish-kb.test.js: all assertions passed');

@@ -124,7 +124,8 @@ function unquoteArg(raw) {
 // ponytail: a shape test, not a resolution. Parsing the target would make such a command work, at the
 // cost of a surface — chained `cd`s, variables, `~`, relative-on-relative, a `cd` inside a subshell
 // that does not outlive it — where every wrong resolution runs the suite in the wrong tree and reports
-// a confident green. Failing closed costs the caller one `-C`. The regex also over-fires: `echo "note;
+// a confident green. Failing closed leaves the merge landed and unverified, named in the block message
+// below, with `-C` the way to get a gated merge next time. The regex also over-fires: `echo "note;
 // cd nowhere" && git merge s` reads a quoted `cd` as a real one and blocks a command that never left the
 // session cwd. That direction is safe — the recovery is the same one `-C` — so it is left uncorrected.
 // Upgrade to resolution only with a shell parser, never with a regex.
@@ -152,8 +153,8 @@ const CHANGES_DIR = /(^|[;&|(\n])\s*(?:cd|pushd|popd)(\s|$)/;
 // repository a normal upward `.git` search finds from there — not necessarily the repository the
 // merge's own `--git-dir` pointed at. The files land exactly where the option said; the branch, the
 // changed-path set, and the in-progress check can still come from a different repository than the one
-// the merge advanced — there is no honest tree to pick. Failing closed on `--git-dir` alone costs the
-// caller one `-C`, the same recovery the directory-changing block asks for. A `-C` alongside a bare
+// the merge advanced — there is no honest tree to pick. Failing closed on `--git-dir` alone leaves the
+// merge landed and unverified, the same recovery the directory-changing block asks for. A `-C` alongside a bare
 // `--git-dir` fails closed too: git would take the tree from `-C`, but a command whose repository and
 // tree are named separately is exactly the split this gate cannot verify.
 //
@@ -277,13 +278,16 @@ function resolveVerification(parsed, cmd, sessionCwd) {
       full: session.full,
       focused: session.focused,
       blind: namesOnlyGitDir(parsed.tokens)
-        ? 'superdev: green-gate cannot verify this merge. The command names its repository with ' +
-          '`--git-dir` and its working tree with nothing, so the files it updates and the refs it ' +
-          'reads live apart — there is no one tree to run the suite over. Run it as ' +
-          '`git -C <path> merge …` instead, or name the tree with `--work-tree <path>`.'
-        : 'superdev: green-gate cannot see this merge\'s working tree. The command changes directory and ' +
-          'carries no `-C`, so the gate would run the suite in the session\'s own checkout — a tree the ' +
-          'merge never touched. Run it as `git -C <path> merge …` instead.',
+        ? 'superdev: this merge has landed, and nobody verified it. The command names its repository ' +
+          'with `--git-dir` and its working tree with nothing, so the files it updated and the refs it ' +
+          'reads live apart — there was no one tree to run the suite over. Run the full test command in ' +
+          'the merge\'s tree now, or revert this merge. Run it as `git -C <path> merge …` next time, or ' +
+          'name the tree with `--work-tree <path>`.'
+        : 'superdev: this merge has landed, and nobody verified it. The command changed directory and ' +
+          'carried no `-C`, so the gate could not see the merge\'s working tree — it would have run the ' +
+          'suite in the session\'s own checkout, a tree the merge never touched. Run the full test ' +
+          'command in the merge\'s tree now, or revert this merge. Run it as `git -C <path> merge …` ' +
+          'next time.',
     };
   }
   if (cwd === sessionCwd) return session;
