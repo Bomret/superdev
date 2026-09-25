@@ -157,6 +157,15 @@ function parseCommandsTemplates(sectionText) {
   return templates;
 }
 
+// Reads the `- **Body format:**` configuration bullet the same way `classifyBackend` reads
+// `- **Backend:**` — first word, case-folded, trailing punctuation stripped. Absent means
+// `markdown` (ADR 0027's default: `kb-patch.js` merges markdown ATX headings), so only a backend
+// storing something else (Confluence's `storage` XHTML) needs the bullet at all.
+function parseBodyFormat(docText) {
+  const m = docText.match(/^- \*\*Body format:\*\*\s*(.+)$/m);
+  return m ? m[1].trim().split(/\s+/)[0].toLowerCase().replace(/[.,;:]+$/, '') : 'markdown';
+}
+
 // Classifies `docs/agents/knowledge-base.md`. `docText === null` means the file is absent, which
 // reads the same as a configured `none` backend. `local`/`none` publish nothing (a local backend's
 // pages are repository files, ADR 0023) and `unconfigured` is a repo whose knowledge base is a real
@@ -172,7 +181,10 @@ function classifyBackend(docText) {
   }
   const commands = extractH2Section(docText, 'Commands');
   if (commands === null) return { kind: 'unconfigured' };
-  return { kind: 'remote', templates: parseCommandsTemplates(commands) };
+  // `bodyFormat` rides on the same `templates` object rather than a sibling field: every function
+  // between here and `publishPatch` already threads `templates` alone, and a patch is the only
+  // caller that reads it.
+  return { kind: 'remote', templates: { ...parseCommandsTemplates(commands), bodyFormat: parseBodyFormat(docText) } };
 }
 
 // --- staged page parsing ---------------------------------------------------------------------
@@ -425,6 +437,12 @@ function publishDelete(title, templates) {
 // page this run just created can never trigger a second, section-wiping create. That guarantee
 // holds regardless of what `find` answers, rather than depending on `find` behaving consistently.
 function publishPatch(title, stagedRaw, templates, assumeExists) {
+  if (templates.bodyFormat && templates.bodyFormat !== 'markdown') {
+    return {
+      ok: false,
+      reason: `the backend's body format is ${templates.bodyFormat}, not markdown — kb-patch.js merges markdown headings, so a patch would append unrendered markdown instead (ADR 0027)`,
+    };
+  }
   if (!templates.read) return { ok: false, reason: 'no read command configured' };
   const found = runFind(title, templates);
   if (found.verdict === 'unknown') return { ok: false, reason: found.reason, timedOut: found.timedOut };

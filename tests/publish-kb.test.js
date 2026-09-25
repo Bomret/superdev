@@ -604,6 +604,35 @@ withState(() => {
   assert.match(res.out, /left staged: No Read Page — no read command configured/);
 });
 
+// --- a backend declaring a non-markdown body format (Confluence-shaped) refuses a patch, but ----
+// still upserts -----------------------------------------------------------------------------------
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(
+    repo,
+    commandsDoc('- **Backend:** Confluence.\n- **Body format:** storage', PATCH_VERBS),
+  );
+  fs.writeFileSync(
+    stateFile,
+    JSON.stringify({ 'Confluence Page': { id: 'id-1', body: '<p>old.</p>' } }),
+  );
+  stagePage(repo, 'demo', 'confluence--section-a.md', 'title: Confluence Page\naction: patch', '## Section A\n\nnew A.\n');
+  stagePage(repo, 'demo', 'confluence-whole.md', 'title: Other Page\naction: upsert', 'a whole page.\n');
+
+  const res = call(['--scope', 'demo'], repo);
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  assert.match(
+    res.out,
+    /left staged: Confluence Page — .*not markdown/,
+    'a patch is refused, deterministically, on a non-markdown body format',
+  );
+  assert.match(res.out, /published \(created\): Other Page/, 'an upsert still works on the same backend');
+  assert.ok(
+    fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', 'confluence--section-a.md')),
+    'the refused patch stays staged',
+  );
+});
+
 // --- two or more staged files sharing a title where at least one is not action: patch: --------
 // none published, every filename in the group reported
 withState((stateFile) => {

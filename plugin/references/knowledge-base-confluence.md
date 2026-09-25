@@ -32,6 +32,10 @@ markdown conversion is named, whatever `### read` template this seed carries bel
 ## Configuration (fill in at setup)
 
 - **Backend:** Confluence.
+- **Body format:** storage. `scripts/publish-kb.js` reads this bullet and refuses an `action: patch`
+  page outright — leaving it staged, with the reason reported per page — rather than merge markdown
+  headings into XHTML (ADR 0027). Absent means markdown, which is why every markdown-backed seed
+  carries no such bullet.
 - **Base URL**: `<https://your-domain.atlassian.net/wiki>`
 - **Space key**: `<SPACE>`
 - **Auth**: API token in env var `<CONFLUENCE_API_TOKEN>`, user email in `<CONFLUENCE_EMAIL>`. Record

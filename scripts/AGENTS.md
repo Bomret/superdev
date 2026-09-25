@@ -463,10 +463,15 @@ variable for the later verbs. Exit `3` means `absent`, the only verdict that may
 other exit means `unknown`, which leaves the page staged instead of guessing. `action: upsert` finds,
 then creates or updates. `action: delete` finds, then deletes, or reports `already-absent` when `find`
 already answers `absent`. `action: patch` requires a `read` template, since a backend declaring none
-leaves every `patch` page staged. It reads the live body, merges the staged section into it through
-`kb-patch.js`'s exported `merge()`, and creates or updates with the merged result. A `read` call that
-returns no body for a title `find` did list counts as a read failure, never as an empty live page. It
-therefore never wipes an aggregate page's other sections (ADR 0027, 0069).
+leaves every `patch` page staged. It also refuses, leaving the page staged with the reason reported per
+page, when `classifyBackend` resolves a `- **Body format:**` configuration bullet that names anything
+other than markdown (absent means markdown): `kb-patch.js` merges by matching markdown ATX headings, and
+a page stored as something else (Confluence's `storage` XHTML) would otherwise take an unrendered
+markdown section appended to it on every publish (ADR 0027). Otherwise, `patch` reads the live body,
+merges the staged section into it through `kb-patch.js`'s exported `merge()`, and creates or updates with
+the merged result. A `read` call that returns no body for a title `find` did list counts as a read
+failure, never as an empty live page. It therefore never wipes an aggregate page's other sections (ADR
+0027, 0069).
 
 Two or more staged files sharing one title are the aggregate-page case, since a `patch` filename is
 `<title-slug>--<section-slug>.md` and an outline entry's sections arrive as sibling files.
