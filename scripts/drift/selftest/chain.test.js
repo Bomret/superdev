@@ -65,6 +65,7 @@ const {
   DECOMPOSITION_NAMES_WHAT_IT_CHECKED_CONTRACTS,
   DOD_TICKS_CONTRACTS,
   HOLDS_VERDICT_TICKS_CONTRACTS,
+  ACCEPTED_VERDICT_CONTRACTS,
 } = require('../contracts');
 
 module.exports = ({ assert, path, fixture, fs, realRoot }) => {
@@ -4619,6 +4620,43 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   );
   assert.equal(hvWeakCeilingGaps[0].source, path.join('references', 'dod-ticks.md'), 'names dod-ticks.md');
 
+  // --- ACCEPTED_VERDICT_CONTRACTS (ADR 0095): the `accepted` verdict is not a finding and does not hold
+  // the stage. final-reviewer.md carries the agent-side clause, review/SKILL.md §4 restates it on the
+  // dispatch surface. Rows asserted apart. ---
+  const avAgentClause =
+    'or **accepted** (an unticked line noted\n`accepted:` whose criterion the branch still does not ' +
+    'meet — an attended operator\'s own decision that it\nstands accepted as unmet, ADR 0095; report ' +
+    'it, but it is not a finding and does not hold the stage).\n';
+  const avSkillClause =
+    'A line called **accepted** is likewise left\nexactly as it stood: an `accepted:` note is an ' +
+    'attended operator\'s own decision (ADR 0095), never a\nCritical finding and never a reason to ' +
+    'hold the stage, unless the **holds** clause below turns it over.\n';
+
+  const avClauses = {
+    'agents/final-reviewer.md': avAgentClause,
+    'skills/review/SKILL.md': avSkillClause,
+  };
+
+  // negative: both documents carrying their own clause yields zero gaps
+  const avFullGaps = scanContract(fixture(avClauses), ACCEPTED_VERDICT_CONTRACTS);
+  assert.deepEqual(avFullGaps, [], 'final-reviewer.md and review/SKILL.md carrying the accepted-verdict rows yields zero gaps');
+
+  // positive: final-reviewer.md drops its clause
+  const avNoAgentGaps = scanContract(
+    fixture({ ...avClauses, 'agents/final-reviewer.md': 'Nothing about accepted here.\n' }),
+    ACCEPTED_VERDICT_CONTRACTS,
+  );
+  assert.equal(avNoAgentGaps.length, 1, 'flags final-reviewer.md once it drops the accepted-verdict clause');
+  assert.equal(avNoAgentGaps[0].source, path.join('agents', 'final-reviewer.md'), 'names final-reviewer.md');
+
+  // positive: review/SKILL.md drops its clause
+  const avNoSkillGaps = scanContract(
+    fixture({ ...avClauses, 'skills/review/SKILL.md': 'Nothing about accepted here.\n' }),
+    ACCEPTED_VERDICT_CONTRACTS,
+  );
+  assert.equal(avNoSkillGaps.length, 1, 'flags review/SKILL.md once it drops the accepted-verdict clause');
+  assert.equal(avNoSkillGaps[0].source, path.join('skills', 'review', 'SKILL.md'), 'names skills/review/SKILL.md');
+
   // --- COMMITMENT_CAPTURE_CONTRACTS (ADR 0081): a load-bearing commitment leaves a run as a register
   // entry or as a named reason it implies none. Three documents carry that between them, and each half
   // is asserted apart — the shape a one-sided pin cannot prove. ---
@@ -5277,7 +5315,8 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // --- UNMET_CRITERION_AT_REVIEW_CONTRACTS (ADR 0091): review/SKILL.md §4 gates on an unmet criterion
   // directly: a broken line is a Critical finding the controller unticks with a note, that finding covers
   // a ticked line the branch no longer satisfies as well as an already-unticked line the branch still
-  // fails, the stage does not advance while any criterion but a `ceiling` one stands unmet, the
+  // fails, the stage does not advance while any criterion but a `ceiling` one or an `accepted` one
+  // stands unmet, the
   // verification-ceiling case is reported and not chased, and a clean re-review re-ticks only what the
   // fix implementer's report calls met. ship/SKILL.md carries no row: ADR 0091 moved the gate to review.
   // Every review row asserted apart. ---
@@ -5285,7 +5324,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'A line `final-reviewer`\'s `### Criteria` calls broken is a Critical finding, and you untick it ' +
       'first. Untick it, with a one-line note naming why.',
     'The stage does **not** advance while any `dod.md` criterion stands unmet, except a `ceiling` one ' +
-      '(INV-0016).',
+      'or an `accepted` one (INV-0016).',
     'The verification-ceiling case is the one reported and not chased since no work on this branch can ' +
       'close it, and never fold it into the fix loop.',
     "After a fix cycle's re-review comes back clean, re-tick only the criteria that cycle's fix " +

@@ -152,7 +152,9 @@ Only when §2 found a live run. Everything above still applies; this adds the ru
   own untick, or the earlier one the standing entry already named) and that review's fix loop is what
   re-ticks it once the branch meets it again; print no `/superdev:ship` in the same breath — the stage
   still reads `reviewed` or below, and the step that opens the pull request asks once when attended and
-  refuses only when unattended, on a scope with an unmet criterion. **Neither case** → print
+  refuses only when unattended, on a scope with an unmet criterion — a criterion noted `ceiling:` or
+  `accepted:` is settled, never this kind of unmet, and reaches neither this bullet nor that gate.
+  **Neither case** → print
   `/superdev:ship <scope>`, with one line on what it does (close the scope anchor, open the pull request,
   and take the run down). Add that this conversation is disposable: the ledger's stage and `dod.md` carry
   everything the next command reads, so a `/clear` first costs nothing.

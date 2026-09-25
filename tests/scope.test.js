@@ -2751,6 +2751,153 @@ try {
       'an untagged noted line re-writes, still untagged: ' + r.out
     );
   }
+
+  // dod-line: the fourth verdict, `accepted` (ADR 0095, triage #679) — an operator-accepted unmet
+  // criterion renders unticked, exactly like not-met/ceiling, with its own `accepted:` label. It parses
+  // back on a later read exactly like the other three.
+  {
+    r = call(
+      ['dod-line', '--match', 'the widget renders', '--verdict', 'accepted', '--note', 'operator decision, 2026-09-25'],
+      '- [ ] the widget renders — 01'
+    );
+    assert.ok(r.ok, 'dod-line accepted should pass: ' + (r.err || ''));
+    assert.strictEqual(
+      r.out,
+      '- [ ] the widget renders — 01 — accepted: operator decision, 2026-09-25',
+      'dod-line renders an accepted line unticked, keeping the tag: ' + r.out
+    );
+
+    r = call(
+      ['dod-line', '--match', 'the widget renders', '--verdict', 'met', '--note', 'later evidence'],
+      r.out
+    );
+    assert.ok(r.ok, 'a later met write still parses an accepted line: ' + (r.err || ''));
+    assert.strictEqual(
+      r.out,
+      '- [x] the widget renders — 01 — met: later evidence',
+      'the accepted line still round-trips through a later judgment: ' + r.out
+    );
+  }
+
+  // dod-line: --note-file and --match-file (triage #680) — an alternative to --note/--match that reads
+  // the text from a file, one trailing newline stripped, verbatim otherwise: a quote, a backtick, a
+  // `$(`, all survive.
+  {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dod-line-files-'));
+    const notePath = path.join(dir, 'note.txt');
+    const matchPath = path.join(dir, 'match.txt');
+    const trickyNote = 'evidence: `$(rm -rf /)` and "quotes" too';
+    fs.writeFileSync(notePath, trickyNote + '\n', 'utf8');
+    fs.writeFileSync(matchPath, 'the widget renders\n', 'utf8');
+
+    r = call(
+      ['dod-line', '--match-file', matchPath, '--verdict', 'met', '--note-file', notePath],
+      '- [ ] the widget renders — 01'
+    );
+    assert.ok(r.ok, 'dod-line --match-file/--note-file should pass: ' + (r.err || ''));
+    assert.strictEqual(
+      r.out,
+      `- [x] the widget renders — 01 — met: ${trickyNote}`,
+      'dod-line renders the file-supplied note verbatim, trailing newline stripped: ' + r.out
+    );
+
+    // Giving both forms of the same argument refuses.
+    r = call(
+      ['dod-line', '--match', 'the widget renders', '--match-file', matchPath, '--verdict', 'met', '--note', 'x'],
+      '- [ ] the widget renders — 01'
+    );
+    assert.ok(!r.ok, 'dod-line refuses --match and --match-file together');
+    r = call(
+      ['dod-line', '--match', 'the widget renders', '--verdict', 'met', '--note', 'x', '--note-file', notePath],
+      '- [ ] the widget renders — 01'
+    );
+    assert.ok(!r.ok, 'dod-line refuses --note and --note-file together');
+
+    // A note-file whose content carries an internal newline (past the one trailing newline stripped)
+    // is still refused — the same refusal --note already makes.
+    fs.writeFileSync(notePath, 'line one\nline two\n', 'utf8');
+    r = call(
+      ['dod-line', '--match', 'the widget renders', '--verdict', 'met', '--note-file', notePath],
+      '- [ ] the widget renders — 01'
+    );
+    assert.ok(!r.ok && /newline/.test(r.err), 'dod-line refuses a --note-file with an embedded newline: ' + r.err);
+
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+
+  // dod-line: an untagged criterion ending in something shaped like a tag (`— 3`) is not misread as
+  // tagged — the whole line is still the criterion, since no real tag exists to split off (triage #679's
+  // C.1). Tag parsing still works for a genuinely tagged line ending the same way.
+  {
+    r = call(
+      ['dod-line', '--match', 'Retries capped — 3', '--verdict', 'met', '--note', 'ok'],
+      '- [ ] Retries capped — 3'
+    );
+    assert.ok(r.ok, 'dod-line matches an untagged criterion ending in a number-shaped suffix: ' + (r.err || ''));
+    assert.strictEqual(
+      r.out,
+      '- [x] Retries capped — 3 — met: ok',
+      'the whole line round-trips as one untagged criterion: ' + r.out
+    );
+
+    r = call(
+      ['dod-line', '--match', 'Retries capped', '--verdict', 'met', '--note', 'ok'],
+      '- [ ] Retries capped — 01'
+    );
+    assert.ok(r.ok, 'a genuinely tagged line still matches its bare criterion: ' + (r.err || ''));
+    assert.strictEqual(
+      r.out,
+      '- [x] Retries capped — 01 — met: ok',
+      'tag parsing is unaffected for a real tag: ' + r.out
+    );
+  }
+
+  // dod-line: the untagged fallback trims trailing whitespace off the criterion it renders (triage
+  // #679's C.2).
+  {
+    r = call(
+      ['dod-line', '--match', 'Old criterion with no tag', '--verdict', 'met', '--note', 'ok'],
+      '- [ ] Old criterion with no tag   '
+    );
+    assert.ok(r.ok, 'dod-line should match an untagged line with trailing whitespace: ' + (r.err || ''));
+    assert.strictEqual(
+      r.out,
+      '- [x] Old criterion with no tag — met: ok',
+      'the untagged fallback trims trailing whitespace off the criterion: ' + r.out
+    );
+  }
+
+  // dod-line: body mode scopes an untagged match to the `## Definition of Done` section when the body
+  // carries one (triage #679's C.3) — an identical checkbox outside that section is ignored, and a
+  // second one inside it still refuses as ambiguous.
+  {
+    const body = [
+      '# dod.md',
+      '',
+      '## Out of scope',
+      '',
+      '- [ ] Old criterion with no tag',
+      '',
+      '## Definition of Done',
+      '',
+      '- [ ] the widget renders — 01',
+      '',
+      '## Notes',
+      '',
+      '- [ ] Old criterion with no tag',
+    ].join('\n');
+    r = call(['dod-line', '--match', 'the widget renders', '--verdict', 'met', '--note', 'ok'], body);
+    assert.ok(r.ok, 'dod-line matches inside the DoD section: ' + (r.err || ''));
+    assert.ok(r.out.includes('- [x] the widget renders — 01 — met: ok'), 'the DoD-section line is ticked: ' + r.out);
+
+    r = call(['dod-line', '--match', 'Old criterion with no tag', '--verdict', 'met', '--note', 'ok'], body);
+    assert.ok(!r.ok, 'a checkbox outside the DoD section is never a match candidate, even though two copies exist');
+
+    // A body with no "Definition of Done" heading still matches over the whole body, as before.
+    const noHeading = ['- [ ] the widget renders — 01', '- [ ] the gadget spins — 02'].join('\n');
+    r = call(['dod-line', '--match', 'the widget renders', '--verdict', 'met', '--note', 'ok'], noHeading);
+    assert.ok(r.ok, 'a body with no DoD heading still matches over the whole body: ' + (r.err || ''));
+  }
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true });
 }

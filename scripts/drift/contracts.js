@@ -3640,7 +3640,7 @@ const DOD_TICKS_CONTRACTS = [
   ],
   [
     path.join('references', 'dod-ticks.md'),
-    /A\s+bare tick with no note is invalid\.[\s\S]{0,60}\*\*A listed line the report never touches is a report defect, not an unjudged line\.\*\*[\s\S]{0,500}sends the report back for that line before merging or ticking/,
+    /A\s+bare tick with no note is invalid\.[\s\S]{0,1200}\*\*A listed line the report never touches is a report defect, not an unjudged line\.\*\*[\s\S]{0,500}sends the report back for that line before merging or ticking/,
     'state the note rule (INV-0014): a bare tick is invalid, and a listed line the report never touches is a report defect — the controller sends the report back for that line rather than ticking around it',
   ],
   [
@@ -3841,8 +3841,27 @@ const HOLDS_VERDICT_TICKS_CONTRACTS = [
   ],
   [
     path.join('skills', 'review', 'SKILL.md'),
-    /A line unticked with `ceiling:` takes a\s+holds tick only when the verdict itself states the criterion needs no deploy or other outward-facing\s+change to verify and cites evidence observed on the branch[\s\S]{0,200}A `holds` verdict never ticks a line that genuinely needs a deploy to\s+verify \(INV-0006\)/,
+    /A line unticked with `ceiling:` takes a\s+holds tick only when the verdict itself states the criterion needs no deploy or other outward-facing\s+change to verify and cites evidence observed on the branch[\s\S]{0,600}A `holds` verdict never ticks a line that genuinely needs a deploy to\s+verify \(INV-0006\)/,
     'state, in §4, that a `ceiling:` line takes a holds tick only when the verdict states the criterion needs no deploy or other outward-facing change to verify and cites branch evidence, and that a `holds` verdict never ticks a line that genuinely needs a deploy (INV-0006)',
+  ],
+];
+
+// ADR 0095: `accepted` is the fourth verdict, an attended operator's own decision that an unmet criterion
+// stands accepted as unmet — never written by a report, a subagent, or an unattended run. `final-reviewer`
+// carries the agent-side clause (it must recognise the verdict and never manufacture one itself), and
+// `review/SKILL.md` §4 is the dispatch-side restatement the root AGENTS.md's dispatch-prose rule requires
+// beside it: a reviewer that silently drops the `accepted` case would report every `accepted:` line
+// broken, undoing the whole point of the verdict.
+const ACCEPTED_VERDICT_CONTRACTS = [
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /or \*\*accepted\*\* \(an unticked line noted\s+`accepted:`[\s\S]{0,300}not a finding and does not hold the stage\)/,
+    "state the `accepted` verdict: an unticked line noted `accepted:` whose criterion the branch still does not meet is not a finding and does not hold the stage",
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /A line called \*\*accepted\*\* is likewise left\s+exactly as it stood[\s\S]{0,200}never a Critical finding and never a reason to hold the stage/,
+    "state, in §4, that a line final-reviewer calls accepted is left exactly as it stood, never a Critical finding and never a reason to hold the stage",
   ],
 ];
 
@@ -4223,8 +4242,9 @@ const LABEL_REVISION_AT_DECOMPOSITION_CONTRACTS = [
 
 // `/superdev:review`'s own §4 (scope mode) meets an unmet criterion and gates on it directly (ADR 0091):
 // a broken line is unticked with a note and folded into the fix loop — whether the line stood ticked or
-// already unticked, both count — the stage does not advance while any criterion but a `ceiling` one
-// stands unmet, and a clean re-review re-ticks only what the fix implementer's report calls met.
+// already unticked, both count — the stage does not advance while any criterion but a `ceiling` one or
+// an `accepted` one (ADR 0095) stands unmet, and a clean re-review re-ticks only what the fix
+// implementer's report calls met.
 // `/superdev:ship` carries no row here any more: ADR 0091 moved the unmet-criterion gate to review, so
 // ship never meets one of its own — an unticked line reaches ship already noted, and ship's own
 // `SHIP_TICKS_NOTHING_CONTRACTS` row pins what ship does with a `ceiling:` one. Losing a review row lets
@@ -4239,8 +4259,8 @@ const UNMET_CRITERION_AT_REVIEW_CONTRACTS = [
   ],
   [
     path.join('skills', 'review', 'SKILL.md'),
-    /stage does \*\*not\*\* advance while any `dod\.md`\s+criterion stands unmet, except a `ceiling` one \(INV-0016\)/,
-    'state, in §4, that the stage does not advance while any `dod.md` criterion stands unmet, except a `ceiling` one (INV-0016)',
+    /stage does \*\*not\*\* advance while any `dod\.md`\s+criterion stands unmet, except a `ceiling` one or an `accepted` one \(INV-0016\)/,
+    'state, in §4, that the stage does not advance while any `dod.md` criterion stands unmet, except a `ceiling` one or an `accepted` one (INV-0016)',
   ],
   [
     path.join('skills', 'review', 'SKILL.md'),
@@ -4501,6 +4521,7 @@ module.exports = {
   CRITERION_TAG_CONTRACTS,
   DOD_TICKS_CONTRACTS,
   HOLDS_VERDICT_TICKS_CONTRACTS,
+  ACCEPTED_VERDICT_CONTRACTS,
   ALWAYS_REVIEW_CONTRACTS,
   ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS,
 };

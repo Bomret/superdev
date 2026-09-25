@@ -54,8 +54,11 @@ empty one.
 
 A line nobody has judged yet carries only its tag, or nothing at all when it carries none. A judged line
 carries one note — `— met: <evidence>`,
-`— not met: <reason>`, or `— ceiling: <partial evidence>` — never a bare tick (INV-0014). A later judgment
-replaces that note rather than adding a second one beside it:
+`— not met: <reason>`, `— ceiling: <partial evidence>`, or `— accepted: <reason>` — never a bare tick
+(INV-0014). `accepted` is an attended operator's own decision that an unmet criterion stands accepted as
+unmet (ADR 0095): the box stays unticked, since the criterion is honestly unmet, and the stage gate
+treats the line as settled rather than holding on it. A later judgment replaces that note rather than
+adding a second one beside it:
 
 ```
 - [x] Reachable: POST /orders (OrderApi) returns 201 and persists the order — 02 — met: implementer's report, evidence X
@@ -340,7 +343,8 @@ holds, never a second source of truth for it.
 
 Recording a judgment on a criterion (*Criterion tags* above) sets its line's marker to the **target
 state** the judgment reached — `- [x]` when met, `- [ ]` otherwise — and carries the line's own note —
-`— met: <evidence>`, `— not met: <reason>`, or `— ceiling: <partial evidence>` — into the store's own
+`— met: <evidence>`, `— not met: <reason>`, `— ceiling: <partial evidence>`, or `— accepted: <reason>`
+(ADR 0095) — into the store's own
 notation for the edit (INV-0014). The write **replaces** the line's previous note: a new judgment
 overwrites what an earlier one wrote there, never appending a second note beside it. **A write whose
 target state equals the line's current state — a `not met:` judgment landing on a line already

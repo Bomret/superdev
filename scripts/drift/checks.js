@@ -135,6 +135,7 @@ const {
   CRITERION_TAG_CONTRACTS,
   DOD_TICKS_CONTRACTS,
   HOLDS_VERDICT_TICKS_CONTRACTS,
+  ACCEPTED_VERDICT_CONTRACTS,
   ALWAYS_REVIEW_CONTRACTS,
   ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS,
 } = require('./contracts');
@@ -807,6 +808,12 @@ module.exports = [
     'dod-ticks.md and review/SKILL.md §4 still state that a `holds` verdict ticks a line unticked with ' +
       '`not met:` or carrying no note, with the verdict\'s evidence as the note, and that a `ceiling:` ' +
       'line needs the no-deploy-and-branch-evidence statement before a `holds` verdict can tick it',
+  ),
+  table(
+    'accepted-verdict',
+    ACCEPTED_VERDICT_CONTRACTS,
+    'final-reviewer.md still recognises the `accepted` verdict as no finding and no stage hold, and ' +
+      'review/SKILL.md §4 still restates that on its own dispatch surface (ADR 0095)',
   ),
   table(
     'always-review',

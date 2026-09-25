@@ -1,6 +1,6 @@
 superdev-render-overlay
 source: skills/document/SKILL.md
-body-lines: 154
+body-lines: 156
 ---
 # generated-by: superdev-adapter — a re-render overwrites this directory
 name: superdev-document
@@ -55,7 +55,7 @@ If it reports findings, re-dispatch **`doc-writer`** (as in §3) with the findin
 @125
 - **Find the scope checkout, and refresh the run lock.** Per `<plugin-root>/references/scope-mode.md`. Hand the doc-writer the scope checkout path as its working directory: this is where its commits must land.
 @126
-- **Re-check the ticks this pass's own commits could touch,** per `<plugin-root>/references/dod-ticks.md`'s Document's case: read `<run-root>/dod.md` for every ticked line naming a file, an ADR, a glossary entry, or a fixture the doc commits landed in this run touched — the `doc-writer`'s commits when §3 dispatched one, or the inline pass's own commits when §3's no-writer path applied instead. A line the branch still satisfies stays exactly as it stood, with no note added; a line your own change broke gets unticked, with a one-line note on what broke it (INV-0014). Apply the same verdict to the anchor's own Definition of Done checklist, through the active store's own `## Definition of Done ticks` section (`docs/agents/issue-tracker.md`) — best-effort, a failed write reported once and never stopping the pass. **An untick here also writes the ledger's `**Unresolved:**` entry, naming the criterion it broke** — `node "<plugin-root>/scripts/scope.js" unresolved add "<text>" --root <run-root>` — and publishes the snapshot, per `<plugin-root>/references/scope-mode.md`'s `## Publishing run state` section (INV-0016: the stage never advances past review while a criterion stands unmet, except a ceiling one, and this untick is what keeps ship's own gate from opening a pull request over it). The entry is cleared the next time `/superdev-review` returns a clean verdict, the same as any other `**Unresolved:**` entry. Verifying a tick observes; it changes no system outside the repository (ADR 0084, INV-0006). This step runs no test command of its own.
+- **Re-check the ticks this pass's own commits could touch,** per `<plugin-root>/references/dod-ticks.md`'s Document's case: read `<run-root>/dod.md` for every ticked line naming a file, an ADR, a glossary entry, or a fixture the doc commits landed in this run touched — the `doc-writer`'s commits when §3 dispatched one, or the inline pass's own commits when §3's no-writer path applied instead. A line the branch still satisfies stays exactly as it stood, with no note added; a line your own change broke gets unticked, with a one-line note on what broke it (INV-0014). Apply the same verdict to the anchor's own Definition of Done checklist, through the active store's own `## Definition of Done ticks` section (`docs/agents/issue-tracker.md`) — best-effort, a failed write reported once and never stopping the pass. **An untick here also writes the ledger's `**Unresolved:**` entry, naming the criterion it broke** — a quoted heredoc (`<<'EOF'`) piped to `node "<plugin-root>/scripts/scope.js" unresolved add - --root <run-root>` (the sole word `-` reads the bullet text from stdin rather than a shell-interpolated argument, `references/dod-ticks.md`, triage #680) — and publishes the snapshot, per `<plugin-root>/references/scope-mode.md`'s `## Publishing run state` section (INV-0016: the stage never advances past review while a criterion stands unmet, except a ceiling one or an accepted one, and this untick is what keeps ship's own gate from opening a pull request over it). The entry is cleared the next time `/superdev-review` returns a clean verdict, the same as any other `**Unresolved:**` entry. Verifying a tick observes; it changes no system outside the repository (ADR 0084, INV-0006). This step runs no test command of its own.
 @128
   already stands.** Run `node "<plugin-root>/scripts/scope.js" get unresolved --root <run-root>`
 @134
@@ -66,5 +66,5 @@ If it reports findings, re-dispatch **`doc-writer`** (as in §3) with the findin
   printed one** → print `/superdev-review <range>`, naming the criterion that stands unmet (this pass's
 @148
   re-ticks it once the branch meets it again; print no `/superdev-ship` in the same breath — the stage
-@151
+@153
   `/superdev-ship <scope>`, with one line on what it does (close the scope anchor, open the pull request,

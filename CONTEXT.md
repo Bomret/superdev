@@ -157,7 +157,7 @@ _Avoid: "entrance" alone (that names the thing the criterion points at, not the 
 **Criterion tag**: the suffix on an epic's Definition-of-Done line naming the slice ids that deliver the criterion, or `scope` when no single slice does. It decides which criteria a slice implementer's report can tick; the report decides whether they are ticked. A single-slice feature carries none (ADR 0091).
 _Avoid: "mapping" alone (the tag is the written form), "owner" (a slice delivers a criterion, it does not own it)_
 
-**Tick**: a controller's judgment on one Definition-of-Done line, on the scope anchor and in `dod.md`: checked with its evidence as the note, or unchecked with the reason it is not met or that only a deploy can verify it. A line nobody has judged yet carries no note; a bare tick is invalid (INV-0014). Only a controller writes one (INV-0015).
+**Tick**: a controller's judgment on one Definition-of-Done line, on the scope anchor and in `dod.md`: checked with its evidence as the note, or unchecked with the reason it is not met, that only a deploy can verify it, or that an attended operator accepted it as unmet (ADR 0095). A line nobody has judged yet carries no note; a bare tick is invalid (INV-0014). Only a controller writes one (INV-0015).
 _Avoid: "check off", "verify" (verification is what earns a tick, not the tick itself)_
 
 **Suite record**: the ledger's record of the last full-suite run — its result and the commit it ran on. A later step reuses a green record whose commit is the scope branch's current tip, or an earlier commit that differs from the tip only in the active store's own plan files, instead of running the suite again (INV-0017).

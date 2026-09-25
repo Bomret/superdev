@@ -56,7 +56,10 @@ never through cwd-dependent `status` — per `${CLAUDE_PLUGIN_ROOT}/references/s
 `## Unresolved defects` section. **No output** → proceed silently. **Output present** → name every bullet
 and **ask once** whether to ship with it standing. Declined → stop, open no pull request, write nothing.
 Confirmed → proceed and record in the report that the scope shipped with the defect standing.
-**`--unattended` → refuse**: name what stands, open no pull request, and stop.
+**`--unattended` → refuse**: name what stands, open no pull request, and stop. A `dod.md` criterion noted
+`accepted:` — an attended operator's own decision that it stands accepted as unmet (ADR 0095) — is
+settled, not a defect: it writes no `**Unresolved:**` bullet and never reaches this gate, the same way a
+`ceiling:` line does not.
 
 ## 4. Pull request
 

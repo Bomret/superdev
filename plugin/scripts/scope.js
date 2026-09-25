@@ -549,13 +549,19 @@ function verbDocs(root, sub, value) {
 // everything past the leftmost boundary is the note, however many look-alike dashes it carries. Where
 // no valid tag suffix exists in either shape, the whole rest of the line is the criterion and the tag is
 // empty — rendered with no ` — <tag>` segment at all.
+//
+// `accepted` is the fourth verdict (ADR 0095): an operator's own decision that an unmet criterion stands
+// accepted as unmet. It renders unticked, exactly like `not-met` and `ceiling` — the box never lies about
+// what got verified — with its own `accepted:` label on the note.
 const DOD_TAG_TOKEN = '(?:#?\\d+|[A-Z][A-Z0-9_]*-\\d+)';
 const DOD_TAG_PATTERN = `(?:scope|${DOD_TAG_TOKEN}(?:,\\s*${DOD_TAG_TOKEN})*)`;
 const DOD_VERDICTS = {
   met: { marker: 'x', label: 'met' },
   'not-met': { marker: ' ', label: 'not met' },
   ceiling: { marker: ' ', label: 'ceiling' },
+  accepted: { marker: ' ', label: 'accepted' },
 };
+const DOD_NOTE_VERDICT_RE = '(?:met|not met|ceiling|accepted)';
 // A checklist line's marker and its text past `] `. The leading `- ` is optional: a markdown body
 // carries it, but the Jira ADF text node this feeds in `--line` mode carries only the bracket
 // (`references/issue-tracker-jira.md`'s own text-node shape, "a `paragraph` or `listItem` node whose
@@ -563,9 +569,14 @@ const DOD_VERDICTS = {
 // Trailing whitespace is tolerated on either shape (an editor's or a store's own habit) and dropped
 // only where a matched line is actually rewritten — an untouched line keeps its own trailing bytes.
 const DOD_LINE_RE = /^(\s*(?:-\s*)?)\[[ xX]\]\s*(.*)$/;
-const DOD_WITH_NOTE_TAG_RE = new RegExp(`^(.+?) — (${DOD_TAG_PATTERN}) — (met|not met|ceiling): (.*?)\\s*$`);
-const DOD_WITH_NOTE_NO_TAG_RE = /^(.+?) — (met|not met|ceiling): (.*?)\s*$/;
+const DOD_WITH_NOTE_TAG_RE = new RegExp(`^(.+?) — (${DOD_TAG_PATTERN}) — ${DOD_NOTE_VERDICT_RE}: (.*?)\\s*$`);
+const DOD_WITH_NOTE_NO_TAG_RE = new RegExp(`^(.+?) — ${DOD_NOTE_VERDICT_RE}: (.*?)\\s*$`);
 const DOD_NO_NOTE_TAG_RE = new RegExp(`^(.+) — (${DOD_TAG_PATTERN})\\s*$`);
+// The `## Definition of Done` heading — any level, up to 3 leading spaces (CommonMark's own ATX limit)
+// — that scopes body-mode matching to the checklist section alone (triage #679's C.3): a checkbox that
+// happens to repeat a DoD criterion's text elsewhere in the same document is never a match candidate.
+const DOD_SECTION_HEADING_RE = /^\s{0,3}(#{1,6})\s+Definition of Done\b/;
+const HEADING_RE = /^\s{0,3}(#{1,6})\s+/;
 
 // Whitespace-insensitive equality (`--match`'s own contract), collapsed within one physical line only:
 // a `--match` argument itself carrying an embedded newline, or a run of spaces a web UI's autoformat
@@ -578,18 +589,28 @@ function collapseWhitespace(s) {
 // The checklist line's leading marker prefix (the `- ` a markdown body carries, absent from the bare
 // `[ ]`/`[x]` a Jira ADF text node carries — `references/issue-tracker-jira.md`'s own text-node
 // shape), its criterion, and its tag (empty when the line carries none — the untagged shapes above).
-// `null` only when the line carries no task-list marker at all.
-function parseDodLine(line) {
+// Returns every plausible reading, not just one: an untagged criterion that merely ends in something
+// shaped like a tag (`- [ ] Retries capped — 3`) reads as tagged `3` under the rightmost-tag rule above,
+// so the whole-line-untagged reading is offered alongside it (triage #679's C.1) — a line matches when
+// either reading's criterion equals `--match`, and rendering keeps whichever one matched. Every other
+// shape (a real tag, a note of either shape) has exactly one plausible reading. An empty array only when
+// the line carries no task-list marker at all.
+function parseDodLineReadings(line) {
   const m = line.match(DOD_LINE_RE);
-  if (!m) return null;
+  if (!m) return [];
   const [, prefix, rest] = m;
   const withTagNote = rest.match(DOD_WITH_NOTE_TAG_RE);
-  if (withTagNote) return { prefix, criterion: withTagNote[1], tag: withTagNote[2] };
+  if (withTagNote) return [{ prefix, criterion: withTagNote[1], tag: withTagNote[2] }];
   const withNoteNoTag = rest.match(DOD_WITH_NOTE_NO_TAG_RE);
-  if (withNoteNoTag) return { prefix, criterion: withNoteNoTag[1], tag: '' };
+  if (withNoteNoTag) return [{ prefix, criterion: withNoteNoTag[1], tag: '' }];
   const tagNoNote = rest.match(DOD_NO_NOTE_TAG_RE);
-  if (tagNoNote) return { prefix, criterion: tagNoNote[1], tag: tagNoNote[2] };
-  return { prefix, criterion: rest, tag: '' };
+  if (tagNoNote) {
+    return [
+      { prefix, criterion: tagNoNote[1], tag: tagNoNote[2] },
+      { prefix, criterion: rest.trimEnd(), tag: '' },
+    ];
+  }
+  return [{ prefix, criterion: rest.trimEnd(), tag: '' }];
 }
 
 function renderDodLine(prefix, criterion, tag, verdict) {
@@ -598,25 +619,60 @@ function renderDodLine(prefix, criterion, tag, verdict) {
   return `${prefix}[${v.marker}] ${criterion}${tagSuffix}`;
 }
 
+// The `## Definition of Done` section's line range in a fence-masked body: from the heading whose text
+// starts "Definition of Done" (any level, up to 3 leading spaces) up to the next heading of the same or
+// a higher level, or to the end of the body. `null` when the body carries no such heading — a
+// single-slice feature's own acceptance-only checklist, say — which is what sends body-mode matching
+// back to scanning the whole body, as it always has (triage #679's C.3).
+function dodSectionRange(masked) {
+  let start = -1;
+  let level = 0;
+  for (let i = 0; i < masked.length; i += 1) {
+    const m = masked[i].match(DOD_SECTION_HEADING_RE);
+    if (m) {
+      start = i;
+      level = m[1].length;
+      break;
+    }
+  }
+  if (start < 0) return null;
+  let end = masked.length;
+  for (let i = start + 1; i < masked.length; i += 1) {
+    const m = masked[i].match(HEADING_RE);
+    if (m && m[1].length <= level) {
+      end = i;
+      break;
+    }
+  }
+  return { start, end };
+}
+
 // The core: find the one non-fenced checklist line whose criterion equals `match` once both sides
 // collapse whitespace, and replace it with the judged line. Matching runs on `maskFencedLines()`'s
 // output (kb-patch.js's own fence rule), so a line inside a fenced illustrative example is never a
-// candidate — the same posture `scope.js`'s own `adopt` marker scan already takes. Refuses, changing
-// nothing, on zero or on two-or-more matches.
+// candidate — the same posture `scope.js`'s own `adopt` marker scan already takes. Candidates are
+// further scoped to the `## Definition of Done` section when the body carries one (`dodSectionRange`
+// above) — `--line` mode's one-line input carries no heading, so it is unaffected. Refuses, changing
+// nothing, on zero or on two-or-more matching lines; a line offering two matching readings (C.1 above)
+// still counts once toward that limit.
 function transformDodLines(lines, match, verdict, note) {
   const masked = maskFencedLines(lines, 'dod-line input', 'edited');
   const wanted = collapseWhitespace(match);
+  const range = dodSectionRange(masked);
+  const lo = range ? range.start : 0;
+  const hi = range ? range.end : lines.length;
   const hits = [];
-  for (let i = 0; i < lines.length; i += 1) {
-    const parsed = parseDodLine(masked[i]);
-    if (parsed && collapseWhitespace(parsed.criterion) === wanted) hits.push(i);
+  for (let i = lo; i < hi; i += 1) {
+    const readings = parseDodLineReadings(masked[i]);
+    const reading = readings.find((r) => collapseWhitespace(r.criterion) === wanted);
+    if (reading) hits.push({ index: i, reading });
   }
   if (hits.length === 0) fail(`no checklist line matches criterion "${match}"`);
   if (hits.length > 1) {
     fail(`${hits.length} checklist lines match criterion "${match}" — which one to edit cannot be resolved`);
   }
-  const i = hits[0];
-  const { prefix, criterion, tag } = parseDodLine(lines[i]);
+  const { index: i, reading } = hits[0];
+  const { prefix, criterion, tag } = reading;
   const out = lines.slice();
   out[i] = `${renderDodLine(prefix, criterion, tag, verdict)} — ${DOD_VERDICTS[verdict].label}: ${note}`;
   return out;

@@ -80,29 +80,45 @@ outside a git repository, and refuses a slug carrying a path separator or a lead
 would path a ledger read or write outside `.superdev/scopes/`.
 
 `dod-line` is another verb that touches no ledger, and makes no store call of its own
-(`references/dod-ticks.md`, INV-0014, triage #664): `--match <criterion text> --verdict
-met|not-met|ceiling --note <text> [--line]`. It is the one Definition-of-Done checklist-line edit every
-store's own `## Definition of Done ticks` section cites instead of restating by hand — a store seed
-fetches the checklist text through its own call, pipes it through `dod-line` on stdin, and writes back
-whatever comes out on stdout, the same shape `kb-patch.js` already gives a staged knowledge-base patch
-(ADR 0027). The default mode takes a whole markdown body on stdin and prints the transformed body;
-`--line` takes and prints exactly one checklist line instead, for the Jira seed's ADF text node, which is
-JSON, not markdown lines. A checklist line is `- [ ] <criterion>[ — <tag>][ — <verdict>: <note>]`
-(`plan-contract.md`'s line format) — the tag absent on a single-slice feature's own DoD, a run predating
-tagging, or one untagged line inside an otherwise-tagged DoD; `--line` mode accepts the same line with no leading `- `, the shape a
-Jira text node's own string carries. The tag — slice ids (`01`, `01, 02`), store refs (`#667`, `#672,
-#673`), or the literal `scope` — and any verdict note past it are parsed off the line's *right* end,
-greedily handing everything before that to the criterion, which is what keeps a criterion carrying its
-own " — " (`plan-contract.md`'s own worked example, "Reachable: none — entrance unchanged; … — scope")
-intact instead of splitting at its first dash. Matching runs after both the line's own criterion text and
+(`references/dod-ticks.md`, INV-0014, triage #664): `--match <criterion text>|--match-file <path>
+--verdict met|not-met|ceiling|accepted --note <text>|--note-file <path> [--line]`. It is the one
+Definition-of-Done checklist-line edit every store's own `## Definition of Done ticks` section cites
+instead of restating by hand — a store seed fetches the checklist text through its own call, pipes it
+through `dod-line` on stdin, and writes back whatever comes out on stdout, the same shape `kb-patch.js`
+already gives a staged knowledge-base patch (ADR 0027). `--match-file`/`--note-file` are each an
+alternative to `--match`/`--note` that reads the same text from a file instead of a shell-interpolated
+argument, one trailing newline stripped verbatim otherwise — the text a controller pipes in this way is
+typically report-derived, and may carry a quote, a backtick, a `$(`, or worse (`references/dod-ticks.md`,
+triage #680); giving both forms of the same argument refuses. The default mode takes a whole markdown
+body on stdin and prints the transformed body; `--line` takes and prints exactly one checklist line
+instead, for the Jira seed's ADF text node, which is JSON, not markdown lines. A checklist line is `- [ ]
+<criterion>[ — <tag>][ — <verdict>: <note>]` (`plan-contract.md`'s line format) — the tag absent on a
+single-slice feature's own DoD, a run predating tagging, or one untagged line inside an
+otherwise-tagged DoD; `--line` mode accepts the same line with no leading `- `, the shape a Jira text
+node's own string carries. The tag — slice ids (`01`, `01, 02`), store refs (`#667`, `#672, #673`), or the
+literal `scope` — and any verdict note past it are parsed off the line's *right* end, greedily handing
+everything before that to the criterion, which is what keeps a criterion carrying its own " — "
+(`plan-contract.md`'s own worked example, "Reachable: none — entrance unchanged; … — scope") intact
+instead of splitting at its first dash. An untagged criterion that merely ends in something shaped like a
+tag (`- [ ] Retries capped — 3`) offers a second reading alongside the rightmost-tag one — the whole line,
+untagged — and a line matches when either reading's criterion equals `--match` (triage #679); a genuinely
+tagged line still parses its tag as before. Matching runs after both the line's own criterion text and
 `--match` collapse internal whitespace to one space and trim, so a criterion an editor reflowed onto two
 lines is still found, and after `kb-patch.js`'s own `maskFencedLines` blanks every fenced line, so a line
-shown inside a fenced illustrative example is never a candidate. `met` renders `- [x] <criterion> —
-<tag> — met: <note>`; `not-met` and `ceiling` render `- [ ]` with `not met:`/`ceiling:` — the marker is
-derived from the verdict alone, so a same-verdict re-write always leaves it unchanged, and the new note
-always replaces whatever note the line carried (INV-0014's own note rule, never appended beside it).
-Refuses, printing nothing, on zero matching lines, on two or more (which one to edit cannot be resolved),
-on a `--verdict` outside the three named values, or on a missing `--match` or `--note`.
+shown inside a fenced illustrative example is never a candidate. Body mode further scopes matching to the
+body's own `## Definition of Done` section — the heading whose text starts "Definition of Done," up to
+the next heading of the same or a higher level — when one exists, so an identical checkbox elsewhere in
+the same document is never a candidate; a body with no such heading matches over the whole body, as a
+single-slice feature's own acceptance-only checklist does (triage #679). `met` renders `- [x] <criterion>
+— <tag> — met: <note>`; `not-met`, `ceiling`, and `accepted` each render `- [ ]` with
+`not met:`/`ceiling:`/`accepted:` — the marker is derived from the verdict alone, so a same-verdict
+re-write always leaves it unchanged, and the new note always replaces whatever note the line carried
+(INV-0014's own note rule, never appended beside it). `accepted` is an operator's own decision that an
+unmet criterion stands accepted as unmet (ADR 0095) — the box stays unticked, since the criterion is
+honestly unmet. Refuses, printing nothing, on zero matching lines, on two or more (which one to edit
+cannot be resolved — a line offering two readings counts once), on a `--verdict` outside the four named
+values, on a missing `--match`/`--match-file` or `--note`/`--note-file`, or on both forms of the same
+argument given together.
 
 `init` writes a fresh ledger at stage `planned` (ADR 0079) — the one stage that precedes the four-command
 chain rather than naming a step within it, ranked below `implementing` so `stage set implementing` (or any
@@ -2233,6 +2249,15 @@ verdict never ticks a line that genuinely needs a deploy to verify (INV-0006). L
 general-case row lets a `holds` verdict on an unticked, unjudged, or under-reported line go unticked
 forever outside a fix cycle; losing either surface's ceiling-case row lets a `holds` verdict tick a line
 that still needs a deploy to verify, which INV-0006 forbids.
+
+The `accepted-verdict` contract (ADR 0095) spans `agents/final-reviewer.md` and `skills/review/SKILL.md`
+§4. `final-reviewer.md` still recognises **accepted** as one of the verdicts a `dod.md` line can carry —
+an unticked line noted `accepted:` whose criterion the branch still does not meet is not a finding and
+does not hold the stage — and `review/SKILL.md` §4 still restates that same clause on its own dispatch
+surface (root AGENTS.md's dispatch-prose rule). Losing the agent's own row lets a reviewer report every
+`accepted:` line as broken, since nothing tells it the verdict exists; losing the dispatch row lets the
+controller's own §4 logic hold the stage on an accepted line, or fold it into the fix loop, exactly the
+outcome the verdict exists to avoid.
 
 The `always-review` contract (INV-0016) pins that `references/run-handoff.md` still prints
 `/superdev:review <range>` for every scope, whatever its slice types. It is the same "always review"

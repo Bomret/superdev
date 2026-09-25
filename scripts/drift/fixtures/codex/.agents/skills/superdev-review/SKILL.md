@@ -344,8 +344,11 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   Definition of Done criterion covered it, the date, the feature label, the scope branch, the scope
   anchor's reference, and a copy-pasteable `$superdev-plan "<the finding>"` line — and **no pull-request
   URL**, because this command runs before `$superdev-ship` opens
-  one and none exists yet. Capture the record's reference, then write it to the run with
-  `node "<plugin-root>/scripts/scope.js" deferred add "<text>" --root <run-root>` — **the bullet
+  one and none exists yet. Capture the record's reference, then write it to the run with a quoted
+  heredoc (`<<'EOF'`) piped to
+  `node "<plugin-root>/scripts/scope.js" deferred add - --root <run-root>` — the sole word `-`
+  reads the bullet text from stdin rather than a shell-interpolated argument
+  (`references/dod-ticks.md`, triage #680) — **the bullet
   text carries that reference**, which is what leads a reader of the ledger, the pull-request body, or
   `$superdev-status` to the record. **The create fails** → the bullet names the failure in the
   reference's place instead — `no triage record — create failed`, or, when a permission classifier is what
@@ -380,26 +383,35 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   fix implementer the `dod.md` path plus exactly the lines this cycle unticked or found broken, and its
   report carries one line per listed line (met/not met/ceiling), per `dod-ticks.md`. A line called
   **ceiling** is left exactly as it stood — the verification-ceiling bullet below covers it, never this
-  one, unless the **holds** clause just below turns it over. A **holds** verdict on an already-ticked
+  one, unless the **holds** clause just below turns it over. A line called **accepted** is likewise left
+  exactly as it stood: an `accepted:` note is an attended operator's own decision (ADR 0095), never a
+  Critical finding and never a reason to hold the stage, unless the **holds** clause below turns it over.
+  A **holds** verdict on an already-ticked
   line changes nothing. **A `holds` verdict on a line unticked with `not met:`, or carrying no note at
   all, ticks that line** — you, the controller, write the tick, with the verdict's own evidence as the
   note (INV-0015): a joint criterion a slice under-reported, a `scope` line judged too early, or an
   implementer that misjudged its own work all take this shape. A line unticked with `ceiling:` takes a
   holds tick only when the verdict itself states the criterion needs no deploy or other outward-facing
   change to verify and cites evidence observed on the branch — the ceiling claim was wrong, and the line
-  was never a ceiling criterion. A `holds` verdict never ticks a line that genuinely needs a deploy to
+  was never a ceiling criterion. A line unticked with `accepted:` takes a holds tick only when the
+  verdict itself cites evidence, observed on the branch, that the criterion is now met — the operator's
+  earlier decision no longer describes this branch; you never write a fresh `accepted:` note yourself,
+  only an attended operator does. A `holds` verdict never ticks a line that genuinely needs a deploy to
   verify (INV-0006). Re-ticking after a fix cycle still follows the fix implementer's report, once that
   cycle's re-review comes back clean. The stage does **not** advance while any `dod.md`
-  criterion stands unmet, except a `ceiling` one (INV-0016) — the same non-advance rule the full-suite fail
-  and Critical-finding rows above already apply.
+  criterion stands unmet, except a `ceiling` one or an `accepted` one (INV-0016) — the same non-advance
+  rule the full-suite fail and Critical-finding rows above already apply.
 - **A criterion `final-reviewer` finds missing from `dod.md` is not a tick to add.** It is a `### Deferred
   to a plan` finding like any other, under the fix-loop boundary above (ADR 0035, INV-0004) — review writes
   no new line into `dod.md`.
 - **Ask once before fixing.** `final-reviewer` returned **Critical or Important** findings, a broken
   criterion, or the full
   suite came back `fail` → report them per §3 first, then ask whether to fix them now.
-  - **Declined** → stop. The findings stand: write the `**Unresolved:**` entry with
-    `node "<plugin-root>/scripts/scope.js" unresolved add "<text>" --root <run-root>`, publish the
+  - **Declined** → stop. The findings stand: write the `**Unresolved:**` entry with a quoted heredoc
+    (`<<'EOF'`) piped to
+    `node "<plugin-root>/scripts/scope.js" unresolved add - --root <run-root>` — the sole word
+    `-` reads the bullet text from stdin rather than a shell-interpolated argument
+    (`references/dod-ticks.md`, triage #680) — publish the
     snapshot before stopping — per `<plugin-root>/references/scope-mode.md`'s `## Publishing run
     state` section, since no later write in this run will do it — and the stage does **not** advance.
   - **`--unattended` → fix**, without asking: the fix loop is the point of this gate, and a review that

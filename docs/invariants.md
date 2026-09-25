@@ -124,7 +124,7 @@ Paths: plugin/references/scope-mode.md, plugin/references/run-init.md, plugin/re
 
 Class: process
 Concepts: Definition of Done, Tick, Verification
-Statement: Every judged Definition-of-Done line carries a note. A ticked criterion names its evidence; an unticked one names why it is not met, or that only a deploy can verify it, with any partial evidence. A bare tick is invalid, and a line nobody has judged yet carries no note.
+Statement: Every judged Definition-of-Done line carries a note. A ticked criterion names its evidence; an unticked one names why it is not met, that only a deploy can verify it, or that an attended operator accepted it as unmet, with any partial evidence. A bare tick is invalid, and a line nobody has judged yet carries no note.
 Breaks: silently
 Check: scripts/drift-check.js — the note rule pinned on the shared tick reference and on every surface that writes or takes back a tick (implement's playbooks and run handoff, review, document)
 Paths: plugin/references/**, plugin/skills/implement/**, plugin/skills/review/**, plugin/skills/document/**
@@ -142,7 +142,7 @@ Paths: plugin/references/**, plugin/agents/**, plugin/skills/implement/**, plugi
 
 Class: process
 Concepts: Stage, Definition of Done, Verification ceiling
-Statement: A scope's stage never advances past review while a Definition-of-Done criterion stands unmet, except one only a deploy can verify. Every scope passes review, whatever its slice types.
+Statement: A scope's stage never advances past review while a Definition-of-Done criterion stands unmet, except one only a deploy can verify or one an attended operator accepted as unmet (`accepted:`). Every scope passes review, whatever its slice types.
 Breaks: silently
 Check: scripts/drift-check.js — review's stage-write condition pinned beside its unmet-criterion rule; run handoff names `/superdev:review` as the next command for every scope; document's closing step (`doc-untick-on-break`) writes no stage and prints `/superdev:review` rather than `/superdev:ship` when it unticks a criterion its own commits broke, or when a standing `**Unresolved:**` entry from an earlier pass already stands; afk's routing table (`afk-routing`) sends a `reviewed` stage carrying either shape of that standing entry to `/superdev:review`, not `/superdev:document`
 Paths: plugin/skills/review/**, plugin/references/run-handoff.md, plugin/skills/afk/**, plugin/skills/document/**

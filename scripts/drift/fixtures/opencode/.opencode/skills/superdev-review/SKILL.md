@@ -1,6 +1,6 @@
 superdev-render-overlay
 source: skills/review/SKILL.md
-body-lines: 475
+body-lines: 487
 ---
 # generated-by: superdev-adapter — a re-render overwrites this directory
 name: superdev-review
@@ -88,45 +88,45 @@ on findings, run `/superdev-plan` to slice the fix, then `/superdev-implement`. 
   anchor's reference, and a copy-pasteable `/superdev-plan "<the finding>"` line — and **no pull-request
 @341
   URL**, because this command runs before `/superdev-ship` opens
-@343
-  `node "<plugin-root>/scripts/scope.js" deferred add "<text>" --root <run-root>` — **the bullet
-@345
+@344
+  `node "<plugin-root>/scripts/scope.js" deferred add - --root <run-root>` — the sole word `-`
+@348
   `/superdev-status` to the record. **The create fails** → the bullet names the failure in the
-@354
+@357
   carries the finding to the pull request `/superdev-ship` opens (ADR 0035). An ad-hoc range has no run
-@374
+@377
   `<plugin-root>/references/dod-ticks.md`'s mapping gate: the fix cycle's dispatch below hands the
-@397
-    `node "<plugin-root>/scripts/scope.js" unresolved add "<text>" --root <run-root>`, publish the
-@398
+@407
+    `node "<plugin-root>/scripts/scope.js" unresolved add - --root <run-root>` — the sole word
+@410
     snapshot before stopping — per `<plugin-root>/references/scope-mode.md`'s `## Publishing run
-@402
+@414
   - **Confirmed** → dispatch **one** `implementer` (`model: sonnet`; `haiku` only for a
-@406
-    loop first (`<plugin-root>/references/diagnosis.md` — the implementer reads it on any
-@411
-    `<plugin-root>/references/scope-mode.md`'s `## Publishing run state` section — since no later
 @418
+    loop first (`<plugin-root>/references/diagnosis.md` — the implementer reads it on any
+@423
+    `<plugin-root>/references/scope-mode.md`'s `## Publishing run state` section — since no later
+@430
   Follow `<plugin-root>/references/scope-mode.md`'s `## Degraded passes` section. Write the
-@431
+@443
   (`<plugin-root>/references/scope-mode.md`'s `## Verification ceiling`): no work on this branch
-@438
+@450
   `<plugin-root>/references/dod-ticks.md`'s `## Reading the report`. A listed line the fix
-@444
+@456
   re-verified clean — with `node "<plugin-root>/scripts/scope.js" unresolved clear --root
-@446
+@458
   `**Stage:**` line with `node "<plugin-root>/scripts/scope.js" stage set <value> --root
-@453
+@465
     `/superdev-ship` ask for the doc pass again.
-@459
+@471
   `node "<plugin-root>/scripts/scope.js" docs clear --root <run-root>`. A `lite` run wrote that
-@461
+@473
   stale, so the next `/superdev-document` must run the full `doc-writer` rather than the reader alone (ADR
-@467
+@479
   clear` alike — per `<plugin-root>/references/scope-mode.md`'s `## Publishing run state` section.
-@469
+@481
   Then print the next command with the range already resolved — `/superdev-document <range>`, carrying
-@472
+@484
   stage and the scope branch carry everything `/superdev-document` reads, so a `/clear` first costs
-@474
+@486
 - **Never merge, push, or open a pull request.** `/superdev-ship` ends the chain.

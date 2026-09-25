@@ -77,7 +77,10 @@ tiers: record that slice execution finished, name what comes next.
     this pass exactly those lines, alongside the ones above. Judge each against the integrated scope
     branch and tick, leave unticked with a `not met:`/`ceiling:` note, or leave it as it stands if you
     cannot yet judge it — the same three shapes, the note rule (INV-0014), and the controller-only,
-    one-at-a-time discipline (INV-0015) that `dod-ticks.md` states.
+    one-at-a-time discipline (INV-0015) that `dod-ticks.md` states. **Leave a line already noted
+    `accepted:` exactly as it stands** — that decision is an attended operator's alone (ADR 0095), and
+    this pass never writes one itself or overwrites one already there; the stage gate treats it as
+    settled the same way a `ceiling:` line already is (INV-0016).
   - **Re-check every earlier tick against the integrated branch** — a tick a slice's own report earned may
     have held at that slice's merge and broken at a later one (preservation claims do exactly this). A
     tick that no longer holds comes back off, with a `not met:` note naming what broke.

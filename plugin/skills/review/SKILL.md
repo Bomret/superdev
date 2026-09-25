@@ -383,18 +383,24 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   fix implementer the `dod.md` path plus exactly the lines this cycle unticked or found broken, and its
   report carries one line per listed line (met/not met/ceiling), per `dod-ticks.md`. A line called
   **ceiling** is left exactly as it stood — the verification-ceiling bullet below covers it, never this
-  one, unless the **holds** clause just below turns it over. A **holds** verdict on an already-ticked
+  one, unless the **holds** clause just below turns it over. A line called **accepted** is likewise left
+  exactly as it stood: an `accepted:` note is an attended operator's own decision (ADR 0095), never a
+  Critical finding and never a reason to hold the stage, unless the **holds** clause below turns it over.
+  A **holds** verdict on an already-ticked
   line changes nothing. **A `holds` verdict on a line unticked with `not met:`, or carrying no note at
   all, ticks that line** — you, the controller, write the tick, with the verdict's own evidence as the
   note (INV-0015): a joint criterion a slice under-reported, a `scope` line judged too early, or an
   implementer that misjudged its own work all take this shape. A line unticked with `ceiling:` takes a
   holds tick only when the verdict itself states the criterion needs no deploy or other outward-facing
   change to verify and cites evidence observed on the branch — the ceiling claim was wrong, and the line
-  was never a ceiling criterion. A `holds` verdict never ticks a line that genuinely needs a deploy to
+  was never a ceiling criterion. A line unticked with `accepted:` takes a holds tick only when the
+  verdict itself cites evidence, observed on the branch, that the criterion is now met — the operator's
+  earlier decision no longer describes this branch; you never write a fresh `accepted:` note yourself,
+  only an attended operator does. A `holds` verdict never ticks a line that genuinely needs a deploy to
   verify (INV-0006). Re-ticking after a fix cycle still follows the fix implementer's report, once that
   cycle's re-review comes back clean. The stage does **not** advance while any `dod.md`
-  criterion stands unmet, except a `ceiling` one (INV-0016) — the same non-advance rule the full-suite fail
-  and Critical-finding rows above already apply.
+  criterion stands unmet, except a `ceiling` one or an `accepted` one (INV-0016) — the same non-advance
+  rule the full-suite fail and Critical-finding rows above already apply.
 - **A criterion `final-reviewer` finds missing from `dod.md` is not a tick to add.** It is a `### Deferred
   to a plan` finding like any other, under the fix-loop boundary above (ADR 0035, INV-0004) — review writes
   no new line into `dod.md`.

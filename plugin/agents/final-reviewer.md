@@ -70,11 +70,16 @@ the `acceptance` text it was given and skips this section; there is no DoD line 
 Read every line in `dod.md`, ticked and unticked alike, and give each one its own verdict against the
 integrated branch: **holds** (a ticked line the branch still satisfies, or an unticked one you find the
 branch already meets), **broken** (a ticked line the branch no longer satisfies, or an unticked line still
-unmet) with the reason, or **ceiling** (needs a deploy or another outward-facing change to verify —
-INV-0006, ADR 0084). **Check an unticked line's own reason too** — a `not met:` note may already be stale
-if the branch now meets it, and a claimed `ceiling:` may not really be one, if this branch can verify it
-without an outward-facing change. Every line gets exactly one verdict; list them all in `### Criteria`
-below, whatever the review found elsewhere.
+unmet, an `accepted:` line excepted below) with the reason, **ceiling** (needs a deploy or another
+outward-facing change to verify — INV-0006, ADR 0084), or **accepted** (an unticked line noted
+`accepted:` whose criterion the branch still does not meet — an attended operator's own decision that it
+stands accepted as unmet, ADR 0095; report it, but it is not a finding and does not hold the stage).
+**Check an unticked line's own reason too** — a `not met:` note may already be stale if the branch now
+meets it, a claimed `ceiling:` may not really be one, if this branch can verify it without an
+outward-facing change, and an `accepted:` line whose criterion the branch has since come to meet is
+`holds`, not `accepted` — the operator's earlier decision no longer describes the current branch, and
+only an attended operator, never you, ever writes a fresh `accepted:` note. Every line gets exactly one
+verdict; list them all in `### Criteria` below, whatever the review found elsewhere.
 
 ## Read-only review
 
@@ -197,7 +202,7 @@ For each: file:line · what's wrong · why it matters · how to fix (if not obvi
 
 ### Criteria
 [**scope mode only**; omit this section entirely on an ad-hoc range. One line per `dod.md` line, in
-document order: `<criterion>` — holds | broken: <why> | ceiling: <partial evidence>]
+document order: `<criterion>` — holds | broken: <why> | ceiling: <partial evidence> | accepted: <reason>]
 
 ### Ceiling
 [one note, per the four gates above; omit this section entirely when nothing qualifies]
