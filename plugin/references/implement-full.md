@@ -120,8 +120,8 @@ Repeat until every slice is `merged`:
      Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section and follow it,
      including the `**Degraded:**` entry it defines for `<run-root>/ledger.md`. A denied implementer or
      fix is an authoring dispatch: write it with `scope.js degraded add`. A denied `slice-reviewer` is
-     this tier's one verification dispatch: write it with `scope.js degraded add-denial`, quoting the
-     classifier's refusal. Publish the snapshot after either write, per
+     this tier's one verification dispatch: write it with `scope.js degraded add-denial -`, piping the
+     classifier's refusal through a quoted heredoc rather than a shell argument. Publish the snapshot after either write, per
      `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section — since a denied
      implementer/fix or a capped slice-reviewer denial reaches no later write below. **`--unattended`** →
      a denied implementer or fix **blocks**, per ADR 0001. A

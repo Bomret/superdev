@@ -402,13 +402,17 @@ function verbSlice(root, id, status, range) {
 // names the invoked subcommand verbatim (`degraded add`, `degraded reset-denials`, …), so a refusal
 // names what the caller actually typed rather than a sibling subcommand's shape; `noun` names what the
 // missing text is called there — `reset-denials` takes a reason, everything else a bullet.
-// `unresolved add -`, `deferred add -`, and `degraded add -` read their bullet text from stdin instead
-// of a shell-interpolated argument (triage #680): the sentinel `-` as the sole word past `add` means
-// "read stdin," one trailing newline stripped, exactly as `dod-line`'s own stdin path already strips
-// it. Any other subcommand, or any other shape of `add`'s own arguments, keeps joining its positional
+// `unresolved add -`, `deferred add -`, `degraded add -`, `degraded add-denial -`, and `degraded
+// reset-denials -` read their bullet text from stdin instead of a shell-interpolated argument
+// (triage #680): the sentinel `-` as the sole word past the subcommand means "read stdin," one
+// trailing newline stripped, exactly as `dod-line`'s own stdin path already strips it. `add-denial`
+// quotes a classifier's own refusal text, and `reset-denials` an operator's own reason, either of
+// which can carry a quote, a backtick, or a `$(` just as easily as any other bullet text. Any other
+// subcommand, or any other shape of these subcommands' own arguments, keeps joining its positional
 // words with spaces as it always has.
+const BULLET_STDIN_SUBS = ['add', 'add-denial', 'reset-denials'];
 function resolveBulletText(sub, rest, stdinJson) {
-  if (sub === 'add' && rest.length === 1 && rest[0] === '-') return stdinJson.replace(/\r?\n$/, '');
+  if (BULLET_STDIN_SUBS.includes(sub) && rest.length === 1 && rest[0] === '-') return stdinJson.replace(/\r?\n$/, '');
   return rest.join(' ');
 }
 
@@ -592,15 +596,30 @@ function collapseWhitespace(s) {
 // Returns every plausible reading, not just one: an untagged criterion that merely ends in something
 // shaped like a tag (`- [ ] Retries capped — 3`) reads as tagged `3` under the rightmost-tag rule above,
 // so the whole-line-untagged reading is offered alongside it (triage #679's C.1) — a line matches when
-// either reading's criterion equals `--match`, and rendering keeps whichever one matched. Every other
-// shape (a real tag, a note of either shape) has exactly one plausible reading. An empty array only when
-// the line carries no task-list marker at all.
+// either reading's criterion equals `--match`, and rendering keeps whichever one matched. The same offer
+// reaches the tag-with-note shape too: `<criterion> — <tag> — <verdict>: <note>` could also be
+// `<criterion — tag> — <verdict>: <note>` with an empty tag, once the line already carries a note (Minor
+// review find #4) — a tagged criterion that already carries a note is otherwise unreadable by its
+// untagged spelling on a re-judge. A line offering two readings still counts once toward the match limit
+// below. An empty array only when the line carries no task-list marker at all.
 function parseDodLineReadings(line) {
   const m = line.match(DOD_LINE_RE);
   if (!m) return [];
   const [, prefix, rest] = m;
   const withTagNote = rest.match(DOD_WITH_NOTE_TAG_RE);
-  if (withTagNote) return [{ prefix, criterion: withTagNote[1], tag: withTagNote[2] }];
+  if (withTagNote) {
+    // The same C.1 offer as the no-note case below: `<criterion> — <tag> — <verdict>: <note>` could
+    // also be `<criterion — tag> — <verdict>: <note>` with an empty tag, so a criterion that merely
+    // ends in something tag-shaped is still readable once it already carries a note (Minor review find
+    // #4) — matching runs after both readings, and a line offering two still counts once.
+    const asUntagged = rest.match(DOD_WITH_NOTE_NO_TAG_RE);
+    return asUntagged
+      ? [
+          { prefix, criterion: withTagNote[1], tag: withTagNote[2] },
+          { prefix, criterion: asUntagged[1], tag: '' },
+        ]
+      : [{ prefix, criterion: withTagNote[1], tag: withTagNote[2] }];
+  }
   const withNoteNoTag = rest.match(DOD_WITH_NOTE_NO_TAG_RE);
   if (withNoteNoTag) return [{ prefix, criterion: withNoteNoTag[1], tag: '' }];
   const tagNoNote = rest.match(DOD_NO_NOTE_TAG_RE);
@@ -1517,7 +1536,7 @@ function isBulletStdinInvocation(argv) {
   const rest = argv.slice(1);
   const ri = rest.indexOf('--root');
   if (ri >= 0) rest.splice(ri, 2);
-  return rest.length === 2 && rest[0] === 'add' && rest[1] === '-';
+  return rest.length === 2 && BULLET_STDIN_SUBS.includes(rest[0]) && rest[1] === '-';
 }
 
 function main() {

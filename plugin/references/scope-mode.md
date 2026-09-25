@@ -504,9 +504,11 @@ Such a resolution composes slices that were each already reviewed, so what goes 
 composition rather than the code.
 
 **Two denials end the run.** An unattended run blocks on its **second denied verification dispatch**,
-whoever authored the work (ADR 0041). Record every denial with
-`node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js degraded add-denial '<text>' --root <run-root>` — the entry
-below, written through the verb that prefixes it `denied: ` so the count can tell it from the other
+whoever authored the work (ADR 0041). Record every denial with a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`)
+piped to `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js degraded add-denial - --root <run-root>` — the sole
+word `-` reads the bullet text from stdin rather than a shell-interpolated argument, since the classifier's
+own refusal text may carry a quote, a backtick, or a `$(` (`references/dod-ticks.md`, triage #680) — the
+entry below, written through the verb that prefixes it `denied: ` so the count can tell it from the other
 degraded shape — then read the running total with
 `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js get denials --root <run-root>`:
 
@@ -521,8 +523,10 @@ scopetree stay standing. Blocking on the second keeps the stop inside superdev, 
 human can act on.
 
 **The way back is two writes, not one.** Once a human has addressed what the denials were about — adding
-the dispatch to `permissions.allow`, say — `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js degraded
-reset-denials '<reason>' --root <run-root>` writes a marker bullet, and the count runs from the last reset
+the dispatch to `permissions.allow`, say — a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`) piped to `node
+${CLAUDE_PLUGIN_ROOT}/scripts/scope.js degraded reset-denials - --root <run-root>` — the sole word `-`
+reads the reason from stdin the same way, since an operator's own reason may carry a quote, a backtick, or
+a `$(` too — writes a marker bullet, and the count runs from the last reset
 marker. Every recorded denial survives it: the bullets stay on the `**Degraded:**` line, so
 `/superdev:status`, the pull-request body, and the anchor's published snapshot show the whole history plus
 the reset and its reason (ADR 0044). The reason is required — without one the call refuses and writes
@@ -549,11 +553,11 @@ paraphrase naming the pass. Those words are what separate a genuine safety block
 positives auto mode is documented to produce, and they are what a maintainer carries upstream (ADR 0039).
 Flatten every newline in the quote to a space and cap it at roughly 200 characters, ending a longer one
 with an ellipsis: `scope.js degraded add-denial` refuses a bullet containing a newline, and `/superdev:status`
-prints every bullet for as long as the run root lives. Single-quote the argument itself and drop any
-single quote the refusal text carries, so a stray `$` or backtick in the classifier's own words stays
-inert rather than reaching the shell. A denial whose refusal text never reached you still writes its
-bullet, and the bullet says the text was unavailable. `/superdev:ship` copies every bullet into the
-pull-request body, so the quote reaches the human reviewing the change with no step of its own.
+prints every bullet for as long as the run root lives. The heredoc above already carries a quote, a `$`, or
+a backtick in the classifier's own words to stdin unharmed, so no further escaping is needed. A denial
+whose refusal text never reached you still writes its bullet, and the bullet says the text was
+unavailable. `/superdev:ship` copies every bullet into the pull-request body, so the quote reaches the
+human reviewing the change with no step of its own.
 
 **A pass the command was already free to skip is not degraded when denied.** `/superdev:review`'s §2 is
 the standing case: it already skips `simplicity-reviewer` on judgment (a tiny or already-lean diff), so a

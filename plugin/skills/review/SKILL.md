@@ -202,7 +202,8 @@ Both subagents are **read-only** (`Read`, `Grep`, `Bash` — a hook blocks `git 
 **A dispatch of `final-reviewer` that the permission classifier denies is a degraded pass.** Read
 `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section and follow it: review
 inline yourself, say so in §3's report, and — on a live scope run — write the `**Degraded:**` entry that
-section defines with `scope.js degraded add-denial`, quoting the classifier's refusal, then publish the
+section defines with `scope.js degraded add-denial -`, piping the classifier's refusal through a quoted
+heredoc rather than a shell argument, then publish the
 snapshot, per that file's `## Publishing run state` section — since either block branch below reaches no
 later write in this run.
 **`--unattended`** → that section's authorship rule
@@ -406,14 +407,25 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   no new line into `dod.md`.
 - **Ask once before fixing.** `final-reviewer` returned **Critical or Important** findings, a broken
   criterion, or the full
-  suite came back `fail` → report them per §3 first, then ask whether to fix them now.
+  suite came back `fail` → report them per §3 first, then ask whether to fix them now. **When the
+  findings include an unmet criterion** (a broken line, or one this cycle leaves unticked), **the same
+  question also offers to accept it as unmet instead**, with the operator's own reason — this is the one
+  decision point where a fresh `accepted:` note gets written (ADR 0095). **`--unattended`** never makes
+  this offer, and never writes `accepted:`; an unmet criterion there follows the ordinary fix-or-block path
+  below.
   - **Declined** → stop. The findings stand: write the `**Unresolved:**` entry with a quoted heredoc
-    (`<<'EOF'`) piped to
+    (`<<'SUPERDEV_TEXT_EOF'`) piped to
     `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add - --root <run-root>` — the sole word
     `-` reads the bullet text from stdin rather than a shell-interpolated argument
     (`references/dod-ticks.md`, triage #680) — publish the
     snapshot before stopping — per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run
     state` section, since no later write in this run will do it — and the stage does **not** advance.
+  - **Accepted** (the criterion's own reason, attended only) → write `accepted: <reason> (operator,
+    <date>)` as that line's note, through `scope.js dod-line --match-file <path> --verdict accepted
+    --note-file <path>` on `<run-root>/dod.md` and the anchor's checklist, through the active store's own
+    `## Definition of Done ticks` section (controller-only, INV-0015, ADR 0095). That criterion drops out
+    of the findings this cycle fixes; any other Critical or Important finding still goes through the
+    ordinary confirm-or-decline choice below.
   - **`--unattended` → fix**, without asking: the fix loop is the point of this gate, and a review that
     found real defects and left them is worth less than no review.
   - **Confirmed** → dispatch **one** `superdev:implementer` (`model: sonnet`; `haiku` only for a

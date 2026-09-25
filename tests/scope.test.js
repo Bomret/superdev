@@ -519,6 +519,36 @@ try {
     assert.ok(!d.ok && /newline/.test(d.err), 'an embedded newline in stdin text is still refused: ' + d.err);
   }
 
+  // degraded add-denial - and degraded reset-denials -: the same stdin sentinel, since a classifier's
+  // own refusal text (add-denial's argument) or an operator's reset reason can carry a quote just as
+  // easily as any other bullet text (Important review find #2).
+  {
+    const dsRoot = path.join(tmp, '.superdev', 'scopes', 'stdin-denials');
+    fs.mkdirSync(dsRoot, { recursive: true });
+    fs.writeFileSync(path.join(dsRoot, 'ledger.md'), '# Ledger — stdin-denials\n\n**Stage:** implementing\n', 'utf8');
+    const DS = ['--root', dsRoot];
+
+    const trickyDenial = `final-reviewer denied: it's "not allowed" and \`$(rm -rf /)\``;
+    assert.ok(
+      call(['degraded', 'add-denial', '-', ...DS], trickyDenial + '\n').ok,
+      'degraded add-denial - reads stdin'
+    );
+    assert.ok(
+      call(['get', 'degraded', ...DS]).out.includes(trickyDenial),
+      'the stdin-supplied add-denial text lands verbatim, prefix intact'
+    );
+
+    const trickyReason = `fixed it — it's "done" now`;
+    assert.ok(
+      call(['degraded', 'reset-denials', '-', ...DS], trickyReason + '\n').ok,
+      'degraded reset-denials - reads stdin'
+    );
+    assert.ok(
+      call(['get', 'degraded', ...DS]).out.includes(trickyReason),
+      'the stdin-supplied reset-denials text lands verbatim'
+    );
+  }
+
   // The real CLI (a subprocess, not the mocked `run()` call above) actually waits on stdin for the
   // "-" sentinel — the case main()'s own needsStdin gate has to recognise.
   {
@@ -2849,6 +2879,29 @@ try {
       r.out,
       '- [x] Retries capped — 01 — met: ok',
       'tag parsing is unaffected for a real tag: ' + r.out
+    );
+  }
+
+  // dod-line: the same untagged-fallback offer reaches the tag-with-note shape too — an untagged
+  // criterion ending in something tag-shaped is still readable once it already carries a note (Minor
+  // review find #4). Tick the line, then re-judge it against the same untagged `--match`.
+  {
+    r = call(
+      ['dod-line', '--match', 'Retries capped — 3', '--verdict', 'met', '--note', 'e'],
+      '- [ ] Retries capped — 3'
+    );
+    assert.ok(r.ok, 'first tick: ' + (r.err || ''));
+    assert.strictEqual(r.out, '- [x] Retries capped — 3 — met: e');
+
+    r = call(
+      ['dod-line', '--match', 'Retries capped — 3', '--verdict', 'not-met', '--note', 'regressed'],
+      r.out
+    );
+    assert.ok(r.ok, 'a ticked line with a tag-shaped suffix still matches the same untagged criterion: ' + (r.err || ''));
+    assert.strictEqual(
+      r.out,
+      '- [ ] Retries capped — 3 — not met: regressed',
+      'the whole line still round-trips as one untagged criterion: ' + r.out
     );
   }
 
