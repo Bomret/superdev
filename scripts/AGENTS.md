@@ -78,13 +78,14 @@ would path a ledger read or write outside `.superdev/scopes/`.
 `dod-line` is another verb that touches no ledger, and makes no store call of its own
 (`references/dod-ticks.md`, INV-0014, triage #664): `--match <criterion text> --verdict
 met|not-met|ceiling --note <text> [--line]`. It is the one Definition-of-Done checklist-line edit every
-store's own `## Definition of Done ticks` section now cites instead of restating by hand — a store seed
+store's own `## Definition of Done ticks` section cites instead of restating by hand — a store seed
 fetches the checklist text through its own call, pipes it through `dod-line` on stdin, and writes back
 whatever comes out on stdout, the same shape `kb-patch.js` already gives a staged knowledge-base patch
 (ADR 0027). The default mode takes a whole markdown body on stdin and prints the transformed body;
 `--line` takes and prints exactly one checklist line instead, for the Jira seed's ADF text node, which is
-JSON, not markdown lines. A checklist line is `- [ ] <criterion> — <tag>[ — <verdict>: <note>]`
-(`plan-contract.md`'s line format); `--line` mode accepts the same line with no leading `- `, the shape a
+JSON, not markdown lines. A checklist line is `- [ ] <criterion>[ — <tag>][ — <verdict>: <note>]`
+(`plan-contract.md`'s line format) — the tag absent on a single-slice feature's own DoD, a run predating
+tagging, or one untagged line inside an otherwise-tagged DoD; `--line` mode accepts the same line with no leading `- `, the shape a
 Jira text node's own string carries. The tag — slice ids (`01`, `01, 02`), store refs (`#667`, `#672,
 #673`), or the literal `scope` — and any verdict note past it are parsed off the line's *right* end,
 greedily handing everything before that to the criterion, which is what keeps a criterion carrying its
@@ -1020,12 +1021,11 @@ whitespace, including a line break, collapse to a single space. That matters bec
 document. Nothing executes the glossary, so it is the copy most likely to drift.
 The `afk-routing` contract (ADR 0091) pins `skills/afk/SKILL.md` stating that every scope passes
 review, whatever its slice types, and that its stage table routes every scope through `/superdev:review`
-with no special case for an all-`mechanical`/`docs` ledger — the retired route that once sent such a
-scope from `merged` straight to `/superdev:document`, and from `documented-unreviewed` straight to
-`/superdev:ship`, is gone (it superseded ADR 0025's skip of the whole-scope review). `skills/ship/SKILL.md`
-dropped its own half of that retired agreement too — the all-`mechanical`/`docs` exemption from its own
-missing-step warning — so this table carries no ship row: `/superdev:ship` §3 now names
-`/superdev:review` as missing for such a scope like any other. The same table's second row (triage #661)
+with no special case for an all-`mechanical`/`docs` ledger — every scope's `merged` stage routes to
+`/superdev:review`, and its `documented-unreviewed` stage routes back to `/superdev:review` too, superseding
+ADR 0025's skip of the whole-scope review. `skills/ship/SKILL.md` carries no all-`mechanical`/`docs`
+exemption from its own missing-step warning and so carries no row in this table either: `/superdev:ship` §3
+names `/superdev:review` as missing for such a scope like any other. The same table's second row (triage #661)
 pins that `skills/afk/SKILL.md` blocks a second document-to-review send-back of the same anchor in the
 same sweep, through the ordinary unattended block path and counting toward the consecutive-block cap,
 rather than sending it back to `/superdev:review` a second time — afk carries this count in its own
