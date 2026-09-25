@@ -105,7 +105,9 @@ everything before that to the criterion, which is what keeps a criterion carryin
 instead of splitting at its first dash. An untagged criterion that merely ends in something shaped like a
 tag (`- [ ] Retries capped — 3`) offers a second reading alongside the rightmost-tag one — the whole line,
 untagged — and a line matches when either reading's criterion equals `--match` (triage #679); a genuinely
-tagged line still parses its tag as before. Matching runs after both the line's own criterion text and
+tagged line still parses its tag as before. The same offer reaches a line that already carries a note
+(`- [x] Retries capped — 3 — met: e`), so a re-judge against the same untagged criterion still finds it —
+a line offering two readings still counts once toward the match limit below. Matching runs after both the line's own criterion text and
 `--match` collapse internal whitespace to one space and trim, so a criterion an editor reflowed onto two
 lines is still found, and after `kb-patch.js`'s own `maskFencedLines` blanks every fenced line, so a line
 shown inside a fenced illustrative example is never a candidate. Body mode further scopes matching to the
