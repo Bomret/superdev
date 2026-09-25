@@ -136,8 +136,8 @@ agent-relevant detail second:
   frontmatter as `live-hash: <hash>`, so `/superdev:publish-kb` can
   tell your `upsert` was built from the page it is about to replace. `exists: false` means the page is
   new: stage it as today, with no `live-hash`. The call exiting non-zero — no credential, no `read` verb
-  in the configured backend (a `## Commands` section with no `### read` subsection, as Confluence's own
-  seed carries), or no reach — stages nothing for that page: record it as a degraded pass
+  in the configured backend (a `## Commands` section with no `### read` subsection), or no reach — stages
+  nothing for that page: record it as a degraded pass
   (`references/scope-mode.md`'s `## Degraded passes`, "a pass that cannot complete its own work") —
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" degraded add '<title> not reconciled — the backend read
   was unavailable: <reason>' --root <run-root>` on a live scope run, the same line in your report instead

@@ -23,13 +23,11 @@ marker the doc pass stages an `upsert`, which replaces the page wholesale and dr
 by a scope it cannot see (ADR 0027). `/superdev:setup` asks which outline pages aggregate; a page no
 scope but its own contributes to carries no marker.
 
-**A non-markdown backend marks nothing `aggregate`, and so needs no body read.** `scripts/kb-patch.js`
-merges by matching markdown ATX headings, and Confluence stores a page as `storage` — XHTML
-(`body.representation: storage` below), not markdown. `action: patch` sent as-is finds no heading to match
-and appends its markdown section, unrendered, to the end of the XHTML body on every publish. ADR 0027
-requires a documented body read for any outline entry marked `(aggregate)`; this seed carries none,
-because none is needed while pages stay XHTML storage. Mark no outline entry `aggregate` here until a
-markdown conversion is named and a matching read documented.
+**A non-markdown backend marks nothing `aggregate`.** `scripts/kb-patch.js` merges by matching markdown
+ATX headings, and Confluence stores a page as `storage` — XHTML (`body.representation: storage` below),
+not markdown. `action: patch` sent as-is finds no heading to match and appends its markdown section,
+unrendered, to the end of the XHTML body on every publish. Mark no outline entry `aggregate` here until a
+markdown conversion is named, whatever `### read` template this seed carries below.
 
 ## Configuration (fill in at setup)
 
@@ -60,6 +58,9 @@ What `/superdev:publish-kb` applies. Auth: `-u "$CONFLUENCE_EMAIL:$CONFLUENCE_AP
 - **Find a page** (update, don't duplicate): `GET <base>/api/v2/pages?title=<title>&space-id=<id>`,
   with `<title>` URL-encoded. The title is the sole page-identity key, so an unencoded `&` or space in it
   breaks the query and this step finds nothing — the exact condition that leads §4 to create a duplicate.
+- **Read a page's live body**: `GET <base>/api/v2/pages/<id>?body-format=storage`. By default v2 returns
+  no body at all; `body-format=storage` is what asks for it. The storage-format text sits at
+  `body.storage.value` in the response.
 - **Update a page**: `PUT <base>/api/v2/pages/<id>` with the new body and incremented `version.number`.
 - **Delete a page** (an `action: delete` staged page): `DELETE <base>/api/v2/pages/<id>`. Already absent
   is the intended end state, not a failure.
@@ -67,10 +68,12 @@ What `/superdev:publish-kb` applies. Auth: `-u "$CONFLUENCE_EMAIL:$CONFLUENCE_AP
 ## Commands
 
 The **backend command contract** (ADR 0069) `scripts/publish-kb.js` runs. `find`'s JSON keys reach
-`update` and `delete` as `SUPERDEV_KB_ID`/`SUPERDEV_KB_VERSION`; `create`/`update` also receive
-`SUPERDEV_KB_BODY_FILE`, a path to the staged body. Fill in `<base>` and `<space-id>` at setup. **No
-`read`** — Confluence stores a page as XHTML `storage`, not markdown, so no outline entry here may carry
-`(aggregate)` (above). `find` first checks that the response actually carries a `results` array — a
+`read`, `update`, and `delete` as `SUPERDEV_KB_ID`/`SUPERDEV_KB_VERSION`; `create`/`update` also receive
+`SUPERDEV_KB_BODY_FILE`, a path to the staged body. Fill in `<base>` and `<space-id>` at setup. `read`
+prints the live page's storage-format body on stdout, nothing else — the text `/superdev:document`
+reconciles its prose against and hashes (ADR 0094), never JSON. Confluence stores a page as XHTML
+`storage`, not markdown, so no outline entry here may carry `(aggregate)` regardless (above). `find`
+first checks that the response actually carries a `results` array — a
 malformed 200 body with no such key (an error object, say) leaves `.results` reading `null` rather than
 erroring, which would otherwise read exactly like a genuine empty match list — and answers exit 2 when it
 does not. It then maps `jq -e`'s exit 1 (a genuine no-match) to exit 3, the only outcome
@@ -103,6 +106,17 @@ status=$?
 [ "$status" -ne 0 ] && exit 2
 printf '%s' "$page" | jq -c '{id, version: (.version.number | tostring)}'
 ```
+
+### read
+
+```sh
+resp=$(curl -sf -u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN" \
+  --get "<base>/api/v2/pages/$SUPERDEV_KB_ID" --data-urlencode "body-format=storage") || exit 2
+printf '%s' "$resp" | jq -er '.body.storage.value'
+```
+
+The storage XHTML `read` returns is stable across reads of an unchanged page, so `/superdev:publish-kb`'s
+live-hash guard (ADR 0094) never refuses an upsert Confluence itself reformatted underneath it.
 
 ### create
 

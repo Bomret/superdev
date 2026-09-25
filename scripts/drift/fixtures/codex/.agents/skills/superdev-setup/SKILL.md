@@ -268,8 +268,7 @@ Then, for a **remote** backend, ask which of those pages **aggregate**: a page m
 contribute one section to — an index, a changelog, an ADR-summaries digest — rather than a page one scope
 owns end to end. **A documented read is a precondition of this question** (ADR 0027): before any entry can
 carry the marker, the `## Commands` section above must hold a `### read` subsection — a backend declaring
-none can carry no `(aggregate)` entry, because nothing can fetch a live body to merge into. The Confluence
-seed declares no `read`, because its XHTML pages need no body read (below). Mark
+none can carry no `(aggregate)` entry, because nothing can fetch a live body to merge into. Mark
 each answer in the outline with `(aggregate)`, and pin the heading level its sections take (e.g.
 `## <concept>`) — the writer reaches no backend and cannot see the live page's nesting, and a level left
 unpinned lets a staged heading as shallow as the page's own title carry the whole page away when it

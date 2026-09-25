@@ -1257,6 +1257,43 @@ withState((stateFile) => {
   fs.rmSync(stubDir, { recursive: true, force: true });
 }
 
+// --- the real `### read` template in plugin/references/knowledge-base-confluence.md prints the -------
+// live storage-format body on stdout (ADR 0094, INV-0091, triage #677), never JSON.
+{
+  const confluenceDoc = fs.readFileSync(
+    path.join(__dirname, '..', 'plugin', 'references', 'knowledge-base-confluence.md'),
+    'utf8',
+  );
+  const readTemplate = classifyBackend(confluenceDoc).templates.read;
+  assert.ok(readTemplate, 'the Confluence seed configures a read template');
+
+  const stubDir = fs.mkdtempSync(path.join(os.tmpdir(), 'curl-stub-'));
+  fs.writeFileSync(path.join(stubDir, 'curl'), '#!/bin/sh\nprintf "%s" "$CURL_STUB_BODY"\n', { mode: 0o755 });
+
+  function runReadTemplate(body) {
+    return spawnSync('/bin/sh', ['-c', readTemplate], {
+      env: {
+        ...process.env,
+        PATH: stubDir + path.delimiter + process.env.PATH,
+        CURL_STUB_BODY: body,
+        SUPERDEV_KB_ID: '123',
+        CONFLUENCE_EMAIL: 'x',
+        CONFLUENCE_API_TOKEN: 'x',
+      },
+      encoding: 'utf8',
+    });
+  }
+
+  const ok = runReadTemplate(JSON.stringify({ body: { storage: { value: '<p>Hi</p>' } } }));
+  assert.equal(ok.status, 0, 'a response carrying body.storage.value answers 0');
+  assert.equal(ok.stdout, '<p>Hi</p>\n', 'prints the live storage body on stdout, nothing else');
+
+  const malformed = runReadTemplate('not json at all');
+  assert.notEqual(malformed.status, 0, 'a jq parse failure must not answer 0 with no body');
+
+  fs.rmSync(stubDir, { recursive: true, force: true });
+}
+
 // --- the time bound (ADR 0076) ------------------------------------------------------------------
 
 // --- a find that never answers is killed at the bound, and its page stays staged -----------------
