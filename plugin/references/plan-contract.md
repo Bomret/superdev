@@ -47,7 +47,13 @@ The line format:
 - [ ] <criterion> — <ids|scope>
 ```
 
-A line nobody has judged yet carries only its tag. A judged line carries one note — `— met: <evidence>`,
+A single-slice feature's own line, a line from a run predating tagging, and one untagged line left inside an
+otherwise-tagged DoD (`dod-ticks.md`'s own "No tags at all") all carry no tag segment at all: `- [ ]
+<criterion>`, judged as `- [x] <criterion> — met: <evidence>` — the tag segment simply absent, never an
+empty one.
+
+A line nobody has judged yet carries only its tag, or nothing at all when it carries none. A judged line
+carries one note — `— met: <evidence>`,
 `— not met: <reason>`, or `— ceiling: <partial evidence>` — never a bare tick (INV-0014). A later judgment
 replaces that note rather than adding a second one beside it:
 

@@ -525,16 +525,20 @@ function verbDocs(root, sub, value) {
 // `--line`, one checklist line in and one out, for the Jira seed's ADF text node, which is JSON, not
 // markdown lines.
 //
-// A checklist line is `- [ ] <criterion> — <tag>[ — <verdict>: <note>]` (`plan-contract.md`'s line
+// A checklist line is `- [ ] <criterion>[ — <tag>][ — <verdict>: <note>]` (`plan-contract.md`'s line
 // format). The tag is slice ids (`01`, `01, 02`), store refs (`#667`, `#672, #673`), a Jira issue key
 // (`PROJ-12`, `PROJ-12, PROJ-13` — `references/issue-tracker-jira.md`'s own rewritten notation), or the
-// literal `scope` — never free text. A line with no note takes its tag from the *rightmost* ` — <tag>`
-// at the end of the line, greedily handing everything else to the criterion: that is what keeps a
-// criterion carrying its own " — " (`plan-contract.md`'s own worked example, "Reachable: none —
-// entrance unchanged; … — scope") intact. A line with a note instead splits at the *leftmost* ` —
-// <tag> — <verdict>: ` boundary, because the note itself is free text and may contain that same shape
-// (a re-write's own earlier note, say) — everything past the leftmost boundary is the note, however
-// many look-alike dashes it carries.
+// literal `scope` — never free text. It is absent on a single-slice feature's own DoD (`plan-contract.md`'s
+// `### Criterion tags`: "a single-slice feature carries no tags"), on a run from before tagging existed,
+// or on one untagged line inside an otherwise tagged DoD (`references/dod-ticks.md`'s own "No tags at
+// all"). A line with no note takes its tag from the *rightmost* ` — <tag>` at the end of the line,
+// greedily handing everything else to the criterion: that is what keeps a criterion carrying its own
+// " — " (`plan-contract.md`'s own worked example, "Reachable: none — entrance unchanged; … — scope")
+// intact. A line with a note instead splits at the *leftmost* ` — <tag> — <verdict>: ` boundary, because
+// the note itself is free text and may contain that same shape (a re-write's own earlier note, say) —
+// everything past the leftmost boundary is the note, however many look-alike dashes it carries. Where
+// no valid tag suffix exists in either shape, the whole rest of the line is the criterion and the tag is
+// empty — rendered with no ` — <tag>` segment at all.
 const DOD_TAG_TOKEN = '(?:#?\\d+|[A-Z][A-Z0-9_]*-\\d+)';
 const DOD_TAG_PATTERN = `(?:scope|${DOD_TAG_TOKEN}(?:,\\s*${DOD_TAG_TOKEN})*)`;
 const DOD_VERDICTS = {
@@ -549,8 +553,9 @@ const DOD_VERDICTS = {
 // Trailing whitespace is tolerated on either shape (an editor's or a store's own habit) and dropped
 // only where a matched line is actually rewritten — an untouched line keeps its own trailing bytes.
 const DOD_LINE_RE = /^(\s*(?:-\s*)?)\[[ xX]\]\s*(.*)$/;
-const DOD_WITH_NOTE_RE = new RegExp(`^(.+?) — (${DOD_TAG_PATTERN}) — (met|not met|ceiling): (.*?)\\s*$`);
-const DOD_NO_NOTE_RE = new RegExp(`^(.+) — (${DOD_TAG_PATTERN})\\s*$`);
+const DOD_WITH_NOTE_TAG_RE = new RegExp(`^(.+?) — (${DOD_TAG_PATTERN}) — (met|not met|ceiling): (.*?)\\s*$`);
+const DOD_WITH_NOTE_NO_TAG_RE = /^(.+?) — (met|not met|ceiling): (.*?)\s*$/;
+const DOD_NO_NOTE_TAG_RE = new RegExp(`^(.+) — (${DOD_TAG_PATTERN})\\s*$`);
 
 // Whitespace-insensitive equality (`--match`'s own contract), collapsed within one physical line only:
 // a `--match` argument itself carrying an embedded newline, or a run of spaces a web UI's autoformat
@@ -562,22 +567,25 @@ function collapseWhitespace(s) {
 
 // The checklist line's leading marker prefix (the `- ` a markdown body carries, absent from the bare
 // `[ ]`/`[x]` a Jira ADF text node carries — `references/issue-tracker-jira.md`'s own text-node
-// shape), its criterion, and its tag. `null` when the line carries no task-list marker at all, or
-// carries one but not in the `<criterion> — <tag>[ — <verdict>: <note>]` shape.
+// shape), its criterion, and its tag (empty when the line carries none — the untagged shapes above).
+// `null` only when the line carries no task-list marker at all.
 function parseDodLine(line) {
   const m = line.match(DOD_LINE_RE);
   if (!m) return null;
   const [, prefix, rest] = m;
-  const withNote = rest.match(DOD_WITH_NOTE_RE);
-  if (withNote) return { prefix, criterion: withNote[1], tag: withNote[2] };
-  const noNote = rest.match(DOD_NO_NOTE_RE);
-  if (noNote) return { prefix, criterion: noNote[1], tag: noNote[2] };
-  return null;
+  const withTagNote = rest.match(DOD_WITH_NOTE_TAG_RE);
+  if (withTagNote) return { prefix, criterion: withTagNote[1], tag: withTagNote[2] };
+  const withNoteNoTag = rest.match(DOD_WITH_NOTE_NO_TAG_RE);
+  if (withNoteNoTag) return { prefix, criterion: withNoteNoTag[1], tag: '' };
+  const tagNoNote = rest.match(DOD_NO_NOTE_TAG_RE);
+  if (tagNoNote) return { prefix, criterion: tagNoNote[1], tag: tagNoNote[2] };
+  return { prefix, criterion: rest, tag: '' };
 }
 
 function renderDodLine(prefix, criterion, tag, verdict) {
   const v = DOD_VERDICTS[verdict];
-  return `${prefix}[${v.marker}] ${criterion} — ${tag}`;
+  const tagSuffix = tag ? ` — ${tag}` : '';
+  return `${prefix}[${v.marker}] ${criterion}${tagSuffix}`;
 }
 
 // The core: find the one non-fenced checklist line whose criterion equals `match` once both sides

@@ -2637,6 +2637,78 @@ try {
       'a body with no trailing newline gains none either: ' + JSON.stringify(out2)
     );
   }
+
+  // dod-line: an untagged criterion — a single-slice feature's own DoD (plan-contract.md's `###
+  // Criterion tags`), a run from before tagging existed, or one untagged line inside an otherwise
+  // tagged DoD — ticks with no tag segment, in body mode.
+  {
+    r = call(
+      ['dod-line', '--match', 'Old criterion with no tag', '--verdict', 'met', '--note', 'e'],
+      '- [ ] Old criterion with no tag'
+    );
+    assert.ok(r.ok, 'dod-line should accept an untagged line: ' + (r.err || ''));
+    assert.strictEqual(
+      r.out,
+      '- [x] Old criterion with no tag — met: e',
+      'an untagged line ticks with no tag segment: ' + r.out
+    );
+
+    const body = ['- [ ] the widget renders — 01', '- [ ] an untagged line among tagged ones'].join('\n');
+    r = call(
+      ['dod-line', '--match', 'an untagged line among tagged ones', '--verdict', 'not-met', '--note', 'why'],
+      body
+    );
+    assert.ok(r.ok, 'dod-line should accept an untagged line beside tagged ones: ' + (r.err || ''));
+    assert.ok(
+      r.out.includes('- [ ] an untagged line among tagged ones — not met: why'),
+      'the untagged line among tagged ones stays untagged: ' + r.out
+    );
+    assert.ok(r.out.includes('- [ ] the widget renders — 01'), 'the tagged sibling is untouched: ' + r.out);
+  }
+
+  // dod-line: the same untagged shape in --line mode, for the Jira ADF text node.
+  {
+    r = call(
+      ['dod-line', '--line', '--match', 'Old criterion with no tag', '--verdict', 'met', '--note', 'e'],
+      '[ ] Old criterion with no tag'
+    );
+    assert.ok(r.ok, '--line mode should accept an untagged line: ' + (r.err || ''));
+    assert.strictEqual(
+      r.out,
+      '[x] Old criterion with no tag — met: e',
+      '--line mode ticks an untagged line with no tag segment: ' + r.out
+    );
+  }
+
+  // dod-line: an untagged criterion whose own text looks like a tag suffix still round-trips as one
+  // whole, untagged criterion — no real tag exists to split off.
+  {
+    r = call(
+      ['dod-line', '--match', 'Reachable: none — entrance unchanged', '--verdict', 'met', '--note', 'ok'],
+      '- [ ] Reachable: none — entrance unchanged'
+    );
+    assert.ok(r.ok, 'dod-line should accept an untagged criterion carrying its own " — ": ' + (r.err || ''));
+    assert.strictEqual(
+      r.out,
+      '- [x] Reachable: none — entrance unchanged — met: ok',
+      'the whole criterion round-trips untagged: ' + r.out
+    );
+  }
+
+  // dod-line: an untagged noted line (no tag between the criterion and the verdict) still matches and
+  // re-writes, keeping the untagged shape.
+  {
+    r = call(
+      ['dod-line', '--match', 'Old criterion with no tag', '--verdict', 'met', '--note', 'second'],
+      '- [ ] Old criterion with no tag — not met: first'
+    );
+    assert.ok(r.ok, 'dod-line should accept an untagged noted line: ' + (r.err || ''));
+    assert.strictEqual(
+      r.out,
+      '- [x] Old criterion with no tag — met: second',
+      'an untagged noted line re-writes, still untagged: ' + r.out
+    );
+  }
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true });
 }
