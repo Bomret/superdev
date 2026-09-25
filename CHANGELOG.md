@@ -1,3 +1,24 @@
+# [0.52.0](https://codeberg.org/bomret/superdev/compare/v0.51.0...v0.52.0) (2026-09-25)
+
+
+### Bug Fixes
+
+* **document,afk:** hold the stage on a standing Unresolved entry (INV-0016) ([bcb60f6](https://codeberg.org/bomret/superdev/commit/bcb60f6304811ca2ef4d6f754e21364a2aa4bd95))
+* **dod-line:** tick a checklist line with no tag segment ([5d63e43](https://codeberg.org/bomret/superdev/commit/5d63e432272476cb1e41b36c56895ea2c7241a38))
+* **drift-check:** derive glossary citation coverage from heading references ([#639](https://codeberg.org/bomret/superdev/issues/639)) ([d672f1a](https://codeberg.org/bomret/superdev/commit/d672f1a9cdd4075084cee4cae75d376f9042211b)), closes [#637](https://codeberg.org/bomret/superdev/issues/637)
+* **drift-check:** pin ADR 0095's accepted-verdict prohibition and decision point ([7ba889b](https://codeberg.org/bomret/superdev/commit/7ba889b6c0f800c70a33c11dcdb504b77ac0ab1f)), closes [#1](https://codeberg.org/bomret/superdev/issues/1) [#2](https://codeberg.org/bomret/superdev/issues/2)
+* **drift-check:** pin the stdin-heredoc wording for add-denial/reset-denials ([d60e5ab](https://codeberg.org/bomret/superdev/commit/d60e5abaa2b2412326cf6aa876fe0658561bdff0))
+* **knowledge-base-confluence:** add a read command template ([#677](https://codeberg.org/bomret/superdev/issues/677)) ([b255b36](https://codeberg.org/bomret/superdev/commit/b255b363cb1dbec4f16e6b924e5e4d976ceb9b86))
+* **publish-kb:** refuse a patch on a non-markdown knowledge-base body format ([bb537ec](https://codeberg.org/bomret/superdev/commit/bb537ece3b9d522e66cf7dc3769f6789bb2bbbab))
+* **scope-js:** pass Definition-of-Done text to dod-line without shell interpolation ([3558dbd](https://codeberg.org/bomret/superdev/commit/3558dbdeece262cae0a7ec2962ad357e767170c8)), closes [#680](https://codeberg.org/bomret/superdev/issues/680)
+* **scope-js:** read degraded add-denial and reset-denials text from stdin ([a8a8c09](https://codeberg.org/bomret/superdev/commit/a8a8c095687b070648747a44104d49d9a815cb2a))
+
+
+### Features
+
+* **dod:** tick the Definition of Done while the run works ([#665](https://codeberg.org/bomret/superdev/issues/665)) ([d3dd7d4](https://codeberg.org/bomret/superdev/commit/d3dd7d4d87c5a9199149c0795623b80f0ea7a9d7)), closes [#647](https://codeberg.org/bomret/superdev/issues/647) [#649](https://codeberg.org/bomret/superdev/issues/649) [#650](https://codeberg.org/bomret/superdev/issues/650) [#650](https://codeberg.org/bomret/superdev/issues/650) [#649](https://codeberg.org/bomret/superdev/issues/649) [#648](https://codeberg.org/bomret/superdev/issues/648) [#651](https://codeberg.org/bomret/superdev/issues/651) [#651](https://codeberg.org/bomret/superdev/issues/651) [#651](https://codeberg.org/bomret/superdev/issues/651) [#653](https://codeberg.org/bomret/superdev/issues/653) [#653](https://codeberg.org/bomret/superdev/issues/653) [#653](https://codeberg.org/bomret/superdev/issues/653) [#653](https://codeberg.org/bomret/superdev/issues/653) [#652](https://codeberg.org/bomret/superdev/issues/652) [#652](https://codeberg.org/bomret/superdev/issues/652) [#647](https://codeberg.org/bomret/superdev/issues/647) [#648](https://codeberg.org/bomret/superdev/issues/648) [#649](https://codeberg.org/bomret/superdev/issues/649) [#650](https://codeberg.org/bomret/superdev/issues/650) [#651](https://codeberg.org/bomret/superdev/issues/651) [#653](https://codeberg.org/bomret/superdev/issues/653) [#652](https://codeberg.org/bomret/superdev/issues/652) [#660](https://codeberg.org/bomret/superdev/issues/660) [#655](https://codeberg.org/bomret/superdev/issues/655) [#656](https://codeberg.org/bomret/superdev/issues/656) [#660](https://codeberg.org/bomret/superdev/issues/660) [#661](https://codeberg.org/bomret/superdev/issues/661) [#662](https://codeberg.org/bomret/superdev/issues/662) [#663](https://codeberg.org/bomret/superdev/issues/663) [#654](https://codeberg.org/bomret/superdev/issues/654)
+* **scope-js:** add the accepted Definition-of-Done verdict and fix dod-line matching (triage [#679](https://codeberg.org/bomret/superdev/issues/679)) ([9b21e72](https://codeberg.org/bomret/superdev/commit/9b21e72f4df26c7a8089535a54108ae7b86022e7))
+
 # [0.51.0](https://codeberg.org/bomret/superdev/compare/v0.50.2...v0.51.0) (2026-09-23)
 
 
