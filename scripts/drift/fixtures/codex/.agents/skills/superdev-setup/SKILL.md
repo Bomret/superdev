@@ -213,10 +213,14 @@ specifications, design overviews, ADR summaries)? Ask the user which of:
 
 - **Knowledge base software available** — e.g. **Confluence**. Seed:
   `references/knowledge-base-confluence.md`. Ask base URL, space key, what to publish, optional parent
-  page, and the **env-var names** for the API token + email (never the secrets). For a different wiki
+  page, and the **env-var names** for the API token + email (never the secrets); the seed's own
+  `- **Body format:** storage` bullet needs no question — Confluence's page body is always XHTML
+  storage format. For a different wiki
   ("other"), capture the same **backend command contract** (below) that every remote backend declares —
   a backend declaring no `delete` template leaves every `action: delete` staged page unpublishable, and
-  one declaring no `read` template blocks the aggregate question below. Also record that
+  one declaring no `read` template, or a non-markdown page body, blocks the aggregate question below.
+  Ask whether its page bodies are markdown, and record a `- **Body format:** <value>` bullet only when
+  they are not — absent means markdown. Also record that
   `$superdev-publish-kb` is the only caller of this backend and that `$superdev-plan`/`$superdev-document`
   stage its pages instead of sending them (ADR 0023) — the `## Staging` section the seeded templates carry.
 - **Local file storage** — markdown under `docs/kb/`. Seed: `references/knowledge-base-local.md`.
@@ -264,20 +268,23 @@ command they write is one they expect to be killed at it.
 the newly captured templates and the existing ones, and keep the operator's own template for a verb
 unless they choose to replace it — never rewrite a working command silently.
 
-Then, for a **remote** backend, ask which of those pages **aggregate**: a page many scopes each
-contribute one section to — an index, a changelog, an ADR-summaries digest — rather than a page one scope
-owns end to end. **A documented read is a precondition of this question** (ADR 0027): before any entry can
-carry the marker, the `## Commands` section above must hold a `### read` subsection — a backend declaring
-none can carry no `(aggregate)` entry, because nothing can fetch a live body to merge into. Mark
+Then, for a **remote** backend whose page bodies are markdown, ask which of those pages **aggregate**: a
+page many scopes each contribute one section to — an index, a changelog, an ADR-summaries digest —
+rather than a page one scope owns end to end. **A documented read is a precondition of this question**
+(ADR 0027): before any entry can carry the marker, the `## Commands` section above must hold a `### read`
+subsection — a backend declaring none can carry no `(aggregate)` entry, because nothing can fetch a live
+body to merge into. Mark
 each answer in the outline with `(aggregate)`, and pin the heading level its sections take (e.g.
 `## <concept>`) — the writer reaches no backend and cannot see the live page's nesting, and a level left
 unpinned lets a staged heading as shallow as the page's own title carry the whole page away when it
 merges. A marked page is staged one section at a time (`action: patch`) and merged into the live page; an
 unmarked one is replaced wholesale, which on an aggregate page drops every section written by a scope the
 doc pass cannot see. A digest or index page in the proposed outline is the case to ask about by name.
-**None aggregate** → mark nothing. A backend whose page bodies are not markdown (e.g. Confluence's XHTML
-storage format) marks nothing either — `action: patch` merges by matching markdown headings and finds
-none there. A **local `docs/kb/`** backend skips this question: its pages are repository files the doc
+**None aggregate** → mark nothing. **Skip this question outright** for a backend whose `- **Body
+format:**` bullet declares anything other than markdown (Confluence's XHTML storage format, e.g.): mark
+no outline entry, since `action: patch` merges by matching markdown headings and finds none there, and
+`$superdev-publish-kb` refuses that action on such a backend regardless (ADR 0027). A **local
+`docs/kb/`** backend skips this question too: its pages are repository files the doc
 pass reads and edits directly, so it stages nothing.
 
 **E — Verification (optional).** What single command runs the repo's test suite (e.g. `npm test`,

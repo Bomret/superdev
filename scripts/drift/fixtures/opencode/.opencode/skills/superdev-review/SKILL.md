@@ -1,6 +1,6 @@
 superdev-render-overlay
 source: skills/review/SKILL.md
-body-lines: 487
+body-lines: 499
 ---
 # generated-by: superdev-adapter — a re-render overwrites this directory
 name: superdev-review
@@ -54,79 +54,79 @@ standing tree `/superdev-sweep` asked this leg to read.
 **Exclude `slice-reviewer`.** It verifies one slice's diff against that slice's own
 @198
 `<plugin-root>/references/scope-mode.md`'s `## Degraded passes` section and follow it: review
-@233
+@234
 line each, with the follow-up `/superdev-plan`. Omit this section when there is none]
-@253
+@254
 on findings, run `/superdev-plan` to slice the fix, then `/superdev-implement`. **Scope mode is the one
-@262
+@263
   `<plugin-root>/references/scope-mode.md`. **The scope checkout not on `<type>/<scope>`** →
-@266
+@267
   `node "<plugin-root>/scripts/scope.js" suite reusable --branch <branch> [--plan-files]
-@274
+@275
   `docs/agents/verification.md` per `<plugin-root>/references/test-selection.md` and run it **in
-@276
+@277
   `node "<plugin-root>/scripts/scope.js" suite set <green|red|denied|none> <sha> --root <run-root>`
-@287
+@288
   `/superdev-ship` with none behind it. Write the `**Degraded:**` entry either way, then publish the
-@289
+@290
   `<plugin-root>/references/scope-mode.md`'s `## Publishing run state` section — since the block
-@291
+@292
   **Unattended** → **block**, per `<plugin-root>/references/scope-mode.md`'s `## Unattended`
-@297
+@298
   — per `<plugin-root>/references/test-selection.md`, over the commits that cycle's implementer
-@312
+@313
   `<plugin-root>/references/scope-mode.md`'s `## Publishing run state` section. **Attended** →
-@315
+@316
   `<plugin-root>/references/scope-mode.md`'s `## Observations` section and follow it: a defect the
-@320
+@321
   capability the Definition of Done never named** is recorded and handed to **`/superdev-plan`**: report it
-@327
+@328
   second `/superdev-review` invocation on the same run, which remembers nothing of the first. "Only on the
-@333
+@334
   backend `/superdev-setup` seeds a section for, re-running it is what adds one; on an "Other" backend the
-@340
-  anchor's reference, and a copy-pasteable `/superdev-plan "<the finding>"` line — and **no pull-request
 @341
+  anchor's reference, and a copy-pasteable `/superdev-plan "<the finding>"` line — and **no pull-request
+@342
   URL**, because this command runs before `/superdev-ship` opens
-@344
+@345
   `node "<plugin-root>/scripts/scope.js" deferred add - --root <run-root>` — the sole word `-`
-@348
+@349
   `/superdev-status` to the record. **The create fails** → the bullet names the failure in the
-@357
+@358
   carries the finding to the pull request `/superdev-ship` opens (ADR 0035). An ad-hoc range has no run
-@377
+@378
   `<plugin-root>/references/dod-ticks.md`'s mapping gate: the fix cycle's dispatch below hands the
-@407
+@413
     `node "<plugin-root>/scripts/scope.js" unresolved add - --root <run-root>` — the sole word
-@410
+@416
     snapshot before stopping — per `<plugin-root>/references/scope-mode.md`'s `## Publishing run
-@414
+@426
   - **Confirmed** → dispatch **one** `implementer` (`model: sonnet`; `haiku` only for a
-@418
-    loop first (`<plugin-root>/references/diagnosis.md` — the implementer reads it on any
-@423
-    `<plugin-root>/references/scope-mode.md`'s `## Publishing run state` section — since no later
 @430
+    loop first (`<plugin-root>/references/diagnosis.md` — the implementer reads it on any
+@435
+    `<plugin-root>/references/scope-mode.md`'s `## Publishing run state` section — since no later
+@442
   Follow `<plugin-root>/references/scope-mode.md`'s `## Degraded passes` section. Write the
-@443
+@455
   (`<plugin-root>/references/scope-mode.md`'s `## Verification ceiling`): no work on this branch
-@450
+@462
   `<plugin-root>/references/dod-ticks.md`'s `## Reading the report`. A listed line the fix
-@456
+@468
   re-verified clean — with `node "<plugin-root>/scripts/scope.js" unresolved clear --root
-@458
+@470
   `**Stage:**` line with `node "<plugin-root>/scripts/scope.js" stage set <value> --root
-@465
+@477
     `/superdev-ship` ask for the doc pass again.
-@471
+@483
   `node "<plugin-root>/scripts/scope.js" docs clear --root <run-root>`. A `lite` run wrote that
-@473
+@485
   stale, so the next `/superdev-document` must run the full `doc-writer` rather than the reader alone (ADR
-@479
+@491
   clear` alike — per `<plugin-root>/references/scope-mode.md`'s `## Publishing run state` section.
-@481
+@493
   Then print the next command with the range already resolved — `/superdev-document <range>`, carrying
-@484
+@496
   stage and the scope branch carry everything `/superdev-document` reads, so a `/clear` first costs
-@486
+@498
 - **Never merge, push, or open a pull request.** `/superdev-ship` ends the chain.
