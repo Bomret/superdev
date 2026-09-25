@@ -4633,30 +4633,83 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'attended operator\'s own decision (ADR 0095), never a\nCritical finding and never a reason to ' +
     'hold the stage, unless the **holds** clause below turns it over.\n';
 
+  // The prohibition half (ADR 0095): recognising `accepted:` is not enough — each surface also states
+  // who is forbidden to write a fresh one.
+  const avAgentProhibition =
+    "only an attended operator, never you, ever writes a fresh `accepted:` note. Every line gets exactly one\n";
+  const avSkillProhibition =
+    "the\nearlier decision no longer describes this branch; you never write a fresh `accepted:` note yourself,\n";
+  const avDodTicksClause =
+    '**`accepted` is written only by an attended operator, never by a report.** No mapping-gate ' +
+    'dispatch —\nimplement\'s slice dispatch, a review fix cycle, run handoff\'s own settling pass — ' +
+    'ever reports\n`accepted`, and no controller writes it from a report the way it writes ' +
+    '`met`/`not met`/`ceiling`: only\nan attended operator\'s own decision, mid-conversation with the ' +
+    'controller, does. `afk` and every\nsubagent never write it; an unattended run meeting an unmet ' +
+    'criterion behaves exactly as it does today.\n';
+
+  // The decision-point half (ADR 0095's amendment): review's §4 "Ask once before fixing" is the one
+  // place a fresh `accepted:` note gets offered and written.
+  const avDecisionPointClause =
+    'the same\nquestion also offers to accept it as unmet instead, with the operator\'s own reason — ' +
+    'this is the one\ndecision point where a fresh `accepted:` note gets written (ADR 0095).\n';
+
   const avClauses = {
-    'agents/final-reviewer.md': avAgentClause,
-    'skills/review/SKILL.md': avSkillClause,
+    'agents/final-reviewer.md': `${avAgentClause}\n${avAgentProhibition}`,
+    'skills/review/SKILL.md': `${avSkillClause}\n${avSkillProhibition}\n${avDecisionPointClause}`,
+    'references/dod-ticks.md': avDodTicksClause,
   };
 
-  // negative: both documents carrying their own clause yields zero gaps
+  // negative: every document carrying its own clause yields zero gaps
   const avFullGaps = scanContract(fixture(avClauses), ACCEPTED_VERDICT_CONTRACTS);
-  assert.deepEqual(avFullGaps, [], 'final-reviewer.md and review/SKILL.md carrying the accepted-verdict rows yields zero gaps');
+  assert.deepEqual(avFullGaps, [], 'final-reviewer.md, review/SKILL.md, and dod-ticks.md carrying the accepted-verdict rows yields zero gaps');
 
-  // positive: final-reviewer.md drops its clause
+  // positive: final-reviewer.md drops its recognition clause
   const avNoAgentGaps = scanContract(
-    fixture({ ...avClauses, 'agents/final-reviewer.md': 'Nothing about accepted here.\n' }),
+    fixture({ ...avClauses, 'agents/final-reviewer.md': avAgentProhibition }),
     ACCEPTED_VERDICT_CONTRACTS,
   );
-  assert.equal(avNoAgentGaps.length, 1, 'flags final-reviewer.md once it drops the accepted-verdict clause');
+  assert.equal(avNoAgentGaps.length, 1, 'flags final-reviewer.md once it drops the accepted-verdict recognition clause');
   assert.equal(avNoAgentGaps[0].source, path.join('agents', 'final-reviewer.md'), 'names final-reviewer.md');
 
-  // positive: review/SKILL.md drops its clause
-  const avNoSkillGaps = scanContract(
-    fixture({ ...avClauses, 'skills/review/SKILL.md': 'Nothing about accepted here.\n' }),
+  // positive: final-reviewer.md drops its prohibition clause
+  const avNoAgentProhibitionGaps = scanContract(
+    fixture({ ...avClauses, 'agents/final-reviewer.md': avAgentClause }),
     ACCEPTED_VERDICT_CONTRACTS,
   );
-  assert.equal(avNoSkillGaps.length, 1, 'flags review/SKILL.md once it drops the accepted-verdict clause');
+  assert.equal(avNoAgentProhibitionGaps.length, 1, 'flags final-reviewer.md once it drops the accepted-verdict prohibition clause');
+  assert.equal(avNoAgentProhibitionGaps[0].source, path.join('agents', 'final-reviewer.md'), 'names final-reviewer.md');
+
+  // positive: review/SKILL.md drops its recognition clause
+  const avNoSkillGaps = scanContract(
+    fixture({ ...avClauses, 'skills/review/SKILL.md': `${avSkillProhibition}\n${avDecisionPointClause}` }),
+    ACCEPTED_VERDICT_CONTRACTS,
+  );
+  assert.equal(avNoSkillGaps.length, 1, 'flags review/SKILL.md once it drops the accepted-verdict recognition clause');
   assert.equal(avNoSkillGaps[0].source, path.join('skills', 'review', 'SKILL.md'), 'names skills/review/SKILL.md');
+
+  // positive: review/SKILL.md drops its prohibition clause
+  const avNoSkillProhibitionGaps = scanContract(
+    fixture({ ...avClauses, 'skills/review/SKILL.md': `${avSkillClause}\n${avDecisionPointClause}` }),
+    ACCEPTED_VERDICT_CONTRACTS,
+  );
+  assert.equal(avNoSkillProhibitionGaps.length, 1, 'flags review/SKILL.md once it drops the accepted-verdict prohibition clause');
+  assert.equal(avNoSkillProhibitionGaps[0].source, path.join('skills', 'review', 'SKILL.md'), 'names skills/review/SKILL.md');
+
+  // positive: review/SKILL.md drops its decision-point clause
+  const avNoDecisionPointGaps = scanContract(
+    fixture({ ...avClauses, 'skills/review/SKILL.md': `${avSkillClause}\n${avSkillProhibition}` }),
+    ACCEPTED_VERDICT_CONTRACTS,
+  );
+  assert.equal(avNoDecisionPointGaps.length, 1, 'flags review/SKILL.md once it drops the accepted-verdict decision-point clause');
+  assert.equal(avNoDecisionPointGaps[0].source, path.join('skills', 'review', 'SKILL.md'), 'names skills/review/SKILL.md');
+
+  // positive: dod-ticks.md drops its operator-only clause
+  const avNoDodTicksGaps = scanContract(
+    fixture({ ...avClauses, 'references/dod-ticks.md': 'Nothing about accepted here.\n' }),
+    ACCEPTED_VERDICT_CONTRACTS,
+  );
+  assert.equal(avNoDodTicksGaps.length, 1, 'flags dod-ticks.md once it drops the operator-only accepted-verdict clause');
+  assert.equal(avNoDodTicksGaps[0].source, path.join('references', 'dod-ticks.md'), 'names references/dod-ticks.md');
 
   // --- COMMITMENT_CAPTURE_CONTRACTS (ADR 0081): a load-bearing commitment leaves a run as a register
   // entry or as a named reason it implies none. Three documents carry that between them, and each half

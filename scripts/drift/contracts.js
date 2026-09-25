@@ -3863,6 +3863,33 @@ const ACCEPTED_VERDICT_CONTRACTS = [
     /A line called \*\*accepted\*\* is likewise left\s+exactly as it stood[\s\S]{0,200}never a Critical finding and never a reason to hold the stage/,
     "state, in §4, that a line final-reviewer calls accepted is left exactly as it stood, never a Critical finding and never a reason to hold the stage",
   ],
+  // ADR 0095's prohibition half: recognising `accepted:` is not enough on its own — the shipped prose
+  // also has to say who is forbidden to write a fresh one, on both the verifying agent and the
+  // controller prose that dispatches it (root AGENTS.md's "a contract in an agent body also holds in
+  // the dispatch prose" rule), plus the store-agnostic reference every unattended surface (afk, run
+  // handoff) defers to.
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /only an attended operator, never you, ever writes a fresh `accepted:` note/,
+    'state that only an attended operator, never final-reviewer itself, ever writes a fresh `accepted:` note',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /you never write a fresh `accepted:` note yourself/,
+    "state, in §4, that the review controller never writes a fresh `accepted:` note itself",
+  ],
+  [
+    path.join('references', 'dod-ticks.md'),
+    /`accepted` is written only by an attended operator, never by a report[\s\S]{0,400}`afk` and every\s+subagent never write it/,
+    'state that `accepted` is written only by an attended operator, never by a report, and that afk and every subagent never write it — the rule every unattended run and run handoff defers to',
+  ],
+  // ADR 0095's amendment: the decision point is named — review's own "Ask once before fixing" question
+  // is where a fresh `accepted:` note gets offered and written, and `--unattended` never reaches it.
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /the same\s+question also offers to accept it as unmet instead[\s\S]{0,200}the one\s+decision point where a fresh `accepted:` note gets written/,
+    'state, in §4\'s "Ask once before fixing," that the same question offers to accept an unmet criterion as unmet, and that this is the one decision point where a fresh `accepted:` note gets written',
+  ],
 ];
 
 // INV-0016: run handoff names `/superdev:review` as the next command for every scope, whatever its

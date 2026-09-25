@@ -33,6 +33,11 @@ INV-0014's own line format:
 - **`scope.js dod-line --verdict accepted`** renders `- [ ]` with an `accepted:` note, the same shape
   `not-met` and `ceiling` already take, and parses one back on a later read exactly like the other three.
 
+**Amended: the decision point is named.** `/superdev:review`'s §4 "Ask once before fixing" is where an
+unmet criterion first reaches an attended operator in the chain, so it is the one place that offers to
+accept it — the same question that already offers to fix. `--unattended` never reaches that question and
+never writes `accepted:`.
+
 **Considered options.**
 
 - *A sanctioned rewording of the criterion itself.* The rewritten text no longer matches what
