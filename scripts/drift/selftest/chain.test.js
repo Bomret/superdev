@@ -372,8 +372,9 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // skills/document/SKILL.md: 2 terminal sites (a denied doc-writer/doc-reader dispatch; its own stage write).
   const documentPieces = {
     denial:
-      "Say so in §5's report and write the `**Degraded:**` entry, quoting the classifier's refusal.\n" +
-      "Publish the snapshot afterwards, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing\n" +
+      "Say so in §5's report and write the `**Degraded:**` entry, piping the classifier's refusal\n" +
+      "through a quoted heredoc rather than a shell argument. Publish the snapshot afterwards, per\n" +
+      "`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing\n" +
       'run state` section.\n\n',
     stage:
       "Write the ledger's `**Stage:**` line. **Wrote `documented` or `documented-unreviewed` above** →\n" +
@@ -403,8 +404,8 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // stop, the 3-strike-cap/unattended-block stop, the denied fix implementer, the clean-verdict writes).
   const reviewPieces = {
     finalReviewer:
-      "Write the `**Degraded:**` entry that section defines, quoting the classifier's refusal, then\n" +
-      "publish the\nsnapshot, per that file's `## Publishing run state` section — since either block branch below\n" +
+      "Write the `**Degraded:**` entry that section defines, piping the classifier's refusal through a\n" +
+      "quoted heredoc rather than a shell argument, then publish the\nsnapshot, per that file's `## Publishing run state` section — since either block branch below\n" +
       'reaches no\nlater write in this run.\n\n',
     fullSuite:
       'Write the `**Degraded:**` entry either way, then publish the\nsnapshot before deciding which\n' +
@@ -1279,7 +1280,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   const definesReset =
     '## Degraded passes\n\nAn unattended run blocks on its second denied verification dispatch.\n' +
-    "`scope.js degraded reset-denials '<reason>' --root <run-root>` returns the budget: the count runs\n" +
+    "`scope.js degraded reset-denials - --root <run-root>` returns the budget: the count runs\n" +
     'from the last reset marker, so every recorded denial survives it. A reset is a human act, and no\n' +
     'command in the chain performs one.\n\n' +
     '## Unattended\n\nBlocking means: comment on the anchor naming the stop reached and why.\n' +

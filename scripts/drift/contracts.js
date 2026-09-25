@@ -1311,8 +1311,8 @@ const DENIAL_CAP_CONTRACTS = [
 const DENIAL_RESET_CONTRACTS = [
   [
     path.join('references', 'scope-mode.md'),
-    /degraded reset-denials '<reason>'/,
-    'state the reset beside the cap it releases: `scope.js degraded reset-denials \'<reason>\'`, whose ' +
+    /degraded reset-denials -/,
+    'state the reset beside the cap it releases: `scope.js degraded reset-denials -`, whose ' +
       'reason is required',
   ],
   [
@@ -3122,7 +3122,7 @@ const PUBLISH_RUN_STATE_CONTRACTS = [
   // skills/document/SKILL.md: two distinct terminal sites, each its own row.
   [
     path.join('skills', 'document', 'SKILL.md'),
-    /refusal\. Publish the snapshot afterwards, per[\s\S]{0,60}?`## Publishing run state`/,
+    /shell argument\. Publish the snapshot afterwards, per[\s\S]{0,60}?`## Publishing run state`/,
     'publish the snapshot after a denied doc-writer/doc-reader dispatch, since an unattended block reaches ' +
       'no later write in this command',
   ],
@@ -3151,7 +3151,7 @@ const PUBLISH_RUN_STATE_CONTRACTS = [
   // skills/review/SKILL.md: six distinct terminal sites, each its own row.
   [
     path.join('skills', 'review', 'SKILL.md'),
-    /quoting the classifier's refusal, then publish the[\s\S]{0,80}?`## Publishing run state`/,
+    /shell argument, then publish the[\s\S]{0,80}?`## Publishing run state`/,
     'publish the snapshot after a denied final-reviewer dispatch, since either block branch reaches no ' +
       'later write in this run',
   ],
