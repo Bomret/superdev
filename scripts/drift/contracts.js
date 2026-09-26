@@ -2189,7 +2189,7 @@ const AGGREGATE_PAGE_CONTRACTS = [
 // over a two-part pin that would leave the trailing half open to the same bare-verb prefix attack this
 // span closes.
 const AGGREGATE_READ_CLAUSE =
-  "**Read a page's body:** `GET /api/v1/repos/bomret/superdev/wiki/page/<sub_url>` returns " +
+  "**Read a page's body:** `GET /api/v1/repos/Zuhause/superdev/wiki/page/<sub_url>` returns " +
   '`content_base64`, which decodes to the page markdown.';
 
 const READ_PATH_CONTRACTS = [
@@ -2207,7 +2207,7 @@ const READ_PATH_CONTRACTS = [
       },
     },
     "state, verbatim after whitespace normalization, that reading a page's body calls " +
-      '`GET /api/v1/repos/bomret/superdev/wiki/page/<sub_url>`, which returns `content_base64` decoding ' +
+      '`GET /api/v1/repos/Zuhause/superdev/wiki/page/<sub_url>`, which returns `content_base64` decoding ' +
       'to the page markdown — the call an outline entry marked `(aggregate)` is read through ' +
       'before it is patched',
   ],

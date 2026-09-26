@@ -6,8 +6,9 @@ Standalone deterministic code that `package.json` runs, alongside `plugin/hooks/
 The shipped CLIs live in `plugin/scripts/`: `scope.js` (the run-state CLI, ADR 0022), `kb-patch.js`
 (the knowledge-base section merge, ADR 0027), `adapter.js` (the OpenCode harness adapter, issue
 #375), and `publish-kb.js` (the backend-independent half of publishing a scope's staged
-knowledge-base pages, ADR 0069). The maintainer-only one lives here in `scripts/`: `drift-check.js`
-(the cross-document contract checks). This doc owns them all regardless of which dir each lives in.
+knowledge-base pages, ADR 0069). The maintainer-only ones live here in `scripts/`: `drift-check.js`
+(the cross-document contract checks) and `invariant-check.js` (the invariant register validator,
+ADR 0093). This doc owns them all regardless of which dir each lives in.
 
 ## Ownership
 
@@ -539,6 +540,67 @@ The module guards its CLI entry with `require.main === module`. It exports every
 staged page's `live-hash` frontmatter against a known live body — and separately imports and calls
 `runFind` for one JSON-array edge case. It otherwise exercises the module through its exported
 `run()`, the way `tests/scope.test.js` exercises `scope.js`'s own CLI verbs (ADR 0059).
+
+### invariant-check.js, the invariant register validator (ADR 0093)
+
+`node scripts/invariant-check.js --root <dir>` validates `<dir>/docs/invariants.md`. `bun run test` runs
+it with `--root .`. The maintainer also runs it by hand against another repository's register, so it
+takes the root as an argument rather than reading its own checkout. It prints one line per
+failure, `<id>: <field>: <reason>`, then a summary, and exits 1 on any failure. A root with no register
+file at all exits 0 and says so; a register file that exists but parses to zero entries — an empty
+file, a file whose encoding reads as garbage (a UTF-16LE file, since the CLI never sniffs an encoding),
+or one whose every heading is blockquoted or indented — fails instead, as `(register): id: no
+\`### INV-NNNN\` entry found`, rather than passing as "0 entries hold". A missing or non-directory
+`--root` exits 2 with usage.
+
+It checks two kinds of rule:
+
+- **Format.** `Class`, `Concepts`, `Statement` and `Breaks` are present; `Concepts` also names at
+  least one comma-separated item once trimmed, so a bare `,` fails as naming no concept. A `Breaks:`
+  value is `silently` or `loudly`, matched case-insensitively, optionally followed by ` — ` and a
+  reason and nothing else — anchored, so `loudly, silently` fails rather than passing as loudly and
+  skipping the `Check:` requirement; any other shape fails too. A `Breaks: silently` entry carries
+  `Check:`, its backticks stripped before the check, and the three ways it can fail each name a
+  different reason: missing fails as naming no proof at all, `` `none` `` (bare or backticked) with
+  no reason fails as needing the reason nothing cheaply tests it, and a value with no word character
+  once unquoted (`-`, empty backticks) fails as naming no proof; `TBD` stays legal content. No id
+  repeats. An entry is a `### INV-NNNN` heading — exactly three
+  `#`, `INV-` and four digits, nothing else on the line — and the `Key: value` lines under it, in any
+  order, and a heading may follow the previous entry's last field with no blank line. A heading that
+  mentions an id (case-insensitive `INV-` plus digits) but is not exactly that form fails, naming the
+  heading text, rather than silently dropping every field under it — this also covers a heading
+  missing its required space (`###INV-0002`) or carrying leading whitespace (` ### INV-0002`), neither
+  of which either heading pattern recognises: instead of falling through as a field line on the entry
+  above, each is caught by the non-field-line rule below. Outside any entry, a `Key: value` line fails,
+  naming the line, and so does any other line that — once leading whitespace, `>` blockquote markers
+  and list markers are stripped — still begins with a heading marker or a field-like shape and mentions
+  an invariant id: this catches a retired entry left blockquoted or indented under a non-`INV` heading
+  (e.g. `## Retired`) instead of silently dropping it. The register's own title and intro prose cite no
+  id, so this narrower, heading-or-field-shaped test never flags it. Inside an entry, a non-blank line
+  that is not a `Key: value` field line fails, naming the entry and the line, rather than silently
+  reparenting onto the entry above. A field key repeated inside one entry fails as appearing twice,
+  naming the entry and the key, and the first value is kept rather than overwritten. A field key that
+  is not one of the seven the format names — `Class`, `Concepts`, `Statement`, `Breaks`, `Check`,
+  `Symbols`, `Paths` — fails, naming that key, so a misspelling like `Path:` or `Symbol:` is never
+  silently ignored; a key matching one of the seven case-insensitively but written in the wrong case
+  (`paths:`) is reported as such, naming the correct spelling, rather than as an unrecognised field.
+  CRLF reads as LF.
+- **Resolution.** Every `Concepts` value equals a glossary term — the bold text opening a line of any
+  `CONTEXT.md` the walk reaches, so a multi-context repository needs no map parser. Every `Paths` glob
+  matches a file. Every `Symbols` value appears as a whole word in the files the entry's `Paths` match, or
+  anywhere but the register when the entry names none. A dotted symbol matches on its last segment. Every path-shaped
+  token in `Check:` names a file; drift ids and quoted test names are prose and stay unchecked.
+
+The walk prunes `.git/`, `node_modules/`, `.superdev/` and `.claude/` — the last because
+`.claude/worktrees/` holds whole repository copies with their own `CONTEXT.md`, and the walk reads
+no `.gitignore`: an ignored file outside the pruned directories still counts toward `Concepts`,
+`Paths` and `Symbols`. Parsing `.gitignore`, or shelling out to `git ls-files`, is out of scope — the
+CLI is deliberately pure Node with no shell-out. It builds relative paths with `/` itself, so
+a glob matches the same files on every OS. `globMatcher` is its own: `fs.globSync` needs Node 22, and
+`package.json` supports Node 20.8.1. The validator filters and ranks no entry — `/superdev:plan` and
+`final-reviewer` still read the register whole (INV-0088) — and nothing under `plugin/` requires it
+(INV-0051). Its suite, `tests/invariant-check.test.js`, runs the CLI against throwaway repositories under
+the OS temp dir, every spawn through `assertSpawnDecided` (INV-0009).
 
 ### drift-check.js, the cross-document contract checks
 
@@ -2403,7 +2465,9 @@ the proposal.
   illustrative example, so the marker scan needs the same fence-masking `kb-patch.js`'s
   `extractSection()` already owns.
 - The shipped scripts each have a suite in `tests/`, same convention as the hooks (ADR 0059).
-  `drift-check.js` is maintainer-only and keeps its inline `--selftest`.
+  `drift-check.js` is maintainer-only and keeps its inline `--selftest`. `invariant-check.js` is
+  maintainer-only too, and has its suite in `tests/` like a shipped script, because it takes no part in
+  drift-check's registry.
 - A **shape-based prose guard that asserts an absence states its ceiling beside itself.** A pattern over
   English catches the phrasings it names and not every paraphrase, and on an absence check — the document
   must *not* say X — a missed paraphrase is a **silent pass**: the check reads the reworded instruction as
@@ -2427,9 +2491,9 @@ the proposal.
 
 ## Verification
 
-`bun run test` (repo root) runs each shipped script's suite under `tests/`, then
-`drift-check.js`'s own `--selftest`, all under `node`, which matches the
-production runtime.
+`bun run test` (repo root) runs each script's suite under `tests/`, then `invariant-check.js`
+against this repository's register, then `drift-check.js`'s own `--selftest`, all under `node`, which
+matches the production runtime.
 
 ## Child DOX Index
 

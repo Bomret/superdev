@@ -1,11 +1,11 @@
 # Slice store: Codeberg Issues (Forgejo)
 
-Slices live as Codeberg issues in `bomret/superdev`, one slice per issue. Use the Forgejo REST API
+Slices live as Codeberg issues in `Zuhause/superdev`, one slice per issue. Use the Forgejo REST API
 (or the `tea` CLI if installed).
 
 ## Configuration
 
-- **Host, owner, and repo:** `https://codeberg.org`, `bomret`, `superdev`.
+- **Host, owner, and repo:** `https://codeberg.org`, `Zuhause`, `superdev`.
 - **Auth:** API token in env var `GITEA_TOKEN` (record the name, never the value). Header:
   `Authorization: token $GITEA_TOKEN`, `Content-Type: application/json`.
 - **Feature label:** one label per feature scope, `<type>/<slug>` (for example `fix/chain-followups`),
@@ -47,7 +47,7 @@ Slices live as Codeberg issues in `bomret/superdev`, one slice per issue. Use th
 
 ## REST conventions
 
-- **Create an issue:** `POST /api/v1/repos/bomret/superdev/issues` with
+- **Create an issue:** `POST /api/v1/repos/Zuhause/superdev/issues` with
   `{ "title": "...", "body": "<specification + acceptance checklist>", "labels": [<label ids>],
   "assignees": ["<assignee>"] }`. Omit `assignees` entirely when the assignee resolves to `none`.
   Capture the returned
@@ -64,8 +64,8 @@ Slices live as Codeberg issues in `bomret/superdev`, one slice per issue. Use th
   **anchor issue's own** body — the epic on a multi-slice feature, the lone slice issue on a single-slice
   one. Always a body-append, never the native dependencies endpoint above, so the slice-level and
   feature-level relations never collide on one issue (ADR 0040).
-- **List feature slices:** `GET /api/v1/repos/bomret/superdev/issues?labels=<type>/<feature>&state=all`.
-- **Read a slice:** `GET /api/v1/repos/bomret/superdev/issues/<index>`.
+- **List feature slices:** `GET /api/v1/repos/Zuhause/superdev/issues?labels=<type>/<feature>&state=all`.
+- **Read a slice:** `GET /api/v1/repos/Zuhause/superdev/issues/<index>`.
 - **Set labels and status:** `POST .../issues/<index>/labels` (add) and
   `PATCH .../issues/<index>` with `{ "state": "closed" }` to close.
 
@@ -81,10 +81,10 @@ label, and on a single-slice feature it is the lone issue carrying that label (A
   anchor. A closed candidate never wins over an open one this way (`plan-contract.md` → *Scope anchor*).
   Where no open issue carries the label and exactly one closed issue does, that closed issue is the
   anchor — the shape the shipped-anchor refusal reads as its own done signal (ADR 0083).
-- **List the candidates.** The feature labels themselves: `GET /api/v1/repos/bomret/superdev/labels`
+- **List the candidates.** The feature labels themselves: `GET /api/v1/repos/Zuhause/superdev/labels`
   (paginated), keeping the names whose first segment is a change type (`references/scope-mode.md` lists
   them). Per feature label:
-  `GET /api/v1/repos/bomret/superdev/issues?labels=<type>%2F<feature>&state=all&type=issues` (URL-encode
+  `GET /api/v1/repos/Zuhause/superdev/issues?labels=<type>%2F<feature>&state=all&type=issues` (URL-encode
   the label's `/`), then apply the rule above to the result. `state=all`, not `state=open`: a shipped
   feature's epic is closed, and a `state=open` listing would drop it from the candidates a picked feature
   resolves against, so `/superdev:plan`'s shipped-anchor refusal (ADR 0083) never sees it. `type=issues`
@@ -103,9 +103,9 @@ label, and on a single-slice feature it is the lone issue carrying that label (A
   defines, read off the **anchor's own** body — never the `**Depends on:** #<n>` line above, which carries
   slice-level `depends-on` within this feature and names nothing outside it. It names another feature's
   scope anchor (`plan-contract.md` → *Scope anchor*, ADR 0040). The candidate listing already returned the
-  body; fetch it with `GET /api/v1/repos/bomret/superdev/issues/<index>` when it did not. No such line
+  body; fetch it with `GET /api/v1/repos/Zuhause/superdev/issues/<index>` when it did not. No such line
   means no dependency. **Resolve `#<n>` to that anchor's own record** with the same `GET
-  /api/v1/repos/bomret/superdev/issues/<n>` call — its `labels` array is the blocker's own feature label,
+  /api/v1/repos/Zuhause/superdev/issues/<n>` call — its `labels` array is the blocker's own feature label,
   and its `state` is open or closed — because a consumer holds the dependency against the blocker's own
   label and state, not the label of the record carrying this line. `/superdev:plan` writes one through the
   same **Record an anchor dependency** body-append above.
@@ -152,13 +152,13 @@ so this repository records no maintainer's account. The two failure shapes below
 `epic`-labelled issue, or a single-slice feature's lone issue. Not the `ready` label below: the dispatch
 swaps that one to `in-progress`.
 
-- **Apply** (`/superdev:plan`, on a release): `POST /api/v1/repos/bomret/superdev/issues/<index>/labels`.
-  Labels go by id, so resolve `released` through `GET /api/v1/repos/bomret/superdev/labels` first.
+- **Apply** (`/superdev:plan`, on a release): `POST /api/v1/repos/Zuhause/superdev/issues/<index>/labels`.
+  Labels go by id, so resolve `released` through `GET /api/v1/repos/Zuhause/superdev/labels` first.
 - **Read** (`/superdev:implement`, `/superdev:afk`): the anchor's own `labels` array, already returned by
   the issue listing that found it.
 - **Remove** (`/superdev:plan`, on an append the user declines):
-  `DELETE /api/v1/repos/bomret/superdev/issues/<index>/labels/<released label id>`, resolving the id
-  through the same `GET /api/v1/repos/bomret/superdev/labels` call **Apply** makes. An anchor that does
+  `DELETE /api/v1/repos/Zuhause/superdev/issues/<index>/labels/<released label id>`, resolving the id
+  through the same `GET /api/v1/repos/Zuhause/superdev/labels` call **Apply** makes. An anchor that does
   not carry the label is already unreleased, so a `404` there is the wanted state, not a failure.
 - An anchor without the label is unreleased: `/superdev:implement` asks before building it, and
   `/superdev:afk` passes over it.
@@ -170,7 +170,7 @@ controller creates one the same way the moment it meets an observation
 (`references/scope-mode.md`'s `## Observations` section).
 Here it is an ordinary Codeberg issue carrying the label **`triage`** and nothing else.
 
-- **Create it:** `POST /api/v1/repos/bomret/superdev/issues` with
+- **Create it:** `POST /api/v1/repos/Zuhause/superdev/issues` with
   `{ "title": "<the finding, one line>", "body": "<the finding, why it needed a record — for a deferred
   finding, why no Definition of Done criterion covered it; for an observation, that no slice of the scope
   covers it and the scope did not cause it — the date, the feature label, the scope branch, the scope
@@ -182,13 +182,13 @@ Here it is an ordinary Codeberg issue carrying the label **`triage`** and nothin
   in the ledger bullet; **an observation** instead reports that reference to the operator and writes no
   ledger bullet of its own, since the record is its own identity (`references/scope-mode.md`'s
   `## Observations` section).
-- **List the records:** `GET /api/v1/repos/bomret/superdev/issues?labels=triage&state=open` (paginated).
+- **List the records:** `GET /api/v1/repos/Zuhause/superdev/issues?labels=triage&state=open` (paginated).
   It returns every open triage record with its `number`, `title`, and `body`, which is the whole record —
   a triage record carries no other state. No `triage` label existing yet means no record has ever been
   written, which reads as an empty list rather than an error.
 - **Resolve the label by id, and create it when it is missing.**
-  `GET /api/v1/repos/bomret/superdev/labels` first (paginated). No `triage` there → create it with
-  `POST /api/v1/repos/bomret/superdev/labels` (`{ "name": "triage", "color": "#ededed" }`), then pass the
+  `GET /api/v1/repos/Zuhause/superdev/labels` first (paginated). No `triage` there → create it with
+  `POST /api/v1/repos/Zuhause/superdev/labels` (`{ "name": "triage", "color": "#ededed" }`), then pass the
   new id on the create above. **A create that reports the name as already taken means the label is
   there** — a page after the first read missed it — so re-read the list for its id and carry on. A
   label-less record is invisible to the query that is the point of writing it.
@@ -204,7 +204,7 @@ carries neither a feature label nor the `triage` label.
 
 - **Recognise one.** An open issue whose `labels` array carries no label matching `<type>/<slug>` and no
   `triage` label.
-- **List them.** `GET /api/v1/repos/bomret/superdev/issues?state=open&type=issues&sort=oldest` (paginated),
+- **List them.** `GET /api/v1/repos/Zuhause/superdev/issues?state=open&type=issues&sort=oldest` (paginated),
   then keep only the issues whose `labels` array matches the rule above. `type=issues` excludes pull
   requests at the server — Forgejo's issue endpoint otherwise returns them alongside issues, each carrying
   a `pull_request` field naming the pull request. `sort=oldest` pages the open-issue set oldest first, the
@@ -218,11 +218,11 @@ carries neither a feature label nor the `triage` label.
 every other body section — the `epic`-labelled issue on a multi-slice feature, the lone slice issue on a
 single-slice one (`## Scope anchor` above).
 
-- **Write** (after any ledger write the snapshot would show): `PATCH /api/v1/repos/bomret/superdev/issues/<index>` with
+- **Write** (after any ledger write the snapshot would show): `PATCH /api/v1/repos/Zuhause/superdev/issues/<index>` with
   `{ "body": "<anchor body with the ## Run state section folded in>" }` — the same call and body shape the
   epic amendment under *Append mode* below already uses. **Best-effort:** a failed write is reported once
   per run and the run continues; the ledger stays authoritative.
-- **Read** (every publish, including run init and adopting a run): `GET /api/v1/repos/bomret/superdev/issues/<index>` — the same call
+- **Read** (every publish, including run init and adopting a run): `GET /api/v1/repos/Zuhause/superdev/issues/<index>` — the same call
   **Read a slice** above already names — and take the body back out of the response.
 - **The section is machine-owned.** A deeper subsection an operator adds under `## Run state` — a
   `### Operator notes` heading, say — is replaced along with the rest on the next publish. Keep an
@@ -236,10 +236,10 @@ not this store carries a snapshot.
 
 - **Tick a criterion:** write the criterion text and the judgment's note each to their own file, through
   a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`) rather than as a shell-interpolated argument — either may carry a quote, a
-  backtick, or a `$(` (`references/dod-ticks.md`, triage #680). `GET /api/v1/repos/bomret/superdev/issues/<index>` (the same call *Run state*'s
+  backtick, or a `$(` (`references/dod-ticks.md`, triage #680). `GET /api/v1/repos/Zuhause/superdev/issues/<index>` (the same call *Run state*'s
   own read above uses) for the anchor body, pipe it through
   `node plugin/scripts/scope.js dod-line --match-file <path> --verdict met|not-met|ceiling|accepted
-  --note-file <path>` on stdin, then `PATCH /api/v1/repos/bomret/superdev/issues/<index>` with
+  --note-file <path>` on stdin, then `PATCH /api/v1/repos/Zuhause/superdev/issues/<index>` with
   `{ "body": "<dod-line's stdout>" }` — the same call shape the *Run state* write above already uses.
   **Best-effort:** a failed write is reported once per run and never stops the run; `dod.md` stays
   authoritative.
@@ -279,7 +279,7 @@ on the scope branch.
 ADR 0004).
 
 - **Create only new records. Never edit, close, or delete a merged slice.** Append fires new
-  `POST /api/v1/repos/bomret/superdev/issues` calls for the new slices alone. It never `PATCH`es or
+  `POST /api/v1/repos/Zuhause/superdev/issues` calls for the new slices alone. It never `PATCH`es or
   closes an issue a prior run already merged, and never rewrites its labels or body — except the
   anchor-dependency line, which migrates to the new epic issue when append promotes a single-slice
   feature (below). A merged issue's index is a satisfied `depends-on` root for a newly created one,
@@ -293,7 +293,7 @@ ADR 0004).
   **migrates to the new epic issue's own body** and is removed from the lone issue — the epic is the anchor
   now. Nothing else about the lone issue changes.
 - **Amend the epic's own body, the one sanctioned edit.** `PATCH
-  /api/v1/repos/bomret/superdev/issues/<epic index>` with `{ "body": "<amended body>" }` folds the
+  /api/v1/repos/Zuhause/superdev/issues/<epic index>` with `{ "body": "<amended body>" }` folds the
   interview's new criteria into the epic's Definition of Done in place. The same call deletes a
   resolved parked question's line from the epic's `## Parked questions` section. Both are edits to the
   epic issue's own body, never to a merged slice's issue. The never-edit rule above still holds for every

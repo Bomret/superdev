@@ -1,12 +1,12 @@
 # Knowledge base: Codeberg Wiki (Forgejo)
 
 Durable, **human-first** reader-facing docs (feature specifications, design overviews, ADR summaries) live in the
-Codeberg repo **Wiki** for `bomret/superdev`. Distinct from the agent-first in-repo `AGENTS.md` docs.
+Codeberg repo **Wiki** for `Zuhause/superdev`. Distinct from the agent-first in-repo `AGENTS.md` docs.
 
 ## Configuration
 
 - **Backend:** Codeberg repo Wiki. **The Wiki unit is enabled** on the repo (`has_wiki: true`). When it is
-  ever disabled, re-enable it with `PATCH /api/v1/repos/bomret/superdev { "has_wiki": true }` using the
+  ever disabled, re-enable it with `PATCH /api/v1/repos/Zuhause/superdev { "has_wiki": true }` using the
   `GITEA_TOKEN`.
 - **Auth:** `GITEA_TOKEN` (header `Authorization: token $GITEA_TOKEN`).
 - **Audience:** superdev **adopters** (the people who install and use the plugin) first, then
@@ -38,19 +38,19 @@ once the feature has reached the adopters this wiki is written for.
 
 ## REST conventions
 
-- **Create or update a page:** `POST /api/v1/repos/bomret/superdev/wiki/new` with
+- **Create or update a page:** `POST /api/v1/repos/Zuhause/superdev/wiki/new` with
   `{ "title": "...", "content_base64": "<base64 markdown>", "message": "..." }`. Update with
-  `PATCH /api/v1/repos/bomret/superdev/wiki/page/<sub_url>`, using the same `sub_url` the find call below
+  `PATCH /api/v1/repos/Zuhause/superdev/wiki/page/<sub_url>`, using the same `sub_url` the find call below
   returns for that title. It is not the title slugged by hand (see below).
 - **Always send `title` on the `PATCH`, even when the title is unchanged.** Forgejo treats an omitted
   `title` as a rename to `unnamed` rather than as "leave it alone". A titleless update therefore destroys
   the page it meant to edit. The page vanishes from `/wiki/pages` under its own name, and a second
   titleless `PATCH` overwrites the same `unnamed` slot, taking the first page's content with it. The
-  wiki's git history (`https://codeberg.org/bomret/superdev.wiki.git`) is what recovers a page lost this
+  wiki's git history (`https://codeberg.org/Zuhause/superdev.wiki.git`) is what recovers a page lost this
   way.
-- **Find an existing page:** `GET /api/v1/repos/bomret/superdev/wiki/pages`. It returns metadata only
+- **Find an existing page:** `GET /api/v1/repos/Zuhause/superdev/wiki/pages`. It returns metadata only
   (`title`, `html_url`, `sub_url`, `last_commit`), and **no body**.
-- **Read a page's body:** `GET /api/v1/repos/bomret/superdev/wiki/page/<sub_url>` returns
+- **Read a page's body:** `GET /api/v1/repos/Zuhause/superdev/wiki/page/<sub_url>` returns
   `content_base64`, which decodes to the page markdown. `<sub_url>` is not the title slugged by hand. A
   title's `sub_url` diverges in ways a slugger cannot guess: `ADR 0023: The knowledge-base publish is
   its own command` becomes `ADR+0023%3A+The-knowledge-base-publish-is-its-own-command.-`. Get it from the
@@ -86,7 +86,7 @@ templates carries a `--max-time` of its own. A command killed at the bound leave
 
 ```sh
 pages=$(curl -sf -H "Authorization: token $GITEA_TOKEN" \
-  "https://codeberg.org/api/v1/repos/bomret/superdev/wiki/pages?limit=50") || exit 2
+  "https://codeberg.org/api/v1/repos/Zuhause/superdev/wiki/pages?limit=50") || exit 2
 count=$(printf '%s' "$pages" | jq 'length') || exit 2
 page=$(printf '%s' "$pages" | jq -e --arg title "$SUPERDEV_KB_TITLE" '[.[] | select(.title == $title)][0]')
 status=$?
@@ -102,7 +102,7 @@ printf '%s' "$page" | jq -c '{sub_url}'
 
 ```sh
 curl -sf -H "Authorization: token $GITEA_TOKEN" \
-  "https://codeberg.org/api/v1/repos/bomret/superdev/wiki/page/$SUPERDEV_KB_SUB_URL" \
+  "https://codeberg.org/api/v1/repos/Zuhause/superdev/wiki/page/$SUPERDEV_KB_SUB_URL" \
   | jq -r '.content_base64' | base64 -d
 ```
 
@@ -113,7 +113,7 @@ content_base64=$(base64 < "$SUPERDEV_KB_BODY_FILE" | tr -d '\n')
 body=$(jq -n --arg title "$SUPERDEV_KB_TITLE" --arg content "$content_base64" \
   '{title: $title, content_base64: $content, message: "superdev: publish"}')
 curl -sf -H "Authorization: token $GITEA_TOKEN" -H "Content-Type: application/json" \
-  -X POST "https://codeberg.org/api/v1/repos/bomret/superdev/wiki/new" -d "$body" >/dev/null
+  -X POST "https://codeberg.org/api/v1/repos/Zuhause/superdev/wiki/new" -d "$body" >/dev/null
 ```
 
 ### update
@@ -123,14 +123,14 @@ content_base64=$(base64 < "$SUPERDEV_KB_BODY_FILE" | tr -d '\n')
 body=$(jq -n --arg title "$SUPERDEV_KB_TITLE" --arg content "$content_base64" \
   '{title: $title, content_base64: $content, message: "superdev: publish"}')
 curl -sf -H "Authorization: token $GITEA_TOKEN" -H "Content-Type: application/json" \
-  -X PATCH "https://codeberg.org/api/v1/repos/bomret/superdev/wiki/page/$SUPERDEV_KB_SUB_URL" -d "$body" >/dev/null
+  -X PATCH "https://codeberg.org/api/v1/repos/Zuhause/superdev/wiki/page/$SUPERDEV_KB_SUB_URL" -d "$body" >/dev/null
 ```
 
 ### delete
 
 ```sh
 curl -sf -H "Authorization: token $GITEA_TOKEN" \
-  -X DELETE "https://codeberg.org/api/v1/repos/bomret/superdev/wiki/page/$SUPERDEV_KB_SUB_URL" >/dev/null
+  -X DELETE "https://codeberg.org/api/v1/repos/Zuhause/superdev/wiki/page/$SUPERDEV_KB_SUB_URL" >/dev/null
 ```
 
 Human-consumption first: shape pages around the audience, write in English, follow the outline above.

@@ -20,6 +20,12 @@ _Avoid: "mode", "strategy", "level", "route", "path"_
 **Scope**: a feature's scope branch and all its run artifacts (the `.superdev/scopes/<scope>/` directory, holding the DoD, the ledger, progress logs, and the scopetree or slicetrees). Scope is the namespace that lets multiple features' runs execute in parallel without colliding. `.superdev/` also holds non-scope areas nested outside `scopes/`, for example `.superdev/brainstorm/`. `/status` only scans `.superdev/scopes/*/`, so a sibling area can never be mistaken for a run root.
 _Avoid: "run", "branch", "feature branch" (too generic)_
 
+**Scope branch**: the `<type>/<scope>` branch a feature's work lands on, named by its feature label. `/superdev:plan` cuts it into the scopetree, and every slice merges into it (ADR 0079). The ledger's `**Branch:**` line records it, and a reader resolves it from there rather than rebuilding the name. No superdev command commits to the base branch in its place (INV-0001).
+_Avoid: "feature branch", "work branch"_
+
+**Base branch**: the branch a scope branch is cut from and its pull request targets, named in `docs/agents/code-management.md`. Containment is tested against it, except by `hooks/scope-prune.js`, which tests against `HEAD`.
+_Avoid: "default branch" (git's own term, which the configuration may differ from), "trunk", "main" (one repository's value)_
+
 **Scope anchor**: a feature's root, the single record — an issue, or a `docs/plans/<type>/<feature-slug>/00-epic-*.md` file, or that feature's lone slice file — that carries its scope-level status signal for a run. How a given store expresses this is stated in that store's own `## Scope anchor` section, which specialises `plan-contract.md` → *Scope anchor*, never assumed by a command (ADR 0017).
 _Avoid: "epic" (only an epic-bearing feature has one, and the anchor role also falls to a lone slice)_
 
@@ -347,6 +353,12 @@ _Avoid: "golden fixture" (that names the whole-body form this replaces for align
 
 **Model-invocable surface**: a **Render target** the harness's own model can start, as against one only the operator can. Which target kind carries the property is the harness's to decide — on OpenCode a skill does and a command does not — and it is what decides where each surface renders: `/superdev:afk` chains four other surfaces itself, so those four must carry it, and afk must not (ADR 0055).
 _Avoid: "auto-invoked" (that names implicit activation by description match, a different property), "callable", "public"_
+
+**Shipped tree**: the `plugin/` subdirectory, which is everything a user's install copies and nothing else, because the marketplace manifest's `source` is `./plugin`. Everything outside it — `tests/`, `scripts/`, `docs/` — is maintainer-only and reaches no user.
+_Avoid: "the plugin" (that names the product, not the tree), "dist", "build output" (there is no build step)_
+
+**Guardrail**: one of the deterministic Node hooks in `plugin/hooks/`, wired by `hooks/hooks.json`, that decides a tool call or a session event with no model judgment involved.
+_Avoid: "hook" alone (Claude Code's word for the wiring point, which also covers hooks superdev does not ship), "check" (that names a `Check:` proof or a drift assertion)_
 
 **Guardrail parity**: how much of the shipped hook set a **Harness adapter**'s render can make decide on one harness, and what the render does where it cannot. A hook needs both a wiring the harness offers and the payload fields its own decision reads: Codex wires `merge-guard` and still cannot fire it, because no Codex tool event carries the subagent identity the guard decides on (ADR 0056). Parity short of full is stated to the operator and recorded in an ADR, never silently absent.
 _Avoid: "hook parity" (the wiring is only half of it — a wired hook with no field to read still decides nothing), "coverage", "degraded pass" (that names a run-level policy in `references/scope-mode.md`)_

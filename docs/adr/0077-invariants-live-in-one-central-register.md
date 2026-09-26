@@ -7,6 +7,10 @@ a held register match's id into the touching slice's `spec` and `acceptance` ins
 Definition-of-Done criterion under that id; the epic states the behaviour the entry protects, and
 `final-reviewer` judges an entry covered by either half.
 
+**Amended by:** [ADR 0093](0093-a-pre-register-backfill-records-only-what-nothing-else-catches.md), which
+adds a register validator that selects nothing, and records how a repository that predates the register
+is backfilled.
+
 **Context.** A system holds rules that must never break: a module is loaded once, a removed module is
 unloaded, an order total equals the sum of its lines, the domain layer imports no infrastructure. A
 feature built in isolation breaks one without noticing, because the rule lives somewhere the work never

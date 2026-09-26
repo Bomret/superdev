@@ -15,10 +15,10 @@ Paths: plugin/skills/**, plugin/references/**
 ### INV-0002
 
 Class: process
-Statement: A load-bearing commitment that reaches /superdev:plan leaves the run either as an invariant register entry or as a reason, named out loud, that it implies no entry. None is dropped in silence.
-Concepts: Load-bearing commitment, Invariant register, Intent
+Statement: A load-bearing commitment that reaches /superdev:plan leaves the run either as an invariant register entry or as a reason, named out loud, that it implies no entry. A rejected direction a seeded intent carries leaves it in an ADR's Considered options, in the epic's non-goals, or with a reason, named out loud, that it is dropped. None of either is dropped in silence.
+Concepts: Load-bearing commitment, Rejected direction, Invariant register, Intent
 Breaks: silently
-Check: scripts/drift-check.js — the commitment contract, pinned together in brainstorm's prose, plan's prose, and domain-modeling.md
+Check: scripts/drift-check.js — the commitment contract, pinned together in brainstorm's prose, plan's prose, and domain-modeling.md; partial: nothing pins the rejected-direction half
 Paths: plugin/skills/brainstorm/**, plugin/skills/plan/**, plugin/references/domain-modeling.md
 
 ### INV-0003
@@ -34,7 +34,7 @@ Paths: plugin/scripts/scope.js, plugin/hooks/scope-prune.js
 ### INV-0004
 
 Class: architecture
-Concepts: Definition of Done, Append mode, Scope anchor
+Concepts: Definition of Done (DoD), Append mode, Scope anchor
 Statement: A Definition of Done is a claim verified at one moment against one change. A ticked criterion is always readable against the change it was verified against, and is never pooled in one record with criteria from another run.
 Breaks: silently
 Check: scripts/drift-check.js — /superdev:plan's extend path refuses a shipped feature on either signal
@@ -52,7 +52,7 @@ Paths: plugin/skills/plan/**, plugin/references/plan-contract.md
 ### INV-0006
 
 Class: architecture
-Concepts: Definition of Done, Verification ceiling, Scope branch
+Concepts: Definition of Done (DoD), Verification ceiling, Scope branch
 Statement: Verifying a Definition-of-Done criterion observes. It changes no system outside the repository. An item that needs an outward-facing change to verify stays unticked, with a note, for the operator to verify after merge.
 Breaks: silently
 Check: scripts/drift-check.js — VERIFICATION_CEILING_CONTRACTS pins the ceiling on scope-mode.md's own `## Verification ceiling` section, on both verifying agent bodies, and on every surface that verifies a criterion or dispatches one that does
@@ -61,7 +61,7 @@ Paths: plugin/references/scope-mode.md, plugin/agents/final-reviewer.md, plugin/
 ### INV-0007
 
 Class: process
-Concepts: Focused test command, Verification
+Concepts: Focused test command
 Statement: A configuration a repository cannot supply is recorded with its reason, never inferred from an absent setting. `hooks/green-gate.js` is the one named exception: firing with no operator to ask, it infers the full command from a one-fence `verification.md` and emits a notice instead of stopping.
 Breaks: silently
 Check: scripts/drift-check.js — setup writes both fences with the cannot-narrow reason as prose, test-selection.md stops rather than inferring the full command, plan/implement auto-invoke setup on a repository stuck on one fence, and green-gate.js runs the full command with a notice instead of stopping
@@ -70,7 +70,7 @@ Paths: plugin/skills/setup/**, plugin/references/test-selection.md, plugin/skill
 ### INV-0008
 
 Class: process
-Concepts: Definition of Done, Reachability criterion
+Concepts: Definition of Done (DoD), Reachability criterion
 Statement: A Definition-of-Done criterion states a requirement the feature meets, never a procedure superdev executes to verify it. A Reachable: criterion names an entrance, which is not a procedure.
 Breaks: silently
 Check: scripts/drift-check.js `criterion-states-a-requirement` — the rule pinned on plan-contract.md and plan's interview
@@ -88,7 +88,7 @@ Paths: plugin/hooks/green-gate.js, plugin/scripts/scope.js, plugin/scripts/adapt
 ### INV-0010
 
 Class: process
-Concepts: Observation, Triage record, Finding
+Concepts: Observation, Triage record
 Statement: An observation a run meets is recorded, never judged. It carries no severity, holds no stage, enters no fix loop, and blocks no run.
 Breaks: silently
 Check: scripts/drift-check.js — `observation-capture` pins the rule's own statement in scope-mode.md, and `observation-capture-reminders` pins the reminder at every document that dispatches a `superdev:` subagent
@@ -97,7 +97,7 @@ Paths: plugin/references/**, plugin/skills/**, plugin/agents/**
 ### INV-0011
 
 Class: process
-Concepts: Definition of Done, Run state, Verification
+Concepts: Definition of Done (DoD), Ledger, Verification ceiling
 Statement: A run's record never claims more than the run earned. A cap reads as held only where it held, a criterion as verified only where it was verified, a release as decided only where somebody decided it.
 Breaks: silently
 Check: none — a general rule with no single test. Its instances carry their own: INV-0004 (criteria are never pooled), INV-0009 (a process that did not finish carries no verdict), ADR 0084 (verifying observes only).
@@ -123,7 +123,7 @@ Paths: plugin/references/scope-mode.md, plugin/references/run-init.md, plugin/re
 ### INV-0014
 
 Class: process
-Concepts: Definition of Done, Tick, Verification
+Concepts: Definition of Done (DoD), Tick
 Statement: Every judged Definition-of-Done line carries a note. A ticked criterion names its evidence; an unticked one names why it is not met, that only a deploy can verify it, or that an attended operator accepted it as unmet, with any partial evidence. A bare tick is invalid, and a line nobody has judged yet carries no note.
 Breaks: silently
 Check: scripts/drift-check.js — the note rule pinned on the shared tick reference and on every surface that writes or takes back a tick (implement's playbooks and run handoff, review, document)
@@ -132,7 +132,7 @@ Paths: plugin/references/**, plugin/skills/implement/**, plugin/skills/review/**
 ### INV-0015
 
 Class: process
-Concepts: Definition of Done, Tick, Criterion tag, Controller
+Concepts: Definition of Done (DoD), Tick, Criterion tag, Controller
 Statement: Only a controller writes a Definition-of-Done tick. It ticks a criterion from an implementer's report only where the criterion's tag names that implementer's slice, and settles every other criterion only in run handoff's own pass, in review, or in document's own untick of a criterion its commits broke. Review's controller may also tick a criterion straight from `final-reviewer`'s own `holds` verdict, with the verdict's evidence as the note. No subagent writes a tick, and `/superdev:ship` writes none.
 Breaks: silently
 Check: scripts/drift-check.js — the mapping gate pinned on the shared tick reference and both playbooks; no agent under plugin/agents/ and no ship step instructs a tick; document's own untick (`doc-untick-on-break`) is the controller's own direct check, never a dispatched worker's report
@@ -141,7 +141,7 @@ Paths: plugin/references/**, plugin/agents/**, plugin/skills/implement/**, plugi
 ### INV-0016
 
 Class: process
-Concepts: Stage, Definition of Done, Verification ceiling
+Concepts: Stage, Definition of Done (DoD), Verification ceiling
 Statement: A scope's stage never advances past review while a Definition-of-Done criterion stands unmet, except one only a deploy can verify or one an attended operator accepted as unmet (`accepted:`). Every scope passes review, whatever its slice types.
 Breaks: silently
 Check: scripts/drift-check.js — review's stage-write condition pinned beside its unmet-criterion rule; run handoff names `/superdev:review` as the next command for every scope; document's closing step (`doc-untick-on-break`) writes no stage and prints `/superdev:review` rather than `/superdev:ship` when it unticks a criterion its own commits broke, or when a standing `**Unresolved:**` entry from an earlier pass already stands; afk's routing table (`afk-routing`) sends a `reviewed` stage carrying either shape of that standing entry to `/superdev:review`, not `/superdev:document`
@@ -155,6 +155,666 @@ Statement: A slice implementer and a fix cycle run only the focused command. The
 Breaks: silently
 Check: scripts/drift-check.js — the full-suite contract rows on run handoff and review; tests/scope.test.js — the suite record's read and write, and `suite reusable`'s tip-match and plan-file-scoped cases
 Paths: plugin/references/run-handoff.md, plugin/skills/review/**, plugin/agents/implementer.md, plugin/scripts/scope.js
+
+### INV-0018
+
+Class: process
+Concepts: Slice-reviewer, Implementer
+Statement: The slice-reviewer runs the suite itself, independently of the implementer's report, and never passes a slice on the reported result alone.
+Breaks: silently
+Check: `scripts/drift-check.js` `test-selection-wiring` (the `plugin/agents/slice-reviewer.md` row on Lens 2's independent re-run)
+Paths: plugin/agents/slice-reviewer.md
+
+### INV-0019
+
+Class: process
+Concepts: Definition of Done (DoD), Acceptance
+Statement: A Definition-of-Done criterion names observable, user-facing behaviour. A proxy count (coverage, line count, lint score) may appear as a reviewer signal, never as a gate.
+Breaks: silently
+Check: none — no pin exists today
+Paths: plugin/references/plan-contract.md, plugin/skills/plan/**
+
+### INV-0020
+
+Class: process
+Concepts: Judge discipline, Final-reviewer, Slice-reviewer, Simplicity-reviewer, Test-auditor
+Statement: Every review agent carries the judge-discipline text verbatim, so the four copies never diverge.
+Breaks: silently
+Check: none — no row compares the copies
+Paths: plugin/agents/**
+
+### INV-0021
+
+Class: process
+Concepts: Final-reviewer, Doc-writer, Scope checkout
+Statement: The doc reconcile runs after the final review and its fix loop, never concurrently with them, so it describes the final state.
+Breaks: silently
+Check: none — enforced by chain structure only
+Paths: plugin/skills/review/**, plugin/skills/document/**
+
+### INV-0022
+
+Class: process
+Concepts: Parked questions, Slice graph, Touch map, Epic
+Statement: The epic's `## Parked questions`, `## Slice graph` and `## Touch map` are advisory. `/superdev:implement` and its references never read them or gate on them.
+Breaks: silently
+Check: none — no absence scan exists
+Paths: plugin/skills/implement/**, plugin/references/run-init.md, plugin/references/implement-*.md
+
+### INV-0023
+
+Class: process
+Concepts: Load-bearing decision, Parked questions, Epic
+Statement: An unresolved load-bearing decision is parked on the epic only on a multi-slice plan. A single-slice plan has no epic to park it on.
+Breaks: silently
+Check: none — a judgment
+Paths: plugin/skills/plan/**
+
+### INV-0024
+
+Class: architecture
+Concepts: Run root, Scope
+Statement: Every run-root scan reads `.superdev/scopes/*/` only. A directory beside `scopes/` under `.superdev/` is never treated as a run root.
+Breaks: silently
+Check: none — no test covers a sibling area
+Paths: plugin/hooks/scope-prune.js, plugin/hooks/slicetree-sweep.js, plugin/hooks/run-lock.js, plugin/scripts/scope.js, plugin/skills/status/SKILL.md
+
+### INV-0025
+
+Class: process
+Concepts: Stage, Ledger
+Statement: Only `/superdev:ship` writes the `shipped` stage, and only after it ticks the Definition of Done and opens a pull request.
+Breaks: silently
+Check: none — no single-writer pin
+Paths: plugin/skills/ship/SKILL.md
+
+### INV-0026
+
+Class: process
+Concepts: Implementer, Slice, Acceptance
+Statement: No agent writes a slice's tests ahead of its implementation. The loop writes one failing test, the minimal code that passes it, and repeats.
+Breaks: silently
+Check: none — no pin exists today
+Paths: plugin/agents/implementer.md, plugin/references/implement-lite.md
+
+### INV-0027
+
+Class: architecture
+Concepts: Feature label, Slice store, Epic, Depends-on
+Statement: On the GitHub store, a feature's slices are listed by feature label only. Sub-issue and dependency relations record structure and are never used to find slices.
+Breaks: silently
+Check: none — no pin exists today
+Paths: plugin/references/issue-tracker-github.md
+
+### INV-0028
+
+Class: process
+Concepts: Depends-on, Slice store
+Statement: A failed dependency write stops the run, because it would corrupt the execution order. A failed sub-issue link is logged and the run continues.
+Breaks: silently
+Check: none — no pin exists today
+Paths: plugin/references/issue-tracker-github.md
+
+### INV-0029
+
+Class: process
+Concepts: Writing standard, Doc-writer, Doc-reader
+Statement: The writing standard binds only prose a doc agent writes or rewrites in that dispatch. It never governs untouched text.
+Breaks: silently
+Check: none — no pin exists today
+Paths: plugin/references/controlled-prose.md, plugin/agents/doc-reader.md, plugin/agents/doc-writer.md
+
+### INV-0030
+
+Class: architecture
+Concepts: Writing standard, Seed
+Statement: The doc agents read which writing standard applies from the `## Writing standard` pointer in `docs/agents/documentation.md`. None carries a standard of its own. `/superdev:prose-check` applies `references/controlled-prose.md` whatever the pointer says, and whether or not that file exists.
+Breaks: silently
+Check: `scripts/drift-check.js` `writing-standard` (the pointer half; nothing pins prose-check's independence from the pointer)
+Paths: plugin/references/documentation.md, plugin/skills/prose-check/SKILL.md
+
+### INV-0031
+
+Class: process
+Concepts: Scope mode, Final-reviewer
+Statement: `/superdev:review` writes nothing on an ad-hoc range. It writes only when it reviews a live scope.
+Breaks: silently
+Check: none — no pin exists today
+Paths: plugin/skills/review/SKILL.md
+
+### INV-0032
+
+Class: process
+Concepts: Run lock, Scope mode
+Statement: `/superdev:review`, `/superdev:document` and `/superdev:ship` refresh an existing `run.lock`'s mtime and never create one.
+Breaks: silently
+Check: none — no pin exists today
+Paths: plugin/references/scope-mode.md, plugin/skills/review/SKILL.md, plugin/skills/document/SKILL.md, plugin/skills/ship/SKILL.md
+
+### INV-0033
+
+Class: architecture
+Concepts: Stage, Ledger
+Statement: A chain command reads where a scope stands from the ledger's recorded stage, never from git history or report files.
+Breaks: silently
+Check: none — no pin exists today
+Paths: plugin/skills/**
+
+### INV-0034
+
+Class: process
+Concepts: Stage
+Statement: `/superdev:ship` warns when the ledger shows a skipped review or doc pass, and does not refuse on it.
+Breaks: silently
+Check: none — no pin exists today
+Paths: plugin/skills/ship/SKILL.md
+
+### INV-0035
+
+Class: process
+Concepts: Content type, Doc-writer, Doc-reader, Writing standard
+Statement: Both doc agents read `references/content-types.md` at every dispatch, independent of the writing standard. The reader checks coverage in its whole-file cold pass, audit included. The lens is never configurable and never `none`.
+Breaks: silently
+Check: `scripts/drift-check.js` `content-types` (the read-at-every-dispatch half)
+Paths: plugin/references/content-types.md, plugin/agents/doc-writer.md, plugin/agents/doc-reader.md
+
+### INV-0036
+
+Class: architecture
+Concepts: Unattended run, Eligible anchor, Stage
+Statement: `/superdev:afk` runs each chain step by invoking that command with `--unattended`, and carries no copy of any command's procedure. It keeps no queue between iterations: it re-reads the store's labels each time and persists only its consecutive-block count.
+Breaks: silently
+Check: `scripts/drift-check.js` `afk-invocation` (every stage-table row invokes a chain command with `--unattended`) — partial: nothing pins that afk carries no copy of any command's procedure, or that it persists only its consecutive-block count between iterations
+Paths: plugin/skills/afk/SKILL.md
+
+### INV-0037
+
+Class: architecture
+Concepts: Unattended token, Run root
+Statement: `--unattended` is an argument of one invocation and is never written to a run root. After an interrupted sweep, the next command a maintainer types asks its questions as usual.
+Breaks: silently
+Check: none — an absence with no scan
+Paths: plugin/references/scope-mode.md
+
+### INV-0038
+
+Class: process
+Concepts: Unattended token, Standing answer, Unattended run, Scope anchor
+Statement: A command carrying the unattended token never asks a question and never starts an interview command. At each stop it takes the standing answer written there, or blocks the scope anchor where none is written.
+Breaks: silently
+Check: `scripts/drift-check.js` `unattended-token` (the `## Unattended` section, plus the token and a read instruction in every chain document) and `afk-invocation`
+Paths: plugin/references/scope-mode.md, plugin/skills/**, plugin/references/implement-full.md, plugin/references/implement-lite.md, plugin/references/run-init.md, plugin/references/run-handoff.md
+
+### INV-0039
+
+Class: architecture
+Concepts: Scope anchor, Slice store, Seed, Release, Published snapshot, Triage record, Untriaged item, Assignee, Anchor dependency, Eligible anchor
+Statement: No command or agent names a slice store's own mechanics. Each reads them from the matching section of the active store document, which specialises `references/plan-contract.md`.
+Breaks: silently
+Check: `scripts/drift-check.js` `anchor-contract`, `release-contract`, `run-state-contract`, `triage-record`, `untriaged-item`, `assignee`, `specialising-citations`, `glossary-specialising-citations`, `afk-selection-neutrality` — partial: these pin that each store document carries its sections and that citations specialise; the only content-neutrality scan, `afk-selection-neutrality`, covers afk's `## 2.` section alone, so a skill elsewhere that hardcodes a store call trips nothing
+Paths: plugin/skills/**, plugin/agents/**, plugin/references/plan-contract.md, plugin/references/issue-tracker-*.md
+
+### INV-0040
+
+Class: process
+Concepts: Scope anchor, Eligible anchor, Feature label, Unattended run
+Statement: `/superdev:afk` skips a feature label that presents two roots and names it in its closing report. It never guesses which root owns the Definition of Done. Eligibility never reads the `ready` label.
+Breaks: silently
+Check: none — no pin exists today
+Paths: plugin/skills/afk/SKILL.md
+
+### INV-0041
+
+Class: architecture
+Concepts: Feature label, Slice store
+Statement: The feature label's notation is stated only by the active store document, and no command hardcodes a prefix. Every caller can still name its target.
+Breaks: silently
+Check: `scripts/drift-check.js` `feature-label-argument` (the caller-can-name-its-target half)
+Paths: plugin/skills/implement/SKILL.md, plugin/skills/plan/SKILL.md
+
+### INV-0042
+
+Class: process
+Concepts: Ceiling note, Final-reviewer, 3-strike fix loop
+Statement: final-reviewer writes at most one ceiling note, only on a review with no Critical or Important finding. It names a satisfied criterion and a concrete consequence, never gates a merge, and never triggers the fix loop.
+Breaks: silently
+Check: none — no pin exists today
+Paths: plugin/agents/final-reviewer.md
+
+### INV-0043
+
+Class: architecture
+Concepts: Feature label, Change type, Run root, Ledger, Scope branch
+Statement: The scope branch is the feature label verbatim, `<type>/<slug>`, and the run root is keyed on the slug alone. A command reads the branch from the ledger's `**Branch:**` line and never computes it from the slug.
+Breaks: silently
+Check: `scripts/drift-check.js` `label-validation` (both label segments validated before a path or branch is built). Nothing pins the verbatim or `**Branch:**`-read halves.
+Paths: plugin/references/scope-mode.md
+
+### INV-0044
+
+Class: process
+Concepts: Unattended run, Staged page, Knowledge base
+Statement: `/superdev:afk` never invokes `/superdev:publish-kb`. Publishing runs only on operator invocation.
+Breaks: silently
+Check: none — no absence scan exists
+Paths: plugin/skills/afk/SKILL.md
+
+### INV-0045
+
+Class: architecture
+Concepts: Staged page, Invoking checkout, Scopetree, Run root
+Statement: A staged page is written to an absolute path under `.superdev/kb-pending/<scope>/`, never inside a run root or a scopetree, so no cleanup of either removes it.
+Breaks: silently
+Check: none — the absolute-path half is unpinned
+Paths: plugin/references/doc-pass.md, plugin/skills/document/SKILL.md, plugin/skills/plan/SKILL.md
+
+### INV-0046
+
+Class: architecture
+Concepts: Aggregate page, Backend command contract, Staged page, Knowledge base
+Statement: A backend declaring no `read` template carries no aggregate page. `publish-kb.js` leaves every `action: patch` page staged with that reason.
+Breaks: silently
+Check: `tests/publish-kb.test.js` ("a configuration declaring no read template leaves every patch page staged with that reason"); `scripts/drift-check.js` `read-path`
+Paths: plugin/scripts/publish-kb.js, plugin/skills/setup/SKILL.md
+
+### INV-0047
+
+Class: architecture
+Concepts: Run kind, Execution playbook, Ledger, Stage
+Statement: Run init computes a run's kind once, from its ledger alone, as `fresh` or `resumed`. Both execution playbooks read that value and derive none of their own.
+Breaks: silently
+Check: none — no single-site pin
+Paths: plugin/references/run-init.md, plugin/references/implement-full.md, plugin/references/implement-lite.md, plugin/references/scope-mode.md
+
+### INV-0048
+
+Class: process
+Concepts: Run kind, Degraded pass, Ledger
+Statement: A stop at the scope-branch step writes nothing: no run starts, no ledger entry is written, and no degraded pass is recorded.
+Breaks: silently
+Check: none — no pin exists today
+Paths: plugin/references/scope-mode.md
+
+### INV-0049
+
+Class: process
+Concepts: Domain shape, Implementer, Slice
+Statement: A slice `spec` names its domain shapes by name, never their fields. The implementer declares those shapes before its first RED test, on both tiers.
+Breaks: silently
+Check: none — ordering is invisible in a finished diff (the ADR's own reason)
+Paths: plugin/agents/implementer.md, plugin/references/plan-contract.md
+
+### INV-0050
+
+Class: process
+Concepts: Inline doc pass, Ledger, Tier
+Statement: A `**Docs:**` record stands only for the commits its pass saw. `/superdev:document` skips the doc-writer only while the record stands. A review fix loop that lands commits clears it. A full-tier run never writes one.
+Breaks: silently
+Check: `scripts/drift-check.js` `verb-pointer` (`docs set` in implement-lite.md, `get docs` in document, `docs clear` in review) and `doc-pass`
+Paths: plugin/references/implement-lite.md, plugin/skills/document/SKILL.md, plugin/skills/review/SKILL.md, plugin/references/doc-pass.md
+
+### INV-0051
+
+Class: architecture
+Concepts: Shipped tree
+Statement: An install carries `plugin/` alone. Every file the runtime reads lives under `plugin/`, nothing under `plugin/` requires or reads a repo-root path, and `plugin/` carries no test code.
+Breaks: silently
+Check: `scripts/drift-check.js` `marketplace-source` (the source resolves to a directory carrying `plugin/.claude-plugin/plugin.json`). Nothing checks that shipped files never reference a path outside `plugin/`, or that `plugin/` holds no test code.
+Paths: .claude-plugin/marketplace.json, plugin/**, tests/**
+
+### INV-0052
+
+Class: process
+Concepts: Expand–contract, Integration branch, Epic
+Statement: A plan names an integration branch only when its expand–contract batches cannot each stay green on their own.
+Breaks: silently
+Check: none — a judgment
+Paths: plugin/skills/plan/**
+
+### INV-0053
+
+Class: process
+Concepts: Release, Scope anchor, Eligible anchor, Unattended run
+Statement: A feature is built only once released, or on a human's explicit confirmation. `/superdev:implement` stops on an unreleased feature before its first write and blocks under `--unattended`. `/superdev:afk` skips one. A confirmation leaves the release signal unapplied.
+Breaks: silently
+Check: `scripts/drift-check.js` `release-contract` (every store document carries `## Release`, and plan, implement and afk each name it); `release-answer-not-inferred` was not opened by the batch and is not cited
+Paths: plugin/references/plan-contract.md, plugin/skills/implement/SKILL.md, plugin/skills/afk/SKILL.md, plugin/skills/plan/SKILL.md
+
+### INV-0054
+
+Class: process
+Concepts: Design sketch, Component, Epic
+Statement: A design sketch is written only when the operator asks, after the grounding and before decomposition, and blocks until approved. It is self-contained HTML with inline CSS and no JavaScript or network. It stays git-ignored and unreconciled, and never reaches the epic or the pull request.
+Breaks: silently
+Check: none — the ADR rejected a pin on cost
+Paths: plugin/skills/plan/SKILL.md, plugin/references/design-sketch.md
+
+### INV-0055
+
+Class: process
+Concepts: Tier, Simplicity-reviewer, Final-reviewer, Execution playbook
+Statement: Every scope gets an over-engineering pass. A full-tier scope gets it per `behavior` slice in `implement-full.md`, so `/superdev:review` skips simplicity-reviewer there. A lite-tier scope gets it whole-scope from `/superdev:review`. Its findings gate nothing.
+Breaks: silently
+Check: `scripts/drift-check.js` `tier-skip` — partial: pins the full-tier skip/dispatch dependency alone; nothing pins that a lite-tier scope gets its pass whole-scope from `/superdev:review`, or that its findings gate nothing
+Paths: plugin/skills/review/SKILL.md, plugin/references/implement-full.md
+
+### INV-0056
+
+Class: architecture
+Concepts: Tier, Ledger, Execution playbook
+Statement: The tier is never stored. Every reader derives it from the loaded slice set by one threshold: three or fewer slices is lite, more is full. An underivable tier resolves to the blocking answer.
+Breaks: silently
+Check: none — no agreement pin across the derivation sites
+Paths: plugin/skills/implement/SKILL.md, plugin/skills/review/SKILL.md, plugin/references/scope-mode.md, plugin/scripts/scope.js
+
+### INV-0057
+
+Class: process
+Concepts: Anchor dependency, Eligible anchor, Unattended run, Scope anchor
+Statement: `/superdev:afk` never takes an anchor whose anchor dependency is unsatisfied. The anchor is deferred for that sweep, with no label written, no block counted, and a report line naming what it waits on. A dependency is satisfied by closure, by a `shipped` ledger stage, or by the named anchor not existing.
+Breaks: silently
+Check: `scripts/drift-check.js` `anchor-contract` (every store states how to read dependencies) and `afk-anchor-count`
+Paths: plugin/skills/afk/SKILL.md, plugin/references/plan-contract.md, plugin/references/issue-tracker-*.md
+
+### INV-0058
+
+Class: process
+Concepts: Published snapshot, Adopt, Ledger, Scope anchor, Run kind
+Statement: The ledger drives control flow, and the anchor's snapshot only mirrors it. Every ledger write the snapshot shows is followed by a publish, and a failed publish changes nothing in the run. Run init adopts only where no local ledger exists and the snapshot's stage is not `shipped`, and reports that run as `resumed`. A store that declares itself snapshot-less publishes and adopts nothing.
+Breaks: silently
+Check: `scripts/drift-check.js` `publish-run-state`, `adopt-run-state`, `resumed-scopetree-trigger`, `run-state-contract`
+Paths: plugin/references/scope-mode.md, plugin/references/run-init.md, plugin/skills/**, plugin/references/implement-full.md, plugin/references/run-handoff.md
+
+### INV-0059
+
+Class: architecture
+Concepts: Slicetree, Scopetree, Tier
+Statement: A lite-tier run implements every slice inline in its scopetree and creates no slicetree.
+Breaks: silently
+Check: none — no pin exists today
+Paths: plugin/references/implement-lite.md
+
+### INV-0060
+
+Class: process
+Concepts: Triage record, Ledger, Slice store
+Statement: A triage-record create that fails or is denied is reported once per run. The ledger bullet is still written, naming the failure where the reference would be, and the review carries on.
+Breaks: silently
+Check: none — no pin exists today
+Paths: plugin/skills/review/SKILL.md
+
+### INV-0061
+
+Class: process
+Concepts: Triage record, Deferred finding, Ledger
+Statement: Within one run, a finding the ledger already carries as deferred creates no second triage record and no second ledger bullet.
+Breaks: silently
+Check: none — no pin exists today
+Paths: plugin/skills/review/SKILL.md
+
+### INV-0062
+
+Class: process
+Concepts: Triage record, Scope anchor
+Statement: A triage record's provenance names the feature label, the scope branch and the scope anchor's reference, and never a pull-request URL.
+Breaks: silently
+Check: none — no pin exists today
+Paths: plugin/skills/review/SKILL.md
+
+### INV-0063
+
+Class: process
+Concepts: Backlog survey, Slice store, Scope anchor, Triage record, Untriaged item
+Statement: A backlog survey writes nothing: no record, label, comment or file. It reads anchors, triage records and untriaged items through the store document's sections, never through a backend's own call, and reads stage through `scope.js get stage`.
+Breaks: silently
+Check: `scripts/drift-check.js` `backlog-survey` — partial: nothing pins the absence of a backend's own listing call
+Paths: plugin/skills/backlog/SKILL.md
+
+### INV-0064
+
+Class: process
+Concepts: Backlog survey, Unattended run, Eligible anchor
+Statement: On an ambiguous store fact, `/superdev:afk` defers and acts on nothing, while the backlog survey shows the row with what it saw. Neither inherits the other's verdict.
+Breaks: silently
+Check: none — the ADR rejects a pin
+Paths: plugin/skills/afk/SKILL.md, plugin/skills/backlog/SKILL.md
+
+### INV-0065
+
+Class: process
+Concepts: Untriaged item, Backlog survey
+Statement: No superdev surface acts on an untriaged item. The backlog survey lists it, and only a human turns it into a plan or closes it.
+Breaks: silently
+Check: none — no pin exists today
+Paths: plugin/skills/backlog/SKILL.md
+
+### INV-0066
+
+Class: architecture
+Concepts: Model-invocable surface, Unattended run, Render target, Harness adapter
+Statement: `/superdev:afk` is never a model-invocable surface: `disable-model-invocation: true` on Claude Code, a command on OpenCode, and absent on Codex, where a reference to it renders as its plain name. Every step afk's chain drives stays model-invocable.
+Breaks: silently
+Check: `scripts/drift-check.js` `opencode-surface-split`, `codex-render`; `tests/adapter.test.js` ("afk is never a skill", "afk renders nowhere")
+Paths: plugin/skills/afk/SKILL.md, plugin/skills/implement/SKILL.md, plugin/skills/review/SKILL.md, plugin/skills/document/SKILL.md, plugin/skills/ship/SKILL.md, plugin/scripts/adapter.js, scripts/drift/fixtures/**
+
+### INV-0067
+
+Class: process
+Concepts: Guardrail parity, Harness adapter
+Statement: Where a harness render cannot make a shipped hook decide, the gap is stated to the operator and recorded in an ADR. It is never silently absent, and parity is never claimed for a harness without hooks.
+Breaks: silently
+Check: none — no pin on the stated gap
+Paths: README.md, plugin/scripts/adapter.js
+
+### INV-0068
+
+Class: architecture
+Concepts: Guardrail
+Statement: Each shipped hook runs its dispatch when spawned and does nothing when `require`d.
+Breaks: silently
+Check: `tests/green-gate.test.js`, `tests/ledger-guard.test.js`, `tests/merge-guard.test.js`, `tests/model-explicit.test.js`, `tests/run-lock.test.js`, `tests/update-check.test.js`, `tests/slicetree-sweep.test.js` (each asserts that requiring the hook prints nothing)
+Paths: plugin/hooks/*.js
+
+### INV-0069
+
+Class: architecture
+Concepts: Timing command, Focused test command, Test audit
+Statement: `docs/agents/verification.md` holds the timing command in a backtick span, never a fenced block, so `hooks/green-gate.js` never runs it as the full or focused command. An absent timing command makes a test audit `unmeasured` and never fails it.
+Breaks: silently
+Check: `tests/green-gate.test.js` (the ADR 0066 case: a `## Timing command` backtick span is invisible to the gate)
+Paths: plugin/hooks/green-gate.js, plugin/skills/review-tests/SKILL.md, plugin/skills/setup/SKILL.md
+
+### INV-0070
+
+Class: process
+Concepts: Test audit, Unattended run
+Statement: A test audit runs only on operator invocation, and `/superdev:afk` never drives it. Unchained, its only writes are its intent and the `.gitignore` entry.
+Breaks: silently
+Check: none — no absence scan exists
+Paths: plugin/skills/review-tests/**, plugin/skills/afk/**
+
+### INV-0071
+
+Class: process
+Concepts: Test audit, Intent
+Statement: A test audit reports a dead or ignored test as a fact, straight to the intent. Every other finding is a judgment the operator can reject before it reaches the intent. Findings past the round's fixed arity reach the intent labelled `unconfirmed`.
+Breaks: silently
+Check: `scripts/drift-check.js` `chained-test-audit` (the fact and judgment split stays distinguishable on the chained path)
+Paths: plugin/skills/review-tests/SKILL.md
+
+### INV-0072
+
+Class: process
+Concepts: Positive absence, Backend command contract
+Statement: `/superdev:setup` writes a `## Commands` section only after its `find` template, probed once against a title that cannot exist, exits 3.
+Breaks: silently
+Check: none — no pin exists today
+Paths: plugin/skills/setup/SKILL.md
+
+### INV-0073
+
+Class: architecture
+Concepts: Backend command contract, Staged page, Knowledge base
+Statement: Every backend command a publish runs is bounded at its spawn. The override lives outside the `SUPERDEV_KB_` prefix, so no `find` result can rewrite the bound. A timeout stops the batch and leaves every untried page staged.
+Breaks: silently
+Check: `tests/publish-kb.test.js` (per-verb timeout cases; "a timeout stops the batch: the rest are named untried, staged, and never spawned")
+Symbols: DEFAULT_TIMEOUT_MS, timeoutMs, timedOut, fieldsToEnv
+Paths: plugin/scripts/publish-kb.js, plugin/skills/setup/SKILL.md
+
+### INV-0074
+
+Class: architecture
+Concepts: Assignee, Operator configuration, Slice store
+Statement: The assignee lives only in the untracked `.superdev/info.json`, resolved against the main working tree from any checkout: that file, else the API token's own identity, with `"none"` opting out. No tracked store document carries an assignee bullet, and the plan-contract slice schema carries no assignee field. Tokens never enter the file.
+Breaks: silently
+Check: `scripts/drift-check.js` `assignee` (forbids the `- **Assignee:**` bullet and requires the `## Assignee` section)
+Paths: plugin/references/plan-contract.md, plugin/references/issue-tracker-*.md
+
+### INV-0075
+
+Class: process
+Concepts: Assignee, Operator configuration
+Statement: A malformed `.superdev/info.json`, or an absent or empty assignee, falls through to the token's identity and is reported once per run. It never stops the plan.
+Breaks: silently
+Check: none — no pin exists today
+Paths: plugin/references/plan-contract.md
+
+### INV-0076
+
+Class: architecture
+Concepts: Operator configuration, Run root, Slicetree
+Statement: The reaping hooks delete only inside `.superdev/scopes/<scope>/`, and never touch `.superdev/info.json`.
+Breaks: silently
+Check: none — no test covers it
+Paths: plugin/hooks/scope-prune.js, plugin/hooks/slicetree-sweep.js
+
+### INV-0077
+
+Class: process
+Concepts: Candidate set, Run root, Stage
+Statement: One section, `scope-mode.md`'s `## Resolving an empty argument`, owns how an empty argument resolves. Each run-taking command names only its own candidate set and cites that section. A caller that cannot ask lists the candidates and stops.
+Breaks: silently
+Check: `scripts/drift-check.js` `empty-argument`; `tests/publish-kb.test.js` (more than one pending scope and no `--scope`: lists every scope with its page count)
+Paths: plugin/references/scope-mode.md, plugin/skills/implement/SKILL.md, plugin/skills/ship/SKILL.md, plugin/skills/review/SKILL.md, plugin/scripts/publish-kb.js
+
+### INV-0078
+
+Class: process
+Concepts: Epic, Slice, Acceptance, Definition of Done (DoD)
+Statement: A single-slice feature has no epic. Its lone slice's `acceptance` is its Definition of Done.
+Breaks: silently
+Check: none — no pin exists today
+Paths: plugin/skills/plan/**, plugin/references/plan-contract.md
+
+### INV-0079
+
+Class: process
+Concepts: Progress log, Controller
+Statement: A slice's `progress.md` is only ever appended to, oldest entry first.
+Breaks: silently
+Check: none — nothing enforces it
+
+### INV-0080
+
+Class: process
+Concepts: Touch map, Slice
+Statement: No slice `spec` names file paths, and no reviewer gates on the touch map.
+Breaks: silently
+Check: none — no pin exists today
+Paths: plugin/skills/plan/**, plugin/references/plan-contract.md
+
+### INV-0081
+
+Class: process
+Concepts: Test-applicability, Slice-reviewer, Simplicity-reviewer
+Statement: A `mechanical` slice skips the per-slice reviews and relies on the existing suite. A `docs` slice skips reviews.
+Breaks: silently
+Check: none — no pin exists today
+Paths: plugin/references/implement-full.md, plugin/references/implement-lite.md
+
+### INV-0082
+
+Class: process
+Concepts: Depends-on, Slice
+Statement: A `depends-on` edge is written only where a slice cannot be green without the other.
+Breaks: silently
+Check: none — a judgment
+Paths: plugin/skills/plan/**
+
+### INV-0083
+
+Class: architecture
+Concepts: Final-reviewer, 3-strike fix loop
+Statement: final-reviewer never applies a fix. Its tool allowlist carries no Edit or Write.
+Breaks: silently
+Check: none — nothing pins the frontmatter
+Paths: plugin/agents/final-reviewer.md
+
+### INV-0084
+
+Class: process
+Concepts: 3-strike fix loop, Final-reviewer, Slice-reviewer
+Statement: After 3 fix cycles that each surface a new defect, the loop stops and escalates instead of trying a fourth.
+Breaks: silently
+Check: none — the stop is unpinned
+Paths: plugin/skills/review/SKILL.md, plugin/references/implement-full.md
+
+### INV-0085
+
+Class: process
+Concepts: Doc-reader, Doc-writer, Audit
+Statement: Doc-reader findings trigger exactly one doc-writer fix round.
+Breaks: silently
+Check: none — no pin exists today
+Paths: plugin/skills/document/SKILL.md
+
+### INV-0086
+
+Class: process
+Concepts: Bootstrap
+Statement: `/superdev:document` never bootstraps a documentation hierarchy when invoked on a range or an area.
+Breaks: silently
+Check: none — no pin exists today
+Paths: plugin/skills/document/SKILL.md
+
+### INV-0087
+
+Class: architecture
+Concepts: Scope branch, Code host
+Statement: No superdev command other than /superdev:ship pushes a scope branch. Planning, implementing, reviewing, and documenting work on the local scope branch only, so nothing unreviewed reaches the code host before ship opens the pull request.
+Breaks: silently
+Check: none — no drift row pins it; it holds because the only push instruction in shipped prose is /superdev:ship §5 and the code-management seeds it reads
+Paths: plugin/skills/**, plugin/references/**
+
+### INV-0088
+
+Class: architecture
+Concepts: Invariant register
+Statement: No script filters or ranks register entries for /superdev:plan or final-reviewer. Both read docs/invariants.md whole, and their judgment is the only matcher, so an entry the plan passes over stays visible to final-reviewer's own read.
+Breaks: silently
+Check: scripts/drift-check.js — `invariant-compliance` pins plan's whole read of the register and final-reviewer's own read
+Paths: plugin/skills/plan/**, plugin/agents/final-reviewer.md
+
+
+
+### INV-0089
+
+Class: process
+Concepts: Acceptance, Slice
+Statement: /superdev:plan writes a behavior slice's domain-level failure and boundary cases into its acceptance, alongside the happy path, each stated as observable behaviour. Implementation-level edges stay with the implementer and the reviewers.
+Breaks: silently
+Check: none — no drift row pins the clause in plugin/skills/plan/SKILL.md or plugin/references/plan-contract.md; a row would be cheap
+Paths: plugin/skills/plan/SKILL.md, plugin/references/plan-contract.md
+
+### INV-0090
+
+Class: process
+Concepts: Invariant register
+Statement: Every register entry's mandatory fields, its Concepts, and the Paths, Symbols, and Check paths it names are checked by scripts/invariant-check.js, which bun run test runs against this repository. The check fails naming the entry and the field, so a register rule breaks loudly rather than silently.
+Breaks: silently
+Check: tests/invariant-check.test.js — each format and resolution rule fails naming the entry and the field; the test chain runs the validator against this repository
+Symbols: check, parseEntries, globMatcher
+Paths: scripts/invariant-check.js, tests/invariant-check.test.js, package.json
 
 ### INV-0091
 

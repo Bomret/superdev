@@ -1,11 +1,11 @@
 # Code host: Codeberg (Forgejo)
 
-Code lives on Codeberg (`ssh://codeberg.org/bomret/superdev.git`). Use the Forgejo REST API (or the
+Code lives on Codeberg (`ssh://codeberg.org/Zuhause/superdev.git`). Use the Forgejo REST API (or the
 `tea` CLI if installed) for pushes and pull requests.
 
 ## Configuration
 
-- **Host, owner, and repo:** `https://codeberg.org`, `bomret`, `superdev`.
+- **Host, owner, and repo:** `https://codeberg.org`, `Zuhause`, `superdev`.
 - **Remote:** `origin`. Confirm with `git remote -v`.
 - **Auth:** API token in env var `GITEA_TOKEN` (record the name, never the value).
 - **Default PR posture:** `ready` (open ready-for-review). Override: `draft` or `push-only`.
@@ -14,7 +14,7 @@ Code lives on Codeberg (`ssh://codeberg.org/bomret/superdev.git`). Use the Forge
 ## Conventions
 
 - **Push the scope branch:** `git push -u origin <scope-branch>`.
-- **Open the PR (REST):** `POST https://codeberg.org/api/v1/repos/bomret/superdev/pulls` with
+- **Open the PR (REST):** `POST https://codeberg.org/api/v1/repos/Zuhause/superdev/pulls` with
   `{ "base": "main", "head": "<scope-branch>", "title": "...", "body": "..." }`,
   header `Authorization: token $GITEA_TOKEN`. Body built from the global DoD, the slice list, and the
   final-review summary.
@@ -29,7 +29,7 @@ Code lives on Codeberg (`ssh://codeberg.org/bomret/superdev.git`). Use the Forge
 ## Degrade when no host CLI or API access
 
 Do not fail. Push the branch, then print the compare URL
-(`https://codeberg.org/bomret/superdev/compare/main...<scope-branch>`) and the ready-to-run API call.
+(`https://codeberg.org/Zuhause/superdev/compare/main...<scope-branch>`) and the ready-to-run API call.
 
 ## Compute the base
 

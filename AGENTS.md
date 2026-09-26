@@ -46,7 +46,8 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
   scripts/             — the runtime CLIs: `scope.js`, `kb-patch.js`, `adapter.js`, `publish-kb.js`
   LICENSE · NOTICE     — copies of the root files, so the shipped tree carries its own attribution
 tests/                 — one suite per shipped executable (the hooks, `scope.js`, `kb-patch.js`,
-                         `adapter.js`, `publish-kb.js`), framework-free `node:assert`, run under
+                         `adapter.js`, `publish-kb.js`) and one for the maintainer-only
+                         `invariant-check.js`, framework-free `node:assert`, run under
                          `node` by `bun run test` (ADR 0059); `spawn-verdict.js` is the one shared
                          helper, not itself a suite — `assertSpawnDecided` (INV-0009), asserted by
                          `spawn-verdict.test.js` and called from every other suite's bounded-spawn sites
@@ -54,9 +55,9 @@ docs/adr/              — architecture decision records (why the plugin is buil
 docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, documentation, KB, toolchain, verification)
 docs/known-issues.md   — Claude Code platform behaviour superdev works around, each entry with its
                          shipped mitigation and dated verification
-scripts/               — the maintainer-only CLI wired into `bun run test`: `drift-check.js` with its
+scripts/               — the maintainer-only CLIs wired into `bun run test`: `drift-check.js` with its
                          `drift/` modules (registry, contract tables, scanners, shared helpers,
-                         selftest suites)
+                         selftest suites), and `invariant-check.js`, the invariant register validator
 release.config.cjs     — semantic-release config (semantic-release-replace-plugin bumps plugin.json)
 package.json           — dev-only tooling (Bun); NOT published to npm
 CHANGELOG.md           — release-managed by semantic-release; do not hand-edit
@@ -96,8 +97,9 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
   because that is scoped by extension.
 - **Every shipped executable has a suite in `tests/`, named for it.** Add one for any new hook or
   script. `bun run test` runs every `tests/` suite under `node`, which matches the production
-  runtime, then `drift-check`'s own `--selftest`, `drift-check` itself, and `claude plugin
-  validate ./plugin` as a manifest-validation gate.
+  runtime, then `invariant-check.js` against this repository's own register, `drift-check`'s own
+  `--selftest`, `drift-check` itself, and `claude plugin validate ./plugin` as a manifest-validation
+  gate.
 - **A duration assertion is legitimate only against a same-run baseline, or a qualitative ceiling.**
   A process that did not finish carries no verdict (INV-0009): never bracket a bounded `spawnSync`
   with `Date.now()` and assert an absolute elapsed ceiling, because wall clock includes every
@@ -286,6 +288,10 @@ This root owns every other subtree directly:
   and `scripts/drift-check.js` with `drift/` (the cross-document contract checks: the
   CLI walks the `drift/checks.js` registry, keyed by check id (ADR 0061), which orders every scanner and
   contract table). What each guards, check by check, lives in that child doc.
+  `scripts/invariant-check.js` is the maintainer-only register validator (ADR 0093): it checks a
+  repository's `docs/invariants.md` against the register's format rules and resolves each entry's
+  `Concepts`, `Paths`, `Symbols` and `Check:` paths. It selects no entry (INV-0088), and nothing under
+  `plugin/` requires it (INV-0051).
 - `plugin/references/`. Backend seed templates plus the runtime references. Owned by
   [`plugin/references/AGENTS.md`](plugin/references/AGENTS.md), which routes every reference to what it
   owns and to the runtime surface that reads it. Each reference's own opening states its full contract.
