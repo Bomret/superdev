@@ -1,3 +1,10 @@
+# [0.53.0](https://codeberg.org/Zuhause/superdev/compare/v0.52.0...v0.53.0) (2026-09-26)
+
+
+### Features
+
+* **invariant-backfill:** backfill the invariant register and validate it ([#691](https://codeberg.org/Zuhause/superdev/issues/691)) ([cbb0cab](https://codeberg.org/Zuhause/superdev/commit/cbb0cabe778e808ff95158790a76857bb82249a4)), closes [#659](https://codeberg.org/Zuhause/superdev/issues/659) [#659](https://codeberg.org/Zuhause/superdev/issues/659) [#659](https://codeberg.org/Zuhause/superdev/issues/659) [#658](https://codeberg.org/Zuhause/superdev/issues/658) [#659](https://codeberg.org/Zuhause/superdev/issues/659) [#658](https://codeberg.org/Zuhause/superdev/issues/658) [#658](https://codeberg.org/Zuhause/superdev/issues/658) [#659](https://codeberg.org/Zuhause/superdev/issues/659) [#659](https://codeberg.org/Zuhause/superdev/issues/659) [#659](https://codeberg.org/Zuhause/superdev/issues/659) [#659](https://codeberg.org/Zuhause/superdev/issues/659) [#689](https://codeberg.org/Zuhause/superdev/issues/689)
+
 # [0.52.0](https://codeberg.org/bomret/superdev/compare/v0.51.0...v0.52.0) (2026-09-25)
 
 
