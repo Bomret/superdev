@@ -15,7 +15,7 @@ const https = require('node:https');
 // can point this at a loopback port instead of the real network — `bun run test` stays fully offline.
 const REMOTE =
   process.env.SUPERDEV_UPDATE_CHECK_REMOTE ||
-  'https://codeberg.org/bomret/superdev/raw/branch/main/plugin/.claude-plugin/plugin.json';
+  'https://codeberg.org/Zuhause/superdev/raw/branch/main/plugin/.claude-plugin/plugin.json';
 const CHECK_TTL_MS = 24 * 60 * 60 * 1000;
 
 // Positive if a>b, negative if a<b, 0 equal — numeric collation compares each dotted segment as a

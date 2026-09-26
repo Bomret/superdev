@@ -451,17 +451,20 @@ superdev ships as a single-plugin Claude Code **marketplace**
 install `superdev@superdev`. Verified on Claude Code **v2.1.237** (2026-08-20). No lower bound is
 claimed, because none has been tested.
 
+The repository is private. Installing, cloning, and upgrading all need a Codeberg account with read
+access to `Zuhause/superdev`, and credentials git can use for it.
+
 **From the git host** (interactive):
 
 ```
-/plugin marketplace add https://codeberg.org/bomret/superdev.git
+/plugin marketplace add https://codeberg.org/Zuhause/superdev.git
 /plugin install superdev@superdev
 ```
 
 **From a local clone** (for hacking on it):
 
 ```
-git clone https://codeberg.org/bomret/superdev.git
+git clone https://codeberg.org/Zuhause/superdev.git
 /plugin marketplace add /absolute/path/to/superdev
 /plugin install superdev@superdev
 ```
@@ -491,7 +494,9 @@ For a hands-off setup, enable it once through `/plugin`, then **Marketplaces**, 
 **Enable auto-update**. Claude then upgrades it at startup and prompts `/reload-plugins`.
 
 A best-effort `SessionStart` hook prints a one-line notice when a newer version is published. It checks
-at most once a day and stays silent when offline. "Newer" means the `version` in
+at most once a day and stays silent when offline. It reads the manifest without credentials, so while
+the repository is private it never sees a newer version and prints nothing. `/superdev:upgrade` is
+unaffected, because the marketplace fetch uses your git credentials. "Newer" means the `version` in
 `plugin/.claude-plugin/plugin.json`, so a release **must bump that field**. `/plugin update` cannot see
 an unchanged version.
 
@@ -514,7 +519,7 @@ so no second copy of the prompts, the agents, or the guardrails exists to mainta
 **Install and render**, from the OpenCode project you want superdev in:
 
 ```
-git clone https://codeberg.org/bomret/superdev.git
+git clone https://codeberg.org/Zuhause/superdev.git
 node superdev/plugin/scripts/adapter.js --dest . \
   --model-map sonnet=<provider>/<model> \
   --model-map opus=<provider>/<model> \
@@ -649,7 +654,7 @@ of the prompts, the agents, or the guardrails exists to maintain.
 **Install and render**, from the Codex project you want superdev in:
 
 ```
-git clone https://codeberg.org/bomret/superdev.git
+git clone https://codeberg.org/Zuhause/superdev.git
 node superdev/plugin/scripts/adapter.js --dest . --harness codex \
   --model-map sonnet=<provider>/<model> \
   --model-map opus=<provider>/<model> \

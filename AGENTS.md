@@ -172,7 +172,7 @@ superdev carries no A/B harness measuring it against a no-plugin baseline (ADR 0
 ## Agent skills
 
 ### Slice store
-Codeberg Issues (`bomret/superdev`). Slices as issues, feature labels, epics as scope anchors. See `docs/agents/issue-tracker.md`.
+Codeberg Issues (`Zuhause/superdev`). Slices as issues, feature labels, epics as scope anchors. See `docs/agents/issue-tracker.md`.
 
 ### Code host
 Codeberg (Forgejo). Push scope branch, open ready PR against `main`, squash-merge with Conventional Commits title. See `docs/agents/code-management.md`.
