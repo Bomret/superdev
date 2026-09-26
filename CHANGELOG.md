@@ -1,3 +1,10 @@
+## [0.53.1](https://codeberg.org/Zuhause/superdev/compare/v0.53.0...v0.53.1) (2026-09-26)
+
+
+### Bug Fixes
+
+* **repo-move:** point the plugin and docs at Zuhause/superdev ([#693](https://codeberg.org/Zuhause/superdev/issues/693)) ([04d371d](https://codeberg.org/Zuhause/superdev/commit/04d371d48028c923c51daf8a3cf1cf59250af008)), closes [#692](https://codeberg.org/Zuhause/superdev/issues/692)
+
 # [0.53.0](https://codeberg.org/Zuhause/superdev/compare/v0.52.0...v0.53.0) (2026-09-26)
 
 
