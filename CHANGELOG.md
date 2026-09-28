@@ -1,3 +1,22 @@
+# [0.55.0](https://codeberg.org/Zuhause/superdev/compare/v0.54.1...v0.55.0) (2026-09-28)
+
+
+### Bug Fixes
+
+* **bridge-kill-failure:** block a timed-out hook whose kill fails ([8116e66](https://codeberg.org/Zuhause/superdev/commit/8116e666a8e9abac45a838c1a44c92be72252ad6))
+
+
+### Features
+
+* **claude-code-only:** make superdev a Claude Code-only plugin ([a23783e](https://codeberg.org/Zuhause/superdev/commit/a23783e44bc77820aca265fa35db5580dc38fb99))
+* **interview:** offer only live options, and fix a defect the plan finds ([#739](https://codeberg.org/Zuhause/superdev/issues/739)) ([b6b86a0](https://codeberg.org/Zuhause/superdev/commit/b6b86a067b4fbb7b7dc9f112b6ca05c3ccc3cf8b)), closes [#711](https://codeberg.org/Zuhause/superdev/issues/711) [#712](https://codeberg.org/Zuhause/superdev/issues/712) [#712](https://codeberg.org/Zuhause/superdev/issues/712) [#712](https://codeberg.org/Zuhause/superdev/issues/712) [#712](https://codeberg.org/Zuhause/superdev/issues/712) [#713](https://codeberg.org/Zuhause/superdev/issues/713) [#713](https://codeberg.org/Zuhause/superdev/issues/713) [#713](https://codeberg.org/Zuhause/superdev/issues/713) [#712](https://codeberg.org/Zuhause/superdev/issues/712) [#713](https://codeberg.org/Zuhause/superdev/issues/713) [#738](https://codeberg.org/Zuhause/superdev/issues/738) [#714](https://codeberg.org/Zuhause/superdev/issues/714) [#714](https://codeberg.org/Zuhause/superdev/issues/714) [#694](https://codeberg.org/Zuhause/superdev/issues/694) [#704](https://codeberg.org/Zuhause/superdev/issues/704) [#705](https://codeberg.org/Zuhause/superdev/issues/705)
+* **invariant-citations:** resolve every INV citation outside the register ([bc343ed](https://codeberg.org/Zuhause/superdev/commit/bc343edfe51ce15d779fc0bd494aca8919057663))
+
+
+### BREAKING CHANGES
+
+* **claude-code-only:** superdev no longer renders for OpenCode or Codex. Users on those harnesses stay on v0.54.1.
+
 ## [0.54.1](https://codeberg.org/Zuhause/superdev/compare/v0.54.0...v0.54.1) (2026-09-28)
 
 
