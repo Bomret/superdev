@@ -367,17 +367,17 @@ or one whose every heading is blockquoted or indented — fails instead, as `(re
 It checks these kinds of rule:
 
 - **Format.** `Class`, `Concepts`, `Statement` and `Breaks` are present. `Class` and `Statement` each
-  carry a word character once unquoted, so `-` or `—` fails as carrying no word. `Concepts`, and
-  `Paths` or `Symbols` when present, each name at least one comma-separated item once trimmed. A bare
-  `,` fails as naming no concept, path, or symbol. A `Breaks:`
+  carry a word once unquoted: a letter or a digit, in any script. `-`, `—` or `_` fails as carrying no
+  word. `Concepts`, and `Paths` or `Symbols` when present, each name at least one comma-separated item
+  once trimmed. A bare `,` fails as naming no concept, path, or symbol. A `Breaks:`
   value is `silently` or `loudly`, matched case-insensitively, optionally followed by ` — ` and a
   reason and nothing else — anchored, so `loudly, silently` fails rather than passing as loudly and
   skipping the `Check:` requirement; any other shape fails too. A `Breaks: silently` entry carries
   `Check:`, its backticks stripped before the check, and the three ways it can fail each name a
   different reason: missing fails as naming no proof at all, and `` `none` `` (bare or backticked)
   with no reason fails as needing the reason nothing cheaply tests it. `none` wrapped in any other
-  punctuation (`*none*`, `"none"`, `(none)`) fails the same way. A value with no word character
-  once unquoted (`-`, empty backticks) fails as naming no proof; `TBD` stays legal content. No id
+  punctuation (`*none*`, `"none"`, `(none)`) fails the same way. A value with no letter or digit
+  once unquoted (`-`, `_`, empty backticks) fails as naming no proof; `TBD` stays legal content. No id
   repeats. An entry is a `### INV-NNNN` heading — exactly three
   `#`, `INV-` and four digits, nothing else on the line — and the `Key: value` lines under it, in any
   order, and a heading may follow the previous entry's last field with no blank line. A heading that
@@ -405,7 +405,9 @@ It checks these kinds of rule:
   anywhere but the register when the entry names none. A dotted symbol matches on its last segment. Every path-shaped
   token in `Check:` names a file; drift ids and quoted test names are prose and stay unchecked.
 - **Citations.** Every `INV-NNNN` cited in a walked file names an entry the register carries, so
-  retiring or renumbering an entry cannot leave its citations silently stale. A stale citation fails as
+  retiring or renumbering an entry cannot leave its citations silently stale. A citation is `INV-` and
+  four digits with no digit after them, so a trailing letter or `_` does not hide it. A letter, digit
+  or `_` immediately before `INV-`, with no separator, still hides it. A stale citation fails as
   `<id>: citation: cited at <file>:<line>, …`. The register itself, `CHANGELOG.md` and every file under
   `docs/adr/` are not scanned. The changelog is release-managed and an ADR is superseded rather than
   edited, so a stale citation there is dated history that no edit can fix.

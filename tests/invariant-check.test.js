@@ -769,4 +769,52 @@ for (const line of ['- ### INV-0005', '1. ### INV-0005', '- > ### INV-0005']) {
   assert.match(r.out, /^\(register\): id: .*mentions INV-0005 outside any entry/m, 'the failure names the offending line');
 }
 
+// --- #741: an underscore is not a word. A value made only of `_` and punctuation names nothing, while
+// a real proof or statement carrying underscores, or written in non-English script, still passes. A
+// citation glued to a trailing letter or `_` is still read, and a longer digit run never as a shorter id. ---
+for (const value of ['_', '__', '_-_']) {
+  const r = failuresFor(
+    { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0027', [...without('Check'), `Check: ${value}`])) },
+    `underscore Check ${value}`,
+  );
+  assert.equal(r.status, 1, `\`Check: ${value}\` fails on a silently breaking entry (got: ${r.out})`);
+  assert.match(r.out, /^INV-0027: Check: names no proof$/m, 'naming the entry and Check');
+}
+{
+  const real = failuresFor(
+    {
+      'CONTEXT.md': GLOSSARY,
+      'docs/invariants.md': register(entry('INV-0027', [...without('Check'), 'Check: tests/a_b.test.js — pinned by `FULL_SUITE_CONTRACTS`'])),
+      'tests/a_b.test.js': '',
+    },
+    'Check with underscores in a real proof',
+  );
+  assert.equal(real.status, 0, `a real proof carrying underscores passes (got: ${real.out})`);
+}
+for (const key of ['Class', 'Statement']) {
+  const r = failuresFor(
+    { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0028', [...without(key), `${key}: _`])) },
+    `underscore ${key}`,
+  );
+  assert.equal(r.status, 1, `\`${key}: _\` fails (got: ${r.out})`);
+  assert.match(r.out, new RegExp(`^INV-0028: ${key}: carries no word$`, 'm'), 'naming the entry and the field');
+}
+for (const statement of ['Bestellung ändert sich nie', '注文は不変']) {
+  const r = failuresFor(
+    { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0028', [...without('Statement'), `Statement: ${statement}`])) },
+    `non-English Statement ${statement}`,
+  );
+  assert.equal(r.status, 0, `a Statement in non-English script passes (got: ${r.out})`);
+}
+{
+  const STALE = ['INV', '9998'].join('-');
+  const LONGER = ['INV', '99981'].join('-');
+  const base = { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0001', GOOD)) };
+  const glued = failuresFor({ ...base, 'README.md': `See ${STALE}_x and ${STALE}b.\n` }, 'citation glued to a letter or underscore');
+  assert.equal(glued.status, 1, `a citation followed by a letter or underscore is still read (got: ${glued.out})`);
+  assert.match(glued.out, new RegExp(`^${STALE}: citation: .*README\\.md:1`, 'm'), 'and reported with its file and line');
+  const longer = failuresFor({ ...base, 'README.md': `See ${LONGER}.\n` }, 'longer digit run');
+  assert.equal(longer.status, 0, `a longer digit run is never read as a shorter id (got: ${longer.out})`);
+}
+
 console.log('invariant-check tests ok');

@@ -98,6 +98,10 @@ function parseEntries(text) {
 
 const MANDATORY = ['Class', 'Concepts', 'Statement', 'Breaks'];
 
+// A value carries a word when it holds a letter or a digit, in any script. `\w` would count `_` as one,
+// so `Check: _` would read as naming a proof (#741).
+const hasWord = (s) => /[\p{L}\p{N}]/u.test(s);
+
 function formatFailures(entries) {
   const failures = [];
   const seen = new Map();
@@ -109,7 +113,7 @@ function formatFailures(entries) {
     }
     // Concepts and Breaks carry their own value rules below; Class and Statement need a word.
     for (const key of ['Class', 'Statement']) {
-      if (e.fields[key] && !/\w/.test(unquote(e.fields[key]))) {
+      if (e.fields[key] && !hasWord(unquote(e.fields[key]))) {
         failures.push({ id: e.id, field: key, reason: 'carries no word' });
       }
     }
@@ -127,7 +131,7 @@ function formatFailures(entries) {
       if (!proof) failures.push({ id: e.id, field: 'Check', reason: 'a silently breaking entry names its proof' });
       else if (/^[\W_]*none[\W_]*$/i.test(proof)) {
         failures.push({ id: e.id, field: 'Check', reason: '`none` needs the reason nothing cheaply tests it' });
-      } else if (!/\w/.test(proof)) {
+      } else if (!hasWord(proof)) {
         failures.push({ id: e.id, field: 'Check', reason: 'names no proof' });
       }
     }
@@ -257,7 +261,9 @@ function citationFailures(entries, files, read) {
   const failures = [];
   for (const rel of files.filter((f) => !HISTORY(f))) {
     read(rel).split(/\r?\n/).forEach((line, i) => {
-      for (const m of line.matchAll(/\bINV-\d{4}\b/g)) {
+      // No word character before, no digit after: a trailing letter or `_` must not hide a citation,
+      // and a longer digit run must never read as a shorter id (#741).
+      for (const m of line.matchAll(/(?<!\w)INV-\d{4}(?!\d)/g)) {
         if (!ids.has(m[0])) {
           failures.push({ id: m[0], field: 'citation', reason: `cited at ${rel}:${i + 1}, but the register carries no such entry` });
         }
