@@ -4,7 +4,8 @@
 // invariant-check: the maintainer-only validator for a repository's invariant register (ADR 0093).
 // `node scripts/invariant-check.js --root <dir>` reads <dir>/docs/invariants.md and reports every
 // entry that breaks the register's format rules, or names a Paths glob, a symbol, or a Check path
-// that resolves to nothing — one line per failure naming the entry id and the field. It reports and
+// that resolves to nothing, and every INV-NNNN cited outside the register, the changelog, and
+// docs/adr/ that names no entry — one line per failure naming the id and the field. It reports and
 // selects nothing: /superdev:plan and final-reviewer still read the register
 // whole (INV-0088). Pure Node with no shell-out, so it runs on every OS the maintainer uses.
 
@@ -20,12 +21,7 @@ const KNOWN_FIELDS = [...FIELD_KEYS].join(', ');
 // Strips leading whitespace, blockquote markers and list markers off a line, repeatedly, so
 // `> ### INV-0005` and `    ### INV-0005` both expose the heading- or field-shaped text underneath.
 function stripMarkers(line) {
-  let s = line;
-  for (;;) {
-    const next = s.replace(/^\s+/, '').replace(/^>\s?/, '').replace(/^[-*+]\s+/, '').replace(/^\d+\.\s+/, '');
-    if (next === s) return s;
-    s = next;
-  }
+  return line.replace(/^(?:\s+|>\s?|[-*+]\s+|\d+\.\s+)+/, '');
 }
 
 // An entry is a `### INV-NNNN` heading followed by `Key: value` lines, in any order, up to the next
@@ -39,7 +35,8 @@ function parseEntries(text) {
   const entries = [];
   const failures = [];
   let current = null;
-  for (const line of text.split(/\r?\n/)) {
+  // A leading byte-order mark is encoding, not content: left in, it hides a first-line heading.
+  for (const line of text.replace(/^\uFEFF/, '').split(/\r?\n/)) {
     const heading = line.match(/^###\s+INV-(\d{4})\s*$/);
     if (heading) {
       current = { id: `INV-${heading[1]}`, fields: {} };
@@ -110,8 +107,16 @@ function formatFailures(entries) {
     for (const key of MANDATORY) {
       if (!e.fields[key]) failures.push({ id: e.id, field: key, reason: 'mandatory field missing or empty' });
     }
-    if (e.fields.Concepts && list(e.fields.Concepts).length === 0) {
-      failures.push({ id: e.id, field: 'Concepts', reason: 'names no concept' });
+    // Concepts and Breaks carry their own value rules below; Class and Statement need a word.
+    for (const key of ['Class', 'Statement']) {
+      if (e.fields[key] && !/\w/.test(unquote(e.fields[key]))) {
+        failures.push({ id: e.id, field: key, reason: 'carries no word' });
+      }
+    }
+    for (const [key, noun] of [['Concepts', 'concept'], ['Paths', 'path'], ['Symbols', 'symbol']]) {
+      if (e.fields[key] && list(e.fields[key]).length === 0) {
+        failures.push({ id: e.id, field: key, reason: `names no ${noun}` });
+      }
     }
     const breaks = e.fields.Breaks || '';
     if (breaks && !/^(silently|loudly)(\s+—.*)?$/i.test(breaks)) {
@@ -120,7 +125,7 @@ function formatFailures(entries) {
     if (/^silently\b/i.test(breaks)) {
       const proof = unquote(e.fields.Check || '');
       if (!proof) failures.push({ id: e.id, field: 'Check', reason: 'a silently breaking entry names its proof' });
-      else if (/^none\W*$/i.test(proof)) {
+      else if (/^[\W_]*none[\W_]*$/i.test(proof)) {
         failures.push({ id: e.id, field: 'Check', reason: '`none` needs the reason nothing cheaply tests it' });
       } else if (!/\w/.test(proof)) {
         failures.push({ id: e.id, field: 'Check', reason: 'names no proof' });
@@ -239,6 +244,28 @@ function checkPathFailures(entry, root) {
   return failures;
 }
 
+// Files whose citations are dated history rather than live text: the register itself, the
+// release-managed changelog, and ADRs, which are superseded rather than edited. A stale citation
+// there cannot be fixed by editing, so it is never reported.
+const HISTORY = (rel) => rel === REGISTER.replace(/\\/g, '/') || rel === 'CHANGELOG.md' || rel.startsWith('docs/adr/');
+
+// Every `INV-NNNN` cited in a walked file outside HISTORY must name an entry the register carries,
+// so retiring or renumbering an entry cannot leave its citations silently stale (#689).
+function citationFailures(entries, files, read) {
+  const ids = new Set(entries.map((e) => e.id));
+  const failures = [];
+  for (const rel of files.filter((f) => !HISTORY(f))) {
+    read(rel).split(/\r?\n/).forEach((line, i) => {
+      for (const m of line.matchAll(/\bINV-\d{4}\b/g)) {
+        if (!ids.has(m[0])) {
+          failures.push({ id: m[0], field: 'citation', reason: `cited at ${rel}:${i + 1}, but the register carries no such entry` });
+        }
+      }
+    });
+  }
+  return failures;
+}
+
 function check(root) {
   const file = path.join(root, REGISTER);
   if (!fs.existsSync(file)) return { entries: null, failures: [] };
@@ -257,6 +284,7 @@ function check(root) {
     const { governed, failures: pathFailures } = governedFiles(e, files);
     failures.push(...pathFailures, ...symbolFailures(e, governed, files, read), ...checkPathFailures(e, root));
   }
+  failures.push(...citationFailures(entries, files, read));
   return { entries, failures };
 }
 

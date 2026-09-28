@@ -559,16 +559,19 @@ or one whose every heading is blockquoted or indented — fails instead, as `(re
 \`### INV-NNNN\` entry found`, rather than passing as "0 entries hold". A missing or non-directory
 `--root` exits 2 with usage.
 
-It checks two kinds of rule:
+It checks these kinds of rule:
 
-- **Format.** `Class`, `Concepts`, `Statement` and `Breaks` are present; `Concepts` also names at
-  least one comma-separated item once trimmed, so a bare `,` fails as naming no concept. A `Breaks:`
+- **Format.** `Class`, `Concepts`, `Statement` and `Breaks` are present. `Class` and `Statement` each
+  carry a word character once unquoted, so `-` or `—` fails as carrying no word. `Concepts`, and
+  `Paths` or `Symbols` when present, each name at least one comma-separated item once trimmed. A bare
+  `,` fails as naming no concept, path, or symbol. A `Breaks:`
   value is `silently` or `loudly`, matched case-insensitively, optionally followed by ` — ` and a
   reason and nothing else — anchored, so `loudly, silently` fails rather than passing as loudly and
   skipping the `Check:` requirement; any other shape fails too. A `Breaks: silently` entry carries
   `Check:`, its backticks stripped before the check, and the three ways it can fail each name a
-  different reason: missing fails as naming no proof at all, `` `none` `` (bare or backticked) with
-  no reason fails as needing the reason nothing cheaply tests it, and a value with no word character
+  different reason: missing fails as naming no proof at all, and `` `none` `` (bare or backticked)
+  with no reason fails as needing the reason nothing cheaply tests it. `none` wrapped in any other
+  punctuation (`*none*`, `"none"`, `(none)`) fails the same way. A value with no word character
   once unquoted (`-`, empty backticks) fails as naming no proof; `TBD` stays legal content. No id
   repeats. An entry is a `### INV-NNNN` heading — exactly three
   `#`, `INV-` and four digits, nothing else on the line — and the `Key: value` lines under it, in any
@@ -590,17 +593,23 @@ It checks two kinds of rule:
   `Symbols`, `Paths` — fails, naming that key, so a misspelling like `Path:` or `Symbol:` is never
   silently ignored; a key matching one of the seven case-insensitively but written in the wrong case
   (`paths:`) is reported as such, naming the correct spelling, rather than as an unrecognised field.
-  CRLF reads as LF.
+  CRLF reads as LF, and a leading byte-order mark is dropped before parsing.
 - **Resolution.** Every `Concepts` value equals a glossary term — the bold text opening a line of any
   `CONTEXT.md` the walk reaches, so a multi-context repository needs no map parser. Every `Paths` glob
   matches a file. Every `Symbols` value appears as a whole word in the files the entry's `Paths` match, or
   anywhere but the register when the entry names none. A dotted symbol matches on its last segment. Every path-shaped
   token in `Check:` names a file; drift ids and quoted test names are prose and stay unchecked.
+- **Citations.** Every `INV-NNNN` cited in a walked file names an entry the register carries, so
+  retiring or renumbering an entry cannot leave its citations silently stale. A stale citation fails as
+  `<id>: citation: cited at <file>:<line>, …`. The register itself, `CHANGELOG.md` and every file under
+  `docs/adr/` are not scanned. The changelog is release-managed and an ADR is superseded rather than
+  edited, so a stale citation there is dated history that no edit can fix. Rendered fixtures are
+  scanned, since drift-check already forces them to match a fresh render of their source.
 
 The walk prunes `.git/`, `node_modules/`, `.superdev/` and `.claude/` — the last because
 `.claude/worktrees/` holds whole repository copies with their own `CONTEXT.md`, and the walk reads
 no `.gitignore`: an ignored file outside the pruned directories still counts toward `Concepts`,
-`Paths` and `Symbols`. Parsing `.gitignore`, or shelling out to `git ls-files`, is out of scope — the
+`Paths`, `Symbols` and citations. Parsing `.gitignore`, or shelling out to `git ls-files`, is out of scope — the
 CLI is deliberately pure Node with no shell-out. It builds relative paths with `/` itself, so
 a glob matches the same files on every OS. `globMatcher` is its own: `fs.globSync` needs Node 22, and
 `package.json` supports Node 20.8.1. The validator filters and ranks no entry — `/superdev:plan` and

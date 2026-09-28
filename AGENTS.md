@@ -292,8 +292,9 @@ This root owns every other subtree directly:
   contract table). What each guards, check by check, lives in that child doc.
   `scripts/invariant-check.js` is the maintainer-only register validator (ADR 0093): it checks a
   repository's `docs/invariants.md` against the register's format rules and resolves each entry's
-  `Concepts`, `Paths`, `Symbols` and `Check:` paths. It selects no entry (INV-0088), and nothing under
-  `plugin/` requires it (INV-0051).
+  `Concepts`, `Paths`, `Symbols` and `Check:` paths. It also checks that every `INV-NNNN` cited outside
+  the register, the changelog, and `docs/adr/` names an entry. It selects no entry (INV-0088), and
+  nothing under `plugin/` requires it (INV-0051).
 - `plugin/references/`. Backend seed templates plus the runtime references. Owned by
   [`plugin/references/AGENTS.md`](plugin/references/AGENTS.md), which routes every reference to what it
   owns and to the runtime surface that reads it. Each reference's own opening states its full contract.

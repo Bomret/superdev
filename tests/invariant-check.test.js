@@ -655,4 +655,109 @@ const withField = (key, value) => [...GOOD.filter((l) => !l.startsWith(`${key}:`
   assert.match(commaOnly.out, /^INV-0021: Concepts: names no concept$/m, 'names the entry and the reason');
 }
 
+// --- inbound citations (#689): an id cited outside the register must name an entry it carries.
+// STALE is built at runtime so this file's own source never cites a missing id — the repository's
+// own `invariant-check --root .` walks tests/ too. ---
+{
+  const STALE = ['INV', '9999'].join('-');
+  const base = { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0001', GOOD)) };
+
+  const stale = failuresFor(
+    { ...base, 'docs/guide.md': `# Guide\n\nSee INV-0001.\nAnd ${STALE} too.\n`, 'src/gate.js': `// ${STALE}\n` },
+    'stale citations',
+  );
+  assert.equal(stale.status, 1, `a citation the register lacks fails (got: ${stale.out})`);
+  assert.match(stale.out, new RegExp(`^${STALE}: citation: .*docs/guide\\.md:4`, 'm'), 'names the id, the Markdown file, and the line');
+  assert.match(stale.out, new RegExp(`^${STALE}: citation: .*src/gate\\.js:1`, 'm'), 'and a .js file');
+  assert.doesNotMatch(stale.out, /^INV-0001: citation/m, 'a citation the register carries is not reported');
+
+  const resolved = failuresFor({ ...base, 'README.md': 'Held by INV-0001.\n' }, 'resolved citation');
+  assert.equal(resolved.status, 0, `a citation that resolves passes (got: ${resolved.out})`);
+
+  const history = failuresFor(
+    {
+      'CONTEXT.md': GLOSSARY,
+      'docs/invariants.md': register(entry('INV-0001', GOOD)),
+      'CHANGELOG.md': `- dropped ${STALE}\n`,
+      'docs/adr/0001-x.md': `# 1. X\n\nCites ${STALE}.\n`,
+      'docs/adr/nested/0002-y.md': `Cites ${STALE}.\n`,
+    },
+    'history exclusions',
+  );
+  assert.equal(history.status, 0, `CHANGELOG.md and docs/adr/ are never scanned (got: ${history.out})`);
+
+  const skipped = failuresFor(
+    {
+      ...base,
+      '.git/x': `${STALE}\n`,
+      'node_modules/p/index.js': `${STALE}\n`,
+      '.superdev/scopes/s/ledger.md': `${STALE}\n`,
+      '.claude/settings.json': `"${STALE}"\n`,
+    },
+    'skipped directories',
+  );
+  assert.equal(skipped.status, 0, `a skipped directory is never scanned (got: ${skipped.out})`);
+
+  const noRegister = run(['--root', repo({ 'CONTEXT.md': GLOSSARY, 'README.md': `${STALE}\n` })], 'no register, stale citation');
+  assert.equal(noRegister.status, 0, 'a repository with no register still passes, whatever it cites');
+  assert.match(noRegister.stdout, /no register/i, 'and says there is nothing to check');
+}
+
+// --- #724 residuals from #691's final review. ---
+// A reasonless `none` wrapped in any punctuation fails like a backticked bare `none`; a reason passes.
+for (const wrapped of ['*none*', '**none**', '"none"', '(none)', '_none_']) {
+  const r = failuresFor(
+    { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0022', [...without('Check'), `Check: ${wrapped}`])) },
+    `wrapped none ${wrapped}`,
+  );
+  assert.equal(r.status, 1, `\`Check: ${wrapped}\` fails on a silently breaking entry (got: ${r.out})`);
+  assert.match(r.out, /^INV-0022: Check: `none` needs the reason/m, 'naming the entry and Check');
+}
+{
+  const reasoned = failuresFor(
+    { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0022', [...without('Check'), 'Check: *none* — nothing cheaply tests it'])) },
+    'wrapped none with a reason',
+  );
+  assert.equal(reasoned.status, 0, `a wrapped none followed by a reason passes (got: ${reasoned.out})`);
+}
+
+// A mandatory field whose value carries no word character fails, naming the entry and the field.
+for (const [key, value] of [['Class', '-'], ['Statement', '—'], ['Class', '``']]) {
+  const r = failuresFor(
+    { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0023', [...without(key), `${key}: ${value}`])) },
+    `wordless ${key}`,
+  );
+  assert.equal(r.status, 1, `\`${key}: ${value}\` fails (got: ${r.out})`);
+  assert.match(r.out, new RegExp(`^INV-0023: ${key}: `, 'm'), 'naming the entry and the field');
+}
+
+// A present `Paths:` or `Symbols:` value that names nothing fails; omitting either still passes.
+for (const key of ['Paths', 'Symbols']) {
+  const r = failuresFor(
+    { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0024', [...GOOD, `${key}: ,`])) },
+    `comma-only ${key}`,
+  );
+  assert.equal(r.status, 1, `\`${key}: ,\` fails (got: ${r.out})`);
+  assert.match(r.out, new RegExp(`^INV-0024: ${key}: names no `, 'm'), 'naming the entry and the field');
+}
+
+// A byte-order mark directly before a first-line entry heading parses like the same text without it.
+{
+  const text = `${entry('INV-0025', GOOD)}\n${entry('INV-0026', GOOD)}`;
+  const bom = failuresFor({ 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': `\uFEFF${text}` }, 'BOM before first heading');
+  const plain = failuresFor({ 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': text }, 'no BOM');
+  assert.equal(bom.status, 0, `a leading BOM before \`### INV-0025\` passes (got: ${bom.out})`);
+  assert.equal(bom.out, plain.out, 'and reports exactly what the same text without the mark reports');
+}
+
+// Bulleted and numbered heading-shaped lines outside any entry fail, as blockquoted and indented ones do.
+for (const line of ['- ### INV-0005', '1. ### INV-0005', '- > ### INV-0005']) {
+  const r = failuresFor(
+    { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': `${register(entry('INV-0001', GOOD))}\n## Retired\n\n${line}\n` },
+    `marked heading ${line}`,
+  );
+  assert.equal(r.status, 1, `\`${line}\` outside any entry fails`);
+  assert.match(r.out, /^\(register\): id: .*mentions INV-0005 outside any entry/m, 'the failure names the offending line');
+}
+
 console.log('invariant-check tests ok');
