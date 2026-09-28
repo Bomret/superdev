@@ -1,3 +1,16 @@
+# [0.56.0](https://codeberg.org/Zuhause/superdev/compare/v0.55.0...v0.56.0) (2026-09-28)
+
+
+### Bug Fixes
+
+* **invariant-check-underscores:** stop reading an underscore as a word ([68af9b0](https://codeberg.org/Zuhause/superdev/commit/68af9b0d4c0772faf830f18b65d23954c544eb74))
+* **invariant-check:** read a glossary term that opens a list item ([#740](https://codeberg.org/Zuhause/superdev/issues/740)) ([6eb0cfa](https://codeberg.org/Zuhause/superdev/commit/6eb0cfa111d3f5212d95b73d4062f8a88929c5e7))
+
+
+### Features
+
+* **ship-deploys:** ship deploys the merged commit under the repository's deploy posture ([59e5761](https://codeberg.org/Zuhause/superdev/commit/59e5761ae50e4ee34d94cc24a0020c4d176d12b5))
+
 # [0.55.0](https://codeberg.org/Zuhause/superdev/compare/v0.54.1...v0.55.0) (2026-09-28)
 
 
