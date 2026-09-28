@@ -94,8 +94,10 @@ Report the verdicts and stop.
 ## 2. Decide (one at a time)
 
 Assume the user may not know these terms. Each decision: a one-line explainer, the choices, and a
-proposed default inferred from the remote — cross-exam.md's recommended-answer rule applied to a config
-choice, so never present the choices bare. Using `AskUserQuestion`? Mark the default `(Recommended)`.
+proposed default inferred from the remote — `<plugin-root>/references/cross-exam.md`'s
+recommended-answer and live-options rules applied to a config choice: present every choice alongside the
+proposed default, and each alternative's description states what choosing it saves, or why it does not
+fit this repo. Using `AskUserQuestion`? Mark the default `(Recommended)`.
 
 **A — Slice store.** Where do slices/plans live?
 

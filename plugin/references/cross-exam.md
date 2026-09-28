@@ -16,6 +16,14 @@ exhausted and you and the user share the same picture — **not** until you have
   description, and never present a bare neutral list. Reserve prose for genuinely open questions that have
   no option set to offer. A genuine toss-up (two readings truly equal) → say so explicitly rather than
   fabricate a preference.
+- **Offer only live options.** Every option beside the recommended one states, in its description, what
+  choosing it saves — time, scope size, risk, reversibility, a human check. A question you compose drops
+  any option that can name no saving; when none survives, the decision has one defensible answer: state
+  it in one line with its reason ("fixing X in slice 2, because Y") and continue with the next question.
+  Stating it out loud is what keeps it surfaced, and the user can object in any later turn. A question a
+  skill requires by name — a release, new vs extend, a setup choice — keeps its fixed option set and is
+  asked every time regardless: an option in that set that can name no saving states why instead of being
+  dropped.
 - **Walk the design tree, branch by branch.** Resolve dependencies between decisions one by one: a
   decision that constrains others is asked first; never ask a downstream question whose answer a still-open
   upstream decision would change. Finish a branch before starting the next. **Recompute the open frontier
@@ -51,6 +59,7 @@ exhausted and you and the user share the same picture — **not** until you have
 
 Stop when every load-bearing decision is resolved (or explicitly parked as a known-open question), the
 picture is shared, and the next question would be ceremony. Stopping earlier — at "enough to begin" — is
-the failure this discipline exists to prevent. Then state the shared picture in a few sentences and **get
-the user's explicit confirmation of it before acting on it** — slicing, writing, and briefing all wait
+the failure this discipline exists to prevent. Then state the shared picture in a few sentences, listing
+every decision you stated rather than asked, and **get the user's explicit confirmation of it before
+acting on it** — slicing, writing, and briefing all wait
 for that confirmation, not just for the questions to run out.

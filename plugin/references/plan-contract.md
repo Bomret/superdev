@@ -377,9 +377,10 @@ only once the scope branch carrying it merges (ADR 0046, ADR 0048).
 
 These invariants fix its shape, and every backend renders all of them:
 
-- **The controller writes it, at the trigger moment.** `/superdev:review` writes a deferred finding's
+- **The command that finds it writes it, at the trigger moment.** `/superdev:review` writes a deferred finding's
   record the moment it defers; whichever chain command is running writes an observation's record the
-  moment a controller meets one (`references/scope-mode.md`'s `## Observations` section). A run reviewed
+  moment a controller meets one, and `/superdev:plan` writes one the moment its interview places a found
+  defect **later** (`references/scope-mode.md`'s `## Observations` section). A run reviewed
   and then abandoned never reaches `/superdev:submit-pr`, and its run root is pruned with the findings still
   inside, so the command that finds the work is the one that records it.
 - **It is neither a slice nor a scope anchor.** No candidate listing and no slice loader ever selects it.
@@ -394,7 +395,7 @@ These invariants fix its shape, and every backend renders all of them:
 - **The write is best-effort**, exactly as a status label is. **The deferred trigger's** failure or
   denial leaves the ledger bullet written and the review unblocked, reported once per run, because the
   ledger drives control flow. **The observation trigger writes no ledger bullet at all**: its own failure
-  or denial is reported once by whichever chain command met it, per `references/scope-mode.md`'s
+  or denial is reported once by whichever command met it, per `references/scope-mode.md`'s
   `## Observations` section, since the triage record is that trigger's only artifact.
 - **It is listable.** `/superdev:backlog` is the consumer: its survey groups every triage record the active
   store returns by the action it needs, so a record no listing call can reach stays invisible to it.

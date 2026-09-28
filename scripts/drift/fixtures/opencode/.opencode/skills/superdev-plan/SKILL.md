@@ -1,6 +1,6 @@
 superdev-render-overlay
 source: skills/plan/SKILL.md
-body-lines: 488
+body-lines: 508
 ---
 # generated-by: superdev-adapter — a re-render overwrites this directory
 name: superdev-plan
@@ -44,61 +44,63 @@ Intent still vague — no clear problem, no checkable success criteria? Suggest 
 (`<plugin-root>/references/plan-contract.md` → *Feature label*). The type is what the feature
 @174
 `<plugin-root>/references/diagnosis.md` and hold the plan to it: the **red-capable command** —
-@181
+@184
+`<plugin-root>/references/scope-mode.md`'s `## Observations` capture rules, with the provenance
+@196
 **Read `<plugin-root>/references/domain-modeling.md` and apply it as you interview.** Read any
-@193
+@208
 another session stops the run now, per `<plugin-root>/references/scope-mode.md`'s `## The run
-@199
+@214
 (`<run-root>` is `node "<plugin-root>/scripts/scope.js" root <slug>`'s printed path, ADR 0080),
-@200
-following the one cut rule `<plugin-root>/references/scope-mode.md`'s `## Cutting the scope
-@201
-branch` states for `/superdev-plan` (ADR 0079). Write that capture, and every capture from then on —
-@212
-`CONTEXT.md` (`<plugin-root>/references/domain-modeling.md`'s numbering rule) — a slot this
 @215
+following the one cut rule `<plugin-root>/references/scope-mode.md`'s `## Cutting the scope
+@216
+branch` states for `/superdev-plan` (ADR 0079). Write that capture, and every capture from then on —
+@227
+`CONTEXT.md` (`<plugin-root>/references/domain-modeling.md`'s numbering rule) — a slot this
+@230
 (`<plugin-root>/references/scope-mode.md`'s `## A live scope run` → *Run-root enumeration*) whose
-@223
+@238
 (`<plugin-root>/references/scope-mode.md`'s `## The ledger`), not a corrupt one — `/superdev-status`
-@225
+@240
 after this point still leaves a `ledger.md` beside the branch and the scopetree, so `/superdev-status` and
-@226
+@241
 `/superdev-backlog` see it. An append onto a `planned` ledger finds one already there from the earlier
-@267
+@285
   the body below. `/superdev-publish-kb` sends no non-`.md` file; `/superdev-status` prints it as a stray
-@269
+@287
   `/superdev-publish-kb` sends it when the feature reaches its readers. A **local** `docs/kb/` backend
-@280
+@298
   `/superdev-publish-kb` merges the
-@283
+@301
   before `/superdev-publish-kb` ever sees either — append `-2`, `-3`, … to the later ones'
-@289
+@307
 and stale removal happen in `/superdev-document` (ADR 0013).
-@313
+@331
 `<plugin-root>/references/design-sketch.md` and follow it through to the operator's approval of
-@317
+@335
 Decompose into **vertical slices** (`<plugin-root>/references/plan-contract.md` owns the rules
-@327
-  (`<plugin-root>/references/plan-contract.md` → *Wide refactors*): expand, migrate in batches,
 @345
+  (`<plugin-root>/references/plan-contract.md` → *Wide refactors*): expand, migrate in batches,
+@363
   `/superdev-document` reconciles README, `AGENTS.md`, and the KB after the scope lands. Slice out `docs`
-@412
+@430
 *Scope anchor*, ADR 0040). It is what lets `/superdev/afk` reach the two in the right order. Ask nothing
-@424
+@442
 **Tell the user the expected execution tier** — informational only; `/superdev-plan` persists it nowhere.
-@425
+@443
 `/superdev-implement` derives it fresh from the final slice count — **≤3 slices → `lite`** (the
-@428
+@446
 every slice is on the scope branch — to `/superdev-review`, or straight to `/superdev-document` when
-@435
+@453
 `<plugin-root>/references/scope-mode.md`'s `## Cutting the scope branch` (ADR 0079) — the same
-@449
+@469
 `<plugin-root>/references/run-init.md`'s `## Run init — definition of done + ledger` section
-@452
+@472
 `planned` is what hands the scope branch to `/superdev-implement` as ready): carry the anchor this plan
-@467
+@487
   Say that `/superdev-implement` asks for confirmation until then.
-@473
+@493
 `/superdev/afk` slices nobody released. **Release now** applies it as it always does. On a first plan
-@484
+@504
 the feature label resolved** — `/superdev-implement <feature-label>`, carrying the real label this plan

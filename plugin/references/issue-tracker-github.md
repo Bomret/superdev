@@ -214,8 +214,8 @@ dispatch swaps to `in-progress`.
 ## Triage record
 
 `plan-contract.md` → *Triage record*. `/superdev:review` creates one the moment it defers a finding; the
-controller creates one the same way the moment it meets an observation
-(`references/scope-mode.md`'s `## Observations` section).
+controller creates one the same way the moment it meets an observation, and `/superdev:plan` the moment its
+interview places a found defect later (`references/scope-mode.md`'s `## Observations` section).
 On this store it is an ordinary issue carrying the **Triage label** from *Configuration* and nothing else.
 
 - **Create it:** `POST /repos/<owner>/<repo>/issues` with

@@ -166,8 +166,8 @@ swaps that one to `in-progress`.
 ## Triage record
 
 `plan-contract.md` → *Triage record*. `/superdev:review` creates one the moment it defers a finding; the
-controller creates one the same way the moment it meets an observation
-(`references/scope-mode.md`'s `## Observations` section).
+controller creates one the same way the moment it meets an observation, and `/superdev:plan` the moment its
+interview places a found defect later (`references/scope-mode.md`'s `## Observations` section).
 Here it is an ordinary Codeberg issue carrying the label **`triage`** and nothing else.
 
 - **Create it:** `POST /api/v1/repos/Zuhause/superdev/issues` with

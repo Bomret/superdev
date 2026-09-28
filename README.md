@@ -47,7 +47,12 @@ plan runs test-first, inline in the scopetree.
   which routes each rejected direction to a durable home. Near read-only: it writes nothing to the slice
   store.
 - **`/superdev:plan`**. A relentless interview pins the intent and a Definition of Done, and captures
-  ADRs and a glossary as decisions surface. Every Definition of Done it writes carries a `Reachable:`
+  ADRs and a glossary as decisions surface. Every alternative to its recommendation names what choosing
+  it saves, or, for an option in a fixed set a question requires by name, states why it doesn't fit. A
+  decision with only one defensible answer is stated with its reason instead of asked, and the closing
+  summary lists it for your confirmation. A defect the interview finds is always fixed: the command asks
+  only whether the fix goes into a planned slice, into its own slice, or into a triage record for later.
+  Every Definition of Done it writes carries a `Reachable:`
   criterion naming the entrance a user reaches the feature through — or `none` and the reason, such as no
   in-repo consumer or an unchanged entrance on a refactor — so a feature cannot be planned without
   deciding what wires it into the running application. Before it decomposes, it offers a **design sketch**: a
@@ -121,7 +126,8 @@ plan runs test-first, inline in the scopetree.
   it: no candidate listing and no slice loader selects it. A real defect the run meets that no slice
   covers, and that the scope did not cause, earns the same kind of record. A flaky test in untouched
   code is an example. Whichever chain command meets
-  it writes the record then, never at a handoff
+  it writes the record then, never at a handoff, and `/superdev:plan` writes one when you place a found
+  defect for later
   ([ADR 0088](docs/adr/0088-an-observation-is-recorded-where-it-is-met.md)). Either way the command
   dispatches `final-reviewer`, plus `simplicity-reviewer` on the `lite` tier. The `full` tier already
   ran that reviewer per slice, so the whole-scope pass skips it rather than re-reading cut-down code

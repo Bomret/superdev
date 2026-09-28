@@ -140,8 +140,8 @@ instead — a `released: yes` line in the epic file's header, read where the sta
 ## Triage record
 
 `plan-contract.md` → *Triage record*. `/superdev:review` creates one the moment it defers a finding; the
-controller creates one the same way the moment it meets an observation
-(`references/scope-mode.md`'s `## Observations` section).
+controller creates one the same way the moment it meets an observation, and `/superdev:plan` the moment its
+interview places a found defect later (`references/scope-mode.md`'s `## Observations` section).
 This store has no labels, so the record is a **file**: `docs/plans/triage/<slug>.md`, where `<slug>` is a
 short kebab-case summary of the finding. A file already at that path takes a `-2`, `-3`, … suffix, so two
 findings summarised the same way stay two records.

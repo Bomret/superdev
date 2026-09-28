@@ -181,6 +181,21 @@ one invocation that reproduces the defect, already run once — becomes the firs
 the first slice, so the Definition of Done is falsifiable before anything is built. A defect nobody can
 reproduce yet is what that first slice delivers, not a detail left for the implementer to discover.
 
+**A defect the interview finds is fixed; ask only where.** Reading the code for the interview can surface
+a real defect this scope did not cause — a broken script, a wrong guard, a stale contract. Its fix is
+settled, so the question is placement, with cross-exam.md's live-options test on each answer: **in a
+planned slice** (the one already touching that code), **its own slice in this scope**, or **later**.
+**Later** makes it an **observation**: write its triage record the moment the user picks it, following
+`<plugin-root>/references/scope-mode.md`'s `## Observations` capture rules, with the provenance
+that exists at that moment — the date, and the feature label, scope branch, and anchor once each exists.
+A store whose triage record rides the scope branch holds it, like any other capture, until the scopetree
+exists to write it into: whenever `<run-root>/scopetree` already exists at that moment — an append, or a
+fresh plan already past §2's cut — this writes it in at once, reading `<run-root>/run.lock` first (a fresh
+lock naming another session stops the run) and refreshing it right after the read, before the record is
+written; refreshing this session's own lock on the already-past-§2's-cut case is harmless, so no case
+split is needed. Otherwise it holds until whichever cut happens first — §2's, on a capture crystallising,
+or §6's, on reaching that step with no scopetree yet.
+
 ## 2. Domain-model as you go
 
 **Read `<plugin-root>/references/domain-modeling.md` and apply it as you interview.** Read any
@@ -238,9 +253,12 @@ A capture that crystallises before §1 has settled the feature label has nowhere
 the conversation until the label exists, then cut and write it the moment it does. **A label revised
 before §6 writes to the store** undoes it under the old label — remove the scopetree
 (`git worktree remove <run-root>/scopetree`) and delete the branch (`git branch -D <old-type>/<old-slug>`)
-— safe because the branch at that point can carry nothing but this session's own design docs, and an
-append never revises a picked label — then re-cuts both under the revised label and re-writes every
-capture already held, so the scopetree and the branch always carry the label the plan ends with.
+— safe because the branch at that point can carry nothing but this session's own design docs and, on a
+branch-riding store, this session's own triage records too, and an append never revises a picked label —
+then re-cuts both under the revised label and re-writes every capture already held, that record included;
+on a store whose triage record lives outside the branch, amend it instead so its provenance names the
+revised label and branch, through that store's own `## Triage record` section (best-effort, like every
+other store write), so the scopetree and the branch always carry the label the plan ends with.
 
 **Route the seeded rejects before this plan ends.** Every rejected direction §1 carried in lands where
 the reference says — an ADR's `Considered options` for a dropped approach, the epic's non-goals for
@@ -441,9 +459,11 @@ cut the way §2's own cut rule would have, per
 reference §2 already defers to, which decides what to do when the branch or scopetree is already
 present — write `<run-root>/run.lock` right after, per `## The run lock`, and write the ledger the same
 way §2 does at its own cut — `{"anchor": "<key> — <title>", "slices": []}` piped to `scope.js init
-<type>/<scope> planned` — since no capture ever crystallised to trigger §2's own write. Every plan run
-ends the same shape — a branch, a scopetree, and the ledger below — whether or not a design doc ever
-crystallised.
+<type>/<scope> planned` — since no capture ever crystallised to trigger §2's own write. A held triage
+record from §1's "later" placement — held because no scopetree existed yet when it was picked — writes
+into the scopetree right after this cut, the same way §2's own cut would have released it. Every plan
+run ends the same shape — a branch, a scopetree, and the ledger below — whether or not a design doc
+ever crystallised.
 
 **Commit what the scopetree holds, on the scope branch.** `git -C <run-root>/scopetree add` and `commit`
 whatever `CONTEXT.md`, `docs/adr/`, and `docs/invariants.md` changes §2 wrote there — nothing, on a run

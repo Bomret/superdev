@@ -11,7 +11,7 @@ Where `/superdev-plan` **converges** — one question at a time, pinning down a 
 @6
 Near read-only — it does not write slices, a Definition of Done, or anything to the slice store; that's `/superdev-plan`'s job.
 @10
-**Run it with the interview discipline in `<plugin-root>/references/cross-exam.md`** — relentless, one thread at a time, exploring the code instead of asking wherever you can, surfacing contradictions the moment they appear — but in **divergent** mode: offer options rather than a single recommended answer, and let the tree branch wider before it narrows. Apply the **active moves** in
+**Run it with the interview discipline in `<plugin-root>/references/cross-exam.md`** — relentless, one thread at a time, exploring the code instead of asking wherever you can, surfacing contradictions the moment they appear — but in **divergent** mode: offer options rather than a single recommended answer, and let the tree branch wider before it narrows. Every option offered still states what choosing it saves, cross-exam.md's live-options test applied with no recommended answer to test alternatives against. Apply the **active moves** in
 @11
 `<plugin-root>/references/domain-modeling.md` too — challenge vague terms, sharpen fuzzy language, cross-check claims against the code — to think precisely. Apply
 @12

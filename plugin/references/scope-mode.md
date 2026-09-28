@@ -710,6 +710,11 @@ sees only its own slice and cannot make that call; it reports what it met, and t
 controller's own observations are in scope too: it runs the merges and the gate, so it is the participant
 most likely to meet one itself.
 
+**`/superdev:plan` writes one too**, when its interview finds a defect this scope did not cause and the
+user places the fix **later** (`skills/plan/SKILL.md` §1). The plan holds the scope, so the same test
+holds; the record carries the provenance that exists at that moment, and every capture rule below applies
+unchanged.
+
 **The triage record is the only artifact.** No ledger line, no pull-request body. It already carries the
 finding, the conditions, the date, the feature label, the scope branch, the anchor, and a copy-pasteable
 `/superdev:plan` line, and it outlives the run on its own.
