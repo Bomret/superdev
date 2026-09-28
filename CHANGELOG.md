@@ -1,3 +1,10 @@
+## [0.54.1](https://codeberg.org/Zuhause/superdev/compare/v0.54.0...v0.54.1) (2026-09-28)
+
+
+### Bug Fixes
+
+* **bridge-spawn-failure:** answer every spawn failure, and retry a transient one once ([#708](https://codeberg.org/Zuhause/superdev/issues/708)) ([aa1fe0d](https://codeberg.org/Zuhause/superdev/commit/aa1fe0d3a271704244abb40f2f2686bb13ec1def)), closes [#681](https://codeberg.org/Zuhause/superdev/issues/681) [#681](https://codeberg.org/Zuhause/superdev/issues/681) [#688](https://codeberg.org/Zuhause/superdev/issues/688) [#706](https://codeberg.org/Zuhause/superdev/issues/706)
+
 # [0.54.0](https://codeberg.org/Zuhause/superdev/compare/v0.53.1...v0.54.0) (2026-09-28)
 
 
