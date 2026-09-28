@@ -22,9 +22,9 @@ This doc owns what each script guards and the contracts between them. Repo-wide 
 `scope.js` owns the ledger's schema and is the only `ledger.md` read and write path in the chain:
 `init`, `stage set`, `slice`, `degraded add|add-denial|reset-denials`, `unresolved add|clear`,
 `deferred add`,
-`docs set <value>|clear`, `suite set <green|red|denied|none> <sha>`,
+`docs set <value>|clear`, `pr set <n>|clear`, `suite set <green|red|denied|none> <sha>`,
 `suite reusable --branch <b> [--plan-files]`,
-`get stage|branch|anchor|slices|unresolved|degraded|deferred|denials|docs|suite`,
+`get stage|branch|anchor|slices|unresolved|degraded|deferred|denials|docs|pr|suite`,
 `status` (which renders the whole `/superdev:status` report), `publish`, `adopt`, `root <slug>`, and
 `dod-line`.
 `suite set` writes the **suite record** (CONTEXT.md) — the last full-suite run's result and the commit
@@ -635,7 +635,7 @@ when a new check lands.
 itself resolves to a file that exists. A reference cites another reference, as both execution
 playbooks point at `scope-mode.md`, so a rename there dangles like any other. The
 `run-root` contract: `skills/implement/SKILL.md`, `skills/review/SKILL.md`, `skills/document/SKILL.md`,
-`skills/ship/SKILL.md`, `skills/publish-kb/SKILL.md`, `references/implement-full.md`,
+`skills/submit-pr/SKILL.md`, `skills/publish-kb/SKILL.md`, `references/implement-full.md`,
 `references/implement-lite.md`, `references/run-init.md`, `references/run-handoff.md`,
 `references/scope-mode.md`, `agents/implementer.md`, `agents/slice-reviewer.md`,
 `agents/simplicity-reviewer.md`, and `agents/final-reviewer.md` address
@@ -698,7 +698,7 @@ pass's prose (ADR 0031). The `command-resolution` contract: every `/superdev:<na
 or `agents/` resolves to a `skills/<name>/SKILL.md` file, so a chain handoff never points the reader at
 a command that does not exist. The `chain-handoff` contract: `skills/implement/SKILL.md`,
 `skills/review/SKILL.md`, and `skills/document/SKILL.md` each name their successor in the chain.
-`skills/ship/SKILL.md` ends the chain and is deliberately outside that check.
+`skills/submit-pr/SKILL.md` ends the chain and is deliberately outside that check.
 
 `spawn-failure-answers` holds the one place two gates answer the same condition differently on purpose.
 A spawn that never started is a **Spawn failure**, outside INV-0009 (ADR 0087): `plugin/hooks/green-gate.js`
@@ -719,27 +719,29 @@ sits outside `skills/implement/SKILL.md` entirely, and whose own handoff pass re
 `scope`-tagged and earlier-ticked criterion, `skills/document/SKILL.md`'s §8 re-check bullet, and
 `references/dod-ticks.md`'s Document's case those two dispatch through). A contract in an agent body
 also has to hold in the prose that dispatches it, so `implementer.md`'s one body clause is reached by
-a dispatch row in each of `skills/implement/SKILL.md` and `references/run-handoff.md`. `skills/ship/SKILL.md`
-carries no row here: ADR 0091 retired ship's own verification step, and the row that once pinned its
-"Verifying an item observes" sentence went with it (see `ship-ticks-nothing` below).
+a dispatch row in each of `skills/implement/SKILL.md` and `references/run-handoff.md`.
+`skills/submit-pr/SKILL.md` carries no row here: ADR 0091 retired ship's own verification step, and the
+row that once pinned its "Verifying an item observes" sentence went with it (see `ship-ticks-nothing`
+below).
 
-The `ship-ticks-nothing` contract (ADR 0091), all on `skills/ship/SKILL.md`: it replaces the
+The `ship-ticks-nothing` contract (ADR 0091), all on `skills/submit-pr/SKILL.md`: it replaces the
 retired `dod-suite-criterion` contract, which once pinned §4's suite-criterion tick logic — that logic
-moved to `/superdev:review`'s own §4 once every scope started passing review, so ship ticks nothing at
-all. One row pins the plain "ship writes no tick anywhere" statement; one pins the `## Post-merge
+moved to `/superdev:review`'s own §4 once every scope started passing review, so submit-pr ticks nothing
+at all. One row pins the plain "writes no tick anywhere" statement; one pins the `## Post-merge
 checklist` paragraph — every `dod.md` line noted `— ceiling:` copied into the pull-request body under
-that heading, with no empty heading when none exist; one pins that ship still moves the scope anchor
-issue to done, the one write from the old §4/§5 pair that survived (`stage set shipped` is `verb-pointer`'s
-own row, below).
+that heading, with no empty heading when none exist. Closing the scope anchor on a remote store is
+`/superdev:ship`'s own post-merge job (ADR 0096) and carries no row here yet: ship is a placeholder
+until that command is built (`stage set shipped` is `verb-pointer`'s own row, below, and carries no row
+here either for the same reason).
 
 The `anchor-close-before-push` contract (triage #654) pins rows on a store whose anchor close is a commit
-on the scope branch — the local store — commits that close before ship's own push, so it reaches base
-exactly when the pull request merges rather than never reaching base at all, and no command ever commits
-straight to base (INV-0001). One row pins `skills/ship/SKILL.md`'s §4 sentence stating the
+on the scope branch — the local store — commits that close before submit-pr's own push, so it reaches
+base exactly when the pull request merges rather than never reaching base at all, and no command ever
+commits straight to base (INV-0001). One row pins `skills/submit-pr/SKILL.md`'s §4 sentence stating the
 scope-branch-commit case at the push step; the other pins `references/issue-tracker-local.md`'s own close
-line, reworded to match. A store whose close is an API call is unaffected and keeps closing after the pull
-request opens, as `ship-ticks-nothing`'s own anchor-close row already pins. A later feature is free to
-replace the `done` value with its own status; the before-the-push mechanism stays either way.
+line, reworded to match. A store whose close is an API call is unaffected and keeps closing after the
+merge, on `/superdev:ship`. A later feature is free to replace the `done` value with its own status; the
+before-the-push mechanism stays either way.
 
 The `doc-untick-on-break` contract (ADR 0091) pins the doc pass unticking, with a note, a ticked
 `dod.md` criterion its own commits broke, and leaving every other tick untouched. `references/dod-ticks.md`
@@ -766,13 +768,22 @@ resolved successor, in a backtick-delimited invocation. That pins the contract o
 shape (ADR 0019). The
 `unattended-token` contract: `references/scope-mode.md`
 carries the `## Unattended` section (ADR 0016), and `skills/implement/SKILL.md`, `skills/review/SKILL.md`,
-`skills/document/SKILL.md`, `skills/ship/SKILL.md`, `references/implement-full.md`,
+`skills/document/SKILL.md`, `skills/submit-pr/SKILL.md`, `references/implement-full.md`,
 `references/implement-lite.md`, `references/run-init.md`, and `references/run-handoff.md` each name
 `--unattended` and carry an instruction to read and apply that section. The `afk-invocation` contract: `skills/afk/SKILL.md`'s stage table invokes all
 four chain commands and carries `--unattended` on every one of those rows. `scanAfkInvocations()`
 checks this row by row: a
 whole-file regex would pass the moment any one row carried the token, letting a sibling row lose it
-unnoticed. The `change-type` contract:
+unnoticed. The `afk-no-ship-step` contract (INV-0093), `scanAfkNoShipStep()`: `skills/afk/SKILL.md`
+names `/superdev:ship` nowhere except within 60 chars of an admission that afk stops short of it —
+"never", "only a human", "human-only", "stops before", or "human step" — on either side of the mention.
+`AFK_NAMES` above excludes `ship`, so `scanAfkInvocations()`'s row loop silently skips a stage-table row
+that named it — this check reads the whole file instead, sentence by sentence, so a bare mention with no
+nearby admission (a table row or ordinary prose) is a gap. The window, rather than a whole-sentence
+co-occurrence test, is what lets a legitimate paraphrase pass ("stops before invoking `/superdev:ship`,
+which stays a human step" carries none of the three literal tokens the file's own two mentions use, but
+sits right next to the phrasing the window looks for) while still catching a real invocation an
+unrelated admission elsewhere in the same sentence would otherwise excuse. The `change-type` contract:
 `references/scope-mode.md`'s type list, `hooks/scope-prune.js`'s `CHANGE_TYPES` regex,
 `CONTEXT.md`'s **Change type** glossary entry, and `scripts/scope.js`'s `CHANGE_TYPES` array state the
 same set (ADR 0021). A hook narrower than the prose misreads a live branch of the missing type as gone,
@@ -781,7 +792,7 @@ shipped run's root that is still in progress, silently: the Stop hook that runs 
 glossary is the copy most likely to drift, because nothing executes it. The `degraded-pass`
 contract:
 `references/scope-mode.md` carries the `## Degraded passes` section, and `skills/implement/SKILL.md`,
-`skills/review/SKILL.md`, `skills/document/SKILL.md`, `skills/ship/SKILL.md`, `skills/status/SKILL.md`,
+`skills/review/SKILL.md`, `skills/document/SKILL.md`, `skills/submit-pr/SKILL.md`, `skills/status/SKILL.md`,
 `references/implement-full.md`, `references/implement-lite.md`, and `references/run-handoff.md` each
 name the `**Degraded:**` ledger entry and point at that section. A consumer that drops the wire lets a run report assurance it
 never got, such as a pull request claiming a review that was its author reading their own work. The
@@ -847,9 +858,9 @@ the shared section's own words; further rows pin `skills/review/SKILL.md`'s scop
 order-bounded, the same shape `REVIEW_RANGE_SHAPES_CONTRACTS`' seventh row uses, so a slug bullet moved
 ahead of the four range shapes it must follow fails the row exactly as removing the bullet does — and its
 `## The scope branch` shape-scan fallback for a run root whose ledger names no branch or a stale one; and
-rows pin `skills/ship/SKILL.md` and `skills/implement/SKILL.md`, one citing the shared section
-and one naming that command's own candidate set (run roots not `shipped` for ship, features whose slices
-are ready for implement) ahead of the citation. Anchored on the section's own heading and on each
+rows pin `skills/submit-pr/SKILL.md` and `skills/implement/SKILL.md`, one citing the shared section
+and one naming that command's own candidate set (run roots not `shipped` for submit-pr, features whose
+slices are ready for implement) ahead of the citation. Anchored on the section's own heading and on each
 citing document's literal citation and candidate-set sentences, the same shape `UNATTENDED_CONTRACTS`
 uses, because a document that restates the cascade in its own words instead of citing the section reads
 correct in isolation and is exactly the defect ADR 0078 removes.
@@ -910,8 +921,8 @@ the wrong knob, and the suite stays green until a run happens to exceed the ceil
 The `verb-pointer` contract (ADR 0022): every ledger touchpoint in the chain invokes its
 `scope.js` verb, as `references/run-init.md` does `init`, `references/run-handoff.md` `stage set merged`,
 `unresolved add`, and `unresolved clear`, `skills/review/SKILL.md` `stage set`, `get anchor`, `unresolved add`,
-and `unresolved clear`, `skills/document/SKILL.md` `stage set`, `skills/ship/SKILL.md` `get stage`,
-`stage set shipped`, `get unresolved` (for the unresolved-defect record its §3 gate and §4 body
+and `unresolved clear`, `skills/document/SKILL.md` `stage set`, `skills/submit-pr/SKILL.md` `get stage`,
+`stage set submitted`, `get unresolved` (for the unresolved-defect record its §3 gate and §4 body
 read), and `get degraded` (for the degrade record its §4 body reads),
 `skills/status/SKILL.md` `status`, `skills/afk/SKILL.md` `get stage`,
 `skills/plan/SKILL.md` `get branch --root` (for
@@ -957,10 +968,14 @@ set` (an interview that finished) or a re-init at `implementing` (one that did n
 carries the same check for an adopted snapshot that lands at `planned` with an empty slice table. Losing
 either row lets `/superdev:implement` silently adopt a header-only ledger as ready work.
 The `no-base-branch-commit` contract (INV-0001, `docs/invariants.md`), `scanNoBaseBranchCommit()`: no
-file under `skills/` or `references/` instructs a commit or a push to the base branch, whether the
-target is named by the phrase `base branch` or by the base's own configured name (read from
+file under `skills/` or `references/` instructs a commit, a push, or a merge to the base branch, whether
+the target is named by the phrase `base branch` or by the base's own configured name (read from
 `docs/agents/code-management.md`'s `**Base branch:**` bullet, so a consumer repo whose base is named
-something else still gets a check that is true for it). The verb (`commit`/`push`, any inflection) and
+something else still gets a check that is true for it), other than `/superdev:ship`'s own squash-merge
+through the host's merge API (ADR 0096, INV-0092) — the one site this scan admits, and only when
+`skills/ship/SKILL.md`'s own text sits next to the host's-merge-API wording, never by file alone: a
+merge-to-base instruction anywhere else in ship's own file, without that wording nearby, still fails.
+The verb (`commit`/`push`/`merge`, any inflection) and
 the target have to sit within a small sliding window of joined lines, one file at a time. A `never`
 excuses the match only when it sits immediately next to the *verb* ("Never commit … to the base
 branch") or immediately next to the *target* ("commit … never onto the base branch",
@@ -986,6 +1001,10 @@ its verb ("to the base branch, commit…"), a `<base>` placeholder spelling inst
 or name, and anything sitting inside a fenced code block (masked out, the same way every other scanner
 here treats a fence). A green `no-base-branch-commit` is evidence against one specific phrasing, not
 proof that no shipped document instructs a base-branch write.
+The `ship-human-only` contract (INV-0093), `scanShipHumanOnly()`: `skills/ship/SKILL.md` carries
+`disable-model-invocation: true` in its frontmatter and no `--unattended` token anywhere — ship carries no
+unattended mode of its own, unlike every step the implement chain drives (ADR 0096). Absent ship.md is
+skipped, matching every other contract scanner.
 The `kb-staging` and `kb-no-backend-call` checks are the ADR 0023 knowledge-base contracts, checked in two
 halves because either alone passes while the invariant is gone. The `kb-staging` half: `skills/plan/SKILL.md`,
 `skills/document/SKILL.md`, and `references/doc-pass.md` each name `.superdev/kb-pending/` as the place a
@@ -1089,16 +1108,26 @@ and is where ADR 0074 came from. The scan reads a **command**, never a mention: 
 arguments, or a bare `--` separator may sit between the runner and the token, which is what keeps it off
 the prose that explains the rule and necessarily names both. Its ceiling is the denylist itself — a runner
 outside it passes silently until a row names it.
-The `entries-standing-gate` contract (ADR 0026), `scanShipGateContract()`: `skills/ship/SKILL.md`
-§3's own "Entries standing." paragraph asks once whether to ship a standing unresolved defect, and refuses
-outright under `--unattended`. §3 also carries an unrelated, pre-existing gate (the warning about a
+The `entries-standing-gate` contract (ADR 0026), `scanShipGateContract()`: `skills/submit-pr/SKILL.md`
+§3's own "Entries standing." paragraph asks once whether to submit with a standing unresolved defect, and
+refuses outright under `--unattended`. §3 also carries an unrelated, pre-existing gate (the warning about a
 missing review or document step) using the identical ask-once and refuse-under-`--unattended` phrasing
 for a different question. Both halves are therefore matched inside the "Entries standing." paragraph
 alone, extracted with the same `extractSection()` helper `scanAnchorContract()` uses, anchored on the
 paragraph's bolded lead-in rather than a markdown heading. A whole-file match lets the unrelated gate
 satisfy either half after the entries-standing gate's own clause is deleted. A consumer that keeps §4's
 `## Unresolved defects` pull-request heading and loses either half still reads right and ships a broken
-branch, the exact failure every other contract in this file exists to catch. The `unresolved-glossary` contract
+branch, the exact failure every other contract in this file exists to catch. The `ship-no-opens-pr`
+contract (ADR 0096), `scanShipNoOpensPr()`: nowhere under `skills/`, `agents/`, `references/`, or
+`README.md` does the open-the-pull-request phrase attach to `/superdev:ship` — attach meaning
+`/superdev:ship` is immediately followed, within 80 chars and with no other `/superdev:<name>` mention in
+between, by that phrase — since `/superdev:submit-pr` opens it and `/superdev:ship` only merges what is
+already open. The attachment test, rather than whole-sentence co-occurrence, is what lets "Once
+`/superdev:submit-pr` opens the pull request, `/superdev:ship` merges it" pass: the phrase there attaches
+to submit-pr, and `/superdev:ship` is never its subject, even though both names sit in one sentence.
+`docs/adr/` carries the same pairing repeatedly, describing the design as it stood before ADR 0096 split
+the two commands apart, and is deliberately outside this check's reach: an ADR is history, not a shipped
+surface. The `unresolved-glossary` contract
 (ADR 0026), `scanUnresolvedGlossaryContract()`: `CONTEXT.md`'s **Degraded pass** and **Unresolved defect**
 entries restate what `references/scope-mode.md`'s `## Degraded passes` and `## Unresolved defects`
 sections define: that a degraded pass is never a failure of the code under review, and an unresolved
@@ -1115,9 +1144,9 @@ The `afk-routing` contract (ADR 0091) pins `skills/afk/SKILL.md` stating that ev
 review, whatever its slice types, and that its stage table routes every scope through `/superdev:review`
 with no special case for an all-`mechanical`/`docs` ledger — every scope's `merged` stage routes to
 `/superdev:review`, and its `documented-unreviewed` stage routes back to `/superdev:review` too, superseding
-ADR 0025's skip of the whole-scope review. `skills/ship/SKILL.md` carries no all-`mechanical`/`docs`
-exemption from its own missing-step warning and so carries no row in this table either: `/superdev:ship` §3
-names `/superdev:review` as missing for such a scope like any other. The same table's second row (triage #661)
+ADR 0025's skip of the whole-scope review. `skills/submit-pr/SKILL.md` carries no all-`mechanical`/`docs`
+exemption from its own missing-step warning and so carries no row in this table either: `/superdev:submit-pr`
+§3 names `/superdev:review` as missing for such a scope like any other. The same table's second row (triage #661)
 pins that `skills/afk/SKILL.md` blocks a second document-to-review send-back of the same anchor in the
 same sweep, through the ordinary unattended block path and counting toward the consecutive-block cap,
 rather than sending it back to `/superdev:review` a second time — afk carries this count in its own
@@ -1321,7 +1350,7 @@ query-only-revert mutation the first family exists to catch. The `rotate-on-ship
 `references/run-init.md` states that run init reads a present ledger's stage before choosing between
 resume and init, that stage `shipped` runs `init` directly and `init` itself rotates the existing ledger
 aside to `ledger-shipped-<date>.md` before writing the fresh one, that every other stage (`implementing`,
-`merged`, `reviewed`, `documented`, `documented-unreviewed`) keeps the existing resume path, and that
+`merged`, `reviewed`, `documented`, `documented-unreviewed`, `submitted`) keeps the existing resume path, and that
 nothing is deleted, so `scope-prune`'s seven-day post-merge reap still runs on its own terms. A fourth
 clause states that the rotation never overwrites an existing `ledger-shipped-<date>.md`, so a scope that
 ships twice in one calendar day keeps both trails instead of the second rotation clobbering the first.
@@ -1503,7 +1532,7 @@ document carrying the call while §6 still reads "apply nothing" leaves the sign
 nobody released — which is exactly what `/superdev:afk` then selects.
 
 The `doc-steps-no-suite` check, `scanDocStepsNoSuite()`: `skills/document/SKILL.md`,
-`skills/ship/SKILL.md`, `agents/doc-writer.md`, and `agents/final-reviewer.md` name no full-suite run of
+`skills/submit-pr/SKILL.md`, `agents/doc-writer.md`, and `agents/final-reviewer.md` name no full-suite run of
 their own (ADR 0025). That is narrower than "performs no full-suite run": `skills/document/SKILL.md` reads
 `references/test-selection.md` and runs the focused command it selects over its own doc commits, and a
 repository whose runner cannot narrow, or whose suite is already cheap enough not to need a distinct one,
@@ -1528,8 +1557,8 @@ take-it-from-the-config one `references/run-handoff.md` uses ("take the full com
 and the optionality clause `agents/final-reviewer.md`'s own re-run sentence used to carry, generalized past
 its exact wording ("stays optional" or "remains optional", "own" or no "own"). The bare-imperative
 pattern's discriminator against a legal past-tense mention is the auxiliary, not the pronoun: a negative
-lookbehind for "has"/"have"/"had", up to two more words, then "run" is what lets `skills/ship/SKILL.md`'s "the
-run handoff *has* already *run* the full suite" stay silent — the same `(?:\s+\w+){0,2}` gap
+lookbehind for "has"/"have"/"had", up to two more words, then "run" is what lets `skills/submit-pr/SKILL.md`'s
+"the run handoff *has* already *run* the full suite" stay silent — the same `(?:\s+\w+){0,2}` gap
 `RETURN_TO_CONTROLLER_PATTERNS`'s `HAND_BACK_VERB` uses, wide enough for an intervening word or a hard-wrap
 landing between the auxiliary and the verb, tight enough not to swallow an unrelated sentence. Each spells
 its words with `\s+` for the same hard-wrap tolerance, because the negative scanner runs no normalized
@@ -1634,8 +1663,9 @@ dispatch, a denied full-suite dispatch in its own scope-mode fix loop, the "Decl
 stop, a denied fix-implementer dispatch, and the clean-verdict writes together), three on
 `references/run-handoff.md` (a denied full-suite dispatch, the 3-strike red-cap stop, and its own
 `stage set merged` write), and two on `skills/document/SKILL.md` (a denied `doc-writer`/`doc-reader` dispatch,
-and its own stage write). `references/run-init.md`, `skills/implement/SKILL.md`, and `skills/ship/SKILL.md` carry
-exactly one citation each and no other mention of the section, so a bare file-level row stays unambiguous
+and its own stage write). `references/run-init.md`, `skills/implement/SKILL.md`, and
+`skills/submit-pr/SKILL.md` carry exactly one citation each and no other mention of the section, so a
+bare file-level row stays unambiguous
 there. `references/implement-lite.md` carries no direct citation, one inheritance note, and sits outside
 this table entirely: neither of its two
 writes (`docs set inline`, the knowledge-base pass's `degraded add`) can end the command, so both rely on
@@ -1697,14 +1727,15 @@ stated once in `scope-mode.md`'s `## The run lock`: `/superdev:implement`'s own 
 root reads the ledger's stage together with the lock's mtime before its first write, a `planned` stage at
 any lock age is the ordinary hand-off from `/superdev:plan`'s own cut and never a collision, any stage
 past `planned` with a lock under an hour old names a live implement run, the check governs `/superdev:implement`'s
-own entry alone — never `/superdev:review`, `/superdev:document`, or `/superdev:ship`'s ordinary
-hand-off, each the chain's single designed entry right after the previous command's own exit — and
+own entry alone — never `/superdev:review`, `/superdev:document`, `/superdev:submit-pr`, or
+`/superdev:ship`'s ordinary hand-off, each the chain's single designed entry right after the previous
+command's own exit — and
 `/superdev:plan` keeps its own separate, narrower check (triage #510) rather than folding into this one.
 A fresh lock and a stage past `planned` are both true by construction at every ordinary chain
 hand-off, since each command refreshes the lock and advances the stage at its own exit — which is why the
 rule is scoped to `/superdev:implement` alone: that is the one caller a second, independent invocation can
-redispatch onto a live implement run, where review/document/ship's entry is instead the chain's own single designed
-hand-off. The remaining rows
+redispatch onto a live implement run, where review/document/submit-pr/ship's entry is instead the chain's
+own single designed hand-off. The remaining rows
 pin `run-init.md`'s and both playbooks' own deferral — `run-init.md` takes the check as its first step,
 ahead of the DoD write and the ledger-stage advance, naming `<scope>` as the feature label the calling
 command already resolved; both playbooks' `Resume` sections state that run init's own entry step already
@@ -1766,7 +1797,7 @@ scope-checkout branch test, its full-suite run in the scope checkout, and its fi
 handing over the scope checkout as a working directory — the same working-directory statement
 `implement-full.md` and `document.md` already carry. More rows sit on `references/run-handoff.md` for
 the same class of gap on its own only full-suite run: a scope of all `mechanical`/`docs` slices reaches no
-other verification before `/superdev:ship`, so its full-suite run and its Red-branch fix dispatch each
+other verification before `/superdev:submit-pr`, so its full-suite run and its Red-branch fix dispatch each
 naming no working directory reached the invoking checkout on the full tier — sitting on the base branch by
 then — reading `docs/agents/verification.md` off base, running the suite over base's tree, and landing any
 fix commit on base in the operator's own clone; the rows pin the full suite running in the scope checkout
@@ -1780,7 +1811,7 @@ eligibility bullet: the no-lock case falls back to the ledger mtime, with no cla
 gets a lock — a fix cycle found the bullet still asserting a run lock "only ever exists for a `lite`-tier
 scope" and citing `## The run lock` for that claim, a section ADR 0045 had already flipped to state the
 opposite. Losing any one row independently reopens exactly the cost ADR 0045 removed: a full run parking
-a second session's checkout on its own branch, a merge landing in a tree `/superdev:ship` never expects, a
+a second session's checkout on its own branch, a merge landing in a tree `/superdev:submit-pr` never expects, a
 restated lock rule drifting from the shared one, a full run that writes no lock at all, a whole-scope
 review or run-handoff full-suite pass that
 writes to the wrong checkout, a merge abort that silently ungates the next merge in the scopetree, or
@@ -1849,9 +1880,11 @@ carries, so no seed document needed editing when this element was added. Only th
 teeth. Further rows, a table
 run through `scanContract()`, sit on `skills/review/SKILL.md` and `references/scope-mode.md`, the two
 documents that write it. The record is what makes a deferred finding outlive the run root
-`hooks/scope-prune.js` reaps and the scope anchor `/superdev:ship` closes — on the local plan-file
-store, only once the scope branch carrying it merges (ADR 0048) — and before this record the only
-survivor was the body of a merged pull request, which appears in no backlog and no query.
+`hooks/scope-prune.js` reaps and the scope anchor's own close — a commit `/superdev:submit-pr` makes on
+the local plan-file store before its push, or an API call `/superdev:ship` makes after the merge on a
+remote store — on the local plan-file store, only once the scope branch carrying it merges (ADR 0048) —
+and before this record the only survivor was the body of a merged pull request, which appears in no
+backlog and no query.
 `/superdev:review` writes it through whichever store document is active, so a store document with no
 `## Triage record` section leaves the command asking a backend for a record that backend never defined:
 the review defers, the ledger bullet lands, and the finding reaches nothing. Walking `storeDocuments()`
@@ -1978,6 +2011,13 @@ store over the same anchors, which is the shape this file's other rows exist to 
 records that the two share their *facts* and not their *verdicts*: `/superdev:afk` acts unattended and
 resolves every ambiguity toward deferring, while the survey reports and resolves one toward showing the
 row. A row binding the two rule sets would assert a sameness that was decided against.
+
+The `backlog-submitted-buckets` contract (#687) pins the survey's own carve-out for a run root at stage
+`submitted`: afk's own routing table skips that stage entirely ("only a human moves it further"), so the
+generic `in flight` act lookup — "the chain command that stage has not reached" — resolves to nothing for
+it. One row pins the two buckets that stand in for it, `awaiting merge` and `merge unrecorded`, each
+pointing at `/superdev:ship <scope-slug>`; the other pins the `scope.js get pr` read that tells them
+apart, off the ledger's own `**PR:**` header rather than a query written into the command.
 
 The `opencode-render` check, `scanOpencodeFixtures()`: the committed golden render under
 `scripts/drift/fixtures/opencode/` still matches a fresh render of the shipped plugin tree. The scanner
@@ -2337,6 +2377,14 @@ fact the `afk-routing` contract pins on afk's own stage table, asserted here on 
 actually prints the handoff, so a `run-handoff.md` that quietly re-grows the retired
 `/superdev:document`-instead-of-review branch leaves the invariant's own name stated nowhere true.
 
+The `review-submitted-handoff` contract (#687) pins the re-review ADR 0096 sends an operator to after
+resolving a base-merge conflict: it enters `/superdev:review` at stage `submitted` and leaves the stage
+there, but §4's own handoff and suite-record write both change shape for it. One row pins that the
+printed next command becomes `/superdev:ship <scope>` once the stage reads `submitted`, in place of
+`/superdev:document`. The other pins that a standing finding there — the fix declined, or the 3-strike
+cap reached — invalidates the tip's suite record with `suite set none <sha>`, so `suite reusable` never
+still accepts a tip a standing finding stands against.
+
 The `commitment-capture` contract (ADR 0081) spans rows across three documents.
 `skills/brainstorm/SKILL.md` still names a discovery's load-bearing commitments in the intent as a pair,
 the principle and the rule it implies. `skills/plan/SKILL.md` still routes every commitment — one a
@@ -2422,9 +2470,9 @@ changed answer has no standing instruction there without the second row.
 The `unmet-criterion-at-review` contract pins `skills/review/SKILL.md` §4's own rule for an unmet
 criterion: it enters the fix loop like any other finding, except the verification-ceiling case, which is
 reported and not chased because no work on this branch can close it. Review is the only gate an unmet
-criterion meets — `skills/ship/SKILL.md` carries no row here any more: ADR 0091 moved the gate to review,
-so an unticked criterion reaches ship already noted, and ship's own read of a `ceiling:` line is
-`ship-ticks-nothing`'s concern instead.
+criterion meets — `skills/submit-pr/SKILL.md` carries no row here any more: ADR 0091 moved the gate to
+review, so an unticked criterion reaches submit-pr already noted, and submit-pr's own read of a
+`ceiling:` line is `ship-ticks-nothing`'s concern instead.
 
 The `release-answer-not-inferred` contract pins rows: `references/plan-contract.md`'s own `## Release`
 section credits the release answer to a human (ADR 0034); `skills/plan/SKILL.md` §6 restates that the
@@ -2454,6 +2502,87 @@ exists to close: a proposal formed against a rule a file already open contradict
 by a reader — a peer session, a reviewer, an operator — rather than named by the controller that formed
 the proposal.
 
+The `code-management-merge` contract (#683) is a presence table: each of the two code-management seeds
+(`references/code-management-forgejo.md`, `references/code-management-github.md`) and this repo's own
+`docs/agents/code-management.md` carries a `## Merge` section reading the pull request's state, head sha,
+merged sha, and mergeability (GitHub's own answer for `mergeable` is asynchronous, so its row also pins
+treating a `null` as unknown after a bounded re-read, never as mergeable), then merging it squashed and
+pinned to that one head sha (Forgejo's `head_commit_id`, GitHub's `--match-head-commit`/`sha`), and
+naming what a 405 (not mergeable) or 409 (head moved, or a conflict) refusal means (ADR 0096, INV-0092).
+The `code-management-no-force` contract is its absence half: none of the same three documents may ever
+invoke `force_merge: true` (Forgejo) or `--admin` (GitHub's `gh pr merge`) — either bypasses branch
+protection and required approvals, which a pinned merge must never do. A `never` sitting right next to
+the match — the seed's own caution naming the option to forbid it — is excluded, the same shape
+`no-base-branch-commit`'s own negation handles.
+
+The `code-management-head-branch-lookup` contract (#685, INV-0092) is a second presence table over the
+same three documents: each `## Merge` section also carries a find-open-pull-requests-by-head-branch call
+(Forgejo/Codeberg's `GET .../pulls?state=open` filtered client-side by `head.ref`, since neither carries a
+native head filter; GitHub's `gh pr list --head <branch> --state open` or the equivalent `head=`-filtered
+REST call), scoped to open pull requests only. `/superdev:ship` reads the pull request `/superdev:submit-pr`
+recorded in the ledger by number, and falls back to this lookup only for a ledger predating that header —
+scoping the fallback to open pull requests is what keeps a reused branch name
+(`references/scope-mode.md`'s `## Cutting the scope branch`) from ever surfacing an old, merged pull
+request under the same head as this run's own. The two Forgejo/Codeberg rows also pin a paging clause:
+Forgejo's `pulls?state=open` list paginates (`page`/`limit`), so the two Forgejo-facing documents
+(`references/code-management-forgejo.md`, `docs/agents/code-management.md`) must page through every page
+before counting matches, or a match sitting on a later page reads as zero. GitHub's `head=` filter is
+server-side, so `references/code-management-github.md` carries no matching clause.
+
+The `ship-tested-push` contract (final-reviewer triage, INV-0087, #687 fix cycle): `skills/ship/SKILL.md`
+§4 compares the scope branch's own tip against the pull request's `head.sha`, whether or not base itself
+moved — a review's own fix loop, or an operator's own conflict resolution, can land commits at stage
+`submitted` with no base merge involved, and those reach the pull request only through this same push.
+The push-gate row pins that a difference gates the push on `suite reusable` accepting the tip and
+refuses (never pushing an untested one) when it does not. The consent-print row pins that ship prints
+the range the push is about to add (`git log <head>..<tip> --oneline`) before sending it. Calling ship
+stays the consent that covers what is actually merged. The comparison row pins the core comparison
+itself: the tip against `head.sha` whether or not base moved, since a fix loop or a conflict resolution
+that never touched base still has to reach the pull request. Losing any of these reopens the recovery
+loop the fix cycle closed: a tested commit landed after submit-pr that never reaches the PR head the
+pinned merge refuses forever.
+Two more rows close what the push alone cannot. The rejected-push row pins a rejected push: someone can
+push to the pull request from elsewhere (applying a suggestion on the host, say) after §3's own read,
+so this checkout's own push lands non-fast-forward. Ship refuses instead of guessing past it: it names
+the commits the pull request's head carries that the scope branch lacks, merges nothing, and points at
+fetching them into the scope branch and re-running `/superdev:review <scope>`. That step tests and records
+the new tip, then `/superdev:ship <scope>` runs again. The equality-check row pins the check the pinned merge
+rests on: the freshest `head.sha` (the re-read after a push, or §3's own read when none ran) must equal
+the local scope-branch tip `suite reusable` accepted, or ship refuses, naming both shas, and merges
+nothing. The push rejection above catches most of the ways the two could still differ; this check is
+what catches the rest, and is the row that actually guarantees the merge lands the tested commit rather
+than the push rule alone.
+The `ship-merge-pin-local-tip` contract (final-reviewer triage, #687 fix cycle): the sha the pinned merge
+sends is never read off the host. `skills/ship/SKILL.md` states it plainly — the merge call pins the
+local scope-branch tip `suite reusable` just accepted — and each code-management document's own `## Merge`
+section restates it for its own placeholder, `<tested-tip-sha>`, naming the pull request's `head.sha` as
+read only to decide whether to push and to refuse a stale one, never as the merge's own pin. Losing this
+row lets a stale or foreign `head.sha` slip back in as the pin, the exact gap the two `ship-tested-push`
+rows above exist to close.
+The `ship-legacy-shipped` contract (final-reviewer triage, #687 fix cycle): a `shipped` ledger reads two
+different things depending on whether it carries the ledger's own `**PR:**` header. The header-present
+row reads it as finished by this version and truly done — ship reports "already shipped" and stops,
+merging and refusing nothing. The header-absent row reads it as a legacy ledger a version before
+ADR 0096 wrote the moment it opened the pull request, never once it merged, and `skills/ship/SKILL.md`
+still treats it like `submitted`: it reads the pull request from the host. The none-found row pins that
+its own **None found** case skips the `pr set <n>` recovery instruction that case gives a `submitted` run
+with no findable pull request — a legacy run finding none already shipped under the old meaning, so it
+reports nothing left to merge instead. The scope-mode row is `references/scope-mode.md`'s own
+`## The stage never moves backwards` section stating the same split: the header, not `shipped` alone, is
+what actually stops a second merge. The record-immediately row closes the gap that otherwise reopens the
+split every time: the head-branch fallback's own **Exactly one** case records that pull request with
+`scope.js pr set <n>` right away, rather than merging and leaving the ledger to read as a legacy run again
+the next time `/superdev:ship` runs on it. Losing any one row lets a legacy run either
+merge a second time undetected, get told to run `pr set` busywork it does not need, or keep reading as
+legacy forever despite carrying a `**PR:**` header no earlier command wrote for it.
+The `document-submitted-handoff` contract (final-reviewer triage, Minor 5): `skills/document/SKILL.md`
+§8's stage write only knew `shipped` as a leave-alone stage, so a `submitted` scope — one review already
+handed to ship — fell into the "anything else" branch and got a `documented-unreviewed` write `scope.js`
+refuses as a backward move. One row pins that `submitted` joins `shipped` in the leave-alone branch. The
+other pins that the next-command bullet prints `/superdev:ship <scope>` for a `submitted` scope rather
+than `/superdev:submit-pr`, which would try to re-open a pull request already open. Losing either row
+reopens the stage-write refusal a doc pass on a submitted scope hits today.
+
 ## Work Guidance
 
 - Scripts are CommonJS, like the hooks. `hooks/scope-prune.js` and `hooks/slicetree-sweep.js` both
@@ -2476,7 +2605,8 @@ the proposal.
   evadable phrasing reports a defect, and the guard grows by discovery instead of by decision. The
   convention governs these checks of this shape, and each carries its note: `doc-steps-no-suite`,
   `forcing-branch-flag`, `kb-no-backend-call`, `no-second-reader`, `return-to-controller`,
-  `afk-selection-neutrality`, `agent-tool-agnostic`, and `agent-lens-list`. `no-second-reader`'s reads differently
+  `afk-selection-neutrality`, `agent-tool-agnostic`, `agent-lens-list`, and `code-management-no-force`.
+  `no-second-reader`'s reads differently
   from the rest on purpose: its gap is closed by an orphan test in `tests/scope-prune.test.js`
   rather than left open, and the note says so instead of claiming a ceiling it does not have. A **presence table** — the document must say X, one row per
   `[document, pattern, expectation]` — needs no such note: a paraphrase it doesn't recognize fails

@@ -142,6 +142,27 @@ const {
       'Then run /superdev:implement and /superdev:plan in order.',
       '',
     ].join('\n'));
+    write(pluginRoot, 'skills/submit-pr/SKILL.md', [
+      '---',
+      'name: submit-pr',
+      'description: Open a pull request for a superdev scope.',
+      '---',
+      '',
+      'body',
+      '',
+    ].join('\n'));
+    write(pluginRoot, 'skills/ship/SKILL.md', [
+      '---',
+      'name: ship',
+      'description: Merge a superdev scope pull request. Only a human runs it.',
+      'disable-model-invocation: true',
+      '---',
+      '',
+      '# superdev ship',
+      '',
+      'Merge the pull request /superdev:submit-pr opened.',
+      '',
+    ].join('\n'));
     write(pluginRoot, 'skills/upgrade/SKILL.md', [
       '---',
       'name: upgrade',
@@ -205,24 +226,38 @@ const {
       path.join('.opencode', 'agents', 'final-reviewer.md'),
       path.join('.opencode', 'agents', 'implementer.md'),
       path.join('.opencode', 'commands', 'superdev', 'afk.md'),
+      path.join('.opencode', 'commands', 'superdev', 'ship.md'),
       path.join('.opencode', 'plugins', 'superdev.js'),
       path.join('.opencode', 'skills', 'superdev-backlog', 'SKILL.md'),
       path.join('.opencode', 'skills', 'superdev-implement', 'SKILL.md'),
       path.join('.opencode', 'skills', 'superdev-plan', 'SKILL.md'),
       path.join('.opencode', 'skills', 'superdev-setup', 'SKILL.md'),
+      path.join('.opencode', 'skills', 'superdev-submit-pr', 'SKILL.md'),
       path.join('.opencode', 'skills', 'superdev-upgrade', 'SKILL.md'),
     ]);
-    // afk renders as a command and never as a skill — a command is the one OpenCode surface the
-    // model cannot invoke, which is what reproduces disable-model-invocation (ADR 0055).
+    // afk and ship each render as a command and never as a skill — a command is the one OpenCode
+    // surface the model cannot invoke, which is what reproduces disable-model-invocation (ADR 0055,
+    // ADR 0096).
     assert.ok(!written.includes(path.join('.opencode', 'skills', 'superdev-afk', 'SKILL.md')), 'afk is never a skill');
     assert.ok(!fs.existsSync(path.join(dest, '.opencode', 'skills', 'superdev-afk')), 'no afk skill directory exists');
     assert.ok(fs.existsSync(path.join(dest, '.opencode', 'commands', 'superdev', 'afk.md')), 'afk renders as a command');
+    assert.ok(!written.includes(path.join('.opencode', 'skills', 'superdev-ship', 'SKILL.md')), 'ship is never a skill');
+    assert.ok(!fs.existsSync(path.join(dest, '.opencode', 'skills', 'superdev-ship')), 'no ship skill directory exists');
+    assert.ok(fs.existsSync(path.join(dest, '.opencode', 'commands', 'superdev', 'ship.md')), 'ship renders as a command');
+
+    // ship carries no afk-shaped Skill-tool sentence or chain table, so it renders through the plain
+    // renderCommand() path — the description and disable-model-invocation carry through, and the
+    // command frontmatter carries no `disable-model-invocation` key (OpenCode commands have none; the
+    // command render itself is what reproduces the effect).
+    const shipCommand = fs.readFileSync(path.join(dest, '.opencode', 'commands', 'superdev', 'ship.md'), 'utf8');
+    assert.ok(shipCommand.includes('description: "Merge a superdev scope pull request. Only a human runs it."'));
+    assert.ok(shipCommand.includes('Merge the pull request /superdev-submit-pr opened.'), 'the ordinary command render still applies the plain /superdev:<cmd> rewrite, no afk-shaped rewrite applied');
 
     // The rendered afk names OpenCode's own skill tool and the rendered skill names it drives, never
     // Claude Code's Skill tool, and it states the headless launch line the operator actually uses.
     const afkCommand = fs.readFileSync(path.join(dest, '.opencode', 'commands', 'superdev', 'afk.md'), 'utf8');
     assert.ok(afkCommand.includes("with OpenCode's own `skill` tool"), 'names the OpenCode skill tool');
-    for (const step of ['superdev-implement', 'superdev-review', 'superdev-document', 'superdev-ship']) {
+    for (const step of ['superdev-implement', 'superdev-review', 'superdev-document', 'superdev-submit-pr']) {
       assert.ok(afkCommand.includes(`\`${step}\``), `names the rendered ${step} skill`);
     }
     assert.ok(afkCommand.includes('opencode run --auto --command superdev/afk'), 'states the headless launch line');
@@ -1078,6 +1113,7 @@ const {
       ].join('\n'));
       write(codexRoot, 'skills/implement/SKILL.md', ['---', 'name: implement', 'description: Build a plan.', '---', '', 'Resolve `$ARGUMENTS` to one feature.', ''].join('\n'));
       write(codexRoot, 'skills/afk/SKILL.md', ['---', 'name: afk', 'description: Drive the chain unattended.', '---', '', '# superdev afk', '', 'body', ''].join('\n'));
+      write(codexRoot, 'skills/ship/SKILL.md', ['---', 'name: ship', 'description: Merge a superdev scope pull request.', 'disable-model-invocation: true', '---', '', '# superdev ship', '', 'body', ''].join('\n'));
       write(codexRoot, 'skills/upgrade/SKILL.md', ['---', 'name: upgrade', 'description: Upgrade via claude plugin update.', '---', '', 'Run claude plugin marketplace update superdev.', ''].join('\n'));
       write(codexRoot, 'agents/implementer.md', ['---', 'name: implementer', 'description: Slice implementer.', 'tools: Read, Edit, Write, Bash', 'model: sonnet', '---', '', 'body', ''].join('\n'));
       write(codexRoot, 'agents/reviewer.md', ['---', 'name: reviewer', 'description: Read-only reviewer. Dispatched by /superdev:implement — not for direct use.', 'tools: Read, Grep, Bash', 'model: sonnet', '---', '', 'reviewer body', ''].join('\n'));
@@ -1127,6 +1163,7 @@ const {
       assert.ok(codexUpgrade.includes('--model-map "sonnet=acme/sonnet-1"'), "carries the resolved model-map forward, re-emitted verbatim");
 
       assert.ok(!fs.existsSync(path.join(codexDest, '.agents', 'skills', 'superdev-afk')), 'afk renders nowhere on Codex');
+      assert.ok(!fs.existsSync(path.join(codexDest, '.agents', 'skills', 'superdev-ship')), 'ship renders nowhere on Codex');
 
       // .codex/hooks.json (issue #433): every shipped hook except model-explicit, wired to Codex's
       // own events, every command path absolute (Codex resolves no ${CLAUDE_PLUGIN_ROOT}).

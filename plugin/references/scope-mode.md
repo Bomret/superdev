@@ -1,6 +1,6 @@
 # Scope mode
 
-`/superdev:review`, `/superdev:document`, and `/superdev:ship` share one rule (ADR 0013). Each reads this
+`/superdev:review`, `/superdev:document`, and `/superdev:submit-pr` share one rule (ADR 0013). Each reads this
 file at runtime and keeps only what is specific to it: the stage it reads or writes, and what it prints
 next.
 
@@ -9,9 +9,9 @@ execution playbooks read `## Unattended`, `## Degraded passes`, `## The run lock
 checkout` (ADR 0045 — both tiers now cut and work in the scopetree); `/superdev:implement` and
 `/superdev:afk` read `## The scope slug`, which sends both to `## The change type`; `/superdev:afk` also
 relies on `## The run lock` and `## The scope checkout`; `## The ledger` is read by
-`/superdev:implement`, `/superdev:status`, and `/superdev:ship` besides `/superdev:review`; `##
+`/superdev:implement`, `/superdev:status`, and `/superdev:submit-pr` besides `/superdev:review`; `##
 Resolving an empty argument` is read by all three of `/superdev:implement`, `/superdev:review`, and
-`/superdev:ship` on their own empty-argument entrance. `/superdev:plan` reads `## Cutting the scope
+`/superdev:submit-pr` on their own empty-argument entrance. `/superdev:plan` reads `## Cutting the scope
 branch`, `## Containment`, and `## The run lock` for its own cut (ADR 0079). A run is unattended from its
 first command, so the token cannot wait for the stage where the other rules begin.
 
@@ -63,7 +63,7 @@ path built against the invoking checkout's own cwd. Address every artifact by th
 
 ## Resolving an empty argument
 
-`/superdev:implement`, `/superdev:ship`, and `/superdev:review` each take a run as their subject and
+`/superdev:implement`, `/superdev:submit-pr`, and `/superdev:review` each take a run as their subject and
 accept no argument. Each names its own **candidate set** (CONTEXT.md); this section owns the one cascade
 that resolves whichever set a caller hands it, so the rule is stated once instead of in each command's
 own words:
@@ -75,8 +75,8 @@ own words:
   that run root's own stage, and stop. Never guess at a subject nothing named.
 
 **Run-root enumeration.** A run root is a `.superdev/scopes/*/` directory holding a `ledger.md`, per
-`## A live scope run` above. The calling command names the stages that qualify — `/superdev:ship` names
-every stage but `shipped`, `/superdev:review` names `merged` and `documented-unreviewed` — and this
+`## A live scope run` above. The calling command names the stages that qualify — `/superdev:submit-pr`
+names every stage but `shipped`, `/superdev:review` names `merged` and `documented-unreviewed` — and this
 section scans every run root, reads each one's stage with `scope.js get stage --root <run-root>`, and
 keeps only the ones whose stage is named. A directory holding no `ledger.md` is no run root, and is never
 a candidate. A run root whose `get stage` prints `absent` matches no named stage either, so it is never a
@@ -94,7 +94,7 @@ script cannot put a question.
 `<run-root>/ledger.md` is one document: labeled header lines, then a slice table.
 `${CLAUDE_PLUGIN_ROOT}/scripts/scope.js` owns its schema and is its only read and write path (ADR 0022):
 `init` creates the document, `stage` / `slice` / `degraded add|add-denial|reset-denials` / `unresolved
-add|clear` / `docs set|clear` / `suite set` move it, `get` / `status` read it back.
+add|clear` / `docs set|clear` / `pr set|clear` / `suite set` move it, `get` / `status` read it back.
 No command or playbook edits or parses the file directly — the `ledger-guard` hook denies any other
 write, naming `scope.js`.
 
@@ -121,6 +121,14 @@ write, naming `scope.js`.
   it for the pass it runs inline (ADR 0031); `/superdev:review` and `/superdev:document` read it to tell
   a pass that already ran from one still owed. A single whitespace-free token, which `docs set` enforces.
   Publish the snapshot afterwards, per `## Publishing run state` below, on every `docs set` or `docs clear`
+  call.
+- **`**PR:** #<n>`** — the pull request `/superdev:submit-pr` opened for the scope branch. Read with
+  `get pr`, written with `pr set <n>` (a bare number, `#` optional) the moment the pull request opens, and
+  removed with `pr clear`. `/superdev:ship` reads it back rather than looking the pull request up by head
+  branch: a reused branch name (`## The scope branch`) leaves old, merged pull requests on the host under
+  the same head, and a lookup by branch alone could adopt one of those instead (INV-0092) — the head-branch
+  lookup stays only as a fallback for a ledger predating this header, and only among *open* pull requests.
+  Publish the snapshot afterwards, per `## Publishing run state` below, on every `pr set` or `pr clear`
   call.
 - **`**Suite:** <result> @ <sha>`** — the **suite record** (CONTEXT.md): the last full-suite run's
   result — `green`, `red`, `denied` (a run the permission classifier denied), or `none` (no test command
@@ -349,7 +357,11 @@ the invoking checkout, which stays wherever it was.
 - **The ledger's `**Stage:**` reads `shipped`, and the checkout is absent** → `/superdev:ship`'s §5
   removed it by design. On a read-only command (`/superdev:review`, `/superdev:document`), say so and
   review or reconcile read-only rather than recreating it; a writing command has nothing left to write to
-  a shipped scope in the first place.
+  a shipped scope in the first place. **The one exception is `/superdev:ship` itself, reached on a legacy
+  `shipped` ledger** (one carrying no `**PR:**` header — a version before ADR 0096 wrote this stage the
+  moment it opened the pull request, and removed the checkout right there, not once it merged): recreate
+  the checkout below exactly as an `Absent` one does, since ship still has git commands to run against a
+  pull request that may still be open.
 - **Absent** → recreate it: `git worktree add <run-root>/scopetree <branch>`, the same call
   the `resumed` run kind already makes. **`run-lock` refuses the call, naming another session** → that
   lock is this run's own: the scopetree this step just found absent is what makes that safe, not the ledger
@@ -379,10 +391,11 @@ before `dod.md` is written or the ledger's stage moves:
   describes.
 
 **This check governs `/superdev:implement`'s own entry alone, never `/superdev:review`,
-`/superdev:document`, or `/superdev:ship`.** Each of those three is the chain's single designed hand-off
-immediately after the previous command's own exit — its own ordinary entry stage (`merged`, `reviewed`,
-`documented-unreviewed`) is fresh by construction every time, refreshed by the very write that just handed
-the scope off. A caller re-invoked on the *same* command mid-run is the hazard this check exists for;
+`/superdev:document`, `/superdev:submit-pr`, or `/superdev:ship`.** Each of those four is the chain's
+single designed hand-off immediately after the previous command's own exit — its own ordinary entry
+stage (`merged` for review, `reviewed` or `documented-unreviewed` for document, `documented` or
+`documented-unreviewed` for submit-pr, `submitted` for ship) is fresh by construction every time,
+refreshed by the very write that just handed the scope off. A caller re-invoked on the *same* command mid-run is the hazard this check exists for;
 the next command in a chain that already finished is not, and testing them the same way would stop every
 ordinary hand-off in the chain, unattended `/superdev:afk` included. It does not cover a lock that goes
 stale while its run is genuinely still in progress — a long attended run whose slow steps write no lock
@@ -412,8 +425,8 @@ again at its own §6. **On a `resumed` run, the liveness check above is what tel
 section, further down the chain, only reconciles the ledger against `git log` from here on; it performs no
 liveness check of its own.
 
-**Every other caller — `/superdev:review`, `/superdev:document`, `/superdev:ship` — only ever refreshes
-this file. Never create it.** A tail command reaches a scope only after an execution playbook, or
+**Every other caller — `/superdev:review`, `/superdev:document`, `/superdev:submit-pr`, `/superdev:ship`
+— only ever refreshes this file. Never create it.** A tail command reaches a scope only after an execution playbook, or
 `/superdev:plan`, already ran, so a missing lock there means no live run to refresh, not a gap to fill.
 **The one exception** is `## The scope checkout` above's recreate path: recreating an absent scopetree
 removes a stale lock of this run's own first, and what writes it back is this section's own write, made
@@ -556,8 +569,8 @@ with an ellipsis: `scope.js degraded add-denial` refuses a bullet containing a n
 prints every bullet for as long as the run root lives. The heredoc above already carries a quote, a `$`, or
 a backtick in the classifier's own words to stdin unharmed, so no further escaping is needed. A denial
 whose refusal text never reached you still writes its bullet, and the bullet says the text was
-unavailable. `/superdev:ship` copies every bullet into the pull-request body, so the quote reaches the
-human reviewing the change with no step of its own.
+unavailable. `/superdev:submit-pr` copies every bullet into the pull-request body, so the quote reaches
+the human reviewing the change with no step of its own.
 
 **A pass the command was already free to skip is not degraded when denied.** `/superdev:review`'s §2 is
 the standing case: it already skips `simplicity-reviewer` on judgment (a tiny or already-lean diff), so a
@@ -672,8 +685,8 @@ A run with nothing deferred carries **no such line at all** — absent, never pr
 
 **There is no `deferred clear`.** An unresolved defect stops being true the moment a run re-verifies the
 scope green, which is what earns that record its `clear`. Unplanned work stays unplanned until somebody
-plans it, so the bullet stands until the run ships and `/superdev:ship` copies it into the pull-request
-body, where a reader meets it. That absence is also why `/superdev:review` reads `get deferred` before it
+plans it, so the bullet stands until `/superdev:submit-pr` copies it into the pull-request body, where a
+reader meets it. That absence is also why `/superdev:review` reads `get deferred` before it
 writes, and skips a finding the line already carries: every duplicate is permanent, and two paths reach
 one. Its fix loop repeats until the verdict is clean, so a finding still deferred re-appears in each
 re-review's report; and a second `/superdev:review` invocation on the same run — after a denied dispatch,
@@ -731,11 +744,16 @@ continuing regardless.
 ## The stage never moves backwards
 
 These writers move the ledger's `**Stage:**` line — `/superdev:review`, `/superdev:document`, run handoff
-(`merged`), and `/superdev:ship` (`shipped`) — all through `scope.js stage set`, which enforces every rule
-in this section in code and refuses a write that breaks one: **a stage write never undoes completed
-work.** `shipped` is what stops `/superdev:ship` from opening a second pull request, so a later command
-overwriting it with an earlier stage would disarm that check. `shipped` is therefore terminal;
-`documented` is not, since `documented → shipped` is the chain's own last move.
+(`merged`), `/superdev:submit-pr` (`submitted`), and `/superdev:ship` (`shipped`) — all through `scope.js
+stage set`, which enforces every rule in this section in code and refuses a write that breaks one: **a
+stage write never undoes completed work.** `shipped` together with the ledger's own `**PR:**` header is
+what stops `/superdev:ship` from merging a second time — a legacy `shipped` ledger predating that header
+is not yet finished, and `/superdev:ship` treats it like `submitted` instead (`## The scope checkout`
+above) — so a later command overwriting the stage with an earlier one would still disarm the check once
+the header is present. `shipped` is therefore terminal; `submitted` is an ordinary in-flight stage, since
+`/superdev:submit-pr`'s own stage gate, not the rank rule, is what keeps a second run from opening a
+second pull request. `documented` is not terminal either, since `documented → submitted → shipped` is the
+chain's own last move.
 
 The rule protects work that is still valid, not the ordering of the values. One move that reads as
 backwards is sanctioned, because it records a fact rather than a distance: `/superdev:review` writes

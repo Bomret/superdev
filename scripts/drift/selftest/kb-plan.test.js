@@ -550,8 +550,8 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
           'ledger aside to `ledger-shipped-<date>.md` before writing the fresh one: the rotation never ' +
           'overwrites an existing `ledger-shipped-<date>.md`, nothing is deleted, so ADR\n' +
           "0007's seven-day trail and `scope-prune`'s contained-or-gone reap rule (ADR 0053) both stand " +
-          'unchanged. Any other stage — `implementing`, `merged`, `reviewed`, `documented`, or\n' +
-          '`documented-unreviewed` — is a run init that already ran: skip `init`.\n',
+          'unchanged. Any other stage — `implementing`, `merged`, `reviewed`, `documented`,\n' +
+          '`documented-unreviewed`, or `submitted` — is a run init that already ran: skip `init`.\n',
       }),
       ROTATE_ON_SHIPPED_CONTRACTS,
     ).length,
@@ -568,8 +568,8 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
         'that ledger belongs to a finished run: run `init` directly. `init` itself rotates the existing ' +
         'ledger aside to `ledger-shipped-<date>.md` before writing the fresh one: nothing is deleted, so ADR\n' +
         "0007's seven-day trail and `scope-prune`'s contained-or-gone reap rule (ADR 0053) both stand " +
-        'unchanged. Any other stage — `implementing`, `merged`, `reviewed`, `documented`, or\n' +
-        '`documented-unreviewed` — is a run init that already ran: skip `init`.\n',
+        'unchanged. Any other stage — `implementing`, `merged`, `reviewed`, `documented`,\n' +
+        '`documented-unreviewed`, or `submitted` — is a run init that already ran: skip `init`.\n',
     }),
     ROTATE_ON_SHIPPED_CONTRACTS,
   );

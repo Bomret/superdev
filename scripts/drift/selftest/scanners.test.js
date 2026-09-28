@@ -28,11 +28,14 @@ const {
   scanObservationCaptureReminders,
   scanChainHandoff,
   scanAfkInvocations,
+  scanAfkNoShipStep,
   scanShipGateContract,
+  scanShipNoOpensPr,
   scanUnresolvedGlossaryContract,
   scanHookLedgerParsers,
   scanAdrStatus,
   scanForcingBranchFlag,
+  scanNoForceMerge,
   scanNarrativeCoverage,
   scanReturnToController,
   scanMarketplaceSource,
@@ -294,6 +297,46 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   });
   assert.doesNotThrow(() => scanNoBaseBranchCommit(tmp5m), 'no code-management.md at all does not throw');
   assert.equal(scanNoBaseBranchCommit(tmp5m).length, 0, 'and reports nothing when no instruction is present');
+
+  // positive: `merge` is a base-branch verb too (ADR 0096) — a merge-to-base instruction anywhere but
+  // ship's own admitted site still fails
+  const tmp5n = fixture({
+    'skills/plan/SKILL.md': 'Merge the finished work straight into the base branch yourself.\n',
+  });
+  assert.equal(scanNoBaseBranchCommit(tmp5n).length, 1, 'flags a merge-to-base instruction outside ship');
+
+  // negative: ship's own squash-merge onto base, through the host's merge API, is the one admitted site
+  // (ADR 0096, INV-0001) — admitted by file AND by that wording sitting in the same window, not by file
+  // alone
+  const tmp5o = fixture({
+    'skills/ship/SKILL.md':
+      'Then squash-merge it into the base branch through the host\'s merge API, pinned to that head.\n',
+  });
+  assert.equal(scanNoBaseBranchCommit(tmp5o).length, 0, "ship's own host-API merge onto base is admitted");
+
+  // positive: the admission is narrow — a merge-to-base instruction in ship's own file, without the
+  // host's-merge-API wording nearby, still fails, so the file alone excuses nothing
+  const tmp5p = fixture({
+    'skills/ship/SKILL.md': 'Merge the scope branch straight into the base branch yourself.\n',
+  });
+  assert.equal(
+    scanNoBaseBranchCommit(tmp5p).length,
+    1,
+    "ship's file is not itself an excuse — only the host-API wording is",
+  );
+
+  // negative: the widened `merge` verb (ADR 0096) never flags ship's own "merge base into the scope
+  // branch" phrasing (§4's base-into-scope-branch step) — the target there is the *scope* branch, never
+  // "base branch", so this needs no admission of its own alongside the squash-merge-onto-base one above.
+  const tmp5q = fixture({
+    'skills/ship/SKILL.md':
+      'Merge base into the scope branch, in the scope checkout, by its literal absolute path.\n',
+  });
+  assert.equal(
+    scanNoBaseBranchCommit(tmp5q).length,
+    0,
+    "ship's own base-into-scope-branch merge is never mistaken for a commit onto base",
+  );
 
   // --- scanAssigneeContract: an issue-backend doc that describes creating an issue must carry the
   // `## Assignee` section, and must NOT carry a `- **Assignee:**` configuration bullet. The assignee is
@@ -1188,7 +1231,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   const ch1 = fixture({
     'references/run-handoff.md': handsOff('/superdev:review'),
     'skills/review/SKILL.md': '# review\n\nReport the findings and stop.\n',
-    'skills/document/SKILL.md': handsOff('/superdev:ship'),
+    'skills/document/SKILL.md': handsOff('/superdev:submit-pr'),
   });
   const chGaps1 = scanChainHandoff(ch1);
   assert.equal(chGaps1.length, 1, 'flags the command that names no successor');
@@ -1199,7 +1242,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   const ch2 = fixture({
     'references/run-handoff.md': handsOff('/superdev:review'),
     'skills/review/SKILL.md': handsOff('/superdev:document'),
-    'skills/document/SKILL.md': handsOff('/superdev:ship'),
+    'skills/document/SKILL.md': handsOff('/superdev:submit-pr'),
   });
   assert.equal(scanChainHandoff(ch2).length, 0, 'a fully wired chain yields zero gaps');
 
@@ -1216,12 +1259,12 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   const ch4 = fixture({
     'references/run-handoff.md': handsOff('/superdev:review'),
     'skills/review/SKILL.md': 'To act on findings, run `/superdev:plan`, then `/superdev:implement`.\n',
-    'skills/document/SKILL.md': handsOff('/superdev:ship'),
+    'skills/document/SKILL.md': handsOff('/superdev:submit-pr'),
   });
   assert.equal(scanChainHandoff(ch4).length, 1, 'naming an unrelated command is not a handoff');
 
   // an absent document is skipped, so a fixture carries only the links it exercises
-  const ch5 = fixture({ 'skills/document/SKILL.md': handsOff('/superdev:ship') });
+  const ch5 = fixture({ 'skills/document/SKILL.md': handsOff('/superdev:submit-pr') });
   assert.equal(scanChainHandoff(ch5).length, 0, 'an absent chain document is skipped');
 
   // --- scanAfkInvocations: every stage-table row that invokes one of the four chain commands must carry
@@ -1235,16 +1278,16 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     '| Stage | Start at |\n' +
     '|---|---|\n' +
     rows.map(([stage, cmd]) => `| \`${stage}\` | \`${cmd}\` |\n`).join('') +
-    '\n`documented-unreviewed` routes to the review, not the ship, because `/superdev:ship --unattended` ' +
+    '\n`documented-unreviewed` routes to the review, not submit-pr, because `/superdev:submit-pr --unattended` ' +
     'refuses a scope whose review never ran.\n\n' +
-    'A maintainer runs `/superdev:ship <slug>` once the host is reachable.\n';
+    'A maintainer runs `/superdev:submit-pr <slug>` once the host is reachable.\n';
 
   const fullRows = [
     ['no run root, or `implementing`', '/superdev:implement feat/<label> --unattended'],
     ['merged', '/superdev:review <BASE>..superdev/<slug> --unattended'],
     ['reviewed', '/superdev:document <BASE>..superdev/<slug> --unattended'],
     ['documented-unreviewed', '/superdev:review <BASE>..superdev/<slug> --unattended'],
-    ['documented', '/superdev:ship <slug> --unattended'],
+    ['documented', '/superdev:submit-pr <slug> --unattended'],
   ];
 
   // negative: every row carrying the token, plus the footnote and the §5 mention with no token, is clean
@@ -1266,18 +1309,18 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   const afkShipMasked = fixture({
     'skills/afk/SKILL.md': stageTable(
       fullRows.map((row) =>
-        row[1].startsWith('/superdev:ship') ? [row[0], row[1].replace(' --unattended', '')] : row,
+        row[1].startsWith('/superdev:submit-pr') ? [row[0], row[1].replace(' --unattended', '')] : row,
       ),
     ),
   });
   const shipGaps = scanAfkInvocations(afkShipMasked);
-  assert.equal(shipGaps.length, 1, 'the ship footnote does not mask the ship row losing the token');
-  assert.match(shipGaps[0].expectation, /\/superdev:ship/, 'names the ship row');
+  assert.equal(shipGaps.length, 1, 'the submit-pr footnote does not mask the submit-pr row losing the token');
+  assert.match(shipGaps[0].expectation, /\/superdev:submit-pr/, 'names the submit-pr row');
 
   // §5's maintainer-resume mention (`/superdev:ship <slug>`, no token, not a table row) stays green on
   // its own — it is prose, not an invocation
   const afkResumeOnly = fixture({
-    'skills/afk/SKILL.md': 'A maintainer runs `/superdev:ship <slug>` once the host is reachable.\n',
+    'skills/afk/SKILL.md': 'A maintainer runs `/superdev:submit-pr <slug>` once the host is reachable.\n',
   });
   const resumeGaps = scanAfkInvocations(afkResumeOnly);
   assert.ok(
@@ -1287,7 +1330,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // a row that stops existing is caught too — inspecting only the rows present says nothing about a step
   // afk silently dropped, which would make it skip reviewing or shipping and still report a clean sweep
-  for (const dropped of ['implement', 'review', 'document', 'ship']) {
+  for (const dropped of ['implement', 'review', 'document', 'submit-pr']) {
     const afkMissing = fixture({
       'skills/afk/SKILL.md': stageTable(fullRows.filter(([, cmd]) => !cmd.startsWith(`/superdev:${dropped} `))),
     });
@@ -1302,6 +1345,69 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     scanAfkInvocations(fixture({ 'README.md': '# repo\n' })).length,
     0,
     'an absent afk.md is skipped',
+  );
+
+  // --- scanAfkNoShipStep: afk never names `/superdev:ship` as a step it runs (INV-0093). `AFK_NAMES`
+  // excludes `ship`, so `scanAfkInvocations()`'s row loop above silently skips a stage-table row naming
+  // it — this scanner reads the whole file instead, sentence by sentence, admitting a mention only
+  // where that same sentence says afk stops short of running it. ---
+
+  // negative: the real file's two legitimate mentions — "human-only … you never invoke it" and "only a
+  // human moves it further" — both admit, so a fixture modeled on them is clean
+  const afkShipAdmitted = fixture({
+    'skills/afk/SKILL.md':
+      'You take each eligible scope anchor through the chain to an open pull request.\n' +
+      '`/superdev:ship` is a separate, human-only command: it merges the pull request this chain opens, ' +
+      'and you never invoke it.\n\n' +
+      "An anchor's pull request is already open, or already merged; only a human moves it further with " +
+      '`/superdev:ship`.\n',
+  });
+  assert.equal(scanAfkNoShipStep(afkShipAdmitted).length, 0, 'both admitted mentions are clean');
+
+  // positive: a stage-table row (or any other sentence) naming `/superdev:ship` with no admission is
+  // caught — the exact regression AFK_NAMES's silent skip would otherwise hide
+  const afkShipStep = fixture({
+    'skills/afk/SKILL.md':
+      '| Stage | Start at |\n' +
+      '|---|---|\n' +
+      '| `submitted` | `/superdev:ship <slug> --unattended` |\n',
+  });
+  const shipStepGaps = scanAfkNoShipStep(afkShipStep);
+  assert.equal(shipStepGaps.length, 1, 'a naked /superdev:ship mention is caught');
+  assert.match(shipStepGaps[0].expectation, /superdev:ship/, 'names the mention');
+
+  // an absent afk.md is skipped, matching every other contract scanner
+  assert.equal(
+    scanAfkNoShipStep(fixture({ 'README.md': '# repo\n' })).length,
+    0,
+    'an absent afk.md is skipped',
+  );
+
+  // false positive (review finding 1): a legitimate paraphrase — "stops before invoking ... which
+  // stays a human step" — carries none of the three literal admission tokens, but plainly admits
+  // afk never runs ship. A whole-sentence "never"/"only a human"/"human-only" test misses this.
+  const afkShipParaphrase = fixture({
+    'skills/afk/SKILL.md':
+      'The chain stops before invoking `/superdev:ship`, which stays a human step.\n',
+  });
+  assert.equal(
+    scanAfkNoShipStep(afkShipParaphrase).length,
+    0,
+    'a paraphrase admitting afk stops before ship, without the literal admission tokens, is clean',
+  );
+
+  // false positive (review finding 1): an unrelated `never` elsewhere in the same sentence must not
+  // excuse a real `/superdev:ship` invocation far away from it
+  const afkShipUnrelatedNever = fixture({
+    'skills/afk/SKILL.md':
+      'The dispatch never retries a failed slice under load, so after that step the chain still ' +
+      'invokes `/superdev:ship` once review completes.\n',
+  });
+  const unrelatedNeverGaps = scanAfkNoShipStep(afkShipUnrelatedNever);
+  assert.equal(
+    unrelatedNeverGaps.length,
+    1,
+    'an unrelated "never" far from the /superdev:ship mention does not excuse it',
   );
 
   // --- scanHookLedgerParsers: no hook carries a ledger-header regex of its own (ADR 0022) ---
@@ -1345,7 +1451,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // unrelated stage gate above it still carries an "ask once" phrase for a different question — a
   // whole-file test is satisfied by that unrelated phrase and misses the drop
   const sg1 = fixture({
-    'skills/ship/SKILL.md':
+    'skills/submit-pr/SKILL.md':
       SHIP_UNRELATED_GATE +
       '**Entries standing.** Name every bullet. Declined → stop. Confirmed → proceed. **`--unattended` → ' +
       'refuse**: name what stands, open no pull request, and stop.\n\n' +
@@ -1358,15 +1464,15 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'flags a ship.md whose entries-standing paragraph drops the ask-once clause, even with the unrelated ' +
       'stage gate above it still carrying one',
   );
-  assert.equal(sgGaps1[0].source, path.join('skills', 'ship', 'SKILL.md'), 'names ship.md');
+  assert.equal(sgGaps1[0].source, path.join('skills', 'submit-pr', 'SKILL.md'), 'names submit-pr.md');
 
   // positive (RED reproduction, the reviewer's exact case): the entries-standing paragraph drops its own
   // unattended-refuse clause, while the unrelated stage gate above it still carries the identical
   // `--unattended` → refuse phrase — the whole-file test used to pass wrongly here
   const sg2 = fixture({
-    'skills/ship/SKILL.md':
+    'skills/submit-pr/SKILL.md':
       SHIP_UNRELATED_GATE +
-      '**Entries standing.** Name every bullet and **ask once** whether to ship with it standing. ' +
+      '**Entries standing.** Name every bullet and **ask once** whether to submit with it standing. ' +
       'Declined → stop. Confirmed → proceed.\n\n' +
       '## 4. Pull request\n',
   });
@@ -1377,13 +1483,13 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'flags a ship.md whose entries-standing paragraph drops the unattended-refuse clause, even with the ' +
       'unrelated stage gate above it still carrying the identical phrase',
   );
-  assert.equal(sgGaps2[0].source, path.join('skills', 'ship', 'SKILL.md'), 'names ship.md');
+  assert.equal(sgGaps2[0].source, path.join('skills', 'submit-pr', 'SKILL.md'), 'names submit-pr.md');
 
   // negative: both halves carried in the entries-standing paragraph itself
   const sg3 = fixture({
-    'skills/ship/SKILL.md':
+    'skills/submit-pr/SKILL.md':
       SHIP_UNRELATED_GATE +
-      '**Entries standing.** Name every bullet and **ask once** whether to ship with it standing. ' +
+      '**Entries standing.** Name every bullet and **ask once** whether to submit with it standing. ' +
       'Declined → stop. Confirmed → proceed. **`--unattended` → refuse**: name what stands, open no ' +
       'pull request, and stop.\n\n' +
       '## 4. Pull request\n',
@@ -1395,16 +1501,61 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   );
 
   // positive: no entries-standing paragraph at all
-  const sg4 = fixture({ 'skills/ship/SKILL.md': SHIP_UNRELATED_GATE + '## 4. Pull request\n' });
+  const sg4 = fixture({ 'skills/submit-pr/SKILL.md': SHIP_UNRELATED_GATE + '## 4. Pull request\n' });
   const sgGaps4 = scanShipGateContract(sg4);
-  assert.equal(sgGaps4.length, 1, 'flags a ship.md with no entries-standing paragraph at all');
-  assert.equal(sgGaps4[0].source, path.join('skills', 'ship', 'SKILL.md'), 'names ship.md');
+  assert.equal(sgGaps4.length, 1, 'flags a submit-pr.md with no entries-standing paragraph at all');
+  assert.equal(sgGaps4[0].source, path.join('skills', 'submit-pr', 'SKILL.md'), 'names submit-pr.md');
 
   // absent files are skipped, matching every other contract scanner
   assert.equal(
     scanShipGateContract(fixture({ 'README.md': '# repo\n' })).length,
     0,
     'absent files are skipped',
+  );
+
+  // --- scanShipNoOpensPr: no shipped surface pairs `/superdev:ship` with opening the pull request —
+  // `/superdev:submit-pr` opens it, `/superdev:ship` only merges what is already open (ADR 0096). ---
+
+  // negative: ship named beside "merges" rather than "opens", and submit-pr named beside "opens" —
+  // both stay clean, since the check only fires on ship paired with the open-PR phrasing
+  const shipMerges = fixture({
+    'skills/submit-pr/SKILL.md': '`/superdev:submit-pr` pushes the scope branch and opens the pull request.\n',
+    'README.md':
+      'Once the pull request is reviewed, `/superdev:ship` merges it, closes the scope anchor, and cleans up the run.\n',
+  });
+  assert.equal(scanShipNoOpensPr(shipMerges).length, 0, 'ship paired with "merges" and submit-pr paired with "opens" are both clean');
+
+  // positive: `/superdev:ship` and "opens the pull request" in the same sentence is caught, over every
+  // surface the check reads
+  for (const rel of ['skills/ship/SKILL.md', 'agents/doc-writer.md', 'references/scope-mode.md', 'README.md']) {
+    const gaps = scanShipNoOpensPr(
+      fixture({ [rel]: '`/superdev:ship` opens the pull request and merges it in one step.\n' }),
+    );
+    assert.equal(gaps.length, 1, `catches the pairing in ${rel}`);
+    assert.equal(gaps[0].source, rel, `names ${rel}`);
+  }
+
+  // absent files, and an absent skills/agents/references directory, are skipped, matching every other
+  // contract scanner
+  assert.equal(
+    scanShipNoOpensPr(fixture({ 'docs/adr/0096-example.md': '`/superdev:ship` opens the pull request.\n' })).length,
+    0,
+    'docs/adr/ is history, not a shipped surface, and an absent skills/agents/references directory is skipped',
+  );
+
+  // false positive (review finding 2): the open-PR phrase attaches to `/superdev:submit-pr`, not to
+  // `/superdev:ship`, even though both command names sit in the same sentence — a whole-sentence
+  // co-occurrence test wrongly flags this
+  assert.equal(
+    scanShipNoOpensPr(
+      fixture({
+        'README.md':
+          'Once `/superdev:submit-pr` opens the pull request, `/superdev:ship` merges it and closes ' +
+          'the anchor.\n',
+      }),
+    ).length,
+    0,
+    '`/superdev:submit-pr` opens it, `/superdev:ship` merely mentioned afterward, stays clean',
   );
 
   // --- UNRESOLVED_GLOSSARY_CONTRACTS: CONTEXT.md's Degraded pass and Unresolved defect entries agree
@@ -3417,23 +3568,23 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   );
   assert.equal(eaSlugMovedAhead.length, 1, 'flags the slug bullet moved ahead of the range shapes it must follow');
 
-  // positive: skills/ship/SKILL.md drops its citation and its own candidate-set sentence
+  // positive: skills/submit-pr/SKILL.md drops its citation and its own candidate-set sentence
   const eaShipMissing = scanContract(
-    fixture({ 'skills/ship/SKILL.md': 'Resolve the run root some other way.\n' }),
+    fixture({ 'skills/submit-pr/SKILL.md': 'Resolve the run root some other way.\n' }),
     EMPTY_ARGUMENT_CONTRACTS,
   );
   assert.equal(eaShipMissing.length, 2, 'flags both the missing citation and the missing candidate-set sentence');
   assert.deepEqual(
     eaShipMissing.map((gap) => gap.source),
-    [path.join('skills', 'ship', 'SKILL.md'), path.join('skills', 'ship', 'SKILL.md')],
-    'names skills/ship/SKILL.md for both',
+    [path.join('skills', 'submit-pr', 'SKILL.md'), path.join('skills', 'submit-pr', 'SKILL.md')],
+    'names skills/submit-pr/SKILL.md for both',
   );
 
-  // negative: skills/ship/SKILL.md carries both
+  // negative: skills/submit-pr/SKILL.md carries both
   assert.equal(
     scanContract(
       fixture({
-        'skills/ship/SKILL.md':
+        'skills/submit-pr/SKILL.md':
           "The candidate set is every run root whose stage is not `shipped`. Run `## Resolving an empty " +
           "argument`.\n",
       }),
@@ -4118,4 +4269,54 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     0,
     'the shipped `check` mode still reports a leftover `.claude/rules/` directory',
   );
+
+  // #683, INV-0092: scanNoForceMerge — positive, the Forgejo shape
+  const forceMergeRoot = fixture({
+    'references/code-management-forgejo.md': 'POST .../merge with `{ "force_merge": true }`\n',
+  });
+  const forceMergeGaps = scanNoForceMerge(forceMergeRoot);
+  assert.equal(forceMergeGaps.length, 1, 'catches an actual `force_merge: true` invocation');
+  assert.match(forceMergeGaps[0].expectation, /force_merge: true/, 'names the option');
+
+  // positive: the Forgejo shape with double-quoted JSON key
+  const forceMergeJsonRoot = fixture({
+    'references/code-management-forgejo.md': '{ "force_merge": true }\n',
+  });
+  assert.equal(scanNoForceMerge(forceMergeJsonRoot).length, 1, 'catches `"force_merge": true` in JSON');
+
+  // positive: the GitHub shape
+  const adminRoot = fixture({
+    'references/code-management-github.md': '`gh pr merge --squash --admin 42`\n',
+  });
+  assert.equal(scanNoForceMerge(adminRoot).length, 1, 'catches an actual `--admin` invocation');
+
+  // negative: naming the option to forbid it, right next to a `never`, is not a hit
+  assert.equal(
+    scanNoForceMerge(
+      fixture({
+        'references/code-management-forgejo.md': 'Never send `force_merge` — this seed never sets it.\n',
+      }),
+    ).length,
+    0,
+    'a caution naming the forbidden option is not an invocation',
+  );
+  assert.equal(
+    scanNoForceMerge(
+      fixture({
+        'references/code-management-github.md': 'Never pass `--admin` — this seed never sends it.\n',
+      }),
+    ).length,
+    0,
+    'the same caution shape passes for the GitHub option',
+  );
+
+  // negative: the real seeds and this repo's own doc carry neither option
+  assert.equal(
+    scanNoForceMerge(realRoot).length,
+    0,
+    'the shipped code-management documents send no force or bypass option',
+  );
+
+  // absent file is skipped, matching every other scanner
+  assert.equal(scanNoForceMerge(fixture({ 'README.md': '# repo\n' })).length, 0, 'absent document is skipped');
 };

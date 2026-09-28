@@ -80,7 +80,7 @@ A run root matching no open anchor, whose stage reads short of `shipped`, is a *
 row in the `stranded` bucket (§3), the item §5 ranks most expensive — unless its directory name is the
 scope slug of a feature label this same survey already gave a `blocked` row for; that row already names
 the act, so the run root beneath it earns no second one. A run root matching no open anchor whose stage
-reads `shipped` gets **no row at all** — `$superdev-ship` closes the anchor and sets that stage in the
+reads `shipped` gets **no row at all** — `ship` closes the anchor and sets that stage in the
 same step, so this is the ordinary end state a finished run sits in until `hooks/scope-prune.js` reaps it,
 not a mismatch to report. The reciprocal case — an open anchor whose own run root reads `shipped` — is a
 row too; §3 buckets it.
@@ -107,12 +107,25 @@ issue query, say. A record already returned by the anchor or triage listing is n
 |---|---|---|
 | `blocked` | the anchor carries the store's blocked signal, an open one among the slices its `## Scope anchor` listing returns beneath it does, its feature label fails the scope-slug rule, its feature label's candidates are `Ambiguous` per the active `docs/agents/issue-tracker.md`'s own `## Scope anchor` section, or its matched run root's stage reads `shipped` while the anchor is still open — close the anchor | a human, now |
 | `stranded` | a run root whose stage is short of `shipped` and matches no open anchor | a human, now — resume the run if its anchor still exists, otherwise delete the branch, scopetree, and run root |
-| `in flight` | its scope has a run root whose stage is short of `shipped` and not `planned` | the chain command that stage has not reached |
+| `awaiting merge` | its matched run root's stage reads `submitted` and its pull request is open on the host, or none is recorded to check | the operator's merge on the host, then `ship <scope-slug>` |
+| `merge unrecorded` | its matched run root's stage reads `submitted` and its pull request shows merged on the host by hand | `ship <scope-slug>` — record the merge |
+| `in flight` | its scope has a run root whose stage is short of `shipped` and not `planned`, and not already bucketed `awaiting merge`/`merge unrecorded` above | the chain command that stage has not reached |
 | `waiting` | an anchor dependency it records is unsatisfied | the anchor it waits on |
 | `needs planning` | a triage record, or an anchor that is neither itself a slice nor has slices beneath it | `$superdev-plan` |
 | `unreleased` | an anchor carrying no release signal (`docs/agents/issue-tracker.md`'s `## Release` section) | a release decision |
 | `ready` | every remaining **anchor**: released, dependencies satisfied, and no run root or a matched run root at stage `planned` — `$superdev-plan` already cut the branch and scopetree, but no slice has run (triage #509) | `$superdev-implement <feature-label>` |
 | `untriaged` | an open store record carrying neither a feature label nor the store's triage signal | read it — a human decides what to do next |
+
+**A run root at stage `submitted` needs one more read before it lands in either new bucket above:
+whether its pull request is open or already merged.** Read the ledger's `**PR:** #<n>` with
+`node "<plugin-root>/scripts/scope.js" get pr --root <run-root>`. **A number** → read that pull
+request by index, through the active `docs/agents/code-management.md`'s `## Merge` section's
+read-the-pull-request call, for its `state`/`merged`. **`merged` true** → `merge unrecorded`.
+**Otherwise (open)** → `awaiting merge`. **`absent`** (a ledger predating that header) → that section's
+own open-pull-requests-by-head-branch fallback, scoped to open pull requests only. A header-less ledger
+and a hand-merged pull request read identically here — no open pull request left to find either way — so
+this row goes to `awaiting merge` regardless of what the fallback returns, carrying `PR not recorded` as
+its note rather than guessing which one it is.
 
 **Every open anchor, every triage record and untriaged item the listings returned, and every
 stranded run root appears in the table.** An item you cannot classify is a `blocked` row naming what you

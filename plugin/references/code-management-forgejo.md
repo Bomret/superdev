@@ -35,6 +35,34 @@ Auth header: `-H "Authorization: token $FORGEJO_TOKEN"`, `-H "Content-Type: appl
 
 Push the branch, then print the instance compare URL
 (`<base>/<owner>/<repo>/compare/<base>...<scope-branch>`) and the exact `tea`/curl command to run.
+The merge call below degrades the same way: print the exact REST call and merge nothing.
+
+## Merge
+
+- **Read the pull request**: `GET <base>/api/v1/repos/<owner>/<repo>/pulls/<index>` →
+  `state` (`open`/`closed`), `merged` (bool), `merge_commit_sha` (once merged), `head.sha`, and
+  `mergeable` (bool).
+- **Merge it, pinned**: `POST <base>/api/v1/repos/<owner>/<repo>/pulls/<index>/merge` with
+  `{ "Do": "squash", "MergeTitleField": "<pr-title>", "head_commit_id": "<tested-tip-sha>" }`.
+  `head_commit_id` pins the merge to that sha: the host answers 409 when the head moved since. Never
+  send `force_merge` — that field overrides branch protection and required approvals, and this seed
+  never sets it. `tea pr merge` carries no head-pin of its own, so use the REST call above rather than
+  the CLI for this one step.
+- **A refusal names the reason**: 405 means the pull request cannot be merged (an unmet required
+  approval or protection rule, or it is already merged/closed); 409 means the head moved since it was
+  read, or a conflict exists. Relay the host's own message to the operator instead of retrying.
+- **Find an open pull request by its head branch** (a fallback, when no index is on hand):
+  `GET <base>/api/v1/repos/<owner>/<repo>/pulls?state=open` — Gitea/Forgejo carries no `head` query
+  parameter, so filter the returned array client-side by `head.ref` matching the scope branch. The list
+  paginates (`page`, `limit` query params; `limit` capped at the server's `MAX_RESPONSE_ITEMS`, 50 by
+  default): page through every page — the `Link` response header names the next one — before counting
+  matches, or a match sitting on a later page reads as zero. Leaving
+  `state=open` off would surface closed and merged pull requests too, including an old one left over from
+  a reused branch name — never widen the filter to catch one of those.
+- **`<tested-tip-sha>` above is never read from the host.** It is the local scope-branch tip
+  `scope.js suite reusable` just accepted, resolved with `git rev-parse <branch>` in the scope checkout.
+  `/superdev:ship` reads the pull request's own `head.sha` only to decide whether to push and to refuse
+  when it still differs from that tip after pushing, never as the merge's own pin.
 
 ## Compute the base
 

@@ -60,6 +60,7 @@ const {
   OBSERVATION_CAPTURE_CONTRACTS,
   LABEL_REVISION_AT_DECOMPOSITION_CONTRACTS,
   UNMET_CRITERION_AT_REVIEW_CONTRACTS,
+  REVIEW_SUBMITTED_CONTRACTS,
   RELEASE_ANSWER_NOT_INFERRED_CONTRACTS,
   CAPTURE_CHECKS_CONCURRENT_PLANS_CONTRACTS,
   DECOMPOSITION_NAMES_WHAT_IT_CHECKED_CONTRACTS,
@@ -166,7 +167,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'skills/implement/SKILL.md': namesToken,
     'skills/review/SKILL.md': namesToken,
     'skills/document/SKILL.md': namesToken,
-    'skills/ship/SKILL.md': namesToken,
+    'skills/submit-pr/SKILL.md': namesToken,
     'references/implement-full.md': namesToken,
     'references/implement-lite.md': namesToken,
     'references/run-init.md': namesToken,
@@ -198,7 +199,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'skills/implement/SKILL.md',
     'skills/review/SKILL.md',
     'skills/document/SKILL.md',
-    'skills/ship/SKILL.md',
+    'skills/submit-pr/SKILL.md',
     'references/implement-full.md',
     'references/implement-lite.md',
     'references/run-init.md',
@@ -215,7 +216,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // section that routes a stop to block, so the token governs nothing.
   const shipShaped = fixture({
     ...everyStop,
-    'skills/ship/SKILL.md': '# ship\n\nCarries `--unattended` but points nowhere.\n',
+    'skills/submit-pr/SKILL.md': '# submit-pr\n\nCarries `--unattended` but points nowhere.\n',
   });
   const shipShapedGaps = scanContract(shipShaped, UNATTENDED_CONTRACTS, unattendedOpts);
   assert.equal(shipShapedGaps.length, 1, 'flags the missing read/apply instruction alone');
@@ -224,7 +225,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // positive: `[--unattended]` in a command's own `argument-hint` frontmatter is not a standing answer in
   // its body. Deleting every real mention from review.md/document.md/ship.md and leaving only the
   // frontmatter echo must still be caught — the exact false-green `stripFrontmatterFirst` exists to close.
-  for (const rel of ['skills/review/SKILL.md', 'skills/document/SKILL.md', 'skills/ship/SKILL.md']) {
+  for (const rel of ['skills/review/SKILL.md', 'skills/document/SKILL.md', 'skills/submit-pr/SKILL.md']) {
     const frontmatterOnly = fixture({
       ...everyStop,
       [rel]: '---\nargument-hint: "[foo] [--unattended]"\n---\n\n# doc\n\nNo body mention.\n',
@@ -268,7 +269,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'skills/implement/SKILL.md': namesDegraded,
     'skills/review/SKILL.md': namesDegraded,
     'skills/document/SKILL.md': namesDegraded,
-    'skills/ship/SKILL.md': namesDegraded,
+    'skills/submit-pr/SKILL.md': namesDegraded,
     'skills/status/SKILL.md': namesDegraded,
     'references/implement-full.md': namesDegraded,
     'references/implement-lite.md': namesDegraded,
@@ -313,7 +314,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'skills/implement/SKILL.md',
     'skills/review/SKILL.md',
     'skills/document/SKILL.md',
-    'skills/ship/SKILL.md',
+    'skills/submit-pr/SKILL.md',
     'skills/status/SKILL.md',
     'references/implement-full.md',
     'references/implement-lite.md',
@@ -328,7 +329,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // positive: the entry named with no pointer to the section leaves a reader a token and no rule
   const entryOnly = fixture({
     ...everyConsumer,
-    'skills/ship/SKILL.md': '# ship\n\nCopy any `**Degraded:**` bullet into the body.\n',
+    'skills/submit-pr/SKILL.md': '# submit-pr\n\nCopy any `**Degraded:**` bullet into the body.\n',
   });
   const entryOnlyGaps = scanContract(entryOnly, DEGRADED_CONTRACTS, degradedOpts);
   assert.equal(entryOnlyGaps.length, 1, 'flags the missing section pointer alone');
@@ -447,7 +448,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'skills/review/SKILL.md': joinAll(reviewPieces),
     'references/run-init.md': pointsAtPublish,
     'skills/implement/SKILL.md': pointsAtPublish,
-    'skills/ship/SKILL.md': pointsAtPublish,
+    'skills/submit-pr/SKILL.md': pointsAtPublish,
     'references/implement-full.md': implementFullPointsAtPublish,
   };
 
@@ -502,7 +503,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   }
 
   // positive: each of the four single-citation files is checked on its own too
-  for (const rel of ['references/run-init.md', 'skills/implement/SKILL.md', 'skills/ship/SKILL.md', 'references/implement-full.md']) {
+  for (const rel of ['references/run-init.md', 'skills/implement/SKILL.md', 'skills/submit-pr/SKILL.md', 'references/implement-full.md']) {
     const dropped = fixture({ ...everyPublishSite, [rel]: '# doc\n\nWrite the stage. Nothing else.\n' });
     const gaps = scanContract(dropped, PUBLISH_RUN_STATE_CONTRACTS);
     assert.equal(gaps.length, 1, `flags ${rel} alone for dropping its citation`);
@@ -696,7 +697,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       "Any stage other than `planned`, with a lock under an hour old** — a live implement run (`CONTEXT.md`). Attended:\n" +
       "  name the lock's age and content and the ledger's stage.\n\n" +
       "governs `/superdev:implement`'s own entry alone, never `/superdev:review`,\n" +
-      "`/superdev:document`, or `/superdev:ship`.** Each of those three is the chain's single designed hand-off.\n\n" +
+      "`/superdev:document`, `/superdev:submit-pr`, or `/superdev:ship`.** Each of those four is the chain's single designed hand-off.\n\n" +
       "`/superdev:plan` keeps its own, narrower check, unaffected by the rule above** (triage #510): before its\n" +
       "own cut, a lock already present always means a second plan session.\n",
     'references/run-init.md':
@@ -738,7 +739,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     assert.equal(gaps[0].source, path.join('references', 'implement-lite.md'));
   }
 
-  // positive: review/document/ship's own "refresh the run lock" bullets carry no liveness-check
+  // positive: review/document/submit-pr's own "refresh the run lock" bullets carry no liveness-check
   // mention at all, by design — this table has no row for them, so their absence never gaps
   assert.equal(
     scanContract(
@@ -746,12 +747,12 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
         ...runLockLivenessPieces,
         'skills/review/SKILL.md': 'Find the scope checkout, and refresh the run lock. Per scope-mode.md.\n',
         'skills/document/SKILL.md': 'Find the scope checkout, and refresh the run lock. Per scope-mode.md.\n',
-        'skills/ship/SKILL.md': "Refresh \`<run-root>/run.lock\` now, per that file's rule.\n",
+        'skills/submit-pr/SKILL.md': "Refresh \`<run-root>/run.lock\` now, per that file's rule.\n",
       }),
       RUN_LOCK_LIVENESS_CONTRACTS,
     ).length,
     0,
-    'run-lock-liveness: review/document/ship carry no row, since the check does not govern their ordinary hand-off',
+    'run-lock-liveness: review/document/submit-pr carry no row, since the check does not govern their ordinary hand-off',
   );
 
   // absent files are skipped, matching every other contract table
@@ -762,7 +763,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   );
 
   // --- scanRunLockLivenessSilence: the absence half. RUN_LOCK_LIVENESS_CONTRACTS pins only the rule's
-  // presence in scope-mode.md, so a skill edit re-widening the liveness check onto review/document/ship's
+  // presence in scope-mode.md, so a skill edit re-widening the liveness check onto review/document/submit-pr's
   // ordinary hand-off would ship green there — the exact regression a first cycle of this feature shipped.
   // This scanner catches the words regrowing on the three skills the rule does not govern. ---
 
@@ -772,7 +773,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       fixture({
         'skills/review/SKILL.md': 'Find the scope checkout, and refresh the run lock. Per scope-mode.md.\n',
         'skills/document/SKILL.md': 'Find the scope checkout, and refresh the run lock. Per scope-mode.md.\n',
-        'skills/ship/SKILL.md': "Refresh `<run-root>/run.lock` now, per that file's rule.\n",
+        'skills/submit-pr/SKILL.md': "Refresh `<run-root>/run.lock` now, per that file's rule.\n",
       }),
     ).length,
     0,
@@ -789,13 +790,13 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'skills/document/SKILL.md',
       "Find the scope checkout, and refresh the run lock, reading the ledger's stage alongside the lock's mtime first.\n",
     ],
-    ['skills/ship/SKILL.md', "Refresh `<run-root>/run.lock` now, taking its liveness check first.\n"],
+    ['skills/submit-pr/SKILL.md', "Refresh `<run-root>/run.lock` now, taking its liveness check first.\n"],
   ]) {
     const gaps = scanRunLockLivenessSilence(
       fixture({
         'skills/review/SKILL.md': 'Find the scope checkout, and refresh the run lock. Per scope-mode.md.\n',
         'skills/document/SKILL.md': 'Find the scope checkout, and refresh the run lock. Per scope-mode.md.\n',
-        'skills/ship/SKILL.md': "Refresh `<run-root>/run.lock` now, per that file's rule.\n",
+        'skills/submit-pr/SKILL.md': "Refresh `<run-root>/run.lock` now, per that file's rule.\n",
         [rel]: regrown,
       }),
     );
@@ -1777,26 +1778,26 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     assert.match(writeGaps[0].expectation, /deferred add/, 'the gap names the verb it wants');
 
     const readOnly = fixture({
-      'skills/ship/SKILL.md':
+      'skills/submit-pr/SKILL.md':
         'Read the stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>`. ' +
-        'Set it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set shipped --root <run-root>`. ' +
+        'Set it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set submitted --root <run-root>`. ' +
         'Read them with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get unresolved --root <run-root>` and ' +
         '`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get degraded --root <run-root>`.\n',
     });
     const readGaps = scanContract(readOnly, VERB_CONTRACTS);
-    assert.equal(readGaps.length, 1, 'a ship.md with every other read but no `get deferred` is flagged');
+    assert.equal(readGaps.length, 1, 'a submit-pr.md with every other read but no `get deferred` is flagged');
     assert.match(readGaps[0].expectation, /get deferred/, 'the gap names the read it wants');
   }
 
-  // positive: ship.md drops the `scope.js get unresolved`/`get degraded` reads entirely, going back to
-  // hand-reading the ledger (or the cwd-dependent `status`, which is the failure Important 2 closed)
+  // positive: submit-pr.md drops the `scope.js get unresolved`/`get degraded` reads entirely, going back
+  // to hand-reading the ledger (or the cwd-dependent `status`, which is the failure Important 2 closed)
   const shipNoStatus = fixture({
-    'skills/ship/SKILL.md': 'Ask whether anything stands, from memory of the review.\n',
+    'skills/submit-pr/SKILL.md': 'Ask whether anything stands, from memory of the review.\n',
   });
   const shipVerbGaps = scanContract(shipNoStatus, VERB_CONTRACTS);
   assert.ok(
-    shipVerbGaps.some((g) => g.source === path.join('skills', 'ship', 'SKILL.md')),
-    'flags a ship.md that stopped reading the unresolved and degrade records through `scope.js get`',
+    shipVerbGaps.some((g) => g.source === path.join('skills', 'submit-pr', 'SKILL.md')),
+    'flags a submit-pr.md that stopped reading the unresolved and degrade records through `scope.js get`',
   );
 
   // --- PLANNED_HANDOFF_CONTRACTS (ADR 0079, ADR 0080): `/superdev:plan` cuts the branch and scopetree,
@@ -2528,15 +2529,15 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   });
   assert.equal(scanContract(ts4, TIER_SKIP_CONTRACTS).length, 0, 'all three rows stated satisfies the contract');
 
-  // --- scanDocStepsNoSuite: the other side of ADR 0025. `/superdev:document`, `/superdev:ship`, and the
+  // --- scanDocStepsNoSuite: the other side of ADR 0025. `/superdev:document`, `/superdev:submit-pr`, and the
   // `doc-writer` instruct no full-suite run, so the scope's one run stays the review's. This asserts an
   // absence, which every table above asserts the opposite of: a gap here is a document that grew an
   // instruction, not one that lost a clause. ---
 
-  // negative: three silent documents, plus ship.md's past-tense mention of a run that already happened
+  // negative: three silent documents, plus submit-pr.md's past-tense mention of a run that already happened
   const ds1 = fixture({
     'skills/document/SKILL.md': 'Dispatch `superdev:doc-writer` over the range, then dispatch `doc-reader`.\n',
-    'skills/ship/SKILL.md':
+    'skills/submit-pr/SKILL.md':
       "Stage the pull request only once `/superdev:implement`'s run handoff has run the full suite and " +
       'found it green.\n',
     'agents/doc-writer.md': 'Reconcile the in-repo docs with the code over the range you are handed.\n',
@@ -2556,13 +2557,13 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   // positive: ship.md grows the take-the-command-and-run-it shape run handoff uses
   const ds3 = fixture({
-    'skills/ship/SKILL.md':
+    'skills/submit-pr/SKILL.md':
       'Take the full command from `docs/agents/verification.md` and run it once over the scope branch ' +
       'before opening the request.\n',
   });
   const dsGaps3 = scanDocStepsNoSuite(ds3);
-  assert.equal(dsGaps3.length, 1, 'flags a ship.md that takes the full command and runs it');
-  assert.equal(dsGaps3[0].source, path.join('skills', 'ship', 'SKILL.md'), 'names ship.md');
+  assert.equal(dsGaps3.length, 1, 'flags a submit-pr.md that takes the full command and runs it');
+  assert.equal(dsGaps3[0].source, path.join('skills', 'submit-pr', 'SKILL.md'), 'names submit-pr.md');
 
   // positive: the doc-writer grows one too — a subagent's run is the same duplicate as a command's
   const ds4 = fixture({ 'agents/doc-writer.md': 'Run the full test suite itself once the docs agree.\n' });
@@ -2576,22 +2577,22 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   assert.equal(dsGaps5.length, 1, 'flags a document.md with the bare imperative, no reflexive pronoun');
   assert.equal(dsGaps5[0].source, path.join('skills', 'document', 'SKILL.md'), 'names document.md');
 
-  const ds6 = fixture({ 'skills/ship/SKILL.md': 'Re-run the full suite before staging the pull request.\n' });
+  const ds6 = fixture({ 'skills/submit-pr/SKILL.md': 'Re-run the full suite before staging the pull request.\n' });
   const dsGaps6 = scanDocStepsNoSuite(ds6);
-  assert.equal(dsGaps6.length, 1, 'flags a ship.md with the bare re-run imperative');
-  assert.equal(dsGaps6[0].source, path.join('skills', 'ship', 'SKILL.md'), 'names ship.md');
+  assert.equal(dsGaps6.length, 1, 'flags a submit-pr.md with the bare re-run imperative');
+  assert.equal(dsGaps6[0].source, path.join('skills', 'submit-pr', 'SKILL.md'), 'names submit-pr.md');
 
   const ds7 = fixture({ 'agents/doc-writer.md': 'Run the full test suite once the docs agree.\n' });
   const dsGaps7 = scanDocStepsNoSuite(ds7);
   assert.equal(dsGaps7.length, 1, 'flags a doc-writer.md with the bare imperative naming the test suite');
   assert.equal(dsGaps7[0].source, path.join('agents', 'doc-writer.md'), 'names doc-writer.md');
 
-  // negative: the auxiliary, not the reflexive pronoun, is the discriminator — ship.md's real past-tense
+  // negative: the auxiliary, not the reflexive pronoun, is the discriminator — submit-pr.md's real past-tense
   // mention stays silent under the bare-imperative pattern too
   assert.equal(
     scanDocStepsNoSuite(
       fixture({
-        'skills/ship/SKILL.md':
+        'skills/submit-pr/SKILL.md':
           "Stage the pull request only once `/superdev:implement`'s run handoff has run the full suite " +
           'and found it green.\n',
       }),
@@ -2605,7 +2606,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   assert.equal(
     scanDocStepsNoSuite(
       fixture({
-        'skills/ship/SKILL.md':
+        'skills/submit-pr/SKILL.md':
           'The run handoff has already run the full suite and found it green.\n',
       }),
     ).length,
@@ -2624,7 +2625,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   assert.equal(
     scanDocStepsNoSuite(
       fixture({
-        'skills/ship/SKILL.md': 'The run handoff has  \nrun the full suite and found it green.\n',
+        'skills/submit-pr/SKILL.md': 'The run handoff has  \nrun the full suite and found it green.\n',
       }),
     ).length,
     0,
@@ -2634,11 +2635,11 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // positive: the bare imperative with "full" dropped — the ordinary way a maintainer writes this shape
   // without the word "full" in it
   const ds8 = fixture({
-    'skills/ship/SKILL.md': 'Re-run the suite over the scope branch before the handoff.\n',
+    'skills/submit-pr/SKILL.md': 'Re-run the suite over the scope branch before the handoff.\n',
   });
   const dsGaps8 = scanDocStepsNoSuite(ds8);
-  assert.equal(dsGaps8.length, 1, 'flags a ship.md that re-runs the suite before the handoff');
-  assert.equal(dsGaps8[0].source, path.join('skills', 'ship', 'SKILL.md'), 'names ship.md');
+  assert.equal(dsGaps8.length, 1, 'flags a submit-pr.md that re-runs the suite before the handoff');
+  assert.equal(dsGaps8[0].source, path.join('skills', 'submit-pr', 'SKILL.md'), 'names submit-pr.md');
 
   const ds9 = fixture({
     'skills/document/SKILL.md': 'Run the whole suite once more before staging the pull request.\n',
@@ -4983,64 +4984,76 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     assert.equal(vcGaps[0].source, rel, `names ${rel}`);
   }
 
-  // --- SHIP_TICKS_NOTHING_CONTRACTS (ADR 0091): ship writes no tick anywhere, copies every `— ceiling:`
-  // criterion into the pull-request body as a post-merge checklist, and closes the scope anchor. The
-  // rows below pin skills/ship/SKILL.md's no-tick statement, the post-merge-checklist handling, and
-  // the anchor-close sentence. ---
+  // --- SHIP_TICKS_NOTHING_CONTRACTS (ADR 0091, ADR 0096): submit-pr writes no tick anywhere, and
+  // copies every `— ceiling:` criterion into the pull-request body as a post-merge checklist. ship
+  // writes no tick either, and still closes the scope anchor on a remote store, whatever tick logic
+  // left the run root. Four rows: submit-pr's no-tick statement, its post-merge-checklist handling,
+  // ship's own no-tick statement, and ship's own anchor-close statement. ---
   const stnClause =
-    'Ship writes no tick anywhere. Copy every `— ceiling:` criterion under its own `## Post-merge ' +
-    'checklist` heading. No such criterion → add no empty heading. Then move the **scope anchor** issue ' +
-    'to done.\n';
+    'This command writes no tick anywhere. Copy every `— ceiling:` criterion under its own `## ' +
+    'Post-merge checklist` heading. No such criterion → add no empty heading.\n';
 
-  // negative: a fixture carrying all three halves reports no gap
+  // negative: a fixture carrying both halves reports no gap
   const stnFullGaps = scanContract(
-    fixture({ 'skills/ship/SKILL.md': stnClause }),
+    fixture({ 'skills/submit-pr/SKILL.md': stnClause }),
     SHIP_TICKS_NOTHING_CONTRACTS,
   );
-  assert.deepEqual(stnFullGaps, [], 'a fixture carrying all three halves reports no gap');
+  assert.deepEqual(stnFullGaps, [], 'a fixture carrying both halves reports no gap');
 
   // positive: dropping the "writes no tick anywhere" statement reports that row alone
   const stnNoTickGaps = scanContract(
     fixture({
-      'skills/ship/SKILL.md':
+      'skills/submit-pr/SKILL.md':
         'Copy every `— ceiling:` criterion under its own `## Post-merge checklist` heading. No such ' +
-        'criterion → add no empty heading. Then move the **scope anchor** issue to done.\n',
+        'criterion → add no empty heading.\n',
     }),
     SHIP_TICKS_NOTHING_CONTRACTS,
   );
-  assert.equal(stnNoTickGaps.length, 1, 'flags ship/SKILL.md for dropping the no-tick statement');
-  assert.equal(stnNoTickGaps[0].source, path.join('skills', 'ship', 'SKILL.md'), 'names ship/SKILL.md');
+  assert.equal(stnNoTickGaps.length, 1, 'flags submit-pr/SKILL.md for dropping the no-tick statement');
+  assert.equal(stnNoTickGaps[0].source, path.join('skills', 'submit-pr', 'SKILL.md'), 'names submit-pr/SKILL.md');
 
   // positive: dropping the post-merge-checklist paragraph reports that row alone
   const stnNoChecklistGaps = scanContract(
     fixture({
-      'skills/ship/SKILL.md':
-        'Ship writes no tick anywhere. Then move the **scope anchor** issue to done.\n',
+      'skills/submit-pr/SKILL.md': 'This command writes no tick anywhere.\n',
     }),
     SHIP_TICKS_NOTHING_CONTRACTS,
   );
-  assert.equal(stnNoChecklistGaps.length, 1, 'flags ship/SKILL.md for dropping the post-merge checklist');
+  assert.equal(stnNoChecklistGaps.length, 1, 'flags submit-pr/SKILL.md for dropping the post-merge checklist');
 
-  // positive: dropping the anchor-close sentence reports that row alone
-  const stnNoAnchorGaps = scanContract(
-    fixture({
-      'skills/ship/SKILL.md':
-        'Ship writes no tick anywhere. Copy every `— ceiling:` criterion under its own `## Post-merge ' +
-        'checklist` heading. No such criterion → add no empty heading.\n',
-    }),
+  // negative: ship's own two rows, both present, report no gap
+  const stnShipClause = 'Ship writes no tick anywhere. Close the scope anchor on a remote store.\n';
+  const stnShipFullGaps = scanContract(
+    fixture({ 'skills/submit-pr/SKILL.md': stnClause, 'skills/ship/SKILL.md': stnShipClause }),
     SHIP_TICKS_NOTHING_CONTRACTS,
   );
-  assert.equal(stnNoAnchorGaps.length, 1, 'flags ship/SKILL.md for dropping the anchor-close sentence');
+  assert.deepEqual(stnShipFullGaps, [], "a fixture carrying ship's own two rows too reports no gap");
+
+  // positive: dropping ship's own no-tick statement reports that row alone
+  const stnShipNoTickGaps = scanContract(
+    fixture({ 'skills/ship/SKILL.md': 'Close the scope anchor on a remote store.\n' }),
+    SHIP_TICKS_NOTHING_CONTRACTS,
+  );
+  assert.equal(stnShipNoTickGaps.length, 1, "flags ship/SKILL.md for dropping its own no-tick statement");
+  assert.equal(stnShipNoTickGaps[0].source, path.join('skills', 'ship', 'SKILL.md'), 'names ship/SKILL.md');
+
+  // positive: dropping ship's own anchor-close statement reports that row alone
+  const stnShipNoAnchorGaps = scanContract(
+    fixture({ 'skills/ship/SKILL.md': 'Ship writes no tick anywhere.\n' }),
+    SHIP_TICKS_NOTHING_CONTRACTS,
+  );
+  assert.equal(stnShipNoAnchorGaps.length, 1, "flags ship/SKILL.md for dropping its own anchor-close statement");
 
   // --- ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS (triage #654): a store whose anchor close is a scope-branch
-  // commit commits that close before ship's push, so it reaches base with the merge. Pins
-  // skills/ship/SKILL.md's push-step sentence and references/issue-tracker-local.md's own close line. ---
+  // commit commits that close before submit-pr's push, so it reaches base with the merge. Pins
+  // skills/submit-pr/SKILL.md's push-step sentence and references/issue-tracker-local.md's own close
+  // line. ---
   const acbpClauses = {
-    'skills/ship/SKILL.md':
+    'skills/submit-pr/SKILL.md':
       'A store whose anchor close is a commit on the scope branch commits that close now, before this ' +
       'push, so it reaches base exactly when the pull request merges.\n',
     'references/issue-tracker-local.md':
-      '**`/superdev:ship`** — commit it `done` on the scope branch before ship pushes, so it reaches ' +
+      '**`/superdev:submit-pr`** — commit it `done` on the scope branch before it pushes, so it reaches ' +
       'base with the merge.\n',
   };
 
@@ -5048,13 +5061,13 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   const acbpFullGaps = scanContract(fixture(acbpClauses), ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS);
   assert.deepEqual(acbpFullGaps, [], 'a fixture carrying both halves reports no gap');
 
-  // positive: dropping the ship push-step sentence reports that row alone
+  // positive: dropping the submit-pr push-step sentence reports that row alone
   const acbpNoShipGaps = scanContract(
-    fixture({ ...acbpClauses, 'skills/ship/SKILL.md': 'Push the scope branch, then open the pull request.\n' }),
+    fixture({ ...acbpClauses, 'skills/submit-pr/SKILL.md': 'Push the scope branch, then open the pull request.\n' }),
     ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS,
   );
-  assert.equal(acbpNoShipGaps.length, 1, 'flags ship/SKILL.md for dropping the push-step sentence');
-  assert.equal(acbpNoShipGaps[0].source, path.join('skills', 'ship', 'SKILL.md'), 'names ship/SKILL.md');
+  assert.equal(acbpNoShipGaps.length, 1, 'flags submit-pr/SKILL.md for dropping the push-step sentence');
+  assert.equal(acbpNoShipGaps[0].source, path.join('skills', 'submit-pr', 'SKILL.md'), 'names submit-pr/SKILL.md');
 
   // positive: reverting the local store's close line to the old "once the scope branch merges" wording
   // reports that row alone
@@ -5062,7 +5075,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     fixture({
       ...acbpClauses,
       'references/issue-tracker-local.md':
-        '**`/superdev:ship`** — set it `done` once the scope branch merges.\n',
+        '**`/superdev:submit-pr`** — set it `done` once the scope branch merges.\n',
     }),
     ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS,
   );
@@ -5093,7 +5106,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'and that review\'s fix loop is what re-ticks it. ' +
       'or a standing `**Unresolved:**` entry already stands — run `scope.js get unresolved --root <run-root>` first. ' +
       'or the standing-entry check above printed one — print `/superdev:review <range>` too. ' +
-      'No untick this pass — print `/superdev:ship`; the step that opens the pull request asks once when ' +
+      'No untick this pass — print `/superdev:submit-pr`; the step that opens the pull request asks once when ' +
       'attended and refuses only when unattended, on a scope with an unmet criterion.\n',
   };
 
@@ -5151,7 +5164,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'and that review\'s fix loop is what re-ticks it. ' +
       'or a standing `**Unresolved:**` entry already stands — run `scope.js get unresolved --root <run-root>` first. ' +
       'or the standing-entry check above printed one — print `/superdev:review <range>` too. ' +
-      'No untick this pass — print `/superdev:ship`; the step that opens the pull request asks once when ' +
+      'No untick this pass — print `/superdev:submit-pr`; the step that opens the pull request asks once when ' +
       'attended and refuses only when unattended, on a scope with an unmet criterion.\n',
   });
   const tickRoutingGaps = scanContract(tickRoutingCorrect, DOC_UNTICK_ON_BREAK_CONTRACTS);
@@ -5175,7 +5188,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'and that review\'s fix loop is what re-ticks it. ' +
       'or a standing `**Unresolved:**` entry already stands — run `scope.js get unresolved --root <run-root>` first. ' +
       'or the standing-entry check above printed one — print `/superdev:review <range>` too. ' +
-      'No untick this pass — print `/superdev:ship`; the step that opens the pull request asks once when ' +
+      'No untick this pass — print `/superdev:submit-pr`; the step that opens the pull request asks once when ' +
       'attended and refuses only when unattended, on a scope with an unmet criterion.\n',
   });
   const tickRoutingWrongGaps = scanContract(tickRoutingWrong, DOC_UNTICK_ON_BREAK_CONTRACTS);
@@ -5187,9 +5200,9 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   const dubOverstatedGate = fixture({
     ...dubClauses,
     'skills/document/SKILL.md': dubClauses['skills/document/SKILL.md'].replace(
-      "No untick this pass — print `/superdev:ship`; the step that opens the pull request asks once when " +
+      "No untick this pass — print `/superdev:submit-pr`; the step that opens the pull request asks once when " +
         'attended and refuses only when unattended, on a scope with an unmet criterion.\n',
-      "No untick this pass — print `/superdev:ship`; ship's own gate refuses a scope with an unmet " +
+      "No untick this pass — print `/superdev:submit-pr`; ship's own gate refuses a scope with an unmet " +
         'criterion.\n',
     ),
   });
@@ -5415,6 +5428,44 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'skills/review/SKILL.md': ucReviewClauses.filter((_, j) => j !== i).join(' ') + '\n',
     });
     const gaps = scanContract(only, UNMET_CRITERION_AT_REVIEW_CONTRACTS);
+    assert.equal(gaps.length, 1, `flags review/SKILL.md for dropping row ${i} alone`);
+    assert.equal(gaps[0].source, 'skills/review/SKILL.md', 'names skills/review/SKILL.md');
+  }
+
+  // --- REVIEW_SUBMITTED_CONTRACTS (#687, ADR 0096): review/SKILL.md §4 at `submitted` stage branches
+  // the next command to `/superdev:ship <scope>` instead of `/superdev:document`, and three paths that
+  // write an `**Unresolved:**` entry (Declined findings, 3-strike-cap, unattended block) all invalidate
+  // the suite record at that stage. Each row pins one fact. ---
+  const rsSubmittedClause = 'The stage reads `submitted` so print `/superdev:ship <scope>`.';
+  const rsDeclinedClause =
+    'Declined → stop. At a `submitted` stage, also invalidate the tip\'s suite record — `suite set none <sha>` — a standing finding leaves.';
+  const rs3StrikeClause =
+    'The 3-strike cap is reached — at a `submitted` stage, also invalidate the tip\'s suite record the same way the Declined branch above does.';
+  const rsUnattendedClause =
+    '--unattended → block at that cap, and, at a `submitted` stage, invalidating the suite record the same way.';
+
+  const rsClauses = {
+    'skills/review/SKILL.md':
+      rsSubmittedClause + ' ' + rsDeclinedClause + ' ' + rs3StrikeClause + ' ' + rsUnattendedClause + '\n',
+  };
+
+  // negative: a fixture carrying all rows reports no gap
+  const rsFullGaps = scanContract(fixture(rsClauses), REVIEW_SUBMITTED_CONTRACTS);
+  assert.deepEqual(rsFullGaps, [], 'a fixture carrying all rows reports no gap');
+
+  // positive: dropping all rows reports all four gaps
+  const rsAllDropped = fixture({ ...rsClauses, 'skills/review/SKILL.md': 'Nothing about submitted.\n' });
+  const rsAllGaps = scanContract(rsAllDropped, REVIEW_SUBMITTED_CONTRACTS);
+  assert.equal(rsAllGaps.length, 4, 'flags all four rows once all submitted clauses are dropped');
+
+  // positive: dropping each row one at a time reports that one gap
+  const rsRows = [rsSubmittedClause, rsDeclinedClause, rs3StrikeClause, rsUnattendedClause];
+  for (let i = 0; i < rsRows.length; i++) {
+    const only = fixture({
+      ...rsClauses,
+      'skills/review/SKILL.md': rsRows.filter((_, j) => j !== i).join(' ') + '\n',
+    });
+    const gaps = scanContract(only, REVIEW_SUBMITTED_CONTRACTS);
     assert.equal(gaps.length, 1, `flags review/SKILL.md for dropping row ${i} alone`);
     assert.equal(gaps[0].source, 'skills/review/SKILL.md', 'names skills/review/SKILL.md');
   }

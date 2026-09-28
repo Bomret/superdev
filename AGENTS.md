@@ -32,7 +32,7 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
     plugin.json        — plugin manifest (name, version, author); version is the SINGLE source of truth.
                          No `hooks` field — Claude Code auto-loads the standard hooks/hooks.json.
   skills/              — the `/superdev:<name>` surfaces, one `<name>/SKILL.md` each (ADR 0050):
-                         brainstorm, setup, plan, implement, review, document, ship, afk, upgrade,
+                         brainstorm, setup, plan, implement, review, document, submit-pr, ship, afk, upgrade,
                          status, backlog, publish-kb, prose-check, review-tests, sweep
   agents/              — the subagents (*.md): implementer, slice-reviewer, simplicity-reviewer,
                          final-reviewer, doc-writer, doc-reader, test-auditor
@@ -222,9 +222,11 @@ This root owns every other subtree directly:
 - `plugin/skills/`, `plugin/agents/`. Prose skill surfaces and subagents. Governed by **Working
   rules, Backends are pluggable**: stay tool-agnostic and never hardcode a backend. Behaviour contracts
   live in the files. Claude Code merges plugin skills and commands into one `/superdev:<name>` surface.
-  implement → review → document → ship is the chain a scope walks, each skill printing the next
-  (ADR 0013). afk drives that chain unattended, one eligible scope anchor at a time, with the Skill tool
-  (ADR 0015). Some skills sit outside the chain, and afk drives none of them: publish-kb sends a scope's
+  implement → review → document → submit-pr is the chain a scope walks, each skill printing the next
+  (ADR 0013). `/superdev:ship` is a separate, human-only command: it merges the pull request submit-pr
+  opened, closes the scope anchor, and takes the run down (ADR 0096). afk drives the chain unattended, one
+  eligible scope anchor at a time, with the Skill tool, and never drives ship (ADR 0015). Some skills sit
+  outside the chain, and afk drives none of them: publish-kb sends a scope's
   staged knowledge-base pages to a remote backend on the operator's own clock (ADR 0023), backlog surveys
   the slice store read-only, grouping every open scope anchor, triage record, stranded run root, and
   untriaged item by the action it needs and judging them more loosely than afk's own selection does

@@ -5,15 +5,16 @@ description: "Sweep the backlog unattended: take every eligible scope anchor thr
 # superdev afk
 
 Drain the planned backlog with nobody watching. You take each eligible **scope anchor** through
-`/superdev-implement` → `/superdev-review` → `/superdev-document` → `/superdev-ship`, one feature at a
-time, until something stops you.
+`/superdev-implement` → `/superdev-review` → `/superdev-document` → `/superdev-submit-pr`, one feature at
+a time, until something stops you. `/superdev/ship` is a separate, human-only command: it merges the pull
+request this chain opens, and you never invoke it.
 
 **This is not a new loop.** What makes an unattended run possible is the set of **standing answers** in
 `<plugin-root>/references/scope-mode.md`'s **Unattended** section, which every command you invoke
 reads for itself. Your job is to select work, invoke the chain, and know when to stop.
 
 **You invoke the real commands** with OpenCode's own `skill` tool, naming the rendered skill —
-`superdev-implement`, `superdev-review`, `superdev-document`, `superdev-ship` — the same commands a
+`superdev-implement`, `superdev-review`, `superdev-document`, `superdev-submit-pr` — the same commands a
 maintainer types, carrying `--unattended` (ADR 0015). That tool takes a `name` and nothing else, so
 state each step's arguments — the feature label, the commit range, and `--unattended` — in your own
 message as you invoke it. You never re-implement what they do, and you never edit a file yourself.
@@ -39,7 +40,7 @@ Either missing → say so, point at **`/superdev-setup`**, and stop. Do not run 
 it is an interview.
 
 Write `0` to `.superdev/afk-blocks`. The consecutive-block count is per-sweep, and this is the one write
-that starts it over: from here on the file only ever moves through §4's increment and §4's ship reset.
+that starts it over: from here on the file only ever moves through §4's increment and §4's submitted reset.
 
 ## 2. Select the next scope anchor
 
@@ -123,12 +124,14 @@ the anchor's and survives those moves (`plan-contract.md` → *Release*), so a r
   skipped: there, the anchor is the work.
 - An anchor whose **feature label fails the scope-slug rule**. There is no scope to path on.
 - An anchor whose scope holds a **live run** (fresh lock, or — with none — a fresh, unshipped ledger).
-- An anchor whose ledger's stage reads `shipped`. The run is done.
+- An anchor whose ledger's stage reads `submitted` or `shipped`. A pull request is already open, or
+  already merged; only a human moves it further with `/superdev/ship`.
 - An anchor carrying an **unsatisfied dependency** — this is the **deferral**, and it has its own paragraph
   below.
 
 Every skip changes no label and does not touch the consecutive-block count. Two of the six are
-**transient** — a live run ends, a shipped run is done — so they stay silent.
+**transient** — a live run ends, a submitted or shipped run has already had its own end — so they stay
+silent.
 
 Three **wait on a human**: a malformed label, a never-decomposed plan, and an unreleased plan are passed
 over on every sweep until somebody acts, and nothing else in this command would surface any of them.
@@ -173,7 +176,8 @@ does.
 | `reviewed`, no standing `**Unresolved:**` entry | `/superdev-document <BASE>..<feature-label> --unattended` |
 | `reviewed`, with a standing `**Unresolved:**` entry | `/superdev-review <BASE>..<feature-label> --unattended` |
 | `documented-unreviewed` | `/superdev-review <BASE>..<feature-label> --unattended` |
-| `documented` | `/superdev-ship <scope> --unattended` |
+| `documented` | `/superdev-submit-pr <scope> --unattended` |
+| `submitted` | skip — §2's submitted skip already caught this anchor; only a human moves it further |
 | `shipped` | skip — §2's shipped skip already caught this anchor; the run is done |
 
 A `reviewed` stage carrying a standing `**Unresolved:**` entry is an earlier pass's untick still
@@ -187,7 +191,7 @@ before continuing to the next one.** Its own re-check (`references/dod-ticks.md`
 INV-0016) can leave the stage at `reviewed` and write a `**Unresolved:**` entry rather than advancing it,
 when its own commits broke a criterion. A `reviewed` stage still carrying that entry after
 `/superdev-document` ran routes to `/superdev-review <BASE>..<feature-label> --unattended` next, naming
-the broken criterion in §6's report — never straight to `/superdev-ship`, which would refuse the scope
+the broken criterion in §6's report — never straight to `/superdev-submit-pr`, which would refuse the scope
 anyway and name `/superdev-document` as the missing step, not the review the criterion actually needs.
 
 **Count this anchor's own send-backs, in your own working memory alone, and write none of it to disk.**
@@ -208,8 +212,8 @@ scope branch, which is why the ranges read off it. Pass what the store gave you 
 own: a label this command invented is one `/superdev-implement` cannot resolve, and that stop is an error
 rather than a question, which §4 turns into a block.
 
-`documented-unreviewed` routes to the review, not the ship, because `/superdev-ship --unattended` refuses
-a scope whose review never ran. The review is what clears that state — whatever produced the stage: a
+`documented-unreviewed` routes to the review, not to `submit-pr`, because `/superdev-submit-pr
+--unattended` refuses a scope whose review never ran. The review is what clears that state — whatever produced the stage: a
 hand-run `/superdev-document` invoked before a `reviewed` stage lands there too, and this table sends it
 back to the review exactly like any other `documented-unreviewed` anchor.
 
@@ -218,11 +222,11 @@ routes every scope through `/superdev-review`, with no special case for an all-`
 ledger (ADR 0091) — `/superdev-implement`'s run handoff runs its own full-suite pass for every scope, but
 that pass is never a stand-in for the review.
 
-A feature reaches one of two ends: **shipped** (a pull request is open) or **blocked**. A command can also
+A feature reaches one of two ends: **submitted** (a pull request is open) or **blocked**. A command can also
 stop with an **error** rather than a question — `/superdev-implement`'s "No DoD → don't proceed",
 `<plugin-root>/references/scope-mode.md`'s wrong-checkout stop — and write no label at all. §4's
 closing rule treats that as a block, so it is never a third end. The one stop that is neither is
-`/superdev-ship` failing to reach the code host, which §5 governs: it ends the sweep, not the feature.
+`/superdev-submit-pr` failing to reach the code host, which §5 governs: it ends the sweep, not the feature.
 
 ## 4. When a feature blocks
 
@@ -238,8 +242,9 @@ labelling and the comment). Then:
 - **Add one to the consecutive-block count** — read `.superdev/afk-blocks`, write it back incremented —
   and go back to §2 for the next anchor.
 
-**A command that stops without either shipping or blocking counts as a block — except `/superdev-ship`
-failing to push or open the pull request, which §5 governs and which labels nothing.** That file's
+**A command that stops without either submitting or blocking counts as a block — except
+`/superdev-submit-pr` failing to push or open the pull request, which §5 governs and which labels
+nothing.** That file's
 catch-all covers a question with no standing answer; it says nothing about a command that stops with an
 **error** instead (`/superdev-implement`'s "No DoD → don't proceed", the wrong-checkout stop). No label
 gets written there, so a re-read of the tracker finds the anchor still eligible and FIFO re-selects it
@@ -248,9 +253,9 @@ naming which command stopped and why, and add one to the consecutive-block count
 tracker and the ledger show now — never from memory of features you already tried this sweep, which a
 compaction would erase.
 
-A shipped feature **resets that count to zero**: write `0` to `.superdev/afk-blocks`, then **go back to
+A submitted feature **resets that count to zero**: write `0` to `.superdev/afk-blocks`, then **go back to
 §2 for the next anchor**, exactly as a block does. A pull request is one feature's end, not the sweep's:
-selection runs again, over a store whose ledger now reads this anchor's scope `shipped`, which is what
+selection runs again, over a store whose ledger now reads this anchor's scope `submitted`, which is what
 releases anything deferred on it.
 
 ## 5. When to stop
@@ -259,9 +264,9 @@ releases anything deferred on it.
   memory) → stop. Two independent features failing back to back is a
   systemic cause — a red base, a broken toolchain, an expired token — and every further one would block
   the same way. Leave every remaining anchor untouched: open, unlabelled, with no run root.
-- **`/superdev-ship` failed** (the push or the pull request did not succeed) → stop at once. Label
+- **`/superdev-submit-pr` failed** (the push or the pull request did not succeed) → stop at once. Label
   **nothing**: the feature is complete and the fault is the code host's. Its run stays at stage
-  `documented`, so a maintainer runs `/superdev-ship <scope>` once the host is reachable. This is not a
+  `documented`, so a maintainer runs `/superdev-submit-pr <scope>` once the host is reachable. This is not a
   block, and it stops the sweep immediately rather than after two, because a second feature would pay for
   a whole chain before failing the same way.
 - **No eligible anchor** → stop (§2).
@@ -274,7 +279,7 @@ Print one table, and nothing else:
 
 ```
 anchor         outcome    where
-#128 afk       shipped    <pull-request URL>
+#128 afk       submitted  <pull-request URL>
 #134 metrics   blocked    slice #137 — merge conflict on integration (fix/metrics)
 reports        skipped    2 roots, no single anchor — needs a human
 Cache_Sweep!   skipped    label fails the scope-slug rule — rename it
@@ -288,16 +293,17 @@ Cache_Sweep!   skipped    label fails the scope-slug rule — rename it
 
 A `skipped` row appears for the three permanent conditions of §2: a feature label whose candidates are
 `Ambiguous`, a label that fails the scope-slug rule, and an anchor that was never decomposed. Each row
-names what the condition needs. The transient skips — a live run, a shipped run — stay out of the table.
+names what the condition needs. The transient skips — a live run, a submitted or shipped run — stay out
+of the table.
 
 A `deferred` row names the anchor waited on and what became of it — the three shapes that need a human are
 §2's, and the third (a still-open anchor behind a pruned run root) names what it needs — closing that
 anchor by hand — since nothing will become of it on its own. An anchor deferred early and taken later in
-the same sweep earns the row its own outcome gives it — `shipped` or `blocked` — and no `deferred` row at
+the same sweep earns the row its own outcome gives it — `submitted` or `blocked` — and no `deferred` row at
 all.
 
 The durable record already exists where a maintainer would act on it: a comment on each blocked anchor, a
-pull request for each shipped one. Write no summary issue and no file.
+pull request for each submitted one. Write no summary issue and no file.
 
 ## Red flags
 
@@ -305,5 +311,5 @@ pull request for each shipped one. Write no summary issue and no file.
   that tests for an `epic` label is right on one backend and blind on the rest — which is how every
   single-slice plan went unseen before ADR 0017.
 - **Re-implementing a chain step.** Invoke the command; it is the only copy of that procedure.
-- **Shipping a partial scope.** A blocked slice abandons its whole feature.
+- **Submitting a partial scope.** A blocked slice abandons its whole feature.
 - **Merging a pull request.** You open one and stop.

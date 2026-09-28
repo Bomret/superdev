@@ -68,5 +68,5 @@ superdev usage:
   points to them.
 - `/superdev:document` runs the **documentation pass**: it brings the affected `AGENTS.md` (and other
   in-repo docs) up to the current state and removes stale text. It is the third command of the implement
-  chain (`/superdev:implement` → `/superdev:review` → `/superdev:document` → `/superdev:ship`), and it
-  also runs on demand at any time.
+  chain (`/superdev:implement` → `/superdev:review` → `/superdev:document` → `/superdev:submit-pr`), and
+  it also runs on demand at any time.

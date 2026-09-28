@@ -198,7 +198,7 @@ On this store it is an ordinary issue in the configured project carrying the **T
   work to build. It is a record of unplanned work, not a slice, so it also takes no status transition from
   the status map below.
 - **No pull-request URL.** Every trigger — a deferred finding or an observation — runs before
-  `/superdev:ship` opens one, so none exists yet and the description names none.
+  `/superdev:submit-pr` opens one, so none exists yet and the description names none.
 
 ## Untriaged item
 

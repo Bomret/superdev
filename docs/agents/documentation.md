@@ -19,8 +19,8 @@ Durable in-repo docs live as a hierarchy of `AGENTS.md` files (this repo has a r
 superdev usage: `/superdev:plan` records ADRs (`docs/adr/`), the glossary (`CONTEXT.md`), and the
 invariant register (`docs/invariants.md`) in their conventional locations. `/superdev:document`
 reconciles the `AGENTS.md` tree and `README.md` with the code. It is the third command of the implement
-chain (`/superdev:implement`, then `/superdev:review`, then `/superdev:document`, then `/superdev:ship`),
-and it also runs on demand at any time.
+chain (`/superdev:implement`, then `/superdev:review`, then `/superdev:document`, then
+`/superdev:submit-pr`), and it also runs on demand at any time.
 
 ## Writing standard
 

@@ -146,11 +146,12 @@ function resolveBranch(branchSet, scope, exactBranch) {
 // the stage read — a stat and a file read, both local — gate it. A repository with nothing prunable runs
 // no containment test at all and writes no objects.
 //
-// Only a scope whose ledger stage is `shipped` is prunable: that is the signal `/superdev:ship` writes at
-// the end of the chain, and it is stronger than containment on every tier. An unreadable ledger, or one
-// with no stage line, is never prunable — that is not evidence a run finished, only evidence nothing can
-// be read. The stage is also what keeps absence narrow: a branch deleted without ever merging looks
-// identical here, and only `/superdev:ship` writes `shipped`, after opening a pull request.
+// Only a scope whose ledger stage is `shipped` is prunable: that is the signal `/superdev:ship` writes
+// once the pull request the chain opened has merged, and it is stronger than containment on every tier.
+// An unreadable ledger, or one with no stage line, is never prunable — that is not evidence a run
+// finished, only evidence nothing can be read. The stage is also what keeps absence narrow: a branch
+// deleted without ever merging looks identical here, and only `/superdev:ship` writes `shipped`, after
+// the pull request merges.
 function selectPrunable(scopeNames, isContained, mtimeOf, stageOf, allBranchSet, branchOf) {
   const out = [];
   for (const scope of scopeNames) {

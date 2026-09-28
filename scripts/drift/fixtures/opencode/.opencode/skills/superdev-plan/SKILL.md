@@ -23,7 +23,7 @@ command was never recorded (ADR 0085, INV-0007) → run **`/superdev-setup`** fi
 @35
   `node "<plugin-root>/scripts/scope.js" get stage --root <run-root>`. A stage from
 @55
-own: a reaped run root leaves no ledger to read, and `/superdev-ship`'s anchor close is best-effort, so a
+own: a reaped run root leaves no ledger to read, and `/superdev/ship`'s anchor close is best-effort, so a
 @76
 **the message that invoked this skill is the intent, when one is given.** It states what the user wants, never the design, so
 @82
@@ -33,7 +33,7 @@ git-ignored scratch intents `/superdev-brainstorm` or `/superdev-review-tests` m
 @122
 verify it. `<plugin-root>/references/plan-contract.md`'s Definition-of-Done rules own the full
 @134
-criterion would reach `/superdev-ship` unticked. Name the pre-merge deploy it would force, and offer to
+criterion would reach `/superdev/ship` unticked. Name the pre-merge deploy it would force, and offer to
 @142
 `<plugin-root>/references/plan-contract.md`'s *The reachability criterion* owns the full rule: read
 @157

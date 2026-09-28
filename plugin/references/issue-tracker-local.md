@@ -177,7 +177,7 @@ covered it; for an observation, that no slice of the scope covers it and the sco
   selects on.
 - **The anchor line is a path, not an issue reference**, since that is what this store's scope anchor is.
 - **No pull-request URL.** Every trigger — a deferred finding or an observation — runs before
-  `/superdev:ship` opens one, so none exists yet and the file names none.
+  `/superdev:submit-pr` opens one, so none exists yet and the file names none.
 - **The command creating it commits the file on the scope branch**, in the scope checkout, the moment it
   creates it — like every other plan file here — so an uncommitted record never blocks
   `hooks/slicetree-sweep.js`'s later `git worktree remove` on a dirty tree, and it rides the pull request
@@ -289,8 +289,8 @@ during execution; the slice files' `status:` is the durable record.
 
 Edit the anchor's own `status:` line — the same field and vocabulary as a slice's, since the anchor is
 either the epic file or, on a single-slice plan, the lone slice file itself (see *Scope anchor* above).
-**Run start** — set it `in-progress`. **`/superdev:ship`** — commit it `done` on the scope branch before
-ship pushes, so it reaches base with the merge.
+**Run start** — set it `in-progress`. **`/superdev:submit-pr`** — commit it `done` on the scope branch
+before it pushes, so it reaches base with the merge.
 On a single-slice plan there is no second file: the anchor signal rides the lone slice's own `status:`
 line, so this transition and the slice's own status update are the same edit.
 

@@ -57,7 +57,7 @@ Done in place would pool criteria verified against a merged pull request with cr
 verified, and the reap takes the local half of that mixture while the anchor keeps its own. The two
 shipped signals above are read together and **either one alone refuses** — a run root whose ledger stage
 reads `shipped`, and a scope anchor at the store's done status. Neither covers the other's gap on its
-own: a reaped run root leaves no ledger to read, and `$superdev-ship`'s anchor close is best-effort, so a
+own: a reaped run root leaves no ledger to read, and `ship`'s anchor close is best-effort, so a
 failed close leaves the anchor open beside a `shipped` ledger. Nothing clears either one, so the refusal
 names the remedy instead — plan the follow-up as a **new feature** carrying `**Blocked by feature:**
 #<anchor>`, which ties it back to this one (`references/plan-contract.md` → *Scope anchor*, ADR 0040).
@@ -136,7 +136,7 @@ criterion with that slice's `id` once it exists.
 **Surface a criterion verifiable only on a live system.** A criterion true only after a deploy, a
 migration, or another outward-facing change forces exactly that change before merge to tick it — the
 verification ceiling forbids it (`references/scope-mode.md`'s `## Verification ceiling`, ADR 0084), so the
-criterion would reach `$superdev-ship` unticked. Name the pre-merge deploy it would force, and offer to
+criterion would reach `ship` unticked. Name the pre-merge deploy it would force, and offer to
 keep it out of the branch-verifiable Definition of Done, noting it for the operator to verify after merge
 instead.
 

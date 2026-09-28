@@ -30,6 +30,14 @@ function maskFences(text) {
     .join('\n');
 }
 
+// maskedSentences(): a document's sentences, fenced examples masked out first and wrapped lines joined
+// into one line, so a mention split across a hard wrap is still read as one sentence. Shared by every
+// scanner that reasons sentence-by-sentence over prose (scanAfkNoShipStep, scanShipNoOpensPr) instead of
+// each re-doing the same mask/join/split.
+function maskedSentences(text) {
+  return maskFences(text).replace(/\n/g, ' ').split(/(?<=[.!?])\s+/);
+}
+
 // extractSection(): the text from a heading match (inclusive) up to (but excluding) the next heading of
 // level ≤3, or to EOF if there is none. Shared by scanAnchorContract's element check and
 // scanAfkSelectionNeutrality below, both of which isolate one section before scanning its body. Both the
@@ -183,6 +191,7 @@ module.exports = {
   readDoc,
   storeDocuments,
   maskFences,
+  maskedSentences,
   extractSection,
   extractParagraph,
   scalar,

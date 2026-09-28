@@ -27,6 +27,31 @@ Code lives on GitHub. Use the `gh` CLI for push + pull requests. `gh` infers the
 Do not fail. Push the branch, then print the compare URL
 (`https://github.com/<owner>/<repo>/compare/<base>...<scope-branch>?expand=1`) and the exact
 `gh pr create ...` command the user can run once `gh` is available.
+The merge call below degrades the same way: print the exact `gh pr merge`/REST call and merge nothing.
+
+## Merge
+
+- **Read the pull request**: `gh pr view <number> --json state,mergeable,headRefOid,mergeCommit` (or
+  `GET /repos/<owner>/<repo>/pulls/<pull_number>` for `state`, `merged`, `merge_commit_sha`, `head.sha`,
+  and `mergeable`). GitHub computes `mergeable` asynchronously and answers `null` while it does;
+  re-read up to 3 times with a short pause and, if it is still `null`, report it as **unknown** — never
+  as mergeable.
+- **Merge it, pinned**: `gh pr merge --squash --match-head-commit <tested-tip-sha> <number>` (or
+  `PUT /repos/<owner>/<repo>/pulls/<pull_number>/merge` with
+  `{ "merge_method": "squash", "commit_title": "<pr-title>", "sha": "<tested-tip-sha>" }`).
+  `--match-head-commit`/`sha` pins the merge to that sha: the host answers 409 when the head moved
+  since. Never pass `--admin` (or any other check/review bypass) — this seed never sends it.
+- **A refusal names the reason**: 405 means the pull request cannot be merged (an unmet required
+  review or status check, or it is already merged/closed); 409 means the head moved since it was read,
+  or a conflict exists. Relay the host's own message to the operator instead of retrying.
+- **Find an open pull request by its head branch** (a fallback, when no number is on hand): `gh pr list
+  --head <branch> --state open` (or `GET /repos/<owner>/<repo>/pulls?head=<owner>:<branch>&state=open`).
+  Leaving `state=open` off would surface closed and merged pull requests too, including an old one left
+  over from a reused branch name — never widen the filter to catch one of those.
+- **`<tested-tip-sha>` above is never read from the host.** It is the local scope-branch tip
+  `scope.js suite reusable` just accepted, resolved with `git rev-parse <branch>` in the scope checkout.
+  `/superdev:ship` reads the pull request's own `head.sha` only to decide whether to push and to refuse
+  when it still differs from that tip after pushing, never as the merge's own pin.
 
 ## Compute the base
 

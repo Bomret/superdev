@@ -96,8 +96,9 @@ tiers: record that slice execution finished, name what comes next.
   section.
 - **Leave the run standing.** Keep the scopetree and `<run-root>/run.lock`, leave
   the anchor at `in-progress` — `dod.md` now carries whatever the handoff pass above settled, never a
-  fully ticked checklist: review is still the gate (INV-0016). `/superdev:review` and
-  `/superdev:document` work in the scope checkout you leave behind; `/superdev:ship` takes the run down.
+  fully ticked checklist: review is still the gate (INV-0016). `/superdev:review`, `/superdev:document`,
+  and `/superdev:submit-pr` work in the scope checkout you leave behind; `/superdev:ship` takes the run
+  down.
 - **Print the next command, resolved.** Compute `BASE = git merge-base <base> <branch>` (`<base>` from
   `docs/agents/code-management.md`, default `main`) and print `/superdev:review <BASE-sha>..<branch>` with
   the real commit substituted, plus one line on what it does (review the integrated scope against the

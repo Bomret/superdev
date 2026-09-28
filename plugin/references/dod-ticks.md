@@ -111,7 +111,8 @@ stays true only for a line the dispatch never listed — one tagged to another s
 
 ## Only a controller ticks (INV-0015)
 
-Writing a tick is the controller's own act, never a subagent's, and never `/superdev:ship`'s. The same
+Writing a tick is the controller's own act, never a subagent's, and never `/superdev:submit-pr`'s or
+`/superdev:ship`'s. The same
 holds for an untick — document's case above writes one from its own direct check against the branch,
 never from a dispatched report. One criterion is judged at a time, from one report or, on a pass with no
 dispatched worker, that same direct check — never batched from an assumption about what several reports

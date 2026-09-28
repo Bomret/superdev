@@ -1,6 +1,6 @@
 superdev-render-overlay
 source: skills/backlog/SKILL.md
-body-lines: 186
+body-lines: 199
 ---
 # generated-by: superdev-adapter — a re-render overwrites this directory
 name: superdev-backlog
@@ -28,28 +28,34 @@ scope run`). For each, read its stage: `node "<plugin-root>/scripts/scope.js" ge
 @68
 prefix (`<plugin-root>/references/scope-mode.md`'s `## The change type`) against the run root's
 @77
-reads `shipped` gets **no row at all** — `/superdev-ship` closes the anchor and sets that stage in the
-@106
-| `needs planning` | a triage record, or an anchor that is neither itself a slice nor has slices beneath it | `/superdev-plan` |
+reads `shipped` gets **no row at all** — `/superdev/ship` closes the anchor and sets that stage in the
+@104
+| `awaiting merge` | its matched run root's stage reads `submitted` and its pull request is open on the host, or none is recorded to check | the operator's merge on the host, then `/superdev/ship <scope-slug>` |
+@105
+| `merge unrecorded` | its matched run root's stage reads `submitted` and its pull request shows merged on the host by hand | `/superdev/ship <scope-slug>` — record the merge |
 @108
+| `needs planning` | a triage record, or an anchor that is neither itself a slice nor has slices beneath it | `/superdev-plan` |
+@110
 | `ready` | every remaining **anchor**: released, dependencies satisfied, and no run root or a matched run root at stage `planned` — `/superdev-plan` already cut the branch and scopetree, but no slice has run (triage #509) | `/superdev-implement <feature-label>` |
-@122
+@115
+`node "<plugin-root>/scripts/scope.js" get pr --root <run-root>`. **A number** → read that pull
+@135
 The `in flight` row's act is the chain command its stage has not reached — `<plugin-root>/references/run-handoff.md`
-@123
+@136
 and `<plugin-root>/skills/afk/SKILL.md`'s `## 3. Take it through the chain` table map a stage to it.
-@125
+@138
 feature label verbatim (`<plugin-root>/references/scope-mode.md`, "The scope branch is the
-@130
+@143
 A scope with a run root is **one row**, carrying its stage. Its individual slices are `/superdev-status`'s
-@146
+@159
 #368 backlog survey        in flight       reviewed → /superdev-document main..feat/backlog
-@147
+@160
 #412 export formats        ready           /superdev-implement feat/export-formats
-@150
+@163
 #402 retry storms          needs planning  triage record → /superdev-plan "retry storms"
-@167
-`/superdev-plan`. A stranded run root is the most expensive item in the backlog: it holds a branch, a
 @180
+`/superdev-plan`. A stranded run root is the most expensive item in the backlog: it holds a branch, a
+@193
 - **Expanding into `/superdev-status`.** A scope with a run root is one row. Per-slice detail is that
-@182
+@195
 - **Inheriting `/superdev/afk`'s defer-on-doubt.** Its skips hide unreleased anchors, undecomposed

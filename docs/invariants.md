@@ -6,7 +6,7 @@ format; `/superdev:plan` adds an entry when one crystallises.
 ### INV-0001
 
 Class: architecture
-Statement: No superdev command commits to the base branch. Every write a run makes lands on that run's own scope branch, in its own scopetree.
+Statement: No superdev command commits to the base branch, with one exception: `/superdev:ship`'s merge of the pull request through the host's merge API, pinned to the tested head (ADR 0096). Every other write a run makes lands on that run's own scope branch, in its own scopetree. No command merges or pushes to the base branch with local git.
 Concepts: Base branch, Scope branch, Scopetree, Run root
 Breaks: silently
 Check: scripts/drift-check.js — no shipped prose instructs a commit to the base branch
@@ -115,10 +115,10 @@ Paths: plugin/hooks/slicetree-sweep.js, plugin/references/implement-full.md, tes
 
 Class: process
 Concepts: Run lock, Live implement run
-Statement: `/superdev:implement` entering a run root it did not itself create in this invocation reads the ledger's stage and the lock's freshness before its first write into that run. Any stage other than `planned`, with a lock under an hour old, is a live implement run: attended, the caller asks before writing; unattended, it blocks. A `planned` stage, or a stale or absent lock, imposes no such stop. This governs `/superdev:implement`'s own entry alone — `/superdev:review`, `/superdev:document`, and `/superdev:ship`'s ordinary hand-off is each the chain's own single designed entry, not a case this rule tests, and `/superdev:plan` keeps its own separate, narrower check (triage #510).
+Statement: `/superdev:implement` entering a run root it did not itself create in this invocation reads the ledger's stage and the lock's freshness before its first write into that run. Any stage other than `planned`, with a lock under an hour old, is a live implement run: attended, the caller asks before writing; unattended, it blocks. A `planned` stage, or a stale or absent lock, imposes no such stop. This governs `/superdev:implement`'s own entry alone — `/superdev:review`, `/superdev:document`, `/superdev:submit-pr`, and `/superdev:ship`'s ordinary hand-off is each the chain's own single designed entry, not a case this rule tests, and `/superdev:plan` keeps its own separate, narrower check (triage #510).
 Breaks: silently
-Check: scripts/drift-check.js — the stage-plus-freshness check is pinned on scope-mode.md's own `## The run lock` section, scoped to `/superdev:implement`'s entry, on run-init.md and both execution playbooks, which cite it, and (the absence half) `scanRunLockLivenessSilence` asserting review/document/ship carry no such language of their own
-Paths: plugin/references/scope-mode.md, plugin/references/run-init.md, plugin/references/implement-full.md, plugin/references/implement-lite.md, plugin/skills/review/SKILL.md, plugin/skills/document/SKILL.md, plugin/skills/ship/SKILL.md
+Check: scripts/drift-check.js — the stage-plus-freshness check is pinned on scope-mode.md's own `## The run lock` section, scoped to `/superdev:implement`'s entry, on run-init.md and both execution playbooks, which cite it, and (the absence half) `scanRunLockLivenessSilence` asserting review/document/submit-pr carry no such language of their own
+Paths: plugin/references/scope-mode.md, plugin/references/run-init.md, plugin/references/implement-full.md, plugin/references/implement-lite.md, plugin/skills/review/SKILL.md, plugin/skills/document/SKILL.md, plugin/skills/submit-pr/SKILL.md
 
 ### INV-0014
 
@@ -133,10 +133,10 @@ Paths: plugin/references/**, plugin/skills/implement/**, plugin/skills/review/**
 
 Class: process
 Concepts: Definition of Done (DoD), Tick, Criterion tag, Controller
-Statement: Only a controller writes a Definition-of-Done tick. It ticks a criterion from an implementer's report only where the criterion's tag names that implementer's slice, and settles every other criterion only in run handoff's own pass, in review, or in document's own untick of a criterion its commits broke. Review's controller may also tick a criterion straight from `final-reviewer`'s own `holds` verdict, with the verdict's evidence as the note. No subagent writes a tick, and `/superdev:ship` writes none.
+Statement: Only a controller writes a Definition-of-Done tick. It ticks a criterion from an implementer's report only where the criterion's tag names that implementer's slice, and settles every other criterion only in run handoff's own pass, in review, or in document's own untick of a criterion its commits broke. Review's controller may also tick a criterion straight from `final-reviewer`'s own `holds` verdict, with the verdict's evidence as the note. No subagent writes a tick, and neither `/superdev:submit-pr` nor `/superdev:ship` writes one.
 Breaks: silently
 Check: scripts/drift-check.js — the mapping gate pinned on the shared tick reference and both playbooks; no agent under plugin/agents/ and no ship step instructs a tick; document's own untick (`doc-untick-on-break`) is the controller's own direct check, never a dispatched worker's report
-Paths: plugin/references/**, plugin/agents/**, plugin/skills/implement/**, plugin/skills/review/**, plugin/skills/document/**, plugin/skills/ship/**
+Paths: plugin/references/**, plugin/agents/**, plugin/skills/implement/**, plugin/skills/review/**, plugin/skills/document/**, plugin/skills/submit-pr/**, plugin/skills/ship/**
 
 ### INV-0016
 
@@ -223,10 +223,10 @@ Paths: plugin/hooks/scope-prune.js, plugin/hooks/slicetree-sweep.js, plugin/hook
 
 Class: process
 Concepts: Stage, Ledger
-Statement: Only `/superdev:ship` writes the `shipped` stage, and only after it ticks the Definition of Done and opens a pull request.
+Statement: Only `/superdev:submit-pr` writes the `submitted` stage, and only after opening the pull request. Only `/superdev:ship` writes the `shipped` stage, and only once the pull request has merged — through its own pinned merge, or by adopting a merge someone made by hand.
 Breaks: silently
 Check: none — no single-writer pin
-Paths: plugin/skills/ship/SKILL.md
+Paths: plugin/skills/submit-pr/SKILL.md, plugin/skills/ship/SKILL.md
 
 ### INV-0026
 
@@ -286,10 +286,10 @@ Paths: plugin/skills/review/SKILL.md
 
 Class: process
 Concepts: Run lock, Scope mode
-Statement: `/superdev:review`, `/superdev:document` and `/superdev:ship` refresh an existing `run.lock`'s mtime and never create one.
+Statement: `/superdev:review`, `/superdev:document`, `/superdev:submit-pr` and `/superdev:ship` refresh an existing `run.lock`'s mtime and never create one.
 Breaks: silently
 Check: none — no pin exists today
-Paths: plugin/references/scope-mode.md, plugin/skills/review/SKILL.md, plugin/skills/document/SKILL.md, plugin/skills/ship/SKILL.md
+Paths: plugin/references/scope-mode.md, plugin/skills/review/SKILL.md, plugin/skills/document/SKILL.md, plugin/skills/submit-pr/SKILL.md, plugin/skills/ship/SKILL.md
 
 ### INV-0033
 
@@ -304,10 +304,10 @@ Paths: plugin/skills/**
 
 Class: process
 Concepts: Stage
-Statement: `/superdev:ship` warns when the ledger shows a skipped review or doc pass, and does not refuse on it.
+Statement: `/superdev:submit-pr` warns when the ledger shows a skipped review or doc pass, and does not refuse on it.
 Breaks: silently
 Check: none — no pin exists today
-Paths: plugin/skills/ship/SKILL.md
+Paths: plugin/skills/submit-pr/SKILL.md
 
 ### INV-0035
 
@@ -511,7 +511,7 @@ Paths: plugin/skills/implement/SKILL.md, plugin/skills/review/SKILL.md, plugin/r
 
 Class: process
 Concepts: Anchor dependency, Eligible anchor, Unattended run, Scope anchor
-Statement: `/superdev:afk` never takes an anchor whose anchor dependency is unsatisfied. The anchor is deferred for that sweep, with no label written, no block counted, and a report line naming what it waits on. A dependency is satisfied by closure, by a `shipped` ledger stage, or by the named anchor not existing.
+Statement: `/superdev:afk` never takes an anchor whose anchor dependency is unsatisfied. The anchor is deferred for that sweep, with no label written, no block counted, and a report line naming what it waits on. A dependency is satisfied by closure, by a `shipped` ledger stage — which means the pull request has merged (ADR 0096) — or by the named anchor not existing.
 Breaks: silently
 Check: `scripts/drift-check.js` `anchor-contract` (every store states how to read dependencies) and `afk-anchor-count`
 Paths: plugin/skills/afk/SKILL.md, plugin/references/plan-contract.md, plugin/references/issue-tracker-*.md
@@ -592,10 +592,10 @@ Paths: plugin/skills/backlog/SKILL.md
 
 Class: architecture
 Concepts: Model-invocable surface, Unattended run, Render target, Harness adapter
-Statement: `/superdev:afk` is never a model-invocable surface: `disable-model-invocation: true` on Claude Code, a command on OpenCode, and absent on Codex, where a reference to it renders as its plain name. Every step afk's chain drives stays model-invocable.
+Statement: `/superdev:afk` and `/superdev:ship` are never model-invocable surfaces: `disable-model-invocation: true` on Claude Code, a command on OpenCode, and absent on Codex, where a reference to either renders as its plain name. Every step afk's chain drives stays model-invocable.
 Breaks: silently
-Check: `scripts/drift-check.js` `opencode-surface-split`, `codex-render`; `tests/adapter.test.js` ("afk is never a skill", "afk renders nowhere")
-Paths: plugin/skills/afk/SKILL.md, plugin/skills/implement/SKILL.md, plugin/skills/review/SKILL.md, plugin/skills/document/SKILL.md, plugin/skills/ship/SKILL.md, plugin/scripts/adapter.js, scripts/drift/fixtures/**
+Check: `scripts/drift-check.js` `opencode-surface-split`, `codex-render`; `tests/adapter.test.js` ("afk is never a skill", "afk renders nowhere", "ship is never a skill", "ship renders nowhere on Codex")
+Paths: plugin/skills/afk/SKILL.md, plugin/skills/ship/SKILL.md, plugin/skills/implement/SKILL.md, plugin/skills/review/SKILL.md, plugin/skills/document/SKILL.md, plugin/skills/submit-pr/SKILL.md, plugin/scripts/adapter.js, scripts/drift/fixtures/**
 
 ### INV-0067
 
@@ -695,7 +695,7 @@ Concepts: Candidate set, Run root, Stage
 Statement: One section, `scope-mode.md`'s `## Resolving an empty argument`, owns how an empty argument resolves. Each run-taking command names only its own candidate set and cites that section. A caller that cannot ask lists the candidates and stops.
 Breaks: silently
 Check: `scripts/drift-check.js` `empty-argument`; `tests/publish-kb.test.js` (more than one pending scope and no `--scope`: lists every scope with its page count)
-Paths: plugin/references/scope-mode.md, plugin/skills/implement/SKILL.md, plugin/skills/ship/SKILL.md, plugin/skills/review/SKILL.md, plugin/scripts/publish-kb.js
+Paths: plugin/references/scope-mode.md, plugin/skills/implement/SKILL.md, plugin/skills/submit-pr/SKILL.md, plugin/skills/review/SKILL.md, plugin/scripts/publish-kb.js
 
 ### INV-0078
 
@@ -781,9 +781,9 @@ Paths: plugin/skills/document/SKILL.md
 
 Class: architecture
 Concepts: Scope branch, Code host
-Statement: No superdev command other than /superdev:ship pushes a scope branch. Planning, implementing, reviewing, and documenting work on the local scope branch only, so nothing unreviewed reaches the code host before ship opens the pull request.
+Statement: No superdev command other than /superdev:submit-pr and /superdev:ship pushes a scope branch. Planning, implementing, reviewing, and documenting work on the local scope branch only, so nothing unreviewed reaches the code host before submit-pr opens the pull request. Ship pushes twice over its own run: once for a tested base merge that moved, once for a tested commit review's own fix loop or an operator's own conflict resolution landed at stage submitted with no base merge involved — both gated on a reusable green record for the pushed tip, and both moving the open pull request's head, never straight to base (INV-0001), since the merge onto base still runs only through the host's own merge API.
 Breaks: silently
-Check: none — no drift row pins it; it holds because the only push instruction in shipped prose is /superdev:ship §5 and the code-management seeds it reads
+Check: none — no drift row pins it; it holds because the only push instructions in shipped prose are /superdev:submit-pr §4 and /superdev:ship §4, and the code-management seeds they read
 Paths: plugin/skills/**, plugin/references/**
 
 ### INV-0088
@@ -824,3 +824,21 @@ Statement: `/superdev:publish-kb` never replaces a live non-aggregate page its s
 Breaks: silently
 Check: tests/publish-kb.test.js — the mismatched-hash and hashless-existing-page refusals, the hashless new-page create, and the marker retry that sends an update instead of a refusal
 Paths: plugin/scripts/publish-kb.js, plugin/references/doc-pass.md, plugin/agents/doc-writer.md
+
+### INV-0092
+
+Class: process
+Concepts: Pinned merge, Suite record, Stage
+Statement: A merge superdev makes lands only a scope-branch head that a green full-suite run covers. That is either a head with a reusable green suite record, or `/superdev:ship`'s own conflict-free merge of base into the scope branch, tested green before it lands. The merge is pinned to that head, so a head that moved after the test is refused by the host. It never forces past the host's branch protection or required approvals. A red, denied, or conflicting result lands nothing (ADR 0096).
+Breaks: silently
+Check: scripts/drift-check.js — ship's pinned-merge, no-force, and not-green-lands-nothing clauses; tests for any `scope.js` verb that decides reuse
+Paths: plugin/skills/ship/**, plugin/references/code-management-*.md, plugin/scripts/scope.js
+
+### INV-0093
+
+Class: process
+Concepts: Unattended run, Stage
+Statement: Only a human moves a scope past its open pull request. `/superdev:afk` and every unattended run end at `/superdev:submit-pr`. `/superdev:ship` carries no unattended mode and `disable-model-invocation: true`, so no model and no surface starts it on the operator's behalf (ADR 0096).
+Breaks: silently
+Check: scripts/drift-check.js — afk's chain ends at `submit-pr`; ship names no `--unattended` branch and carries `disable-model-invocation: true`; the harness renders keep it off every model-invocable surface
+Paths: plugin/skills/afk/**, plugin/skills/submit-pr/**, plugin/skills/ship/**

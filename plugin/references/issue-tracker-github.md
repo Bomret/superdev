@@ -250,7 +250,7 @@ On this store it is an ordinary issue carrying the **Triage label** from *Config
   `/superdev:implement`'s slice loading select on, so a triage record carrying either would be picked up as
   work to build. It is a record of unplanned work, not a slice.
 - **No pull-request URL.** Every trigger — a deferred finding or an observation — runs before
-  `/superdev:ship` opens one, so none exists yet and the body names none.
+  `/superdev:submit-pr` opens one, so none exists yet and the body names none.
 
 ## Untriaged item
 

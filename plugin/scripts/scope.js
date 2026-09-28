@@ -33,12 +33,14 @@ const SUITE_RESULTS = ['green', 'red', 'denied', 'none'];
 // references/scope-mode.md `## The stage never moves backwards`: a write is allowed exactly when
 // it does not lower the stage's rank. `reviewed` and `documented-unreviewed` share a rank — the
 // chain can do either doc pass first — so a same-rank move between them needs its own allowlist;
-// every other same-rank move (e.g. reviewed → documented-unreviewed) refuses, and `documented`/
-// `shipped` are terminal in the way rank already gives them: nothing outranks `shipped`, and
-// `documented`'s only higher rank is `shipped` itself.
+// every other same-rank move (e.g. reviewed → documented-unreviewed) refuses, and `shipped` is
+// terminal in the way rank already gives it: nothing outranks `shipped`.
 // `planned` (ADR 0079): the scope branch and scopetree a plan cut, before any slice has run — ranked
 // below `implementing` so `stage set implementing` moves forward out of it, and no write moves back
 // to it once a run leaves it. `init` is the only writer of this value.
+// `submitted` (issue #682): the pull request is open and the chain has ended — ranked above
+// `documented`/`documented-unreviewed` so it is reachable from either, and below `shipped` so the
+// merge hand-off still moves forward out of it.
 const STAGE_RANK = {
   planned: -1,
   implementing: 0,
@@ -46,7 +48,8 @@ const STAGE_RANK = {
   reviewed: 2,
   'documented-unreviewed': 2,
   documented: 3,
-  shipped: 4,
+  submitted: 4,
+  shipped: 5,
 };
 const STAGES = Object.keys(STAGE_RANK);
 // The sanctioned same-rank move: `/superdev:review` writes `reviewed` over `documented-unreviewed`
@@ -124,7 +127,7 @@ function headerRe(name) {
 // Every other header is PROSE. `Anchor` carries an issue title that reaches a pull request through
 // `/superdev:review`, and a title may legitimately end in `.` or `:` or contain one, or carry internal
 // whitespace. It is trimmed and otherwise taken as written.
-const TOKEN_HEADERS = new Set(['Stage', 'Branch', 'Docs']);
+const TOKEN_HEADERS = new Set(['Stage', 'Branch', 'Docs', 'PR']);
 
 function normalizeHeaderValue(name, raw) {
   const trimmed = raw.trim();
@@ -530,6 +533,42 @@ function verbDocs(root, sub, value) {
   writeLines(root, lines);
 }
 
+// pr set: `**PR:**` records the pull request number `/superdev:submit-pr` opened, the moment it opens
+// it, so `/superdev:ship` reads it back instead of a code-host lookup by head branch — a reused branch
+// name (scope-mode.md's `## Cutting the scope branch` treats reuse as ordinary) leaves old, merged pull
+// requests on the host under the same head, and a lookup by branch alone could adopt one of those
+// instead (INV-0092). A ledger from before this header existed carries no line, and parses unchanged —
+// `get pr` reports `absent`, the same as any other missing optional header (`## The ledger`).
+function verbPr(root, sub, value) {
+  const lines = readLines(root);
+  const at = lines.findIndex((l) => headerRe('PR').test(l));
+  if (sub === 'clear') {
+    if (at < 0) return; // no such line — succeeds, changes nothing
+    lines.splice(at, 1);
+    writeLines(root, lines);
+    return;
+  }
+  if (sub !== 'set') fail(`unknown pr subcommand "${sub}" — use set|clear`);
+  if (!value) fail('pr set needs a value');
+  const digits = value.replace(/^#/, '');
+  if (!/^\d+$/.test(digits)) fail(`pr set value must be a number, optionally led by "#" — got "${value}"`);
+  const rendered = `#${digits}`;
+  if (at >= 0) {
+    lines[at] = `**PR:** ${rendered}`;
+    writeLines(root, lines);
+    return;
+  }
+  // Absent: sit with the other header lines, after the whole block — the same placement `verbDocs`
+  // and `verbSuite` give their own header, rather than `setHeader`'s title-anchored fallback.
+  const last = lastHeaderLineIndex(lines, ['Stage', 'Branch', 'Anchor', 'Docs', 'Suite']);
+  if (last < 0) {
+    writeLines(root, setHeader(lines, 'PR', rendered));
+    return;
+  }
+  lines.splice(last + 1, 0, `**PR:** ${rendered}`);
+  writeLines(root, lines);
+}
+
 // --- dod-line: the Definition-of-Done checklist-line edit (references/dod-ticks.md, INV-0014) -----
 //
 // The one line edit every store's own `## Definition of Done ticks` section names (`plan-contract.md`
@@ -835,8 +874,9 @@ function verbGet(root, field) {
   const bulletFields = { unresolved: 'Unresolved', degraded: 'Degraded', deferred: 'Deferred' };
   if (bulletFields[field]) {
     // The read half of `unresolved add`/`degraded add`/`deferred add`: every bullet, one per line, so a
-    // caller (`/superdev:ship`'s gate and its pull-request body step) never has to split a joined string
-    // back apart — a bullet containing a comma stays intact this way, unlike `status`'s `, `-joined line.
+    // caller (`/superdev:submit-pr`'s gate and its pull-request body step) never has to split a joined
+    // string back apart — a bullet containing a comma stays intact this way, unlike `status`'s
+    // `, `-joined line.
     const lines = readLines(root);
     for (const b of readBullets(lines, bulletFields[field])) console.log(b);
     return;
@@ -861,9 +901,9 @@ function verbGet(root, field) {
     console.log(m ? `${m[1]} ${m[2]}` : v);
     return;
   }
-  const names = { stage: 'Stage', branch: 'Branch', anchor: 'Anchor', docs: 'Docs' };
+  const names = { stage: 'Stage', branch: 'Branch', anchor: 'Anchor', docs: 'Docs', pr: 'PR' };
   const name = names[field];
-  if (!name) fail(`unknown field "${field}" — use stage|branch|anchor|docs|slices|unresolved|degraded|deferred|denials|suite`);
+  if (!name) fail(`unknown field "${field}" — use stage|branch|anchor|docs|pr|slices|unresolved|degraded|deferred|denials|suite`);
   const v = getHeader(readLines(root), name);
   console.log(v === null ? 'absent' : v);
 }
@@ -1401,9 +1441,10 @@ function usage() {
     '  unresolved add <text>|clear   --root <run-root>',
     '  deferred add <text>   --root <run-root>',
     '  docs set <value>|clear   --root <run-root>',
+    '  pr set <n>|clear   --root <run-root>          <n> is a pull-request number, "#" optional',
     '  suite set <green|red|denied|none> <sha>   --root <run-root>',
     '  suite reusable --branch <b> [--plan-files]   --root <run-root>   exits 0 (reusable) or 1',
-    '  get stage|branch|anchor|docs|slices|unresolved|degraded|deferred|denials|suite --root <run-root>',
+    '  get stage|branch|anchor|docs|pr|slices|unresolved|degraded|deferred|denials|suite --root <run-root>',
     '  status                             scans <cwd>/.superdev/scopes/*/',
     '  publish --root <run-root>          prints the ledger as one "## Run state" section on stdout',
     '  adopt --root <run-root>            stdin: a whole anchor body; extracts and writes the section',
@@ -1471,6 +1512,11 @@ function run(argv, cwd, stdinJson) {
     case 'docs': {
       const root = takeRoot(args);
       verbDocs(root, args[0], args[1]);
+      break;
+    }
+    case 'pr': {
+      const root = takeRoot(args);
+      verbPr(root, args[0], args[1]);
       break;
     }
     case 'suite': {

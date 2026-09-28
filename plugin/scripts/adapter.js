@@ -102,11 +102,11 @@ const SKILL_NAME_PREFIX = 'superdev-';
 // name must match the directory holding the SKILL.md.
 const SKILL_NAME_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
-// afk renders as an OpenCode *command*, never a skill: a command is not model-invocable there, which
-// is what reproduces Claude Code's `disable-model-invocation: true` and keeps the model from starting
-// an unattended backlog sweep on its own (ADR 0055). It is skipped by the skill render for that
-// reason, not for want of a rendering.
-const SKILL_ONLY_COMMANDS = new Set(['afk']);
+// afk and ship each render as an OpenCode *command*, never a skill: a command is not model-invocable
+// there, which is what reproduces Claude Code's `disable-model-invocation: true` and keeps the model
+// from starting an unattended backlog sweep, or a merge, on its own (ADR 0055, ADR 0096). Each is
+// skipped by the skill render for that reason, not for want of a rendering.
+const SKILL_ONLY_COMMANDS = new Set(['afk', 'ship']);
 
 function fail(msg) {
   const err = new Error(msg);
@@ -517,7 +517,7 @@ const AFK_SKILL_TOOL_SENTENCE = [
 
 const AFK_OPENCODE_INVOCATION = [
   "**You invoke the real commands** with OpenCode's own `skill` tool, naming the rendered skill —",
-  '`superdev-implement`, `superdev-review`, `superdev-document`, `superdev-ship` — the same commands a',
+  '`superdev-implement`, `superdev-review`, `superdev-document`, `superdev-submit-pr` — the same commands a',
   'maintainer types, carrying `--unattended` (ADR 0015). That tool takes a `name` and nothing else, so',
   "state each step's arguments — the feature label, the commit range, and `--unattended` — in your own",
   'message as you invoke it. You never re-implement what they do, and you never edit a file yourself.',
@@ -965,9 +965,10 @@ function opencodeRenderSkill(name, skillPath, ctx) {
   return { rel, content };
 }
 
-// afk is the one SKILL_ONLY_COMMANDS member today; its OpenCode rendering replaces the Skill-tool
-// sentence and chain-table header with OpenCode's own `skill`-tool invocation (ADR 0055). Every
-// other SKILL_ONLY_COMMANDS name (there are none yet) would render through the shared renderCommand().
+// afk's own OpenCode rendering replaces the Skill-tool sentence and chain-table header with
+// OpenCode's own `skill`-tool invocation (ADR 0055) — the one SKILL_ONLY_COMMANDS member that needs
+// that rewrite, since it alone carries that sentence and table. ship, the other member, carries
+// neither, and renders through the shared renderCommand() below like any other command name would.
 function opencodeRenderCommand(name, skillPath, ctx) {
   const rel = path.join('.opencode', 'commands', 'superdev', `${name}.md`);
   const content = name === 'afk'
@@ -991,10 +992,12 @@ function opencodeExtras(ctx) {
 // Skills render to `.agents/skills/superdev-<name>/SKILL.md`, the Agent Skills standard's own shared
 // scan root rather than a superdev-owned directory (ADR 0056), so cleanup there is marker-keyed the
 // same way `.opencode/skills/` already is — never keyed on the bare `superdev-` name prefix, which a
-// consumer's own skill might also start with. afk renders nowhere: Codex's only non-model-invocable
-// surface is a deprecated feature living outside the project tree this adapter writes to (ADR 0056),
-// so codexRenderCommand returns null for afk, its one SKILL_ONLY_COMMANDS name, and the shared
-// write() below skips a null result the same way it skips no entry at all. Every shipped agent
+// consumer's own skill might also start with. Every SKILL_ONLY_COMMANDS member renders nowhere on
+// Codex: afk, because Codex's only non-model-invocable surface is a deprecated feature living outside
+// the project tree this adapter writes to (ADR 0056); ship, because only a human runs it and Codex's
+// own model-invocable skills tree is the only place this adapter writes a Codex render (ADR 0096). So
+// codexRenderCommand returns null unconditionally, and the shared write() below skips a null result
+// the same way it skips no entry at all. Every shipped agent
 // renders to `.codex/agents/superdev-<name>.toml` (issue #432, below `codexRenderAgent`). extras is a
 // minimal stub for this slice — a later slice (#433) fills in `.codex/hooks.json`. CODEX_SKILL_MARKER
 // itself is declared earlier, alongside SKILL_MARKER.
@@ -1032,7 +1035,7 @@ function codexRenderSkill(name, skillPath, ctx) {
   return { rel, content };
 }
 
-// afk is the one SKILL_ONLY_COMMANDS member, and it renders nowhere on Codex (ADR 0056).
+// Every SKILL_ONLY_COMMANDS member renders nowhere on Codex (ADR 0056, ADR 0096).
 function codexRenderCommand() {
   return null;
 }
@@ -1173,8 +1176,8 @@ function discoverAgentNames(agentsDir) {
 // --model-map entry for once render() runs. Agents alone: a rendered skill carries no `model:` key
 // for OpenCode to read (ADR 0055), so a model alias one of the ten renderSkill surfaces pins reaches
 // no render target and asking the operator to resolve it would prompt for a value nothing consumes.
-// The one SKILL_ONLY_COMMANDS member (afk) is the exception this scan does not account for: it
-// renders through renderCommand, which does emit `model:`. Harmless today, since afk pins no model
+// Each SKILL_ONLY_COMMANDS member (afk, ship) is the exception this scan does not account for: both
+// render through renderCommand, which does emit `model:`. Harmless today, since neither pins a model
 // and every alias any surface carries also appears on an agent — but a future withheld surface that
 // both pins a model and appears on no agent would hit resolveModel's "no --model-map entry" refusal
 // unresolved by this pre-scan. Only reads frontmatter, so it can run before --dest is known.
@@ -1295,8 +1298,8 @@ function render(opts) {
     if (SKILL_ONLY_COMMANDS.has(name)) continue;
     write(target.renderSkill(name, path.join(skillsDir, name, 'SKILL.md'), ctx), written);
   }
-  // The command render: every SKILL_ONLY_COMMANDS member. Only afk today, and only because a
-  // command is the one OpenCode surface its model cannot invoke (ADR 0055).
+  // The command render: every SKILL_ONLY_COMMANDS member — afk and ship — each withheld because a
+  // command is the one OpenCode surface its model cannot invoke (ADR 0055, ADR 0096).
   for (const name of skills) {
     if (!SKILL_ONLY_COMMANDS.has(name)) continue;
     write(target.renderCommand(name, path.join(skillsDir, name, 'SKILL.md'), ctx), written);

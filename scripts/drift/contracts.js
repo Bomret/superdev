@@ -21,7 +21,7 @@ const RUN_ROOT_DOCS = [
   'skills/implement/SKILL.md',
   'skills/review/SKILL.md',
   'skills/document/SKILL.md',
-  'skills/ship/SKILL.md',
+  'skills/submit-pr/SKILL.md',
   'skills/publish-kb/SKILL.md',
   'references/implement-lite.md',
   'references/implement-full.md',
@@ -292,11 +292,11 @@ const OBSERVATION_CAPTURE_REMINDER_PATTERN =
 // resolved is the whole handoff (ADR 0013). scanCommandRefs above catches a handoff that points at a
 // command with no file. The reverse drift is invisible to it: a command that names no successor at all
 // leaves every reference resolvable and the suite green, and the chain dead-ends there silently.
-// `skills/ship/SKILL.md` ends the chain and has no successor, so it is deliberately absent.
+// `skills/submit-pr/SKILL.md` ends the chain and has no successor, so it is deliberately absent.
 const CHAIN_HANDOFFS = [
   [path.join('references', 'run-handoff.md'), '/superdev:review'],
   [path.join('skills', 'review', 'SKILL.md'), '/superdev:document'],
-  [path.join('skills', 'document', 'SKILL.md'), '/superdev:ship'],
+  [path.join('skills', 'document', 'SKILL.md'), '/superdev:submit-pr'],
 ];
 
 // A scope branch is `<type>/<scope>`, and `hooks/scope-prune.js` reads that type back off a merged branch
@@ -377,7 +377,7 @@ const UNATTENDED_CONTRACTS = [
     path.join('skills', 'implement', 'SKILL.md'),
     path.join('skills', 'review', 'SKILL.md'),
     path.join('skills', 'document', 'SKILL.md'),
-    path.join('skills', 'ship', 'SKILL.md'),
+    path.join('skills', 'submit-pr', 'SKILL.md'),
     path.join('references', 'implement-full.md'),
     path.join('references', 'implement-lite.md'),
     path.join('references', 'run-init.md'),
@@ -394,7 +394,7 @@ const UNATTENDED_CONTRACTS = [
     path.join('skills', 'implement', 'SKILL.md'),
     path.join('skills', 'review', 'SKILL.md'),
     path.join('skills', 'document', 'SKILL.md'),
-    path.join('skills', 'ship', 'SKILL.md'),
+    path.join('skills', 'submit-pr', 'SKILL.md'),
     path.join('references', 'implement-full.md'),
     path.join('references', 'implement-lite.md'),
     path.join('references', 'run-init.md'),
@@ -429,7 +429,7 @@ const DEGRADED_CONTRACTS = [
     path.join('skills', 'implement', 'SKILL.md'),
     path.join('skills', 'review', 'SKILL.md'),
     path.join('skills', 'document', 'SKILL.md'),
-    path.join('skills', 'ship', 'SKILL.md'),
+    path.join('skills', 'submit-pr', 'SKILL.md'),
     path.join('skills', 'status', 'SKILL.md'),
     path.join('references', 'implement-full.md'),
     path.join('references', 'implement-lite.md'),
@@ -443,7 +443,7 @@ const DEGRADED_CONTRACTS = [
     path.join('skills', 'implement', 'SKILL.md'),
     path.join('skills', 'review', 'SKILL.md'),
     path.join('skills', 'document', 'SKILL.md'),
-    path.join('skills', 'ship', 'SKILL.md'),
+    path.join('skills', 'submit-pr', 'SKILL.md'),
     path.join('skills', 'status', 'SKILL.md'),
     path.join('references', 'implement-full.md'),
     path.join('references', 'implement-lite.md'),
@@ -585,7 +585,7 @@ const REVIEW_RANGE_SHAPES_CONTRACTS = [
   ],
 ];
 
-// `/superdev:implement`, `/superdev:ship`, and `/superdev:review` each take a run as their subject and
+// `/superdev:implement`, `/superdev:submit-pr`, and `/superdev:review` each take a run as their subject and
 // accept no argument, and each used to spell out its own words for what that means (ADR 0078).
 // `scope-mode.md`'s `## Resolving an empty argument` section owns the cascade once; every command that
 // enters through an empty argument cites it rather than restating a branch of it in its own words. A
@@ -623,12 +623,12 @@ const EMPTY_ARGUMENT_CONTRACTS = [
     "take `## The scope branch`'s shape-scan fallback, and say which route was taken, when the run root's ledger names no branch or a branch that does not verify",
   ],
   [
-    path.join('skills', 'ship', 'SKILL.md'),
+    path.join('skills', 'submit-pr', 'SKILL.md'),
     /`## Resolving an empty argument`/,
     'cite `## Resolving an empty argument` for its own empty-argument cascade rather than restating it',
   ],
   [
-    path.join('skills', 'ship', 'SKILL.md'),
+    path.join('skills', 'submit-pr', 'SKILL.md'),
     /every run root whose stage is not `shipped`/,
     'name its own candidate set — every run root whose stage is not `shipped` — ahead of the cascade citation',
   ],
@@ -758,9 +758,9 @@ const LABEL_VALIDATION_CONTRACTS = [
 // rather than one whole-file regex per command name: a whole-file regex is satisfied the moment any one
 // row (or even a passing prose mention on the same line, e.g. §3's `documented-unreviewed` footnote)
 // carries the token, which lets a sibling row lose it unnoticed. Only a `|`-prefixed table row counts —
-// §5's maintainer-resume mention (`/superdev:ship <slug>`, no token) is prose, not an invocation, and
+// §5's maintainer-resume mention (`/superdev:submit-pr <slug>`, no token) is prose, not an invocation, and
 // stays green.
-const AFK_NAMES = new Set(['implement', 'review', 'document', 'ship']);
+const AFK_NAMES = new Set(['implement', 'review', 'document', 'submit-pr']);
 
 const AFK_ROW_PATTERN = /^\|.*\/superdev:([a-z][a-z-]*)/;
 
@@ -820,16 +820,16 @@ const VERB_CONTRACTS = [
   [path.join('skills', 'review', 'SKILL.md'), /scope\.js["'`]?\s+unresolved clear\b/, 'clear a standing defect on a clean verdict with `scope.js unresolved clear`'],
   [path.join('skills', 'document', 'SKILL.md'), /scope\.js["'`]?\s+stage set\b/, 'write its stage with `scope.js stage set`'],
   [path.join('skills', 'document', 'SKILL.md'), /scope\.js["'`]?\s+unresolved add\b/, 'record a tick its own re-check broke with `scope.js unresolved add`'],
-  [path.join('skills', 'ship', 'SKILL.md'), /scope\.js["'`]?\s+get stage\b/, 'read the stage with `scope.js get stage`'],
-  [path.join('skills', 'ship', 'SKILL.md'), /scope\.js["'`]?\s+stage set shipped\b/, 'set the terminal stage with `scope.js stage set shipped`'],
-  [path.join('skills', 'ship', 'SKILL.md'), /scope\.js["'`]?\s+get unresolved\b/, 'read the unresolved-defect record with `scope.js get unresolved`, never through cwd-dependent `status`'],
-  [path.join('skills', 'ship', 'SKILL.md'), /scope\.js["'`]?\s+get degraded\b/, 'read the degrade record with `scope.js get degraded`, never through cwd-dependent `status`'],
+  [path.join('skills', 'submit-pr', 'SKILL.md'), /scope\.js["'`]?\s+get stage\b/, 'read the stage with `scope.js get stage`'],
+  [path.join('skills', 'submit-pr', 'SKILL.md'), /scope\.js["'`]?\s+stage set submitted\b/, 'set its own terminal stage with `scope.js stage set submitted`'],
+  [path.join('skills', 'submit-pr', 'SKILL.md'), /scope\.js["'`]?\s+get unresolved\b/, 'read the unresolved-defect record with `scope.js get unresolved`, never through cwd-dependent `status`'],
+  [path.join('skills', 'submit-pr', 'SKILL.md'), /scope\.js["'`]?\s+get degraded\b/, 'read the degrade record with `scope.js get degraded`, never through cwd-dependent `status`'],
   // ADR 0035's two-document agreement on the deferred record. A `/superdev:review` that stops writing it
   // leaves the finding in chat output alone, which is the durability gap the record exists to close; a
-  // `/superdev:ship` that stops reading it writes a pull-request body missing the one item nobody has
+  // `/superdev:submit-pr` that stops reading it writes a pull-request body missing the one item nobody has
   // planned yet. Either half alone reads correct, and the ledger keeps a bullet no reader ever sees.
   [path.join('skills', 'review', 'SKILL.md'), /scope\.js["'`]?\s+deferred add\b/, 'record a deferred finding with `scope.js deferred add`'],
-  [path.join('skills', 'ship', 'SKILL.md'), /scope\.js["'`]?\s+get deferred\b/, 'read the deferred-finding record with `scope.js get deferred`, never through cwd-dependent `status`'],
+  [path.join('skills', 'submit-pr', 'SKILL.md'), /scope\.js["'`]?\s+get deferred\b/, 'read the deferred-finding record with `scope.js get deferred`, never through cwd-dependent `status`'],
   [path.join('skills', 'status', 'SKILL.md'), /scope\.js["'`]?\s+status\b/, 'produce the report with `scope.js status` and print it verbatim'],
   [path.join('skills', 'afk', 'SKILL.md'), /scope\.js["'`]?\s+get stage\b/, 'read a run\'s stage with `scope.js get stage`'],
   [path.join('references', 'implement-full.md'), /scope\.js["'`]?\s+slice\b/, 'move slice rows with `scope.js slice`'],
@@ -1337,8 +1337,9 @@ const DENIAL_RESET_CONTRACTS = [
 
 // ADR 0046, ADR 0088. A **triage record** is the store-native record a deferred finding or an
 // observation gets (`references/plan-contract.md` → `## Triage record`), and it is the only home
-// that outlives the run root `hooks/scope-prune.js` reaps and the scope anchor `/superdev:ship`
-// closes — on the local plan-file store, only once the scope branch carrying it merges (ADR
+// that outlives the run root `hooks/scope-prune.js` reaps and the scope anchor's own close — a
+// commit `/superdev:submit-pr` makes on the local plan-file store, or an API call `/superdev:ship`
+// makes on a remote one — only once the scope branch carrying it merges (ADR
 // 0048). `/superdev:review` writes it for the deferred trigger, and the controller writes it for
 // the observation trigger, each through the active store document, so a store document with no
 // `## Triage record` section leaves the command asking a backend for a record that backend never
@@ -1450,8 +1451,8 @@ const BACKLOG_SURVEY_CONTRACTS = [
 // The writer's half is two documents, and each fails alone. `skills/review/SKILL.md` is what actually creates
 // the record, at the one bullet that already runs `deferred add`: a bullet that drops the clause writes the
 // ledger entry and no record, which is the state ADR 0046 exists to end, and nothing goes red.
-// `references/scope-mode.md` owns the entry's shape for every reader of it — `/superdev:ship` copies the
-// bullet, `/superdev:status` prints it — so a section that never mentions the record leaves the reference
+// `references/scope-mode.md` owns the entry's shape for every reader of it — `/superdev:submit-pr` copies
+// the bullet, `/superdev:status` prints it — so a section that never mentions the record leaves the reference
 // in the bullet unexplained. Neither row pins the mechanics: those are the store's, and pinning them here
 // would hardcode a backend into a tool-agnostic document. The store-presence half runs separately, as
 // `scanTriageRecordContract()`, over the same candidate list `scanAnchorContract`/`scanReleaseContract` use.
@@ -1512,11 +1513,13 @@ const DENIAL_CAP_NUMBER_MARKERS = [
 
 // ADR 0025 from the other side. The two chain steps after the review, and the writer the first of them
 // dispatches, run no full suite: `/superdev:review` owns the scope's one run, so a run added to
-// `skills/document/SKILL.md`, `skills/ship/SKILL.md`, or `agents/doc-writer.md` is a second pass over a tree the
-// review already verified. Prose is the wrong guard for it — root `AGENTS.md`'s prompt-the-positive rule
-// keeps a "never run the suite" line out of always-loaded context, and a prohibition makes the forbidden
-// behaviour more available rather than less. The silence is asserted here instead. Only these four
-// documents are scanned: every other consumer of a test command runs one by design.
+// `skills/document/SKILL.md`, `skills/submit-pr/SKILL.md`, or `agents/doc-writer.md` is a second pass over
+// a tree the review already verified. Prose is the wrong guard for it — root `AGENTS.md`'s
+// prompt-the-positive rule keeps a "never run the suite" line out of always-loaded context, and a
+// prohibition makes the forbidden behaviour more available rather than less. The silence is asserted here
+// instead. Only these four documents are scanned: every other consumer of a test command runs one by
+// design. `/superdev:ship` is exempt: ADR 0096 has it run the full suite itself, once, when it merges
+// base into the scope branch.
 //
 // `agents/final-reviewer.md` is the fourth, and it sits in both this list and FULL_SUITE_CONTRACTS above —
 // deliberately. That table only asserts presence: a document carrying both the new "runs no suite of your
@@ -1532,13 +1535,13 @@ const DENIAL_CAP_NUMBER_MARKERS = [
 // phrasing `skills/review/SKILL.md` used to use is one case of this, not a separate pattern), the
 // take-it-from-the-config one `references/run-handoff.md` uses ("take the full command from … and run
 // it"), and the optionality clause `agents/final-reviewer.md`'s own re-run sentence used to carry. A
-// past-tense reference to a run that already happened stays legal, because `skills/ship/SKILL.md` says the run
-// handoff *has run* the full suite, which is both true and load-bearing there, and so does
+// past-tense reference to a run that already happened stays legal, because `skills/submit-pr/SKILL.md`
+// says the run handoff *has run* the full suite, which is both true and load-bearing there, and so does
 // `final-reviewer.md`'s legitimate ad-hoc "you may re-run the suite over the range" and its "the controller
 // already ran the full suite itself" — neither is the optionality clause this list forbids.
 const DOC_STEP_SILENCE_DOCS = [
   path.join('skills', 'document', 'SKILL.md'),
-  path.join('skills', 'ship', 'SKILL.md'),
+  path.join('skills', 'submit-pr', 'SKILL.md'),
   path.join('agents', 'doc-writer.md'),
   path.join('agents', 'final-reviewer.md'),
 ];
@@ -1551,8 +1554,8 @@ const DOC_STEP_SILENCE_DOCS = [
 // request" and "Re-run the full suite before staging the pull request" are the ordinary way this
 // instruction gets written, with no "itself"/"yourself" for the old reflexive-only pattern to anchor on
 // (which this one replaces, being strictly broader — it still matches the reflexive phrasing too). The
-// discriminator against a legal past-tense mention (`skills/ship/SKILL.md`'s "the run handoff has run the full
-// suite") is the auxiliary, not the pronoun: a negative lookbehind for "has"/"have"/"had", optionally
+// discriminator against a legal past-tense mention (`skills/submit-pr/SKILL.md`'s "the run handoff has run
+// the full suite") is the auxiliary, not the pronoun: a negative lookbehind for "has"/"have"/"had", optionally
 // followed by up to two more words, before "run" — the same shape `RETURN_TO_CONTROLLER_PATTERNS`'s
 // `HAND_BACK_VERB` (`hand(?:\s+\w+){0,2}\s+back\s+to`) already uses for "a verb and its object, a short
 // run of words apart". A lookbehind anchored on the auxiliary sitting immediately before "run" instead
@@ -1719,8 +1722,8 @@ const PATHS_DERIVATION_CONTRACTS = [
   ],
 ];
 
-// `/superdev:ship` §3 gates on a standing unresolved defect (ADR 0026): a defect the run left standing is
-// named once, and shipping with it is asked about rather than assumed. A consumer that keeps the §4
+// `/superdev:submit-pr` §3 gates on a standing unresolved defect (ADR 0026): a defect the run left standing
+// is named once, and submitting with it is asked about rather than assumed. A consumer that keeps the §4
 // `## Unresolved defects` pull-request heading but drops either half of the gate reads right and ships a
 // broken branch anyway — the exact failure shape the ask (attended) and the refuse (unattended) exist to
 // prevent. Both halves live in one paragraph, §3's "Entries standing." bullet — but §3 also carries an
@@ -1734,8 +1737,8 @@ const SHIP_GATE_HEADING = /\*\*Entries standing\.\*\*/;
 
 const SHIP_GATE_ELEMENTS = [
   [
-    /\*\*ask once\*\*\s+whether\s+to\s+ship\s+with\s+it\s+standing/i,
-    'ask once whether to ship with a standing unresolved defect',
+    /\*\*ask once\*\*\s+whether\s+to\s+submit\s+with\s+it\s+standing/i,
+    'ask once whether to submit with a standing unresolved defect',
   ],
   [/`--unattended`\s*→\s*refuse/i, 'refuse under `--unattended` when an unresolved defect stands'],
 ];
@@ -1899,9 +1902,9 @@ const TEST_SELECTION_CONTRACTS = [
 // and from `documented-unreviewed` straight to `/superdev:ship`, is gone (it superseded ADR 0025's skip
 // of the whole-scope review). The row below pins that afk's stage table carries no such special case any
 // more — a re-added one strands nothing today, but re-opens exactly the drift a fix cycle already found
-// once, so its absence is asserted rather than trusted. `skills/ship/SKILL.md` dropped its own half of
+// once, so its absence is asserted rather than trusted. `skills/submit-pr/SKILL.md` dropped its own half of
 // the retired agreement — the all-`mechanical`/`docs` exemption from its own missing-step warning — so
-// this table no longer carries a ship row; `/superdev:ship` §3 now names `/superdev:review` as missing
+// this table no longer carries a submit-pr row; `/superdev:submit-pr` §3 now names `/superdev:review` as missing
 // for such a scope like any other.
 const AFK_ROUTING_CONTRACTS = [
   [
@@ -2425,9 +2428,9 @@ const ROTATE_ON_SHIPPED_CONTRACTS = [
   ],
   [
     path.join('references', 'run-init.md'),
-    /`implementing`,\s*`merged`,\s*`reviewed`,\s*`documented`,\s*or\s*`documented-unreviewed`/,
-    'name every other stage — `implementing`, `merged`, `reviewed`, `documented`, `documented-unreviewed` ' +
-      '— that keeps the existing resume path',
+    /`implementing`,\s*`merged`,\s*`reviewed`,\s*`documented`,\s*`documented-unreviewed`,\s*or\s*`submitted`/,
+    'name every other stage — `implementing`, `merged`, `reviewed`, `documented`, `documented-unreviewed`, ' +
+      '`submitted` — that keeps the existing resume path',
   ],
   [
     path.join('references', 'run-init.md'),
@@ -3109,7 +3112,7 @@ const PUBLISH_RUN_STATE_CONTRACTS = [
   ...[
     path.join('references', 'run-init.md'),
     path.join('skills', 'implement', 'SKILL.md'),
-    path.join('skills', 'ship', 'SKILL.md'),
+    path.join('skills', 'submit-pr', 'SKILL.md'),
   ].map((rel) => [rel, /`## Publishing run state`/, 'point at the `## Publishing run state` section after its one ledger write']),
   // references/implement-full.md: anchored on the real citation's own lead-in, not a bare heading match —
   // the file also names the section a second time, in the non-terminal simplicity-reviewer write's own
@@ -3299,8 +3302,8 @@ const RUN_LOCK_LIVENESS_CONTRACTS = [
   ],
   [
     path.join('references', 'scope-mode.md'),
-    /governs `\/superdev:implement`'s own entry alone, never `\/superdev:review`,\s+`\/superdev:document`, or `\/superdev:ship`/,
-    'state that the liveness check governs `/superdev:implement`\'s own entry alone, never review/document/ship\'s ordinary hand-off',
+    /governs `\/superdev:implement`'s own entry alone, never `\/superdev:review`,\s+`\/superdev:document`, `\/superdev:submit-pr`, or `\/superdev:ship`/,
+    'state that the liveness check governs `/superdev:implement`\'s own entry alone, never review/document/submit-pr/ship\'s ordinary hand-off',
   ],
   [
     path.join('references', 'scope-mode.md'),
@@ -3325,14 +3328,14 @@ const RUN_LOCK_LIVENESS_CONTRACTS = [
 ];
 
 // The absence half of the scoping decision above (`scanRunLockLivenessSilence` in `scanners.js` runs it):
-// review/document/ship's own "refresh the run lock" bullets may carry no liveness-check language of their
-// own. A one-sided pin — asserting the rule's presence in scope-mode.md alone — reads as enforced while a
-// skill edit re-widens the check onto these three without drift-check ever noticing, which is exactly the
-// regression a first cycle of this feature shipped and a whole-scope review caught (ADR 0090).
+// review/document/submit-pr's own "refresh the run lock" bullets may carry no liveness-check language of
+// their own. A one-sided pin — asserting the rule's presence in scope-mode.md alone — reads as enforced
+// while a skill edit re-widens the check onto these three without drift-check ever noticing, which is
+// exactly the regression a first cycle of this feature shipped and a whole-scope review caught (ADR 0090).
 const RUN_LOCK_LIVENESS_SILENCE_DOCS = [
   path.join('skills', 'review', 'SKILL.md'),
   path.join('skills', 'document', 'SKILL.md'),
-  path.join('skills', 'ship', 'SKILL.md'),
+  path.join('skills', 'submit-pr', 'SKILL.md'),
 ];
 
 const RUN_LOCK_LIVENESS_SILENCE_MARKERS = [
@@ -4016,17 +4019,26 @@ const VERIFICATION_CEILING_CONTRACTS = [
   ],
 ];
 
-// ADR 0091's closing half: `/superdev:ship` ticks nothing — the suite-criterion logic ADR 0084 once put
-// in ship's own §4 moved to `/superdev:review`'s §4 (`UNMET_CRITERION_AT_REVIEW_CONTRACTS`,
-// `VERIFICATION_CEILING_CONTRACTS`) once every scope started passing review. What ship does instead: it
-// copies a criterion `/superdev:review` or `/superdev:document` already left unticked with a `ceiling:`
-// note into the pull-request body, as a post-merge checklist, and it still closes the scope anchor — the
-// one write §5 kept that is not a tick. The rows below pin `skills/ship/SKILL.md`'s "ship writes no tick"
-// statement, the post-merge-checklist paragraph (the heading, the source note, and the no-heading-when-
-// none rule), and the anchor-close paragraph (`stage set shipped` is already pinned by `verb-pointer`
-// below; this row pins the sentence that still moves the scope anchor issue to done alongside it, so a
-// consumer that keeps the verb call but drops the anchor-close clause still trips this row).
+// ADR 0091's closing half: `/superdev:submit-pr` ticks nothing — the suite-criterion logic ADR 0084 once
+// put in ship's own §4 moved to `/superdev:review`'s §4 (`UNMET_CRITERION_AT_REVIEW_CONTRACTS`,
+// `VERIFICATION_CEILING_CONTRACTS`) once every scope started passing review. What submit-pr does instead:
+// it copies a criterion `/superdev:review` or `/superdev:document` already left unticked with a
+// `ceiling:` note into the pull-request body, as a post-merge checklist. The rows below pin
+// `skills/submit-pr/SKILL.md`'s "writes no tick" statement and the post-merge-checklist paragraph (the
+// heading, the source note, and the no-heading-when-none rule). Closing the scope anchor on a remote
+// store is `/superdev:ship`'s own post-merge job (ADR 0096) — its own two rows below pin that it writes
+// no tick either, and that it still closes the anchor, whatever tick logic left the run root.
 const SHIP_TICKS_NOTHING_CONTRACTS = [
+  [
+    path.join('skills', 'submit-pr', 'SKILL.md'),
+    /writes no tick anywhere/,
+    'state plainly that this command writes no tick anywhere',
+  ],
+  [
+    path.join('skills', 'submit-pr', 'SKILL.md'),
+    /`?##\s*Post-merge checklist`?\s+heading[\s\S]{0,400}No such criterion[\s\S]{0,60}add no empty heading/,
+    'carry every `— ceiling:` criterion from `dod.md` into the pull-request body under a `## Post-merge checklist` heading, adding no empty heading when none exist',
+  ],
   [
     path.join('skills', 'ship', 'SKILL.md'),
     /[Ss]hip writes no tick anywhere/,
@@ -4034,33 +4046,28 @@ const SHIP_TICKS_NOTHING_CONTRACTS = [
   ],
   [
     path.join('skills', 'ship', 'SKILL.md'),
-    /`?##\s*Post-merge checklist`?\s+heading[\s\S]{0,400}No such criterion[\s\S]{0,60}add no empty heading/,
-    'carry every `— ceiling:` criterion from `dod.md` into the pull-request body under a `## Post-merge checklist` heading, adding no empty heading when none exist',
-  ],
-  [
-    path.join('skills', 'ship', 'SKILL.md'),
-    /move the \*\*scope anchor\*\* issue[\s\S]{0,80}to done/,
-    'still move the scope anchor issue to done, whatever tick logic left the run root',
+    /[Cc]lose the scope anchor on a remote store/,
+    'still close the scope anchor on a remote store, whatever tick logic left the run root',
   ],
 ];
 
 // Triage #654: a store whose anchor close is a commit on the scope branch (the local store) commits that
-// close before ship's push, so it rides the pull request and reaches base exactly when the pull request
-// merges — never as a commit straight to base (INV-0001). A store whose close is an API call keeps
-// closing after the pull request opens, unaffected: `skills/ship/SKILL.md` states the scope-branch-commit
-// case at its push step (§4), and `references/issue-tracker-local.md` restates its own close line to
-// match. A later feature is free to replace the `done` value with its own status; the before-the-push
-// mechanism stays either way.
+// close before submit-pr's push, so it rides the pull request and reaches base exactly when the pull
+// request merges — never as a commit straight to base (INV-0001). A store whose close is an API call
+// keeps closing after the pull request opens, on `/superdev:ship`, unaffected:
+// `skills/submit-pr/SKILL.md` states the scope-branch-commit case at its push step (§4), and
+// `references/issue-tracker-local.md` restates its own close line to match. A later feature is free to
+// replace the `done` value with its own status; the before-the-push mechanism stays either way.
 const ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS = [
   [
-    path.join('skills', 'ship', 'SKILL.md'),
+    path.join('skills', 'submit-pr', 'SKILL.md'),
     /anchor close is a commit on the scope branch commits that close[\s\S]{0,40}before this push/,
     'state, at its push step, that a store whose anchor close is a commit on the scope branch commits that close before this push, so it reaches base with the merge',
   ],
   [
     path.join('references', 'issue-tracker-local.md'),
-    /commit it `done` on the scope branch[\s\S]{0,60}before\s*\n?\s*ship pushes[\s\S]{0,60}reaches base with the merge/,
-    "state that `/superdev:ship` commits the anchor `done` on the scope branch before ship pushes, so it reaches base with the merge",
+    /commit it `done` on the scope branch[\s\S]{0,60}before\s*\n?\s*it pushes[\s\S]{0,60}reaches base with the merge/,
+    "state that `/superdev:submit-pr` commits the anchor `done` on the scope branch before it pushes, so it reaches base with the merge",
   ],
 ];
 
@@ -4089,9 +4096,9 @@ const DOC_UNTICK_ON_BREAK_CONTRACTS = [
     /Apply the same verdict to the anchor[\s\S]{0,150}through the active store's own `## Definition of Done ticks` section/,
     'route the anchor tick update through the active store\'s own `## Definition of Done ticks` section',
   ],
-  // INV-0016: an untick this pass writes leaves a broken criterion standing with no record ship's own
-  // gate reads — without the Unresolved entry, ship's stage-and-Unresolved check sees nothing wrong and
-  // opens a pull request over a criterion this very pass just broke.
+  // INV-0016: an untick this pass writes leaves a broken criterion standing with no record submit-pr's
+  // own gate reads — without the Unresolved entry, submit-pr's stage-and-Unresolved check sees nothing
+  // wrong and opens a pull request over a criterion this very pass just broke.
   [
     path.join('skills', 'document', 'SKILL.md'),
     /An untick here also writes the ledger's `\*\*Unresolved:\*\*` entry, naming the criterion it broke[\s\S]{0,200}unresolved add[\s\S]{0,400}Publishing run state/,
@@ -4107,7 +4114,7 @@ const DOC_UNTICK_ON_BREAK_CONTRACTS = [
   [
     path.join('skills', 'document', 'SKILL.md'),
     /This pass unticked a line above[\s\S]{0,150}print `\/superdev:review <range>`, naming the criterion that stands unmet/,
-    'print `/superdev:review <range>` instead of `/superdev:ship`, naming the unmet criterion, when this pass unticked a line',
+    'print `/superdev:review <range>` instead of `/superdev:submit-pr`, naming the unmet criterion, when this pass unticked a line',
   ],
   // INV-0016: a standing `**Unresolved:**` entry from an earlier pass is a criterion still unmet even
   // when this pass itself unticks nothing — writing `documented` over it would advance the stage past
@@ -4272,9 +4279,9 @@ const LABEL_REVISION_AT_DECOMPOSITION_CONTRACTS = [
 // already unticked, both count — the stage does not advance while any criterion but a `ceiling` one or
 // an `accepted` one (ADR 0095) stands unmet, and a clean re-review re-ticks only what the fix
 // implementer's report calls met.
-// `/superdev:ship` carries no row here any more: ADR 0091 moved the unmet-criterion gate to review, so
-// ship never meets one of its own — an unticked line reaches ship already noted, and ship's own
-// `SHIP_TICKS_NOTHING_CONTRACTS` row pins what ship does with a `ceiling:` one. Losing a review row lets
+// `/superdev:submit-pr` carries no row here any more: ADR 0091 moved the unmet-criterion gate to review,
+// so submit-pr never meets one of its own — an unticked line reaches submit-pr already noted, and its own
+// `SHIP_TICKS_NOTHING_CONTRACTS` row pins what it does with a `ceiling:` one. Losing a review row lets
 // a broken criterion reach the ask-once gate with no standing instruction on whether it is unticked,
 // chased, or re-ticked — or lets a version of the bullet that only catches an already-ticked broken line
 // pass, silently dropping the already-unticked case.
@@ -4376,6 +4383,267 @@ const DECOMPOSITION_NAMES_WHAT_IT_CHECKED_CONTRACTS = [
     path.join('skills', 'plan', 'SKILL.md'),
     /Before you present the decomposition, state, for each file you opened while grounding it, what it says about the proposal itself[\s\S]{0,150}not about the question you opened it for/,
     'state, in §5, before the decomposition is presented, for each file opened while grounding it, what it says about the proposal itself — not about the question it was opened for. The demanding form covers every file opened, not only the ones a controller chose to call "checked"',
+  ],
+];
+
+// #683: each code-host document gains the two calls a merge needs, in its own `## Merge` section —
+// reading the pull request's state, head sha, merged sha, and mergeability, then the pinned squash
+// merge bound to one head sha. One row per document is enough: the section either states the whole
+// shape or it doesn't, and a presence table fails loudly on a paraphrase it doesn't recognize, so it
+// carries no ceiling note (`scripts/AGENTS.md`'s own rule for this kind).
+const CODE_MANAGEMENT_MERGE_CONTRACTS = [
+  [
+    path.join('references', 'code-management-forgejo.md'),
+    /## Merge[\s\S]{0,400}?\bmerge_commit_sha\b[\s\S]{0,200}?mergeable[\s\S]{0,600}?head_commit_id[\s\S]{0,500}?405[\s\S]{0,300}?409/,
+    "carry a `## Merge` section reading the pull request's state, head sha, merged sha, and " +
+      'mergeability, then merging it squashed and pinned to that head sha with `head_commit_id`, and ' +
+      'naming what a 405 or 409 refusal means',
+  ],
+  [
+    path.join('references', 'code-management-github.md'),
+    /## Merge[\s\S]{0,400}?merge_commit_sha[\s\S]{0,200}?mergeable[\s\S]{0,300}?`null`[\s\S]{0,200}?unknown[\s\S]{0,400}?--match-head-commit[\s\S]{0,300}?405[\s\S]{0,300}?409/,
+    "carry a `## Merge` section reading the pull request's state, head sha, merged sha, and " +
+      'mergeability — treating an async `null` mergeable as unknown after a bounded re-read, never as ' +
+      'mergeable — then merging it squashed and pinned to that head sha with `--match-head-commit`/`sha`, ' +
+      'and naming what a 405 or 409 refusal means',
+  ],
+  [
+    path.join('docs', 'agents', 'code-management.md'),
+    /## Merge[\s\S]{0,400}?\bmerge_commit_sha\b[\s\S]{0,200}?mergeable[\s\S]{0,600}?head_commit_id[\s\S]{0,500}?405[\s\S]{0,300}?409/,
+    "carry a `## Merge` section reading the pull request's state, head sha, merged sha, and " +
+      'mergeability, then merging it squashed and pinned to that head sha with `head_commit_id`, and ' +
+      'naming what a 405 or 409 refusal means',
+  ],
+];
+
+// #685, INV-0092: `/superdev:ship` reads the pull request by the number `/superdev:submit-pr` recorded
+// in the ledger, and falls back to a head-branch lookup only for a ledger predating that header. A
+// lookup scoped to every pull request rather than open ones alone could adopt a merged pull request left
+// over from a reused branch name (scope-mode.md's `## Cutting the scope branch` treats reuse as
+// ordinary) as this run's own — the exact failure the ledger number exists to rule out. Each
+// code-management document's own `## Merge` section carries that lookup, scoped to open pull requests.
+const CODE_MANAGEMENT_HEAD_BRANCH_LOOKUP_CONTRACTS = [
+  [
+    path.join('references', 'code-management-forgejo.md'),
+    /## Merge[\s\S]{0,1200}?head branch[\s\S]{0,300}?state=open[\s\S]{0,400}?\bpage\b[\s\S]{0,300}?\blimit\b/,
+    'carry, in its `## Merge` section, a lookup for an open pull request by its head branch, scoped to ' +
+      'open pull requests only, and page through every page (`page`/`limit`) before counting matches',
+  ],
+  [
+    path.join('references', 'code-management-github.md'),
+    /## Merge[\s\S]{0,1200}?head branch[\s\S]{0,300}?--state open/,
+    'carry, in its `## Merge` section, a lookup for an open pull request by its head branch, scoped to ' +
+      'open pull requests only',
+  ],
+  [
+    path.join('docs', 'agents', 'code-management.md'),
+    /## Merge[\s\S]{0,1200}?head branch[\s\S]{0,300}?state=open[\s\S]{0,400}?\bpage\b[\s\S]{0,300}?\blimit\b/,
+    'carry, in its `## Merge` section, a lookup for an open pull request by its head branch, scoped to ' +
+      'open pull requests only, and page through every page (`page`/`limit`) before counting matches',
+  ],
+];
+
+// #683, INV-0092: none of the three code-management documents may ever *send* a force or bypass option
+// on a merge call — `force_merge` (Forgejo) or `--admin` (GitHub's `gh pr merge`) each override branch
+// protection and required approvals, which is exactly what a pinned merge must never do. This is a
+// shape-based absence check: it catches an actual invocation, not the option's name used to say it is
+// forbidden (`this seed never sends it`), so a paraphrased way of setting the same field walks past it.
+// ponytail: shape-based, and its ceiling is the two spellings below — see the `code-management-no-force`
+// note in `scripts/AGENTS.md`'s Work Guidance list.
+const NO_FORCE_MERGE_DOCS = [
+  path.join('references', 'code-management-forgejo.md'),
+  path.join('references', 'code-management-github.md'),
+  path.join('docs', 'agents', 'code-management.md'),
+];
+const NO_FORCE_MERGE_PATTERNS = [
+  [/force_merge['"]?\s*:\s*true/i, () => 'invoke `force_merge: true` on a merge call — that is the branch-protection bypass this contract forbids sending'],
+  [/--admin\b/, () => 'invoke `--admin` on a merge command — that is the required-check bypass this contract forbids sending'],
+];
+
+// Final-reviewer triage (#687 fix cycle): ship pushed the scope branch only when base itself had moved,
+// so a commit review's own fix loop or an operator's own conflict resolution landed at stage `submitted`
+// (with no base merge involved) never reached the pull request's head, and the pinned merge below refused
+// forever. Ship is now the one pusher after submit-pr (INV-0087): it compares the local tip against the
+// pull request's own `head.sha` whenever they differ, gates the push on a reusable green record for that
+// tip rather than trusting an earlier command's own record blindly, and prints the range the push adds
+// before sending it.
+const SHIP_TESTED_PUSH_CONTRACTS = [
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /suite reusable[\s\S]{0,300}?[Rr]efuses[\s\S]{0,200}?never push an untested tip/,
+    'gate the push on `suite reusable` accepting the tip, and refuse — never push an untested tip — ' +
+      'when it does not',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /print the range this push is about to add[\s\S]{0,200}?\blog\b[\s\S]{0,100}?--oneline/,
+    'print the range the push is about to add (`git log <head>..<tip> --oneline`) before sending it',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /against the `head\.sha`[\s\S]{0,200}?whether or not base moved above/,
+    "compare the tip against the pull request's `head.sha` whether or not base moved, since a review's " +
+      "own fix loop or an operator's own conflict resolution can land commits at stage `submitted` with " +
+      'no base merge involved',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /[Rr]ejected, non-fast-forward[\s\S]{0,300}?fetching those commits into the scope branch[\s\S]{0,150}?\/superdev:review <scope>/,
+    "refuse — naming the commits the pull request's head carries that the scope branch lacks, merging " +
+      'nothing, and pointing at fetching them into the scope branch and running `/superdev:review ' +
+      '<scope>` then `/superdev:ship <scope>` again — when the push is rejected as non-fast-forward',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /freshest `head\.sha`[\s\S]{0,300}?must equal the local scope-branch tip[\s\S]{0,400}?differ[\s\S]{0,150}?merge nothing/,
+    "check, before merging, that the freshest `head.sha` still equals the local scope-branch tip " +
+      "`suite reusable` accepted, and refuse — naming both shas, merging nothing — when they differ",
+  ],
+];
+
+// A rejected push, or a push racing in from elsewhere between §3's read and the pinned merge, both leave
+// the pull request's own `head.sha` naming a commit no suite ever ran on. The equality check above is what
+// catches that gap, and the merge call itself must never trust the host's own `head.sha` as its pin: it
+// sends the local scope-branch tip `suite reusable` already accepted instead, in ship's own prose and in
+// each seed's `## Merge` section alike (`scripts/AGENTS.md`, Prompt prose: a contract in one also holds in
+// the other).
+const SHIP_MERGE_PIN_CONTRACTS = [
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /sha the merge call pins is the local scope-branch tip[\s\S]{0,150}?never a value read\s*\n?\s*from the host/,
+    'state that the sha the merge call pins is the local scope-branch tip `suite reusable` accepted, ' +
+      'never a value read from the host',
+  ],
+  [
+    path.join('references', 'code-management-forgejo.md'),
+    /<tested-tip-sha>[\s\S]{0,300}?never read from the host[\s\S]{0,300}?never as the merge's own pin/,
+    "state that `<tested-tip-sha>` is never read from the host — it is the local scope-branch tip " +
+      "`suite reusable` accepted — and that the pull request's own `head.sha` is read only to decide " +
+      'whether to push and to refuse a stale one, never as the merge\'s own pin',
+  ],
+  [
+    path.join('references', 'code-management-github.md'),
+    /<tested-tip-sha>[\s\S]{0,300}?never read from the host[\s\S]{0,300}?never as the merge's own pin/,
+    "state that `<tested-tip-sha>` is never read from the host — it is the local scope-branch tip " +
+      "`suite reusable` accepted — and that the pull request's own `head.sha` is read only to decide " +
+      'whether to push and to refuse a stale one, never as the merge\'s own pin',
+  ],
+  [
+    path.join('docs', 'agents', 'code-management.md'),
+    /<tested-tip-sha>[\s\S]{0,300}?never read from the host[\s\S]{0,300}?never as the merge's own pin/,
+    "state that `<tested-tip-sha>` is never read from the host — it is the local scope-branch tip " +
+      "`suite reusable` accepted — and that the pull request's own `head.sha` is read only to decide " +
+      'whether to push and to refuse a stale one, never as the merge\'s own pin',
+  ],
+];
+
+// Final-reviewer triage (#687 fix cycle), Minor 2/3/4: a `shipped` ledger reads two different things
+// depending on whether it carries the ledger's own `**PR:**` header. One with the header finished by
+// this version and is truly done; one without it is a legacy ledger a version before ADR 0096 wrote the
+// moment it opened the pull request, never once it merged, and ship still has work to do on it. The rows
+// pin the branch split on `skills/ship/SKILL.md`, its own no-recovery-instruction case when a legacy run's
+// pull request is nowhere to be found, and `references/scope-mode.md`'s own restatement of what actually
+// terminates the stage.
+const SHIP_LEGACY_SHIPPED_CONTRACTS = [
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /Exactly one[\s\S]{0,200}?scope\.js["'`]?\s+pr set[\s\S]{0,200}?rather than as a legacy run/,
+    "record the head-branch fallback's own single pull request right away with `scope.js pr set <n>`, so " +
+      'this run finishes reading as `shipped` and "already shipped" rather than as a legacy run the next ' +
+      'time `/superdev:ship` reads it',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /carries a `\*\*PR:\*\*` header[\s\S]{0,150}?already shipped, finished by this version/,
+    'report "already shipped" and stop, with nothing to merge and nothing to refuse, on a `shipped` ' +
+      'ledger that carries a `**PR:**` header',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /carries no `\*\*PR:\*\*` header[\s\S]{0,200}?[Tt]reat it exactly like `submitted`/,
+    'treat a `shipped` ledger carrying no `**PR:**` header exactly like `submitted`, as a legacy run',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /legacy `shipped` ledger rather than `submitted`[\s\S]{0,150}?skip the `pr set`\s*\n?\s*recovery/,
+    'skip the `pr set` recovery instruction, reporting nothing left to merge instead, when the None-found ' +
+      'case is reached from a legacy `shipped` ledger rather than `submitted`',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /`shipped` together with the ledger's own `\*\*PR:\*\*` header is\s*\n?\s*what stops/,
+    'state that `shipped` together with the ledger\'s own `**PR:**` header, not `shipped` alone, is what ' +
+      'stops `/superdev:ship` from merging a second time',
+  ],
+];
+
+// Final-reviewer triage (#687 fix cycle), Minor 5: `skills/document/SKILL.md` §8's stage write only knew
+// `shipped` as a leave-alone stage, so a `submitted` scope — one review already handed to ship at its own
+// stage `submitted` — fell into the "anything else" branch and got a `documented-unreviewed` write
+// `scope.js` refuses as a backward move (STAGE_RANK). The row pins that `submitted` joins `shipped` in
+// the leave-alone branch, and that the next-command bullet prints `/superdev:ship <scope>` for it rather
+// than `/superdev:submit-pr`, which would re-open a pull request already open.
+const DOCUMENT_SUBMITTED_CONTRACTS = [
+  [
+    path.join('skills', 'document', 'SKILL.md'),
+    /`shipped` or `submitted` → leave the\s*\n?\s*line alone/,
+    'leave the ledger stage alone on `submitted` as well as `shipped`, rather than writing ' +
+      '`documented-unreviewed` over it',
+  ],
+  [
+    path.join('skills', 'document', 'SKILL.md'),
+    /stage read `shipped` or `submitted` above[\s\S]{0,150}?print\s*\n?\s*`\/superdev:ship <scope>`/,
+    'print `/superdev:ship <scope>` as the next command when the leave-alone branch read `submitted`',
+  ],
+];
+
+// #687: the re-review ADR 0096 sends an operator to after resolving a base-merge conflict enters at
+// stage `submitted` and leaves it there, but its handoff and its suite-record write both still change
+// shape for that stage. A row per fact — the print, and the suite-record invalidation on each of the
+// three paths that write an `**Unresolved:**` entry (Declined findings, 3-strike-cap, unattended block)
+// — since any fact can go stale on its own without the others catching it.
+const REVIEW_SUBMITTED_CONTRACTS = [
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /stage reads `submitted`[\s\S]{0,80}print `\/superdev:ship <scope>`/,
+    'print `/superdev:ship <scope>` as the next command once the stage reads `submitted`, rather than ' +
+      '`/superdev:document`',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /Declined[\s\S]{0,400}submitted[\s\S]{0,150}suite set none <sha>/,
+    "invalidate the tip's suite record — `suite set none <sha>` — when a standing finding leaves a " +
+      '`submitted` scope declined, so `suite reusable` accepts nothing for that tip',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /3-strike cap[\s\S]{0,300}submitted[\s\S]{0,200}invalidate the tip's suite record the same way/,
+    "invalidate the tip's suite record the same way the Declined branch does when the 3-strike cap is " +
+      'reached at a `submitted` stage',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /--unattended[\s\S]{0,100}block[\s\S]{0,100}submitted[\s\S]{0,100}invalidating the suite record/,
+    'invalidate the suite record the same way when blocking at the 3-strike cap at a `submitted` stage',
+  ],
+];
+
+// #687: a run root at stage `submitted` needs its own two rows — awaiting the operator's merge, or
+// recording one the operator already made by hand on the host — since afk's own routing table skips
+// `submitted` entirely (only a human moves it further), so the generic `in flight` act lookup resolves
+// to nothing for it.
+const BACKLOG_SUBMITTED_CONTRACTS = [
+  [
+    path.join('skills', 'backlog', 'SKILL.md'),
+    /`awaiting merge`[\s\S]{0,300}`merge unrecorded`/,
+    'carry both a `awaiting merge` bucket (pull request open, or unrecorded) and a `merge unrecorded` ' +
+      "bucket (pull request merged by hand) for a run root at stage `submitted`, each pointing at " +
+      '`/superdev:ship <scope-slug>`',
+  ],
+  [
+    path.join('skills', 'backlog', 'SKILL.md'),
+    /scope\.js["'`]?\s+get pr\b/,
+    "read the ledger's `**PR:**` header with `scope.js get pr` to tell the two `submitted` buckets apart",
   ],
 ];
 
@@ -4551,4 +4819,14 @@ module.exports = {
   ACCEPTED_VERDICT_CONTRACTS,
   ALWAYS_REVIEW_CONTRACTS,
   ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS,
+  CODE_MANAGEMENT_MERGE_CONTRACTS,
+  CODE_MANAGEMENT_HEAD_BRANCH_LOOKUP_CONTRACTS,
+  SHIP_TESTED_PUSH_CONTRACTS,
+  SHIP_MERGE_PIN_CONTRACTS,
+  SHIP_LEGACY_SHIPPED_CONTRACTS,
+  DOCUMENT_SUBMITTED_CONTRACTS,
+  NO_FORCE_MERGE_DOCS,
+  NO_FORCE_MERGE_PATTERNS,
+  REVIEW_SUBMITTED_CONTRACTS,
+  BACKLOG_SUBMITTED_CONTRACTS,
 };

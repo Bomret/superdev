@@ -370,7 +370,7 @@ Each store's own `## Definition of Done ticks` section states, citing this secti
 
 A **deferred finding** — a fix-loop finding whose remedy adds a capability the Definition of Done never
 asked for — gets a **triage record** in the slice store. The run's ledger carries a `**Deferred:**` bullet
-naming the record, and `/superdev:ship` copies that bullet into the pull-request body, but both live and
+naming the record, and `/superdev:submit-pr` copies that bullet into the pull-request body, but both live and
 die with the run: the run root is reaped and the pull request is merged. On an issue backend, the record
 outlives them regardless of whether the scope ever ships; on the local plan-file store, it outlives them
 only once the scope branch carrying it merges (ADR 0046, ADR 0048).
@@ -380,7 +380,7 @@ These invariants fix its shape, and every backend renders all of them:
 - **The controller writes it, at the trigger moment.** `/superdev:review` writes a deferred finding's
   record the moment it defers; whichever chain command is running writes an observation's record the
   moment a controller meets one (`references/scope-mode.md`'s `## Observations` section). A run reviewed
-  and then abandoned never reaches `/superdev:ship`, and its run root is pruned with the findings still
+  and then abandoned never reaches `/superdev:submit-pr`, and its run root is pruned with the findings still
   inside, so the command that finds the work is the one that records it.
 - **It is neither a slice nor a scope anchor.** No candidate listing and no slice loader ever selects it.
   How a given store guarantees that — a label it withholds, a file shape no walk reaches — is the active
@@ -390,7 +390,7 @@ These invariants fix its shape, and every backend renders all of them:
   for a deferred finding, why no Definition of Done criterion covered it; for an observation, that no
   slice of the scope covers it and the scope did not cause it — the date, the feature label, the scope
   branch, and the scope anchor's reference. It never names a pull request: every trigger runs before
-  `/superdev:ship` opens one.
+  `/superdev:submit-pr` opens one.
 - **The write is best-effort**, exactly as a status label is. **The deferred trigger's** failure or
   denial leaves the ledger bullet written and the review unblocked, reported once per run, because the
   ledger drives control flow. **The observation trigger writes no ledger bullet at all**: its own failure

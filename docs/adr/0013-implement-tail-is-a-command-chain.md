@@ -2,6 +2,10 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0096](0096-opening-the-pull-request-and-merging-it-are-separate-commands.md), which
+splits the last command in two: `/superdev:submit-pr` opens the pull request and ends the chain, and
+`/superdev:ship` merges it.
+
 **Context.** `/superdev:implement` welds five steps behind the last slice merge: the whole-scope review,
 the fix loop, the documentation pass, the Definition of Done tick, and the pull request. The maintainer
 cannot inspect the merged scope branch before the documentation lands and the pull request opens. Every

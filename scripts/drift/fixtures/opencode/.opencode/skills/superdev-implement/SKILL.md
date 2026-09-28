@@ -49,6 +49,6 @@ review `/superdev-review` runs next.
 @108
   Each playbook ends by reading `<plugin-root>/references/run-handoff.md`.
 @120
-the run starts, and **`/superdev-ship` closes it**, not you. **On a single-slice plan the anchor rule
+the run starts, and **`/superdev/ship` closes it**, not you. **On a single-slice plan the anchor rule
 @126
 `full` dispatches every row; `<plugin-root>/references/run-handoff.md`'s run handoff dispatches the

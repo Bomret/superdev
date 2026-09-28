@@ -14,6 +14,7 @@ const {
   scanRunRootPaths,
   scanScopetreeRunRootPaths,
   scanNoBaseBranchCommit,
+  scanShipHumanOnly,
   scanAssigneeContract,
   scanAnchorContract,
   scanAppendContract,
@@ -32,7 +33,9 @@ const {
   scanObservationCaptureReminders,
   scanChainHandoff,
   scanAfkInvocations,
+  scanAfkNoShipStep,
   scanShipGateContract,
+  scanShipNoOpensPr,
   scanOrphanLensPlacement,
   scanTestCostLensPlacement,
   scanUnresolvedGlossaryContract,
@@ -44,6 +47,7 @@ const {
   scanHookLedgerParsers,
   scanAdrStatus,
   scanForcingBranchFlag,
+  scanNoForceMerge,
   scanReturnToController,
   scanNarrativeCoverage,
   scanMarketplaceSource,
@@ -138,6 +142,14 @@ const {
   ACCEPTED_VERDICT_CONTRACTS,
   ALWAYS_REVIEW_CONTRACTS,
   ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS,
+  CODE_MANAGEMENT_MERGE_CONTRACTS,
+  CODE_MANAGEMENT_HEAD_BRANCH_LOOKUP_CONTRACTS,
+  SHIP_TESTED_PUSH_CONTRACTS,
+  SHIP_MERGE_PIN_CONTRACTS,
+  SHIP_LEGACY_SHIPPED_CONTRACTS,
+  DOCUMENT_SUBMITTED_CONTRACTS,
+  REVIEW_SUBMITTED_CONTRACTS,
+  BACKLOG_SUBMITTED_CONTRACTS,
 } = require('./contracts');
 
 // The printer the table-driven checks share. A gap is `{ source, expectation }` and reads the
@@ -232,6 +244,12 @@ module.exports = [
     run: scanAfkInvocations,
     format: contractGap,
   },
+  {
+    id: 'afk-no-ship-step',
+    ok: 'afk never names `/superdev:ship` as a step it runs — every mention admits, in the same sentence, that afk stops short of it',
+    run: scanAfkNoShipStep,
+    format: contractGap,
+  },
   table('change-type', CHANGE_TYPE_CONTRACTS, 'change-type set matches the scope-prune hook and scope.js'),
   table('degraded-pass', DEGRADED_CONTRACTS, 'degrade record carried', { stripFrontmatterFirst: true }),
   table('derived-criteria', DERIVED_CRITERIA_CONTRACTS, 'criteria derived before the DoD is read'),
@@ -275,9 +293,15 @@ module.exports = [
   },
   {
     id: 'no-base-branch-commit',
-    ok: 'no shipped prose instructs a commit or a push to the base branch (INV-0001)',
+    ok: 'no shipped prose instructs a commit, a push, or a merge to the base branch, other than ship\'s own admitted host-API merge (INV-0001)',
     run: scanNoBaseBranchCommit,
-    format: (g) => `${g.source}:${g.line} instructs a commit or a push to the base branch — no superdev command commits to the base branch (INV-0001, docs/invariants.md)`,
+    format: (g) => `${g.source}:${g.line} instructs a commit, a push, or a merge to the base branch — no superdev command reaches the base branch that way (INV-0001, docs/invariants.md)`,
+  },
+  {
+    id: 'ship-human-only',
+    ok: 'ship carries `disable-model-invocation: true` and names no `--unattended` mode of its own (INV-0093)',
+    run: scanShipHumanOnly,
+    format: contractGap,
   },
   {
     id: 'kb-no-backend-call',
@@ -310,12 +334,12 @@ module.exports = [
   table(
     'ship-ticks-nothing',
     SHIP_TICKS_NOTHING_CONTRACTS,
-    'ship writes no tick anywhere, copies every `— ceiling:` criterion into the pull-request body as a post-merge checklist, and still closes the scope anchor',
+    'submit-pr writes no tick anywhere, and copies every `— ceiling:` criterion into the pull-request body as a post-merge checklist',
   ),
   table(
     'anchor-close-before-push',
     ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS,
-    "a store whose anchor close is a scope-branch commit commits that close before ship's push, so it reaches base with the merge, and the local store's own close line says so",
+    "a store whose anchor close is a scope-branch commit commits that close before submit-pr's push, so it reaches base with the merge, and the local store's own close line says so",
   ),
   table(
     'doc-untick-on-break',
@@ -335,8 +359,14 @@ module.exports = [
   },
   {
     id: 'entries-standing-gate',
-    ok: 'ship asks once and refuses unattended on a standing unresolved defect',
+    ok: 'submit-pr asks once and refuses unattended on a standing unresolved defect',
     run: scanShipGateContract,
+    format: contractGap,
+  },
+  {
+    id: 'ship-no-opens-pr',
+    ok: 'no shipped surface pairs `/superdev:ship` with opening the pull request — submit-pr opens it, ship only merges',
+    run: scanShipNoOpensPr,
     format: contractGap,
   },
   {
@@ -492,7 +522,7 @@ module.exports = [
   },
   {
     id: 'doc-steps-no-suite',
-    ok: 'the documentation and ship steps name no full-suite run of their own',
+    ok: 'the documentation and submit-pr steps name no full-suite run of their own',
     run: scanDocStepsNoSuite,
     format: contractGap,
   },
@@ -540,8 +570,9 @@ module.exports = [
   {
     id: 'run-lock-liveness',
     ok: "/superdev:implement's own entry into an existing run root checks the ledger's stage and the lock's " +
-      "freshness together before its first write, scoped to that one caller — never review/document/ship's " +
-      "ordinary hand-off, which carries no such language of its own — and /superdev:plan keeps its own " +
+      "freshness together before its first write, scoped to that one caller — never " +
+      "review/document/submit-pr/ship's ordinary hand-off, which carries no such language of its own — and " +
+      "/superdev:plan keeps its own " +
       'separate, narrower check',
     run: (root) => [...scanContract(root, RUN_LOCK_LIVENESS_CONTRACTS), ...scanRunLockLivenessSilence(root)],
     format: contractGap,
@@ -597,6 +628,12 @@ module.exports = [
     'the backlog survey resolves every store fact through the store document, reads the stage from the ' +
       'ledger, and writes nothing',
     { stripFrontmatterFirst: true },
+  ),
+  table(
+    'backlog-submitted-buckets',
+    BACKLOG_SUBMITTED_CONTRACTS,
+    'the backlog survey buckets a `submitted` run root as `awaiting merge` or `merge unrecorded`, told ' +
+      "apart by the ledger's own `**PR:**` header, since afk's routing table skips `submitted` entirely (#687)",
   ),
   {
     id: 'opencode-render',
@@ -819,6 +856,58 @@ module.exports = [
     'always-review',
     ALWAYS_REVIEW_CONTRACTS,
     'run handoff names `/superdev:review` as the next command for every scope, whatever its slice types (INV-0016)',
+  ),
+  table(
+    'review-submitted-handoff',
+    REVIEW_SUBMITTED_CONTRACTS,
+    'a review at stage `submitted` prints `/superdev:ship <scope>` as its next command, and a standing ' +
+      "finding there invalidates the tip's suite record rather than leaving one `suite reusable` still " +
+      'accepts (#687)',
+  ),
+  table(
+    'code-management-merge',
+    CODE_MANAGEMENT_MERGE_CONTRACTS,
+    'each code-management document carries a `## Merge` section reading the pull request and merging ' +
+      'it squashed and pinned to one head sha (#683, INV-0092)',
+  ),
+  {
+    id: 'code-management-no-force',
+    ok: 'no code-management document invokes a force or bypass option on a merge call',
+    run: scanNoForceMerge,
+    format: contractGap,
+  },
+  table(
+    'code-management-head-branch-lookup',
+    CODE_MANAGEMENT_HEAD_BRANCH_LOOKUP_CONTRACTS,
+    'each code-management document carries the open-pull-requests-by-head-branch lookup `/superdev:ship` ' +
+      "falls back to for a ledger predating the ledger's own PR number, scoped to open pull requests only " +
+      '(#685, INV-0092)',
+  ),
+  table(
+    'ship-tested-push',
+    SHIP_TESTED_PUSH_CONTRACTS,
+    "ship gates its own push of the scope branch on `suite reusable` accepting the tip, refuses an " +
+      'untested one, and prints the range a push adds before sending it',
+  ),
+  table(
+    'ship-merge-pin-local-tip',
+    SHIP_MERGE_PIN_CONTRACTS,
+    "ship and each code-management document state that the merge's own pin is the local scope-branch " +
+      "tip `suite reusable` accepted, never a value read from the host",
+  ),
+  table(
+    'ship-legacy-shipped',
+    SHIP_LEGACY_SHIPPED_CONTRACTS,
+    'a `shipped` ledger carrying a `**PR:**` header already finished, one carrying none is a legacy run ' +
+      'ship still treats like `submitted`, its own None-found case skips the `pr set` recovery for a ' +
+      'legacy run, and scope-mode.md names the header, not `shipped` alone, as what actually terminates ' +
+      'the stage',
+  ),
+  table(
+    'document-submitted-handoff',
+    DOCUMENT_SUBMITTED_CONTRACTS,
+    "document's own stage write leaves `submitted` alone beside `shipped`, and prints " +
+      '`/superdev:ship <scope>` for it instead of re-opening a pull request already open',
   ),
 ];
 

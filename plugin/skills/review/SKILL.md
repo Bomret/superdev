@@ -290,7 +290,7 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   `final-reviewer` dispatch succeeds**. **Denied** → `## Degraded passes`'s second shape: the pass ran and
   could not reach what it needed, recorded `denied`. Its default is record and continue regardless of attendance; **local
   deviation**, because this is the chain's only full-suite verification gate and unattended would reach
-  `/superdev:ship` with none behind it. Write the `**Degraded:**` entry either way, then publish the
+  `/superdev:submit-pr` with none behind it. Write the `**Degraded:**` entry either way, then publish the
   snapshot before deciding which branch applies — per
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section — since the block
   branch reaches no later write in this run. **Attended** → continue.
@@ -344,7 +344,7 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   `## Triage record` section states. Its body carries the finding, why no
   Definition of Done criterion covered it, the date, the feature label, the scope branch, the scope
   anchor's reference, and a copy-pasteable `/superdev:plan "<the finding>"` line — and **no pull-request
-  URL**, because this command runs before `/superdev:ship` opens
+  URL**, because this command runs before `/superdev:submit-pr` opens
   one and none exists yet. Capture the record's reference, then write it to the run with a quoted
   heredoc (`<<'SUPERDEV_TEXT_EOF'`) piped to
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deferred add - --root <run-root>` — the sole word `-`
@@ -360,7 +360,7 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   create that fails is reported once per run, the ledger bullet is written regardless, and
   the review carries on — the run's own record is the one that gates nothing on a store being reachable.
   The report is this conversation and the ledger outlives it, which is what
-  carries the finding to the pull request `/superdev:ship` opens (ADR 0035). An ad-hoc range has no run
+  carries the finding to the pull request `/superdev:submit-pr` opens (ADR 0035). An ad-hoc range has no run
   root: report it and write nothing — no ledger bullet, and no triage record, since the record's body names
   a feature label, a scope branch, and a scope anchor an ad-hoc range does not have.
   Repairing a defect in what the Definition of Done *does* name stays in this loop, and such a repair is
@@ -417,9 +417,14 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
     (`<<'SUPERDEV_TEXT_EOF'`) piped to
     `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add - --root <run-root>` — the sole word
     `-` reads the bullet text from stdin rather than a shell-interpolated argument
-    (`references/dod-ticks.md`, triage #680) — publish the
-    snapshot before stopping — per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run
-    state` section, since no later write in this run will do it — and the stage does **not** advance.
+    (`references/dod-ticks.md`, triage #680). **At a `submitted` stage**, also invalidate the tip's
+    suite record — `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set none <sha> --root <run-root>`
+    (`<sha>` = the scope branch's current tip) — a standing finding leaves this tip a suite record
+    `suite reusable` would otherwise still accept, and `/superdev:ship` reads that record back — publish
+    the snapshot before stopping — per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing
+    run state` section, since no later write in this run will do it — and the stage does **not** advance.
+    At `submitted` the stage never moves back, so it cannot hold this verdict: the suite record at the tip
+    is `/superdev:ship`'s only gate, and a standing finding leaves none behind.
   - **Accepted** (the criterion's own reason, attended only) → write `accepted: <reason> (operator,
     <date>)` as that line's note, through `scope.js dod-line --match-file <path> --verdict accepted
     --note-file <path>` on `<run-root>/dod.md` and the anchor's checklist, through the active store's own
@@ -435,11 +440,14 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
     loop first (`${CLAUDE_PLUGIN_ROOT}/references/diagnosis.md` — the implementer reads it on any
     defect-repair dispatch). Re-review after it returns, and repeat until the verdict is clean
     or the **3-strike cap** is reached — three cycles each exposing a new defect elsewhere means a wrong
-    cut, not a bug: stop, say so, write the `**Unresolved:**` entry, leave the stage where it is, and
+    cut, not a bug: stop, say so, write the `**Unresolved:**` entry — at a `submitted` stage, also
+    invalidate the tip's suite record the same way the Declined branch above does — leave the stage where
+    it is, and
     publish the snapshot before stopping — per
     `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section — since no later
     stage write in this run will do it.
-    **`--unattended` → block** at that cap, per that file's **Unattended** section, writing the same entry,
+    **`--unattended` → block** at that cap, per that file's **Unattended** section, writing the same entry
+    (and, at a `submitted` stage, invalidating the suite record the same way),
     publishing the same way, and leaving the stage where it is.
     **A clean verdict ends the loop here too, attended or unattended** — a finding it leaves standing is a
     follow-up, never a fourth cycle.
@@ -479,9 +487,10 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
     run, and the doc pass still describes this code.
   - `documented-unreviewed`, **a fix cycle landed commits** → write `reviewed`. Those commits arrived
     after the doc pass, so the docs are stale by exactly them, and `reviewed` is what makes
-    `/superdev:ship` ask for the doc pass again.
-  - `documented` or `shipped` → leave the line alone and say so in one line; the run has moved past this
-    gate.
+    `/superdev:submit-pr` ask for the doc pass again.
+  - `documented`, `submitted`, or `shipped` → leave the line alone and say so in one line; the run has
+    moved past this gate. A `submitted` run's suite result — recorded above — is what
+    `/superdev:ship` reads back when base has moved since the pull request opened.
   - Anything else → write `reviewed`.
 
   **A fix cycle that landed commits also clears the inline-doc-pass record**, with
@@ -495,9 +504,12 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   Publish the snapshot after any of the writes above — `unresolved clear`, the stage write, and `docs
   clear` alike — per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section.
 
-  Then print the next command with the range already resolved — `/superdev:document <range>`, carrying
-  the concrete range §1 resolved — and say in one line what it will do (reconcile the in-repo docs and
-  the knowledge base with the merged state). Add that this conversation is disposable: the ledger's
-  stage and the scope branch carry everything `/superdev:document` reads, so a `/clear` first costs
-  nothing.
-- **Never merge, push, or open a pull request.** `/superdev:ship` ends the chain.
+  Then print the next command. **The stage reads `submitted`** — print `/superdev:ship <scope>` and say
+  in one line what it does (merge the pull request `/superdev:submit-pr` already opened; ADR 0096). This
+  is the re-review ADR 0096 sends an operator to after resolving a base-merge conflict, so this is the
+  command that recovery ends on. **Otherwise** — print `/superdev:document <range>`, carrying the
+  concrete range §1 resolved, and say in one line what it will do (reconcile the in-repo docs and the
+  knowledge base with the merged state). Either way, add that this conversation is disposable: the
+  ledger's stage and the scope branch carry everything the printed command reads, so a `/clear` first
+  costs nothing.
+- **Never merge, push, or open a pull request.** `/superdev:submit-pr` ends the chain.

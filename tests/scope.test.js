@@ -404,6 +404,34 @@ try {
   r = call(['stage', 'set', 'documented', '--root', sr]);
   assert.ok(!r.ok, 'shipped → documented refused');
 
+  // stage: `submitted` (issue #682) ranks after `documented`/`documented-unreviewed`, before `shipped`
+  // — reachable from `reviewed`, `documented`, and `documented-unreviewed` alike.
+  for (const from of ['reviewed', 'documented', 'documented-unreviewed']) {
+    sr = mkStageRoot('stage-submitted-from-' + from);
+    assert.ok(call(['stage', 'set', from, '--root', sr]).ok);
+    r = call(['stage', 'set', 'submitted', '--root', sr]);
+    assert.ok(r.ok, `${from} → submitted should pass: ` + (r.err || ''));
+    assert.strictEqual(call(['get', 'stage', '--root', sr]).out, 'submitted', 'get stage reads back submitted');
+  }
+
+  // stage: `shipped` is reachable from `submitted`.
+  sr = mkStageRoot('stage-submitted-to-shipped');
+  assert.ok(call(['stage', 'set', 'submitted', '--root', sr]).ok);
+  assert.ok(call(['stage', 'set', 'shipped', '--root', sr]).ok, 'submitted → shipped should pass');
+
+  // stage: a write from `submitted` back to `documented` (or any earlier stage) is refused, exit
+  // nonzero, and the ledger is left unchanged.
+  sr = mkStageRoot('stage-submitted-no-back');
+  assert.ok(call(['stage', 'set', 'submitted', '--root', sr]).ok);
+  const beforeBack = fs.readFileSync(path.join(sr, 'ledger.md'), 'utf8');
+  r = call(['stage', 'set', 'documented', '--root', sr]);
+  assert.ok(!r.ok, 'submitted → documented refused');
+  assert.strictEqual(
+    fs.readFileSync(path.join(sr, 'ledger.md'), 'utf8'),
+    beforeBack,
+    'a refused stage move from submitted leaves the ledger untouched'
+  );
+
   // slice: unknown id/status refused; a valid call updates exactly that row.
   r = call(['slice', '01', 'polished', ...R]);
   assert.ok(!r.ok && /unknown slice status/.test(r.err), 'unknown slice status refused');
@@ -858,6 +886,52 @@ try {
     'and changes nothing'
   );
 
+  // pr set: `**PR:**` records the pull request number `/superdev:submit-pr` opened, so `/superdev:ship`
+  // reads it back instead of a head-branch lookup that a reused branch name could get wrong (INV-0092).
+  assert.strictEqual(call(['get', 'pr', ...R]).out, 'absent', 'get pr on a ledger with no line');
+  assert.ok(call(['pr', 'set', '123', ...R]).ok, 'pr set');
+  const prText = fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
+  assert.ok(/\*\*PR:\*\* #123/.test(prText), 'ledger carries the PR line as #123');
+  assert.strictEqual(call(['get', 'pr', ...R]).out, '#123', 'get pr');
+
+  // pr set: a second write replaces the line rather than adding a rival, and a leading "#" is accepted.
+  assert.ok(call(['pr', 'set', '#456', ...R]).ok, 'pr set with a leading #');
+  const prTwice = fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
+  assert.strictEqual((prTwice.match(/\*\*PR:\*\*/g) || []).length, 1, 'one PR line, not two');
+  assert.strictEqual(call(['get', 'pr', ...R]).out, '#456', 'the second value wins');
+
+  // pr: refusals write nothing.
+  const beforePrRefusal = fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
+  r = call(['pr', 'set', ...R]);
+  assert.ok(!r.ok && /pr set needs a value/.test(r.err), 'pr set with no value refused');
+  r = call(['pr', 'set', 'abc', ...R]);
+  assert.ok(!r.ok && /pr set value must be a number/.test(r.err), 'pr set with a non-numeric value refused: ' + r.err);
+  r = call(['pr', 'zap', 'x', ...R]);
+  assert.ok(!r.ok && /unknown pr subcommand.*set\|clear/.test(r.err), 'unknown pr subcommand refused: ' + r.err);
+  assert.strictEqual(
+    fs.readFileSync(path.join(root, 'ledger.md'), 'utf8'),
+    beforePrRefusal,
+    'nothing written on any pr refusal'
+  );
+
+  // pr clear: removes the line and leaves every other byte alone; clearing an absent line still
+  // succeeds and changes nothing (the shape a legacy ledger predating this header leaves behind).
+  const beforePrClear = fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
+  assert.ok(call(['pr', 'clear', ...R]).ok, 'pr clear');
+  assert.strictEqual(
+    fs.readFileSync(path.join(root, 'ledger.md'), 'utf8'),
+    beforePrClear.replace('**PR:** #456\n', ''),
+    'the PR line and only the PR line is gone'
+  );
+  assert.strictEqual(call(['get', 'pr', ...R]).out, 'absent', 'get pr on a ledger with no line');
+  const beforeNoopPrClear = fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
+  assert.ok(call(['pr', 'clear', ...R]).ok, 'clearing an absent PR line still succeeds');
+  assert.strictEqual(
+    fs.readFileSync(path.join(root, 'ledger.md'), 'utf8'),
+    beforeNoopPrClear,
+    'and changes nothing'
+  );
+
   // get: prints the value; absent header reported as absent.
   assert.strictEqual(call(['get', 'branch', ...R]).out, 'feat/demo', 'get branch');
   assert.ok(/#187/.test(call(['get', 'anchor', ...R]).out), 'get anchor');
@@ -1002,6 +1076,25 @@ try {
   );
   const stPlanned = call(['status']);
   assert.ok(stPlanned.out.includes('planned-status  (0 slices, stage: planned)'), 'a planned run names its stage: ' + stPlanned.out);
+
+  // A `submitted` run (issue #682) — the pull request is open and the chain has ended — is still
+  // standing (its scopetree and lock exist), so it renders as an ordinary in-flight run, not the
+  // `shipped` collapse.
+  const submittedStatusRoot = path.join(tmp, '.superdev', 'scopes', 'submitted-status');
+  fs.mkdirSync(submittedStatusRoot, { recursive: true });
+  fs.writeFileSync(
+    path.join(submittedStatusRoot, 'ledger.md'),
+    '# Ledger — submitted-status\n\n**Stage:** submitted\n\n' +
+      '| id | issue | title | type | depends-on | status | range |\n' +
+      '|---|---|---|---|---|---|---|\n' +
+      '| 01 | #20 | one | behavior | — | merged | a..b |\n',
+    'utf8'
+  );
+  const stSubmitted = call(['status']);
+  assert.ok(
+    stSubmitted.out.includes('submitted-status  (1 slices, stage: submitted)'),
+    'a submitted run names its stage rather than collapsing: ' + stSubmitted.out
+  );
 
   // status with zero scopes.
   const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-selftest-empty-'));
@@ -1219,6 +1312,35 @@ try {
     'a backticked stage still collapses: ' + call(['status']).out
   );
 
+  // A ledger an older version — one that predates `submitted` — left at stage `shipped` reads back
+  // unchanged across every verb this suite exercises: STAGE_RANK gained a new value, not a new
+  // parse rule.
+  const preSubmittedRoot = path.join(tmp, '.superdev', 'scopes', 'pre-submitted-shipped');
+  fs.mkdirSync(preSubmittedRoot, { recursive: true });
+  const preSubmittedText =
+    '# Ledger — pre-submitted-shipped\n\n**Stage:** shipped\n**Branch:** feat/pre-submitted-shipped\n' +
+    '**Anchor:** #1 — anchor\n\n' +
+    '| id | issue | title | type | depends-on | status | range |\n' +
+    '|---|---|---|---|---|---|---|\n' +
+    '| 01 | #1 | one | behavior | — | merged | a..b |\n';
+  fs.writeFileSync(path.join(preSubmittedRoot, 'ledger.md'), preSubmittedText, 'utf8');
+  assert.strictEqual(call(['get', 'stage', '--root', preSubmittedRoot]).out, 'shipped', 'get stage still reads shipped');
+  assert.ok(
+    call(['status']).out.includes('pre-submitted-shipped  (shipped)'),
+    'status still collapses the pre-existing shipped scope'
+  );
+  assert.ok(call(['stage', 'set', 'shipped', '--root', preSubmittedRoot]).ok, 'same-value shipped write is still a no-op');
+  const prePublished = publishText(preSubmittedRoot);
+  const preAdoptRoot = path.join(tmp, 'adopted-elsewhere', 'pre-submitted-shipped');
+  fs.mkdirSync(path.dirname(preAdoptRoot), { recursive: true });
+  const preAdopted = call(['adopt', '--root', preAdoptRoot], prePublished);
+  assert.ok(!preAdopted.ok && /shipped/.test(preAdopted.err), 'adopt still refuses a shipped snapshot, pre-existing or not');
+  assert.strictEqual(
+    fs.readFileSync(path.join(preSubmittedRoot, 'ledger.md'), 'utf8'),
+    preSubmittedText,
+    'every verb above left the pre-existing shipped ledger byte-for-byte unchanged'
+  );
+
   // Requiring the module must run no CLI code. Unguarded, `main()` parses the *caller's* argv and a
   // refusal calls process.exit — measured, a requiring process dies with `unknown verb ""` and exit 1.
   // A subprocess, because the running suite has already required scope.js once — Node's require
@@ -1363,6 +1485,7 @@ try {
   assert.ok(call(['unresolved', 'add', 'suite still red', ...F]).ok);
   assert.ok(call(['deferred', 'add', 'a deferred finding', ...F]).ok);
   assert.ok(call(['docs', 'set', 'inline', ...F]).ok);
+  assert.ok(call(['pr', 'set', '789', ...F]).ok);
   const fullOriginal = fs.readFileSync(path.join(fullRoot, 'ledger.md'), 'utf8');
   const fullPublished = publishText(fullRoot);
   const adoptFullRoot = path.join(tmp, 'adopted-elsewhere', 'publish-full');
@@ -1372,6 +1495,33 @@ try {
     fs.readFileSync(path.join(adoptFullRoot, 'ledger.md'), 'utf8'),
     fullOriginal,
     'adopt reproduces a fully-populated ledger byte-for-byte'
+  );
+  assert.strictEqual(
+    call(['get', 'pr', '--root', adoptFullRoot]).out,
+    '#789',
+    'the adopted ledger still reads the PR number'
+  );
+
+  // The same round trip at stage `submitted` (issue #682) — the snapshot preserves the stage rather
+  // than dropping or renaming it.
+  assert.ok(call(['init', 'feat/publish-submitted', 'planned'], sliceJson).ok);
+  const submittedRoot = path.join(tmp, '.superdev', 'scopes', 'publish-submitted');
+  assert.ok(call(['stage', 'set', 'reviewed', '--root', submittedRoot]).ok);
+  assert.ok(call(['stage', 'set', 'submitted', '--root', submittedRoot]).ok);
+  const submittedOriginal = fs.readFileSync(path.join(submittedRoot, 'ledger.md'), 'utf8');
+  const submittedPublished = publishText(submittedRoot);
+  const adoptSubmittedRoot = path.join(tmp, 'adopted-elsewhere', 'publish-submitted');
+  fs.mkdirSync(path.dirname(adoptSubmittedRoot), { recursive: true });
+  run(['adopt', '--root', adoptSubmittedRoot], tmp, submittedPublished);
+  assert.strictEqual(
+    fs.readFileSync(path.join(adoptSubmittedRoot, 'ledger.md'), 'utf8'),
+    submittedOriginal,
+    'adopt reproduces a submitted ledger byte-for-byte'
+  );
+  assert.strictEqual(
+    call(['get', 'stage', '--root', adoptSubmittedRoot]).out,
+    'submitted',
+    'the adopted ledger still reads stage submitted'
   );
 
   // publish: a run root holding no ledger.md refuses, one line on stderr, nothing written.
@@ -1941,6 +2091,14 @@ try {
     assert.ok(
       callIn(['suite', 'reusable', '--branch', 'main', ...SR], suiteRepo).ok,
       'a green record on the exact tip is reusable'
+    );
+
+    // suite reusable: `--branch` also takes a literal sha, not only a branch name — `/superdev:ship`'s
+    // own hand-merge adoption passes the merged pull request's `head.sha` this way. A sha resolves to
+    // itself and answers by the recorded sha exactly like a branch name resolving to the same tip.
+    assert.ok(
+      callIn(['suite', 'reusable', '--branch', newSha, ...SR], suiteRepo).ok,
+      'a green record is reusable against its own sha passed literally, not only a branch name'
     );
 
     // suite reusable: a diff confined to the active store's own plan dir since the recorded commit

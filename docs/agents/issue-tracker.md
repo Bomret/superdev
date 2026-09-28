@@ -195,7 +195,7 @@ Here it is an ordinary Codeberg issue carrying the label **`triage`** and nothin
 - **No feature label and no `ready` label.** Those two are what `/superdev:afk`'s candidate listing and
   `/superdev:implement`'s slice loading select on, so a record carrying either would be built as work.
 - **No pull-request URL.** Every trigger — a deferred finding or an observation — runs before
-  `/superdev:ship` opens one, so none exists yet.
+  `/superdev:submit-pr` opens one, so none exists yet.
 
 ## Untriaged item
 

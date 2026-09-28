@@ -16,6 +16,7 @@ const {
   extractSection,
   extractParagraph,
   maskFences,
+  maskedSentences,
   normalizeWhitespace,
 } = require('./lib');
 const contracts = require('./contracts');
@@ -109,6 +110,8 @@ const {
   HOOK_HEADER_REGEX,
   RETURN_TO_CONTROLLER_DOCS,
   RETURN_TO_CONTROLLER_PATTERNS,
+  NO_FORCE_MERGE_DOCS,
+  NO_FORCE_MERGE_PATTERNS,
 } = contracts;
 
 // skillEntries(): every skill surface under a root, as `[<name>, absolute SKILL.md path]` pairs.
@@ -731,10 +734,51 @@ function scanAfkInvocations(root) {
   return gaps;
 }
 
-// scanShipGateContract() is pure over a root dir: reads skills/ship/SKILL.md, isolates the "Entries standing."
-// paragraph, and reports every gate element that paragraph does not itself carry. An absent ship.md is
-// skipped, matching every other contract scanner; a ship.md with no such paragraph at all is one gap
-// naming the missing paragraph, the same shape scanAnchorContract() uses for a missing section.
+// scanAfkNoShipStep() is pure over a root dir: reads skills/afk/SKILL.md and reports every
+// `/superdev:ship` mention that carries no admission — "never", "only a human", "human-only", "stops
+// before", or "human step" — within AFK_SHIP_ADMISSION_WINDOW chars either side of it (INV-0093: afk
+// ends at submit-pr, and only a human moves a scope past it). The window, rather than a whole-sentence
+// co-occurrence test, is what lets a legitimate paraphrase pass ("stops before invoking
+// `/superdev:ship`, which stays a human step" carries none of the three literal tokens the file's own
+// two mentions use, but "stops before" and "human step" both sit right next to the match) while still
+// catching a real invocation an unrelated admission elsewhere in the same sentence would otherwise
+// excuse (a `never` describing something else, thirty-plus chars from the mention, does not reach it).
+// A stage-table row inspecting only AFK_NAMES above would let a `/superdev:ship` row slip through
+// unseen, since scanAfkInvocations() skips any command name outside that set; this scanner reads the
+// whole file instead, so a bare mention anywhere — table row or prose — with no nearby admission is a
+// gap. Fenced examples are masked first, and wrapped lines are joined before splitting into sentences
+// (`maskedSentences()`), so a mention wrapped across lines is still read as one sentence. Absent afk.md
+// is skipped, matching every other contract scanner.
+const AFK_SHIP_ADMISSION = /\b(?:never|only a human|human-only|stops? before|human step)\b/i;
+const AFK_SHIP_ADMISSION_WINDOW = 60;
+function scanAfkNoShipStep(root) {
+  const gaps = [];
+  const text = readDoc(root, path.join('skills', 'afk', 'SKILL.md'));
+  if (text === null) return gaps; // afk.md absent → nothing to scan
+  for (const sentence of maskedSentences(text)) {
+    const match = /\/superdev:ship\b/i.exec(sentence);
+    if (!match) continue;
+    const before = sentence.slice(Math.max(0, match.index - AFK_SHIP_ADMISSION_WINDOW), match.index);
+    const after = sentence.slice(
+      match.index + match[0].length,
+      match.index + match[0].length + AFK_SHIP_ADMISSION_WINDOW,
+    );
+    if (AFK_SHIP_ADMISSION.test(before) || AFK_SHIP_ADMISSION.test(after)) continue;
+    gaps.push({
+      source: path.join('skills', 'afk', 'SKILL.md'),
+      expectation:
+        'name `/superdev:ship` only near an admission that afk never runs it ("never", "only a human", ' +
+        `"human-only", "stops before", or "human step"): "${normalizeWhitespace(sentence)}"`,
+    });
+  }
+  return gaps;
+}
+
+// scanShipGateContract() is pure over a root dir: reads skills/submit-pr/SKILL.md, isolates the "Entries
+// standing." paragraph, and reports every gate element that paragraph does not itself carry. An absent
+// submit-pr.md is skipped, matching every other contract scanner; a submit-pr.md with no such paragraph
+// at all is one gap naming the missing paragraph, the same shape scanAnchorContract() uses for a missing
+// section.
 //
 // Ordering dependency: extractSection() runs from SHIP_GATE_HEADING to the next markdown heading, and
 // "Entries standing." carries no heading of its own — so this check's specificity holds only as long as
@@ -747,20 +791,20 @@ function scanShipGateContract(root) {
   const gaps = [];
   let text;
   try {
-    text = fs.readFileSync(docPath(root, 'skills', 'ship', 'SKILL.md'), 'utf8');
+    text = fs.readFileSync(docPath(root, 'skills', 'submit-pr', 'SKILL.md'), 'utf8');
   } catch {
-    return gaps; // ship.md absent → nothing to scan
+    return gaps; // submit-pr.md absent → nothing to scan
   }
   const section = extractSection(text, SHIP_GATE_HEADING);
   if (section === null) {
     gaps.push({
-      source: path.join('skills', 'ship', 'SKILL.md'),
+      source: path.join('skills', 'submit-pr', 'SKILL.md'),
       expectation: "carry the entries-standing gate's own \"Entries standing.\" paragraph",
     });
     return gaps;
   }
   for (const [pattern, expectation] of SHIP_GATE_ELEMENTS) {
-    if (!pattern.test(section)) gaps.push({ source: path.join('skills', 'ship', 'SKILL.md'), expectation });
+    if (!pattern.test(section)) gaps.push({ source: path.join('skills', 'submit-pr', 'SKILL.md'), expectation });
   }
   return gaps;
 }
@@ -1045,6 +1089,29 @@ const scanForcingBranchFlag = (root) =>
       `name no forcing branch flag — \`${hit[0]}\` resets an existing branch instead of failing ` +
       'on it, stranding every slice already merged into it; see ADR 0028']));
 
+// #683, INV-0092: no code-management document may ever invoke a force or bypass option on a merge
+// call. See `NO_FORCE_MERGE_PATTERNS`'s own comment for the ceiling this shape-based absence check
+// carries. A `never` sitting right before the match — "Never pass `--admin`", "this seed never sends
+// `force_merge`" — is the seed's own caution naming the option to forbid it, not an instruction to send
+// it, so it is excluded the same way `scanNoBaseBranchCommit`'s `negated()` excludes a "never commit …
+// to the base branch" caution.
+function scanNoForceMerge(root) {
+  const gaps = [];
+  for (const rel of NO_FORCE_MERGE_DOCS) {
+    const text = readDoc(root, rel);
+    if (text === null) continue; // document absent (fixture / partial checkout) → nothing to scan
+    const masked = maskFences(text);
+    for (const [pattern, expectation] of NO_FORCE_MERGE_PATTERNS) {
+      const re = new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`);
+      for (const hit of masked.matchAll(re)) {
+        const before = masked.slice(Math.max(0, hit.index - NEVER_NEGATION_WINDOW), hit.index);
+        if (!/\bnever\b/i.test(before)) gaps.push({ source: rel, expectation: expectation(hit) });
+      }
+    }
+  }
+  return gaps;
+}
+
 // scanNarrativeCoverage(): every registered check is written up in `scripts/AGENTS.md` by its backticked
 // `id`.
 //
@@ -1237,17 +1304,21 @@ function walkFiles(dir) {
     .sort();
 }
 
-// INV-0001 (docs/invariants.md): no shipped prose instructs a commit or a push to the base branch,
-// whether it names the target by the words "base branch" or by the base's own configured name (e.g.
-// `main`, read from docs/agents/code-management.md's own `**Base branch:**` bullet — a consumer repo
-// whose base is named something else still gets a check that is true for it). The verb and the target
-// have to sit close together, or a legitimate "never commit … onto the base branch" caution —
-// `references/prototype.md` carries exactly that shape — would itself read as an instruction to do the
-// thing it forbids. A `never` excuses the match only when it sits right next to the *verb* ("Never
-// commit … to the base branch") or right next to the *target* ("commit … never onto the base branch"),
-// each within NEVER_NEGATION_WINDOW chars — not merely somewhere between the verb and the target — a
-// `never` negating an unrelated aside earlier in the same sentence ("commit … (never mind the
-// formatting) … to the base branch") is a live instruction, not a caution.
+// INV-0001 (docs/invariants.md): no shipped prose instructs a commit, a push, or a merge to the base
+// branch, whether it names the target by the words "base branch" or by the base's own configured name
+// (e.g. `main`, read from docs/agents/code-management.md's own `**Base branch:**` bullet — a consumer
+// repo whose base is named something else still gets a check that is true for it). `/superdev:ship`'s
+// own merge onto base runs only through the host's merge API (ADR 0096, INV-0092), the one site this
+// scanner admits — SHIP_MERGE_ADMIT_FILE plus the SHIP_MERGE_ADMIT_PATTERN wording below, so the
+// admission is narrow: a literal git merge or push to base written anywhere else, ship's own file
+// included, still fails. The verb and the target have to sit close together, or a legitimate "never
+// commit … onto the base branch" caution — `references/prototype.md` carries exactly that shape — would
+// itself read as an instruction to do the thing it forbids. A `never` excuses the match only when it
+// sits right next to the *verb* ("Never commit … to the base branch") or right next to the *target*
+// ("commit … never onto the base branch"), each within NEVER_NEGATION_WINDOW chars — not merely
+// somewhere between the verb and the target — a `never` negating an unrelated aside earlier in the same
+// sentence ("commit … (never mind the formatting) … to the base branch") is a live instruction, not a
+// caution.
 // The window is a small sliding join of consecutive lines rather than the whole normalized document,
 // both so a `never` near the target reliably sits inside the same window and so the reported line is
 // close to where the instruction actually starts.
@@ -1256,7 +1327,13 @@ function walkFiles(dir) {
 // bound below, in step) if that shape turns up for real.
 const NEVER_NEGATION_WINDOW = 20;
 const BASE_BRANCH_COMMIT_WINDOW = 4;
-const BASE_BRANCH_VERB = '\\b(?:commit(?:s|ted|ting)?|push(?:es|ed|ing)?)\\b(?!-)';
+const BASE_BRANCH_VERB = '\\b(?:commit(?:s|ted|ting)?|push(?:es|ed|ing)?|merge(?:s|d|ing)?)\\b(?!-)';
+// The one admitted site: `/superdev:ship`'s own squash-merge onto base, through the host's merge API —
+// admitted by file AND by this wording sitting within reach forward of the match's own position, never
+// by file alone, so a second, unrelated base-branch instruction ship's own file might one day carry
+// still fails.
+const SHIP_MERGE_ADMIT_FILE = path.join('skills', 'ship', 'SKILL.md');
+const SHIP_MERGE_ADMIT_PATTERN = /host'?s merge API/i;
 function verbTargetPattern(targetSource) {
   return new RegExp(`${BASE_BRANCH_VERB}([\\s\\S]{0,150}?)(?:${targetSource})`, 'i');
 }
@@ -1306,6 +1383,8 @@ function scanNoBaseBranchCommit(root) {
       continue; // no such dir → nothing to scan
     }
     for (const rel of files) {
+      const source = path.join(dir, rel).split(path.sep).join('/');
+      const isShipMergeAdmitFile = source === SHIP_MERGE_ADMIT_FILE;
       const text = fs.readFileSync(path.join(dirPath, rel), 'utf8');
       const masked = maskFences(text);
       const lines = masked.split('\n');
@@ -1334,12 +1413,95 @@ function scanNoBaseBranchCommit(root) {
           const absIndex = lineOffsets[i] + match.index;
           if (reportedAt.has(absIndex)) continue;
           if (negated(masked.slice(0, absIndex), match[1])) continue;
+          // Tested against the whole document from the match's own absolute offset forward, never
+          // against `window` alone: the sliding window that happens to satisfy the verb/target regex
+          // can be narrower than the one a later i would have built, and the admission wording can sit
+          // just past its edge — the same reason `negated()` above tests the full document rather than
+          // the window slice that found the match.
+          if (isShipMergeAdmitFile && SHIP_MERGE_ADMIT_PATTERN.test(masked.slice(absIndex, absIndex + 200))) continue;
           reportedAt.add(absIndex);
           const lineOffset = window.slice(0, match.index).split('\n').length - 1;
-          gaps.push({ source: path.join(dir, rel).split(path.sep).join('/'), line: i + 1 + lineOffset });
+          gaps.push({ source, line: i + 1 + lineOffset });
         }
       }
     }
+  }
+  return gaps;
+}
+
+// scanShipNoOpensPr() is pure over a root dir: walks skills/, agents/, references/ and README.md
+// (the plugin's shipped surfaces, not docs/adr/'s history) and reports every sentence where the
+// open-a-pull-request phrase attaches to `/superdev:ship` — `/superdev:submit-pr` opens it,
+// `/superdev:ship` only merges what is already open (ADR 0096). "Attaches" means `/superdev:ship`
+// is immediately followed, within SHIP_OPENS_PR_WINDOW chars and with no other `/superdev:<name>`
+// mention in between, by the open-PR phrase — not merely that both sit somewhere in the same
+// sentence. That is what lets "Once `/superdev:submit-pr` opens the pull request, `/superdev:ship`
+// merges it" pass: the phrase there attaches to submit-pr, and `/superdev:ship` is never its subject,
+// even though both names sit in one sentence. Fenced examples are masked first, and wrapped lines
+// are joined before splitting into sentences (`maskedSentences()`), so README.md's own two-line
+// command table (`ship` on one row, `submit-pr`'s "open the PR" on the row above) never crosses into
+// one sentence — each row sits inside its own fence and is masked out anyway. Absent files, and an
+// absent skills/agents/references/ directory, are skipped, matching every other contract scanner.
+const SHIP_OPENS_PR_WINDOW = 80;
+const SHIP_ATTACHED_OPEN_PATTERN = new RegExp(
+  `\\/superdev:ship\\b([\\s\\S]{0,${SHIP_OPENS_PR_WINDOW}}?)open(?:s|ing)?\\s+(?:the|a)\\s+pull request\\b`,
+  'i',
+);
+const SHIP_STEP_SURFACE_DIRS = ['skills', 'agents', 'references'];
+function scanShipNoOpensPr(root) {
+  const gaps = [];
+  const files = [];
+  for (const dir of SHIP_STEP_SURFACE_DIRS) {
+    const dirPath = docPath(root, dir);
+    let found;
+    try {
+      found = walkFiles(dirPath).filter((f) => f.endsWith('.md'));
+    } catch {
+      continue; // no such dir → nothing to scan
+    }
+    for (const rel of found) files.push(path.join(dir, rel).split(path.sep).join('/'));
+  }
+  if (readDoc(root, 'README.md') !== null) files.push('README.md');
+  for (const rel of files) {
+    const text = readDoc(root, rel);
+    if (text === null) continue; // document absent (fixture / partial checkout) → nothing to scan
+    for (const sentence of maskedSentences(text)) {
+      const match = SHIP_ATTACHED_OPEN_PATTERN.exec(sentence);
+      // The captured middle text carrying another `/superdev:<name>` means the open-PR phrase
+      // attaches to that other command, not to `/superdev:ship` — e.g. `/superdev:ship` deletes the
+      // directory `/superdev:submit-pr` created before opening the pull request.
+      if (!match || /\/superdev:(?!ship\b)[a-z-]+/i.test(match[1])) continue;
+      gaps.push({
+        source: rel,
+        expectation:
+          'never let the open-the-pull-request phrase attach to `/superdev:ship` — ' +
+          `\`/superdev:submit-pr\` opens it, \`/superdev:ship\` only merges what is already open: "${normalizeWhitespace(sentence)}"`,
+      });
+    }
+  }
+  return gaps;
+}
+
+// scanShipHumanOnly() is pure over a root dir: reads skills/ship/SKILL.md and reports two gaps INV-0093
+// names — a missing `disable-model-invocation: true` in its frontmatter, and a literal `--unattended`
+// token anywhere in the file, which ADR 0096 says ship never carries (submit-pr and afk take that
+// token; ship's own consent is the operator typing the command at all). Absent ship.md is skipped,
+// matching every other contract scanner.
+function scanShipHumanOnly(root) {
+  const gaps = [];
+  const text = readDoc(root, path.join('skills', 'ship', 'SKILL.md'));
+  if (text === null) return gaps; // ship.md absent → nothing to scan
+  if (!/^disable-model-invocation:\s*true\s*$/m.test(text)) {
+    gaps.push({
+      source: path.join('skills', 'ship', 'SKILL.md'),
+      expectation: 'carry `disable-model-invocation: true` in its frontmatter, so no model starts a merge on its own (INV-0093, ADR 0096)',
+    });
+  }
+  if (/--unattended/.test(text)) {
+    gaps.push({
+      source: path.join('skills', 'ship', 'SKILL.md'),
+      expectation: 'name no `--unattended` mode of its own — only a human runs this command (INV-0093, ADR 0096)',
+    });
   }
   return gaps;
 }
@@ -1508,6 +1670,7 @@ module.exports = {
   scanRunRootPaths,
   scanScopetreeRunRootPaths,
   scanNoBaseBranchCommit,
+  scanShipHumanOnly,
   scanAssigneeContract,
   scanAnchorContract,
   scanAppendContract,
@@ -1527,7 +1690,9 @@ module.exports = {
   scanObservationCaptureReminders,
   scanChainHandoff,
   scanAfkInvocations,
+  scanAfkNoShipStep,
   scanShipGateContract,
+  scanShipNoOpensPr,
   scanOrphanLensPlacement,
   scanTestCostLensPlacement,
   scanUnresolvedGlossaryContract,
@@ -1542,6 +1707,7 @@ module.exports = {
   scanUnmappedPathsForms,
   scanHookLedgerParsers,
   scanForcingBranchFlag,
+  scanNoForceMerge,
   scanReturnToController,
   scanNarrativeCoverage,
   scanMarketplaceSource,

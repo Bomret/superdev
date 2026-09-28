@@ -23,7 +23,7 @@ permission:
     "*.env.example": "allow"
 ---
 @17
-  lands the pages one level too deep, in a directory `/superdev-ship` deletes.
+  lands the pages one level too deep, in a directory `/superdev/ship` deletes.
 @49
 **Read `<plugin-root>/references/doc-pass.md` and perform the pass it states.** It owns the whole
 @68

@@ -15,8 +15,8 @@ With superdev: `/superdev:plan` interviews you until the Definition of Done is c
 `/superdev:implement` cuts the work into small slices, a separate reviewer subagent checks each one
 before it merges, and a hook — not a prompt — blocks the merge outright if the suite goes red.
 
-A self-contained Claude Code plugin for the full **brainstorm, plan, implement, review, document, ship**
-loop, with **no prerequisite plugins**. It gives you interview-driven vertical slicing, an execution tier
+A self-contained Claude Code plugin for the full **brainstorm, plan, implement, review, document,
+submit-pr, ship** loop, with **no prerequisite plugins**. It gives you interview-driven vertical slicing, an execution tier
 sized to the plan, deterministic guardrails, and a pluggable slice store plus code host. A larger plan
 runs in parallel in isolated slicetrees, with separate implementer and reviewer subagents. A small
 plan runs test-first, inline in the scopetree.
@@ -30,7 +30,8 @@ plan runs test-first, inline in the scopetree.
 /superdev:backlog      → read-only survey of the slice store: what needs what, and what to do next
 /superdev:review       → whole-scope review against the DoD, with a fix loop
 /superdev:document     → reconcile in-repo docs + knowledge base with the code
-/superdev:ship         → close the scope anchor, open the PR, and clean up
+/superdev:submit-pr    → push the scope branch, open the PR, and leave the run standing
+/superdev:ship         → merge the PR once reviewed, close the scope anchor, and clean up
 /superdev:afk          → sweep the planned backlog through the whole chain unattended
 /superdev:publish-kb   → send a scope's staged knowledge-base pages to the configured backend
 /superdev:prose-check  → check one file, range, or pasted text against the controlled-prose standard
@@ -84,7 +85,7 @@ plan runs test-first, inline in the scopetree.
   ([ADR 0031](docs/adr/0031-the-lite-tier-writes-its-own-documentation.md)). The `/superdev:document`
   entry below describes what that changes downstream.
   Either tier stops here, once every slice sits on the scope branch. `/superdev:review` runs next: one
-  **whole-scope review** that gates the pull request `/superdev:ship` opens later.
+  **whole-scope review** that gates the pull request `/superdev:submit-pr` opens later.
 - **`/superdev:status`**. A read-only snapshot of every in-flight `/superdev:implement` run in the repo:
   per scope, the slice counts by status and which slices are `blocked`. It also names each scope holding
   **staged** knowledge-base pages, so a page nobody published yet stays visible instead of silent. It
@@ -155,11 +156,11 @@ plan runs test-first, inline in the scopetree.
   is closed or its scope has shipped, and the report names what it waits on. Eligibility needs an open,
   unblocked anchor with no live run on its scope, among other conditions `skills/afk/SKILL.md` §2 states in
   full. It invokes `/superdev:implement`, `/superdev:review`, `/superdev:document`, and
-  `/superdev:ship`, each carrying `--unattended`. That token is an argument to one invocation, not scope
-  state. A stop with a **standing answer** takes it, and a stop with none **blocks** that anchor and
+  `/superdev:submit-pr`, each carrying `--unattended`. That token is an argument to one invocation, not
+  scope state. A stop with a **standing answer** takes it, and a stop with none **blocks** that anchor and
   moves to the next. The sweep stops when no eligible anchor is left, when two anchors block in a row,
-  or when `/superdev:ship` fails to reach the code host. It never asks a question and never starts an
-  interview command.
+  or when `/superdev:submit-pr` fails to reach the code host. It never asks a question and never starts
+  an interview command. It never runs `/superdev:ship`: only a human merges a pull request.
 - **`/superdev:setup`**. Records the backends in `docs/agents/*.md`, so the workflow never hardcodes a
   tool. For a knowledge base it also captures the **audiences** and the **language**, and proposes a
   human-first outline. It asks which **writing standard** the doc agents write to. When it finds no
@@ -202,13 +203,16 @@ plan runs test-first, inline in the scopetree.
 ## After the PR
 
 `/superdev:implement` is a goal-based loop. It drives the DAG until every slice sits on the scope branch,
-then **stops**. `/superdev:review`, `/superdev:document`, and `/superdev:ship` run next, in that order, and
-carry the run the rest of the way to a pull request. The last mile, once the PR is open, is a time-based
-loop, so hand review comments and CI on it to `/loop`:
+then **stops**. `/superdev:review`, `/superdev:document`, and `/superdev:submit-pr` run next, in that
+order, and carry the run the rest of the way to a pull request. The last mile, once the PR is open, is a
+time-based loop, so hand review comments and CI on it to `/loop`:
 
 ```
 /loop 5m check my PR, address review comments, and fix failing CI
 ```
+
+Once the pull request is reviewed, `/superdev:ship` merges it, closes the scope anchor, and cleans up
+the run. Only a human runs it.
 
 To cap a long `/superdev:implement` run, wrap the call in `/goal`. Give it the Definition of Done as the
 stop condition and an explicit turn ceiling (for example, "stop after N tries").
@@ -438,9 +442,11 @@ A tiny feature end to end, with the local-file slice store and GitHub as the cod
 - **`/superdev:review <range>`**. Dispatches `final-reviewer` and `simplicity-reviewer` against `dod.md`.
   A clean verdict sets the ledger's stage to `reviewed` and prints the resolved `/superdev:document` call.
 - **`/superdev:document <range>`**. Reconciles `README.md` and the `AGENTS.md` hierarchy with the two
-  merged slices. It sets the stage to `documented` and prints `/superdev:ship health-check`.
-- **`/superdev:ship health-check`**. Opens the pull request, removes the scopetree, and closes the scope
-  anchor. You see the pull-request URL.
+  merged slices. It sets the stage to `documented` and prints `/superdev:submit-pr health-check`.
+- **`/superdev:submit-pr health-check`**. Pushes the scope branch and opens the pull request. You see the
+  pull-request URL, and the run stands: the scopetree and the scope anchor are still there.
+- **`/superdev:ship health-check`**, once the pull request is reviewed. Merges it, removes the scopetree,
+  and closes the scope anchor.
 - **After.** Review comments and flaky CI on the open pull request are a `/loop` job, not this chain's
   concern. See [After the PR](#after-the-pr).
 
