@@ -2,6 +2,10 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0100](0100-the-bridge-retries-a-transient-spawn-failure-once.md), which splits a
+spawn failure into an installation class and a transient class, and has the bridge retry a transient
+one once.
+
 **Amends:** [ADR 0086](0086-a-duration-is-never-the-assertion.md), whose INV-0009 Statement reads "a
 process that did not finish carries no verdict" and therefore covers a process that never began.
 

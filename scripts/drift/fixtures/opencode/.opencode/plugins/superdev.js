@@ -49,6 +49,8 @@ const SESSION_CREATED = ["session.created"];
 const SESSION_ENDED = ["session.idle","session.deleted"];
 const SESSION_END_HOOKS = ["slicetree-sweep","scope-prune"];
 const BRIDGE_HOOK_TIMEOUT_MS = 600000;
+const TRANSIENT_SPAWN_CODES = ["EAGAIN","EMFILE","ENFILE","ENOMEM"];
+const SPAWN_RETRY_DELAY_MS = 100;
 let spawnFailureNoticedByHook = {};
 
 function bridgeSpawnEnv(root) {
@@ -90,11 +92,19 @@ function hookBlockReason(hook, result) {
   return null;
 }
 
-function spawnFailureNotice(hook) {
+function spawnFailureNotice(hook, code) {
   if (spawnFailureNoticedByHook[hook]) return null;
   spawnFailureNoticedByHook[hook] = true;
+  const named = code ? ` (${code})` : '';
+  if (code && TRANSIENT_SPAWN_CODES.includes(code)) {
+    return (
+      `superdev: hook ${hook} could not start${named}, and a retry failed too: the system is out of ` +
+      'processes, file descriptors, or memory. It is not gating this session — the call proceeded ' +
+      'unchecked. This notice appears once per hook, per session boundary.'
+    );
+  }
   return (
-    `superdev: hook ${hook} could not start, so it is not gating this session — the call proceeded ` +
+    `superdev: hook ${hook} could not start${named}, so it is not gating this session — the call proceeded ` +
     'unchecked. This is an installation problem (a missing `node`, a wrong plugin path, a broken ' +
     'install), not a verdict. Repair it; this notice appears once per hook, per session boundary.'
   );
@@ -104,26 +114,35 @@ function resetSpawnFailureNotices() {
   spawnFailureNoticedByHook = {};
 }
 
-function runBridgeHook(hook, payload) {
+function spawnHookOnce(hook, payload) {
   return new Promise((resolve) => {
-    const child = spawn('node', [path.join(PLUGIN_ROOT, 'hooks', `${hook}.js`)], {
-      env: bridgeSpawnEnv(PLUGIN_ROOT),
-    });
-    let stdout = '';
-    let stderr = '';
     let settled = false;
-    const timer = setTimeout(() => child.kill(), BRIDGE_HOOK_TIMEOUT_MS);
+    let timer = null;
     const finish = (result) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
       resolve(result);
     };
+    const spawnError = (e) => finish({ spawnError: (e && e.code) || 'UNKNOWN' });
+    let child;
+    try {
+      child = spawn('node', [path.join(PLUGIN_ROOT, 'hooks', `${hook}.js`)], {
+        env: bridgeSpawnEnv(PLUGIN_ROOT),
+      });
+    } catch (e) {
+      spawnError(e);
+      return;
+    }
+    child.on('error', spawnError);
+    if (!child.stdin || !child.stdout || !child.stderr) return;
+    let stdout = '';
+    let stderr = '';
+    timer = setTimeout(() => child.kill(), BRIDGE_HOOK_TIMEOUT_MS);
     child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
     child.stdout.on('data', (chunk) => (stdout += chunk));
     child.stderr.on('data', (chunk) => (stderr += chunk));
-    child.on('error', () => finish({ error: true }));
     child.on('close', (code, signal) => finish({ status: code, signal, stdout, stderr }));
     // A hook that exits before ever reading stdin (a require() failure before main() runs, e.g.)
     // turns a payload larger than the pipe buffer into an EPIPE write error; spawnSync's `input`
@@ -132,15 +151,22 @@ function runBridgeHook(hook, payload) {
     child.stdin.on('error', () => {});
     child.stdin.write(JSON.stringify(payload));
     child.stdin.end();
-  }).then((result) => {
-    if (!result || result.error) {
-      const notice = spawnFailureNotice(hook);
-      if (notice) console.error(notice);
-      return;
-    }
-    const reason = hookBlockReason(hook, result);
-    if (reason) throw new Error(reason);
   });
+}
+
+async function runBridgeHook(hook, payload) {
+  let result = await spawnHookOnce(hook, payload);
+  if (result.spawnError && TRANSIENT_SPAWN_CODES.includes(result.spawnError)) {
+    await new Promise((wake) => setTimeout(wake, SPAWN_RETRY_DELAY_MS));
+    result = await spawnHookOnce(hook, payload);
+  }
+  if (result.spawnError) {
+    const notice = spawnFailureNotice(hook, result.spawnError);
+    if (notice) console.error(notice);
+    return;
+  }
+  const reason = hookBlockReason(hook, result);
+  if (reason) throw new Error(reason);
 }
 
 // The calling session is a subagent's when it has a parent — the bridge's stand-in for Claude's

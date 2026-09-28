@@ -619,10 +619,16 @@ const BRIDGE_SESSION_END_HOOKS = ['slicetree-sweep', 'scope-prune'];
 // documents, recorded there. The renderer bakes the value into the generated plugin's constants, so
 // the bridge running inside OpenCode's host needs no reader, and no second reader exists to drift.
 const BRIDGE_HOOK_TIMEOUT_MS = readHookTimeoutMs();
+// The transient class of Spawn failure (ADR 0100): a system briefly out of processes, file
+// descriptors, or memory. The bridge retries one of these once, after SPAWN_RETRY_DELAY_MS; every
+// other code is the installation class and is not retried.
+const TRANSIENT_SPAWN_CODES = ['EAGAIN', 'EMFILE', 'ENFILE', 'ENOMEM'];
+const SPAWN_RETRY_DELAY_MS = 100;
 
-// The four helpers below are serialized verbatim into the generated bridge via
+// The helpers below are serialized verbatim into the generated bridge via
 // Function.prototype.toString, so they stay self-contained: the free names they reference
-// (PLUGIN_ROOT, spawn, path) are constants the bridge source defines, never adapter.js's own
+// (PLUGIN_ROOT, spawn, path, TRANSIENT_SPAWN_CODES, SPAWN_RETRY_DELAY_MS, BRIDGE_HOOK_TIMEOUT_MS,
+// spawnFailureNoticedByHook) are constants the bridge source defines, never adapter.js's own
 // scope. They live here, not in the template string, so tests/adapter.test.js exercises the same
 // code the bridge ships.
 
@@ -676,10 +682,13 @@ function hookBlockReason(hook, result) {
 }
 
 // A hook that never started carries a **Spawn failure**, not a **No verdict** (ADR 0087): the gate
-// never ran, so the absence is evidence about the installation — a missing `node`, a wrong plugin
-// path, a broken install — rather than about the code under the gate. INV-0009 does not govern it,
-// and the call proceeds, because every repair for those conditions is made through the very surface
-// a block would close. On the same condition `hooks/green-gate.js` blocks, for its own stated
+// never ran. For the installation class (`ENOENT`, `EACCES`, and any code outside
+// TRANSIENT_SPAWN_CODES), the absence is evidence about the installation — a missing `node`, a wrong
+// plugin path, a broken install — rather than about the code under the gate. A transient code is evidence about
+// a machine briefly out of processes, file descriptors, or memory, and runBridgeHook retries it once
+// before it reaches this notice (ADR 0100). INV-0009 governs neither, and the call proceeds, because
+// every repair is made through the very surface a block would close. On the same condition
+// `hooks/green-gate.js` blocks, for its own stated
 // reason: it fires only on a merge, where a tree that cannot run its suite is a defect in the thing
 // being gated, so blocking costs one merge rather than the session. The divergence is deliberate,
 // and each gate names the other's answer so neither reads as the other's oversight.
@@ -697,11 +706,19 @@ function hookBlockReason(hook, result) {
 // Upgrade to true per-session scoping (a Map keyed by sessionID, threaded through runBridgeHook and
 // cleared only for the session that started) if that cross-session re-notification proves noisy.
 let spawnFailureNoticedByHook = {};
-function spawnFailureNotice(hook) {
+function spawnFailureNotice(hook, code) {
   if (spawnFailureNoticedByHook[hook]) return null;
   spawnFailureNoticedByHook[hook] = true;
+  const named = code ? ` (${code})` : '';
+  if (code && TRANSIENT_SPAWN_CODES.includes(code)) {
+    return (
+      `superdev: hook ${hook} could not start${named}, and a retry failed too: the system is out of ` +
+      'processes, file descriptors, or memory. It is not gating this session — the call proceeded ' +
+      'unchecked. This notice appears once per hook, per session boundary.'
+    );
+  }
   return (
-    `superdev: hook ${hook} could not start, so it is not gating this session — the call proceeded ` +
+    `superdev: hook ${hook} could not start${named}, so it is not gating this session — the call proceeded ` +
     'unchecked. This is an installation problem (a missing `node`, a wrong plugin path, a broken ' +
     'install), not a verdict. Repair it; this notice appears once per hook, per session boundary.'
   );
@@ -716,35 +733,47 @@ function resetSpawnFailureNotices() {
   spawnFailureNoticedByHook = {};
 }
 
-// Spawn one hook and translate its verdict: a block reason throws, so the deny reaches the model
-// the way Claude's exit-2 blocking does; a killed child blocks too (INV-0009, ADR 0087), and only
-// a spawn error — the hook never started — fails open, noticed once. BRIDGE_HOOK_TIMEOUT_MS is
-// read from the green-gate entry in hooks/hooks.json at render time, not a literal of its own, so
-// raising that entry raises this ceiling too. child_process.spawn (never spawnSync): OpenCode's plugin host
-// runs every tool call, hook, and event on one JS thread, so a blocking spawnSync would hold the
-// whole session — its TUI, its SSE stream, every concurrent session — for as long as the spawned
-// hook runs, and green-gate alone can run the repo's full suite. A Promise wrapper keeps the
-// event loop free while the hook runs; the caller awaits it.
-function runBridgeHook(hook, payload) {
+// One attempt at spawning a hook. It resolves the hook's result, or `{ spawnError: <code> }` when the
+// hook never started, and never rejects: Node reports a spawn error in three shapes
+// (lib/internal/child_process.js, ADR 0100) and each one reaches the same answer. EACCES, EAGAIN,
+// and ENOENT arrive as an 'error' event. EMFILE and ENFILE arrive the same way, but leave
+// child.stdin, child.stdout, and child.stderr unassigned, so the 'error' listener is attached before
+// any stdio is touched, and a child without stdio waits for that event. Every other code makes
+// spawn() throw synchronously. BRIDGE_HOOK_TIMEOUT_MS is read from the green-gate entry in
+// hooks/hooks.json at render time, not a literal of its own, so raising that entry raises this ceiling
+// too. child_process.spawn (never spawnSync): OpenCode's plugin host runs every tool call, hook, and
+// event on one JS thread, so a blocking spawnSync would hold the whole session — its TUI, its SSE
+// stream, every concurrent session — for as long as the spawned hook runs, and green-gate alone can
+// run the repo's full suite. A Promise wrapper keeps the event loop free while the hook runs.
+function spawnHookOnce(hook, payload) {
   return new Promise((resolve) => {
-    const child = spawn('node', [path.join(PLUGIN_ROOT, 'hooks', `${hook}.js`)], {
-      env: bridgeSpawnEnv(PLUGIN_ROOT),
-    });
-    let stdout = '';
-    let stderr = '';
     let settled = false;
-    const timer = setTimeout(() => child.kill(), BRIDGE_HOOK_TIMEOUT_MS);
+    let timer = null;
     const finish = (result) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
       resolve(result);
     };
+    const spawnError = (e) => finish({ spawnError: (e && e.code) || 'UNKNOWN' });
+    let child;
+    try {
+      child = spawn('node', [path.join(PLUGIN_ROOT, 'hooks', `${hook}.js`)], {
+        env: bridgeSpawnEnv(PLUGIN_ROOT),
+      });
+    } catch (e) {
+      spawnError(e);
+      return;
+    }
+    child.on('error', spawnError);
+    if (!child.stdin || !child.stdout || !child.stderr) return;
+    let stdout = '';
+    let stderr = '';
+    timer = setTimeout(() => child.kill(), BRIDGE_HOOK_TIMEOUT_MS);
     child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
     child.stdout.on('data', (chunk) => (stdout += chunk));
     child.stderr.on('data', (chunk) => (stderr += chunk));
-    child.on('error', () => finish({ error: true }));
     child.on('close', (code, signal) => finish({ status: code, signal, stdout, stderr }));
     // A hook that exits before ever reading stdin (a require() failure before main() runs, e.g.)
     // turns a payload larger than the pipe buffer into an EPIPE write error; spawnSync's `input`
@@ -753,15 +782,27 @@ function runBridgeHook(hook, payload) {
     child.stdin.on('error', () => {});
     child.stdin.write(JSON.stringify(payload));
     child.stdin.end();
-  }).then((result) => {
-    if (!result || result.error) {
-      const notice = spawnFailureNotice(hook);
-      if (notice) console.error(notice);
-      return;
-    }
-    const reason = hookBlockReason(hook, result);
-    if (reason) throw new Error(reason);
   });
+}
+
+// Spawn one hook and translate its verdict: a block reason throws, so the deny reaches the model
+// the way Claude's exit-2 blocking does; a killed child blocks too (INV-0009, ADR 0087), and is never
+// retried, because it started. A spawn failure never blocks and never throws: a transient code is
+// retried once after SPAWN_RETRY_DELAY_MS, since an immediate retry would usually meet the same
+// exhausted table, and a failure that remains is noticed once and the call proceeds (ADR 0100).
+async function runBridgeHook(hook, payload) {
+  let result = await spawnHookOnce(hook, payload);
+  if (result.spawnError && TRANSIENT_SPAWN_CODES.includes(result.spawnError)) {
+    await new Promise((wake) => setTimeout(wake, SPAWN_RETRY_DELAY_MS));
+    result = await spawnHookOnce(hook, payload);
+  }
+  if (result.spawnError) {
+    const notice = spawnFailureNotice(hook, result.spawnError);
+    if (notice) console.error(notice);
+    return;
+  }
+  const reason = hookBlockReason(hook, result);
+  if (reason) throw new Error(reason);
 }
 
 // The generated plugin module. Constants and the serialized helpers above come first; the body
@@ -777,6 +818,8 @@ function renderBridge(pluginRoot) {
     `const SESSION_ENDED = ${JSON.stringify(BRIDGE_SESSION_ENDED)};`,
     `const SESSION_END_HOOKS = ${JSON.stringify(BRIDGE_SESSION_END_HOOKS)};`,
     `const BRIDGE_HOOK_TIMEOUT_MS = ${JSON.stringify(BRIDGE_HOOK_TIMEOUT_MS)};`,
+    `const TRANSIENT_SPAWN_CODES = ${JSON.stringify(TRANSIENT_SPAWN_CODES)};`,
+    `const SPAWN_RETRY_DELAY_MS = ${JSON.stringify(SPAWN_RETRY_DELAY_MS)};`,
     'let spawnFailureNoticedByHook = {};',
   ].join('\n');
   const helpers = [
@@ -785,6 +828,7 @@ function renderBridge(pluginRoot) {
     hookBlockReason,
     spawnFailureNotice,
     resetSpawnFailureNotices,
+    spawnHookOnce,
     runBridgeHook,
   ]
     .map((fn) => fn.toString())

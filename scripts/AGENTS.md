@@ -361,8 +361,13 @@ is the shape the hook scripts parse. OpenCode's `task` tool takes no `model` arg
 bridge resolves model-explicit's `tool_input.model` from the rendered agent's own frontmatter
 (`.opencode/agents/<type>.md`), where the adapter already pinned it. Block semantics mirror
 Claude's: a child exiting 2, or a stdout JSON `hookSpecificOutput.permissionDecision: 'deny'`,
-throws so the deny reaches the model; a spawn error, a killed child, or a plain-text notice (an
-update-check newer-version line) never blocks. The bridge's four helpers are serialized into the
+throws so the deny reaches the model, and a child its own bound killed blocks too (INV-0009). A
+plain-text notice (an update-check newer-version line) never blocks. Neither does a **Spawn failure**,
+in any of the three shapes Node reports it in: an `'error'` event, a child whose stdio was never
+assigned (`EMFILE`, `ENFILE`), or a synchronous `spawn()` throw. A transient code (`EAGAIN`,
+`EMFILE`, `ENFILE`, `ENOMEM`) is retried once after a short fixed delay. Any other code, or a retry
+that fails too, lets the call through with a once-per-hook notice naming the code and its class
+(ADR 0100, INV-0097). The bridge's helpers are serialized into the
 generated file via `Function.prototype.toString`, so `tests/adapter.test.js` exercises the same code
 the bridge ships. Refusals exit nonzero with a one-line stderr reason and cover an unknown
 `--harness` (default `opencode`), a missing `--dest`, a malformed `--model-map`, a skills or agents
@@ -704,7 +709,9 @@ a command that does not exist. The `chain-handoff` contract: `skills/implement/S
 A spawn that never started is a **Spawn failure**, outside INV-0009 (ADR 0087): `plugin/hooks/green-gate.js`
 blocks, because it fires only on a merge and a tree that cannot run its suite is a defect in the thing being
 gated; `plugin/scripts/adapter.js`'s hook bridge lets the call through with a notice, because it fires on
-every tool call and every repair for a broken install is made through the surface a block would close. Each
+every tool call and every repair is made through the surface a block would close. The bridge retries a
+transient code once before that notice (ADR 0100); the row pins the installation reason, which the
+transient class leaves unchanged. Each
 row pins its surface's **reason** and the clause naming the other surface's answer, not the behaviour alone.
 Pinning behaviours alone is what let the bridge's own fail-open read as an oversight for as long as it did,
 which is what #606 was: a reader meeting one gate could not tell a deliberate divergence from a missed case.

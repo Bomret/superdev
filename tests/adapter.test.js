@@ -813,6 +813,171 @@ const {
       );
     }
 
+    // ADR 0100: every spawn failure reaches one answer, in each of the three shapes Node's
+    // lib/internal/child_process.js reports it (v20.x and main, read 2026-09-27): an 'error' event on
+    // a child whose stdio exists (EACCES, EAGAIN, ENOENT), a child whose stdio was never assigned
+    // with the 'error' on the next tick (EMFILE, ENFILE), and a synchronous throw (every other code,
+    // ENOMEM among them). A transient code is retried once; an installation code is not; neither
+    // blocks the call or ends the process. child_process.spawn is replaced before a freshly rendered
+    // bridge loads, because the bridge destructures `spawn` at load time.
+    {
+      const cp = require('node:child_process');
+      const { EventEmitter } = require('node:events');
+      const { PassThrough } = require('node:stream');
+      const realSpawn = cp.spawn;
+      const spawnErr = (code) => Object.assign(new Error(`spawn node ${code}`), { code, errno: -1, syscall: 'spawn node' });
+      const withStdio = (child) => Object.assign(child, { stdin: new PassThrough(), stdout: new PassThrough(), stderr: new PassThrough(), kill: () => {} });
+      const shapes = {
+        // 'error' on a child with stdio (EAGAIN, ENOENT, EACCES).
+        event: (code) => {
+          const child = withStdio(new EventEmitter());
+          process.nextTick(() => child.emit('error', spawnErr(code)));
+          return child;
+        },
+        // EMFILE/ENFILE: stdin/stdout/stderr never assigned, 'error' on the next tick.
+        noStdio: (code) => {
+          const child = new EventEmitter();
+          child.kill = () => {};
+          process.nextTick(() => child.emit('error', spawnErr(code)));
+          return child;
+        },
+        // Any other code: spawn() throws synchronously.
+        throws: (code) => {
+          throw spawnErr(code);
+        },
+        // A child its own bound killed: it started, then closed on a signal (INV-0009).
+        killed: () => {
+          const child = withStdio(new EventEmitter());
+          process.nextTick(() => child.emit('close', null, 'SIGKILL'));
+          return child;
+        },
+      };
+      let queue = [];
+      let attempts = 0;
+      cp.spawn = (...args) => {
+        attempts++;
+        const next = queue.shift();
+        return next ? shapes[next[0]](next[1]) : realSpawn(...args);
+      };
+
+      const failRoot = tmp();
+      fs.mkdirSync(path.join(failRoot, 'skills'), { recursive: true });
+      fs.mkdirSync(path.join(failRoot, 'agents'), { recursive: true });
+      const failMark = path.join(tmp(), 'fail-mark');
+      const markHook = (exit) => `require('fs').appendFileSync(${JSON.stringify(failMark)}, require('path').basename(process.argv[1]) + '\\n');process.stdin.resume();process.stdin.on('end',()=>process.exit(${exit}));`;
+      for (const hook of ['run-lock', 'ledger-guard', 'green-gate', 'update-check', 'slicetree-sweep', 'scope-prune', 'model-explicit']) {
+        write(failRoot, `hooks/${hook}.js`, markHook(0));
+      }
+      write(failRoot, 'hooks/merge-guard.js', `require('fs').appendFileSync(${JSON.stringify(failMark)}, 'merge-guard.js\\n');process.stderr.write('merge-guard refused');process.exit(2);`);
+      const failDest = tmp();
+      render({ harness: 'opencode', pluginRoot: failRoot, dest: failDest, modelMap: new Map() });
+      const { server: FailPlugin } = require(path.join(failDest, '.opencode', 'plugins', 'superdev.js'));
+      const failPlugin = await FailPlugin({ directory: failDest });
+      const marks = () => (fs.existsSync(failMark) ? fs.readFileSync(failMark, 'utf8') : '');
+
+      const realErr = console.error;
+      // One bash tool call against a queue of spawn outcomes, one per spawn attempt in order. It
+      // returns what the operator would see: whether the call threw, how many spawns were
+      // attempted, and every notice printed.
+      const call = async (outcomes, hookCall) => {
+        queue = outcomes.slice();
+        attempts = 0;
+        const notices = [];
+        console.error = (m) => notices.push(String(m));
+        let threw = null;
+        try {
+          await hookCall();
+        } catch (e) {
+          threw = e;
+        } finally {
+          console.error = realErr;
+        }
+        return { threw, attempts, notices: notices.join('\n') };
+      };
+      const bash = (command) => () => failPlugin['tool.execute.before']({ tool: 'bash', sessionID: 'x' }, { args: { command } });
+      const newSession = () => failPlugin.event({ event: { type: 'session.created' } });
+
+      try {
+        // EMFILE: no stdio, 'error' next tick. The call must proceed after one retry on the same
+        // hook, noticed.
+        await newSession();
+        let r = await call([['noStdio', 'EMFILE'], ['noStdio', 'EMFILE']], bash('ls'));
+        assert.equal(r.threw, null, `an EMFILE spawn failure does not block the call (got: ${r.threw && r.threw.message})`);
+        assert.equal(r.attempts, 4, 'the failing hook is retried once (2), then the remaining two hooks spawn for real (1 each)');
+        assert.doesNotMatch(marks(), /merge-guard\.js/, 'the retried hook never started, so its mark is absent');
+        assert.match(r.notices, /merge-guard[\s\S]*EMFILE/, 'the notice names the hook and EMFILE');
+        assert.match(r.notices, /out of processes, file descriptors, or memory/, 'and names the transient class');
+
+        // ENOMEM: spawn() throws synchronously. Both failures land on the same hook, retried once,
+        // then proceeds with a notice.
+        await newSession();
+        fs.rmSync(failMark, { force: true });
+        r = await call([['throws', 'ENOMEM'], ['throws', 'ENOMEM']], bash('ls'));
+        assert.equal(r.threw, null, `an ENOMEM spawn failure does not block the call (got: ${r.threw && r.threw.message})`);
+        assert.equal(r.attempts, 4, 'the failing hook is retried once (2), then the remaining two hooks spawn for real (1 each)');
+        assert.doesNotMatch(marks(), /merge-guard\.js/, 'the retried hook never started, so its mark is absent');
+        assert.match(r.notices, /ENOMEM/, 'the notice names ENOMEM');
+        assert.match(r.notices, /out of processes, file descriptors, or memory/, 'and names the transient class');
+
+        // EAGAIN once, then a clean start: the hook runs and its own verdict applies, and nothing is
+        // noticed. merge-guard refuses every call here, so a clean retry must still block.
+        await newSession();
+        fs.rmSync(failMark, { force: true });
+        r = await call([['event', 'EAGAIN']], bash('merge x'));
+        assert.ok(r.threw && /merge-guard refused/.test(r.threw.message), 'a retry that starts runs the hook, and its refusal still blocks');
+        assert.equal((marks().match(/merge-guard\.js/g) || []).length, 1, 'the hook ran once, on the retry');
+        assert.doesNotMatch(r.notices, /could not start/, 'a transient failure that clears on the retry prints no notice');
+
+        // EAGAIN twice: exactly two attempts for that hook, then the call proceeds, noticed.
+        await newSession();
+        r = await call([['event', 'EAGAIN'], ['event', 'EAGAIN'], ['event', 'EAGAIN'], ['event', 'EAGAIN'], ['event', 'EAGAIN'], ['event', 'EAGAIN']], bash('ls'));
+        assert.equal(r.threw, null, 'two EAGAIN failures in a row do not block the call');
+        assert.equal(r.attempts, BRIDGE_SHELL_BEFORE_HOOKS.length * 2, 'each hook is attempted exactly twice, never more');
+        assert.match(r.notices, /EAGAIN/, 'the notice names EAGAIN');
+        assert.match(r.notices, /out of processes, file descriptors, or memory/, 'as the transient class');
+
+        // ENOENT and EACCES: installation class, one attempt, no retry, noticed as installation.
+        for (const code of ['ENOENT', 'EACCES']) {
+          await newSession();
+          r = await call(BRIDGE_SHELL_BEFORE_HOOKS.map(() => ['event', code]), bash('ls'));
+          assert.equal(r.threw, null, `${code} does not block the call`);
+          assert.equal(r.attempts, BRIDGE_SHELL_BEFORE_HOOKS.length, `${code} is not retried`);
+          assert.match(r.notices, new RegExp(code), `the notice names ${code}`);
+          assert.match(r.notices, /installation problem/, `${code} is noticed as an installation problem`);
+        }
+
+        // A code outside both lists is answered as installation: no retry.
+        await newSession();
+        r = await call(BRIDGE_SHELL_BEFORE_HOOKS.map(() => ['throws', 'EPERM']), bash('ls'));
+        assert.equal(r.threw, null, 'an unlisted code does not block the call');
+        assert.equal(r.attempts, BRIDGE_SHELL_BEFORE_HOOKS.length, 'an unlisted code is not retried');
+        assert.match(r.notices, /EPERM[\s\S]*installation problem/, 'and is noticed as an installation problem');
+
+        // A killed spawn still blocks and is never retried (INV-0009).
+        await newSession();
+        r = await call([['killed']], bash('ls'));
+        assert.ok(r.threw && /killed \(SIGKILL\)/.test(r.threw.message), 'a killed spawn still blocks the call');
+        assert.equal(r.attempts, 1, 'a killed spawn is never retried');
+
+        // A session hook's spawn failure is retried and noticed by the same rules, never skipped
+        // in silence: slicetree-sweep fails transiently twice, scope-prune still runs after it.
+        await newSession();
+        fs.rmSync(failMark, { force: true });
+        r = await call([['event', 'EAGAIN'], ['event', 'EAGAIN']], () => failPlugin.event({ event: { type: 'session.idle' } }));
+        assert.match(r.notices, /slicetree-sweep[\s\S]*EAGAIN/, 'a session hook that could not start is noticed, naming the code');
+        assert.match(marks(), /scope-prune\.js/, 'the next session hook still runs');
+
+        // Once per hook, per session boundary, for a transient failure too.
+        await newSession();
+        await call([['event', 'EAGAIN'], ['event', 'EAGAIN'], ['event', 'EAGAIN'], ['event', 'EAGAIN']], bash('ls'));
+        const r2 = await call([['event', 'EAGAIN'], ['event', 'EAGAIN']], bash('ls'));
+        assert.doesNotMatch(r2.notices, /merge-guard could not start|hook merge-guard/, 'a second failure of the same hook in one session prints no second notice');
+      } finally {
+        cp.spawn = realSpawn;
+        console.error = realErr;
+      }
+    }
+
     // Regression: a hook that never reads stdin (a require() failure before main() runs, the
     // documented slicetree-sweep/scope-prune shape) must not turn a >64KB command payload into an
     // uncaught EPIPE that crashes the whole plugin host, and a hook's multi-byte stdout/stderr

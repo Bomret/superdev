@@ -842,3 +842,13 @@ Statement: Only a human moves a scope past its open pull request. `/superdev:afk
 Breaks: silently
 Check: scripts/drift-check.js — afk's chain ends at `submit-pr`; ship names no `--unattended` branch and carries `disable-model-invocation: true`; the harness renders keep it off every model-invocable surface
 Paths: plugin/skills/afk/**, plugin/skills/submit-pr/**, plugin/skills/ship/**
+
+### INV-0097
+
+Class: architecture
+Concepts: Spawn failure, Guardrail
+Statement: A spawn failure never blocks a call the OpenCode hook bridge gates and never ends its host process, in any of the three shapes Node reports it in. An installation failure lets the call through with a once-per-hook notice naming the code. A transient failure is retried once first, and a retry that fails too lets the call through the same way. A spawn its own bound killed is not a spawn failure: it still blocks, and it is never retried (INV-0009).
+Breaks: silently
+Check: tests/adapter.test.js — the ADR 0100 block reproduces each of Node's three shapes against a rendered bridge, and asserts retry counts, notices, and the killed-spawn block
+Symbols: spawnHookOnce, runBridgeHook, TRANSIENT_SPAWN_CODES
+Paths: plugin/scripts/adapter.js, tests/adapter.test.js
