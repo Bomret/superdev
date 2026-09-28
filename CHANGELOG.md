@@ -1,3 +1,10 @@
+# [0.54.0](https://codeberg.org/Zuhause/superdev/compare/v0.53.1...v0.54.0) (2026-09-28)
+
+
+### Features
+
+* **ship:** merge the pull request with /superdev:ship, open it with /superdev:submit-pr ([#710](https://codeberg.org/Zuhause/superdev/issues/710)) ([e0e304d](https://codeberg.org/Zuhause/superdev/commit/e0e304d419628fbaa6b398c0455540c47ab871e3)), closes [#709](https://codeberg.org/Zuhause/superdev/issues/709)
+
 ## [0.53.1](https://codeberg.org/Zuhause/superdev/compare/v0.53.0...v0.53.1) (2026-09-26)
 
 
