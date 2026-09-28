@@ -1,11 +1,11 @@
 # Code host: Codeberg (Forgejo)
 
-Code lives on Codeberg (`ssh://codeberg.org/Zuhause/superdev.git`). Use the Forgejo REST API (or the
+Code lives on Codeberg (`ssh://codeberg.org/bomret/superdev.git`). Use the Forgejo REST API (or the
 `tea` CLI if installed) for pushes and pull requests.
 
 ## Configuration
 
-- **Host, owner, and repo:** `https://codeberg.org`, `Zuhause`, `superdev`.
+- **Host, owner, and repo:** `https://codeberg.org`, `bomret`, `superdev`.
 - **Remote:** `origin`. Confirm with `git remote -v`.
 - **Auth:** API token in env var `GITEA_TOKEN` (record the name, never the value).
 - **Default PR posture:** `ready` (open ready-for-review). Override: `draft` or `push-only`.
@@ -14,7 +14,7 @@ Code lives on Codeberg (`ssh://codeberg.org/Zuhause/superdev.git`). Use the Forg
 ## Conventions
 
 - **Push the scope branch:** `git push -u origin <scope-branch>`.
-- **Open the PR (REST):** `POST https://codeberg.org/api/v1/repos/Zuhause/superdev/pulls` with
+- **Open the PR (REST):** `POST https://codeberg.org/api/v1/repos/bomret/superdev/pulls` with
   `{ "base": "main", "head": "<scope-branch>", "title": "...", "body": "..." }`,
   header `Authorization: token $GITEA_TOKEN`. Body built from the global DoD, the slice list, and the
   final-review summary.
@@ -29,14 +29,14 @@ Code lives on Codeberg (`ssh://codeberg.org/Zuhause/superdev.git`). Use the Forg
 ## Degrade when no host CLI or API access
 
 Do not fail. Push the branch, then print the compare URL
-(`https://codeberg.org/Zuhause/superdev/compare/main...<scope-branch>`) and the ready-to-run API call.
+(`https://codeberg.org/bomret/superdev/compare/main...<scope-branch>`) and the ready-to-run API call.
 The merge call below degrades the same way: print the exact API call and merge nothing.
 
 ## Merge
 
-- **Read the pull request:** `GET https://codeberg.org/api/v1/repos/Zuhause/superdev/pulls/<index>` →
+- **Read the pull request:** `GET https://codeberg.org/api/v1/repos/bomret/superdev/pulls/<index>` →
   `state`, `merged`, `merge_commit_sha` (once merged), `head.sha`, and `mergeable`.
-- **Merge it, pinned:** `POST https://codeberg.org/api/v1/repos/Zuhause/superdev/pulls/<index>/merge`
+- **Merge it, pinned:** `POST https://codeberg.org/api/v1/repos/bomret/superdev/pulls/<index>/merge`
   with `{ "Do": "squash", "MergeTitleField": "<pr-title>", "head_commit_id": "<tested-tip-sha>" }`,
   header `Authorization: token $GITEA_TOKEN`. `head_commit_id` pins the merge to that sha; Codeberg
   answers 409 when the head moved since. Never send `force_merge` — this repo's own branch protection
@@ -45,7 +45,7 @@ The merge call below degrades the same way: print the exact API call and merge n
   approval or protection rule, or it is already merged/closed); 409 means the head moved since it was
   read, or a conflict exists. Relay Codeberg's own message to the operator instead of retrying.
 - **Find an open pull request by its head branch** (a fallback, when no index is on hand):
-  `GET https://codeberg.org/api/v1/repos/Zuhause/superdev/pulls?state=open` — Codeberg carries no `head`
+  `GET https://codeberg.org/api/v1/repos/bomret/superdev/pulls?state=open` — Codeberg carries no `head`
   query parameter, so filter the returned array client-side by `head.ref` matching the scope branch. The
   list paginates (`page`, `limit` query params; `limit` capped at the server's `MAX_RESPONSE_ITEMS`, 50 by
   default): page through every page — the `Link` response header names the next one — before counting

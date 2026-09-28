@@ -410,7 +410,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     fixture({
       'docs/agents/knowledge-base.md':
         '- **Concepts** **(aggregate)**\n\n' +
-        "- **Read a page's body:** `GET /api/v1/repos/Zuhause/superdev/wiki/page/<sub_url>` never returns\n" +
+        "- **Read a page's body:** `GET /api/v1/repos/bomret/superdev/wiki/page/<sub_url>` never returns\n" +
         '  `content_base64`, which decodes to the page markdown.\n',
     }),
     READ_PATH_CONTRACTS,
@@ -448,7 +448,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
       fixture({
         'docs/agents/knowledge-base.md':
           "- **Concepts** **(aggregate)**\n\n- **Read a page's body:** " +
-          '`GET /api/v1/repos/Zuhause/superdev/wiki/page/<sub_url>` returns `content_base64`, which ' +
+          '`GET /api/v1/repos/bomret/superdev/wiki/page/<sub_url>` returns `content_base64`, which ' +
           'decodes to the page markdown.\n',
       }),
       READ_PATH_CONTRACTS,

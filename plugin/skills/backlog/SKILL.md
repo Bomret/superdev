@@ -159,7 +159,7 @@ copy-pasteable superdev command, or the human act in a few words. An `untriaged`
 age, since age is what the cap below picks rows by.
 
 **Name the moment the store was read**, in the line above the table: the local time and offset the
-listings ran at, plus the checkout §2 resolved, for example `Read Zuhause/superdev at 2026-09-21 23:40
+listings ran at, plus the checkout §2 resolved, for example `Read bomret/superdev at 2026-09-21 23:40
 +02:00, from /Users/me/src/app.` Every row is true as of that moment and no later. A survey a later
 reader contradicts is diagnosable only if it says when it looked, so a report naming no read time
 destroys the evidence needed to audit it (triage #573).
