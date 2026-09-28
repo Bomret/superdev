@@ -399,8 +399,8 @@ It checks these kinds of rule:
   silently ignored; a key matching one of the seven case-insensitively but written in the wrong case
   (`paths:`) is reported as such, naming the correct spelling, rather than as an unrecognised field.
   CRLF reads as LF, and a leading byte-order mark is dropped before parsing.
-- **Resolution.** Every `Concepts` value equals a glossary term — the bold text opening a line of any
-  `CONTEXT.md` the walk reaches, so a multi-context repository needs no map parser. Every `Paths` glob
+- **Resolution.** Every `Concepts` value equals a glossary term — the bold text opening a line, or a `- `/`* `
+  list item, of any `CONTEXT.md` the walk reaches, so a multi-context repository needs no map parser. Every `Paths` glob
   matches a file. Every `Symbols` value appears as a whole word in the files the entry's `Paths` match, or
   anywhere but the register when the entry names none. A dotted symbol matches on its last segment. Every path-shaped
   token in `Check:` names a file; drift ids and quoted test names are prose and stay unchecked.

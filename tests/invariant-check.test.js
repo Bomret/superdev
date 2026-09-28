@@ -147,6 +147,15 @@ const withConcepts = (value) => GOOD.map((l) => (l.startsWith('Concepts:') ? `Co
   assert.match(qualified.out, /^INV-0006: Concepts: .*Definition of Done\b/m, '`Definition of Done` does not match `Definition of Done (DoD)`');
   assert.doesNotMatch(qualified.out, /Concepts: `?Tier`?/, '`Tier` matches `**Tier** (execution)`');
 
+  const listed = failuresFor(
+    {
+      'CONTEXT.md': '# Glossary\n\n- **Order** — a purchase.\n\n* **Invoice** — a bill.\n',
+      'docs/invariants.md': register(entry('INV-0009', withConcepts('Order, Invoice'))),
+    },
+    'list-item terms',
+  );
+  assert.doesNotMatch(listed.out, /not a glossary term/, 'a term opening a `- ` or `* ` list item is a glossary term');
+
   const nested = failuresFor(
     {
       'CONTEXT.md': GLOSSARY,

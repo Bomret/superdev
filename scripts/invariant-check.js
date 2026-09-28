@@ -153,14 +153,15 @@ function walk(root) {
   return files.sort();
 }
 
-// A glossary term is the bold text opening a line of a CONTEXT.md; a qualifier after it, as in
-// `**Tier** (execution)`, is not part of the term. Terms union over every CONTEXT.md the walk
-// reaches, which covers a multi-context repository without reading its context map.
+// A glossary term is the bold text opening a line of a CONTEXT.md, or opening a `- `/`* ` list
+// item; a qualifier after it, as in `**Tier** (execution)`, is not part of the term. Terms union
+// over every CONTEXT.md the walk reaches, which covers a multi-context repository without reading
+// its context map.
 function glossaryTerms(root, files) {
   const terms = new Set();
   for (const rel of files) {
     if (rel !== 'CONTEXT.md' && !rel.endsWith('/CONTEXT.md')) continue;
-    for (const m of fs.readFileSync(path.join(root, rel), 'utf8').matchAll(/^\*\*([^*\r\n]+)\*\*/gm)) {
+    for (const m of fs.readFileSync(path.join(root, rel), 'utf8').matchAll(/^(?:[-*] )?\*\*([^*\r\n]+)\*\*/gm)) {
       terms.add(m[1].trim());
     }
   }
