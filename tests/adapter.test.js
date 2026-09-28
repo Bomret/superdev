@@ -827,6 +827,7 @@ const {
       const realSpawn = cp.spawn;
       const spawnErr = (code) => Object.assign(new Error(`spawn node ${code}`), { code, errno: -1, syscall: 'spawn node' });
       const withStdio = (child) => Object.assign(child, { stdin: new PassThrough(), stdout: new PassThrough(), stderr: new PassThrough(), kill: () => {} });
+      let fastKill = false;
       const shapes = {
         // 'error' on a child with stdio (EAGAIN, ENOENT, EACCES).
         event: (code) => {
@@ -849,6 +850,26 @@ const {
         killed: () => {
           const child = withStdio(new EventEmitter());
           process.nextTick(() => child.emit('close', null, 'SIGKILL'));
+          return child;
+        },        // A child that started and outlived its bound, whose kill then fails: Node's ChildProcess#kill
+        // emits 'error' synchronously for any code but ESRCH, and the child never closes (#707).
+        killFails: (code) => {
+          fastKill = true;
+          const child = withStdio(new EventEmitter());
+          child.kill = () => {
+            child.emit('error', Object.assign(new Error(`kill ${code}`), { code, errno: -1, syscall: 'kill' }));
+            return false;
+          };
+          return child;
+        },
+        // A child that outlived its bound and whose kill succeeds: it closes on the signal.
+        timedOut: () => {
+          fastKill = true;
+          const child = withStdio(new EventEmitter());
+          child.kill = (signal = 'SIGTERM') => {
+            process.nextTick(() => child.emit('close', null, signal));
+            return true;
+          };
           return child;
         },
       };
@@ -876,6 +897,15 @@ const {
       const marks = () => (fs.existsSync(failMark) ? fs.readFileSync(failMark, 'utf8') : '');
 
       const realErr = console.error;
+      // The rendered bridge arms its kill timer through the global setTimeout right after spawn(), at
+      // call time. A faked timeout child sets `fastKill`, so the kill timer armed for it fires at once
+      // instead of after the real ceiling; every real hook spawned after it keeps the real ceiling.
+      const realSetTimeout = global.setTimeout;
+      global.setTimeout = (fn, ms, ...rest) => {
+        const fast = fastKill && ms === BRIDGE_HOOK_TIMEOUT_MS;
+        if (fast) fastKill = false;
+        return realSetTimeout(fn, fast ? 0 : ms, ...rest);
+      };
       // One bash tool call against a queue of spawn outcomes, one per spawn attempt in order. It
       // returns what the operator would see: whether the call threw, how many spawns were
       // attempted, and every notice printed.
@@ -903,9 +933,17 @@ const {
         await newSession();
         let r = await call([['noStdio', 'EMFILE'], ['noStdio', 'EMFILE']], bash('ls'));
         assert.equal(r.threw, null, `an EMFILE spawn failure does not block the call (got: ${r.threw && r.threw.message})`);
-        assert.equal(r.attempts, 4, 'the failing hook is retried once (2), then the remaining two hooks spawn for real (1 each)');
+        assert.equal(r.attempts, BRIDGE_SHELL_BEFORE_HOOKS.length + 1, 'the failing hook is retried once (2), then each remaining hook spawns for real (1 each)');
         assert.doesNotMatch(marks(), /merge-guard\.js/, 'the retried hook never started, so its mark is absent');
         assert.match(r.notices, /merge-guard[\s\S]*EMFILE/, 'the notice names the hook and EMFILE');
+        assert.match(r.notices, /out of processes, file descriptors, or memory/, 'and names the transient class');
+
+        // ENFILE shares EMFILE's shape: no stdio, 'error' next tick, retried once, then noticed.
+        await newSession();
+        r = await call([['noStdio', 'ENFILE'], ['noStdio', 'ENFILE']], bash('ls'));
+        assert.equal(r.threw, null, `an ENFILE spawn failure does not block the call (got: ${r.threw && r.threw.message})`);
+        assert.equal(r.attempts, BRIDGE_SHELL_BEFORE_HOOKS.length + 1, 'the failing hook is retried once, then each remaining hook spawns for real');
+        assert.match(r.notices, /merge-guard[\s\S]*ENFILE/, 'the notice names the hook and ENFILE');
         assert.match(r.notices, /out of processes, file descriptors, or memory/, 'and names the transient class');
 
         // ENOMEM: spawn() throws synchronously. Both failures land on the same hook, retried once,
@@ -914,7 +952,7 @@ const {
         fs.rmSync(failMark, { force: true });
         r = await call([['throws', 'ENOMEM'], ['throws', 'ENOMEM']], bash('ls'));
         assert.equal(r.threw, null, `an ENOMEM spawn failure does not block the call (got: ${r.threw && r.threw.message})`);
-        assert.equal(r.attempts, 4, 'the failing hook is retried once (2), then the remaining two hooks spawn for real (1 each)');
+        assert.equal(r.attempts, BRIDGE_SHELL_BEFORE_HOOKS.length + 1, 'the failing hook is retried once (2), then each remaining hook spawns for real (1 each)');
         assert.doesNotMatch(marks(), /merge-guard\.js/, 'the retried hook never started, so its mark is absent');
         assert.match(r.notices, /ENOMEM/, 'the notice names ENOMEM');
         assert.match(r.notices, /out of processes, file descriptors, or memory/, 'and names the transient class');
@@ -959,6 +997,31 @@ const {
         assert.ok(r.threw && /killed \(SIGKILL\)/.test(r.threw.message), 'a killed spawn still blocks the call');
         assert.equal(r.attempts, 1, 'a killed spawn is never retried');
 
+        // A spawn that outlived its bound and whose kill succeeds blocks, never retried (INV-0009).
+        await newSession();
+        r = await call([['timedOut']], bash('ls'));
+        assert.ok(r.threw && /killed \(SIGTERM\)/.test(r.threw.message), `a timed-out spawn whose kill succeeds blocks (got: ${r.threw && r.threw.message})`);
+        assert.equal(r.attempts, 1, 'a timed-out spawn is never retried');
+
+        // #707: a spawn that outlived its bound and whose kill fails carries no verdict either. It
+        // blocks at once, naming the timeout and the kill's code, is never retried, and is never
+        // noticed as a spawn failure (INV-0009, INV-0097).
+        await newSession();
+        r = await call([['killFails', 'EPERM']], bash('ls'));
+        assert.ok(r.threw, 'a timed-out spawn whose kill fails blocks the call');
+        assert.match(r.threw.message, /timed out/, 'the reason names the timeout');
+        assert.match(r.threw.message, /EPERM/, "the reason names the kill's code");
+        assert.equal(r.attempts, 1, 'a timed-out spawn whose kill fails is never retried');
+        assert.doesNotMatch(r.notices, /could not start/, 'and is never noticed as a spawn failure');
+
+        // The same on a session hook: its failed kill is answered like a killed one, swallowed, and
+        // the next session hook still runs.
+        await newSession();
+        fs.rmSync(failMark, { force: true });
+        r = await call([['killFails', 'EPERM']], () => failPlugin.event({ event: { type: 'session.idle' } }));
+        assert.doesNotMatch(r.notices, /could not start/, "a session hook's failed kill is not noticed as a spawn failure");
+        assert.match(marks(), /scope-prune\.js/, 'the next session hook still runs');
+
         // A session hook's spawn failure is retried and noticed by the same rules, never skipped
         // in silence: slicetree-sweep fails transiently twice, scope-prune still runs after it.
         await newSession();
@@ -975,6 +1038,7 @@ const {
       } finally {
         cp.spawn = realSpawn;
         console.error = realErr;
+        global.setTimeout = realSetTimeout;
       }
     }
 

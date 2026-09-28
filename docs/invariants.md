@@ -80,9 +80,9 @@ Paths: plugin/skills/plan/**, plugin/references/plan-contract.md
 
 Class: architecture
 Concepts: No verdict, Containment
-Statement: A spawn its own bound ended carries no verdict, on `plugin/hooks/green-gate.js`, `plugin/scripts/scope.js`, and the OpenCode hook bridge (`plugin/scripts/adapter.js`'s `runBridgeHook`). No gate reads its absence as a pass, and no assertion about behaviour stands on it. Such a spawn is reported as killed, never as a decision it never made. A spawn that never started carries a Spawn failure instead, which this rule does not govern: the gate never ran, so each surface answers it with its own stated reason (ADR 0087). Codex invokes each hook directly through its own `.codex/hooks.json`, never through the bridge, so this Statement does not reach a hook process Codex's own host kills.
+Statement: A spawn whose own bound expired, whether or not its kill succeeded, carries no verdict, on `plugin/hooks/green-gate.js`, `plugin/scripts/scope.js`, and the OpenCode hook bridge (`plugin/scripts/adapter.js`'s `runBridgeHook`). No gate reads its absence as a pass, and no assertion about behaviour stands on it. Such a spawn is reported as killed, or names the kill it could not complete, never as a decision it never made. A spawn that never started carries a Spawn failure instead, which this rule does not govern: the gate never ran, so each surface answers it with its own stated reason (ADR 0087). Codex invokes each hook directly through its own `.codex/hooks.json`, never through the bridge, so this Statement does not reach a hook process Codex's own host kills.
 Breaks: silently
-Check: tests/spawn-verdict.test.js — the helper's throw-or-not and message for the killed, never-started, EPIPE-but-decided, and genuinely-decided result shapes; tests/green-gate.test.js — a killed suite blocks the merge; tests/scope.test.js — the refetch asserts the kill signal rather than the clock; tests/adapter.test.js — the OpenCode hook bridge blocks a killed hook and lets a call through when the hook never started, noticing once per hook
+Check: tests/spawn-verdict.test.js — the helper's throw-or-not and message for the killed, never-started, EPIPE-but-decided, and genuinely-decided result shapes; tests/green-gate.test.js — a killed suite blocks the merge; tests/scope.test.js — the refetch asserts the kill signal rather than the clock; tests/adapter.test.js — the OpenCode hook bridge blocks a killed hook, and a timed-out hook whose kill fails; the never-started half is INV-0097's
 Paths: plugin/hooks/green-gate.js, plugin/scripts/scope.js, plugin/scripts/adapter.js, scripts/drift/fixtures/opencode/**, tests/**
 
 ### INV-0010
@@ -847,8 +847,8 @@ Paths: plugin/skills/afk/**, plugin/skills/submit-pr/**, plugin/skills/ship/**
 
 Class: architecture
 Concepts: Spawn failure, Guardrail
-Statement: A spawn failure never blocks a call the OpenCode hook bridge gates and never ends its host process, in any of the three shapes Node reports it in. An installation failure lets the call through with a once-per-hook notice naming the code. A transient failure is retried once first, and a retry that fails too lets the call through the same way. A spawn its own bound killed is not a spawn failure: it still blocks, and it is never retried (INV-0009).
+Statement: A spawn failure never blocks a call the OpenCode hook bridge gates and never ends its host process, in any of the three shapes Node reports it in. An installation failure lets the call through with a once-per-hook notice naming the code. A transient failure is retried once first, and a retry that fails too lets the call through the same way. A spawn whose own bound expired is not a spawn failure, even when its kill fails: it still blocks, and it is never retried (INV-0009).
 Breaks: silently
-Check: tests/adapter.test.js — the ADR 0100 block reproduces each of Node's three shapes against a rendered bridge, and asserts retry counts, notices, and the killed-spawn block
+Check: tests/adapter.test.js — the ADR 0100 block reproduces each of Node's three shapes against a rendered bridge, and asserts retry counts, notices, the killed-spawn block, and the block on a timed-out spawn whose kill fails
 Symbols: spawnHookOnce, runBridgeHook, TRANSIENT_SPAWN_CODES
 Paths: plugin/scripts/adapter.js, tests/adapter.test.js

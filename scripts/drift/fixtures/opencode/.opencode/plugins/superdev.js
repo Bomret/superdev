@@ -70,10 +70,14 @@ function hookBlockReason(hook, result) {
   // (INV-0009, ADR 0087). `close` reports a killed child as a null status beside a signal, and on
   // OpenCode this bridge is the only gate there is: a green-gate killed at the ceiling would
   // otherwise pass the merge it was gating. The reason names the kill, never a refusal the hook
-  // never made. Codex never reaches this function — its hooks are wired directly through
+  // never made. A child whose bound expired and whose kill then failed carries no verdict either,
+  // and its reason names the failed kill instead. Codex never reaches this function — its hooks are wired directly through
   // `.codex/hooks.json`, never through this bridge.
   if (result.signal) {
     return `superdev hook ${hook} was killed (${result.signal}) before it produced a verdict — blocking the call it was gating`;
+  }
+  if (result.timedOut) {
+    return `superdev hook ${hook} timed out and could not be killed (${result.killError}) before it produced a verdict — blocking the call it was gating`;
   }
   if (result.status === 2) {
     return (result.stderr && result.stderr.trim()) || `superdev hook ${hook} refused the call`;
@@ -134,11 +138,17 @@ function spawnHookOnce(hook, payload) {
       spawnError(e);
       return;
     }
-    child.on('error', spawnError);
+    // Once the bound has expired, an 'error' is the kill failing, never a spawn failure: the child
+    // started and may never close, so it settles now as a timed-out spawn carrying the kill's code.
+    let timedOut = false;
+    child.on('error', (e) => (timedOut ? finish({ timedOut: true, killError: (e && e.code) || 'UNKNOWN' }) : spawnError(e)));
     if (!child.stdin || !child.stdout || !child.stderr) return;
     let stdout = '';
     let stderr = '';
-    timer = setTimeout(() => child.kill(), BRIDGE_HOOK_TIMEOUT_MS);
+    timer = setTimeout(() => {
+      timedOut = true;
+      child.kill();
+    }, BRIDGE_HOOK_TIMEOUT_MS);
     child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
     child.stdout.on('data', (chunk) => (stdout += chunk));

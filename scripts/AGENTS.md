@@ -361,7 +361,8 @@ is the shape the hook scripts parse. OpenCode's `task` tool takes no `model` arg
 bridge resolves model-explicit's `tool_input.model` from the rendered agent's own frontmatter
 (`.opencode/agents/<type>.md`), where the adapter already pinned it. Block semantics mirror
 Claude's: a child exiting 2, or a stdout JSON `hookSpecificOutput.permissionDecision: 'deny'`,
-throws so the deny reaches the model, and a child its own bound killed blocks too (INV-0009). A
+throws so the deny reaches the model. A child whose own bound expired blocks too, whether its kill
+succeeded or failed (INV-0009). A
 plain-text notice (an update-check newer-version line) never blocks. Neither does a **Spawn failure**,
 in any of the three shapes Node reports it in: an `'error'` event, a child whose stdio was never
 assigned (`EMFILE`, `ENFILE`), or a synchronous `spawn()` throw. A transient code (`EAGAIN`,
