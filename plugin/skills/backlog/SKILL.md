@@ -80,10 +80,12 @@ A run root matching no open anchor, whose stage reads short of `shipped`, is a *
 row in the `stranded` bucket (§3), the item §5 ranks most expensive — unless its directory name is the
 scope slug of a feature label this same survey already gave a `blocked` row for; that row already names
 the act, so the run root beneath it earns no second one. A run root matching no open anchor whose stage
-reads `shipped` gets **no row at all** — `/superdev:ship` closes the anchor and sets that stage in the
-same step, so this is the ordinary end state a finished run sits in until `hooks/scope-prune.js` reaps it,
-not a mismatch to report. The reciprocal case — an open anchor whose own run root reads `shipped` — is a
-row too; §3 buckets it.
+reads `shipped` gets **no row at all** — the anchor already closed, so this is the ordinary end state a
+finished run sits in until `hooks/scope-prune.js` reaps it, not a mismatch to report. `/superdev:ship`
+sets that stage right after the merge, before any deploy runs, and closes the anchor only once every
+target has deployed (or right away, under a posture that deploys nothing) — the two are not one step, so
+a `shipped` run root can carry an open anchor in between. The reciprocal case — an open anchor whose own
+run root reads `shipped` — is a row too; §3 buckets it.
 
 **No open anchor, no triage record, no stranded run root, and no untriaged item** → say the backlog is
 empty, in one line, and stop — unless the active store document carries no `## Untriaged item` section at
@@ -105,7 +107,8 @@ issue query, say. A record already returned by the anchor or triage listing is n
 
 | Bucket | What is in it | What it needs |
 |---|---|---|
-| `blocked` | the anchor carries the store's blocked signal, an open one among the slices its `## Scope anchor` listing returns beneath it does, its feature label fails the scope-slug rule, its feature label's candidates are `Ambiguous` per the active `docs/agents/issue-tracker.md`'s own `## Scope anchor` section, or its matched run root's stage reads `shipped` while the anchor is still open — close the anchor | a human, now |
+| `deploy resume` | its matched run root reads `shipped`, carries a `**PR:**` header, and its deploy record (`scope.js deploy get`) names a target not yet `deployed` while its scope checkout (`<run-root>/scopetree`) is still present — the same definition `/superdev:ship`'s own empty-argument candidate set uses (`skills/ship/SKILL.md` §1), an `auto` deploy a prior ship stopped mid-way | `/superdev:ship <scope-slug>` |
+| `blocked` | the anchor carries the store's blocked signal, an open one among the slices its `## Scope anchor` listing returns beneath it does, its feature label fails the scope-slug rule, its feature label's candidates are `Ambiguous` per the active `docs/agents/issue-tracker.md`'s own `## Scope anchor` section, or its matched run root's stage reads `shipped` while the anchor is still open and it is not already bucketed `deploy resume` above — close the anchor | a human, now |
 | `stranded` | a run root whose stage is short of `shipped` and matches no open anchor | a human, now — resume the run if its anchor still exists, otherwise delete the branch, scopetree, and run root |
 | `awaiting merge` | its matched run root's stage reads `submitted` and its pull request is open on the host, or none is recorded to check | the operator's merge on the host, then `/superdev:ship <scope-slug>` |
 | `merge unrecorded` | its matched run root's stage reads `submitted` and its pull request shows merged on the host by hand | `/superdev:ship <scope-slug>` — record the merge |

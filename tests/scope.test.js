@@ -932,6 +932,56 @@ try {
     'and changes nothing'
   );
 
+  // deploy set/get: `**Deploy:**` records each deploy target's state for the run, so
+  // `/superdev:ship` can tell a finished deploy from a failed one and resume where it stopped
+  // (INV-0099).
+  assert.strictEqual(call(['deploy', 'get', ...R]).out, 'absent', 'deploy get on a ledger with no record');
+  assert.ok(call(['deploy', 'set', 'pve', 'deployed', ...R]).ok, 'deploy set pve deployed');
+  assert.ok(call(['deploy', 'set', 'proxy', 'failed', '--exit', '2', ...R]).ok, 'deploy set proxy failed --exit 2');
+  assert.strictEqual(
+    call(['deploy', 'get', ...R]).out,
+    'pve deployed\nproxy failed exit 2',
+    'deploy get prints both lines, in first-recorded order, with the exit on the failed one'
+  );
+
+  // deploy set: setting a target already recorded replaces its state in place, keeping its
+  // position, and drops its exit when the new state carries none.
+  assert.ok(call(['deploy', 'set', 'proxy', 'deployed', ...R]).ok, 'deploy set proxy deployed');
+  assert.strictEqual(
+    call(['deploy', 'get', ...R]).out,
+    'pve deployed\nproxy deployed',
+    'proxy replaced in place, exit dropped'
+  );
+  const deployText = fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
+  assert.strictEqual((deployText.match(/\*\*Deploy:\*\*/g) || []).length, 1, 'one Deploy line, not two');
+
+  // deploy set: refusals — an unknown state, --exit without failed, a missing target name, a comma
+  // in the target name, or an invalid exit code — write nothing.
+  const beforeDeployRefusal = fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
+  r = call(['deploy', 'set', 'pve', 'launched', ...R]);
+  assert.ok(!r.ok && /unknown deploy state/.test(r.err), 'unknown deploy state refused: ' + r.err);
+  r = call(['deploy', 'set', 'pve', 'deployed', '--exit', '1', ...R]);
+  assert.ok(!r.ok && /--exit belongs only with failed/.test(r.err), '--exit without failed refused: ' + r.err);
+  r = call(['deploy', 'set', '', 'pending', ...R]);
+  assert.ok(!r.ok && /deploy set needs a <target>/.test(r.err), 'missing target name refused: ' + r.err);
+  r = call(['deploy', 'set', 'a,b', 'pending', ...R]);
+  assert.ok(!r.ok && /must be one word/.test(r.err), 'comma in target name refused: ' + r.err);
+  r = call(['deploy', 'set', 'pve', 'failed', '--exit', 'abc', ...R]);
+  assert.ok(!r.ok && /--exit value must be a number/.test(r.err), 'non-numeric exit code refused: ' + r.err);
+  assert.strictEqual(
+    fs.readFileSync(path.join(root, 'ledger.md'), 'utf8'),
+    beforeDeployRefusal,
+    'nothing written on any deploy refusal'
+  );
+
+  // deploy get: a ledger with no deploy record prints "absent" and exits 0 — the same
+  // missing-optional-header shape every other header field takes.
+  assert.ok(call(['init', 'feat/no-deploy', 'planned'], sliceJson).ok);
+  const noDeployRoot = path.join(tmp, '.superdev', 'scopes', 'no-deploy');
+  const ND = ['--root', noDeployRoot];
+  const rDeploy = call(['deploy', 'get', ...ND]);
+  assert.ok(rDeploy.ok && rDeploy.out === 'absent', 'deploy get with no record prints absent and exits 0');
+
   // get: prints the value; absent header reported as absent.
   assert.strictEqual(call(['get', 'branch', ...R]).out, 'feat/demo', 'get branch');
   assert.ok(/#187/.test(call(['get', 'anchor', ...R]).out), 'get anchor');
@@ -998,6 +1048,7 @@ try {
   assert.strictEqual(call(['get', 'branch', ...P]).out, 'absent', 'absent Branch reported as absent');
   assert.strictEqual(readLedgerHeader(preCliText, 'Unresolved'), null, 'a missing Unresolved line reads as absent rather than raising');
   assert.ok(call(['unresolved', 'clear', ...P]).ok, 'clearing an absent Unresolved line on a pre-CLI ledger still succeeds');
+  assert.strictEqual(call(['deploy', 'get', ...P]).out, 'absent', 'a ledger predating the Deploy header reads it as absent');
   assert.ok(call(['stage', 'set', 'reviewed', ...P]).ok, 'pre-CLI ledger writable');
 
   // status: renders every scope; an unreadable ledger is reported while others render.
@@ -1027,6 +1078,10 @@ try {
     st.out.includes('  deferred: carry deferrals into the pull-request body (2026-08-23), second deferred finding (2026-08-23)'),
     "a shipped scope's deferred record survives the collapse: " + st.out
   );
+  assert.ok(
+    st.out.includes('  deploy: pve deployed, proxy deployed'),
+    "a shipped scope's deploy record survives the collapse: " + st.out
+  );
   assert.ok(st.out.includes('precli  (1 slices, stage: reviewed)'), 'status shows pre-CLI scope');
   assert.ok(st.out.includes('broken: ledger unreadable'), 'unreadable ledger reported');
 
@@ -1049,7 +1104,8 @@ try {
   fs.writeFileSync(
     path.join(flightRoot, 'ledger.md'),
     '# Ledger — inflight\n\n**Stage:** merged\n**Degraded:**\n- doc pass denied (2026-08-11)\n' +
-      '**Unresolved:**\n- fix declined by the operator (2026-08-12)\n\n' +
+      '**Unresolved:**\n- fix declined by the operator (2026-08-12)\n' +
+      '**Deploy:** pve deployed, proxy failed exit 2\n\n' +
       '| id | issue | title | type | depends-on | status | range |\n' +
       '|---|---|---|---|---|---|---|\n' +
       '| 01 | #20 | one | behavior | — | merged | a..b |\n' +
@@ -1062,6 +1118,7 @@ try {
   assert.ok(stFlight.out.includes('  blocked: 02 two'), 'and its blocked slices');
   assert.ok(stFlight.out.includes('  degraded: doc pass denied (2026-08-11)'), 'and its degrade record');
   assert.ok(stFlight.out.includes('  unresolved: fix declined by the operator (2026-08-12)'), 'and its unresolved record');
+  assert.ok(stFlight.out.includes('  deploy: pve deployed, proxy failed exit 2'), 'and its deploy record');
 
   // A `planned` run — a plan cut the branch and scopetree but no slice has run — prints with its
   // stage named, not as an unknown or in-flight run (ADR 0079).
@@ -1486,6 +1543,8 @@ try {
   assert.ok(call(['deferred', 'add', 'a deferred finding', ...F]).ok);
   assert.ok(call(['docs', 'set', 'inline', ...F]).ok);
   assert.ok(call(['pr', 'set', '789', ...F]).ok);
+  assert.ok(call(['deploy', 'set', 'pve', 'deployed', ...F]).ok);
+  assert.ok(call(['deploy', 'set', 'proxy', 'failed', '--exit', '2', ...F]).ok);
   const fullOriginal = fs.readFileSync(path.join(fullRoot, 'ledger.md'), 'utf8');
   const fullPublished = publishText(fullRoot);
   const adoptFullRoot = path.join(tmp, 'adopted-elsewhere', 'publish-full');
@@ -1500,6 +1559,11 @@ try {
     call(['get', 'pr', '--root', adoptFullRoot]).out,
     '#789',
     'the adopted ledger still reads the PR number'
+  );
+  assert.strictEqual(
+    call(['deploy', 'get', '--root', adoptFullRoot]).out,
+    'pve deployed\nproxy failed exit 2',
+    'the adopted ledger still reads the deploy record'
   );
 
   // The same round trip at stage `submitted` (issue #682) — the snapshot preserves the stage rather

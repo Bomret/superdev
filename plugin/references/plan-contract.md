@@ -233,11 +233,13 @@ Append mode holds these invariants, and every backend renders all of them:
   anchor. Append copies that `acceptance` into the new epic as the global DoD, amends it with the new
   criteria, and leaves the lone slice byte-identical. Skipping this step would leave two slices under one
   feature label with no epic — the shape a store's `## Scope anchor` section calls **Ambiguous**, which
-  cannot resolve into a root. **One exception to byte-identical:** when the lone slice carries an anchor
+  cannot resolve into a root. **Two exceptions to byte-identical:** when the lone slice carries an anchor
   dependency (*Scope anchor* below), that line **migrates to the new epic** — the epic is the anchor now,
   and the dependency is a property of the anchor, not of the slice — and is removed from the lone slice.
-  Nothing else about the slice changes. Leaving it behind would strand it on a record `/superdev:afk` no
-  longer reads as this feature's anchor.
+  The **deploy line** (*Scope anchor* below) migrates the same way, for the same reason — it too is
+  anchor-only, and is removed from the lone slice. Nothing else about the slice changes. Leaving either
+  behind would strand it on a record `/superdev:afk` or `/superdev:ship` no longer reads as this
+  feature's anchor.
 - **Append refuses, and writes nothing, while a run is active.**
 - **A shipped feature takes no append.** Amending a shipped feature's Definition of Done in place pools
   criteria verified against a merged pull request with criteria nobody has verified (ADR 0083,
@@ -287,6 +289,17 @@ scope's ledger stage reads `shipped`, or when no such anchor exists; closing an 
 ship time, so closure alone would strand a dependent on a feature that has landed. `/superdev:plan` records
 one when its interview named a prerequisite feature, and `/superdev:afk` is the only reader: it defers an
 anchor whose dependency is unsatisfied.
+
+An anchor may also carry a **deploy line**: `**Deploy:** <target>[, <target>]` — a comma-separated,
+ordered list of `docs/agents/deployment.md`'s `## Targets` names, in deploy order — or `**Deploy:**
+none`. It is optional and **anchor-only**, never on a slice beneath a multi-slice feature, and an
+absent line reads as deploying nothing. Under `manual` or `auto` posture, `/superdev:plan` asks what the
+feature deploys to once the interview has settled the solution shape, offering only the recorded targets
+plus `none`, and writes the answer as this line; under `none` posture, or with no deploy target recorded
+yet, it asks nothing and writes no line. `/superdev:ship` reads the line from the anchor after the merge
+(ADR 0101). Each store's own `## Scope anchor` section states the mechanism it writes and reads the line
+with — the same one it already uses for `**Blocked by feature:**` — and never confuses it with that
+anchor dependency or with a slice's `depends-on`.
 
 ## Release
 

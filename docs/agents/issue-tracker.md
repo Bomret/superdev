@@ -32,6 +32,11 @@ Slices live as Codeberg issues in `Zuhause/superdev`, one slice per issue. Use t
   `**Depends on:** #<n>` line above: it names another feature's scope anchor (`plan-contract.md` → *Scope
   anchor*, ADR 0040), never a slice within this feature, and the two lines must never be confused on one
   issue.
+- **Deploy** (optional) maps to a `**Deploy:** <target>[, <target>]` or `**Deploy:** none` line in the
+  **anchor's own** body — the epic on a multi-slice feature, the lone slice issue on a single-slice one.
+  The same body-append mechanism as the anchor dependency above, and never confused with it or with
+  `**Depends on:** #<n>`: it names `docs/agents/deployment.md`'s targets, not another feature
+  (`plan-contract.md` → *Scope anchor*, ADR 0101).
 - The global DoD maps to an **epic** issue (label `epic`) whose body holds the DoD checklist. Slices carry
   the feature label and reference the epic (`#<epic>`).
 - **Parked questions** (optional) maps to a `## Parked questions` section in the epic issue body, the same
@@ -64,6 +69,10 @@ Slices live as Codeberg issues in `Zuhause/superdev`, one slice per issue. Use t
   **anchor issue's own** body — the epic on a multi-slice feature, the lone slice issue on a single-slice
   one. Always a body-append, never the native dependencies endpoint above, so the slice-level and
   feature-level relations never collide on one issue (ADR 0040).
+- **Record the deploy line:** append `**Deploy:** <target>[, <target>]` (in the operator's answer order)
+  or `**Deploy:** none` to the **anchor issue's own** body, revising the line in place on an append that
+  re-answers the deploy question. A body-append, like the anchor dependency above, never the native
+  dependencies endpoint (ADR 0101).
 - **List feature slices:** `GET /api/v1/repos/Zuhause/superdev/issues?labels=<type>/<feature>&state=all`.
 - **Read a slice:** `GET /api/v1/repos/Zuhause/superdev/issues/<index>`.
 - **Set labels and status:** `POST .../issues/<index>/labels` (add) and
@@ -109,6 +118,11 @@ label, and on a single-slice feature it is the lone issue carrying that label (A
   and its `state` is open or closed — because a consumer holds the dependency against the blocker's own
   label and state, not the label of the record carrying this line. `/superdev:plan` writes one through the
   same **Record an anchor dependency** body-append above.
+- **Read an anchor's deploy line.** The `**Deploy:** <target>[, <target>]` / `**Deploy:** none` body line
+  the field mapping defines, read off the **anchor's own** body — never the `**Blocked by feature:** #<n>`
+  or `**Depends on:** #<n>` lines above, which name a different relation each. No such line means the
+  feature deploys nothing. `/superdev:plan` writes one through the **Record the deploy line** body-append
+  above; `/superdev:ship` reads it after the merge (ADR 0101).
 - **Ambiguous.** No `epic`-labelled open issue and two or more open issues carrying the same feature
   label. A closed candidate never makes the shape ambiguous by itself — a label reused after retirement
   stays a single, resolvable anchor at every point (`plan-contract.md` → *Scope anchor*, ADR 0083). This
@@ -281,17 +295,18 @@ ADR 0004).
 - **Create only new records. Never edit, close, or delete a merged slice.** Append fires new
   `POST /api/v1/repos/Zuhause/superdev/issues` calls for the new slices alone. It never `PATCH`es or
   closes an issue a prior run already merged, and never rewrites its labels or body — except the
-  anchor-dependency line, which migrates to the new epic issue when append promotes a single-slice
-  feature (below). A merged issue's index is a satisfied `depends-on` root for a newly created one,
-  nothing more.
+  anchor-dependency line and the deploy line, each of which migrates to the new epic issue when append
+  promotes a single-slice feature (below). A merged issue's index is a satisfied `depends-on` root for a
+  newly created one, nothing more.
 - **Create the epic first when none exists.** A feature whose lone issue carries the feature label with no
   `epic`-labeled sibling has no epic yet (the single-slice shape, `## Scope anchor` above). Append
   creates the epic issue first, with `body` holding the lone slice's `acceptance` checklist as the global
   DoD, then references it (`#<epic>`) from every new slice issue. The lone existing issue itself is never
-  edited: no epic body copies onto it, no label changes, and no `#<epic>` reference added to it. **One
-  exception:** when the lone issue carries an anchor dependency (a `**Blocked by feature:** #<n>` line), it
+  edited: no epic body copies onto it, no label changes, and no `#<epic>` reference added to it. **Two
+  exceptions:** when the lone issue carries an anchor dependency (a `**Blocked by feature:** #<n>` line), it
   **migrates to the new epic issue's own body** and is removed from the lone issue — the epic is the anchor
-  now. Nothing else about the lone issue changes.
+  now. The `**Deploy:**` line migrates the same way, for the same reason, and is removed from the lone
+  issue. Nothing else about the lone issue changes.
 - **Amend the epic's own body, the one sanctioned edit.** `PATCH
   /api/v1/repos/Zuhause/superdev/issues/<epic index>` with `{ "body": "<amended body>" }` folds the
   interview's new criteria into the epic's Definition of Done in place. The same call deletes a

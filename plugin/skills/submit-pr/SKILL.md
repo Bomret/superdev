@@ -124,8 +124,9 @@ anchor on a remote store stays open. `/superdev:ship` closes it, on the merge, a
 scaffolding down.
 
 **Print `/superdev:ship <scope>` as the next command.** One line on what it does: it merges the pull
-request once an operator has reviewed it, closes the scope anchor, and cleans up the run — printing
-`/superdev:publish-kb <scope>` itself once the merge lands, when pages are staged.
+request once an operator has reviewed it, applies the repository's deploy posture to the merge, closes
+the scope anchor, and cleans up the run — printing `/superdev:publish-kb <scope>` itself once the merge
+lands, when pages are staged.
 
 This is the chain's own end. `/superdev:submit-pr` hands off to `/superdev:ship`, and only a human runs
 that.

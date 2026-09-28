@@ -1111,6 +1111,52 @@ function scanNoForceMerge(root) {
   return gaps;
 }
 
+// ADR 0101, INV-0098: only `/superdev:ship` ever runs a deploy target's command. `references/
+// deployment.md` states the rule itself (pinned by the `deployment-posture` table), so it is exempt here
+// the way a caution naming the forbidden thing always is; `skills/ship/SKILL.md` is the one surface
+// entitled to claim the run. Every other skill and agent is scanned for the same shape a claim to run one
+// would take — "run(s) … target's … command" — masked against fenced examples first, so an illustrative
+// command block never trips it.
+const DEPLOY_RUNNER_EXEMPT_FILES = new Set([
+  path.join('skills', 'ship', 'SKILL.md'),
+  path.join('references', 'deployment.md'),
+]);
+const DEPLOY_RUNNER_PATTERN = /\brun(?:s|ning)?\b[\s\S]{0,40}?\btarget'?s?\b[\s\S]{0,25}?\bcommand\b/gi;
+// A mention attributed to ship within this many characters ahead of the match — "`/superdev:ship` runs
+// each target's command" — describes ship's own job rather than claiming this document's own, so it is
+// not the shape this check exists to catch.
+const DEPLOY_RUNNER_ATTRIBUTION_WINDOW = 60;
+
+function scanDeployRunnerExclusivity(root) {
+  const gaps = [];
+  for (const dir of ['skills', 'agents', 'references']) {
+    const dirPath = docPath(root, dir);
+    let files;
+    try {
+      files = walkFiles(dirPath).filter((f) => f.endsWith('.md'));
+    } catch {
+      continue; // no such dir (fixture / partial checkout) → nothing to scan
+    }
+    for (const rel of files) {
+      const source = path.join(dir, rel).split(path.sep).join('/');
+      if (DEPLOY_RUNNER_EXEMPT_FILES.has(path.join(dir, rel))) continue;
+      const text = fs.readFileSync(path.join(dirPath, rel), 'utf8');
+      const masked = maskFences(text);
+      for (const hit of masked.matchAll(DEPLOY_RUNNER_PATTERN)) {
+        const before = masked.slice(Math.max(0, hit.index - DEPLOY_RUNNER_ATTRIBUTION_WINDOW), hit.index);
+        if (/\bship\b/i.test(before)) continue;
+        gaps.push({
+          source,
+          expectation:
+            "name no deploy target's command as something it runs — only `skills/ship/SKILL.md` does, " +
+            'and only under posture `auto` (INV-0098)',
+        });
+      }
+    }
+  }
+  return gaps;
+}
+
 // scanNarrativeCoverage(): every registered check is written up in `scripts/AGENTS.md` by its backticked
 // `id`.
 //
@@ -1593,6 +1639,7 @@ module.exports = {
   scanHookLedgerParsers,
   scanForcingBranchFlag,
   scanNoForceMerge,
+  scanDeployRunnerExclusivity,
   scanReturnToController,
   scanNarrativeCoverage,
   scanMarketplaceSource,

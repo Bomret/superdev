@@ -834,3 +834,20 @@ Breaks: silently
 Check: scripts/drift-check.js — afk's chain ends at `submit-pr`; ship names no `--unattended` branch and carries `disable-model-invocation: true`
 Paths: plugin/skills/afk/**, plugin/skills/submit-pr/**, plugin/skills/ship/**
 
+### INV-0098
+
+Class: process
+Concepts: Deploy posture, Deploy target, Scope anchor
+Statement: Only `/superdev:ship` runs a deploy target's command. It runs one only under the repository's `auto` deploy posture, only after the pull request has merged, and only in a tree checked out at the merge commit. No other command and no unattended run deploys (ADR 0101).
+Breaks: silently
+Check: scripts/drift-check.js — ship's deploy runs only under `auto`, after the merge, at the merge commit; no other skill or agent names a deploy target's command as something it runs
+Paths: plugin/skills/ship/**, plugin/references/deployment.md
+
+### INV-0099
+
+Class: process
+Concepts: Deploy posture, Deploy target, Scope anchor
+Statement: `/superdev:ship` never closes a scope anchor while a deploy target listed on it has not deployed under the `auto` posture. A failed target keeps the anchor open, and a later ship resumes at the first target not yet deployed (ADR 0101).
+Breaks: silently
+Check: scripts/drift-check.js — ship's close follows every `auto` target deployed; a failed target skips the close and the cleanup; `tests/scope.test.js` for the ledger's deploy record
+Paths: plugin/skills/ship/**, plugin/scripts/scope.js

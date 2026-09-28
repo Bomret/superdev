@@ -65,8 +65,9 @@ names the remedy instead — plan the follow-up as a **new feature** carrying `*
 **A picked feature with no epic (a single-slice feature) is promoted to one.** §6 creates the epic,
 copies the lone slice's `acceptance` into it as the global DoD, then amends that DoD in place with the
 criteria the interview settled — a write, so it happens where the other writes do, and an abandoned
-interview strands no epic. Throughout, leave the lone slice byte-identical, except for one moving part: an
-anchor-dependency line, if the slice carries one, migrates to the new epic
+interview strands no epic. Throughout, leave the lone slice byte-identical, except for two moving parts:
+an anchor-dependency line, if the slice carries one, migrates to the new epic, and a deploy line, if the
+slice carries one, migrates the same way
 (`references/plan-contract.md` → *Append mode*, `docs/agents/issue-tracker.md` → *Append mode*).
 
 **Surface the epic's parked questions once it loads, before the interview diverges into new ground.**
@@ -174,6 +175,15 @@ does to the codebase, not what it feels like: a defect repaired is `fix`, a beha
 restructuring is `refactor`, a prose-only pass is `docs`, `feat` is new behaviour. It becomes the scope
 branch, so a mislabelled plan ships a branch and a pull request that misreport the work. A later answer
 that changes what the feature does revises the label in place.
+
+**Ask what the feature deploys to, once the label is picked.** Read `docs/agents/deployment.md`'s
+`Posture:` line, in its `## Posture` section — a missing document, or one carrying no such line, reads as
+`none`. Under `manual` or `auto`, ask which of the `## Targets`
+table's recorded targets this feature deploys to, offering only those targets plus `none`; the
+operator's answer order becomes the deploy order. Under `none`, or with the `## Targets` table empty,
+ask nothing — there is no recorded target yet to offer. §6 writes the answer as `**Deploy:** <target>[,
+<target>]` or `**Deploy:** none` on the scope anchor (`${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md`
+→ *Scope anchor*, ADR 0101).
 
 **A `fix`-type feature starts from its reproduction.** Read
 `${CLAUDE_PLUGIN_ROOT}/references/diagnosis.md` and hold the plan to it: the **red-capable command** —
@@ -437,6 +447,14 @@ new for it: a feature that cannot be built yet surfaces as a constraint during �
 at all, and an interview that named no prerequisite writes no dependency. The honesty rule is the one
 slice-level `depends-on` already carries — record one only where the second feature genuinely cannot be
 built first, because a needless one serializes an unattended sweep for nothing.
+
+**Write the deploy line when §1 asked the deploy question.** `**Deploy:** <target>[, <target>]`, in the
+operator's answer order, or `**Deploy:** none`, on **this feature's scope anchor** — the epic on a
+multi-slice feature, the lone slice on a single-slice one — through the mechanism
+`docs/agents/issue-tracker.md`'s `## Scope anchor` section states for it
+(`${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md` → *Scope anchor*, ADR 0101). §1 asked no deploy
+question (`none` posture, no `docs/agents/deployment.md`, or an empty `## Targets` table) → write no
+line. An append onto a `planned` feature revises the line already there rather than adding a second one.
 
 **Delete the seeded brainstorm intent.** If this plan started from a `.superdev/brainstorm/<slug>.md`
 file (§1), delete it now that its intent is durably in the slice store — a leftover scratch intent

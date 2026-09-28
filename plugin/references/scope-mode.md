@@ -94,7 +94,8 @@ script cannot put a question.
 `<run-root>/ledger.md` is one document: labeled header lines, then a slice table.
 `${CLAUDE_PLUGIN_ROOT}/scripts/scope.js` owns its schema and is its only read and write path (ADR 0022):
 `init` creates the document, `stage` / `slice` / `degraded add|add-denial|reset-denials` / `unresolved
-add|clear` / `docs set|clear` / `pr set|clear` / `suite set` move it, `get` / `status` read it back.
+add|clear` / `docs set|clear` / `pr set|clear` / `deploy set` / `suite set` move it, `get` / `status` /
+`deploy get` read it back.
 No command or playbook edits or parses the file directly — the `ledger-guard` hook denies any other
 write, naming `scope.js`.
 
@@ -130,6 +131,13 @@ write, naming `scope.js`.
   lookup stays only as a fallback for a ledger predating this header, and only among *open* pull requests.
   Publish the snapshot afterwards, per `## Publishing run state` below, on every `pr set` or `pr clear`
   call.
+- **`**Deploy:** <target> <state>[ exit <n>][, …]`** — one entry per deploy target (`docs/agents/
+  deployment.md`'s targets table), in the order each target was first recorded, so `/superdev:ship` can
+  tell a finished deploy from a failed one and resume where it stopped (INV-0099). State is `pending`,
+  `deployed`, or `failed`; `failed` may carry the command's exit code. Written with `deploy set <target>
+  pending|deployed|failed [--exit <n>]`, which replaces a target already recorded in place rather than
+  adding a second entry. Read with `deploy get`, which prints one line per target as `<target>
+  <state>[ exit <n>]`, or `absent` on a ledger with no record.
 - **`**Suite:** <result> @ <sha>`** — the **suite record** (CONTEXT.md): the last full-suite run's
   result — `green`, `red`, `denied` (a run the permission classifier denied), or `none` (no test command
   configured) — and the commit it ran on. Read with `get suite`, which prints `<result> <sha>` or nothing

@@ -43,6 +43,7 @@ Epic file `00-epic-<summary>.md`:
 
 status: todo
 blocked-by: [<type>/<feature-slug>]
+deploy: [<target>]
 
 <short description of the feature and its intent>
 
@@ -65,7 +66,11 @@ blocked-by: [<type>/<feature-slug>]
 
 `blocked-by:` is optional too, but unlike the optional sections below it is a header line, and
 `/superdev:afk` does read it (`## Scope anchor` below, ADR 0040) — omit it unless the interview named a
-prerequisite feature. `## Parked questions`, `## Non-goals`, `## Slice graph`, and `## Touch map` are all
+prerequisite feature. `deploy:` is a header line too, optional and anchor-only: `deploy: [<target>,
+<target>]`, in the operator's answer order, or `deploy: none`, written under `manual`/`auto` posture once
+`/superdev:plan`'s deploy question is answered, and read by `/superdev:ship` after the merge (`## Scope
+anchor` below, ADR 0101) — omit it under `none` posture or with no deploy target recorded yet. `##
+Parked questions`, `## Non-goals`, `## Slice graph`, and `## Touch map` are all
 optional, advisory-only sections that `/implement` never reads — omit `## Parked questions` when
 nothing's been parked, omit `## Non-goals` when nothing was deliberately dropped from scope, and write
 `## Slice graph`/`## Touch map` per `plan-contract.md`'s *Epic visuals* section, which owns their shape,
@@ -81,6 +86,7 @@ depends-on: []
 test-applicability: behavior
 status: todo
 blocked-by: [<type>/<feature-slug>]
+deploy: [<target>]
 
 ## spec
 <behavior/interface this slice delivers — the implementer's requirements>
@@ -93,7 +99,10 @@ blocked-by: [<type>/<feature-slug>]
 `blocked-by:` is optional, and belongs here only on a single-slice feature: write it when this lone slice
 is the feature's own anchor and the interview named a prerequisite feature, and omit it otherwise — a
 slice beneath a multi-slice epic never carries it, because the epic is the anchor there (`## Scope
-anchor` below, ADR 0040).
+anchor` below, ADR 0040). `deploy:` is optional and anchor-only the same way: write it on this lone slice
+only when the deploy question was asked and answered, and omit it otherwise — a slice beneath a
+multi-slice epic never carries it either, because the epic carries the deploy line there (`## Scope
+anchor` below, ADR 0101).
 
 ## Scope anchor
 
@@ -118,6 +127,11 @@ epic file, so the lone `NN-<test-applicability>-<summary>.md` is the anchor (ADR
   (`plan-contract.md` → *Scope anchor*, ADR 0040). An absent line means no dependency. The key is
   `blocked-by` rather than `depends-on` because a single-slice feature's anchor is its lone slice file,
   where `depends-on` already carries slice numbers within the feature.
+- **Read an anchor's deploy line.** A `deploy:` header line in the anchor file: `deploy: [<target>,
+  <target>]`, in the operator's answer order, or `deploy: none` (for example `deploy: [proxmox-homelab]`).
+  An absent line means the feature deploys nothing. Distinct from `blocked-by:` above, which names another
+  feature rather than a deploy target (`plan-contract.md` → *Scope anchor*, ADR 0101). `/superdev:plan`
+  writes it once the deploy question is asked and answered; `/superdev:ship` reads it after the merge.
 - **Ambiguous.** A directory with no `00-epic-*.md` and two or more `NN-*.md` files. `/superdev:plan`
   never writes that shape, and there is no global Definition of Done to build against, so a consumer
   reports it instead of choosing.
@@ -241,16 +255,17 @@ mode*, ADR 0004).
 
 - **Create only new files; never edit, renumber, or delete a merged slice file.** Append writes a new
   `NN-<test-applicability>-<summary>.md` file per new slice. It never opens an existing `NN-…md` file for
-  editing — except to remove a migrating `blocked-by:` line when append promotes it to an epic (below) —
-  never renumbers it, and never deletes it — a merged slice's file number is a satisfied `depends-on`
-  root a new file's own `depends-on` may name.
+  editing — except to remove a migrating `blocked-by:` or `deploy:` line when append promotes it to an
+  epic (below) — never renumbers it, and never deletes it — a merged slice's file number is a satisfied
+  `depends-on` root a new file's own `depends-on` may name.
 - **Create the epic first when none exists.** A feature directory holding a single `01-…md` file with no
   `00-epic-…md` has not been decomposed yet (the single-slice shape, `## Scope anchor` above). Append
   writes `00-epic-<summary>.md` first — copying the lone slice's `acceptance` into its Definition of Done
   section — then writes the new `NN-…md` files. The lone `01-…md` file itself is never edited: no DoD
-  copies onto it, and its own `acceptance` stays exactly as merged. **One exception:** when the lone slice
+  copies onto it, and its own `acceptance` stays exactly as merged. **Two exceptions:** when the lone slice
   carries a `blocked-by:` line, it **migrates to the new `00-epic-…md`'s own header** and is removed from
-  the lone slice — the epic file is the anchor now. Nothing else about the lone slice changes.
+  the lone slice — the epic file is the anchor now. The `deploy:` line migrates the same way, for the
+  same reason, and is removed from the lone slice. Nothing else about the lone slice changes.
 - **Continue file numbering from the highest number already present; never reuse one.** A new slice's
   `NN` picks up where the feature directory's highest existing `NN-…md` (epic file excluded) leaves off —
   `03` after a directory ending at `02`, not a number a merged file already carries.

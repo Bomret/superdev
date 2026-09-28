@@ -15,6 +15,7 @@ const {
 } = require('../scanners');
 const {
   FEATURE_ARG_CONTRACTS,
+  DEPLOYMENT_CONTRACTS,
   PATHS_DERIVATION_CONTRACTS,
   UNATTENDED_CONTRACTS,
   CHANGE_TYPE_CONTRACTS,
@@ -3229,6 +3230,59 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   );
   assert.equal(bsHedged.length, 1, 'flags a survey that hedges "writes nothing" instead of stating it flatly');
   assert.ok(/writes nothing/.test(bsHedged[0].expectation), 'names the read-only clause');
+
+  // --- DEPLOYMENT_CONTRACTS (ADR 0101, INV-0098): the seed states its posture, its targets table, the
+  // absent-document default, and the ship-only/auto-only rule; setup proposes `manual` by default and
+  // never `auto`, and lists `deployment.md` in `check` mode ---
+
+  const depSeedClean =
+    '## Posture\n\nOne of `none`, `manual`, or `auto`.\n\n' +
+    'Only `/superdev:ship` ever runs a target\'s command, and only under the `auto` posture (INV-0098).\n\n' +
+    'A repository carrying no `docs/agents/deployment.md` reads as posture `none`.\n\n' +
+    '`/superdev:ship` reads the posture from this document\'s own `Posture:` line. A document ' +
+    'carrying no such line reads as posture `none`.\n\n' +
+    '## Targets\n\n| Name | Command | Read-only reach |\n|---|---|---|\n';
+  const depSetupClean =
+    'Propose `manual` as the default. Never propose `auto` — write it only on the operator\'s own pick.\n\n' +
+    'Report one of three verdicts for `deployment.md`.\n\n' +
+    'Either way, write the chosen answer as a `` `Posture:` `` line under `## Posture`.\n';
+
+  assert.equal(
+    scanContract(
+      fixture({ 'references/deployment.md': depSeedClean, 'skills/setup/SKILL.md': depSetupClean }),
+      DEPLOYMENT_CONTRACTS,
+    ).length,
+    0,
+    'seed and setup both carrying their clauses yields no gap',
+  );
+
+  const depSeedNoDefault = scanContract(
+    fixture({
+      'references/deployment.md': depSeedClean.replace(
+        'A repository carrying no `docs/agents/deployment.md` reads as posture `none`.\n\n',
+        '',
+      ),
+      'skills/setup/SKILL.md': depSetupClean,
+    }),
+    DEPLOYMENT_CONTRACTS,
+  );
+  assert.equal(depSeedNoDefault.length, 1, 'flags a seed with no absent-document default');
+  assert.equal(depSeedNoDefault[0].source, path.join('references', 'deployment.md'));
+
+  const depSetupNoDefault = scanContract(
+    fixture({
+      'references/deployment.md': depSeedClean,
+      'skills/setup/SKILL.md': depSetupClean.replace(
+        'Propose `manual` as the default. Never propose `auto` — write it only on the operator\'s own pick.\n\n',
+        '',
+      ),
+    }),
+    DEPLOYMENT_CONTRACTS,
+  );
+  assert.equal(depSetupNoDefault.length, 1, "flags a setup that never states manual's default / auto's opt-in");
+  assert.equal(depSetupNoDefault[0].source, path.join('skills', 'setup', 'SKILL.md'));
+
+  assert.equal(scanContract(realRoot, DEPLOYMENT_CONTRACTS).length, 0, 'the shipped seed and setup carry every clause');
 
   // --- PATHS_DERIVATION_CONTRACTS (ADR 0074): the positive half. The denylist below catches a bad
   // `{paths}` form; this catches a setup that derives nothing at all and routes every non-mapping runner

@@ -569,6 +569,72 @@ function verbPr(root, sub, value) {
   writeLines(root, lines);
 }
 
+// deploy set/get: `**Deploy:**` records each deploy target's state for the run, so `/superdev:ship`
+// can tell a finished deploy from a failed one and resume where it stopped (INV-0099) — the ledger is
+// the record it reads rather than re-running or re-deriving a target's state from scratch. A target
+// name is one word, the same as `docs/agents/deployment.md`'s targets table names it. The value is a
+// comma-joined list of `<target> <state>[ exit <n>]` entries, in the order each target was first
+// recorded — the same first-recorded ordering `## The ledger` gives the slice table.
+const DEPLOY_STATES = ['pending', 'deployed', 'failed'];
+const DEPLOY_ENTRY_RE = new RegExp(`^(\\S+) (${DEPLOY_STATES.join('|')})(?: exit (\\d+))?$`);
+
+function parseDeployRecord(raw) {
+  if (!raw) return [];
+  return raw.split(', ').map((entry) => {
+    const m = entry.match(DEPLOY_ENTRY_RE);
+    if (!m) fail(`unreadable deploy record entry: "${entry}"`);
+    const rec = { target: m[1], state: m[2] };
+    if (m[3] !== undefined) rec.exit = m[3];
+    return rec;
+  });
+}
+
+function renderDeployRecord(records) {
+  return records.map((r) => `${r.target} ${r.state}${r.exit !== undefined ? ` exit ${r.exit}` : ''}`).join(', ');
+}
+
+function verbDeploySet(root, target, state, exitCode) {
+  if (!target) fail('deploy set needs a <target>');
+  if (!/^[^\s,]+$/.test(target)) fail(`target "${target}" must be one word`);
+  if (!DEPLOY_STATES.includes(state)) fail(`unknown deploy state "${state}" — use ${DEPLOY_STATES.join('|')}`);
+  if (exitCode !== undefined && state !== 'failed') fail('--exit belongs only with failed');
+  if (exitCode !== undefined && !/^\d+$/.test(exitCode)) fail(`--exit value must be a number — got "${exitCode}"`);
+  const lines = readLines(root);
+  const records = parseDeployRecord(getHeader(lines, 'Deploy'));
+  const idx = records.findIndex((r) => r.target === target);
+  const rec = { target, state };
+  if (state === 'failed' && exitCode !== undefined) rec.exit = exitCode;
+  if (idx >= 0) records[idx] = rec;
+  else records.push(rec);
+  const value = renderDeployRecord(records);
+  const at = lines.findIndex((l) => headerRe('Deploy').test(l));
+  if (at >= 0) {
+    lines[at] = `**Deploy:** ${value}`;
+    writeLines(root, lines);
+    return;
+  }
+  // Absent: sit with the other header lines, after the whole block — the same placement `verbPr`
+  // gives `**PR:**`.
+  const last = lastHeaderLineIndex(lines, ['Stage', 'Branch', 'Anchor', 'Docs', 'PR', 'Suite']);
+  if (last < 0) {
+    writeLines(root, setHeader(lines, 'Deploy', value));
+    return;
+  }
+  lines.splice(last + 1, 0, `**Deploy:** ${value}`);
+  writeLines(root, lines);
+}
+
+function verbDeployGet(root) {
+  const raw = getHeader(readLines(root), 'Deploy');
+  if (raw === null) {
+    console.log('absent');
+    return;
+  }
+  for (const r of parseDeployRecord(raw)) {
+    console.log(`${r.target} ${r.state}${r.exit !== undefined ? ` exit ${r.exit}` : ''}`);
+  }
+}
+
 // --- dod-line: the Definition-of-Done checklist-line edit (references/dod-ticks.md, INV-0014) -----
 //
 // The one line edit every store's own `## Definition of Done ticks` section names (`plan-contract.md`
@@ -1139,6 +1205,8 @@ function verbStatus(cwd) {
         if (shippedUnresolved.length) out.push(`  unresolved: ${shippedUnresolved.join(', ')}`);
         const shippedDeferred = readBullets(lines, 'Deferred');
         if (shippedDeferred.length) out.push(`  deferred: ${shippedDeferred.join(', ')}`);
+        const shippedDeploy = getHeader(lines, 'Deploy');
+        if (shippedDeploy) out.push(`  deploy: ${shippedDeploy}`);
         pushPendingAndStrays(scope);
         continue;
       }
@@ -1150,11 +1218,13 @@ function verbStatus(cwd) {
       }
       const degraded = readBullets(lines, 'Degraded');
       const unresolved = readBullets(lines, 'Unresolved');
+      const deploy = getHeader(lines, 'Deploy');
       out.push(`${scope}  (${rows.length} slices${stage ? `, stage: ${stage}` : ''})`);
       out.push(`  todo: ${counts.todo}  in-progress: ${counts['in-progress']}  in-review: ${counts['in-review']}  blocked: ${counts.blocked}  merged: ${counts.merged}`);
       if (blocked.length) out.push(`  blocked: ${blocked.join(', ')}`);
       if (degraded.length) out.push(`  degraded: ${degraded.join(', ')}`);
       if (unresolved.length) out.push(`  unresolved: ${unresolved.join(', ')}`);
+      if (deploy) out.push(`  deploy: ${deploy}`);
       pushPendingAndStrays(scope);
     } catch {
       out.push(`${scope}: ledger unreadable`);
@@ -1442,6 +1512,8 @@ function usage() {
     '  deferred add <text>   --root <run-root>',
     '  docs set <value>|clear   --root <run-root>',
     '  pr set <n>|clear   --root <run-root>          <n> is a pull-request number, "#" optional',
+    '  deploy set <target> pending|deployed|failed [--exit <n>]   --root <run-root>',
+    '  deploy get   --root <run-root>      one line per recorded target, first-recorded order, or "absent"',
     '  suite set <green|red|denied|none> <sha>   --root <run-root>',
     '  suite reusable --branch <b> [--plan-files]   --root <run-root>   exits 0 (reusable) or 1',
     '  get stage|branch|anchor|docs|pr|slices|unresolved|degraded|deferred|denials|suite --root <run-root>',
@@ -1517,6 +1589,24 @@ function run(argv, cwd, stdinJson) {
     case 'pr': {
       const root = takeRoot(args);
       verbPr(root, args[0], args[1]);
+      break;
+    }
+    case 'deploy': {
+      const root = takeRoot(args);
+      const sub = args[0];
+      if (sub === 'get') {
+        verbDeployGet(root);
+        break;
+      }
+      if (sub !== 'set') fail(`unknown deploy subcommand "${sub}" — use set|get`);
+      let exitCode;
+      const ei = args.indexOf('--exit');
+      if (ei >= 0) {
+        exitCode = args[ei + 1];
+        if (exitCode === undefined) fail('--exit needs a value');
+        args.splice(ei, 2);
+      }
+      verbDeploySet(root, args[1], args[2], exitCode);
       break;
     }
     case 'suite': {

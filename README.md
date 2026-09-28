@@ -31,7 +31,7 @@ plan runs test-first, inline in the scopetree.
 /superdev:review       → whole-scope review against the DoD, with a fix loop
 /superdev:document     → reconcile in-repo docs + knowledge base with the code
 /superdev:submit-pr    → push the scope branch, open the PR, and leave the run standing
-/superdev:ship         → merge the PR once reviewed, close the scope anchor, and clean up
+/superdev:ship         → merge the PR once reviewed, deploy per the repo's posture, close the anchor, and clean up
 /superdev:afk          → sweep the planned backlog through the whole chain unattended
 /superdev:publish-kb   → send a scope's staged knowledge-base pages to the configured backend
 /superdev:prose-check  → check one file, range, or pasted text against the controlled-prose standard
@@ -217,8 +217,9 @@ time-based loop, so hand review comments and CI on it to `/loop`:
 /loop 5m check my PR, address review comments, and fix failing CI
 ```
 
-Once the pull request is reviewed, `/superdev:ship` merges it, closes the scope anchor, and cleans up
-the run. Only a human runs it.
+Once the pull request is reviewed, `/superdev:ship` merges it, deploys the merge under the repository's
+deploy posture (`none`/`manual`/`auto`, `docs/agents/deployment.md`, ADR 0101), closes the scope anchor,
+and cleans up the run. Only a human runs it.
 
 To cap a long `/superdev:implement` run, wrap the call in `/goal`. Give it the Definition of Done as the
 stop condition and an explicit turn ceiling (for example, "stop after N tries").
@@ -451,8 +452,8 @@ A tiny feature end to end, with the local-file slice store and GitHub as the cod
   merged slices. It sets the stage to `documented` and prints `/superdev:submit-pr health-check`.
 - **`/superdev:submit-pr health-check`**. Pushes the scope branch and opens the pull request. You see the
   pull-request URL, and the run stands: the scopetree and the scope anchor are still there.
-- **`/superdev:ship health-check`**, once the pull request is reviewed. Merges it, removes the scopetree,
-  and closes the scope anchor.
+- **`/superdev:ship health-check`**, once the pull request is reviewed. Merges it, deploys nothing (this
+  repository's own deploy posture is `none`), removes the scopetree, and closes the scope anchor.
 - **After.** Review comments and flaky CI on the open pull request are a `/loop` job, not this chain's
   concern. See [After the PR](#after-the-pr).
 

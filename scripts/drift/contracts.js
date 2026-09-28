@@ -3503,6 +3503,167 @@ const SETUP_CHECK_CONTRACTS = [
   ],
 ];
 
+// ADR 0101 / INV-0098: a repository's deploy posture and its deploy targets live in one seed,
+// `references/deployment.md`, and setup never defaults an operator into `auto` by itself. Losing the
+// seed's own posture/targets rows leaves the document free to omit the shape `/superdev:plan` and
+// `/superdev:ship` both read; losing setup's own row reopens the risk ADR 0101 named directly — a
+// default that runs a deploy command against a live system nobody asked to automate.
+const DEPLOYMENT_CONTRACTS = [
+  [
+    path.join('references', 'deployment.md'),
+    /## Posture[\s\S]{0,300}`none`[\s\S]{0,300}`manual`[\s\S]{0,300}`auto`/,
+    'carry a `## Posture` section naming `none`, `manual`, and `auto`',
+  ],
+  [
+    path.join('references', 'deployment.md'),
+    /## Targets[\s\S]{0,300}Name[\s\S]{0,80}Command[\s\S]{0,80}Read-only reach/,
+    'carry a `## Targets` table with a name, a command, and a read-only reach column',
+  ],
+  [
+    path.join('references', 'deployment.md'),
+    /no\s+`docs\/agents\/deployment\.md`\s+reads\s+as\s+posture\s+`none`/,
+    'state that a repository carrying no `docs/agents/deployment.md` reads as posture `none`',
+  ],
+  [
+    path.join('references', 'deployment.md'),
+    /Only\s+`\/superdev:ship`\s+ever\s+runs\s+a\s+target's\s+command,\s+and\s+only\s+under\s+the\s+`auto`\s+posture/,
+    "state that only `/superdev:ship` runs a target's command, and only under the `auto` posture (INV-0098)",
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /Propose\s+`manual`\s+as\s+the\s+default\.\s+Never\s+propose\s+`auto`/,
+    'propose `manual` as the deployment decision\'s default and never propose `auto`, writing `auto` only on the operator\'s own pick',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /`deployment\.md`[\s\S]{0,400}Report one of three verdicts|Report one of three verdicts[\s\S]{0,400}`deployment\.md`/,
+    'report `docs/agents/deployment.md` alongside the other config documents in `check` mode',
+  ],
+  [
+    path.join('references', 'deployment.md'),
+    /reads the posture from this document's own `Posture:` line[\s\S]{0,150}carrying no such line reads as posture `none`/,
+    'state that `/superdev:ship` reads the posture from the document\'s own `Posture:` line, and that a ' +
+      'document carrying no such line reads as posture `none`',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /Read the posture from that document's own `Posture:` line, in its `## Posture`\s*\n?\s*section — a document carrying no such line reads as posture `none`/,
+    'state, at the deploy gate itself, that ship reads the posture from the `Posture:` line and that a ' +
+      'document carrying no such line reads as posture `none`',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /Read `docs\/agents\/deployment\.md`'s\s*\n?\s*`Posture:` line, in its `## Posture` section — a missing document, or one carrying no such line,\s*\n?\s*reads as `none`/,
+    "state, at its own deploy question, that it reads the posture from the `Posture:` line, and that a " +
+      'document carrying no such line reads as posture `none`, the same rule ship and the seed state',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /write the chosen\s*\n?\s*answer as a `` `Posture:` `` line under `## Posture`/,
+    'write the deployment decision as a `` `Posture:` `` line under `## Posture` — the one form ' +
+      '`/superdev:ship` reads',
+  ],
+  [
+    path.join('references', 'AGENTS.md'),
+    /`deployment\.md` \| the deploy posture and targets seed/,
+    "route `deployment.md` in its own table row rather than lump it into the backend-seed sentence, " +
+      'since it is one seed for every repository, not a per-backend choice',
+  ],
+];
+
+// ADR 0101: a feature's scope anchor carries what it deploys to, so `/superdev:ship` finds it after the
+// merge without a second interview. `plan-contract.md`'s `## Scope anchor` section is the one place the
+// `**Deploy:**` line's format is defined; `skills/plan/SKILL.md` is where the question is asked (§1) and
+// the line is written (§6); every store document states the write/read mechanism, by the same body-edit
+// (or header-line, on the local store) each already uses for `**Blocked by feature:**`, so a reader never
+// confuses the two relations. Each document is its own row — losing plan-contract's definition leaves the
+// line's shape undocumented even while plan still writes it; losing plan's own question or write leaves
+// the field defined but never produced; losing a store's own row leaves that backend's write/read path
+// unstated, silent on exactly the store a repository has configured.
+const PLAN_DEPLOY_CONTRACTS = [
+  [
+    path.join('references', 'plan-contract.md'),
+    /deploy line[\s\S]{0,200}optional and \*\*anchor-only\*\*[\s\S]{0,200}absent line reads as deploying nothing/,
+    'define the `**Deploy:**` line as optional, anchor-only, and reading as deploying nothing when absent',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /Ask what the feature deploys to[\s\S]{0,300}offering only those targets plus `none`[\s\S]{0,200}answer order becomes the deploy order/,
+    'ask what the feature deploys to under `manual`/`auto`, offering only the recorded targets plus ' +
+      '`none`, with the answer order as the deploy order',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /Under `none`, or with the `## Targets` table empty, ask nothing/,
+    'ask nothing under `none` posture or with no recorded deploy target',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /Write the deploy line when §1 asked the deploy question[\s\S]{0,700}revises the line already there/,
+    'write the `**Deploy:**` line on the scope anchor in §6, and revise it in place on an append',
+  ],
+  [
+    path.join('docs', 'agents', 'issue-tracker.md'),
+    /\*\*Deploy\*\* \(optional\) maps to a `\*\*Deploy:\*\*/,
+    'state how the `**Deploy:**` line is written and read on this store',
+  ],
+  [
+    path.join('references', 'issue-tracker-forgejo.md'),
+    /\*\*Deploy\*\* \(optional\) ↔ a `\*\*Deploy:\*\*/,
+    'state how the `**Deploy:**` line is written and read on this store',
+  ],
+  [
+    path.join('references', 'issue-tracker-github.md'),
+    /\*\*Deploy\*\* \(optional\) ↔ a `\*\*Deploy:\*\*/,
+    'state how the `**Deploy:**` line is written and read on this store',
+  ],
+  [
+    path.join('references', 'issue-tracker-jira.md'),
+    /\*\*Deploy\*\* \(optional\) ↔ a `\*\*Deploy:\*\*/,
+    'state how the `**Deploy:**` line is written and read on this store',
+  ],
+  [
+    path.join('references', 'issue-tracker-local.md'),
+    /`deploy:` is optional and anchor-only/,
+    'state how the `deploy:` header line is written and read on this store',
+  ],
+  [
+    path.join('references', 'plan-contract.md'),
+    /\*\*deploy line\*\*[\s\S]{0,100}migrates the same way[\s\S]{0,100}anchor-only, and is removed from the lone slice/,
+    'migrate the deploy line to the new epic on promotion, the same way as the anchor-dependency line',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /a deploy line, if the\n?slice carries one, migrates the same way/,
+    'migrate the deploy line to the new epic on promotion, alongside the anchor-dependency line',
+  ],
+  [
+    path.join('docs', 'agents', 'issue-tracker.md'),
+    /anchor-dependency line and the deploy line, each of which migrates to the new epic issue/,
+    'migrate the deploy line to the new epic issue on promotion, alongside the anchor-dependency line',
+  ],
+  [
+    path.join('references', 'issue-tracker-forgejo.md'),
+    /anchor-dependency line and the deploy line, each of which migrates to the new epic issue/,
+    'migrate the deploy line to the new epic issue on promotion, alongside the anchor-dependency line',
+  ],
+  [
+    path.join('references', 'issue-tracker-github.md'),
+    /anchor-dependency line and the deploy line, each of which migrates to the new/,
+    'migrate the deploy line to the new epic issue on promotion, alongside the anchor-dependency line',
+  ],
+  [
+    path.join('references', 'issue-tracker-jira.md'),
+    /anchor-dependency description line and the deploy description line, each of which migrates to the new/,
+    'migrate the deploy description line to the new Epic issue on promotion, alongside the anchor-dependency line',
+  ],
+  [
+    path.join('references', 'issue-tracker-local.md'),
+    /remove a migrating `blocked-by:` or `deploy:` line when append promotes it to an epic/,
+    'migrate the `deploy:` header line to the new epic file on promotion, alongside the `blocked-by:` line',
+  ],
+];
+
 // ADR 0077: the invariant register lives at one fixed path, and `domain-modeling.md` is what tells
 // `/plan` and a human where it is. A copy that stops naming `docs/invariants.md` sends both looking
 // for the register at the `.claude/rules/` home ADR 0077 retired.
@@ -4487,6 +4648,18 @@ const SHIP_TESTED_PUSH_CONTRACTS = [
     "check, before merging, that the freshest `head.sha` still equals the local scope-branch tip " +
       "`suite reusable` accepted, and refuse — naming both shas, merging nothing — when they differ",
   ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /[Rr]ejected for any other reason[\s\S]{0,200}?relay git's own error and merge nothing/,
+    "relay git's own error and merge nothing when the push is rejected for any reason other than " +
+      'non-fast-forward — authentication, a pre-receive hook, the network',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /re-read the pull request[\s\S]{0,80}?until its `head\.sha` equals the tip just\s*\n?\s*pushed[\s\S]{0,150}?at most 3 times with a short pause[\s\S]{0,200}?code-management-github\.md[\s\S]{0,100}?`null`[\s\S]{0,50}?mergeable/,
+    're-read the pull request until its `head.sha` equals the pushed tip, at most 3 times with a short ' +
+      'pause — the same bound `code-management-github.md` uses for a `null` `mergeable`',
+  ],
 ];
 
 // A rejected push, or a push racing in from elsewhere between §3's read and the pinned merge, both leave
@@ -4542,9 +4715,10 @@ const SHIP_LEGACY_SHIPPED_CONTRACTS = [
   ],
   [
     path.join('skills', 'ship', 'SKILL.md'),
-    /carries a `\*\*PR:\*\*` header[\s\S]{0,150}?already shipped, finished by this version/,
+    /carries a `\*\*PR:\*\*` header[\s\S]{0,400}?report "already shipped" and stop/,
     'report "already shipped" and stop, with nothing to merge and nothing to refuse, on a `shipped` ' +
-      'ledger that carries a `**PR:**` header',
+      'ledger that carries a `**PR:**` header and whose deploy record shows nothing left undeployed ' +
+      '(#720)',
   ],
   [
     path.join('skills', 'ship', 'SKILL.md'),
@@ -4562,6 +4736,130 @@ const SHIP_LEGACY_SHIPPED_CONTRACTS = [
     /`shipped` together with the ledger's own `\*\*PR:\*\*` header is\s*\n?\s*what stops/,
     'state that `shipped` together with the ledger\'s own `**PR:**` header, not `shipped` alone, is what ' +
       'stops `/superdev:ship` from merging a second time',
+  ],
+];
+
+// ADR 0101, INV-0098, INV-0099 (#720): `/superdev:ship` applies the repository's deploy posture to the
+// anchor's deploy targets after the merge, and closes the anchor only once they have deployed. The rows
+// below pin the pre-merge gate (§3), the deploy step itself (§5), and the resume path a stopped `auto`
+// deploy leaves — one row per fact, since any one can go stale on its own without the others catching it.
+const SHIP_DEPLOY_CONTRACTS = [
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /A listed[\s\S]{0,30}target the `## Targets` table lacks[\s\S]{0,50}refuse: name it, and merge nothing/,
+    'refuse before anything merges — naming the target — when the anchor lists a deploy target the ' +
+      'targets table lacks',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /pull request's diff[\s\S]{0,30}touches `docs\/agents\/deployment\.md`\*\*[\s\S]{0,150}print the changed posture and target lines[\s\S]{0,60}before[\s\S]{0,20}anything merges/,
+    'print the changed posture and target lines before anything merges, when the pull request\'s diff ' +
+      'touches `docs/agents/deployment.md`',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /`none`, a `\*\*Deploy:\*\* none` line, or no `\*\*Deploy:\*\*` line\*\*[\s\S]{0,20}deploy nothing\. Say so in one line/,
+    'deploy nothing, and say so in one line, under posture `none`, a `**Deploy:** none` line, or no ' +
+      '`**Deploy:**` line at all',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /`manual`\*\* → print each listed target's command not already recorded `deployed`, in listed order[\s\S]{0,120}deploy set <target> pending[\s\S]{0,60}Go[\s\S]{0,20}straight to the close below/,
+    "print each listed target's command, in listed order, record each `pending`, and close the anchor " +
+      'under posture `manual`',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /`auto`\*\* → fetch the base branch and detach the scopetree at the merge commit[\s\S]{0,250}invoking checkout is never\s*\n?\s*switched or pulled \(ADR 0045\)/,
+    'fetch base and detach the scopetree at the merge commit under posture `auto`, running each target ' +
+      'there, never in the invoking checkout',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /A non-zero exit\*\* → record[\s\S]{0,60}deploy set <target> failed[\s\S]{0,150}name every target not yet deployed, leave the anchor open, skip the\s*\n?\s*close and cleanup[\s\S]{0,80}print `\/superdev:ship <scope>` as the resume/,
+    "record a failed target with its exit status, name every target not yet deployed, leave the anchor " +
+      'open, skip the close and cleanup, and print `/superdev:ship <scope>` as the resume, on a ' +
+      'non-zero exit under `auto`',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /Every listed target now `deployed`\*\* → go on to the close below/,
+    'close the anchor under `auto` only once every listed target reads `deployed`',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /run root at `shipped` carrying a `\*\*PR:\*\*` header whose deploy record[\s\S]{0,150}auto` deploy this command's own §5 stopped mid-way/,
+    "add a `shipped` ledger with an unfinished `auto` deploy to the empty-argument candidate set",
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /A target reads `pending` or `failed`, and the scope checkout is still present\*\*[\s\S]{0,350}Skip straight to \*\*§5's "Find the merge\s*\n?\s*commit"\*\*/,
+    'resume a `shipped` ledger whose deploy record shows a target not yet `deployed`, with the scope ' +
+      'checkout still present, straight at §5\'s deploy step rather than merging again',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /Run every listed target's command not already recorded `deployed`, in\s*\n?\s*listed order/,
+    "resume `auto` at the first target not already recorded `deployed`, rather than restarting the list",
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /for ship's own merge, an adopted hand merge, or a resumed run alike — never reused from §3's\s*\n?\s*or §4's earlier, pre-merge read/,
+    "read the posture and the deploy line fresh at §5, for ship's own merge, an adopted hand merge, or a " +
+      "resumed run alike, never reused from an earlier pre-merge read",
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /§4 re-runs\s*\n?\s*this same gate at the merged tip whenever its own merge moves it/,
+    "point §3's gate at §4's own re-run, since a base merge can move the tip §3 already read",
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /Capture the tip before merging\*\*[\s\S]{0,60}rev-parse <branch>[\s\S]{0,60}as\s*\n?\s*`<pre-merge-tip>`/,
+    "capture the scope branch's tip before merging base, as `<pre-merge-tip>`, so the gate re-run below " +
+      'has something to diff against',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /\*\*Re-run the deploy gate, at the merged tip\.\*\*[\s\S]{0,700}A listed target the `## Targets` table now lacks\*\*[\s\S]{0,50}refuse: name it, and merge nothing/,
+    're-run the deploy gate at the merged tip once base has moved it, refusing on a now-untabled target ' +
+      'before the pinned merge',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /`docs\/agents\/deployment\.md` differs between `<pre-merge-tip>` and the\s*\n?\s*now-merged tip\*\*[\s\S]{0,250}print the changed posture and target lines, sourced from base's own document/,
+    "print the changed posture and target lines, sourced from base's own document, when the gate re-run " +
+      "finds `deployment.md` changed by base's merge",
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /in the foreground, relaying its output to the operator as it runs/,
+    "run each `auto` target's command in the foreground, relaying its output to the operator as it runs",
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /\*\*Deploy\*\* \(ADR 0101; INV-0098 — only ship ever runs a target's command, only under `auto`, only after the\s*\n?\s*merge, only in a tree detached at the merge commit\)/,
+    'state INV-0098 at the deploy step itself: only ship runs a target\'s command, only under `auto`, ' +
+      'only after the merge, only at the merge commit',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /`manual`\*\* → print each listed target's command not already recorded `deployed`, in listed order/,
+    'skip a target already recorded `deployed` under `manual`, the same guard `auto` already has, so a ' +
+      'resumed run under a changed posture never downgrades a deployed target back to `pending`',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /at the merge commit just found, never the working tree or the invoking\s*\n?\s*checkout[\s\S]{0,250}git -C <run-root>\/scopetree show <merge-commit-sha>:docs\/agents\/deployment\.md/,
+    'spell out the literal read for the fresh posture/deploy-line read at §5 — `git -C ' +
+      '<run-root>/scopetree show <merge-commit-sha>:docs/agents/deployment.md` — never the working tree ' +
+      'or the invoking checkout',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /\*\*Find the merge commit\.\*\*[\s\S]{0,400}Set the ledger's `\*\*Stage:\*\*` line to `shipped`/,
+    "read the merge commit — and refuse before writing anything if it no longer reads as merged — before " +
+      'the `stage set shipped` write, so a refusal there leaves the stage where it was',
   ],
 ];
 
@@ -4635,6 +4933,36 @@ const BACKLOG_SUBMITTED_CONTRACTS = [
   ],
 ];
 
+// Whole-scope review, ship-deploys fix cycle 1: ADR 0101 gave `/superdev:ship` a deploy step, but two
+// surfaces that tell an operator what ship does, or what to run next after it, still described the
+// pre-ADR-0101 shape. `skills/submit-pr/SKILL.md`'s own next-command line omitted the deploy entirely.
+// `skills/backlog/SKILL.md` claimed the stage write and the anchor close were one step, then routed the
+// one case that proves otherwise — an open anchor over a `shipped` run root stuck mid-`auto`-deploy — into
+// `blocked`'s "close the anchor" act, which is exactly what INV-0099 forbids a human from doing by hand.
+// Each row is its own document: losing the submit-pr row leaves an operator who never met ship before
+// unaware it deploys anything; losing either backlog row reopens the steer into breaking INV-0099.
+const DEPLOY_STEP_VISIBILITY_CONTRACTS = [
+  [
+    path.join('skills', 'submit-pr', 'SKILL.md'),
+    /it merges the pull\s*\n?\s*request once an operator has reviewed it, applies the repository's deploy posture to the merge, closes\s*\n?\s*the scope anchor/,
+    "state, on its own next-command line, that `/superdev:ship` applies the repository's deploy posture " +
+      'to the merge, not merely that it merges and closes',
+  ],
+  [
+    path.join('skills', 'backlog', 'SKILL.md'),
+    /sets that stage right after the merge, before any deploy runs, and closes the anchor only\s*\n?\s*once every\s*\n?\s*target has deployed/,
+    'state that the stage write and the anchor close are two separate steps, not one, so a `shipped` ' +
+      'run root can still carry an open anchor',
+  ],
+  [
+    path.join('skills', 'backlog', 'SKILL.md'),
+    /`deploy resume`[\s\S]{0,400}the same definition `\/superdev:ship`'s own empty-argument candidate set uses/,
+    'route a `shipped` run root stuck mid-`auto`-deploy to a `deploy resume` bucket whose act is ' +
+      '`/superdev:ship <scope-slug>`, using the same definition ship\'s own candidate set uses, rather ' +
+      'than into `blocked`\'s "close the anchor"',
+  ],
+];
+
 module.exports = {
   OBSERVATION_CAPTURE_CONTRACTS,
   CLEAN_VERDICT_ENDS_LOOP_CONTRACTS,
@@ -4646,6 +4974,8 @@ module.exports = {
   CONTAINMENT_PROBE_CONTRACTS,
   STANDING_CODE_LENS_CONTRACTS,
   SETUP_CHECK_RULES_CONTRACTS,
+  DEPLOYMENT_CONTRACTS,
+  PLAN_DEPLOY_CONTRACTS,
   REFERENCE_PATTERN,
   RUN_ROOT_DOCS,
   RUN_ROOT_ARTIFACT_PATTERN,
@@ -4812,9 +5142,11 @@ module.exports = {
   SHIP_TESTED_PUSH_CONTRACTS,
   SHIP_MERGE_PIN_CONTRACTS,
   SHIP_LEGACY_SHIPPED_CONTRACTS,
+  SHIP_DEPLOY_CONTRACTS,
   DOCUMENT_SUBMITTED_CONTRACTS,
   NO_FORCE_MERGE_DOCS,
   NO_FORCE_MERGE_PATTERNS,
   REVIEW_SUBMITTED_CONTRACTS,
   BACKLOG_SUBMITTED_CONTRACTS,
+  DEPLOY_STEP_VISIBILITY_CONTRACTS,
 };

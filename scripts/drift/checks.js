@@ -58,6 +58,7 @@ const {
   scanAfkLockTierClaim,
   scanRunLockLivenessSilence,
   scanUnmappedPathsForms,
+  scanDeployRunnerExclusivity,
 } = require('./scanners');
 const {
   ADR_STATUSES,
@@ -72,6 +73,8 @@ const {
   BACKLOG_SURVEY_CONTRACTS,
   SETUP_CHECK_CONTRACTS,
   SETUP_CHECK_RULES_CONTRACTS,
+  DEPLOYMENT_CONTRACTS,
+  PLAN_DEPLOY_CONTRACTS,
   DERIVED_CRITERIA_CONTRACTS,
   PER_CRITERION_VERDICT_CONTRACTS,
   REACHABLE_CRITERION_CONTRACTS,
@@ -145,9 +148,11 @@ const {
   SHIP_TESTED_PUSH_CONTRACTS,
   SHIP_MERGE_PIN_CONTRACTS,
   SHIP_LEGACY_SHIPPED_CONTRACTS,
+  SHIP_DEPLOY_CONTRACTS,
   DOCUMENT_SUBMITTED_CONTRACTS,
   REVIEW_SUBMITTED_CONTRACTS,
   BACKLOG_SUBMITTED_CONTRACTS,
+  DEPLOY_STEP_VISIBILITY_CONTRACTS,
 } = require('./contracts');
 
 // The printer the table-driven checks share. A gap is `{ source, expectation }` and reads the
@@ -361,6 +366,18 @@ module.exports = [
     run: scanUnmappedPathsForms,
     format: contractGap,
   },
+  table(
+    'deployment-posture',
+    DEPLOYMENT_CONTRACTS,
+    'the seed states its posture, its targets table, the absent-document default, and INV-0098\'s ' +
+      'ship-only/auto-only rule, and setup proposes `manual` by default, `auto` only on request, and lists `deployment.md` in `check` mode',
+  ),
+  table(
+    'plan-deploy-line',
+    PLAN_DEPLOY_CONTRACTS,
+    'plan-contract defines the `**Deploy:**` line, plan asks the deploy question and writes the line, ' +
+      'and every store document states its write/read mechanism',
+  ),
   {
     id: 'entries-standing-gate',
     ok: 'submit-pr asks once and refuses unattended on a standing unresolved defect',
@@ -639,6 +656,12 @@ module.exports = [
     'the backlog survey buckets a `submitted` run root as `awaiting merge` or `merge unrecorded`, told ' +
       "apart by the ledger's own `**PR:**` header, since afk's routing table skips `submitted` entirely (#687)",
   ),
+  table(
+    'deploy-step-visibility',
+    DEPLOY_STEP_VISIBILITY_CONTRACTS,
+    "submit-pr's next-command line states that ship deploys, and the backlog survey never steers an " +
+      'operator into closing an anchor stuck mid-`auto`-deploy by hand',
+  ),
   {
     id: 'run-state-contract',
     ok: 'every store document carries its own `## Run state` section',
@@ -889,6 +912,23 @@ module.exports = [
       'legacy run, and scope-mode.md names the header, not `shipped` alone, as what actually terminates ' +
       'the stage',
   ),
+  table(
+    'ship-deploy',
+    SHIP_DEPLOY_CONTRACTS,
+    "ship's pre-merge gate refuses an anchor listing an untabled target and shows a changed " +
+      "`deployment.md`'s posture and targets before merging; its post-merge deploy step deploys nothing " +
+      'under `none`, prints and records `pending` under `manual`, and under `auto` runs each target ' +
+      'detached at the merge commit, stopping and recording a failed one while leaving the anchor open, ' +
+      'closing only once every target has deployed; a `shipped` ledger with an unfinished `auto` deploy ' +
+      "joins ship's own candidate set and resumes at the first undeployed target; an adopted hand merge " +
+      'takes the same deploy step',
+  ),
+  {
+    id: 'deploy-runner-exclusivity',
+    ok: "no skill or agent but ship names a deploy target's command as something it runs (INV-0098)",
+    run: scanDeployRunnerExclusivity,
+    format: contractGap,
+  },
   table(
     'document-submitted-handoff',
     DOCUMENT_SUBMITTED_CONTRACTS,

@@ -37,6 +37,7 @@ const {
   scanAdrStatus,
   scanForcingBranchFlag,
   scanNoForceMerge,
+  scanDeployRunnerExclusivity,
   scanNarrativeCoverage,
   scanReturnToController,
   scanMarketplaceSource,
@@ -4379,4 +4380,53 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // absent file is skipped, matching every other scanner
   assert.equal(scanNoForceMerge(fixture({ 'README.md': '# repo\n' })).length, 0, 'absent document is skipped');
+
+  // ADR 0101, INV-0098: scanDeployRunnerExclusivity — positive, a non-ship document claiming to run a
+  // target's command
+  const deployRunnerRoot = fixture({
+    'skills/document/SKILL.md': 'This command runs each target\'s deploy command itself.\n',
+  });
+  const deployRunnerGaps = scanDeployRunnerExclusivity(deployRunnerRoot);
+  assert.equal(deployRunnerGaps.length, 1, 'flags a non-ship document claiming to run a target\'s command');
+  assert.equal(deployRunnerGaps[0].source, 'skills/document/SKILL.md', 'names the offending document');
+
+  // negative: a ship-attributed paraphrase elsewhere is not flagged
+  assert.equal(
+    scanDeployRunnerExclusivity(
+      fixture({
+        'skills/setup/SKILL.md': 'Only `/superdev:ship` runs each target\'s command, and only under `auto`.\n',
+      }),
+    ).length,
+    0,
+    'a mention attributed to ship is not a claim to run one itself',
+  );
+
+  // negative: a fenced example is not flagged
+  assert.equal(
+    scanDeployRunnerExclusivity(
+      fixture({
+        'skills/document/SKILL.md': '```\nThis command runs each target\'s deploy command itself.\n```\n',
+      }),
+    ).length,
+    0,
+    'a fenced example is not flagged',
+  );
+
+  // negative: an ordinary sentence about some other command is not flagged
+  assert.equal(
+    scanDeployRunnerExclusivity(
+      fixture({
+        'skills/document/SKILL.md': 'This command runs the test suite itself.\n',
+      }),
+    ).length,
+    0,
+    'a sentence about an unrelated command is not flagged',
+  );
+
+  // negative: ship and the deployment seed are exempt, and the real tree carries no violation
+  assert.equal(
+    scanDeployRunnerExclusivity(realRoot).length,
+    0,
+    'the shipped skills, agents, and references carry no runner-exclusivity violation',
+  );
 };

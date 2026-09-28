@@ -38,9 +38,12 @@ rules name.
 | `merge-conflicts.md` | conflict resolution by intent: the union on additive conflicts, composing compatible intents, abort-and-escalate on a winner-picking overlap | the full playbook's merge step |
 | `dod-ticks.md` | how a controller ticks a Definition-of-Done criterion from an implementer's report (ADR 0091, ADR 0092): the mapping gate a dispatch's own listed lines decide — implement's slice dispatch listing the criteria a slice's tag names — the note rule (INV-0014), and that only a controller ticks, one at a time, on `dod.md` and the anchor's `## Definition of Done ticks` section (INV-0015) | `agents/implementer.md`, both execution playbooks |
 | `review-checklist.md` | anti-patterns, design smells, vulnerability classes, a reuse-audit lens, a consistency lens, a `## Test cost` lens for dead and expensive tests | `final-reviewer` (all but `## Test cost`), `slice-reviewer` (anti-patterns and vulnerabilities), `test-auditor` (the test lenses plus `## Test cost`, which reaches it alone) |
+| `deployment.md` | the deploy posture and targets seed `/superdev:setup` turns into a repository's `docs/agents/deployment.md` (ADR 0101) | `/superdev:plan`, `/superdev:ship`, `/superdev:setup` |
 
-Every other file here is a backend seed: a slice store, a code host, or a knowledge base. Adding one is
-the **Backends are pluggable** rule in the root doc.
+Every other file here is a backend seed: a slice store, a code host, or a knowledge base — `deployment.md`
+above is a seed of its own kind, one shape for every repository rather than a per-backend choice.
+Adding a slice-store, code-host, or knowledge-base seed is the **Backends are pluggable** rule in the root
+doc.
 
 ## Work Guidance
 

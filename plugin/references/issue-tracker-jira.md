@@ -38,6 +38,10 @@ Auth header: `-u "$JIRA_EMAIL:$JIRA_API_TOKEN"`, `-H "Content-Type: application/
 - **Record an anchor dependency**: append a `**Blocked by feature:** <blocker-key>` line to the **anchor
   issue's own** description (an ADF body edit) — never the "is blocked by" link above, kept distinct so the
   two relations never collide on one issue.
+- **Record the deploy line**: append `**Deploy:** <target>[, <target>]` (in the operator's answer order)
+  or `**Deploy:** none` to the **anchor issue's own** description (an ADF body edit), revising the line
+  in place on an append that re-answers the deploy question. Never the "is blocked by" link, kept distinct
+  so the deploy line and the anchor dependency never collide (ADR 0101).
 - **List feature slices**:
   `GET <base>/rest/api/3/search/jql?jql=project=PROJ AND labels="<feature-label>"
   &fields=summary,description,status,labels,issuetype,parent` — `/rest/api/3/search` is deprecated
@@ -64,6 +68,11 @@ Auth header: `-u "$JIRA_EMAIL:$JIRA_API_TOKEN"`, `-H "Content-Type: application/
   "is blocked by" issue link above: that link type already carries slice-level `depends-on`, and reusing
   it for a feature-level relation would make the two indistinguishable on read (`plan-contract.md` →
   *Scope anchor*, ADR 0040).
+- **Deploy** (optional) ↔ a `**Deploy:** <target>[, <target>]` or `**Deploy:** none` line in the
+  **anchor's own** description — the Epic on a multi-slice feature, the lone slice issue on a
+  single-slice one. The same description-edit mechanism as the anchor dependency above, and never
+  confused with it or with the "is blocked by" link: it names `docs/agents/deployment.md`'s targets, not
+  another feature (`plan-contract.md` → *Scope anchor*, ADR 0101).
 - global DoD ↔ a parent Epic; slices are children of the Epic. **A single-slice feature has no Epic** —
   the lone slice issue's `acceptance` checklist is the DoD.
 
@@ -105,6 +114,12 @@ Epic Link either (ADR 0017).
   means closed — because a consumer holds the dependency against the blocker's own label and status, not
   the label of the record carrying this line. `/superdev:plan` writes one through the same **Record an
   anchor dependency** description edit above.
+- **Read an anchor's deploy line.** The `**Deploy:** <target>[, <target>]` / `**Deploy:** none`
+  description line the field mapping defines, read off the **anchor's own** description — never the
+  `**Blocked by feature:** <key>` line above, or the "is blocked by" issue link, which each name a
+  different relation. No such line means the feature deploys nothing. `/superdev:plan` writes one through
+  the **Record the deploy line** description edit above; `/superdev:ship` reads it after the merge
+  (ADR 0101).
 - **Ambiguous.** Two or more parentless issues under one feature label whose `fields.status.name` is not
   `<Done>`. A `<Done>` root never makes the shape ambiguous by itself — a label reused after retirement
   stays a single, resolvable anchor at every point (`plan-contract.md` → *Scope anchor*, ADR 0083).
@@ -316,17 +331,18 @@ ADR 0004).
 - **Create only new records; never edit, close, or delete a merged slice.** Append fires new
   `POST <base>/rest/api/3/issue` calls for the new slices alone. It never transitions or edits an issue
   a prior run already merged (no `fields` PUT, no transition to a closed status, no relabel) — except the
-  anchor-dependency description line, which migrates to the new Epic issue when append promotes a
-  single-slice feature (below) — a merged issue's `key` is a satisfied `depends-on` "is blocked by"
-  target for a newly created one, nothing more.
+  anchor-dependency description line and the deploy description line, each of which migrates to the new
+  Epic issue when append promotes a single-slice feature (below) — a merged issue's `key` is a satisfied
+  `depends-on` "is blocked by" target for a newly created one, nothing more.
 - **Create the Epic first when none exists.** A feature whose lone issue has no `fields.parent` has no
   Epic yet (the single-slice shape, `## Scope anchor` above). Append creates the Epic issue first — its
   description holding the lone slice's `acceptance` checklist as the global DoD — then sets every new
   slice issue's parent to it. The lone existing issue itself is never edited: no DoD copies onto its own
-  description, and its `fields.parent` stays unset. **One exception:** when the lone issue carries an
+  description, and its `fields.parent` stays unset. **Two exceptions:** when the lone issue carries an
   anchor dependency (a `**Blocked by feature:** <key>` description line), it **migrates to the new Epic
-  issue's own description** and is removed from the lone issue — the Epic is the anchor now. Nothing else
-  about the lone issue changes.
+  issue's own description** and is removed from the lone issue — the Epic is the anchor now. The
+  `**Deploy:**` description line migrates the same way, for the same reason, and is removed from the
+  lone issue. Nothing else about the lone issue changes.
 - **Amend the Epic's own description — the one sanctioned edit.** `PUT <base>/rest/api/3/issue/<epic key>`
   with `{ "fields": { "description": <amended ADF body> } }` folds the interview's new criteria into the
   Epic's Definition of Done in place, and, the same call, deletes a resolved parked question's line from

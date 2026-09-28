@@ -52,7 +52,7 @@ tests/                 — one suite per shipped executable (the hooks, `scope.j
                          helper, not itself a suite — `assertSpawnDecided` (INV-0009), asserted by
                          `spawn-verdict.test.js` and called from every other suite's bounded-spawn sites
 docs/adr/              — architecture decision records (why the plugin is built this way)
-docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, documentation, KB, toolchain, verification)
+docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, documentation, KB, toolchain, verification, deployment)
 docs/known-issues.md   — Claude Code platform behaviour superdev works around, each entry with its
                          shipped mitigation and dated verification
 scripts/               — the maintainer-only CLIs wired into `bun run test`: `drift-check.js` with its
@@ -193,6 +193,10 @@ Bun dev toolchain, Node runtime for hooks. `bun run test` (green-gate), `bun run
 `bun run test` in both fences: the suite finishes in seconds, so the second fence repeats the full
 command rather than narrowing it. Arms the merge green-gate. See `docs/agents/verification.md`.
 
+### Deployment
+`none`. A release (`bun run release`) is repository-wide and batches every merged feature, so it is no
+feature's deploy target. See `docs/agents/deployment.md`.
+
 # DOX framework
 
 - AGENTS.md files are binding work contracts for their subtrees. Before editing, read this root doc
@@ -227,7 +231,9 @@ This root owns every other subtree directly:
   live in the files. Claude Code merges plugin skills and commands into one `/superdev:<name>` surface.
   implement → review → document → submit-pr is the chain a scope walks, each skill printing the next
   (ADR 0013). `/superdev:ship` is a separate, human-only command: it merges the pull request submit-pr
-  opened, closes the scope anchor, and takes the run down (ADR 0096). afk drives the chain unattended, one
+  opened, deploys the merge under the repository's deploy posture (`none`/`manual`/`auto`,
+  `docs/agents/deployment.md`, ADR 0101), closes the scope anchor, and takes the run down (ADR 0096).
+  afk drives the chain unattended, one
   eligible scope anchor at a time, with the Skill tool, and never drives ship (ADR 0015). Some skills sit
   outside the chain, and afk drives none of them: publish-kb sends a scope's
   staged knowledge-base pages to a remote backend on the operator's own clock (ADR 0023), backlog surveys

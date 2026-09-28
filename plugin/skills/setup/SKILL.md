@@ -17,6 +17,8 @@ Write the per-repo config docs the superdev skills read, so the workflow is back
 - `docs/agents/verification.md` — the optional **test commands**: a full one plus, for every repository
   with a suite, a required focused one, which arm the merge green-gate hook, and an optional **timing
   command**, which a test audit reads
+- `docs/agents/deployment.md` — the repository's **deploy posture** (`none` / `manual` / `auto`) and its
+  **deploy targets**, which `/superdev:ship` reads once a feature's pull request has merged
 
 Plus one file that is **not** a config doc, because what it holds belongs to a person rather than to the
 repository:
@@ -37,7 +39,7 @@ the mode, the command sniffs nothing (ADR 0068).
 
 Report one of three verdicts for each config document this skill owns —
 `issue-tracker.md`, `code-management.md`, `documentation.md`, `knowledge-base.md`, `toolchain.md`,
-`verification.md` — under `docs/agents/`:
+`verification.md`, `deployment.md` — under `docs/agents/`:
 
 - **Absent.** The file does not exist. A repo that never ran `/superdev:setup` reports all of them this
   way, and that is not a failure — it starts no interview either.
@@ -52,6 +54,9 @@ store and code host stay unqueried:
   timing command, each toolchain entry) still resolves: a package-manager script is still declared in
   the manifest (`package.json`, `pyproject.toml`, a `Makefile` target, …), and a bare executable is
   still reachable. A command the document names that the manifest no longer defines is drift.
+- `deployment.md` — the same resolution check, applied to each target's command: a target naming a
+  script the manifest no longer defines is drift. A `none` posture, or a `manual`/`auto` posture with an
+  empty targets table, has nothing to check here, and reports consistent once confirmed present.
 - `issue-tracker.md`, `code-management.md` — a recorded host/owner/repo (or base URL) still matches
   `git remote -v`. Compare the **host/owner/repo path alone** — a remote of the form
   `https://user:TOKEN@host/owner/repo.git` carries userinfo that plays no part in the comparison — and
@@ -90,6 +95,9 @@ Report the verdicts and stop.
   - **style-prose docs**: `CONTRIBUTING`, `CODING.md`, `STYLE.md`, and any coding-guideline section in
     `CLAUDE.md`/`AGENTS.md`.
   - **Monorepo?** several package roots / languages side by side → note each as its own workspace.
+- **Deployment** — scan the same manifests for a candidate deploy target, feeding decision **G**: a
+  `deploy:<name>` (or similarly named) script in `package.json`, a `Makefile` `deploy` target, or the
+  like.
 
 ## 2. Decide (one at a time)
 
@@ -356,6 +364,22 @@ truth. Discipline:
 - **Skip only when fully empty.** No manifest, no config, no style doc at all → write no `toolchain.md`.
   Any detection (even just a package manager) → write it. Partial ≠ empty.
 
+**G — Deployment (optional).** What does this repository deploy, and how? One **posture** for the whole
+repository, never one per target: `none` (nothing deploys), `manual` (the operator deploys outside
+superdev; `/superdev:ship` prints each target's command and records it pending), or `auto`
+(`/superdev:ship` runs each target's command itself, after the merge, in a tree checked out at the merge
+commit, and only then — INV-0098). Seed: `references/deployment.md`.
+
+**Propose `manual` as the default. Never propose `auto`** — list it as opt-in only, and write it solely
+when the operator picks it themselves.
+
+For `manual` or `auto`, offer §1's scan as candidate targets and, for each one the operator confirms, ask
+its name, the command that deploys it, and a **read-only** way to reach it for verification (a URL, a
+health check, a status command — never a command that changes anything). Zero confirmed targets is valid:
+write the posture with an empty targets table. For `none`, ask nothing else. Either way, write the chosen
+answer as a `` `Posture:` `` line under `## Posture` — the one form `/superdev:ship` reads (`references/
+deployment.md`).
+
 ## 3. Confirm, then write
 
 Show the user a draft of every file (and the `## Agent skills` block) and let them edit before
@@ -467,6 +491,10 @@ Write:
 
   `npx vitest run --reporter=verbose`
   ````
+- `docs/agents/deployment.md` — from `references/deployment.md`, decision **G**'s posture and the
+  confirmed targets table (empty under `manual`/`auto` with none confirmed). `none` → write the posture
+  alone, an empty targets table. **On re-run**, show the delta against the existing targets and write
+  only what the operator changed.
 - Add an `## Agent skills` block to whichever of `CLAUDE.md` / `AGENTS.md` already exists (edit that one;
   never create the other; never duplicate an existing block):
 
@@ -490,6 +518,9 @@ Write:
 
 ### Verification
 [the test commands, or "none"]. Arms the merge green-gate. See `docs/agents/verification.md`.
+
+### Deployment
+[the posture — none / manual / auto — and target count]. See `docs/agents/deployment.md`.
 ```
 
 If neither `CLAUDE.md` nor `AGENTS.md` exists, ask the user which to create — don't pick for them.
