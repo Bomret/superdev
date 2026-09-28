@@ -1,6 +1,8 @@
 # 0052: OpenCode gets a synthesized, native `upgrade` command instead of exclusion
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0102](0102-superdev-is-a-claude-code-only-plugin.md), which makes superdev a Claude Code-only plugin and removes the harness renders.
 
 **Amends:** [ADR 0050](0050-carry-the-plugin-as-skills-canonical-prose-with-install-time-adapters.md),
 whose Consequences state "Upgrade is excluded outright, since its body drives Claude Code's own `claude

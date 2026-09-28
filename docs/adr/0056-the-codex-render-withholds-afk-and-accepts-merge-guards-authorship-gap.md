@@ -1,6 +1,8 @@
 # 0056: The Codex render withholds afk and model-explicit, and accepts merge-guard's authorship gap
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0102](0102-superdev-is-a-claude-code-only-plugin.md), which makes superdev a Claude Code-only plugin and removes the harness renders.
 
 **Extends:** [ADR 0050](0050-carry-the-plugin-as-skills-canonical-prose-with-install-time-adapters.md),
 which deferred every harness past OpenCode, and

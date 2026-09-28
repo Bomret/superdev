@@ -80,10 +80,10 @@ Paths: plugin/skills/plan/**, plugin/references/plan-contract.md
 
 Class: architecture
 Concepts: No verdict, Containment
-Statement: A spawn whose own bound expired, whether or not its kill succeeded, carries no verdict, on `plugin/hooks/green-gate.js`, `plugin/scripts/scope.js`, and the OpenCode hook bridge (`plugin/scripts/adapter.js`'s `runBridgeHook`). No gate reads its absence as a pass, and no assertion about behaviour stands on it. Such a spawn is reported as killed, or names the kill it could not complete, never as a decision it never made. A spawn that never started carries a Spawn failure instead, which this rule does not govern: the gate never ran, so each surface answers it with its own stated reason (ADR 0087). Codex invokes each hook directly through its own `.codex/hooks.json`, never through the bridge, so this Statement does not reach a hook process Codex's own host kills.
+Statement: A spawn whose own bound expired, whether or not its kill succeeded, carries no verdict, on `plugin/hooks/green-gate.js` and `plugin/scripts/scope.js`. No gate reads its absence as a pass, and no assertion about behaviour stands on it. Such a spawn is reported as killed, never as a decision it never made. A spawn that never started carries a Spawn failure instead, which this rule does not govern: the gate never ran, so green-gate answers it with its own stated reason (ADR 0087).
 Breaks: silently
-Check: tests/spawn-verdict.test.js — the helper's throw-or-not and message for the killed, never-started, EPIPE-but-decided, and genuinely-decided result shapes; tests/green-gate.test.js — a killed suite blocks the merge; tests/scope.test.js — the refetch asserts the kill signal rather than the clock; tests/adapter.test.js — the OpenCode hook bridge blocks a killed hook, and a timed-out hook whose kill fails; the never-started half is INV-0097's
-Paths: plugin/hooks/green-gate.js, plugin/scripts/scope.js, plugin/scripts/adapter.js, scripts/drift/fixtures/opencode/**, tests/**
+Check: tests/spawn-verdict.test.js — the helper's throw-or-not and message for the killed, never-started, EPIPE-but-decided, and genuinely-decided result shapes; tests/green-gate.test.js — a killed suite blocks the merge; tests/scope.test.js — the refetch asserts the kill signal rather than the clock; the never-started half is ADR 0087's, pinned by drift-check `spawn-failure-answers`
+Paths: plugin/hooks/green-gate.js, plugin/scripts/scope.js, tests/**
 
 ### INV-0010
 
@@ -591,20 +591,11 @@ Paths: plugin/skills/backlog/SKILL.md
 ### INV-0066
 
 Class: architecture
-Concepts: Model-invocable surface, Unattended run, Render target, Harness adapter
-Statement: `/superdev:afk` and `/superdev:ship` are never model-invocable surfaces: `disable-model-invocation: true` on Claude Code, a command on OpenCode, and absent on Codex, where a reference to either renders as its plain name. Every step afk's chain drives stays model-invocable.
+Concepts: Model-invocable surface, Unattended run
+Statement: `/superdev:afk` and `/superdev:ship` are never model-invocable surfaces: each carries `disable-model-invocation: true` in its frontmatter. Every step afk's chain drives stays model-invocable, carrying no such key.
 Breaks: silently
-Check: `scripts/drift-check.js` `opencode-surface-split`, `codex-render`; `tests/adapter.test.js` ("afk is never a skill", "afk renders nowhere", "ship is never a skill", "ship renders nowhere on Codex")
-Paths: plugin/skills/afk/SKILL.md, plugin/skills/ship/SKILL.md, plugin/skills/implement/SKILL.md, plugin/skills/review/SKILL.md, plugin/skills/document/SKILL.md, plugin/skills/submit-pr/SKILL.md, plugin/scripts/adapter.js, scripts/drift/fixtures/**
-
-### INV-0067
-
-Class: process
-Concepts: Guardrail parity, Harness adapter
-Statement: Where a harness render cannot make a shipped hook decide, the gap is stated to the operator and recorded in an ADR. It is never silently absent, and parity is never claimed for a harness without hooks.
-Breaks: silently
-Check: none — no pin on the stated gap
-Paths: README.md, plugin/scripts/adapter.js
+Check: `scripts/drift-check.js` `model-invocation-split` (afk, and every step its chain section names), `ship-human-only` (ship)
+Paths: plugin/skills/afk/SKILL.md, plugin/skills/ship/SKILL.md, plugin/skills/implement/SKILL.md, plugin/skills/review/SKILL.md, plugin/skills/document/SKILL.md, plugin/skills/submit-pr/SKILL.md
 
 ### INV-0068
 
@@ -840,15 +831,6 @@ Class: process
 Concepts: Unattended run, Stage
 Statement: Only a human moves a scope past its open pull request. `/superdev:afk` and every unattended run end at `/superdev:submit-pr`. `/superdev:ship` carries no unattended mode and `disable-model-invocation: true`, so no model and no surface starts it on the operator's behalf (ADR 0096).
 Breaks: silently
-Check: scripts/drift-check.js — afk's chain ends at `submit-pr`; ship names no `--unattended` branch and carries `disable-model-invocation: true`; the harness renders keep it off every model-invocable surface
+Check: scripts/drift-check.js — afk's chain ends at `submit-pr`; ship names no `--unattended` branch and carries `disable-model-invocation: true`
 Paths: plugin/skills/afk/**, plugin/skills/submit-pr/**, plugin/skills/ship/**
 
-### INV-0097
-
-Class: architecture
-Concepts: Spawn failure, Guardrail
-Statement: A spawn failure never blocks a call the OpenCode hook bridge gates and never ends its host process, in any of the three shapes Node reports it in. An installation failure lets the call through with a once-per-hook notice naming the code. A transient failure is retried once first, and a retry that fails too lets the call through the same way. A spawn whose own bound expired is not a spawn failure, even when its kill fails: it still blocks, and it is never retried (INV-0009).
-Breaks: silently
-Check: tests/adapter.test.js — the ADR 0100 block reproduces each of Node's three shapes against a rendered bridge, and asserts retry counts, notices, the killed-spawn block, and the block on a timed-out spawn whose kill fails
-Symbols: spawnHookOnce, runBridgeHook, TRANSIENT_SPAWN_CODES
-Paths: plugin/scripts/adapter.js, tests/adapter.test.js

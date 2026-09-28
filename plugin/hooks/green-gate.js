@@ -460,13 +460,9 @@ function runTests(testCommand, cwd, timeoutMs = SUITE_TIMEOUT_MS, maxBufferBytes
     // status == null with no signal means the suite never started at all — e.g. a -C cwd that
     // doesn't exist (ENOENT): the OS never got as far as running a process to kill. That's not
     // "no verdict", it's "the merge's own working tree can't even run the suite", so it gates
-    // like a RED verdict rather than failing open. On the same condition
-    // the bridge lets the call through, with a notice: a Spawn failure sits outside INV-0009, and
-    // each gate answers it for its own reasons (ADR 0087). This one fires only on a merge, so
-    // blocking costs one merge and leaves every other call free to repair the tree. The bridge fires
-    // on every tool call, where a block would close the surface the repair is made through. The
-    // divergence is deliberate, and each gate names the other's answer so neither reads as an
-    // oversight.
+    // like a RED verdict rather than failing open. A Spawn failure sits outside INV-0009, and this
+    // gate answers it for its own reason (ADR 0087): it fires only on a merge, so blocking costs one
+    // merge and leaves every other call free to repair the tree.
     if (e.status == null && e.signal == null) return { ok: false, output: (e.message || '').trim() };
     // status == null with a signal means the suite started and was killed (SUITE_TIMEOUT_MS,
     // ENOBUFS, or another signal) — it produced no verdict. INV-0009 / ADR 0086: no gate reads

@@ -1,6 +1,8 @@
 # 0050: Carry the plugin as skills-canonical prose with install-time, per-harness adapters
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0102](0102-superdev-is-a-claude-code-only-plugin.md), which makes superdev a Claude Code-only plugin and removes the harness renders.
 
 **Amended by:** [ADR 0051](0051-the-opencode-agent-render-uses-a-tools-map-not-permission.md), which
 corrects the rendered agents' access-control mechanism named below from a `permission:` mapping to a

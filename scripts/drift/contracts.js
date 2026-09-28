@@ -4348,27 +4348,15 @@ const CAPTURE_CHECKS_CONCURRENT_PLANS_CONTRACTS = [
   ],
 ];
 
-// ADR 0087: a spawn that never started is a **Spawn failure**, outside INV-0009, and the two gates
-// answer it differently on purpose. `hooks/green-gate.js` blocks, because it fires only on a merge and
-// a tree that cannot run its suite is a defect in the thing being gated. `scripts/adapter.js`'s hook
-// bridge lets the call through with a notice, because it fires on every tool call and every repair for
-// a broken install is made through the surface a block would close.
-//
-// Rows, one per surface, and each pins the **reason** rather than the behaviour alone. A divergence
-// between two implementations of one rule reads as an oversight when only the behaviours are pinned —
-// which is how the bridge's own fail-open read before #606, and why it survived as long as it did. Each
-// row also requires the clause naming what the *other* surface does, so a reader meeting either one
-// learns the divergence is deliberate without having to find the ADR first.
+// ADR 0087: a spawn that never started is a **Spawn failure**, outside INV-0009. `hooks/green-gate.js`
+// blocks, because it fires only on a merge and a tree that cannot run its suite is a defect in the thing
+// being gated. The row pins the **reason** rather than the behaviour alone: a behaviour with no stated
+// reason reads as an oversight to the next editor, which is how a fail-open answer once survived (#606).
 const SPAWN_FAILURE_ANSWER_CONTRACTS = [
   [
     path.join('hooks', 'green-gate.js'),
-    /never started[\s\S]{0,400}can't even run the suite[\s\S]{0,200}the bridge lets the call through[\s\S]{0,200}fires only on a merge/,
-    "state that a suite that never started blocks because the merge's own tree cannot run it, name the bridge's opposite answer as deliberate, and name that this one fires only on a merge",
-  ],
-  [
-    path.join('scripts', 'adapter.js'),
-    /never started[\s\S]{0,400}evidence about the installation[\s\S]{0,600}green-gate\.js[\s\S]{0,200}blocks/,
-    "state that a hook that never started lets the call through because the absence is evidence about the installation, and name green-gate's opposite answer as deliberate",
+    /never started[\s\S]{0,400}can't even run the suite[\s\S]{0,400}fires only on a merge/,
+    "state that a suite that never started blocks because the merge's own tree cannot run it, and name that the gate fires only on a merge",
   ],
 ];
 

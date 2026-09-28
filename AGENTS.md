@@ -43,10 +43,10 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          run handoff, execution playbooks, test-selection, scope-mode, authoring
                          disciplines, design sketch, diagnosis, prototype, merge-conflicts,
                          review-checklist, dod-ticks); its own AGENTS.md routes them
-  scripts/             — the runtime CLIs: `scope.js`, `kb-patch.js`, `adapter.js`, `publish-kb.js`
+  scripts/             — the runtime CLIs: `scope.js`, `kb-patch.js`, `publish-kb.js`
   LICENSE · NOTICE     — copies of the root files, so the shipped tree carries its own attribution
 tests/                 — one suite per shipped executable (the hooks, `scope.js`, `kb-patch.js`,
-                         `adapter.js`, `publish-kb.js`) and one for the maintainer-only
+                         `publish-kb.js`) and one for the maintainer-only
                          `invariant-check.js`, framework-free `node:assert`, run under
                          `node` by `bun run test` (ADR 0059); `spawn-verdict.js` is the one shared
                          helper, not itself a suite — `assertSpawnDecided` (INV-0009), asserted by
@@ -105,17 +105,20 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
   with `Date.now()` and assert an absolute elapsed ceiling, because wall clock includes every
   millisecond the process spent descheduled, and a correctly bounded call under scheduler starvation
   produces the same reading as a real defect (ADR 0086). Compare against what the same run itself
-  measured instead (`tests/adapter.test.js`'s serialized-pair-vs-solo-call), or against the bound the
-  test itself configured (`tests/publish-kb.test.js`'s `HANG_MS`-relative checks). Where the failure
+  measured instead, or against the bound the test itself configured (`tests/publish-kb.test.js`'s `HANG_MS`-relative checks). Where the failure
   the assertion catches is qualitative — catastrophic backtracking is effectively unbounded — a loose
   ceiling still falsifies exactly what a tight one did, so keep the ceiling and loosen it rather than
   drop it (`tests/green-gate.test.js` and `tests/merge-guard.test.js`'s `LONG_VALUE_OPT` guards).
 - **Version lives only in `plugin/.claude-plugin/plugin.json`.** Never hand-edit it. semantic-release and
   `semantic-release-replace-plugin` bump it on release. `marketplace.json` carries no version, which
   avoids a double pin where `plugin.json` would silently win.
-- **Backends are pluggable.** To add a slice store, a code host, or a KB, write a new seed in
-  `references/`. `/superdev:setup` turns that seed into the matching `docs/agents/*.md` in the *consumer*
-  repo. `skills/` and `agents/` stay tool-agnostic. Do not hardcode a backend into them.
+- **Claude Code is superdev's only harness** (ADR 0102). Skills, agents, and references name Claude
+  Code's features, tools, and frontmatter directly. Prose is not written harness-neutral for
+  portability.
+- **Backends are pluggable.** This covers the slice store, the code host, and the knowledge base, and
+  nothing else. To add one of them, write a new seed in `references/`. `/superdev:setup` turns that seed
+  into the matching `docs/agents/*.md` in the *consumer* repo. `skills/` and `agents/` stay
+  backend-agnostic. Do not hardcode a backend into them.
 - **Docs follow a writing standard.** `docs/agents/documentation.md` names it, and the doc agents apply
   it to prose they write. This repo uses `controlled`
   ([`references/controlled-prose.md`](plugin/references/controlled-prose.md), ADR 0012). Its own
@@ -220,7 +223,7 @@ durable boundary with rules of its own that do not fit here.
 This root owns every other subtree directly:
 
 - `plugin/skills/`, `plugin/agents/`. Prose skill surfaces and subagents. Governed by **Working
-  rules, Backends are pluggable**: stay tool-agnostic and never hardcode a backend. Behaviour contracts
+  rules, Backends are pluggable**: stay backend-agnostic and never hardcode a backend. Behaviour contracts
   live in the files. Claude Code merges plugin skills and commands into one `/superdev:<name>` surface.
   implement → review → document → submit-pr is the chain a scope walks, each skill printing the next
   (ADR 0013). `/superdev:ship` is a separate, human-only command: it merges the pull request submit-pr
@@ -249,15 +252,7 @@ This root owns every other subtree directly:
   default-branch content check (ADR 0089). These are the only
   places a hook depends on a script instead of standing alone. A `require` failure leaves either hook
   with no fallback reader: it sweeps/prunes nothing and says nothing. The probe has its own, narrower
-  fallback — `scope-prune.js` prunes by tree comparison alone, still silently. **One dependency runs
-  the other way**, and it is the only one: `plugin/scripts/adapter.js` requires
-  `plugin/hooks/green-gate.js`'s `readHookTimeoutMs`, so both harness renders derive their hook
-  timeout from the ceiling `hooks/hooks.json` already sets for the gate, rather than a literal free to
-  drift from it (ADR 0087): the OpenCode hook bridge bounds its own hook spawn at that ceiling at
-  runtime, and the rendered `.codex/hooks.json` carries the same value as its own `timeout` field,
-  enforced by Codex's own host rather than by superdev code — Codex wires every hook directly, never
-  through a bridge. The renderer reads the value once and bakes it into both outputs, so neither
-  running surface requires anything at runtime.
+  fallback — `scope-prune.js` prunes by tree comparison alone, still silently.
 - `scripts/` and `plugin/scripts/`. Owned by [`scripts/AGENTS.md`](scripts/AGENTS.md):
   `plugin/scripts/scope.js` (the run-state CLI, ADR 0022: owns the ledger schema, is the only
   `ledger.md` read and write path, exports `readLedgerHeader` for `plugin/hooks/scope-prune.js` and
@@ -276,17 +271,6 @@ This root owns every other subtree directly:
   containment check to `scope.js`'s `testContainment`, runs every backend command under a time bound
   whose exhaustion stops the batch (ADR 0076), and is the invocation
   `skills/publish-kb/SKILL.md` runs),
-  `plugin/scripts/adapter.js` (the OpenCode and Codex harness adapter: renders the shipped skills
-  and agents into a harness's own on-disk layout, one `--harness` flag choosing between them. Under
-  OpenCode (issue #375) that is `.opencode/`, plus the OpenCode hook bridge plugin
-  `.opencode/plugins/superdev.js` that forwards OpenCode's plugin events to the shipped hooks (issue
-  #376); golden fixtures under `scripts/drift/fixtures/opencode/`. Under Codex (ADR 0056) that is
-  `.agents/skills/` for skills, `.codex/agents/` for agents as TOML, and `.codex/hooks.json` wiring
-  every shipped hook but `model-explicit`; golden fixtures under `scripts/drift/fixtures/codex/`.
-  `bun run render-fixtures` regenerates both fixture trees. Prompts render as skills, the only surface
-  either harness's model can invoke. `afk` renders as a command under OpenCode and nowhere under
-  Codex, which keeps either harness's model from starting an unattended sweep itself, ADR 0055 and
-  ADR 0056),
   and `scripts/drift-check.js` with `drift/` (the cross-document contract checks: the
   CLI walks the `drift/checks.js` registry, keyed by check id (ADR 0061), which orders every scanner and
   contract table). What each guards, check by check, lives in that child doc.

@@ -15,6 +15,7 @@ const {
   scanScopetreeRunRootPaths,
   scanNoBaseBranchCommit,
   scanShipHumanOnly,
+  scanModelInvocationSplit,
   scanAssigneeContract,
   scanAnchorContract,
   scanAppendContract,
@@ -56,9 +57,6 @@ const {
   scanDenialCapNumberSilence,
   scanAfkLockTierClaim,
   scanRunLockLivenessSilence,
-  scanOpencodeFixtures,
-  scanOpencodeSurfaceSplit,
-  scanCodexFixtures,
   scanUnmappedPathsForms,
 } = require('./scanners');
 const {
@@ -304,6 +302,12 @@ module.exports = [
     format: contractGap,
   },
   {
+    id: 'model-invocation-split',
+    ok: 'afk carries `disable-model-invocation: true` and every chain step it drives carries none (INV-0066)',
+    run: scanModelInvocationSplit,
+    format: contractGap,
+  },
+  {
     id: 'kb-no-backend-call',
     ok: 'no document but publish-kb reaches a backend',
     run: scanKbNoBackendCall,
@@ -324,7 +328,7 @@ module.exports = [
   table(
     'spawn-failure-answers',
     SPAWN_FAILURE_ANSWER_CONTRACTS,
-    "each gate states what it does with a spawn that never started, and names the other gate's opposite answer as deliberate",
+    'green-gate states what it does with a spawn that never started, and why',
   ),
   table(
     'verification-ceiling',
@@ -636,18 +640,6 @@ module.exports = [
       "apart by the ledger's own `**PR:**` header, since afk's routing table skips `submitted` entirely (#687)",
   ),
   {
-    id: 'opencode-render',
-    ok: 'the committed OpenCode fixtures match a fresh render of the shipped skills, agents, and hook bridge',
-    run: scanOpencodeFixtures,
-    format: (gap) => gap,
-  },
-  {
-    id: 'codex-render',
-    ok: 'the committed Codex fixtures match a fresh render of the shipped skills and agents',
-    run: scanCodexFixtures,
-    format: (gap) => gap,
-  },
-  {
     id: 'run-state-contract',
     ok: 'every store document carries its own `## Run state` section',
     run: scanRunStateContract,
@@ -696,12 +688,6 @@ module.exports = [
     "a conflicting tree comparison asks whether base's history took the branch's patch, under a " +
       'commit cap, and fails closed',
   ),
-  {
-    id: 'opencode-surface-split',
-    ok: 'afk renders as an OpenCode command and every step it drives renders as a skill',
-    run: scanOpencodeSurfaceSplit,
-    format: (gap) => gap,
-  },
   table(
     'standing-code-lens',
     STANDING_CODE_LENS_CONTRACTS,

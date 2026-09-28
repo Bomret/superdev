@@ -1,6 +1,8 @@
 # 0051: The OpenCode agent render denies by a `tools:` map, not a `permission:` mapping
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0102](0102-superdev-is-a-claude-code-only-plugin.md), which makes superdev a Claude Code-only plugin and removes the harness renders.
 
 **Amended by:** [ADR 0054](0054-the-opencode-agent-render-restores-the-env-read-guard.md), which adds a
 narrow `permission:` block back for the `.env` read guard, without reopening this ADR's `tools:` decision.

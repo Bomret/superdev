@@ -6,6 +6,8 @@
 spawn failure into an installation class and a transient class, and has the bridge retry a transient
 one once.
 
+**Amended by:** [ADR 0102](0102-superdev-is-a-claude-code-only-plugin.md), which removes the OpenCode hook bridge, so this decision holds on `plugin/hooks/green-gate.js` and `plugin/scripts/scope.js` alone.
+
 **Amends:** [ADR 0086](0086-a-duration-is-never-the-assertion.md), whose INV-0009 Statement reads "a
 process that did not finish carries no verdict" and therefore covers a process that never began.
 

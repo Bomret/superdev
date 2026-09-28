@@ -4,8 +4,7 @@
 
 Standalone deterministic code that `package.json` runs, alongside `plugin/hooks/`.
 The shipped CLIs live in `plugin/scripts/`: `scope.js` (the run-state CLI, ADR 0022), `kb-patch.js`
-(the knowledge-base section merge, ADR 0027), `adapter.js` (the OpenCode harness adapter, issue
-#375), and `publish-kb.js` (the backend-independent half of publishing a scope's staged
+(the knowledge-base section merge, ADR 0027), and `publish-kb.js` (the backend-independent half of publishing a scope's staged
 knowledge-base pages, ADR 0069). The maintainer-only ones live here in `scripts/`: `drift-check.js`
 (the cross-document contract checks) and `invariant-check.js` (the invariant register validator,
 ADR 0093). This doc owns them all regardless of which dir each lives in.
@@ -240,200 +239,6 @@ whole page (ADR 0027, Consequences).
 files naming the identical section heading before either one applies, rather than growing a second
 copy of the key logic.
 
-### adapter.js, the OpenCode and Codex harness adapter (issue #375)
-
-`adapter.js` is the third shipped CLI, and the one no command in the chain invokes: it renders the
-shipped prompt surfaces into another harness's on-disk layout, so a superdev install there carries
-the same chain. `--harness` selects the target, `opencode` (default) or `codex` (ADR 0056); an
-unknown value refuses nonzero and names the harnesses `HARNESS_REGISTRY` carries. Under OpenCode,
-skills render from
-`plugin/skills/<name>/SKILL.md` to `.opencode/skills/superdev-<name>/SKILL.md` for the
-surfaces the operator or the model may invoke. OpenCode exposes a skill through its built-in
-`skill` tool and auto-registers it as a `/superdev-<name>` slash command besides. `afk` alone
-renders to `.opencode/commands/superdev/afk.md` (`SKILL_ONLY_COMMANDS`): an OpenCode command is not
-model-invocable, which is what reproduces the canonical skill's own
-`disable-model-invocation: true` and keeps the model from starting an unattended backlog sweep on
-its own judgment (ADR 0055). The skill `upgrade` renders too, but as OpenCode-native content
-synthesized directly in `renderUpgradeSkill()` — shared with the Codex render below — rather than derived from the skill's own
-Claude-Code-only body. That body drives `claude plugin update` and has no OpenCode equivalent (ADR
-0052, amending ADR 0050's earlier outright exclusion). `renderBridge()` gives the hook-bridge plugin
-below the same treatment, since both are pure harness mechanics with no prose in common with their
-Claude Code counterpart. The synthesized skill carries no `model:` line, for the same reason every
-other rendered skill does not (below). Its body carries a `git pull` against the plugin's source
-clone. It is kept as a literal `<plugin-root>/..` string, not a normalized parent path, so the
-golden-fixture normalizer's exact-substring placeholder swap still catches it. A re-render of the
-current directory follows, carrying one
-`--model-map <alias>=<value>` flag per resolved alias (re-emitted verbatim from whatever
-`resolveModelMap()` handed the render, not resolved from the skill's own frontmatter — a skill's
-`model:` pin reaches no render target at all). The re-render then runs non-interactively and
-preserves the operator's original picks instead of prompting on a Bash tool with no TTY to answer
-it. The rendered body also tells the model to check each step's exit status before moving on. The
-rendered body then tells the model to stop, naming the upgrade stale or incomplete, rather than
-report success over a failed or partial re-render. Agents render from `plugin/agents/<name>.md` to
-`.opencode/agents/<name>.md`.
-
-The rendered skill frontmatter (`renderSkill()`, the surfaces above) carries `SKILL_MARKER`,
-`name: superdev-<name>`, the `description`, and the skill's `allowed-tools:` carried verbatim. It
-refuses when that prefixed name fails OpenCode's own skill-name pattern (lowercase alphanumeric
-segments joined by `-`). No `model:` line: OpenCode skill frontmatter recognizes `name`,
-`description`, `license`, `compatibility` and `metadata` only. A canonical `model:` pin has nowhere
-to land, so the skill runs on the session's model instead. Within a rendered skill's body, a literal
-`$ARGUMENTS` is rewritten to "the message that invoked this skill." `$ARGUMENTS` is Claude Code's own
-command-argument substitution, and OpenCode's `skill` tool (a `name` parameter and nothing else)
-never fills it in. As a result, the instruction stays true on a surface with no
-argument-substitution mechanism of its own. The rendered command frontmatter
-(`renderCommand()`/`renderOpencodeAfkCommand()`, `afk` alone today) carries the `description` and the
-skill's `allowed-tools:` carried verbatim. It also carries the skill's `model:` alias, resolved
-through the same `--model-map` when the skill pins one. A missing alias refuses nonzero and names
-the alias and the command, though the CLI fills a missing alias in before this ever fires (see
-below). OpenCode command frontmatter has no permission key, so the field is preserved rather than
-dropped silently. `renderOpencodeAfkCommand()` also replaces afk's own chain-driver sentence, the one
-naming Claude Code's Skill tool. It substitutes OpenCode-native content naming its own `skill` tool,
-the rendered `superdev-<name>` names of the steps afk drives, and the headless launch line
-(`opencode run --auto --command superdev/afk`). It refuses when the canonical sentence is absent or
-edited. An edit to afk's own prose surfaces here instead of the render silently shipping an afk that
-still names a tool OpenCode does not have. The rendered agent
-frontmatter carries
-`description`, `mode: subagent`, a `tools:` map — a leading `"*": false` denying every OpenCode
-tool (`permission:` overlays an allow-by-default baseline, so listing only the allowed tools there
-restricts nothing; OpenCode's `tools:` map is last-match-wins, so the wildcard must lead) followed by `true` for
-exactly what the Claude `tools:` allowlist names (`Read`→`read`, `Edit`→`edit`, `Write`→`write`,
-`Glob`→`glob`, `Grep`→`grep`, `Bash`→`bash`, `WebFetch`→`webfetch`, `Task`→`task`, `Skill`→`skill`,
-`Question`→`question`, `TodoWrite`→`todowrite`; an entry the table does not know — `WebSearch` has
-no OpenCode builtin equivalent — contributes no key, so `doc-reader` and `implementer` lose web
-search under OpenCode), plus an always-`true` `invalid` regardless of the allowlist. `invalid` is
-OpenCode's tool-call repair sink (`experimental_repairToolCall`'s landing slot for a hallucinated or
-malformed call), excluded from the model's own tool schema by construction, so denying it buys no
-security and only trades the repair tool's recoverable result for the executor's own "Unknown tool"
-error, and
-`model` resolved from the agent's alias through the
-repeatable `--model-map <alias>=<provider/model>` — a missing alias refuses nonzero and names the
-alias and the agent, same caveat as above. The `tools:` map is itself converted into a permission
-rule per key (`read: true` becomes `read: {"*": "allow"}`), and where the frontmatter also carries
-an explicit `permission:` entry for that same key, the agent-config decoder's
-`Object.assign($, _.permission)` (a shallow assign at the top-level key — not `Permission.merge`,
-which is a plain concat, `(...j) => j.flat()`) replaces the `tools:`-derived rule with it rather
-than appending both (verified live against opencode 1.18.20, `opencode debug agent`: deleting the
-shipped block's `"*": "allow"` line removes the `tools:`-derived read-allow entry from the resolved
-permission array entirely, not merely shadows it) — which would otherwise silently defeat
-OpenCode's own built-in `read: {"*.env": "ask"}` default for every rendered agent whose `tools:`
-allowlist grants `read: true` (ADR 0054) — so the frontmatter for exactly those agents also carries
-a `permission:` block re-asserting that default
-(`read: {"*": "allow", "*.env": "ask", "*.env.*": "ask", "*.env.example": "allow"}`), narrower than
-the bare tool-level listing ADR 0051 rejected: a faithful copy of OpenCode's own built-in `read`
-default, blanket `"*": "allow"` included, rather than a tool-level allow/deny listing. An agent
-whose own `tools:` allowlist never grants `read: true` gets no `permission:` block at all —
-appending it regardless would grant the read access the `"*": false` wildcard was denying, rather
-than no-op. Every rendered string scalar (`description`, `allowed-tools`) is emitted
-JSON-quoted, so a description carrying `: ` stays valid YAML, and the plugin root is normalized —
-a trailing slash included — before substitution, so no rendered path carries `//`. Every rendered
-file then gets three deterministic prose rewrites:
-`${CLAUDE_PLUGIN_ROOT}` becomes the `--plugin-root` value, `/superdev:<cmd>` becomes
-`/superdev-<cmd>` — or `/superdev/<cmd>` for the one `SKILL_ONLY_COMMANDS` member, which renders into
-the namespaced commands subdirectory instead — and a bare `superdev:<agent>` becomes the bare agent
-name. Both name rewrites are restricted to the skills and agents discovered under `--plugin-root`
-(default: the adapter's own `..`), so a lookalike token — an HTML comment marker, a longer word
-sharing a name's prefix — is never mangled. A render is idempotent: it removes
-`.opencode/commands/superdev/` wholesale (which also clears an install rendered before ADR 0055, when
-every surface still rendered there) and its generated bridge file by name. In the shared
-`.opencode/agents/` and `.opencode/skills/` directories, it touches only files and skill directories
-whose **frontmatter block** carries a marker comment (`AGENT_MARKER`, `SKILL_MARKER`) from a past
-render. Nothing else under `--dest` is touched before writing. A consumer's own plugin beside the
-bridge survives. A consumer's own agent file beside the rendered ones survives, and so does a
-consumer's own skill — including one whose directory name happens to begin `superdev-`, since
-cleanup keys on the marker rather than the name prefix. A foreign file that merely quotes the marker
-sentence in its body, rather than carrying it in frontmatter, survives too.
-
-The render also emits the **OpenCode hook bridge** (issue #376) at `.opencode/plugins/superdev.js`:
-a generated CommonJS OpenCode plugin that forwards OpenCode's plugin events to the shipped
-hooks, spawning each as `node <plugin-root>/hooks/<hook>.js` with the plugin root baked in at
-render time and passed to the child env as `CLAUDE_PLUGIN_ROOT`. The event map, dated and verified
-against opencode.ai's plugins and agents docs in the adapter's own comment: `tool.execute.before`
-on a shell tool runs merge-guard, run-lock, and ledger-guard; on a file-editing tool,
-ledger-guard, resolving the edited path from the tool's own `filePath` argument or, for OpenAI's
-`apply_patch` tool (which carries no `filePath`, only `{ callId, operation: { type, path, diff } }`),
-from `operation.path` instead; on the `task` dispatch tool, model-explicit; `tool.execute.after` on a shell tool
-runs green-gate; `session.created` runs update-check; `session.idle` and `session.deleted` run
-slicetree-sweep and scope-prune. The stdin payload is Claude-shaped — `hook_event_name`,
-`tool_name` mapped back to the Claude name (`Bash`, `Edit`/`Write`, `Agent`), snake_case
-`tool_input`, top-level `cwd`, and `agent_id` when the calling session has a parent — because that
-is the shape the hook scripts parse. OpenCode's `task` tool takes no `model` argument, so the
-bridge resolves model-explicit's `tool_input.model` from the rendered agent's own frontmatter
-(`.opencode/agents/<type>.md`), where the adapter already pinned it. Block semantics mirror
-Claude's: a child exiting 2, or a stdout JSON `hookSpecificOutput.permissionDecision: 'deny'`,
-throws so the deny reaches the model. A child whose own bound expired blocks too, whether its kill
-succeeded or failed (INV-0009). A
-plain-text notice (an update-check newer-version line) never blocks. Neither does a **Spawn failure**,
-in any of the three shapes Node reports it in: an `'error'` event, a child whose stdio was never
-assigned (`EMFILE`, `ENFILE`), or a synchronous `spawn()` throw. A transient code (`EAGAIN`,
-`EMFILE`, `ENFILE`, `ENOMEM`) is retried once after a short fixed delay. Any other code, or a retry
-that fails too, lets the call through with a once-per-hook notice naming the code and its class
-(ADR 0100, INV-0097). The bridge's helpers are serialized into the
-generated file via `Function.prototype.toString`, so `tests/adapter.test.js` exercises the same code
-the bridge ships. Refusals exit nonzero with a one-line stderr reason and cover an unknown
-`--harness` (default `opencode`), a missing `--dest`, a malformed `--model-map`, a skills or agents
-directory absent under `--plugin-root`, a skill directory carrying no `SKILL.md`, a skill name that
-fails to become a valid OpenCode skill name once prefixed, afk's own `SKILL.md` no longer carrying
-the chain-driver sentence `renderOpencodeAfkCommand()` rewrites, and that same `SKILL.md` no longer
-carrying its chain table's header, the other anchor `renderOpencodeAfkCommand()` rewrites. The module
-guards its CLI entry with `require.main === module`, so a `require` from the drift-check suite runs
-no CLI code, and exports `render`, `queryOpenCodeModels`, and `parseArgs`, plus `resolveModelMap`,
-`rewriteProse`, `buildHookPayload`, `bridgeSpawnEnv`, `hookBlockReason`, and the
-`TOOL_MAP`/`SKILL_MARKER`/`AFK_SKILL_TOOL_SENTENCE`/`AFK_CHAIN_TABLE_HEADER`/`BRIDGE_*` constants
-`tests/adapter.test.js` calls and reads directly (ADR 0059).
-
-Under `--harness codex` (ADR 0056), skills render to
-`.agents/skills/superdev-<name>/SKILL.md`, the Agent Skills standard's own shared scan root, and
-every shipped agent to `.codex/agents/superdev-<name>.toml` — a `developer_instructions` TOML
-string carrying the rewritten body, `model` resolved through `--model-map` the same way, and a
-`sandbox_mode` derived from the source agent's own `tools:` frontmatter (`workspace-write` for an
-agent whose allowlist grants Edit or Write, `read-only` otherwise; Codex offers no per-agent tool
-restriction, so `sandbox_mode` is the whole access-control story a rendered agent carries). `afk`,
-the one `SKILL_ONLY_COMMANDS` member, renders nowhere under Codex. `--model-map` is mandatory
-there: `render()` walks every agent before writing anything under `--dest` and refuses, naming the
-alias and the agent, on the first one `--model-map` leaves unresolved — Codex offers no
-configuration `queryOpenCodeModels()` could read, so a Codex render gets no interactive fallback
-(above). The render also emits `.codex/hooks.json`, wiring every shipped hook but `model-explicit`
-(structurally satisfied instead: every rendered agent TOML already carries an explicit `model`
-line) to Codex's own `SessionStart`, `PreToolUse`, `PostToolUse`, and `Stop` events, each command an
-absolute `node <plugin-root>/hooks/<hook>.js` path since Codex resolves no `${CLAUDE_PLUGIN_ROOT}`
-token. JSON carries no comment to hold a marker, so a pre-existing `.codex/hooks.json` this render
-did not itself produce refuses before any write unless it is byte-identical to what this render
-would produce — the identity preflight standing in for the marker check the skills and agents
-renders use.
-
-Before `render()` runs, the CLI's `main()` fills in every `model:` alias `--model-map` left
-out, but only for `--harness opencode` (`resolveModelMap()`, not itself exported): querying an
-OpenCode configuration says nothing about what a Codex install can run, so Codex renders with
-whatever `--model-map` already carries and no interactive fallback (ADR 0056). Under OpenCode,
-`resolveModelMap()` acts for the aliases `usedModelAliases()` finds
-among the plugin root's own **agents**. A rendered skill carries no `model:` key for OpenCode to
-read, so a skill's alias reaches no render target. Asking the operator to resolve it would prompt for
-a value nothing consumes. It queries the OpenCode config for the models
-already named there (`queryOpenCodeModels()` — project `opencode.json`, the `OPENCODE_CONFIG`
-file, and the global `~/.config/opencode/opencode.json`, read from these locations and unioned,
-reading only their `model` and `small_model` fields) and prompts once per still-missing alias, sharing one `readline` interface
-(and one async iterator over it — `rl.question()` drops a buffered line that arrives before the
-next `question()` call, the async iterator protocol does not) across the whole pass, so a piped,
-multi-line answer resolves every missing alias instead of only the first. It refuses nonzero —
-naming the alias and pointing at `--model-map <alias>=<provider/model>` as the manual override —
-when no models are configured anywhere, or when the input closes (EOF, or a non-interactive
-process) before an answer arrives. The two per-surface refusals above (naming the alias and the
-command — afk today, the one surface still rendered through `renderCommand()` — or the alias and the
-agent) only fire when `render()` is called directly with a map still missing an alias — the OpenCode
-CLI path never reaches them, since `resolveModelMap()` has already filled every alias by the time
-`render()` runs. `render()` itself, before writing anything under `--dest`, walks every agent and
-refuses the same way — naming the alias and the agent — when a Codex render's `--model-map` still
-leaves one unresolved, which is the only path a Codex render's missing alias ever takes.
-
-The committed golden render for OpenCode lives under `scripts/drift/fixtures/opencode/`, for Codex
-under `scripts/drift/fixtures/codex/`; `bun run render-fixtures` regenerates both
-(`node scripts/drift/opencode-fixtures.js --write && node scripts/drift/codex-fixtures.js --write`).
-The fixtures render with one fixed model map and the plugin root normalised to `<plugin-root>` — the
-OpenCode bridge file bakes that root into its `PLUGIN_ROOT` constant, so the same normalisation keeps
-the fixture machine-independent; the `opencode-render` and `codex-render` checks each diff a fresh
-render against their own fixture tree.
-
 ### publish-kb.js, the backend-independent knowledge-base publish (ADR 0069)
 
 `publish-kb.js` is the fourth shipped CLI. `skills/publish-kb/SKILL.md` invokes it and relays its
@@ -603,8 +408,7 @@ It checks these kinds of rule:
   retiring or renumbering an entry cannot leave its citations silently stale. A stale citation fails as
   `<id>: citation: cited at <file>:<line>, …`. The register itself, `CHANGELOG.md` and every file under
   `docs/adr/` are not scanned. The changelog is release-managed and an ADR is superseded rather than
-  edited, so a stale citation there is dated history that no edit can fix. Rendered fixtures are
-  scanned, since drift-check already forces them to match a fresh render of their source.
+  edited, so a stale citation there is dated history that no edit can fix.
 
 The walk prunes `.git/`, `node_modules/`, `.superdev/` and `.claude/` — the last because
 `.claude/worktrees/` holds whole repository copies with their own `CONTEXT.md`, and the walk reads
@@ -629,10 +433,7 @@ live beside it, in `scripts/drift/`.
 | `drift/contracts.js` | the contract tables and patterns. Data only |
 | `drift/scanners.js` | the bespoke scanners, every check whose assertion is more than one pattern over one document |
 | `drift/lib.js` | what they share: `maskFences`, `extractSection`, the frontmatter readers, `readDoc`, `storeDocuments`, and `scanContract` |
-| `drift/opencode-fixtures.js` | the golden-fixture half of the `opencode-render` check: the one normalised render both the check and `bun run render-fixtures` use |
-| `drift/codex-fixtures.js` | the golden-fixture half of the `codex-render` check: the one normalised Codex render both the check and `bun run render-fixtures` use, compared byte for byte rather than through the Render overlay below |
-| `drift/opencode-overlay.js` | the Render overlay format (ADR 0060): `sourceForRendered`, `computeOverlay`, and its serialize/parse pair, shared by the check and `bun run render-fixtures` |
-| `drift/selftest/` | `index.js` (the `fixture` helper, `realRoot`, temp-dir cleanup) plus one suite per area: `scanners`, `chain`, `kb-plan`, `opencode`, `drift-check` |
+| `drift/selftest/` | `index.js` (the `fixture` helper, `realRoot`, temp-dir cleanup) plus one suite per area: `scanners`, `chain`, `kb-plan`, `drift-check` |
 
 The checks named below are the exceptions, and every other one is a **drift assertion**: it compares a
 restated fact against its source. `forcing-branch-flag`, `kb-no-backend-call`, `no-second-reader`, and
@@ -715,16 +516,11 @@ a command that does not exist. The `chain-handoff` contract: `skills/implement/S
 `skills/review/SKILL.md`, and `skills/document/SKILL.md` each name their successor in the chain.
 `skills/submit-pr/SKILL.md` ends the chain and is deliberately outside that check.
 
-`spawn-failure-answers` holds the one place two gates answer the same condition differently on purpose.
-A spawn that never started is a **Spawn failure**, outside INV-0009 (ADR 0087): `plugin/hooks/green-gate.js`
-blocks, because it fires only on a merge and a tree that cannot run its suite is a defect in the thing being
-gated; `plugin/scripts/adapter.js`'s hook bridge lets the call through with a notice, because it fires on
-every tool call and every repair is made through the surface a block would close. The bridge retries a
-transient code once before that notice (ADR 0100); the row pins the installation reason, which the
-transient class leaves unchanged. Each
-row pins its surface's **reason** and the clause naming the other surface's answer, not the behaviour alone.
-Pinning behaviours alone is what let the bridge's own fail-open read as an oversight for as long as it did,
-which is what #606 was: a reader meeting one gate could not tell a deliberate divergence from a missed case.
+`spawn-failure-answers` pins green-gate's answer to a spawn that never started. Such a spawn is a **Spawn
+failure**, outside INV-0009 (ADR 0087): `plugin/hooks/green-gate.js` blocks, because it fires only on a merge
+and a tree that cannot run its suite is a defect in the thing being gated. The row pins that **reason**, not
+the behaviour alone: a behaviour with no stated reason reads as an oversight to the next editor, which is
+how a fail-open answer once survived (#606).
 
 The `verification-ceiling` contract (ADR 0084, INV-0006): verifying a Definition-of-Done
 criterion observes, and changes no system outside the repository. `references/scope-mode.md` states the
@@ -1022,6 +818,13 @@ The `ship-human-only` contract (INV-0093), `scanShipHumanOnly()`: `skills/ship/S
 `disable-model-invocation: true` in its frontmatter and no `--unattended` token anywhere — ship carries no
 unattended mode of its own, unlike every step the implement chain drives (ADR 0096). Absent ship.md is
 skipped, matching every other contract scanner.
+The `model-invocation-split` check (INV-0066), `scanModelInvocationSplit()`: `skills/afk/SKILL.md` carries
+`disable-model-invocation: true` in its frontmatter, and every skill its `## 3. Take it through the chain`
+section names as a `/superdev:<name>` step carries none. Two directions, and the check needs both: afk
+without the key lets the model start an unattended sweep itself, and a chain step with it is one afk cannot
+invoke through the Skill tool. The step list is read from that section, so a step added there is held at
+once and a mention outside it is no step. A section naming no step is a gap, not a vacuous pass. The key
+counts only inside the frontmatter. Ship's half is `ship-human-only`'s. Absent skill files are skipped.
 The `kb-staging` and `kb-no-backend-call` checks are the ADR 0023 knowledge-base contracts, checked in two
 halves because either alone passes while the invariant is gone. The `kb-staging` half: `skills/plan/SKILL.md`,
 `skills/document/SKILL.md`, and `references/doc-pass.md` each name `.superdev/kb-pending/` as the place a
@@ -2036,41 +1839,6 @@ it. One row pins the two buckets that stand in for it, `awaiting merge` and `mer
 pointing at `/superdev:ship <scope-slug>`; the other pins the `scope.js get pr` read that tells them
 apart, off the ledger's own `**PR:**` header rather than a query written into the command.
 
-The `opencode-render` check, `scanOpencodeFixtures()`: the committed golden render under
-`scripts/drift/fixtures/opencode/` still matches a fresh render of the shipped plugin tree. The scanner
-renders through `drift/opencode-fixtures.js`'s `renderNormalized()` — the same function
-`bun run render-fixtures` regenerates the fixtures with, so the check and the regeneration can never
-drift on the model map or the `<plugin-root>` normalisation — into a temp dir, then diffs the two trees
-file by file: a fixture with no fresh render, or a rendered file the fixtures do not carry, is one gap,
-named by path. A rendered file whose render is line-aligned with its `plugin/skills/*/SKILL.md` or
-`plugin/agents/*.md` source (`drift/opencode-overlay.js`'s `sourceForRendered()`, ADR 0060) commits as a
-**Render overlay** instead of a whole body — the rendered frontmatter in full, the total body line
-count, and only the body lines a rewrite rule actually changed, keyed by line number — and the check
-recomputes that same overlay fresh and compares it to the committed one field for field (frontmatter,
-body line count, and every diff), rather than comparing bytes: a source edit that touches no rewritten
-line needs no regeneration at all. The body line count carries no signal a diff doesn't already carry
-for a line a rewrite touched, but it is the only thing that would catch a fixture truncated after a
-line identical to the source — one that needs no diff entry of its own. A file with no line-aligned source (the `afk` command
-render, the generated hook bridge, the synthesized `upgrade` skill) still compares byte for byte, as does
-one whose alignment has broken — reported as an alignment failure, by name, never silently overlaid onto
-the wrong lines. Without it, a skills, agents, or hook-bridge edit that changes the OpenCode render — a
-renamed skill, a new `tools:` entry, a `/superdev:` token in new prose, a changed event-map constant —
-ships while the fixtures a consumer's render is judged against quietly describe the old tree.
-The adapter module is required from the real plugin tree rather than from the scanned root, so a
-fixture root in the selftest carries only the plugin's skills and agents plus the fixture tree, and
-either side absent skips the check, matching every other scanner's fixture rule.
-
-The `codex-render` check, `scanCodexFixtures()`: the committed golden render under
-`scripts/drift/fixtures/codex/` still matches a fresh render of the shipped skills (issue #431) and
-agents (issue #432, `.codex/agents/superdev-<name>.toml`, `sandbox_mode` derived from each agent's own
-`tools:` frontmatter — never a hardcoded name list, ADR 0056). It
-follows the `opencode-render` check's own shape — `drift/codex-fixtures.js`'s `renderNormalized()`
-renders into a temp dir with the same `<plugin-root>` normalisation, and `bun run render-fixtures`
-regenerates both fixture trees with the same function, so neither check can drift on the model map or
-the placeholder — but every file compares byte for byte: this render carries no Render overlay (ADR
-0060 is `opencode-fixtures.js`'s own optimisation over a render this many times larger, not adopted
-here). Either side absent skips the check, matching every other scanner's fixture rule.
-
 The `run-state-contract` check, `scanRunStateContract()`: every store document carries its
 own `## Run state` section (`plan-contract.md` → *Run state*, ADR 0042). It walks the same
 `storeDocuments()` candidate list the anchor, append, release and triage-record contracts walk, so a
@@ -2222,23 +1990,6 @@ pins the probe's existence and its exit 1 trigger, without which the implementat
 verdict that caused the symptom. The cap row pins the bound as a commit count: a wall clock swapped in
 lets one repository state answer two ways, the property ADR 0082 rejected it for. The fail-closed row
 pins INV-0003 across every probe step, the direction a probe that guesses breaks first.
-
-The `opencode-surface-split` check, `scanOpencodeSurfaceSplit()` (ADR 0055): the committed
-OpenCode fixtures put each surface on the side of the skill/command split its role demands. Two
-directions, and the check needs both. `afk` renders as `.opencode/commands/superdev/afk.md` and as no
-`.opencode/skills/superdev-afk/` — an OpenCode command is the one surface that harness's model cannot
-invoke, so the command render is the whole mechanism reproducing the canonical skill's
-`disable-model-invocation: true`. And every step `afk`'s own `## 3. Take it through the chain` section
-names renders as a skill and as no command — a chain step rendered as a command is one `afk` cannot
-invoke, which strands a sweep at that step. The step list is read out of that section rather than
-hand-copied, so a step added to the table is a step the check immediately demands a skill for, and a
-`/superdev:<name>` mention outside the section is not mistaken for one. It reads the committed fixtures
-rather than rendering: the `opencode-render` check already pins those to a fresh render, so the two together
-reach the live path, and this one stays a cheap file-existence test. A routing section naming no step at
-all is itself a gap, because a vacuous pass is what a step-list read from prose can otherwise decay into.
-What it does not check is the rendered *content* on either side — that the `afk` command names OpenCode's
-`skill` tool rather than Claude Code's, and refuses the render when its canonical sentence moves, is
-`tests/adapter.test.js`'s own job, not a contract row here.
 
 The `setup-check` contract (ADR 0068) pins rows on `skills/setup/SKILL.md`: it declares an
 `argument-hint` naming `check`, the literal word `/superdev:document audit` already established for a

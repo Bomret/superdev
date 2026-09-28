@@ -29,6 +29,7 @@ const {
   scanChainHandoff,
   scanAfkInvocations,
   scanAfkNoShipStep,
+  scanModelInvocationSplit,
   scanShipGateContract,
   scanShipNoOpensPr,
   scanUnresolvedGlossaryContract,
@@ -1409,6 +1410,65 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     1,
     'an unrelated "never" far from the /superdev:ship mention does not excuse it',
   );
+
+  // --- scanModelInvocationSplit: afk is never model-invocable, and every chain step it drives is
+  // (INV-0066). The step list is read from afk's own routing section, so a /superdev:<name> mention
+  // outside it is no step. Ship's half is ship-human-only's. ---
+
+  const AFK_SKILL = [
+    '---', 'name: afk', 'description: Drive the chain unattended.', 'disable-model-invocation: true', '---', '',
+    '## 3. Take it through the chain', '',
+    '| Stage | Start at |', '|---|---|',
+    '| `merged` | `/superdev:review <BASE>..<label> --unattended` |',
+    '| `reviewed` | `/superdev:document <BASE>..<label> --unattended` |', '',
+    '## 4. When a feature blocks', '', 'A mention of /superdev:ship out here is not a chain step.', '',
+  ].join('\n');
+  const skill = (name) => ['---', `name: ${name}`, `description: The ${name} step.`, '---', '', 'Body.', ''].join('\n');
+  const splitTree = {
+    'skills/afk/SKILL.md': AFK_SKILL,
+    'skills/review/SKILL.md': skill('review'),
+    'skills/document/SKILL.md': skill('document'),
+  };
+
+  // negative: afk off the surface, both chain steps on it; ship, outside the section, is not demanded
+  assert.deepEqual(scanModelInvocationSplit(fixture({ ...splitTree })), [], 'the split as shipped is clean');
+
+  // positive: afk without the key is one the model can start
+  const afkInvocable = scanModelInvocationSplit(fixture({
+    ...splitTree,
+    'skills/afk/SKILL.md': AFK_SKILL.replace('disable-model-invocation: true\n', ''),
+  }));
+  assert.equal(afkInvocable.length, 1, 'afk without disable-model-invocation is caught');
+  assert.match(afkInvocable[0].source, /afk/, 'names afk');
+
+  // positive: the key in afk's body, outside its frontmatter, turns nothing off
+  const afkKeyInBody = scanModelInvocationSplit(fixture({
+    ...splitTree,
+    'skills/afk/SKILL.md': AFK_SKILL.replace('disable-model-invocation: true\n', '') + 'disable-model-invocation: true\n',
+  }));
+  assert.equal(afkKeyInBody.length, 1, 'the key outside the frontmatter does not count');
+
+  // positive: a chain step carrying the key strands the sweep there
+  const stepOff = scanModelInvocationSplit(fixture({
+    ...splitTree,
+    'skills/review/SKILL.md': skill('review').replace('---\n\n', 'disable-model-invocation: true\n---\n\n'),
+  }));
+  assert.equal(stepOff.length, 1, 'a chain step off the surface is caught');
+  assert.match(stepOff[0].source, /review/, 'names the step');
+
+  // positive: a routing section naming no step leaves the check nothing to hold
+  const emptyChain = scanModelInvocationSplit(fixture({
+    'skills/afk/SKILL.md': AFK_SKILL.replace(/\| Stage[\s\S]*?--unattended\` \|\n(?=\n)/, 'Resume where the stage left off.\n'),
+  }));
+  assert.equal(emptyChain.length, 1, 'an empty routing section is reported, not passed');
+  assert.match(emptyChain[0].expectation, /names no/, 'says the section names no step');
+
+  // an absent afk skill, or an absent step skill, is skipped
+  assert.deepEqual(scanModelInvocationSplit(fixture({ 'README.md': '# repo\n' })), [], 'an absent afk.md is skipped');
+  assert.deepEqual(scanModelInvocationSplit(fixture({ 'skills/afk/SKILL.md': AFK_SKILL })), [], 'absent step skills are skipped');
+
+  // the shipped tree carries the split
+  assert.deepEqual(scanModelInvocationSplit(realRoot), [], 'the real repository is clean');
 
   // --- scanHookLedgerParsers: no hook carries a ledger-header regex of its own (ADR 0022) ---
 

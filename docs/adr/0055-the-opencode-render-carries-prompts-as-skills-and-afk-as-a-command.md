@@ -1,6 +1,8 @@
 # 0055: The OpenCode render carries prompts as skills, and afk as a command
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0102](0102-superdev-is-a-claude-code-only-plugin.md), which makes superdev a Claude Code-only plugin and removes the harness renders.
 
 **Amends:** [ADR 0050](0050-carry-the-plugin-as-skills-canonical-prose-with-install-time-adapters.md),
 which named `.opencode/commands/superdev/<name>.md` as the OpenCode prompt render target and deferred

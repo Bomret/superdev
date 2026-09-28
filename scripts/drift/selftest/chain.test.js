@@ -4830,53 +4830,29 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'names domain-modeling.md',
   );
 
-  // --- SPAWN_FAILURE_ANSWER_CONTRACTS: ADR 0087 — two gates answer a spawn that never started
-  // differently on purpose, and each row pins its surface's reason plus the clause naming the other
-  // surface's answer. Pinning the behaviour alone is what let the bridge's fail-open read as an
-  // oversight until #606; a fixture that keeps the behaviour and drops the cross-reference has to
-  // report a gap, or the row is back to pinning what it already pinned.
-  const sfClauses = {
-    'hooks/green-gate.js':
-      "the suite never started at all: the merge's own working tree can't even run the suite, so it " +
-      'gates like a RED verdict. On the same condition the bridge lets the call through, with a ' +
-      'notice. This one fires only on a merge, so blocking costs one merge.\n',
-    'scripts/adapter.js':
-      'a hook that never started: the absence is evidence about the installation rather than about the ' +
-      'code under the gate, so the call proceeds. On the same condition hooks/green-gate.js blocks.\n',
-  };
+  // --- SPAWN_FAILURE_ANSWER_CONTRACTS: ADR 0087 — green-gate blocks a suite that never started, and
+  // the row pins its reason with the behaviour. A fixture that keeps the behaviour and drops the reason
+  // has to report a gap, or the row pins only what the behaviour tests already pin.
+  const sfClause =
+    "the suite never started at all: the merge's own working tree can't even run the suite, so it " +
+    'gates like a RED verdict. It fires only on a merge, so blocking costs one merge.\n';
   assert.deepEqual(
-    scanContract(fixture(sfClauses), SPAWN_FAILURE_ANSWER_CONTRACTS),
+    scanContract(fixture({ 'hooks/green-gate.js': sfClause }), SPAWN_FAILURE_ANSWER_CONTRACTS),
     [],
-    'a fixture carrying both surfaces\' reasons and cross-references reports no gap'
+    'a fixture carrying the behaviour and its reason reports no gap'
   );
-  for (const rel of Object.keys(sfClauses)) {
-    const dropped = fixture({ ...sfClauses, [rel]: 'Nothing about a spawn that never started here.\n' });
-    const gaps = scanContract(dropped, SPAWN_FAILURE_ANSWER_CONTRACTS);
-    assert.equal(gaps.length, 1, `flags ${rel} for dropping its spawn-failure answer`);
-    assert.equal(gaps[0].source, rel, `names ${rel}`);
-  }
-  // the cross-reference specifically: keep each surface's own behaviour and reason, drop only the
-  // sentence naming the other gate's answer
-  const sfNoCrossRef = fixture({
+  const sfDropped = scanContract(
+    fixture({ 'hooks/green-gate.js': 'Nothing about a spawn that never started here.\n' }),
+    SPAWN_FAILURE_ANSWER_CONTRACTS,
+  );
+  assert.equal(sfDropped.length, 1, 'flags hooks/green-gate.js for dropping its spawn-failure answer');
+  assert.equal(sfDropped[0].source, 'hooks/green-gate.js', 'names hooks/green-gate.js');
+  // the "fires only on a merge" reason clause is pinned too — dropping only it, keeping the
+  // behaviour, still reports a gap.
+  const sfNoMergeReason = fixture({
     'hooks/green-gate.js':
       "the suite never started at all: the merge's own working tree can't even run the suite, so it " +
       'gates like a RED verdict.\n',
-    'scripts/adapter.js':
-      'a hook that never started: the absence is evidence about the installation rather than about the ' +
-      'code under the gate, so the call proceeds.\n',
-  });
-  assert.equal(
-    scanContract(sfNoCrossRef, SPAWN_FAILURE_ANSWER_CONTRACTS).length,
-    2,
-    'dropping only the cross-reference still reports both surfaces — the divergence must stay stated'
-  );
-  // the "fires only on a merge" reason clause is pinned too — dropping only it, keeping the
-  // behaviour and the cross-reference, still reports a gap.
-  const sfNoMergeReason = fixture({
-    ...sfClauses,
-    'hooks/green-gate.js':
-      "the suite never started at all: the merge's own working tree can't even run the suite, so it " +
-      'gates like a RED verdict. On the same condition the bridge lets the call through, with a notice.\n',
   });
   const mergeReasonGaps = scanContract(sfNoMergeReason, SPAWN_FAILURE_ANSWER_CONTRACTS);
   assert.equal(mergeReasonGaps.length, 1, 'dropping only "fires only on a merge" still reports a gap');

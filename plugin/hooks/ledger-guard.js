@@ -58,32 +58,6 @@ function bashWritesLedger(cmd) {
 // `install` invoked through a variable or a wrapper script, slips past; this is a guardrail
 // against the model's normal output, not a sandbox.
 
-// Codex's own PreToolUse payload for its apply_patch tool: tool_name is the literal string
-// 'apply_patch', and tool_input.command carries the whole patch envelope — never a shell command,
-// even though the field name coincides with the Bash shape's own `command` (verified 2026-09-22
-// against https://learn.chatgpt.com/docs/hooks: "tool_name: canonical tool name (e.g. 'Bash' or
-// 'apply_patch')", "Bash and apply_patch use tool_input.command"). A target path in that envelope
-// names its file after one of four headers — `*** Add File:`, `*** Update File:`, `*** Delete
-// File:`, or a following `*** Move to:` rename (verified 2026-09-22 against
-// https://raw.githubusercontent.com/openai/codex/main/codex-rs/core/assets/tools/apply_patch.lark,
-// which names exactly these four headers). That grammar's filename rule is a bare `/(.+)/`, so it
-// does not itself settle whether a target path is relative or absolute; the suffix test below
-// matches either shape, so it does not need that question settled.
-const PATCH_TARGET = /^\*\*\* (?:Add File|Update File|Delete File|Move to): (.+)$/gm;
-
-function patchTargetsLedger(patchText) {
-  let m;
-  PATCH_TARGET.lastIndex = 0;
-  while ((m = PATCH_TARGET.exec(patchText))) {
-    // The grammar's filename rule is a bare `/(.+)/`: it swallows trailing whitespace, a tab, or
-    // a stray \r into the same capture group. Trim before the suffix test, or a header like
-    // `*** Update File: …/ledger.md  ` (or `…ledger.md\r`) evades the guard.
-    const target = m[1].replace(/\\/g, '/').trim();
-    if (/\.superdev\/scopes\/[^/]+\/ledger\.md$/.test(target)) return true;
-  }
-  return false;
-}
-
 function decide(input) {
   const ti = (input && input.tool_input) || {};
   const reason =
@@ -96,11 +70,6 @@ function decide(input) {
     if (/\.superdev\/scopes\/[^/]+\/ledger\.md$/.test(ti.file_path.replace(/\\/g, '/'))) {
       return { block: true, reason };
     }
-    return { block: false };
-  }
-
-  if (input && input.tool_name === 'apply_patch' && typeof ti.command === 'string') {
-    if (patchTargetsLedger(ti.command)) return { block: true, reason };
     return { block: false };
   }
 

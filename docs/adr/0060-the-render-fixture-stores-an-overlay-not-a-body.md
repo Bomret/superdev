@@ -1,6 +1,8 @@
 # 0060: The render fixture stores an overlay, not a body
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0102](0102-superdev-is-a-claude-code-only-plugin.md), which makes superdev a Claude Code-only plugin and removes the harness renders.
 
 **Context.** The `opencode-render` drift check pins `plugin/scripts/adapter.js` against golden fixtures
 under `scripts/drift/fixtures/opencode/`: a fresh render into a temp dir, diffed file by file against a

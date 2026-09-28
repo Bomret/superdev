@@ -63,7 +63,6 @@ try {
   require('./scanners.test')(context);
   require('./chain.test')(context);
   require('./kb-plan.test')(context);
-  require('./opencode.test')(context);
   require('./drift-check.test')(context);
 
   // Every table any suite above scanned gets checked here, once, against what it actually observed —

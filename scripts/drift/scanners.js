@@ -6,7 +6,6 @@
 // owns how each gap is printed.
 
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
 const {
@@ -1289,12 +1288,10 @@ function scanAuditSetGlobs(root) {
   return gaps;
 }
 
-// walkFiles(dir): every file under dir, as paths relative to dir, sorted. The fixture diff below
-// compares two rendered trees by exactly this list. `entry.parentPath` is Node's own name for the
-// directory an fs.Dirent came from (`entry.path` before it, removed in Node 24) — read either, so
+// walkFiles(dir): every file under dir, as paths relative to dir, sorted. `entry.parentPath` is Node's
+// own name for the directory an fs.Dirent came from (`entry.path` before it, removed in Node 24) — read either, so
 // this runs on the oldest Node this repo supports and the newest alike. `isFile()` excludes a
-// symlink deliberately — neither tree this walks (a fresh render, a committed fixture) ever
-// contains one.
+// symlink deliberately — no shipped document tree this walks contains one.
 function walkFiles(dir) {
   const resolved = path.resolve(dir);
   return fs
@@ -1506,160 +1503,47 @@ function scanShipHumanOnly(root) {
   return gaps;
 }
 
-// scanOpencodeFixtures() is pure over a root dir: the committed golden render under
-// `scripts/drift/fixtures/opencode/` still matches a fresh render of the root's plugin tree. It
-// renders through `drift/opencode-fixtures.js`'s renderNormalized() into a temp dir and diffs the
-// two trees — a skills or agents edit that changes the render is a gap until the fixtures are
-// regenerated (`bun run render-fixtures`) in the same commit. A rendered file with a line-aligned
-// source (opencode-overlay.js's sourceForRendered, ADR 0060) is compared as a Render overlay —
-// frontmatter and body diffs recomputed fresh from the live source and render, then matched against
-// the committed overlay — rather than byte for byte, so a source-file edit that touches no rewritten
-// line stays green with the fixtures untouched. A file with no such source, or one whose render has
-// stopped being line-aligned with it, is compared byte for byte instead: the whole-body form ADR
-// 0060 keeps for the afk command, the hook bridge, the synthesized upgrade skill, and any surface
-// alignment has broken for. The adapter module is required from the real plugin tree, so a fixture
-// root needs only the plugin's skills/agents and the fixtures themselves; either side absent skips
-// the check, matching every other scanner. Gaps are plain strings: the registry entry's format is
-// the identity.
-function scanOpencodeFixtures(root) {
-  const { FIXTURE_DIR, renderNormalized } = require('./opencode-fixtures');
-  const overlay = require('./opencode-overlay');
-  const fixtureDir = path.join(root, FIXTURE_DIR);
-  if (!fs.existsSync(fixtureDir)) return []; // no committed fixtures → nothing to compare
-  if (!fs.existsSync(path.join(root, 'plugin', 'skills'))) return []; // fixture root may carry only one side
-  const fixtureLabel = FIXTURE_DIR.split(path.sep).join('/');
-  const pluginDir = path.join(root, 'plugin');
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'opencode-render-'));
-  try {
-    renderNormalized(root, tmp);
-    const gaps = [];
-    const expected = walkFiles(fixtureDir);
-    const actual = walkFiles(tmp);
-    for (const rel of expected.filter((rel) => !actual.includes(rel))) {
-      gaps.push(`${fixtureLabel}/${rel} has no fresh render — regenerate the fixtures (bun run render-fixtures)`);
-    }
-    for (const rel of actual.filter((rel) => !expected.includes(rel))) {
-      gaps.push(`a fresh render produces ${rel}, which ${fixtureLabel} does not carry — regenerate the fixtures (bun run render-fixtures)`);
-    }
-    for (const rel of expected.filter((rel) => actual.includes(rel))) {
-      const committedText = fs.readFileSync(path.join(fixtureDir, rel), 'utf8');
-      const freshText = fs.readFileSync(path.join(tmp, rel), 'utf8');
-      const srcPath = overlay.sourceForRendered(pluginDir, rel);
-      if (!srcPath) {
-        if (committedText !== freshText) {
-          gaps.push(`${fixtureLabel}/${rel} no longer matches a fresh render of the plugin tree — regenerate the fixtures (bun run render-fixtures)`);
-        }
-        continue;
-      }
-      const result = overlay.computeOverlay(fs.readFileSync(srcPath, 'utf8'), freshText);
-      if (!result.ok) {
-        const srcRel = path.relative(root, srcPath).split(path.sep).join('/');
-        gaps.push(
-          `${fixtureLabel}/${rel}: alignment failed — its render is no longer line-for-line aligned with ` +
-            `${srcRel} (${result.reason}); move it onto the whole-body fixture list before regenerating (ADR 0060)`,
-        );
-        continue;
-      }
-      let committedOverlay;
-      try {
-        committedOverlay = overlay.parseOverlay(committedText);
-      } catch {
-        committedOverlay = null;
-      }
-      if (!committedOverlay || !overlay.overlaysEqual(committedOverlay, result.overlay)) {
-        gaps.push(`${fixtureLabel}/${rel} no longer matches a fresh render of the plugin tree — regenerate the fixtures (bun run render-fixtures)`);
-      }
-    }
-    return gaps;
-  } finally {
-    fs.rmSync(tmp, { recursive: true, force: true });
-  }
-}
-
-// scanCodexFixtures() is pure over a root dir: the committed golden render under
-// `scripts/drift/fixtures/codex/` still matches a fresh render of the root's plugin tree. It renders
-// through `drift/codex-fixtures.js`'s renderNormalized() into a temp dir and diffs the two trees — a
-// skills or agents edit that changes the render is a gap until the fixtures are regenerated (`bun run
-// render-fixtures`) in the same commit. Every file is compared byte for byte: this render carries no
-// Render overlay (ADR 0060 is opencode-fixtures.js's own optimisation, not adopted here). The adapter
-// module is required from the real plugin tree, so a fixture root needs only the plugin's skills and
-// agents plus the fixtures themselves; either side absent skips the check, matching every other scanner.
-function scanCodexFixtures(root) {
-  const { FIXTURE_DIR, renderNormalized } = require('./codex-fixtures');
-  const fixtureDir = path.join(root, FIXTURE_DIR);
-  if (!fs.existsSync(fixtureDir)) return []; // no committed fixtures → nothing to compare
-  if (!fs.existsSync(path.join(root, 'plugin', 'skills'))) return []; // fixture root may carry only one side
-  const fixtureLabel = FIXTURE_DIR.split(path.sep).join('/');
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-render-'));
-  try {
-    renderNormalized(root, tmp);
-    const gaps = [];
-    const expected = walkFiles(fixtureDir);
-    const actual = walkFiles(tmp);
-    for (const rel of expected.filter((rel) => !actual.includes(rel))) {
-      gaps.push(`${fixtureLabel}/${rel} has no fresh render — regenerate the fixtures (bun run render-fixtures)`);
-    }
-    for (const rel of actual.filter((rel) => !expected.includes(rel))) {
-      gaps.push(`a fresh render produces ${rel}, which ${fixtureLabel} does not carry — regenerate the fixtures (bun run render-fixtures)`);
-    }
-    for (const rel of expected.filter((rel) => actual.includes(rel))) {
-      const committedText = fs.readFileSync(path.join(fixtureDir, rel), 'utf8');
-      const freshText = fs.readFileSync(path.join(tmp, rel), 'utf8');
-      if (committedText !== freshText) {
-        gaps.push(`${fixtureLabel}/${rel} no longer matches a fresh render of the plugin tree — regenerate the fixtures (bun run render-fixtures)`);
-      }
-    }
-    return gaps;
-  } finally {
-    fs.rmSync(tmp, { recursive: true, force: true });
-  }
-}
-
-// scanOpencodeSurfaceSplit() is pure over a root dir: the committed OpenCode render puts each
-// surface on the side of the skill/command split that its role demands (ADR 0055).
+// scanModelInvocationSplit() is pure over a root dir: afk is never a surface the model can start, and
+// every chain step it drives stays one (INV-0066). Two directions, and the check needs both. afk
+// without `disable-model-invocation: true` in its frontmatter lets the model start an unattended
+// backlog sweep itself; a chain step carrying it is one afk cannot invoke through the Skill tool, which
+// strands the sweep at that step. Ship's own half is `scanShipHumanOnly()`'s.
 //
-// Two directions, and the check needs both. `afk` renders as a command and never as a skill —
-// a command is the one OpenCode surface the model cannot invoke, which is the whole mechanism
-// standing between a model and an unattended backlog sweep it started itself. And every step afk's
-// own chain table names renders as a skill and never as a command — a chain step rendered as a
-// command is one afk cannot invoke, which strands the sweep at that step.
-//
-// The chain-step list is read out of `plugin/skills/afk/SKILL.md`'s own routing section rather than
-// hand-copied here, so a step added to that table is a step this check immediately demands a skill
-// for. It reads the committed fixtures rather than rendering: `opencode-render` already pins those
-// to a fresh render, so the two together cover the live path. Either side absent skips the check,
-// matching every other scanner.
-function scanOpencodeSurfaceSplit(root) {
-  const { FIXTURE_DIR } = require('./opencode-fixtures');
-  const afkPath = path.join(root, 'plugin', 'skills', 'afk', 'SKILL.md');
-  const fixtureDir = path.join(root, FIXTURE_DIR);
-  if (!fs.existsSync(afkPath) || !fs.existsSync(fixtureDir)) return [];
-
-  const afk = fs.readFileSync(afkPath, 'utf8');
-  // The routing section, bounded at the next same-level heading: the `/superdev:<name>` tokens in it
-  // are the chain steps afk drives.
+// The step list is read out of afk's `## 3. Take it through the chain` section rather than hand-copied,
+// so a step added there is one this check immediately holds, and a `/superdev:<name>` mention outside
+// it is no step. A section naming none is itself a gap, not a vacuous pass. Absent skill files are
+// skipped, matching every other contract scanner.
+function scanModelInvocationSplit(root) {
+  const afkSource = path.join('skills', 'afk', 'SKILL.md');
+  const afk = readDoc(root, afkSource);
+  if (afk === null) return [];
+  const disabled = (text) => {
+    const fm = text.match(/^---\n([\s\S]*?)\n---(?:\n|$)/);
+    return fm !== null && /^disable-model-invocation:\s*true\s*$/m.test(fm[1]);
+  };
+  const gaps = [];
+  if (!disabled(afk)) {
+    gaps.push({
+      source: afkSource,
+      expectation: 'carry `disable-model-invocation: true` in its frontmatter, so no model starts an unattended sweep on its own (INV-0066)',
+    });
+  }
   const section = afk.match(/\n## 3\. Take it through the chain\n([\s\S]*?)(?=\n## |$)/);
   const steps = section ? [...new Set([...section[1].matchAll(/\/superdev:([a-z][a-z-]*)/g)].map((m) => m[1]))].sort() : [];
-
-  const skillOf = (name) => path.join(fixtureDir, '.opencode', 'skills', `superdev-${name}`, 'SKILL.md');
-  const commandOf = (name) => path.join(fixtureDir, '.opencode', 'commands', 'superdev', `${name}.md`);
-  const gaps = [];
-
-  if (fs.existsSync(skillOf('afk'))) {
-    gaps.push('afk renders as an OpenCode skill, which the model can invoke through the skill tool — it renders as a command precisely so it cannot (ADR 0055)');
-  }
-  if (!fs.existsSync(commandOf('afk'))) {
-    gaps.push('afk renders as no OpenCode command — the command render is what reproduces its disable-model-invocation (ADR 0055)');
-  }
   if (steps.length === 0) {
-    gaps.push("skills/afk/SKILL.md's `## 3. Take it through the chain` section names no `/superdev:<name>` step — the surface-split check has nothing to hold the render to");
+    gaps.push({
+      source: afkSource,
+      expectation: 'name at least one `/superdev:<name>` step in its `## 3. Take it through the chain` section — a section that names no step leaves this check nothing to hold (INV-0066)',
+    });
   }
   for (const step of steps) {
-    if (!fs.existsSync(skillOf(step))) {
-      gaps.push(`afk drives \`/superdev:${step}\`, which renders as no OpenCode skill — a step the model cannot invoke strands the sweep there (ADR 0055)`);
-    }
-    if (fs.existsSync(commandOf(step))) {
-      gaps.push(`afk drives \`/superdev:${step}\`, which renders as an OpenCode command — a command is not model-invocable, so afk cannot reach it (ADR 0055)`);
+    const source = path.join('skills', step, 'SKILL.md');
+    const text = readDoc(root, source);
+    if (text !== null && disabled(text)) {
+      gaps.push({
+        source,
+        expectation: `carry no \`disable-model-invocation: true\` — afk drives \`/superdev:${step}\` through the Skill tool, so a step off the model-invocable surface strands the sweep there (INV-0066)`,
+      });
     }
   }
   return gaps;
@@ -1671,6 +1555,7 @@ module.exports = {
   scanScopetreeRunRootPaths,
   scanNoBaseBranchCommit,
   scanShipHumanOnly,
+  scanModelInvocationSplit,
   scanAssigneeContract,
   scanAnchorContract,
   scanAppendContract,
@@ -1713,7 +1598,4 @@ module.exports = {
   scanMarketplaceSource,
   scanReadmeCommands,
   scanAuditSetGlobs,
-  scanOpencodeFixtures,
-  scanOpencodeSurfaceSplit,
-  scanCodexFixtures,
 };

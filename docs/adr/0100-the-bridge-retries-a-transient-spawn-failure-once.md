@@ -1,6 +1,8 @@
 # 0100: The bridge retries a transient spawn failure once
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0102](0102-superdev-is-a-claude-code-only-plugin.md), which makes superdev a Claude Code-only plugin and removes the harness renders.
 
 **Amends:** [ADR 0087](0087-a-spawn-that-never-started-is-not-a-spawn-that-was-killed.md), which reads a
 spawn that never started as evidence about the installation, and has the OpenCode hook bridge let the
