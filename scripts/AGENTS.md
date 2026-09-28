@@ -408,8 +408,9 @@ It checks these kinds of rule:
   token in `Check:` names a file; drift ids and quoted test names are prose and stay unchecked.
 - **Citations.** Every `INV-NNNN` cited in a walked file names an entry the register carries, so
   retiring or renumbering an entry cannot leave its citations silently stale. A citation is `INV-` and
-  four digits with no digit after them, so a trailing letter or `_` does not hide it. A letter, digit
-  or `_` immediately before `INV-`, with no separator, still hides it. A stale citation fails as
+  four digits. No letter, combining mark, or digit, in any script, may sit directly before `INV-`, and no digit after the
+  four digits. So `_` or punctuation on either side does not hide it, and an unrelated id such as
+  `SINV-2024` stays out. A stale citation fails as
   `<id>: citation: cited at <file>:<line>, …`. The register itself, `CHANGELOG.md` and every file under
   `docs/adr/` are not scanned. The changelog is release-managed and an ADR is superseded rather than
   edited, so a stale citation there is dated history that no edit can fix.

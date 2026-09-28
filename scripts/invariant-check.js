@@ -261,9 +261,11 @@ function citationFailures(entries, files, read) {
   const failures = [];
   for (const rel of files.filter((f) => !HISTORY(f))) {
     read(rel).split(/\r?\n/).forEach((line, i) => {
-      // No word character before, no digit after: a trailing letter or `_` must not hide a citation,
-      // and a longer digit run must never read as a shorter id (#741).
-      for (const m of line.matchAll(/(?<!\w)INV-\d{4}(?!\d)/g)) {
+      // No letter, mark, or digit before, in any script, and no digit after: `_` or punctuation on either
+      // side must not hide a citation (#741, #744), a decomposed letter's combining mark stops a match
+      // the way its base letter does (#744), a longer digit run must never read as a shorter id, and an
+      // unrelated id that merely ends in `INV-` plus digits stays out.
+      for (const m of line.matchAll(/(?<![\p{L}\p{M}\p{N}])INV-\d{4}(?!\d)/gu)) {
         if (!ids.has(m[0])) {
           failures.push({ id: m[0], field: 'citation', reason: `cited at ${rel}:${i + 1}, but the register carries no such entry` });
         }

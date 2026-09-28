@@ -817,4 +817,23 @@ for (const statement of ['Bestellung ändert sich nie', '注文は不変']) {
   assert.equal(longer.status, 0, `a longer digit run is never read as a shorter id (got: ${longer.out})`);
 }
 
+// --- #744: only a letter or digit directly before `INV-` stops a citation. An underscore or punctuation
+// in front no longer hides a stale one; a letter or digit in any script still keeps an unrelated id out. ---
+{
+  const STALE = ['INV', '9997'].join('-');
+  const base = { 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0001', GOOD)) };
+  const lead = failuresFor({ ...base, 'README.md': `See FOO_${STALE}.\n` }, 'citation with a leading underscore');
+  assert.equal(lead.status, 1, `a stale id with an underscore in front is read (got: ${lead.out})`);
+  assert.match(lead.out, new RegExp(`^${STALE}: citation: .*README\\.md:1`, 'm'), 'and reported with its file and line');
+  for (const [prefix, n] of [['(', 1], ['-', 2], ['/', 3]]) {
+    const r = failuresFor({ ...base, 'README.md': `x\n`.repeat(n - 1) + `See ${prefix}${STALE}.\n` }, `citation after ${prefix}`);
+    assert.equal(r.status, 1, `a stale id after \`${prefix}\` is still reported (got: ${r.out})`);
+    assert.match(r.out, new RegExp(`^${STALE}: citation: .*README\\.md:${n}`, 'm'), `naming its line after \`${prefix}\``);
+  }
+  for (const prefix of ['X', '2', 'Ä', 'A\u0308']) {
+    const r = failuresFor({ ...base, 'README.md': `See ${prefix}${STALE}.\n` }, `id glued to ${prefix}`);
+    assert.equal(r.status, 0, `\`${prefix}\` directly in front keeps it from being read as a citation (got: ${r.out})`);
+  }
+}
+
 console.log('invariant-check tests ok');
