@@ -1,3 +1,10 @@
+## [0.56.2](https://codeberg.org/bomret/superdev/compare/v0.56.1...v0.56.2) (2026-09-29)
+
+
+### Bug Fixes
+
+* **ship-deploys-followups:** ship shows every deploy config it runs, and the deploy wording follow-ups ([490e25c](https://codeberg.org/bomret/superdev/commit/490e25cc91a1f8467c9ec3ae6975be71c4ba4d19))
+
 ## [0.56.1](https://codeberg.org/bomret/superdev/compare/v0.56.0...v0.56.1) (2026-09-29)
 
 
