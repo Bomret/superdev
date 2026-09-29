@@ -9,7 +9,8 @@ argument-hint: "[<scope>  (empty = the only run in this repo)]"
 
 Merge the pull request `/superdev:submit-pr` opened. It dispatches no subagents, and carries no
 unattended mode of its own: only a human runs this command (ADR 0096). Calling it at all is the consent
-to merge, so nothing here asks a second question once the gate below has passed.
+to merge, so nothing here asks a second question once the gate below has passed, except one: under `auto`, §5 asks
+before it deploys a `docs/agents/deployment.md` nobody was shown (ADR 0104).
 
 ## 1. Scope + run root
 
@@ -212,7 +213,7 @@ own message and merge nothing.
 **Find the merge commit.** Read the pull request once more, by the ledger's `**PR:**` number (§3's own
 read) — never a value read from anywhere else, so the deploy below runs exactly what the host merged.
 **`merged` reads false** → refuse: the pull request no longer reads as merged on the host, and change
-nothing — the stage write below never runs. **Otherwise** → take `merge_commit_sha`.
+nothing — the stage write below never runs. **Otherwise** → take `merge_commit_sha` and `head.sha`.
 
 Set the ledger's `**Stage:**` line to `shipped` with
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set shipped --root <run-root>`, unless it already
@@ -238,7 +239,34 @@ checkout — fetching base first if the scope checkout lacks that commit
 - **`auto`** → fetch the base branch and detach the scopetree at the merge commit —
   `git -C <run-root>/scopetree fetch origin <base>` then
   `git -C <run-root>/scopetree checkout --detach <merge-commit-sha>` — the invoking checkout is never
-  switched or pulled (ADR 0045). Run every listed target's command not already recorded `deployed`, in
+  switched or pulled (ADR 0045).
+
+  **Before any target runs, show what nobody was shown** (ADR 0104, INV-0104). Compare the merge commit's
+  document with the tested head's — `git -C <run-root>/scopetree diff <tested-head> <merge-commit-sha> --
+  docs/agents/deployment.md`, `<tested-head>` being the `head.sha` just read. A base change that lands on
+  the host between §4's gate and the squash reaches the merge commit this way, unprinted. A document present
+  on one side only reads as posture `none` on the other, and counts as a difference. **A diff that fails to
+  run at all** — an unknown revision, such as a `<tested-head>` this scopetree never fetched — counts as
+  non-empty too: the comparison could not run, so ask, saying so, rather than read the silence as nothing
+  changed. **This invocation ran no §3/§4 gate of its own** — an adopted hand merge, or a resumed deploy
+  reached from §3's `shipped` branch → take the pull request's own change to the document too, diffed from
+  the fork point rather than the merge commit's lone parent, since a rebase or fast-forward merge carries an
+  earlier commit's own change to the document that `<merge-commit-sha>^` alone would miss. Find the fork
+  point as its own step, `git -C <run-root>/scopetree merge-base <tested-head> <merge-commit-sha>`: a
+  non-zero exit or empty output counts as non-empty, because an empty `<fork-point>` turns the diff below
+  into one against the working tree, which reads as nothing changed. Then diff `git -C <run-root>/scopetree diff <fork-point> <merge-commit-sha> --
+  docs/agents/deployment.md`: no gate printed it. A failure here counts as non-empty for the same reason.
+
+  - **Either diff non-empty** → print the changed posture and target lines, or the diff itself when no
+    posture or target line changed, and ask once whether to deploy under them. **Confirmed** → run the
+    targets below. **Declined** → deploy nothing: record
+    `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deploy set <target> pending --root <run-root>` for every
+    listed target the deploy record (`scope.js deploy get`) does not yet name, so the run stays in §1's
+    candidate set, leave the anchor open, skip the close and cleanup below, and print
+    `/superdev:ship <scope>` as the resume, which asks again. Stop.
+  - **Both diffs empty** → ask nothing, and run the targets below.
+
+  Run every listed target's command not already recorded `deployed`, in
   listed order, right there, in the foreground, relaying its output to the operator as it runs:
   - **A listed target the `## Targets` table lacks** (reachable only here — ship's own merge already
     refused this in §3, or in §4's re-run when base moved the tip, before anything merged) → stop exactly

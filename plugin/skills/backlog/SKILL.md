@@ -81,16 +81,21 @@ row in the `stranded` bucket (§3), the item §5 ranks most expensive — unless
 scope slug of a feature label this same survey already gave a `blocked` row for; that row already names
 the act, so the run root beneath it earns no second one. A run root matching no open anchor whose stage
 reads `shipped` gets **no row at all** — the anchor already closed, so this is the ordinary end state a
-finished run sits in until `hooks/scope-prune.js` reaps it, not a mismatch to report. `/superdev:ship`
-sets that stage right after the merge, before any deploy runs, and closes the anchor only once every
-target has deployed (or right away, under a posture that deploys nothing) — the two are not one step, so
-a `shipped` run root can carry an open anchor in between. The reciprocal case — an open anchor whose own
-run root reads `shipped` — is a row too; §3 buckets it.
+finished run sits in until `hooks/scope-prune.js` reaps it, not a mismatch to report — unless it meets
+the `deploy resume` definition (§3): a `**PR:**` header, a deploy record naming a target not yet
+`deployed`, and its scope checkout still present. That run root gets a `deploy resume` row whether or not
+an open anchor matches it. The local plan-file store closes the anchor with the pull request, so there
+this is the only way a stalled `auto` deploy shows at all. `/superdev:ship` sets that stage right after
+the merge, before any deploy runs, and closes the anchor only once every target has deployed (or right
+away, under `manual` or `none`) — the two are not one step, so a `shipped` run root can carry
+an open anchor in between. The reciprocal case — an open anchor whose own run root reads `shipped` — is a
+row too; §3 buckets it.
 
-**No open anchor, no triage record, no stranded run root, and no untriaged item** → say the backlog is
-empty, in one line, and stop — unless the active store document carries no `## Untriaged item` section at
-all. That is the configuration gap named above, not a known-empty untriaged set: the gap line above the
-table (§3) prints instead, and this exit never fires on that account.
+**No open anchor, no triage record, no stranded run root, no `deploy resume` run root, and no untriaged
+item** → say the backlog is empty, in one line, and stop — unless the active store document carries no
+`## Untriaged item` section at all. That is the configuration gap named above, not a known-empty
+untriaged set: the gap line above the table (§3) prints instead, and this exit never fires on that
+account.
 
 ## 3. Bucket every item
 
@@ -107,7 +112,7 @@ issue query, say. A record already returned by the anchor or triage listing is n
 
 | Bucket | What is in it | What it needs |
 |---|---|---|
-| `deploy resume` | its matched run root reads `shipped`, carries a `**PR:**` header, and its deploy record (`scope.js deploy get`) names a target not yet `deployed` while its scope checkout (`<run-root>/scopetree`) is still present — the same definition `/superdev:ship`'s own empty-argument candidate set uses (`skills/ship/SKILL.md` §1), an `auto` deploy a prior ship stopped mid-way | `/superdev:ship <scope-slug>` |
+| `deploy resume` | its run root, matched to an open anchor or not, reads `shipped`, carries a `**PR:**` header, and its deploy record (`scope.js deploy get`) names a target not yet `deployed` while its scope checkout (`<run-root>/scopetree`) is still present — the same definition `/superdev:ship`'s own empty-argument candidate set uses (`skills/ship/SKILL.md` §1), an `auto` deploy a prior ship stopped mid-way | `/superdev:ship <scope-slug>` |
 | `blocked` | the anchor carries the store's blocked signal, an open one among the slices its `## Scope anchor` listing returns beneath it does, its feature label fails the scope-slug rule, its feature label's candidates are `Ambiguous` per the active `docs/agents/issue-tracker.md`'s own `## Scope anchor` section, or its matched run root's stage reads `shipped` while the anchor is still open and it is not already bucketed `deploy resume` above — close the anchor | a human, now |
 | `stranded` | a run root whose stage is short of `shipped` and matches no open anchor | a human, now — resume the run if its anchor still exists, otherwise delete the branch, scopetree, and run root |
 | `awaiting merge` | its matched run root's stage reads `submitted` and its pull request is open on the host, or none is recorded to check | the operator's merge on the host, then `/superdev:ship <scope-slug>` |
@@ -131,8 +136,8 @@ this row goes to `awaiting merge` regardless of what the fallback returns, carry
 its note rather than guessing which one it is.
 
 **Every open anchor, every triage record and untriaged item the listings returned, and every
-stranded run root appears in the table.** An item you cannot classify is a `blocked` row naming what you
-could not read about it, never an item left out — a missing row reads as work that does not exist.
+stranded or `deploy resume` run root appears in the table.** An item you cannot classify is a `blocked`
+row naming what you could not read about it, never an item left out — a missing row reads as work that does not exist.
 
 **The `untriaged` bucket alone is capped, at 5, oldest first.** A store with real reporters holds more
 untriaged items than the rest of the table put together, and printing every one would drown the anchors
@@ -187,10 +192,11 @@ End with **one** line: the single thing you would do next, and why in half a sen
 
 **Finishing beats starting.** An in-flight scope outranks a `ready` anchor, which outranks a fresh
 `/superdev:plan`. A stranded run root is the most expensive item in the backlog: it holds a branch, a
-scopetree, and a lock, and every day it sits there the base moves further from it. A `blocked` row outranks
-all of it when one exists, because nothing else in the table moves until a human clears it. An `untriaged`
-item ranks last, for the opposite reason a stranded run root ranks first: it is the furthest thing from
-finished.
+scopetree, and a lock, and every day it sits there the base moves further from it. A `deploy resume` row
+outranks every other row, a `blocked` one included: base already carries code some targets run and others
+do not, and one `/superdev:ship` finishes it. Short of that, a `blocked` row outranks the rest, because
+nothing else in the table moves until a human clears it. An `untriaged` item ranks last, for
+the opposite reason a stranded run root ranks first: it is the furthest thing from finished.
 
 Recommend one move, not a ranked list. The table is already the ranked list.
 

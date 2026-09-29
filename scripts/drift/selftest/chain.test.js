@@ -3241,11 +3241,15 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'A repository carrying no `docs/agents/deployment.md` reads as posture `none`.\n\n' +
     '`/superdev:ship` reads the posture from this document\'s own `Posture:` line. A document ' +
     'carrying no such line reads as posture `none`.\n\n' +
-    '## Targets\n\n| Name | Command | Read-only reach |\n|---|---|---|\n';
+    '## Targets\n\n| Name | Command | Read-only reach |\n|---|---|---|\n\n' +
+    'Under `auto`, a target\'s command runs in a tree detached at the merge commit that can still carry ' +
+    'ignored files from the run, so the command installs and builds what it needs itself.\n';
   const depSetupClean =
     'Propose `manual` as the default. Never propose `auto` — write it only on the operator\'s own pick.\n\n' +
     'Report one of three verdicts for `deployment.md`.\n\n' +
-    'Either way, write the chosen answer as a `` `Posture:` `` line under `## Posture`.\n';
+    'Either way, write the chosen answer as a `` `Posture:` `` line under `## Posture`.\n\n' +
+    'Under `auto`, a target\'s command runs in a tree detached at the merge commit that can still carry ' +
+    'ignored files from the run, so the command installs and builds what it needs itself.\n';
 
   assert.equal(
     scanContract(

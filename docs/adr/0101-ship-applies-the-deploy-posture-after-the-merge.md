@@ -2,6 +2,10 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0104](0104-ship-asks-before-deploying-a-deploy-config-nobody-was-shown.md),
+which adds one question under `auto`: ship asks before it deploys a `docs/agents/deployment.md` nobody
+was shown.
+
 **Context.** `/superdev:ship` merges the pull request, pinned to the tested head (ADR 0096). Nothing in
 superdev deploys the merged commit. In a repository whose features only prove themselves once deployed,
 such as infrastructure, services or releases, the deploy happened outside superdev or at the wrong point

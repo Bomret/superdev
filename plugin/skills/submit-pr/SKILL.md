@@ -120,8 +120,9 @@ Set the ledger's `**Stage:**` line to `submitted` with
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set submitted --root <run-root>`. Publish the
 snapshot afterwards, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state`
 section. The run stands: the scopetree, the slicetrees, and the run lock stay in place, and the scope
-anchor on a remote store stays open. `/superdev:ship` closes it, on the merge, and takes the run's
-scaffolding down.
+anchor on a remote store stays open. `/superdev:ship` closes it once every
+target has deployed under `auto`, and on the merge under `manual` or `none`, and takes the
+run's scaffolding down.
 
 **Print `/superdev:ship <scope>` as the next command.** One line on what it does: it merges the pull
 request once an operator has reviewed it, applies the repository's deploy posture to the merge, closes

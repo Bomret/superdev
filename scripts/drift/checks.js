@@ -370,7 +370,9 @@ module.exports = [
     'deployment-posture',
     DEPLOYMENT_CONTRACTS,
     'the seed states its posture, its targets table, the absent-document default, and INV-0098\'s ' +
-      'ship-only/auto-only rule, and setup proposes `manual` by default, `auto` only on request, and lists `deployment.md` in `check` mode',
+      'ship-only/auto-only rule, and setup proposes `manual` by default, `auto` only on request, and lists `deployment.md` in `check` mode; ' +
+      "both state that an `auto` target's command runs in a tree detached at the merge commit that can " +
+      'still carry ignored files from the run',
   ),
   table(
     'plan-deploy-line',
@@ -659,8 +661,9 @@ module.exports = [
   table(
     'deploy-step-visibility',
     DEPLOY_STEP_VISIBILITY_CONTRACTS,
-    "submit-pr's next-command line states that ship deploys, and the backlog survey never steers an " +
-      'operator into closing an anchor stuck mid-`auto`-deploy by hand',
+    "submit-pr's next-command line states that ship deploys and its close follows an `auto` deploy, and the backlog survey never steers an " +
+      'operator into closing an anchor stuck mid-`auto`-deploy by hand, shows a stalled deploy whether or ' +
+      'not an open anchor matches it, and ranks it first',
   ),
   {
     id: 'run-state-contract',
@@ -921,7 +924,8 @@ module.exports = [
       'detached at the merge commit, stopping and recording a failed one while leaving the anchor open, ' +
       'closing only once every target has deployed; a `shipped` ledger with an unfinished `auto` deploy ' +
       "joins ship's own candidate set and resumes at the first undeployed target; an adopted hand merge " +
-      'takes the same deploy step',
+      'takes the same deploy step; under `auto` ship asks once before it deploys a `deployment.md` nobody ' +
+      'was shown',
   ),
   {
     id: 'deploy-runner-exclusivity',

@@ -375,7 +375,11 @@ when the operator picks it themselves.
 
 For `manual` or `auto`, offer §1's scan as candidate targets and, for each one the operator confirms, ask
 its name, the command that deploys it, and a **read-only** way to reach it for verification (a URL, a
-health check, a status command — never a command that changes anything). Zero confirmed targets is valid:
+health check, a status command — never a command that changes anything).
+Under `auto`, a target's command runs in a tree detached at the merge commit that can still carry ignored
+files from the run — installed dependencies, build output — so say so when you ask for it: the command
+must not rely on their presence or absence, and installs and builds what it needs itself. Zero confirmed
+targets is valid:
 write the posture with an empty targets table. For `none`, ask nothing else. Either way, write the chosen
 answer as a `` `Posture:` `` line under `## Posture` — the one form `/superdev:ship` reads (`references/
 deployment.md`).

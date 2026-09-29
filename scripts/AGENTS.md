@@ -946,7 +946,11 @@ heading but no `Posture:` line would satisfy on a plain-text reading it should n
 writes decision **G**'s answer as that same `Posture:` line, never
 a bare value. A last row pins that `references/AGENTS.md` routes `deployment.md` in its own table row
 rather than lump it into the three-backend "every other file here is a backend seed" sentence, since it is
-one seed for every repository, never a per-backend choice (same fix cycle). Losing a seed row leaves the
+one seed for every repository, never a per-backend choice (same fix cycle). Rows pin that the seed's
+`## Targets` section and setup's decision **G** both state that, under `auto`, a target's command runs in
+a tree detached at the merge commit that can still carry ignored files from the run — installed
+dependencies, build output — so the command must not rely on their presence or absence, and an operator
+writing one knows it has to install and build what it needs (#751). Losing a seed row leaves the
 document free to omit the shape `/superdev:plan` and
 `/superdev:ship` both read; losing a setup row reopens the risk ADR 0101 named directly — a default that
 runs a deploy command against a live system nobody asked to automate, or a `check` mode blind to a seventh
@@ -1884,7 +1888,9 @@ apart, off the ledger's own `**PR:**` header rather than a query written into th
 The `deploy-step-visibility` contract (ADR 0101, INV-0099, whole-scope review, ship-deploys fix cycle 1):
 two surfaces that tell an operator what `/superdev:ship` does, or what to run next after it, had fallen
 behind ADR 0101's deploy step. One row pins `skills/submit-pr/SKILL.md`'s own next-command line naming the
-deploy alongside the merge and the close, not merely the merge and the close. One row pins
+deploy alongside the merge and the close, not merely the merge and the close. One row pins the same
+document's run-standing sentence stating that ship closes the anchor once every target has deployed under
+`auto`, and on the merge under `manual` or `none` (#751). One row pins
 `skills/backlog/SKILL.md`'s corrected claim that the stage write and the anchor close are two separate
 steps — the stage flips to `shipped` right after the merge, before any deploy runs, and the anchor closes
 only once every target has deployed — rather than the one-step claim that let a `shipped` run root with an
@@ -1893,8 +1899,14 @@ pins the `deploy resume` bucket that carve-out routes to: a `shipped` run root s
 by the same definition ship's own empty-argument candidate set uses — gets `/superdev:ship <scope-slug>`
 as its act, ahead of `blocked`'s "close the anchor" in the table's own reading order, rather than steering
 an operator into closing an anchor by hand and stranding the deploy INV-0099 forbids exactly that.
+Rows pin that a stalled deploy shows on every store and ranks first (#750): a `shipped` run root
+meeting the `deploy resume` definition gets its row whether or not an open anchor matches it — the local
+plan-file store closes the anchor with the pull request, so there no anchor ever matches — the bucket's
+own definition requires no matched run root, such a run root counts against the empty-backlog exit, and §5
+ranks a `deploy resume` row above every other row, `blocked` included.
 Losing the submit-pr row leaves an operator who has never run ship before unaware it deploys anything;
-losing either backlog row reopens the steer into breaking INV-0099.
+losing either backlog row reopens the steer into breaking INV-0099; losing any of the four visibility rows
+hides a half-deployed merge on the local store, or ranks it behind work that has not started.
 
 The `run-state-contract` check, `scanRunStateContract()`: every store document carries its
 own `## Run state` section (`plan-contract.md` → *Run state*, ADR 0042). It walks the same
@@ -2434,12 +2446,29 @@ now-untabled target and printing the changed posture/target lines — sourced fr
 before the pinned merge runs, the same consent §3 already asked, now against what the merge actually
 carries; §3's own gate points at that re-run, so its prior claim that its own pre-merge read is what the
 pinned squash lands no longer stands unqualified. A last row pins that `auto` runs each target's command
-in the foreground, relaying its output to the operator as it runs. Losing any one row lets that one fact
+in the foreground, relaying its output to the operator as it runs. Rows pin the consent gap the host
+merge leaves (ADR 0104, INV-0104, #749): under `auto`, before any target runs, §5 diffs the merge commit's
+`docs/agents/deployment.md` against the tested head's, a document on one side only counting as a
+difference, and a diff that fails to run at all — an unfetched `<tested-head>` among the reasons — counting
+as one too, since the comparison not running is not the same fact as nothing changed; an adopted hand merge
+or a resumed deploy, which ran no pre-merge gate, also takes the pull request's own change to the document,
+diffed from the fork point — `git -C <run-root>/scopetree merge-base <tested-head> <merge-commit-sha>` —
+rather than the merge
+commit's lone parent, since a rebase or fast-forward hand merge can carry an earlier commit's own change to
+the document that a lone-parent diff would miss, found as its own step so that its non-zero exit or empty
+output counts as a difference instead of turning the diff into one against the working tree; either diff non-empty prints the changed posture and
+target lines, or the diff itself when neither changed, and asks once; a decline deploys nothing, records
+`pending` for every target the deploy record lacks so the run stays resumable, leaves the anchor open,
+skips close and cleanup, and prints the resume; both diffs empty ask nothing; and ship's opening paragraph
+names this as the one exception to its no-second-question rule.
+Losing any one row lets that one fact
 drift silently — a target ship never validates before merging, a deploy step that closes before `auto`
 finishes, a resumed run that starts the list over instead of picking up where a failed target left it, a
 resume that reads a working tree instead of the merge commit, a `stage set shipped` write that lands
-before a refusal has a chance to stop it, or a base merge that changes `deployment.md` without §4 or §5
-ever noticing.
+before a refusal has a chance to stop it, a base merge that changes `deployment.md` without §4 or §5
+ever noticing, an `auto` deploy running commands from a document nobody was shown, a diff failure read as
+silence instead of a difference, or a rebase/fast-forward hand merge's own earlier change to the document
+missed by a lone-parent diff.
 The `deploy-runner-exclusivity` check, `scanDeployRunnerExclusivity()`: no skill or agent but
 `skills/ship/SKILL.md` may name a deploy target's command as something it runs (INV-0098). It walks every
 `skills/`, `agents/`, and `references/` document but `skills/ship/SKILL.md` itself and

@@ -3539,6 +3539,24 @@ const DEPLOYMENT_CONTRACTS = [
     /`deployment\.md`[\s\S]{0,400}Report one of three verdicts|Report one of three verdicts[\s\S]{0,400}`deployment\.md`/,
     'report `docs/agents/deployment.md` alongside the other config documents in `check` mode',
   ],
+  // #751 (whole-scope review, ship-deploys fix cycle 1): under `auto` a target's command runs at the merge
+  // commit in a tree detached from the scope checkout, which can still carry ignored files the run left
+  // behind — installed dependencies, build output — so an operator writing one needs to know it must stand
+  // on its own regardless of what the tree happens to carry.
+  [
+    path.join('references', 'deployment.md'),
+    /Under `auto`, a target's command runs in a tree detached at the merge commit that can still carry\s*\n?\s*ignored\s*\n?\s*files from the run[\s\S]{0,200}installs and builds what it needs itself/,
+    "state that under `auto` a target's command runs in a tree detached at the merge commit that can " +
+      'still carry ignored files from the run (installed dependencies, build output), so the command ' +
+      'installs and builds what it needs itself',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /Under `auto`, a target's command runs in a tree detached at the merge commit that can still carry\s*\n?\s*ignored\s*\n?\s*files from the run[\s\S]{0,250}installs and builds what it\s*\n?\s*needs itself/,
+    "state, where it asks for a target's command, that under `auto` the command runs in a tree detached " +
+      'at the merge commit that can still carry ignored files from the run (installed dependencies, ' +
+      'build output), so it must not rely on their presence or absence',
+  ],
   [
     path.join('references', 'deployment.md'),
     /reads the posture from this document's own `Posture:` line[\s\S]{0,150}carrying no such line reads as posture `none`/,
@@ -4861,6 +4879,62 @@ const SHIP_DEPLOY_CONTRACTS = [
     "read the merge commit — and refuse before writing anything if it no longer reads as merged — before " +
       'the `stage set shipped` write, so a refusal there leaves the stage where it was',
   ],
+  // ADR 0104, INV-0104 (#749): under `auto`, a `deployment.md` nobody was shown never deploys unasked —
+  // a base change landing during the host merge, or an adopted hand merge's own change to the document.
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /\*\*Before any target runs, show what nobody was shown\*\* \(ADR 0104, INV-0104\)[\s\S]{0,300}diff <tested-head> <merge-commit-sha> -- docs\/agents\/deployment\.md/,
+    "compare the merge commit's `deployment.md` with the tested head's before any `auto` target runs",
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /A document present on one side only reads as posture `none` on the other, and counts as a\s*\n?\s*difference/,
+    'count a `deployment.md` present on one side only as a difference, reading the absent side as `none`',
+  ],
+  // Whole-scope review, ship-deploys fix cycle 1, Important 2: a diff that fails to run at all (an
+  // unfetched `<tested-head>`) prints empty stdout on a non-zero exit, indistinguishable from "nothing
+  // changed" unless the failure itself is read as a difference.
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /\*\*A diff that fails to\s*\n?\s*run at all\*\*[\s\S]{0,250}counts as\s*\n?\s*non-empty too/,
+    'count a diff that fails to run at all — an unfetched `<tested-head>` among them — as non-empty, so ' +
+      'ship asks rather than reading the failure as nothing changed',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /\*\*This invocation ran no §3\/§4 gate of its own\*\*[\s\S]{0,600}scopetree merge-base <tested-head> <merge-commit-sha>/,
+    "take the pull request's own change to `deployment.md` too, diffed from the fork point via `git " +
+      "merge-base <tested-head> <merge-commit-sha>` rather than the merge commit's lone parent, on an " +
+      'adopted hand merge or a resumed deploy, where no pre-merge gate printed it',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /Find the fork point as its own step[\s\S]{0,200}non-zero exit or empty output counts as non-empty/,
+    'run `merge-base` as its own step and count its non-zero exit or empty output as non-empty, since a ' +
+      'failure swallowed inside `$(...)` diffs the working tree and reads as nothing changed',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /Either diff non-empty\*\* → print the changed posture and target lines, or the diff itself when no\s*\n?\s*posture or target line changed, and ask once whether to\s*\n?\s*deploy/,
+    'print the changed posture and target lines, or the diff itself when neither changed, and ask once ' +
+      'before deploying, when either diff finds a change',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /\*\*Declined\*\* → deploy nothing[\s\S]{0,120}deploy set <target> pending[\s\S]{0,250}leave the anchor open, skip the close and cleanup below, and print\s*\n?\s*`\/superdev:ship <scope>` as the resume/,
+    'deploy nothing on a declined ask, record `pending` for every target the record lacks, leave the ' +
+      'anchor open, skip close and cleanup, and print the resume',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /\*\*Both diffs empty\*\* → ask nothing/,
+    'ask nothing when neither diff finds a change',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /nothing here asks a second question once the gate below has passed, except one: under `auto`, §5 asks\s*\n?\s*before it deploys a `docs\/agents\/deployment\.md` nobody was shown \(ADR 0104\)/,
+    "name the one exception to ship's no-second-question rule in its opening paragraph",
+  ],
 ];
 
 // Final-reviewer triage (#687 fix cycle), Minor 5: `skills/document/SKILL.md` §8's stage write only knew
@@ -4960,6 +5034,37 @@ const DEPLOY_STEP_VISIBILITY_CONTRACTS = [
     'route a `shipped` run root stuck mid-`auto`-deploy to a `deploy resume` bucket whose act is ' +
       '`/superdev:ship <scope-slug>`, using the same definition ship\'s own candidate set uses, rather ' +
       'than into `blocked`\'s "close the anchor"',
+  ],
+  // #751: the anchor close follows the deploy under `auto`, not the merge.
+  [
+    path.join('skills', 'submit-pr', 'SKILL.md'),
+    /`\/superdev:ship` closes it once every target has deployed under `auto`, and on the merge\s*\n?\s*under `manual` or `none`/,
+    'state that ship closes the anchor once every target has deployed under `auto`, and on the merge ' +
+      'under `manual` or `none`',
+  ],
+  // #750: a stalled `auto` deploy is visible on every store — the local plan-file store closes the anchor
+  // with the pull request, so the run root matches no open anchor — and it ranks first.
+  [
+    path.join('skills', 'backlog', 'SKILL.md'),
+    /unless it meets the `deploy resume` definition \(§3\)[\s\S]{0,300}gets a `deploy resume` row whether or not an open\s*\n?\s*anchor matches it/,
+    'give a `shipped` run root that meets the `deploy resume` definition its row whether or not an open ' +
+      'anchor matches it, so the local store shows a stalled deploy too',
+  ],
+  [
+    path.join('skills', 'backlog', 'SKILL.md'),
+    /\| `deploy resume` \| its run root, matched to an open anchor or not, reads `shipped`/,
+    'define the `deploy resume` bucket without requiring a run root matched to an open anchor',
+  ],
+  [
+    path.join('skills', 'backlog', 'SKILL.md'),
+    /A `deploy resume` row outranks every other row, a `blocked` one included/,
+    'rank a `deploy resume` row above every other row in the recommendation, `blocked` included',
+  ],
+  [
+    path.join('skills', 'backlog', 'SKILL.md'),
+    /no stranded run root, no `deploy resume` run root, and no untriaged item\*\* → say the backlog is\s*\n?\s*empty/,
+    'count a `deploy resume` run root against the empty-backlog exit, so a stalled deploy never reads as ' +
+      'an empty backlog',
   ],
 ];
 

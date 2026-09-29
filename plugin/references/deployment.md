@@ -37,6 +37,10 @@ repository deploys nothing yet.
 |---|---|---|
 | `<target>` | `<the command that deploys it>` | `<a URL, health check, or status command that confirms it landed>` |
 
+Under `auto`, a target's command runs in a tree detached at the merge commit that can still carry ignored
+files from the run — installed dependencies, build output — so the command must not rely on their
+presence or absence: it installs and builds what it needs itself.
+
 `/superdev:plan` offers this table's names on a feature's `**Deploy:**` line, in deploy order.
 `/superdev:ship` reads that line from the anchor and runs (or prints) the listed targets' commands in
 that order.

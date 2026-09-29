@@ -851,3 +851,12 @@ Statement: `/superdev:ship` never closes a scope anchor while a deploy target li
 Breaks: silently
 Check: scripts/drift-check.js — ship's close follows every `auto` target deployed; a failed target skips the close and the cleanup; `tests/scope.test.js` for the ledger's deploy record
 Paths: plugin/skills/ship/**, plugin/scripts/scope.js
+
+### INV-0104
+
+Class: process
+Concepts: Deploy posture, Deploy target
+Statement: Under the `auto` deploy posture, `/superdev:ship` runs a deploy target's command only from a `docs/agents/deployment.md` whose every change the operator was shown. A change the merge commit carries against the tested head, and on a merge ship did not gate itself the pull request's own change, is printed and confirmed before the first target runs (ADR 0104).
+Breaks: silently
+Check: scripts/drift-check.js — ship's post-merge deploy step compares the merge commit's `deployment.md` with the tested head's and asks once before any `auto` target runs
+Paths: plugin/skills/ship/**
