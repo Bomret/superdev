@@ -1,3 +1,11 @@
+## [0.56.1](https://codeberg.org/bomret/superdev/compare/v0.56.0...v0.56.1) (2026-09-29)
+
+
+### Bug Fixes
+
+* **citation-leading-underscore:** read a citation with an underscore in front ([8d03b46](https://codeberg.org/bomret/superdev/commit/8d03b465abdff2de19e2068f0d12afc6d58a14c1))
+* **repo-move:** point the plugin and docs at bomret/superdev ([c96a400](https://codeberg.org/bomret/superdev/commit/c96a4002cf94381bc7b959c51492d021dec7deff))
+
 # [0.56.0](https://codeberg.org/Zuhause/superdev/compare/v0.55.0...v0.56.0) (2026-09-28)
 
 
