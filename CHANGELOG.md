@@ -1,3 +1,10 @@
+# [0.58.0](https://codeberg.org/bomret/superdev/compare/v0.57.0...v0.58.0) (2026-09-30)
+
+
+### Features
+
+* **remove-afk:** remove the afk command ([a16e985](https://codeberg.org/bomret/superdev/commit/a16e9859872d15fb476a9a1571363e1f4937f204))
+
 # [0.57.0](https://codeberg.org/bomret/superdev/compare/v0.56.2...v0.57.0) (2026-09-30)
 
 
