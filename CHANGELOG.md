@@ -1,3 +1,10 @@
+# [0.57.0](https://codeberg.org/bomret/superdev/compare/v0.56.2...v0.57.0) (2026-09-30)
+
+
+### Features
+
+* **run-profile:** see where a scope run spent its time with /superdev:profile ([246f08d](https://codeberg.org/bomret/superdev/commit/246f08d1ac3c611e5f4cafdd5c29fa587a31f5a5))
+
 ## [0.56.2](https://codeberg.org/bomret/superdev/compare/v0.56.1...v0.56.2) (2026-09-29)
 
 
