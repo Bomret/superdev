@@ -852,6 +852,33 @@ Breaks: silently
 Check: scripts/drift-check.js — ship's close follows every `auto` target deployed; a failed target skips the close and the cleanup; `tests/scope.test.js` for the ledger's deploy record
 Paths: plugin/skills/ship/**, plugin/scripts/scope.js
 
+### INV-0101
+
+Class: architecture
+Concepts: Run profile
+Statement: The run profile reads Claude Code's transcript directory and writes nothing to it. An entry lacking a field the profile reads is reported as unrecognized, never counted as zero, and a transcript with no entry the profile recognizes produces a report that says so instead of a table of zeros (ADR 0103).
+Breaks: silently
+Check: tests/profile.test.js — the transcript fixture directory is byte-identical after a run; a fixture with a field removed reports it unrecognized
+Paths: plugin/scripts/profile.js, tests/profile.test.js
+
+### INV-0102
+
+Class: architecture
+Concepts: Human wait, Idle, Run profile
+Statement: Human wait and idle time are each never counted as machine time. Every view of the run profile reports each in its own column, and no total the profile prints adds either to tool, hook, subagent, or model time.
+Breaks: silently
+Check: tests/profile.test.js — a fixture holding an AskUserQuestion call, a between-turn gap ending in a typed prompt, and a turn end ending in a peer wake with nothing running; every machine total excludes all three
+Paths: plugin/scripts/profile.js, tests/profile.test.js
+
+### INV-0103
+
+Class: architecture
+Concepts: Run profile, Phase segment
+Statement: A tool call with no matching result carries no duration. The run profile reports it as unfinished, names it, and adds nothing for it to any total. A call whose session was interrupted, killed, or ended mid-call decided nothing about how long the call takes.
+Breaks: silently
+Check: tests/profile.test.js — a fixture with a tool_use and no tool_result reports one unfinished call and leaves every total unchanged
+Paths: plugin/scripts/profile.js, tests/profile.test.js
+
 ### INV-0104
 
 Class: process

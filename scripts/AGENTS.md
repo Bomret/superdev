@@ -4,8 +4,8 @@
 
 Standalone deterministic code that `package.json` runs, alongside `plugin/hooks/`.
 The shipped CLIs live in `plugin/scripts/`: `scope.js` (the run-state CLI, ADR 0022), `kb-patch.js`
-(the knowledge-base section merge, ADR 0027), and `publish-kb.js` (the backend-independent half of publishing a scope's staged
-knowledge-base pages, ADR 0069). The maintainer-only ones live here in `scripts/`: `drift-check.js`
+(the knowledge-base section merge, ADR 0027), `publish-kb.js` (the backend-independent half of publishing a scope's staged
+knowledge-base pages, ADR 0069), and `profile.js` (the run profile, ADR 0103). The maintainer-only ones live here in `scripts/`: `drift-check.js`
 (the cross-document contract checks) and `invariant-check.js` (the invariant register validator,
 ADR 0093). This doc owns them all regardless of which dir each lives in.
 
@@ -61,7 +61,9 @@ both use instead of carrying their own regex. `hooks/scope-prune.js` takes a sec
 `require`, `baseHistoryHasPatch` — the containment probe (ADR 0082) — and the two fall back
 differently: the reader missing stops that hook's sweep outright, while the probe missing narrows its
 containment test back to the tree comparison alone, silently. The API guards its CLI entry with
-`require.main === module`, so a `require` for that reader alone runs no CLI code. Normalisation is per
+`require.main === module`, so a `require` for that reader alone runs no CLI code. `profile.js` takes
+`mainWorkTree`, `SLUG_RE`, and `CHANGE_TYPES` off the same `require`, so the run profile resolves the
+main working tree and reads a feature label by the same rules the ledger does. Normalisation is per
 header: `Stage` and `Branch` are single tokens,
 cut to the first whitespace-delimited token and stripped of markup and trailing punctuation.
 `Anchor` is a prose title that reaches a pull request, trimmed and otherwise left alone. An empty
@@ -353,6 +355,129 @@ The module guards its CLI entry with `require.main === module`. It exports every
 staged page's `live-hash` frontmatter against a known live body — and separately imports and calls
 `runFind` for one JSON-array edge case. It otherwise exercises the module through its exported
 `run()`, the way `tests/scope.test.js` exercises `scope.js`'s own CLI verbs (ADR 0059).
+
+### profile.js, the run profile (ADR 0103)
+
+`profile.js` prints where a scope run's wall-clock time went, and `skills/profile/SKILL.md` runs it
+and explains the report. It reads the transcripts Claude Code writes under
+`${CLAUDE_CONFIG_DIR:-~/.claude}/projects/` and writes nothing there (INV-0101). The repository's
+transcript directory is the main working tree's absolute path with every non-alphanumeric character
+replaced by `-`. A directory carrying that name plus `--superdev-scopes-` holds the sessions started
+inside one of its run roots, and is read too. A sibling repository whose path only shares the prefix is
+not. Each session's `<session>/subagents/` transcripts and `.meta.json` files are read with it. The
+format is Claude Code's own and undocumented: an entry lacking a field the script reads is reported as
+unrecognized, never counted, and a tree with no recognized entry exits non-zero with "format not
+recognized".
+
+A **phase segment** (`CONTEXT.md`) starts at every superdev command invocation, typed or through the
+`Skill` tool, and runs to the next one. Only implement, review, document, submit-pr, and ship segments
+are reported. A segment belongs to the scope a whole `<change-type>/<slug>` argument names, or the
+right-hand `<change-type>/<slug>` of a `BASE..branch` or `BASE...branch` review-range argument, or a
+lone bare slug argument some cwd read elsewhere in the transcripts evidences as a real run root — never
+a bare word with no such evidence, which would otherwise let a mode word like `audit` or `staged` pass
+for a scope. Only when the arguments name none of these does the segment fall back to the run root any
+entry of the session, or of a subagent it dispatched, ran under (`.superdev/scopes/<slug>/`); a named
+scope is never diluted by a leftover cwd from a session that has not yet cd'ed into it, and a
+`BASE..branch` argument whose right-hand side names no scope falls back the same way. With no slug
+argument, the scope whose segment ended last is profiled, ties broken alphabetically.
+
+The phases view splits each segment's wall-clock time by precedence, so the columns sum to it: human
+wait first (`AskUserQuestion`, a rejected dispatch's own window, and the gap from a turn's end to
+whatever closes it, INV-0102), then subagent time (each `Agent` call's window joined with its subagent
+transcript's own span), then idle time, then tool time. A turn end is `type: "system"`, an assistant
+entry with no `tool_use` block, a synthetic assistant entry (`message.model === "<synthetic>"` — a
+rate-limit or spend-limit notice, a "No response requested." filler after a cut-off), or an interrupt
+entry (`type: "user"`, not `isMeta`, its text `[Request interrupted by user]` or a variant such as
+`[Request interrupted by user for tool use]`). Consecutive turn ends, with any filler between them, form
+one block, and the gap runs from the block's last real, non-synthetic assistant entry — the model's own
+last real output — walking back only past a turn end that carries none (a thinking-only entry, a
+synthetic notice). The walk-back stops at an interrupt entry instead of walking further back to it,
+since that is where machine work stopped: a real assistant entry still streaming when the operator cuts
+it off never lends its own generation time to the gap. The walk-back likewise stops at a Stop hook
+summary (`type: "system"`, `subtype: "stop_hook_summary"`) that follows the block's last real output,
+so the gap starts at the summary rather than the output before it — the hook's own recorded duration is
+then counted once, as hook time, never also folded into human wait or idle. A block with no real
+assistant entry still starts at its earliest turn end. Harness filler — an attachment (a hook result, a
+SessionStart context block on resume) other than a
+task-notification, a compact summary (the harness's own injected recap after a context compaction), an
+isMeta note wrapped in a harness tag (a caveat ahead of a typed `/command`), or a non-meta
+harness-injected `user` entry that is not itself a task-notification (a local command's own echoed
+stdout) — sits between a turn end and whatever closes the gap, carrying no signal of its own, and is
+walked past rather than closing anything itself. The first entry after the block that is neither filler
+nor a turn end closes the gap: a `user` entry carrying no `tool_result` (a typed prompt — including one
+carrying only an image, with no text of its own — a peer-session message, a plain-text resumption note
+such as "Continue from where you left off." or "Your response above was cut off..."), or a
+task-notification attachment. A typed prompt makes the gap human wait; anything else — a cross-session
+message from a peer Claude Code session, a resumption note, or a task notification — makes it **Idle**
+(CONTEXT.md, INV-0102). There is no separate allow-list of wake shapes: whatever is not a typed prompt is
+idle. Idle only claims what human wait and subagent time left uncovered, so a subagent interval spanning
+the same gap stays subagent time instead. Recorded hook durations come out of the tool time around a
+tool hook and out of the remainder for every other hook, and model time is what is left. Several Stop
+hooks in one `stop_hook_summary` run in parallel, so only the slowest one's duration is taken out as hook
+time — the session waited for that one, not their sum — while the per-hook-name breakdown the report
+prints keeps every hook's own duration, so it can sum to more than the hook column. A tool call with
+no result is listed as unfinished and adds nothing (INV-0103). A dispatch rejected at the permission
+prompt counts its own window as human wait — the operator deciding, not the machine working — while a
+dispatch denied by the auto-mode classifier or blocked by a PreToolUse:Agent hook stays subagent time,
+since the classifier or a hook decided, not the operator. The repeated-commands view drops the body
+lines of a heredoc (`<<[-]?['"]?WORD['"]?` through the line that is exactly WORD, recognized inside a
+double-quoted string only where a `$(` opened earlier in that same quoted span is still open — plain
+quoted text such as `"use <<EOF here"` opens no heredoc) and of a quoted argument that spans several
+lines, so a `node -e '…multi-line…'`, a `cat <<'EOF' … EOF`, or a `git commit -m "$(cat <<'EOF' … EOF )"`
+groups only under its own opening line, never under a body line such as `const` or `Co-Authored-By:`.
+Once a quote closes — on its opening line or a later one — the real code past the closing quote is kept
+and rescanned, so a statement following a multi-line quoted argument on the same physical line
+(`"…multi-line…" && git log …`) still gets its own key. A run of backslashes escapes the character after
+it only when the run's length is odd (`\\"` is an escaped backslash followed by the real closing quote,
+not an escaped quote), except inside a single-quoted string, which has no escapes, and a `#` at a word
+start outside any quote starts a comment that drops the rest of its line. It then splits each Bash call
+into its statements on `&&`, `||`, `;` and line breaks, recognizing an operator only outside a quote — an
+operator inside quoted text (a `;` in a commit message) never splits the statement there, so a quoted
+argument keys once, as its real command, not once per fragment a naive split would cut mid-quote — drops
+a leading `time`, drops a leading shell keyword (`while`, `until`, `do`, `done`, `if`, `then`, `elif`,
+`else`, `fi`, `esac`, `{`, `}`, `(`, `)`) so the real command after it on the same statement keys
+instead (`do bun run test` keys `bun run test`) and a statement left with nothing after the drop keys
+nothing. A `for` or `select` statement keys nothing, since its words are a loop variable and a list; a
+`case … in` header keys nothing and each arm keys its command, the pattern before `)` being no command.
+A backslash-newline joins the next line into the statement, and a `(` or `{` attached to the first word
+is dropped. It keeps each pipeline's first stage past any `cd`, assignment, or redirection.
+A whole `VAR=$(cmd …)` statement, with the substitution optionally double-quoted and the assignment
+optionally led by `export`, `local`, `readonly` or `declare`, keys the command inside the substitution
+instead of the assignment's own leftover word (`SHA=$(git rev-parse HEAD)` keys `git rev-parse`, not
+`rev-parse`). A quote opens only where an odd backslash run does not escape it, in every scan. An interpreter
+(`node`, `python3`, `python`, `bun`, `deno`, `ruby`, `bash`, `sh`) keys instead by its first non-flag
+argument when that argument looks like a script path (`node tests/profile.test.js`) or starts with `$`,
+quoted or not (`node $S`, `node "$S"` both key `node $S`), or by that argument itself when it is an
+inline-source flag (`node -e`, `python3 -c`, `node -`), so each interpreter call keys by what it ran
+rather than collapsing every one under the interpreter's own name; an argument that is neither, such as
+`run` in `bun run test`, falls back to the plain-word rule. An absolute script path, quoted or not, past a
+version-numbered directory — the shape a plugin cache installs a script under
+(`…/superdev/0.41.0/scripts/scope.js`) — keys past that directory (`node scripts/scope.js`), so two
+plugin versions running the same script group under one key rather than splitting one row per version.
+A call with one key credits its whole duration to that key. A call with
+several keys splits its duration by weights: a key's weight is the median duration of its single-key
+calls across every transcript session the profile reads for the repository, not only the profiled
+scope's segments. A key with no single-key call takes the mean of the other
+keys' weights in that call, or an even split when none has one, and a call whose weights are all 0 splits
+evenly. The count stays the number of calls that ran the command, so the per-key totals sum exactly to
+the Bash time of every call that ran a command (a call with no command key, such as `cd /tmp` or `X=1`, is in no total), and the report says how a compound call's time is shared. The dispatches view reads each `Agent` result's
+`totalDurationMs`, `totalToolUseCount`, and `totalTokens`; a background (`run_in_background`) dispatch's
+own result carries none of these, so its figures come from the later task-notification entry's `<usage>`
+block instead, keyed by the dispatch's tool-use id. A dispatch whose notification never arrives is
+reported as "not yet notified", never counted as zero (INV-0101) and never reported unrecognized. A
+failed or killed dispatch's notification carries `<status>` and no `<usage>` block at all. A dispatch
+refused before it ran carries no notification at all — only its own tool_result string: the fixed string
+`User rejected tool use` for a rejection at the permission prompt, a string starting "Error: Permission
+for this action was denied by the Claude Code auto mode classifier" for a classifier denial, or a string
+starting "Error: PreToolUse:Agent hook error:" for a hook block. The report names that status — "failed",
+"killed", "rejected", "denied", or "blocked" — in place of a duration, still never zero and never
+unrecognized. The view groups dispatches whose time spans overlap into numbered parallel batches,
+flagging each batch's longest.
+
+The exit codes are 0 for a report, 1 for no transcript directory, no segment for the slug, or an
+unrecognized format, and 2 for an argument that is not a slug. Each non-zero exit prints one line on
+stderr, and the first two name the slug and the path searched. Its suite is `tests/profile.test.js`, which builds synthetic
+transcript trees in a temporary directory and points `CLAUDE_CONFIG_DIR` and `HOME` at them.
 
 ### invariant-check.js, the invariant register validator (ADR 0093)
 
@@ -2491,7 +2616,8 @@ reopens the stage-write refusal a doc pass on a submitted scope hits today.
   `require` `scope.js`, so `scope.js` must stay `require`-able under plain `node`. These are the only
   two dependencies `hooks/` has on `scripts/`.
   `scope.js` in turn `require`s `kb-patch.js` for `maskFencedLines`, so `kb-patch.js` must stay
-  `require`-able under plain `node` too — the one dependency inside `plugin/scripts/` itself. `adopt`'s
+  `require`-able under plain `node` too. `publish-kb.js` `require`s both `scope.js` and `kb-patch.js`,
+  and `profile.js` `require`s `scope.js`. `adopt`'s
   payload boundary is a pair of markers, not a heading, but a marker can still be shown inside a fenced
   illustrative example, so the marker scan needs the same fence-masking `kb-patch.js`'s
   `extractSection()` already owns.

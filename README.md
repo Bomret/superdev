@@ -27,6 +27,7 @@ plan runs test-first, inline in the scopetree.
 /superdev:plan         → interview + slice a feature into the slice store
 /superdev:implement    → drive the slices to merge onto the scope branch, then stop
 /superdev:status       → read-only DAG progress snapshot for in-flight runs
+/superdev:profile      → read-only account of where a scope run's time went, from its transcripts
 /superdev:backlog      → read-only survey of the slice store: what needs what, and what to do next
 /superdev:review       → whole-scope review against the DoD, with a fix loop
 /superdev:document     → reconcile in-repo docs + knowledge base with the code
@@ -95,6 +96,16 @@ plan runs test-first, inline in the scopetree.
   per scope, the slice counts by status and which slices are `blocked`. It also names each scope holding
   **staged** knowledge-base pages, so a page nobody published yet stays visible instead of silent. It
   never writes, transitions, or merges anything.
+- **`/superdev:profile`**. A read-only account of where a scope run's time went, for a run that felt slow.
+  It reads the transcripts Claude Code already keeps for every session and subagent, so it needs no setup
+  and works on runs that finished long ago. It shows the time of each chain phase split into subagent, idle,
+  tool, hook, and model time. It shows the commands that ran most often and cost most in total. One row
+  appears per subagent, with the slowest of each parallel batch flagged. A dispatch that never finished is
+  named by its status (rejected, denied, blocked, failed, killed, or not yet notified) instead of a duration.
+  Time spent waiting for you is always shown on its own. So is idle time: the time the run sat with
+  nothing running, for a reason other than you. Without a slug it profiles the scope that ran last
+  ([ADR 0103](docs/adr/0103-the-run-profile-reads-claude-codes-transcripts.md)). It sits outside the
+  implement chain, and writes nothing.
 - **`/superdev:backlog`**. A read-only survey of the **slice store**, where `/superdev:status` reports the
   **runs**. It groups every open scope anchor, every triage record, every stranded run root, and every
   **untriaged item** — an open record you filed and no `/superdev:plan` interview has yet reached — by the

@@ -1711,4 +1711,4 @@ function main() {
 // Either way the require, not the CLI, is what fails.
 if (require.main === module) main();
 
-module.exports = { readLedgerHeader, run, publishText, SLUG_RE, testContainment, baseHistoryHasPatch };
+module.exports = { readLedgerHeader, run, publishText, SLUG_RE, testContainment, baseHistoryHasPatch, mainWorkTree, CHANGE_TYPES };

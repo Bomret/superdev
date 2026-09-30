@@ -33,7 +33,7 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          No `hooks` field — Claude Code auto-loads the standard hooks/hooks.json.
   skills/              — the `/superdev:<name>` surfaces, one `<name>/SKILL.md` each (ADR 0050):
                          brainstorm, setup, plan, implement, review, document, submit-pr, ship, afk, upgrade,
-                         status, backlog, publish-kb, prose-check, review-tests, sweep
+                         status, profile, backlog, publish-kb, prose-check, review-tests, sweep
   agents/              — the subagents (*.md): implementer, slice-reviewer, simplicity-reviewer,
                          final-reviewer, doc-writer, doc-reader, test-auditor
   hooks/               — the deterministic Node hooks + hooks.json: merge-guard, model-explicit,
@@ -43,10 +43,10 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          run handoff, execution playbooks, test-selection, scope-mode, authoring
                          disciplines, design sketch, diagnosis, prototype, merge-conflicts,
                          review-checklist, dod-ticks); its own AGENTS.md routes them
-  scripts/             — the runtime CLIs: `scope.js`, `kb-patch.js`, `publish-kb.js`
+  scripts/             — the runtime CLIs: `scope.js`, `kb-patch.js`, `publish-kb.js`, `profile.js`
   LICENSE · NOTICE     — copies of the root files, so the shipped tree carries its own attribution
 tests/                 — one suite per shipped executable (the hooks, `scope.js`, `kb-patch.js`,
-                         `publish-kb.js`) and one for the maintainer-only
+                         `publish-kb.js`, `profile.js`) and one for the maintainer-only
                          `invariant-check.js`, framework-free `node:assert`, run under
                          `node` by `bun run test` (ADR 0059); `spawn-verdict.js` is the one shared
                          helper, not itself a suite — `assertSpawnDecided` (INV-0009), asserted by
@@ -243,7 +243,8 @@ This root owns every other subtree directly:
   unconditionally rather than gated on a repo's own `## Writing standard` config (ADR 0057),
   review-tests audits what a test suite costs, sweeping the whole test tree in one `test-auditor`
   dispatch, measuring it through the repo's optional timing command, and handing the findings the
-  operator keeps to `/superdev:plan` as an intent (ADR 0066), and sweep chains `/superdev:review`,
+  operator keeps to `/superdev:plan` as an intent (ADR 0066), profile reports where a scope run's
+  wall-clock time went, read from Claude Code's own session transcripts (ADR 0103), and sweep chains `/superdev:review`,
   `/superdev:document audit`, `/superdev:review-tests`, and `/superdev:setup check` over a whole
   repository into one merged, ranked report and a single plan-ready intent, every leg dispatched
   read-only in the chained posture (ADR 0068).
@@ -277,6 +278,8 @@ This root owns every other subtree directly:
   containment check to `scope.js`'s `testContainment`, runs every backend command under a time bound
   whose exhaustion stops the batch (ADR 0076), and is the invocation
   `skills/publish-kb/SKILL.md` runs),
+  `plugin/scripts/profile.js` (the run profile, ADR 0103: reads Claude Code's session and subagent
+  transcripts, writes nothing to them, and is the invocation `skills/profile/SKILL.md` runs),
   and `scripts/drift-check.js` with `drift/` (the cross-document contract checks: the
   CLI walks the `drift/checks.js` registry, keyed by check id (ADR 0061), which orders every scanner and
   contract table). What each guards, check by check, lives in that child doc.
