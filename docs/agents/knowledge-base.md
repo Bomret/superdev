@@ -6,9 +6,11 @@ Codeberg repo **Wiki** for `bomret/superdev`. Distinct from the agent-first in-r
 ## Configuration
 
 - **Backend:** Codeberg repo Wiki. **The Wiki unit is enabled** on the repo (`has_wiki: true`). When it is
-  ever disabled, re-enable it with `PATCH /api/v1/repos/bomret/superdev { "has_wiki": true }` using the
-  `GITEA_TOKEN`.
-- **Auth:** `GITEA_TOKEN` (header `Authorization: token $GITEA_TOKEN`).
+  ever disabled, re-enable it with `tea api --login codeberg.org --repo bomret/superdev -X PATCH -F has_wiki=true
+  /repos/bomret/superdev`.
+- **Auth:** the `tea` CLI's stored `codeberg.org` login (`tea login list`). Every call passes `--login
+  codeberg.org`: outside this repository's checkout, `tea` otherwise falls back to another stored login.
+  No token environment variable is read.
 - **Audience:** superdev **adopters** (the people who install and use the plugin) first, then
   **maintainers**.
 - **Language:** English.
@@ -59,7 +61,7 @@ once the feature has reached the adopters this wiki is written for.
   itself returning **404** for a title the find call does list is not absence. The identifier only exists
   because the find call listed it. A 404 there means the identifier is stale, or the page was renamed
   between the two calls, so `/superdev:publish-kb` treats it as a read failure instead.
-- If the token is missing or the Wiki unit is disabled, `/superdev:publish-kb` **leaves every page
+- If the `tea` login fails or the Wiki unit is disabled, `/superdev:publish-kb` **leaves every page
   staged**, reports why, and deletes nothing. A later run retries exactly the pages that did not land.
   The in-repo docs are the record meanwhile. Do not fail.
 
@@ -79,14 +81,18 @@ fetched.
 
 Every command below runs under a **30-second bound** (ADR 0076), or whatever
 `SUPERDEV_PUBLISH_KB_TIMEOUT_MS` names. `scripts/publish-kb.js` applies it at the spawn, so none of these
-templates carries a `--max-time` of its own. A command killed at the bound leaves its page staged and
+templates carries a `--max-time` of its own. `tea api` exits 0 on an HTTP error, so each template reads
+the status line `-i` writes to stderr and maps anything but success to its own failure exit. A command killed at the bound leaves its page staged and
 **stops the run**: the remaining pages are reported untried and stay staged for the next one.
 
 ### find
 
 ```sh
-pages=$(curl -sf -H "Authorization: token $GITEA_TOKEN" \
-  "https://codeberg.org/api/v1/repos/bomret/superdev/wiki/pages?limit=50") || exit 2
+hdr=$(mktemp) || exit 2
+pages=$(tea api --login codeberg.org --repo bomret/superdev -i \
+  '/repos/bomret/superdev/wiki/pages?limit=50' 2>"$hdr") || { rm -f "$hdr"; exit 2; }
+code=$(head -1 "$hdr" | cut -d' ' -f2); rm -f "$hdr"
+[ "$code" = 200 ] || exit 2
 count=$(printf '%s' "$pages" | jq 'length') || exit 2
 page=$(printf '%s' "$pages" | jq -e --arg title "$SUPERDEV_KB_TITLE" '[.[] | select(.title == $title)][0]')
 status=$?
@@ -101,9 +107,12 @@ printf '%s' "$page" | jq -c '{sub_url}'
 ### read
 
 ```sh
-curl -sf -H "Authorization: token $GITEA_TOKEN" \
-  "https://codeberg.org/api/v1/repos/bomret/superdev/wiki/page/$SUPERDEV_KB_SUB_URL" \
-  | jq -r '.content_base64' | base64 -d
+hdr=$(mktemp) || exit 1
+page=$(tea api --login codeberg.org --repo bomret/superdev -i \
+  "/repos/bomret/superdev/wiki/page/$SUPERDEV_KB_SUB_URL" 2>"$hdr") || { rm -f "$hdr"; exit 1; }
+code=$(head -1 "$hdr" | cut -d' ' -f2); rm -f "$hdr"
+[ "$code" = 200 ] || exit 1
+printf '%s' "$page" | jq -r '.content_base64' | base64 -d
 ```
 
 ### create
@@ -112,8 +121,11 @@ curl -sf -H "Authorization: token $GITEA_TOKEN" \
 content_base64=$(base64 < "$SUPERDEV_KB_BODY_FILE" | tr -d '\n')
 body=$(jq -n --arg title "$SUPERDEV_KB_TITLE" --arg content "$content_base64" \
   '{title: $title, content_base64: $content, message: "superdev: publish"}')
-curl -sf -H "Authorization: token $GITEA_TOKEN" -H "Content-Type: application/json" \
-  -X POST "https://codeberg.org/api/v1/repos/bomret/superdev/wiki/new" -d "$body" >/dev/null
+hdr=$(mktemp) || exit 1
+printf '%s' "$body" | tea api --login codeberg.org --repo bomret/superdev -i -X POST -d @- \
+  /repos/bomret/superdev/wiki/new >/dev/null 2>"$hdr" || { rm -f "$hdr"; exit 1; }
+code=$(head -1 "$hdr" | cut -d' ' -f2); rm -f "$hdr"
+case "$code" in 2??) ;; *) exit 1 ;; esac
 ```
 
 ### update
@@ -122,15 +134,21 @@ curl -sf -H "Authorization: token $GITEA_TOKEN" -H "Content-Type: application/js
 content_base64=$(base64 < "$SUPERDEV_KB_BODY_FILE" | tr -d '\n')
 body=$(jq -n --arg title "$SUPERDEV_KB_TITLE" --arg content "$content_base64" \
   '{title: $title, content_base64: $content, message: "superdev: publish"}')
-curl -sf -H "Authorization: token $GITEA_TOKEN" -H "Content-Type: application/json" \
-  -X PATCH "https://codeberg.org/api/v1/repos/bomret/superdev/wiki/page/$SUPERDEV_KB_SUB_URL" -d "$body" >/dev/null
+hdr=$(mktemp) || exit 1
+printf '%s' "$body" | tea api --login codeberg.org --repo bomret/superdev -i -X PATCH -d @- \
+  "/repos/bomret/superdev/wiki/page/$SUPERDEV_KB_SUB_URL" >/dev/null 2>"$hdr" || { rm -f "$hdr"; exit 1; }
+code=$(head -1 "$hdr" | cut -d' ' -f2); rm -f "$hdr"
+case "$code" in 2??) ;; *) exit 1 ;; esac
 ```
 
 ### delete
 
 ```sh
-curl -sf -H "Authorization: token $GITEA_TOKEN" \
-  -X DELETE "https://codeberg.org/api/v1/repos/bomret/superdev/wiki/page/$SUPERDEV_KB_SUB_URL" >/dev/null
+hdr=$(mktemp) || exit 1
+tea api --login codeberg.org --repo bomret/superdev -i -X DELETE \
+  "/repos/bomret/superdev/wiki/page/$SUPERDEV_KB_SUB_URL" >/dev/null 2>"$hdr" || { rm -f "$hdr"; exit 1; }
+code=$(head -1 "$hdr" | cut -d' ' -f2); rm -f "$hdr"
+case "$code" in 2??) ;; *) exit 1 ;; esac
 ```
 
 Human-consumption first: shape pages around the audience, write in English, follow the outline above.

@@ -1201,18 +1201,20 @@ withState((stateFile) => {
   const findTemplate = classifyBackend(realDoc).templates.find;
   assert.ok(findTemplate, 'docs/agents/knowledge-base.md still configures a find template');
 
-  // Stubs `curl` on PATH so the template runs against canned stdin instead of the real network.
-  const stubDir = fs.mkdtempSync(path.join(os.tmpdir(), 'curl-stub-'));
-  fs.writeFileSync(path.join(stubDir, 'curl'), '#!/bin/sh\nprintf "%s" "$CURL_STUB_BODY"\n', { mode: 0o755 });
+  // Stubs `tea` on PATH so the template runs against a canned response instead of the real network:
+  // the body on stdout, and the status line `tea api -i` writes to stderr.
+  const stubDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tea-stub-'));
+  fs.writeFileSync(path.join(stubDir, 'tea'),
+    '#!/bin/sh\nprintf "HTTP/2.0 %s\\n" "$TEA_STUB_STATUS" >&2\nprintf "%s" "$TEA_STUB_BODY"\n', { mode: 0o755 });
 
-  function runFindTemplate(body) {
+  function runFindTemplate(body, status = '200 OK') {
     return spawnSync('/bin/sh', ['-c', findTemplate], {
       env: {
         ...process.env,
         PATH: stubDir + path.delimiter + process.env.PATH,
-        CURL_STUB_BODY: body,
+        TEA_STUB_BODY: body,
+        TEA_STUB_STATUS: status,
         SUPERDEV_KB_TITLE: 'Missing Page',
-        GITEA_TOKEN: 'x',
       },
       encoding: 'utf8',
     });
@@ -1224,6 +1226,11 @@ withState((stateFile) => {
   const there = runFindTemplate(JSON.stringify([{ title: 'Missing Page', sub_url: 'missing-page' }]));
   assert.equal(there.status, 0, 'a listing that carries the title answers found (0)');
   assert.deepEqual(JSON.parse(there.stdout), { sub_url: 'missing-page' });
+
+  // `tea api` exits 0 on an HTTP error, so the status line is the only failure signal: a non-200
+  // listing is "could not answer", never absence.
+  const unauthorized = runFindTemplate(JSON.stringify({ message: 'token is invalid' }), '401 Unauthorized');
+  assert.equal(unauthorized.status, 2, 'a non-200 listing must answer 2, never 3');
 
   const malformed = runFindTemplate('not json at all');
   assert.equal(malformed.status, 2, 'a jq parse failure is not absence — must answer 2, never 3');
