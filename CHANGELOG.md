@@ -1,3 +1,15 @@
+# [0.59.0](https://codeberg.org/bomret/superdev/compare/v0.58.0...v0.59.0) (2026-09-30)
+
+
+### Bug Fixes
+
+* **kb-commands:** run the wiki backend commands through the tea CLI ([#782](https://codeberg.org/bomret/superdev/issues/782)) ([ad42ace](https://codeberg.org/bomret/superdev/commit/ad42acee88ce4be84a57f382be5eb2d1b000213f))
+
+
+### Features
+
+* **setup-seed-reconcile:** setup reconciles config documents with their seeds ([caf3cab](https://codeberg.org/bomret/superdev/commit/caf3cab46c4ff45ed4be0c5c73ac7f1844d1df87))
+
 # [0.58.0](https://codeberg.org/bomret/superdev/compare/v0.57.0...v0.58.0) (2026-09-30)
 
 
