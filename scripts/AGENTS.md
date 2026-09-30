@@ -666,7 +666,7 @@ here either for the same reason).
 The `anchor-close-before-push` contract (triage #654) pins rows on a store whose anchor close is a commit
 on the scope branch — the local store — commits that close before submit-pr's own push, so it reaches
 base exactly when the pull request merges rather than never reaching base at all, and no command ever
-commits straight to base (INV-0001). One row pins `skills/submit-pr/SKILL.md`'s §4 sentence stating the
+commits straight to base (INV-0001). One row pins `skills/submit-pr/SKILL.md`'s §5 sentence stating the
 scope-branch-commit case at the push step; the other pins `references/issue-tracker-local.md`'s own close
 line, reworded to match. A store whose close is an API call is unaffected and keeps closing after the
 merge, on `/superdev:ship`. A later feature is free to replace the `done` value with its own status; the
@@ -964,7 +964,37 @@ run instruction still fails. The fourth consumer is the odd one out: the other t
 the implement loop, before the review's full-suite runs, while `skills/document/SKILL.md` runs after them —
 a doc commit lands on the scope branch once the review has already passed, and nothing else re-verifies
 it before the pull request, so the documentation step judges just what it changed with the same focused
-command, never the full suite (ADR 0025). The `full-suite` contract (ADR 0025, ADR 0075). `skills/review/SKILL.md` still
+command, never the full suite (ADR 0025). The `submit-pr-whole-repo` contract (ADR 0105, INV-0017, INV-0009), on `skills/submit-pr/SKILL.md`'s
+§4: a red whole-repo run opens no pull request, records an unresolved defect, leaves the stage where it
+was, and names `/superdev:review`; a denied run opens none, records `denied` of kind `whole`, and writes a `**Degraded:**` entry; a
+killed or never-started run opens none and records no green result; the red and denied paths' snapshot publish
+cites `## Publishing run state` at the write, the Denied bullet's own text anchoring its row; the red, denied, and killed
+or never-started paths each state that `--unattended` blocks; and the reuse check passes `--whole`, so only a record of kind `whole` spares the run. Each row is
+anchored on its clause, so a rewrite that drops the stop or the kind while keeping the step still fails.
+The `affected-form` contract (ADR 0105, INV-0105):
+`references/test-selection.md`'s guarantee — an affected form never selects fewer projects than the
+change can break, dependents included, and selection by path prefix does not qualify — is anchored on
+that clause in the reference, and `skills/setup/SKILL.md`'s decision E carries the matching writer-side
+guarantee: it probes the affected form on the base branch's own tip before writing it, and writes none
+until a missing dependency-graph tool is installed. A second row pins its second probe: the tool's list
+mode must select a project on a committed change in a throwaway worktree, and a form that selects none is
+not written. The first probe runs in a throwaway worktree at the base branch's tip under the second
+probe's location, creation, hook-free, and always-removed rules, and `check` mode flags a full command that looks affected in a document with no
+`## Whole-repo command` section. Each row is anchored on the substantive clause, not
+the passing "affected form" mention, so a rewrite that drops the guarantee while keeping the term still
+fails its row.
+
+The `whole-repo-ship` contract (ADR 0105, INV-0092): `skills/ship/SKILL.md` adds `--whole` to its
+`suite reusable` calls. Where a whole-repo command is configured and the tip carries no green whole-repo
+result, ship runs that command itself on the tip, records it with `--whole`, and merges nothing on a red,
+denied, or killed result. The same rule covers a moved base's merged tip, never counting the green-gate's
+own pass, and the whole-repo run replaces the full-command run on that merged tip. Before its own run, ship refuses when the suite record reads `none` without the `whole` kind, at
+any sha, and an unresolved defect stands, naming the finding and pointing at `/superdev:review`, so ship
+never overwrites review's invalidation. Ship's own killed run records `none … whole`, which carries the
+kind and does not trigger the refusal. A killed or never-started whole-repo run is recorded that way by
+`/superdev:submit-pr` too. Each clause has its own row, the refusal and the merge-nothing bullet included.
+
+The `full-suite` contract (ADR 0025, ADR 0075). `skills/review/SKILL.md` still
 runs the full suite itself, before dispatching `final-reviewer`. It states that a `fail` there is itself
 a Critical finding folded into the fix loop. It states that the stage does **not** advance while a
 full-suite fail, or a Critical or Important finding, stands. That last clause is the one that blocks a
@@ -976,7 +1006,11 @@ attended, block unattended — rather than the generic record-and-continue defau
 the stage advances on. Each row lost has its own failure — dropping the exit run advances a stage on a
 suite that never saw the fixes, dropping the focused cycle run silently reinstates a full suite per
 cycle, the cost ADR 0075 removed, and dropping the exit run's own local deviation advances an unattended
-stage on the entry run's suite alone. `agents/final-reviewer.md` reviews a live
+stage on the entry run's suite alone. Further rows carry ADR 0105's review clauses: a review entered
+on a red `whole` suite record runs the whole-repo command in place of the full command, records it with
+`--whole`, and keeps fix cycles on the focused command; the exit run is then the whole-repo command
+recorded with `--whole`; the result handed to `final-reviewer` is labelled whole-repo; and
+`agents/final-reviewer.md` accepts a result so labelled as the full run. `agents/final-reviewer.md` reviews a live
 scope against whichever result the controller hands it — full entering or leaving the loop, focused
 inside a cycle — running no suite of its own, and states that
 `Full-suite run: fail` makes the verdict `Ready to merge? No` on its own. Its ad-hoc branch keeps its own
@@ -1597,10 +1631,10 @@ dispatch, a denied full-suite dispatch in its own scope-mode fix loop, the "Decl
 stop, a denied fix-implementer dispatch, and the clean-verdict writes together), three on
 `references/run-handoff.md` (a denied full-suite dispatch, the 3-strike red-cap stop, and its own
 `stage set merged` write), and two on `skills/document/SKILL.md` (a denied `doc-writer`/`doc-reader` dispatch,
-and its own stage write). `references/run-init.md`, `skills/implement/SKILL.md`, and
-`skills/submit-pr/SKILL.md` carry exactly one citation each and no other mention of the section, so a
-bare file-level row stays unambiguous
-there. `references/implement-lite.md` carries no direct citation, one inheritance note, and sits outside
+and its own stage write). `references/run-init.md` and `skills/implement/SKILL.md` carry exactly one citation each and no other
+mention of the section, so a bare file-level row stays unambiguous there. `skills/submit-pr/SKILL.md`
+carries two (the red whole-repo path in §4 and the `stage set submitted` write), so its row is anchored
+on the stage write's own lead-in. `references/implement-lite.md` carries no direct citation, one inheritance note, and sits outside
 this table entirely: neither of its two
 writes (`docs set inline`, the knowledge-base pass's `degraded add`) can end the command, so both rely on
 inheritance — the same shape the file-level version of this check could not tell apart from a genuine gap,

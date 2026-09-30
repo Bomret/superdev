@@ -29,7 +29,7 @@ behaves. Refresh `<run-root>/run.lock` now, per that file's rule.
 
 ## 2. Scope checkout
 
-Find the scope checkout per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`. You need it for §4's git
+Find the scope checkout per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`. You need it for §4's suite run and §5's git
 commands.
 
 ## 3. Stage gate (ask once attended, refuse unattended)
@@ -66,7 +66,47 @@ Confirmed → proceed and record in the report that the scope was submitted with
 settled, not a defect: it writes no `**Unresolved:**` bullet and never reaches this gate, the same way a
 `ceiling:` line does not.
 
-## 4. Pull request
+## 4. Whole-repo run
+
+A repository may configure a whole-repo command (ADR 0105, INV-0017). Read `docs/agents/verification.md`
+from the scope checkout per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s
+`## Whole-repo command` section, which owns where the command lives and what an absent section means.
+
+- **No such section** → this command runs no suite, and the outcome is `not configured`. Continue to §5.
+- **Section present** → reuse a green whole-repo record the tip still earns, or run the command once. In
+  the scope checkout, run
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> [--plan-files] --whole --root <run-root>`
+  (`--plan-files` as `/superdev:review` passes it, when the active store commits plan files on the scope
+  branch). Only a record of kind `whole` satisfies this step; a green record with no kind does not.
+  Exit 0 → outcome `reused`, no run; continue to §5. Otherwise run the whole-repo command once in the
+  scope checkout over the scope branch's tip, then record it with
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set <green|red|denied> <sha> --whole --root <run-root>`
+  (`<sha>` = `git rev-parse <branch>`):
+  - **Green** → outcome `green`. Continue to §5.
+  - **Red** → outcome `red`. Open no pull request. Record the result as above, then add an unresolved
+    defect naming the failing output's decisive lines, per
+    `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Unresolved defects` section, and publish the
+    snapshot afterwards per its `## Publishing run state` section. Leave the stage where it was, print
+    `/superdev:review <scope>` as the next command, and stop. `--unattended` stops the same way, and that
+    stop is a block under `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section.
+  - **Denied** → outcome `denied`. The permission classifier refused the run: open no pull request,
+    record `suite set denied <sha> --whole --root <run-root>` (the record `/superdev:ship` writes for the
+    same outcome), write a `**Degraded:**` entry naming the denied whole-repo run per
+    `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section (plain `degraded add`,
+    the shape a denied command takes), publish the snapshot afterwards per
+    `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section, and stop with the
+    same report. `--unattended` stops the same way, and that stop is a block under the same **Unattended**
+    section, as on the red branch.
+  - **Killed, or never started** → outcome `killed` or `not started`, saying which. No verdict exists
+    (INV-0009): open no pull request, record `suite set none <sha> --whole --root <run-root>` (the
+    record `/superdev:ship` writes for the same outcome), and stop with the same report. `--unattended` stops the same way, and that stop is a
+    block under the same **Unattended** section, as on the red branch.
+
+State the outcome — `reused`, `green`, `red`, `denied`, `killed`, `not started`, or `not configured` — in this
+command's report, and in the pull request body under the fixed heading `## Whole-repo run` once §5 opens
+one.
+
+## 5. Pull request
 
 **A scope-branch-commit anchor close happens first.** Per `docs/agents/issue-tracker.md`, a store whose
 anchor close is a commit on the scope branch commits that close now, before this push, so it reaches base
@@ -86,6 +126,9 @@ looking it up by head branch, which a reused branch name (`## The scope branch`)
 (INV-0092). **Degraded to the compare-URL fallback above** → no number exists yet; record nothing here,
 and `pr clear` need not run either — the header simply stays absent, the same case a ledger from before
 this header existed already leaves it in.
+
+**Carry the whole-repo outcome into that body.** Put §4's outcome under the fixed `## Whole-repo run`
+heading. **`not configured`** → say so under the heading; the pull request body always carries it.
 
 **Carry the run's degrade record into that body.** The ledger's `**Degraded:**` line lists every pass this
 run did not get — a denied dispatch, a knowledge-base pass the writer could not stage — per

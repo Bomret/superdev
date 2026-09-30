@@ -622,7 +622,7 @@ function scanChainHandoff(root) {
 //
 // Ordering dependency: extractSection() runs from SHIP_GATE_HEADING to the next markdown heading, and
 // "Entries standing." carries no heading of its own — so this check's specificity holds only as long as
-// that paragraph stays the LAST one in §3, immediately before "## 4. Pull request". Move it above
+// that paragraph stays the LAST one in §3, immediately before "## 4. Whole-repo run". Move it above
 // the stage-gate bullets and the extracted section would swallow them too; §3's other gate uses the
 // identical "ask once" / `--unattended` → refuse phrasing for an unrelated question, so it would then
 // satisfy SHIP_GATE_ELEMENTS on its own and this check would silently degrade to the whole-file match

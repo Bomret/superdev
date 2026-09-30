@@ -1043,6 +1043,28 @@ const FULL_SUITE_CONTRACTS = [
     /cycle's focused run first comes back clean, re-run the full suite once[\s\S]{0,300}red re-run counts toward this loop's own 3-strike cap/i,
     "re-run the full suite once when a cycle's focused run first comes back clean, and count a red re-run toward the loop's own 3-strike cap",
   ],
+  // ADR 0105: a scope review entered on a red `whole` suite record runs the whole-repo command, on both
+  // ends of the dispatch — the review's own sentence, and the dispatch sentence reaching `final-reviewer`.
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /Red with `whole`[\s\S]{0,300}run the whole-repo command in place of the full command[\s\S]{0,300}suite set <result> <sha> --whole[\s\S]{0,400}Fix cycles still run the focused command/i,
+    'run the whole-repo command in place of the full command when entered on a red `whole` suite record, record it with `--whole`, and keep fix cycles on the focused command',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /the exit run is the whole-repo command[\s\S]{0,120}recorded with `--whole`/i,
+    'state that when the entry swapped in the whole-repo command, the exit run is the whole-repo command recorded with `--whole`',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /hand\s+a\s+full-suite\s+result[\s\S]{0,300}?labelled\s+whole-repo/i,
+    'label the result handed to `final-reviewer` whole-repo when the review ran the whole-repo command',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /whole-repo command's run, when the controller labels it whole-repo/i,
+    'accept a result the controller labels whole-repo as the full run entering or leaving the fix loop',
+  ],
 ];
 
 // ADR 0035: `/superdev:review`'s fix loop may change **how** the code meets the Definition of Done, and a
@@ -1832,6 +1854,229 @@ const TEST_SELECTION_CONTRACTS = [
     path.join('skills', 'document', 'SKILL.md'),
     TEST_SELECTION_PATTERN,
     'read `references/test-selection.md` and run the command it selects over the doc commits it just landed',
+  ],
+];
+
+// ADR 0105, INV-0105: the affected form's guarantee — never selects fewer projects than the change can
+// break, dependents included, and selection by path prefix does not qualify — is stated once in
+// `references/test-selection.md`, and `skills/setup/SKILL.md`'s decision E is the only writer of one,
+// gated on the base-branch-tip probe and on the dependency-graph tool being installed. Each pattern is
+// anchored on the substantive clause, not the passing "affected form" mention, so a rewrite that drops
+// the guarantee while keeping the term still trips its row (root `AGENTS.md`'s dispatch-prose rule).
+const AFFECTED_FORM_TEST_SELECTION_PATTERN =
+  /never selects fewer projects than the change can break[\s\S]{0,500}?path prefix does not qualify/;
+const AFFECTED_FORM_SETUP_PATTERN =
+  /run the affected form once on the base branch's own tip/;
+const AFFECTED_FORM_NOT_INSTALLED_PATTERN =
+  /The tool is not installed\.\*\*[\s\S]{0,200}?write no affected form until the operator has installed it/;
+const AFFECTED_FORM_PROBE_LOCATION_PATTERN =
+  /second probe[\s\S]{0,600}?inside the repository's main checkout[\s\S]{0,200}?git-ignored `\.superdev\/`[\s\S]{0,200}?`\.superdev\/probe-/;
+const AFFECTED_FORM_PROBE_HYGIENE_PATTERN =
+  /second probe[\s\S]{0,1500}?-c core\.hooksPath=\/dev\/null -c commit\.gpgsign=false commit/;
+const AFFECTED_FORM_WRITE_AFTER_BOTH_PATTERN =
+  /written only after every probe above passes/;
+const AFFECTED_FORM_SELECTION_PROBE_PATTERN =
+  /second probe[\s\S]{0,400}?throwaway worktree[\s\S]{0,1000}?git worktree add --detach[\s\S]{0,400}?source file of a leaf project the tool lists[\s\S]{0,150}?commit it there/;
+const AFFECTED_FORM_LIST_MODE_PATTERN =
+  /Run the tool's own list mode there with the base the form carries/;
+const AFFECTED_FORM_NOT_WRITTEN_PATTERN =
+  /A form that selects no project on\s+that change is not\s+written/;
+const AFFECTED_FORM_EXECUTED_PROBE_PATTERN =
+  /After the list-mode check, run the affected form itself once in the same worktree, under the same hook-free, no-push, always-removed rules[\s\S]{0,1500}?executed nothing[\s\S]{0,300}?is not written/;
+
+const AFFECTED_FORM_REMOVAL_ORDER_PATTERN =
+  /run the affected form itself once in the same worktree[\s\S]*?git worktree remove --force[\s\S]*?git worktree prune/;
+const AFFECTED_FORM_REMOVAL_COVERAGE_PATTERN =
+  /Remove the worktree when the probes end, at whichever step they stop/;
+const AFFECTED_FORM_CONFIRM_PATTERN =
+  /shows\s+the operator the run's output and asks them to confirm it showed tests running/;
+const AFFECTED_FORM_COST_PATTERN =
+  /run the affected form itself once[\s\S]{0,400}?on that same commit, with no second edit[\s\S]{0,400}?costs the suites the change selects/;
+const AFFECTED_FORM_LOCAL_CACHE_PATTERN =
+  /After the list-mode check, run the affected form itself once[\s\S]{0,400}?remote caching off[\s\S]{0,300}?NX_NO_CLOUD=true[\s\S]{0,200}?--cache=local:rw/;
+
+const AFFECTED_FORM_CONTRACTS = [
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    AFFECTED_FORM_REMOVAL_ORDER_PATTERN,
+    'remove and prune the probe worktree after the third probe, which runs in it (ADR 0105, INV-0105)',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    AFFECTED_FORM_REMOVAL_COVERAGE_PATTERN,
+    'remove the probe worktree when the probes end, at whichever step they stop (ADR 0105, INV-0105)',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    AFFECTED_FORM_CONFIRM_PATTERN,
+    'ask the operator to confirm the affected-form run showed tests running (ADR 0105, INV-0105)',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    AFFECTED_FORM_COST_PATTERN,
+    'run the executed probe on the second probe\'s leaf-project commit and state its cost as the suites the change selects ' +
+      '(ADR 0105, INV-0105)',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    AFFECTED_FORM_LOCAL_CACHE_PATTERN,
+    'keep the probe run\'s caching local: NX_NO_CLOUD=true for nx, --cache=local:rw for turborepo ' +
+      '(ADR 0105, INV-0105)',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    AFFECTED_FORM_NOT_INSTALLED_PATTERN,
+    'write no affected form until a missing dependency-graph tool is installed (ADR 0105, INV-0105)',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    AFFECTED_FORM_PROBE_LOCATION_PATTERN,
+    'create the second probe worktree inside the main checkout under the git-ignored `.superdev/` so ' +
+      'the tool resolves the checkout\'s dependencies (ADR 0105, INV-0105)',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    AFFECTED_FORM_PROBE_HYGIENE_PATTERN,
+    'commit the probe change with hooks and signing off (ADR 0105, INV-0105)',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    AFFECTED_FORM_WRITE_AFTER_BOTH_PATTERN,
+    'write the affected form and whole-repo command only after every probe passes (ADR 0105, INV-0105)',
+  ],
+  [
+    path.join('references', 'test-selection.md'),
+    AFFECTED_FORM_TEST_SELECTION_PATTERN,
+    'define the affected form as never selecting fewer projects than the change can break, dependents ' +
+      'included, exiting green on an empty change, and excluding selection by path prefix (ADR 0105, INV-0105)',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    AFFECTED_FORM_SETUP_PATTERN,
+    "probe the affected form on the base branch's own tip before writing it (ADR 0105, INV-0105)",
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    AFFECTED_FORM_SELECTION_PROBE_PATTERN,
+    'run a second probe on a committed change in a throwaway worktree (ADR 0105, INV-0105)',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    AFFECTED_FORM_LIST_MODE_PATTERN,
+    'run the tool\'s own list mode in the probe worktree with the base the form carries (ADR 0105, INV-0105)',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    AFFECTED_FORM_NOT_WRITTEN_PATTERN,
+    'write no affected form that selects no project on the probe change (ADR 0105, INV-0105)',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /A full command that looks affected[\s\S]{0,400}?`nx affected`[\s\S]{0,400}?`dotnet-affected`[\s\S]{0,400}?no `## Whole-repo command` section[\s\S]{0,300}?drift/,
+    '`check` mode flags a full command that looks affected in a document with no `## Whole-repo command` section as drift (ADR 0105, INV-0105)',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /run the affected form once on the base branch's own tip\*\*,[\s\S]{0,200}?throwaway worktree[\s\S]{0,200}?under\s+the\s+second\s+probe's\s+location,\s+creation,\s+hook-free,\s+and\s+always-removed\s+rules/,
+    "run the first probe in a throwaway worktree at the base branch's tip, under the second probe's location, creation, hook-free, and always-removed rules (ADR 0105, INV-0105)",
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    AFFECTED_FORM_EXECUTED_PROBE_PATTERN,
+    'run the affected form itself once in the probe worktree and write none whose zero-exit run ' +
+      'executed nothing (ADR 0105, INV-0105)',
+  ],
+];
+
+// ADR 0105, INV-0092: where a repository configures a whole-repo command, ship's reuse gate demands a
+// green record of kind `whole`. A tip with none gets the whole-repo command run on it by ship itself,
+// recorded with `--whole`, and a non-green result merges nothing. The same rule covers a moved base's
+// merged tip, never counting the green-gate's own pass. A rewrite that drops a clause while keeping the
+// term leaves a merge landing a tip no whole-repo run covered, or a dead end no command can leave.
+const WHOLE_REPO_SHIP_CONTRACTS = [
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /add `--whole` to the `suite reusable` call above[\s\S]{0,300}?Exit 1, or no record at all\*\*[\s\S]{0,800}?run the whole-repo command yourself on it/,
+    'run the whole-repo command on a tip that carries no green whole-repo record (ADR 0105, INV-0092)',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /run the whole-repo command yourself on it[\s\S]{0,300}?`suite set <green\|red\|denied\|none> <tip> --whole/,
+    'record the whole-repo run of that tip with `--whole` (ADR 0105, INV-0092)',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /\*\*Red, denied, or\s+killed or never started[\s\S]{0,120}?\*\* → merge nothing/,
+    'merge nothing on a red, denied, or killed whole-repo result (ADR 0105, INV-0092, INV-0009)',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /gate's own pass never counts as the\s+whole-repo run[\s\S]{0,400}?`suite set <green\|red\|denied\|none> <new-head> --whole/,
+    "apply the same whole-repo run to a moved base's merged tip and record it with `--whole` (ADR 0105, INV-0092)",
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /shortcut above does not apply[\s\S]{0,200}?whole-repo run replaces the full-command run on the merged tip/,
+    "run the whole-repo command on a moved base's merged tip in place of the full command, never both (ADR 0105, INV-0092)",
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /\*\*Red, denied, or a killed or never-started run \(a `none` result\)\*\*\s+→\s+merge\s+nothing/,
+    'merge nothing on a red, denied, or killed or never-started run, the last recorded as `none` (ADR 0105, INV-0092, INV-0009)',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /Exit 1, or no record at all\*\*[\s\S]{0,300}?get suite[\s\S]{0,120}?prints\s+`none <sha>`\s+with\s+no\s+trailing\s+`whole`[\s\S]{0,300}?get unresolved` prints any bullet[\s\S]{0,200}?refuse[\s\S]{0,200}?merge nothing[\s\S]{0,200}?`\/superdev:review <scope>`[\s\S]{0,400}?run the whole-repo command yourself on it/,
+    "refuse before its own whole-repo run when the suite record reads `none` without the `whole` kind, at any sha, " +
+      'and an unresolved defect stands, naming the finding and pointing at `/superdev:review`, so ship never ' +
+      "overwrites review's invalidation (ADR 0105, INV-0092)",
+  ],
+];
+
+// ADR 0105, INV-0017: submit-pr's whole-repo step. Each row is anchored on the clause that carries the
+// stop or the kind, not the step's heading, so a rewrite that keeps the step and drops the guarantee fails.
+const SUBMIT_PR_WHOLE_REPO_CONTRACTS = [
+  [
+    path.join('skills', 'submit-pr', 'SKILL.md'),
+    /suite\s+reusable[^\n]*?--whole[\s\S]{0,300}?Only\s+a\s+record\s+of\s+kind\s+`whole`\s+satisfies\s+this\s+step/,
+    'reuse a whole-repo record only through `suite reusable --whole`, so only a record of kind `whole` ' +
+      'spares the run (ADR 0105, INV-0017)',
+  ],
+  [
+    path.join('skills', 'submit-pr', 'SKILL.md'),
+    /\*\*Red\*\*\s+→\s+outcome\s+`red`\.\s+Open\s+no\s+pull\s+request[\s\S]{0,300}?add\s+an\s+unresolved\s+defect[\s\S]{0,400}?Leave\s+the\s+stage\s+where\s+it\s+was,\s+print\s+`\/superdev:review\s+<scope>`/,
+    'open no pull request on a red whole-repo run, record an unresolved defect, leave the stage, and name ' +
+      '`/superdev:review` (ADR 0105)',
+  ],
+  [
+    path.join('skills', 'submit-pr', 'SKILL.md'),
+    /\*\*Killed,\s+or\s+never\s+started\*\*[\s\S]{0,300}?open\s+no\s+pull\s+request,\s+record\s+`suite\s+set\s+none\s+<sha>\s+--whole[\s`]/,
+    'open no pull request and record `suite set none <sha> --whole` on a killed or never-started whole-repo run, the rule ship applies (INV-0009)',
+  ],
+  [
+    path.join('skills', 'submit-pr', 'SKILL.md'),
+    /\*\*Denied\*\*[\s\S]{0,300}?open\s+no\s+pull\s+request,\s+record\s+`suite\s+set\s+denied\s+<sha>\s+--whole[\s\S]{0,300}?`\*\*Degraded:\*\*`\s+entry[\s\S]{0,200}?`## Degraded passes`/,
+    'open no pull request on a denied whole-repo run, record `suite set denied <sha> --whole` (the record ship writes), and write a `**Degraded:**` entry per `## Degraded passes`',
+  ],
+  [
+    path.join('skills', 'submit-pr', 'SKILL.md'),
+    /\*\*Denied\*\*(?:(?!\n {2}- |\s- \*\*)[\s\S])*?publish\s+the\s+snapshot\s+afterwards(?:(?!\n {2}- |\s- \*\*)[\s\S])*?`## Publishing run state`(?:(?!\n {2}- |\s- \*\*)[\s\S])*?`--unattended`[\s\S]{0,80}?block/,
+    'publish the snapshot after a denied whole-repo run writes its `**Degraded:**` entry, per `## Publishing run state`, and state that `--unattended` blocks there (the Denied bullet itself, not a file-level citation)',
+  ],
+  [
+    path.join('skills', 'submit-pr', 'SKILL.md'),
+    /\*\*Killed,\s+or\s+never\s+started\*\*(?:(?!\n {2}- |\s- \*\*)[\s\S])*?`--unattended`[\s\S]{0,80}?block/,
+    'state that `--unattended` blocks on a killed or never-started whole-repo run (the Killed bullet itself)',
+  ],
+  [
+    path.join('skills', 'submit-pr', 'SKILL.md'),
+    /Red\*\*\s+→\s+outcome\s+`red`[\s\S]{0,700}?publish\s+the\s+snapshot\s+afterwards\s+per\s+its\s+`## Publishing run state`\s+section/,
+    'publish the snapshot after a red whole-repo run records its suite result and unresolved defect, per `## Publishing run state`',
+  ],
+  [
+    path.join('skills', 'submit-pr', 'SKILL.md'),
+    /Carry\s+the\s+whole-repo\s+outcome\s+into\s+that\s+body\.\*\*\s+Put\s+§4's\s+outcome\s+under\s+the\s+fixed\s+`## Whole-repo run`/,
+    'build the pull request body with §4\'s whole-repo outcome under the `## Whole-repo run` heading',
   ],
 ];
 
@@ -2944,8 +3189,12 @@ const PUBLISH_RUN_STATE_CONTRACTS = [
   ...[
     path.join('references', 'run-init.md'),
     path.join('skills', 'implement', 'SKILL.md'),
-    path.join('skills', 'submit-pr', 'SKILL.md'),
   ].map((rel) => [rel, /`## Publishing run state`/, 'point at the `## Publishing run state` section after its one ledger write']),
+  [
+    path.join('skills', 'submit-pr', 'SKILL.md'),
+    /stage set submitted[\s\S]{0,200}?Publish\s+the\s+snapshot\s+afterwards,\s+per[\s\S]{0,120}?`## Publishing run state`/,
+    'point at the `## Publishing run state` section after the `stage set submitted` write',
+  ],
   // references/implement-full.md: anchored on the real citation's own lead-in, not a bare heading match —
   // the file also names the section a second time, in the non-terminal simplicity-reviewer write's own
   // inheritance note, so a bare presence row would stay green with the real citation stripped.
@@ -4190,7 +4439,7 @@ const SHIP_TICKS_NOTHING_CONTRACTS = [
 // close before submit-pr's push, so it rides the pull request and reaches base exactly when the pull
 // request merges — never as a commit straight to base (INV-0001). A store whose close is an API call
 // keeps closing after the pull request opens, on `/superdev:ship`, unaffected:
-// `skills/submit-pr/SKILL.md` states the scope-branch-commit case at its push step (§4), and
+// `skills/submit-pr/SKILL.md` states the scope-branch-commit case at its push step (§5), and
 // `references/issue-tracker-local.md` restates its own close line to match. A later feature is free to
 // replace the `done` value with its own status; the before-the-push mechanism stays either way.
 const ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS = [
@@ -5120,6 +5369,9 @@ module.exports = {
   KB_BACKEND_CALL_MARKERS,
   HOOK_HEADER_REGEX,
   TEST_SELECTION_CONTRACTS,
+  AFFECTED_FORM_CONTRACTS,
+  WHOLE_REPO_SHIP_CONTRACTS,
+  SUBMIT_PR_WHOLE_REPO_CONTRACTS,
   TIER_SKIP_CONTRACTS,
   ARG_TOKEN_LINE,
   ARG_TOKEN_CONTRACTS,

@@ -389,8 +389,14 @@ again. One answer lands outside that tree: the slice store's **assignee** goes t
   it. A `verification.md` carrying only the first fence records a repository whose focused command was
   never configured: a prose caller finding it stops and names `/superdev:setup`, running no command, and
   `hooks/green-gate.js` runs the full command it found and emits a one-line notice instead of stopping.
-  [`references/test-selection.md`](plugin/references/test-selection.md) owns the full-versus-focused rule. The
-  answer goes to `docs/agents/verification.md`.
+  [`references/test-selection.md`](plugin/references/test-selection.md) owns the full-versus-focused rule.
+  In a monorepo the full command may take an **affected form**: it runs every project the change reaches,
+  dependents included, as the repository's own dependency-graph tool (nx, turborepo, pnpm, or
+  `dotnet-affected`) computes them. Such a repository also records an optional `## Whole-repo command`
+  section, a command in a backtick span that runs every project's suite. `/superdev:submit-pr` runs it
+  before opening the pull request, and `/superdev:ship` merges only a tip it passed on
+  ([ADR 0105](docs/adr/0105-an-affected-full-command-and-a-whole-repo-gate-before-the-pull-request.md)).
+  Setup writes an affected form only after probing it. The answer goes to `docs/agents/verification.md`.
 
 To add a backend, write a new seed template in `references/` plus a config doc. No command and no agent
 changes.

@@ -151,10 +151,10 @@ Paths: plugin/skills/review/**, plugin/references/run-handoff.md, plugin/skills/
 
 Class: process
 Concepts: Focused test command, Suite record
-Statement: A slice implementer and a fix cycle run only the focused command. The full suite runs at run handoff, once more when a fix loop there first comes back clean, and after review's first clean re-review. A green result recorded on the commit a step would run on, or on an earlier commit that differs only in the store's own plan files, is reused rather than run again.
+Statement: A slice implementer and a fix cycle run only the focused command. The full suite runs at run handoff, once more when a fix loop there first comes back clean, and after review's first clean re-review. Where the repository configures a whole-repo command, it runs once before the pull request opens, on a tip that carries no green whole-repo result at ship (which instead refuses while a review invalidation stands, INV-0092), and in place of the full suite in a review entered while the suite record reads red of kind `whole`. A green result recorded on the commit a step would run on, or on an earlier commit that differs only in the store's own plan files, is reused rather than run again. A step that needs a whole-repo run reuses only a record of kind `whole`.
 Breaks: silently
 Check: scripts/drift-check.js — the full-suite contract rows on run handoff and review; tests/scope.test.js — the suite record's read and write, and `suite reusable`'s tip-match and plan-file-scoped cases
-Paths: plugin/references/run-handoff.md, plugin/skills/review/**, plugin/agents/implementer.md, plugin/scripts/scope.js
+Paths: plugin/references/run-handoff.md, plugin/skills/review/**, plugin/skills/submit-pr/**, plugin/skills/ship/**, plugin/agents/implementer.md, plugin/scripts/scope.js
 
 ### INV-0018
 
@@ -729,7 +729,7 @@ Class: architecture
 Concepts: Scope branch, Code host
 Statement: No superdev command other than /superdev:submit-pr and /superdev:ship pushes a scope branch. Planning, implementing, reviewing, and documenting work on the local scope branch only, so nothing unreviewed reaches the code host before submit-pr opens the pull request. Ship pushes twice over its own run: once for a tested base merge that moved, once for a tested commit review's own fix loop or an operator's own conflict resolution landed at stage submitted with no base merge involved — both gated on a reusable green record for the pushed tip, and both moving the open pull request's head, never straight to base (INV-0001), since the merge onto base still runs only through the host's own merge API.
 Breaks: silently
-Check: none — no drift row pins it; it holds because the only push instructions in shipped prose are /superdev:submit-pr §4 and /superdev:ship §4, and the code-management seeds they read
+Check: none — no drift row pins it; it holds because the only push instructions in shipped prose are /superdev:submit-pr §5 and /superdev:ship §4, and the code-management seeds they read
 Paths: plugin/skills/**, plugin/references/**
 
 ### INV-0088
@@ -775,7 +775,7 @@ Paths: plugin/scripts/publish-kb.js, plugin/references/doc-pass.md, plugin/agent
 
 Class: process
 Concepts: Pinned merge, Suite record, Stage
-Statement: A merge superdev makes lands only a scope-branch head that a green full-suite run covers. That is either a head with a reusable green suite record, or `/superdev:ship`'s own conflict-free merge of base into the scope branch, tested green before it lands. The merge is pinned to that head, so a head that moved after the test is refused by the host. It never forces past the host's branch protection or required approvals. A red, denied, or conflicting result lands nothing (ADR 0096).
+Statement: A merge superdev makes lands only a scope-branch head that a green full-suite run covers, and a green whole-repo run where the repository configures a whole-repo command. That is either a head with a reusable green suite record, or `/superdev:ship`'s own conflict-free merge of base into the scope branch, tested green before it lands. The merge is pinned to that head, so a head that moved after the test is refused by the host. It never forces past the host's branch protection or required approvals. A red, denied, or conflicting result lands nothing, and neither does a head whose suite record review invalidated for a standing unresolved defect (ADR 0096, ADR 0105).
 Breaks: silently
 Check: scripts/drift-check.js — ship's pinned-merge, no-force, and not-green-lands-nothing clauses; tests for any `scope.js` verb that decides reuse
 Paths: plugin/skills/ship/**, plugin/references/code-management-*.md, plugin/scripts/scope.js
@@ -842,6 +842,15 @@ Statement: Under the `auto` deploy posture, `/superdev:ship` runs a deploy targe
 Breaks: silently
 Check: scripts/drift-check.js — ship's post-merge deploy step compares the merge commit's `deployment.md` with the tested head's and asks once before any `auto` target runs
 Paths: plugin/skills/ship/**
+
+### INV-0105
+
+Class: process
+Concepts: Affected form, Whole-repo command
+Statement: An affected form never selects fewer projects than the change can break. It selects through the repository's dependency-graph tool, dependents included, so a change the graph cannot attribute to one project selects every project, and selection by path prefix does not qualify. It exits green when the change reaches no project. `/superdev:setup` writes one only after it has exited green on the base branch's own tip and has selected a project on a committed change in a throwaway worktree and, run on that change, has executed at least one task or test, and only together with a whole-repo command.
+Breaks: silently
+Check: scripts/drift-check.js — the affected-form clauses pinned together in plugin/references/test-selection.md and plugin/skills/setup/SKILL.md; partial: whether a given tool's graph is complete is that tool's claim, not superdev's
+Paths: plugin/references/test-selection.md, plugin/skills/setup/**
 
 ### INV-0107
 

@@ -137,14 +137,19 @@ write, naming `scope.js`.
   pending|deployed|failed [--exit <n>]`, which replaces a target already recorded in place rather than
   adding a second entry. Read with `deploy get`, which prints one line per target as `<target>
   <state>[ exit <n>]`, or `absent` on a ledger with no record.
-- **`**Suite:** <result> @ <sha>`** — the **suite record** (CONTEXT.md): the last full-suite run's
+- **`**Suite:** <result> @ <sha>[ whole]`** — the **suite record** (CONTEXT.md): the last full-suite run's
   result — `green`, `red`, `denied` (a run the permission classifier denied), or `none` (no test command
-  configured) — and the commit it ran on. Read with `get suite`, which prints `<result> <sha>` or nothing
-  on a ledger with no record; written with `suite set <result> <sha>`, which refuses a sha that does not
+  configured; with kind `whole`, a whole-repo run that was killed or never started, INV-0009; or, with no
+  kind, `/superdev:review`'s invalidation of a submitted tip, which `/superdev:ship`'s refusal keys on) — the
+  commit it ran on, and its kind: `whole` for a run of the **whole-repo command** (CONTEXT.md, ADR 0105), no kind for a run of the full command. Read with `get suite`, which prints
+  `<result> <sha>`, with a trailing ` whole` when the record carries that kind, or nothing on a ledger
+  with no record; written with `suite set <result> <sha> [--whole]`, which refuses a sha that does not
   resolve to a commit in the repository. A later step reuses a green record `scope.js suite reusable`
   calls reusable against the scope branch's current tip — an exact match, or a diff confined to the
   active store's own plan files since the recorded commit — instead of running the suite again
-  (INV-0017).
+  (INV-0017). `suite reusable --whole` additionally refuses a record with no kind, even when it is
+  green and tip-matched: a step that needs a whole-repo run reuses only a record of kind `whole`; a
+  step content with either kind omits `--whole` and accepts both.
 
 A ledger written before a line existed carries none of it — `scope.js` parses a pre-CLI ledger unchanged,
 and `get` reports an absent header line as `absent`, never as a parse error — except `get suite`, which

@@ -162,7 +162,8 @@ superdev subagent that omits one):
   the suite over the range rather than trust the diff alone. **Scope mode** — §4 already ran a suite for
   this dispatch; hand it that result and tell it to review against that result, running no suite of its
   own. Say which run it is: `final-reviewer` reviews against whichever result you hand it, full or
-  focused (ADR 0075). The entry and exit dispatches hand a full-suite result, and a fix cycle's
+  focused (ADR 0075). The entry and exit dispatches hand a full-suite result — labelled whole-repo
+  when the review ran the whole-repo command (§4) — and a fix cycle's
   re-review hands that cycle's focused run. Confirming a `dod.md` criterion observes; it changes no
   system outside the repository (ADR 0084, INV-0006). A criterion needing a deploy, a migration, or any
   other outward-facing change to confirm gets reported as unverifiable on the branch, needing
@@ -267,6 +268,15 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
 - **Find the scope checkout, and refresh the run lock.** Per
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`. **The scope checkout not on `<type>/<scope>`** →
   report that and review read-only rather than writing to the wrong branch.
+- **Read the suite record first: a red record of kind `whole` swaps in the whole-repo command.**
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get suite --root <run-root>` prints
+  `<result> <sha>[ whole]`. Red with `whole`, and a `## Whole-repo command` section configured (ADR 0105,
+  `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## Whole-repo command`) → the entry run and the
+  fix loop's exit run below run the whole-repo command in place of the full command, skip the reuse
+  check, and record with `scope.js suite set <result> <sha> --whole --root <run-root>`; tell
+  `final-reviewer` the result is the whole-repo run, and treat a failing one as a Critical finding
+  exactly as a failing full run is. Fix cycles still run the focused command. Any other record → the
+  review runs the full command, as below.
 - **Reuse a green suite record the tip still earns; otherwise run the full suite yourself, before
   dispatching `final-reviewer`.**
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> [--plan-files]
@@ -310,7 +320,11 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   suite is paid at most once. A **red result
   there is itself a Critical finding** too — it re-enters the fix loop and **counts toward the 3-strike
   cap** below, the same shape as a cycle exposing a defect elsewhere, so the loop needs no bound of its
-  own (ADR 0075). **A denied exit run takes the entry run's
+  own (ADR 0075). **The exit run follows the choice made at entry**, not a
+  re-read of the record: when the entry swapped in the whole-repo command, the exit run is the whole-repo
+  command recorded with `--whole` (`scope.js suite set <result> <sha> --whole --root <run-root>`), so a
+  green result writes the `whole` record; when the entry run of that command was denied, the denied
+  handling below applies to it. **A denied exit run takes the entry run's
   own local deviation**, not `## Degraded passes`'s record-and-continue default: this run is the gate the
   stage advances on, and an unattended run left on the default would advance it on the entry run's suite
   alone — taken before this cycle's fix commits existed. Write the `**Degraded:**` entry either way, then

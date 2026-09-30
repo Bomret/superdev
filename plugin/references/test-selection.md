@@ -23,6 +23,35 @@ coverage command, sample failure output, the reason a repository records for dup
 as the focused one, or anything else a repository keeps in `verification.md` stays **unfenced** — prose,
 or a backtick span. A third fence is read as nothing at all.
 
+## Affected form
+
+The full command may take an **affected form** (ADR 0105): instead of running the whole suite verbatim,
+it selects through the repository's dependency-graph tool the changed projects and every project
+depending on them, dependents included, and runs each selected project's whole suite using nx, turborepo,
+pnpm, or dotnet-affected. It never selects fewer projects than the change can break: a change the graph
+cannot attribute to one project selects every project. It exits green when the change reaches no project, and it selects at least one project on a change that touches one, and running it on that change executes at least one task or test. `/superdev:setup` probes all three before it writes the form.
+
+Selection by path prefix does not qualify — a change to a shared library reaches every project that
+depends on it, and a prefix match over changed paths cannot see that dependency. Only the repository's
+own dependency-graph tool selects.
+
+A repository whose full command takes this form also configures the **whole-repo command** below.
+
+## Whole-repo command
+
+An optional **`## Whole-repo command`** section, holding one command that runs every project's suite —
+the check a repository whose full command is an affected form still needs before a merge lands. A
+repository configures one only together with an affected form.
+
+- **Its command lives in a backtick span**, per the rule above — a fenced block would land in the
+  focused slot the same way the timing command's would, and `hooks/green-gate.js` would then run it as
+  the merge gate's suite.
+- **`/superdev:submit-pr`, `/superdev:ship`, and a scope review read it** (ADR 0105): submit-pr runs it
+  once on the scope branch's tip before opening the pull request and reuses a green `whole` record of that
+  tip instead, ship runs it on a tip that carries no green `whole` record, and a review entered while the suite record reads red of kind `whole` runs it in place of the
+  full command.
+- **An absent section leaves the full command as the whole suite**, and every caller unaffected.
+
 ## Timing command
 
 An optional **`## Timing command`** section, holding one command that reports what the suite's tests

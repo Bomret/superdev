@@ -84,6 +84,9 @@ const {
   KB_STAGING_CONTRACTS,
   KB_READ_NEVER_WRITE_CONTRACTS,
   TEST_SELECTION_CONTRACTS,
+  AFFECTED_FORM_CONTRACTS,
+  WHOLE_REPO_SHIP_CONTRACTS,
+  SUBMIT_PR_WHOLE_REPO_CONTRACTS,
   TIER_SKIP_CONTRACTS,
   CONTAINMENT_DELEGATION_CONTRACTS,
   CONTAINMENT_REFETCH_CONTRACTS,
@@ -295,6 +298,21 @@ module.exports = [
     format: contractGap,
   },
   table('test-selection-wiring', TEST_SELECTION_CONTRACTS, 'every loop consumer reads test-selection.md'),
+  table(
+    'affected-form',
+    AFFECTED_FORM_CONTRACTS,
+    'the affected-form guarantee is pinned together in test-selection.md and setup/SKILL.md',
+  ),
+  table(
+    'whole-repo-ship',
+    WHOLE_REPO_SHIP_CONTRACTS,
+    'ship runs the whole-repo command on a tip without a green whole-repo record, records it with `--whole`, merges nothing on a non-green result, and refuses before that run while review\'s invalidation stands, where one is configured',
+  ),
+  table(
+    'submit-pr-whole-repo',
+    SUBMIT_PR_WHOLE_REPO_CONTRACTS,
+    'submit-pr runs the whole-repo command before the pull request, reuses only a whole record, and stops on red, killed, or never started',
+  ),
   table(
     'full-suite',
     FULL_SUITE_CONTRACTS,

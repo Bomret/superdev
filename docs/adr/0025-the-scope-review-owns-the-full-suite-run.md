@@ -13,7 +13,10 @@ describes below — and
 [ADR 0091](0091-the-definition-of-done-is-ticked-while-the-run-works.md), which supersedes this record's
 skip of the whole-scope review for an all-`mechanical`/`docs` scope, and that skip's stand-in full-suite
 run at run handoff: every scope now passes `/superdev:review`, and run handoff's full-suite run is the
-same one every scope gets, never a stand-in for it. Everything else below holds.
+same one every scope gets, never a stand-in for it — and
+[ADR 0105](0105-an-affected-full-command-and-a-whole-repo-gate-before-the-pull-request.md), which lets
+the full command take an affected form and adds a whole-repo run before the pull request opens.
+Everything else below holds.
 
 ## Context
 

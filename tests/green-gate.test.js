@@ -525,6 +525,30 @@ fs.writeFileSync(
   assert.match(result.notice, /\/superdev:setup/, 'the decision carries the one-fenced-block notice');
 }
 
+// ADR 0105: a `## Whole-repo command` section holds its command in a backtick span too, so the gate
+// picks the same full and focused commands whether or not a repository configures one.
+fs.writeFileSync(
+  path.join(dir, VERIFICATION_DOC),
+  '# Verification\n\n```sh\nnx affected --target=test\n```\n\n```sh\nnx affected --target=test\n```\n\n' +
+    '## Whole-repo command\n\n`nx run-many --target=test --all`\n',
+);
+{
+  const withWholeRepo = readVerification(dir);
+  assert.deepEqual(
+    withWholeRepo,
+    { full: 'nx affected --target=test', focused: 'nx affected --target=test' },
+    'a `## Whole-repo command` backtick span is invisible to the gate, same as a repo without one',
+  );
+}
+{
+  let ran;
+  const spy = (tc) => { ran = tc; return green(); };
+  const result = decide(merge('git merge --no-ff slice/s1'), () => readVerification(dir), spy, () => ['a.js']);
+  assert.equal(ran, 'nx affected --target=test', 'the merge gate runs the focused command, never the whole-repo one');
+  assert.equal(result.block, false, 'a green run never blocks the merge');
+  assert.equal(result.notice, undefined, 'two fenced blocks with a whole-repo section carry no one-fence notice');
+}
+
 // --- the option region is walked exactly once per decision — resolveVerification()'s own call
 // graph used to walk it up to four times: once each for -C, --work-tree, and --git-dir inside
 // resolveMergeCwd, once more inside namesOnlyGitDir or resolvingOption ---

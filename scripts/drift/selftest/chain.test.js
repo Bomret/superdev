@@ -28,6 +28,7 @@ const {
   GREEN_GATE_TIMEOUT_CONTRACTS,
   VERB_CONTRACTS,
   PLANNED_HANDOFF_CONTRACTS,
+  SUBMIT_PR_WHOLE_REPO_CONTRACTS,
   TEST_SELECTION_CONTRACTS,
   FULL_SUITE_CONTRACTS,
   VERIFICATION_CEILING_CONTRACTS,
@@ -447,7 +448,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'skills/review/SKILL.md': joinAll(reviewPieces),
     'references/run-init.md': pointsAtPublish,
     'skills/implement/SKILL.md': pointsAtPublish,
-    'skills/submit-pr/SKILL.md': pointsAtPublish,
+    'skills/submit-pr/SKILL.md': 'stage set submitted --root <run-root>`. ' + pointsAtPublish,
     'references/implement-full.md': implementFullPointsAtPublish,
   };
 
@@ -2064,7 +2065,11 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     '`scope.js suite reusable` still calls it reusable against the scope branch. ' +
     'Exit 0 → reused, running nothing. Record the result with ' +
     '`scope.js suite set <green|red|denied|none> <sha>`. ' +
-    '`final-reviewer` reviews against whichever result you hand it, full or focused.\n';
+    '`final-reviewer` reviews against whichever result you hand it, full or focused. ' +
+    'Red with `whole`: run the whole-repo command in place of the full command, and record it with ' +
+    '`scope.js suite set <result> <sha> --whole`. Fix cycles still run the focused command. ' +
+    'When the entry swapped in the whole-repo command, the exit run is the whole-repo command recorded with `--whole`. ' +
+    'The entry and exit dispatches hand a full-suite result — labelled whole-repo.\n';
 
   // positive: review.md drops the controller-run full suite and goes back to just handing over the command
   const fs1 = fixture({
@@ -2086,7 +2091,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'agents/final-reviewer.md': 'Re-run the suite over the range to confirm green before you write your verdict.\n',
   });
   const fsGaps2 = scanContract(fs2, FULL_SUITE_CONTRACTS);
-  assert.equal(fsGaps2.length, 2, 'flags a final-reviewer.md that stopped deferring to the handed result, and its missing fail-means-No row');
+  assert.equal(fsGaps2.length, 3, 'flags a final-reviewer.md that stopped deferring to the handed result, and its missing fail-means-No row');
   assert.ok(
     fsGaps2.every((g) => g.source === path.join('agents', 'final-reviewer.md')),
     'both gaps name final-reviewer.md',
@@ -2126,7 +2131,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'You review against whichever result you are handed, running no suite of your own.\n',
   });
   const fsGaps5 = scanContract(fs5, FULL_SUITE_CONTRACTS);
-  assert.equal(fsGaps5.length, 1, 'flags a final-reviewer.md that drops the fail-means-No rule');
+  assert.equal(fsGaps5.length, 2, 'flags a final-reviewer.md that drops the fail-means-No rule');
   assert.equal(fsGaps5[0].source, path.join('agents', 'final-reviewer.md'), 'names final-reviewer.md');
 
   // positive: final-reviewer.md re-grows the optional live-scope re-run the chain paid for once already —
@@ -2137,7 +2142,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'run: fail` makes the verdict `Ready to merge? No`.\n',
   });
   const fsGaps8 = scanContract(fs8, FULL_SUITE_CONTRACTS);
-  assert.equal(fsGaps8.length, 1, 'flags a final-reviewer.md that re-grows an optional live-scope re-run');
+  assert.equal(fsGaps8.length, 2, 'flags a final-reviewer.md that re-grows an optional live-scope re-run');
   assert.match(
     fsGaps8[0].expectation,
     /runs no suite of its own/,
@@ -2171,7 +2176,14 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       fs0075.replace(/A denied exit run[\s\S]*?\*\*block\*\*\. /, ''),
       /entry run's own local deviation/,
     ],
-    ['the which-result clause', fs0075.replace(/`final-reviewer` reviews against[\s\S]*$/, ''), /whichever result it is handed/],
+    ['the which-result clause', fs0075.replace(/`final-reviewer` reviews against[^.]*\. /, ''), /whichever result it is handed/],
+    ['the whole-repo swap', fs0075.replace(/Red with `whole`[\s\S]*?focused command\. /, ''), /whole-repo command in place of the full command/],
+    [
+      'the whole-repo exit run',
+      fs0075.replace(/When the entry swapped in[^\n]*?`--whole`\. /, ''),
+      /exit run is the whole-repo command recorded with `--whole`/,
+    ],
+    ['the whole-repo label', fs0075.replace(/The entry and exit dispatches[^\n]*/, ''), /label the result handed/],
   ]) {
     const only = fixture({
       'skills/review/SKILL.md':
@@ -2231,7 +2243,8 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'suite of its own.\n' + fs0075,
     'agents/final-reviewer.md':
       'You review against whichever result you are handed, running no suite of your own. ' +
-      '`Full-suite run: fail` makes the verdict `Ready to merge? No`.\n',
+      '`Full-suite run: fail` makes the verdict `Ready to merge? No`. ' +
+      "(the whole-repo command's run, when the controller labels it whole-repo).\n",
   });
   assert.equal(scanContract(fs3, FULL_SUITE_CONTRACTS).length, 0, 'every row carried yields zero gaps');
 
@@ -2246,7 +2259,8 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'result, running no suite of its own.\n' + fs0075,
     'agents/final-reviewer.md':
       'You review against whichever result you are handed, running no suite of your own. ' +
-      '`Full-suite run: fail` makes the verdict `Ready to merge? No`.\n',
+      '`Full-suite run: fail` makes the verdict `Ready to merge? No`. ' +
+      "(the whole-repo command's run, when the controller labels it whole-repo).\n",
   });
   assert.equal(
     scanContract(fs10, FULL_SUITE_CONTRACTS).length,
@@ -5400,4 +5414,30 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   );
   assert.equal(dnGaps.length, 1, 'dropping the clause reports exactly one gap');
   assert.equal(dnGaps[0].source, 'skills/plan/SKILL.md', 'names plan/SKILL.md');
+
+  // --- SUBMIT_PR_WHOLE_REPO_CONTRACTS: each `--unattended` row pins its own bullet. The retry on
+  // whitespace-normalized text turns newlines into spaces, so a bullet boundary written as `\n  - `
+  // must still hold there; dropping one bullet's own sentence must fail that bullet's row even though
+  // the neighboring bullet still carries the same words. ---
+  const sprReal = fs.readFileSync(path.join(realRoot, 'plugin', 'skills', 'submit-pr', 'SKILL.md'), 'utf8');
+  const sprDenied =
+    '`--unattended` stops the same way, and that stop is a block under the same **Unattended**\n' +
+    '    section, as on the red branch.';
+  const sprKilled =
+    '`--unattended` stops the same way, and that stop is a\n' +
+    '    block under the same **Unattended** section, as on the red branch.';
+  assert.ok(sprReal.includes(sprDenied) && sprReal.includes(sprKilled), 'submit-pr carries both bullet sentences');
+  for (const [label, sentence, bullet] of [
+    ['Denied', sprDenied, 'Denied'],
+    ['Killed', sprKilled, 'Killed'],
+  ]) {
+    const gaps = scanContract(
+      fixture({ 'skills/submit-pr/SKILL.md': sprReal.replace(sentence, '') }),
+      SUBMIT_PR_WHOLE_REPO_CONTRACTS,
+    );
+    assert.ok(
+      gaps.some((g) => g.expectation.includes(`(the ${bullet} bullet itself`)),
+      `dropping the ${label} bullet's --unattended sentence fails its own row`,
+    );
+  }
 };

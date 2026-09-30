@@ -2238,6 +2238,129 @@ try {
     r = callIn(['suite', 'reusable', '--branch', 'main', '--root', noSuiteRoot], suiteRepo);
     assert.ok(!r.ok && /no suite record/.test(r.err), 'no suite record is not reusable: ' + (r.err || ''));
 
+    // --- suite record kind: `whole` marks a run of the whole-repo command (ADR 0105, INV-0017) -----
+    const wholeTip = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: suiteRepo, encoding: 'utf8' }).trim();
+
+    // suite set --whole: writes the trailing " whole" marker, and get suite reports it.
+    assert.ok(callIn(['suite', 'set', 'green', wholeTip, '--whole', ...SR], suiteRepo).ok, 'suite set green --whole');
+    assert.strictEqual(
+      callIn(['get', 'suite', ...SR], suiteRepo).out,
+      `green ${wholeTip} whole`,
+      'get suite reports the whole kind'
+    );
+
+    // suite reusable --whole: a green whole record on the exact tip is reusable through --whole.
+    assert.ok(
+      callIn(['suite', 'reusable', '--branch', 'main', '--whole', ...SR], suiteRepo).ok,
+      'a whole record is reusable through --whole'
+    );
+
+    // suite reusable: a whole record also satisfies a plain (no --whole) check.
+    assert.ok(
+      callIn(['suite', 'reusable', '--branch', 'main', ...SR], suiteRepo).ok,
+      'a whole record also satisfies a plain reusable check'
+    );
+
+    // suite set (no --whole): a green record with no kind fails a --whole check, naming the missing
+    // kind, but still satisfies a plain check.
+    assert.ok(callIn(['suite', 'set', 'green', wholeTip, ...SR], suiteRepo).ok, 'suite set green, no kind');
+    r = callIn(['suite', 'reusable', '--branch', 'main', '--whole', ...SR], suiteRepo);
+    assert.ok(!r.ok && /kind/.test(r.err), 'a record with no kind fails a --whole check, naming the kind: ' + (r.err || ''));
+    assert.ok(
+      callIn(['suite', 'reusable', '--branch', 'main', ...SR], suiteRepo).ok,
+      'the same record still satisfies a plain reusable check'
+    );
+
+    // suite reusable --whole: a red whole record is never reusable, with or without --whole, and
+    // get suite shows it as red and whole.
+    assert.ok(callIn(['suite', 'set', 'red', wholeTip, '--whole', ...SR], suiteRepo).ok, 'suite set red --whole');
+    r = callIn(['suite', 'reusable', '--branch', 'main', '--whole', ...SR], suiteRepo);
+    assert.ok(!r.ok && /not green/.test(r.err), 'a red whole record is not reusable with --whole: ' + (r.err || ''));
+    r = callIn(['suite', 'reusable', '--branch', 'main', ...SR], suiteRepo);
+    assert.ok(!r.ok && /not green/.test(r.err), 'a red whole record is not reusable without --whole: ' + (r.err || ''));
+    assert.strictEqual(
+      callIn(['get', 'suite', ...SR], suiteRepo).out,
+      `red ${wholeTip} whole`,
+      'get suite shows the record as red and whole'
+    );
+
+    // suite reusable --whole --plan-files: the plan-file-scoped reuse case holds with --whole exactly
+    // as without it.
+    assert.ok(
+      callIn(['suite', 'set', 'green', wholeTip, '--whole', ...SR], suiteRepo).ok,
+      'suite set green --whole for the plan-file reuse case'
+    );
+    fs.writeFileSync(path.join(suiteRepo, planDir, 'another-tick.md'), 'ticked again\n');
+    gitSuite(['add', '.'], suiteRepo);
+    gitSuite(['commit', '-q', '-m', 'tick again'], suiteRepo);
+    assert.ok(
+      callIn(['suite', 'reusable', '--branch', 'main', '--plan-files', '--whole', ...SR], suiteRepo).ok,
+      'a plan-dir-only diff since the recorded commit is still reusable with --whole'
+    );
+
+    // suite set: an unrecognized flag (a mistyped `--whole`) is refused, naming it, and writes nothing —
+    // it must never silently produce a no-kind record that a later `--whole` check trusts.
+    const beforeUnknownFlag = fs.readFileSync(path.join(suiteRoot, 'ledger.md'), 'utf8');
+    r = callIn(['suite', 'set', 'green', wholeTip, '--wholee', ...SR], suiteRepo);
+    assert.ok(!r.ok && /--wholee/.test(r.err), 'suite set refuses an unrecognized flag, naming it: ' + (r.err || ''));
+    assert.strictEqual(
+      fs.readFileSync(path.join(suiteRoot, 'ledger.md'), 'utf8'),
+      beforeUnknownFlag,
+      'nothing written on an unrecognized-flag refusal'
+    );
+
+    // suite reusable: an unrecognized flag is refused the same way, naming it, and writes nothing (it
+    // touches no ledger regardless, but the refusal itself must still happen).
+    r = callIn(['suite', 'reusable', '--branch', 'main', '--wholee', ...SR], suiteRepo);
+    assert.ok(!r.ok && /--wholee/.test(r.err), 'suite reusable refuses an unrecognized flag, naming it: ' + (r.err || ''));
+
+    // suite reusable: a malformed record (garbage trailing the recognized `<result> @ <sha>[ whole]`
+    // shape) is refused, and the unrecognized-flag refusals above already cover an unknown flag —
+    // none of these writes to the ledger.
+    const malformedRoot = path.join(suiteRepo, '.superdev', 'scopes', 'malformed-suite-demo');
+    fs.mkdirSync(malformedRoot, { recursive: true });
+    fs.writeFileSync(
+      path.join(malformedRoot, 'ledger.md'),
+      '# Ledger — malformed-suite-demo\n\n**Stage:** merged\n' +
+        `**Suite:** green @ ${wholeTip} whole extra\n` +
+        '**Anchor:** #1 — malformed\n\n' +
+        '| id | issue | title | type | depends-on | status | range |\n' +
+        '|---|---|---|---|---|---|---|\n',
+      'utf8'
+    );
+    const beforeMalformed = fs.readFileSync(path.join(malformedRoot, 'ledger.md'), 'utf8');
+    r = callIn(['suite', 'reusable', '--branch', 'main', '--root', malformedRoot], suiteRepo);
+    assert.ok(!r.ok && /unreadable suite record/.test(r.err), 'a malformed record is refused: ' + (r.err || ''));
+    assert.strictEqual(
+      fs.readFileSync(path.join(malformedRoot, 'ledger.md'), 'utf8'),
+      beforeMalformed,
+      'nothing written on a malformed-record refusal'
+    );
+
+    // A ledger written before this change carries a Suite line with no kind, and reads back unchanged:
+    // get suite reports the record with no kind, and it is reusable without --whole.
+    const currentTip = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: suiteRepo, encoding: 'utf8' }).trim();
+    const preFeatureRoot = path.join(suiteRepo, '.superdev', 'scopes', 'pre-feature-suite-demo');
+    fs.mkdirSync(preFeatureRoot, { recursive: true });
+    fs.writeFileSync(
+      path.join(preFeatureRoot, 'ledger.md'),
+      '# Ledger — pre-feature-suite-demo\n\n**Stage:** merged\n**Branch:** feat/pre-feature-suite-demo\n' +
+        `**Suite:** green @ ${currentTip}\n` +
+        '**Anchor:** #1 — pre-feature\n\n' +
+        '| id | issue | title | type | depends-on | status | range |\n' +
+        '|---|---|---|---|---|---|---|\n',
+      'utf8'
+    );
+    assert.strictEqual(
+      callIn(['get', 'suite', '--root', preFeatureRoot], suiteRepo).out,
+      `green ${currentTip}`,
+      'a pre-existing ledger reads back unchanged, with no kind'
+    );
+    assert.ok(
+      callIn(['suite', 'reusable', '--branch', 'main', '--root', preFeatureRoot], suiteRepo).ok,
+      'a pre-existing no-kind record is reusable without --whole'
+    );
+
     fs.rmSync(suiteRepo, { recursive: true, force: true });
   }
 

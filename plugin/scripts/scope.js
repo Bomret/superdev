@@ -858,21 +858,23 @@ function verbDodLine(args, stdinRaw) {
   process.stdout.write(out.join('\n'));
 }
 
-// `**Suite:**` records the last full-suite run: its result and the commit it ran on (`references/
-// scope-mode.md` `## The ledger`, INV-0017 — a later step reuses a green record whose commit is the
-// scope branch's current tip instead of running the suite again). Set-only: the read half is `get
-// suite`. `sha` must resolve to a commit in the caller's repository — a refusal here is what keeps a
-// typo or a stale sha from being trusted as a real record later. The record carries the *resolved*
-// full commit, never the literal argument: a ref like `HEAD` moves, and a short sha never
-// string-matches the branch tip's full sha that a later reuse compares it against (INV-0017).
-function verbSuite(cwd, root, sub, result, sha) {
+// `**Suite:**` records the last full-suite run: its result, the commit it ran on, and its kind
+// (`references/scope-mode.md` `## The ledger`, INV-0017, ADR 0105 — a later step reuses a green record
+// whose commit is the scope branch's current tip instead of running the suite again). Set-only: the
+// read half is `get suite`. `sha` must resolve to a commit in the caller's repository — a refusal here
+// is what keeps a typo or a stale sha from being trusted as a real record later. The record carries the
+// *resolved* full commit, never the literal argument: a ref like `HEAD` moves, and a short sha never
+// string-matches the branch tip's full sha that a later reuse compares it against (INV-0017). `whole`
+// marks a run of the repository's whole-repo command rather than its (possibly affected-form) full
+// command — a step that needs a whole-repo run reuses only a record carrying it (ADR 0105).
+function verbSuite(cwd, root, sub, result, sha, whole) {
   if (sub !== 'set') fail(`unknown suite subcommand "${sub}" — use set`);
   if (!SUITE_RESULTS.includes(result)) fail(`unknown suite result "${result}" (${SUITE_RESULTS.join('|')})`);
   if (!sha) fail('suite set needs a <sha>');
   const commit = resolveCommit(sha, cwd);
   if (!commit) fail(`sha "${sha}" does not resolve to a commit in this repository`);
   const lines = readLines(root);
-  const value = `${result} @ ${commit}`;
+  const value = `${result} @ ${commit}${whole ? ' whole' : ''}`;
   const at = lines.findIndex((l) => headerRe('Suite').test(l));
   if (at >= 0) {
     lines[at] = `**Suite:** ${value}`;
@@ -903,13 +905,16 @@ function verbSuite(cwd, root, sub, result, sha) {
 // already had. `--no-renames` on the diff so a code file renamed into the plan dir still counts at its
 // pre-rename path, outside it. Reads via `fail()` (a thrown refusal, exit 1) for "not reusable" — the
 // same channel every other verb already uses to report a no — and prints `reusable` (exit 0) when it is.
-function verbSuiteReusable(cwd, root, branch, planFiles) {
+// `whole` is INV-0017's kind gate (ADR 0105): a step that needs a whole-repo run passes it, and refuses
+// a record with no kind even when it is green and tip-matched; a step content with either kind omits it.
+function verbSuiteReusable(cwd, root, branch, planFiles, whole) {
   const raw = getHeader(readLines(root), 'Suite');
   if (!raw) fail('no suite record to reuse');
-  const m = raw.match(/^(\S+)\s+@\s+(\S+)$/);
+  const m = raw.match(/^(\S+)\s+@\s+(\S+)(?:\s+(whole))?$/);
   if (!m) fail(`unreadable suite record: ${raw}`);
-  const [, result, recordedSha] = m;
+  const [, result, recordedSha, kind] = m;
   if (result !== 'green') fail(`suite record is ${result}, not green — not reusable`);
+  if (whole && kind !== 'whole') fail('suite record carries no kind — a whole-repo run needs one');
   const tip = resolveCommit(branch, cwd);
   if (!tip) fail(`branch "${branch}" does not resolve to a commit`);
   if (tip !== recordedSha) {
@@ -958,13 +963,14 @@ function verbGet(root, field) {
     return;
   }
   if (field === 'suite') {
-    // The read half of `suite set`: `<result> <sha>`, or nothing on a ledger with no record — never
-    // the "absent" token the other header fields print, because a caller (`references/run-handoff.md`)
-    // tests for output at all rather than parsing a sentinel value.
+    // The read half of `suite set`: `<result> <sha>`, with a trailing ` whole` when the record carries
+    // that kind, or nothing on a ledger with no record — never the "absent" token the other header
+    // fields print, because a caller (`references/run-handoff.md`) tests for output at all rather than
+    // parsing a sentinel value.
     const v = getHeader(readLines(root), 'Suite');
     if (v === null) return;
-    const m = v.match(/^(\S+) @ (\S+)$/);
-    console.log(m ? `${m[1]} ${m[2]}` : v);
+    const m = v.match(/^(\S+) @ (\S+)(?: (whole))?$/);
+    console.log(m ? `${m[1]} ${m[2]}${m[3] ? ' whole' : ''}` : v);
     return;
   }
   const names = { stage: 'Stage', branch: 'Branch', anchor: 'Anchor', docs: 'Docs', pr: 'PR' };
@@ -1514,8 +1520,8 @@ function usage() {
     '  pr set <n>|clear   --root <run-root>          <n> is a pull-request number, "#" optional',
     '  deploy set <target> pending|deployed|failed [--exit <n>]   --root <run-root>',
     '  deploy get   --root <run-root>      one line per recorded target, first-recorded order, or "absent"',
-    '  suite set <green|red|denied|none> <sha>   --root <run-root>',
-    '  suite reusable --branch <b> [--plan-files]   --root <run-root>   exits 0 (reusable) or 1',
+    '  suite set <green|red|denied|none> <sha> [--whole]   --root <run-root>',
+    '  suite reusable --branch <b> [--plan-files] [--whole]   --root <run-root>   exits 0 (reusable) or 1',
     '  get stage|branch|anchor|docs|pr|slices|unresolved|degraded|deferred|denials|suite --root <run-root>',
     '  status                             scans <cwd>/.superdev/scopes/*/',
     '  publish --root <run-root>          prints the ledger as one "## Run state" section on stdout',
@@ -1611,6 +1617,12 @@ function run(argv, cwd, stdinJson) {
     }
     case 'suite': {
       const root = takeRoot(args);
+      let whole = false;
+      const wi = args.indexOf('--whole');
+      if (wi >= 0) {
+        whole = true;
+        args.splice(wi, 1);
+      }
       if (args[0] === 'reusable') {
         let branch;
         const bi = args.indexOf('--branch');
@@ -1626,10 +1638,17 @@ function run(argv, cwd, stdinJson) {
           planFiles = true;
           args.splice(pi, 1);
         }
-        verbSuiteReusable(cwd, root, branch, planFiles);
+        // Everything but the leading `reusable` must already be stripped — an unrecognized flag (a
+        // mistyped `--whole`) left over here would silently drop the whole-repo gate instead of
+        // refusing it, and a no-kind record would then pass a `--whole` check it must fail (INV-0017).
+        if (args.length > 1) fail(`suite reusable: unrecognized argument "${args[1]}"`);
+        verbSuiteReusable(cwd, root, branch, planFiles, whole);
         break;
       }
-      verbSuite(cwd, root, args[0], args[1], args[2]);
+      // `set <result> <sha>` is the whole shape — an unrecognized fourth token (a mistyped `--whole`,
+      // or `--kind whole`) must refuse rather than silently write a no-kind record.
+      if (args.length > 3) fail(`suite ${args[0]}: unrecognized argument "${args[3]}"`);
+      verbSuite(cwd, root, args[0], args[1], args[2], whole);
       break;
     }
     case 'get': {

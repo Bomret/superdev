@@ -51,9 +51,15 @@ Check each present document's own facts against the repo, never against a remote
 store and code host stay unqueried:
 
 - `verification.md`, `toolchain.md` — every command named (the full and focused test commands, the
-  timing command, each toolchain entry) still resolves: a package-manager script is still declared in
-  the manifest (`package.json`, `pyproject.toml`, a `Makefile` target, …), and a bare executable is
-  still reachable. A command the document names that the manifest no longer defines is drift.
+  timing command, the whole-repo command where configured, each toolchain entry) still resolves: a
+  package-manager script is still declared in the manifest (`package.json`, `pyproject.toml`, a
+  `Makefile` target, …), and a bare executable is still reachable. A command the document names that the
+  manifest no longer defines is drift. A full command that looks affected (`nx affected`,
+  `turbo --affected`, `pnpm` with a `--filter "...[<base>]"` selector, `dotnet-affected`, or another
+  dependency-graph tool's affected mode, per decision E below) in a repository whose `verification.md`
+  carries no `## Whole-repo command` section is drift as well: state that the section is missing, since
+  `references/test-selection.md`'s `## Affected form` has such a repository configure one. Reading the
+  command text is the whole check; it runs nothing.
 - `deployment.md` — the same resolution check, applied to each target's command: a target naming a
   script the manifest no longer defines is drift. A `none` posture, or a `manual`/`auto` posture with an
   empty targets table, has nothing to check here, and reports consistent once confirmed present.
@@ -362,6 +368,65 @@ to derive it from. The derivation takes one of two branches:
     pass-with-no-tests flag for the same reason a `{paths}` form does: `npx vitest --changed
     --passWithNoTests`, `npx jest -o --passWithNoTests`.
 
+**On a monorepo, the full command may take an affected form too** (ADR 0105, INV-0105): identify the
+tool that owns the repository's dependency graph — the build system or the package manager (nx,
+turborepo, pnpm, or `dotnet-affected` over an MSBuild project graph); plain Bun/npm/yarn workspaces with
+no such tool have no affected mode. Verify that tool's affected syntax against its own official docs
+(`references/doc-verification.md`) before proposing it — never write an unverified command form as fact.
+
+- **The tool is installed.** Propose its affected form against the base branch `docs/agents/
+  code-management.md` records, together with the **whole-repo command** beside it — the same tool's
+  whole-suite invocation. **Before writing either, run the affected form once on the base branch's own
+  tip**, in a throwaway worktree checked out at that tip, under the second probe's location, creation, hook-free, and always-removed rules below,
+  where the change against itself reaches no project: a green exit confirms the mapping. A non-zero exit is not written — say why (dotnet-affected exits 166
+  when nothing changed, so the proposed form has to map that exit to green, and a form that still fails
+  the probe stays unwritten).
+  **Then run a second probe: the form has to select a project when a project changed.** A form aimed at
+  the wrong base (`--base=HEAD`) exits green on the first probe and selects nothing on every scope. The
+  second probe runs in a throwaway worktree, and its steps run in this order, each step's conditions
+  holding from that step on. The probe edits no tracked file of the checkout and pushes nothing; its
+  commit stays unreferenced and no branch exists.
+
+  1. **Location.** Put the worktree inside the repository's main checkout, under the git-ignored
+     `.superdev/` directory (`.superdev/probe-<random>`), after ensuring `.superdev/` is in `.gitignore`
+     as the decision-answer storage above does: module resolution then walks up to the checkout's own
+     `node_modules`, so nx and turborepo find their local binary and plugins, the way the scope
+     worktrees under `.superdev/scopes/` do.
+  2. **Create it.** `git worktree add --detach <dir> <base-tip>`.
+  3. **Edit and commit.** Edit one tracked source file of a leaf project the tool lists — one with no
+     dependents, where it can tell — and commit it there with `git -c core.hooksPath=/dev/null -c
+     commit.gpgsign=false commit`, because `--no-verify` skips no post-commit hook. A probe commit that
+     fails is reported and nothing is written.
+  4. **List mode.** Run the tool's own list mode there with the base the form carries: `nx show projects
+     --affected --base=<base> --head=HEAD`, `TURBO_SCM_BASE=<base> turbo ls --affected`, `pnpm ls --filter
+     "...[<base>]" --depth -1`, or `dotnet affected --from <base> --format text --dry-run` (stdout, no file
+     written; exit 166 means none). A form that selects no project on that change is not written: say that
+     it selects nothing on a real change, and why the base is the suspect. A tool that cannot list in a
+     fresh worktree (dependencies uninstalled) is not written either, with that reason named.
+  5. **Run the form.** After the list-mode check, run the affected form itself once in the same
+     worktree, under the same hook-free, no-push, always-removed rules, with remote caching off, because
+     a remote cache would upload artifacts for the probe commit, an outward write: `NX_NO_CLOUD=true`
+     (nx; `--no-cloud` is its flag form), `--cache=local:rw` (turborepo), and for any other tool its own
+     docs' switch. Run it on that same commit, with no second edit: the form runs every project the
+     change reaches, dependents included, so the run costs the suites the change selects, at setup time,
+     and setup states that cost. A form with the right base and a mistyped target (`nx affected -t tset
+     --base=main`) passes both the first probe and the list-mode check, then executes nothing on every
+     scope, so every suite run comes back vacuously green.
+  6. **Confirm it ran tests.** Judge from the run's own output whether at least one task or test
+     executed. None of nx, turborepo, pnpm, or dotnet-affected documents a summary line to parse, so
+     setup shows the operator the run's output and asks them to confirm it showed tests running. A
+     zero-exit run that executed nothing means the form is not written: say so, and name the likely
+     cause (the target name matches no project task).
+  7. **Remove the worktree.** Remove the worktree when the probes end, at whichever step they stop
+     (`git worktree remove --force <dir>`), whatever the outcome; `git worktree prune` cleans up after
+     an interrupted run.
+  8. **Write.** The affected form and its whole-repo command are written only after every probe above
+     passes.
+- **The tool is not installed.** Name it and its official install command, and write no affected form
+  until the operator has installed it and every probe above passes.
+- **No tool owns an affected mode.** Keep the whole-suite full command, and record the reason as prose
+  beside the second fence, the same way the already-cheap and cannot-narrow cases below do.
+
 **A repository with a suite never reaches `none`.** The full suite may be **already cheap**, so a
 distinct focused command would save nothing worth naming — or **no cheaper subset exists** to narrow to,
 because every test in the suite is a slow one. Either way, **ask which case applies, and record the
@@ -528,6 +593,17 @@ Write:
   ## Timing command
 
   `npx vitest run --reporter=verbose`
+  ````
+
+  Add the **`## Whole-repo command`** section for a monorepo whose full command took the affected form
+  above, its command in a **backtick span, never a fenced block**, for the same reason. **No affected
+  form** — whether no tool owns an affected mode, or the base-tip probe failed — writes no section: the
+  full command stays the whole suite, and every caller reads it unaffected. Example, with one configured:
+
+  ````markdown
+  ## Whole-repo command
+
+  `nx run-many --target=test --all`
   ````
 - `docs/agents/deployment.md` — from `references/deployment.md`, decision **G**'s posture and the
   confirmed targets table (empty under `manual`/`auto` with none confirmed). `none` → write the posture

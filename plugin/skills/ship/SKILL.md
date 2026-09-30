@@ -92,7 +92,8 @@ Either way:
 - **Closed, and `merged` is false** → refuse: name that it was closed without merging, and merge nothing.
 - **`merged` is true** → **adopt it, then skip straight to §5.** Its `head.sha` reusable off the ledger's
   last recorded green suite result — `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable
-  --branch <head.sha> [--plan-files] --root <run-root>`, the same reuse `/superdev:review`'s own gate
+  --branch <head.sha> [--plan-files] --root <run-root>` (plain, never `--whole`: an adopted hand merge is
+  not a merge superdev makes, INV-0092), the same reuse `/superdev:review`'s own gate
   uses — exits 0 → the merged head is the tested commit, no `**Degraded:**` bullet. Exits 1, or no record
   at all → `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" degraded add "the merge landed on <head.sha>,
   not the tested commit"`. Either way, set the stage to `shipped`
@@ -119,6 +120,23 @@ gate uses. Which checkout you run it from does not matter: every worktree of a r
 refs and objects, so `<branch>` resolves identically wherever `git` is invoked from inside it. Exit 1, or
 no record at all → refuse: name that the tip carries no green full-suite result to reuse (INV-0017), and
 merge nothing.
+
+**A whole-repo command extends that gate** (ADR 0105, INV-0092). Read `docs/agents/verification.md` from
+the scope branch's own tip (`git -C <run-root>/scopetree show <branch>:docs/agents/verification.md`) for a
+`## Whole-repo command` section, per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s section of that
+name. **The section is present** → add `--whole` to the `suite reusable` call above and to every later
+`suite reusable` call in §4. **Exit 1, or no record at all** → the tip carries no green whole-repo result.
+**Check first for a standing finding:** `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get suite --root
+<run-root>` prints `none <sha>` with no trailing `whole`, whatever `<sha>` is (the record
+`/superdev:review` left when it invalidated a tip) and `scope.js get unresolved` prints any bullet →
+refuse: name every standing bullet, merge nothing, and point at `/superdev:review <scope>`. A run here
+would overwrite that invalidation with a result the finding does not earn. Ship's own killed run records
+`none <sha> whole`, which is not this record: it carries the kind. **Any other tip** → run the whole-repo command yourself on it: take the command from that
+section, run it in the scope checkout over that tip, and record what happened with
+`suite set <green|red|denied|none> <tip> --whole --root <run-root>`. **Green** → proceed. **Red, denied, or
+killed or never started (no verdict, INV-0009; recorded as `none`)** → merge nothing. Name the result and
+point at `/superdev:review <scope>` to fix it and record a new one. §4 applies this same rule to the
+merged tip of a moved base. **No such section** → the call stays as written, so the gate is unchanged.
 
 **Entries standing.** Read every bullet with
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get unresolved --root <run-root>` — one bullet per line.
@@ -148,7 +166,12 @@ the push below.
   nothing more. **Otherwise, or the gate could not run** (denied, or no `verification.md`) → take the full
   command from `docs/agents/verification.md` yourself, run it over the merged scope branch, and record
   what happened the same way (`suite set <green|red|denied|none> <new-head> --root <run-root>`).
-- **Red, or the run was denied** → merge nothing. Name the result and point at `/superdev:review <scope>`
+  **With a `## Whole-repo command` section configured (§3)**, the gate's own pass never counts as the
+  whole-repo run, and the shortcut above does not apply: the merged tip carries no green whole-repo
+  record, so §3's whole-repo run applies to it, and that whole-repo run replaces the full-command run on the
+  merged tip, never adding a second run beside it, recorded with
+  `suite set <green|red|denied|none> <new-head> --whole --root <run-root>`.
+- **Red, denied, or a killed or never-started run (a `none` result)** → merge nothing. Name the result and point at `/superdev:review <scope>`
   to fix it and record a new one — a review at stage `submitted` records its suite result and leaves the
   stage where it is.
 
@@ -171,8 +194,8 @@ merge involved, and those never reach the pull request either without this same 
 
 - **Identical** → nothing to push; the remote head is already the tip.
 - **They differ** → the tip needs its own reusable green result before it goes anywhere:
-  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> [--plan-files] --root
-  <run-root>`, the same call §3 already ran on the pre-merge tip. **Refuses** → refuse the whole command,
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> [--plan-files] [--whole]
+  --root <run-root>`, the same call §3 already ran on the pre-merge tip. **Refuses** → refuse the whole command,
   name that the tip carries no reusable green result, and point at `/superdev:review <scope>` — never push
   an untested tip. **Accepts** → print the range this push is about to add, `git -C <run-root>/scopetree
   log <head-sha-just-compared>..<branch> --oneline` — a `head-sha-just-compared` this checkout never
