@@ -168,6 +168,7 @@ plan runs test-first, inline in the scopetree.
   tool. For a knowledge base it also captures the **audiences** and the **language**, and proposes a
   human-first outline. It asks which **writing standard** the doc agents write to. When it finds no
   `AGENTS.md` hierarchy in the repo, it points you at `/superdev:document`'s bootstrap mode to seed one.
+  On a configured repo, a plain re-run offers each **seed gap**, and `check` lists them.
 - **`/superdev:publish-kb`** *(remote knowledge base only)*. Sends a scope's **staged** knowledge-base
   pages to the configured backend, and is the only path from superdev to one. `/superdev:plan` and
   `/superdev:document` write a remote backend's pages under `.superdev/kb-pending/<scope>/` instead of
@@ -311,8 +312,11 @@ bash or PowerShell variants.
 ## Configuration and backends
 
 `/superdev:setup` records your choices in `docs/agents/*.md`, one small doc per concern, so the commands
-never hardcode a tool. Edit those files directly at any time. Re-run setup only to switch a backend. One
-answer lands outside that tree: the slice store's **assignee** goes to the git-ignored
+never hardcode a tool. Edit those files directly at any time. Re-run setup to switch a backend, or to
+reconcile each document with its seed: the re-run offers every section or rule a newer release added, and
+never overwrites what you filled in without your choice. `/superdev:setup check` lists those seed gaps without writing anything.
+A gap you decline on purpose is recorded in the document's own `## Seed deviations` section and not raised
+again. One answer lands outside that tree: the slice store's **assignee** goes to the git-ignored
 `.superdev/info.json`, because it identifies you rather than the repository.
 
 - **Slice store.** Where a feature's plan lives: the global **Definition of Done** plus every vertical

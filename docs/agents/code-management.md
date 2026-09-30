@@ -7,6 +7,7 @@ Code lives on Codeberg (`ssh://codeberg.org/bomret/superdev.git`). Use the Forge
 
 - **Host, owner, and repo:** `https://codeberg.org`, `bomret`, `superdev`.
 - **Remote:** `origin`. Confirm with `git remote -v`.
+- **Tooling:** REST API through `curl`, or the `tea` CLI when installed.
 - **Auth:** API token in env var `GITEA_TOKEN` (record the name, never the value).
 - **Default PR posture:** `ready` (open ready-for-review). Override: `draft` or `push-only`.
 - **Base branch:** `main`.
@@ -16,7 +17,7 @@ Code lives on Codeberg (`ssh://codeberg.org/bomret/superdev.git`). Use the Forge
 - **Push the scope branch:** `git push -u origin <scope-branch>`.
 - **Open the PR (REST):** `POST https://codeberg.org/api/v1/repos/bomret/superdev/pulls` with
   `{ "base": "main", "head": "<scope-branch>", "title": "...", "body": "..." }`,
-  header `Authorization: token $GITEA_TOKEN`. Body built from the global DoD, the slice list, and the
+  headers `Authorization: token $GITEA_TOKEN` and `Content-Type: application/json`. Body built from the global DoD, the slice list, and the
   final-review summary.
 - **The title must be a Conventional Commits header** (`type(scope): subject`, for example
   `feat(implement): …`). PRs are **squash-merged**, so the title becomes the commit message on `main`, and
@@ -38,7 +39,7 @@ The merge call below degrades the same way: print the exact API call and merge n
   `state`, `merged`, `merge_commit_sha` (once merged), `head.sha`, and `mergeable`.
 - **Merge it, pinned:** `POST https://codeberg.org/api/v1/repos/bomret/superdev/pulls/<index>/merge`
   with `{ "Do": "squash", "MergeTitleField": "<pr-title>", "head_commit_id": "<tested-tip-sha>" }`,
-  header `Authorization: token $GITEA_TOKEN`. `head_commit_id` pins the merge to that sha; Codeberg
+  headers `Authorization: token $GITEA_TOKEN` and `Content-Type: application/json`. `head_commit_id` pins the merge to that sha; Codeberg
   answers 409 when the head moved since. Never send `force_merge` — this repo's own branch protection
   on `main` is what a merge must never bypass.
 - **A refusal names the reason:** 405 means the pull request cannot be merged (an unmet required
@@ -78,3 +79,7 @@ branch that genuinely is unmerged. Delete a branch this test calls landed, and i
 A conflicting `merge-tree` answers nothing on its own: `plugin/scripts/scope.js`'s `testContainment`
 settles that case from base's own history (ADR 0053, ADR 0082), and `references/scope-mode.md`'s
 `## Containment` states the full contract superdev's own checks follow.
+
+## Seed deviations
+
+- Seed deviation: `tea` CLI conventions — the REST calls under `## Conventions` and `## Merge` are this repository's one recorded path, and no `tea` login or command is written down (2026-09-29)

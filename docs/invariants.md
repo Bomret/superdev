@@ -842,3 +842,12 @@ Statement: Under the `auto` deploy posture, `/superdev:ship` runs a deploy targe
 Breaks: silently
 Check: scripts/drift-check.js — ship's post-merge deploy step compares the merge commit's `deployment.md` with the tested head's and asks once before any `auto` target runs
 Paths: plugin/skills/ship/**
+
+### INV-0107
+
+Class: process
+Concepts: Seed, Seed gap, Seed deviation
+Statement: `/superdev:setup` writes a seed section or seed rule into a configured document only on the operator's explicit choice for that seed gap. A gap the operator records as a seed deviation is never applied, and a recorded seed deviation is never reported as a gap (ADR 0107).
+Breaks: silently
+Check: scripts/drift-check.js — setup's re-run offers each seed gap with apply, record, and leave choices and writes none unasked; check lists a recorded deviation as recorded
+Paths: plugin/skills/setup/SKILL.md

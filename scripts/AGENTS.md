@@ -2109,6 +2109,30 @@ and starts no interview — in that same document. Losing the argument-hint row 
 argument-hint that never mentions it; losing the posture row lets `check` silently grow a write or drift
 into the ordinary interview, the exact mid-sweep mutation ADR 0068 rejects for every leg.
 
+The `seed-gap-check` contract (ADR 0107) pins rows on `skills/setup/SKILL.md` and `skills/sweep/SKILL.md`:
+`check` still compares each present document with its seed and lists its seed gaps, states that a renamed
+heading, a filled-in placeholder, setup-facing instruction text, and a document-only section are no gap,
+reports `no seed to compare` for an "Other" backend, a `None` knowledge base, a `documentation.md` recording the user's own convention, `toolchain.md`, and
+`verification.md`, names the compared plugin version, lists a `## Seed deviations` bullet as recorded,
+and defines that bullet's shape once, never in a configuration-key form. Sweep still classifies every
+config-leg seed gap as a judgment. `check` lists a `## Seed deviations` bullet that names no rule in the current seed as a stale deviation, never as a gap. Losing the no-gap row reports every renamed heading as a gap. Losing
+the shape row lets a deviation bullet take the `- **Backend:**` form that `plugin/scripts/publish-kb.js`
+matches anywhere in `knowledge-base.md`. Losing the sweep row writes a deliberate deviation into the intent
+as a fact. The comparison itself is agent judgment (ADR 0107), so the rows pin the instruction to compare
+and never a verdict.
+
+The `seed-reconcile` contract (ADR 0107, INV-0107) pins rows on `skills/setup/SKILL.md` and
+`skills/backlog/SKILL.md`: a plain re-run still offers each seed gap with apply, record as a seed
+deviation, and leave for later, writes nothing for a gap without the operator's choice, requires a reason
+before it records a deviation, asks a repository-specific gap's fresh-path question and writes the answer
+never the seed's placeholder, keeps `## Commands` behind the `find` probe and writes no assignee into a
+tracked document, writes a backend switch fresh with no deviation carried over, joins `deployment.md` to the reconcile with its targets keeping the delta rule, asks nothing when no gap
+remains, offers each stale deviation a drop or keep choice, and names the reconcile in §4's closing message. Backlog's two configuration-gap lines still name the `/superdev:setup` re-run as
+the remedy. Losing the choices row turns the re-run into an overwrite of the operator's text. Losing the
+placeholder row writes a seed's `<PROJ>` into a consumer's document. Losing a backlog row sends an
+operator back to hand-copying a section from a seed, the remedy the re-run replaces. INV-0107's `Check:`
+is these rows.
+
 The `reference` and `content-types` checks are opposites. `reference` catches a reference to a file that
 does not exist. `content-types` catches an agent that drops its wire to a file which still exists. That
 drift leaves the reference resolvable and the suite green, and the lens then does nothing in any dispatch.

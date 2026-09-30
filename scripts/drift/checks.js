@@ -68,6 +68,8 @@ const {
   BACKLOG_SURVEY_CONTRACTS,
   SETUP_CHECK_CONTRACTS,
   SETUP_CHECK_RULES_CONTRACTS,
+  SEED_GAP_CHECK_CONTRACTS,
+  SEED_RECONCILE_CONTRACTS,
   DEPLOYMENT_CONTRACTS,
   PLAN_DEPLOY_CONTRACTS,
   DERIVED_CRITERIA_CONTRACTS,
@@ -686,6 +688,19 @@ module.exports = [
     'setup-check-claude-rules',
     SETUP_CHECK_RULES_CONTRACTS,
     '`/superdev:setup check` still reports a leftover `.claude/rules/` directory',
+  ),
+  table(
+    'seed-gap-check',
+    SEED_GAP_CHECK_CONTRACTS,
+    '`/superdev:setup check` still lists each seed gap by concept, names the compared seed version, and ' +
+      'reads a recorded seed deviation as recorded; `/superdev:sweep` still files a seed gap as a judgment',
+  ),
+  table(
+    'seed-reconcile',
+    SEED_RECONCILE_CONTRACTS,
+    'a `/superdev:setup` re-run still offers each seed gap with apply, record, and leave, writes none ' +
+      'unasked, asks a repository-specific value its question, and `/superdev:backlog` names the re-run ' +
+      'as its configuration-gap remedy',
   ),
   table(
     'chained-test-audit',

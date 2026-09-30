@@ -76,12 +76,46 @@ hand: `Class` and `Concepts` are mandatory register fields a glob-scoped rule re
 conversion would invent them. An absent `.claude/rules/`, or one holding no `.md` file, gets no line in
 the report.
 
-Report the verdicts and stop.
+### Seed gaps
+
+Beside those verdicts, compare each present document with its **seed** (CONTEXT.md) and list its **seed
+gaps** (ADR 0107). The comparison reads the installed plugin's own files and the document, so `check`
+keeps the read-only posture above and the verdicts stay about repository facts.
+
+- **The seed is the one for the backend the document records**, read from
+  `${CLAUDE_PLUGIN_ROOT}/references/`: `issue-tracker-<backend>.md`, `code-management-<host>.md`,
+  `documentation.md`, `knowledge-base-<backend>.md`, `deployment.md`.
+- **A document with no matching seed** — an "Other" prose backend, a `None` knowledge base, a
+  `documentation.md` recording the user's own convention — reports `no seed to compare`. So do `toolchain.md` and `verification.md`, which keep the resolution checks above and
+  have no seed.
+- **Match sections by concept.** Pair each seed section with the document section that does the same
+  job, whatever its heading: a document's `## Outline` matches the Confluence seed's `## Audience,
+  language & outline`. A **seed gap** is a seed section with no matching document section, or a seed rule
+  that a matched section lacks or contradicts. List each by name, the seed section or rule as the seed
+  names it, with the document section it belongs under.
+- **A renamed heading, a filled-in value where the seed carries a placeholder, setup-facing instruction
+  text, and a section only the document carries are no gap.** Setup-facing text tells this interview what
+  to ask; a consumer skill never reads it.
+- **A document with no seed gap says so.**
+- **`## Seed deviations` is the document's own record of a gap the operator declined.** Each bullet is
+  `- Seed deviation: <seed section or rule, as the seed names it> — <the operator's reason> (<YYYY-MM-DD>)`.
+  This is the one definition the re-run (§3) writes and `check` reads. A bullet never takes a
+  configuration-key shape (`- **Backend:**`, `- **Body format:**`), because `scripts/publish-kb.js` matches
+  those anywhere in `knowledge-base.md`. A gap that a bullet names is listed as `recorded`, never as a gap,
+  with the reason the bullet carries. The section itself is a section only the document carries.
+- **A bullet that names no rule in the current seed is a stale deviation.** `check` also lists, per
+  document, each such bullet as a **stale deviation**, by bullet text, never as a gap. A bullet that names
+  a rule by concept names it, matched by concept as a gap is. `check` deletes no bullet.
+- **The report names the plugin version whose seeds it compared against**, the `version` in
+  `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json`, at its end.
+
+Report the verdicts and the seed gaps, then stop. A plain `/superdev:setup` re-run offers each gap (§3).
 
 ## 1. Explore
 
 - `git remote -v` and `.git/config` — GitHub? GitLab? a self-hosted host (Forgejo/Gitea)?
-- `docs/agents/` — prior superdev config? (If so, offer to update, not duplicate.)
+- `docs/agents/` — prior superdev config? (If so, offer to update, not duplicate: §3's re-run reconciles
+  each document with its seed.)
 - `CLAUDE.md` / `AGENTS.md` at root — which exists? Is there already an `## Agent skills` section? Is an
   `AGENTS.md` hierarchy present (child `AGENTS.md` files in subdirs)?
 - `docs/plans/` — sign the local-file store is already in use.
@@ -529,10 +563,47 @@ Write:
 
 If neither `CLAUDE.md` nor `AGENTS.md` exists, ask the user which to create — don't pick for them.
 
+### Re-run: reconcile each document with its seed
+
+A plain re-run on a configured repository reconciles every document whose backend stays the same with its
+seed (ADR 0107), by §0's definitions of **seed gap** and `## Seed deviations`. `toolchain.md` and the
+knowledge base's `## Commands` keep their re-run rules above. `deployment.md` joins the reconcile, and its
+targets keep the delta rule above: show the delta against the existing targets and write only what the
+operator changed.
+
+Show each document's seed gaps, and offer each gap on its own, with the document's current text beside the
+seed's and three choices:
+
+- **Apply.** A missing section goes in at its seed position relative to the matched neighbours. A missing
+  or contradicted rule replaces or joins only that rule inside its section. Every other section keeps the
+  text the operator filled in.
+- **Record as a seed deviation.** Ask for the operator's reason and require one. Write §0's bullet into the
+  document's `## Seed deviations` section, creating the section at the end of the document when absent.
+  Recording changes no other line, so every runtime reader reads the document exactly as before,
+  `/superdev:publish-kb`'s reading of the knowledge-base backend and body format included.
+- **Leave for later.** Write nothing. The gap is offered again next time.
+
+Nothing is written for a gap without the operator's choice (INV-0107). A gap recorded as a seed deviation
+is listed as recorded and never offered again. A re-run with no seed gaps asks nothing.
+
+A re-run also shows each stale deviation (§0) and offers two choices: **Drop** the bullet, or **Keep** it.
+Nothing is written for a stale deviation without the operator's choice.
+A kept stale deviation is offered again on every later re-run, until the operator drops it.
+
+A gap whose seed text carries a repository-specific value asks the question the fresh path (§2) asks for
+it, and writes the answer, never the seed's placeholder. Where §2 asks none, the seed section names the
+fill-in itself: the triage label, a repository filter for a store shared across repositories, a `(fill in
+at setup)` section such as `## Run state` or the status workflow. Applying a knowledge-base gap writes
+`## Commands` only after the `find` probe exits 3 (INV-0072). Applying a seed's `## Assignee` writes no
+assignee into a tracked document, and the answer goes to `.superdev/info.json` (INV-0074).
+
+A backend switch writes the new seed fresh and carries no seed deviation over from the old backend.
+
 ## 4. Done
 
 Tell the user setup is complete and that `/superdev:plan` and `/superdev:implement` now read these files.
-They can edit `docs/agents/*.md` directly later; re-run this skill only to switch backends. Say that
+They can edit `docs/agents/*.md` directly later. Re-run this skill to switch backends, or to pick up what
+a newer superdev release added: a re-run reconciles each document with its seed (§3). Say that
 `.superdev/info.json` is theirs alone and travels with no clone, so a fresh checkout configures it again
 or falls back to the API token's own identity. Record only env-var **names** for secrets — never the token
 values, and never in `.superdev/info.json` either, which holds identifiers only.

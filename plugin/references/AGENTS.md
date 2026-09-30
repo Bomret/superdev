@@ -42,6 +42,8 @@ rules name.
 
 Every other file here is a backend seed: a slice store, a code host, or a knowledge base — `deployment.md`
 above is a seed of its own kind, one shape for every repository rather than a per-backend choice.
+`/superdev:setup` reads each seed twice: to write a document on a first run or a backend switch, and to
+compare a configured document with it, listing and offering its seed gaps (ADR 0107).
 Adding a slice-store, code-host, or knowledge-base seed is the **Backends are pluggable** rule in the root
 doc.
 

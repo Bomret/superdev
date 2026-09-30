@@ -3335,6 +3335,131 @@ const SETUP_CHECK_CONTRACTS = [
   ],
 ];
 
+// ADR 0107: `/superdev:setup check` compares each present config document with the seed for the backend
+// it records and lists every seed gap, beside its three repository-fact verdicts. The rows pin what makes
+// the report usable: the comparison itself, the four things it never reports as a gap, the documents with
+// no seed, the compared plugin version, and the `## Seed deviations` read side, whose bullet shape is
+// defined here once for `check` and the re-run alike. Losing the no-gap row reports every renamed heading
+// as a gap; losing the shape row lets a deviation bullet take the `- **Backend:**` form that
+// `scripts/publish-kb.js` matches anywhere in `knowledge-base.md`. The sweep row keeps a gap a judgment:
+// a gap can be deliberate, and a fact reaches the intent without the operator's say.
+const SEED_GAP_CHECK_CONTRACTS = [
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /compare\s+each\s+present\s+document\s+with\s+its\s+\*\*seed\*\*[\s\S]{0,400}list\s+its\s+\*\*seed\s+gaps\*\*/,
+    'compare each present document with its seed and list its seed gaps, beside the three verdicts',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /A\s+renamed\s+heading,\s+a\s+filled-in\s+value\s+where\s+the\s+seed\s+carries\s+a\s+placeholder,\s+setup-facing\s+instruction\s+text,\s+and\s+a\s+section\s+only\s+the\s+document\s+carries\s+are\s+no\s+gap/,
+    'state that a renamed heading, a filled-in placeholder, setup-facing instruction text, and a section ' +
+      'only the document carries are no gap',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /`documentation\.md`\s+recording\s+the\s+user's\s+own\s+convention[\s\S]{0,60}no\s+seed\s+to\s+compare[\s\S]{0,400}`toolchain\.md`[\s\S]{0,100}`verification\.md`/,
+    'report `no seed to compare` for a document with no matching seed: an "Other" backend, a `None` ' +
+      'knowledge base, a `documentation.md` recording the user\'s own convention, `toolchain.md`, and `verification.md`',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /names\s+the\s+plugin\s+version\s+whose\s+seeds\s+it\s+compared\s+against/,
+    'name the plugin version whose seeds `check` compared against',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /`## Seed deviations`[\s\S]{0,600}listed\s+as\s+`recorded`,\s+never\s+as\s+a\s+gap/,
+    'list a bullet in `## Seed deviations` as recorded, never as a gap',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /`- Seed deviation: <[^>]+> — <[^>]+> \(<[^>]+>\)`[\s\S]{0,400}never\s+takes\s+a\s+configuration-key\s+shape/,
+    'define the seed-deviation bullet shape once, and state it never takes a configuration-key shape',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /lists[\s\S]{0,120}\*\*stale\s+deviation\*\*[\s\S]{0,200}never\s+as\s+a\s+gap[\s\S]{0,100}`check`\s+deletes\s+no\s+bullet/,
+    'list a `## Seed deviations` bullet that names no rule in the current seed as a stale deviation, never as a gap, and delete no bullet in `check`',
+  ],
+  [
+    path.join('skills', 'sweep', 'SKILL.md'),
+    /every\s+config-leg\s+seed\s+gap[\s\S]{0,300}Judgments\s+are\s+what\s+§4\s+puts\s+to\s+the\s+operator/,
+    'classify every config-leg seed gap as a judgment §4 puts to the operator, never a fact written into ' +
+      'the intent',
+  ],
+];
+
+// ADR 0107 / INV-0107: a plain `/superdev:setup` re-run reconciles every document whose backend stays the
+// same with its seed, one seed gap at a time. The rows pin the three choices, the rule that nothing is
+// written without one (INV-0107), the placeholder and probe guards a repository-specific value carries
+// (INV-0072, INV-0074), the backend switch that starts fresh, the closing message that names the
+// reconcile, and the two `/superdev:backlog` gap lines that name the re-run in place of a hand copy.
+// Losing the choices row turns the re-run into an overwrite; losing the placeholder row writes `<PROJ>`
+// into a consumer's document; losing a backlog row sends an operator back to hand-copying from a seed.
+const SEED_RECONCILE_CONTRACTS = [
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /\*\*Apply\.\*\*[\s\S]{0,700}\*\*Record as a seed deviation\.\*\*[\s\S]{0,900}\*\*Leave for later\.\*\*/,
+    'offer each seed gap with three choices: apply it, record it as a seed deviation, leave it for later',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /Nothing\s+is\s+written\s+for\s+a\s+gap\s+without\s+the\s+operator's\s+choice[\s\S]{0,200}INV-0107/,
+    "write nothing for a seed gap without the operator's choice (INV-0107)",
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /Ask\s+for\s+the\s+operator's\s+reason\s+and\s+require\s+one/,
+    'require a reason before recording a seed deviation',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /asks\s+the\s+question\s+the\s+fresh\s+path[\s\S]{0,700}never\s+the\s+seed's\s+placeholder/,
+    "ask a repository-specific gap's fresh-path question and write the answer, never the seed's placeholder",
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /`## Commands`[\s\S]{0,120}`find`\s+probe[\s\S]{0,80}exits\s+3[\s\S]{0,400}writes\s+no\s+assignee\s+into\s+a\s+tracked\s+document/,
+    'keep `## Commands` behind the `find` probe (INV-0072) and write no assignee into a tracked document ' +
+      '(INV-0074) when applying a seed gap',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /`deployment\.md`\s+joins\s+the\s+reconcile[\s\S]{0,200}delta\s+against\s+the\s+existing\s+targets\s+and\s+write\s+only\s+what\s+the\s+operator\s+changed/,
+    'join `deployment.md` to the re-run reconcile, its targets keeping the delta rule',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /shows\s+each\s+stale\s+deviation[\s\S]{0,120}\*\*Drop\*\*[\s\S]{0,80}\*\*Keep\*\*[\s\S]{0,200}without\s+the\s+operator's\s+choice/,
+    "show each stale deviation on a re-run with drop or keep, writing nothing without the operator's choice",
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /A\s+re-run\s+with\s+no\s+seed\s+gaps\s+asks\s+nothing/,
+    'ask nothing on a re-run with no seed gaps',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /A\s+backend\s+switch\s+writes\s+the\s+new\s+seed\s+fresh[\s\S]{0,120}no\s+seed\s+deviation/,
+    'write a backend switch fresh from the new seed and carry no seed deviation over',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /to\s+pick\s+up\s+what\s+a\s+newer\s+superdev\s+release\s+added:\s+a\s+re-run\s+reconciles\s+each\s+document\s+with\s+its\s+seed/,
+    "name the seed reconcile in §4's closing message about re-running setup",
+  ],
+  [
+    path.join('skills', 'backlog', 'SKILL.md'),
+    /naming\s+the\s+remedy:\s+a\s+`\/superdev:setup`\s+re-run\s+offers\s+the\s+`List the records`/,
+    "name the `/superdev:setup` re-run as the remedy for a `## Triage record` with no `List the records` bullet",
+  ],
+  [
+    path.join('skills', 'backlog', 'SKILL.md'),
+    /naming\s+the\s+remedy:\s+a\s+`\/superdev:setup`\s+re-run\s+offers\s+the\s+section/,
+    "name the `/superdev:setup` re-run as the remedy for a missing `## Untriaged item` section",
+  ],
+];
+
 // ADR 0101 / INV-0098: a repository's deploy posture and its deploy targets live in one seed,
 // `references/deployment.md`, and setup never defaults an operator into `auto` by itself. Losing the
 // seed's own posture/targets rows leaves the document free to omit the shape `/superdev:plan` and
@@ -4909,6 +5034,8 @@ module.exports = {
   CONTAINMENT_PROBE_CONTRACTS,
   STANDING_CODE_LENS_CONTRACTS,
   SETUP_CHECK_RULES_CONTRACTS,
+  SEED_GAP_CHECK_CONTRACTS,
+  SEED_RECONCILE_CONTRACTS,
   DEPLOYMENT_CONTRACTS,
   PLAN_DEPLOY_CONTRACTS,
   REFERENCE_PATTERN,

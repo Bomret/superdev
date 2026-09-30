@@ -87,7 +87,7 @@ One report, one section per leg, each naming which command produced it:
 [the ranked findings, fact/judgment labelled, or "(none)" / "(degraded — <reason>)"]
 
 ### Config — /superdev:setup check
-[the per-document verdicts, or "(none)" / "(degraded — <reason>)"]
+[the per-document verdicts and seed gaps, or "(none)" / "(degraded — <reason>)"]
 ```
 
 **Split fact from judgment, the same split the test leg already applies to itself.** A **fact** is
@@ -95,9 +95,11 @@ checkable against the repo with no room for disagreement: every doc-leg finding 
 each claim against the repo before it reports it), every config-leg verdict that names a **drift** or an
 **absent** document (a named command or fact either still resolves or it doesn't, and a document the repo
 never wrote is exactly as checkable as one that drifted), and the test leg's own dead-or-ignored-test
-findings. A **judgment** is a call about what's worth doing something about: every code-leg finding, and
-every other test-leg finding. Facts need no operator confirmation and go straight to §5's intent.
-Judgments are what §4 puts to the operator.
+findings. A **judgment** is a call about what's worth doing something about: every code-leg finding,
+every other test-leg finding, and every config-leg seed gap (a gap can be deliberate, and the operator
+alone knows). A gap the config leg lists as `recorded` is a recorded seed deviation and reaches neither.
+Facts need no operator confirmation and go straight to §5's intent. Judgments are what §4 puts to the
+operator.
 
 **Rank the merged judgments**, highest-impact first across all legs — a Critical code finding outranks a
 minor test-cost one; where two are comparably severe, say so rather than forcing an arbitrary order.

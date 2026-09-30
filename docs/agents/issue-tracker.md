@@ -73,7 +73,8 @@ Slices live as Codeberg issues in `bomret/superdev`, one slice per issue. Use th
   or `**Deploy:** none` to the **anchor issue's own** body, revising the line in place on an append that
   re-answers the deploy question. A body-append, like the anchor dependency above, never the native
   dependencies endpoint (ADR 0101).
-- **List feature slices:** `GET /api/v1/repos/bomret/superdev/issues?labels=<type>/<feature>&state=all`.
+- **List feature slices:** `GET /api/v1/repos/bomret/superdev/issues?labels=<type>%2F<feature>&state=all`
+  (URL-encode the label's `/`).
 - **Read a slice:** `GET /api/v1/repos/bomret/superdev/issues/<index>`.
 - **Set labels and status:** `POST .../issues/<index>/labels` (add) and
   `PATCH .../issues/<index>` with `{ "state": "closed" }` to close.
@@ -174,8 +175,8 @@ swaps that one to `in-progress`.
   `DELETE /api/v1/repos/bomret/superdev/issues/<index>/labels/<released label id>`, resolving the id
   through the same `GET /api/v1/repos/bomret/superdev/labels` call **Apply** makes. An anchor that does
   not carry the label is already unreleased, so a `404` there is the wanted state, not a failure.
-- An anchor without the label is unreleased: `/superdev:implement` asks before building it, and
-  `/superdev:backlog` groups it as `unreleased`.
+- An anchor without the label is unreleased, and no other label means it: `/superdev:implement` asks
+  before building it, and `/superdev:backlog` groups it as `unreleased`.
 
 ## Triage record
 
@@ -208,8 +209,9 @@ Here it is an ordinary Codeberg issue carrying the label **`triage`** and nothin
   label-less record is invisible to the query that is the point of writing it.
 - **No feature label and no `ready` label.** Those two are what
   `/superdev:implement`'s slice loading selects on, so a record carrying either would be built as work.
+  It is a record of unplanned work, not a slice.
 - **No pull-request URL.** Every trigger — a deferred finding or an observation — runs before
-  `/superdev:submit-pr` opens one, so none exists yet.
+  `/superdev:submit-pr` opens one, so none exists yet and the body names none.
 
 ## Untriaged item
 
@@ -316,3 +318,26 @@ ADR 0004).
 
 The issue index is server-assigned at creation, already unique and stable, so append names no
 continuation rule for `id`.
+
+## When a skill says "write slices to the store"
+
+**≥2 slices** — create the epic first (global DoD), then one issue per slice, then append each slice's
+`**Depends on:** #<n>` body lines once every `number` is known. When the interview named a prerequisite
+feature, also write the anchor dependency — a `**Blocked by feature:** #<n>` line — on the epic issue's own
+body. **Exactly one slice** — skip the epic; create only the slice issue, folding the global DoD into its
+`acceptance` checklist, and skip the depends-on step entirely (a lone slice has no blocker). When the
+interview named a prerequisite feature, still write the anchor dependency on that same lone slice issue:
+the anchor dependency is never skipped, because the lone slice is the anchor.
+
+## When a skill says "load slices from the store"
+
+List the feature's issues by label (`state=all`), read each, and reconstruct slice fields from the mapping
+above — including each slice's blockers, parsed from its `**Depends on:**` body lines. Those per-slice reads
+are independent: fan them out in parallel, as the write path does, rather than walking the feature one
+slice at a time. No `epic`-labelled issue among the results (single-slice feature) → the global DoD is the
+lone slice issue's own `acceptance`.
+
+## Seed deviations
+
+- Seed deviation: the native issue-dependencies unit (the `depends-on` mapping, "Record a dependency", and the `## Scope anchor` framing) — this repository leaves Forgejo's native dependencies unit unused, so the `**Depends on:**` body line is the one parse path for every blocker relation (2026-09-29)
+- Seed deviation: the `scope.js` path in "Tick a criterion" (`node plugin/scripts/scope.js`, not `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js`) — this repository dogfoods its own checkout's `scope.js` (2026-09-30)

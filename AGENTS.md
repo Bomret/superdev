@@ -117,7 +117,8 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
   portability.
 - **Backends are pluggable.** This covers the slice store, the code host, and the knowledge base, and
   nothing else. To add one of them, write a new seed in `references/`. `/superdev:setup` turns that seed
-  into the matching `docs/agents/*.md` in the *consumer* repo. `skills/` and `agents/` stay
+  into the matching `docs/agents/*.md` in the *consumer* repo, and a later re-run offers the seed's newer
+  sections and rules to that document as seed gaps (ADR 0107). `skills/` and `agents/` stay
   backend-agnostic. Do not hardcode a backend into them.
 - **Docs follow a writing standard.** `docs/agents/documentation.md` names it, and the doc agents apply
   it to prose they write. This repo uses `controlled`

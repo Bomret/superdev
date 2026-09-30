@@ -337,6 +337,15 @@ superdev is tool-agnostic: its backends are pluggable, each chosen by `/setup` a
 **Seed** (seed template): a backend-config template file under `references/` (for example `issue-tracker-jira.md` or `code-management-github.md`) that `/setup` reads and fills in with repo-specific specifics to produce the matching `docs/agents/*.md`. Adding a backend means a new seed plus the setup step that consumes it.
 _Avoid: "template" alone (too generic), "backend file" (that names the `docs/agents/*.md` output, not the `references/` input)_
 
+**Seed gap**: a seed section with no matching section in the configured `docs/agents/*.md` document, or a seed rule that a matching section lacks or contradicts. Sections match by concept, not by exact heading. A fill-in value, setup-facing instruction text, and a section only the document carries are not gaps. `/superdev:setup check` reports seed gaps, and a `/superdev:setup` re-run offers each one (ADR 0107).
+_Avoid: "seed drift" (drift names a fact the repository no longer supports), "missing section" (a gap can be a stale rule inside a present section)_
+
+**Seed deviation**: a seed gap the operator declined on purpose, recorded with its reason in the document's own `## Seed deviations` section. `/superdev:setup` lists it as recorded and never offers or reports it as a gap again. A backend switch drops it (ADR 0107, INV-0107).
+_Avoid: "override", "exception"_
+
+**Stale deviation**: a `## Seed deviations` bullet that names no rule in the current seed, for example after a plugin release renames the rule. `/superdev:setup check` lists it and never reports it as a gap. A `/superdev:setup` re-run offers to drop it or keep it, and offers a kept one again until it is dropped (ADR 0107).
+_Avoid: "orphaned deviation", "dead deviation"_
+
 **Slice store**: the backend where a feature's plan and slices live: local files, or an issue tracker. Configured in `docs/agents/issue-tracker.md`.
 _Avoid: "issue tracker" as the concept name (that is one backend), "database"_
 

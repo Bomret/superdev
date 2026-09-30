@@ -61,6 +61,8 @@ const {
   CHAINED_TEST_AUDIT_CONTRACTS,
   SWEEP_CHAINED_LEG_CONTRACTS,
   SETUP_CHECK_CONTRACTS,
+  SEED_GAP_CHECK_CONTRACTS,
+  SEED_RECONCILE_CONTRACTS,
   SETUP_CHECK_RULES_CONTRACTS,
 } = require('../contracts');
 const CHECKS = require('../checks');
@@ -3921,6 +3923,150 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     0,
     'the shipped `check` mode still carries both halves',
   );
+
+  // --- SEED_GAP_CHECK_CONTRACTS (ADR 0107): `check` lists seed gaps by concept and reads a recorded seed
+  // deviation as recorded; sweep files a seed gap as a judgment ---
+
+  const realSetup = fs.readFileSync(path.join(realRoot, 'plugin', 'skills', 'setup', 'SKILL.md'), 'utf8');
+  const realSweep = fs.readFileSync(path.join(realRoot, 'plugin', 'skills', 'sweep', 'SKILL.md'), 'utf8');
+
+  assert.equal(
+    scanContract(realRoot, SEED_GAP_CHECK_CONTRACTS).length,
+    0,
+    'the shipped setup and sweep carry every seed-gap row',
+  );
+
+  // positive: the deviation bullet shape turns into a configuration-key shape
+  const sgShape = scanContract(
+    fixture({
+      'skills/setup/SKILL.md': realSetup.replace('`- Seed deviation: <', '`- **Seed deviation:** <'),
+      'skills/sweep/SKILL.md': realSweep,
+    }),
+    SEED_GAP_CHECK_CONTRACTS,
+  );
+  assert.equal(sgShape.length, 1, 'flags the deviation bullet losing its own shape');
+
+  // positive: sweep stops naming a seed gap a judgment
+  const sgSweep = scanContract(
+    fixture({
+      'skills/setup/SKILL.md': realSetup,
+      'skills/sweep/SKILL.md': realSweep.replace('every config-leg seed gap', 'every config-leg verdict'),
+    }),
+    SEED_GAP_CHECK_CONTRACTS,
+  );
+  assert.equal(sgSweep.length, 1, 'flags sweep dropping the seed-gap judgment');
+  assert.equal(sgSweep[0].source, path.join('skills', 'sweep', 'SKILL.md'), 'names sweep SKILL.md');
+
+  // --- SEED_RECONCILE_CONTRACTS (ADR 0107, INV-0107): the re-run offers each seed gap with three choices,
+  // writes none unasked, and backlog names the re-run as its gap remedy ---
+
+  const realBacklog = fs.readFileSync(path.join(realRoot, 'plugin', 'skills', 'backlog', 'SKILL.md'), 'utf8');
+
+  assert.equal(
+    scanContract(realRoot, SEED_RECONCILE_CONTRACTS).length,
+    0,
+    'the shipped setup and backlog carry every seed-reconcile row',
+  );
+
+  // positive: the re-run drops its leave-for-later choice
+  const srChoice = scanContract(
+    fixture({
+      'skills/setup/SKILL.md': realSetup.replace('**Leave for later.**', '**Skip.**'),
+      'skills/backlog/SKILL.md': realBacklog,
+    }),
+    SEED_RECONCILE_CONTRACTS,
+  );
+  assert.equal(srChoice.length, 1, 'flags the re-run losing a choice');
+
+  // positive: backlog goes back to naming a hand copy
+  const srBacklog = scanContract(
+    fixture({
+      'skills/setup/SKILL.md': realSetup,
+      'skills/backlog/SKILL.md': realBacklog.replace(
+        'a `/superdev:setup` re-run offers the `List the records`',
+        'copy the `List the records`',
+      ),
+    }),
+    SEED_RECONCILE_CONTRACTS,
+  );
+  assert.equal(srBacklog.length, 1, 'flags backlog dropping the re-run remedy');
+  assert.equal(srBacklog[0].source, path.join('skills', 'backlog', 'SKILL.md'), 'names backlog SKILL.md');
+
+  // positive: §4 reverts to "switch backends" only while §1 still names the reconcile
+  const srDone = scanContract(
+    fixture({
+      'skills/setup/SKILL.md': realSetup.replace(
+        /Re-run this skill to switch backends, or to pick up what\s+a newer superdev release added: a re-run reconciles each document with its seed \(§3\)\./,
+        'Re-run this skill only to switch backends.',
+      ),
+      'skills/backlog/SKILL.md': realBacklog,
+    }),
+    SEED_RECONCILE_CONTRACTS,
+  );
+  assert.equal(srDone.length, 1, "flags §4 losing its own reconcile sentence");
+
+  // positive: deployment.md drops out of the reconcile
+  const srDeploy = scanContract(
+    fixture({
+      'skills/setup/SKILL.md': realSetup.replace('`deployment.md` joins the reconcile', '`deployment.md` keeps its re-run rules above'),
+      'skills/backlog/SKILL.md': realBacklog,
+    }),
+    SEED_RECONCILE_CONTRACTS,
+  );
+  assert.equal(srDeploy.length, 1, 'flags deployment.md leaving the re-run reconcile');
+
+  // positive: deployment.md's targets lose the delta clause
+  const srDelta = scanContract(
+    fixture({
+      'skills/setup/SKILL.md': realSetup.replace(
+        /: show the delta against the existing targets and write only what the\s+operator changed/,
+        '',
+      ),
+      'skills/backlog/SKILL.md': realBacklog,
+    }),
+    SEED_RECONCILE_CONTRACTS,
+  );
+  assert.equal(srDelta.length, 1, "flags deployment.md's targets losing the delta clause");
+
+  // positive: the no-gap re-run stops saying it asks nothing
+  const srQuiet = scanContract(
+    fixture({
+      'skills/setup/SKILL.md': realSetup.replace('A re-run with no seed gaps asks nothing.', ''),
+      'skills/backlog/SKILL.md': realBacklog,
+    }),
+    SEED_RECONCILE_CONTRACTS,
+  );
+  assert.equal(srQuiet.length, 1, 'flags the re-run losing its no-gap statement');
+
+  // positive: a user-owned documentation.md leaves the no-seed list
+  const sgOwnDoc = scanContract(
+    fixture({
+      'skills/setup/SKILL.md': realSetup.replace(/a\s+`documentation\.md`\s+recording the user's own convention/, 'an "Other" backend'),
+      'skills/sweep/SKILL.md': realSweep,
+    }),
+    SEED_GAP_CHECK_CONTRACTS,
+  );
+  assert.equal(sgOwnDoc.length, 1, "flags check dropping the user's own documentation convention from no-seed");
+
+  // positive: check stops listing a stale deviation
+  const sgStale = scanContract(
+    fixture({
+      'skills/setup/SKILL.md': realSetup.replace('**stale deviation**', '**deviation**'),
+      'skills/sweep/SKILL.md': realSweep,
+    }),
+    SEED_GAP_CHECK_CONTRACTS,
+  );
+  assert.equal(sgStale.length, 1, 'flags check no longer listing a stale deviation');
+
+  // positive: the re-run stops offering drop or keep for a stale deviation
+  const srStale = scanContract(
+    fixture({
+      'skills/setup/SKILL.md': realSetup.replace('**Drop**', '**Remove**'),
+      'skills/backlog/SKILL.md': realBacklog,
+    }),
+    SEED_RECONCILE_CONTRACTS,
+  );
+  assert.equal(srStale.length, 1, 'flags the re-run losing its stale-deviation choices');
 
   // --- SETUP_CHECK_RULES_CONTRACTS (ADR 0077): `/superdev:setup check` reports a leftover
   // `.claude/rules/` directory, naming `docs/invariants.md` and that the move is by hand ---
