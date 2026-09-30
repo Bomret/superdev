@@ -13,7 +13,6 @@ const {
   readDoc,
   storeDocuments,
   extractSection,
-  extractParagraph,
   maskFences,
   maskedSentences,
   normalizeWhitespace,
@@ -64,10 +63,6 @@ const {
   TRIAGE_RECORD_EXPECTATION,
   LOCAL_APPEND_DOC,
   LOCAL_CONTINUATION_ELEMENT,
-  AFK_SELECTION_HEADING,
-  AFK_ANCHOR_COUNT_HEADING,
-  AFK_ANCHOR_COUNT_ELEMENTS,
-  STORE_MECHANISMS,
   WRITING_STANDARD_DOCS,
   WRITING_STANDARD_PATTERN,
   ADR_DIR,
@@ -78,8 +73,6 @@ const {
   SUBAGENT_DISPATCH_PATTERN,
   OBSERVATION_CAPTURE_REMINDER_PATTERN,
   CHAIN_HANDOFFS,
-  AFK_NAMES,
-  AFK_ROW_PATTERN,
   SHIP_GATE_HEADING,
   ORPHAN_LENS_DOC,
   ORPHAN_LENS_ENTRY,
@@ -101,8 +94,6 @@ const {
   UNMAPPED_PATHS_DOCS,
   DENIAL_CAP_NUMBER_SILENCE_DOCS,
   DENIAL_CAP_NUMBER_MARKERS,
-  AFK_LOCK_TIER_SILENCE_DOCS,
-  AFK_LOCK_TIER_MARKERS,
   RUN_LOCK_LIVENESS_SILENCE_DOCS,
   RUN_LOCK_LIVENESS_SILENCE_MARKERS,
   KB_BACKEND_CALL_MARKERS,
@@ -500,7 +491,7 @@ function scanSpecialisingCitations(root) {
 // `SPECIALISING_SECTIONS` is the only membership source: a second entry deferring to the same member
 // (`Anchor dependency` beside `Scope anchor`) owes the citation too, and a paragraph naming only a
 // non-member heading (`## Untriaged item`) owes nothing. Paragraphs split at blank lines on the
-// fence-masked text, matching extractParagraph()'s own rule, so a heading reference or a citation shown
+// fence-masked text, so a heading reference or a citation shown
 // only inside a fenced example neither triggers the check nor satisfies it.
 function scanGlossarySpecialisingCitations(root) {
   const gaps = [];
@@ -517,79 +508,6 @@ function scanGlossarySpecialisingCitations(root) {
           expectation: `cite \`plan-contract.md\` → *${name}* in its **${entry}** glossary entry`,
         });
       }
-    }
-  }
-  return gaps;
-}
-
-// scanAfkSelectionNeutrality() is pure over a root dir: reads `skills/afk/SKILL.md`, isolates the selection
-// section, and reports every store mechanism it names. An absent file or a missing section yields nothing
-// — `skills/afk/SKILL.md`'s existence is asserted by the `pinned-paths` check, which collects every path the
-// contract tables pin (three of them pin this file).
-function scanAfkSelectionNeutrality(root) {
-  const gaps = [];
-  let text;
-  try {
-    text = fs.readFileSync(docPath(root, 'skills', 'afk', 'SKILL.md'), 'utf8');
-  } catch {
-    return gaps; // afk.md absent → nothing to scan
-  }
-  const section = extractSection(text, AFK_SELECTION_HEADING);
-  if (section === null) {
-    // A missing, renamed, or renumbered selection heading is itself a gap — the same reasoning as
-    // main()'s skills/afk/SKILL.md-existence check: silently returning nothing here would let the section
-    // (and whatever store mechanism it names) drift out from under this check with nothing going red.
-    gaps.push({
-      source: path.join('skills', 'afk', 'SKILL.md'),
-      expectation:
-        'carry a `## 2. …` selection heading — a missing or renumbered one leaves the neutrality check nothing to scan',
-    });
-    return gaps;
-  }
-  for (const [pattern, label] of STORE_MECHANISMS) {
-    if (pattern.test(section)) {
-      gaps.push({
-        source: path.join('skills', 'afk', 'SKILL.md'),
-        expectation: `select without naming ${label} — read the store's \`## Scope anchor\` contract instead`,
-      });
-    }
-  }
-  // Naming no mechanism is half the property. A selection step that names none *and* points at no
-  // contract either has nothing to select by, so the neutrality would be satisfied by prose that simply
-  // says less.
-  if (!/## Scope anchor/.test(section)) {
-    gaps.push({
-      source: path.join('skills', 'afk', 'SKILL.md'),
-      expectation: "point its selection at the store's `## Scope anchor` contract",
-    });
-  }
-  return gaps;
-}
-
-// scanAfkAnchorCount() is pure over a root dir: reads `skills/afk/SKILL.md`, isolates the one paragraph
-// AFK_ANCHOR_COUNT_HEADING names with extractParagraph() — narrower than a section, so a legitimate
-// restatement later in the same `## 2.` section (the eligibility bullet also reads the anchor dependency)
-// cannot satisfy this contract on the stale paragraph's behalf — and reports the elements missing from
-// that isolation alone. An absent file yields nothing; `skills/afk/SKILL.md`'s existence is asserted by the
-// pinned-paths check.
-function scanAfkAnchorCount(root) {
-  const gaps = [];
-  const rel = path.join('skills', 'afk', 'SKILL.md');
-  const text = readDoc(root, rel);
-  if (text === null) return gaps; // afk.md absent (fixture / partial checkout) → nothing to scan
-  const paragraph = extractParagraph(text, AFK_ANCHOR_COUNT_HEADING);
-  if (paragraph === null) {
-    gaps.push({
-      source: rel,
-      expectation:
-        'carry the paragraph introducing `## Scope anchor` in §2 — a missing or reworded lead-in leaves ' +
-        'the two elements below it unscoped and unchecked',
-    });
-    return gaps;
-  }
-  for (const [pattern, expectation] of AFK_ANCHOR_COUNT_ELEMENTS) {
-    if (!pattern.test(paragraph) && !pattern.test(normalizeWhitespace(paragraph))) {
-      gaps.push({ source: rel, expectation });
     }
   }
   return gaps;
@@ -692,83 +610,6 @@ function scanChainHandoff(root) {
     const text = readDoc(root, rel);
     if (text === null) continue; // document absent (fixture / partial checkout) → nothing to scan
     if (!text.includes(next)) gaps.push({ source: rel, next });
-  }
-  return gaps;
-}
-
-// scanAfkInvocations() is pure over a root dir: reads skills/afk/SKILL.md and reports every stage-table row
-// that names one of the four chain commands without carrying `--unattended` on that same row. Absent
-// afk.md is skipped, matching every other contract scanner.
-function scanAfkInvocations(root) {
-  const gaps = [];
-  let text;
-  try {
-    text = fs.readFileSync(docPath(root, 'skills', 'afk', 'SKILL.md'), 'utf8');
-  } catch {
-    return gaps; // afk.md absent → nothing to scan
-  }
-  const invoked = new Set();
-  for (const line of text.split('\n')) {
-    const match = line.match(AFK_ROW_PATTERN);
-    if (!match || !AFK_NAMES.has(match[1])) continue;
-    invoked.add(match[1]);
-    if (!/--unattended/.test(line)) {
-      gaps.push({
-        source: path.join('skills', 'afk', 'SKILL.md'),
-        expectation: `invoke \`/superdev:${match[1]}\` with \`--unattended\` on its table row: \`${line.trim()}\``,
-      });
-    }
-  }
-  // Inspecting only the rows that exist says nothing about a row that stopped existing. Deleting the
-  // stage table, or one step out of it, would otherwise leave zero gaps: afk would quietly skip a step of
-  // the chain — never reviewing, or never shipping — and report a clean sweep either way.
-  for (const name of AFK_NAMES) {
-    if (!invoked.has(name)) {
-      gaps.push({
-        source: path.join('skills', 'afk', 'SKILL.md'),
-        expectation: `carry a stage-table row invoking \`/superdev:${name}\``,
-      });
-    }
-  }
-  return gaps;
-}
-
-// scanAfkNoShipStep() is pure over a root dir: reads skills/afk/SKILL.md and reports every
-// `/superdev:ship` mention that carries no admission — "never", "only a human", "human-only", "stops
-// before", or "human step" — within AFK_SHIP_ADMISSION_WINDOW chars either side of it (INV-0093: afk
-// ends at submit-pr, and only a human moves a scope past it). The window, rather than a whole-sentence
-// co-occurrence test, is what lets a legitimate paraphrase pass ("stops before invoking
-// `/superdev:ship`, which stays a human step" carries none of the three literal tokens the file's own
-// two mentions use, but "stops before" and "human step" both sit right next to the match) while still
-// catching a real invocation an unrelated admission elsewhere in the same sentence would otherwise
-// excuse (a `never` describing something else, thirty-plus chars from the mention, does not reach it).
-// A stage-table row inspecting only AFK_NAMES above would let a `/superdev:ship` row slip through
-// unseen, since scanAfkInvocations() skips any command name outside that set; this scanner reads the
-// whole file instead, so a bare mention anywhere — table row or prose — with no nearby admission is a
-// gap. Fenced examples are masked first, and wrapped lines are joined before splitting into sentences
-// (`maskedSentences()`), so a mention wrapped across lines is still read as one sentence. Absent afk.md
-// is skipped, matching every other contract scanner.
-const AFK_SHIP_ADMISSION = /\b(?:never|only a human|human-only|stops? before|human step)\b/i;
-const AFK_SHIP_ADMISSION_WINDOW = 60;
-function scanAfkNoShipStep(root) {
-  const gaps = [];
-  const text = readDoc(root, path.join('skills', 'afk', 'SKILL.md'));
-  if (text === null) return gaps; // afk.md absent → nothing to scan
-  for (const sentence of maskedSentences(text)) {
-    const match = /\/superdev:ship\b/i.exec(sentence);
-    if (!match) continue;
-    const before = sentence.slice(Math.max(0, match.index - AFK_SHIP_ADMISSION_WINDOW), match.index);
-    const after = sentence.slice(
-      match.index + match[0].length,
-      match.index + match[0].length + AFK_SHIP_ADMISSION_WINDOW,
-    );
-    if (AFK_SHIP_ADMISSION.test(before) || AFK_SHIP_ADMISSION.test(after)) continue;
-    gaps.push({
-      source: path.join('skills', 'afk', 'SKILL.md'),
-      expectation:
-        'name `/superdev:ship` only near an admission that afk never runs it ("never", "only a human", ' +
-        `"human-only", "stops before", or "human step"): "${normalizeWhitespace(sentence)}"`,
-    });
   }
   return gaps;
 }
@@ -939,16 +780,10 @@ const scanAgentLensNoDesignSmell = (root) =>
 // RegExp`) missed exactly those; gating on a path-shaped string instead — one ending in `.md`, `.json`, or
 // `.js` — catches all of them, and a path-shape predicate still won't misreport a row whose first element
 // is a heading rather than a path. A `Set` is deliberately excluded from the recursion: every `Set` in
-// this file holds a membership value (`ASSIGNEE_EXEMPT`'s bare filename, `AFK_NAMES`'s bare verb), not a
+// this file holds a membership value (`ASSIGNEE_EXEMPT`'s bare filename), not a
 // document this scanner should assert exists — `ASSIGNEE_EXEMPT`'s bare `issue-tracker-local.md` has no
 // root-level file to resolve to, so recursing into it would report the real
 // `references/issue-tracker-local.md` as missing.
-//
-// This holds the slot the `afk-existence` check held, which asserted `skills/afk/SKILL.md` alone on the
-// stated grounds that nothing else in the plugin names `/superdev:afk` — already false when written:
-// `skills/implement/SKILL.md` names it too, and `command-resolution` already resolves every `/superdev:`
-// reference under `skills/`, so it already caught that file's deletion. Three contract tables also
-// pin `skills/afk/SKILL.md` directly, so the general rule here covers it a second way.
 //
 // ponytail: shape-based, and its ceiling is the extension whitelist and the two container shapes it
 // recurses (arrays, plain objects). A future table that pins a path with no `.md`/`.json`/`.js`
@@ -1001,15 +836,6 @@ const scanDocStepsNoSuite = (root) =>
 // instead of repeating the digit — the same asymmetry `scanDocStepsNoSuite` above guards for ADR 0025.
 const scanDenialCapNumberSilence = (root) =>
   scanDocsAvoid(root, DENIAL_CAP_NUMBER_SILENCE_DOCS, DENIAL_CAP_NUMBER_MARKERS);
-
-// `skills/afk/SKILL.md`'s eligibility bullet reads a scope's run lock, and `SCOPETREE_CONTRACTS` pins
-// its surviving fallback rule by presence — a row whose expectation describes an absence, which a
-// presence row cannot assert. The stale claim it means to keep out ("a run lock only ever exists for a
-// `lite`-tier scope", true before ADR 0045 gave both tiers one) can regrow as a sentence preceding that
-// rule while the row still matches, and an unattended controller would then distrust a signal it can
-// trust. This asserts the absence the row's own expectation describes.
-const scanAfkLockTierClaim = (root) =>
-  scanDocsAvoid(root, AFK_LOCK_TIER_SILENCE_DOCS, AFK_LOCK_TIER_MARKERS);
 
 // The absence half of `RUN_LOCK_LIVENESS_CONTRACTS`'s scoping decision (INV-0013, ADR 0090):
 // review/document/ship may carry no liveness-check language of their own, so a skill edit re-widening
@@ -1527,7 +1353,7 @@ function scanShipNoOpensPr(root) {
 
 // scanShipHumanOnly() is pure over a root dir: reads skills/ship/SKILL.md and reports two gaps INV-0093
 // names — a missing `disable-model-invocation: true` in its frontmatter, and a literal `--unattended`
-// token anywhere in the file, which ADR 0096 says ship never carries (submit-pr and afk take that
+// token anywhere in the file, which ADR 0096 says ship never carries (submit-pr takes that
 // token; ship's own consent is the operator typing the command at all). Absent ship.md is skipped,
 // matching every other contract scanner.
 function scanShipHumanOnly(root) {
@@ -1549,46 +1375,21 @@ function scanShipHumanOnly(root) {
   return gaps;
 }
 
-// scanModelInvocationSplit() is pure over a root dir: afk is never a surface the model can start, and
-// every chain step it drives stays one (INV-0066). Two directions, and the check needs both. afk
-// without `disable-model-invocation: true` in its frontmatter lets the model start an unattended
-// backlog sweep itself; a chain step carrying it is one afk cannot invoke through the Skill tool, which
-// strands the sweep at that step. Ship's own half is `scanShipHumanOnly()`'s.
-//
-// The step list is read out of afk's `## 3. Take it through the chain` section rather than hand-copied,
-// so a step added there is one this check immediately holds, and a `/superdev:<name>` mention outside
-// it is no step. A section naming none is itself a gap, not a vacuous pass. Absent skill files are
-// skipped, matching every other contract scanner.
+// scanModelInvocationSplit() is pure over a root dir: every chain step stays a surface the model can
+// start (INV-0066) — a step carrying `disable-model-invocation: true` is one the Skill tool cannot
+// invoke, which strands an unattended run at that step. Ship's own half is `scanShipHumanOnly()`'s.
+// Absent skill files are skipped, matching every other contract scanner.
+const CHAIN_STEPS = ['implement', 'review', 'document', 'submit-pr'];
 function scanModelInvocationSplit(root) {
-  const afkSource = path.join('skills', 'afk', 'SKILL.md');
-  const afk = readDoc(root, afkSource);
-  if (afk === null) return [];
-  const disabled = (text) => {
-    const fm = text.match(/^---\n([\s\S]*?)\n---(?:\n|$)/);
-    return fm !== null && /^disable-model-invocation:\s*true\s*$/m.test(fm[1]);
-  };
   const gaps = [];
-  if (!disabled(afk)) {
-    gaps.push({
-      source: afkSource,
-      expectation: 'carry `disable-model-invocation: true` in its frontmatter, so no model starts an unattended sweep on its own (INV-0066)',
-    });
-  }
-  const section = afk.match(/\n## 3\. Take it through the chain\n([\s\S]*?)(?=\n## |$)/);
-  const steps = section ? [...new Set([...section[1].matchAll(/\/superdev:([a-z][a-z-]*)/g)].map((m) => m[1]))].sort() : [];
-  if (steps.length === 0) {
-    gaps.push({
-      source: afkSource,
-      expectation: 'name at least one `/superdev:<name>` step in its `## 3. Take it through the chain` section — a section that names no step leaves this check nothing to hold (INV-0066)',
-    });
-  }
-  for (const step of steps) {
+  for (const step of CHAIN_STEPS) {
     const source = path.join('skills', step, 'SKILL.md');
     const text = readDoc(root, source);
-    if (text !== null && disabled(text)) {
+    const fm = text === null ? null : text.match(/^---\n([\s\S]*?)\n---(?:\n|$)/);
+    if (fm !== null && /^disable-model-invocation:\s*true\s*$/m.test(fm[1])) {
       gaps.push({
         source,
-        expectation: `carry no \`disable-model-invocation: true\` — afk drives \`/superdev:${step}\` through the Skill tool, so a step off the model-invocable surface strands the sweep there (INV-0066)`,
+        expectation: `carry no \`disable-model-invocation: true\` — an external driver invokes \`/superdev:${step}\` through the Skill tool, so a step off the model-invocable surface strands it there (INV-0066)`,
       });
     }
   }
@@ -1612,16 +1413,12 @@ module.exports = {
   scanUntriagedContract,
   scanSpecialisingCitations,
   scanGlossarySpecialisingCitations,
-  scanAfkSelectionNeutrality,
-  scanAfkAnchorCount,
   scanWritingStandardContract,
   scanAdrStatus,
   scanContentTypesContract,
   scanCommandRefs,
   scanObservationCaptureReminders,
   scanChainHandoff,
-  scanAfkInvocations,
-  scanAfkNoShipStep,
   scanShipGateContract,
   scanShipNoOpensPr,
   scanOrphanLensPlacement,
@@ -1632,7 +1429,6 @@ module.exports = {
   scanPinnedPaths,
   scanDocStepsNoSuite,
   scanDenialCapNumberSilence,
-  scanAfkLockTierClaim,
   scanRunLockLivenessSilence,
   scanAgentToolAgnostic,
   scanUnmappedPathsForms,

@@ -15,11 +15,9 @@ planned, the unplanned, the released, the waiting, and the stuck.
 answers a question and stops. Acting on a row is `/superdev:plan`, `/superdev:implement`, or a human
 decision, in another invocation.
 
-**Its rules are looser than `/superdev:afk`'s, deliberately** (ADR 0049). That command acts unattended, so
-it resolves every ambiguity toward doing nothing. This one prints a table, so it resolves an ambiguity
-toward showing the row with what it saw. Where the two disagree about one anchor, the maintainer running
-`/superdev:implement` on it gets that command's own checks. Share no rule set with it and derive nothing
-from its eligibility list.
+**Its rules resolve an ambiguity toward showing the row** (ADR 0049). This command prints a table, so it
+shows the row with what it saw. The maintainer running `/superdev:implement` on an anchor gets that
+command's own checks.
 
 ## 1. Config
 
@@ -147,7 +145,7 @@ document's `## Untriaged item` section — is what orders and selects them, and 
 rows and no other bucket's.
 
 The `in flight` row's act is the chain command its stage has not reached — `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md`
-and `${CLAUDE_PLUGIN_ROOT}/skills/afk/SKILL.md`'s `## 3. Take it through the chain` table map a stage to it.
+and the next-command line each chain command prints map a stage to it.
 The scope branch is the
 feature label verbatim (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`, "The scope branch is the
 feature label verbatim"), so a range argument is `<BASE>..<feature-label>` with `<BASE>` from
@@ -207,7 +205,7 @@ Recommend one move, not a ranked list. The table is already the ranked list.
 - **Reporting an empty backlog on a failed listing.** Say what failed.
 - **Expanding into `/superdev:status`.** A scope with a run root is one row. Per-slice detail is that
   command's.
-- **Inheriting `/superdev:afk`'s defer-on-doubt.** Its skips hide unreleased anchors, undecomposed
-  anchors, and triage records. Those are the rows this survey exists to show.
+- **Deferring on doubt.** A skipped row hides unreleased anchors, undecomposed anchors, and triage
+  records. Those are the rows this survey exists to show.
 - **Inventing a backend query to fill an absent `## Untriaged item` section.** Say so above the table
   instead — the missing section is the gap this survey names, not one it works around.

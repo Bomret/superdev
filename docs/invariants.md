@@ -144,8 +144,8 @@ Class: process
 Concepts: Stage, Definition of Done (DoD), Verification ceiling
 Statement: A scope's stage never advances past review while a Definition-of-Done criterion stands unmet, except one only a deploy can verify or one an attended operator accepted as unmet (`accepted:`). Every scope passes review, whatever its slice types.
 Breaks: silently
-Check: scripts/drift-check.js — review's stage-write condition pinned beside its unmet-criterion rule; run handoff names `/superdev:review` as the next command for every scope; document's closing step (`doc-untick-on-break`) writes no stage and prints `/superdev:review` rather than `/superdev:ship` when it unticks a criterion its own commits broke, or when a standing `**Unresolved:**` entry from an earlier pass already stands; afk's routing table (`afk-routing`) sends a `reviewed` stage carrying either shape of that standing entry to `/superdev:review`, not `/superdev:document`
-Paths: plugin/skills/review/**, plugin/references/run-handoff.md, plugin/skills/afk/**, plugin/skills/document/**
+Check: scripts/drift-check.js — review's stage-write condition pinned beside its unmet-criterion rule; run handoff names `/superdev:review` as the next command for every scope; document's closing step (`doc-untick-on-break`) writes no stage and prints `/superdev:review` rather than `/superdev:ship` when it unticks a criterion its own commits broke, or when a standing `**Unresolved:**` entry from an earlier pass already stands
+Paths: plugin/skills/review/**, plugin/references/run-handoff.md, plugin/skills/document/**
 
 ### INV-0017
 
@@ -318,15 +318,6 @@ Breaks: silently
 Check: `scripts/drift-check.js` `content-types` (the read-at-every-dispatch half)
 Paths: plugin/references/content-types.md, plugin/agents/doc-writer.md, plugin/agents/doc-reader.md
 
-### INV-0036
-
-Class: architecture
-Concepts: Unattended run, Eligible anchor, Stage
-Statement: `/superdev:afk` runs each chain step by invoking that command with `--unattended`, and carries no copy of any command's procedure. It keeps no queue between iterations: it re-reads the store's labels each time and persists only its consecutive-block count.
-Breaks: silently
-Check: `scripts/drift-check.js` `afk-invocation` (every stage-table row invokes a chain command with `--unattended`) — partial: nothing pins that afk carries no copy of any command's procedure, or that it persists only its consecutive-block count between iterations
-Paths: plugin/skills/afk/SKILL.md
-
 ### INV-0037
 
 Class: architecture
@@ -342,26 +333,17 @@ Class: process
 Concepts: Unattended token, Standing answer, Unattended run, Scope anchor
 Statement: A command carrying the unattended token never asks a question and never starts an interview command. At each stop it takes the standing answer written there, or blocks the scope anchor where none is written.
 Breaks: silently
-Check: `scripts/drift-check.js` `unattended-token` (the `## Unattended` section, plus the token and a read instruction in every chain document) and `afk-invocation`
+Check: `scripts/drift-check.js` `unattended-token` (the `## Unattended` section, plus the token and a read instruction in every chain document)
 Paths: plugin/references/scope-mode.md, plugin/skills/**, plugin/references/implement-full.md, plugin/references/implement-lite.md, plugin/references/run-init.md, plugin/references/run-handoff.md
 
 ### INV-0039
 
 Class: architecture
-Concepts: Scope anchor, Slice store, Seed, Release, Published snapshot, Triage record, Untriaged item, Assignee, Anchor dependency, Eligible anchor
+Concepts: Scope anchor, Slice store, Seed, Release, Published snapshot, Triage record, Untriaged item, Assignee, Anchor dependency
 Statement: No command or agent names a slice store's own mechanics. Each reads them from the matching section of the active store document, which specialises `references/plan-contract.md`.
 Breaks: silently
-Check: `scripts/drift-check.js` `anchor-contract`, `release-contract`, `run-state-contract`, `triage-record`, `untriaged-item`, `assignee`, `specialising-citations`, `glossary-specialising-citations`, `afk-selection-neutrality` — partial: these pin that each store document carries its sections and that citations specialise; the only content-neutrality scan, `afk-selection-neutrality`, covers afk's `## 2.` section alone, so a skill elsewhere that hardcodes a store call trips nothing
+Check: `scripts/drift-check.js` `anchor-contract`, `release-contract`, `run-state-contract`, `triage-record`, `untriaged-item`, `assignee`, `specialising-citations`, `glossary-specialising-citations` — partial: these pin that each store document carries its sections and that citations specialise; no content-neutrality scan exists, so a skill that hardcodes a store call trips nothing
 Paths: plugin/skills/**, plugin/agents/**, plugin/references/plan-contract.md, plugin/references/issue-tracker-*.md
-
-### INV-0040
-
-Class: process
-Concepts: Scope anchor, Eligible anchor, Feature label, Unattended run
-Statement: `/superdev:afk` skips a feature label that presents two roots and names it in its closing report. It never guesses which root owns the Definition of Done. Eligibility never reads the `ready` label.
-Breaks: silently
-Check: none — no pin exists today
-Paths: plugin/skills/afk/SKILL.md
 
 ### INV-0041
 
@@ -389,15 +371,6 @@ Statement: The scope branch is the feature label verbatim, `<type>/<slug>`, and 
 Breaks: silently
 Check: `scripts/drift-check.js` `label-validation` (both label segments validated before a path or branch is built). Nothing pins the verbatim or `**Branch:**`-read halves.
 Paths: plugin/references/scope-mode.md
-
-### INV-0044
-
-Class: process
-Concepts: Unattended run, Staged page, Knowledge base
-Statement: `/superdev:afk` never invokes `/superdev:publish-kb`. Publishing runs only on operator invocation.
-Breaks: silently
-Check: none — no absence scan exists
-Paths: plugin/skills/afk/SKILL.md
 
 ### INV-0045
 
@@ -474,11 +447,11 @@ Paths: plugin/skills/plan/**
 ### INV-0053
 
 Class: process
-Concepts: Release, Scope anchor, Eligible anchor, Unattended run
-Statement: A feature is built only once released, or on a human's explicit confirmation. `/superdev:implement` stops on an unreleased feature before its first write and blocks under `--unattended`. `/superdev:afk` skips one. A confirmation leaves the release signal unapplied.
+Concepts: Release, Scope anchor, Unattended run
+Statement: A feature is built only once released, or on a human's explicit confirmation. `/superdev:implement` stops on an unreleased feature before its first write and blocks under `--unattended`. A confirmation leaves the release signal unapplied.
 Breaks: silently
-Check: `scripts/drift-check.js` `release-contract` (every store document carries `## Release`, and plan, implement and afk each name it); `release-answer-not-inferred` was not opened by the batch and is not cited
-Paths: plugin/references/plan-contract.md, plugin/skills/implement/SKILL.md, plugin/skills/afk/SKILL.md, plugin/skills/plan/SKILL.md
+Check: `scripts/drift-check.js` `release-contract` (every store document carries `## Release`, and plan and implement each name it); `release-answer-not-inferred` was not opened by the batch and is not cited
+Paths: plugin/references/plan-contract.md, plugin/skills/implement/SKILL.md, plugin/skills/plan/SKILL.md
 
 ### INV-0054
 
@@ -506,15 +479,6 @@ Statement: The tier is never stored. Every reader derives it from the loaded sli
 Breaks: silently
 Check: none — no agreement pin across the derivation sites
 Paths: plugin/skills/implement/SKILL.md, plugin/skills/review/SKILL.md, plugin/references/scope-mode.md, plugin/scripts/scope.js
-
-### INV-0057
-
-Class: process
-Concepts: Anchor dependency, Eligible anchor, Unattended run, Scope anchor
-Statement: `/superdev:afk` never takes an anchor whose anchor dependency is unsatisfied. The anchor is deferred for that sweep, with no label written, no block counted, and a report line naming what it waits on. A dependency is satisfied by closure, by a `shipped` ledger stage — which means the pull request has merged (ADR 0096) — or by the named anchor not existing.
-Breaks: silently
-Check: `scripts/drift-check.js` `anchor-contract` (every store states how to read dependencies) and `afk-anchor-count`
-Paths: plugin/skills/afk/SKILL.md, plugin/references/plan-contract.md, plugin/references/issue-tracker-*.md
 
 ### INV-0058
 
@@ -570,15 +534,6 @@ Breaks: silently
 Check: `scripts/drift-check.js` `backlog-survey` — partial: nothing pins the absence of a backend's own listing call
 Paths: plugin/skills/backlog/SKILL.md
 
-### INV-0064
-
-Class: process
-Concepts: Backlog survey, Unattended run, Eligible anchor
-Statement: On an ambiguous store fact, `/superdev:afk` defers and acts on nothing, while the backlog survey shows the row with what it saw. Neither inherits the other's verdict.
-Breaks: silently
-Check: none — the ADR rejects a pin
-Paths: plugin/skills/afk/SKILL.md, plugin/skills/backlog/SKILL.md
-
 ### INV-0065
 
 Class: process
@@ -592,10 +547,10 @@ Paths: plugin/skills/backlog/SKILL.md
 
 Class: architecture
 Concepts: Model-invocable surface, Unattended run
-Statement: `/superdev:afk` and `/superdev:ship` are never model-invocable surfaces: each carries `disable-model-invocation: true` in its frontmatter. Every step afk's chain drives stays model-invocable, carrying no such key.
+Statement: `/superdev:ship` is never a model-invocable surface: it carries `disable-model-invocation: true` in its frontmatter. Every chain step (`/superdev:implement`, `/superdev:review`, `/superdev:document`, `/superdev:submit-pr`) stays model-invocable, carrying no such key.
 Breaks: silently
-Check: `scripts/drift-check.js` `model-invocation-split` (afk, and every step its chain section names), `ship-human-only` (ship)
-Paths: plugin/skills/afk/SKILL.md, plugin/skills/ship/SKILL.md, plugin/skills/implement/SKILL.md, plugin/skills/review/SKILL.md, plugin/skills/document/SKILL.md, plugin/skills/submit-pr/SKILL.md
+Check: `scripts/drift-check.js` `model-invocation-split` (every chain step), `ship-human-only` (ship)
+Paths: plugin/skills/ship/SKILL.md, plugin/skills/implement/SKILL.md, plugin/skills/review/SKILL.md, plugin/skills/document/SKILL.md, plugin/skills/submit-pr/SKILL.md
 
 ### INV-0068
 
@@ -619,10 +574,10 @@ Paths: plugin/hooks/green-gate.js, plugin/skills/review-tests/SKILL.md, plugin/s
 
 Class: process
 Concepts: Test audit, Unattended run
-Statement: A test audit runs only on operator invocation, and `/superdev:afk` never drives it. Unchained, its only writes are its intent and the `.gitignore` entry.
+Statement: A test audit runs only on operator invocation. Unchained, its only writes are its intent and the `.gitignore` entry.
 Breaks: silently
 Check: none — no absence scan exists
-Paths: plugin/skills/review-tests/**, plugin/skills/afk/**
+Paths: plugin/skills/review-tests/**
 
 ### INV-0071
 
@@ -829,10 +784,10 @@ Paths: plugin/skills/ship/**, plugin/references/code-management-*.md, plugin/scr
 
 Class: process
 Concepts: Unattended run, Stage
-Statement: Only a human moves a scope past its open pull request. `/superdev:afk` and every unattended run end at `/superdev:submit-pr`. `/superdev:ship` carries no unattended mode and `disable-model-invocation: true`, so no model and no surface starts it on the operator's behalf (ADR 0096).
+Statement: Only a human moves a scope past its open pull request. Every unattended run ends at `/superdev:submit-pr`. `/superdev:ship` carries no unattended mode and `disable-model-invocation: true`, so no model and no surface starts it on the operator's behalf (ADR 0096).
 Breaks: silently
-Check: scripts/drift-check.js — afk's chain ends at `submit-pr`; ship names no `--unattended` branch and carries `disable-model-invocation: true`
-Paths: plugin/skills/afk/**, plugin/skills/submit-pr/**, plugin/skills/ship/**
+Check: scripts/drift-check.js — ship names no `--unattended` branch and carries `disable-model-invocation: true`; partial: nothing pins that an unattended run ends at `submit-pr`
+Paths: plugin/skills/submit-pr/**, plugin/skills/ship/**
 
 ### INV-0098
 

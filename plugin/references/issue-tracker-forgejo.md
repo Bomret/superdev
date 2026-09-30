@@ -169,7 +169,7 @@ below, which the dispatch swaps to `in-progress`.
 - **Apply** (`/superdev:plan`, on a release): `POST .../issues/<index>/labels`, the same add call the
   status map uses. Labels are addressed by **id** here, so resolve `released` through
   `GET /api/v1/repos/<owner>/<repo>/labels` first, exactly as the feature and status labels are resolved.
-- **Read** (`/superdev:implement`, `/superdev:afk`): the anchor's own `labels` array, which the issue
+- **Read** (`/superdev:implement`, `/superdev:backlog`): the anchor's own `labels` array, which the issue
   listing that found the anchor already returned — no extra call.
 - **Remove** (`/superdev:plan`, on an append the user declines):
   `DELETE /api/v1/repos/<owner>/<repo>/issues/<index>/labels/<released label id>`, resolving the id
@@ -207,8 +207,8 @@ On this store it is an ordinary issue carrying the **Triage label** from *Config
   new id on the create above. **A create that reports the name as already taken means the label is
   there** — a page after the first read missed it — so re-read the list for its id and carry on. A record
   that lands label-less is invisible to the query that is the point of writing it.
-- **No feature label and no `ready` label.** Those two are what `/superdev:afk`'s candidate listing and
-  `/superdev:implement`'s slice loading select on, so a triage record carrying either would be picked up as
+- **No feature label and no `ready` label.** Those two are what
+  `/superdev:implement`'s slice loading selects on, so a triage record carrying either would be picked up as
   work to build. It is a record of unplanned work, not a slice.
 - **No pull-request URL.** Every trigger — a deferred finding or an observation — runs before
   `/superdev:submit-pr` opens one, so none exists yet and the body names none.

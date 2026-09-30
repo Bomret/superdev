@@ -26,15 +26,11 @@ const {
   scanUntriagedContract,
   scanSpecialisingCitations,
   scanGlossarySpecialisingCitations,
-  scanAfkSelectionNeutrality,
-  scanAfkAnchorCount,
   scanWritingStandardContract,
   scanContentTypesContract,
   scanCommandRefs,
   scanObservationCaptureReminders,
   scanChainHandoff,
-  scanAfkInvocations,
-  scanAfkNoShipStep,
   scanShipGateContract,
   scanShipNoOpensPr,
   scanOrphanLensPlacement,
@@ -55,7 +51,6 @@ const {
   scanReadmeCommands,
   scanAuditSetGlobs,
   scanDenialCapNumberSilence,
-  scanAfkLockTierClaim,
   scanRunLockLivenessSilence,
   scanUnmappedPathsForms,
   scanDeployRunnerExclusivity,
@@ -94,7 +89,6 @@ const {
   FULL_SUITE_CONTRACTS,
   PATHS_DERIVATION_CONTRACTS,
   FIX_BOUNDARY_CONTRACTS,
-  AFK_ROUTING_CONTRACTS,
   ARG_TOKEN_CONTRACTS,
   AUDIT_SET_CONTRACTS,
   CHAINED_CODE_REVIEW_CONTRACTS,
@@ -168,14 +162,6 @@ const table = (id, contracts, ok, opts) => ({
   format: contractGap,
 });
 
-// `scanPinnedPaths` (in `drift/scanners.js`) occupies the slot the `afk-existence` check held. That one
-// asserted `skills/afk/SKILL.md` alone, on the stated grounds that nothing else in the plugin names
-// `/superdev:afk` — already false when written: `skills/implement/SKILL.md` names it too, and
-// `command-resolution` already resolves every `/superdev:` reference in `skills/`, so it already
-// caught the file's deletion. The general rule — every path a contract table pins still exists — covers
-// `skills/afk/SKILL.md` a second way (three tables pin it) and the other thirty-odd besides, so the special
-// case went, replaced in place at the slot it had held.
-
 module.exports = [
   {
     id: 'reference',
@@ -201,12 +187,6 @@ module.exports = [
     id: 'anchor-contract',
     ok: 'anchor contract carried',
     run: scanAnchorContract,
-    format: anchorGap,
-  },
-  {
-    id: 'afk-selection-neutrality',
-    ok: "afk's selection step names no backend's own anchor mechanism",
-    run: scanAfkSelectionNeutrality,
     format: anchorGap,
   },
   {
@@ -241,18 +221,6 @@ module.exports = [
   },
   table('feature-label-argument', FEATURE_ARG_CONTRACTS, 'feature-label argument carried'),
   table('unattended-token', UNATTENDED_CONTRACTS, 'unattended token carried', { stripFrontmatterFirst: true }),
-  {
-    id: 'afk-invocation',
-    ok: 'afk invokes every chain command with `--unattended`',
-    run: scanAfkInvocations,
-    format: contractGap,
-  },
-  {
-    id: 'afk-no-ship-step',
-    ok: 'afk never names `/superdev:ship` as a step it runs — every mention admits, in the same sentence, that afk stops short of it',
-    run: scanAfkNoShipStep,
-    format: contractGap,
-  },
   table('change-type', CHANGE_TYPE_CONTRACTS, 'change-type set matches the scope-prune hook and scope.js'),
   table('degraded-pass', DEGRADED_CONTRACTS, 'degrade record carried', { stripFrontmatterFirst: true }),
   table('derived-criteria', DERIVED_CRITERIA_CONTRACTS, 'criteria derived before the DoD is read'),
@@ -290,7 +258,7 @@ module.exports = [
   table('kb-read-never-write', KB_READ_NEVER_WRITE_CONTRACTS, 'the doc pass may read a remote knowledge-base backend and never writes to it'),
   {
     id: 'scopetree-run-root',
-    ok: 'the four scopetree-addressing documents use the absolute run-root path',
+    ok: 'the scopetree-addressing documents use the absolute run-root path',
     run: scanScopetreeRunRootPaths,
     format: (o) => `checkout-relative scopetree path \`${o.match}\` in ${o.source} — use \`<run-root>/scopetree\``,
   },
@@ -308,7 +276,7 @@ module.exports = [
   },
   {
     id: 'model-invocation-split',
-    ok: 'afk carries `disable-model-invocation: true` and every chain step it drives carries none (INV-0066)',
+    ok: 'every chain step carries no `disable-model-invocation` (INV-0066)',
     run: scanModelInvocationSplit,
     format: contractGap,
   },
@@ -398,7 +366,6 @@ module.exports = [
     run: scanUnresolvedGlossaryContract,
     format: contractGap,
   },
-  table('afk-routing', AFK_ROUTING_CONTRACTS, 'afk routes every scope through review, with no special case for an all-mechanical/docs ledger'),
   table('arg-token', ARG_TOKEN_CONTRACTS, 'the three Bash hooks carry the same ARG shell-word token'),
   table(
     'audit-set',
@@ -569,12 +536,6 @@ module.exports = [
     ],
     format: contractGap,
   },
-  {
-    id: 'afk-anchor-count',
-    ok: "afk.md's scope-anchor paragraph states five things, naming the anchor dependency ADR 0040 added",
-    run: scanAfkAnchorCount,
-    format: contractGap,
-  },
   table(
     'publish-run-state',
     PUBLISH_RUN_STATE_CONTRACTS,
@@ -611,10 +572,7 @@ module.exports = [
     ok:
       'the full tier cuts and merges in the same scopetree the lite tier uses, never the invoking ' +
       'checkout',
-    run: (root) => [
-      ...scanContract(root, SCOPETREE_CONTRACTS),
-      ...scanAfkLockTierClaim(root),
-    ],
+    run: (root) => scanContract(root, SCOPETREE_CONTRACTS),
     format: contractGap,
   },
   table(
@@ -656,7 +614,7 @@ module.exports = [
     'backlog-submitted-buckets',
     BACKLOG_SUBMITTED_CONTRACTS,
     'the backlog survey buckets a `submitted` run root as `awaiting merge` or `merge unrecorded`, told ' +
-      "apart by the ledger's own `**PR:**` header, since afk's routing table skips `submitted` entirely (#687)",
+      "apart by the ledger's own `**PR:**` header (#687)",
   ),
   table(
     'deploy-step-visibility',
@@ -941,8 +899,7 @@ module.exports = [
   ),
 ];
 
-// The anchor contract and the afk-selection neutrality check report into the same sentence: a gap with
-// no expectation is a missing section, one with an expectation is a section that states too little.
+// A gap with no expectation is a missing section, one with an expectation is a section that states too little.
 function anchorGap(g) {
   return g.expectation
     ? `${g.source} no longer meets the anchor contract — expected it to ${g.expectation}`

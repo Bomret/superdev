@@ -65,7 +65,7 @@ deploy: [<target>]
 ```
 
 `blocked-by:` is optional too, but unlike the optional sections below it is a header line, and
-`/superdev:afk` does read it (`## Scope anchor` below, ADR 0040) — omit it unless the interview named a
+`/superdev:backlog` does read it (`## Scope anchor` below, ADR 0040) — omit it unless the interview named a
 prerequisite feature. `deploy:` is a header line too, optional and anchor-only: `deploy: [<target>,
 <target>]`, in the operator's answer order, or `deploy: none`, written under `manual`/`auto` posture once
 `/superdev:plan`'s deploy question is answered, and read by `/superdev:ship` after the merge (`## Scope
@@ -141,8 +141,7 @@ epic file, so the lone `NN-<test-applicability>-<summary>.md` is the anchor (ADR
 `plan-contract.md` → *Release*. **A plan file is released when it is written.** There is no backlog column
 and no refinement board here: the person who ran `/superdev:plan` is the person who agreed to the plan, and
 the file landing in `docs/plans/<type>/<feature-slug>/` is that agreement. So `/superdev:plan` asks no
-release question on this store, `/superdev:implement` treats every feature as released, and
-`/superdev:afk` finds every well-formed anchor eligible.
+release question on this store, and `/superdev:implement` treats every feature as released.
 
 **There is nothing to remove, either.** A store that releases its features at write carries no signal an
 append could leave standing over new slices, so `/superdev:plan` says so on a declined release rather
@@ -182,13 +181,12 @@ covered it; for an observation, that no slice of the scope covers it and the sco
   no finding has been deferred yet.
 - **`feature-label` doubles as the scope branch name** (`## Layout` above), so the record carries no
   separate `scope-branch` field.
-- **`docs/plans/triage/<slug>.md` is invisible to `/superdev:afk`'s candidate listing** by construction.
-  `## Scope anchor` above states the real rule: the listing walks `docs/plans/*/*/`, each **directory**
-  two levels under `docs/plans/`, with no change-type allowlist. A triage record is a **file**, not a
-  directory, sitting one directory level under `docs/plans/` (`docs/plans/triage/`) — it never reaches the
-  second directory level that walk requires, so it is skipped on shape, not on `triage` failing some
-  change-type test. It carries no `ready` status either, which is the second thing `/superdev:implement`
-  selects on.
+- **`docs/plans/triage/<slug>.md` is invisible to `/superdev:implement`'s slice loading** by construction.
+  A triage record is a **file**, not a directory two levels under `docs/plans/`, and it carries no `ready`
+  status, which is what `/superdev:implement`'s slice loading selects on. The candidate listing that
+  `/superdev:backlog` and `/superdev:plan` use (`## Scope anchor` above: `docs/plans/*/*/`, each
+  **directory** two levels under `docs/plans/`, with no change-type allowlist) also skips it on shape, not
+  on `triage` failing some change-type test.
 - **The anchor line is a path, not an issue reference**, since that is what this store's scope anchor is.
 - **No pull-request URL.** Every trigger — a deferred finding or an observation — runs before
   `/superdev:submit-pr` opens one, so none exists yet and the file names none.

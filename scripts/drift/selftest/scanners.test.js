@@ -20,15 +20,11 @@ const {
   scanTriageRecordContract,
   scanUntriagedContract,
   scanSpecialisingCitations,
-  scanAfkSelectionNeutrality,
-  scanAfkAnchorCount,
   scanWritingStandardContract,
   scanContentTypesContract,
   scanCommandRefs,
   scanObservationCaptureReminders,
   scanChainHandoff,
-  scanAfkInvocations,
-  scanAfkNoShipStep,
   scanModelInvocationSplit,
   scanShipGateContract,
   scanShipNoOpensPr,
@@ -666,67 +662,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'a dispatch that names the reference satisfies the row',
   );
 
-  // --- scanAfkAnchorCount: `skills/afk/SKILL.md`'s paragraph introducing `## Scope anchor` states how many
-  // things that section carries for this backend (ADR 0040 made it five, naming the anchor dependency as
-  // the fifth). Both elements are independent, and the scan is narrowed to the one paragraph — a
-  // restatement anywhere else in the same section must not satisfy a stale paragraph. ---
-
-  // positive: the stale "four things" paragraph, naming only the original four, is two gaps
-  const aacStale = fixture({
-    'skills/afk/SKILL.md':
-      '`docs/agents/issue-tracker.md` carries a `## Scope anchor` section stating four things for this ' +
-      'backend: how to recognise an anchor, how to list the candidates, how to list the slices beneath ' +
-      'one, and how to tell that an anchor is itself a slice.\n',
-  });
-  const aacGaps = scanAfkAnchorCount(aacStale);
-  assert.equal(aacGaps.length, 2, 'the stale paragraph fails the count row and the naming row independently');
-
-  // positive: the count fixed but the fifth thing still unnamed is one gap
-  const aacCountOnly = fixture({
-    'skills/afk/SKILL.md':
-      '`docs/agents/issue-tracker.md` carries a `## Scope anchor` section stating five things for this ' +
-      'backend: how to recognise an anchor, how to list the candidates, how to list the slices beneath ' +
-      'one, and how to tell that an anchor is itself a slice.\n',
-  });
-  assert.equal(
-    scanAfkAnchorCount(aacCountOnly).length,
-    1,
-    'fixing the count alone still leaves the fifth thing unnamed',
-  );
-
-  // negative: both the count and the fifth element are named
-  const aacFixed = fixture({
-    'skills/afk/SKILL.md':
-      '`docs/agents/issue-tracker.md` carries a `## Scope anchor` section stating five things for this ' +
-      'backend: how to recognise an anchor, how to list the candidates, how to list the slices beneath ' +
-      'one, how to tell that an anchor is itself a slice, and how to read an anchor\'s own dependencies.\n',
-  });
-  assert.equal(scanAfkAnchorCount(aacFixed).length, 0, 'the fixed paragraph satisfies both rows');
-
-  // narrowing: a restatement elsewhere in §2's body (a second paragraph, separated by a blank line) that
-  // carries both phrases must not save a stale intro paragraph — a section-wide or document-wide match
-  // would pass this fixture, which is exactly the false green extractParagraph() exists to prevent
-  const aacNarrowed = fixture({
-    'skills/afk/SKILL.md':
-      '`docs/agents/issue-tracker.md` carries a `## Scope anchor` section stating four things for this ' +
-      'backend: how to recognise an anchor, how to list the candidates, how to list the slices beneath ' +
-      'one, and how to tell that an anchor is itself a slice.\n\n' +
-      'Later in this same section, unrelated to the paragraph above: the section in fact states five ' +
-      "things for this backend, the fifth being how to read an anchor's own dependencies.\n",
-  });
-  assert.equal(
-    scanAfkAnchorCount(aacNarrowed).length,
-    2,
-    'a restatement elsewhere in the section does not save a stale intro paragraph',
-  );
-
-  // the real repository's own afk.md satisfies both rows
-  assert.equal(
-    scanAfkAnchorCount(realRoot).length,
-    0,
-    "this repo's own afk.md states five things and names the anchor dependency",
-  );
-
   // --- scanAdrStatus: every ADR must state a status. An ADR with no status line reads as accepted
   // whether or not anything implements it, which is how a decision gets documented as live while the
   // code has none of it. ---
@@ -795,8 +730,8 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(scanAdrStatus(fixture({ 'README.md': '# repo\n' })).length, 0, 'absent ADR tree is skipped');
 
   // --- scanAnchorContract: every slice-store document must state how to identify a feature's scope
-  // anchor (ADR 0017). `/superdev:afk` selects by anchor and reads that contract instead of encoding one
-  // store's shape, so a document without it leaves the sweep blind in that backend. The local-file store
+  // anchor (ADR 0017). `/superdev:plan` and `/superdev:backlog` read that contract instead of encoding one
+  // store's shape, so a document without it leaves them blind in that backend. The local-file store
   // is NOT exempt here, unlike the assignee contract — it has an anchor, its `00-epic-*.md` file. ---
 
   const anchorSection =
@@ -987,153 +922,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'an unterminated fence does not throw',
   );
 
-  // --- scanAfkSelectionNeutrality: afk's selection step reads the store's anchor contract and names no
-  // backend's own mechanism (ADR 0017). Naming one is right on a single store and wrong on the rest, and
-  // it surfaces as a sweep that finds nothing rather than as an error. ---
-
-  const selection = (body) => `# afk\n\n## 2. Select the next scope anchor\n\n${body}\n\n## 3. Next\n\nGo.\n`;
-  const neutral = "Per the store's `## Scope anchor` contract, list the candidates and take the oldest.";
-
-  // negative: a neutral selection that points at the contract is clean
-  assert.equal(
-    scanAfkSelectionNeutrality(fixture({ 'skills/afk/SKILL.md': selection(neutral) })).length,
-    0,
-    'a neutral selection naming the contract is clean',
-  );
-
-  // positive: each store mechanism is caught on its own
-  for (const [snippet, why] of [
-    ['Take the issue labelled `epic`.', 'the epic label'],
-    ['Strip the `feat/` prefix to get the slug.', 'the feat prefix'],
-    // the local store's filename carries `epic`, so the one epic row reports it — a second `/00-epic/`
-    // row would report the same sentence twice
-    ['Look for `00-epic-*.md` in the plan directory.', 'the local filename'],
-    ['The anchor is nobody\'s sub-issue.', 'the GitHub relation'],
-    ['Check that `fields.parent` is absent.', 'the Jira parent field'],
-  ]) {
-    const gaps = scanAfkSelectionNeutrality(
-      fixture({ 'skills/afk/SKILL.md': selection(`${neutral} ${snippet}`) }),
-    );
-    assert.equal(gaps.length, 1, `flags ${why} in the selection step`);
-    assert.match(gaps[0].expectation, /select without naming/, 'reports it as a mechanism');
-  }
-
-  // positive: naming no mechanism is only half — a selection pointing at no contract has nothing to
-  // select by, so silence must not satisfy the check
-  const silent = scanAfkSelectionNeutrality(
-    fixture({ 'skills/afk/SKILL.md': selection('Take the oldest candidate and go.') }),
-  );
-  assert.equal(silent.length, 1, 'a selection naming no contract is a gap');
-  assert.match(silent[0].expectation, /point its selection at/, 'reports the missing contract');
-
-  // a concrete label is a change-type prefix like any other. The two path strings this step legitimately
-  // carries are excluded by name, so naming one real label no longer slips past as a path would.
-  const concreteLabel = scanAfkSelectionNeutrality(
-    fixture({
-      'skills/afk/SKILL.md': selection(
-        `${neutral} Select the anchor labelled \`feat/self-improvements\`.`,
-      ),
-    }),
-  );
-  assert.equal(concreteLabel.length, 1, 'a concrete feature label is a change-type prefix');
-  assert.match(concreteLabel[0].expectation, /change-type label prefix/, 'reports the prefix mechanism');
-
-  // `docs/plans-refactor` is the string the two-literal allowlist this rule replaced let through —
-  // `plans\b` matched it before its hyphen, since a word boundary sits there too. The structural rule
-  // must still catch it: no further `/`-delimited segment follows `docs/`, so it reads as a label.
-  const hyphenatedSlug = scanAfkSelectionNeutrality(
-    fixture({
-      'skills/afk/SKILL.md': selection(`${neutral} Select the anchor labelled \`docs/plans-refactor\`.`),
-    }),
-  );
-  assert.equal(hyphenatedSlug.length, 1, 'a hyphenated slug past the type is still a change-type prefix');
-  assert.match(hyphenatedSlug[0].expectation, /change-type label prefix/, 'reports the prefix mechanism');
-
-  // …while the store-config path the step is meant to point at, and the local store's plan root, both
-  // pass — each carries a further `/`-delimited segment right after the type, so the structural rule
-  // reads both as a path being cited rather than a feature label
-  assert.equal(
-    scanAfkSelectionNeutrality(
-      fixture({
-        'skills/afk/SKILL.md': selection(
-          'Read `docs/agents/issue-tracker.md`\'s `## Scope anchor` contract; a local store keeps plans under `docs/plans/`.',
-        ),
-      }),
-    ).length,
-    0,
-    'the excluded path strings are not prefixes',
-  );
-
-  // an ADR citation is a doc pointer, not a label — `docs/adr/0021-….md` has the same further-segment
-  // shape as `docs/agents/…`, so the structural rule passes it too. The two-literal allowlist this rule
-  // replaced flagged it as a false "change-type label prefix".
-  assert.equal(
-    scanAfkSelectionNeutrality(
-      fixture({
-        'skills/afk/SKILL.md': selection(
-          `${neutral} See \`docs/adr/0021-change-type-branch.md\` for why.`,
-        ),
-      }),
-    ).length,
-    0,
-    'an ADR citation is not a change-type label prefix',
-  );
-
-  // a mechanism outside the selection section is fine — the rest of the command may discuss an epic as a
-  // domain concept, it just may not test for one when selecting
-  assert.equal(
-    scanAfkSelectionNeutrality(
-      fixture({
-        'skills/afk/SKILL.md':
-          selection(neutral) + '\n## 4. Blocks\n\nLabel the `epic` blocked and move on.\n',
-      }),
-    ).length,
-    0,
-    'a mechanism outside the selection section is not a gap',
-  );
-
-  // `epic` in plain prose is the same mechanism as a backticked one — the selection step is meant to
-  // name no epic at all, so backticks must not be what decides it
-  const plainEpic = scanAfkSelectionNeutrality(
-    fixture({ 'skills/afk/SKILL.md': selection(`${neutral} Take the epic issue.`) }),
-  );
-  assert.equal(plainEpic.length, 1, 'an unbackticked `epic` is still a mechanism');
-  assert.match(plainEpic[0].expectation, /select without naming/, 'reports it as a mechanism');
-
-  // a fenced `#` comment hides a mechanism from this scan — the worse direction of finding #143,
-  // because this scanner is the only automated guard on the neutrality ADR 0017 requires
-  assert.equal(
-    scanAfkSelectionNeutrality(
-      fixture({
-        'skills/afk/SKILL.md': selection(
-          `${neutral}\n\n\`\`\`sh\n# candidates\nls docs/plans/\n\`\`\`\n\nTake the issue labelled \`epic\`.`,
-        ),
-      }),
-    ).length,
-    1,
-    'a mechanism below a fenced `#` comment is still scanned',
-  );
-
-  // an absent afk.md is skipped here; its existence is asserted by `pinned-paths`
-  assert.equal(
-    scanAfkSelectionNeutrality(fixture({ 'README.md': '# repo\n' })).length,
-    0,
-    'an absent afk.md is skipped',
-  );
-
-  // positive: a missing, renumbered, or retitled selection heading is itself a gap — each of these three
-  // mutations previously silenced the whole neutrality check (the section was skipped, not flagged),
-  // hiding whatever store mechanism the selection step went on to name
-  for (const [why, body] of [
-    ['renumbered', `# afk\n\n## 3. Select the next scope anchor\n\nTake the \`epic\` label.\n\n## 4. Next\n\nGo.\n`],
-    ['retitled', `# afk\n\n## 2 Pick the work\n\nTake the \`epic\` label.\n\n## 3. Next\n\nGo.\n`],
-    ['deleted', `# afk\n\nTake the \`epic\` label.\n\n## 3. Next\n\nGo.\n`],
-  ]) {
-    const gaps = scanAfkSelectionNeutrality(fixture({ 'skills/afk/SKILL.md': body }));
-    assert.equal(gaps.length, 1, `flags a ${why} selection heading`);
-    assert.match(gaps[0].expectation, /selection heading/, `names the missing heading for ${why}`);
-  }
-
   // --- scanCommandRefs: a `/superdev:<name>` reference must resolve to `skills/<name>/SKILL.md`. The chain
   // hands the user from one command to the next by printing its name (ADR 0013), so a reference to a
   // command that does not exist sends the reader to a dead end. Same failure shape as scan() one level
@@ -1269,204 +1057,37 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   const ch5 = fixture({ 'skills/document/SKILL.md': handsOff('/superdev:submit-pr') });
   assert.equal(scanChainHandoff(ch5).length, 0, 'an absent chain document is skipped');
 
-  // --- scanAfkInvocations: every stage-table row that invokes one of the four chain commands must carry
-  // the token on that same row (ADR 0015). A row that loses it asks a question nobody answers, and the
-  // sweep stops there reporting no failure. The real table's rows include `/superdev:review` twice —
-  // so this checks per row, not once per command name. ---
+  // --- scanModelInvocationSplit: every chain step stays model-invocable (INV-0066), since an unattended
+  // run invokes each through the Skill tool. Ship's half is ship-human-only's. ---
 
-  // a fixture modeled on skills/afk/SKILL.md §3's stage table plus its footnote and §5's maintainer-resume
-  // mention, both of which name a command on the same line as `--unattended` without being a table row
-  const stageTable = (rows) =>
-    '| Stage | Start at |\n' +
-    '|---|---|\n' +
-    rows.map(([stage, cmd]) => `| \`${stage}\` | \`${cmd}\` |\n`).join('') +
-    '\n`documented-unreviewed` routes to the review, not submit-pr, because `/superdev:submit-pr --unattended` ' +
-    'refuses a scope whose review never ran.\n\n' +
-    'A maintainer runs `/superdev:submit-pr <slug>` once the host is reachable.\n';
-
-  const fullRows = [
-    ['no run root, or `implementing`', '/superdev:implement feat/<label> --unattended'],
-    ['merged', '/superdev:review <BASE>..superdev/<slug> --unattended'],
-    ['reviewed', '/superdev:document <BASE>..superdev/<slug> --unattended'],
-    ['documented-unreviewed', '/superdev:review <BASE>..superdev/<slug> --unattended'],
-    ['documented', '/superdev:submit-pr <slug> --unattended'],
-  ];
-
-  // negative: every row carrying the token, plus the footnote and the §5 mention with no token, is clean
-  const afk1 = fixture({ 'skills/afk/SKILL.md': stageTable(fullRows) });
-  assert.equal(scanAfkInvocations(afk1).length, 0, 'a fully wired stage table is clean');
-
-  // positive: each row is checked on its own — mutate one at a time, confirm it alone goes
-  // red, and that the sibling row of the same command (`review` appears twice) does not mask it
-  for (let i = 0; i < fullRows.length; i++) {
-    const mutated = fullRows.map((row, j) => (j === i ? [row[0], row[1].replace(' --unattended', '')] : row));
-    const afk = fixture({ 'skills/afk/SKILL.md': stageTable(mutated) });
-    const gaps = scanAfkInvocations(afk);
-    assert.equal(gaps.length, 1, `mutating row ${i} (${fullRows[i][1]}) is caught on its own`);
-    assert.match(gaps[0].expectation, new RegExp(fullRows[i][1].split(' ')[0].replace('/', '\\/')));
-  }
-
-  // the ship-command prose footnote (name + token on one line, not a table row) does not mask a missing
-  // token on the actual ship table row
-  const afkShipMasked = fixture({
-    'skills/afk/SKILL.md': stageTable(
-      fullRows.map((row) =>
-        row[1].startsWith('/superdev:submit-pr') ? [row[0], row[1].replace(' --unattended', '')] : row,
-      ),
-    ),
-  });
-  const shipGaps = scanAfkInvocations(afkShipMasked);
-  assert.equal(shipGaps.length, 1, 'the submit-pr footnote does not mask the submit-pr row losing the token');
-  assert.match(shipGaps[0].expectation, /\/superdev:submit-pr/, 'names the submit-pr row');
-
-  // §5's maintainer-resume mention (`/superdev:ship <slug>`, no token, not a table row) stays green on
-  // its own — it is prose, not an invocation
-  const afkResumeOnly = fixture({
-    'skills/afk/SKILL.md': 'A maintainer runs `/superdev:submit-pr <slug>` once the host is reachable.\n',
-  });
-  const resumeGaps = scanAfkInvocations(afkResumeOnly);
-  assert.ok(
-    resumeGaps.every((g) => /carry a stage-table row/.test(g.expectation)),
-    'the maintainer-resume prose is never read as an invocation that lost its token',
-  );
-
-  // a row that stops existing is caught too — inspecting only the rows present says nothing about a step
-  // afk silently dropped, which would make it skip reviewing or shipping and still report a clean sweep
-  for (const dropped of ['implement', 'review', 'document', 'submit-pr']) {
-    const afkMissing = fixture({
-      'skills/afk/SKILL.md': stageTable(fullRows.filter(([, cmd]) => !cmd.startsWith(`/superdev:${dropped} `))),
-    });
-    const gaps = scanAfkInvocations(afkMissing);
-    assert.equal(gaps.length, 1, `dropping every /superdev:${dropped} row is caught`);
-    assert.match(gaps[0].expectation, /carry a stage-table row/, 'reports it as a missing row');
-    assert.match(gaps[0].expectation, new RegExp(`superdev:${dropped}`), `names /superdev:${dropped}`);
-  }
-
-  // an absent afk.md is skipped, matching every other contract scanner
-  assert.equal(
-    scanAfkInvocations(fixture({ 'README.md': '# repo\n' })).length,
-    0,
-    'an absent afk.md is skipped',
-  );
-
-  // --- scanAfkNoShipStep: afk never names `/superdev:ship` as a step it runs (INV-0093). `AFK_NAMES`
-  // excludes `ship`, so `scanAfkInvocations()`'s row loop above silently skips a stage-table row naming
-  // it — this scanner reads the whole file instead, sentence by sentence, admitting a mention only
-  // where that same sentence says afk stops short of running it. ---
-
-  // negative: the real file's two legitimate mentions — "human-only … you never invoke it" and "only a
-  // human moves it further" — both admit, so a fixture modeled on them is clean
-  const afkShipAdmitted = fixture({
-    'skills/afk/SKILL.md':
-      'You take each eligible scope anchor through the chain to an open pull request.\n' +
-      '`/superdev:ship` is a separate, human-only command: it merges the pull request this chain opens, ' +
-      'and you never invoke it.\n\n' +
-      "An anchor's pull request is already open, or already merged; only a human moves it further with " +
-      '`/superdev:ship`.\n',
-  });
-  assert.equal(scanAfkNoShipStep(afkShipAdmitted).length, 0, 'both admitted mentions are clean');
-
-  // positive: a stage-table row (or any other sentence) naming `/superdev:ship` with no admission is
-  // caught — the exact regression AFK_NAMES's silent skip would otherwise hide
-  const afkShipStep = fixture({
-    'skills/afk/SKILL.md':
-      '| Stage | Start at |\n' +
-      '|---|---|\n' +
-      '| `submitted` | `/superdev:ship <slug> --unattended` |\n',
-  });
-  const shipStepGaps = scanAfkNoShipStep(afkShipStep);
-  assert.equal(shipStepGaps.length, 1, 'a naked /superdev:ship mention is caught');
-  assert.match(shipStepGaps[0].expectation, /superdev:ship/, 'names the mention');
-
-  // an absent afk.md is skipped, matching every other contract scanner
-  assert.equal(
-    scanAfkNoShipStep(fixture({ 'README.md': '# repo\n' })).length,
-    0,
-    'an absent afk.md is skipped',
-  );
-
-  // false positive (review finding 1): a legitimate paraphrase — "stops before invoking ... which
-  // stays a human step" — carries none of the three literal admission tokens, but plainly admits
-  // afk never runs ship. A whole-sentence "never"/"only a human"/"human-only" test misses this.
-  const afkShipParaphrase = fixture({
-    'skills/afk/SKILL.md':
-      'The chain stops before invoking `/superdev:ship`, which stays a human step.\n',
-  });
-  assert.equal(
-    scanAfkNoShipStep(afkShipParaphrase).length,
-    0,
-    'a paraphrase admitting afk stops before ship, without the literal admission tokens, is clean',
-  );
-
-  // false positive (review finding 1): an unrelated `never` elsewhere in the same sentence must not
-  // excuse a real `/superdev:ship` invocation far away from it
-  const afkShipUnrelatedNever = fixture({
-    'skills/afk/SKILL.md':
-      'The dispatch never retries a failed slice under load, so after that step the chain still ' +
-      'invokes `/superdev:ship` once review completes.\n',
-  });
-  const unrelatedNeverGaps = scanAfkNoShipStep(afkShipUnrelatedNever);
-  assert.equal(
-    unrelatedNeverGaps.length,
-    1,
-    'an unrelated "never" far from the /superdev:ship mention does not excuse it',
-  );
-
-  // --- scanModelInvocationSplit: afk is never model-invocable, and every chain step it drives is
-  // (INV-0066). The step list is read from afk's own routing section, so a /superdev:<name> mention
-  // outside it is no step. Ship's half is ship-human-only's. ---
-
-  const AFK_SKILL = [
-    '---', 'name: afk', 'description: Drive the chain unattended.', 'disable-model-invocation: true', '---', '',
-    '## 3. Take it through the chain', '',
-    '| Stage | Start at |', '|---|---|',
-    '| `merged` | `/superdev:review <BASE>..<label> --unattended` |',
-    '| `reviewed` | `/superdev:document <BASE>..<label> --unattended` |', '',
-    '## 4. When a feature blocks', '', 'A mention of /superdev:ship out here is not a chain step.', '',
-  ].join('\n');
   const skill = (name) => ['---', `name: ${name}`, `description: The ${name} step.`, '---', '', 'Body.', ''].join('\n');
   const splitTree = {
-    'skills/afk/SKILL.md': AFK_SKILL,
+    'skills/implement/SKILL.md': skill('implement'),
     'skills/review/SKILL.md': skill('review'),
     'skills/document/SKILL.md': skill('document'),
+    'skills/submit-pr/SKILL.md': skill('submit-pr'),
   };
 
-  // negative: afk off the surface, both chain steps on it; ship, outside the section, is not demanded
+  // negative: every chain step on the surface
   assert.deepEqual(scanModelInvocationSplit(fixture({ ...splitTree })), [], 'the split as shipped is clean');
 
-  // positive: afk without the key is one the model can start
-  const afkInvocable = scanModelInvocationSplit(fixture({
-    ...splitTree,
-    'skills/afk/SKILL.md': AFK_SKILL.replace('disable-model-invocation: true\n', ''),
-  }));
-  assert.equal(afkInvocable.length, 1, 'afk without disable-model-invocation is caught');
-  assert.match(afkInvocable[0].source, /afk/, 'names afk');
-
-  // positive: the key in afk's body, outside its frontmatter, turns nothing off
-  const afkKeyInBody = scanModelInvocationSplit(fixture({
-    ...splitTree,
-    'skills/afk/SKILL.md': AFK_SKILL.replace('disable-model-invocation: true\n', '') + 'disable-model-invocation: true\n',
-  }));
-  assert.equal(afkKeyInBody.length, 1, 'the key outside the frontmatter does not count');
-
-  // positive: a chain step carrying the key strands the sweep there
+  // positive: a chain step carrying the key strands an unattended run there
   const stepOff = scanModelInvocationSplit(fixture({
     ...splitTree,
     'skills/review/SKILL.md': skill('review').replace('---\n\n', 'disable-model-invocation: true\n---\n\n'),
   }));
   assert.equal(stepOff.length, 1, 'a chain step off the surface is caught');
   assert.match(stepOff[0].source, /review/, 'names the step');
+  assert.match(stepOff[0].expectation, /external driver/, 'names the external driver as the invoker');
 
-  // positive: a routing section naming no step leaves the check nothing to hold
-  const emptyChain = scanModelInvocationSplit(fixture({
-    'skills/afk/SKILL.md': AFK_SKILL.replace(/\| Stage[\s\S]*?--unattended\` \|\n(?=\n)/, 'Resume where the stage left off.\n'),
-  }));
-  assert.equal(emptyChain.length, 1, 'an empty routing section is reported, not passed');
-  assert.match(emptyChain[0].expectation, /names no/, 'says the section names no step');
+  // negative: the key in a step's body, outside its frontmatter, turns nothing off
+  assert.deepEqual(scanModelInvocationSplit(fixture({
+    ...splitTree,
+    'skills/review/SKILL.md': skill('review') + 'disable-model-invocation: true\n',
+  })), [], 'the key outside the frontmatter does not count');
 
-  // an absent afk skill, or an absent step skill, is skipped
-  assert.deepEqual(scanModelInvocationSplit(fixture({ 'README.md': '# repo\n' })), [], 'an absent afk.md is skipped');
-  assert.deepEqual(scanModelInvocationSplit(fixture({ 'skills/afk/SKILL.md': AFK_SKILL })), [], 'absent step skills are skipped');
+  // an absent step skill is skipped
+  assert.deepEqual(scanModelInvocationSplit(fixture({ 'README.md': '# repo\n' })), [], 'absent step skills are skipped');
 
   // the shipped tree carries the split
   assert.deepEqual(scanModelInvocationSplit(realRoot), [], 'the real repository is clean');
@@ -1890,7 +1511,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // --- scanReleaseContract: every slice-store document states how its backend expresses a release
   // (`plan-contract.md` → *Release*), carries the **Remove** bullet a declined release on an append
-  // calls (ADR 0083), and `skills/plan/SKILL.md`, `skills/implement/SKILL.md`, and `skills/afk/SKILL.md`
+  // calls (ADR 0083), and both `skills/plan/SKILL.md` and `skills/implement/SKILL.md`
   // each name that section. `/plan`'s §6 states the both-directions rule, and the local-file seed states
   // it has nothing to remove. Every half fails silently, so every half is asserted. ---
 
@@ -1972,6 +1593,20 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'a consumer naming the backticked section yields zero gaps',
   );
 
+  // positive: /backlog groups by the release signal, so a backlog skill that drops the section is flagged
+  const rlBacklog = scanReleaseContract(fixture({
+    'skills/backlog/SKILL.md': '# backlog\n\nGroup by the release rules.\n',
+  }));
+  assert.equal(rlBacklog.length, 1, 'flags the backlog consumer that never names the section');
+  assert.equal(rlBacklog[0].source, path.join('skills', 'backlog', 'SKILL.md'), 'names the backlog consumer');
+  assert.equal(
+    scanReleaseContract(fixture({
+      'skills/backlog/SKILL.md': "# backlog\n\nRead `docs/agents/issue-tracker.md`'s `## Release`.\n",
+    })).length,
+    0,
+    'a backlog naming the backticked section yields zero gaps',
+  );
+
   // positive: /plan keeping the reference but dropping §6's both-directions rule is flagged on its own —
   // a declined release on an append would leave the signal standing over slices nobody released
   const rlNoBothDirections = fixture({
@@ -1981,14 +1616,13 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(rlGapsBoth.length, 1, "flags /plan for dropping §6's both-directions rule");
   assert.match(rlGapsBoth[0].expectation, /declining branch removes/, 'names the removal on an append');
 
-  // all three consumers are held to it, so dropping the reference everywhere reports three gaps, plus
+  // every consumer is held to it, so dropping the reference everywhere reports one gap per consumer, plus
   // /plan's own both-directions row
-  const rlAllThree = fixture({
+  const rlAllConsumers = fixture({
     'skills/plan/SKILL.md': '# plan\n',
     'skills/implement/SKILL.md': '# implement\n',
-    'skills/afk/SKILL.md': '# afk\n',
   });
-  assert.equal(scanReleaseContract(rlAllThree).length, 4, 'every consumer is held to the reference');
+  assert.equal(scanReleaseContract(rlAllConsumers).length, 3, 'every consumer is held to the reference');
 
   // an absent document is skipped, so a fixture carries only the docs it exercises
   assert.equal(
@@ -2205,8 +1839,8 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
         'references/issue-tracker-acme.md':
           '# acme\n\n## Triage record\n\nAn issue carrying the `triage` label.\n\n' +
           '- **List the records:** `GET /issues?labels=triage`.\n' +
-          "- **No feature label and no `ready` label.** Those two are what `/superdev:afk`'s candidate " +
-          'listing selects on.\n',
+          "- **No feature label and no `ready` label.** Those two are what `/superdev:implement`'s slice " +
+          'loading selects on.\n',
       }),
     ).length,
     0,
@@ -2219,15 +1853,15 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     fixture({
       'references/issue-tracker-acme.md':
         '# acme\n\n## Triage record\n\n- **Create it:** `POST /issues` with the `triage` label.\n' +
-        "- **No feature label and no `ready` label.** Those two are what `/superdev:afk`'s candidate " +
-        'listing selects on.\n',
+        "- **No feature label and no `ready` label.** Those two are what `/superdev:implement`'s slice " +
+        'loading selects on.\n',
     }),
   );
   assert.equal(trCreateOnly.length, 1, 'flags a section that states creation but no listing');
   assert.match(trCreateOnly[0].expectation, /list this backend's triage records/, 'names the missing element');
 
   // positive: the section states creation and listing but never why the record stays out of
-  // /superdev:afk's candidate listing — the outcome plan-contract.md's own generic section already
+  // /superdev:implement's slice loading — the outcome plan-contract.md's own generic section already
   // promises ("No candidate listing and no slice loader ever selects it")
   const trNoExclusion = scanTriageRecordContract(
     fixture({
@@ -2237,7 +1871,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     }),
   );
   assert.equal(trNoExclusion.length, 1, 'flags a section stating creation and listing but no exclusion rule');
-  assert.match(trNoExclusion[0].expectation, /candidate listing/, 'names the missing exclusion element');
+  assert.match(trNoExclusion[0].expectation, /slice loading/, 'names the missing exclusion element');
 
   // negative: the same document, carrying the exclusion vocabulary too, is clean
   assert.equal(
@@ -2246,8 +1880,8 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
         'references/issue-tracker-acme.md':
           '# acme\n\n## Triage record\n\n- **Create it:** `POST /issues` with the `triage` label.\n' +
           '- **List the records:** `GET /issues?labels=triage`.\n' +
-          "- **No feature label and no `ready` label.** Those two are what `/superdev:afk`'s candidate " +
-          'listing selects on.\n',
+          "- **No feature label and no `ready` label.** Those two are what `/superdev:implement`'s slice " +
+          'loading selects on.\n',
       }),
     ).length,
     0,
@@ -2261,14 +1895,14 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'every store document in the real tree states its exclusion rule',
   );
 
-  // the local seed's existing bullet says a record is *invisible* to /superdev:afk's "candidate listing".
-  // A bare `list` anchor would read that exclusion rule as the listing contract, so it must not satisfy it.
+  // the local seed's existing bullet says a record is *invisible* to /superdev:implement's "slice loading".
+  // An exclusion bullet is not the listing contract, so it must not satisfy the listing element.
   assert.equal(
     scanTriageRecordContract(
       fixture({
         'references/issue-tracker-local.md':
           '# store\n\n## Triage record\n\n' +
-          "- **`docs/plans/triage/<slug>.md` is invisible to `/superdev:afk`'s candidate listing** by\n" +
+          "- **`docs/plans/triage/<slug>.md` is invisible to `/superdev:implement`'s slice loading** by\n" +
           '  construction.\n',
       }),
     ).length,
@@ -2283,8 +1917,8 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
         'references/issue-tracker-acme.md':
           '# acme\n\n## Scope anchor\n\n- **List the records:** `GET /issues`.\n\n' +
           '## Triage record\n\n- **Create it:** `POST /issues`.\n' +
-          "- **No feature label and no `ready` label.** Those two are what `/superdev:afk`'s candidate " +
-          'listing selects on.\n',
+          "- **No feature label and no `ready` label.** Those two are what `/superdev:implement`'s slice " +
+          'loading selects on.\n',
       }),
     ).length,
     1,
@@ -2295,8 +1929,8 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   const triageSection =
     '# store\n\n## Triage record\n\nAn issue carrying the `triage` label.\n\n' +
     '- **List the records:** `GET /issues?labels=triage`.\n' +
-    "- **No feature label and no `ready` label.** Those two are what `/superdev:afk`'s candidate " +
-    'listing selects on.\n';
+    "- **No feature label and no `ready` label.** Those two are what `/superdev:implement`'s slice " +
+    'loading selects on.\n';
   const trDropped = {
     'references/issue-tracker-forgejo.md': triageSection,
     'references/issue-tracker-github.md': triageSection,
@@ -2317,8 +1951,8 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
       fixture({
         'references/issue-tracker-jira.md':
           '# store\n\n### Triage record\n\nAn issue.\n\n- **List the records:** `GET /search`.\n' +
-          "- **No feature label and no ready status or label.** Those are what `/superdev:afk`'s " +
-          'candidate listing selects on.\n',
+          "- **No feature label and no ready status or label.** Those are what `/superdev:implement`'s " +
+          'slice loading selects on.\n',
       }),
     ).length,
     0,
@@ -3144,14 +2778,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.ok(
     ppEmpty.every((g) => g.expectation.includes(g.source)),
     'each gap names the path that went missing, so the reader does not grep for it',
-  );
-
-  // positive: `skills/afk/SKILL.md` is among the paths this check collects, which is what lets the
-  // `afk-existence` special case go. Three tables pin that file, so the general rule now covers what
-  // that check was written to catch on its own.
-  assert.ok(
-    scanPinnedPaths(fixture({ 'README.md': '# r\n' })).some((g) => g.source === path.join('skills', 'afk', 'SKILL.md')),
-    'skills/afk/SKILL.md disappearing is still caught, now by the general check',
   );
 
   // positive: `READ_PATH_CONTRACTS`' one row pins `docs/agents/knowledge-base.md` with a `test()`

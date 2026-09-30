@@ -152,7 +152,7 @@ stating back to the user:
   and is the default worth proposing.
 
 Record the signal plus the calls that **apply** it (what `/superdev:plan` fires on a release) and **read**
-it (what `/superdev:implement` and `/superdev:afk` check). A team that agrees plans elsewhere and wants
+it (what `/superdev:implement` and `/superdev:backlog` check). A team that agrees plans elsewhere and wants
 every plan live on creation is a valid answer too — write that, and `/superdev:plan` stops asking.
 
 Also capture the **assignee** for any issue backend — the account every issue `/superdev:plan` creates is

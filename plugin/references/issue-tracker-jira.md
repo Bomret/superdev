@@ -165,7 +165,7 @@ and the ready status/label marks a slice rather than the feature.
 - **Apply** (`/superdev:plan`, on a release): `PUT <base>/rest/api/3/issue/<key>` with
   `{ "update": { "labels": [{ "add": "<released>" }] } }` — an add, which leaves the feature label and the
   `test-applicability` label in place.
-- **Read** (`/superdev:implement`, `/superdev:afk`): the anchor's `labels` field, which the JQL search that
+- **Read** (`/superdev:implement`, `/superdev:backlog`): the anchor's `labels` field, which the JQL search that
   found the feature already returns.
 - **Remove** (`/superdev:plan`, on an append the user declines): `PUT <base>/rest/api/3/issue/<key>` with
   `{ "update": { "labels": [{ "remove": "<released>" }] } }` — the mirror of **Apply**, which leaves the
@@ -208,8 +208,8 @@ On this store it is an ordinary issue in the configured project carrying the **T
   instead** (`400`, the field is not on the create screen): retry once with `labels` omitted, prefixing
   `summary` with `[triage] ` so the record stays findable by text search where the label was refused —
   a project-configuration fix, not a superdev one — and report it.
-- **No feature label and no ready status or label.** Those are what `/superdev:afk`'s candidate listing and
-  `/superdev:implement`'s slice loading select on, so a triage record carrying either would be picked up as
+- **No feature label and no ready status or label.** Those are what
+  `/superdev:implement`'s slice loading selects on, so a triage record carrying either would be picked up as
   work to build. It is a record of unplanned work, not a slice, so it also takes no status transition from
   the status map below.
 - **No pull-request URL.** Every trigger — a deferred finding or an observation — runs before

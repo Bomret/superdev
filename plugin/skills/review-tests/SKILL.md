@@ -15,8 +15,7 @@ and writes the survivors as an intent for `/superdev:plan` (ADR 0066).
 ad-hoc `/superdev:review` does. Its writes are the intent, under the git-ignored `.superdev/brainstorm/`,
 and the one-line `.gitignore` entry that keeps that directory ignored.
 
-**Outside the chain.** implement → review → document → ship never reaches this command, and
-`/superdev:afk` never drives it. You run it when a suite has started to feel expensive.
+**Outside the chain.** implement → review → document → ship never reaches this command. You run it when a suite has started to feel expensive.
 
 It rests on two things a diff-scoped review structurally cannot do: measure a duration, and see both
 halves of a redundant pair.
@@ -62,8 +61,8 @@ by the auditor's judgment instead.
 
 **A timing run is a full suite run, and costs exactly what that suite costs in wall clock.** Say so, then
 ask once with `AskUserQuestion` — proceed with the timing run, or skip straight to `unmeasured` —
-with proceeding as the default answer. This command carries no `--unattended` mode of its own, since
-`/superdev:afk` never drives it, so an operator is always there to answer. Once you proceed, give the
+with proceeding as the default answer. This command carries no `--unattended` mode of its own, so an operator
+is always there to answer. Once you proceed, give the
 run room to finish: pass the longest timeout your Bash tool allows, or launch it in the background and
 wait for it, rather than accepting whatever default a shorter run would get. A suite this repo calls
 expensive is exactly the one a short timeout kills.

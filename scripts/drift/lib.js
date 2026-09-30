@@ -32,17 +32,16 @@ function maskFences(text) {
 
 // maskedSentences(): a document's sentences, fenced examples masked out first and wrapped lines joined
 // into one line, so a mention split across a hard wrap is still read as one sentence. Shared by every
-// scanner that reasons sentence-by-sentence over prose (scanAfkNoShipStep, scanShipNoOpensPr) instead of
+// scanner that reasons sentence-by-sentence over prose (scanShipNoOpensPr) instead of
 // each re-doing the same mask/join/split.
 function maskedSentences(text) {
   return maskFences(text).replace(/\n/g, ' ').split(/(?<=[.!?])\s+/);
 }
 
 // extractSection(): the text from a heading match (inclusive) up to (but excluding) the next heading of
-// level ≤3, or to EOF if there is none. Shared by scanAnchorContract's element check and
-// scanAfkSelectionNeutrality below, both of which isolate one section before scanning its body. Both the
-// heading and the terminator are found in the masked text and sliced out of the original, so a fenced
-// example neither starts a section nor ends one.
+// level ≤3, or to EOF if there is none. Shared by the scanners that isolate one section before scanning
+// its body. Both the heading and the terminator are found in the masked text and sliced out of the
+// original, so a fenced example neither starts a section nor ends one.
 function extractSection(text, headingPattern) {
   const masked = maskFences(text);
   const start = masked.search(headingPattern);
@@ -55,22 +54,6 @@ function extractSection(text, headingPattern) {
   const searchFrom = firstLineEnd === -1 ? rest.length : firstLineEnd + 1;
   const nextHeading = rest.slice(searchFrom).search(/^#{1,3}\s/m);
   const end = nextHeading === -1 ? text.length : start + searchFrom + nextHeading;
-  return text.slice(start, end);
-}
-
-// extractParagraph(): the text from a pattern match (inclusive) up to the next blank line, or to EOF if
-// there is none — narrower than extractSection()'s heading-to-heading span. Used where a contract is
-// pinned to one paragraph inside a section rather than the section itself: the surrounding section may
-// legitimately restate the same concept elsewhere, and a section-wide (or whole-document) match would then
-// be satisfied by that restatement even after the paragraph itself went stale. Fences are masked first,
-// exactly as extractSection() masks them, so a blank line inside a fenced example never ends the paragraph
-// early.
-function extractParagraph(text, startPattern) {
-  const masked = maskFences(text);
-  const start = masked.search(startPattern);
-  if (start === -1) return null;
-  const blank = masked.slice(start).search(/\n[ \t]*\n/);
-  const end = blank === -1 ? text.length : start + blank;
   return text.slice(start, end);
 }
 
@@ -193,7 +176,6 @@ module.exports = {
   maskFences,
   maskedSentences,
   extractSection,
-  extractParagraph,
   scalar,
   frontmatter,
   stripFrontmatter,

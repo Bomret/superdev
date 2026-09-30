@@ -77,9 +77,9 @@ const ASSIGNEE_SECTION_EXPECTATION =
   'carry its own `## Assignee` section — the store side of the generic contract, which states how this ' +
   'backend applies the configured assignee';
 
-// Every slice-store document must state how to identify a feature's scope anchor (ADR 0017). `/superdev:afk`
-// selects work by anchor and reads that contract rather than encoding any one store's shape, so a document
-// without it leaves the sweep with no way to recognise a candidate in that backend. Unlike the assignee
+// Every slice-store document must state how to identify a feature's scope anchor (ADR 0017).
+// `/superdev:plan` and `/superdev:backlog` read that contract rather than encoding any one store's shape,
+// so a document without it leaves them with no way to recognise an anchor in that backend. Unlike the assignee
 // contract, `issue-tracker-local.md` is **not** exempt: every store has an anchor, and the local one's is
 // its `00-epic-*.md` filename. The contract is a section `/superdev:setup` carries across, so a passing
 // prose mention of "the anchor" does not satisfy it.
@@ -102,8 +102,8 @@ const ANCHOR_ELEMENTS = [
   [/^[-*] \*\*[^*]*candidate/im, 'how to list the candidates'],
   [/^[-*] \*\*[^*]*\b(?:beneath|under)\b/im, 'how to list the slices beneath an anchor'],
   [/^[-*] \*\*[^*]*\b(?:itself|also)\b a slice/im, 'how to tell an anchor that is itself a slice'],
-  // The fifth element (ADR 0040): how to read an anchor's own dependencies, the relation `/superdev:afk`
-  // defers a dependent anchor on and `/superdev:plan` records. The lead-in anchoring matters more here
+  // The fifth element (ADR 0040): how to read an anchor's own dependencies, the relation `/superdev:backlog`
+  // groups a dependent anchor on as `waiting` and `/superdev:plan` records. The lead-in anchoring matters more here
   // than for the other four: two store documents discuss a native dependencies *unit* in this section's
   // intro prose, which says nothing about how to read the relation in that backend.
   [/^[-*] \*\*[^*]*dependenc/im, "how to read an anchor's dependencies"],
@@ -134,7 +134,7 @@ const APPEND_ELEMENTS = [
 ];
 
 // Every slice-store document must state how its backend expresses a **release** — the human agreement
-// that a written plan may be built (`plan-contract.md` → *Release*) — and all three consumers must name
+// that a written plan may be built (`plan-contract.md` → *Release*) — and every consumer must name
 // that section. The failure this catches is silent in both directions: a store document without the
 // section leaves `/superdev:implement` with no signal to read, so it either builds an unreleased backlog
 // or stops on everything; a consumer that drops the reference builds whatever it is handed, which is the
@@ -149,15 +149,15 @@ const RELEASE_PATTERN = /^#{2,3}\s+Release\s*$/m;
 const RELEASE_CONSUMERS = [
   path.join('skills', 'plan', 'SKILL.md'),
   path.join('skills', 'implement', 'SKILL.md'),
-  path.join('skills', 'afk', 'SKILL.md'),
+  path.join('skills', 'backlog', 'SKILL.md'),
 ];
 
 const RELEASE_CONSUMER_PATTERN = /`## Release`/;
 
 // ADR 0083 + INV-0005: a release decision covers the work that existed when it was made, so on an append
 // the answer applies in both directions — declining removes the signal from the scope anchor, releasing
-// applies it. `/superdev:afk` selects on that signal, so a signal left standing over slices added
-// afterwards is what sends an unattended sweep at work nobody released. Two halves, each silent on its
+// applies it. `/superdev:implement` reads that signal, so a signal left standing over slices added
+// afterwards is what sends a run at work nobody released. Two halves, each silent on its
 // own: a store document carrying **Apply** and **Read** and no **Remove** leaves `/superdev:plan` with
 // no call to make, and a §6 that still reads "apply nothing" makes the call nobody wrote anyway.
 // `issue-tracker-local.md` is exempt from the bullet and carries the opposite statement instead — its
@@ -190,47 +190,6 @@ const LOCAL_APPEND_DOC = path.join('references', 'issue-tracker-local.md');
 const LOCAL_CONTINUATION_ELEMENT = [
   /^[-*] \*\*[^*]*continu[^*]*number[^*]*\*\*/im,
   'the local-only numbering-continuation clause',
-];
-
-// `/superdev:afk`'s selection step reads the store's `## Scope anchor` contract and must name no backend's
-// own mechanism (ADR 0017), or it is right on one store and wrong on the rest — the failure the
-// **Backends are pluggable** working rule exists to prevent, and one that shows up as a sweep finding
-// nothing rather than as an error. The scan is scoped to the selection section, because the rest of the
-// command may legitimately discuss an epic as a domain concept; what it may not do is *test* for one.
-const AFK_SELECTION_HEADING = /^## 2\..*$/m;
-
-// ponytail: shape-based, and its ceiling is the mechanism vocabulary below. A store mechanism named in
-// words no row carries ("the umbrella ticket", "the parent story") reads as neutral prose to this check.
-// The `## Scope anchor` presence half covers the other failure — a selection step that states nothing at
-// all — so what remains uncovered is a paraphrase, which is a reviewer's catch.
-const STORE_MECHANISMS = [
-  // One epic row, not two. `\bepic\b` covers the local store's `00-epic-` filename as well as the
-  // `epic` label, so a separate `/00-epic/` row would report the same sentence twice. It is
-  // case-insensitive and unbackticked because the selection step is meant to name no epic at all —
-  // backticks are typography, and "the epic issue" in plain prose is the same mechanism.
-  [/\bepic\b/i, 'an epic — the `epic` label, or the local store\'s `00-epic-` filename'],
-  // Any change type, not `feat` alone: a feature label leads with the type of its own work
-  // (`references/scope-mode.md`), so pinning one type would let the selection step name `fix/` unnoticed.
-  // Excluded structurally, not by an allowlist of literal path segments: a further `/`-delimited segment
-  // right after the type — `docs/agents/x`, `docs/adr/x`, `docs/plans/<type>/` — means this is a path
-  // being cited, not a feature label, so it passes. `feat/self-improvements` and `docs/plans-refactor`
-  // have no such further segment, so both are caught as a change-type label prefix. A two-literal
-  // allowlist (`agents/`, `plans\b`) caught the first but not the second — `plans\b` matches
-  // `docs/plans-refactor` before its hyphen — and flagged an unrelated doc citation
-  // (`docs/adr/0021-….md`) as a false positive.
-  // Two measured properties of this structural exclusion are authoring traps. First, a bare path
-  // citation with no trailing slash (`docs/plans`, `docs/agents`) has no further segment either, so it is
-  // flagged as a prefix the same as a real label — this is why a selftest fixture below cites
-  // `ls docs/plans/`, never a bare `docs/plans`. Second, the rule exempts `feat/<slug>/` and
-  // `docs/plans/fix/<slug>/` too: a selection step naming the local store's path-rendered label is
-  // structurally exempt from this row the same as a doc citation, and caught, if at all, only because
-  // such prose usually also trips the `\bepic\b` row above.
-  [
-    /\b(feat|fix|refactor|docs|perf|test|build|ci|chore|style|revert)\/(?![^\s/]*\/)/m,
-    'a change-type label prefix',
-  ],
-  [/sub-issue|sub_issue/, "GitHub's sub-issue relation"],
-  [/Epic Link|fields\.parent/, "Jira's parent field"],
 ];
 
 // The documentation seed must offer a writing standard (ADR 0012). A seed that loses the section makes
@@ -337,9 +296,8 @@ const CHANGE_TYPE_CONTRACTS = [
 // `/superdev:implement` takes the feature label that names which planned feature to build, and derives
 // the run's scope from it. Two documents carry that contract between them: implement.md declares the
 // argument and resolves it, and plan.md hands off with the label resolved. A document that drops its half
-// leaves a caller with no way to name its target — and `/superdev:afk`, which has no conversation to
-// infer one from, then builds nothing. Neither half fails anything else, which is why this is asserted
-// rather than trusted.
+// leaves a caller with no way to name its target. Neither half fails anything else, which is why this is
+// asserted rather than trusted.
 //
 // What is asserted is the contract, never the label's shape (ADR 0019). The shape belongs to the active
 // `docs/agents/issue-tracker.md`: a `<type>/<slug>` label on the issue-tracker seeds, a
@@ -362,10 +320,10 @@ const FEATURE_ARG_CONTRACTS = [
   ],
 ];
 
-// The unattended token is what lets `/superdev:afk` drive the chain with nobody watching (ADR 0016).
+// The unattended token is what lets whoever invokes a chain command run it with nobody watching (ADR 0016).
 // `scope-mode.md` defines it once, including the catch-all that makes an unwritten stop block rather than
 // ask; every document carrying a stop names it. A document that drops the token asks a question no one is
-// there to answer, so the sweep stalls until morning having done nothing — a failure that costs a whole
+// there to answer, so the run stalls until morning having done nothing — a failure that costs a whole
 // night and that no other check would notice, because every file involved stays perfectly valid prose.
 const UNATTENDED_CONTRACTS = [
   [
@@ -743,26 +701,12 @@ const LABEL_VALIDATION_CONTRACTS = [
     /\*\*Validate both segments\.\*\*/,
     'carry the **Validate both segments.** rule — the leading segment against the change-type set, not the slug alone',
   ],
-  ...[path.join('skills', 'implement', 'SKILL.md'), path.join('skills', 'afk', 'SKILL.md')].map((rel) => [
-    rel,
+  [
+    path.join('skills', 'implement', 'SKILL.md'),
     /both segments/,
     'point at `references/scope-mode.md`\'s both-segments validation before building a path or a branch out of a label',
-  ]),
+  ],
 ];
-
-// `/superdev:afk` drives the chain by invoking the four real commands (ADR 0015), and every one of those
-// invocations carries the unattended token. An invocation that loses it asks a question at three in the
-// morning: the sweep stops there and does nothing until someone wakes up, having reported no failure —
-// the most expensive silence in the plugin. §3's stage table carries **five** invocation rows (two of
-// them `/superdev:review`, one per command otherwise), so this checks every **table row** on its own
-// rather than one whole-file regex per command name: a whole-file regex is satisfied the moment any one
-// row (or even a passing prose mention on the same line, e.g. §3's `documented-unreviewed` footnote)
-// carries the token, which lets a sibling row lose it unnoticed. Only a `|`-prefixed table row counts —
-// §5's maintainer-resume mention (`/superdev:submit-pr <slug>`, no token) is prose, not an invocation, and
-// stays green.
-const AFK_NAMES = new Set(['implement', 'review', 'document', 'submit-pr']);
-
-const AFK_ROW_PATTERN = /^\|.*\/superdev:([a-z][a-z-]*)/;
 
 // green-gate re-runs the scope suite synchronously inside a PostToolUse hook, and a suite slower than
 // the hook's timeout is killed mid-run — the gate then silently doesn't fire, exactly the failure it
@@ -831,7 +775,6 @@ const VERB_CONTRACTS = [
   [path.join('skills', 'review', 'SKILL.md'), /scope\.js["'`]?\s+deferred add\b/, 'record a deferred finding with `scope.js deferred add`'],
   [path.join('skills', 'submit-pr', 'SKILL.md'), /scope\.js["'`]?\s+get deferred\b/, 'read the deferred-finding record with `scope.js get deferred`, never through cwd-dependent `status`'],
   [path.join('skills', 'status', 'SKILL.md'), /scope\.js["'`]?\s+status\b/, 'produce the report with `scope.js status` and print it verbatim'],
-  [path.join('skills', 'afk', 'SKILL.md'), /scope\.js["'`]?\s+get stage\b/, 'read a run\'s stage with `scope.js get stage`'],
   [path.join('references', 'implement-full.md'), /scope\.js["'`]?\s+slice\b/, 'move slice rows with `scope.js slice`'],
   [path.join('references', 'implement-lite.md'), /scope\.js["'`]?\s+slice\b/, 'move slice rows with `scope.js slice`'],
   [path.join('references', 'scope-mode.md'), /scope\.js["'`]?\s+degraded add\b/, 'write the degrade entry with `scope.js degraded add`'],
@@ -910,15 +853,14 @@ const PLANNED_HANDOFF_CONTRACTS = [
   [path.join('skills', 'plan', 'SKILL.md'), /adapted to a plan-time call passing[\s\S]{0,60}scope\.js init <type>\/\<scope\> planned/, "pass `planned` as `init`'s entry stage in the resume step (§6) where no `/superdev:plan` interval exists to enter through"],
 ];
 
-// The four documents ADR 0080 flags as still building a run-root scopetree path against the invoking
+// The documents ADR 0080 flags as still building a run-root scopetree path against the invoking
 // checkout's own cwd, rather than resolving it through `scope.js root <slug>`: unlike the artifact paths
 // `RUN_ROOT_ARTIFACT_PATTERN` guards, a `scopetree` *directory* path is deliberately outside that
 // alternation everywhere else, because most of its occurrences are real `git worktree add`-style commands
-// run from the invoking checkout on purpose. These four instead address another run's scopetree from
+// run from the invoking checkout on purpose. These instead address another run's scopetree from
 // their own cwd, which may not be that checkout, so a reverted cwd-relative literal here is the same bug
 // class with no legitimate reading.
 const SCOPETREE_RUN_ROOT_DOCS = [
-  path.join('skills', 'afk', 'SKILL.md'),
   path.join('skills', 'ship', 'SKILL.md'),
   path.join('skills', 'document', 'SKILL.md'),
   path.join('scripts', 'publish-kb.js'),
@@ -1360,20 +1302,18 @@ const TRIAGE_RECORD_EXPECTATION =
 // consumer, which is the outcome ADR 0046 exists to prevent one step earlier. `/superdev:backlog` is the
 // first reader, and reaches every backend through this clause rather than encoding one store's query.
 // The pattern is anchored on a bullet's bolded lead-in and needs both the listing verb and its object
-// inside that lead-in: `references/issue-tracker-local.md` already carries a bullet whose bold ends on
-// "candidate listing" while stating the opposite — that a record is invisible to `/superdev:afk` — so a
-// bare `list` anchor would read that document's exclusion rule as its listing contract.
+// inside that lead-in, so an exclusion bullet's bold never reads as the listing contract.
 // A second element, beside the listing one above: `plan-contract.md`'s own generic `## Triage record`
 // section already promises the outcome ("No candidate listing and no slice loader ever selects it"), but
 // nothing held a store's own section to restating it — a fifth backend seed could carry a create call and
 // a list call, omit the exclusion clause entirely, and this scanner passed it clean (issue #357). The
-// pattern requires the section to echo that same vocabulary, "candidate listing", which every seed already
-// does in its own exclusion bullet ("No feature label and no `ready` label. Those two are what
-// `/superdev:afk`'s candidate listing … select on", or the local seed's "invisible to `/superdev:afk`'s
-// candidate listing"), so no seed document needs editing — only the checker gains teeth.
+// pattern requires the section to echo the vocabulary of `/superdev:implement`'s slice loading, which every
+// seed does in its own exclusion bullet ("No feature label and no `ready` label. Those two are what
+// `/superdev:implement`'s slice loading selects on", or the local seed's "invisible to
+// `/superdev:implement`'s slice loading").
 const TRIAGE_RECORD_ELEMENTS = [
   [/^[-*] \*\*[^*]*\blist\w*\b[^*]*\b(?:record\w*|them)\b/im, "how to list this backend's triage records"],
-  [/candidate listing/i, "how this backend keeps the record out of its own candidate listing"],
+  [/slice loading/i, "how this backend keeps the record out of `/superdev:implement`'s slice loading"],
 ];
 
 // The Untriaged item survey slice (feat/backlog-untriaged, issue #400). An **untriaged item** is an open
@@ -1406,10 +1346,8 @@ const UNTRIAGED_ELEMENTS = [
 // own — a survey that has quietly started writing looks identical in its own output, one that has learned
 // a backend's own query works perfectly on this repo and is blind on every other, and one that derives a
 // stage from git instead of the ledger disagrees with `/superdev:status` about the same scope with nothing
-// going red. It deliberately shares no eligibility reference with `/superdev:afk` (ADR 0049), so nothing
-// here pins the two rule sets to each other: the coupling that matters is to the store document, which
-// the rows naming `## Scope anchor` and `## Triage record` below are — a further row was added for the
-// untriaged-item bucket.
+// going red. The coupling that matters is to the store document, which the rows naming `## Scope anchor` and
+// `## Triage record` below are — a further row was added for the untriaged-item bucket.
 const BACKLOG_SURVEY_CONTRACTS = [
   [
     path.join('skills', 'backlog', 'SKILL.md'),
@@ -1897,45 +1835,6 @@ const TEST_SELECTION_CONTRACTS = [
   ],
 ];
 
-// ADR 0091: every scope passes `/superdev:review` now, whatever its slice types — the special-cased
-// `mechanical`/`docs` route that once sent such a scope from `merged` straight to `/superdev:document`,
-// and from `documented-unreviewed` straight to `/superdev:ship`, is gone (it superseded ADR 0025's skip
-// of the whole-scope review). The row below pins that afk's stage table carries no such special case any
-// more — a re-added one strands nothing today, but re-opens exactly the drift a fix cycle already found
-// once, so its absence is asserted rather than trusted. `skills/submit-pr/SKILL.md` dropped its own half of
-// the retired agreement — the all-`mechanical`/`docs` exemption from its own missing-step warning — so
-// this table no longer carries a submit-pr row; `/superdev:submit-pr` §3 now names `/superdev:review` as missing
-// for such a scope like any other.
-const AFK_ROUTING_CONTRACTS = [
-  [
-    path.join('skills', 'afk', 'SKILL.md'),
-    /[Ee]very scope passes review[\s\S]{0,120}routes every scope through\s+`?\/superdev:review`?[\s\S]{0,160}no special case for an all-`?mechanical`?\/`?docs`?\s+ledger/i,
-    'route every scope through `/superdev:review`, with no special case for an all-`mechanical`/`docs` ' +
-      'ledger (ADR 0091)',
-  ],
-  [
-    path.join('skills', 'afk', 'SKILL.md'),
-    /second one for the same anchor, in the same sweep,\s*\n?\s*blocks it instead, through §4's ordinary block path[\s\S]{0,300}consecutive-block count/i,
-    'block a second document-to-review send-back of the same anchor in the same sweep, through the ' +
-      'ordinary unattended block path, counting it toward the consecutive-block cap (triage #661)',
-  ],
-  // INV-0016: a `reviewed` stage read at the top of the routing table can already carry a standing
-  // `**Unresolved:**` entry an earlier pass wrote — not just one this sweep's own `/superdev:document`
-  // call just produced (the row above). Routing it to `/superdev:document` again risks nothing on its
-  // own, since document's own standing-entry check holds the stage, but wastes a doc pass with nothing
-  // new to reconcile instead of going straight to the review the criterion needs.
-  [
-    path.join('skills', 'afk', 'SKILL.md'),
-    /`reviewed`, with a standing `\*\*Unresolved:\*\*` entry \| `\/superdev:review <BASE>\.\.<feature-label> --unattended`/,
-    'route a `reviewed` stage carrying a standing `**Unresolved:**` entry to `/superdev:review`, not `/superdev:document`',
-  ],
-  [
-    path.join('skills', 'afk', 'SKILL.md'),
-    /Both the table's own reviewed-with-a-standing-entry route above[\s\S]{0,200}counts as this anchor's first send-back in the sweep/,
-    "count the table's own reviewed-with-a-standing-entry route as this anchor's first send-back in the sweep, same as the after-document re-check's route",
-  ],
-];
-
 // Three hooks parse the same shell-word shape out of a Bash command line: `merge-guard` and `green-gate`
 // to see past git's global options (`-C <path>`, `-c k=v`) to the verb, and `ledger-guard` to read a
 // write target. The token is one regex source string, duplicated by hand in each file, and a quoted or
@@ -1958,7 +1857,7 @@ const ARG_TOKEN_CONTRACTS = [
   [path.join('hooks', 'ledger-guard.js'), ARG_TOKEN_PATTERN, ARG_TOKEN_EXPECTATION],
 ];
 
-// `## Audit set` is a three-document agreement, the same shape as AFK_ROUTING_CONTRACTS and
+// `## Audit set` is a three-document agreement, the same shape as
 // ARG_TOKEN_CONTRACTS above: `/superdev:setup` writes the section, `/superdev:document` reads it back
 // with a stated fallback for when it's absent, and `references/documentation.md` seeds it as the
 // section `/setup` fills in. Nothing links the three documents, so a renamed heading or a dropped
@@ -2599,13 +2498,6 @@ const RUN_KIND_CONTRACTS = [
 // used to win the conflict: run in the invoking checkout it exits 128 and leaves the scopetree
 // sitting on `MERGE_HEAD`, which `hooks/green-gate.js`'s `mergeInProgress()` then reads as a deferral,
 // gating nothing on the next merge in that tree.
-//
-// The last row sits on `skills/afk/SKILL.md`'s eligibility bullet: a live run's no-lock case falls back to the
-// ledger mtime, with no claim that a full run never gets a lock. A fix cycle found the bullet still
-// asserting a run lock "only ever exists for a `lite`-tier scope" and citing `references/scope-mode.md`'s
-// `## The run lock` section for that claim, which by then stated the opposite — both tiers write the
-// lock. The fallback stayed conservative either way, so this drift cost no eligibility it should not have,
-// but it told an unattended controller to distrust the strong signal it now has.
 const SCOPETREE_CONTRACTS = [
   [
     path.join('references', 'scope-mode.md'),
@@ -2707,37 +2599,6 @@ const SCOPETREE_CONTRACTS = [
     path.join('references', 'merge-conflicts.md'),
     /git\s+-C\s+<run-root>\/scopetree\s+merge\s+--abort`?\s+and\s+escalate\s+to\s+the\s+human/,
     'abort a winner-picking conflict in the scopetree with `git -C`, not the invoking checkout',
-  ],
-  [
-    path.join('skills', 'afk', 'SKILL.md'),
-    /\*\*No\s+lock\s+present\s+is\s+not\s+by\s+itself\s+eligibility\*\*/,
-    'fall back to the ledger mtime on no lock present, without first claiming a full run never gets a lock',
-  ],
-];
-
-// The absence half of the `skills/afk/SKILL.md` row above (`scanAfkLockTierClaim` in `scanners.js` runs it).
-// One document, because one document's eligibility bullet reads the lock: a sibling command carrying the
-// same sentence is describing something else.
-const AFK_LOCK_TIER_SILENCE_DOCS = [path.join('skills', 'afk', 'SKILL.md')];
-
-// Three spellings of the one claim, matched on the parts that carry it — `lock`, `only`/`only ever`, and
-// `lite`-the-tier — rather than on a sentence shape, since the claim regrows in whatever words the edit
-// reintroducing it reaches for. `lite` takes optional backticks and either a hyphen or a space before
-// `tier`, the three ways this repo's prose writes it.
-// ponytail: a marker list, matching the claim rather than parsing the bullet; a stricter grammar is the
-// upgrade if a paraphrase ever slips past it.
-const AFK_LOCK_TIER_MARKERS = [
-  [
-    /\b(?:run[- ]?)?lock\b[^.]{0,120}?\bonly(?:\s+ever)?\b[^.]{0,120}?`?lite`?[- ]tier/i,
-    (hit) =>
-      'claim no tier-specific run lock — both tiers write one (ADR 0045), and the eligibility bullet ' +
-      `falls back to the ledger mtime on no lock present: "${normalizeWhitespace(hit[0])}"`,
-  ],
-  [
-    /\bonly\b[^.]{0,120}?`?lite`?[- ]tier[^.]{0,120}?\b(?:run[- ]?)?lock\b/i,
-    (hit) =>
-      'claim no tier-specific run lock — both tiers write one (ADR 0045), and the eligibility bullet ' +
-      `falls back to the ledger mtime on no lock present: "${normalizeWhitespace(hit[0])}"`,
   ],
 ];
 
@@ -3017,35 +2878,6 @@ const PLAYBOOK_EDGE_CONTRACTS = PLAYBOOK_EDGE_DOCS.flatMap((rel) => [
   [rel, RUN_INIT_PATTERN, 'name `references/run-init.md` as its opening step'],
   [rel, RUN_HANDOFF_PATTERN, 'name `references/run-handoff.md` as its closing step'],
 ]);
-
-// `skills/afk/SKILL.md`'s paragraph introducing `## Scope anchor` restates how many things that section
-// states for this backend. ADR 0040 added the anchor dependency as a fifth element to that section
-// everywhere else (`plan-contract.md`, every store document, `scripts/AGENTS.md`'s `anchor-contract`
-// write-up), but nothing pinned this one paragraph, so it kept reading "four" and naming only the
-// original four — the one-sided-pin shape root `AGENTS.md`'s prompt-architecture rules name. The two
-// rows are independent: a maintainer could fix the count without naming the fifth thing, or name it
-// without updating the count.
-//
-// Scoped to the paragraph itself, not the whole `## 2.` section or the whole document: `skills/afk/SKILL.md`
-// legitimately discusses the anchor dependency again later in that section (the eligibility bullet reads
-// it), so a section-wide or document-wide match would pass even after this one paragraph reverted to
-// "four" — exactly the shape `anchor-contract` already guards against with the narrower
-// `extractSection()` isolation. `AFK_ANCHOR_COUNT_HEADING` locates the paragraph itself (a phrase common
-// to every wording, "four" or "five" alike); `scanAfkAnchorCount()` then isolates it with
-// `extractParagraph()` and tests both elements inside that isolation alone.
-const AFK_ANCHOR_COUNT_HEADING = /`## Scope anchor` section stating/;
-
-const AFK_ANCHOR_COUNT_ELEMENTS = [
-  [
-    /stating five things for this backend/,
-    'say the `## Scope anchor` section states five things for this backend, not four — ADR 0040 added ' +
-      "reading an anchor's own dependencies as the fifth",
-  ],
-  [
-    /read an anchor's own dependencies/,
-    "name reading an anchor's own dependencies among the things that section states, the fifth ADR 0040 added",
-  ],
-];
 
 // ADR 0042: publishing the run-state snapshot follows any ledger write the snapshot would show, stated
 // once in `references/scope-mode.md`'s `## Publishing run state` section rather than at each call site
@@ -4048,7 +3880,7 @@ const ACCEPTED_VERDICT_CONTRACTS = [
   // ADR 0095's prohibition half: recognising `accepted:` is not enough on its own — the shipped prose
   // also has to say who is forbidden to write a fresh one, on both the verifying agent and the
   // controller prose that dispatches it (root AGENTS.md's "a contract in an agent body also holds in
-  // the dispatch prose" rule), plus the store-agnostic reference every unattended surface (afk, run
+  // the dispatch prose" rule), plus the store-agnostic reference every unattended surface (run
   // handoff) defers to.
   [
     path.join('agents', 'final-reviewer.md'),
@@ -4062,8 +3894,8 @@ const ACCEPTED_VERDICT_CONTRACTS = [
   ],
   [
     path.join('references', 'dod-ticks.md'),
-    /`accepted` is written only by an attended operator, never by a report[\s\S]{0,400}`afk` and every\s+subagent never write it/,
-    'state that `accepted` is written only by an attended operator, never by a report, and that afk and every subagent never write it — the rule every unattended run and run handoff defers to',
+    /`accepted` is written only by an attended operator, never by a report[\s\S]{0,400}No unattended run and\s+no subagent writes it/,
+    'state that `accepted` is written only by an attended operator, never by a report, and that no unattended run and no subagent writes it — the rule every unattended run and run handoff defers to',
   ],
   // ADR 0095's amendment: the decision point is named — review's own "Ask once before fixing" question
   // is where a fresh `accepted:` note gets offered and written, and `--unattended` never reaches it.
@@ -4075,8 +3907,7 @@ const ACCEPTED_VERDICT_CONTRACTS = [
 ];
 
 // INV-0016: run handoff names `/superdev:review` as the next command for every scope, whatever its
-// slice types. This is the same "always review" fact `AFK_ROUTING_CONTRACTS` pins for afk's own stage
-// table, asserted here on the document that actually prints the handoff — a `references/run-handoff.md`
+// slice types, asserted here on the document that prints the handoff — a `references/run-handoff.md`
 // that quietly re-grows a `/superdev:document`-instead-of-review branch (ADR 0025's retired shape) would
 // leave the invariant's own name stated nowhere true.
 const ALWAYS_REVIEW_CONTRACTS = [
@@ -4989,9 +4820,8 @@ const REVIEW_SUBMITTED_CONTRACTS = [
 ];
 
 // #687: a run root at stage `submitted` needs its own two rows — awaiting the operator's merge, or
-// recording one the operator already made by hand on the host — since afk's own routing table skips
-// `submitted` entirely (only a human moves it further), so the generic `in flight` act lookup resolves
-// to nothing for it.
+// recording one the operator already made by hand on the host — since only a human moves it further, so the
+// generic `in flight` act lookup resolves to nothing for it.
 const BACKLOG_SUBMITTED_CONTRACTS = [
   [
     path.join('skills', 'backlog', 'SKILL.md'),
@@ -5110,8 +4940,6 @@ module.exports = {
   RELEASE_BOTH_DIRECTIONS_EXPECTATION,
   LOCAL_APPEND_DOC,
   LOCAL_CONTINUATION_ELEMENT,
-  AFK_SELECTION_HEADING,
-  STORE_MECHANISMS,
   WRITING_STANDARD_DOCS,
   WRITING_STANDARD_PATTERN,
   ADR_DIR,
@@ -5145,8 +4973,6 @@ module.exports = {
   TEST_COST_LENS_HEADING,
   TEST_COST_LENS_ENTRIES,
   LABEL_VALIDATION_CONTRACTS,
-  AFK_NAMES,
-  AFK_ROW_PATTERN,
   GREEN_GATE_TIMEOUT_CONTRACTS,
   VERB_CONTRACTS,
   KB_STAGING_CONTRACTS,
@@ -5168,7 +4994,6 @@ module.exports = {
   HOOK_HEADER_REGEX,
   TEST_SELECTION_CONTRACTS,
   TIER_SKIP_CONTRACTS,
-  AFK_ROUTING_CONTRACTS,
   ARG_TOKEN_LINE,
   ARG_TOKEN_CONTRACTS,
   AUDIT_SET_CONTRACTS,
@@ -5187,8 +5012,6 @@ module.exports = {
   PARKED_QUESTIONS_CONTRACTS,
   RUN_KIND_CONTRACTS,
   SCOPETREE_CONTRACTS,
-  AFK_LOCK_TIER_SILENCE_DOCS,
-  AFK_LOCK_TIER_MARKERS,
   FORCING_FLAG_DOCS,
   FORCING_FLAG_PATTERNS,
   NARRATIVE_DOC,
@@ -5205,8 +5028,6 @@ module.exports = {
   RETURN_TO_CONTROLLER_DOCS,
   RETURN_TO_CONTROLLER_PATTERNS,
   PLAYBOOK_EDGE_CONTRACTS,
-  AFK_ANCHOR_COUNT_HEADING,
-  AFK_ANCHOR_COUNT_ELEMENTS,
   PUBLISH_RUN_STATE_CONTRACTS,
   ADOPT_RUN_STATE_CONTRACTS,
   RESUMED_SCOPETREE_TRIGGER_CONTRACTS,

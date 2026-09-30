@@ -33,7 +33,6 @@ plan runs test-first, inline in the scopetree.
 /superdev:document     → reconcile in-repo docs + knowledge base with the code
 /superdev:submit-pr    → push the scope branch, open the PR, and leave the run standing
 /superdev:ship         → merge the PR once reviewed, deploy per the repo's posture, close the anchor, and clean up
-/superdev:afk          → sweep the planned backlog through the whole chain unattended
 /superdev:publish-kb   → send a scope's staged knowledge-base pages to the configured backend
 /superdev:prose-check  → check one file, range, or pasted text against the controlled-prose standard
 /superdev:review-tests → read-only audit of what the test suite costs, ranked and handed to plan
@@ -111,10 +110,9 @@ plan runs test-first, inline in the scopetree.
   **untriaged item** — an open record you filed and no `/superdev:plan` interview has yet reached — by the
   action it needs — blocked, stranded, in flight, waiting on another feature, needing a plan, unreleased,
   untriaged, or ready to build — and ends with one recommended next move. Untriaged items are capped at 5,
-  oldest first, so a store with real reporters doesn't drown the rest of the table. It shows the four
-  things `/superdev:afk` passes over by design: an unreleased plan, an anchor nobody decomposed, a triage
-  record a review deferred, and an untriaged item. Its rules are looser than that command's, because it
-  reports rather than acts
+  oldest first, so a store with real reporters doesn't drown the rest of the table. It shows an
+  unreleased plan, an anchor nobody decomposed, a triage record a review deferred, and an untriaged item.
+  It resolves an ambiguity toward showing the row, because it reports rather than acts
   ([ADR 0049](docs/adr/0049-an-advisory-survey-judges-the-backlog-more-loosely-than-an-actor.md)). It sits
   outside the implement chain, and writes nothing.
 - **`/superdev:review`**. Two modes. Given an ad-hoc diff, branch, path, or the working tree, it needs no
@@ -166,18 +164,6 @@ plan runs test-first, inline in the scopetree.
   Called empty on a **brownfield repo with no `AGENTS.md` hierarchy**, it **bootstraps** one instead. It
   seeds a root `AGENTS.md`, child files where they are warranted, and a proposed `CONTEXT.md` glossary,
   all from the existing code. It confirms them with you before anything commits.
-- **`/superdev:afk`**. Sweeps the planned backlog with nobody watching. A **scope anchor** is a feature's
-  root, whether that root is a multi-slice epic or a single-slice plan's own lone slice. It takes each
-  **eligible scope anchor** through the whole chain, oldest first except where a plan says otherwise: an
-  anchor recording an **anchor dependency** on another feature is **deferred** until that feature's anchor
-  is closed or its scope has shipped, and the report names what it waits on. Eligibility needs an open,
-  unblocked anchor with no live run on its scope, among other conditions `skills/afk/SKILL.md` §2 states in
-  full. It invokes `/superdev:implement`, `/superdev:review`, `/superdev:document`, and
-  `/superdev:submit-pr`, each carrying `--unattended`. That token is an argument to one invocation, not
-  scope state. A stop with a **standing answer** takes it, and a stop with none **blocks** that anchor and
-  moves to the next. The sweep stops when no eligible anchor is left, when two anchors block in a row,
-  or when `/superdev:submit-pr` fails to reach the code host. It never asks a question and never starts
-  an interview command. It never runs `/superdev:ship`: only a human merges a pull request.
 - **`/superdev:setup`**. Records the backends in `docs/agents/*.md`, so the workflow never hardcodes a
   tool. For a knowledge base it also captures the **audiences** and the **language**, and proposes a
   human-first outline. It asks which **writing standard** the doc agents write to. When it finds no
@@ -188,7 +174,7 @@ plan runs test-first, inline in the scopetree.
   sending them. A page sent from unmerged or unreleased work claims a feature no reader can reach
   ([ADR 0023](docs/adr/0023-the-knowledge-base-publish-is-its-own-command.md)). You decide when to run
   it: it warns once when the base branch does not already hold the scope branch's work, but a merge is
-  not a release, so it never blocks on that check. `/superdev:afk` never drives it. Every backend command
+  not a release, so it never blocks on that check. Every backend command
   runs under a 30-second bound, and a command that exhausts it **stops the run** — a host that stops
   answering one call stops answering the next, so the remaining pages are reported untried and stay
   staged for a later run
@@ -199,15 +185,14 @@ plan runs test-first, inline in the scopetree.
   different guide or none at all
   ([ADR 0057](docs/adr/0057-prose-check-applies-controlled-prose-unconditionally.md)). The default is a
   read-only report. A trailing `-- fix` rewrites the file in place, or prints the rewrite for pasted
-  text. `/superdev:afk` never drives it.
+  text.
 - **`/superdev:review-tests`**. Audits what the test suite costs. It sweeps the whole test tree in one
   pass, runs the repo's optional **timing command** to measure it, and reports redundant coverage,
   overweight fixtures, tautological tests, dead tests, and expensive tests, ranked by measured duration
   — or labelled `unmeasured` and ranked by judgment where no timing command is configured
   ([ADR 0066](docs/adr/0066-a-measured-test-audit-is-its-own-surface.md)). Every finding is a judgment
   you can reject before it survives. Its only writes are the intent for `/superdev:plan` and the
-  one-line `.gitignore` entry that keeps its scratch directory ignored when absent. `/superdev:afk`
-  never drives it.
+  one-line `.gitignore` entry that keeps its scratch directory ignored when absent.
 - **`/superdev:sweep`**. Chains `/superdev:review`, `/superdev:document audit`, `/superdev:review-tests`,
   and `/superdev:setup check` over a whole repository (or the path you give it) into one merged, ranked
   report, each finding attributed to the leg that found it. Every leg runs read-only, in a **chained
@@ -215,7 +200,7 @@ plan runs test-first, inline in the scopetree.
   ([ADR 0068](docs/adr/0068-a-repository-sweep-chains-the-read-only-surfaces.md)). A checkable fact — a
   grounded doc claim, a config drift verdict, a dead or ignored test — reaches the intent directly; every
   other finding is a judgment you confirm or reject in one `AskUserQuestion` round. Its only write is the
-  intent for `/superdev:plan`. `/superdev:afk` never drives it.
+  intent for `/superdev:plan`.
 
 ## After the PR
 
@@ -231,6 +216,11 @@ time-based loop, so hand review comments and CI on it to `/loop`:
 Once the pull request is reviewed, `/superdev:ship` merges it, deploys the merge under the repository's
 deploy posture (`none`/`manual`/`auto`, `docs/agents/deployment.md`, ADR 0101), closes the scope anchor,
 and cleans up the run. Only a human runs it.
+
+Any chain command (`/superdev:implement`, `/superdev:review`, `/superdev:document`, `/superdev:submit-pr`)
+takes `--unattended`. At a stop, the run takes the stop's standing answer, or blocks the scope anchor
+instead of asking. Whoever invokes the command passes the token, and superdev ships no driver.
+`/superdev:ship` has no unattended mode.
 
 To cap a long `/superdev:implement` run, wrap the call in `/goal`. Give it the Definition of Done as the
 stop condition and an explicit turn ceiling (for example, "stop after N tries").

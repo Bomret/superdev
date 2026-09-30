@@ -9,7 +9,6 @@ const { scanContract } = require('../lib');
 const {
   scanDocStepsNoSuite,
   scanDenialCapNumberSilence,
-  scanAfkLockTierClaim,
   scanRunLockLivenessSilence,
   scanUnmappedPathsForms,
 } = require('../scanners');
@@ -35,7 +34,6 @@ const {
   SPAWN_FAILURE_ANSWER_CONTRACTS,
   FIX_BOUNDARY_CONTRACTS,
   TIER_SKIP_CONTRACTS,
-  AFK_ROUTING_CONTRACTS,
   ARG_TOKEN_CONTRACTS,
   ARG_TOKEN_LINE,
   SOURCE_SECTION_CONTRACTS,
@@ -891,12 +889,6 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'directory: this is where its fix commits must land.\n',
   };
 
-  // afk's eligibility bullet: the no-lock case falls back to the ledger mtime, and claims nothing about
-  // which tier gets a lock — both do (ADR 0045).
-  const afkLockPiece =
-    'Check `.superdev/scopes/<scope>/run.lock`: newer than an hour means another session owns that ' +
-    'scope. **No lock present is not by itself eligibility**: fall back to the ledger mtime.\n';
-
   const everyScopetreeSite = {
     'references/scope-mode.md': joinAll(scwScopeModePieces),
     'references/implement-full.md': joinAll(implementFullPieces),
@@ -905,7 +897,6 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'references/run-handoff.md': joinAll(runHandoffScopetreePieces),
     'references/merge-conflicts.md': mergeConflictsPiece,
     'skills/review/SKILL.md': joinAll(reviewScopetreePieces),
-    'skills/afk/SKILL.md': afkLockPiece,
   };
 
   // A row can only be exercised by a fixture that names its document: `scanContract()` skips a document
@@ -948,50 +939,6 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     );
     assert.equal(gaps[0].source, path.join('references', 'implement-full.md'), 'names implement-full.md');
   }
-
-  // positive: dropping afk.md's no-lock fallback fires exactly one gap naming that file — the shape
-  // every other row in this table has, and the one the missing fixture key withheld from this row
-  const droppedAfkLock = fixture({ ...everyScopetreeSite, 'skills/afk/SKILL.md': '' });
-  const afkLockGaps = scanContract(droppedAfkLock, SCOPETREE_CONTRACTS);
-  assert.equal(afkLockGaps.length, 1, 'scopetree: flags afk.md for dropping the no-lock fallback');
-  assert.equal(afkLockGaps[0].source, path.join('skills', 'afk', 'SKILL.md'), 'names afk.md');
-
-  // --- scanAfkLockTierClaim: the row above is a presence check, and its expectation describes an
-  // absence — the stale "a run lock only ever exists for a `lite`-tier scope" claim can regrow as a
-  // sentence preceding the surviving fallback rule while the row still matches. A presence row cannot
-  // assert that, so the absence scanner does. ---
-
-  // negative: the fallback rule alone, with no tier claim, reports nothing
-  assert.equal(
-    scanAfkLockTierClaim(fixture({ 'skills/afk/SKILL.md': afkLockPiece })).length,
-    0,
-    'afk-lock-tier: the fallback rule with no tier claim reports nothing',
-  );
-
-  // positive: the stale claim is reported wherever in the bullet it sits, including ahead of the rule
-  for (const claim of [
-    'A run lock only ever exists for a `lite`-tier scope, so its absence says nothing on a full run.\n',
-    'The lock is written only for a `lite` tier scope.\n',
-    'A run.lock exists only for a lite-tier scope.\n',
-  ]) {
-    for (const text of [claim + afkLockPiece, afkLockPiece + claim]) {
-      const gaps = scanAfkLockTierClaim(fixture({ 'skills/afk/SKILL.md': text }));
-      assert.equal(gaps.length, 1, `afk-lock-tier: reports the stale claim "${claim.trim()}"`);
-      assert.equal(gaps[0].source, path.join('skills', 'afk', 'SKILL.md'), 'names afk.md');
-      assert.match(gaps[0].expectation, /both tiers/, 'names what is true instead');
-    }
-  }
-
-  // positive: a sibling command file carrying the same sentence is unaffected — this scanner is scoped
-  // to the one document whose eligibility bullet reads the lock
-  assert.equal(
-    scanAfkLockTierClaim(fixture({
-      'skills/review/SKILL.md': 'A run lock only ever exists for a `lite`-tier scope.\n',
-      'skills/afk/SKILL.md': afkLockPiece,
-    })).length,
-    0,
-    'afk-lock-tier: a sibling command file is unaffected',
-  );
 
   // positive: dropping the implement-lite.md run-lock pointer fires exactly one gap naming that file —
   // the sentence it exists to catch is a reintroduced restatement of who writes the lock and when
@@ -1453,13 +1400,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   assert.equal(lvGaps1.length, 1, 'flags a rule that stopped validating the leading segment');
   assert.equal(lvGaps1[0].source, path.join('references', 'scope-mode.md'), 'names scope-mode.md');
 
-  // positive from a consumer's side: a command that stopped pointing at the rule validates nothing
-  const lv2 = fixture({ 'skills/afk/SKILL.md': '# superdev afk\n\nSelect the next scope anchor.\n' });
-  const lvGaps2 = scanContract(lv2, LABEL_VALIDATION_CONTRACTS);
-  assert.equal(lvGaps2.length, 1, 'flags a consumer that dropped its wire to the rule');
-  assert.equal(lvGaps2[0].source, path.join('skills', 'afk', 'SKILL.md'), 'names afk.md');
-
-  // positive from the other consumer's side: implement.md dropping its wire is the same drift
+  // positive from a consumer's side: implement.md dropping its wire validates nothing
   const lvImplement = fixture({
     'skills/implement/SKILL.md': '# superdev implement\n\nDerive the scope from the resolved feature label.\n',
   });
@@ -1469,15 +1410,15 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   // positive, the weaker revert: a consumer that reverted to the pre-change slug-only wording keeps its
   // wire to `scope-mode.md`'s scope-slug rule intact but never asserts both segments are validated — the
-  // exact text `skills/afk/SKILL.md` carried before this scope, which a whole-file revert would restore
+  // exact text `skills/implement/SKILL.md` carried before this scope, which a whole-file revert would restore
   const lv3 = fixture({
-    'skills/afk/SKILL.md':
+    'skills/implement/SKILL.md':
       "**Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s scope-slug rule before you go on.**\n\n" +
       "- Its feature label matches that scope-slug rule. A label that fails it is skipped (below),\n",
   });
   const lvGaps3 = scanContract(lv3, LABEL_VALIDATION_CONTRACTS);
   assert.equal(lvGaps3.length, 1, 'flags a consumer reverted to slug-only wording, wire intact');
-  assert.equal(lvGaps3[0].source, path.join('skills', 'afk', 'SKILL.md'), 'names afk.md');
+  assert.equal(lvGaps3[0].source, path.join('skills', 'implement', 'SKILL.md'), 'names implement.md');
 
   // absent files are skipped, matching every other contract table
   assert.equal(
@@ -1620,14 +1561,6 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     vcRunInitGaps.every((g) => g.source === path.join('references', 'run-init.md')),
     'names run-init.md'
   );
-
-  // positive: afk.md reads a scope's stage from the ledger directly
-  const vcAfk = fixture({
-    'skills/afk/SKILL.md': 'Read the ledger header to find the stage.\n',
-  });
-  const vcAfkGaps = scanContract(vcAfk, VERB_CONTRACTS);
-  assert.equal(vcAfkGaps.length, 1, 'flags afk.md for reading the stage without `scope.js get stage`');
-  assert.equal(vcAfkGaps[0].source, path.join('skills', 'afk', 'SKILL.md'), 'names afk.md');
 
   // positive: implement-full.md moves a slice row by hand-editing plan.md
   const vcImplementFull = fixture({
@@ -2749,111 +2682,6 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'the real final-reviewer.md carries neither a full-suite run nor the optionality clause',
   );
 
-  // --- AFK_ROUTING_CONTRACTS (ADR 0091): the retired `mechanical`/`docs` special case is gone — afk's
-  // stage table routes every scope through `/superdev:review`, with no re-added exception. ship carries
-  // no row here any more: it dropped its own half of the retired agreement, so this table has nothing
-  // left to pin on skills/ship/SKILL.md. ---
-
-  const afkSendBackBlockText =
-    'A second one for the same anchor, in the same sweep,\n' +
-    "blocks it instead, through §4's ordinary block path — the block comment names the unresolved " +
-    'criteria the ledger\'s consecutive-block count.\n';
-
-  // INV-0016: a `reviewed` stage read at the top of the routing table can already carry a standing
-  // `**Unresolved:**` entry an earlier pass wrote, not just one this sweep's own document call produced.
-  const afkStandingEntryRouteText =
-    '| `reviewed`, with a standing `**Unresolved:**` entry | `/superdev:review <BASE>..<feature-label> --unattended` |\n';
-
-  const afkStandingEntryCountText =
-    "Both the table's own reviewed-with-a-standing-entry route above and the after-`/superdev:document`\n" +
-    're-check\'s route below send this same anchor back to review over the same unresolved criterion, so ' +
-    "either\ncounts as this anchor's first send-back in the sweep.\n";
-
-  const afkAllRoutingText =
-    'Every scope passes review, whatever its slice types: the stage table above\n' +
-    'routes every scope through `/superdev:review`, with no special case for an all-`mechanical`/' +
-    '`docs` ledger.\n' +
-    afkStandingEntryRouteText +
-    afkStandingEntryCountText +
-    afkSendBackBlockText;
-
-  // positive: afk.md drops the always-review statement, the shape a re-added special case would leave
-  const afkGaps1 = scanContract(
-    fixture({
-      'skills/afk/SKILL.md':
-        '| `merged` | `/superdev:review <BASE>..<feature-label> --unattended` |\n' +
-        '| `documented-unreviewed` | `/superdev:review <BASE>..<feature-label> --unattended` |\n' +
-        afkStandingEntryRouteText +
-        afkStandingEntryCountText +
-        afkSendBackBlockText,
-    }),
-    AFK_ROUTING_CONTRACTS,
-  );
-  assert.equal(afkGaps1.length, 1, 'flags an afk.md whose stage table carries no always-review statement');
-  assert.equal(afkGaps1[0].source, path.join('skills', 'afk', 'SKILL.md'), 'names afk.md');
-
-  // negative: the always-review statement carried
-  assert.equal(
-    scanContract(fixture({ 'skills/afk/SKILL.md': afkAllRoutingText }), AFK_ROUTING_CONTRACTS).length,
-    0,
-    'an afk.md carrying the always-review statement yields no gap',
-  );
-
-  // positive: afk.md keeps the always-review statement but drops the second-send-back block rule
-  // (triage #661) — an unbounded document-to-review send-back loop
-  const afkGaps3 = scanContract(
-    fixture({
-      'skills/afk/SKILL.md':
-        'Every scope passes review, whatever its slice types: the stage table above\n' +
-        'routes every scope through `/superdev:review`, with no special case for an all-`mechanical`/' +
-        '`docs` ledger.\n' +
-        afkStandingEntryRouteText +
-        afkStandingEntryCountText,
-    }),
-    AFK_ROUTING_CONTRACTS,
-  );
-  assert.equal(afkGaps3.length, 1, 'flags an afk.md carrying no second-send-back block rule');
-  assert.equal(afkGaps3[0].source, path.join('skills', 'afk', 'SKILL.md'), 'names afk.md');
-
-  // positive: afk.md keeps every other routing statement but drops the standing-entry table row
-  // (INV-0016) — a `reviewed` stage carrying an earlier pass's standing entry routes to `/superdev:document`
-  // again instead of straight to `/superdev:review`
-  const afkGaps4 = scanContract(
-    fixture({
-      'skills/afk/SKILL.md':
-        'Every scope passes review, whatever its slice types: the stage table above\n' +
-        'routes every scope through `/superdev:review`, with no special case for an all-`mechanical`/' +
-        '`docs` ledger.\n' +
-        afkStandingEntryCountText +
-        afkSendBackBlockText,
-    }),
-    AFK_ROUTING_CONTRACTS,
-  );
-  assert.equal(afkGaps4.length, 1, 'flags an afk.md carrying no standing-entry table row');
-  assert.equal(afkGaps4[0].source, path.join('skills', 'afk', 'SKILL.md'), 'names afk.md');
-
-  // positive: afk.md carries the standing-entry table row but never counts it as a send-back
-  const afkGaps5 = scanContract(
-    fixture({
-      'skills/afk/SKILL.md':
-        'Every scope passes review, whatever its slice types: the stage table above\n' +
-        'routes every scope through `/superdev:review`, with no special case for an all-`mechanical`/' +
-        '`docs` ledger.\n' +
-        afkStandingEntryRouteText +
-        afkSendBackBlockText,
-    }),
-    AFK_ROUTING_CONTRACTS,
-  );
-  assert.equal(afkGaps5.length, 1, 'flags an afk.md that never counts the standing-entry route as a send-back');
-  assert.equal(afkGaps5[0].source, path.join('skills', 'afk', 'SKILL.md'), 'names afk.md');
-
-  // negative: every routing statement carried
-  assert.equal(
-    scanContract(fixture({ 'skills/afk/SKILL.md': afkAllRoutingText }), AFK_ROUTING_CONTRACTS).length,
-    0,
-    'an afk.md carrying every routing statement yields no gap',
-  );
-
   // --- ARG_TOKEN_CONTRACTS: merge-guard, green-gate, and ledger-guard each parse the same shell-word
   // shape out of a Bash command line, by hand. A copy that drifts reopens the quoted-argument bypass. ---
 
@@ -2895,10 +2723,9 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   // absent files are skipped, matching every other contract table
   assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), ARG_TOKEN_CONTRACTS).length +
-      scanContract(fixture({ 'README.md': '# repo\n' }), AFK_ROUTING_CONTRACTS).length,
+    scanContract(fixture({ 'README.md': '# repo\n' }), ARG_TOKEN_CONTRACTS).length,
     0,
-    'absent files are skipped by both new tables',
+    'absent files are skipped',
   );
 
   // --- SOURCE_SECTION_CONTRACTS: each canonical reference still carries the sections its readers are
@@ -4703,7 +4530,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'dispatch —\nimplement\'s slice dispatch, a review fix cycle, run handoff\'s own settling pass — ' +
     'ever reports\n`accepted`, and no controller writes it from a report the way it writes ' +
     '`met`/`not met`/`ceiling`: only\nan attended operator\'s own decision, mid-conversation with the ' +
-    'controller, does. `afk` and every\nsubagent never write it; an unattended run meeting an unmet ' +
+    'controller, does. No unattended run and\nno subagent writes it; an unattended run meeting an unmet ' +
     'criterion behaves exactly as it does today.\n';
 
   // The decision-point half (ADR 0095's amendment): review's §4 "Ask once before fixing" is the one

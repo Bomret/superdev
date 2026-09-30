@@ -93,8 +93,8 @@ is invalid.
 **`accepted` is written only by an attended operator, never by a report.** No mapping-gate dispatch —
 implement's slice dispatch, a review fix cycle, run handoff's own settling pass — ever reports
 `accepted`, and no controller writes it from a report the way it writes `met`/`not met`/`ceiling`: only
-an attended operator's own decision, mid-conversation with the controller, does. `afk` and every
-subagent never write it; an unattended run meeting an unmet criterion behaves exactly as it does today.
+an attended operator's own decision, mid-conversation with the controller, does. No unattended run and
+no subagent writes it; an unattended run meeting an unmet criterion behaves exactly as it does today.
 The stage gate (INV-0016) treats an `accepted:` line as settled — review does not raise it as a Critical
 finding and does not hold the stage on it, and run handoff, document's re-check, and ship's gate all read
 it the same way. Review still challenges the line's own facts: a `holds` verdict on an `accepted:` line

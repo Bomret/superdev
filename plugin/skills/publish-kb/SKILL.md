@@ -19,7 +19,7 @@ answer, and relays what the script reports.
 feature reaches a reader — a merge is not a deploy, and a deploy is not a release — so the operator runs
 this command at the moment they know it did.
 
-This command takes no `--unattended` flag, and `/superdev:afk` never drives it: deciding that a feature has
+This command takes no `--unattended` flag: deciding that a feature has
 reached its readers is the human judgment this command's design rests on, so the two stops in §2 below are
 unconditional, never a default an automation caller can skip.
 

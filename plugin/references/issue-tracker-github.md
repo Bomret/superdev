@@ -217,7 +217,7 @@ dispatch swaps to `in-progress`.
 
 - **Apply** (`/superdev:plan`, on a release):
   `POST /repos/<owner>/<repo>/issues/<number>/labels` with `{ "labels": ["released"] }`.
-- **Read** (`/superdev:implement`, `/superdev:afk`): the anchor's own `labels` array, which the listing
+- **Read** (`/superdev:implement`, `/superdev:backlog`): the anchor's own `labels` array, which the listing
   that found the anchor already returned — no extra call.
 - **Remove** (`/superdev:plan`, on an append the user declines):
   `DELETE /repos/<owner>/<repo>/issues/<number>/labels/released`. An anchor that does not carry the
@@ -260,8 +260,8 @@ On this store it is an ordinary issue carrying the **Triage label** from *Config
   it — so skip straight to the issue create above: labels are addressed by name here, and the name is
   already in hand. A record that lands label-less is invisible to the query that is the point of writing
   it.
-- **No feature label and no `ready` label.** Those two are what `/superdev:afk`'s candidate listing and
-  `/superdev:implement`'s slice loading select on, so a triage record carrying either would be picked up as
+- **No feature label and no `ready` label.** Those two are what
+  `/superdev:implement`'s slice loading selects on, so a triage record carrying either would be picked up as
   work to build. It is a record of unplanned work, not a slice.
 - **No pull-request URL.** Every trigger — a deferred finding or an observation — runs before
   `/superdev:submit-pr` opens one, so none exists yet and the body names none.

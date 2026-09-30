@@ -95,8 +95,8 @@ dispatches nothing — you carry the TDD discipline yourself. Narrate at most on
   release covers every slice beneath it. **Released** → continue silently. **Unreleased** → stop while
   nothing exists yet (no run root, no branch), name the feature and the signal it lacks, and ask the user
   whether to implement it anyway. A yes runs the feature unchanged, and leaves the signal unapplied:
-  releasing the plan in the tracker stays the human's own act. **`--unattended` → block** — `/superdev:afk`
-  passes over an unreleased feature, so this stop means one was named on the command line.
+  releasing the plan in the tracker stays the human's own act. **`--unattended` → block** — an
+  unattended run never confirms an unreleased feature.
 - **`--unattended` present** → read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended**
   section and follow it wherever this command or its playbook asks a question or starts an interview
   command (`/superdev:setup`, `/superdev:plan`). The "slice store or code host missing" and "no slices"

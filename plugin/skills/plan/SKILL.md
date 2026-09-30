@@ -442,7 +442,7 @@ reference is written. (A local-file store just writes the files.)
 established cannot be built until another one has landed gets that relation written on **this feature's
 scope anchor**, naming the other feature's anchor, through the mechanism
 `docs/agents/issue-tracker.md`'s `## Scope anchor` section states (`references/plan-contract.md` →
-*Scope anchor*, ADR 0040). It is what lets `/superdev:afk` reach the two in the right order. Ask nothing
+*Scope anchor*, ADR 0040). It is what lets `/superdev:backlog` group the second feature as `waiting` until the first has shipped. Ask nothing
 new for it: a feature that cannot be built yet surfaces as a constraint during §1 or it does not surface
 at all, and an interview that named no prerequisite writes no dependency. The honesty rule is the one
 slice-level `depends-on` already carries — record one only where the second feature genuinely cannot be
@@ -512,8 +512,8 @@ question: **release this feature for execution now, or leave the release to a hu
 **On an append the answer applies in both directions** (ADR 0083, INV-0005): a release decision covers
 the work that existed when it was made, and this feature's anchor may already carry the signal from an
 earlier run. **Later** there **removes the signal** from the scope anchor, through the `## Release`
-section's own **Remove** call, and says it is removed — leaving it standing would hand
-`/superdev:afk` slices nobody released. **Release now** applies it as it always does. On a first plan
+section's own **Remove** call, and says it is removed — leaving it standing would let
+`/superdev:implement` build slices nobody released without asking. **Release now** applies it as it always does. On a first plan
 there is nothing to remove, so declining applies nothing, exactly as the branch above reads.
 
 A store whose `## Release` section says its features are released when written has nothing to ask: say

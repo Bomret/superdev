@@ -238,7 +238,7 @@ Append mode holds these invariants, and every backend renders all of them:
   and the dependency is a property of the anchor, not of the slice — and is removed from the lone slice.
   The **deploy line** (*Scope anchor* below) migrates the same way, for the same reason — it too is
   anchor-only, and is removed from the lone slice. Nothing else about the slice changes. Leaving either
-  behind would strand it on a record `/superdev:afk` or `/superdev:ship` no longer reads as this
+  behind would strand it on a record `/superdev:backlog` or `/superdev:ship` no longer reads as this
   feature's anchor.
 - **Append refuses, and writes nothing, while a run is active.**
 - **A shipped feature takes no append.** Amending a shipped feature's Definition of Done in place pools
@@ -261,7 +261,7 @@ already unique and stable — append there names no continuation rule at all.
 
 A feature's **scope anchor** is its root. A multi-slice plan's root has slices beneath it; a single-slice
 plan's root is its own lone slice — one rule for both shapes (ADR 0017). A consumer that needs a feature's
-scope-level signal — `/superdev:afk` selecting its next feature, the status map above writing the anchor's
+scope-level signal — `/superdev:backlog` grouping an anchor, the status map above writing the anchor's
 own status — reads the active `docs/agents/issue-tracker.md`'s own `## Scope anchor` section rather than
 assuming any one store's shape. How to recognise an anchor, list the candidates, list the slices beneath
 one, tell that an anchor is itself a slice, and read an anchor's own dependencies are backend mechanism,
@@ -287,8 +287,8 @@ lone slice to an epic (*Append mode* above). Each store's `## Scope anchor` sect
 notation it uses instead. A dependency is **satisfied** when the anchor it names is closed, when that
 scope's ledger stage reads `shipped`, or when no such anchor exists; closing an anchor is best-effort at
 ship time, so closure alone would strand a dependent on a feature that has landed. `/superdev:plan` records
-one when its interview named a prerequisite feature, and `/superdev:afk` is the only reader: it defers an
-anchor whose dependency is unsatisfied.
+one when its interview named a prerequisite feature, and `/superdev:backlog` is the reader: it groups an
+anchor whose dependency is unsatisfied as `waiting`.
 
 An anchor may also carry a **deploy line**: `**Deploy:** <target>[, <target>]` — a comma-separated,
 ordered list of `docs/agents/deployment.md`'s `## Targets` names, in deploy order — or `**Deploy:**
@@ -320,8 +320,7 @@ section for the backend's signal and the calls that set and read it:
   later, and applies the signal on a release.
 - **`/superdev:implement`** builds a released feature. An unreleased one stops the run and asks the user
   to confirm it anyway, since the operator naming a label directly is a human judgment of the same kind.
-- **`/superdev:afk`** takes released features only. Nobody is watching, so an unreleased one is passed
-  over rather than asked about.
+- **`/superdev:backlog`** groups an anchor carrying no release signal as `unreleased`.
 
 A store whose `## Release` section states that its features are released when written — the local-file
 store's default, where there is no board to hold a backlog — has every feature released at creation, and

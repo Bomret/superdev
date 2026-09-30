@@ -95,7 +95,7 @@ standing tree `/superdev:sweep` asked this leg to read.
     2. **Otherwise `merge-base(base, HEAD)..HEAD` is non-empty** → review that, exactly as before.
     3. **Otherwise** → run `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Resolving an empty
        argument` cascade over the run roots at stage `merged` or `documented-unreviewed` — the same two
-       stages `skills/afk/SKILL.md` routes into this review, so the attended and unattended paths select
+       stages the chain hands to this review, so the attended and unattended paths select
        the same scopes. Its resolved candidate is a scope slug: take that scope's `**Branch:**` line
        (`## The scope branch`) as `<branch>`. **No such line, or the named branch does not verify** —
        take `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope branch` shape-scan fallback

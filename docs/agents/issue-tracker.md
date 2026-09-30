@@ -168,14 +168,14 @@ swaps that one to `in-progress`.
 
 - **Apply** (`/superdev:plan`, on a release): `POST /api/v1/repos/bomret/superdev/issues/<index>/labels`.
   Labels go by id, so resolve `released` through `GET /api/v1/repos/bomret/superdev/labels` first.
-- **Read** (`/superdev:implement`, `/superdev:afk`): the anchor's own `labels` array, already returned by
+- **Read** (`/superdev:implement`, `/superdev:backlog`): the anchor's own `labels` array, already returned by
   the issue listing that found it.
 - **Remove** (`/superdev:plan`, on an append the user declines):
   `DELETE /api/v1/repos/bomret/superdev/issues/<index>/labels/<released label id>`, resolving the id
   through the same `GET /api/v1/repos/bomret/superdev/labels` call **Apply** makes. An anchor that does
   not carry the label is already unreleased, so a `404` there is the wanted state, not a failure.
 - An anchor without the label is unreleased: `/superdev:implement` asks before building it, and
-  `/superdev:afk` passes over it.
+  `/superdev:backlog` groups it as `unreleased`.
 
 ## Triage record
 
@@ -206,8 +206,8 @@ Here it is an ordinary Codeberg issue carrying the label **`triage`** and nothin
   new id on the create above. **A create that reports the name as already taken means the label is
   there** — a page after the first read missed it — so re-read the list for its id and carry on. A
   label-less record is invisible to the query that is the point of writing it.
-- **No feature label and no `ready` label.** Those two are what `/superdev:afk`'s candidate listing and
-  `/superdev:implement`'s slice loading select on, so a record carrying either would be built as work.
+- **No feature label and no `ready` label.** Those two are what
+  `/superdev:implement`'s slice loading selects on, so a record carrying either would be built as work.
 - **No pull-request URL.** Every trigger — a deferred finding or an observation — runs before
   `/superdev:submit-pr` opens one, so none exists yet.
 

@@ -6,9 +6,8 @@ next.
 
 **Several sections below have a wider audience than these three.** `/superdev:implement` and both
 execution playbooks read `## Unattended`, `## Degraded passes`, `## The run lock`, and `## The scope
-checkout` (ADR 0045 — both tiers now cut and work in the scopetree); `/superdev:implement` and
-`/superdev:afk` read `## The scope slug`, which sends both to `## The change type`; `/superdev:afk` also
-relies on `## The run lock` and `## The scope checkout`; `## The ledger` is read by
+checkout` (ADR 0045 — both tiers now cut and work in the scopetree); `/superdev:implement`
+reads `## The scope slug`, which sends it to `## The change type`; `## The ledger` is read by
 `/superdev:implement`, `/superdev:status`, and `/superdev:submit-pr` besides `/superdev:review`; `##
 Resolving an empty argument` is read by all three of `/superdev:implement`, `/superdev:review`, and
 `/superdev:submit-pr` on their own empty-argument entrance. `/superdev:plan` reads `## Cutting the scope
@@ -405,7 +404,7 @@ stage (`merged` for review, `reviewed` or `documented-unreviewed` for document, 
 `documented-unreviewed` for submit-pr, `submitted` for ship) is fresh by construction every time,
 refreshed by the very write that just handed the scope off. A caller re-invoked on the *same* command mid-run is the hazard this check exists for;
 the next command in a chain that already finished is not, and testing them the same way would stop every
-ordinary hand-off in the chain, unattended `/superdev:afk` included. It does not cover a lock that goes
+ordinary hand-off in the chain, an unattended run included. It does not cover a lock that goes
 stale while its run is genuinely still in progress — a long attended run whose slow steps write no lock
 between them can outlive the hook's threshold without ever having stopped, a distinct, unclosed gap
 (triage #620) this check does not reach. Nor does it add any identity scheme to the lock's content: the
@@ -445,9 +444,9 @@ than an hour as dead. Each command in the chain refreshes the mtime at its own s
 
 ## Unattended
 
-`--unattended` in a command's arguments means nobody is watching this invocation. `/superdev:afk` passes
-it on every command it drives. It is an argument and never a run-root field, so it cannot outlive the run
-that passed it (ADR 0016): a sweep interrupted at any point leaves the next command a maintainer types
+`--unattended` in a command's arguments means nobody is watching this invocation. Whoever invokes a
+chain command passes it. It is an argument and never a run-root field, so it cannot outlive the run
+that passed it (ADR 0016): an unattended run interrupted at any point leaves the next command a maintainer types
 asking its questions exactly as it always did.
 
 **Take it out before parsing anything else.** The token is never part of the range, the area path, or the
@@ -460,7 +459,7 @@ any more than this one's. At each stop where it would otherwise do either:
 - **A standing answer is written at that stop** → take it. Each stop states its own, next to the question
   it replaces.
 - **No standing answer is written** → **block**, and stop. This catch-all keeps a question added later
-  from stalling a whole run: an unanswerable stop costs one scope anchor, not the night.
+  from stalling a whole run: an unanswerable stop costs one scope anchor, not the run.
 
 **Blocking** means: move the slice, where one is in play, and the scope anchor to `blocked` per the
 status map in `docs/agents/issue-tracker.md`; comment on the anchor naming the stop reached and why; then
@@ -498,7 +497,7 @@ occur, each with its own action:
   sees first.
 - **A pass that cannot complete its own work.** The step ran, and something it needed was unreachable — a
   knowledge-base pass the writer could not stage is the live case. **Record and continue, attended or
-  unattended alike**: the step already ran what it could, so blocking the night's sweep on a staging path
+  unattended alike**: the step already ran what it could, so blocking the run on a staging path
   protects nothing.
 
 **Recognising a denial.** It comes back as a permission refusal naming the classifier. A timeout, a
@@ -553,11 +552,10 @@ marker. Every recorded denial survives it: the bullets stay on the `**Degraded:*
 the reset and its reason (ADR 0044). The reason is required — without one the call refuses and writes
 nothing — because a marker nobody can account for is a cap that quietly resets itself. The reset alone
 returns the budget but nothing that reads it: the cap exists only unattended, so a maintainer resuming by
-hand runs attended and never reads the count, and `/superdev:afk` skips the anchor regardless, because
-blocking already wrote the `blocked` label the block procedure describes (`## Unattended`) onto the
-anchor and any blocked slice, and eligibility requires neither carry it. **Clear that label too** — off
-the scope anchor and off any slice it marked, per the status map in `docs/agents/issue-tracker.md` — which
-is what returns the scope to `/superdev:afk`'s own selection (`skills/afk/SKILL.md`). **A reset is a human
+hand runs attended and never reads the count. The
+`blocked` label the block procedure describes (`## Unattended`) stays on the anchor and any blocked slice
+until someone clears it. **Clear that label too** — off the scope anchor and off any slice it marked, per
+the status map in `docs/agents/issue-tracker.md` — so the tracker shows the scope live again. **A reset is a human
 act**, and no command in the chain performs one: the cause outlives a stage advance, so a run that reset
 its own budget would block again at the same place, one denial later.
 
@@ -565,9 +563,7 @@ its own budget would block again at the same place, one denial later.
 human. It performs every denied pass inline, however many arrive.
 
 **The count is per run, and lives in the ledger.** A run resumed by a second invocation — which a denial
-makes likely — counts the denials the earlier invocation recorded. Across a whole sweep the escalation is
-`/superdev:afk`'s own: a blocked feature increments its consecutive-block count, and two consecutive
-blocked features stop the night.
+makes likely — counts the denials the earlier invocation recorded.
 
 **Quote the refusal.** A denied-dispatch bullet carries the classifier's own refusal text, beside the
 paraphrase naming the pass. Those words are what separate a genuine safety block from one of the false

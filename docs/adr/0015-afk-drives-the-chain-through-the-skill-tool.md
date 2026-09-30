@@ -1,6 +1,8 @@
 # 0015: `/superdev:afk` drives the chain through the Skill tool
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0108](0108-afk-is-removed.md), which removes `/superdev:afk`.
 
 **Context.** The four-command chain is human-paste-driven (ADR 0013): each command prints the next one
 and stops, and no superdev command reads or invokes another. `/superdev:afk` sweeps eligible epics with

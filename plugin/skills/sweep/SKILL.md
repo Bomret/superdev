@@ -11,8 +11,7 @@ plan-ready intent (ADR 0068). Where `/superdev:review` resolves a range, a **swe
 whole tree, which is what lets it see a property of a pair — a redundant implementation, a fact stated
 twice — whose covering half no range is guaranteed to contain.
 
-**Outside the chain.** implement → review → document → ship never reaches this command, and
-`/superdev:afk` never drives it, the standing shape `/superdev:backlog`, `/superdev:prose-check`, and
+**Outside the chain.** implement → review → document → ship never reaches this command, the standing shape `/superdev:backlog`, `/superdev:prose-check`, and
 `/superdev:review-tests` already hold.
 
 **Read-only end to end.** Every leg it dispatches is itself read-only, and it dispatches each in the
@@ -114,7 +113,7 @@ that in the question text. Every unticked judgment joins the facts in §5's inte
 dropped. **Findings past that round's capacity** reach the intent labelled `unconfirmed`, exactly as
 `/superdev:review-tests`'s own agreement round already does — `/superdev:plan`'s own interview is the
 second gate, so an unasked finding is deferred rather than lost. This command carries no `--unattended`
-mode of its own, since `/superdev:afk` never drives it, so an operator is always there to answer.
+mode of its own, so an operator is always there to answer.
 
 ## 5. Hand off to plan
 

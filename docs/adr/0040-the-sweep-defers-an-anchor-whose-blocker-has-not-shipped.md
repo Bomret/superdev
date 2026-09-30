@@ -1,6 +1,8 @@
 # 0040: The sweep defers an anchor whose blocker has not shipped
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0108](0108-afk-is-removed.md), which removes the sweep and keeps the anchor dependency for `/superdev:backlog`.
 
 ## Context
 
