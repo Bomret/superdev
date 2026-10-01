@@ -1,3 +1,10 @@
+# [0.62.0](https://codeberg.org/bomret/superdev/compare/v0.61.0...v0.62.0) (2026-10-01)
+
+
+### Features
+
+* **remove-local-slice-store:** remove the local-file slice store ([cd13c9f](https://codeberg.org/bomret/superdev/commit/cd13c9fb033f5d04d2cc110538e87aeaccea70f2))
+
 # [0.61.0](https://codeberg.org/bomret/superdev/compare/v0.60.0...v0.61.0) (2026-10-01)
 
 

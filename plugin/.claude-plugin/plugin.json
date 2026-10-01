@@ -1,7 +1,7 @@
 {
   "name": "superdev",
   "description": "Zero-prereq plan→implement loop: interview-driven vertical slicing, parallel slicetree execution with isolated implementer/reviewer subagents, deterministic guardrails, and a pluggable slice store + code host.",
-  "version": "0.61.0",
+  "version": "0.62.0",
   "author": {
     "name": "Stefan Reichel",
     "email": "dev@bomret.com"
