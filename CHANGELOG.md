@@ -1,3 +1,11 @@
+# [0.61.0](https://codeberg.org/bomret/superdev/compare/v0.60.0...v0.61.0) (2026-10-01)
+
+
+### Features
+
+* **forgejo-tea:** Forgejo backends reach the host through tea only ([9d99dab](https://codeberg.org/bomret/superdev/commit/9d99dab30bddc6cf5f1aa97dd530d8e415190362))
+* **verify-and-wrap-up:** verify-ship and wrap-up close a shipped scope ([abb810b](https://codeberg.org/bomret/superdev/commit/abb810bb0f32aff2d845706015d3e4f66a4f6d83))
+
 # [0.60.0](https://codeberg.org/bomret/superdev/compare/v0.59.0...v0.60.0) (2026-10-01)
 
 
