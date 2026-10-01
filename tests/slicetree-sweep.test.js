@@ -1,5 +1,9 @@
 'use strict';
 
+// Fixture repositories commit regardless of the maintainer's global git config: a global
+// `commit.gpgsign` whose signer is unavailable would fail every fixture commit with status 128 (#780).
+require('./fixture-git');
+
 // Suite for plugin/hooks/slicetree-sweep.js. Requires the hook (silent, ADR 0059 / issue #442's
 // require.main guard) and calls its exported internals directly, the way the hook's own inline
 // --selftest used to before this suite moved off the shipped tree (ADR 0059).

@@ -1,5 +1,9 @@
 'use strict';
 
+// Fixture repositories commit regardless of the maintainer's global git config: a global
+// `commit.gpgsign` whose signer is unavailable would fail every fixture commit with status 128 (#780).
+require('./fixture-git');
+
 // Suite for plugin/scripts/scope.js. Requires the module (silent — scope.js already guards its CLI
 // entry with require.main === module, per ADR 0059) and calls its exported internals directly, the
 // way the script's own inline --selftest used to before this suite moved off the shipped tree

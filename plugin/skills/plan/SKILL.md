@@ -297,7 +297,9 @@ One capture is **superdev-specific**:
   checkout" rule above the same way an untracked file always does. One `.md`
   file per page, named `<title-slug>.md` (the page `title`'s slug) so a re-run overwrites the same file
   instead of creating a rival: YAML frontmatter carrying the page `title` and an `action` of `upsert`,
-  the body below. `/superdev:publish-kb` sends no non-`.md` file; `/superdev:status` prints it as a stray
+  the body below. Where `docs/agents/knowledge-base.md` documents a staged page's `parent` key, a page
+  the outline places under another page also carries `parent: <that page's title>` (ADR 0109); a
+  configuration that documents no such key gets none. `/superdev:publish-kb` sends no non-`.md` file; `/superdev:status` prints it as a stray
 with a rename hint, so a misnamed page is visible rather than silently dropped.
   `/superdev:publish-kb` sends it when the feature reaches its readers. A **local** `docs/kb/` backend
   seeds as before — its pages are repository files that ride the branch.

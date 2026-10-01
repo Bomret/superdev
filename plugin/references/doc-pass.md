@@ -126,6 +126,11 @@ agent-relevant detail second:
   title yields one file for `upsert` and `delete` — the slugged filename is what makes a second write to
   that title overwrite it instead of creating a rival.
 
+  **Name the parent where the configuration documents it** (ADR 0109). When
+  `docs/agents/knowledge-base.md` documents a staged page's `parent` key, a page the outline places
+  under another page carries `parent: <that page's title>` in its frontmatter. A configuration that
+  documents no `parent` key gets none.
+
   **Read before an `upsert` replaces a page** (ADR 0094, INV-0091). Before staging an `upsert` for a
   non-aggregate page that already exists, read it:
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/publish-kb.js" --read <title>` prints

@@ -5,7 +5,8 @@
 Standalone deterministic code that `package.json` runs, alongside `plugin/hooks/`.
 The shipped CLIs live in `plugin/scripts/`: `scope.js` (the run-state CLI, ADR 0022), `kb-patch.js`
 (the knowledge-base section merge, ADR 0027), `publish-kb.js` (the backend-independent half of publishing a scope's staged
-knowledge-base pages, ADR 0069), and `profile.js` (the run profile, ADR 0103). The maintainer-only ones live here in `scripts/`: `drift-check.js`
+knowledge-base pages, ADR 0069), `profile.js` (the run profile, ADR 0103), and `md-to-storage.js` (the markdown to Confluence `storage` conversion
+`publish-kb.js` requires, ADR 0109). The maintainer-only ones live here in `scripts/`: `drift-check.js`
 (the cross-document contract checks) and `invariant-check.js` (the invariant register validator,
 ADR 0093). This doc owns them all regardless of which dir each lives in.
 
@@ -243,6 +244,17 @@ whole page (ADR 0027, Consequences).
 files naming the identical section heading before either one applies, rather than growing a second
 copy of the key logic.
 
+### md-to-storage.js, the Confluence storage conversion (ADR 0109)
+
+`md-to-storage.js` exports `toStorage(markdown)`, and has no CLI and no dependency. It is line-based, not
+CommonMark. It covers ATX headings, paragraphs, hard breaks, nested lists, GFM tables, fenced code, block
+quotes, rules, links, autolinks, images, and inline formatting, where emphasis wraps a whole link. A link or image
+destination is `http:`, `https:`, `mailto:`, or scheme-less, and any other scheme renders the link text
+alone. It escapes raw HTML and self-closes void
+elements, so its output is well-formed XML for any input. Setext headings, indented code, reference links
+and HTML blocks render as plain paragraphs. `tests/md-to-storage.test.js` checks each construct and runs a
+tag-balance check on every output.
+
 ### publish-kb.js, the backend-independent knowledge-base publish (ADR 0069)
 
 `publish-kb.js` is the fourth shipped CLI. `skills/publish-kb/SKILL.md` invokes it and relays its
@@ -293,6 +305,16 @@ merges the staged section into it through `kb-patch.js`'s exported `merge()`, an
 the merged result. A `read` call that returns no body for a title `find` did list counts as a read
 failure, never as an empty live page. It therefore never wipes an aggregate page's other sections (ADR
 0027, 0069).
+
+**A `storage` body format converts the whole page before `create` and `update`** (ADR 0109).
+`processFile` hands the upsert's temp body file `md-to-storage.js`'s `toStorage()` output when
+`templates.bodyFormat` is `storage`. Every other body format receives the staged body byte-identical
+(INV-0109). A staged page's optional `parent:` names the title of the page it is created under.
+`resolveParent` looks that title up through `find` on the create path only, and passes the id as
+`SUPERDEV_KB_PARENT_ID`. An `absent` or `unknown` parent leaves the page staged, with the parent named in
+the reason. A `create` template that never mentions `SUPERDEV_KB_PARENT_ID` leaves a parented page staged
+with a reason naming the fix, and resolves and creates nothing. `parentsFirst` orders the title groups by their depth in the batch's own parent chain, so a
+parent staged in the same batch is created before its children.
 
 Two or more staged files sharing one title are the aggregate-page case, since a `patch` filename is
 `<title-slug>--<section-slug>.md` and an outline entry's sections arrive as sibling files.

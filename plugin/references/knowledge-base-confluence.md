@@ -23,11 +23,12 @@ marker the doc pass stages an `upsert`, which replaces the page wholesale and dr
 by a scope it cannot see (ADR 0027). `/superdev:setup` asks which outline pages aggregate; a page no
 scope but its own contributes to carries no marker.
 
-**A non-markdown backend marks nothing `aggregate`.** `scripts/kb-patch.js` merges by matching markdown
-ATX headings, and Confluence stores a page as `storage` — XHTML (`body.representation: storage` below),
-not markdown. `action: patch` sent as-is finds no heading to match and appends its markdown section,
-unrendered, to the end of the XHTML body on every publish. Mark no outline entry `aggregate` here until a
-markdown conversion is named, whatever `### read` template this seed carries below.
+**A non-markdown backend marks nothing `aggregate`.** Confluence stores a page as `storage` — XHTML
+(`body.representation: storage` below), not markdown. Staged pages stay markdown, and
+`scripts/publish-kb.js` converts a whole staged page to `storage` itself before `create` and `update`
+(`scripts/md-to-storage.js`, ADR 0109). `scripts/kb-patch.js` merges a section by matching markdown ATX
+headings in the live page, and a live XHTML page carries none, so a patch has nothing to merge into. Mark
+no outline entry `aggregate` here.
 
 ## Configuration (fill in at setup)
 
@@ -41,14 +42,18 @@ markdown conversion is named, whatever `### read` template this seed carries bel
 - **Auth**: API token in env var `<CONFLUENCE_API_TOKEN>`, user email in `<CONFLUENCE_EMAIL>`. Record
   the env-var NAMES only, never the secrets.
 - **What to publish**: `<feature specifications + ADR summaries>` — durable, reader-facing docs only, not every `AGENTS.md`.
-- **Parent page** (optional): `<page id or title under which superdev pages are created>`.
+- **Parent page** (optional): `<page id under which superdev pages are created>` — the `<parent-id>`
+  the `### create` template below falls back to for a page that names no parent of its own.
 
 ## Staging
 
 Confluence is a **remote** backend, so nothing but `/superdev:publish-kb` calls it (ADR 0023).
 `/superdev:plan` and `/superdev:document` write each page as a **staged page** under
 `.superdev/kb-pending/<scope>/` — YAML frontmatter carrying the page `title` and an `action` of `upsert`,
-`patch`, or `delete`, the page body below. A page reaches the space when a human runs `/superdev:publish-kb`,
+`patch`, or `delete`, the page body below. A page the outline places under another page also carries
+`parent: <that page's title>`. `scripts/publish-kb.js` resolves that title through `find`, publishes a
+parent staged in the same batch first, and leaves the page staged when the parent cannot be found
+(ADR 0109). A page reaches the space when a human runs `/superdev:publish-kb`,
 after the feature has reached the readers this space is written for.
 
 ## REST conventions (curl, Confluence Cloud v2)
@@ -73,7 +78,10 @@ What `/superdev:publish-kb` applies. Auth: `-u "$CONFLUENCE_EMAIL:$CONFLUENCE_AP
 
 The **backend command contract** (ADR 0069) `scripts/publish-kb.js` runs. `find`'s JSON keys reach
 `read`, `update`, and `delete` as `SUPERDEV_KB_ID`/`SUPERDEV_KB_VERSION`; `create`/`update` also receive
-`SUPERDEV_KB_BODY_FILE`, a path to the staged body. Fill in `<base>` and `<space-id>` at setup. `read`
+`SUPERDEV_KB_BODY_FILE`, a path to the staged body already converted to `storage` XHTML (the
+`Body format` bullet above), so the commands send it unchanged. `create` also receives
+`SUPERDEV_KB_PARENT_ID` when the staged page names a parent; a `create` template that never reads it leaves such a page staged. Fill in `<base>`, `<space-id>`, and `<parent-id>` at setup; an empty `<parent-id>` creates a page that
+names no parent at the space root. `read`
 prints the live page's storage-format body on stdout, nothing else — the text `/superdev:document`
 reconciles its prose against and hashes (ADR 0094), never JSON. Confluence stores a page as XHTML
 `storage`, not markdown, so no outline entry here may carry `(aggregate)` regardless (above). `find`
@@ -125,8 +133,10 @@ live-hash guard (ADR 0094) never refuses an upsert Confluence itself reformatted
 ### create
 
 ```sh
-body=$(jq -n --arg title "$SUPERDEV_KB_TITLE" --rawfile content "$SUPERDEV_KB_BODY_FILE" \
-  '{spaceId: "<space-id>", title: $title, body: {representation: "storage", value: $content}}')
+parent="${SUPERDEV_KB_PARENT_ID:-<parent-id>}"
+body=$(jq -n --arg title "$SUPERDEV_KB_TITLE" --arg parent "$parent" --rawfile content "$SUPERDEV_KB_BODY_FILE" \
+  '{spaceId: "<space-id>", title: $title, body: {representation: "storage", value: $content}}
+   + (if $parent == "" then {} else {parentId: $parent} end)')
 curl -sf -u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN" -H "Content-Type: application/json" \
   -X POST "<base>/api/v2/pages" -d "$body" >/dev/null
 ```

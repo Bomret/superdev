@@ -72,8 +72,12 @@ store and code host stay unqueried:
   prose) has nothing to check here, and reports consistent once confirmed present.
 - `documentation.md` — a `## Writing standard` naming a repo-relative path still resolves to a file,
   and each `## Audit set` glob still matches at least one file.
-- `knowledge-base.md` — a local `docs/kb/` path still exists. A software backend records no local fact
-  this check can reach, and reports consistent once confirmed present.
+- `knowledge-base.md` — a local `docs/kb/` path still exists. A configuration carrying
+  `- **Body format:** storage` whose `### create` template never reads `SUPERDEV_KB_PARENT_ID` is
+  drift: a staged page naming a parent lands where no parent was asked for. Name the Confluence seed's
+  `### create` template (`references/knowledge-base-confluence.md`) as its replacement. A software
+  backend records no other local fact this check can reach, and reports consistent once confirmed
+  present.
 
 Beyond the six config documents, check for a leftover `.claude/rules/` directory holding at least one
 `.md` file — superdev's retired rule-compliance home (ADR 0077). Report its path and how many `.md`
@@ -263,7 +267,7 @@ specifications, design overviews, ADR summaries)? Ask the user which of:
 
 - **Knowledge base software available** — e.g. **Confluence**. Seed:
   `references/knowledge-base-confluence.md`. Ask base URL, space key, what to publish, optional parent
-  page, and the **env-var names** for the API token + email (never the secrets); the seed's own
+  page id (it fills the seed's `<parent-id>`, empty when none), and the **env-var names** for the API token + email (never the secrets); the seed's own
   `- **Body format:** storage` bullet needs no question — Confluence's page body is always XHTML
   storage format. For a different wiki
   ("other"), capture the same **backend command contract** (below) that every remote backend declares —

@@ -43,14 +43,16 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          run handoff, execution playbooks, test-selection, scope-mode, authoring
                          disciplines, design sketch, diagnosis, prototype, merge-conflicts,
                          review-checklist, dod-ticks); its own AGENTS.md routes them
-  scripts/             — the runtime CLIs: `scope.js`, `kb-patch.js`, `publish-kb.js`, `profile.js`
+  scripts/             — the runtime CLIs: `scope.js`, `kb-patch.js`, `publish-kb.js`, `profile.js`, and the
+                         `md-to-storage.js` module `publish-kb.js` requires
   LICENSE · NOTICE     — copies of the root files, so the shipped tree carries its own attribution
 tests/                 — one suite per shipped executable (the hooks, `scope.js`, `kb-patch.js`,
-                         `publish-kb.js`, `profile.js`) and one for the maintainer-only
+                         `publish-kb.js`, `profile.js`, `md-to-storage.js`) and one for the maintainer-only
                          `invariant-check.js`, framework-free `node:assert`, run under
-                         `node` by `bun run test` (ADR 0059); `spawn-verdict.js` is the one shared
-                         helper, not itself a suite — `assertSpawnDecided` (INV-0009), asserted by
-                         `spawn-verdict.test.js` and called from every other suite's bounded-spawn sites
+                         `node` by `bun run test` (ADR 0059); `spawn-verdict.js` and `fixture-git.js`
+                         are the shared helpers, not suites — `assertSpawnDecided` (INV-0009), asserted by
+                         `spawn-verdict.test.js` and called from every other suite's bounded-spawn sites;
+                         `fixture-git.js` appends `commit.gpgsign=false` to the `GIT_CONFIG_*` environment
 docs/adr/              — architecture decision records (why the plugin is built this way)
 docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, documentation, KB, toolchain, verification, deployment)
 docs/known-issues.md   — Claude Code platform behaviour superdev works around, each entry with its
@@ -99,7 +101,9 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
   script. `bun run test` runs every `tests/` suite under `node`, which matches the production
   runtime, then `invariant-check.js` against this repository's own register, `drift-check`'s own
   `--selftest`, `drift-check` itself, and `claude plugin validate ./plugin` as a manifest-validation
-  gate.
+  gate. A suite that commits in a fixture repository sets `commit.gpgsign=false` for every git child
+  by requiring `tests/fixture-git.js` at its top (it appends to `GIT_CONFIG_COUNT`), so a maintainer's global signing setup never fails a fixture
+  commit.
 - **A duration assertion is legitimate only against a same-run baseline, or a qualitative ceiling.**
   A process that did not finish carries no verdict (INV-0009): never bracket a bounded `spawnSync`
   with `Date.now()` and assert an absolute elapsed ceiling, because wall clock includes every
@@ -276,7 +280,8 @@ This root owns every other subtree directly:
   `docs/agents/knowledge-base.md` by heading name, carries `action: upsert`, `action: delete`, and
   `action: patch` end to end — `patch` merging through `kb-patch.js`'s `merge()` — delegates the
   containment check to `scope.js`'s `testContainment`, runs every backend command under a time bound
-  whose exhaustion stops the batch (ADR 0076), and is the invocation
+  whose exhaustion stops the batch (ADR 0076), converts a `storage` backend's body through
+  `plugin/scripts/md-to-storage.js` and resolves a staged page's `parent:` (ADR 0109), and is the invocation
   `skills/publish-kb/SKILL.md` runs),
   `plugin/scripts/profile.js` (the run profile, ADR 0103: reads Claude Code's session and subagent
   transcripts, writes nothing to them, and is the invocation `skills/profile/SKILL.md` runs),

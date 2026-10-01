@@ -39,6 +39,7 @@ const crypto = require('crypto');
 const { execFileSync, spawnSync } = require('child_process');
 const { SLUG_RE, readLedgerHeader, testContainment } = require('./scope.js');
 const { maskFencedLines, merge, headingKeyOf } = require('./kb-patch.js');
+const { toStorage } = require('./md-to-storage.js');
 
 function fail(msg) {
   const err = new Error(msg);
@@ -226,6 +227,7 @@ function parseStagedPage(text) {
     action: data.action || null,
     liveHash: data['live-hash'] || null,
     createdByPublish: data['created-by-publish'] || null,
+    parent: data.parent || null,
     body,
   };
 }
@@ -388,16 +390,34 @@ function checkLiveHash(title, templates, found, recordedHash) {
   return { ok: true };
 }
 
-function publishUpsert(title, bodyFile, templates, recordedHash, hasCreateMarker, filePath) {
+// A staged `parent:` names the title of the page a new page is created under (ADR 0109). It is
+// resolved through the backend's own `find`, only on create — an update never moves a page. A
+// parent that is absent or unanswerable leaves the page staged rather than creating it elsewhere.
+function resolveParent(parentTitle, templates) {
+  if (!parentTitle) return { ok: true, env: {} };
+  // A create template from an earlier seed never reads the id, so the page would land elsewhere.
+  if (!templates.create.includes('SUPERDEV_KB_PARENT_ID')) {
+    return { ok: false, reason: `the create command never reads SUPERDEV_KB_PARENT_ID, so parent "${parentTitle}" would be ignored — update it from the seed (/superdev:setup check)` };
+  }
+  const found = runFind(parentTitle, templates);
+  if (found.verdict === 'absent') return { ok: false, reason: `parent page "${parentTitle}" not found` };
+  if (found.verdict === 'unknown') return { ok: false, reason: `parent page "${parentTitle}": ${found.reason}`, timedOut: found.timedOut };
+  if (found.fields.id === undefined) return { ok: false, reason: `parent page "${parentTitle}": find returned no id` };
+  return { ok: true, env: { SUPERDEV_KB_PARENT_ID: String(found.fields.id) } };
+}
+
+function publishUpsert(title, bodyFile, templates, recordedHash, hasCreateMarker, filePath, parentTitle) {
   const found = runFind(title, templates);
   if (found.verdict === 'unknown') return { ok: false, reason: found.reason, timedOut: found.timedOut };
   if (found.verdict === 'absent') {
     if (!templates.create) return { ok: false, reason: 'no create command configured' };
+    const parent = resolveParent(parentTitle, templates);
+    if (!parent.ok) return parent;
     if (!recordedHash) {
       const marker = markStagedCreate(filePath);
       if (!marker.ok) return { ok: false, reason: marker.reason };
     }
-    const res = runTemplate(templates.create, { SUPERDEV_KB_TITLE: title, SUPERDEV_KB_BODY_FILE: bodyFile });
+    const res = runTemplate(templates.create, { SUPERDEV_KB_TITLE: title, SUPERDEV_KB_BODY_FILE: bodyFile, ...parent.env });
     if (res.error) return { ok: false, ...spawnFailure('create', res) };
     if (res.status !== 0) return { ok: false, reason: `create exited ${res.status}` };
     return { ok: true, action: 'created' };
@@ -436,7 +456,7 @@ function publishDelete(title, templates) {
 // `create` from what this call can do, so a `find` that (wrongly) still answers "absent" for a
 // page this run just created can never trigger a second, section-wiping create. That guarantee
 // holds regardless of what `find` answers, rather than depending on `find` behaving consistently.
-function publishPatch(title, stagedRaw, templates, assumeExists) {
+function publishPatch(title, stagedRaw, templates, assumeExists, parentTitle) {
   if (templates.bodyFormat && templates.bodyFormat !== 'markdown') {
     return {
       ok: false,
@@ -477,7 +497,9 @@ function publishPatch(title, stagedRaw, templates, assumeExists) {
   try {
     if (isAbsent) {
       if (!templates.create) return { ok: false, reason: 'no create command configured' };
-      const res = runTemplate(templates.create, { SUPERDEV_KB_TITLE: title, SUPERDEV_KB_BODY_FILE: bodyFile });
+      const parent = resolveParent(parentTitle, templates);
+      if (!parent.ok) return parent;
+      const res = runTemplate(templates.create, { SUPERDEV_KB_TITLE: title, SUPERDEV_KB_BODY_FILE: bodyFile, ...parent.env });
       if (res.error) return { ok: false, ...spawnFailure('create', res) };
       if (res.status !== 0) return { ok: false, reason: `create exited ${res.status}` };
       return { ok: true, action: 'created' };
@@ -547,7 +569,7 @@ function processFile(entry, templates) {
     return { filename, kind: 'malformed', reason };
   }
   if (parsed.action === 'patch') {
-    const result = publishPatch(parsed.title, raw, templates, false);
+    const result = publishPatch(parsed.title, raw, templates, false, parsed.parent);
     if (!result.ok) return { filename, title: parsed.title, kind: 'left-staged', reason: result.reason, timedOut: result.timedOut };
     return clearStagedFile(filePath, filename, parsed.title, result.action);
   }
@@ -556,10 +578,11 @@ function processFile(entry, templates) {
     if (!result.ok) return { filename, title: parsed.title, kind: 'left-staged', reason: result.reason, timedOut: result.timedOut };
     return clearStagedFile(filePath, filename, parsed.title, result.action === 'already-absent' ? 'already-absent' : 'deleted');
   }
-  // upsert
-  const bodyFile = writeTempBody(parsed.body);
+  // upsert — a storage backend receives the body converted to XHTML, every other backend the
+  // staged body byte-identical (ADR 0109, INV-0109)
+  const bodyFile = writeTempBody(templates.bodyFormat === 'storage' ? toStorage(parsed.body) : parsed.body);
   try {
-    const result = publishUpsert(parsed.title, bodyFile, templates, parsed.liveHash, !!parsed.createdByPublish, filePath);
+    const result = publishUpsert(parsed.title, bodyFile, templates, parsed.liveHash, !!parsed.createdByPublish, filePath, parsed.parent);
     if (!result.ok) return { filename, title: parsed.title, kind: 'left-staged', reason: result.reason, timedOut: result.timedOut };
     return clearStagedFile(filePath, filename, parsed.title, result.action);
   } finally {
@@ -636,7 +659,7 @@ function processTitleGroup(title, group, templates) {
       });
       continue;
     }
-    const result = publishPatch(title, e.raw, templates, assumeExists);
+    const result = publishPatch(title, e.raw, templates, assumeExists, e.parsed.parent);
     if (!result.ok) {
       results.push({ filename: e.filename, title, kind: 'left-staged', reason: result.reason, timedOut: result.timedOut });
       if (result.timedOut) {
@@ -656,6 +679,23 @@ function processTitleGroup(title, group, templates) {
     results.push(clearStagedFile(e.filePath, e.filename, title, result.action));
   }
   return results;
+}
+
+// Orders title groups so a parent staged in this batch is published before the pages naming it
+// (ADR 0109). A stable sort by depth in the batch's own parent chain; a cycle stops counting where
+// it closes, so it neither loops nor drops a page.
+function parentsFirst(groupEntries) {
+  const parentOf = new Map(groupEntries.map(([title, group]) => [title, group.map((e) => e.parsed.parent).find(Boolean)]));
+  const depth = (title) => {
+    const seen = new Set();
+    let d = 0;
+    for (let t = parentOf.get(title); t && parentOf.has(t) && !seen.has(t); t = parentOf.get(t)) {
+      seen.add(t);
+      d++;
+    }
+    return d;
+  };
+  return groupEntries.map((g) => [depth(g[0]), g]).sort((a, b) => a[0] - b[0]).map(([, g]) => g);
 }
 
 // Groups every staged file in a scope by title (patch filenames legitimately collide by design)
@@ -682,7 +722,7 @@ function processStagedFiles(files, templates) {
   // bound once per staged page and reproduce the very hang the bound removes. The remaining titles
   // are reported untried and stay staged, so the next run retries exactly them. Only a timeout stops
   // the walk: every other failure is per page, as it has always been.
-  const remaining = [...groups.entries()];
+  const remaining = parentsFirst([...groups.entries()]);
   while (remaining.length > 0) {
     const [title, group] = remaining.shift();
     const groupResults = processTitleGroup(title, group, templates);

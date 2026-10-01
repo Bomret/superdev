@@ -860,3 +860,12 @@ Statement: `/superdev:setup` writes a seed section or seed rule into a configure
 Breaks: silently
 Check: scripts/drift-check.js — setup's re-run offers each seed gap with apply, record, and leave choices and writes none unasked; check lists a recorded deviation as recorded
 Paths: plugin/skills/setup/SKILL.md
+
+### INV-0109
+
+Class: architecture
+Concepts: Staged page, Knowledge base
+Statement: `/superdev:publish-kb` converts a staged page's body only for a backend whose configuration carries `- **Body format:** storage`. Every other backend receives the staged body byte-identical (ADR 0109).
+Breaks: silently
+Check: tests/publish-kb.test.js — a markdown backend's `create` and `update` receive the staged body unchanged
+Paths: plugin/scripts/publish-kb.js
