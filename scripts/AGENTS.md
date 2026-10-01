@@ -1341,8 +1341,9 @@ carries two families of row, both scoped to the issue-tracker documents that fil
 listing by state: `docs/agents/issue-tracker.md`, `references/issue-tracker-forgejo.md`, and
 `references/issue-tracker-github.md`.
 
-The first family, one row per document, is anchored on the query string itself —
-`` labels=<type>%2F<feature>&state=all `` — never on the rationale sentence beside it. A shipped
+The first family, one row per document, is anchored on the query itself — `` labels=<type>%2F<feature>&state=all ``
+in the GitHub seed, `` --labels <type>/<feature> --state all `` in the two Forgejo documents, whose listing
+is a `tea issues list` call — never on the rationale sentence beside it. A shipped
 feature's epic is closed, so a `state=open` candidate listing never returns it for *Recognise one* to
 resolve, and the shipped-anchor refusal above has no anchor to refuse on — the exact dead end ADR 0083
 exists to close, reached anyway because the second signal's anchor never surfaced. Each document already
@@ -2531,16 +2532,28 @@ protection and required approvals, which a pinned merge must never do. A `never`
 the match — the seed's own caution naming the option to forbid it — is excluded, the same shape
 `no-base-branch-commit`'s own negation handles.
 
+The `forgejo-tea-only` check, `scanTeaOnly()` (ADR 0111, #794): none of the Forgejo slice-store and
+code-host seeds (`references/issue-tracker-forgejo.md`, `references/code-management-forgejo.md`) or this
+repository's `docs/agents/issue-tracker.md`, `docs/agents/code-management.md`, and
+`docs/agents/knowledge-base.md` may name `GITEA_TOKEN` or `FORGEJO_TOKEN`, carry an `Authorization:`
+header, or invoke `curl`. The documents state the prohibition in prose ("a raw HTTP call (curl)", "never
+fall back to a token"), so the patterns match the shape of a use, not the words: a token env var's name,
+the header's `Authorization:` with its colon, and `curl` as a command or followed by a flag, a URL, a
+quote, or a `$`. Fenced blocks are scanned too, because a curl example lives in one. Its ceiling is those
+three shapes: a token in another variable name, a header built from `Bearer` text alone, another HTTP
+client, or a `curl` followed by a bare word walks past silently. The `ponytail:` note beside
+`TEA_ONLY_MARKERS` in `drift/contracts.js` states it.
+
 The `code-management-head-branch-lookup` contract (#685, INV-0092) is a second presence table over the
 same three documents: each `## Merge` section also carries a find-open-pull-requests-by-head-branch call
-(Forgejo/Codeberg's `GET .../pulls?state=open` filtered client-side by `head.ref`, since neither carries a
+(Forgejo/Codeberg's `tea pr list --state open` filtered client-side by `head`, since neither carries a
 native head filter; GitHub's `gh pr list --head <branch> --state open` or the equivalent `head=`-filtered
 REST call), scoped to open pull requests only. `/superdev:ship` reads the pull request `/superdev:submit-pr`
 recorded in the ledger by number, and falls back to this lookup only for a ledger predating that header —
 scoping the fallback to open pull requests is what keeps a reused branch name
 (`references/scope-mode.md`'s `## Cutting the scope branch`) from ever surfacing an old, merged pull
 request under the same head as this run's own. The two Forgejo/Codeberg rows also pin a paging clause:
-Forgejo's `pulls?state=open` list paginates (`page`/`limit`), so the two Forgejo-facing documents
+Forgejo's `--state open` list paginates (`--page`/`--limit`), so the two Forgejo-facing documents
 (`references/code-management-forgejo.md`, `docs/agents/code-management.md`) must page through every page
 before counting matches, or a match sitting on a later page reads as zero. GitHub's `head=` filter is
 server-side, so `references/code-management-github.md` carries no matching clause.
@@ -2698,7 +2711,7 @@ worked example: the local store goes from ship straight to wrap-up, and verify-s
   evadable phrasing reports a defect, and the guard grows by discovery instead of by decision. The
   convention governs these checks of this shape, and each carries its note: `doc-steps-no-suite`,
   `forcing-branch-flag`, `kb-no-backend-call`, `no-second-reader`, `return-to-controller`,
-  `agent-tool-agnostic`, `agent-lens-list`, and `code-management-no-force`.
+  `agent-tool-agnostic`, `agent-lens-list`, `code-management-no-force`, and `forgejo-tea-only`.
   `no-second-reader`'s reads differently
   from the rest on purpose: its gap is closed by an orphan test in `tests/scope-prune.test.js`
   rather than left open, and the note says so instead of claiming a ceiling it does not have. A **presence table** — the document must say X, one row per

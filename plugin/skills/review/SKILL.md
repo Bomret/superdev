@@ -172,7 +172,7 @@ superdev subagent that omits one):
   what stdlib/native replaces, what to delete). Give it the same git range.
 
 Both subagents are **read-only** (`Read`, `Grep`, `Bash` — a hook blocks `git merge`/`push`/`rebase` and
-`gh`/`tea pr merge` from any subagent). Scale the dispatch to the diff:
+the code-host merge calls `gh`/`tea pr merge`, `tea api`, and `gh api`, from any subagent). Scale the dispatch to the diff:
 
 - **A `full`-tier scope** → `final-reviewer` alone; skip `superdev:simplicity-reviewer` (ADR 0037),
   reporting `` not dispatched — full tier, covered per `behavior` slice ``. That tier dispatched it per

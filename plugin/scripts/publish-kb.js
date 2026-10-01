@@ -319,6 +319,13 @@ function spawnFailure(verb, res) {
   return { reason: `${verb} could not run (${res.error.message})` };
 }
 
+// A nonzero exit's reason: the exit status plus a bounded tail of the template's stderr, which
+// carries the cause a template names before it exits (the login line's missing or ambiguous login).
+function exited(verb, res) {
+  const tail = String(res.stderr || '').replace(/\s+/g, ' ').trim().slice(-300);
+  return tail ? `${verb} exited ${res.status}: ${tail}` : `${verb} exited ${res.status}`;
+}
+
 // The `SUPERDEV_KB_` prefix already makes any key harmless to forward (it can never clobber PATH,
 // IFS, or LD_PRELOAD), but a key outside `[A-Za-z0-9_]` (a hyphen, a dot, ...) still produces a
 // variable name no POSIX shell can address as one token. The key is forwarded regardless — an
@@ -358,7 +365,7 @@ function runFind(title, templates) {
     if (obj && typeof obj === 'object' && !Array.isArray(obj)) return { verdict: 'found', fields: obj };
     return { verdict: 'unknown', reason: 'find exited 0 but stdout was not a JSON object' };
   }
-  return { verdict: 'unknown', reason: `find exited ${res.status}` };
+  return { verdict: 'unknown', reason: exited('find', res) };
 }
 
 // The hash guard on an existing page (ADR 0094, INV-0091): a staged `upsert` replacing a page that
@@ -382,7 +389,7 @@ function checkLiveHash(title, templates, found, recordedHash) {
   const env = { ...fieldsToEnv(found.fields), SUPERDEV_KB_TITLE: title };
   const res = runTemplate(templates.read, env);
   if (res.error) return { ok: false, ...spawnFailure('read', res) };
-  if (res.status !== 0) return { ok: false, reason: `read exited ${res.status}` };
+  if (res.status !== 0) return { ok: false, reason: exited('read', res) };
   if (!res.stdout) return { ok: false, reason: 'read returned an empty body' };
   if (hashBody(res.stdout) !== recordedHash) {
     return { ok: false, reason: 'the live page has changed since this page was staged (live-hash mismatch) — refusing to overwrite it' };
@@ -419,7 +426,7 @@ function publishUpsert(title, bodyFile, templates, recordedHash, hasCreateMarker
     }
     const res = runTemplate(templates.create, { SUPERDEV_KB_TITLE: title, SUPERDEV_KB_BODY_FILE: bodyFile, ...parent.env });
     if (res.error) return { ok: false, ...spawnFailure('create', res) };
-    if (res.status !== 0) return { ok: false, reason: `create exited ${res.status}` };
+    if (res.status !== 0) return { ok: false, reason: exited('create', res) };
     return { ok: true, action: 'created' };
   }
   if (recordedHash || !hasCreateMarker) {
@@ -430,7 +437,7 @@ function publishUpsert(title, bodyFile, templates, recordedHash, hasCreateMarker
   const env = { ...fieldsToEnv(found.fields), SUPERDEV_KB_TITLE: title, SUPERDEV_KB_BODY_FILE: bodyFile };
   const res = runTemplate(templates.update, env);
   if (res.error) return { ok: false, ...spawnFailure('update', res) };
-  if (res.status !== 0) return { ok: false, reason: `update exited ${res.status}` };
+  if (res.status !== 0) return { ok: false, reason: exited('update', res) };
   return { ok: true, action: 'updated' };
 }
 
@@ -442,7 +449,7 @@ function publishDelete(title, templates) {
   const env = { ...fieldsToEnv(found.fields), SUPERDEV_KB_TITLE: title };
   const res = runTemplate(templates.delete, env);
   if (res.error) return { ok: false, ...spawnFailure('delete', res) };
-  if (res.status !== 0) return { ok: false, reason: `delete exited ${res.status}` };
+  if (res.status !== 0) return { ok: false, reason: exited('delete', res) };
   return { ok: true, action: 'deleted' };
 }
 
@@ -478,7 +485,7 @@ function publishPatch(title, stagedRaw, templates, assumeExists, parentTitle) {
     const env = { ...fieldsToEnv(found.fields), SUPERDEV_KB_TITLE: title };
     const res = runTemplate(templates.read, env);
     if (res.error) return { ok: false, ...spawnFailure('read', res) };
-    if (res.status !== 0) return { ok: false, reason: `read exited ${res.status}` };
+    if (res.status !== 0) return { ok: false, reason: exited('read', res) };
     // A read call answering with no body for a title `find` DID list is a read failure, never an
     // empty live page (ADR 0027's amendment) — treating it as one would create the page from this
     // one section alone, wiping every section already on it.
@@ -501,14 +508,14 @@ function publishPatch(title, stagedRaw, templates, assumeExists, parentTitle) {
       if (!parent.ok) return parent;
       const res = runTemplate(templates.create, { SUPERDEV_KB_TITLE: title, SUPERDEV_KB_BODY_FILE: bodyFile, ...parent.env });
       if (res.error) return { ok: false, ...spawnFailure('create', res) };
-      if (res.status !== 0) return { ok: false, reason: `create exited ${res.status}` };
+      if (res.status !== 0) return { ok: false, reason: exited('create', res) };
       return { ok: true, action: 'created' };
     }
     if (!templates.update) return { ok: false, reason: 'no update command configured' };
     const env = { ...fieldsToEnv(found.fields), SUPERDEV_KB_TITLE: title, SUPERDEV_KB_BODY_FILE: bodyFile };
     const res = runTemplate(templates.update, env);
     if (res.error) return { ok: false, ...spawnFailure('update', res) };
-    if (res.status !== 0) return { ok: false, reason: `update exited ${res.status}` };
+    if (res.status !== 0) return { ok: false, reason: exited('update', res) };
     return { ok: true, action: 'updated' };
   } finally {
     try {
@@ -893,7 +900,7 @@ function readPage(title, templates) {
   const env = { ...fieldsToEnv(found.fields), SUPERDEV_KB_TITLE: title };
   const res = runTemplate(templates.read, env);
   if (res.error) return { ok: false, ...spawnFailure('read', res) };
-  if (res.status !== 0) return { ok: false, reason: `read exited ${res.status}` };
+  if (res.status !== 0) return { ok: false, reason: exited('read', res) };
   if (!res.stdout) return { ok: false, reason: 'read returned an empty body' };
   return { ok: true, exists: true, body: res.stdout, hash: hashBody(res.stdout) };
 }

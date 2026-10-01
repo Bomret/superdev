@@ -410,7 +410,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     fixture({
       'docs/agents/knowledge-base.md':
         '- **Concepts** **(aggregate)**\n\n' +
-        "- **Read a page's body:** `GET /api/v1/repos/bomret/superdev/wiki/page/<sub_url>` never returns\n" +
+        "- **Read a page's body:** `tea api /repos/bomret/superdev/wiki/page/<sub_url>` never returns\n" +
         '  `content_base64`, which decodes to the page markdown.\n',
     }),
     READ_PATH_CONTRACTS,
@@ -448,7 +448,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
       fixture({
         'docs/agents/knowledge-base.md':
           "- **Concepts** **(aggregate)**\n\n- **Read a page's body:** " +
-          '`GET /api/v1/repos/bomret/superdev/wiki/page/<sub_url>` returns `content_base64`, which ' +
+          '`tea api /repos/bomret/superdev/wiki/page/<sub_url>` returns `content_base64`, which ' +
           'decodes to the page markdown.\n',
       }),
       READ_PATH_CONTRACTS,
@@ -884,11 +884,11 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // Forgejo-shaped: the query-form row, plus the open-preference Recognise-one and Ambiguous rows.
   const forgejoShapedBody =
-    '- **List the candidates.** The feature labels themselves: `GET /api/v1/repos/<owner>/<repo>/labels` ' +
-    "(paginated), keeping the names whose first segment is a change type. Per feature label: " +
-    '`GET /api/v1/repos/<owner>/<repo>/issues?labels=<type>%2F<feature>&state=all` (URL-encode the ' +
-    "label's `/`), then apply the rule above to the result. `state=all`, not `state=open`: a shipped " +
-    "feature's epic is closed, and a `state=open` listing would drop it from the candidates a picked " +
+    '- **List the candidates.** The feature labels themselves: `tea labels list -o json --page <p> --limit 50` ' +
+    "(paged), keeping the names whose first segment is a change type. Per feature label: " +
+    '`tea issues list -o json --labels <type>/<feature> --state all --page <p> --limit 50` (paged), ' +
+    'then apply the rule above to the result. `--state all`, not `--state open`: a shipped ' +
+    "feature's epic is closed, and an open-only listing would drop it from the candidates a picked " +
     "feature resolves against, so `/superdev:plan`'s shipped-anchor refusal (ADR 0083) never sees it.\n" +
     '- **Recognise one.** Apply the rule to the **open** issues carrying a feature label first: the ' +
     'anchor is the one labelled `epic`.\n' +
@@ -920,13 +920,13 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     const gapsQueryOnlyRevert = scanContract(
       fixture({
         [doc]: forgejoShapedBody.replace(
-          'labels=<type>%2F<feature>&state=all` (URL-encode',
-          'labels=<type>%2F<feature>&state=open` (URL-encode',
+          '--labels <type>/<feature> --state all --page',
+          '--labels <type>/<feature> --state open --page',
         ),
       }),
       ANCHOR_CANDIDATE_ALL_STATES_CONTRACTS,
     );
-    assert.equal(gapsQueryOnlyRevert.length, 1, `${doc}: a query reverted to \`state=open\` is flagged alone`);
+    assert.equal(gapsQueryOnlyRevert.length, 1, `${doc}: a query reverted to \`--state open\` is flagged alone`);
 
     // negative: dropping the open preference in Recognise one, alone
     const recogniseGaps = scanContract(

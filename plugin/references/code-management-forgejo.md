@@ -1,63 +1,63 @@
 # Code host: Forgejo / self-hosted (Gitea-compatible)
 
-Code lives on a Forgejo (or Gitea) instance. Use the `tea` CLI if installed, otherwise the REST API.
+Code lives on a Forgejo (or Gitea) instance. Every host call goes through the `tea` CLI: a subcommand
+where one performs the operation, `tea api` where none does.
 
 ## Configuration (fill in at setup)
 
 - **Base URL**: `<https://git.example.com>`
 - **Owner / repo**: `<owner>/<repo>` (confirm with `git remote -v`).
 - **Remote**: `origin`. Confirm with `git remote -v`.
-- **Auth**: API token in env var `<FORGEJO_TOKEN>`. Record the env-var NAME here, never the secret.
-- **Tooling**: `<tea>` or `<rest>`.
 - **Default PR posture**: `draft` (override: `ready` | `push-only`).
 - **Base branch**: the branch the scope branch was cut from (default `main`).
 
-## tea CLI conventions
+## tea conventions
 
-- **Login (once)**: `tea login add --url <base> --token $FORGEJO_TOKEN`.
+- **Login**: resolved, never stored. It is the one entry of `tea login list -o json` whose `url` equals the
+  Base URL. Every call passes `--login <login> --repo <owner>/<repo>`: without `--login`, `tea` falls back
+  to another host's login when none matches the current remote. Zero matching entries, or no `tea` on the
+  path, stops the step (*Degrade* below). Two or more matching entries are named, and the operator picks.
+- **`jq` is required.** The pinned merge body below is built with it, so a missing `jq` stops the step the
+  way a missing `tea` does (*Degrade* below).
+- **A deciding `tea api` call passes `-i`** and reads the HTTP status from stderr, because `tea api` exits
+  0 on a 4xx or 5xx answer.
 - **Push**: `git push -u origin <scope-branch>`.
-- **Open PR**: `tea pr create --repo <owner>/<repo> --base <base> --head <scope-branch>
-  --title "<title>" --description "<body>"`. (Forgejo opens ready; convert to draft in the UI if
-  needed, or prefix the title with `WIP:` — Forgejo treats `WIP:` titles as drafts.)
-- **Report**: `tea pr list --repo <owner>/<repo>` to read the new PR URL/number.
+- **Open PR**: `tea pr create --login <login> --repo <owner>/<repo> --base <base> --head <scope-branch>
+  --title "$title" --description-file -`, the body on stdin, `title` set from a quoted heredoc
+  (`title=$(cat <<'SUPERDEV_TEXT_EOF' … SUPERDEV_TEXT_EOF)`) so a backtick or `$(` in it stays literal. The `draft` posture adds `--draft`, which
+  prefixes the title with `WIP:` (Forgejo's draft marker). `tea pr edit <index> --ready` strips that
+  prefix.
+- **Read**: `tea pr <index> --login <login> --repo <owner>/<repo> -o json`.
+- **Report**: the URL `tea pr create` prints.
 
-## REST conventions (curl)
+## Degrade when no tea login
 
-Auth header: `-H "Authorization: token $FORGEJO_TOKEN"`, `-H "Content-Type: application/json"`.
-
-- **Open PR**:
-  `POST <base>/api/v1/repos/<owner>/<repo>/pulls` with
-  `{ "base": "<base>", "head": "<scope-branch>", "title": "<title>", "body": "<body>" }`.
-  Prefix the title with `WIP:` for draft behavior.
-- **Read**: `GET <base>/api/v1/repos/<owner>/<repo>/pulls/<index>`.
-
-## Degrade when no CLI / token
-
-Push the branch, then print the instance compare URL
-(`<base>/<owner>/<repo>/compare/<base>...<scope-branch>`) and the exact `tea`/curl command to run.
-The merge call below degrades the same way: print the exact REST call and merge nothing.
+Do not fall back to a token or a raw HTTP call (curl). No `tea` or `jq` on the path, or no `tea login list -o json` entry
+whose `url` equals the Base URL: push the branch, then print the instance compare URL
+(`<base-url>/<owner>/<repo>/compare/<base>...<scope-branch>`) and the exact `tea` command the step would
+have run. The merge call below degrades the same way: print the exact `tea api` call and merge nothing.
 
 ## Merge
 
-- **Read the pull request**: `GET <base>/api/v1/repos/<owner>/<repo>/pulls/<index>` →
-  `state` (`open`/`closed`), `merged` (bool), `merge_commit_sha` (once merged), `head.sha`, and
-  `mergeable` (bool).
-- **Merge it, pinned**: `POST <base>/api/v1/repos/<owner>/<repo>/pulls/<index>/merge` with
-  `{ "Do": "squash", "MergeTitleField": "<pr-title>", "head_commit_id": "<tested-tip-sha>" }`.
-  `head_commit_id` pins the merge to that sha: the host answers 409 when the head moved since. Never
-  send `force_merge` — that field overrides branch protection and required approvals, and this seed
-  never sets it. `tea pr merge` carries no head-pin of its own, so use the REST call above rather than
-  the CLI for this one step.
-- **A refusal names the reason**: 405 means the pull request cannot be merged (an unmet required
-  approval or protection rule, or it is already merged/closed); 409 means the head moved since it was
-  read, or a conflict exists. Relay the host's own message to the operator instead of retrying.
+- **Read the pull request**: `tea api -i '/repos/{owner}/{repo}/pulls/<index>'` with `--login <login>
+  --repo <owner>/<repo>` → `state`, `merged`, `merge_commit_sha` (once merged), `head.sha`, and
+  `mergeable`. `tea pr <index> -o json` lacks `merge_commit_sha`, so this read is a `tea api` call.
+- **Merge it, pinned**: `jq -n --arg t "$title" --arg sha "<tested-tip-sha>"
+  '{Do:"squash",MergeTitleField:$t,head_commit_id:$sha}'` piped to `tea api -i -X POST
+  '/repos/{owner}/{repo}/pulls/<index>/merge' -d @-`, `title` set from a quoted heredoc as the PR-create
+  line does, so a quote or backtick in the title stays literal in the JSON.
+  `head_commit_id` pins the merge to that sha: the host answers 409 when the head moved since. `tea pr
+  merge` carries no head-pin, so this call is the merge. Never send `force_merge` — that field overrides
+  branch protection and required approvals, and this seed never sets it.
+- **A refusal names the reason**: the status is on stderr (`-i`). 405 means the pull request cannot be
+  merged (an unmet required approval or protection rule, or it is already merged/closed); 409 means the
+  head moved since it was read, or a conflict exists. Relay the host's own message, and merge nothing.
 - **Find an open pull request by its head branch** (a fallback, when no index is on hand):
-  `GET <base>/api/v1/repos/<owner>/<repo>/pulls?state=open` — Gitea/Forgejo carries no `head` query
-  parameter, so filter the returned array client-side by `head.ref` matching the scope branch. The list
-  paginates (`page`, `limit` query params; `limit` capped at the server's `MAX_RESPONSE_ITEMS`, 50 by
-  default): page through every page — the `Link` response header names the next one — before counting
-  matches, or a match sitting on a later page reads as zero. Leaving
-  `state=open` off would surface closed and merged pull requests too, including an old one left over from
+  `tea pr list --state open -o json --fields index,head --page <p> --limit 50` — the listing carries no
+  head filter, so filter the returned array client-side by `head` matching the scope branch. The list
+  paginates: page through every page, until one returns fewer than 50 entries, before counting matches, or
+  a match sitting on a later page reads as zero. Leaving
+  `--state open` off would surface closed and merged pull requests too, including an old one left over from
   a reused branch name — never widen the filter to catch one of those.
 - **`<tested-tip-sha>` above is never read from the host.** It is the local scope-branch tip
   `scope.js suite reusable` just accepted, resolved with `git rev-parse <branch>` in the scope checkout.

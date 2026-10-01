@@ -33,6 +33,7 @@ const {
   scanAdrStatus,
   scanForcingBranchFlag,
   scanNoForceMerge,
+  scanTeaOnly,
   scanDeployRunnerExclusivity,
   scanShipHumanOnly,
   scanNarrativeCoverage,
@@ -4153,6 +4154,44 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // absent file is skipped, matching every other scanner
   assert.equal(scanNoForceMerge(fixture({ 'README.md': '# repo\n' })).length, 0, 'absent document is skipped');
+
+  // ADR 0111, #794: scanTeaOnly — positive, each of the three shapes, in prose and in a fence
+  for (const [name, body] of [
+    ['a token env var', 'Send it with `Authorization`-free calls, token from $GITEA_TOKEN.\n'],
+    ['a FORGEJO token env var', 'export FORGEJO_TOKEN=abc\n'],
+    ['an Authorization header', 'curl-free but: -H "Authorization: token x"\n'],
+    ['a fenced curl at command position', '```bash\ncurl -s "$URL"\n```\n'],
+    ['a piped curl', 'run `x | curl https://codeberg.org/api/v1/repos`\n'],
+    ['curl with a flag mid-prose', 'call it with curl -X POST on the endpoint\n'],
+  ]) {
+    assert.equal(
+      scanTeaOnly(fixture({ 'docs/agents/issue-tracker.md': body })).length,
+      1,
+      `catches ${name}`,
+    );
+  }
+  assert.equal(
+    scanTeaOnly(fixture({ 'references/code-management-forgejo.md': '  curl -X PUT "$U"\n' })).length,
+    1,
+    'catches a seed document too',
+  );
+
+  // negative: the documents' own prohibition prose is not a use
+  assert.equal(
+    scanTeaOnly(
+      fixture({
+        'docs/agents/code-management.md':
+          'Do not fall back to a token or a raw HTTP call (curl). Never fall back to a token, a raw HTTP call (curl), or another login.\n' +
+          'No token env var, header, or raw HTTP call (curl) appears in this document.\n',
+      }),
+    ).length,
+    0,
+    'prohibition prose naming curl and a token is not an invocation',
+  );
+
+  // negative: the real seeds and this repo's own documents carry none of the three shapes
+  assert.equal(scanTeaOnly(realRoot).length, 0, 'the shipped Forgejo documents are tea-only');
+  assert.equal(scanTeaOnly(fixture({ 'README.md': '# repo\n' })).length, 0, 'absent document is skipped');
 
   // ADR 0101, INV-0098: scanDeployRunnerExclusivity — positive, a non-ship document claiming to run a
   // target's command

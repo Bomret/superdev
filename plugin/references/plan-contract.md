@@ -523,7 +523,7 @@ identifiers and never credentials: a token stays in the environment variable the
   parent>/.superdev/info.json` from either location, which is why the primitive needs no edit once that
   move lands.
 - **No file, no `issue-tracker` key, or no `assignee`** → resolve the API token's own identity from the
-  store's whoami endpoint and assign that, reporting nothing. Every issue-backed repo gets owned issues
+  backend's whoami call, or its CLI login's identity, and assign that, reporting nothing. Every issue-backed repo gets owned issues
   without configuring anything.
 - **`"assignee": "none"`** — create the issues unassigned. A deliberate choice, not a failure: no warning,
   no error.
@@ -534,8 +534,8 @@ identifiers and never credentials: a token stays in the environment variable the
   carries one in its `docs/agents/issue-tracker.md`, and nothing reads it. Report it **once**, naming the
   file and the move to `.superdev/info.json`, so the identifier already committed gets removed rather than
   lingering. A repository carrying no such bullet reports nothing.
-- **Applied at creation** — the assignee goes in the same create call that already carries the title,
-  body, and labels, for the epic and every slice. Never a follow-up pass, so it costs no extra request.
+- **Applied at creation** — the assignee is set when the issue is created, for the epic and every slice.
+  Never a follow-up pass over issues that already exist.
 - **A bad assignee must never cost the run its issues** — `/plan` fires every slice create in parallel, so
   one misconfigured identifier must not fail the batch. A store rejects an unassignable configuration one
   of two ways, each with its own recovery:
@@ -543,12 +543,12 @@ identifiers and never credentials: a token stays in the environment variable the
     assigned on this repo) — retry that one create **once, without the assignee**, so the issue still
     exists; report it **once** for the whole run.
   - **The create succeeds but the assignee comes back empty** (the token lacks the permission to assign,
-    and drops it silently) — read the assignee back from the response the create already returned; if
+    and drops it silently) — read the assignee back from the created issue, however the store returns it; if
     it's empty while one was configured, report it **once** for the whole run.
 
   Either way every issue is still created, and nothing is retried more than that one time or rolled back.
 
 The field name, identifier format, which of the two shapes a given backend fails with, and the whoami
-endpoint are per-backend and live in the active `docs/agents/issue-tracker.md`'s own `## Assignee`
+call are per-backend and live in the active `docs/agents/issue-tracker.md`'s own `## Assignee`
 section. The local-file store has no assignee: `issue-tracker-local.md` neither reads the file nor honours
 it.

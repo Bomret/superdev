@@ -1,14 +1,15 @@
 # Slice store: Codeberg Issues (Forgejo)
 
-Slices live as Codeberg issues in `bomret/superdev`, one slice per issue. Use the Forgejo REST API
-through the `tea` CLI.
+Slices live as Codeberg issues in `bomret/superdev`, one slice per issue.
+Every host call goes through the `tea` CLI: a subcommand where one performs the operation, `tea api`
+where none does.
 
 ## Configuration
 
 - **Host, owner, and repo:** `https://codeberg.org`, `bomret`, `superdev`.
-- **Auth:** the `tea` CLI's stored `codeberg.org` login (`tea login list`). Every call passes `--login
-  codeberg.org`: outside this repository's checkout, `tea` otherwise falls back to another stored login.
-  No token environment variable is read.
+- **Login:** resolved from the Host, never stored: the one `tea login list -o json` entry whose `url`
+  equals the Host (*tea conventions* below). No token env var, header, or raw HTTP call (curl) appears in this
+  document.
 - **Feature label:** one label per feature scope, `<type>/<slug>` (for example `fix/chain-followups`),
   applied to the epic and its slices, so the feature's issues are listable. `<type>` is the **change
   type**, the Conventional Commits type of the work, per `references/scope-mode.md`. The label doubles
@@ -51,28 +52,39 @@ through the `tea` CLI.
   and advisory, the same as parked questions. `plan-contract.md` owns when each is written.
 - `status` maps to the open or closed state plus a status label (see the status map below).
 
-## REST conventions
+## tea conventions
 
-Every call is a `tea api` invocation. A request body goes through `-d @<file>` or `-d @-`. A path is
-written `/repos/bomret/superdev/...`, without the `/api/v1` prefix. `tea api` exits 0 on an HTTP error,
-so every call passes `-i`, which writes the status line and the response headers (`Link`, `X-Total-Count`) to stderr and leaves
-the JSON body on stdout. A caller reads every status named below (`404`, `422`, a refused or failed write) from the status line, the
-name-taken and assignee messages from the body, the next page from `Link`, and treats anything but success as a failure unless
-the text below names that status as the wanted one.
-
-- **Create an issue:** `tea api --login codeberg.org --repo bomret/superdev -i -X POST -d @<file> /repos/bomret/superdev/issues` with
-  `{ "title": "...", "body": "<specification + acceptance checklist>", "labels": [<label ids>],
-  "assignees": ["<assignee>"] }`. Omit `assignees` entirely when the assignee resolves to `none`.
-  Capture the returned
-  `number` as the slice's `id`. Pass `labels` and `assignees` **at creation**. The create path needs no
-  separate label or assignee POST.
+- **Login.** Resolved, never stored: the one entry of `tea login list -o json` whose `url` equals the
+  Host. Every call passes `--login <login> --repo bomret/superdev`. Without `--login`, `tea` falls back to another
+  host's login when none matches the current remote. In a `tea api` path, `{owner}` and `{repo}` fill from
+  `--repo`. *Degrade when no tea login* below states the zero-match, no-`tea`, and several-match cases.
+- **A deciding `tea api` call passes `-i`** and reads the HTTP status from stderr, because `tea api` exits
+  0 on a 4xx or 5xx answer.
+- **Label ids.** Resolve each id from `tea labels list -o json --page <p> --limit 50`, paging until a
+  page returns fewer than 50 entries. Never pass `-L` to `tea issues create` or `tea issues edit`: `tea`
+  0.16.0 resolves a `-L` name only against the first 50-entry page of the repository's labels, and drops
+  every other name without an error.
+- **Add or remove a label by id:** `tea api -i -X POST '/repos/{owner}/{repo}/issues/<index>/labels' -d
+  '{"labels":[<ids>]}'` adds, and `tea api -i -X DELETE '/repos/{owner}/{repo}/issues/<index>/labels/<id>'`
+  removes one.
+- **Read every label write back.** After an issue create and after every label add or remove, run `tea
+  issues <index> -o json` and compare its label names with the requested set. A mismatch is reported to
+  the operator and stops that write: `tea` drops an unknown label name silently, and an issue without
+  `ready` or its feature label is invisible to `/superdev:implement`.
+- **Create a label** only after the paged listing above lacks the name: `tea labels create --name
+  "<name>" --color "<color>"`. `tea labels create` makes a second label of an existing name without an
+  error.
+- **Create an issue:** `tea issues create -t "$title" --description-file - -a <assignee>`, the
+  specification and acceptance checklist on stdin. Set `title` first from a quoted heredoc (`title=$(cat <<'SUPERDEV_TEXT_EOF' … SUPERDEV_TEXT_EOF)`), so a backtick or `$(` in it stays literal. Omit `-a` when the assignee resolves to `none`, and pass
+  no `-L`. Capture the new issue's `<n>` from the URL `tea` prints, which ends in `/issues/<n>`, as the
+  slice's `id`. Then add its labels by id and read them back (both above).
 - **Parallel-safe creation order:** create the epic first (slices reference `#<epic>`), then fire **all
-  slice creates in parallel**, then the `depends-on` body-patches in parallel once every `number` is
-  known. Only the ordering of epic, then slices, then depends-on is required. Within each step the calls
-  are independent, so `/plan` issues them concurrently.
-- **Record a dependency (`depends-on`):** append a `**Depends on:** #<blocker>` line to the issue body.
-  Never the native `POST .../issues/<index>/dependencies` endpoint, which this repo leaves unused (see the
-  field mapping above).
+  slice creates in parallel**, then the labels and the `depends-on` body-edits in parallel once every
+  `<n>` is known. Only the epic, then slices, then labels and depends-on ordering is required. Within each
+  step the calls are independent, so `/plan` issues them concurrently.
+- **Record a dependency (`depends-on`):** append a `**Depends on:** #<blocker>` line to the issue body
+  (`tea issues edit <index> --description-file -`). Never the native `tea api` dependencies endpoint,
+  which this repo leaves unused (see the field mapping above).
 - **Record an anchor dependency:** append a `**Blocked by feature:** #<blocker-anchor>` line to the
   **anchor issue's own** body — the epic on a multi-slice feature, the lone slice issue on a single-slice
   one. Always a body-append, never the native dependencies endpoint above, so the slice-level and
@@ -81,12 +93,17 @@ the text below names that status as the wanted one.
   or `**Deploy:** none` to the **anchor issue's own** body, revising the line in place on an append that
   re-answers the deploy question. A body-append, like the anchor dependency above, never the native
   dependencies endpoint (ADR 0101).
-- **List feature slices:** `tea api --login codeberg.org --repo bomret/superdev -i '/repos/bomret/superdev/issues?labels=<type>%2F<feature>&state=all'`
-  (URL-encode the label's `/`).
-- **Read a slice:** `tea api --login codeberg.org --repo bomret/superdev -i /repos/bomret/superdev/issues/<index>`.
-- **Set labels and status:** `tea api --login codeberg.org --repo bomret/superdev -i -X POST -d @<file> /repos/bomret/superdev/issues/<index>/labels` (add, body `{ "labels": [<label ids>] }`),
-  `tea api --login codeberg.org --repo bomret/superdev -i -X PUT -d @<file> /repos/bomret/superdev/issues/<index>/labels` (replace the whole set, same body; use it to swap a status label, and pass every label the issue keeps alongside the new one), and
-  `tea api --login codeberg.org --repo bomret/superdev -i -X PATCH -d @<file> /repos/bomret/superdev/issues/<index>` with `{ "state": "closed" }` to close.
+- **List feature slices:** `tea issues list -o json --fields index,state,title,body,labels --labels
+  <type>/<feature> --state all --page <p> --limit 50`, paged until a page returns fewer than 50 entries.
+- **Read a slice:** `tea issues <index> -o json`.
+- **Edit an issue's body:** `tea issues edit <index> --description-file -`, the whole new body on stdin.
+- **Set labels and status:** labels by id (above), and `tea issues close <index>` to close.
+
+## Degrade when no tea login
+
+No `tea` on the path, or no `tea login list -o json` entry whose `url` equals the Host: stop the step and
+print the exact `tea` command it would have run. Never fall back to a token, a raw HTTP call (curl), or another
+host's login. Two or more matching entries: name them and let the operator pick.
 
 ## Scope anchor
 
@@ -100,17 +117,17 @@ label, and on a single-slice feature it is the lone issue carrying that label (A
   anchor. A closed candidate never wins over an open one this way (`plan-contract.md` → *Scope anchor*).
   Where no open issue carries the label and exactly one closed issue does, that closed issue is the
   anchor — the shape the shipped-anchor refusal reads as its own done signal (ADR 0083).
-- **List the candidates.** The feature labels themselves: `tea api --login codeberg.org --repo bomret/superdev -i /repos/bomret/superdev/labels`
-  (paginated), keeping the names whose first segment is a change type (`references/scope-mode.md` lists
-  them). Per feature label:
-  `tea api --login codeberg.org --repo bomret/superdev -i '/repos/bomret/superdev/issues?labels=<type>%2F<feature>&state=all&type=issues'` (URL-encode
-  the label's `/`), then apply the rule above to the result. `state=all`, not `state=open`: a shipped
-  feature's epic is closed, and a `state=open` listing would drop it from the candidates a picked feature
-  resolves against, so `/superdev:plan`'s shipped-anchor refusal (ADR 0083) never sees it. `type=issues`
-  excludes pull requests at the server, the same exclusion **List them** below states — without it, a
-  closed feature-labelled pull request would sit as a permanent extra candidate once the listing spans
-  every state, not the transient one the untriaged listing already guards against.
-- **List the slices beneath it.** Use the **List feature slices** call above (`state=all`), not the
+- **List the candidates.** The feature labels themselves: `tea labels list -o json --page <p> --limit 50`
+  (paged), keeping the names whose first segment is a change type (`references/scope-mode.md` lists
+  them). Per feature label: `tea issues list -o json --fields index,state,title,body,labels --labels
+  <type>/<feature> --state all --page <p> --limit 50` (paged), then apply the rule above to the result.
+  `--state all`, not `--state open`: a shipped
+  feature's epic is closed, and an open-only listing would drop it from the candidates a picked feature
+  resolves against, so `/superdev:plan`'s shipped-anchor refusal (ADR 0083) never sees it. `tea issues list`
+  returns issues only, its `--kind` defaulting to `issues`, the same exclusion **List them** below
+  states — without it, a closed feature-labelled pull request would sit as a permanent extra candidate
+  once the listing spans every state, not the transient one the untriaged listing already guards against.
+- **List the slices beneath it.** Use the **List feature slices** call above (`--state all`), not the
   candidate listing. A merged slice is closed, and closing the epic is best-effort. An anchor left open
   with every slice closed therefore still has slices beneath it, and a `state=open` listing presents it as
   never decomposed. On a multi-slice feature the slices are every issue in that response that is not the
@@ -122,8 +139,8 @@ label, and on a single-slice feature it is the lone issue carrying that label (A
   defines, read off the **anchor's own** body — never the `**Depends on:** #<n>` line above, which carries
   slice-level `depends-on` within this feature and names nothing outside it. It names another feature's
   scope anchor (`plan-contract.md` → *Scope anchor*, ADR 0040). The candidate listing already returned the
-  body; fetch it with `tea api --login codeberg.org --repo bomret/superdev -i /repos/bomret/superdev/issues/<index>` when it did not. No such line
-  means no dependency. **Resolve `#<n>` to that anchor's own record** with the same `tea api --login codeberg.org --repo bomret/superdev -i /repos/bomret/superdev/issues/<n>` call — its `labels` array is the blocker's own feature label,
+  body; fetch it with `tea issues <index> -o json` when it did not. No such line
+  means no dependency. **Resolve `#<n>` to that anchor's own record** with the same `tea issues <n> -o json` call — its `labels` array is the blocker's own feature label,
   and its `state` is open or closed — because a consumer holds the dependency against the blocker's own
   label and state, not the label of the record carrying this line. `/superdev:plan` writes one through the
   same **Record an anchor dependency** body-append above.
@@ -153,18 +170,17 @@ so this repository records no maintainer's account. The two failure shapes below
 }
 ```
 
-- Forgejo's `CreateIssueOption.assignees` is an **array**, so the single configured login is sent as a
-  one-element `["<assignee>"]`. `EditIssueOption.assignees` is the same shape if an issue ever needs it
-  later.
-- **No file, no `issue-tracker` key, or no `assignee`**: resolve the `tea` login's own identity with
-  `tea api --login codeberg.org --repo bomret/superdev -i /user` and use its `login`.
-- **`"assignee": "none"`**: omit `assignees` entirely. No warning, no error.
+- `tea issues create -a` takes a comma-separated list, so the single configured login is passed as
+  `-a <login>`. `tea issues edit --add-assignees` takes the same shape if an issue ever needs it later.
+- **No file, no `issue-tracker` key, or no `assignee`**: use the resolved login's `user` field from
+  `tea login list -o json` — the token's own identity (INV-0074, INV-0075).
+- **`"assignee": "none"`**: omit `-a` entirely. No warning, no error.
 - **A login that does not exist or is not a collaborator rejects the whole create**: `422 Assignee does not
   exist` or `422 canBeAssigned` (`ErrUserDoesNotHaveAccessToRepo`). Retry that one create with
-  `assignees` omitted, and report it once per run.
-- **A token without issue-write access silently drops the assignment** (and `labels` with it). The
-  create succeeds, but the returned `assignees` is empty or `null`. Read it back from the create response.
-  When it is empty while an assignee was configured, report it once per run.
+  `-a` omitted, and report it once per run.
+- **A token without issue-write access silently drops the assignment**. The
+  create succeeds, but `tea issues <index> -o json` shows `assignees` empty. Read it back after the
+  create; when it is empty while an assignee was configured, report it once per run.
 - Either way the issue is created and nothing is retried more than that one time or rolled back.
 - **A leftover `Assignee:` bullet** in this file is configuration nothing reads. Report it once per run,
   naming the file and the move to `.superdev/info.json`.
@@ -175,14 +191,16 @@ so this repository records no maintainer's account. The two failure shapes below
 `epic`-labelled issue, or a single-slice feature's lone issue. Not the `ready` label below: the dispatch
 swaps that one to `in-progress`.
 
-- **Apply** (`/superdev:plan`, on a release): `tea api --login codeberg.org --repo bomret/superdev -i -X POST -d @<file> /repos/bomret/superdev/issues/<index>/labels`.
-  Labels go by id, so resolve `released` through `tea api --login codeberg.org --repo bomret/superdev -i /repos/bomret/superdev/labels` first.
-- **Read** (`/superdev:implement`, `/superdev:backlog`): the anchor's own `labels` array, already returned by
-  the issue listing that found it.
-- **Remove** (`/superdev:plan`, on an append the user declines):
-  `tea api --login codeberg.org --repo bomret/superdev -i -X DELETE /repos/bomret/superdev/issues/<index>/labels/<released label id>`, resolving the id
-  through the same `tea api --login codeberg.org --repo bomret/superdev -i /repos/bomret/superdev/labels` call **Apply** makes. An anchor that does
-  not carry the label is already unreleased, so a `404` there is the wanted state, not a failure.
+- **Apply** (`/superdev:plan`, on a release): add the `released` label by id, `tea api -i -X POST
+  '/repos/{owner}/{repo}/issues/<index>/labels' -d '{"labels":[<released label id>]}'`, then read it back
+  (*tea conventions*). Resolve the id from the paged `tea labels list -o json`, exactly as the feature and
+  status labels are resolved.
+- **Read** (`/superdev:implement`, `/superdev:backlog`): the anchor's own `labels`, which the
+  `tea issues list` call that found the anchor already returned. No extra call.
+- **Remove** (`/superdev:plan`, on an append the user declines): `tea api -i -X DELETE
+  '/repos/{owner}/{repo}/issues/<index>/labels/<released label id>'`, resolving the id through the same
+  paged listing **Apply** makes. An anchor that does not carry the label is already unreleased, so a
+  `404` there is the wanted state, not a failure.
 - An anchor without the label is unreleased, and no other label means it: `/superdev:implement` asks
   before building it, and `/superdev:backlog` groups it as `unreleased`.
 
@@ -193,28 +211,25 @@ controller creates one the same way the moment it meets an observation, and `/su
 interview places a found defect later (`references/scope-mode.md`'s `## Observations` section).
 Here it is an ordinary Codeberg issue carrying the label **`triage`** and nothing else.
 
-- **Create it:** `tea api --login codeberg.org --repo bomret/superdev -i -X POST -d @<file> /repos/bomret/superdev/issues` with
-  `{ "title": "<the finding, one line>", "body": "<the finding, why it needed a record — for a deferred
-  finding, why no Definition of Done criterion covered it; for an observation, that no slice of the scope
-  covers it and the scope did not cause it — the date, the feature label, the scope branch, the scope
-  anchor's `#<n>`, and a copy-pasteable /superdev:plan \"<the finding>\" line>", "labels": [<the `triage`
-  label id>] }`. Omit
-  `assignees` entirely, whatever the operator configuration names: nobody has picked the work up.
-  Capture the
-  returned `number` as the record's reference: **the deferred trigger** is what `/superdev:review` puts
-  in the ledger bullet; **an observation** instead reports that reference to the operator and writes no
-  ledger bullet of its own, since the record is its own identity (`references/scope-mode.md`'s
-  `## Observations` section).
-- **List the records:** `tea api --login codeberg.org --repo bomret/superdev -i '/repos/bomret/superdev/issues?labels=triage&state=open'` (paginated).
-  It returns every open triage record with its `number`, `title`, and `body`, which is the whole record —
-  a triage record carries no other state. No `triage` label existing yet means no record has ever been
-  written, which reads as an empty list rather than an error.
-- **Resolve the label by id, and create it when it is missing.**
-  `tea api --login codeberg.org --repo bomret/superdev -i /repos/bomret/superdev/labels` first (paginated). No `triage` there → create it with
-  `tea api --login codeberg.org --repo bomret/superdev -i -X POST -d @<file> /repos/bomret/superdev/labels` (`{ "name": "triage", "color": "#ededed" }`), then pass the
-  new id on the create above. **A create that reports the name as already taken means the label is
-  there** — a page after the first read missed it — so re-read the list for its id and carry on. A
-  label-less record is invisible to the query that is the point of writing it.
+- **Create it:** `tea issues create -t "$title" --description-file -`, with `title` (the finding, one line) set
+  from a quoted heredoc (`title=$(cat <<'SUPERDEV_TEXT_EOF' … SUPERDEV_TEXT_EOF)`) and the body on
+  stdin: the finding, why it needed a record — for a deferred finding, why no Definition of Done
+  criterion covered it; for an observation, that no slice of the scope covers it and the scope did not
+  cause it — the date, the feature label, the scope branch, the scope anchor's reference, and a
+  copy-pasteable /superdev:plan "<the finding>" line. Then add the triage label by id and read it back
+  (*tea conventions*). Pass no `-a`: a triage record is created **unassigned**, whatever the operator
+  configuration names, because nobody has picked the work up. Capture the created `<n>` as the record's
+  reference: **the deferred trigger** is what `/superdev:review` puts in the ledger bullet; **an
+  observation** instead reports that reference to the operator and writes no ledger bullet of its own,
+  since the record is its own identity (`references/scope-mode.md`'s `## Observations` section).
+- **List the records:** `tea issues list -o json --fields index,title,body --labels triage --state open --page <p> --limit 50`,
+  paged. It returns every open triage record with its `index`, `title`, and `body`, which is the whole
+  record — a triage record carries no other state. No label of that name resolving means no record has
+  ever been written, which reads as an empty list rather than an error.
+- **The label is resolved by id, and created when it is missing.** Read the paged
+  `tea labels list -o json` first (*tea conventions*). No label of that name → create it with `tea labels
+  create --name "triage" --color "#ededed"`, then re-read the listing for its id and pass that id on the
+  label add above. A label-less record is invisible to the query that is the point of writing it.
 - **No feature label and no `ready` label.** Those two are what
   `/superdev:implement`'s slice loading selects on, so a record carrying either would be built as work.
   It is a record of unplanned work, not a slice.
@@ -228,12 +243,13 @@ carries neither a feature label nor the `triage` label.
 
 - **Recognise one.** An open issue whose `labels` array carries no label matching `<type>/<slug>` and no
   `triage` label.
-- **List them.** `tea api --login codeberg.org --repo bomret/superdev -i '/repos/bomret/superdev/issues?state=open&type=issues&sort=oldest'` (paginated),
-  then keep only the issues whose `labels` array matches the rule above. `type=issues` excludes pull
-  requests at the server — Forgejo's issue endpoint otherwise returns them alongside issues, each carrying
-  a `pull_request` field naming the pull request. `sort=oldest` pages the open-issue set oldest first, the
-  order `/superdev:backlog`'s cap wants, so the survey pages the full open-issue set and the oldest-first
-  order makes picking the 5 oldest and counting the total cheap once it has.
+- **List them.** `tea api -i '/repos/{owner}/{repo}/issues?state=open&type=issues&sort=oldest&page=<p>&limit=50'`
+  (paged), then keep only the issues whose `labels` array matches the rule above. `type=issues` excludes
+  pull requests at the server — Forgejo's issue endpoint otherwise returns them alongside issues, each
+  carrying a `pull_request` field naming the pull request. `sort=oldest` pages the open-issue set oldest
+  first, the order `/superdev:backlog`'s cap wants, so the survey pages the full open-issue set and the
+  oldest-first order makes picking the 5 oldest and counting the total cheap once it has. No subcommand
+  sorts, so this is a `tea api` call.
 - **Read its age.** The issue's own `created_at` field.
 
 ## Run state
@@ -242,12 +258,12 @@ carries neither a feature label nor the `triage` label.
 every other body section — the `epic`-labelled issue on a multi-slice feature, the lone slice issue on a
 single-slice one (`## Scope anchor` above).
 
-- **Write** (after any ledger write the snapshot would show): `tea api --login codeberg.org --repo bomret/superdev -i -X PATCH -d @<file> /repos/bomret/superdev/issues/<index>` with
-  `{ "body": "<anchor body with the ## Run state section folded in>" }` — the same call and body shape the
-  epic amendment under *Append mode* below already uses. **Best-effort:** a failed write is reported once
-  per run and the run continues; the ledger stays authoritative.
-- **Read** (every publish, including run init and adopting a run): `tea api --login codeberg.org --repo bomret/superdev -i /repos/bomret/superdev/issues/<index>` — the same call
-  **Read a slice** above already names — and take the body back out of the response.
+- **Write** (after any ledger write the snapshot would show): `tea issues edit <index> --description-file -`
+  with the anchor body, the `## Run state` section folded in, on stdin — the same call the epic amendment
+  under *Append mode* below already uses. **Best-effort:** a failed write is reported once per run and the
+  run continues; the ledger stays authoritative.
+- **Read** (every publish, including run init and adopting a run): `tea issues <index> -o json` — the same
+  call **Read a slice** above already names — and take the `body` back out of the response.
 - **The section is machine-owned.** A deeper subsection an operator adds under `## Run state` — a
   `### Operator notes` heading, say — is replaced along with the rest on the next publish. Keep an
   operator note outside the section.
@@ -260,11 +276,11 @@ not this store carries a snapshot.
 
 - **Tick a criterion:** write the criterion text and the judgment's note each to their own file, through
   a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`) rather than as a shell-interpolated argument — either may carry a quote, a
-  backtick, or a `$(` (`references/dod-ticks.md`, triage #680). `tea api --login codeberg.org --repo bomret/superdev -i /repos/bomret/superdev/issues/<index>` (the same call *Run state*'s
-  own read above uses) for the anchor body, pipe it through
+  backtick, or a `$(` (`references/dod-ticks.md`, triage #680). `tea issues <index> -o json` (the same call *Run state*'s own
+  read above uses) for the anchor body, pipe it through
   `node plugin/scripts/scope.js dod-line --match-file <path> --verdict met|not-met|ceiling|accepted
-  --note-file <path>` on stdin, then `tea api --login codeberg.org --repo bomret/superdev -i -X PATCH -d @<file> /repos/bomret/superdev/issues/<index>` with
-  `{ "body": "<dod-line's stdout>" }` — the same call shape the *Run state* write above already uses.
+  --note-file <path>` on stdin, then `tea issues edit <index> --description-file -`
+  with `dod-line`'s stdout on stdin — the same call shape the *Run state* write above already uses.
   **Best-effort:** a failed write is reported once per run and never stops the run; `dod.md` stays
   authoritative.
 - **A criterion's tag renders as `#<n>`** (the slice issue's index). `/superdev:plan` §6 writes the tag
@@ -285,13 +301,13 @@ every lifecycle point (see the plan-contract's *Slice lifecycle*):
 | `in-progress` | open + label `in-progress` | swap `ready` to `in-progress` on dispatch |
 | `in-review` | open + label `in-review` | swap label when per-slice review starts (behavior only) |
 | `blocked` | open + label `blocked` | swap label while stuck |
-| `merged` (done) | **closed** | close with the `PATCH` above (`{ "state": "closed" }`) after merge |
+| `merged` (done) | **closed** | `tea issues close <index>` after merge |
 
 The **epic** issue takes the label `in-progress` when the run starts, and is **closed** once every slice
 issue is closed. A **single-slice feature has no epic**: its lone issue is the scope anchor, so the anchor
 rule wins. It keeps the `in-progress` label through the merge, and closes once, when `/superdev:wrap-up` runs.
-All of this is best-effort, because the run ledger drives control flow. When a label call or a close call
-fails, log it and continue.
+Every label swap is by id and read back (*tea conventions*). All of this is best-effort, because the run
+ledger drives control flow. When a label call or a close call fails, log it and continue.
 
 **Lite execution tier** (3 slices or fewer, see `plan-contract.md`) skips `in-review` for every slice
 regardless of `test-applicability`. Go straight from `in-progress` to closed once the slice's commit lands
@@ -303,7 +319,7 @@ on the scope branch.
 ADR 0004).
 
 - **Create only new records. Never edit, close, or delete a merged slice.** Append fires new
-  `tea api --login codeberg.org --repo bomret/superdev -i -X POST -d @<file> /repos/bomret/superdev/issues` calls for the new slices alone. It never `PATCH`es or
+  `tea issues create` calls for the new slices alone. It never edits or
   closes an issue a prior run already merged, and never rewrites its labels or body — except the
   anchor-dependency line and the deploy line, each of which migrates to the new epic issue when append
   promotes a single-slice feature (below). A merged issue's index is a satisfied `depends-on` root for a
@@ -317,12 +333,11 @@ ADR 0004).
   **migrates to the new epic issue's own body** and is removed from the lone issue — the epic is the anchor
   now. The `**Deploy:**` line migrates the same way, for the same reason, and is removed from the lone
   issue. Nothing else about the lone issue changes.
-- **Amend the epic's own body, the one sanctioned edit.** `tea api --login codeberg.org --repo bomret/superdev -i -X PATCH -d @<file>
-  /repos/bomret/superdev/issues/<epic index>` with `{ "body": "<amended body>" }` folds the
-  interview's new criteria into the epic's Definition of Done in place. The same call deletes a
-  resolved parked question's line from the epic's `## Parked questions` section. Both are edits to the
-  epic issue's own body, never to a merged slice's issue. The never-edit rule above still holds for every
-  slice.
+- **Amend the epic's own body, the one sanctioned edit.** `tea issues edit <epic index>
+  --description-file -` with the amended body on stdin folds the interview's new criteria into the epic's
+  Definition of Done in place. The same call deletes a resolved parked question's line from the epic's
+  `## Parked questions` section. Both are edits to the epic issue's own body, never to a merged slice's
+  issue. The never-edit rule above still holds for every slice.
 
 The issue index is server-assigned at creation, already unique and stable, so append names no
 continuation rule for `id`.

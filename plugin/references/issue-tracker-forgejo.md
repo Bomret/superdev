@@ -1,14 +1,16 @@
 # Slice store: Forgejo / Codeberg Issues
 
-Slices live as issues on a Forgejo (or Gitea) instance — Codeberg included — one slice = one issue. Use
-the Forgejo REST API (or the `tea` CLI if installed).
+Slices live as issues on a Forgejo (or Gitea) instance — Codeberg included — one slice = one issue.
+Every host call goes through the `tea` CLI: a subcommand where one performs the operation, `tea api`
+where none does.
 
 ## Configuration (fill in at setup)
 
 - **Host / owner / repo:** `<https://codeberg.org or your self-hosted Forgejo/Gitea URL>` · `<owner>` /
-  `<repo>`. Every `/api/v1/...` path below joins to this Host.
-- **Auth:** API token in env var `<GITEA_TOKEN>` (record the name, never the value). Header:
-  `Authorization: token $<GITEA_TOKEN>`, `Content-Type: application/json`.
+  `<repo>`.
+- **Login:** resolved from the Host, never stored: the one `tea login list -o json` entry whose `url`
+  equals the Host (*tea conventions* below). No token env var, header, or raw HTTP call (curl) appears in this
+  document.
 - **Feature label:** one label per feature/scope, `<type>/<slug>` (e.g. `fix/<slug>`), applied to the
   epic + its slices, so the feature's issues are listable. `<type>` is the **change type** — the
   Conventional Commits type of the work, per `references/scope-mode.md` — and the label doubles as the
@@ -26,8 +28,8 @@ the Forgejo REST API (or the `tea` CLI if installed).
 - `test-applicability` ↔ a label: `behavior` | `mechanical` | `docs`.
 - `depends-on` ↔ a `**Depends on:** #<n>` line in the issue body (one per blocker). Some Forgejo
   instances have the native issue-dependencies unit **disabled**; when it is, the body line is the source
-  of truth `/implement` parses. Check the instance first — `POST .../issues/<index>/dependencies` 404s
-  when the unit is off.
+  of truth `/implement` parses. Check the instance first —
+  `tea api -i -X POST '/repos/{owner}/{repo}/issues/<index>/dependencies'` answers 404 when the unit is off.
 - **Anchor dependency** (optional) ↔ a `**Blocked by feature:** #<n>` line in the **anchor's own** body —
   the epic on a multi-slice feature, the lone slice issue on a single-slice one. Distinct from the
   `**Depends on:** #<n>` line above: it names another feature's scope anchor (`plan-contract.md` → *Scope
@@ -51,20 +53,39 @@ the Forgejo REST API (or the `tea` CLI if installed).
   and advisory, same as parked questions; `plan-contract.md` owns when each is written.
 - `status` ↔ open/closed + a status label (see the status map below).
 
-## REST conventions
+## tea conventions
 
-- **Create an issue:** `POST /api/v1/repos/<owner>/<repo>/issues` with
-  `{ "title": "...", "body": "<specification + acceptance checklist>", "labels": [<label ids>],
-  "assignees": ["<assignee>"] }` — omit `assignees` entirely when the assignee resolves to `none`.
-  Capture the returned
-  `number` as the slice's `id`. Pass `labels` and `assignees` **at creation** — no separate label or
-  assignee POST for the create path.
+- **Login.** Resolved, never stored: the one entry of `tea login list -o json` whose `url` equals the
+  Host. Every call passes `--login <login> --repo <owner>/<repo>`. Without `--login`, `tea` falls back to
+  another host's login when none matches the current remote. In a `tea api` path, `{owner}` and `{repo}` fill from
+  `--repo`. *Degrade when no tea login* below states the zero-match, no-`tea`, and several-match cases.
+- **A deciding `tea api` call passes `-i`** and reads the HTTP status from stderr, because `tea api` exits
+  0 on a 4xx or 5xx answer.
+- **Label ids.** Resolve each id from `tea labels list -o json --page <p> --limit 50`, paging until a
+  page returns fewer than 50 entries. Never pass `-L` to `tea issues create` or `tea issues edit`: `tea`
+  0.16.0 resolves a `-L` name only against the first 50-entry page of the repository's labels, and drops
+  every other name without an error.
+- **Add or remove a label by id:** `tea api -i -X POST '/repos/{owner}/{repo}/issues/<index>/labels' -d
+  '{"labels":[<ids>]}'` adds, and `tea api -i -X DELETE '/repos/{owner}/{repo}/issues/<index>/labels/<id>'`
+  removes one.
+- **Read every label write back.** After an issue create and after every label add or remove, run `tea
+  issues <index> -o json` and compare its label names with the requested set. A mismatch is reported to
+  the operator and stops that write: `tea` drops an unknown label name silently, and an issue without
+  `ready` or its feature label is invisible to `/superdev:implement`.
+- **Create a label** only after the paged listing above lacks the name: `tea labels create --name
+  "<name>" --color "<color>"`. `tea labels create` makes a second label of an existing name without an
+  error.
+- **Create an issue:** `tea issues create -t "$title" --description-file - -a <assignee>`, the
+  specification and acceptance checklist on stdin. Set `title` first from a quoted heredoc (`title=$(cat <<'SUPERDEV_TEXT_EOF' … SUPERDEV_TEXT_EOF)`), so a backtick or `$(` in it stays literal. Omit `-a` when the assignee resolves to `none`, and pass
+  no `-L`. Capture the new issue's `<n>` from the URL `tea` prints, which ends in `/issues/<n>`, as the
+  slice's `id`. Then add its labels by id and read them back (both above).
 - **Parallel-safe creation order:** create the epic first (slices reference `#<epic>`), then fire **all
-  slice creates in parallel**, then the `depends-on` body-patches in parallel once every `number` is
-  known. Only the epic→slices→depends-on ordering is required; within each step the calls are
-  independent, so `/plan` issues them concurrently.
+  slice creates in parallel**, then the labels and the `depends-on` body-edits in parallel once every
+  `<n>` is known. Only the epic, then slices, then labels and depends-on ordering is required. Within each
+  step the calls are independent, so `/plan` issues them concurrently.
 - **Record a dependency (`depends-on`):** append a `**Depends on:** #<blocker>` line to the issue body
-  when the instance's native `POST .../issues/<index>/dependencies` endpoint 404s (dependencies unit
+  (`tea issues edit <index> --description-file -`) when the instance's native
+  `tea api -i -X POST '/repos/{owner}/{repo}/issues/<index>/dependencies'` answers 404 (dependencies unit
   disabled); use the native endpoint when it is enabled.
 - **Record an anchor dependency:** append a `**Blocked by feature:** #<blocker-anchor>` line to the
   **anchor issue's own** body — the epic on a multi-slice feature, the lone slice issue on a single-slice
@@ -74,11 +95,17 @@ the Forgejo REST API (or the `tea` CLI if installed).
   or `**Deploy:** none` to the **anchor issue's own** body, revising the line in place on an append that
   re-answers the deploy question. A body-append, like the anchor dependency above, never the native
   dependencies endpoint (ADR 0101).
-- **List feature slices:** `GET /api/v1/repos/<owner>/<repo>/issues?labels=<type>%2F<feature>&state=all`
-  (URL-encode the label's `/`).
-- **Read a slice:** `GET /api/v1/repos/<owner>/<repo>/issues/<index>`.
-- **Set labels / status:** `POST .../issues/<index>/labels` (add) and
-  `PATCH .../issues/<index>` with `{ "state": "closed" }` to close.
+- **List feature slices:** `tea issues list -o json --fields index,state,title,body,labels --labels
+  <type>/<feature> --state all --page <p> --limit 50`, paged until a page returns fewer than 50 entries.
+- **Read a slice:** `tea issues <index> -o json`.
+- **Edit an issue's body:** `tea issues edit <index> --description-file -`, the whole new body on stdin.
+- **Set labels and status:** labels by id (above), and `tea issues close <index>` to close.
+
+## Degrade when no tea login
+
+No `tea` on the path, or no `tea login list -o json` entry whose `url` equals the Host: stop the step and
+print the exact `tea` command it would have run. Never fall back to a token, a raw HTTP call (curl), or another
+host's login. Two or more matching entries: name them and let the operator pick.
 
 ## Scope anchor
 
@@ -92,17 +119,17 @@ feature label, and on a single-slice feature it is the lone issue carrying that 
   anchor. A closed candidate never wins over an open one this way (`plan-contract.md` → *Scope anchor*).
   Where no open issue carries the label and exactly one closed issue does, that closed issue is the
   anchor — the shape the shipped-anchor refusal reads as its own done signal (ADR 0083).
-- **List the candidates.** The feature labels themselves: `GET /api/v1/repos/<owner>/<repo>/labels`
-  (paginated), keeping the names whose first segment is a change type (`references/scope-mode.md` lists
-  them). Per feature label:
-  `GET /api/v1/repos/<owner>/<repo>/issues?labels=<type>%2F<feature>&state=all&type=issues` (URL-encode
-  the label's `/`), then apply the rule above to the result. `state=all`, not `state=open`: a shipped
-  feature's epic is closed, and a `state=open` listing would drop it from the candidates a picked feature
-  resolves against, so `/superdev:plan`'s shipped-anchor refusal (ADR 0083) never sees it. `type=issues`
-  excludes pull requests at the server, the same exclusion **List them** below states — without it, a
-  closed feature-labelled pull request would sit as a permanent extra candidate once the listing spans
-  every state, not the transient one the untriaged listing already guards against.
-- **List the slices beneath it.** Use the **List feature slices** call above (`state=all`), not the
+- **List the candidates.** The feature labels themselves: `tea labels list -o json --page <p> --limit 50`
+  (paged), keeping the names whose first segment is a change type (`references/scope-mode.md` lists
+  them). Per feature label: `tea issues list -o json --fields index,state,title,body,labels --labels
+  <type>/<feature> --state all --page <p> --limit 50` (paged), then apply the rule above to the result.
+  `--state all`, not `--state open`: a shipped
+  feature's epic is closed, and an open-only listing would drop it from the candidates a picked feature
+  resolves against, so `/superdev:plan`'s shipped-anchor refusal (ADR 0083) never sees it. `tea issues list`
+  returns issues only, its `--kind` defaulting to `issues`, the same exclusion **List them** below
+  states — without it, a closed feature-labelled pull request would sit as a permanent extra candidate
+  once the listing spans every state, not the transient one the untriaged listing already guards against.
+- **List the slices beneath it.** Use the **List feature slices** call above (`--state all`), not the
   candidate listing: a merged slice is closed, and closing the epic is best-effort, so an anchor left open
   with every slice closed still has slices beneath it and a `state=open` listing would present it as never
   decomposed. On a multi-slice feature the slices are every issue in that response that is not the `epic`;
@@ -114,9 +141,8 @@ feature label, and on a single-slice feature it is the lone issue carrying that 
   defines, read off the **anchor's own** body — never the `**Depends on:** #<n>` line above, which carries
   slice-level `depends-on` within this feature and names nothing outside it. It names another feature's
   scope anchor (`plan-contract.md` → *Scope anchor*, ADR 0040). The candidate listing already returned the
-  body; fetch it with `GET /api/v1/repos/<owner>/<repo>/issues/<index>` when it did not. No such line means
-  no dependency. **Resolve `#<n>` to that anchor's own record** with the same `GET
-  /api/v1/repos/<owner>/<repo>/issues/<n>` call — its `labels` array is the blocker's own feature label,
+  body; fetch it with `tea issues <index> -o json` when it did not. No such line means
+  no dependency. **Resolve `#<n>` to that anchor's own record** with the same `tea issues <n> -o json` call — its `labels` array is the blocker's own feature label,
   and its `state` is open or closed — because a consumer holds the dependency against the blocker's own
   label and state, not the label of the record carrying this line. `/superdev:plan` writes one through the
   same **Record an anchor dependency** body-append above.
@@ -136,7 +162,7 @@ feature label, and on a single-slice feature it is the lone issue carrying that 
 
 Operator configuration, not a slice field (`plan-contract.md` → *Assignee*; ADR 0010, ADR 0073). The
 identifier is a Forgejo **login**, read from `.superdev/info.json` under `issue-tracker.assignee`, and
-applied to the **epic and every slice** in the create call, never a follow-up pass. The two failure shapes
+applied to the **epic and every slice** in `tea issues create`'s `-a`, never a follow-up pass. The two failure shapes
 below are the general *Assignee* recovery rule (`plan-contract.md`) made concrete for Forgejo.
 
 ```json
@@ -145,17 +171,17 @@ below are the general *Assignee* recovery rule (`plan-contract.md`) made concret
 }
 ```
 
-- Forgejo's `CreateIssueOption.assignees` is an **array**, so the single configured login is sent as a
-  one-element `["<login>"]`. `EditIssueOption.assignees` is the same shape if an issue ever needs it later.
-- **No file, no `issue-tracker` key, or no `assignee`** → resolve the token's own identity with
-  `GET /api/v1/user` and use its `login`.
-- **`"assignee": "none"`** → omit `assignees` entirely. No warning, no error.
+- `tea issues create -a` takes a comma-separated list, so the single configured login is passed as
+  `-a <login>`. `tea issues edit --add-assignees` takes the same shape if an issue ever needs it later.
+- **No file, no `issue-tracker` key, or no `assignee`**: use the resolved login's `user` field from
+  `tea login list -o json` — the token's own identity (INV-0074, INV-0075).
+- **`"assignee": "none"`** → omit `-a` entirely. No warning, no error.
 - **A login that doesn't exist or isn't a collaborator rejects the whole create**: `422 Assignee does not
   exist` or `422 canBeAssigned` (`ErrUserDoesNotHaveAccessToRepo`). Retry that one create with
-  `assignees` omitted; report it once per run.
-- **A token without issue-write access silently drops the assignment** (and `labels` with it) — the
-  create succeeds but the returned `assignees` is empty or `null`. Read it back from the create response;
-  if it's empty while an assignee was configured, report it once per run.
+  `-a` omitted; report it once per run.
+- **A token without issue-write access silently drops the assignment**. The
+  create succeeds, but `tea issues <index> -o json` shows `assignees` empty. Read it back after the
+  create; when it is empty while an assignee was configured, report it once per run.
 - Either way the issue is created and nothing is retried more than that one time or rolled back.
 - **A leftover `Assignee:` bullet** in this repo's `docs/agents/issue-tracker.md` is configuration nothing
   reads. Report it once per run, naming the file and the move to `.superdev/info.json`.
@@ -166,15 +192,16 @@ below are the general *Assignee* recovery rule (`plan-contract.md`) made concret
 `epic`-labelled issue, or a single-slice feature's lone issue. It is deliberately not the `ready` label
 below, which the dispatch swaps to `in-progress`.
 
-- **Apply** (`/superdev:plan`, on a release): `POST .../issues/<index>/labels`, the same add call the
-  status map uses. Labels are addressed by **id** here, so resolve `released` through
-  `GET /api/v1/repos/<owner>/<repo>/labels` first, exactly as the feature and status labels are resolved.
-- **Read** (`/superdev:implement`, `/superdev:backlog`): the anchor's own `labels` array, which the issue
-  listing that found the anchor already returned — no extra call.
-- **Remove** (`/superdev:plan`, on an append the user declines):
-  `DELETE /api/v1/repos/<owner>/<repo>/issues/<index>/labels/<released label id>`, resolving the id
-  through the same `GET /api/v1/repos/<owner>/<repo>/labels` call **Apply** makes. An anchor that does
-  not carry the label is already unreleased, so a `404` there is the wanted state, not a failure.
+- **Apply** (`/superdev:plan`, on a release): add the `released` label by id, `tea api -i -X POST
+  '/repos/{owner}/{repo}/issues/<index>/labels' -d '{"labels":[<released label id>]}'`, then read it back
+  (*tea conventions*). Resolve the id from the paged `tea labels list -o json`, exactly as the feature and
+  status labels are resolved.
+- **Read** (`/superdev:implement`, `/superdev:backlog`): the anchor's own `labels`, which the
+  `tea issues list` call that found the anchor already returned. No extra call.
+- **Remove** (`/superdev:plan`, on an append the user declines): `tea api -i -X DELETE
+  '/repos/{owner}/{repo}/issues/<index>/labels/<released label id>'`, resolving the id through the same
+  paged listing **Apply** makes. An anchor that does not carry the label is already unreleased, so a
+  `404` there is the wanted state, not a failure.
 - A feature whose anchor lacks the label is unreleased. Nothing else about the issue says so, and no other
   label means it.
 
@@ -185,28 +212,25 @@ controller creates one the same way the moment it meets an observation, and `/su
 interview places a found defect later (`references/scope-mode.md`'s `## Observations` section).
 On this store it is an ordinary issue carrying the **Triage label** from *Configuration* and nothing else.
 
-- **Create it:** `POST /api/v1/repos/<owner>/<repo>/issues` with
-  `{ "title": "<the finding, one line>", "body": "<the finding, why it needed a record — for a deferred
-  finding, why no Definition of Done criterion covered it; for an observation, that no slice of the scope
-  covers it and the scope did not cause it — the date, the feature label, the scope branch, the scope
-  anchor's reference, and a copy-pasteable /superdev:plan \"<the finding>\" line>", "labels": [<the
-  triage label's id>] }`. Omit
-  `assignees` entirely: a triage record is created **unassigned**, whatever the operator configuration
-  names, because
-  nobody has picked the work up. Capture the returned `number` as the record's reference: **the deferred
-  trigger** is what `/superdev:review` puts in the ledger bullet; **an observation** instead reports that
-  reference to the operator and writes no ledger bullet of its own, since the record is its own identity
-  (`references/scope-mode.md`'s `## Observations` section).
-- **List the records:** `GET /api/v1/repos/<owner>/<repo>/issues?labels=<triage>&state=open` (paginated).
-  It returns every open triage record with its `number`, `title`, and `body`, which is the whole record —
-  a triage record carries no other state. No label of that name resolving means no record has ever been
-  written, which reads as an empty list rather than an error.
-- **The label is resolved, and created when it is missing.** Labels are addressed by **id** here, so read
-  `GET /api/v1/repos/<owner>/<repo>/labels` first (paginated). No label of that name → create it with
-  `POST /api/v1/repos/<owner>/<repo>/labels` (`{ "name": "<triage>", "color": "#ededed" }`), then pass the
-  new id on the create above. **A create that reports the name as already taken means the label is
-  there** — a page after the first read missed it — so re-read the list for its id and carry on. A record
-  that lands label-less is invisible to the query that is the point of writing it.
+- **Create it:** `tea issues create -t "$title" --description-file -`, with `title` (the finding, one line) set
+  from a quoted heredoc (`title=$(cat <<'SUPERDEV_TEXT_EOF' … SUPERDEV_TEXT_EOF)`) and the body on
+  stdin: the finding, why it needed a record — for a deferred finding, why no Definition of Done
+  criterion covered it; for an observation, that no slice of the scope covers it and the scope did not
+  cause it — the date, the feature label, the scope branch, the scope anchor's reference, and a
+  copy-pasteable /superdev:plan "<the finding>" line. Then add the triage label by id and read it back
+  (*tea conventions*). Pass no `-a`: a triage record is created **unassigned**, whatever the operator
+  configuration names, because nobody has picked the work up. Capture the created `<n>` as the record's
+  reference: **the deferred trigger** is what `/superdev:review` puts in the ledger bullet; **an
+  observation** instead reports that reference to the operator and writes no ledger bullet of its own,
+  since the record is its own identity (`references/scope-mode.md`'s `## Observations` section).
+- **List the records:** `tea issues list -o json --fields index,title,body --labels <triage> --state open --page <p> --limit 50`,
+  paged. It returns every open triage record with its `index`, `title`, and `body`, which is the whole
+  record — a triage record carries no other state. No label of that name resolving means no record has
+  ever been written, which reads as an empty list rather than an error.
+- **The label is resolved by id, and created when it is missing.** Read the paged
+  `tea labels list -o json` first (*tea conventions*). No label of that name → create it with `tea labels
+  create --name "<triage>" --color "#ededed"`, then re-read the listing for its id and pass that id on the
+  label add above. A label-less record is invisible to the query that is the point of writing it.
 - **No feature label and no `ready` label.** Those two are what
   `/superdev:implement`'s slice loading selects on, so a triage record carrying either would be picked up as
   work to build. It is a record of unplanned work, not a slice.
@@ -220,12 +244,13 @@ it carries neither a feature label nor the `<triage>` label.
 
 - **Recognise one.** An open issue whose `labels` array carries no label matching `<type>/<slug>` and no
   `<triage>` label.
-- **List them.** `GET /api/v1/repos/<owner>/<repo>/issues?state=open&type=issues&sort=oldest` (paginated),
-  then keep only the issues whose `labels` array matches the rule above. `type=issues` excludes pull
-  requests at the server — Forgejo's issue endpoint otherwise returns them alongside issues, each carrying
-  a `pull_request` field naming the pull request. `sort=oldest` pages the open-issue set oldest first, the
-  order `/superdev:backlog`'s cap wants, so the survey pages the full open-issue set and the oldest-first
-  order makes picking the 5 oldest and counting the total cheap once it has.
+- **List them.** `tea api -i '/repos/{owner}/{repo}/issues?state=open&type=issues&sort=oldest&page=<p>&limit=50'`
+  (paged), then keep only the issues whose `labels` array matches the rule above. `type=issues` excludes
+  pull requests at the server — Forgejo's issue endpoint otherwise returns them alongside issues, each
+  carrying a `pull_request` field naming the pull request. `sort=oldest` pages the open-issue set oldest
+  first, the order `/superdev:backlog`'s cap wants, so the survey pages the full open-issue set and the
+  oldest-first order makes picking the 5 oldest and counting the total cheap once it has. No subcommand
+  sorts, so this is a `tea api` call.
 - **Read its age.** The issue's own `created_at` field.
 
 ## Run state
@@ -234,12 +259,12 @@ it carries neither a feature label nor the `<triage>` label.
 every other body section — the `epic`-labelled issue on a multi-slice feature, the lone slice issue on a
 single-slice one (`## Scope anchor` above).
 
-- **Write** (after any ledger write the snapshot would show): `PATCH /api/v1/repos/<owner>/<repo>/issues/<index>` with
-  `{ "body": "<anchor body with the ## Run state section folded in>" }` — the same call and body shape the
-  epic amendment under *Append mode* below already uses. **Best-effort:** a failed write is reported once
-  per run and the run continues; the ledger stays authoritative.
-- **Read** (every publish, including run init and adopting a run): `GET /api/v1/repos/<owner>/<repo>/issues/<index>` — the same call
-  **Read a slice** above already names — and take the body back out of the response.
+- **Write** (after any ledger write the snapshot would show): `tea issues edit <index> --description-file -`
+  with the anchor body, the `## Run state` section folded in, on stdin — the same call the epic amendment
+  under *Append mode* below already uses. **Best-effort:** a failed write is reported once per run and the
+  run continues; the ledger stays authoritative.
+- **Read** (every publish, including run init and adopting a run): `tea issues <index> -o json` — the same
+  call **Read a slice** above already names — and take the `body` back out of the response.
 - **The section is machine-owned.** A deeper subsection an operator adds under `## Run state` — a
   `### Operator notes` heading, say — is replaced along with the rest on the next publish. Keep an
   operator note outside the section.
@@ -252,11 +277,11 @@ not this store carries a snapshot.
 
 - **Tick a criterion:** write the criterion text and the judgment's note each to their own file, through
   a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`) rather than as a shell-interpolated argument — either may carry a quote, a
-  backtick, or a `$(` (`references/dod-ticks.md`, triage #680). `GET /api/v1/repos/<owner>/<repo>/issues/<index>` (the same call *Run state*'s own
+  backtick, or a `$(` (`references/dod-ticks.md`, triage #680). `tea issues <index> -o json` (the same call *Run state*'s own
   read above uses) for the anchor body, pipe it through
   `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js dod-line --match-file <path> --verdict
-  met|not-met|ceiling|accepted --note-file <path>` on stdin, then `PATCH /api/v1/repos/<owner>/<repo>/issues/<index>`
-  with `{ "body": "<dod-line's stdout>" }` — the same call shape the *Run state* write above already
+  met|not-met|ceiling|accepted --note-file <path>` on stdin, then `tea issues edit <index> --description-file -`
+  with `dod-line`'s stdout on stdin — the same call shape the *Run state* write above already
   uses. **Best-effort:** a failed write is reported once per run and never stops the run; `dod.md` stays
   authoritative.
 - **A criterion's tag renders as `#<n>`** (the slice issue's index). `/superdev:plan` §6 writes the tag
@@ -276,12 +301,12 @@ not this store carries a snapshot.
 | `in-progress` | open + label `in-progress` | swap `ready`→`in-progress` on dispatch |
 | `in-review` | open + label `in-review` | swap label when per-slice review starts (behavior only) |
 | `blocked` | open + label `blocked` | swap label while stuck |
-| `merged` (done) | **closed** | `PATCH { "state": "closed" }` after merge |
+| `merged` (done) | **closed** | `tea issues close <index>` after merge |
 
 The **epic** issue: label `in-progress` when the run starts, **closed** once every slice issue is closed.
 A **single-slice feature has no epic**: its lone issue is the scope anchor, so the anchor rule wins. It
 keeps the `in-progress` label through the merge, and closes once, when `/superdev:wrap-up` runs.
-Best-effort — the run ledger drives control flow; if a label/close call fails, log it and continue.
+Every label swap is by id and read back (*tea conventions*). Best-effort — the run ledger drives control flow; if a label/close call fails, log it and continue.
 
 **Lite execution tier** (≤3 slices, see `plan-contract.md`) skips `in-review` for every slice regardless
 of `test-applicability` — go straight from `in-progress` to closed once the slice's commit lands on the
@@ -293,7 +318,7 @@ scope branch.
 ADR 0004).
 
 - **Create only new records; never edit, close, or delete a merged slice.** Append fires new
-  `POST /api/v1/repos/<owner>/<repo>/issues` calls for the new slices alone. It never `PATCH`es or closes
+  `tea issues create` calls for the new slices alone. It never edits or closes
   an issue a prior run already merged, and never rewrites its labels or body — except the
   anchor-dependency line and the deploy line, each of which migrates to the new epic issue when append
   promotes a single-slice feature (below) — a merged issue's index is a satisfied `depends-on` root for a
@@ -307,11 +332,11 @@ ADR 0004).
   **migrates to the new epic issue's own body** and is removed from the lone issue — the epic is the anchor
   now. The `**Deploy:**` line migrates the same way, for the same reason, and is removed from the lone
   issue. Nothing else about the lone issue changes.
-- **Amend the epic's own body — the one sanctioned edit.** `PATCH /api/v1/repos/<owner>/<repo>/issues/<epic
-  index>` with `{ "body": "<amended body>" }` folds the interview's new criteria into the epic's Definition
-  of Done in place, and, the same call, deletes a resolved parked question's line from the epic's `##
-  Parked questions` section. Both are edits to the epic issue's own body, never to a merged slice's issue —
-  the never-edit rule above still holds for every slice.
+- **Amend the epic's own body — the one sanctioned edit.** `tea issues edit <epic index>
+  --description-file -` with the amended body on stdin folds the interview's new criteria into the epic's
+  Definition of Done in place, and, the same call, deletes a resolved parked question's line from the
+  epic's `## Parked questions` section. Both are edits to the epic issue's own body, never to a merged
+  slice's issue — the never-edit rule above still holds for every slice.
 
 The issue index is server-assigned at creation, already unique and stable, so append names no
 continuation rule for `id` — the same reasoning `plan-contract.md` states for every issue-backed store.

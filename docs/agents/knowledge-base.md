@@ -6,11 +6,18 @@ Codeberg repo **Wiki** for `bomret/superdev`. Distinct from the agent-first in-r
 ## Configuration
 
 - **Backend:** Codeberg repo Wiki. **The Wiki unit is enabled** on the repo (`has_wiki: true`). When it is
-  ever disabled, re-enable it with `tea api --login codeberg.org --repo bomret/superdev -X PATCH -F has_wiki=true
-  /repos/bomret/superdev`.
-- **Auth:** the `tea` CLI's stored `codeberg.org` login (`tea login list`). Every call passes `--login
-  codeberg.org`: outside this repository's checkout, `tea` otherwise falls back to another stored login.
-  No token environment variable is read.
+  ever disabled, re-enable it with `tea api --login <login> --repo bomret/superdev -X PATCH -F has_wiki=true
+  /repos/bomret/superdev`, where `<login>` is the login resolved below.
+- **Auth:** the `tea` CLI's stored login for `https://codeberg.org`. The login is resolved, never stored: it
+  is the one `tea login list -o json` entry whose `url` is `https://codeberg.org`, and every call passes its
+  `name` as `--login`, because outside this repository's checkout `tea` otherwise falls back to another
+  stored login. No `tea` on the path, no matching login, or two or more matching logins stops the step:
+  each template below answers exit 2, "could not answer", and `/superdev:publish-kb` leaves the page staged.
+  The optional environment variable `SUPERDEV_KB_TEA_LOGIN` names one of several matching logins: set and
+  naming exactly one entry whose `url` is `https://codeberg.org`, that login is used; set and naming none,
+  the step stops with exit 2 and lists the matching names. For a re-run by hand, `tea login list -o json`
+  names the candidates. No token environment variable is
+  read.
 - **Audience:** superdev **adopters** (the people who install and use the plugin) first, then
   **maintainers**.
 - **Language:** English.
@@ -35,24 +42,28 @@ by that section's heading. Every other page is staged whole (ADR 0027).
 This is a **remote** backend, so nothing but `/superdev:publish-kb` calls it (ADR 0023). `/superdev:plan`
 and `/superdev:document` write each page as a **staged page** under `.superdev/kb-pending/<scope>/`. Each
 carries YAML frontmatter with the page `title` and an `action` of `upsert`, `patch`, or `delete`, and the
-page body below. The REST conventions below are what `/superdev:publish-kb` applies when a human runs it,
+page body below. The wiki API conventions below are what `/superdev:publish-kb` applies when a human runs it,
 once the feature has reached the adopters this wiki is written for.
 
-## REST conventions
+## Wiki API conventions
 
-- **Create or update a page:** `POST /api/v1/repos/bomret/superdev/wiki/new` with
-  `{ "title": "...", "content_base64": "<base64 markdown>", "message": "..." }`. Update with
-  `PATCH /api/v1/repos/bomret/superdev/wiki/page/<sub_url>`, using the same `sub_url` the find call below
-  returns for that title. It is not the title slugged by hand (see below).
+Every call is `tea api --login <login> --repo bomret/superdev`. Add `-i` to a call whose answer decides
+anything: `tea api` exits 0 on an HTTP 4xx or 5xx, and `-i` writes the status line to stderr. `tea wiki` is
+not used: it reads a disabled wiki's 404 as an empty listing.
+
+- **Create or update a page:** `tea api -X POST -d @- /repos/bomret/superdev/wiki/new` with
+  `{ "title": "...", "content_base64": "<base64 markdown>", "message": "..." }` on stdin. Update with
+  `tea api -X PATCH -d @- /repos/bomret/superdev/wiki/page/<sub_url>`, using the same `sub_url` the find call
+  below returns for that title. It is not the title slugged by hand (see below).
 - **Always send `title` on the `PATCH`, even when the title is unchanged.** Forgejo treats an omitted
   `title` as a rename to `unnamed` rather than as "leave it alone". A titleless update therefore destroys
   the page it meant to edit. The page vanishes from `/wiki/pages` under its own name, and a second
   titleless `PATCH` overwrites the same `unnamed` slot, taking the first page's content with it. The
   wiki's git history (`https://codeberg.org/bomret/superdev.wiki.git`) is what recovers a page lost this
   way.
-- **Find an existing page:** `GET /api/v1/repos/bomret/superdev/wiki/pages`. It returns metadata only
+- **Find an existing page:** `tea api /repos/bomret/superdev/wiki/pages`. It returns metadata only
   (`title`, `html_url`, `sub_url`, `last_commit`), and **no body**.
-- **Read a page's body:** `GET /api/v1/repos/bomret/superdev/wiki/page/<sub_url>` returns
+- **Read a page's body:** `tea api /repos/bomret/superdev/wiki/page/<sub_url>` returns
   `content_base64`, which decodes to the page markdown. `<sub_url>` is not the title slugged by hand. A
   title's `sub_url` diverges in ways a slugger cannot guess: `ADR 0023: The knowledge-base publish is
   its own command` becomes `ADR+0023%3A+The-knowledge-base-publish-is-its-own-command.-`. Get it from the
@@ -61,23 +72,29 @@ once the feature has reached the adopters this wiki is written for.
   itself returning **404** for a title the find call does list is not absence. The identifier only exists
   because the find call listed it. A 404 there means the identifier is stale, or the page was renamed
   between the two calls, so `/superdev:publish-kb` treats it as a read failure instead.
-- If the `tea` login fails or the Wiki unit is disabled, `/superdev:publish-kb` **leaves every page
-  staged**, reports why, and deletes nothing. A later run retries exactly the pages that did not land.
-  The in-repo docs are the record meanwhile. Do not fail.
+- If `tea` is missing, its login for the host is missing or ambiguous, or the Wiki unit is disabled,
+  `/superdev:publish-kb` **leaves every page staged**, reports why, and deletes nothing. A later run
+  retries exactly the pages that did not land. The in-repo docs are the record meanwhile. Do not fail.
 
 ## Commands
 
 The **backend command contract** (ADR 0069) `scripts/publish-kb.js` runs. `find` lists every wiki page
 and filters by title, emitting the matching entry's `sub_url`; `read`, `update`, and `delete` take
 `$SUPERDEV_KB_SUB_URL` from it. `update` always sends `title`, even when it is unchanged — an omitted
-`title` is the hazard the REST conventions above name: Forgejo reads it as a rename to `unnamed` and
+`title` is the hazard the wiki API conventions above name: Forgejo reads it as a rename to `unnamed` and
 destroys the page. `find` maps `jq -e`'s exit 1 (a genuine no-match) to exit 3, the only outcome
 `scripts/publish-kb.js` reads as positive absence; any other `jq` exit — a parse error, a usage
 error — maps to exit 2, "could not answer," so a page never gets created from a listing `jq` failed to
 read. The listing itself is capped at `limit=50`, Forgejo's own `max_response_items` ceiling
 (`https://forgejo.org/docs/latest/user/api/usage/`); a listing that returns exactly that many entries
 without finding the title also answers exit 2, since the title could sit on a page this call never
-fetched.
+fetched. A non-200 listing, a disabled wiki's 404 included, answers exit 2 as well: only a 200 listing that
+lacks the title reads as absent.
+
+Every template opens with the same login line, so it stands alone under the bound below:
+`tea login list -o json` narrowed to the one entry whose `url` is `https://codeberg.org`, exit 2 on none, no
+`tea`, several, or a `SUPERDEV_KB_TEA_LOGIN` naming none of them, after writing the cause (naming the matching logins when several) and the `tea login add --url https://codeberg.org` command to stderr,
+which `publish-kb.js` appends to the failure reason it reports.
 
 Every command below runs under a **30-second bound** (ADR 0076), or whatever
 `SUPERDEV_PUBLISH_KB_TIMEOUT_MS` names. `scripts/publish-kb.js` applies it at the spawn, so none of these
@@ -88,8 +105,10 @@ the status line `-i` writes to stderr and maps anything but success to its own f
 ### find
 
 ```sh
+logins=$(tea login list -o json 2>/dev/null) || { echo "superdev: tea is missing or cannot list logins; install it, then run: tea login add --url https://codeberg.org" >&2; exit 2; }
+login=$(printf '%s' "$logins" | jq -er --arg want "${SUPERDEV_KB_TEA_LOGIN:-}" '[.[] | select(.url == "https://codeberg.org")] | if $want != "" then map(select(.name == $want)) else . end | if length == 1 then .[0].name else empty end' 2>/dev/null) || { names=$(printf '%s' "$logins" | jq -r '[.[] | select(.url == "https://codeberg.org") | .name] | join(", ")' 2>/dev/null); n=$(printf '%s' "$logins" | jq '[.[] | select(.url == "https://codeberg.org")] | length' 2>/dev/null); if [ -n "${SUPERDEV_KB_TEA_LOGIN:-}" ] && [ "$n" -ge 1 ] 2>/dev/null; then echo "superdev: SUPERDEV_KB_TEA_LOGIN=$SUPERDEV_KB_TEA_LOGIN names none of the tea logins for https://codeberg.org ($names)" >&2; elif [ "$n" -gt 1 ] 2>/dev/null; then echo "superdev: several tea logins match https://codeberg.org ($names); set SUPERDEV_KB_TEA_LOGIN=<name> to pick one, or add the right one: tea login add --url https://codeberg.org" >&2; else echo "superdev: no tea login for https://codeberg.org; run: tea login add --url https://codeberg.org" >&2; fi; exit 2; }
 hdr=$(mktemp) || exit 2
-pages=$(tea api --login codeberg.org --repo bomret/superdev -i \
+pages=$(tea api --login "$login" --repo bomret/superdev -i \
   '/repos/bomret/superdev/wiki/pages?limit=50' 2>"$hdr") || { rm -f "$hdr"; exit 2; }
 code=$(head -1 "$hdr" | cut -d' ' -f2); rm -f "$hdr"
 [ "$code" = 200 ] || exit 2
@@ -107,8 +126,10 @@ printf '%s' "$page" | jq -c '{sub_url}'
 ### read
 
 ```sh
+logins=$(tea login list -o json 2>/dev/null) || { echo "superdev: tea is missing or cannot list logins; install it, then run: tea login add --url https://codeberg.org" >&2; exit 2; }
+login=$(printf '%s' "$logins" | jq -er --arg want "${SUPERDEV_KB_TEA_LOGIN:-}" '[.[] | select(.url == "https://codeberg.org")] | if $want != "" then map(select(.name == $want)) else . end | if length == 1 then .[0].name else empty end' 2>/dev/null) || { names=$(printf '%s' "$logins" | jq -r '[.[] | select(.url == "https://codeberg.org") | .name] | join(", ")' 2>/dev/null); n=$(printf '%s' "$logins" | jq '[.[] | select(.url == "https://codeberg.org")] | length' 2>/dev/null); if [ -n "${SUPERDEV_KB_TEA_LOGIN:-}" ] && [ "$n" -ge 1 ] 2>/dev/null; then echo "superdev: SUPERDEV_KB_TEA_LOGIN=$SUPERDEV_KB_TEA_LOGIN names none of the tea logins for https://codeberg.org ($names)" >&2; elif [ "$n" -gt 1 ] 2>/dev/null; then echo "superdev: several tea logins match https://codeberg.org ($names); set SUPERDEV_KB_TEA_LOGIN=<name> to pick one, or add the right one: tea login add --url https://codeberg.org" >&2; else echo "superdev: no tea login for https://codeberg.org; run: tea login add --url https://codeberg.org" >&2; fi; exit 2; }
 hdr=$(mktemp) || exit 1
-page=$(tea api --login codeberg.org --repo bomret/superdev -i \
+page=$(tea api --login "$login" --repo bomret/superdev -i \
   "/repos/bomret/superdev/wiki/page/$SUPERDEV_KB_SUB_URL" 2>"$hdr") || { rm -f "$hdr"; exit 1; }
 code=$(head -1 "$hdr" | cut -d' ' -f2); rm -f "$hdr"
 [ "$code" = 200 ] || exit 1
@@ -118,11 +139,13 @@ printf '%s' "$page" | jq -r '.content_base64' | base64 -d
 ### create
 
 ```sh
+logins=$(tea login list -o json 2>/dev/null) || { echo "superdev: tea is missing or cannot list logins; install it, then run: tea login add --url https://codeberg.org" >&2; exit 2; }
+login=$(printf '%s' "$logins" | jq -er --arg want "${SUPERDEV_KB_TEA_LOGIN:-}" '[.[] | select(.url == "https://codeberg.org")] | if $want != "" then map(select(.name == $want)) else . end | if length == 1 then .[0].name else empty end' 2>/dev/null) || { names=$(printf '%s' "$logins" | jq -r '[.[] | select(.url == "https://codeberg.org") | .name] | join(", ")' 2>/dev/null); n=$(printf '%s' "$logins" | jq '[.[] | select(.url == "https://codeberg.org")] | length' 2>/dev/null); if [ -n "${SUPERDEV_KB_TEA_LOGIN:-}" ] && [ "$n" -ge 1 ] 2>/dev/null; then echo "superdev: SUPERDEV_KB_TEA_LOGIN=$SUPERDEV_KB_TEA_LOGIN names none of the tea logins for https://codeberg.org ($names)" >&2; elif [ "$n" -gt 1 ] 2>/dev/null; then echo "superdev: several tea logins match https://codeberg.org ($names); set SUPERDEV_KB_TEA_LOGIN=<name> to pick one, or add the right one: tea login add --url https://codeberg.org" >&2; else echo "superdev: no tea login for https://codeberg.org; run: tea login add --url https://codeberg.org" >&2; fi; exit 2; }
 content_base64=$(base64 < "$SUPERDEV_KB_BODY_FILE" | tr -d '\n')
 body=$(jq -n --arg title "$SUPERDEV_KB_TITLE" --arg content "$content_base64" \
   '{title: $title, content_base64: $content, message: "superdev: publish"}')
 hdr=$(mktemp) || exit 1
-printf '%s' "$body" | tea api --login codeberg.org --repo bomret/superdev -i -X POST -d @- \
+printf '%s' "$body" | tea api --login "$login" --repo bomret/superdev -i -X POST -d @- \
   /repos/bomret/superdev/wiki/new >/dev/null 2>"$hdr" || { rm -f "$hdr"; exit 1; }
 code=$(head -1 "$hdr" | cut -d' ' -f2); rm -f "$hdr"
 case "$code" in 2??) ;; *) exit 1 ;; esac
@@ -131,11 +154,13 @@ case "$code" in 2??) ;; *) exit 1 ;; esac
 ### update
 
 ```sh
+logins=$(tea login list -o json 2>/dev/null) || { echo "superdev: tea is missing or cannot list logins; install it, then run: tea login add --url https://codeberg.org" >&2; exit 2; }
+login=$(printf '%s' "$logins" | jq -er --arg want "${SUPERDEV_KB_TEA_LOGIN:-}" '[.[] | select(.url == "https://codeberg.org")] | if $want != "" then map(select(.name == $want)) else . end | if length == 1 then .[0].name else empty end' 2>/dev/null) || { names=$(printf '%s' "$logins" | jq -r '[.[] | select(.url == "https://codeberg.org") | .name] | join(", ")' 2>/dev/null); n=$(printf '%s' "$logins" | jq '[.[] | select(.url == "https://codeberg.org")] | length' 2>/dev/null); if [ -n "${SUPERDEV_KB_TEA_LOGIN:-}" ] && [ "$n" -ge 1 ] 2>/dev/null; then echo "superdev: SUPERDEV_KB_TEA_LOGIN=$SUPERDEV_KB_TEA_LOGIN names none of the tea logins for https://codeberg.org ($names)" >&2; elif [ "$n" -gt 1 ] 2>/dev/null; then echo "superdev: several tea logins match https://codeberg.org ($names); set SUPERDEV_KB_TEA_LOGIN=<name> to pick one, or add the right one: tea login add --url https://codeberg.org" >&2; else echo "superdev: no tea login for https://codeberg.org; run: tea login add --url https://codeberg.org" >&2; fi; exit 2; }
 content_base64=$(base64 < "$SUPERDEV_KB_BODY_FILE" | tr -d '\n')
 body=$(jq -n --arg title "$SUPERDEV_KB_TITLE" --arg content "$content_base64" \
   '{title: $title, content_base64: $content, message: "superdev: publish"}')
 hdr=$(mktemp) || exit 1
-printf '%s' "$body" | tea api --login codeberg.org --repo bomret/superdev -i -X PATCH -d @- \
+printf '%s' "$body" | tea api --login "$login" --repo bomret/superdev -i -X PATCH -d @- \
   "/repos/bomret/superdev/wiki/page/$SUPERDEV_KB_SUB_URL" >/dev/null 2>"$hdr" || { rm -f "$hdr"; exit 1; }
 code=$(head -1 "$hdr" | cut -d' ' -f2); rm -f "$hdr"
 case "$code" in 2??) ;; *) exit 1 ;; esac
@@ -144,8 +169,10 @@ case "$code" in 2??) ;; *) exit 1 ;; esac
 ### delete
 
 ```sh
+logins=$(tea login list -o json 2>/dev/null) || { echo "superdev: tea is missing or cannot list logins; install it, then run: tea login add --url https://codeberg.org" >&2; exit 2; }
+login=$(printf '%s' "$logins" | jq -er --arg want "${SUPERDEV_KB_TEA_LOGIN:-}" '[.[] | select(.url == "https://codeberg.org")] | if $want != "" then map(select(.name == $want)) else . end | if length == 1 then .[0].name else empty end' 2>/dev/null) || { names=$(printf '%s' "$logins" | jq -r '[.[] | select(.url == "https://codeberg.org") | .name] | join(", ")' 2>/dev/null); n=$(printf '%s' "$logins" | jq '[.[] | select(.url == "https://codeberg.org")] | length' 2>/dev/null); if [ -n "${SUPERDEV_KB_TEA_LOGIN:-}" ] && [ "$n" -ge 1 ] 2>/dev/null; then echo "superdev: SUPERDEV_KB_TEA_LOGIN=$SUPERDEV_KB_TEA_LOGIN names none of the tea logins for https://codeberg.org ($names)" >&2; elif [ "$n" -gt 1 ] 2>/dev/null; then echo "superdev: several tea logins match https://codeberg.org ($names); set SUPERDEV_KB_TEA_LOGIN=<name> to pick one, or add the right one: tea login add --url https://codeberg.org" >&2; else echo "superdev: no tea login for https://codeberg.org; run: tea login add --url https://codeberg.org" >&2; fi; exit 2; }
 hdr=$(mktemp) || exit 1
-tea api --login codeberg.org --repo bomret/superdev -i -X DELETE \
+tea api --login "$login" --repo bomret/superdev -i -X DELETE \
   "/repos/bomret/superdev/wiki/page/$SUPERDEV_KB_SUB_URL" >/dev/null 2>"$hdr" || { rm -f "$hdr"; exit 1; }
 code=$(head -1 "$hdr" | cut -d' ' -f2); rm -f "$hdr"
 case "$code" in 2??) ;; *) exit 1 ;; esac

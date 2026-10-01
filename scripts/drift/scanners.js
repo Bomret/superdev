@@ -102,6 +102,8 @@ const {
   RETURN_TO_CONTROLLER_PATTERNS,
   NO_FORCE_MERGE_DOCS,
   NO_FORCE_MERGE_PATTERNS,
+  TEA_ONLY_DOCS,
+  TEA_ONLY_MARKERS,
 } = contracts;
 
 // skillEntries(): every skill surface under a root, as `[<name>, absolute SKILL.md path]` pairs.
@@ -937,6 +939,10 @@ function scanNoForceMerge(root) {
   return gaps;
 }
 
+// ADR 0111, #794: the Forgejo backend documents reach the host through `tea` only. See
+// `TEA_ONLY_MARKERS`'s own comment for the ceiling this shape-based absence check carries.
+const scanTeaOnly = (root) => scanDocsAvoid(root, TEA_ONLY_DOCS, TEA_ONLY_MARKERS);
+
 // ADR 0101, INV-0098: only `/superdev:ship` ever runs a deploy target's command. `references/
 // deployment.md` states the rule itself (pinned by the `deployment-posture` table), so it is exempt here
 // the way a caution naming the forbidden thing always is; `skills/ship/SKILL.md` is the one surface
@@ -1443,6 +1449,7 @@ module.exports = {
   scanHookLedgerParsers,
   scanForcingBranchFlag,
   scanNoForceMerge,
+  scanTeaOnly,
   scanDeployRunnerExclusivity,
   scanReturnToController,
   scanNarrativeCoverage,

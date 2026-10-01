@@ -324,6 +324,26 @@ withState(() => {
   assert.match(warnings, /SUPERDEV_KB_SUB-URL/, 'the warning names the variable the key would have to be addressed as');
 });
 
+// --- a failing template's stderr tail rides in the reported reason ---
+withState(() => {
+  const repo = makeRepo();
+  const doc = `# KB\n\n## Configuration\n\n- **Backend:** Flaky Wiki.\n\n## Commands\n\n### find\n\n\`\`\`sh\necho 'no tea login for https://codeberg.org' >&2; exit 2\n\`\`\`\n\n### create\n\n\`\`\`sh\nexit 0\n\`\`\`\n\n### update\n\n\`\`\`sh\nexit 0\n\`\`\`\n\n### delete\n\n\`\`\`sh\nexit 0\n\`\`\`\n`;
+  writeKbDoc(repo, doc);
+  stagePage(repo, 'demo', 'flaky.md', 'title: Flaky Page\naction: upsert');
+  const res = call(['--scope', 'demo'], repo);
+  assert.match(res.out, /left staged: Flaky Page — find exited 2: no tea login for https:\/\/codeberg\.org/);
+});
+
+// --- a multi-line stderr stays one line in the reported reason ---
+withState(() => {
+  const repo = makeRepo();
+  const doc = `# KB\n\n## Configuration\n\n- **Backend:** Flaky Wiki.\n\n## Commands\n\n### find\n\n\`\`\`sh\nprintf 'first line\\nsecond line\\n\\n  third' >&2; exit 2\n\`\`\`\n\n### create\n\n\`\`\`sh\nexit 0\n\`\`\`\n\n### update\n\n\`\`\`sh\nexit 0\n\`\`\`\n\n### delete\n\n\`\`\`sh\nexit 0\n\`\`\`\n`;
+  writeKbDoc(repo, doc);
+  stagePage(repo, 'demo', 'flaky.md', 'title: Flaky Page\naction: upsert');
+  const res = call(['--scope', 'demo'], repo);
+  assert.match(res.out, /left staged: Flaky Page — find exited 2: first line second line third(\n|$)/);
+});
+
 // --- exit 3 is the only absence outcome; any other nonzero leaves the page staged with its reason ---
 withState(() => {
   const repo = makeRepo();
@@ -1206,19 +1226,33 @@ withState((stateFile) => {
   assert.ok(findTemplate, 'docs/agents/knowledge-base.md still configures a find template');
 
   // Stubs `tea` on PATH so the template runs against a canned response instead of the real network:
-  // the body on stdout, and the status line `tea api -i` writes to stderr.
+  // `tea login list -o json` answers TEA_STUB_LOGINS, and `tea api` writes the status line `-i` gives to
+  // stderr and the body to stdout.
   const stubDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tea-stub-'));
   fs.writeFileSync(path.join(stubDir, 'tea'),
-    '#!/bin/sh\nprintf "HTTP/2.0 %s\\n" "$TEA_STUB_STATUS" >&2\nprintf "%s" "$TEA_STUB_BODY"\n', { mode: 0o755 });
+    '#!/bin/sh\n' +
+    'if [ "$1" = login ]; then printf "%s" "$TEA_STUB_LOGINS"; exit 0; fi\n' +
+    'printf "HTTP/2.0 %s\\n" "$TEA_STUB_STATUS" >&2\nprintf "%s" "$TEA_STUB_BODY"\n', { mode: 0o755 });
+  // A PATH holding `jq` and the system tools but no `tea`: the "no tea installed" case.
+  const noTeaDir = fs.mkdtempSync(path.join(os.tmpdir(), 'no-tea-'));
+  fs.symlinkSync(spawnSync('/bin/sh', ['-c', 'command -v jq'], { encoding: 'utf8' }).stdout.trim(), path.join(noTeaDir, 'jq'));
 
-  function runFindTemplate(body, status = '200 OK') {
+  const HOST = 'https://codeberg.org';
+  const oneLogin = JSON.stringify([
+    { name: 'other', url: 'https://example.org', user: 'x' },
+    { name: 'cb', url: HOST, user: 'bomret' },
+  ]);
+
+  function runFindTemplate(body, status = '200 OK', logins = oneLogin, extraEnv = {}) {
     return spawnSync('/bin/sh', ['-c', findTemplate], {
       env: {
         ...process.env,
         PATH: stubDir + path.delimiter + process.env.PATH,
         TEA_STUB_BODY: body,
         TEA_STUB_STATUS: status,
+        TEA_STUB_LOGINS: logins,
         SUPERDEV_KB_TITLE: 'Missing Page',
+        ...extraEnv,
       },
       encoding: 'utf8',
     });
@@ -1232,9 +1266,11 @@ withState((stateFile) => {
   assert.deepEqual(JSON.parse(there.stdout), { sub_url: 'missing-page' });
 
   // `tea api` exits 0 on an HTTP error, so the status line is the only failure signal: a non-200
-  // listing is "could not answer", never absence.
+  // listing is "could not answer", never absence. A disabled wiki answers 404 here.
   const unauthorized = runFindTemplate(JSON.stringify({ message: 'token is invalid' }), '401 Unauthorized');
   assert.equal(unauthorized.status, 2, 'a non-200 listing must answer 2, never 3');
+  const disabled = runFindTemplate(JSON.stringify({ message: 'wiki disabled' }), '404 Not Found');
+  assert.equal(disabled.status, 2, 'a disabled wiki (404 listing) must answer 2, never 3');
 
   const malformed = runFindTemplate('not json at all');
   assert.equal(malformed.status, 2, 'a jq parse failure is not absence — must answer 2, never 3');
@@ -1243,6 +1279,76 @@ withState((stateFile) => {
   const ceilingHit = runFindTemplate(atCeiling);
   assert.equal(ceilingHit.status, 2, 'a listing at its own 50-entry ceiling must not answer absent either');
 
+  // The login is resolved from the host URL inside the template: none, or several, could not answer.
+  const missPage = JSON.stringify([{ title: 'Other Page', sub_url: 'x' }]);
+  assert.equal(runFindTemplate(missPage, '200 OK', JSON.stringify([{ name: 'o', url: 'https://example.org' }])).status, 2,
+    'no login for the host must answer 2, never 3');
+  assert.equal(runFindTemplate(missPage, '200 OK', JSON.stringify([{ name: 'a', url: HOST }, { name: 'b', url: HOST }])).status, 2,
+    'several logins for the host must answer 2, never 3');
+  assert.equal(runFindTemplate(missPage, '200 OK', '').status, 2, 'an unreadable login list must answer 2');
+  const noTea = spawnSync('/bin/sh', ['-c', findTemplate], {
+    env: { ...process.env, PATH: noTeaDir + path.delimiter + '/usr/bin' + path.delimiter + '/bin', SUPERDEV_KB_TITLE: 'Missing Page' },
+    encoding: 'utf8',
+  });
+  assert.equal(noTea.status, 2, 'no tea on the path must answer 2, never 3');
+
+  // Each failure names its cause and the exact login command on stderr, which publish-kb reports.
+  const ADD = 'tea login add --url https://codeberg.org';
+  const noLogin = runFindTemplate(missPage, '200 OK', JSON.stringify([{ name: 'o', url: 'https://example.org' }]));
+  assert.match(noLogin.stderr, /no tea login for https:\/\/codeberg\.org/, 'no login is named');
+  assert.ok(noLogin.stderr.includes(ADD), 'no login prints the tea login add command');
+  const several = runFindTemplate(missPage, '200 OK', JSON.stringify([{ name: 'a', url: HOST }, { name: 'b', url: HOST }]));
+  assert.match(several.stderr, /several tea logins match/, 'several logins are named as several');
+  assert.ok(several.stderr.includes(ADD), 'several logins print the tea login add command');
+  assert.match(several.stderr, /a, b/, 'several logins are named, comma-joined, so the operator can pick');
+  assert.match(several.stderr, /SUPERDEV_KB_TEA_LOGIN=<name>/, 'several logins name the override variable');
+
+  // SUPERDEV_KB_TEA_LOGIN picks one of the several matching logins; a name matching none answers 2.
+  const twoLogins = JSON.stringify([{ name: 'a', url: HOST }, { name: 'b', url: HOST }, { name: 'z', url: 'https://example.org' }]);
+  const picked = runFindTemplate(missPage, '200 OK', twoLogins, { SUPERDEV_KB_TEA_LOGIN: 'b' });
+  assert.equal(picked.status, 3, 'a named login among several matches resolves, so the listing answers absent (3)');
+  const unknown = runFindTemplate(missPage, '200 OK', twoLogins, { SUPERDEV_KB_TEA_LOGIN: 'nope' });
+  assert.equal(unknown.status, 2, 'a named login matching none answers 2');
+  assert.match(unknown.stderr, /SUPERDEV_KB_TEA_LOGIN/, 'an unknown name is reported against the variable');
+  assert.match(unknown.stderr, /a, b/, 'an unknown name lists the matching logins');
+  const offHost = runFindTemplate(missPage, '200 OK', twoLogins, { SUPERDEV_KB_TEA_LOGIN: 'z' });
+  assert.equal(offHost.status, 2, 'a login for another host is not a match');
+  assert.match(noTea.stderr, /tea is missing/, 'a missing tea is named');
+  assert.ok(noTea.stderr.includes(ADD), 'a missing tea prints the tea login add command');
+
+  // read, create, update, and delete: a non-2xx answer fails, and `read` never prints an error body.
+  const templates = classifyBackend(realDoc).templates;
+  function runVerb(verb, body, status, bodyFile) {
+    return spawnSync('/bin/sh', ['-c', templates[verb]], {
+      env: {
+        ...process.env,
+        PATH: stubDir + path.delimiter + process.env.PATH,
+        TEA_STUB_BODY: body,
+        TEA_STUB_STATUS: status,
+        TEA_STUB_LOGINS: oneLogin,
+        SUPERDEV_KB_TITLE: 'T',
+        SUPERDEV_KB_SUB_URL: 'T',
+        SUPERDEV_KB_BODY_FILE: bodyFile,
+      },
+      encoding: 'utf8',
+    });
+  }
+  const bodyFile = path.join(stubDir, 'body.md');
+  fs.writeFileSync(bodyFile, '# hi\n');
+  const okRead = runVerb('read', JSON.stringify({ content_base64: Buffer.from('# page\n').toString('base64') }), '200 OK', bodyFile);
+  assert.equal(okRead.status, 0);
+  assert.equal(okRead.stdout, '# page\n', 'read prints the decoded page markdown');
+  const badRead = runVerb('read', JSON.stringify({ message: 'nope' }), '404 Not Found', bodyFile);
+  assert.notEqual(badRead.status, 0, 'read fails on a non-200 answer');
+  assert.equal(badRead.stdout, '', 'read prints no error body as page content');
+  for (const verb of ['create', 'update', 'delete']) {
+    assert.equal(runVerb(verb, '', '200 OK', bodyFile).status, 0, `${verb} succeeds on a 2xx answer`);
+    assert.notEqual(runVerb(verb, '', '409 Conflict', bodyFile).status, 0, `${verb} fails on a non-2xx answer`);
+  }
+  assert.match(templates.update, /title: \$title/, 'update always sends the title');
+  assert.doesNotMatch(realDoc, /GITEA_TOKEN|Authorization|curl/, 'the knowledge-base config names no token env var, header, or curl');
+
+  fs.rmSync(noTeaDir, { recursive: true, force: true });
   fs.rmSync(stubDir, { recursive: true, force: true });
 }
 

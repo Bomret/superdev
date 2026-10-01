@@ -41,27 +41,57 @@ const ARG = /(?:[^\s"'\\]|\\.|"(?:[^"\\]|\\.)*"|'[^']*')+/.source;
 // value in git itself, so it stays out of this enumeration.
 const LONG_VALUE_OPT = /--(?:git-dir|work-tree|namespace|config-env|shallow-file|attr-source)/.source;
 const BLOCK = new RegExp(
-  `(^|[;&|\\n])\\s*git(?:\\s+(?:-[cC]\\s+${ARG}|${LONG_VALUE_OPT}(?:=|\\s+(?!-))${ARG}|--${ARG}))*\\s+(merge|push|rebase)(?![-\\w])`,
+  `(^|[;&|\\n])[ \\t]*git(?:\\s+(?:-[cC]\\s+${ARG}|${LONG_VALUE_OPT}(?:=|\\s+(?!-))${ARG}|--${ARG}))*\\s+(merge|push|rebase)(?![-\\w])`,
   'm'
 );
 // Integration via the code-host CLI is the controller's job too: `gh pr merge` / `tea pr merge`.
-// (The REST-API path — `curl … /pulls/<n>/merge` — can't be caught deterministically without
-// false-positiving on legitimate read curls; the subagent bodies carry that as an explicit contract.)
-const BLOCK_CLI = /(^|[;&|\n])\s*(gh|tea)\s+pr\s+merge\b/m;
+// The REST-API path through `curl … /pulls/<n>/merge` can't be caught deterministically without
+// false-positiving on legitimate read curls, so the `curl` forms stay a prose contract the subagent
+// bodies carry. The `tea api` and `gh api` forms are caught: `tea api` is the documented pinned merge
+// path (ADR 0111), so it cannot stay open, and `gh api` reaches the same endpoint (triage #793).
+// The leading horizontal whitespace is `[ \t]*`, never `\s*`: a newline is itself a lead-in, and `\s*`
+// after it re-scans every following newline from each one, which is quadratic on a long run of blank lines.
+const BLOCK_CLI = /(^|[;&|\n])[ \t]*(gh|tea)\s+pr\s+merge\b/m;
+// A `tea api` / `gh api` call merges when its endpoint names a pull request's `/merge` path and its method
+// writes: an explicit `-X`/`--method`, or — with none — a body flag, which defaults the call to POST. A GET of
+// the same endpoint (the merged-status read) is not a merge. Each call is one `;&|\n`-bounded segment, led by a
+// line start, separator, `(`, backtick (so `$(` too), `{`, `!`, or a `if`/`then`/`do`/`while`/`until`/`elif`/`else` keyword.
+// Known gap, like curl: a GraphQL route (`gh api graphql -f query='mutation{mergePullRequest…}'`) names no
+// `/merge` endpoint and is not caught.
+// `tea api` merges with POST only; `gh api` with PUT or POST (GitHub's merge endpoint is PUT).
+const API_CALL = /(?:^|[;&|\n(`{!])[ \t]*(?:(?:if|then|do|while|until|elif|else)\s+)?(tea|gh)\s+api\b([^;&|\n]*)/gm;
+const MERGE_ENDPOINT = /\/pulls\/[^\s/'"]+\/merge(?![\w/-])/;
+const API_METHOD = /(?:^|\s)(?:-X\s*|--method(?:=|\s+))["']?([A-Za-z]+)/;
+const API_BODY = {
+  tea: /\s(?:-[dfF]|--(?:data|field|Field))(?![A-Za-z-])/,
+  gh: /\s(?:-[fF]|--(?:field|raw-field|input))(?![A-Za-z-])/,
+};
+const API_MERGE_METHODS = { tea: ['POST'], gh: ['PUT', 'POST'] };
+function isApiMerge(cmd) {
+  // a backslash-newline continuation is one logical line
+  for (const m of cmd.replace(/\\\r?\n/g, ' ').matchAll(API_CALL)) {
+    if (!MERGE_ENDPOINT.test(m[2])) continue;
+    const method = API_METHOD.exec(m[2]);
+    if (method ? API_MERGE_METHODS[m[1]].includes(method[1].toUpperCase()) : API_BODY[m[1]].test(m[2])) return true;
+  }
+  return false;
+}
 // ponytail: catches the honest/common forms only. A leading token with no separator before `git`
 // (`env FOO=1 git push`, `time git push`, `sudo git push`), a subshell (`$(git push)`), or an
 // interpreter wrapper (`bash -c "git push"`) still slip past — the char before `git` isn't a line
 // start or a `;`/`&`/`|`/`\n`. This is a deterministic guardrail against the model's normal output,
 // not a sandbox; airtight subagent isolation is the platform's job (see AGENTS.md known issues).
+// The `tea api` / `gh api` lead-ins also block text that merely quotes the call (`git commit -m "… (tea api -X POST
+// …/merge)"`): a known false positive, accepted because it fails closed with a clear message.
 
 function decide(input) {
   if (!input || !input.agent_id) return { block: false }; // controller (or unknown) → allow
   const cmd = (input.tool_input && input.tool_input.command) || '';
-  if (BLOCK.test(cmd) || BLOCK_CLI.test(cmd)) {
+  if (BLOCK.test(cmd) || BLOCK_CLI.test(cmd) || isApiMerge(cmd)) {
     return {
       block: true,
       reason:
-        'superdev: subagents must not integrate. `git merge`/`push`/`rebase` and `gh`/`tea pr merge` ' +
+        "superdev: subagents must not integrate. `git merge`/`push`/`rebase`, `gh`/`tea pr merge`, and a `tea api` or `gh api` write to a pull request's /merge endpoint " +
         "are the controller's job — commit on your slice branch and report your status. (merge-guard)",
     };
   }

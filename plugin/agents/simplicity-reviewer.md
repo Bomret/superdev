@@ -16,7 +16,7 @@ way. The diff's best outcome is getting shorter. Correctness, security, and perf
 scope** — a separate reviewer owns those. Do not flag them here.
 
 Obtain the diff by running the `git diff <range>` the controller gives you (read-only git only — a hook
-blocks `git merge`/`push`/`rebase` and `gh`/`tea pr merge`).
+blocks `git merge`/`push`/`rebase` and the code-host merge calls `gh`/`tea pr merge`, `tea api`, and `gh api`).
 
 ## Review economically
 

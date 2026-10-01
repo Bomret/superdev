@@ -2337,11 +2337,11 @@ const AGGREGATE_PAGE_CONTRACTS = [
 // endpoint and "returns") to take effect — a pin that instead opened on the bare verb "returns …" would
 // have no such trap, since "never returns …" leaves the verb and everything after it intact as a
 // substring, and the pin would wrongly survive verbatim. The label-to-clause span also pins this repo's
-// host in the endpoint URL, so a repo move forces a re-pin — accepted deliberately, in favour of one span
+// repository in the endpoint path, so a repo move forces a re-pin — accepted deliberately, in favour of one span
 // over a two-part pin that would leave the trailing half open to the same bare-verb prefix attack this
 // span closes.
 const AGGREGATE_READ_CLAUSE =
-  "**Read a page's body:** `GET /api/v1/repos/bomret/superdev/wiki/page/<sub_url>` returns " +
+  "**Read a page's body:** `tea api /repos/bomret/superdev/wiki/page/<sub_url>` returns " +
   '`content_base64`, which decodes to the page markdown.';
 
 const READ_PATH_CONTRACTS = [
@@ -2359,7 +2359,7 @@ const READ_PATH_CONTRACTS = [
       },
     },
     "state, verbatim after whitespace normalization, that reading a page's body calls " +
-      '`GET /api/v1/repos/bomret/superdev/wiki/page/<sub_url>`, which returns `content_base64` decoding ' +
+      '`tea api /repos/bomret/superdev/wiki/page/<sub_url>`, which returns `content_base64` decoding ' +
       'to the page markdown — the call an outline entry marked `(aggregate)` is read through ' +
       'before it is patched',
   ],
@@ -2499,14 +2499,14 @@ const SHIPPED_APPEND_CONTRACTS = [
 const ANCHOR_CANDIDATE_ALL_STATES_CONTRACTS = [
   [
     path.join('docs', 'agents', 'issue-tracker.md'),
-    /List the candidates\.[\s\S]{0,350}?labels=<type>%2F<feature>&state=all/,
-    "query the per-feature-label candidate listing itself with `labels=<type>%2F<feature>&state=all`, " +
+    /List the candidates\.[\s\S]{0,450}?--labels\s+<type>\/<feature>\s+--state all/,
+    "query the per-feature-label candidate listing itself with `--labels <type>/<feature> --state all`, " +
       "so a shipped feature's closed epic still resolves through *Recognise one* (ADR 0083)",
   ],
   [
     path.join('references', 'issue-tracker-forgejo.md'),
-    /List the candidates\.[\s\S]{0,350}?labels=<type>%2F<feature>&state=all/,
-    "query the per-feature-label candidate listing itself with `labels=<type>%2F<feature>&state=all`, " +
+    /List the candidates\.[\s\S]{0,450}?--labels\s+<type>\/<feature>\s+--state all/,
+    "query the per-feature-label candidate listing itself with `--labels <type>/<feature> --state all`, " +
       "so a shipped feature's closed epic still resolves through *Recognise one* (ADR 0083)",
   ],
   [
@@ -3723,7 +3723,7 @@ const SEED_GAP_CHECK_CONTRACTS = [
 const SEED_RECONCILE_CONTRACTS = [
   [
     path.join('skills', 'setup', 'SKILL.md'),
-    /\*\*Apply\.\*\*[\s\S]{0,700}\*\*Record as a seed deviation\.\*\*[\s\S]{0,900}\*\*Leave for later\.\*\*/,
+    /\*\*Apply\.\*\*[\s\S]{0,850}\*\*Record as a seed deviation\.\*\*[\s\S]{0,900}\*\*Leave for later\.\*\*/,
     'offer each seed gap with three choices: apply it, record it as a seed deviation, leave it for later',
   ],
   [
@@ -5079,7 +5079,7 @@ const CODE_MANAGEMENT_MERGE_CONTRACTS = [
 const CODE_MANAGEMENT_HEAD_BRANCH_LOOKUP_CONTRACTS = [
   [
     path.join('references', 'code-management-forgejo.md'),
-    /## Merge[\s\S]{0,1200}?head branch[\s\S]{0,300}?state=open[\s\S]{0,400}?\bpage\b[\s\S]{0,300}?\blimit\b/,
+    /## Merge[\s\S]{0,1500}?head branch[\s\S]{0,300}?--state open[\s\S]{0,400}?\bpage\b[\s\S]{0,300}?\blimit\b/,
     'carry, in its `## Merge` section, a lookup for an open pull request by its head branch, scoped to ' +
       'open pull requests only, and page through every page (`page`/`limit`) before counting matches',
   ],
@@ -5091,7 +5091,7 @@ const CODE_MANAGEMENT_HEAD_BRANCH_LOOKUP_CONTRACTS = [
   ],
   [
     path.join('docs', 'agents', 'code-management.md'),
-    /## Merge[\s\S]{0,1200}?head branch[\s\S]{0,300}?state=open[\s\S]{0,400}?\bpage\b[\s\S]{0,300}?\blimit\b/,
+    /## Merge[\s\S]{0,1500}?head branch[\s\S]{0,300}?--state open[\s\S]{0,400}?\bpage\b[\s\S]{0,300}?\blimit\b/,
     'carry, in its `## Merge` section, a lookup for an open pull request by its head branch, scoped to ' +
       'open pull requests only, and page through every page (`page`/`limit`) before counting matches',
   ],
@@ -5112,6 +5112,32 @@ const NO_FORCE_MERGE_DOCS = [
 const NO_FORCE_MERGE_PATTERNS = [
   [/force_merge['"]?\s*:\s*true/i, () => 'invoke `force_merge: true` on a merge call — that is the branch-protection bypass this contract forbids sending'],
   [/--admin\b/, () => 'invoke `--admin` on a merge command — that is the required-check bypass this contract forbids sending'],
+];
+
+// ADR 0111, #794: the Forgejo seeds and this repository's Forgejo backend documents reach the host through
+// `tea` only — no token env var, no `Authorization` header, no curl call. The documents legitimately carry
+// prohibition prose ("a raw HTTP call (curl)", "never fall back to a token"), so the patterns match the
+// *shape* of a use: a token env var's name, an `Authorization:` header, and `curl` as a command. Fences
+// are scanned too, since a curl example lives in one.
+// ponytail: shape-based, and its ceiling is the three shapes below. A token held in another variable name,
+// a header built from `Bearer`/`token ` text alone, an HTTP client other than curl (`wget`, `http`), and a
+// `curl` written with nothing but a bare word after it walk past. Widening this is cheap when a fourth
+// shape shows up in review — guessing at every client a document could name is not, and ADR 0111's real
+// guarantee is the prose these patterns keep honest.
+const TEA_ONLY_DOCS = [
+  path.join('references', 'issue-tracker-forgejo.md'),
+  path.join('references', 'code-management-forgejo.md'),
+  path.join('docs', 'agents', 'issue-tracker.md'),
+  path.join('docs', 'agents', 'code-management.md'),
+  path.join('docs', 'agents', 'knowledge-base.md'),
+];
+const TEA_ONLY_MARKERS = [
+  [/\b(?:GITEA|FORGEJO)_TOKEN\b/, (hit) => `name no token env var — \`${hit[0]}\` belongs to a raw HTTP call, and the host is reached through \`tea\` only (ADR 0111)`],
+  [/\bAuthorization\s*:/i, () => 'carry no `Authorization` header — the host is reached through `tea` only (ADR 0111)'],
+  [
+    /(?:^|[;&|(`]|\$\()[ \t]*curl\s+\S|\bcurl\s+(?:-|https?:|["'$])/m,
+    () => 'carry no curl invocation — the host is reached through `tea` only (ADR 0111)',
+  ],
 ];
 
 // Final-reviewer triage (#687 fix cycle): ship pushed the scope branch only when base itself had moved,
@@ -5953,6 +5979,8 @@ module.exports = {
   DOCUMENT_SUBMITTED_CONTRACTS,
   NO_FORCE_MERGE_DOCS,
   NO_FORCE_MERGE_PATTERNS,
+  TEA_ONLY_DOCS,
+  TEA_ONLY_MARKERS,
   REVIEW_SUBMITTED_CONTRACTS,
   CLOSED_STAGE_CONTRACTS,
   POSTURE_READ_CONTRACTS,

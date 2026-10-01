@@ -103,6 +103,14 @@ keeps the read-only posture above and the verdicts stay about repository facts.
   language & outline`. A **seed gap** is a seed section with no matching document section, or a seed rule
   that a matched section lacks or contradicts. List each by name, the seed section or rule as the seed
   names it, with the document section it belongs under.
+- **A rule the current seed replaced is a contradicted rule.** A Forgejo config document written before
+  ADR 0111 can carry any of these token or curl rules. The issue tracker has an `**Auth:**` bullet and
+  `## REST conventions`. Code management has an `**Auth:**` bullet naming a token env var or an
+  `Authorization` header, a `## tea CLI conventions` section whose login line passes `--token`, a
+  `## REST conventions (curl)` section, and a `## Degrade when no CLI / token`
+  section. Each contradicts the seed's `Login` bullet, `tea conventions` section, or `Degrade when no tea
+  login` section, so each is a seed gap listed under the seed rule it contradicts, never a stale deviation
+  and never a section only the document carries.
 - **A renamed heading, a filled-in value where the seed carries a placeholder, setup-facing instruction
   text, and a section only the document carries are no gap.** Setup-facing text tells this interview what
   to ask; a consumer skill never reads it.
@@ -160,8 +168,10 @@ fit this repo. Using `AskUserQuestion`? Mark the default `(Recommended)`.
   owner/repo, the feature label, and the **env-var name** for the API token (never the secret).
 - **Forgejo / Codeberg Issues** — slices as issues on a Forgejo or Gitea instance (Codeberg included).
   Seed: `references/issue-tracker-forgejo.md`. Detection hint: a `codeberg.org` or self-hosted
-  Forgejo/Gitea remote. Ask for host/owner/repo, the feature label, and the **env-var name** for the API
-  token (never the secret).
+  Forgejo/Gitea remote. Ask for host/owner/repo and the feature label, and ask for no token env var: check
+  that `tea` is installed and that `tea login list -o json` has an entry whose `url` equals the host. No
+  `tea`, or no such entry, stops the step with the `tea login add --url <host>` command for the operator
+  to run. Two or more such entries are named, and the operator picks.
 - **Jira** — slices as Jira issues. Seed: `references/issue-tracker-jira.md`. Ask for base URL, project
   key, issue type, the "is blocked by" link type, the ready status/label, and the **env-var names** for
   the API token + email (never the secrets).
@@ -201,8 +211,8 @@ every plan live on creation is a valid answer too — write that, and `/superdev
 
 Also capture the **assignee** for any issue backend — the account every issue `/superdev:plan` creates is
 assigned to (`plan-contract.md` → *Assignee*). Propose the **API token's own identity** as the default:
-resolve it from the backend's whoami endpoint (`GET /api/v1/user` on Forgejo/Gitea, `GET /user` on GitHub,
-`GET /rest/api/3/myself` on Jira) and offer that login or `accountId`. Accept a different account — the
+resolve it from the backend's whoami (the matched `tea` login's `user` on Forgejo/Gitea, `GET /user` on
+GitHub, `GET /rest/api/3/myself` on Jira) and offer that login or `accountId`. Accept a different account — the
 case that matters when a shared or bot token files the issues — provided it can actually be assigned there
 (a repo collaborator, an assignable project user), since an unassignable one fails. Or `none`, to create
 the issues unassigned. The local-file store has no assignee: don't ask.
@@ -229,8 +239,10 @@ several people would carry one maintainer's account in its history and file ever
 while slices live in Jira.)
 
 - **GitHub** (`gh`). Seed: `references/code-management-github.md`.
-- **Forgejo / self-hosted** (`tea` or REST). Seed: `references/code-management-forgejo.md`. Ask base URL,
-  owner/repo, and the **env-var name** for the token.
+- **Forgejo / self-hosted** (`tea`). Seed: `references/code-management-forgejo.md`. Ask base URL and
+  owner/repo, and ask for no token env var: check for a `tea` login for the base URL, as the slice store does
+  above. Check that `jq` is installed too: the pinned merge and a Forgejo wiki's templates build their JSON
+  with it. No `jq` stops the step the way no `tea` does.
 - **Other** (GitLab, …) — describe push + open-MR + base computation in a paragraph.
 
 For both hosts, confirm the **default PR posture** (`draft` recommended | `ready` | `push-only`) and the
@@ -655,8 +667,12 @@ Show each document's seed gaps, and offer each gap on its own, with the document
 seed's and three choices:
 
 - **Apply.** A missing section goes in at its seed position relative to the matched neighbours. A missing
-  or contradicted rule replaces or joins only that rule inside its section. Every other section keeps the
-  text the operator filled in.
+  or contradicted rule replaces or joins only that rule inside its section: applying the `**Auth:**` gap
+  replaces that bullet with the seed's `Login` bullet where the seed's `## Configuration` carries one and
+  removes it otherwise (the code-management seed carries its login rule in `tea conventions` only), the `tea conventions` gap replaces the matched
+  `## tea CLI conventions` section rather than adding a second one, a `## REST conventions` gap removes
+  that section, and the degrade gap replaces `## Degrade when no CLI / token`: no old rule stays beside
+  the new one. Every other section keeps the text the operator filled in.
 - **Record as a seed deviation.** Ask for the operator's reason and require one. Write §0's bullet into the
   document's `## Seed deviations` section, creating the section at the end of the document when absent.
   Recording changes no other line, so every runtime reader reads the document exactly as before,

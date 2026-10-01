@@ -45,6 +45,7 @@ const {
   scanAdrStatus,
   scanForcingBranchFlag,
   scanNoForceMerge,
+  scanTeaOnly,
   scanReturnToController,
   scanNarrativeCoverage,
   scanMarketplaceSource,
@@ -905,6 +906,12 @@ module.exports = [
     id: 'code-management-no-force',
     ok: 'no code-management document invokes a force or bypass option on a merge call',
     run: scanNoForceMerge,
+    format: contractGap,
+  },
+  {
+    id: 'forgejo-tea-only',
+    ok: 'no Forgejo backend document names a token env var, an `Authorization` header, or a curl call (ADR 0111)',
+    run: scanTeaOnly,
     format: contractGap,
   },
   table(

@@ -67,6 +67,108 @@ assert.equal(decide(sub('gh pr merge 5 --squash')).block, true, 'gh pr merge');
 assert.equal(decide(sub('tea pr merge 5')).block, true, 'tea pr merge');
 assert.equal(decide(sub('gh pr view 5')).block, false, 'gh read is fine');
 
+// `tea api` merges a pull request through the REST endpoint (ADR 0111), so it is the same job as `tea pr merge`.
+const M = '/repos/bomret/superdev/pulls/12/merge';
+for (const cmd of [
+  `tea api -X POST '${M}' -d @-`,
+  `tea api -X POST ${M} -d @-`,
+  `tea api --method POST ${M}`,
+  `tea api --method=POST ${M}`,
+  `tea api -XPOST ${M}`,
+  `tea api -X post ${M}`,
+  `tea api -X POST /api/v1${M}`,
+  `tea api -X POST '/repos/{owner}/{repo}/pulls/12/merge' -d @-`,
+  `tea api --login codeberg.org --repo bomret/superdev -X POST '${M}' -d @-`,
+  `tea api -X POST '${M}' --login codeberg.org --repo bomret/superdev -d @-`,
+  `tea api -i -X POST 'https://codeberg.org/api/v1${M}' -d '{"Do":"squash"}'`,
+  `cd x && tea api -X POST ${M}`,
+  `echo '{"Do":"squash"}' | tea api -X POST ${M} -d @-`,
+  `tea api ${M} -d '{"Do":"squash"}'`,
+  `tea api ${M} --data @-`,
+  `tea api ${M} -f Do=squash`,
+  `tea api ${M} -F Do=squash`,
+  `tea api ${M} --field Do=squash`,
+  `resp=$(tea api -i -X POST '${M}' -d @- 2>"$hdr")`,
+  `tea api -X POST \\\n  "${M}" -d @-`,
+  `if tea api -X POST ${M} -d @-; then echo ok; fi`,
+  `( tea api -X POST ${M} )`,
+  `x=\`tea api -X POST ${M}\``,
+  `while tea api -X POST ${M}; do :; done`,
+  `if false; then :; else tea api -X POST ${M}; fi`,
+  `{ tea api -X POST ${M} -d @-; }`,
+  `! tea api -X POST ${M}`,
+  // known false positive (accepted, fails closed): text that merely quotes the call is blocked too
+  `git commit -m "docs: pinned merge via \`tea api -X POST ${M} -d @-\`"`,
+  `echo "x (tea api -X POST ${M})"`,
+]) assert.equal(decide(sub(cmd)).block, true, `tea api merge is blocked: ${cmd}`);
+for (const cmd of [
+  `tea api '${M}'`,
+  `tea api -X GET ${M}`,
+  `tea api ${M} --login codeberg.org`,
+  `tea api -X POST '/repos/bomret/superdev/issues/12/labels' -d @-`,
+  `tea api /repos/bomret/superdev/issues/12/comments -d '{"body":"merge"}'`,
+  `tea api -X PATCH '/repos/bomret/superdev/pulls/12' -d @-`,
+  `tea api ${M} -X GET -d @-`,
+  `tea api -X POST /repos/bomret/superdev/issues && tea api ${M}`,
+  `tea api /repos/bomret/superdev/pulls/12/merge-status`,
+  `resp=$(tea api '${M}')`,
+  `if tea api -X GET ${M}; then echo ok; fi`,
+  `( tea api -X POST /repos/bomret/superdev/issues )`,
+]) assert.equal(decide(sub(cmd)).block, false, `tea api non-merge is allowed: ${cmd}`);
+assert.equal(decide({ tool_input: { command: `tea api -X POST '${M}' -d @-` } }).block, false, 'the controller runs the tea api merge');
+assert.match(decide(sub(`tea api -X POST ${M}`)).reason, /tea api/, 'the block reason names the tea api merge');
+
+// `gh api` reaches the same merge endpoint (triage #793): PUT or POST, explicit or implied by a body flag.
+// GitHub's merge endpoint is PUT; `gh api` defaults to GET and to POST once a body flag is given.
+const GM = '/repos/bomret/superdev/pulls/12/merge';
+for (const cmd of [
+  `gh api -X PUT ${GM}`,
+  `gh api --method PUT ${GM}`,
+  `gh api --method=PUT ${GM}`,
+  `gh api -XPUT ${GM}`,
+  `gh api -X put ${GM}`,
+  `gh api -X POST ${GM}`,
+  `gh api ${GM} -X PUT -f merge_method=squash`,
+  `gh api ${GM} -f merge_method=squash`,
+  `gh api ${GM} -F merge_method=squash`,
+  `gh api ${GM} --field merge_method=squash`,
+  `gh api ${GM} --raw-field merge_method=squash`,
+  `gh api ${GM} --input body.json`,
+  `cd x && gh api -X PUT ${GM}`,
+  `if gh api -X PUT ${GM}; then echo ok; fi`,
+  `x=$(gh api -X PUT ${GM})`,
+  `gh api -X PUT \\\n  ${GM}`,
+]) assert.equal(decide(sub(cmd)).block, true, `gh api merge is blocked: ${cmd}`);
+for (const cmd of [
+  `gh api ${GM}`,
+  `gh api -X GET ${GM}`,
+  `gh api ${GM} -X GET -f per_page=1`,
+  `gh api -X PUT /repos/bomret/superdev/issues/12/labels -f labels[]=x`,
+  `gh api -X PUT /repos/bomret/superdev/pulls/12/merge-status`,
+  `gh api -X PATCH /repos/bomret/superdev/pulls/12 -f state=closed`,
+  `gh api -X DELETE ${GM}`,
+  `gh api /repos/bomret/superdev/pulls/12/comments -f body=merge`,
+  `gh api -X PUT /repos/bomret/superdev/issues && gh api ${GM}`,
+]) assert.equal(decide(sub(cmd)).block, false, `gh api non-merge is allowed: ${cmd}`);
+assert.equal(decide({ tool_input: { command: `gh api -X PUT ${GM}` } }).block, false, 'the controller runs the gh api merge');
+assert.match(decide(sub(`gh api -X PUT ${GM}`)).reason, /gh api/, 'the block reason names the gh api merge');
+
+// a long run of newlines before a `tea`/`gh`/`git` lead-in must not backtrack quadratically (the comment
+// above BLOCK_CLI owns why). Measured against the same run's own 2000-newline baseline (AGENTS.md, ADR 0086):
+// 10x the input costs ~10x when linear and ~100x when quadratic, so the 50x ceiling falsifies only the latter.
+{
+  const run = (n) => {
+    const t0 = process.hrtime.bigint();
+    decide(sub('\n'.repeat(n) + 'tea api -X POST ' + M));
+    decide(sub('\n'.repeat(n) + 'gh pr merge 5'));
+    decide(sub('\n'.repeat(n) + 'git status'));
+    return Number(process.hrtime.bigint() - t0) / 1e6;
+  };
+  const base = run(2000);
+  const big = run(20000);
+  assert.ok(big < 50 * (base + 5), `a long run of newlines must scale linearly: 2000 took ${base}ms, 20000 took ${big}ms`);
+}
+
 // require.main guard: requiring this hook must never run main()'s stdin/decide dispatch, and
 // spawning it directly (as Claude Code's hook invocation does) must still decide exactly as before
 // the guard was added.

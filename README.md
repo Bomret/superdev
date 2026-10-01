@@ -254,8 +254,10 @@ read ([ADR 0003](docs/adr/0003-doc-reconcile-runs-serially.md)).
 The hooks are cross-platform Node. Claude Code provides `node` as a runtime dependency, so there are no
 bash or PowerShell variants.
 
-- **merge-guard.** Blocks `git merge`, `git push`, and `git rebase` from inside a subagent, scoped by
-  `agent_id`. The controller integrates.
+- **merge-guard.** Blocks `git merge`, `git push`, `git rebase`, `gh pr merge`, `tea pr merge`, and a
+  `tea api` POST or `gh api` PUT or POST to a pull request's `/merge` endpoint from inside a subagent,
+  scoped by `agent_id`. A `curl` call to that endpoint stays a prose contract the subagent bodies carry.
+  The controller integrates.
 - **model-explicit.** Blocks a dispatch to a superdev subagent that omits an explicit `model`, so cost
   is always warrant-scaled.
 - **green-gate.** After a controller merge, runs the command
@@ -535,8 +537,9 @@ writes `CHANGELOG.md`, tags, and publishes a Codeberg Release from the Conventio
 ## Requirements
 
 - Claude Code, which provides `node` for the hooks.
-- For the chosen backends, the relevant CLI or token: `gh`, or a Jira or Forgejo token in an env var.
-  The PR step degrades to a push plus a printed command when a host CLI is absent.
+- For the chosen backends, the relevant CLI or token: `gh`, `tea` with a login for the Forgejo host, or a
+  Jira token in an env var. The PR step degrades to a push plus a printed command when a host CLI is
+  absent.
 
 ## Other harnesses
 
