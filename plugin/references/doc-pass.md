@@ -168,5 +168,5 @@ agent-relevant detail second:
   still removes a whole page.
 
 **Use the absolute staging path you were given.** A checkout-relative `.superdev/kb-pending/` resolves one
-level too deep from a scopetree, into a directory `/superdev:ship` deletes — the pages would be
+level too deep from a scopetree, into a directory `/superdev:wrap-up` deletes — the pages would be
 gone before anyone published them.

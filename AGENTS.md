@@ -32,8 +32,8 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
     plugin.json        — plugin manifest (name, version, author); version is the SINGLE source of truth.
                          No `hooks` field — Claude Code auto-loads the standard hooks/hooks.json.
   skills/              — the `/superdev:<name>` surfaces, one `<name>/SKILL.md` each (ADR 0050):
-                         brainstorm, setup, plan, implement, review, document, submit-pr, ship, upgrade,
-                         status, profile, backlog, publish-kb, prose-check, review-tests, sweep
+                         brainstorm, setup, plan, implement, review, document, submit-pr, ship, verify-ship,
+                         wrap-up, upgrade, status, profile, backlog, publish-kb, prose-check, review-tests, sweep
   agents/              — the subagents (*.md): implementer, slice-reviewer, simplicity-reviewer,
                          final-reviewer, doc-writer, doc-reader, test-auditor
   hooks/               — the deterministic Node hooks + hooks.json: merge-guard, model-explicit,
@@ -237,7 +237,10 @@ This root owns every other subtree directly:
   implement → review → document → submit-pr is the chain a scope walks, each skill printing the next
   (ADR 0013). `/superdev:ship` is a separate, human-only command: it merges the pull request submit-pr
   opened, deploys the merge under the repository's deploy posture (`none`/`manual`/`auto`,
-  `docs/agents/deployment.md`, ADR 0101), closes the scope anchor, and takes the run down (ADR 0096).
+  `docs/agents/deployment.md`, ADR 0101), and stops there (ADR 0106). `/superdev:verify-ship` then settles
+  the criteria only a deployed system can show, and `/superdev:wrap-up` closes the scope anchor and takes
+  the run down. On the local plan-file store the anchor's close rides the pull request and wrap-up follows ship
+  directly. Both are human-only too.
   Whoever invokes a chain command passes `--unattended` to run it unattended (ADR 0016, ADR 0108);
   superdev ships no driver. Some skills sit outside the chain: publish-kb sends a scope's
   staged knowledge-base pages to a remote backend on the operator's own clock (ADR 0023), backlog surveys

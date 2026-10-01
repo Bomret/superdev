@@ -4,6 +4,9 @@
 
 **Superseded by:** [ADR 0108](0108-afk-is-removed.md), which removes the sweep and keeps the anchor dependency for `/superdev:backlog`.
 
+**Amended by:** [ADR 0106](0106-verifying-and-closing-a-shipped-scope-are-separate-human-only-commands.md),
+which satisfies a dependency only by the blocker's closed anchor, or by no such anchor existing.
+
 ## Context
 
 `commands/afk.md` §2 takes eligible scope anchors in ascending issue number, on the stated grounds that

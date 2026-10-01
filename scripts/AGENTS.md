@@ -71,8 +71,8 @@ cut to the first whitespace-delimited token and stripped of markup and trailing 
 header line reads as absent, not as an empty string. Both `readLines` and `readLedgerHeader` split
 on `\r?\n`. A `ledger.md` an editor or `core.autocrlf` wrote with CRLF line endings reads exactly as
 an LF one does. A lone `\r`, the classic-Mac line ending, reads as absent, and that is deliberate.
-Any verb that writes the file normalises it back to LF. A scope whose ledger stage reads `shipped`
-collapses to one line, `<scope>  (shipped)`. It drops the slice tally and the blocked list.
+Any verb that writes the file normalises it back to LF. A scope whose ledger stage reads `shipped` or `closed`
+collapses to one line, `<scope>  (shipped)` or `<scope>  (closed)`. It drops the slice tally and the blocked list.
 `hooks/scope-prune.js` (ADR 0007) is about to reap that run root, so per-slice detail is no longer
 work in flight. Its `**Degraded:**` line, its `**Unresolved:**` line, its `**Deferred:**` line, and its
 staged-page lines survive the collapse, because each is otherwise recorded nowhere else. `deferred add`
@@ -668,22 +668,41 @@ that verifies a criterion or dispatches an agent that does (`skills/review/SKILL
 `skills/implement/SKILL.md`, `references/run-handoff.md` — whose red-full-suite implementer dispatch
 sits outside `skills/implement/SKILL.md` entirely, and whose own handoff pass re-checks every
 `scope`-tagged and earlier-ticked criterion, `skills/document/SKILL.md`'s §8 re-check bullet, and
-`references/dod-ticks.md`'s Document's case those two dispatch through). A contract in an agent body
+`references/dod-ticks.md`'s Document's case those two dispatch through, plus its Verify-ship's case and
+`skills/verify-ship/SKILL.md`, which also states it never runs a deploy target's command — ADR 0106). A contract in an agent body
 also has to hold in the prose that dispatches it, so `implementer.md`'s one body clause is reached by
 a dispatch row in each of `skills/implement/SKILL.md` and `references/run-handoff.md`.
 `skills/submit-pr/SKILL.md` carries no row here: ADR 0091 retired ship's own verification step, and the
 row that once pinned its "Verifying an item observes" sentence went with it (see `ship-ticks-nothing`
 below).
 
+The `wrap-up-gate` contract (ADR 0106, INV-0099), on `skills/wrap-up/SKILL.md` and one row on
+`skills/verify-ship/SKILL.md`: the gate collects every reason that holds and names all of them in one
+refusal, counts an unknown merge state as not merged, refuses a Definition-of-Done line neither ticked nor
+`accepted:` (naming `/superdev:verify-ship <scope>`) and a target not `deployed` (naming
+`/superdev:verify-ship` or `/superdev:ship`), asks once per standing `**Unresolved:**` entry, stops on any
+failed store call, and cleans up only after a successful close. Further rows pin the gate's evidence:
+a listed target not recorded `deployed`, an `absent` record included, is a reason (a session can end
+between ship's stage write and its first deploy record); settledness is judged from `dod.md`, with the
+anchor read only when `dod.md` is missing, and a remote anchor disagreeing with a settled `dod.md` names
+`/superdev:verify-ship <scope>` as the reconciler; on the local plan-file store wrap-up writes nothing to
+the store, since the close rode the pull request; slice records closed before a failed anchor close stay
+closed and a rerun converges; and a refused scopetree removal leaves the stage at `shipped` and never
+force-removes. The cleanup rows pin that the scope branch is never deleted, `.superdev/kb-pending/<scope>/`
+is kept, and the cleanup runs from the invoking checkout. The verify-ship rows pin that it prints
+`/superdev:wrap-up <scope>` as its next command once every line is settled, points its local-store refusal
+at wrap-up, reconciles the anchor from `dod.md` before it observes, treats a `manual` target with no record
+like a `pending` one, keeps the records of an earlier yes when a later target is answered no, and reads a
+ledger with no `**PR:**` header as posture `none`.
+
 The `ship-ticks-nothing` contract (ADR 0091), all on `skills/submit-pr/SKILL.md`: it replaces the
 retired `dod-suite-criterion` contract, which once pinned §4's suite-criterion tick logic — that logic
 moved to `/superdev:review`'s own §4 once every scope started passing review, so submit-pr ticks nothing
 at all. One row pins the plain "writes no tick anywhere" statement; one pins the `## Post-merge
 checklist` paragraph — every `dod.md` line noted `— ceiling:` copied into the pull-request body under
-that heading, with no empty heading when none exist. Closing the scope anchor on a remote store is
-`/superdev:ship`'s own post-merge job (ADR 0096) and carries no row here yet: ship is a placeholder
-until that command is built (`stage set shipped` is `verb-pointer`'s own row, below, and carries no row
-here either for the same reason).
+that heading, with no empty heading when none exist. Two rows on `skills/ship/SKILL.md` pin that ship
+writes no tick anywhere and closes no anchor and removes no checkout, slice checkout, or lock: the close
+on a remote store is `/superdev:wrap-up`'s (ADR 0106, INV-0099).
 
 The `anchor-close-before-push` contract (triage #654) pins rows on a store whose anchor close is a commit
 on the scope branch — the local store — commits that close before submit-pr's own push, so it reaches
@@ -797,11 +816,12 @@ order-bounded, the same shape `REVIEW_RANGE_SHAPES_CONTRACTS`' seventh row uses,
 ahead of the four range shapes it must follow fails the row exactly as removing the bullet does — and its
 `## The scope branch` shape-scan fallback for a run root whose ledger names no branch or a stale one; and
 rows pin `skills/submit-pr/SKILL.md` and `skills/implement/SKILL.md`, one citing the shared section
-and one naming that command's own candidate set (run roots not `shipped` for submit-pr, features whose
+and one naming that command's own candidate set (run roots neither `shipped` nor `closed` for submit-pr, features whose
 slices are ready for implement) ahead of the citation. Anchored on the section's own heading and on each
 citing document's literal citation and candidate-set sentences, the same shape `UNATTENDED_CONTRACTS`
 uses, because a document that restates the cascade in its own words instead of citing the section reads
-correct in isolation and is exactly the defect ADR 0078 removes.
+correct in isolation and is exactly the defect ADR 0078 removes. A further row pins `references/scope-mode.md`'s
+run-root enumeration naming submit-pr's qualifying stages as every stage but `shipped` and `closed`.
 The `agent-lens-list` contract (ADR 0062), one sentence row per audited agent's own lens list, a further
 row where a dispatch restates that list instead of deferring to it, and `scanAgentLensNoDesignSmell()`:
 `agents/slice-reviewer.md` reads only the anti-pattern and vulnerability-class lenses from
@@ -939,10 +959,11 @@ its verb ("to the base branch, commit…"), a `<base>` placeholder spelling inst
 or name, and anything sitting inside a fenced code block (masked out, the same way every other scanner
 here treats a fence). A green `no-base-branch-commit` is evidence against one specific phrasing, not
 proof that no shipped document instructs a base-branch write.
-The `ship-human-only` contract (INV-0093), `scanShipHumanOnly()`: `skills/ship/SKILL.md` carries
-`disable-model-invocation: true` in its frontmatter and no `--unattended` token anywhere — ship carries no
-unattended mode of its own, unlike every step the implement chain drives (ADR 0096). Absent ship.md is
-skipped, matching every other contract scanner.
+The `ship-human-only` contract (INV-0093), `scanShipHumanOnly()`: `skills/ship/SKILL.md`,
+`skills/verify-ship/SKILL.md`, and `skills/wrap-up/SKILL.md` each carry `disable-model-invocation: true` in their frontmatter and no
+`--unattended` token anywhere — none carries an unattended mode of its own, unlike every step the
+implement chain drives (ADR 0096, ADR 0106). An absent skill file is skipped, matching every other contract
+scanner.
 The `model-invocation-split` check (INV-0066), `scanModelInvocationSplit()`: `skills/implement/SKILL.md`,
 `skills/review/SKILL.md`, `skills/document/SKILL.md`, and `skills/submit-pr/SKILL.md` carry no
 `disable-model-invocation: true`, because an unattended run invokes each through the Skill tool and a step
@@ -1306,10 +1327,12 @@ condition still fails.
 The `shipped-append` contract (ADR 0083, INV-0004) pins rows against `skills/plan/SKILL.md` and
 `references/plan-contract.md`. `/superdev:plan`'s extend path states that a feature whose
 anchor has shipped takes no append, names both signals that trigger the refusal and that either one
-alone refuses — a run root whose ledger stage reads `shipped`, and a scope anchor at the store's done
-status — and names the remedy, a new feature carrying `**Blocked by feature:** #<anchor>`.
-`references/plan-contract.md`'s *Append mode* section states the same boundary, because it owns what an
-append may do and every backend renders it. The signals are pinned as one row rather than two, since
+alone refuses — a run root whose ledger stage reads `shipped` or `closed` (INV-0004), and a scope anchor
+at the store's done status — and names the remedy, a new feature carrying `**Blocked by feature:** #<anchor>`.
+`references/plan-contract.md`'s *Append mode* section states the same boundary for a shipped or closed
+feature, because it owns what an append may do and every backend renders it. A further row on the same
+document pins the anchor-dependency rule (ADR 0106, amending ADR 0040): a dependency is satisfied only
+by the named anchor's closure or absence, with no ledger-stage branch. The signals are pinned as one row rather than two, since
 neither answers the question alone: a reaped run root leaves no ledger, and a best-effort anchor close
 leaves the anchor open beside a `shipped` ledger, so a document naming one signal is as broken as one
 naming neither. The remedy has a row of its own because a refusal without it is a dead end, which is the
@@ -1348,18 +1371,18 @@ documents (`docs/agents/issue-tracker.md`, `references/issue-tracker-forgejo.md`
 `references/issue-tracker-jira.md` carries the same two, phrased against its `fields.status.name` versus
 `<Done>` shape, since Jira has no open/closed issue state to phrase against. Every
 row in both families is exercised by its own selftest in `drift/selftest/kb-plan.test.js`, including the
-query-only-revert mutation the first family exists to catch. The `rotate-on-shipped` contract (ADR 0004, ADR 0007, ADR 0079/0080's Important review finding B):
+query-only-revert mutation the first family exists to catch. The `rotate-on-shipped` contract (table `RUN_INIT_FINISHED_STAGE_CONTRACTS`; the check id keeps its original name so existing write-ups and ids stay stable) (ADR 0004, ADR 0007, ADR 0079/0080's Important review finding B):
 `references/run-init.md` states that run init reads a present ledger's stage before choosing between
-resume and init, that stage `shipped` runs `init` directly and `init` itself rotates the existing ledger
-aside to `ledger-shipped-<date>.md` before writing the fresh one, that every other stage (`implementing`,
+resume and init, that stage `closed` runs `init` directly and `init` itself rotates the existing ledger
+aside to `ledger-closed-<date>.md` before writing the fresh one, that stage `shipped` — read from the local ledger, or from the anchor's snapshot when no ledger exists — stops run init with nothing created and names `/superdev:verify-ship` and `/superdev:wrap-up`, and that both stops sit in the entry step, ahead of the design-doc move and the DoD write (`init` refuses over a `shipped` ledger, ADR 0106). A third stop, the second-read stop in **Create the ledger**, runs after the DoD write: it removes that `dod.md` (and the run root, if that leaves it empty) and reports any design-doc commit left in place, and the entry step names it as the one exception to its write-nothing promise. Two contracts pin it: the `dod.md` and run-root cleanup, and the adopt-refusal-at-`shipped` exception. It also states that every other stage (`implementing`,
 `merged`, `reviewed`, `documented`, `documented-unreviewed`, `submitted`) keeps the existing resume path, and that
-nothing is deleted, so `scope-prune`'s seven-day post-merge reap still runs on its own terms. A fourth
-clause states that the rotation never overwrites an existing `ledger-shipped-<date>.md`, so a scope that
-ships twice in one calendar day keeps both trails instead of the second rotation clobbering the first.
-`scope-prune` keeps a shipped run root on disk past merge, so a new feature reusing that retired label
-can land while the finished run's ledger is still there (ADR 0083). A document that goes back to treating any
+nothing is deleted, so `scope-prune`'s seven-day post-close reap still runs on its own terms. A further
+clause states that the rotation never overwrites an existing `ledger-closed-<date>.md`, so a scope that
+closes twice in one calendar day keeps both trails instead of the second rotation clobbering the first.
+`scope-prune` keeps a run root on disk past merge, so a new feature reusing that retired label
+can land while the finished run's ledger is still there; `init` rotates that ledger aside only for `closed`, and refuses over `shipped` (ADR 0083, ADR 0106). A document that goes back to treating any
 present ledger as an in-progress resume re-dispatches a finished run instead of beginning the new one.
-`init` owns the rotation mechanics — `plugin/scripts/scope.js`'s `rotateShippedLedger()`, called only
+`init` owns the rotation mechanics — `plugin/scripts/scope.js`'s `rotateFinishedLedger()`, called only
 after `verbInit` has validated stdin, so a refused `init` never rotates a ledger it is about to leave
 in place (Important review finding G) — because `scope.js` is the
 sole `ledger.md` read and write path (ADR 0022) and the rotation is a ledger operation; `references/
@@ -1367,8 +1390,9 @@ run-init.md` describes what `init` does rather than instructing a reader to rena
 first, which is what let the instruction die stranded after the branch, scopetree, and run lock already
 existed when `/superdev:plan` itself became an `init` caller over a `shipped` ledger (`docs/agents/
 issue-tracker.md`'s ADR 0004 append flow). `tests/scope.test.js` carries the rotation's own coverage: the
-fresh ledger lands at the requested entry stage, the rotated file carries the shipped ledger byte for
-byte, a second same-day rotation never overwrites the first, and nothing is deleted. The
+fresh ledger lands at the requested entry stage, the rotated file carries the closed ledger byte for
+byte, a second same-day rotation never overwrites the first, nothing is deleted, and `init` over a `shipped`
+ledger refuses, naming both commands, and writes nothing. The
 `parked-questions` contract (ADR 0004, ADR 0005) pins rows against `skills/plan/SKILL.md`. It surfaces an
 epic's `## Parked questions` the moment §0 loads it, before the interview diverges into new ground. A
 question the interview resolves has its line deleted from that section, with the new slice's `spec`
@@ -1696,7 +1720,7 @@ finds nothing either, still names the branch it looked for and blocks rather tha
 
 The `resumed-scopetree-trigger` contract (ADR 0042, ADR 0045) pins a row: `references/scope-mode.md`'s action in
 that same `resumed` branch bullet creates or reattaches the scopetree, at both tiers, whenever it is absent for either
-cause — `/superdev:ship` already removed it, or this checkout never held it at all, the case
+cause — `/superdev:wrap-up` already removed it, or this checkout never held it at all, the case
 `adopt-run-state` makes reachable on a fresh clone. A fix cycle found the sentence named only the first
 cause, so `references/implement-lite.md`'s Resume step — which works "in the scopetree"
 unconditionally, assuming it exists — had nothing creating that scopetree on a fresh clone; `implement-lite.md`
@@ -1704,7 +1728,7 @@ itself needed no change once the bullet it delegates to was broadened, because i
 already runs `## Cutting the scope branch` in full before Resume ever reads the scopetree. Split into its
 own check rather than folded into `adopt-run-state`'s table, because the two answer different questions —
 which branch gets fetched, versus which scopetree gets created — and no fixture anywhere previously
-distinguished "removed by ship" from "never created", so a regression narrowing the sentence back to one
+distinguished "removed by wrap-up" from "never created", so a regression narrowing the sentence back to one
 cause would have passed silently.
 
 The `run-lock-liveness` contract (INV-0013, ADR 0090) pins rows across `references/scope-mode.md`,
@@ -1760,7 +1784,10 @@ states that a `run-lock` refusal met while recreating is this run's own lock rat
 session's and names the remedy (remove and retry) — a fix cycle otherwise found the recreate path
 unreachable inside a live run, since the same run's own lock, refreshed by every earlier command in the
 chain, is what blocks it — and names a stop, writing nothing, when a different working tree already holds
-the branch — the same reuse the retired `run-kind` row used to describe split by tier. `## The run
+the branch — the same reuse the retired `run-kind` row used to describe split by tier. It also states that
+an absent checkout at `shipped` or `closed` is never recreated, `/superdev:ship` alone excepted at
+`shipped`, and `skills/ship/SKILL.md` stops on a `closed` scope before recreating anything (nothing removes
+what a recreate at that terminal stage would leave behind). `## The run
 lock` states that both tiers write `<run-root>/run.lock`, and only once `## Cutting the scope branch` has
 already cut the scopetree, or the `run-lock` hook's own guard on `git worktree add` would block the run
 making that very call. Further rows sit on `references/implement-full.md`, the tier ADR 0045 actually
@@ -1986,17 +2013,15 @@ apart, off the ledger's own `**PR:**` header rather than a query written into th
 The `deploy-step-visibility` contract (ADR 0101, INV-0099, whole-scope review, ship-deploys fix cycle 1):
 two surfaces that tell an operator what `/superdev:ship` does, or what to run next after it, had fallen
 behind ADR 0101's deploy step. One row pins `skills/submit-pr/SKILL.md`'s own next-command line naming the
-deploy alongside the merge and the close, not merely the merge and the close. One row pins the same
-document's run-standing sentence stating that ship closes the anchor once every target has deployed under
-`auto`, and on the merge under `manual` or `none` (#751). One row pins
-`skills/backlog/SKILL.md`'s corrected claim that the stage write and the anchor close are two separate
-steps — the stage flips to `shipped` right after the merge, before any deploy runs, and the anchor closes
-only once every target has deployed — rather than the one-step claim that let a `shipped` run root with an
-open anchor read as an anomaly instead of the ordinary shape a stalled `auto` deploy leaves. The last row
-pins the `deploy resume` bucket that carve-out routes to: a `shipped` run root stuck mid-`auto`-deploy —
-by the same definition ship's own empty-argument candidate set uses — gets `/superdev:ship <scope-slug>`
-as its act, ahead of `blocked`'s "close the anchor" in the table's own reading order, rather than steering
-an operator into closing an anchor by hand and stranding the deploy INV-0099 forbids exactly that.
+deploy alongside the merge, then the stop and `/superdev:verify-ship <scope>` as what follows (ADR 0106).
+One row pins the same line's local plan-file store branch, where `/superdev:wrap-up <scope>` follows ship directly.
+One row pins the same document's run-standing sentence stating that `/superdev:wrap-up` closes the
+anchor after the merge and verify-ship. One row pins
+`skills/backlog/SKILL.md`'s claim that ship stops after the deploy and wrap-up closes the anchor, so a
+`shipped` run root with an open anchor is the ordinary state between the two, not an anomaly. One row pins
+the `deploy resume` bucket: a `shipped` run root stuck mid-`auto`-deploy gets `/superdev:ship <scope-slug>`
+as its act whatever the scope checkout holds (ship leaves the checkout standing until wrap-up), rather
+than steering an operator into closing an anchor by hand and stranding the deploy INV-0099 forbids.
 Rows pin that a stalled deploy shows on every store and ranks first (#750): a `shipped` run root
 meeting the `deploy resume` definition gets its row whether or not an open anchor matches it — the local
 plan-file store closes the anchor with the pull request, so there no anchor ever matches — the bucket's
@@ -2005,6 +2030,20 @@ ranks a `deploy resume` row above every other row, `blocked` included.
 Losing the submit-pr row leaves an operator who has never run ship before unaware it deploys anything;
 losing either backlog row reopens the steer into breaking INV-0099; losing any of the four visibility rows
 hides a half-deployed merge on the local store, or ranks it behind work that has not started.
+
+The `backlog-verify-wrap-up` contract (ADR 0106) pins the survey's routing of a `shipped` run root. Rows
+pin the `awaiting verification` bucket (act `/superdev:verify-ship <scope-slug>`) and the `awaiting wrap-up`
+bucket (act `/superdev:wrap-up <scope-slug>`); the split rule, an open anchor with a line neither ticked
+nor `accepted:`, an anchor disagreeing with `dod.md`, or a listed `manual` target not recorded `deployed`
+going to verification; a `shipped` run root over an already
+closed anchor going to wrap-up; and a `closed` run root getting no row. Losing a bucket row leaves a merged
+scope with no next command in the survey. Three further rows pin how the split reads its evidence: a
+`shipped` run root's Definition-of-Done lines are judged from `<run-root>/dod.md`, and an anchor whose
+verdict differs from it routes to verification; a missing or unreadable `dod.md` is judged from the anchor
+alone, and an unreadable anchor is a `blocked` row naming what could not be read; and on the local
+plan-file store a `shipped` run root goes to `awaiting wrap-up`, because wrap-up writes nothing to that
+store while verify-ship refuses there. The rows pin presence only: no row scans for an instruction to close an anchor by
+hand.
 
 The `run-state-contract` check, `scanRunStateContract()`: every store document carries its
 own `## Run state` section (`plan-contract.md` → *Run state*, ADR 0042). It walks the same
@@ -2343,6 +2382,25 @@ printed next command becomes `/superdev:ship <scope>` once the stage reads `subm
 cap reached — invalidates the tip's suite record with `suite set none <sha>`, so `suite reusable` never
 still accepts a tip a standing finding stands against.
 
+The `posture-read` contract (ADR 0101, ADR 0106) pins the one statement of how a merged feature's deploy
+posture is read, `references/scope-mode.md`'s `## Reading the posture at the merge commit`, and that each
+caller cites it. The statement carries five clauses: the merge commit comes from the pull request read by
+the ledger's `**PR:**` number, with a ledger lacking the header reading as posture `none`; base is fetched
+when the checkout lacks the commit; the posture comes from `git show <merge-commit-sha>:docs/agents/deployment.md`
+in the invoking checkout, an absent document or `Posture:` line reading as `none`; the listed targets come
+from the anchor's `**Deploy:**` line and the record from `scope.js deploy get`; and a target not recorded
+`deployed`, an `absent` record included, is undeployed. `skills/ship/SKILL.md` (§3's resume test and §5's
+deploy step), `skills/verify-ship/SKILL.md`, `skills/wrap-up/SKILL.md`, and `skills/backlog/SKILL.md` each
+carry a citation row and state only their own branching. The same shape governs the `dod.md`-to-anchor
+pairing: `references/dod-ticks.md`'s `## Pairing dod.md with the anchor` states it once, and rows on
+verify-ship, wrap-up, and backlog pin the citation. The five-fold restatement had drifted apart, which is
+the defect this contract removes.
+
+The `closed-stage` contract (ADR 0106) pins the two exits that meet a `closed` run root, which is terminal
+and which `scope.js` refuses to write out of. `skills/submit-pr/SKILL.md`'s stage gate reports "already
+closed" and stops with no push and no pull request, as it does for `shipped`. `skills/review/SKILL.md`'s
+stage write leaves the line alone at `closed` beside `documented`, `submitted`, and `shipped`.
+
 The `commitment-capture` contract (ADR 0081) spans rows across three documents.
 `skills/brainstorm/SKILL.md` still names a discovery's load-bearing commitments in the intent as a pair,
 the principle and the rule it implies. `skills/plan/SKILL.md` still routes every commitment — one a
@@ -2521,7 +2579,8 @@ rows above exist to close.
 The `ship-legacy-shipped` contract (final-reviewer triage, #687 fix cycle): a `shipped` ledger reads two
 different things depending on whether it carries the ledger's own `**PR:**` header. The header-present
 row reads it as finished by this version and truly done — ship reports "already shipped" and stops,
-merging and refusing nothing. The header-absent row reads it as a legacy ledger a version before
+merging and refusing nothing, whether or not the scope checkout is present (ADR 0106). A further row pins that this report recreates
+no absent scope checkout: §2 recreates one at `submitted` only, and §3 recreates it at `shipped` once it finds an unfinished `auto` deploy to resume. A posture-first row pins that §3 reads the posture from the invoking checkout before any scope checkout is recreated, and recreates it only when the posture is `auto` and a target is undeployed, so a `manual` scope waiting for verify-ship never rebuilds a checkout. The header-absent row reads it as a legacy ledger a version before
 ADR 0096 wrote the moment it opened the pull request, never once it merged, and `skills/ship/SKILL.md`
 still treats it like `submitted`: it reads the pull request from the host. The none-found row pins that
 its own **None found** case skips the `pr set <n>` recovery instruction that case gives a `submitted` run
@@ -2535,20 +2594,22 @@ the next time `/superdev:ship` runs on it. Losing any one row lets a legacy run 
 merge a second time undetected, get told to run `pr set` busywork it does not need, or keep reading as
 legacy forever despite carrying a `**PR:**` header no earlier command wrote for it.
 The `ship-deploy` contract (ADR 0101, INV-0098, INV-0099, #720): `skills/ship/SKILL.md` applies the
-repository's deploy posture to the anchor's deploy targets after the merge, and closes the anchor only
-once they have deployed. Two rows pin the pre-merge gate (§3): a listed target the targets table lacks
+repository's deploy posture to the anchor's deploy targets after the merge, then stops and prints
+`/superdev:verify-ship <scope>`, closing no anchor (ADR 0106). Two rows pin the pre-merge gate (§3): a listed target the targets table lacks
 refuses, naming it, before anything merges; a pull-request diff touching `docs/agents/deployment.md`
 prints the changed posture and target lines there too, so calling ship stays the consent to exactly the
 commands it runs. Four rows pin §5's deploy step by posture: `none` (or an absent `**Deploy:**` line)
 deploys nothing and says so; `manual` prints each command not already recorded `deployed` and records each
-`pending`, then closes — the same already-`deployed` guard `auto` has, so a posture switched to `manual`
+`pending`, then hands off — the same already-`deployed` guard `auto` has, so a posture switched to `manual`
 mid-resume never downgrades a deployed target back to `pending`; `auto` fetches base and detaches the
 scopetree at the merge commit rather than touching the invoking checkout; a non-zero exit records `failed`
-with its exit status, names every target not yet deployed, leaves the
-anchor open, skips the close and cleanup, and prints the resume command — and the anchor closes only once
-every listed target reads `deployed`. Three rows pin the resume path: an unfinished `auto` deploy — a
-`shipped` ledger whose deploy record shows a target not yet `deployed` while its scope checkout is still
-present — joins ship's own empty-argument candidate set, that same shape skips straight to §5 rather than
+with its exit status, names every target not yet deployed, and prints the resume command — and the
+hand-off comes only once every listed target reads `deployed`; one row pins that hand-off, printing
+`/superdev:verify-ship <scope>`, and one pins `/superdev:wrap-up <scope>` in its place on the local
+plan-file store, where verify-ship refuses. Three rows pin the resume path: an unfinished `auto` deploy — a
+`shipped` ledger with a `**PR:**` header whose posture at the merge commit is `auto` and whose deploy
+record leaves a listed target not recorded `deployed` (an absent record included: a session can end between
+ship's stage write and its first deploy record), the scope checkout's presence no part of the test — joins ship's own empty-argument candidate set, that same shape skips straight to §5 rather than
 merging again, and the `auto` loop itself resumes at the first target not already recorded `deployed`
 instead of restarting the list. One row pins that §5 reads the posture and the deploy line fresh — at the
 merge commit just found, by the literal `git show <merge-commit-sha>:docs/agents/deployment.md` read,
@@ -2579,11 +2640,10 @@ commit's lone parent, since a rebase or fast-forward hand merge can carry an ear
 the document that a lone-parent diff would miss, found as its own step so that its non-zero exit or empty
 output counts as a difference instead of turning the diff into one against the working tree; either diff non-empty prints the changed posture and
 target lines, or the diff itself when neither changed, and asks once; a decline deploys nothing, records
-`pending` for every target the deploy record lacks so the run stays resumable, leaves the anchor open,
-skips close and cleanup, and prints the resume; both diffs empty ask nothing; and ship's opening paragraph
+`pending` for every target the deploy record lacks so the run stays resumable, and prints the resume; both diffs empty ask nothing; and ship's opening paragraph
 names this as the one exception to its no-second-question rule.
 Losing any one row lets that one fact
-drift silently — a target ship never validates before merging, a deploy step that closes before `auto`
+drift silently — a target ship never validates before merging, a deploy step that hands off before `auto`
 finishes, a resumed run that starts the list over instead of picking up where a failed target left it, a
 resume that reads a working tree instead of the merge commit, a `stage set shipped` write that lands
 before a refusal has a chance to stop it, a base merge that changes `deployment.md` without §4 or §5
@@ -2597,7 +2657,11 @@ The `deploy-runner-exclusivity` check, `scanDeployRunnerExclusivity()`: no skill
 command…") without claiming to run one, so it is exempt the way a caution naming the forbidden thing
 always is — masks fenced examples first, and flags the shape a claim to run one would take: "run(s) …
 target's … command" within a short span. Its ceiling is that shape: a claim phrased without those three
-words in that order passes silently, same as every other shape-based absence check in this file.
+words in that order passes silently, same as every other shape-based absence check in this file. A denial
+passes: "runs no deploy target's command" and "never runs a target's command" claim no run, which is how
+`skills/verify-ship/SKILL.md` states it observes and deploys nothing (ADR 0106). The denial admission is
+global, not scoped to verify-ship, because a denial claims no run in any document. The selftest pins both
+halves: a denial in a document other than verify-ship passes, and a non-denial in verify-ship fails.
 The `document-submitted-handoff` contract (final-reviewer triage, Minor 5): `skills/document/SKILL.md`
 §8's stage write only knew `shipped` as a leave-alone stage, so a `submitted` scope — one review already
 handed to ship — fell into the "anything else" branch and got a `documented-unreviewed` write `scope.js`
@@ -2605,6 +2669,11 @@ refuses as a backward move. One row pins that `submitted` joins `shipped` in the
 other pins that the next-command bullet prints `/superdev:ship <scope>` for a `submitted` scope rather
 than `/superdev:submit-pr`, which would try to re-open a pull request already open. Losing either row
 reopens the stage-write refusal a doc pass on a submitted scope hits today.
+Three further rows pin that a `shipped` scope prints `/superdev:verify-ship <scope>` on a remote store and a `closed` one prints
+nothing, that `README.md` states ship merges, deploys, and stops with verify-ship and wrap-up after it, and
+that `README.md` names `closed`, never `shipped`, as the stage `scope-prune` reaps. One row pins document's local
+plan-file store print at `shipped`, `/superdev:wrap-up <scope>` in place of verify-ship. One row pins the `README.md`
+worked example: the local store goes from ship straight to wrap-up, and verify-ship is the remote-store step.
 
 ## Work Guidance
 

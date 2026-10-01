@@ -29,8 +29,8 @@ read `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md` as your last step.
 Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The run lock` and write
 `<run-root>/run.lock` as it says (the absolute run-init run-root path in the invoking checkout — never a
 `.superdev/scopes/<scope>/…` path from the scopetree cwd, which resolves one level too deep). Leave the
-lock in place when you finish: it spans the whole chain, and `/superdev:ship` removes it once the run is
-shipped.
+lock in place when you finish: it spans the whole chain, and `/superdev:wrap-up` removes it once the run is
+closed.
 
 ## Implement
 
@@ -110,7 +110,7 @@ slicetrees and would collide on shared doc files.
   it records.
 - **Hand the pass the staging path as an absolute path** — `.superdev/kb-pending/<scope>/` in the
   **invoking checkout**, not a `.superdev/…` path resolved from this scopetree's cwd, which lands one level
-  too deep in a directory `/superdev:ship` deletes.
+  too deep in a directory `/superdev:wrap-up` deletes.
 - **Commit the doc changes on the scope branch**, in this scopetree, as their own commit.
 - **Record the pass** with
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs set inline --root <run-root>`. That record is what
@@ -146,5 +146,5 @@ before resuming.
 
 Do **not** remove the scopetree when the last slice is committed. `/superdev:review` and
 `/superdev:document` run in it — a fix commit and the doc commit both land on the scope branch there — and
-`/superdev:ship` removes it at the end of the chain. Read `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md`
+`/superdev:wrap-up` removes it at the end of the chain. Read `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md`
 next, with the scopetree, the run root, and the lock all in place.

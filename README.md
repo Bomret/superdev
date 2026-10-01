@@ -32,7 +32,9 @@ plan runs test-first, inline in the scopetree.
 /superdev:review       → whole-scope review against the DoD, with a fix loop
 /superdev:document     → reconcile in-repo docs + knowledge base with the code
 /superdev:submit-pr    → push the scope branch, open the PR, and leave the run standing
-/superdev:ship         → merge the PR once reviewed, deploy per the repo's posture, close the anchor, and clean up
+/superdev:ship         → merge the PR once reviewed, deploy per the repo's posture, then stop
+/superdev:verify-ship  → observe the deployed system and settle the Definition-of-Done criteria the merge left open
+/superdev:wrap-up      → check a shipped scope is fully settled, then close its anchor and take the run down
 /superdev:publish-kb   → send a scope's staged knowledge-base pages to the configured backend
 /superdev:prose-check  → check one file, range, or pasted text against the controlled-prose standard
 /superdev:review-tests → read-only audit of what the test suite costs, ranked and handed to plan
@@ -215,8 +217,10 @@ time-based loop, so hand review comments and CI on it to `/loop`:
 ```
 
 Once the pull request is reviewed, `/superdev:ship` merges it, deploys the merge under the repository's
-deploy posture (`none`/`manual`/`auto`, `docs/agents/deployment.md`, ADR 0101), closes the scope anchor,
-and cleans up the run. Only a human runs it.
+deploy posture (`none`/`manual`/`auto`, `docs/agents/deployment.md`, ADR 0101), then stops.
+`/superdev:verify-ship` settles the criteria only a deployed system can show. `/superdev:wrap-up` closes the
+scope anchor and cleans up the run. On the local plan-file store the anchor's close rides the pull request and
+`/superdev:wrap-up` follows ship directly. All three are human-only.
 
 Any chain command (`/superdev:implement`, `/superdev:review`, `/superdev:document`, `/superdev:submit-pr`)
 takes `--unattended`. At a stop, the run takes the stop's standing answer, or blocks the scope anchor
@@ -282,11 +286,11 @@ bash or PowerShell variants.
   cleanup. It
   touches only merged `slice/*` slicetrees under `.superdev/`, and leaves in-progress and reverted slices
   alone. A lite-tier run's single scopetree is not a slicetree, so this hook leaves it
-  alone too. `/superdev:ship` removes it at the end of the chain.
+  alone too. `/superdev:wrap-up` removes it at the end of the chain.
 - **scope-prune.** A `Stop` hook that deletes a scope's run root (`.superdev/scopes/<scope>/`, its
   `ledger.md` and `dod.md` post-mortem trail). The scope anchor keeps its own published snapshot of the
   ledger, so the record survives this reap on a backend that carries one. It waits for these conditions:
-  the run root has sat untouched for 7 days or more, the ledger's `**Stage:**` line reads `shipped`,
+  the run root has sat untouched for 7 days or more, the ledger's `**Stage:**` line reads `closed`,
   **and** the scope branch is **contained in the current branch or gone**. Containment is a content
   question — does base already hold this work — and it is asked with `git merge-tree --write-tree`
   rather than with ancestry, which a squash merge destroys by rewriting the branch's commits
@@ -427,7 +431,7 @@ docs/kb/                  knowledge base, only if the local-file KB backend is c
                           backend (a `patch` page instead names itself
                           `<title-slug>--<section-slug>.md`, ADR 0027), written by /plan and /document
                           instead of a live publish, sent by /publish-kb (ADR 0023); outlives the run
-                          root, so /ship never removes it
+                          root, so /wrap-up never removes it
 ```
 
 Everything except `.superdev/` is committed. The design docs (the glossary, the ADRs, and the invariant
@@ -463,8 +467,13 @@ A tiny feature end to end, with the local-file slice store and GitHub as the cod
   merged slices. It sets the stage to `documented` and prints `/superdev:submit-pr health-check`.
 - **`/superdev:submit-pr health-check`**. Pushes the scope branch and opens the pull request. You see the
   pull-request URL, and the run stands: the scopetree and the scope anchor are still there.
-- **`/superdev:ship health-check`**, once the pull request is reviewed. Merges it, deploys nothing (this
-  repository's own deploy posture is `none`), removes the scopetree, and closes the scope anchor.
+- **`/superdev:ship health-check`**, once the pull request is reviewed. Merges it and deploys nothing (this
+  repository's own deploy posture is `none`), then stops with the stage at `shipped` and prints
+  `/superdev:wrap-up health-check`. On a remote store (Forgejo, GitHub, Jira) `/superdev:verify-ship` comes
+  between the two; it settles the criteria only a deployed system can show, and it refuses on the local
+  plan-file store.
+- **`/superdev:wrap-up health-check`**. Checks the merge and the deploy record, removes the scopetree and
+  the run, and sets the stage `closed`. The anchor's close already rode the pull request.
 - **After.** Review comments and flaky CI on the open pull request are a `/loop` job, not this chain's
   concern. See [After the PR](#after-the-pr).
 

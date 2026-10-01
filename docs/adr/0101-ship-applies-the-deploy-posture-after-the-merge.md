@@ -6,6 +6,9 @@
 which adds one question under `auto`: ship asks before it deploys a `docs/agents/deployment.md` nobody
 was shown.
 
+**Amended by:** [ADR 0106](0106-verifying-and-closing-a-shipped-scope-are-separate-human-only-commands.md),
+which ends ship after the deploy and moves the close and the cleanup into `/superdev:wrap-up`.
+
 **Context.** `/superdev:ship` merges the pull request, pinned to the tested head (ADR 0096). Nothing in
 superdev deploys the merged commit. In a repository whose features only prove themselves once deployed,
 such as infrastructure, services or releases, the deploy happened outside superdev or at the wrong point

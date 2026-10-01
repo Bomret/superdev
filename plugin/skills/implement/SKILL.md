@@ -122,8 +122,10 @@ flow, so log a failed status write and keep going. Points: dispatch → `in-prog
 review (behavior only) → `in-review`; BLOCKED → `blocked`; merged → `merged`/done.
 
 The **scope anchor** — the epic, or the lone slice on a single-slice plan — moves to `in-progress` when
-the run starts, and **`/superdev:ship` closes it**, not you. **On a single-slice plan the anchor rule
-wins**: that one issue stays `in-progress` through the merge and closes once, at ship. (`lite` skips the
+the run starts, and you do not close it: **`/superdev:wrap-up` closes it** on a remote store, and on the
+local plan-file store `/superdev:submit-pr`'s scope-branch commit closes it. **On a single-slice plan the
+anchor rule wins**: that one issue stays `in-progress` through the merge and closes once, at wrap-up (local
+plan-file store: at submit-pr's commit). (`lite` skips the
 `in-review` transition — it has no per-slice review.)
 
 ## Model selection (always set explicitly)

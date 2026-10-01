@@ -33,8 +33,8 @@ const SUITE_RESULTS = ['green', 'red', 'denied', 'none'];
 // references/scope-mode.md `## The stage never moves backwards`: a write is allowed exactly when
 // it does not lower the stage's rank. `reviewed` and `documented-unreviewed` share a rank — the
 // chain can do either doc pass first — so a same-rank move between them needs its own allowlist;
-// every other same-rank move (e.g. reviewed → documented-unreviewed) refuses, and `shipped` is
-// terminal in the way rank already gives it: nothing outranks `shipped`.
+// every other same-rank move (e.g. reviewed → documented-unreviewed) refuses, and `closed` is
+// terminal in the way rank already gives it: nothing outranks `closed`.
 // `planned` (ADR 0079): the scope branch and scopetree a plan cut, before any slice has run — ranked
 // below `implementing` so `stage set implementing` moves forward out of it, and no write moves back
 // to it once a run leaves it. `init` is the only writer of this value.
@@ -50,6 +50,7 @@ const STAGE_RANK = {
   documented: 3,
   submitted: 4,
   shipped: 5,
+  closed: 6,
 };
 const STAGES = Object.keys(STAGE_RANK);
 // The sanctioned same-rank move: `/superdev:review` writes `reviewed` over `documented-unreviewed`
@@ -58,6 +59,8 @@ const SANCTIONED_SAME_RANK = new Set(['documented-unreviewed>reviewed']);
 
 function stageMoveAllowed(cur, next) {
   if (cur === next) return true;
+  // `closed` is reached from `shipped` alone: wrap-up is the only writer, and it gates on `shipped`.
+  if (next === 'closed') return cur === 'shipped';
   const rc = STAGE_RANK[cur];
   const rn = STAGE_RANK[next];
   if (rn > rc) return true;
@@ -116,7 +119,7 @@ function headerRe(name) {
 // in markdown emphasis, or leave a sentence's period behind, and every spelling means the same token.
 // It takes the first whitespace-delimited token before stripping that markup. Git forbids whitespace in
 // a refname, and a stage name is one word, so first-token can never truncate a legal value. It does
-// widen what is accepted: `**Stage:** shipped (rolled back)` reads as `shipped` and satisfies the prune
+// widen what is accepted: `**Stage:** closed (rolled back)` reads as `closed` and satisfies the prune
 // gate. That matches the reader this replaced, so it costs nothing here — but the cut is a capture rule,
 // not validation, and nothing downstream treats it as one. It only
 // ever drops a trailing parenthetical or comment a hand-written ledger tacks on after the real token
@@ -253,20 +256,19 @@ function ensureSuperdevIgnored(cwd) {
 // entry point, so `init` refuses anything else by name rather than accepting the full `STAGES` set.
 const INIT_ENTRY_STAGES = ['planned', 'implementing'];
 
-// `init` owns the `shipped` ledger's rotation (Important review finding B, ADR 0079/0080): `scope.js`
-// is the sole ledger read and write path (ADR 0022), the rotation is a ledger operation, and
-// `references/run-init.md` merely describes it rather than instructing a reader to perform it by hand.
-// Renamed aside to `ledger-shipped-<date>.md`, `date +%FT%H%M%S` precision — fine enough that two
-// same-day rotations essentially never collide, and the loop below still never overwrites one that does.
-// Nothing is deleted, so ADR 0007's seven-day trail and `scope-prune`'s contained-or-gone reap rule
-// (ADR 0053) both stand unchanged.
-function rotateShippedLedger(root) {
+// `init` owns a closed ledger's rotation (ADR 0079/0080, ADR 0106): `scope.js` is the sole ledger read and write path
+// (ADR 0022), the rotation is a ledger operation, and `references/run-init.md` merely describes it
+// rather than instructing a reader to perform it by hand. Renamed aside to `ledger-<stage>-<date>.md`,
+// `date +%FT%H%M%S` precision — fine enough that two same-day rotations essentially never collide, and
+// the loop below still never overwrites one that does. Nothing is deleted, so ADR 0007's seven-day
+// trail and `scope-prune`'s contained-or-gone reap rule (ADR 0053) both stand unchanged.
+function rotateFinishedLedger(root, stage) {
   const stamp = new Date().toISOString().slice(0, 19).replace(/:/g, '');
-  let name = `ledger-shipped-${stamp}.md`;
-  for (let n = 2; fs.existsSync(path.join(root, name)); n++) name = `ledger-shipped-${stamp}-${n}.md`;
+  let name = `ledger-${stage}-${stamp}.md`;
+  for (let n = 2; fs.existsSync(path.join(root, name)); n++) name = `ledger-${stage}-${stamp}-${n}.md`;
   const dest = path.join(root, name);
   fs.renameSync(ledgerPath(root), dest);
-  console.log(`rotated shipped ledger to ${dest}`);
+  console.log(`rotated ${stage} ledger to ${dest}`);
 }
 
 function validateLabel(label) {
@@ -297,7 +299,14 @@ function verbInit(cwd, label, stage, stdinJson) {
   let priorStage;
   if (fs.existsSync(ledgerPath(root))) {
     priorStage = getHeader(readLines(root), 'Stage');
-    if (priorStage !== 'shipped' && priorStage !== 'planned') {
+    if (priorStage === 'shipped') {
+      // A shipped run is finished only when wrap-up closes it (ADR 0106); re-initialising it would
+      // rotate away a ledger verify-ship and wrap-up still read.
+      fail(
+        `ledger already exists at stage "shipped": ${ledgerPath(root)} — finish that run first with ` +
+          '/superdev:verify-ship and /superdev:wrap-up',
+      );
+    } else if (priorStage !== 'closed' && priorStage !== 'planned') {
       fail(`ledger already exists: ${ledgerPath(root)}`);
     } else if (priorStage === 'planned') {
       console.log(`ledger already exists at stage "planned" (no slice has run) — overwriting`);
@@ -333,11 +342,11 @@ function verbInit(cwd, label, stage, stdinJson) {
     );
   });
 
-  if (priorStage === 'shipped') {
-    // A finished run's ledger — ADR 0007's seven-day trail keeps it on disk past merge, so a new
+  if (priorStage === 'closed') {
+    // A closed run's ledger — ADR 0007's seven-day trail keeps it on disk past merge, so a new
     // feature reusing a retired label (ADR 0083) lands here. Rotate aside rather than refuse. Done only
-    // after every refusal above, so a refused init leaves the shipped ledger untouched.
-    rotateShippedLedger(root);
+    // after every refusal above, so a refused init leaves the finished ledger untouched.
+    rotateFinishedLedger(root, priorStage);
   }
 
   // Ensure .superdev/ is git-ignored in the main working tree that holds it — but after every
@@ -1060,10 +1069,13 @@ function adoptLines(root, body) {
   if (rootSlug !== slug) fail(`run root "${rootSlug}" does not match the branch slug "${slug}" — refusing to adopt`);
   const stage = getHeader(payload, 'Stage');
   if (stage !== null && !STAGES.includes(stage)) fail(`run-state payload carries unknown stage "${stage}"`);
-  // `shipped` is terminal (`## The stage never moves backwards`): run-init.md's own decision tree
-  // already treats a `shipped` snapshot as not adopted, but `adopt` refuses it too, the same posture
-  // every other schema invariant here takes, rather than trust that its one caller always checks first.
-  if (stage === 'shipped') fail('run-state payload carries stage "shipped" — a finished run has nothing to adopt');
+  // `closed` is terminal (`## The stage never moves backwards`), and `shipped` is a stage
+  // run-init.md stops at (a run awaiting wrap-up), and it rotates aside only `closed`. `adopt` refuses both,
+  // the same posture every other schema invariant here takes, rather than trust that its one caller
+  // always checks first.
+  if (stage === 'shipped' || stage === 'closed') {
+    fail(`run-state payload carries stage "${stage}" — a finished run has nothing to adopt`);
+  }
   for (const i of tableRowIndexes(payload)) {
     if (splitRow(payload[i]).length !== 7) fail('run-state payload carries a slice row without the 7 ledger columns');
   }
@@ -1194,25 +1206,26 @@ function verbStatus(cwd) {
         pushPendingAndStrays(scope);
         continue;
       }
-      // A shipped scope is finished with, and `hooks/scope-prune.js` reaps its run root once the TTL
-      // elapses (ADR 0007). It is not work in flight, so it collapses to one line here rather than
-      // carrying a tally through a report that exists to show what is still moving. Its degrade record,
-      // unresolved-defect record, deferred-finding record, and staged-page lines are the deliberate
-      // exceptions below: a degraded pass is otherwise recorded only in the pull-request body, which the
-      // same prune outlives it by (scope-mode `## Degraded passes`); an unresolved defect the same way
-      // (`## Unresolved defects`); a deferred finding likewise, and it is the one record naming work
-      // nobody has planned yet (ADR 0035); and a page nobody publishes is invisible everywhere else
-      // (ADR 0023) — a shipped scope is exactly where any of them waits.
-      if (stage === 'shipped') {
-        out.push(`${scope}  (shipped)`);
-        const shippedDegraded = readBullets(lines, 'Degraded');
-        if (shippedDegraded.length) out.push(`  degraded: ${shippedDegraded.join(', ')}`);
-        const shippedUnresolved = readBullets(lines, 'Unresolved');
-        if (shippedUnresolved.length) out.push(`  unresolved: ${shippedUnresolved.join(', ')}`);
-        const shippedDeferred = readBullets(lines, 'Deferred');
-        if (shippedDeferred.length) out.push(`  deferred: ${shippedDeferred.join(', ')}`);
-        const shippedDeploy = getHeader(lines, 'Deploy');
-        if (shippedDeploy) out.push(`  deploy: ${shippedDeploy}`);
+      // A shipped or closed scope is finished with. `closed` is where `hooks/scope-prune.js` reaps its
+      // run root once the TTL elapses (ADR 0106); a `shipped` one waits for
+      // `/superdev:wrap-up` to close it. Neither is work in flight, so each collapses to one line here
+      // rather than carrying a tally through a report that exists to show what is still moving. Its
+      // degrade record, unresolved-defect record, deferred-finding record, and staged-page lines are the
+      // deliberate exceptions below: a degraded pass is otherwise recorded only in the pull-request body,
+      // which the same prune outlives it by (scope-mode `## Degraded passes`); an unresolved defect the
+      // same way (`## Unresolved defects`); a deferred finding likewise, and it is the one record naming
+      // work nobody has planned yet (ADR 0035); and a page nobody publishes is invisible everywhere else
+      // (ADR 0023) — a finished scope is exactly where any of them waits.
+      if (stage === 'shipped' || stage === 'closed') {
+        out.push(`${scope}  (${stage})`);
+        const finishedDegraded = readBullets(lines, 'Degraded');
+        if (finishedDegraded.length) out.push(`  degraded: ${finishedDegraded.join(', ')}`);
+        const finishedUnresolved = readBullets(lines, 'Unresolved');
+        if (finishedUnresolved.length) out.push(`  unresolved: ${finishedUnresolved.join(', ')}`);
+        const finishedDeferred = readBullets(lines, 'Deferred');
+        if (finishedDeferred.length) out.push(`  deferred: ${finishedDeferred.join(', ')}`);
+        const finishedDeploy = getHeader(lines, 'Deploy');
+        if (finishedDeploy) out.push(`  deploy: ${finishedDeploy}`);
         pushPendingAndStrays(scope);
         continue;
       }

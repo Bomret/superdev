@@ -53,10 +53,10 @@ Paths: plugin/skills/plan/**, plugin/references/plan-contract.md
 
 Class: architecture
 Concepts: Definition of Done (DoD), Verification ceiling, Scope branch
-Statement: Verifying a Definition-of-Done criterion observes. It changes no system outside the repository. An item that needs an outward-facing change to verify stays unticked, with a note, for the operator to verify after merge.
+Statement: Verifying a Definition-of-Done criterion observes. It changes no system outside the repository. An item that needs an outward-facing change to verify stays unticked, with a note, for the operator to verify after merge. After the merge, `/superdev:verify-ship` observes the deployed system read-only and runs no deploy target's command (ADR 0106).
 Breaks: silently
 Check: scripts/drift-check.js — VERIFICATION_CEILING_CONTRACTS pins the ceiling on scope-mode.md's own `## Verification ceiling` section, on both verifying agent bodies, and on every surface that verifies a criterion or dispatches one that does
-Paths: plugin/references/scope-mode.md, plugin/agents/final-reviewer.md, plugin/agents/implementer.md, plugin/skills/review/**, plugin/skills/implement/**, plugin/skills/document/**, plugin/references/run-handoff.md, plugin/references/dod-ticks.md
+Paths: plugin/references/scope-mode.md, plugin/agents/final-reviewer.md, plugin/agents/implementer.md, plugin/skills/review/**, plugin/skills/implement/**, plugin/skills/document/**, plugin/references/run-handoff.md, plugin/references/dod-ticks.md, plugin/skills/verify-ship/**
 
 ### INV-0007
 
@@ -133,10 +133,10 @@ Paths: plugin/references/**, plugin/skills/implement/**, plugin/skills/review/**
 
 Class: process
 Concepts: Definition of Done (DoD), Tick, Criterion tag, Controller
-Statement: Only a controller writes a Definition-of-Done tick. It ticks a criterion from an implementer's report only where the criterion's tag names that implementer's slice, and settles every other criterion only in run handoff's own pass, in review, or in document's own untick of a criterion its commits broke. Review's controller may also tick a criterion straight from `final-reviewer`'s own `holds` verdict, with the verdict's evidence as the note. No subagent writes a tick, and neither `/superdev:submit-pr` nor `/superdev:ship` writes one.
+Statement: Only a controller writes a Definition-of-Done tick. It ticks a criterion from an implementer's report only where the criterion's tag names that implementer's slice, and settles every other criterion only in run handoff's own pass, in review, or in document's own untick of a criterion its commits broke. Review's controller may also tick a criterion straight from `final-reviewer`'s own `holds` verdict, with the verdict's evidence as the note. After the merge, `/superdev:verify-ship`'s controller ticks a criterion that is neither ticked nor `accepted:`, from its own read-only observation or from the operator's answer (ADR 0106). No subagent writes a tick, and neither `/superdev:submit-pr`, `/superdev:ship`, nor `/superdev:wrap-up` writes one.
 Breaks: silently
 Check: scripts/drift-check.js — the mapping gate pinned on the shared tick reference and both playbooks; no agent under plugin/agents/ and no ship step instructs a tick; document's own untick (`doc-untick-on-break`) is the controller's own direct check, never a dispatched worker's report
-Paths: plugin/references/**, plugin/agents/**, plugin/skills/implement/**, plugin/skills/review/**, plugin/skills/document/**, plugin/skills/submit-pr/**, plugin/skills/ship/**
+Paths: plugin/references/**, plugin/agents/**, plugin/skills/implement/**, plugin/skills/review/**, plugin/skills/document/**, plugin/skills/submit-pr/**, plugin/skills/ship/**, plugin/skills/verify-ship/**
 
 ### INV-0016
 
@@ -547,10 +547,10 @@ Paths: plugin/skills/backlog/SKILL.md
 
 Class: architecture
 Concepts: Model-invocable surface, Unattended run
-Statement: `/superdev:ship` is never a model-invocable surface: it carries `disable-model-invocation: true` in its frontmatter. Every chain step (`/superdev:implement`, `/superdev:review`, `/superdev:document`, `/superdev:submit-pr`) stays model-invocable, carrying no such key.
+Statement: `/superdev:ship`, `/superdev:verify-ship`, and `/superdev:wrap-up` are never model-invocable surfaces: each carries `disable-model-invocation: true` in its frontmatter. Every chain step (`/superdev:implement`, `/superdev:review`, `/superdev:document`, `/superdev:submit-pr`) stays model-invocable, carrying no such key.
 Breaks: silently
-Check: `scripts/drift-check.js` `model-invocation-split` (every chain step), `ship-human-only` (ship)
-Paths: plugin/skills/ship/SKILL.md, plugin/skills/implement/SKILL.md, plugin/skills/review/SKILL.md, plugin/skills/document/SKILL.md, plugin/skills/submit-pr/SKILL.md
+Check: `scripts/drift-check.js` `model-invocation-split` (every chain step), `ship-human-only` (ship, verify-ship, wrap-up)
+Paths: plugin/skills/ship/SKILL.md, plugin/skills/implement/SKILL.md, plugin/skills/review/SKILL.md, plugin/skills/document/SKILL.md, plugin/skills/submit-pr/SKILL.md, plugin/skills/verify-ship/**, plugin/skills/wrap-up/**
 
 ### INV-0068
 
@@ -784,10 +784,10 @@ Paths: plugin/skills/ship/**, plugin/references/code-management-*.md, plugin/scr
 
 Class: process
 Concepts: Unattended run, Stage
-Statement: Only a human moves a scope past its open pull request. Every unattended run ends at `/superdev:submit-pr`. `/superdev:ship` carries no unattended mode and `disable-model-invocation: true`, so no model and no surface starts it on the operator's behalf (ADR 0096).
+Statement: Only a human moves a scope past its open pull request. Every unattended run ends at `/superdev:submit-pr`. `/superdev:ship`, `/superdev:verify-ship`, and `/superdev:wrap-up` each carry no unattended mode and `disable-model-invocation: true`, so no model and no surface starts one on the operator's behalf (ADR 0096, ADR 0106).
 Breaks: silently
-Check: scripts/drift-check.js — ship names no `--unattended` branch and carries `disable-model-invocation: true`; partial: nothing pins that an unattended run ends at `submit-pr`
-Paths: plugin/skills/submit-pr/**, plugin/skills/ship/**
+Check: scripts/drift-check.js — ship, verify-ship, and wrap-up name no `--unattended` branch and carry `disable-model-invocation: true`; partial: nothing pins that an unattended run ends at `submit-pr`
+Paths: plugin/skills/submit-pr/**, plugin/skills/ship/**, plugin/skills/verify-ship/**, plugin/skills/wrap-up/**
 
 ### INV-0098
 
@@ -801,11 +801,11 @@ Paths: plugin/skills/ship/**, plugin/references/deployment.md
 ### INV-0099
 
 Class: process
-Concepts: Deploy posture, Deploy target, Scope anchor
-Statement: `/superdev:ship` never closes a scope anchor while a deploy target listed on it has not deployed under the `auto` posture. A failed target keeps the anchor open, and a later ship resumes at the first target not yet deployed (ADR 0101).
+Concepts: Deploy posture, Deploy target, Scope anchor, Definition of Done (DoD), Stage
+Statement: After the merge, only `/superdev:wrap-up` closes a scope anchor on a remote store. It closes one only when the pull request has merged, every Definition-of-Done criterion is ticked or `accepted:`, and every deploy target listed on the anchor is recorded `deployed`. A failed close changes neither the stage nor the run's scaffolding. A failed `auto` target keeps the anchor open, and a later ship resumes at the first target not yet deployed (ADR 0101, ADR 0106).
 Breaks: silently
-Check: scripts/drift-check.js — ship's close follows every `auto` target deployed; a failed target skips the close and the cleanup; `tests/scope.test.js` for the ledger's deploy record
-Paths: plugin/skills/ship/**, plugin/scripts/scope.js
+Check: scripts/drift-check.js — ship stops on a failed `auto` target, and `wrap-up-gate` guards the close; `tests/scope.test.js` for the ledger's deploy record
+Paths: plugin/skills/ship/**, plugin/scripts/scope.js, plugin/skills/wrap-up/**
 
 ### INV-0101
 
@@ -851,6 +851,15 @@ Statement: An affected form never selects fewer projects than the change can bre
 Breaks: silently
 Check: scripts/drift-check.js — the affected-form clauses pinned together in plugin/references/test-selection.md and plugin/skills/setup/SKILL.md; partial: whether a given tool's graph is complete is that tool's claim, not superdev's
 Paths: plugin/references/test-selection.md, plugin/skills/setup/**
+
+### INV-0106
+
+Class: process
+Concepts: Run root, Stage
+Statement: `hooks/scope-prune.js` reaps a run root only when its ledger stage reads `closed`. A run root at any other stage, `shipped` included, is never reaped (ADR 0106).
+Breaks: silently
+Check: tests/scope-prune.test.js
+Paths: plugin/hooks/scope-prune.js
 
 ### INV-0107
 

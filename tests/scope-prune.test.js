@@ -38,21 +38,21 @@ const containedIn = (...names) => {
   return (branch) => set.has(branch);
 };
 
-// #merged-and-stale: contained branch, mtime past TTL, ledger stage `shipped` → prune.
+// #merged-and-stale: contained branch, mtime past TTL, ledger stage `closed` → prune.
 // #merged-and-fresh: contained branch, mtime within TTL → skip (too soon), regardless of stage.
 // #unmerged: scope branch not contained (still active) → skip regardless of age or stage.
-const shipped = () => 'shipped';
+const closed = () => 'closed';
 const mtimes = { 'merged-and-stale': STALE, 'merged-and-fresh': FRESH, unmerged: STALE };
 const merged = containedIn('fix/merged-and-stale', 'docs/merged-and-fresh');
 // Every scope here still has its branch, so containment is the question being asked of each.
 const present = new Set(['main', 'fix/merged-and-stale', 'docs/merged-and-fresh', 'feat/unmerged']);
 assert.deepEqual(
-  selectPrunable(Object.keys(mtimes), merged, (s) => mtimes[s], shipped, present, () => null),
+  selectPrunable(Object.keys(mtimes), merged, (s) => mtimes[s], closed, present, () => null),
   ['merged-and-stale'],
-  'only a contained AND stale AND shipped scope is pruned'
+  'only a contained AND stale AND closed scope is pruned'
 );
 assert.deepEqual(
-  selectPrunable(['unknown-mtime'], merged, () => null, shipped, present, () => null),
+  selectPrunable(['unknown-mtime'], merged, () => null, closed, present, () => null),
   [],
   'unreadable mtime is never pruned'
 );
@@ -73,19 +73,19 @@ assert.deepEqual(
       ['too-fresh', 'mid-chain'],
       counted,
       (s) => (s === 'too-fresh' ? FRESH : STALE),
-      (s) => (s === 'too-fresh' ? 'shipped' : 'reviewed'),
+      (s) => (s === 'too-fresh' ? 'closed' : 'reviewed'),
       alive,
       () => null,
     ),
     [],
-    'a fresh scope and an unshipped scope are both skipped'
+    'a fresh scope and an unclosed scope are both skipped'
   );
   assert.equal(calls, 0, 'neither the TTL nor the stage rejection reaches the containment test');
 
   // And the same test *is* reached once every cheap gate passes, or the assertion above would pass
   // just as well against a containment test nothing ever calls.
   assert.deepEqual(
-    selectPrunable(['counted'], counted, () => STALE, shipped, new Set(['main', 'fix/counted']), () => null),
+    selectPrunable(['counted'], counted, () => STALE, closed, new Set(['main', 'fix/counted']), () => null),
     ['counted'],
     'a scope past both cheap gates does reach the containment test'
   );
@@ -111,7 +111,7 @@ const parkedContained = containedIn('feat/parked-mid-chain');
 assert.deepEqual(
   selectPrunable(['parked-mid-chain'], parkedContained, () => STALE, () => 'reviewed', parkedAll, () => null),
   [],
-  'a contained, stale scope whose ledger stage is not `shipped` is never pruned'
+  'a contained, stale scope whose ledger stage is not `closed` is never pruned'
 );
 
 // An unreadable ledger, or one with no `**Stage:**` line, is not evidence a run finished — it is
@@ -122,19 +122,33 @@ assert.deepEqual(
   'a scope with no readable stage is never pruned'
 );
 
+// `shipped` is what an older version left behind, or what `/superdev:ship` writes today before its
+// own gate hands off to `/superdev:wrap-up` (ADR 0106). It is not `closed`, so it is never prunable —
+// whatever the TTL, containment, or branch presence otherwise say.
+assert.deepEqual(
+  selectPrunable(['awaiting-wrap-up'], parkedContained, () => STALE, () => 'shipped', parkedAll, () => null),
+  [],
+  'a contained, stale scope at `shipped` is never pruned — only `/superdev:wrap-up` moves it to `closed`'
+);
+assert.deepEqual(
+  selectPrunable(['gone-and-shipped'], () => false, () => STALE, () => 'shipped', new Set(['main']), () => null),
+  [],
+  'a `shipped` scope whose branch is gone entirely is still never pruned'
+);
+
 // --- readStage: reads the ledger's `**Stage:**` line, or null when unreadable/absent ---
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-'));
-fs.writeFileSync(path.join(tmp, 'ledger.md'), '# ledger\n\n**Stage:** shipped\n');
-assert.equal(readStage(tmp), 'shipped', 'reads the stage value off the ledger line');
+fs.writeFileSync(path.join(tmp, 'ledger.md'), '# ledger\n\n**Stage:** closed\n');
+assert.equal(readStage(tmp), 'closed', 'reads the stage value off the ledger line');
 assert.equal(readStage(path.join(tmp, 'no-such-dir')), null, 'an unreadable ledger yields null');
 fs.rmSync(tmp, { recursive: true, force: true });
 
-// `/superdev:ship` §4 sets the stage line with the value in backticks (`` **Stage:** `shipped` ``), so
-// an agent may well write it that way. The capture must still read `shipped`, or the gate never
-// matches and pruning is silently disabled forever.
+// `scope.js stage set` may well write the value in backticks (`` **Stage:** `closed` ``), the same
+// markup an agent writes by hand elsewhere in the ledger. The capture must still read `closed`, or the
+// gate never matches and pruning is silently disabled forever.
 const tmpBacktick = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-'));
-fs.writeFileSync(path.join(tmpBacktick, 'ledger.md'), '# ledger\n\n**Stage:** `shipped`\n');
-assert.equal(readStage(tmpBacktick), 'shipped', 'strips backticks from the captured stage value');
+fs.writeFileSync(path.join(tmpBacktick, 'ledger.md'), '# ledger\n\n**Stage:** `closed`\n');
+assert.equal(readStage(tmpBacktick), 'closed', 'strips backticks from the captured stage value');
 const backtickAll = new Set(['main', 'chore/backticked']);
 assert.deepEqual(
   selectPrunable(['backticked'], containedIn('chore/backticked'), () => STALE, () => readStage(tmpBacktick), backtickAll, () => null),
@@ -148,30 +162,30 @@ fs.rmSync(tmpBacktick, { recursive: true, force: true });
 // scope is never pruned. Every one of these is a real stage line, so the strip must not care in which
 // order the markers appear.
 for (const [line, label] of [
-  ['**Stage:** `shipped`.', 'a backticked value with a trailing period'],
-  ['**Stage:** **shipped**', 'an emphasized value'],
-  ['**Stage:** shipped.', 'a plain value with a trailing period'],
-  ['**Stage:** `shipped`', 'a backticked value'],
-  ['**Stage:** shipped', 'a plain value'],
+  ['**Stage:** `closed`.', 'a backticked value with a trailing period'],
+  ['**Stage:** **closed**', 'an emphasized value'],
+  ['**Stage:** closed.', 'a plain value with a trailing period'],
+  ['**Stage:** `closed`', 'a backticked value'],
+  ['**Stage:** closed', 'a plain value'],
 ]) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-'));
   fs.writeFileSync(path.join(dir, 'ledger.md'), `# ledger\n\n${line}\n`);
-  assert.equal(readStage(dir), 'shipped', `normalizes ${label}`);
+  assert.equal(readStage(dir), 'closed', `normalizes ${label}`);
   fs.rmSync(dir, { recursive: true, force: true });
 }
 
-// The strip must not turn a different stage into `shipped`. Every one of these stays itself, so a scope
-// that has not shipped is never pruned by a normalization accident.
+// The strip must not turn a different stage into `closed`. Every one of these stays itself, so a scope
+// that has not closed is never pruned by a normalization accident.
 for (const [line, expected] of [
   ['**Stage:** documented-unreviewed', 'documented-unreviewed'],
   ['**Stage:** `reviewed`', 'reviewed'],
-  ['**Stage:** unshipped', 'unshipped'],
-  ['**Stage:** not-shipped', 'not-shipped'],
+  ['**Stage:** unclosed', 'unclosed'],
+  ['**Stage:** not-closed', 'not-closed'],
 ]) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-'));
   fs.writeFileSync(path.join(dir, 'ledger.md'), `# ledger\n\n${line}\n`);
   assert.equal(readStage(dir), expected, `leaves \`${expected}\` as itself`);
-  assert.notEqual(readStage(dir), 'shipped', `never reads \`${expected}\` as shipped`);
+  assert.notEqual(readStage(dir), 'closed', `never reads \`${expected}\` as closed`);
   fs.rmSync(dir, { recursive: true, force: true });
 }
 
@@ -184,17 +198,17 @@ const ALL = (...names) => new Set(['main', ...names]);
 const nothingContained = () => false;
 
 assert.deepEqual(
-  selectPrunable(['squashed'], nothingContained, () => STALE, shipped, ALL(), () => null),
+  selectPrunable(['squashed'], nothingContained, () => STALE, closed, ALL(), () => null),
   ['squashed'],
-  'a gone branch, shipped and past the TTL, is prunable'
+  'a gone branch, closed and past the TTL, is prunable'
 );
 assert.deepEqual(
   selectPrunable(['squashed'], nothingContained, () => STALE, () => 'reviewed', ALL(), () => null),
   [],
-  'a gone branch whose stage is not `shipped` is never prunable'
+  'a gone branch whose stage is not `closed` is never prunable'
 );
 assert.deepEqual(
-  selectPrunable(['squashed'], nothingContained, () => FRESH, shipped, ALL(), () => null),
+  selectPrunable(['squashed'], nothingContained, () => FRESH, closed, ALL(), () => null),
   [],
   'a gone branch inside the TTL is never prunable'
 );
@@ -207,12 +221,12 @@ assert.deepEqual(
 // Present-but-not-contained is the case absence must not swallow: the branch exists and carries
 // content base does not hold, so the work is still in flight.
 assert.deepEqual(
-  selectPrunable(['live'], nothingContained, () => STALE, shipped, ALL('feat/live'), () => null),
+  selectPrunable(['live'], nothingContained, () => STALE, closed, ALL('feat/live'), () => null),
   [],
   'a branch that exists but is not contained is never prunable'
 );
 assert.deepEqual(
-  selectPrunable(['landed'], containedIn('feat/landed'), () => STALE, shipped, ALL('feat/landed'), () => null),
+  selectPrunable(['landed'], containedIn('feat/landed'), () => STALE, closed, ALL('feat/landed'), () => null),
   ['landed'],
   'a branch that exists and is contained is prunable'
 );
@@ -221,7 +235,7 @@ assert.deepEqual(
 // containment about it — and a branch base does not hold keeps the scope alive. Failing closed is the
 // whole point: absence is only evidence when the refs are current.
 assert.deepEqual(
-  selectPrunable(['unfetched'], nothingContained, () => STALE, shipped, ALL('fix/unfetched'), () => null),
+  selectPrunable(['unfetched'], nothingContained, () => STALE, closed, ALL('fix/unfetched'), () => null),
   [],
   'a stale remote-tracking ref whose content base lacks keeps the scope alive — absence fails closed'
 );
@@ -230,7 +244,7 @@ assert.deepEqual(
 // A `slice/<scope>/<id>` or a maintainer's `wip/<scope>` must not read as the scope branch, or its
 // presence would keep a finished run's root forever.
 assert.deepEqual(
-  selectPrunable(['exports'], nothingContained, () => STALE, shipped, ALL('slice/exports/03', 'wip/exports'), () => null),
+  selectPrunable(['exports'], nothingContained, () => STALE, closed, ALL('slice/exports/03', 'wip/exports'), () => null),
   ['exports'],
   'a slice branch and a wip branch do not count as the scope branch being present'
 );
@@ -240,7 +254,7 @@ assert.deepEqual(
 //
 // The shape scan alone reads a live, unmerged branch as gone in two ordinary ways: a change type it
 // doesn't recognise, or a slug that drifted from the run-root's directory name. Both would prune a run
-// still mid-flight, because "gone" and "shipped" together mean prunable.
+// still mid-flight, because "gone" and "closed" together mean prunable.
 {
   // `feature/alpha`: the type is not in CHANGE_TYPES (only `feat` is), so the shape scan reads
   // `alpha`'s branch as gone even though it exists and is unmerged.
@@ -249,7 +263,7 @@ assert.deepEqual(
   assert.equal(readBranch(alphaDir), 'feature/alpha', 'reads the exact branch off the ledger line');
   const alphaAll = new Set(['main', 'feature/alpha']);
   assert.deepEqual(
-    selectPrunable(['alpha'], nothingContained, () => STALE, shipped, alphaAll, () => readBranch(alphaDir)),
+    selectPrunable(['alpha'], nothingContained, () => STALE, closed, alphaAll, () => readBranch(alphaDir)),
     [],
     'an unrecognised-type branch the ledger names as present is never read as gone'
   );
@@ -261,7 +275,7 @@ assert.deepEqual(
   fs.writeFileSync(path.join(deltaDir, 'ledger.md'), '# ledger\n\n**Branch:** fix/delta-v2\n');
   const deltaAll = new Set(['main', 'fix/delta-v2']);
   assert.deepEqual(
-    selectPrunable(['delta'], nothingContained, () => STALE, shipped, deltaAll, () => readBranch(deltaDir)),
+    selectPrunable(['delta'], nothingContained, () => STALE, closed, deltaAll, () => readBranch(deltaDir)),
     [],
     'a drifted-slug branch the ledger names as present is never read as gone'
   );
@@ -270,11 +284,11 @@ assert.deepEqual(
   // A pre-CLI ledger carries no `**Branch:**` line: readBranch returns null, and selectPrunable falls
   // back to the shape scan exactly as before this change.
   const preDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-branch-'));
-  fs.writeFileSync(path.join(preDir, 'ledger.md'), '# ledger\n\n**Stage:** shipped\n');
+  fs.writeFileSync(path.join(preDir, 'ledger.md'), '# ledger\n\n**Stage:** closed\n');
   assert.equal(readBranch(preDir), null, 'a pre-CLI ledger carries no Branch line');
   const preAll = new Set(['main', 'fix/precli']);
   assert.deepEqual(
-    selectPrunable(['precli'], containedIn('fix/precli'), () => STALE, shipped, preAll, () => readBranch(preDir)),
+    selectPrunable(['precli'], containedIn('fix/precli'), () => STALE, closed, preAll, () => readBranch(preDir)),
     ['precli'],
     'a pre-CLI ledger falls back to the shape scan, which reads a merged branch as prunable'
   );
@@ -296,7 +310,7 @@ assert.deepEqual(
     assert.equal(readBranch(markupDir), expected, `readBranch strips markup down to ${expected}`);
     const alive = new Set(['main', expected]);
     assert.deepEqual(
-      selectPrunable(['x'], nothingContained, () => STALE, shipped, alive, () => readBranch(markupDir)),
+      selectPrunable(['x'], nothingContained, () => STALE, closed, alive, () => readBranch(markupDir)),
       [],
       `a scope whose branch is ${expected}, alive and unmerged, is never pruned`
     );
@@ -307,16 +321,16 @@ assert.deepEqual(
   // absent, not spill into the next header's name. `\s` matches `\n`, so an ungated `\s*` after the
   // colon lets a value-less `**Branch:**` line capture the following line's `**Anchor:**` token,
   // stripped down to `Anchor` — truthy, and present in no real branch set, so `resolveBranch` reads a
-  // live, unmerged branch as gone. Gone + shipped + past TTL prunes a run root with a live branch.
+  // live, unmerged branch as gone. Gone + closed + past TTL prunes a run root with a live branch.
   const emptyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-branch-'));
   fs.writeFileSync(
     path.join(emptyDir, 'ledger.md'),
-    '# ledger\n\n**Stage:** shipped\n**Branch:**\n**Anchor:** #197 — Epic\n'
+    '# ledger\n\n**Stage:** closed\n**Branch:**\n**Anchor:** #197 — Epic\n'
   );
   assert.equal(readBranch(emptyDir), null, 'an empty Branch line never captures the next line\'s token');
   const emptyAll = new Set(['main', 'feat/emptybranch']);
   assert.deepEqual(
-    selectPrunable(['emptybranch'], nothingContained, () => STALE, shipped, emptyAll, () => readBranch(emptyDir)),
+    selectPrunable(['emptybranch'], nothingContained, () => STALE, closed, emptyAll, () => readBranch(emptyDir)),
     [],
     'a scope with an empty Branch line and a live, unmerged branch is never pruned'
   );
@@ -329,7 +343,7 @@ assert.deepEqual(
   // the shape match is a coincidence, not evidence the named one survived.
   const exclusiveAll = new Set(['main', 'fix/exports']);
   assert.deepEqual(
-    selectPrunable(['exports'], nothingContained, () => STALE, shipped, exclusiveAll, () => 'fix/renamed-away'),
+    selectPrunable(['exports'], nothingContained, () => STALE, closed, exclusiveAll, () => 'fix/renamed-away'),
     ['exports'],
     'a ledger-named branch that is gone is never rescued by an unrelated shape-matching branch'
   );
@@ -374,7 +388,7 @@ assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix')
     return dir;
   }
 
-  function makeScope(repoDir, scope, ledgerBody = '**Stage:** shipped\n') {
+  function makeScope(repoDir, scope, ledgerBody = '**Stage:** closed\n') {
     const scopeDir = path.join(repoDir, '.superdev', 'scopes', scope);
     fs.mkdirSync(scopeDir, { recursive: true });
     const ledger = path.join(scopeDir, 'ledger.md');
@@ -387,13 +401,41 @@ assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix')
   const refExists = (repoDir, ref) =>
     spawnSync('git', ['rev-parse', '--verify', '--quiet', ref], { cwd: repoDir, stdio: 'ignore' }).status === 0;
 
-  // #gone-and-shipped: no branch named for this scope anywhere in the repo, ledger stage `shipped`,
+  // #gone-and-closed: no branch named for this scope anywhere in the repo, ledger stage `closed`,
   // mtime past the TTL → main() removes the run root.
   const goneRepo = makeRepo();
   const goneScopeDir = makeScope(goneRepo, 'squashed');
   main(goneRepo);
-  assert.equal(fs.existsSync(goneScopeDir), false, 'a gone, shipped, stale scope is pruned end to end');
+  assert.equal(fs.existsSync(goneScopeDir), false, 'a gone, closed, stale scope is pruned end to end');
   fs.rmSync(goneRepo, { recursive: true, force: true });
+
+  // #gone-and-shipped: same shape as #gone-and-closed — branch gone, mtime past the TTL — but the
+  // ledger stage is `shipped`, the stage an older `/superdev:ship` left behind or today's version
+  // writes before `/superdev:verify-ship`/`/superdev:wrap-up` run (ADR 0106). Only `/superdev:wrap-up`
+  // moves the stage to `closed`, so main() must leave this run root alone whether or not its scope
+  // checkout is still present.
+  const shippedGoneRepo = makeRepo();
+  const shippedGoneScopeDir = makeScope(shippedGoneRepo, 'still-shipped', '**Stage:** shipped\n');
+  main(shippedGoneRepo);
+  assert.equal(
+    fs.existsSync(shippedGoneScopeDir),
+    true,
+    'a gone, stale scope at `shipped` (checkout already removed) is never pruned end to end'
+  );
+  fs.rmSync(shippedGoneRepo, { recursive: true, force: true });
+
+  // Same `shipped` stage, but the scope checkout (`scopetree/`) is still standing — the shape a
+  // `/superdev:ship` run leaves before an operator has run `/superdev:wrap-up` on it at all.
+  const shippedCheckoutRepo = makeRepo();
+  const shippedCheckoutScopeDir = makeScope(shippedCheckoutRepo, 'shipped-checkout', '**Stage:** shipped\n');
+  fs.mkdirSync(path.join(shippedCheckoutScopeDir, 'scopetree'));
+  main(shippedCheckoutRepo);
+  assert.equal(
+    fs.existsSync(shippedCheckoutScopeDir),
+    true,
+    'a `shipped` scope whose checkout is still present is never pruned end to end'
+  );
+  fs.rmSync(shippedCheckoutRepo, { recursive: true, force: true });
 
   // #remote-only-branch: the scope branch is gone locally but its remote-tracking ref is still there,
   // and base never received its content → main() leaves the run root alone. This is the fail-closed
@@ -413,7 +455,7 @@ assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix')
   gitTest(['push', '-q', 'origin', 'main', 'fix/onremote'], remoteRepo);
   gitTest(['checkout', '-q', 'main'], remoteRepo);
   gitTest(['branch', '-q', '-D', 'fix/onremote'], remoteRepo); // local gone, origin/fix/onremote stays
-  const remoteScopeDir = makeScope(remoteRepo, 'onremote', '**Stage:** shipped\n**Branch:** fix/onremote\n');
+  const remoteScopeDir = makeScope(remoteRepo, 'onremote', '**Stage:** closed\n**Branch:** fix/onremote\n');
   main(remoteRepo);
   assert.equal(
     fs.existsSync(remoteScopeDir),
@@ -448,7 +490,7 @@ assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix')
   const remoteContainedScopeDir = makeScope(
     remoteContainedRepo,
     'onremote-squashed',
-    '**Stage:** shipped\n**Branch:** fix/onremote-squashed\n'
+    '**Stage:** closed\n**Branch:** fix/onremote-squashed\n'
   );
   main(remoteContainedRepo);
   assert.equal(
@@ -486,7 +528,7 @@ assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix')
   const divergentScopeDir = makeScope(
     divergentRepo,
     'divergent',
-    '**Stage:** shipped\n**Branch:** fix/divergent (PR #99 open)\n'
+    '**Stage:** closed\n**Branch:** fix/divergent (PR #99 open)\n'
   );
   main(divergentRepo);
   assert.equal(
@@ -496,9 +538,9 @@ assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix')
   );
   fs.rmSync(divergentRepo, { recursive: true, force: true });
 
-  // #ledger-named-branch-wired: every other fixture is shipped with no `**Branch:**` line, so both the
+  // #ledger-named-branch-wired: every other fixture is closed with no `**Branch:**` line, so both the
   // readBranch and readStage lambdas main() wires selectPrunable to could be swapped for `() => null` /
-  // `() => 'shipped'` and still leave every case above green. `feature/alpha`'s type is not in
+  // `() => 'closed'` and still leave every case above green. `feature/alpha`'s type is not in
   // CHANGE_TYPES (only `feat` is), so the shape-scan fallback would misread it as gone; only the
   // ledger's exact `**Branch:**` line (readBranch, wired through) keeps it read as present.
   const alphaRepo = makeRepo();
@@ -507,7 +549,7 @@ assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix')
   gitTest(['add', '.'], alphaRepo);
   gitTest(['commit', '-q', '-m', 'wip'], alphaRepo);
   gitTest(['checkout', '-q', 'main'], alphaRepo);
-  const alphaScopeDir = makeScope(alphaRepo, 'alpha', '**Stage:** shipped\n**Branch:** feature/alpha\n');
+  const alphaScopeDir = makeScope(alphaRepo, 'alpha', '**Stage:** closed\n**Branch:** feature/alpha\n');
   main(alphaRepo);
   assert.equal(
     fs.existsSync(alphaScopeDir),
@@ -517,8 +559,8 @@ assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix')
   fs.rmSync(alphaRepo, { recursive: true, force: true });
 
   // #reviewed-stage-wired: branch gone, mtime stale — every other gate would prune — but the ledger
-  // stage is `reviewed`, not `shipped`. Exercises the readStage lambda main() wires through, which the
-  // fixture above cannot: it is already shipped, so swapping that lambda for `() => 'shipped'` changes
+  // stage is `reviewed`, not `closed`. Exercises the readStage lambda main() wires through, which the
+  // fixture above cannot: it is already closed, so swapping that lambda for `() => 'closed'` changes
   // nothing there.
   const reviewedRepo = makeRepo();
   const reviewedScopeDir = makeScope(reviewedRepo, 'mid-review', '**Stage:** reviewed\n');
@@ -526,11 +568,11 @@ assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix')
   assert.equal(
     fs.existsSync(reviewedScopeDir),
     true,
-    'a scope whose ledger stage is not shipped survives main() end to end'
+    'a scope whose ledger stage is not closed survives main() end to end'
   );
   fs.rmSync(reviewedRepo, { recursive: true, force: true });
 
-  // #gone-shipped-with-scopetree: same as #gone-and-shipped — branch gone, stage `shipped`, mtime past
+  // #gone-closed-with-scopetree: same as #gone-and-closed — branch gone, stage `closed`, mtime past
   // the TTL — but the run root also holds a `scopetree/` dir: an interrupted cleanup, not a finished
   // run. main() must leave it for a human to look at, not delete it.
   const cleanupRepo = makeRepo();
@@ -540,7 +582,7 @@ assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix')
   assert.equal(fs.existsSync(cleanupScopeDir), true, 'a run root with a scopetree/ dir survives main() end to end');
   fs.rmSync(cleanupRepo, { recursive: true, force: true });
 
-  // #gone-shipped-with-slicetrees: same as #gone-shipped-with-scopetree, but the plural `slicetrees/` dir
+  // #gone-closed-with-slicetrees: same as #gone-closed-with-scopetree, but the plural `slicetrees/` dir
   // — the full tier's layout (references/implement-full.md), which actually holds nested git
   // worktrees, and so is the more consequential half of the guard to lose.
   const cleanupFullRepo = makeRepo();
@@ -575,7 +617,7 @@ assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix')
   makeWorkBranch(squashRepo, 'fix/squashed', 'app.txt', 'v2\n');
   gitTest(['merge', '--squash', 'fix/squashed'], squashRepo);
   gitTest(['commit', '-q', '-m', 'fix: squashed (#1)'], squashRepo);
-  const squashScopeDir = makeScope(squashRepo, 'squashed', '**Stage:** shipped\n**Branch:** fix/squashed\n');
+  const squashScopeDir = makeScope(squashRepo, 'squashed', '**Stage:** closed\n**Branch:** fix/squashed\n');
   main(squashRepo);
   assert.equal(
     fs.existsSync(squashScopeDir),
@@ -588,7 +630,7 @@ assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix')
   const mergeRepo = makeRepo();
   makeWorkBranch(mergeRepo, 'fix/mergecommit', 'app.txt', 'v2\n');
   gitTest(['merge', '-q', '--no-ff', '-m', 'merge', 'fix/mergecommit'], mergeRepo);
-  const mergeScopeDir = makeScope(mergeRepo, 'mergecommit', '**Stage:** shipped\n**Branch:** fix/mergecommit\n');
+  const mergeScopeDir = makeScope(mergeRepo, 'mergecommit', '**Stage:** closed\n**Branch:** fix/mergecommit\n');
   main(mergeRepo);
   assert.equal(fs.existsSync(mergeScopeDir), false, 'a merge-commit-merged scope is pruned');
   fs.rmSync(mergeRepo, { recursive: true, force: true });
@@ -597,7 +639,7 @@ assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix')
   const ffRepo = makeRepo();
   makeWorkBranch(ffRepo, 'fix/fastforward', 'app.txt', 'v2\n');
   gitTest(['merge', '-q', '--ff-only', 'fix/fastforward'], ffRepo);
-  const ffScopeDir = makeScope(ffRepo, 'fastforward', '**Stage:** shipped\n**Branch:** fix/fastforward\n');
+  const ffScopeDir = makeScope(ffRepo, 'fastforward', '**Stage:** closed\n**Branch:** fix/fastforward\n');
   main(ffRepo);
   assert.equal(fs.existsSync(ffScopeDir), false, 'a fast-forward-merged scope is pruned');
   fs.rmSync(ffRepo, { recursive: true, force: true });
@@ -612,7 +654,7 @@ assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix')
   fs.writeFileSync(path.join(movedRepo, 'unrelated.txt'), 'later\n');
   gitTest(['add', '.'], movedRepo);
   gitTest(['commit', '-q', '-m', 'unrelated work on base'], movedRepo);
-  const movedScopeDir = makeScope(movedRepo, 'moved', '**Stage:** shipped\n**Branch:** fix/moved\n');
+  const movedScopeDir = makeScope(movedRepo, 'moved', '**Stage:** closed\n**Branch:** fix/moved\n');
   main(movedRepo);
   assert.equal(
     fs.existsSync(movedScopeDir),
@@ -626,7 +668,7 @@ assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix')
   // catches it, and getting it wrong deletes a live run's root.
   const unlandedRepo = makeRepo();
   makeWorkBranch(unlandedRepo, 'fix/unlanded', 'separate.txt', 'only on the branch\n');
-  const unlandedScopeDir = makeScope(unlandedRepo, 'unlanded', '**Stage:** shipped\n**Branch:** fix/unlanded\n');
+  const unlandedScopeDir = makeScope(unlandedRepo, 'unlanded', '**Stage:** closed\n**Branch:** fix/unlanded\n');
   main(unlandedRepo);
   assert.equal(
     fs.existsSync(unlandedScopeDir),
@@ -642,7 +684,7 @@ assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix')
   fs.writeFileSync(path.join(conflictRepo, 'README.md'), 'base side\n');
   gitTest(['add', '.'], conflictRepo);
   gitTest(['commit', '-q', '-m', 'diverge on base'], conflictRepo);
-  const conflictScopeDir = makeScope(conflictRepo, 'conflicting', '**Stage:** shipped\n**Branch:** fix/conflicting\n');
+  const conflictScopeDir = makeScope(conflictRepo, 'conflicting', '**Stage:** closed\n**Branch:** fix/conflicting\n');
   main(conflictRepo);
   assert.equal(
     fs.existsSync(conflictScopeDir),
@@ -689,12 +731,12 @@ assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix')
   // #conflicting-squash-pruned: the epic's red-capable case for this surface. The tree comparison
   // conflicts, base's history holds the patch, and both the run root and the branch go.
   const tookItRepo = makeConflictingSquashRepo('fix/took-it');
-  const tookItScopeDir = makeScope(tookItRepo, 'took-it', '**Stage:** shipped\n**Branch:** fix/took-it\n');
+  const tookItScopeDir = makeScope(tookItRepo, 'took-it', '**Stage:** closed\n**Branch:** fix/took-it\n');
   main(tookItRepo);
   assert.equal(
     fs.existsSync(tookItScopeDir),
     false,
-    'a shipped, past-TTL scope whose branch conflicts with HEAD but whose work HEAD holds is pruned'
+    'a closed, past-TTL scope whose branch conflicts with HEAD but whose work HEAD holds is pruned'
   );
   assert.equal(
     refExists(tookItRepo, 'refs/heads/fix/took-it'),
@@ -707,7 +749,7 @@ assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix')
   // whatever the probe decides (ADR 0065, ADR 0082).
   const noFetchRepo = makeConflictingSquashRepo('fix/nofetch');
   const noFetchMarker = path.join(noFetchRepo, 'fetch-ran');
-  makeScope(noFetchRepo, 'nofetch', '**Stage:** shipped\n**Branch:** fix/nofetch\n');
+  makeScope(noFetchRepo, 'nofetch', '**Stage:** closed\n**Branch:** fix/nofetch\n');
   withFakeGit(`if [ "$1" = "fetch" ]; then touch "${noFetchMarker}"; fi`, () => main(noFetchRepo));
   assert.equal(fs.existsSync(noFetchMarker), false, 'the hook makes no git fetch on any path');
   fs.rmSync(noFetchRepo, { recursive: true, force: true });
@@ -715,8 +757,8 @@ assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix')
   // #gates-before-the-probe: the TTL and stage reads still gate every git call the probe would make,
   // so a repository with nothing prunable walks no patches. `git log` is probe-only here.
   for (const [scope, ledger, touchNow] of [
-    ['not-shipped', '**Stage:** reviewed\n**Branch:** fix/not-shipped\n', false],
-    ['still-fresh', '**Stage:** shipped\n**Branch:** fix/still-fresh\n', true],
+    ['not-closed', '**Stage:** reviewed\n**Branch:** fix/not-closed\n', false],
+    ['still-fresh', '**Stage:** closed\n**Branch:** fix/still-fresh\n', true],
   ]) {
     const gateRepo = makeConflictingSquashRepo(`fix/${scope}`);
     const gateScopeDir = makeScope(gateRepo, scope, ledger);
@@ -732,7 +774,7 @@ assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix')
   // failure leaves the scope standing rather than crashing the turn.
   for (const failing of ['merge-base', 'diff', 'patch-id', 'rev-list', 'log']) {
     const failRepo = makeConflictingSquashRepo('fix/failing');
-    const failScopeDir = makeScope(failRepo, 'failing', '**Stage:** shipped\n**Branch:** fix/failing\n');
+    const failScopeDir = makeScope(failRepo, 'failing', '**Stage:** closed\n**Branch:** fix/failing\n');
     withFakeGit(`if [ "$1" = "${failing}" ]; then exit 3; fi`, () => main(failRepo));
     assert.equal(
       fs.existsSync(failScopeDir),
@@ -768,7 +810,7 @@ assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix')
     const skewProbeScopeDir = makeScope(
       skewProbeRepo,
       'skew-probe',
-      '**Stage:** shipped\n**Branch:** fix/skew-probe\n'
+      '**Stage:** closed\n**Branch:** fix/skew-probe\n'
     );
     const skewPlainRepo = makeRepo();
     makeWorkBranch(skewPlainRepo, 'fix/skew-plain', 'app.txt', 'v2\n');
@@ -777,7 +819,7 @@ assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix')
     const skewPlainScopeDir = makeScope(
       skewPlainRepo,
       'skew-plain',
-      '**Stage:** shipped\n**Branch:** fix/skew-plain\n'
+      '**Stage:** closed\n**Branch:** fix/skew-plain\n'
     );
     skewed.main(skewProbeRepo);
     skewed.main(skewPlainRepo);
@@ -812,13 +854,13 @@ assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix')
   const oldMergeRepo = makeRepo();
   makeWorkBranch(oldMergeRepo, 'fix/oldmerge', 'app.txt', 'v2\n');
   gitTest(['merge', '-q', '--no-ff', '-m', 'merge', 'fix/oldmerge'], oldMergeRepo);
-  const oldMergeScopeDir = makeScope(oldMergeRepo, 'oldmerge', '**Stage:** shipped\n**Branch:** fix/oldmerge\n');
+  const oldMergeScopeDir = makeScope(oldMergeRepo, 'oldmerge', '**Stage:** closed\n**Branch:** fix/oldmerge\n');
 
   const oldSquashRepo = makeRepo();
   makeWorkBranch(oldSquashRepo, 'fix/oldsquash', 'app.txt', 'v2\n');
   gitTest(['merge', '--squash', 'fix/oldsquash'], oldSquashRepo);
   gitTest(['commit', '-q', '-m', 'fix: oldsquash (#1)'], oldSquashRepo);
-  const oldSquashScopeDir = makeScope(oldSquashRepo, 'oldsquash', '**Stage:** shipped\n**Branch:** fix/oldsquash\n');
+  const oldSquashScopeDir = makeScope(oldSquashRepo, 'oldsquash', '**Stage:** closed\n**Branch:** fix/oldsquash\n');
 
   const pathBeforeShim = process.env.PATH;
   process.env.PATH = `${oldGitDir}${path.delimiter}${pathBeforeShim}`;
@@ -856,7 +898,7 @@ assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix')
   // containment is ever computed" (see the comment above the try in main()). A shimmed `git` on PATH
   // fails only `for-each-ref`, which aborts main() in its catch before `selectPrunable` runs at all. If
   // the for-each-ref read fell back to an empty Set instead of aborting the whole run, an empty branch
-  // set reads as "every scope's branch is gone", and this gone/shipped/stale scope — which main() must
+  // set reads as "every scope's branch is gone", and this gone/closed/stale scope — which main() must
   // otherwise leave untouched, because the read it needs failed — gets pruned.
   const failRepo = makeRepo();
   const failScopeDir = makeScope(failRepo, 'branch-read-fails');
@@ -898,7 +940,7 @@ assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix')
   gitTest(['push', '-q', 'origin', 'feat/reaped'], reapRepo);
   gitTest(['merge', '--squash', 'feat/reaped'], reapRepo);
   gitTest(['commit', '-q', '-m', 'feat: reaped (#1)'], reapRepo);
-  const reapScopeDir = makeScope(reapRepo, 'reaped', '**Stage:** shipped\n**Branch:** feat/reaped\n');
+  const reapScopeDir = makeScope(reapRepo, 'reaped', '**Stage:** closed\n**Branch:** feat/reaped\n');
   // Spawned rather than called in process, because the delete path is the one that must stay silent:
   // it runs `git branch -D`, which prints to stdout when it succeeds.
   const reapRun = spawnSync(process.execPath, [hookPath], {
@@ -924,7 +966,7 @@ assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix')
   makeWorkBranch(guessRepo, 'feat/guessed', 'app.txt', 'v2\n');
   gitTest(['merge', '--squash', 'feat/guessed'], guessRepo);
   gitTest(['commit', '-q', '-m', 'feat: guessed (#1)'], guessRepo);
-  const guessScopeDir = makeScope(guessRepo, 'guessed', '**Stage:** shipped\n');
+  const guessScopeDir = makeScope(guessRepo, 'guessed', '**Stage:** closed\n');
   main(guessRepo);
   assert.equal(fs.existsSync(guessScopeDir), false, 'a shape-scanned scope still loses its run root');
   assert.equal(
@@ -944,7 +986,7 @@ assert.equal(names.has('origin/main'), false, 'no name keeps its remote prefix')
   const heldTree = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-held-'));
   fs.rmSync(heldTree, { recursive: true, force: true }); // git wants to create the path itself
   gitTest(['worktree', 'add', '-q', heldTree, 'feat/held'], heldRepo);
-  const heldScopeDir = makeScope(heldRepo, 'held', '**Stage:** shipped\n**Branch:** feat/held\n');
+  const heldScopeDir = makeScope(heldRepo, 'held', '**Stage:** closed\n**Branch:** feat/held\n');
   main(heldRepo);
   assert.equal(fs.existsSync(heldScopeDir), true, 'a scope whose branch cannot be deleted keeps its run root');
   assert.equal(refExists(heldRepo, 'refs/heads/feat/held'), true, 'and keeps the branch a worktree holds');
@@ -980,10 +1022,10 @@ assert.equal(
   };
 
   for (const [line, name, expected, label] of [
-    ['**Stage:** shipped', 'Stage', 'shipped', 'a plain token'],
-    ['**Stage:** `shipped`.', 'Stage', 'shipped', 'a backticked token with a period'],
-    ['**Stage:** **shipped**', 'Stage', 'shipped', 'an emphasised token'],
-    ['**Stage:** reviewed', 'Stage', 'reviewed', 'a non-shipped stage, unchanged'],
+    ['**Stage:** closed', 'Stage', 'closed', 'a plain token'],
+    ['**Stage:** `closed`.', 'Stage', 'closed', 'a backticked token with a period'],
+    ['**Stage:** **closed**', 'Stage', 'closed', 'an emphasised token'],
+    ['**Stage:** reviewed', 'Stage', 'reviewed', 'a non-closed stage, unchanged'],
     ['**Branch:** `fix/x`', 'Branch', 'fix/x', 'a backticked branch'],
     // The capture-width difference: the hook used to take the first token, so an anchor title
     // stopped at its first space. `scope.js` takes the rest of the line, and now so does this.
@@ -998,24 +1040,24 @@ assert.equal(
   }
 
   // A CRLF ledger — one an editor or `core.autocrlf` wrote — reads exactly as the LF one does, on
-  // both sides. The hook reaching a different answer here is what would let it miss `shipped` and
+  // both sides. The hook reaching a different answer here is what would let it miss `closed` and
   // never reap a finished run root, silently.
-  const crlf = mk('# ledger\r\n\r\n**Stage:** shipped\r\n**Branch:** fix/crlf\r\n');
-  assert.equal(readStage(crlf), 'shipped', 'the hook reads a CRLF Stage');
+  const crlf = mk('# ledger\r\n\r\n**Stage:** closed\r\n**Branch:** fix/crlf\r\n');
+  assert.equal(readStage(crlf), 'closed', 'the hook reads a CRLF Stage');
   assert.equal(readBranch(crlf), 'fix/crlf', 'the hook reads a CRLF Branch');
   assert.equal(
     readStage(crlf),
-    scope.readLedgerHeader('# ledger\r\n\r\n**Stage:** shipped\r\n**Branch:** fix/crlf\r\n', 'Stage'),
+    scope.readLedgerHeader('# ledger\r\n\r\n**Stage:** closed\r\n**Branch:** fix/crlf\r\n', 'Stage'),
     'hook and scope.js agree under CRLF'
   );
   fs.rmSync(crlf, { recursive: true, force: true });
 
   // A value-less header line reads as absent, and never reaches the next line's token.
-  const empty = mk('# ledger\n\n**Stage:** shipped\n**Branch:**\n**Anchor:** #208 — Epic\n');
+  const empty = mk('# ledger\n\n**Stage:** closed\n**Branch:**\n**Anchor:** #208 — Epic\n');
   assert.equal(readHeader(empty, 'Branch'), null, 'an empty Branch line is absent');
-  assert.equal(readHeader(empty, 'Stage'), 'shipped', 'its neighbours still read');
+  assert.equal(readHeader(empty, 'Stage'), 'closed', 'its neighbours still read');
   assert.equal(readBranch(empty), null, 'readBranch agrees');
-  assert.equal(readStage(empty), 'shipped', 'readStage agrees');
+  assert.equal(readStage(empty), 'closed', 'readStage agrees');
   fs.rmSync(empty, { recursive: true, force: true });
 
   assert.equal(readHeader(path.join(os.tmpdir(), 'no-such-scope-dir'), 'Stage'), null, 'an unreadable ledger is null');
@@ -1044,7 +1086,7 @@ assert.equal(
   const doomed = path.join(repo, '.superdev', 'scopes', 'gone');
   fs.mkdirSync(doomed, { recursive: true });
   const led = path.join(doomed, 'ledger.md');
-  fs.writeFileSync(led, '# ledger\n\n**Stage:** shipped\n');
+  fs.writeFileSync(led, '# ledger\n\n**Stage:** closed\n');
   const past = new Date(Date.now() - TTL_MS - 1000);
   fs.utimesSync(led, past, past);
 
@@ -1065,7 +1107,7 @@ assert.equal(
 
 // #require-guard: requiring this file (a suite reaching its internal functions) must never
 // prune — only running it directly, as Claude Code's Stop hook does, may. Both directions use
-// the same gone-and-shipped fixture #gone-and-shipped prunes above.
+// the same gone-and-closed fixture #gone-and-closed prunes above.
 {
   const cp = require('node:child_process');
   const g = (args, cwd) => cp.execFileSync('git', args, { cwd, stdio: 'ignore' });
@@ -1079,7 +1121,7 @@ assert.equal(
   const scopeDir = path.join(repo, '.superdev', 'scopes', 'guard');
   fs.mkdirSync(scopeDir, { recursive: true });
   const ledger = path.join(scopeDir, 'ledger.md');
-  fs.writeFileSync(ledger, '# ledger\n\n**Stage:** shipped\n');
+  fs.writeFileSync(ledger, '# ledger\n\n**Stage:** closed\n');
   const past = new Date(Date.now() - TTL_MS - 1000);
   fs.utimesSync(ledger, past, past);
 
@@ -1096,7 +1138,7 @@ assert.equal(
   });
   assertSpawnDecided(spawned, 'spawning scope-prune.js directly');
   assert.equal(spawned.status, 0, 'spawning scope-prune.js directly still exits 0');
-  assert.equal(fs.existsSync(scopeDir), false, 'spawning scope-prune.js directly still prunes the gone, shipped, stale scope');
+  assert.equal(fs.existsSync(scopeDir), false, 'spawning scope-prune.js directly still prunes the gone, closed, stale scope');
 
   fs.rmSync(repo, { recursive: true, force: true });
 }

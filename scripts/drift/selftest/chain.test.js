@@ -54,6 +54,7 @@ const {
   CRITERION_TAG_CONTRACTS,
   COMMITMENT_CAPTURE_CONTRACTS,
   SHIP_TICKS_NOTHING_CONTRACTS,
+  WRAP_UP_CONTRACTS,
   ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS,
   DOC_UNTICK_ON_BREAK_CONTRACTS,
   CLEAN_VERDICT_ENDS_LOOP_CONTRACTS,
@@ -61,6 +62,8 @@ const {
   LABEL_REVISION_AT_DECOMPOSITION_CONTRACTS,
   UNMET_CRITERION_AT_REVIEW_CONTRACTS,
   REVIEW_SUBMITTED_CONTRACTS,
+  CLOSED_STAGE_CONTRACTS,
+  POSTURE_READ_CONTRACTS,
   RELEASE_ANSWER_NOT_INFERRED_CONTRACTS,
   CAPTURE_CHECKS_CONCURRENT_PLANS_CONTRACTS,
   DECOMPOSITION_NAMES_WHAT_IT_CHECKED_CONTRACTS,
@@ -558,10 +561,10 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       '**The read fails** (the store is unreachable) → report it once and fall through to `init` below, ' +
       'exactly as if the anchor carried no snapshot. Not a stop.\n\n',
     notAdopted:
-      '**No `## Run state` section, or its `**Stage:**` line reads `shipped`** → not adopted — fall ' +
+      '**No `## Run state` section, or its `**Stage:**` line reads `closed`** → not adopted — fall ' +
       'through to `init` below.\n\n',
     adoptCall:
-      '**A `## Run state` section whose stage is not `shipped`** → **adopt**. Write `<run-root>/dod.md` ' +
+      '**A `## Run state` section whose stage is neither `shipped` nor `closed`** → **adopt**. Write `<run-root>/dod.md` ' +
       'from that body first, then pipe it to `adopt`:\n\n```sh\n<anchor body> | node ' +
       '"${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" adopt --root <run-root>\n```\n\n',
     reconciliation:
@@ -646,12 +649,12 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   assert.equal(buggyVerifyGaps[0].source, path.join('references', 'scope-mode.md'), 'names scope-mode.md');
 
   // --- RESUMED_SCOPETREE_TRIGGER_CONTRACTS: the scopetree step fires on either cause the scopetree
-  // can be absent for — `/superdev:ship` removed it, or this checkout never held it at all — not
+  // can be absent for — `/superdev:wrap-up` removed it, or this checkout never held it at all — not
   // only the first. A regression back to the single-cause sentence must fail on its own. ---
 
   const broadenedScopetreeStep =
     'Create or reattach the scopetree, at both tiers, whenever it is absent — because ' +
-    '`/superdev:ship` already removed it, or because this checkout never held it (a resumed run adopted ' +
+    '`/superdev:wrap-up` already removed it, or because this checkout never held it (a resumed run adopted ' +
     'from the anchor on a fresh clone) — and otherwise work in the one already there.\n';
 
   assert.equal(
@@ -4786,7 +4789,11 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'skills/document/SKILL.md':
       'Verifying a tick observes; it changes no system outside the repository.\n',
     'references/dod-ticks.md':
-      'Verifying a line observes; it changes no system outside the repository.\n',
+      'Verifying a line observes; it changes no system outside the repository.\n' +
+      "**Verify-ship's case:** the command's own controller judges. Verifying a line observes; it changes " +
+      'no system outside the repository.\n',
+    'skills/verify-ship/SKILL.md':
+      "Verifying a line observes; it changes no system outside the repository. It never runs a deploy target's command.\n",
   };
 
   // negative: a fixture carrying every half reports no gap
@@ -4804,6 +4811,25 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     const vcGaps = scanContract(vcDropped, VERIFICATION_CEILING_CONTRACTS);
     assert.equal(vcGaps.length, vcRowCountByPath[rel], `flags ${rel} for dropping its verification-ceiling half(s)`);
     for (const gap of vcGaps) assert.equal(gap.source, rel, `names ${rel}`);
+  }
+
+  // positive: dod-ticks.md losing only Verify-ship's case, keeping Document's, reports exactly that row
+  {
+    const vcNoVerifyShipCase = fixture({
+      ...vcClauses,
+      'references/dod-ticks.md': 'Verifying a line observes; it changes no system outside the repository.\n',
+    });
+    const vcGaps = scanContract(vcNoVerifyShipCase, VERIFICATION_CEILING_CONTRACTS);
+    assert.equal(vcGaps.length, 1, "flags dod-ticks.md for losing Verify-ship's case alone");
+  }
+
+  // positive: verify-ship keeping the observes clause but not the no-deploy-command clause reports one gap
+  {
+    const vcNoRunner = fixture({
+      ...vcClauses,
+      'skills/verify-ship/SKILL.md': 'Verifying a line observes; it changes no system outside the repository.\n',
+    });
+    assert.equal(scanContract(vcNoRunner, VERIFICATION_CEILING_CONTRACTS).length, 1, 'flags verify-ship losing its no-deploy-command clause');
   }
 
   // positive: run-handoff.md losing only its handoff-pass clause, while keeping the fix-dispatch
@@ -4859,9 +4885,60 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     assert.equal(vcGaps[0].source, rel, `names ${rel}`);
   }
 
+  // --- WRAP_UP_CONTRACTS (ADR 0106, INV-0099): each row is held by exactly one clause ---
+  const wuClauses = {
+    'skills/wrap-up/SKILL.md':
+      'Collect every reason that holds and name all of them in one refusal. Unknown counts as not merged. ' +
+      'A line neither ticked nor `accepted:` refuses, naming /superdev:verify-ship <scope>. ' +
+      'A target not `deployed` refuses, naming `/superdev:verify-ship` for manual and `/superdev:ship` for auto. ' +
+      'Ask once per entry. Any failed store call stops the command. Clean up only after a successful close. Clean up from the invoking checkout. Keep `.superdev/kb-pending/<scope>/`. Never delete the scope branch. ' +
+      'Count every listed target not recorded `deployed` as a reason. ' +
+      'The local plan-file store** → write nothing to the store: the anchor\'s close already rode the pull request. ' +
+      'Judge settledness from `<run-root>/dod.md`, reading the anchor only when `dod.md` is missing. ' +
+      'A verdict differs from `dod.md`: name `/superdev:verify-ship <scope>` as the reconciler. ' +
+      'Slice records already closed stay closed, and a rerun converges. ' +
+      'On the local plan-file store only, a `ceiling:` line is put to the operator: accept as unverifiable, ' +
+      'written through `scope.js dod-line` with verdict `accepted`. This is the one acceptance point wrap-up has: ' +
+      'there is no verify-ship on this store. ' +
+      'On refusal, leave the stage at `shipped`, so a rerun retries the cleanup. Never force-remove. ' +
+      '**On the local plan-file store only, a `manual` target gets one ask.** Yes runs `deploy set <target> deployed`; a no names no command. ' +
+      'The local-store asks run once no reason other than the local-store asks holds; otherwise list each as a pending reason. ' +
+      'Answers the operator already gave stand across a later refusal. ' +
+      'Pair the lines per `references/dod-ticks.md`\'s `## Pairing dod.md with the anchor`. ' +
+      'A dod.md line with no text-matching line on the anchor holds this reason: name the hand-sync, then rerun `/superdev:wrap-up`.\n',
+    'references/dod-ticks.md':
+      'An anchor line **pairs** with a `dod.md` line by criterion text. A `dod.md` line with ' +
+      'no text-matching line on the anchor** is unpaired. It is never counted as a verdict disagreement and ' +
+      'is never retried by the reconcile; it needs a hand-sync. ' +
+      '**Wrap-up\'s case:** on the local plan-file store only, wrap-up writes `accepted:`; it is attended only (ADR 0095).\n',
+    'skills/backlog/SKILL.md': 'Pair per `references/dod-ticks.md`\'s `## Pairing dod.md with the anchor`. A dod.md line with no text-matching line on the anchor routes to `awaiting wrap-up`, the act naming the hand-sync, then `/superdev:wrap-up <scope-slug>`.\n',
+    'skills/verify-ship/SKILL.md':
+      'The local plan-file store** → refuse, and point at `/superdev:wrap-up <scope>`. ' +
+      '**Reconcile first.** Then rewrite the anchor line from `dod.md`. ' +
+      '`manual`, and a listed target recorded `pending` or carrying no record. ' +
+      'Pair per `references/dod-ticks.md`\'s `## Pairing dod.md with the anchor`. ' +
+      'Only an unpaired line open: hand-sync, then `/superdev:wrap-up <scope>`. ' +
+      'Records from an earlier yes stand, so a rerun does not ask about them again. ' +
+      'A ledger with no `**PR:**` header reads as posture `none`. ' +
+      'print `/superdev:wrap-up <scope>` as the next command.\n',
+  };
+  assert.deepEqual(scanContract(fixture(wuClauses), WRAP_UP_CONTRACTS), [], 'a fixture carrying every clause reports no gap');
+  {
+    const wuRows = {};
+    for (const [rel] of WRAP_UP_CONTRACTS) wuRows[rel] = (wuRows[rel] || 0) + 1;
+    for (const rel of Object.keys(wuClauses)) {
+      const gaps = scanContract(fixture({ ...wuClauses, [rel]: 'Nothing here.\n' }), WRAP_UP_CONTRACTS);
+      assert.equal(gaps.length, wuRows[rel], `flags ${rel} for dropping its wrap-up clauses`);
+    }
+    for (const drop of ['name all of them in one refusal', 'Unknown counts as not merged', 'Ask once per entry', 'Clean up only after a successful close', 'from the invoking checkout', 'Keep `.superdev/kb-pending/<scope>/`', 'Never delete the scope branch']) {
+      const one = { ...wuClauses, 'skills/wrap-up/SKILL.md': wuClauses['skills/wrap-up/SKILL.md'].replace(drop, 'x') };
+      assert.equal(scanContract(fixture(one), WRAP_UP_CONTRACTS).length, 1, `dropping "${drop}" reports exactly one gap`);
+    }
+  }
+
   // --- SHIP_TICKS_NOTHING_CONTRACTS (ADR 0091, ADR 0096): submit-pr writes no tick anywhere, and
   // copies every `— ceiling:` criterion into the pull-request body as a post-merge checklist. ship
-  // writes no tick either, and still closes the scope anchor on a remote store, whatever tick logic
+  // writes no tick either, closes no anchor and leaves the close to `/superdev:wrap-up`, whatever tick logic
   // left the run root. Four rows: submit-pr's no-tick statement, its post-merge-checklist handling,
   // ship's own no-tick statement, and ship's own anchor-close statement. ---
   const stnClause =
@@ -4897,7 +4974,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   assert.equal(stnNoChecklistGaps.length, 1, 'flags submit-pr/SKILL.md for dropping the post-merge checklist');
 
   // negative: ship's own two rows, both present, report no gap
-  const stnShipClause = 'Ship writes no tick anywhere. Close the scope anchor on a remote store.\n';
+  const stnShipClause = 'Ship writes no tick anywhere, closes no anchor, and removes no checkout, slice checkout, or lock.\n';
   const stnShipFullGaps = scanContract(
     fixture({ 'skills/submit-pr/SKILL.md': stnClause, 'skills/ship/SKILL.md': stnShipClause }),
     SHIP_TICKS_NOTHING_CONTRACTS,
@@ -4906,7 +4983,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   // positive: dropping ship's own no-tick statement reports that row alone
   const stnShipNoTickGaps = scanContract(
-    fixture({ 'skills/ship/SKILL.md': 'Close the scope anchor on a remote store.\n' }),
+    fixture({ 'skills/ship/SKILL.md': 'Ship closes no anchor, and removes no checkout, slice checkout, or lock.\n' }),
     SHIP_TICKS_NOTHING_CONTRACTS,
   );
   assert.equal(stnShipNoTickGaps.length, 1, "flags ship/SKILL.md for dropping its own no-tick statement");
@@ -4929,7 +5006,8 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'push, so it reaches base exactly when the pull request merges.\n',
     'references/issue-tracker-local.md':
       '**`/superdev:submit-pr`** — commit it `done` on the scope branch before it pushes, so it reaches ' +
-      'base with the merge.\n',
+      'base with the merge. `/superdev:wrap-up` writes nothing here: the close already rode the pull request, ' +
+      'so it only takes the run down.\n',
   };
 
   // negative: a fixture carrying both halves reports no gap
@@ -4950,7 +5028,8 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     fixture({
       ...acbpClauses,
       'references/issue-tracker-local.md':
-        '**`/superdev:submit-pr`** — set it `done` once the scope branch merges.\n',
+        '**`/superdev:submit-pr`** — set it `done` once the scope branch merges. ' +
+        '`/superdev:wrap-up` writes nothing here: it only takes the run down.\n',
     }),
     ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS,
   );
@@ -5343,6 +5422,43 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     const gaps = scanContract(only, REVIEW_SUBMITTED_CONTRACTS);
     assert.equal(gaps.length, 1, `flags review/SKILL.md for dropping row ${i} alone`);
     assert.equal(gaps[0].source, 'skills/review/SKILL.md', 'names skills/review/SKILL.md');
+  }
+
+  // --- POSTURE_READ_CONTRACTS (ADR 0101, ADR 0106): scope-mode.md states the read once, and the four
+  // callers cite it. ---
+  const prCite = 'Read it per scope-mode.md\'s `## Reading the posture at the merge commit`.\n';
+  const prClauses = {
+    'references/scope-mode.md':
+      '## Reading the posture at the merge commit\n\n1. Read the pull request by the ledger\'s `**PR:**` number and take its ' +
+      '`merge_commit_sha`. A ledger with no header reads as posture `none`.\n' +
+      '2. Fetch base (`git fetch origin <base>`) when the checkout lacks that commit. Read ' +
+      '`git show <merge-commit-sha>:docs/agents/deployment.md` from the invoking checkout. ' +
+      'No such file, or a document with no `Posture:` line, reads as posture `none`.\n' +
+      '3. Read the anchor\'s `**Deploy:**` line. Read the record with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deploy get`. ' +
+      'A listed target **not recorded `deployed`**, a record of `absent` included, is undeployed.\n',
+    'skills/ship/SKILL.md': '\n## 3. Gate\n' + prCite + '\n## 4. Merge\n**Deploy** (ADR 0101; read) ' + prCite,
+    'skills/verify-ship/SKILL.md': prCite,
+    'skills/wrap-up/SKILL.md': prCite,
+    'skills/backlog/SKILL.md': prCite,
+  };
+  assert.deepEqual(scanContract(fixture(prClauses), POSTURE_READ_CONTRACTS), [], 'a fixture carrying every clause reports no gap');
+  for (const rel of Object.keys(prClauses)) {
+    const rows = POSTURE_READ_CONTRACTS.filter(([p]) => p === path.join(...rel.split('/'))).length;
+    const gaps = scanContract(fixture({ ...prClauses, [rel]: 'Nothing here.\n' }), POSTURE_READ_CONTRACTS);
+    assert.equal(gaps.length, rows, `flags ${rel} for dropping its posture-read clauses`);
+  }
+
+  // --- CLOSED_STAGE_CONTRACTS (ADR 0106): submit-pr stops at `closed` with no push and no pull request,
+  // and review's stage write leaves the line alone at `closed`. ---
+  const csClauses = {
+    'skills/submit-pr/SKILL.md': '- **`closed`** → already closed. Report that and stop, with no push and no pull request.\n',
+    'skills/review/SKILL.md': '- `documented`, `submitted`, `shipped`, or `closed` → leave the line alone.\n',
+  };
+  assert.deepEqual(scanContract(fixture(csClauses), CLOSED_STAGE_CONTRACTS), [], 'both clauses carried reports no gap');
+  for (const file of Object.keys(csClauses)) {
+    const gaps = scanContract(fixture({ ...csClauses, [file]: 'Nothing about closed.\n' }), CLOSED_STAGE_CONTRACTS);
+    assert.equal(gaps.length, 1, `flags ${file} for dropping its closed clause`);
+    assert.equal(gaps[0].source, file, `names ${file}`);
   }
 
   // --- RELEASE_ANSWER_NOT_INFERRED_CONTRACTS: a feature is released once a human has said so (ADR

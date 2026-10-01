@@ -57,7 +57,7 @@ It performs the pass `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md` states, and 
 **The knowledge-base pass reads a remote backend, and never writes to it** (ADR 0094, INV-0091). For a remote backend the doc-writer writes each page as a **staged page**, reading an existing non-aggregate page first to reconcile against and record its `live-hash`, and `/superdev:publish-kb` writes it later, once a human decides the feature has reached its readers (ADR 0023). A local `docs/kb/` backend is unaffected: its pages are repository files that ride the branch.
 
 Hand the doc-writer the staging path as an **absolute** path — `.superdev/kb-pending/<scope>/` in the invoking checkout, or `.superdev/kb-pending/_adhoc/` when §2 found no live scope run — resolved before you dispatch, while the invoking checkout is your cwd.
-The scope checkout is `<run-root>/scopetree`, inside `.superdev/` itself, so a checkout-relative path resolves one level too deep from the doc-writer's cwd and lands in a directory `/superdev:ship` deletes.
+The scope checkout is `<run-root>/scopetree`, inside `.superdev/` itself, so a checkout-relative path resolves one level too deep from the doc-writer's cwd and lands in a directory `/superdev:wrap-up` deletes.
 Ensure `.superdev/` is in the repo's `.gitignore` before you dispatch; add it if absent — an ad-hoc run may reach this command before either ran the check.
 
 ## 4. Reader test
@@ -138,9 +138,9 @@ Only when §2 found a live run. Everything above still applies; this adds the ru
   case** → write the line with
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set <value> --root <run-root>`, per that file's
   rule that a stage write never undoes completed work — the verb enforces it and refuses a write that
-  breaks it. Read the current stage first (`scope.js get stage`). `shipped` or `submitted` → leave the
-  line alone and say so in one line; a shipped scope never regains an earlier stage, and a submitted one
-  already has an open pull request the next command merges rather than re-opens. `reviewed` → write
+  breaks it. Read the current stage first (`scope.js get stage`). `shipped`, `submitted`, or `closed` → leave the
+  line alone and say so in one line; a shipped scope never regains an earlier stage, a submitted one
+  already has an open pull request the next command merges rather than re-opens, and a closed one is terminal. `reviewed` → write
   `documented`. `documented` → leave it; the docs are already recorded as reconciled. Anything else,
   including no line at all → write `documented-unreviewed`, which records that the review step never ran
   before this doc pass. A pass in which the doc-writer changed nothing still counts: the docs already
@@ -156,8 +156,10 @@ Only when §2 found a live run. Everything above still applies; this adds the ru
   stage still reads `reviewed` or below, and the step that opens the pull request asks once when attended
   and refuses only when unattended, on a scope with an unmet criterion — a criterion noted `ceiling:` or
   `accepted:` is settled, never this kind of unmet, and reaches neither this bullet nor that gate.
-  **The stage read `shipped` or `submitted` above** — the leave-alone branch — → print
-  `/superdev:ship <scope>` instead when it read `submitted`; a `shipped` scope has nothing left to print.
+  **The stage read `shipped`, `submitted`, or `closed` above** — the leave-alone branch — → when it read
+  `submitted`, print `/superdev:ship <scope>`; when it read `shipped`, print
+  `/superdev:verify-ship <scope>`, or on the local plan-file store, print `/superdev:wrap-up <scope>` instead:
+  verify-ship refuses there; when it read `closed`, print nothing.
   **Neither case** → print
   `/superdev:submit-pr <scope>`, with one line on what it does (open the pull request against the scope's
   current Definition of Done). Add that this conversation is disposable: the ledger's stage and `dod.md`

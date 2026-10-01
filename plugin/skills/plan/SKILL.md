@@ -41,7 +41,7 @@ escape is fixing the state. Name which signal fired and what clears it:
   `implementing` through `documented` means the chain has not shipped, so appending adds DoD criteria the
   open pull request never carries; waiting clears nothing, because that chain ends at `shipped`, which
   the shipped rule below refuses in turn, so the remedy is the same new feature that rule names, opened
-  now rather than waited for. A `shipped` stage is that rule's first signal. A `planned` stage means an
+  now rather than waited for. A `shipped` or `closed` stage is that rule's first signal. A `planned` stage means an
   earlier plan run cut the branch and the scopetree but no slice has run yet (ADR 0079): appending
   revises that plan before anything started, so it proceeds — §2 and §6 below carry it through as the
   `planned`-ledger case of their own steps. A run root that **exists** with no `ledger.md` to read, or
@@ -52,13 +52,13 @@ escape is fixing the state. Name which signal fired and what clears it:
   `docs/agents/issue-tracker.md`. This is the shipped rule's second signal, and the one still standing
   once `hooks/scope-prune.js` has reaped the run root.
 
-**A feature whose anchor has shipped takes no append** (ADR 0083, INV-0004): amending its Definition of
+**A feature whose anchor has shipped, or whose run is closed, takes no append** (ADR 0083, INV-0004): amending its Definition of
 Done in place would pool criteria verified against a merged pull request with criteria nobody has
 verified, and the reap takes the local half of that mixture while the anchor keeps its own. The two
 shipped signals above are read together and **either one alone refuses** — a run root whose ledger stage
-reads `shipped`, and a scope anchor at the store's done status. Neither covers the other's gap on its
-own: a reaped run root leaves no ledger to read, and `/superdev:ship`'s anchor close is best-effort, so a
-failed close leaves the anchor open beside a `shipped` ledger. Nothing clears either one, so the refusal
+reads `shipped` or `closed`, and a scope anchor at the store's done status. Neither covers the other's gap on its
+own: a reaped run root leaves no ledger to read, and an anchor closed by hand, or on the local plan-file
+store at the merge, carries no `closed` ledger. Nothing clears either one, so the refusal
 names the remedy instead — plan the follow-up as a **new feature** carrying `**Blocked by feature:**
 #<anchor>`, which ties it back to this one (`references/plan-contract.md` → *Scope anchor*, ADR 0040).
 
@@ -444,7 +444,7 @@ reference is written. (A local-file store just writes the files.)
 established cannot be built until another one has landed gets that relation written on **this feature's
 scope anchor**, naming the other feature's anchor, through the mechanism
 `docs/agents/issue-tracker.md`'s `## Scope anchor` section states (`references/plan-contract.md` →
-*Scope anchor*, ADR 0040). It is what lets `/superdev:backlog` group the second feature as `waiting` until the first has shipped. Ask nothing
+*Scope anchor*, ADR 0040). It is what lets `/superdev:backlog` group the second feature as `waiting` until the first's anchor is closed. Ask nothing
 new for it: a feature that cannot be built yet surfaces as a constraint during §1 or it does not surface
 at all, and an interview that named no prerequisite writes no dependency. The honesty rule is the one
 slice-level `depends-on` already carries — record one only where the second feature genuinely cannot be

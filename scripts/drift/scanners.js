@@ -971,6 +971,8 @@ function scanDeployRunnerExclusivity(root) {
       for (const hit of masked.matchAll(DEPLOY_RUNNER_PATTERN)) {
         const before = masked.slice(Math.max(0, hit.index - DEPLOY_RUNNER_ATTRIBUTION_WINDOW), hit.index);
         if (/\bship\b/i.test(before)) continue;
+        // A denial — "runs no target's command", "never runs a target's command" — claims no run.
+        if (/\b(?:never|not|no)\s+$/i.test(before) || /^run(?:s|ning)?\s+(?:no|not|never)\b/i.test(hit[0])) continue;
         gaps.push({
           source,
           expectation:
@@ -1351,26 +1353,32 @@ function scanShipNoOpensPr(root) {
   return gaps;
 }
 
-// scanShipHumanOnly() is pure over a root dir: reads skills/ship/SKILL.md and reports two gaps INV-0093
-// names — a missing `disable-model-invocation: true` in its frontmatter, and a literal `--unattended`
+// scanShipHumanOnly() is pure over a root dir: reads the SKILL.md of every human-only skill
+// (HUMAN_ONLY_SKILLS) and reports, for each, two gaps INV-0093 names — a missing `disable-model-invocation: true` in its frontmatter, and a literal `--unattended`
 // token anywhere in the file, which ADR 0096 says ship never carries (submit-pr takes that
-// token; ship's own consent is the operator typing the command at all). Absent ship.md is skipped,
+// token; ship's own consent is the operator typing the command at all; ADR 0106 extends both to
+// every skill in the set). An absent skill file is skipped,
 // matching every other contract scanner.
+const HUMAN_ONLY_SKILLS = ['ship', 'verify-ship', 'wrap-up'];
+
 function scanShipHumanOnly(root) {
   const gaps = [];
-  const text = readDoc(root, path.join('skills', 'ship', 'SKILL.md'));
-  if (text === null) return gaps; // ship.md absent → nothing to scan
-  if (!/^disable-model-invocation:\s*true\s*$/m.test(text)) {
-    gaps.push({
-      source: path.join('skills', 'ship', 'SKILL.md'),
-      expectation: 'carry `disable-model-invocation: true` in its frontmatter, so no model starts a merge on its own (INV-0093, ADR 0096)',
-    });
-  }
-  if (/--unattended/.test(text)) {
-    gaps.push({
-      source: path.join('skills', 'ship', 'SKILL.md'),
-      expectation: 'name no `--unattended` mode of its own — only a human runs this command (INV-0093, ADR 0096)',
-    });
+  for (const name of HUMAN_ONLY_SKILLS) {
+    const source = path.join('skills', name, 'SKILL.md');
+    const text = readDoc(root, source);
+    if (text === null) continue; // skill absent → nothing to scan
+    if (!/^disable-model-invocation:\s*true\s*$/m.test(text)) {
+      gaps.push({
+        source,
+        expectation: 'carry `disable-model-invocation: true` in its frontmatter, so no model starts it on its own (INV-0093, ADR 0096, ADR 0106)',
+      });
+    }
+    if (/--unattended/.test(text)) {
+      gaps.push({
+        source,
+        expectation: 'name no `--unattended` mode of its own — only a human runs this command (INV-0093, ADR 0096, ADR 0106)',
+      });
+    }
   }
   return gaps;
 }

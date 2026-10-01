@@ -6,6 +6,9 @@
 which has `/superdev:submit-pr` run the whole-repo command before it opens the pull request, and has
 `/superdev:ship` merge only a tip a green whole-repo run covers, where a repository configures one.
 
+**Amended by:** [ADR 0106](0106-verifying-and-closing-a-shipped-scope-are-separate-human-only-commands.md),
+which moves the anchor close and the cleanup out of ship into `/superdev:wrap-up`.
+
 **Context.** `/superdev:ship` (ADR 0013) opened the pull request, closed the scope anchor, and set the
 stage to `shipped`, so the chain ended while nothing had landed. The merge happened outside superdev, and
 superdev never saw it. The merge was untested whenever base had moved since review. A dependent feature

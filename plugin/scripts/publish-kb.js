@@ -863,7 +863,7 @@ function checkContainment(mainCheckout, scope) {
   }
   const branch = resolveScopeBranch(mainCheckout, scope);
   if (!branch) {
-    // `hooks/scope-prune.js` reaps a shipped scope's branch together with its run root (ADR 0071), and
+    // `hooks/scope-prune.js` reaps a closed scope's branch together with its run root (ADR 0071), and
     // gates that reap on the branch already reading contained in base or gone. So no branch AND no run
     // root is the fully-reaped steady state, not a warning: absence stands beside containment. A run
     // root that survives is the real unreachable case — a run that died before cutting its branch, or a

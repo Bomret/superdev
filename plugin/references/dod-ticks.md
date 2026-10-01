@@ -74,6 +74,21 @@ own change broke is unticked, with a one-line note on what broke it. No other li
 this pass, so an earlier tick outside that set is never touched. Verifying a line observes; it changes no
 system outside the repository (ADR 0084, INV-0006).
 
+**Verify-ship's case:** `/superdev:verify-ship`'s own controller judges, never a dispatched worker's
+report. Its listed lines are exactly the `dod.md` lines that are neither ticked nor `accepted:` — at
+`shipped`, the `ceiling:` lines and its own earlier `not met:` lines (INV-0016). It observes each one
+inline against the deployed system: observed true writes `met: <evidence>`, observed false writes
+`not met: <the observation>`, and a line it cannot observe goes to the attended operator, whose answer
+writes `met:`, `not met:`, or `accepted:` (ADR 0095), or leaves the line unchanged. Verifying a line
+observes; it changes no system outside the repository (ADR 0084, INV-0006, ADR 0106). A ticked or
+`accepted:` line is never a listed line and is never rewritten.
+
+**Wrap-up's case:** on the local plan-file store only, `/superdev:wrap-up`'s own controller writes an
+attended operator's `accepted:` into `<run-root>/dod.md` through `scope.js dod-line`, for a `ceiling:` line
+the operator accepts as unverifiable. That store has no verify-ship, so this is the one post-merge
+`dod.md` writer besides verify-ship. It is attended only (ADR 0095); an unattended run writes nothing
+there.
+
 ## The note rule (INV-0014)
 
 Every judged line carries a note, in `plan-contract.md`'s line format:
@@ -112,7 +127,7 @@ stays true only for a line the dispatch never listed — one tagged to another s
 ## Only a controller ticks (INV-0015)
 
 Writing a tick is the controller's own act, never a subagent's, and never `/superdev:submit-pr`'s or
-`/superdev:ship`'s. The same
+`/superdev:ship`'s. `/superdev:verify-ship`'s own controller ticks from its own direct observation. The same
 holds for an untick — document's case above writes one from its own direct check against the branch,
 never from a dispatched report. One criterion is judged at a time, from one report or, on a pass with no
 dispatched worker, that same direct check — never batched from an assumption about what several reports
@@ -123,6 +138,20 @@ together must have covered. Each write lands in two places:
   (every store document carries one), which fetches the checklist text and pipes it through
   `scope.js dod-line` (`plan-contract.md` → *Definition of Done ticks*) for the line edit itself —
   best-effort, the same posture every other anchor write in the chain takes.
+
+## Pairing dod.md with the anchor
+
+`dod.md` is authoritative (INV-0016), and a store's tick write is best-effort, so the anchor can lag it.
+An anchor line **pairs** with a `dod.md` line by criterion text, the match `scope.js dod-line` uses.
+Every command that compares the two reads them this way:
+
+- **A paired line whose verdict on the anchor differs from `dod.md`** is a failed tick write.
+  `/superdev:verify-ship` reconciles it by rewriting the anchor line from `dod.md` through the store's
+  `## Definition of Done ticks` section (`scope.js dod-line`), before it observes anything.
+- **A `dod.md` line with no text-matching line on the anchor** is unpaired. It is never counted as a
+  verdict disagreement and is never retried by the reconcile, because `dod-line` cannot rewrite a line
+  the anchor lacks. It needs a hand-sync of the anchor's criterion text to `dod.md`'s; verify-ship cannot
+  reconcile it.
 
 ## Reading the report
 

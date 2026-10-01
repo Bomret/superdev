@@ -8,8 +8,8 @@ argument-hint: "[<scope>  (empty = the only run in this repo)]  [--unattended]"
 
 Open a pull request for a run. Every slice is on the scope branch, the scope has been reviewed, and the
 docs have been reconciled — this command turns that into a pull request. It leaves the run standing:
-the scopetree, the slicetrees, and the run lock stay, and `/superdev:ship` is what takes them down, after
-the pull request merges. It dispatches no subagents.
+the scopetree, the slicetrees, and the run lock stay, and `/superdev:wrap-up` is what takes them down, after
+the pull request merges and, on a remote store, `/superdev:verify-ship` has run. It dispatches no subagents.
 
 ## 1. Scope + run root
 
@@ -19,9 +19,9 @@ the pull request merges. It dispatches no subagents.
 Resolve `$ARGUMENTS` to one scope — a **run root**, per that file's `## A live scope run` section:
 
 - **A scope slug given** → use it. No run root by that name → say so and stop.
-- **Empty** → this command's own **candidate set** (CONTEXT.md) is every run root whose stage is not
-  `shipped` — every other stage is submittable here, after §3's own question. Run
-  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Resolving an empty argument` cascade over that
+- **Empty** → this command's own **candidate set** (CONTEXT.md) is
+  every run root whose stage is neither `shipped` nor `closed` — every other stage is submittable here,
+  after §3's own question. Run `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Resolving an empty argument` cascade over that
   set, restating no part of it here: nothing is created before the cascade resolves one run root.
 
 Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md` for how to capture `<run-root>` and how the run lock
@@ -39,6 +39,7 @@ Read the ledger's `**Stage:**` line with
 all):
 
 - **`shipped`** → already shipped. Report that and stop. Never open a pull request over a merged scope.
+- **`closed`** → already closed. Report that and stop, with no push and no pull request.
 - **`submitted`** → already submitted. Report that. Read the ledger's `**PR:**` line with
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get pr --root <run-root>` and print that pull request; a
   ledger predating that header (`absent`) falls back to printing the existing pull request if the code
@@ -111,7 +112,7 @@ one.
 **A scope-branch-commit anchor close happens first.** Per `docs/agents/issue-tracker.md`, a store whose
 anchor close is a commit on the scope branch commits that close now, before this push, so it reaches base
 exactly when the pull request merges — never as a commit straight to base (INV-0001). A store whose close
-is an API call skips this: it closes the anchor after the merge instead, which is `/superdev:ship`'s job,
+is an API call skips this: it closes the anchor after the merge instead, which is `/superdev:wrap-up`'s job,
 not this command's.
 
 Per `docs/agents/code-management.md`: push the scope branch, then open the pull request at the configured
@@ -163,14 +164,14 @@ Set the ledger's `**Stage:**` line to `submitted` with
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set submitted --root <run-root>`. Publish the
 snapshot afterwards, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state`
 section. The run stands: the scopetree, the slicetrees, and the run lock stay in place, and the scope
-anchor on a remote store stays open. `/superdev:ship` closes it once every
-target has deployed under `auto`, and on the merge under `manual` or `none`, and takes the
-run's scaffolding down.
+anchor on a remote store stays open. `/superdev:wrap-up` closes it, after the merge and
+`/superdev:verify-ship`, and takes the run's scaffolding down.
 
 **Print `/superdev:ship <scope>` as the next command.** One line on what it does: it merges the pull
-request once an operator has reviewed it, applies the repository's deploy posture to the merge, closes
-the scope anchor, and cleans up the run — printing `/superdev:publish-kb <scope>` itself once the merge
-lands, when pages are staged.
+request once an operator has reviewed it, applies the repository's deploy posture to the merge, and stops
+there, printing `/superdev:verify-ship <scope>` next. On the local plan-file store, ship prints
+`/superdev:wrap-up <scope>` instead: verify-ship refuses there. `/superdev:wrap-up` closes the scope anchor
+and cleans up the run afterwards.
 
 This is the chain's own end. `/superdev:submit-pr` hands off to `/superdev:ship`, and only a human runs
-that.
+that, then `/superdev:verify-ship` (remote stores only) and `/superdev:wrap-up`.

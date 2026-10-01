@@ -32,12 +32,12 @@ shipped. The stage says which of those already happened, so add nothing of your 
 A run at stage `planned` prints the same way, its slice tally at zero and `stage: planned` named — a plan
 cut the branch and scopetree, but no slice has run yet (ADR 0079).
 
-A **shipped** scope prints as one line, `<scope>  (shipped)`, with no slice tally and no blocked list. It
-is finished with, and `hooks/scope-prune.js` reaps its run root together with its scope branch once the
-staleness TTL elapses and that branch is contained in base or gone (ADR 0007, ADR 0053, ADR 0071), so it
-is not work in flight. Its degrade
+A **shipped** or **closed** scope prints as one line, `<scope>  (shipped)` or `<scope>  (closed)`, with no
+slice tally and no blocked list. `closed` is the terminal stage: `hooks/scope-prune.js` reaps its run root
+together with its scope branch once the staleness TTL elapses and that branch is contained in base or gone
+(ADR 0007, ADR 0053, ADR 0071, ADR 0106). Neither is work in flight. Its degrade
 record, unresolved-defect record, deferred-finding record, and staged-page lines are the exceptions and
-still print in full: the run root is about to disappear, and the pull-request body is otherwise the only
+still print in full: a `closed` run root is about to disappear, and the pull-request body is otherwise the only
 surviving copy of a pass that ran degraded, a defect the run left standing, or a finding nobody has
 planned yet — see below.
 

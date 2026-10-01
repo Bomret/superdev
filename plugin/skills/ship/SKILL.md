@@ -1,13 +1,16 @@
 ---
 name: ship
-description: Merge a superdev scope's pull request, pinned to the tested head, through the host's merge API — deploy the merge under the repository's `auto` posture, close the scope anchor, and clean up the run. Only a human runs it, once `/superdev:submit-pr` has opened the pull request and it has been reviewed.
+description: Merge a superdev scope's pull request, pinned to the tested head, through the host's merge API — apply the repository's deploy posture to the merge, then stop and hand off to `/superdev:verify-ship` or `/superdev:wrap-up`. Only a human runs it, once `/superdev:submit-pr` has opened the pull request and it has been reviewed.
 disable-model-invocation: true
 argument-hint: "[<scope>  (empty = the only run in this repo)]"
 ---
 
 # superdev ship
 
-Merge the pull request `/superdev:submit-pr` opened. It dispatches no subagents, and carries no
+Merge the pull request `/superdev:submit-pr` opened, and apply the deploy posture. It stops after the
+deploy: it closes no anchor and removes nothing, and, on a remote store, `/superdev:verify-ship` then `/superdev:wrap-up` follow; on the local plan-file
+store `/superdev:wrap-up` follows directly
+(ADR 0106, INV-0099). It dispatches no subagents, and carries no
 unattended mode of its own: only a human runs this command (ADR 0096). Calling it at all is the consent
 to merge, so nothing here asks a second question once the gate below has passed, except one: under `auto`, §5 asks
 before it deploys a `docs/agents/deployment.md` nobody was shown (ADR 0104).
@@ -19,9 +22,9 @@ Resolve `$ARGUMENTS` to one scope — a **run root**, per `${CLAUDE_PLUGIN_ROOT}
 
 - **A scope slug given** → use it. No run root by that name → say so and stop.
 - **Empty** → this command's own **candidate set** (CONTEXT.md) is every run root whose stage is
-  `submitted`, plus every run root at `shipped` carrying a `**PR:**` header whose deploy record
-  (`scope.js deploy get`) names a target not yet `deployed` while its scope checkout
-  (`<run-root>/scopetree`) is still present — an `auto` deploy this command's own §5 stopped mid-way.
+  `submitted`, plus every run root at `shipped` carrying a `**PR:**` header whose posture at the merge
+  commit is `auto` and whose deploy record (`scope.js deploy get`) leaves a listed target not recorded `deployed` — an
+  `auto` deploy this command's own §5 stopped mid-way (the definition §3 applies).
   Run `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Resolving an empty argument`
   cascade over that set, restating no part of it here.
 
@@ -30,8 +33,12 @@ behaves. Refresh `<run-root>/run.lock` now, per that file's rule.
 
 ## 2. Scope checkout
 
-Find the scope checkout per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`. You need it for §4's git
-commands.
+Read the stage first (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>`). **`closed`**
+→ say the scope is already closed, and change nothing: no checkout is recreated, since nothing removes
+what a recreate would leave behind. Otherwise find the scope checkout per
+`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`, recreating it when it is absent, at `submitted`. You
+need it for §4's git commands. At `shipped`, recreate nothing here: §3 decides whether the run needs a
+checkout at all.
 
 ## 3. Read the pull request, and gate
 
@@ -43,16 +50,25 @@ Read the ledger's `**Stage:**` line with
   as what has not run yet, and merge nothing.
 - **`shipped`, and the ledger carries a `**PR:**` header** (`scope.js get pr` below prints a number, never
   `absent`) → read the deploy record with
-  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deploy get --root <run-root>`. **Every named target reads
-  `deployed`, the record is `absent`, or the scope checkout (`<run-root>/scopetree`) is already gone** →
-  this run finished, merge and deploy alike: report "already shipped" and stop. Nothing to merge, and
-  nothing to refuse. **A target reads `pending` or `failed`, and the scope checkout is still present** →
-  an earlier `auto` deploy stopped mid-way — §5's own cleanup is what a finished run always removes the
-  checkout with, so its presence here is what tells the two apart. Skip straight to **§5's "Find the merge
-  commit"** below: nothing merges again.
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deploy get --root <run-root>`; the listed targets are
+  the anchor's `**Deploy:**` line, per `docs/agents/issue-tracker.md`. **Every listed target reads
+  `deployed`, or no target is listed** → this run finished, merge and deploy alike: report "already
+  shipped", print the **Hand off** line of §5, and stop, whether or not the scope checkout is present. An
+  "already shipped" report needs no scope checkout, so recreate none. **Otherwise** read the posture at
+  the merge commit, with no scope checkout, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
+  `## Reading the posture at the merge commit`: from the invoking checkout, reading the pull request by the
+  ledger's `**PR:**` number first (per **Find the pull request** below). **The posture is `auto`, and a listed target reads
+  `pending`, `failed`, or carries no record** (a declined unshown config left it `pending`, ADR 0104; a
+  session that ended between §5's stage write and its first `deploy set` left no record) → an earlier `auto`
+  deploy stopped mid-way. Skip straight to **§5's "Find the merge
+  commit"** below: nothing merges again. Recreate the absent scope checkout only when the posture is `auto`
+  and a target is undeployed, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`, since §5's detach runs
+  through it. **The posture is not
+  `auto`** → this run finished too: report "already shipped", print the **Hand off** line of §5, and stop,
+  recreating nothing. Nothing to merge, and nothing to refuse.
 - **`shipped`, and the ledger carries no `**PR:**` header** (`scope.js get pr` prints `absent`) → a
   version before ADR 0096 wrote this stage the moment it opened the pull request, not once it merged —
-  a legacy run. Treat it exactly like `submitted` below, reading the pull request from the host, except
+  a legacy run. Treat it exactly like `submitted` below, recreating an absent scope checkout and reading the pull request from the host, except
   its own **None found** case reports differently (see below).
 - **`submitted`** → proceed.
 
@@ -248,17 +264,17 @@ branch). Publish the snapshot afterwards, per `${CLAUDE_PLUGIN_ROOT}/references/
 merge, only in a tree detached at the merge commit). Read the posture and the anchor's `**Deploy:**` line
 fresh here, for ship's own merge, an adopted hand merge, or a resumed run alike — never reused from §3's
 or §4's earlier, pre-merge read — at the merge commit just found, never the working tree or the invoking
-checkout — fetching base first if the scope checkout lacks that commit
-(`git -C <run-root>/scopetree fetch origin <base>`), then
-`git -C <run-root>/scopetree show <merge-commit-sha>:docs/agents/deployment.md` (no such file → posture
-`none`) and the anchor's deploy line, per `docs/agents/issue-tracker.md`.
+checkout, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Reading the posture at the merge commit`.
+This step holds the scope checkout, so it reads through it: `git -C <run-root>/scopetree fetch origin <base>`
+when the commit is missing, then
+`git -C <run-root>/scopetree show <merge-commit-sha>:docs/agents/deployment.md`.
 
 - **`none`, a `**Deploy:** none` line, or no `**Deploy:**` line** → deploy nothing. Say so in one line and
-  go straight to the close below.
+  go straight to the hand-off below.
 - **`manual`** → print each listed target's command not already recorded `deployed`, in listed order, and
   record each
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deploy set <target> pending --root <run-root>`. Go
-  straight to the close below.
+  straight to the hand-off below.
 - **`auto`** → fetch the base branch and detach the scopetree at the merge commit —
   `git -C <run-root>/scopetree fetch origin <base>` then
   `git -C <run-root>/scopetree checkout --detach <merge-commit-sha>` — the invoking checkout is never
@@ -285,42 +301,25 @@ checkout — fetching base first if the scope checkout lacks that commit
     targets below. **Declined** → deploy nothing: record
     `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deploy set <target> pending --root <run-root>` for every
     listed target the deploy record (`scope.js deploy get`) does not yet name, so the run stays in §1's
-    candidate set, leave the anchor open, skip the close and cleanup below, and print
-    `/superdev:ship <scope>` as the resume, which asks again. Stop.
+    candidate set, and print `/superdev:ship <scope>` as the resume, which asks again. Stop.
   - **Both diffs empty** → ask nothing, and run the targets below.
 
   Run every listed target's command not already recorded `deployed`, in
   listed order, right there, in the foreground, relaying its output to the operator as it runs:
   - **A listed target the `## Targets` table lacks** (reachable only here — ship's own merge already
     refused this in §3, or in §4's re-run when base moved the tip, before anything merged) → stop exactly
-    as a failed target does below: name it, leave the anchor open, and skip the close and cleanup.
+    as a failed target does below: name it and stop.
   - **Exit 0** → record `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deploy set <target> deployed --root
     <run-root>` and run the next target.
   - **A non-zero exit** → record `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deploy set <target> failed
-    --exit <n> --root <run-root>`, name every target not yet deployed, leave the anchor open, skip the
-    close and cleanup below, and print `/superdev:ship <scope>` as the resume — it re-reads the merge
+    --exit <n> --root <run-root>`, name every target not yet deployed, and print `/superdev:ship <scope>` as the resume — it re-reads the merge
     commit above and starts again at the first target this run left undeployed. Stop.
-  - **Every listed target now `deployed`** → go on to the close below.
+  - **Every listed target now `deployed`** → go on to the hand-off below.
 
-Close the scope anchor on a remote store — per `docs/agents/issue-tracker.md`, right here; the local
-plan-file store's own close already rode the pull request, as a commit `/superdev:submit-pr` made before
-its push. Ship writes no tick anywhere.
-
-**From the invoking checkout, not the scopetree** — `git worktree remove` refuses to remove the tree you
-are standing in:
-
-- Remove this run's scopetree: `<run-root>/scopetree`, plus any leftover slicetrees at
-  `<run-root>/slicetrees/*`, then `git worktree prune`.
-- Delete any leftover `slice/<scope>/*` branch (merged into the scope branch, so it only clutters).
-- Remove `<run-root>/run.lock`, if it exists.
-- Keep the rest of `<run-root>` — the ledger and the ticked DoD are the git-ignored paper trail.
-- **Keep `.superdev/kb-pending/<scope>/`.** It is outside the run root and holds this scope's staged
-  knowledge-base pages, which outlive the run by design (ADR 0023).
-
-**Never delete the scope branch.** `hooks/scope-prune.js` reaps it later, with the run root, once base
-holds its content (ADR 0071).
-
-**Point at the publish, when pages are waiting.** `.superdev/kb-pending/<scope>/` holds staged pages →
-print `/superdev:publish-kb <scope>` with one line on when to run it: once the feature has reached its
-readers, which is later than this merge. Superdev cannot detect that moment, which is why nothing here
-does it for you. **No staged pages** → print nothing.
+**Hand off.** Ship writes no tick anywhere, closes no anchor, and removes no checkout, slice checkout, or
+lock: the anchor stays open and the run stays standing until `/superdev:wrap-up` (ADR 0106, INV-0099). On
+the local plan-file store, the anchor's close already rode the pull request as a commit
+`/superdev:submit-pr` made before its push. Print `/superdev:verify-ship <scope>` as the next command, with
+one line on what it does: it observes the Definition-of-Done lines that are neither ticked nor accepted,
+and `/superdev:wrap-up <scope>` closes the scope afterwards. On the local plan-file store print
+`/superdev:wrap-up <scope>` instead: verify-ship refuses there.

@@ -31,8 +31,8 @@ name, so the type reaches `git worktree add … -b` exactly as the slug does.
 - **The type** — what precedes it — is one of the eleven in `## The change type`, matched exactly.
   Stronger than a charset test: a label leading with `-x` reaches git as an option, and a type outside
   the set makes `hooks/scope-prune.js` misread a live, unmerged branch as gone — one of the three
-  conditions a scope needs to be prunable, alongside the staleness TTL and a `shipped` stage (ADR 0007
-  reaps once all hold).
+  conditions a scope needs to be prunable, alongside the staleness TTL and a `closed` stage (ADR 0007, ADR 0106
+  reap once all hold).
 
 **Either segment failing is the same stop.** Say which one failed and why, and build no branch and no
 path out of the label. A label with no `/`, or an empty segment on either side, fails here too.
@@ -62,9 +62,8 @@ path built against the invoking checkout's own cwd. Address every artifact by th
 
 ## Resolving an empty argument
 
-`/superdev:implement`, `/superdev:submit-pr`, and `/superdev:review` each take a run as their subject and
-accept no argument. Each names its own **candidate set** (CONTEXT.md); this section owns the one cascade
-that resolves whichever set a caller hands it, so the rule is stated once instead of in each command's
+A command that takes a scope argument and accepts it empty names its own **candidate set** (CONTEXT.md);
+this section owns the one cascade that resolves whichever set a caller hands it, so the rule is stated once instead of in each command's
 own words:
 
 - **Exactly one candidate** — use it.
@@ -75,7 +74,7 @@ own words:
 
 **Run-root enumeration.** A run root is a `.superdev/scopes/*/` directory holding a `ledger.md`, per
 `## A live scope run` above. The calling command names the stages that qualify — `/superdev:submit-pr`
-names every stage but `shipped`, `/superdev:review` names `merged` and `documented-unreviewed` — and this
+names every stage but `shipped` and `closed`, `/superdev:review` names `merged` and `documented-unreviewed` — and this
 section scans every run root, reads each one's stage with `scope.js get stage --root <run-root>`, and
 keeps only the ones whose stage is named. A directory holding no `ledger.md` is no run root, and is never
 a candidate. A run root whose `get stage` prints `absent` matches no named stage either, so it is never a
@@ -339,7 +338,7 @@ second time from git state. One call cuts or reuses the branch at every run kind
   **`--unattended` → block**, per `## Unattended`. `git worktree add <run-root>/scopetree
   <branch>` below still names the bare branch, not the remote-tracking ref: it DWIM-creates the local
   branch from the sole matching remote-tracking ref the moment one exists. Create or reattach the
-  scopetree, at both tiers, whenever it is absent — because `/superdev:ship` already removed it, or
+  scopetree, at both tiers, whenever it is absent — because `/superdev:wrap-up` already removed it, or
   because this checkout never held it (a resumed run adopted from the anchor on a fresh clone) — and
   otherwise work in the one already there.
 
@@ -366,14 +365,18 @@ command that writes to the scope branch there — `git -C <run-root>/scopetree .
 the invoking checkout, which stays wherever it was.
 
 - **Present** → work there.
-- **The ledger's `**Stage:**` reads `shipped`, and the checkout is absent** → `/superdev:ship`'s §5
-  removed it by design. On a read-only command (`/superdev:review`, `/superdev:document`), say so and
+- **The ledger's `**Stage:**` reads `shipped` or `closed`, and the checkout is absent** → `/superdev:wrap-up`'s
+  cleanup, or an operator, removed it. No command recreates it at `closed`, a terminal stage nothing
+  removes scaffolding from. On a read-only command (`/superdev:review`, `/superdev:document`,
+  `/superdev:verify-ship`, `/superdev:wrap-up`), say so and
   review or reconcile read-only rather than recreating it; a writing command has nothing left to write to
-  a shipped scope in the first place. **The one exception is `/superdev:ship` itself, reached on a legacy
-  `shipped` ledger** (one carrying no `**PR:**` header — a version before ADR 0096 wrote this stage the
-  moment it opened the pull request, and removed the checkout right there, not once it merged): recreate
-  the checkout below exactly as an `Absent` one does, since ship still has git commands to run against a
-  pull request that may still be open.
+  a shipped scope in the first place. **The one exception is `/superdev:ship` itself, reading any `shipped` ledger**
+  (a legacy one carrying no `**PR:**` header, whose pull request may still be open, and one carrying the
+  header whose `auto` deploy stopped mid-way): §3 reads the posture with `git show` from the invoking
+  checkout, which needs no scope checkout, and ship recreates the checkout below exactly as an `Absent` one
+  does only for a legacy run, which proceeds like `submitted`, or an `auto` resume, whose §5 detaches it.
+  A `shipped` ledger carrying the header with nothing left to deploy, or a posture other than `auto`, is
+  "already shipped", which needs no checkout, so ship recreates none.
 - **Absent** → recreate it: `git worktree add <run-root>/scopetree <branch>`, the same call
   the `resumed` run kind already makes. **`run-lock` refuses the call, naming another session** → that
   lock is this run's own: the scopetree this step just found absent is what makes that safe, not the ledger
@@ -437,8 +440,8 @@ again at its own §6. **On a `resumed` run, the liveness check above is what tel
 section, further down the chain, only reconciles the ledger against `git log` from here on; it performs no
 liveness check of its own.
 
-**Every other caller — `/superdev:review`, `/superdev:document`, `/superdev:submit-pr`, `/superdev:ship`
-— only ever refreshes this file. Never create it.** A tail command reaches a scope only after an execution playbook, or
+**Every other caller — `/superdev:review`, `/superdev:document`, `/superdev:submit-pr`, `/superdev:ship`,
+`/superdev:verify-ship`, `/superdev:wrap-up` — only ever refreshes this file. Never create it.** A tail command reaches a scope only after an execution playbook, or
 `/superdev:plan`, already ran, so a missing lock there means no live run to refresh, not a gap to fill.
 **The one exception** is `## The scope checkout` above's recreate path: recreating an absent scopetree
 removes a stale lock of this run's own first, and what writes it back is this section's own write, made
@@ -667,8 +670,8 @@ a verdict whose only remaining findings are deferred counts as clean.
 
 **The record has two halves, and the durable one is the store's.** A **triage record** in the configured
 slice store is what outlives this run — on the local plan-file store, only once the scope branch
-carrying the record merges (ADR 0048): `hooks/scope-prune.js` reaps the run root once the scope ships
-and goes stale, and `/superdev:ship` closes the scope anchor that mirrors it, so a bullet alone leaves
+carrying the record merges (ADR 0048): `hooks/scope-prune.js` reaps the run root once the scope closes
+and goes stale, and `/superdev:wrap-up` closes the scope anchor that mirrors it, so a bullet alone leaves
 the finding in the body of a merged pull request and in no backlog at all (ADR 0046). `/superdev:review`
 creates that record at the moment it defers, and the bullet below carries the record's reference. **How a
 store creates one is the store's own contract**, stated in the active `docs/agents/issue-tracker.md`'s
@@ -758,13 +761,13 @@ continuing regardless.
 ## The stage never moves backwards
 
 These writers move the ledger's `**Stage:**` line — `/superdev:review`, `/superdev:document`, run handoff
-(`merged`), `/superdev:submit-pr` (`submitted`), and `/superdev:ship` (`shipped`) — all through `scope.js
+(`merged`), `/superdev:submit-pr` (`submitted`), `/superdev:ship` (`shipped`), and `/superdev:wrap-up` (`closed`) — all through `scope.js
 stage set`, which enforces every rule in this section in code and refuses a write that breaks one: **a
 stage write never undoes completed work.** `shipped` together with the ledger's own `**PR:**` header is
 what stops `/superdev:ship` from merging a second time — a legacy `shipped` ledger predating that header
 is not yet finished, and `/superdev:ship` treats it like `submitted` instead (`## The scope checkout`
 above) — so a later command overwriting the stage with an earlier one would still disarm the check once
-the header is present. `shipped` is therefore terminal; `submitted` is an ordinary in-flight stage, since
+the header is present. `closed` is the terminal stage (ADR 0106): nothing outranks it, `stage set` refuses any move out of it, and `hooks/scope-prune.js` reaps only a run root that reads it. `shipped` is not terminal; `submitted` is an ordinary in-flight stage, since
 `/superdev:submit-pr`'s own stage gate, not the rank rule, is what keeps a second run from opening a
 second pull request. `documented` is not terminal either, since `documented → submitted → shipped` is the
 chain's own last move.
@@ -840,3 +843,23 @@ the write and degrade; there is nowhere for it to land.
 
 **An ad-hoc run has no run root**, so it has nowhere to publish either — the same absence `## Degraded
 passes` already states for its own entry. Report nothing, write nothing.
+
+## Reading the posture at the merge commit
+
+`/superdev:ship`, `/superdev:verify-ship`, `/superdev:wrap-up`, and `/superdev:backlog` each need a merged
+feature's deploy posture, its listed targets, and their deploy record. This section states the read once;
+each caller states only what it does with the result (ADR 0101, ADR 0106).
+
+1. **The merge commit.** Read the pull request by the ledger's `**PR:**` number, per
+   `docs/agents/code-management.md`'s `## Merge` section, and take its `merge_commit_sha`. A ledger with
+   no `**PR:**` header (`scope.js get pr` prints `absent`) is a legacy run older than the posture: it has
+   no merge commit to read and reads as posture `none`.
+2. **The posture.** Fetch base (`git fetch origin <base>`) when the checkout lacks that commit; every
+   worktree shares one object store, and a fetch moves no checkout. Read
+   `git show <merge-commit-sha>:docs/agents/deployment.md` from the invoking checkout, never the working
+   tree. **No such file, or a document with no `Posture:` line, reads as posture `none`.**
+3. **The listed targets.** Read the anchor's `**Deploy:**` line, per `docs/agents/issue-tracker.md`. No
+   such line, or `**Deploy:** none`, lists no target.
+4. **The deploy record.** Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deploy get --root
+   <run-root>`. A listed target **not recorded `deployed`**, a record of `absent` included, is undeployed:
+   a session can end between ship's stage write and its first deploy record.

@@ -41,8 +41,8 @@ read `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md` as your last step.
 Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The run lock` and write
 `<run-root>/run.lock` as it says (the absolute run-init run-root path in the invoking checkout — never a
 `.superdev/scopes/<scope>/…` path resolved from a scopetree or slicetree cwd, which resolves one level too deep). Leave
-the lock in place when you finish: it spans the whole chain, and `/superdev:ship` removes it once the run
-is shipped.
+the lock in place when you finish: it spans the whole chain, and `/superdev:wrap-up` removes it once the run
+is closed.
 
 ## Progress log (per slice)
 
@@ -199,7 +199,7 @@ the DAG loop at step 1.
 
 Per-slice slicetrees are already removed at merge (DAG step 4). Anything left — a stray
 `<run-root>/slicetrees/*`, a leftover `slice/<scope>/*` branch, the run root, the
-scopetree, `<run-root>/run.lock` — stays for `/superdev:ship`, which takes the run down at the end of the
+scopetree, `<run-root>/run.lock` — stays for `/superdev:wrap-up`, which takes the run down at the end of the
 chain. The scopetree keeps `<branch>` checked out: that is the scope checkout `/superdev:review` and
 `/superdev:document` work in, on this tier as on `lite`; the invoking checkout is never touched. Read
 `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md` next, without cleaning up.

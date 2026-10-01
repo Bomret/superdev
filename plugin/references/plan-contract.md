@@ -204,9 +204,11 @@ recorded in `issue-tracker.md`:
 | `merged` (done) | merged into the scope branch |
 
 `mechanical`/`docs` slices skip `in-review` (`in-progress` → `merged`). The scope anchor moves to
-`in-progress` when the run starts. `/superdev:ship` closes it to `done` at the end of the chain. On a
+`in-progress` when the run starts. `/superdev:wrap-up` closes it to `done` after verification (a failed
+close changes nothing, ADR 0106); on the local plan-file store the close is still `/superdev:submit-pr`'s
+scope-branch commit. On a
 single-slice plan the lone issue is both the slice and the anchor. The anchor rule wins: it stays
-`in-progress` through the merge, and closes once, at ship.
+`in-progress` through the merge, and closes once, at wrap-up.
 
 `/implement` derives an **execution tier** from the loaded slice count (≤3 → `lite`, >3 → `full`) —
 never a plan field, never persisted. The **lite** tier has no per-slice review at all, regardless of
@@ -241,11 +243,11 @@ Append mode holds these invariants, and every backend renders all of them:
   behind would strand it on a record `/superdev:backlog` or `/superdev:ship` no longer reads as this
   feature's anchor.
 - **Append refuses, and writes nothing, while a run is active.**
-- **A shipped feature takes no append.** Amending a shipped feature's Definition of Done in place pools
+- **A shipped or closed feature takes no append.** Amending a shipped feature's Definition of Done in place pools
   criteria verified against a merged pull request with criteria nobody has verified (ADR 0083,
   INV-0004), and the run root's reap removes the local half of that mixture while the scope anchor keeps
   its own. `/superdev:plan`'s extend path refuses on either signal alone — a run root whose ledger stage
-  reads `shipped`, and a scope anchor at the store's done status — and names the remedy: a new feature
+  reads `shipped` or `closed`, and a scope anchor at the store's done status — and names the remedy: a new feature
   carrying the anchor dependency `**Blocked by feature:** #<anchor>` (*Scope anchor* below). Appending at
   `planned` is unchanged: an earlier plan run cut the branch but no slice has run yet, so appending
   revises that plan before anything started. A run root from `implementing` through `documented` refuses
@@ -277,16 +279,16 @@ directory listing, which carries no state at all, so it is outside this rule and
 
 An anchor may carry an **anchor dependency**: a recorded relation naming another feature's anchor that must
 land first (ADR 0040). It is the feature-level counterpart of a slice's `depends-on`, and the same honesty
-rule holds — record one only when the second feature cannot be built until the first has shipped, because a
+rule holds — record one only when the second feature cannot be built until the first's anchor is closed, because a
 needless one serializes work for nothing. **It is never the same relation as a slice's `depends-on`, even on
 a store where the two could land on the same record.** A single-slice feature's anchor is its own lone slice
 (above), so a store that reused the slice-level relation for the anchor dependency would leave
 `/superdev:implement` reading it as that lone slice's own blocker — naming an issue that is not a member of
 the feature and can never reach `merged` — and would lose it outright the moment append mode promotes that
 lone slice to an epic (*Append mode* above). Each store's `## Scope anchor` section names the distinct
-notation it uses instead. A dependency is **satisfied** when the anchor it names is closed, when that
-scope's ledger stage reads `shipped`, or when no such anchor exists; closing an anchor is best-effort at
-ship time, so closure alone would strand a dependent on a feature that has landed. `/superdev:plan` records
+notation it uses instead. A dependency is **satisfied** only when the anchor it names is closed, or when
+no such anchor exists; no ledger stage satisfies it (ADR 0106, amending ADR 0040). A merged feature
+whose anchor is still open has not been verified or wrapped up, so a dependent keeps waiting for the close. `/superdev:plan` records
 one when its interview named a prerequisite feature, and `/superdev:backlog` is the reader: it groups an
 anchor whose dependency is unsatisfied as `waiting`.
 

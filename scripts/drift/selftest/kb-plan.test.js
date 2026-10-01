@@ -17,7 +17,7 @@ const {
   PLAN_APPEND_CONTRACTS,
   SHIPPED_APPEND_CONTRACTS,
   ANCHOR_CANDIDATE_ALL_STATES_CONTRACTS,
-  ROTATE_ON_SHIPPED_CONTRACTS,
+  RUN_INIT_FINISHED_STAGE_CONTRACTS,
   PARKED_QUESTIONS_CONTRACTS,
   RUN_KIND_CONTRACTS,
   CONTAINMENT_DELEGATION_CONTRACTS,
@@ -521,7 +521,19 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'absent file is skipped',
   );
 
-  // --- ROTATE_ON_SHIPPED_CONTRACTS: a `shipped` ledger belongs to a finished run (ADR 0007's seven-day
+  const SHIPPED_ANCHOR_STOP =
+    '**Its `**Stage:**` line reads `shipped`** — stop and create no ledger, as the entry step does, and name `/superdev:verify-ship <scope>` and `/superdev:wrap-up <scope>`. ';
+  const SHIPPED_ANCHOR_CLEANUP =
+    'The stop removes the `dod.md` this run just wrote, and the run root\nitself when that leaves it empty. ';
+  const SHIPPED_ANCHOR_KEEPS_COMMIT =
+    'The stop leaves any design-doc commit the move already made, so no content is lost, and reports that commit\'s sha and the moved paths so the operator can revert or keep it. ';
+  const ENTRY_EXCEPTION =
+    'A run whose wrap-up has not closed it stops here, ahead of every step that writes. The stops in this step write nothing, except the second-read stop in **Create the ledger**. ';
+  const ADOPT_SHIPPED_REFUSAL =
+    '**Adopt refuses** (a malformed marker pair) → report and fall through to `init`. An `adopt` refusal naming stage `shipped` is the exception: it stops exactly as the `shipped` bullet above does and never falls through to `init`. ';
+  const RUN_INIT_SHIPPED_ANCHOR_BULLET = SHIPPED_ANCHOR_STOP + SHIPPED_ANCHOR_CLEANUP + SHIPPED_ANCHOR_KEEPS_COMMIT + ADOPT_SHIPPED_REFUSAL;
+
+  // --- RUN_INIT_FINISHED_STAGE_CONTRACTS: a `shipped` ledger belongs to a finished run (ADR 0007's seven-day
   // trail keeps `ledger.md` on disk past merge), so run init must rotate it aside and run `init` again
   // rather than resume it — the exact landing a new feature reusing a retired label (ADR 0083) needs. ---
 
@@ -532,9 +544,9 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
         '**Resuming a run init that already ran** — `<run-root>/ledger.md` already present — skip `init` ' +
         'and go on to your playbook.\n',
     }),
-    ROTATE_ON_SHIPPED_CONTRACTS,
+    RUN_INIT_FINISHED_STAGE_CONTRACTS,
   );
-  assert.equal(rotateGaps1.length, 4, 'flags all four missing clauses');
+  assert.equal(rotateGaps1.length, 13, 'flags every missing clause');
   assert.ok(
     rotateGaps1.every((g) => g.source === path.join('references', 'run-init.md')),
     'names run-init.md',
@@ -545,18 +557,23 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     scanContract(
       fixture({
         'references/run-init.md':
+          ENTRY_EXCEPTION + '**Snapshot** — its `**Stage:**` line reads `shipped`: stop and create nothing, no `dod.md` and no ledger, and name `/superdev:verify-ship` and `/superdev:wrap-up`. ' +
           '**`<run-root>/ledger.md` already present** — read its stage first. Stage **`shipped`** — ' +
-          'that ledger belongs to a finished run: run `init` directly. `init` itself rotates the existing ' +
-          'ledger aside to `ledger-shipped-<date>.md` before writing the fresh one: the rotation never ' +
-          'overwrites an existing `ledger-shipped-<date>.md`, nothing is deleted, so ADR\n' +
+          'that ledger waits for wrap-up: stop and create nothing, and name `/superdev:verify-ship` and ' +
+          '`/superdev:wrap-up`. Stage **`closed`** — run `init` directly. `init` itself rotates the existing ' +
+          'ledger aside to `ledger-closed-<date>.md` before writing the fresh one: the rotation never ' +
+          'overwrites an existing `ledger-closed-<date>.md`, nothing is deleted, so ADR\n' +
           "0007's seven-day trail and `scope-prune`'s contained-or-gone reap rule (ADR 0053) both stand " +
-          'unchanged. Any other stage — `implementing`, `merged`, `reviewed`, `documented`,\n' +
-          '`documented-unreviewed`, or `submitted` — is a run init that already ran: skip `init`.\n',
+          'unchanged. ' +
+          RUN_INIT_SHIPPED_ANCHOR_BULLET +
+          'Any other stage — `implementing`, `merged`, `reviewed`, `documented`,\n' +
+          '`documented-unreviewed`, or `submitted` — is a run init that already ran: skip `init`.\n' +
+          '**Move dirty design docs** into the scopetree. **Write the DoD** to `dod.md`.\n',
       }),
-      ROTATE_ON_SHIPPED_CONTRACTS,
+      RUN_INIT_FINISHED_STAGE_CONTRACTS,
     ).length,
     0,
-    'the wrapped paragraph satisfies all four clauses',
+    'the wrapped paragraph satisfies every clause',
   );
 
   // positive: the three existing clauses hold, but the rotation carries no no-clobber guarantee — the
@@ -564,14 +581,19 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   const rotateNoClobberGap = scanContract(
     fixture({
       'references/run-init.md':
+        ENTRY_EXCEPTION + '**Snapshot** — its `**Stage:**` line reads `shipped`: stop and create nothing, no `dod.md` and no ledger, and name `/superdev:verify-ship` and `/superdev:wrap-up`. ' +
         '**`<run-root>/ledger.md` already present** — read its stage first. Stage **`shipped`** — ' +
-        'that ledger belongs to a finished run: run `init` directly. `init` itself rotates the existing ' +
-        'ledger aside to `ledger-shipped-<date>.md` before writing the fresh one: nothing is deleted, so ADR\n' +
+        'that ledger waits for wrap-up: stop and create nothing, and name `/superdev:verify-ship` and ' +
+        '`/superdev:wrap-up`. Stage **`closed`** — run `init` directly. `init` itself rotates the existing ' +
+        'ledger aside to `ledger-closed-<date>.md` before writing the fresh one: nothing is deleted, so ADR\n' +
         "0007's seven-day trail and `scope-prune`'s contained-or-gone reap rule (ADR 0053) both stand " +
-        'unchanged. Any other stage — `implementing`, `merged`, `reviewed`, `documented`,\n' +
-        '`documented-unreviewed`, or `submitted` — is a run init that already ran: skip `init`.\n',
+        'unchanged. ' +
+          RUN_INIT_SHIPPED_ANCHOR_BULLET +
+          'Any other stage — `implementing`, `merged`, `reviewed`, `documented`,\n' +
+        '`documented-unreviewed`, or `submitted` — is a run init that already ran: skip `init`.\n' +
+          '**Move dirty design docs** into the scopetree. **Write the DoD** to `dod.md`.\n',
     }),
-    ROTATE_ON_SHIPPED_CONTRACTS,
+    RUN_INIT_FINISHED_STAGE_CONTRACTS,
   );
   assert.equal(rotateNoClobberGap.length, 1, 'only the no-clobber row fires');
   assert.ok(
@@ -579,9 +601,60 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'the lone gap names the no-clobber expectation',
   );
 
+  // positive: both `shipped` stops sit after the design-doc move and the DoD write — only the two
+  // ordering rows fire
+  const rotateOrderGaps = scanContract(
+    fixture({
+      'references/run-init.md':
+        ENTRY_EXCEPTION + '**Move dirty design docs** into the scopetree. **Write the DoD** to `dod.md`. ' +
+         '**Snapshot** — its `**Stage:**` line reads `shipped`: stop and create nothing, no `dod.md` and no ledger, and name `/superdev:verify-ship` and `/superdev:wrap-up`. ' +
+        '**`<run-root>/ledger.md` already present** — read its stage first. Stage **`shipped`** — ' +
+        'that ledger waits for wrap-up: stop and create nothing, and name `/superdev:verify-ship` and ' +
+        '`/superdev:wrap-up`. Stage **`closed`** — run `init` directly. `init` itself rotates the existing ' +
+        'ledger aside to `ledger-closed-<date>.md` before writing the fresh one: the rotation never ' +
+        'overwrites an existing `ledger-closed-<date>.md`, nothing is deleted, so ADR\n' +
+        "0007's seven-day trail and `scope-prune`'s contained-or-gone reap rule (ADR 0053) both stand " +
+        'unchanged. ' +
+          RUN_INIT_SHIPPED_ANCHOR_BULLET +
+          'Any other stage — `implementing`, `merged`, `reviewed`, `documented`,\n' +
+        '`documented-unreviewed`, or `submitted` — is a run init that already ran: skip `init`.\n',
+    }),
+    RUN_INIT_FINISHED_STAGE_CONTRACTS,
+  );
+  assert.equal(rotateOrderGaps.length, 2, 'only the two ordering rows fire');
+  assert.ok(
+    rotateOrderGaps.every((g) => /ahead of \*\*Move dirty design docs/.test(g.expectation)),
+    'both gaps name the entry-step ordering',
+  );
+
+  const RUN_INIT_FULL =
+    ENTRY_EXCEPTION + '**Snapshot** — its `**Stage:**` line reads `shipped`: stop and create nothing, no `dod.md` and no ledger, and name `/superdev:verify-ship` and `/superdev:wrap-up`. ' +
+    '**`<run-root>/ledger.md` already present** — read its stage first. Stage **`shipped`** — ' +
+    'that ledger waits for wrap-up: stop and create nothing, and name `/superdev:verify-ship` and ' +
+    '`/superdev:wrap-up`. Stage **`closed`** — run `init` directly. `init` itself rotates the existing ' +
+    'ledger aside to `ledger-closed-<date>.md` before writing the fresh one: the rotation never ' +
+    'overwrites an existing `ledger-closed-<date>.md`, nothing is deleted, so ADR\n' +
+    "0007's seven-day trail and `scope-prune`'s contained-or-gone reap rule (ADR 0053) both stand " +
+    'unchanged. ' +
+    RUN_INIT_SHIPPED_ANCHOR_BULLET +
+    'Any other stage — `implementing`, `merged`, `reviewed`, `documented`,\n' +
+    '`documented-unreviewed`, or `submitted` — is a run init that already ran: skip `init`.\n' +
+    '**Move dirty design docs** into the scopetree. **Write the DoD** to `dod.md`.\n';
+
+  // positive: every clause holds except the Create-the-ledger bullet for a `shipped` anchor snapshot
+  const shippedAnchorGap = scanContract(
+    fixture({ 'references/run-init.md': RUN_INIT_FULL.replace(RUN_INIT_SHIPPED_ANCHOR_BULLET, '') }),
+    RUN_INIT_FINISHED_STAGE_CONTRACTS,
+  );
+  assert.equal(shippedAnchorGap.length, 4, 'the bullet row and the three rows reading it fire');
+  assert.ok(
+    /anchor snapshot at `shipped`/.test(shippedAnchorGap[0].expectation),
+    'the lone gap names the shipped anchor snapshot',
+  );
+
   // absent file is skipped, matching every other contract table
   assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), ROTATE_ON_SHIPPED_CONTRACTS).length,
+    scanContract(fixture({ 'README.md': '# repo\n' }), RUN_INIT_FINISHED_STAGE_CONTRACTS).length,
     0,
     'absent file is skipped',
   );
@@ -725,7 +798,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     '## 0. Config\n\n' +
     '**A feature whose anchor has shipped takes no append** (ADR 0083, INV-0004). The two shipped ' +
     'signals above are read together and **either one alone refuses** — a run root whose ledger stage ' +
-    "reads `shipped`, and a scope anchor at the store's done status. So the refusal names the remedy " +
+    "reads `shipped` or `closed`, and a scope anchor at the store's done status. So the refusal names the remedy " +
     'instead — plan the follow-up as a **new feature** carrying `**Blocked by feature:** #<anchor>`.\n';
 
   // negative: losing the refusal itself fails on its own
@@ -767,8 +840,10 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // `references/plan-contract.md` carries the fourth row, so the boundary cannot live in the command alone
   const shippedContractBody =
-    '## Append mode\n\n- **A shipped feature takes no append.** Amending it in place pools verified ' +
-    'criteria with unverified ones.\n';
+    '## Append mode\n\n- **A shipped or closed feature takes no append.** Amending it in place pools verified ' +
+    'criteria with unverified ones.\n' +
+    '## Scope anchor\n\nA dependency is **satisfied** only when the anchor it names is closed, or when no ' +
+    'such anchor exists; no ledger stage satisfies it.\n';
   assert.equal(
     scanContract(fixture({ 'references/plan-contract.md': shippedContractBody }), SHIPPED_APPEND_CONTRACTS)
       .length,
@@ -778,7 +853,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   const scGaps = scanContract(
     fixture({
       'references/plan-contract.md': shippedContractBody.replace(
-        'A shipped feature takes no append.',
+        'A shipped or closed feature takes no append.',
         'A shipped feature is extended like any other.',
       ),
     }),
@@ -1394,6 +1469,46 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     CONTAINMENT_REFETCH_CONTRACTS.length,
     'a single-pass section reports every row',
   );
+
+  // positive: the bullet stops but leaves the `dod.md` this run wrote — only the cleanup row fires
+  const cleanupGap = scanContract(
+    fixture({
+      'references/run-init.md': RUN_INIT_FULL.replace(SHIPPED_ANCHOR_CLEANUP, ''),
+    }),
+    RUN_INIT_FINISHED_STAGE_CONTRACTS,
+  );
+  assert.equal(cleanupGap.length, 1, 'only the dod.md cleanup row fires');
+  assert.ok(/removes the `dod\.md` this run/.test(cleanupGap[0].expectation), 'the gap names the dod.md removal');
+
+  // positive: the bullet drops the design-doc commit report — only that row fires
+  const keepsCommitGap = scanContract(
+    fixture({
+      'references/run-init.md': RUN_INIT_FULL.replace(SHIPPED_ANCHOR_KEEPS_COMMIT, ''),
+    }),
+    RUN_INIT_FINISHED_STAGE_CONTRACTS,
+  );
+  assert.equal(keepsCommitGap.length, 1, 'only the design-doc commit row fires');
+  assert.ok(/leaves any design-doc commit/.test(keepsCommitGap[0].expectation), 'the gap names the kept commit');
+
+  // positive: the entry step drops its second-read exception — only the qualifier row fires
+  const exceptionGap = scanContract(
+    fixture({
+      'references/run-init.md': RUN_INIT_FULL.replace(ENTRY_EXCEPTION, 'ahead of every step that writes. '),
+    }),
+    RUN_INIT_FINISHED_STAGE_CONTRACTS,
+  );
+  assert.equal(exceptionGap.length, 1, 'only the entry-qualifier row fires');
+  assert.ok(/second-read stop/.test(exceptionGap[0].expectation), 'the gap names the second-read stop');
+
+  // positive: an `adopt` refusal at `shipped` is not carved out of the fall-through — only the adopt row fires
+  const adoptGap = scanContract(
+    fixture({
+      'references/run-init.md': RUN_INIT_FULL.replace(ADOPT_SHIPPED_REFUSAL, ''),
+    }),
+    RUN_INIT_FINISHED_STAGE_CONTRACTS,
+  );
+  assert.equal(adoptGap.length, 1, 'only the adopt-refusal row fires');
+  assert.ok(/refusal naming stage `shipped`/.test(adoptGap[0].expectation), 'the gap names the adopt refusal');
 
   // absent file is skipped, matching every other contract table
   assert.equal(

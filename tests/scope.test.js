@@ -160,9 +160,10 @@ try {
     'init implementing writes stage implementing directly, never planned',
   );
 
-  // init: every stage short of `shipped` still refuses outright (the real double-init signal) —
-  // `shipped` alone rotates instead (Important review finding B, ADR 0079/0080: `init` owns the
-  // rotation, since `scope.js` is the sole ledger read and write path, ADR 0022).
+  // init: every stage short of `closed` and `planned` refuses outright (the real double-init signal).
+  // `shipped` refuses too (ADR 0106): the run is finished only when wrap-up closes it, so the message
+  // names the two commands that finish it, and nothing is written or rotated. `closed` alone rotates
+  // (below; ADR 0079/0080: `init` owns the rotation, since `scope.js` is the sole ledger read and write path).
   for (const stage of ['implementing', 'merged', 'reviewed', 'documented-unreviewed', 'documented']) {
     const slug = 'refuse-' + stage;
     assert.ok(call(['init', 'feat/' + slug, 'planned'], sliceJson).ok);
@@ -172,72 +173,75 @@ try {
     assert.ok(!reinit.ok && /already exists/.test(reinit.err), `init over stage "${stage}" still refuses`);
   }
 
-  // init: a `shipped` ledger rotates aside to `ledger-shipped-<date>.md` rather than refusing — the
-  // rotation `references/run-init.md` used to instruct the reader to perform by hand, now `init`'s own
-  // job (Important review finding B). The fresh ledger lands at the requested entry stage, the rotated
-  // file carries the old (shipped) content byte for byte, and init announces the rotation on stdout.
   {
-    const slug = 'rotate-shipped';
+    const slug = 'refuse-shipped';
     assert.ok(call(['init', 'feat/' + slug, 'planned'], sliceJson).ok);
-    const rotRoot = path.join(tmp, '.superdev', 'scopes', slug);
-    assert.ok(call(['stage', 'set', 'shipped', '--root', rotRoot]).ok, 'advance to shipped');
-    const shippedText = fs.readFileSync(path.join(rotRoot, 'ledger.md'), 'utf8');
-    const rotated = call(['init', 'feat/' + slug, 'implementing'], sliceJson);
-    assert.ok(rotated.ok, 'init over a shipped ledger rotates rather than refuses: ' + (rotated.err || ''));
-    assert.ok(/rotat/i.test(rotated.out), 'init announces the rotation on stdout: ' + rotated.out);
-    const rotatedFiles = fs
-      .readdirSync(rotRoot)
-      .filter((f) => /^ledger-shipped-.*\.md$/.test(f));
-    assert.strictEqual(rotatedFiles.length, 1, 'exactly one rotated file: ' + rotatedFiles.join(', '));
-    assert.strictEqual(
-      fs.readFileSync(path.join(rotRoot, rotatedFiles[0]), 'utf8'),
-      shippedText,
-      'the rotated file carries the shipped ledger byte for byte',
-    );
-    assert.strictEqual(
-      call(['get', 'stage', '--root', rotRoot]).out,
-      'implementing',
-      'the fresh ledger lands at the requested entry stage',
-    );
-
-    // A second rotation on the same day never overwrites the first, and nothing is deleted.
-    assert.ok(call(['stage', 'set', 'shipped', '--root', rotRoot]).ok, 'advance to shipped again');
-    const secondShippedText = fs.readFileSync(path.join(rotRoot, 'ledger.md'), 'utf8');
-    assert.ok(call(['init', 'feat/' + slug, 'implementing'], sliceJson).ok, 'second rotation passes');
-    const rotatedFiles2 = fs
-      .readdirSync(rotRoot)
-      .filter((f) => /^ledger-shipped-.*\.md$/.test(f));
-    assert.strictEqual(rotatedFiles2.length, 2, 'a second same-day rotation adds a file rather than overwriting: ' + rotatedFiles2.join(', '));
-    assert.strictEqual(
-      fs.readFileSync(path.join(rotRoot, rotatedFiles[0]), 'utf8'),
-      shippedText,
-      'the first rotated file is untouched by the second rotation',
-    );
+    const shRoot = path.join(tmp, '.superdev', 'scopes', slug);
+    assert.ok(call(['stage', 'set', 'shipped', '--root', shRoot]).ok, 'advance to shipped');
+    const shippedText = fs.readFileSync(path.join(shRoot, 'ledger.md'), 'utf8');
+    const refused = call(['init', 'feat/' + slug, 'implementing'], sliceJson);
+    assert.ok(!refused.ok, 'init over a shipped ledger refuses: ' + refused.out);
     assert.ok(
-      rotatedFiles2.some((f) => fs.readFileSync(path.join(rotRoot, f), 'utf8') === secondShippedText),
-      'the second rotation is captured under its own file',
+      /verify-ship/.test(refused.err) && /wrap-up/.test(refused.err),
+      'the refusal names /superdev:verify-ship and /superdev:wrap-up: ' + refused.err,
+    );
+    assert.strictEqual(fs.readFileSync(path.join(shRoot, 'ledger.md'), 'utf8'), shippedText, 'the shipped ledger is untouched');
+    assert.deepStrictEqual(
+      fs.readdirSync(shRoot).filter((f) => /^ledger-.*\.md$/.test(f)),
+      [],
+      'nothing is rotated aside',
     );
   }
 
-  // init: a refused init over a `shipped` ledger leaves it in place and rotates nothing — rotation
+  // `closed` is the terminal stage (ADR 0106): reached from `shipped`, left by no move, printed as one
+  // line by `status`, and rotated aside by `init` like a `shipped` ledger, never over an earlier rotation.
+  {
+    const slug = 'rotate-closed';
+    assert.ok(call(['init', 'feat/' + slug, 'planned'], sliceJson).ok);
+    const cRoot = path.join(tmp, '.superdev', 'scopes', slug);
+    const early = call(['stage', 'set', 'closed', '--root', cRoot]);
+    assert.ok(!early.ok && /does not move to "closed"/.test(early.err), 'planned → closed refused: ' + early.err);
+    assert.ok(call(['stage', 'set', 'submitted', '--root', cRoot]).ok);
+    assert.ok(!call(['stage', 'set', 'closed', '--root', cRoot]).ok, 'submitted → closed refused');
+    assert.ok(call(['stage', 'set', 'shipped', '--root', cRoot]).ok, 'advance to shipped');
+    assert.ok(call(['stage', 'set', 'closed', '--root', cRoot]).ok, 'shipped → closed');
+    for (const back of ['shipped', 'documented', 'implementing']) {
+      const refused = call(['stage', 'set', back, '--root', cRoot]);
+      assert.ok(!refused.ok && /terminal/.test(refused.err), `closed → ${back} refused as terminal: ${refused.err}`);
+    }
+    assert.ok(call(['status']).out.includes(slug + '  (closed)'), 'status prints a closed scope as one line');
+    const closedText = fs.readFileSync(path.join(cRoot, 'ledger.md'), 'utf8');
+    assert.ok(call(['init', 'feat/' + slug, 'implementing'], sliceJson).ok, 'init over a closed ledger rotates');
+    const first = fs.readdirSync(cRoot).filter((f) => /^ledger-closed-.*\.md$/.test(f));
+    assert.strictEqual(first.length, 1, 'one rotated closed ledger: ' + first.join(', '));
+    assert.strictEqual(fs.readFileSync(path.join(cRoot, first[0]), 'utf8'), closedText, 'rotated byte for byte');
+    assert.ok(call(['stage', 'set', 'shipped', '--root', cRoot]).ok);
+    assert.ok(call(['stage', 'set', 'closed', '--root', cRoot]).ok);
+    assert.ok(call(['init', 'feat/' + slug, 'implementing'], sliceJson).ok, 'second rotation passes');
+    const second = fs.readdirSync(cRoot).filter((f) => /^ledger-closed-.*\.md$/.test(f));
+    assert.strictEqual(second.length, 2, 'a second rotation never overwrites the first: ' + second.join(', '));
+  }
+
+  // init: a refused init over a `closed` ledger leaves it in place and rotates nothing — rotation
   // happens only after every validation of stdin passes (Important review finding G), so a malformed
   // payload never destroys the run's ledger.
   {
-    const slug = 'refuse-shipped-malformed';
+    const slug = 'refuse-closed-malformed';
     assert.ok(call(['init', 'feat/' + slug, 'planned'], sliceJson).ok);
     const refuseRoot = path.join(tmp, '.superdev', 'scopes', slug);
     assert.ok(call(['stage', 'set', 'shipped', '--root', refuseRoot]).ok, 'advance to shipped');
+    assert.ok(call(['stage', 'set', 'closed', '--root', refuseRoot]).ok, 'advance to closed');
     const shippedBefore = fs.readFileSync(path.join(refuseRoot, 'ledger.md'), 'utf8');
     const refused = call(['init', 'feat/' + slug, 'implementing'], 'not json');
     assert.ok(!refused.ok, 'init with malformed stdin JSON is refused: ' + refused.out);
     assert.strictEqual(
       fs.readFileSync(path.join(refuseRoot, 'ledger.md'), 'utf8'),
       shippedBefore,
-      'the shipped ledger is untouched by the refused init',
+      'the closed ledger is untouched by the refused init',
     );
     const rotatedOnRefusal = fs
       .readdirSync(refuseRoot)
-      .filter((f) => /^ledger-shipped-.*\.md$/.test(f));
+      .filter((f) => /^ledger-closed-.*\.md$/.test(f));
     assert.strictEqual(rotatedOnRefusal.length, 0, 'no rotation happens on a refused init');
   }
 
@@ -369,7 +373,7 @@ try {
   assert.ok(!r.ok, 'documented is terminal for earlier stages');
   assert.ok(call(['stage', 'set', 'shipped', ...R]).ok, 'documented → shipped (ship\'s own write)');
   r = call(['stage', 'set', 'documented', ...R]);
-  assert.ok(!r.ok, 'shipped is terminal');
+  assert.ok(!r.ok, 'shipped → documented refused (a backwards move, not because shipped is terminal)');
   assert.ok(call(['stage', 'set', 'shipped', ...R]).ok, 'same-value write is a no-op, not a refusal');
 
   // stage: forward moves may skip ranks — the chain prose instructs it (review.md "anything else →
@@ -1680,6 +1684,12 @@ try {
   r = call(['adopt', '--root', shippedRoot], shippedBody);
   assert.ok(!r.ok && /shipped/.test(r.err), 'adopt with a shipped snapshot refused: ' + (r.err || ''));
   assert.ok(!fs.existsSync(path.join(shippedRoot, 'ledger.md')), 'adopt writes nothing on that refusal');
+
+  // adopt: a `closed` snapshot refuses the same way (ADR 0106).
+  const closedRoot = path.join(tmp, 'adopted-elsewhere', 'closed-snapshot');
+  r = call(['adopt', '--root', closedRoot], shippedBody.replace('Stage:** shipped', 'Stage:** closed').replace('shipped-snapshot', 'closed-snapshot'));
+  assert.ok(!r.ok && /closed/.test(r.err), 'adopt with a closed snapshot refused: ' + (r.err || ''));
+  assert.ok(!fs.existsSync(path.join(closedRoot, 'ledger.md')), 'adopt writes nothing on that refusal');
 
   // adopt disregards every heading in the body: a bare `#`-led line and a fenced `#`-led line
   // sitting *inside* the payload, between two slice-table rows, neither end the payload early nor

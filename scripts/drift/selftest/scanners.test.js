@@ -34,6 +34,7 @@ const {
   scanForcingBranchFlag,
   scanNoForceMerge,
   scanDeployRunnerExclusivity,
+  scanShipHumanOnly,
   scanNarrativeCoverage,
   scanReturnToController,
   scanMarketplaceSource,
@@ -3149,7 +3150,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // and `skills/review/SKILL.md` cites it for its own cascade and states its own dirty-tree precedence
   // rather than restating either in its own words (ADR 0078) ---
 
-  const EA_SCOPE_MODE_CLEAN = '## Resolving an empty argument\n\nExactly one candidate is used.\n';
+  const EA_SCOPE_MODE_CLEAN = '## Resolving an empty argument\n\nExactly one candidate is used. `/superdev:submit-pr` names every stage but `shipped` and `closed`.\n';
   const EA_REVIEW_CLEAN =
     "A dirty working tree is reviewed as it always was. Otherwise run `references/scope-mode.md`'s " +
     '`## Resolving an empty argument` cascade.\n\n' +
@@ -3175,7 +3176,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // positive: the section heading is dropped from scope-mode.md
   const eaSectionDropped = scanContract(
     fixture({
-      'references/scope-mode.md': 'No such section here.\n',
+      'references/scope-mode.md': 'No such section here. `/superdev:submit-pr` names every stage but `shipped` and `closed`.\n',
       'skills/review/SKILL.md': EA_REVIEW_CLEAN,
     }),
     EMPTY_ARGUMENT_CONTRACTS,
@@ -3274,7 +3275,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     scanContract(
       fixture({
         'skills/submit-pr/SKILL.md':
-          "The candidate set is every run root whose stage is not `shipped`. Run `## Resolving an empty " +
+          "The candidate set is every run root whose stage is neither `shipped` nor `closed`. Run `## Resolving an empty " +
           "argument`.\n",
       }),
       EMPTY_ARGUMENT_CONTRACTS,
@@ -4161,6 +4162,68 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   const deployRunnerGaps = scanDeployRunnerExclusivity(deployRunnerRoot);
   assert.equal(deployRunnerGaps.length, 1, 'flags a non-ship document claiming to run a target\'s command');
   assert.equal(deployRunnerGaps[0].source, 'skills/document/SKILL.md', 'names the offending document');
+
+  // negative: a denial names no run — verify-ship states it runs no target's command
+  assert.equal(
+    scanDeployRunnerExclusivity(
+      fixture({
+        'skills/verify-ship/SKILL.md': "It runs no deploy target's command, and never runs a target's command.\n",
+      }),
+    ).length,
+    0,
+    'a denied run is not flagged',
+  );
+
+  // The denial admission is global: a denial in any document but ship claims no run, and a non-denial
+  // in verify-ship is flagged exactly as in any other document.
+  assert.equal(
+    scanDeployRunnerExclusivity(
+      fixture({ 'skills/document/SKILL.md': "This command runs no deploy target's command.\n" }),
+    ).length,
+    0,
+    'a denial in a document other than verify-ship is not flagged',
+  );
+  assert.equal(
+    scanDeployRunnerExclusivity(
+      fixture({ 'skills/verify-ship/SKILL.md': "It runs each target's deploy command itself.\n" }),
+    ).length,
+    1,
+    'a non-denial in verify-ship is flagged',
+  );
+
+  // ADR 0106, INV-0093: scanShipHumanOnly covers verify-ship beside ship
+  const humanSkill = (extra) => ['---', 'name: x', 'disable-model-invocation: true', '---', '', extra, ''].join('\n');
+  assert.equal(
+    scanShipHumanOnly(fixture({ 'skills/verify-ship/SKILL.md': '---\nname: x\n---\nBody.\n' })).length,
+    1,
+    'verify-ship without disable-model-invocation is caught',
+  );
+  assert.equal(
+    scanShipHumanOnly(fixture({ 'skills/verify-ship/SKILL.md': humanSkill('Pass --unattended.') })).length,
+    1,
+    'verify-ship naming --unattended is caught',
+  );
+  assert.equal(
+    scanShipHumanOnly(fixture({ 'skills/verify-ship/SKILL.md': humanSkill('Body.') })).length,
+    0,
+    'a human-only verify-ship is clean',
+  );
+
+  assert.equal(
+    scanShipHumanOnly(fixture({ 'skills/wrap-up/SKILL.md': '---\nname: x\n---\nBody.\n' })).length,
+    1,
+    'wrap-up without disable-model-invocation is caught',
+  );
+  assert.equal(
+    scanShipHumanOnly(fixture({ 'skills/wrap-up/SKILL.md': humanSkill('Pass --unattended.') })).length,
+    1,
+    'wrap-up naming --unattended is caught',
+  );
+  assert.equal(
+    scanShipHumanOnly(fixture({ 'skills/wrap-up/SKILL.md': humanSkill('Body.') })).length,
+    0,
+    'a human-only wrap-up is clean',
+  );
 
   // negative: a ship-attributed paraphrase elsewhere is not flagged
   assert.equal(

@@ -3,8 +3,9 @@
 
 // scope-prune: Stop hook. Deterministically removes a completed superdev scope run root
 // (.superdev/scopes/<scope>/ — ledger.md, dod.md, the git-ignored post-mortem trail) once the run root
-// has sat untouched past a staleness TTL, AND the ledger's `**Stage:**` line reads `shipped`, AND its
-// scope branch (<type>/<scope>) is **contained in** the current branch OR gone (ADR 0007, ADR 0053).
+// has sat untouched past a staleness TTL, AND the ledger's `**Stage:**` line reads `closed`, AND its
+// scope branch (<type>/<scope>) is **contained in** the current branch OR gone (ADR 0007, ADR 0053,
+// ADR 0106).
 // Containment is content, not ancestry: `git merge-tree --write-tree` yielding base's own tree. A
 // squash merge rewrites the branch's commits into one new commit, so `git branch --merged` never lists
 // the branch however completely base holds the work. Absence stands beside containment, for the hosts
@@ -18,9 +19,11 @@
 // Same "safe by default" shape throughout: never touches a run whose branch is still there carrying
 // content base does not hold (still active), never touches one whose scopetree or slicetrees are still
 // present (an interrupted cleanup, not a finished run — leave it for a human to look at), and never
-// touches one that isn't recorded as `shipped` — a run mid-chain, at either tier, has its scopetree or
-// slicetrees standing until `/superdev:ship` removes it, so that guard alone already protects it; the
-// stage gate is the second, independent signal (ADR 0013, ADR 0045).
+// touches one that isn't recorded as `closed` — a run mid-chain, at either tier, has its scopetree or
+// slicetrees standing until `/superdev:wrap-up` removes it, so that guard alone already protects it;
+// the stage gate is the second, independent signal (ADR 0013, ADR 0045, ADR 0106). A run root an older
+// version left at `shipped` has both scopetree and slicetrees already gone, yet stays unreaped until an
+// operator runs `/superdev:wrap-up` on it and moves the stage to `closed`.
 // ponytail: TTL is one flat value for every scope; a per-scope override would need its own config
 // knob — add one if varying retention actually comes up, but YAGNI for now.
 // Best-effort and silent: any git error, or no .superdev/scopes/ → no-op.
@@ -146,19 +149,21 @@ function resolveBranch(branchSet, scope, exactBranch) {
 // the stage read — a stat and a file read, both local — gate it. A repository with nothing prunable runs
 // no containment test at all and writes no objects.
 //
-// Only a scope whose ledger stage is `shipped` is prunable: that is the signal `/superdev:ship` writes
-// once the pull request the chain opened has merged, and it is stronger than containment on every tier.
-// An unreadable ledger, or one with no stage line, is never prunable — that is not evidence a run
+// Only a scope whose ledger stage is `closed` is prunable: that is the signal `/superdev:wrap-up`
+// writes once its own gate passes, and it is stronger than containment on every tier. A run root at
+// `shipped` — whether left there by `/superdev:ship`'s current stop-after-deploy behaviour or by an
+// older version that closed the anchor itself — is never reaped; only `/superdev:wrap-up` moves it
+// on. An unreadable ledger, or one with no stage line, is never prunable — that is not evidence a run
 // finished, only evidence nothing can be read. The stage is also what keeps absence narrow: a branch
-// deleted without ever merging looks identical here, and only `/superdev:ship` writes `shipped`, after
-// the pull request merges.
+// deleted without ever merging looks identical here, and only `/superdev:wrap-up` writes `closed`,
+// after its own gate passes.
 function selectPrunable(scopeNames, isContained, mtimeOf, stageOf, allBranchSet, branchOf) {
   const out = [];
   for (const scope of scopeNames) {
     const mtime = mtimeOf(scope);
     if (mtime == null) continue; // unreadable → leave it, don't guess
     if (Date.now() - mtime < TTL_MS) continue; // not stale yet
-    if (stageOf(scope) !== 'shipped') continue; // not shipped (or unreadable/no line) → never prunable
+    if (stageOf(scope) !== 'closed') continue; // not closed (or unreadable/no line) → never prunable
     // Required, not defaulted: a caller that forgets it should get a crash, not a silent fall-through
     // to the shape-scan guess (Important 3 removed that guess as the default; `() => null` opts a
     // caller into it deliberately).

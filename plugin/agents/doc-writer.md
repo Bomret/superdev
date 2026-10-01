@@ -20,7 +20,7 @@ knowledge base describe **what is now true** — adding what's new, correcting w
   step (ADR 0094) — never written to directly.
 - **The staging path** — where a remote backend's pages are staged, handed to you as an **absolute**
   path. Write every staged page under it exactly as given; resolving it yourself against your own cwd
-  lands the pages one level too deep, in a directory `/superdev:ship` deletes.
+  lands the pages one level too deep, in a directory `/superdev:wrap-up` deletes.
 
 Given a git range, start from `git diff --stat BASE..HEAD` and `git log BASE..HEAD` to see what
 actually changed; then check which docs that touches.

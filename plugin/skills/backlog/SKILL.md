@@ -77,18 +77,19 @@ A run root matching no open anchor, whose stage reads short of `shipped`, is a *
 row in the `stranded` bucket (§3), the item §5 ranks most expensive — unless its directory name is the
 scope slug of a feature label this same survey already gave a `blocked` row for; that row already names
 the act, so the run root beneath it earns no second one. A run root matching no open anchor whose stage
-reads `shipped` gets **no row at all** — the anchor already closed, so this is the ordinary end state a
-finished run sits in until `hooks/scope-prune.js` reaps it, not a mismatch to report — unless it meets
-the `deploy resume` definition (§3): a `**PR:**` header, a deploy record naming a target not yet
-`deployed`, and its scope checkout still present. That run root gets a `deploy resume` row whether or not
-an open anchor matches it. The local plan-file store closes the anchor with the pull request, so there
-this is the only way a stalled `auto` deploy shows at all. `/superdev:ship` sets that stage right after
-the merge, before any deploy runs, and closes the anchor only once every target has deployed (or right
-away, under `manual` or `none`) — the two are not one step, so a `shipped` run root can carry
-an open anchor in between. The reciprocal case — an open anchor whose own run root reads `shipped` — is a
+reads `shipped` — its anchor already closed — that meets the
+`deploy resume` definition (§3) gets a `deploy resume` row whether or not an open anchor matches it; one
+that does not goes to `awaiting wrap-up`. A run root reading `closed` gets no row, matched or not: it
+is the ordinary end state a finished run sits in until `hooks/scope-prune.js` reaps it. The local plan-file
+store closes the anchor with the pull request, so there a `deploy resume` row is the only way a stalled
+`auto` deploy shows at all, and every other `shipped` run root reads over a closed anchor and goes to
+`awaiting wrap-up`: wrap-up writes nothing to that store, while verify-ship refuses there.
+`/superdev:ship` sets the `shipped` stage right after the merge, before any deploy runs, and stops after the
+deploy; `/superdev:wrap-up` closes the anchor. A `shipped` run root therefore carries an open anchor by
+design. That case — an open anchor whose own run root reads `shipped` — is a
 row too; §3 buckets it.
 
-**No open anchor, no triage record, no stranded run root, no `deploy resume` run root, and no untriaged
+**No open anchor, no triage record, no stranded run root, no `deploy resume` run root, no `shipped` run root awaiting wrap-up, and no untriaged
 item** → say the backlog is empty, in one line, and stop — unless the active store document carries no
 `## Untriaged item` section at all. That is the configuration gap named above, not a known-empty
 untriaged set: the gap line above the table (§3) prints instead, and this exit never fires on that
@@ -109,17 +110,30 @@ issue query, say. A record already returned by the anchor or triage listing is n
 
 | Bucket | What is in it | What it needs |
 |---|---|---|
-| `deploy resume` | its run root, matched to an open anchor or not, reads `shipped`, carries a `**PR:**` header, and its deploy record (`scope.js deploy get`) names a target not yet `deployed` while its scope checkout (`<run-root>/scopetree`) is still present — the same definition `/superdev:ship`'s own empty-argument candidate set uses (`skills/ship/SKILL.md` §1), an `auto` deploy a prior ship stopped mid-way | `/superdev:ship <scope-slug>` |
-| `blocked` | the anchor carries the store's blocked signal, an open one among the slices its `## Scope anchor` listing returns beneath it does, its feature label fails the scope-slug rule, its feature label's candidates are `Ambiguous` per the active `docs/agents/issue-tracker.md`'s own `## Scope anchor` section, or its matched run root's stage reads `shipped` while the anchor is still open and it is not already bucketed `deploy resume` above — close the anchor | a human, now |
+| `deploy resume` | its run root, matched to an open anchor or not, reads `shipped`, carries a `**PR:**` header whose deploy posture at the merge commit is `auto`, and its deploy record (`scope.js deploy get`) leaves a listed target not recorded `deployed`, whatever the scope checkout holds — an `auto` deploy a prior ship stopped mid-way | `/superdev:ship <scope-slug>` |
+| `blocked` | the anchor carries the store's blocked signal, an open one among the slices its `## Scope anchor` listing returns beneath it does, its feature label fails the scope-slug rule, its feature label's candidates are `Ambiguous` per the active `docs/agents/issue-tracker.md`'s own `## Scope anchor` section, or its anchor's Definition of Done could not be read | a human, now |
 | `stranded` | a run root whose stage is short of `shipped` and matches no open anchor | a human, now — resume the run if its anchor still exists, otherwise delete the branch, scopetree, and run root |
 | `awaiting merge` | its matched run root's stage reads `submitted` and its pull request is open on the host, or none is recorded to check | the operator's merge on the host, then `/superdev:ship <scope-slug>` |
 | `merge unrecorded` | its matched run root's stage reads `submitted` and its pull request shows merged on the host by hand | `/superdev:ship <scope-slug>` — record the merge |
+| `awaiting verification` | an open anchor over a run root reading `shipped`, not already bucketed `deploy resume`, while a Definition-of-Done line is neither ticked nor `accepted:` (judged by the note's verdict, not the box), the anchor disagrees with `dod.md` on a line, or a listed `manual` target is not recorded `deployed` | `/superdev:verify-ship <scope-slug>` |
+| `awaiting wrap-up` | an open anchor over a run root reading `shipped`, not already bucketed `deploy resume`, with every line settled and every listed `manual` target recorded `deployed` (a `dod.md` line unpaired on the anchor included, its act being the hand-sync and then `/superdev:wrap-up <scope-slug>`); or a `shipped` run root whose anchor is already closed, not already bucketed `deploy resume` | `/superdev:wrap-up <scope-slug>` |
 | `in flight` | its scope has a run root whose stage is short of `shipped` and not `planned`, and not already bucketed `awaiting merge`/`merge unrecorded` above | the chain command that stage has not reached |
 | `waiting` | an anchor dependency it records is unsatisfied | the anchor it waits on |
 | `needs planning` | a triage record, or an anchor that is neither itself a slice nor has slices beneath it | `/superdev:plan` |
 | `unreleased` | an anchor carrying no release signal (`docs/agents/issue-tracker.md`'s `## Release` section) | a release decision |
 | `ready` | every remaining **anchor**: released, dependencies satisfied, and no run root or a matched run root at stage `planned` — `/superdev:plan` already cut the branch and scopetree, but no slice has run (triage #509) | `/superdev:implement <feature-label>` |
 | `untriaged` | an open store record carrying neither a feature label nor the store's triage signal | read it — a human decides what to do next |
+
+Read a `shipped` run root's Definition-of-Done lines from `<run-root>/dod.md` (INV-0016), which is
+authoritative because a store's tick write is best-effort (the note's verdict, not the box, decides a line's
+state). A `dod.md` that is missing or unreadable → judge from the anchor alone, read through the store
+document's anchor read. An unreadable anchor → the item is a `blocked` row naming what could not be read.
+With `dod.md` read, also read the anchor's lines on a remote store and pair them per
+`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## Pairing dod.md with the anchor`: a paired line whose
+verdict differs from `dod.md` routes the item to `awaiting verification`, whose act reconciles it. A `dod.md` line with no text-matching line on the anchor routes it to `awaiting wrap-up` (verify-ship cannot reconcile it), the act naming the hand-sync of the anchor's criterion text and then `/superdev:wrap-up <scope-slug>`. Read its listed deploy targets, their
+record, and the posture per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Reading the posture at
+the merge commit`. A `shipped` run root whose anchor is already closed is
+`awaiting wrap-up` without either read. A `closed` run root gets no row.
 
 **A run root at stage `submitted` needs one more read before it lands in either new bucket above:
 whether its pull request is open or already merged.** Read the ledger's `**PR:** #<n>` with
@@ -133,7 +147,7 @@ this row goes to `awaiting merge` regardless of what the fallback returns, carry
 its note rather than guessing which one it is.
 
 **Every open anchor, every triage record and untriaged item the listings returned, and every
-stranded or `deploy resume` run root appears in the table.** An item you cannot classify is a `blocked`
+stranded, `deploy resume`, or `shipped` run root appears in the table.** An item you cannot classify is a `blocked`
 row naming what you could not read about it, never an item left out — a missing row reads as work that does not exist.
 
 **The `untriaged` bucket alone is capped, at 5, oldest first.** A store with real reporters holds more
@@ -192,7 +206,9 @@ End with **one** line: the single thing you would do next, and why in half a sen
 scopetree, and a lock, and every day it sits there the base moves further from it. A `deploy resume` row
 outranks every other row, a `blocked` one included: base already carries code some targets run and others
 do not, and one `/superdev:ship` finishes it. Short of that, a `blocked` row outranks the rest, because
-nothing else in the table moves until a human clears it. An `untriaged` item ranks last, for
+nothing else in the table moves until a human clears it. The two `awaiting` rows come next, after
+`blocked` and before `in flight`: a merged scope one command from closed is finished work, and finishing
+beats starting. An `untriaged` item ranks last, for
 the opposite reason a stranded run root ranks first: it is the furthest thing from finished.
 
 Recommend one move, not a ranked list. The table is already the ranked list.

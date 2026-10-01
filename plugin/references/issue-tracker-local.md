@@ -304,6 +304,7 @@ Edit the anchor's own `status:` line — the same field and vocabulary as a slic
 either the epic file or, on a single-slice plan, the lone slice file itself (see *Scope anchor* above).
 **Run start** — set it `in-progress`. **`/superdev:submit-pr`** — commit it `done` on the scope branch
 before it pushes, so it reaches base with the merge.
+`/superdev:wrap-up` writes nothing here: the close already rode the pull request, so it only takes the run down.
 On a single-slice plan there is no second file: the anchor signal rides the lone slice's own `status:`
 line, so this transition and the slice's own status update are the same edit.
 

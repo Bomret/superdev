@@ -587,8 +587,13 @@ const EMPTY_ARGUMENT_CONTRACTS = [
   ],
   [
     path.join('skills', 'submit-pr', 'SKILL.md'),
-    /every run root whose stage is not `shipped`/,
-    'name its own candidate set — every run root whose stage is not `shipped` — ahead of the cascade citation',
+    /every run root whose stage is neither `shipped` nor `closed`/,
+    'name its own candidate set — every run root whose stage is neither `shipped` nor `closed` — ahead of the cascade citation',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /`\/superdev:submit-pr`\s+names every stage but `shipped` and `closed`/,
+    'name `/superdev:submit-pr`\'s qualifying stages as every stage but `shipped` and `closed` in the run-root enumeration',
   ],
   [
     path.join('skills', 'implement', 'SKILL.md'),
@@ -2455,7 +2460,12 @@ const SHIPPED_APPEND_CONTRACTS = [
     path.join('skills', 'plan', 'SKILL.md'),
     /either one alone refuses[\s\S]{0,400}?done status/,
     'name both shipped signals and state that either one alone refuses — a run root whose ledger stage ' +
-      "reads `shipped`, and a scope anchor at the store's done status",
+      "reads `shipped` or `closed`, and a scope anchor at the store's done status",
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /reads `shipped` or `closed`/,
+    'refuse on a ledger stage reading `closed` as it does on `shipped` (INV-0004)',
   ],
   [
     path.join('skills', 'plan', 'SKILL.md'),
@@ -2464,9 +2474,17 @@ const SHIPPED_APPEND_CONTRACTS = [
   ],
   [
     path.join('references', 'plan-contract.md'),
-    /shipped feature takes no append/,
-    'state the same boundary in its *Append mode* section, so the contract and the command that ' +
-      'performs it cannot drift apart',
+    /shipped or closed feature takes no append/,
+    'state the same boundary in its *Append mode* section, for a shipped or closed feature, so the ' +
+      'contract and the command that performs it cannot drift apart',
+  ],
+  // ADR 0106 (amending ADR 0040): an anchor dependency is satisfied by the named anchor's closure or its
+  // absence, and by no ledger stage.
+  [
+    path.join('references', 'plan-contract.md'),
+    /A dependency is \*\*satisfied\*\* only when the anchor it names is closed, or when no such anchor exists; no ledger stage satisfies it/,
+    'state that an anchor dependency is satisfied only by the named anchor\'s closure or absence, with ' +
+      'no ledger-stage branch (ADR 0106)',
   ],
 ];
 
@@ -2558,17 +2576,74 @@ const ANCHOR_CANDIDATE_ALL_STATES_CONTRACTS = [
 
 // ADR 0007 + ADR 0083: `scope-prune` keeps a run root, and its shipped `ledger.md`, for seven days past
 // merge, so a new feature reusing that retired label can land while the finished run's ledger is
-// still on disk. A `shipped` ledger belongs to a finished run and gets rotated aside, never resumed, and
-// never deleted — `scope-prune` still reaps the whole run root on its own terms. `init` performs the
+// still on disk. A `closed` ledger belongs to a finished run and gets rotated aside, never resumed, and
+// never deleted; a `shipped` one waits for wrap-up, so run init stops there and creates nothing (ADR 0106) — `scope-prune` still reaps the whole run root on its own terms. `init` performs the
 // rotation itself (Important review finding B, ADR 0079/0080: `scope.js` is the sole ledger read and
 // write path, ADR 0022), so `references/run-init.md` describes what `init` does rather than instructing a
 // reader to rename the file by hand first. The rotation must also never clobber an existing
-// `ledger-shipped-<date>.md`, so a scope that ships twice in one calendar day keeps both trails.
-const ROTATE_ON_SHIPPED_CONTRACTS = [
+// `ledger-closed-<date>.md`, so a scope that closes twice in one calendar day keeps both trails.
+const RUN_INIT_FINISHED_STAGE_CONTRACTS = [
   [
     path.join('references', 'run-init.md'),
-    /`init`\s+itself\s+rotates\s+the\s+existing\s+ledger\s+aside\s+to\s+`ledger-shipped-<date>\.md`/,
-    'state that `init` itself rotates a `shipped` ledger aside to `ledger-shipped-<date>.md` before writing the fresh one',
+    /`init`\s+itself\s+rotates\s+the\s+existing\s+ledger\s+aside\s+to\s+`ledger-closed-<date>\.md`/,
+    'state that `init` itself rotates a `closed` ledger aside to `ledger-closed-<date>.md` before writing the fresh one',
+  ],
+  [
+    path.join('references', 'run-init.md'),
+    /\*\*`shipped`\*\*[\s\S]{0,200}?stop\s+and\s+create\s+nothing[\s\S]{0,200}?\/superdev:verify-ship[\s\S]{0,80}?\/superdev:wrap-up/,
+    'state that a `shipped` ledger stops run init with nothing created, naming `/superdev:verify-ship` ' +
+      'and `/superdev:wrap-up` as what finishes that run first',
+  ],
+  [
+    path.join('references', 'run-init.md'),
+    /`\*\*Stage:\*\*` line reads `shipped`[\s\S]{0,300}?stop[\s\S]{0,80}?creat\w+\s+nothing[\s\S]{0,300}?\/superdev:verify-ship[\s\S]{0,80}?\/superdev:wrap-up/,
+    'state that a snapshot at `shipped` stops run init with no `dod.md` and no ledger created, naming ' +
+      '`/superdev:verify-ship` and `/superdev:wrap-up`, as the local `shipped` ledger does',
+  ],
+  [
+    path.join('references', 'run-init.md'),
+    /\*\*`shipped`\*\*[\s\S]*?stop\s+and\s+create\s+nothing[\s\S]*?\*\*Move dirty design docs/,
+    'place the local `shipped` stop in the entry step, ahead of **Move dirty design docs** and every other ' +
+      'step that writes',
+  ],
+  [
+    path.join('references', 'run-init.md'),
+    /`\*\*Stage:\*\*` line reads `shipped`[\s\S]*?\*\*Move dirty design docs[\s\S]*?\*\*Write the DoD\*\*/,
+    'place the snapshot `shipped` stop in the entry step, ahead of **Move dirty design docs** and ' +
+      '**Write the DoD**',
+  ],
+  [
+    path.join('references', 'run-init.md'),
+    /\*\*Its `\*\*Stage:\*\*` line reads `shipped`\*\*[\s\S]{0,300}?stop\s+and\s+create\s+no\s+ledger[\s\S]{0,300}?\/superdev:verify-ship[\s\S]{0,80}?\/superdev:wrap-up/,
+    'state in **Create the ledger** that an anchor snapshot at `shipped` stops the ledger write and the ' +
+      'snapshot publish, naming `/superdev:verify-ship` and `/superdev:wrap-up`, so the second anchor read ' +
+      'cannot fall through to `init`',
+  ],
+  [
+    path.join('references', 'run-init.md'),
+    /\*\*Its `\*\*Stage:\*\*` line reads `shipped`\*\*[\s\S]{0,900}?removes?\s+the\s+`dod\.md`\s+this\s+run\s+just\s+wrote[\s\S]{0,200}?run\s+root[\s\S]{0,80}?\bempty/,
+    'state in **Create the ledger** that the anchor-snapshot `shipped` stop removes the `dod.md` this run ' +
+      'just wrote, and the run root itself when that leaves it empty, so no run root holds a `dod.md` ' +
+      'without a ledger',
+  ],
+  [
+    path.join('references', 'run-init.md'),
+    /\*\*Its `\*\*Stage:\*\*` line reads `shipped`\*\*[\s\S]{0,1200}?leaves\s+any\s+design-doc\s+commit[\s\S]{0,200}?\bsha\b[\s\S]{0,80}?moved\s+paths/,
+    'state in **Create the ledger** that the anchor-snapshot `shipped` stop leaves any design-doc commit ' +
+      'the move step already made, and reports that commit\'s sha and the moved paths so the operator can ' +
+      'revert or keep it',
+  ],
+  [
+    path.join('references', 'run-init.md'),
+    /ahead of every step that writes[\s\S]{0,400}?\bexcept(?:ion)?\b[\s\S]{0,120}?second-read\s+stop/,
+    'qualify the entry step\'s promise that nothing is written ahead of a `shipped` stop: the second-read ' +
+      'stop in **Create the ledger** is the one exception',
+  ],
+  [
+    path.join('references', 'run-init.md'),
+    /\*\*Adopt refuses\*\*[\s\S]{0,700}?refusal\s+naming\s+stage\s+`shipped`[\s\S]{0,300}?never\s+falls\s+through\s+to\s+`init`/,
+    'state that an `adopt` refusal naming stage `shipped` stops as the `shipped` bullet does and never ' +
+      'falls through to `init`',
   ],
   [
     path.join('references', 'run-init.md'),
@@ -2583,8 +2658,8 @@ const ROTATE_ON_SHIPPED_CONTRACTS = [
   ],
   [
     path.join('references', 'run-init.md'),
-    /never overwrites an existing\s*`ledger-shipped-<date>\.md`/,
-    'state that a rotation never overwrites an existing `ledger-shipped-<date>.md`, so a same-day ' +
+    /never overwrites an existing\s*`ledger-closed-<date>\.md`/,
+    'state that a rotation never overwrites an existing `ledger-closed-<date>.md`, so a same-day ' +
       'second rotation of one scope cannot clobber the first',
   ],
 ];
@@ -3296,12 +3371,12 @@ const ADOPT_RUN_STATE_CONTRACTS = [
   ],
   [
     path.join('references', 'run-init.md'),
-    /No `## Run state` section, or its `\*\*Stage:\*\*` line reads `shipped`\*\*[\s\S]{0,60}?not adopted[\s\S]{0,150}?fall through to `init` below/,
-    'treat a `shipped` stage or a section-less anchor as not adopted, falling through to `init`',
+    /No `## Run state` section, or its `\*\*Stage:\*\*` line reads `closed`\*\*[\s\S]{0,60}?not adopted[\s\S]{0,150}?fall through to `init` below/,
+    'treat a `closed` stage or a section-less anchor as not adopted, falling through to `init`',
   ],
   [
     path.join('references', 'run-init.md'),
-    /A `## Run state` section whose stage is not `shipped`\*\* → \*\*adopt\*\*\. Write `<run-root>\/dod\.md` from[\s\S]{0,400}?scope\.js" adopt --root <run-root>/,
+    /A `## Run state` section whose stage is neither `shipped` nor `closed`\*\* → \*\*adopt\*\*\. Write `<run-root>\/dod\.md` from[\s\S]{0,400}?scope\.js" adopt --root <run-root>/,
     'adopt the snapshot — write `<run-root>/dod.md` from the anchor body before piping it to `scope.js ' +
       'adopt`',
   ],
@@ -3339,7 +3414,7 @@ const ADOPT_RUN_STATE_CONTRACTS = [
 
 // The `resumed-scopetree-trigger` contract (ADR 0042) pins a row: `references/scope-mode.md`'s scopetree
 // step in the `resumed` branch bullet must create or reattach the scopetree whenever it is absent for
-// *either* cause — `/superdev:ship` already removed it, or this checkout never held it at
+// *either* cause — `/superdev:wrap-up` already removed it, or this checkout never held it at
 // all (a resumed run adopted from the anchor on a fresh clone, the scenario `adopt-run-state` makes
 // reachable). A fix cycle found the sentence named only the first cause: `implement-lite.md`'s Resume
 // step works "in the scopetree" unconditionally, assuming it exists, and nothing created it on a
@@ -3355,7 +3430,7 @@ const RESUMED_SCOPETREE_TRIGGER_CONTRACTS = [
     path.join('references', 'scope-mode.md'),
     /[Cc]reate\s+or\s+reattach\s+the\s+scopetree,\s+at\s+both\s+tiers,\s+whenever\s+it\s+is\s+absent[\s\S]{0,60}?already removed it, or because this checkout never held it[\s\S]{0,60}?resumed run adopted from the anchor on a fresh clone/,
     'create or reattach the scopetree, at both tiers, whenever it is absent, whether ' +
-      '`/superdev:ship` removed it or this checkout never held it (a resumed run adopted from the anchor ' +
+      '`/superdev:wrap-up` removed it or this checkout never held it (a resumed run adopted from the anchor ' +
       'on a fresh clone)',
   ],
 ];
@@ -4401,6 +4476,208 @@ const VERIFICATION_CEILING_CONTRACTS = [
     /[Vv]erif\w+ a line observes[\s\S]{0,40}changes no system outside the repository/,
     "state that verifying a line in Document's case observes and changes no system outside the repository (ADR 0084, INV-0006)",
   ],
+  [
+    path.join('references', 'dod-ticks.md'),
+    /\*\*Verify-ship's case:\*\*[\s\S]{0,2500}?[Vv]erif\w+ a line observes[\s\S]{0,40}changes no system outside the repository/,
+    "carry Verify-ship's case, stating that verifying a line observes and changes no system outside the repository (ADR 0106, INV-0006)",
+  ],
+  [
+    path.join('skills', 'verify-ship', 'SKILL.md'),
+    /[Vv]erif\w+ a line observes[\s\S]{0,40}changes no system outside the repository[\s\S]{0,200}never runs a deploy target's command/,
+    "state that verifying a line observes and changes no system outside the repository, and that it never runs a deploy target's command (ADR 0106, INV-0006, INV-0098)",
+  ],
+];
+
+// ADR 0106, INV-0099: `/superdev:wrap-up` checks a shipped scope is fully settled, then closes its anchor
+// and takes the run down. Rows pin, on `skills/wrap-up/SKILL.md`, the gate naming every reason at once
+// (unmerged pull request, unsettled criterion, undeployed target), the ask-once rule for a standing
+// `**Unresolved:**` entry, and the close-before-cleanup order, plus verify-ship's hand-off to wrap-up.
+const WRAP_UP_CONTRACTS = [
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /[Cc]ollect every reason that holds[\s\S]{0,200}name all of them in one refusal/,
+    'collect every reason the gate holds and name all of them in one refusal',
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /[Uu]nknown counts as not merged/,
+    'count an unknown merge state as not merged',
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /neither ticked nor `accepted:`[\s\S]{0,300}\/superdev:verify-ship <scope>/,
+    'refuse a Definition-of-Done line neither ticked nor `accepted:`, naming `/superdev:verify-ship <scope>`',
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /not `deployed`[\s\S]{0,300}`\/superdev:verify-ship`[\s\S]{0,120}`\/superdev:ship`/,
+    'refuse a deploy target not `deployed`, naming `/superdev:verify-ship` for `manual` and `/superdev:ship` for `auto`',
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /[Aa]sk once per entry/,
+    'ask once per standing `**Unresolved:**` entry: close with it standing, or keep open',
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /[Aa]ny failed store call stops the command/,
+    'stop on any failed store call, leaving the stage and the scaffolding unchanged',
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /[Cc]lean up only after a successful close/,
+    'clean up only after a successful close',
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /[Nn]ever delete the scope branch/,
+    'never delete the scope branch',
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /[Kk]eep `\.superdev\/kb-pending\/<scope>\/`/,
+    'keep `.superdev/kb-pending/<scope>/`',
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /[Cc]lean up[\s\S]{0,200}from the invoking checkout/,
+    'run the cleanup from the invoking checkout',
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /[Cc]ount every listed target not recorded `deployed` as a reason/,
+    'count every listed target not recorded `deployed` as a gate reason (an `absent` record included, per `scope-mode.md`\'s `## Reading the posture at the merge commit`), so a session that ended between ship\'s stage write and its first deploy record cannot close an undeployed feature',
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /local plan-file store\*\* → write nothing to the store[\s\S]{0,160}close already rode the pull request/,
+    'write nothing to the local plan-file store, because the anchor\'s close rode the pull request, and still run the gate and the cleanup (operator decision, ADR 0106)',
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /[Jj]udge settledness from `<run-root>\/dod\.md`[\s\S]{0,300}only when `dod\.md` is missing/,
+    'judge Definition-of-Done settledness from `dod.md`, reading the anchor only when `dod.md` is missing',
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /verdict differs from `dod\.md`[\s\S]{0,300}`\/superdev:verify-ship <scope>` as the reconciler/,
+    'refuse a remote anchor whose verdict on a line differs from a settled `dod.md`, naming `/superdev:verify-ship <scope>` as the reconciler',
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /already closed stay closed[\s\S]{0,200}a rerun converges/,
+    'state that slice records closed before a failed anchor close stay closed and a rerun converges',
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /leave the stage at `shipped`, so a rerun retries the cleanup/,
+    'leave the stage at `shipped` when the scopetree removal is refused, so a rerun retries the cleanup',
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /local plan-file store only[\s\S]{0,300}`ceiling:` line[\s\S]{0,200}accept as unverifiable[\s\S]{0,500}`scope\.js dod-line`[\s\S]{0,80}`accepted`/,
+    'on the local plan-file store only, ask once per unsettled `ceiling:` line whether to accept it as unverifiable, writing `accepted:` to `dod.md` through `scope.js dod-line`',
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /the one acceptance point wrap-up has[\s\S]{0,200}no\s+verify-ship/,
+    'state that the local-store ceiling ask is the one acceptance point wrap-up has, because that store has no verify-ship',
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /local plan-file store only, a `manual` target gets one ask\.\*\*[\s\S]{0,700}`deploy set <target> deployed`[\s\S]{0,300}names no command/,
+    'on the local plan-file store only, ask once per listed `manual` target not recorded `deployed`, recording a yes with `deploy set <target> deployed` and leaving a no as a reason that names no command',
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /asks\s+run\s+once\s+no\s+reason\s+other\s+than\s+the\s+local-store\s+asks\s+holds[\s\S]{0,300}pending\s+reason/,
+    'run the local-store asks once no reason other than the local-store asks holds, listing them as pending reasons otherwise',
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /[Aa]nswers\s+the\s+operator\s+already\s+gave\s+stand\s+across\s+a\s+later\s+refusal/,
+    'keep the operator\'s earlier local-store answers across a later refusal',
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /no\s+text-matching\s+line[\s\S]{0,300}holds\s+this\s+reason[\s\S]{0,300}hand-sync[\s\S]{0,200}rerun\s+`\/superdev:wrap-up`/,
+    'count a `dod.md` line unpaired on the anchor as a gate reason, naming the hand-sync and the wrap-up rerun',
+  ],
+  [
+    path.join('skills', 'verify-ship', 'SKILL.md'),
+    /hand-sync,\s+then\s+`\/superdev:wrap-up\s+<scope>`/,
+    'when only an unpaired line is open, print `/superdev:wrap-up <scope>` only after the hand-sync',
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /dod-ticks\.md`'s `## Pairing\s+dod\.md\s+with\s+the\s+anchor`/,
+    'cite `dod-ticks.md`\'s `## Pairing dod.md with the anchor` for the pairing rule rather than restating it',
+  ],
+  [
+    path.join('skills', 'verify-ship', 'SKILL.md'),
+    /dod-ticks\.md`'s `## Pairing\s+dod\.md\s+with\s+the\s+anchor`/,
+    'cite `dod-ticks.md`\'s `## Pairing dod.md with the anchor` for the pairing rule rather than restating it',
+  ],
+  [
+    path.join('skills', 'backlog', 'SKILL.md'),
+    /dod-ticks\.md`'s `## Pairing\s+dod\.md\s+with\s+the\s+anchor`/,
+    'cite `dod-ticks.md`\'s `## Pairing dod.md with the anchor` for the pairing rule rather than restating it',
+  ],
+  [
+    path.join('references', 'dod-ticks.md'),
+    /\*\*pairs\*\* with a `dod\.md` line by criterion text/,
+    'state once that an anchor line pairs with a `dod.md` line by criterion text, the match `scope.js dod-line` uses',
+  ],
+  [
+    path.join('references', 'dod-ticks.md'),
+    /no text-matching line on the anchor\*\* is unpaired\.\s+It is never counted as a\s+verdict disagreement and is never retried by the reconcile[\s\S]{0,300}hand-sync/,
+    'state once that a `dod.md` line unpaired on the anchor is never a verdict disagreement, is never retried by the reconcile, and needs a hand-sync',
+  ],
+  [
+    path.join('references', 'dod-ticks.md'),
+    /\*\*Wrap-up's case:\*\*[\s\S]{0,200}local plan-file store only[\s\S]{0,400}attended only \(ADR 0095\)/,
+    'carry Wrap-up\'s case: on the local plan-file store only, wrap-up writes an attended operator\'s `accepted:` into `dod.md` through `scope.js dod-line`',
+  ],
+  [
+    path.join('skills', 'backlog', 'SKILL.md'),
+    /no text-matching line on the anchor[\s\S]{0,200}`awaiting wrap-up`[\s\S]{0,200}hand-sync[\s\S]{0,100}`\/superdev:wrap-up <scope-slug>`/,
+    'route a `dod.md` line unpaired on the anchor to `awaiting wrap-up`, the act naming the hand-sync and then `/superdev:wrap-up <scope-slug>`',
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /[Nn]ever force-remove/,
+    'never force-remove a scopetree holding untracked, non-ignored files',
+  ],
+  [
+    path.join('skills', 'verify-ship', 'SKILL.md'),
+    /local plan-file store\*\* → refuse[\s\S]{0,400}`\/superdev:wrap-up <scope>`/,
+    'point the local plan-file store refusal at `/superdev:wrap-up <scope>`',
+  ],
+  [
+    path.join('skills', 'verify-ship', 'SKILL.md'),
+    /\*\*Reconcile first\.\*\*[\s\S]{0,700}rewrite the anchor line from `dod\.md`/,
+    'reconcile first: rewrite every anchor line whose verdict differs from `dod.md`, from `dod.md`',
+  ],
+  [
+    path.join('skills', 'verify-ship', 'SKILL.md'),
+    /`manual`, and a listed target recorded `pending` or carrying no record/,
+    'treat a `manual` target with no deploy record like a `pending` one',
+  ],
+  [
+    path.join('skills', 'verify-ship', 'SKILL.md'),
+    /[Rr]ecords from an earlier yes stand[\s\S]{0,160}does not ask about them again/,
+    'state that earlier "yes, deployed" records stand when a later target is answered no',
+  ],
+  [
+    path.join('skills', 'verify-ship', 'SKILL.md'),
+    /no `\*\*PR:\*\*` header[\s\S]{0,400}posture `none`/,
+    'state what a legacy `shipped` ledger with no `**PR:**` header does: it predates the posture, so it reads as posture `none`',
+  ],
+  [
+    path.join('skills', 'verify-ship', 'SKILL.md'),
+    /print `\/superdev:wrap-up <scope>`/,
+    'print `/superdev:wrap-up <scope>` as the next command once every line is settled',
+  ],
 ];
 
 // ADR 0091's closing half: `/superdev:submit-pr` ticks nothing — the suite-criterion logic ADR 0084 once
@@ -4410,8 +4687,8 @@ const VERIFICATION_CEILING_CONTRACTS = [
 // `ceiling:` note into the pull-request body, as a post-merge checklist. The rows below pin
 // `skills/submit-pr/SKILL.md`'s "writes no tick" statement and the post-merge-checklist paragraph (the
 // heading, the source note, and the no-heading-when-none rule). Closing the scope anchor on a remote
-// store is `/superdev:ship`'s own post-merge job (ADR 0096) — its own two rows below pin that it writes
-// no tick either, and that it still closes the anchor, whatever tick logic left the run root.
+// store is `/superdev:wrap-up`'s job since ADR 0106 — ship's own two rows below pin that it writes no
+// tick either, and that it closes no anchor.
 const SHIP_TICKS_NOTHING_CONTRACTS = [
   [
     path.join('skills', 'submit-pr', 'SKILL.md'),
@@ -4430,8 +4707,8 @@ const SHIP_TICKS_NOTHING_CONTRACTS = [
   ],
   [
     path.join('skills', 'ship', 'SKILL.md'),
-    /[Cc]lose the scope anchor on a remote store/,
-    'still close the scope anchor on a remote store, whatever tick logic left the run root',
+    /closes no anchor, and removes no checkout, slice checkout, or\s*\n?\s*lock/,
+    'close no anchor and remove no checkout, slice checkout, or lock, leaving both to `/superdev:wrap-up` (ADR 0106, INV-0099)',
   ],
 ];
 
@@ -4452,6 +4729,11 @@ const ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS = [
     path.join('references', 'issue-tracker-local.md'),
     /commit it `done` on the scope branch[\s\S]{0,60}before\s*\n?\s*it pushes[\s\S]{0,60}reaches base with the merge/,
     "state that `/superdev:submit-pr` commits the anchor `done` on the scope branch before it pushes, so it reaches base with the merge",
+  ],
+  [
+    path.join('references', 'issue-tracker-local.md'),
+    /`\/superdev:wrap-up` writes nothing here[\s\S]{0,120}takes the run down/,
+    "state that `/superdev:wrap-up` writes nothing to the local store and only takes the run down",
   ],
 ];
 
@@ -4938,10 +5220,16 @@ const SHIP_LEGACY_SHIPPED_CONTRACTS = [
   ],
   [
     path.join('skills', 'ship', 'SKILL.md'),
-    /carries a `\*\*PR:\*\*` header[\s\S]{0,400}?report "already shipped" and stop/,
-    'report "already shipped" and stop, with nothing to merge and nothing to refuse, on a `shipped` ' +
-      'ledger that carries a `**PR:**` header and whose deploy record shows nothing left undeployed ' +
-      '(#720)',
+    /carries a `\*\*PR:\*\*` header[\s\S]{0,1200}?report "already\s*\n?\s*shipped", print the \*\*Hand off\*\* line of §5, and stop, whether or not the scope checkout is present/,
+    'report "already shipped", print §5\'s hand-off line, and stop, with nothing to merge and nothing to refuse, on a `shipped` ' +
+      'ledger that carries a `**PR:**` header and whose deploy record shows nothing left undeployed, ' +
+      'whether or not the scope checkout is present (#720, ADR 0106)',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /\*\*The posture is not\s+`auto`\*\*\s*→\s*this run finished too: report "already shipped", print the \*\*Hand off\*\* line of §5,\s+and stop/,
+    'report "already shipped", print §5\'s hand-off line, and stop when a `shipped` run\'s posture is not `auto`, ' +
+      'so the exit names the next command instead of ending bare',
   ],
   [
     path.join('skills', 'ship', 'SKILL.md'),
@@ -4959,6 +5247,47 @@ const SHIP_LEGACY_SHIPPED_CONTRACTS = [
     /`shipped` together with the ledger's own `\*\*PR:\*\*` header is\s*\n?\s*what stops/,
     'state that `shipped` together with the ledger\'s own `**PR:**` header, not `shipped` alone, is what ' +
       'stops `/superdev:ship` from merging a second time',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /The one exception is `\/superdev:ship` itself, reading any `shipped` ledger/,
+    'except `/superdev:ship` from the read-only treatment of an absent checkout on every `shipped` ledger it ' +
+      'reads, not only a legacy one, so a `shipped` run with a `**PR:**` header and an unfinished `auto` ' +
+      'deploy resumes with no scopetree on disk',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /Stage:\*\*` reads `shipped` or `closed`, and the checkout is absent/,
+    'extend the read-only, never-recreate treatment of an absent scope checkout from `shipped` to `closed`, so no command rebuilds scaffolding at a terminal stage',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /`\/superdev:ship`, `\/superdev:verify-ship`, `\/superdev:wrap-up`\s+—\s+only ever refreshes this file/,
+    'name verify-ship and wrap-up among the callers that only ever refresh the run lock',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /`closed`[\s\S]{0,120}change nothing[\s\S]{0,400}recreating it when it is absent, at `submitted`\. You\s+need it for §4's git commands/,
+    'stop on a `closed` scope before recreating anything, and recreate an absent scope checkout at `submitted` only, leaving a `shipped` run to §3, which recreates it once it needs the posture read',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /"already\s*\n?\s*shipped" report needs no scope\s*\n?\s*checkout, so recreate none/,
+    'recreate no absent scope checkout for an "already shipped" report: a `shipped` run recreates it only ' +
+      'once §3 finds an unfinished `auto` deploy to resume, so a gone local scope branch never stops the report',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /read the posture at the merge commit, with no scope checkout[\s\S]{0,600}?from the invoking checkout[\s\S]{0,900}?[Rr]ecreate the absent scope checkout only when the posture is `auto`/,
+    'read the `shipped` resume test\'s posture at the merge commit from the invoking checkout, before any ' +
+      'scope checkout is recreated, and recreate it only when the posture is `auto` and a target is undeployed, ' +
+      'so a `manual` scope waiting for verify-ship never rebuilds a checkout',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /`## Reading\s+the\s+posture\s+at\s+the\s+merge\s+commit`/,
+    'cite `scope-mode.md`\'s `## Reading the posture at the merge commit` in the `shipped` resume test rather than ' +
+      'restating the read',
   ],
 ];
 
@@ -4987,8 +5316,8 @@ const SHIP_DEPLOY_CONTRACTS = [
   ],
   [
     path.join('skills', 'ship', 'SKILL.md'),
-    /`manual`\*\* → print each listed target's command not already recorded `deployed`, in listed order[\s\S]{0,120}deploy set <target> pending[\s\S]{0,60}Go[\s\S]{0,20}straight to the close below/,
-    "print each listed target's command, in listed order, record each `pending`, and close the anchor " +
+    /`manual`\*\* → print each listed target's command not already recorded `deployed`, in listed order[\s\S]{0,120}deploy set <target> pending[\s\S]{0,60}Go[\s\S]{0,20}straight to the hand-off below/,
+    "print each listed target's command, in listed order, record each `pending`, and go to the hand-off " +
       'under posture `manual`',
   ],
   [
@@ -4999,26 +5328,26 @@ const SHIP_DEPLOY_CONTRACTS = [
   ],
   [
     path.join('skills', 'ship', 'SKILL.md'),
-    /A non-zero exit\*\* → record[\s\S]{0,60}deploy set <target> failed[\s\S]{0,150}name every target not yet deployed, leave the anchor open, skip the\s*\n?\s*close and cleanup[\s\S]{0,80}print `\/superdev:ship <scope>` as the resume/,
-    "record a failed target with its exit status, name every target not yet deployed, leave the anchor " +
-      'open, skip the close and cleanup, and print `/superdev:ship <scope>` as the resume, on a ' +
-      'non-zero exit under `auto`',
+    /A non-zero exit\*\* → record[\s\S]{0,60}deploy set <target> failed[\s\S]{0,150}name every target not yet deployed, and print `\/superdev:ship <scope>` as the resume/,
+    "record a failed target with its exit status, name every target not yet deployed, and print " +
+      '`/superdev:ship <scope>` as the resume, on a non-zero exit under `auto`',
   ],
   [
     path.join('skills', 'ship', 'SKILL.md'),
-    /Every listed target now `deployed`\*\* → go on to the close below/,
-    'close the anchor under `auto` only once every listed target reads `deployed`',
+    /Every listed target now `deployed`\*\* → go on to the hand-off below/,
+    'go to the hand-off under `auto` only once every listed target reads `deployed`',
   ],
   [
     path.join('skills', 'ship', 'SKILL.md'),
-    /run root at `shipped` carrying a `\*\*PR:\*\*` header whose deploy record[\s\S]{0,150}auto` deploy this command's own §5 stopped mid-way/,
+    /run root at `shipped` carrying a `\*\*PR:\*\*` header whose posture at the merge\s*\n?\s*commit is `auto` and whose deploy record[\s\S]{0,150}auto` deploy this command's own §5 stopped mid-way/,
     "add a `shipped` ledger with an unfinished `auto` deploy to the empty-argument candidate set",
   ],
   [
     path.join('skills', 'ship', 'SKILL.md'),
-    /A target reads `pending` or `failed`, and the scope checkout is still present\*\*[\s\S]{0,350}Skip straight to \*\*§5's "Find the merge\s*\n?\s*commit"\*\*/,
-    'resume a `shipped` ledger whose deploy record shows a target not yet `deployed`, with the scope ' +
-      'checkout still present, straight at §5\'s deploy step rather than merging again',
+    /The posture is `auto`, and a listed target reads `pending`,\s+`failed`, or carries no record\*\*[\s\S]{0,350}Skip straight to \*\*§5's "Find the merge\s*\n?\s*commit"\*\*/,
+    'resume a `shipped` ledger whose posture at the merge commit is `auto` and whose listed targets are not ' +
+      'all recorded `deployed` (an absent record included), straight at §5\'s deploy step rather than merging again, whether or not ' +
+      'the scope checkout is present',
   ],
   [
     path.join('skills', 'ship', 'SKILL.md'),
@@ -5126,14 +5455,25 @@ const SHIP_DEPLOY_CONTRACTS = [
   ],
   [
     path.join('skills', 'ship', 'SKILL.md'),
-    /\*\*Declined\*\* → deploy nothing[\s\S]{0,120}deploy set <target> pending[\s\S]{0,250}leave the anchor open, skip the close and cleanup below, and print\s*\n?\s*`\/superdev:ship <scope>` as the resume/,
-    'deploy nothing on a declined ask, record `pending` for every target the record lacks, leave the ' +
-      'anchor open, skip close and cleanup, and print the resume',
+    /\*\*Declined\*\* → deploy nothing[\s\S]{0,120}deploy set <target> pending[\s\S]{0,250}candidate set, and print\s*\n?\s*`\/superdev:ship <scope>` as the resume/,
+    'deploy nothing on a declined ask, record `pending` for every target the record lacks, and print the ' +
+      'resume',
   ],
   [
     path.join('skills', 'ship', 'SKILL.md'),
     /\*\*Both diffs empty\*\* → ask nothing/,
     'ask nothing when neither diff finds a change',
+  ],
+  // ADR 0106, INV-0099: ship stops after the deploy and hands off to verify-ship.
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /\*\*Hand off\.\*\*[\s\S]{0,400}Print `\/superdev:verify-ship <scope>` as the next command/,
+    'stop after the deploy and print `/superdev:verify-ship <scope>` as the next command (ADR 0106)',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /local plan-file store\s+print\s+`\/superdev:wrap-up <scope>`\s+instead: verify-ship refuses there/,
+    'print `/superdev:wrap-up <scope>` instead of verify-ship as the hand-off on the local plan-file store',
   ],
   [
     path.join('skills', 'ship', 'SKILL.md'),
@@ -5151,14 +5491,115 @@ const SHIP_DEPLOY_CONTRACTS = [
 const DOCUMENT_SUBMITTED_CONTRACTS = [
   [
     path.join('skills', 'document', 'SKILL.md'),
-    /`shipped` or `submitted` → leave the\s*\n?\s*line alone/,
-    'leave the ledger stage alone on `submitted` as well as `shipped`, rather than writing ' +
-      '`documented-unreviewed` over it',
+    /`shipped`, `submitted`, or `closed` → leave the\s*\n?\s*line alone/,
+    'leave the ledger stage alone on `submitted`, `shipped`, and `closed`, rather than writing ' +
+      '`documented-unreviewed` over them',
   ],
   [
     path.join('skills', 'document', 'SKILL.md'),
-    /stage read `shipped` or `submitted` above[\s\S]{0,150}?print\s*\n?\s*`\/superdev:ship <scope>`/,
+    /stage read `shipped`, `submitted`, or `closed` above[\s\S]{0,150}?print\s*\n?\s*`\/superdev:ship <scope>`/,
     'print `/superdev:ship <scope>` as the next command when the leave-alone branch read `submitted`',
+  ],
+  [
+    path.join('skills', 'document', 'SKILL.md'),
+    /print\s*\n?\s*`\/superdev:verify-ship <scope>`,[\s\S]{0,200}?when it read `closed`, print nothing/,
+    'print `/superdev:verify-ship <scope>` as the next command when the leave-alone branch read `shipped`, ' +
+      'and nothing at `closed`',
+  ],
+  [
+    'README.md',
+    /then stops\.\s*\n?\s*`\/superdev:verify-ship` settles[\s\S]{0,200}?`\/superdev:wrap-up` closes the\s*\n?\s*scope anchor and cleans up the run/,
+    'state that ship merges and deploys then stops, verify-ship settles the deployed criteria, and wrap-up ' +
+      'closes the anchor and cleans up the run',
+  ],
+  [
+    path.join('skills', 'document', 'SKILL.md'),
+    /local plan-file store,?\s+print\s*\n?\s*`\/superdev:wrap-up <scope>` instead/,
+    'print `/superdev:wrap-up <scope>` instead of verify-ship at `shipped` on the local plan-file store',
+  ],
+  [
+    'README.md',
+    /then stops with the stage at `shipped` and prints\s*\n?\s*`\/superdev:wrap-up health-check`[\s\S]{0,400}?verify-ship[\s\S]{0,120}?refuses on the local plan-file store/,
+    'walk the local-store worked example from ship straight to wrap-up, naming verify-ship as the remote-store step it refuses',
+  ],
+  [
+    'README.md',
+    /`\*\*Stage:\*\*` line reads `closed`,/,
+    'state that scope-prune reaps a run root at stage `closed`, never at `shipped`',
+  ],
+];
+
+// ADR 0101, ADR 0106: four commands read a merged feature's deploy posture at its merge commit, and
+// `references/scope-mode.md`'s `## Reading the posture at the merge commit` states that read once. The
+// rows pin each clause of the one statement, and that every caller cites the section instead of restating
+// it, since five restatements had drifted apart.
+const POSTURE_READ_CONTRACTS = [
+  [
+    path.join('references', 'scope-mode.md'),
+    /## Reading the posture at the merge commit[\s\S]{0,900}?ledger's `\*\*PR:\*\*` number[\s\S]{0,200}?`merge_commit_sha`[\s\S]{0,300}?posture `none`/,
+    'state once that the merge commit comes from the pull request read by the ledger\'s `**PR:**` number, and that a ledger with no header reads as posture `none`',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /[Ff]etch base \(`git fetch origin <base>`\) when the checkout lacks that commit/,
+    'state once that base is fetched when the checkout lacks the merge commit',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /`git show <merge-commit-sha>:docs\/agents\/deployment\.md` from the invoking checkout[\s\S]{0,200}?No such file, or a document with no `Posture:` line, reads as posture `none`/,
+    'state once that the posture is read with `git show <merge-commit-sha>:docs/agents/deployment.md` from the invoking checkout, an absent document or `Posture:` line reading as `none`',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /anchor's `\*\*Deploy:\*\*` line[\s\S]{0,400}?scope\.js" deploy get/,
+    'state once that the listed targets come from the anchor\'s `**Deploy:**` line and the record from `scope.js deploy get`',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /\*\*not recorded `deployed`\*\*, a record of `absent` included/,
+    'state once that a listed target not recorded `deployed`, an `absent` record included, is undeployed',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /\n## 3\.(?:(?!\n## 4\.)[\s\S])*?`## Reading\s+the\s+posture\s+at\s+the\s+merge\s+commit`/,
+    "cite `## Reading the posture at the merge commit` in §3's resume test",
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /\*\*Deploy\*\* \(ADR 0101[\s\S]{0,900}?`## Reading\s+the\s+posture\s+at\s+the\s+merge\s+commit`/,
+    "cite `## Reading the posture at the merge commit` in §5's deploy step rather than restating the read",
+  ],
+  [
+    path.join('skills', 'verify-ship', 'SKILL.md'),
+    /`## Reading\s+the\s+posture\s+at\s+the\s+merge\s+commit`/,
+    "cite `## Reading the posture at the merge commit` in §3's deploy check rather than restating the read",
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /`## Reading\s+the\s+posture\s+at\s+the\s+merge\s+commit`/,
+    "cite `## Reading the posture at the merge commit` in §3's deploy reason rather than restating the read",
+  ],
+  [
+    path.join('skills', 'backlog', 'SKILL.md'),
+    /`## Reading\s+the\s+posture\s+at\s+the\s+merge\s+commit`/,
+    'cite `## Reading the posture at the merge commit` for the posture read rather than restating it',
+  ],
+];
+
+// ADR 0106: `closed` is terminal, so the commands that could meet a closed run root leave it alone.
+// submit-pr stops at `closed` the way it stops at `shipped` (no push, no pull request), and review's
+// stage write leaves `closed` beside `documented`, `submitted`, and `shipped` because `scope.js` refuses a
+// write out of it.
+const CLOSED_STAGE_CONTRACTS = [
+  [
+    path.join('skills', 'submit-pr', 'SKILL.md'),
+    /\*\*`closed`\*\*\s*→\s*already closed\.[\s\S]{0,120}?stop, with no push and no pull request/,
+    'stop at a `closed` stage with "already closed", pushing nothing and opening no pull request',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /`documented`, `submitted`, `shipped`, or `closed` → leave the line alone/,
+    'leave the stage line alone at `documented`, `submitted`, `shipped`, or `closed`',
   ],
 ];
 
@@ -5222,35 +5663,39 @@ const BACKLOG_SUBMITTED_CONTRACTS = [
 const DEPLOY_STEP_VISIBILITY_CONTRACTS = [
   [
     path.join('skills', 'submit-pr', 'SKILL.md'),
-    /it merges the pull\s*\n?\s*request once an operator has reviewed it, applies the repository's deploy posture to the merge, closes\s*\n?\s*the scope anchor/,
+    /it merges the pull\s*\n?\s*request once an operator has reviewed it, applies the repository's deploy posture to the merge, and stops\s*\n?\s*there, printing `\/superdev:verify-ship <scope>` next/,
     "state, on its own next-command line, that `/superdev:ship` applies the repository's deploy posture " +
-      'to the merge, not merely that it merges and closes',
+      'to the merge and stops, printing `/superdev:verify-ship <scope>` next',
   ],
   [
     path.join('skills', 'backlog', 'SKILL.md'),
-    /sets that stage right after the merge, before any deploy runs, and closes the anchor only\s*\n?\s*once every\s*\n?\s*target has deployed/,
-    'state that the stage write and the anchor close are two separate steps, not one, so a `shipped` ' +
-      'run root can still carry an open anchor',
+    /`\/superdev:ship` sets the `shipped` stage right after the merge, before any deploy runs, and stops after the\s*\n?\s*deploy; `\/superdev:wrap-up` closes the anchor/,
+    'state that ship stops after the deploy and wrap-up closes the anchor, so a `shipped` run root ' +
+      'carries an open anchor by design',
   ],
   [
     path.join('skills', 'backlog', 'SKILL.md'),
-    /`deploy resume`[\s\S]{0,400}the same definition `\/superdev:ship`'s own empty-argument candidate set uses/,
+    /`deploy resume`[\s\S]{0,500}leaves a listed target not recorded `deployed`, whatever the scope checkout holds/,
     'route a `shipped` run root stuck mid-`auto`-deploy to a `deploy resume` bucket whose act is ' +
-      '`/superdev:ship <scope-slug>`, using the same definition ship\'s own candidate set uses, rather ' +
-      'than into `blocked`\'s "close the anchor"',
+      '`/superdev:ship <scope-slug>`, with no dependence on the scope checkout being present',
   ],
-  // #751: the anchor close follows the deploy under `auto`, not the merge.
   [
     path.join('skills', 'submit-pr', 'SKILL.md'),
-    /`\/superdev:ship` closes it once every target has deployed under `auto`, and on the merge\s*\n?\s*under `manual` or `none`/,
-    'state that ship closes the anchor once every target has deployed under `auto`, and on the merge ' +
-      'under `manual` or `none`',
+    /On the local plan-file store, ship prints\s+`\/superdev:wrap-up <scope>` instead: verify-ship refuses there[\s\S]{0,400}that, then `\/superdev:verify-ship` \(remote stores only\) and `\/superdev:wrap-up`/,
+    'state on the next-command line and the chain-end line that, on the local plan-file store, ship prints ' +
+      '`/superdev:wrap-up <scope>` because verify-ship refuses there',
+  ],
+  // ADR 0106: the anchor close follows verify-ship, and is wrap-up's.
+  [
+    path.join('skills', 'submit-pr', 'SKILL.md'),
+    /anchor on a remote store stays open\. `\/superdev:wrap-up` closes it, after the merge and\s*\n?\s*`\/superdev:verify-ship`/,
+    'state that wrap-up closes the anchor on a remote store, after the merge and verify-ship (ADR 0106)',
   ],
   // #750: a stalled `auto` deploy is visible on every store — the local plan-file store closes the anchor
   // with the pull request, so the run root matches no open anchor — and it ranks first.
   [
     path.join('skills', 'backlog', 'SKILL.md'),
-    /unless it meets the `deploy resume` definition \(§3\)[\s\S]{0,300}gets a `deploy resume` row whether or not an open\s*\n?\s*anchor matches it/,
+    /that meets the\s*\n?\s*`deploy resume` definition \(§3\)[\s\S]{0,300}gets a `deploy resume` row whether or not an open\s*\n?\s*anchor matches it/,
     'give a `shipped` run root that meets the `deploy resume` definition its row whether or not an open ' +
       'anchor matches it, so the local store shows a stalled deploy too',
   ],
@@ -5266,13 +5711,69 @@ const DEPLOY_STEP_VISIBILITY_CONTRACTS = [
   ],
   [
     path.join('skills', 'backlog', 'SKILL.md'),
-    /no stranded run root, no `deploy resume` run root, and no untriaged item\*\* → say the backlog is\s*\n?\s*empty/,
+    /no stranded run root, no `deploy resume` run root, no `shipped` run root awaiting wrap-up, and no untriaged item\*\* → say the backlog is\s*\n?\s*empty/,
     'count a `deploy resume` run root against the empty-backlog exit, so a stalled deploy never reads as ' +
       'an empty backlog',
   ],
 ];
 
+// ADR 0106: once ship stops after the deploy, an open anchor over a `shipped` run root is the ordinary
+// state between ship and wrap-up. The survey routes it by what is unsettled, gives a `closed` run root
+// no row, and never tells an operator to close the anchor by hand.
+const BACKLOG_VERIFY_WRAP_UP_CONTRACTS = [
+  [
+    path.join('skills', 'backlog', 'SKILL.md'),
+    /\| `awaiting verification` \|[^\n]*`\/superdev:verify-ship <scope-slug>`/,
+    'carry an `awaiting verification` bucket whose act is `/superdev:verify-ship <scope-slug>`',
+  ],
+  [
+    path.join('skills', 'backlog', 'SKILL.md'),
+    /\| `awaiting wrap-up` \|[^\n]*`\/superdev:wrap-up <scope-slug>`/,
+    'carry an `awaiting wrap-up` bucket whose act is `/superdev:wrap-up <scope-slug>`',
+  ],
+  [
+    path.join('skills', 'backlog', 'SKILL.md'),
+    /neither ticked nor `accepted:`[\s\S]{0,300}`manual` target is not recorded `deployed`/,
+    'send an open anchor over a `shipped` run to `awaiting verification` while a line is neither ticked ' +
+      'nor accepted or a `manual` target is not recorded `deployed`',
+  ],
+  [
+    path.join('skills', 'backlog', 'SKILL.md'),
+    /`shipped` run root whose anchor is already closed[\s\S]{0,200}`awaiting wrap-up`/,
+    'send a `shipped` run root over an already closed anchor to `awaiting wrap-up`',
+  ],
+  [
+    path.join('skills', 'backlog', 'SKILL.md'),
+    /A `closed` run root gets no row/,
+    'give a `closed` run root no row',
+  ],
+  [
+    path.join('skills', 'backlog', 'SKILL.md'),
+    /from `<run-root>\/dod\.md`[\s\S]{0,700}differs from `dod\.md`[\s\S]{0,120}`awaiting verification`/,
+    'judge a `shipped` run root\'s Definition-of-Done lines from `<run-root>/dod.md`, and route an anchor ' +
+      'whose verdict differs from it to `awaiting verification`',
+  ],
+  [
+    path.join('skills', 'backlog', 'SKILL.md'),
+    /`dod\.md` that is missing or unreadable[\s\S]{0,200}anchor\s+alone[\s\S]{0,300}unreadable anchor[\s\S]{0,200}`blocked` row/,
+    'judge from the anchor alone when `dod.md` is missing or unreadable, and give an unreadable anchor a ' +
+      '`blocked` row naming what could not be read',
+  ],
+  [
+    path.join('skills', 'backlog', 'SKILL.md'),
+    /local plan-file store closes the anchor with the pull request[\s\S]{0,400}`awaiting wrap-up`[\s\S]{0,200}verify-ship refuses/,
+    'route a local plan-file store `shipped` run root to `awaiting wrap-up`, since wrap-up writes nothing to ' +
+      'that store, and note verify-ship refuses there',
+  ],
+  [
+    path.join('skills', 'backlog', 'SKILL.md'),
+    /\| `awaiting wrap-up` \|(?![^\n]*except on the local plan-file store)[^\n]*`\/superdev:wrap-up <scope-slug>`/,
+    'carry no local plan-file store exception on the `awaiting wrap-up` row',
+  ],
+];
+
 module.exports = {
+  BACKLOG_VERIFY_WRAP_UP_CONTRACTS,
   OBSERVATION_CAPTURE_CONTRACTS,
   CLEAN_VERDICT_ENDS_LOOP_CONTRACTS,
   COMMITMENT_CAPTURE_CONTRACTS,
@@ -5387,7 +5888,7 @@ module.exports = {
   PLAN_APPEND_CONTRACTS,
   SHIPPED_APPEND_CONTRACTS,
   ANCHOR_CANDIDATE_ALL_STATES_CONTRACTS,
-  ROTATE_ON_SHIPPED_CONTRACTS,
+  RUN_INIT_FINISHED_STAGE_CONTRACTS,
   PARKED_QUESTIONS_CONTRACTS,
   RUN_KIND_CONTRACTS,
   SCOPETREE_CONTRACTS,
@@ -5426,6 +5927,7 @@ module.exports = {
   SCOPETREE_RUN_ROOT_DOCS,
   SCOPETREE_RUN_ROOT_PATTERN,
   VERIFICATION_CEILING_CONTRACTS,
+  WRAP_UP_CONTRACTS,
   CRITERION_STATES_A_REQUIREMENT_CONTRACTS,
   LABEL_REVISION_AT_DECOMPOSITION_CONTRACTS,
   UNMET_CRITERION_AT_REVIEW_CONTRACTS,
@@ -5452,6 +5954,8 @@ module.exports = {
   NO_FORCE_MERGE_DOCS,
   NO_FORCE_MERGE_PATTERNS,
   REVIEW_SUBMITTED_CONTRACTS,
+  CLOSED_STAGE_CONTRACTS,
+  POSTURE_READ_CONTRACTS,
   BACKLOG_SUBMITTED_CONTRACTS,
   DEPLOY_STEP_VISIBILITY_CONTRACTS,
 };

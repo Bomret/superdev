@@ -1,23 +1,28 @@
 # Code host: Codeberg (Forgejo)
 
-Code lives on Codeberg (`ssh://codeberg.org/bomret/superdev.git`). Use the Forgejo REST API (or the
-`tea` CLI if installed) for pushes and pull requests.
+Code lives on Codeberg (`ssh://codeberg.org/bomret/superdev.git`). Use the Forgejo REST API
+through the `tea` CLI for pull requests.
 
 ## Configuration
 
 - **Host, owner, and repo:** `https://codeberg.org`, `bomret`, `superdev`.
 - **Remote:** `origin`. Confirm with `git remote -v`.
-- **Tooling:** REST API through `curl`, or the `tea` CLI when installed.
-- **Auth:** API token in env var `GITEA_TOKEN` (record the name, never the value).
+- **Tooling:** the `tea` CLI. Every call is `tea api --login codeberg.org --repo bomret/superdev -i …`, a request
+  body goes through `-d @<file>` or `-d @-`, and a path is written `/repos/bomret/superdev/...` without the
+  `/api/v1` prefix. `tea api` exits 0 on an HTTP error, so every call passes `-i`, which writes the status line and the response headers (`Link`) to stderr and leaves the JSON body on stdout.
+  A caller reads the `405` and `409` merge refusals from the status line and Codeberg's message from the body, and the next page from `Link`.
+- **Auth:** the `tea` CLI's stored `codeberg.org` login (`tea login list`). Every call passes `--login
+  codeberg.org`: outside this repository's checkout, `tea` otherwise falls back to another stored login.
+  No token environment variable is read.
 - **Default PR posture:** `ready` (open ready-for-review). Override: `draft` or `push-only`.
 - **Base branch:** `main`.
 
 ## Conventions
 
 - **Push the scope branch:** `git push -u origin <scope-branch>`.
-- **Open the PR (REST):** `POST https://codeberg.org/api/v1/repos/bomret/superdev/pulls` with
-  `{ "base": "main", "head": "<scope-branch>", "title": "...", "body": "..." }`,
-  headers `Authorization: token $GITEA_TOKEN` and `Content-Type: application/json`. Body built from the global DoD, the slice list, and the
+- **Open the PR (`tea api`):** `tea api --login codeberg.org --repo bomret/superdev -i -X POST -d @<file> /repos/bomret/superdev/pulls` with
+  `{ "base": "main", "head": "<scope-branch>", "title": "...", "body": "..." }`.
+  Body built from the global DoD, the slice list, and the
   final-review summary.
 - **The title must be a Conventional Commits header** (`type(scope): subject`, for example
   `feat(implement): …`). PRs are **squash-merged**, so the title becomes the commit message on `main`, and
@@ -35,18 +40,18 @@ The merge call below degrades the same way: print the exact API call and merge n
 
 ## Merge
 
-- **Read the pull request:** `GET https://codeberg.org/api/v1/repos/bomret/superdev/pulls/<index>` →
+- **Read the pull request:** `tea api --login codeberg.org --repo bomret/superdev -i /repos/bomret/superdev/pulls/<index>` →
   `state`, `merged`, `merge_commit_sha` (once merged), `head.sha`, and `mergeable`.
-- **Merge it, pinned:** `POST https://codeberg.org/api/v1/repos/bomret/superdev/pulls/<index>/merge`
-  with `{ "Do": "squash", "MergeTitleField": "<pr-title>", "head_commit_id": "<tested-tip-sha>" }`,
-  headers `Authorization: token $GITEA_TOKEN` and `Content-Type: application/json`. `head_commit_id` pins the merge to that sha; Codeberg
+- **Merge it, pinned:** `tea api --login codeberg.org --repo bomret/superdev -i -X POST -d @<file> /repos/bomret/superdev/pulls/<index>/merge`
+  with `{ "Do": "squash", "MergeTitleField": "<pr-title>", "head_commit_id": "<tested-tip-sha>" }`.
+  `head_commit_id` pins the merge to that sha; Codeberg
   answers 409 when the head moved since. Never send `force_merge` — this repo's own branch protection
   on `main` is what a merge must never bypass.
 - **A refusal names the reason:** 405 means the pull request cannot be merged (an unmet required
   approval or protection rule, or it is already merged/closed); 409 means the head moved since it was
   read, or a conflict exists. Relay Codeberg's own message to the operator instead of retrying.
 - **Find an open pull request by its head branch** (a fallback, when no index is on hand):
-  `GET https://codeberg.org/api/v1/repos/bomret/superdev/pulls?state=open` — Codeberg carries no `head`
+  `tea api --login codeberg.org --repo bomret/superdev -i '/repos/bomret/superdev/pulls?state=open'` — Codeberg carries no `head`
   query parameter, so filter the returned array client-side by `head.ref` matching the scope branch. The
   list paginates (`page`, `limit` query params; `limit` capped at the server's `MAX_RESPONSE_ITEMS`, 50 by
   default): page through every page — the `Link` response header names the next one — before counting
@@ -82,4 +87,4 @@ settles that case from base's own history (ADR 0053, ADR 0082), and `references/
 
 ## Seed deviations
 
-- Seed deviation: `tea` CLI conventions — the REST calls under `## Conventions` and `## Merge` are this repository's one recorded path, and no `tea` login or command is written down (2026-09-29)
+- Seed deviation: `tea` CLI conventions — the calls under `## Conventions` and `## Merge` are `tea api` invocations on the `codeberg.org` login, not the seed's `tea pr` commands, because `tea pr merge` carries no head pin (2026-10-01)

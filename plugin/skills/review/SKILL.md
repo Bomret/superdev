@@ -502,7 +502,7 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   - `documented-unreviewed`, **a fix cycle landed commits** → write `reviewed`. Those commits arrived
     after the doc pass, so the docs are stale by exactly them, and `reviewed` is what makes
     `/superdev:submit-pr` ask for the doc pass again.
-  - `documented`, `submitted`, or `shipped` → leave the line alone and say so in one line; the run has
+  - `documented`, `submitted`, `shipped`, or `closed` → leave the line alone and say so in one line; the run has
     moved past this gate. A `submitted` run's suite result — recorded above — is what
     `/superdev:ship` reads back when base has moved since the pull request opened.
   - Anything else → write `reviewed`.

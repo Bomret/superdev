@@ -107,7 +107,7 @@ const {
   PLAN_APPEND_CONTRACTS,
   SHIPPED_APPEND_CONTRACTS,
   ANCHOR_CANDIDATE_ALL_STATES_CONTRACTS,
-  ROTATE_ON_SHIPPED_CONTRACTS,
+  RUN_INIT_FINISHED_STAGE_CONTRACTS,
   PARKED_QUESTIONS_CONTRACTS,
   RUN_KIND_CONTRACTS,
   SCOPETREE_CONTRACTS,
@@ -125,6 +125,7 @@ const {
   COMMITMENT_CAPTURE_CONTRACTS,
   PLANNED_HANDOFF_CONTRACTS,
   VERIFICATION_CEILING_CONTRACTS,
+  WRAP_UP_CONTRACTS,
   SHIP_TICKS_NOTHING_CONTRACTS,
   DOC_UNTICK_ON_BREAK_CONTRACTS,
   CRITERION_STATES_A_REQUIREMENT_CONTRACTS,
@@ -150,7 +151,10 @@ const {
   SHIP_DEPLOY_CONTRACTS,
   DOCUMENT_SUBMITTED_CONTRACTS,
   REVIEW_SUBMITTED_CONTRACTS,
+  CLOSED_STAGE_CONTRACTS,
+  POSTURE_READ_CONTRACTS,
   BACKLOG_SUBMITTED_CONTRACTS,
+  BACKLOG_VERIFY_WRAP_UP_CONTRACTS,
   DEPLOY_STEP_VISIBILITY_CONTRACTS,
 } = require('./contracts');
 
@@ -275,7 +279,7 @@ module.exports = [
   },
   {
     id: 'ship-human-only',
-    ok: 'ship carries `disable-model-invocation: true` and names no `--unattended` mode of its own (INV-0093)',
+    ok: 'ship, verify-ship, and wrap-up each carry `disable-model-invocation: true` and name no `--unattended` mode of their own (INV-0093)',
     run: scanShipHumanOnly,
     format: contractGap,
   },
@@ -327,6 +331,11 @@ module.exports = [
     'verification-ceiling',
     VERIFICATION_CEILING_CONTRACTS,
     'verifying a Definition-of-Done criterion observes, and changes no system outside the repository, on both verifying agent bodies and every surface that verifies a criterion or dispatches one that does',
+  ),
+  table(
+    'wrap-up-gate',
+    WRAP_UP_CONTRACTS,
+    'wrap-up names every gate reason in one refusal, asks once per standing unresolved defect, cleans up only after a successful close, and verify-ship hands off to it',
   ),
   table(
     'ship-ticks-nothing',
@@ -458,8 +467,8 @@ module.exports = [
   ),
   table(
     'rotate-on-shipped',
-    ROTATE_ON_SHIPPED_CONTRACTS,
-    'run init rotates a shipped ledger aside before running it again',
+    RUN_INIT_FINISHED_STAGE_CONTRACTS,
+    'run init rotates a closed ledger aside before running it again and stops at a shipped one',
   ),
   table(
     'parked-questions',
@@ -637,9 +646,16 @@ module.exports = [
       "apart by the ledger's own `**PR:**` header (#687)",
   ),
   table(
+    'backlog-verify-wrap-up',
+    BACKLOG_VERIFY_WRAP_UP_CONTRACTS,
+    'the backlog survey routes an open anchor over a `shipped` run to `awaiting verification` or ' +
+      '`awaiting wrap-up`, a `shipped` run root over a closed anchor to `awaiting wrap-up`, and a ' +
+      '`closed` run root to no row (ADR 0106)',
+  ),
+  table(
     'deploy-step-visibility',
     DEPLOY_STEP_VISIBILITY_CONTRACTS,
-    "submit-pr's next-command line states that ship deploys and its close follows an `auto` deploy, and the backlog survey never steers an " +
+    "submit-pr's next-command line states that ship deploys and stops at verify-ship, its closing paragraph names wrap-up as the close, and the backlog survey never steers an " +
       'operator into closing an anchor stuck mid-`auto`-deploy by hand, shows a stalled deploy whether or ' +
       'not an open anchor matches it, and ranks it first',
   ),
@@ -868,6 +884,18 @@ module.exports = [
       'accepts (#687)',
   ),
   table(
+    'posture-read',
+    POSTURE_READ_CONTRACTS,
+    'the posture read at the merge commit is stated once in scope-mode.md, and ship, verify-ship, ' +
+      'wrap-up, and backlog cite it',
+  ),
+  table(
+    'closed-stage',
+    CLOSED_STAGE_CONTRACTS,
+    'submit-pr stops at a `closed` stage with no push and no pull request, and review leaves the stage ' +
+      'line alone at `closed` (ADR 0106)',
+  ),
+  table(
     'code-management-merge',
     CODE_MANAGEMENT_MERGE_CONTRACTS,
     'each code-management document carries a `## Merge` section reading the pull request and merging ' +
@@ -912,8 +940,8 @@ module.exports = [
     "ship's pre-merge gate refuses an anchor listing an untabled target and shows a changed " +
       "`deployment.md`'s posture and targets before merging; its post-merge deploy step deploys nothing " +
       'under `none`, prints and records `pending` under `manual`, and under `auto` runs each target ' +
-      'detached at the merge commit, stopping and recording a failed one while leaving the anchor open, ' +
-      'closing only once every target has deployed; a `shipped` ledger with an unfinished `auto` deploy ' +
+      'detached at the merge commit, stopping and recording a failed one; ship then stops and prints ' +
+      'verify-ship, closing no anchor; a `shipped` ledger with an unfinished `auto` deploy ' +
       "joins ship's own candidate set and resumes at the first undeployed target; an adopted hand merge " +
       'takes the same deploy step; under `auto` ship asks once before it deploys a `deployment.md` nobody ' +
       'was shown',
