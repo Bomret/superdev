@@ -2,7 +2,7 @@
 
 ## Core concepts
 
-**Epic**: the slice-store container for a multi-slice feature. A single issue (or `docs/plans/<type>/<feature-slug>/00-epic-*.md`) that groups all the feature's slices and holds the source text for the global DoD. An epic is optional. A single-slice feature has no epic, and that slice's `acceptance` becomes the DoD directly.
+**Epic**: the slice-store container for a multi-slice feature. A single issue that groups all the feature's slices and holds the source text for the global DoD. An epic is optional. A single-slice feature has no epic, and that slice's `acceptance` becomes the DoD directly.
 _Avoid: "feature issue", "parent issue", "the DoD" (the epic holds and sources the DoD's text, while `.superdev/scopes/<scope>/dod.md` is the concrete DoD itself)_
 
 **Slice**: a vertical tracer bullet, a narrow but complete path through every layer (specification, then implementation, then test), independently green, and demoable or verifiable on its own. Each slice carries test-applicability (behavior, mechanical, or docs), a specification, acceptance criteria, and explicit dependencies on other slices.
@@ -26,7 +26,7 @@ _Avoid: "feature branch", "work branch"_
 **Base branch**: the branch a scope branch is cut from and its pull request targets, named in `docs/agents/code-management.md`. Containment is tested against it, except by `hooks/scope-prune.js`, which tests against `HEAD`.
 _Avoid: "default branch" (git's own term, which the configuration may differ from), "trunk", "main" (one repository's value)_
 
-**Scope anchor**: a feature's root, the single record — an issue, or a `docs/plans/<type>/<feature-slug>/00-epic-*.md` file, or that feature's lone slice file — that carries its scope-level status signal for a run. How a given store expresses this is stated in that store's own `## Scope anchor` section, which specialises `plan-contract.md` → *Scope anchor*, never assumed by a command (ADR 0017).
+**Scope anchor**: a feature's root, the single record — the epic issue, or that feature's lone slice issue — that carries its scope-level status signal for a run. How a given store expresses this is stated in that store's own `## Scope anchor` section, which specialises `plan-contract.md` → *Scope anchor*, never assumed by a command (ADR 0017).
 _Avoid: "epic" (only an epic-bearing feature has one, and the anchor role also falls to a lone slice)_
 
 **Release**: the human agreement that a written plan may be built, carried as a durable signal on the scope anchor. Its consumers are `/plan`, which asks which one it is doing, `/implement`, which asks for confirmation before building an unreleased feature, and `/backlog`, which groups an anchor carrying no release signal as `unreleased`. How a given store expresses it is stated in that store's own `## Release` section, which specialises `plan-contract.md` → *Release* (ADR 0034).
@@ -52,7 +52,7 @@ _Avoid: "remote ledger" (it carries no authority over control flow), "sync", "ba
 **Adopt**: rebuilding a run root from the anchor's published snapshot, where no local ledger exists and the snapshot's stage is neither `shipped` nor `closed`. Run init adopts, writes `dod.md` from the anchor as it does for any run, and reports the run kind `resumed`. `scope.js adopt` reads a whole anchor body and extracts the section itself (ADR 0042).
 _Avoid: "restore", "pull", "import", "clone"_
 
-**Stage**: how far a scope has moved through the chain (`/implement`, then `/review`, then `/document`, then `/submit-pr`) and past it, recorded as the ledger's `**Stage:**` line and naming the last completed step: `planned`, `implementing`, `merged`, `reviewed`, `documented` (or `documented-unreviewed` when `/document` ran before `/review` did), `submitted`, `shipped`, `closed`. `planned` is the one stage that precedes the chain rather than naming a step within it: `/superdev:plan` wrote the ledger, cut the scope branch and scopetree, and no slice has run yet (ADR 0079) — `/superdev:implement`'s run init moves the stage forward out of it, and no later write ever moves it back. `submitted` means `/superdev:submit-pr` opened the pull request, which is where the chain stops, attended or unattended. `shipped` means the pull request is merged: `/superdev:ship` merged it, or adopted a merge someone made by hand (ADR 0096). The anchor stays open at `shipped` while `/superdev:verify-ship` settles the criteria only a deployed system can show; on the local plan-file store the anchor's close rides the pull request and `/superdev:wrap-up` follows `shipped` directly. `closed` is terminal: `/superdev:wrap-up` closed the anchor and removed the run's scaffolding (ADR 0106). A ledger an older version left at `shipped` records only an opened pull request, and `/superdev:ship` reads such a run from the host. Distinct from a slice's status, which tracks one slice through the DAG (ADR 0013).
+**Stage**: how far a scope has moved through the chain (`/implement`, then `/review`, then `/document`, then `/submit-pr`) and past it, recorded as the ledger's `**Stage:**` line and naming the last completed step: `planned`, `implementing`, `merged`, `reviewed`, `documented` (or `documented-unreviewed` when `/document` ran before `/review` did), `submitted`, `shipped`, `closed`. `planned` is the one stage that precedes the chain rather than naming a step within it: `/superdev:plan` wrote the ledger, cut the scope branch and scopetree, and no slice has run yet (ADR 0079) — `/superdev:implement`'s run init moves the stage forward out of it, and no later write ever moves it back. `submitted` means `/superdev:submit-pr` opened the pull request, which is where the chain stops, attended or unattended. `shipped` means the pull request is merged: `/superdev:ship` merged it, or adopted a merge someone made by hand (ADR 0096). The anchor stays open at `shipped` while `/superdev:verify-ship` settles the criteria only a deployed system can show. `closed` is terminal: `/superdev:wrap-up` closed the anchor and removed the run's scaffolding (ADR 0106). A ledger an older version left at `shipped` records only an opened pull request, and `/superdev:ship` reads such a run from the host. Distinct from a slice's status, which tracks one slice through the DAG (ADR 0013).
 _Avoid: "phase" (that names a step within a playbook's procedure, as in run init or run handoff), "state", "step"_
 
 **Degraded pass**: a step of the chain that did not get the assurance the chain promises: a dispatch the permission classifier denied, or a pass that could not reach what it needed. What each command does about one, attended and unattended, and the `**Degraded:**` ledger entry that carries it to `/superdev:submit-pr` and `/superdev:status`, live in `references/scope-mode.md`'s `## Degraded passes` section (ADR 0018). A denied **verification dispatch** stops an unattended run only where the controller authored what that pass verifies, and the entry quotes the classifier's refusal (ADR 0039). An unattended run also stops at the cap `references/scope-mode.md`'s `## Degraded passes` section states, whoever authored the work. The count comes from its own ledger's `denied: ` bullets, so the stop stays inside superdev rather than reaching the platform's own three-denial kill (ADR 0041). A **denial reset** returns that budget once a human has addressed the cause: it counts from the last reset marker, so every recorded denial survives and the pull request shows the reset and its reason (ADR 0044).
@@ -163,7 +163,7 @@ _Avoid: "mapping" alone (the tag is the written form), "owner" (a slice delivers
 **Tick**: a controller's judgment on one Definition-of-Done line, on the scope anchor and in `dod.md`: checked with its evidence as the note, or unchecked with the reason it is not met, that only a deploy can verify it, or that an attended operator accepted it as unmet (ADR 0095). A line nobody has judged yet carries no note; a bare tick is invalid (INV-0014). Only a controller writes one (INV-0015).
 _Avoid: "check off", "verify" (verification is what earns a tick, not the tick itself)_
 
-**Suite record**: the ledger's record of the last full-suite run — its result, the commit it ran on, and its kind: `whole` for a run of the **whole-repo command**, or no kind for a run of the full command. A later step reuses a green record whose commit is the scope branch's current tip, or an earlier commit that differs from the tip only in the active store's own plan files, instead of running the suite again (INV-0017). A result of `none` is never reusable: it records no test command configured, with kind `whole` a whole-repo run that was killed or never started (INV-0009), or, with no kind, a review's invalidation of a submitted tip, which `/superdev:ship` refuses on. A step that needs a whole-repo run reuses only a record of kind `whole`; any other step reuses either kind (ADR 0105).
+**Suite record**: the ledger's record of the last full-suite run — its result, the commit it ran on, and its kind: `whole` for a run of the **whole-repo command**, or no kind for a run of the full command. A later step reuses a green record whose commit is the scope branch's current tip instead of running the suite again (INV-0017). A result of `none` is never reusable: it records no test command configured, with kind `whole` a whole-repo run that was killed or never started (INV-0009), or, with no kind, a review's invalidation of a submitted tip, which `/superdev:ship` refuses on. A step that needs a whole-repo run reuses only a record of kind `whole`; any other step reuses either kind (ADR 0105).
 _Avoid: "suite status", "last run" (the record names its commit, which is what makes it reusable)_
 
 **Pinned merge**: `/superdev:ship`'s merge of a scope's pull request through the host's merge API, bound to the one head a green full-suite run covers — a whole-repo run, in a repository that configures a **whole-repo command** — the host refuses it when the pull request's head has moved since. It is the one write superdev makes to the base branch (INV-0001), and it never forces past branch protection or a required approval (INV-0092, ADR 0096).
@@ -226,9 +226,8 @@ named. It starts no fix loop, holds no run stage, and is not an **Unresolved def
 records it under its report's `### Deferred to a plan` heading instead and hands it to `/superdev:plan`.
 It reaches several homes at once: a **Triage record** in the slice store, a `**Deferred:**` bullet in the
 run's ledger carrying that record's reference, and the pull-request body `/superdev:submit-pr` copies the
-bullet into. On an issue backend, the triage record outlives the run root and the closed scope anchor
-regardless of whether the scope ever ships. On the local plan-file store, it outlives the run root and
-the closed scope anchor only once the scope branch carrying it merges (ADR 0035, 0046, 0048).
+bullet into. The triage record outlives the run root and the closed scope anchor regardless of whether
+the scope ever ships (ADR 0035, 0046, 0110).
 _Avoid: "scope growth", "out-of-scope finding" (the point is the DoD boundary, not that the finding is
 unwelcome or off-topic)_
 
@@ -253,11 +252,9 @@ boards), "triage slice" (it has no spec, no acceptance, and no place in a DAG)_
 **Untriaged item**: an open record in the slice store that superdev never wrote — it carries neither a
 feature label nor the store's triage signal, so it is neither a **Scope anchor**, nor a slice, nor a
 **Triage record**. It is work a human filed and no `/superdev:plan` interview has yet reached. How a given
-store recognises and lists one is stated in that store's own `## Untriaged item` section; a store with no
-inbox of its own, such as the local plan-file store, states there that the set is empty. Only a human acts
+store recognises and lists one is stated in that store's own `## Untriaged item` section. Only a human acts
 on it: reading one is what turns it into a plan or closes it.
-_Avoid: "unlabeled issue" (a human's own labels do not make an item triaged, and one backend's records
-carry no labels at all), "new issue" (age is not what defines it), "backlog item" (every row in a
+_Avoid: "unlabeled issue" (a human's own labels do not make an item triaged), "new issue" (age is not what defines it), "backlog item" (every row in a
 **Backlog survey** is one of those)_
 
 **Backlog survey**: the read-only report `/superdev:backlog` prints, grouping every open **Scope anchor**,
@@ -352,7 +349,7 @@ _Avoid: "override", "exception"_
 **Stale deviation**: a `## Seed deviations` bullet that names no rule in the current seed, for example after a plugin release renames the rule. `/superdev:setup check` lists it and never reports it as a gap. A `/superdev:setup` re-run offers to drop it or keep it, and offers a kept one again until it is dropped (ADR 0107).
 _Avoid: "orphaned deviation", "dead deviation"_
 
-**Slice store**: the backend where a feature's plan and slices live: local files, or an issue tracker. Configured in `docs/agents/issue-tracker.md`.
+**Slice store**: the backend where a feature's plan and slices live: an issue tracker. Configured in `docs/agents/issue-tracker.md`.
 _Avoid: "issue tracker" as the concept name (that is one backend), "database"_
 
 **Assignee**: the slice-store account every issue a run creates is assigned to. It is a single store-native identifier (a login for Forgejo or GitHub, an `accountId` for Jira), read from **Operator configuration**, resolving to the API token's own identity when unconfigured and disabled by `none`. Configuration rather than a slice field, applied at creation to the epic and every slice. How a given store applies it is stated in that store's own `## Assignee` section, which specialises `plan-contract.md` → *Assignee* (ADR 0010, ADR 0073).
@@ -378,7 +375,7 @@ _Avoid: "the plugin" (that names the product, not the tree), "dist", "build outp
 **Guardrail**: one of the deterministic Node hooks in `plugin/hooks/`, wired by `hooks/hooks.json`, that decides a tool call or a session event with no model judgment involved.
 _Avoid: "hook" alone (Claude Code's word for the wiring point, which also covers hooks superdev does not ship), "check" (that names a `Check:` proof or a drift assertion)_
 
-**Feature label**: the one slice-store identifier a feature's scope anchor and every one of its slices carry, its **change type** and its slug, in the notation the active `docs/agents/issue-tracker.md` states (a `<type>/<slug>` label on an issue-backed store, the `<type>/<slug>` path under `docs/plans/` on the local-file store). It names the feature to `/superdev:implement`, and it is the scope branch verbatim, so one value fixes which feature gets built and which branch and run root the build uses (ADR 0019, ADR 0021).
+**Feature label**: the one slice-store identifier a feature's scope anchor and every one of its slices carry, its **change type** and its slug, in the notation the active `docs/agents/issue-tracker.md` states (a `<type>/<slug>` label). It names the feature to `/superdev:implement`, and it is the scope branch verbatim, so one value fixes which feature gets built and which branch and run root the build uses (ADR 0019, ADR 0021).
 _Avoid: "epic label" (`epic` is a different label on one backend, marking which issue is the anchor), "tag", "component"_
 
 **Change type**: the Conventional Commits type of what a feature does to the codebase: `feat`, `fix`, `refactor`, `docs`, `perf`, `test`, `build`, `ci`, `chore`, `style`, or `revert`. `/superdev:plan` picks it, it leads the **Feature label**, and it is the scope branch's first segment (`<type>/<scope>`), so the branch and the pull request report the same kind of work the commits do. `references/scope-mode.md` owns the set. `hooks/scope-prune.js` matches it only on its pre-CLI fallback path, when a scope's ledger carries no `**Branch:**` line to read the branch from directly (ADR 0007).

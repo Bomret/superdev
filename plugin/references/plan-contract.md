@@ -1,14 +1,14 @@
-# Plan-file contract
+# Plan contract
 
 The **logical schema** every superdev slice carries. `/superdev:plan` writes it; `/superdev:implement`
-reads it. It is backend-agnostic: the local-file rendering is shown below; issue backends
-(`issue-tracker-jira.md`, etc.) map the same fields onto issue bodies, links, and statuses.
+reads it. It is backend-agnostic: each issue backend (`issue-tracker-jira.md`, etc.) maps the same fields
+onto issue bodies, links, and statuses.
 
 ## Fields
 
 | Field | Meaning | Consumed by |
 |---|---|---|
-| `id` | Stable slice identifier — the local backend uses the zero-padded file number (`01`, `02`, …); an issue backend uses the issue key. | DAG ordering, status tracking |
+| `id` | Stable slice identifier — the issue key the backend assigns. | DAG ordering, status tracking |
 | `title` | Short descriptive name. | humans |
 | `depends-on` | List of slice `id`s that must merge before this slice can start. Empty = root. | `/implement` DAG |
 | `test-applicability` | `behavior` \| `mechanical` \| `docs`. Drives the warrant gates (see below). | `/implement`, `implementer` |
@@ -192,8 +192,7 @@ unrendered; the touch map is plain text and unaffected.
 ## Slice lifecycle & status
 
 `/implement` drives each slice through a canonical lifecycle. Every backend maps these onto its own
-statuses — the local file uses them verbatim; an issue tracker maps them to real statuses/transitions
-recorded in `issue-tracker.md`:
+statuses — an issue tracker maps them to real statuses/transitions recorded in `issue-tracker.md`:
 
 | Canonical | Entered when |
 |---|---|
@@ -205,8 +204,7 @@ recorded in `issue-tracker.md`:
 
 `mechanical`/`docs` slices skip `in-review` (`in-progress` → `merged`). The scope anchor moves to
 `in-progress` when the run starts. `/superdev:wrap-up` closes it to `done` after verification (a failed
-close changes nothing, ADR 0106); on the local plan-file store the close is still `/superdev:submit-pr`'s
-scope-branch commit. On a
+close changes nothing, ADR 0106). On a
 single-slice plan the lone issue is both the slice and the anchor. The anchor rule wins: it stays
 `in-progress` through the merge, and closes once, at wrap-up.
 
@@ -222,7 +220,7 @@ whole-scope review substitutes for the per-slice ones. The table above (and the 
 Append mode holds these invariants, and every backend renders all of them:
 
 - **Merged slices are immutable.** Append never edits, renumbers, closes, or deletes a merged slice's
-  file or issue — except the anchor-dependency line, which migrates to the new epic when append promotes
+  issue — except the anchor-dependency line, which migrates to the new epic when append promotes
   a single-slice feature (*Extending a single-slice feature creates the epic first*, below).
 - **Ids are never reused or renumbered.** A new slice's `depends-on` may name an already-merged slice's
   `id` as a satisfied root.
@@ -254,10 +252,8 @@ Append mode holds these invariants, and every backend renders all of them:
   too. That chain ends at `shipped`, which the rule above already refuses. Waiting clears nothing, and
   the remedy is the same new feature, opened now rather than waited for.
 
-Only one part of this is backend-specific: **numbering continuation.** The local-file store's `id` is the
-zero-padded file number `/plan` itself assigns, so append continues that numbering from the highest
-number already present. An issue backend's `id` is the key its own server assigns at creation, which is
-already unique and stable — append there names no continuation rule at all.
+A slice's `id` is the key the backend's own server assigns at creation, which is already unique and
+stable, so append names no numbering rule of its own.
 
 ## Scope anchor
 
@@ -274,8 +270,7 @@ all (ADR 0083), can also return a retired label's closed root beside a reused la
 open candidate is the anchor there. `Ambiguous` is two or more *open* candidates — never a closed one
 sitting beside a single open one — and a single closed candidate is itself the anchor**, the shape the
 shipped-anchor refusal above reads as its own done signal. Each store's own `## Scope anchor` section
-specialises *Recognise one* and *Ambiguous* to this rule. The local-file store's candidate listing is a
-directory listing, which carries no state at all, so it is outside this rule and specialises neither.
+specialises *Recognise one* and *Ambiguous* to this rule.
 
 An anchor may carry an **anchor dependency**: a recorded relation naming another feature's anchor that must
 land first (ADR 0040). It is the feature-level counterpart of a slice's `depends-on`, and the same honesty
@@ -323,10 +318,6 @@ section for the backend's signal and the calls that set and read it:
 - **`/superdev:implement`** builds a released feature. An unreleased one stops the run and asks the user
   to confirm it anyway, since the operator naming a label directly is a human judgment of the same kind.
 - **`/superdev:backlog`** groups an anchor carrying no release signal as `unreleased`.
-
-A store whose `## Release` section states that its features are released when written — the local-file
-store's default, where there is no board to hold a backlog — has every feature released at creation, and
-`/superdev:plan` skips the question there.
 
 ## Run state
 
@@ -385,9 +376,8 @@ Each store's own `## Definition of Done ticks` section states, citing this secti
 A **deferred finding** — a fix-loop finding whose remedy adds a capability the Definition of Done never
 asked for — gets a **triage record** in the slice store. The run's ledger carries a `**Deferred:**` bullet
 naming the record, and `/superdev:submit-pr` copies that bullet into the pull-request body, but both live and
-die with the run: the run root is reaped and the pull request is merged. On an issue backend, the record
-outlives them regardless of whether the scope ever ships; on the local plan-file store, it outlives them
-only once the scope branch carrying it merges (ADR 0046, ADR 0048).
+die with the run: the run root is reaped and the pull request is merged. The record outlives them
+regardless of whether the scope ever ships (ADR 0046, ADR 0110).
 
 These invariants fix its shape, and every backend renders all of them:
 
@@ -430,9 +420,8 @@ the work — `scope-mode.md`'s `## The change type` lists the set and owns the r
 what the feature actually does, so a bug fix is labelled `fix`, a documentation pass `docs`, and only new
 behaviour `feat`.
 
-The notation is the active `docs/agents/issue-tracker.md`'s (ADR 0019, ADR 0021): a `<type>/<slug>` label
-on an issue-backed store, the `<type>/<slug>` path under `docs/plans/` on the local-file store. Whatever
-the notation, `/superdev:implement` reads the two parts back out — the type is the scope branch's prefix
+The notation is the active `docs/agents/issue-tracker.md`'s (ADR 0019, ADR 0021): a `<type>/<slug>`
+label. Whatever the notation, `/superdev:implement` reads the two parts back out — the type is the scope branch's prefix
 and the slug is the scope.
 
 ## Vertical-slice rules (how `/plan` must slice)
@@ -466,10 +455,6 @@ green alone**, green is promised at one node instead of per slice: the epic carr
 that branch — where the green-gate hook defers — and a final **integrate-and-verify** slice, depending
 on every batch, is where `integration/<scope>` merges into the scope branch and the gate fires. The
 deferral changes where the suite gates, never whether.
-
-## Local-file rendering
-
-See [`issue-tracker-local.md`](issue-tracker-local.md) for the file layout and per-file format.
 
 ## Issue-backend mapping (general)
 
@@ -507,8 +492,7 @@ Forgejo/GitHub, an `accountId` on Jira), under the `issue-tracker` role key.
 ```
 
 It deliberately gains **no row in the *Fields* table above**. Assignee names who owns work inside a
-tracker — a property of the store and the run, not of a slice — and the local-file store has no
-equivalent, so a schema field would be one that backend could never honour (ADR 0010).
+tracker — a property of the store and the run, not of a slice (ADR 0010).
 
 **The file is untracked, and that is the decision.** `.superdev/` is git-ignored, so an identifier
 belonging to one person never reaches a repository several people maintain (ADR 0073). It holds
@@ -550,5 +534,4 @@ identifiers and never credentials: a token stays in the environment variable the
 
 The field name, identifier format, which of the two shapes a given backend fails with, and the whoami
 call are per-backend and live in the active `docs/agents/issue-tracker.md`'s own `## Assignee`
-section. The local-file store has no assignee: `issue-tracker-local.md` neither reads the file nor honours
-it.
+section.

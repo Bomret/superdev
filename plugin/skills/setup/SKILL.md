@@ -68,8 +68,7 @@ store and code host stay unqueried:
   `https://user:TOKEN@host/owner/repo.git` carries userinfo that plays no part in the comparison — and
   report the remote with any userinfo stripped, never verbatim: a caller (`/superdev:sweep`'s config leg
   among them) can write this verdict into a report or an intent file, and a token belongs in an env var,
-  never in one. A document naming no such fact (the local-file store, an "Other" backend written as
-  prose) has nothing to check here, and reports consistent once confirmed present.
+  never in one. A document naming no such fact (an "Other" backend written as prose) has nothing to check here, and reports consistent once confirmed present.
 - `documentation.md` — a `## Writing standard` naming a repo-relative path still resolves to a file,
   and each `## Audit set` glob still matches at least one file.
 - `knowledge-base.md` — a local `docs/kb/` path still exists. A configuration carrying
@@ -136,7 +135,6 @@ Report the verdicts and the seed gaps, then stop. A plain `/superdev:setup` re-r
   each document with its seed.)
 - `CLAUDE.md` / `AGENTS.md` at root — which exists? Is there already an `## Agent skills` section? Is an
   `AGENTS.md` hierarchy present (child `AGENTS.md` files in subdirs)?
-- `docs/plans/` — sign the local-file store is already in use.
 - **Toolchain** — scan for the repo's build/tooling, feeding decision **F**:
   - **build/package manifests** → the package manager + its scripts: `package.json` (+ lockfile /
     `packageManager` field → npm/pnpm/yarn/bun), `*.sln`/`*.csproj`/`nuget.config`, `pom.xml`,
@@ -161,9 +159,6 @@ fit this repo. Using `AskUserQuestion`? Mark the default `(Recommended)`.
 
 **A — Slice store.** Where do slices/plans live?
 
-- **Local files** — a directory per feature, `docs/plans/<type>/<feature-slug>/` (`00-epic-*` = DoD +
-  scope, `NN-<test-applicability>-*` = one file per slice, the number is the id). Good for solo work or
-  no remote. Seed: `references/issue-tracker-local.md`.
 - **GitHub Issues** — slices as GitHub issues. Seed: `references/issue-tracker-github.md`. Ask for
   owner/repo, the feature label, and the **env-var name** for the API token (never the secret).
 - **Forgejo / Codeberg Issues** — slices as issues on a Forgejo or Gitea instance (Codeberg included).
@@ -184,8 +179,8 @@ fit this repo. Using `AskUserQuestion`? Mark the default `(Recommended)`.
 > restricted to trusted authors, and only run `/superdev:implement` on slices the run owner authored or
 > approved.
 
-For an **issue backend whose statuses the seed doesn't already fix** (Jira / other — not the local file,
-and not GitHub Issues or Forgejo, whose seeds each map the lifecycle onto open/closed + labels), also capture the
+For an **issue backend whose statuses the seed doesn't already fix** (Jira / other — not GitHub Issues
+or Forgejo, whose seeds each map the lifecycle onto open/closed + labels), also capture the
 tracker's **status workflow**: probe or ask for the available statuses, the transitions, and the issue
 types for the scope anchor vs a slice. Agree a **status map** — superdev's canonical lifecycle (`todo` →
 `in-progress` → `in-review` → `merged`/done, plus `blocked`) → the tracker's real statuses, with how to
@@ -206,8 +201,7 @@ stating back to the user:
   and is the default worth proposing.
 
 Record the signal plus the calls that **apply** it (what `/superdev:plan` fires on a release) and **read**
-it (what `/superdev:implement` and `/superdev:backlog` check). A team that agrees plans elsewhere and wants
-every plan live on creation is a valid answer too — write that, and `/superdev:plan` stops asking.
+it (what `/superdev:implement` and `/superdev:backlog` check).
 
 Also capture the **assignee** for any issue backend — the account every issue `/superdev:plan` creates is
 assigned to (`plan-contract.md` → *Assignee*). Propose the **API token's own identity** as the default:
@@ -215,7 +209,7 @@ resolve it from the backend's whoami (the matched `tea` login's `user` on Forgej
 GitHub, `GET /rest/api/3/myself` on Jira) and offer that login or `accountId`. Accept a different account — the
 case that matters when a shared or bot token files the issues — provided it can actually be assigned there
 (a repo collaborator, an assignable project user), since an unassignable one fails. Or `none`, to create
-the issues unassigned. The local-file store has no assignee: don't ask.
+the issues unassigned.
 
 **Write the answer to `.superdev/info.json`, never to `issue-tracker.md`** (ADR 0073). The identifier
 belongs to the person running superdev, and `issue-tracker.md` is tracked, so a repository maintained by

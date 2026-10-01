@@ -901,22 +901,14 @@ function verbSuite(cwd, root, sub, result, sha, whole) {
   writeLines(root, lines);
 }
 
-// The path-scoped half of INV-0017's reuse rule: a green suite record recorded on an earlier commit
-// is still reusable when every path `branch`'s tip has changed since that commit lies inside the
-// active store's own plan files — on the local plan-file store, its `docs/plans/<type>/<slug>/`
-// directory, whose tick commits never touch the code a suite run exercises. `--plan-files` only
-// *declares* that this run's backend commits plan files on the scope branch (the local-file store);
-// scope.js derives the directory itself from the ledger's own `**Branch:**` value
-// (`docs/plans/<branch>/`, `## The scope slug` in scope-mode.md) rather than trusting a caller-supplied
-// path — a caller can name no directory but its own scope's, so it can never declare an unrelated file
-// (this suite's own command doc, a sibling scope's plan dir) harmless. A remote store commits nothing
-// on the scope branch, so passing no `--plan-files` reduces this to the exact-tip-match case a caller
-// already had. `--no-renames` on the diff so a code file renamed into the plan dir still counts at its
-// pre-rename path, outside it. Reads via `fail()` (a thrown refusal, exit 1) for "not reusable" — the
-// same channel every other verb already uses to report a no — and prints `reusable` (exit 0) when it is.
+// INV-0017's reuse rule: a green suite record is reusable only on the exact commit it was recorded on.
+// No slice store commits its own records on the scope branch (ADR 0110), so any commit since the record
+// can change what a suite run exercises. Reads via `fail()` (a thrown refusal, exit 1) for "not
+// reusable" — the same channel every other verb already uses to report a no — and prints `reusable`
+// (exit 0) when it is.
 // `whole` is INV-0017's kind gate (ADR 0105): a step that needs a whole-repo run passes it, and refuses
 // a record with no kind even when it is green and tip-matched; a step content with either kind omits it.
-function verbSuiteReusable(cwd, root, branch, planFiles, whole) {
+function verbSuiteReusable(cwd, root, branch, whole) {
   const raw = getHeader(readLines(root), 'Suite');
   if (!raw) fail('no suite record to reuse');
   const m = raw.match(/^(\S+)\s+@\s+(\S+)(?:\s+(whole))?$/);
@@ -926,16 +918,7 @@ function verbSuiteReusable(cwd, root, branch, planFiles, whole) {
   if (whole && kind !== 'whole') fail('suite record carries no kind — a whole-repo run needs one');
   const tip = resolveCommit(branch, cwd);
   if (!tip) fail(`branch "${branch}" does not resolve to a commit`);
-  if (tip !== recordedSha) {
-    if (!planFiles) fail(`suite record @ ${recordedSha} predates tip ${tip}, and no --plan-files was given`);
-    const branchName = getHeader(readLines(root), 'Branch');
-    if (!branchName) fail('no ledger **Branch:** value to derive the plan dir from');
-    const prefix = `docs/plans/${branchName}/`;
-    const diff = gitSpawn(['diff', '--no-renames', '--name-only', '--end-of-options', `${recordedSha}..${tip}`], cwd);
-    if (diff.status !== 0) fail(`git diff ${recordedSha}..${tip} failed resolving reuse`);
-    const outside = diff.stdout.split('\n').filter(Boolean).filter((p) => !p.startsWith(prefix));
-    if (outside.length) fail(`not reusable — changed outside the plan dir: ${outside.join(', ')}`);
-  }
+  if (tip !== recordedSha) fail(`suite record @ ${recordedSha} predates tip ${tip} — not reusable`);
   console.log('reusable');
 }
 
@@ -1534,7 +1517,7 @@ function usage() {
     '  deploy set <target> pending|deployed|failed [--exit <n>]   --root <run-root>',
     '  deploy get   --root <run-root>      one line per recorded target, first-recorded order, or "absent"',
     '  suite set <green|red|denied|none> <sha> [--whole]   --root <run-root>',
-    '  suite reusable --branch <b> [--plan-files] [--whole]   --root <run-root>   exits 0 (reusable) or 1',
+    '  suite reusable --branch <b> [--whole]   --root <run-root>   exits 0 (reusable) or 1',
     '  get stage|branch|anchor|docs|pr|slices|unresolved|degraded|deferred|denials|suite --root <run-root>',
     '  status                             scans <cwd>/.superdev/scopes/*/',
     '  publish --root <run-root>          prints the ledger as one "## Run state" section on stdout',
@@ -1645,17 +1628,11 @@ function run(argv, cwd, stdinJson) {
           args.splice(bi, 2);
         }
         if (!branch) fail('suite reusable needs --branch <branch>');
-        let planFiles = false;
-        const pi = args.indexOf('--plan-files');
-        if (pi >= 0) {
-          planFiles = true;
-          args.splice(pi, 1);
-        }
         // Everything but the leading `reusable` must already be stripped — an unrecognized flag (a
         // mistyped `--whole`) left over here would silently drop the whole-repo gate instead of
         // refusing it, and a no-kind record would then pass a `--whole` check it must fail (INV-0017).
         if (args.length > 1) fail(`suite reusable: unrecognized argument "${args[1]}"`);
-        verbSuiteReusable(cwd, root, branch, planFiles, whole);
+        verbSuiteReusable(cwd, root, branch, whole);
         break;
       }
       // `set <result> <sha>` is the whole shape — an unrecognized fourth token (a mistyped `--whole`,

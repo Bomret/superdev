@@ -279,14 +279,9 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   review runs the full command, as below.
 - **Reuse a green suite record the tip still earns; otherwise run the full suite yourself, before
   dispatching `final-reviewer`.**
-  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> [--plan-files]
-  --root <run-root>` **in the scope checkout above** — `--plan-files` declares that the active store
-  commits plan files on the scope branch (the local plan-file store's own tick commits land there);
-  `scope.js` derives the directory itself from the ledger's own `**Branch:**` value, never from a path
-  this dispatch supplies. A store committing nothing on the scope branch passes no `--plan-files`. Exit
-  0 → reused,
-  running nothing (INV-0017: an exact tip match, or a diff confined to that directory since the recorded
-  commit). Exit 1, or no record at all, means: take the full command from
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch>
+  --root <run-root>` **in the scope checkout above**. Exit 0 → reused, running nothing (INV-0017: an
+  exact tip match). Exit 1, or no record at all, means: take the full command from
   `docs/agents/verification.md` per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run it **in
   the scope checkout above**, over the scope branch, then record what happened with
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set <green|red|denied|none> <sha> --root <run-root>`

@@ -25,9 +25,7 @@ space, or `~` are all legal label characters and none are safe in either place.
 **Validate both segments.** A feature label is `<type>/<slug>`, and the whole label becomes the branch
 name, so the type reaches `git worktree add … -b` exactly as the slug does.
 
-- **The slug** — what follows the first `/` — matches the charset above. On a store that renders the
-  label as a path (`docs/plans/<type>/<slug>/`), the label is still `<type>/<slug>`: take the slug from
-  the label, never a fragment of the rendered path.
+- **The slug** — what follows the first `/` — matches the charset above.
 - **The type** — what precedes it — is one of the eleven in `## The change type`, matched exactly.
   Stronger than a charset test: a label leading with `-x` reaches git as an option, and a type outside
   the set makes `hooks/scope-prune.js` misread a live, unmerged branch as gone — one of the three
@@ -144,9 +142,8 @@ write, naming `scope.js`.
   `<result> <sha>`, with a trailing ` whole` when the record carries that kind, or nothing on a ledger
   with no record; written with `suite set <result> <sha> [--whole]`, which refuses a sha that does not
   resolve to a commit in the repository. A later step reuses a green record `scope.js suite reusable`
-  calls reusable against the scope branch's current tip — an exact match, or a diff confined to the
-  active store's own plan files since the recorded commit — instead of running the suite again
-  (INV-0017). `suite reusable --whole` additionally refuses a record with no kind, even when it is
+  calls reusable against the scope branch's current tip — an exact match — instead of running the
+  suite again (INV-0017). `suite reusable --whole` additionally refuses a record with no kind, even when it is
   green and tip-matched: a step that needs a whole-repo run reuses only a record of kind `whole`; a
   step content with either kind omits `--whole` and accepts both.
 
@@ -669,14 +666,12 @@ A deferred finding is therefore **not** an unresolved defect — it holds no sta
 a verdict whose only remaining findings are deferred counts as clean.
 
 **The record has two halves, and the durable one is the store's.** A **triage record** in the configured
-slice store is what outlives this run — on the local plan-file store, only once the scope branch
-carrying the record merges (ADR 0048): `hooks/scope-prune.js` reaps the run root once the scope closes
+slice store is what outlives this run, whether or not the scope ever ships (ADR 0110): `hooks/scope-prune.js` reaps the run root once the scope closes
 and goes stale, and `/superdev:wrap-up` closes the scope anchor that mirrors it, so a bullet alone leaves
 the finding in the body of a merged pull request and in no backlog at all (ADR 0046). `/superdev:review`
 creates that record at the moment it defers, and the bullet below carries the record's reference. **How a
 store creates one is the store's own contract**, stated in the active `docs/agents/issue-tracker.md`'s
-`## Triage record` section — an issue carrying that store's triage label, a file under a directory no
-candidate listing walks, whatever that backend renders. The write is best-effort, the same posture every
+`## Triage record` section — an issue carrying that store's triage label, or whatever that backend renders. The write is best-effort, the same posture every
 status write in the chain takes: a failure is reported once per run and the bullet still gets written.
 
 **The entry.** A `**Deferred:**` line in `<run-root>/ledger.md`, beside `**Stage:**`, carrying one bullet

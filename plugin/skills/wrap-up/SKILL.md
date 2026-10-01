@@ -35,14 +35,10 @@ Read the stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --r
   nothing.
 - **`shipped`** → continue.
 
-Read the store from `docs/agents/issue-tracker.md`. **The local plan-file store** → write nothing to the store:
-the anchor's close already rode the pull request as `/superdev:submit-pr`'s scope-branch commit (INV-0001).
-The gate below and the cleanup still run, and §5 skips the store calls.
-
 ## 3. Gate
 
-Collect every reason that holds, then name all of them in one refusal. Change nothing while any reason that is not
-a local-store ask holds.
+Collect every reason that holds, then name all of them in one refusal. Change nothing while any reason
+holds.
 
 - **The pull request is not merged.** `scope.js get pr` prints a number → read that pull request by
   index, per `docs/agents/code-management.md`'s `## Merge` section, and take its `merged` field. `absent`
@@ -56,30 +52,13 @@ a local-store ask holds.
   per `docs/agents/issue-tracker.md`, only when `dod.md` is missing. A line that is neither ticked nor
   `accepted:` holds this reason. The note's verdict (`met:`, `accepted:`) decides whether a line is settled,
   never the box: a `[x]` whose note is `ceiling:` or `not met:` counts as unsettled. Name each such line and
-  `/superdev:verify-ship <scope>`, except on the local plan-file store (next bullet).
-- **On the local plan-file store only, a `ceiling:` line gets one ask.** The local-store asks run once
-  no reason other than the local-store asks holds, so the gate changes nothing while any other reason
-  holds; while one does, list each ask as a pending reason instead of putting it. Then, attended, put each unsettled `ceiling:` line to the operator once: accept as unverifiable, or
-  keep open. Accept → write `accepted: <the operator's reason> (operator, <date>)` into `dod.md` through
-  `scope.js dod-line` with verdict `accepted`; the line then counts as settled. Keep open → the line stays
-  a reason, and names no command: it waits for a later version's local post-merge write. A `not met:` line
-  gets no such offer and stays a reason. This is the one acceptance point wrap-up has: the local store has
-  no verify-ship (it refuses there), so nothing else could settle the line. On a remote store wrap-up never
-  offers acceptance and names verify-ship. Answers the operator already gave stand across a later refusal: an earlier accept or yes
-  stays recorded and true, as verify-ship §3 keeps an earlier yes, and a rerun does not ask about it again.
-- **On the local plan-file store only, a `manual` target gets one ask.** Verify-ship refuses there, so
-  wrap-up asks the deploy question itself, under the same rule and the same pending-reason condition as
-  the bullet above. Ask once per listed `manual` target not recorded `deployed` (an absent record
-  included) whether it deployed. Yes → record it with `deploy set <target> deployed`, as verify-ship §3 does
-  (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" ... --root <run-root>`). Any no → that target stays a reason and names no command. An `auto` target
-  still names `/superdev:ship`. A remote store names verify-ship and asks nothing.
-- **A remote anchor disagrees with a settled `dod.md`.** With `dod.md` present, also read the anchor's lines.
+  `/superdev:verify-ship <scope>`. Wrap-up never offers acceptance itself: verify-ship settles the line.
+- **The anchor disagrees with a settled `dod.md`.** With `dod.md` present, also read the anchor's lines.
   Pair the lines per `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## Pairing dod.md with the anchor`.
   A paired line whose verdict differs from `dod.md` (a failed tick write) holds this reason too: name the
   line and `/superdev:verify-ship <scope>` as the reconciler. A `dod.md` line with no text-matching line on
   the anchor holds this reason too: name the line, and say to hand-sync the anchor's criterion text to `dod.md`'s, then rerun `/superdev:wrap-up`. Name no verify-ship,
-  since it cannot reconcile that line. A remote anchor is never closed with its criterion text out of sync. The local plan-file store has no such read: its anchor
-  on base is frozen at the merge.
+  since it cannot reconcile that line. An anchor is never closed with its criterion text out of sync.
 - **A deploy target is not `deployed`.** The pull request must be merged to have a merge commit; without one
   the first reason stands alone and this read is skipped. Read the posture, the anchor's `**Deploy:**`
   line, and the deploy record per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Reading the
@@ -87,8 +66,7 @@ a local-store ask holds.
   `**PR:**` header (a legacy run older than the posture), or an anchor an older version already closed →
   no such reason. Otherwise count every listed target not recorded `deployed` as a reason. Name each
   target not `deployed`, with
-  `/superdev:verify-ship` for a `manual` posture and `/superdev:ship` for `auto`; on the local plan-file
-  store a `manual` target takes the ask above instead.
+  `/superdev:verify-ship` for a `manual` posture and `/superdev:ship` for `auto`.
 
 ## 4. Standing unresolved defects
 
@@ -101,7 +79,7 @@ Ask once per entry: close with it standing, or keep open.
 
 ## 5. Close
 
-**The local plan-file store** → skip this step. Otherwise close every open slice record under the anchor,
+Close every open slice record under the anchor,
 then the anchor itself, per `docs/agents/issue-tracker.md`'s own close call. Any failed store call stops the
 command: report it, leave the stage and the scaffolding unchanged, and say running
 `/superdev:wrap-up <scope>` again retries. Slice records already closed stay closed, so a rerun converges on

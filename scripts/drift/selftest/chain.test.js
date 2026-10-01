@@ -55,7 +55,6 @@ const {
   COMMITMENT_CAPTURE_CONTRACTS,
   SHIP_TICKS_NOTHING_CONTRACTS,
   WRAP_UP_CONTRACTS,
-  ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS,
   DOC_UNTICK_ON_BREAK_CONTRACTS,
   CLEAN_VERDICT_ENDS_LOOP_CONTRACTS,
   OBSERVATION_CAPTURE_CONTRACTS,
@@ -555,7 +554,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   const adoptRunInitPieces = {
     trigger:
       '**No `<run-root>/ledger.md` yet** → before running `init`, check the scope anchor for a snapshot ' +
-      'to adopt, unless the active store declares itself snapshot-less (the local store) — skip straight ' +
+      'to adopt, unless the active store declares itself snapshot-less (Jira by default) — skip straight ' +
       'to `init` below.\n\n',
     readFails:
       '**The read fails** (the store is unreachable) → report it once and fall through to `init` below, ' +
@@ -2752,7 +2751,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   const sourceSectionBodies = {
     'references/plan-contract.md':
-      '# Plan-file contract\n\n## Fields\n\n## Epic visuals (optional, epic-only)\n\n' +
+      '# Plan contract\n\n## Fields\n\n## Epic visuals (optional, epic-only)\n\n' +
       '## Slice lifecycle & status\n\n## Append mode\n\n## Scope anchor\n\n## Release\n\n' +
       '## Run state\n\n## Definition of Done ticks\n\n## Triage record\n\n' +
       // the real document carries this one at `###`, under `## Issue-backend mapping (general)`, with a
@@ -4893,27 +4892,18 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'A target not `deployed` refuses, naming `/superdev:verify-ship` for manual and `/superdev:ship` for auto. ' +
       'Ask once per entry. Any failed store call stops the command. Clean up only after a successful close. Clean up from the invoking checkout. Keep `.superdev/kb-pending/<scope>/`. Never delete the scope branch. ' +
       'Count every listed target not recorded `deployed` as a reason. ' +
-      'The local plan-file store** → write nothing to the store: the anchor\'s close already rode the pull request. ' +
       'Judge settledness from `<run-root>/dod.md`, reading the anchor only when `dod.md` is missing. ' +
       'A verdict differs from `dod.md`: name `/superdev:verify-ship <scope>` as the reconciler. ' +
       'Slice records already closed stay closed, and a rerun converges. ' +
-      'On the local plan-file store only, a `ceiling:` line is put to the operator: accept as unverifiable, ' +
-      'written through `scope.js dod-line` with verdict `accepted`. This is the one acceptance point wrap-up has: ' +
-      'there is no verify-ship on this store. ' +
       'On refusal, leave the stage at `shipped`, so a rerun retries the cleanup. Never force-remove. ' +
-      '**On the local plan-file store only, a `manual` target gets one ask.** Yes runs `deploy set <target> deployed`; a no names no command. ' +
-      'The local-store asks run once no reason other than the local-store asks holds; otherwise list each as a pending reason. ' +
-      'Answers the operator already gave stand across a later refusal. ' +
       'Pair the lines per `references/dod-ticks.md`\'s `## Pairing dod.md with the anchor`. ' +
       'A dod.md line with no text-matching line on the anchor holds this reason: name the hand-sync, then rerun `/superdev:wrap-up`.\n',
     'references/dod-ticks.md':
       'An anchor line **pairs** with a `dod.md` line by criterion text. A `dod.md` line with ' +
       'no text-matching line on the anchor** is unpaired. It is never counted as a verdict disagreement and ' +
-      'is never retried by the reconcile; it needs a hand-sync. ' +
-      '**Wrap-up\'s case:** on the local plan-file store only, wrap-up writes `accepted:`; it is attended only (ADR 0095).\n',
+      'is never retried by the reconcile; it needs a hand-sync.\n',
     'skills/backlog/SKILL.md': 'Pair per `references/dod-ticks.md`\'s `## Pairing dod.md with the anchor`. A dod.md line with no text-matching line on the anchor routes to `awaiting wrap-up`, the act naming the hand-sync, then `/superdev:wrap-up <scope-slug>`.\n',
     'skills/verify-ship/SKILL.md':
-      'The local plan-file store** → refuse, and point at `/superdev:wrap-up <scope>`. ' +
       '**Reconcile first.** Then rewrite the anchor line from `dod.md`. ' +
       '`manual`, and a listed target recorded `pending` or carrying no record. ' +
       'Pair per `references/dod-ticks.md`\'s `## Pairing dod.md with the anchor`. ' +
@@ -4995,50 +4985,6 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     SHIP_TICKS_NOTHING_CONTRACTS,
   );
   assert.equal(stnShipNoAnchorGaps.length, 1, "flags ship/SKILL.md for dropping its own anchor-close statement");
-
-  // --- ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS (triage #654): a store whose anchor close is a scope-branch
-  // commit commits that close before submit-pr's push, so it reaches base with the merge. Pins
-  // skills/submit-pr/SKILL.md's push-step sentence and references/issue-tracker-local.md's own close
-  // line. ---
-  const acbpClauses = {
-    'skills/submit-pr/SKILL.md':
-      'A store whose anchor close is a commit on the scope branch commits that close now, before this ' +
-      'push, so it reaches base exactly when the pull request merges.\n',
-    'references/issue-tracker-local.md':
-      '**`/superdev:submit-pr`** — commit it `done` on the scope branch before it pushes, so it reaches ' +
-      'base with the merge. `/superdev:wrap-up` writes nothing here: the close already rode the pull request, ' +
-      'so it only takes the run down.\n',
-  };
-
-  // negative: a fixture carrying both halves reports no gap
-  const acbpFullGaps = scanContract(fixture(acbpClauses), ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS);
-  assert.deepEqual(acbpFullGaps, [], 'a fixture carrying both halves reports no gap');
-
-  // positive: dropping the submit-pr push-step sentence reports that row alone
-  const acbpNoShipGaps = scanContract(
-    fixture({ ...acbpClauses, 'skills/submit-pr/SKILL.md': 'Push the scope branch, then open the pull request.\n' }),
-    ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS,
-  );
-  assert.equal(acbpNoShipGaps.length, 1, 'flags submit-pr/SKILL.md for dropping the push-step sentence');
-  assert.equal(acbpNoShipGaps[0].source, path.join('skills', 'submit-pr', 'SKILL.md'), 'names submit-pr/SKILL.md');
-
-  // positive: reverting the local store's close line to the old "once the scope branch merges" wording
-  // reports that row alone
-  const acbpOldLocalGaps = scanContract(
-    fixture({
-      ...acbpClauses,
-      'references/issue-tracker-local.md':
-        '**`/superdev:submit-pr`** — set it `done` once the scope branch merges. ' +
-        '`/superdev:wrap-up` writes nothing here: it only takes the run down.\n',
-    }),
-    ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS,
-  );
-  assert.equal(acbpOldLocalGaps.length, 1, 'flags issue-tracker-local.md for the old close wording');
-  assert.equal(
-    acbpOldLocalGaps[0].source,
-    path.join('references', 'issue-tracker-local.md'),
-    'names issue-tracker-local.md',
-  );
 
   // --- DOC_UNTICK_ON_BREAK_CONTRACTS (ADR 0091): the doc pass unticks, with a note, a ticked criterion
   // its own commits broke, and leaves every other tick untouched. Pins dod-ticks.md's Document's

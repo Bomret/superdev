@@ -243,8 +243,8 @@ covers, and would misreport one of that project's own triage records as untriage
 a JSON node tree — by default, and `kb-patch.js` performs a **markdown-only** deterministic merge whose
 payload boundary is an HTML comment (`<!-- superdev:run-state -->`), which has no ADF node: neither the
 section heading nor the markers survive a round trip through the API, so `adopt` would refuse forever on
-every anchor this backend ever wrote. This store therefore carries **no snapshot** by default, the same
-posture the local-file store takes when its anchor cannot safely carry a mirrored write.
+every anchor this backend ever wrote. This store therefore carries **no snapshot** by default: its anchor cannot safely carry a mirrored
+write.
 
 A run on a default Jira instance publishes nothing and adopts nothing. Ticking the anchor's own
 Definition of Done checklist is independent of this posture — see `## Definition of Done ticks` below.

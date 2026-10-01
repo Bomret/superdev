@@ -57,8 +57,8 @@ Done in place would pool criteria verified against a merged pull request with cr
 verified, and the reap takes the local half of that mixture while the anchor keeps its own. The two
 shipped signals above are read together and **either one alone refuses** — a run root whose ledger stage
 reads `shipped` or `closed`, and a scope anchor at the store's done status. Neither covers the other's gap on its
-own: a reaped run root leaves no ledger to read, and an anchor closed by hand, or on the local plan-file
-store at the merge, carries no `closed` ledger. Nothing clears either one, so the refusal
+own: a reaped run root leaves no ledger to read, and an anchor closed by hand carries no `closed`
+ledger. Nothing clears either one, so the refusal
 names the remedy instead — plan the follow-up as a **new feature** carrying `**Blocked by feature:**
 #<anchor>`, which ties it back to this one (`references/plan-contract.md` → *Scope anchor*, ADR 0040).
 
@@ -198,13 +198,8 @@ planned slice** (the one already touching that code), **its own slice in this sc
 **Later** makes it an **observation**: write its triage record the moment the user picks it, following
 `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Observations` capture rules, with the provenance
 that exists at that moment — the date, and the feature label, scope branch, and anchor once each exists.
-A store whose triage record rides the scope branch holds it, like any other capture, until the scopetree
-exists to write it into: whenever `<run-root>/scopetree` already exists at that moment — an append, or a
-fresh plan already past §2's cut — this writes it in at once, reading `<run-root>/run.lock` first (a fresh
-lock naming another session stops the run) and refreshing it right after the read, before the record is
-written; refreshing this session's own lock on the already-past-§2's-cut case is harmless, so no case
-split is needed. Otherwise it holds until whichever cut happens first — §2's, on a capture crystallising,
-or §6's, on reaching that step with no scopetree yet.
+The record goes to the store at once, whether or not a scopetree exists yet: nothing about it waits for
+the scope branch.
 
 ## 2. Domain-model as you go
 
@@ -263,10 +258,9 @@ A capture that crystallises before §1 has settled the feature label has nowhere
 the conversation until the label exists, then cut and write it the moment it does. **A label revised
 before §6 writes to the store** undoes it under the old label — remove the scopetree
 (`git worktree remove <run-root>/scopetree`) and delete the branch (`git branch -D <old-type>/<old-slug>`)
-— safe because the branch at that point can carry nothing but this session's own design docs and, on a
-branch-riding store, this session's own triage records too, and an append never revises a picked label —
-then re-cuts both under the revised label and re-writes every capture already held, that record included;
-on a store whose triage record lives outside the branch, amend it instead so its provenance names the
+— safe because the branch at that point can carry nothing but this session's own design docs, and an
+append never revises a picked label — then re-cuts both under the revised label and re-writes every
+capture already held. A triage record already written is amended instead, so its provenance names the
 revised label and branch, through that store's own `## Triage record` section (best-effort, like every
 other store write), so the scopetree and the branch always carry the label the plan ends with.
 
@@ -411,11 +405,10 @@ it here too: reviewing the drawn graph is how a wrong dependency gets caught bef
 ## 6. Write to the store
 
 Per `docs/agents/issue-tracker.md`, write the approved slice(s) — the
-`id`/`depends-on`/`test-applicability`/`spec`/`acceptance` fields from the plan-contract — to the local
-plan files or as issues.
+`id`/`depends-on`/`test-applicability`/`spec`/`acceptance` fields from the plan-contract — as issues.
 
 - **Exactly one slice** — the epic is optional (plan-contract.md): fold the global DoD into that slice's
-  `acceptance` and write only the slice. No `00-epic-…` file / no epic issue.
+  `acceptance` and write only the slice. No epic issue.
 - **Two or more slices** — write the global DoD (epic), each criterion tagged in `plan-contract.md`'s line
   format (*Criterion tags*), plus each slice.
 - **Extending a feature** — create only the **new** slice records; never edit, close, renumber, or delete
@@ -432,13 +425,13 @@ fixing — that's correction, not re-cutting for looks.
 **State the feature label** (§1 picked it) with the slice list, so a wrong type or slug is caught before
 anything is written.
 
-**Write with max parallelism (issue-backend stores).** Ordering is strict only where one record
+**Write with max parallelism.** Ordering is strict only where one record
 references another. **(1)** Create the epic first (slices reference its key), carrying the store's
 configured assignee. **(2)** Create **all slice issues in parallel** — a single batch — applying each
 slice's labels (`test-applicability` + feature + ready) and that same configured assignee **at
 creation**, not in a follow-up pass. **(3)** Once every slice key is known, apply the cross-references
 (`depends-on`) **in parallel**. `depends-on` keys are correct because every slice exists before any
-reference is written. (A local-file store just writes the files.)
+reference is written.
 
 **Record an anchor dependency when the interview named a prerequisite feature.** A feature the interview
 established cannot be built until another one has landed gets that relation written on **this feature's
@@ -479,9 +472,7 @@ cut the way §2's own cut rule would have, per
 reference §2 already defers to, which decides what to do when the branch or scopetree is already
 present — write `<run-root>/run.lock` right after, per `## The run lock`, and write the ledger the same
 way §2 does at its own cut — `{"anchor": "<key> — <title>", "slices": []}` piped to `scope.js init
-<type>/<scope> planned` — since no capture ever crystallised to trigger §2's own write. A held triage
-record from §1's "later" placement — held because no scopetree existed yet when it was picked — writes
-into the scopetree right after this cut, the same way §2's own cut would have released it. Every plan
+<type>/<scope> planned` — since no capture ever crystallised to trigger §2's own write. Every plan
 run ends the same shape — a branch, a scopetree, and the ledger below — whether or not a design doc
 ever crystallised.
 
@@ -518,8 +509,7 @@ section's own **Remove** call, and says it is removed — leaving it standing wo
 `/superdev:implement` build slices nobody released without asking. **Release now** applies it as it always does. On a first plan
 there is nothing to remove, so declining applies nothing, exactly as the branch above reads.
 
-A store whose `## Release` section says its features are released when written has nothing to ask: say
-the plan is live and move on. On every other store the answer is the user's, so **wait for it** — an
+Ask it on every store: the answer is the user's, so **wait for it** — an
 authorization to run the whole chain unattended answers a different question, whether an unattended run
 may proceed once this feature is released, never whether to release it now, so it is not that answer —
 and a correction the user names on seeing the list is applied to the store before the question is put

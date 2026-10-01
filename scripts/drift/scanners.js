@@ -28,7 +28,6 @@ const {
   SCOPETREE_RUN_ROOT_DOCS,
   SCOPETREE_RUN_ROOT_PATTERN,
   ASSIGNEE_DOCS_DIR,
-  ASSIGNEE_EXEMPT,
   EXTRA_ASSIGNEE_DOCS,
   ASSIGNEE_PATTERN,
   ASSIGNEE_BULLET_EXPECTATION,
@@ -43,11 +42,7 @@ const {
   RELEASE_CONSUMERS,
   RELEASE_CONSUMER_PATTERN,
   RELEASE_REMOVE_PATTERN,
-  RELEASE_REMOVE_EXEMPT,
   RELEASE_REMOVE_EXPECTATION,
-  LOCAL_RELEASE_DOC,
-  LOCAL_NO_REMOVAL_PATTERN,
-  LOCAL_NO_REMOVAL_EXPECTATION,
   RELEASE_BOTH_DIRECTIONS_DOC,
   RELEASE_BOTH_DIRECTIONS_PATTERN,
   RELEASE_BOTH_DIRECTIONS_EXPECTATION,
@@ -61,8 +56,6 @@ const {
   specialisingCitation,
   glossaryHeadingReference,
   TRIAGE_RECORD_EXPECTATION,
-  LOCAL_APPEND_DOC,
-  LOCAL_CONTINUATION_ELEMENT,
   WRITING_STANDARD_DOCS,
   WRITING_STANDARD_PATTERN,
   ADR_DIR,
@@ -220,15 +213,12 @@ function scanScopetreeRunRootPaths(root) {
 // Both halves test fence-masked text, defensively: no store document renders either half inside a fenced
 // example today, and the seeds' habit of showing headings inside fenced examples elsewhere makes one
 // plausible. scanReleaseContract takes the opposite latitude and reads raw text.
-//
-// One exempt set covers both halves. The local-file store has no assignee concept, so it renders neither.
 function scanAssigneeContract(root) {
   const gaps = [];
   const heading = specialisingHeading('Assignee');
   const candidates = storeDocuments(root, {
     dir: ASSIGNEE_DOCS_DIR,
     extra: EXTRA_ASSIGNEE_DOCS,
-    exempt: ASSIGNEE_EXEMPT,
   });
   for (const rel of candidates) {
     const text = readDoc(root, rel);
@@ -263,8 +253,7 @@ function scanAnchorContract(root) {
 
 // scanAppendContract() is pure over a root dir: reads every slice-store document (the same candidate list
 // scanAnchorContract uses) and reports the ones missing the `## Append mode` section, missing one of its
-// four universal elements, or — for the local-file store alone — missing the numbering-continuation
-// element. Absent files are skipped, so a fixture carries only the docs it exercises.
+// elements. Absent files are skipped, so a fixture carries only the docs it exercises.
 function scanAppendContract(root) {
   const gaps = [];
   const candidates = storeDocuments(root, { dir: ANCHOR_DOCS_DIR, extra: EXTRA_ANCHOR_DOCS });
@@ -277,10 +266,6 @@ function scanAppendContract(root) {
       continue;
     }
     for (const [pattern, desc] of APPEND_ELEMENTS) {
-      if (!pattern.test(section)) gaps.push({ source: rel, expectation: `state ${desc}` });
-    }
-    if (rel === LOCAL_APPEND_DOC) {
-      const [pattern, desc] = LOCAL_CONTINUATION_ELEMENT;
       if (!pattern.test(section)) gaps.push({ source: rel, expectation: `state ${desc}` });
     }
   }
@@ -302,18 +287,10 @@ function scanReleaseContract(root) {
       continue; // no section → the removal bullet has nowhere to live; one gap, not two
     }
     // ADR 0083: a declined release on an append removes the signal, so a store whose signal is removable
-    // states the call that removes it. The exempt store releases at write and states the opposite below.
-    if (RELEASE_REMOVE_EXEMPT.has(path.basename(rel))) continue;
+    // states the call that removes it.
     const section = extractSection(text, RELEASE_PATTERN);
     if (section === null || !RELEASE_REMOVE_PATTERN.test(section)) {
       gaps.push({ source: rel, expectation: RELEASE_REMOVE_EXPECTATION });
-    }
-  }
-  const localText = readDoc(root, LOCAL_RELEASE_DOC);
-  if (localText !== null && RELEASE_PATTERN.test(localText)) {
-    const localSection = extractSection(localText, RELEASE_PATTERN);
-    if (localSection === null || !LOCAL_NO_REMOVAL_PATTERN.test(localSection)) {
-      gaps.push({ source: LOCAL_RELEASE_DOC, expectation: LOCAL_NO_REMOVAL_EXPECTATION });
     }
   }
   const bothDirections = readDoc(root, RELEASE_BOTH_DIRECTIONS_DOC);
@@ -781,11 +758,7 @@ const scanAgentLensNoDesignSmell = (root) =>
 // row shape at all. Gating on shape (`row[1] instanceof
 // RegExp`) missed exactly those; gating on a path-shaped string instead — one ending in `.md`, `.json`, or
 // `.js` — catches all of them, and a path-shape predicate still won't misreport a row whose first element
-// is a heading rather than a path. A `Set` is deliberately excluded from the recursion: every `Set` in
-// this file holds a membership value (`ASSIGNEE_EXEMPT`'s bare filename), not a
-// document this scanner should assert exists — `ASSIGNEE_EXEMPT`'s bare `issue-tracker-local.md` has no
-// root-level file to resolve to, so recursing into it would report the real
-// `references/issue-tracker-local.md` as missing.
+// is a heading rather than a path.
 //
 // ponytail: shape-based, and its ceiling is the extension whitelist and the two container shapes it
 // recurses (arrays, plain objects). A future table that pins a path with no `.md`/`.json`/`.js`
@@ -803,7 +776,7 @@ function collectPinnedPaths(value, pinned) {
     for (const item of value) collectPinnedPaths(item, pinned);
     return;
   }
-  if (value && typeof value === 'object' && !(value instanceof RegExp) && !(value instanceof Set)) {
+  if (value && typeof value === 'object' && !(value instanceof RegExp)) {
     for (const item of Object.values(value)) collectPinnedPaths(item, pinned);
   }
 }

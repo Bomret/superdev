@@ -9,7 +9,7 @@ argument-hint: "[<scope>  (empty = the only run in this repo)]  [--unattended]"
 Open a pull request for a run. Every slice is on the scope branch, the scope has been reviewed, and the
 docs have been reconciled — this command turns that into a pull request. It leaves the run standing:
 the scopetree, the slicetrees, and the run lock stay, and `/superdev:wrap-up` is what takes them down, after
-the pull request merges and, on a remote store, `/superdev:verify-ship` has run. It dispatches no subagents.
+the pull request merges and `/superdev:verify-ship` has run. It dispatches no subagents.
 
 ## 1. Scope + run root
 
@@ -76,9 +76,8 @@ from the scope checkout per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`
 - **No such section** → this command runs no suite, and the outcome is `not configured`. Continue to §5.
 - **Section present** → reuse a green whole-repo record the tip still earns, or run the command once. In
   the scope checkout, run
-  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> [--plan-files] --whole --root <run-root>`
-  (`--plan-files` as `/superdev:review` passes it, when the active store commits plan files on the scope
-  branch). Only a record of kind `whole` satisfies this step; a green record with no kind does not.
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --whole --root <run-root>`.
+  Only a record of kind `whole` satisfies this step; a green record with no kind does not.
   Exit 0 → outcome `reused`, no run; continue to §5. Otherwise run the whole-repo command once in the
   scope checkout over the scope branch's tip, then record it with
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set <green|red|denied> <sha> --whole --root <run-root>`
@@ -108,12 +107,6 @@ command's report, and in the pull request body under the fixed heading `## Whole
 one.
 
 ## 5. Pull request
-
-**A scope-branch-commit anchor close happens first.** Per `docs/agents/issue-tracker.md`, a store whose
-anchor close is a commit on the scope branch commits that close now, before this push, so it reaches base
-exactly when the pull request merges — never as a commit straight to base (INV-0001). A store whose close
-is an API call skips this: it closes the anchor after the merge instead, which is `/superdev:wrap-up`'s job,
-not this command's.
 
 Per `docs/agents/code-management.md`: push the scope branch, then open the pull request at the configured
 posture, with a body built from the Definition of Done and the slice list. No host CLI or API access →
@@ -164,14 +157,13 @@ Set the ledger's `**Stage:**` line to `submitted` with
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set submitted --root <run-root>`. Publish the
 snapshot afterwards, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state`
 section. The run stands: the scopetree, the slicetrees, and the run lock stay in place, and the scope
-anchor on a remote store stays open. `/superdev:wrap-up` closes it, after the merge and
+anchor stays open. `/superdev:wrap-up` closes it, after the merge and
 `/superdev:verify-ship`, and takes the run's scaffolding down.
 
 **Print `/superdev:ship <scope>` as the next command.** One line on what it does: it merges the pull
 request once an operator has reviewed it, applies the repository's deploy posture to the merge, and stops
-there, printing `/superdev:verify-ship <scope>` next. On the local plan-file store, ship prints
-`/superdev:wrap-up <scope>` instead: verify-ship refuses there. `/superdev:wrap-up` closes the scope anchor
+there, printing `/superdev:verify-ship <scope>` next. `/superdev:wrap-up` closes the scope anchor
 and cleans up the run afterwards.
 
 This is the chain's own end. `/superdev:submit-pr` hands off to `/superdev:ship`, and only a human runs
-that, then `/superdev:verify-ship` (remote stores only) and `/superdev:wrap-up`.
+that, then `/superdev:verify-ship` and `/superdev:wrap-up`.

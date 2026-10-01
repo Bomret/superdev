@@ -143,7 +143,6 @@ const {
   HOLDS_VERDICT_TICKS_CONTRACTS,
   ACCEPTED_VERDICT_CONTRACTS,
   ALWAYS_REVIEW_CONTRACTS,
-  ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS,
   CODE_MANAGEMENT_MERGE_CONTRACTS,
   CODE_MANAGEMENT_HEAD_BRANCH_LOOKUP_CONTRACTS,
   SHIP_TESTED_PUSH_CONTRACTS,
@@ -344,11 +343,6 @@ module.exports = [
     'submit-pr writes no tick anywhere, and copies every `— ceiling:` criterion into the pull-request body as a post-merge checklist',
   ),
   table(
-    'anchor-close-before-push',
-    ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS,
-    "a store whose anchor close is a scope-branch commit commits that close before submit-pr's push, so it reaches base with the merge, and the local store's own close line says so",
-  ),
-  table(
     'doc-untick-on-break',
     DOC_UNTICK_ON_BREAK_CONTRACTS,
     "document's closing step re-checks a ticked criterion its own commits could touch and unticks a broken one with a note",
@@ -537,7 +531,7 @@ module.exports = [
       g.expectation
         ? `${g.source} no longer meets the release contract — expected it to ${g.expectation}`
         : `${g.source} carries no \`## Release\` section — expected it to state how this backend marks ` +
-            'a plan agreed for execution, or that its plans are released when written; see ' +
+            'a plan agreed for execution; see ' +
             '`references/plan-contract.md` → *Release*',
   },
   {

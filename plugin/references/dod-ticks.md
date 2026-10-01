@@ -83,12 +83,6 @@ writes `met:`, `not met:`, or `accepted:` (ADR 0095), or leaves the line unchang
 observes; it changes no system outside the repository (ADR 0084, INV-0006, ADR 0106). A ticked or
 `accepted:` line is never a listed line and is never rewritten.
 
-**Wrap-up's case:** on the local plan-file store only, `/superdev:wrap-up`'s own controller writes an
-attended operator's `accepted:` into `<run-root>/dod.md` through `scope.js dod-line`, for a `ceiling:` line
-the operator accepts as unverifiable. That store has no verify-ship, so this is the one post-merge
-`dod.md` writer besides verify-ship. It is attended only (ADR 0095); an unattended run writes nothing
-there.
-
 ## The note rule (INV-0014)
 
 Every judged line carries a note, in `plan-contract.md`'s line format:

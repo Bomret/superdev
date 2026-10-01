@@ -123,15 +123,12 @@ function readDoc(root, rel) {
 
 // storeDocuments(): every slice-store document — each `references/issue-tracker-*.md` seed plus this
 // repo's own dogfooded `docs/agents/issue-tracker.md`. The anchor, append-mode, assignee, release, and
-// triage-record contracts each run over this same list; only the assignee contract exempts a store (the
-// local-file one, which has no assignee concept), so the exemption is a parameter rather than five copies
-// of the walk.
-function storeDocuments(root, { dir, extra, exempt = new Set() }) {
+// triage-record contracts each run over this same list.
+function storeDocuments(root, { dir, extra }) {
   const candidates = [...extra];
   try {
     for (const entry of fs.readdirSync(docPath(root, dir))) {
       if (!entry.startsWith('issue-tracker-') || !entry.endsWith('.md')) continue;
-      if (exempt.has(entry)) continue;
       candidates.push(path.join(dir, entry));
     }
   } catch {

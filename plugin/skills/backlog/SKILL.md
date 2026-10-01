@@ -59,7 +59,7 @@ Resolve the checkout once, not per anchor: the main checkout is the PARENT of
 `git rev-parse --path-format=absolute --git-common-dir`, which resolves identically from the repo root
 and from inside a scopetree (ADR 0045 leaves the operator in one for the whole implement chain).
 Address every run root by that absolute path — `scope.js`'s `--root` wants one — and note which checkout
-the survey read, the same way `references/issue-tracker-local.md` names the branch its own listing read.
+the survey read.
 
 List every run root **once**, up front: `<main-checkout>/.superdev/scopes/*/` — a run root is a
 directory there holding a `ledger.md` (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## A live
@@ -80,10 +80,10 @@ the act, so the run root beneath it earns no second one. A run root matching no 
 reads `shipped` — its anchor already closed — that meets the
 `deploy resume` definition (§3) gets a `deploy resume` row whether or not an open anchor matches it; one
 that does not goes to `awaiting wrap-up`. A run root reading `closed` gets no row, matched or not: it
-is the ordinary end state a finished run sits in until `hooks/scope-prune.js` reaps it. The local plan-file
-store closes the anchor with the pull request, so there a `deploy resume` row is the only way a stalled
-`auto` deploy shows at all, and every other `shipped` run root reads over a closed anchor and goes to
-`awaiting wrap-up`: wrap-up writes nothing to that store, while verify-ship refuses there.
+is the ordinary end state a finished run sits in until `hooks/scope-prune.js` reaps it. A `shipped` run
+root over a closed anchor means a human closed that anchor by hand before `/superdev:wrap-up` ran, so
+there a `deploy resume` row is the only way a stalled `auto` deploy shows at all, and every other such
+run root goes to `awaiting wrap-up`, which still takes the run down.
 `/superdev:ship` sets the `shipped` stage right after the merge, before any deploy runs, and stops after the
 deploy; `/superdev:wrap-up` closes the anchor. A `shipped` run root therefore carries an open anchor by
 design. That case — an open anchor whose own run root reads `shipped` — is a
@@ -128,7 +128,7 @@ Read a `shipped` run root's Definition-of-Done lines from `<run-root>/dod.md` (I
 authoritative because a store's tick write is best-effort (the note's verdict, not the box, decides a line's
 state). A `dod.md` that is missing or unreadable → judge from the anchor alone, read through the store
 document's anchor read. An unreadable anchor → the item is a `blocked` row naming what could not be read.
-With `dod.md` read, also read the anchor's lines on a remote store and pair them per
+With `dod.md` read, also read the anchor's lines and pair them per
 `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## Pairing dod.md with the anchor`: a paired line whose
 verdict differs from `dod.md` routes the item to `awaiting verification`, whose act reconciles it. A `dod.md` line with no text-matching line on the anchor routes it to `awaiting wrap-up` (verify-ship cannot reconcile it), the act naming the hand-sync of the anchor's criterion text and then `/superdev:wrap-up <scope-slug>`. Read its listed deploy targets, their
 record, and the posture per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Reading the posture at

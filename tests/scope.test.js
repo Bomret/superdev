@@ -2179,69 +2179,27 @@ try {
       'a green record is reusable against its own sha passed literally, not only a branch name'
     );
 
-    // suite reusable: a diff confined to the active store's own plan dir since the recorded commit
-    // keeps a green record reusable — a tick commit never invalidates the suite it rides on. The
-    // directory is derived from the ledger's own **Branch:** value (`feat/suite-demo`), never a
-    // caller-supplied path.
+    // suite reusable: a green record on an earlier commit is not reusable, even when every path changed
+    // since lies under `docs/plans/<branch>/` — no store commits its own records on the scope branch, so
+    // reuse is the exact-tip match alone (INV-0017, ADR 0110).
     const planDir = path.join('docs', 'plans', 'feat', 'suite-demo');
     fs.mkdirSync(path.join(suiteRepo, planDir), { recursive: true });
     fs.writeFileSync(path.join(suiteRepo, planDir, '01-tick.md'), 'ticked\n');
     gitSuite(['add', '.'], suiteRepo);
     gitSuite(['commit', '-q', '-m', 'tick'], suiteRepo);
-    assert.ok(
-      callIn(['suite', 'reusable', '--branch', 'main', '--plan-files', ...SR], suiteRepo).ok,
-      'a plan-dir-only diff since the recorded commit is still reusable'
-    );
-
-    // suite reusable: with no --plan-files given, reuse reduces to the exact-tip-match case — a remote
-    // store commits nothing on the scope branch, so it never has one to pass.
     r = callIn(['suite', 'reusable', '--branch', 'main', ...SR], suiteRepo);
-    assert.ok(!r.ok && /no --plan-files/.test(r.err), 'no --plan-files reduces reuse to the tip match: ' + (r.err || ''));
-
-    // suite reusable --plan-files: a ledger with no **Branch:** value has no directory to derive
-    // the plan dir from, and is refused rather than guessing one.
-    const noBranchRoot = path.join(suiteRepo, '.superdev', 'scopes', 'no-branch-demo');
-    fs.mkdirSync(noBranchRoot, { recursive: true });
-    fs.writeFileSync(
-      path.join(noBranchRoot, 'ledger.md'),
-      '# Ledger — no-branch-demo\n\n**Stage:** merged\n' +
-        `**Suite:** green @ ${sha}\n` +
-        '**Anchor:** #1 — no branch line\n\n' +
-        '| id | issue | title | type | depends-on | status | range |\n' +
-        '|---|---|---|---|---|---|---|\n' +
-        '| 01 | #2 | x | behavior | — | merged | — |\n',
-      'utf8'
-    );
-    r = callIn(['suite', 'reusable', '--branch', 'main', '--plan-files', '--root', noBranchRoot], suiteRepo);
     assert.ok(
-      !r.ok && /no ledger \*\*Branch:\*\* value/.test(r.err),
-      'a ledger with no **Branch:** value is refused, not guessed: ' + (r.err || '')
+      !r.ok && /predates tip/.test(r.err),
+      'a record on an earlier commit is not reusable, whatever paths changed: ' + (r.err || '')
     );
 
-    // suite reusable: a code change outside the plan dir since the recorded commit is not reusable.
-    fs.writeFileSync(path.join(suiteRepo, 'README.md'), 'x\ny\nz\n');
-    gitSuite(['add', '.'], suiteRepo);
-    gitSuite(['commit', '-q', '-m', 'third'], suiteRepo);
+    // suite reusable: `--plan-files` is not a flag, so it is refused like any unrecognized
+    // argument, naming it.
     r = callIn(['suite', 'reusable', '--branch', 'main', '--plan-files', ...SR], suiteRepo);
-    assert.ok(
-      !r.ok && /changed outside the plan dir/.test(r.err),
-      'a code change outside the plan dir is not reusable: ' + (r.err || '')
-    );
-
-    // suite reusable: a code file *renamed* into the plan dir still counts at its pre-rename path,
-    // outside the plan dir — `git diff` follows renames by default, and
-    // a rename-tracked diff would otherwise report no path outside the plan dir at all. Note the
-    // directory itself is never caller-supplied: there is no flag to name one, so a sibling
-    // scope's plan dir, or a parent like `docs/`, is never even expressible.
-    assert.ok(callIn(['suite', 'set', 'green', 'HEAD', ...SR], suiteRepo).ok, 'suite set green HEAD (pre-rename)');
-    fs.renameSync(path.join(suiteRepo, 'README.md'), path.join(suiteRepo, planDir, 'README.md'));
-    gitSuite(['add', '-A'], suiteRepo);
-    gitSuite(['commit', '-q', '-m', 'rename README into the plan dir'], suiteRepo);
+    assert.ok(!r.ok && /--plan-files/.test(r.err), 'a leftover --plan-files is refused, naming it: ' + (r.err || ''));
+    assert.ok(callIn(['suite', 'set', 'green', 'HEAD', ...SR], suiteRepo).ok, 'suite set green HEAD');
     r = callIn(['suite', 'reusable', '--branch', 'main', '--plan-files', ...SR], suiteRepo);
-    assert.ok(
-      !r.ok && /changed outside the plan dir/.test(r.err),
-      'a code file renamed into the plan dir still counts its pre-rename path: ' + (r.err || '')
-    );
+    assert.ok(!r.ok && /--plan-files/.test(r.err), 'a leftover --plan-files is refused on the exact tip too: ' + (r.err || ''));
 
     // suite reusable: a non-green record is never reusable, whatever changed.
     assert.ok(callIn(['suite', 'set', 'red', newSha, ...SR], suiteRepo).ok, 'suite set red for the non-green case');
@@ -2298,18 +2256,18 @@ try {
       'get suite shows the record as red and whole'
     );
 
-    // suite reusable --whole --plan-files: the plan-file-scoped reuse case holds with --whole exactly
-    // as without it.
+    // suite reusable --whole: a green whole record on an earlier commit is not reusable either.
     assert.ok(
       callIn(['suite', 'set', 'green', wholeTip, '--whole', ...SR], suiteRepo).ok,
-      'suite set green --whole for the plan-file reuse case'
+      'suite set green --whole for the earlier-commit case'
     );
     fs.writeFileSync(path.join(suiteRepo, planDir, 'another-tick.md'), 'ticked again\n');
     gitSuite(['add', '.'], suiteRepo);
     gitSuite(['commit', '-q', '-m', 'tick again'], suiteRepo);
+    r = callIn(['suite', 'reusable', '--branch', 'main', '--whole', ...SR], suiteRepo);
     assert.ok(
-      callIn(['suite', 'reusable', '--branch', 'main', '--plan-files', '--whole', ...SR], suiteRepo).ok,
-      'a plan-dir-only diff since the recorded commit is still reusable with --whole'
+      !r.ok && /predates tip/.test(r.err),
+      'a whole record on an earlier commit is not reusable with --whole: ' + (r.err || '')
     );
 
     // suite set: an unrecognized flag (a mistyped `--whole`) is refused, naming it, and writes nothing —

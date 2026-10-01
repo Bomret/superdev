@@ -92,7 +92,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(missing2.length, 0, 'all-present fixture yields zero missing');
 
   // fixture with a bare (no ${CLAUDE_PLUGIN_ROOT} macro) reference to a missing file — the prose
-  // form used e.g. in skills/setup/SKILL.md ("Seed: `references/issue-tracker-local.md`")
+  // form used e.g. in skills/setup/SKILL.md ("Seed: `references/issue-tracker-github.md`")
   const tmp3 = fixture({ 'skills/baz/SKILL.md': 'Seed: `references/missing-bare.md`\n' });
 
   const missing3 = scan(tmp3);
@@ -343,7 +343,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // --- scanAssigneeContract: an issue-backend doc that describes creating an issue must carry the
   // `## Assignee` section, and must NOT carry a `- **Assignee:**` configuration bullet. The assignee is
   // read from `.superdev/info.json` (ADR 0073), so a tracked bullet is a personal identifier committed to
-  // a shared repository — the leak the decision removes. The local-file store is exempt from both halves.
+  // a shared repository — the leak the decision removes. No store is exempt from either half (ADR 0110).
   // The cases below each isolate one half by satisfying the other, so a fixture reports the gap it is
   // about. ---
 
@@ -368,18 +368,19 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(gaps7[0].source, path.join('references', 'issue-tracker-acme.md'), 'names the seed');
   assert.match(gaps7[0].expectation, /bullet/, 'the gap names the bullet half');
 
-  // the local-file store creates slice FILES, not issues, and is exempt even though it is an
-  // issue-tracker-*.md document
+  // no store is exempt: a seed named for the removed local-file store is held to the section half like
+  // every other issue-tracker-*.md document (ADR 0110)
   const tmp8 = fixture({
     'references/issue-tracker-local.md':
       'Create an issue file per slice under `docs/plans/<feature>/`. `POST /issues` is not used.\n',
   });
   const gaps8 = scanAssigneeContract(tmp8);
-  assert.equal(gaps8.length, 0, 'the local-file store is exempt from the assignee contract');
+  assert.equal(gaps8.length, 1, 'no store document is exempt from the assignee contract');
+  assert.match(gaps8[0].expectation, /section/, 'the gap names the section half');
 
   // positive: a seed describing the `gh issue create` CLI form (no "create an issue" prose, no
   // `POST .../issues`) still creates issues and must carry the section too — every
-  // references/issue-tracker-*.md not in ASSIGNEE_EXEMPT is an issue backend by definition, so the
+  // references/issue-tracker-*.md is an issue backend by definition, so the
   // filename alone is the trigger
   const tmp9 = fixture({
     'references/issue-tracker-ghcli.md': '`gh issue create -t "<title>" -b "<body>" -l "<label>"`\n',
@@ -463,16 +464,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(asFenced.length, 1, 'a fenced example satisfies neither half and trips neither');
   assert.match(asFenced[0].expectation, /section/, 'and the gap names the section half');
 
-  // the local-file store is exempt from both halves, through the one ASSIGNEE_EXEMPT set: it has no
-  // assignee concept, so it renders neither the section nor a bullet
-  assert.equal(
-    scanAssigneeContract(
-      fixture({ 'references/issue-tracker-local.md': '# store\n\nA slice is a file under `docs/plans/`.\n' }),
-    ).length,
-    0,
-    'the local-file store is exempt from the section half too',
-  );
-
   // this repo's own dogfooded store config is held to both halves alongside the seeds
   const asDogfood = scanAssigneeContract(
     fixture({ 'docs/agents/issue-tracker.md': '# Slice store\n\n- **Assignee:** `<login>`\n\n## Assignee\n\nApplied.\n' }),
@@ -497,7 +488,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'an absent document is skipped rather than reported',
   );
 
-  // the real tree is green: every non-exempt store document carries the section and no config bullet
+  // the real tree is green: every store document carries the section and no config bullet
   assert.equal(
     scanAssigneeContract(realRoot).length,
     0,
@@ -735,8 +726,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // --- scanAnchorContract: every slice-store document must state how to identify a feature's scope
   // anchor (ADR 0017). `/superdev:plan` and `/superdev:backlog` read that contract instead of encoding one
-  // store's shape, so a document without it leaves them blind in that backend. The local-file store
-  // is NOT exempt here, unlike the assignee contract — it has an anchor, its `00-epic-*.md` file. ---
+  // store's shape, so a document without it leaves them blind in that backend. ---
 
   const anchorSection =
     '## Scope anchor\n\n' +
@@ -801,12 +791,12 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(anDepsProseGaps.length, 1, 'prose about dependencies satisfies the element not at all');
   assert.match(anDepsProseGaps[0].expectation, /dependenc/, 'names the dependency element');
 
-  // the local-file store is NOT exempt — it has an anchor concept, so it must state one
-  const an3 = fixture({ 'references/issue-tracker-local.md': 'Slices live in `docs/plans/<feature>/`.\n' });
+  // a store document stating no anchor at all is flagged
+  const an3 = fixture({ 'references/issue-tracker-other.md': 'Slices live as issues.\n' });
   assert.equal(
     scanAnchorContract(an3).length,
     1,
-    'the local-file store is not exempt from the anchor contract',
+    'a store document with no anchor section is flagged',
   );
 
   // this repo's own dogfooded store config is checked alongside the seeds
@@ -1487,37 +1477,10 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'an absent document is skipped rather than reported',
   );
 
-  // the local-file store alone needs a numbering-continuation clause — its `id` is a file number `/plan`
-  // assigns, unlike an issue backend's server-assigned key
-  const apLocalNoContinuation = fixture({ 'references/issue-tracker-local.md': appendSection });
-  const apGapsLocal = scanAppendContract(apLocalNoContinuation);
-  assert.equal(apGapsLocal.length, 1, 'flags the local store missing its continuation clause');
-  assert.match(apGapsLocal[0].expectation, /continuation/, 'names the continuation clause');
-
-  // negative: the local store carrying the continuation clause too is clean
-  const localAppendSection =
-    appendSection +
-    '- **Continue numbering from the highest file number already present; never reuse one.** New slices ' +
-    'take the next `NN`.\n';
-  assert.equal(
-    scanAppendContract(fixture({ 'references/issue-tracker-local.md': localAppendSection })).length,
-    0,
-    'the local store carrying all three elements yields zero gaps',
-  );
-
-  // an issue-backend seed carrying no continuation clause is not held to that rule — its id is
-  // server-assigned already
-  assert.equal(
-    scanAppendContract(fixture({ 'references/issue-tracker-github.md': appendSection })).length,
-    0,
-    'an issue-backend seed is not held to the local-only continuation clause',
-  );
-
   // --- scanReleaseContract: every slice-store document states how its backend expresses a release
   // (`plan-contract.md` → *Release*), carries the **Remove** bullet a declined release on an append
   // calls (ADR 0083), and both `skills/plan/SKILL.md` and `skills/implement/SKILL.md`
-  // each name that section. `/plan`'s §6 states the both-directions rule, and the local-file seed states
-  // it has nothing to remove. Every half fails silently, so every half is asserted. ---
+  // each name that section. `/plan`'s §6 states the both-directions rule. Every half fails silently, so every half is asserted. ---
 
   const acmeRelease =
     '# acme\n\n## Release\n\nLabel `released` on the scope anchor.\n\n' +
@@ -1547,26 +1510,15 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(rlGapsNoRemove.length, 1, 'flags a store document carrying no Remove bullet');
   assert.match(rlGapsNoRemove[0].expectation, /\*\*Remove\*\* bullet/, 'names the Remove bullet');
 
-  // positive: the local-file seed is exempt from the bullet and states the opposite instead — a seed
-  // saying neither is flagged once, for the statement it owes
-  const rlLocalSilent = fixture({
-    'references/issue-tracker-local.md': '# local\n\n## Release\n\nA plan file is released when written.\n',
+  // positive: no store is exempt from the bullet — a seed stating it releases at write, with no Remove
+  // bullet, is flagged like any other (ADR 0110)
+  const rlNoExempt = fixture({
+    'references/issue-tracker-local.md':
+      '# local\n\n## Release\n\nA plan file is released when written. There is nothing to remove.\n',
   });
-  const rlGapsLocal = scanReleaseContract(rlLocalSilent);
-  assert.equal(rlGapsLocal.length, 1, 'flags the released-at-write seed for stating no removal rule');
-  assert.match(rlGapsLocal[0].expectation, /nothing to remove/, 'names what it owes');
-
-  // negative: the same seed stating it, with no Remove bullet anywhere, is clean
-  assert.equal(
-    scanReleaseContract(
-      fixture({
-        'references/issue-tracker-local.md':
-          '# local\n\n## Release\n\nA plan file is released when written. There is nothing to remove.\n',
-      }),
-    ).length,
-    0,
-    'the released-at-write seed owes the statement, never the bullet',
-  );
+  const rlGapsNoExempt = scanReleaseContract(rlNoExempt);
+  assert.equal(rlGapsNoExempt.length, 1, 'no store document is exempt from the Remove bullet');
+  assert.match(rlGapsNoExempt[0].expectation, /\*\*Remove\*\* bullet/, 'names the Remove bullet');
 
   // positive: prose about releasing is not the section — the heading is what `/superdev:setup` carries
   assert.equal(
@@ -1696,13 +1648,13 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
         'references/issue-tracker-forgejo.md': sectionContent,
         'references/issue-tracker-github.md': sectionContent,
         'references/issue-tracker-jira.md': sectionContent,
-        'references/issue-tracker-local.md': '# store\n\nNo section here.\n',
+        'references/issue-tracker-other.md': '# store\n\nNo section here.\n',
       }),
     );
     assert.equal(sectionGaps.length, 1, 'flags the seed that dropped the section');
     assert.equal(
       sectionGaps[0].source,
-      path.join('references', 'issue-tracker-local.md'),
+      path.join('references', 'issue-tracker-other.md'),
       'names the seed that dropped it',
     );
 
@@ -1711,7 +1663,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     assert.equal(
       scanner(
         fixture({
-          'references/issue-tracker-local.md':
+          'references/issue-tracker-other.md':
             `# store\n\nA seed renders it like this:\n\n\`\`\`markdown\n## ${heading}\nSection body.\n\`\`\`\n`,
         }),
       ).length,
@@ -1757,7 +1709,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // replace rule.
   const dodNoCitationGaps = scanDodTicksContract(
     fixture({
-      'references/issue-tracker-local.md':
+      'references/issue-tracker-other.md':
         '# store\n\n## Definition of Done ticks\n\nSet the marker to the target state; the new note ' +
         'replaces any previous note on that line. A failed write is reported once per run and never ' +
         'stops the run.\n',
@@ -1766,13 +1718,13 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(dodNoCitationGaps.length, 1, 'flags a seed whose tick section restates the edit without citing dod-line');
   assert.equal(
     dodNoCitationGaps[0].source,
-    path.join('references', 'issue-tracker-local.md'),
+    path.join('references', 'issue-tracker-other.md'),
     'names the offending seed',
   );
 
   const dodAppendGaps = scanDodTicksContract(
     fixture({
-      'references/issue-tracker-local.md':
+      'references/issue-tracker-other.md':
         '# store\n\n## Definition of Done ticks\n\nPipe the checklist text through dod-line and append ' +
         'the note. A failed write is reported once per run and never stops the run.\n',
     }),
@@ -1780,13 +1732,13 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(dodAppendGaps.length, 1, 'flags a seed whose tick section still says "append the note"');
   assert.equal(
     dodAppendGaps[0].source,
-    path.join('references', 'issue-tracker-local.md'),
+    path.join('references', 'issue-tracker-other.md'),
     'names the offending seed',
   );
 
   const dodCleanGaps = scanDodTicksContract(
     fixture({
-      'references/issue-tracker-local.md':
+      'references/issue-tracker-other.md':
         '# store\n\n## Definition of Done ticks\n\nPipe the checklist text through dod-line, which sets ' +
         'the marker to the target state and replaces the note. A failed write is reported once per run ' +
         'and never stops the run.\n',
@@ -1799,7 +1751,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // clause plan-contract.md's own section states.
   const dodNoOncePerRunGaps = scanDodTicksContract(
     fixture({
-      'references/issue-tracker-local.md':
+      'references/issue-tracker-other.md':
         '# store\n\n## Definition of Done ticks\n\nPipe the checklist text through dod-line, which sets ' +
         'the marker to the target state and replaces the note.\n',
     }),
@@ -1811,13 +1763,13 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   );
   assert.equal(
     dodNoOncePerRunGaps[0].source,
-    path.join('references', 'issue-tracker-local.md'),
+    path.join('references', 'issue-tracker-other.md'),
     'names the offending seed',
   );
 
   const dodOncePerRunGaps = scanDodTicksContract(
     fixture({
-      'references/issue-tracker-local.md':
+      'references/issue-tracker-other.md':
         '# store\n\n## Definition of Done ticks\n\nPipe the checklist text through dod-line, which sets ' +
         'the marker to the target state and replaces the note. A failed write is reported once per run ' +
         'and never stops the run.\n',
@@ -1899,14 +1851,14 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'every store document in the real tree states its exclusion rule',
   );
 
-  // the local seed's existing bullet says a record is *invisible* to /superdev:implement's "slice loading".
+  // an exclusion bullet saying a record is *invisible* to /superdev:implement's "slice loading".
   // An exclusion bullet is not the listing contract, so it must not satisfy the listing element.
   assert.equal(
     scanTriageRecordContract(
       fixture({
-        'references/issue-tracker-local.md':
+        'references/issue-tracker-other.md':
           '# store\n\n## Triage record\n\n' +
-          "- **`docs/plans/triage/<slug>.md` is invisible to `/superdev:implement`'s slice loading** by\n" +
+          "- **A triage record is invisible to `/superdev:implement`'s slice loading** by\n" +
           '  construction.\n',
       }),
     ).length,
@@ -1939,13 +1891,13 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'references/issue-tracker-forgejo.md': triageSection,
     'references/issue-tracker-github.md': triageSection,
     'references/issue-tracker-jira.md': triageSection,
-    'references/issue-tracker-local.md': '# store\n\nA plan file is a triage record when somebody says so.\n',
+    'references/issue-tracker-other.md': '# store\n\nA plan file is a triage record when somebody says so.\n',
   };
   const trGaps = scanTriageRecordContract(fixture(trDropped));
   assert.equal(trGaps.length, 1, 'flags the seed that dropped the section');
   assert.equal(
     trGaps[0].source,
-    path.join('references', 'issue-tracker-local.md'),
+    path.join('references', 'issue-tracker-other.md'),
     'names the seed that dropped it',
   );
 
@@ -2072,13 +2024,13 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'references/issue-tracker-forgejo.md': untriagedSection,
     'references/issue-tracker-github.md': untriagedSection,
     'references/issue-tracker-jira.md': untriagedSection,
-    'references/issue-tracker-local.md': '# store\n\nNo inbox here.\n',
+    'references/issue-tracker-other.md': '# store\n\nNo inbox here.\n',
   };
   const unGaps = scanUntriagedContract(fixture(unDropped));
   assert.equal(unGaps.length, 1, 'flags the seed that dropped the section');
   assert.equal(
     unGaps[0].source,
-    path.join('references', 'issue-tracker-local.md'),
+    path.join('references', 'issue-tracker-other.md'),
     'names the seed that dropped it',
   );
 
@@ -2146,8 +2098,8 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'a store document citing every member yields zero gaps',
   );
 
-  // a section the store legitimately does not carry is skipped, never flagged: the local-file store has
-  // no assignee concept and carries no `## Assignee` at all, which is a documented choice, not a gap
+  // a section the store does not carry is skipped by this scanner, never flagged: whether a store owes
+  // the section is the presence contracts' question, not the citation contract's
   assert.equal(
     scanSpecialisingCitations(
       fixture({ 'references/issue-tracker-acme.md': '## Scope anchor\n\n`plan-contract.md` → *Scope anchor*. only this one\n' }),
@@ -2156,16 +2108,15 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'a section the store does not carry is skipped rather than reported',
   );
 
-  // the real local-file seed is that case: it renders no `## Assignee`, so the newest member of the
-  // family costs it nothing
+  // the real tree is green
   assert.equal(
     scanSpecialisingCitations(realRoot).length,
     0,
     'every store document in the real tree cites the generic contract for every section it carries',
   );
 
-  // the citation is prose and wraps — references/issue-tracker-local.md carries `*Append\nmode*`, and a
-  // literal-space pattern would report that real document as drift
+  // the citation is prose and wraps — a store document can carry `*Append\nmode*`, and a
+  // literal-space pattern would report that document as drift
   assert.equal(
     scanSpecialisingCitations(
       fixture({

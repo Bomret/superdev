@@ -1,6 +1,9 @@
 # 0048: A local-store triage record needs its scope to ship
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0110](0110-the-local-file-slice-store-is-removed.md), which removes the local-file
+slice store.
 
 **Amends:** [ADR 0046](0046-a-deferred-finding-becomes-a-triage-record.md).
 

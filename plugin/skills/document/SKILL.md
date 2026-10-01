@@ -158,8 +158,7 @@ Only when §2 found a live run. Everything above still applies; this adds the ru
   `accepted:` is settled, never this kind of unmet, and reaches neither this bullet nor that gate.
   **The stage read `shipped`, `submitted`, or `closed` above** — the leave-alone branch — → when it read
   `submitted`, print `/superdev:ship <scope>`; when it read `shipped`, print
-  `/superdev:verify-ship <scope>`, or on the local plan-file store, print `/superdev:wrap-up <scope>` instead:
-  verify-ship refuses there; when it read `closed`, print nothing.
+  `/superdev:verify-ship <scope>`; when it read `closed`, print nothing.
   **Neither case** → print
   `/superdev:submit-pr <scope>`, with one line on what it does (open the pull request against the scope's
   current Definition of Done). Add that this conversation is disposable: the ledger's stage and `dod.md`

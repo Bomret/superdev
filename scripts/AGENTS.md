@@ -25,22 +25,17 @@ This doc owns what each script guards and the contracts between them. Repo-wide 
 `docs set <value>|clear`, `pr set <n>|clear`,
 `deploy set <target> pending|deployed|failed [--exit <n>]`, `deploy get`,
 `suite set <green|red|denied|none> <sha>`,
-`suite reusable --branch <b> [--plan-files]`,
+`suite reusable --branch <b> [--whole]`,
 `get stage|branch|anchor|slices|unresolved|degraded|deferred|denials|docs|pr|suite`,
 `status` (which renders the whole `/superdev:status` report), `publish`, `adopt`, `root <slug>`, and
 `dod-line`.
 `suite set` writes the **suite record** (CONTEXT.md) — the last full-suite run's result and the commit
 it ran on, as `**Suite:** <result> @ <sha>` — refusing a sha that does not resolve to a commit in the
 repository; `get suite` prints `<result> <sha>` back, or nothing on a ledger with no record (INV-0017).
-`suite reusable` is the path-scoped half of that same reuse rule: it exits 0 (printing `reusable`) when
-the record is `green` and `<branch>`'s tip either matches the recorded commit exactly or differs from it
-only in paths under `docs/plans/<branch>/` (`git diff --no-renames --name-only`, so a file renamed into
-that directory still counts at its pre-rename path), and refuses (exit 1) otherwise. `--plan-files`
-declares that this run's backend commits plan files on the scope branch; `scope.js` derives the
-directory itself from the ledger's own `**Branch:**` value rather than trusting a caller-supplied path,
-so a caller can never declare an unrelated directory (a sibling scope's own plan dir, or a parent like
-`docs/`) harmless — a caller passes no `--plan-files` when its backend commits nothing on the scope
-branch, which reduces the check to the exact-tip match.
+`suite reusable` is the read half of that same reuse rule: it exits 0 (printing `reusable`) when the
+record is `green` and `<branch>`'s tip matches the recorded commit exactly, and refuses (exit 1)
+otherwise, an unrecognized argument included. No slice store commits its own records on the scope
+branch (ADR 0110), so no commit since the record is exempt.
 `degraded
 add-denial` prefixes its bullet `denied: `, which is what separates a denied verification dispatch from
 the other degraded shape sharing that line, and `get denials` counts those prefixed bullets — the number
@@ -626,14 +621,10 @@ one member of the family whose halves pull opposite ways. The section is found t
 anchoring reaches this check too. Both halves read fence-masked text, defensively: no store document
 renders either inside a fenced example today, and the seeds' habit of showing headings inside fenced
 examples elsewhere makes one plausible. The filename alone triggers the check, with no content gate on
-how the doc phrases issue creation. `references/issue-tracker-local.md` is exempt from both halves
-through one set, because it has no assignee concept and renders neither. Presence and absence are all
-either half claims; what the section must say for its backend stays a review's job. Coverage is automatic
-— `storeDocuments()` picks up a `references/issue-tracker-*.md` seed added later with no scanner edit —
-but exemption is not: a backend with no assignee concept must be added to `ASSIGNEE_EXEMPT` by name, or
-it reports a section gap on a suite that was never wrong. The `run-state-contract` check resolves the same shape the
-other way, exempting no store and letting a snapshot-less backend declare itself snapshot-less inside its
-own section instead. The
+how the doc phrases issue creation. No store is exempt from either half (ADR 0110). Presence and
+absence are all either half claims; what the section must say for its backend stays a review's job.
+Coverage is automatic — `storeDocuments()` picks up a `references/issue-tracker-*.md` seed added later
+with no scanner edit. The
 `anchor-contract`: every slice-store document (every `references/issue-tracker-*.md` plus this
 repo's own `docs/agents/issue-tracker.md`) carries a `## Scope anchor` section stating all five of
 its elements: how to recognise an anchor, list its candidates, list the slices beneath one, tell
@@ -684,14 +675,12 @@ refusal, counts an unknown merge state as not merged, refuses a Definition-of-Do
 failed store call, and cleans up only after a successful close. Further rows pin the gate's evidence:
 a listed target not recorded `deployed`, an `absent` record included, is a reason (a session can end
 between ship's stage write and its first deploy record); settledness is judged from `dod.md`, with the
-anchor read only when `dod.md` is missing, and a remote anchor disagreeing with a settled `dod.md` names
-`/superdev:verify-ship <scope>` as the reconciler; on the local plan-file store wrap-up writes nothing to
-the store, since the close rode the pull request; slice records closed before a failed anchor close stay
+anchor read only when `dod.md` is missing, and an anchor disagreeing with a settled `dod.md` names
+`/superdev:verify-ship <scope>` as the reconciler; slice records closed before a failed anchor close stay
 closed and a rerun converges; and a refused scopetree removal leaves the stage at `shipped` and never
 force-removes. The cleanup rows pin that the scope branch is never deleted, `.superdev/kb-pending/<scope>/`
 is kept, and the cleanup runs from the invoking checkout. The verify-ship rows pin that it prints
-`/superdev:wrap-up <scope>` as its next command once every line is settled, points its local-store refusal
-at wrap-up, reconciles the anchor from `dod.md` before it observes, treats a `manual` target with no record
+`/superdev:wrap-up <scope>` as its next command once every line is settled, reconciles the anchor from `dod.md` before it observes, treats a `manual` target with no record
 like a `pending` one, keeps the records of an earlier yes when a later target is answered no, and reads a
 ledger with no `**PR:**` header as posture `none`.
 
@@ -702,16 +691,7 @@ at all. One row pins the plain "writes no tick anywhere" statement; one pins the
 checklist` paragraph — every `dod.md` line noted `— ceiling:` copied into the pull-request body under
 that heading, with no empty heading when none exist. Two rows on `skills/ship/SKILL.md` pin that ship
 writes no tick anywhere and closes no anchor and removes no checkout, slice checkout, or lock: the close
-on a remote store is `/superdev:wrap-up`'s (ADR 0106, INV-0099).
-
-The `anchor-close-before-push` contract (triage #654) pins rows on a store whose anchor close is a commit
-on the scope branch — the local store — commits that close before submit-pr's own push, so it reaches
-base exactly when the pull request merges rather than never reaching base at all, and no command ever
-commits straight to base (INV-0001). One row pins `skills/submit-pr/SKILL.md`'s §5 sentence stating the
-scope-branch-commit case at the push step; the other pins `references/issue-tracker-local.md`'s own close
-line, reworded to match. A store whose close is an API call is unaffected and keeps closing after the
-merge, on `/superdev:ship`. A later feature is free to replace the `done` value with its own status; the
-before-the-push mechanism stays either way.
+is `/superdev:wrap-up`'s (ADR 0106, INV-0099).
 
 The `doc-untick-on-break` contract (ADR 0091) pins the doc pass unticking, with a note, a ticked
 `dod.md` criterion its own commits broke, and leaving every other tick untouched. `references/dod-ticks.md`
@@ -1136,7 +1116,7 @@ defines the `**Deploy:**` line as optional, anchor-only, and reading as deployin
 only the recorded targets plus `none` in the operator's own answer order, asks nothing under `none`
 posture or with no recorded target, and writes the line on the scope anchor in §6, revising it in place
 on an append; `docs/agents/issue-tracker.md` and every `references/issue-tracker-*.md` seed state how the
-line is written and read on that store, by the same body-edit (or header-line, on the local store) each
+line is written and read on that store, by the same body-edit each
 already uses for `**Blocked by feature:**`. Each document is its own row: losing plan-contract's
 definition leaves the line's shape undocumented even while plan still writes it, losing plan's own
 question or write leaves the field defined but never produced, and losing a store's own row leaves that
@@ -1297,11 +1277,7 @@ lets a dependent feature run before its blocker, with the suite green. The first
 matched on a bullet's bolded lead-in, the same `scanAnchorContract` shape, over the same
 candidate-document list. The migration element lives inside the epic-promotion bullet's body rather than
 opening a bullet of its own. It is matched on its own bolded run instead, and the bold is still what
-carries it. A document stating the migration in running prose alone matches nothing.
-`references/issue-tracker-local.md` alone carries a fifth element, that append continues file numbering
-from the highest number already present and never reuses one. Its `id` is the file number `/plan`
-itself assigns, unlike an issue backend's server-assigned key, which already satisfies the id rule on
-its own. The
+carries it. A document stating the migration in running prose alone matches nothing. The
 `status-seed` contract (ADR 0004) pins rows against `references/run-init.md`: it carries a `"status"` field
 in the JSON its run init pipes into `scope.js init`, and it states that a slice the store reports as merged
 seeds `merged` and is never dispatched. Append mode never renumbers or re-merges a slice already shipped,
@@ -1351,18 +1327,16 @@ states the identical hazard for its *List the slices beneath it* call, which alr
 this contract pins the same fix on the candidate listing itself. Anchoring on the query string, not the
 rationale, matters: the rationale sentence ("`state=all`, not `state=open`: a shipped feature's epic is
 closed…") reads true on its own even when the query beside it reverts to `state=open`, so a row matching
-only the rationale stays green through that revert. Jira and the local file store carry no row in this
-first family, because neither has a query parameter to pin: Jira's *List the candidates* call runs no
-status filter at all — it already spans every state unconditionally — and the local store lists
-directories, not issue state.
+only the rationale stays green through that revert. Jira carries no row in this first family, because
+it has no query parameter to pin: its *List the candidates* call runs no status filter at all — it
+already spans every state unconditionally.
 
 The second family pins the rule a listing spanning every state forces once a feature label is reused
 after retirement: the listing can then return a retired label's closed (or, on Jira, `<Done>`-status)
 root beside a reused label's open (not-`<Done>`) one, and *Recognise one*/*Ambiguous* must resolve that
 shape without reporting a well-formed plan as ambiguous. This family's precondition is a listing that
 spans every state, not a state query to pin, so it reaches Jira too — its label listing spans every
-status inherently, the same property the first family's exemption reasoning names. Only the local-file
-store is exempt from both families: a directory listing carries no state to span.
+status inherently, the same property the first family's exemption reasoning names.
 `references/plan-contract.md`'s generic `## Scope anchor` section carries one row stating the rule once —
 the open candidate is the anchor, and `Ambiguous` is two or more *open* candidates, never a closed one
 beside a single open one — and each store document's own section specialises it: the Forgejo-shaped
@@ -1540,7 +1514,7 @@ The `release-contract` check, `scanReleaseContract()`: every slice-store documen
 `skills/backlog/SKILL.md` each name it.
 A release is the human agreement that a written plan may be built (`references/plan-contract.md` →
 *Release*), and it is expressed differently per backend — a label on Forgejo and GitHub, a label rather
-than a status on Jira, and nothing at all on the local-file store, whose plans are released when written.
+than a status on Jira.
 Both halves fail silently, which is why both are pinned: a store document without the section leaves the
 consumers no signal to read, and a consumer that drops the reference builds whatever it is handed, which
 is the gate gone with every command still valid prose. The consumer half matches the backticked
@@ -1550,12 +1524,10 @@ are skipped, matching every other scanner.
 The same check carries ADR 0083's removal half (INV-0005), because a release signal nothing removes is
 the same gate failing from the other side. A release decision covers the work that existed when it was
 made, so on an append `/superdev:plan`'s §6 applies the answer in both directions: declining removes the
-signal from the scope anchor, releasing applies it. Three further assertions, each silent alone. Every
-store document whose signal is removable carries a `## Release` **Remove** bullet naming the concrete
-call, beside **Apply** and **Read** — without it the command has nothing to invoke.
-`references/issue-tracker-local.md` is exempt from the bullet and owes the opposite statement, that a
-store releasing its features at write has nothing to remove, so `/superdev:plan` says so rather than
-attempting a call. And `skills/plan/SKILL.md` states the both-directions rule itself, since a store
+signal from the scope anchor, releasing applies it. Two further assertions, each silent alone. Every
+store document carries a `## Release` **Remove** bullet naming the concrete call, beside **Apply** and
+**Read** — without it the command has nothing to invoke. No store is exempt (ADR 0110). And
+`skills/plan/SKILL.md` states the both-directions rule itself, since a store
 document carrying the call while §6 still reads "apply nothing" leaves the signal standing over slices
 nobody released — which is exactly what `/superdev:implement` then builds.
 
@@ -1863,8 +1835,7 @@ The `triage-record` contract (ADR 0046, ADR 0088): a scanner plus rows. `scanTri
 `scanAnchorContract` and `scanReleaseContract` already make over the same candidate list, every
 `references/issue-tracker-*.md` seed plus this repo's own dogfooded `docs/agents/issue-tracker.md` — and
 reports the ones carrying no `## Triage record` section, stating where a **triage record** lives on that
-backend, including `references/issue-tracker-local.md`, whose rendering is a file under
-`docs/plans/triage/` rather than a label, because that store has no labels at all. The same scanner then
+backend. The same scanner then
 holds every section it did find to `TRIAGE_RECORD_ELEMENTS`, whose one element is the **listing** call:
 every store stated how to create a record and none stated how to read one back, so the record reached no
 consumer at all until `/superdev:backlog` needed one. The element is anchored on a bullet's bolded lead-in
@@ -1878,10 +1849,8 @@ seed could have walked through (issue #357). The pattern requires the literal ph
 inside the section, the vocabulary every shipped seed's own exclusion bullet carries. Further rows, a table
 run through `scanContract()`, sit on `skills/review/SKILL.md` and `references/scope-mode.md`, the two
 documents that write it. The record is what makes a deferred finding outlive the run root
-`hooks/scope-prune.js` reaps and the scope anchor's own close — a commit `/superdev:submit-pr` makes on
-the local plan-file store before its push, or an API call `/superdev:ship` makes after the merge on a
-remote store — on the local plan-file store, only once the scope branch carrying it merges (ADR 0048) —
-and before this record the only survivor was the body of a merged pull request, which appears in no
+`hooks/scope-prune.js` reaps and the scope anchor's own close, whether or not the scope ever ships
+(ADR 0110) — and before this record the only survivor was the body of a merged pull request, which appears in no
 backlog and no query.
 `/superdev:review` writes it through whichever store document is active, so a store document with no
 `## Triage record` section leaves the command asking a backend for a record that backend never defined:
@@ -1949,20 +1918,19 @@ Four details are deliberate. The citation is matched **anywhere inside the secti
 opening sentence, so the check's own message says "somewhere in its own section" rather than "opens by
 citing": a stricter positional claim would be one the pattern cannot honestly make. Every space in a
 section name matches any run of whitespace, because the citation is prose and wraps —
-`references/issue-tracker-local.md` carries it as `*Append\nmode*`, which a literal space would report as
-drift. And a section the store legitimately does not carry yields nothing, because `extractSection()`
-returns `null` and the loop moves on: the local-file store has no assignee concept and renders no
-`## Assignee` at all, which is a documented choice rather than a gap. The citation test runs on the
+a store document can carry it as `*Append\nmode*`, which a literal space would report as drift. And a
+section the store does not carry yields nothing, because `extractSection()` returns `null` and the loop
+moves on: whether a store owes the section is the presence contracts' question. The citation test runs on the
 fence-masked section, so a citation shown only inside a fenced code example does not count.
 
 That skip is why membership alone is not a presence contract. A member a store renders nowhere is silently
 clean here, which is what the store-side contracts exist to catch. `scanAnchorContract`,
-`scanAppendContract`, `scanReleaseContract`, `scanTriageRecordContract`, and `scanRunStateContract` each
-pin a member's own `## <Section>` heading, and none exempts a store by name. `scanAssigneeContract` pins
+`scanAppendContract`, `scanReleaseContract`, `scanTriageRecordContract`, `scanRunStateContract`, and
+`scanAssigneeContract` each pin a member's own `## <Section>` heading, and none exempts a store by name.
+`scanAssigneeContract` pins
 two halves: the `## Assignee` heading through `specialisingHeading('Assignee')`, and the
 `- **Assignee:**` configuration bullet, which it forbids rather than requires, because the assignee lives
-in the untracked `.superdev/info.json` (ADR 0073). It is the one that exempts a store by name, the
-local-file store, which has no assignee concept and renders neither half.
+in the untracked `.superdev/info.json` (ADR 0073).
 
 One notation is pinned, not an alternation. Accepting `` `plan-contract.md`, *Section* `` beside the arrow
 would make both forms true forever and leave a new seed's author guessing which to copy, so every
@@ -2015,7 +1983,6 @@ The `deploy-step-visibility` contract (ADR 0101, INV-0099, whole-scope review, s
 two surfaces that tell an operator what `/superdev:ship` does, or what to run next after it, had fallen
 behind ADR 0101's deploy step. One row pins `skills/submit-pr/SKILL.md`'s own next-command line naming the
 deploy alongside the merge, then the stop and `/superdev:verify-ship <scope>` as what follows (ADR 0106).
-One row pins the same line's local plan-file store branch, where `/superdev:wrap-up <scope>` follows ship directly.
 One row pins the same document's run-standing sentence stating that `/superdev:wrap-up` closes the
 anchor after the merge and verify-ship. One row pins
 `skills/backlog/SKILL.md`'s claim that ship stops after the deploy and wrap-up closes the anchor, so a
@@ -2024,13 +1991,13 @@ the `deploy resume` bucket: a `shipped` run root stuck mid-`auto`-deploy gets `/
 as its act whatever the scope checkout holds (ship leaves the checkout standing until wrap-up), rather
 than steering an operator into closing an anchor by hand and stranding the deploy INV-0099 forbids.
 Rows pin that a stalled deploy shows on every store and ranks first (#750): a `shipped` run root
-meeting the `deploy resume` definition gets its row whether or not an open anchor matches it — the local
-plan-file store closes the anchor with the pull request, so there no anchor ever matches — the bucket's
+meeting the `deploy resume` definition gets its row whether or not an open anchor matches it — under a
+scope anchor a human closed by hand, no open anchor matches (ADR 0110) — the bucket's
 own definition requires no matched run root, such a run root counts against the empty-backlog exit, and §5
 ranks a `deploy resume` row above every other row, `blocked` included.
 Losing the submit-pr row leaves an operator who has never run ship before unaware it deploys anything;
 losing either backlog row reopens the steer into breaking INV-0099; losing any of the four visibility rows
-hides a half-deployed merge on the local store, or ranks it behind work that has not started.
+hides a half-deployed merge under a hand-closed anchor, or ranks it behind work that has not started.
 
 The `backlog-verify-wrap-up` contract (ADR 0106) pins the survey's routing of a `shipped` run root. Rows
 pin the `awaiting verification` bucket (act `/superdev:verify-ship <scope-slug>`) and the `awaiting wrap-up`
@@ -2041,9 +2008,9 @@ closed anchor going to wrap-up; and a `closed` run root getting no row. Losing a
 scope with no next command in the survey. Three further rows pin how the split reads its evidence: a
 `shipped` run root's Definition-of-Done lines are judged from `<run-root>/dod.md`, and an anchor whose
 verdict differs from it routes to verification; a missing or unreadable `dod.md` is judged from the anchor
-alone, and an unreadable anchor is a `blocked` row naming what could not be read; and on the local
-plan-file store a `shipped` run root goes to `awaiting wrap-up`, because wrap-up writes nothing to that
-store while verify-ship refuses there. The rows pin presence only: no row scans for an instruction to close an anchor by
+alone, and an unreadable anchor is a `blocked` row naming what could not be read; and a `shipped` run
+root under an anchor a human closed by hand goes to `deploy resume` when its deploy stalled, and to
+`awaiting wrap-up` otherwise (ADR 0110). The rows pin presence only: no row scans for an instruction to close an anchor by
 hand.
 
 The `run-state-contract` check, `scanRunStateContract()`: every store document carries its
@@ -2618,8 +2585,7 @@ mid-resume never downgrades a deployed target back to `pending`; `auto` fetches 
 scopetree at the merge commit rather than touching the invoking checkout; a non-zero exit records `failed`
 with its exit status, names every target not yet deployed, and prints the resume command — and the
 hand-off comes only once every listed target reads `deployed`; one row pins that hand-off, printing
-`/superdev:verify-ship <scope>`, and one pins `/superdev:wrap-up <scope>` in its place on the local
-plan-file store, where verify-ship refuses. Three rows pin the resume path: an unfinished `auto` deploy — a
+`/superdev:verify-ship <scope>`. Three rows pin the resume path: an unfinished `auto` deploy — a
 `shipped` ledger with a `**PR:**` header whose posture at the merge commit is `auto` and whose deploy
 record leaves a listed target not recorded `deployed` (an absent record included: a session can end between
 ship's stage write and its first deploy record), the scope checkout's presence no part of the test — joins ship's own empty-argument candidate set, that same shape skips straight to §5 rather than
@@ -2682,11 +2648,10 @@ refuses as a backward move. One row pins that `submitted` joins `shipped` in the
 other pins that the next-command bullet prints `/superdev:ship <scope>` for a `submitted` scope rather
 than `/superdev:submit-pr`, which would try to re-open a pull request already open. Losing either row
 reopens the stage-write refusal a doc pass on a submitted scope hits today.
-Three further rows pin that a `shipped` scope prints `/superdev:verify-ship <scope>` on a remote store and a `closed` one prints
+Three further rows pin that a `shipped` scope prints `/superdev:verify-ship <scope>` and a `closed` one prints
 nothing, that `README.md` states ship merges, deploys, and stops with verify-ship and wrap-up after it, and
-that `README.md` names `closed`, never `shipped`, as the stage `scope-prune` reaps. One row pins document's local
-plan-file store print at `shipped`, `/superdev:wrap-up <scope>` in place of verify-ship. One row pins the `README.md`
-worked example: the local store goes from ship straight to wrap-up, and verify-ship is the remote-store step.
+that `README.md` names `closed`, never `shipped`, as the stage `scope-prune` reaps. One row pins the `README.md`
+worked example: it goes from ship to verify-ship, then wrap-up.
 
 ## Work Guidance
 

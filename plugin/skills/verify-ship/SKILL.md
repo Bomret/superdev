@@ -36,11 +36,6 @@ Read the stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --r
   observe nothing.
 - **`shipped`** → continue.
 
-Read the store from `docs/agents/issue-tracker.md`. **The local plan-file store** → refuse: its anchor is
-a tracked file on base, and a post-merge write to base needs its own branch and pull request, which does
-not exist yet. Name that missing post-merge store write as the reason, point at `/superdev:wrap-up <scope>`
-(it writes nothing to that store and takes the run down), and observe nothing.
-
 ## 3. Deploy check, before anything is observed
 
 **A ledger with no `**PR:**` header** (`scope.js get pr` prints `absent`) → a legacy run, shipped before the deploy posture

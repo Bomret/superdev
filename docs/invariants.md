@@ -151,9 +151,9 @@ Paths: plugin/skills/review/**, plugin/references/run-handoff.md, plugin/skills/
 
 Class: process
 Concepts: Focused test command, Suite record
-Statement: A slice implementer and a fix cycle run only the focused command. The full suite runs at run handoff, once more when a fix loop there first comes back clean, and after review's first clean re-review. Where the repository configures a whole-repo command, it runs once before the pull request opens, on a tip that carries no green whole-repo result at ship (which instead refuses while a review invalidation stands, INV-0092), and in place of the full suite in a review entered while the suite record reads red of kind `whole`. A green result recorded on the commit a step would run on, or on an earlier commit that differs only in the store's own plan files, is reused rather than run again. A step that needs a whole-repo run reuses only a record of kind `whole`.
+Statement: A slice implementer and a fix cycle run only the focused command. The full suite runs at run handoff, once more when a fix loop there first comes back clean, and after review's first clean re-review. Where the repository configures a whole-repo command, it runs once before the pull request opens, on a tip that carries no green whole-repo result at ship (which instead refuses while a review invalidation stands, INV-0092), and in place of the full suite in a review entered while the suite record reads red of kind `whole`. A green result recorded on the commit a step would run on is reused rather than run again. A result recorded on any other commit is not. A step that needs a whole-repo run reuses only a record of kind `whole`.
 Breaks: silently
-Check: scripts/drift-check.js — the full-suite contract rows on run handoff and review; tests/scope.test.js — the suite record's read and write, and `suite reusable`'s tip-match and plan-file-scoped cases
+Check: scripts/drift-check.js — the full-suite contract rows on run handoff and review; tests/scope.test.js — the suite record's read and write, and `suite reusable`'s tip-match cases
 Paths: plugin/references/run-handoff.md, plugin/skills/review/**, plugin/skills/submit-pr/**, plugin/skills/ship/**, plugin/agents/implementer.md, plugin/scripts/scope.js
 
 ### INV-0018
@@ -802,7 +802,7 @@ Paths: plugin/skills/ship/**, plugin/references/deployment.md
 
 Class: process
 Concepts: Deploy posture, Deploy target, Scope anchor, Definition of Done (DoD), Stage
-Statement: After the merge, only `/superdev:wrap-up` closes a scope anchor on a remote store. It closes one only when the pull request has merged, every Definition-of-Done criterion is ticked or `accepted:`, and every deploy target listed on the anchor is recorded `deployed`. A failed close changes neither the stage nor the run's scaffolding. A failed `auto` target keeps the anchor open, and a later ship resumes at the first target not yet deployed (ADR 0101, ADR 0106).
+Statement: After the merge, only `/superdev:wrap-up` closes a scope anchor. It closes one only when the pull request has merged, every Definition-of-Done criterion is ticked or `accepted:`, and every deploy target listed on the anchor is recorded `deployed`. A failed close changes neither the stage nor the run's scaffolding. A failed `auto` target keeps the anchor open, and a later ship resumes at the first target not yet deployed (ADR 0101, ADR 0106).
 Breaks: silently
 Check: scripts/drift-check.js — ship stops on a failed `auto` target, and `wrap-up-gate` guards the close; `tests/scope.test.js` for the ledger's deploy record
 Paths: plugin/skills/ship/**, plugin/scripts/scope.js, plugin/skills/wrap-up/**

@@ -8,8 +8,7 @@ argument-hint: "[<scope>  (empty = the only run in this repo)]"
 # superdev ship
 
 Merge the pull request `/superdev:submit-pr` opened, and apply the deploy posture. It stops after the
-deploy: it closes no anchor and removes nothing, and, on a remote store, `/superdev:verify-ship` then `/superdev:wrap-up` follow; on the local plan-file
-store `/superdev:wrap-up` follows directly
+deploy: it closes no anchor and removes nothing, and `/superdev:verify-ship` then `/superdev:wrap-up` follow
 (ADR 0106, INV-0099). It dispatches no subagents, and carries no
 unattended mode of its own: only a human runs this command (ADR 0096). Calling it at all is the consent
 to merge, so nothing here asks a second question once the gate below has passed, except one: under `auto`, §5 asks
@@ -108,7 +107,7 @@ Either way:
 - **Closed, and `merged` is false** → refuse: name that it was closed without merging, and merge nothing.
 - **`merged` is true** → **adopt it, then skip straight to §5.** Its `head.sha` reusable off the ledger's
   last recorded green suite result — `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable
-  --branch <head.sha> [--plan-files] --root <run-root>` (plain, never `--whole`: an adopted hand merge is
+  --branch <head.sha> --root <run-root>` (plain, never `--whole`: an adopted hand merge is
   not a merge superdev makes, INV-0092), the same reuse `/superdev:review`'s own gate
   uses — exits 0 → the merged head is the tested commit, no `**Degraded:**` bullet. Exits 1, or no record
   at all → `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" degraded add "the merge landed on <head.sha>,
@@ -130,9 +129,8 @@ this same gate at the merged tip whenever its own merge moves it** — that late
 is what the pinned squash lands and what §5's deploy step reads fresh at the merge commit.
 
 **The tip needs a reusable green result before anything else runs.**
-`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> [--plan-files]
---root <run-root>` — the same call, and the same `--plan-files` rule, `/superdev:review`'s own scope-mode
-gate uses. Which checkout you run it from does not matter: every worktree of a repository shares the same
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch>
+--root <run-root>` — the same call `/superdev:review`'s own scope-mode gate uses. Which checkout you run it from does not matter: every worktree of a repository shares the same
 refs and objects, so `<branch>` resolves identically wherever `git` is invoked from inside it. Exit 1, or
 no record at all → refuse: name that the tip carries no green full-suite result to reuse (INV-0017), and
 merge nothing.
@@ -210,7 +208,7 @@ merge involved, and those never reach the pull request either without this same 
 
 - **Identical** → nothing to push; the remote head is already the tip.
 - **They differ** → the tip needs its own reusable green result before it goes anywhere:
-  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> [--plan-files] [--whole]
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> [--whole]
   --root <run-root>`, the same call §3 already ran on the pre-merge tip. **Refuses** → refuse the whole command,
   name that the tip carries no reusable green result, and point at `/superdev:review <scope>` — never push
   an untested tip. **Accepts** → print the range this push is about to add, `git -C <run-root>/scopetree
@@ -317,9 +315,6 @@ when the commit is missing, then
   - **Every listed target now `deployed`** → go on to the hand-off below.
 
 **Hand off.** Ship writes no tick anywhere, closes no anchor, and removes no checkout, slice checkout, or
-lock: the anchor stays open and the run stays standing until `/superdev:wrap-up` (ADR 0106, INV-0099). On
-the local plan-file store, the anchor's close already rode the pull request as a commit
-`/superdev:submit-pr` made before its push. Print `/superdev:verify-ship <scope>` as the next command, with
+lock: the anchor stays open and the run stays standing until `/superdev:wrap-up` (ADR 0106, INV-0099). Print `/superdev:verify-ship <scope>` as the next command, with
 one line on what it does: it observes the Definition-of-Done lines that are neither ticked nor accepted,
-and `/superdev:wrap-up <scope>` closes the scope afterwards. On the local plan-file store print
-`/superdev:wrap-up <scope>` instead: verify-ship refuses there.
+and `/superdev:wrap-up <scope>` closes the scope afterwards.

@@ -127,13 +127,10 @@ plan runs test-first, inline in the scopetree.
   scope by its slug works too (ADR 0078). That loop changes how the code
   meets the Definition of Done; a finding whose remedy would add a capability nobody planned goes to
   `/superdev:plan` instead of growing the scope under review (ADR 0035). Such a finding gets a
-  **triage record** in your slice store as the review defers it: an issue carrying a `triage` label,
-  or a file under `docs/plans/triage/` on the local plan-file store. On an issue backend, the record
-  reaches your backlog, not just the run's ledger and the pull-request body, both of which end with
-  the run. On the local plan-file store, the record reaches
-  your backlog only once the scope that created it ships
-  ([ADR 0046](docs/adr/0046-a-deferred-finding-becomes-a-triage-record.md),
-  [ADR 0048](docs/adr/0048-a-local-store-triage-record-needs-its-scope-to-ship.md)). Nothing ever builds
+  **triage record** in your slice store as the review defers it: an issue carrying a `triage` label.
+  The record reaches your backlog, not just the run's ledger and the pull-request body, both of which
+  end with the run, whether or not the scope ever ships
+  ([ADR 0046](docs/adr/0046-a-deferred-finding-becomes-a-triage-record.md)). Nothing ever builds
   it: no candidate listing and no slice loader selects it. A real defect the run meets that no slice
   covers, and that the scope did not cause, earns the same kind of record. A flaky test in untouched
   code is an example. Whichever chain command meets
@@ -219,8 +216,7 @@ time-based loop, so hand review comments and CI on it to `/loop`:
 Once the pull request is reviewed, `/superdev:ship` merges it, deploys the merge under the repository's
 deploy posture (`none`/`manual`/`auto`, `docs/agents/deployment.md`, ADR 0101), then stops.
 `/superdev:verify-ship` settles the criteria only a deployed system can show. `/superdev:wrap-up` closes the
-scope anchor and cleans up the run. On the local plan-file store the anchor's close rides the pull request and
-`/superdev:wrap-up` follows ship directly. All three are human-only.
+scope anchor and cleans up the run. All three are human-only.
 
 Any chain command (`/superdev:implement`, `/superdev:review`, `/superdev:document`, `/superdev:submit-pr`)
 takes `--unattended`. At a stop, the run takes the stop's standing answer, or blocks the scope anchor
@@ -332,9 +328,6 @@ again. One answer lands outside that tree: the slice store's **assignee** goes t
   in-progress, review moves it to in-review, and a merge moves it to done. The **lite** tier has no
   per-slice review, so it skips straight from in-progress to done.
   The choices are:
-  - *local files*: a directory `docs/plans/<type>/<feature-slug>/` per feature, where `00-epic-*` holds
-    the DoD and description and `NN-<test-applicability>-*` is one file per slice, with the number as
-    the id. It suits solo work or a repo with no tracker.
   - *GitHub Issues*: each slice is an issue and a sub-issue of its epic, with `depends-on` as a native
     `blocked_by` dependency.
   - *Jira*: each slice is an issue, with `depends-on` as an "is blocked by" link.
@@ -343,7 +336,7 @@ again. One answer lands outside that tree: the slice store's **assignee** goes t
     issue-dependencies unit is enabled.
   - *other*: you describe your tracker's CRUD and dependency link in prose.
 
-  For any issue-backed choice, setup also asks who owns the created issues. That **assignee** is a login
+  Setup also asks who owns the created issues. That **assignee** is a login
   or an `accountId`, and it defaults to the API token's own identity, or to `none`. The answer goes to
   `.superdev/info.json`, not to a config doc: the account is yours rather than the repository's, and
   `.superdev/` is git-ignored, so a repository several people maintain records none of them. A checkout
@@ -352,12 +345,12 @@ again. One answer lands outside that tree: the slice store's **assignee** goes t
   Each slice-store backend also states where it mirrors a run's ledger, the **published snapshot** it
   writes to the scope anchor as a `## Run state` section. `/superdev:implement` reads a live snapshot back
   when no local run root exists, which is what lets a run resume from a fresh clone on another machine. A
-  backend whose anchor cannot carry the mirror safely declares itself snapshot-less. The local-file store
-  and Jira default to this: the run publishes nothing and adopts nothing there.
+  backend whose anchor cannot carry the mirror safely declares itself snapshot-less. Jira defaults to
+  this: the run publishes nothing and adopts nothing there.
 
   Independent of that snapshot, a controller ticks the anchor's own Definition of Done checklist through
-  the store's own `## Definition of Done ticks` section as the run works. No backend is exempt: the
-  local-file store and Jira tick their anchor's checklist too, the same as every other store.
+  the store's own `## Definition of Done ticks` section as the run works. No backend is exempt: Jira
+  ticks its anchor's checklist too, the same as every other store.
 - **Code host.** Where the scope branch is pushed and the PR or MR opens, plus the default posture
   (`draft`, `ready`, or `push-only`) and the base branch. The choices are GitHub (`gh`), Forgejo or
   self-hosted (`tea` or REST), and *other*. With no host CLI present, the step degrades to a push plus a
@@ -411,8 +404,6 @@ changes.
 
 ```
 docs/agents/*.md          backend config — the docs above (committed)
-docs/plans/<type>/<slug>/ slices + Definition of Done (local store): 00-epic-* = DoD + description,
-                          NN-<test-applicability>-* = one file per slice (number = id)
 CONTEXT.md                glossary / ubiquitous language, authored by /plan
 docs/adr/NNNN-*.md        architecture decision records, authored by /plan
 docs/invariants.md        invariant register — rules the system may never break, authored by /plan
@@ -444,22 +435,23 @@ On the lite tier the controller itself works in the scopetree.
 
 ## Worked example
 
-A tiny feature end to end, with the local-file slice store and GitHub as the code host:
+A tiny feature end to end, with GitHub Issues as the slice store and GitHub as the code host:
 
 - **`/superdev:setup`** (once per repo). A short interview, then `docs/agents/*.md` is written. The slice
-  store is local files and the code host is GitHub (`gh`). The documentation convention is the
+  store is GitHub Issues and the code host is GitHub (`gh`). The documentation convention is the
   `AGENTS.md` hierarchy, verification is `npm test`, and there is no knowledge base.
 - **`/superdev:plan add a health-check endpoint`**. Interviews for the intent and a Definition of Done,
-  then writes `docs/plans/feat/health-check/`. New behaviour, so the change type is `feat`. That holds
-  `00-epic-*` (the DoD and description) plus two
-  slices, for example `01-behavior-route-handler.md` and `02-behavior-wire-into-router.md`, where the
-  second `depends-on` the first. You see the slice list printed back, ready for `/implement`, along with
-  the tier it runs under. Two slices is 3 or fewer, so the tier is **lite**.
+  then creates the issues. New behaviour, so the change type is `feat`, and every issue carries the
+  feature label `feat/health-check`. The epic issue holds the DoD and description. Two slice issues sit
+  beneath it as sub-issues, for example "Route handler" and "Wire into the router", where the second
+  `depends-on` the first through a native `blocked_by` link. You see the slice list printed back, ready
+  for `/implement`, along with the tier it runs under. Two slices is 3 or fewer, so the tier is **lite**.
+  Releasing the plan applies the `released` label to the epic.
 - **`/superdev:implement feat/health-check`**. Sets up `.superdev/scopes/health-check/`, the git-ignored run
   scratch holding the concrete DoD and the ledger. Two slices selects the **lite** tier. The controller
   cuts a single scopetree at `.superdev/scopes/health-check/scopetree/` for the branch
   `feat/health-check`, which is the feature label verbatim. It never switches the
-  invoking checkout. It implements slice 01 test-first in that scopetree and commits. Slice 02 then
+  invoking checkout. It implements the first slice test-first in that scopetree and commits. The second slice then
   unblocks and follows the same loop. There are no per-slice slicetrees and no reviewer subagents. Once
   both slices sit on the scope branch, the controller **stops** and prints the resolved
   `/superdev:review` call. You see a one-line status per slice as it lands.
@@ -471,11 +463,12 @@ A tiny feature end to end, with the local-file slice store and GitHub as the cod
   pull-request URL, and the run stands: the scopetree and the scope anchor are still there.
 - **`/superdev:ship health-check`**, once the pull request is reviewed. Merges it and deploys nothing (this
   repository's own deploy posture is `none`), then stops with the stage at `shipped` and prints
-  `/superdev:wrap-up health-check`. On a remote store (Forgejo, GitHub, Jira) `/superdev:verify-ship` comes
-  between the two; it settles the criteria only a deployed system can show, and it refuses on the local
-  plan-file store.
-- **`/superdev:wrap-up health-check`**. Checks the merge and the deploy record, removes the scopetree and
-  the run, and sets the stage `closed`. The anchor's close already rode the pull request.
+  `/superdev:verify-ship health-check`.
+- **`/superdev:verify-ship health-check`**. Settles the criteria only a deployed system can show. With
+  nothing deployed and every criterion already ticked, it says so and prints
+  `/superdev:wrap-up health-check`.
+- **`/superdev:wrap-up health-check`**. Checks the merge and the deploy record, closes the slice issues and
+  the epic, removes the scopetree and the run, and sets the stage `closed`.
 - **After.** Review comments and flaky CI on the open pull request are a `/loop` job, not this chain's
   concern. See [After the PR](#after-the-pr).
 

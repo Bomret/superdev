@@ -16,7 +16,7 @@ const REFERENCE_PATTERN = /(?:\$\{CLAUDE_PLUGIN_ROOT\}\/)?references\/([a-zA-Z0-
 // handed to a subagent whose cwd is a slicetree). Run-root artifacts referenced here must use the absolute
 // <run-root>/… path the controller captures at run init — a checkout-relative .superdev/scopes/<scope>/…
 // path resolves one level too deep from a scopetree or slicetree cwd. Descriptive docs (status.md, plan-contract.md,
-// issue-tracker-local.md, brainstorm.md) run only from the invoking checkout and are deliberately absent.
+// brainstorm.md) run only from the invoking checkout and are deliberately absent.
 const RUN_ROOT_DOCS = [
   'skills/implement/SKILL.md',
   'skills/review/SKILL.md',
@@ -46,15 +46,11 @@ const RUN_ROOT_ARTIFACT_PATTERN =
 // assignee, and the feature silently does nothing for that backend. A seed that carries the bullet puts a
 // personal account identifier back into a tracked file, which is the leak ADR 0073 removes: the assignee
 // is read from `.superdev/info.json`, untracked, so a tracked bullet is configuration nothing reads and
-// everything commits. Neither failure is one a build step would catch. The local-file store is exempt
-// from both halves: it has no assignee concept and deliberately never gains one. Every other
-// references/issue-tracker-*.md is an issue backend by definition — a slice store that isn't the
-// local-file store creates issues — so the filename alone is the trigger; no content gate on how the doc
-// phrases "create an issue" (CLI, REST, or plain prose all count, and a content gate misses forms it
+// everything commits. Neither failure is one a build step would catch. Every references/issue-tracker-*.md
+// is an issue backend by definition — every slice store creates issues — so the filename alone is the
+// trigger; no content gate on how the doc phrases "create an issue" (CLI, REST, or plain prose all count, and a content gate misses forms it
 // wasn't written to expect, e.g. `gh issue create`).
 const ASSIGNEE_DOCS_DIR = 'references';
-
-const ASSIGNEE_EXEMPT = new Set(['issue-tracker-local.md']);
 
 const EXTRA_ASSIGNEE_DOCS = ['docs/agents/issue-tracker.md']; // this repo's own dogfooded store config
 
@@ -79,9 +75,7 @@ const ASSIGNEE_SECTION_EXPECTATION =
 
 // Every slice-store document must state how to identify a feature's scope anchor (ADR 0017).
 // `/superdev:plan` and `/superdev:backlog` read that contract rather than encoding any one store's shape,
-// so a document without it leaves them with no way to recognise an anchor in that backend. Unlike the assignee
-// contract, `issue-tracker-local.md` is **not** exempt: every store has an anchor, and the local one's is
-// its `00-epic-*.md` filename. The contract is a section `/superdev:setup` carries across, so a passing
+// so a document without it leaves them with no way to recognise an anchor in that backend. The contract is a section `/superdev:setup` carries across, so a passing
 // prose mention of "the anchor" does not satisfy it.
 const ANCHOR_DOCS_DIR = 'references';
 
@@ -139,8 +133,7 @@ const APPEND_ELEMENTS = [
 // section leaves `/superdev:implement` with no signal to read, so it either builds an unreleased backlog
 // or stops on everything; a consumer that drops the reference builds whatever it is handed, which is the
 // gate's whole purpose gone with no error anywhere. Same candidate list as the anchor contract, since
-// every store renders this one too — the local-file store's rendering is that its plans are released when
-// written, which is still a `## Release` section stating it.
+// every store renders this one too.
 const RELEASE_PATTERN = /^#{2,3}\s+Release\s*$/m;
 
 // The consumers are pinned on the backticked section name rather than the bare word: "release" recurs in
@@ -160,37 +153,16 @@ const RELEASE_CONSUMER_PATTERN = /`## Release`/;
 // afterwards is what sends a run at work nobody released. Two halves, each silent on its
 // own: a store document carrying **Apply** and **Read** and no **Remove** leaves `/superdev:plan` with
 // no call to make, and a §6 that still reads "apply nothing" makes the call nobody wrote anyway.
-// `issue-tracker-local.md` is exempt from the bullet and carries the opposite statement instead — its
-// plans are released when written, so there is nothing to remove and the plan says so rather than
-// attempting a call.
 const RELEASE_REMOVE_PATTERN = /^[-*]\s+\*\*Remove\*\*/m;
-const RELEASE_REMOVE_EXEMPT = new Set(['issue-tracker-local.md']);
 const RELEASE_REMOVE_EXPECTATION =
   'carry a `## Release` **Remove** bullet naming the call that takes the signal off the scope anchor, ' +
   'beside **Apply** and **Read** — a declined release on an append removes it (ADR 0083, INV-0005)';
-
-const LOCAL_RELEASE_DOC = path.join('references', 'issue-tracker-local.md');
-const LOCAL_NO_REMOVAL_PATTERN = /nothing to remove/i;
-const LOCAL_NO_REMOVAL_EXPECTATION =
-  'state in its `## Release` section that a store releasing its features at write has nothing to ' +
-  'remove, so a declined release on an append attempts no call (ADR 0083)';
 
 const RELEASE_BOTH_DIRECTIONS_DOC = path.join('skills', 'plan', 'SKILL.md');
 const RELEASE_BOTH_DIRECTIONS_PATTERN = /On an append[\s\S]{0,300}?removes? the signal/;
 const RELEASE_BOTH_DIRECTIONS_EXPECTATION =
   "state that §6's declining branch removes the release signal from the scope anchor on an append, " +
   'where a first plan still applies nothing (ADR 0083, INV-0005)';
-
-// `references/issue-tracker-local.md` alone needs a continuation rule: its `id` is the zero-padded file
-// number `/plan` itself assigns, so append must continue numbering from the highest one already present
-// and never reuse a number. An issue backend's `id` is server-assigned at creation, already unique and
-// stable, so it names no continuation rule at all (`plan-contract.md` → *Append mode*).
-const LOCAL_APPEND_DOC = path.join('references', 'issue-tracker-local.md');
-
-const LOCAL_CONTINUATION_ELEMENT = [
-  /^[-*] \*\*[^*]*continu[^*]*number[^*]*\*\*/im,
-  'the local-only numbering-continuation clause',
-];
 
 // The documentation seed must offer a writing standard (ADR 0012). A seed that loses the section makes
 // /superdev:setup write a doc convention with no standard, and both doc agents then find nothing to
@@ -300,9 +272,7 @@ const CHANGE_TYPE_CONTRACTS = [
 // asserted rather than trusted.
 //
 // What is asserted is the contract, never the label's shape (ADR 0019). The shape belongs to the active
-// `docs/agents/issue-tracker.md`: a `<type>/<slug>` label on the issue-tracker seeds, a
-// `docs/plans/<type>/<slug>/` directory on the local-file store. A pattern pinning one notation is red for
-// a store that is perfectly
+// `docs/agents/issue-tracker.md`. A pattern pinning one notation is red for a store that is perfectly
 // well configured. The cost is real and accepted: a typo inside the prefix a given store does use passes
 // here. The half whose loss actually costs a run — a caller with no way to name its target — is the half
 // that stays pinned.
@@ -790,8 +760,8 @@ const VERB_CONTRACTS = [
   [path.join('references', 'implement-lite.md'), /scope\.js["'`]?\s+docs set\b/, 'record its inline doc pass with `scope.js docs set`'],
   [path.join('skills', 'document', 'SKILL.md'), /scope\.js["'`]?\s+get docs\b/, 'read the inline-doc-pass record with `scope.js get docs` before it dispatches a writer'],
   [path.join('skills', 'review', 'SKILL.md'), /scope\.js["'`]?\s+docs clear\b/, 'clear the inline-doc-pass record with `scope.js docs clear` when its fix loop lands commits'],
-  // ADR 0091, ADR 0075: a green record reused against the scope branch's current tip, or a tip
-  // differing from it only inside the active store's own plan dir (INV-0017), is never run again, and
+  // ADR 0091, ADR 0075: a green record reused against the scope branch's current tip (INV-0017) is
+  // never run again, and
   // review is the one caller of both halves — it asks
   // `scope.js suite reusable` before running its entry suite and writes the record with `suite set`
   // after every run its own gate performs (entry, and the exit run after a clean re-review).
@@ -1306,10 +1276,8 @@ const DENIAL_RESET_CONTRACTS = [
 
 // ADR 0046, ADR 0088. A **triage record** is the store-native record a deferred finding or an
 // observation gets (`references/plan-contract.md` → `## Triage record`), and it is the only home
-// that outlives the run root `hooks/scope-prune.js` reaps and the scope anchor's own close — a
-// commit `/superdev:submit-pr` makes on the local plan-file store, or an API call `/superdev:ship`
-// makes on a remote one — only once the scope branch carrying it merges (ADR
-// 0048). `/superdev:review` writes it for the deferred trigger, and the controller writes it for
+// that outlives the run root `hooks/scope-prune.js` reaps and the scope anchor's own close, whether or
+// not the scope ever ships (ADR 0110). `/superdev:review` writes it for the deferred trigger, and the controller writes it for
 // the observation trigger, each through the active store document, so a store document with no
 // `## Triage record` section leaves the command asking a backend for a record that backend never
 // defined. `scanTriageRecordContract()` (`scanners.js`) walks `storeDocuments()` for the presence
@@ -1336,8 +1304,7 @@ const TRIAGE_RECORD_EXPECTATION =
 // a list call, omit the exclusion clause entirely, and this scanner passed it clean (issue #357). The
 // pattern requires the section to echo the vocabulary of `/superdev:implement`'s slice loading, which every
 // seed does in its own exclusion bullet ("No feature label and no `ready` label. Those two are what
-// `/superdev:implement`'s slice loading selects on", or the local seed's "invisible to
-// `/superdev:implement`'s slice loading").
+// `/superdev:implement`'s slice loading selects on").
 const TRIAGE_RECORD_ELEMENTS = [
   [/^[-*] \*\*[^*]*\blist\w*\b[^*]*\b(?:record\w*|them)\b/im, "how to list this backend's triage records"],
   [/slice loading/i, "how this backend keeps the record out of `/superdev:implement`'s slice loading"],
@@ -3123,7 +3090,7 @@ const SOURCE_SECTION_CONTRACTS = [
   ],
 ];
 
-// The citation is prose, so it wraps: `references/issue-tracker-local.md` carries it as `*Append\nmode*`.
+// The citation is prose, so it wraps: a store document can carry it as `*Append\nmode*`.
 // Matching a literal space would report that as drift, so every space in the whole citation — in the
 // section name and at either joint around the arrow — matches any run of whitespace instead.
 const specialisingCitation = (name) => new RegExp(`\`plan-contract\\.md\` → \\*${name}\\*`.replace(/ /g, '\\s+'));
@@ -3874,7 +3841,7 @@ const DEPLOYMENT_CONTRACTS = [
 // merge without a second interview. `plan-contract.md`'s `## Scope anchor` section is the one place the
 // `**Deploy:**` line's format is defined; `skills/plan/SKILL.md` is where the question is asked (§1) and
 // the line is written (§6); every store document states the write/read mechanism, by the same body-edit
-// (or header-line, on the local store) each already uses for `**Blocked by feature:**`, so a reader never
+// each already uses for `**Blocked by feature:**`, so a reader never
 // confuses the two relations. Each document is its own row — losing plan-contract's definition leaves the
 // line's shape undocumented even while plan still writes it; losing plan's own question or write leaves
 // the field defined but never produced; losing a store's own row leaves that backend's write/read path
@@ -3922,11 +3889,6 @@ const PLAN_DEPLOY_CONTRACTS = [
     'state how the `**Deploy:**` line is written and read on this store',
   ],
   [
-    path.join('references', 'issue-tracker-local.md'),
-    /`deploy:` is optional and anchor-only/,
-    'state how the `deploy:` header line is written and read on this store',
-  ],
-  [
     path.join('references', 'plan-contract.md'),
     /\*\*deploy line\*\*[\s\S]{0,100}migrates the same way[\s\S]{0,100}anchor-only, and is removed from the lone slice/,
     'migrate the deploy line to the new epic on promotion, the same way as the anchor-dependency line',
@@ -3955,11 +3917,6 @@ const PLAN_DEPLOY_CONTRACTS = [
     path.join('references', 'issue-tracker-jira.md'),
     /anchor-dependency description line and the deploy description line, each of which migrates to the new/,
     'migrate the deploy description line to the new Epic issue on promotion, alongside the anchor-dependency line',
-  ],
-  [
-    path.join('references', 'issue-tracker-local.md'),
-    /remove a migrating `blocked-by:` or `deploy:` line when append promotes it to an epic/,
-    'migrate the `deploy:` header line to the new epic file on promotion, alongside the `blocked-by:` line',
   ],
 ];
 
@@ -4550,18 +4507,13 @@ const WRAP_UP_CONTRACTS = [
   ],
   [
     path.join('skills', 'wrap-up', 'SKILL.md'),
-    /local plan-file store\*\* → write nothing to the store[\s\S]{0,160}close already rode the pull request/,
-    'write nothing to the local plan-file store, because the anchor\'s close rode the pull request, and still run the gate and the cleanup (operator decision, ADR 0106)',
-  ],
-  [
-    path.join('skills', 'wrap-up', 'SKILL.md'),
     /[Jj]udge settledness from `<run-root>\/dod\.md`[\s\S]{0,300}only when `dod\.md` is missing/,
     'judge Definition-of-Done settledness from `dod.md`, reading the anchor only when `dod.md` is missing',
   ],
   [
     path.join('skills', 'wrap-up', 'SKILL.md'),
     /verdict differs from `dod\.md`[\s\S]{0,300}`\/superdev:verify-ship <scope>` as the reconciler/,
-    'refuse a remote anchor whose verdict on a line differs from a settled `dod.md`, naming `/superdev:verify-ship <scope>` as the reconciler',
+    'refuse an anchor whose verdict on a line differs from a settled `dod.md`, naming `/superdev:verify-ship <scope>` as the reconciler',
   ],
   [
     path.join('skills', 'wrap-up', 'SKILL.md'),
@@ -4572,31 +4524,6 @@ const WRAP_UP_CONTRACTS = [
     path.join('skills', 'wrap-up', 'SKILL.md'),
     /leave the stage at `shipped`, so a rerun retries the cleanup/,
     'leave the stage at `shipped` when the scopetree removal is refused, so a rerun retries the cleanup',
-  ],
-  [
-    path.join('skills', 'wrap-up', 'SKILL.md'),
-    /local plan-file store only[\s\S]{0,300}`ceiling:` line[\s\S]{0,200}accept as unverifiable[\s\S]{0,500}`scope\.js dod-line`[\s\S]{0,80}`accepted`/,
-    'on the local plan-file store only, ask once per unsettled `ceiling:` line whether to accept it as unverifiable, writing `accepted:` to `dod.md` through `scope.js dod-line`',
-  ],
-  [
-    path.join('skills', 'wrap-up', 'SKILL.md'),
-    /the one acceptance point wrap-up has[\s\S]{0,200}no\s+verify-ship/,
-    'state that the local-store ceiling ask is the one acceptance point wrap-up has, because that store has no verify-ship',
-  ],
-  [
-    path.join('skills', 'wrap-up', 'SKILL.md'),
-    /local plan-file store only, a `manual` target gets one ask\.\*\*[\s\S]{0,700}`deploy set <target> deployed`[\s\S]{0,300}names no command/,
-    'on the local plan-file store only, ask once per listed `manual` target not recorded `deployed`, recording a yes with `deploy set <target> deployed` and leaving a no as a reason that names no command',
-  ],
-  [
-    path.join('skills', 'wrap-up', 'SKILL.md'),
-    /asks\s+run\s+once\s+no\s+reason\s+other\s+than\s+the\s+local-store\s+asks\s+holds[\s\S]{0,300}pending\s+reason/,
-    'run the local-store asks once no reason other than the local-store asks holds, listing them as pending reasons otherwise',
-  ],
-  [
-    path.join('skills', 'wrap-up', 'SKILL.md'),
-    /[Aa]nswers\s+the\s+operator\s+already\s+gave\s+stand\s+across\s+a\s+later\s+refusal/,
-    'keep the operator\'s earlier local-store answers across a later refusal',
   ],
   [
     path.join('skills', 'wrap-up', 'SKILL.md'),
@@ -4634,11 +4561,6 @@ const WRAP_UP_CONTRACTS = [
     'state once that a `dod.md` line unpaired on the anchor is never a verdict disagreement, is never retried by the reconcile, and needs a hand-sync',
   ],
   [
-    path.join('references', 'dod-ticks.md'),
-    /\*\*Wrap-up's case:\*\*[\s\S]{0,200}local plan-file store only[\s\S]{0,400}attended only \(ADR 0095\)/,
-    'carry Wrap-up\'s case: on the local plan-file store only, wrap-up writes an attended operator\'s `accepted:` into `dod.md` through `scope.js dod-line`',
-  ],
-  [
     path.join('skills', 'backlog', 'SKILL.md'),
     /no text-matching line on the anchor[\s\S]{0,200}`awaiting wrap-up`[\s\S]{0,200}hand-sync[\s\S]{0,100}`\/superdev:wrap-up <scope-slug>`/,
     'route a `dod.md` line unpaired on the anchor to `awaiting wrap-up`, the act naming the hand-sync and then `/superdev:wrap-up <scope-slug>`',
@@ -4647,11 +4569,6 @@ const WRAP_UP_CONTRACTS = [
     path.join('skills', 'wrap-up', 'SKILL.md'),
     /[Nn]ever force-remove/,
     'never force-remove a scopetree holding untracked, non-ignored files',
-  ],
-  [
-    path.join('skills', 'verify-ship', 'SKILL.md'),
-    /local plan-file store\*\* → refuse[\s\S]{0,400}`\/superdev:wrap-up <scope>`/,
-    'point the local plan-file store refusal at `/superdev:wrap-up <scope>`',
   ],
   [
     path.join('skills', 'verify-ship', 'SKILL.md'),
@@ -4709,31 +4626,6 @@ const SHIP_TICKS_NOTHING_CONTRACTS = [
     path.join('skills', 'ship', 'SKILL.md'),
     /closes no anchor, and removes no checkout, slice checkout, or\s*\n?\s*lock/,
     'close no anchor and remove no checkout, slice checkout, or lock, leaving both to `/superdev:wrap-up` (ADR 0106, INV-0099)',
-  ],
-];
-
-// Triage #654: a store whose anchor close is a commit on the scope branch (the local store) commits that
-// close before submit-pr's push, so it rides the pull request and reaches base exactly when the pull
-// request merges — never as a commit straight to base (INV-0001). A store whose close is an API call
-// keeps closing after the pull request opens, on `/superdev:ship`, unaffected:
-// `skills/submit-pr/SKILL.md` states the scope-branch-commit case at its push step (§5), and
-// `references/issue-tracker-local.md` restates its own close line to match. A later feature is free to
-// replace the `done` value with its own status; the before-the-push mechanism stays either way.
-const ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS = [
-  [
-    path.join('skills', 'submit-pr', 'SKILL.md'),
-    /anchor close is a commit on the scope branch commits that close[\s\S]{0,40}before this push/,
-    'state, at its push step, that a store whose anchor close is a commit on the scope branch commits that close before this push, so it reaches base with the merge',
-  ],
-  [
-    path.join('references', 'issue-tracker-local.md'),
-    /commit it `done` on the scope branch[\s\S]{0,60}before\s*\n?\s*it pushes[\s\S]{0,60}reaches base with the merge/,
-    "state that `/superdev:submit-pr` commits the anchor `done` on the scope branch before it pushes, so it reaches base with the merge",
-  ],
-  [
-    path.join('references', 'issue-tracker-local.md'),
-    /`\/superdev:wrap-up` writes nothing here[\s\S]{0,120}takes the run down/,
-    "state that `/superdev:wrap-up` writes nothing to the local store and only takes the run down",
   ],
 ];
 
@@ -5498,11 +5390,6 @@ const SHIP_DEPLOY_CONTRACTS = [
   ],
   [
     path.join('skills', 'ship', 'SKILL.md'),
-    /local plan-file store\s+print\s+`\/superdev:wrap-up <scope>`\s+instead: verify-ship refuses there/,
-    'print `/superdev:wrap-up <scope>` instead of verify-ship as the hand-off on the local plan-file store',
-  ],
-  [
-    path.join('skills', 'ship', 'SKILL.md'),
     /nothing here asks a second question once the gate below has passed, except one: under `auto`, §5 asks\s*\n?\s*before it deploys a `docs\/agents\/deployment\.md` nobody was shown \(ADR 0104\)/,
     "name the one exception to ship's no-second-question rule in its opening paragraph",
   ],
@@ -5528,7 +5415,7 @@ const DOCUMENT_SUBMITTED_CONTRACTS = [
   ],
   [
     path.join('skills', 'document', 'SKILL.md'),
-    /print\s*\n?\s*`\/superdev:verify-ship <scope>`,[\s\S]{0,200}?when it read `closed`, print nothing/,
+    /print\s*\n?\s*`\/superdev:verify-ship <scope>`[,;][\s\S]{0,200}?when it read `closed`, print nothing/,
     'print `/superdev:verify-ship <scope>` as the next command when the leave-alone branch read `shipped`, ' +
       'and nothing at `closed`',
   ],
@@ -5539,14 +5426,9 @@ const DOCUMENT_SUBMITTED_CONTRACTS = [
       'closes the anchor and cleans up the run',
   ],
   [
-    path.join('skills', 'document', 'SKILL.md'),
-    /local plan-file store,?\s+print\s*\n?\s*`\/superdev:wrap-up <scope>` instead/,
-    'print `/superdev:wrap-up <scope>` instead of verify-ship at `shipped` on the local plan-file store',
-  ],
-  [
     'README.md',
-    /then stops with the stage at `shipped` and prints\s*\n?\s*`\/superdev:wrap-up health-check`[\s\S]{0,400}?verify-ship[\s\S]{0,120}?refuses on the local plan-file store/,
-    'walk the local-store worked example from ship straight to wrap-up, naming verify-ship as the remote-store step it refuses',
+    /then stops with the stage at `shipped` and prints\s*\n?\s*`\/superdev:verify-ship health-check`[\s\S]{0,400}?`\/superdev:wrap-up health-check`/,
+    'walk the worked example from ship to verify-ship, then wrap-up',
   ],
   [
     'README.md',
@@ -5705,25 +5587,19 @@ const DEPLOY_STEP_VISIBILITY_CONTRACTS = [
     'route a `shipped` run root stuck mid-`auto`-deploy to a `deploy resume` bucket whose act is ' +
       '`/superdev:ship <scope-slug>`, with no dependence on the scope checkout being present',
   ],
-  [
-    path.join('skills', 'submit-pr', 'SKILL.md'),
-    /On the local plan-file store, ship prints\s+`\/superdev:wrap-up <scope>` instead: verify-ship refuses there[\s\S]{0,400}that, then `\/superdev:verify-ship` \(remote stores only\) and `\/superdev:wrap-up`/,
-    'state on the next-command line and the chain-end line that, on the local plan-file store, ship prints ' +
-      '`/superdev:wrap-up <scope>` because verify-ship refuses there',
-  ],
   // ADR 0106: the anchor close follows verify-ship, and is wrap-up's.
   [
     path.join('skills', 'submit-pr', 'SKILL.md'),
-    /anchor on a remote store stays open\. `\/superdev:wrap-up` closes it, after the merge and\s*\n?\s*`\/superdev:verify-ship`/,
-    'state that wrap-up closes the anchor on a remote store, after the merge and verify-ship (ADR 0106)',
+    /anchor stays open\. `\/superdev:wrap-up` closes it, after the merge and\s*\n?\s*`\/superdev:verify-ship`/,
+    'state that wrap-up closes the anchor, after the merge and verify-ship (ADR 0106)',
   ],
-  // #750: a stalled `auto` deploy is visible on every store — the local plan-file store closes the anchor
-  // with the pull request, so the run root matches no open anchor — and it ranks first.
+  // #750: a stalled `auto` deploy is visible even under a scope anchor a human closed by hand, where the
+  // run root matches no open anchor (ADR 0110) — and it ranks first.
   [
     path.join('skills', 'backlog', 'SKILL.md'),
     /that meets the\s*\n?\s*`deploy resume` definition \(§3\)[\s\S]{0,300}gets a `deploy resume` row whether or not an open\s*\n?\s*anchor matches it/,
     'give a `shipped` run root that meets the `deploy resume` definition its row whether or not an open ' +
-      'anchor matches it, so the local store shows a stalled deploy too',
+      'anchor matches it, so a stalled deploy under a hand-closed anchor still shows',
   ],
   [
     path.join('skills', 'backlog', 'SKILL.md'),
@@ -5787,14 +5663,9 @@ const BACKLOG_VERIFY_WRAP_UP_CONTRACTS = [
   ],
   [
     path.join('skills', 'backlog', 'SKILL.md'),
-    /local plan-file store closes the anchor with the pull request[\s\S]{0,400}`awaiting wrap-up`[\s\S]{0,200}verify-ship refuses/,
-    'route a local plan-file store `shipped` run root to `awaiting wrap-up`, since wrap-up writes nothing to ' +
-      'that store, and note verify-ship refuses there',
-  ],
-  [
-    path.join('skills', 'backlog', 'SKILL.md'),
-    /\| `awaiting wrap-up` \|(?![^\n]*except on the local plan-file store)[^\n]*`\/superdev:wrap-up <scope-slug>`/,
-    'carry no local plan-file store exception on the `awaiting wrap-up` row',
+    /closed that anchor by hand before `\/superdev:wrap-up` ran[\s\S]{0,300}`deploy resume`[\s\S]{0,300}`awaiting wrap-up`/,
+    'route a `shipped` run root under an anchor closed by hand to `deploy resume` when its deploy stalled, ' +
+      'and to `awaiting wrap-up` otherwise (ADR 0110)',
   ],
 ];
 
@@ -5818,7 +5689,6 @@ module.exports = {
   RUN_ROOT_DOCS,
   RUN_ROOT_ARTIFACT_PATTERN,
   ASSIGNEE_DOCS_DIR,
-  ASSIGNEE_EXEMPT,
   EXTRA_ASSIGNEE_DOCS,
   ASSIGNEE_PATTERN,
   ASSIGNEE_BULLET_EXPECTATION,
@@ -5833,16 +5703,10 @@ module.exports = {
   RELEASE_CONSUMERS,
   RELEASE_CONSUMER_PATTERN,
   RELEASE_REMOVE_PATTERN,
-  RELEASE_REMOVE_EXEMPT,
   RELEASE_REMOVE_EXPECTATION,
-  LOCAL_RELEASE_DOC,
-  LOCAL_NO_REMOVAL_PATTERN,
-  LOCAL_NO_REMOVAL_EXPECTATION,
   RELEASE_BOTH_DIRECTIONS_DOC,
   RELEASE_BOTH_DIRECTIONS_PATTERN,
   RELEASE_BOTH_DIRECTIONS_EXPECTATION,
-  LOCAL_APPEND_DOC,
-  LOCAL_CONTINUATION_ELEMENT,
   WRITING_STANDARD_DOCS,
   WRITING_STANDARD_PATTERN,
   ADR_DIR,
@@ -5969,7 +5833,6 @@ module.exports = {
   HOLDS_VERDICT_TICKS_CONTRACTS,
   ACCEPTED_VERDICT_CONTRACTS,
   ALWAYS_REVIEW_CONTRACTS,
-  ANCHOR_CLOSE_BEFORE_PUSH_CONTRACTS,
   CODE_MANAGEMENT_MERGE_CONTRACTS,
   CODE_MANAGEMENT_HEAD_BRANCH_LOOKUP_CONTRACTS,
   SHIP_TESTED_PUSH_CONTRACTS,

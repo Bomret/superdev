@@ -239,8 +239,7 @@ This root owns every other subtree directly:
   opened, deploys the merge under the repository's deploy posture (`none`/`manual`/`auto`,
   `docs/agents/deployment.md`, ADR 0101), and stops there (ADR 0106). `/superdev:verify-ship` then settles
   the criteria only a deployed system can show, and `/superdev:wrap-up` closes the scope anchor and takes
-  the run down. On the local plan-file store the anchor's close rides the pull request and wrap-up follows ship
-  directly. Both are human-only too.
+  the run down. Both are human-only too.
   Whoever invokes a chain command passes `--unattended` to run it unattended (ADR 0016, ADR 0108);
   superdev ships no driver. Some skills sit outside the chain: publish-kb sends a scope's
   staged knowledge-base pages to a remote backend on the operator's own clock (ADR 0023), backlog surveys
