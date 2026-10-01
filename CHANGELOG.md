@@ -1,3 +1,15 @@
+# [0.60.0](https://codeberg.org/bomret/superdev/compare/v0.59.0...v0.60.0) (2026-10-01)
+
+
+### Bug Fixes
+
+* **confluence-storage-body:** publish Confluence pages as formatted pages under their parent ([40dcb30](https://codeberg.org/bomret/superdev/commit/40dcb30a1b6a190a7786d078476c9d6f01426f4c))
+
+
+### Features
+
+* **affected-suites:** an affected full command and a whole-repo gate before the pull request ([d3c55bb](https://codeberg.org/bomret/superdev/commit/d3c55bb57fa63bd5bdf9f91b6f4bd1da538c2d2b))
+
 # [0.59.0](https://codeberg.org/bomret/superdev/compare/v0.58.0...v0.59.0) (2026-09-30)
 
 
