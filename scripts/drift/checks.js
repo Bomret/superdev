@@ -778,8 +778,11 @@ module.exports = [
   table(
     'commitment-capture',
     COMMITMENT_CAPTURE_CONTRACTS,
-    'brainstorm still names load-bearing commitments as pairs, plan still routes and gates them, and ' +
-      "domain-modeling.md still carries the sort, its authoring-rule guard, and its `Check: none` branch",
+    'brainstorm still names load-bearing commitments as pairs, plan still routes and gates them, ' +
+      "domain-modeling.md still carries the sort, its authoring-rule guard, and its `Check: none` branch, " +
+      'and both halves of the draft-intent contract hold: brainstorm writes a draft, keeps it current, ' +
+      'marks it ready, and offers drafts at its start, while plan skips a draft, refuses one named as ' +
+      "its argument, and treats only `status: draft` as a draft",
   ),
   table(
     'criterion-states-a-requirement',

@@ -4652,18 +4652,46 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   // negative: one fixture carrying every row's clause, all three documents at once — this is also what
   // gives the selftest-coverage assertion in ./index.js a `readDoc` hit against every row's document.
+  // brainstorm's half of the draft contract (ADR 0112, INV-0110): the start offer, the draft write, the
+  // ready step.
+  const ccDraftOffer =
+    'A file whose `status` is `draft` is an unfinished brainstorm. Ask: **resume** a named draft, ' +
+    '**delete** a named draft, or **start fresh**. Never select one yourself.\n';
+  const ccDraftWrite =
+    '**Write the intent file once the operator confirms the problem, before any direction is explored.** ' +
+    'The file opens with `status: draft`.\n';
+  const ccKeepCurrent =
+    '**Keep the file current.** Each point that settles is edited into its section in the same turn it settles.\n';
+  const ccDraftReady = "set `status: ready` in the intent file's frontmatter, then tell the user it is ready.\n";
+  // plan's half of the draft contract (ADR 0112, INV-0110): the refusal, then the skip.
+  const ccDraftRefusal =
+    '**An argument that names a draft intent is refused** (INV-0110, ADR 0112). The refusal starts no ' +
+    'interview, cuts nothing, and writes nothing to the slice store.\n';
+  const ccDraftSkip =
+    '**Skip every draft** (INV-0110): read each file\'s frontmatter, offer no file whose `status` is ' +
+    '`draft`, and print one line per skipped draft naming it and the way to resume it.\n';
+  const ccDraftOnly =
+    'Only `status: draft` marks a draft. A file with no frontmatter, `status: ready`, or any other ' +
+    'status is ready.\n';
   const ccFiles = {
     'skills/brainstorm/SKILL.md':
       '- **Load-bearing commitments** — a commitment the discovery settled that will constrain later ' +
       'decisions, written as a pair: the principle, then the rule it implies. `/superdev:plan` converts ' +
       'each one into an invariant register entry (`domain-modeling.md`, ADR 0081). A discovery that ' +
-      'settled none writes no section and says so.\n',
+      'settled none writes no section and says so.\n' +
+      ccDraftOffer +
+      ccDraftWrite +
+      ccKeepCurrent +
+      ccDraftReady,
     'skills/plan/SKILL.md':
       '**Route the seeded commitments, and every commitment this interview originates.** Each one is ' +
       'converted by the move `references/domain-modeling.md` states — into an invariant register entry, ' +
       'or into a reason said out loud that it constrains nothing (ADR 0081).\n' +
       'Delete only once every `Rejected direction` **and every `Load-bearing commitment`** it carried ' +
-      'has a durable home (§2) or was resolved out loud.\n',
+      'has a durable home (§2) or was resolved out loud.\n' +
+      ccDraftRefusal +
+      ccDraftSkip +
+      ccDraftOnly,
     'references/domain-modeling.md':
       '#### From a principle to the rule it implies\n\n' +
       'Convert before you record, and ask what later decision the commitment constrains (ADR 0081):\n' +
@@ -4681,7 +4709,11 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     ...ccFiles,
     'skills/brainstorm/SKILL.md':
       '- **Load-bearing commitments** — a commitment the discovery settled that will constrain later ' +
-      'decisions.\n',
+      'decisions.\n' +
+      ccDraftOffer +
+      ccDraftWrite +
+      ccKeepCurrent +
+      ccDraftReady,
   });
   const ccNoPairGaps = scanContract(ccNoPair, COMMITMENT_CAPTURE_CONTRACTS);
   assert.equal(ccNoPairGaps.length, 1, 'flags brainstorm for losing the principle/implied-rule pair');
@@ -4693,7 +4725,10 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     ...ccFiles,
     'skills/plan/SKILL.md':
       'Delete only once every `Rejected direction` **and every `Load-bearing commitment`** it carried ' +
-      'has a durable home (§2) or was resolved out loud.\n',
+      'has a durable home (§2) or was resolved out loud.\n' +
+      ccDraftRefusal +
+      ccDraftSkip +
+      ccDraftOnly,
   });
   const ccNoRoutingGaps = scanContract(ccNoRouting, COMMITMENT_CAPTURE_CONTRACTS);
   assert.equal(ccNoRoutingGaps.length, 1, 'flags plan for losing the commitment routing bullet');
@@ -4707,7 +4742,10 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       '**Route the seeded commitments, and every commitment this interview originates.** Each one is ' +
       'converted by the move `references/domain-modeling.md` states — into an invariant register entry, ' +
       'or into a reason said out loud that it constrains nothing (ADR 0081).\n' +
-      'Delete only once every `Rejected direction` it carried has a durable home (§2).\n',
+      'Delete only once every `Rejected direction` it carried has a durable home (§2).\n' +
+      ccDraftRefusal +
+      ccDraftSkip +
+      ccDraftOnly,
   });
   const ccNoGateGaps = scanContract(ccNoGate, COMMITMENT_CAPTURE_CONTRACTS);
   assert.equal(ccNoGateGaps.length, 1, "flags plan for losing the delete-gate's commitment clause");
@@ -4763,6 +4801,72 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     path.join('references', 'domain-modeling.md'),
     'names domain-modeling.md',
   );
+
+  // positive: plan stops skipping a draft, so a half-written intent reaches the brainstorm glob's offer.
+  const ccNoDraftSkip = fixture({
+    ...ccFiles,
+    'skills/plan/SKILL.md': ccFiles['skills/plan/SKILL.md'].replace(ccDraftSkip, ''),
+  });
+  const ccNoDraftSkipGaps = scanContract(ccNoDraftSkip, COMMITMENT_CAPTURE_CONTRACTS);
+  assert.equal(ccNoDraftSkipGaps.length, 1, "flags plan for losing the draft skip");
+  assert.equal(ccNoDraftSkipGaps[0].source, path.join('skills', 'plan', 'SKILL.md'), 'names plan');
+
+  // positive: plan stops refusing an argument that names a draft, so the interview seeds from half an intent.
+  const ccNoDraftRefusal = fixture({
+    ...ccFiles,
+    'skills/plan/SKILL.md': ccFiles['skills/plan/SKILL.md'].replace(ccDraftRefusal, ''),
+  });
+  const ccNoDraftRefusalGaps = scanContract(ccNoDraftRefusal, COMMITMENT_CAPTURE_CONTRACTS);
+  assert.equal(ccNoDraftRefusalGaps.length, 1, "flags plan for losing the draft refusal");
+  assert.equal(ccNoDraftRefusalGaps[0].source, path.join('skills', 'plan', 'SKILL.md'), 'names plan');
+
+  // positive: brainstorm stops writing the draft at the end of §1, so the discovery lives only in the
+  // conversation until the end — the loss ADR 0112 exists to prevent.
+  const ccNoDraftWrite = fixture({
+    ...ccFiles,
+    'skills/brainstorm/SKILL.md': ccFiles['skills/brainstorm/SKILL.md'].replace(ccDraftWrite, ''),
+  });
+  const ccNoDraftWriteGaps = scanContract(ccNoDraftWrite, COMMITMENT_CAPTURE_CONTRACTS);
+  assert.equal(ccNoDraftWriteGaps.length, 1, 'flags brainstorm for losing the draft write');
+  assert.equal(ccNoDraftWriteGaps[0].source, path.join('skills', 'brainstorm', 'SKILL.md'), 'names brainstorm');
+
+  // positive: brainstorm stops editing settled points into the file as they settle, so a long interview
+  // leaves a stale draft.
+  const ccNoKeepCurrent = fixture({
+    ...ccFiles,
+    'skills/brainstorm/SKILL.md': ccFiles['skills/brainstorm/SKILL.md'].replace(ccKeepCurrent, ''),
+  });
+  const ccNoKeepCurrentGaps = scanContract(ccNoKeepCurrent, COMMITMENT_CAPTURE_CONTRACTS);
+  assert.equal(ccNoKeepCurrentGaps.length, 1, 'flags brainstorm for losing the keep-current clause');
+  assert.equal(ccNoKeepCurrentGaps[0].source, path.join('skills', 'brainstorm', 'SKILL.md'), 'names brainstorm');
+
+  // positive: brainstorm stops marking the intent ready at the handoff, so a finished intent stays a draft
+  // and plan skips it for good.
+  const ccNoDraftReady = fixture({
+    ...ccFiles,
+    'skills/brainstorm/SKILL.md': ccFiles['skills/brainstorm/SKILL.md'].replace(ccDraftReady, ''),
+  });
+  const ccNoDraftReadyGaps = scanContract(ccNoDraftReady, COMMITMENT_CAPTURE_CONTRACTS);
+  assert.equal(ccNoDraftReadyGaps.length, 1, 'flags brainstorm for losing the ready step');
+  assert.equal(ccNoDraftReadyGaps[0].source, path.join('skills', 'brainstorm', 'SKILL.md'), 'names brainstorm');
+
+  // positive: brainstorm stops offering drafts at its start, so an abandoned draft is never seen again.
+  const ccNoDraftOffer = fixture({
+    ...ccFiles,
+    'skills/brainstorm/SKILL.md': ccFiles['skills/brainstorm/SKILL.md'].replace(ccDraftOffer, ''),
+  });
+  const ccNoDraftOfferGaps = scanContract(ccNoDraftOffer, COMMITMENT_CAPTURE_CONTRACTS);
+  assert.equal(ccNoDraftOfferGaps.length, 1, 'flags brainstorm for losing the start offer');
+  assert.equal(ccNoDraftOfferGaps[0].source, path.join('skills', 'brainstorm', 'SKILL.md'), 'names brainstorm');
+
+  // positive: plan stops saying that only `status: draft` marks a draft, so a malformed file reads as one.
+  const ccNoDraftOnly = fixture({
+    ...ccFiles,
+    'skills/plan/SKILL.md': ccFiles['skills/plan/SKILL.md'].replace(ccDraftOnly, ''),
+  });
+  const ccNoDraftOnlyGaps = scanContract(ccNoDraftOnly, COMMITMENT_CAPTURE_CONTRACTS);
+  assert.equal(ccNoDraftOnlyGaps.length, 1, 'flags plan for losing the only-status-draft rule');
+  assert.equal(ccNoDraftOnlyGaps[0].source, path.join('skills', 'plan', 'SKILL.md'), 'names plan');
 
   // --- SPAWN_FAILURE_ANSWER_CONTRACTS: ADR 0087 — green-gate blocks a suite that never started, and
   // the row pins its reason with the behaviour. A fixture that keeps the behaviour and drops the reason

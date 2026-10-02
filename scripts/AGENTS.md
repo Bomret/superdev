@@ -2417,6 +2417,16 @@ conversion itself, in rows of its own. Each half reads correct alone while anoth
 intent can name commitments nothing converts, a conversion can exist that plan never routes to, and both
 can stand while the delete-gate drops a commitment that found no home.
 
+The same table pins the draft-intent contract (ADR 0112, INV-0110), two-sided. `skills/brainstorm/SKILL.md`
+still writes its intent file as `status: draft` once the problem is confirmed and before any direction is
+explored, still edits each settled point into its section in the turn it settles, still sets
+`status: ready` at the handoff, and still offers every draft at its start to resume, delete, or start
+fresh, never selecting one itself. `skills/plan/SKILL.md` still skips a draft in its brainstorm glob and
+names each one skipped, still refuses an argument that names a draft, starting no interview and writing
+nothing, and still states that only `status: draft` marks a draft. A one-sided pin would let one half go
+while the other stays green: a plan that offers drafts seeds from half an intent, and a brainstorm that never marks an intent ready leaves
+plan skipping it for good.
+
 The reference's rows guard branches that fail in opposite directions. The sort still asks what
 later decision a commitment constrains, which is the question the whole conversion turns on. The
 authoring-rule guard is still asked first. So a rule about how the work is done is named out loud rather

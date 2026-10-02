@@ -4472,6 +4472,10 @@ const ALWAYS_REVIEW_CONTRACTS = [
 // feature forbids — a mis-route rather than a gap, and invisible. Losing the `Check: none` branch
 // reverts the sort from what a commitment constrains to whether it can be tested, which drops exactly
 // the commitments worth keeping: one binding a hundred decisions and no single test.
+//
+// ADR 0112, INV-0110: the draft contract has two halves, and a row pins each. Plan's half is its skip,
+// its refusal, and its only-draft marker clause. Brainstorm's half is its draft write, its keep-current
+// clause, its ready step, and its start offer. Removing either half fails.
 const COMMITMENT_CAPTURE_CONTRACTS = [
   [
     path.join('skills', 'brainstorm', 'SKILL.md'),
@@ -4487,6 +4491,41 @@ const COMMITMENT_CAPTURE_CONTRACTS = [
     path.join('skills', 'plan', 'SKILL.md'),
     /`Load-bearing commitment`\*\*\s+it carried has a durable home/,
     "cover load-bearing commitments in the seeded intent's delete-gate, beside `Rejected direction` (ADR 0081)",
+  ],
+  [
+    path.join('skills', 'brainstorm', 'SKILL.md'),
+    /\*\*Write the intent file once the operator confirms the problem, before any direction is explored\.\*\*[\s\S]{0,800}`status: draft`/,
+    'write the intent file as a draft once the problem is confirmed, before any direction is explored (ADR 0112, INV-0110)',
+  ],
+  [
+    path.join('skills', 'brainstorm', 'SKILL.md'),
+    /\*\*Keep the file current\.\*\*[\s\S]{0,300}edited into its section in the same\s+turn it settles/,
+    'edit each settled point into its section of the intent file in the same turn it settles (ADR 0112, INV-0110)',
+  ],
+  [
+    path.join('skills', 'brainstorm', 'SKILL.md'),
+    /set `status: ready` in the intent file's frontmatter, then\s+tell the user/,
+    'set `status: ready` at the handoff, before telling the operator to run `/superdev:plan` (ADR 0112, INV-0110)',
+  ],
+  [
+    path.join('skills', 'brainstorm', 'SKILL.md'),
+    /whose `status` is `draft`[\s\S]{0,700}\*\*resume\*\* a named draft, \*\*delete\*\* a named draft, or \*\*start fresh\*\*[\s\S]{0,500}Never select one yourself/,
+    'offer every draft at the start to resume, delete, or start fresh, and never select one itself (ADR 0112, INV-0110)',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /\*\*Skip every\s+draft\*\*[\s\S]{0,300}offer no file whose `status` is `draft`[\s\S]{0,200}one\s+line per skipped draft naming it/,
+    "skip every draft intent in the brainstorm glob and name each one skipped, so plan never seeds from half an intent (ADR 0112, INV-0110)",
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /argument that names a draft intent is refused\*\*[\s\S]{0,600}starts no interview,\s+cuts\s+nothing,\s+and writes nothing/,
+    "refuse an argument that names a draft intent, starting no interview and writing nothing (ADR 0112, INV-0110)",
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /Only `status: draft`\s+marks a draft\. A file with no frontmatter/,
+    'treat only `status: draft` as a draft; no frontmatter or any other status is ready (ADR 0112, INV-0110)',
   ],
   [
     path.join('references', 'domain-modeling.md'),

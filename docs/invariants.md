@@ -905,3 +905,12 @@ Statement: `/superdev:publish-kb` converts a staged page's body only for a backe
 Breaks: silently
 Check: tests/publish-kb.test.js — a markdown backend's `create` and `update` receive the staged body unchanged
 Paths: plugin/scripts/publish-kb.js
+
+### INV-0110
+
+Class: process
+Concepts: Intent
+Statement: `/superdev:plan` never offers or seeds from a `.superdev/brainstorm/*.md` intent whose frontmatter is `status: draft`. Only that frontmatter marks a draft: a file with no frontmatter, or with any other status, is ready (ADR 0112).
+Breaks: silently
+Check: scripts/drift-check.js — plan's draft skip, refusal, and only-draft marker clause and brainstorm's draft write, keep-current clause, ready step, and start offer are pinned together
+Paths: plugin/skills/plan/SKILL.md, plugin/skills/brainstorm/SKILL.md

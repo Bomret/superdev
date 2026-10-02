@@ -84,8 +84,18 @@ the interview still walks the whole tree — the same standing a picked brainsto
 present makes the brainstorm glob below a cross-check: only an intent whose slug matches it is offered.
 Empty → interview from the glob.
 
+**An argument that names a draft intent is refused** (INV-0110, ADR 0112). A **draft** is a
+`.superdev/brainstorm/*.md` file whose YAML frontmatter says `status: draft`, an unfinished brainstorm. An
+argument that is such a file's slug or path gets a refusal naming the draft and both remedies: resume it
+with `/superdev:brainstorm`, or set `status: ready` in the file. The refusal starts no interview, cuts
+nothing, and writes nothing to the slice store.
+
 **Seed from an existing brainstorm intent if there is one.** Glob `.superdev/brainstorm/*.md`, the
-git-ignored scratch intents `/superdev:brainstorm` or `/superdev:review-tests` may have left. Exactly
+git-ignored scratch intents `/superdev:brainstorm` or `/superdev:review-tests` may have left. **Skip every
+draft** (INV-0110): read each file's frontmatter, offer no file whose `status` is `draft`, and print one
+line per skipped draft naming it and the way to resume it, `/superdev:brainstorm`. Only `status: draft`
+marks a draft. A file with no frontmatter, `status: ready`, any other status, or frontmatter without a
+`status` key is ready and goes through the rule below. Exactly
 one → offer it ("Found intent `<slug>` — start from it?"); several → list them, let the user pick one
 or start fresh; none → interview from scratch. Never auto-select. A picked intent is a *starting
 point*, not a substitute for the

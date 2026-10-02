@@ -45,9 +45,11 @@ plan runs test-first, inline in the scopetree.
 
 - **`/superdev:brainstorm`** *(optional)*. A divergent discovery conversation that shapes a vague idea
   into a plan-ready intent. It explores candidate directions, finds the smallest end-to-end slice worth
-  building, and surfaces open questions and rejected directions. It then hands off to `/superdev:plan`,
-  which routes each rejected direction to a durable home. Near read-only: it writes nothing to the slice
-  store.
+  building, and surfaces open questions and rejected directions. It writes its intent as the interview
+  runs, as a draft until the handoff, so a closed session loses nothing and a later session can resume or
+  delete the draft. The handoff marks the intent ready, and `/superdev:plan` then offers it and routes each
+  rejected direction to a durable home. `/superdev:plan` never offers a draft. Near read-only: it writes
+  nothing to the slice store.
 - **`/superdev:plan`**. A relentless interview pins the intent and a Definition of Done, and captures
   ADRs and a glossary as decisions surface. Every alternative to its recommendation names what choosing
   it saves, or, for an option in a fixed set a question requires by name, states why it doesn't fit. A
@@ -421,8 +423,9 @@ docs/kb/                  knowledge base, only if the local-file KB backend is c
                           per-slice progress logs + the cross-slice interface record + per-slice
                           slicetrees (full tier only, >3 slices), or a single scopetree +
                           run.lock (lite tier only, ≤3 slices) — never committed, never in the PR
-.superdev/brainstorm/<intent-slug>.md   git-ignored scratch intent notes, optionally written by
-                          /brainstorm — sibling to .superdev/scopes/, not inside it, so /status (which
+.superdev/brainstorm/<intent-slug>.md   git-ignored scratch intent notes, written by /brainstorm as the
+                          interview runs, a draft until the handoff marks it ready — sibling to
+                          .superdev/scopes/, not inside it, so /status (which
                           only scans .superdev/scopes/*/) never mistakes it for a run root; never
                           committed
 .superdev/design/<feature-slug>.html   git-ignored throwaway design sketch, written by /plan only when

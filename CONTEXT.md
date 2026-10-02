@@ -97,7 +97,7 @@ _Avoid: "log", "report", "transcript" (logs are broader, and this is slice-speci
 **Warrant**: the justification a piece of work carries. It scales both cost (which model a dispatch uses) and rigor (which review gates run). Derived from a slice's test-applicability and complexity, never a plan field. A `behavior` slice warrants more than a `mechanical` one. A hook blocks any dispatch that omits an explicit model, so cost stays warrant-scaled.
 _Avoid: "priority", "estimate", "weight"_
 
-**Intent**: a rough idea sharpened into something plan-ready: the problem, a few candidate directions, the MLP, the open questions, the rejected directions, and the load-bearing commitments. Output of `/brainstorm`, input to `/plan`.
+**Intent**: a rough idea sharpened into something plan-ready: the problem, a few candidate directions, the MLP, the open questions, the rejected directions, and the load-bearing commitments. Output of `/brainstorm`, input to `/plan`. A brainstorm intent is a draft (`status: draft`) while its interview runs and ready (`status: ready`) after the handoff; `/plan` never seeds from a draft (ADR 0112).
 _Avoid: "idea", "requirements", "specification"_
 
 **Minimal Lovable Product (MLP)**: the smallest end-to-end version of the chosen direction that delivers real value. A complete, if narrow, path through the system a user could use, not a fragment of the final thing. Found in `/brainstorm` step 3, carried into `Intent`'s rough scope.
