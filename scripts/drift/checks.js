@@ -166,6 +166,7 @@ const contractGap = (g) => `${g.source} no longer meets its contract — expecte
 // expectation]` table run through scanContract().
 const table = (id, contracts, ok, opts) => ({
   id,
+  contracts,
   ok,
   run: (root) => scanContract(root, contracts, opts),
   format: contractGap,
@@ -243,6 +244,7 @@ module.exports = [
   table('empty-argument', EMPTY_ARGUMENT_CONTRACTS, 'the shared empty-argument cascade is defined once and cited, not restated'),
   {
     id: 'agent-lens-list',
+    contracts: AGENT_LENS_LIST_CONTRACTS,
     ok: 'each reviewer agent reads its own named lens list from review-checklist.md, and slice-reviewer.md carries no design-smell token to widen it in place',
     run: (root) => [...scanContract(root, AGENT_LENS_LIST_CONTRACTS), ...scanAgentLensNoDesignSmell(root)],
     format: contractGap,
@@ -553,6 +555,7 @@ module.exports = [
   ),
   {
     id: 'denial-cap',
+    contracts: DENIAL_CAP_CONTRACTS,
     ok: 'the unattended run caps its denials at two, and every recording call site feeds that count',
     run: (root) => [
       ...scanContract(root, DENIAL_CAP_CONTRACTS, { stripFrontmatterFirst: true }),
@@ -577,6 +580,7 @@ module.exports = [
   ),
   {
     id: 'run-lock-liveness',
+    contracts: RUN_LOCK_LIVENESS_CONTRACTS,
     ok: "/superdev:implement's own entry into an existing run root checks the ledger's stage and the lock's " +
       "freshness together before its first write, scoped to that one caller — never " +
       "review/document/submit-pr/ship's ordinary hand-off, which carries no such language of its own — and " +
@@ -593,6 +597,7 @@ module.exports = [
   },
   {
     id: 'scopetree',
+    contracts: SCOPETREE_CONTRACTS,
     ok:
       'the full tier cuts and merges in the same scopetree the lite tier uses, never the invoking ' +
       'checkout',
@@ -607,6 +612,7 @@ module.exports = [
   ),
   {
     id: 'triage-record',
+    contracts: TRIAGE_RECORD_CONTRACTS,
     ok: 'every slice-store seed states where a triage record lives, for a deferred finding or an ' +
       'observation alike',
     run: (root) => [

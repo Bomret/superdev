@@ -47,8 +47,8 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          `md-to-storage.js` module `publish-kb.js` requires
   LICENSE · NOTICE     — copies of the root files, so the shipped tree carries its own attribution
 tests/                 — one suite per shipped executable (the hooks, `scope.js`, `kb-patch.js`,
-                         `publish-kb.js`, `profile.js`, `md-to-storage.js`) and one for the maintainer-only
-                         `invariant-check.js`, framework-free `node:assert`, run under
+                         `publish-kb.js`, `profile.js`, `md-to-storage.js`) and one each for the maintainer-only
+                         `invariant-check.js` and `run-tests.js`, framework-free `node:assert`, run under
                          `node` by `bun run test` (ADR 0059); `spawn-verdict.js` and `fixture-git.js`
                          are the shared helpers, not suites — `assertSpawnDecided` (INV-0009), asserted by
                          `spawn-verdict.test.js` and called from every other suite's bounded-spawn sites;
@@ -59,7 +59,8 @@ docs/known-issues.md   — Claude Code platform behaviour superdev works around,
                          shipped mitigation and dated verification
 scripts/               — the maintainer-only CLIs wired into `bun run test`: `drift-check.js` with its
                          `drift/` modules (registry, contract tables, scanners, shared helpers,
-                         selftest suites), and `invariant-check.js`, the invariant register validator
+                         selftest suites), `invariant-check.js`, the invariant register validator, and
+                         `run-tests.js`, the suite runner `bun run test` invokes
 release.config.cjs     — semantic-release config (semantic-release-replace-plugin bumps plugin.json)
 package.json           — dev-only tooling (Bun); NOT published to npm
 CHANGELOG.md           — release-managed by semantic-release; do not hand-edit
@@ -98,8 +99,8 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
   field, and do not add `"type": "module"` to the root `package.json` either. Only `.mjs` is ESM,
   because that is scoped by extension.
 - **Every shipped executable has a suite in `tests/`, named for it.** Add one for any new hook or
-  script. `bun run test` runs every `tests/` suite under `node`, which matches the production
-  runtime, then `invariant-check.js` against this repository's own register, `drift-check`'s own
+  script. `bun run test` runs `scripts/run-tests.js`, which runs every `tests/*.test.js` suite under
+  `node`, which matches the production runtime. No roster needs an edit when a suite is added. It then runs `invariant-check.js` against this repository's own register, `drift-check`'s own
   `--selftest`, `drift-check` itself, and `claude plugin validate ./plugin` as a manifest-validation
   gate. A suite that commits in a fixture repository sets `commit.gpgsign=false` for every git child
   by requiring `tests/fixture-git.js` at its top (it appends to `GIT_CONFIG_COUNT`), so a maintainer's global signing setup never fails a fixture

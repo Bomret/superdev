@@ -38,14 +38,14 @@ const fixture = (files) => {
 // the table it belongs to. `tableNames` maps a table back to the constant name `contracts.js` exports it
 // under, so the map below never needs one of its own.
 const lib = require('../lib');
+const { coverageFailures } = require('./coverage');
 const tableNames = new Map();
 for (const [key, value] of Object.entries(require('../contracts'))) {
   if (Array.isArray(value)) tableNames.set(value, key);
 }
 
 const observed = new Map();
-const originalScanContract = lib.scanContract;
-lib.scanContract = (root, contracts, opts) => {
+const restoreObserver = lib.observeContracts((root, contracts) => {
   let seen = observed.get(contracts);
   if (!seen) {
     seen = new Set();
@@ -54,8 +54,7 @@ lib.scanContract = (root, contracts, opts) => {
   for (const [rel] of contracts) {
     if (lib.readDoc(root, rel) !== null) seen.add(rel.split(path.sep).join('/'));
   }
-  return originalScanContract(root, contracts, opts);
-};
+});
 
 const context = { assert, fs, os, path, fixture, realRoot };
 
@@ -63,26 +62,19 @@ try {
   require('./scanners.test')(context);
   require('./chain.test')(context);
   require('./kb-plan.test')(context);
+  require('./coverage.test')(context);
+  require('./observation.test')(context);
   require('./drift-check.test')(context);
 
-  // Every table any suite above scanned gets checked here, once, against what it actually observed —
-  // not a curated subset. A table pins rows across many documents, and "a fixture is incomplete" leaves
-  // the reader to find which, so both the table and the document are in the message.
-  for (const [table, seen] of observed) {
-    const name = tableNames.get(table) || 'an unnamed table';
-    const missing = [...new Set(table.map(([rel]) => rel.split(path.sep).join('/')))]
-      .filter((rel) => !seen.has(rel));
-    assert.deepEqual(
-      missing,
-      [],
-      `${name}: its selftest fixtures never resolve ${missing.join(', ')}, so every row pinning that ` +
-        'document passes without being exercised',
-    );
-  }
+  // Every table any suite above scanned, and every table the registry declares, gets checked here, once,
+  // against what it actually observed — not a curated subset. All the tables at fault are in the one
+  // message, each with the table and the document, so a repair is not found one run at a time.
+  const failures = coverageFailures(observed, require('../checks'), tableNames);
+  assert.strictEqual(failures.length, 0, `contract tables left unexercised:\n  ${failures.join('\n  ')}`);
 
   console.log('drift-check selftest ok');
 } finally {
-  lib.scanContract = originalScanContract;
+  restoreObserver();
   // A failed assertion leaves the same directories behind as a passing run, so cleanup is in `finally`.
   for (const dir of created) fs.rmSync(dir, { recursive: true, force: true });
 }

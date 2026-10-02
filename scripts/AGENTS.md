@@ -7,8 +7,8 @@ The shipped CLIs live in `plugin/scripts/`: `scope.js` (the run-state CLI, ADR 0
 (the knowledge-base section merge, ADR 0027), `publish-kb.js` (the backend-independent half of publishing a scope's staged
 knowledge-base pages, ADR 0069), `profile.js` (the run profile, ADR 0103), and `md-to-storage.js` (the markdown to Confluence `storage` conversion
 `publish-kb.js` requires, ADR 0109). The maintainer-only ones live here in `scripts/`: `drift-check.js`
-(the cross-document contract checks) and `invariant-check.js` (the invariant register validator,
-ADR 0093). This doc owns them all regardless of which dir each lives in.
+(the cross-document contract checks), `invariant-check.js` (the invariant register validator,
+ADR 0093), and `run-tests.js` (the suite runner behind `bun run test`). This doc owns them all regardless of which dir each lives in.
 
 ## Ownership
 
@@ -496,6 +496,19 @@ unrecognized format, and 2 for an argument that is not a slug. Each non-zero exi
 stderr, and the first two name the slug and the path searched. Its suite is `tests/profile.test.js`, which builds synthetic
 transcript trees in a temporary directory and points `CLAUDE_CONFIG_DIR` and `HOME` at them.
 
+### run-tests.js, the suite runner
+
+`node scripts/run-tests.js` is the whole of `bun run test`. It discovers the suites under `tests/` by
+name: every `*.test.js` file directly in that directory, in name order, so a suite added to the tree runs
+with no edit to `package.json`. A helper (`spawn-verdict.js`, `fixture-git.js`) and a subdirectory
+(`tests/fixtures/`) are not suites. It runs each suite under `node`, then the fixed tail: `invariant-check.js
+--root .`, `drift-check.js --selftest`, `drift-check.js`, and `claude plugin validate ./plugin`. The first
+failure stops the run, prints which suite or tail command failed, and exits nonzero; a child that was
+killed or never started counts as a failure (INV-0009). A `tests/` directory holding no suite prints
+`no suite found` and exits nonzero. Its suite is `tests/run-tests.test.js`, which calls `discoverSuites` and
+`runAll` against throwaway trees it removes at the end. The tail is exported as `TAIL`, so a suite reads it
+instead of matching the runner's source text.
+
 ### invariant-check.js, the invariant register validator (ADR 0093)
 
 `node scripts/invariant-check.js --root <dir>` validates `<dir>/docs/invariants.md`. `bun run test` runs
@@ -580,7 +593,7 @@ live beside it, in `scripts/drift/`.
 | `drift/contracts.js` | the contract tables and patterns. Data only |
 | `drift/scanners.js` | the bespoke scanners, every check whose assertion is more than one pattern over one document |
 | `drift/lib.js` | what they share: `maskFences`, `extractSection`, the frontmatter readers, `readDoc`, `storeDocuments`, and `scanContract` |
-| `drift/selftest/` | `index.js` (the `fixture` helper, `realRoot`, temp-dir cleanup) plus one suite per area: `scanners`, `chain`, `kb-plan`, `drift-check` |
+| `drift/selftest/` | `index.js` (the `fixture` helper, `realRoot`, temp-dir cleanup) plus one suite per area: `scanners`, `chain`, `kb-plan`, `coverage`, `observation`, `drift-check`, plus `coverage.js`, the coverage verdict helper |
 
 The checks named below are the exceptions, and every other one is a **drift assertion**: it compares a
 restated fact against its source. `forcing-branch-flag`, `kb-no-backend-call`, `no-second-reader`, and
@@ -1806,13 +1819,27 @@ writes to the wrong checkout, or a merge abort that silently ungates the next me
 document it cannot read — the same convention that lets a fixture carry only the files one assertion
 exercises — so a table whose fixture never names one of its documents lets that row's "every clause
 present yields zero gaps" assertion pass without ever running it. `selftest/index.js`
-wraps `scanContract` for the run and records, per table, every document any call actually resolves (via
-`readDoc`, so a `realRoot` call counts too); once every suite has run, it asserts each table's recorded
-set covers every document the table pins, naming both the table and the document, since "a fixture is
-incomplete" leaves the reader searching every row the table pins. This covers every table any suite scans, with no
-per-table call and no hand-typed document list to fall out of sync with the fixtures — including a table
+installs an observer through `lib.observeContracts(fn)`, which `scanContract` reads inside its own body at
+call time, so the observation holds whichever module loaded first. `drift/checks.js` holds its own
+reference to `scanContract`, and `drift-check.js` loads it before it hands off to the selftest; the
+observer is reached through that reference all the same. The call returns the function that restores the previous observer, which
+the selftest runs in a `finally`; a plain `drift-check.js` run installs none. The observer records, per
+table, every document any call actually resolves (via `readDoc`, so a `realRoot` call counts too). Once
+every suite has run, `selftest/coverage.js`'s `coverageFailures` returns every table at fault in one list: a
+table whose recorded set misses a document it pins, and a table the registry declares (a `table()`-built
+check, or a custom-`run` check with a `contracts` field naming its table, carries it as `contracts`) that no suite scanned at all. The selftest asserts that list is empty,
+naming both the table and the document, since "a fixture is incomplete" leaves the reader searching every
+row the table pins. `selftest/observation.test.js` pins the seam and the verdict. This covers every table
+any suite scans, with no per-table call and no hand-typed document list to fall out of sync with the fixtures — including a table
 like `FULL_SUITE_CONTRACTS` whose fixtures are legitimately split across many small calls, since the
 recorded set just accumulates across the run instead of needing one fixture to carry every document at once.
+`selftest/coverage.test.js` exercises the tables no other suite reaches, listed by name in the suite. Its
+fixture for a table is that table's pinned documents, copied from this repository at the paths the table
+spells. Per table it asserts a clean scan of the full fixture, a scan of a fixture with the documents absent
+that reports no gap, and, per row, that deleting one character of the row's own clause (at every place the
+document states it) makes the scan report that row's expectation and name its document. A row whose clause
+another row's longer clause contains cannot lose it alone, so such a row may be reported together with its
+container, both in the same document.
 
 The `denial-reset` contract (ADR 0044) pins rows, all on `references/scope-mode.md`: the cap
 the `denial-cap` check pins has a way back, and it is only reachable where two of that file's sections
@@ -2667,7 +2694,7 @@ worked example: it goes from ship to verify-ship, then wrap-up.
 - The shipped scripts each have a suite in `tests/`, same convention as the hooks (ADR 0059).
   `drift-check.js` is maintainer-only and keeps its inline `--selftest`. `invariant-check.js` is
   maintainer-only too, and has its suite in `tests/` like a shipped script, because it takes no part in
-  drift-check's registry.
+  drift-check's registry. `run-tests.js` follows the same rule, with `tests/run-tests.test.js`.
 - A **shape-based prose guard that asserts an absence states its ceiling beside itself.** A pattern over
   English catches the phrasings it names and not every paraphrase, and on an absence check — the document
   must *not* say X — a missed paraphrase is a **silent pass**: the check reads the reworded instruction as
@@ -2692,7 +2719,7 @@ worked example: it goes from ship to verify-ship, then wrap-up.
 
 ## Verification
 
-`bun run test` (repo root) runs each script's suite under `tests/`, then `invariant-check.js`
+`bun run test` (repo root) runs `run-tests.js`, which runs each suite under `tests/`, then `invariant-check.js`
 against this repository's register, then `drift-check.js`'s own `--selftest`, all under `node`, which
 matches the production runtime.
 

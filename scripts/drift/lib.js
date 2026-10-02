@@ -137,6 +137,20 @@ function storeDocuments(root, { dir, extra }) {
   return candidates;
 }
 
+// The selftest's coverage observer, read inside scanContract() at call time. A reference to scanContract
+// taken before an observer is installed (checks.js destructures it at load) still reaches the observer,
+// so what the selftest records does not depend on which module loaded first. `observeContracts(fn)`
+// installs `fn(root, contracts)` and returns the call that puts the previous observer back; a plain
+// drift-check run installs none.
+let contractObserver = null;
+function observeContracts(fn) {
+  const previous = contractObserver;
+  contractObserver = fn;
+  return () => {
+    contractObserver = previous;
+  };
+}
+
 // scanContract() is pure over a root dir and a contract table: reads each document the table names and
 // reports the expectations it no longer meets. Absent files are skipped, so fixtures need only the
 // documents they exercise. This is what lets a table mix a hardcoded plugin path with an optional
@@ -154,6 +168,7 @@ function storeDocuments(root, { dir, extra }) {
 // retry makes the wrap invisible to the match. Patterns that anchor per line (`^`/`$` with `m`) still see
 // the raw text on the first attempt, so the retry only ever widens what passes, never narrows it.
 function scanContract(root, contracts, { stripFrontmatterFirst = false } = {}) {
+  if (contractObserver) contractObserver(root, contracts);
   const gaps = [];
   for (const [rel, pattern, expectation] of contracts) {
     let text = readDoc(root, rel);
@@ -178,4 +193,5 @@ module.exports = {
   stripFrontmatter,
   normalizeWhitespace,
   scanContract,
+  observeContracts,
 };
