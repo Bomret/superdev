@@ -74,6 +74,7 @@ const {
   DEPLOYMENT_CONTRACTS,
   PLAN_DEPLOY_CONTRACTS,
   DERIVED_CRITERIA_CONTRACTS,
+  PLAN_DERIVES_CRITERIA_CONTRACTS,
   PER_CRITERION_VERDICT_CONTRACTS,
   REACHABLE_CRITERION_CONTRACTS,
   REVIEW_RANGE_SHAPES_CONTRACTS,
@@ -131,6 +132,7 @@ const {
   DOC_UNTICK_ON_BREAK_CONTRACTS,
   CRITERION_STATES_A_REQUIREMENT_CONTRACTS,
   CLEAN_VERDICT_ENDS_LOOP_CONTRACTS,
+  FIX_LOOP_FIXES_EVERY_FINDING_CONTRACTS,
   OBSERVATION_CAPTURE_CONTRACTS,
   LABEL_REVISION_AT_DECOMPOSITION_CONTRACTS,
   UNMET_CRITERION_AT_REVIEW_CONTRACTS,
@@ -234,6 +236,14 @@ module.exports = [
   table('change-type', CHANGE_TYPE_CONTRACTS, 'change-type set matches the scope-prune hook and scope.js'),
   table('degraded-pass', DEGRADED_CONTRACTS, 'degrade record carried', { stripFrontmatterFirst: true }),
   table('derived-criteria', DERIVED_CRITERIA_CONTRACTS, 'criteria derived before the DoD is read'),
+  table(
+    'plan-derives-criteria',
+    PLAN_DERIVES_CRITERIA_CONTRACTS,
+    "plan/SKILL.md §1 dispatches final-reviewer in derive mode for every plan, with an explicit model, the " +
+      'intent as text and the drafted DoD by path, settles every gap before §3, in one multi-select question when they fit, ' +
+      "and derives inline when denied; final-reviewer.md's derive mode returns the uncovered criteria with a " +
+      'reason and a lean and writes no review sections',
+  ),
   table(
     'per-criterion-verdict',
     PER_CRITERION_VERDICT_CONTRACTS,
@@ -782,8 +792,21 @@ module.exports = [
     'clean-verdict-ends-loop',
     CLEAN_VERDICT_ENDS_LOOP_CONTRACTS,
     'a clean verdict ends the fix loop the same way attended or unattended, in both implement\'s ' +
-      'Invariants and review\'s own fix loop, and a finding still standing when it lands is a follow-up, ' +
+      'Invariants and review\'s own fix loop, and a finding the loop leaves outside its fix list is a follow-up, ' +
       'never a fourth cycle',
+  ),
+  table(
+    'fix-loop-fixes-every-finding',
+    FIX_LOOP_FIXES_EVERY_FINDING_CONTRACTS,
+    'the scope review asks once on any finding and offers fix every finding, fix Critical and Important ' +
+      'only, or fix none; `--unattended` fixes every finding; the loop runs one implementer per cycle ' +
+      'capped at 3 cycles in total; at the cap a Minor-only remainder takes the clean-verdict path, after the exit full-suite run, with ' +
+      'no record while a Critical or Important finding keeps `**Unresolved:**`; a declined fix follows the ' +
+      'same split; the RED-test rule is conditional in review, implement, and the implementer agent; and ' +
+      'an observation never joins the fix list; and the full tier\'s step 3 carries the per-slice rules: ' +
+      'one fix dispatch per cycle with the complete list, re-review capped at 3 cycles, a Minor-only ' +
+      'remainder merges while a Critical or Important one blocks, no operator question, and the same ' +
+      'conditional RED rule, and a finding whose remedy adds a capability nothing named is deferred, not fixed, with the guard-rail carve-out, the dedup read, and the cap exclusion',
   ),
   table(
     'observation-capture',

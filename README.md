@@ -54,6 +54,9 @@ plan runs test-first, inline in the scopetree.
   decision with only one defensible answer is stated with its reason instead of asked, and the closing
   summary lists it for your confirmation. A defect the interview finds is always fixed: the command asks
   only whether the fix goes into a planned slice, into its own slice, or into a triage record for later.
+  Before it slices, `final-reviewer` derives acceptance criteria from the intent alone and the command
+  diffs them against the drafted Definition of Done: each gap becomes a criterion or a named non-goal
+  (ADR 0099).
   Every Definition of Done it writes carries a `Reachable:`
   criterion naming the entrance a user reaches the feature through — or `none` and the reason, such as no
   in-repo consumer or an unchanged entrance on a refactor — so a feature cannot be planned without
@@ -124,9 +127,12 @@ plan runs test-first, inline in the scopetree.
   scope branch, or a bare invocation on a clean checkout that finds one run in progress, it is the
   whole-scope review gate in the implement chain: it checks the scope against that run's `dod.md`, and it
   can drive one fix loop after asking once. Several runs in progress get listed for you to pick; naming a
-  scope by its slug works too (ADR 0078). That loop changes how the code
-  meets the Definition of Done; a finding whose remedy would add a capability nobody planned goes to
-  `/superdev:plan` instead of growing the scope under review (ADR 0035). Such a finding gets a
+  scope by its slug works too (ADR 0078). That loop fixes every finding, Minor ones included, for at most
+  three cycles, and only a Critical or Important finding left at the cap holds the run (ADR 0098). It
+  changes how the code meets the Definition of Done; a new test, a new row in an existing drift contract
+  table, or a prose fix that makes text agree with an existing rule stays in the loop (ADR 0097). A
+  finding whose remedy would add a capability nobody planned goes to `/superdev:plan` instead of growing
+  the scope under review (ADR 0035). Such a finding gets a
   **triage record** in your slice store as the review defers it: an issue carrying a `triage` label.
   The record reaches your backlog, not just the run's ledger and the pull-request body, both of which
   end with the run, whether or not the scope ever ships

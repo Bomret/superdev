@@ -23,6 +23,7 @@ const {
   DENIAL_CAP_CONTRACTS,
   DENIAL_RESET_CONTRACTS,
   DERIVED_CRITERIA_CONTRACTS,
+  PLAN_DERIVES_CRITERIA_CONTRACTS,
   PER_CRITERION_VERDICT_CONTRACTS,
   LABEL_VALIDATION_CONTRACTS,
   GREEN_GATE_TIMEOUT_CONTRACTS,
@@ -57,6 +58,7 @@ const {
   WRAP_UP_CONTRACTS,
   DOC_UNTICK_ON_BREAK_CONTRACTS,
   CLEAN_VERDICT_ENDS_LOOP_CONTRACTS,
+  FIX_LOOP_FIXES_EVERY_FINDING_CONTRACTS,
   OBSERVATION_CAPTURE_CONTRACTS,
   LABEL_REVISION_AT_DECOMPOSITION_CONTRACTS,
   UNMET_CRITERION_AT_REVIEW_CONTRACTS,
@@ -72,6 +74,24 @@ const {
 } = require('../contracts');
 
 module.exports = ({ assert, path, fixture, fs, realRoot }) => {
+  // For each row of `table`, copy the shipped documents `real` (keyed by plugin-relative path) into a
+  // fixture with that row's own matched clause removed, and expect exactly that row to fail.
+  const assertEachRowFailsAlone = (real, table) => {
+    for (const [rel, pattern, expectation] of table) {
+      const key = rel.split(path.sep).join('/');
+      const text = real[key];
+      const norm = text.replace(/\s+/g, ' ');
+      const match = text.match(pattern) || norm.match(pattern);
+      assert.ok(match, `row matches the shipped ${rel}: ${expectation}`);
+      const broken = text.includes(match[0]) ? text.replace(match[0], '') : norm.replace(match[0], '');
+      assert.equal(
+        scanContract(fixture({ ...real, [key]: broken }), [[rel, pattern, expectation]]).length,
+        1,
+        `flags a document missing: ${expectation}`,
+      );
+    }
+  };
+
   // --- scanFeatureArgContract: `/superdev:implement` takes the feature label that names which planned
   // feature to build, and plan.md hands off with that label resolved. The two halves live in different
   // documents, so either can drift alone, and neither failure surfaces anywhere else: a caller with no
@@ -2330,7 +2350,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'Ask once before fixing, then dispatch one `superdev:implementer` with the complete findings list.\n',
   });
   const fbGaps1 = scanContract(fb1, FIX_BOUNDARY_CONTRACTS);
-  assert.equal(fbGaps1.length, 3, 'flags all three rows on a review.md whose fix loop states no scope boundary');
+  assert.equal(fbGaps1.length, 6, 'flags every review row on a review.md whose fix loop states no scope boundary');
   assert.ok(
     fbGaps1.every((g) => g.source === path.join('skills', 'review', 'SKILL.md')),
     'every gap names review.md',
@@ -2345,8 +2365,8 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   });
   assert.equal(
     scanContract(fb2, FIX_BOUNDARY_CONTRACTS).length,
-    2,
-    'naming the boundary without a destination or an exit leaves two gaps',
+    5,
+    'naming the boundary without a destination, an exit, or the carve-out leaves five gaps',
   );
 
   // positive: §3's report template alone carries the boundary phrase, so a row anchored on that phrase
@@ -2359,8 +2379,8 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   });
   assert.equal(
     scanContract(fb4, FIX_BOUNDARY_CONTRACTS).length,
-    3,
-    "the report template alone satisfies none of the three rows — §4's own instruction is what is pinned",
+    6,
+    "the report template alone satisfies none of the review rows — §4's own instruction is what is pinned",
   );
 
   // positive (RED): boundary plus destination, but no exit — a deferred finding still deadlocks the run,
@@ -2372,7 +2392,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'defect in what the Definition of Done does name stays in this loop.\n',
   });
   const fbGaps3 = scanContract(fb3, FIX_BOUNDARY_CONTRACTS);
-  assert.equal(fbGaps3.length, 1, 'boundary plus destination alone still leaves the exit-less deadlock');
+  assert.equal(fbGaps3.length, 4, 'boundary plus destination alone still leaves the exit-less deadlock, and no carve-out');
   assert.match(fbGaps3[0].expectation, /counts as|deferred finding|deadlock/i, 'names the missing exit');
 
   // negative (GREEN): boundary, destination, and exit together satisfy every row
@@ -2384,9 +2404,22 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   });
   assert.equal(
     scanContract(fb5, FIX_BOUNDARY_CONTRACTS).length,
-    0,
-    'boundary, destination, and exit together satisfy all three rows',
+    3,
+    'boundary, destination, and exit together satisfy the three boundary rows and leave only the carve-out rows',
   );
+
+  // Each row, against the shipped documents: the real tree is the negative; the positive copies the
+  // documents into a fixture with that row's own matched clause removed (ADR 0097, INV-0095).
+  const fbDocs = ['skills/review/SKILL.md', 'references/scope-mode.md', 'references/plan-contract.md', 'agents/final-reviewer.md'];
+  const fbReal = Object.fromEntries(
+    fbDocs.map((rel) => [rel, fs.readFileSync(path.join(realRoot, 'plugin', rel), 'utf8')]),
+  );
+  assert.deepEqual(
+    scanContract(fixture(fbReal), FIX_BOUNDARY_CONTRACTS),
+    [],
+    'the shipped documents satisfy every fix-boundary row',
+  );
+  assertEachRowFailsAlone(fbReal, FIX_BOUNDARY_CONTRACTS);
 
   // --- TIER_SKIP_CONTRACTS (ADR 0037): `/superdev:review` skips `simplicity-reviewer` on a `full`-tier
   // scope, and the skip is sound only while `implement-full.md` still dispatches that reviewer per
@@ -5119,11 +5152,11 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // naming the standing finding a follow-up, unconditional on `--unattended`. ---
   const cvClauses = {
     'skills/implement/SKILL.md':
-      'A clean verdict ends the loop the same way, attended or unattended — a finding still standing ' +
-      'when it lands is a follow-up, never a fourth cycle.\n',
+      'A clean verdict ends the loop the same way, attended or unattended — a finding ' +
+      'the loop leaves outside its fix list is a follow-up, never a fourth cycle.\n',
     'skills/review/SKILL.md':
       'A clean verdict ends the loop here too, attended or unattended — a finding it leaves standing ' +
-      'is a follow-up, never a fourth cycle.\n',
+      'outside the chosen set is a follow-up, never a fourth cycle.\n',
   };
 
   // negative: a fixture carrying both halves reports no gap
@@ -5161,6 +5194,39 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     assert.equal(cvGaps.length, 1, `flags ${rel} for losing the follow-up half`);
     assert.equal(cvGaps[0].source, rel, `names ${rel}`);
   }
+
+  // --- PLAN_DERIVES_CRITERIA_CONTRACTS (ADR 0099, INV-0096): one row per clause across plan's §1 dispatch
+  // prose and final-reviewer's derive mode. The shipped documents are the negative; for each row the
+  // positive copies them into a fixture with that row's own matched clause removed. ---
+  const pdDocs = ['skills/plan/SKILL.md', 'agents/final-reviewer.md'];
+  const pdReal = Object.fromEntries(
+    pdDocs.map((rel) => [rel, fs.readFileSync(path.join(realRoot, 'plugin', rel), 'utf8')]),
+  );
+  assert.deepEqual(
+    scanContract(fixture(pdReal), PLAN_DERIVES_CRITERIA_CONTRACTS),
+    [],
+    'the shipped documents satisfy every derive-pass row',
+  );
+  assertEachRowFailsAlone(pdReal, PLAN_DERIVES_CRITERIA_CONTRACTS);
+
+  // --- FIX_LOOP_FIXES_EVERY_FINDING_CONTRACTS (ADR 0098, INV-0094): one row per rule across review's §4,
+  // implement's Invariants, implement-full.md's step 3, and the implementer agent. The shipped documents are the negative; for each
+  // row the positive copies them into a fixture with that row's own matched clause removed. ---
+  const flDocs = [
+    'skills/review/SKILL.md',
+    'skills/implement/SKILL.md',
+    'agents/implementer.md',
+    'references/implement-full.md',
+  ];
+  const flReal = Object.fromEntries(
+    flDocs.map((rel) => [rel, fs.readFileSync(path.join(realRoot, 'plugin', rel), 'utf8')]),
+  );
+  assert.deepEqual(
+    scanContract(fixture(flReal), FIX_LOOP_FIXES_EVERY_FINDING_CONTRACTS),
+    [],
+    'the shipped documents satisfy every fix-loop row',
+  );
+  assertEachRowFailsAlone(flReal, FIX_LOOP_FIXES_EVERY_FINDING_CONTRACTS);
 
   // --- OBSERVATION_CAPTURE_CONTRACTS: an observation — a real defect a run meets that no slice covers
   // and the scope did not cause — is recorded, never judged (ADR 0088, INV-0010). Every row pins

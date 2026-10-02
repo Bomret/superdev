@@ -496,8 +496,9 @@ function verbUnresolved(root, sub, text) {
   addBullet(root, 'Unresolved', 'unresolved add', text);
 }
 
-// `**Deferred:**` carries a finding `/superdev:review` handed to `/superdev:plan` rather than fixed: its
-// remedy would add a capability the Definition of Done never named (ADR 0035). It has no `clear`, unlike
+// `**Deferred:**` carries a finding a fix loop (the scope review's, or the full tier's per-slice loop) handed
+// to `/superdev:plan` rather than fixed: its
+// remedy would add a capability the Definition of Done never named (ADR 0035, ADR 0097). It has no `clear`, unlike
 // the unresolved record it otherwise mirrors — a defect stops being true once a run re-verifies clean,
 // while unplanned work stays unplanned until somebody plans it, so there is nothing for a later step to
 // discover and undo.

@@ -201,6 +201,36 @@ that exists at that moment — the date, and the feature label, scope branch, an
 The record goes to the store at once, whether or not a scopetree exists yet: nothing about it waits for
 the scope branch.
 
+**Derive criteria from the intent before slicing (ADR 0099, INV-0096).** Once the "in every
+configuration?" and reachability passes above have pinned the Definition of Done, and before §3
+decomposes, check the draft against the intent. Every plan runs this pass: a new feature, a
+single-slice plan, and an append, where it covers the whole amended Definition of Done.
+
+- **Write the draft** to `.superdev/dod-draft-<slug>.md` in the invoking checkout, `<slug>` being the
+  feature label's slug picked above (parallel plan runs in one checkout then never share a draft), a
+  git-ignored file outside `.superdev/scopes/` (ensure `.superdev/` is in `.gitignore`; add it if absent),
+  so the pass creates no run root before §2's cut. On an append, the draft is the existing epic's
+  Definition of Done, as loaded in §0 through the store, folded with the amended criteria.
+- **Dispatch `superdev:final-reviewer` in derive mode** with an explicit `model: opus` (a hook blocks any
+  dispatch to a superdev subagent that omits one). Hand it the interview's settled problem statement and
+  solution shape as text, and the **path** of the drafted Definition of Done, never inlined, so the
+  reviewer derives before it reads (ADR 0020). It returns every derived criterion the Definition of Done
+  does not cover, each with a one-line reason and a lean (criterion or non-goal), plus any ambiguous line.
+  Fix an ambiguous line in the draft.
+- **Settle the gaps.** Present the gaps with their leans in **one multi-select question** when they fit. Gaps
+  past the question tool's per-question option capacity go into further questions of the same call,
+  with the criterion-leaning gaps first, and into further rounds, until every gap is settled. Each selected
+  gap becomes a Definition-of-Done criterion, which then gets the "in every configuration?" pass. Each
+  other gap becomes a named non-goal in the epic, or, on a single-slice plan, an exclusion in the lone
+  slice's `spec`. No plan reaches §3 while a gap stands unsettled. When the reviewer returns no gaps, say so
+  in one line and continue.
+- **A denied dispatch** (the permission classifier refuses it): derive the criteria inline yourself,
+  say so in your output, and settle the gaps the same way.
+- **An observation is captured the moment you meet it.** Read
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Observations` section and follow it: a defect
+  the reviewer's report surfaces, that no slice of this scope covers and the scope did not cause, gets a
+  triage record from you, the controller, right here.
+
 ## 2. Domain-model as you go
 
 **Read `${CLAUDE_PLUGIN_ROOT}/references/domain-modeling.md` and apply it as you interview.** Read any
@@ -259,7 +289,8 @@ the conversation until the label exists, then cut and write it the moment it doe
 before §6 writes to the store** undoes it under the old label — remove the scopetree
 (`git worktree remove <run-root>/scopetree`) and delete the branch (`git branch -D <old-type>/<old-slug>`)
 — safe because the branch at that point can carry nothing but this session's own design docs, and an
-append never revises a picked label — then re-cuts both under the revised label and re-writes every
+append never revises a picked label — and, if the derive pass already wrote one, delete the draft
+`.superdev/dod-draft-<old-slug>.md`, then re-cuts both under the revised label and re-writes every
 capture already held. A triage record already written is amended instead, so its provenance names the
 revised label and branch, through that store's own `## Triage record` section (best-effort, like every
 other store write), so the scopetree and the branch always carry the label the plan ends with.
@@ -450,6 +481,9 @@ multi-slice feature, the lone slice on a single-slice one — through the mechan
 (`${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md` → *Scope anchor*, ADR 0101). §1 asked no deploy
 question (`none` posture, no `docs/agents/deployment.md`, or an empty `## Targets` table) → write no
 line. An append onto a `planned` feature revises the line already there rather than adding a second one.
+
+**Delete the drafted Definition of Done.** Delete `.superdev/dod-draft-<slug>.md` once the Definition of
+Done is durably in the slice store; a leftover draft is scratch no later step reads.
 
 **Delete the seeded brainstorm intent.** If this plan started from a `.superdev/brainstorm/<slug>.md`
 file (§1), delete it now that its intent is durably in the slice store — a leftover scratch intent

@@ -45,6 +45,11 @@ test: the red-capable command, the minimised repro, and the ranked hypotheses ar
 at the proven cause instead of the symptom. A dispatch that already hands you a proven cause skips
 straight to the RED test.
 
+**The RED-test rule for a fix dispatch is conditional.** A fix for a finding that names failing
+behaviour opens with a RED test that reproduces it. A fix for a finding that names none (style,
+naming, doc polish) takes no RED test, and the re-review verifies it by reading. Your report names
+which rule you applied to each finding.
+
 Build in **vertical tracer-bullet** increments — one test, one implementation, repeat. Never write all
 the tests first; tests written in bulk verify imagined behavior, not real behavior.
 

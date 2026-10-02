@@ -203,16 +203,16 @@ _Avoid: "blocked by", "dependency" (too generic, where "depends-on" is the expli
 
 ## Review discipline
 
-**Final-reviewer**: the whole-scope review gate after all slices are merged. It checks the integrated diff against the global DoD. It is read-only (`Read`, `Grep`, and `Bash`, with no `Edit`), so its findings drive the dispatching command's 3-strike fix loop (each fix with a RED test, and on 3 strikes without going clean, escalate). It never applies a fix itself.
+**Final-reviewer**: the whole-scope review gate after all slices are merged. It checks the integrated diff against the global DoD. It is read-only (`Read`, `Grep`, and `Bash`, with no `Edit`), so its findings drive the dispatching command's 3-strike fix loop. It never applies a fix itself. `/superdev:plan` also dispatches it in derive mode, before slicing, to write **Derived criteria** against a drafted DoD.
 _Avoid: "final review", "scope review" (the role and the agent, not just the step)_
 
-**3-strike fix loop**: when a final-review or per-slice-review fix cycle exposes a new defect, dispatch a fresh fix with a RED test, and repeat. On 3 strikes (3 fix cycles each surfacing a new bug), stop: it is a wrong cut (hidden dependency, boundary too big), not a buggy slice. Move it to blocked and escalate.
+**3-strike fix loop**: the fix cycles a final review or a per-slice review drives. Each cycle dispatches one fix carrying every listed finding, Minors included, and repeats until the review lists none. A fix for a finding that names failing behaviour opens with a RED test. The cap is 3 cycles. At the cap, a remaining Critical or Important finding means a wrong cut (hidden dependency, boundary too big), not a buggy slice: move it to blocked and escalate. A remainder of only Minor findings advances instead (INV-0094).
 _Avoid: "retry limit", "attempt count" (the 3 strikes are cycles, not attempts)_
 
 **Judge discipline**: the verification principle every review agent carries verbatim. Verify the artifact and the behaviour yourself, and never defer to the implementer's or controller's narrative of what was done. Length or an elaborate structure is not its own evidence of correctness or of warranted complexity. Reject a completion claim resting only on proxy counts (coverage percentage, line count, lint score), and confirm the observable behaviour instead (ADR 0002).
 _Avoid: "verification discipline" (too generic, because this means not trusting the builder's account of its own work)_
 
-**Derived criteria**: the acceptance criteria `final-reviewer` writes itself, from the feature's intent alone, before it reads the Definition of Done or the diff. Diffing them against the DoD surfaces criteria the plan never wrote. Scope mode only: it needs a DoD written by someone else to diff against, so `/superdev:review` hands over `dod.md`'s **path** rather than its text and the reviewer opens it after its own list exists (ADR 0020).
+**Derived criteria**: the acceptance criteria `final-reviewer` writes itself, from the feature's intent alone, before it reads the Definition of Done or the diff. Diffing them against the DoD surfaces criteria the plan never wrote. It needs a DoD written by someone else to diff against, so the dispatch hands over the DoD's **path** rather than its text, and the reviewer opens it after its own list exists (ADR 0020). Two surfaces dispatch it: `/superdev:review` in scope mode, and `/superdev:plan` before slicing, where every gap becomes a DoD criterion or a named non-goal (INV-0096).
 _Avoid: "independent criteria", "own criteria" (the point is where they come from, not whose they are)_
 
 **Ceiling note**: the single advisory observation `final-reviewer` may add when a scope met a Definition of Done criterion **shallowly**. The review found the criterion satisfied and the code correct, but the work stopped at the first thing that passed. It is admissible only against four gates: it names the criterion this review found satisfied, it names a concrete consequence, there is exactly one, and the review found nothing Critical or Important. It never gates a merge and never triggers the fix loop, exactly like an over-engineering finding (ADR 0020).
@@ -222,14 +222,27 @@ _Avoid: "quality note", "improvement suggestion", "nit" (a ceiling note describe
 _Avoid: "audit mode" (no flag selects it; an empty scoped diff is what resolves to it), "file review" (names the input, not what makes it a distinct shape)_
 
 **Deferred finding**: a fix-loop finding whose remedy adds a capability the Definition of Done never
-named. It starts no fix loop, holds no run stage, and is not an **Unresolved defect**. The scope review
-records it under its report's `### Deferred to a plan` heading instead and hands it to `/superdev:plan`.
+named. It starts no fix loop, holds no run stage, and is not an **Unresolved defect**. The scope review's
+fix loop, or the full tier's per-slice loop, defers it. The scope review records it under its report's
+`### Deferred to a plan` heading and hands it to `/superdev:plan`. The slice loop hands it to the controller,
+which records it as a **Triage record** and a ledger bullet without a report heading.
 It reaches several homes at once: a **Triage record** in the slice store, a `**Deferred:**` bullet in the
 run's ledger carrying that record's reference, and the pull-request body `/superdev:submit-pr` copies the
 bullet into. The triage record outlives the run root and the closed scope anchor regardless of whether
 the scope ever ships (ADR 0035, 0046, 0110).
 _Avoid: "scope growth", "out-of-scope finding" (the point is the DoD boundary, not that the finding is
 unwelcome or off-topic)_
+
+**Guard-rail remedy**: a fix-loop remedy that extends what exists and adds no behaviour: a new test in an
+existing suite, a new row in an existing drift contract table, or a prose fix that makes shipped text
+agree with a rule the repository already states. It stays in the fix loop and is never a **Deferred
+finding**. A new scanner, check family, hook, or script verb is not one (ADR 0097).
+_Avoid: "small fix", "trivial remedy" (the line is the kind of change, not its size)_
+
+**Plan-coverage gap**: a criterion `final-reviewer` derives from the intent that the code already
+satisfies and the Definition of Done never named. It is reported as Minor. Its remedy is the
+**Guard-rail remedy** that proves the behaviour, never a new `dod.md` line (ADR 0097).
+_Avoid: "missing criterion" (the code is not missing anything; the plan is)_
 
 **Observation**: a real defect a run meets that no slice of it covers, and that the scope did not cause —
 a flaky test in untouched code, a failure the green-gate hook reports on a merge, a defect an implementer
@@ -242,9 +255,10 @@ an observation was never in range to judge.
 _Avoid: "out-of-range finding" (it is not a finding — nothing judged it)_
 
 **Triage record**: the slice-store record a **Deferred finding** or an **Observation** gets — created by
-`/superdev:review` at the moment it defers, by the controller at the moment it meets an observation, and
-by `/superdev:plan` at the moment its interview places a found defect later. It is neither a slice nor a
-scope anchor, which is what keeps every run and every sweep from selecting it as work to build. How a given store expresses it is stated in that store's own
+the scope review's fix loop or the full tier's per-slice loop at the moment it defers, by the controller at
+the moment it meets an observation, and by `/superdev:plan` at the moment its interview places a found
+defect later. It is neither a slice nor a scope anchor, which is what keeps every run and every sweep from
+selecting it as work to build. How a given store expresses it is stated in that store's own
 `## Triage record` section, which specialises `plan-contract.md` → *Triage record* (ADR 0046).
 _Avoid: "draft issue" (no backend the plugin supports has a draft issue state outside GitHub's project
 boards), "triage slice" (it has no spec, no acceptance, and no place in a DAG)_

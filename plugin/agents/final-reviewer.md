@@ -1,6 +1,6 @@
 ---
 name: final-reviewer
-description: Whole-scope reviewer. Reviews the integrated scope branch against the global Definition of Done before the PR. Read-only; dispatched by /superdev:review, in both its ad-hoc and scope modes.
+description: Whole-scope reviewer. Reviews the integrated scope branch against the global Definition of Done before the PR. Read-only; dispatched by /superdev:review, in both its ad-hoc and scope modes, and by /superdev:plan in derive mode.
 tools: Read, Grep, Bash
 model: opus
 ---
@@ -80,6 +80,27 @@ outward-facing change, and an `accepted:` line whose criterion the branch has si
 `holds`, not `accepted` — the operator's earlier decision no longer describes the current branch, and
 only an attended operator, never you, ever writes a fresh `accepted:` note. Every line gets exactly one
 verdict; list them all in `### Criteria` below, whatever the review found elsewhere.
+
+## Derive mode
+
+**Only when `/superdev:plan`'s dispatch names derive mode.** It hands you the interview's settled problem
+statement and solution shape as text, and the **path** of the drafted Definition of Done. There is no
+diff, no range, and no ledger, so the sections around this one that review a range do not apply.
+
+1. Apply **Derive the criteria first**'s step 2 with the handed problem statement and solution shape in
+   place of its steps 1 and 3: write the acceptance criteria this feature ought to have, including the
+   failure and boundary cases the intent implies, and state the list in your response before you open the
+   DoD path. Read no other `dod.md`, no ledger, and no run-root file; repository files are open only for
+   judging whether a criterion the intent implies already holds.
+2. **Then** open the DoD path.
+3. Return every derived criterion the DoD does not cover, each with a one-line reason and a lean
+   (**criterion** when the feature is incomplete without it, **non-goal** when it is a reasonable thing
+   to leave out). Add any DoD line you find ambiguous: a line two careful readers would verify
+   differently.
+
+Your answer is the derived list, the gaps, and the ambiguous lines. It writes no `### Issues`,
+`### Criteria`, `### Ceiling`, or `### Assessment` section. Your list is not a second Definition of Done:
+the operator settles each gap, and the plan writes what they choose.
 
 ## Read-only review
 
@@ -198,7 +219,8 @@ silence, because it trains the reader to skip the heading.
 #### Important (should fix) [architecture, missing features, error handling, test gaps]
 #### Minor (nice to have)   [style, optimization, doc polish]
 
-For each: file:line · what's wrong · why it matters · how to fix (if not obvious).
+For each: file:line · what's wrong · why it matters · how to fix (if not obvious). A plan-coverage gap's
+"how to fix" is the test or drift pin that would prove the behaviour.
 
 ### Criteria
 [**scope mode only**; omit this section entirely on an ad-hoc range. One line per `dod.md` line, in

@@ -789,6 +789,33 @@ Breaks: silently
 Check: scripts/drift-check.js — ship, verify-ship, and wrap-up name no `--unattended` branch and carry `disable-model-invocation: true`; partial: nothing pins that an unattended run ends at `submit-pr`
 Paths: plugin/skills/submit-pr/**, plugin/skills/ship/**, plugin/skills/verify-ship/**, plugin/skills/wrap-up/**
 
+### INV-0094
+
+Class: process
+Concepts: 3-strike fix loop, Stage
+Statement: A Minor finding never holds a scope's stage and never blocks a run. The scope review and the full tier's per-slice review fix every listed finding, Minors included, until the review lists none or the 3-cycle cap is reached. At the cap, a remainder of only Minor findings advances the stage, or merges the slice, and leaves no record outside the review's report. A Minor finding whose remedy adds a capability the Definition of Done never named is a deferred finding, like one of any other severity (ADR 0035).
+Breaks: silently
+Check: scripts/drift-check.js — the Minor-loop rows on the review fix loop and the full-tier per-slice loop, and the deferral-boundary row on the full-tier loop
+Paths: plugin/skills/review/**, plugin/references/implement-full.md, plugin/agents/final-reviewer.md, plugin/agents/slice-reviewer.md
+
+### INV-0095
+
+Class: process
+Concepts: Guard-rail remedy, Deferred finding, Plan-coverage gap
+Statement: A guard-rail remedy stays in the fix loop and never becomes a deferred finding. A plan-coverage gap is fixed by the guard-rail remedy that proves the behaviour, and never by a new line in `dod.md`.
+Breaks: silently
+Check: scripts/drift-check.js — the guard-rail carve-out row beside the fix-loop boundary in review's prose, and the guard-rail carve-out row beside the deferral boundary in `implement-full.md` step 3
+Paths: plugin/skills/review/**, plugin/references/implement-full.md, plugin/agents/final-reviewer.md
+
+### INV-0096
+
+Class: process
+Concepts: Derived criteria, Definition of Done (DoD), Intent
+Statement: `/superdev:plan` slices no plan while a criterion derived from its intent is neither in the Definition of Done nor named as a non-goal. Every plan runs the derive pass: a new feature, a single-slice plan, and an append.
+Breaks: silently
+Check: scripts/drift-check.js — the derive-pass row on plan's prose and final-reviewer's derive mode
+Paths: plugin/skills/plan/**, plugin/agents/final-reviewer.md
+
 ### INV-0098
 
 Class: process

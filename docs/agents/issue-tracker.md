@@ -206,9 +206,10 @@ swaps that one to `in-progress`.
 
 ## Triage record
 
-`plan-contract.md` → *Triage record*. `/superdev:review` creates one the moment it defers a finding; the
-controller creates one the same way the moment it meets an observation, and `/superdev:plan` the moment its
-interview places a found defect later (`references/scope-mode.md`'s `## Observations` section).
+`plan-contract.md` → *Triage record*. The scope review's fix loop, or the full tier's per-slice loop,
+creates one the moment it defers a finding; the controller creates one the same way the moment it meets an
+observation, and `/superdev:plan` the moment its interview places a found defect later
+(`references/scope-mode.md`'s `## Observations` section).
 Here it is an ordinary Codeberg issue carrying the label **`triage`** and nothing else.
 
 - **Create it:** `tea issues create -t "$title" --description-file -`, with `title` (the finding, one line) set
@@ -219,7 +220,7 @@ Here it is an ordinary Codeberg issue carrying the label **`triage`** and nothin
   copy-pasteable /superdev:plan "<the finding>" line. Then add the triage label by id and read it back
   (*tea conventions*). Pass no `-a`: a triage record is created **unassigned**, whatever the operator
   configuration names, because nobody has picked the work up. Capture the created `<n>` as the record's
-  reference: **the deferred trigger** is what `/superdev:review` puts in the ledger bullet; **an
+  reference: **the deferred trigger** is what the deferring command puts in the ledger bullet; **an
   observation** instead reports that reference to the operator and writes no ledger bullet of its own,
   since the record is its own identity (`references/scope-mode.md`'s `## Observations` section).
 - **List the records:** `tea issues list -o json --fields index,title,body --labels triage --state open --page <p> --limit 50`,

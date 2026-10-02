@@ -25,11 +25,16 @@ dispatches nothing — you carry the TDD discipline yourself. Narrate at most on
 
 ## Invariants (both playbooks)
 
-- **The 3-strike fix loop caps at a wrong cut, not a bug.** 3 cycles without going clean → the slice is a
-  hidden dependency or too big: move it → `blocked` and escalate (re-slice, or hand to the human). Never a
-  fourth cycle. **A clean verdict ends the loop the same way, attended or unattended** — a finding still
-  standing when it lands is a follow-up, never a fourth cycle.
-- **Every fix opens with a RED test** reproducing the bug.
+- **The 3-strike fix loop caps at a wrong cut, not a bug.** 3 cycles without going clean, every cycle
+  counting whichever findings drove it: a remaining Critical or Important finding means the slice is a
+  hidden dependency or too big — move it → `blocked` and escalate (re-slice, or hand to the human). A
+  remainder of only Minor findings proceeds, named in the report and nowhere else. Never a
+  fourth cycle. **A clean verdict ends the loop the same way, attended or unattended** — a finding the
+  loop leaves outside its fix list is a follow-up, never a fourth cycle.
+- **The RED-test rule is conditional.** A fix for a finding that names failing behaviour opens with a RED
+  test reproducing it. A fix for a finding that names none (style, naming, doc polish) takes no RED test,
+  and the re-review verifies it by reading. The implementer's report names which rule it applied to each
+  finding.
 - **An observation is captured the moment you meet it.** Read
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Observations` section and follow it: a defect a
   dispatched agent's report surfaces, or one you meet yourself, that no slice of this scope covers and the

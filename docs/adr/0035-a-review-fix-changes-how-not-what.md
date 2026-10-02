@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0097](0097-a-guard-rail-remedy-stays-in-the-fix-loop.md), which keeps a guard-rail
+remedy in the fix loop: a test, a drift contract row, or a consistency fix that extends what exists.
+
 ## Context
 
 `/superdev:review`'s scope mode drives a fix loop: it asks once, then dispatches one implementer with the

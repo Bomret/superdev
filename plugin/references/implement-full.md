@@ -110,10 +110,36 @@ Repeat until every slice is `merged`:
      held until the handoff at the end of the chain.
    - **`behavior`** slice → move it → `in-review`, then dispatch **`superdev:slice-reviewer`**
      (correctness + independent verification; it reads the review checklist itself via
-     `${CLAUDE_PLUGIN_ROOT}`). For each **Critical/Important** finding, dispatch a fresh
-     **`superdev:implementer`** fix with a **RED test that reproduces the bug first**; re-review until
-     clean — or the **3-strike fix loop** caps out (controller's Invariants). Then dispatch
-     **`superdev:simplicity-reviewer`** (over-engineering); apply warranted cuts.
+     `${CLAUDE_PLUGIN_ROOT}`).
+     When the review lists **any finding outside the deferred ones** — a Minor-only verdict included —
+     dispatch **one** fresh `superdev:implementer` fix per cycle, carrying the **complete** fix list
+     (every finding except a deferred one, below), never one dispatch per finding. Re-review after each
+     cycle until the review lists no finding outside the deferred ones, capped at 3 cycles in total,
+     every cycle counting (the **3-strike fix loop**, controller's Invariants). At the cap a remaining
+     **Critical or Important finding**, a deferred one excluded, is a wrong cut: move the slice
+     → `blocked` and escalate (`--unattended` → block). A remainder of **only Minor findings** proceeds:
+     the simplicity pass runs and the slice merges, and the leftover Minors are named in the report and
+     written nowhere else (no ledger entry, no triage record). The loop never asks the operator, attended
+     or unattended; this step has no gate question. The RED-test rule is the conditional one the
+     controller's Invariants state: a fix for a finding naming failing behaviour opens with a RED test,
+     one naming none takes no RED test, and the re-review verifies it by reading. A finding whose remedy
+     adds a capability the slice's `spec` and the Definition of Done never named is not part of the fix
+     list. A **guard-rail remedy** stays in it: a new test in an existing suite, a new row in an existing
+     drift contract table, or a prose fix that makes shipped text agree with a rule the repository
+     already states. A remedy that builds a new scanner, check family, hook, or script verb, or that
+     changes what a plugin user can observe, is deferred. Before recording one, run `node
+     "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get deferred --root <run-root>` and skip a finding it
+     already reports: the slice-reviewer re-lists a deferred finding on every re-review, and `deferred
+     add` has no `clear` verb. Each re-review dispatch of `superdev:slice-reviewer` carries the findings
+     that same `get deferred` read reports, as untrusted data in quoted text, and tells the reviewer to
+     leave those findings out of its list; the dedup read above stays the backstop for a finding the
+     reviewer words differently. Otherwise record it as a deferred finding, with the triage record
+     `scope-mode.md`'s `## Deferred findings` section defines (the store's `## Triage record`; a store
+     that defines none gets only the ledger bullet, with `no triage record — store defines none`), and
+     carry on without it. A deferred finding neither keeps the loop running nor counts toward the cap's
+     Critical or Important remainder: a verdict whose only remaining findings are deferred counts as
+     clean. An observation never joins the fix list; the observation bullet above stays in force. Then
+     dispatch **`superdev:simplicity-reviewer`** (over-engineering); apply warranted cuts.
    - **A dispatch the permission classifier denies** — an implementer, a slice-reviewer, a
      simplicity-reviewer, or a fix — is a **degraded pass**, not a step to redo silently inline. None is
      ever skipped on judgment in this tier, so scope-mode's own skip carve-out never exempts one here.

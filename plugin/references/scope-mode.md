@@ -657,8 +657,13 @@ path a stale local record most needs the mirror for.
 ## Deferred findings
 
 A **deferred finding** is a review finding whose remedy would add a capability the Definition of Done
-never named (ADR 0035). `/superdev:review`'s fix loop changes how the code meets that Definition of Done,
+never named (ADR 0035). The scope review's fix loop and the full tier's per-slice loop change how the code meets that Definition of Done,
 so such a remedy leaves the loop and goes to `/superdev:plan`. This record is what carries it there.
+
+A **guard-rail remedy** stays in the loop and is never a deferred finding (ADR 0097): a new test in an
+existing suite, a new row in an existing drift contract table, or a prose fix that makes shipped text agree
+with a rule the repository already states. A remedy that builds a new scanner, check family, hook, or
+script verb, or that changes what a plugin user can observe, still defers, whatever the finding's severity.
 
 It answers a third question, beside the two above: `## Degraded passes` says how much of the chain ran,
 `## Unresolved defects` says whether the branch is sound, and this one says what nobody has planned yet.
@@ -668,7 +673,7 @@ a verdict whose only remaining findings are deferred counts as clean.
 **The record has two halves, and the durable one is the store's.** A **triage record** in the configured
 slice store is what outlives this run, whether or not the scope ever ships (ADR 0110): `hooks/scope-prune.js` reaps the run root once the scope closes
 and goes stale, and `/superdev:wrap-up` closes the scope anchor that mirrors it, so a bullet alone leaves
-the finding in the body of a merged pull request and in no backlog at all (ADR 0046). `/superdev:review`
+the finding in the body of a merged pull request and in no backlog at all (ADR 0046). Whichever of those two loops defers
 creates that record at the moment it defers, and the bullet below carries the record's reference. **How a
 store creates one is the store's own contract**, stated in the active `docs/agents/issue-tracker.md`'s
 `## Triage record` section — an issue carrying that store's triage label, or whatever that backend renders. The write is best-effort, the same posture every
@@ -693,7 +698,7 @@ A run with nothing deferred carries **no such line at all** — absent, never pr
 **There is no `deferred clear`.** An unresolved defect stops being true the moment a run re-verifies the
 scope green, which is what earns that record its `clear`. Unplanned work stays unplanned until somebody
 plans it, so the bullet stands until `/superdev:submit-pr` copies it into the pull-request body, where a
-reader meets it. That absence is also why `/superdev:review` reads `get deferred` before it
+reader meets it. That absence is also why the deferring command reads `get deferred` before it
 writes, and skips a finding the line already carries: every duplicate is permanent, and two paths reach
 one. Its fix loop repeats until the verdict is clean, so a finding still deferred re-appears in each
 re-review's report; and a second `/superdev:review` invocation on the same run — after a denied dispatch,
@@ -738,7 +743,7 @@ test can check whether two findings describe the same thing.
 **An uncertain match writes the record.** The two errors are not symmetrical: a duplicate record is noise
 a human deletes at triage, while a false match silently drops the observation this whole rule exists to
 preserve — the same asymmetry triage record #505 argues from structural reasoning alone, against
-`/superdev:review`'s own run-scoped `## Deferred findings` read above. Match only where a listed record
+the deferring loop's own run-scoped `## Deferred findings` read above. Match only where a listed record
 plainly describes the same defect, and write a new one everywhere else, including every case that stays
 genuinely unclear.
 

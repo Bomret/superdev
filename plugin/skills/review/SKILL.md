@@ -236,7 +236,7 @@ net: -<N> lines possible   (or "Lean already" if nothing to cut)
 when it didn't]
 
 ### Deferred to a plan
-[a finding whose remedy would add a capability the Definition of Done never named — §4's boundary; one
+[a finding whose remedy would add a capability the Definition of Done never named — §4's boundary (a guard-rail remedy is not one); one
 line each, with the follow-up `/superdev:plan`. Omit this section when there is none]
 
 ### Assessment
@@ -307,7 +307,7 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   **not** advance while it stands. **Inside each fix cycle, run the focused command over the fix diff**
   — per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`, over the commits that cycle's implementer
   just landed — and **hand that result to the re-review**, saying it is the focused run: fix cycles never
-  run the full suite. **When a fix cycle's re-review verdict first comes back clean, run the full suite
+  run the full suite. **When a fix cycle's re-review verdict first comes back clean, or the cap leaves only Minor findings, run the full suite
   once more** in the scope checkout, and record it the same way
   (`scope.js suite set <result> <sha> --root <run-root>`, `<sha>` = the tip after the fix commits):
   that run is the gate the stage advances on. A scope whose first verdict is already clean runs none of
@@ -376,9 +376,17 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   often behavioural — a missing guard, an unhandled failure mode, a wrong branch. That is the line: not
   "behaviour", but whether the plan asked for it (ADR 0035). A remedy the review builds here is one the
   interview never weighed, arriving at the point in a run where scope questions get the least attention.
+  **A guard-rail remedy stays in this loop** (ADR 0097). A guard-rail remedy extends what exists: a new test
+  in an existing suite, a new row (with its fixtures) in an existing drift contract table, or a prose fix
+  that makes shipped text agree with a rule the repository already states. It adds no behaviour, so it
+  produces no deferred finding and no triage record. A remedy that builds a new scanner, check family,
+  hook, or script verb, or that changes what a plugin user can observe, is still a deferred finding.
+  **Severity does not move the boundary.** A Minor finding whose remedy adds a capability the Definition of
+  Done never named is a deferred finding, with the triage record, ledger bullet, store-defines-none
+  fallback, and dedup read above, exactly as one of any other severity.
   **That boundary needs an exit.** A deferred finding enters no fix loop, holds no stage, and is not an
   unresolved defect — the same non-gating shape the over-engineering and ceiling notes below use for their
-  own findings. This holds precedence over `--unattended → fix, without asking` just below: that rule fixes
+  own findings. This holds precedence over `--unattended → fix every finding` just below: that rule fixes
   a real defect without asking, and a deferred finding is not one, so it never reaches that rule. A verdict
   whose only remaining findings are deferred counts as clean, for the ask-once gate right after this bullet,
   the 3-strike cap, and the clean-verdict stage advance alike.
@@ -411,18 +419,26 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   cycle's re-review comes back clean. The stage does **not** advance while any `dod.md`
   criterion stands unmet, except a `ceiling` one or an `accepted` one (INV-0016) — the same non-advance
   rule the full-suite fail and Critical-finding rows above already apply.
-- **A criterion `final-reviewer` finds missing from `dod.md` is not a tick to add.** It is a `### Deferred
-  to a plan` finding like any other, under the fix-loop boundary above (ADR 0035, INV-0004) — review writes
-  no new line into `dod.md`.
-- **Ask once before fixing.** `final-reviewer` returned **Critical or Important** findings, a broken
-  criterion, or the full
-  suite came back `fail` → report them per §3 first, then ask whether to fix them now. **When the
+- **A criterion `final-reviewer` finds missing from `dod.md` is not a tick to add.** Review writes no new
+  line into `dod.md` (INV-0004). A **plan-coverage gap** — a criterion the code already satisfies — is
+  fixed in the loop with the test or drift pin that proves the behaviour (ADR 0097); a gap an existing test
+  already proves is reported only. A derived criterion the code **fails** is a `### Deferred to a plan`
+  finding like any other, under the fix-loop boundary above (ADR 0035).
+- **Ask once before fixing.** `final-reviewer` returned **any finding** — a Minor-only verdict included —
+  a broken criterion, or the full
+  suite came back `fail` → report them per §3 first, then ask once, offering three options: **fix every
+  finding** (the recommended option), **fix only the Critical and Important findings**, or **fix none**.
+  The option chosen fixes its set, and the loop below runs over that set. **When the
   findings include an unmet criterion** (a broken line, or one this cycle leaves unticked), **the same
   question also offers to accept it as unmet instead**, with the operator's own reason — this is the one
   decision point where a fresh `accepted:` note gets written (ADR 0095). **`--unattended`** never makes
   this offer, and never writes `accepted:`; an unmet criterion there follows the ordinary fix-or-block path
   below.
-  - **Declined** → stop. The findings stand: write the `**Unresolved:**` entry with a quoted heredoc
+  - **Declined** (fix none) **with only Minor findings standing** → take the clean-verdict path below:
+    the stage write, with the standing Minors named in the report and nowhere else — no `unresolved add`,
+    no `deferred add`, no triage record (INV-0094).
+  - **Declined** (fix none) **with a Critical or Important finding, a broken criterion, or a red suite
+    standing** → stop. The findings stand: write the `**Unresolved:**` entry with a quoted heredoc
     (`<<'SUPERDEV_TEXT_EOF'`) piped to
     `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add - --root <run-root>` — the sole word
     `-` reads the bullet text from stdin rather than a shell-interpolated argument
@@ -438,28 +454,41 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
     <date>)` as that line's note, through `scope.js dod-line --match-file <path> --verdict accepted
     --note-file <path>` on `<run-root>/dod.md` and the anchor's checklist, through the active store's own
     `## Definition of Done ticks` section (controller-only, INV-0015, ADR 0095). That criterion drops out
-    of the findings this cycle fixes; any other Critical or Important finding still goes through the
-    ordinary confirm-or-decline choice below.
-  - **`--unattended` → fix**, without asking: the fix loop is the point of this gate, and a review that
-    found real defects and left them is worth less than no review.
-  - **Confirmed** → dispatch **one** `superdev:implementer` (`model: sonnet`; `haiku` only for a
-    mechanical fix) with the **complete** findings list, not one fixer per finding. Hand it the scope
-    checkout as its working directory: this is where its fix commits must land. Every fix opens with a
-    RED test that reproduces the defect; a finding whose cause is not yet established runs the diagnosis
+    of the findings this cycle fixes; any other finding still goes through the
+    three-option choice above.
+  - **`--unattended` → fix every finding**, Minors included, without asking: the fix loop is the point of
+    this gate, and a review that found real defects and left them is worth less than no review.
+  - **Confirmed** (fix every finding, or fix only Critical and Important) → dispatch **one**
+    `superdev:implementer` (`model: sonnet`; `haiku` only for a mechanical fix) with the **complete** list
+    of the findings the chosen option covers, not one fixer per finding. Hand it the scope
+    checkout as its working directory: this is where its fix commits must land. **The RED-test rule is
+    conditional**: a fix for a finding that names failing behaviour opens with a RED test that reproduces
+    it, and a finding whose cause is not yet established runs the diagnosis
     loop first (`${CLAUDE_PLUGIN_ROOT}/references/diagnosis.md` — the implementer reads it on any
-    defect-repair dispatch). Re-review after it returns, and repeat until the verdict is clean
-    or the **3-strike cap** is reached — three cycles each exposing a new defect elsewhere means a wrong
+    defect-repair dispatch); a fix for a finding that names none (style, naming, doc polish) takes no RED
+    test, and the re-review verifies it by reading. Tell the implementer its report names which rule it
+    applied to each finding. Re-review after it returns, and repeat until the re-review lists no finding
+    in the chosen set or the **3-strike cap** is reached — **3 cycles in total, every cycle counting,
+    whichever findings drove it**. At the cap a remainder of **only Minor findings** takes the
+    clean-verdict path below once the exit full-suite run above is green (a red exit run at the cap is a
+    remaining red suite): the stage write, with the leftover Minors named in the report and nowhere
+    else — no `unresolved add`, no `deferred add`, no triage record (INV-0094). At the cap a remaining
+    **Critical or Important finding, a broken criterion, or a red suite** means a wrong
     cut, not a bug: stop, say so, write the `**Unresolved:**` entry — at a `submitted` stage, also
     invalidate the tip's suite record the same way the Declined branch above does — leave the stage where
     it is, and
     publish the snapshot before stopping — per
     `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section — since no later
     stage write in this run will do it.
-    **`--unattended` → block** at that cap, per that file's **Unattended** section, writing the same entry
+    **`--unattended` → block** at that cap when a Critical or Important finding, a broken criterion, or a
+    red suite remains, per that file's **Unattended** section, writing the same entry
     (and, at a `submitted` stage, invalidating the suite record the same way),
     publishing the same way, and leaving the stage where it is.
-    **A clean verdict ends the loop here too, attended or unattended** — a finding it leaves standing is a
-    follow-up, never a fourth cycle.
+    **A clean verdict ends the loop here too, attended or unattended** — a finding it leaves standing
+    outside the chosen set is a follow-up, never a fourth cycle. **An observation never joins the fix
+    list**: a defect the scope did not cause, met during a fix cycle, gets its triage record per
+    `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Observations` section (INV-0010), and the loop
+    carries on without it.
 - **The fix implementer's own dispatch is a degraded pass too, if the permission classifier denies it.**
   Follow `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section. Write the
   `**Degraded:**` entry either way, with `scope.js degraded add` — the fix implementer is an authoring

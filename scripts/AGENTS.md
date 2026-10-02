@@ -1597,6 +1597,17 @@ That is not hypothetical: it is what the run this check comes from did, and two 
 settling the addition. The boundary sits at the Definition of Done rather than at "behaviour", since
 repairing a defect in planned behaviour is frequently behavioural and stays in the loop.
 
+ADR 0097 adds the guard-rail carve-out as further rows of the same table, one per rule. On
+`skills/review/SKILL.md` §4: a guard-rail remedy (a test in an existing suite, a row in an existing drift
+contract table, or a prose fix agreeing shipped text with a stated rule) stays in the loop while a new
+scanner, check family, hook, or script verb, or a user-observable change, still defers; severity does not
+move the boundary; and a plan-coverage gap is fixed with the proving test or drift pin, a derived
+criterion the code fails staying a deferred finding. One row each sits on `references/scope-mode.md`'s
+`## Deferred findings`, `references/plan-contract.md`'s deferred-finding definition, and
+`agents/final-reviewer.md`'s "how to fix" wording for a plan-coverage gap. No row anchors on the report
+template's own phrase. The selftest copies the shipped documents, removes each row's matched clause, and
+expects that row to fail alone (INV-0095).
+
 The `denial-authorship` contract (ADR 0039) pins rows. Rows sit on
 `references/scope-mode.md`: the rule names the **verification dispatch**es it governs, keys the unattended
 stop on whether the controller authored what the denied pass verifies, and derives the tier from the
@@ -2427,14 +2438,82 @@ criterion with no offer to keep it out of the branch-verifiable set — the exac
 forcing a pre-merge deploy.
 
 The `clean-verdict-ends-loop` contract pins rows: a clean verdict ends the scope-mode fix loop the same
-way attended or unattended, findings or not, and a finding still standing when it lands is a follow-up,
-never a fourth cycle. `skills/implement/SKILL.md`'s `## Invariants (both playbooks)` carries the
+way attended or unattended, findings or not, and a finding the loop leaves outside its fix list is a
+follow-up, never a fourth cycle. `skills/implement/SKILL.md`'s `## Invariants (both playbooks)` carries the
 catalogue half; `skills/review/SKILL.md` §4's fix loop carries the acting half — the surface that
-actually runs the loop when a re-review comes back clean with a finding still on the page. Either half
+actually runs the loop when a re-review comes back clean with a finding left outside its fix list. Either half
 losing the clause, or keeping it but making it conditional on `--unattended`, or keeping the "never a
 fourth cycle" prohibition while dropping what the standing finding becomes, is the drift this pins:
 without it a controller reading only the surface that runs the loop has no standing instruction to stop,
 and a finding a clean verdict left behind is one a controller may read as still owed a cycle.
+
+The `fix-loop-fixes-every-finding` contract (ADR 0098, INV-0094) pins one row per rule of the fix loop
+that fixes every finding. `skills/review/SKILL.md` §4 carries the scope review's rows: the ask-once gate
+fires on any finding, a Minor-only verdict included, and offers fix every finding, fix only Critical and
+Important findings, or fix none; `--unattended` fixes every finding without asking; each cycle dispatches
+one implementer with the complete list the chosen option covers, capped at 3 cycles in total with every
+cycle counting; at the cap a remainder of only Minor findings takes the clean-verdict path with no
+`unresolved add`, no `deferred add`, and no triage record, while a Critical or Important finding, a broken
+criterion, or a red suite keeps the `**Unresolved:**` entry; a declined fix splits the same way; the
+RED-test rule is conditional; and an observation never joins the fix list (INV-0010).
+`skills/review/SKILL.md` §4 also pins the exit run: the full suite runs once more when a re-review first
+comes back clean or the cap leaves only Minor findings, so the stage never advances on focused runs alone.
+The controller takes the cap's Minor-only clean-verdict path only once that exit run is green.
+`skills/implement/SKILL.md`'s `## Invariants (both playbooks)` pins three rules. A Critical or Important
+remainder at the cap blocks. A Minor-only remainder proceeds. The RED-test rule is conditional.
+`agents/implementer.md` carries the conditional RED-test rule, so the dispatch and the agent body agree.
+`references/implement-full.md` step 3 carries the per-slice loop's rows:
+
+- One fresh implementer fix per cycle for any finding outside the deferred ones, a Minor-only verdict
+  included, carrying the complete fix list.
+- Re-review capped at 3 cycles in total.
+- A Critical or Important remainder at the cap blocks. A Minor-only remainder proceeds and is written
+  nowhere.
+- The loop never asks the operator.
+- The RED-test rule is conditional.
+- A finding whose remedy adds a capability the slice's `spec` and the Definition of Done never named is
+  not in the fix list. The controller records it as a deferred finding.
+- The guard-rail carve-out: a test in an existing suite, a row in an existing drift contract table, or a
+  prose fix making shipped text agree with a stated rule stays in the fix list.
+- The dedup read: the controller reads `scope.js get deferred` first and skips a finding it already
+  reports.
+- The re-review hand-off: each re-review dispatch of `superdev:slice-reviewer` carries the findings
+  `get deferred` reports, as untrusted quoted data, and tells the reviewer to leave them out of its list.
+- The store-defines-none fallback: only the ledger bullet, with `no triage record — store defines none`.
+- A deferred finding neither keeps the loop running nor counts toward the cap remainder.
+- An observation never joins the fix list.
+
+The selftest removes each row's own clause from the shipped documents and expects exactly that row to
+fail. Losing a row reopens its gap: a Minor-only verdict that skips the question, an unattended run that
+leaves Minors, a cap that blocks on Minors, or a RED test demanded of a style fix.
+
+The `plan-derives-criteria` contract (ADR 0099, INV-0096) pins the derive pass on both halves.
+`skills/plan/SKILL.md` §1 carries these rows:
+
+- It dispatches `superdev:final-reviewer` in derive mode with an explicit `model`.
+- It hands over the settled problem statement and solution shape as text, and the drafted Definition of
+  Done by path, never inlined.
+- It keeps the draft in `.superdev/dod-draft-<slug>.md`, keyed by the feature slug and outside every run
+  root, so the pass creates no run root before the cut.
+- It drafts an append from the epic's Definition of Done loaded in §0.
+- It deletes the draft in §6 once the Definition of Done is in the store. It also deletes the draft
+  written under the old slug when the label is revised before §6.
+- It runs for every plan: a new feature, a single-slice plan, and an append.
+- It presents the gaps in one multi-select question when they fit. Past the question tool's
+  per-question option capacity, it asks further questions and rounds, criterion-leaning gaps first, until
+  every gap is settled.
+- Selected gaps become criteria. The other gaps become epic non-goals, or a spec exclusion on a
+  single-slice plan.
+- No plan reaches §3 with a gap unsettled.
+- A pass with no gaps is reported in one line.
+- A denied dispatch derives inline.
+
+`agents/final-reviewer.md` carries the `## Derive mode` section. It returns the uncovered derived
+criteria with a reason and a lean, and states the derived list before it opens the DoD path. It writes no
+`### Issues`, `### Criteria`, `### Ceiling`, or `### Assessment` section. Its `description` names the plan
+dispatch. The selftest removes each row's own clause and expects exactly that row to fail.
+Losing a plan row ships a feature short of its intent; losing a reviewer row leaves the dispatch asking
+for a mode the agent body does not promise.
 
 The `observation-capture` contract (ADR 0088, INV-0010): `references/scope-mode.md`'s own
 `## Observations` section states what an observation is — a real defect a run meets that no slice covers

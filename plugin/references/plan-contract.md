@@ -374,16 +374,18 @@ Each store's own `## Definition of Done ticks` section states, citing this secti
 ## Triage record
 
 A **deferred finding** — a fix-loop finding whose remedy adds a capability the Definition of Done never
-asked for — gets a **triage record** in the slice store. The run's ledger carries a `**Deferred:**` bullet
+asked for — gets a **triage record** in the slice store. A guard-rail remedy (a test in an existing
+suite, a row in an existing drift table, or a prose fix that agrees shipped text with a stated rule) is
+never a deferred finding (ADR 0097). The run's ledger carries a `**Deferred:**` bullet
 naming the record, and `/superdev:submit-pr` copies that bullet into the pull-request body, but both live and
 die with the run: the run root is reaped and the pull request is merged. The record outlives them
 regardless of whether the scope ever ships (ADR 0046, ADR 0110).
 
 These invariants fix its shape, and every backend renders all of them:
 
-- **The command that finds it writes it, at the trigger moment.** `/superdev:review` writes a deferred finding's
-  record the moment it defers; whichever chain command is running writes an observation's record the
-  moment a controller meets one, and `/superdev:plan` writes one the moment its interview places a found
+- **The command that finds it writes it, at the trigger moment.** The scope review's fix loop or the full
+  tier's per-slice loop writes a deferred finding's record the moment it defers; whichever chain command is
+  running writes an observation's record the moment a controller meets one, and `/superdev:plan` writes one the moment its interview places a found
   defect **later** (`references/scope-mode.md`'s `## Observations` section). A run reviewed
   and then abandoned never reaches `/superdev:submit-pr`, and its run root is pruned with the findings still
   inside, so the command that finds the work is the one that records it.
@@ -407,7 +409,7 @@ These invariants fix its shape, and every backend renders all of them:
 Every backend mechanism — the label a record carries or the directory it lives in, and the call that
 creates it and the call that lists them — belongs to the active `docs/agents/issue-tracker.md`'s own
 `## Triage record` section, when that document carries one. A store document that states none leaves
-the **deferred trigger** — `/superdev:review`'s own fix loop — writing only the ledger bullet, `no
+the **deferred trigger** — the scope review's fix loop, or the full tier's per-slice loop — writing only the ledger bullet, `no
 triage record — store defines none` in the reference's place. **The observation trigger** meets the same
 gap by reporting it to the operator and dropping the capture, per `references/scope-mode.md`'s
 `## Observations` section, rather than falling back to a ledger bullet of its own.

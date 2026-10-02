@@ -175,9 +175,10 @@ and the ready status/label marks a slice rather than the feature.
 
 ## Triage record
 
-`plan-contract.md` → *Triage record*. `/superdev:review` creates one the moment it defers a finding; the
-controller creates one the same way the moment it meets an observation, and `/superdev:plan` the moment its
-interview places a found defect later (`references/scope-mode.md`'s `## Observations` section).
+`plan-contract.md` → *Triage record*. The scope review's fix loop, or the full tier's per-slice loop,
+creates one the moment it defers a finding; the controller creates one the same way the moment it meets an
+observation, and `/superdev:plan` the moment its interview places a found defect later
+(`references/scope-mode.md`'s `## Observations` section).
 On this store it is an ordinary issue in the configured project carrying the **Triage label** from
 *Configuration* and nothing else.
 
@@ -190,7 +191,7 @@ On this store it is an ordinary issue in the configured project carrying the **T
   "labels": ["<triage>"] } }`. Omit the `assignee` field entirely: a triage record is created
   **unassigned**, whatever the operator configuration names, because nobody has picked the work up.
   Capture the
-  returned `key` as the record's reference: **the deferred trigger** is what `/superdev:review` puts in
+  returned `key` as the record's reference: **the deferred trigger** is what the deferring command puts in
   the ledger bullet; **an observation** instead reports that reference to the operator and writes no
   ledger bullet of its own, since the record is its own identity (`references/scope-mode.md`'s
   `## Observations` section). No issue link and no parent: a triage record belongs to no feature.

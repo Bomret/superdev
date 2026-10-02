@@ -399,6 +399,100 @@ const DERIVED_CRITERIA_CONTRACTS = [
   ],
 ];
 
+// ADR 0099, INV-0096: `/superdev:plan` derives criteria from the intent before it slices. Two halves,
+// because a contract in an agent body also has to hold in the dispatch prose that reaches it: plan's §1
+// dispatches `final-reviewer` in derive mode (explicit model, the intent as text, the drafted DoD by path
+// from a file outside every run root), runs for every plan, settles every gap in one multi-select question
+// before §3, and derives inline when the dispatch is denied; `final-reviewer.md` carries the derive mode
+// the dispatch names, returning the uncovered criteria with a reason and a lean, and no review sections.
+const PLAN_DERIVES_CRITERIA_CONTRACTS = [
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /`superdev:final-reviewer` in derive mode\*\*[\s\S]{0,300}explicit `model/,
+    "dispatch `superdev:final-reviewer` in derive mode with an explicit `model`, before §3 decomposes",
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /settled problem statement and solution shape as text[\s\S]{0,200}\*\*path\*\* of the drafted Definition of Done, never inlined/,
+    "hand the interview's settled problem statement and solution shape as text and the drafted Definition of Done by path, never inlined",
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /`\.superdev\/dod-draft-<slug>\.md`[\s\S]{0,300}creates no run root/,
+    'keep the drafted Definition of Done in `.superdev/dod-draft-<slug>.md`, keyed by the feature slug and outside every run root, so parallel plan runs do not share a draft and the pass creates no run root before the cut',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /\*\*Delete the drafted Definition of Done\.\*\*[\s\S]{0,200}`\.superdev\/dod-draft-<slug>\.md`[\s\S]{0,200}durably in the slice store/,
+    'have §6 delete `.superdev/dod-draft-<slug>.md` once the Definition of Done is durably in the slice store',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /\*\*A label revised\s+before §6 writes to the store\*\*[\s\S]{0,600}delete the draft `\.superdev\/dod-draft-<old-slug>\.md`/,
+    'on a label revision before §6, delete the Definition of Done draft written under the old slug',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /so the reviewer derives before it reads/,
+    'hand the Definition of Done by path so the reviewer derives before it reads',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /On an append, the draft is the existing epic's Definition of Done[\s\S]{0,200}amended criteria/,
+    "on an append, draft the existing epic's Definition of Done, as loaded in §0, folded with the amended criteria",
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /state the list in your response before you open the DoD path[\s\S]{0,200}\*\*Then\*\* open the DoD path/,
+    'in derive mode, state the derived list before opening the DoD path',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /Every plan runs this pass[\s\S]{0,200}single-slice plan[\s\S]{0,200}append/,
+    'run the derive pass for every plan: a new feature, a single-slice plan, and an append',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /gaps with their leans in \*\*one multi-select question\*\* when they fit[\s\S]{0,300}past the question tool's per-question option capacity[\s\S]{0,300}criterion-leaning gaps first[\s\S]{0,300}until every gap is settled[\s\S]{0,500}named non-goal in the epic[\s\S]{0,200}exclusion in the lone slice's `spec`/,
+    "present the gaps with their leans in one multi-select question when they fit, ask further questions and rounds past the question tool's per-question option capacity, criterion-leaning gaps first, until every gap is settled: a selected gap becomes a criterion, each other becomes a named epic non-goal, or an exclusion in the lone slice's `spec` on a single-slice plan",
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /No plan reaches §3 while a gap stands unsettled/,
+    'state that no plan reaches §3 while a gap stands unsettled',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /returns no gaps, say so in one line and continue/,
+    'on a derive pass that returns no gaps, say so in one line and continue',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /denied[\s\S]{0,200}derive the criteria inline[\s\S]{0,200}say so/,
+    'on a denied dispatch, derive the criteria inline, say so, and settle the gaps the same way',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /^##\s+Derive mode\s*$/m,
+    'carry the `## Derive mode` section the plan dispatch names',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /every derived criterion the DoD does not cover[\s\S]{0,200}one-line reason[\s\S]{0,200}lean/,
+    'in derive mode, return every derived criterion the DoD does not cover with a one-line reason and a lean',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /writes no `### Issues`, `### Criteria`, `### Ceiling`, or `### Assessment` section/,
+    'in derive mode, write no Issues, Criteria, Ceiling, or Assessment section',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /^description:.*dispatched by \/superdev:review[^\n]*\/superdev:plan/m,
+    "name the plan dispatch in the agent's `description`",
+  ],
+];
+
 // ADR 0091: `final-reviewer` gates on every `dod.md` line, ticked or not, in its own `### Criteria`
 // verdict list — the input review/SKILL.md's §4 fix loop unticks and re-ticks from. A contract in an
 // agent body also has to hold in the dispatch prose that reaches it (root AGENTS.md's prompt-architecture
@@ -1079,6 +1173,43 @@ const FIX_BOUNDARY_CONTRACTS = [
     'state that a deferred finding enters no fix loop and is not an unresolved defect, taking precedence ' +
       'over `--unattended → fix`, and that a verdict whose only remaining findings are deferred counts as ' +
       'clean — the exit a deferred finding needs so the run does not deadlock on it',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /guard-rail remedy stays in this loop[\s\S]{0,500}new test in an existing suite[\s\S]{0,200}existing drift contract table[\s\S]{0,200}agree with a rule the repository already states[\s\S]{0,300}new scanner, check family, hook, or script verb[\s\S]{0,100}changes what a plugin user can observe[\s\S]{0,120}deferred finding/i,
+    'state, in §4, that a guard-rail remedy (a new test in an existing suite, a new row in an existing drift ' +
+      'contract table, or a prose fix that makes shipped text agree with a rule the repository already states) ' +
+      'stays in the fix loop, and that a remedy building a new scanner, check family, hook, or script verb, or ' +
+      'changing what a plugin user can observe, is still a deferred finding (ADR 0097)',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /severity does not move the boundary[\s\S]{0,200}Minor finding whose remedy adds a capability[\s\S]{0,200}deferred finding/i,
+    'state, in §4, that severity does not move the boundary: a Minor finding whose remedy adds an unnamed ' +
+      'capability is a deferred finding like any other',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /plan-coverage gap[\s\S]{0,300}is fixed[\s\S]{0,200}test or drift pin that proves the behaviou?r[\s\S]{0,300}reported only[\s\S]{0,400}code \*\*fails\*\*[\s\S]{0,200}Deferred to a plan/i,
+    'state, in §4, that a plan-coverage gap is fixed with the test or drift pin that proves the behaviour (one ' +
+      'an existing test already proves is reported only), and that a derived criterion the code fails stays a ' +
+      '`### Deferred to a plan` finding (ADR 0097, INV-0004)',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /guard-rail remedy[\s\S]{0,400}stays in the loop[\s\S]{0,400}new scanner, check family, hook, or script verb[\s\S]{0,120}changes what a plugin user can observe/i,
+    'carry the guard-rail carve-out in `## Deferred findings`: a guard-rail remedy stays in the loop, and a ' +
+      'new scanner, check family, hook, or script verb, or a user-observable change, still defers (ADR 0097)',
+  ],
+  [
+    path.join('references', 'plan-contract.md'),
+    /deferred finding[\s\S]{0,500}guard-rail remedy[\s\S]{0,200}never a deferred finding/i,
+    "carry the guard-rail carve-out in the deferred-finding definition: a guard-rail remedy is never a deferred finding (ADR 0097)",
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /plan-coverage gap[\s\S]{0,400}how to fix[\s\S]{0,200}test or drift pin that (would )?prove/i,
+    "name the test or drift pin that would prove the behaviour as a plan-coverage gap's \"how to fix\" (ADR 0097)",
   ],
 ];
 
@@ -4736,13 +4867,142 @@ const CRITERION_STATES_A_REQUIREMENT_CONTRACTS = [
 const CLEAN_VERDICT_ENDS_LOOP_CONTRACTS = [
   [
     path.join('skills', 'implement', 'SKILL.md'),
-    /clean verdict ends the loop[\s\S]{0,60}attended or unattended[\s\S]{0,150}follow-up[\s\S]{0,60}never a fourth cycle/,
-    'state, in `## Invariants (both playbooks)`, that a clean verdict ends the fix loop the same way attended or unattended, and that a finding still standing when it lands is a follow-up, never a fourth cycle',
+    /clean verdict ends the loop[\s\S]{0,60}attended or unattended[\s\S]{0,150}leaves outside its fix list[\s\S]{0,60}follow-up[\s\S]{0,60}never a fourth cycle/,
+    'state, in `## Invariants (both playbooks)`, that a clean verdict ends the fix loop the same way attended or unattended, and that a finding the loop leaves outside its fix list is a follow-up, never a fourth cycle',
   ],
   [
     path.join('skills', 'review', 'SKILL.md'),
     /clean verdict ends the loop[\s\S]{0,60}attended or unattended[\s\S]{0,150}follow-up[\s\S]{0,60}never a fourth cycle/,
     'state, in §4\'s fix loop, that a clean verdict ends the loop the same way attended or unattended, and that a finding it leaves standing is a follow-up, never a fourth cycle',
+  ],
+];
+
+// ADR 0098, INV-0094: the fix loop fixes every listed finding, and only correctness holds the stage. These
+// surfaces carry the rules — `skills/review/SKILL.md` §4 (the scope review's ask-once gate and loop),
+// `skills/implement/SKILL.md`'s `## Invariants (both playbooks)` (the 3-strike cap and the RED-test
+// rule), `references/implement-full.md` step 3 (the per-slice loop, and the deferral boundary), and
+// `agents/implementer.md` (the fix dispatch's own RED-test rule, so the dispatch and the agent body
+// agree). One row per rule, so a surface that drops one rule fails on exactly that row.
+const FIX_LOOP_FIXES_EVERY_FINDING_CONTRACTS = [
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /returned \*\*any finding\*\* — a Minor-only verdict included[\s\S]{0,400}\*\*fix every finding\*\* \(the recommended option\), \*\*fix only the Critical and Important findings\*\*, or \*\*fix none\*\*/,
+    'ask once on any finding, a Minor-only verdict included, offering to fix every finding (the recommended option), to fix only the Critical and Important findings, or to fix none',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /`--unattended` → fix every finding\*\*, Minors included, without asking/,
+    'fix every finding, Minors included, without asking under `--unattended`',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /\*\*complete\*\* list of the findings the chosen option covers[\s\S]{0,1500}3 cycles in total, every cycle counting, whichever findings drove it/,
+    'dispatch one implementer with the complete list of the findings the chosen option covers, the loop capped at 3 cycles in total with every cycle counting whichever findings drove it',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /remainder of \*\*only Minor findings\*\* takes the clean-verdict path below once the exit full-suite run above is green[\s\S]{0,250}no `unresolved add`, no `deferred add`, no triage record/,
+    'at the cap, take the clean-verdict path for a remainder of only Minor findings once the exit full-suite run is green, writing no `unresolved add`, no `deferred add`, and no triage record',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /re-review verdict first comes back clean, or the cap leaves only Minor findings, run the full suite\s+once more/,
+    'run the exit full-suite gate when a fix cycle\'s re-review first comes back clean or the cap leaves only Minor findings, before the stage write',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /At the cap a remaining \*\*Critical or Important finding, a broken criterion, or a red suite\*\*[\s\S]{0,250}write the `\*\*Unresolved:\*\*` entry/,
+    'at the cap, write the `**Unresolved:**` entry for a remaining Critical or Important finding, a broken criterion, or a red suite',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /\*\*Declined\*\* \(fix none\) \*\*with only Minor findings standing\*\* → take the clean-verdict path[\s\S]{0,300}no triage record[\s\S]{0,300}\*\*Declined\*\* \(fix none\) \*\*with a Critical or Important finding[\s\S]{0,300}`\*\*Unresolved:\*\*`/,
+    'on a declined fix, take the clean-verdict path with no ledger entry and no triage record when only Minor findings stand, and write `**Unresolved:**` when a Critical or Important finding stands',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /RED-test rule is conditional\*\*[\s\S]{0,300}names failing behaviour opens with a RED test[\s\S]{0,500}names none[\s\S]{0,120}takes no RED test[\s\S]{0,80}verifies it by reading/,
+    'state the RED-test rule as conditional: a fix for a finding naming failing behaviour opens with a RED test, one naming none takes none, and the re-review verifies it by reading',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /An observation never joins the fix list\*\*[\s\S]{0,300}## Observations[\s\S]{0,80}INV-0010/,
+    'keep an observation out of the fix list and give it its triage record per `## Observations` (INV-0010)',
+  ],
+  [
+    path.join('skills', 'implement', 'SKILL.md'),
+    /remaining Critical or Important finding means[\s\S]{0,300}remainder of only Minor findings proceeds/,
+    "state, in `## Invariants (both playbooks)`, that at the 3-strike cap a Critical or Important remainder blocks and a remainder of only Minor findings proceeds",
+  ],
+  [
+    path.join('skills', 'implement', 'SKILL.md'),
+    /RED-test rule is conditional\.\*\*[\s\S]{0,300}names failing behaviour opens with a RED test[\s\S]{0,300}names none[\s\S]{0,120}takes no RED test[\s\S]{0,80}verifies it by reading/,
+    'state, in `## Invariants (both playbooks)`, the conditional RED-test rule: a finding naming failing behaviour gets a RED test, one naming none takes none, and the re-review verifies it by reading',
+  ],
+  [
+    path.join('agents', 'implementer.md'),
+    /RED-test rule for a fix dispatch is conditional\.\*\*[\s\S]{0,300}names failing behaviour opens with a RED test[\s\S]{0,300}names none[\s\S]{0,120}takes no RED test[\s\S]{0,80}verifies it by reading[\s\S]{0,200}names which rule you applied to each finding/,
+    "state the fix dispatch's conditional RED-test rule in the agent body, and that the report names which rule applied to each finding",
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /any finding outside the deferred ones\*\* — a Minor-only verdict included[\s\S]{0,200}\*\*one\*\* fresh `superdev:implementer` fix per cycle[\s\S]{0,200}complete\*\* fix list \(every finding except a deferred one, below\), never one dispatch per finding/,
+    "state, in step 3, that a review listing any finding outside the deferred ones, a Minor-only verdict included, gets one fresh implementer fix per cycle carrying the complete fix list (every finding except a deferred one), never one dispatch per finding",
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /Re-review after each cycle[\s\S]{0,200}no finding outside the deferred ones[\s\S]{0,200}3 cycles in total, every cycle counting/,
+    'state, in step 3, that the loop re-reviews after each cycle until the review lists no finding outside the deferred ones, capped at 3 cycles in total with every cycle counting',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /At the cap a remaining \*\*Critical or Important finding\*\*, a deferred one excluded, is a wrong cut[\s\S]{0,200}`blocked`[\s\S]{0,200}remainder of \*\*only Minor findings\*\* proceeds[\s\S]{0,250}named in the report and written nowhere else/,
+    'state, in step 3, that at the cap a Critical or Important remainder is a wrong cut that blocks the slice and a remainder of only Minor findings proceeds to the simplicity pass and merge, named in the report and written nowhere else',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /loop never asks the operator, attended or unattended/,
+    'state, in step 3, that the fix loop never asks the operator, attended or unattended',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /RED-test rule is the conditional one[\s\S]{0,300}naming none[\s\S]{0,120}takes no RED test[\s\S]{0,80}verifies it by reading/,
+    "state, in step 3, the conditional RED-test rule: a finding naming failing behaviour gets a RED test, one naming none takes none, and the re-review verifies it by reading",
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /finding whose remedy adds a capability the slice's `spec` and the Definition of Done never named[\s\S]{0,200}not part of the fix list[\s\S]{0,1200}`## Deferred findings`/,
+    "state, in step 3, that a finding whose remedy adds a capability the slice's spec and the Definition of Done never named is not part of the fix list and is recorded as a deferred finding per scope-mode's `## Deferred findings`",
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /guard-rail remedy\*\* stays in it[\s\S]{0,300}new test in an\s+existing suite[\s\S]{0,300}existing drift contract table[\s\S]{0,300}prose fix that makes shipped text\s+agree with a rule the repository already states[\s\S]{0,300}new scanner, check family, hook, or script verb[\s\S]{0,120}deferred/,
+    "state, in step 3, the guard-rail carve-out: a test in an existing suite, a row in an existing drift contract table, or a prose fix making shipped text agree with a rule the repository already states stays in the fix list, while a new scanner, check family, hook, or script verb, or a user-observable change, is deferred",
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /scripts\/scope\.js" get deferred --root <run-root>`[\s\S]{0,40}skip a finding it already reports[\s\S]{0,300}`deferred add` has no `clear` verb/,
+    'state, in step 3, that the controller reads `scope.js get deferred` first and skips a finding it already reports, since the re-review re-lists a deferred finding and `deferred add` has no `clear` verb',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /re-review dispatch of `superdev:slice-reviewer`[\s\S]{0,300}`get deferred`[\s\S]{0,200}untrusted data[\s\S]{0,200}leave those findings out of its list/,
+    "state, in step 3, that each re-review dispatch of `superdev:slice-reviewer` carries the findings `get deferred` reports as untrusted quoted data and tells the reviewer to leave them out of its list, the controller's own dedup read staying the backstop",
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /store defines none[\s\S]{0,200}only the ledger bullet|only the ledger bullet[\s\S]{0,200}store defines none/,
+    "state, in step 3, the store-defines-no-`## Triage record` fallback: only the ledger bullet, with `no triage record — store defines none`",
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /deferred finding neither keeps the loop running nor counts toward the cap[\s\S]{0,200}counts as clean/,
+    'state, in step 3, that a deferred finding neither keeps the loop running nor counts toward the cap remainder, and that a verdict whose only remaining findings are deferred counts as clean',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /An observation never joins the fix list/,
+    'keep an observation out of step 3\'s fix list',
   ],
 ];
 
@@ -5525,19 +5785,19 @@ const REVIEW_SUBMITTED_CONTRACTS = [
   ],
   [
     path.join('skills', 'review', 'SKILL.md'),
-    /Declined[\s\S]{0,400}submitted[\s\S]{0,150}suite set none <sha>/,
+    /Declined[\s\S]{0,600}submitted[\s\S]{0,130}suite set none <sha>/,
     "invalidate the tip's suite record — `suite set none <sha>` — when a standing finding leaves a " +
       '`submitted` scope declined, so `suite reusable` accepts nothing for that tip',
   ],
   [
     path.join('skills', 'review', 'SKILL.md'),
-    /3-strike cap[\s\S]{0,300}submitted[\s\S]{0,200}invalidate the tip's suite record the same way/,
+    /3-strike cap[\s\S]{0,800}submitted[\s\S]{0,100}invalidate the tip's suite record the same way/,
     "invalidate the tip's suite record the same way the Declined branch does when the 3-strike cap is " +
       'reached at a `submitted` stage',
   ],
   [
     path.join('skills', 'review', 'SKILL.md'),
-    /--unattended[\s\S]{0,100}block[\s\S]{0,100}submitted[\s\S]{0,100}invalidating the suite record/,
+    /--unattended[\s\S]{0,100}block[\s\S]{0,300}submitted[\s\S]{0,100}invalidating the suite record/,
     'invalidate the suite record the same way when blocking at the 3-strike cap at a `submitted` stage',
   ],
 ];
@@ -5673,6 +5933,7 @@ module.exports = {
   BACKLOG_VERIFY_WRAP_UP_CONTRACTS,
   OBSERVATION_CAPTURE_CONTRACTS,
   CLEAN_VERDICT_ENDS_LOOP_CONTRACTS,
+  FIX_LOOP_FIXES_EVERY_FINDING_CONTRACTS,
   COMMITMENT_CAPTURE_CONTRACTS,
   SHIP_TICKS_NOTHING_CONTRACTS,
   DOC_UNTICK_ON_BREAK_CONTRACTS,
@@ -5724,6 +5985,7 @@ module.exports = {
   UNATTENDED_CONTRACTS,
   DEGRADED_CONTRACTS,
   DERIVED_CRITERIA_CONTRACTS,
+  PLAN_DERIVES_CRITERIA_CONTRACTS,
   PER_CRITERION_VERDICT_CONTRACTS,
   REACHABLE_CRITERION_CONTRACTS,
   REVIEW_RANGE_SHAPES_CONTRACTS,

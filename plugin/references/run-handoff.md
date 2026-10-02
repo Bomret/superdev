@@ -34,7 +34,9 @@ tiers: record that slice execution finished, name what comes next.
   - Dispatch **one** `superdev:implementer` (`model: sonnet`; `haiku` only for a mechanical fix) with the
     failing output — never fix it inline: the controller only integrates, and lite's inline loop is that
     tier's own exception (ADR 0001), not run handoff's. Hand it the scope checkout as its working
-    directory: this is where its fix commits must land. Every fix opens with a RED test. Verifying the fix
+    directory: this is where its fix commits must land. A red suite names failing behaviour, so
+    each fix opens with a RED test (the conditional rule of `/superdev:implement`'s shared
+    invariants). Verifying the fix
     observes; it changes no system outside the repository (ADR 0084, INV-0006). This dispatch is a
     listed-lines case of `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s mapping gate: hand it the
     `dod.md` **path** plus the `scope`-tagged Definition-of-Done lines this red suite blocks — there may
