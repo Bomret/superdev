@@ -269,8 +269,10 @@ bash or PowerShell variants.
   against your own checkout. A merge whose working tree the gate cannot resolve blocks
   instead: a command that changes directory first (`cd <path> && git merge`) and names no tree says
   nothing about which one it landed in, a `--git-dir` with no `--work-tree` updates files in one tree
-  while reading refs from another repository, and a `-C` path carrying no `docs/agents/verification.md`
-  while your own checkout does is a path pointing somewhere other than the merge. Run such a merge as
+  while reading refs from another repository, a `-C` or `--work-tree` value holding shell syntax (`$VAR`,
+  `$(…)`, a backtick, a leading `~`) names a path the gate reads before the shell expands it, and a `-C`
+  path carrying no `docs/agents/verification.md` while your own checkout does is a path pointing somewhere
+  other than the merge. Run such a merge as
   `git -C <path> merge …`. A green the gate never verified is worth less than a block naming why.
 - **run-lock.** Blocks a `git worktree add` on a scopetree (`.superdev/scopes/<scope>/scopetree`)
   while a fresh `.superdev/scopes/<scope>/run.lock` exists, so two concurrent lite runs on one scope

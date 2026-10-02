@@ -348,6 +348,14 @@ assert.equal(
 );
 assert.equal(resolveMergeCwd('git --git-dir /wt/.git merge s', '/session'), null, 'a bare --git-dir is ambiguous: the tree is unknowable');
 assert.equal(resolveMergeCwd('git --git-dir=/wt/.git merge s', '/session'), null, 'the = spelling too');
+
+// a value the shell would expand is text the hook cannot resolve: unknowable, never a made-up path
+for (const value of ['"$RR/scopetree"', '${RR}/wt', '"$(pwd)/wt"', '`pwd`/wt', '~/wt']) {
+  assert.equal(resolveMergeCwd(`git -C ${value} merge --no-ff slice/demo/01`, '/session'), null, `-C ${value} names unexpanded shell syntax: unknowable`);
+  assert.equal(resolveMergeCwd(`git --work-tree ${value} merge s`, '/session'), null, `--work-tree ${value} too`);
+}
+assert.equal(resolveMergeCwd('git --work-tree=$RR/wt merge s', '/session'), null, 'the = spelling too');
+assert.equal(resolveMergeCwd('git -c "msg=$X" -C /wt merge s', '/session'), '/wt', 'a $ in another option\'s value is not a -C value');
 assert.equal(resolveMergeCwd('git --namespace foo merge s', '/session'), '/session', 'another value-taking option names no tree');
 
 // --- a -c VALUE containing another option's own spelling must not be re-read as that option ---
@@ -847,6 +855,35 @@ fs.writeFileSync(
     }
     fs.rmSync(session, { recursive: true, force: true });
     fs.rmSync(target, { recursive: true, force: true });
+  }
+
+  // a -C naming a shell variable: the hook sees the unexpanded text, so the block names that cause
+  // instead of a missing verification doc at a path that cannot exist
+  {
+    const session = tmp('gg-session-');
+    initRepo(session);
+    commitFile(session, 'base.txt', 'x\n');
+    writeVerification(session, 'node -e "process.exit(0)"'); // green: the block is the unexpanded path
+    for (const options of ['-C "$RR/scopetree"', '--work-tree "$RR/scopetree"']) {
+      const result = runHook({ cwd: session, tool_input: { command: `git ${options} merge --no-ff other` } });
+      assert.equal(result.status, 2, `a merge naming ${options} blocks`);
+      assert.match(result.stderr, /shell/i, 'the block names the shell expansion as the cause');
+      assert.match(result.stderr, /literal path/, 'the block asks for a literal path');
+      assert.doesNotMatch(result.stderr, /docs\/agents\/verification\.md|\$RR/, 'it neither blames a missing doc nor prints the impossible path');
+      assert.match(result.stderr, /nobody verified it/, 'the message states the merge landed unverified');
+    }
+    fs.rmSync(session, { recursive: true, force: true });
+  }
+
+  // no verification doc anywhere → an unexpanded -C stays inert too
+  {
+    const session = tmp('gg-session-');
+    initRepo(session);
+    commitFile(session, 'base.txt', 'x\n');
+    const result = runHook({ cwd: session, tool_input: { command: 'git -C "$RR/scopetree" merge --no-ff other' } });
+    assert.equal(result.status, 0, 'no verification doc anywhere → inert on an unexpanded -C');
+    assert.equal(result.stderr, '', 'and prints nothing');
+    fs.rmSync(session, { recursive: true, force: true });
   }
 
   // no verification doc anywhere → both command shapes stay inert, with no error and no block

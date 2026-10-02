@@ -134,8 +134,9 @@ const CHANGES_DIR = /(^|[;&|(\n])\s*(?:cd|pushd|popd)(\s|$)/;
 // The merge's own working tree: a `--work-tree <path>` or `-C <path>` on the command, resolved
 // against the session cwd (git itself resolves both relative to the shell's cwd at invocation, not to
 // this hook's cwd), or the session cwd unchanged when the command names neither — a bare `git merge`
-// keeps running where it always has. **`null` when the tree is unknowable**, in two shapes:
-// the command changed directory before the merge and named no tree, or it named only `--git-dir`.
+// keeps running where it always has. **`null` when the tree is unknowable**, in three shapes:
+// the command changed directory before the merge and named no tree, it named only `--git-dir`, or a
+// `-C` or `--work-tree` value holds shell syntax the hook sees unexpanded.
 //
 // git applies every `-C` in order, each against the directory the previous one left, before it looks at
 // `--work-tree` — so `-C` is folded cumulatively here too (`git -C /a -C b` lands at `/a/b`), and a
@@ -186,8 +187,18 @@ function parseMergeCommand(cmd) {
   return { tokens: parseOptions(optionRegion(m)), index: m.index };
 }
 
+// The hook sees the command before the shell expands it, so a `-C` or `--work-tree` value holding
+// `$NAME`, `${NAME}`, `$(…)`, a backtick, or a leading `~` names a path the hook cannot know.
+// ponytail: tested on the raw text, so a single-quoted or backslash-escaped `$` over-fires. That
+// direction is safe (it blocks and names `-C` with a literal path); upgrade only with a shell parser.
+const SHELL_EXPANSION = /[$`]|^~/;
+function namesShellExpansion(tokens) {
+  return ['-C', '--work-tree'].some((o) => optionValues(tokens, o).some((v) => SHELL_EXPANSION.test(v)));
+}
+
 function resolveCwdFromTokens(tokens, index, cmd, sessionCwd) {
   const cValues = optionValues(tokens, '-C');
+  if (namesShellExpansion(tokens)) return null;
   const cBase = cValues.reduce((base, v) => path.resolve(base, unquoteArg(v)), sessionCwd);
   const workTree = optionValue(tokens, '--work-tree');
   if (workTree) return path.resolve(cBase, unquoteArg(workTree));
@@ -277,7 +288,13 @@ function resolveVerification(parsed, cmd, sessionCwd) {
     return {
       full: session.full,
       focused: session.focused,
-      blind: namesOnlyGitDir(parsed.tokens)
+      blind: namesShellExpansion(parsed.tokens)
+        ? 'superdev: this merge has landed, and nobody verified it. Its `-C` or `--work-tree` value holds ' +
+          'shell syntax (`$`, a backtick, or `~`) that the gate cannot expand, so it could not see the ' +
+          'merge\'s working tree. Run the full test command in ' +
+          'the merge\'s tree now, or revert this merge. Pass a literal path next time: ' +
+          '`git -C /abs/path merge …`.'
+        : namesOnlyGitDir(parsed.tokens)
         ? 'superdev: this merge has landed, and nobody verified it. The command names its repository ' +
           'with `--git-dir` and its working tree with nothing, so the files it updated and the refs it ' +
           'reads live apart — there was no one tree to run the suite over. Run the full test command in ' +
