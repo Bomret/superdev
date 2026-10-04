@@ -9,6 +9,8 @@ argument-hint: "[BASE..HEAD | area/path | audit [--chained] | (empty = full reco
 Bring the docs and the knowledge base into agreement with reality.
 Dispatch the isolated **`superdev:doc-writer`** to do the work, then reader-test the result with the fresh-context **`superdev:doc-reader`**. You (the controller) scope, relay, and report.
 
+Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). A run under `--chained` prints no Next block.
+
 ## 1. Config
 
 - Read `docs/agents/documentation.md` (in-repo documentation convention) and `docs/agents/knowledge-base.md` (KB backend, audience, language, outline — may be "none").
@@ -28,7 +30,7 @@ From `$ARGUMENTS`:
 - **Empty** → a **full reconcile**: all in-repo docs (README + the whole `AGENTS.md` tree) + the KB against current repo state. **Exception:** the convention is the `AGENTS.md` hierarchy and the root `AGENTS.md` is **absent** → there is no doc tree to reconcile: skip §3-§5 and run **bootstrap** in §7.
 - **The literal word `audit`** → skip §3-§5; run the **reader-first audit** in §6.
 
-**Scope mode.** Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md` for what makes the range a live superdev run. When it is, §8 adds its steps. Every other invocation is ad-hoc: no stage is written and no next command is printed.
+**Scope mode.** Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md` for what makes the range a live superdev run. When it is, §8 adds its steps. Every other invocation is ad-hoc: no stage is written, and its Next block says no command follows.
 
 **`--unattended`** means nobody is watching: that file's **Unattended** section governs every stop this command reaches, including whatever a later change adds.
 
@@ -149,7 +151,9 @@ Only when §2 found a live run. Everything above still applies; this adds the ru
   publish the snapshot, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state`
   section. The two leave-alone branches, and the untick branch above, wrote nothing, so there is nothing
   to publish there.
-- **Print the next command.** **This pass unticked a line above, or the standing-entry check above
+- **Close with the Next block.** Where a command is printed, say first that the conversation is
+  disposable: the ledger's stage and `dod.md` carry everything the next command reads, so a `/clear`
+  first costs nothing. Then print the command, last, so the Next block closes the message. **This pass unticked a line above, or the standing-entry check above
   printed one** → print `/superdev:review <range>`, naming the criterion that stands unmet (this pass's
   own untick, or the earlier one the standing entry already named) and that review's fix loop is what
   re-ticks it once the branch meets it again; print no `/superdev:submit-pr` in the same breath — the
@@ -158,8 +162,7 @@ Only when §2 found a live run. Everything above still applies; this adds the ru
   `accepted:` is settled, never this kind of unmet, and reaches neither this bullet nor that gate.
   **The stage read `shipped`, `submitted`, or `closed` above** — the leave-alone branch — → when it read
   `submitted`, print `/superdev:ship <scope>`; when it read `shipped`, print
-  `/superdev:verify-ship <scope>`; when it read `closed`, print nothing.
+  `/superdev:verify-ship <scope>`; when it read `closed`, the Next block says no command follows, and the note is left out.
   **Neither case** → print
   `/superdev:submit-pr <scope>`, with one line on what it does (open the pull request against the scope's
-  current Definition of Done). Add that this conversation is disposable: the ledger's stage and `dod.md`
-  carry everything the next command reads, so a `/clear` first costs nothing.
+  current Definition of Done).

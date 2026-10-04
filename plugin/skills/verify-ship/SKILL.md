@@ -12,6 +12,8 @@ deployed (ADR 0106). It dispatches no subagents, carries no unattended mode of i
 INV-0093), and never moves the stage. Verifying a line observes; it changes no system outside the
 repository (ADR 0084, INV-0006). It never runs a deploy target's command (INV-0098).
 
+Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111).
+
 ## 1. Scope + run root
 
 Resolve `$ARGUMENTS` to one scope — a **run root**, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
@@ -91,9 +93,7 @@ and the `dod.md` verdict stands.
 
 Publish the snapshot when a deploy record changed, per
 `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section. Print a summary: the
-lines settled with their verdicts, and the lines still open.
+lines settled with their verdicts, and the lines still open. The stage stays `shipped`.
 
 - **Every line settled** (ticked or `accepted:`) → say in one line that all criteria are settled and the scope is ready to close, then print `/superdev:wrap-up <scope>` as the next command. When §4 reported an unpaired line, wrap-up refuses until the anchor's criterion text is in sync: say "hand-sync, then `/superdev:wrap-up <scope>`" and print the command only after that.
 - **Otherwise** → name each open line, and say running `/superdev:verify-ship <scope>` again is safe.
-
-The stage stays `shipped`.

@@ -100,15 +100,15 @@ tiers: record that slice execution finished, name what comes next.
   fully ticked checklist: review is still the gate (INV-0016). `/superdev:review`, `/superdev:document`,
   and `/superdev:submit-pr` work in the scope checkout you leave behind; `/superdev:wrap-up` takes the run
   down.
+- **Report** the scope branch, the slice count, the commit range, and the suite record above left behind
+  (**Green.**, **No test command configured.**, **A denied test command, recorded and continued
+  attended.**, or **Green after the fix loop.**), and **say the conversation is
+  disposable**: the ledger, `dod.md`, `interfaces.md`, and the per-slice progress logs now hold
+  everything `/superdev:review` needs, so a `/clear` before it costs nothing — a fresh-context review
+  reads the run state cold, which is the least anchored shape a reviewer can start in.
 - **Print the next command, resolved.** Compute `BASE = git merge-base <base> <branch>` (`<base>` from
   `docs/agents/code-management.md`, default `main`) and print `/superdev:review <BASE-sha>..<branch>` with
   the real commit substituted, plus one line on what it does (review the integrated scope against the
   DoD) — **every scope**, whatever its slice types: this handoff's own full-suite run above is a fix loop
-  and an early record, never a stand-in for review (ADR 0091). Name the suite record above left behind:
-  **Green.**, **No test command configured.**, **A denied test command, recorded and continued
-  attended.**, or **Green after the fix loop.**
-- **Report** the scope branch, the slice count, and the commit range, and **say the conversation is
-  disposable**: the ledger, `dod.md`, `interfaces.md`, and the per-slice progress logs now hold
-  everything `/superdev:review` needs, so a `/clear` before it costs nothing — a fresh-context review
-  reads the run state cold, which is the least anchored shape a reviewer can start in. Then stop: no
-  review, no doc pass, no pull request, no cleanup.
+  and an early record, never a stand-in for review (ADR 0091). This line fills the Next block that closes the message,
+  so it comes last. Then stop: no review, no doc pass, no pull request, no cleanup.

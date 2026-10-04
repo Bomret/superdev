@@ -16,6 +16,8 @@ Review a change end to end. Two modes, and §1 decides which:
 
 Either way the reviewers themselves are the same read-only subagents.
 
+Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). A run under `--chained` prints no Next block. An ad-hoc review's block names `/superdev:plan` where findings stand (§3) and says no command follows otherwise.
+
 ## 0. Config (optional)
 
 - Read `docs/agents/code-management.md`, if present, for the **base branch** to diff against (default
@@ -542,12 +544,12 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   Publish the snapshot after any of the writes above — `unresolved clear`, the stage write, and `docs
   clear` alike — per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section.
 
-  Then print the next command. **The stage reads `submitted`** — print `/superdev:ship <scope>` and say
+  Say first that this conversation is disposable: the ledger's stage and the scope branch carry everything
+  the next command reads, so a `/clear` first costs nothing. Then print the next command, last, so the
+  Next block closes the message. **The stage reads `submitted`** — print `/superdev:ship <scope>` and say
   in one line what it does (merge the pull request `/superdev:submit-pr` already opened; ADR 0096). This
   is the re-review ADR 0096 sends an operator to after resolving a base-merge conflict, so this is the
   command that recovery ends on. **Otherwise** — print `/superdev:document <range>`, carrying the
   concrete range §1 resolved, and say in one line what it will do (reconcile the in-repo docs and the
-  knowledge base with the merged state). Either way, add that this conversation is disposable: the
-  ledger's stage and the scope branch carry everything the printed command reads, so a `/clear` first
-  costs nothing.
+  knowledge base with the merged state).
 - **Never merge, push, or open a pull request.** `/superdev:submit-pr` ends the chain.

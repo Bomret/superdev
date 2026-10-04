@@ -134,6 +134,7 @@ const {
   CLEAN_VERDICT_ENDS_LOOP_CONTRACTS,
   FIX_LOOP_FIXES_EVERY_FINDING_CONTRACTS,
   OBSERVATION_CAPTURE_CONTRACTS,
+  RESPONSE_SHAPES_CONTRACTS,
   LABEL_REVISION_AT_DECOMPOSITION_CONTRACTS,
   UNMET_CRITERION_AT_REVIEW_CONTRACTS,
   RELEASE_ANSWER_NOT_INFERRED_CONTRACTS,
@@ -797,6 +798,15 @@ module.exports = [
     'a clean verdict ends the fix loop the same way attended or unattended, in both implement\'s ' +
       'Invariants and review\'s own fix loop, and a finding the loop leaves outside its fix list is a follow-up, ' +
       'never a fourth cycle',
+  ),
+  table(
+    'response-shapes',
+    RESPONSE_SHAPES_CONTRACTS,
+    'references/response-shapes.md defines the Next block, its variants, where it applies, and the ' +
+      "brainstorm report; skills/brainstorm/SKILL.md cites the block's rule and the report shape, every " +
+      'other covered skill cites the block\'s rule, review and document state that a run under `--chained` prints no block, ' +
+      "and implement extends the rule to the next command run handoff prints; review, document, and " +
+      'run-handoff.md say the conversation is disposable before the printed command, which comes last',
   ),
   table(
     'fix-loop-fixes-every-finding',

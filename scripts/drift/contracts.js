@@ -5714,9 +5714,9 @@ const DOCUMENT_SUBMITTED_CONTRACTS = [
   ],
   [
     path.join('skills', 'document', 'SKILL.md'),
-    /print\s*\n?\s*`\/superdev:verify-ship <scope>`[,;][\s\S]{0,200}?when it read `closed`, print nothing/,
+    /print\s*\n?\s*`\/superdev:verify-ship <scope>`[,;][\s\S]{0,200}?when it read `closed`, the Next block says no command follows/,
     'print `/superdev:verify-ship <scope>` as the next command when the leave-alone branch read `shipped`, ' +
-      'and nothing at `closed`',
+      'and the no-successor line at `closed`',
   ],
   [
     'README.md',
@@ -5968,7 +5968,99 @@ const BACKLOG_VERIFY_WRAP_UP_CONTRACTS = [
   ],
 ];
 
+// The Next block and the brainstorm report are Response shapes (ADR 0113), each defined once in
+// `references/response-shapes.md`. A covered skill cites the definition and restates none of it
+// (INV-0111, INV-0112), so a skill that loses its citation leaves the shape defined and unused, and the
+// last message of that command goes back to wherever the agent chose to put its next command. The rows
+// pin the reference's own definitions: the block's parts, its variants, where it applies
+// (every exit, an unattended run, the chained posture, an `AskUserQuestion` turn), and the brainstorm
+// report's sections, `skills/brainstorm/SKILL.md`'s citation of each, one citation per other covered skill,
+// the sentence that a `--chained` run prints no block, and `implement`'s clause extending the rule to the
+// next command run handoff prints, and the order of the close in `review`, `document`, and
+// `references/run-handoff.md`: the disposable-conversation note before the printed command, the command last.
+// Either path form satisfies a citation: the `${CLAUDE_PLUGIN_ROOT}` macro or a bare prose path.
+// ponytail: `scanContract` takes positive patterns only, so an instruction added after the printed command
+// is not caught as such. The order rows catch reordering, removal, or loss of the "last" wording. The
+// upgrade path is a negative pattern over the text that follows the print instruction.
+const RESPONSE_SHAPES_CONTRACTS = [
+  [
+    path.join('references', 'response-shapes.md'),
+    /closes with the Next block[\s\S]{0,300}`### Next` heading[\s\S]{0,150}fenced code block[\s\S]{0,100}One line on what that command does[\s\S]{0,300}Nothing follows the block/,
+    'define the Next block as a `### Next` heading, the next command in a fenced code block, and one line ' +
+      'on what that command does, with nothing after it (ADR 0113, INV-0111)',
+  ],
+  [
+    path.join('references', 'response-shapes.md'),
+    /`Blocked: <reason>` on a line before the fence[\s\S]{0,300}`First: <action>` on a line before the fence[\s\S]{0,300}No successor/,
+    'define the Next block\'s variants: `Blocked: <reason>` and `First: <action>` before the fence, ' +
+      'and the one line a command with no successor writes',
+  ],
+  [
+    path.join('references', 'response-shapes.md'),
+    /Every exit\.\*\*[\s\S]{0,300}unattended run\*\* prints the same block[\s\S]{0,300}chained posture\*\* prints no block[\s\S]{0,300}`AskUserQuestion` call\*\* has not ended the command/,
+    'state that the Next block ends every exit, that an unattended run prints it too, that the chained ' +
+      'posture prints none, and that a turn stopping on an `AskUserQuestion` call has not ended the command',
+  ],
+  [
+    path.join('references', 'response-shapes.md'),
+    /One opening line\.\*\* The verdict[\s\S]{0,100}intent file[\s\S]{0,300}`### Settled`[\s\S]{0,200}`### Rejected`[\s\S]{0,200}`### Still open`[\s\S]{0,200}`### Findings`[\s\S]{0,300}Leave out a section with no bullet\. The Next block is always present/,
+    'define the brainstorm report as an opening line with the verdict and the intent file\'s path, then ' +
+      '`### Settled`, `### Rejected`, `### Still open`, and `### Findings`, an empty section left out and the ' +
+      'Next block always present (ADR 0113, INV-0112)',
+  ],
+  [
+    path.join('skills', 'brainstorm', 'SKILL.md'),
+    /closes with the Next block, per `(?:\$\{CLAUDE_PLUGIN_ROOT\}\/)?references\/response-shapes\.md`'s `## The Next block`/,
+    'cite `references/response-shapes.md`\'s `## The Next block` as the close of every message it ends on ' +
+      '(INV-0111)',
+  ],
+  [
+    path.join('skills', 'brainstorm', 'SKILL.md'),
+    /brainstorm report, per `(?:\$\{CLAUDE_PLUGIN_ROOT\}\/)?references\/response-shapes\.md`'s `## The brainstorm report`/,
+    'cite `references/response-shapes.md`\'s `## The brainstorm report` at its hand-off (INV-0112)',
+  ],
+  // One citation per other covered command, written once near the top of its skill. The skill states the
+  // rule once and the reference carries every exit, so one row per skill pins the whole command.
+  ...['plan', 'implement', 'review', 'document', 'submit-pr', 'ship', 'verify-ship', 'wrap-up'].map((skill) => [
+    path.join('skills', skill, 'SKILL.md'),
+    /closes with the Next block, per `(?:\$\{CLAUDE_PLUGIN_ROOT\}\/)?references\/response-shapes\.md`'s `## The Next block`/,
+    `cite \`references/response-shapes.md\`'s \`## The Next block\` as the close of every message ${skill} ends on ` +
+      '(INV-0111)',
+  ]),
+  // `/superdev:review` and `/superdev:document` are the covered commands that run as `/superdev:sweep` legs
+  // under `--chained`, so each states that a run under
+  // `--chained` prints no Next block: its reader is `/superdev:sweep`, not the operator.
+  ...['review', 'document'].map((skill) => [
+    path.join('skills', skill, 'SKILL.md'),
+    /A run under `--chained` prints no Next block/,
+    `state that a ${skill} run under \`--chained\` prints no Next block`,
+  ]),
+  // The disposable-conversation note is said before the printed command, so the command is the last
+  // line and the Next block closes the message. One row per site that carries the note.
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /Say first that this conversation is disposable[\s\S]{0,200}Then print the next command, last, so the Next block closes the message/,
+    'say the conversation is disposable before the next command, and print the command last (INV-0111)',
+  ],
+  [
+    path.join('skills', 'document', 'SKILL.md'),
+    /Where a command is printed, say first that the conversation is disposable[\s\S]{0,250}Then print the command, last, so the Next block closes the message/,
+    'say the conversation is disposable before the next command, and print the command last (INV-0111)',
+  ],
+  [
+    path.join('references', 'run-handoff.md'),
+    /say the conversation is disposable\*\*[\s\S]{0,400}Print the next command, resolved[\s\S]{0,1200}so it comes last/,
+    'report the conversation as disposable before the next command, and print the command last (INV-0111)',
+  ],
+  [
+    path.join('skills', 'implement', 'SKILL.md'),
+    /That covers the next command run handoff prints/,
+    'state that the Next block rule covers the next command run handoff prints',
+  ],
+];
+
 module.exports = {
+  RESPONSE_SHAPES_CONTRACTS,
   BACKLOG_VERIFY_WRAP_UP_CONTRACTS,
   OBSERVATION_CAPTURE_CONTRACTS,
   CLEAN_VERDICT_ENDS_LOOP_CONTRACTS,

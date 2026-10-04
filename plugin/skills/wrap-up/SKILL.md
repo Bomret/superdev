@@ -11,6 +11,8 @@ Check that a shipped scope is fully settled, then close its anchor and take the 
 INV-0099). It dispatches no subagents and carries no unattended mode of its own: only a human runs this
 command (INV-0066, INV-0093). It commits nothing to base (INV-0001).
 
+Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111).
+
 ## 1. Scope + run root
 
 Resolve `$ARGUMENTS` to one scope — a **run root**, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
@@ -112,4 +114,4 @@ snapshot per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing r
 
 `.superdev/kb-pending/<scope>/` holds staged pages → print `/superdev:publish-kb <scope>` with one line on
 when to run it: once the feature has reached its readers, which is later than this close. **No staged
-pages** → print nothing.
+pages** → the Next block says no command follows.

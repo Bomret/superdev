@@ -2561,6 +2561,25 @@ contract above pins its statement instead — and that contract's last row pins
 `references/implement-lite.md` by name, since the derived check cannot reach a tier that dispatches
 nobody either.
 
+The `response-shapes` contract (ADR 0113, INV-0111, INV-0112): `references/response-shapes.md` defines
+each Response shape once, and a covered skill cites the definition and restates none of it. Rows pin
+the reference's own definitions: the Next block's parts (a `### Next` heading, the next command in a
+fenced code block, one line on what it does, nothing after it), its variants (`Blocked: <reason>`
+and `First: <action>` before the fence, and the one line a command with no successor writes), where it
+applies (every exit, an unattended run, the chained posture, an `AskUserQuestion` turn), and the
+brainstorm report's opening line and sections. `skills/brainstorm/SKILL.md` has rows for its
+citation of the block's rule and of the report shape. Each other covered skill (`plan`, `implement`,
+`review`, `document`, `submit-pr`, `ship`, `verify-ship`, `wrap-up`) has a row for its single citation of
+the block's rule near its top. `review` and `document`, the covered commands that run as `/superdev:sweep` legs under `--chained`, carry a second row for
+the sentence that a run under `--chained` prints no block, and `implement` carries one for the clause that
+extends the rule to the next command run handoff prints. `review`, `document`, and
+`references/run-handoff.md` each carry a row pinning the order of their close: the note that the
+conversation is disposable comes first and the printed command comes last, so the Next block closes the
+message. A skill that loses its citation leaves the shape defined and
+unused, and its last message goes back to wherever the agent puts its next command. The selftest cuts
+the span each row matches out of the shipped document and requires exactly that row's gap, so every row
+is proved to fire.
+
 The `label-revision-at-decomposition` contract pins rows on `skills/plan/SKILL.md`: §1 states, where it
 picks the feature label, that a later answer that changes what the feature does revises the label in
 place; §3 restates the same clause at the decomposition step, where cutting slices is what most often

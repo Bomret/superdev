@@ -914,3 +914,21 @@ Statement: `/superdev:plan` never offers or seeds from a `.superdev/brainstorm/*
 Breaks: silently
 Check: scripts/drift-check.js — plan's draft skip, refusal, and only-draft marker clause and brainstorm's draft write, keep-current clause, ready step, and start offer are pinned together
 Paths: plugin/skills/plan/SKILL.md, plugin/skills/brainstorm/SKILL.md
+
+### INV-0111
+
+Class: process
+Concepts: Next block, Response shape
+Statement: Every message that `/superdev:brainstorm`, `/superdev:plan`, `/superdev:implement`, `/superdev:review`, `/superdev:document`, `/superdev:submit-pr`, `/superdev:ship`, `/superdev:verify-ship`, or `/superdev:wrap-up` ends on closes with the Next block that `references/response-shapes.md` defines, and nothing follows it. This holds for a refusal, a blocked stop, an ad-hoc run, an unattended run, and a command with no successor. A command in the chained posture prints none. Each of those skills cites the reference and restates none of the block's shape (ADR 0113).
+Breaks: silently
+Check: scripts/drift-check.js — each covered skill's citation of the Next block rule; partial: nothing checks the message an agent prints
+Paths: plugin/references/response-shapes.md, plugin/references/run-handoff.md, plugin/skills/brainstorm/SKILL.md, plugin/skills/plan/SKILL.md, plugin/skills/implement/SKILL.md, plugin/skills/review/SKILL.md, plugin/skills/document/SKILL.md, plugin/skills/submit-pr/SKILL.md, plugin/skills/ship/SKILL.md, plugin/skills/verify-ship/SKILL.md, plugin/skills/wrap-up/SKILL.md
+
+### INV-0112
+
+Class: process
+Concepts: Response shape
+Statement: A report that `references/response-shapes.md` gives a shape is made of an opening line, section headings, and one-line bullets, closes on the Next block, and carries no paragraph of prose (ADR 0113).
+Breaks: silently
+Check: scripts/drift-check.js — brainstorm's citation of its report shape; partial: nothing checks the message an agent prints
+Paths: plugin/references/response-shapes.md, plugin/skills/brainstorm/SKILL.md

@@ -413,6 +413,12 @@ _Avoid: "backend config" (that is the whole `docs/agents/knowledge-base.md`, of 
 **Feature specification**: the KB's one-page-per-feature document, carrying the problem, the solution shape, and the Definition of Done, written for the KB's audiences and language. Distinct from a slice's own `spec`: this is one per-feature narrative for readers, not a per-slice implementer contract.
 _Avoid: "PRD" (implies business-case and persona content this doc does not carry), "specification" alone (collides with the per-slice `spec` field)_
 
+**Response shape**: a fixed layout for a message a command shows the operator, defined once in `references/response-shapes.md`. A skill cites the shape it uses and restates none of it (ADR 0113).
+_Avoid: "template" alone (a knowledge base's **Backend command contract** templates are shell commands), "output style" (a Claude Code setting that changes every session, not one command's message)_
+
+**Next block**: the `### Next` section that closes a covered command's last message, holding the next command and one line on what it does, defined once in `references/response-shapes.md` (ADR 0113, INV-0111).
+_Avoid: "handoff" (run handoff is the closing procedure of an execution playbook), "call to action"_
+
 ## Roles
 
 The subagents the controller dispatches. Each runs in isolated context and only its result returns. **Controller** and **Final-reviewer** carry discipline beyond their name, defined under _Controller discipline_ and _Review discipline_ above.

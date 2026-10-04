@@ -9,6 +9,8 @@ argument-hint: "[an intent, or nothing]"
 Turn an intent into a set of **independently-green vertical slices** with explicit dependencies, written
 to the slice store, ready for `/superdev:implement`. Interactive — this needs the user's judgment.
 
+Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111).
+
 ## 0. Config
 
 Read `docs/agents/issue-tracker.md` (the slice store). Missing → run **`/superdev:setup`** first, then
@@ -559,8 +561,7 @@ may proceed once this feature is released, never whether to release it now, so i
 and a correction the user names on seeing the list is applied to the store before the question is put
 again.
 
-Then **print the next command with
+Every command in the chain hands off by printing its next command (ADR 0013), and the feature label is also what
+fixes the run's scope, its branch, and its run root. Then **print the next command with
 the feature label resolved** — `/superdev:implement <feature-label>`, carrying the real label this plan
 wrote, in the shape `docs/agents/issue-tracker.md` states (ADR 0019) — so the line is copy-pasteable.
-Every command in the chain hands off this way (ADR 0013), and the label is also what fixes the run's
-scope, its branch, and its run root.

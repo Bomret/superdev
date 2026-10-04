@@ -14,6 +14,8 @@ unattended mode of its own: only a human runs this command (ADR 0096). Calling i
 to merge, so nothing here asks a second question once the gate below has passed, except one: under `auto`, §5 asks
 before it deploys a `docs/agents/deployment.md` nobody was shown (ADR 0104).
 
+Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111).
+
 ## 1. Scope + run root
 
 Resolve `$ARGUMENTS` to one scope — a **run root**, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s

@@ -11,6 +11,8 @@ docs have been reconciled — this command turns that into a pull request. It le
 the scopetree, the slicetrees, and the run lock stay, and `/superdev:wrap-up` is what takes them down, after
 the pull request merges and `/superdev:verify-ship` has run. It dispatches no subagents.
 
+Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111).
+
 ## 1. Scope + run root
 
 **`--unattended`, if present, comes out first** — per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
@@ -160,10 +162,9 @@ section. The run stands: the scopetree, the slicetrees, and the run lock stay in
 anchor stays open. `/superdev:wrap-up` closes it, after the merge and
 `/superdev:verify-ship`, and takes the run's scaffolding down.
 
-**Print `/superdev:ship <scope>` as the next command.** One line on what it does: it merges the pull
-request once an operator has reviewed it, applies the repository's deploy posture to the merge, and stops
-there, printing `/superdev:verify-ship <scope>` next. `/superdev:wrap-up` closes the scope anchor
-and cleans up the run afterwards.
-
 This is the chain's own end. `/superdev:submit-pr` hands off to `/superdev:ship`, and only a human runs
 that, then `/superdev:verify-ship` and `/superdev:wrap-up`.
+
+**Print `/superdev:ship <scope>` as the next command.** One line on what it does: it merges the pull
+request once an operator has reviewed it, applies the repository's deploy posture to the merge, and stops
+there, printing `/superdev:verify-ship <scope>` next.

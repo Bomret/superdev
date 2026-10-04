@@ -42,7 +42,7 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          documentation convention, controlled-prose, content-types, doc pass, run init,
                          run handoff, execution playbooks, test-selection, scope-mode, authoring
                          disciplines, design sketch, diagnosis, prototype, merge-conflicts,
-                         review-checklist, dod-ticks); its own AGENTS.md routes them
+                         review-checklist, dod-ticks, response-shapes); its own AGENTS.md routes them
   scripts/             — the runtime CLIs: `scope.js`, `kb-patch.js`, `publish-kb.js`, `profile.js`, and the
                          `md-to-storage.js` module `publish-kb.js` requires
   LICENSE · NOTICE     — copies of the root files, so the shipped tree carries its own attribution
@@ -236,7 +236,8 @@ This root owns every other subtree directly:
   rules, Backends are pluggable**: stay backend-agnostic and never hardcode a backend. Behaviour contracts
   live in the files. Claude Code merges plugin skills and commands into one `/superdev:<name>` surface.
   implement → review → document → submit-pr is the chain a scope walks, each skill printing the next
-  (ADR 0013). `/superdev:ship` is a separate, human-only command: it merges the pull request submit-pr
+  (ADR 0013). Every command listed in `references/response-shapes.md`'s Next block section closes its last
+  message with that block (ADR 0113). `/superdev:ship` is a separate, human-only command: it merges the pull request submit-pr
   opened, deploys the merge under the repository's deploy posture (`none`/`manual`/`auto`,
   `docs/agents/deployment.md`, ADR 0101), and stops there (ADR 0106). `/superdev:verify-ship` then settles
   the criteria only a deployed system can show, and `/superdev:wrap-up` closes the scope anchor and takes
