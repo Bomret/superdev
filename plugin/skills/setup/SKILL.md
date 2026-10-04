@@ -257,9 +257,10 @@ Then ask about the **writing standard** — the prose style the doc agents apply
 - **`none`**: no standard.
 
 Record the answer as the `## Writing standard` section of `docs/agents/documentation.md`. On
-`controlled`, point the user at that file's *Declare per language* section: spelling convention, compound
-formation, and number format are the repo's to answer, and answering them later means two writers have
-already disagreed.
+`controlled`, point the user at the standard's *Declare per language* section
+(`references/controlled-prose.md`) and record the repo's answers under a `### Declare per language`
+heading in that same `docs/agents/documentation.md`: spelling convention, compound formation, and number
+format are the repo's to answer, and answering them later means two writers have already disagreed.
 
 Then ask which **documentation sits outside the default tree**. `/superdev:document audit` reads the
 `AGENTS.md` hierarchy, `README.md`, `CONTEXT.md`, and the local knowledge-base pages on its own; anything

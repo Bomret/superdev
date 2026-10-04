@@ -506,9 +506,8 @@ irreversible and is exactly the silent-drop it exists to prevent. Delete only th
 **Tell the user the expected execution tier** — informational only; `/superdev:plan` persists it nowhere.
 `/superdev:implement` derives it fresh from the final slice count — **≤3 slices → `lite`** (the
 controller implements each slice inline in a single scopetree, no per-slice review), **>3 slices →
-`full`** (parallel slicetrees + implementer/reviewer subagents). Either tier hands off once
-every slice is on the scope branch — to `/superdev:review`, or straight to `/superdev:document` when
-every slice is `mechanical` or `docs` (ADR 0025).
+`full`** (parallel slicetrees + implementer/reviewer subagents). Either tier hands off to
+`/superdev:review` once every slice is on the scope branch, whatever the slices' types (ADR 0091).
 
 **Cut the scopetree now, if `<run-root>/scopetree` does not exist yet.** An append onto a `planned` ledger
 already carries the branch and the scopetree from the earlier plan run, whatever this session's interview
