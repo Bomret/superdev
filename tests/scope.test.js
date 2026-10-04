@@ -3268,6 +3268,86 @@ try {
     r = call(['dod-line', '--match', 'the widget renders', '--verdict', 'met', '--note', 'ok'], noHeading);
     assert.ok(r.ok, 'a body with no DoD heading still matches over the whole body: ' + (r.err || ''));
   }
+
+  // dod-line: a note already opening with the verdict's own label carries that label once.
+  {
+    const body = '- [ ] the widget renders — 01';
+    r = call(['dod-line', '--match', 'the widget renders', '--verdict', 'met', '--note', 'met: ok'], body);
+    assert.strictEqual(r.out, '- [x] the widget renders — 01 — met: ok', 'own label written once: ' + r.out);
+    r = call(['dod-line', '--line', '--match', 'the widget renders', '--verdict', 'not-met', '--note', 'not met: red'], body);
+    assert.ok(r.out.includes('— not met: red') && !r.out.includes('not met: not met'), '--line: own label once: ' + r.out);
+    r = call(['dod-line', '--match', 'the widget renders', '--verdict', 'met', '--note', 'not met: x'], body);
+    assert.ok(r.out.includes('— met: not met: x'), "another verdict's label is note text, kept: " + r.out);
+  }
+
+  // dod-line fails closed: no matching line → nothing on stdout, the criterion on stderr, exit 1 —
+  // the empty stdout is what a store's gated body edit refuses to send (ADR 0115).
+  for (const mode of [[], ['--line']]) {
+    const res = cp.spawnSync(
+      process.execPath,
+      [scopePath, 'dod-line', ...mode, '--match', 'absent criterion', '--verdict', 'met', '--note', 'ok'],
+      { input: '- [ ] the widget renders — 01', encoding: 'utf8', timeout: 30000 }
+    );
+    assertSpawnDecided(res, 'dod-line no-match ' + mode.join(''));
+    assert.strictEqual(res.status, 1, 'no match exits 1');
+    assert.strictEqual(res.stdout, '', 'no match prints nothing on stdout');
+    assert.ok(res.stderr.includes('absent criterion'), 'no match names the criterion on stderr: ' + res.stderr);
+  }
+
+  // --help / -h: usage on stdout, exit 0, before any verb reads stdin. stdin is /dev/zero, which never
+  // ends, so a verb that waits on stdin first is killed by the (loose, qualitative) bound instead.
+  {
+    const ledgerBefore = fs.readdirSync(tmp).join(',');
+    const endless = fs.openSync('/dev/zero', 'r');
+    try {
+      for (const argv of [['--help'], ['-h'], ['dod-line', '--help'], ['init', '--help'], ['adopt', '--help'], ['deferred', 'add', '-', '-h']]) {
+        const res = cp.spawnSync(process.execPath, [scopePath, ...argv], {
+          cwd: tmp,
+          stdio: [endless, 'pipe', 'pipe'],
+          encoding: 'utf8',
+          timeout: 30000,
+        });
+        assertSpawnDecided(res, argv.join(' '));
+        assert.strictEqual(res.status, 0, argv.join(' ') + ' exits 0: ' + res.stderr);
+        assert.ok(res.stdout.includes('usage: node scope.js'), argv.join(' ') + ' prints the usage');
+      }
+    } finally {
+      fs.closeSync(endless);
+    }
+    assert.strictEqual(fs.readdirSync(tmp).join(','), ledgerBefore, '--help writes nothing');
+  }
+
+  // A `-h` / `--help` that is a flag's value or a bullet's text is data, not a request for usage: inside a
+  // store's gated body-edit chain the usage text would pass `[ -s ]` and replace the anchor body.
+  {
+    const spawnScope = (argv, input) =>
+      cp.spawnSync(process.execPath, [scopePath, ...argv], { cwd: tmp, input, encoding: 'utf8', timeout: 30000 });
+    let res = spawnScope(['dod-line', '--match', 'x', '--verdict', 'met', '--note', '-h'], '- [ ] x — 01\n');
+    assertSpawnDecided(res, 'dod-line --note -h');
+    assert.strictEqual(res.status, 0, 'dod-line --note -h exits 0: ' + res.stderr);
+    assert.ok(res.stdout.includes('- [x] x — 01 — met: -h'), '-h is written as the note: ' + res.stdout);
+    assert.ok(!res.stdout.includes('usage:'), 'no usage text replaces the body');
+
+    const root = path.join(tmp, '.superdev', 'scopes', 'demo');
+    res = spawnScope(['unresolved', 'add', '-h', '--root', root]);
+    assertSpawnDecided(res, 'unresolved add -h');
+    assert.strictEqual(res.status, 0, 'unresolved add -h exits 0: ' + res.stderr);
+    assert.ok(!res.stdout.includes('usage:'), 'unresolved add -h prints no usage');
+    res = spawnScope(['get', 'unresolved', '--root', root]);
+    assert.ok(res.stdout.includes('-h'), 'unresolved add -h records -h: ' + res.stdout + res.stderr);
+
+    // Every token after `add` / `add-denial` is bullet text, not just the first.
+    res = spawnScope(['unresolved', 'add', 'foo', '-h', '--root', root]);
+    assertSpawnDecided(res, 'unresolved add foo -h');
+    assert.ok(!res.stdout.includes('usage:'), 'unresolved add foo -h prints no usage');
+    res = spawnScope(['get', 'unresolved', '--root', root]);
+    assert.ok(res.stdout.includes('foo -h'), 'unresolved add foo -h records "foo -h": ' + res.stdout + res.stderr);
+    res = spawnScope(['degraded', 'add-denial', '-h', '--root', root]);
+    assertSpawnDecided(res, 'degraded add-denial -h');
+    assert.ok(!res.stdout.includes('usage:'), 'degraded add-denial -h prints no usage');
+    res = spawnScope(['get', 'degraded', '--root', root]);
+    assert.ok(res.stdout.includes('-h'), 'degraded add-denial -h records -h: ' + res.stdout + res.stderr);
+  }
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true });
 }

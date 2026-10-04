@@ -339,6 +339,75 @@ function scanStoreSectionContract(root, heading) {
   return gaps;
 }
 
+// scanBodyEditContract() holds ADR 0115 / INV-0115 on every store document: one **Edit an issue's body**
+// bullet states the gated rule (the edit runs only after `&&` on a producer that exited 0 and a `[ -s ]`
+// non-empty file), every issue body-edit call in the fence-masked text takes its body from a named file
+// variable (an allowlist), and the `## Definition of Done ticks` section names how the body is taken out
+// of the read response (`jq`). A create keeps its heredoc stdin — nothing upstream of it can fail.
+// A body-edit call is `issues edit` / `issue edit` with a body flag, or a `PATCH` / `PUT` aimed at a bare
+// issue path (`/issues/<id>`, `/issue/<id>`, no sub-resource) that carries a body payload. Its window runs
+// from the code span's start to the sentence end, so a method and its payload in adjacent spans pair up.
+const BODY_FILE_VALUE = /^(?:@?"\$[fp]"|"\$\(cat "\$f"\)")$/; // "$f", "$p", @"$p", "$(cat "$f")"
+const BODY_VALUE = '("\\$\\((?:[^")]|"[^"]*")*\\)"|"[^"]*"|\'[^\']*\'|\\S+)';
+const BODY_FLAG = new RegExp(
+  '(?<=\\s)(?:--input|--json|-d|--data(?:-[a-z]+)?|--description(?:-file)?|--body(?:-file)?|-b|-T|--upload-file|-F(?!\\s+[\\w-]+=))(?:=|\\s+)' + BODY_VALUE,
+  'g',
+);
+const BODY_FIELD = new RegExp('(?<=\\s)(?:-f|-F|--field|--raw-field)\\s+["\']?(?:body|description)=(@?)' + BODY_VALUE, 'g');
+const ISSUE_PATH = /\/issues?\/[^\s/`'"]+(?=[\s`'")]|$)/;
+function bodyEditHasGap(call, editVerb) {
+  if (/"(?:body|description)"\s*:/.test(call)) return true; // an inline JSON payload
+  const values = [...call.matchAll(BODY_FLAG)].map((m) => m[1]);
+  for (const m of call.matchAll(BODY_FIELD)) values.push(m[1] + m[2]);
+  // a PATCH/PUT may also carry a literal JSON payload that names no body (a close, a label change)
+  const ok = (v) => BODY_FILE_VALUE.test(v) || (!editVerb && /^(['"])\{[^$]*\}\1$/.test(v));
+  return values.some((v) => !ok(v));
+}
+function bodyEditCalls(masked) {
+  const calls = [];
+  const end = (from) => {
+    const rest = masked.slice(from, from + 400);
+    const cut = rest.search(/\.(?=\s|$)|\n\s*\n|\n- /);
+    return cut === -1 ? rest : rest.slice(0, cut);
+  };
+  for (const m of masked.matchAll(/\bissues? edit\b/g)) {
+    const rest = masked.slice(m.index, m.index + 240);
+    const tick = rest.indexOf('`');
+    calls.push({ text: ' ' + (tick === -1 ? rest : rest.slice(0, tick)), edit: true });
+  }
+  for (const m of masked.matchAll(/(?:(?<![A-Za-z])|(?<=-X))(?:PATCH|PUT)\b/g)) {
+    const start = Math.max(masked.lastIndexOf('`', m.index), m.index - 200);
+    const text = ' ' + masked.slice(start, m.index) + end(m.index);
+    if (ISSUE_PATH.test(text)) calls.push({ text, edit: false });
+  }
+  return calls;
+}
+function scanBodyEditContract(root) {
+  const gaps = [];
+  for (const rel of storeDocuments(root, { dir: ANCHOR_DOCS_DIR, extra: EXTRA_ANCHOR_DOCS })) {
+    const text = readDoc(root, rel);
+    if (text === null) continue;
+    const masked = maskFences(text);
+    const rule = masked.match(/^- \*\*Edit an issue's body[\s\S]*?(?=\n- |\n\n|(?![\s\S]))/m);
+    if (!rule) {
+      gaps.push({ source: rel, expectation: "carry an **Edit an issue's body** bullet stating the gated body-edit rule" });
+    } else if (!/&&/.test(rule[0]) || !/\[ -s /.test(rule[0])) {
+      gaps.push({
+        source: rel,
+        expectation: "gate the edit in its **Edit an issue's body** bullet on the producer's exit status (`&&`) and a non-empty file (`[ -s`)",
+      });
+    }
+    if (bodyEditCalls(masked).some((c) => bodyEditHasGap(c.text, c.edit))) {
+      gaps.push({ source: rel, expectation: 'edit a body only from a named file variable ("$f", "$p", @"$p"), never from stdin, a substitution, or an inline payload' });
+    }
+    const ticks = extractSection(text, specialisingHeading('Definition of Done ticks'));
+    if (ticks && !/\bjq\b/.test(ticks)) {
+      gaps.push({ source: rel, expectation: 'name, in its tick section, how the body is extracted from the read response' });
+    }
+  }
+  return gaps;
+}
+
 function scanRunStateContract(root) {
   return scanStoreSectionContract(root, 'Run state');
 }
@@ -1427,6 +1496,7 @@ module.exports = {
   scanReleaseContract,
   scanRunStateContract,
   scanDodTicksContract,
+  scanBodyEditContract,
   scanTriageRecordContract,
   scanUntriagedContract,
   scanSpecialisingCitations,

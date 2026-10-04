@@ -36,10 +36,10 @@ Auth header: `-u "$JIRA_EMAIL:$JIRA_API_TOKEN"`, `-H "Content-Type: application/
   `{ "type": {"name":"Blocks"}, "inwardIssue":{"key":"<this slice>"}, "outwardIssue":{"key":"<blocker>"} }`
   so the slice is "blocked by" its blocker.
 - **Record an anchor dependency**: append a `**Blocked by feature:** <blocker-key>` line to the **anchor
-  issue's own** description (an ADF body edit) — never the "is blocked by" link above, kept distinct so the
+  issue's own** description (a body edit through **Edit an issue's body** below) — never the "is blocked by" link above, kept distinct so the
   two relations never collide on one issue.
 - **Record the deploy line**: append `**Deploy:** <target>[, <target>]` (in the operator's answer order)
-  or `**Deploy:** none` to the **anchor issue's own** description (an ADF body edit), revising the line
+  or `**Deploy:** none` to the **anchor issue's own** description (a body edit through **Edit an issue's body** below), revising the line
   in place on an append that re-answers the deploy question. Never the "is blocked by" link, kept distinct
   so the deploy line and the anchor dependency never collide (ADR 0101).
 - **List feature slices**:
@@ -49,6 +49,20 @@ Auth header: `-u "$JIRA_EMAIL:$JIRA_API_TOKEN"`, `-H "Content-Type: application/
   `/search/jql` defaults `fields` to `id`, where the deprecated endpoint defaulted to `*navigable`, so a
   query that omits the parameter returns bare issue IDs with a `200` and nothing to read.
 - **Read a slice**: `GET <base>/rest/api/3/issue/<key>?fields=summary,description,status,issuelinks`.
+- **Edit an issue's body** (its `description` field): read the current description into a file, build
+  the new one into a file, wrap it into the request payload as a file, and send the edit by path only
+  when every step succeeded: `curl -sf <auth> "<base>/rest/api/3/issue/<key>?fields=description" > "$r"
+  && jq -je .fields.description "$r" > "$b" && <producer> < "$b" > "$f" && [ -s "$f" ] && jq -n
+  --slurpfile d "$f" '{fields: {description: $d[0]}}' > "$p" && curl -sf <auth> -X PUT --data @"$p"
+  "<base>/rest/api/3/issue/<key>"`. `--slurpfile` carries an ADF description, a JSON node tree. On an
+  instance storing markdown or wiki markup, `--rawfile d "$f"` and `$d` carry the text instead. `-f`
+  makes `curl` exit non-zero on an HTTP error, so a failed read stops the chain. `<auth>` is the auth
+  header above. `<producer>` is what builds the new description from `"$b"`: the tick, the run-state fold, or a line append. Name each file
+  with `mktemp`. A failed read, a response without a description, a failed producer, an empty result, or
+  a failed payload build stops the chain before the edit, and the description stays as it was. Every
+  description edit in this document goes through this rule. A producer's stdout is never spliced into
+  the payload inline: that drops the producer's exit status, and Jira takes an empty description as a
+  new one (ADR 0115). A create keeps its inline payload, because nothing upstream of it can fail.
 - **Update status**: transition via `POST <base>/rest/api/3/issue/<key>/transitions`
   (`todo` → `in-progress` → `in-review`/`done`). Look up transition ids with
   `GET .../transitions`.
@@ -256,13 +270,13 @@ mechanism is the same as Forgejo's and GitHub's. At setup, confirm which of the 
 strike the other, so `docs/agents/issue-tracker.md` states one posture, not both — `references/run-init.md`
 reads this section for a single yes-or-no answer to "does this store carry a snapshot":
 
-- **Write** (after any ledger write the snapshot would show): `PUT <base>/rest/api/3/issue/<key>` with
-  `{ "fields": { "description": <anchor description, folded per ## Publishing run state> } }` — the same
-  call and body shape the Epic amendment under *Append mode* below already uses. **Best-effort:** a failed
+- **Write** (after any ledger write the snapshot would show): the anchor description, folded per
+  `## Publishing run state`, through **Edit an issue's body** (*REST conventions*), the fold as its
+  producer — the same rule the Epic amendment under *Append mode* below uses. **Best-effort:** a failed
   write is reported once per run and the run continues; the ledger stays authoritative.
 - **Read** (every publish, including run init and adopting a run): `GET <base>/rest/api/3/issue/<key>?fields=description` — the same
-  field the **Read an anchor's dependencies** call above already reads — and take the description back
-  out of the response.
+  field the **Read an anchor's dependencies** call above already reads — and take the description out of
+  the response with `jq -je .fields.description`, per **Edit an issue's body**.
 - **The section is machine-owned.** A deeper subsection an operator adds under `## Run state` — a
   `### Operator notes` heading, say — is replaced along with the rest on the next publish. Keep an
   operator note outside the section.
@@ -283,26 +297,31 @@ report the gap if the live shape differs.
 
 - **Set a criterion to its judged state:** write the criterion text and the judgment's note each to
   their own file, through a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`) rather than as a shell-interpolated argument —
-  either may carry a quote, a backtick, or a `$(` (`references/dod-ticks.md`, triage #680). `GET <base>/rest/api/3/issue/<key>?fields=description`, find
-  the checklist line's text node whose text starts `[ ] ` or `[x] `, and pipe that text through
+  either may carry a quote, a backtick, or a `$(` (`references/dod-ticks.md`, triage #680). Then edit the
+  anchor description through **Edit an issue's body** (*REST conventions*): the read is
+  `GET <base>/rest/api/3/issue/<key>?fields=description`, the description taken out with
+  `jq -je .fields.description`. The producer takes the checklist line's text node whose text starts
+  `[ ] ` or `[x] ` out of `"$b"` with `jq -er`, into its own file, and runs
   `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js dod-line --line --match-file <path> --verdict
-  met|not-met|ceiling|accepted --note-file <path>` on stdin — `--line` transforms the one text-node string rather
-  than a markdown body, since an ADF body is a JSON node tree, not markdown lines — and set the node's
-  text to its stdout. Then `PUT <base>/rest/api/3/issue/<key>` with
-  `{ "fields": { "description": <amended ADF body> } }` — the same call shape the Epic amendment under
-  *Append mode* below uses. **Best-effort:** a failed write is reported once per run and never stops the
+  met|not-met|ceiling|accepted --note-file <path>` on that file — `--line` transforms the one text-node
+  string rather than a markdown body, since an ADF body is a JSON node tree, not markdown lines. Only when
+  `dod-line` exits 0 with non-empty output does a second `jq --rawfile` set the node's text to it, trimmed of the one trailing newline `--line`
+  prints (`rtrimstr("\n")`), and
+  write the amended ADF body to `"$f"`. On no matching line `dod-line` prints nothing and exits 1, so
+  the gate stops the edit. **Best-effort:** a failed write is reported once per run and never stops the
   run; `dod.md` stays authoritative.
 - **A criterion's tag renders as the issue `key`** (`PROJ-<n>`). `/superdev:plan` §6 writes the tag in
   `plan-contract.md`'s own notation (a slice `id`, or `scope`) when it creates the Epic, before any slice
   issue exists. Once every slice issue is created, the controller rewrites each slice-id tag into its
-  `key`, in the same parallel step **Link a dependency** above uses to write the "is blocked by" links —
+  `key`, in the same parallel step **Link a dependency** above uses to write the "is blocked by" links,
+  each rewrite a description edit through **Edit an issue's body** —
   both need the same resolved keys and both wait on the same event; a `scope` tag is left as `scope`.
 
 **On an instance storing the description as markdown or wiki markup** (the alternate posture `## Run
-state` above names), fetch the description the same way, pipe the whole body through the same
-`node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js dod-line` call in its default **body** mode rather than
-`--line` — the description is markdown lines here, not a JSON node tree — and write its stdout back the
-same way. No node-shape question applies.
+state` above names), the same **Edit an issue's body** chain runs with the whole description, taken out
+with `jq -je .fields.description`, as the producer's input, and the same
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js dod-line` call in its default **body** mode as the producer,
+rather than `--line` — the description is markdown lines here, not a JSON node tree. No node-shape question applies.
 
 ## Status workflow (fill in at setup)
 
@@ -344,8 +363,8 @@ ADR 0004).
   issue's own description** and is removed from the lone issue — the Epic is the anchor now. The
   `**Deploy:**` description line migrates the same way, for the same reason, and is removed from the
   lone issue. Nothing else about the lone issue changes.
-- **Amend the Epic's own description — the one sanctioned edit.** `PUT <base>/rest/api/3/issue/<epic key>`
-  with `{ "fields": { "description": <amended ADF body> } }` folds the interview's new criteria into the
+- **Amend the Epic's own description — the one sanctioned edit.** An edit of the Epic's description
+  through **Edit an issue's body** (*REST conventions*), the amended body as its result, folds the interview's new criteria into the
   Epic's Definition of Done in place, and, the same call, deletes a resolved parked question's line from
   the description's Parked questions block. Both are edits to the Epic issue's own description, never to a
   merged slice's issue — the never-edit rule above still holds for every slice.

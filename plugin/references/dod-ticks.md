@@ -129,9 +129,9 @@ together must have covered. Each write lands in two places:
 
 - **`<run-root>/dod.md`**, the run's own working copy.
 - **The scope anchor**, through the active slice store's own `## Definition of Done ticks` section
-  (every store document carries one), which fetches the checklist text and pipes it through
-  `scope.js dod-line` (`plan-contract.md` → *Definition of Done ticks*) for the line edit itself —
-  best-effort, the same posture every other anchor write in the chain takes.
+  (every store document carries one), which runs `scope.js dod-line` (`plan-contract.md` → *Definition of
+  Done ticks*) for the line edit itself through that store's gated **Edit an issue's body** rule (ADR
+  0115) — best-effort, the same posture every other anchor write in the chain takes.
 
 ## Pairing dod.md with the anchor
 

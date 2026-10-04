@@ -649,7 +649,9 @@ function verbDeployGet(root) {
 //
 // The one line edit every store's own `## Definition of Done ticks` section names (`plan-contract.md`
 // → *Definition of Done ticks*). `dod-line` touches no ledger and makes no store call: a store seed
-// pipes its own fetched body through it and writes back whatever comes out on stdout. Two modes share
+// takes the body out of its fetched response into a file, runs it through `dod-line`, and writes the
+// result back only through the gated **Edit an issue's body** chain (`&&` on every exit status, `[ -s ]`
+// on the output file). Two modes share
 // one core (`transformDodLines` below) — the default, a whole markdown body on stdin/stdout, and
 // `--line`, one checklist line in and one out, for the Jira seed's ADF text node, which is JSON, not
 // markdown lines.
@@ -855,14 +857,19 @@ function verbDodLine(args, stdinRaw) {
   }
   if (resolvedNote === undefined) fail('dod-line needs --note <text> or --note-file <path>');
   if (/[\n\r]/.test(resolvedNote)) fail('dod-line --note must not contain a newline — it would inject a free-text line into the body');
+  // The verb writes the verdict's own label itself, so a note already opening with it would carry it twice.
+  const ownLabel = `${DOD_VERDICTS[verdict].label}:`;
+  const noteText = resolvedNote.toLowerCase().startsWith(ownLabel)
+    ? resolvedNote.slice(ownLabel.length).trimStart()
+    : resolvedNote;
 
   if (lineMode) {
     const line = stdinRaw.replace(/\r?\n$/, '');
-    const [out] = transformDodLines([line], resolvedMatch, verdict, resolvedNote);
+    const [out] = transformDodLines([line], resolvedMatch, verdict, noteText);
     console.log(out);
     return;
   }
-  const out = transformDodLines(splitLines(stdinRaw), resolvedMatch, verdict, resolvedNote);
+  const out = transformDodLines(splitLines(stdinRaw), resolvedMatch, verdict, noteText);
   // process.stdout.write, not console.log: console.log always appends its own trailing newline, which
   // would double up on the one splitLines/join already reproduce when stdinRaw itself ended in one.
   process.stdout.write(out.join('\n'));
@@ -1506,6 +1513,7 @@ function verbRoot(cwd, slug) {
 function usage() {
   return [
     'usage: node scope.js <verb> …   (ledger CLI — the only ledger.md write path)',
+    '  --help, -h                         this text, with any verb; reads no stdin',
     '  init <type>/<slug> <stage>          stage is planned|implementing (ADR 0079, no default) —',
     '                                      stdin: {"anchor":"…","slices":[{id,issue,title,type,…}]}',
     '  stage set <value> --root <run-root>',
@@ -1685,8 +1693,26 @@ function isBulletStdinInvocation(argv) {
   return rest.length === 2 && BULLET_STDIN_SUBS.includes(rest[0]) && rest[1] === '-';
 }
 
+// `--help` / `-h` asks for usage unless it is the value of a flag that takes one or the text of a bullet
+// verb (`unresolved add -h`): those are data, and usage text standing in for them would be written on.
+const VALUE_FLAGS = ['--root', '--range', '--exit', '--branch', '--match', '--match-file', '--note', '--note-file', '--verdict'];
+function asksForHelp(argv) {
+  const rest = [];
+  for (let i = 0; i < argv.length; i++) {
+    if (VALUE_FLAGS.includes(argv[i])) i++;
+    else rest.push(argv[i]);
+  }
+  if (BULLET_STDIN_VERBS.includes(rest[0]) && (rest[1] === 'add' || rest[1] === 'add-denial') && rest[2] !== '-') rest.length = 2; // `-` reads stdin: no text on the command line
+  return rest.includes('--help') || rest.includes('-h');
+}
+
 function main() {
   const argv = process.argv.slice(2);
+  // Checked before any verb reads stdin, so `dod-line --help` and its stdin siblings never wait on input.
+  if (asksForHelp(argv)) {
+    console.log(usage());
+    return;
+  }
   const needsStdin =
     argv[0] === 'init' || argv[0] === 'adopt' || argv[0] === 'dod-line' || isBulletStdinInvocation(argv);
   const go = (stdinJson) => {

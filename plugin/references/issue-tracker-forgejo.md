@@ -84,21 +84,29 @@ where none does.
   `<n>` is known. Only the epic, then slices, then labels and depends-on ordering is required. Within each
   step the calls are independent, so `/plan` issues them concurrently.
 - **Record a dependency (`depends-on`):** append a `**Depends on:** #<blocker>` line to the issue body
-  (`tea issues edit <index> --description-file -`) when the instance's native
+  (through **Edit an issue's body** below) when the instance's native
   `tea api -i -X POST '/repos/{owner}/{repo}/issues/<index>/dependencies'` answers 404 (dependencies unit
   disabled); use the native endpoint when it is enabled.
 - **Record an anchor dependency:** append a `**Blocked by feature:** #<blocker-anchor>` line to the
   **anchor issue's own** body — the epic on a multi-slice feature, the lone slice issue on a single-slice
-  one. Always a body-append, never the native dependencies endpoint above, so the slice-level and
+  one. Always a body-append, through **Edit an issue's body** below, never the native dependencies endpoint above, so the slice-level and
   feature-level relations never collide on one issue (ADR 0040).
 - **Record the deploy line:** append `**Deploy:** <target>[, <target>]` (in the operator's answer order)
   or `**Deploy:** none` to the **anchor issue's own** body, revising the line in place on an append that
-  re-answers the deploy question. A body-append, like the anchor dependency above, never the native
-  dependencies endpoint (ADR 0101).
+  re-answers the deploy question. A body-append through **Edit an issue's body** below, like the anchor dependency above, never
+  the native dependencies endpoint (ADR 0101).
 - **List feature slices:** `tea issues list -o json --fields index,state,title,body,labels --labels
   <type>/<feature> --state all --page <p> --limit 50`, paged until a page returns fewer than 50 entries.
 - **Read a slice:** `tea issues <index> -o json`.
-- **Edit an issue's body:** `tea issues edit <index> --description-file -`, the whole new body on stdin.
+- **Edit an issue's body:** read the current body into a file, build the new body into a file, and edit
+  by path only when every step succeeded: `tea issues <index> -o json > "$r" && jq -je .body "$r" > "$b"
+  && <producer> < "$b" > "$f" && [ -s "$f" ] && tea issues edit <index> --description-file "$f"`.
+  `<producer>` is what builds the new body from `"$b"`: `scope.js dod-line`, the run-state merge, or a
+  line append. Name each file with `mktemp`. A failed read, a response without a `body` field, a failed
+  producer, or an empty result stops the chain before the edit, and the body stays as it was. Every body
+  edit in this document goes through this rule. Stdin from a pipe is never an edit's body source: a pipe
+  drops the producer's exit status, and `tea` takes empty input as a new, empty body (ADR 0115). A
+  create keeps its heredoc stdin, because nothing upstream of it can fail.
 - **Set labels and status:** labels by id (above), and `tea issues close <index>` to close.
 
 ## Degrade when no tea login
@@ -260,12 +268,13 @@ it carries neither a feature label nor the `<triage>` label.
 every other body section — the `epic`-labelled issue on a multi-slice feature, the lone slice issue on a
 single-slice one (`## Scope anchor` above).
 
-- **Write** (after any ledger write the snapshot would show): `tea issues edit <index> --description-file -`
-  with the anchor body, the `## Run state` section folded in, on stdin — the same call the epic amendment
-  under *Append mode* below already uses. **Best-effort:** a failed write is reported once per run and the
+- **Write** (after any ledger write the snapshot would show): the anchor body with the `## Run state`
+  section folded in, through **Edit an issue's body** (*tea conventions*), the merge as its producer — the
+  same rule the epic amendment under *Append mode* below uses. **Best-effort:** a failed write is reported once per run and the
   run continues; the ledger stays authoritative.
 - **Read** (every publish, including run init and adopting a run): `tea issues <index> -o json` — the same
-  call **Read a slice** above already names — and take the `body` back out of the response.
+  call **Read a slice** above already names — and take the `body` out of the response with `jq -je .body`,
+  per **Edit an issue's body**.
 - **The section is machine-owned.** A deeper subsection an operator adds under `## Run state` — a
   `### Operator notes` heading, say — is replaced along with the rest on the next publish. Keep an
   operator note outside the section.
@@ -278,12 +287,13 @@ not this store carries a snapshot.
 
 - **Tick a criterion:** write the criterion text and the judgment's note each to their own file, through
   a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`) rather than as a shell-interpolated argument — either may carry a quote, a
-  backtick, or a `$(` (`references/dod-ticks.md`, triage #680). `tea issues <index> -o json` (the same call *Run state*'s own
-  read above uses) for the anchor body, pipe it through
-  `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js dod-line --match-file <path> --verdict
-  met|not-met|ceiling|accepted --note-file <path>` on stdin, then `tea issues edit <index> --description-file -`
-  with `dod-line`'s stdout on stdin — the same call shape the *Run state* write above already
-  uses. **Best-effort:** a failed write is reported once per run and never stops the run; `dod.md` stays
+  backtick, or a `$(` (`references/dod-ticks.md`, triage #680). Then edit the anchor body through **Edit an
+  issue's body** (*tea conventions*): `tea issues <index> -o json` (the same call *Run state*'s own read
+  above uses), the markdown body taken out with `jq -je .body`, and
+  `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js dod-line --match-file <path> --verdict met|not-met|ceiling|accepted
+  --note-file <path>` as the producer, reading that body file on stdin. `dod-line` reads a markdown body,
+  never the JSON response. On no matching line it prints nothing and exits 1, so the gate stops the edit.
+  **Best-effort:** a failed write is reported once per run and never stops the run; `dod.md` stays
   authoritative.
 - **A criterion's tag renders as `#<n>`** (the slice issue's index). `/superdev:plan` §6 writes the tag
   in `plan-contract.md`'s own notation (a slice `id`, or `scope`) when it creates the epic, before any
@@ -333,8 +343,8 @@ ADR 0004).
   **migrates to the new epic issue's own body** and is removed from the lone issue — the epic is the anchor
   now. The `**Deploy:**` line migrates the same way, for the same reason, and is removed from the lone
   issue. Nothing else about the lone issue changes.
-- **Amend the epic's own body — the one sanctioned edit.** `tea issues edit <epic index>
-  --description-file -` with the amended body on stdin folds the interview's new criteria into the epic's
+- **Amend the epic's own body — the one sanctioned edit.** An edit of the epic's body through **Edit an
+  issue's body** (*tea conventions*), the amended body as its result, folds the interview's new criteria into the epic's
   Definition of Done in place, and, the same call, deletes a resolved parked question's line from the
   epic's `## Parked questions` section. Both are edits to the epic issue's own body, never to a merged
   slice's issue — the never-edit rule above still holds for every slice.

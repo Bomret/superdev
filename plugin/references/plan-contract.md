@@ -354,8 +354,9 @@ notation for the edit (INV-0014). The write **replaces** the line's previous not
 overwrites what an earlier one wrote there, never appending a second note beside it. **A write whose
 target state equals the line's current state — a `not met:` judgment landing on a line already
 unticked, say — only replaces the note; the marker stays as it was.** `scope.js dod-line` (`scripts/
-AGENTS.md` → *scope.js, the run-state CLI*) is the one line edit this shape describes: every store pipes
-its own fetched checklist text through it rather than performing the edit by hand.
+AGENTS.md` → *scope.js, the run-state CLI*) is the one line edit this shape describes: every store runs it on
+the checklist text its own read extracted, through its own gated body-edit rule (ADR 0115), rather than
+performing the edit by hand.
 
 `/superdev:plan` §6 writes a criterion's tag in `plan-contract.md`'s own notation (a slice `id`, or
 `scope`) because the epic is created before any slice exists, so no store-native identifier is known

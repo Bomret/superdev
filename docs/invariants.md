@@ -950,3 +950,12 @@ Statement: No slice-reviewer dispatch carries the implementer's report text. The
 Breaks: silently
 Check: scripts/drift-check.js — the blind-pass rows on `plugin/agents/slice-reviewer.md` and on the slice-reviewer dispatch in `plugin/references/implement-full.md`
 Paths: plugin/agents/slice-reviewer.md, plugin/references/implement-full.md
+
+### INV-0115
+
+Class: architecture
+Concepts: Scope anchor
+Statement: An edit to a scope anchor's body runs only when the read of the current body and the command that built the new body both succeeded and the new body is non-empty, and the edit reads that body from a file. A failed read, producer, or payload build leaves the anchor body as it was (ADR 0115).
+Breaks: silently
+Check: scripts/drift-check.js — every store document's edit-body rule carries the gate, no store document edits a body from stdin, and every tick section names its body extraction; partial: nothing checks the command a controller actually runs
+Paths: plugin/references/issue-tracker-*.md, docs/agents/issue-tracker.md, plugin/references/scope-mode.md

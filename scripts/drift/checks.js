@@ -22,6 +22,7 @@ const {
   scanReleaseContract,
   scanRunStateContract,
   scanDodTicksContract,
+  scanBodyEditContract,
   scanTriageRecordContract,
   scanUntriagedContract,
   scanSpecialisingCitations,
@@ -688,6 +689,12 @@ module.exports = [
       `${g.source} carries no \`## Run state\` section — expected it to state how this backend mirrors ` +
       'the ledger onto the scope anchor, or that it carries no snapshot at all; see ' +
       '`references/plan-contract.md` → *Run state*',
+  },
+  {
+    id: 'body-edit-contract',
+    ok: "every store document edits an issue body only through its gated **Edit an issue's body** rule, by file, and its tick section names the body extraction",
+    run: scanBodyEditContract,
+    format: (g) => `${g.source} fails to ${g.expectation}; see docs/adr/0115-an-anchor-body-edit-reaches-the-host-as-a-gated-file.md`,
   },
   {
     id: 'dod-ticks-contract',

@@ -150,12 +150,12 @@ like a typo.
   edge at once; report that as the single cause rather than one message per edge.
 - **Record an anchor dependency:** append a `**Blocked by feature:** #<blocker-anchor>` line to the
   **anchor issue's own** body — the epic on a multi-slice feature, the lone slice issue on a single-slice
-  one. A body edit, not the `dependencies/blocked_by` call above, kept distinct so the two relations never
+  one. A body edit through **Edit an issue's body** below, not the `dependencies/blocked_by` call above, kept distinct so the two relations never
   collide on one issue (ADR 0040).
 - **Record the deploy line:** append `**Deploy:** <target>[, <target>]` (in the operator's answer order)
   or `**Deploy:** none` to the **anchor issue's own** body, revising the line in place on an append that
-  re-answers the deploy question. A body edit, like the anchor dependency above, never the native
-  relations (ADR 0101).
+  re-answers the deploy question. A body edit through **Edit an issue's body** below, like the anchor
+  dependency above, never the native relations (ADR 0101).
 - **Parallel-safe creation order:** create the epic first (slices reference `#<epic>`), then fire **all
   slice creates in parallel**, then the sub-issue links **and** the dependency writes in parallel once
   every slice's `number` and `id` are known. Only the epic→slices→relations ordering is required; within
@@ -173,6 +173,18 @@ like a typo.
   editable from the GitHub UI by anyone with Issues write, so an edge can point outside the feature — a
   cross-feature leftover, or a human clicking "add blocked by". Honouring one would leave `/implement`
   waiting on a slice that never reaches `merged`, stalling the run with nothing to diagnose.
+- **Edit an issue's body:** read the current body into a file, build the new body into a file, wrap it
+  into the request payload as a file, and send the edit by path only when every step succeeded:
+  `gh api repos/<owner>/<repo>/issues/<number> > "$r" && jq -je .body "$r" > "$b" && <producer> < "$b" >
+  "$f" && [ -s "$f" ] && jq -n --rawfile body "$f" '{body: $body}' > "$p" && gh api -X PATCH
+  repos/<owner>/<repo>/issues/<number> --input "$p"`. Over plain REST, the same chain sends the payload
+  file as the `PATCH` request body (`--data @"$p"`). `<producer>` is what builds the new body from `"$b"`:
+  `scope.js dod-line`, the run-state merge, or a line append. Name each file with `mktemp`. A failed
+  read, a response without a `body` field, a failed producer, an empty result, or a failed payload build
+  stops the chain before the edit, and the body stays as it was. Every body edit in this document goes
+  through this rule. A producer's stdout is never spliced into the payload inline: that drops the
+  producer's exit status, and GitHub takes an empty `body` as a new, empty body (ADR 0115). A create keeps
+  its inline payload, because nothing upstream of it can fail.
 - **Set labels / status:** `POST .../issues/<number>/labels` (add), `PUT .../issues/<number>/labels`
   (replace), and `PATCH .../issues/<number>` with `{ "state": "closed", "state_reason": "completed" }` to
   close a finished slice. Use `"not_planned"` instead when a slice is abandoned rather than delivered.
@@ -288,12 +300,13 @@ On this store it is an ordinary issue carrying the **Triage label** from *Config
 every other body section — the epic issue on a multi-slice feature, the lone slice issue on a single-slice
 one (`## Scope anchor` above).
 
-- **Write** (after any ledger write the snapshot would show): `PATCH /repos/<owner>/<repo>/issues/<number>` with
-  `{ "body": "<anchor body with the ## Run state section folded in>" }` — the same call and body shape the
-  epic amendment under *Append mode* below already uses. **Best-effort:** a failed write is reported once
+- **Write** (after any ledger write the snapshot would show): the anchor body with the `## Run state`
+  section folded in, through **Edit an issue's body** (*REST conventions*), the merge as its producer — the
+  same rule the epic amendment under *Append mode* below uses. **Best-effort:** a failed write is reported once
   per run and the run continues; the ledger stays authoritative.
 - **Read** (every publish, including run init and adopting a run): `GET /repos/<owner>/<repo>/issues/<number>` — the same call **Read a
-  slice** above already names — and take the body back out of the response.
+  slice** above already names — and take the body out of the response with `jq -je .body`, per **Edit an
+  issue's body**.
 - **The section is machine-owned.** A deeper subsection an operator adds under `## Run state` — a
   `### Operator notes` heading, say — is replaced along with the rest on the next publish. Keep an
   operator note outside the section.
@@ -306,18 +319,20 @@ not this store carries a snapshot.
 
 - **Tick a criterion:** write the criterion text and the judgment's note each to their own file, through
   a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`) rather than as a shell-interpolated argument — either may carry a quote, a
-  backtick, or a `$(` (`references/dod-ticks.md`, triage #680). `GET /repos/<owner>/<repo>/issues/<number>` (the same call *Run state*'s own read
-  above uses) for the anchor body, pipe it through
+  backtick, or a `$(` (`references/dod-ticks.md`, triage #680). Then edit the anchor body through **Edit an
+  issue's body** (*REST conventions*): `GET /repos/<owner>/<repo>/issues/<number>` (the same call *Run
+  state*'s own read above uses), the markdown body taken out with `jq -je .body`, and
   `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js dod-line --match-file <path> --verdict
-  met|not-met|ceiling|accepted --note-file <path>` on stdin, then `PATCH /repos/<owner>/<repo>/issues/<number>` with
-  `{ "body": "<dod-line's stdout>" }` — the same call shape the *Run state* write above already uses.
-  **Best-effort:** a failed write is reported once per run and never stops the run; `dod.md` stays
-  authoritative.
+  met|not-met|ceiling|accepted --note-file <path>` as the producer, reading that body file on stdin.
+  `dod-line` reads a markdown body, never the JSON response. On no matching line it prints nothing and
+  exits 1, so the gate stops the edit. **Best-effort:** a failed write is reported once per run and never
+  stops the run; `dod.md` stays authoritative.
 - **A criterion's tag renders as `#<number>`** (the slice issue's `number`, *Two identifiers per issue*
   above). `/superdev:plan` §6 writes the tag in `plan-contract.md`'s own notation (a slice `id`, or
   `scope`) when it creates the epic, before any slice issue exists. Once every slice issue is created,
   the controller rewrites each slice-id tag into `#<number>`, in the same parallel step **Record a
-  dependency** above uses to write the native `blocked_by` links — both need the same resolved
+  dependency** above uses to write the native `blocked_by` links, each rewrite a body edit through
+  **Edit an issue's body** — both need the same resolved
   identifiers and both wait on the same event; a `scope` tag is left as `scope`.
 
 ## Status workflow (GitHub has open/closed + labels — no custom states)
@@ -371,8 +386,8 @@ ADR 0004).
   **migrates to the new epic issue's own body** and is removed from the lone issue — the epic is the
   anchor now. The `**Deploy:**` line migrates the same way, for the same reason, and is removed from the
   lone issue. Nothing else about the lone issue changes.
-- **Amend the epic's own body — the one sanctioned edit.** `PATCH /repos/<owner>/<repo>/issues/<epic
-  number>` with `{ "body": "<amended body>" }` folds the interview's new criteria into the epic's
+- **Amend the epic's own body — the one sanctioned edit.** An edit of the epic's body through **Edit an
+  issue's body** (*REST conventions*), the amended body as its result, folds the interview's new criteria into the epic's
   Definition of Done in place, and, the same call, deletes a resolved parked question's line from the
   epic's `## Parked questions` section. Both are edits to the epic issue's own body, never to a merged
   slice's issue — the never-edit rule above still holds for every slice.

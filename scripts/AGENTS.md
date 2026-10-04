@@ -29,6 +29,8 @@ This doc owns what each script guards and the contracts between them. Repo-wide 
 `get stage|branch|anchor|slices|unresolved|degraded|deferred|denials|docs|pr|suite`,
 `status` (which renders the whole `/superdev:status` report), `publish`, `adopt`, `root <slug>`, and
 `dod-line`.
+`--help` or `-h`, alone or after any verb, prints the usage and exits 0, except that a flag's value, or the bullet text after `add` or `add-denial`, is data and never a help request. It is checked before any verb
+reads stdin or touches a ledger, so a stdin verb such as `dod-line` never waits on input for it.
 `suite set` writes the **suite record** (CONTEXT.md) — the last full-suite run's result and the commit
 it ran on, as `**Suite:** <result> @ <sha>` — refusing a sha that does not resolve to a commit in the
 repository; `get suite` prints `<result> <sha>` back, or nothing on a ledger with no record (INV-0017).
@@ -86,13 +88,16 @@ would path a ledger read or write outside `.superdev/scopes/`.
 (`references/dod-ticks.md`, INV-0014, triage #664): `--match <criterion text>|--match-file <path>
 --verdict met|not-met|ceiling|accepted --note <text>|--note-file <path> [--line]`. It is the one
 Definition-of-Done checklist-line edit every store's own `## Definition of Done ticks` section cites
-instead of restating by hand — a store seed fetches the checklist text through its own call, pipes it
-through `dod-line` on stdin, and writes back whatever comes out on stdout, the same shape `kb-patch.js`
+instead of restating by hand — a store seed fetches the checklist text through its own call, runs
+`dod-line` on it as the producer in its gated **Edit an issue's body** rule, and writes back what comes
+out on stdout only when `dod-line` exited 0 with non-empty output (ADR 0115), the same shape `kb-patch.js`
 already gives a staged knowledge-base patch (ADR 0027). `--match-file`/`--note-file` are each an
 alternative to `--match`/`--note` that reads the same text from a file instead of a shell-interpolated
 argument, one trailing newline stripped verbatim otherwise — the text a controller pipes in this way is
 typically report-derived, and may carry a quote, a backtick, a `$(`, or worse (`references/dod-ticks.md`,
-triage #680); giving both forms of the same argument refuses. The default mode takes a whole markdown
+triage #680); giving both forms of the same argument refuses. The verb writes the verdict's own label, so a note that
+already opens with that label (`met: …` under `--verdict met`) loses that one prefix and carries the label
+once. A note opening with any other verdict's label is note text and stays as given. The default mode takes a whole markdown
 body on stdin and prints the transformed body; `--line` takes and prints exactly one checklist line
 instead, for the Jira seed's ADF text node, which is JSON, not markdown lines. A checklist line is `- [ ]
 <criterion>[ — <tag>][ — <verdict>: <note>]` (`plan-contract.md`'s line format) — the tag absent on a
@@ -2123,6 +2128,23 @@ states that a failed anchor write — the tick write itself — is **reported on
 the run**, `dod.md` staying authoritative regardless. A section stating neither half of that sentence is
 flagged by name, the same way the citation and append checks are. Each store's own fetch and write calls,
 and how a criterion's tag renders in that store's own notation, stay a review's job.
+
+The `body-edit-contract` check, `scanBodyEditContract()`: every store document, over the same
+`storeDocuments()` candidate list, edits an issue body only through one gated rule (ADR 0115, INV-0115).
+The document carries an **Edit an issue's body** bullet, and that bullet chains the edit after `&&` and a
+`[ -s` non-empty-file test, so a failed read or producer, or an empty result, stops the chain before the
+host call. In the fence-masked document, every issue body-edit call takes its body from a named file variable
+(`"$f"`, `"$p"`, `@"$p"`, or `"$(cat "$f")"`), an allowlist: anything else is a gap, whether stdin
+(`-`, `@-`, `--input=-`), a command substitution, or an inline `"body"` or `"description"` payload. A
+body-edit call is `issues edit` or `issue edit` with a body flag, or a `PATCH` or `PUT` aimed at a bare
+issue path (`/issues/<id>`, `/issue/<id>`) that carries a payload flag (`--input`, `--json`, `-d`,
+`--data*`, `-b`, `-T`, `--upload-file`, `-F`, `-f` or `-F body=`, quoted or not). Label adds, label and assignee `PUT`s, `PATCH` closes, creates, and prose
+citing the rule by name are no body edit. A known false positive stays: a `PATCH` or `PUT` on a bare issue
+path whose payload is a command substitution counts as a body edit even when it carries no body (a label
+update built by `jq -n`), so a store document builds such a payload into a file first. A create keeps its heredoc stdin and its inline payload, because nothing
+upstream of it can fail. The `## Definition of Done ticks` section names its body extraction (`jq`), since
+`dod-line` reads a markdown body and never a JSON response. Each condition is flagged by name. Whether a
+section cites the bullet, and what a controller actually runs, stay a review's job.
 
 The `untriaged-item` check, `scanUntriagedContract()`: every store document carries a
 `## Untriaged item` section stating how that backend recognises an **untriaged item** — an open record

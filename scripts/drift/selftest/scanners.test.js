@@ -17,6 +17,7 @@ const {
   scanReleaseContract,
   scanRunStateContract,
   scanDodTicksContract,
+  scanBodyEditContract,
   scanTriageRecordContract,
   scanUntriagedContract,
   scanSpecialisingCitations,
@@ -1703,6 +1704,107 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   testStoreSectionScanner(scanRunStateContract, 'Run state', 'run-state');
   testStoreSectionScanner(scanDodTicksContract, 'Definition of Done ticks', 'dod-ticks');
+
+  // --- scanBodyEditContract (ADR 0115, INV-0115): every store document states one gated body-edit rule
+  // in its **Edit an issue's body** bullet, edits no body from stdin, and its tick section names how the
+  // body is taken out of the read response. ---
+  {
+    const rule =
+      "- **Edit an issue's body:** `jq -je .body \"$r\" > \"$b\" && <producer> < \"$b\" > \"$f\" && " +
+      '[ -s "$f" ] && tea issues edit <index> --description-file "$f"`.\n';
+    const ticks =
+      '## Definition of Done ticks\n\nTake the body out with `jq -je .body`, pipe it through dod-line, then ' +
+      "write through **Edit an issue's body**.\n";
+    const clean = `# store\n\n## Conventions\n\n${rule}\n${ticks}`;
+    const doc = (text) => fixture({ 'references/issue-tracker-acme.md': text });
+    assert.deepEqual(scanBodyEditContract(doc(clean)), [], 'a gated rule, no stdin edit, and a named extraction pass');
+
+    const noRule = scanBodyEditContract(doc(`# store\n\n${ticks}`));
+    assert.equal(noRule.length, 1, 'a store document with no edit-body bullet is flagged');
+    assert.match(noRule[0].expectation, /Edit an issue's body/, 'the gap names the missing bullet');
+
+    const ungated = scanBodyEditContract(
+      doc(`# store\n\n- **Edit an issue's body:** \`tea issues edit <index> --description-file "$f"\`.\n\n${ticks}`),
+    );
+    assert.equal(ungated.length, 1, 'a bullet without the exit-status and non-empty gate is flagged');
+    assert.match(ungated[0].expectation, /gate/, 'the gap names the gate');
+
+    for (const stdinEdit of [
+      'Append the line (`tea issues edit <index> --description-file -`).',
+      'Then `PATCH /repos/<owner>/<repo>/issues/<number>` with `{ "body": "<dod-line\'s stdout>" }`.',
+      'Then `PUT <base>/rest/api/3/issue/<key>` with `{ "fields": { "description": <amended ADF body> } }`.',
+      '`dod-line < b | gh api -X PATCH repos/o/r/issues/1 --input -`.',
+      '`p | curl -sf -X PUT --data @- "$base/rest/api/3/issue/K"`.',
+      '`p | curl -sf -X PUT --data-binary @- "$base/rest/api/3/issue/K"`.',
+      '`p | curl -sf --input - -X PATCH "$base/issues/1"`.',
+      '`p | tea issues edit 1 -d "$(cat)"`.',
+      '`tea issues edit 1 --description "$(dod-line < b)"`.',
+      '`curl -X PUT -d @- "$base/rest/api/3/issue/K"`.',
+      '`tea api -X PATCH -d @- /repos/o/r/issues/1`.',
+      '`gh issue edit 1 --body-file -`.',
+      '`gh api -X PATCH repos/o/r/issues/1 -F body=@-`.',
+      '`gh api -X PATCH repos/o/r/issues/1 -f body="$(dod-line < b)"`.',
+      '`gh api --method PATCH repos/o/r/issues/1 --input=-`.',
+      '`curl -X PUT --json @- "$base/rest/api/3/issue/K"`.',
+      '`tea issues edit 1 -d "$(< /dev/stdin)"`.',
+      '`gh issue edit 1 -F -`.',
+      '`gh issue edit 1 -b "$(cat)"`.',
+      '`gh api -X PATCH /repos/o/r/issues/1 -f "body=$(cat)"`.',
+      '`curl -XPUT --data @- "$base/rest/api/3/issue/K"`.',
+      '`curl -X PATCH -T - "$base/issues/1"`.',
+      '`curl -X PATCH --upload-file - "$base/issues/1"`.',
+    ]) {
+      const gaps = scanBodyEditContract(doc(`${clean}\n${stdinEdit}\n`));
+      assert.equal(gaps.length, 1, `an edit whose body is not read from a file is flagged: ${stdinEdit}`);
+      assert.match(gaps[0].expectation, /file/, 'the gap names the file rule');
+    }
+    assert.deepEqual(
+      scanBodyEditContract(doc(`${clean}\n- **Create an issue:** \`tea issues create -t "$title" --description-file -\`.\n`)),
+      [],
+      'a create keeps its heredoc stdin',
+    );
+    assert.deepEqual(
+      scanBodyEditContract(doc(`${clean}\n\`\`\`sh\ntea issues edit 1 --description-file -\n\`\`\`\n`)),
+      [],
+      'a fenced example is not the document\'s own instruction',
+    );
+
+    for (const allowed of [
+      '`gh api -X POST repos/o/r/issues --input - <<EOF`.',
+      '`gh api -X PATCH repos/o/r/issues/1 --input "$f"`.',
+      '`tea issues edit 1 --description "$(cat "$f")"`.',
+      '`tea issues edit 1 --description-file "$f"`.',
+      '`gh issue edit 1 --body-file "$f"`.',
+      '`gh issue edit 1 -F "$f"`.',
+      '`gh issue edit 1 -b "$(cat "$f")"`.',
+      '`gh issue edit 1 --title "$t"`.',
+      '`gh api -X PATCH repos/o/r/issues/1 -f state=closed`.',
+      '`gh api -X PATCH repos/o/r/issues/1 -F state=closed`.',
+      '`gh api -X PATCH repos/o/r/issues/1 -F body=@"$f"`.',
+      '`curl -X PUT --data @"$p" "$base/rest/api/3/issue/K"`.',
+      '`PATCH .../issues/<number>` with `{ "state": "closed", "state_reason": "completed" }`.',
+      '`curl -X PATCH -d \'{"state":"closed"}\' "$base/repos/o/r/issues/1"`.',
+      '`PUT .../issues/<number>/labels` (replace), `POST .../issues/<number>/labels` (add).',
+      '`PUT <base>/rest/api/3/issue/<key>` with `{ "update": { "labels": [{ "add": "x" }] } }`.',
+      '`PUT <base>/rest/api/3/issue/<key>/assignee` with `{ "accountId": "<id>" }`.',
+      "An edit of the epic's body through **Edit an issue's body** is the only one.",
+      '`tea issues edit 1 --add-assignees bob`.',
+      '`tea issues create -t "$t" --description-file -`.',
+    ]) {
+      assert.deepEqual(scanBodyEditContract(doc(`${clean}\n${allowed}\n`)), [], `a create or a file-read edit stays allowed: ${allowed}`);
+    }
+
+    const noExtraction = scanBodyEditContract(
+      doc(`# store\n\n${rule}\n## Definition of Done ticks\n\nRead the issue, pipe it through dod-line.\n`),
+    );
+    assert.equal(noExtraction.length, 1, 'a tick section naming no body extraction is flagged');
+    assert.match(noExtraction[0].expectation, /extract/, 'the gap names the extraction');
+
+    const dogfood = scanBodyEditContract(fixture({ 'docs/agents/issue-tracker.md': '# Slice store\n' }));
+    assert.equal(dogfood[0].source, path.join('docs', 'agents', 'issue-tracker.md'), 'the dogfooded store config is checked too');
+    assert.deepEqual(scanBodyEditContract(fixture({ 'README.md': '# repo\n' })), [], 'an absent document is skipped');
+    assert.deepEqual(scanBodyEditContract(realRoot), [], 'every store document in the real tree edits a body only through the gated rule');
+  }
 
   // --- scanDodTicksContract's content check (INV-0014): a `## Definition of Done ticks` section
   // cites `dod-line` for the target-state line edit itself, rather than restating it by hand, and
