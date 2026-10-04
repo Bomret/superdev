@@ -16,8 +16,9 @@ const hookPath = require.resolve('../plugin/hooks/run-lock.js');
 const { decide, STALENESS_MS } = require(hookPath);
 
 const tmpDir = os.tmpdir();
-const testScope = 'test-scope-' + Date.now();
-const testRunDir = path.join(tmpDir, testScope);
+const ROOT_PREFIX = 'test-scope-';
+const testRunDir = fs.mkdtempSync(path.join(tmpDir, ROOT_PREFIX));
+const testScope = path.basename(testRunDir);
 const lockDir = path.join(testRunDir, '.superdev', 'scopes', testScope);
 const lockPath = path.join(lockDir, 'run.lock');
 
@@ -110,6 +111,40 @@ try {
       assert.equal(outer.status, 0, 'a parent whose own argv[2] is --selftest still exits cleanly when it requires run-lock.js');
       assert.equal(outer.stdout, '', "and never runs run-lock.js's own selftest as a side effect");
     } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  // A copy of this suite must not share a temp root with another process whose `Date.now()` returned
+  // the same value (parallel slicetrees start their suites together). The parent pins the copy's
+  // clock to a value `now`, pre-creates the directory a `Date.now()`-named root would use, and
+  // checks it survives the copy: under that naming the copy's final rmSync deletes it, under
+  // mkdtemp it is untouched. The parent claims the sentinel exclusively (no `recursive`, bumping
+  // `now` on EEXIST), so concurrent suite runs never share it and each deletes only its own.
+  // A copy that its bound killed carries no verdict (INV-0009).
+  // The env marker stops a copy from spawning copies itself.
+  if (!process.env.SUPERDEV_RUN_LOCK_PAIR) {
+    let now = Date.now();
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'run-lock-pair-'));
+    const pin = path.join(dir, 'pin-now.js');
+    let sentinelDir;
+    try {
+      for (;;) {
+        const candidate = path.join(os.tmpdir(), ROOT_PREFIX + now);
+        try { fs.mkdirSync(candidate); sentinelDir = candidate; break; } catch (e) { if (e.code !== 'EEXIST') throw e; now += 1; }
+      }
+      fs.writeFileSync(pin, `Date.now = () => ${now};`);
+      const sentinel = path.join(sentinelDir, 'sentinel');
+      fs.writeFileSync(sentinel, 'keep');
+      const copy = cp.spawnSync(process.execPath, ['-r', pin, __filename], {
+        encoding: 'utf8', timeout: 60000,
+        env: Object.assign({}, process.env, { SUPERDEV_RUN_LOCK_PAIR: '1' }),
+      });
+      assertSpawnDecided(copy, 'a suite copy with a pinned Date.now()');
+      assert.equal(copy.status, 0, 'suite copy failed: ' + copy.stderr);
+      assert.ok(fs.existsSync(sentinel), 'a suite copy with a pinned Date.now() deleted a directory it did not create: shared temp root');
+    } finally {
+      if (sentinelDir) fs.rmSync(sentinelDir, { recursive: true, force: true });
       fs.rmSync(dir, { recursive: true, force: true });
     }
   }
