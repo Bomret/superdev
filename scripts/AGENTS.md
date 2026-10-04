@@ -817,8 +817,8 @@ correct in isolation and is exactly the defect ADR 0078 removes. A further row p
 run-root enumeration naming submit-pr's qualifying stages as every stage but `shipped` and `closed`.
 The `agent-lens-list` contract (ADR 0062), one sentence row per audited agent's own lens list, a further
 row where a dispatch restates that list instead of deferring to it, and `scanAgentLensNoDesignSmell()`:
-`agents/slice-reviewer.md` reads only the anti-pattern and vulnerability-class lenses from
-`references/review-checklist.md`, and `agents/final-reviewer.md` reads the anti-pattern, design-smell,
+`agents/slice-reviewer.md` reads the anti-pattern and vulnerability-class lenses from
+`references/review-checklist.md`, plus `## Dependency verification` (ADR 0114), and `agents/final-reviewer.md` reads the anti-pattern, design-smell,
 vulnerability-class, reuse-audit, and consistency lenses. The `orphan-lens-placement` contract below is
 meaningful only because these two lists differ — the orphan lens reaches `final-reviewer` through
 `design-smell` and never reaches `slice-reviewer`. The sentence rows alone pin only the sentence
@@ -854,6 +854,28 @@ so an entry that drifts there is guessed at rather than measured. `agents/test-a
 sentence is the other half, pinned as a third row of the `agent-lens-list` table above: the placement
 decides who can read the section, and that row decides that the one agent routed to it still is. The
 absent-`## Anti-patterns` gap fires on its own, so a renamed section never hides a leak into it.
+The `dependency-lens-placement` contract (ADR 0114), `scanDependencyLensPlacement()`:
+`references/review-checklist.md` names **Unverified dependency** under `## Dependency verification` and
+carries it in no other section. The entry is judged against a slice's progress log, which only a
+per-slice review holds, so every section another review agent reads is a wrong home for it.
+`agents/slice-reviewer.md`'s lens sentence is the other half, pinned in the `agent-lens-list` table: the
+placement decides who can read the section, and that row decides that `slice-reviewer` still does.
+The `dependency-record` contract (ADR 0114) pins the implementer's half of the record the review
+checks. `agents/implementer.md` and the implementer dispatch in `references/implement-full.md` each state
+that the progress log names the exact package and a URL for every dependency the implementer adds, or
+names the package as unverified because the documentation was unreachable and returns
+`DONE_WITH_CONCERNS`. Another row pins `agents/implementer.md`'s statement that the unverified line
+names no URL as checked. No dispatch can contradict it: the implementer dispatch states the unverified
+line without naming a URL. The dispatch row names fix dispatches too. A further row pins
+`references/review-checklist.md`'s counting rule under `## Dependency verification`: only an
+implementer-written line recording the package as verified counts, and a re-review closes the finding
+when the check now passes. Three more rows pin the exclusion in `references/review-checklist.md`, `agents/implementer.md`, and
+`references/implement-full.md`: a dependency the repository itself provides (a workspace, path, or file
+reference) is not a new dependency. The dispatch row is needed because the dispatch defines a new
+dependency as a direct dependency declared in a package manifest, and without the exclusion it would
+override the agent body. The selftest removes each row's own clause
+and expects exactly that row to fail. Losing a row leaves the reviewer with no record to check, so every
+new dependency reads Critical.
 The `label-validation` contract:
 `references/scope-mode.md` carries the **Validate both segments.** rule, and `skills/implement/SKILL.md`
 points at it. The whole feature label becomes the branch name, so the type
@@ -2496,6 +2518,36 @@ remainder at the cap blocks. A Minor-only remainder proceeds. The RED-test rule 
 The selftest removes each row's own clause from the shipped documents and expects exactly that row to
 fail. Losing a row reopens its gap: a Minor-only verdict that skips the question, an unattended run that
 leaves Minors, a cap that blocks on Minors, or a RED test demanded of a style fix.
+
+The `blind-slice-review` contract (ADR 0114, INV-0113, INV-0114) pins how the full tier's slice review
+reads the progress log. `agents/slice-reviewer.md` and the slice-reviewer dispatch in
+`references/implement-full.md` step 3 each carry the rule, because the dispatch is the later, more
+specific instruction (ADR 0035). The rows:
+
+- `agents/slice-reviewer.md` settles the verdict in a blind pass over the specification, the acceptance
+  criteria, and the diff, before it opens the progress log.
+- `agents/slice-reviewer.md` reads the log one way: it never withdraws a finding and never downgrades one.
+- `agents/slice-reviewer.md` names the progress-log path on its input list and states that the dispatch
+  carries no text from an implementer's report.
+- Step 3's dispatch hands no text from an implementer's report, a controller paraphrase of one included.
+- Step 3's dispatch states the blind pass before the log is opened.
+- Step 3's dispatch states the one-way rule.
+- Step 3's fix list carries every finding added or raised after reading the log and every earlier finding
+  a re-review reports still open.
+- `agents/slice-reviewer.md` closes an earlier Unverified dependency finding on a re-review when its own
+  dependency check now passes, because the remedy lives in the log and not in the diff. Step 3's dispatch
+  states the same carve-out.
+- `agents/slice-reviewer.md` counts only a log line that records the package as verified, never a line
+  marking it unverified, whatever URL that line carries. No dispatch can contradict this row: step 3's
+  dispatch hands the reviewer no log text and states no counting rule, so the agent body is the only
+  prompt that states it.
+- `agents/slice-reviewer.md` appends its findings to the log through a quoted heredoc, never `echo` and
+  never an unquoted heredoc, so backticks and `$(` in the text stay literal.
+
+The selftest removes each row's own clause from the shipped documents and expects exactly that row to
+fail. Losing a row reopens its gap: a reviewer that reads the implementer's account before it forms a
+verdict, a log line that withdraws a finding, a fix list that drops what the log added, a dependency
+finding no re-review can close, or an unverified line that passes the check.
 
 The `plan-derives-criteria` contract (ADR 0099, INV-0096) pins the derive pass on both halves.
 `skills/plan/SKILL.md` §1 carries these rows:

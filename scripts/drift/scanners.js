@@ -75,6 +75,9 @@ const {
   TEST_COST_LENS_DOC,
   TEST_COST_LENS_HEADING,
   TEST_COST_LENS_ENTRIES,
+  DEPENDENCY_LENS_DOC,
+  DEPENDENCY_LENS_HEADING,
+  DEPENDENCY_LENS_ENTRY,
   SHIP_GATE_ELEMENTS,
   UNRESOLVED_GLOSSARY_CONTRACTS,
   KB_NO_CALL_DOCS,
@@ -700,6 +703,34 @@ function scanTestCostLensPlacement(root) {
         expectation: `keep **${name}** out of \`## Anti-patterns\` — \`slice-reviewer\` reads that section, and judging this lens needs a measured duration it never holds`,
       });
     }
+  }
+  return gaps;
+}
+
+// scanDependencyLensPlacement() is pure over a root dir: reads the review checklist and reports the
+// **Unverified dependency** entry missing from `## Dependency verification`, or present anywhere outside
+// it. Every other section is read by some review agent besides `slice-reviewer`, and none of them holds a
+// progress log to judge the entry against (ADR 0114). An absent document is skipped, matching every other
+// scanner.
+function scanDependencyLensPlacement(root) {
+  const gaps = [];
+  const text = readDoc(root, DEPENDENCY_LENS_DOC);
+  if (text === null) return gaps; // document absent (fixture / partial checkout) → nothing to scan
+  const section = extractSection(text, DEPENDENCY_LENS_HEADING);
+  if (section === null || !DEPENDENCY_LENS_ENTRY.test(section)) {
+    gaps.push({
+      source: DEPENDENCY_LENS_DOC,
+      expectation:
+        'name **Unverified dependency** under `## Dependency verification` — the section `slice-reviewer` reads and no other review agent does',
+    });
+  }
+  const rest = section === null ? text : text.replace(section, '');
+  if (DEPENDENCY_LENS_ENTRY.test(rest)) {
+    gaps.push({
+      source: DEPENDENCY_LENS_DOC,
+      expectation:
+        'keep **Unverified dependency** out of every section but `## Dependency verification` — another review agent reads them and holds no progress log to judge it against',
+    });
   }
   return gaps;
 }
@@ -1410,6 +1441,7 @@ module.exports = {
   scanShipNoOpensPr,
   scanOrphanLensPlacement,
   scanTestCostLensPlacement,
+  scanDependencyLensPlacement,
   scanUnresolvedGlossaryContract,
   scanKbNoBackendCall,
   scanAgentLensNoDesignSmell,

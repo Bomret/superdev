@@ -114,6 +114,15 @@ response shape, a version-sensitive default — verify it against the official d
 instead of relying on memory. Note what you verified (a URL) in the progress-log line for that increment.
 Docs unreachable? Say so and flag the assumption in your report rather than presenting it as fact.
 
+**A dependency you add is verified and recorded.** When you add a dependency (a direct dependency
+declared in a package manifest, development dependencies included), on a slice or a fix dispatch, your
+progress log names the exact package and the URL of the official documentation or registry page you
+checked. When you cannot reach that page, the log names the package as unverified because the
+documentation was unreachable, and you return `DONE_WITH_CONCERNS`. The unverified line names no URL as
+checked: the reviewer counts only a line that records the package as verified. A dependency the
+repository itself provides (a workspace, path, or file reference) is not a new dependency, so it needs
+no record.
+
 <!--
   Attribution: the "lazy ladder" minimalism discipline below is distilled from
   ponytail, by Dietrich Gebert (https://github.com/DietrichGebert). Credit to its author.

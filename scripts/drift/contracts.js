@@ -695,8 +695,8 @@ const EMPTY_ARGUMENT_CONTRACTS = [
 const AGENT_LENS_LIST_CONTRACTS = [
   [
     path.join('agents', 'slice-reviewer.md'),
-    /apply its \*\*anti-pattern\*\* and \*\*vulnerability-class\*\*\s+lenses/,
-    'read only the anti-pattern and vulnerability-class lenses — no design smell, so the orphan lens never reaches per-slice review',
+    /apply its \*\*anti-pattern\*\* and \*\*vulnerability-class\*\*\s+lenses[\s\S]{0,300}`## Dependency verification` section/,
+    'read the anti-pattern and vulnerability-class lenses plus `## Dependency verification` — no design smell, so the orphan lens never reaches per-slice review',
   ],
   [
     path.join('agents', 'final-reviewer.md'),
@@ -734,6 +734,14 @@ const AGENT_LENS_AVOID_DOCS = [path.join('agents', 'slice-reviewer.md')];
 const AGENT_LENS_AVOID_MARKERS = [
   [/design[-\s]smell/i, () => 'carry no `design-smell` / `design smell` token anywhere — that lens reaches only `final-reviewer`'],
 ];
+
+// ADR 0114: `## Dependency verification` is judged against a progress log only a per-slice review holds, so
+// it reaches `slice-reviewer` alone. The entry stays inside that section and outside every other section of
+// the checklist, which `final-reviewer`, `simplicity-reviewer`, and `test-auditor` read in part. The
+// scanner below pins the placement; the table after it pins the implementer's half of the record.
+const DEPENDENCY_LENS_DOC = path.join('references', 'review-checklist.md');
+const DEPENDENCY_LENS_HEADING = /^##\s+Dependency verification\s*$/m;
+const DEPENDENCY_LENS_ENTRY = /\*\*Unverified dependency\*\*/;
 
 const ORPHAN_LENS_DOC = path.join('references', 'review-checklist.md');
 const ORPHAN_LENS_ENTRY = /\*\*Orphan production symbol\*\*/;
@@ -5047,6 +5055,114 @@ const FIX_LOOP_FIXES_EVERY_FINDING_CONTRACTS = [
   ],
 ];
 
+// ADR 0114, INV-0113, INV-0114: `slice-reviewer` settles a verdict in a blind pass over the specification,
+// the acceptance criteria, and the diff, then opens the slice's progress log, and reading the log only
+// adds a finding or raises one's severity. Two halves carry each rule — the agent body and the step-3
+// dispatch in `references/implement-full.md` that reaches it — because the dispatch is the later, more
+// specific instruction and wins a conflict (CONTEXT.md → *Dispatch prose*, ADR 0035). The no-report-text
+// clause is pinned on both halves too: the agent's input list names the progress-log path and no report,
+// and the dispatch hands the same. The fix-list row carries the after-reading findings into the loop.
+const BLIND_SLICE_REVIEW_CONTRACTS = [
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /Settle\s+your\s+verdict\s+from\s+the\s+specification,\s+the\s+acceptance\s+criteria,\s+and\s+the\s+diff[\s\S]{0,200}before\s+you\s+open\s+the\s+progress\s+log/,
+    "settle the verdict in a blind pass over the specification, the acceptance criteria, and the diff, Lens 2's suite run included, before opening the progress log",
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /never\s+withdraws\s+a\s+finding\s+and\s+never\s+downgrades\s+one/,
+    "read the progress log one way: it can add a finding or raise a finding's severity, and never withdraws or downgrades one",
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /progress-log\*\*\s+path[\s\S]{0,300}carries\s+no\s+text\s+from\s+an\s+implementer's\s+report/,
+    "name the progress-log path on its input list and state that the dispatch carries no text from an implementer's report",
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /hands\s+\*\*no\s+text\s+from\s+an\s+implementer's\s+report\*\*[\s\S]{0,300}controller\s+paraphrase/,
+    "state, in step 3, that the slice-reviewer dispatch hands no text from an implementer's report, a controller paraphrase of one included",
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /settles\s+a\s+\*\*blind\s+pass\*\*\s+before\s+it\s+opens\s+the\s+log/,
+    'state, in step 3, that the slice reviewer settles a blind pass before it opens the progress log',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /add\s+a\s+finding\s+or\s+raise\s+a\s+finding's\s+severity,\s+and\s+it\s+never\s+withdraws\s+or\s+downgrades\s+one/,
+    "state, in step 3, that reading the progress log can add a finding or raise a finding's severity and never withdraws or downgrades one",
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /added\s+or\s+raised\s+after\s+reading\s+the\s+progress\s+log[\s\S]{0,200}still\s+open/,
+    "state, in step 3, that the fix list carries every finding added or raised after reading the progress log and every earlier finding a re-review reports still open",
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /Unverified\s+dependency\s+finding\s+closes\s+when\s+this\s+review's\s+own\s+dependency\s+check\s+now\s+passes/,
+    "close an earlier Unverified dependency finding on a re-review when this review's own dependency check now passes, since its remedy lives in the progress log",
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /Unverified\s+dependency\s+finding\s+closes\s+when\s+the\s+reviewer's\s+own\s+dependency\s+check\s+now\s+passes/,
+    "state, in step 3, that a re-review closes an earlier Unverified dependency finding when the reviewer's own dependency check now passes",
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /[Oo]nly\s+a\s+line\s+that\s+records\s+the\s+package\s+as\s+verified[\s\S]{0,200}never\s+verifies\s+it,\s+whatever\s+URL\s+it\s+carries/,
+    'count only a progress-log line that records the package as verified, and never a line marking it unverified, whatever URL that line carries',
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /through\s+a\s+quoted\s+heredoc[\s\S]{0,200}never\s+`echo`\s+and\s+never\s+an\s+unquoted\s+heredoc/,
+    'append its findings to the progress log through a quoted heredoc, never `echo` and never an unquoted heredoc, so backticks and `$(` in the text stay literal',
+  ],
+];
+
+// ADR 0114: the implementer writes the verification record the slice reviewer checks. Both halves carry it,
+// the agent body and the dispatch prose in `references/implement-full.md` that reaches it, because the
+// dispatch is the later, more specific instruction (CONTEXT.md → *Dispatch prose*, ADR 0035). The table
+// also pins the checklist's counting rule in `references/review-checklist.md` and the exclusion for a
+// dependency the repository itself provides, in the checklist, the agent body, and the dispatch.
+const DEPENDENCY_RECORD_CONTRACTS = [
+  [
+    path.join('agents', 'implementer.md'),
+    /progress\s+log\s+names\s+the\s+exact\s+package\s+and\s+the\s+URL[\s\S]{0,300}unverified\s+because\s+the\s+documentation\s+was\s+unreachable[\s\S]{0,100}`DONE_WITH_CONCERNS`/,
+    'record each dependency it adds in its progress log as the exact package and a URL, or as unverified because the documentation was unreachable, returning `DONE_WITH_CONCERNS`',
+  ],
+  [
+    path.join('agents', 'implementer.md'),
+    /unverified\s+line\s+names\s+no\s+URL\s+as\s+checked/,
+    'write the unverified line with no URL named as checked, because the reviewer counts only a line recording the package as verified',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /Every\s+implementer\s+dispatch,\s+a\s+fix\s+dispatch[\s\S]{0,300}progress\s+log\s+names\s+the\s+exact\s+package\s+and\s+the\s+URL[\s\S]{0,300}unverified\s+because\s+the\s+documentation\s+was\s+unreachable[\s\S]{0,100}`DONE_WITH_CONCERNS`/,
+    'require, in the implementer dispatch, the same progress-log record of each added dependency, on slice and fix dispatches alike',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /Only\s+a\s+line\s+that\s+records\s+the\s+package\s+as\s+verified,\s+written\s+by\s+the\s+implementer,\s+counts[\s\S]{0,400}On\s+a\s+re-review\s+the\s+finding\s+closes\s+when\s+this\s+check\s+now\s+passes/,
+    'state, under `## Dependency verification`, that only an implementer-written line recording the package as verified counts, and that a re-review closes the finding when the check now passes',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /[Aa]\s+dependency\s+the\s+repository\s+itself\s+provides\s+\(a\s+workspace,\s+path,\s+or\s+file\s+reference\)\s+is\s+not\s+a\s+new\s+dependency/,
+    'state, under `## Dependency verification`, that a dependency the repository itself provides (a workspace, path, or file reference) is not a new dependency',
+  ],
+  [
+    path.join('agents', 'implementer.md'),
+    /[Aa]\s+dependency\s+the\s+repository\s+itself\s+provides\s+\(a\s+workspace,\s+path,\s+or\s+file\s+reference\)\s+is\s+not\s+a\s+new\s+dependency/,
+    'state that a dependency the repository itself provides (a workspace, path, or file reference) is not a new dependency and needs no record',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /[Aa]\s+dependency\s+the\s+repository\s+itself\s+provides\s+\(a\s+workspace,\s+path,\s+or\s+file\s+reference\)\s+is\s+not\s+a\s+new\s+dependency/,
+    'state, in the implementer dispatch, that a dependency the repository itself provides (a workspace, path, or file reference) is not a new dependency, so the dispatch definition does not override the agent body',
+  ],
+];
+
 // ADR 0088, INV-0010: an observation — a real defect a run meets that no slice covers and the scope did
 // not cause — is recorded, never judged. `references/scope-mode.md` owns the rule in its own
 // `## Observations` section, beside `## Degraded passes`, `## Unresolved defects`, and `## Deferred
@@ -6067,6 +6183,11 @@ module.exports = {
   OBSERVATION_CAPTURE_CONTRACTS,
   CLEAN_VERDICT_ENDS_LOOP_CONTRACTS,
   FIX_LOOP_FIXES_EVERY_FINDING_CONTRACTS,
+  BLIND_SLICE_REVIEW_CONTRACTS,
+  DEPENDENCY_RECORD_CONTRACTS,
+  DEPENDENCY_LENS_DOC,
+  DEPENDENCY_LENS_HEADING,
+  DEPENDENCY_LENS_ENTRY,
   COMMITMENT_CAPTURE_CONTRACTS,
   SHIP_TICKS_NOTHING_CONTRACTS,
   DOC_UNTICK_ON_BREAK_CONTRACTS,

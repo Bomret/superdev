@@ -53,10 +53,12 @@ slice unfolded, not a final report. **You (the controller) own it:**
 - **Pass its path** to *every* agent you dispatch for that slice — implementer, fix implementers,
   reviewers — and tell each to append to it as it works.
 - **After each agent returns, append a one-line outcome yourself** (agent, status, commit range or
-  finding count). A loaded subagent often skips a prompted write, so your own entry keeps the log
-  complete even when the agent wrote nothing.
+  finding count). When a reviewer appended nothing, append its findings, not the count. A loaded
+  subagent often skips a prompted write, so your own entry keeps the log complete even when the agent
+  wrote nothing.
 
-Append-only, oldest-first, git-ignored scratch. It exists so a human — or a controller resumed after
+Append-only, oldest-first, git-ignored scratch. It is also `slice-reviewer`'s after-blind-pass input and
+a re-review's record of earlier findings. It exists so a human — or a controller resumed after
 compaction — can see what happened on a slice without re-reading every slicetree.
 
 ## Interface file (per scope)
@@ -82,7 +84,13 @@ Repeat until every slice is `merged`:
    **path** to `<run-root>/dod.md`, never its text, plus the exact **listed lines** this slice's dispatch
    covers — the `dod.md` lines the mapping gate matches to this slice's own `id`
    (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s mapping gate, ADR 0092): build only this slice, and
-   report on those listed lines.
+   report on those listed lines. Every implementer dispatch, a fix dispatch in step 3 included, also
+   requires that when the implementer adds a dependency (a direct dependency declared in a package
+   manifest, development dependencies included) its progress log names the exact package and the
+   URL of the official documentation or registry page it checked, and that an implementer who cannot
+   reach that page logs the package as unverified because the documentation was unreachable and returns
+   `DONE_WITH_CONCERNS`. A dependency the repository itself provides (a workspace, path, or file
+   reference) is not a new dependency.
 
    **Pilot the first wave.** On a fresh scope (nothing merged yet), dispatch a single slice first and take
    it through review + merge before filling the cap — a systemic problem (a mis-specified convention, a
@@ -111,9 +119,21 @@ Repeat until every slice is `merged`:
    - **`behavior`** slice → move it → `in-review`, then dispatch **`superdev:slice-reviewer`**
      (correctness + independent verification; it reads the review checklist itself via
      `${CLAUDE_PLUGIN_ROOT}`).
+     **The slice-reviewer dispatch hands over** the slice `spec`, its `acceptance`, the diff range, the
+     global constraints, and the **progress-log** path (`<run-root>/reports/<id>/progress.md`), on a
+     first review and on every re-review. It hands **no text from an implementer's report** — not the
+     slice implementer's, not a fix implementer's, and no controller paraphrase of their status or "met"
+     claims (ADR 0114, INV-0114). The reviewer settles a **blind pass** before it opens the log. Reading
+     the log can add a finding or raise a finding's severity, and it never withdraws or downgrades one
+     (INV-0113). The reviewer appends its full findings to the log, and a re-review reads the earlier
+     findings there after its blind pass, closing one only from the diff and its own suite
+     run. An earlier Unverified dependency finding closes when the reviewer's own dependency check now
+     passes, because its remedy lives in the log and not in the diff.
      When the review lists **any finding outside the deferred ones** — a Minor-only verdict included —
      dispatch **one** fresh `superdev:implementer` fix per cycle, carrying the **complete** fix list
-     (every finding except a deferred one, below), never one dispatch per finding. Re-review after each
+     (every finding except a deferred one, below), never one dispatch per finding. The list carries every
+     finding added or raised after reading the progress log and every earlier finding a re-review reports
+     still open, the same as a blind-pass finding. Re-review after each
      cycle until the review lists no finding outside the deferred ones, capped at 3 cycles in total,
      every cycle counting (the **3-strike fix loop**, controller's Invariants). At the cap a remaining
      **Critical or Important finding**, a deferred one excluded, is a wrong cut: move the slice
@@ -153,7 +173,10 @@ Repeat until every slice is `merged`:
      a denied implementer or fix **blocks**, per ADR 0001. A
      denied `slice-reviewer` follows that section's authorship rule, and this tier's slices come from a
      dispatched implementer, so the controller authored none of what the review verifies: review the
-     slice inline and carry on, bounded by that section's cap — read `scope.js get denials` after writing
+     slice inline — the controller already holds the implementer's report, so that review is not blind —
+     applying `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`'s `## Dependency verification`
+     check and the one-way rule above (INV-0113), and
+     carry on, bounded by that section's cap — read `scope.js get denials` after writing
      the entry, and **block** once the count reaches it instead of reviewing inline again. A denied
      `simplicity-reviewer` follows that same authorship rule, and since its findings are advisory, the
      pass runs inline and the run carries on; write its entry with plain `scope.js degraded add` — its

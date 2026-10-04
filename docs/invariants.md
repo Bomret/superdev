@@ -932,3 +932,21 @@ Statement: A report that `references/response-shapes.md` gives a shape is made o
 Breaks: silently
 Check: scripts/drift-check.js — brainstorm's citation of its report shape; partial: nothing checks the message an agent prints
 Paths: plugin/references/response-shapes.md, plugin/skills/brainstorm/SKILL.md
+
+### INV-0113
+
+Class: process
+Concepts: Blind pass, Progress log
+Statement: Once `slice-reviewer` opens a slice's progress log, it never withdraws a finding and never downgrades a finding's severity. Reading the log can only add a finding or raise one, so the implementer's account of its work can only make a slice review stricter (ADR 0114).
+Breaks: silently
+Check: scripts/drift-check.js — the one-way rows on `plugin/agents/slice-reviewer.md` and on the slice-reviewer dispatch in `plugin/references/implement-full.md`
+Paths: plugin/agents/slice-reviewer.md, plugin/references/implement-full.md
+
+### INV-0114
+
+Class: process
+Concepts: Blind pass, Progress log, Dispatch prose
+Statement: No slice-reviewer dispatch carries the implementer's report text. The report reaches `slice-reviewer` only through the progress log, whose path the dispatch hands over, and the reviewer opens that log only after its blind pass has settled a verdict (ADR 0114).
+Breaks: silently
+Check: scripts/drift-check.js — the blind-pass rows on `plugin/agents/slice-reviewer.md` and on the slice-reviewer dispatch in `plugin/references/implement-full.md`
+Paths: plugin/agents/slice-reviewer.md, plugin/references/implement-full.md

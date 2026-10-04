@@ -87,7 +87,8 @@ plan runs test-first, inline in the scopetree.
   persisted.
   With **more than 3 slices the tier is `full`**: unblocked slices run in **parallel** as `implementer`
   subagents in isolated slicetrees, with TDD and lazy minimalism. A separate **slice-reviewer**
-  (correctness) and **simplicity-reviewer** (over-engineering) gate each behavior slice, and the
+  (correctness, settled before it reads the implementer's progress log) and **simplicity-reviewer**
+  (over-engineering) gate each behavior slice, and the
   controller merges **serially**.
   With **3 or fewer slices the tier is `lite`**: the controller implements each slice inline and
   test-first, in a single dedicated **scopetree** (`.superdev/scopes/<scope>/scopetree/`). The

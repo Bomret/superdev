@@ -35,6 +35,7 @@ const {
   scanShipNoOpensPr,
   scanOrphanLensPlacement,
   scanTestCostLensPlacement,
+  scanDependencyLensPlacement,
   scanUnresolvedGlossaryContract,
   scanKbNoBackendCall,
   scanAgentLensNoDesignSmell,
@@ -133,6 +134,8 @@ const {
   CRITERION_STATES_A_REQUIREMENT_CONTRACTS,
   CLEAN_VERDICT_ENDS_LOOP_CONTRACTS,
   FIX_LOOP_FIXES_EVERY_FINDING_CONTRACTS,
+  BLIND_SLICE_REVIEW_CONTRACTS,
+  DEPENDENCY_RECORD_CONTRACTS,
   OBSERVATION_CAPTURE_CONTRACTS,
   RESPONSE_SHAPES_CONTRACTS,
   LABEL_REVISION_AT_DECOMPOSITION_CONTRACTS,
@@ -270,6 +273,12 @@ module.exports = [
     id: 'test-cost-lens-placement',
     ok: 'every test-cost lens sits where only the test audit reads it',
     run: scanTestCostLensPlacement,
+    format: contractGap,
+  },
+  {
+    id: 'dependency-lens-placement',
+    ok: 'the unverified dependency lens sits where only the slice review reads it',
+    run: scanDependencyLensPlacement,
     format: contractGap,
   },
   table('label-validation', LABEL_VALIDATION_CONTRACTS, 'both label segments validated'),
@@ -820,6 +829,27 @@ module.exports = [
       'one fix dispatch per cycle with the complete list, re-review capped at 3 cycles, a Minor-only ' +
       'remainder merges while a Critical or Important one blocks, no operator question, and the same ' +
       'conditional RED rule, and a finding whose remedy adds a capability nothing named is deferred, not fixed, with the guard-rail carve-out, the dedup read, and the cap exclusion',
+  ),
+  table(
+    'blind-slice-review',
+    BLIND_SLICE_REVIEW_CONTRACTS,
+    "slice-reviewer settles a blind pass before it opens the progress log and reads the log one way, " +
+      "adding or raising findings and never withdrawing or downgrading one, in its own body and in step 3's " +
+      "dispatch; the dispatch hands no text from an implementer's report; and the fix list carries the " +
+      'findings added or raised after reading, and an earlier Unverified dependency finding closes on a ' +
+      "re-review when the reviewer's own dependency check now passes; only a progress-log line recording " +
+      'the package as verified counts, never an unverified line whatever URL it carries; and the ' +
+      'slice-reviewer appends its findings through a quoted heredoc, never `echo` and never an unquoted heredoc',
+  ),
+  table(
+    'dependency-record',
+    DEPENDENCY_RECORD_CONTRACTS,
+    "the implementer's progress log names the exact package and a URL for each dependency it adds, or the " +
+      'package as unverified because the documentation was unreachable with `DONE_WITH_CONCERNS`, in its own ' +
+      "body and in step 2's dispatch, slice and fix alike; the unverified line names no URL as checked; and " +
+      "the review checklist's `## Dependency verification` counts only an implementer-written line recording " +
+      'the package as verified, and closes the finding on a re-review when the check now passes; and a ' +
+      'dependency the repository itself provides (a workspace, path, or file reference) is not a new dependency',
   ),
   table(
     'observation-capture',

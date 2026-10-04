@@ -46,6 +46,7 @@ const {
   scanGlossarySpecialisingCitations,
   scanOrphanLensPlacement,
   scanTestCostLensPlacement,
+  scanDependencyLensPlacement,
   scanAgentLensNoDesignSmell,
 } = require('../scanners');
 const {
@@ -3270,7 +3271,8 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   const ALL_SLICE_CLEAN =
     'Read the checklist and apply its **anti-pattern** and **vulnerability-class**\n' +
-    'lenses throughout the checks below.\n';
+    'lenses throughout the checks below. After you read the progress log, also apply its\n' +
+    '`## Dependency verification` section.\n';
   const ALL_FINAL_CLEAN =
     'Read the checklist and apply its anti-pattern, design-smell,\n' +
     'vulnerability-class, reuse-audit, and consistency lenses throughout the checks below.\n';
@@ -3308,6 +3310,16 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   );
   assert.equal(allSliceWidened.length, 1, 'flags the widened slice-reviewer lens sentence');
   assert.equal(allSliceWidened[0].source, path.join('agents', 'slice-reviewer.md'), 'names slice-reviewer.md');
+
+  // positive: slice-reviewer.md's lens sentence drops the dependency-verification section
+  const allSliceNoDeps = scanContract(
+    fixture({
+      'agents/slice-reviewer.md': ALL_SLICE_CLEAN.replace('`## Dependency verification` section', 'checks'),
+      'agents/final-reviewer.md': ALL_FINAL_CLEAN,
+    }),
+    AGENT_LENS_LIST_CONTRACTS,
+  );
+  assert.equal(allSliceNoDeps.length, 1, 'flags the slice-reviewer lens sentence that drops `## Dependency verification`');
 
   // positive: final-reviewer.md's lens sentence altered — reuse-audit dropped from the list
   const allFinalAltered = scanContract(
@@ -3507,6 +3519,53 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // absent document is skipped, matching every other contract scanner
   assert.equal(
     scanTestCostLensPlacement(fixture({ 'README.md': '# repo\n' })).length,
+    0,
+    'no review-checklist.md is skipped',
+  );
+
+  // --- scanDependencyLensPlacement: **Unverified dependency** sits under `## Dependency verification`,
+  // the section only `slice-reviewer` reads, and in no other section (ADR 0114) ---
+
+  const DV_SECTIONS =
+    '## Anti-patterns\n\n- **Parameter sprawl** — too many params.\n\n' +
+    '## Dependency verification\n\n- **Unverified dependency** — a new dependency no log line verifies.\n\n' +
+    '## Vulnerability classes\n\n- **SQL injection** — unparameterized query.\n';
+  assert.equal(
+    scanDependencyLensPlacement(fixture({ 'references/review-checklist.md': DV_SECTIONS })).length,
+    0,
+    'the entry under its own section is clean',
+  );
+
+  // positive: the section is absent — the lens reaches no reader
+  const dvAbsentGaps = scanDependencyLensPlacement(
+    fixture({
+      'references/review-checklist.md':
+        '## Anti-patterns\n\n- **Parameter sprawl** — too many params.\n\n## Vulnerability classes\n\n- **SQL injection** — x.\n',
+    }),
+  );
+  assert.equal(dvAbsentGaps.length, 1, 'flags the entry missing from `## Dependency verification`');
+  assert.match(dvAbsentGaps[0].expectation, /under `## Dependency verification`/, 'names the missing section');
+
+  // positive: the entry moved into `## Anti-patterns`, where other agents read it
+  const dvMovedGaps = scanDependencyLensPlacement(
+    fixture({
+      'references/review-checklist.md':
+        '## Anti-patterns\n\n- **Unverified dependency** — a new dependency no log line verifies.\n\n' +
+        '## Dependency verification\n\nNothing here.\n',
+    }),
+  );
+  assert.equal(dvMovedGaps.length, 2, 'flags the moved entry as missing from its section and present elsewhere');
+  assert.ok(dvMovedGaps.some((g) => /out of every section but/.test(g.expectation)), 'names the leak');
+
+  // positive: a copy left in another section beside the original
+  const dvCopyGaps = scanDependencyLensPlacement(
+    fixture({ 'references/review-checklist.md': `${DV_SECTIONS}\n## Consistency\n\n- **Unverified dependency** — copy.\n` }),
+  );
+  assert.equal(dvCopyGaps.length, 1, 'flags the copy in another section');
+
+  assert.equal(scanDependencyLensPlacement(realRoot).length, 0, 'the shipped review-checklist.md is clean');
+  assert.equal(
+    scanDependencyLensPlacement(fixture({ 'README.md': '# repo\n' })).length,
     0,
     'no review-checklist.md is skipped',
   );

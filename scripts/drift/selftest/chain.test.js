@@ -59,6 +59,8 @@ const {
   DOC_UNTICK_ON_BREAK_CONTRACTS,
   CLEAN_VERDICT_ENDS_LOOP_CONTRACTS,
   FIX_LOOP_FIXES_EVERY_FINDING_CONTRACTS,
+  BLIND_SLICE_REVIEW_CONTRACTS,
+  DEPENDENCY_RECORD_CONTRACTS,
   OBSERVATION_CAPTURE_CONTRACTS,
   LABEL_REVISION_AT_DECOMPOSITION_CONTRACTS,
   UNMET_CRITERION_AT_REVIEW_CONTRACTS,
@@ -5331,6 +5333,37 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'the shipped documents satisfy every fix-loop row',
   );
   assertEachRowFailsAlone(flReal, FIX_LOOP_FIXES_EVERY_FINDING_CONTRACTS);
+
+  // --- BLIND_SLICE_REVIEW_CONTRACTS (ADR 0114, INV-0113, INV-0114): the agent body and the step-3 dispatch
+  // each carry the blind-pass order and the one-way rule, and both carry the no-report-text clause. The
+  // shipped documents are the negative; for each row the positive removes that row's own matched clause. ---
+  const bsDocs = ['agents/slice-reviewer.md', 'references/implement-full.md'];
+  const bsReal = Object.fromEntries(
+    bsDocs.map((rel) => [rel, fs.readFileSync(path.join(realRoot, 'plugin', rel), 'utf8')]),
+  );
+  assert.deepEqual(
+    scanContract(fixture(bsReal), BLIND_SLICE_REVIEW_CONTRACTS),
+    [],
+    'the shipped documents satisfy every blind-pass row',
+  );
+  assertEachRowFailsAlone(bsReal, BLIND_SLICE_REVIEW_CONTRACTS);
+
+  // --- DEPENDENCY_RECORD_CONTRACTS (ADR 0114): the implementer's agent body and the implement-full.md
+  // dispatch each carry the dependency verification record, and review-checklist.md carries the counting
+  // rule. All three carry the exclusion for a dependency the repository itself provides. The shipped documents are the negative; for each row the positive removes that row's own
+  // matched clause. ---
+  const drReal = Object.fromEntries(
+    ['agents/implementer.md', 'references/implement-full.md', 'references/review-checklist.md'].map((rel) => [
+      rel,
+      fs.readFileSync(path.join(realRoot, 'plugin', rel), 'utf8'),
+    ]),
+  );
+  assert.deepEqual(
+    scanContract(fixture(drReal), DEPENDENCY_RECORD_CONTRACTS),
+    [],
+    'the shipped documents satisfy every dependency-record row',
+  );
+  assertEachRowFailsAlone(drReal, DEPENDENCY_RECORD_CONTRACTS);
 
   // --- OBSERVATION_CAPTURE_CONTRACTS: an observation — a real defect a run meets that no slice covers
   // and the scope did not cause — is recorded, never judged (ADR 0088, INV-0010). Every row pins
