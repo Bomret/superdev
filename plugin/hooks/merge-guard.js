@@ -20,7 +20,14 @@
 // The double-quoted alternative tolerates a backslash-escaped internal quote so an escaped `"`
 // inside the value doesn't close the span early; single quotes have no escapes in POSIX shells, so
 // `'[^']*'` stays literal.
-const ARG = /(?:[^\s"'\\]|\\.|"(?:[^"\\]|\\.)*"|'[^']*')+/.source;
+// A command substitution (`$(…)`, one nested level) or a backtick group is one word however many spaces
+// it holds: `git -C $(git rev-parse --show-toplevel)/wt merge x` would otherwise end the word at the first
+// space, match no verb, and let a subagent integrate. A plain `$` excludes the `$(` opener and the plain
+// class excludes the backtick, so each character has exactly one live reading and the match stays linear. An
+// unterminated `$(` or backtick is a shell syntax error and ends the word. Past one level ARG cannot read the
+// word to its end: deeper nesting (`$(dirname $(dirname $(pwd)))/wt`), nested arithmetic (`$((1+(2)))`), and a
+// quoted `)` inside a substitution (`$(echo ")")`). STUCK below catches that shape and fails closed.
+const ARG = /(?:[^\s"'\\$`]|\$(?!\()|\\.|"(?:[^"\\]|\\.)*"|'[^']*'|\$\((?:[^()\\]|\\.|\((?:[^()\\]|\\.)*\))*\)|`(?:[^`\\]|\\.)*`)+/.source;
 // A long global option takes its value in two spellings — `--work-tree=<path>` and `--work-tree
 // <path>` — and `--${ARG}` alone only ever spans the first, so `git --work-tree /wt merge x` matched
 // nothing at all and a subagent could integrate through it. The value-taking options are enumerated
@@ -42,6 +49,15 @@ const ARG = /(?:[^\s"'\\]|\\.|"(?:[^"\\]|\\.)*"|'[^']*')+/.source;
 const LONG_VALUE_OPT = /--(?:git-dir|work-tree|namespace|config-env|shallow-file|attr-source)/.source;
 const BLOCK = new RegExp(
   `(^|[;&|\\n])[ \\t]*git(?:\\s+(?:-[cC]\\s+${ARG}|${LONG_VALUE_OPT}(?:=|\\s+(?!-))${ARG}|--${ARG}))*\\s+(merge|push|rebase)(?![-\\w])`,
+  'm'
+);
+// A git global option whose value ARG cannot read to the end of its shell word — the next character is not
+// whitespace — is unknowable: the command would otherwise split at the value's first space and slip past
+// BLOCK. The atomic `(?=(ARG|))\2` takes ARG's greedy match once, so no shorter reading of the value can
+// pass the `(?=\S)` test; a verb later on the line makes it an integration. Fails closed.
+const OPT_VALUE = `(?:-[cC]\\s+|${LONG_VALUE_OPT}(?:=|\\s+(?!-)))`;
+const STUCK = new RegExp(
+  `(^|[;&|\\n])[ \\t]*git(?:\\s+(?:-[cC]\\s+${ARG}|${LONG_VALUE_OPT}(?:=|\\s+(?!-))${ARG}|--${ARG}))*\\s+${OPT_VALUE}(?=(${ARG}|))\\2(?=\\S)(?=[^\\n]*\\s(?:merge|push|rebase)(?![-\\w]))`,
   'm'
 );
 // Integration via the code-host CLI is the controller's job too: `gh pr merge` / `tea pr merge`.
@@ -81,13 +97,15 @@ function isApiMerge(cmd) {
 // interpreter wrapper (`bash -c "git push"`) still slip past — the char before `git` isn't a line
 // start or a `;`/`&`/`|`/`\n`. This is a deterministic guardrail against the model's normal output,
 // not a sandbox; airtight subagent isolation is the platform's job (see AGENTS.md known issues).
+// The ARG token also reads only one nested `$(…)` level: past it, STUCK (here) and green-gate's own copy
+// fail closed instead of reading the word as split at its first space.
 // The `tea api` / `gh api` lead-ins also block text that merely quotes the call (`git commit -m "… (tea api -X POST
 // …/merge)"`): a known false positive, accepted because it fails closed with a clear message.
 
 function decide(input) {
   if (!input || !input.agent_id) return { block: false }; // controller (or unknown) → allow
   const cmd = (input.tool_input && input.tool_input.command) || '';
-  if (BLOCK.test(cmd) || BLOCK_CLI.test(cmd) || isApiMerge(cmd)) {
+  if (BLOCK.test(cmd) || STUCK.test(cmd) || BLOCK_CLI.test(cmd) || isApiMerge(cmd)) {
     return {
       block: true,
       reason:

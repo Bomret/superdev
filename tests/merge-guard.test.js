@@ -60,6 +60,37 @@ assert.equal(decide(sub('git --attr-source main merge x')).block, true, 'git --a
   assert.ok(elapsed < 5000, `a pathological long-option run must resolve quickly, took ${elapsed}ms`);
 }
 assert.equal(decide({ tool_input: { command: 'git --work-tree /wt merge x' } }).block, false, 'the controller still merges in the space form');
+
+// an unquoted command substitution (or backtick group) holding spaces is one shell word, so a subagent
+// cannot reach the verb through it; the controller still merges
+for (const value of ['$(git rev-parse --show-toplevel)/wt', '$(a $(b c))/wt', '`git rev-parse --show-toplevel`/wt']) {
+  assert.equal(decide(sub(`git -C ${value} merge --no-ff s`)).block, true, `-C ${value} merge: a subagent is blocked`);
+  assert.equal(decide(sub(`git --work-tree ${value} push origin s`)).block, true, `--work-tree ${value} push: a subagent is blocked`);
+  assert.equal(decide({ tool_input: { command: `git -C ${value} merge --no-ff s` } }).block, false, `-C ${value} merge: the controller passes`);
+}
+// past one nesting level ARG cannot read the value to its end: the guard fails closed instead of splitting at the first space
+for (const value of ['$(dirname $(dirname $(pwd)))/wt', '$((1+(2)))/wt', '$(echo ")")/wt']) {
+  assert.equal(decide(sub(`git -C ${value} merge s`)).block, true, `-C ${value} merge: a subagent is blocked`);
+  assert.equal(decide(sub(`git --work-tree ${value} push origin s`)).block, true, `--work-tree ${value} push: a subagent is blocked`);
+  assert.equal(decide(sub(`git --git-dir=${value} rebase s`)).block, true, `--git-dir=${value} rebase: a subagent is blocked`);
+  assert.equal(decide({ tool_input: { command: `git -C ${value} merge s` } }).block, false, `-C ${value} merge: the controller passes`);
+}
+assert.equal(decide(sub('git -C $(dirname $(dirname $(pwd)))/wt status')).block, false, 'a deep substitution on a read command is fine');
+assert.equal(decide(sub('echo $(dirname $(dirname $(pwd))) && git merge-base a b')).block, false, 'a substitution outside a git option value never blocks');
+assert.equal(decide(sub('git -C $(dirname $(pwd))/wt log -1')).block, false, 'a closed one-level value never blocks');
+// unterminated groups and long runs of them resolve without catastrophic backtracking (qualitative bound, ADR 0086)
+{
+  const t0 = Date.now();
+  decide(sub('git -C ' + '$('.repeat(500) + ' x'));
+  decide(sub('git ' + '-C $(a b) '.repeat(200) + 'x'));
+  decide(sub('git ' + '-C `a b` '.repeat(200) + 'x'));
+  decide(sub('git ' + '-C $(a $(b $(c))) '.repeat(200) + 'x'));
+  decide(sub('git -C $(a $(b $(c))) x;'.repeat(2000)));
+  decide(sub('git -C $((1+(2))) x; '.repeat(2000)));
+  decide(sub('git -C $(echo ")") x; '.repeat(2000)));
+  const elapsed = Date.now() - t0;
+  assert.ok(elapsed < 5000, `command-substitution runs must resolve quickly, took ${elapsed}ms`);
+}
 assert.equal(decide(sub('git --work-tree /wt status')).block, false, 'a space-form read command is fine');
 assert.equal(decide(sub('git -c user.name=x commit -m x')).block, false, 'git -c commit is fine');
 assert.equal(decide(sub('git -C ../scope status')).block, false, 'git -C read is fine');

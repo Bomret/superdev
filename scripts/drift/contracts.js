@@ -2192,7 +2192,9 @@ const SUBMIT_PR_WHOLE_REPO_CONTRACTS = [
 // scope-slug charset assertion in `scripts/scope.js --selftest`, and deliberately strict — a genuine
 // improvement to the token is meant to be applied to all three files and re-pinned here in one commit,
 // not to drift into one hook and be discovered by a bypass.
-const ARG_TOKEN_LINE = String.raw`const ARG = /(?:[^\s"'\\]|\\.|"(?:[^"\\]|\\.)*"|'[^']*')+/.source;`;
+// The token holds backtick groups, and a backtick cannot sit inside String.raw`…` — BT stands in for it.
+const BT = '`';
+const ARG_TOKEN_LINE = String.raw`const ARG = /(?:[^\s"'\\$${BT}]|\$(?!\()|\\.|"(?:[^"\\]|\\.)*"|'[^']*'|\$\((?:[^()\\]|\\.|\((?:[^()\\]|\\.)*\))*\)|${BT}(?:[^${BT}\\]|\\.)*${BT})+/.source;`;
 
 const ARG_TOKEN_PATTERN = new RegExp(ARG_TOKEN_LINE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
 

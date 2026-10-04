@@ -1177,8 +1177,8 @@ The
 `hooks/green-gate.js`, and `hooks/ledger-guard.js` each carry the canonical `const ARG = …` shell-word
 token **verbatim**. The three parse the same shape out of a Bash command line by hand, and nothing links
 the copies, so this pins the literal rather than testing mutual equality. A token that narrows in one
-hook reopens the quoted-argument bypass there (`git -C "my repo" merge` walking past the guard), and a
-deliberate improvement is meant to reach every one of them and this pin in one commit. Same shape as the
+hook reopens the quoted-argument bypass there: `git -C "my repo" merge` walks past the guard. A token with a narrower command-substitution reading reopens a second bypass:
+`git -C $(git rev-parse --show-toplevel)/wt merge`. A deliberate improvement is meant to reach every one of them and this pin in one commit. Same shape as the
 scope-slug charset assertion in `tests/scope.test.js`.
 The `audit-set` contract: `skills/setup/SKILL.md` still records decision C's answer as the
 `## Audit set` section of `docs/agents/documentation.md`, `skills/document/SKILL.md` still reads that

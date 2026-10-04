@@ -25,6 +25,7 @@ const {
   mergeInProgress,
   getChangedPaths,
   IS_MERGE,
+  STUCK_MERGE,
   ARG,
   VERIFICATION_DOC,
   parseMergeCommand,
@@ -290,6 +291,7 @@ assert.equal(
   const pathological = 'git ' + '--git-dir '.repeat(60) + 'x; git ' + 'merge main';
   const t0 = Date.now();
   IS_MERGE.test(pathological);
+  for (const unit of ['git -C $(a $(b $(c))) x;', 'git -C $((1+(2))) x; ', 'git -C $(echo ")") x; ']) STUCK_MERGE.test(unit.repeat(2000));
   const elapsed = Date.now() - t0;
   assert.ok(elapsed < 5000, `a pathological long-option run must resolve quickly, took ${elapsed}ms`);
 }
@@ -355,6 +357,18 @@ for (const value of ['"$RR/scopetree"', '${RR}/wt', '"$(pwd)/wt"', '`pwd`/wt', '
   assert.equal(resolveMergeCwd(`git --work-tree ${value} merge s`, '/session'), null, `--work-tree ${value} too`);
 }
 assert.equal(resolveMergeCwd('git --work-tree=$RR/wt merge s', '/session'), null, 'the = spelling too');
+// a command substitution holding spaces is one word: the merge is seen, and its tree is unknowable
+for (const value of ['$(git rev-parse --show-toplevel)/wt', '$(a $(b c))/wt', '`git rev-parse --show-toplevel`/wt']) {
+  assert.equal(resolveMergeCwd(`git -C ${value} merge --no-ff s`, '/session'), null, `-C ${value} (spaces inside the substitution): unknowable`);
+  assert.equal(resolveMergeCwd(`git --work-tree ${value} merge s`, '/session'), null, `--work-tree ${value} too`);
+}
+// past one nesting level ARG cannot read the value to its end: the merge is still seen, and its tree is unknowable
+for (const value of ['$(dirname $(dirname $(pwd)))/wt', '$((1+(2)))/wt', '$(echo ")")/wt']) {
+  assert.ok(STUCK_MERGE.test(`git -C ${value} merge s`), `-C ${value} merge: seen as an unknowable merge`);
+  assert.ok(STUCK_MERGE.test(`git --work-tree=${value} merge s`), `--work-tree=${value} merge: seen as an unknowable merge`);
+}
+assert.ok(!STUCK_MERGE.test('git -C $(dirname $(pwd))/wt merge s'), 'a closed one-level value is not stuck');
+assert.ok(!STUCK_MERGE.test('echo $(dirname $(dirname $(pwd))) && git -C /wt merge s'), 'a substitution outside an option value is not stuck');
 assert.equal(resolveMergeCwd('git -c "msg=$X" -C /wt merge s', '/session'), '/wt', 'a $ in another option\'s value is not a -C value');
 assert.equal(resolveMergeCwd('git --namespace foo merge s', '/session'), '/session', 'another value-taking option names no tree');
 
@@ -875,6 +889,35 @@ fs.writeFileSync(
     fs.rmSync(session, { recursive: true, force: true });
   }
 
+  // an unquoted command substitution holding spaces: the gate still sees the merge and blocks it
+  {
+    const session = tmp('gg-session-');
+    initRepo(session);
+    commitFile(session, 'base.txt', 'x\n');
+    writeVerification(session, 'node -e "process.exit(0)"'); // green: the block is the unexpanded path
+    for (const value of ['$(git rev-parse --show-toplevel)/wt', '$(a $(b c))/wt', '`git rev-parse --show-toplevel`/wt']) {
+      const result = runHook({ cwd: session, tool_input: { command: `git -C ${value} merge --no-ff other` } });
+      assert.equal(result.status, 2, `a merge naming -C ${value} blocks`);
+      assert.match(result.stderr, /shell/i, 'the block names the shell expansion as the cause');
+      assert.match(result.stderr, /literal path/, 'the block asks for a literal path');
+    }
+    fs.rmSync(session, { recursive: true, force: true });
+  }
+
+  // past one nesting level: the gate still blocks, with no suite run
+  {
+    const session = tmp('gg-session-');
+    initRepo(session);
+    commitFile(session, 'base.txt', 'x\n');
+    writeVerification(session, 'node -e "process.exit(0)"');
+    for (const value of ['$(dirname $(dirname $(pwd)))/wt', '$((1+(2)))/wt', '$(echo ")")/wt']) {
+      const result = runHook({ cwd: session, tool_input: { command: `git -C ${value} merge s` } });
+      assert.equal(result.status, 2, `a merge naming -C ${value} blocks`);
+      assert.match(result.stderr, /literal path/, 'the block asks for a literal path');
+    }
+    fs.rmSync(session, { recursive: true, force: true });
+  }
+
   // no verification doc anywhere → an unexpanded -C stays inert too
   {
     const session = tmp('gg-session-');
@@ -883,6 +926,21 @@ fs.writeFileSync(
     const result = runHook({ cwd: session, tool_input: { command: 'git -C "$RR/scopetree" merge --no-ff other' } });
     assert.equal(result.status, 0, 'no verification doc anywhere → inert on an unexpanded -C');
     assert.equal(result.stderr, '', 'and prints nothing');
+    fs.rmSync(session, { recursive: true, force: true });
+  }
+
+  // a -c option with unexpandable shell syntax: the block names "a git option value", not specifically -C or --work-tree
+  {
+    const session = tmp('gg-session-');
+    initRepo(session);
+    commitFile(session, 'base.txt', 'x\n');
+    writeVerification(session, 'node -e "process.exit(0)"');
+    const result = runHook({ cwd: session, tool_input: { command: 'git -c a=$(b $(c $(d))) merge --no-ff other' } });
+    assert.equal(result.status, 2, 'a merge with -c holding unexpandable shell syntax blocks');
+    assert.match(result.stderr, /git option value/, 'the block names "a git option value" (not specifically -C or --work-tree)');
+    assert.match(result.stderr, /shell/i, 'the block names the shell expansion as the cause');
+    assert.match(result.stderr, /nobody verified it/, 'the message states the merge landed unverified');
+    assert.match(result.stderr, /literal option value/, 'the advice names literal option values');
     fs.rmSync(session, { recursive: true, force: true });
   }
 

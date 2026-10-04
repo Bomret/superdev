@@ -2743,12 +2743,12 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   assert.equal(argGaps1.length, 1, 'flags a hook whose ARG token narrowed');
   assert.equal(argGaps1[0].source, path.join('hooks', 'merge-guard.js'), 'names the hook that drifted');
 
-  // positive: a subtler drift — the single-quote alternative loses its `+`, so the token matches one
-  // character where it used to match a run. Every other character of the line is unchanged.
+  // positive: a subtler drift — the token's closing quantifier loses its `+`, so it matches one piece
+  // where it used to match a run. Every other character of the line is unchanged.
   assert.equal(
     scanContract(
       fixture({
-        'hooks/green-gate.js': ARG_TOKEN_LINE.replace("'[^']*')+", "'[^']*')") + '\n',
+        'hooks/green-gate.js': ARG_TOKEN_LINE.replace('`)+/.source', '`)/.source') + '\n',
       }),
       ARG_TOKEN_CONTRACTS,
     ).length,

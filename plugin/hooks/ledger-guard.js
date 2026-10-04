@@ -8,7 +8,7 @@
 // (they never name ledger.md — the CLI takes --root, the run-root directory).
 
 // One shell word, quoted/escaped forms included — the merge-guard ARG token.
-const ARG = /(?:[^\s"'\\]|\\.|"(?:[^"\\]|\\.)*"|'[^']*')+/.source;
+const ARG = /(?:[^\s"'\\$`]|\$(?!\()|\\.|"(?:[^"\\]|\\.)*"|'[^']*'|\$\((?:[^()\\]|\\.|\((?:[^()\\]|\\.)*\))*\)|`(?:[^`\\]|\\.)*`)+/.source;
 
 // A word references a scopes ledger when, unquoted/unescaped, it carries
 // `.superdev/scopes/…/ledger.md` (relative or under any absolute prefix).
@@ -20,6 +20,7 @@ function refsLedger(word) {
 // The shell write shapes the spec names. Each captures its target word(s). TEE and CPMV capture
 // only to the end of their own `[;&|\n]`-delimited segment — like SED_SEGMENT — so a `cp`/`mv`/
 // `tee` elsewhere never swallows a later command's pure ledger read into its target scan.
+// A redirect target holding a substitution is judged on its text, not its expansion, so it fails closed.
 const REDIR = new RegExp('>{1,2}\\s*(' + ARG + ')', 'g');
 const TEE = /(^|[;&|\n])\s*tee\s+([^;&|\n]*)/gm;
 const SED_SEGMENT = /(^|[;&|\n])([^;&|\n]*\bsed\b[^;&|\n]*)/gm;

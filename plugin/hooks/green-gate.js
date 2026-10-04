@@ -52,7 +52,7 @@ const { execSync } = require('node:child_process');
 // all matched as a single token, not just the first non-space run a bare `\S+` would stop at.
 // Which option named the tree is read back out of the matched option region by optionValue() below,
 // not from a capture group: the reason sits at IS_MERGE.
-const ARG = /(?:[^\s"'\\]|\\.|"(?:[^"\\]|\\.)*"|'[^']*')+/.source;
+const ARG = /(?:[^\s"'\\$`]|\$(?!\()|\\.|"(?:[^"\\]|\\.)*"|'[^']*'|\$\((?:[^()\\]|\\.|\((?:[^()\\]|\\.)*\))*\)|`(?:[^`\\]|\\.)*`)+/.source;
 // `--abort` and `--quit` undo or abandon a merge — nothing new landed, so nothing to gate.
 // `--continue` completes one and stays gated.
 // A long global option takes its value in two spellings — `--work-tree=<path>` and `--work-tree
@@ -70,6 +70,14 @@ const ARG = /(?:[^\s"'\\]|\\.|"(?:[^"\\]|\\.)*"|'[^']*')+/.source;
 // so only the last option's own capture would survive a match — `git --work-tree /b -C /a merge` would
 // lose `/b`. optionValue() below reads each option out of the matched option region instead.
 const LONG_VALUE_OPT = /--(?:git-dir|work-tree|namespace|config-env|shallow-file|attr-source)/.source;
+// A git global option whose value ARG cannot read to the end of its shell word — the next character is not
+// whitespace, as past one `$(…)` nesting level — is unknowable: IS_MERGE would split the word at its first
+// space and the gate would never see the merge. The atomic `(?=(ARG|))\2` takes ARG's greedy match once, so
+// no shorter reading of the value can pass the `(?=\S)` test. Mirrors merge-guard's STUCK; fails closed.
+const STUCK_MERGE = new RegExp(
+  `(^|[;&|\\n])\\s*git(?:\\s+(?:-[cC]\\s+${ARG}|${LONG_VALUE_OPT}(?:=|\\s+(?!-))${ARG}|--${ARG}))*\\s+(?:-[cC]\\s+|${LONG_VALUE_OPT}(?:=|\\s+(?!-)))(?=(${ARG}|))\\2(?=\\S)(?=[^\\n]*\\smerge(?![-\\w]))`,
+  'm'
+);
 const IS_MERGE = new RegExp(
   `(^|[;&|\\n])\\s*git(?:\\s+(?:-[cC]\\s+${ARG}|${LONG_VALUE_OPT}(?:=|\\s+(?!-))${ARG}|--${ARG}))*\\s+merge(?![-\\w])(?!\\s+--(?:abort|quit)\\b)`,
   'm'
@@ -88,7 +96,8 @@ function unquoteArg(raw) {
     const c = raw[i];
     if (c === "'") {
       const end = raw.indexOf("'", i + 1);
-      // ARG guarantees a balanced token, so this never fires in practice — but `end === -1` would
+      // A `-C`/`--work-tree` value carrying an unbalanced quote (inside `$(…)`) returns null from
+      // namesShellExpansion() before any unquoting, so this rarely fires — but `end === -1` would
       // otherwise slice to -1 and rewind `i` to 0, spinning forever on the same unclosed quote.
       if (end === -1) break;
       out += raw.slice(i + 1, end);
@@ -137,6 +146,8 @@ const CHANGES_DIR = /(^|[;&|(\n])\s*(?:cd|pushd|popd)(\s|$)/;
 // keeps running where it always has. **`null` when the tree is unknowable**, in three shapes:
 // the command changed directory before the merge and named no tree, it named only `--git-dir`, or a
 // `-C` or `--work-tree` value holds shell syntax the hook sees unexpanded.
+// A git option value ARG cannot read to its end (STUCK_MERGE) is not one of them: this function never sees
+// that merge, and resolveVerification() fails it closed before any suite runs, whatever this returns.
 //
 // git applies every `-C` in order, each against the directory the previous one left, before it looks at
 // `--work-tree` — so `-C` is folded cumulatively here too (`git -C /a -C b` lands at `/a/b`), and a
@@ -270,6 +281,12 @@ function optionValue(tokens, option) {
   return values.length ? values[values.length - 1] : null;
 }
 const VERIFICATION_DOC = 'docs/agents/verification.md';
+const SHELL_BLIND =
+  'superdev: this merge has landed, and nobody verified it. A git option value holds ' +
+  'shell syntax (`$`, a backtick, or `~`) that the gate cannot expand, so it could not see the ' +
+  'merge\'s working tree. Run the full test command in ' +
+  'the merge\'s tree now, or revert this merge. Pass literal option values next time, such as a literal path: ' +
+  '`git -C /abs/path merge …`.';
 
 // What the gate runs, and where — or that it cannot tell. Both blind spots end here, because both are
 // invisible to `decide()`: a tree it cannot name, and a resolved tree carrying no verification document
@@ -280,6 +297,10 @@ const VERIFICATION_DOC = 'docs/agents/verification.md';
 // a decision that also needs the cwd (main()'s own case) shares one parse across both.
 function resolveVerification(parsed, cmd, sessionCwd) {
   const session = readVerification(sessionCwd);
+  if (STUCK_MERGE.test(cmd)) {
+    if (!session.full) return session;
+    return { full: session.full, focused: session.focused, blind: SHELL_BLIND };
+  }
   const cwd = parsed ? resolveCwdFromTokens(parsed.tokens, parsed.index, cmd, sessionCwd) : sessionCwd;
   if (cwd === null) {
     // No verification document anywhere → the repository configured no gate, so there is nothing to
@@ -289,11 +310,7 @@ function resolveVerification(parsed, cmd, sessionCwd) {
       full: session.full,
       focused: session.focused,
       blind: namesShellExpansion(parsed.tokens)
-        ? 'superdev: this merge has landed, and nobody verified it. Its `-C` or `--work-tree` value holds ' +
-          'shell syntax (`$`, a backtick, or `~`) that the gate cannot expand, so it could not see the ' +
-          'merge\'s working tree. Run the full test command in ' +
-          'the merge\'s tree now, or revert this merge. Pass a literal path next time: ' +
-          '`git -C /abs/path merge …`.'
+        ? SHELL_BLIND
         : namesOnlyGitDir(parsed.tokens)
         ? 'superdev: this merge has landed, and nobody verified it. The command names its repository ' +
           'with `--git-dir` and its working tree with nothing, so the files it updated and the refs it ' +
@@ -379,7 +396,7 @@ function pickCommand(verification, getChangedPaths) {
 function decide(input, getVerification, runTests, getChangedPaths, mergeInProgress, getCurrentBranch = () => '') {
   if (input && input.agent_id) return { block: false }; // subagent → not our concern
   const cmd = (input && input.tool_input && input.tool_input.command) || '';
-  if (!IS_MERGE.test(cmd)) return { block: false }; // not a merge
+  if (!IS_MERGE.test(cmd) && !STUCK_MERGE.test(cmd)) return { block: false }; // not a merge
   const verification = getVerification();
   // A blind spot fails closed, before every check below: each of them — the configured command, the
   // branch read, the in-progress check — asks a question about a tree the gate could not resolve.
@@ -608,6 +625,7 @@ module.exports = {
   mergeInProgress,
   getChangedPaths,
   IS_MERGE,
+  STUCK_MERGE,
   ARG,
   VERIFICATION_DOC,
   parseMergeCommand,

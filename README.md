@@ -260,7 +260,10 @@ bash or PowerShell variants.
 
 - **merge-guard.** Blocks `git merge`, `git push`, `git rebase`, `gh pr merge`, `tea pr merge`, and a
   `tea api` POST or `gh api` PUT or POST to a pull request's `/merge` endpoint from inside a subagent,
-  scoped by `agent_id`. A `curl` call to that endpoint stays a prose contract the subagent bodies carry.
+  scoped by `agent_id`. The guard also blocks an integrating command whose git option value, such as
+  `-C`, `--work-tree`, `--git-dir`, or `-c`, holds a command substitution it cannot read to its end.
+  Deeper nesting, nested arithmetic, and a quoted `)` inside the substitution are examples. A `curl`
+  call to that endpoint stays a prose contract the subagent bodies carry.
   The controller integrates.
 - **model-explicit.** Blocks a dispatch to a superdev subagent that omits an explicit `model`, so cost
   is always warrant-scaled.
@@ -280,7 +283,9 @@ bash or PowerShell variants.
   while reading refs from another repository, a `-C` or `--work-tree` value holding shell syntax (`$VAR`,
   `$(…)`, a backtick, a leading `~`) names a path the gate reads before the shell expands it, and a `-C`
   path carrying no `docs/agents/verification.md` while your own checkout does is a path pointing somewhere
-  other than the merge. Run such a merge as
+  other than the merge. A git option value that holds a command substitution the gate cannot read to its
+  end also blocks. An example is a substitution nested more than one level deep, in `-c` or `--git-dir`
+  as well as `-C`. Pass literal option values instead, such as
   `git -C <path> merge …`. A green the gate never verified is worth less than a block naming why.
 - **run-lock.** Blocks a `git worktree add` on a scopetree (`.superdev/scopes/<scope>/scopetree`)
   while a fresh `.superdev/scopes/<scope>/run.lock` exists, so two concurrent lite runs on one scope
