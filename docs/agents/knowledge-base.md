@@ -1,6 +1,6 @@
 # Knowledge base: Codeberg Wiki (Forgejo)
 
-Durable, **human-first** reader-facing docs (feature specifications, design overviews, ADR summaries) live in the
+Durable, **human-first** reader-facing docs (guides, mechanism pages, concepts) live in the
 Codeberg repo **Wiki** for `bomret/superdev`. Distinct from the agent-first in-repo `AGENTS.md` docs.
 
 ## Configuration
@@ -26,13 +26,25 @@ Codeberg repo **Wiki** for `bomret/superdev`. Distinct from the agent-first in-r
 
 This outline is a living skeleton. `/plan` and `/document` fill and extend it.
 
-- **Overview.** What superdev is, and the plan and implement loop (adopter-facing).
-- **Concepts.** Slice store, code host, documentation convention, knowledge base, toolchain,
-  verification. `(aggregate)`: one `## <concept>` section per concept, contributed by the scope that built it.
-- **Feature specifications and design notes.** One page per significant feature.
-- **ADR summaries.** Human-readable digests of `docs/adr/` decisions. `(aggregate)`: one `## NNNN —
-  title` section per decision.
-- **Guides.** Install, configure a backend, cut a release.
+- **Home.** The only hand-written navigation: what superdev is, the plan and implement loop, one line
+  per group below, and the compatibility note.
+- **`Guide: <task>`.** One page per thing an adopter does: install and configure, plan a feature,
+  scope the test runs, ship and wrap up, deploy after the merge, publish to the knowledge base, audit
+  tests, sweep a repository, check prose, survey the backlog, profile a run.
+- **`How it works: <mechanism>`.** One page per feature or mechanism, titled by the behavior a reader
+  meets, written as what it does, where you meet it, and how to configure it. `/plan` stages this
+  page, and `/document` upserts the **same title** once the feature is built, so one feature has one
+  page.
+- **Concepts.** The terms an adopter configures or sizes: slice store, code host, documentation
+  convention, knowledge base, toolchain, verification, execution tiers, unattended runs, deploy
+  posture, seed gaps. `(aggregate)`: one `## <concept>` section per concept, contributed by the scope
+  that built it. A mechanism belongs on its own `How it works:` page, not here.
+
+Decisions stay in the repository's `docs/adr/`, which the code host renders. The knowledge base carries
+no ADR digest.
+
+**Naming.** The prefix ends in a colon and one space. No trailing period. No `#` title heading in the
+body: the wiki renders the page title itself. A page's `title` is the whole string, prefix included.
 
 An `(aggregate)` page is staged one section at a time (`action: patch`) and merged into the live page
 by that section's heading. Every other page is staged whole (ADR 0027).
