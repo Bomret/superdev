@@ -239,8 +239,9 @@ This root owns every other subtree directly:
   (ADR 0013). Every command listed in `references/response-shapes.md`'s Next block section closes its last
   message with that block (ADR 0113). `/superdev:ship` is a separate, human-only command: it merges the pull request submit-pr
   opened, deploys the merge under the repository's deploy posture (`none`/`manual`/`auto`,
-  `docs/agents/deployment.md`, ADR 0101), and stops there (ADR 0106). `/superdev:verify-ship` then settles
-  the criteria only a deployed system can show, and `/superdev:wrap-up` closes the scope anchor and takes
+  `docs/agents/deployment.md`, ADR 0101), and stops there (ADR 0106). It names `/superdev:verify-ship` next
+  while a criterion is left to verify, and `/superdev:wrap-up` otherwise (ADR 0116). `/superdev:verify-ship`
+  settles the criteria only a deployed system can show, and `/superdev:wrap-up` closes the scope anchor and takes
   the run down. Both are human-only too.
   Whoever invokes a chain command passes `--unattended` to run it unattended (ADR 0016, ADR 0108);
   superdev ships no driver. Some skills sit outside the chain: publish-kb sends a scope's

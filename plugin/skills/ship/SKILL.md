@@ -1,6 +1,6 @@
 ---
 name: ship
-description: Merge a superdev scope's pull request, pinned to the tested head, through the host's merge API — apply the repository's deploy posture to the merge, then stop and hand off to `/superdev:verify-ship` or `/superdev:wrap-up`. Only a human runs it, once `/superdev:submit-pr` has opened the pull request and it has been reviewed.
+description: Merge a superdev scope's pull request, pinned to the tested head, through the host's merge API — apply the repository's deploy posture to the merge, then stop and hand off to `/superdev:verify-ship`, or to `/superdev:wrap-up` when nothing is left to verify. Only a human runs it, once `/superdev:submit-pr` has opened the pull request and it has been reviewed.
 disable-model-invocation: true
 argument-hint: "[<scope>  (empty = the only run in this repo)]"
 ---
@@ -8,8 +8,8 @@ argument-hint: "[<scope>  (empty = the only run in this repo)]"
 # superdev ship
 
 Merge the pull request `/superdev:submit-pr` opened, and apply the deploy posture. It stops after the
-deploy: it closes no anchor and removes nothing, and `/superdev:verify-ship` then `/superdev:wrap-up` follow
-(ADR 0106, INV-0099). It dispatches no subagents, and carries no
+deploy: it closes no anchor and removes nothing. `/superdev:wrap-up` follows, after `/superdev:verify-ship`
+when anything is left to verify (ADR 0106, ADR 0116, INV-0099). It dispatches no subagents, and carries no
 unattended mode of its own: only a human runs this command (ADR 0096). Calling it at all is the consent
 to merge, so nothing here asks a second question once the gate below has passed, except one: under `auto`, §5 asks
 before it deploys a `docs/agents/deployment.md` nobody was shown (ADR 0104).
@@ -54,7 +54,7 @@ Read the ledger's `**Stage:**` line with
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deploy get --root <run-root>`; the listed targets are
   the anchor's `**Deploy:**` line, per `docs/agents/issue-tracker.md`. **Every listed target reads
   `deployed`, or no target is listed** → this run finished, merge and deploy alike: report "already
-  shipped", print the **Hand off** line of §5, and stop, whether or not the scope checkout is present. An
+  shipped", print the next command §5's **Hand off** picks, and stop, whether or not the scope checkout is present. An
   "already shipped" report needs no scope checkout, so recreate none. **Otherwise** read the posture at
   the merge commit, with no scope checkout, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
   `## Reading the posture at the merge commit`: from the invoking checkout, reading the pull request by the
@@ -65,7 +65,7 @@ Read the ledger's `**Stage:**` line with
   commit"** below: nothing merges again. Recreate the absent scope checkout only when the posture is `auto`
   and a target is undeployed, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`, since §5's detach runs
   through it. **The posture is not
-  `auto`** → this run finished too: report "already shipped", print the **Hand off** line of §5, and stop,
+  `auto`** → this run finished too: report "already shipped", print the next command §5's **Hand off** picks, and stop,
   recreating nothing. Nothing to merge, and nothing to refuse.
 - **`shipped`, and the ledger carries no `**PR:**` header** (`scope.js get pr` prints `absent`) → a
   version before ADR 0096 wrote this stage the moment it opened the pull request, not once it merged —
@@ -317,6 +317,16 @@ when the commit is missing, then
   - **Every listed target now `deployed`** → go on to the hand-off below.
 
 **Hand off.** Ship writes no tick anywhere, closes no anchor, and removes no checkout, slice checkout, or
-lock: the anchor stays open and the run stays standing until `/superdev:wrap-up` (ADR 0106, INV-0099). Print `/superdev:verify-ship <scope>` as the next command, with
-one line on what it does: it observes the Definition-of-Done lines that are neither ticked nor accepted,
-and `/superdev:wrap-up <scope>` closes the scope afterwards.
+lock: the anchor stays open and the run stays standing until `/superdev:wrap-up` (ADR 0106, INV-0099). Pick
+the next command by `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
+`## Routing a shipped run` (ADR 0116, INV-0116). Its reads only choose the command: ship writes no verdict
+and rewrites no anchor line from them.
+
+- **It routes to wrap-up** → print `/superdev:wrap-up <scope>` as the next command, with one line: nothing
+  is left to verify, and wrap-up closes the scope. A `dod.md` line unpaired on the anchor puts the hand-sync
+  of the anchor's criterion text under `First:`.
+- **It routes to verify-ship** → print `/superdev:verify-ship <scope>` as the next command, with one line on
+  what it does: it observes the Definition-of-Done lines that are neither ticked nor accepted, and
+  `/superdev:wrap-up <scope>` closes the scope afterwards.
+- **The anchor cannot be read** → print `/superdev:verify-ship <scope>`, as above: its own reconcile reads
+  the anchor again.

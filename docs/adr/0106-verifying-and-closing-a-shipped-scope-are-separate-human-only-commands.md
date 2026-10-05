@@ -2,6 +2,11 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0110](0110-the-local-file-slice-store-is-removed.md), which removes the local
+plan-file store, so point 7 below describes a store superdev no longer ships.
+**Amended by:** [ADR 0116](0116-ship-names-wrap-up-when-nothing-is-left-to-verify.md), which qualifies
+point 1 below: ship prints `/superdev:wrap-up <scope>` instead when nothing is left to verify.
+
 **Amends:** [ADR 0040](0040-the-sweep-defers-an-anchor-whose-blocker-has-not-shipped.md),
 [ADR 0096](0096-opening-the-pull-request-and-merging-it-are-separate-commands.md) point 5, and
 [ADR 0101](0101-ship-applies-the-deploy-posture-after-the-merge.md) point 3.

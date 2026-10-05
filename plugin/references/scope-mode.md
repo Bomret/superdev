@@ -866,3 +866,26 @@ each caller states only what it does with the result (ADR 0101, ADR 0106).
 4. **The deploy record.** Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deploy get --root
    <run-root>`. A listed target **not recorded `deployed`**, a record of `absent` included, is undeployed:
    a session can end between ship's stage write and its first deploy record.
+
+## Routing a shipped run
+
+`/superdev:ship`'s final hand-off, `/superdev:backlog`, `/superdev:document`, and run init's shipped-run stops (`references/run-init.md`) each decide where a `shipped` run whose anchor is
+still open goes next: to `/superdev:verify-ship`, or straight to `/superdev:wrap-up`. This section states
+that rule once, so ship, backlog, document, and run init name the same command for the same run (ADR 0116, INV-0116). Each caller states
+only what it does with the outcome, and what it does when the anchor cannot be read.
+
+1. **The run's criteria.** Read the Definition-of-Done lines from `<run-root>/dod.md` (INV-0016). It is
+   authoritative, because a store's tick write is best-effort. The note's verdict, not the box, decides a
+   line's state. A `dod.md` that is missing or unreadable → judge from the anchor alone, read through the
+   store document's anchor read.
+2. **The anchor's lines.** With `dod.md` read, also read the anchor's lines and pair them per
+   `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## Pairing dod.md with the anchor`.
+3. **The deploy targets.** Read the posture, the listed targets, and their record per
+   `## Reading the posture at the merge commit` above.
+
+- **Verify-ship** — while a Definition-of-Done line is neither ticked nor `accepted:`, a paired line's
+  verdict on the anchor differs from `dod.md` (verify-ship reconciles it), or a listed `manual` target is
+  not recorded `deployed`.
+- **Wrap-up** — otherwise: every line ticked or noted `accepted:`, every paired anchor line agreeing with `dod.md`, and every listed `manual` target recorded `deployed`. A
+  `dod.md` line with no text-matching line on the anchor still routes here, because verify-ship cannot
+  reconcile it: the hand-sync of the anchor's criterion text comes first, then `/superdev:wrap-up <scope>`.

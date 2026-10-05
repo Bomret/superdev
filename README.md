@@ -225,7 +225,8 @@ time-based loop, so hand review comments and CI on it to `/loop`:
 Once the pull request is reviewed, `/superdev:ship` merges it, deploys the merge under the repository's
 deploy posture (`none`/`manual`/`auto`, `docs/agents/deployment.md`, ADR 0101), then stops.
 `/superdev:verify-ship` settles the criteria only a deployed system can show. `/superdev:wrap-up` closes the
-scope anchor and cleans up the run. All three are human-only.
+scope anchor and cleans up the run. All three are human-only. Ship names `/superdev:verify-ship` next while
+a criterion is open or a `manual` deploy waits for an answer, and `/superdev:wrap-up` otherwise (ADR 0116).
 
 Any chain command (`/superdev:implement`, `/superdev:review`, `/superdev:document`, `/superdev:submit-pr`)
 takes `--unattended`. At a stop, the run takes the stop's standing answer, or blocks the scope anchor
@@ -485,11 +486,9 @@ A tiny feature end to end, with GitHub Issues as the slice store and GitHub as t
 - **`/superdev:submit-pr health-check`**. Pushes the scope branch and opens the pull request. You see the
   pull-request URL, and the run stands: the scopetree and the scope anchor are still there.
 - **`/superdev:ship health-check`**, once the pull request is reviewed. Merges it and deploys nothing (this
-  repository's own deploy posture is `none`), then stops with the stage at `shipped` and prints
-  `/superdev:verify-ship health-check`.
-- **`/superdev:verify-ship health-check`**. Settles the criteria only a deployed system can show. With
-  nothing deployed and every criterion already ticked, it says so and prints
-  `/superdev:wrap-up health-check`.
+  repository's own deploy posture is `none`), then stops with the stage at `shipped`. Every criterion is already ticked and nothing waits on a deploy,
+  so it prints `/superdev:wrap-up health-check`. `/superdev:verify-ship` runs only for a scope with a
+  criterion left open or a `manual` deploy to confirm.
 - **`/superdev:wrap-up health-check`**. Checks the merge and the deploy record, closes the slice issues and
   the epic, removes the scopetree and the run, and sets the stage `closed`.
 - **After.** Review comments and flaky CI on the open pull request are a `/loop` job, not this chain's

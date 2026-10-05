@@ -959,3 +959,12 @@ Statement: An edit to a scope anchor's body runs only when the read of the curre
 Breaks: silently
 Check: scripts/drift-check.js — every store document's edit-body rule carries the gate, no store document edits a body from stdin, and every tick section names its body extraction; partial: nothing checks the command a controller actually runs
 Paths: plugin/references/issue-tracker-*.md, docs/agents/issue-tracker.md, plugin/references/scope-mode.md
+
+### INV-0116
+
+Class: process
+Concepts: Stage, Scope anchor, Definition of Done (DoD), Deploy target
+Statement: `/superdev:ship`'s final hand-off, `/superdev:backlog`'s routing of a `shipped` run, and `/superdev:document`'s leave-alone hand-off, and run init's shipped-run stops apply one rule, stated once in `references/scope-mode.md`, so all name the same next command, `/superdev:verify-ship` or `/superdev:wrap-up`, for the same run state (ADR 0116).
+Breaks: silently
+Check: scripts/drift-check.js — ship's, backlog's, document's, and run-init.md's citations of the scope-mode.md section; partial: nothing checks the command an agent prints
+Paths: plugin/skills/ship/SKILL.md, plugin/skills/backlog/SKILL.md, plugin/skills/document/SKILL.md, plugin/references/run-init.md, plugin/references/scope-mode.md

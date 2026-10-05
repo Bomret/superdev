@@ -2699,15 +2699,15 @@ const RUN_INIT_FINISHED_STAGE_CONTRACTS = [
   ],
   [
     path.join('references', 'run-init.md'),
-    /\*\*`shipped`\*\*[\s\S]{0,200}?stop\s+and\s+create\s+nothing[\s\S]{0,200}?\/superdev:verify-ship[\s\S]{0,80}?\/superdev:wrap-up/,
+    /\*\*`shipped`\*\*[\s\S]{0,200}?stop\s+and\s+create\s+nothing[\s\S]{0,300}?## Routing a shipped run`[\s\S]{0,200}?\/superdev:verify-ship[\s\S]{0,80}?\/superdev:wrap-up/,
     'state that a `shipped` ledger stops run init with nothing created, naming `/superdev:verify-ship` ' +
-      'and `/superdev:wrap-up` as what finishes that run first',
+      'and `/superdev:wrap-up` by citing scope-mode.md\'s `## Routing a shipped run`, as what finishes that run first',
   ],
   [
     path.join('references', 'run-init.md'),
-    /`\*\*Stage:\*\*` line reads `shipped`[\s\S]{0,300}?stop[\s\S]{0,80}?creat\w+\s+nothing[\s\S]{0,300}?\/superdev:verify-ship[\s\S]{0,80}?\/superdev:wrap-up/,
+    /`\*\*Stage:\*\*` line reads `shipped`[\s\S]{0,300}?stop[\s\S]{0,80}?creat\w+\s+nothing[\s\S]{0,300}?## Routing a shipped run`[\s\S]{0,200}?\/superdev:verify-ship[\s\S]{0,80}?\/superdev:wrap-up/,
     'state that a snapshot at `shipped` stops run init with no `dod.md` and no ledger created, naming ' +
-      '`/superdev:verify-ship` and `/superdev:wrap-up`, as the local `shipped` ledger does',
+      '`/superdev:verify-ship` and `/superdev:wrap-up` by citing scope-mode.md\'s `## Routing a shipped run`, as the local `shipped` ledger does',
   ],
   [
     path.join('references', 'run-init.md'),
@@ -2723,9 +2723,10 @@ const RUN_INIT_FINISHED_STAGE_CONTRACTS = [
   ],
   [
     path.join('references', 'run-init.md'),
-    /\*\*Its `\*\*Stage:\*\*` line reads `shipped`\*\*[\s\S]{0,300}?stop\s+and\s+create\s+no\s+ledger[\s\S]{0,300}?\/superdev:verify-ship[\s\S]{0,80}?\/superdev:wrap-up/,
+    /\*\*Its `\*\*Stage:\*\*` line reads `shipped`\*\*[\s\S]{0,300}?stop\s+and\s+create\s+no\s+ledger[\s\S]{0,300}?## Routing a shipped run`\s+picks\s+with\s+the\s+`dod\.md`\s+this\s+run\s+just\s+wrote\s+treated\s+as\s+missing[\s\S]{0,100}?\/superdev:verify-ship[\s\S]{0,80}?\/superdev:wrap-up/,
     'state in **Create the ledger** that an anchor snapshot at `shipped` stops the ledger write and the ' +
-      'snapshot publish, naming `/superdev:verify-ship` and `/superdev:wrap-up`, so the second anchor read ' +
+      'snapshot publish, naming `/superdev:verify-ship` and `/superdev:wrap-up` by citing scope-mode.md\'s ' +
+      '`## Routing a shipped run` with the just-written dod.md treated as missing, so the second anchor read ' +
       'cannot fall through to `init`',
   ],
   [
@@ -4727,9 +4728,9 @@ const WRAP_UP_CONTRACTS = [
     'cite `dod-ticks.md`\'s `## Pairing dod.md with the anchor` for the pairing rule rather than restating it',
   ],
   [
-    path.join('skills', 'backlog', 'SKILL.md'),
-    /dod-ticks\.md`'s `## Pairing\s+dod\.md\s+with\s+the\s+anchor`/,
-    'cite `dod-ticks.md`\'s `## Pairing dod.md with the anchor` for the pairing rule rather than restating it',
+    path.join('references', 'scope-mode.md'),
+    /## Routing a shipped run[\s\S]{0,2000}dod-ticks\.md`'s `## Pairing\s+dod\.md\s+with\s+the\s+anchor`/,
+    'cite `dod-ticks.md`\'s `## Pairing dod.md with the anchor` in the shipped-run routing rule rather than restating it',
   ],
   [
     path.join('references', 'dod-ticks.md'),
@@ -4742,9 +4743,9 @@ const WRAP_UP_CONTRACTS = [
     'state once that a `dod.md` line unpaired on the anchor is never a verdict disagreement, is never retried by the reconcile, and needs a hand-sync',
   ],
   [
-    path.join('skills', 'backlog', 'SKILL.md'),
-    /no text-matching line on the anchor[\s\S]{0,200}`awaiting wrap-up`[\s\S]{0,200}hand-sync[\s\S]{0,100}`\/superdev:wrap-up <scope-slug>`/,
-    'route a `dod.md` line unpaired on the anchor to `awaiting wrap-up`, the act naming the hand-sync and then `/superdev:wrap-up <scope-slug>`',
+    path.join('references', 'scope-mode.md'),
+    /## Routing a shipped run[\s\S]{0,3000}`dod\.md` line with no text-matching line on the anchor still routes here[\s\S]{0,200}hand-sync[\s\S]{0,100}`\/superdev:wrap-up <scope>`/,
+    'route a `dod.md` line unpaired on the anchor to wrap-up, the hand-sync first and then `/superdev:wrap-up <scope>`',
   ],
   [
     path.join('skills', 'wrap-up', 'SKILL.md'),
@@ -5556,15 +5557,15 @@ const SHIP_LEGACY_SHIPPED_CONTRACTS = [
   ],
   [
     path.join('skills', 'ship', 'SKILL.md'),
-    /carries a `\*\*PR:\*\*` header[\s\S]{0,1200}?report "already\s*\n?\s*shipped", print the \*\*Hand off\*\* line of §5, and stop, whether or not the scope checkout is present/,
-    'report "already shipped", print §5\'s hand-off line, and stop, with nothing to merge and nothing to refuse, on a `shipped` ' +
+    /carries a `\*\*PR:\*\*` header[\s\S]{0,1200}?report "already\s*\n?\s*shipped", print the next command §5's \*\*Hand off\*\* picks, and stop, whether or not the scope checkout is present/,
+    'report "already shipped", print the next command §5\'s hand-off picks, and stop, with nothing to merge and nothing to refuse, on a `shipped` ' +
       'ledger that carries a `**PR:**` header and whose deploy record shows nothing left undeployed, ' +
       'whether or not the scope checkout is present (#720, ADR 0106)',
   ],
   [
     path.join('skills', 'ship', 'SKILL.md'),
-    /\*\*The posture is not\s+`auto`\*\*\s*→\s*this run finished too: report "already shipped", print the \*\*Hand off\*\* line of §5,\s+and stop/,
-    'report "already shipped", print §5\'s hand-off line, and stop when a `shipped` run\'s posture is not `auto`, ' +
+    /\*\*The posture is not\s+`auto`\*\*\s*→\s*this run finished too: report "already shipped", print the next command §5's \*\*Hand off\*\* picks,\s+and stop/,
+    'report "already shipped", print the next command §5\'s hand-off picks, and stop when a `shipped` run\'s posture is not `auto`, ' +
       'so the exit names the next command instead of ending bare',
   ],
   [
@@ -5800,11 +5801,28 @@ const SHIP_DEPLOY_CONTRACTS = [
     /\*\*Both diffs empty\*\* → ask nothing/,
     'ask nothing when neither diff finds a change',
   ],
-  // ADR 0106, INV-0099: ship stops after the deploy and hands off to verify-ship.
+  // ADR 0106, INV-0099: ship stops after the deploy. ADR 0116, INV-0116: its hand-off picks verify-ship or
+  // wrap-up by the shipped-run routing rule backlog cites too, and an unreadable anchor falls back to verify-ship.
   [
     path.join('skills', 'ship', 'SKILL.md'),
-    /\*\*Hand off\.\*\*[\s\S]{0,400}Print `\/superdev:verify-ship <scope>` as the next command/,
-    'stop after the deploy and print `/superdev:verify-ship <scope>` as the next command (ADR 0106)',
+    /\*\*Hand off\.\*\*[\s\S]{0,600}`\$\{CLAUDE_PLUGIN_ROOT\}\/references\/scope-mode\.md`'s\s*\n?\s*`## Routing a shipped run`/,
+    "pick the hand-off's next command by citing scope-mode.md's `## Routing a shipped run` (INV-0116)",
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /\*\*Hand off\.\*\*[\s\S]{0,1200}\*\*It routes to wrap-up\*\* → print `\/superdev:wrap-up <scope>` as the next command[\s\S]{0,400}hand-sync[\s\S]{0,120}`First:`/,
+    'print `/superdev:wrap-up <scope>` when the rule routes to wrap-up, the hand-sync under `First:` for an ' +
+      'unpaired line (ADR 0116)',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /\*\*Hand off\.\*\*[\s\S]{0,2000}\*\*It routes to verify-ship\*\* → print `\/superdev:verify-ship <scope>` as the next command/,
+    'print `/superdev:verify-ship <scope>` when the rule routes to verify-ship (ADR 0106)',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /\*\*Hand off\.\*\*[\s\S]{0,2500}\*\*The anchor cannot be read\*\* → print `\/superdev:verify-ship <scope>`/,
+    'fall back to `/superdev:verify-ship <scope>` when the anchor cannot be read (ADR 0116)',
   ],
   [
     path.join('skills', 'ship', 'SKILL.md'),
@@ -5833,9 +5851,10 @@ const DOCUMENT_SUBMITTED_CONTRACTS = [
   ],
   [
     path.join('skills', 'document', 'SKILL.md'),
-    /print\s*\n?\s*`\/superdev:verify-ship <scope>`[,;][\s\S]{0,200}?when it read `closed`, the Next block says no command follows/,
-    'print `/superdev:verify-ship <scope>` as the next command when the leave-alone branch read `shipped`, ' +
-      'and the no-successor line at `closed`',
+    /when it read `shipped`, pick the\s*\n?\s*command by `\$\{CLAUDE_PLUGIN_ROOT\}\/references\/scope-mode\.md`'s `## Routing a shipped run`[\s\S]{0,200}?`\/superdev:verify-ship <scope>` or `\/superdev:wrap-up <scope>`[\s\S]{0,100}?print `\/superdev:verify-ship <scope>` when the anchor cannot be read[\s\S]{0,40}?when it read `closed`, the Next block says no command follows/,
+    'pick the next command when the leave-alone branch read `shipped` by citing scope-mode.md\'s ' +
+      '`## Routing a shipped run`, printing verify-ship or wrap-up as it routes and verify-ship when the anchor cannot be read, and keep the no-successor line ' +
+      'at `closed` (ADR 0116, INV-0116)',
   ],
   [
     'README.md',
@@ -5845,8 +5864,8 @@ const DOCUMENT_SUBMITTED_CONTRACTS = [
   ],
   [
     'README.md',
-    /then stops with the stage at `shipped` and prints\s*\n?\s*`\/superdev:verify-ship health-check`[\s\S]{0,400}?`\/superdev:wrap-up health-check`/,
-    'walk the worked example from ship to verify-ship, then wrap-up',
+    /then stops with the stage at `shipped`\. Every criterion is already ticked and nothing waits on a deploy,\s*\n?\s*so it prints `\/superdev:wrap-up health-check`/,
+    'walk the worked example from ship straight to wrap-up, nothing being left to verify (ADR 0116)',
   ],
   [
     'README.md',
@@ -5989,9 +6008,10 @@ const BACKLOG_SUBMITTED_CONTRACTS = [
 const DEPLOY_STEP_VISIBILITY_CONTRACTS = [
   [
     path.join('skills', 'submit-pr', 'SKILL.md'),
-    /it merges the pull\s*\n?\s*request once an operator has reviewed it, applies the repository's deploy posture to the merge, and stops\s*\n?\s*there, printing `\/superdev:verify-ship <scope>` next/,
+    /it merges the pull\s*\n?\s*request once an operator has reviewed it, applies the repository's deploy posture to the merge, and stops\s*\n?\s*there, printing `\/superdev:verify-ship <scope>` next, or `\/superdev:wrap-up <scope>` when nothing is left\s*\n?\s*to verify/,
     "state, on its own next-command line, that `/superdev:ship` applies the repository's deploy posture " +
-      'to the merge and stops, printing `/superdev:verify-ship <scope>` next',
+      'to the merge and stops, printing `/superdev:verify-ship <scope>` next, or `/superdev:wrap-up <scope>` ' +
+      'when nothing is left to verify (ADR 0116)',
   ],
   [
     path.join('skills', 'backlog', 'SKILL.md'),
@@ -6008,8 +6028,8 @@ const DEPLOY_STEP_VISIBILITY_CONTRACTS = [
   // ADR 0106: the anchor close follows verify-ship, and is wrap-up's.
   [
     path.join('skills', 'submit-pr', 'SKILL.md'),
-    /anchor stays open\. `\/superdev:wrap-up` closes it, after the merge and\s*\n?\s*`\/superdev:verify-ship`/,
-    'state that wrap-up closes the anchor, after the merge and verify-ship (ADR 0106)',
+    /anchor stays open\. `\/superdev:wrap-up` closes it, after the merge and any\s*\n?\s*`\/superdev:verify-ship` pass the run needs/,
+    'state that wrap-up closes the anchor, after the merge and any verify-ship pass the run needs (ADR 0106, ADR 0116)',
   ],
   // #750: a stalled `auto` deploy is visible even under a scope anchor a human closed by hand, where the
   // run root matches no open anchor (ADR 0110) — and it ranks first.
@@ -6051,11 +6071,18 @@ const BACKLOG_VERIFY_WRAP_UP_CONTRACTS = [
     /\| `awaiting wrap-up` \|[^\n]*`\/superdev:wrap-up <scope-slug>`/,
     'carry an `awaiting wrap-up` bucket whose act is `/superdev:wrap-up <scope-slug>`',
   ],
+  // ADR 0116, INV-0116: the routing rule lives once in scope-mode.md, and backlog cites it.
   [
     path.join('skills', 'backlog', 'SKILL.md'),
-    /neither ticked nor `accepted:`[\s\S]{0,300}`manual` target is not recorded `deployed`/,
-    'send an open anchor over a `shipped` run to `awaiting verification` while a line is neither ticked ' +
-      'nor accepted or a `manual` target is not recorded `deployed`',
+    /Route an open anchor over a `shipped` run root per `\$\{CLAUDE_PLUGIN_ROOT\}\/references\/scope-mode\.md`'s\s*\n?\s*`## Routing a shipped run`: verify-ship there is `awaiting verification`, and wrap-up is `awaiting wrap-up`/,
+    "route an open anchor over a `shipped` run by citing scope-mode.md's `## Routing a shipped run`, " +
+      'verify-ship mapping to `awaiting verification` and wrap-up to `awaiting wrap-up` (INV-0116)',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /## Routing a shipped run[\s\S]{0,3000}neither ticked nor `accepted:`[\s\S]{0,300}`manual` target is\s*\n?\s*not recorded `deployed`/,
+    'send a `shipped` run to verify-ship while a line is neither ticked nor accepted or a `manual` target ' +
+      'is not recorded `deployed`',
   ],
   [
     path.join('skills', 'backlog', 'SKILL.md'),
@@ -6068,16 +6095,20 @@ const BACKLOG_VERIFY_WRAP_UP_CONTRACTS = [
     'give a `closed` run root no row',
   ],
   [
-    path.join('skills', 'backlog', 'SKILL.md'),
-    /from `<run-root>\/dod\.md`[\s\S]{0,700}differs from `dod\.md`[\s\S]{0,120}`awaiting verification`/,
-    'judge a `shipped` run root\'s Definition-of-Done lines from `<run-root>/dod.md`, and route an anchor ' +
-      'whose verdict differs from it to `awaiting verification`',
+    path.join('references', 'scope-mode.md'),
+    /## Routing a shipped run[\s\S]{0,1000}from `<run-root>\/dod\.md`[\s\S]{0,1500}verdict on the anchor differs from `dod\.md` \(verify-ship reconciles it\)/,
+    'judge a `shipped` run\'s Definition-of-Done lines from `<run-root>/dod.md`, and send an anchor whose ' +
+      'verdict differs from it to verify-ship',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /## Routing a shipped run[\s\S]{0,1500}`dod\.md` that is missing or unreadable[\s\S]{0,200}anchor alone/,
+    'judge a `shipped` run from the anchor alone when `dod.md` is missing or unreadable',
   ],
   [
     path.join('skills', 'backlog', 'SKILL.md'),
-    /`dod\.md` that is missing or unreadable[\s\S]{0,200}anchor\s+alone[\s\S]{0,300}unreadable anchor[\s\S]{0,200}`blocked` row/,
-    'judge from the anchor alone when `dod.md` is missing or unreadable, and give an unreadable anchor a ' +
-      '`blocked` row naming what could not be read',
+    /An unreadable anchor → the item is a `blocked` row naming what could not be read/,
+    'give an unreadable anchor a `blocked` row naming what could not be read',
   ],
   [
     path.join('skills', 'backlog', 'SKILL.md'),

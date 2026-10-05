@@ -677,7 +677,7 @@ module.exports = [
   table(
     'deploy-step-visibility',
     DEPLOY_STEP_VISIBILITY_CONTRACTS,
-    "submit-pr's next-command line states that ship deploys and stops at verify-ship, its closing paragraph names wrap-up as the close, and the backlog survey never steers an " +
+    "submit-pr's next-command line states that ship deploys and stops at verify-ship or, with nothing left to verify, at wrap-up, its closing paragraph names wrap-up as the close, and the backlog survey never steers an " +
       'operator into closing an anchor stuck mid-`auto`-deploy by hand, shows a stalled deploy whether or ' +
       'not an open anchor matches it, and ranks it first',
   ),
@@ -1020,8 +1020,8 @@ module.exports = [
     "ship's pre-merge gate refuses an anchor listing an untabled target and shows a changed " +
       "`deployment.md`'s posture and targets before merging; its post-merge deploy step deploys nothing " +
       'under `none`, prints and records `pending` under `manual`, and under `auto` runs each target ' +
-      'detached at the merge commit, stopping and recording a failed one; ship then stops and prints ' +
-      'verify-ship, closing no anchor; a `shipped` ledger with an unfinished `auto` deploy ' +
+      'detached at the merge commit, stopping and recording a failed one; ship then stops, closing no anchor, and ' +
+      'prints verify-ship or wrap-up by the shipped-run routing rule it cites, verify-ship when the anchor cannot be read; a `shipped` ledger with an unfinished `auto` deploy ' +
       "joins ship's own candidate set and resumes at the first undeployed target; an adopted hand merge " +
       'takes the same deploy step; under `auto` ship asks once before it deploys a `deployment.md` nobody ' +
       'was shown',

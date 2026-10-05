@@ -9,7 +9,7 @@ argument-hint: "[<scope>  (empty = the only run in this repo)]  [--unattended]"
 Open a pull request for a run. Every slice is on the scope branch, the scope has been reviewed, and the
 docs have been reconciled — this command turns that into a pull request. It leaves the run standing:
 the scopetree, the slicetrees, and the run lock stay, and `/superdev:wrap-up` is what takes them down, after
-the pull request merges and `/superdev:verify-ship` has run. It dispatches no subagents.
+the pull request merges and any `/superdev:verify-ship` pass the run needs has run. It dispatches no subagents.
 
 Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111).
 
@@ -159,12 +159,13 @@ Set the ledger's `**Stage:**` line to `submitted` with
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set submitted --root <run-root>`. Publish the
 snapshot afterwards, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state`
 section. The run stands: the scopetree, the slicetrees, and the run lock stay in place, and the scope
-anchor stays open. `/superdev:wrap-up` closes it, after the merge and
-`/superdev:verify-ship`, and takes the run's scaffolding down.
+anchor stays open. `/superdev:wrap-up` closes it, after the merge and any
+`/superdev:verify-ship` pass the run needs, and takes the run's scaffolding down.
 
 This is the chain's own end. `/superdev:submit-pr` hands off to `/superdev:ship`, and only a human runs
-that, then `/superdev:verify-ship` and `/superdev:wrap-up`.
+that, then `/superdev:wrap-up`, with `/superdev:verify-ship` between them when anything is left to verify.
 
 **Print `/superdev:ship <scope>` as the next command.** One line on what it does: it merges the pull
 request once an operator has reviewed it, applies the repository's deploy posture to the merge, and stops
-there, printing `/superdev:verify-ship <scope>` next.
+there, printing `/superdev:verify-ship <scope>` next, or `/superdev:wrap-up <scope>` when nothing is left
+to verify.

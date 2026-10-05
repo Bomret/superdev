@@ -115,8 +115,8 @@ issue query, say. A record already returned by the anchor or triage listing is n
 | `stranded` | a run root whose stage is short of `shipped` and matches no open anchor | a human, now — resume the run if its anchor still exists, otherwise delete the branch, scopetree, and run root |
 | `awaiting merge` | its matched run root's stage reads `submitted` and its pull request is open on the host, or none is recorded to check | the operator's merge on the host, then `/superdev:ship <scope-slug>` |
 | `merge unrecorded` | its matched run root's stage reads `submitted` and its pull request shows merged on the host by hand | `/superdev:ship <scope-slug>` — record the merge |
-| `awaiting verification` | an open anchor over a run root reading `shipped`, not already bucketed `deploy resume`, while a Definition-of-Done line is neither ticked nor `accepted:` (judged by the note's verdict, not the box), the anchor disagrees with `dod.md` on a line, or a listed `manual` target is not recorded `deployed` | `/superdev:verify-ship <scope-slug>` |
-| `awaiting wrap-up` | an open anchor over a run root reading `shipped`, not already bucketed `deploy resume`, with every line settled and every listed `manual` target recorded `deployed` (a `dod.md` line unpaired on the anchor included, its act being the hand-sync and then `/superdev:wrap-up <scope-slug>`); or a `shipped` run root whose anchor is already closed, not already bucketed `deploy resume` | `/superdev:wrap-up <scope-slug>` |
+| `awaiting verification` | an open anchor over a run root reading `shipped`, not already bucketed `deploy resume`, that the shipped-run routing rule (below) sends to verify-ship | `/superdev:verify-ship <scope-slug>` |
+| `awaiting wrap-up` | an open anchor over a run root reading `shipped`, not already bucketed `deploy resume`, that the shipped-run routing rule (below) sends to wrap-up (its act naming the hand-sync first where that rule does); or a `shipped` run root whose anchor is already closed, not already bucketed `deploy resume` | `/superdev:wrap-up <scope-slug>` |
 | `in flight` | its scope has a run root whose stage is short of `shipped` and not `planned`, and not already bucketed `awaiting merge`/`merge unrecorded` above | the chain command that stage has not reached |
 | `waiting` | an anchor dependency it records is unsatisfied | the anchor it waits on |
 | `needs planning` | a triage record, or an anchor that is neither itself a slice nor has slices beneath it | `/superdev:plan` |
@@ -124,16 +124,12 @@ issue query, say. A record already returned by the anchor or triage listing is n
 | `ready` | every remaining **anchor**: released, dependencies satisfied, and no run root or a matched run root at stage `planned` — `/superdev:plan` already cut the branch and scopetree, but no slice has run (triage #509) | `/superdev:implement <feature-label>` |
 | `untriaged` | an open store record carrying neither a feature label nor the store's triage signal | read it — a human decides what to do next |
 
-Read a `shipped` run root's Definition-of-Done lines from `<run-root>/dod.md` (INV-0016), which is
-authoritative because a store's tick write is best-effort (the note's verdict, not the box, decides a line's
-state). A `dod.md` that is missing or unreadable → judge from the anchor alone, read through the store
-document's anchor read. An unreadable anchor → the item is a `blocked` row naming what could not be read.
-With `dod.md` read, also read the anchor's lines and pair them per
-`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## Pairing dod.md with the anchor`: a paired line whose
-verdict differs from `dod.md` routes the item to `awaiting verification`, whose act reconciles it. A `dod.md` line with no text-matching line on the anchor routes it to `awaiting wrap-up` (verify-ship cannot reconcile it), the act naming the hand-sync of the anchor's criterion text and then `/superdev:wrap-up <scope-slug>`. Read its listed deploy targets, their
-record, and the posture per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Reading the posture at
-the merge commit`. A `shipped` run root whose anchor is already closed is
-`awaiting wrap-up` without either read. A `closed` run root gets no row.
+Route an open anchor over a `shipped` run root per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
+`## Routing a shipped run`: verify-ship there is `awaiting verification`, and wrap-up is `awaiting wrap-up`.
+An unreadable anchor → the item is a `blocked` row naming what could not be read. A `shipped` run root
+whose anchor is already closed is `awaiting wrap-up` without that rule's reads. The `deploy resume` test reads the posture,
+the listed targets, and their record per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Reading the
+posture at the merge commit`. A `closed` run root gets no row.
 
 **A run root at stage `submitted` needs one more read before it lands in either new bucket above:
 whether its pull request is open or already merged.** Read the ledger's `**PR:** #<n>` with

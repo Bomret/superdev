@@ -5041,7 +5041,9 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'An anchor line **pairs** with a `dod.md` line by criterion text. A `dod.md` line with ' +
       'no text-matching line on the anchor** is unpaired. It is never counted as a verdict disagreement and ' +
       'is never retried by the reconcile; it needs a hand-sync.\n',
-    'skills/backlog/SKILL.md': 'Pair per `references/dod-ticks.md`\'s `## Pairing dod.md with the anchor`. A dod.md line with no text-matching line on the anchor routes to `awaiting wrap-up`, the act naming the hand-sync, then `/superdev:wrap-up <scope-slug>`.\n',
+    'references/scope-mode.md':
+      '## Routing a shipped run\nPair per `references/dod-ticks.md`\'s `## Pairing dod.md with the anchor`. ' +
+      'A `dod.md` line with no text-matching line on the anchor still routes here: the hand-sync comes first, then `/superdev:wrap-up <scope>`.\n',
     'skills/verify-ship/SKILL.md':
       '**Reconcile first.** Then rewrite the anchor line from `dod.md`. ' +
       '`manual`, and a listed target recorded `pending` or carrying no record. ' +

@@ -522,7 +522,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   );
 
   const SHIPPED_ANCHOR_STOP =
-    '**Its `**Stage:**` line reads `shipped`** — stop and create no ledger, as the entry step does, and name `/superdev:verify-ship <scope>` and `/superdev:wrap-up <scope>`. ';
+    '**Its `**Stage:**` line reads `shipped`** — stop and create no ledger, as the entry step does, and name the command `scope-mode.md`\'s `## Routing a shipped run` picks with the `dod.md` this run just wrote treated as missing, `/superdev:verify-ship <scope>` and `/superdev:wrap-up <scope>`. ';
   const SHIPPED_ANCHOR_CLEANUP =
     'The stop removes the `dod.md` this run just wrote, and the run root\nitself when that leaves it empty. ';
   const SHIPPED_ANCHOR_KEEPS_COMMIT =
@@ -557,9 +557,9 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     scanContract(
       fixture({
         'references/run-init.md':
-          ENTRY_EXCEPTION + '**Snapshot** — its `**Stage:**` line reads `shipped`: stop and create nothing, no `dod.md` and no ledger, and name `/superdev:verify-ship` and `/superdev:wrap-up`. ' +
+          ENTRY_EXCEPTION + '**Snapshot** — its `**Stage:**` line reads `shipped`: stop and create nothing, no `dod.md` and no ledger, and name the command `scope-mode.md`\'s `## Routing a shipped run` picks, `/superdev:verify-ship` and `/superdev:wrap-up`. ' +
           '**`<run-root>/ledger.md` already present** — read its stage first. Stage **`shipped`** — ' +
-          'that ledger waits for wrap-up: stop and create nothing, and name `/superdev:verify-ship` and ' +
+          'that ledger waits for wrap-up: stop and create nothing, and name the command `scope-mode.md`\'s `## Routing a shipped run` picks, `/superdev:verify-ship` and ' +
           '`/superdev:wrap-up`. Stage **`closed`** — run `init` directly. `init` itself rotates the existing ' +
           'ledger aside to `ledger-closed-<date>.md` before writing the fresh one: the rotation never ' +
           'overwrites an existing `ledger-closed-<date>.md`, nothing is deleted, so ADR\n' +
@@ -581,9 +581,9 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   const rotateNoClobberGap = scanContract(
     fixture({
       'references/run-init.md':
-        ENTRY_EXCEPTION + '**Snapshot** — its `**Stage:**` line reads `shipped`: stop and create nothing, no `dod.md` and no ledger, and name `/superdev:verify-ship` and `/superdev:wrap-up`. ' +
+        ENTRY_EXCEPTION + '**Snapshot** — its `**Stage:**` line reads `shipped`: stop and create nothing, no `dod.md` and no ledger, and name the command `scope-mode.md`\'s `## Routing a shipped run` picks, `/superdev:verify-ship` and `/superdev:wrap-up`. ' +
         '**`<run-root>/ledger.md` already present** — read its stage first. Stage **`shipped`** — ' +
-        'that ledger waits for wrap-up: stop and create nothing, and name `/superdev:verify-ship` and ' +
+        'that ledger waits for wrap-up: stop and create nothing, and name the command `scope-mode.md`\'s `## Routing a shipped run` picks, `/superdev:verify-ship` and ' +
         '`/superdev:wrap-up`. Stage **`closed`** — run `init` directly. `init` itself rotates the existing ' +
         'ledger aside to `ledger-closed-<date>.md` before writing the fresh one: nothing is deleted, so ADR\n' +
         "0007's seven-day trail and `scope-prune`'s contained-or-gone reap rule (ADR 0053) both stand " +
@@ -607,9 +607,9 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     fixture({
       'references/run-init.md':
         ENTRY_EXCEPTION + '**Move dirty design docs** into the scopetree. **Write the DoD** to `dod.md`. ' +
-         '**Snapshot** — its `**Stage:**` line reads `shipped`: stop and create nothing, no `dod.md` and no ledger, and name `/superdev:verify-ship` and `/superdev:wrap-up`. ' +
+         '**Snapshot** — its `**Stage:**` line reads `shipped`: stop and create nothing, no `dod.md` and no ledger, and name the command `scope-mode.md`\'s `## Routing a shipped run` picks, `/superdev:verify-ship` and `/superdev:wrap-up`. ' +
         '**`<run-root>/ledger.md` already present** — read its stage first. Stage **`shipped`** — ' +
-        'that ledger waits for wrap-up: stop and create nothing, and name `/superdev:verify-ship` and ' +
+        'that ledger waits for wrap-up: stop and create nothing, and name the command `scope-mode.md`\'s `## Routing a shipped run` picks, `/superdev:verify-ship` and ' +
         '`/superdev:wrap-up`. Stage **`closed`** — run `init` directly. `init` itself rotates the existing ' +
         'ledger aside to `ledger-closed-<date>.md` before writing the fresh one: the rotation never ' +
         'overwrites an existing `ledger-closed-<date>.md`, nothing is deleted, so ADR\n' +
@@ -628,9 +628,9 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   );
 
   const RUN_INIT_FULL =
-    ENTRY_EXCEPTION + '**Snapshot** — its `**Stage:**` line reads `shipped`: stop and create nothing, no `dod.md` and no ledger, and name `/superdev:verify-ship` and `/superdev:wrap-up`. ' +
+    ENTRY_EXCEPTION + '**Snapshot** — its `**Stage:**` line reads `shipped`: stop and create nothing, no `dod.md` and no ledger, and name the command `scope-mode.md`\'s `## Routing a shipped run` picks, `/superdev:verify-ship` and `/superdev:wrap-up`. ' +
     '**`<run-root>/ledger.md` already present** — read its stage first. Stage **`shipped`** — ' +
-    'that ledger waits for wrap-up: stop and create nothing, and name `/superdev:verify-ship` and ' +
+    'that ledger waits for wrap-up: stop and create nothing, and name the command `scope-mode.md`\'s `## Routing a shipped run` picks, `/superdev:verify-ship` and ' +
     '`/superdev:wrap-up`. Stage **`closed`** — run `init` directly. `init` itself rotates the existing ' +
     'ledger aside to `ledger-closed-<date>.md` before writing the fresh one: the rotation never ' +
     'overwrites an existing `ledger-closed-<date>.md`, nothing is deleted, so ADR\n' +
@@ -650,6 +650,35 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.ok(
     /anchor snapshot at `shipped`/.test(shippedAnchorGap[0].expectation),
     'the lone gap names the shipped anchor snapshot',
+  );
+
+  // positive: every citation of `## Routing a shipped run` is back to the bare "name `/superdev:verify-ship`
+  // and ..." wording — the three rows that read the citation fire, the rest stay silent
+  const BARE_RUN_INIT = RUN_INIT_FULL
+    .split("the command `scope-mode.md`'s `## Routing a shipped run` picks with the `dod.md` this run just wrote treated as missing, ").join('')
+    .split("the command `scope-mode.md`'s `## Routing a shipped run` picks, ").join('');
+  assert.notEqual(BARE_RUN_INIT, RUN_INIT_FULL, 'the fixture drops the citation clauses');
+  const uncitedGaps = scanContract(
+    fixture({ 'references/run-init.md': BARE_RUN_INIT }),
+    RUN_INIT_FINISHED_STAGE_CONTRACTS,
+  );
+  assert.equal(uncitedGaps.length, 3, 'the local, snapshot, and second-read stop rows fire');
+  assert.ok(
+    uncitedGaps.every((g) => /citing scope-mode\.md's `## Routing a shipped run`/.test(g.expectation)),
+    'each gap names the citation',
+  );
+
+  // positive: only the second-read stop loses "with the `dod.md` this run just wrote treated as missing"
+  const secondReadGaps = scanContract(
+    fixture({
+      'references/run-init.md': RUN_INIT_FULL.replace(' with the `dod.md` this run just wrote treated as missing', ''),
+    }),
+    RUN_INIT_FINISHED_STAGE_CONTRACTS,
+  );
+  assert.equal(secondReadGaps.length, 1, 'only the second-read stop row fires');
+  assert.ok(
+    /just-written dod\.md treated as missing/.test(secondReadGaps[0].expectation),
+    'the lone gap names the treated-as-missing clause',
   );
 
   // absent file is skipped, matching every other contract table

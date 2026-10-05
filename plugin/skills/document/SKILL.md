@@ -161,8 +161,9 @@ Only when §2 found a live run. Everything above still applies; this adds the ru
   and refuses only when unattended, on a scope with an unmet criterion — a criterion noted `ceiling:` or
   `accepted:` is settled, never this kind of unmet, and reaches neither this bullet nor that gate.
   **The stage read `shipped`, `submitted`, or `closed` above** — the leave-alone branch — → when it read
-  `submitted`, print `/superdev:ship <scope>`; when it read `shipped`, print
-  `/superdev:verify-ship <scope>`; when it read `closed`, the Next block says no command follows, and the note is left out.
+  `submitted`, print `/superdev:ship <scope>`; when it read `shipped`, pick the
+  command by `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Routing a shipped run` (ADR 0116, INV-0116)
+  and print `/superdev:verify-ship <scope>` or `/superdev:wrap-up <scope>` as it routes, and print `/superdev:verify-ship <scope>` when the anchor cannot be read, as ship does; when it read `closed`, the Next block says no command follows, and the note is left out.
   **Neither case** → print
   `/superdev:submit-pr <scope>`, with one line on what it does (open the pull request against the scope's
   current Definition of Done).
