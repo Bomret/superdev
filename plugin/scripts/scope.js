@@ -1148,13 +1148,9 @@ function verbAdopt(root, body) {
 // counting it as staged would be wrong and dropping it silently would be the exact loss this contract
 // exists to prevent. `strays` carries it instead, so `verbStatus` can surface it.
 function stagedPageCounts(cwd) {
-  // simplicity: raw `cwd`, not `mainWorkTree(cwd)` — `verbStatus` is internally asymmetric, resolving its
-  // scope scan through the main working tree (ADR 0080) while this staged-page scan does not. The fix is
-  // wider than one function: `skills/plan/SKILL.md` and `skills/document/SKILL.md` both instruct staging
-  // in the invoking checkout, while `plugin/scripts/publish-kb.js` already resolves `.superdev/kb-pending`
-  // through `--git-common-dir`. Upgrade path: settle where a staged page lives (main working tree, to
-  // match `publish-kb.js`) and update the two staging instructions alongside this call.
-  const dir = path.join(cwd, '.superdev', 'kb-pending');
+  // Through the main working tree, as the scope scan is (ADR 0080): a staged page lives there whichever
+  // checkout staged it (ADR 0119), so a scan from a scopetree or slicetree sees the same pages.
+  const dir = path.join(mainWorkTree(cwd) || cwd, '.superdev', 'kb-pending');
   const counts = new Map();
   const strays = new Map();
   const loose = [];
@@ -1558,13 +1554,39 @@ function scopesDirFor(cwd) {
   return path.join(mainWorkTree(cwd) || cwd, '.superdev', 'scopes');
 }
 
-function verbRoot(cwd, slug) {
-  if (!slug) fail('root needs a <slug>');
+// The main working tree joined with `.superdev/<area>/<slug>`, for a slug that cannot leave that area.
+// Refuses outside a git repository rather than fall back to `cwd`, which would name a directory inside
+// whatever checkout the caller happens to stand in.
+function mainTreePath(cwd, verb, area, slug) {
+  if (!slug) fail(`${verb} needs a <slug>`);
   if (slug.includes('/') || slug.includes('\\')) fail(`slug "${slug}" must not contain a path separator`);
   if (slug.startsWith('.')) fail(`slug "${slug}" must not start with "."`);
   const mwt = mainWorkTree(cwd);
   if (mwt === null) fail(`not inside a git repository (cwd: ${cwd})`);
-  console.log(path.join(mwt, '.superdev', 'scopes', slug));
+  return path.join(mwt, '.superdev', area, slug);
+}
+
+function verbRoot(cwd, slug) {
+  console.log(mainTreePath(cwd, 'root', 'scopes', slug));
+}
+
+// A scope's staging directory, where its staged knowledge-base pages wait for /superdev:publish-kb
+// (ADR 0023, ADR 0119). `--count` prints the number of `.md` pages there instead, 0 for a missing
+// directory: the same `.md`-only rule `stagedPageCounts` applies.
+function verbStaging(cwd, args) {
+  const count = args.includes('--count');
+  const dir = mainTreePath(cwd, 'staging', 'kb-pending', args.filter((a) => a !== '--count')[0]);
+  if (!count) {
+    console.log(dir);
+    return;
+  }
+  let entries = [];
+  try {
+    entries = fs.readdirSync(dir);
+  } catch (e) {
+    if (e.code !== 'ENOENT') throw e;
+  }
+  console.log(String(entries.filter((f) => f.endsWith('.md')).length));
 }
 
 // --- run trace (ADR 0117, INV-0117) ------------------------------------------
@@ -1662,6 +1684,7 @@ function usage() {
     '  publish --root <run-root>          prints the ledger as one "## Run state" section on stdout',
     '  adopt --root <run-root>            stdin: a whole anchor body; extracts and writes the section',
     '  root <slug>                        prints <main-worktree>/.superdev/scopes/<slug>, resolved via git',
+    '  staging <scope> [--count]          prints <main-worktree>/.superdev/kb-pending/<scope>, or its .md count',
     '  dod-line --match <text>|--match-file <path> --verdict met|not-met|ceiling|accepted',
     '            --note <text>|--note-file <path> [--line]',
     '                                     stdin: a body (default) or one checklist line (--line);',
@@ -1820,6 +1843,10 @@ function run(argv, cwd, stdinJson) {
     // No --root: root resolves the run-root path itself, from cwd (ADR 0080).
     case 'root':
       verbRoot(cwd, args[0]);
+      break;
+    // No --root: staging resolves a staging directory, not a run root, and touches no ledger (ADR 0119).
+    case 'staging':
+      verbStaging(cwd, args);
       break;
     // No --root: dod-line touches no ledger, and makes no store call (references/dod-ticks.md).
     case 'dod-line':

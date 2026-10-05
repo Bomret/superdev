@@ -167,6 +167,6 @@ agent-relevant detail second:
   Removing one section of an aggregate page is not yours — `patch` replaces or appends, and `delete`
   still removes a whole page.
 
-**Use the absolute staging path you were given.** A checkout-relative `.superdev/kb-pending/` resolves one
-level too deep from a scopetree, into a directory `/superdev:wrap-up` deletes — the pages would be
-gone before anyone published them.
+**Use the absolute staging path you were given** — the directory `scope.js staging <scope>` printed,
+`.superdev/kb-pending/<scope>/` in the main working tree (ADR 0119). Write every page under it exactly
+as given, so it lands where `/superdev:publish-kb` reads it, whatever checkout the pass runs in.

@@ -995,3 +995,30 @@ Statement: On the full tier, every slice merged into the scope branch has a `sli
 Breaks: silently
 Check: scripts/drift-check.js — the review-dispatch row on `final-reviewer` and the prose that dispatches it
 Paths: plugin/agents/final-reviewer.md, plugin/skills/review/**
+
+### INV-0121
+
+Class: architecture
+Concepts: Staged page, Scopetree
+Statement: A staged page is written only into the main working tree's `.superdev/kb-pending/<scope>/`, whichever checkout the staging step runs from. Every staging instruction and the staged-page scan resolve that directory through `scope.js staging`, which refuses outside a git repository rather than fall back to the cwd (ADR 0119).
+Breaks: silently
+Check: tests/scope.test.js — the verb and the staged-page scan run from a linked worktree's cwd; scripts/drift-check.js — every staging instruction cites the verb and carries no cwd-relative staging phrasing
+Paths: plugin/scripts/scope.js, plugin/skills/plan/SKILL.md, plugin/skills/document/SKILL.md, plugin/references/doc-pass.md, plugin/references/implement-lite.md, plugin/agents/doc-writer.md
+
+### INV-0122
+
+Class: process
+Concepts: Staged page, Scopetree, Run root
+Statement: Only `/superdev:publish-kb` removes a staged page. `/superdev:wrap-up` refuses to close a run while its scopetree or a slicetree holds any file under its own `.superdev/kb-pending/`, before it removes either checkout (ADR 0119).
+Breaks: silently
+Check: scripts/drift-check.js — the staged-file gate reason in wrap-up's gate; partial: nothing checks the other worktree-removal sites
+Paths: plugin/skills/wrap-up/SKILL.md
+
+### INV-0123
+
+Class: process
+Concepts: Staged page, Next block, Stage
+Statement: `/superdev:ship`'s post-merge hand-off, `/superdev:verify-ship`'s end message, and `/superdev:wrap-up`'s finish name a scope's staged pages by one rule, stated once in `references/scope-mode.md`, from a page count read in the same run. A count of zero names nothing (ADR 0119).
+Breaks: silently
+Check: scripts/drift-check.js — ship's, verify-ship's, and wrap-up's citations of the scope-mode.md section, and ship's and verify-ship's above-zero condition on the publish-kb line; partial: nothing checks the text an agent prints
+Paths: plugin/skills/ship/SKILL.md, plugin/skills/verify-ship/SKILL.md, plugin/skills/wrap-up/SKILL.md, plugin/references/scope-mode.md

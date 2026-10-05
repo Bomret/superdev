@@ -69,6 +69,12 @@ holds.
   no such reason. Otherwise count every listed target not recorded `deployed` as a reason. Name each
   target not `deployed`, with
   `/superdev:verify-ship` for a `manual` posture and `/superdev:ship` for `auto`.
+- **A run checkout holds a staged file.** List every file, of any extension, under
+  `<run-root>/scopetree/.superdev/kb-pending/` and `<run-root>/slicetrees/*/.superdev/kb-pending/`. §6
+  removes those checkouts, and `git worktree remove` deletes ignored files with them (ADR 0119,
+  INV-0122). Each file found holds this reason: name it, and name the directory
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" staging <scope>` prints as where to move it, then say to
+  rerun `/superdev:wrap-up <scope>`. A missing directory holds no such reason.
 
 ## 4. Standing unresolved defects
 
@@ -112,6 +118,6 @@ holds its content (ADR 0071).
 Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set closed --root <run-root>`, then publish the
 snapshot per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section.
 
-`.superdev/kb-pending/<scope>/` holds staged pages → print `/superdev:publish-kb <scope>` with one line on
-when to run it: once the feature has reached its readers, which is later than this close. **No staged
-pages** → the Next block says no command follows.
+Name the scope's staged pages per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
+`## Staged pages at close` (ADR 0119, INV-0123). A count above zero → print `/superdev:publish-kb <scope>`
+as the next command. A count of zero, or a failed read → the Next block says no command follows.

@@ -52,7 +52,7 @@ by that section's heading. Every other page is staged whole (ADR 0027).
 ## Staging
 
 This is a **remote** backend, so nothing but `/superdev:publish-kb` calls it (ADR 0023). `/superdev:plan`
-and `/superdev:document` write each page as a **staged page** under `.superdev/kb-pending/<scope>/`. Each
+and `/superdev:document` write each page as a **staged page** under `.superdev/kb-pending/<scope>/`. That directory lives in the main working tree, and `scope.js staging <scope>` resolves it (ADR 0119). Each
 carries YAML frontmatter with the page `title` and an `action` of `upsert`, `patch`, or `delete`, and the
 page body below. The wiki API conventions below are what `/superdev:publish-kb` applies when a human runs it,
 once the feature has reached the adopters this wiki is written for.

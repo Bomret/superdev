@@ -112,9 +112,9 @@ slicetrees and would collide on shared doc files.
   over the range `<base>..<branch>` — this scope's own commits. It owns the content-type lens, the writing
   standard, the in-repo docs pass, and the knowledge-base pass; this step owns only when it runs and what
   it records.
-- **Hand the pass the staging path as an absolute path** — `.superdev/kb-pending/<scope>/` in the
-  **invoking checkout**, not a `.superdev/…` path resolved from this scopetree's cwd, which lands one level
-  too deep in a directory `/superdev:wrap-up` deletes.
+- **Hand the pass the staging path as an absolute path** — the directory
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" staging <scope>` prints, `.superdev/kb-pending/<scope>/`
+  in the main working tree, resolved the same from this scopetree's cwd (ADR 0119).
 - **Commit the doc changes on the scope branch**, in this scopetree, as their own commit.
 - **Record the pass** with
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs set inline --root <run-root>`. That record is what

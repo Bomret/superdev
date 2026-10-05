@@ -330,3 +330,7 @@ and rewrites no anchor line from them.
   `/superdev:wrap-up <scope>` closes the scope afterwards.
 - **The anchor cannot be read** → print `/superdev:verify-ship <scope>`, as above: its own reconcile reads
   the anchor again.
+
+On every route above, name the scope's staged pages per
+`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Staged pages at close` (ADR 0119, INV-0123), with
+`/superdev:publish-kb <scope>` on an `Or:` line of the Next block when the count is above zero.

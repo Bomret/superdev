@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0119](0119-a-staged-page-lives-in-the-main-working-tree.md), which resolves the
+staging path in the main working tree, through `scope.js staging`, rather than in the invoking checkout.
+
 ## Context
 
 `/superdev:document` sits between `/superdev:review` and `/superdev:ship`, so it runs while the scope

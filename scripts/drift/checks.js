@@ -86,6 +86,7 @@ const {
   GREEN_GATE_TIMEOUT_CONTRACTS,
   VERB_CONTRACTS,
   KB_STAGING_CONTRACTS,
+  STAGED_CLOSE_CONTRACTS,
   KB_READ_NEVER_WRITE_CONTRACTS,
   TEST_SELECTION_CONTRACTS,
   AFFECTED_FORM_CONTRACTS,
@@ -289,6 +290,7 @@ module.exports = [
   table('verb-pointer', VERB_CONTRACTS, 'every chain document invokes its scope.js verb'),
   table('planned-handoff', PLANNED_HANDOFF_CONTRACTS, 'the planned handoff from /superdev:plan to /superdev:implement is carried on both sides'),
   table('kb-staging', KB_STAGING_CONTRACTS, 'knowledge-base pages are staged'),
+  table('staged-close', STAGED_CLOSE_CONTRACTS, 'the close names staged pages by one cited rule, and wrap-up refuses a run checkout holding a staged file'),
   table('kb-read-never-write', KB_READ_NEVER_WRITE_CONTRACTS, 'the doc pass may read a remote knowledge-base backend and never writes to it'),
   {
     id: 'scopetree-run-root',

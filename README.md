@@ -180,8 +180,9 @@ plan runs test-first, inline in the scopetree.
   On a configured repo, a plain re-run offers each **seed gap**, and `check` lists them.
 - **`/superdev:publish-kb`** *(remote knowledge base only)*. Sends a scope's **staged** knowledge-base
   pages to the configured backend, and is the only path from superdev to one. `/superdev:plan` and
-  `/superdev:document` write a remote backend's pages under `.superdev/kb-pending/<scope>/` instead of
-  sending them. A page sent from unmerged or unreleased work claims a feature no reader can reach
+  `/superdev:document` write a remote backend's pages under `.superdev/kb-pending/<scope>/` in the main
+  working tree, whichever checkout they run in, instead of sending them
+  ([ADR 0119](docs/adr/0119-a-staged-page-lives-in-the-main-working-tree.md)). A page sent from unmerged or unreleased work claims a feature no reader can reach
   ([ADR 0023](docs/adr/0023-the-knowledge-base-publish-is-its-own-command.md)). You decide when to run
   it: it warns once when the base branch does not already hold the scope branch's work, but a merge is
   not a release, so it never blocks on that check. Every backend command
@@ -228,6 +229,9 @@ deploy posture (`none`/`manual`/`auto`, `docs/agents/deployment.md`, ADR 0101), 
 `/superdev:verify-ship` settles the criteria only a deployed system can show. `/superdev:wrap-up` closes the
 scope anchor and cleans up the run. All three are human-only. Ship names `/superdev:verify-ship` next while
 a criterion is open or a `manual` deploy waits for an answer, and `/superdev:wrap-up` otherwise (ADR 0116).
+When staged knowledge-base pages wait, all three name their count and directory, state that wrap-up keeps
+them, and offer `/superdev:publish-kb`. `/superdev:wrap-up` refuses to close a run while its scopetree or a
+slicetree still holds a staged file, because removing that checkout deletes the file (ADR 0119).
 
 Any chain command (`/superdev:implement`, `/superdev:review`, `/superdev:document`, `/superdev:submit-pr`)
 takes `--unattended`. At a stop, the run takes the stop's standing answer, or blocks the scope anchor
@@ -459,8 +463,9 @@ docs/kb/                  knowledge base, only if the local-file KB backend is c
 .superdev/kb-pending/<scope>/<title-slug>.md   git-ignored staged pages for a remote knowledge-base
                           backend (a `patch` page instead names itself
                           `<title-slug>--<section-slug>.md`, ADR 0027), written by /plan and /document
-                          instead of a live publish, sent by /publish-kb (ADR 0023); outlives the run
-                          root, so /wrap-up never removes it
+                          into the main working tree from any checkout (ADR 0119) instead of a live
+                          publish, sent by /publish-kb (ADR 0023); outlives the run root, so /wrap-up
+                          never removes it
 ```
 
 Everything except `.superdev/` is committed. The design docs (the glossary, the ADRs, and the invariant

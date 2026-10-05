@@ -2014,6 +2014,43 @@ try {
     );
     fs.rmSync(wtRoot, { recursive: true, force: true });
 
+    // `staging <scope>` resolves a scope's staging directory in the main working tree from any
+    // checkout, and `status` counts the pages staged there from a linked worktree too (ADR 0119,
+    // INV-0121).
+    const stagingWt = path.join(mainRepo, '..', path.basename(mainRepo) + '-staging-wt');
+    gitRoot(['worktree', 'add', '-q', '-b', 'feat/staging-wt', stagingWt], mainRepo);
+    const expectedStaging = path.join(mainRepo, '.superdev', 'kb-pending', 'demo');
+    fs.mkdirSync(expectedStaging, { recursive: true });
+    fs.writeFileSync(path.join(expectedStaging, 'page.md'), '---\ntitle: Page\naction: upsert\n---\nbody\n');
+    assert.ok(
+      callIn(['status'], stagingWt).out.includes('pending publish: 1 staged page — /superdev:publish-kb demo'),
+      'status from a linked worktree reports the pages the main working tree holds',
+    );
+    const subDir = path.join(stagingWt, 'sub');
+    fs.mkdirSync(subDir);
+    for (const cwd of [mainRepo, stagingWt, subDir]) {
+      assert.strictEqual(callIn(['staging', 'demo'], cwd).out, expectedStaging, `staging resolves the main working tree's directory from ${cwd}`);
+    }
+    assert.strictEqual(
+      callIn(['staging', '_adhoc'], stagingWt).out,
+      path.join(mainRepo, '.superdev', 'kb-pending', '_adhoc'),
+      'staging accepts the ad-hoc scope',
+    );
+    for (const bad of [[], [''], ['a/b'], ['a\\b'], ['../escape'], ['.hidden']]) {
+      const r3 = callIn(['staging', ...bad], stagingWt);
+      assert.ok(!r3.ok && r3.out === '', `staging refuses ${JSON.stringify(bad)} with nothing on stdout`);
+    }
+    const stagingNoGit = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-staging-nogit-'));
+    const ng = callIn(['staging', 'demo'], stagingNoGit);
+    assert.ok(!ng.ok && ng.out === '' && /not inside a git repository/.test(ng.err), 'staging refuses outside a git repository: ' + (ng.err || ''));
+    fs.rmSync(stagingNoGit, { recursive: true, force: true });
+    fs.writeFileSync(path.join(expectedStaging, 'second.md'), 'x\n');
+    fs.writeFileSync(path.join(expectedStaging, 'stray.txt'), 'x\n');
+    assert.strictEqual(callIn(['staging', 'demo', '--count'], stagingWt).out, '2', '--count counts only the .md pages');
+    assert.strictEqual(callIn(['staging', 'absent', '--count'], stagingWt).out, '0', '--count prints 0 for a missing directory');
+    assert.ok(!fs.existsSync(path.join(mainRepo, '.superdev', 'scopes', 'absent')), 'staging needs and writes no run root');
+    fs.rmSync(stagingWt, { recursive: true, force: true });
+
     fs.rmSync(mainRepo, { recursive: true, force: true });
   }
 

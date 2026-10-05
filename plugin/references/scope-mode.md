@@ -889,3 +889,24 @@ only what it does with the outcome, and what it does when the anchor cannot be r
 - **Wrap-up** — otherwise: every line ticked or noted `accepted:`, every paired anchor line agreeing with `dod.md`, and every listed `manual` target recorded `deployed`. A
   `dod.md` line with no text-matching line on the anchor still routes here, because verify-ship cannot
   reconcile it: the hand-sync of the anchor's criterion text comes first, then `/superdev:wrap-up <scope>`.
+
+## Staged pages at close
+
+`/superdev:ship`'s post-merge hand-off, `/superdev:verify-ship`'s end message, and `/superdev:wrap-up`'s
+finish each name the scope's staged knowledge-base pages by this one rule, so the operator reads the same
+facts at every close step (ADR 0119, INV-0123). Each caller states only where the publish command goes in
+its own Next block.
+
+Read the count with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" staging <scope> --count`, and the
+directory with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" staging <scope>`, in the same run that
+prints the message.
+
+- **A count above zero** → one line: `<N> staged knowledge-base page(s) wait in <directory>.
+  /superdev:wrap-up keeps them.` Then name `/superdev:publish-kb <scope>` once, with one line on when to
+  run it: once the feature has reached its readers.
+- **A count of zero** → the message says nothing about staged pages, whatever knowledge-base backend the
+  repository configures.
+- **A failed read** → one line saying the staged-page count could not be read. The message states no
+  count and makes no claim about what any command does to the pages.
+
+Every fact the message states about staged pages comes from these two reads.

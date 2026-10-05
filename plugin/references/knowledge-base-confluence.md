@@ -49,7 +49,7 @@ no outline entry `aggregate` here.
 
 Confluence is a **remote** backend, so nothing but `/superdev:publish-kb` calls it (ADR 0023).
 `/superdev:plan` and `/superdev:document` write each page as a **staged page** under
-`.superdev/kb-pending/<scope>/` — YAML frontmatter carrying the page `title` and an `action` of `upsert`,
+`.superdev/kb-pending/<scope>/` in the main working tree, resolved by `scope.js staging <scope>` (ADR 0119) — YAML frontmatter carrying the page `title` and an `action` of `upsert`,
 `patch`, or `delete`, the page body below. A page the outline places under another page also carries
 `parent: <that page's title>`. `scripts/publish-kb.js` resolves that title through `find`, publishes a
 parent staged in the same batch first, and leaves the page staged when the parent cannot be found

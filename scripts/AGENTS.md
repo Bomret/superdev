@@ -27,8 +27,8 @@ This doc owns what each script guards and the contracts between them. Repo-wide 
 `suite set <green|red|denied|none> <sha>`,
 `suite reusable --branch <b> [--whole]`,
 `get stage|branch|anchor|slices|unresolved|degraded|deferred|denials|docs|pr|suite`,
-`status` (which renders the whole `/superdev:status` report), `trace [--slice <id>]` (prints the run trace, read-only), `publish`, `adopt`, `root <slug>`, and
-`dod-line`.
+`status` (which renders the whole `/superdev:status` report), `trace [--slice <id>]` (prints the run trace, read-only), `publish`, `adopt`, `root <slug>`,
+`staging <scope> [--count]`, and `dod-line`.
 `--help` or `-h`, alone or after any verb, prints the usage and exits 0, except that a flag's value, or the bullet text after `add` or `add-denial`, is data and never a help request. It is checked before any verb
 reads stdin or touches a ledger, so a stdin verb such as `dod-line` never waits on input for it.
 `suite set` writes the **suite record** (CONTEXT.md) — the last full-suite run's result and the commit
@@ -85,6 +85,14 @@ checkout it runs from: the invoking checkout, a scopetree, or a slicetree of the
 what lets every prose caller resolve `<run-root>` the same way regardless of its own cwd. It refuses
 outside a git repository, and refuses a slug carrying a path separator or a leading `.`, since either
 would path a ledger read or write outside `.superdev/scopes/`.
+
+`staging <scope> [--count]` is another verb that touches no ledger and needs no run root (ADR 0119). It
+prints a scope's staging directory, `<main-worktree>/.superdev/kb-pending/<scope>`, resolved the same way
+`root` resolves a run root, so a page staged from a scopetree or a slicetree lands in the main working
+tree and survives that checkout's removal. It accepts `_adhoc`, and refuses what `root` refuses, outside a
+git repository included. `--count` prints the number of `.md` pages in that directory instead, `0` when
+it is missing. The staged-page scan behind `status` resolves its staging root through the same main
+working tree.
 
 `dod-line` is another verb that touches no ledger, and makes no store call of its own
 (`references/dod-ticks.md`, INV-0014, triage #664): `--match <criterion text>|--match-file <path>
@@ -991,14 +999,29 @@ The `model-invocation-split` check (INV-0066), `scanModelInvocationSplit()`: `sk
 `disable-model-invocation: true`, because an unattended run invokes each through the Skill tool and a step
 off that surface strands the run there. The key counts only inside the frontmatter. Ship's half is
 `ship-human-only`'s. Absent skill files are skipped.
+
+The `staged-close` check pins how a scope's close names its staged pages (ADR 0119). `references/scope-mode.md`'s
+`## Staged pages at close` reads the page count through `scope.js staging <scope> --count`, names a
+count above zero with the directory and that wrap-up keeps the pages, and says nothing at zero. Ship's
+hand-off, verify-ship's end message, and wrap-up's finish each cite that section (INV-0123). Ship's
+and verify-ship's rows also pin the condition on the `Or: /superdev:publish-kb <scope>` line: the line
+appears only when the count is above zero. The check
+also pins wrap-up's gate reason for a staged file under the scopetree's or a slicetree's own
+`.superdev/kb-pending/`, ahead of its `## 6. Clean up` step, so the refusal comes before
+`git worktree remove` deletes the ignored file (INV-0122).
+
 The `kb-staging` and `kb-no-backend-call` checks are the ADR 0023 knowledge-base contracts, checked in two
 halves because either alone passes while the invariant is gone. The `kb-staging` half: `skills/plan/SKILL.md`,
-`skills/document/SKILL.md`, and `references/doc-pass.md` each name `.superdev/kb-pending/` as the place a
-remote backend's page goes instead of a live call. The third row moved from `agents/doc-writer.md`
-onto the reference with the rest of the pass's prose (ADR 0031). The `kb-no-backend-call`
-half, `scanKbNoBackendCall()`: none of those three, nor `agents/doc-writer.md`, carries a
-backend-directed verb. The staging-path mention moved off `doc-writer.md`, but the check keeps that
-document in this list, because the agent still dispatches the knowledge-base pass, and a regression
+`skills/document/SKILL.md`, and `references/doc-pass.md` each name the `.superdev/kb-pending/` directory
+`scope.js staging` prints. That directory is the place a remote backend's page goes instead of a live call.
+`references/implement-lite.md` and `agents/doc-writer.md` each take the staging path from that verb. The
+dispatch prose and the agent body that receives the path are both pinned (ADR 0119, INV-0121). A negative
+row per staging document fails a restored cwd-relative instruction. Each row is a whole-document negative
+lookahead. It rejects these phrasings: "in the invoking checkout" after a `kb-pending/` path, "resolved from
+the invoking checkout", a "checkout-relative" `.superdev/kb-pending`, and "against your own cwd".
+The
+`kb-no-backend-call` half, `scanKbNoBackendCall()`: none of those three, nor `agents/doc-writer.md`,
+carries a backend-directed verb. The check keeps `doc-writer.md` in this list, because the agent still dispatches the knowledge-base pass, and a regression
 could add a backend call to its own framing without touching the reference at all. The verb checked is
 publish, create, update, or upsert, in any morphology, so a passive "is published to" or a gerund
 "updating the wiki page" counts too. An HTTP `POST`, `PUT`, or `DELETE` counts as well. The verb must

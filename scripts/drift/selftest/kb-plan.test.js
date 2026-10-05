@@ -9,6 +9,7 @@ const { docPath, scanContract } = require('../lib');
 const { scanKbNoBackendCall } = require('../scanners');
 const {
   KB_STAGING_CONTRACTS,
+  STAGED_CLOSE_CONTRACTS,
   KB_READ_NEVER_WRITE_CONTRACTS,
   AUDIT_SET_CONTRACTS,
   AGGREGATE_PAGE_CONTRACTS,
@@ -53,10 +54,56 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(kbStagingPassGaps.length, 1, 'flags doc-pass.md for dropping the staging path');
   assert.equal(kbStagingPassGaps[0].source, path.join('references', 'doc-pass.md'), 'names doc-pass.md');
 
+  // positive: implement-lite.md and doc-writer.md drop the verb the staging path comes from (INV-0121)
+  const kbStagingVerb = fixture({
+    'references/implement-lite.md': 'Hand the pass `.superdev/kb-pending/<scope>/` in the invoking checkout.\n',
+    'agents/doc-writer.md': 'Write every staged page under `.superdev/kb-pending/<scope>/`, resolved from your cwd.\n',
+  });
+  const kbStagingVerbGaps = scanContract(kbStagingVerb, KB_STAGING_CONTRACTS).map((g) => g.source);
+  assert.ok(kbStagingVerbGaps.includes(path.join('references', 'implement-lite.md')), 'flags implement-lite.md for a staging path not taken from the verb');
+  assert.ok(kbStagingVerbGaps.includes(path.join('agents', 'doc-writer.md')), 'flags doc-writer.md for a staging path not taken from the verb');
+
+  // positive: each staging document restores its cwd-relative staging instruction while still citing the verb (INV-0121)
+  const verbCite = 'The one `scope.js staging <scope>` printed. node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" staging <scope> staging <slug> .superdev/kb-pending/ `scope.js staging <scope>` printed,\n`.superdev/kb-pending/<scope>/`\n';
+  const cwdRelative = {
+    'skills/plan/SKILL.md': 'Use an **absolute** path resolved from the invoking checkout.\n',
+    'skills/document/SKILL.md': 'Stage under `.superdev/kb-pending/<scope>/` in the invoking checkout.\n',
+    'references/doc-pass.md': 'A checkout-relative `.superdev/kb-pending/` resolves one level too deep.\n',
+    'references/implement-lite.md': 'Hand over `.superdev/kb-pending/<scope>/` in the **invoking checkout**.\n',
+    'agents/doc-writer.md': 'Take the path by resolving it yourself against your own cwd.\n',
+  };
+  for (const [rel, line] of Object.entries(cwdRelative)) {
+    const gaps = scanContract(fixture({ [rel]: verbCite + line }), KB_STAGING_CONTRACTS);
+    assert.ok(gaps.some((g) => g.source === path.join(...rel.split('/')) && /cwd-relative/.test(g.expectation)), `flags ${rel} for a restored cwd-relative staging instruction`);
+  }
+
+  // positive: ship and verify-ship keep the citation and drop the above-zero condition on the publish-kb line (INV-0123)
+  const noCondition = fixture({
+    'skills/ship/SKILL.md': '**Hand off.** Name staged pages per `## Staged pages at close`, with `/superdev:publish-kb <scope>` on an `Or:` line of the Next block.\n',
+    'skills/verify-ship/SKILL.md': '## 6. End\nName staged pages per `## Staged pages at close`, with `/superdev:publish-kb <scope>` on an `Or:` line of the Next block.\n',
+  });
+  const noConditionSources = scanContract(noCondition, STAGED_CLOSE_CONTRACTS).map((g) => g.source);
+  assert.ok(noConditionSources.includes(path.join('skills', 'ship', 'SKILL.md')), 'flags ship for dropping the above-zero condition');
+  assert.ok(noConditionSources.includes(path.join('skills', 'verify-ship', 'SKILL.md')), 'flags verify-ship for dropping the above-zero condition');
+
+  // positive: the close drops the staged-pages rule, its citations, or wrap-up's staged-file gate
+  // reason (ADR 0119, INV-0122, INV-0123)
+  const stagedClose = fixture({
+    'references/scope-mode.md': '## Staged pages at close\nSay the pages may be deleted.\n',
+    'skills/ship/SKILL.md': '**Hand off.** Print the next command.\n',
+    'skills/verify-ship/SKILL.md': '## 6. End\nPrint a summary.\n',
+    'skills/wrap-up/SKILL.md': '## 3. Gate\nCollect every reason.\n## 6. Clean up\nRemove the scopetree.\n## 7. Finish\nPrint publish-kb.\n',
+  });
+  const stagedCloseGaps = scanContract(stagedClose, STAGED_CLOSE_CONTRACTS);
+  assert.equal(stagedCloseGaps.length, STAGED_CLOSE_CONTRACTS.length, 'flags the rule, every citation, and the gate reason');
+  for (const [rel] of STAGED_CLOSE_CONTRACTS) {
+    assert.ok(stagedCloseGaps.some((g) => g.source === rel), `names ${rel}`);
+  }
+
   // positive: the negative half fires on a restored call path even while the staging line is still there
   const kb2 = fixture({
     'agents/doc-writer.md':
-      'Write each page under `.superdev/kb-pending/<scope>/`.\n' +
+      'Write each page under the staging path, the one `scope.js staging <scope>` printed.\n' +
       'Then POST it to `/api/v1/repos/o/r/wiki/new` with `content_base64`.\n',
   });
   assert.equal(scanContract(kb2, KB_STAGING_CONTRACTS).length, 0, 'the staging half still passes');

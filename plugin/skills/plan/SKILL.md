@@ -327,11 +327,12 @@ One capture is **superdev-specific**:
   ADR summaries into its agreed **outline**, in its **language**, for its **audience(s)** (human-first).
 
   **A remote backend gets a staged page, never a call** (ADR 0023): at plan time none of the feature is
-  built, so a page sent now claims a feature that does not exist. Write each page under
-  `.superdev/kb-pending/<slug>/` (ensure `.superdev/` is in `.gitignore`; add it if absent), `<slug>`
-  being the feature label's slug. Use an **absolute** path resolved from the invoking checkout — this is
-  git-ignored scratch, not a durable capture, so it stays outside the "nothing lands in the invoking
-  checkout" rule above the same way an untracked file always does. One `.md`
+  built, so a page sent now claims a feature that does not exist. Write each page under the directory
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" staging <slug>` prints — `.superdev/kb-pending/<slug>/`
+  in the main working tree, as an **absolute** path, whatever checkout you run it from (ADR 0119) —
+  `<slug>` being the feature label's slug (ensure `.superdev/` is in `.gitignore`; add it if absent).
+  This is git-ignored scratch, not a durable capture, so it stays outside the "nothing lands in the
+  invoking checkout" rule above the same way an untracked file always does. One `.md`
   file per page, named `<title-slug>.md` (the page `title`'s slug) so a re-run overwrites the same file
   instead of creating a rival: YAML frontmatter carrying the page `title` and an `action` of `upsert`,
   the body below. Where `docs/agents/knowledge-base.md` documents a staged page's `parent` key, a page

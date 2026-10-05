@@ -953,10 +953,50 @@ const SCOPETREE_RUN_ROOT_PATTERN = /\.superdev\/scopes\/[^\s`/]+\/scopetree\b/g;
 // and a document can lose its call path along with the instruction that replaces it — leaving a
 // knowledge-base pass that does nothing at all. The positive half rides `scanContract()`; the negative
 // half needs its own scanner, because `scanContract()` asserts that a pattern *matches*.
+// The negative rows (INV-0121) fail a document that restores a cwd-relative staging instruction. Each
+// anchors at the document start with a negative lookahead, so `scanContract()` still reads a match as pass.
+const CWD_RELATIVE_STAGING = /^(?![\s\S]*(?:kb-pending\/[^\s`]*`\s+in\s+the\s+\*{0,2}invoking\s+checkout|resolved\s+from\s+the\s+invoking\s+checkout|checkout-relative\s+`?\.superdev\/kb-pending|against\s+your\s+own\s+cwd))/;
+const CWD_RELATIVE_EXPECTATION = 'carry no cwd-relative staging instruction: the staging path comes from `scope.js staging`, never from the invoking checkout or the own cwd (INV-0121)';
 const KB_STAGING_CONTRACTS = [
-  [path.join('skills', 'plan', 'SKILL.md'), /\.superdev\/kb-pending\//, 'stage the feature specification under `.superdev/kb-pending/` rather than sending it'],
-  [path.join('skills', 'document', 'SKILL.md'), /\.superdev\/kb-pending\//, 'hand the doc-writer a `.superdev/kb-pending/` staging path'],
-  [path.join('references', 'doc-pass.md'), /\.superdev\/kb-pending\//, 'write a remote backend\'s pages under `.superdev/kb-pending/`'],
+  [path.join('skills', 'plan', 'SKILL.md'), /scope\.js" staging <slug>[\s\S]{0,120}\.superdev\/kb-pending\//, 'stage the feature specification under the `.superdev/kb-pending/` directory `scope.js staging` prints (INV-0121)'],
+  [path.join('skills', 'document', 'SKILL.md'), /scope\.js" staging <scope>/, 'hand the doc-writer the staging path `scope.js staging` prints (INV-0121)'],
+  [path.join('references', 'doc-pass.md'), /`scope\.js staging <scope>` printed,\s+`\.superdev\/kb-pending\/<scope>\/`/, 'write a remote backend\'s pages under the `.superdev/kb-pending/` directory `scope.js staging` printed (INV-0121)'],
+  [path.join('references', 'implement-lite.md'), /scope\.js" staging <scope>/, 'hand the inline doc pass the staging path `scope.js staging` prints (INV-0121)'],
+  [path.join('agents', 'doc-writer.md'), /the one `scope\.js staging <scope>` printed/, 'take the staging path `scope.js staging` printed, as given (INV-0121)'],
+  ...['skills/plan/SKILL.md', 'skills/document/SKILL.md', 'references/doc-pass.md', 'references/implement-lite.md', 'agents/doc-writer.md'].map(
+    (rel) => [path.join(...rel.split('/')), CWD_RELATIVE_STAGING, CWD_RELATIVE_EXPECTATION],
+  ),
+];
+
+// ADR 0119, INV-0122, INV-0123: the close names a scope's staged pages from a count read in the same run,
+// by one rule scope-mode.md states and ship, verify-ship, and wrap-up cite, and wrap-up refuses a run whose
+// scopetree or slicetree still holds a staged file, before it removes either checkout.
+const STAGED_CLOSE_CONTRACTS = [
+  [
+    path.join('references', 'scope-mode.md'),
+    /## Staged pages at close[\s\S]{0,800}scope\.js" staging <scope> --count`[\s\S]{0,1200}keeps them[\s\S]{0,1200}count of zero[\s\S]{0,200}nothing about staged pages/,
+    'state the staged-pages-at-close rule once: read the count, name a count above zero with the directory and that wrap-up keeps the pages, and say nothing at zero (INV-0123)',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /\*\*Hand off\.\*\*[\s\S]{0,2500}`## Staged pages at close`[\s\S]{0,400}`\/superdev:publish-kb <scope>` on an `Or:` line[\s\S]{0,200}when the count is above zero/,
+    "apply scope-mode.md's `## Staged pages at close` at the post-merge hand-off, naming publish-kb only when the count is above zero (INV-0123)",
+  ],
+  [
+    path.join('skills', 'verify-ship', 'SKILL.md'),
+    /## 6\. End[\s\S]{0,1500}`## Staged pages at close`[\s\S]{0,400}`\/superdev:publish-kb <scope>` on an `Or:` line[\s\S]{0,200}when the count is above zero/,
+    "apply scope-mode.md's `## Staged pages at close` at the end message, naming publish-kb only when the count is above zero (INV-0123)",
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /## 7\. Finish[\s\S]{0,1000}`## Staged pages at close`/,
+    "apply scope-mode.md's `## Staged pages at close` at the finish (INV-0123)",
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /## 3\. Gate[\s\S]{0,6000}\*\*A run checkout holds a staged file\.\*\*[\s\S]{0,600}scopetree\/\.superdev\/kb-pending\/`[\s\S]{0,200}slicetrees\/\*\/\.superdev\/kb-pending\/`[\s\S]{0,600}scope\.js" staging <scope>`[\s\S]{0,4000}## 6\. Clean up/,
+    'refuse in the gate, before any checkout is removed, while the scopetree or a slicetree holds a staged file, naming the directory to move it into (INV-0122)',
+  ],
 ];
 
 // ADR 0094, INV-0091: the doc pass may read a remote knowledge base and never writes to it — the
@@ -6489,6 +6529,7 @@ module.exports = {
   GREEN_GATE_TIMEOUT_CONTRACTS,
   VERB_CONTRACTS,
   KB_STAGING_CONTRACTS,
+  STAGED_CLOSE_CONTRACTS,
   KB_READ_NEVER_WRITE_CONTRACTS,
   FULL_SUITE_CONTRACTS,
   FIX_BOUNDARY_CONTRACTS,
