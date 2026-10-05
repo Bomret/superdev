@@ -1,3 +1,20 @@
+# [0.64.0](https://codeberg.org/bomret/superdev/compare/v0.63.0...v0.64.0) (2026-10-05)
+
+
+### Bug Fixes
+
+* **drift:** flag every body edit whose flag does not read a file, in fused spellings and fenced shell blocks ([96686cb](https://codeberg.org/bomret/superdev/commit/96686cbf667d79e56759d57f645a2fedf3f9bb2b))
+* **prose:** mark a deliberate simplification with `simplicity:` ([2ccfe5d](https://codeberg.org/bomret/superdev/commit/2ccfe5d345de0ea1acbb18cf6eaa6a9c4cf10dc6))
+* **staged-pages-at-close:** stage pages in the main working tree and name them at every close step ([#880](https://codeberg.org/bomret/superdev/issues/880)) ([8eb3a19](https://codeberg.org/bomret/superdev/commit/8eb3a19aef63e5d4309ca4cd5c4822b5e20a079e))
+
+
+### Features
+
+* **interview:** offer only vetted options, at most two per question ([#887](https://codeberg.org/bomret/superdev/issues/887)) ([159ce39](https://codeberg.org/bomret/superdev/commit/159ce3911bc8a94297b43b8a9f37c7371911db4b))
+* **review:** run reviews and fixes on measured model tiers, and reconcile every sibling surface a fix touches ([75caf54](https://codeberg.org/bomret/superdev/commit/75caf54ba1d59bafd1f4e4fb7270a84335c05837))
+* **run-trace:** a hook-written run trace backs the TDD order and the suite record ([#867](https://codeberg.org/bomret/superdev/issues/867)) ([de877ab](https://codeberg.org/bomret/superdev/commit/de877abf9c49353de054a363870ab0da187d7d52))
+* **ship:** name wrap-up when nothing is left to verify ([549d7ec](https://codeberg.org/bomret/superdev/commit/549d7ec835fe2bb28b8386b71bc4026572c1208f))
+
 # [0.63.0](https://codeberg.org/bomret/superdev/compare/v0.62.0...v0.63.0) (2026-10-05)
 
 
