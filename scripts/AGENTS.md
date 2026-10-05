@@ -26,6 +26,7 @@ This doc owns what each script guards and the contracts between them. Repo-wide 
 `deploy set <target> pending|deployed|failed [--exit <n>]`, `deploy get`,
 `suite set <green|red|denied|none> <sha>`,
 `suite reusable --branch <b> [--whole]`,
+`base set <sha>`, `base resolve --branch <b> --base <ref>`,
 `get stage|branch|anchor|slices|unresolved|degraded|deferred|denials|docs|pr|suite`,
 `status` (which renders the whole `/superdev:status` report), `trace [--slice <id>]` (prints the run trace, read-only), `publish`, `adopt`, `root <slug>`,
 `staging <scope> [--count]`, and `dod-line`.
@@ -38,6 +39,12 @@ repository; `get suite` prints `<result> <sha>` back, or nothing on a ledger wit
 record is `green` and `<branch>`'s tip matches the recorded commit exactly, and refuses (exit 1)
 otherwise, an unrecognized argument included. No slice store commits its own records on the scope
 branch (ADR 0110), so no commit since the record is exempt.
+`base set` writes the `**Base:**` header, the remote base tip the base step merged into the scope branch,
+as a full commit, refusing a sha that does not resolve. `base resolve` prints the scope's range base: the
+newer of `merge-base(<ref>, <b>)` and the recorded tip, the tip counting only when it resolves and is an
+ancestor of `<b>`, and the merge-base alone when no usable record exists or neither candidate holds the
+other (ADR 0120). Both flags are required: no verb defaults the base. `publish` carries the header and
+`adopt` rebuilds it, as they do `**Suite:**`.
 `degraded
 add-denial` prefixes its bullet `denied: `, which is what separates a denied verification dispatch from
 the other degraded shape sharing that line, and `get denials` counts those prefixed bullets — the number
@@ -941,6 +948,18 @@ execution playbooks; and further rows are `skills/plan/SKILL.md`'s own dispatch 
 alone — `scope.js` can carry the stage and verb while `skills/plan/SKILL.md` stops writing the ledger or
 committing in the scopetree, and `scope-mode.md` can still state the rule while `skills/plan/SKILL.md`
 stops citing it — which is the one-sided-pin shape the root `AGENTS.md`'s prompt-architecture rules name.
+The `base-merge` contract (ADR 0120, INV-0124) pins `plugin/references/scope-mode.md`'s
+`## Bringing the scope branch to base` section, its fetch under the Bash tool's `timeout`, its ref-only
+fast-forward `git fetch . <tip>:refs/heads/<base>`, its merge of the fetched tip in the scopetree and the `base set` that records it, its
+full-suite gate that re-runs until `suite reusable` accepts the tip and runs the full command itself through the Bash tool after any
+merge, clean or resolved, its `lite`-tier in-progress-slice skip, its degraded pass with the same-reason dedupe, and its resolution of a conflicting
+base merge by intent through `plugin/references/merge-conflicts.md`, whose numbering-collision rule it pins
+too. It also pins the call to that section, with its placement sentence,
+in both `plugin/references/implement-lite.md` and `plugin/references/implement-full.md`. Each half reads
+correct alone: the section can stay intact while a playbook stops calling it, and a playbook can keep citing
+a section that has lost a clause. Rows also pin each consumer's citation of `## The scope's range base`,
+the `scope.js base resolve --branch` call in review, backlog, the implementer, and run handoff, backlog's
+`git merge-base` fallback for a row with no run root, and the range base in review's empty-argument step 2.
 Further rows close a Critical review finding that `init` stamped `**Stage:** planned` unconditionally
 regardless of who was writing the ledger: `plugin/scripts/scope.js` carries `INIT_ENTRY_STAGES`, `init`'s
 required entry-stage argument with no default, and `references/run-init.md`'s own `init` call — the one

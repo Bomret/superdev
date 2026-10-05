@@ -2,7 +2,7 @@
 'use strict';
 
 // scope.js: the run-state CLI (ADR 0022). Owns every ledger.md write and read in the chain.
-// Verbs: init, stage, slice, degraded, unresolved, deferred, suite, get, status, root, dod-line. Exit
+// Verbs: init, stage, slice, degraded, unresolved, deferred, suite, base, get, status, root, dod-line. Exit
 // nonzero with a one-line stderr reason on any refusal. hooks/ledger-guard.js makes this the only
 // ledger write path.
 // `root` and `dod-line` touch no ledger: `root` resolves a run root's absolute
@@ -212,6 +212,10 @@ function lastHeaderLineIndex(lines, names) {
   while (end + 1 < lines.length && lines[end + 1].startsWith('- ')) end++;
   return end;
 }
+
+// Every header a verb appends after the block. A verb inserting an absent header anchors on all of
+// them, so header order does not depend on write order.
+const APPENDED_HEADERS = ['Stage', 'Branch', 'Anchor', 'Docs', 'PR', 'Suite', 'Base', 'Deploy'];
 
 // The bullet list under a header line, if any: `**Degraded:**` (scope-mode `## Degraded passes`) and
 // `**Unresolved:**` (`## Unresolved defects`) carry one each, in the same shape. Read by both status
@@ -625,7 +629,7 @@ function verbPr(root, sub, value) {
   }
   // Absent: sit with the other header lines, after the whole block — the same placement `verbDocs`
   // and `verbSuite` give their own header, rather than `setHeader`'s title-anchored fallback.
-  const last = lastHeaderLineIndex(lines, ['Stage', 'Branch', 'Anchor', 'Docs', 'Suite']);
+  const last = lastHeaderLineIndex(lines, APPENDED_HEADERS);
   if (last < 0) {
     writeLines(root, setHeader(lines, 'PR', rendered));
     return true;
@@ -681,7 +685,7 @@ function verbDeploySet(root, target, state, exitCode) {
   }
   // Absent: sit with the other header lines, after the whole block — the same placement `verbPr`
   // gives `**PR:**`.
-  const last = lastHeaderLineIndex(lines, ['Stage', 'Branch', 'Anchor', 'Docs', 'PR', 'Suite']);
+  const last = lastHeaderLineIndex(lines, APPENDED_HEADERS);
   if (last < 0) {
     writeLines(root, setHeader(lines, 'Deploy', value));
     return;
@@ -956,7 +960,7 @@ function verbSuite(cwd, root, sub, result, sha, whole) {
   }
   // Absent: sit with the other header lines, after the whole block — the same placement `verbDocs`
   // gives `**Docs:**`, rather than `setHeader`'s title-anchored fallback.
-  const last = lastHeaderLineIndex(lines, ['Stage', 'Branch', 'Anchor', 'Docs']);
+  const last = lastHeaderLineIndex(lines, APPENDED_HEADERS);
   if (last < 0) {
     writeLines(root, setHeader(lines, 'Suite', value));
     return;
@@ -1001,6 +1005,46 @@ function verbSuiteReusable(cwd, root, branch, whole) {
   const [, result2, , tree] = runs[runs.length - 1].fields;
   if (result2 !== 'pass' || tree !== 'clean') fail(`latest ${kindList} run at ${tip} is ${result2} on a ${tree} tree — not reusable`);
   console.log('reusable');
+}
+
+// `**Base:**` records the remote base tip the base step merged into the scope branch
+// (`references/scope-mode.md` `## Bringing the scope branch to base`). `base resolve` prints the scope's
+// range base (`## The scope's range base`): the newer of `merge-base(base, branch)` and the recorded tip,
+// where the recorded tip counts only when it resolves and is an ancestor of the branch. Two candidates
+// where neither holds the other, or no usable record, print the merge-base. Like `suite set`, `base set`
+// records the resolved full commit and refuses a value that resolves to none.
+function verbBaseSet(cwd, root, sha) {
+  if (!sha) fail('base set needs a <sha>');
+  const commit = resolveCommit(sha, cwd);
+  if (!commit) fail(`sha "${sha}" does not resolve to a commit in this repository`);
+  const lines = readLines(root);
+  const at = lines.findIndex((l) => headerRe('Base').test(l));
+  if (at >= 0) {
+    lines[at] = `**Base:** ${commit}`;
+    writeLines(root, lines);
+    return;
+  }
+  const last = lastHeaderLineIndex(lines, APPENDED_HEADERS);
+  if (last < 0) {
+    writeLines(root, setHeader(lines, 'Base', commit));
+    return;
+  }
+  lines.splice(last + 1, 0, `**Base:** ${commit}`);
+  writeLines(root, lines);
+}
+
+function verbBaseResolve(cwd, root, branch, base) {
+  const tip = resolveCommit(branch, cwd);
+  if (!tip) fail(`branch "${branch}" does not resolve to a commit`);
+  const found = gitSpawn(['merge-base', '--end-of-options', base, tip], cwd);
+  const mb = found.status === 0 ? found.stdout.trim() : '';
+  if (!mb) fail(`no merge-base of "${base}" and "${branch}"`);
+  const isAnc = (a, b) => gitSpawn(['merge-base', '--is-ancestor', a, b], cwd).status === 0;
+  const raw = getHeader(readLines(root), 'Base');
+  const rec = raw ? resolveCommit(raw, cwd) : null;
+  let out = mb;
+  if (rec && isAnc(rec, tip) && isAnc(mb, rec)) out = rec;
+  console.log(out);
 }
 
 function verbGet(root, field) {
@@ -1693,6 +1737,8 @@ function usage() {
     '  deploy get   --root <run-root>      one line per recorded target, first-recorded order, or "absent"',
     '  suite set <green|red|denied|none> <sha> [--whole]   --root <run-root>',
     '  suite reusable --branch <b> [--whole]   --root <run-root>   exits 0 (reusable) or 1',
+    '  base set <sha>   --root <run-root>   records the merged base tip',
+    '  base resolve --branch <b> --base <base-ref>   --root <run-root>   prints the scope\'s range base',
     '  get stage|branch|anchor|docs|pr|slices|unresolved|degraded|deferred|denials|suite --root <run-root>',
     '  trace [--slice <id>] --root <run-root>   prints the run trace, oldest first (read-only)',
     '  status                             scans <cwd>/.superdev/scopes/*/',
@@ -1827,6 +1873,30 @@ function run(argv, cwd, stdinJson) {
       if (args.length > 3) fail(`suite ${args[0]}: unrecognized argument "${args[3]}"`);
       verbSuite(cwd, root, args[0], args[1], args[2], whole);
       ledgerEvent = { root, fields: ['suite', args[0], args[1], args[2], ...(whole ? ['--whole'] : [])] };
+      break;
+    }
+    case 'base': {
+      const root = takeRoot(args);
+      const take = (flag) => {
+        const i = args.indexOf(flag);
+        if (i < 0) return undefined;
+        const v = args[i + 1];
+        if (!v) fail(`${flag} needs a value`);
+        args.splice(i, 2);
+        return v;
+      };
+      if (args[0] === 'resolve') {
+        const branch = take('--branch');
+        const base = take('--base');
+        if (!branch) fail('base resolve needs --branch <branch>');
+        if (!base) fail('base resolve needs --base <base-ref>');
+        if (args.length > 1) fail(`base resolve: unrecognized argument "${args[1]}"`);
+        verbBaseResolve(cwd, root, branch, base);
+        break;
+      }
+      if (args[0] !== 'set') fail(`unknown base subcommand "${args[0]}" — use set|resolve`);
+      if (args.length > 2) fail(`base set: unrecognized argument "${args[2]}"`);
+      verbBaseSet(cwd, root, args[1]);
       break;
     }
     case 'get': {

@@ -124,8 +124,8 @@ Read the posture from that document's own `Posture:` line, in its `## Posture`
 section — a document carrying no such line reads as posture `none`, the same as no document at all. Read
 the anchor's `**Deploy:**` line, per `docs/agents/issue-tracker.md`. **A listed
 target the `## Targets` table lacks** → refuse: name it, and merge nothing. **The pull request's diff
-touches `docs/agents/deployment.md`** (`git -C <run-root>/scopetree diff <base>...<branch> --
-docs/agents/deployment.md` finds anything) → print the changed posture and target lines right here, before
+touches `docs/agents/deployment.md`** (`git -C <run-root>/scopetree diff <range-base>..<branch> --
+docs/agents/deployment.md` finds anything; `<range-base>` per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`) → print the changed posture and target lines right here, before
 anything merges — calling ship is the consent to exactly the commands it is about to run. **§4 re-runs
 this same gate at the merged tip whenever its own merge moves it** — that later tip's tree, not this one,
 is what the pinned squash lands and what §5's deploy step reads fresh at the merge commit.

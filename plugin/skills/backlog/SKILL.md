@@ -157,9 +157,11 @@ The `in flight` row's act is the chain command its stage has not reached — `${
 and the next-command line each chain command prints map a stage to it.
 The scope branch is the
 feature label verbatim (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`, "The scope branch is the
-feature label verbatim"), so a range argument is `<BASE>..<feature-label>` with `<BASE>` from
-`git merge-base <base> <feature-label>`, `<base>` read from `docs/agents/code-management.md` (default
-`main`).
+feature label verbatim"), so a range argument is `<BASE>..<feature-label>`, `<base>` read from
+`docs/agents/code-management.md` (default `main`). For a row that has a run root, `<BASE>` is the
+scope's range base, computed by `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" base resolve --branch <feature-label> --base <base> --root <run-root>`
+per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`. A row with no run root
+takes `<BASE>` from `git merge-base <base> <feature-label>`.
 
 A scope with a run root is **one row**, carrying its stage. Its individual slices are `/superdev:status`'s
 report, not this one.

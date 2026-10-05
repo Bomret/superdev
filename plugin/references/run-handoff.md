@@ -124,7 +124,9 @@ tiers: record that slice execution finished, name what comes next.
   disposable**: the ledger, `dod.md`, `interfaces.md`, and the per-slice progress logs now hold
   everything `/superdev:review` needs, so a `/clear` before it costs nothing — a fresh-context review
   reads the run state cold, which is the least anchored shape a reviewer can start in.
-- **Print the next command, resolved.** Compute `BASE = git merge-base <base> <branch>` (`<base>` from
+- **Print the next command, resolved.** Compute `BASE`, the scope's range base, per
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`
+  (`scope.js base resolve --branch <branch> --base <base> --root <run-root>`; `<base>` from
   `docs/agents/code-management.md`, default `main`) and print `/superdev:review <BASE-sha>..<branch>` with
   the real commit substituted, plus one line on what it does (review the integrated scope against the
   DoD) — **every scope**, whatever its slice types: this handoff's own full-suite run above is a fix loop

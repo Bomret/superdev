@@ -5,8 +5,9 @@ file at runtime and keeps only what is specific to it: the stage it reads or wri
 next.
 
 **Several sections below have a wider audience than these three.** `/superdev:implement` and both
-execution playbooks read `## Unattended`, `## Degraded passes`, `## The run lock`, and `## The scope
-checkout` (ADR 0045 — both tiers now cut and work in the scopetree); `/superdev:implement`
+execution playbooks read `## Unattended`, `## Degraded passes`, `## The run lock`, `## The scope
+checkout` (ADR 0045 — both tiers now cut and work in the scopetree), and `## Bringing the scope branch to
+base` (ADR 0120) and `## The scope's range base`; `/superdev:implement`
 reads `## The scope slug`, which sends it to `## The change type`; `## The ledger` is read by
 `/superdev:implement`, `/superdev:status`, and `/superdev:submit-pr` besides `/superdev:review`; `##
 Resolving an empty argument` is read by all three of `/superdev:implement`, `/superdev:review`, and
@@ -146,6 +147,10 @@ write, naming `scope.js`.
   suite again (INV-0017). `suite reusable --whole` additionally refuses a record with no kind, even when it is
   green and tip-matched: a step that needs a whole-repo run reuses only a record of kind `whole`; a
   step content with either kind omits `--whole` and accepts both.
+- **`**Base:** <sha>`** — the remote base tip the base step last merged into the scope branch
+  (`## Bringing the scope branch to base`), as a full commit. Written with `base set <sha>`, which
+  refuses a sha that does not resolve to a commit; read only through `base resolve`
+  (`## The scope's range base`). A ledger with no such line has no merged tip on record.
 
 A ledger written before a line existed carries none of it — `scope.js` parses a pre-CLI ledger unchanged,
 and `get` reports an absent header line as `absent`, never as a parse error — except `get suite`, which
@@ -446,6 +451,94 @@ again as part of that recreate — not a second creation rule belonging to the t
 
 The lock's mtime marks the run as live across the whole chain. The `run-lock` hook treats a lock older
 than an hour as dead. Each command in the chain refreshes the mtime at its own step.
+
+## Bringing the scope branch to base
+
+Both execution playbooks run this step right after their own `## Run lock` write and before their first
+slice, on every `/superdev:implement` invocation and at every run kind (ADR 0120, INV-0124). It brings
+the remote's `<base>` tip into the scope branch, so slices build on what the pull request targets rather
+than on whatever `<base>` the branch was cut from. `/superdev:plan`'s own cut never reads it. `<remote>`
+and `<base>` come from `docs/agents/code-management.md`; `<branch>` is the scope branch the playbook's
+branch step left you on.
+
+1. **Check the scopetree first.** `git -C <run-root>/scopetree status --porcelain` returns nothing, and
+   `git -C <run-root>/scopetree rev-parse -q --verify MERGE_HEAD` finds no unfinished merge. Anything
+   else → name what you found and stop, discarding nothing and dispatching no slice. **`--unattended` →
+   block**, per `## Unattended`. One exception, at the `lite` tier only (`scope.js get slices --root <run-root>`
+   lists three or fewer slices, as in `## Degraded passes`): the scopetree is dirty, no merge is
+   unfinished, and a slice is `in-progress`. That dirt is the slice's own work. At the full tier
+   slices work in their own slicetrees, so any dirty scopetree stops. Skip the whole base step, name the skip in the
+   report, and leave the work to the playbook's `## Resume`; the next invocation brings the base in.
+2. **Fetch the remote base.** Run `GIT_TERMINAL_PROMPT=0 git fetch <remote> <base>` through the Bash
+   tool with its `timeout` set to 120000 ms: a missing credential fails the fetch instead of prompting,
+   and a stalled remote ends it. Capture `<tip>` at once with `git rev-parse FETCH_HEAD`, because step 3
+   overwrites `FETCH_HEAD`. A fetch the timeout killed carries no verdict (INV-0009) and counts as failed.
+3. **Fast-forward the local `<base>` ref, and nothing more.** Run
+   `git fetch . <tip>:refs/heads/<base>`. This is the only local-git write to `<base>` INV-0001 admits: it
+   moves a ref, writes no commit, and touches no working tree. Git refuses it when `<base>` is checked
+   out in any worktree, or when the update is not a fast-forward (verified 2026-10-05, git 2.54.0: exit
+   128, `fatal: refusing to fetch into branch 'refs/heads/<base>' checked out at …`). A refusal is not a
+   failure: skip it, leave the local `<base>` where it was, and name the refusal in the run's report. A
+   local `<base>` already at `<tip>` needs no word. Step 4 runs either way.
+4. **Bring `<tip>` in, and record it.** `git -C <run-root>/scopetree merge-base --is-ancestor <tip> <branch>`
+   succeeds → nothing to merge. Otherwise run `git -C <run-root>/scopetree merge <tip>`, `<run-root>`
+   spelled out as the real absolute path in the command text, never a shell variable: `hooks/green-gate.js` reads the
+   command text alone. **A conflict** — `MERGE_HEAD` still set → resolve it by intent, per
+   `${CLAUDE_PLUGIN_ROOT}/references/merge-conflicts.md`, and commit the merge with
+   `git -C <run-root>/scopetree commit --no-edit`. Plan's design-docs commit
+   and other scopes edit the same glossary, ADR, and invariant files, so most of these conflicts are
+   additive. Report every renumber that file's numbering-collision rule made, old and new. A
+   winner-picking overlap is the one case it escalates: list the conflicting files
+   (`git -C <run-root>/scopetree diff --name-only --diff-filter=U`), run
+   `git -C <run-root>/scopetree merge --abort`, and stop: the scopetree is clean again, no slice is
+   dispatched, and the operator resolves the conflict. **`--unattended` → block**, per `## Unattended`.
+   Once `<tip>` is in the scope branch, whether merged now or already there, record it with
+   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" base set <tip> --root <run-root>`: the local `<base>`
+   may still lack `<tip>`, and `## The scope's range base` reads the record. Every merge goes
+   through step 5.
+5. **Gate on the full suite.** Run it when step 4 merged, and also when it merged nothing but
+   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --root <run-root>` does
+   not accept the scope branch's current tip — a red record an earlier invocation left is exactly what
+   this catches. After any merge, clean or resolved, run the full command from `docs/agents/verification.md` itself through the Bash tool
+   in the scopetree: the run trace records that run, and the trace must back the suite record
+   (ADR 0117). After a clean merge, `hooks/green-gate.js` has already run the suite, and step 5 runs the full command again on purpose: only a run through the Bash tool leaves the run-trace line that lets `suite reusable` accept the record (ADR 0117). Run the full command alone with its own exit status intact, per the `## The two commands` section of `references/test-selection.md`, because a run the trace records as `unknown` leaves a record `suite reusable` refuses. The same command runs when the merge was skipped and the record is not reusable. Record what happened with
+   `scope.js suite set <green|red|denied|none> <head> --root <run-root>`. **Green** → go to the first
+   slice. **Red, denied, or never finished** (`none`, INV-0009) → dispatch no slice, name the result, and
+   stop; the next invocation runs the suite again until the record is green. **`--unattended` → block**,
+   per `## Unattended`. No `docs/agents/verification.md`, or one carrying zero fenced blocks → no suite,
+   no record, and nothing to gate, exactly as `hooks/green-gate.js` reads it.
+
+**A base that cannot be fetched is a degraded pass.** No `<remote>` configured, a failed or killed fetch,
+or a remote that does not carry `<base>` → skip steps 2 and 3, run steps 4 and 5 with the local `<base>`
+in place of `<tip>`, record no `**Base:**` line, and record the reason with `scope.js degraded add`, after
+`scope.js get degraded --root <run-root>` shows no entry for the
+same reason: repeated offline invocations add one entry. It is the second shape in
+`## Degraded passes`: record and continue, attended or unattended alike. `/superdev:submit-pr` carries the
+entry into the pull request body. Publish the snapshot, per `## Publishing run state`.
+
+## The scope's range base
+
+The **range base** is the commit every range of a scope's own work starts from: review's range, the doc
+pass, run handoff's `BASE`, resume's cross-check, and ship's `deployment.md` diff are all
+`<range-base>..<branch>` (ADR 0120). It is the newer of two candidates: `merge-base(<base>, <branch>)`,
+and the tip the base step recorded in the `**Base:**` header (`## The ledger`), when that record
+resolves to a commit and is an ancestor of `<branch>`. The newer candidate is the one the other is an
+ancestor of. With no usable record, or with two candidates where neither holds the other, the range base
+is `merge-base(<base>, <branch>)`.
+
+The record is what keeps a merged remote tip out of a scope's range while the local `<base>` lacks it
+(the usual setup, where git refuses to fast-forward a checked-out `<base>`). The local `<base>` may also
+run ahead of the record, after a later pull or a ship that merged a newer base, and `merge-base` is the
+newer candidate then. One limit stays: when the local `<base>` holds commits never pushed and a merge
+brought it into `<branch>` (ship §4 or the degraded path) while a tip is on record, the two candidates are
+incomparable, the fallback is `merge-base(<base>, <branch>)`, and that can let the recorded tip's remote
+commits into the range.
+
+**Compute it with the verb, never by hand.** On a live scope run:
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" base resolve --branch <branch> --base <base> --root <run-root>`
+prints it. An ad-hoc range with no run root has no record, so `merge-base(<base>, <branch>)` is its
+base. Containment (`## Containment`) asks a different question, whether the branch's work is in
+`<base>`, and keeps its own test.
 
 ## Unattended
 
@@ -869,7 +962,7 @@ duplicate heading, an unterminated fence, a setext-titled section it cannot see 
 malformed publish, and that refusal is this same best-effort failure, never a stop.
 
 **Slice rows are not published on their own.** Both execution playbooks' **Resume** step already
-cross-checks the ledger against `git log <base>..<branch>` — the `full` tier's also against the store's own
+cross-checks the ledger against `git log <range-base>..<branch>` (`## The scope's range base`) — the `full` tier's also against the store's own
 slice statuses — so a stale slice table in an adopted ledger self-heals there without a mirrored write.
 Publishing per slice would spend one store call per slice, and on the `full` tier would race parallel slice
 agents writing the same anchor body against each other.

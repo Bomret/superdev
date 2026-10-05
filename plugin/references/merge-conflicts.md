@@ -1,8 +1,11 @@
 # Merge-conflict resolution
 
-How a controller resolves a conflicted merge in the DAG loop. The rule is intent, not text: a hunk is
-resolved by what each side **meant**, and each side's intent has a primary source — its slice's `spec`,
-its progress log, its commit messages.
+How a controller resolves a conflicted merge, in the DAG loop and in the base merge
+`scope-mode.md`'s `## Bringing the scope branch to base` runs before the first slice (ADR 0120). The rule
+is intent, not text: a hunk is resolved by what each side **meant**, and each side's intent has a primary
+source — its slice's `spec`, its progress log, its commit messages. In the base merge, the scope side's
+sources are its own commit messages and its slices' `spec`s, and the base side's are the base commits'
+own messages.
 
 - **Trace both sides to their sources first.** Read what each slice was building before touching the
   hunk; a resolution from the conflict markers alone is a guess.
@@ -13,6 +16,11 @@ its progress log, its commit messages.
 - **Compatible intents compose.** Two sides that changed the same lines for different, non-competing
   reasons (one renamed a parameter, the other added a guard) both survive: write the version that
   honours both specs, and say so in one line.
+- **A numbering collision moves this scope's number.** An ADR file or an invariant register entry this
+  scope added, whose number the other side also took, takes the next number free on both sides, and on
+  every other live plan run (`skills/plan/SKILL.md`'s shared-identifier check). Update every citation of
+  the old number on the scope branch in the same resolution, and name each renumber, old and new, in the
+  report. In the base merge, base's number never moves: it has already landed.
 - **Never invent new behaviour in a resolution.** The merged result does only what the two sides'
   sources already claim; a "better" third version is a drive-by change wearing a conflict as cover.
 - **A genuine winner-picking overlap escalates.** The same decision decided two incompatible ways —

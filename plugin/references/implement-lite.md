@@ -32,6 +32,12 @@ Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The run lock` and wr
 lock in place when you finish: it spans the whole chain, and `/superdev:wrap-up` removes it once the run is
 closed.
 
+## Bring in the base
+
+Right after the run lock, before the first slice, run `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
+`## Bringing the scope branch to base`, on every invocation and at every run kind (ADR 0120, INV-0124).
+A stop there dispatches no slice.
+
 ## Implement
 
 - **In `depends-on` order, inline, test-first, skipping every slice the ledger already marks `merged`**
@@ -109,7 +115,8 @@ context cannot replace (ADR 0031). The `full` tier does not do this — its slic
 slicetrees and would collide on shared doc files.
 
 - **Read `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md` and perform the pass it states**, both passes,
-  over the range `<base>..<branch>` — this scope's own commits. It owns the content-type lens, the writing
+  over the range `<range-base>..<branch>` — this scope's own commits, with `<range-base>` computed per
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`. It owns the content-type lens, the writing
   standard, the in-repo docs pass, and the knowledge-base pass; this step owns only when it runs and what
   it records.
 - **Hand the pass the staging path as an absolute path** — the directory
@@ -135,7 +142,8 @@ slicetrees and would collide on shared doc files.
 ## Resume
 
 Read the ledger — `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>` and
-`get stage` — and cross-check it against `git log <base>..<branch>` (`<branch>` from the branch step
+`get stage` — and cross-check it against `git log <range-base>..<branch>` (`<range-base>` per
+`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`; `<branch>` from the branch step
 above, never rebuilt as `<type>/<scope>`) in the scopetree. A slice the ledger marks `merged` is
 done; pick up at the next `todo` slice in `depends-on` order.
 

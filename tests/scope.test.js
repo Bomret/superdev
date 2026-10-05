@@ -2097,6 +2097,120 @@ try {
     fs.rmSync(mainRepo, { recursive: true, force: true });
   }
 
+  // --- base: the scope's range base — the recorded merged base tip and the rule that picks the newest
+  // of it and merge-base(<base>, <branch>) (`references/scope-mode.md` `## The scope's range base`) ---
+  {
+    const g = (args, cwd) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
+    const callIn = (argv, cwd, stdin) => {
+      const logged = [];
+      const orig = console.log;
+      console.log = (s) => logged.push(String(s));
+      try {
+        run(argv, cwd, stdin || '');
+        return { ok: true, out: logged.join('\n') };
+      } catch (e) {
+        if (e.isRefusal) return { ok: false, err: e.message, out: logged.join('\n') };
+        throw e;
+      } finally {
+        console.log = orig;
+      }
+    };
+    const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-base-')));
+    g(['init', '-q', '-b', 'main'], repo);
+    g(['config', 'user.email', 'test@example.com'], repo);
+    g(['config', 'user.name', 'test'], repo);
+    const commit = (file, msg) => {
+      fs.writeFileSync(path.join(repo, file), msg + '\n');
+      g(['add', '.'], repo);
+      g(['commit', '-q', '-m', msg], repo);
+      return g(['rev-parse', 'HEAD'], repo);
+    };
+    const A = commit('a.txt', 'a');
+    g(['branch', 'remote'], repo);
+    g(['checkout', '-q', 'remote'], repo);
+    const T = commit('t.txt', 't');
+    const T2 = commit('t2.txt', 't2');
+    g(['checkout', '-q', 'main'], repo);
+    g(['checkout', '-q', '-b', 'feat/base-demo'], repo);
+    commit('own.txt', 'own');
+
+    const sliceJson = JSON.stringify({
+      anchor: '#1 — base record',
+      slices: [{ id: '01', issue: '#2', title: 'x', type: 'behavior', 'depends-on': '—' }],
+    });
+    assert.ok(callIn(['init', 'feat/base-demo', 'planned'], repo, sliceJson).ok, 'init for the base fixture');
+    const root = path.join(repo, '.superdev', 'scopes', 'base-demo');
+    const RT = ['--root', root];
+    const resolve = (base) => callIn(['base', 'resolve', '--branch', 'feat/base-demo', '--base', base, ...RT], repo);
+    const ledger = () => fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
+
+    // No record: the merge-base, today's behaviour.
+    assert.strictEqual(resolve('main').out, A, 'no record prints merge-base(base, branch)');
+
+    // base set writes the resolved full commit, overwrites rather than adding a second line.
+    assert.ok(callIn(['base', 'set', T.slice(0, 8), ...RT], repo).ok, 'base set <short sha>');
+    assert.ok(ledger().includes(`**Base:** ${T}`), 'ledger carries the full commit');
+    assert.strictEqual((ledger().match(/\*\*Base:\*\*/g) || []).length, 1, 'one Base line');
+
+    // Header order does not depend on write order: PR and Deploy written after Base sit after it.
+    assert.ok(callIn(['pr', 'set', '#9', ...RT], repo).ok, 'pr set after base set');
+    assert.ok(callIn(['deploy', 'set', 'pve', 'deployed', ...RT], repo).ok, 'deploy set after base set');
+    const order = ['Base', 'PR', 'Deploy'].map((n) => ledger().indexOf(`**${n}:**`));
+    assert.ok(order[0] >= 0 && order[0] < order[1] && order[1] < order[2], 'Base, PR, Deploy in that order');
+
+    // base set refuses a value that resolves to no commit, and writes nothing.
+    const before = ledger();
+    const bad = callIn(['base', 'set', 'not-a-real-sha', ...RT], repo);
+    assert.ok(!bad.ok && /does not resolve to a commit/.test(bad.err), 'unresolvable sha refused');
+    assert.strictEqual(ledger(), before, 'nothing written on refusal');
+
+    // Record reachable from the branch, local base behind it: the record is newer.
+    g(['merge', '-q', '--no-edit', T], repo);
+    assert.strictEqual(resolve('main').out, T, 'a recorded tip ahead of the local base wins');
+
+    // Record not reachable from the branch: the merge-base.
+    assert.ok(callIn(['base', 'set', T2, ...RT], repo).ok, 'base set T2');
+    assert.strictEqual(resolve('main').out, A, 'a record not reachable from the branch is ignored');
+
+    // A record the repository cannot resolve (hand-edited ledger): the merge-base.
+    fs.writeFileSync(path.join(root, 'ledger.md'), ledger().replace(/\*\*Base:\*\* .*/, '**Base:** deadbeef'));
+    assert.strictEqual(resolve('main').out, A, 'an unresolvable record is ignored');
+
+    // Local base ahead of the record (pulled later): merge-base is newer.
+    assert.ok(callIn(['base', 'set', T, ...RT], repo).ok, 'base set T again');
+    g(['branch', '-f', 'main', T2], repo);
+    g(['merge', '-q', '--no-edit', 'main'], repo);
+    assert.strictEqual(resolve('main').out, T2, 'a local base ahead of the record wins');
+
+    // Incomparable: the merge-base and the record both sit on the branch, neither holding the other.
+    g(['checkout', '-q', '-b', 'side', A], repo);
+    const R = commit('r.txt', 'r');
+    g(['checkout', '-q', '-b', 'localbase', A], repo);
+    const M = commit('m.txt', 'm');
+    g(['checkout', '-q', '-b', 'feat/base-inc', M], repo);
+    g(['merge', '-q', '--no-edit', R], repo);
+    commit('own2.txt', 'own2');
+    assert.ok(callIn(['base', 'set', R, ...RT], repo).ok, 'base set R');
+    const inc = callIn(['base', 'resolve', '--branch', 'feat/base-inc', '--base', 'localbase', ...RT], repo);
+    assert.strictEqual(inc.out, M, 'incomparable candidates print merge-base(base, branch)');
+
+    // --base and --branch are required.
+    assert.ok(!callIn(['base', 'resolve', '--branch', 'feat/base-demo', ...RT], repo).ok, 'resolve needs --base');
+    assert.ok(!callIn(['base', 'resolve', '--base', 'main', ...RT], repo).ok, 'resolve needs --branch');
+
+    // publish carries the Base line and adopt reconstructs it.
+    assert.ok(callIn(['base', 'set', T, ...RT], repo).ok, 'base set for publish');
+    const published = callIn(['publish', ...RT], repo).out;
+    assert.ok(published.includes(`**Base:** ${T}`), 'publish carries the Base line');
+    const adoptRoot = path.join(repo, 'adopt-check', 'base-demo');
+    assert.ok(callIn(['adopt', '--root', adoptRoot], repo, `# Anchor\n\n${published}\n`).ok, 'adopt parses a Base-bearing snapshot');
+    assert.ok(
+      fs.readFileSync(path.join(adoptRoot, 'ledger.md'), 'utf8').includes(`**Base:** ${T}`),
+      'adopt reconstructs the Base line'
+    );
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+
   // --- suite: the suite record, the last full-suite run's result and the commit it ran on
   // (`references/scope-mode.md` `## The ledger`, INV-0017) ---------------------------------------
   {

@@ -6,7 +6,7 @@ format; `/superdev:plan` adds an entry when one crystallises.
 ### INV-0001
 
 Class: architecture
-Statement: No superdev command commits to the base branch, with one exception: `/superdev:ship`'s merge of the pull request through the host's merge API, pinned to the tested head (ADR 0096). Every other write a run makes lands on that run's own scope branch, in its own scopetree. No command merges or pushes to the base branch with local git.
+Statement: No superdev command commits to the base branch, with one exception: `/superdev:ship`'s merge of the pull request through the host's merge API, pinned to the tested head (ADR 0096). Every other write a run makes lands on that run's own scope branch, in its own scopetree. No command merges or pushes to the base branch with local git. The only local-git write to the base branch is implement's ref-only fast-forward of the local base ref to the fetched remote tip, `git fetch . <tip>:refs/heads/<base>`, which git refuses when the base is checked out in any worktree or the update is not a fast-forward (ADR 0120).
 Concepts: Base branch, Scope branch, Scopetree, Run root
 Breaks: silently
 Check: scripts/drift-check.js — no shipped prose instructs a commit to the base branch
@@ -1031,6 +1031,15 @@ Statement: `/superdev:ship`'s post-merge hand-off, `/superdev:verify-ship`'s end
 Breaks: silently
 Check: scripts/drift-check.js — ship's, verify-ship's, and wrap-up's citations of the scope-mode.md section, and ship's and verify-ship's above-zero condition on the publish-kb line; partial: nothing checks the text an agent prints
 Paths: plugin/skills/ship/SKILL.md, plugin/skills/verify-ship/SKILL.md, plugin/skills/wrap-up/SKILL.md, plugin/references/scope-mode.md
+
+### INV-0124
+
+Class: process
+Concepts: Base branch, Scope branch, Scopetree, Run kind
+Statement: Every `/superdev:implement` invocation, at both execution tiers and every run kind, brings the base into the scope branch after the run lock is written and before the first slice starts (the one exception: at the `lite` tier a dirty scopetree with an `in-progress` slice skips the step, and the next invocation runs it). It merges the fetched remote base tip whether or not the local base could advance to it, and records that tip in the ledger's `**Base:**` header. Every range of the scope's own commits starts from the range base `scope.js base resolve` prints, the newer of `merge-base(<base>, <branch>)` and the recorded tip. A base that cannot be fetched is a degraded pass: the local base is merged and no tip is recorded (ADR 0120).
+Breaks: silently
+Check: scripts/drift-check.js — the step's call in both execution playbooks and its section in scope-mode.md
+Paths: plugin/references/scope-mode.md, plugin/references/implement-lite.md, plugin/references/implement-full.md, plugin/scripts/scope.js
 
 ### INV-0125
 

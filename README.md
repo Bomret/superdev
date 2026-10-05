@@ -90,6 +90,14 @@ plan runs test-first, inline in the scopetree.
 - **`/superdev:implement`**. The controller drives the slices as a **dependency-ordered DAG**, sized to
   an execution tier derived fresh from the loaded slice count. The tier is never configured and never
   persisted.
+  Before the first slice, every run brings the remote base into the scope branch. It fetches the base
+  branch, fast-forwards your local base branch when no worktree has it checked out, merges the fetched
+  tip into the scope branch whether or not the local base could advance, records that tip so review
+  ranges stay limited to this scope's commits, and runs the full suite on the result. Drift since `/superdev:plan` then
+  shows before any slice is built, not at `/superdev:ship`. A conflict is resolved by intent, and a
+  colliding ADR or invariant number this scope added moves to the next free one. A base that cannot be
+  fetched leaves the run on the local base, recorded as a degraded pass
+  ([ADR 0120](docs/adr/0120-implement-brings-the-remote-base-into-the-scope-branch-before-the-first-slice.md)).
   With **more than 3 slices the tier is `full`**: unblocked slices run in **parallel** as `implementer`
   subagents in isolated slicetrees, with TDD and lazy minimalism. A separate **slice-reviewer**
   (correctness, settled before it reads the implementer's progress log) and **simplicity-reviewer**

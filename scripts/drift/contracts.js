@@ -933,6 +933,56 @@ const PLANNED_HANDOFF_CONTRACTS = [
   [path.join('skills', 'plan', 'SKILL.md'), /adapted to a plan-time call passing[\s\S]{0,60}scope\.js init <type>\/\<scope\> planned/, "pass `planned` as `init`'s entry stage in the resume step (§6) where no `/superdev:plan` interval exists to enter through"],
 ];
 
+// ADR 0120, INV-0124: every `/superdev:implement` invocation brings the fetched remote base tip into the
+// scope branch before its first slice. The step is stated once, in `scope-mode.md`, and each execution
+// playbook calls it. Either half reads correct alone: the section can stay intact while a playbook stops
+// calling it, and a playbook can keep citing a section that has lost its fetch, its fast-forward, its
+// merge, its suite gate, or its degraded pass. Each row below is one of those halves or clauses.
+const BASE_MERGE_CONTRACTS = [
+  [path.join('references', 'scope-mode.md'), /^## Bringing the scope branch to base$/m, 'carry the `## Bringing the scope branch to base` section (ADR 0120)'],
+  [path.join('references', 'scope-mode.md'), /\*\*Fetch the remote base\.\*\*[\s\S]{0,200}`GIT_TERMINAL_PROMPT=0 git fetch <remote> <base>`[\s\S]{0,200}`timeout`/, 'fetch the remote base without a prompt, under the Bash tool\'s `timeout`'],
+  [path.join('references', 'scope-mode.md'), /`git fetch \. <tip>:refs\/heads\/<base>`/, 'fast-forward the local base ref only through `git fetch . <tip>:refs/heads/<base>` (INV-0001)'],
+  [path.join('references', 'scope-mode.md'), /`git -C <run-root>\/scopetree merge <tip>`/, 'merge the fetched tip into the scope branch in the scopetree, whether or not the fast-forward was refused'],
+  [path.join('references', 'scope-mode.md'), /Once `<tip>` is in the scope branch[\s\S]{0,200}scope\.js"? base set <tip> --root <run-root>/, 'record the merged tip with `scope.js base set` once it is in the scope branch'],
+  [path.join('references', 'scope-mode.md'), /^## The scope's range base$/m, "carry the `## The scope's range base` section, the one definition of where a scope's own range starts (ADR 0120)"],
+  [path.join('references', 'scope-mode.md'), /newer of two candidates: `merge-base\(<base>, <branch>\)`[\s\S]{0,400}ancestor of `<branch>`[\s\S]{0,300}neither holds the other, the range base\s+is `merge-base\(<base>, <branch>\)`/, 'state the range base rule: the newer of the merge-base and a recorded tip that is an ancestor of the branch, the merge-base otherwise'],
+  [path.join('references', 'scope-mode.md'), /scope\.js"? base resolve --branch <branch> --base <base> --root <run-root>`\s+prints it/, 'compute the range base with `scope.js base resolve`'],
+  [path.join('references', 'scope-mode.md'), /After any merge, clean or resolved, run the full command from `docs\/agents\/verification\.md` itself through the Bash tool[\s\S]{0,300}ADR 0117/, 'run the full command itself through the Bash tool after any base merge, clean or resolved, because the run trace must back the suite record (ADR 0117)'],
+  [path.join('references', 'scope-mode.md'), /`lite` tier only[\s\S]{0,300}`scope\.js get slices --root <run-root>`[\s\S]{0,200}`in-progress`/, 'skip the base step on a dirty scopetree whose slice is in-progress, at the `lite` tier only'],
+  [path.join('references', 'scope-mode.md'), /`scope\.js get degraded --root <run-root>`[\s\S]{0,200}same reason/, 'skip the degraded write when an entry for the same reason stands'],
+  [path.join('references', 'scope-mode.md'), /\*\*Gate on the full suite\.\*\*[\s\S]{0,400}suite reusable/, 'gate the first slice on the full suite, re-running it until `suite reusable` accepts the tip'],
+  [path.join('references', 'scope-mode.md'), /\*\*A base that cannot be fetched is a degraded pass\.\*\*/, 'record a base that cannot be fetched as a degraded pass and continue on the local base'],
+  [path.join('references', 'scope-mode.md'), /resolve it by intent, per `\$\{CLAUDE_PLUGIN_ROOT\}\/references\/merge-conflicts\.md`/, 'resolve a conflicting base merge by intent, per `merge-conflicts.md`, rather than aborting it'],
+  [path.join('references', 'merge-conflicts.md'), /\*\*A numbering collision moves this scope's number\.\*\*/, 'move an ADR or invariant number this scope added, and base also took, to the next number free on both sides'],
+  [path.join('references', 'implement-lite.md'), /Right after the run lock, before the first slice, run `\$\{CLAUDE_PLUGIN_ROOT\}\/references\/scope-mode\.md`'s `## Bringing the scope branch to base`/, 'call the base step after its run lock and before the first slice (INV-0124)'],
+  [path.join('references', 'implement-full.md'), /Right after the run lock, before the first slice, run `\$\{CLAUDE_PLUGIN_ROOT\}\/references\/scope-mode\.md`'s `## Bringing the scope branch to base`/, 'call the base step after its run lock and before the first slice (INV-0124)'],
+  // Every consumer of a scope's range cites the section instead of building the range from `merge-base`.
+  ...[
+    path.join('skills', 'review', 'SKILL.md'),
+    path.join('skills', 'backlog', 'SKILL.md'),
+    path.join('skills', 'document', 'SKILL.md'),
+    path.join('skills', 'ship', 'SKILL.md'),
+    path.join('skills', 'prose-check', 'SKILL.md'),
+    path.join('agents', 'final-reviewer.md'),
+    path.join('agents', 'implementer.md'),
+    path.join('references', 'implement-lite.md'),
+    path.join('references', 'implement-full.md'),
+    path.join('references', 'run-handoff.md'),
+    path.join('references', 'code-management-forgejo.md'),
+    path.join('references', 'code-management-github.md'),
+  ].map((doc) => [doc, /`## The scope's range base`/, "compute a scope's own range from its range base, citing `scope-mode.md`'s `## The scope's range base` (ADR 0120)"]),
+  ...[
+    path.join('skills', 'review', 'SKILL.md'),
+    path.join('skills', 'backlog', 'SKILL.md'),
+    path.join('skills', 'prose-check', 'SKILL.md'),
+    path.join('agents', 'implementer.md'),
+    path.join('references', 'run-handoff.md'),
+  ].map((doc) => [doc, /scope\.js"? base resolve --branch/, 'run `scope.js base resolve` for the range base on a live scope run']),
+  [path.join('skills', 'backlog', 'SKILL.md'), /A row with no run root\s+takes `<BASE>` from `git merge-base <base> <feature-label>`/, 'keep `git merge-base` only for a backlog row with no run root'],
+  [path.join('skills', 'review', 'SKILL.md'), /Otherwise `merge-base\(base, HEAD\)\.\.HEAD` is non-empty[\s\S]{0,500}When HEAD is a branch a live run root names[\s\S]{0,200}`## The scope's range base`/, "take the empty-argument cascade's step-2 range base from `## The scope's range base` when HEAD is a branch a live run root names"],
+  [path.join('skills', 'review', 'SKILL.md'), /path\/area[\s\S]{0,300}When HEAD is a branch a live run root names, `<merge-base>` is the range base\s+per `\$\{CLAUDE_PLUGIN_ROOT\}\/references\/scope-mode\.md`'s `## The scope's range base`/, "take the path/area bullet's `<merge-base>` from `## The scope's range base` when HEAD is a branch a live run root names"],
+];
+
 // The documents ADR 0080 flags as still building a run-root scopetree path against the invoking
 // checkout's own cwd, rather than resolving it through `scope.js root <slug>`: unlike the artifact paths
 // `RUN_ROOT_ARTIFACT_PATTERN` guards, a `scopetree` *directory* path is deliberately outside that
@@ -5774,7 +5824,7 @@ const SHIP_DEPLOY_CONTRACTS = [
   ],
   [
     path.join('skills', 'ship', 'SKILL.md'),
-    /pull request's diff[\s\S]{0,30}touches `docs\/agents\/deployment\.md`\*\*[\s\S]{0,150}print the changed posture and target lines[\s\S]{0,60}before[\s\S]{0,20}anything merges/,
+    /pull request's diff[\s\S]{0,30}touches `docs\/agents\/deployment\.md`\*\*[\s\S]{0,300}print the changed posture and target lines[\s\S]{0,60}before[\s\S]{0,20}anything merges/,
     'print the changed posture and target lines before anything merges, when the pull request\'s diff ' +
       'touches `docs/agents/deployment.md`',
   ],
@@ -6975,6 +7025,7 @@ module.exports = {
   INVARIANT_REGISTER_DOC_PASS_CONTRACTS,
   INVARIANT_COMPLIANCE_CONTRACTS,
   PLANNED_HANDOFF_CONTRACTS,
+  BASE_MERGE_CONTRACTS,
   SCOPETREE_RUN_ROOT_DOCS,
   SCOPETREE_RUN_ROOT_PATTERN,
   VERIFICATION_CEILING_CONTRACTS,

@@ -26,7 +26,7 @@ and ADR 0068 define. Only `audit` (§6) reads it; every other mode ignores it.
 
 From `$ARGUMENTS`:
 
-- **A git range** (`BASE..HEAD`) or an **area path** → a focused reconcile of what changed there. (`/superdev:review` hands on `merge-base(base, <type>/<scope>)..<type>/<scope>`.) A range or area **never** bootstraps (§7), so the chain's doc pass, which always passes a range, can't.
+- **A git range** (`BASE..HEAD`) or an **area path** → a focused reconcile of what changed there. (`/superdev:review` hands on `<range-base>..<type>/<scope>`, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`.) A range or area **never** bootstraps (§7), so the chain's doc pass, which always passes a range, can't.
 - **Empty** → a **full reconcile**: all in-repo docs (README + the whole `AGENTS.md` tree) + the KB against current repo state. **Exception:** the convention is the `AGENTS.md` hierarchy and the root `AGENTS.md` is **absent** → there is no doc tree to reconcile: skip §3-§5 and run **bootstrap** in §7.
 - **The literal word `audit`** → skip §3-§5; run the **reader-first audit** in §6.
 
@@ -41,7 +41,8 @@ From `$ARGUMENTS`:
 that run already performed the pass in its own context, while it still held the scope (ADR 0031), so the
 work this section would dispatch is done:
 
-- **Dispatch no `doc-writer`.** Go straight to §4 with the scope's own commits (`<base>..<branch>`) as the
+- **Dispatch no `doc-writer`.** Go straight to §4 with the scope's own commits (`<range-base>..<branch>`, per
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`) as the
   range, and the doc files those commits touched as the file list — the two things §4 would otherwise take
   from a writer's report.
 - **Those commits touched no doc file** → skip §4 as well, and say in §5 that the pass was already done and

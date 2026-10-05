@@ -84,4 +84,6 @@ ADR 0121). Only an open pull request is edited.
 
 ## Compute the base
 
-`git merge-base <base> <scope-branch>` → BASE for the final-reviewer's BASE..HEAD diff.
+A scope's BASE for the final-reviewer's BASE..HEAD diff is its range base, computed by `scope.js base resolve`
+per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`. An ad-hoc range with no run
+root uses `git merge-base <base> <scope-branch>`.

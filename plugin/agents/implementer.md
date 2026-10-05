@@ -26,7 +26,10 @@ the work.
 
 A re-dispatch — a fix cycle, or a run resumed after an interruption (token limit, kill, network error) —
 can land in a slicetree that **already holds commits**. Before writing anything, check `git log
-<base>..HEAD` and read the existing diff (`git diff <base>...HEAD`). Continue from where the work left
+<range-base>..HEAD` and read the existing diff (`git diff <range-base>..HEAD`), where `<range-base>` is the
+scope's range base per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`:
+`scope.js base resolve --branch HEAD --base <base> --root <run-root>`, the run root being the directory
+of the `dod.md` you were handed. Continue from where the work left
 off; never redo an increment that's already committed.
 
 ## Test-Driven Development (for `behavior` slices)

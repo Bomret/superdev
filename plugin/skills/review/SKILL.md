@@ -78,10 +78,12 @@ standing tree `/superdev:sweep` asked this leg to read.
 - **Range** — whatever remains, resolved to a concrete git range:
   - **`BASE..HEAD`** (or `BASE...HEAD`, contains `..`) → use verbatim.
   - **A branch** (no `..`; resolves via `git rev-parse --verify --quiet <name>`) → range is
-    `merge-base(base, branch)..branch`.
+    `merge-base(base, branch)..branch`. A branch a live run root names takes its range base instead,
+    per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`: `<range-base>..branch`.
   - **A path/area** (exists on disk, isn't a ref) → the diff of the current branch vs base, scoped to
     that path (`git diff <merge-base>..HEAD -- <path>`, or `git diff HEAD -- <path>` if there are
-    uncommitted changes there).
+    uncommitted changes there). When HEAD is a branch a live run root names, `<merge-base>` is the range base
+    per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`; any other HEAD keeps the merge-base.
   - **Standing code** — that same path, where the scoped diff above comes back **empty** → the files
     under it at `HEAD`, reviewed as they are rather than as a change. This is what makes "review this
     existing area" work: on a clean checkout a path has no diff, so the diff shapes above review nothing.
@@ -94,14 +96,18 @@ standing tree `/superdev:sweep` asked this leg to read.
        exactly as before. A dirty working tree is reviewed as it always was, and the command says in one
        line which eligible scope it passed over, when one exists — the single run root step 3 below would
        have found, named with a quick, best-effort scan; several or none, say nothing extra.
-    2. **Otherwise `merge-base(base, HEAD)..HEAD` is non-empty** → review that, exactly as before.
+    2. **Otherwise `merge-base(base, HEAD)..HEAD` is non-empty** → review that.
+       When HEAD is a branch a live run root names (the test the branch bullet above uses), the range base per
+       `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base` replaces the
+       merge-base: `<range-base>..HEAD`. Any other HEAD keeps `merge-base(base, HEAD)`.
     3. **Otherwise** → run `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Resolving an empty
        argument` cascade over the run roots at stage `merged` or `documented-unreviewed` — the same two
        stages the chain hands to this review, so the attended and unattended paths select
        the same scopes. Its resolved candidate is a scope slug: take that scope's `**Branch:**` line
        (`## The scope branch`) as `<branch>`. **No such line, or the named branch does not verify** —
        take `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope branch` shape-scan fallback
-       and say which route was taken. The range becomes `merge-base(base, branch)..branch`,
+       and say which route was taken. The range becomes `<range-base>..branch`, the range base per
+       `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base` (`scope.js base resolve --branch <branch> --base <base> --root <run-root>`),
        which the **Scope mode wins** bullet above then recognizes as a live run.
        **No candidate at all** — cite `## Resolving an empty argument`'s own **No candidate** wording,
        adding a `/superdev:review <scope-slug>` line for the operator to type directly, and dispatch
@@ -116,7 +122,8 @@ standing tree `/superdev:sweep` asked this leg to read.
     (a `<run-root>/ledger.md` per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## A live scope
     run`). Resolve the branch with
     `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get branch --root <run-root>` and verify it
-    (`git rev-parse --verify <branch>`); the range becomes `merge-base(base, branch)..branch`, which the
+    (`git rev-parse --verify <branch>`); the range becomes `<range-base>..branch`, the range base per
+    `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base` (`scope.js base resolve --branch <branch> --base <base> --root <run-root>`), which the
     **Scope mode wins** bullet above then recognizes as a live run. **No such line, or the named branch
     does not verify** → take `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope branch`
     shape-scan fallback and say which route was taken. **No run root names the argument** → fall through

@@ -19,10 +19,12 @@ doesn't work — a "Yes" verdict is one that survived your best attempt to break
   (`<run-root>/dod.md`) — a path, so you choose when to open it. On an ad-hoc range, `acceptance` text
   instead: a description of what the change should do, an issue body, or the no-specification default.
 - **Range**: the subject the controller names — never assume a range exists. `skills/review/SKILL.md`'s §1
-  resolves it to one of four shapes: `BASE..HEAD` (scope mode: `BASE` = `merge-base(base, scope)`,
+  resolves it to one of four shapes: `BASE..HEAD` (scope mode: `BASE` = the scope's range base, `scope.js base resolve`, per
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`,
   `HEAD` = scope branch tip), a working-tree scope (`git diff HEAD`), a path scope
   (`git diff <merge-base>..HEAD -- <path>`, or `git diff HEAD -- <path>` when that path has uncommitted
-  changes), or **standing code** — a path whose scoped diff is empty, handed to you as the files under it
+  changes; `<merge-base>` is the scope's range base when HEAD is a branch a live run root names),
+  or **standing code** — a path whose scoped diff is empty, handed to you as the files under it
   at `HEAD`. For the working-tree scope and a path scope diffed against `HEAD`, the controller stages
   untracked files with `git add -N :/` before dispatching you, or says it could not — you mutate nothing.
   **On standing code there is no diff to obtain**: read those files as they stand and report findings

@@ -36,7 +36,10 @@ shapes:
   that passes is resolved with `git rev-parse --verify --quiet '<name>'`, single-quoted so nothing in it
   reaches the shell; a range shape resolves each half through that same quoted call. A branch resolves
   to `merge-base(<base>, <branch>)..<branch>`, with `<base>` from `docs/agents/code-management.md` when
-  that file is there, and `main` when it is not.
+  that file is there, and `main` when it is not. A branch a live run root names takes its range base
+  instead, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`, computed with
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" base resolve --branch <branch> --base <base> --root <run-root>`:
+  `<range-base>..<branch>`.
 - **Anything else** → inline text, checked as it stands with no file involved. A single token that
   fails the ref shape test above — in practice, one with a space in it — is inline text on sight.
 

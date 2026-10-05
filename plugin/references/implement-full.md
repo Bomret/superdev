@@ -44,6 +44,12 @@ Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The run lock` and wr
 the lock in place when you finish: it spans the whole chain, and `/superdev:wrap-up` removes it once the run
 is closed.
 
+## Bring in the base
+
+Right after the run lock, before the first slice, run `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
+`## Bringing the scope branch to base`, on every invocation and at every run kind (ADR 0120, INV-0124).
+A stop there dispatches no slice.
+
 ## Progress log (per slice)
 
 Each slice has a **progress log** at `<run-root>/reports/<id>/progress.md` — a running record of how the
@@ -266,8 +272,9 @@ the DAG loop at step 1.
 - **Reconcile before dispatching.** Read the ledger through
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>` (and `get stage`), plus
   `<run-root>/interfaces.md` (your pre-compaction context is gone; this file is what survives), and
-  cross-check the ledger against `git -C <run-root>/scopetree log <base>..<branch>`
-  (`<branch>` from the branch step above, never rebuilt as `<type>/<scope>`; merge commits name the slice
+  cross-check the ledger against `git -C <run-root>/scopetree log <range-base>..<branch>`
+  (`<range-base>` per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`;
+  `<branch>` from the branch step above, never rebuilt as `<type>/<scope>`; merge commits name the slice
   branch) and the store's slice statuses. A slice the ledger — or the merge log — marks `merged` is done:
   **never re-dispatch it**, no matter what a stale in-progress slicetree suggests.
 - **Reconcile leftover slicetrees.** For each `<run-root>/slicetrees/<id>` still present,

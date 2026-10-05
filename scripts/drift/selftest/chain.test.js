@@ -29,6 +29,7 @@ const {
   GREEN_GATE_TIMEOUT_CONTRACTS,
   VERB_CONTRACTS,
   PLANNED_HANDOFF_CONTRACTS,
+  BASE_MERGE_CONTRACTS,
   SUBMIT_PR_WHOLE_REPO_CONTRACTS,
   TEST_SELECTION_CONTRACTS,
   FULL_SUITE_CONTRACTS,
@@ -5904,6 +5905,78 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       gaps.some((g) => g.expectation.includes(`(the ${bullet} bullet itself`)),
       `dropping the ${label} bullet's --unattended sentence fails its own row`,
     );
+  }
+  // --- BASE_MERGE_CONTRACTS (ADR 0120, INV-0124): the base step in scope-mode.md and each playbook's
+  // call to it. The real documents are the clean fixture; dropping any one pinned clause flags exactly
+  // that document. ---
+  const bmDocs = {
+    'references/scope-mode.md': fs.readFileSync(path.join(realRoot, 'plugin', 'references', 'scope-mode.md'), 'utf8'),
+    'references/implement-lite.md': fs.readFileSync(path.join(realRoot, 'plugin', 'references', 'implement-lite.md'), 'utf8'),
+    'references/implement-full.md': fs.readFileSync(path.join(realRoot, 'plugin', 'references', 'implement-full.md'), 'utf8'),
+    'references/merge-conflicts.md': fs.readFileSync(path.join(realRoot, 'plugin', 'references', 'merge-conflicts.md'), 'utf8'),
+  };
+  for (const doc of [
+    'skills/review/SKILL.md',
+    'skills/backlog/SKILL.md',
+    'skills/document/SKILL.md',
+    'skills/ship/SKILL.md',
+    'skills/prose-check/SKILL.md',
+    'agents/final-reviewer.md',
+    'agents/implementer.md',
+    'references/run-handoff.md',
+    'references/code-management-forgejo.md',
+    'references/code-management-github.md',
+  ]) {
+    bmDocs[doc] = fs.readFileSync(path.join(realRoot, 'plugin', ...doc.split('/')), 'utf8');
+  }
+  assert.equal(scanContract(fixture(bmDocs), BASE_MERGE_CONTRACTS).length, 0, 'every base-merge clause present yields zero gaps');
+  for (const [doc, clause] of [
+    ['references/scope-mode.md', '## Bringing the scope branch to base\n'],
+    ['references/scope-mode.md', '`GIT_TERMINAL_PROMPT=0 git fetch <remote> <base>`'],
+    ['references/scope-mode.md', '`git fetch . <tip>:refs/heads/<base>`'],
+    ['references/scope-mode.md', '`git -C <run-root>/scopetree merge <tip>`'],
+    ['references/scope-mode.md', 'base set <tip> --root <run-root>'],
+    ['references/scope-mode.md', "## The scope's range base\n"],
+    ['references/scope-mode.md', 'newer of two candidates'],
+    ['references/scope-mode.md', 'base resolve --branch <branch> --base <base> --root <run-root>'],
+    ['references/scope-mode.md', 'After any merge, clean or resolved, run the full command from `docs/agents/verification.md` itself through the Bash tool'],
+    ['references/scope-mode.md', '`scope.js get slices --root <run-root>`'],
+    ['references/scope-mode.md', '`lite` tier only'],
+    ['references/scope-mode.md', '`scope.js get degraded --root <run-root>`'],
+    ['references/scope-mode.md', '**Gate on the full suite.**'],
+    ['references/scope-mode.md', '**A base that cannot be fetched is a degraded pass.**'],
+    ['references/scope-mode.md', 'resolve it by intent, per'],
+    ['references/merge-conflicts.md', "**A numbering collision moves this scope's number.**"],
+    ['references/implement-lite.md', '`## Bringing the scope branch to base`'],
+    ['references/implement-full.md', '`## Bringing the scope branch to base`'],
+    ['references/implement-lite.md', 'Right after the run lock, before the first slice'],
+    ['references/implement-full.md', 'Right after the run lock, before the first slice'],
+    ...[
+      'skills/review/SKILL.md',
+      'skills/backlog/SKILL.md',
+      'skills/document/SKILL.md',
+      'skills/ship/SKILL.md',
+      'skills/prose-check/SKILL.md',
+      'agents/final-reviewer.md',
+      'agents/implementer.md',
+      'references/implement-lite.md',
+      'references/implement-full.md',
+      'references/run-handoff.md',
+      'references/code-management-forgejo.md',
+      'references/code-management-github.md',
+    ].map((doc) => [doc, "`## The scope's range base`"]),
+    ['skills/review/SKILL.md', 'base resolve --branch'],
+    ['skills/backlog/SKILL.md', 'base resolve --branch'],
+    ['skills/prose-check/SKILL.md', 'base resolve --branch'],
+    ['skills/backlog/SKILL.md', 'takes `<BASE>` from `git merge-base <base> <feature-label>`'],
+    ['skills/review/SKILL.md', 'When HEAD is a branch a live run root names'],
+    ['skills/review/SKILL.md', '`<merge-base>` is the range base'],
+    ['agents/implementer.md', 'base resolve --branch'],
+    ['references/run-handoff.md', 'base resolve --branch'],
+  ]) {
+    assert.ok(bmDocs[doc].includes(clause), `${doc} carries ${clause}`);
+    const gaps = scanContract(fixture({ ...bmDocs, [doc]: bmDocs[doc].split(clause).join('') }), BASE_MERGE_CONTRACTS);
+    assert.ok(gaps.length >= 1 && gaps.every((g) => g.source === path.join(...doc.split('/'))), `dropping ${clause} from ${doc} flags ${doc}`);
   }
 
   // --- VETTED_OPTIONS_CONTRACTS (ADR 0122, INV-0126, INV-0127): cross-exam.md vets every option before a

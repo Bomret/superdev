@@ -26,6 +26,9 @@ _Avoid: "feature branch", "work branch"_
 **Base branch**: the branch a scope branch is cut from and its pull request targets, named in `docs/agents/code-management.md`. Containment is tested against it, except by `hooks/scope-prune.js`, which tests against `HEAD`.
 _Avoid: "default branch" (git's own term, which the configuration may differ from), "trunk", "main" (one repository's value)_
 
+**Range base**: the commit a scope's own range starts from: the newer of `merge-base(<base branch>, <scope branch>)` and the remote base tip the base step recorded in the ledger, when that tip is an ancestor of the scope branch. `scope.js base resolve` computes it, and `references/scope-mode.md`'s `## The scope's range base` states the rule.
+_Avoid: "merge base" (git's own term for one of the two candidates), "base commit"_
+
 **Scope anchor**: a feature's root, the single record — the epic issue, or that feature's lone slice issue — that carries its scope-level status signal for a run. How a given store expresses this is stated in that store's own `## Scope anchor` section, which specialises `plan-contract.md` → *Scope anchor*, never assumed by a command (ADR 0017).
 _Avoid: "epic" (only an epic-bearing feature has one, and the anchor role also falls to a lone slice)_
 
