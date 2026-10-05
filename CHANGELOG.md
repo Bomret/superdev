@@ -1,3 +1,10 @@
+# [0.66.0](https://codeberg.org/bomret/superdev/compare/v0.65.0...v0.66.0) (2026-10-05)
+
+
+### Features
+
+* **implement:** bring the remote base into the scope branch before the first slice ([#889](https://codeberg.org/bomret/superdev/issues/889)) ([416b49a](https://codeberg.org/bomret/superdev/commit/416b49a458864fe74aa97f55e700a0ddca0dd220))
+
 # [0.65.0](https://codeberg.org/bomret/superdev/compare/v0.64.0...v0.65.0) (2026-10-05)
 
 
