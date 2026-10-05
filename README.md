@@ -261,11 +261,13 @@ bash or PowerShell variants.
 
 - **merge-guard.** Blocks `git merge`, `git push`, `git rebase`, `gh pr merge`, `tea pr merge`, and a
   `tea api` POST or `gh api` PUT or POST to a pull request's `/merge` endpoint from inside a subagent,
-  scoped by `agent_id`. The guard also blocks an integrating command whose git option value, such as
-  `-C`, `--work-tree`, `--git-dir`, or `-c`, holds a command substitution it cannot read to its end.
-  Deeper nesting, nested arithmetic, and a quoted `)` inside the substitution are examples. A `curl`
-  call to that endpoint stays a prose contract the subagent bodies carry.
-  The controller integrates.
+  scoped by `agent_id`. A `curl` call to the `/merge` endpoint stays a prose contract the subagent
+  bodies carry. The guard also blocks an integrating command when a git global option value holds shell
+  syntax that the guard cannot read to its end. The options are `-C`, `-c`, any `--<name>=`, and
+  git's value-taking long options in either spelling: `--git-dir`, `--work-tree`, `--namespace`,
+  `--config-env`, `--shallow-file`, and `--attr-source`. Examples are nesting past one level, nested
+  arithmetic, and a nested `${…}` such as `${X:-${Y:-a b}}`. Some shapes the guard misreads still pass
+  (triage #814). The controller integrates.
 - **model-explicit.** Blocks a dispatch to a superdev subagent that omits an explicit `model`, so cost
   is always warrant-scaled.
 - **green-gate.** After a controller merge, runs the command
@@ -284,17 +286,21 @@ bash or PowerShell variants.
   while reading refs from another repository, a `-C` or `--work-tree` value holding shell syntax (`$VAR`,
   `$(…)`, a backtick, a leading `~`) names a path the gate reads before the shell expands it, and a `-C`
   path carrying no `docs/agents/verification.md` while your own checkout does is a path pointing somewhere
-  other than the merge. A git option value that holds a command substitution the gate cannot read to its
-  end also blocks. An example is a substitution nested more than one level deep, in `-c` or `--git-dir`
-  as well as `-C`. Pass literal option values instead, such as
-  `git -C <path> merge …`. A green the gate never verified is worth less than a block naming why.
+  other than the merge. The gate also blocks a merge when a git global option value holds shell syntax
+  that the gate cannot read to its end. The options are `-C`, `-c`, any `--<name>=`, and git's
+  value-taking long options in either spelling: `--git-dir`, `--work-tree`, `--namespace`,
+  `--config-env`, `--shallow-file`, and `--attr-source`. Examples are nesting past one level, nested
+  arithmetic, and a nested `${…}` such as `${X:-${Y:-a b}}`. Pass literal option values instead, such as
+  `git -C <path> merge …`. Some shapes the gate misreads still pass (triage #814). A green the gate never
+  verified is worth less than a block naming why.
 - **run-lock.** Blocks a `git worktree add` on a scopetree (`.superdev/scopes/<scope>/scopetree`)
   while a fresh `.superdev/scopes/<scope>/run.lock` exists, so two concurrent lite runs on one scope
   cannot collide. A stale lock (older than the staleness threshold) or no lock at all passes through,
   which covers a crash resume and a new run.
-- **ledger-guard.** Blocks every write to a scope's `ledger.md`: an `Edit`, a `Write`, and a `Bash`
-  write (redirect, `tee`, `sed -i`, `cp`, `mv`, `install`) are all denied. Only `scripts/scope.js`,
-  the run-state CLI that owns the ledger's schema, may write it.
+- **ledger-guard.** Blocks the direct write shapes to a scope's `ledger.md`: an `Edit`, a `Write`, and a
+  `Bash` write (redirect, `tee`, `sed -i`, `cp`, `mv`, `install`) are all denied. An interpreter wrapper
+  and some substitution shapes still pass. Only `scripts/scope.js`, the run-state CLI that owns the
+  ledger's schema, may write it.
 - **slicetree-sweep.** A `Stop` hook that removes each slicetree and branch once its slice is
   fully merged. Finished slicetrees therefore cannot pile up when the controller skips the prompted
   cleanup. It

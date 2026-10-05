@@ -1199,14 +1199,16 @@ does anywhere else in this file. Both sides of the comparison are whitespace-nor
 whitespace, including a line break, collapse to a single space. That matters because `CONTEXT.md` and
 `references/scope-mode.md` are hard-wrapped and a canonical clause can span a line break in the real
 document. Nothing executes the glossary, so it is the copy most likely to drift.
-The
-`arg-token` contract: `hooks/merge-guard.js`,
-`hooks/green-gate.js`, and `hooks/ledger-guard.js` each carry the canonical `const ARG = …` shell-word
-token **verbatim**. The three parse the same shape out of a Bash command line by hand, and nothing links
-the copies, so this pins the literal rather than testing mutual equality. A token that narrows in one
-hook reopens the quoted-argument bypass there: `git -C "my repo" merge` walks past the guard. A token with a narrower command-substitution reading reopens a second bypass:
-`git -C $(git rev-parse --show-toplevel)/wt merge`. A deliberate improvement is meant to reach every one of them and this pin in one commit. Same shape as the
-scope-slug charset assertion in `tests/scope.test.js`.
+The `arg-token` contract: `hooks/merge-guard.js`, `hooks/green-gate.js`, and `hooks/ledger-guard.js`
+each carry the canonical `const ARG = …` shell-word token **verbatim**. The three parse the same shape
+out of a Bash command line by hand, and nothing links the copies, so this pins the literal rather than
+testing mutual equality. A token that narrows in one hook reopens the quoted-argument bypass there:
+`git -C "my repo" merge` walks past the guard. A token with a narrower reading of a command substitution
+or a `${…}` parameter expansion reopens a second bypass:
+`git -C $(git rev-parse --show-toplevel)/wt merge` or `git -C ${X:-a b} merge`. A deliberate improvement
+is meant to reach all three hooks and this pin in one commit. `ledger-guard.js` also scans with a second
+token, `RAW_ARG`, which no pin covers. Same shape as the scope-slug charset assertion in
+`tests/scope.test.js`.
 The `audit-set` contract: `skills/setup/SKILL.md` still records decision C's answer as the
 `## Audit set` section of `docs/agents/documentation.md`, `skills/document/SKILL.md` still reads that
 section back with its stated fallback for when it is absent, and `references/documentation.md` still

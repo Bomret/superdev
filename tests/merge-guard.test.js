@@ -68,17 +68,50 @@ for (const value of ['$(git rev-parse --show-toplevel)/wt', '$(a $(b c))/wt', '`
   assert.equal(decide(sub(`git --work-tree ${value} push origin s`)).block, true, `--work-tree ${value} push: a subagent is blocked`);
   assert.equal(decide({ tool_input: { command: `git -C ${value} merge --no-ff s` } }).block, false, `-C ${value} merge: the controller passes`);
 }
-// past one nesting level ARG cannot read the value to its end: the guard fails closed instead of splitting at the first space
+// past one nesting level ARG cannot read the value to its end: the guard fails closed
+// instead of splitting at the first space
 for (const value of ['$(dirname $(dirname $(pwd)))/wt', '$((1+(2)))/wt', '$(echo ")")/wt']) {
   assert.equal(decide(sub(`git -C ${value} merge s`)).block, true, `-C ${value} merge: a subagent is blocked`);
   assert.equal(decide(sub(`git --work-tree ${value} push origin s`)).block, true, `--work-tree ${value} push: a subagent is blocked`);
   assert.equal(decide(sub(`git --git-dir=${value} rebase s`)).block, true, `--git-dir=${value} rebase: a subagent is blocked`);
   assert.equal(decide({ tool_input: { command: `git -C ${value} merge s` } }).block, false, `-C ${value} merge: the controller passes`);
 }
+// a generic `--opt=` value reads like the enumerated ones: a nested substitution behind it still blocks
+assert.equal(decide(sub('git --exec-path=$(dirname $(dirname $(which git))) merge x')).block, true, 'a deep substitution behind a generic --opt= is blocked');
+assert.equal(decide({ tool_input: { command: 'git --exec-path=$(dirname $(dirname $(which git))) merge x' } }).block, false, 'the controller passes it');
+// an unquoted parameter expansion holding a space is one word; an unterminated one ends the word and is stuck
+for (const value of ['${X:-a b}', '${X:-a b}/wt', 'a/${X:-a b}']) {
+  assert.equal(decide(sub(`git -C ${value} merge x`)).block, true, `-C ${value} merge: a subagent is blocked`);
+  assert.equal(decide(sub(`git --work-tree ${value} merge x`)).block, true, `--work-tree ${value} merge: a subagent is blocked`);
+  assert.equal(decide({ tool_input: { command: `git -C ${value} merge x` } }).block, false, `-C ${value} merge: the controller passes`);
+}
+// a quoted or backticked `}` inside an unquoted parameter expansion does not close it: the word runs on
+const QUOTED_BRACE = ['${X:-"a } b"}', "${X:-'a } b'}", '${X:-"}"}', "${X:-'}'}", '${X:-`a } b`}'];
+const BRACE_OPTS = ['-C', '--work-tree', '--git-dir', '-c', '--namespace', '--exec-path=', '--foo='];
+for (const opt of BRACE_OPTS) {
+  const sep = opt.endsWith('=') ? '' : ' ';
+  for (const value of QUOTED_BRACE) {
+    assert.equal(decide(sub(`git ${opt}${sep}${value} merge s`)).block, true, `${opt} ${value} merge: a subagent is blocked`);
+    assert.equal(decide({ tool_input: { command: `git ${opt}${sep}${value} merge s` } }).block, false, `${opt} ${value} merge: the controller passes`);
+  }
+}
+assert.equal(decide(sub('git --exec-path=$(a $(b $(c))) log')).block, false, 'a stuck generic --opt= on a read command passes');
+assert.equal(decide(sub('git -C ${X:-a b merge x')).block, true, 'an unterminated parameter expansion is blocked');
+assert.equal(decide(sub('git -C `pwd merge x')).block, true, 'an unterminated backtick is blocked');
+// a stuck -c value is blocked too
+for (const value of ['$(dirname $(dirname $(pwd)))', '$((1+(2)))']) {
+  assert.equal(decide(sub(`git -c a=${value} merge s`)).block, true, `-c a=${value} merge: a subagent is blocked`);
+}
 assert.equal(decide(sub('git -C $(dirname $(dirname $(pwd)))/wt status')).block, false, 'a deep substitution on a read command is fine');
 assert.equal(decide(sub('echo $(dirname $(dirname $(pwd))) && git merge-base a b')).block, false, 'a substitution outside a git option value never blocks');
 assert.equal(decide(sub('git -C $(dirname $(pwd))/wt log -1')).block, false, 'a closed one-level value never blocks');
-// unterminated groups and long runs of them resolve without catastrophic backtracking (qualitative bound, ADR 0086)
+// a merge/push word inside a substitution used as an option value is part of that value, not git's subcommand
+// (a subshell running git stays a documented bypass, see merge-guard.js's ponytail comment)
+for (const cmd of ['git -C $(echo merge) x', 'git -C $(git push o) log']) {
+  assert.equal(decide(sub(cmd)).block, false, `${cmd}: a verb inside an option value is not the subcommand`);
+}
+// unterminated groups and long runs of them resolve without catastrophic backtracking
+// (qualitative bound, ADR 0086)
 {
   const t0 = Date.now();
   decide(sub('git -C ' + '$('.repeat(500) + ' x'));
@@ -88,6 +121,13 @@ assert.equal(decide(sub('git -C $(dirname $(pwd))/wt log -1')).block, false, 'a 
   decide(sub('git -C $(a $(b $(c))) x;'.repeat(2000)));
   decide(sub('git -C $((1+(2))) x; '.repeat(2000)));
   decide(sub('git -C $(echo ")") x; '.repeat(2000)));
+  decide(sub('git -C ${a b} x; '.repeat(2000)));
+  decide(sub('git -C ' + '${'.repeat(5000) + ' x; git y'));
+  decide(sub('git -C ' + '${ '.repeat(5000) + 'x'));
+  decide(sub('git -C ${ x; '.repeat(8000)));
+  decide(sub('git -C ' + '${"'.repeat(20000)));
+  decide(sub('git -C `a x; '.repeat(2000)));
+  decide(sub('git --exec-path=' + '$(a '.repeat(2000) + 'x'));
   const elapsed = Date.now() - t0;
   assert.ok(elapsed < 5000, `command-substitution runs must resolve quickly, took ${elapsed}ms`);
 }

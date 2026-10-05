@@ -2193,21 +2193,22 @@ const SUBMIT_PR_WHOLE_REPO_CONTRACTS = [
 
 // Three hooks parse the same shell-word shape out of a Bash command line: `merge-guard` and `green-gate`
 // to see past git's global options (`-C <path>`, `-c k=v`) to the verb, and `ledger-guard` to read a
-// write target. The token is one regex source string, duplicated by hand in each file, and a quoted or
-// backslash-escaped argument is exactly what it exists to keep whole — the bypass a narrower copy
-// reopens is a guard that misses `git -C "my repo" merge`. Nothing links the three copies, so this pins
+// write target. The token is one regex source string, duplicated by hand in each file, and a quoted,
+// backslash-escaped, or substitution-bearing argument (`$(…)`, `${…}`, a backtick group) is exactly what it
+// exists to keep whole — the bypass a narrower copy reopens is a guard that misses `git -C "my repo" merge`
+// or `git -C $(git rev-parse --show-toplevel)/wt merge`. Nothing links the three copies, so this pins
 // the literal: the canonical source below must appear verbatim in all three. The same shape as the
-// scope-slug charset assertion in `scripts/scope.js --selftest`, and deliberately strict — a genuine
+// scope-slug charset assertion in `tests/scope.test.js`, and deliberately strict — a genuine
 // improvement to the token is meant to be applied to all three files and re-pinned here in one commit,
 // not to drift into one hook and be discovered by a bypass.
 // The token holds backtick groups, and a backtick cannot sit inside String.raw`…` — BT stands in for it.
 const BT = '`';
-const ARG_TOKEN_LINE = String.raw`const ARG = /(?:[^\s"'\\$${BT}]|\$(?!\()|\\.|"(?:[^"\\]|\\.)*"|'[^']*'|\$\((?:[^()\\]|\\.|\((?:[^()\\]|\\.)*\))*\)|${BT}(?:[^${BT}\\]|\\.)*${BT})+/.source;`;
+const ARG_TOKEN_LINE = String.raw`const ARG = /(?:[^\s"'\\$${BT}]|\$(?![({])|\\.|"(?:[^"\\]|\\.)*"|'[^']*'|\$\((?:[^()\\]|\\.|\((?:[^()\\]|\\.)*\))*\)|\$\{(?:[^{}\\"'${BT}]|\\.|"(?:[^"\\]|\\.)*"|'[^']*'|${BT}(?:[^${BT}\\]|\\.)*${BT})*\}|${BT}(?:[^${BT}\\]|\\.)*${BT})+/.source;`;
 
 const ARG_TOKEN_PATTERN = new RegExp(ARG_TOKEN_LINE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
 
 const ARG_TOKEN_EXPECTATION =
-  'carry the canonical ARG shell-word token verbatim — all three hooks parse the same shape, and a copy that drifts reopens the quoted-argument bypass';
+  'carry the canonical ARG shell-word token verbatim — all three hooks parse the same shape, and a copy that drifts reopens the quoted-argument or the command-substitution bypass';
 
 const ARG_TOKEN_CONTRACTS = [
   [path.join('hooks', 'merge-guard.js'), ARG_TOKEN_PATTERN, ARG_TOKEN_EXPECTATION],

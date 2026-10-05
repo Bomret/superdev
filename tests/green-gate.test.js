@@ -291,12 +291,47 @@ assert.equal(
   const pathological = 'git ' + '--git-dir '.repeat(60) + 'x; git ' + 'merge main';
   const t0 = Date.now();
   IS_MERGE.test(pathological);
-  for (const unit of ['git -C $(a $(b $(c))) x;', 'git -C $((1+(2))) x; ', 'git -C $(echo ")") x; ']) STUCK_MERGE.test(unit.repeat(2000));
   const elapsed = Date.now() - t0;
   assert.ok(elapsed < 5000, `a pathological long-option run must resolve quickly, took ${elapsed}ms`);
 }
 
+// substitution, parameter-expansion, backtick, and blank-line runs through STUCK_MERGE and IS_MERGE: a
+// qualitative bound (AGENTS.md, ADR 0086) on exponential backtracking. Stuck-segment runs are quadratic
+// through the line-wide verb lookahead (triage #814), and this size stays under the ceiling
+{
+  const t0 = Date.now();
+  for (const unit of ['git -C $(a $(b $(c))) x;', 'git -C $((1+(2))) x; ', 'git -C $(echo ")") x; ', 'git -C ${a b} x; ', 'git -C `a x; ']) {
+    STUCK_MERGE.test(unit.repeat(2000));
+    IS_MERGE.test(unit.repeat(2000));
+  }
+  for (const run of [
+    'git -C ' + '$('.repeat(500) + ' x',
+    'git -C ' + '${'.repeat(5000) + ' x; git merge y',
+    'git -C ' + '${ '.repeat(5000) + 'x',
+    'git -C ${ x; '.repeat(8000),
+    'git -C ' + '${"'.repeat(20000),
+    'git -C ' + '`'.repeat(5001) + ' x',
+    'git --exec-path=' + '$(a '.repeat(2000) + 'x',
+  ]) {
+    STUCK_MERGE.test(run);
+    IS_MERGE.test(run);
+  }
+  // IS_MERGE's own blank-line scan is outside this block; STUCK_MERGE's lead-in must not rescan each newline
+  STUCK_MERGE.test('\n'.repeat(64000) + 'x');
+  const elapsed = Date.now() - t0;
+  assert.ok(elapsed < 5000, `command-substitution and blank-line runs must resolve quickly, took ${elapsed}ms`);
+}
+
 // --- resolveMergeCwd(): the merge's own working tree, from -C or the session cwd fallback ---
+for (const opt of ['-C', '--work-tree']) {
+  assert.equal(resolveMergeCwd('git ' + opt + ' ${X:-a b} merge x', '/session'), null, opt + ' holding a parameter expansion with a space is unknowable');
+}
+const QUOTED_BRACE = ['${X:-"a } b"}', "${X:-'a } b'}", '${X:-"}"}', "${X:-'}'}", '${X:-`a } b`}'];
+for (const opt of ['-C', '--work-tree']) {
+  for (const value of QUOTED_BRACE) {
+    assert.equal(resolveMergeCwd('git ' + opt + ' ' + value + ' merge s', '/session'), null, opt + ' ' + value + ' is unknowable');
+  }
+}
 assert.equal(resolveMergeCwd('git merge --no-ff s', '/session'), '/session', 'no -C → the session cwd');
 assert.equal(resolveMergeCwd('git -C /wt merge slice/x/1', '/session'), '/wt', 'a bare -C path is used as-is (already absolute)');
 assert.equal(resolveMergeCwd('git -C ../wt merge slice/x/1', '/session'), '/wt', 'a relative -C path resolves against the session cwd');
@@ -885,36 +920,103 @@ fs.writeFileSync(
       assert.match(result.stderr, /literal path/, 'the block asks for a literal path');
       assert.doesNotMatch(result.stderr, /docs\/agents\/verification\.md|\$RR/, 'it neither blames a missing doc nor prints the impossible path');
       assert.match(result.stderr, /nobody verified it/, 'the message states the merge landed unverified');
+      assert.match(result.stderr, /A `-C` or `--work-tree` value holds shell syntax/, 'the block uses the landed-merge message');
+      assert.match(result.stderr, /has landed/, 'the message states the merge has landed');
+      assert.doesNotMatch(result.stderr, /if this command merged/, 'it is not the conditional stuck message');
     }
     fs.rmSync(session, { recursive: true, force: true });
   }
 
-  // an unquoted command substitution holding spaces: the gate still sees the merge and blocks it
+  // an unquoted command substitution, backtick group, or parameter expansion that ARG reads whole: the gate
+  // still sees the merge and blocks it
   {
     const session = tmp('gg-session-');
     initRepo(session);
     commitFile(session, 'base.txt', 'x\n');
     writeVerification(session, 'node -e "process.exit(0)"'); // green: the block is the unexpanded path
-    for (const value of ['$(git rev-parse --show-toplevel)/wt', '$(a $(b c))/wt', '`git rev-parse --show-toplevel`/wt']) {
-      const result = runHook({ cwd: session, tool_input: { command: `git -C ${value} merge --no-ff other` } });
-      assert.equal(result.status, 2, `a merge naming -C ${value} blocks`);
-      assert.match(result.stderr, /shell/i, 'the block names the shell expansion as the cause');
-      assert.match(result.stderr, /literal path/, 'the block asks for a literal path');
+    for (const value of ['$(git rev-parse --show-toplevel)/wt', '$(a $(b c))/wt', '`git rev-parse --show-toplevel`/wt', '${X:-a b}', ...QUOTED_BRACE]) {
+      for (const opt of ['-C', '--work-tree']) {
+        const result = runHook({ cwd: session, tool_input: { command: `git ${opt} ${value} merge --no-ff other` } });
+        assert.equal(result.status, 2, `a merge naming ${opt} ${value} blocks`);
+        assert.match(result.stderr, /shell/i, 'the block names the shell expansion as the cause');
+        assert.match(result.stderr, /literal path/, 'the block asks for a literal path');
+        assert.match(result.stderr, /A `-C` or `--work-tree` value holds shell syntax/, 'the block uses the landed-merge message');
+        assert.match(result.stderr, /has landed/, 'the message states the merge has landed');
+        assert.doesNotMatch(result.stderr, /if this command merged/, 'it is not the conditional stuck message');
+      }
     }
     fs.rmSync(session, { recursive: true, force: true });
   }
 
-  // past one nesting level: the gate still blocks, with no suite run
+  // past one nesting level, or behind a generic --opt=: the gate still blocks, with no suite run, and words the
+  // block conditionally because the command may be a shell syntax error that merged nothing
+  {
+    const session = tmp('gg-session-');
+    const marker = path.join(session, 'suite-ran.marker');
+    initRepo(session);
+    commitFile(session, 'base.txt', 'x\n');
+    writeVerification(session, `node -e "require('fs').writeFileSync('${marker}', '')"`);
+    const stuck = [];
+    for (const value of ['$(dirname $(dirname $(pwd)))/wt', '$((1+(2)))/wt', '$(echo ")")/wt']) {
+      for (const opt of ['-C', '--work-tree']) stuck.push(`git ${opt} ${value} merge s`);
+    }
+    stuck.push('git --exec-path=$(dirname $(dirname $(which git))) merge x', 'git -C $(pwd merge s', 'git -C `pwd merge x', 'git -C ${X:-a b merge x');
+    for (const command of stuck) {
+      const result = runHook({ cwd: session, tool_input: { command } });
+      assert.equal(result.status, 2, `${command} blocks`);
+      assert.match(result.stderr, /shell/i, 'the block names the shell expansion as the cause');
+      assert.match(result.stderr, /literal path/, 'the block asks for a literal path');
+      assert.match(result.stderr, /if this command merged, nobody verified it/i, 'the block is conditional: the command may have merged nothing');
+      assert.doesNotMatch(result.stderr, /has landed/, 'the block does not claim the merge landed');
+    }
+    assert.equal(fs.existsSync(marker), false, 'no suite ran');
+    const read = runHook({ cwd: session, tool_input: { command: 'git --exec-path=$(a $(b $(c))) log' } });
+    assert.notEqual(read.status, 2, 'a stuck generic --opt= on a read command does not block');
+    fs.rmSync(session, { recursive: true, force: true });
+  }
+
+  // a stuck decision tests STUCK_MERGE once, not once in decide() and again in resolveVerification()
   {
     const session = tmp('gg-session-');
     initRepo(session);
     commitFile(session, 'base.txt', 'x\n');
     writeVerification(session, 'node -e "process.exit(0)"');
-    for (const value of ['$(dirname $(dirname $(pwd)))/wt', '$((1+(2)))/wt', '$(echo ")")/wt']) {
-      const result = runHook({ cwd: session, tool_input: { command: `git -C ${value} merge s` } });
-      assert.equal(result.status, 2, `a merge naming -C ${value} blocks`);
-      assert.match(result.stderr, /literal path/, 'the block asks for a literal path');
+    const original = STUCK_MERGE.test;
+    let calls = 0;
+    STUCK_MERGE.test = function (value) {
+      calls += 1;
+      return original.call(this, value);
+    };
+    try {
+      assert.equal(decideMerge({ tool_input: { command: 'git -C $(a $(b $(c)))/wt merge s' } }, session).block, true, 'the stuck merge blocks');
+    } finally {
+      STUCK_MERGE.test = original;
     }
+    assert.equal(calls, 1, 'STUCK_MERGE is tested once per decision');
+    fs.rmSync(session, { recursive: true, force: true });
+  }
+
+  // a stuck merge abort/quit is no landed merge: nothing blocks
+  {
+    const session = tmp('gg-session-');
+    initRepo(session);
+    commitFile(session, 'base.txt', 'x\n');
+    writeVerification(session, 'node -e "process.exit(0)"');
+    for (const verb of ['--abort', '--quit']) {
+      const result = runHook({ cwd: session, tool_input: { command: `git -C $(a $(b $(c)))/wt merge ${verb}` } });
+      assert.equal(result.status, 0, `a stuck merge ${verb} does not block`);
+    }
+    fs.rmSync(session, { recursive: true, force: true });
+  }
+
+  // no verification doc anywhere → a stuck-shaped merge is inert
+  {
+    const session = tmp('gg-session-');
+    initRepo(session);
+    commitFile(session, 'base.txt', 'x\n');
+    const result = runHook({ cwd: session, tool_input: { command: 'git -C $(a $(b $(c)))/wt merge s' } });
+    assert.equal(result.status, 0, 'no verification doc anywhere → inert on a stuck-shaped merge');
+    assert.equal(result.stderr, '', 'and prints nothing');
     fs.rmSync(session, { recursive: true, force: true });
   }
 
@@ -929,7 +1031,7 @@ fs.writeFileSync(
     fs.rmSync(session, { recursive: true, force: true });
   }
 
-  // a -c option with unexpandable shell syntax: the block names "a git option value", not specifically -C or --work-tree
+  // a -c option with unexpandable shell syntax: the block names "a git option value", not -C or --work-tree
   {
     const session = tmp('gg-session-');
     initRepo(session);
@@ -939,7 +1041,7 @@ fs.writeFileSync(
     assert.equal(result.status, 2, 'a merge with -c holding unexpandable shell syntax blocks');
     assert.match(result.stderr, /git option value/, 'the block names "a git option value" (not specifically -C or --work-tree)');
     assert.match(result.stderr, /shell/i, 'the block names the shell expansion as the cause');
-    assert.match(result.stderr, /nobody verified it/, 'the message states the merge landed unverified');
+    assert.match(result.stderr, /if this command merged, nobody verified it/i, 'the block is conditional');
     assert.match(result.stderr, /literal option value/, 'the advice names literal option values');
     fs.rmSync(session, { recursive: true, force: true });
   }

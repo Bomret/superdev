@@ -36,6 +36,44 @@ assert.equal(bash('echo x > ".superdev/scopes/demo/ledger.md"').block, true, 'do
 assert.equal(bash("echo x >> '.superdev/scopes/demo/ledger.md'").block, true, 'single-quoted append denied');
 assert.equal(bash('echo x > .superdev/scopes/my\\ demo/ledger.md').block, true, 'backslash-escaped path denied');
 assert.equal(bash('echo x > $(printf %s .superdev/scopes/a/ledger.md)').block, true, 'redirect to a command substitution holding spaces denied');
+// a redirect target whose substitution ARG cannot balance is still judged on its raw text
+for (const target of ['$((1+(2)))/@', '$(a$(b$(c)))/@', '/x$((1*(2)))/@', '$((1+(2)))"/my dir/@"', '$((1+(2)))/my\\ dir/@', "$(a$(b$(c)))'/x y/@'", 'x$((1+(2)))"/a b/@"']) {
+  assert.equal(bash('echo x > ' + target.replace('@', L)).block, true, 'redirect behind an unbalanced substitution denied: ' + target);
+}
+// a write verb's target whose substitution sits inside the ledger path is denied for every verb
+for (const verb of ['cat new | tee @', 'cat new | tee -a @', 'cp new @', 'mv new @', 'install -m 644 new @', "sed -i 's/a/b/' @"]) {
+  for (const sub of ['$((1+(2)))', '$(a$(b$(c)))']) {
+    for (const p of ['.superdev/scopes/' + sub + '/ledger.md', '.superdev/scopes/s' + sub + '/ledger.md', '.superdev/scopes/demo/' + sub + 'ledger.md']) {
+      assert.equal(bash(verb.replace('@', p)).block, true, 'write verb behind an unbalanced substitution denied: ' + verb + ' ' + p);
+    }
+  }
+}
+// a ledger path crossing a space inside a balanced substitution is read by ARG alone: RAW_ARG splits it
+for (const verb of ['cat new | tee @', 'cat new | tee -a @', 'cp new @', 'mv new @', 'install -m 644 new @', "sed -i 's/a/b/' @"]) {
+  for (const sub of ['$(echo a b)', '${X:-a b}', '`echo a b`']) {
+    const target = '.superdev/scopes/' + sub + '/' + 'ledger.md';
+    assert.equal(bash(verb.replace('@', target)).block, true, 'write verb behind a balanced substitution holding spaces denied: ' + verb + ' ' + target);
+  }
+}
+// a quoted or backticked `}` inside an unquoted parameter expansion does not close it
+for (const sub of ['${X:-"a } b"}', "${X:-'a } b'}", '${X:-"}"}', '${X:-`a } b`}']) {
+  assert.equal(bash('> ' + sub + '/' + L).block, true, 'redirect behind a quoted brace denied: ' + sub);
+}
+// unterminated groups and long runs of them resolve without catastrophic backtracking (qualitative bound, ADR 0086)
+{
+  const t0 = Date.now();
+  bash('> $('.repeat(5000));
+  bash('cp ' + '$( '.repeat(5000));
+  bash('> '.repeat(5001) + '`');
+  bash('> '.repeat(5000) + '${');
+  bash('cp ' + '${ '.repeat(5000));
+  bash('tee ' + '${'.repeat(5000));
+  bash('tee ' + '${'.repeat(20000));
+  bash('>${ '.repeat(20000));
+  bash('tee ' + '${"'.repeat(20000));
+  const elapsed = Date.now() - t0;
+  assert.ok(elapsed < 5000, 'substitution runs must resolve quickly, took ' + elapsed + 'ms');
+}
 assert.equal(bash('echo x > "$(dirname .superdev/scopes/a/ledger.md)/other"').block, true, 'a substitution-bearing redirect target is judged on its text, so this write to another file is a deliberate fail-closed');
 assert.equal(bash('cat new.md | tee ' + L).block, true, 'tee denied');
 assert.equal(bash('cat new.md | tee -a "' + L + '"').block, true, 'tee -a quoted denied');

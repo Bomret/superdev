@@ -8,7 +8,7 @@
 // (they never name ledger.md — the CLI takes --root, the run-root directory).
 
 // One shell word, quoted/escaped forms included — the merge-guard ARG token.
-const ARG = /(?:[^\s"'\\$`]|\$(?!\()|\\.|"(?:[^"\\]|\\.)*"|'[^']*'|\$\((?:[^()\\]|\\.|\((?:[^()\\]|\\.)*\))*\)|`(?:[^`\\]|\\.)*`)+/.source;
+const ARG = /(?:[^\s"'\\$`]|\$(?![({])|\\.|"(?:[^"\\]|\\.)*"|'[^']*'|\$\((?:[^()\\]|\\.|\((?:[^()\\]|\\.)*\))*\)|\$\{(?:[^{}\\"'`]|\\.|"(?:[^"\\]|\\.)*"|'[^']*'|`(?:[^`\\]|\\.)*`)*\}|`(?:[^`\\]|\\.)*`)+/.source;
 
 // A word references a scopes ledger when, unquoted/unescaped, it carries
 // `.superdev/scopes/…/ledger.md` (relative or under any absolute prefix).
@@ -20,21 +20,33 @@ function refsLedger(word) {
 // The shell write shapes the spec names. Each captures its target word(s). TEE and CPMV capture
 // only to the end of their own `[;&|\n]`-delimited segment — like SED_SEGMENT — so a `cp`/`mv`/
 // `tee` elsewhere never swallows a later command's pure ledger read into its target scan.
-// A redirect target holding a substitution is judged on its text, not its expansion, so it fails closed.
+// Every write scan reads its words with both tokens (`words`). RAW_ARG reads `$(`, `${` and a backtick as
+// plain characters and splits at every unquoted space. A target blocks when either reading names a ledger:
+// ARG catches a ledger path behind a balanced substitution holding spaces, RAW_ARG one behind a
+// substitution ARG cannot balance (`$((1+(2)))/…`).
+// A redirect reads one word after `>`, so a target whose unbalanced substitution holds a space still
+// passes (triage #814).
+const RAW_ARG = /(?:[^\s"'\\]|\\.|"(?:[^"\\]|\\.)*"|'[^']*')+/.source;
+const ARG_WORDS = new RegExp(ARG, 'g');
+const RAW_ARG_WORDS = new RegExp(RAW_ARG, 'g');
+const words = (t) => [...(t.match(ARG_WORDS) || []), ...(t.match(RAW_ARG_WORDS) || [])];
 const REDIR = new RegExp('>{1,2}\\s*(' + ARG + ')', 'g');
+const REDIR_RAW = new RegExp('>{1,2}\\s*(' + RAW_ARG + ')', 'g');
 const TEE = /(^|[;&|\n])\s*tee\s+([^;&|\n]*)/gm;
 const SED_SEGMENT = /(^|[;&|\n])([^;&|\n]*\bsed\b[^;&|\n]*)/gm;
 const CPMV = /(^|[;&|\n])\s*\b(?:cp|mv|install)\b\s+([^;&|\n]*)/gm;
 
 function bashWritesLedger(cmd) {
   let m;
-  REDIR.lastIndex = 0;
-  while ((m = REDIR.exec(cmd))) {
-    if (refsLedger(m[1])) return true;
+  for (const re of [REDIR, REDIR_RAW]) {
+    re.lastIndex = 0;
+    while ((m = re.exec(cmd))) {
+      if (refsLedger(m[1])) return true;
+    }
   }
   TEE.lastIndex = 0;
   while ((m = TEE.exec(cmd))) {
-    for (const word of m[2].match(new RegExp(ARG, 'g')) || []) {
+    for (const word of words(m[2])) {
       if (refsLedger(word)) return true;
     }
   }
@@ -42,13 +54,13 @@ function bashWritesLedger(cmd) {
   while ((m = SED_SEGMENT.exec(cmd))) {
     const seg = m[2];
     if (!/\s-i/.test(seg)) continue; // in-place flag only; a plain sed read passes
-    for (const word of seg.match(new RegExp(ARG, 'g')) || []) {
+    for (const word of words(seg)) {
       if (refsLedger(word)) return true;
     }
   }
   CPMV.lastIndex = 0;
   while ((m = CPMV.exec(cmd))) {
-    for (const word of m[2].match(new RegExp(ARG, 'g')) || []) {
+    for (const word of words(m[2])) {
       if (refsLedger(word)) return true;
     }
   }
