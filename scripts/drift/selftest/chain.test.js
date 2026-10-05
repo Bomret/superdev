@@ -57,6 +57,8 @@ const {
   VETTED_OPTIONS_CONTRACTS,
   SHIP_TICKS_NOTHING_CONTRACTS,
   WRAP_UP_CONTRACTS,
+  REVIEWER_MODEL_TIER_CONTRACTS,
+  FIX_DISPATCH_CONTRACTS,
   DOC_UNTICK_ON_BREAK_CONTRACTS,
   CLEAN_VERDICT_ENDS_LOOP_CONTRACTS,
   FIX_LOOP_FIXES_EVERY_FINDING_CONTRACTS,
@@ -1663,7 +1665,8 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   const uvImplement = fixture({
     'references/run-handoff.md':
-      'Record slice completion with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set merged --root <run-root>`.\n',
+      'Record slice completion with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set merged --root <run-root>`. ' +
+      'Clear the doc record with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs clear --root <run-root>`.\n',
   });
   const uvImplementGaps = scanContract(uvImplement, VERB_CONTRACTS);
   assert.equal(uvImplementGaps.length, 3, 'flags run-handoff.md for dropping both unresolved verbs and `suite set`');
@@ -1691,27 +1694,29 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'a review.md carrying all its verbs, including both unresolved ones, `deferred add`, and the suite-record pair, is clean',
   );
 
-  // negative: run-handoff.md carrying all four of its own verbs — `stage set merged`, both unresolved
-  // ones, and `suite set` — is clean
+  // negative: run-handoff.md carrying all five of its own verbs — `stage set merged`, both unresolved
+  // ones, `suite set`, and `docs clear` — is clean
   const vcRunHandoffClean = fixture({
     'references/run-handoff.md':
       'Record slice completion with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set merged --root <run-root>`. ' +
       'Record a give-up point with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add "<text>" --root <run-root>`. ' +
       'Clear a standing defect with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`. ' +
-      'Record the result with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set green <sha> --root <run-root>`.\n',
+      'Record the result with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set green <sha> --root <run-root>`. ' +
+      'A fix cycle that landed commits clears the record with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs clear --root <run-root>`.\n',
   });
   assert.equal(
     scanContract(vcRunHandoffClean, VERB_CONTRACTS).length,
     0,
-    'a run-handoff.md carrying all four of its own verbs, including `suite set`, is clean',
+    'a run-handoff.md carrying all five of its own verbs, including `suite set` and `docs clear`, is clean',
   );
 
-  // positive: run-handoff.md keeps its other three verbs but drops `suite set`
+  // positive: run-handoff.md keeps its other four verbs but drops `suite set`
   const vcRunHandoffNoSuite = fixture({
     'references/run-handoff.md':
       'Record slice completion with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set merged --root <run-root>`. ' +
       'Record a give-up point with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add "<text>" --root <run-root>`. ' +
-      'Clear a standing defect with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`.\n',
+      'Clear a standing defect with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`. ' +
+      'A fix cycle that landed commits clears the record with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs clear --root <run-root>`.\n',
   });
   const vcRunHandoffNoSuiteGaps = scanContract(vcRunHandoffNoSuite, VERB_CONTRACTS);
   assert.equal(vcRunHandoffNoSuiteGaps.length, 1, 'flags run-handoff.md for dropping `suite set`');
@@ -5082,6 +5087,126 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     for (const drop of ['name all of them in one refusal', 'Unknown counts as not merged', 'Ask once per entry', 'Clean up only after a successful close', 'from the invoking checkout', 'Keep `.superdev/kb-pending/<scope>/`', 'Never delete the scope branch']) {
       const one = { ...wuClauses, 'skills/wrap-up/SKILL.md': wuClauses['skills/wrap-up/SKILL.md'].replace(drop, 'x') };
       assert.equal(scanContract(fixture(one), WRAP_UP_CONTRACTS).length, 1, `dropping "${drop}" reports exactly one gap`);
+    }
+  }
+
+  // --- REVIEWER_MODEL_TIER_CONTRACTS (ADR 0118): each model value and the cut rule is held by one row,
+  // and a reverted value is a gap, not only a deleted line ---
+  {
+    const rmClauses = {
+      'skills/implement/SKILL.md':
+        '| slice-reviewer | `opus` | default |\n| simplicity-reviewer | `sonnet` | scoped scan |\n',
+      'agents/slice-reviewer.md': '---\nname: slice-reviewer\nmodel: opus\n---\nBody.\n',
+      'agents/simplicity-reviewer.md': '---\nname: simplicity-reviewer\nmodel: sonnet\n---\nBody.\n',
+      'skills/review/SKILL.md': '- **`superdev:simplicity-reviewer`** (`model: sonnet`) — over-engineering only.\n',
+      'references/implement-full.md':
+        'Apply a recommended cut only when it honours the rules the repository documents for itself. ' +
+        "In the slice's report you name each cut you decline, with the rule it would break.\n",
+    };
+    assert.deepEqual(scanContract(fixture(rmClauses), REVIEWER_MODEL_TIER_CONTRACTS), [], 'a fixture carrying every tier and the cut rule reports no gap');
+    const reverts = [
+      ['skills/implement/SKILL.md', '| slice-reviewer | `opus` |', '| slice-reviewer | `sonnet` |'],
+      ['skills/implement/SKILL.md', '| simplicity-reviewer | `sonnet` |', '| simplicity-reviewer | `haiku` |'],
+      ['agents/slice-reviewer.md', 'model: opus', 'model: sonnet'],
+      ['agents/simplicity-reviewer.md', 'model: sonnet', 'model: haiku'],
+      ['skills/review/SKILL.md', '`model: sonnet`', '`model: haiku`'],
+      ['references/implement-full.md', 'name each cut you decline', 'apply each cut'],
+    ];
+    for (const [rel, from, to] of reverts) {
+      const one = { ...rmClauses, [rel]: rmClauses[rel].replace(from, to) };
+      const gaps = scanContract(fixture(one), REVIEWER_MODEL_TIER_CONTRACTS);
+      assert.equal(gaps.length, 1, `changing "${from}" in ${rel} reports exactly one gap`);
+      assert.equal(gaps[0].source, rel, `names ${rel}`);
+    }
+  }
+
+  // --- FIX_DISPATCH_CONTRACTS (ADR 0118, INV-0120): the fix models and the sibling-surface clause, on
+  // every fix dispatch and the implementer's own brief; each row is held by one clause ---
+  {
+    const fdClauses = {
+      'skills/review/SKILL.md':
+        'Dispatch one `superdev:implementer` (`model: opus`; `haiku` only when every finding in the list is a mechanical finding, one whose fix changes no stated rule or behaviour, and any other finding keeps the whole dispatch on `opus`). Tell the implementer to search its own checkout for every other place that states the rule or behaviour the fix changes, bring each one into agreement, and report each place it checked and each it changed, reporting a place outside its checkout unedited. Report the `AGENTS.md` hierarchy and the knowledge base unedited too, since the doc pass owns them. A fix report that omits the checked-and-changed list is a report defect, sent back to the implementer. Before the re-review, grep the checkout for the key phrase of the rule the fix changed, in its old wording and its new, and compare the hits with the report\'s checked list. A hit in a file the list does not name is a missed sibling surface: send the report back to the implementer, naming the hit, in the same cycle. A hit in the `AGENTS.md` hierarchy or the knowledge base is named in your report instead. A hit in `CHANGELOG.md` is release history and needs no change.\n',
+      'references/implement-full.md': 'The fix takes `haiku` only when every finding in the list is a mechanical finding, one whose fix changes no stated rule or behaviour, and any other finding puts the whole dispatch on `sonnet`. Tell the implementer to search its own checkout for every other place that states the rule or behaviour the fix changes, bring each one into agreement, and report each place it checked and each it changed, reporting a place outside its checkout unedited. Report the `AGENTS.md` hierarchy and the knowledge base unedited too, since the doc pass owns them. A fix report that omits the checked-and-changed list is a report defect, sent back to the implementer. Before the re-review, grep the fix\'s slicetree (`<run-root>/slicetrees/<id>`) for the key phrase of the rule the fix changed, in its old wording and its new, and compare the hits with the report\'s checked list. A hit in a file the list does not name is a missed sibling surface: send the report back to the implementer, naming the hit, in the same cycle. A hit in the `AGENTS.md` hierarchy or the knowledge base is named in your report instead. A hit in `CHANGELOG.md` is release history and needs no change.\n',
+      'references/run-handoff.md':
+        'Dispatch one `superdev:implementer` (`model: sonnet`; `haiku` only when every failure in the failing output is a mechanical finding, one whose fix changes no stated rule or behaviour, and any other failure keeps the whole dispatch on `sonnet`). ' +
+        'Tell the implementer to search its own checkout for every other place that states the rule or behaviour the fix changes — ' +
+        'for a red suite, the rule is the behaviour the failing test pins — bring each one into agreement, and report each place it ' +
+        'checked and each it changed, reporting a place outside its checkout unedited. Report the `AGENTS.md` hierarchy and the knowledge base unedited too, since the doc pass owns them. A fix report that omits the checked-and-changed list is a report defect, sent back to the implementer. Before the focused run, grep the checkout for the key phrase of the rule the fix changed, in its old wording and its new, and compare the hits with the report\'s checked list. A hit in a file the list does not name is a missed sibling surface: send the report back to the implementer, naming the hit, in the same cycle. A hit in the `AGENTS.md` hierarchy or the knowledge base is named in your report instead. A hit in `CHANGELOG.md` is release history and needs no change.\n',
+      'agents/implementer.md':
+        'Search your own checkout for every other place that states the rule or behaviour your fix changes, and bring each one into ' +
+        'agreement. On a red-suite fix, the rule is the behaviour the failing test pins. Your report names each place you checked and ' +
+        'each place you changed. A place outside your checkout goes into the report unedited. The `AGENTS.md` hierarchy and the knowledge base are reported unedited too, since the doc pass owns them. A hit in `CHANGELOG.md` is release history and needs no change. The controller cross-checks that list with a grep of its own for the rule\'s key phrase, in its old wording and its new, so your list names every file your search hit.\n',
+      'skills/implement/SKILL.md': '| implementer / fix | `haiku` | mechanical slice, or a fix list in which every finding is a mechanical finding |\n| implementer / fix | `sonnet` | judgment slice, or a fix list with any other finding |\nA fix list in which every finding is a mechanical finding, one whose fix changes no stated rule or behaviour. A fix that changes a rule or behaviour any surface states needs the sibling-surface search, so it stays off `haiku`.\n- **A fix reconciles every sibling surface.** Every fix dispatch tells the implementer so. The `AGENTS.md` hierarchy and the knowledge base are reported unedited, since the doc pass owns them. A fix report that omits the checked-and-changed list is a report defect, sent back to the implementer. Before the next step, the controller greps the checkout for the key phrase of the rule the fix changed, in its old wording and its new, and compares the hits with the report\'s checked list. A hit in a file the list does not name is a missed sibling surface, sent back to the implementer with the hit named, in the same cycle. A hit in the `AGENTS.md` hierarchy or the knowledge base is named in the controller\'s report instead. A hit in `CHANGELOG.md` is release history and needs no change.\n',
+    };
+    assert.deepEqual(scanContract(fixture(fdClauses), FIX_DISPATCH_CONTRACTS), [], 'a fixture carrying every fix-dispatch clause reports no gap');
+    const changes = [
+      ['skills/review/SKILL.md', 'is a report defect, sent back', 'is fine'],
+      ['references/implement-full.md', 'is a report defect, sent back', 'is fine'],
+      ['references/run-handoff.md', 'is a report defect, sent back', 'is fine'],
+      ['skills/implement/SKILL.md', 'is a report defect, sent back', 'is fine'],
+      ['skills/review/SKILL.md', '`model: opus`', '`model: sonnet`'],
+      ['skills/review/SKILL.md', 'only when every finding in the list is a mechanical finding', 'only for a mechanical fix'],
+      ['skills/review/SKILL.md', 'keeps the whole dispatch on `opus`', 'keeps the finding on `haiku`'],
+      ['skills/review/SKILL.md', 'one whose fix changes no stated rule or behaviour', 'one that is small'],
+      ['references/run-handoff.md', 'only when every failure in the failing output is a mechanical finding', 'only for a mechanical fix'],
+      ['references/run-handoff.md', 'one whose fix changes no stated rule or behaviour', 'one that is small'],
+      ['references/implement-full.md', 'only when every finding in the list is a mechanical finding', 'only for a mechanical fix'],
+      ['references/implement-full.md', 'puts the whole dispatch on `sonnet`', 'puts the whole dispatch on `opus`'],
+      ['references/implement-full.md', 'one whose fix changes no stated rule or behaviour', 'one that is small'],
+      ['skills/implement/SKILL.md', 'a fix list in which every finding is a mechanical finding |', 'a mechanical fix |'],
+      ['skills/implement/SKILL.md', '| implementer / fix | `sonnet` |', '| implementer / fix | `opus` |'],
+      ['skills/implement/SKILL.md', 'one whose fix changes no stated rule or behaviour', 'one that is small'],
+      ['skills/implement/SKILL.md', 'needs the sibling-surface search, so it stays off `haiku`', 'is fine on `haiku`'],
+      ['skills/review/SKILL.md', 'search its own checkout', 'skim the diff'],
+      ['references/implement-full.md', 'search its own checkout', 'skim the diff'],
+      ['references/run-handoff.md', '`model: sonnet`', '`model: opus`'],
+      ['references/run-handoff.md', 'search its own checkout', 'skim the diff'],
+      ['references/run-handoff.md', 'the rule is the behaviour the failing test pins', 'fix the test'],
+      ['agents/implementer.md', 'Search your own checkout', 'Skim the diff'],
+      ['skills/implement/SKILL.md', 'A fix reconciles every sibling surface.', 'Fixes happen.'],
+      ['skills/review/SKILL.md', 'since the doc pass owns them', 'since nobody owns them'],
+      ['references/implement-full.md', 'since the doc pass owns them', 'since nobody owns them'],
+      ['references/run-handoff.md', 'since the doc pass owns them', 'since nobody owns them'],
+      ['agents/implementer.md', 'since the doc pass owns them', 'since nobody owns them'],
+      ['skills/implement/SKILL.md', 'since the doc pass owns them', 'since nobody owns them'],
+      ['skills/review/SKILL.md', 'knowledge base unedited too, since the doc pass owns them', 'knowledge base left alone too, since the doc pass owns them'],
+      ['references/implement-full.md', 'knowledge base unedited too, since the doc pass owns them', 'knowledge base left alone too, since the doc pass owns them'],
+      ['references/run-handoff.md', 'knowledge base unedited too, since the doc pass owns them', 'knowledge base left alone too, since the doc pass owns them'],
+      ['agents/implementer.md', 'knowledge base are reported unedited too, since the doc pass owns them', 'knowledge base are reported left alone too, since the doc pass owns them'],
+      ['skills/implement/SKILL.md', 'reported unedited, since the doc pass owns them', 'reported left alone, since the doc pass owns them'],
+      ['skills/review/SKILL.md', 'in its old wording and its new', 'in its new wording'],
+      ['references/implement-full.md', 'in its old wording and its new', 'in its new wording'],
+      ['references/run-handoff.md', 'in its old wording and its new', 'in its new wording'],
+      ['skills/implement/SKILL.md', 'in its old wording and its new', 'in its new wording'],
+      ['skills/review/SKILL.md', 'in the same cycle', 'in a new cycle'],
+      ['references/implement-full.md', 'in the same cycle', 'in a new cycle'],
+      ['references/run-handoff.md', 'in the same cycle', 'in a new cycle'],
+      ['skills/implement/SKILL.md', 'in the same cycle', 'in a new cycle'],
+      ['skills/review/SKILL.md', 'knowledge base is named in', 'knowledge base is sent back in'],
+      ['skills/implement/SKILL.md', 'knowledge base is named in', 'knowledge base is sent back in'],
+      ['agents/implementer.md', 'names every file your search hit', 'names the files you edited'],
+      ['skills/review/SKILL.md', 'grep the ', 'read the '],
+      ['references/implement-full.md', 'grep the ', 'read the '],
+      ['references/run-handoff.md', 'grep the ', 'read the '],
+      ['skills/implement/SKILL.md', 'greps the ', 'read the '],
+      ['references/implement-full.md', "the fix's slicetree", 'the checkout'],
+      ['references/implement-full.md', 'knowledge base is named in', 'knowledge base is sent back in'],
+      ['references/run-handoff.md', 'knowledge base is named in', 'knowledge base is sent back in'],
+      ['skills/review/SKILL.md', 'is a missed sibling surface', 'is fine'],
+      ['references/implement-full.md', 'is a missed sibling surface', 'is fine'],
+      ['references/run-handoff.md', 'is a missed sibling surface', 'is fine'],
+      ['skills/implement/SKILL.md', 'is a missed sibling surface', 'is fine'],
+      ['skills/review/SKILL.md', 'release history and needs no change', 'a file to edit'],
+      ['references/implement-full.md', 'release history and needs no change', 'a file to edit'],
+      ['references/run-handoff.md', 'release history and needs no change', 'a file to edit'],
+      ['skills/implement/SKILL.md', 'release history and needs no change', 'a file to edit'],
+      ['agents/implementer.md', 'release history and needs no change', 'a file to edit'],
+    ];
+    for (const [rel, from, to] of changes) {
+      const one = { ...fdClauses, [rel]: fdClauses[rel].replace(from, to) };
+      const gaps = scanContract(fixture(one), FIX_DISPATCH_CONTRACTS);
+      assert.equal(gaps.length, 1, `changing "${from}" in ${rel} reports exactly one gap`);
+      assert.equal(gaps[0].source, rel, `names ${rel}`);
     }
   }
 

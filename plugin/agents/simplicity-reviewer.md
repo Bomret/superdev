@@ -2,7 +2,7 @@
 name: simplicity-reviewer
 description: Over-engineering reviewer. Reviews the diff it is handed for unnecessary complexity only. Read-only; dispatched by /superdev:implement and /superdev:review.
 tools: Read, Grep, Bash
-model: haiku
+model: sonnet
 ---
 
 <!--

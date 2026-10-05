@@ -2,7 +2,7 @@
 name: slice-reviewer
 description: Per-slice correctness reviewer. Verifies one slice against its specification and independently re-runs the suite. Read-only; dispatched by /superdev:implement.
 tools: Read, Grep, Bash
-model: sonnet
+model: opus
 ---
 
 You review **one completed slice** before it merges. You are a separate set of eyes from the

@@ -165,9 +165,10 @@ plan runs test-first, inline in the scopetree.
   changed docs cold and verifies their claims against the repo. Ungrounded or stale text goes back to
   the `doc-writer` for one fix round. **On a `lite` scope that already documented itself inline**
   ([ADR 0031](docs/adr/0031-the-lite-tier-writes-its-own-documentation.md)), it dispatches no `doc-writer`.
-  It dispatches only the `doc-reader`, over the doc files that run's own commits touched, and nothing when
-  those commits touched none. A review fix loop that lands commits clears that record, so the next run of
-  this command dispatches the writer again. Both agents also apply a **content-type lens**
+  It dispatches only the `doc-reader`, over the doc files that run's own commits touched, and nothing
+  when those commits touched none. A fix loop that lands commits clears that record. The loop is the
+  review fix loop or the run handoff's red-suite fix loop. The next run of this command then
+  dispatches the writer again. Both agents also apply a **content-type lens**
   ([`references/content-types.md`](plugin/references/content-types.md)): does a reader learn *why* a thing
   exists and *when* to use it, not only what it is called and how to run it. That check is always on,
   unlike the **writing standard**, which the repo may configure to `none`. Where a writing standard is

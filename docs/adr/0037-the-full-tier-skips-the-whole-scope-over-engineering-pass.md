@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0118](0118-review-and-fix-model-tiers-follow-measured-evidence.md),
+which moves `simplicity-reviewer` from `haiku` to `sonnet`.
+
 ## Context
 
 `superdev:simplicity-reviewer` is dispatched from two places. `references/implement-full.md` dispatches it

@@ -166,6 +166,8 @@ const {
   BACKLOG_SUBMITTED_CONTRACTS,
   BACKLOG_VERIFY_WRAP_UP_CONTRACTS,
   DEPLOY_STEP_VISIBILITY_CONTRACTS,
+  REVIEWER_MODEL_TIER_CONTRACTS,
+  FIX_DISPATCH_CONTRACTS,
   VETTED_OPTIONS_CONTRACTS,
 } = require('./contracts');
 
@@ -685,6 +687,16 @@ module.exports = [
     "submit-pr's next-command line states that ship deploys and stops at verify-ship or, with nothing left to verify, at wrap-up, its closing paragraph names wrap-up as the close, and the backlog survey never steers an " +
       'operator into closing an anchor stuck mid-`auto`-deploy by hand, shows a stalled deploy whether or ' +
       'not an open anchor matches it, and ranks it first',
+  ),
+  table(
+    'reviewer-model-tiers',
+    REVIEWER_MODEL_TIER_CONTRACTS,
+    'slice-reviewer runs on `opus` and simplicity-reviewer on `sonnet` at every dispatch site and in each agent default, and the full tier applies a recommended cut only when it honours the repository\'s documented rules, naming each declined cut (ADR 0118)',
+  ),
+  table(
+    'fix-dispatch-siblings',
+    FIX_DISPATCH_CONTRACTS,
+    "the scope fix cycle's implementer runs on `opus` and the red-suite fix stays on `sonnet`, `haiku` only when every finding in the fix list is a mechanical finding (one whose fix changes no stated rule or behaviour), and every fix dispatch and the implementer's own brief reconcile each sibling surface of the rule the fix changes while reporting the `AGENTS.md` hierarchy and the knowledge base unedited, since the doc pass owns them (ADR 0118, INV-0120)",
   ),
   {
     id: 'run-state-contract',

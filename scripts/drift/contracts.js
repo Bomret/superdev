@@ -859,10 +859,12 @@ const VERB_CONTRACTS = [
   // ADR 0031's three-document agreement on one header. A lite playbook that stops writing the record
   // leaves every later command dispatching the writer it was meant to skip; a `/superdev:document` that
   // stops reading it does the same while the record sits there; a `/superdev:review` that stops clearing
-  // it ships documentation written before the fix that made it wrong.
+  // it ships documentation written before the fix that made it wrong, and so does a run handoff whose
+  // red-suite fix loop stops clearing it (#861).
   [path.join('references', 'implement-lite.md'), /scope\.js["'`]?\s+docs set\b/, 'record its inline doc pass with `scope.js docs set`'],
   [path.join('skills', 'document', 'SKILL.md'), /scope\.js["'`]?\s+get docs\b/, 'read the inline-doc-pass record with `scope.js get docs` before it dispatches a writer'],
   [path.join('skills', 'review', 'SKILL.md'), /scope\.js["'`]?\s+docs clear\b/, 'clear the inline-doc-pass record with `scope.js docs clear` when its fix loop lands commits'],
+  [path.join('references', 'run-handoff.md'), /scope\.js["'`]?\s+docs clear\b/, 'clear the inline-doc-pass record with `scope.js docs clear` when a red-suite fix cycle lands commits, the cap path included'],
   // ADR 0091, ADR 0075: a green record reused against the scope branch's current tip (INV-0017) is
   // never run again, and
   // review is the one caller of both halves — it asks
@@ -4997,7 +4999,7 @@ const FIX_LOOP_FIXES_EVERY_FINDING_CONTRACTS = [
   ],
   [
     path.join('skills', 'review', 'SKILL.md'),
-    /\*\*complete\*\* list of the findings the chosen option covers[\s\S]{0,1500}3 cycles in total, every cycle counting, whichever findings drove it/,
+    /\*\*complete\*\* list of the findings the chosen option covers[\s\S]{0,2000}3 cycles in total, every cycle counting, whichever findings drove it/,
     'dispatch one implementer with the complete list of the findings the chosen option covers, the loop capped at 3 cycles in total with every cycle counting whichever findings drove it',
   ],
   [
@@ -6556,6 +6558,185 @@ const SETUP_TEST_PATHS_CONTRACTS = [
   ],
 ];
 
+// ADR 0118: the review model tiers follow measured evidence. Rows pin `slice-reviewer` on `opus` and
+// `simplicity-reviewer` on `sonnet` at every dispatch site and in each agent's own default, so a reverted
+// value is a gap, and the full-tier playbook's rule for which recommended cuts the controller applies.
+const REVIEWER_MODEL_TIER_CONTRACTS = [
+  [
+    path.join('skills', 'implement', 'SKILL.md'),
+    /\| slice-reviewer \| `opus` \|/,
+    'name `opus` for `slice-reviewer` in the model-selection table (ADR 0118)',
+  ],
+  [
+    path.join('skills', 'implement', 'SKILL.md'),
+    /\| simplicity-reviewer \| `sonnet` \|/,
+    'name `sonnet` for `simplicity-reviewer` in the model-selection table (ADR 0118)',
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /^model: opus$/m,
+    'default `slice-reviewer` to `opus` in its frontmatter (ADR 0118)',
+  ],
+  [
+    path.join('agents', 'simplicity-reviewer.md'),
+    /^model: sonnet$/m,
+    'default `simplicity-reviewer` to `sonnet` in its frontmatter (ADR 0118)',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /`superdev:simplicity-reviewer`\*\* \(`model: sonnet`\)/,
+    "dispatch `simplicity-reviewer` on `sonnet` for the whole-range pass (ADR 0118)",
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /[Aa]pply a recommended cut only when it honours the rules the repository documents for itself[\s\S]{0,400}name each cut you decline[\s\S]{0,160}the rule it would break/,
+    "apply a recommended cut only when it honours the repository's own documented rules, and name each declined cut with the rule it would break (ADR 0118)",
+  ],
+];
+
+// ADR 0118, INV-0120: the scope review's fix cycle runs its implementer on `opus` (`haiku` only when
+// every finding in the fix list is a mechanical finding, one whose fix changes no stated rule or
+// behaviour, per CONTEXT.md's *Mechanical finding*), while the run handoff's red-suite fix keeps the mid tier;
+// and every fix
+// dispatch reconciles each sibling surface of the rule its fix changes, reporting the `AGENTS.md`
+// hierarchy and the knowledge base unedited because the doc pass owns them. The controller
+// cross-checks a fix report's checked list with a grep for the fixed rule's key phrase, old
+// wording and new, and treats a `CHANGELOG.md` hit as release history. Rows pin the clause on
+// both halves — every dispatch that sends a fix, and the implementer's own brief — so a
+// one-sided edit is a gap.
+const FIX_DISPATCH_CONTRACTS = [
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /`superdev:implementer` \(`model: opus`; `haiku` only when every finding in the list is a mechanical\s+finding, one whose fix changes no stated rule or behaviour, and any other finding keeps the whole\s+dispatch on `opus`\)/,
+    'dispatch the scope fix cycle\'s implementer on `opus`, with `haiku` only when every finding in the list is a mechanical finding, one whose fix changes no stated rule or behaviour (ADR 0118)',
+  ],
+  [
+    path.join('references', 'run-handoff.md'),
+    /`superdev:implementer` \(`model: sonnet`; `haiku` only when every failure in the\s+failing output is a mechanical finding, one whose fix changes no stated rule or behaviour, and any\s+other failure keeps the whole dispatch on `sonnet`\)/,
+    'keep the red-suite fix on `sonnet`, with `haiku` only when every failure in the failing output is a mechanical finding, one whose fix changes no stated rule or behaviour (ADR 0118)',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /takes `haiku` only when\s+every finding in the list is a mechanical finding, one whose fix changes no stated rule or\s+behaviour, and any other finding puts the whole dispatch on `sonnet`/,
+    'keep the per-slice fix on `haiku` only when every finding in the list is a mechanical finding, one whose fix changes no stated rule or behaviour, and on `sonnet` otherwise (ADR 0118)',
+  ],
+  [
+    path.join('skills', 'implement', 'SKILL.md'),
+    /or a fix list in which every finding is a mechanical finding \|\n\| implementer \/ fix \| `sonnet` \|[^\n]*or a fix list with any other finding \|/,
+    'state in the model table that a fix list takes `haiku` only when every finding is a mechanical finding and `sonnet` when any other finding is present (ADR 0118)',
+  ],
+  [
+    path.join('skills', 'implement', 'SKILL.md'),
+    /a mechanical finding, one whose\s+fix\s+changes\s+no\s+stated\s+rule\s+or\s+behaviour[^.]*\.\s+A fix that changes a rule or behaviour\s+any\s+surface\s+states\s+needs the sibling-surface search, so it stays off `haiku`/,
+    'define a mechanical finding under the model table as one whose fix changes no stated rule or behaviour, and keep a fix that changes a rule or behaviour any surface states off `haiku` (ADR 0118)',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /[Ss]earch its own checkout[\s\S]{0,200}every other place that states the rule or behaviour[\s\S]{0,300}each place it checked and each it changed[\s\S]{0,200}outside its checkout/,
+    'tell the fix-cycle implementer to reconcile every sibling surface in its own checkout and report each place checked and changed, reporting a place outside its checkout unedited (INV-0120)',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /[Ss]earch its own checkout[\s\S]{0,200}every other place that states the rule or behaviour[\s\S]{0,300}each place it checked and each it changed[\s\S]{0,200}outside its checkout/,
+    'tell the per-slice fix implementer to reconcile every sibling surface in its own checkout and report each place checked and changed, reporting a place outside its checkout unedited (INV-0120)',
+  ],
+  [
+    path.join('references', 'run-handoff.md'),
+    /[Ss]earch its own checkout[\s\S]{0,200}every other place that states the rule or behaviour[\s\S]{0,300}each place it checked and each it changed[\s\S]{0,200}outside its checkout/,
+    'tell the red-suite fix implementer to reconcile every sibling surface in its own checkout and report each place checked and changed, reporting a place outside its checkout unedited (INV-0120)',
+  ],
+  [
+    path.join('references', 'run-handoff.md'),
+    /for a red suite, the rule is the behaviour the failing test pins/,
+    'state that for a red suite the rule a fix changes is the behaviour the failing test pins (INV-0120)',
+  ],
+  [
+    path.join('agents', 'implementer.md'),
+    /[Ss]earch your own checkout[\s\S]{0,200}every other place that states the rule or behaviour your fix changes[\s\S]{0,300}red-suite fix, the rule is the behaviour the failing test pins[\s\S]{0,200}each place you checked and each place you changed[\s\S]{0,200}outside your checkout/,
+    'state, for every fix dispatch, the sibling-surface search of its own checkout, the red-suite meaning of the rule, the checked-and-changed report, and that a place outside the checkout is reported unedited (INV-0120)',
+  ],
+  [
+    path.join('skills', 'implement', 'SKILL.md'),
+    /\*\*A fix reconciles every sibling surface\.\*\*/,
+    'restate, beside the conditional RED-test rule, that a fix reconciles every sibling surface (INV-0120)',
+  ],
+  [
+    path.join('agents', 'implementer.md'),
+    /`AGENTS\.md` hierarchy and the knowledge base[\s\S]{0,60}unedited[\s\S]{0,60}doc pass owns them/,
+    'carve out, in the implementer brief, the `AGENTS.md` hierarchy and the knowledge base as places a fix reports and does not edit, because the doc pass owns them (INV-0120)',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /`AGENTS\.md` hierarchy and the knowledge base[\s\S]{0,60}unedited[\s\S]{0,60}doc pass owns them/,
+    'carve out, in the scope fix cycle dispatch, the `AGENTS.md` hierarchy and the knowledge base as places a fix reports and does not edit, because the doc pass owns them (INV-0120)',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /`AGENTS\.md` hierarchy and the knowledge base[\s\S]{0,60}unedited[\s\S]{0,60}doc pass owns them/,
+    'carve out, in the per-slice fix dispatch, the `AGENTS.md` hierarchy and the knowledge base as places a fix reports and does not edit, because the doc pass owns them (INV-0120)',
+  ],
+  [
+    path.join('references', 'run-handoff.md'),
+    /`AGENTS\.md` hierarchy and the knowledge base[\s\S]{0,60}unedited[\s\S]{0,60}doc pass owns them/,
+    'carve out, in the red-suite fix dispatch, the `AGENTS.md` hierarchy and the knowledge base as places a fix reports and does not edit, because the doc pass owns them (INV-0120)',
+  ],
+  [
+    path.join('skills', 'implement', 'SKILL.md'),
+    /`AGENTS\.md` hierarchy and the knowledge base[\s\S]{0,60}unedited[\s\S]{0,60}doc pass owns them/,
+    'carve out, in the implement invariants, the `AGENTS.md` hierarchy and the knowledge base as places a fix reports and does not edit, because the doc pass owns them (INV-0120)',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /omits the checked-and-changed list is a report defect, sent back/,
+    'treat a fix report that omits the checked-and-changed list as a report defect sent back to the implementer, in the scope fix cycle (INV-0120)',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /omits the checked-and-changed list is a report defect, sent back/,
+    'treat a fix report that omits the checked-and-changed list as a report defect sent back to the implementer, in the per-slice fix loop (INV-0120)',
+  ],
+  [
+    path.join('references', 'run-handoff.md'),
+    /omits the checked-and-changed list is a report defect, sent back/,
+    'treat a fix report that omits the checked-and-changed list as a report defect sent back to the implementer, in the red-suite fix loop (INV-0120)',
+  ],
+  [
+    path.join('skills', 'implement', 'SKILL.md'),
+    /omits the checked-and-changed list is a report defect, sent back/,
+    'treat a fix report that omits the checked-and-changed list as a report defect sent back to the implementer, in the implement skill invariants (INV-0120)',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /\bgreps? the [^.]*?for the key phrase of the rule the fix changed, in its old wording and its new[\s\S]{0,200}a file the list does not name is a missed sibling surface[\s\S]{0,160}in the same cycle[\s\S]{0,200}`AGENTS\.md` hierarchy or the knowledge base is named in[\s\S]{0,200}a hit in `CHANGELOG\.md` is release history and needs no change/i,
+    "grep the checkout for the fixed rule's key phrase, old wording and new, and send back a report whose checked list misses a hit, in the same cycle, reporting an `AGENTS.md` or knowledge-base hit instead and leaving a `CHANGELOG.md` hit unchanged, in the scope fix cycle (INV-0120)",
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /\bgreps? the fix's slicetree[\s\S]{0,80}?for the key phrase of the rule the fix changed, in its old wording and its new[\s\S]{0,200}a file the list does not name is a missed sibling surface[\s\S]{0,160}in the same cycle[\s\S]{0,200}`AGENTS\.md` hierarchy or the knowledge base is named in[\s\S]{0,200}a hit in `CHANGELOG\.md` is release history and needs no change/i,
+    "grep the checkout for the fixed rule's key phrase, old wording and new, and send back a report whose checked list misses a hit, in the same cycle, reporting an `AGENTS.md` or knowledge-base hit instead and leaving a `CHANGELOG.md` hit unchanged, in the per-slice fix loop (INV-0120)",
+  ],
+  [
+    path.join('references', 'run-handoff.md'),
+    /\bgreps? the [^.]*?for the key phrase of the rule the fix changed, in its old wording and its new[\s\S]{0,200}a file the list does not name is a missed sibling surface[\s\S]{0,160}in the same cycle[\s\S]{0,200}`AGENTS\.md` hierarchy or the knowledge base is named in[\s\S]{0,200}a hit in `CHANGELOG\.md` is release history and needs no change/i,
+    "grep the checkout for the fixed rule's key phrase, old wording and new, and send back a report whose checked list misses a hit, in the same cycle, reporting an `AGENTS.md` or knowledge-base hit instead and leaving a `CHANGELOG.md` hit unchanged, in the red-suite fix loop (INV-0120)",
+  ],
+  [
+    path.join('skills', 'implement', 'SKILL.md'),
+    /\bgreps? the [^.]*?for the key phrase of the rule the fix changed, in its old wording and its new[\s\S]{0,200}a file the list does not name is a missed sibling surface[\s\S]{0,160}in the same cycle[\s\S]{0,200}`AGENTS\.md` hierarchy or the knowledge base is named in[\s\S]{0,200}a hit in `CHANGELOG\.md` is release history and needs no change/i,
+    "grep the checkout for the fixed rule's key phrase, old wording and new, and send back a report whose checked list misses a hit, in the same cycle, reporting an `AGENTS.md` or knowledge-base hit instead and leaving a `CHANGELOG.md` hit unchanged, in the implement skill invariants (INV-0120)",
+  ],
+  [
+    path.join('agents', 'implementer.md'),
+    /a hit in `CHANGELOG\.md` is release history and needs no change/i,
+    'tell the implementer that a hit in `CHANGELOG.md` is release history and needs no change (INV-0120)',
+  ],
+  [
+    path.join('agents', 'implementer.md'),
+    /controller cross-checks that list with a grep[\s\S]{0,160}old wording and its new[\s\S]{0,120}names every file your search hit/,
+    'tell the implementer that the controller cross-checks its checked list with a grep, so the list names every file its search hit (INV-0120)',
+  ],
+];
+
 module.exports = {
   VETTED_OPTIONS_CONTRACTS,
   RESPONSE_SHAPES_CONTRACTS,
@@ -6748,4 +6929,6 @@ module.exports = {
   POSTURE_READ_CONTRACTS,
   BACKLOG_SUBMITTED_CONTRACTS,
   DEPLOY_STEP_VISIBILITY_CONTRACTS,
+  REVIEWER_MODEL_TIER_CONTRACTS,
+  FIX_DISPATCH_CONTRACTS,
 };

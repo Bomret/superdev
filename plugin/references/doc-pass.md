@@ -6,7 +6,8 @@ they run it (ADR 0031):
 
 - **`agents/doc-writer.md`**, dispatched by `/superdev:document` whenever the run's inline-doc-pass record
   reads `absent` — every `full` run, a `lite` run that ended before its doc step, and a record
-  `/superdev:review` cleared — plus audit mode, bootstrap mode, any fix round, and every ad-hoc invocation.
+  `/superdev:review` or run handoff's red-suite fix loop cleared — plus audit mode, bootstrap mode, any fix
+  round, and every ad-hoc invocation.
 - **`references/implement-lite.md`**, where the `lite` controller performs the pass in its own context as
   the last step of the run.
 

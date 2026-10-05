@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0118](0118-review-and-fix-model-tiers-follow-measured-evidence.md),
+which moves `simplicity-reviewer` from `haiku` to `sonnet`.
+
 **Context.** Every rule in the implement chain adds tests, and none prices them. `implementer.md` runs
 the TDD loop and demands an increment per acceptance criterion. `slice-reviewer.md`'s second lens
 adversarially names an input the fixtures miss. `review-checklist.md` carries *weakened net*,

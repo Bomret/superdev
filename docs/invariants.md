@@ -421,10 +421,10 @@ Paths: plugin/agents/implementer.md, plugin/references/plan-contract.md
 
 Class: process
 Concepts: Inline doc pass, Ledger, Tier
-Statement: A `**Docs:**` record stands only for the commits its pass saw. `/superdev:document` skips the doc-writer only while the record stands. A review fix loop that lands commits clears it. A full-tier run never writes one.
+Statement: A `**Docs:**` record stands only for the commits its pass saw. `/superdev:document` skips the doc-writer only while the record stands. A review fix loop that lands commits clears it, as does run handoff's red-suite fix loop. A full-tier run never writes one.
 Breaks: silently
-Check: `scripts/drift-check.js` `verb-pointer` (`docs set` in implement-lite.md, `get docs` in document, `docs clear` in review) and `doc-pass`
-Paths: plugin/references/implement-lite.md, plugin/skills/document/SKILL.md, plugin/skills/review/SKILL.md, plugin/references/doc-pass.md
+Check: `scripts/drift-check.js` `verb-pointer` (`docs set` in implement-lite.md, `get docs` in document, `docs clear` in review and run-handoff) and `doc-pass`
+Paths: plugin/references/implement-lite.md, plugin/skills/document/SKILL.md, plugin/skills/review/SKILL.md, plugin/references/run-handoff.md, plugin/references/doc-pass.md
 
 ### INV-0051
 
@@ -995,6 +995,15 @@ Statement: On the full tier, every slice merged into the scope branch has a `sli
 Breaks: silently
 Check: scripts/drift-check.js — the review-dispatch row on `final-reviewer` and the prose that dispatches it
 Paths: plugin/agents/final-reviewer.md, plugin/skills/review/**
+
+### INV-0120
+
+Class: process
+Concepts: Implementer, Sibling surface, Dispatch prose
+Statement: Every fix dispatch to the implementer, and the implementer's own brief for a fix dispatch, require it to bring each sibling surface in its own checkout into agreement with the rule or behaviour its fix changes, to report each place it checked and each it changed, and to report rather than edit a place outside its checkout, and to report rather than edit the `AGENTS.md` hierarchy and the knowledge base, which the doc pass owns. Every dispatching site sends back a fix report that omits the checked-and-changed list before the next step. Before the next step, every dispatching site also greps the checkout for the key phrase of the rule the fix changed, in its old wording and its new, and sends the report back in the same cycle for each hit in a file its checked list does not name, outside the `AGENTS.md` hierarchy and the knowledge base. A hit in `CHANGELOG.md` is release history and needs no change (ADR 0118).
+Breaks: silently
+Check: scripts/drift-check.js `fix-dispatch-siblings` — the sibling-surface clause pinned in the implementer's brief and in every dispatch that sends a fix; partial: the controller's grep finds a missed sibling surface only where that surface repeats the key phrase, and a sibling that states the rule in other words passes the cross-check unseen
+Paths: plugin/agents/implementer.md, plugin/skills/implement/SKILL.md, plugin/skills/review/SKILL.md, plugin/references/implement-full.md, plugin/references/run-handoff.md
 
 ### INV-0121
 

@@ -50,6 +50,15 @@ behaviour opens with a RED test that reproduces it. A fix for a finding that nam
 naming, doc polish) takes no RED test, and the re-review verifies it by reading. Your report names
 which rule you applied to each finding.
 
+**A fix dispatch reconciles every sibling surface.** Search your own checkout — prose, docs, the
+glossary, code comments, and tests — for every other place that states the rule or behaviour your fix
+changes, and bring each one into agreement. On a red-suite fix, the rule is the behaviour the failing
+test pins. Your report names each place you checked and each place you changed. A place outside your
+checkout, such as a slice-store issue, goes into the report unedited. The `AGENTS.md` hierarchy and the
+knowledge base are reported unedited too, since the doc pass owns them. A hit in `CHANGELOG.md` is
+release history and needs no change. The controller cross-checks that list with a grep of its own for
+the rule's key phrase, in its old wording and its new, so your list names every file your search hit.
+
 Build in **vertical tracer-bullet** increments — one test, one implementation, repeat. Never write all
 the tests first; tests written in bulk verify imagined behavior, not real behavior.
 

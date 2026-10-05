@@ -37,6 +37,17 @@ dispatches nothing — you carry the TDD discipline yourself. Narrate at most on
   test reproducing it. A fix for a finding that names none (style, naming, doc polish) takes no RED test,
   and the re-review verifies it by reading. The implementer's report names which rule it applied to each
   finding.
+- **A fix reconciles every sibling surface.** Every fix dispatch tells the implementer to search its own
+  checkout for every other place that states the rule or behaviour the fix changes, bring each one into
+  agreement, and report each place it checked and each it changed. A place outside its checkout is
+  reported unedited. The `AGENTS.md` hierarchy and the knowledge base are reported unedited too, since
+  the doc pass owns them (INV-0120). A fix report that omits the checked-and-changed list is a report
+  defect, sent back to the implementer before the next step. Before the next step, the controller greps
+  the checkout for the key phrase of the rule the fix changed, in its old wording and its new, and
+  compares the hits with the report's checked list. A hit in a file the list does not name is a missed
+  sibling surface, sent back to the implementer with the hit named, in the same cycle. A hit in the
+  `AGENTS.md` hierarchy or the knowledge base is named in the controller's report instead. A hit in
+  `CHANGELOG.md` is release history and needs no change.
 - **An observation is captured the moment you meet it.** Read
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Observations` section and follow it: a defect a
   dispatched agent's report surfaces, or one you meet yourself, that no slice of this scope covers and the
@@ -140,14 +151,19 @@ carry their own model choices.
 
 | Dispatch | Model | When |
 |---|---|---|
-| implementer / fix | `haiku` | mechanical slice (move, rename, transcription from a complete specification) |
-| implementer / fix | `sonnet` | design / multi-file / judgment slice |
-| slice-reviewer | `sonnet` | default (verification is load-bearing) |
-| simplicity-reviewer | `haiku` | scoped over-engineering scan |
+| implementer / fix | `haiku` | mechanical slice (move, rename, format change), transcription from a complete specification, or a fix list in which every finding is a mechanical finding |
+| implementer / fix | `sonnet` | design / multi-file / judgment slice, or a fix list with any other finding |
+| slice-reviewer | `opus` | default (verification is load-bearing) |
+| simplicity-reviewer | `sonnet` | scoped over-engineering scan |
 
-Scale to the slice. Turn count beats token price: the cheapest model often takes 2–3× the turns on
-multi-step work. Mid-tier floor for anything from a prose specification; `haiku` for transcription and
-mechanical fixes.
+Scale the implementer to the slice. Turn count beats token price: the cheapest model often takes 2–3× the
+turns on multi-step work. Mid-tier floor for an implementer working from a prose specification; `haiku`
+for transcription and for a fix list in which every finding is a mechanical finding, one whose fix
+changes no stated rule or behaviour (a rename, a rewrap, a typo). A fix that changes a rule or behaviour
+any surface states needs the sibling-surface search, so it stays off `haiku`. The two review rows are fixed,
+not scaled: measured runs showed
+the `opus` slice review catching findings the mid-tier missed, and the mid-tier over-engineering pass
+finding duplication the smallest model reported as lean (ADR 0118).
 
 ## Red flags
 

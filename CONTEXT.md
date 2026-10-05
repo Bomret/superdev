@@ -212,6 +212,12 @@ _Avoid: "final review", "scope review" (the role and the agent, not just the ste
 **3-strike fix loop**: the fix cycles a final review or a per-slice review drives. Each cycle dispatches one fix carrying every listed finding, Minors included, and repeats until the review lists none. A fix for a finding that names failing behaviour opens with a RED test. The cap is 3 cycles. At the cap, a remaining Critical or Important finding means a wrong cut (hidden dependency, boundary too big), not a buggy slice: move it to blocked and escalate. A remainder of only Minor findings advances instead (INV-0094).
 _Avoid: "retry limit", "attempt count" (the 3 strikes are cycles, not attempts)_
 
+**Sibling surface**: another place in a checkout that states the same rule or behaviour as the text a fix changes, such as a reference, a glossary entry, an ADR, a code comment, or a test. A fix that leaves one stating the old rule is incomplete. The `AGENTS.md` hierarchy and the knowledge base are exceptions: a fix reports them and the doc pass edits them. `CHANGELOG.md` is release history and is no sibling surface.
+_Avoid: "sweep" (that names `/superdev:sweep`'s whole-tree pass), "duplicate" (a sibling surface can be a deliberate restatement)_
+
+**Mechanical finding**: a review finding, or a failure in a red suite's output, whose fix changes no stated rule or behaviour, such as a rename, a rewrap, or a typo. A fix that changes a rule or behaviour any surface states needs the sibling-surface search, so its finding is not mechanical. A fix dispatch runs on `haiku` only when every finding in its list is mechanical, and any other finding keeps the whole dispatch on the site's model (ADR 0118). A mechanical *slice* is a different term: a move, a rename, or a format change (see **Test-applicability**).
+_Avoid: "trivial" (a one-line fix can change a rule), "small" (size is not the test)_
+
 **Judge discipline**: the verification principle every review agent carries verbatim. Verify the artifact and the behaviour yourself, and never defer to the implementer's or controller's narrative of what was done. Length or an elaborate structure is not its own evidence of correctness or of warranted complexity. Reject a completion claim resting only on proxy counts (coverage percentage, line count, lint score), and confirm the observable behaviour instead (ADR 0002).
 _Avoid: "verification discipline" (too generic, because this means not trusting the builder's account of its own work)_
 

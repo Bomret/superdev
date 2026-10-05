@@ -549,9 +549,9 @@ function verbDeferred(root, sub, text) {
 
 // `**Docs:**` records that a run performed its documentation pass in the controller's own context
 // rather than through a dispatched doc-writer (ADR 0031). `/superdev:document` reads it to skip that
-// dispatch; `/superdev:review` clears it when its fix loop lands commits, because those commits made the
-// pass stale. The value names the pass rather than merely marking presence, so another arrangement can
-// record its own kind without a second header.
+// dispatch; `/superdev:review` and run handoff's fix loop clear it when their fix cycles land commits,
+// because those commits made the pass stale. The value names the pass rather than merely marking presence,
+// so another arrangement can record its own kind without a second header.
 function verbDocs(root, sub, value) {
   const lines = readLines(root);
   const at = lines.findIndex((l) => headerRe('Docs').test(l));

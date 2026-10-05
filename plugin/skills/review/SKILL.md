@@ -181,7 +181,7 @@ superdev subagent that omits one):
   system outside the repository (ADR 0084, INV-0006). A criterion needing a deploy, a migration, or any
   other outward-facing change to confirm gets reported as unverifiable on the branch, needing
   verification after merge, naming the outward-facing change it needs.
-- **`superdev:simplicity-reviewer`** (`model: haiku`) — over-engineering only (unnecessary complexity,
+- **`superdev:simplicity-reviewer`** (`model: sonnet`) — over-engineering only (unnecessary complexity,
   what stdlib/native replaces, what to delete). Give it the same git range.
 
 Both subagents are **read-only** (`Read`, `Grep`, `Bash` — a hook blocks `git merge`/`push`/`rebase` and
@@ -472,34 +472,44 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   - **`--unattended` → fix every finding**, Minors included, without asking: the fix loop is the point of
     this gate, and a review that found real defects and left them is worth less than no review.
   - **Confirmed** (fix every finding, or fix only Critical and Important) → dispatch **one**
-    `superdev:implementer` (`model: sonnet`; `haiku` only for a mechanical fix) with the **complete** list
-    of the findings the chosen option covers, not one fixer per finding. Hand it the scope
-    checkout as its working directory: this is where its fix commits must land. **The RED-test rule is
-    conditional**: a fix for a finding that names failing behaviour opens with a RED test that reproduces
-    it, and a finding whose cause is not yet established runs the diagnosis
-    loop first (`${CLAUDE_PLUGIN_ROOT}/references/diagnosis.md` — the implementer reads it on any
-    defect-repair dispatch); a fix for a finding that names none (style, naming, doc polish) takes no RED
-    test, and the re-review verifies it by reading. Tell the implementer its report names which rule it
-    applied to each finding. Re-review after it returns, and repeat until the re-review lists no finding
-    in the chosen set or the **3-strike cap** is reached — **3 cycles in total, every cycle counting,
-    whichever findings drove it**. At the cap a remainder of **only Minor findings** takes the
-    clean-verdict path below once the exit full-suite run above is green (a red exit run at the cap is a
-    remaining red suite): the stage write, with the leftover Minors named in the report and nowhere
-    else — no `unresolved add`, no `deferred add`, no triage record (INV-0094). At the cap a remaining
-    **Critical or Important finding, a broken criterion, or a red suite** means a wrong
-    cut, not a bug: stop, say so, write the `**Unresolved:**` entry — at a `submitted` stage, also
-    invalidate the tip's suite record the same way the Declined branch above does — leave the stage where
-    it is, and
-    publish the snapshot before stopping — per
+    `superdev:implementer` (`model: opus`; `haiku` only when every finding in the list is a mechanical
+    finding, one whose fix changes no stated rule or behaviour, and any other finding keeps the whole
+    dispatch on `opus`) with the **complete** list
+    of the findings the chosen option covers, not one fixer per finding. Hand it the scope checkout as
+    its working directory: this is where its fix commits must land. **The RED-test rule is conditional**:
+    a fix for a finding that names failing behaviour opens with a RED test that reproduces it, and a
+    finding whose cause is not yet established runs the diagnosis loop first
+    (`${CLAUDE_PLUGIN_ROOT}/references/diagnosis.md` — the implementer reads it on any defect-repair
+    dispatch); a fix for a finding that names none (style, naming, doc polish) takes no RED test, and the
+    re-review verifies it by reading. Tell the implementer its report names which rule it applied to each
+    finding. **Every sibling surface is reconciled**: tell the implementer to search its own checkout for
+    every other place that states the rule or behaviour the fix changes, bring each one into agreement,
+    and report each place it checked and each it changed, reporting a place outside its checkout
+    unedited. Tell it to report the `AGENTS.md` hierarchy and the knowledge base unedited too, since the
+    doc pass owns them (INV-0120). A fix report that omits the checked-and-changed list is a report
+    defect, sent back to the implementer before the re-review. Before the re-review, grep the checkout
+    for the key phrase of the rule the fix changed, in its old wording and its new, and compare the hits
+    with the report's checked list. A hit in a file the list does not name is a missed sibling surface:
+    send the report back to the implementer, naming the hit, in the same cycle. A hit in the `AGENTS.md`
+    hierarchy or the knowledge base is named in your report instead. A hit in `CHANGELOG.md` is release
+    history and needs no change. Re-review after it returns, and
+    repeat until the re-review lists no finding in the chosen set or the **3-strike cap** is reached — **3
+    cycles in total, every cycle counting, whichever findings drove it**. At the cap a remainder of
+    **only Minor findings** takes the clean-verdict path below once the exit full-suite run above is
+    green (a red exit run at the cap is a remaining red suite): the stage write, with the leftover Minors
+    named in the report and nowhere else — no `unresolved add`, no `deferred add`, no triage record
+    (INV-0094). At the cap a remaining **Critical or Important finding, a broken criterion, or a red
+    suite** means a wrong cut, not a bug: stop, say so, write the `**Unresolved:**` entry — at a
+    `submitted` stage, also invalidate the tip's suite record the same way the Declined branch above does
+    — leave the stage where it is, and publish the snapshot before stopping — per
     `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section — since no later
-    stage write in this run will do it.
-    **`--unattended` → block** at that cap when a Critical or Important finding, a broken criterion, or a
-    red suite remains, per that file's **Unattended** section, writing the same entry
-    (and, at a `submitted` stage, invalidating the suite record the same way),
-    publishing the same way, and leaving the stage where it is.
-    **A clean verdict ends the loop here too, attended or unattended** — a finding it leaves standing
-    outside the chosen set is a follow-up, never a fourth cycle. **An observation never joins the fix
-    list**: a defect the scope did not cause, met during a fix cycle, gets its triage record per
+    stage write in this run will do it. **`--unattended` → block** at that cap when a Critical or
+    Important finding, a broken criterion, or a red suite remains, per that file's **Unattended**
+    section, writing the same entry (and, at a `submitted` stage, invalidating the suite record the same
+    way), publishing the same way, and leaving the stage where it is. **A clean verdict ends the loop
+    here too, attended or unattended** — a finding it leaves standing outside the chosen set is a
+    follow-up, never a fourth cycle. **An observation never joins the fix list**: a defect the scope did
+    not cause, met during a fix cycle, gets its triage record per
     `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Observations` section (INV-0010), and the loop
     carries on without it.
 - **The fix implementer's own dispatch is a degraded pass too, if the permission classifier denies it.**

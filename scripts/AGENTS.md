@@ -917,7 +917,8 @@ read), and `get degraded` (for the degrade record its §4 body reads),
 the refusal signal its §0 reads before extending a feature), both execution
 playbooks `slice`, `references/scope-mode.md` `degraded add`, `references/implement-lite.md` `docs set`
 (the inline-doc-pass record, ADR 0031), `skills/document/SKILL.md` `get docs` (read before it decides whether
-to dispatch a `doc-writer`), and `skills/review/SKILL.md` `docs clear` (when its fix loop lands commits). A
+to dispatch a `doc-writer`), and `skills/review/SKILL.md` and `references/run-handoff.md` `docs clear`
+(when a fix cycle of either lands commits, the cap path included). A
 document that drops its verb goes
 back to hand-editing or hand-parsing the ledger, which the `ledger-guard` hook only catches as a tool
 call at runtime, never as prose. No row pins `skills/publish-kb/SKILL.md` to `get branch` (ADR 0069):
@@ -2091,6 +2092,42 @@ ranks a `deploy resume` row above every other row, `blocked` included.
 Losing the submit-pr row leaves an operator who has never run ship before unaware it deploys anything;
 losing either backlog row reopens the steer into breaking INV-0099; losing any of the four visibility rows
 hides a half-deployed merge under a hand-closed anchor, or ranks it behind work that has not started.
+
+The `reviewer-model-tiers` contract (ADR 0118): the review model tiers rest on measured runs, so a value
+reverted at one site would silently undo the decision there. Rows pin `skills/implement/SKILL.md`'s
+model-selection table naming `opus` for `slice-reviewer` and `sonnet` for `simplicity-reviewer`, each
+agent's own frontmatter default (`agents/slice-reviewer.md`, `agents/simplicity-reviewer.md`), and
+`skills/review/SKILL.md`'s whole-range `simplicity-reviewer` dispatch on `sonnet`. A pin on a model value
+fails when the value changes, not only when the line goes. `references/implement-full.md`'s cut rule is
+pinned too: the controller applies a recommended cut only when it honours the rules the repository documents
+for itself, and names each cut it declines with the rule it would break.
+
+The `fix-dispatch-siblings` contract (ADR 0118, INV-0120): measured scope fix cycles left most of their
+re-review findings behind as incomplete fixes, a fix that changed a rule in one file while another file
+kept stating the old one. Rows pin the sibling-surface clause on both halves: every dispatch that sends a
+fix (`skills/review/SKILL.md`'s fix cycle, `references/implement-full.md`'s per-slice fix loop,
+`references/run-handoff.md`'s red-suite fix, which also states that a red suite's rule is the behaviour
+the failing test pins), the implementer's own brief (`agents/implementer.md`), and
+`skills/implement/SKILL.md`'s invariants beside the conditional RED-test rule. Each of those files
+also carries the carve-out: a fix reports the `AGENTS.md` hierarchy and the knowledge base unedited,
+because the doc pass owns them. The dispatch sites and the invariants also state that a fix report
+omitting the checked-and-changed list is a report defect, sent back to the implementer. They also state
+the controller's cross-check: before the next step, the controller greps the checkout for the key phrase
+of the rule the fix changed, in its old wording and its new. A hit in a file the checked list does not
+name is sent back in the same cycle, a hit in the `AGENTS.md` hierarchy or the knowledge base is
+reported, and a hit in `CHANGELOG.md` is release history that needs no change. The controller greps the
+checkout it dispatched the fix into: the slicetree for a per-slice fix, the scopetree otherwise. The
+implementer's brief states that its list names every file its search hit, because the controller
+cross-checks it, and that a `CHANGELOG.md` hit needs no change. The fix models are pinned too: the scope
+fix cycle on `opus` and the red-suite fix on `sonnet`, each with `haiku` only when every finding in the
+fix list (every failure in the failing output, for the red-suite fix) is a mechanical finding. Any other
+finding keeps the whole dispatch on the site's model. A mechanical finding is one whose fix changes no
+stated rule or behaviour, such as a rename, a rewrap, or a typo (`CONTEXT.md`, *Mechanical finding*). A fix
+that changes a rule or behaviour any surface states needs the sibling-surface search, so it stays off `haiku`. Each site
+pins that definition clause beside the model rule. The same rule is pinned in
+`references/implement-full.md`'s per-slice fix loop (`sonnet` otherwise) and in the model table of
+`skills/implement/SKILL.md`, whose prose under the table carries the definition and the sibling-surface
+reason. The selftest mutates each row's `sonnet` or `opus` fallback.
 
 The `backlog-verify-wrap-up` contract (ADR 0106, ADR 0116) pins the survey's routing of a `shipped` run root.
 Rows pin the `awaiting verification` bucket (act `/superdev:verify-ship <scope-slug>`) and the `awaiting wrap-up`
