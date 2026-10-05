@@ -1089,7 +1089,7 @@ function verbAdopt(root, body) {
 // counting it as staged would be wrong and dropping it silently would be the exact loss this contract
 // exists to prevent. `strays` carries it instead, so `verbStatus` can surface it.
 function stagedPageCounts(cwd) {
-  // ponytail: raw `cwd`, not `mainWorkTree(cwd)` — `verbStatus` is internally asymmetric, resolving its
+  // simplicity: raw `cwd`, not `mainWorkTree(cwd)` — `verbStatus` is internally asymmetric, resolving its
   // scope scan through the main working tree (ADR 0080) while this staged-page scan does not. The fix is
   // wider than one function: `skills/plan/SKILL.md` and `skills/document/SKILL.md` both instruct staging
   // in the invoking checkout, while `plugin/scripts/publish-kb.js` already resolves `.superdev/kb-pending`

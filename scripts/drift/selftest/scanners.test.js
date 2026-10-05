@@ -241,7 +241,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   });
   assert.equal(scanNoBaseBranchCommit(tmp5i).length, 0, 'the adjective "main" near an unrelated commit is not flagged');
 
-  // ponytail: the sliding window is 4 lines / 150 chars — a proven heuristic, not a parser. An
+  // simplicity: the sliding window is 4 lines / 150 chars — a proven heuristic, not a parser. An
   // instruction split across 5 or more lines is missed; lift the ceiling by widening
   // BASE_BRANCH_COMMIT_WINDOW (and, in step, the 150-char proximity bound) if that shape shows up for
   // real.

@@ -62,7 +62,8 @@ If there is nothing to cut, say `Lean already. Ship.` and stop.
 ## Boundary
 
 A single smoke test or `assert`-based self-check is the minimum, **not** bloat — never flag it for
-deletion. A `shortcut:` comment marking a deliberate simplification is intent, not debt to remove. You
+deletion. A `simplicity:` comment marking a deliberate simplification is intent, not debt to remove, and so is a
+legacy `shortcut:` comment, the marker earlier superdev releases wrote. You
 list findings; you do not apply them.
 
 **Clarity is not bloat.** Fewer lines is the goal only when the shorter form is also *clearer*. Never

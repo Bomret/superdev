@@ -20,7 +20,7 @@
 // resolveMergeCwd()'s job, or the session cwd unchanged for a bare `git merge`. A scopetree
 // carries its own `docs/agents/verification.md` on its own branch, so a full run reading it from
 // the session's invoking checkout instead would gate a merged scope with a stale or absent command.
-// ponytail: the suite runs inside the hook, under the 600s `timeout` hooks.json sets on this
+// simplicity: the suite runs inside the hook, under the 600s `timeout` hooks.json sets on this
 // hook's entry. That is also Claude Code's own default for a `command` hook, and it is set
 // explicitly so the ceiling is stated where the suite runs. A consumer repo whose suite needs more
 // raises the `timeout` on this hook's hooks.json entry — readHookTimeoutMs() below reads that same
@@ -139,7 +139,7 @@ function unquoteArg(raw) {
 // A directory-changing builtin in command position. `cd <worktree> && git merge …`, a `pushd`, or a
 // subshell that cds moves the merge somewhere the session cwd no longer names, and the command carries
 // no `-C` saying where.
-// ponytail: a shape test, not a resolution. Parsing the target would make such a command work, at the
+// simplicity: a shape test, not a resolution. Parsing the target would make such a command work, at the
 // cost of a surface — chained `cd`s, variables, `~`, relative-on-relative, a `cd` inside a subshell
 // that does not outlive it — where every wrong resolution runs the suite in the wrong tree and reports
 // a confident green. Failing closed leaves the merge landed and unverified, named in the block message
@@ -209,7 +209,7 @@ function parseMergeCommand(cmd) {
 
 // The hook sees the command before the shell expands it, so a `-C` or `--work-tree` value holding
 // `$NAME`, `${NAME}`, `$(…)`, a backtick, or a leading `~` names a path the hook cannot know.
-// ponytail: tested on the raw text, so a single-quoted or backslash-escaped `$` over-fires. That
+// simplicity: tested on the raw text, so a single-quoted or backslash-escaped `$` over-fires. That
 // direction is safe (it blocks and names `-C` with a literal path); upgrade only with a shell parser.
 const SHELL_EXPANSION = /[$`]|^~/;
 function namesShellExpansion(tokens) {

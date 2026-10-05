@@ -384,7 +384,7 @@ function splitStatements(text) {
 // (`node tests/profile.test.js`) or starts with `$` (`node $S`, quoted or not), or by that argument
 // itself when it is an inline-source flag (`node -e`, `python3 -c`, `node -`); an argument that is
 // neither — `run` in `bun run test` — falls back to the plain-word rule instead.
-// ponytail: still a line-based scanner, not a shell parser — a backtick substitution, a nested
+// simplicity: still a line-based scanner, not a shell parser — a backtick substitution, a nested
 // `$(...)` inside another, or a keyword mid-statement (`x() { …; }`) can still misgroup; parse properly if a real command still groups wrong.
 function commandKeys(command) {
   const keys = new Set();
@@ -642,7 +642,7 @@ function times(seg, ev) {
   const byName = {};
   for (const h of ev.hookBreakdown.filter((h) => h.t >= start && h.t < end)) byName[h.name] = (byName[h.name] || 0) + h.ms;
   const sum = (xs) => xs.reduce((n, h) => n + h.ms, 0);
-  // ponytail: a hook's recorded duration is taken out of the time around it, capped so the split
+  // simplicity: a hook's recorded duration is taken out of the time around it, capped so the split
   // still sums to wall-clock time; a hook fired inside a subagent stays subagent time.
   const toolHook = Math.min(sum(hooks.filter((h) => h.tool)), toolRaw);
   const rest = wall - human - subagent - idle - toolRaw;

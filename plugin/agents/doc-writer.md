@@ -47,7 +47,7 @@ explore directly" (then map the repo yourself with `Glob`/`Grep`/`Read`, economi
   you lean on it: mine an accurate one for facts, and treat a bad one as a source of *questions to verify
   against the code*, not text to carry forward. Never preserve a passage because it was already there.
 
-`shortcut:` one writer's context bounds how large a repo this seeds in one pass; the upgrade path is
+`simplicity:` one writer's context bounds how large a repo this seeds in one pass; the upgrade path is
 per-subtree writers, not built now.
 
 ## The pass itself

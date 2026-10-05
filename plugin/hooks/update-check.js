@@ -11,7 +11,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const https = require('node:https');
 
-// shortcut: overridable via env so tests/update-check.test.js's "spawned still runs main()" fixture
+// simplicity: overridable via env so tests/update-check.test.js's "spawned still runs main()" fixture
 // can point this at a loopback port instead of the real network — `bun run test` stays fully offline.
 const REMOTE =
   process.env.SUPERDEV_UPDATE_CHECK_REMOTE ||

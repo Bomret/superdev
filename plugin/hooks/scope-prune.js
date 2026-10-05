@@ -24,7 +24,7 @@
 // the stage gate is the second, independent signal (ADR 0013, ADR 0045, ADR 0106). A run root an older
 // version left at `shipped` has both scopetree and slicetrees already gone, yet stays unreaped until an
 // operator runs `/superdev:wrap-up` on it and moves the stage to `closed`.
-// ponytail: TTL is one flat value for every scope; a per-scope override would need its own config
+// simplicity: TTL is one flat value for every scope; a per-scope override would need its own config
 // knob — add one if varying retention actually comes up, but YAGNI for now.
 // Best-effort and silent: any git error, or no .superdev/scopes/ → no-op.
 

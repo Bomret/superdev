@@ -5,7 +5,7 @@
 // When a bash command tries to create/enter a scopetree (.superdev/scopes/<scope>/scopetree),
 // check if a fresh .superdev/scopes/<scope>/run.lock exists. If so, another session is live on
 // this scope — block. If the lock is stale or absent, allow (crash resume or new run).
-// ponytail: mtime staleness threshold is 1 hour; if long-running runs exceed this,
+// simplicity: mtime staleness threshold is 1 hour; if long-running runs exceed this,
 // add a heartbeat refresh loop inside the controller's run (or parameterize the
 // threshold), but YAGNI for now.
 

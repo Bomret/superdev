@@ -352,7 +352,7 @@ function scanStoreSectionContract(root, heading) {
 // A flag's kind decides the file value it accepts: a path flag reads the file it names ("$f"), an `@`
 // flag reads a file only behind `@` (@"$f"), and a literal flag sends its value as-is, so only a
 // "$(cat "$f")" substitution reads a file through it (and through an `@` flag too).
-// ponytail: a shape parse, not a shell parser — a value-taking short flag at the end of a cluster
+// simplicity: a shape parse, not a shell parser — a value-taking short flag at the end of a cluster
 // (`-sd@-`) is not read; parse shell words if a store document ever needs that spelling. Tea global
 // flags before the subcommand are missed (e.g., `tea --login cb api ... --field body=@"$f"`); add
 // per-store global flag bounds when needed.
@@ -892,7 +892,7 @@ const scanAgentLensNoDesignSmell = (root) =>
 // `.js` — catches all of them, and a path-shape predicate still won't misreport a row whose first element
 // is a heading rather than a path.
 //
-// ponytail: shape-based, and its ceiling is the extension whitelist and the two container shapes it
+// simplicity: shape-based, and its ceiling is the extension whitelist and the two container shapes it
 // recurses (arrays, plain objects). A future table that pins a path with no `.md`/`.json`/`.js`
 // extension, as an object key instead of a value, or inside a `Map`, goes uncollected — silently,
 // since `scanPinnedPaths` only ever reports a path it found. Measured clean against every table this
@@ -1304,7 +1304,7 @@ function walkFiles(dir) {
 // The window is a small sliding join of consecutive lines rather than the whole normalized document,
 // both so a `never` near the target reliably sits inside the same window and so the reported line is
 // close to where the instruction actually starts.
-// ponytail: the window is 4 lines / 150 chars, a heuristic proximity bound, not a parser — an
+// simplicity: the window is 4 lines / 150 chars, a heuristic proximity bound, not a parser — an
 // instruction split across 5 or more lines is missed. Widen BASE_BRANCH_COMMIT_WINDOW (and the 150-char
 // bound below, in step) if that shape turns up for real.
 const NEVER_NEGATION_WINDOW = 20;

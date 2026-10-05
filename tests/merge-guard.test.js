@@ -106,7 +106,7 @@ assert.equal(decide(sub('git -C $(dirname $(dirname $(pwd)))/wt status')).block,
 assert.equal(decide(sub('echo $(dirname $(dirname $(pwd))) && git merge-base a b')).block, false, 'a substitution outside a git option value never blocks');
 assert.equal(decide(sub('git -C $(dirname $(pwd))/wt log -1')).block, false, 'a closed one-level value never blocks');
 // a merge/push word inside a substitution used as an option value is part of that value, not git's subcommand
-// (a subshell running git stays a documented bypass, see merge-guard.js's ponytail comment)
+// (a subshell running git stays a documented bypass, see merge-guard.js's `simplicity:` comment)
 for (const cmd of ['git -C $(echo merge) x', 'git -C $(git push o) log']) {
   assert.equal(decide(sub(cmd)).block, false, `${cmd}: a verb inside an option value is not the subcommand`);
 }

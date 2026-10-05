@@ -10,9 +10,9 @@
 // images, bold, italics, strikethrough, and inline code; emphasis wraps a whole link. A link or image
 // destination is http, https, mailto or scheme-less; any other scheme leaves the link text alone. Raw HTML is escaped, never passed through,
 // so the output stays well-formed XML whatever the markdown holds. Void elements are self-closed.
-// ponytail: line-based subset, not CommonMark — setext headings, indented code blocks, reference
+// simplicity: line-based subset, not CommonMark — setext headings, indented code blocks, reference
 // links and HTML blocks render as plain paragraphs. Add a case when a staged page needs one.
-// ponytail: emphasis matching backtracks on a paragraph of unclosed markers (~1.5 s at 32 KB of `**a `).
+// simplicity: emphasis matching backtracks on a paragraph of unclosed markers (~1.5 s at 32 KB of `**a `).
 // Staged pages are far smaller; cap the paragraph length or scan linearly if one ever is not.
 
 const FENCE = /^ {0,3}(`{3,}|~{3,})/;

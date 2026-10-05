@@ -66,7 +66,7 @@ function bashWritesLedger(cmd) {
   }
   return false;
 }
-// ponytail: same ceiling as merge-guard — honest/common forms only. A `cd` into the scopes
+// simplicity: same ceiling as merge-guard — honest/common forms only. A `cd` into the scopes
 // dir followed by a bare `> ledger.md`, an interpreter wrapper (`bash -c "…"`), or a `cp`/`mv`/
 // `install` invoked through a variable or a wrapper script, slips past; this is a guardrail
 // against the model's normal output, not a sandbox.

@@ -2018,7 +2018,7 @@ both owe the citation, as **Scope anchor** and **Anchor dependency** do for `Sco
 naming only a non-member heading, such as `` `## Untriaged item` ``, owes nothing. A heading reference or
 a citation inside a fenced example neither triggers the check nor satisfies it. The trigger is the
 backticked heading alone: an entry that defers in unbackticked prose passes silently. The
-`ponytail:` note beside `glossaryHeadingReference` in `drift/contracts.js` states that ceiling.
+`simplicity:` note beside `glossaryHeadingReference` in `drift/contracts.js` states that ceiling.
 
 The `backlog-survey` contract (ADR 0049) pins rows on `skills/backlog/SKILL.md`, the read-only
 survey that reports every open scope anchor, every triage record, and every stranded run root by the
@@ -2154,7 +2154,7 @@ Anything else is a gap: stdin (`-`, `@-`, `--input=-`), a command substitution, 
 `"description"` payload, a bare path on an `@` or literal flag, and an `@` on a literal flag, which each
 send the path text as the body. A short flag reads the same fused as spaced (`-d@-`, `-XPATCH`,
 `-sfXPUT`), and a field flag reads the same with its `body=` fused on (`-fbody=@-`, `-Fbody=@-`,
-`--field=body=@-`, `--raw-field=body="$(cat)"`). The scanner's `ponytail:` note names these ceilings. A
+`--field=body=@-`, `--raw-field=body="$(cat)"`). The scanner's `simplicity:` note names these ceilings. A
 value-taking short flag at the end of a cluster (`-sd@-`) is not read. A `tea` global flag before `api`
 (`tea --login cb api … --field body=@"$f"`) hides the `tea api` call, so its `--field` reads as gh's `@`
 flag. The scan covers the fence-masked prose plus every fence tagged `sh`, `bash`, `shell`,
@@ -2749,7 +2749,7 @@ fall back to a token"), so the patterns match the shape of a use, not the words:
 the header's `Authorization:` with its colon, and `curl` as a command or followed by a flag, a URL, a
 quote, or a `$`. Fenced blocks are scanned too, because a curl example lives in one. Its ceiling is those
 three shapes: a token in another variable name, a header built from `Bearer` text alone, another HTTP
-client, or a `curl` followed by a bare word walks past silently. The `ponytail:` note beside
+client, or a `curl` followed by a bare word walks past silently. The `simplicity:` note beside
 `TEA_ONLY_MARKERS` in `drift/contracts.js` states it.
 
 The `code-management-head-branch-lookup` contract (#685, INV-0092) is a second presence table over the
@@ -2917,7 +2917,7 @@ worked example: it goes from ship straight to wrap-up, nothing being left to ver
   English catches the phrasings it names and not every paraphrase, and on an absence check — the document
   must *not* say X — a missed paraphrase is a **silent pass**: the check reads the reworded instruction as
   gone and stays green while it is still there. Write the ceiling down next to the patterns for one of
-  these — a `ponytail:` comment naming it is the house idiom — or every reviewer who finds one more
+  these — a `simplicity:` comment naming it is the house idiom — or every reviewer who finds one more
   evadable phrasing reports a defect, and the guard grows by discovery instead of by decision. The
   convention governs these checks of this shape, and each carries its note: `doc-steps-no-suite`,
   `forcing-branch-flag`, `kb-no-backend-call`, `no-second-reader`, `return-to-controller`,

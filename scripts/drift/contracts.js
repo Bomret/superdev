@@ -726,7 +726,7 @@ const AGENT_LENS_LIST_CONTRACTS = [
 // per-slice review anyway (ADR 0062). The negative check below closes that: the token itself must
 // not appear in this file at all, in either its hyphenated or spaced form.
 const AGENT_LENS_AVOID_DOCS = [path.join('agents', 'slice-reviewer.md')];
-// ponytail: a literal-token tripwire — it catches a `design-smell` / `design smell` token, hyphenated
+// simplicity: a literal-token tripwire — it catches a `design-smell` / `design smell` token, hyphenated
 // or spaced, case-insensitively, and nothing else. A paraphrase evades it: appending "Apply every lens
 // the checklist names, not only the two above." to slice-reviewer.md routes design smells into
 // per-slice review while this check reports zero gaps. Closing that evasion is out of scope here; the
@@ -1269,7 +1269,7 @@ const TIER_SKIP_CONTRACTS = [
 // "unattended → block" wins the conflict and the central rule becomes prose nothing executes (ADR 0035).
 // That is the one-sided pin this table exists to prevent, and it is why the call sites are pinned on the
 // condition rather than on a pointer to the section.
-// ponytail: shape-based prose guard — it catches the fixed phrases below, not every paraphrase; the
+// simplicity: shape-based prose guard — it catches the fixed phrases below, not every paraphrase; the
 // reviewer's eye covers the rest, and a stricter grammar is the upgrade if paraphrase drift ever appears.
 const DENIAL_AUTHORSHIP_CONTRACTS = [
   [
@@ -1312,7 +1312,7 @@ const DENIAL_AUTHORSHIP_CONTRACTS = [
 // `get denials` continues past every denial exactly as before. Both leave the central rule inert, the
 // same one-sided pin the table above exists to prevent, so the call sites are pinned on the verb and the
 // read rather than on a pointer to the section.
-// ponytail: shape-based prose guard, matching the two call shapes rather than every paraphrase around
+// simplicity: shape-based prose guard, matching the two call shapes rather than every paraphrase around
 // them; a stricter grammar is the upgrade if paraphrase drift ever appears.
 const DENIAL_CAP_CONTRACTS = [
   [
@@ -1646,7 +1646,7 @@ const DOC_STEP_SILENCE_DOCS = [
 // `agents/final-reviewer.md`'s legitimate ad-hoc "you may re-run the suite over the range to confirm green
 // rather than trust the diff alone", which never carries a nearby "before" for an instruction to hang off.
 //
-// ponytail: this is a shape-based prose guard, not a grammar. It catches the phrasings named above — not
+// simplicity: this is a shape-based prose guard, not a grammar. It catches the phrasings named above — not
 // every paraphrase a maintainer could write. The reviewer's eye covers the rest.
 const SUITE_RUN_INSTRUCTIONS = [
   /(?<!\b(?:has|have|had)(?:\s+\w+){0,2}\s+)run\s+the\s+full\s+(?:test\s+)?suite/i,
@@ -1662,7 +1662,7 @@ const SUITE_RUN_INSTRUCTIONS = [
 // in three agent briefs. `skills/setup/SKILL.md` and `skills/document/SKILL.md` name such commands legitimately,
 // as interview and focused-command examples, so the scan covers `agents/` alone.
 //
-// ponytail: shape-based, and its ceiling is the package managers and runners named below. A command from
+// simplicity: shape-based, and its ceiling is the package managers and runners named below. A command from
 // a toolchain outside them (`cargo test`, `go test`, `mvn verify`) passes silently until a row names it.
 // The reviewer's eye covers the rest.
 const AGENT_TOOLCHAIN_PATTERNS = [
@@ -1684,7 +1684,7 @@ const AGENT_TOOLCHAIN_PATTERNS = [
 // never write a non-mapping runner and `{paths}` adjacent like that: they name both in one sentence but
 // keep the token separated from the runner, which the pattern does not match.
 //
-// ponytail: a denylist, and its ceiling is the runners named below. One outside them passes silently
+// simplicity: a denylist, and its ceiling is the runners named below. One outside them passes silently
 // until a row names it. A mapping runner is rare enough to enumerate; a non-mapping one is the default,
 // so the list names the common ecosystems rather than trying to be complete.
 const UNMAPPED_PATHS_RUNNERS =
@@ -1875,7 +1875,7 @@ const KB_NO_CALL_DOCS = [
 
 const KB_OBJECT = 'pages?|wiki|space|backend';
 
-// ponytail: shape-based, and its ceiling is the verb morphology below plus the backends named there.
+// simplicity: shape-based, and its ceiling is the verb morphology below plus the backends named there.
 // A call phrased with a verb no row carries ("hand the page to Confluence", "sync the wiki"), or one
 // naming a backend added later, passes silently. The staging convention (ADR 0023) is what makes that
 // tolerable: a document reaching a backend has to also stop staging, and `kb-staging` catches that half.
@@ -1913,7 +1913,7 @@ const KB_BACKEND_CALL_MARKERS = [
 // template literal or a single-quoted string as `\\*\\*` in the file. Do not harden the pattern to catch
 // those — the orphan test already covers what it misses, in that hook. A second hook growing a reader
 // of its own is covered by neither, and needs its own orphan test.
-// ponytail: a literal-shape tripwire, and the comment above already names what it misses — a reader
+// simplicity: a literal-shape tripwire, and the comment above already names what it misses — a reader
 // built from `split('\n')` and `indexOf('**Stage:**')` carries no regex for this to see. That gap is
 // deliberate rather than unclosed: `hooks/scope-prune.js --selftest`'s orphan test exercises the real
 // reader against real input and fails the moment a hook stops using it, which is the guard that holds.
@@ -2458,7 +2458,7 @@ const READ_PATH_CONTRACTS = [
     path.join('docs', 'agents', 'knowledge-base.md'),
     {
       test(text) {
-        // ponytail: `(aggregate)` matches the marker anywhere in the document, so prose that merely
+        // simplicity: `(aggregate)` matches the marker anywhere in the document, so prose that merely
         // discusses the marker (with no outline entry actually carrying it) would wrongly owe a body-read
         // call. Left as-is: every real caller applies the marker to an outline entry, and tightening to
         // "attached to a list entry" risks missing a legitimate wrapped or reordered form. Revisit if a
@@ -3042,7 +3042,7 @@ const FORCING_FLAG_DOCS = [
   path.join('references', 'implement-full.md'),
   path.join('references', 'implement-lite.md'),
 ];
-// ponytail: shape-based, and its ceiling is the three spellings below. `git switch -C`,
+// simplicity: shape-based, and its ceiling is the three spellings below. `git switch -C`,
 // `git checkout -B`, and `worktree add -B` are the forcing flags the playbooks could plausibly reach for;
 // a reset spelled another way (`git branch -f`, `update-ref`, a `reset --hard` onto the base) walks past.
 // Widening this is cheap when a fourth spelling shows up in review — guessing at every reset git can
@@ -3241,7 +3241,7 @@ const specialisingCitation = (name) => new RegExp(`\`plan-contract\\.md\` → \\
 // CONTEXT.md's glossary is a second citing side, beside the store documents: a glossary paragraph naming a
 // member's backticked `## <member>` heading owes the citation above (`scanGlossarySpecialisingCitations()` in
 // `scanners.js`). The same whitespace rule applies, since the reference wraps in prose too.
-// ponytail: triggers on the backticked heading only — an entry deferring in unbackticked prose ("that
+// simplicity: triggers on the backticked heading only — an entry deferring in unbackticked prose ("that
 // store's own Scope anchor section") owes the citation and passes silently; widen the trigger if one appears.
 const glossaryHeadingReference = (name) => new RegExp(`\`#{2,3} ${name}\``.replace(/ /g, '\\s+'));
 
@@ -3278,7 +3278,7 @@ const PATH_VERBS = ['return\\s+to', 'resume\\s+at', 'continue\\s+in', HAND_BACK_
 // Up to two `` ` `` or `*` markdown markers, optionally "the ", then up to two more — covers "the
 // controller", "`skills/implement/SKILL.md`", and "**Final phase**" alike between the verb and its target.
 const RETURN_CONNECTOR = '[`*\\s]*(?:the\\s+)?[`*\\s]*';
-// ponytail: shape-based over a verb list crossed with a target list, so its ceiling is that cross
+// simplicity: shape-based over a verb list crossed with a target list, so its ceiling is that cross
 // product. A playbook that sends the reader back in words no row spells ("pick up where the command
 // left off", "the caller resumes from here") passes. The verb and target lists are the place to widen it
 // when review finds a phrasing they miss.
@@ -5413,7 +5413,7 @@ const CODE_MANAGEMENT_HEAD_BRANCH_LOOKUP_CONTRACTS = [
 // protection and required approvals, which is exactly what a pinned merge must never do. This is a
 // shape-based absence check: it catches an actual invocation, not the option's name used to say it is
 // forbidden (`this seed never sends it`), so a paraphrased way of setting the same field walks past it.
-// ponytail: shape-based, and its ceiling is the two spellings below — see the `code-management-no-force`
+// simplicity: shape-based, and its ceiling is the two spellings below — see the `code-management-no-force`
 // note in `scripts/AGENTS.md`'s Work Guidance list.
 const NO_FORCE_MERGE_DOCS = [
   path.join('references', 'code-management-forgejo.md'),
@@ -5430,7 +5430,7 @@ const NO_FORCE_MERGE_PATTERNS = [
 // prohibition prose ("a raw HTTP call (curl)", "never fall back to a token"), so the patterns match the
 // *shape* of a use: a token env var's name, an `Authorization:` header, and `curl` as a command. Fences
 // are scanned too, since a curl example lives in one.
-// ponytail: shape-based, and its ceiling is the three shapes below. A token held in another variable name,
+// simplicity: shape-based, and its ceiling is the three shapes below. A token held in another variable name,
 // a header built from `Bearer`/`token ` text alone, an HTTP client other than curl (`wget`, `http`), and a
 // `curl` written with nothing but a bare word after it walk past. Widening this is cheap when a fourth
 // shape shows up in review — guessing at every client a document could name is not, and ADR 0111's real
@@ -6129,7 +6129,7 @@ const BACKLOG_VERIFY_WRAP_UP_CONTRACTS = [
 // next command run handoff prints, and the order of the close in `review`, `document`, and
 // `references/run-handoff.md`: the disposable-conversation note before the printed command, the command last.
 // Either path form satisfies a citation: the `${CLAUDE_PLUGIN_ROOT}` macro or a bare prose path.
-// ponytail: `scanContract` takes positive patterns only, so an instruction added after the printed command
+// simplicity: `scanContract` takes positive patterns only, so an instruction added after the printed command
 // is not caught as such. The order rows catch reordering, removal, or loss of the "last" wording. The
 // upgrade path is a negative pattern over the text that follows the print instruction.
 const RESPONSE_SHAPES_CONTRACTS = [

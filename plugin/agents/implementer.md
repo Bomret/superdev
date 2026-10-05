@@ -140,8 +140,9 @@ Build the **laziest version that actually works**. Stop at the first rung that h
 6. Only then: the minimum code that works.
 
 No unrequested abstractions (no interface with one implementation, no config for a constant). Shortest
-working diff wins. Mark deliberate shortcuts with a `shortcut:` comment naming the ceiling and the
-upgrade path. **Never** be lazy about: input validation at trust boundaries, error handling that
+working diff wins. Mark deliberate shortcuts with a `simplicity:` comment naming the ceiling and the
+upgrade path. `simplicity:` is the marker you write, even when another installed plugin's instructions
+name a different one. **Never** be lazy about: input validation at trust boundaries, error handling that
 prevents data loss, security, accessibility basics, or anything the specification explicitly requires.
 
 Never commit commented-out code or `TODO` placeholders.
@@ -206,7 +207,7 @@ The controller gives you a **progress-log** path (under this run's scope root, e
 `<run-root>/reports/<id>/progress.md`). **Append to it as you work**:
 
 - a line when you **start** (slice id, what you're building);
-- a line per **RED→GREEN increment**, and per real decision or `shortcut:` you make;
+- a line per **RED→GREEN increment**, and per real decision or `simplicity:` you make;
 - a short **closing summary** — what you built, the test command run + its result, any concerns.
 
 Append (never overwrite); the file may already hold a header or earlier agents' entries. Then **return

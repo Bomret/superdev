@@ -102,7 +102,7 @@ function isApiMerge(cmd) {
   }
   return false;
 }
-// ponytail: catches the honest/common forms only. A leading token with no separator before `git`
+// simplicity: catches the honest/common forms only. A leading token with no separator before `git`
 // (`env FOO=1 git push`, `time git push`, `sudo git push`), a subshell (`$(git push)`), or an
 // interpreter wrapper (`bash -c "git push"`) still slip past — the char before `git` isn't a line
 // start or a `;`/`&`/`|`/`\n`. This is a deterministic guardrail against the model's normal output,
