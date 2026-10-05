@@ -94,13 +94,14 @@ diff, no range, and no ledger, so the sections around this one that review a ran
    judging whether a criterion the intent implies already holds.
 2. **Then** open the DoD path.
 3. Return every derived criterion the DoD does not cover, each with a one-line reason and a lean
-   (**criterion** when the feature is incomplete without it, **non-goal** when it is a reasonable thing
-   to leave out). Add any DoD line you find ambiguous: a line two careful readers would verify
+   (**criterion** when the feature is incomplete without it, **fold** when a criterion already in the DoD
+   carries it once reworded, naming that criterion, **non-goal** when it is a reasonable thing to leave
+   out). Add any DoD line you find ambiguous: a line two careful readers would verify
    differently.
 
 Your answer is the derived list, the gaps, and the ambiguous lines. It writes no `### Issues`,
 `### Criteria`, `### Ceiling`, or `### Assessment` section. Your list is not a second Definition of Done:
-the operator settles each gap, and the plan writes what they choose.
+the plan's controller settles each gap, and the operator confirms the settlement.
 
 ## Read-only review
 

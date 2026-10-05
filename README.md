@@ -44,33 +44,38 @@ plan runs test-first, inline in the scopetree.
 ## What it does
 
 - **`/superdev:brainstorm`** *(optional)*. A divergent discovery conversation that shapes a vague idea
-  into a plan-ready intent. It explores candidate directions, finds the smallest end-to-end slice worth
-  building, and surfaces open questions and rejected directions. It writes its intent as the interview
-  runs, as a draft until the handoff, so a closed session loses nothing and a later session can resume or
-  delete the draft. The handoff marks the intent ready, and `/superdev:plan` then offers it and routes each
-  rejected direction to a durable home. `/superdev:plan` never offers a draft. Near read-only: it writes
-  nothing to the slice store.
+  into a plan-ready intent. It explores candidate directions and offers at most the two strongest that
+  survive a check against the repository. It finds the smallest end-to-end slice worth building, and
+  surfaces open questions and rejected directions. It writes its intent as the interview runs, as a draft
+  until the handoff, so a closed session loses nothing and a later session can resume or delete the
+  draft. The handoff marks the intent ready, and `/superdev:plan` then offers it and routes each rejected
+  direction to a durable home. `/superdev:plan` never offers a draft. Near read-only: it writes nothing
+  to the slice store.
 - **`/superdev:plan`**. A relentless interview pins the intent and a Definition of Done, and captures
-  ADRs and a glossary as decisions surface. Every alternative to its recommendation names what choosing
-  it saves, or, for an option in a fixed set a question requires by name, states why it doesn't fit. A
-  decision with only one defensible answer is stated with its reason instead of asked, and the closing
-  summary lists it for your confirmation. A defect the interview finds is always fixed: the command asks
-  only whether the fix goes into a planned slice, into its own slice, or into a triage record for later.
-  Before it slices, `final-reviewer` derives acceptance criteria from the intent alone and the command
-  diffs them against the drafted Definition of Done: each gap becomes a criterion or a named non-goal
-  (ADR 0099).
-  Every Definition of Done it writes carries a `Reachable:`
-  criterion naming the entrance a user reaches the feature through — or `none` and the reason, such as no
-  in-repo consumer or an unchanged entrance on a refactor — so a feature cannot be planned without
-  deciding what wires it into the running application. Before it decomposes, it offers a **design sketch**: a
-  throwaway HTML page you open in your browser, inventorying the components the plan intends to add,
-  change, or delete and how they interact. The command waits there, so a design you did not expect gets
-  corrected while no slice has been cut yet. It then decomposes the work into **independently-green
-  vertical tracer-bullet slices** with explicit `depends-on` dependencies, written to the configured
-  store. On an epic whose shape earns it, the command also draws a `## Slice graph` (the `depends-on`
-  DAG), a `## Touch map` (parallel-slice file collisions), or both. Both are markdown, both are advisory, and
-  [`references/plan-contract.md`](plugin/references/plan-contract.md) gates each one. The command also tells you
-  the execution tier `/superdev:implement` uses for the final slice count (see below).
+  ADRs and a glossary as decisions surface. Before it asks, it checks every option against the repository
+  or the official docs, shows that evidence, drops an option that fails, and offers at most two. Every
+  alternative to its recommendation names what choosing it saves, or, for an option in a fixed set a
+  question requires by name, states why it doesn't fit. A decision with only one defensible answer is
+  stated with its reason instead of asked, and the closing summary lists it for your confirmation. A
+  defect the interview finds is always fixed: the command asks only whether the fix goes into a planned
+  slice, into its own slice, or into a triage record for later. Before it slices, `final-reviewer`
+  derives acceptance criteria from the intent alone and the command diffs them against the drafted
+  Definition of Done. The command settles each gap itself, as a criterion, a fold into an existing
+  criterion, or a named non-goal, and shows the settlement as one proposal you confirm before slicing
+  (ADR 0099, ADR 0122).
+  Every Definition of Done it writes
+  carries a `Reachable:` criterion naming the entrance a user reaches the feature through — or `none` and
+  the reason, such as no in-repo consumer or an unchanged entrance on a refactor — so a feature cannot be
+  planned without deciding what wires it into the running application. Before it decomposes, it offers a
+  **design sketch**: a throwaway HTML page you open in your browser, inventorying the components the plan
+  intends to add, change, or delete and how they interact. The command waits there, so a design you did
+  not expect gets corrected while no slice has been cut yet. It then decomposes the work into
+  **independently-green vertical tracer-bullet slices** with explicit `depends-on` dependencies, written
+  to the configured store. On an epic whose shape earns it, the command also draws a `## Slice graph`
+  (the `depends-on` DAG), a `## Touch map` (parallel-slice file collisions), or both. Both are markdown,
+  both are advisory, and [`references/plan-contract.md`](plugin/references/plan-contract.md) gates each
+  one. The command also tells you the execution tier `/superdev:implement` uses for the final slice count
+  (see below).
 
   Run it again against a feature that already has slices, and it **appends**. New slices land on top of
   the ones already merged, and the command never edits, renumbers, or re-litigates any of them. An

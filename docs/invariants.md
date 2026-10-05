@@ -1022,3 +1022,21 @@ Statement: `/superdev:ship`'s post-merge hand-off, `/superdev:verify-ship`'s end
 Breaks: silently
 Check: scripts/drift-check.js — ship's, verify-ship's, and wrap-up's citations of the scope-mode.md section, and ship's and verify-ship's above-zero condition on the publish-kb line; partial: nothing checks the text an agent prints
 Paths: plugin/skills/ship/SKILL.md, plugin/skills/verify-ship/SKILL.md, plugin/skills/wrap-up/SKILL.md, plugin/references/scope-mode.md
+
+### INV-0126
+
+Class: process
+Concepts: Intent
+Statement: In an attended `/superdev:plan` or `/superdev:brainstorm` interview, no question the agent composes offers an option whose load-bearing claims went unchecked. Each claim is checked against the repository or the third party's official docs before the question is asked, or is labeled as an assumption, and the evidence and every dropped option are shown in prose before the question (ADR 0122).
+Breaks: silently
+Check: scripts/drift-check.js — the vet-then-offer clause in `plugin/references/cross-exam.md`; partial: nothing checks that a cited line says what the agent claims, or that an asked question was vetted
+Paths: plugin/references/cross-exam.md, plugin/skills/brainstorm/SKILL.md, plugin/skills/plan/SKILL.md
+
+### INV-0127
+
+Class: process
+Concepts: Intent, Derived criteria
+Statement: A question the agent composes in a `/superdev:plan` or `/superdev:brainstorm` interview offers at most two options. A single surviving option is stated in one line with its reason and is not asked, and no surviving option means no question. Brainstorm offers at most two directions, never every direction it explored, and plan's derive pass states its gap settlement as one proposal the operator confirms before slicing. A question a skill requires by name keeps its fixed option set (ADR 0122).
+Breaks: silently
+Check: scripts/drift-check.js — the cap in `plugin/references/cross-exam.md`, brainstorm's offer wording, and plan's derive-pass settlement; partial: nothing checks the options an agent actually offers
+Paths: plugin/references/cross-exam.md, plugin/skills/brainstorm/SKILL.md, plugin/skills/plan/SKILL.md

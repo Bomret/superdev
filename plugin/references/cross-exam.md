@@ -8,22 +8,36 @@ exhausted and you and the user share the same picture — **not** until you have
 
 - **One question at a time.** Multiple at once is bewildering. Ask, wait for the answer, then ask the
   next. Never batch.
-- **A recommended answer every time.** Never pose a bare open question — state your best answer and the
-  reasoning behind it, so the user reacts to a concrete position instead of generating one from nothing.
+- **A recommended answer every time.** Never pose a bare open question, except in the
+  no-survivor case of "Offer only live options" — state your best answer and the
+  reasoning behind it, so the user reacts to a concrete position instead of
+  generating one from nothing.
   "I'd do X because Y — agree?" beats "how should we do X?". **Whenever a question resolves to discrete
   options, ask it through `AskUserQuestion` — never list the options inline in prose.** Mark the lean
   option `(Recommended)` (the tool's own labeling convention), put the reasoning in that option's
   description, and never present a bare neutral list. Reserve prose for genuinely open questions that have
   no option set to offer. A genuine toss-up (two readings truly equal) → say so explicitly rather than
   fabricate a preference.
-- **Offer only live options.** Every option beside the recommended one states, in its description, what
-  choosing it saves — time, scope size, risk, reversibility, a human check. A question you compose drops
-  any option that can name no saving; when none survives, the decision has one defensible answer: state
-  it in one line with its reason ("fixing X in slice 2, because Y") and continue with the next question.
-  Stating it out loud is what keeps it surfaced, and the user can object in any later turn. A question a
-  skill requires by name — a release, new vs extend, a setup choice — keeps its fixed option set and is
-  asked every time regardless: an option in that set that can name no saving states why instead of being
-  dropped.
+- **Offer only live options.** Before you ask a question you compose, vet every option: check each
+  load-bearing claim it rests on — a claim about the repository by reading the repository, a claim about
+  a third party against its official docs (`references/doc-verification.md` owns what makes a claim
+  load-bearing and how to check it). Drop an option a check fails, and name it with the reason it failed.
+  A claim you cannot check keeps its option, labeled as an assumption. Then every option beside the
+  recommended one states, in its description, what choosing it saves — time, scope size, risk, reversibility, a
+  human check — and an option that can name no saving is dropped too. In a toss-up, with no recommended option,
+  each option states what it saves over the other. **Show the vetting before the question.** A short prose
+  paragraph ahead of the `AskUserQuestion` call cites the evidence for each load-bearing claim (`file:line`, or
+  a doc URL), carries every assumption label, and names every dropped option with its reason, so the option
+  descriptions stay short. **Offer at most two options.**
+  Exactly one survivor → the decision has one defensible answer: state it in one line with its reason
+  ("fixing X in slice 2, because Y") and continue with the next question. Stating it out loud is what
+  keeps it surfaced, and the user can object in any later turn. No survivor → ask no option question:
+  name each failed option with its reason, and put the decision to the user as an open question. A fact
+  that could not have been checked before the question still reopens an answer; name the fact when it
+  does. A question a skill requires by name — a release, new vs extend, the feature to extend, the deploy
+  target, where a found defect goes, a brainstorm draft choice, a setup choice — keeps its fixed option
+  set, outside the two-option cap, and is asked every time regardless: an option in that set that can
+  name no saving states why instead of being dropped.
 - **Walk the design tree, branch by branch.** Resolve dependencies between decisions one by one: a
   decision that constrains others is asked first; never ask a downstream question whose answer a still-open
   upstream decision would change. Finish a branch before starting the next. **Recompute the open frontier
@@ -37,7 +51,8 @@ exhausted and you and the user share the same picture — **not** until you have
 - **Find facts concurrently.** Facts are your job, never the user's. When a frontier question needs a
   fact from the environment that takes real digging, dispatch a background sub-agent to find it and keep
   interviewing — a running exploration is an unsettled prerequisite, so only the questions downstream of
-  it wait for the report; ask the rest of the frontier now.
+  it wait for the report; ask the rest of the frontier now. A question is downstream of an exploration
+  whenever any of its options rests on a claim that exploration would check.
 - **Surface, never smuggle.** State assumptions out loud. Two readings of an answer → present both, don't
   silently pick one. A simpler path than the user's framing → say so. Something unclear → stop and name the
   confusing thing.

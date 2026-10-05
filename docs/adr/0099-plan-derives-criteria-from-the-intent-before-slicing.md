@@ -2,6 +2,10 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0122](0122-interview-options-are-vetted-before-they-are-offered.md), which has the
+controller settle each gap itself and state the settlement as one proposal, in place of the multi-select
+question.
+
 **Context.** `final-reviewer` derives acceptance criteria from the intent alone, before it reads the
 Definition of Done, and reports every criterion the DoD left out (ADR 0020). That derivation runs only at
 review, after the scope is built. `/superdev:review` defers every criterion missing from `dod.md` to a

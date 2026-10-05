@@ -54,6 +54,7 @@ const {
   INVARIANT_COMPLIANCE_CONTRACTS,
   CRITERION_TAG_CONTRACTS,
   COMMITMENT_CAPTURE_CONTRACTS,
+  VETTED_OPTIONS_CONTRACTS,
   SHIP_TICKS_NOTHING_CONTRACTS,
   WRAP_UP_CONTRACTS,
   DOC_UNTICK_ON_BREAK_CONTRACTS,
@@ -5333,6 +5334,14 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'the shipped documents satisfy every derive-pass row',
   );
   assertEachRowFailsAlone(pdReal, PLAN_DERIVES_CRITERIA_CONTRACTS);
+  const pdPlan = pdReal['skills/plan/SKILL.md'];
+  const pdNoFoldPlan = pdPlan.replace(/; a fold into a criterion\s+already there/, '');
+  assert.notEqual(pdNoFoldPlan, pdPlan, 'the fold clause is in the real plan skill');
+  assert.equal(
+    scanContract(fixture({ ...pdReal, 'skills/plan/SKILL.md': pdNoFoldPlan }), PLAN_DERIVES_CRITERIA_CONTRACTS).length,
+    1,
+    'flags the settle-the-gaps bullet for losing the fold clause',
+  );
 
   // --- FIX_LOOP_FIXES_EVERY_FINDING_CONTRACTS (ADR 0098, INV-0094): one row per rule across review's §4,
   // implement's Invariants, implement-full.md's step 3, and the implementer agent. The shipped documents are the negative; for each
@@ -5769,4 +5778,198 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       `dropping the ${label} bullet's --unattended sentence fails its own row`,
     );
   }
+
+  // --- VETTED_OPTIONS_CONTRACTS (ADR 0122, INV-0126, INV-0127): cross-exam.md vets every option before a
+  // composed question and caps it at two; brainstorm offers only vetted survivors and none of its old
+  // offer-everything wording. Each clause is removed apart, and each retired phrase is restored apart. ---
+  const voVet =
+    'Before you ask a question you compose, vet every option: check each load-bearing claim it rests on ' +
+    '(`references/doc-verification.md` owns what makes a claim load-bearing). Drop an option a check fails, ' +
+    'and name it with the reason it failed. A claim you cannot check keeps its option, labeled as an assumption.\n';
+  const voSaves = 'Every option beside the recommended one states, in its description, what\nchoosing it saves.\n';
+  const voShow =
+    '**Show the vetting before the question.** A short prose paragraph cites the evidence for each claim ' +
+    '(`file:line`, or a doc URL), carries every assumption label, and names every dropped option with its ' +
+    'reason, so the option descriptions stay short.\n';
+  const voCap =
+    '**Offer at most two options.** Exactly one survivor → state it in one line with its reason.\n';
+  const voNone = 'No survivor → ask no option question: put the decision to the user as an open question.\n';
+  const voFixed = 'A question a skill requires by name keeps its fixed option set, outside the two-option cap.\n';
+  const voWait =
+    'A question is downstream of an exploration whenever any of its options rests on a claim that\n' +
+    'exploration would check.\n';
+  const voBsExplore =
+    'Explore **2–4 candidate directions or shapes** for the problem, and vet each against the repo before you show any.\n';
+  const voBsOpen =
+    'then offer only what survives cross-exam.md\'s vetting, at most two options, with a recommended answer.\n';
+  const voBsTwo =
+    'Offer at most the two strongest survivors, marking a recommendation; two equally strong survivors are a toss-up.\n';
+  const voCross = [voVet, voSaves, voShow, voCap, voNone, voFixed, voWait];
+  const voPlan =
+    '**Settle the gaps, then propose.** State the whole settlement as one proposal in prose. The operator ' +
+    'gives explicit confirmation of it before §3 decomposes.\n';
+  const voDerive =
+    "Your list is not a second Definition of Done:\nthe plan's controller settles each gap, and the operator confirms the settlement.\n" +
+    'Return each gap with a lean (**criterion** when the feature is incomplete, **fold** when a criterion already in the DoD carries it once reworded).\n';
+  const voFiles = (cross, brainstorm, plan = voPlan) => ({
+    'agents/final-reviewer.md': voDerive,
+    'references/cross-exam.md': cross.join(''),
+    'skills/brainstorm/SKILL.md': brainstorm.join(''),
+    'skills/plan/SKILL.md': plan,
+  });
+  assert.equal(
+    scanContract(fixture(voFiles(voCross, [voBsExplore, voBsOpen, voBsTwo])), VETTED_OPTIONS_CONTRACTS).length,
+    0,
+    'every vetted-options clause present yields zero gaps',
+  );
+  for (const [label, clause] of [
+    ['vet', voVet],
+    ['saves-something', voSaves],
+    ['show-before-asking', voShow],
+    ['cap', voCap],
+    ['zero-survivor', voNone],
+    ['fixed-set', voFixed],
+    ['wait', voWait],
+  ]) {
+    const gaps = scanContract(
+      fixture(voFiles(voCross.filter((c) => c !== clause), [voBsExplore, voBsOpen, voBsTwo])),
+      VETTED_OPTIONS_CONTRACTS,
+    );
+    assert.equal(gaps.length, 1, `flags cross-exam.md once it drops the ${label} clause`);
+    assert.equal(gaps[0].source, path.join('references', 'cross-exam.md'), `the ${label} gap names cross-exam.md`);
+  }
+  for (const [label, kept] of [
+    ['vetted-survivors', [voBsExplore, voBsTwo]],
+    ['two-strongest', [voBsExplore, voBsOpen]],
+    ['explore-vet', [voBsOpen, voBsTwo]],
+  ]) {
+    const gaps = scanContract(fixture(voFiles(voCross, kept)), VETTED_OPTIONS_CONTRACTS);
+    assert.equal(gaps.length, 1, `flags brainstorm once it drops the ${label} clause`);
+    assert.equal(gaps[0].source, path.join('skills', 'brainstorm', 'SKILL.md'), `the ${label} gap names brainstorm`);
+  }
+  {
+    const gaps = scanContract(
+      fixture({ ...voFiles(voCross, [voBsExplore, voBsOpen, voBsTwo]), 'agents/final-reviewer.md': voDerive.split('\n').slice(2).join('\n') }),
+      VETTED_OPTIONS_CONTRACTS,
+    );
+    assert.equal(gaps.length, 1, 'flags final-reviewer once it drops the settles-each-gap clause');
+  }
+  {
+    const wrapped = "the plan's controller\nsettles each gap, and the\noperator confirms the settlement.\n" + voDerive.split('\n').slice(2).join('\n');
+    const gaps = scanContract(
+      fixture({ ...voFiles(voCross, [voBsExplore, voBsOpen, voBsTwo]), 'agents/final-reviewer.md': wrapped }),
+      VETTED_OPTIONS_CONTRACTS,
+    );
+    assert.equal(gaps.length, 0, 'a hard-wrapped settles-each-gap sentence still matches');
+  }
+  {
+    const dropped = voDerive.replace('**fold** when a criterion already in the DoD carries it', 'fold');
+    const gaps = scanContract(
+      fixture({ ...voFiles(voCross, [voBsExplore, voBsOpen, voBsTwo]), 'agents/final-reviewer.md': dropped }),
+      VETTED_OPTIONS_CONTRACTS,
+    );
+    assert.equal(gaps.length, 1, 'flags final-reviewer once it drops the fold lean');
+  }
+  {
+    const wrapped = voDerive.replace('**fold** when a', '**fold**\nwhen a');
+    const gaps = scanContract(
+      fixture({ ...voFiles(voCross, [voBsExplore, voBsOpen, voBsTwo]), 'agents/final-reviewer.md': wrapped }),
+      VETTED_OPTIONS_CONTRACTS,
+    );
+    assert.equal(gaps.length, 0, 'a hard-wrapped fold lean still matches');
+  }
+  // positive: each retired brainstorm phrase restored, hard-wrapped mid-phrase, is still caught.
+  for (const [label, phrase] of [
+    ['neutral-options', 'offer options rather than a\nsingle recommended answer'],
+    ['offer-2–4', 'Propose **2–4 candidate\ndirections or shapes**'],
+    ['offer-2–4-unbolded', 'Propose 2–4 candidate\ndirections or shapes'],
+    ['offer-2-4-hyphen', 'Propose 2-4 candidate\ndirections or shapes'],
+    ['offer-two-to-four', 'Propose two to four candidate\ndirections or shapes'],
+    ['react-to-each', "Get the user's reaction to each\nbefore narrowing."],
+  ]) {
+    const gaps = scanContract(
+      fixture(voFiles(voCross, [voBsExplore, voBsOpen, voBsTwo, phrase + '\n'])),
+      VETTED_OPTIONS_CONTRACTS,
+    );
+    assert.equal(gaps.length, 1, `flags brainstorm once its ${label} wording is restored`);
+    assert.equal(gaps[0].source, path.join('skills', 'brainstorm', 'SKILL.md'), `the ${label} gap names brainstorm`);
+  }
+  // positive: plan's derive pass goes back to a multi-select question, hard-wrapped, and hands the sorting
+  // of gaps to the operator again.
+  const voMulti = scanContract(
+    fixture(voFiles(voCross, [voBsExplore, voBsOpen, voBsTwo], voPlan + 'Present the gaps in **one multi-select\nquestion**.\n')),
+    VETTED_OPTIONS_CONTRACTS,
+  );
+  assert.equal(voMulti.length, 1, "flags plan once its derive pass asks one multi-select question again");
+  assert.equal(voMulti[0].source, path.join('skills', 'plan', 'SKILL.md'), 'the multi-select gap names plan');
+  // positive: a multi-select question with any article inside the Settle-the-gaps bullet is caught; the same
+  // words elsewhere in the file are not.
+  for (const phrase of ['a multi-select\nquestion', 'a single multi-select question']) {
+    const gaps = scanContract(
+      fixture(voFiles(voCross, [voBsExplore, voBsOpen, voBsTwo], voPlan + `Ask ${phrase} of gaps.\n`)),
+      VETTED_OPTIONS_CONTRACTS,
+    );
+    assert.equal(gaps.length, 1, `flags plan once its bullet asks ${JSON.stringify(phrase)}`);
+  }
+  assert.equal(
+    scanContract(
+      fixture(voFiles(voCross, [voBsExplore, voBsOpen, voBsTwo], 'Ask one multi-select question of x.\n' + voPlan)),
+      VETTED_OPTIONS_CONTRACTS,
+    ).length,
+    0,
+    'a multi-select question outside the Settle-the-gaps bullet is no gap',
+  );
+  // positive: a gap settled as detail held for a slice, hard-wrapped, is caught (INV-0096).
+  const voSliceDetail = scanContract(
+    fixture(voFiles(voCross, [voBsExplore, voBsOpen, voBsTwo], voPlan + 'A gap as detail held\nfor a slice\'s `spec`.\n')),
+    VETTED_OPTIONS_CONTRACTS,
+  );
+  assert.equal(voSliceDetail.length, 1, 'flags plan once a gap may end as detail held for a slice');
+  assert.equal(voSliceDetail[0].source, path.join('skills', 'plan', 'SKILL.md'), 'the slice-detail gap names plan');
+  // positive: the bullet may grow past any fixed span; a restored phrase after long filler, hard-wrapped or
+  // not, is still inside the bullet and still caught.
+  const voFiller = 'filler words that pad the bullet.\n'.repeat(60);
+  for (const [label, phrase] of [
+    ['multi-select', 'Ask a multi-select\nquestion of the gaps.\n'],
+    ['slice-detail', 'A gap as detail held\nfor a slice.\n'],
+  ]) {
+    assert.equal(
+      scanContract(
+        fixture(voFiles(voCross, [voBsExplore, voBsOpen, voBsTwo], voPlan + voFiller + phrase)),
+        VETTED_OPTIONS_CONTRACTS,
+      ).length,
+      1,
+      `flags a ${label} phrase after a long run of bullet text`,
+    );
+    assert.equal(
+      scanContract(
+        fixture(voFiles(voCross, [voBsExplore, voBsOpen, voBsTwo], voPlan + voFiller + '- **Next item.** ' + phrase)),
+        VETTED_OPTIONS_CONTRACTS,
+      ).length,
+      0,
+      `a ${label} phrase in the next list item is no gap`,
+    );
+  }
+  // positive: §2's exploration sentence reworded to offer every direction loses its vet-before-showing clause.
+  const voOffer = scanContract(
+    fixture(
+      voFiles(voCross, [
+        'Offer **2–4 candidate directions or shapes** for the problem, and vet each against the repo before you show any.\n',
+        voBsOpen,
+        voBsTwo,
+      ]),
+    ),
+    VETTED_OPTIONS_CONTRACTS,
+  );
+  assert.equal(voOffer.length, 1, 'flags brainstorm once §2 offers every direction in place of exploring them');
+  assert.equal(voOffer[0].source, path.join('skills', 'brainstorm', 'SKILL.md'), 'the offer-reword gap names brainstorm');
+  // positive: plan's derive pass drops the operator-confirmation clause.
+  const voNoConfirm = scanContract(
+    fixture(
+      voFiles(voCross, [voBsExplore, voBsOpen, voBsTwo], '**Settle the gaps, then propose.** State the whole settlement as one proposal in prose.\n'),
+    ),
+    VETTED_OPTIONS_CONTRACTS,
+  );
+  assert.equal(voNoConfirm.length, 1, 'flags plan once its settlement drops the confirmation clause');
+  assert.equal(voNoConfirm[0].source, path.join('skills', 'plan', 'SKILL.md'), 'the confirmation gap names plan');
 };

@@ -166,6 +166,7 @@ const {
   BACKLOG_SUBMITTED_CONTRACTS,
   BACKLOG_VERIFY_WRAP_UP_CONTRACTS,
   DEPLOY_STEP_VISIBILITY_CONTRACTS,
+  VETTED_OPTIONS_CONTRACTS,
 } = require('./contracts');
 
 // The printer the table-driven checks share. A gap is `{ source, expectation }` and reads the
@@ -248,7 +249,7 @@ module.exports = [
     'plan-derives-criteria',
     PLAN_DERIVES_CRITERIA_CONTRACTS,
     "plan/SKILL.md §1 dispatches final-reviewer in derive mode for every plan, with an explicit model, the " +
-      'intent as text and the drafted DoD by path, settles every gap before §3, in one multi-select question when they fit, ' +
+      'intent as text and the drafted DoD by path, settles every gap itself before §3 and states the settlement as one proposal, ' +
       "and derives inline when denied; final-reviewer.md's derive mode returns the uncovered criteria with a " +
       'reason and a lean and writes no review sections',
   ),
@@ -804,6 +805,15 @@ module.exports = [
       'and both halves of the draft-intent contract hold: brainstorm writes a draft, keeps it current, ' +
       'marks it ready, and offers drafts at its start, while plan skips a draft, refuses one named as ' +
       "its argument, and treats only `status: draft` as a draft",
+  ),
+  table(
+    'vetted-options',
+    VETTED_OPTIONS_CONTRACTS,
+    'cross-exam.md still vets every option before a composed question, shows the evidence first, caps a ' +
+      'composed question at two options, states a lone survivor, puts a no-survivor decision as an open ' +
+      'question, and waits for a dependent exploration, and brainstorm still offers only vetted survivors ' +
+      'with a recommendation, and plan settles its derive-pass gaps without a multi-select question or ' +
+      'detail held for a slice',
   ),
   table(
     'criterion-states-a-requirement',

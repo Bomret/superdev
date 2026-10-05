@@ -402,9 +402,10 @@ const DERIVED_CRITERIA_CONTRACTS = [
 // ADR 0099, INV-0096: `/superdev:plan` derives criteria from the intent before it slices. Two halves,
 // because a contract in an agent body also has to hold in the dispatch prose that reaches it: plan's §1
 // dispatches `final-reviewer` in derive mode (explicit model, the intent as text, the drafted DoD by path
-// from a file outside every run root), runs for every plan, settles every gap in one multi-select question
-// before §3, and derives inline when the dispatch is denied; `final-reviewer.md` carries the derive mode
-// the dispatch names, returning the uncovered criteria with a reason and a lean, and no review sections.
+// from a file outside every run root), runs for every plan, settles each gap itself and states one
+// proposal the operator confirms before §3, and derives inline when the dispatch is denied;
+// `final-reviewer.md` carries the derive mode the dispatch names, returning the uncovered criteria with a
+// reason and a lean, and no review sections.
 const PLAN_DERIVES_CRITERIA_CONTRACTS = [
   [
     path.join('skills', 'plan', 'SKILL.md'),
@@ -453,8 +454,8 @@ const PLAN_DERIVES_CRITERIA_CONTRACTS = [
   ],
   [
     path.join('skills', 'plan', 'SKILL.md'),
-    /gaps with their leans in \*\*one multi-select question\*\* when they fit[\s\S]{0,300}past the question tool's per-question option capacity[\s\S]{0,300}criterion-leaning gaps first[\s\S]{0,300}until every gap is settled[\s\S]{0,500}named non-goal in the epic[\s\S]{0,200}exclusion in the lone slice's `spec`/,
-    "present the gaps with their leans in one multi-select question when they fit, ask further questions and rounds past the question tool's per-question option capacity, criterion-leaning gaps first, until every gap is settled: a selected gap becomes a criterion, each other becomes a named epic non-goal, or an exclusion in the lone slice's `spec` on a single-slice plan",
+    /\*\*Settle the gaps, then propose\.\*\*[\s\S]{0,300}settle it yourself[\s\S]{0,300}Definition-of-Done criterion[\s\S]{0,200}fold into a criterion[\s\S]{0,300}named non-goal in the epic[\s\S]{0,200}exclusion in the lone slice's `spec`[\s\S]{0,200}one-line reason drawn from the repository[\s\S]{0,200}one proposal/,
+    "settle every gap itself against the repository — a criterion, a fold, a named epic non-goal, or an exclusion in the lone slice's `spec` on a single-slice plan — each with a one-line reason, and state the settlement as one proposal (ADR 0122, INV-0127)",
   ],
   [
     path.join('skills', 'plan', 'SKILL.md'),
@@ -6258,6 +6259,116 @@ const RESPONSE_SHAPES_CONTRACTS = [
   ],
 ];
 
+// ADR 0122, INV-0126, INV-0127: an interview question the agent composes offers only options it has
+// vetted. `references/cross-exam.md` carries the rule — check every load-bearing claim first, show the
+// evidence and the dropped options before the question, offer at most two, state a lone survivor, put a
+// no-survivor decision as an open question, and wait for an exploration the options depend on — and
+// `skills/brainstorm/SKILL.md` applies it instead of offering every direction it generated. Each clause
+// fails silently on its own: a vet clause with no cap lets the agent hand the operator a list again, and a
+// cap with no vet clause offers two unchecked options. The absence rows reject brainstorm's old
+// neutral-options, offer-2–4, and react-to-each wording, plus plan's multi-select question and its
+// detail-held-for-a-slice settlement. The two plan rows span the Settle-the-gaps bullet to its end, the next
+// top-level item or heading (`\s` also matches the space `normalizeWhitespace` leaves for a line break),
+// and are written whitespace-tolerant so a hard wrap cannot hide a restored phrase.
+const VETTED_OPTIONS_CONTRACTS = [
+  [
+    path.join('references', 'cross-exam.md'),
+    /Before you ask a question you compose, vet every option[\s\S]{0,400}load-bearing claim[\s\S]{0,400}doc-verification\.md[\s\S]{0,400}Drop an option a check fails[\s\S]{0,100}reason[\s\S]{0,300}labeled as an assumption/,
+    'check every load-bearing claim of every option before a composed question is asked, citing ' +
+      '`doc-verification.md`, drop an option a check fails with its reason, and label an uncheckable claim ' +
+      'as an assumption (ADR 0122, INV-0126)',
+  ],
+  [
+    path.join('references', 'cross-exam.md'),
+    /\*\*Show the vetting before the question\.\*\*[\s\S]{0,400}`file:line`[\s\S]{0,300}assumption label[\s\S]{0,300}dropped option[\s\S]{0,200}option descriptions stay short/,
+    'show the evidence, every assumption label, and every dropped option in prose before the question, ' +
+      'with the option descriptions kept short (ADR 0122, INV-0126)',
+  ],
+  [
+    path.join('references', 'cross-exam.md'),
+    /every option beside the recommended one states, in its description, what choosing it saves/i,
+    'keep the saves-something test: every option beside the recommended one states what choosing it saves',
+  ],
+  [
+    path.join('references', 'cross-exam.md'),
+    /\*\*Offer at most two options\.\*\*[\s\S]{0,200}Exactly one survivor[\s\S]{0,200}state it in one line with its reason/,
+    'cap a composed question at two options, and state a single survivor in one line with its reason ' +
+      '(ADR 0122, INV-0127)',
+  ],
+  [
+    path.join('references', 'cross-exam.md'),
+    /No survivor[\s\S]{0,40}ask no option question[\s\S]{0,200}open question/,
+    'ask no option question when no option survives, and put the decision as an open question (ADR 0122, INV-0127)',
+  ],
+  [
+    path.join('references', 'cross-exam.md'),
+    /keeps its fixed option set, outside the two-option cap/,
+    'keep a question a skill requires by name on its fixed option set, outside the two-option cap (ADR 0122)',
+  ],
+  [
+    path.join('references', 'cross-exam.md'),
+    /A question is downstream of an exploration whenever any of its options rests on a claim that\s+exploration would check/,
+    'make a question wait for a running exploration that would check a claim one of its options rests on (ADR 0122)',
+  ],
+  [
+    path.join('skills', 'brainstorm', 'SKILL.md'),
+    /offer only what survives[\s\S]{0,100}vetting, at most two options, with a recommended answer/,
+    "offer only what survives cross-exam.md's vetting, at most two options, with a recommended answer (ADR 0122)",
+  ],
+  [
+    path.join('skills', 'brainstorm', 'SKILL.md'),
+    /Offer at most the two strongest survivors[\s\S]{0,200}recommendation[\s\S]{0,200}toss-up/,
+    'offer at most the two strongest surviving directions with a recommendation, stating an equal pair as ' +
+      'a toss-up (ADR 0122, INV-0127)',
+  ],
+  [
+    path.join('skills', 'brainstorm', 'SKILL.md'),
+    /^(?![\s\S]*offer\s+options\s+rather\s+than\s+a\s+single\s+recommended\s+answer)/,
+    'carry no "offer options rather than a single recommended answer" wording (ADR 0122)',
+  ],
+  [
+    path.join('skills', 'brainstorm', 'SKILL.md'),
+    /^(?![\s\S]*Propose\s+(?:\**\s*2\s*[–-]\s*4|two\s+to\s+four)\s+candidate\s+directions)/,
+    'carry no "Propose 2–4 candidate directions" wording, which offers every direction (ADR 0122)',
+  ],
+  [
+    path.join('skills', 'brainstorm', 'SKILL.md'),
+    /Explore\s+\*\*2\s*[–-]\s*4\s+candidate\s+directions\s+or\s+shapes\*\*[\s\S]{0,300}before\s+you\s+show\s+any/,
+    'explore 2–4 candidate directions and vet each before you show any (ADR 0122, INV-0127)',
+  ],
+  [
+    path.join('skills', 'brainstorm', 'SKILL.md'),
+    /^(?![\s\S]*reaction\s+to\s+each\s+before\s+narrowing)/,
+    "carry no wording that asks for the user's reaction to every direction (ADR 0122)",
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /one proposal[\s\S]{0,200}explicit confirmation[\s\S]{0,200}before §3 decomposes/,
+    'put the derive-pass settlement to the operator for explicit confirmation before §3 decomposes (ADR 0122, INV-0127)',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /the\s+plan's\s+controller\s+settles\s+each\s+gap,\s+and\s+the\s+operator\s+confirms\s+the\s+settlement/,
+    'state that derive mode returns gaps the plan controller settles and the operator confirms (ADR 0122, INV-0127)',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /\*\*fold\*\*\s+when\s+a\s+criterion\s+already\s+in\s+the\s+DoD\s+carries\s+it/,
+    "keep derive mode's fold lean, for a gap a criterion already in the DoD carries once reworded (ADR 0122, INV-0127)",
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /^(?![\s\S]*\*\*Settle the gaps, then propose\.\*\*(?:(?!\s- \*\*|\s#{1,6}\s)[\s\S])*?\bmulti-select\s+question)/,
+    'settle the derive-pass gaps without a multi-select question that hands the sorting to the operator (ADR 0122)',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /^(?![\s\S]*\*\*Settle the gaps, then propose\.\*\*(?:(?!\s- \*\*|\s#{1,6}\s)[\s\S])*?detail\s+held\s+for\s+a\s+slice)/,
+    'settle no derive-pass gap as detail held for a slice, which leaves a derived criterion outside the ' +
+      'Definition of Done and every named non-goal (ADR 0122, INV-0096)',
+  ],
+];
+
 // ADR 0117, INV-0118: the implementer works against the run trace and the slice review judges the
 // RED-then-GREEN order from it. The agent bodies, the review checklist's `## Test order`, and the two
 // execution playbooks (the full tier's step 2 and step 3 dispatches, the lite tier's inline loop) each
@@ -6446,6 +6557,7 @@ const SETUP_TEST_PATHS_CONTRACTS = [
 ];
 
 module.exports = {
+  VETTED_OPTIONS_CONTRACTS,
   RESPONSE_SHAPES_CONTRACTS,
   BACKLOG_VERIFY_WRAP_UP_CONTRACTS,
   OBSERVATION_CAPTURE_CONTRACTS,

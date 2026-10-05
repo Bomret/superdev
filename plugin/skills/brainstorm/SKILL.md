@@ -13,7 +13,7 @@ Every message this command ends on closes with the Next block, per `${CLAUDE_PLU
 
 Set a generative, curious mode: offer options rather than asking closed questions, explore tradeoffs out loud, and treat "I don't know yet" as useful signal, not a blocker. Ground every option in the actual repo — read documentation files, like `README.md`, `CLAUDE.md` or `AGENTS.md` and the relevant code before proposing directions, so suggestions are grounded in what exists, not invented from nothing.
 
-**Run it with the interview discipline in `${CLAUDE_PLUGIN_ROOT}/references/cross-exam.md`** — relentless, one thread at a time, exploring the code instead of asking wherever you can, surfacing contradictions the moment they appear — but in **divergent** mode: offer options rather than a single recommended answer, and let the tree branch wider before it narrows. Every option offered still states what choosing it saves, cross-exam.md's live-options test applied with no recommended answer to test alternatives against. Apply the **active moves** in
+**Run it with the interview discipline in `${CLAUDE_PLUGIN_ROOT}/references/cross-exam.md`** — relentless, one thread at a time, exploring the code instead of asking wherever you can, surfacing contradictions the moment they appear — in **divergent** mode, where the divergence stays inside the exploration: let the tree branch wider before it narrows, then offer only what survives cross-exam.md's vetting, at most two options, with a recommended answer, exactly as `/superdev:plan` does. Apply the **active moves** in
 `${CLAUDE_PLUGIN_ROOT}/references/domain-modeling.md` too — challenge vague terms, sharpen fuzzy language, cross-check claims against the code — to think precisely. Apply
 `${CLAUDE_PLUGIN_ROOT}/references/doc-verification.md` as well — verify a claim about how a third-party library, product, or service behaves against its official docs before it's carried into the intent as fact. But **write nothing durable** here: no glossary entries, no ADRs, no slices. Durable capture is `/superdev:plan`'s job.
 
@@ -38,7 +38,7 @@ Ask: who feels this pain, what's frustrating about today, why does it matter now
 
 ## 2. Explore the space
 
-Propose **2–4 candidate directions or shapes** for solving the problem — different enough to reveal real tradeoffs, not variations on one idea. For each, name the rough shape and its cost/benefit. Get the user's reaction to each before narrowing. Diverge before you converge — resist collapsing to a single direction too early.
+Explore **2–4 candidate directions or shapes** for solving the problem — different enough to reveal real tradeoffs, not variations on one idea — and vet each against the repo, per cross-exam.md's live-options rule, before you show any. For each, name the rough shape and its cost/benefit. Offer at most the two strongest survivors, marking a recommendation; two equally strong survivors are a toss-up, and you say so. Name each dropped direction in one line with why it lost. Diverge before you converge — resist collapsing to a single direction before the exploration has run.
 
 ## 3. Find the Minimal Lovable Product (MLP)
 

@@ -2508,6 +2508,30 @@ and which `scope.js` refuses to write out of. `skills/submit-pr/SKILL.md`'s stag
 closed" and stops with no push and no pull request, as it does for `shipped`. `skills/review/SKILL.md`'s
 stage write leaves the line alone at `closed` beside `documented`, `submitted`, and `shipped`.
 
+The `vetted-options` contract (ADR 0122, INV-0126, INV-0127) pins the interview rule in
+`references/cross-exam.md` and its use in `skills/brainstorm/SKILL.md`. `references/cross-exam.md` still
+checks every load-bearing claim of every option before a composed question is asked, and cites
+`references/doc-verification.md` for what makes a claim load-bearing. It still drops an option that fails
+a check, names it with the reason, and labels a claim it cannot check as an assumption. It still shows the
+evidence, the assumption labels, and the dropped options in prose before the question. It still keeps the
+saves-something test, caps a composed question at two options, states a single survivor instead of asking
+it, and puts a decision with no survivor as an open question. It still keeps the fixed option sets outside
+the cap, and still makes a question wait for an exploration that would check one of its options.
+`skills/brainstorm/SKILL.md` still offers only the vetted survivors, at most two, with a recommendation.
+A presence row pins §2's exploration sentence to its clause that vets each direction before it is shown,
+so rewording "Explore" to "Offer" fails it. A presence row in `skills/plan/SKILL.md` pins the derive-pass
+settlement's explicit operator confirmation before §3 decomposes. A presence row in
+`agents/final-reviewer.md` pins derive mode's hand-off: the plan's controller settles each gap and the
+operator confirms the settlement. A presence row in the same file pins derive mode's **fold** lean, so a later
+edit cannot drop it silently. Both final-reviewer rows tolerate any whitespace between words, so a rewrap cannot
+fail them.
+Absence rows reject brainstorm's earlier wording: neutral options, two to four directions offered, and a
+reaction to every direction. Another absence row rejects a multi-select question in
+`skills/plan/SKILL.md`'s `Settle the gaps` bullet, which would hand the sorting of gaps back to the
+operator. A third rejects a gap settled as detail held for a slice, which leaves a derived criterion
+outside the Definition of Done and every named non-goal (INV-0096). Each absence pattern tolerates any
+whitespace between words, so a hard wrap cannot hide a restored phrase.
+
 The `commitment-capture` contract (ADR 0081) spans rows across three documents.
 `skills/brainstorm/SKILL.md` still names a discovery's load-bearing commitments in the intent as a pair,
 the principle and the rule it implies. `skills/plan/SKILL.md` still routes every commitment — one a
@@ -2675,11 +2699,10 @@ The `plan-derives-criteria` contract (ADR 0099, INV-0096) pins the derive pass o
 - It deletes the draft in §6 once the Definition of Done is in the store. It also deletes the draft
   written under the old slug when the label is revised before §6.
 - It runs for every plan: a new feature, a single-slice plan, and an append.
-- It presents the gaps in one multi-select question when they fit. Past the question tool's
-  per-question option capacity, it asks further questions and rounds, criterion-leaning gaps first, until
-  every gap is settled.
-- Selected gaps become criteria. The other gaps become epic non-goals, or a spec exclusion on a
-  single-slice plan.
+- It settles each gap itself against the repository, with a one-line reason, and states the whole
+  settlement as one proposal the operator confirms before slicing (ADR 0122).
+- A gap becomes a criterion, a fold into an existing criterion, an epic non-goal,
+  or, on a single-slice plan, a spec exclusion.
 - No plan reaches §3 with a gap unsettled.
 - A pass with no gaps is reported in one line.
 - A denied dispatch derives inline.

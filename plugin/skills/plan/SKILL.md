@@ -227,15 +227,19 @@ single-slice plan, and an append, where it covers the whole amended Definition o
   dispatch to a superdev subagent that omits one). Hand it the interview's settled problem statement and
   solution shape as text, and the **path** of the drafted Definition of Done, never inlined, so the
   reviewer derives before it reads (ADR 0020). It returns every derived criterion the Definition of Done
-  does not cover, each with a one-line reason and a lean (criterion or non-goal), plus any ambiguous line.
-  Fix an ambiguous line in the draft.
-- **Settle the gaps.** Present the gaps with their leans in **one multi-select question** when they fit. Gaps
-  past the question tool's per-question option capacity go into further questions of the same call,
-  with the criterion-leaning gaps first, and into further rounds, until every gap is settled. Each selected
-  gap becomes a Definition-of-Done criterion, which then gets the "in every configuration?" pass. Each
-  other gap becomes a named non-goal in the epic, or, on a single-slice plan, an exclusion in the lone
-  slice's `spec`. No plan reaches §3 while a gap stands unsettled. When the reviewer returns no gaps, say so
-  in one line and continue.
+  does not cover, each with a one-line reason and a lean (criterion, fold into a named criterion, or
+  non-goal), plus any ambiguous line. Fix an ambiguous line in the draft.
+- **Settle the gaps, then propose.** Check each gap the reviewer returns against the repository and
+  settle it yourself, the way `references/cross-exam.md`'s live-options rule vets an option: a
+  Definition-of-Done criterion, which then gets the "in every configuration?" pass; a fold into a criterion
+  already there; or a named non-goal in the epic — on a single-slice plan, an exclusion in the lone
+  slice's `spec`. Give each settlement a one-line reason drawn from the repository, and state the whole
+  settlement as one proposal in prose before the interview moves on. The settlement is a set of decisions
+  you stated rather than asked, so it goes to the operator for explicit confirmation before §3 decomposes.
+  It is part of `references/cross-exam.md`'s Termination summary and is confirmed once, with the shared
+  picture. The operator corrects any line of it, and a corrected gap is settled again the same way.
+  No plan reaches §3 while a gap stands unsettled. When the reviewer returns no gaps, say so in one line
+  and continue.
 - **A denied dispatch** (the permission classifier refuses it): derive the criteria inline yourself,
   say so in your output, and settle the gaps the same way.
 - **An observation is captured the moment you meet it.** Read
