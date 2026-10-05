@@ -1,3 +1,10 @@
+# [0.65.0](https://codeberg.org/bomret/superdev/compare/v0.64.0...v0.65.0) (2026-10-05)
+
+
+### Features
+
+* **review:** a run resolves a deferred finding it later fixes ([#891](https://codeberg.org/bomret/superdev/issues/891)) ([beb74cd](https://codeberg.org/bomret/superdev/commit/beb74cd7590af37d74a410eb7366443c7b7cebc4))
+
 # [0.64.0](https://codeberg.org/bomret/superdev/compare/v0.63.0...v0.64.0) (2026-10-05)
 
 
