@@ -136,6 +136,8 @@ const {
   CLEAN_VERDICT_ENDS_LOOP_CONTRACTS,
   FIX_LOOP_FIXES_EVERY_FINDING_CONTRACTS,
   BLIND_SLICE_REVIEW_CONTRACTS,
+  RUN_TRACE_ORDER_CONTRACTS,
+  SETUP_TEST_PATHS_CONTRACTS,
   DEPENDENCY_RECORD_CONTRACTS,
   OBSERVATION_CAPTURE_CONTRACTS,
   RESPONSE_SHAPES_CONTRACTS,
@@ -847,6 +849,23 @@ module.exports = [
       "re-review when the reviewer's own dependency check now passes; only a progress-log line recording " +
       'the package as verified counts, never an unverified line whatever URL it carries; and the ' +
       'slice-reviewer appends its findings through a quoted heredoc, never `echo` and never an unquoted heredoc',
+  ),
+  table(
+    'run-trace-order',
+    RUN_TRACE_ORDER_CONTRACTS,
+    "the implementer's progress log carries no RED or GREEN line, a hook note means a missing failing run, " +
+      'and its remedy is git restore, never git stash; slice-reviewer reads the run trace in its blind pass and ' +
+      'names Missing RED as Important on a behavior slice only, with no finding for a missing trace, an ' +
+      'event-less slice, or a repository with no test command; the review checklist defines Missing RED ' +
+      'and its closing sequence; the implement-full dispatches and the implement-lite inline loop carry ' +
+      'the same rules; and test-selection.md runs the full, focused, and whole-repo commands alone with their exit status intact',
+  ),
+  table(
+    'setup-test-paths',
+    SETUP_TEST_PATHS_CONTRACTS,
+    'setup decision E proposes test paths and writes them as an unfenced `## Test paths` list, proposing none ' +
+      'without a test command, and setup check names a missing section as an advisory naming the defaults, ' +
+      'never as drift',
   ),
   table(
     'dependency-record',

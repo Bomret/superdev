@@ -101,8 +101,9 @@ plan runs test-first, inline in the scopetree.
   **whole-scope review** that gates the pull request `/superdev:submit-pr` opens later.
 - **`/superdev:status`**. A read-only snapshot of every in-flight `/superdev:implement` run in the repo:
   per scope, the slice counts by status and which slices are `blocked`. It also names each scope holding
-  **staged** knowledge-base pages, so a page nobody published yet stays visible instead of silent. It
-  never writes, transitions, or merges anything.
+  **staged** knowledge-base pages, so a page nobody published yet stays visible instead of silent.
+  `/superdev:status <scope> --trace` prints that scope's run trace as a timeline instead, and
+  `--slice <id>` narrows it to one slice. It never writes, transitions, or merges anything.
 - **`/superdev:profile`**. A read-only account of where a scope run's time went, for a run that felt slow.
   It reads the transcripts Claude Code already keeps for every session and subagent, so it needs no setup
   and works on runs that finished long ago. It shows the time of each chain phase split into subagent, idle,
@@ -301,7 +302,18 @@ bash or PowerShell variants.
 - **ledger-guard.** Blocks the direct write shapes to a scope's `ledger.md`: an `Edit`, a `Write`, and a
   `Bash` write (redirect, `tee`, `sed -i`, `cp`, `mv`, `install`) are all denied. An interpreter wrapper
   and some substitution shapes still pass. Only `scripts/scope.js`, the run-state CLI that owns the
-  ledger's schema, may write it.
+  ledger's schema, may write it. A write to the run trace (`trace.log`) is refused the same way, because
+  only the hooks and `scripts/scope.js` write it.
+- **run-trace.** A hook that records every file edit of a run into the run trace
+  (`<run-root>/trace.log`), through the edit tools and through a shell write (redirect, `tee`, `sed -i`,
+  `cp`, `mv`, `install`, `git apply`). Each line names its slice, its agent, and whether the file is a
+  test or an implementation, by the `## Test paths` section of `docs/agents/verification.md` or the default
+  patterns. It also records each test run with its outcome (a run in the background or behind a pipe reads
+  `unknown`), each revert or restore of files, and each subagent dispatch and its end. After an
+  implementation edit or a passing run on a `behavior` slice, it adds a Missing RED note when the latest
+  test edit has no failing run since. The hook registers on `PostToolUse`, `PostToolUseFailure`,
+  `SubagentStart`, and `SubagentStop`. An edit outside every run root records nothing. A write behind
+  `bash -c` or a variable passes unseen. The hook never blocks a tool call.
 - **slicetree-sweep.** A `Stop` hook that removes each slicetree and branch once its slice is
   fully merged. Finished slicetrees therefore cannot pile up when the controller skips the prompted
   cleanup. It
@@ -331,7 +343,7 @@ bash or PowerShell variants.
   ledger names is deleted, never one matched by shape, and a delete git refuses — this checkout or
   another worktree holds the branch — keeps the run root standing for the next `Stop` to retry.
 
-**update-check** is an eighth Node hook, and a `SessionStart` *notice* rather than a guardrail. See
+**update-check** is a Node hook, and a `SessionStart` *notice* rather than a guardrail. See
 [Updating](#updating).
 
 ## Configuration and backends

@@ -180,6 +180,21 @@ a green suite — flag any as Critical. *Break it:* find the untrusted input tha
 introduced where the slices meet. Not micro-optimization — the costs that matter once the slices run
 together. *Break it:* find the load that makes it fall over.
 
+**Run trace (scope mode only)** — the dispatch tells you the tier (`lite`: three or fewer slices; `full`:
+  more) and the run root. Read the trace with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --root
+  <run-root>`, which hooks wrote (ADR 0117). A trace line's second field is its slice: the slice id, or `scope`.
+  A `dispatch` line carries the plugin-scoped agent type Claude Code reports; match on its name part
+  (`slice-reviewer`, `implementer`). On the lite tier a slice is `behavior` when its ledger row's type
+  says so (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>`). On a **`lite`** scope, read every slice's trace lines and
+  apply `## Test order` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` exactly as
+  `slice-reviewer` does: on a `behavior` slice, a test edit followed by an implementation edit or a passing
+  run with no failing run between them is an **Important** finding, **Missing RED**, closed only by the
+  checklist's closing sequence. On a **`full`** scope, every merged slice needs a `dispatch`
+  line of agent type `slice-reviewer` whose `dispatch-end` comes after that slice's last `dispatch-end` of
+  `implementer`, or a `**Degraded:**` ledger entry naming that slice's denied review. A slice with
+  neither is an **Important** finding, **Unreviewed slice**. No trace, or no events for a slice, gets no
+  finding: name the gap in the report.
+
 **Judge discipline** — verify the integrated behaviour against the DoD yourself; don't defer to the
 implementer's or controller's narrative of what was built. Length ≠ completeness. Reject a "DoD met"
 claim resting only on proxy counts (coverage %, line count, lint score) — confirm the observable,

@@ -133,6 +133,26 @@ guessed at rather than measured.
   lighter form. Cost is right where the slow thing is itself the behaviour under test; the judgment is
   the case where it is merely how the test was written.
 
+## Test order
+
+**`slice-reviewer` and `final-reviewer` read this section**, because the entry below is judged against the
+run trace (`scope.js trace`), which hooks wrote, and no diff shows it (ADR 0117).
+
+- **Missing RED** — on a `behavior` slice, a test edit followed by an implementation edit or a passing run
+  with no failing run between them. A trace in the order implementation edits, then test edits, then
+  only passing runs meets this definition. Severity Important. A `mechanical` or `docs` slice, a repository
+  with no test command, and a slice with no trace events get no finding: the report names the gap. On a
+  re-review the finding closes only when the trace shows, after the finding, a revert (or an implementation
+  edit), a failing run that covers that test (the full or focused command, or a run naming that test
+  file), a restore (or an implementation edit), and a passing run. The remedy is `git add <paths>`, `git restore
+  --worktree --source=<base> -- <paths>`, a failing run, `git restore -- <paths>`, a passing run, never `git stash` (`<base>` is the commit the slice branch was cut from, which the dispatch names). A `run … unknown` line is not a failing run: it neither satisfies the RED step nor closes the finding, and the implementer answers it by re-running the test without a pipe or `|| true`.
+  The finding names failing order and no failing behaviour, so its fix takes no RED test. `final-reviewer`
+  applies it to every slice's trace lines on a `lite` scope, with the same closing sequence and no-trace rule.
+- **Unreviewed slice** — `final-reviewer`'s, on a `full` scope only: a merged slice with no
+  `dispatch` line of agent type `slice-reviewer` whose `dispatch-end` comes after the slice's last `dispatch-end` of
+  `implementer`, and no `**Degraded:**` ledger entry naming that slice's denied review. Severity
+  Important. No trace gets no finding: the report names the gap.
+
 ## Dependency verification
 
 **`slice-reviewer` alone reads this section**, and it sits outside `## Anti-patterns` for that reason:

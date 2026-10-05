@@ -1,6 +1,6 @@
 ---
 name: status
-description: Report per-scope DAG progress for every superdev run in this repo, from each scope's ledger. Read-only; makes no changes.
+description: Report per-scope DAG progress for every superdev run in this repo, from each scope's ledger, or with `--trace` print one run's trace as a timeline. Read-only; makes no changes.
 model: haiku
 allowed-tools: Bash
 ---
@@ -9,6 +9,17 @@ allowed-tools: Bash
 
 Give a compact, read-only snapshot of every in-flight `/superdev:implement` run in this repo. You never
 write, transition, or merge anything here — this is a report, not a control command.
+
+## Print a run's trace
+
+`/superdev:status <scope> --trace` prints that scope's run trace (ADR 0117) as a timeline, oldest first,
+and nothing else. Add `--slice <id>` for one slice's lines. Run, from the repo root:
+
+```sh
+node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --root "$(node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" root <scope>)" [--slice <id>]
+```
+
+Print its output **verbatim**. A run with no trace, or an empty one, prints one line saying so.
 
 ## Run the report
 

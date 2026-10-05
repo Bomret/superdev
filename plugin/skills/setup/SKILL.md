@@ -60,6 +60,13 @@ store and code host stay unqueried:
   carries no `## Whole-repo command` section is drift as well: state that the section is missing, since
   `references/test-selection.md`'s `## Affected form` has such a repository configure one. Reading the
   command text is the whole check; it runs nothing.
+- `verification.md` — a document holding test commands and no `## Test paths` section gets an
+  **advisory** line, never a drift verdict: state that the default patterns
+  (`references/test-selection.md`'s `## Test paths` section: `tests/`, `test/`, `__tests__/`, `spec/`,
+  `*.test.*`, `*.spec.*`, `*_test.*`, `test_*.py`) apply, and that the operator may add the section to
+  name the repository's own test locations. A section with no usable entry, empty or all malformed, gets
+  the same line, since the hook then applies the defaults. A `verification.md` with no test command gets no
+  such line.
 - `deployment.md` — the same resolution check, applied to each target's command: a target naming a
   script the manifest no longer defines is drift. A `none` posture, or a `manual`/`auto` posture with an
   empty targets table, has nothing to check here, and reports consistent once confirmed present.
@@ -379,6 +386,13 @@ to derive it from. The derivation takes one of two branches:
     pass-with-no-tests flag for the same reason a `{paths}` form does: `npx vitest --changed
     --passWithNoTests`, `npx jest -o --passWithNoTests`.
 
+**A repo with a full command proposes its test paths too** (ADR 0117): the glob patterns that name its
+test files, which `hooks/run-trace.js` reads to class each recorded edit. Detect the repository's test
+locations — the default patterns `references/test-selection.md`'s `## Test paths` section lists, plus
+the directories and file patterns its test command and manifests name — propose them, and write the
+operator's answer as that section's **unfenced** list, never a fenced block (the two fences stay the full
+and focused commands). **No test command** → propose no test paths and write no section.
+
 **On a monorepo, the full command may take an affected form too** (ADR 0105, INV-0105): identify the
 tool that owns the repository's dependency graph — the build system or the package manager (nx,
 turborepo, pnpm, or `dotnet-affected` over an MSBuild project graph); plain Bun/npm/yarn workspaces with
@@ -605,6 +619,10 @@ Write:
 
   `npx vitest run --reporter=verbose`
   ````
+
+  Add the **`## Test paths`** section decision **E** settled, in the format
+  `references/test-selection.md`'s `## Test paths` section defines: an **unfenced list**, one pattern per
+  item. A repository with no test command gets no section.
 
   Add the **`## Whole-repo command`** section for a monorepo whose full command took the affected form
   above, its command in a **backtick span, never a fenced block**, for the same reason. **No affected

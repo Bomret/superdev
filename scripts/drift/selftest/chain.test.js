@@ -60,6 +60,8 @@ const {
   CLEAN_VERDICT_ENDS_LOOP_CONTRACTS,
   FIX_LOOP_FIXES_EVERY_FINDING_CONTRACTS,
   BLIND_SLICE_REVIEW_CONTRACTS,
+  RUN_TRACE_ORDER_CONTRACTS,
+  SETUP_TEST_PATHS_CONTRACTS,
   DEPENDENCY_RECORD_CONTRACTS,
   OBSERVATION_CAPTURE_CONTRACTS,
   LABEL_REVISION_AT_DECOMPOSITION_CONTRACTS,
@@ -2765,11 +2767,12 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
         'hooks/merge-guard.js': '// leading comment\n' + ARG_TOKEN_LINE + '\n',
         'hooks/green-gate.js': ARG_TOKEN_LINE + '\nconst IS_MERGE = null;\n',
         'hooks/ledger-guard.js': ARG_TOKEN_LINE + '\n',
+        'hooks/run-trace.js': ARG_TOKEN_LINE + '\n',
       }),
       ARG_TOKEN_CONTRACTS,
     ).length,
     0,
-    'the canonical token in all three yields zero gaps',
+    'the canonical token in every hook yields zero gaps',
   );
 
   // absent files are skipped, matching every other contract table
@@ -3262,11 +3265,15 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'cannot complete its own work" shape. A caller with no run root has no ledger to write ' +
     '`scope.js degraded add` to, so it takes only that shape\'s report half.\n';
 
+  const testPathsClause =
+    'An optional `## Test paths` section lists the test files as an unfenced list. An absent section ' +
+    'applies the defaults.\n';
+
   assert.equal(
     scanContract(
       fixture({
         'references/test-selection.md':
-          pdSelfDetectClause + stopClause + greenGateExceptionClause + degradedPassClause,
+          pdSelfDetectClause + stopClause + greenGateExceptionClause + degradedPassClause + testPathsClause,
       }),
       PATHS_DERIVATION_CONTRACTS,
     ).length,
@@ -3278,18 +3285,28 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       fixture({ 'references/test-selection.md': 'The focused command runs verbatim.\n' }),
       PATHS_DERIVATION_CONTRACTS,
     ).length,
-    5,
-    'flags a test-selection.md missing the self-detecting-flag, stop, and degraded-pass clauses',
+    6,
+    'flags a test-selection.md missing the self-detecting-flag, stop, degraded-pass, and test-paths clauses',
   );
   assert.equal(
     scanContract(
       fixture({
-        'references/test-selection.md': pdSelfDetectClause + stopClause + greenGateExceptionClause,
+        'references/test-selection.md': pdSelfDetectClause + stopClause + greenGateExceptionClause + testPathsClause,
       }),
       PATHS_DERIVATION_CONTRACTS,
     ).length,
     1,
     'flags a test-selection.md missing only the degraded-pass clause',
+  );
+  assert.equal(
+    scanContract(
+      fixture({
+        'references/test-selection.md': pdSelfDetectClause + stopClause + greenGateExceptionClause + degradedPassClause,
+      }),
+      PATHS_DERIVATION_CONTRACTS,
+    ).length,
+    1,
+    'flags a test-selection.md missing only the test-paths clause',
   );
 
   const skillConfigClause =
@@ -5349,6 +5366,51 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'the shipped documents satisfy every blind-pass row',
   );
   assertEachRowFailsAlone(bsReal, BLIND_SLICE_REVIEW_CONTRACTS);
+
+  // --- RUN_TRACE_ORDER_CONTRACTS (ADR 0117, INV-0118): the agent bodies, the checklist, and both execution
+  // playbooks carry the order rules. The shipped documents are the negative; each row's own clause removed
+  // is the positive. ---
+  const rtDocs = [
+    'agents/implementer.md',
+    'agents/slice-reviewer.md',
+    'agents/final-reviewer.md',
+    'skills/review/SKILL.md',
+    'references/review-checklist.md',
+    'references/implement-full.md',
+    'references/implement-lite.md',
+    'references/test-selection.md',
+  ];
+  const rtReal = Object.fromEntries(
+    rtDocs.map((rel) => [rel, fs.readFileSync(path.join(realRoot, 'plugin', rel), 'utf8')]),
+  );
+  assert.deepEqual(
+    scanContract(fixture(rtReal), RUN_TRACE_ORDER_CONTRACTS),
+    [],
+    'the shipped documents satisfy every run-trace order row',
+  );
+  assertEachRowFailsAlone(rtReal, RUN_TRACE_ORDER_CONTRACTS);
+  // The old two-step remedy (revert with a bare git restore, no git add) in either playbook fails the table.
+  for (const rel of ['references/implement-full.md', 'references/implement-lite.md']) {
+    assert.notDeepEqual(
+      scanContract(
+        fixture({ ...rtReal, [rel]: rtReal[rel].replace(/`git\s+add\s+<paths>`,\s+`git\s+restore\s+--worktree\s+--source=<base>\s+--\s+<paths>`/, '`git restore --source=<base> -- <paths>`') }),
+        RUN_TRACE_ORDER_CONTRACTS,
+      ),
+      [],
+      `${rel} holding the old two-step remedy fails a run-trace order row`,
+    );
+  }
+
+  // --- SETUP_TEST_PATHS_CONTRACTS (ADR 0117): setup's decision E and check carry the test-paths rules. ---
+  const stpReal = {
+    'skills/setup/SKILL.md': fs.readFileSync(path.join(realRoot, 'plugin', 'skills/setup/SKILL.md'), 'utf8'),
+  };
+  assert.deepEqual(
+    scanContract(fixture(stpReal), SETUP_TEST_PATHS_CONTRACTS),
+    [],
+    'the shipped setup skill satisfies every test-paths row',
+  );
+  assertEachRowFailsAlone(stpReal, SETUP_TEST_PATHS_CONTRACTS);
 
   // --- DEPENDENCY_RECORD_CONTRACTS (ADR 0114): the implementer's agent body and the implement-full.md
   // dispatch each carry the dependency verification record, and review-checklist.md carries the counting

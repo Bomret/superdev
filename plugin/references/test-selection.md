@@ -18,6 +18,16 @@ A repository with no suite at all carries no such file.
   beside it stating why. A second fenced block is **only ever** the focused command — never a watch
   command, a coverage command, or sample failure output.
 
+**Run the full, focused, or whole-repo command with its own exit status intact.** Run the command alone,
+after nothing but `cd` and `set -o pipefail`. Chain nothing after it with `||`, `&&`, `;`, a newline, or a
+background `&`, and pipe into `tail` or `cat` only under `set -o pipefail`. To trim the output, redirect it to a
+file outside the working tree, such as one from `mktemp` under `$TMPDIR`, and read the file afterwards.
+A redirect into the working tree leaves an untracked file, and on a passing run also records an implementation edit. The run
+trace records a run whose exit status does not reflect the test as `unknown`. An `unknown` run is no
+passing run, so `scope.js suite reusable` never reuses it and the suite runs again at the next gate. The
+whole-repo command is the third command (`## Whole-repo command` below), and `scope.js suite reusable` reads
+its runs too.
+
 Both commands are taken **by position**, so a fence is reserved for them alone. A watch command, a
 coverage command, sample failure output, the reason a repository records for duplicating the full command
 as the focused one, or anything else a repository keeps in `verification.md` stays **unfenced** — prose,
@@ -65,6 +75,22 @@ cost: per-test durations where the runner gives them, total wall clock otherwise
 - **An absent section leaves the audit `unmeasured`**, ranking by judgment instead, and every other
   caller unaffected. A repository states the reason it configures none as prose beside the section's
   absence.
+
+## Test paths
+
+An optional **`## Test paths`** section of `docs/agents/verification.md`, listing the glob patterns that
+name the repository's test files. `hooks/run-trace.js` reads it to class each recorded edit as `test` or
+`impl` (ADR 0117), from the tree the edit lands in.
+
+- **Its entries are an unfenced list**, per the rule above: one pattern per list item, optionally in a
+  backtick span. A fence would land in the focused slot.
+- **A pattern uses `*` (within one path segment), `**` (across segments), and a trailing `/` for a
+  directory.** A pattern holding a `/` matches from the repository root. A pattern without one matches a
+  file name at any depth.
+- **A malformed entry is skipped** and the others still apply: an entry with whitespace, a leading `/`,
+  or a `..` segment.
+- **An absent section applies the defaults**: `tests/`, `test/`, `__tests__/` (at any depth), `spec/`,
+  `*.test.*`, `*.spec.*`, `*_test.*`, `test_*.py`. A section with no usable entry applies them too.
 
 ## The `{paths}` token
 

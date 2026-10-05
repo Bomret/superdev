@@ -17,3 +17,9 @@ distinct focused command saves nothing worth naming, and every caller runs the f
 **No timing command, deliberately.** The whole suite finishes in seconds and its files print no per-test
 durations, so a cost table ranked on them would order noise. A test audit of this repository runs
 `unmeasured` and ranks by judgment (`references/test-selection.md`, ADR 0066).
+
+## Test paths
+
+- `tests/`
+- `scripts/drift/`
+- `scripts/drift-check.js`

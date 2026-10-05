@@ -163,6 +163,44 @@ function readLedgerHeader(content, name) {
   return getHeader(splitLines(content), name);
 }
 
+// The ids of the ledger rows at `in-progress`, in table order, read from the ledger's content. The
+// run-trace hook (ADR 0117) attributes a scopetree edit to the one id this returns, and to `scope` for
+// any other count.
+function inProgressSlices(content) {
+  const lines = splitLines(content);
+  return tableRowIndexes(lines)
+    .map((i) => splitRow(lines[i]))
+    .filter((cells) => cells[5] === 'in-progress')
+    .map((cells) => cells[0]);
+}
+
+// The type cell of the ledger row `id`, or null. The run-trace hook (ADR 0117) reads it through
+// `splitRow`, so an escaped `\|` in a title never shifts the cells.
+function sliceType(content, id) {
+  const lines = splitLines(content);
+  for (const i of tableRowIndexes(lines)) {
+    const cells = splitRow(lines[i]);
+    if (cells[0] === id) return cells[3];
+  }
+  return null;
+}
+
+// The test commands a tree's `docs/agents/verification.md` configures, read the way
+// `references/test-selection.md` and `hooks/green-gate.js` read it: the first fenced block is the full
+// command, the second the focused one, and the first backtick span under `## Whole-repo command` the
+// whole-repo one. Each is whitespace-collapsed, or null when absent. The run-trace hook (ADR 0117)
+// classes a Bash command against them.
+function verificationCommands(tree) {
+  const none = { full: null, focused: null, whole: null };
+  let raw;
+  try { raw = fs.readFileSync(path.join(tree, 'docs', 'agents', 'verification.md'), 'utf8'); } catch { return none; }
+  const norm = (t) => (t ? t.replace(/\s+/g, ' ').trim() || null : null);
+  const blocks = [...raw.matchAll(/```[a-zA-Z0-9]*\n([\s\S]*?)```/g)].map((m) => m[1]);
+  const sec = /^##\s+Whole-repo command\s*$([\s\S]*?)(?=^#{1,6}\s|(?![\s\S]))/m.exec(raw.replace(/```[\s\S]*?```/g, ''));
+  const span = sec && /`([^`\n]+)`/.exec(sec[1]);
+  return { full: norm(blocks[0]), focused: norm(blocks[1]), whole: norm(span && span[1]) };
+}
+
 // Where `verbDocs`/`verbSuite` insert a header line that was absent: after the *whole* header block,
 // never spliced between one of `names`' header lines and any bullets that immediately follow it — a
 // hand-edited ledger can carry a bullet glued directly to a header line.
@@ -370,6 +408,7 @@ function verbInit(cwd, label, stage, stdinJson) {
   fs.mkdirSync(root, { recursive: true });
   writeLines(root, doc);
   console.log(root);
+  return root;
 }
 
 // Set-only: the read path is `get stage`.
@@ -485,15 +524,16 @@ function verbUnresolved(root, sub, text) {
   if (sub === 'clear') {
     const lines = readLines(root);
     const at = lines.findIndex((l) => headerRe('Unresolved').test(l));
-    if (at < 0) return; // no such line — succeeds, changes nothing
+    if (at < 0) return false; // no such line — succeeds, changes nothing
     let end = at + 1;
     while (end < lines.length && lines[end].startsWith('- ')) end++;
     lines.splice(at, end - at);
     writeLines(root, lines);
-    return;
+    return true;
   }
   if (sub !== 'add') fail(`unknown unresolved subcommand "${sub}" — use add|clear`);
   addBullet(root, 'Unresolved', 'unresolved add', text);
+  return true;
 }
 
 // `**Deferred:**` carries a finding a fix loop (the scope review's, or the full tier's per-slice loop) handed
@@ -516,10 +556,10 @@ function verbDocs(root, sub, value) {
   const lines = readLines(root);
   const at = lines.findIndex((l) => headerRe('Docs').test(l));
   if (sub === 'clear') {
-    if (at < 0) return; // no such line — succeeds, changes nothing
+    if (at < 0) return false; // no such line — succeeds, changes nothing
     lines.splice(at, 1);
     writeLines(root, lines);
-    return;
+    return true;
   }
   if (sub !== 'set') fail(`unknown docs subcommand "${sub}" — use set|clear`);
   if (!value) fail('docs set needs a value');
@@ -529,7 +569,7 @@ function verbDocs(root, sub, value) {
   if (at >= 0) {
     lines[at] = `**Docs:** ${value}`;
     writeLines(root, lines);
-    return;
+    return true;
   }
   // Absent: sit with the other header lines rather than above them, which is where `setHeader`'s
   // title-anchored fallback would put it — after the whole block, never inside a bullet list glued to
@@ -537,10 +577,11 @@ function verbDocs(root, sub, value) {
   const last = lastHeaderLineIndex(lines, ['Stage', 'Branch', 'Anchor']);
   if (last < 0) {
     writeLines(root, setHeader(lines, 'Docs', value));
-    return;
+    return true;
   }
   lines.splice(last + 1, 0, `**Docs:** ${value}`);
   writeLines(root, lines);
+  return true;
 }
 
 // pr set: `**PR:**` records the pull request number `/superdev:submit-pr` opened, the moment it opens
@@ -553,10 +594,10 @@ function verbPr(root, sub, value) {
   const lines = readLines(root);
   const at = lines.findIndex((l) => headerRe('PR').test(l));
   if (sub === 'clear') {
-    if (at < 0) return; // no such line — succeeds, changes nothing
+    if (at < 0) return false; // no such line — succeeds, changes nothing
     lines.splice(at, 1);
     writeLines(root, lines);
-    return;
+    return true;
   }
   if (sub !== 'set') fail(`unknown pr subcommand "${sub}" — use set|clear`);
   if (!value) fail('pr set needs a value');
@@ -566,17 +607,18 @@ function verbPr(root, sub, value) {
   if (at >= 0) {
     lines[at] = `**PR:** ${rendered}`;
     writeLines(root, lines);
-    return;
+    return true;
   }
   // Absent: sit with the other header lines, after the whole block — the same placement `verbDocs`
   // and `verbSuite` give their own header, rather than `setHeader`'s title-anchored fallback.
   const last = lastHeaderLineIndex(lines, ['Stage', 'Branch', 'Anchor', 'Docs', 'Suite']);
   if (last < 0) {
     writeLines(root, setHeader(lines, 'PR', rendered));
-    return;
+    return true;
   }
   lines.splice(last + 1, 0, `**PR:** ${rendered}`);
   writeLines(root, lines);
+  return true;
 }
 
 // deploy set/get: `**Deploy:**` records each deploy target's state for the run, so `/superdev:ship`
@@ -909,7 +951,8 @@ function verbSuite(cwd, root, sub, result, sha, whole) {
   writeLines(root, lines);
 }
 
-// INV-0017's reuse rule: a green suite record is reusable only on the exact commit it was recorded on.
+// INV-0017's reuse rule: a green suite record is reusable only on the exact commit it was recorded on,
+// and only where the run trace backs it (the latest matching `run` line there reads `pass` and `clean`).
 // No slice store commits its own records on the scope branch (ADR 0110), so any commit since the record
 // can change what a suite run exercises. Reads via `fail()` (a thrown refusal, exit 1) for "not
 // reusable" — the same channel every other verb already uses to report a no — and prints `reusable`
@@ -927,6 +970,22 @@ function verbSuiteReusable(cwd, root, branch, whole) {
   const tip = resolveCommit(branch, cwd);
   if (!tip) fail(`branch "${branch}" does not resolve to a commit`);
   if (tip !== recordedSha) fail(`suite record @ ${recordedSha} predates tip ${tip} — not reusable`);
+  // The run trace backs the record (ADR 0117, INV-0017): the latest `run` line of the matching kind at
+  // the tip, compared against the full sha `resolveCommit` returns, must read `pass` and `clean`.
+  // For a plain check, either `full` or `whole` kind is accepted; for --whole, only `whole`.
+  // simplicity: exact full-sha match, so an abbreviated sha in a trace line never backs reuse; upgrade: prefix match if a writer abbreviates
+  const acceptedKinds = whole ? ['whole'] : ['full', 'whole'];
+  let traceRaw = '';
+  try {
+    traceRaw = fs.readFileSync(path.join(root, 'trace.log'), 'utf8');
+  } catch (e) {
+    if (e.code !== 'ENOENT') throw e;
+  }
+  const runs = readTrace(traceRaw).filter((e) => e.kind === 'run' && acceptedKinds.includes(e.fields[0]) && e.fields[2] === tip);
+  const kindList = acceptedKinds.join(' or ');
+  if (!runs.length) fail(`no ${kindList} run recorded at ${tip} in the run trace — not reusable`);
+  const [, result2, , tree] = runs[runs.length - 1].fields;
+  if (result2 !== 'pass' || tree !== 'clean') fail(`latest ${kindList} run at ${tip} is ${result2} on a ${tree} tree — not reusable`);
   console.log('reusable');
 }
 
@@ -1508,6 +1567,76 @@ function verbRoot(cwd, slug) {
   console.log(path.join(mwt, '.superdev', 'scopes', slug));
 }
 
+// --- run trace (ADR 0117, INV-0117) ------------------------------------------
+
+// The run trace is `<run-root>/trace.log`, one event per line, space-separated:
+//   <ISO-8601 UTC timestamp> <slice id|scope> <agent id|main> <kind> <kind fields...>
+// `appendTrace` is its single writer. Kinds and their fields:
+//   edit <test|impl> <path>
+//   run <full|focused|whole|path> <pass|fail|unknown> <sha|unknown> <clean|dirty|unknown> [<files>]
+//   revert <paths> / restore <paths>
+//   note <test path>
+//   dispatch <agent_type> <agent_id> <description> / dispatch-end <agent_type> <agent_id>
+//   ledger <verb> <args>     (written only by the ledger-writing verbs of this CLI, after they succeed)
+// Every field is escaped so none holds a control character or a line separator: no field can start
+// a new line. No CLI verb takes a caller-chosen event; `trace` only reads.
+function traceField(v) {
+  // An absent or empty field renders `-`, so every line keeps its field positions.
+  if (v === undefined || v === null || v === '') return '-';
+  return String(v).replace(/[\\\x00-\x20\x7f\u0085\u2028\u2029]/g, (c) => {
+    if (c === '\\') return '\\\\';
+    if (c === ' ') return '\\x20';
+    if (c === '\n') return '\\n';
+    if (c === '\r') return '\\r';
+    if (c === '\t') return '\\t';
+    return '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0');
+  });
+}
+
+// The exact inverse of `traceField`, for a reader that re-writes a field it read back (`-` stays `-`).
+function untraceField(v) {
+  return String(v).replace(/\\(x20|n|r|t|u[0-9a-f]{4}|\\)/g, (m, c) => {
+    if (c === '\\') return '\\';
+    if (c === 'x20') return ' ';
+    if (c === 'n') return '\n';
+    if (c === 'r') return '\r';
+    if (c === 't') return '\t';
+    return String.fromCharCode(parseInt(c.slice(1), 16));
+  });
+}
+
+// event: { slice?, agent?, kind, fields? }. One O_APPEND write per line, so concurrent writers never
+// tear a line. A failed write is swallowed: the trace never blocks the work it records.
+function appendTrace(runRoot, event) {
+  try {
+    const parts = [new Date().toISOString(), event.slice || 'scope', event.agent || 'main', event.kind, ...(event.fields || [])];
+    fs.appendFileSync(path.join(runRoot, 'trace.log'), parts.map(traceField).join(' ') + '\n', 'utf8');
+  } catch {
+    // simplicity: silent by design (a recording failure must not fail a ledger verb); ceiling: a failed write loses that event; upgrade: add a stderr diagnostic if silent loss bites
+  }
+}
+
+// The trace's lines as events, oldest first: { ts, slice, agent, kind, fields }. Fields stay escaped
+// (`untraceField` reverses one). The one reader of the line layout, shared by the hook and the verbs.
+function readTrace(raw) {
+  return raw.split('\n').filter(Boolean).map((l) => {
+    const [ts, slice, agent, kind, ...fields] = l.split(' ');
+    return { ts, slice, agent, kind, fields };
+  });
+}
+
+function verbTrace(root, slice) {
+  let raw = '';
+  try {
+    raw = fs.readFileSync(path.join(root, 'trace.log'), 'utf8');
+  } catch (e) {
+    if (e.code !== 'ENOENT') throw e;
+  }
+  let lines = raw.split('\n').filter(Boolean);
+  if (slice) lines = lines.filter((l) => readTrace(l)[0].slice === slice);
+  console.log(lines.length ? lines.join('\n') : 'no trace: this run has recorded no events');
+}
+
 // --- CLI ---------------------------------------------------------------------
 
 function usage() {
@@ -1528,6 +1657,7 @@ function usage() {
     '  suite set <green|red|denied|none> <sha> [--whole]   --root <run-root>',
     '  suite reusable --branch <b> [--whole]   --root <run-root>   exits 0 (reusable) or 1',
     '  get stage|branch|anchor|docs|pr|slices|unresolved|degraded|deferred|denials|suite --root <run-root>',
+    '  trace [--slice <id>] --root <run-root>   prints the run trace, oldest first (read-only)',
     '  status                             scans <cwd>/.superdev/scopes/*/',
     '  publish --root <run-root>          prints the ledger as one "## Run state" section on stdout',
     '  adopt --root <run-root>            stdin: a whole anchor body; extracts and writes the section',
@@ -1551,14 +1681,17 @@ function takeRoot(args) {
 function run(argv, cwd, stdinJson) {
   const args = argv.slice();
   const verb = args.shift();
+  // Set by a ledger-writing verb once its write succeeded; a refused verb throws before it is set.
+  let ledgerEvent = null;
   switch (verb) {
     case 'init':
       if (!args[0]) fail('init needs a <type>/<slug> label');
-      verbInit(cwd, args[0], args[1], stdinJson);
+      ledgerEvent = { root: verbInit(cwd, args[0], args[1], stdinJson), fields: ['init', args[0], args[1]] };
       break;
     case 'stage': {
       const root = takeRoot(args);
       verbStage(root, args[0], args[1]);
+      ledgerEvent = { root, fields: ['stage', args[0], args[1]] };
       break;
     }
     case 'slice': {
@@ -1572,34 +1705,40 @@ function run(argv, cwd, stdinJson) {
       }
       if (!args[0] || !args[1]) fail('slice needs <id> <status>');
       verbSlice(root, args[0], args[1], range);
+      ledgerEvent = { root, slice: args[0], fields: ['slice', args[0], args[1], ...(range ? [range] : [])] };
       break;
     }
     case 'degraded': {
       const root = takeRoot(args);
       const sub = args[0];
       verbDegraded(root, sub, resolveBulletText(sub, args.slice(1), stdinJson));
+      ledgerEvent = { root, fields: ['degraded', sub] }; // bullet text is free text and stays out of the trace
       break;
     }
     case 'unresolved': {
       const root = takeRoot(args);
       const sub = args[0];
-      verbUnresolved(root, sub, resolveBulletText(sub, args.slice(1), stdinJson));
+      const changed = verbUnresolved(root, sub, resolveBulletText(sub, args.slice(1), stdinJson));
+      if (changed) ledgerEvent = { root, fields: ['unresolved', sub] }; // bullet text is free text and stays out of the trace
       break;
     }
     case 'deferred': {
       const root = takeRoot(args);
       const sub = args[0];
       verbDeferred(root, sub, resolveBulletText(sub, args.slice(1), stdinJson));
+      ledgerEvent = { root, fields: ['deferred', sub] }; // bullet text is free text and stays out of the trace
       break;
     }
     case 'docs': {
       const root = takeRoot(args);
-      verbDocs(root, args[0], args[1]);
+      const changed = verbDocs(root, args[0], args[1]);
+      if (changed) ledgerEvent = { root, fields: ['docs', args[0], ...(args[1] ? [args[1]] : [])] };
       break;
     }
     case 'pr': {
       const root = takeRoot(args);
-      verbPr(root, args[0], args[1]);
+      const changed = verbPr(root, args[0], args[1]);
+      if (changed) ledgerEvent = { root, fields: ['pr', args[0], ...(args[1] ? [args[1]] : [])] };
       break;
     }
     case 'deploy': {
@@ -1618,6 +1757,7 @@ function run(argv, cwd, stdinJson) {
         args.splice(ei, 2);
       }
       verbDeploySet(root, args[1], args[2], exitCode);
+      ledgerEvent = { root, fields: ['deploy', 'set', args[1], args[2], ...(exitCode !== undefined ? ['--exit', exitCode] : [])] };
       break;
     }
     case 'suite': {
@@ -1648,6 +1788,7 @@ function run(argv, cwd, stdinJson) {
       // or `--kind whole`) must refuse rather than silently write a no-kind record.
       if (args.length > 3) fail(`suite ${args[0]}: unrecognized argument "${args[3]}"`);
       verbSuite(cwd, root, args[0], args[1], args[2], whole);
+      ledgerEvent = { root, fields: ['suite', args[0], args[1], args[2], ...(whole ? ['--whole'] : [])] };
       break;
     }
     case 'get': {
@@ -1666,6 +1807,14 @@ function run(argv, cwd, stdinJson) {
     case 'adopt': {
       const root = takeRoot(args);
       verbAdopt(root, stdinJson);
+      ledgerEvent = { root, fields: ['adopt'] };
+      break;
+    }
+    case 'trace': {
+      const root = takeRoot(args);
+      const si = args.indexOf('--slice');
+      if (si >= 0 && !args[si + 1]) fail('--slice needs an id');
+      verbTrace(root, si >= 0 ? args[si + 1] : undefined);
       break;
     }
     // No --root: root resolves the run-root path itself, from cwd (ADR 0080).
@@ -1679,6 +1828,7 @@ function run(argv, cwd, stdinJson) {
     default:
       fail('unknown verb "' + (verb || '') + '"\n' + usage());
   }
+  if (ledgerEvent) appendTrace(ledgerEvent.root, { slice: ledgerEvent.slice, kind: 'ledger', fields: ledgerEvent.fields });
 }
 
 // True for `unresolved add -`, `deferred add -`, and `degraded add -` (any `--root <path>` position
@@ -1695,7 +1845,7 @@ function isBulletStdinInvocation(argv) {
 
 // `--help` / `-h` asks for usage unless it is the value of a flag that takes one or the text of a bullet
 // verb (`unresolved add -h`): those are data, and usage text standing in for them would be written on.
-const VALUE_FLAGS = ['--root', '--range', '--exit', '--branch', '--match', '--match-file', '--note', '--note-file', '--verdict'];
+const VALUE_FLAGS = ['--root', '--range', '--exit', '--branch', '--slice', '--match', '--match-file', '--note', '--note-file', '--verdict'];
 function asksForHelp(argv) {
   const rest = [];
   for (let i = 0; i < argv.length; i++) {
@@ -1747,4 +1897,4 @@ function main() {
 // Either way the require, not the CLI, is what fails.
 if (require.main === module) main();
 
-module.exports = { readLedgerHeader, run, publishText, SLUG_RE, testContainment, baseHistoryHasPatch, mainWorkTree, CHANGE_TYPES };
+module.exports = { appendTrace, untraceField, readTrace, sliceType, readLedgerHeader, inProgressSlices, verificationCommands, run, publishText, SLUG_RE, testContainment, baseHistoryHasPatch, mainWorkTree, CHANGE_TYPES };

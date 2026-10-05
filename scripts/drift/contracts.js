@@ -1744,6 +1744,14 @@ const PATHS_DERIVATION_CONTRACTS = [
     /self-detecting\s+runner\s+flag[\s\S]{0,200}?not\s+this\s+fallback/i,
     'state that the empty-set fallback covers a fixed fast subset, never a self-detecting runner flag, which relies on its own pass-with-no-tests flag instead',
   ],
+  // ADR 0117: `hooks/run-trace.js` classes an edit through the optional, unfenced `## Test paths` section.
+  // Losing the unfenced rule puts a fence in the focused slot; losing the defaults leaves a repository
+  // with no section with no test class at all.
+  [
+    path.join('references', 'test-selection.md'),
+    /`## Test paths`[\s\S]{0,400}?unfenced\s+list[\s\S]{0,900}?absent\s+section\s+applies\s+the\s+defaults/i,
+    'define `## Test paths` as an optional unfenced list whose absence applies the default test patterns (ADR 0117)',
+  ],
   // ADR 0085 / INV-0007: the write step always carries a second fence in a repository with a suite. Losing
   // this row leaves setup free to write only one fence again for the already-cheap/cannot-narrow cases,
   // which is the `none` outcome ADR 0085 removed, just moved from the derivation prose into the write step.
@@ -1946,7 +1954,7 @@ const TEST_SELECTION_CONTRACTS = [
   [
     path.join('agents', 'implementer.md'),
     TEST_SELECTION_PATTERN,
-    'read `references/test-selection.md` and run the command it selects for each RED→GREEN increment',
+    'read `references/test-selection.md` and run the command it selects for each test run in its loop',
   ],
   [
     path.join('references', 'implement-lite.md'),
@@ -2214,6 +2222,7 @@ const ARG_TOKEN_CONTRACTS = [
   [path.join('hooks', 'merge-guard.js'), ARG_TOKEN_PATTERN, ARG_TOKEN_EXPECTATION],
   [path.join('hooks', 'green-gate.js'), ARG_TOKEN_PATTERN, ARG_TOKEN_EXPECTATION],
   [path.join('hooks', 'ledger-guard.js'), ARG_TOKEN_PATTERN, ARG_TOKEN_EXPECTATION],
+  [path.join('hooks', 'run-trace.js'), ARG_TOKEN_PATTERN, ARG_TOKEN_EXPECTATION],
 ];
 
 // `## Audit set` is a three-document agreement, the same shape as
@@ -6209,6 +6218,193 @@ const RESPONSE_SHAPES_CONTRACTS = [
   ],
 ];
 
+// ADR 0117, INV-0118: the implementer works against the run trace and the slice review judges the
+// RED-then-GREEN order from it. The agent bodies, the review checklist's `## Test order`, and the two
+// execution playbooks (the full tier's step 2 and step 3 dispatches, the lite tier's inline loop) each
+// carry the rule they reach, because a dispatch is the later, more specific instruction and wins a
+// conflict (CONTEXT.md → *Dispatch prose*, ADR 0035).
+const RUN_TRACE_ORDER_CONTRACTS = [
+  [
+    path.join('agents', 'implementer.md'),
+    /progress\s+log\s+carries\s+no\s+RED\s+or\s+GREEN\s+line/,
+    'state that the implementer\'s progress log carries no RED or GREEN line, because the run trace records those runs',
+  ],
+  [
+    path.join('agents', 'implementer.md'),
+    /note\s+from\s+the\s+hook\*\*\s+means\s+a\s+test\s+edit\s+has\s+no\s+failing\s+run\s+since/,
+    'state that a note from the hook means a test edit has no failing run since',
+  ],
+  [
+    path.join('agents', 'implementer.md'),
+    /git\s+add\s+<paths>`[\s\S]{0,100}git\s+restore\s+--worktree\s+--source=<base>\s+--\s+<paths>`[\s\S]{0,200}git\s+restore\s+--\s+<paths>`[\s\S]{0,200}Never\s+`git\s+stash`/,
+    'state the remedy: git add to stage, git restore --worktree --source=<base> to revert, a failing run, git restore to restore, a passing run, and never git stash',
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /read\s+the\s+slice's\s+\*\*run-trace\s+lines\*\*[\s\S]{0,400}belongs\s+to\s+the\s+blind\s+pass/,
+    'read the slice\'s run-trace lines in the blind pass, because hooks wrote them',
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /On\s+a\s+`behavior`\s+slice,\s+a\s+test\s+edit\s+followed\s+by\s+an\s+implementation\s+edit\s+or\s+a\s+passing\s+run\s+with\s+no\s+failing\s+run\s+between\s+them\s+is\s+an\s+\*\*Important\*\*\s+finding,\s+\*\*Missing\s+RED\*\*\.\s+A\s+`mechanical`\s+or\s+`docs`\s+slice\s+gets\s+no\s+order\s+finding/,
+    'name Missing RED as an Important finding on a behavior slice only',
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /No\s+trace,\s+or\s+no\s+events\s+for\s+the\s+slice,\s+gets\s+no\s+finding:\s+name\s+the\s+gap\s+in\s+the\s+report\.\s+A\s+repository\s+with\s+no\s+test\s+command\s+gets\s+no\s+order\s+check/,
+    'name a missing trace or an event-less slice in the report with no finding, and run no order check without a test command',
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /Missing\s+RED\s+finding\s+on\s+a\s+re-review\*\*\s+closes\s+only\s+when\s+the\s+trace\s+shows,\s+after\s+the\s+finding,\s+a\s+revert\s+\(or\s+an\s+implementation\s+edit\),\s+a\s+failing\s+run\s+that\s+covers\s+that\s+test[\s\S]{0,200}a\s+restore\s+\(or\s+an\s+implementation\s+edit\),\s+and\s+a\s+passing\s+run/,
+    'close a Missing RED finding on a re-review only on the sequence revert or edit, failing run covering the test, restore or edit, passing run',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /\*\*Missing\s+RED\*\*[\s\S]{0,200}implementation\s+edits,\s+then\s+test\s+edits,\s+then\s+only\s+passing\s+runs\s+meets\s+this\s+definition/,
+    'define Missing RED so that implementation edits, then test edits, then only passing runs meets it',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /Severity\s+Important\.\s+A\s+`mechanical`\s+or\s+`docs`\s+slice,\s+a\s+repository\s+with\s+no\s+test\s+command,\s+and\s+a\s+slice\s+with\s+no\s+trace\s+events\s+get\s+no\s+finding/,
+    'state Missing RED as Important and exempt a mechanical or docs slice, a repository with no test command, and a slice with no trace events',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /closes\s+only\s+when\s+the\s+trace\s+shows,\s+after\s+the\s+finding,\s+a\s+revert[\s\S]{0,300}a\s+passing\s+run\.\s+The\s+remedy\s+is\s+`git\s+add\s+<paths>`,\s+`git\s+restore\s+--worktree\s+--source=<base>[\s\S]{0,200}never\s+`git\s+stash`/,
+    'state the Missing RED closing sequence and the git restore remedy, never git stash',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /On\s+a\s+\*\*`lite`\*\*\s+scope,\s+read\s+every\s+slice's\s+trace\s+lines[\s\S]{0,400}\*\*Important\*\*\s+finding,\s+\*\*Missing\s+RED\*\*/,
+    'have final-reviewer apply Missing RED, Important, to every slice\'s trace lines on a lite scope',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /On\s+a\s+\*\*`full`\*\*\s+scope,\s+every\s+merged\s+slice\s+needs\s+a\s+`dispatch`\s+line\s+of\s+agent\s+type\s+`slice-reviewer`\s+whose\s+`dispatch-end`\s+comes\s+after[\s\S]{0,200}`\*\*Degraded:\*\*`\s+ledger\s+entry\s+naming\s+that\s+slice's\s+denied\s+review[\s\S]{0,100}\*\*Important\*\*\s+finding,\s+\*\*Unreviewed\s+slice\*\*\.\s+No\s+trace/,
+    'have final-reviewer raise Unreviewed slice, Important, on a full scope for a slice with neither a later slice-reviewer dispatch-end nor a degraded entry, and no finding without a trace',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /tell\s+it\s+the\s+tier\s+and\s+the\s+run\s+root[\s\S]{0,300}On\s+a\s+\*\*`lite`\*\*\s+scope,\s+`final-reviewer`\s+applies\s+\*\*Missing\s+RED\*\*/,
+    'dispatch final-reviewer with the tier and the run root, and the lite-tier Missing RED rule',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /On\s+a\s+\*\*`lite`\*\*\s+scope,\s+`final-reviewer`\s+applies\s+\*\*Missing\s+RED\*\*[\s\S]{0,200}the\s+checklist's\s+closing\s+sequence,\s+no\s+finding\s+without\s+a\s+trace/,
+    'dispatch final-reviewer with the lite-tier closing sequence and the no-finding-without-a-trace rule',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /second\s+field\s+is\s+its\s+slice[\s\S]{0,200}name\s+part\s+\(`slice-reviewer`,\s+`implementer`\)[\s\S]{0,200}ledger\s+row's\s+type/,
+    'dispatch final-reviewer with the trace slice field, the agent-type name part, and the ledger-type test for a behavior slice',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /second\s+field\s+is\s+its\s+slice[\s\S]{0,200}name\s+part\s+\(`slice-reviewer`,\s+`implementer`\)[\s\S]{0,200}ledger\s+row's\s+type\s+says\s+so/,
+    'have final-reviewer attribute a trace line by its second field, match the agent-type name part, and take a behavior slice from its ledger row',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /On\s+a\s+\*\*`full`\*\*\s+scope,\s+every\s+merged\s+slice\s+needs\s+a\s+`dispatch\s+superdev:slice-reviewer`[\s\S]{0,200}`\*\*Degraded:\*\*`\s+ledger\s+entry\s+naming\s+that\s+slice's\s+denied\s+review[\s\S]{0,100}\*\*Unreviewed\s+slice\*\*\.\s+No\s+trace,\s+or\s+no\s+events\s+for\s+a\s+slice:/,
+    'dispatch final-reviewer with the full-tier Unreviewed slice rule and the no-trace and no-events exemption',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /dispatch\s+also\s+tells\s+it\s+that\s+the\s+run\s+trace\s+records\s+its\s+edits\s+and\s+runs,\s+that\s+its\s+progress\s+log\s+carries\s+no\s+RED\s+or\s+GREEN\s+line,\s+and\s+that\s+a\s+note\s+from\s+the\s+hook\s+means\s+a\s+missing\s+failing\s+run[\s\S]{0,200}never\s+`git\s+stash`/,
+    'state, in step 2, that the implementer dispatch tells it the run trace records its work, its log carries no RED or GREEN line, and the hook-note remedy never uses git stash',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /blind\s+pass\s+reads\s+the\s+slice's\s+run-trace\s+lines[\s\S]{0,300}Important\s+finding,\s+\*\*Missing\s+RED\*\*,\s+and\s+no\s+trace\s+or\s+no\s+events\s+for\s+the\s+slice\s+gets\s+no\s+finding/,
+    'state, in step 3, that the blind pass reads the run-trace lines, Missing RED is Important on a behavior slice, and no trace or no events gets no finding',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /re-review\s+closes\s+it\s+only\s+when\s+the\s+trace\s+shows,\s+after\s+the\s+finding,\s+a\s+revert\s+\(or\s+an\s+implementation\s+edit\),\s+a\s+failing\s+run\s+covering\s+that\s+test,\s+a\s+restore\s+\(or\s+an\s+implementation\s+edit\),\s+and\s+a\s+passing\s+run/,
+    'state, in step 3, the sequence that closes a Missing RED finding on a re-review',
+  ],
+  [
+    path.join('references', 'implement-lite.md'),
+    /run\s+trace\s+records\s+your\s+edits\s+and\s+runs[\s\S]{0,300}never\s+`git\s+stash`[\s\S]{0,300}Missing\s+RED\s+finding/,
+    'state, in the inline loop, that the run trace records the work, the hook-note remedy never uses git stash, and a test edit then implementation with no failing run is a Missing RED finding',
+  ],
+  ...[
+    path.join('references', 'review-checklist.md'),
+    path.join('references', 'implement-full.md'),
+    path.join('references', 'implement-lite.md'),
+  ].map((doc) => [
+    doc,
+    /a\s+test\s+edit\s+followed\s+by\s+an\s+implementation\s+edit\s+or\s+a\s+passing\s+run\s+with\s+no\s+failing\s+run\s+between\s+them/,
+    'define Missing RED as a test edit followed by an implementation edit or a passing run with no failing run between them, the same wording in every document that states it',
+  ]),
+  ...[
+    path.join('agents', 'implementer.md'),
+    path.join('agents', 'slice-reviewer.md'),
+    path.join('references', 'review-checklist.md'),
+    path.join('references', 'implement-full.md'),
+    path.join('references', 'implement-lite.md'),
+  ].map((doc) => [
+    doc,
+    /A\s+`run\s+…\s+unknown`\s+line\s+is\s+not\s+a\s+failing\s+run:\s+it\s+neither\s+satisfies\s+the\s+RED\s+step\s+nor\s+closes\s+the\s+finding,\s+and\s+the\s+implementer\s+answers\s+it\s+by\s+re-running\s+the\s+test\s+without\s+a\s+pipe\s+or\s+`\|\|\s+true`/,
+    'state that a run unknown line is not a failing run, and that the implementer re-runs the test without a pipe or || true',
+  ]),
+    // The lite tier dispatches nobody, so it cannot say "which the dispatch names". The full tier and
+  // agents say it; the lite tier says the base is the scope branch's tip before the slice's first commit instead.
+  ...[
+    path.join('agents', 'implementer.md'),
+    path.join('references', 'review-checklist.md'),
+    path.join('references', 'implement-full.md'),
+  ].map((doc) => [
+    doc,
+    /`<base>`\s+is\s+the\s+commit\s+the\s+slice\s+branch\s+was\s+cut\s+from,\s+which\s+the\s+dispatch\s+names/,
+    'name <base> in the Missing RED remedy as the commit the slice branch was cut from, which the dispatch names',
+  ]),
+  [
+    path.join('references', 'implement-lite.md'),
+    /`<base>`\s+is\s+the\s+scope\s+branch's\s+tip\s+before\s+this\s+slice's\s+first\s+commit,\s+recorded\s+with\s+`git\s+rev-parse\s+HEAD`\s+when\s+the\s+slice\s+starts/,
+    'name <base> in the Missing RED remedy as the scope branch\'s tip before this slice\'s first commit, recorded with `git rev-parse HEAD` when the slice starts, since the lite tier dispatches nobody',
+  ],
+  ...[
+    path.join('references', 'implement-full.md'),
+    path.join('references', 'implement-lite.md'),
+  ].map((doc) => [
+    doc,
+    /git\s+add\s+<paths>`,\s+`git\s+restore\s+--worktree\s+--source=<base>\s+--\s+<paths>`,\s+a\s+failing\s+run,\s+(?:and\s+)?`git\s+restore\s+--\s+<paths>`,\s+(?:and\s+)?a\s+passing\s+run,\s+never\s+`git\s+stash`/,
+    'state the remedy: git add to stage, git restore --worktree --source=<base> to revert, a failing run, git restore to restore, a passing run, and never git stash, so a dispatch holding the old two-step form fails',
+  ]),
+  [
+    path.join('references', 'implement-full.md'),
+    /tells\s+it\s+that\s+a\s+`run\s+…\s+unknown`\s+line\s+is\s+not\s+a\s+failing\s+run,\s+and\s+that\s+it\s+answers\s+one\s+by\s+re-running\s+the\s+test\s+without\s+a\s+pipe\s+or\s+`\|\|\s+true`/,
+    'state, in step 2, that the implementer dispatch tells it a run unknown line is not a failing run and to re-run the test without a pipe or || true',
+  ],
+  [
+    path.join('references', 'test-selection.md'),
+    /\*\*Run\s+the\s+full,\s+focused,\s+or\s+whole-repo\s+command\s+with\s+its\s+own\s+exit\s+status\s+intact\.\*\*\s+Run\s+the\s+command\s+alone,\s+after\s+nothing\s+but\s+`cd`\s+and\s+`set\s+-o\s+pipefail`[\s\S]{0,400}redirect\s+it\s+to\s+a\s+file\s+outside\s+the\s+working\s+tree[\s\S]{0,400}`scope\.js\s+suite\s+reusable`\s+never\s+reuses\s+it/,
+    'state that the full, focused, and whole-repo commands run alone after nothing but cd and set -o pipefail, with output redirected to a file outside the working tree, because suite reusable never reuses an unknown run',
+  ],
+];
+
+// ADR 0117: setup proposes a repository's test paths and writes them as the unfenced `## Test paths`
+// section; its check names a missing section as an advisory naming the defaults, never as drift.
+const SETUP_TEST_PATHS_CONTRACTS = [
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /unfenced\*\*\s+list,\s+never\s+a\s+fenced\s+block[^.]*\.\s+\*\*No\s+test\s+command\*\*\s+\S+\s+propose\s+no\s+test\s+paths/,
+    'state that decision E proposes test paths as an unfenced list, never a fenced block, and proposes none without a test command (ADR 0117)',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /no\s+`## Test paths`\s+section\s+gets\s+an\s+\*\*advisory\*\*\s+line,\s+never\s+a\s+drift\s+verdict[\s\S]{0,200}?default\s+patterns[\s\S]{0,200}?`test_\*\.py`\)[\s\S]{0,300}?no\s+usable\s+entry/,
+    'state that the check names a missing `## Test paths` section, or one with no usable entry, as an advisory naming the default patterns, never as drift (ADR 0117)',
+  ],
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /unfenced\s+list\*\*,\s+one\s+pattern\s+per\s+item\.\s+A\s+repository\s+with\s+no\s+test\s+command\s+gets\s+no\s+section/,
+    'state that the written `## Test paths` section is an unfenced list and a repository with no test command gets no section (ADR 0117)',
+  ],
+];
+
 module.exports = {
   RESPONSE_SHAPES_CONTRACTS,
   BACKLOG_VERIFY_WRAP_UP_CONTRACTS,
@@ -6216,6 +6412,8 @@ module.exports = {
   CLEAN_VERDICT_ENDS_LOOP_CONTRACTS,
   FIX_LOOP_FIXES_EVERY_FINDING_CONTRACTS,
   BLIND_SLICE_REVIEW_CONTRACTS,
+  RUN_TRACE_ORDER_CONTRACTS,
+  SETUP_TEST_PATHS_CONTRACTS,
   DEPENDENCY_RECORD_CONTRACTS,
   DEPENDENCY_LENS_DOC,
   DEPENDENCY_LENS_HEADING,

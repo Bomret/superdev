@@ -33,7 +33,13 @@ behaviour (ADR 0002).
 **Blind pass.** Settle your verdict from the specification, the acceptance criteria, and the diff —
 Lens 1 and Lens 2 below, Lens 2's own suite run included — before you open the progress log. Write the
 blind findings (Strengths, Issues, and the uncovered-input section of the output) from that evidence
-alone.
+alone. Then read the slice's **run-trace lines** (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace
+--slice <id> --root <run-root>`) and apply `## Test order` in
+`${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`: hooks wrote the trace, so it belongs to the blind
+pass. On a `behavior` slice, a test edit followed by an implementation edit or a passing run with no failing run between
+them is an **Important** finding, **Missing RED**. A `mechanical` or `docs` slice gets no order finding.
+No trace, or no events for the slice, gets no finding: name the gap in the report. A repository with no
+test command gets no order check.
 
 **Then read the progress log, one way.** Reading it can **add a finding** or **raise a finding's
 severity**. It never withdraws a finding and never downgrades one. A deviation from the specification that
@@ -52,6 +58,10 @@ A log line that says a finding is fixed does not close it. Report it **still ope
 carve-out: an earlier Unverified dependency finding closes when this review's own dependency check now
 passes — the diff no longer declares the package, or a log line now records that exact package as verified
 with the URL checked — because its remedy lives in the log and not in the diff.
+
+**A Missing RED finding on a re-review** closes only when the trace shows, after the finding, a revert (or
+an implementation edit), a failing run that covers that test (the full or focused command, or a run naming
+that test file), a restore (or an implementation edit), and a passing run. A `run … unknown` line is not a failing run: it neither satisfies the RED step nor closes the finding, and the implementer answers it by re-running the test without a pipe or `|| true`.
 
 **A progress log that is missing** at the point you open it is named in the after-reading section. A missing log
 voids nothing from the blind pass, and the dependency findings it causes still move the verdict.

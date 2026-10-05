@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0117](0117-the-run-trace-is-hook-written-evidence.md), which records
+the RED-then-GREEN order in a hook-written run trace and makes a missing failing run a review finding.
+
 **Context.** A recurring proposal for `/superdev:implement` is to split authorship: one agent writes a
 slice's whole test suite first, a second agent then implements against it. The appeal is incentive
 independence: an implementer that authors its own tests wants them green, and a separate author has no

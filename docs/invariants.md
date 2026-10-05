@@ -150,10 +150,10 @@ Paths: plugin/skills/review/**, plugin/references/run-handoff.md, plugin/skills/
 ### INV-0017
 
 Class: process
-Concepts: Focused test command, Suite record
-Statement: A slice implementer and a fix cycle run only the focused command. The full suite runs at run handoff, once more when a fix loop there first comes back clean, and after review's first clean re-review. Where the repository configures a whole-repo command, it runs once before the pull request opens, on a tip that carries no green whole-repo result at ship (which instead refuses while a review invalidation stands, INV-0092), and in place of the full suite in a review entered while the suite record reads red of kind `whole`. A green result recorded on the commit a step would run on is reused rather than run again. A result recorded on any other commit is not. A step that needs a whole-repo run reuses only a record of kind `whole`.
+Concepts: Focused test command, Suite record, Run trace
+Statement: A slice implementer and a fix cycle run only the focused command. The full suite runs at run handoff, once more when a fix loop there first comes back clean, and after review's first clean re-review. Where the repository configures a whole-repo command, it runs once before the pull request opens, on a tip that carries no green whole-repo result at ship (which instead refuses while a review invalidation stands, INV-0092), and in place of the full suite in a review entered while the suite record reads red of kind `whole`. A green result recorded on the commit a step would run on is reused rather than run again, but only where the latest run of that command the run trace records at that commit passed on a clean working tree (ADR 0117). A result recorded on any other commit is not, and neither is one the run trace does not back. A step that needs a whole-repo run reuses only a record of kind `whole`.
 Breaks: silently
-Check: scripts/drift-check.js — the full-suite contract rows on run handoff and review; tests/scope.test.js — the suite record's read and write, and `suite reusable`'s tip-match cases
+Check: scripts/drift-check.js — the full-suite contract rows on run handoff and review; tests/scope.test.js — the suite record's read and write, and `suite reusable`'s tip-match cases and run-trace backing
 Paths: plugin/references/run-handoff.md, plugin/skills/review/**, plugin/skills/submit-pr/**, plugin/skills/ship/**, plugin/agents/implementer.md, plugin/scripts/scope.js
 
 ### INV-0018
@@ -558,7 +558,7 @@ Class: architecture
 Concepts: Guardrail
 Statement: Each shipped hook runs its dispatch when spawned and does nothing when `require`d.
 Breaks: silently
-Check: `tests/green-gate.test.js`, `tests/ledger-guard.test.js`, `tests/merge-guard.test.js`, `tests/model-explicit.test.js`, `tests/run-lock.test.js`, `tests/update-check.test.js`, `tests/slicetree-sweep.test.js` (each asserts that requiring the hook prints nothing)
+Check: `tests/green-gate.test.js`, `tests/ledger-guard.test.js`, `tests/merge-guard.test.js`, `tests/model-explicit.test.js`, `tests/run-lock.test.js`, `tests/update-check.test.js`, `tests/slicetree-sweep.test.js`, `tests/run-trace.test.js` (each asserts that requiring the hook prints nothing)
 Paths: plugin/hooks/*.js
 
 ### INV-0069
@@ -968,3 +968,30 @@ Statement: `/superdev:ship`'s final hand-off, `/superdev:backlog`'s routing of a
 Breaks: silently
 Check: scripts/drift-check.js — ship's, backlog's, document's, and run-init.md's citations of the scope-mode.md section; partial: nothing checks the command an agent prints
 Paths: plugin/skills/ship/SKILL.md, plugin/skills/backlog/SKILL.md, plugin/skills/document/SKILL.md, plugin/references/run-init.md, plugin/references/scope-mode.md
+
+### INV-0117
+
+Class: process
+Concepts: Run trace
+Statement: Only superdev's hooks and `scope.js` write a run trace. An agent's Edit or Write of a `trace.log` under a run root, and a shell write into one, are refused, and no `scope.js` verb appends an event its caller chooses, so every event a reviewer reads there is one the agent under review did not author (ADR 0117).
+Breaks: silently
+Check: tests/ledger-guard.test.js — the trace-file refusal cases
+Paths: plugin/hooks/**, plugin/scripts/scope.js
+
+### INV-0118
+
+Class: process
+Concepts: Run trace, Slice-reviewer, Implementer
+Statement: On a `behavior` slice, a test edit followed by an implementation edit or a passing run with no failing test run recorded between them in the run trace is an Important finding: `slice-reviewer`'s on the full tier, `final-reviewer`'s on the lite tier. The finding closes only on a recorded revert of the implementation, a failing run, a restore, and a passing run, in that order. The reviewer judges the order from the run trace, never from the implementer's own account (ADR 0117, ADR 0008).
+Breaks: silently
+Check: scripts/drift-check.js — the trace-order rows on `slice-reviewer`, `final-reviewer`, and the prose that dispatches each
+Paths: plugin/agents/slice-reviewer.md, plugin/agents/final-reviewer.md, plugin/agents/implementer.md, plugin/references/implement-lite.md, plugin/references/review-checklist.md
+
+### INV-0119
+
+Class: process
+Concepts: Run trace, Slice-reviewer, Degraded pass
+Statement: On the full tier, every slice merged into the scope branch has a `slice-reviewer` dispatch recorded in the run trace that ends after the slice's last `implementer` dispatch, or a degraded-pass entry naming that slice's denied review. `final-reviewer` reports a slice with neither as an Important finding (ADR 0117).
+Breaks: silently
+Check: scripts/drift-check.js — the review-dispatch row on `final-reviewer` and the prose that dispatches it
+Paths: plugin/agents/final-reviewer.md, plugin/skills/review/**

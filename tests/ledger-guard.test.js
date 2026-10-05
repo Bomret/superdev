@@ -74,6 +74,15 @@ for (const sub of ['${X:-"a } b"}', "${X:-'a } b'}", '${X:-"}"}', '${X:-`a } b`}
   const elapsed = Date.now() - t0;
   assert.ok(elapsed < 5000, 'substitution runs must resolve quickly, took ' + elapsed + 'ms');
 }
+// Multiple heredocs on one line: every opener must be recognized and its body masked (RED test for finding 2).
+{
+  const T = '.superdev/scopes/demo/trace.log';
+  assert.equal(bash("cat <<A <<B\nfirst\nA\nsecond\nB\necho done").block, false, 'two heredocs on one line, no ledger write, passes');
+  assert.equal(bash("cat <<A <<B\nfirst\nA\nsecond\nB\ncp /tmp/x " + L).block, true, 'two heredocs on one line with ledger write after, denied');
+  assert.equal(bash("cat <<A <<B\nfirst\nA\ncp file " + L + "\nB\necho done").block, false, 'second heredoc body with cp+ledger is masked; real write must follow');
+  assert.equal(bash("cat <<A <<B\nfirst\nA\necho y > " + T + "\nB\necho done").block, false, 'second heredoc body with trace redirect is masked; real write must follow');
+  assert.equal(bash("cat > notes.md <<A <<B\nfirst\nA\nsecond\nB").block, false, 'two heredocs writing to notes.md passes');
+}
 assert.equal(bash('echo x > "$(dirname .superdev/scopes/a/ledger.md)/other"').block, true, 'a substitution-bearing redirect target is judged on its text, so this write to another file is a deliberate fail-closed');
 assert.equal(bash('cat new.md | tee ' + L).block, true, 'tee denied');
 assert.equal(bash('cat new.md | tee -a "' + L + '"').block, true, 'tee -a quoted denied');
@@ -151,6 +160,40 @@ if (!process.env.SUPERDEV_ARGV_GUARD_TEST) {
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+}
+
+// The run trace (ADR 0117) is hook-written: every write shape refused for the ledger is refused for it.
+{
+  const T = '.superdev/scopes/demo/trace.log';
+  assert.equal(file(T).block, true, 'Edit/Write of trace.log denied');
+  assert.ok(/trace/.test(file(T).reason) && /hook-written/.test(file(T).reason), 'denial names the run trace as hook-written');
+  for (const c of ['echo x > ' + T, 'echo x >> ' + T, 'echo x | tee ' + T, 'sed -i s/a/b/ ' + T, 'cp /tmp/x ' + T, 'mv /tmp/x ' + T]) {
+    assert.equal(bash(c).block, true, 'denied: ' + c);
+  }
+  assert.equal(bash('cat ' + T).block, false, 'a read passes');
+  assert.equal(bash('node scope.js trace --root /r/.superdev/scopes/demo').block, false, 'a scope.js call passes');
+  // A heredoc body is data: prose naming cp, tee, and ledger/trace paths passes; a real write still blocks.
+  const prose = 'cp and tee write ' + L + ' and ' + T;
+  assert.equal(bash("cat > notes.md <<'EOF'\n" + prose + '\nEOF').block, false, 'quoted heredoc body passes');
+  assert.equal(bash('cat > notes.md <<-EOF\n\t' + prose + '\n\tEOF').block, false, 'indented heredoc body passes');
+  assert.equal(bash("cat > " + T + " <<'EOF'\nhello\nEOF").block, true, 'a real heredoc write to trace.log is refused');
+  assert.equal(bash("cat > notes.md <<'EOF'\nx\nEOF\necho y > " + L).block, true, 'a write after the heredoc is still refused');
+  for (const opener of ['cat <<< x', 'echo "<<EOF"', "echo '<<EOF'", 'x=$((1 << 2))']) {
+    assert.equal(bash(opener + '\ncp /tmp/x ' + T).block, true, 'a non-heredoc << is no opener: ' + opener);
+    assert.equal(bash(opener + '\ncp /tmp/x ' + L).block, true, 'ledger too: ' + opener);
+  }
+}
+
+// Finding 2: shell comments containing `<<` must not open phantom heredocs. A `#` that starts a word
+// masks the rest of its line before the heredoc opener scan, so `# x <<EOF` is treated as a comment,
+// not an opener. Quoted `#` and `$#` stay unmasked, so real heredocs still open.
+{
+  const T = '.superdev/scopes/demo/trace.log';
+  assert.equal(bash('# this is a comment <<EOF\ncp /tmp/x ' + L).block, true, 'a real write after a comment with phantom << is denied');
+  assert.equal(bash('# comment <<EOF\necho y > ' + T).block, true, 'write to trace.log after comment with phantom << is denied');
+  assert.equal(bash('cmd=$(echo x) # trailing comment <<EOF\ncp /tmp/x ' + L).block, true, 'real write after inline comment with phantom << is denied');
+  assert.equal(bash('echo "#string" <<EOF\ndata\nEOF\ncp /tmp/x ' + L).block, true, 'real write after a real heredoc (quoted # does not start a comment) is denied');
+  assert.equal(bash("echo '#string' <<EOF\ndata\nEOF\ncp /tmp/x " + L).block, true, 'real write after a real heredoc with single-quoted # is denied');
 }
 
 console.log('ledger-guard tests ok');

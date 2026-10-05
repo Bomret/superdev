@@ -99,6 +99,16 @@ GREEN: write the minimal code to pass it → watch it pass
 For `mechanical` slices (pure move/rename/format): **write no new test** — the existing suite is the
 net. For `docs` slices: no test.
 
+## The run trace records your order
+
+Hooks write a **run trace** of your edits and your test runs (`${CLAUDE_PLUGIN_ROOT}/scripts/scope.js
+trace --slice <id> --root <run-root>` prints it), and the slice review judges the RED-then-GREEN order from
+it. A **note from the hook** means a test edit has no failing run since. Answer it with the **remedy**:
+stage the implementation with `git add <paths>`, revert it with `git restore --worktree --source=<base> -- <paths>`
+(a path absent at `<base>` is deleted), run the test and see it fail, restore with `git restore -- <paths>`,
+run it and see it pass. Never `git stash`: the stash stack is
+shared across worktrees. `<base>` is the commit the slice branch was cut from, which the dispatch names. A `run … unknown` line is not a failing run: it neither satisfies the RED step nor closes the finding, and the implementer answers it by re-running the test without a pipe or `|| true`.
+
 ## Deep modules & domain language
 
 - Prefer **deep modules**: a small, simple interface over a substantial implementation. Push
@@ -207,7 +217,8 @@ The controller gives you a **progress-log** path (under this run's scope root, e
 `<run-root>/reports/<id>/progress.md`). **Append to it as you work**:
 
 - a line when you **start** (slice id, what you're building);
-- a line per **RED→GREEN increment**, and per real decision or `simplicity:` you make;
+- a line per real decision or `simplicity:` you make (the run trace records the RED and GREEN runs, so your
+  progress log carries no RED or GREEN line);
 - a short **closing summary** — what you built, the test command run + its result, any concerns.
 
 Append (never overwrite); the file may already hold a header or earlier agents' entries. Then **return

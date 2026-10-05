@@ -154,6 +154,17 @@ superdev subagent that omits one):
     reviewer's own instruction asks it to derive first, and no instruction can undo that. The reviewer
     also reads `<run-root>/ledger.md`'s slice list for step 1 of its derivation — `<run-root>` is
     `dod.md`'s own directory, so no separate path needs passing.
+  - **Also tell it the tier and the run root, so it reads the run trace.** The tier is derived per
+    `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section (three or fewer slices is
+    `lite`). On a **`lite`** scope, `final-reviewer` applies **Missing RED** to every slice's trace lines
+    exactly as `slice-reviewer` does (Important, the checklist's closing sequence, no finding without a
+    trace). A trace line's second field is its slice (the slice id, or `scope`), and a `dispatch` line
+    carries the plugin-scoped agent type, so it matches on the name part (`slice-reviewer`,
+    `implementer`). On the lite tier a slice is `behavior` when its ledger row's type says so
+    (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>`). On a **`full`** scope, every merged slice needs a `dispatch superdev:slice-reviewer` whose
+    `dispatch-end` comes after that slice's last `dispatch-end` of `superdev:implementer`, or a
+    `**Degraded:**` ledger entry naming that slice's denied review: a slice with neither is an Important
+    finding, **Unreviewed slice**. No trace, or no events for a slice: it names that in the report and raises neither finding.
   - **Also tell it to judge every `dod.md` line, ticked or not.** `final-reviewer` returns a verdict for
     each — holds, broken, or ceiling — in its own `### Criteria` section (`agents/final-reviewer.md`'s
     `## Judge every criterion`). §4 below unticks and re-ticks from that list; the axes above (Correctness,

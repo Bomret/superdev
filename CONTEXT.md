@@ -94,6 +94,9 @@ _Avoid: "live run" bare, unqualified (this glossary already uses it for `scope-m
 **Progress log**: the per-slice running record of what happened: agent dispatches, reviews, fixes, and merge results. `.superdev/scopes/<scope>/reports/<id>/progress.md` is append-only, oldest-first, git-ignored. Exists so a human or a resumed controller can see what unfolded without re-reading slicetree state. It is also `slice-reviewer`'s after-blind-pass input and a re-review's record of earlier findings.
 _Avoid: "log", "report", "transcript" (logs are broader, and this is slice-specific narrative)_
 
+**Run trace**: the run's event record, `<run-root>/trace.log`, one line per event, each naming the slice it belongs to or `scope`. superdev's hooks and `scope.js` write it, and no agent does: it records file edits classified as test or implementation, test runs with their outcome and commit, reverts and restores, subagent dispatches and their ends, and ledger writes. Reviewers read it as evidence of the order work happened in, where the **Progress log** is the agents' own account (ADR 0117).
+_Avoid: "TDD log", "increment trace", "run log", "transcript" (the transcript is Claude Code's own record, not superdev's)_
+
 **Warrant**: the justification a piece of work carries. It scales both cost (which model a dispatch uses) and rigor (which review gates run). Derived from a slice's test-applicability and complexity, never a plan field. A `behavior` slice warrants more than a `mechanical` one. A hook blocks any dispatch that omits an explicit model, so cost stays warrant-scaled.
 _Avoid: "priority", "estimate", "weight"_
 

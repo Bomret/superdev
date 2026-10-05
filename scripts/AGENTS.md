@@ -27,7 +27,7 @@ This doc owns what each script guards and the contracts between them. Repo-wide 
 `suite set <green|red|denied|none> <sha>`,
 `suite reusable --branch <b> [--whole]`,
 `get stage|branch|anchor|slices|unresolved|degraded|deferred|denials|docs|pr|suite`,
-`status` (which renders the whole `/superdev:status` report), `publish`, `adopt`, `root <slug>`, and
+`status` (which renders the whole `/superdev:status` report), `trace [--slice <id>]` (prints the run trace, read-only), `publish`, `adopt`, `root <slug>`, and
 `dod-line`.
 `--help` or `-h`, alone or after any verb, prints the usage and exits 0, except that a flag's value, or the bullet text after `add` or `add-denial`, is data and never a help request. It is checked before any verb
 reads stdin or touches a ledger, so a stdin verb such as `dod-line` never waits on input for it.
@@ -53,6 +53,8 @@ bullet text from stdin, one trailing newline stripped, instead of a shell-interp
 reason (`reset-denials`) can carry a quote just as easily as any other bullet text. Any other shape of
 these subcommands' own arguments keeps joining its
 positional words with spaces as it always has.
+Every verb that writes the ledger appends one `ledger` line to the run trace after its write succeeds, through
+`appendTrace(runRoot, event)`, the single writer of `trace.log` (ADR 0117); no verb takes a caller-chosen event.
 It also exports `readLedgerHeader` as a module
 API. This per-header ledger-line reader is what `hooks/scope-prune.js` and `hooks/slicetree-sweep.js`
 both use instead of carrying their own regex. `hooks/scope-prune.js` takes a second export off the same
@@ -2572,6 +2574,41 @@ remainder at the cap blocks. A Minor-only remainder proceeds. The RED-test rule 
 The selftest removes each row's own clause from the shipped documents and expects exactly that row to
 fail. Losing a row reopens its gap: a Minor-only verdict that skips the question, an unattended run that
 leaves Minors, a cap that blocks on Minors, or a RED test demanded of a style fix.
+
+The `run-trace-order` contract (ADR 0117, INV-0118) pins how the implementer and the slice review work
+against the run trace. The agent bodies, the review checklist's `## Test order`, the `references/implement-full.md`
+step 2 and step 3 dispatches, and `references/implement-lite.md`'s inline loop each carry the rule they
+reach. The rows:
+
+- `agents/implementer.md` states that its progress log carries no RED or GREEN line, that a note from the
+  hook means a test edit has no failing run since, and the remedy: `git add`, `git restore --worktree --source=<base>`, a failing
+  run, `git restore`, a passing run, never `git stash`.
+- `agents/slice-reviewer.md` reads the slice's run-trace lines in its blind pass, names Missing RED as
+  Important on a `behavior` slice only, raises no finding for a missing trace, an event-less slice, or a
+  repository with no test command, and closes the finding on a re-review only on the revert, failing run,
+  restore, passing run sequence.
+- `references/review-checklist.md` defines Missing RED, so that implementation edits, then test edits, then
+  only passing runs meets it, and states the closing sequence and the remedy.
+- `references/implement-full.md` and `references/implement-lite.md` carry the same rules on the dispatch
+  and inline surfaces, including the
+  remedy sequence, so a playbook holding the old two-step form fails.
+- `references/review-checklist.md`, `references/implement-full.md`, and `references/implement-lite.md` state
+  Missing RED as a test edit followed by an implementation edit or a passing run with no failing run between
+  them, and `agents/slice-reviewer.md` states it the same way. All five documents state that a `run … unknown`
+  line is not a failing run, and every document stating the remedy names `<base>` as the commit the slice
+  branch was cut from.
+- `references/test-selection.md` states that the full, focused, and whole-repo commands run alone, after
+  nothing but `cd` and `set -o pipefail`, and that trimmed output goes to a file outside the working tree. A run
+  whose exit status does not reflect the test records `unknown`, and `scope.js suite reusable` never reuses it.
+
+The `setup-test-paths` contract (ADR 0117) pins `skills/setup/SKILL.md`. Its rows:
+
+- Decision E proposes the repository's test paths and writes them as the unfenced `## Test paths` list,
+  never a fenced block, and proposes none for a repository with no test command.
+- `setup check` names a `verification.md` with test commands and no `## Test paths` section as an
+  advisory that names the default patterns, never as drift.
+
+The selftest removes each row's own clause from the shipped skill and expects exactly that row to fail.
 
 The `blind-slice-review` contract (ADR 0114, INV-0113, INV-0114) pins how the full tier's slice review
 reads the progress log. `agents/slice-reviewer.md` and the slice-reviewer dispatch in

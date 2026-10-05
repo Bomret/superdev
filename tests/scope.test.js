@@ -24,6 +24,7 @@ const {
   readLedgerHeader,
   testContainment,
   baseHistoryHasPatch,
+  appendTrace,
 } = require(scopePath);
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-selftest-'));
@@ -2164,8 +2165,26 @@ try {
       'nothing written on a missing-sha refusal'
     );
 
+    // The run trace backs reuse (ADR 0117, INV-0017): `traceRun` records one run line for a root.
+    const traceRun = (rt, kind, result, sha, tree) =>
+      appendTrace(rt, { kind: 'run', fields: [kind, result, sha, tree] });
+
     // suite reusable: a green record on the exact tip is reusable (path-scoped reuse, INV-0017).
     assert.ok(callIn(['suite', 'set', 'green', newSha, ...SR], suiteRepo).ok, 'suite set green newSha');
+    // No trace file: not reusable, so the caller runs the suite again.
+    r = callIn(['suite', 'reusable', '--branch', 'main', ...SR], suiteRepo);
+    assert.ok(!r.ok && /no full or whole run recorded/.test(r.err), 'a green record with no trace is not reusable: ' + (r.err || ''));
+    traceRun(suiteRoot, 'full', 'pass', 'f'.repeat(40), 'clean');
+    r = callIn(['suite', 'reusable', '--branch', 'main', ...SR], suiteRepo);
+    assert.ok(!r.ok && /no full or whole run recorded/.test(r.err), 'a run line at another sha does not back reuse: ' + (r.err || ''));
+    traceRun(suiteRoot, 'full', 'pass', newSha, 'dirty');
+    r = callIn(['suite', 'reusable', '--branch', 'main', ...SR], suiteRepo);
+    assert.ok(!r.ok && /dirty/.test(r.err), 'a dirty tree is not reusable: ' + (r.err || ''));
+    traceRun(suiteRoot, 'full', 'pass', newSha, 'unknown');
+    assert.ok(!callIn(['suite', 'reusable', '--branch', 'main', ...SR], suiteRepo).ok, 'an unknown tree is not reusable');
+    traceRun(suiteRoot, 'full', 'unknown', newSha, 'clean');
+    assert.ok(!callIn(['suite', 'reusable', '--branch', 'main', ...SR], suiteRepo).ok, 'an unknown result is not reusable');
+    traceRun(suiteRoot, 'full', 'pass', newSha, 'clean');
     assert.ok(
       callIn(['suite', 'reusable', '--branch', 'main', ...SR], suiteRepo).ok,
       'a green record on the exact tip is reusable'
@@ -2178,6 +2197,10 @@ try {
       callIn(['suite', 'reusable', '--branch', newSha, ...SR], suiteRepo).ok,
       'a green record is reusable against its own sha passed literally, not only a branch name'
     );
+    traceRun(suiteRoot, 'full', 'fail', newSha, 'clean');
+    r = callIn(['suite', 'reusable', '--branch', 'main', ...SR], suiteRepo);
+    assert.ok(!r.ok && /is fail/.test(r.err), 'a later fail run defeats reuse: ' + (r.err || ''));
+    traceRun(suiteRoot, 'full', 'pass', newSha, 'clean');
 
     // suite reusable: a green record on an earlier commit is not reusable, even when every path changed
     // since lies under `docs/plans/<branch>/` — no store commits its own records on the scope branch, so
@@ -2221,16 +2244,21 @@ try {
       'get suite reports the whole kind'
     );
 
-    // suite reusable --whole: a green whole record on the exact tip is reusable through --whole.
+    // suite reusable --whole: a green whole record on the exact tip is reusable through --whole, backed
+    // only by a `whole` run line.
+    traceRun(suiteRoot, 'full', 'pass', wholeTip, 'clean');
+    r = callIn(['suite', 'reusable', '--branch', 'main', '--whole', ...SR], suiteRepo);
+    assert.ok(!r.ok && /no whole run recorded/.test(r.err), 'a full run line does not satisfy --whole: ' + (r.err || ''));
+    traceRun(suiteRoot, 'whole', 'pass', wholeTip, 'clean');
     assert.ok(
       callIn(['suite', 'reusable', '--branch', 'main', '--whole', ...SR], suiteRepo).ok,
       'a whole record is reusable through --whole'
     );
 
-    // suite reusable: a whole record also satisfies a plain (no --whole) check.
+    // suite reusable: a whole run line at the tip satisfies a plain check (full or whole kind accepted).
     assert.ok(
       callIn(['suite', 'reusable', '--branch', 'main', ...SR], suiteRepo).ok,
-      'a whole record also satisfies a plain reusable check'
+      'a whole run line backs a plain reusable check'
     );
 
     // suite set (no --whole): a green record with no kind fails a --whole check, naming the missing
@@ -2314,6 +2342,7 @@ try {
     const currentTip = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: suiteRepo, encoding: 'utf8' }).trim();
     const preFeatureRoot = path.join(suiteRepo, '.superdev', 'scopes', 'pre-feature-suite-demo');
     fs.mkdirSync(preFeatureRoot, { recursive: true });
+    traceRun(preFeatureRoot, 'full', 'pass', currentTip, 'clean');
     fs.writeFileSync(
       path.join(preFeatureRoot, 'ledger.md'),
       '# Ledger — pre-feature-suite-demo\n\n**Stage:** merged\n**Branch:** feat/pre-feature-suite-demo\n' +
@@ -2332,6 +2361,86 @@ try {
       callIn(['suite', 'reusable', '--branch', 'main', '--root', preFeatureRoot], suiteRepo).ok,
       'a pre-existing no-kind record is reusable without --whole'
     );
+
+    // suite reusable: a whole run line alone backs a plain check (no full run needed).
+    // RED test: this should pass once the filter accepts both full and whole kinds for plain checks.
+    const wholeOnlyRoot = path.join(suiteRepo, '.superdev', 'scopes', 'whole-only-suite-demo');
+    fs.mkdirSync(wholeOnlyRoot, { recursive: true });
+    const wholeOnlySha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: suiteRepo, encoding: 'utf8' }).trim();
+    traceRun(wholeOnlyRoot, 'whole', 'pass', wholeOnlySha, 'clean');
+    fs.writeFileSync(
+      path.join(wholeOnlyRoot, 'ledger.md'),
+      '# Ledger — whole-only-suite-demo\n\n**Stage:** merged\n**Branch:** main\n' +
+        `**Suite:** green @ ${wholeOnlySha} whole\n` +
+        '**Anchor:** #1 — whole-only\n\n' +
+        '| id | issue | title | type | depends-on | status | range |\n' +
+        '|---|---|---|---|---|---|---|\n',
+      'utf8'
+    );
+    assert.ok(
+      callIn(['suite', 'reusable', '--branch', 'main', '--root', wholeOnlyRoot], suiteRepo).ok,
+      'a whole run line alone backs a plain check'
+    );
+
+    // suite reusable: a later focused run does not affect plain or --whole decision.
+    const focusedRoot = path.join(suiteRepo, '.superdev', 'scopes', 'focused-suite-demo');
+    fs.mkdirSync(focusedRoot, { recursive: true });
+    const focusedSha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: suiteRepo, encoding: 'utf8' }).trim();
+    traceRun(focusedRoot, 'whole', 'pass', focusedSha, 'clean');
+    traceRun(focusedRoot, 'focused', 'fail', focusedSha, 'clean');
+    fs.writeFileSync(
+      path.join(focusedRoot, 'ledger.md'),
+      '# Ledger — focused-suite-demo\n\n**Stage:** merged\n**Branch:** main\n' +
+        `**Suite:** green @ ${focusedSha} whole\n` +
+        '**Anchor:** #1 — focused\n\n' +
+        '| id | issue | title | type | depends-on | status | range |\n' +
+        '|---|---|---|---|---|---|---|\n',
+      'utf8'
+    );
+    assert.ok(
+      callIn(['suite', 'reusable', '--branch', 'main', '--root', focusedRoot], suiteRepo).ok,
+      'a later focused fail does not defeat plain reuse'
+    );
+    assert.ok(
+      callIn(['suite', 'reusable', '--branch', 'main', '--whole', '--root', focusedRoot], suiteRepo).ok,
+      'a later focused fail does not defeat --whole reuse'
+    );
+
+    // suite reusable --whole: a later whole fail defeats --whole reuse.
+    const wholeFailRoot = path.join(suiteRepo, '.superdev', 'scopes', 'whole-fail-suite-demo');
+    fs.mkdirSync(wholeFailRoot, { recursive: true });
+    const wholeFailSha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: suiteRepo, encoding: 'utf8' }).trim();
+    traceRun(wholeFailRoot, 'whole', 'pass', wholeFailSha, 'clean');
+    traceRun(wholeFailRoot, 'whole', 'fail', wholeFailSha, 'clean');
+    fs.writeFileSync(
+      path.join(wholeFailRoot, 'ledger.md'),
+      '# Ledger — whole-fail-suite-demo\n\n**Stage:** merged\n**Branch:** main\n' +
+        `**Suite:** green @ ${wholeFailSha} whole\n` +
+        '**Anchor:** #1 — whole-fail\n\n' +
+        '| id | issue | title | type | depends-on | status | range |\n' +
+        '|---|---|---|---|---|---|---|\n',
+      'utf8'
+    );
+    r = callIn(['suite', 'reusable', '--branch', 'main', '--whole', '--root', wholeFailRoot], suiteRepo);
+    assert.ok(!r.ok && /is fail/.test(r.err), 'a later whole fail defeats --whole reuse: ' + (r.err || ''));
+
+    // suite reusable: a later fail of any kind defeats a plain check (latest run of either kind decides).
+    const mixedKindsRoot = path.join(suiteRepo, '.superdev', 'scopes', 'mixed-kinds-suite-demo');
+    fs.mkdirSync(mixedKindsRoot, { recursive: true });
+    const mixedKindsSha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: suiteRepo, encoding: 'utf8' }).trim();
+    traceRun(mixedKindsRoot, 'full', 'pass', mixedKindsSha, 'clean');
+    traceRun(mixedKindsRoot, 'whole', 'fail', mixedKindsSha, 'clean');
+    fs.writeFileSync(
+      path.join(mixedKindsRoot, 'ledger.md'),
+      '# Ledger — mixed-kinds-suite-demo\n\n**Stage:** merged\n**Branch:** main\n' +
+        `**Suite:** green @ ${mixedKindsSha}\n` +
+        '**Anchor:** #1 — mixed-kinds\n\n' +
+        '| id | issue | title | type | depends-on | status | range |\n' +
+        '|---|---|---|---|---|---|---|\n',
+      'utf8'
+    );
+    r = callIn(['suite', 'reusable', '--branch', 'main', '--root', mixedKindsRoot], suiteRepo);
+    assert.ok(!r.ok && /is fail/.test(r.err), 'a later whole fail defeats a plain check (latest of either kind): ' + (r.err || ''));
 
     fs.rmSync(suiteRepo, { recursive: true, force: true });
   }
@@ -3352,4 +3461,144 @@ try {
   fs.rmSync(tmp, { recursive: true, force: true });
 }
 
-console.log('scope tests ok');
+// run trace (ADR 0117): ledger events, the single writer, and the reader.
+{
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-trace-'));
+  try {
+    const { appendTrace } = require(scopePath);
+    const { spawnSync } = require('node:child_process');
+    const root = path.join(dir, '.superdev', 'scopes', 'demo');
+    const traceFile = path.join(root, 'trace.log');
+    const lines = () => (fs.existsSync(traceFile) ? fs.readFileSync(traceFile, 'utf8').split('\n').filter(Boolean) : []);
+    const quiet = (argv, stdin) => {
+      const orig = console.log;
+      console.log = () => {};
+      try {
+        run(argv, dir, stdin || '');
+        return true;
+      } catch (e) {
+        if (e.isRefusal) return false;
+        throw e;
+      } finally {
+        console.log = orig;
+      }
+    };
+
+    assert.ok(quiet(['init', 'feat/demo', 'implementing'], sliceJson), 'init');
+    assert.equal(lines().length, 1, 'init appends one ledger line');
+    assert.match(lines()[0], /^\d{4}-\d\d-\d\dT[\d:.]+Z scope main ledger init feat\/demo implementing$/, 'ledger line shape');
+    assert.ok(quiet(['slice', '01', 'merged', '--root', root]), 'slice');
+    assert.equal(lines().length, 2, 'slice appends one line');
+    assert.match(lines()[1], / 01 main ledger slice 01 merged$/, 'slice line names its slice');
+    assert.ok(quiet(['stage', 'set', 'reviewed', '--root', root]), 'stage forward');
+    assert.equal(lines().length, 3);
+    assert.ok(!quiet(['stage', 'set', 'implementing', '--root', root]), 'backward stage refused');
+    assert.ok(!quiet(['slice', '99', 'merged', '--root', root]), 'unknown slice refused');
+    assert.equal(lines().length, 3, 'a refused verb appends no line');
+    assert.ok(quiet(['unresolved', 'add', 'secret-token-123', '--root', root]));
+    assert.equal(lines().length, 4);
+    assert.ok(!lines()[3].includes('secret-token-123'), 'bullet text stays out of the trace');
+    assert.ok(quiet(['get', 'stage', '--root', root]));
+    assert.equal(lines().length, 4, 'a read verb appends no line');
+
+    // Every other writing verb appends exactly one ledger line; bullet text never reaches the trace.
+    const adoptRoot = path.join(dir, 'elsewhere', 'demo');
+    const git = (...a) => spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...a], { cwd: dir, encoding: 'utf8' });
+    git('init', '-q');
+    git('commit', '-q', '--allow-empty', '-m', 'x');
+    const writers1 = [
+      [['suite', 'set', 'green', 'HEAD'], / ledger suite set green HEAD$/],
+      [['deploy', 'set', 'prod', 'pending'], / ledger deploy set prod pending$/],
+      [['docs', 'set', 'inline'], / ledger docs set inline$/],
+      [['docs', 'clear'], / ledger docs clear$/],
+      [['pr', 'set', '12'], / ledger pr set 12$/],
+      [['pr', 'clear'], / ledger pr clear$/],
+      [['degraded', 'add', 'secret-token-123'], / ledger degraded add$/],
+      [['degraded', 'add-denial', 'secret-token-123'], / ledger degraded add-denial$/],
+      [['degraded', 'reset-denials', 'secret-token-123'], / ledger degraded reset-denials$/],
+      [['deferred', 'add', 'secret-token-123'], / ledger deferred add$/],
+    ];
+    for (const [argv, shape] of writers1) {
+      const n = lines().length;
+      assert.ok(quiet([...argv, '--root', root]), argv.join(' ') + ' succeeds');
+      assert.equal(lines().length, n + 1, argv.join(' ') + ' appends one line');
+      assert.match(lines()[n], shape, argv.join(' ') + ' line shape');
+      assert.ok(!lines()[n].includes('secret-token-123'), argv.join(' ') + ' keeps bullet text out');
+    }
+    // No-op clears: clearing absent headers must not trace a line (RED test for finding 1).
+    // Create a fresh root for the no-op clear test since root already has unresolved/docs/pr from above
+    const noopRoot = path.join(dir, '.superdev', 'scopes', 'noop');
+    assert.ok(quiet(['init', 'feat/noop', 'implementing'], sliceJson), 'init for noop root');
+    const noop = lines().length;
+    assert.ok(quiet(['unresolved', 'clear', '--root', noopRoot]), 'unresolved clear when absent succeeds');
+    assert.equal(lines().length, noop, 'unresolved clear on absent header traces no line');
+    assert.ok(quiet(['docs', 'clear', '--root', noopRoot]), 'docs clear when absent succeeds');
+    assert.equal(lines().length, noop, 'docs clear on absent header traces no line');
+    assert.ok(quiet(['pr', 'clear', '--root', noopRoot]), 'pr clear when absent succeeds');
+    assert.equal(lines().length, noop, 'pr clear on absent header traces no line');
+    const n0 = lines().length;
+    assert.ok(quiet(['adopt', '--root', adoptRoot], require(scopePath).publishText(root)), 'adopt');
+    assert.equal(fs.readFileSync(path.join(adoptRoot, 'trace.log'), 'utf8').split('\n').filter(Boolean).length, 1, 'adopt appends one line');
+    assert.equal(lines().length, n0, 'adopt traces into the adopted root only');
+    // An absent or empty field keeps its position.
+    appendTrace(root, { slice: '', kind: 'note', fields: [undefined, ''] });
+    assert.match(lines()[lines().length - 1], /^\S+ scope main note - -$/, 'placeholder fields');
+    fs.writeFileSync(traceFile, lines().slice(0, 4).join('\n') + '\n');
+
+    // Escaping: control characters never start a new line.
+    const before = lines().length;
+    appendTrace(root, { slice: '01', kind: 'edit', fields: ['impl', 'a\nb\rc\td\u2028e f'] });
+    assert.equal(lines().length, before + 1, 'one new line');
+    assert.ok(lines()[before].endsWith('edit impl a\\nb\\rc\\td\\u2028e\\x20f'), 'escaped: ' + lines()[before]);
+
+    // Concurrent writers leave every line whole.
+    const N = 8;
+    const writers = [];
+    const writer = `require(${JSON.stringify(scopePath)}).appendTrace(${JSON.stringify(root)}, {kind:'note', fields:['x'.repeat(5000)]})`;
+    const procs = [];
+    for (let i = 0; i < N; i++) procs.push(require('node:child_process').spawn(process.execPath, ['-e', writer]));
+    for (const p of procs) writers.push(new Promise((res) => p.on('exit', res)));
+    const done = Promise.all(writers).then(() => {
+      const notes = lines().filter((l) => / note /.test(l));
+      assert.equal(notes.length, N, 'every concurrent line landed');
+      assert.ok(notes.every((l) => /^\S+ scope main note x{5000}$/.test(l)), 'no line torn or interleaved');
+
+      // Reader.
+      const out = spawnSync(process.execPath, [scopePath, 'trace', '--root', root], { encoding: 'utf8', timeout: 20000 });
+      assertSpawnDecided(out, 'trace');
+      assert.equal(out.status, 0);
+      const printed = out.stdout.split('\n').filter(Boolean);
+      assert.equal(printed.length, lines().length, 'trace prints every line');
+      assert.match(printed[0], / ledger init /, 'oldest first');
+      const one = spawnSync(process.execPath, [scopePath, 'trace', '--slice', '01', '--root', root], { encoding: 'utf8', timeout: 20000 });
+      assertSpawnDecided(one, 'trace --slice');
+      assert.ok(one.stdout.split('\n').filter(Boolean).every((l) => l.split(' ')[1] === '01'), '--slice 01 prints only 01');
+      assert.ok(one.stdout.includes('ledger slice 01 merged'));
+      const none = spawnSync(process.execPath, [scopePath, 'trace', '--slice', '99', '--root', root], { encoding: 'utf8', timeout: 20000 });
+      assertSpawnDecided(none, 'trace --slice none');
+      assert.match(none.stdout.trim(), /^no trace: this run has recorded no events$/, 'a slice with no lines prints the one no-trace line');
+      for (const content of [null, '']) {
+        const empty = path.join(dir, 'empty' + content);
+        fs.mkdirSync(empty, { recursive: true });
+        if (content !== null) fs.writeFileSync(path.join(empty, 'trace.log'), content);
+        const r2 = spawnSync(process.execPath, [scopePath, 'trace', '--root', empty], { encoding: 'utf8', timeout: 20000 });
+        assertSpawnDecided(r2, 'trace empty');
+        assert.equal(r2.status, 0, 'no trace exits 0');
+        assert.match(r2.stdout.trim(), /^no trace/, 'one no-trace line');
+      }
+      // No verb takes a caller-chosen event.
+      assert.ok(!quiet(['event', 'edit', 'x', '--root', root]), 'no verb appends a caller-chosen event');
+      assert.equal(lines().length, before + 1 + N, 'and the trace is unchanged');
+      fs.rmSync(dir, { recursive: true, force: true });
+      console.log('scope tests ok');
+    });
+    done.catch((e) => {
+      fs.rmSync(dir, { recursive: true, force: true });
+      console.error(e);
+      process.exit(1);
+    });
+  } catch (e) {
+    fs.rmSync(dir, { recursive: true, force: true });
+    throw e;
+  }
+}

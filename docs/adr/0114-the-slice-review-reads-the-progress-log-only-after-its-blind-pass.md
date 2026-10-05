@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0117](0117-the-run-trace-is-hook-written-evidence.md), which adds the
+run trace to the blind pass, because hooks write it and the implementer does not.
+
 **Context.** In the full tier, `implement-full.md` dispatched `slice-reviewer` with the implementer's
 report inline. The report states the implementer's status, says the suite is green, and marks each
 listed criterion met. The reviewer's only defense against that account was the **Judge discipline**

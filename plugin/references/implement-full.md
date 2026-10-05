@@ -90,7 +90,10 @@ Repeat until every slice is `merged`:
    URL of the official documentation or registry page it checked, and that an implementer who cannot
    reach that page logs the package as unverified because the documentation was unreachable and returns
    `DONE_WITH_CONCERNS`. A dependency the repository itself provides (a workspace, path, or file
-   reference) is not a new dependency.
+   reference) is not a new dependency. Every implementer dispatch also tells it that the run trace records
+   its edits and runs, that its progress log carries no RED or GREEN line, and that a note from the hook
+   means a missing failing run, answered by the remedy: `git add <paths>`, `git restore --worktree --source=<base> -- <paths>`, a failing
+   run, `git restore -- <paths>`, a passing run, never `git stash` (`<base>` is the commit the slice branch was cut from, which the dispatch names). It also tells it that a `run … unknown` line is not a failing run, and that it answers one by re-running the test without a pipe or `|| true`.
 
    **Pilot the first wave.** On a fresh scope (nothing merged yet), dispatch a single slice first and take
    it through review + merge before filling the cap — a systemic problem (a mis-specified convention, a
@@ -123,7 +126,12 @@ Repeat until every slice is `merged`:
      global constraints, and the **progress-log** path (`<run-root>/reports/<id>/progress.md`), on a
      first review and on every re-review. It hands **no text from an implementer's report** — not the
      slice implementer's, not a fix implementer's, and no controller paraphrase of their status or "met"
-     claims (ADR 0114, INV-0114). The reviewer settles a **blind pass** before it opens the log. Reading
+     claims (ADR 0114, INV-0114). The reviewer settles a **blind pass** before it opens the log, and
+     the blind pass reads the slice's run-trace lines (`scope.js trace --slice <id>`): on a `behavior`
+     slice, a test edit followed by an implementation edit or a passing run with no failing run between them is an Important
+     finding, **Missing RED**, and no trace or no events for the slice gets no finding, only a named gap.
+     A re-review closes it only when the trace shows, after the finding, a revert (or an implementation
+     edit), a failing run covering that test, a restore (or an implementation edit), and a passing run. A `run … unknown` line is not a failing run: it neither satisfies the RED step nor closes the finding, and the implementer answers it by re-running the test without a pipe or `|| true`. Reading
      the log can add a finding or raise a finding's severity, and it never withdraws or downgrades one
      (INV-0113). The reviewer appends its full findings to the log, and a re-review reads the earlier
      findings there after its blind pass, closing one only from the diff and its own suite
