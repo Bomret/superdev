@@ -501,10 +501,53 @@ try {
     assert.strictEqual(fs.readFileSync(path.join(root, 'ledger.md'), 'utf8'), before, 'nothing written on either refusal');
   }
 
-  // deferred: an unknown subcommand refuses, naming the one that exists — `clear` is not among them.
+  // deferred: an unknown subcommand refuses, naming the two that exist — `clear` is not among them.
   {
     const d = call(['deferred', 'clear', ...R]);
-    assert.ok(!d.ok && /unknown deferred subcommand.*add/.test(d.err), 'deferred clear refused, naming add: ' + d.err);
+    assert.ok(!d.ok && /unknown deferred subcommand.*add\|resolve/.test(d.err), 'deferred clear refused, naming add|resolve: ' + d.err);
+  }
+
+  // deferred resolve (ADR 0121): removes a bullet by its exact text, read on stdin the way `add -` reads it.
+  {
+    const ledger = () => fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
+    const odd = 'quote " backtick ` subst $(rm -rf x) — triage #871 (2026-10-05)';
+    assert.ok(call(['deferred', 'add', '-', ...R], odd + '\n').ok, 'deferred add - takes shell-hostile text');
+    assert.ok(call(['deferred', 'add', '-', ...R], odd + '\n').ok, 'a duplicate of it');
+    assert.ok(call(['deferred', 'resolve', '-', ...R], odd + '\n').ok, 'deferred resolve - removes it');
+    assert.strictEqual(
+      call(['get', 'deferred', ...R]).out,
+      'carry deferrals into the pull-request body (2026-08-23)\nsecond deferred finding (2026-08-23)',
+      'every identical bullet goes; the others stay'
+    );
+
+    // Refusals leave the ledger byte-identical: no match, a prefix of a bullet, empty text, a newline.
+    const before = ledger();
+    for (const [text, why] of [
+      ['no such finding', /no deferred bullet/],
+      ['second deferred finding', /no deferred bullet/],
+      ['', /needs the bullet text/],
+      ['line one\nline two', /newline/],
+    ]) {
+      const d = call(['deferred', 'resolve', '-', ...R], text);
+      assert.ok(!d.ok && why.test(d.err), `deferred resolve refuses ${JSON.stringify(text)}: ` + d.err);
+      assert.strictEqual(ledger(), before, `nothing written for ${JSON.stringify(text)}`);
+    }
+
+    // Resolving the last bullet removes the `**Deferred:**` line itself.
+    assert.ok(call(['deferred', 'resolve', '-', ...R], 'carry deferrals into the pull-request body (2026-08-23)').ok);
+    assert.ok(call(['deferred', 'resolve', '-', ...R], 'second deferred finding (2026-08-23)').ok);
+    assert.ok(!/\*\*Deferred:\*\*/.test(ledger()), 'no empty Deferred line remains');
+    assert.strictEqual(call(['get', 'deferred', ...R]).out, '', 'get deferred prints nothing');
+
+    // A ledger with no `**Deferred:**` line refuses too.
+    const none = ledger();
+    const d = call(['deferred', 'resolve', '-', ...R], 'anything');
+    assert.ok(!d.ok && /no deferred bullet/.test(d.err), 'resolve on a ledger with no Deferred line refused: ' + d.err);
+    assert.strictEqual(ledger(), none, 'nothing written');
+
+    // Restore the two bullets later assertions in this block may read.
+    call(['deferred', 'add', 'carry deferrals into the pull-request body (2026-08-23)', ...R]);
+    call(['deferred', 'add', 'second deferred finding (2026-08-23)', ...R]);
   }
 
   // get deferred: a ledger written before this record existed reports absent rather than failing,
@@ -3493,6 +3536,9 @@ try {
     assert.ok(!res.stdout.includes('usage:'), 'degraded add-denial -h prints no usage');
     res = spawnScope(['get', 'degraded', '--root', root]);
     assert.ok(res.stdout.includes('-h'), 'degraded add-denial -h records -h: ' + res.stdout + res.stderr);
+    res = spawnScope(['deferred', 'resolve', '-h', '--root', root]);
+    assertSpawnDecided(res, 'deferred resolve -h');
+    assert.ok(!res.stdout.includes('usage:'), 'deferred resolve -h prints no usage');
   }
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true });
@@ -3554,6 +3600,7 @@ try {
       [['degraded', 'add-denial', 'secret-token-123'], / ledger degraded add-denial$/],
       [['degraded', 'reset-denials', 'secret-token-123'], / ledger degraded reset-denials$/],
       [['deferred', 'add', 'secret-token-123'], / ledger deferred add$/],
+      [['deferred', 'resolve', 'secret-token-123'], / ledger deferred resolve$/],
     ];
     for (const [argv, shape] of writers1) {
       const n = lines().length;
@@ -3561,6 +3608,11 @@ try {
       assert.equal(lines().length, n + 1, argv.join(' ') + ' appends one line');
       assert.match(lines()[n], shape, argv.join(' ') + ' line shape');
       assert.ok(!lines()[n].includes('secret-token-123'), argv.join(' ') + ' keeps bullet text out');
+    }
+    {
+      const n = lines().length;
+      assert.ok(!quiet(['deferred', 'resolve', 'no-such-bullet', '--root', root]), 'a resolve matching nothing is refused');
+      assert.equal(lines().length, n, 'a refused resolve appends no line');
     }
     // No-op clears: clearing absent headers must not trace a line (RED test for finding 1).
     // Create a fresh root for the no-op clear test since root already has unresolved/docs/pr from above

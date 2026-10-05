@@ -243,6 +243,11 @@ On this store it is an ordinary issue carrying the **Triage label** from *Config
 - **No feature label and no `ready` label.** Those two are what
   `/superdev:implement`'s slice loading selects on, so a triage record carrying either would be picked up as
   work to build. It is a record of unplanned work, not a slice.
+- **Close it** (a deferred finding the run resolved, ADR 0121): read the record with `tea issues <index>
+  -o json`; a `state` of `closed` needs nothing more, and is not an error. Otherwise post the comment —
+  `jq -n --arg b "<the comment>" '{body: $b}' > "$c"`, the comment naming the fixing commit and the
+  scope branch, then `tea api -i -X POST '/repos/{owner}/{repo}/issues/<index>/comments' -d @"$c"` —
+  and close it with `tea issues close <index>`. Read the HTTP status from stderr (`-i`). A comment that fails is reported, and the record is still closed.
 - **No pull-request URL.** Every trigger — a deferred finding or an observation — runs before
   `/superdev:submit-pr` opens one, so none exists yet and the body names none.
 

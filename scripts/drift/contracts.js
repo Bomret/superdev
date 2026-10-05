@@ -1187,6 +1187,56 @@ const FULL_SUITE_CONTRACTS = [
   ],
 ];
 
+// ADR 0121, INV-0125: a deferred finding re-enters a fix loop only when a later review names a guard-rail
+// remedy for it, and the run resolves it once the fix implementer's report names the commit and a later
+// re-review no longer lists it. Both loops state re-entry and the trigger, and cite the procedure that
+// `references/scope-mode.md`'s `## Deferred findings` states once, in its order and with its best-effort
+// clause. A loop that drops re-entry fixes a deferred finding nobody re-judged; one that drops the trigger
+// resolves on a claim no re-review confirmed; a procedure that loses its order closes a record whose
+// bullet still stands.
+const DEFERRED_RESOLVE_CONTRACTS = [
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /deferred finding re-enters this loop only when a later review names a guard-rail remedy for it/,
+    'let a deferred finding back into the scope review\'s fix loop only when a later review names a guard-rail remedy for it',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /fix implementer's report names the commit that fixed it[\s\S]{0,120}later re-review no longer lists it[\s\S]{0,300}`## Deferred findings`/,
+    'resolve a re-entered deferred finding once the fix report names its commit and a later re-review no longer lists it, through the procedure `## Deferred findings` states',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /deferred finding re-enters the fix list only when a later review names a guard-rail remedy for it/,
+    "let a deferred finding back into the per-slice fix list only when a later review names a guard-rail remedy for it",
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /re-entered finding leaves the findings the re-review dispatch tells the reviewer to leave out/,
+    'take a re-entered finding out of the deferred findings the slice-reviewer is told to leave out, so its re-review can confirm the fix',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /fix implementer's report names the commit that fixed it[\s\S]{0,120}later re-review no longer lists it[\s\S]{0,300}`## Deferred findings`/,
+    'resolve a re-entered deferred finding once the fix report names its commit and a later re-review no longer lists it, through the procedure `## Deferred findings` states',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /deferred resolve - --root <run-root>`[\s\S]{0,600}\*\*Close it\*\*[\s\S]{0,900}`## Edit the pull request body`/,
+    'state the resolve procedure in its order: remove the bullet, close the triage record, then rebuild the open pull request\'s deferred section',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /Steps 2 and 3 are best-effort[\s\S]{0,400}reported once per run[\s\S]{0,200}bullet stays removed/,
+    'state that closing the record and editing the pull request body are best-effort, reported once per run, with the bullet staying removed',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /replaces only the heading line plus the run of `- `\s+bullet lines under it[\s\S]{0,200}byte-identical[\s\S]{0,600}getline l < sec/,
+    'state the deferred-section producer so it replaces only the heading and its bullet run, leaving text after the run (a footer, a following section) byte-identical',
+  ],
+];
+
 // ADR 0035: `/superdev:review`'s fix loop may change **how** the code meets the Definition of Done, and a
 // remedy that adds a capability the Definition of Done never named is recorded and handed to
 // `/superdev:plan` instead. Repairing a defect in what the Definition of Done does name stays in the loop,
@@ -1490,6 +1540,8 @@ const TRIAGE_RECORD_EXPECTATION =
 const TRIAGE_RECORD_ELEMENTS = [
   [/^[-*] \*\*[^*]*\blist\w*\b[^*]*\b(?:record\w*|them)\b/im, "how to list this backend's triage records"],
   [/slice loading/i, "how this backend keeps the record out of `/superdev:implement`'s slice loading"],
+  // ADR 0121: a run that resolves a deferred finding closes its triage record, through this call alone.
+  [/^[-*] \*\*[^*]*\bclose it\b/im, 'how to close a triage record the run resolved, with a comment naming the fixing commit'],
 ];
 
 // The Untriaged item survey slice (feat/backlog-untriaged, issue #400). An **untriaged item** is an open
@@ -3420,6 +3472,11 @@ const PUBLISH_RUN_STATE_CONTRACTS = [
   ],
   [
     path.join('references', 'scope-mode.md'),
+    /on every `deferred resolve` call/,
+    'publish the snapshot after a `deferred resolve` write, in its own `## Deferred findings` section (ADR 0121)',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
     /on every `docs set` or `docs clear` call/,
     'publish the snapshot after a `docs set`/`docs clear` write, in `## The ledger`\'s `**Docs:**` bullet',
   ],
@@ -5084,8 +5141,8 @@ const FIX_LOOP_FIXES_EVERY_FINDING_CONTRACTS = [
   ],
   [
     path.join('references', 'implement-full.md'),
-    /scripts\/scope\.js" get deferred --root <run-root>`[\s\S]{0,40}skip a finding it already reports[\s\S]{0,300}`deferred add` has no `clear` verb/,
-    'state, in step 3, that the controller reads `scope.js get deferred` first and skips a finding it already reports, since the re-review re-lists a deferred finding and `deferred add` has no `clear` verb',
+    /scripts\/scope\.js" get deferred --root <run-root>`[\s\S]{0,40}skip a finding it already reports[\s\S]{0,300}duplicate bullet stands until somebody resolves it/,
+    'state, in step 3, that the controller reads `scope.js get deferred` first and skips a finding it already reports, since the re-review re-lists a deferred finding and a duplicate bullet stands until somebody resolves it',
   ],
   [
     path.join('references', 'implement-full.md'),
@@ -5430,6 +5487,30 @@ const CODE_MANAGEMENT_MERGE_CONTRACTS = [
     "carry a `## Merge` section reading the pull request's state, head sha, merged sha, and " +
       'mergeability, then merging it squashed and pinned to that head sha with `head_commit_id`, and ' +
       'naming what a 405 or 409 refusal means',
+  ],
+];
+
+// ADR 0121: a run that resolves a deferred finding after the pull request opened rebuilds that pull
+// request's `## Deferred to a plan` section. Each code-host document states the read and the gated,
+// by-file edit in its own `## Edit the pull request body` section, and edits an open pull request only.
+const CODE_MANAGEMENT_PR_BODY_EDIT_CONTRACTS = [
+  [
+    path.join('references', 'code-management-forgejo.md'),
+    /## Edit the pull request body[\s\S]{0,800}?\.state == "open" and \(\.merged \| not\)[\s\S]{0,400}?-X PATCH '\/repos\/\{owner\}\/\{repo\}\/pulls\/<index>' -d @"\$j"/,
+    'carry an `## Edit the pull request body` section that reads the pull request, edits only an open, ' +
+      'unmerged one, and sends the new body from a file',
+  ],
+  [
+    path.join('references', 'code-management-github.md'),
+    /## Edit the pull request body[\s\S]{0,900}?\.state == "OPEN"[\s\S]{0,300}?gh pr edit\s+<number> --body-file "\$f"/,
+    'carry an `## Edit the pull request body` section that reads the pull request, edits only an open ' +
+      'one, and sends the new body from a file',
+  ],
+  [
+    path.join('docs', 'agents', 'code-management.md'),
+    /## Edit the pull request body[\s\S]{0,800}?\.state == "open" and \(\.merged \| not\)[\s\S]{0,400}?-X PATCH '\/repos\/\{owner\}\/\{repo\}\/pulls\/<index>' -d @"\$j"/,
+    'carry an `## Edit the pull request body` section that reads the pull request, edits only an open, ' +
+      'unmerged one, and sends the new body from a file',
   ],
 ];
 
@@ -6915,6 +6996,8 @@ module.exports = {
   ALWAYS_REVIEW_CONTRACTS,
   CODE_MANAGEMENT_MERGE_CONTRACTS,
   CODE_MANAGEMENT_HEAD_BRANCH_LOOKUP_CONTRACTS,
+  CODE_MANAGEMENT_PR_BODY_EDIT_CONTRACTS,
+  DEFERRED_RESOLVE_CONTRACTS,
   SHIP_TESTED_PUSH_CONTRACTS,
   SHIP_MERGE_PIN_CONTRACTS,
   SHIP_LEGACY_SHIPPED_CONTRACTS,

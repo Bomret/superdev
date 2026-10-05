@@ -394,6 +394,8 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     deferred:
       '## Deferred findings\n\nPublish the snapshot afterwards, per `## Publishing run state` above, on\n' +
       'every `deferred add` call.\n\n',
+    deferredResolve:
+      'Publish the snapshot afterwards on every `deferred resolve` call.\n\n',
     docs:
       '## The ledger\n\nPublish the snapshot afterwards, per `## Publishing run state` below, on every\n' +
       '`docs set` or `docs clear` call.\n',

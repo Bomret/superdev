@@ -4,6 +4,8 @@
 
 **Amended by:** [ADR 0097](0097-a-guard-rail-remedy-stays-in-the-fix-loop.md), which keeps a guard-rail
 remedy in the fix loop: a test, a drift contract row, or a consistency fix that extends what exists.
+[ADR 0121](0121-a-run-resolves-a-deferred-finding-it-later-fixes.md) lets a run resolve a deferred finding
+that it later fixes with a guard-rail remedy.
 
 ## Context
 

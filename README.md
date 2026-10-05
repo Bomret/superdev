@@ -146,7 +146,10 @@ plan runs test-first, inline in the scopetree.
   The record reaches your backlog, not just the run's ledger and the pull-request body, both of which
   end with the run, whether or not the scope ever ships
   ([ADR 0046](docs/adr/0046-a-deferred-finding-becomes-a-triage-record.md)). Nothing ever builds
-  it: no candidate listing and no slice loader selects it. A real defect the run meets that no slice
+  it: no candidate listing and no slice loader selects it. A later review in the same run can name a
+  cheaper remedy for it, such as a new test or a new drift-table row. The run then fixes it after all,
+  removes the ledger bullet, and closes the record
+  ([ADR 0121](docs/adr/0121-a-run-resolves-a-deferred-finding-it-later-fixes.md)). A real defect the run meets that no slice
   covers, and that the scope did not cause, earns the same kind of record. A flaky test in untouched
   code is an example. Whichever chain command meets
   it writes the record then, never at a handoff, and `/superdev:plan` writes one when you place a found

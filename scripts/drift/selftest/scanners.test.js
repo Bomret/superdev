@@ -1932,6 +1932,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
         'references/issue-tracker-acme.md':
           '# acme\n\n## Triage record\n\nAn issue carrying the `triage` label.\n\n' +
           '- **List the records:** `GET /issues?labels=triage`.\n' +
+          '- **Close it:** comment naming the commit, then close.\n' +
           "- **No feature label and no `ready` label.** Those two are what `/superdev:implement`'s slice " +
           'loading selects on.\n',
       }),
@@ -1946,6 +1947,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     fixture({
       'references/issue-tracker-acme.md':
         '# acme\n\n## Triage record\n\n- **Create it:** `POST /issues` with the `triage` label.\n' +
+        '- **Close it:** comment naming the commit, then close.\n' +
         "- **No feature label and no `ready` label.** Those two are what `/superdev:implement`'s slice " +
         'loading selects on.\n',
     }),
@@ -1960,7 +1962,8 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     fixture({
       'references/issue-tracker-acme.md':
         '# acme\n\n## Triage record\n\n- **Create it:** `POST /issues` with the `triage` label.\n' +
-        '- **List the records:** `GET /issues?labels=triage`.\n',
+        '- **List the records:** `GET /issues?labels=triage`.\n' +
+        '- **Close it:** comment naming the commit, then close.\n',
     }),
   );
   assert.equal(trNoExclusion.length, 1, 'flags a section stating creation and listing but no exclusion rule');
@@ -1973,6 +1976,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
         'references/issue-tracker-acme.md':
           '# acme\n\n## Triage record\n\n- **Create it:** `POST /issues` with the `triage` label.\n' +
           '- **List the records:** `GET /issues?labels=triage`.\n' +
+          '- **Close it:** comment naming the commit, then close.\n' +
           "- **No feature label and no `ready` label.** Those two are what `/superdev:implement`'s slice " +
           'loading selects on.\n',
       }),
@@ -1980,6 +1984,19 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     0,
     'a section stating the exclusion vocabulary too is clean',
   );
+
+  // positive: a section that never states how to close a resolved finding's record (ADR 0121)
+  const trNoClose = scanTriageRecordContract(
+    fixture({
+      'references/issue-tracker-acme.md':
+        '# acme\n\n## Triage record\n\n- **Create it:** `POST /issues` with the `triage` label.\n' +
+        '- **List the records:** `GET /issues?labels=triage`.\n' +
+        "- **No feature label and no `ready` label.** Those two are what `/superdev:implement`'s slice " +
+        'loading selects on.\n',
+    }),
+  );
+  assert.equal(trNoClose.length, 1, 'flags a section stating no close call');
+  assert.match(trNoClose[0].expectation, /close a triage record/, 'names the missing close element');
 
   // the real tree is green: every seed's exclusion bullet already carries the vocabulary
   assert.equal(
@@ -1996,7 +2013,8 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
         'references/issue-tracker-other.md':
           '# store\n\n## Triage record\n\n' +
           "- **A triage record is invisible to `/superdev:implement`'s slice loading** by\n" +
-          '  construction.\n',
+          '  construction.\n' +
+          '- **Close it:** comment naming the commit, then close.\n',
       }),
     ).length,
     1,
@@ -2010,6 +2028,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
         'references/issue-tracker-acme.md':
           '# acme\n\n## Scope anchor\n\n- **List the records:** `GET /issues`.\n\n' +
           '## Triage record\n\n- **Create it:** `POST /issues`.\n' +
+          '- **Close it:** comment naming the commit, then close.\n' +
           "- **No feature label and no `ready` label.** Those two are what `/superdev:implement`'s slice " +
           'loading selects on.\n',
       }),
@@ -2022,6 +2041,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   const triageSection =
     '# store\n\n## Triage record\n\nAn issue carrying the `triage` label.\n\n' +
     '- **List the records:** `GET /issues?labels=triage`.\n' +
+    '- **Close it:** comment naming the commit, then close.\n' +
     "- **No feature label and no `ready` label.** Those two are what `/superdev:implement`'s slice " +
     'loading selects on.\n';
   const trDropped = {
@@ -2044,6 +2064,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
       fixture({
         'references/issue-tracker-jira.md':
           '# store\n\n### Triage record\n\nAn issue.\n\n- **List the records:** `GET /search`.\n' +
+          '- **Close it:** comment naming the commit, then close.\n' +
           "- **No feature label and no ready status or label.** Those are what `/superdev:implement`'s " +
           'slice loading selects on.\n',
       }),

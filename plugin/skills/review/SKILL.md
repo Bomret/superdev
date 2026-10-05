@@ -350,8 +350,7 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   that outlives this run before you write anything to the ledger.
   **Read `scope.js get deferred` first, and skip a finding it already reports** — that one read guards both
   writes below, so a finding the line already carries creates no second triage record and gets no second
-  ledger bullet either. `deferred add` carries no `clear` counterpart, so every duplicate is permanent, and
-  two paths reach it — a later fix cycle whose re-review returns the same still-deferred finding, and a
+  ledger bullet either. A duplicate bullet stands until somebody resolves it, and two paths reach one — a later fix cycle whose re-review returns the same still-deferred finding, and a
   second `/superdev:review` invocation on the same run, which remembers nothing of the first. "Only on the
   first cycle" covers one of those paths; this read covers both.
   **The active store document (`docs/agents/issue-tracker.md`) states no `## Triage record` section** —
@@ -403,6 +402,14 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   a real defect without asking, and a deferred finding is not one, so it never reaches that rule. A verdict
   whose only remaining findings are deferred counts as clean, for the ask-once gate right after this bullet,
   the 3-strike cap, and the clean-verdict stage advance alike.
+  **A deferred finding re-enters this loop only when a later review names a guard-rail remedy for it**
+  (ADR 0121, INV-0125), attended or unattended alike: the boundary that deferred it, applied again. A
+  remedy that still adds a capability keeps it deferred. A re-entered finding joins the next cycle's fix
+  list like any other, and the dispatch asks the fix implementer to name the commit that fixed it. Once the
+  fix implementer's report names the commit that fixed it and a later re-review no longer lists it, resolve
+  it by the procedure `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Deferred findings` section
+  states, in its order: remove the bullet, close its triage record, rebuild an open pull request's
+  deferred section, and publish the snapshot.
 - **A line `final-reviewer`'s `### Criteria` calls broken is a Critical finding, and you untick it
   first.** Read the `<run-root>/dod.md`, ticked or not — a ticked line the branch no longer satisfies, or
   an already-unticked line the branch still fails, both count. Untick it, with a one-line note naming why

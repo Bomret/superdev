@@ -53,6 +53,23 @@ The merge call below degrades the same way: print the exact `gh pr merge`/REST c
   `/superdev:ship` reads the pull request's own `head.sha` only to decide whether to push and to refuse
   when it still differs from that tip after pushing, never as the merge's own pin.
 
+## Edit the pull request body
+
+A run that resolves a deferred finding after `/superdev:submit-pr` opened the pull request rebuilds that
+pull request's `## Deferred to a plan` section (`references/scope-mode.md`'s `## Deferred findings`,
+ADR 0121). Only an open pull request is edited.
+
+- **Read it**: `gh pr view <number> --json state,body` (or `GET /repos/<owner>/<repo>/pulls/<pull_number>`
+  for `state`, `merged`, and `body`), into a file. Only `state` `OPEN` (`open` and `merged` false on the
+  REST read) is edited; a merged or closed pull request gets no edit.
+- **Edit it, by file**: read into one file, build the new body into a second, and edit only when every
+  step succeeded: `gh pr view <number> --json state,body > "$r" && jq -e '.state == "OPEN"' "$r"
+  >/dev/null && jq -je .body "$r" > "$b" && <producer> < "$b" > "$f" && [ -s "$f" ] && gh pr edit
+  <number> --body-file "$f"`. Name each file with `mktemp`. `<producer>` builds the new body from `"$b"`.
+  A failed read, a merged or closed pull request, a failed producer, or an empty result stops the chain
+  before the edit, and the body stays as it was. Never pass the body on stdin from a pipe: a pipe drops
+  the producer's exit status, and an empty body would replace the pull request's own.
+
 ## Compute the base
 
 `git merge-base <base> <scope-branch>` gives the commit the final-reviewer diffs against

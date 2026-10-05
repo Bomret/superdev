@@ -227,6 +227,11 @@ On this store it is an ordinary issue in the configured project carrying the **T
   `/superdev:implement`'s slice loading selects on, so a triage record carrying either would be picked up as
   work to build. It is a record of unplanned work, not a slice, so it also takes no status transition from
   the status map below.
+- **Close it** (a deferred finding the run resolved, ADR 0121): read the record with
+  `GET <base>/rest/api/3/issue/<key>?fields=status`; a `statusCategory` of `Done` needs nothing more, and
+  is not an error. Otherwise post the comment — `POST <base>/rest/api/3/issue/<key>/comment` with an ADF
+  `body` naming the fixing commit and the scope branch — then move it into the status map's done status
+  with **Perform a transition** below. A comment that fails is reported, and the record is still closed.
 - **No pull-request URL.** Every trigger — a deferred finding or an observation — runs before
   `/superdev:submit-pr` opens one, so none exists yet and the description names none.
 

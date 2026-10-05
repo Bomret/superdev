@@ -461,7 +461,7 @@ function verbSlice(root, id, status, range) {
 // which can carry a quote, a backtick, or a `$(` just as easily as any other bullet text. Any other
 // subcommand, or any other shape of these subcommands' own arguments, keeps joining its positional
 // words with spaces as it always has.
-const BULLET_STDIN_SUBS = ['add', 'add-denial', 'reset-denials'];
+const BULLET_STDIN_SUBS = ['add', 'add-denial', 'reset-denials', 'resolve'];
 function resolveBulletText(sub, rest, stdinJson) {
   if (BULLET_STDIN_SUBS.includes(sub) && rest.length === 1 && rest[0] === '-') return stdinJson.replace(/\r?\n$/, '');
   return rest.join(' ');
@@ -540,10 +540,24 @@ function verbUnresolved(root, sub, text) {
 // to `/superdev:plan` rather than fixed: its
 // remedy would add a capability the Definition of Done never named (ADR 0035, ADR 0097). It has no `clear`, unlike
 // the unresolved record it otherwise mirrors — a defect stops being true once a run re-verifies clean,
-// while unplanned work stays unplanned until somebody plans it, so there is nothing for a later step to
-// discover and undo.
+// while unplanned work stays unplanned until somebody plans it. `resolve` removes one finding instead: the
+// one a later cycle of the same run fixed with a guard-rail remedy after all (ADR 0121). It matches the
+// exact text `get deferred` printed, removes every identical bullet, and drops the line once none remain.
 function verbDeferred(root, sub, text) {
-  if (sub !== 'add') fail(`unknown deferred subcommand "${sub}" — use add`);
+  if (sub === 'resolve') {
+    if (!text) fail('deferred resolve needs the bullet text');
+    if (text.includes('\n')) fail('deferred resolve text must not contain a newline');
+    const lines = readLines(root);
+    const at = lines.findIndex((l) => headerRe('Deferred').test(l));
+    let end = at + 1;
+    while (at >= 0 && end < lines.length && lines[end].startsWith('- ')) end++;
+    const kept = at < 0 ? [] : lines.slice(at + 1, end).filter((l) => l !== `- ${text}`);
+    if (at < 0 || kept.length === end - at - 1) fail(`no deferred bullet reads exactly "${text}" in ${ledgerPath(root)}`);
+    lines.splice(at, end - at, ...(kept.length ? [lines[at], ...kept] : []));
+    writeLines(root, lines);
+    return;
+  }
+  if (sub !== 'add') fail(`unknown deferred subcommand "${sub}" — use add|resolve`);
   addBullet(root, 'Deferred', 'deferred add', text);
 }
 
@@ -1672,6 +1686,7 @@ function usage() {
     '  degraded add|add-denial|reset-denials <text>   --root <run-root>',
     '  unresolved add <text>|clear   --root <run-root>',
     '  deferred add <text>   --root <run-root>',
+    '  deferred resolve <text>   --root <run-root>',
     '  docs set <value>|clear   --root <run-root>',
     '  pr set <n>|clear   --root <run-root>          <n> is a pull-request number, "#" optional',
     '  deploy set <target> pending|deployed|failed [--exit <n>]   --root <run-root>',
@@ -1879,7 +1894,7 @@ function asksForHelp(argv) {
     if (VALUE_FLAGS.includes(argv[i])) i++;
     else rest.push(argv[i]);
   }
-  if (BULLET_STDIN_VERBS.includes(rest[0]) && (rest[1] === 'add' || rest[1] === 'add-denial') && rest[2] !== '-') rest.length = 2; // `-` reads stdin: no text on the command line
+  if (BULLET_STDIN_VERBS.includes(rest[0]) && (rest[1] === 'add' || rest[1] === 'add-denial' || rest[1] === 'resolve') && rest[2] !== '-') rest.length = 2; // `-` reads stdin: no text on the command line
   return rest.includes('--help') || rest.includes('-h');
 }
 

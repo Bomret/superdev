@@ -406,6 +406,10 @@ These invariants fix its shape, and every backend renders all of them:
   `## Observations` section, since the triage record is that trigger's only artifact.
 - **It is listable.** `/superdev:backlog` is the consumer: its survey groups every triage record the active
   store returns by the action it needs, so a record no listing call can reach stays invisible to it.
+- **A run that fixes it after all closes it.** A deferred finding re-enters the fix loop only when a later
+  review names a guard-rail remedy for it. Once a re-review confirms the fix, the run removes the ledger
+  bullet and closes the record through the store's own close call, with a comment naming the fixing
+  commit (`references/scope-mode.md`'s `## Deferred findings`, ADR 0121).
 
 Every backend mechanism — the label a record carries or the directory it lives in, and the call that
 creates it and the call that lists them — belongs to the active `docs/agents/issue-tracker.md`'s own

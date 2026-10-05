@@ -64,6 +64,24 @@ have run. The merge call below degrades the same way: print the exact `tea api` 
   `/superdev:ship` reads the pull request's own `head.sha` only to decide whether to push and to refuse
   when it still differs from that tip after pushing, never as the merge's own pin.
 
+## Edit the pull request body
+
+A run that resolves a deferred finding after `/superdev:submit-pr` opened the pull request rebuilds that
+pull request's `## Deferred to a plan` section (`references/scope-mode.md`'s `## Deferred findings`,
+ADR 0121). Only an open pull request is edited.
+
+- **Read it**: `tea api '/repos/{owner}/{repo}/pulls/<index>'` with `--login <login> --repo <owner>/<repo>`,
+  into a file → `state`, `merged`, and the markdown `body`.
+- **Edit it, by file**: read into one file, build the new body into a second, wrap it as JSON in a third,
+  and edit only when every step succeeded: `tea api '/repos/{owner}/{repo}/pulls/<index>' > "$r" &&
+  jq -e '.state == "open" and (.merged | not)' "$r" >/dev/null && jq -je .body "$r" > "$b" &&
+  <producer> < "$b" > "$f" && [ -s "$f" ] && jq -n --rawfile body "$f" '{body: $body}' > "$j" &&
+  tea api -i -X PATCH '/repos/{owner}/{repo}/pulls/<index>' -d @"$j"`, with the same `--login` and
+  `--repo`. Name each file with `mktemp`. `<producer>` builds the new body from `"$b"`. A failed read, a
+  merged or closed pull request, a failed producer, or an empty result stops the chain before the edit,
+  and the body stays as it was. Read the HTTP status from stderr (`-i`): `tea api` exits 0 on a 4xx or
+  5xx answer.
+
 ## Compute the base
 
 `git merge-base <base> <scope-branch>` → BASE for the final-reviewer's BASE..HEAD diff.

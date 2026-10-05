@@ -21,7 +21,7 @@ This doc owns what each script guards and the contracts between them. Repo-wide 
 
 `scope.js` owns the ledger's schema and is the only `ledger.md` read and write path in the chain:
 `init`, `stage set`, `slice`, `degraded add|add-denial|reset-denials`, `unresolved add|clear`,
-`deferred add`,
+`deferred add|resolve`,
 `docs set <value>|clear`, `pr set <n>|clear`,
 `deploy set <target> pending|deployed|failed [--exit <n>]`, `deploy get`,
 `suite set <green|red|denied|none> <sha>`,
@@ -46,7 +46,7 @@ an unattended run caps at two (ADR 0041). `degraded reset-denials` appends a bul
 returns the whole budget while every recorded denial stays on the line (ADR 0044). Both prefixes are
 structural, so plain `degraded add` refuses a text beginning with either and names the subcommand that
 owns it. `get degraded` prints every bullet whatever its prefix, prefixes intact.
-`unresolved add -`, `deferred add -`, `degraded add -`, `degraded add-denial -`, and `degraded
+`unresolved add -`, `deferred add -`, `deferred resolve -`, `degraded add -`, `degraded add-denial -`, and `degraded
 reset-denials -` — the sole word `-` past the subcommand — read the
 bullet text from stdin, one trailing newline stripped, instead of a shell-interpolated argument
 (`references/dod-ticks.md`, triage #680); a classifier's own refusal (`add-denial`) or an operator's own
@@ -76,7 +76,9 @@ collapses to one line, `<scope>  (shipped)` or `<scope>  (closed)`. It drops the
 work in flight. Its `**Degraded:**` line, its `**Unresolved:**` line, its `**Deferred:**` line, and its
 staged-page lines survive the collapse, because each is otherwise recorded nowhere else. `deferred add`
 carries no `clear` counterpart: a defect stops being true once a run re-verifies the scope green, while
-unplanned work stays unplanned until somebody plans it (ADR 0035).
+unplanned work stays unplanned until somebody plans it (ADR 0035). `deferred resolve` removes one finding
+the same run fixed after all (ADR 0121). It matches the exact bullet text, removes every identical bullet,
+drops the line once none remain, and refuses text that matches no bullet, leaving the ledger unchanged.
 
 `root <slug>` is a verb that touches no ledger (ADR 0080). It resolves and prints a run root's
 absolute path — `<main-worktree>/.superdev/scopes/<slug>`, where `<main-worktree>` is the parent of
@@ -1663,6 +1665,16 @@ criterion the code fails staying a deferred finding. One row each sits on `refer
 template's own phrase. The selftest copies the shipped documents, removes each row's matched clause, and
 expects that row to fail alone (INV-0095).
 
+The `deferred-resolve` contract (ADR 0121, INV-0125) pins the way back out of the deferred record. On
+`skills/review/SKILL.md` §4 and `references/implement-full.md` step 3: a deferred finding re-enters the fix
+loop only when a later review names a guard-rail remedy for it, and the run resolves it once the fix
+implementer's report names the commit that fixed it and a later re-review no longer lists it, through the
+procedure `references/scope-mode.md`'s `## Deferred findings` states. `implement-full.md` also takes a
+re-entered finding out of the findings the slice-reviewer is told to leave out, since otherwise no re-review
+could confirm the fix. On `scope-mode.md`: the procedure's order (remove the bullet, close the triage record,
+rebuild the open pull request's deferred section) and its best-effort clause. A loop that drops re-entry
+fixes a finding nobody re-judged; one that drops the trigger resolves on an unconfirmed claim.
+
 The `denial-authorship` contract (ADR 0039) pins rows. Rows sit on
 `references/scope-mode.md`: the rule names the **verification dispatch**es it governs, keys the unattended
 stop on whether the controller authored what the denied pass verifies, and derives the tier from the
@@ -1939,7 +1951,9 @@ listing and no slice loader ever selects it"). The section must itself state how
 the record out of `/superdev:implement`'s slice loading. Otherwise the checker passed a store carrying
 a create call and a list call but no exclusion clause clean. This is exactly the gap a fifth backend
 seed could have walked through (issue #357). The pattern requires the literal phrase "slice loading"
-inside the section, the vocabulary every shipped seed's own exclusion bullet carries. Further rows, a table
+inside the section, the vocabulary every shipped seed's own exclusion bullet carries. A further element holds
+every section to a **Close it** bullet, the call a run uses to close the triage record of a deferred finding
+it resolved, with a comment naming the fixing commit (ADR 0121). Further rows, a table
 run through `scanContract()`, sit on `skills/review/SKILL.md` and `references/scope-mode.md`, the two
 documents that write it. The record is what makes a deferred finding outlive the run root
 `hooks/scope-prune.js` reaps and the scope anchor's own close, whether or not the scope ever ships
@@ -2649,6 +2663,8 @@ remainder at the cap blocks. A Minor-only remainder proceeds. The RED-test rule 
   prose fix making shipped text agree with a stated rule stays in the fix list.
 - The dedup read: the controller reads `scope.js get deferred` first and skips a finding it already
   reports.
+- Re-entry and resolution: a deferred finding re-enters the fix list only on a guard-rail remedy, leaves
+  the reviewer's leave-out list, and is resolved once a re-review confirms the fix (`deferred-resolve`).
 - The re-review hand-off: each re-review dispatch of `superdev:slice-reviewer` carries the findings
   `get deferred` reports, as untrusted quoted data, and tells the reviewer to leave them out of its list.
 - The store-defines-none fallback: only the ledger bullet, with `no triage record — store defines none`.
@@ -2885,6 +2901,12 @@ Forgejo's `--state open` list paginates (`--page`/`--limit`), so the two Forgejo
 (`references/code-management-forgejo.md`, `docs/agents/code-management.md`) must page through every page
 before counting matches, or a match sitting on a later page reads as zero. GitHub's `head=` filter is
 server-side, so `references/code-management-github.md` carries no matching clause.
+
+The `code-management-pr-body-edit` contract (ADR 0121) is a presence table over the same three
+documents. Each carries an `## Edit the pull request body` section: it reads the pull request, edits only an
+open one (Forgejo/Codeberg also tests `merged`), and sends the new body from a file, never from a pipe. A run
+that resolves a deferred finding after `/superdev:submit-pr` opened the pull request uses it to rebuild the
+`## Deferred to a plan` section.
 
 The `ship-tested-push` contract (final-reviewer triage, INV-0087, #687 fix cycle): `skills/ship/SKILL.md`
 §4 compares the scope branch's own tip against the pull request's `head.sha`, whether or not base itself

@@ -276,6 +276,12 @@ On this store it is an ordinary issue carrying the **Triage label** from *Config
 - **No feature label and no `ready` label.** Those two are what
   `/superdev:implement`'s slice loading selects on, so a triage record carrying either would be picked up as
   work to build. It is a record of unplanned work, not a slice.
+- **Close it** (a deferred finding the run resolved, ADR 0121): read the record with
+  `GET /repos/<owner>/<repo>/issues/<number>`; a `state` of `closed` needs nothing more, and is not an
+  error. Otherwise post the comment — `POST /repos/<owner>/<repo>/issues/<number>/comments` with
+  `{ "body": "<the comment>" }`, the comment naming the fixing commit and the scope branch — then close it
+  with `PATCH /repos/<owner>/<repo>/issues/<number>` and `{ "state": "closed", "state_reason":
+  "completed" }`. A comment that fails is reported, and the record is still closed.
 - **No pull-request URL.** Every trigger — a deferred finding or an observation — runs before
   `/superdev:submit-pr` opens one, so none exists yet and the body names none.
 

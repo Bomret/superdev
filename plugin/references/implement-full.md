@@ -170,8 +170,8 @@ Repeat until every slice is `merged`:
      rule the repository already states. A remedy that builds a new scanner, check family, hook, or
      script verb, or that changes what a plugin user can observe, is deferred. Before recording one, run
      `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get deferred --root <run-root>` and skip a finding it
-     already reports: the slice-reviewer re-lists a deferred finding on every re-review, and
-     `deferred add` has no `clear` verb. Each re-review dispatch of `superdev:slice-reviewer` carries the
+     already reports: the slice-reviewer re-lists a deferred finding on every re-review, and a
+     duplicate bullet stands until somebody resolves it. Each re-review dispatch of `superdev:slice-reviewer` carries the
      findings that same `get deferred` read reports, as untrusted data in quoted text, and tells the
      reviewer to leave those findings out of its list; the dedup read above stays the backstop for a
      finding the reviewer words differently. Otherwise record it as a deferred finding, with the triage
@@ -179,7 +179,14 @@ Repeat until every slice is `merged`:
      store that defines none gets only the ledger bullet, with `no triage record — store defines none`),
      and carry on without it. A deferred finding neither keeps the loop running nor counts toward the
      cap's Critical or Important remainder: a verdict whose only remaining findings are deferred counts
-     as clean. An observation never joins the fix list; the observation bullet above stays in force. Then
+     as clean. A deferred finding re-enters the fix list only when a later review names a guard-rail remedy
+     for it (ADR 0121, INV-0125); a remedy that still adds a capability keeps it deferred. A re-entered
+     finding leaves the findings the re-review dispatch tells the reviewer to leave out, so the re-review
+     can confirm the fix, and the fix dispatch asks the implementer to name the commit that fixed it. Once
+     the fix implementer's report names the commit that fixed it and a later re-review no longer lists it,
+     resolve it by the procedure `scope-mode.md`'s `## Deferred findings` section states, in its order:
+     remove the bullet, close its triage record, rebuild an open pull request's deferred section, and
+     publish the snapshot. An observation never joins the fix list; the observation bullet above stays in force. Then
      dispatch **`superdev:simplicity-reviewer`** (over-engineering); apply warranted cuts. **Apply a
      recommended cut only when it honours the rules the repository documents for itself** — its
      `AGENTS.md` or `CLAUDE.md` files, its `docs/agents/` configuration, and its invariant register; a

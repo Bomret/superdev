@@ -155,6 +155,8 @@ const {
   ALWAYS_REVIEW_CONTRACTS,
   CODE_MANAGEMENT_MERGE_CONTRACTS,
   CODE_MANAGEMENT_HEAD_BRANCH_LOOKUP_CONTRACTS,
+  CODE_MANAGEMENT_PR_BODY_EDIT_CONTRACTS,
+  DEFERRED_RESOLVE_CONTRACTS,
   SHIP_TESTED_PUSH_CONTRACTS,
   SHIP_MERGE_PIN_CONTRACTS,
   SHIP_LEGACY_SHIPPED_CONTRACTS,
@@ -1036,6 +1038,17 @@ module.exports = [
     'each code-management document carries the open-pull-requests-by-head-branch lookup `/superdev:ship` ' +
       "falls back to for a ledger predating the ledger's own PR number, scoped to open pull requests only " +
       '(#685, INV-0092)',
+  ),
+  table(
+    'code-management-pr-body-edit',
+    CODE_MANAGEMENT_PR_BODY_EDIT_CONTRACTS,
+    "each code-management document reads the pull request and edits an open one's body from a file (ADR 0121)",
+  ),
+  table(
+    'deferred-resolve',
+    DEFERRED_RESOLVE_CONTRACTS,
+    'both fix loops re-admit a deferred finding only on a guard-rail remedy and resolve it once a re-review ' +
+      'confirms the fix, through the procedure scope-mode.md states in order (ADR 0121, INV-0125)',
   ),
   table(
     'ship-tested-push',

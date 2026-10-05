@@ -695,17 +695,51 @@ triage record's reference, and the date:
 
 A run with nothing deferred carries **no such line at all** — absent, never present and empty.
 
-**There is no `deferred clear`.** An unresolved defect stops being true the moment a run re-verifies the
-scope green, which is what earns that record its `clear`. Unplanned work stays unplanned until somebody
-plans it, so the bullet stands until `/superdev:submit-pr` copies it into the pull-request body, where a
-reader meets it. That absence is also why the deferring command reads `get deferred` before it
-writes, and skips a finding the line already carries: every duplicate is permanent, and two paths reach
-one. Its fix loop repeats until the verdict is clean, so a finding still deferred re-appears in each
-re-review's report; and a second `/superdev:review` invocation on the same run — after a denied dispatch,
-or a maintainer picking the scope back up — starts with no memory of the first. Reading the line covers
-both, where writing "only on the first cycle" covers only the loop.
+**There is no `deferred clear`, and there is one `deferred resolve`.** An unresolved defect stops being
+true the moment a run re-verifies the scope green, which is what earns that record its `clear`. Unplanned
+work stays unplanned until somebody plans it, so the bullet stands until `/superdev:submit-pr` copies it
+into the pull-request body, where a reader meets it. The one exception is a finding the same run fixes
+after all, because a later review named a guard-rail remedy for it (ADR 0121). `scope.js deferred resolve -`
+removes that finding's bullet: pipe it the exact text `get deferred` printed, through a quoted heredoc as
+for `add -`. It removes every identical bullet, removes the `**Deferred:**` line once no bullet remains,
+and refuses text that matches no bullet, leaving the ledger unchanged.
 
-**Publish the snapshot afterwards**, per `## Publishing run state` above, on every `deferred add` call.
+The deferring command still reads `get deferred` before it writes, and skips a finding the line already
+carries: a duplicate stands until somebody resolves it, and two paths reach one. Its fix loop repeats
+until the verdict is clean, so a finding still deferred re-appears in each re-review's report; and a
+second `/superdev:review` invocation on the same run — after a denied dispatch, or a maintainer picking
+the scope back up — starts with no memory of the first. Reading the line covers both, where writing
+"only on the first cycle" covers only the loop.
+
+**A deferred finding the run fixes after all is resolved** (ADR 0121, INV-0125). It re-enters a fix loop
+only when a later review names a guard-rail remedy for it, attended or unattended alike; a remedy that
+still adds a capability keeps it deferred. Once the fix implementer's report names the commit that fixed
+it and a later re-review no longer lists it, resolve it, in this order:
+
+1. **Remove the bullet.** Pipe the exact text `get deferred` printed, through a quoted heredoc
+   (`<<'SUPERDEV_TEXT_EOF'`), to `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js deferred resolve - --root <run-root>`.
+2. **Close its triage record**, when the bullet names one, through the active
+   `docs/agents/issue-tracker.md`'s `## Triage record` **Close it** call, with a comment naming the fixing
+   commit and the scope branch. A bullet whose reference reads `no triage record — …` closes nothing.
+3. **Rebuild the open pull request's deferred section**, when `scope.js get pr` names a pull request,
+   through `docs/agents/code-management.md`'s `## Edit the pull request body` section, which edits an open
+   pull request only. The producer is deterministic and replaces only the heading line plus the run of `- `
+   bullet lines under it (one blank line may sit between them), so text after that run, such as a footer
+   line or a following section, stays byte-identical. With bullets left, write the section
+   `/superdev:submit-pr` writes — the `## Deferred to a plan` heading, then every bullet `get deferred`
+   still prints, one `- ` line each — to `<section-file>`. With none left, set `sec=` empty, which drops
+   the heading and the blank line after its bullets. An unreadable `<section-file>` makes the producer exit
+   nonzero, so the edit chain's `&&` stops before the host edit. Print the new body with
+   `awk -v sec=<section-file> '/^## Deferred to a plan[[:space:]]*$/ && !d {d=1; st=1; h=0; if (sec != "") {if ((getline l < sec) < 1) exit 1; print l; while ((getline l < sec) > 0) print l} next} st==1 && /^[[:space:]]*$/ && !h {h=1; next} st && /^- / {st=2; next} st==2 && sec == "" && /^[[:space:]]*$/ {st=0; next} st {if (h && st==1) print ""; st=0} 1' "$b"`.
+   Every other section of the body stays byte-identical. A body that carries no `## Deferred to a plan`
+   heading stays unchanged: the finding was deferred after `/superdev:submit-pr` wrote the body.
+
+**Steps 2 and 3 are best-effort.** A store or code-host document that defines no such call, a call that
+fails or is denied, and a merged or closed pull request are each reported once per run in the command's
+own report, and the bullet stays removed.
+
+**Publish the snapshot afterwards**, per `## Publishing run state` above, on every `deferred add` call and
+on every `deferred resolve` call.
 
 ## Observations
 
@@ -782,7 +816,7 @@ documented too early"; `reviewed` is the value that gets the doc pass re-run, wh
 
 **Publishing follows any ledger write the snapshot would show** — `scope.js init`'s first write of
 `**Stage:**` (the caller's own entry stage — ADR 0079), every later `stage set`, every `degraded add`/`degraded
-add-denial`/`degraded reset-denials`, every `unresolved add`/`unresolved clear`, every `deferred add`,
+add-denial`/`degraded reset-denials`, every `unresolved add`/`unresolved clear`, every `deferred add`/`deferred resolve`,
 and every `docs set`/`docs clear` — one rule
 rather than a list of call sites. Each site below cites this section instead of restating it. **One
 exception:** a slice-row move (`scope.js slice`) is not published on its own — the **Slice rows are not

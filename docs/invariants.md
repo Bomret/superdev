@@ -1032,6 +1032,15 @@ Breaks: silently
 Check: scripts/drift-check.js — ship's, verify-ship's, and wrap-up's citations of the scope-mode.md section, and ship's and verify-ship's above-zero condition on the publish-kb line; partial: nothing checks the text an agent prints
 Paths: plugin/skills/ship/SKILL.md, plugin/skills/verify-ship/SKILL.md, plugin/skills/wrap-up/SKILL.md, plugin/references/scope-mode.md
 
+### INV-0125
+
+Class: process
+Concepts: Deferred finding, Guard-rail remedy, Ledger
+Statement: A deferred finding leaves the ledger's `**Deferred:**` record only after a fix cycle that carried it lands a commit and a later re-review no longer lists it. It re-enters a fix loop only when a review names a guard-rail remedy for it (ADR 0121).
+Breaks: silently
+Check: scripts/drift-check.js — the `deferred-resolve` rows on review's fix loop, implement-full's step 3, and scope-mode's resolve procedure; partial: nothing checks that a controller waits for the re-review before it resolves
+Paths: plugin/skills/review/SKILL.md, plugin/references/implement-full.md, plugin/references/scope-mode.md
+
 ### INV-0126
 
 Class: process

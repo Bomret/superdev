@@ -241,7 +241,10 @@ which records it as a **Triage record** and a ledger bullet without a report hea
 It reaches several homes at once: a **Triage record** in the slice store, a `**Deferred:**` bullet in the
 run's ledger carrying that record's reference, and the pull-request body `/superdev:submit-pr` copies the
 bullet into. The triage record outlives the run root and the closed scope anchor regardless of whether
-the scope ever ships (ADR 0035, 0046, 0110).
+the scope ever ships (ADR 0035, 0046, 0110). A deferred finding re-enters the fix loop only when a later
+review names a **Guard-rail remedy** for it. Once a re-review confirms that fix, the run resolves it: the
+ledger bullet goes, the triage record closes, and an open pull request's deferred section is rebuilt
+(ADR 0121).
 _Avoid: "scope growth", "out-of-scope finding" (the point is the DoD boundary, not that the finding is
 unwelcome or off-topic)_
 
