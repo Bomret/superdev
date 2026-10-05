@@ -1,3 +1,24 @@
+# [0.63.0](https://codeberg.org/bomret/superdev/compare/v0.62.0...v0.63.0) (2026-10-05)
+
+
+### Bug Fixes
+
+* **anchor-body-write:** edit an anchor body only through one gated, file-based rule ([da28872](https://codeberg.org/bomret/superdev/commit/da28872b9a05ec03e046b96791ea7e5d9dacd017))
+* **drift-selftest:** exercise every contract row and derive the test roster from tests/ ([425bdbf](https://codeberg.org/bomret/superdev/commit/425bdbf1513eb6a77aadbde23e13c388921c0e3a))
+* **green-gate:** fail closed on a -C or --work-tree value naming an unexpanded shell variable ([0868ea0](https://codeberg.org/bomret/superdev/commit/0868ea033700f45de9e82657f3ad8b460469f900))
+* **hooks:** block ledger writes behind an unbalanced substitution and read nested option values ([#841](https://codeberg.org/bomret/superdev/issues/841)) ([793a346](https://codeberg.org/bomret/superdev/commit/793a34638281959312f566632bb45f003e04e09c)), closes [#825](https://codeberg.org/bomret/superdev/issues/825) [#806](https://codeberg.org/bomret/superdev/issues/806) [#825](https://codeberg.org/bomret/superdev/issues/825) [#825](https://codeberg.org/bomret/superdev/issues/825) [#825](https://codeberg.org/bomret/superdev/issues/825) [#825](https://codeberg.org/bomret/superdev/issues/825)
+* **hooks:** read an unquoted command substitution containing spaces as one shell word ([#825](https://codeberg.org/bomret/superdev/issues/825)) ([e46d28b](https://codeberg.org/bomret/superdev/commit/e46d28b1a114cf1e4a2a6947fba32c1343f095af)), closes [#806](https://codeberg.org/bomret/superdev/issues/806) [#806](https://codeberg.org/bomret/superdev/issues/806)
+* **prose:** plan hands every scope to review, and setup names the per-language section's file ([94eeea3](https://codeberg.org/bomret/superdev/commit/94eeea3d8ed26cd087a46b3b997122415e1ef13c))
+* **run-lock-test:** name the suite's temp root with mkdtemp so concurrent runs stop colliding ([8e695d9](https://codeberg.org/bomret/superdev/commit/8e695d9e736b4f777d31a01e5bdd0f9206a44fb0))
+
+
+### Features
+
+* **blind-slice-review:** the slice review settles its verdict before it reads the progress log ([d4d06b7](https://codeberg.org/bomret/superdev/commit/d4d06b780c3ceb5a333a7752142352a45921f5b8))
+* **brainstorm:** write the intent as a draft while the interview runs ([8c591d7](https://codeberg.org/bomret/superdev/commit/8c591d70a18f2a92da63221845c567cfabb4ca67))
+* **close-the-fix-loop:** fix every review finding, keep guard-rail remedies in the loop, derive criteria at plan time ([9e81c7f](https://codeberg.org/bomret/superdev/commit/9e81c7fe8995cf6b490a91523bdade528aae8833))
+* **response-shapes:** end commands on a shared Next block and report brainstorm in a fixed shape ([ed1e666](https://codeberg.org/bomret/superdev/commit/ed1e666998ff60ec73eb080a3f5b3369a57d257a))
+
 # [0.62.0](https://codeberg.org/bomret/superdev/compare/v0.61.0...v0.62.0) (2026-10-01)
 
 
