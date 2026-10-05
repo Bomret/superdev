@@ -14,6 +14,7 @@ const {
   storeDocuments,
   extractSection,
   maskFences,
+  fenceLines,
   maskedSentences,
   normalizeWhitespace,
 } = require('./lib');
@@ -341,27 +342,58 @@ function scanStoreSectionContract(root, heading) {
 
 // scanBodyEditContract() holds ADR 0115 / INV-0115 on every store document: one **Edit an issue's body**
 // bullet states the gated rule (the edit runs only after `&&` on a producer that exited 0 and a `[ -s ]`
-// non-empty file), every issue body-edit call in the fence-masked text takes its body from a named file
-// variable (an allowlist), and the `## Definition of Done ticks` section names how the body is taken out
-// of the read response (`jq`). A create keeps its heredoc stdin — nothing upstream of it can fail.
+// non-empty file), every issue body-edit call takes its body from a named file variable through a flag
+// that reads that file, and the `## Definition of Done ticks` section names how the body is taken out of
+// the read response (`jq`). A create keeps its heredoc stdin — nothing upstream of it can fail.
 // A body-edit call is `issues edit` / `issue edit` with a body flag, or a `PATCH` / `PUT` aimed at a bare
 // issue path (`/issues/<id>`, `/issue/<id>`, no sub-resource) that carries a body payload. Its window runs
 // from the code span's start to the sentence end, so a method and its payload in adjacent spans pair up.
-const BODY_FILE_VALUE = /^(?:@?"\$[fp]"|"\$\(cat "\$f"\)")$/; // "$f", "$p", @"$p", "$(cat "$f")"
+// Calls are read from the fence-masked text plus every shell-tagged fence (shellFenceCommands()).
+// A flag's kind decides the file value it accepts: a path flag reads the file it names ("$f"), an `@`
+// flag reads a file only behind `@` (@"$f"), and a literal flag sends its value as-is, so only a
+// "$(cat "$f")" substitution reads a file through it (and through an `@` flag too).
+// ponytail: a shape parse, not a shell parser — a value-taking short flag at the end of a cluster
+// (`-sd@-`) is not read; parse shell words if a store document ever needs that spelling. Tea global
+// flags before the subcommand are missed (e.g., `tea --login cb api ... --field body=@"$f"`); add
+// per-store global flag bounds when needed.
+const PATH_FLAGS = new Set(['--input', '--description-file', '--body-file', '-T', '--upload-file', '-F']);
+const AT_FLAGS = new Set(['-d', '--data', '--data-binary', '--data-ascii', '--json']);
 const BODY_VALUE = '("\\$\\((?:[^")]|"[^"]*")*\\)"|"[^"]*"|\'[^\']*\'|\\S+)';
 const BODY_FLAG = new RegExp(
-  '(?<=\\s)(?:--input|--json|-d|--data(?:-[a-z]+)?|--description(?:-file)?|--body(?:-file)?|-b|-T|--upload-file|-F(?!\\s+[\\w-]+=))(?:=|\\s+)' + BODY_VALUE,
+  '(?<=\\s)(--input|--json|-d|--data(?:-[a-z]+)?|--description(?:-file)?|--body(?:-file)?|-b|-T|--upload-file|-F(?![\\s=]+[\\w-]+=))' +
+    '(?:=|\\s+|(?<=\\s-[a-zA-Z])(?=[@"\'$-]))' +
+    BODY_VALUE,
   'g',
 );
-const BODY_FIELD = new RegExp('(?<=\\s)(?:-f|-F|--field|--raw-field)\\s+["\']?(?:body|description)=(@?)' + BODY_VALUE, 'g');
+const BODY_FIELD = new RegExp('(?<=\\s)(-f|-F|--field|--Field|--raw-field)(?:\\s+|=|(?<=\\s-[fF]))["\']?(?:body|description)=(@?)' + BODY_VALUE, 'g');
 const ISSUE_PATH = /\/issues?\/[^\s/`'"]+(?=[\s`'")]|$)/;
 function bodyEditHasGap(call, editVerb) {
   if (/"(?:body|description)"\s*:/.test(call)) return true; // an inline JSON payload
-  const values = [...call.matchAll(BODY_FLAG)].map((m) => m[1]);
-  for (const m of call.matchAll(BODY_FIELD)) values.push(m[1] + m[2]);
+  const kind = (flag) => (PATH_FLAGS.has(flag) ? 'path' : AT_FLAGS.has(flag) && !(flag === '-d' && editVerb) ? 'at' : 'literal');
+  const pairs = [...call.matchAll(BODY_FLAG)].map((m) => [kind(m[1]), m[2]]);
+  // `tea issues edit -d` is --description. `-f`/`--raw-field` never expand `@`; `-F` does, and so does
+  // `--field` in gh (typed) but not in `tea api`, where `--field` is the string field and `--Field` the typed one.
+  const tea = /\btea\s+api\b/.test(call);
+  const literalField = (f) => /^-f$|^--raw/.test(f) || (tea && f === '--field');
+  for (const m of call.matchAll(BODY_FIELD)) pairs.push([literalField(m[1]) ? 'literal' : 'at', m[2] + m[3]]);
   // a PATCH/PUT may also carry a literal JSON payload that names no body (a close, a label change)
-  const ok = (v) => BODY_FILE_VALUE.test(v) || (!editVerb && /^(['"])\{[^$]*\}\1$/.test(v));
-  return values.some((v) => !ok(v));
+  const ok = ([k, v]) =>
+    k === 'path'
+      ? /^"\$[fp]"$/.test(v)
+      : /^"\$\(cat "\$f"\)"$/.test(v) || (k === 'at' && /^@"\$[fp]"$/.test(v)) || (!editVerb && /^(['"])\{[^$]*\}\1$/.test(v));
+  return pairs.some((p) => !ok(p));
+}
+// shellFenceCommands(): the commands inside every fence tagged sh/bash/shell/shell-session/zsh/console (any case), backslash
+// continuations joined, each rendered as its own code-span sentence so bodyEditCalls() reads it as prose.
+// Every other fence (json, untagged) stays masked, as an illustration rather than an instruction.
+function shellFenceCommands(text) {
+  const blocks = new Map();
+  for (const { line, fence, role } of fenceLines(text)) {
+    if (role !== 'body' || !/^(?:sh|bash|shell|shell-session|zsh|console)$/i.test(fence.tag)) continue;
+    blocks.set(fence, [...(blocks.get(fence) || []), line]);
+  }
+  const out = [...blocks.values()].flatMap((lines) => lines.join('\n').replace(/\\\n/g, ' ').split('\n'));
+  return out.map((cmd) => '`' + cmd.trim() + '`.').join('\n\n');
 }
 function bodyEditCalls(masked) {
   const calls = [];
@@ -375,7 +407,7 @@ function bodyEditCalls(masked) {
     const tick = rest.indexOf('`');
     calls.push({ text: ' ' + (tick === -1 ? rest : rest.slice(0, tick)), edit: true });
   }
-  for (const m of masked.matchAll(/(?:(?<![A-Za-z])|(?<=-X))(?:PATCH|PUT)\b/g)) {
+  for (const m of masked.matchAll(/(?:(?<![A-Za-z])|(?<=-[A-Za-z]*X))(?:PATCH|PUT)\b/g)) {
     const start = Math.max(masked.lastIndexOf('`', m.index), m.index - 200);
     const text = ' ' + masked.slice(start, m.index) + end(m.index);
     if (ISSUE_PATH.test(text)) calls.push({ text, edit: false });
@@ -397,8 +429,8 @@ function scanBodyEditContract(root) {
         expectation: "gate the edit in its **Edit an issue's body** bullet on the producer's exit status (`&&`) and a non-empty file (`[ -s`)",
       });
     }
-    if (bodyEditCalls(masked).some((c) => bodyEditHasGap(c.text, c.edit))) {
-      gaps.push({ source: rel, expectation: 'edit a body only from a named file variable ("$f", "$p", @"$p"), never from stdin, a substitution, or an inline payload' });
+    if (bodyEditCalls(`${masked}\n\n${shellFenceCommands(text)}`).some((c) => bodyEditHasGap(c.text, c.edit))) {
+      gaps.push({ source: rel, expectation: 'edit a body only from a named file variable, through a flag that reads that file ("$f", @"$p", "$(cat "$f")"), never from stdin, a substitution, or an inline payload' });
     }
     const ticks = extractSection(text, specialisingHeading('Definition of Done ticks'));
     if (ticks && !/\bjq\b/.test(ticks)) {

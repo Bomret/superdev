@@ -1731,6 +1731,8 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
     for (const stdinEdit of [
       'Append the line (`tea issues edit <index> --description-file -`).',
+      '`gh issue edit 1 -F-`.',
+      '`curl -sf -X PATCH -T- "$base/issues/1"`.',
       'Then `PATCH /repos/<owner>/<repo>/issues/<number>` with `{ "body": "<dod-line\'s stdout>" }`.',
       'Then `PUT <base>/rest/api/3/issue/<key>` with `{ "fields": { "description": <amended ADF body> } }`.',
       '`dod-line < b | gh api -X PATCH repos/o/r/issues/1 --input -`.',
@@ -1753,6 +1755,26 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
       '`curl -XPUT --data @- "$base/rest/api/3/issue/K"`.',
       '`curl -X PATCH -T - "$base/issues/1"`.',
       '`curl -X PATCH --upload-file - "$base/issues/1"`.',
+      '`gh api -X PATCH repos/o/r/issues/1 -f body=@"$f"`.',
+      '`curl -X PATCH --data-raw @"$p" "$base/issues/1"`.',
+      '`curl -XPATCH -d@- "$base/issues/1"`.',
+      '`curl -sfXPUT --data @- "$base/rest/api/3/issue/K"`.',
+      '`curl -X PATCH -d "$p" "$base/issues/1"`.',
+      '`tea issues edit 1 -d @"$f"`.',
+      '`curl -X PATCH --data-urlencode @"$p" "$base/issues/1"`.',
+      '`gh api -X PATCH repos/o/r/issues/1 -F body="$f"`.',
+      '`tea issues edit 1 --description-file @"$f"`.',
+      '```sh\ntea issues edit 1 --description-file -\n```',
+      '`gh api -X PATCH repos/o/r/issues/1 -fbody=@-`.',
+      '`gh api -X PATCH repos/o/r/issues/1 -Fbody=@-`.',
+      '`gh api -X PATCH repos/o/r/issues/1 --field=body=@-`.',
+      '`tea api -X PATCH /repos/o/r/issues/1 --field body=@"$f"`.',
+      '`gh api -X PATCH repos/o/r/issues/1 --raw-field=body="$(cat)"`.',
+      '```Shell-Session\ntea issues edit 1 --description-file -\n```',
+      '```shell-session\ntea issues edit 1 --description-file -\n```',
+      '```sh\ntea issues edit 1 --description-file -\n',
+      '```sh\n```text\ntea issues edit 1 --description-file -\n```\n',
+      '```bash\ncurl -sf -X PUT \\\n  --data @- "$base/rest/api/3/issue/K"\n```',
     ]) {
       const gaps = scanBodyEditContract(doc(`${clean}\n${stdinEdit}\n`));
       assert.equal(gaps.length, 1, `an edit whose body is not read from a file is flagged: ${stdinEdit}`);
@@ -1764,9 +1786,9 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
       'a create keeps its heredoc stdin',
     );
     assert.deepEqual(
-      scanBodyEditContract(doc(`${clean}\n\`\`\`sh\ntea issues edit 1 --description-file -\n\`\`\`\n`)),
+      scanBodyEditContract(doc(`${clean}\n\`\`\`\ntea issues edit 1 --description-file -\n\`\`\`\n`)),
       [],
-      'a fenced example is not the document\'s own instruction',
+      'an untagged fenced example is not the document\'s own instruction',
     );
 
     for (const allowed of [
@@ -1781,6 +1803,11 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
       '`gh api -X PATCH repos/o/r/issues/1 -f state=closed`.',
       '`gh api -X PATCH repos/o/r/issues/1 -F state=closed`.',
       '`gh api -X PATCH repos/o/r/issues/1 -F body=@"$f"`.',
+      '`gh api -X PATCH repos/o/r/issues/1 -Fbody=@"$f"`.',
+      '`gh api -X PATCH repos/o/r/issues/1 --field=body=@"$f"`.',
+      '`gh api -X PATCH repos/o/r/issues/1 --field body=@"$f"`.',
+      '`gh api -X PATCH repos/o/r/issues/1 -F=body=@"$f"`.',
+      '`tea api -X PATCH /repos/o/r/issues/1 --Field body=@"$f"`.',
       '`curl -X PUT --data @"$p" "$base/rest/api/3/issue/K"`.',
       '`PATCH .../issues/<number>` with `{ "state": "closed", "state_reason": "completed" }`.',
       '`curl -X PATCH -d \'{"state":"closed"}\' "$base/repos/o/r/issues/1"`.',
@@ -1790,6 +1817,13 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
       "An edit of the epic's body through **Edit an issue's body** is the only one.",
       '`tea issues edit 1 --add-assignees bob`.',
       '`tea issues create -t "$t" --description-file -`.',
+      '`curl -XPATCH -d@"$p" "$base/issues/1"`.',
+      '`curl -sfXPUT --data @"$p" "$base/rest/api/3/issue/K"`.',
+      '`curl -X PATCH --data-raw \'{"state":"closed"}\' "$base/issues/1"`.',
+      '`gh api -X PATCH repos/o/r/issues/1 -f body="$(cat "$f")"`.',
+      '```sh\ngh api -X POST repos/o/r/issues --input - <<\'EOF\'\n{"title": "t", "body": "b"}\nEOF\n```',
+      '```json\n{ "body": "x" }\n```\nThen `gh api -X PATCH repos/o/r/issues/1 --input "$p"`.',
+      '```sh\ntea issues edit 1 --description-file "$f"\ntea issues edit 1 --add-labels x\n```',
     ]) {
       assert.deepEqual(scanBodyEditContract(doc(`${clean}\n${allowed}\n`)), [], `a create or a file-read edit stays allowed: ${allowed}`);
     }

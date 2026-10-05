@@ -2136,18 +2136,47 @@ The `body-edit-contract` check, `scanBodyEditContract()`: every store document, 
 `storeDocuments()` candidate list, edits an issue body only through one gated rule (ADR 0115, INV-0115).
 The document carries an **Edit an issue's body** bullet, and that bullet chains the edit after `&&` and a
 `[ -s` non-empty-file test, so a failed read or producer, or an empty result, stops the chain before the
-host call. In the fence-masked document, every issue body-edit call takes its body from a named file variable
-(`"$f"`, `"$p"`, `@"$p"`, or `"$(cat "$f")"`), an allowlist: anything else is a gap, whether stdin
-(`-`, `@-`, `--input=-`), a command substitution, or an inline `"body"` or `"description"` payload. A
+host call. Every issue body-edit call takes its body from a named file variable, through a flag that
+reads that file. The flag's kind sets the allowlist:
+
+- A **path flag** (`--input`, `--description-file`, `--body-file`, `-T`, `--upload-file`, `gh issue edit
+  -F`) reads the file it names, and takes `"$f"` or `"$p"`.
+- An **`@` flag** (curl and `tea api`'s `-d`, `--data`, `--data-binary`, `--data-ascii`, `--json`,
+  `-F body=` in `gh api` and `tea api`, plus `--field body=` in `gh api` only and `--Field body=` in
+  `tea api` only) reads a file only behind `@`, and takes `@"$f"`, `@"$p"`, or `"$(cat "$f")"`.
+- A **literal flag** (`-f`, `--raw-field body=`, and `--field body=` under `tea api`, `--data-raw`,
+  `--data-urlencode`, `--description`, `--body`, `-b`, and `-d` under `tea issues edit`, where it means
+  `--description`) takes only `"$(cat "$f")"`. All but `--data-urlencode` send their value unchanged.
+  `--data-urlencode @file` does read the file, and sends it URL-encoded, which is the wrong body for these
+  APIs, so it stays flagged.
+
+Anything else is a gap: stdin (`-`, `@-`, `--input=-`), a command substitution, an inline `"body"` or
+`"description"` payload, a bare path on an `@` or literal flag, and an `@` on a literal flag, which each
+send the path text as the body. A short flag reads the same fused as spaced (`-d@-`, `-XPATCH`,
+`-sfXPUT`), and a field flag reads the same with its `body=` fused on (`-fbody=@-`, `-Fbody=@-`,
+`--field=body=@-`, `--raw-field=body="$(cat)"`). The scanner's `ponytail:` note names these ceilings. A
+value-taking short flag at the end of a cluster (`-sd@-`) is not read. A `tea` global flag before `api`
+(`tea --login cb api … --field body=@"$f"`) hides the `tea api` call, so its `--field` reads as gh's `@`
+flag. The scan covers the fence-masked prose plus every fence tagged `sh`, `bash`, `shell`,
+`shell-session`, `zsh`, or `console` (any letter case), one command per line after backslash
+continuations are joined. Every other fence (`json`, untagged) stays masked, as an illustration. A
 body-edit call is `issues edit` or `issue edit` with a body flag, or a `PATCH` or `PUT` aimed at a bare
-issue path (`/issues/<id>`, `/issue/<id>`) that carries a payload flag (`--input`, `--json`, `-d`,
-`--data*`, `-b`, `-T`, `--upload-file`, `-F`, `-f` or `-F body=`, quoted or not). Label adds, label and assignee `PUT`s, `PATCH` closes, creates, and prose
-citing the rule by name are no body edit. A known false positive stays: a `PATCH` or `PUT` on a bare issue
-path whose payload is a command substitution counts as a body edit even when it carries no body (a label
-update built by `jq -n`), so a store document builds such a payload into a file first. A create keeps its heredoc stdin and its inline payload, because nothing
-upstream of it can fail. The `## Definition of Done ticks` section names its body extraction (`jq`), since
-`dod-line` reads a markdown body and never a JSON response. Each condition is flagged by name. Whether a
-section cites the bullet, and what a controller actually runs, stay a review's job.
+issue path (`/issues/<id>`, `/issue/<id>`) that carries a payload flag, quoted or not. Label adds, label
+and assignee `PUT`s, `PATCH` closes, creates, and prose citing the rule by name are no body edit. These
+known false positives stay. A commented-out command inside a shell fence
+(`# tea issues edit 1 --description-file -`) counts as a call, because the scan reads the shape of each
+line and not shell syntax. For the same reason a heredoc body line inside a shell fence counts as a
+command: a `bash` fence holding `cat <<EOF`, `gh issue edit 1 --body-file -`, and `EOF` is flagged. The
+scan reads curl's cookie flag `-b` (`curl -X PATCH -b "$c" -d @"$p" …`) as gh's `-b` body flag, so that
+call is flagged. A quoted or unquoted `gh api` field (`-F "body=@$f"`, `-F body=@$f`) is flagged too. A
+`PATCH` or `PUT` on a bare issue path whose payload is a command substitution counts as a body edit even
+when it carries no body (a label update built by `jq -n`). The literal-JSON exception, which lets a
+`PATCH` or `PUT` carry a payload that names no body (a close), rejects any payload carrying a `$`. A store
+document builds either payload into a file first. A create keeps its heredoc stdin and its inline payload,
+because nothing upstream of it can fail. The `## Definition of Done ticks` section names its body
+extraction (`jq`), since `dod-line` reads a markdown body and never a JSON response. Each condition is
+flagged by name. Whether a section cites the bullet, and what a controller actually runs, stay a review's
+job.
 
 The `untriaged-item` check, `scanUntriagedContract()`: every store document carries a
 `## Untriaged item` section stating how that backend recognises an **untriaged item** — an open record
@@ -2892,7 +2921,7 @@ worked example: it goes from ship straight to wrap-up, nothing being left to ver
   evadable phrasing reports a defect, and the guard grows by discovery instead of by decision. The
   convention governs these checks of this shape, and each carries its note: `doc-steps-no-suite`,
   `forcing-branch-flag`, `kb-no-backend-call`, `no-second-reader`, `return-to-controller`,
-  `agent-tool-agnostic`, `agent-lens-list`, `code-management-no-force`, and `forgejo-tea-only`.
+  `agent-tool-agnostic`, `agent-lens-list`, `code-management-no-force`, `forgejo-tea-only`, and `body-edit-contract`.
   `no-second-reader`'s reads differently
   from the rest on purpose: its gap is closed by an orphan test in `tests/scope-prune.test.js`
   rather than left open, and the note says so instead of claiming a ceiling it does not have. A **presence table** — the document must say X, one row per

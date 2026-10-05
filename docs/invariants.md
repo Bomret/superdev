@@ -957,7 +957,7 @@ Class: architecture
 Concepts: Scope anchor
 Statement: An edit to a scope anchor's body runs only when the read of the current body and the command that built the new body both succeeded and the new body is non-empty, and the edit reads that body from a file. A failed read, producer, or payload build leaves the anchor body as it was (ADR 0115).
 Breaks: silently
-Check: scripts/drift-check.js — every store document's edit-body rule carries the gate, no store document edits a body from stdin, and every tick section names its body extraction; partial: nothing checks the command a controller actually runs
+Check: scripts/drift-check.js — every store document's edit-body rule carries the gate, no store document edits a body from anything but a file its flag reads, in prose or a shell-tagged fence, and every tick section names its body extraction; partial: nothing checks the command a controller actually runs
 Paths: plugin/references/issue-tracker-*.md, docs/agents/issue-tracker.md, plugin/references/scope-mode.md
 
 ### INV-0116

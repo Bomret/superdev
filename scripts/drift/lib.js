@@ -14,20 +14,34 @@ const path = require('node:path');
 // hiding there. An unterminated fence masks to end of file: the safe direction, because a section that
 // runs long still carries its own content.
 function maskFences(text) {
-  let fence = null;
-  return text
-    .split('\n')
-    .map((line) => {
-      const marker = line.match(/^\s{0,3}(`{3,}|~{3,})/);
-      if (fence === null) {
-        if (!marker) return line;
-        fence = { char: marker[1][0], len: marker[1].length };
-      } else if (marker && marker[1][0] === fence.char && marker[1].length >= fence.len) {
-        fence = null;
-      }
-      return line.replace(/\S/g, ' ');
-    })
+  return fenceLines(text)
+    .map(({ line, role }) => (role === 'text' ? line : line.replace(/\S/g, ' ')))
     .join('\n');
+}
+
+// fenceLines(): every line of the text, tagged with its place in the fenced blocks. `role` is `text`
+// outside a fence, and `open`, `body`, or `close` on a fence's lines; `fence` is the block's `{ char,
+// len, tag }` (the same object on every line of one block, `tag` the info string's first word). A fence
+// closes only on a bare marker line of the same character and at least the opening length, so a
+// differently tagged marker line inside an open fence is body. An unterminated fence runs to end of file.
+// maskFences() and every scanner that reads a fence's content walk the text through this one function,
+// so they agree on where a fence starts and ends.
+function fenceLines(text) {
+  let fence = null;
+  return text.split('\n').map((line) => {
+    const marker = line.match(/^\s{0,3}(`{3,}|~{3,})\s*(\S*)/);
+    if (fence === null) {
+      if (!marker) return { line, fence: null, role: 'text' };
+      fence = { char: marker[1][0], len: marker[1].length, tag: marker[2] };
+      return { line, fence, role: 'open' };
+    }
+    const block = fence;
+    if (marker && !marker[2] && marker[1][0] === block.char && marker[1].length >= block.len) {
+      fence = null;
+      return { line, fence: block, role: 'close' };
+    }
+    return { line, fence: block, role: 'body' };
+  });
 }
 
 // maskedSentences(): a document's sentences, fenced examples masked out first and wrapped lines joined
@@ -186,6 +200,7 @@ module.exports = {
   readDoc,
   storeDocuments,
   maskFences,
+  fenceLines,
   maskedSentences,
   extractSection,
   scalar,
