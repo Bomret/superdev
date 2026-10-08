@@ -24,6 +24,12 @@ No prerequisite plugins.
 ## Structure
 
 ```
+.claude/
+  CLAUDE.md            — pulls this document into a session opened here (`@../AGENTS.md`), so the
+                         working contract below is always loaded. Installing the plugin is a
+                         user-scope action no tracked file can perform, so this repo ships no
+                         `settings.json`; `README.md` → Install carries the operator steps, and
+                         `.claude/settings.local.json` stays gitignored
 .claude-plugin/
   marketplace.json     — single-plugin marketplace manifest (deliberately NO version field); its
                          `source` is `./plugin`, so an install copies only the shipped tree below
@@ -309,4 +315,12 @@ This root owns every other subtree directly:
   `docs/known-issues.md`. The platform workarounds, governed by **Working rules, Platform-dependent
   claims carry dated verification**.
 - `.claude-plugin/`. Manifests. Governed by **Working rules, Version lives only in `plugin.json`**.
+- `.claude/`. `CLAUDE.md` pulls this document into a session opened here. Installing the plugin is a
+  **user-scope** action, so no tracked file in this repo can do it. Claude Code declines a network
+  marketplace declared at project scope, which keeps a clone from enabling a plugin nobody asked for.
+  Dogfooding is therefore an operator step, and [`README.md`](README.md) → *Install* carries it. Run it
+  against the **git URL of this repo**, not a `directory` source pointing at the checkout. A directory
+  source runs the working tree, so a half-edited guardrail hook fires on the very run editing it. The
+  git URL runs released `main`, the artifact an adopter installs. Personal overrides belong in the
+  gitignored `.claude/settings.local.json`.
 - `CONTEXT.md`. The domain glossary.

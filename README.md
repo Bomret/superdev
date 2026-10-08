@@ -560,6 +560,14 @@ git clone https://codeberg.org/bomret/superdev.git
 /plugin install superdev@superdev
 ```
 
+**Scope.** Both commands write to your **user** settings: `marketplace add` records the source under
+`extraKnownMarketplaces`, `plugin install` enables the plugin under `enabledPlugins`. A repository
+cannot ship either entry. Claude Code declines a network marketplace declared in project-scope
+`.claude/settings.json`, and a plugin listed there that is not installed draws a warning instead. That
+restriction is deliberate: cloning a repo never enables a plugin you did not ask for. Run the two
+commands once per machine, including in this repo, which dogfoods its own release. Verified on Claude
+Code **v2.1.278** (2026-09-26).
+
 **Manage:** `/plugin list` and `/plugin details superdev@superdev`. For updates use
 **`/superdev:upgrade`**, or the manual steps under [Updating](#updating). Refreshing the catalog alone
 does not upgrade an installed plugin.
