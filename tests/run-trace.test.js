@@ -1,6 +1,8 @@
 'use strict';
 
-// Suite for plugin/hooks/run-trace.js (ADR 0117): stdin to trace line, through the spawned hook.
+// Suite for plugin/hooks/run-trace.js (ADR 0117). Classification cases call the exported `record`,
+// `bashTargets`, and `globToRe` in-process; the spawned hook covers the stdin-to-line contract, exit 0,
+// and the git timeout.
 
 require('./fixture-git');
 const assert = require('node:assert');
@@ -13,6 +15,7 @@ const { assertSpawnDecided } = require('./spawn-verdict');
 const { inProgressSlices } = require('../plugin/scripts/scope.js');
 
 const hookPath = require.resolve('../plugin/hooks/run-trace.js');
+const { record, bashTargets, globToRe, ARG, stripHeredocs, verificationKind } = require(hookPath);
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'run-trace-'));
 const ledger = (rows) =>
@@ -36,16 +39,20 @@ const trace = (root) => {
 };
 const reset = () => [A, B].forEach((r) => fs.rmSync(path.join(r, 'trace.log'), { force: true }));
 
-// Runs the hook; returns its stdout, which holds only a Missing RED note (a test that expects none asserts '').
-function runOut(input, raw) {
+// Records one hook input in-process; returns the Missing RED note text, or '' (a test that expects none asserts '').
+function runOut(input) {
+  return record(input) || '';
+}
+function run(input) {
+  assert.equal(runOut(input), '', 'prints nothing');
+}
+// Spawns the hook as Claude Code does: stdin in, exit 0, stdout back.
+function spawnOut(input, raw) {
   const r = cp.spawnSync(process.execPath, [hookPath], { input: raw !== undefined ? raw : JSON.stringify(input), encoding: 'utf8', timeout: 10000 });
   assertSpawnDecided(r, 'run-trace.js');
   assert.equal(r.status, 0, 'always exits 0');
   assert.equal(r.stderr, '', 'prints nothing to stderr');
   return r.stdout;
-}
-function run(input, raw) {
-  assert.equal(runOut(input, raw), '', 'prints nothing');
 }
 const edit = (file_path, extra) => run(Object.assign({ tool_name: 'Edit', tool_input: { file_path }, cwd: tmp }, extra));
 const bash = (command, cwd) => run({ tool_name: 'Bash', tool_input: { command }, cwd: cwd || tmp });
@@ -125,10 +132,7 @@ assert.deepEqual(trace(A), [['03', 'main', 'edit', 'impl', 'src/a\\x20b.txt']]);
 
 // sed -i operand parsing: script is never a target.
 for (const cmd of ['sed -i "" s/a/b/ f.js', "sed -i '' s/a/b/ f.js", 'sed -e s/a/b/ -i f.js', 'sed --in-place s/a/b/ f.js', 'sed -i.bak s/a/b/ f.js', 'sed --in-place=.bak s/a/b/ f.js', 'sed -i -e s/a/b/ f.js', 'sed -i -f s.sed f.js', 'sed --expression=s/a/b/ -i f.js']) {
-  reset();
-  bash(cmd, S3src);
-  const got = trace(A).map((l) => l[4]);
-  assert.deepEqual(got, ['src/f.js'], cmd);
+  assert.deepEqual(bashTargets(cmd, S3src), [path.join(S3src, 'f.js')], cmd);
 }
 
 // The command word must be in command position: arguments named like a command record nothing.
@@ -318,6 +322,165 @@ reset();
 for (const c of ['nx affected -t test', 'nx test --fast', 'nx run-many -t test']) post(c);
 assert.deepEqual(trace(A).map((l) => l[3]), ['full', 'focused', 'whole']);
 
+// Command position (INV-0129): a test command quoted in an argument records no run; a real compound invocation does.
+fs.writeFileSync(vf, '# V\n\n```sh\nbun run test\n```\n\n```sh\nbun run test --related {paths}\n```\n');
+reset();
+for (const c of ['tea pr create --description "Verified: bun run test passes"', 'gh pr comment 3 -b "ran bun run test"', "echo 'bun run test'", 'bun run test:unit']) post(c);
+assert.deepEqual(trace(A), [], 'a quoted test command and a sibling script record no run');
+reset();
+for (const c of ['cd src && bun run test', 'FOO=1 bun run test', 'bun run test | tail', 'bun run test 2>&1', 'sudo bun run test']) post(c);
+assert.deepEqual(trace(A).map((l) => l[3]), ['full', 'full', 'full', 'full', 'full'], 'real compound invocations record');
+
+// `{paths}` stands for one or more path words: a substituted focused run is focused, never full.
+{
+  const v = { full: 'bun run test', focused: 'bun run test --related {paths}', whole: null };
+  assert.equal(verificationKind('bun run test --related a.js', v), 'focused');
+  assert.equal(verificationKind('FOO=1 bun run test', v), 'full');
+  assert.equal(verificationKind('FOO="bun run test" echo x', v), null, 'an env value is no command');
+}
+// A configured command is normalized as a segment is: its env assignments and wrappers are not command words.
+for (const full of ['CI=1 bun run test', 'time bun run test']) {
+  const v = { full, focused: 'CI=1 bun run test --related {paths}', whole: null };
+  assert.equal(verificationKind('bun run test', v), 'full', `${full}: bare invocation`);
+  assert.equal(verificationKind('CI=1 bun run test', v), 'full', `${full}: env-prefixed invocation`);
+  assert.equal(verificationKind('bun run test --related a.js', v), 'focused', `${full}: focused with {paths}`);
+}
+// A redirect is stripped outside quoted words only.
+{
+  const v = { full: 'bun run test', focused: null, whole: null };
+  assert.equal(verificationKind('FOO="a>b" bun run test', v), 'full', 'a quoted env value holds its `>`');
+  assert.equal(verificationKind('bun run test > out.txt', v), 'full');
+  assert.equal(verificationKind('bun run test >out.txt 2>&1', v), 'full');
+  assert.equal(verificationKind('echo "bun run test > x"', v), null);
+}
+// A full-template match whose command words run past the template is a narrowed run, never full (INV-0129).
+{
+  const v = { full: 'bun run test', focused: 'node scripts/run-tests.js --related {paths}', whole: null };
+  assert.equal(verificationKind('bun run test --related plugin/hooks/a.js', v), 'focused');
+  assert.equal(verificationKind('bun run test -- --related a.js', v), 'focused');
+  assert.equal(verificationKind('bun run test 2>&1', v), 'full', 'a redirect adds no argument word');
+  assert.equal(verificationKind('bun run test > out.txt', v), 'full');
+}
+// The same rule holds for a whole-repo match: `pnpm turbo test --filter=web` is a narrowed run, never `whole` (INV-0129).
+{
+  const v = { full: 'pnpm turbo test --affected', focused: null, whole: 'pnpm turbo test' };
+  assert.equal(verificationKind('pnpm turbo test --affected', v), 'full');
+  assert.equal(verificationKind('pnpm turbo test', v), 'whole');
+  assert.equal(verificationKind('pnpm turbo test 2>&1', v), 'whole', 'a redirect adds no argument word');
+  assert.equal(verificationKind('pnpm turbo test --filter=web', v), 'focused');
+  assert.equal(verificationKind('pnpm turbo test --affected --filter=web', v), 'focused');
+}
+{
+  const turbo = '# V\n\n```sh\npnpm turbo test --affected\n```\n\n## Whole-repo command\n\n`pnpm turbo test`\n';
+  fs.writeFileSync(vf, turbo);
+  reset();
+  post('pnpm turbo test --filter=web');
+  assert.deepEqual(trace(A).map((l) => l[3]), ['focused']);
+  const root = fs.mkdtempSync(path.join(tmp, 'reuse-'));
+  fs.writeFileSync(path.join(root, 'ledger.md'), ledger([['03', 'in-progress']]).replace('**Stage:** implementing', `**Stage:** implementing\n**Suite:** green @ ${sha} whole`));
+  fs.copyFileSync(path.join(A, 'trace.log'), path.join(root, 'trace.log'));
+  for (const extra of [[], ['--whole']]) {
+    const r = cp.spawnSync(process.execPath, [require.resolve('../plugin/scripts/scope.js'), 'suite', 'reusable', '--branch', 'HEAD', '--root', root, ...extra], { cwd: S3, encoding: 'utf8', timeout: 10000 });
+    assertSpawnDecided(r, 'scope.js suite reusable');
+    assert.equal(r.status, 1, `a narrowed whole-template run is no reuse evidence ${extra.join(' ')}`);
+    assert.ok(/no (full or whole|whole) run/.test(r.stderr), r.stderr);
+  }
+  fs.rmSync(root, { recursive: true, force: true });
+  fs.writeFileSync(vf, '# V\n\n```sh\nbun run test\n```\n\n```sh\nbun run test --related {paths}\n```\n');
+}
+reset();
+for (const c of ['bun run test --related a.js', 'bun run test --related a.js b.js', 'bun run test', 'bun run test --related']) post(c);
+assert.deepEqual(trace(A).map((l) => l[3]), ['focused', 'focused', 'full', 'focused'], 'the longest template wins; argument words past the full template narrow the run');
+fs.writeFileSync(vf, '# V\n\n```sh\nbun run test\n```\n\n```sh\nnode scripts/run-tests.js --related {paths}\n```\n');
+reset();
+post('node scripts/run-tests.js --related tests/a.test.js scripts/b.js');
+assert.deepEqual(trace(A).map((l) => l[3]), ['focused'], 'a focused command that shares no prefix with the full one records focused');
+
+// Command position: a subshell, brace group, `!`, a shell keyword, or `timeout` before the command does not hide it;
+// a quoted (`bash -c "..."`) or indirect (`xargs`) mention still records nothing.
+fs.writeFileSync(vf, '# V\n\n```sh\nbun run test\n```\n\n```sh\nbun run test --related {paths}\n```\n');
+reset();
+for (const c of ['(cd app && bun run test)', '{ bun run test; }', 'if bun run test; then echo ok; fi', 'timeout 60 bun run test',
+  'timeout -k 5 1m bun run test', '! bun run test', 'while bun run test; do :; done']) post(c);
+assert.deepEqual(trace(A).map((l) => l[3]), ['full', 'full', 'full', 'full', 'full', 'full', 'full'], 'command-position forms still record');
+reset();
+for (const c of ['bash -c "bun run test"', 'xargs bun run test', 'npx bun run test']) post(c);
+assert.deepEqual(trace(A), [], 'a quoted or indirect test command records no run');
+
+// `!` inverts the exit status, so the outcome of a negated run names no pass or fail (INV-0017).
+reset();
+post('! bun run test');
+post('if ! bun run test; then echo bad; fi');
+fail('! bun run test');
+assert.deepEqual(trace(A).map((l) => l.slice(3, 5).join(' ')), ['full unknown', 'full unknown', 'full unknown'], 'a negated run reads unknown on both events');
+
+// The wrappers `timeout` and `env` take `--` and their option flags before the command.
+reset();
+for (const c of ['timeout 5s -- bun run test', 'timeout -k 5 1m -- bun run test', 'env -i FOO=1 bun run test', 'env -u HOME bun run test', 'env -- bun run test']) post(c);
+assert.deepEqual(trace(A).map((l) => l[3]), ['full', 'full', 'full', 'full', 'full'], 'wrapped runs record');
+
+// `sudo` and `nice` take option words (and a value for `-u`, `-g`, `-C`, `-n`, attached or separate) before the command.
+reset();
+const OPTS = ['sudo -E bun run test', 'sudo -u root bun run test', 'sudo -uroot bun run test', 'sudo -iu root bun run test', 'sudo -g wheel -u root bun run test',
+  'sudo --user root bun run test', 'sudo -- bun run test', 'nice bun run test', 'nice -n 5 bun run test', 'nice -n5 bun run test', 'nice --adjustment 5 bun run test', 'time -p bun run test',
+  'sudo -D /x bun run test', 'sudo --chdir /x bun run test', 'sudo -p pw bun run test'];
+for (const c of OPTS) post(c);
+assert.deepEqual(trace(A).map((l) => l[3]), OPTS.map(() => 'full'), 'a wrapper\'s option words and their values do not hide the run');
+reset();
+for (const c of ['sudo -u root bash -c "bun run test"', 'sudo -E echo "bun run test"', 'nice -n 5 xargs bun run test', 'command -v bun run test']) post(c);
+assert.deepEqual(trace(A), [], 'a quoted, indirect, or lookup mention behind a wrapper records no run');
+
+// An escaped `)` ends a path word; only an unescaped closing `)` is dropped.
+reset();
+post('git restore src/a\\(1\\)');
+post('(git restore src/b.js)');
+// The trace field encodes each backslash as two.
+assert.deepEqual(trace(A).map((l) => l.slice(2).join(' ')), ['restore src/a\\\\(1\\\\)', 'restore src/b.js']);
+
+// `{paths}` matches embedded in a word, and after an optional `--`.
+{
+  const v = { full: 'make test', focused: 'make test FILES={paths}', whole: null };
+  assert.equal(verificationKind('make test FILES=a.js', v), 'focused');
+  assert.equal(verificationKind('make test', v), 'full');
+  assert.equal(verificationKind('make test FILES=', v), 'focused', 'the placeholder needs a path, and the extra word narrows the full run');
+  const w = { full: 'bun run test', focused: 'bun run test --related {paths}', whole: null };
+  assert.equal(verificationKind('bun run test --related -- a.js', w), 'focused');
+  assert.equal(verificationKind('bun run test --related -- ', w), 'focused');
+}
+
+// A focused run never backs a reused suite record (INV-0017), in either focused form.
+for (const [template, command] of [['node scripts/run-tests.js --related {paths}', 'node scripts/run-tests.js --related tests/a.test.js'],
+  ['bun run test --related {paths}', 'bun run test --related tests/a.test.js'],
+  ['node scripts/run-tests.js --related {paths}', 'bun run test --related tests/a.test.js'],
+  ['node scripts/run-tests.js --related {paths}', 'bun run test -- --related tests/a.test.js']]) {
+  fs.writeFileSync(vf, `# V\n\n\`\`\`sh\nbun run test\n\`\`\`\n\n\`\`\`sh\n${template}\n\`\`\`\n`);
+  reset();
+  post(command);
+  const root = fs.mkdtempSync(path.join(tmp, 'reuse-'));
+  fs.writeFileSync(path.join(root, 'ledger.md'), ledger([['03', 'in-progress']]).replace('**Stage:** implementing', `**Stage:** implementing\n**Suite:** green @ ${sha}`));
+  fs.copyFileSync(path.join(A, 'trace.log'), path.join(root, 'trace.log'));
+  const r = cp.spawnSync(process.execPath, [require.resolve('../plugin/scripts/scope.js'), 'suite', 'reusable', '--branch', 'HEAD', '--root', root], { cwd: S3, encoding: 'utf8', timeout: 10000 });
+  assertSpawnDecided(r, 'scope.js suite reusable');
+  assert.equal(r.status, 1, `a focused run alone is no full-suite evidence (${template})`);
+  assert.ok(/no full or whole run/.test(r.stderr), r.stderr);
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
+// The shell-word token and the heredoc scan are copies of the Bash hooks' (hooks stay standalone): pin them.
+{
+  const sibling = (name) => fs.readFileSync(path.join(path.dirname(hookPath), name), 'utf8');
+  const argOf = (text) => (text.match(/^const ARG = \/(.*)\/\.source;$/m) || [])[1];
+  const fnOf = (text) => (text.match(/^function stripHeredocs\(cmd\) \{[\s\S]*?^\}$/m) || [])[0];
+  assert.ok(argOf(sibling('merge-guard.js')), 'merge-guard.js declares its ARG token where this pin expects it');
+  const pinned = (copy, original) => copy === original;
+  assert.ok(pinned(ARG, argOf(sibling('merge-guard.js'))), 'run-trace ARG is byte-identical to merge-guard ARG');
+  assert.ok(fnOf(sibling('ledger-guard.js')), 'ledger-guard.js declares stripHeredocs where this pin expects it');
+  assert.ok(pinned(stripHeredocs.toString(), fnOf(sibling('ledger-guard.js'))), 'run-trace stripHeredocs is byte-identical to ledger-guard stripHeredocs');
+  // The pin's comparison rejects a diverged copy.
+  assert.ok(!pinned(ARG.replace(')+', ')*'), argOf(sibling('merge-guard.js'))), 'a mutated ARG fails the pin');
+  assert.ok(!pinned(stripHeredocs.toString().replace('h[1] === \'-\'', 'h[1] !== \'-\''), fnOf(sibling('ledger-guard.js'))), 'a mutated stripHeredocs fails the pin');
+}
+
 // No verification.md: no full run, still a path run.
 fs.rmSync(vf);
 reset();
@@ -330,19 +493,17 @@ assert.deepEqual(tail(trace(A)).map((l) => l.split(' ').slice(0, 2).join(' ')), 
   fs.writeFileSync(vf, '# V\n\n```sh\nbun run test\n```\n\n```sh\nbun run test\n```\n');
   const editOut = (f, extra) => runOut(Object.assign({ hook_event_name: 'PostToolUse', tool_name: 'Edit', tool_input: { file_path: path.join(S3, f) }, cwd: tmp }, extra));
   const postOut = (command, extra) => runOut(Object.assign({ hook_event_name: 'PostToolUse', tool_name: 'Bash', tool_input: { command }, cwd: S3 }, extra));
-  const ctx = (out) => JSON.parse(out).hookSpecificOutput;
   const T = 'tests/n.test.js';
   reset();
   assert.equal(editOut('src/first.js'), '', 'an impl edit before the first test edit gets no note');
   assert.equal(editOut(T), '', 'a test edit gets no note');
-  const note = ctx(editOut('src/n.js'));
-  assert.equal(note.hookEventName, 'PostToolUse');
-  assert.ok(note.additionalContext.includes(T) && /failing test run/.test(note.additionalContext), 'the note names the test file and the missing failing run');
+  const note = editOut('src/n.js');
+  assert.ok(note.includes(T) && /failing test run/.test(note), 'the note names the test file and the missing failing run');
   assert.deepEqual(trace(A).filter((l) => l[2] === 'note'), [['03', 'main', 'note', T]], 'the note is recorded');
   assert.equal(editOut('src/n2.js'), '', 'one note per test edit');
   assert.equal(postOut('bun run test'), '', 'a later pass stays silent too');
   editOut(T);
-  assert.ok(ctx(postOut('bun run test')).additionalContext.includes(T), 'a passing run after a test edit with no failing run notes');
+  assert.ok(postOut('bun run test').includes(T), 'a passing run after a test edit with no failing run notes');
   assert.equal(runOut({ hook_event_name: 'PostToolUseFailure', tool_name: 'Bash', tool_input: { command: 'bun run test' }, cwd: S3 }), '');
   reset();
   editOut(T);
@@ -357,14 +518,14 @@ assert.deepEqual(tail(trace(A)).map((l) => l.split(' ').slice(0, 2).join(' ')), 
   reset();
   const SP = 'tests/my file.test.js';
   editOut(SP);
-  const spNote = ctx(editOut('src/n.js')).additionalContext;
+  const spNote = editOut('src/n.js');
   assert.ok(spNote.includes(SP), 'the note text shows the real path');
   const spLines = trace(A);
   assert.equal(spLines.find((l) => l[2] === 'note')[3], spLines.find((l) => l[2] === 'edit' && l[3] === 'test')[4], 'the note field equals the edit field');
   // Two implementation targets in one command: one note.
   reset();
   editOut(T);
-  const two = ctx(postOut(`touch ${S3}/src/a.js ${S3}/src/b.js; echo x | tee ${S3}/src/c.js ${S3}/src/d.js`)).additionalContext;
+  const two = postOut(`touch ${S3}/src/a.js ${S3}/src/b.js; echo x | tee ${S3}/src/c.js ${S3}/src/d.js`);
   assert.equal(two.split('\n').length, 1, 'one note for two impl targets');
   assert.equal(trace(A).filter((l) => l[2] === 'note').length, 1);
   // A lone unknown run, then a pass: one note.
@@ -474,10 +635,67 @@ assert.deepEqual(tail(trace(A)).map((l) => l.split(' ').slice(0, 2).join(' ')), 
   assert.ok(d[0].endsWith(' a\\nb'), 'newline escaped on one line');
 }
 
+// A git call that stalls while SubagentStop resolves the main checkout ends at the bound and records nothing.
+{
+  const R = fs.mkdtempSync(path.join(tmp, 'stall-'));
+  const C = path.join(R, '.superdev', 'scopes', 'c');
+  fs.mkdirSync(path.join(R, 'sub'), { recursive: true });
+  fs.mkdirSync(C, { recursive: true });
+  cp.execFileSync('git', ['init', '-q'], { cwd: R });
+  fs.writeFileSync(path.join(C, 'ledger.md'), ledger([['07', 'in-progress']]));
+  const ev = (name, cwd, extra) => Object.assign({ hook_event_name: name, agent_id: 'st1', agent_type: 'superdev:implementer', description: 'd', cwd }, extra);
+  run(ev('SubagentStart', tmp, { prompt: `${C}/slicetrees/07` }));
+  const bin = path.join(tmp, 'stall-bin');
+  fs.mkdirSync(bin, { recursive: true });
+  // exec leaves no grandchild holding the stdout pipe once the bound kills the stub.
+  fs.writeFileSync(path.join(bin, 'git'), '#!/bin/sh\nexec sleep 20\n', { mode: 0o755 });
+  const r = cp.spawnSync(process.execPath, [hookPath], { input: JSON.stringify(ev('SubagentStop', path.join(R, 'sub'))), encoding: 'utf8', timeout: 15000, env: { ...process.env, PATH: bin + path.delimiter + process.env.PATH, RUN_TRACE_GIT_BOUND_MS: '200' } });
+  assertSpawnDecided(r, 'run-trace.js SubagentStop with a stalled git');
+  assert.deepEqual(trace(C).filter((l) => l[2] === 'dispatch-end'), [], 'a killed git call records no dispatch-end');
+}
+
+// SubagentStop from inside a submodule resolves the submodule's own checkout, never `.git/modules`.
+{
+  const gitIn = (cwd, ...a) => cp.execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'protocol.file.allow=always', ...a], { cwd, stdio: 'ignore' });
+  const lib = fs.mkdtempSync(path.join(tmp, 'lib-'));
+  const sup = fs.mkdtempSync(path.join(tmp, 'sup-'));
+  gitIn(lib, 'init', '-q');
+  gitIn(lib, 'commit', '-q', '--allow-empty', '-m', 'x');
+  gitIn(sup, 'init', '-q');
+  gitIn(sup, 'submodule', 'add', '-q', lib, 'vendor/lib');
+  const sub = path.join(sup, 'vendor', 'lib');
+  const S = path.join(sub, '.superdev', 'scopes', 's');
+  fs.mkdirSync(S, { recursive: true });
+  fs.writeFileSync(path.join(S, 'ledger.md'), ledger([['09', 'in-progress']]));
+  const hook = (ev, cwd, extra) => run(Object.assign({ hook_event_name: ev, agent_id: 'sm1', agent_type: 'superdev:implementer', description: 'd', cwd }, extra));
+  hook('SubagentStart', tmp, { prompt: `${S}/slicetrees/09` });
+  hook('SubagentStop', sub);
+  assert.deepEqual(trace(S).filter((l) => l[2] === 'dispatch-end').map((l) => l[4]), ['sm1'], 'a submodule cwd records the end under the submodule checkout');
+}
+
+// globToRe: `*` stays in a segment, `**` crosses them, a slash anchors, a malformed entry is null.
+assert.ok(globToRe('*.test.*').test('a/b/x.test.js') && globToRe('tests/').test('tests/x.js') && !globToRe('tests/').test('src/tests/x.js'));
+assert.ok(globToRe('lib/**/*.t.js').test('lib/q/r.t.js') && !globToRe('lib/*.t.js').test('lib/q/r.t.js'));
+assert.equal(globToRe('/abs/**'), null);
+assert.equal(globToRe('bad entry'), null);
+
+// The stdin-to-line contract through the spawned hook: an edit line, a run line, and the Missing RED output.
+{
+  reset();
+  const ver = path.join(S3, 'docs', 'agents', 'verification.md');
+  fs.writeFileSync(ver, '# V\n\n```sh\nbun run test\n```\n\n```sh\nbun run test\n```\n');
+  assert.equal(spawnOut({ hook_event_name: 'PostToolUse', tool_name: 'Edit', tool_input: { file_path: path.join(S3, 'tests', 'sp.test.js') }, cwd: tmp }), '');
+  const out = JSON.parse(spawnOut({ hook_event_name: 'PostToolUse', tool_name: 'Bash', tool_input: { command: 'bun run test' }, cwd: S3 }));
+  assert.equal(out.hookSpecificOutput.hookEventName, 'PostToolUse');
+  assert.ok(out.hookSpecificOutput.additionalContext.includes('Missing RED'), 'a passing run after a test edit prints the note as hook output');
+  assert.deepEqual(trace(A).map((l) => l[2] + ' ' + l[3]), ['edit test', 'run full', 'note tests/sp.test.js']);
+  fs.rmSync(ver);
+}
+
 // Failure modes: malformed stdin, unreadable ledger, no verification.md. Exit 0, no output, no line.
 reset();
-run(null, 'not json');
-run(null, '');
+assert.equal(spawnOut(null, 'not json'), '');
+assert.equal(spawnOut(null, ''), '');
 run({ tool_name: 'Edit' });
 fs.rmSync(path.join(A, 'ledger.md'));
 edit(path.join(S3, 'x.js'));

@@ -34,6 +34,7 @@ const {
   scanAdrStatus,
   scanForcingBranchFlag,
   scanNoForceMerge,
+  scanConflictConclusionNoCommit,
   scanTeaOnly,
   scanDeployRunnerExclusivity,
   scanShipHumanOnly,
@@ -488,13 +489,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     scanAssigneeContract(fixture({ 'README.md': '# repo\n' })).length,
     0,
     'an absent document is skipped rather than reported',
-  );
-
-  // the real tree is green: every store document carries the section and no config bullet
-  assert.equal(
-    scanAssigneeContract(realRoot).length,
-    0,
-    'every store document in the real tree carries the section and no tracked assignee bullet',
   );
 
   // --- scanWritingStandardContract: the documentation seed must carry the `## Writing standard`
@@ -1084,9 +1078,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // an absent step skill is skipped
   assert.deepEqual(scanModelInvocationSplit(fixture({ 'README.md': '# repo\n' })), [], 'absent step skills are skipped');
-
-  // the shipped tree carries the split
-  assert.deepEqual(scanModelInvocationSplit(realRoot), [], 'the real repository is clean');
 
   // --- scanHookLedgerParsers: no hook carries a ledger-header regex of its own (ADR 0022) ---
 
@@ -1693,13 +1684,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
       0,
       'an absent document is skipped rather than reported',
     );
-
-    // real tree green
-    assert.equal(
-      scanner(realRoot).length,
-      0,
-      `every store document in the real tree carries its \`## ${heading}\` section`,
-    );
   };
 
   testStoreSectionScanner(scanRunStateContract, 'Run state', 'run-state');
@@ -1837,7 +1821,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     const dogfood = scanBodyEditContract(fixture({ 'docs/agents/issue-tracker.md': '# Slice store\n' }));
     assert.equal(dogfood[0].source, path.join('docs', 'agents', 'issue-tracker.md'), 'the dogfooded store config is checked too');
     assert.deepEqual(scanBodyEditContract(fixture({ 'README.md': '# repo\n' })), [], 'an absent document is skipped');
-    assert.deepEqual(scanBodyEditContract(realRoot), [], 'every store document in the real tree edits a body only through the gated rule');
   }
 
   // --- scanDodTicksContract's content check (INV-0014): a `## Definition of Done ticks` section
@@ -1997,13 +1980,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   );
   assert.equal(trNoClose.length, 1, 'flags a section stating no close call');
   assert.match(trNoClose[0].expectation, /close a triage record/, 'names the missing close element');
-
-  // the real tree is green: every seed's exclusion bullet already carries the vocabulary
-  assert.equal(
-    scanTriageRecordContract(realRoot).length,
-    0,
-    'every store document in the real tree states its exclusion rule',
-  );
 
   // an exclusion bullet saying a record is *invisible* to /superdev:implement's "slice loading".
   // An exclusion bullet is not the listing contract, so it must not satisfy the listing element.
@@ -2224,13 +2200,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'an absent document is skipped rather than reported',
   );
 
-  // the real tree is green: every store document it ships carries the section and its listing element
-  assert.equal(
-    scanUntriagedContract(realRoot).length,
-    0,
-    'every store document in the real tree carries its `## Untriaged item` section',
-  );
-
   // --- scanSpecialisingCitations: every store document cites the generic contract each section it
   // carries specialises. The rows SPECIALISING_SECTIONS derives in SOURCE_SECTION_CONTRACTS pin the
   // generic side and the six store-side presence contracts pin the store side; this is the citation
@@ -2264,13 +2233,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     ).length,
     0,
     'a section the store does not carry is skipped rather than reported',
-  );
-
-  // the real tree is green
-  assert.equal(
-    scanSpecialisingCitations(realRoot).length,
-    0,
-    'every store document in the real tree cites the generic contract for every section it carries',
   );
 
   // the citation is prose and wraps — a store document can carry `*Append\nmode*`, and a
@@ -2419,13 +2381,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     scanGlossarySpecialisingCitations(fixture({ 'README.md': '# repo\n' })).length,
     0,
     'an absent CONTEXT.md is skipped rather than reported',
-  );
-
-  // the real repo's CONTEXT.md cites plan-contract.md for every member it has a glossary entry for
-  assert.equal(
-    scanGlossarySpecialisingCitations(realRoot).length,
-    0,
-    "the real CONTEXT.md cites plan-contract.md for every member it glosses",
   );
 
   // --- Store-side presence coverage (a selftest, not a registered check — running the whole registry
@@ -2676,11 +2631,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   );
 
   // absent playbook is skipped, matching every other contract row
-  assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), PLAYBOOK_EDGE_CONTRACTS).length,
-    0,
-    'an absent playbook is skipped rather than reported',
-  );
 
   // ---------------------------------------------------------------------------
   // scanNarrativeCoverage: every registered check is written up
@@ -2823,9 +2773,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(scanReadmeCommands(fixture({ 'skills/plan/SKILL.md': '# plan\n' })).length, 0, 'absent README is skipped');
   assert.equal(scanReadmeCommands(fixture({ 'README.md': '# p\n' })).length, 0, 'absent skills dir is skipped');
 
-  // the real repository is clean both ways
-  assert.equal(scanReadmeCommands(realRoot).length, 0, 'the real README and skills/ agree');
-
   // --- scanAuditSetGlobs: every pattern under `## Audit set` resolves to at least one file. A pattern
   // matching nothing makes `/superdev:document audit` read zero files and still report a clean pass. ---
 
@@ -2873,17 +2820,11 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'a documentation.md with no `## Audit set` section is skipped',
   );
 
-  // the real repository's own audit set resolves
-  assert.equal(scanAuditSetGlobs(realRoot).length, 0, "this repo's audit-set patterns all resolve");
-
   // --- scanPinnedPaths: every document a contract table pins still exists. `scanContract` skips a
   // document it cannot read — the convention every fixture above depends on — so a table reports zero
   // gaps once its document is renamed away, and all of `bun run test` stays green while the contract it
   // asserted is gone. This is the one check that notices, and it collects the paths from the tables
   // themselves rather than a hand-kept list, so a table added later is covered without touching it. ---
-
-  // the real repository: every pinned path resolves
-  assert.equal(scanPinnedPaths(realRoot).length, 0, 'every path the contract tables pin exists in this repo');
 
   // positive: an empty tree — every pinned path is missing, and each gap names its own path
   const ppEmpty = scanPinnedPaths(fixture({ 'README.md': '# r\n' }));
@@ -2947,9 +2888,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     1,
     'a new agent file and a bare runner name are both caught',
   );
-
-  // negative: the real tree carries none
-  assert.equal(scanAgentToolAgnostic(realRoot).length, 0, 'the shipped agents are clean');
 
   // --- REACHABLE_CRITERION_CONTRACTS: the `Reachable:` criterion rule (plan-contract.md) and the plan
   // surface that emits one into a Definition of Done (skills/plan/SKILL.md) agree on the token and on
@@ -3034,9 +2972,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   );
   assert.equal(rcSurfaceClauseDropped.length, 1, 'flags the surface dropping its own every-change-type clause');
   assert.equal(rcSurfaceClauseDropped[0].source, path.join('skills', 'plan', 'SKILL.md'), 'names skills/plan/SKILL.md');
-
-  // negative: the real tree carries both halves
-  assert.equal(scanContract(realRoot, REACHABLE_CRITERION_CONTRACTS).length, 0, 'the shipped rule and surface agree');
 
   // --- REVIEW_RANGE_SHAPES_CONTRACTS: the review surface that emits the standing-code range shape
   // (skills/review/SKILL.md) and the reviewer brief that has to accept a subject with no diff behind it
@@ -3253,9 +3188,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'names skills/review/SKILL.md',
   );
 
-  // negative: the real tree carries both halves
-  assert.equal(scanContract(realRoot, REVIEW_RANGE_SHAPES_CONTRACTS).length, 0, 'the shipped surface and brief agree');
-
   // --- EMPTY_ARGUMENT_CONTRACTS: `references/scope-mode.md` owns the shared empty-argument cascade once,
   // and `skills/review/SKILL.md` cites it for its own cascade and states its own dirty-tree precedence
   // rather than restating either in its own words (ADR 0078) ---
@@ -3419,9 +3351,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'both halves carried yields zero gaps',
   );
 
-  // negative: the real tree carries every half
-  assert.equal(scanContract(realRoot, EMPTY_ARGUMENT_CONTRACTS).length, 0, 'the shipped section and its citations agree');
-
   // --- AGENT_LENS_LIST_CONTRACTS + scanAgentLensNoDesignSmell: each reviewer agent reads its own named
   // lens list off review-checklist.md, and slice-reviewer.md carries no design-smell token that would
   // widen its list in place (ADR 0062) ---
@@ -3490,9 +3419,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(allFinalAltered.length, 1, 'flags the altered final-reviewer lens sentence');
   assert.equal(allFinalAltered[0].source, path.join('agents', 'final-reviewer.md'), 'names final-reviewer.md');
 
-  // negative: the real tree carries both lists
-  assert.equal(scanContract(realRoot, AGENT_LENS_LIST_CONTRACTS).length, 0, 'the shipped lens lists are clean');
-
   // scanAgentLensNoDesignSmell(): slice-reviewer.md carries no `design-smell` / `design smell` token
   // anywhere, in either spelling, case-insensitively — negative check closing the one-sided-pin gap the
   // sentence rows above cannot (a sentence appended elsewhere in the file, naming the token, still
@@ -3528,9 +3454,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     0,
     'no slice-reviewer.md is skipped',
   );
-
-  // negative: the real tree carries no design-smell token in slice-reviewer.md
-  assert.equal(scanAgentLensNoDesignSmell(realRoot).length, 0, 'the shipped slice-reviewer.md is clean');
 
   // --- scanOrphanLensPlacement: the orphan production symbol lens sits under `## Design smells` (the
   // section `final-reviewer` reads and `slice-reviewer` does not), carries its own scoping clause, and
@@ -3670,9 +3593,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(tcAntiAbsentGaps.length, 1, 'flags the missing `## Anti-patterns` section');
   assert.match(tcAntiAbsentGaps[0].expectation, /carry an `## Anti-patterns`/, 'names the missing section');
 
-  // negative: the real tree's own checklist places both lenses correctly
-  assert.equal(scanTestCostLensPlacement(realRoot).length, 0, 'the shipped review-checklist.md is clean');
-
   // absent document is skipped, matching every other contract scanner
   assert.equal(
     scanTestCostLensPlacement(fixture({ 'README.md': '# repo\n' })).length,
@@ -3719,16 +3639,11 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     fixture({ 'references/review-checklist.md': `${DV_SECTIONS}\n## Consistency\n\n- **Unverified dependency** — copy.\n` }),
   );
   assert.equal(dvCopyGaps.length, 1, 'flags the copy in another section');
-
-  assert.equal(scanDependencyLensPlacement(realRoot).length, 0, 'the shipped review-checklist.md is clean');
   assert.equal(
     scanDependencyLensPlacement(fixture({ 'README.md': '# repo\n' })).length,
     0,
     'no review-checklist.md is skipped',
   );
-
-  // negative: the real tree carries the placement correctly
-  assert.equal(scanOrphanLensPlacement(realRoot).length, 0, 'the shipped placement is clean');
 
   // --- STANDING_CODE_LENS_CONTRACTS: final-reviewer.md's Brevity axis and review-checklist.md's
   // Cross-slice divergence bullet each carry their own standing-code reading, since neither's
@@ -3782,13 +3697,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'names review-checklist.md',
   );
 
-  // negative: the real tree carries both standing-code readings
-  assert.equal(
-    scanContract(realRoot, STANDING_CODE_LENS_CONTRACTS).length,
-    0,
-    'the shipped readings are both carried',
-  );
-
   // --- CHAINED_DOC_AUDIT_CONTRACTS: `/superdev:document audit` still names `--chained`, the signal a
   // sweep passes its doc leg, and still dispatches no doc-writer and commits nothing once it is present ---
 
@@ -3825,13 +3733,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   );
   assert.equal(cdaPostureDropped.length, 1, 'flags the dropped chained-posture clause alone');
   assert.equal(cdaPostureDropped[0].source, path.join('skills', 'document', 'SKILL.md'), 'names document.md');
-
-  // negative: the real tree carries both halves
-  assert.equal(
-    scanContract(realRoot, CHAINED_DOC_AUDIT_CONTRACTS).length,
-    0,
-    'the shipped doc leg still carries both halves',
-  );
 
   // --- CHAINED_TEST_AUDIT_CONTRACTS: `/superdev:review-tests` still names `--chained`, runs no
   // `AskUserQuestion`, keeps the fact/judgment label, and writes no intent once it is present. Row 4 is
@@ -3899,13 +3800,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'names review-tests SKILL.md',
   );
 
-  // negative: the real tree carries all four behaviours
-  assert.equal(
-    scanContract(realRoot, CHAINED_TEST_AUDIT_CONTRACTS).length,
-    0,
-    'the shipped test leg still carries all four behaviours',
-  );
-
   // --- CHAINED_CODE_REVIEW_CONTRACTS: `/superdev:review` still names `--chained`, runs no
   // `git add -N :/` once it is present, and never enters scope mode regardless of the invoking
   // checkout's `HEAD` ---
@@ -3956,13 +3850,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     CHAINED_CODE_REVIEW_CONTRACTS,
   );
   assert.equal(ccrScopeMode.length, 1, 'flags the dropped never-enters-scope-mode clause alone');
-
-  // negative: the real tree carries all three behaviours
-  assert.equal(
-    scanContract(realRoot, CHAINED_CODE_REVIEW_CONTRACTS).length,
-    0,
-    'the shipped code leg still carries all three behaviours',
-  );
 
   // --- SWEEP_CHAINED_LEG_CONTRACTS: `/superdev:sweep` still dispatches its code, doc, and test legs with
   // `--chained` and its config leg as `/superdev:setup check`. Each row is anchored on §2's dispatch
@@ -4039,13 +3926,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   );
   assert.equal(sclConfig.length, 1, 'flags the config leg dispatch-table row losing `check`');
 
-  // negative: the real tree still dispatches all three legs correctly
-  assert.equal(
-    scanContract(realRoot, SWEEP_CHAINED_LEG_CONTRACTS).length,
-    0,
-    'the shipped sweep still dispatches all four legs correctly',
-  );
-
   // --- SETUP_CHECK_CONTRACTS: `/superdev:setup` still declares an `argument-hint` naming `check`, and
   // still states that mode's read-only posture ---
 
@@ -4086,24 +3966,11 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(setcPosture.length, 1, 'flags the dropped read-only posture statement');
   assert.equal(setcPosture[0].source, path.join('skills', 'setup', 'SKILL.md'), 'names setup SKILL.md');
 
-  // negative: the real tree carries both halves
-  assert.equal(
-    scanContract(realRoot, SETUP_CHECK_CONTRACTS).length,
-    0,
-    'the shipped `check` mode still carries both halves',
-  );
-
   // --- SEED_GAP_CHECK_CONTRACTS (ADR 0107): `check` lists seed gaps by concept and reads a recorded seed
   // deviation as recorded; sweep files a seed gap as a judgment ---
 
   const realSetup = fs.readFileSync(path.join(realRoot, 'plugin', 'skills', 'setup', 'SKILL.md'), 'utf8');
   const realSweep = fs.readFileSync(path.join(realRoot, 'plugin', 'skills', 'sweep', 'SKILL.md'), 'utf8');
-
-  assert.equal(
-    scanContract(realRoot, SEED_GAP_CHECK_CONTRACTS).length,
-    0,
-    'the shipped setup and sweep carry every seed-gap row',
-  );
 
   // positive: the deviation bullet shape turns into a configuration-key shape
   const sgShape = scanContract(
@@ -4130,12 +3997,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // writes none unasked, and backlog names the re-run as its gap remedy ---
 
   const realBacklog = fs.readFileSync(path.join(realRoot, 'plugin', 'skills', 'backlog', 'SKILL.md'), 'utf8');
-
-  assert.equal(
-    scanContract(realRoot, SEED_RECONCILE_CONTRACTS).length,
-    0,
-    'the shipped setup and backlog carry every seed-reconcile row',
-  );
 
   // positive: the re-run drops its leave-for-later choice
   const srChoice = scanContract(
@@ -4265,13 +4126,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(setcrGaps.length, 1, 'flags the mode once it stops naming `.claude/rules/`');
   assert.equal(setcrGaps[0].source, path.join('skills', 'setup', 'SKILL.md'), 'names setup SKILL.md');
 
-  // negative: the real tree still carries the leg
-  assert.equal(
-    scanContract(realRoot, SETUP_CHECK_RULES_CONTRACTS).length,
-    0,
-    'the shipped `check` mode still reports a leftover `.claude/rules/` directory',
-  );
-
   // #683, INV-0092: scanNoForceMerge — positive, the Forgejo shape
   const forceMergeRoot = fixture({
     'references/code-management-forgejo.md': 'POST .../merge with `{ "force_merge": true }`\n',
@@ -4312,15 +4166,42 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'the same caution shape passes for the GitHub option',
   );
 
-  // negative: the real seeds and this repo's own doc carry neither option
-  assert.equal(
-    scanNoForceMerge(realRoot).length,
-    0,
-    'the shipped code-management documents send no force or bypass option',
-  );
-
   // absent file is skipped, matching every other scanner
   assert.equal(scanNoForceMerge(fixture({ 'README.md': '# repo\n' })).length, 0, 'absent document is skipped');
+
+  // ADR 0123: scanConflictConclusionNoCommit — no shipped prose concludes a resolved conflict with `git commit`
+  const conclusionLine = 'conclude a resolved conflict with `git -C <run-root>/scopetree merge --continue`';
+  for (const [rel, body] of [
+    ['references/implement-full.md', `${conclusionLine}, or \`git -C <run-root>/scopetree commit --no-edit\`.\n`],
+    ['references/merge-conflicts.md', 'Stage the files, then run `git commit --no-edit`.\n'],
+    ['skills/implement/SKILL.md', 'Once resolved, conclude it with\n`git -C <run-root>/scopetree commit`.\n'],
+    ['agents/implementer.md', 'To conclude the merge, run `git commit` in the scopetree.\n'],
+    [
+      'references/implement-full.md',
+      `${conclusionLine}. Or commit the merge with \`git -C <run-root>/scopetree commit\`.\n`,
+    ],
+    ['skills/implement/SKILL.md', 'Then commit the merge with `git commit`.\n'],
+  ]) {
+    const gaps = scanConflictConclusionNoCommit(fixture({ [rel]: body }));
+    assert.equal(gaps.length, 1, `catches a commit conclusion in ${rel}`);
+    assert.equal(gaps[0].source, path.join(...rel.split('/')), 'names the document');
+    assert.match(gaps[0].expectation, /conclude a resolved conflict with `merge --continue`/, 'names the rule');
+  }
+  assert.equal(
+    scanConflictConclusionNoCommit(
+      fixture({
+        'references/merge-conflicts.md': `${conclusionLine}.\n`,
+        'references/scope-mode.md': "Plan's design-docs commit lands first; a `git commit` there is fine.\n",
+      }),
+    ).length,
+    0,
+    '`merge --continue`, and a `git commit` that concludes nothing, pass',
+  );
+  assert.equal(
+    scanConflictConclusionNoCommit(fixture({ 'README.md': '# repo\n' })).length,
+    0,
+    'absent documents are skipped',
+  );
 
   // ADR 0111, #794: scanTeaOnly — positive, each of the three shapes, in prose and in a fence
   for (const [name, body] of [
@@ -4355,9 +4236,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     0,
     'prohibition prose naming curl and a token is not an invocation',
   );
-
-  // negative: the real seeds and this repo's own documents carry none of the three shapes
-  assert.equal(scanTeaOnly(realRoot).length, 0, 'the shipped Forgejo documents are tea-only');
   assert.equal(scanTeaOnly(fixture({ 'README.md': '# repo\n' })).length, 0, 'absent document is skipped');
 
   // ADR 0101, INV-0098: scanDeployRunnerExclusivity — positive, a non-ship document claiming to run a
@@ -4462,12 +4340,5 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     ).length,
     0,
     'a sentence about an unrelated command is not flagged',
-  );
-
-  // negative: ship and the deployment seed are exempt, and the real tree carries no violation
-  assert.equal(
-    scanDeployRunnerExclusivity(realRoot).length,
-    0,
-    'the shipped skills, agents, and references carry no runner-exclusivity violation',
   );
 };

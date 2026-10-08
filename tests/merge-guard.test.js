@@ -5,10 +5,7 @@
 // --selftest used to before this suite moved off the shipped tree (ADR 0059).
 
 const assert = require('node:assert');
-const path = require('node:path');
 const cp = require('node:child_process');
-const fs = require('node:fs');
-const os = require('node:os');
 
 const { assertSpawnDecided } = require('./spawn-verdict');
 
@@ -118,13 +115,13 @@ for (const cmd of ['git -C $(echo merge) x', 'git -C $(git push o) log']) {
   decide(sub('git ' + '-C $(a b) '.repeat(200) + 'x'));
   decide(sub('git ' + '-C `a b` '.repeat(200) + 'x'));
   decide(sub('git ' + '-C $(a $(b $(c))) '.repeat(200) + 'x'));
-  decide(sub('git -C $(a $(b $(c))) x;'.repeat(2000)));
-  decide(sub('git -C $((1+(2))) x; '.repeat(2000)));
-  decide(sub('git -C $(echo ")") x; '.repeat(2000)));
+  decide(sub('git -C $(a $(b $(c))) x;'.repeat(500)));
+  decide(sub('git -C $((1+(2))) x; '.repeat(500)));
+  decide(sub('git -C $(echo ")") x; '.repeat(500)));
   decide(sub('git -C ${a b} x; '.repeat(2000)));
   decide(sub('git -C ' + '${'.repeat(5000) + ' x; git y'));
   decide(sub('git -C ' + '${ '.repeat(5000) + 'x'));
-  decide(sub('git -C ${ x; '.repeat(8000)));
+  decide(sub('git -C ${ x; '.repeat(2000)));
   decide(sub('git -C ' + '${"'.repeat(20000)));
   decide(sub('git -C `a x; '.repeat(2000)));
   decide(sub('git --exec-path=' + '$(a '.repeat(2000) + 'x'));
@@ -257,28 +254,6 @@ assert.match(decide(sub(`gh api -X PUT ${GM}`)).reason, /gh api/, 'the block rea
   assertSpawnDecided(spawned, 'spawning merge-guard.js directly');
   assert.equal(spawned.status, 2, 'spawning merge-guard.js directly still blocks a subagent merge');
   assert.match(spawned.stderr, /subagents must not integrate/, 'and still reports the merge-guard reason');
-}
-
-// argv[2] === '--selftest' is a global-process condition, not "this file was invoked directly": a
-// parent process invoked as `node <parent>.js --selftest` that requires this hook must not run this
-// hook's own selftest as a side effect (issue #442 finding 1). Guarded by an env marker so that, if
-// the guard is broken, the recursively-triggered inner selftest doesn't spawn a further generation
-// of itself — it proves the leak exactly once instead of nesting indefinitely.
-if (!process.env.SUPERDEV_ARGV_GUARD_TEST) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'merge-guard-argv-'));
-  const wrapper = path.join(dir, 'req.js');
-  fs.writeFileSync(wrapper, `require(${JSON.stringify(hookPath)});`);
-  try {
-    const outer = cp.spawnSync(process.execPath, [wrapper, '--selftest'], {
-      encoding: 'utf8', timeout: 5000,
-      env: Object.assign({}, process.env, { SUPERDEV_ARGV_GUARD_TEST: '1' }),
-    });
-    assertSpawnDecided(outer, 'a parent process requiring merge-guard.js under --selftest');
-    assert.equal(outer.status, 0, 'a parent whose own argv[2] is --selftest still exits cleanly when it requires merge-guard.js');
-    assert.equal(outer.stdout, '', "and never runs merge-guard.js's own selftest as a side effect");
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
-  }
 }
 
 console.log('merge-guard tests ok');

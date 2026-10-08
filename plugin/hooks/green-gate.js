@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 'use strict';
 
-// green-gate: deterministic PostToolUse(Bash) gate on the controller's merges.
+// green-gate: deterministic PostToolUse(Bash) and PostToolUseFailure(Bash) gate on the controller's merges.
 // The full playbook's rule (references/implement-full.md, DAG loop) is "a focused suite runs on the
 // merge, automatically" — prompted, so a model can skip it. This makes it deterministic: after a
 // controller `git merge`, run the command references/test-selection.md picks (focused over this merge's
 // changed paths, falling back to the full command per its own rules); a RED suite exits 2 so the
-// controller MUST fix or revert before continuing.
+// controller MUST fix or revert before continuing. A merge that landed inside a failed call, or that a
+// `git commit` concluded after a conflict, is gated too: decide() reads the HEAD reflog for those (ADR 0123).
 //
 // The full test command lives in the first fenced block of docs/agents/verification.md
 // (written by /superdev:setup); the second fenced block is the focused command, required for every
@@ -77,8 +78,8 @@ const LONG_VALUE_OPT = /--(?:git-dir|work-tree|namespace|config-env|shallow-file
 // space and the gate would never see the merge. The atomic `(?=(ARG|))\2` takes ARG's greedy match once, so
 // no shorter reading of the value can pass the `(?=\S)` test. Mirrors merge-guard's STUCK, including the
 // generic `--<name>=` lead on the final option only; fails closed.
-// STUCK_MERGE's lead-in is `[ \t]*`, never `\s*`: a newline is itself a lead-in, and `\s*` after it
-// re-scans every following newline from each one, which is quadratic on a long run of blank lines.
+// STUCK_MERGE's and IS_MERGE's lead-in is `[ \t]*`, never `\s*`: a newline is itself a lead-in, and `\s*`
+// after it re-scans every following newline from each one, which is quadratic on a long run of blank lines.
 const GLOBAL_OPTS = `(?:\\s+(?:-[cC]\\s+${ARG}|${LONG_VALUE_OPT}(?:=|\\s+(?!-))${ARG}|--${ARG}))*`;
 const VALUE_OPT_LEAD = `(?:-[cC]\\s+|${LONG_VALUE_OPT}(?:=|\\s+(?!-))|--[\\w-]+=)`;
 const STUCK_MERGE = new RegExp(
@@ -86,9 +87,12 @@ const STUCK_MERGE = new RegExp(
   'm'
 );
 const IS_MERGE = new RegExp(
-  `(^|[;&|\\n])\\s*git${GLOBAL_OPTS}\\s+merge(?![-\\w])(?!\\s+--(?:abort|quit)\\b)`,
+  `(^|[;&|\\n])[ \\t]*git${GLOBAL_OPTS}\\s+merge(?![-\\w])(?!\\s+--(?:abort|quit)\\b)`,
   'm'
 );
+// A `git commit` names a candidate too: it concludes a conflicted merge, and only the HEAD reflog says
+// whether it did (mergeLanded() below). Same lead-in and option region as IS_MERGE.
+const IS_COMMIT = new RegExp(`(^|[;&|\\n])[ \\t]*git${GLOBAL_OPTS}\\s+commit(?![-\\w])`, 'm');
 
 // Unquotes a captured ARG token so it reaches path.resolve as a plain string. ARG (the comment
 // above it) matches a run of concatenated pieces — unquoted, single-quoted, double-quoted, and
@@ -201,10 +205,15 @@ function getOptionRegionWalks() {
 // namesOnlyGitDir, and resolvingOption all take that same token list instead of re-matching IS_MERGE
 // and re-walking the region themselves.
 function parseMergeCommand(cmd) {
-  const m = IS_MERGE.exec(cmd);
+  let verb = 'merge';
+  let m = IS_MERGE.exec(cmd);
+  if (!m) {
+    verb = 'commit';
+    m = IS_COMMIT.exec(cmd);
+  }
   if (!m) return null;
   optionRegionWalks += 1;
-  return { tokens: parseOptions(optionRegion(m)), index: m.index };
+  return { tokens: parseOptions(optionRegion(m, verb)), index: m.index };
 }
 
 // The hook sees the command before the shell expands it, so a `-C` or `--work-tree` value holding
@@ -251,9 +260,9 @@ function resolvingOption(tokens) {
   return optionValue(tokens, '--work-tree') ? '--work-tree' : '-C';
 }
 
-// The command's global-option run: everything IS_MERGE matched up to the `merge` verb it ends on.
-function optionRegion(match) {
-  return match[0].slice(0, -'merge'.length);
+// The command's global-option run: everything IS_MERGE or IS_COMMIT matched up to the verb it ends on.
+function optionRegion(match, verb) {
+  return match[0].slice(0, -verb.length);
 }
 
 // Walks the region option-by-option, using the same alternation IS_MERGE itself matched against —
@@ -368,6 +377,30 @@ const NOTICE_ONE_FENCE =
   'superdev: green-gate found one fenced command in docs/agents/verification.md and ran it as the ' +
   'full command. Run /superdev:setup to configure a focused command.';
 
+// The fenced blocks of a document, read line by line. A fence opens on a line that starts, after at
+// most three spaces of indentation, with three or more backticks or tildes and any info string (a
+// backtick fence's info string holds no backtick, so an inline span such as ```x``` is no opener). It
+// closes on a line with the same indentation limit, of the same character, at least as long as the
+// opener. `blocks` holds each closed block's body, `outside` the text between blocks. An unclosed
+// fence yields no block. scope.js and hooks/green-gate.js each carry this function, because hooks
+// stay standalone; tests/green-gate.test.js pins them byte-identical.
+function fenceBlocks(raw) {
+  const blocks = [];
+  const outside = [];
+  let open = null;
+  let body = [];
+  for (const line of raw.split(/\r?\n/)) {
+    if (!open) {
+      const m = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+      if (m && !(m[1][0] === '`' && m[2].includes('`'))) { open = m[1]; body = []; } else outside.push(line);
+    } else if (/^ {0,3}(`+|~+)\s*$/.test(line) && line.trim()[0] === open[0] && line.trim().length >= open.length) {
+      blocks.push(body.join('\n'));
+      open = null;
+    } else body.push(line);
+  }
+  return { blocks, outside: outside.join('\n') };
+}
+
 // references/test-selection.md: the first fenced block is the full command, the second the
 // focused one, required for every repository with a suite (ADR 0085). Both trimmed; { full: null }
 // when the doc is missing. Exactly one fenced block carries `notice` (ADR 0085) instead of stopping.
@@ -378,7 +411,7 @@ function readVerification(cwd) {
   } catch {
     return { full: null, focused: null }; // no verification doc → no gate
   }
-  const blocks = [...raw.matchAll(/```[a-zA-Z0-9]*\n([\s\S]*?)```/g)].map((m) => m[1].trim());
+  const blocks = fenceBlocks(raw).blocks.map((b) => b.trim());
   if (blocks.length === 1) return { full: blocks[0], focused: null, notice: NOTICE_ONE_FENCE };
   return { full: blocks[0] || null, focused: blocks[1] || null };
 }
@@ -408,18 +441,27 @@ function pickCommand(verification, getChangedPaths) {
 }
 
 // decide() is pure over its inputs so it is unit-testable; getVerification, runTests,
-// getChangedPaths, mergeInProgress, and getCurrentBranch inject the side effects. getVerification
-// is a thunk — PostToolUse(Bash) fires on every Bash call, so the doc read only happens once the
-// cheap checks say this is a gated merge. It receives the one STUCK_MERGE result, so nothing tests it twice.
-function decide(input, getVerification, runTests, getChangedPaths, mergeInProgress, getCurrentBranch = () => '') {
+// getChangedPaths, mergeInProgress, getCurrentBranch, and mergeLanded inject the side effects.
+// getVerification is a thunk — PostToolUse(Bash) fires on every Bash call, so the doc read only
+// happens once the cheap checks say this is a gated merge. It receives the one STUCK_MERGE result,
+// so nothing tests it twice.
+// ADR 0123: a command naming `git merge` or `git commit` is a candidate, on PostToolUse and on
+// PostToolUseFailure alike. A successful `git merge` call is gated from its command text alone. Every
+// other candidate — a failed call, or a `git commit` — runs the suite only when mergeLanded() finds a
+// merge on top of the tree's HEAD reflog.
+function decide(input, getVerification, runTests, getChangedPaths, mergeInProgress, getCurrentBranch = () => '', mergeLanded = () => false) {
   if (input && input.agent_id) return { block: false }; // subagent → not our concern
   const cmd = (input && input.tool_input && input.tool_input.command) || '';
   const stuck = STUCK_MERGE.test(cmd);
-  if (!stuck && !IS_MERGE.test(cmd)) return { block: false }; // not a merge
+  const namesMerge = stuck || IS_MERGE.test(cmd);
+  if (!namesMerge && !IS_COMMIT.test(cmd)) return { block: false }; // names neither verb
+  const probe = !namesMerge || input.hook_event_name === 'PostToolUseFailure';
   const verification = getVerification(stuck);
   // A blind spot fails closed, before every check below: each of them — the configured command, the
   // branch read, the in-progress check — asks a question about a tree the gate could not resolve.
-  if (verification && verification.blind) return { block: true, reason: verification.blind };
+  // A candidate the reflog must decide has no tree to read it in, so it stays silent unless the
+  // command is a stuck merge shape, whose reason already reads "if this command merged".
+  if (verification && verification.blind) return stuck || !probe ? { block: true, reason: verification.blind } : { block: false };
   if (!verification || !verification.full) return { block: false }; // no gate configured
   // ADR 0033: a merge whose checkout is on an integration branch is a wide refactor's batch merge —
   // green is promised at the integrate-and-verify merge into the scope branch, so the gate defers here
@@ -429,6 +471,7 @@ function decide(input, getVerification, runTests, getChangedPaths, mergeInProgre
   // A conflicted merge left MERGE_HEAD behind: nothing merged yet, so a suite run would test the
   // unchanged (or conflicted) tree and blame the merge. Skip; the run-handoff full suite still runs.
   if (mergeInProgress && mergeInProgress()) return { block: false };
+  if (probe && !mergeLanded()) return { block: false };
   const testCommand = pickCommand(verification, getChangedPaths);
   const result = runTests(testCommand);
   // ADR 0085: verification.notice (one fenced block, ADR 0085) rides along on whatever decision
@@ -551,6 +594,19 @@ function mergeInProgress(cwd) {
   }
 }
 
+// ADR 0123: a merge landed when the top entry of the tree's HEAD reflog reads `merge …` (a completed
+// merge, a fast-forward included) or `commit (merge)…` (a commit concluding a conflicted merge, from
+// `git commit` or `git merge --continue`). decide() has already ruled out a merge still waiting on a
+// conflict. A repository with its reflog off, or no repository, yields no entry: not landed.
+function mergeLanded(cwd) {
+  try {
+    const subject = execSync('git reflog -1 --format=%gs HEAD', { cwd, stdio: 'pipe', encoding: 'utf8' });
+    return /^(merge |commit \(merge\))/.test(subject);
+  } catch {
+    return false;
+  }
+}
+
 // The merge target: the checkout's current branch. Empty when HEAD is detached inside rev-parse's
 // error path or the cwd is no repo — both read as "not an integration branch", so the gate still fires.
 function getCurrentBranch(cwd) {
@@ -561,10 +617,10 @@ function getCurrentBranch(cwd) {
   }
 }
 
-// references/test-selection.md, "The changed-path set": the merge's ORIG_HEAD against HEAD, not
-// HEAD^1 — a conflicted merge leaves HEAD unmoved with ORIG_HEAD equal to it (an empty set, which
-// decide()'s fallback catches), where HEAD^1 would instead return the previous commit's paths,
-// stale. Falls back to HEAD^1 where ORIG_HEAD does not resolve.
+// references/test-selection.md, "The changed-path set": the merge's ORIG_HEAD against HEAD, read once
+// the merge has landed (a merge still waiting is skipped, ADR 0123), not HEAD^1 — HEAD^1 is the fallback
+// where ORIG_HEAD does not resolve. An empty set (a merge that changes nothing) goes to decide()'s
+// fallback.
 function getChangedPaths(cwd) {
   for (const ref of ['ORIG_HEAD', 'HEAD^1']) {
     try {
@@ -598,6 +654,7 @@ function decideMerge(input, sessionCwd) {
     () => getChangedPaths(cwd),
     () => mergeInProgress(cwd),
     () => getCurrentBranch(cwd),
+    () => mergeLanded(cwd),
   );
 }
 
@@ -642,8 +699,10 @@ module.exports = {
   readVerification,
   runTests,
   mergeInProgress,
+  mergeLanded,
   getChangedPaths,
   IS_MERGE,
+  IS_COMMIT,
   STUCK_MERGE,
   ARG,
   VERIFICATION_DOC,

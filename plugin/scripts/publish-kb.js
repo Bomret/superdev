@@ -36,8 +36,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
-const { execFileSync, spawnSync } = require('child_process');
-const { SLUG_RE, readLedgerHeader, testContainment } = require('./scope.js');
+const { spawnSync } = require('child_process');
+const { SLUG_RE, CHANGE_TYPES, readLedgerHeader, testContainment, mainWorkTree, refResolves } = require('./scope.js');
 const { maskFencedLines, merge, headingKeyOf } = require('./kb-patch.js');
 const { toStorage } = require('./md-to-storage.js');
 
@@ -50,21 +50,13 @@ function fail(msg) {
 // --- staging root --------------------------------------------------------------------------
 //
 // `<run-root>/scopetree` sits INSIDE `.superdev/`, so a checkout-relative
-// `.superdev/kb-pending/` resolves one level too deep from a scopetree's own cwd. Resolving
-// from the parent of `git rev-parse --path-format=absolute --git-common-dir` reaches the
-// repository's main checkout from any cwd, scopetree included (skills/publish-kb/SKILL.md §1).
+// `.superdev/kb-pending/` resolves one level too deep from a scopetree's own cwd. `scope.js`'s
+// `mainWorkTree` reaches the repository's main checkout from any cwd, scopetree and submodule included
+// (skills/publish-kb/SKILL.md §1).
 function resolveMainCheckout(cwd) {
-  let gitCommonDir;
-  try {
-    gitCommonDir = execFileSync(
-      'git',
-      ['rev-parse', '--path-format=absolute', '--git-common-dir'],
-      { cwd, encoding: 'utf8' },
-    ).trim();
-  } catch (e) {
-    fail(`cannot resolve the repository's main checkout: ${e.message}`);
-  }
-  return path.dirname(gitCommonDir);
+  const main = mainWorkTree(cwd);
+  if (main === null) fail(`cannot resolve the repository's main checkout: not inside a git repository (cwd: ${cwd})`);
+  return main;
 }
 
 // Each subdirectory of the staging root holding at least one `.md` file is one pending scope.
@@ -751,16 +743,6 @@ function processStagedFiles(files, templates) {
 // block: every outcome below only ever refuses (naming what it found) unless `--allow-unmerged`
 // overrides it, and `_adhoc` — which carries no branch at all — skips the check entirely.
 
-const CHANGE_TYPES = /^(feat|fix|refactor|docs|perf|test|build|ci|chore|style|revert)$/;
-
-function refResolves(ref, cwd) {
-  return spawnSync('git', ['rev-parse', '--verify', '--quiet', '--end-of-options', `${ref}^{commit}`], {
-    cwd,
-    stdio: ['ignore', 'pipe', 'ignore'],
-    encoding: 'utf8',
-  }).status === 0;
-}
-
 function branchNamesFrom(cwd) {
   const res = spawnSync('git', ['for-each-ref', '--format=%(refname)', 'refs/heads', 'refs/remotes'], {
     cwd,
@@ -786,13 +768,13 @@ function branchNamesFrom(cwd) {
 }
 
 // The shape scan `hooks/scope-prune.js` applies: a branch whose last segment is `scope` and whose
-// leading segment is a change type. Duplicated rather than shared — `hooks/` is the only documented
-// runtime consumer of `plugin/scripts/`, never the reverse (root AGENTS.md, Child DOX Index).
+// leading segment is a change type, the set `scope.js` owns. The scan itself stays a copy — a script
+// requires no hook, and a hook requires only the `scope.js` surface the root AGENTS.md Child DOX Index lists.
 function shapeScanBranch(cwd, scope) {
   for (const branch of branchNamesFrom(cwd)) {
     const cut = branch.lastIndexOf('/');
     if (cut < 1) continue;
-    if (branch.slice(cut + 1) === scope && CHANGE_TYPES.test(branch.slice(0, cut))) return branch;
+    if (branch.slice(cut + 1) === scope && CHANGE_TYPES.includes(branch.slice(0, cut))) return branch;
   }
   return null;
 }

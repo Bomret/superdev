@@ -1,6 +1,6 @@
 ---
 name: upgrade
-description: Check for a newer superdev release and upgrade the plugin in place from the marketplace. Restart Claude Code afterward to load it.
+description: Check for a newer superdev release and upgrade the plugin in place from the marketplace. Run /reload-plugins afterward to load it.
 model: haiku
 allowed-tools: Bash(claude plugin marketplace update:*), Bash(claude plugin update:*)
 ---
@@ -8,7 +8,7 @@ allowed-tools: Bash(claude plugin marketplace update:*), Bash(claude plugin upda
 # superdev upgrade
 
 Upgrade the installed **superdev** plugin to the latest published version, hands-off. You (the model)
-run the two commands below with the Bash tool; the user just restarts at the end.
+run the two commands below with the Bash tool; the user just reloads at the end.
 
 ## 1. Upgrade
 
@@ -28,5 +28,5 @@ CLI.
 
 ## 2. Done
 
-Report the result from the command output, then tell the user to **restart Claude Code** to load it — a
-plugin update needs a restart, not just `/reload-plugins`.
+Report the result from the command output, then tell the user to run **`/reload-plugins`** to load it. If the
+new version does not load after the reload, tell the user to restart Claude Code.

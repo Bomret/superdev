@@ -803,8 +803,18 @@ const GREEN_GATE_TIMEOUT_CONTRACTS = [
     // entry end). Backward direction uses `(?:(?!"type")[\s\S]){0,160}` — matches any byte except the
     // start of `"type":`, which every entry has and appears before our targets in a real entry,
     // bounding backward at entry starts. This prevents a sibling entry's timeout from falsely matching.
-    /(?:green-gate\.js\\"[^}]*"timeout":\s*600(?!\d)|"timeout":\s*600(?!\d)(?:(?!"type")[\s\S]){0,160}green-gate\.js\\")/,
+    // The `"PostToolUse"\s*:` anchor, closed by its quote, runs to the next event key (an uppercase-initial key), so the
+    // `PostToolUseFailure` entry's timeout cannot satisfy this row. The PostToolUse array holds several matcher groups,
+    // so the span is bounded by the next event key and not by a closing bracket.
+    /"PostToolUse"\s*:(?:(?!"[A-Z]\w*"\s*:)[\s\S])*?(?:green-gate\.js\\"[^}]*"timeout":\s*600(?!\d)|"timeout":\s*600(?!\d)(?:(?!"type")[\s\S]){0,160}green-gate\.js\\")/,
     'set `"timeout": 600` on the green-gate PostToolUse(Bash) hook entry',
+  ],
+  [
+    path.join('hooks', 'hooks.json'),
+    // The failure event's own entry runs the same suite, so it carries the same ceiling. `[^\]]*?` stays inside
+    // the `PostToolUseFailure` hooks array, so the PostToolUse entry's timeout cannot satisfy this row.
+    /"PostToolUseFailure"[^\]]*?(?:green-gate\.js\\"[^}]*"timeout":\s*600(?!\d)|"timeout":\s*600(?!\d)(?:(?!"type")[\s\S]){0,160}green-gate\.js\\")/,
+    'set `"timeout": 600` on the green-gate PostToolUseFailure(Bash) hook entry',
   ],
   [
     path.join('hooks', 'green-gate.js'),
@@ -5324,6 +5334,57 @@ const DEPENDENCY_RECORD_CONTRACTS = [
   ],
 ];
 
+// ADR 0123: a resolved merge conflict is concluded with `git -C <tree> merge --continue`, and the
+// green-gate gates the merge that conclusion lands. Every instruction that tells an agent how to conclude
+// a resolved conflict carries the form: the base step in `references/scope-mode.md`, the resolution rules
+// in `references/merge-conflicts.md`, and the DAG loop's merge step in `references/implement-full.md`,
+// the dispatch prose that reaches the controller in the full tier (CONTEXT.md -> *Dispatch prose*, ADR
+// 0035). The playbook's merge-step row is anchored at the step's own heading, so the clause cannot move
+// out of the DAG loop and still match. The gate rows pin how the playbook and `references/test-selection.md`
+// state the gate: it runs after a landed merge, whether the call that landed it succeeded or failed, and a
+// red suite is reported for a fix or a revert. A claim that the gate blocks a merge, or runs on a conflicted
+// merge still waiting, describes a path the hook does not run. `CONFLICT_COMMIT_CONCLUSION_PATTERNS` is the
+// negative half, run by `scanConflictConclusionNoCommit()`: no shipped prose concludes a resolved conflict
+// with `git commit`, whatever else it says beside `merge --continue`.
+const CONFLICT_CONCLUSION_CONTRACTS = [
+  [
+    path.join('references', 'scope-mode.md'),
+    /conclude\s+it\s+with\s+`git -C <run-root>\/scopetree merge --continue`/,
+    'conclude a resolved base-merge conflict with `git -C <run-root>/scopetree merge --continue`, never `git commit` (ADR 0123)',
+  ],
+  [
+    path.join('references', 'merge-conflicts.md'),
+    /[Cc]onclude\s+a\s+resolved\s+conflict\s+with\s+`git -C <run-root>\/scopetree merge --continue`/,
+    'conclude a resolved conflict with `git -C <run-root>/scopetree merge --continue`, never `git commit` (ADR 0123)',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /\*\*Merge\s+\(you,\s+serially\)\*\*[\s\S]{0,1200}conclude\s+a\s+resolved\s+conflict\s+with\s+`git -C <run-root>\/scopetree merge --continue`/,
+    "conclude a resolved conflict in the DAG loop's merge step with `git -C <run-root>/scopetree merge --continue`, never `git commit` (ADR 0123)",
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /runs\s+after\s+a\s+landed\s+merge,\s+on\s+a\s+succeeding\s+or\s+failing\s+call[\s\S]{0,300}reports\s+a\s+red\s+suite\s+for\s+a\s+fix\s+or\s+a\s+revert/,
+    'state that the green-gate runs after a landed merge, on a succeeding or failing call, and reports a red suite for a fix or a revert (ADR 0123)',
+  ],
+  [
+    path.join('references', 'test-selection.md'),
+    /\*\*The green-gate hook\.\*\*[\s\S]{0,200}once\s+the\s+merge\s+has\s+landed[\s\S]{0,300}`merge --continue`/,
+    "state that the green-gate's changed-path set is read once the merge has landed, a conflicted one concluded by `merge --continue` included (ADR 0123)",
+  ],
+];
+
+// simplicity: shape-based, and its ceiling is the spellings below: `commit --no-edit`, the form that
+// concludes a merge without an editor; a `conclude … \`git commit\`` sentence with no backtick or full
+// stop between the verb and the command; and "commit the merge with `git commit`". A paraphrase ("finish
+// the merge by committing") walks past. The shape was chosen over a bare `git commit` because other
+// shipped prose may name a commit legitimately.
+const CONFLICT_COMMIT_CONCLUSION_PATTERNS = [
+  /commit\s+--no-edit\b/,
+  /conclud\w*[^.`]{0,160}`git\s+(?:-C\s+\S+\s+)?commit\b/,
+  /commit\s+(?:the\s+merge|it)\s+with\s+`git\s+(?:-C\s+\S+\s+)?commit\b/,
+];
+
 // ADR 0088, INV-0010: an observation — a real defect a run meets that no slice covers and the scope did
 // not cause — is recorded, never judged. `references/scope-mode.md` owns the rule in its own
 // `## Observations` section, beside `## Degraded passes`, `## Unresolved defects`, and `## Deferred
@@ -6879,6 +6940,8 @@ module.exports = {
   RUN_TRACE_ORDER_CONTRACTS,
   SETUP_TEST_PATHS_CONTRACTS,
   DEPENDENCY_RECORD_CONTRACTS,
+  CONFLICT_CONCLUSION_CONTRACTS,
+  CONFLICT_COMMIT_CONCLUSION_PATTERNS,
   DEPENDENCY_LENS_DOC,
   DEPENDENCY_LENS_HEADING,
   DEPENDENCY_LENS_ENTRY,

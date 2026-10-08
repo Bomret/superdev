@@ -13,7 +13,8 @@ it, and by the time a corner-cut surfaces, it's already merged.
 
 With superdev: `/superdev:plan` interviews you until the Definition of Done is checkable,
 `/superdev:implement` cuts the work into small slices, a separate reviewer subagent checks each one
-before it merges, and a hook — not a prompt — blocks the merge outright if the suite goes red.
+before it merges, and a hook — not a prompt — runs the suite after every merge and reports a red result,
+so the controller fixes or reverts before the run continues.
 
 A self-contained Claude Code plugin for the full **brainstorm, plan, implement, review, document,
 submit-pr, ship** loop, with **no prerequisite plugins**. It gives you interview-driven vertical slicing, an execution tier
@@ -293,35 +294,42 @@ bash or PowerShell variants.
   (triage #814). The controller integrates.
 - **model-explicit.** Blocks a dispatch to a superdev subagent that omits an explicit `model`, so cost
   is always warrant-scaled.
-- **green-gate.** After a controller merge, runs the command
-  [`references/test-selection.md`](plugin/references/test-selection.md) picks and blocks on a RED result. That
-  file owns the full-versus-focused rule the gate follows. "Tests pass on scope after merging" is
-  therefore enforced, not merely prompted. A killed suite blocks the merge too, rather than passing it: a
+- **green-gate.** After a controller merge lands, runs the command
+  [`references/test-selection.md`](plugin/references/test-selection.md) picks and reports a RED result to the
+  controller, which fixes or reverts before the run continues. That file owns the full-versus-focused rule
+  the gate follows. The merge has landed by then, so the gate cannot undo it. A merge counts as landed when
+  the top `HEAD` reflog entry of its tree reads `merge …` or `commit (merge)…`. The gate runs whether the
+  Bash call that landed the merge succeeded or failed, and after a `git commit` that concludes a conflicted
+  merge (ADR 0123). "Tests pass on scope after merging" is therefore checked by a hook, not merely
+  prompted. A killed suite is reported too, rather than passing: a
   process the gate's own bound ended carries no verdict (INV-0009, ADR 0086). The gate spawns the
   suite under a bound from its hook ceiling. The gate, not the platform, ends a runaway suite and
   reports the kill. The gate is inactive until `docs/agents/verification.md`
   records a test command, which `/superdev:setup` does. Once it is active, the gate runs the suite in the
   tree the merge names — a `-C <path>` or a `--work-tree <path>`, whichever the command carries, with
   `--work-tree` winning when both are there and a relative `--work-tree` resolved against `-C`, not
-  against your own checkout. A merge whose working tree the gate cannot resolve blocks
-  instead: a command that changes directory first (`cd <path> && git merge`) and names no tree says
+  against your own checkout. A successful `git merge` whose working tree the gate cannot resolve gets a report
+  naming why instead of a suite run. A failed call or a `git commit` with such a tree gets no report, because
+  the gate has no reflog to read for it. The shapes are: a command that changes directory first (`cd <path> && git merge`) and names no tree says
   nothing about which one it landed in, a `--git-dir` with no `--work-tree` updates files in one tree
   while reading refs from another repository, a `-C` or `--work-tree` value holding shell syntax (`$VAR`,
   `$(…)`, a backtick, a leading `~`) names a path the gate reads before the shell expands it, and a `-C`
   path carrying no `docs/agents/verification.md` while your own checkout does is a path pointing somewhere
-  other than the merge. The gate also blocks a merge when a git global option value holds shell syntax
+  other than the merge. The gate also reports, without running the suite, when a git global option value holds shell syntax
   that the gate cannot read to its end. The options are `-C`, `-c`, any `--<name>=`, and git's
   value-taking long options in either spelling: `--git-dir`, `--work-tree`, `--namespace`,
   `--config-env`, `--shallow-file`, and `--attr-source`. Examples are nesting past one level, nested
   arithmetic, and a nested `${…}` such as `${X:-${Y:-a b}}`. Pass literal option values instead, such as
   `git -C <path> merge …`. Some shapes the gate misreads still pass (triage #814). A green the gate never
-  verified is worth less than a block naming why.
+  verified is worth less than a report naming why.
 - **run-lock.** Blocks a `git worktree add` on a scopetree (`.superdev/scopes/<scope>/scopetree`)
   while a fresh `.superdev/scopes/<scope>/run.lock` exists, so two concurrent lite runs on one scope
-  cannot collide. A stale lock (older than the staleness threshold) or no lock at all passes through,
+  cannot collide. The hook looks for the lock in the run root the command names. It also checks the
+  run root under the session's working directory, as a backstop for a path the hook cannot expand
+  (triage #910). A stale lock (older than the staleness threshold) or no lock at all passes through,
   which covers a crash resume and a new run.
 - **ledger-guard.** Blocks the direct write shapes to a scope's `ledger.md`: an `Edit`, a `Write`, and a
-  `Bash` write (redirect, `tee`, `sed -i`, `cp`, `mv`, `install`) are all denied. An interpreter wrapper
+  `Bash` write (redirect, `tee`, `sed -i`, `cp`, `mv`, `install`, `ln`, `patch`, `rsync`) are all denied. An interpreter wrapper
   and some substitution shapes still pass. Only `scripts/scope.js`, the run-state CLI that owns the
   ledger's schema, may write it. A write to the run trace (`trace.log`) is refused the same way, because
   only the hooks and `scripts/scope.js` write it.
@@ -330,7 +338,9 @@ bash or PowerShell variants.
   `cp`, `mv`, `install`, `git apply`). Each line names its slice, its agent, and whether the file is a
   test or an implementation, by the `## Test paths` section of `docs/agents/verification.md` or the default
   patterns. It also records each test run with its outcome (a run in the background or behind a pipe reads
-  `unknown`), each revert or restore of files, and each subagent dispatch and its end. After an
+  `unknown`). A test run counts only where the configured test command stands at command position. The hook
+  records nothing for a quoted mention. A full or whole-repo command with extra argument words records as a
+  focused run. The hook also records each revert or restore of files, and each subagent dispatch and its end. After an
   implementation edit or a passing run on a `behavior` slice, it adds a Missing RED note when the latest
   test edit has no failing run since. The hook registers on `PostToolUse`, `PostToolUseFailure`,
   `SubagentStart`, and `SubagentStop`. An edit outside every run root records nothing. A write behind
@@ -338,7 +348,7 @@ bash or PowerShell variants.
 - **slicetree-sweep.** A `Stop` hook that removes each slicetree and branch once its slice is
   fully merged. Finished slicetrees therefore cannot pile up when the controller skips the prompted
   cleanup. It
-  touches only merged `slice/*` slicetrees under `.superdev/`, and leaves in-progress and reverted slices
+  touches only merged `slice/*` slicetrees under `.superdev/`, and leaves in-progress slices and slices whose merge was undone
   alone. A lite-tier run's single scopetree is not a slicetree, so this hook leaves it
   alone too. `/superdev:wrap-up` removes it at the end of the chain.
 - **scope-prune.** A `Stop` hook that deletes a scope's run root (`.superdev/scopes/<scope>/`, its
@@ -560,7 +570,13 @@ and `/superdev:implement`.
 ## Updating
 
 The easiest route is **`/superdev:upgrade`**. It checks for a newer release and installs it in place.
-Restart Claude Code afterwards to load it. There are no manual `/plugin` steps.
+Run `/reload-plugins` afterwards to load it. If the new version does not load, restart Claude Code. There are no
+manual `/plugin` steps.
+
+Verified 2026-10-06, on Claude Code 2.1.289, against the *Install and manage plugins* documentation
+(`https://code.claude.com/docs/en/discover-plugins`, "Keep plugins updated"), read that day: after an update, Claude Code
+prints `Plugin updated: <name> · Run /reload-plugins to apply`, and the next session loads the new version
+automatically.
 
 superdev is a third-party marketplace, so **auto-update is off by default** and updates are otherwise
 pull-based. The manual equivalent of `/superdev:upgrade`:

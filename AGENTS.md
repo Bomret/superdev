@@ -31,7 +31,7 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
   .claude-plugin/
     plugin.json        — plugin manifest (name, version, author); version is the SINGLE source of truth.
                          No `hooks` field — Claude Code auto-loads the standard hooks/hooks.json.
-  skills/              — the `/superdev:<name>` surfaces, one `<name>/SKILL.md` each (ADR 0050):
+  skills/              — the `/superdev:<name>` surfaces, one `<name>/SKILL.md` each (ADR 0102):
                          brainstorm, setup, plan, implement, review, document, submit-pr, ship, verify-ship,
                          wrap-up, upgrade, status, profile, backlog, publish-kb, prose-check, review-tests, sweep
   agents/              — the subagents (*.md): implementer, slice-reviewer, simplicity-reviewer,
@@ -196,8 +196,8 @@ Codeberg repo Wiki. Adopters first, maintainers second, English. `(aggregate)` p
 Bun dev toolchain, Node runtime for hooks. `bun run test` (green-gate), `bun run release`. No linter or formatter. See `docs/agents/toolchain.md`.
 
 ### Verification
-`bun run test` in both fences: the suite finishes in seconds, so the second fence repeats the full
-command rather than narrowing it. Arms the merge green-gate. See `docs/agents/verification.md`.
+`bun run test` in the first fence (the full command, about 2 minutes), `node scripts/run-tests.js --related {paths}`
+in the second (the focused command, about 8 s for a change set whose `.md` paths no suite names). Arms the merge green-gate. See `docs/agents/verification.md`.
 
 ### Deployment
 `none`. A release (`bun run release`) is repository-wide and batches every merged feature, so it is no
@@ -259,9 +259,9 @@ This root owns every other subtree directly:
   read-only in the chained posture (ADR 0068).
 - `plugin/hooks/`. Claude Code hooks, the plugin's deterministic guardrails. Governed by **Working
   rules, Hooks are CommonJS** and **Every shipped executable has a suite in `tests/`, named for it**.
-  This is the strongest future child-doc candidate, if its rules outgrow this root. `hooks/` is the
-  only runtime consumer of
-  `plugin/scripts/`: `scope-prune.js` and `slicetree-sweep.js` both
+  This is the strongest future child-doc candidate, if its rules outgrow this root. Of the
+  hooks, `scope-prune.js`, `slicetree-sweep.js`, and `run-trace.js` depend on `plugin/scripts/`, and the scripts
+  `publish-kb.js` and `profile.js` require `scope.js` as well. `scope-prune.js` and `slicetree-sweep.js` both
   `require` `../scripts/scope.js` for their ledger-header reader (ADR 0022), `run-trace.js` requires it for
   the trace writer and reader and the ledger row readers (ADR 0117), and `scope-prune.js`
   takes the containment probe `baseHistoryHasPatch` off that same call (ADR 0082). `slicetree-sweep.js`
@@ -274,10 +274,10 @@ This root owns every other subtree directly:
   `plugin/scripts/scope.js` (the run-state CLI, ADR 0022: owns the ledger schema, is the only
   `ledger.md` read and write path, exports `readLedgerHeader` for `plugin/hooks/scope-prune.js` and
   `plugin/hooks/slicetree-sweep.js`, exports the trace writer `appendTrace`, the trace reader `readTrace`,
-  the field decoder `untraceField`, the ledger row readers `inProgressSlices` and `sliceType`, and the verification-command reader
-  `verificationCommands`, for `plugin/hooks/run-trace.js` (ADR 0117), exports the containment test `testContainment` and its second-tier
+  the field decoder `untraceField`, the ledger row readers `inProgressSlices` and `sliceType`, the verification-command reader
+  `verificationCommands`, the scope-slug pattern `SLUG_RE`, and the main-checkout resolver `mainWorkTree`, for `plugin/hooks/run-trace.js` (ADR 0117), exports the containment test `testContainment` and its second-tier
   probe `baseHistoryHasPatch` for `plugin/scripts/publish-kb.js` and `plugin/hooks/scope-prune.js`
-  (ADR 0053, ADR 0065, ADR 0082), and carries verbs that touch no ledger: `root <slug>`,
+  (ADR 0053, ADR 0065, ADR 0082), exports `mainWorkTree`, `CHANGE_TYPES`, and `refResolves` for `publish-kb.js` (`SLUG_RE` too, and `mainWorkTree` and `CHANGE_TYPES` for `profile.js`), and carries verbs that touch no ledger: `root <slug>`,
   which resolves a run root's absolute path against the repository's main working tree from any cwd
   (ADR 0080). The verb `staging <scope>` resolves a scope's staging directory the same way (ADR 0119).
   It also writes the `planned` stage on `init`, which `/superdev:implement`'s run init moves

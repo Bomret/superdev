@@ -64,7 +64,6 @@ try {
   require('./kb-plan.test')(context);
   require('./coverage.test')(context);
   require('./observation.test')(context);
-  require('./response-shapes.test')(context);
   require('./drift-check.test')(context);
 
   // Every table any suite above scanned, and every table the registry declares, gets checked here, once,

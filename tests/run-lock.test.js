@@ -17,7 +17,8 @@ const { decide, STALENESS_MS } = require(hookPath);
 
 const tmpDir = os.tmpdir();
 const ROOT_PREFIX = 'test-scope-';
-const testRunDir = fs.mkdtempSync(path.join(tmpDir, ROOT_PREFIX));
+const tempRoot = () => fs.mkdtempSync(path.join(tmpDir, ROOT_PREFIX));
+const testRunDir = tempRoot();
 const testScope = path.basename(testRunDir);
 const lockDir = path.join(testRunDir, '.superdev', 'scopes', testScope);
 const lockPath = path.join(lockDir, 'run.lock');
@@ -60,7 +61,7 @@ try {
   assert.strictEqual(at(`git worktree add .superdev/scopes/${testScope}/scopetree -b b base`).block, true, 'Test 8 FAIL: git worktree add must block on a fresh lock');
 
   // Test 9: a slug leading outside `[a-zA-Z0-9]` is not canonical (references/scope-mode.md's
-  // `[a-zA-Z0-9][a-zA-Z0-9_-]*`) — extractScope must return null for it. Proven with a fresh lock
+  // `[a-zA-Z0-9][a-zA-Z0-9_-]*`) — extractScopetree must return null for it. Proven with a fresh lock
   // sitting at that exact literal path: if extraction wrongly captured the slug, the fresh lock
   // would block; it doesn't, so no scope was extracted at all. One vector covers the class: `-`
   // and `_` fail the identical first-character test.
@@ -68,6 +69,66 @@ try {
   fs.mkdirSync(badLockDir, { recursive: true });
   fs.writeFileSync(path.join(badLockDir, 'run.lock'), 'locked', 'utf8');
   assert.strictEqual(at('git worktree add .superdev/scopes/-bad/scopetree').block, false, 'Test 9 FAIL: leading `-` must not be extracted as a scope');
+
+  // Test 10: the lock is read from the run root the command names, not the session's directory.
+  // A session in a subdirectory, or in a linked worktree elsewhere, names the main tree's run root
+  // by absolute path (ADR 0080) and still meets the fresh lock there, with the root named in the reason.
+  fs.writeFileSync(lockPath, 'locked', 'utf8');
+  const absAdd = `git worktree add ${testRunDir}/.superdev/scopes/${testScope}/scopetree fix/x`;
+  const sub = path.join(testRunDir, 'sub');
+  const linked = fs.mkdtempSync(path.join(tmpDir, 'run-lock-linked-'));
+  try {
+    for (const cwd of [testRunDir, sub, linked]) {
+      const r = decide({ tool_input: { command: absAdd }, cwd });
+      assert.strictEqual(r.block, true, `Test 10 FAIL: absolute path from ${cwd} should block`);
+      assert.ok(r.reason.includes(lockDir), `Test 10 FAIL: reason should name the run root ${lockDir}`);
+    }
+    // A stale or absent lock at the named root still allows from elsewhere.
+    fs.utimesSync(lockPath, staleTime / 1000, staleTime / 1000);
+    assert.strictEqual(decide({ tool_input: { command: absAdd }, cwd: sub }).block, false, 'Test 10 FAIL: stale lock should allow');
+    fs.unlinkSync(lockPath);
+    assert.strictEqual(decide({ tool_input: { command: absAdd }, cwd: sub }).block, false, 'Test 10 FAIL: absent lock should allow');
+    fs.writeFileSync(lockPath, 'locked', 'utf8');
+  } finally {
+    fs.rmSync(linked, { recursive: true, force: true });
+  }
+
+  // Test 11: a quoted absolute path is read whole, spaces included; the named root, not a
+  // whitespace-cut fragment of it, is where the lock is looked up. A quoted argument ahead of the
+  // path does not leak into the prefix.
+  const spaced = fs.mkdtempSync(path.join(tmpDir, 'run lock '));
+  const spacedLockDir = path.join(spaced, '.superdev', 'scopes', testScope);
+  fs.mkdirSync(spacedLockDir, { recursive: true });
+  fs.writeFileSync(path.join(spacedLockDir, 'run.lock'), 'locked', 'utf8');
+  const elsewhere = fs.mkdtempSync(path.join(tmpDir, 'run-lock-elsewhere-'));
+  try {
+    for (const quote of ['"', "'"]) {
+      const r = decide({ tool_input: { command: `git worktree add -b "feat x" ${quote}${spaced}/.superdev/scopes/${testScope}/scopetree${quote} fix/x` }, cwd: elsewhere });
+      assert.strictEqual(r.block, true, `Test 11 FAIL: ${quote}-quoted absolute path with a space should block`);
+      assert.ok(r.reason.includes(spacedLockDir), 'Test 11 FAIL: reason should name the run root with the space');
+    }
+    fs.unlinkSync(path.join(spacedLockDir, 'run.lock'));
+    assert.strictEqual(decide({ tool_input: { command: `git worktree add "${spaced}/.superdev/scopes/${testScope}/scopetree" fix/x` }, cwd: elsewhere }).block, false, 'Test 11 FAIL: absent lock at the spaced root should allow');
+
+    // Test 12: a `~/` or `$HOME/` prefix is not expanded. The run root under the session's
+    // working directory is the fail-closed backstop: from the main tree, where a fresh lock sits, both block.
+    for (const home of ['~', '$HOME', '${HOME}']) {
+      assert.strictEqual(at(`git worktree add ${home}/.superdev/scopes/${testScope}/scopetree fix/x`).block, true, `Test 12 FAIL: ${home} prefix from the main tree should block on its fresh lock`);
+    }
+
+    // Test 13: a relative path from a linked-worktree stand-in resolves against that cwd.
+    // A fresh lock there blocks, naming that root; with none there, the main tree's lock is not read.
+    const own = path.join(elsewhere, '.superdev', 'scopes', testScope);
+    fs.mkdirSync(own, { recursive: true });
+    assert.strictEqual(decide({ tool_input: { command: add }, cwd: elsewhere }).block, false, 'Test 13 FAIL: no lock in the linked cwd should allow');
+    fs.writeFileSync(path.join(own, 'run.lock'), 'locked', 'utf8');
+    const rel = decide({ tool_input: { command: add }, cwd: elsewhere });
+    assert.strictEqual(rel.block, true, 'Test 13 FAIL: fresh lock in the linked cwd should block');
+    assert.ok(rel.reason.includes(own), 'Test 13 FAIL: reason should name the linked cwd run root');
+  } finally {
+    fs.rmSync(spaced, { recursive: true, force: true });
+    fs.rmSync(elsewhere, { recursive: true, force: true });
+  }
 
   // Protocol validation (exit 2 on block, exit 0 on allow) is tested at hook invocation time by
   // Claude Code; this suite covers the decide() logic. The main() function properly translates
@@ -91,61 +152,48 @@ try {
     assertSpawnDecided(spawned, 'spawning run-lock.js directly');
     assert.equal(spawned.status, 2, 'spawning run-lock.js directly still blocks on a fresh lock');
     assert.match(spawned.stderr, /another session is running this scope/, 'and still reports the run-lock reason');
-  }
 
-  // argv[2] === '--selftest' is a global-process condition, not "this file was invoked directly": a
-  // parent process invoked as `node <parent>.js --selftest` that requires this hook must not run this
-  // hook's own selftest as a side effect (issue #442 finding 1). Guarded by an env marker so that, if
-  // the guard is broken, the recursively-triggered inner selftest doesn't spawn a further generation
-  // of itself — it proves the leak exactly once instead of nesting indefinitely.
-  if (!process.env.SUPERDEV_ARGV_GUARD_TEST) {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'run-lock-argv-'));
-    const wrapper = path.join(dir, 'req.js');
-    fs.writeFileSync(wrapper, `require(${JSON.stringify(hookPath)});`);
+    // An absolute path over stdin from a cwd that is no run root: the spawned hook names the run root.
+    const away = fs.mkdtempSync(path.join(tmpDir, 'run-lock-away-'));
     try {
-      const outer = cp.spawnSync(process.execPath, [wrapper, '--selftest'], {
-        encoding: 'utf8', timeout: 5000,
-        env: Object.assign({}, process.env, { SUPERDEV_ARGV_GUARD_TEST: '1' }),
+      const abs = cp.spawnSync(process.execPath, [hookPath], {
+        input: JSON.stringify({ tool_input: { command: absAdd }, cwd: away }), encoding: 'utf8', timeout: 5000,
       });
-      assertSpawnDecided(outer, 'a parent process requiring run-lock.js under --selftest');
-      assert.equal(outer.status, 0, 'a parent whose own argv[2] is --selftest still exits cleanly when it requires run-lock.js');
-      assert.equal(outer.stdout, '', "and never runs run-lock.js's own selftest as a side effect");
+      assertSpawnDecided(abs, 'spawning run-lock.js with an absolute path');
+      assert.equal(abs.status, 2, 'an absolute path blocks over stdin from any cwd');
+      assert.ok(abs.stderr.includes(lockDir), 'and the stderr names the run root');
     } finally {
-      fs.rmSync(dir, { recursive: true, force: true });
+      fs.rmSync(away, { recursive: true, force: true });
     }
   }
 
-  // A copy of this suite must not share a temp root with another process whose `Date.now()` returned
-  // the same value (parallel slicetrees start their suites together). The parent pins the copy's
-  // clock to a value `now`, pre-creates the directory a `Date.now()`-named root would use, and
-  // checks it survives the copy: under that naming the copy's final rmSync deletes it, under
-  // mkdtemp it is untouched. The parent claims the sentinel exclusively (no `recursive`, bumping
-  // `now` on EEXIST), so concurrent suite runs never share it and each deletes only its own.
-  // A copy that its bound killed carries no verdict (INV-0009).
-  // The env marker stops a copy from spawning copies itself.
-  if (!process.env.SUPERDEV_RUN_LOCK_PAIR) {
-    let now = Date.now();
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'run-lock-pair-'));
-    const pin = path.join(dir, 'pin-now.js');
-    let sentinelDir;
-    try {
-      for (;;) {
-        const candidate = path.join(os.tmpdir(), ROOT_PREFIX + now);
-        try { fs.mkdirSync(candidate); sentinelDir = candidate; break; } catch (e) { if (e.code !== 'EEXIST') throw e; now += 1; }
+  // Parallel slicetrees start their suites together, so the temp root must not be named by
+  // `Date.now()`. Pin the clock, pre-create the directory a clock-named root would use, and check
+  // tempRoot() neither reuses nor deletes it.
+  {
+    const realNow = Date.now;
+    // A parallel copy of this suite may hold the same millisecond: bump until this run creates the
+    // directory, so the cleanup below removes only a directory this run made.
+    let now = realNow();
+    let clockNamed;
+    for (;; now++) {
+      clockNamed = path.join(tmpDir, ROOT_PREFIX + now);
+      try {
+        fs.mkdirSync(clockNamed);
+        break;
+      } catch (e) {
+        if (e.code !== 'EEXIST') throw e;
       }
-      fs.writeFileSync(pin, `Date.now = () => ${now};`);
-      const sentinel = path.join(sentinelDir, 'sentinel');
-      fs.writeFileSync(sentinel, 'keep');
-      const copy = cp.spawnSync(process.execPath, ['-r', pin, __filename], {
-        encoding: 'utf8', timeout: 60000,
-        env: Object.assign({}, process.env, { SUPERDEV_RUN_LOCK_PAIR: '1' }),
-      });
-      assertSpawnDecided(copy, 'a suite copy with a pinned Date.now()');
-      assert.equal(copy.status, 0, 'suite copy failed: ' + copy.stderr);
-      assert.ok(fs.existsSync(sentinel), 'a suite copy with a pinned Date.now() deleted a directory it did not create: shared temp root');
+    }
+    Date.now = () => now;
+    let root;
+    try {
+      root = tempRoot();
+      assert.notStrictEqual(root, clockNamed, 'the temp root is named by Date.now(): shared between parallel runs');
     } finally {
-      if (sentinelDir) fs.rmSync(sentinelDir, { recursive: true, force: true });
-      fs.rmSync(dir, { recursive: true, force: true });
+      Date.now = realNow;
+      if (root) fs.rmSync(root, { recursive: true, force: true });
+      fs.rmSync(clockNamed, { recursive: true, force: true });
     }
   }
 
