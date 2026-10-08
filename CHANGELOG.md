@@ -1,3 +1,10 @@
+## [0.66.1](https://codeberg.org/bomret/superdev/compare/v0.66.0...v0.66.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* **hooks:** close the 2026-10-05 sweep findings in the guardrails, docs, and tests ([fb91593](https://codeberg.org/bomret/superdev/commit/fb9159323eb6f9fe63492543bfa966835a6f17d1))
+
 # [0.66.0](https://codeberg.org/bomret/superdev/compare/v0.65.0...v0.66.0) (2026-10-05)
 
 
