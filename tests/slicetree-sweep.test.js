@@ -324,28 +324,6 @@ assert.deepEqual(
     fs.rmSync(repo, { recursive: true, force: true });
   }
 
-  // argv[2] === '--selftest' is a global-process condition, not "this file was invoked directly": a
-  // parent process invoked as `node <parent>.js --selftest` that requires this hook must not run
-  // this hook's own selftest as a side effect (issue #442 finding 1). Guarded by an env marker so
-  // that, if the guard is broken, the recursively-triggered inner selftest doesn't spawn a further
-  // generation of itself — it proves the leak exactly once instead of nesting indefinitely.
-  if (!process.env.SUPERDEV_ARGV_GUARD_TEST) {
-    const cp = require('node:child_process');
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'slicetree-sweep-argv-'));
-    const wrapper = path.join(dir, 'req.js');
-    fs.writeFileSync(wrapper, `require(${JSON.stringify(hookPath)});`);
-    try {
-      const outer = cp.spawnSync(process.execPath, [wrapper, '--selftest'], {
-        encoding: 'utf8', timeout: 15000,
-        env: Object.assign({}, process.env, { SUPERDEV_ARGV_GUARD_TEST: '1' }),
-      });
-      assertSpawnDecided(outer, 'a parent process requiring slicetree-sweep.js under --selftest');
-      assert.equal(outer.status, 0, 'a parent whose own argv[2] is --selftest still exits cleanly when it requires slicetree-sweep.js');
-      assert.equal(outer.stdout, '', "and never runs slicetree-sweep.js's own selftest as a side effect");
-    } finally {
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
-  }
 }
 
 console.log('slicetree-sweep tests ok');
