@@ -55,8 +55,9 @@ The listings below, and the store document owns each one.
 timeout — say which listing failed and what it returned, in one line, and stop. Reporting an empty table
 there tells the maintainer the backlog is clear, which is the one wrong answer this command can give.
 
-Resolve the checkout once, not per anchor: the main checkout is the PARENT of
-`git rev-parse --path-format=absolute --git-common-dir`, which resolves identically from the repo root
+Resolve the checkout once, not per anchor: the main checkout is the one `scope.js root`
+resolves (the PARENT of `git rev-parse --path-format=absolute --git-common-dir`, or inside a submodule the
+checkout that directory's `core.worktree` names), identical from the repo root
 and from inside a scopetree (ADR 0045 leaves the operator in one for the whole implement chain).
 Address every run root by that absolute path — `scope.js`'s `--root` wants one — and note which checkout
 the survey read.

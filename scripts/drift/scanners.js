@@ -101,6 +101,7 @@ const {
   NO_FORCE_MERGE_PATTERNS,
   TEA_ONLY_DOCS,
   TEA_ONLY_MARKERS,
+  CONFLICT_COMMIT_CONCLUSION_PATTERNS,
 } = contracts;
 
 // skillEntries(): every skill surface under a root, as `[<name>, absolute SKILL.md path]` pairs.
@@ -1044,6 +1045,23 @@ function scanNoForceMerge(root) {
   return gaps;
 }
 
+// ADR 0123: no shipped skill, agent, or reference concludes a resolved merge conflict with `git commit`.
+// `CONFLICT_CONCLUSION_CONTRACTS` pins `merge --continue` where each instruction carries it, and a presence
+// row cannot fail on a `git commit` added beside it. The documents are the prose directories read at scan
+// time, so a document added later is covered the day it lands. See `CONFLICT_COMMIT_CONCLUSION_PATTERNS`'s
+// own comment for the ceiling.
+const scanConflictConclusionNoCommit = (root) =>
+  scanDocsAvoid(
+    root,
+    proseDocuments(root, ['skills', 'agents', 'references']).map(([rel]) => rel),
+    CONFLICT_COMMIT_CONCLUSION_PATTERNS.map((pattern) => [
+      pattern,
+      (hit) =>
+        'conclude a resolved conflict with `merge --continue`, never `git commit` — ' +
+        `\`${normalizeWhitespace(hit[0])}\` names the other form (ADR 0123)`,
+    ]),
+  );
+
 // ADR 0111, #794: the Forgejo backend documents reach the host through `tea` only. See
 // `TEA_ONLY_MARKERS`'s own comment for the ceiling this shape-based absence check carries.
 const scanTeaOnly = (root) => scanDocsAvoid(root, TEA_ONLY_DOCS, TEA_ONLY_MARKERS);
@@ -1556,6 +1574,7 @@ module.exports = {
   scanHookLedgerParsers,
   scanForcingBranchFlag,
   scanNoForceMerge,
+  scanConflictConclusionNoCommit,
   scanTeaOnly,
   scanDeployRunnerExclusivity,
   scanReturnToController,

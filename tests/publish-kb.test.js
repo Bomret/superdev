@@ -28,6 +28,11 @@ const FAKE_BACKEND = require.resolve('./fixtures/fake-kb-backend.js');
 // `node` start alone costs around 100ms. The bound therefore clears a healthy spawn by a wide
 // margin and still ends the hang in a fraction of its 30s.
 const HANG_MS = 1000;
+// The elapsed ceiling of a hanging-verb block, in bounds: the block spawns the process under test and, for a batch, one bound per
+// page it reaches, with the machine loaded by one copy of the suite per core. It stays far below the 30s the hung verb sleeps, so a
+// bound that failed to end the hang still fails it (a qualitative ceiling, AGENTS.md, ADR 0086). The batch's one-bound-not-one-per-page
+// property is asserted by the untried count and the absent backend state, not by this ceiling.
+const HUNG_CEILING = 8;
 
 function git(args, cwd) {
   return execFileSync('git', args, { cwd, encoding: 'utf8' });
@@ -127,6 +132,19 @@ function hangingVerbDoc(backendLine, hangingVerb, verbs = ['find', 'read', 'crea
     .join('\n\n');
   return `# Knowledge base\n\n## Configuration\n\n${backendLine}\n\n## Commands\n\n${sections}\n`;
 }
+
+// The same doc with `failingVerb` exiting non-zero at once instead of hanging: for a behavior that
+// needs the call to fail after publish-kb wrote its retry marker, not the time bound.
+function failingVerbDoc(backendLine, failingVerb, verbs) {
+  return hangingVerbDoc(backendLine, failingVerb, verbs).replace('sleep 30', 'exit 1');
+}
+
+// --- hashBody: the digest algorithm is pinned by a literal, not derived from hashBody itself ------
+assert.equal(
+  hashBody('live body.\n'),
+  'a0a762cd24bd4014218d4b712b8ed28dd3b2a8d57a1629c6dac0abd11823e0ce',
+  'hashBody is sha256 over the normalized body',
+);
 
 // --- parseCommandsTemplates: resolution by heading name, never by position -------------------
 {
@@ -1456,15 +1474,15 @@ withState(() => {
   assert.ok(res.ok, `expected a report, got: ${res.err}`);
   assert.match(res.out, new RegExp(`left staged: Hung Page — find timed out after ${HANG_MS}ms`));
   // relative to the configured bound (AGENTS.md, ADR 0086), not an absolute ceiling
-  assert.ok(elapsed < HANG_MS * 2, `expected the bound to end it, took ${elapsed}ms`);
+  assert.ok(elapsed < HANG_MS * HUNG_CEILING, `expected the bound to end it, took ${elapsed}ms`);
   assert.ok(
     fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'hang', 'p.md')),
     'a timed-out page stays staged',
   );
 });
 
-// --- every verb is bounded, not just find --------------------------------------------------------
-for (const verb of ['find', 'create', 'update', 'delete']) {
+// --- every verb is bounded, not just find (find has its own case above) --------------------------
+for (const verb of ['create', 'update', 'delete']) {
   withState((stateFile) => {
     const repo = makeRepo();
     writeKbDoc(repo, hangingVerbDoc('- **Backend:** Some Wiki.', verb));
@@ -1479,9 +1497,17 @@ for (const verb of ['find', 'create', 'update', 'delete']) {
     stagePage(repo, `verb-${verb}`, 'p.md', frontmatter);
     process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = String(HANG_MS);
 
+    const started = Date.now();
     const res = call(['--scope', `verb-${verb}`], repo);
+    const elapsed = Date.now() - started;
     assert.ok(res.ok, `[${verb}] expected a report, got: ${res.err}`);
     assert.match(res.out, new RegExp(`left staged: Verb Page — ${verb} timed out after ${HANG_MS}ms`));
+    // relative to the configured bound (AGENTS.md, ADR 0086), not an absolute ceiling
+    assert.ok(elapsed < HANG_MS * HUNG_CEILING, `[${verb}] expected the bound to end it, took ${elapsed}ms`);
+    assert.ok(
+      fs.existsSync(path.join(repo, '.superdev', 'kb-pending', `verb-${verb}`, 'p.md')),
+      `[${verb}] a timed-out page stays staged`,
+    );
   });
 }
 
@@ -1535,7 +1561,7 @@ withState((stateFile) => {
   assert.ok(res.ok, `expected a report, got: ${res.err}`);
   assert.match(res.out, new RegExp(`timed out after ${HANG_MS}ms`));
   assert.match(res.out, /stopped after a timeout: 2 page\(s\) left untried/);
-  assert.ok(elapsed < HANG_MS * 2, `expected roughly one bound, not one per page; took ${elapsed}ms`);
+  assert.ok(elapsed < HANG_MS * HUNG_CEILING, `expected the bound to end the batch; took ${elapsed}ms`);
   for (const f of ['alpha.md', 'bravo.md', 'charlie.md']) {
     assert.ok(
       fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'batch', f)),
@@ -1612,20 +1638,18 @@ withState((stateFile) => {
 // the killed call already landed knows this is its own retry rather than someone else's page.
 withState((stateFile) => {
   const repo = makeRepo();
-  // First run: `create` hangs, but the page it was sending did land on the backend — the shape a
-  // write killed in flight leaves behind. The staged file survives, marker and all, so the next
+  // First run: `create` fails, but the page it was sending did land on the backend — the shape a
+  // write that died in flight leaves behind. The staged file survives, marker and all, so the next
   // run retries it.
-  const hanging = hangingVerbDoc('- **Backend:** Some Wiki.', 'create');
-  writeKbDoc(repo, hanging);
+  writeKbDoc(repo, failingVerbDoc('- **Backend:** Some Wiki.', 'create'));
   stagePage(repo, 'retry', 'p.md', 'title: Retried Page\naction: upsert', 'second body.\n');
-  process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = String(HANG_MS);
   const first = call(['--scope', 'retry'], repo);
-  assert.match(first.out, new RegExp(`left staged: Retried Page — create timed out after ${HANG_MS}ms`));
+  assert.match(first.out, /left staged: Retried Page — create exited 1/);
   const stagedPath = path.join(repo, '.superdev', 'kb-pending', 'retry', 'p.md');
   assert.match(
     fs.readFileSync(stagedPath, 'utf8'),
     /created-by-publish: /,
-    'the marker is written before the create call, so it survives the kill',
+    'the marker is written before the create call, so it survives the failure',
   );
   fs.writeFileSync(stateFile, JSON.stringify({ 'Retried Page': { id: 'id-0', body: 'landed anyway.\n' } }));
 
@@ -1647,21 +1671,17 @@ withState((stateFile) => {
 // the first one alone.
 withState(() => {
   const repo = makeRepo();
-  const hanging = hangingVerbDoc('- **Backend:** Some Wiki.', 'create');
-  writeKbDoc(repo, hanging);
-  stagePage(repo, 'retry-twice', 'p.md', 'title: Retried Twice\naction: upsert', 'body.\n');
-  process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = String(HANG_MS);
+  writeKbDoc(repo, failingVerbDoc('- **Backend:** Some Wiki.', 'create'));
+  // A staged file a first attempt already marked: the retry must leave that timestamp alone.
+  const marker = 'created-by-publish: 2020-01-01T00:00:00.000Z';
+  stagePage(repo, 'retry-twice', 'p.md', `title: Retried Twice\naction: upsert\n${marker}`, 'body.\n');
   const stagedPath = path.join(repo, '.superdev', 'kb-pending', 'retry-twice', 'p.md');
 
-  call(['--scope', 'retry-twice'], repo);
-  const afterFirst = fs.readFileSync(stagedPath, 'utf8');
-  const markers = (t) => t.match(/created-by-publish: \S+/g) || [];
-  assert.equal(markers(afterFirst).length, 1, 'the first attempt writes exactly one marker');
-
-  call(['--scope', 'retry-twice'], repo);
-  const afterSecond = fs.readFileSync(stagedPath, 'utf8');
-  assert.equal(markers(afterSecond).length, 1, 'the second attempt writes no second marker');
-  assert.deepEqual(markers(afterSecond), markers(afterFirst), 'the marker keeps the first attempt\'s own timestamp');
+  const res = call(['--scope', 'retry-twice'], repo);
+  assert.match(res.out, /left staged: Retried Twice — create exited 1/);
+  const after = fs.readFileSync(stagedPath, 'utf8');
+  assert.equal((after.match(/created-by-publish: \S+/g) || []).length, 1, 'the retry writes no second marker');
+  assert.ok(after.includes(marker), 'the marker keeps the first attempt\'s own timestamp');
 });
 
 // --- a create that failed without landing, then retried: the page is absent, so the retry -------
@@ -1718,9 +1738,7 @@ withState((stateFile) => {
   // No `read` verb configured at all — a marker retry needs none, unlike the live-hash guard.
   writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.', ['find', 'create', 'update']));
   stagePage(repo, 'retry-noread', 'p.md', 'title: No Read Backend Page\naction: upsert', 'second.\n');
-  const hangingCreate = hangingVerbDoc('- **Backend:** Some Wiki.', 'create', ['find', 'create', 'update']);
-  writeKbDoc(repo, hangingCreate);
-  process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = String(HANG_MS);
+  writeKbDoc(repo, failingVerbDoc('- **Backend:** Some Wiki.', 'create', ['find', 'create', 'update']));
   call(['--scope', 'retry-noread'], repo);
   fs.writeFileSync(stateFile, JSON.stringify({ 'No Read Backend Page': { id: 'id-0', body: 'landed anyway.\n' } }));
 
@@ -2023,5 +2041,30 @@ withCapture((stateFile, dir) => {
   assert.match(res.out, /left staged: Kid — the create command never reads SUPERDEV_KB_PARENT_ID/);
   assert.equal(captures(dir, 'create').length, 0, 'nothing is created');
 });
+
+// --- scope.js owns the change-type set, the ref probe, and main-checkout resolution ------------------
+{
+  const src = fs.readFileSync(publishKbPath, 'utf8');
+  assert.doesNotMatch(src, /^(?:const|function)\s+(?:CHANGE_TYPES|refResolves)\b/m, 'publish-kb.js defines no copy of CHANGE_TYPES or refResolves');
+  assert.doesNotMatch(src, /--git-common-dir/, 'publish-kb.js resolves the main checkout through scope.js, not its own git call');
+
+  // Inside a submodule the main checkout is the submodule's own, never `.git/modules`.
+  const { resolveMainCheckout } = require(publishKbPath);
+  const base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'kb-submodule-')));
+  try {
+    const git = (cwd, ...a) => execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', '-c', 'protocol.file.allow=always', ...a], { cwd, stdio: 'ignore' });
+    const lib = path.join(base, 'lib');
+    const sup = path.join(base, 'sup');
+    fs.mkdirSync(lib);
+    fs.mkdirSync(sup);
+    git(lib, 'init', '-q', '-b', 'main');
+    git(lib, 'commit', '-q', '--allow-empty', '-m', 'x');
+    git(sup, 'init', '-q', '-b', 'main');
+    git(sup, 'submodule', 'add', '-q', lib, 'vendor/lib');
+    assert.equal(resolveMainCheckout(path.join(sup, 'vendor', 'lib')), path.join(sup, 'vendor', 'lib'));
+  } finally {
+    fs.rmSync(base, { recursive: true, force: true });
+  }
+}
 
 console.log('publish-kb.test.js: all assertions passed');

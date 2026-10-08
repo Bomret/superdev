@@ -484,8 +484,8 @@ branch step left you on.
    succeeds → nothing to merge. Otherwise run `git -C <run-root>/scopetree merge <tip>`, `<run-root>`
    spelled out as the real absolute path in the command text, never a shell variable: `hooks/green-gate.js` reads the
    command text alone. **A conflict** — `MERGE_HEAD` still set → resolve it by intent, per
-   `${CLAUDE_PLUGIN_ROOT}/references/merge-conflicts.md`, and commit the merge with
-   `git -C <run-root>/scopetree commit --no-edit`. Plan's design-docs commit
+   `${CLAUDE_PLUGIN_ROOT}/references/merge-conflicts.md`, and conclude it with
+   `git -C <run-root>/scopetree merge --continue`. Plan's design-docs commit
    and other scopes edit the same glossary, ADR, and invariant files, so most of these conflicts are
    additive. Report every renumber that file's numbering-collision rule made, old and new. A
    winner-picking overlap is the one case it escalates: list the conflicting files

@@ -506,8 +506,9 @@ belonging to one person never reaches a repository several people maintain (ADR 
 identifiers and never credentials: a token stays in the environment variable the active
 `docs/agents/issue-tracker.md` names.
 
-- **Read it from the main checkout, never from a path relative to the working directory.** `git
-  rev-parse --path-format=absolute --git-common-dir` resolves the main checkout's `.git` from either the
+- **Read it from the main checkout, never from a path relative to the working directory.** `scope.js
+  root` resolves the main checkout (the parent of `git rev-parse --git-common-dir`, or the checkout that
+  directory's `core.worktree` names inside a submodule) from either the
   invoking checkout `/superdev:plan` commits its design docs from today, or the scopetree ADR 0072
   moves a design-docs-producing plan into — a linked worktree carries no `.superdev/` of its own, so a
   path relative to the working directory would find nothing there. The file sits at `<its

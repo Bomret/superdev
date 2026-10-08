@@ -185,8 +185,32 @@ function sliceType(content, id) {
   return null;
 }
 
+// The fenced blocks of a document, read line by line. A fence opens on a line that starts, after at
+// most three spaces of indentation, with three or more backticks or tildes and any info string (a
+// backtick fence's info string holds no backtick, so an inline span such as ```x``` is no opener). It
+// closes on a line with the same indentation limit, of the same character, at least as long as the
+// opener. `blocks` holds each closed block's body, `outside` the text between blocks. An unclosed
+// fence yields no block. scope.js and hooks/green-gate.js each carry this function, because hooks
+// stay standalone; tests/green-gate.test.js pins them byte-identical.
+function fenceBlocks(raw) {
+  const blocks = [];
+  const outside = [];
+  let open = null;
+  let body = [];
+  for (const line of raw.split(/\r?\n/)) {
+    if (!open) {
+      const m = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+      if (m && !(m[1][0] === '`' && m[2].includes('`'))) { open = m[1]; body = []; } else outside.push(line);
+    } else if (/^ {0,3}(`+|~+)\s*$/.test(line) && line.trim()[0] === open[0] && line.trim().length >= open.length) {
+      blocks.push(body.join('\n'));
+      open = null;
+    } else body.push(line);
+  }
+  return { blocks, outside: outside.join('\n') };
+}
+
 // The test commands a tree's `docs/agents/verification.md` configures, read the way
-// `references/test-selection.md` and `hooks/green-gate.js` read it: the first fenced block is the full
+// `references/test-selection.md` and `hooks/green-gate.js` read it: the first fenced block (`fenceBlocks`) is the full
 // command, the second the focused one, and the first backtick span under `## Whole-repo command` the
 // whole-repo one. Each is whitespace-collapsed, or null when absent. The run-trace hook (ADR 0117)
 // classes a Bash command against them.
@@ -195,8 +219,8 @@ function verificationCommands(tree) {
   let raw;
   try { raw = fs.readFileSync(path.join(tree, 'docs', 'agents', 'verification.md'), 'utf8'); } catch { return none; }
   const norm = (t) => (t ? t.replace(/\s+/g, ' ').trim() || null : null);
-  const blocks = [...raw.matchAll(/```[a-zA-Z0-9]*\n([\s\S]*?)```/g)].map((m) => m[1]);
-  const sec = /^##\s+Whole-repo command\s*$([\s\S]*?)(?=^#{1,6}\s|(?![\s\S]))/m.exec(raw.replace(/```[\s\S]*?```/g, ''));
+  const { blocks, outside } = fenceBlocks(raw);
+  const sec = /^##\s+Whole-repo command\s*$([\s\S]*?)(?=^#{1,6}\s|(?![\s\S]))/m.exec(outside);
   const span = sec && /`([^`\n]+)`/.exec(sec[1]);
   return { full: norm(blocks[0]), focused: norm(blocks[1]), whole: norm(span && span[1]) };
 }
@@ -1589,7 +1613,10 @@ function testContainment(cwd, base, branch, remote = 'origin') {
 //
 // Every run root lives under the repository's main working tree, whatever checkout the command was
 // invoked from: `git rev-parse --git-common-dir` names the shared git directory, and its parent is
-// the main working tree. This is what keeps a plan's scopetree, a slicetree, and the main checkout
+// the main working tree. A submodule's shared git directory sits under the superproject's `.git/modules`,
+// so its parent is no checkout; there the directory's own `core.worktree` names the checkout (`git
+// worktree list` reports the git directory itself for a submodule, which is why it is not the source).
+// This is what keeps a plan's scopetree, a slicetree, and the main checkout
 // all naming the same run root for one scope. `verbInit` and `verbStatus` resolve their own run-root
 // paths through this same function (review finding, ADR 0080) — building them from `cwd` directly, as
 // `verbRoot` alone used to, is exactly the divergence that leaves a ledger `init` writes from inside a
@@ -1601,11 +1628,17 @@ function testContainment(cwd, base, branch, remote = 'origin') {
 // than refusing), so they fall back to `cwd` itself on a `null`. `verbRoot` is the one caller that turns
 // a `null` into a refusal — a bare path with no git repository behind it answers a question `root`'s one
 // caller (`references/run-init.md`, `skills/plan/SKILL.md`) never asks outside a checkout.
-function mainWorkTree(cwd) {
-  const commonDir = gitSpawn(['rev-parse', '--git-common-dir'], cwd);
+//
+// `opts.timeout` bounds each git spawn (a hook must not hang, INV-0009); a spawn killed at the bound
+// carries no verdict and gives `null`.
+function mainWorkTree(cwd, opts) {
+  const commonDir = gitSpawn(['rev-parse', '--git-common-dir'], cwd, opts);
   if (commonDir.status !== 0) return null;
   const gitDir = path.resolve(cwd, commonDir.stdout.trim());
-  return path.dirname(gitDir);
+  const configured = gitSpawn(['config', '--file', path.join(gitDir, 'config'), '--get', 'core.worktree'], cwd, opts);
+  // A spawn killed at its bound carries no verdict: no answer, never the parent-directory guess.
+  if (configured.status === null) return null;
+  return configured.status === 0 && configured.stdout.trim() ? path.resolve(gitDir, configured.stdout.trim()) : path.dirname(gitDir);
 }
 
 function scopesDirFor(cwd) {
@@ -1897,6 +1930,7 @@ function run(argv, cwd, stdinJson) {
       if (args[0] !== 'set') fail(`unknown base subcommand "${args[0]}" — use set|resolve`);
       if (args.length > 2) fail(`base set: unrecognized argument "${args[2]}"`);
       verbBaseSet(cwd, root, args[1]);
+      ledgerEvent = { root, fields: ['base', 'set', args[1]] };
       break;
     }
     case 'get': {
@@ -2009,4 +2043,4 @@ function main() {
 // Either way the require, not the CLI, is what fails.
 if (require.main === module) main();
 
-module.exports = { appendTrace, untraceField, readTrace, sliceType, readLedgerHeader, inProgressSlices, verificationCommands, run, publishText, SLUG_RE, testContainment, baseHistoryHasPatch, mainWorkTree, CHANGE_TYPES };
+module.exports = { appendTrace, untraceField, readTrace, sliceType, readLedgerHeader, inProgressSlices, verificationCommands, run, publishText, SLUG_RE, testContainment, baseHistoryHasPatch, mainWorkTree, CHANGE_TYPES, refResolves };

@@ -100,6 +100,9 @@ _Avoid: "log", "report", "transcript" (logs are broader, and this is slice-speci
 **Run trace**: the run's event record, `<run-root>/trace.log`, one line per event, each naming the slice it belongs to or `scope`. superdev's hooks and `scope.js` write it, and no agent does: it records file edits classified as test or implementation, test runs with their outcome and commit, reverts and restores, subagent dispatches and their ends, and ledger writes. Reviewers read it as evidence of the order work happened in, where the **Progress log** is the agents' own account (ADR 0117).
 _Avoid: "TDD log", "increment trace", "run log", "transcript" (the transcript is Claude Code's own record, not superdev's)_
 
+**Green-gate**: the hook that runs the test suite on a merge the controller landed, `hooks/green-gate.js`. A **landed merge** is one whose tree's top `HEAD` reflog entry reads `merge …` or `commit (merge)…`: a completed `git merge`, a fast-forward, or a commit that concludes a conflicted merge. The gate runs whether the Bash call that landed it succeeded or failed, in the merge's own tree, and reports a red suite to the controller, which fixes or reverts before the run continues. It cannot undo the merge (ADR 0047, ADR 0123).
+_Avoid: "merge blocker" (the merge has already run when the gate fires)_
+
 **Warrant**: the justification a piece of work carries. It scales both cost (which model a dispatch uses) and rigor (which review gates run). Derived from a slice's test-applicability and complexity, never a plan field. A `behavior` slice warrants more than a `mechanical` one. A hook blocks any dispatch that omits an explicit model, so cost stays warrant-scaled.
 _Avoid: "priority", "estimate", "weight"_
 

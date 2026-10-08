@@ -1067,3 +1067,30 @@ Statement: A question the agent composes in a `/superdev:plan` or `/superdev:bra
 Breaks: silently
 Check: scripts/drift-check.js — the cap in `plugin/references/cross-exam.md`, brainstorm's offer wording, and plan's derive-pass settlement; partial: nothing checks the options an agent actually offers
 Paths: plugin/references/cross-exam.md, plugin/skills/brainstorm/SKILL.md, plugin/skills/plan/SKILL.md
+
+### INV-0128
+
+Class: architecture
+Concepts: Green-gate, Controller, Scope branch
+Statement: Every merge the controller lands on a scope branch reaches the green-gate, whether the Bash call that landed it succeeded or failed, and whether a `git merge` or a merge-concluding commit landed it. The gate runs the suite in the tree where the merge landed. A call that lands no merge runs no suite, with one exception: a failed call whose merge never started, or a `git commit` that moves no HEAD, reruns the suite on the older merge topping the reflog. That is one spurious run, and it never passes a red tree (ADR 0123).
+Breaks: silently
+Check: tests/green-gate.test.js — a landed merge on the success and failure events, a merge-concluding commit, and a call that lands no merge
+Paths: plugin/hooks/green-gate.js, plugin/hooks/hooks.json
+
+### INV-0129
+
+Class: architecture
+Concepts: Run trace, Focused test command, Suite record
+Statement: The run trace records a test run only for a command that executes a configured test command, and records it under that command's own kind. A command that only quotes a test command records no run, and a focused run is never recorded as a full run, whatever its spelling (a full or whole-repo command with extra argument words included), so it never backs a reused suite record (INV-0017).
+Breaks: silently
+Check: tests/run-trace.test.js — quoted mentions record nothing, compound runs record, a substituted focused run records as focused, a full- or whole-template match with extra argument words records as focused
+Paths: plugin/hooks/run-trace.js
+
+### INV-0130
+
+Class: architecture
+Concepts: Run lock, Run root
+Statement: A fresh run lock blocks a second session from creating that scope's scopetree, whatever directory or linked worktree the second session started from. The lock is found in the run root the guarded command names. The run root under the session's working directory is checked as well, a fail-closed backstop for a path the hook cannot expand.
+Breaks: silently
+Check: tests/run-lock.test.js — a fresh lock blocks from the main tree, a subdirectory, and a linked worktree
+Paths: plugin/hooks/run-lock.js

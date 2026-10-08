@@ -1,12 +1,12 @@
 'use strict';
 
-// Selftest suite: contract tables that run in the registry and are exercised nowhere else. A table
-// whose pinned documents no fixture resolves passes without being exercised (index.js's coverage
-// assertion names it). Each table below gets the three cases every other table has: a fixture carrying
-// every clause scans clean, a fixture dropping one row's clause reports exactly that row, and a fixture
-// without the pinned documents reports nothing. The fixture's documents are this repository's own, at
-// the plugin-relative paths the table spells; a row's clause is dropped by cutting the text its pattern
-// matches out of its document.
+// Selftest suite: the one harness every contract table that needs no bespoke fixture goes through. A
+// table whose pinned documents no fixture resolves passes without being exercised (index.js's coverage
+// assertion names it). Each table named in COVERED_TABLES gets two cases: a fixture carrying every clause
+// scans clean, and a fixture cutting the span one row matches reports that row. The fixture's documents
+// are this repository's own, at the plugin-relative paths the table spells. Every exported contract
+// table, covered or not, also scans clean over a fixture without its documents. The real tree is
+// drift-check's to scan, never a selftest's.
 
 const COVERED_TABLES = [
   'AFFECTED_FORM_CONTRACTS',
@@ -28,17 +28,39 @@ const COVERED_TABLES = [
   'SHIP_LEGACY_SHIPPED_CONTRACTS',
   'SHIP_DEPLOY_CONTRACTS',
   'DOCUMENT_SUBMITTED_CONTRACTS',
+  'RESPONSE_SHAPES_CONTRACTS',
+  'AGENT_LENS_LIST_CONTRACTS',
+  'DEPLOYMENT_CONTRACTS',
+  'FIX_BOUNDARY_CONTRACTS',
+  'PLAN_DERIVES_CRITERIA_CONTRACTS',
+  'FIX_LOOP_FIXES_EVERY_FINDING_CONTRACTS',
+  'BLIND_SLICE_REVIEW_CONTRACTS',
+  'RUN_TRACE_ORDER_CONTRACTS',
+  'SETUP_TEST_PATHS_CONTRACTS',
+  'DEPENDENCY_RECORD_CONTRACTS',
+  'CONFLICT_CONCLUSION_CONTRACTS',
 ];
 
+// Rows no edit isolates, as `TABLE row N` (the span cut and every single-character drop both report a
+// neighbouring row too): another row's pattern contains the row's clause, so every edit that breaks it
+// breaks that neighbour too. Such a row only has to be among the gaps of its own document.
+// A row missing from this list is held to exactly one gap, and a listed row that an edit now isolates
+// fails the harness until it leaves the list.
+const NOT_ISOLATABLE = new Set([
+  'AFFECTED_FORM_CONTRACTS row 10',
+  'PLAN_DEPLOY_CONTRACTS row 2',
+  'SHIP_DEPLOY_CONTRACTS row 17',
+  'PLAN_DERIVES_CRITERIA_CONTRACTS row 7',
+  'PLAN_DERIVES_CRITERIA_CONTRACTS row 15',
+]);
+
 module.exports = ({ assert, fixture, realRoot }) => {
-  const { scanContract, readDoc, normalizeWhitespace } = require('../lib');
+  const { scanContract, readDoc, docPath, normalizeWhitespace, observeContracts } = require('../lib');
+  const fs = require('node:fs');
   const contracts = require('../contracts');
 
   // Variants of `text` with one character of `pattern`'s match deleted, at the same offset in every place
-  // the pattern matches (a clause stated twice in one document needs both cut). Cutting the whole match
-  // would take clauses of neighbouring rows with it (the patterns span up to hundreds of characters and
-  // overlap), so the drop is the smallest edit that stops this row's pattern matching, tried across the
-  // match.
+  // the pattern matches (a clause stated twice in one document needs both cut), tried across the match.
   function* singleCharDrops(text, pattern) {
     const flags = pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`;
     for (const candidate of [text, normalizeWhitespace(text)]) {
@@ -63,26 +85,72 @@ module.exports = ({ assert, fixture, realRoot }) => {
       assert.notStrictEqual(docs[rel], null, `${name}: ${rel} exists in the repository`);
     }
 
-    assert.deepEqual(scanContract(fixture(docs), table), [], `${name}: every clause present yields zero gaps`);
+    const root = fixture(docs);
+    assert.deepEqual(scanContract(root, table), [], `${name}: every clause present yields zero gaps`);
 
     table.forEach(([rel, pattern, expectation], i) => {
-      // Exactly that row, when some edit isolates it. A row whose clause sits inside another row's
-      // (`run the affected form once on the base branch's own tip` inside a longer pinned sentence)
-      // cannot lose its clause alone: the fewest gaps any edit gets is the best bound, and it still
-      // has to include this row.
-      let best = null;
-      for (const cut of singleCharDrops(docs[rel], pattern)) {
-        const gaps = scanContract(fixture({ ...docs, [rel]: cut }), table);
-        if (!gaps.some((g) => g.expectation === expectation)) continue;
-        if (!best || gaps.length < best.length) best = gaps;
-        if (best.length === 1) break;
+      const row = `${name} row ${i}`;
+      // Editing one document changes only the rows pinned on it, so only those are scanned, this row
+      // first and the rest only while no other row has gapped yet.
+      const ownRows = table.filter(([r]) => r === rel);
+      const rest = ownRows.filter((r) => r[2] !== expectation);
+      const alone = (cut) => {
+        // One fixture per table: only the cut document is rewritten, and restored for the next row.
+        fs.writeFileSync(docPath(root, rel), cut);
+        try {
+          const own = scanContract(root, [[rel, pattern, expectation]]);
+          if (own.length === 0) return { gaps: [], isolated: false };
+          const others = [];
+          for (const r of rest) {
+            others.push(...scanContract(root, [r]));
+            if (others.length > 0) break;
+          }
+          return { gaps: [...own, ...others], isolated: others.length === 0 };
+        } finally {
+          fs.writeFileSync(docPath(root, rel), docs[rel]);
+        }
+      };
+      // First try: cut the span the row matches, everywhere it matches, in the document's own text or,
+      // when the pattern only matches across wrapped lines, in its whitespace-normalized text.
+      const flags = pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`;
+      const text = pattern.test(docs[rel]) ? docs[rel] : normalizeWhitespace(docs[rel]);
+      const cut = text.replace(new RegExp(pattern.source, flags), '');
+      assert.notStrictEqual(cut, text, `${row}: ${rel} holds a span the row matches`);
+      const first = alone(cut);
+      let isolated = first.isolated;
+      if (!isolated) {
+        // Second try: the smallest edit that stops this row matching, which can leave a neighbour's
+        // clause whole where the span cut took it along.
+        for (const drop of singleCharDrops(docs[rel], pattern)) {
+          if (alone(drop).isolated) {
+            isolated = true;
+            break;
+          }
+        }
       }
-      assert.ok(best, `${name} row ${i}: some edit to its clause in ${rel} makes the scan report it`);
-      const own = best.find((g) => g.expectation === expectation);
-      assert.strictEqual(own.source, rel, `${name} row ${i}: the gap names ${rel}`);
-      assert.ok(best.every((g) => g.source === rel), `${name} row ${i}: every extra gap is a row of ${rel}`);
+      if (isolated) {
+        assert.ok(!NOT_ISOLATABLE.has(row), `${row}: an edit isolates it, so it leaves NOT_ISOLATABLE`);
+        return;
+      }
+      assert.ok(NOT_ISOLATABLE.has(row), `${row}: no edit to ${rel} makes the scan report that row alone`);
+      assert.ok(
+        first.gaps.some((g) => g.expectation === expectation && g.source === rel),
+        `${row}: cutting its span from ${rel} makes the scan report it`,
+      );
     });
+  }
 
-    assert.deepEqual(scanContract(fixture({}), table), [], `${name}: a fixture without the documents reports no gap`);
+  // `scanContract()` skips a document it cannot read, so an empty fixture yields no gap from any table.
+  // The scans below resolve no document, so they stay out of the coverage observation (a table only
+  // scanned here would read as scanned and left unexercised).
+  const empty = fixture({});
+  const restore = observeContracts(() => {});
+  try {
+    for (const [name, table] of Object.entries(contracts)) {
+      if (!name.endsWith('_CONTRACTS') || !Array.isArray(table)) continue;
+      assert.deepEqual(scanContract(empty, table), [], `${name}: a fixture without the documents reports no gap`);
+    }
+  } finally {
+    restore();
   }
 };

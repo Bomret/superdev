@@ -20,6 +20,14 @@ given (`Read`, `Edit`, `Write`, `Bash`, and the rest). See `agents/implementer.m
 **Fix required at:** the Claude Code platform layer. Subagent prompts need isolation from the main
 conversation's SessionStart preamble. Track this upstream with the Claude Code team.
 
+Verified 2026-10-06, on Claude Code 2.1.289, from inside a dispatched subagent: the dispatch prompt carried
+a hook-injected block, labeled "SubagentStart hook additional context", that opened with the banner
+"PONYTAIL MODE ACTIVE — level: full" and held a full mode-instruction text, so hook-injected mode
+instructions do reach a subagent's prompt. No block labeled SessionStart, and no context-window-protection
+or tool-bootstrap preamble, appeared in the prompt or in its system reminders. The observation shows that
+hook output reaches the subagent through the SubagentStart event, and it does not show the SessionStart
+route the entry describes. The entry and its mitigation stay.
+
 ## A denied dispatch comes from the delegation handoff classifier
 
 Auto mode runs a transcript classifier over tool calls, and a subagent handoff carries a classifier at

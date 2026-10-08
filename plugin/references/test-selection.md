@@ -33,6 +33,10 @@ coverage command, sample failure output, the reason a repository records for dup
 as the focused one, or anything else a repository keeps in `verification.md` stays **unfenced** — prose,
 or a backtick span. A third fence is read as nothing at all.
 
+A fence opens on a line of three or more backticks or tildes, indented by up to three spaces, with any info
+string after them (a backtick fence's info string holds no backtick). It closes on a line of the same
+character at least as long as the opener. A fence that never closes holds no block.
+
 ## Affected form
 
 The full command may take an **affected form** (ADR 0105): instead of running the whole suite verbatim,
@@ -121,10 +125,10 @@ Each caller judges its own range and builds the set from it:
 - **The implementer's TDD loop, and the lite tier's inline loop.** The slice base against the working
   tree.
 - **The slice-reviewer's Lens 2.** The slice branch against the scope branch.
-- **The green-gate hook.** `ORIG_HEAD` against `HEAD` — not the merge's first parent, because a
-  conflicted merge leaves `HEAD` unmoved with `ORIG_HEAD` equal to it, an empty set the fallback below
-  catches, where the first parent would instead return the previous commit's paths, stale. Falls back to
-  the first parent where `ORIG_HEAD` does not resolve.
+- **The green-gate hook.** `ORIG_HEAD` against `HEAD`, read once the merge has landed: a completed
+  `git merge`, or a conflicted one concluded by `merge --continue`. The hook runs on neither a merge still
+  waiting on its conflict nor a commit that is no merge. A set it reads empty goes to the fallback below.
+  Falls back to the first parent where `ORIG_HEAD` does not resolve.
 - **The documentation step.** Its own doc commits — the ones the doc-writer just landed on the scope
   branch, never the wider range the chain is reconciling.
 - **Run handoff's own fix loop.** The commits that cycle's implementer just landed, on the scope checkout.

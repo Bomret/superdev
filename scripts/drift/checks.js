@@ -47,6 +47,7 @@ const {
   scanAdrStatus,
   scanForcingBranchFlag,
   scanNoForceMerge,
+  scanConflictConclusionNoCommit,
   scanTeaOnly,
   scanReturnToController,
   scanNarrativeCoverage,
@@ -141,6 +142,7 @@ const {
   RUN_TRACE_ORDER_CONTRACTS,
   SETUP_TEST_PATHS_CONTRACTS,
   DEPENDENCY_RECORD_CONTRACTS,
+  CONFLICT_CONCLUSION_CONTRACTS,
   OBSERVATION_CAPTURE_CONTRACTS,
   RESPONSE_SHAPES_CONTRACTS,
   LABEL_REVISION_AT_DECOMPOSITION_CONTRACTS,
@@ -905,6 +907,20 @@ module.exports = [
       'the package as verified, and closes the finding on a re-review when the check now passes; and a ' +
       'dependency the repository itself provides (a workspace, path, or file reference) is not a new dependency',
   ),
+  table(
+    'conflict-conclusion',
+    CONFLICT_CONCLUSION_CONTRACTS,
+    'every instruction that concludes a resolved merge conflict (scope-mode.md base step, merge-conflicts.md, ' +
+      "implement-full.md's DAG-loop merge step) names `git -C <run-root>/scopetree merge --continue`, and " +
+      "implement-full.md and test-selection.md state the green-gate as ADR 0123 defines it: it runs after a " +
+      'landed merge, on a succeeding or failing call, and reports a red suite for a fix or a revert',
+  ),
+  {
+    id: 'conflict-conclusion-no-commit',
+    ok: 'no shipped prose concludes a resolved merge conflict with `git commit`',
+    run: scanConflictConclusionNoCommit,
+    format: contractGap,
+  },
   table(
     'observation-capture',
     OBSERVATION_CAPTURE_CONTRACTS,

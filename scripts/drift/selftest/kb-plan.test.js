@@ -177,11 +177,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // absent files are skipped, matching every other scanner here
   assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), KB_STAGING_CONTRACTS).length,
-    0,
-    'absent files are skipped (staging half)',
-  );
-  assert.equal(
     scanKbNoBackendCall(fixture({ 'README.md': '# repo\n' })).length,
     0,
     'absent files are skipped (no-call half)',
@@ -250,13 +245,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'names skills/document/SKILL.md',
   );
 
-  // absent files are skipped, matching every other contract table
-  assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), KB_READ_NEVER_WRITE_CONTRACTS).length,
-    0,
-    'absent files are skipped',
-  );
-
   // --- AUDIT_SET_CONTRACTS: `/superdev:setup` writes the `## Audit set` section, `/superdev:document`
   // reads it back with a stated fallback, and `references/documentation.md` seeds it — three documents
   // agreeing in prose only. ---
@@ -307,14 +295,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     ).length,
     0,
     'all three halves carried, across a line wrap, yields zero gaps',
-  );
-
-  // absent files are skipped, matching every other contract table
-  assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), AGGREGATE_PAGE_CONTRACTS).length +
-      scanContract(fixture({ 'README.md': '# repo\n' }), AUDIT_SET_CONTRACTS).length,
-    0,
-    'absent files are skipped',
   );
 
   // --- AGGREGATE_PAGE_CONTRACTS: the doc-pass reference stages one section for a marked page, publish-kb merges it
@@ -482,13 +462,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'a config document with no `(aggregate)` marker documents no read and yields zero gaps',
   );
 
-  // absent files are skipped, matching every other contract table
-  assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), READ_PATH_CONTRACTS).length,
-    0,
-    'absent files are skipped',
-  );
-
   // negative: the row's clause carried
   assert.equal(
     scanContract(
@@ -559,13 +532,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     statusGapsNoNeverDispatched[0].expectation,
     /never dispatched/,
     'names the never-dispatched clause',
-  );
-
-  // absent file is skipped, matching every other contract table
-  assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), STATUS_SEED_CONTRACTS).length,
-    0,
-    'absent file is skipped',
   );
 
   const SHIPPED_ANCHOR_STOP =
@@ -728,13 +694,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'the lone gap names the treated-as-missing clause',
   );
 
-  // absent file is skipped, matching every other contract table
-  assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), RUN_INIT_FINISHED_STAGE_CONTRACTS).length,
-    0,
-    'absent file is skipped',
-  );
-
   // --- PLAN_APPEND_CONTRACTS: /plan's §0 asks new-vs-extend, refuses to extend on any of its signals
   // while writing nothing, and promotes a single-slice feature to an epic in §6, with the other writes
   // (ADR 0004). Six independent rows — five against `skills/plan/SKILL.md`, one against
@@ -859,13 +818,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'a plan.md carrying all five of its clauses yields zero gaps',
   );
 
-  // absent file is skipped, matching every other contract table
-  assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), PLAN_APPEND_CONTRACTS).length,
-    0,
-    'absent file is skipped',
-  );
-
   // --- SHIPPED_APPEND_CONTRACTS: a feature whose anchor has shipped takes no append, on either signal
   // alone, and the refusal names the new-feature remedy (ADR 0083, INV-0004). Four independent rows —
   // three against `skills/plan/SKILL.md`, one against `references/plan-contract.md`. ---
@@ -940,13 +892,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     scGaps[0].source,
     path.join('references', 'plan-contract.md'),
     'names plan-contract.md, not one of the plan.md rows',
-  );
-
-  // absent file is skipped, matching every other contract table
-  assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), SHIPPED_APPEND_CONTRACTS).length,
-    0,
-    'absent file is skipped',
   );
 
   // --- ANCHOR_CANDIDATE_ALL_STATES_CONTRACTS: the per-feature-label candidate listing queries every
@@ -1150,13 +1095,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'names plan-contract.md',
   );
 
-  // absent file is skipped, matching every other contract table
-  assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), ANCHOR_CANDIDATE_ALL_STATES_CONTRACTS).length,
-    0,
-    'absent file is skipped',
-  );
-
   // --- PARKED_QUESTIONS_CONTRACTS: /plan's §0 surfaces the epic's parked questions once it loads,
   // before the interview diverges into new ground, and deletes a resolved one's line, leaving the new
   // slice's `spec`/`acceptance` as the durable record (ADR 0004, ADR 0005). Two independent rows: losing
@@ -1204,13 +1142,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     scanContract(fixture({ 'skills/plan/SKILL.md': parkedQuestionsBody }), PARKED_QUESTIONS_CONTRACTS).length,
     0,
     'a plan.md carrying both clauses yields zero gaps',
-  );
-
-  // absent file is skipped, matching every other contract table
-  assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), PARKED_QUESTIONS_CONTRACTS).length,
-    0,
-    'absent file is skipped',
   );
 
   // --- RUN_KIND_CONTRACTS: scope-mode.md specifies the branch step for both run kinds — `fresh` cuts
@@ -1377,13 +1308,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'a scope-mode.md specifying all three run kinds yields zero gaps',
   );
 
-  // absent file is skipped, matching every other contract table
-  assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), RUN_KIND_CONTRACTS).length,
-    0,
-    'absent file is skipped',
-  );
-
   // --- CONTAINMENT_DELEGATION_CONTRACTS: publish-kb.js's merge check delegates the containment test to
   // scope.js's exported `testContainment` — `require`d from `./scope.js` and called directly — rather
   // than reimplementing the ancestry check itself (ADR 0053, retargeted from `skills/publish-kb/SKILL.md`'s
@@ -1430,13 +1354,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     ).length,
     0,
     'delegating to testContainment yields zero gaps',
-  );
-
-  // absent file is skipped, matching every other contract table
-  assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), CONTAINMENT_DELEGATION_CONTRACTS).length,
-    0,
-    'absent file is skipped',
   );
 
   // --- CONTAINMENT_REFETCH_CONTRACTS: the `## Containment` section refetches the base before it answers
@@ -1585,18 +1502,4 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   );
   assert.equal(adoptGap.length, 1, 'only the adopt-refusal row fires');
   assert.ok(/refusal naming stage `shipped`/.test(adoptGap[0].expectation), 'the gap names the adopt refusal');
-
-  // absent file is skipped, matching every other contract table
-  assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), CONTAINMENT_REFETCH_CONTRACTS).length,
-    0,
-    'absent file is skipped',
-  );
-
-  // the shipped reference satisfies every row
-  assert.equal(
-    scanContract(realRoot, CONTAINMENT_REFETCH_CONTRACTS).length,
-    0,
-    'the shipped `## Containment` section states the second pass',
-  );
 };

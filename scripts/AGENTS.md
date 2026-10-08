@@ -24,7 +24,7 @@ This doc owns what each script guards and the contracts between them. Repo-wide 
 `deferred add|resolve`,
 `docs set <value>|clear`, `pr set <n>|clear`,
 `deploy set <target> pending|deployed|failed [--exit <n>]`, `deploy get`,
-`suite set <green|red|denied|none> <sha>`,
+`suite set <green|red|denied|none> <sha> [--whole]`,
 `suite reusable --branch <b> [--whole]`,
 `base set <sha>`, `base resolve --branch <b> --base <ref>`,
 `get stage|branch|anchor|slices|unresolved|degraded|deferred|denials|docs|pr|suite`,
@@ -70,7 +70,8 @@ differently: the reader missing stops that hook's sweep outright, while the prob
 containment test back to the tree comparison alone, silently. The API guards its CLI entry with
 `require.main === module`, so a `require` for that reader alone runs no CLI code. `profile.js` takes
 `mainWorkTree`, `SLUG_RE`, and `CHANGE_TYPES` off the same `require`, so the run profile resolves the
-main working tree and reads a feature label by the same rules the ledger does. Normalisation is per
+main working tree and reads a feature label by the same rules the ledger does. `base set` appends a `ledger`
+trace event like every other ledger-writing verb. Normalisation is per
 header: `Stage` and `Branch` are single tokens,
 cut to the first whitespace-delimited token and stripped of markup and trailing punctuation.
 `Anchor` is a prose title that reaches a pull request, trimmed and otherwise left alone. An empty
@@ -89,7 +90,9 @@ drops the line once none remain, and refuses text that matches no bullet, leavin
 
 `root <slug>` is a verb that touches no ledger (ADR 0080). It resolves and prints a run root's
 absolute path — `<main-worktree>/.superdev/scopes/<slug>`, where `<main-worktree>` is the parent of
-`git rev-parse --git-common-dir` — so it takes no `--root` of its own. The result is identical whichever
+`git rev-parse --git-common-dir`, or the checkout that directory's `core.worktree` names inside a submodule
+(never the superproject's `.git/modules`) — so it takes no `--root` of its own. `mainWorkTree` is the one
+resolver; `publish-kb.js` and `hooks/run-trace.js` call it. The result is identical whichever
 checkout it runs from: the invoking checkout, a scopetree, or a slicetree of the same repository, which is
 what lets every prose caller resolve `<run-root>` the same way regardless of its own cwd. It refuses
 outside a git repository, and refuses a slug carrying a path separator or a leading `.`, since either
@@ -278,7 +281,8 @@ tag-balance check on every output.
 
 `publish-kb.js` is the fourth shipped CLI. `skills/publish-kb/SKILL.md` invokes it and relays its
 report, and keeps no publishing mechanics of its own. It resolves the main checkout from any current
-directory, a scopetree included, using `git rev-parse --path-format=absolute --git-common-dir`.
+directory, a scopetree or a submodule included, through `scope.js`'s `mainWorkTree`. It takes `CHANGE_TYPES` and
+`refResolves` off the same `require`, and carries no copy of either.
 This is what makes `.superdev/kb-pending/` resolve against the repository root, not one level too
 deep, from inside `.superdev/scopes/<scope>/scopetree`. `--scope <slug>` selects which pending scope to
 publish. Left out, the script publishes the one pending scope there is. It refuses when there is more
@@ -526,12 +530,36 @@ transcript trees in a temporary directory and points `CLAUDE_CONFIG_DIR` and `HO
 name: every `*.test.js` file directly in that directory, in name order, so a suite added to the tree runs
 with no edit to `package.json`. A helper (`spawn-verdict.js`, `fixture-git.js`) and a subdirectory
 (`tests/fixtures/`) are not suites. It runs each suite under `node`, then the fixed tail: `invariant-check.js
---root .`, `drift-check.js --selftest`, `drift-check.js`, and `claude plugin validate ./plugin`. The first
+--root .`, `drift-check.js --selftest`, `drift-check.js`, and `claude plugin validate ./plugin`. Every step,
+suite and tail alike, prints one `run-tests: <label>: <ms> ms` line carrying its wall clock, which
+`docs/agents/verification.md` names as the repository's timing command. The first
 failure stops the run, prints which suite or tail command failed, and exits nonzero; a child that was
 killed or never started counts as a failure (INV-0009). A `tests/` directory holding no suite prints
-`no suite found` and exits nonzero. Its suite is `tests/run-tests.test.js`, which calls `discoverSuites` and
-`runAll` against throwaway trees it removes at the end. The tail is exported as `TAIL`, so a suite reads it
-instead of matching the runner's source text.
+`no suite found` and exits nonzero.
+
+`node scripts/run-tests.js --related <path>...` is the focused mode, the second fence of
+`docs/agents/verification.md`. The tail always runs. `selectSuites` picks the suites the repository-relative
+paths reach, matching by name, so a deleted path maps like any other. A suite is reached when its own text
+names the changed file (its basename, or its bare stem between path or quote delimiters), when the shipped
+file its name pins (`plugin/hooks/<name>.js`, `plugin/scripts/<name>.js`, or `scripts/<name>.js`) directly
+requires the changed file, or when the path is the suite itself. A test helper reaches every suite that names
+it. A `.md` path follows the same naming rule, because a suite may execute or pin a document
+(`tests/publish-kb.test.js` runs the templates of `docs/agents/knowledge-base.md`, `tests/scope.test.js` pins a
+sentence of `plugin/references/scope-mode.md`). A `.md` path also reaches a suite whose text names a directory
+holding it, because a suite that lists or scans a directory reads every document in it
+(`tests/model-explicit.test.js` lists `plugin/agents/`, `tests/invariant-check.test.js` scans `plugin/`). A named directory
+is a path string that is a directory of the repository, or the literal segments of a `path.join` or `path.resolve`
+call. A call whose first argument is `__dirname` or a literal is anchored at the repository root. A call whose leading
+directory is computed (`path.dirname(hookPath)`) names its literal tail, which matches that tail at any depth, so
+it may select a suite for a directory the suite does not scan and never misses one it does. A directory built from
+computed expressions with no literal segment names nothing. The directory rule never applies to a code path. A `.md` path no
+suite names, directly or by directory, and a path under `scripts/drift/`, reach no suite, because the drift selftest sits in the tail. A code path no rule places runs every suite, and an empty list runs the tail alone and exits 0. The
+`require` scan is a regex over relative `require` calls, one level deep. A focused run is never a full suite
+(INV-0017).
+
+Its suite is `tests/run-tests.test.js`, which calls `discoverSuites`, `selectSuites`, `parseArgs`, and
+`runAll` against throwaway trees it removes at the end. It carries no roster of this repository's suites. The
+tail is exported as `TAIL`, so a suite reads it instead of matching the runner's source text.
 
 ### invariant-check.js, the invariant register validator (ADR 0093)
 
@@ -617,18 +645,18 @@ live beside it, in `scripts/drift/`.
 | `drift/contracts.js` | the contract tables and patterns. Data only |
 | `drift/scanners.js` | the bespoke scanners, every check whose assertion is more than one pattern over one document |
 | `drift/lib.js` | what they share: `maskFences`, `extractSection`, the frontmatter readers, `readDoc`, `storeDocuments`, and `scanContract` |
-| `drift/selftest/` | `index.js` (the `fixture` helper, `realRoot`, temp-dir cleanup) plus one suite per area: `scanners`, `chain`, `kb-plan`, `coverage`, `observation`, `drift-check`, plus `coverage.js`, the coverage verdict helper |
+| `drift/selftest/` | `index.js` (the `fixture` helper, `realRoot`, temp-dir cleanup) plus one suite per area: `scanners`, `chain`, `kb-plan`, `coverage`, `observation`, `drift-check`, plus `coverage.js`, the coverage verdict helper. `coverage` is the one harness every table without a bespoke fixture goes through. A suite asserts no real-tree result: `drift-check.js` scans the shipped documents itself |
 
 The checks named below are the exceptions, and every other one is a **drift assertion**: it compares a
-restated fact against its source. `forcing-branch-flag`, `kb-no-backend-call`, `no-second-reader`, and
-`return-to-controller` are **negative** assertions. Each reports a document that still says something,
-rather than one that stopped saying it. `adr-status` compares a document against a **schema**.
+restated fact against its source. `forcing-branch-flag`, `kb-no-backend-call`, `no-second-reader`,
+`return-to-controller`, and `conflict-conclusion-no-commit` are **negative** assertions. Each reports a
+document that still says something, rather than one that stopped saying it. `adr-status` compares a
+document against a **schema**.
 `pinned-paths` and `marketplace-source` are plain **existence** assertions.
 
-The exceptions are named and the rule covers the rest, deliberately. This sentence used to enumerate
-every drift assertion by id, and it fell behind at five separate additions, because a list of forty is
-maintained by hand at the moment its author is thinking about code. Naming the exceptions cannot drift
-when a new check lands.
+The exceptions are named and the rule covers the rest, deliberately. A list of every drift assertion by id
+is maintained by hand at the moment its author is thinking about code, so it falls behind. Naming the
+exceptions cannot drift when a new check lands.
 
 `drift-check.js` guards the checks below, each keyed to its registered check id. The
 `reference` contract: every `references/*.md` path named in `skills/`, `agents/`, or `references/`
@@ -900,6 +928,26 @@ dependency as a direct dependency declared in a package manifest, and without th
 override the agent body. The selftest removes each row's own clause
 and expects exactly that row to fail. Losing a row leaves the reviewer with no record to check, so every
 new dependency reads Critical.
+The `conflict-conclusion` contract (ADR 0123) pins the form every instruction uses to conclude a resolved
+merge conflict: `git -C <run-root>/scopetree merge --continue`, in the base step of
+`references/scope-mode.md`, in `references/merge-conflicts.md`, and in the DAG loop's merge step of
+`references/implement-full.md`, which is the dispatch prose that reaches the controller. A `git commit`
+there concludes the same merge, and the green-gate reads the landed merge from the reflog either way, but
+the prose names one form. The playbook's row is anchored at the merge step's own heading, so the clause
+cannot move out of the DAG loop and still match. The gate rows pin how `references/implement-full.md` and
+`references/test-selection.md` state the gate: it runs after a landed merge, on a succeeding or failing
+call, reports a red suite for a fix or a revert, and reads its changed-path set once the merge has landed.
+The rows pin the correct statement of the gate: a document that replaces a pinned clause with a claim that
+the gate blocks a merge, or that it runs on a path the hook does not run, fails its row. The rows are
+presence rows, so such a claim added beside the pinned clause passes. That gap is the stated ceiling. The
+selftest removes each row's own clause and expects exactly that row to fail.
+The `conflict-conclusion-no-commit` contract (ADR 0123), `scanConflictConclusionNoCommit()`, is the
+**negative** half: no skill, agent, or reference concludes a resolved conflict with `git commit`. A
+presence row cannot fail when a step keeps `merge --continue` and adds `git commit --no-edit` beside it,
+so the scanner reads every prose document for `commit --no-edit`, for a `conclude … \`git commit\``
+sentence, and for "commit the merge with `git commit`". A shape-based absence check, it carries its
+ceiling in `CONFLICT_COMMIT_CONCLUSION_PATTERNS`: a paraphrase such as "finish the merge by committing"
+walks past.
 The `label-validation` contract:
 `references/scope-mode.md` carries the **Validate both segments.** rule, and `skills/implement/SKILL.md`
 points at it. The whole feature label becomes the branch name, so the type
@@ -907,8 +955,8 @@ reaches `git switch -c` exactly as the slug does. A rule guarding the slug alone
 git as an option, and lets a non-canonical type make `scope-prune` reap a run root that is still live.
 A consumer
 that stops pointing at the rule validates nothing and stays valid prose. The
-`green-gate-timeout` contract: `hooks/hooks.json` sets `"timeout": 600` on the green-gate
-PostToolUse(Bash) hook entry, and the comment beside `IS_MERGE` in `hooks/green-gate.js` names that
+`green-gate-timeout` contract: `hooks/hooks.json` sets `"timeout": 600` on both green-gate hook entries,
+PostToolUse(Bash) and PostToolUseFailure(Bash), each row anchored to its own event key so one entry's timeout never satisfies the other, and the comment beside `IS_MERGE` in `hooks/green-gate.js` names that
 same 600s ceiling and identifies it as Claude Code's own default for a `command` hook. Green-gate
 re-runs the scope suite synchronously inside the hook, so a suite slower than the configured timeout
 is killed mid-run and the gate silently does not fire. The explicit entry states the ceiling where the
@@ -1682,7 +1730,7 @@ criterion the code fails staying a deferred finding. One row each sits on `refer
 `## Deferred findings`, `references/plan-contract.md`'s deferred-finding definition, and
 `agents/final-reviewer.md`'s "how to fix" wording for a plan-coverage gap. No row anchors on the report
 template's own phrase. The selftest copies the shipped documents, removes each row's matched clause, and
-expects that row to fail alone (INV-0095).
+expects that row to fail (INV-0095).
 
 The `deferred-resolve` contract (ADR 0121, INV-0125) pins the way back out of the deferred record. On
 `skills/review/SKILL.md` §4 and `references/implement-full.md` step 3: a deferred finding re-enters the fix
@@ -1895,7 +1943,7 @@ checkout, ran the full suite nowhere in particular, and could hand a fix-cycle i
 directory at all, landing commits on the base branch in the operator's own clone. The rows pin its
 scope-checkout branch test, its full-suite run in the scope checkout, and its fix-implementer dispatch
 handing over the scope checkout as a working directory — the same working-directory statement
-`implement-full.md` and `document.md` already carry. More rows sit on `references/run-handoff.md` for
+`implement-full.md` and `skills/document/SKILL.md` already carry. More rows sit on `references/run-handoff.md` for
 the same class of gap on its own only full-suite run: a scope of all `mechanical`/`docs` slices reaches no
 other verification before `/superdev:submit-pr`, so its full-suite run and its Red-branch fix dispatch each
 naming no working directory reached the invoking checkout on the full tier — sitting on the base branch by
@@ -1930,13 +1978,17 @@ row the table pins. `selftest/observation.test.js` pins the seam and the verdict
 any suite scans, with no per-table call and no hand-typed document list to fall out of sync with the fixtures — including a table
 like `FULL_SUITE_CONTRACTS` whose fixtures are legitimately split across many small calls, since the
 recorded set just accumulates across the run instead of needing one fixture to carry every document at once.
-`selftest/coverage.test.js` exercises the tables no other suite reaches, listed by name in the suite. Its
-fixture for a table is that table's pinned documents, copied from this repository at the paths the table
-spells. Per table it asserts a clean scan of the full fixture, a scan of a fixture with the documents absent
-that reports no gap, and, per row, that deleting one character of the row's own clause (at every place the
-document states it) makes the scan report that row's expectation and name its document. A row whose clause
-another row's longer clause contains cannot lose it alone, so such a row may be reported together with its
-container, both in the same document.
+`selftest/coverage.test.js` is the one harness for the tables listed by name in the suite. Its fixture
+for a table is that table's pinned documents, copied from this repository at the paths the table spells.
+Per table it asserts a clean scan of the full fixture and, per row, that cutting the span the row's
+pattern matches (at every place the document states it) makes the scan report exactly that row's
+expectation. Where the span cut also takes a neighbour's clause, the harness tries single-character drops
+across the match and requires exactly one gap from the first drop that isolates the row. A row whose clause
+another row's pattern contains has no isolating edit. The suite names those rows in `NOT_ISOLATABLE`,
+and each only has to be reported among the gaps of its own document. The suite also scans a
+fixture without the documents against every exported `*_CONTRACTS` table and asserts no gap, outside the
+coverage observation. The bespoke scanners keep a case of their own for an absent document, because each
+has its own skip.
 
 The `denial-reset` contract (ADR 0044) pins rows, all on `references/scope-mode.md`: the cap
 the `denial-cap` check pins has a way back, and it is only reachable where two of that file's sections
@@ -2690,7 +2742,7 @@ remainder at the cap blocks. A Minor-only remainder proceeds. The RED-test rule 
 - A deferred finding neither keeps the loop running nor counts toward the cap remainder.
 - An observation never joins the fix list.
 
-The selftest removes each row's own clause from the shipped documents and expects exactly that row to
+The selftest removes each row's own clause from the shipped documents and expects that row to
 fail. Losing a row reopens its gap: a Minor-only verdict that skips the question, an unattended run that
 leaves Minors, a cap that blocks on Minors, or a RED test demanded of a style fix.
 
@@ -2727,7 +2779,7 @@ The `setup-test-paths` contract (ADR 0117) pins `skills/setup/SKILL.md`. Its row
 - `setup check` names a `verification.md` with test commands and no `## Test paths` section as an
   advisory that names the default patterns, never as drift.
 
-The selftest removes each row's own clause from the shipped skill and expects exactly that row to fail.
+The selftest removes each row's own clause from the shipped skill and expects that row to fail.
 
 The `blind-slice-review` contract (ADR 0114, INV-0113, INV-0114) pins how the full tier's slice review
 reads the progress log. `agents/slice-reviewer.md` and the slice-reviewer dispatch in
@@ -2754,7 +2806,7 @@ specific instruction (ADR 0035). The rows:
 - `agents/slice-reviewer.md` appends its findings to the log through a quoted heredoc, never `echo` and
   never an unquoted heredoc, so backticks and `$(` in the text stay literal.
 
-The selftest removes each row's own clause from the shipped documents and expects exactly that row to
+The selftest removes each row's own clause from the shipped documents and expects that row to
 fail. Losing a row reopens its gap: a reviewer that reads the implementer's account before it forms a
 verdict, a log line that withdraws a finding, a fix list that drops what the log added, a dependency
 finding no re-review can close, or an unverified line that passes the check.
@@ -2782,7 +2834,7 @@ The `plan-derives-criteria` contract (ADR 0099, INV-0096) pins the derive pass o
 `agents/final-reviewer.md` carries the `## Derive mode` section. It returns the uncovered derived
 criteria with a reason and a lean, and states the derived list before it opens the DoD path. It writes no
 `### Issues`, `### Criteria`, `### Ceiling`, or `### Assessment` section. Its `description` names the plan
-dispatch. The selftest removes each row's own clause and expects exactly that row to fail.
+dispatch. The selftest removes each row's own clause and expects that row to fail.
 Losing a plan row ships a feature short of its intent; losing a reviewer row leaves the dispatch asking
 for a mode the agent body does not promise.
 
@@ -2838,7 +2890,7 @@ extends the rule to the next command run handoff prints. `review`, `document`, a
 conversation is disposable comes first and the printed command comes last, so the Next block closes the
 message. A skill that loses its citation leaves the shape defined and
 unused, and its last message goes back to wherever the agent puts its next command. The selftest cuts
-the span each row matches out of the shipped document and requires exactly that row's gap, so every row
+the span each row matches out of the shipped document and requires that row's gap, so every row
 is proved to fire.
 
 The `label-revision-at-decomposition` contract pins rows on `skills/plan/SKILL.md`: §1 states, where it
@@ -3082,7 +3134,7 @@ worked example: it goes from ship straight to wrap-up, nothing being left to ver
   evadable phrasing reports a defect, and the guard grows by discovery instead of by decision. The
   convention governs these checks of this shape, and each carries its note: `doc-steps-no-suite`,
   `forcing-branch-flag`, `kb-no-backend-call`, `no-second-reader`, `return-to-controller`,
-  `agent-tool-agnostic`, `agent-lens-list`, `code-management-no-force`, `forgejo-tea-only`, and `body-edit-contract`.
+  `conflict-conclusion-no-commit`, `agent-tool-agnostic`, `agent-lens-list`, `code-management-no-force`, `forgejo-tea-only`, and `body-edit-contract`.
   `no-second-reader`'s reads differently
   from the rest on purpose: its gap is closed by an orphan test in `tests/scope-prune.test.js`
   rather than left open, and the note says so instead of claiming a ceiling it does not have. A **presence table** — the document must say X, one row per
@@ -3100,7 +3152,7 @@ worked example: it goes from ship straight to wrap-up, nothing being left to ver
 
 `bun run test` (repo root) runs `run-tests.js`, which runs each suite under `tests/`, then `invariant-check.js`
 against this repository's register, then `drift-check.js`'s own `--selftest`, all under `node`, which
-matches the production runtime.
+matches the production runtime. `node scripts/run-tests.js --related <path>...` is the focused run.
 
 ## Child DOX Index
 

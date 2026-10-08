@@ -230,17 +230,19 @@ Repeat until every slice is `merged`:
    context; dispatch a fix subagent only if a conflict needs real code work): trace both sides to their
    slice specs, take the **union of both sides, dropping nothing** on additive conflicts (keep every test
    from both sides — never delete a sibling's test to make the merge compile), and compose compatible
-   intents. A **genuine winner-picking overlap** — the *same* decision decided two incompatible ways,
-   where honouring one spec means violating the other —
-   is not yours to guess: `git -C <run-root>/scopetree merge --abort` and escalate to the
-   human. **`--unattended` → block** after
+   intents, then conclude a resolved conflict with `git -C <run-root>/scopetree merge --continue`. A
+   **genuine winner-picking overlap** — the *same* decision decided two incompatible ways, where honouring
+   one spec means violating the other — is not yours to guess:
+   `git -C <run-root>/scopetree merge --abort` and escalate to the human. **`--unattended` → block** after
    the abort, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section: picking a
    winner is exactly the human decision the token cannot stand in for.
 
    **A focused suite runs on the merge, automatically** — if a test command is configured
-   (`docs/agents/verification.md`), the **green-gate hook** re-runs the focused command over this merge's
-   changed paths (`${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` owns which command that is) and
-   blocks with a RED report you must fix or revert before continuing.
+   (`docs/agents/verification.md`), the **green-gate hook** runs after a landed merge, on a succeeding or
+   failing call: a clean `git merge`, a merge inside a chain that fails later, or a conflicted one that
+   `merge --continue` concluded. It runs the focused command over that merge's changed paths
+   (`${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` owns which command that is) and reports a red suite
+   for a fix or a revert before you continue. The hook cannot undo the merge.
 
    Then clean up: `git worktree remove <run-root>/slicetrees/<id>` and
    `git branch -D slice/<scope>/<id>` (merged; leaving it clutters the repo). The **slicetree-sweep** `Stop`

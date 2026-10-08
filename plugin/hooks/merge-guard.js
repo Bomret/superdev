@@ -58,6 +58,10 @@ const ARG = /(?:[^\s"'\\$`]|\$(?![({])|\\.|"(?:[^"\\]|\\.)*"|'[^']*'|\$\((?:[^()
 // value in git itself, so it stays out of this enumeration.
 const LONG_VALUE_OPT = /--(?:git-dir|work-tree|namespace|config-env|shallow-file|attr-source)/.source;
 const GLOBAL_OPTS = `(?:\\s+(?:-[cC]\\s+${ARG}|${LONG_VALUE_OPT}(?:=|\\s+(?!-))${ARG}|--${ARG}))*`;
+// Known false positive: a quoted verb after a lead-in character inside a read-only command
+// (`grep -E "x|git merge" file`) is refused, because the lead-in class matches the `|` inside the quotes.
+// The guard does not mask quoted spans to avoid it: `sh -c "cd x; git merge x"` runs a verb inside a quoted
+// span, so masking would let a subagent integrate through any shell wrapper. The guard fails closed instead.
 const BLOCK = new RegExp(`(^|[;&|\\n])[ \\t]*git${GLOBAL_OPTS}\\s+(merge|push|rebase)(?![-\\w])`, 'm');
 // A git global option whose value ARG cannot read to the end of its shell word — the next character is not
 // whitespace — is unknowable: the command would otherwise split at the value's first space and slip past

@@ -25,6 +25,7 @@ const {
   mergeInProgress,
   getChangedPaths,
   IS_MERGE,
+  IS_COMMIT,
   STUCK_MERGE,
   ARG,
   VERIFICATION_DOC,
@@ -34,7 +35,6 @@ const {
   getOptionRegionWalks,
   readHookTimeoutMs,
   suiteBoundMs,
-  SUITE_MARGIN_MS,
 } = require(hookPath);
 
 const green = () => ({ ok: true, output: '' });
@@ -64,6 +64,29 @@ assert.equal(decide(merge('git merge-tree a b'), full('npm test'), red, notCalle
   const result = decide(merge('cd x && git merge y'), blind, suiteNotRun, notCalled);
   assert.equal(result.block, true, 'a merge whose tree is unknowable blocks with a green suite');
   assert.match(result.reason, /cannot see the merge tree/, 'the block carries the blind reason');
+}
+// ADR 0123: the blind branch of decide(). A candidate the reflog must decide (a failed call, or a
+// `git commit`) has no tree to read it in when the tree is unknowable, so it stays silent. A successful
+// `git merge` keeps the blind block, and so does a stuck merge shape on either event.
+{
+  const blind = () => ({ full: 'npm test', focused: null, blind: 'superdev: cannot see the merge tree' });
+  const suiteNotRun = () => {
+    throw new Error('the suite should not run when the tree is unknowable');
+  };
+  const reflogNotRead = () => {
+    throw new Error('the reflog should not be read when the tree is unknowable');
+  };
+  const STUCK = 'git -C $(a $(b $(c))) merge y';
+  assert.equal(STUCK_MERGE.test(STUCK), true, 'the fixture is a stuck merge shape');
+  const verdict = (command, event) =>
+    decide(merge(command, { hook_event_name: event }), blind, suiteNotRun, notCalled, () => false, () => '', reflogNotRead);
+  assert.equal(verdict('cd x && git merge y', 'PostToolUseFailure').block, false, 'a failed call whose tree is unknowable stays silent');
+  assert.equal(verdict('cd x && git commit --no-edit', 'PostToolUse').block, false, 'a git commit whose tree is unknowable stays silent');
+  assert.equal(verdict('cd x && git commit --no-edit', 'PostToolUseFailure').block, false, 'a failed git commit whose tree is unknowable stays silent');
+  assert.equal(verdict(STUCK, 'PostToolUseFailure').block, true, 'a stuck merge shape on a failed call blocks');
+  assert.equal(verdict(STUCK, 'PostToolUse').block, true, 'a stuck merge shape on a successful call blocks');
+  assert.equal(verdict('cd x && git merge y', 'PostToolUse').block, true, 'a successful git merge whose tree is unknowable blocks');
+  assert.match(verdict('cd x && git merge y', 'PostToolUse').reason, /cannot see the merge tree/, 'with the blind reason');
 }
 assert.equal(decide(merge('echo done\ngit merge --no-ff s'), full('npm test'), red, notCalled).block, true, 'merge on a later line');
 assert.equal(decide(merge('git -C ../wt merge slice/x/1'), full('npm test'), red, notCalled).block, true, 'git -C merge is gated');
@@ -230,7 +253,7 @@ assert.equal(
   // the header only discusses raising it — would silently get an unbounded suite spawn, which is the
   // failure INV-0009 exists to prevent reached through the code added to prevent it.
   assert.ok(suiteBoundMs(600 * 1000) > 0, 'the shipped ceiling yields a bounded suite');
-  assert.equal(suiteBoundMs(600 * 1000), 600 * 1000 - SUITE_MARGIN_MS, 'and it is the margin below it');
+  assert.equal(suiteBoundMs(600 * 1000), 570 * 1000, 'and it is the 30s margin below it');
   assert.ok(suiteBoundMs(30 * 1000) > 0, 'an entry equal to the margin still bounds the suite');
   assert.ok(suiteBoundMs(1000) > 0, 'and so does one far below it');
   assert.ok(suiteBoundMs(1000) <= 1000, 'without ever exceeding the ceiling it derives from');
@@ -250,7 +273,7 @@ assert.equal(
 
   // The shipped hooks.json (default argument, no path) still yields the current 570s bound.
   const { SUITE_TIMEOUT_MS } = require(hookPath);
-  assert.equal(SUITE_TIMEOUT_MS, 600 * 1000 - SUITE_MARGIN_MS, 'the production ceiling derives from the shipped hooks.json entry, margin below it');
+  assert.equal(SUITE_TIMEOUT_MS, 570 * 1000, 'the production ceiling derives from the shipped hooks.json entry, margin below it');
   // The relation itself, which nothing pinned: a *removed* margin used to pass here, because the
   // assertion above subtracts the same constant it is checking. These two do not.
   assert.ok(SUITE_TIMEOUT_MS > 0, 'the enforced bound never degenerates to unbounded');
@@ -282,27 +305,50 @@ assert.equal(
   const m = sibling.match(/^const ARG = \/(.*)\/\.source;$/m);
   assert.ok(m, 'merge-guard.js declares its ARG token where this pin expects it');
   assert.equal(ARG, m[1], 'green-gate ARG is byte-identical to merge-guard ARG');
+  // The three regex constants that build on ARG carry the same pin: their declarations are compared as
+  // source text, so a one-sided edit to either hook fails here.
+  const own = fs.readFileSync(hookPath, 'utf8');
+  for (const name of ['LONG_VALUE_OPT', 'GLOBAL_OPTS', 'VALUE_OPT_LEAD']) {
+    const decl = new RegExp(`^const ${name} = (.*);$`, 'm');
+    const theirs = sibling.match(decl);
+    assert.ok(theirs, `merge-guard.js declares ${name} where this pin expects it`);
+    assert.equal(own.match(decl)[1], theirs[1], `green-gate ${name} is byte-identical to merge-guard ${name}`);
+  }
 }
 
 // a long run of enumerated option names with no verb must not backtrack exponentially (the comment
 // above LONG_VALUE_OPT owns why) — a qualitative bound (AGENTS.md, ADR 0086): catastrophic
-// backtracking is effectively unbounded, so this ceiling stays loose rather than tight
+// backtracking is effectively unbounded, so this ceiling stays loose rather than tight. 42 repeats resolve in
+// about a millisecond; without the `(?!-)` after the space-form value the same input took 53s in this suite on 3 of 3
+// runs (standalone: 14s at 34 repeats, 36s at 36, over 60s from 38 on), and each further repeat multiplies
+// that by ~2.6. Timings near 34 repeats varied from 1s to 14s between runs, so the size sits well past
+// that range.
 {
-  const pathological = 'git ' + '--git-dir '.repeat(60) + 'x; git ' + 'merge main';
+  const pathological = 'git ' + '--git-dir '.repeat(42) + 'x; git ' + 'merge main';
   const t0 = Date.now();
   IS_MERGE.test(pathological);
   const elapsed = Date.now() - t0;
   assert.ok(elapsed < 5000, `a pathological long-option run must resolve quickly, took ${elapsed}ms`);
 }
 
-// substitution, parameter-expansion, backtick, and blank-line runs through STUCK_MERGE and IS_MERGE: a
-// qualitative bound (AGENTS.md, ADR 0086) on exponential backtracking. Stuck-segment runs are quadratic
-// through the line-wide verb lookahead (triage #814), and this size stays under the ceiling
+// substitution, parameter-expansion, and backtick runs through STUCK_MERGE and IS_MERGE: a qualitative
+// bound (AGENTS.md, ADR 0086) on exponential backtracking. Stuck-segment runs are quadratic through the
+// line-wide verb lookahead (triage #814). Only the `$(echo ")")` unit at 1200 repeats has a reconstructable
+// pre-fix mutant that fails it: it takes 40s when STUCK_MERGE's atomic `(?=(ARG|))\2` is a plain
+// `(?:ARG|)`, and over 20s when ARG's double-quoted `(?:[^"\\]|` gains a `+`. No mutant tried fails the other units,
+// so they keep the sizes they were written at. The block costs 2-3s as shipped, 5-6s with one concurrent copy per core; the STUCK_MERGE mutant takes 40s on that unit alone, so the ceiling sits at 15000ms.
 {
   const t0 = Date.now();
-  for (const unit of ['git -C $(a $(b $(c))) x;', 'git -C $((1+(2))) x; ', 'git -C $(echo ")") x; ', 'git -C ${a b} x; ', 'git -C `a x; ']) {
-    STUCK_MERGE.test(unit.repeat(2000));
-    IS_MERGE.test(unit.repeat(2000));
+  for (const [unit, repeats] of [
+    ['git -C $(a $(b $(c))) x;', 2000],
+    ['git -C $((1+(2))) x; ', 2000],
+    ['git -C $(echo ")") x; ', 1200],
+    ['git -C ${a b} x; ', 2000],
+    ['git -C `a x; ', 2000],
+  ]) {
+    STUCK_MERGE.test(unit.repeat(repeats));
+    IS_MERGE.test(unit.repeat(repeats));
+    IS_COMMIT.test(unit.repeat(repeats));
   }
   for (const run of [
     'git -C ' + '$('.repeat(500) + ' x',
@@ -315,11 +361,20 @@ assert.equal(
   ]) {
     STUCK_MERGE.test(run);
     IS_MERGE.test(run);
+    IS_COMMIT.test(run);
   }
-  // IS_MERGE's own blank-line scan is outside this block; STUCK_MERGE's lead-in must not rescan each newline
-  STUCK_MERGE.test('\n'.repeat(64000) + 'x');
   const elapsed = Date.now() - t0;
-  assert.ok(elapsed < 5000, `command-substitution and blank-line runs must resolve quickly, took ${elapsed}ms`);
+  assert.ok(elapsed < 15000, `command-substitution runs must resolve quickly, took ${elapsed}ms`);
+}
+
+// A newline is itself a lead-in, so a `\s*` after it rescans every later blank line from each one:
+// quadratic, 15-18s on 64000 blank lines for either merge regex. All three lead-ins are `[ \t]*`, linear, and each
+// regex answers under the same qualitative ceiling (AGENTS.md, ADR 0086).
+for (const [name, regex] of [['STUCK_MERGE', STUCK_MERGE], ['IS_MERGE', IS_MERGE], ['IS_COMMIT', IS_COMMIT]]) {
+  const t0 = Date.now();
+  regex.test('\n'.repeat(64000) + 'x');
+  const elapsed = Date.now() - t0;
+  assert.ok(elapsed < 5000, `${name} must answer in linear time on a long run of blank lines, took ${elapsed}ms`);
 }
 
 // --- resolveMergeCwd(): the merge's own working tree, from -C or the session cwd fallback ---
@@ -563,6 +618,83 @@ assert.deepEqual(
   { full: 'npm test', focused: 'npm test -- {paths}' },
   'two fenced blocks parse as today, notice-free',
 );
+
+// #903: the gate and scope.js read the same full and focused commands from every fence shape a
+// verification document can carry: any info string, and `~~~` as well as backticks.
+{
+  const { verificationCommands } = require('../plugin/scripts/scope.js');
+  const shapeDir = fs.mkdtempSync(path.join(tmp, 'gg-shape-'));
+  fs.mkdirSync(path.join(shapeDir, 'docs/agents'), { recursive: true });
+  const shapes = [
+    ['```sh\nbun run test\n```\n\n```sh\nbun run test -- {paths}\n```\n', 'sh'],
+    ['```shell-session\nbun run test\n```\n\n```shell-session\nbun run test -- {paths}\n```\n', 'shell-session'],
+    ['```sh title="x"\nbun run test\n```\n\n```sh title="x"\nbun run test -- {paths}\n```\n', 'info string with attributes'],
+    ['~~~sh\nbun run test\n~~~\n\n~~~\nbun run test -- {paths}\n~~~\n', 'tilde fence'],
+  ];
+  for (const [body, label] of shapes) {
+    fs.writeFileSync(path.join(shapeDir, VERIFICATION_DOC), `# Verification\n\n${body}`);
+    const gate = readVerification(shapeDir);
+    const scope = verificationCommands(shapeDir);
+    assert.equal(gate.full, 'bun run test', `${label}: full command (gate)`);
+    assert.equal(gate.focused, 'bun run test -- {paths}', `${label}: focused command (gate)`);
+    assert.equal(scope.full, 'bun run test', `${label}: full command (scope.js)`);
+    assert.equal(scope.focused, 'bun run test -- {paths}', `${label}: focused command (scope.js)`);
+  }
+  // CommonMark: an opener and its closer may carry up to three leading spaces (a fence under a list item).
+  fs.writeFileSync(path.join(shapeDir, VERIFICATION_DOC), '- run:\n\n  ```sh\n  bun run test\n  ```\n\n- focus:\n\n  ```sh\n  bun run test -- {paths}\n  ```\n');
+  assert.deepEqual(readVerification(shapeDir), { full: 'bun run test', focused: 'bun run test -- {paths}' }, 'two-space-indented fences read in the gate');
+  assert.equal(verificationCommands(shapeDir).full, 'bun run test', 'two-space-indented fences read in scope.js (full)');
+  assert.equal(verificationCommands(shapeDir).focused, 'bun run test -- {paths}', 'two-space-indented fences read in scope.js (focused)');
+  // Four spaces is an indented code block, not a fence.
+  fs.writeFileSync(path.join(shapeDir, VERIFICATION_DOC), '    ```sh\n    bun run test\n    ```\n');
+  assert.deepEqual(readVerification(shapeDir), { full: null, focused: null }, 'a four-space-indented fence is no fence');
+  // An unclosed fence yields no block.
+  fs.writeFileSync(path.join(shapeDir, VERIFICATION_DOC), '```sh\nbun run test\n');
+  assert.deepEqual(readVerification(shapeDir), { full: null, focused: null }, 'an unclosed fence yields no block (gate)');
+  assert.equal(verificationCommands(shapeDir).full, null, 'an unclosed fence yields no block (scope.js)');
+  // A backtick opener whose info string holds a backtick is no opener.
+  fs.writeFileSync(path.join(shapeDir, VERIFICATION_DOC), '```x``` inline\n\n```sh\nbun run test\n```\n\n```sh\nbun run test -- {paths}\n```\n');
+  assert.deepEqual(readVerification(shapeDir), { full: 'bun run test', focused: 'bun run test -- {paths}' }, 'an inline triple-backtick span opens nothing (gate)');
+  assert.equal(verificationCommands(shapeDir).full, 'bun run test', 'an inline triple-backtick span opens nothing (scope.js)');
+  // A CRLF file reads like an LF one.
+  fs.writeFileSync(path.join(shapeDir, VERIFICATION_DOC), '# V\r\n\r\n```sh\r\nbun run test\r\n```\r\n\r\n```sh\r\nbun run test -- {paths}\r\n```\r\n');
+  assert.deepEqual(readVerification(shapeDir), { full: 'bun run test', focused: 'bun run test -- {paths}' }, 'CRLF fences read in the gate');
+  assert.equal(verificationCommands(shapeDir).focused, 'bun run test -- {paths}', 'CRLF fences read in scope.js');
+  // A `~~~~` opener read through scope.js closes only on a `~~~~` or longer line.
+  fs.writeFileSync(path.join(shapeDir, VERIFICATION_DOC), '~~~~sh\nbun run test\n~~~\nstill inside\n~~~~\n');
+  assert.equal(verificationCommands(shapeDir).full, 'bun run test ~~~ still inside', 'a longer tilde opener ignores a shorter tilde line (scope.js)');
+  // A `## ` line inside a fence is no heading, so the whole-repo section stays open past it.
+  fs.writeFileSync(path.join(shapeDir, VERIFICATION_DOC), '~~~sh\na\n~~~\n\n~~~sh\nb\n~~~\n\n## Whole-repo command\n\n```text\n## Notes\n```\n\n`c`\n');
+  assert.equal(verificationCommands(shapeDir).whole, 'c', 'a `## ` line inside a fence does not end the whole-repo section');
+  // A longer opener closes only on a line of at least its own length.
+  fs.writeFileSync(path.join(shapeDir, VERIFICATION_DOC), '````sh\nbun run test\n```\nstill inside\n````\n');
+  assert.equal(readVerification(shapeDir).full, 'bun run test\n```\nstill inside', 'a shorter fence line does not close a longer opener');
+  // One fence keeps the full command and the notice; no fence at all is no gate.
+  fs.writeFileSync(path.join(shapeDir, VERIFICATION_DOC), '# Verification\n\n~~~shell-session\nbun run test\n~~~\n');
+  const one = readVerification(shapeDir);
+  assert.equal(one.full, 'bun run test', 'a one-fence tilde document runs the full command');
+  assert.match(one.notice, /\/superdev:setup/, 'a one-fence tilde document carries the notice');
+  fs.writeFileSync(path.join(shapeDir, VERIFICATION_DOC), '# Verification\n\nNo commands here.\n');
+  assert.deepEqual(readVerification(shapeDir), { full: null, focused: null }, 'no fence → no gate');
+  // The whole-repo backtick span survives next to `~~~` fences in scope.js.
+  fs.writeFileSync(path.join(shapeDir, VERIFICATION_DOC), '~~~sh\na\n~~~\n\n~~~sh\nb\n~~~\n\n## Whole-repo command\n\n`c`\n');
+  assert.deepEqual(verificationCommands(shapeDir), { full: 'a', focused: 'b', whole: 'c' }, 'scope.js reads the whole-repo span beside tilde fences');
+}
+
+// The gate keeps its own copy of the fence parser so hooks stay standalone; pin it to scope.js's
+// source text. A one-byte difference fails here.
+{
+  const fenceSrc = (file) => {
+    const m = /^function fenceBlocks\(raw\) \{\n[\s\S]*?^\}$/m.exec(fs.readFileSync(file, 'utf8'));
+    assert.ok(m, `${path.basename(file)} declares fenceBlocks() where this pin expects it`);
+    return m[0];
+  };
+  assert.equal(fenceSrc(hookPath), fenceSrc(require.resolve('../plugin/scripts/scope.js')), 'green-gate fenceBlocks is byte-identical to scope.js fenceBlocks');
+  // The pin rejects a one-byte difference: the same extractor on two sources differing by one space.
+  const extract = (src) => /^function fenceBlocks\(raw\) \{\n[\s\S]*?^\}$/m.exec(src)[0];
+  const gateSrc = fs.readFileSync(hookPath, 'utf8');
+  assert.notEqual(extract(gateSrc), extract(gateSrc.replace('const blocks = [];', 'const  blocks = [];')), 'a one-byte difference changes the extracted source');
+}
 
 // ADR 0066: a `## Timing command` section holds its command in a backtick span, so the gate never
 // sees it. A repository with a full command, no focused command, and a timing section keeps running
@@ -1272,6 +1404,173 @@ fs.writeFileSync(
     fs.rmSync(session, { recursive: true, force: true });
   }
 
+  // --- ADR 0123: the gate tests every merge that landed, whatever the outcome of the Bash call that
+  // landed it. Each case runs real git in a fixture repository, so the reflog the hook probes is the
+  // one git wrote. A red suite stands for "the suite ran": exit 2 with SUITE-RAN on stderr.
+  {
+    const SUITE = `node -e "console.error('SUITE-RAN'); process.exit(1)"`;
+    const OK = 'PostToolUse';
+    const FAILED = 'PostToolUseFailure';
+    const run = (cwd, event, command) => runHook({ hook_event_name: event, cwd, tool_input: { command } });
+    const assertRan = (r, why) => {
+      assert.equal(r.status, 2, `${why}: the suite runs and its red verdict blocks`);
+      assert.match(r.stderr, /SUITE-RAN/, `${why}: the block quotes the suite`);
+    };
+    const assertIdle = (r, why) => {
+      assert.equal(r.status, 0, `${why}: no block`);
+      assert.equal(r.stderr, '', `${why}: no suite ran`);
+    };
+    const gitEnv = (dir, args) =>
+      cp.execFileSync('git', args, { cwd: dir, stdio: 'ignore', env: Object.assign({}, process.env, { GIT_EDITOR: 'true' }) });
+    // main and `other` fork from one base commit; `conflict` makes both change the same file.
+    function forked(conflict, branch = 'main') {
+      const dir = tmp('gg-landed-');
+      initRepo(dir);
+      commitFile(dir, 'c.txt', 'base\n');
+      git2(['checkout', '-q', '-b', 'other'], dir);
+      commitFile(dir, 'c.txt', 'other\n');
+      git2(['checkout', '-q', 'main'], dir);
+      if (conflict) commitFile(dir, 'c.txt', 'main\n');
+      else commitFile(dir, 'm.txt', 'main\n');
+      if (branch !== 'main') git2(['checkout', '-q', '-b', branch], dir);
+      writeVerification(dir, SUITE);
+      return dir;
+    }
+    const merged = (conflict, branch) => {
+      const dir = forked(conflict, branch);
+      gitEnv(dir, ['merge', '--no-ff', '--no-edit', 'other']);
+      return dir;
+    };
+    const stopped = () => {
+      const dir = forked(true);
+      try {
+        gitEnv(dir, ['merge', '--no-edit', 'other']);
+      } catch {
+        // the conflict stops the merge with MERGE_HEAD in place — that is the state under test
+      }
+      fs.writeFileSync(path.join(dir, 'c.txt'), 'resolved\n');
+      return dir;
+    };
+    const rm = (...dirs) => dirs.forEach((d) => fs.rmSync(d, { recursive: true, force: true }));
+
+    {
+      const dir = merged(false);
+      assertRan(run(dir, OK, 'git merge --no-ff other'), 'a successful merge call');
+      assertRan(run(dir, FAILED, 'git merge --no-ff other && git worktree remove gone'), 'a failed call whose merge landed');
+      assertIdle(run(dir, FAILED, 'git status && false'), 'a failed call naming neither verb');
+      assertIdle(run(dir, OK, 'git status'), 'a successful call naming neither verb');
+      commitFile(dir, 'later.txt', 'x\n');
+      assertIdle(run(dir, OK, 'git commit -m later'), 'a plain commit on a successful call');
+      assertIdle(run(dir, FAILED, 'git commit -m later && false'), 'a plain commit on a failed call');
+      rm(dir);
+    }
+
+    // a failed merge that never started, with an older merge still on top of the reflog, runs the suite on it
+    {
+      const dir = merged(false);
+      assertRan(run(dir, FAILED, 'git merge no-such-branch'), 'a failed merge call with an older merge on top of the reflog');
+      rm(dir);
+    }
+
+    {
+      const dir = stopped();
+      assertIdle(run(dir, FAILED, 'git merge other'), 'a failed call whose merge stopped on a conflict');
+      git2(['add', 'c.txt'], dir);
+      git2(['commit', '--no-edit', '-q'], dir);
+      assertRan(run(dir, OK, 'git commit --no-edit'), 'a conflicted merge concluded by git commit');
+      assertRan(run(dir, FAILED, 'git commit --no-edit && false'), 'the same on a failed call');
+      rm(dir);
+    }
+
+    {
+      const dir = stopped();
+      git2(['add', 'c.txt'], dir);
+      gitEnv(dir, ['merge', '--continue']);
+      assertRan(run(dir, OK, 'git merge --continue'), 'a conflicted merge concluded by merge --continue');
+      assertRan(run(dir, FAILED, 'git merge --continue && false'), 'the same on a failed call');
+      rm(dir);
+    }
+
+    // the probe reads the merge's resolved tree, not the session's
+    {
+      const session = merged(false);
+      const target = forked(false);
+      assertIdle(run(session, FAILED, `git -C '${target}' merge --no-ff other && false`), 'a -C tree whose reflog holds no merge, under a session whose reflog does');
+      gitEnv(target, ['merge', '--no-ff', '--no-edit', 'other']);
+      assertRan(run(session, FAILED, `git -C '${target}' merge --no-ff other && false`), 'a -C tree whose reflog tops on a merge');
+      rm(session, target);
+    }
+
+    // a repository with its reflog off yields no entry: a successful `git merge` is still gated from its
+    // command text, and a failed call whose merge landed stays silent (ADR 0123, Consequences)
+    {
+      const dir = forked(false);
+      git2(['config', 'core.logAllRefUpdates', 'false'], dir);
+      fs.rmSync(path.join(dir, '.git', 'logs'), { recursive: true, force: true });
+      gitEnv(dir, ['merge', '--no-ff', '--no-edit', 'other']);
+      assertRan(run(dir, OK, `git -C '${dir}' merge --no-ff other`), 'a successful merge call in a repository with the reflog off');
+      assertIdle(run(dir, FAILED, `git -C '${dir}' merge --no-ff other && false`), 'a failed call whose merge landed, in a repository with the reflog off');
+      rm(dir);
+    }
+
+    // a fast-forward writes the reflog subject `merge <ref>: Fast-forward`: it counts as landed
+    {
+      const dir = tmp('gg-ff-');
+      initRepo(dir);
+      commitFile(dir, 'c.txt', 'base\n');
+      git2(['checkout', '-q', '-b', 'other'], dir);
+      commitFile(dir, 'o.txt', 'other\n');
+      git2(['checkout', '-q', 'main'], dir);
+      writeVerification(dir, SUITE);
+      git2(['add', '.'], dir);
+      git2(['commit', '-q', '-m', 'doc'], dir);
+      git2(['checkout', '-q', 'other'], dir);
+      git2(['rebase', '-q', 'main'], dir);
+      git2(['checkout', '-q', 'main'], dir);
+      assertIdle(run(dir, FAILED, `git -C '${dir}' merge --ff-only other && false`), 'a failed call before any merge landed');
+      gitEnv(dir, ['merge', '--ff-only', 'other']);
+      assertRan(run(dir, FAILED, `git -C '${dir}' merge --ff-only other && false`), 'a failed call whose fast-forward merge landed');
+      rm(dir);
+    }
+
+    // `git -C <quoted path> commit` concluding a conflicted merge: the probe reads that path's reflog
+    {
+      const session = merged(false);
+      const spaced = stopped();
+      git2(['add', 'c.txt'], spaced);
+      const target = spaced + ' sp';
+      fs.renameSync(spaced, target);
+      assertIdle(run(session, FAILED, `git -C '${target}' commit --no-edit && false`), 'a -C commit whose tree has not concluded a merge, under a session whose reflog tops on one');
+      git2(['commit', '--no-edit', '-q'], target);
+      assertRan(run(session, FAILED, `git -C '${target}' commit --no-edit && false`), 'a -C <quoted path> commit that concluded a conflicted merge');
+      assertRan(run(session, OK, `git -C '${target}' commit --no-edit`), 'the same on a successful call');
+      rm(session, target);
+    }
+
+    // ADR 0033 deferral and the no-document case hold on both events
+    for (const event of [OK, FAILED]) {
+      const dir = merged(false, 'integration/wide');
+      assertIdle(run(dir, event, 'git merge --no-ff other'), `a merge on an integration/ branch, ${event}`);
+      rm(dir);
+      const bare = merged(false);
+      fs.rmSync(path.join(bare, VERIFICATION_DOC));
+      assertIdle(run(bare, event, 'git merge --no-ff other'), `a repository with no verification document, ${event}`);
+      rm(bare);
+    }
+
+    // the hook is registered on the failure event, with the success event's own timeout
+    {
+      const hooks = JSON.parse(fs.readFileSync(path.join(path.dirname(hookPath), 'hooks.json'), 'utf8')).hooks;
+      const entry = (event) =>
+        hooks[event]
+          .filter((g) => g.matcher === 'Bash')
+          .flatMap((g) => g.hooks)
+          .find((h) => h.command.includes('green-gate.js'));
+      assert.ok(entry(FAILED), 'green-gate is registered on PostToolUseFailure(Bash)');
+      assert.equal(entry(FAILED).timeout, entry(OK).timeout, 'with the timeout entry readHookTimeoutMs() reads');
+    }
+  }
+
   // require.main guard: requiring this file must never run main()'s stdin/decide dispatch, and
   // spawning it directly (as Claude Code's hook invocation does) must still gate exactly as
   // before the guard was added.
@@ -1294,28 +1593,6 @@ fs.writeFileSync(
     const spawned = runHook(inputObj);
     assert.equal(spawned.status, 2, 'spawning green-gate.js directly still gates the merge');
     fs.rmSync(session, { recursive: true, force: true });
-  }
-
-  // argv[2] === '--selftest' is a global-process condition, not "this file was invoked directly": a
-  // parent process invoked as `node <parent>.js --selftest` that requires this hook must not run
-  // this hook's own selftest as a side effect (issue #442 finding 1). Guarded by an env marker so
-  // that, if the guard is broken, the recursively-triggered inner selftest doesn't spawn a further
-  // generation of itself — it proves the leak exactly once instead of nesting indefinitely.
-  if (!process.env.SUPERDEV_ARGV_GUARD_TEST) {
-    const dir = tmp('green-gate-argv-');
-    const wrapper = path.join(dir, 'req.js');
-    fs.writeFileSync(wrapper, `require(${JSON.stringify(hookPath)});`);
-    try {
-      const outer = cp.spawnSync(process.execPath, [wrapper, '--selftest'], {
-        encoding: 'utf8', timeout: 15000,
-        env: Object.assign({}, process.env, { SUPERDEV_ARGV_GUARD_TEST: '1' }),
-      });
-      assertSpawnDecided(outer, 'a parent process requiring green-gate.js under --selftest');
-      assert.equal(outer.status, 0, 'a parent whose own argv[2] is --selftest still exits cleanly when it requires green-gate.js');
-      assert.equal(outer.stdout, '', "and never runs green-gate.js's own selftest as a side effect");
-    } finally {
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
   }
 }
 

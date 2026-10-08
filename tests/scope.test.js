@@ -2013,6 +2013,31 @@ try {
     );
     fs.rmSync(worktreeDir, { recursive: true, force: true });
 
+    // A subdirectory of the main working tree resolves the same run root.
+    fs.mkdirSync(path.join(mainRepo, 'sub', 'deep'), { recursive: true });
+    assert.strictEqual(
+      callIn(['root', 'demo'], path.join(mainRepo, 'sub', 'deep')).out,
+      expectedRoot,
+      'root resolves the same path from a subdirectory'
+    );
+
+    // Inside a submodule the run root lives under the submodule's own checkout, never `.git/modules`.
+    const subSource = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-root-subsrc-')));
+    gitRoot(['init', '-q', '-b', 'main'], subSource);
+    gitRoot(['config', 'user.email', 'test@example.com'], subSource);
+    gitRoot(['config', 'user.name', 'test'], subSource);
+    fs.writeFileSync(path.join(subSource, 'f.txt'), 'x\n');
+    gitRoot(['add', '.'], subSource);
+    gitRoot(['commit', '-q', '-m', 'init'], subSource);
+    gitRoot(['-c', 'protocol.file.allow=always', 'submodule', 'add', '-q', subSource, 'vendor/lib'], mainRepo);
+    const subCheckout = path.join(mainRepo, 'vendor', 'lib');
+    assert.strictEqual(
+      callIn(['root', 'demo'], subCheckout).out,
+      path.join(subCheckout, '.superdev', 'scopes', 'demo'),
+      'root resolves to the submodule checkout from inside a submodule'
+    );
+    fs.rmSync(subSource, { recursive: true, force: true });
+
     // Outside a git repository entirely.
     const noGitDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-root-nogit-'));
     const noGit = callIn(['root', 'demo'], noGitDir);
@@ -3704,6 +3729,7 @@ try {
     git('init', '-q');
     git('commit', '-q', '--allow-empty', '-m', 'x');
     const writers1 = [
+      [['base', 'set', 'HEAD'], / ledger base set HEAD$/],
       [['suite', 'set', 'green', 'HEAD'], / ledger suite set green HEAD$/],
       [['deploy', 'set', 'prod', 'pending'], / ledger deploy set prod pending$/],
       [['docs', 'set', 'inline'], / ledger docs set inline$/],
@@ -3722,6 +3748,54 @@ try {
       assert.equal(lines().length, n + 1, argv.join(' ') + ' appends one line');
       assert.match(lines()[n], shape, argv.join(' ') + ' line shape');
       assert.ok(!lines()[n].includes('secret-token-123'), argv.join(' ') + ' keeps bullet text out');
+    }
+    // Every ledger-writing verb the usage text lists is driven against a fresh run root and appends one
+    // `ledger <verb> …` line: a verb added to the usage text with no driver here, or one that stops tracing, fails.
+    {
+      const usageText = spawnSync('node', [scopePath, '--help'], { encoding: 'utf8' }).stdout;
+      const readOnly = new Set(['get', 'trace', 'publish', 'status', 'root', 'staging', 'dod-line']);
+      const readOnlySub = /^\s+(deploy get|suite reusable|base resolve)\b/;
+      const usageVerbs = new Set(usageText.split('\n').slice(1)
+        .filter((l) => /^ {2}[^-\s]/.test(l) && !readOnlySub.test(l))
+        .map((l) => l.trim().split(/\s+/)[0])
+        .filter((v) => !readOnly.has(v)));
+      assert.ok(usageVerbs.size >= 12, 'usage text yields the writing verbs: ' + [...usageVerbs].join(','));
+      const drivers = {
+        init: ['init', 'feat/g-init', 'implementing'],
+        stage: ['stage', 'set', 'reviewed'],
+        slice: ['slice', '01', 'merged'],
+        degraded: ['degraded', 'add', 'x'],
+        unresolved: ['unresolved', 'add', 'x'],
+        deferred: ['deferred', 'add', 'x'],
+        docs: ['docs', 'set', 'inline'],
+        pr: ['pr', 'set', '12'],
+        deploy: ['deploy', 'set', 'prod', 'pending'],
+        suite: ['suite', 'set', 'green', 'HEAD'],
+        base: ['base', 'set', 'HEAD'],
+        adopt: ['adopt'],
+      };
+      const traceOf = (r) => (fs.existsSync(path.join(r, 'trace.log')) ? fs.readFileSync(path.join(r, 'trace.log'), 'utf8').split('\n').filter(Boolean) : []);
+      for (const v of usageVerbs) {
+        assert.ok(drivers[v], `usage lists writing verb "${v}" with no driver in this guard`);
+        const gRoot = path.join(dir, '.superdev', 'scopes', 'g-' + v);
+        let target = gRoot;
+        let argv = [...drivers[v], '--root', gRoot];
+        let stdin;
+        if (v === 'init') argv = drivers.init, stdin = sliceJson;
+        else {
+          assert.ok(quiet(['init', 'feat/g-' + v, 'implementing'], sliceJson), v + ' fixture init');
+          if (v === 'adopt') {
+            target = path.join(dir, 'elsewhere', 'g-adopt');
+            argv = ['adopt', '--root', target];
+            stdin = require(scopePath).publishText(gRoot);
+          }
+        }
+        const n = traceOf(target).length;
+        assert.ok(quiet(argv, stdin), `${v} succeeds`);
+        const added = traceOf(target).slice(n);
+        assert.equal(added.length, 1, `${v} appends one trace line`);
+        assert.match(added[0], new RegExp(` ledger ${v}( |$)`), `${v} traces a ledger ${v} event`);
+      }
     }
     {
       const n = lines().length;

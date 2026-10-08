@@ -38,6 +38,9 @@ Under `auto`, a target's command runs in a tree detached at the merge commit tha
 files from the run — installed dependencies, build output — so the command must not rely on their
 presence or absence: it installs and builds what it needs itself.
 
+`/superdev:verify-ship` reads the `Read-only reach` column to observe a deployed target, and runs no
+target's command.
+
 `/superdev:plan` offers this table's names on a feature's `**Deploy:**` line, in deploy order.
 `/superdev:ship` reads that line from the anchor and runs (or prints) the listed targets' commands in
 that order.

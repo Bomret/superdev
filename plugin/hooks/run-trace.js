@@ -26,13 +26,15 @@ let readTrace = null;
 let sliceType = null;
 let verificationCommands = null;
 let SLUG_RE = null;
+let mainWorkTree = null;
 try {
-  ({ appendTrace, untraceField, inProgressSlices, readTrace, sliceType, verificationCommands, SLUG_RE } = require('../scripts/scope.js'));
+  ({ appendTrace, untraceField, inProgressSlices, readTrace, sliceType, verificationCommands, SLUG_RE, mainWorkTree } = require('../scripts/scope.js'));
 } catch {
   // left null: main() records nothing
 }
 
-// One shell word, quoted/escaped forms included — the merge-guard ARG token.
+// One shell word, quoted/escaped forms included — the merge-guard ARG token, byte-identical (pinned by
+// tests/run-trace.test.js and drift-check's arg-token contract).
 const ARG = /(?:[^\s"'\\$`]|\$(?![({])|\\.|"(?:[^"\\]|\\.)*"|'[^']*'|\$\((?:[^()\\]|\\.|\((?:[^()\\]|\\.)*\))*\)|\$\{(?:[^{}\\"'`]|\\.|"(?:[^"\\]|\\.)*"|'[^']*'|`(?:[^`\\]|\\.)*`)*\}|`(?:[^`\\]|\\.)*`)+/.source;
 const ARG_WORDS = new RegExp(ARG, 'g');
 const REDIR = /(>{1,2})\s*/g;
@@ -41,24 +43,38 @@ const ARG_AT = new RegExp(ARG, 'y');
 // The default test patterns, used where `docs/agents/verification.md` has no usable `## Test paths`.
 const DEFAULT_TEST_PATHS = ['tests/', 'test/', '**/__tests__/', 'spec/', '*.test.*', '*.spec.*', '*_test.*', 'test_*.py'];
 
-// A heredoc body is data, not a command: drop every body so prose in it never reads as a write.
-// Same scan as ledger-guard's.
+// A heredoc body is data, not a command: drop every body so prose in it never reads as a write. A
+// byte-identical copy of ledger-guard's (hooks stay standalone; tests/run-trace.test.js pins the copy).
 function stripHeredocs(cmd) {
   const out = [];
-  const queue = [];
+  const queue = []; // Queue of [delimiter, indented] pairs for pending heredocs
   for (const line of cmd.split('\n')) {
+    // If we're inside a heredoc body, check if this line closes the first pending heredoc
     if (queue.length > 0) {
       const [delim, indented] = queue[0];
-      if ((indented ? line.trim() : line) === delim) queue.shift();
-      continue;
+      if ((indented ? line.trim() : line) === delim) {
+        queue.shift(); // Matched delimiter line — skip it
+      }
+      // If still inside a heredoc body, skip this line
+      if (queue.length > 0) continue;
+      continue; // Also skip the delimiter line itself
     }
+
     out.push(line);
+    // Mask quoted text, `$(( ))` arithmetic, and comments so a `<<` inside them is no opener; `<<<` is
+    // a here-string. Comments are `#` not preceded by `$` (which would be `$#`, the arg count parameter)
+    // through to end of line. Match either (non-$ character before #) or (# at line start).
     const masked = line.replace(/"(?:[^"\\]|\\.)*"|'[^']*'|\$\(\([^)]*\)\)|(?:(?<!\$)#|^#).*$/g, (m) => '_'.repeat(m.length));
-    const re = /(?<!<)<<(?!<)/g;
-    let m;
-    while ((m = re.exec(masked)) !== null) {
-      const h = /^<<(-?)\s*(?:'([^']+)'|"([^"]+)"|\\?(\w+))/.exec(line.slice(m.index));
-      if (h) queue.push([h[2] || h[3] || h[4], h[1] === '-']);
+    // Find all heredoc openers on this line
+    const heredocRe = /(?<!<)<<(?!<)/g;
+    let match;
+    // eslint-disable-next-line no-cond-assign
+    while ((match = heredocRe.exec(masked)) !== null) {
+      const at = match.index;
+      const h = /^<<(-?)\s*(?:'([^']+)'|"([^"]+)"|\\?(\w+))/.exec(line.slice(at));
+      if (h) {
+        queue.push([h[2] || h[3] || h[4], h[1] === '-']);
+      }
     }
   }
   return out.join('\n');
@@ -231,7 +247,28 @@ function locate(abs) {
 const NOT_RUNNERS = new Set(['grep', 'egrep', 'fgrep', 'rg', 'cat', 'sed', 'head', 'tail', 'wc', 'less', 'more', 'ls', 'echo', 'printf',
   'find', 'stat', 'file', 'tree', 'bat', 'awk', 'git', 'cp', 'mv', 'rm', 'mkdir', 'touch', 'tee', 'vim', 'vi', 'nano', 'code', 'open',
   'diff', 'cmp', 'cd', 'chmod', 'ln', 'set', 'true', 'false', ':']);
-const WRAPPERS = /^(?:sudo|command|env|time|exec|nohup)$/;
+// The wrappers a test run sits behind (`timeout` and `env` have their own option parsing below). ledger-guard.js keeps its own,
+// wider list: every name here is also known there (tests/ledger-guard.test.js), which adds `xargs`, `doas`, `stdbuf`, and `builtin`.
+const WRAPPERS = /^(?:sudo|command|env|time|exec|nohup|nice)$/;
+// A wrapper's leading option words are skipped, with the value of the options that take one. `command` has none: its options
+// (`-v`, `-V`) look a command up, and no run follows. ledger-guard.js keeps its own copy of these sets and of `optionEnd` (as
+// `WRAPPER` and `optionWords`; hooks stay standalone), and tests/ledger-guard.test.js pins that the two agree.
+const WRAPPER_VALUE_OPTS = new Map([
+  ['sudo', new Set(['-u', '-g', '-C', '-h', '-p', '-r', '-t', '-T', '-U', '-D', '-R', '--user', '--group', '--host', '--prompt', '--role', '--type',
+    '--other-user', '--close-from', '--chdir', '--chroot', '--login-class'])],
+  ['nice', new Set(['-n', '--adjustment'])],
+  ['exec', new Set(['-a'])],
+  ['time', new Set()],
+  ['nohup', new Set()],
+]);
+// The index of the last word of the option at `ws[i]` and its value, read as getopt reads it: a long option takes the next word
+// when it is a value option, and a short cluster takes it when its first value option ends the cluster (`sudo -iu bob`; `-uroot` is one word).
+function optionEnd(ws, i, valueOpts) {
+  const w = ws[i];
+  if (w.startsWith('--')) return valueOpts.has(w) ? i + 1 : i;
+  const at = [...w.slice(1)].findIndex((c) => valueOpts.has('-' + c));
+  return at < 0 || at + 2 < w.length ? i : i + 1;
+}
 
 // The bound on each `git` call a run line needs; a call past it records `unknown` for its field (INV-0009).
 const GIT_BOUND_MS = Number(process.env.RUN_TRACE_GIT_BOUND_MS) || 1500;
@@ -256,26 +293,95 @@ function segments(command) {
   return out.filter((s) => s.text.trim() || s.sep);
 }
 
-// The words of a segment after redirects, env assignments, and wrappers: { cmd, args }.
+// Shell keywords and group openers that precede a command at command position.
+const LEAD = /^(?:if|then|elif|else|do|while|until|!|\(|\{)$/;
+const DURATION = /^\d+(?:\.\d+)?[smhd]?$/;
+
+// The words of a segment after redirects, group openers, keywords, env assignments, and wrappers (`timeout [opts] <duration> [--]`
+// and `env [opts] [--]` included): { cmd, args, negated }. `negated` marks a leading `!`, which inverts the exit status. A `)`
+// closing a subshell is dropped from the segment's last word; an escaped `\)` stays.
 function segWords(text) {
-  const ws = (text.replace(/\d*[<>]+&?\s*\S*/g, ' ').match(ARG_WORDS) || []);
+  // Redirects go by word, outside quotes: a bare operator takes the next word with it (`> out.txt`), and a word's tail from
+  // its operator on goes (`>out.txt`, `2>&1`); a `>` inside a quoted word is data.
+  const ws = [];
+  let skip = false;
+  for (const w of text.match(ARG_WORDS) || []) {
+    if (skip) { skip = false; continue; }
+    const m = /\d*[<>]+&?/.exec(w.replace(/"(?:[^"\\]|\\.)*"|'[^']*'/g, (q) => '_'.repeat(q.length)));
+    if (!m) { ws.push(w); continue; }
+    if (m.index) ws.push(w.slice(0, m.index));
+    skip = m[0].length === w.length - m.index;
+  }
+  if (ws.length) ws[0] = ws[0].replace(/^\(+/, '');
+  if (ws.length) ws[ws.length - 1] = ws[ws.length - 1].replace(/(?<!\\)((?:\\\\)*)\)+$/, '$1');
   let i = 0;
-  while (i < ws.length && (/^[A-Za-z_]\w*=/.test(ws[i]) || WRAPPERS.test(ws[i]))) i++;
-  return { cmd: ws[i] || '', args: ws.slice(i + 1) };
+  let negated = false;
+  for (; i < ws.length; i++) {
+    const w = ws[i];
+    if (w === '!') negated = true;
+    if (w === 'env') {
+      while (/^-/.test(ws[i + 1] || '')) {
+        i++;
+        if (/^(?:-u|--unset)$/.test(ws[i])) i++;
+        else if (ws[i] === '--') break;
+      }
+      continue;
+    }
+    if (WRAPPER_VALUE_OPTS.has(w)) {
+      while (/^-/.test(ws[i + 1] || '')) {
+        i++;
+        if (ws[i] === '--') break;
+        i = optionEnd(ws, i, WRAPPER_VALUE_OPTS.get(w));
+      }
+      continue;
+    }
+    if (w === '' || LEAD.test(w) || /^[A-Za-z_]\w*=/.test(w) || WRAPPERS.test(w)) continue;
+    if (w !== 'timeout') break;
+    while (/^-/.test(ws[i + 1] || '')) {
+      i++;
+      if (/^(?:-[ks]|--(?:kill-after|signal))$/.test(ws[i])) i++;
+    }
+    if (DURATION.test(ws[i + 1] || '')) i++;
+    if (ws[i + 1] === '--') i++;
+  }
+  return { cmd: ws[i] || '', args: ws.slice(i + 1), negated };
 }
 
 const plain = (w) => (/[$`]/.test(w) ? null : w.replace(/^(['"])(.*)\1$/, '$2'));
 
-// The kind of a verification command a segment holds (full, focused, whole): the longest match, ties to
-// full over focused over whole. A match ends at a word boundary, so `bun run test:unit` is not `bun run test`.
+// Whether `words` begin with the template's words. A `{paths}` word stands for one or more path words (not flags), after
+// an optional `--`; a word embedding `{paths}` (`FILES={paths}`) matches one word with a path between its literal ends.
+function beginsWith(words, tpl) {
+  if (!tpl.length) return true;
+  if (tpl[0] !== '{paths}') {
+    const at = tpl[0].indexOf('{paths}');
+    const [pre, post] = at < 0 ? [] : [tpl[0].slice(0, at), tpl[0].slice(at + 7)];
+    const w = words[0] || '';
+    const hit = at < 0 ? w === tpl[0] : w.length > pre.length + post.length && w.startsWith(pre) && w.endsWith(post);
+    return hit && beginsWith(words.slice(1), tpl.slice(1));
+  }
+  const from = words[0] === '--' ? 1 : 0;
+  for (let n = from + 1; n <= words.length && !words[n - 1].startsWith('-'); n++) if (beginsWith(words.slice(n), tpl.slice(1))) return true;
+  return false;
+}
+
+// The kind of a verification command a segment runs (full, focused, whole): the segment's command words
+// (after env assignments and wrappers) begin with the configured command's words, normalized the same way, so a quoted argument
+// never matches and `bun run test:unit` is not `bun run test`. The longest match wins, ties to full over
+// focused over whole. A full or whole match whose command words run past the template's (`bun run test --related a.js`) is a narrowed run,
+// so it is `focused`, never `full` or `whole` (INV-0129); a redirect or pipe adds no word.
 function verificationKind(text, v) {
-  const flat = text.replace(/\s+/g, ' ');
+  const { cmd, args } = segWords(text);
+  const words = [cmd, ...args];
   let best = null;
   for (const kind of ['full', 'focused', 'whole']) {
     const c = v[kind];
-    if (!c || !new RegExp('(?:^|\\s)' + c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\w:./-])').test(flat)) continue;
+    if (!c) continue;
+    const tpl = segWords(c);
+    if (!beginsWith(words, [tpl.cmd, ...tpl.args])) continue;
     if (!best || c.length > v[best].length) best = kind;
   }
+  if ((best === 'full' || best === 'whole') && words.length > 1 + segWords(v[best]).args.length) return 'focused';
   return best;
 }
 
@@ -283,7 +389,7 @@ const PASS_THROUGH = new Set(['tail', 'cat']);
 
 // The test runs of a Bash command: [{ at, kind, files, unknown, sole }]. `at` is the run's tree (from the
 // effective directory at the segment: the last `cd` target, else `cwd`). `unknown` marks an exit status that
-// does not reflect the test: a pipe after it without `set -o pipefail`, a command after its pipeline, `||` after it, or a `;`/newline-separated
+// does not reflect the test: a leading `!`, a pipe after it without `set -o pipefail`, a command after its pipeline, `||` after it, or a `;`/newline-separated
 // command after it. `sole` marks a test whose failure is the command's failure: only `cd`/`set` before it,
 // nothing after it but a pipe's tail that ends the command, no `||` before or after it, no background `&`.
 function testRuns(command, cwd) {
@@ -292,7 +398,7 @@ function testRuns(command, cwd) {
   let base = cwd;
   let pipefail = false;
   segs.forEach((seg, i) => {
-    const { cmd, args } = segWords(seg.text);
+    const { cmd, args, negated } = segWords(seg.text);
     // The last `set -o pipefail` / `set +o pipefail` before the test wins; an option group (`-euo`) counts.
     if (/\bset\s/.test(seg.text)) for (const m of seg.text.matchAll(/([-+])[A-Za-z]*o\s+pipefail\b/g)) pipefail = m[1] === '-';
     if (cmd === 'cd' && args[0] && plain(args[0])) { base = path.resolve(base, plain(args[0])); return; }
@@ -321,7 +427,7 @@ function testRuns(command, cwd) {
     const stages = segs.slice(i + 1).filter((s) => s.text.trim());
     const pipeEnds = seg.sep !== '|' || stages.every((s, j) => PASS_THROUGH.has(path.basename(segWords(s.text).cmd))
       && (j < stages.length - 1 ? s.sep === '|' : /^(?:|;|\n)$/.test(s.sep)));
-    const unknown = (seg.sep === '|' && !pipefail) || !pipeEnds || seg.sep === '||' || ((seg.sep === ';' || seg.sep === '\n') && more);
+    const unknown = negated || (seg.sep === '|' && !pipefail) || !pipeEnds || seg.sep === '||' || ((seg.sep === ';' || seg.sep === '\n') && more);
     const sole = segs.slice(0, i).every((s) => /^(?:cd|set)$/.test(segWords(s.text).cmd) && /^(?:&&|;|\n)$/.test(s.sep))
       && seg.sep !== '&' && (!more || (seg.sep === '|' && pipeEnds));
     runs.push({ at, kind, files, unknown, sole });
@@ -454,8 +560,7 @@ function recordDispatch(input) {
 function recordDispatchEnd(input, cwd) {
   const m = /^(.*?\/\.superdev)\/scopes\//.exec(cwd.replace(/\\/g, '/'));
   // The main working tree holds the scopes dir, whatever checkout or subdirectory the controller stands in.
-  const common = m ? null : gitOut(cwd, ['rev-parse', '--git-common-dir']);
-  const main = common ? path.dirname(path.resolve(cwd, common.trim())) : cwd;
+  const main = m ? null : mainWorkTree(cwd, { timeout: GIT_BOUND_MS }) || cwd;
   const scopes = path.join(m ? m[1] : path.join(main, '.superdev'), 'scopes');
   for (const name of fs.readdirSync(scopes)) {
     const runRoot = path.join(scopes, name);
@@ -470,7 +575,7 @@ function recordDispatchEnd(input, cwd) {
 }
 
 function record(input) {
-  if (!appendTrace || !untraceField || !inProgressSlices || !readTrace || !sliceType || !verificationCommands || !SLUG_RE || !input || typeof input !== 'object') return null;
+  if (!appendTrace || !untraceField || !inProgressSlices || !readTrace || !sliceType || !verificationCommands || !SLUG_RE || !mainWorkTree || !input || typeof input !== 'object') return null;
   const ti = input.tool_input || {};
   const cwd = typeof input.cwd === 'string' && input.cwd ? input.cwd : process.cwd();
   if (input.hook_event_name === 'SubagentStart' || input.hook_event_name === 'SubagentStop') {
@@ -523,4 +628,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { record, bashTargets, globToRe };
+module.exports = { record, bashTargets, globToRe, verificationKind, ARG, stripHeredocs };

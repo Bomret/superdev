@@ -33,7 +33,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
 
-const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days past scope-branch merge
+const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days from the newest file mtime in the run root
 
 // A scope branch is `<type>/<scope>`, where `<type>` is the change type — the Conventional Commits type
 // of the work (`references/scope-mode.md`, `## The change type`). The run-root directory name carries the

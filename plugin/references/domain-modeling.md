@@ -124,7 +124,7 @@ commitments` section (`skills/brainstorm/SKILL.md` §5).
 ### Rejected directions → an ADR's `Considered options`, or the epic's non-goals
 
 A direction explored and dropped is worth keeping only where a future reader will look for it. When
-`/plan` seeds from a brainstorm intent carrying **Rejected directions** (`brainstorm.md` §5), route each
+`/plan` seeds from a brainstorm intent carrying **Rejected directions** (`skills/brainstorm/SKILL.md` §5), route each
 one — don't re-explore it, and don't drop it silently:
 
 - a rejected **approach** (a design trade-off, an alternative mechanism) → the relevant ADR's

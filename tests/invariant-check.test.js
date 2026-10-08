@@ -1,8 +1,9 @@
 'use strict';
 
 // Suite for scripts/invariant-check.js, the maintainer-only register validator (ADR 0093). Every
-// case builds a throwaway repository under the OS temp dir and runs the CLI against it with
-// --root, the same way the maintainer runs it against another repository.
+// case builds a throwaway repository under the OS temp dir. The field and parse cases call
+// `check(root)` in-process; the cases that pin the CLI contract (exit codes, usage, the summary
+// line) spawn the CLI with --root, the same way the maintainer runs it against another repository.
 
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -12,6 +13,7 @@ const { spawnSync } = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
 
 const CLI = path.join(__dirname, '..', 'scripts', 'invariant-check.js');
+const { check } = require(CLI);
 
 function repo(files) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'invariant-check-'));
@@ -27,6 +29,20 @@ function run(args, label) {
   const result = spawnSync(process.execPath, [CLI, ...args], { encoding: 'utf8', timeout: 10000 });
   assertSpawnDecided(result, label);
   return result;
+}
+
+// The in-process twin of a CLI run: `check(root)` rendered the way the CLI prints it, so a field case
+// asserts on the same `id: field: reason` lines. The CLI case below holds the two renderings equal.
+function inProcess(root) {
+  const { entries, failures } = check(root);
+  if (entries === null) return { status: 0, stdout: 'invariant-check: no register found, nothing to check\n' };
+  const lines = failures.map((f) => `${f.id}: ${f.field}: ${f.reason}`);
+  lines.push(
+    failures.length
+      ? `invariant-check: ${failures.length} failure(s) in ${entries.length} entries`
+      : `invariant-check: ${entries.length} entries hold`,
+  );
+  return { status: failures.length ? 1 : 0, stdout: `${lines.join('\n')}\n` };
 }
 
 const GLOSSARY = '# Glossary\n\n**Order**: a purchase.\n\n**Tier** (execution): a route.\n';
@@ -59,10 +75,17 @@ const register = (...entries) => `# Invariant register\n\n${entries.join('\n')}`
   const r4 = run(['--root', clean], 'clean register');
   assert.equal(r4.status, 0, `a register meeting every rule exits 0 (got: ${r4.stdout}${r4.stderr})`);
   assert.equal(r4.stdout.trim().split('\n').length, 1, 'a clean run prints one summary line');
+
+  const dirty = repo({ 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0001', GOOD), entry('INV-0002', GOOD.slice(1))) });
+  const r5 = run(['--root', dirty], 'failing register');
+  assert.equal(r5.status, 1, 'a register with a failure exits 1');
+  assert.match(r5.stdout, /^INV-0002: Class: /m, 'a failure prints as `id: field: reason`');
+  assert.match(r5.stdout, /^invariant-check: 1 failure\(s\) in 2 entries$/m, 'a failing run ends on the summary line');
+  assert.equal(inProcess(dirty).stdout, r5.stdout, 'the in-process rendering the field cases read equals the CLI output');
 }
 
 function failuresFor(files, label) {
-  const r = run(['--root', repo(files)], label);
+  const r = inProcess(repo(files));
   return { status: r.status, out: r.stdout };
 }
 const without = (key) => GOOD.filter((l) => !l.startsWith(`${key}:`));
@@ -174,7 +197,7 @@ const withConcepts = (value) => GOOD.map((l) => (l.startsWith('Concepts:') ? `Co
   fs.mkdirSync(path.join(gitRoot, '.git'));
   fs.writeFileSync(path.join(gitRoot, '.git', 'CONTEXT.md'), '**Gitty**: never read.\n');
   fs.writeFileSync(path.join(gitRoot, 'CONTEXT.md'), GLOSSARY);
-  const gitRun = run(['--root', gitRoot], '.git glossary');
+  const gitRun = inProcess(gitRoot);
   assert.match(gitRun.stdout, /Gitty/, 'a CONTEXT.md under .git/ contributes none');
 
   const claudeRoot = repo({
@@ -182,7 +205,7 @@ const withConcepts = (value) => GOOD.map((l) => (l.startsWith('Concepts:') ? `Co
     '.claude/worktrees/copy/CONTEXT.md': '**Ghost**: never read.\n',
     'docs/invariants.md': register(entry('INV-0013', withConcepts('Order, Ghost'))),
   });
-  const claudeRun = run(['--root', claudeRoot], '.claude glossary');
+  const claudeRun = inProcess(claudeRoot);
   assert.match(claudeRun.stdout, /Ghost/, 'a CONTEXT.md under .claude/ contributes none');
 
   const noGlossary = failuresFor(
@@ -359,15 +382,13 @@ const withConcepts = (value) => GOOD.map((l) => (l.startsWith('Concepts:') ? `Co
   assert.deepEqual(hits, [], 'no file under plugin/ names scripts/invariant-check.js');
 }
 
-// --- INV-0088: a run prints failures and one summary, never a selected subset of entries. ---
+// --- INV-0088 (spawned: it asserts the CLI's own stdout): a run prints failures and one summary, never a selected subset of entries. ---
 {
-  const { out } = failuresFor(
-    {
-      'CONTEXT.md': GLOSSARY,
-      'docs/invariants.md': register(entry('INV-0001', GOOD), entry('INV-0002', withConcepts('Invoice'))),
-    },
-    'output shape',
-  );
+  const root = repo({
+    'CONTEXT.md': GLOSSARY,
+    'docs/invariants.md': register(entry('INV-0001', GOOD), entry('INV-0002', withConcepts('Invoice'))),
+  });
+  const out = run(['--root', root], 'output shape').stdout;
   const lines = out.trim().split('\n');
   assert.match(lines.pop(), /^invariant-check: \d+ failure\(s\) in \d+ entries$/, 'the last line is the summary');
   for (const line of lines) assert.match(line, /^INV-\d+: \w+: /, `every other line is a failure: ${line}`);
@@ -572,7 +593,7 @@ const withField = (key, value) => [...GOOD.filter((l) => !l.startsWith(`${key}:`
   const utf16 = repo({ 'CONTEXT.md': GLOSSARY });
   fs.mkdirSync(path.join(utf16, 'docs'), { recursive: true });
   fs.writeFileSync(path.join(utf16, 'docs', 'invariants.md'), Buffer.from(`﻿${register(entry('INV-0001', GOOD))}`, 'utf16le'));
-  const utf16Run = run(['--root', utf16], 'utf-16le register');
+  const utf16Run = inProcess(utf16);
   assert.equal(utf16Run.status, 1, 'a UTF-16LE register fails rather than passing as 0 entries');
   assert.match(utf16Run.stdout, /^\(register\): id: no `### INV-NNNN` entry found$/m, 'names the missing-entry reason');
 
@@ -587,7 +608,7 @@ const withField = (key, value) => [...GOOD.filter((l) => !l.startsWith(`${key}:`
   assert.match(blockquoted.out, /^\(register\): id: no `### INV-NNNN` entry found$/m, 'names the missing-entry reason');
 
   const noRegisterFile = repo({ 'CONTEXT.md': GLOSSARY });
-  const noRegRun = run(['--root', noRegisterFile], 'no register file at all');
+  const noRegRun = inProcess(noRegisterFile);
   assert.equal(noRegRun.status, 0, 'a repository with no register file at all still passes');
   assert.match(noRegRun.stdout, /no register/i, 'and still says no register was found');
 }
@@ -707,7 +728,7 @@ const withField = (key, value) => [...GOOD.filter((l) => !l.startsWith(`${key}:`
   );
   assert.equal(skipped.status, 0, `a skipped directory is never scanned (got: ${skipped.out})`);
 
-  const noRegister = run(['--root', repo({ 'CONTEXT.md': GLOSSARY, 'README.md': `${STALE}\n` })], 'no register, stale citation');
+  const noRegister = inProcess(repo({ 'CONTEXT.md': GLOSSARY, 'README.md': `${STALE}\n` }));
   assert.equal(noRegister.status, 0, 'a repository with no register still passes, whatever it cites');
   assert.match(noRegister.stdout, /no register/i, 'and says there is nothing to check');
 }

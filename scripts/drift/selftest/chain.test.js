@@ -62,11 +62,7 @@ const {
   FIX_DISPATCH_CONTRACTS,
   DOC_UNTICK_ON_BREAK_CONTRACTS,
   CLEAN_VERDICT_ENDS_LOOP_CONTRACTS,
-  FIX_LOOP_FIXES_EVERY_FINDING_CONTRACTS,
-  BLIND_SLICE_REVIEW_CONTRACTS,
   RUN_TRACE_ORDER_CONTRACTS,
-  SETUP_TEST_PATHS_CONTRACTS,
-  DEPENDENCY_RECORD_CONTRACTS,
   OBSERVATION_CAPTURE_CONTRACTS,
   LABEL_REVISION_AT_DECOMPOSITION_CONTRACTS,
   UNMET_CRITERION_AT_REVIEW_CONTRACTS,
@@ -82,24 +78,6 @@ const {
 } = require('../contracts');
 
 module.exports = ({ assert, path, fixture, fs, realRoot }) => {
-  // For each row of `table`, copy the shipped documents `real` (keyed by plugin-relative path) into a
-  // fixture with that row's own matched clause removed, and expect exactly that row to fail.
-  const assertEachRowFailsAlone = (real, table) => {
-    for (const [rel, pattern, expectation] of table) {
-      const key = rel.split(path.sep).join('/');
-      const text = real[key];
-      const norm = text.replace(/\s+/g, ' ');
-      const match = text.match(pattern) || norm.match(pattern);
-      assert.ok(match, `row matches the shipped ${rel}: ${expectation}`);
-      const broken = text.includes(match[0]) ? text.replace(match[0], '') : norm.replace(match[0], '');
-      assert.equal(
-        scanContract(fixture({ ...real, [key]: broken }), [[rel, pattern, expectation]]).length,
-        1,
-        `flags a document missing: ${expectation}`,
-      );
-    }
-  };
-
   // --- scanFeatureArgContract: `/superdev:implement` takes the feature label that names which planned
   // feature to build, and plan.md hands off with that label resolved. The two halves live in different
   // documents, so either can drift alone, and neither failure surfaces anywhere else: a caller with no
@@ -570,13 +548,6 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'implement-lite.md is outside this table: both its writes rely on inheritance',
   );
 
-  // absent files are skipped, matching every other contract table
-  assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), PUBLISH_RUN_STATE_CONTRACTS).length,
-    0,
-    'absent documents are skipped',
-  );
-
   // --- ADOPT_RUN_STATE_CONTRACTS: the mirror image of the table above — run-init.md's adopt branch
   // plus scope-mode.md's `resumed`-branch fetch. Each row is anchored on text unique to
   // its own clause, so dropping any one leaves the others intact and fires exactly one gap. ---
@@ -656,13 +627,6 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     assert.equal(gaps[0].source, path.join('references', 'scope-mode.md'), 'names scope-mode.md');
   }
 
-  // absent files are skipped, matching every other contract table
-  assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), ADOPT_RUN_STATE_CONTRACTS).length,
-    0,
-    'adopt-run-state: absent documents are skipped',
-  );
-
   // positive: the pre-fix-cycle wording — re-verifying the bare `<branch>` name after the fetch, the
   // Critical defect two review passes missed (`git fetch` only ever populates the remote-tracking ref,
   // never a local one, so that re-verify always fails) — fires the gap this row exists to catch
@@ -704,13 +668,6 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   );
   assert.equal(narrowedGaps.length, 1, 'resumed-scopetree-trigger: flags the narrowed, single-cause sentence');
   assert.equal(narrowedGaps[0].source, path.join('references', 'scope-mode.md'), 'names scope-mode.md');
-
-  // absent files are skipped, matching every other contract table
-  assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), RESUMED_SCOPETREE_TRIGGER_CONTRACTS).length,
-    0,
-    'resumed-scopetree-trigger: absent documents are skipped',
-  );
 
   // --- RUN_LOCK_LIVENESS_CONTRACTS (INV-0013, ADR 0090): /superdev:implement's own entry into an
   // existing run root reads the ledger's stage together with the lock's mtime before its first write.
@@ -785,13 +742,6 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     ).length,
     0,
     'run-lock-liveness: review/document/submit-pr carry no row, since the check does not govern their ordinary hand-off',
-  );
-
-  // absent files are skipped, matching every other contract table
-  assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), RUN_LOCK_LIVENESS_CONTRACTS).length,
-    0,
-    'run-lock-liveness: absent documents are skipped',
   );
 
   // --- scanRunLockLivenessSilence: the absence half. RUN_LOCK_LIVENESS_CONTRACTS pins only the rule's
@@ -1023,13 +973,6 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     assert.equal(gaps.length, 1, `scopetree: flags skills/review/SKILL.md alone for dropping its "${key}" clause`);
     assert.equal(gaps[0].source, path.join('skills', 'review', 'SKILL.md'), 'names skills/review/SKILL.md');
   }
-
-  // absent files are skipped, matching every other contract table
-  assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), SCOPETREE_CONTRACTS).length,
-    0,
-    'scopetree: absent documents are skipped',
-  );
 
   // --- DENIAL_AUTHORSHIP_CONTRACTS: the unattended block fires on authorship, not on the denial, and
   // every document that dispatches a verification pass carries that condition. A call site left reading
@@ -1378,13 +1321,6 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   assert.equal(dcGaps2.length, 1, 'flags a reviewer that lost its derive-before-reading step');
   assert.equal(dcGaps2[0].source, path.join('agents', 'final-reviewer.md'), 'names final-reviewer.md');
 
-  // absent files are skipped, matching every other contract table
-  assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), DERIVED_CRITERIA_CONTRACTS).length,
-    0,
-    'absent files are skipped',
-  );
-
   // --- PER_CRITERION_VERDICT_CONTRACTS (ADR 0091): `final-reviewer` gates on every `dod.md` line in its
   // own `### Criteria` verdict list, and review/SKILL.md's dispatch asks for it — the dispatch-prose
   // pin the root AGENTS.md's rules demand for a contract stated in an agent body. ---
@@ -1453,13 +1389,6 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   assert.equal(lvGaps3.length, 1, 'flags a consumer reverted to slug-only wording, wire intact');
   assert.equal(lvGaps3[0].source, path.join('skills', 'implement', 'SKILL.md'), 'names implement.md');
 
-  // absent files are skipped, matching every other contract table
-  assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), LABEL_VALIDATION_CONTRACTS).length,
-    0,
-    'absent files are skipped',
-  );
-
   // --- GREEN_GATE_TIMEOUT_CONTRACTS: hooks.json's green-gate timeout and green-gate.js's own comment
   // name the same number, in two files. ---
 
@@ -1469,8 +1398,8 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'hooks/hooks.json': '"command": "node \\"${CLAUDE_PLUGIN_ROOT}/hooks/green-gate.js\\""\n',
   });
   const ggtGaps1 = scanContract(ggt1, GREEN_GATE_TIMEOUT_CONTRACTS);
-  assert.equal(ggtGaps1.length, 1, 'flags a hooks.json entry that lost its `timeout`');
-  assert.equal(ggtGaps1[0].source, path.join('hooks', 'hooks.json'), 'names hooks.json');
+  assert.equal(ggtGaps1.length, 2, 'flags a hooks.json entry that lost its `timeout`, on both events');
+  assert.deepEqual([...new Set(ggtGaps1.map((g) => g.source))], [path.join('hooks', 'hooks.json')], 'names hooks.json');
 
   // positive from the green-gate.js side: a comment that names neither the ceiling nor the default it
   // is — both green-gate.js rows are gaps
@@ -1508,19 +1437,42 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       '"command": "node \\"${CLAUDE_PLUGIN_ROOT}/hooks/green-gate.js\\"",\n"timeout": 6000\n',
   });
   const ggtGaps3 = scanContract(ggt3, GREEN_GATE_TIMEOUT_CONTRACTS);
-  assert.equal(ggtGaps3.length, 1, 'flags a hooks.json `timeout` of 6000 as drift, not a 600 near-miss');
-  assert.equal(ggtGaps3[0].source, path.join('hooks', 'hooks.json'), 'names hooks.json');
+  assert.equal(ggtGaps3.length, 2, 'flags a hooks.json `timeout` of 6000 as drift, not a 600 near-miss');
+  assert.deepEqual([...new Set(ggtGaps3.map((g) => g.source))], [path.join('hooks', 'hooks.json')], 'names hooks.json');
 
   // order-tolerant: `"timeout"` ahead of `"command"` in the entry is not drift
   const ggt4 = fixture({
     'hooks/hooks.json':
-      '"timeout": 600,\n"command": "node \\"${CLAUDE_PLUGIN_ROOT}/hooks/green-gate.js\\""\n',
+      '"PostToolUse": [{"hooks": [{\n"timeout": 600,\n"command": "node \\"${CLAUDE_PLUGIN_ROOT}/hooks/green-gate.js\\""\n}]}],\n' +
+      '"PostToolUseFailure": [{"hooks": [{\n"timeout": 600,\n"command": "node \\"${CLAUDE_PLUGIN_ROOT}/hooks/green-gate.js\\""\n}]}]\n',
   });
   assert.equal(
     scanContract(ggt4, GREEN_GATE_TIMEOUT_CONTRACTS).length,
     0,
     'a green-gate entry with `timeout` before `command` is not drift',
   );
+
+  // the PostToolUseFailure entry carries its own ceiling: a failure entry that lost its `timeout` is drift
+  // even while the PostToolUse entry states one, and the gap names the failure event
+  const ggtFailure = fixture({
+    'hooks/hooks.json':
+      '"PostToolUse": [{"hooks": [{"command": "node \\"${CLAUDE_PLUGIN_ROOT}/hooks/green-gate.js\\"", "timeout": 600}]}],\n' +
+      '"PostToolUseFailure": [{"hooks": [{"command": "node \\"${CLAUDE_PLUGIN_ROOT}/hooks/green-gate.js\\""}, {"command": "node \\"x.js\\"", "timeout": 600}]}]\n',
+  });
+  const ggtGapsFailure = scanContract(ggtFailure, GREEN_GATE_TIMEOUT_CONTRACTS);
+  assert.equal(ggtGapsFailure.length, 1, 'flags a PostToolUseFailure entry that lost its `timeout`');
+  assert.ok(/PostToolUseFailure/.test(ggtGapsFailure[0].expectation), 'and names the failure event');
+
+  // the inverse: a PostToolUse entry that lost its `timeout` while the PostToolUseFailure entry keeps one is drift,
+  // and the gap names the PostToolUse event; the failure entry's timeout cannot satisfy the PostToolUse row
+  const ggtPost = fixture({
+    'hooks/hooks.json':
+      '"PostToolUse": [{"hooks": [{"command": "node \\"${CLAUDE_PLUGIN_ROOT}/hooks/green-gate.js\\""}]}],\n' +
+      '"PostToolUseFailure": [{"hooks": [{"command": "node \\"${CLAUDE_PLUGIN_ROOT}/hooks/green-gate.js\\"", "timeout": 600}]}]\n',
+  });
+  const ggtGapsPost = scanContract(ggtPost, GREEN_GATE_TIMEOUT_CONTRACTS);
+  assert.equal(ggtGapsPost.length, 1, 'flags a PostToolUse entry that lost its `timeout`');
+  assert.ok(!/PostToolUseFailure/.test(ggtGapsPost[0].expectation), 'and names the PostToolUse event');
 
   // prev-sibling false-pass: current pattern uses [\s\S]{0,120} backward window that reaches across
   // entry boundaries, falsely matching a PREVIOUS entry's timeout even if green-gate entry lacks one.
@@ -1538,17 +1490,10 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   const ggtGapsPrevSibling = scanContract(ggtPrevSibling, GREEN_GATE_TIMEOUT_CONTRACTS);
   assert.equal(
     ggtGapsPrevSibling.length,
-    1,
+    2,
     'prev-sibling: flags when green-gate entry lacks timeout despite previous entry having one',
   );
   assert.equal(ggtGapsPrevSibling[0].source, path.join('hooks', 'hooks.json'), 'names hooks.json');
-
-  // absent files are skipped, matching every other contract table
-  assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), GREEN_GATE_TIMEOUT_CONTRACTS).length,
-    0,
-    'absent files are skipped',
-  );
 
   // --- VERB_CONTRACTS: every chain document invokes its scope.js verb (ADR 0022). A document that
   // drops its verb goes back to hand-editing or hand-parsing the ledger, and the ledger-guard hook only
@@ -1637,13 +1582,6 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   const vcPlanGaps = scanContract(vcPlan, VERB_CONTRACTS);
   assert.equal(vcPlanGaps.length, 1, 'flags plan.md for reading the stage without `scope.js get stage`');
   assert.equal(vcPlanGaps[0].source, path.join('skills', 'plan', 'SKILL.md'), 'names plan.md');
-
-  // absent files are skipped, matching every other contract table
-  assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), VERB_CONTRACTS).length,
-    0,
-    'absent files are skipped',
-  );
 
   // positive: review.md and run-handoff.md keep their other verbs but drop the `unresolved add`/
   // `unresolved clear` pair, going back to hand-editing or hand-parsing the ledger's `**Unresolved:**` line
@@ -2073,12 +2011,6 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'the bare-prose form satisfies the wire',
   );
 
-  assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), TEST_SELECTION_CONTRACTS).length,
-    0,
-    'absent files are skipped',
-  );
-
   // --- FULL_SUITE_CONTRACTS: /superdev:review in scope mode is the only full-suite run left in the
   // chain (ADR 0025) — the controller runs it itself, before dispatching final-reviewer, and
   // final-reviewer reviews against the result it is handed, running no suite of its own. ---
@@ -2421,19 +2353,6 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'boundary, destination, and exit together satisfy the three boundary rows and leave only the carve-out rows',
   );
 
-  // Each row, against the shipped documents: the real tree is the negative; the positive copies the
-  // documents into a fixture with that row's own matched clause removed (ADR 0097, INV-0095).
-  const fbDocs = ['skills/review/SKILL.md', 'references/scope-mode.md', 'references/plan-contract.md', 'agents/final-reviewer.md'];
-  const fbReal = Object.fromEntries(
-    fbDocs.map((rel) => [rel, fs.readFileSync(path.join(realRoot, 'plugin', rel), 'utf8')]),
-  );
-  assert.deepEqual(
-    scanContract(fixture(fbReal), FIX_BOUNDARY_CONTRACTS),
-    [],
-    'the shipped documents satisfy every fix-boundary row',
-  );
-  assertEachRowFailsAlone(fbReal, FIX_BOUNDARY_CONTRACTS);
-
   // --- TIER_SKIP_CONTRACTS (ADR 0037): `/superdev:review` skips `simplicity-reviewer` on a `full`-tier
   // scope, and the skip is sound only while `implement-full.md` still dispatches that reviewer per
   // `behavior` slice. The row on `implement-full.md`'s per-slice dispatch is the one that matters most:
@@ -2671,13 +2590,6 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   assert.equal(dsGaps11.length, 1, 'flags a final-reviewer.md whose re-run "stays optional" with no "own"');
   assert.equal(dsGaps11[0].source, path.join('agents', 'final-reviewer.md'), 'names final-reviewer.md');
 
-  // absent files are skipped, matching every other contract table
-  assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), FULL_SUITE_CONTRACTS).length,
-    0,
-    'absent files are skipped',
-  );
-
   // --- scanDocStepsNoSuite, additive re-growth: a presence check alone cannot catch a final-reviewer.md
   // that carries BOTH the new "runs no suite of its own" clause and the old optionality sentence it
   // replaced — that combination reads as zero gaps against FULL_SUITE_CONTRACTS today. agents/final-
@@ -2782,13 +2694,6 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     ).length,
     0,
     'the canonical token in every hook yields zero gaps',
-  );
-
-  // absent files are skipped, matching every other contract table
-  assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), ARG_TOKEN_CONTRACTS).length,
-    0,
-    'absent files are skipped',
   );
 
   // --- SOURCE_SECTION_CONTRACTS: each canonical reference still carries the sections its readers are
@@ -2911,13 +2816,6 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     scanContract(hollowed, SOURCE_SECTION_CONTRACTS).length,
     2,
     'a reference gutted to its title alone fails every row pinned to it',
-  );
-
-  // absent files are skipped, matching every other contract table
-  assert.equal(
-    scanContract(fixture({ 'README.md': '# repo\n' }), SOURCE_SECTION_CONTRACTS).length,
-    0,
-    'absent files are skipped',
   );
 
   // ---------------------------------------------------------------------------
@@ -3176,8 +3074,6 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   assert.equal(depSetupNoDefault.length, 1, "flags a setup that never states manual's default / auto's opt-in");
   assert.equal(depSetupNoDefault[0].source, path.join('skills', 'setup', 'SKILL.md'));
 
-  assert.equal(scanContract(realRoot, DEPLOYMENT_CONTRACTS).length, 0, 'the shipped seed and setup carry every clause');
-
   // --- PATHS_DERIVATION_CONTRACTS (ADR 0074): the positive half. The denylist below catches a bad
   // `{paths}` form; this catches a setup that derives nothing at all and routes every non-mapping runner
   // back to `none` — the full suite at every in-loop caller, which is the cost ADR 0025 removed.
@@ -3339,11 +3235,6 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // reports red on a change set holding no tests — which is the documentation step's own range, on every
   // scope. The shipped `pytest {paths}` proposal is what ADR 0074 came from, so this scan is a denylist
   // of the runners that map nothing, read as a command rather than as a mention.
-  assert.equal(
-    scanUnmappedPathsForms(realRoot).length,
-    0,
-    'the shipped tree proposes no `{paths}` form to a runner that maps nothing',
-  );
 
   const up1 = fixture({
     'skills/setup/SKILL.md': 'Derive the focused command, for example `pytest -- {paths}`.\n',
@@ -5450,18 +5341,12 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   }
 
   // --- PLAN_DERIVES_CRITERIA_CONTRACTS (ADR 0099, INV-0096): one row per clause across plan's §1 dispatch
-  // prose and final-reviewer's derive mode. The shipped documents are the negative; for each row the
-  // positive copies them into a fixture with that row's own matched clause removed. ---
+  // prose and final-reviewer's derive mode. The per-row cases run in `coverage.test.js`; the case below
+  // cuts a fragment narrower than any row's span. ---
   const pdDocs = ['skills/plan/SKILL.md', 'agents/final-reviewer.md'];
   const pdReal = Object.fromEntries(
     pdDocs.map((rel) => [rel, fs.readFileSync(path.join(realRoot, 'plugin', rel), 'utf8')]),
   );
-  assert.deepEqual(
-    scanContract(fixture(pdReal), PLAN_DERIVES_CRITERIA_CONTRACTS),
-    [],
-    'the shipped documents satisfy every derive-pass row',
-  );
-  assertEachRowFailsAlone(pdReal, PLAN_DERIVES_CRITERIA_CONTRACTS);
   const pdPlan = pdReal['skills/plan/SKILL.md'];
   const pdNoFoldPlan = pdPlan.replace(/; a fold into a criterion\s+already there/, '');
   assert.notEqual(pdNoFoldPlan, pdPlan, 'the fold clause is in the real plan skill');
@@ -5471,42 +5356,8 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'flags the settle-the-gaps bullet for losing the fold clause',
   );
 
-  // --- FIX_LOOP_FIXES_EVERY_FINDING_CONTRACTS (ADR 0098, INV-0094): one row per rule across review's §4,
-  // implement's Invariants, implement-full.md's step 3, and the implementer agent. The shipped documents are the negative; for each
-  // row the positive copies them into a fixture with that row's own matched clause removed. ---
-  const flDocs = [
-    'skills/review/SKILL.md',
-    'skills/implement/SKILL.md',
-    'agents/implementer.md',
-    'references/implement-full.md',
-  ];
-  const flReal = Object.fromEntries(
-    flDocs.map((rel) => [rel, fs.readFileSync(path.join(realRoot, 'plugin', rel), 'utf8')]),
-  );
-  assert.deepEqual(
-    scanContract(fixture(flReal), FIX_LOOP_FIXES_EVERY_FINDING_CONTRACTS),
-    [],
-    'the shipped documents satisfy every fix-loop row',
-  );
-  assertEachRowFailsAlone(flReal, FIX_LOOP_FIXES_EVERY_FINDING_CONTRACTS);
-
-  // --- BLIND_SLICE_REVIEW_CONTRACTS (ADR 0114, INV-0113, INV-0114): the agent body and the step-3 dispatch
-  // each carry the blind-pass order and the one-way rule, and both carry the no-report-text clause. The
-  // shipped documents are the negative; for each row the positive removes that row's own matched clause. ---
-  const bsDocs = ['agents/slice-reviewer.md', 'references/implement-full.md'];
-  const bsReal = Object.fromEntries(
-    bsDocs.map((rel) => [rel, fs.readFileSync(path.join(realRoot, 'plugin', rel), 'utf8')]),
-  );
-  assert.deepEqual(
-    scanContract(fixture(bsReal), BLIND_SLICE_REVIEW_CONTRACTS),
-    [],
-    'the shipped documents satisfy every blind-pass row',
-  );
-  assertEachRowFailsAlone(bsReal, BLIND_SLICE_REVIEW_CONTRACTS);
-
   // --- RUN_TRACE_ORDER_CONTRACTS (ADR 0117, INV-0118): the agent bodies, the checklist, and both execution
-  // playbooks carry the order rules. The shipped documents are the negative; each row's own clause removed
-  // is the positive. ---
+  // playbooks carry the order rules. The per-row cases run in `coverage.test.js`. ---
   const rtDocs = [
     'agents/implementer.md',
     'agents/slice-reviewer.md',
@@ -5520,12 +5371,6 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   const rtReal = Object.fromEntries(
     rtDocs.map((rel) => [rel, fs.readFileSync(path.join(realRoot, 'plugin', rel), 'utf8')]),
   );
-  assert.deepEqual(
-    scanContract(fixture(rtReal), RUN_TRACE_ORDER_CONTRACTS),
-    [],
-    'the shipped documents satisfy every run-trace order row',
-  );
-  assertEachRowFailsAlone(rtReal, RUN_TRACE_ORDER_CONTRACTS);
   // The old two-step remedy (revert with a bare git restore, no git add) in either playbook fails the table.
   for (const rel of ['references/implement-full.md', 'references/implement-lite.md']) {
     assert.notDeepEqual(
@@ -5537,34 +5382,6 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       `${rel} holding the old two-step remedy fails a run-trace order row`,
     );
   }
-
-  // --- SETUP_TEST_PATHS_CONTRACTS (ADR 0117): setup's decision E and check carry the test-paths rules. ---
-  const stpReal = {
-    'skills/setup/SKILL.md': fs.readFileSync(path.join(realRoot, 'plugin', 'skills/setup/SKILL.md'), 'utf8'),
-  };
-  assert.deepEqual(
-    scanContract(fixture(stpReal), SETUP_TEST_PATHS_CONTRACTS),
-    [],
-    'the shipped setup skill satisfies every test-paths row',
-  );
-  assertEachRowFailsAlone(stpReal, SETUP_TEST_PATHS_CONTRACTS);
-
-  // --- DEPENDENCY_RECORD_CONTRACTS (ADR 0114): the implementer's agent body and the implement-full.md
-  // dispatch each carry the dependency verification record, and review-checklist.md carries the counting
-  // rule. All three carry the exclusion for a dependency the repository itself provides. The shipped documents are the negative; for each row the positive removes that row's own
-  // matched clause. ---
-  const drReal = Object.fromEntries(
-    ['agents/implementer.md', 'references/implement-full.md', 'references/review-checklist.md'].map((rel) => [
-      rel,
-      fs.readFileSync(path.join(realRoot, 'plugin', rel), 'utf8'),
-    ]),
-  );
-  assert.deepEqual(
-    scanContract(fixture(drReal), DEPENDENCY_RECORD_CONTRACTS),
-    [],
-    'the shipped documents satisfy every dependency-record row',
-  );
-  assertEachRowFailsAlone(drReal, DEPENDENCY_RECORD_CONTRACTS);
 
   // --- OBSERVATION_CAPTURE_CONTRACTS: an observation — a real defect a run meets that no slice covers
   // and the scope did not cause — is recorded, never judged (ADR 0088, INV-0010). Every row pins
