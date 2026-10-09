@@ -430,6 +430,16 @@ reset();
 for (const c of ['sudo -u root bash -c "bun run test"', 'sudo -E echo "bun run test"', 'nice -n 5 xargs bun run test', 'command -v bun run test']) post(c);
 assert.deepEqual(trace(A), [], 'a quoted, indirect, or lookup mention behind a wrapper records no run');
 
+// A PreToolUse rewrite reaches PostToolUse: RTK's hook turns `bun run test` into `rtk bun run test`, and `rtk` passes the
+// command's exit status through, so the run records with its outcome (docs/known-issues.md, #955).
+reset();
+const RTK = ['rtk bun run test', 'rtk --ultra-compact bun run test', `cd ${S3} && rtk bun run test`];
+for (const c of RTK) post(c, c.startsWith('cd ') ? { cwd: tmp } : {});
+assert.deepEqual(trace(A).map((l) => l.slice(3, 5).join(' ')), RTK.map(() => 'full pass'), 'a run behind rtk records with its outcome');
+reset();
+fail('rtk bun run test');
+assert.deepEqual(trace(A).map((l) => l.slice(3, 5).join(' ')), ['full fail'], 'a failed run behind rtk records fail');
+
 // An escaped `)` ends a path word; only an unescaped closing `)` is dropped.
 reset();
 post('git restore src/a\\(1\\)');

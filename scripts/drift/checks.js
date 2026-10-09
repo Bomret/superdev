@@ -76,6 +76,9 @@ const {
   SEED_RECONCILE_CONTRACTS,
   DEPLOYMENT_CONTRACTS,
   PLAN_DEPLOY_CONTRACTS,
+  REPAIRS_LINE_CONTRACTS,
+  PLAN_REPAIR_CONTRACTS,
+  REPAIR_ROUTING_CONTRACTS,
   DERIVED_CRITERIA_CONTRACTS,
   PLAN_DERIVES_CRITERIA_CONTRACTS,
   PER_CRITERION_VERDICT_CONTRACTS,
@@ -408,6 +411,31 @@ module.exports = [
     'plan-contract defines the `**Deploy:**` line, plan asks the deploy question and writes the line, ' +
       'and every store document states its write/read mechanism',
   ),
+  table(
+    'repairs-line',
+    REPAIRS_LINE_CONTRACTS,
+    'plan-contract defines the `**Repairs:**` line, and every store document writes it, reads it, reads a ' +
+      'value outside its own key shape as no line, and migrates it on promotion',
+  ),
+  table(
+    'plan-repair-choice',
+    PLAN_REPAIR_CONTRACTS,
+    "/plan's §0 offers new, extend, or repair; repair lists the `shipped` runs holding a `not met:` note verify-ship observed, " +
+      'local or a snapshot alone it adopts once picked, ' +
+      "names verify-ship for a run whose notes are all unobserved, stops on none or on a store document " +
+      "without the Repairs line, plans a `fix` feature copying none " +
+      "of the original's criteria, writes the Repairs line on its own anchor only, and the extend " +
+      'refusal names repair for such a feature, or verify-ship first while its notes are all unobserved',
+  ),
+  table(
+    'repair-routing',
+    REPAIR_ROUTING_CONTRACTS,
+    'a `shipped` run holding a `not met:` note verify-ship wrote routes to verify-ship once a closed repair its note does not ' +
+      'yet cite names it and no open one does, and ' +
+      "otherwise to repair, naming each open repair, or verify-ship again, while a run whose notes were all written before merge routes to verify-ship, by one rule ship, document, run init, and backlog cite; verify-ship ends there; wrap-up hands a closed repair to its " +
+      'original and still refuses on a `not met:` line; a shipped original with no local run root is adopted ' +
+      'by one rule through `adopt --shipped`, which plan, verify-ship, and wrap-up cite and backlog never runs',
+  ),
   {
     id: 'entries-standing-gate',
     ok: 'submit-pr asks once and refuses unattended on a standing unresolved defect',
@@ -481,13 +509,13 @@ module.exports = [
   table(
     'plan-append',
     PLAN_APPEND_CONTRACTS,
-    "/plan's §0 asks new-vs-extend, refuses on either signal while writing nothing, and promotes a " +
+    "/plan's §0 asks new, extend, or repair, refuses on any of its signals while writing nothing, and promotes a " +
       'single-slice feature to an epic',
   ),
   table(
     'shipped-append',
     SHIPPED_APPEND_CONTRACTS,
-    "/plan's extend path refuses a feature whose anchor has shipped, on either signal alone, and names " +
+    "/plan's extend path refuses a feature whose anchor has shipped, on any shipped signal alone, the anchor's snapshot among them, and names " +
       'the new-feature remedy',
   ),
   table(

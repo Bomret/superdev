@@ -1262,6 +1262,34 @@ that the deploy line migrates to the new epic on promotion, the same way as the 
 mode` migration list carries the deploy line alongside the anchor-dependency line. Losing any one of
 these leaves that document's promotion rule silent on the deploy line, stranding it on the lone slice
 after promotion while the new epic — the record `/superdev:ship` reads — carries none.
+The `repairs-line` contract (ADR 0124, INV-0131): `references/plan-contract.md`'s `## Scope anchor`
+section defines the `**Repairs:**` line as optional and anchor-only, naming the original anchor, and its
+*Append mode* migrates the line to the new epic on a single-slice promotion, the same way as the deploy
+line. `docs/agents/issue-tracker.md` and every `references/issue-tracker-*.md` seed each carry four rows:
+the field mapping, the **Record the Repairs line** write, the **Read an anchor's Repairs line** read with
+its absent-line reading, and the line's own promotion sentence. Each document is its own row, because
+losing one store's row leaves the backend a repository has configured unable to write or read the link
+that `/superdev:plan`, `/superdev:backlog`, and `/superdev:wrap-up` rely on.
+The `plan-repair-choice` contract (ADR 0124, INV-0131, INV-0004): `skills/plan/SKILL.md`'s §0 asks new,
+extend, or repair; repair lists exactly the `shipped` run roots whose `dod.md` holds a `not met:` verdict,
+read by the note, marks a candidate an open repair already names and still lets it be picked, says there
+is nothing to repair when no candidate exists, and stops naming `/superdev:setup` when the store document
+describes no Repairs line. The repair is a `fix` feature whose Definition of Done copies none of the
+original's criteria, its label defaults to `fix/<scope>-repair` with the first free numeric suffix, and §6
+writes the Repairs line on the repair's own anchor and nothing to the original. The extend refusal names
+the repair choice for a shipped feature holding a `not met:` line, in plan and in
+`references/plan-contract.md`'s *Append mode* alike, and `references/cross-exam.md` keeps the three-way
+question among the skill-required ones. Each clause is its own row, so losing one fails on its own.
+The `repair-routing` contract (ADR 0124, INV-0116, INV-0131): `references/scope-mode.md`'s `## Routing a
+shipped run` names the repair outcome among its routes and sends a run holding a `not met:` line to
+`/superdev:plan`'s repair choice, or `/superdev:verify-ship` again, ahead of the other two routes. Its
+callers name the same command: ship's hand-off, document's leave-alone hand-off, and run init's
+shipped-run stops. `skills/verify-ship/SKILL.md` ends on the repair choice while a line reads `not met:`,
+with verify-ship again on the `Or:` line. `skills/backlog/SKILL.md` carries the `awaiting repair` and
+`needs repair` buckets and maps the rule's repair outcome onto them. `skills/wrap-up/SKILL.md` hands a
+closed repair to its original through the routing rule, names nothing for an original that is closed,
+missing, or unresolvable, and still refuses on a `not met:` line whatever repair exists. Each clause is its
+own row.
 The `entries-standing-gate` contract (ADR 0026), `scanShipGateContract()`: `skills/submit-pr/SKILL.md`
 §3's own "Entries standing." paragraph asks once whether to submit with a standing unresolved defect, and
 refuses outright under `--unattended`. §3 also carries an unrelated, pre-existing gate (the warning about a
@@ -3106,7 +3134,7 @@ other pins that the next-command bullet prints `/superdev:ship <scope>` for a `s
 than `/superdev:submit-pr`, which would try to re-open a pull request already open. Losing either row
 reopens the stage-write refusal a doc pass on a submitted scope hits today.
 Further rows pin that a `shipped` scope picks its command by `references/scope-mode.md`'s
-`## Routing a shipped run` (INV-0116), printing verify-ship or wrap-up as it routes and verify-ship when the
+`## Routing a shipped run` (INV-0116), printing repair, verify-ship, or wrap-up as it routes and verify-ship when the
 anchor cannot be read, and a `closed` one prints nothing, that `README.md` states ship merges, deploys, and stops with verify-ship and wrap-up after it, and
 that `README.md` names `closed`, never `shipped`, as the stage `scope-prune` reaps. One row pins the `README.md`
 worked example: it goes from ship straight to wrap-up, nothing being left to verify (ADR 0116).

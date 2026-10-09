@@ -233,20 +233,30 @@ Append mode holds these invariants, and every backend renders all of them:
   anchor. Append copies that `acceptance` into the new epic as the global DoD, amends it with the new
   criteria, and leaves the lone slice byte-identical. Skipping this step would leave two slices under one
   feature label with no epic — the shape a store's `## Scope anchor` section calls **Ambiguous**, which
-  cannot resolve into a root. **Two exceptions to byte-identical:** when the lone slice carries an anchor
-  dependency (*Scope anchor* below), that line **migrates to the new epic** — the epic is the anchor now,
+  cannot resolve into a root. **The anchor-dependency, deploy, and Repairs lines are the exceptions to
+  byte-identical:** when the lone slice carries an anchor dependency (*Scope anchor* below), that line **migrates to the new epic** — the epic is the anchor now,
   and the dependency is a property of the anchor, not of the slice — and is removed from the lone slice.
   The **deploy line** (*Scope anchor* below) migrates the same way, for the same reason — it too is
-  anchor-only, and is removed from the lone slice. Nothing else about the slice changes. Leaving either
-  behind would strand it on a record `/superdev:backlog` or `/superdev:ship` no longer reads as this
-  feature's anchor.
+  anchor-only, and is removed from the lone slice. The **Repairs line** (*Scope anchor* below) migrates the
+  same way, and is removed from the lone slice. Nothing else about the slice changes. Leaving any of them
+  behind would strand it on a record `/superdev:backlog`, `/superdev:ship`, or `/superdev:wrap-up` no
+  longer reads as this feature's anchor.
 - **Append refuses, and writes nothing, while a run is active.**
 - **A shipped or closed feature takes no append.** Amending a shipped feature's Definition of Done in place pools
   criteria verified against a merged pull request with criteria nobody has verified (ADR 0083,
   INV-0004), and the run root's reap removes the local half of that mixture while the scope anchor keeps
-  its own. `/superdev:plan`'s extend path refuses on either signal alone — a run root whose ledger stage
-  reads `shipped` or `closed`, and a scope anchor at the store's done status — and names the remedy: a new feature
-  carrying the anchor dependency `**Blocked by feature:** #<anchor>` (*Scope anchor* below). Appending at
+  its own. `/superdev:plan`'s extend path refuses on any one of its shipped signals alone — a run root
+  whose ledger stage reads `shipped` or `closed`, a scope anchor at the store's done status, and an anchor
+  whose `## Run state` snapshot stage reads `shipped` or `closed`, which alone shows a feature shipped on
+  another machine — and names the remedy: a new feature
+  carrying the anchor dependency `**Blocked by feature:** #<anchor>` (*Scope anchor* below). The snapshot
+  is read off the anchor body the extend path already loaded. A failed read of the anchor body refuses too,
+  because the gate fails closed on a state it cannot read; a snapshot-less store, or an anchor with no
+  `## Run state` section, leaves the other two signals to decide. A shipped
+  feature holding a `not met:` line gets `/superdev:plan`'s repair choice as its remedy instead, because
+  that dependency waits for an anchor the standing line keeps open (ADR 0124). One whose `not met:` notes all lack
+  `/superdev:verify-ship`'s repair citation gets `/superdev:verify-ship <scope>` first, because the repair
+  choice lists only a feature holding a note verify-ship observed. Appending at
   `planned` is unchanged: an earlier plan run cut the branch but no slice has run yet, so appending
   revises that plan before anything started. A run root from `implementing` through `documented` refuses
   too. That chain ends at `shipped`, which the rule above already refuses. Waiting clears nothing, and
@@ -297,6 +307,20 @@ yet, it asks nothing and writes no line. `/superdev:ship` reads the line from th
 (ADR 0101). Each store's own `## Scope anchor` section states the mechanism it writes and reads the line
 with — the same one it already uses for `**Blocked by feature:**` — and never confuses it with that
 anchor dependency or with a slice's `depends-on`.
+
+An anchor may also carry a **Repairs line**: `**Repairs:** #<original anchor>`, in each store's own key
+notation, naming the scope anchor of the shipped feature this one repairs (ADR 0124). It is optional and
+**anchor-only**, never on a slice beneath a multi-slice feature, and an absent line reads as no repair
+link. `/superdev:plan`'s repair choice writes it once, when it creates the repair, and nothing edits it
+afterwards. It records which feature a repair repairs and blocks nothing: the original's own
+`/superdev:wrap-up` gate never reads it. `/superdev:plan`'s repair choice and `/superdev:backlog` read it
+to mark a shipped scope a repair names, the shipped-run routing rule (`references/scope-mode.md`) reads it
+off open and closed anchors, sending that scope back to `/superdev:verify-ship` once only closed ones name
+it and a `not met:` note's repair citation does not yet cite one of them, and `/superdev:wrap-up` reads it
+off a repair's own anchor once that repair closes. Nothing is
+ever written to the original anchor (INV-0131). Each store's own `## Scope anchor` section states the
+mechanism it writes and reads the line with, and never confuses it with the anchor dependency, the deploy
+line, or a slice's `depends-on`.
 
 ## Release
 

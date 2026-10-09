@@ -64,6 +64,11 @@ plan runs test-first, inline in the scopetree.
   Definition of Done. The command settles each gap itself, as a criterion, a fold into an existing
   criterion, or a named non-goal, and shows the settlement as one proposal you confirm before slicing
   (ADR 0099, ADR 0122).
+  It opens with one question: a new feature, an extension of an existing one, or a **repair**. A repair
+  plans a `fix` feature for a shipped scope whose Definition of Done holds a criterion `/superdev:verify-ship`
+  observed false. The repair has its own anchor, branch, and Definition of Done, and its anchor carries a
+  `**Repairs:**` line naming the original. Nothing is written to the original, and only the original's own
+  `/superdev:verify-ship` settles the failed criterion, once the repair has shipped (ADR 0124).
   Every Definition of Done it writes
   carries a `Reachable:` criterion naming the entrance a user reaches the feature through — or `none` and
   the reason, such as no in-repo consumer or an unchanged entrance on a refactor — so a feature cannot be
@@ -247,6 +252,11 @@ deploy posture (`none`/`manual`/`auto`, `docs/agents/deployment.md`, ADR 0101), 
 `/superdev:verify-ship` settles the criteria only a deployed system can show. `/superdev:wrap-up` closes the
 scope anchor and cleans up the run. All three are human-only. Ship names `/superdev:verify-ship` next while
 a criterion is open or a `manual` deploy waits for an answer, and `/superdev:wrap-up` otherwise (ADR 0116).
+A criterion `/superdev:verify-ship` observes false keeps the anchor open. Verify-ship then names
+`/superdev:plan`'s repair choice, or itself again for an observation that was transient. A run whose
+`not met:` notes were all written before merge ends on `/superdev:verify-ship` again, also after the operator
+defers such a line, because nothing has observed that line yet. When a repair
+closes, its `/superdev:wrap-up` names the original's next command (ADR 0124).
 When staged knowledge-base pages wait, all three name their count and directory, state that wrap-up keeps
 them, and offer `/superdev:publish-kb`. `/superdev:wrap-up` refuses to close a run while its scopetree or a
 slicetree still holds a staged file, because removing that checkout deletes the file (ADR 0119).
@@ -285,8 +295,9 @@ bash or PowerShell variants.
 
 - **merge-guard.** Blocks `git merge`, `git push`, `git rebase`, `gh pr merge`, `tea pr merge`, and a
   `tea api` POST or `gh api` PUT or POST to a pull request's `/merge` endpoint from inside a subagent,
-  scoped by `agent_id`. A `curl` call to the `/merge` endpoint stays a prose contract the subagent
-  bodies carry. The guard also blocks an integrating command when a git global option value holds shell
+  scoped by `agent_id`. It blocks each of these behind an `rtk` prefix too, with or without one of rtk's run-anything
+  subcommands (`proxy`, `err`, `run`, `summary`, `test`) after it, its `--` separator, or a second `rtk` (#958). A `curl` call to the
+  `/merge` endpoint stays a prose contract the subagent bodies carry. The guard also blocks an integrating command when a git global option value holds shell
   syntax that the guard cannot read to its end. The options are `-C`, `-c`, any `--<name>=`, and
   git's value-taking long options in either spelling: `--git-dir`, `--work-tree`, `--namespace`,
   `--config-env`, `--shallow-file`, and `--attr-source`. Examples are nesting past one level, nested

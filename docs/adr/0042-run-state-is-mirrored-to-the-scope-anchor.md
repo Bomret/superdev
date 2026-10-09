@@ -2,6 +2,10 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0124](0124-a-failed-verification-is-repaired-by-its-own-fix-feature.md), which adds
+`scope.js adopt --shipped`: a command that needs a `shipped` original's missing run root adopts its
+`shipped` snapshot, while run init and plain `adopt` keep refusing it as **Run init adopts** below states.
+
 ## Context
 
 A run's state lives only in the invoking checkout. The run root is git-ignored, and

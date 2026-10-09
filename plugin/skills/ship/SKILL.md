@@ -322,6 +322,13 @@ the next command by `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
 `## Routing a shipped run` (ADR 0116, INV-0116). Its reads only choose the command: ship writes no verdict
 and rewrites no anchor line from them.
 
+- **It routes to re-verify** → print `/superdev:verify-ship <scope>` as the next command, with one line: a
+  repair of this scope has closed since the `not met:` line was last observed, and verify-ship observes
+  the line again. Print
+  `/superdev:plan` on an `Or:` line, for a repair that did not hold.
+- **It routes to repair** → print `/superdev:plan` as the next command, with one line: a criterion reads
+  `not met:`, and its repair choice plans the fix. Print the route's open-repair line for each open repair. Print `/superdev:verify-ship <scope>` on an `Or:` line,
+  for an observation that was transient.
 - **It routes to wrap-up** → print `/superdev:wrap-up <scope>` as the next command, with one line: nothing
   is left to verify, and wrap-up closes the scope. A `dod.md` line unpaired on the anchor puts the hand-sync
   of the anchor's criterion text under `First:`.

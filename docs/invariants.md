@@ -37,7 +37,7 @@ Class: architecture
 Concepts: Definition of Done (DoD), Append mode, Scope anchor
 Statement: A Definition of Done is a claim verified at one moment against one change. A ticked criterion is always readable against the change it was verified against, and is never pooled in one record with criteria from another run.
 Breaks: silently
-Check: scripts/drift-check.js — /superdev:plan's extend path refuses a shipped feature on either signal
+Check: scripts/drift-check.js — /superdev:plan's extend path refuses a shipped feature on any one of its shipped signals, the anchor's `## Run state` snapshot stage among them
 Paths: plugin/skills/plan/**, plugin/references/run-init.md
 
 ### INV-0005
@@ -223,7 +223,7 @@ Paths: plugin/hooks/scope-prune.js, plugin/hooks/slicetree-sweep.js, plugin/hook
 
 Class: process
 Concepts: Stage, Ledger
-Statement: Only `/superdev:submit-pr` writes the `submitted` stage, and only after opening the pull request. Only `/superdev:ship` writes the `shipped` stage, and only once the pull request has merged — through its own pinned merge, or by adopting a merge someone made by hand.
+Statement: Only `/superdev:submit-pr` writes the `submitted` stage, and only after opening the pull request. Only `/superdev:ship` writes the `shipped` stage, and only once the pull request has merged — through its own pinned merge, or by adopting a merge someone made by hand. `scope.js adopt --shipped`, run by `/superdev:plan`'s repair choice, `/superdev:verify-ship`, and `/superdev:wrap-up`, writes a ledger reading `shipped` only as a copy of the stage the anchor's own `## Run state` snapshot already records, so it moves no stage (INV-0132).
 Breaks: silently
 Check: none — no single-writer pin
 Paths: plugin/skills/submit-pr/SKILL.md, plugin/skills/ship/SKILL.md
@@ -964,10 +964,10 @@ Paths: plugin/references/issue-tracker-*.md, docs/agents/issue-tracker.md, plugi
 
 Class: process
 Concepts: Stage, Scope anchor, Definition of Done (DoD), Deploy target
-Statement: `/superdev:ship`'s final hand-off, `/superdev:backlog`'s routing of a `shipped` run, and `/superdev:document`'s leave-alone hand-off, and run init's shipped-run stops apply one rule, stated once in `references/scope-mode.md`, so all name the same next command, `/superdev:verify-ship` or `/superdev:wrap-up`, for the same run state (ADR 0116).
+Statement: `/superdev:ship`'s final hand-off, `/superdev:backlog`'s routing of a `shipped` run, `/superdev:document`'s leave-alone hand-off, run init's shipped-run stops, `/superdev:verify-ship`'s end, and `/superdev:wrap-up`'s hand-off from a closed repair to its original apply one rule, stated once in `references/scope-mode.md`, so all name the same next command for the same run state: for a run holding a `not met:` note `/superdev:verify-ship` wrote, which carries the repair citation, `/superdev:verify-ship` with `/superdev:plan`'s repair choice as the alternative once a closed anchor's `**Repairs:**` line names the run, the line's `not met:` note does not yet cite that anchor in its repair citation, and no open anchor's line names the run, and `/superdev:plan`'s repair choice or `/superdev:verify-ship` again otherwise, an open anchor's line outranking every closed one and adding a line that names each open repair; otherwise `/superdev:verify-ship` or `/superdev:wrap-up`, a `not met:` note written before merge counting as a line still to verify (ADR 0116, ADR 0124).
 Breaks: silently
-Check: scripts/drift-check.js — ship's, backlog's, document's, and run-init.md's citations of the scope-mode.md section; partial: nothing checks the command an agent prints
-Paths: plugin/skills/ship/SKILL.md, plugin/skills/backlog/SKILL.md, plugin/skills/document/SKILL.md, plugin/references/run-init.md, plugin/references/scope-mode.md
+Check: scripts/drift-check.js — ship's, backlog's, document's, run-init.md's, verify-ship's, and wrap-up's citations of the scope-mode.md section, and the `repair-routing` rows; partial: nothing checks the command an agent prints
+Paths: plugin/skills/ship/SKILL.md, plugin/skills/backlog/SKILL.md, plugin/skills/document/SKILL.md, plugin/references/run-init.md, plugin/references/scope-mode.md, plugin/skills/verify-ship/SKILL.md, plugin/skills/wrap-up/SKILL.md
 
 ### INV-0117
 
@@ -1094,3 +1094,22 @@ Statement: A fresh run lock blocks a second session from creating that scope's s
 Breaks: silently
 Check: tests/run-lock.test.js — a fresh lock blocks from the main tree, a subdirectory, and a linked worktree
 Paths: plugin/hooks/run-lock.js
+
+### INV-0131
+
+Class: process
+Concepts: Repair, Definition of Done (DoD), Scope anchor, Stage
+Statement: A repair writes nothing to the original scope's records: not its anchor, its `dod.md`, or its ledger, and merging the repair closes nothing. Recreating the original's missing local run root from its anchor's own `shipped` snapshot copies those records and changes none of them (INV-0132). The original's line observed false is settled only by `/superdev:verify-ship` on the original scope, and no repair moves the original's stage (ADR 0124).
+Breaks: silently
+Check: scripts/drift-check.js — plan's repair choice writes the Repairs line on the repair's own anchor only
+Paths: plugin/skills/plan/**, plugin/references/plan-contract.md, plugin/skills/verify-ship/**, plugin/skills/wrap-up/**
+
+### INV-0132
+
+Class: architecture
+Concepts: Adopt, Repair, Run root, Scope anchor, Stage
+Statement: A `shipped` run whose run root is missing locally is recreated only from its own scope anchor's `## Run state` snapshot at stage `shipped`, through `scope.js adopt --shipped`, which refuses every other stage. Plain `adopt` and run init keep refusing a `shipped` snapshot, adoption writes nothing to the anchor, and `/superdev:backlog` adopts nothing (ADR 0124).
+Breaks: silently
+Check: tests/scope.test.js — `adopt --shipped` adopts a shipped payload and refuses a live, closed, or stage-less one while plain adopt refuses shipped; scripts/drift-check.js — the `repair-routing` rows pin the rule in scope-mode.md and each caller's citation; partial: nothing checks the command an agent runs
+Symbols: adoptLines
+Paths: plugin/scripts/scope.js, plugin/references/scope-mode.md, plugin/skills/plan/**, plugin/skills/verify-ship/**, plugin/skills/wrap-up/**, plugin/skills/backlog/**

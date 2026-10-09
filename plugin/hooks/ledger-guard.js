@@ -217,6 +217,7 @@ const WRAPPER = new Map([
   ['doas', new Set(['-u', '-C'])],
   ['stdbuf', new Set(['-i', '-o', '-e', '--input', '--output', '--error'])],
   ['builtin', new Set()],
+  ['rtk', new Set()],
 ]);
 // The words an option word takes, read as getopt reads it: a long option takes the next word when it is a value option. A short
 // cluster is walked left to right to its first value option, whose value is the characters after it (`sudo -uroot`, one word) or,

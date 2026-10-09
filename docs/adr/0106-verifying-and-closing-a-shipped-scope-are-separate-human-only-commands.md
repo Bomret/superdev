@@ -6,6 +6,8 @@
 plan-file store, so point 7 below describes a store superdev no longer ships.
 **Amended by:** [ADR 0116](0116-ship-names-wrap-up-when-nothing-is-left-to-verify.md), which qualifies
 point 1 below: ship prints `/superdev:wrap-up <scope>` instead when nothing is left to verify.
+**Amended by:** [ADR 0124](0124-a-failed-verification-is-repaired-by-its-own-fix-feature.md), which routes a
+`shipped` run holding a `not met:` line to `/superdev:plan`'s repair choice.
 
 **Amends:** [ADR 0040](0040-the-sweep-defers-an-anchor-whose-blocker-has-not-shipped.md),
 [ADR 0096](0096-opening-the-pull-request-and-merging-it-are-separate-commands.md) point 5, and

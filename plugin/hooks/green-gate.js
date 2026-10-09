@@ -82,17 +82,26 @@ const LONG_VALUE_OPT = /--(?:git-dir|work-tree|namespace|config-env|shallow-file
 // after it re-scans every following newline from each one, which is quadratic on a long run of blank lines.
 const GLOBAL_OPTS = `(?:\\s+(?:-[cC]\\s+${ARG}|${LONG_VALUE_OPT}(?:=|\\s+(?!-))${ARG}|--${ARG}))*`;
 const VALUE_OPT_LEAD = `(?:-[cC]\\s+|${LONG_VALUE_OPT}(?:=|\\s+(?!-))|--[\\w-]+=)`;
+// RTK's PreToolUse hook rewrites `git commit` to `rtk git commit`, and this PostToolUse hook sees the
+// rewritten command (docs/known-issues.md). Each matcher therefore takes an optional `rtk` before `git`,
+// with rtk's own value-less global options, so a merge or commit RTK rewrote is still a candidate. An
+// optional run-anything subcommand follows (`proxy`, `err`, `run`, `summary`, `test`, rtk 0.51.0), each of
+// which executes the command after it, with its value-less options and an optional `--` separator. The whole
+// prefix repeats, so an rtk behind another rtk matches too. The groups capture nothing, so STUCK_MERGE's `\2`
+// keeps its meaning.
+// merge-guard carries a byte-identical copy for a hand-typed prefix, pinned by this hook's suite.
+const RTK_PREFIX = `(?:rtk(?:[ \\t]+(?:-v+|--verbose|--ultra-compact|--skip-env))*[ \\t]+(?:(?:proxy|err|run|summary|test)(?:[ \\t]+(?:--ultra-compact|--skip-env))*(?:[ \\t]+--)?[ \\t]+)?)*`;
 const STUCK_MERGE = new RegExp(
-  `(^|[;&|\\n])[ \\t]*git${GLOBAL_OPTS}\\s+${VALUE_OPT_LEAD}(?=(${ARG}|))\\2(?=\\S)(?=[^\\n]*\\smerge(?![-\\w])(?!\\s+--(?:abort|quit)\\b))`,
+  `(^|[;&|\\n])[ \\t]*${RTK_PREFIX}git${GLOBAL_OPTS}\\s+${VALUE_OPT_LEAD}(?=(${ARG}|))\\2(?=\\S)(?=[^\\n]*\\smerge(?![-\\w])(?!\\s+--(?:abort|quit)\\b))`,
   'm'
 );
 const IS_MERGE = new RegExp(
-  `(^|[;&|\\n])[ \\t]*git${GLOBAL_OPTS}\\s+merge(?![-\\w])(?!\\s+--(?:abort|quit)\\b)`,
+  `(^|[;&|\\n])[ \\t]*${RTK_PREFIX}git${GLOBAL_OPTS}\\s+merge(?![-\\w])(?!\\s+--(?:abort|quit)\\b)`,
   'm'
 );
 // A `git commit` names a candidate too: it concludes a conflicted merge, and only the HEAD reflog says
 // whether it did (mergeLanded() below). Same lead-in and option region as IS_MERGE.
-const IS_COMMIT = new RegExp(`(^|[;&|\\n])[ \\t]*git${GLOBAL_OPTS}\\s+commit(?![-\\w])`, 'm');
+const IS_COMMIT = new RegExp(`(^|[;&|\\n])[ \\t]*${RTK_PREFIX}git${GLOBAL_OPTS}\\s+commit(?![-\\w])`, 'm');
 
 // Unquotes a captured ARG token so it reaches path.resolve as a plain string. ARG (the comment
 // above it) matches a run of concatenated pieces — unquoted, single-quoted, double-quoted, and

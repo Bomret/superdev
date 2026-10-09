@@ -248,7 +248,9 @@ This root owns every other subtree directly:
   `docs/agents/deployment.md`, ADR 0101), and stops there (ADR 0106). It names `/superdev:verify-ship` next
   while a criterion is left to verify, and `/superdev:wrap-up` otherwise (ADR 0116). `/superdev:verify-ship`
   settles the criteria only a deployed system can show, and `/superdev:wrap-up` closes the scope anchor and takes
-  the run down. Both are human-only too.
+  the run down. Both are human-only too. A criterion verify-ship observes false routes to `/superdev:plan`'s
+  repair choice, which plans a `fix` feature on its own anchor, linked to the original by a `**Repairs:**`
+  line (ADR 0124).
   Whoever invokes a chain command passes `--unattended` to run it unattended (ADR 0016, ADR 0108);
   superdev ships no driver. Some skills sit outside the chain: publish-kb sends a scope's
   staged knowledge-base pages to a remote backend on the operator's own clock (ADR 0023), backlog surveys

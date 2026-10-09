@@ -62,7 +62,16 @@ const GLOBAL_OPTS = `(?:\\s+(?:-[cC]\\s+${ARG}|${LONG_VALUE_OPT}(?:=|\\s+(?!-))$
 // (`grep -E "x|git merge" file`) is refused, because the lead-in class matches the `|` inside the quotes.
 // The guard does not mask quoted spans to avoid it: `sh -c "cd x; git merge x"` runs a verb inside a quoted
 // span, so masking would let a subagent integrate through any shell wrapper. The guard fails closed instead.
-const BLOCK = new RegExp(`(^|[;&|\\n])[ \\t]*git${GLOBAL_OPTS}\\s+(merge|push|rebase)(?![-\\w])`, 'm');
+// A hand-typed `rtk` prefix (RTK's output filter) runs the command behind it unchanged. merge-guard is a
+// PreToolUse hook and sees the command as written, never RTK's own rewrite, so `rtk git push` reaches it
+// only when typed (docs/known-issues.md). Each matcher therefore takes an optional `rtk` before `git`, `gh`,
+// or `tea`, with rtk's own value-less global options (triage #958), then an optional run-anything
+// subcommand with its own value-less options and an optional `--` separator: `proxy`, `err`, `run`, `summary`,
+// and `test` each execute the command after them (rtk 0.51.0). The whole prefix repeats, so an rtk behind
+// another rtk (`rtk proxy rtk git push`) matches too. The groups capture nothing, so STUCK's `\2` still
+// names its ARG lookahead. Mirrors green-gate's RTK_PREFIX; tests/green-gate.test.js pins the two byte-identical.
+const RTK_PREFIX = `(?:rtk(?:[ \\t]+(?:-v+|--verbose|--ultra-compact|--skip-env))*[ \\t]+(?:(?:proxy|err|run|summary|test)(?:[ \\t]+(?:--ultra-compact|--skip-env))*(?:[ \\t]+--)?[ \\t]+)?)*`;
+const BLOCK = new RegExp(`(^|[;&|\\n])[ \\t]*${RTK_PREFIX}git${GLOBAL_OPTS}\\s+(merge|push|rebase)(?![-\\w])`, 'm');
 // A git global option whose value ARG cannot read to the end of its shell word — the next character is not
 // whitespace — is unknowable: the command would otherwise split at the value's first space and slip past
 // BLOCK. The atomic `(?=(ARG|))\2` takes ARG's greedy match once, so no shorter reading of the value can
@@ -71,7 +80,7 @@ const BLOCK = new RegExp(`(^|[;&|\\n])[ \\t]*git${GLOBAL_OPTS}\\s+(merge|push|re
 // and only the final option needs it, so the loop's own alternation stays unambiguous.
 const VALUE_OPT_LEAD = `(?:-[cC]\\s+|${LONG_VALUE_OPT}(?:=|\\s+(?!-))|--[\\w-]+=)`;
 const STUCK = new RegExp(
-  `(^|[;&|\\n])[ \\t]*git${GLOBAL_OPTS}\\s+${VALUE_OPT_LEAD}(?=(${ARG}|))\\2(?=\\S)(?=[^\\n]*\\s(?:merge|push|rebase)(?![-\\w]))`,
+  `(^|[;&|\\n])[ \\t]*${RTK_PREFIX}git${GLOBAL_OPTS}\\s+${VALUE_OPT_LEAD}(?=(${ARG}|))\\2(?=\\S)(?=[^\\n]*\\s(?:merge|push|rebase)(?![-\\w]))`,
   'm'
 );
 // Integration via the code-host CLI is the controller's job too: `gh pr merge` / `tea pr merge`.
@@ -81,7 +90,7 @@ const STUCK = new RegExp(
 // path (ADR 0111), so it cannot stay open, and `gh api` reaches the same endpoint (triage #793).
 // The leading horizontal whitespace is `[ \t]*`, never `\s*`: a newline is itself a lead-in, and `\s*`
 // after it re-scans every following newline from each one, which is quadratic on a long run of blank lines.
-const BLOCK_CLI = /(^|[;&|\n])[ \t]*(gh|tea)\s+pr\s+merge\b/m;
+const BLOCK_CLI = new RegExp(`(^|[;&|\\n])[ \\t]*${RTK_PREFIX}(gh|tea)\\s+pr\\s+merge\\b`, 'm');
 // A `tea api` / `gh api` call merges when its endpoint names a pull request's `/merge` path and its method
 // writes: an explicit `-X`/`--method`, or — with none — a body flag, which defaults the call to POST. A GET of
 // the same endpoint (the merged-status read) is not a merge. Each call is one `;&|\n`-bounded segment, led by a
@@ -89,7 +98,10 @@ const BLOCK_CLI = /(^|[;&|\n])[ \t]*(gh|tea)\s+pr\s+merge\b/m;
 // Known gap, like curl: a GraphQL route (`gh api graphql -f query='mutation{mergePullRequest…}'`) names no
 // `/merge` endpoint and is not caught.
 // `tea api` merges with POST only; `gh api` with PUT or POST (GitHub's merge endpoint is PUT).
-const API_CALL = /(?:^|[;&|\n(`{!])[ \t]*(?:(?:if|then|do|while|until|elif|else)\s+)?(tea|gh)\s+api\b([^;&|\n]*)/gm;
+const API_CALL = new RegExp(
+  `(?:^|[;&|\\n(\`{!])[ \\t]*(?:(?:if|then|do|while|until|elif|else)\\s+)?${RTK_PREFIX}(tea|gh)\\s+api\\b([^;&|\\n]*)`,
+  'gm'
+);
 const MERGE_ENDPOINT = /\/pulls\/[^\s/'"]+\/merge(?![\w/-])/;
 const API_METHOD = /(?:^|\s)(?:-X\s*|--method(?:=|\s+))["']?([A-Za-z]+)/;
 const API_BODY = {

@@ -76,12 +76,16 @@ system outside the repository (ADR 0084, INV-0006).
 
 **Verify-ship's case:** `/superdev:verify-ship`'s own controller judges, never a dispatched worker's
 report. Its listed lines are exactly the `dod.md` lines that are neither ticked nor `accepted:` — at
-`shipped`, the `ceiling:` lines and its own earlier `not met:` lines (INV-0016). It observes each one
+`shipped`, the `ceiling:` lines and the `not met:` lines, its own earlier ones and any written before
+merge (INV-0016). It observes each one
 inline against the deployed system: observed true writes `met: <evidence>`, observed false writes
-`not met: <the observation>`, and a line it cannot observe goes to the attended operator, whose answer
-writes `met:`, `not met:`, or `accepted:` (ADR 0095), or leaves the line unchanged. Verifying a line
+`not met: <the observation>` ending in the repair citation
+(`scope-mode.md`'s `## Routing a shipped run`), and a line it cannot observe goes to the attended
+operator, whose answer writes `met:`, `not met:`, or `accepted:` (ADR 0095), or leaves the line unchanged. Verifying a line
 observes; it changes no system outside the repository (ADR 0084, INV-0006, ADR 0106). A ticked or
-`accepted:` line is never a listed line and is never rewritten.
+`accepted:` line is never a listed line and is never rewritten. A `not met:` note written before merge
+carries no repair citation, so the shipped-run routing rule sends a run whose `not met:` notes were all
+written before merge to verify-ship before any repair is planned.
 
 ## The note rule (INV-0014)
 

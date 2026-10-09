@@ -2,6 +2,10 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0124](0124-a-failed-verification-is-repaired-by-its-own-fix-feature.md), which points a
+shipped feature holding a criterion observed false at `/superdev:plan`'s repair choice instead of the
+`**Blocked by feature:**` remedy below, and adds the anchor's `## Run state` snapshot stage as a third
+signal, which alone shows a feature shipped on another machine.
 **Amends:** [ADR 0004](0004-plan-append-semantics.md), whose Decision lets `/superdev:plan` append to any
 existing feature, and whose immutability rule protects merged slice records alone.
 

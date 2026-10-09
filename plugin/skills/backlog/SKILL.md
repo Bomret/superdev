@@ -89,6 +89,12 @@ run root goes to `awaiting wrap-up`, which still takes the run down.
 deploy; `/superdev:wrap-up` closes the anchor. A `shipped` run root therefore carries an open anchor by
 design. That case — an open anchor whose own run root reads `shipped` — is a
 row too; §3 buckets it.
+An open anchor that matches no run root and whose `## Run state` snapshot reads `shipped` — a run done on
+another machine, or a run root already reaped — is a row the same way, its stage read as data off the body
+the anchor listing returned, or through the store's own read call when it returned none. §3 routes it by `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
+`## Routing a shipped run`, under its **A run with no local ledger** case. The survey adopts nothing
+(that file's `## Adopting a shipped original`): `/superdev:verify-ship` and `/superdev:plan` adopt it
+when they run.
 
 **No open anchor, no triage record, no stranded run root, no `deploy resume` run root, no `shipped` run root awaiting wrap-up, and no untriaged
 item** → say the backlog is empty, in one line, and stop — unless the active store document carries no
@@ -116,7 +122,9 @@ issue query, say. A record already returned by the anchor or triage listing is n
 | `stranded` | a run root whose stage is short of `shipped` and matches no open anchor | a human, now — resume the run if its anchor still exists, otherwise delete the branch, scopetree, and run root |
 | `awaiting merge` | its matched run root's stage reads `submitted` and its pull request is open on the host, or none is recorded to check | the operator's merge on the host, then `/superdev:ship <scope-slug>` |
 | `merge unrecorded` | its matched run root's stage reads `submitted` and its pull request shows merged on the host by hand | `/superdev:ship <scope-slug>` — record the merge |
-| `awaiting verification` | an open anchor over a run root reading `shipped`, not already bucketed `deploy resume`, that the shipped-run routing rule (below) sends to verify-ship | `/superdev:verify-ship <scope-slug>` |
+| `awaiting repair` | an open anchor over a run root reading `shipped`, not already bucketed `deploy resume`, that the shipped-run routing rule (below) sends to repair, while an open anchor's `**Repairs:**` line names its anchor | `/superdev:plan` (its repair choice), with the Repair route's open-repair line for each open repair, or `/superdev:verify-ship <scope-slug>` again for an observation that was transient |
+| `needs repair` | the same, while no open anchor's `**Repairs:**` line names its anchor | `/superdev:plan` (its repair choice), or `/superdev:verify-ship <scope-slug>` again for an observation that was transient |
+| `awaiting verification` | an open anchor over a run root reading `shipped`, not already bucketed `deploy resume`, that the shipped-run routing rule (below) sends to verify-ship or to re-verify | `/superdev:verify-ship <scope-slug>` (re-verify: or `/superdev:plan`'s repair choice, for a repair that did not hold) |
 | `awaiting wrap-up` | an open anchor over a run root reading `shipped`, not already bucketed `deploy resume`, that the shipped-run routing rule (below) sends to wrap-up (its act naming the hand-sync first where that rule does); or a `shipped` run root whose anchor is already closed, not already bucketed `deploy resume` | `/superdev:wrap-up <scope-slug>` |
 | `in flight` | its scope has a run root whose stage is short of `shipped` and not `planned`, and not already bucketed `awaiting merge`/`merge unrecorded` above | the chain command that stage has not reached |
 | `waiting` | an anchor dependency it records is unsatisfied | the anchor it waits on |
@@ -127,6 +135,18 @@ issue query, say. A record already returned by the anchor or triage listing is n
 
 Route an open anchor over a `shipped` run root per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
 `## Routing a shipped run`: verify-ship there is `awaiting verification`, and wrap-up is `awaiting wrap-up`.
+A run the rule sends to re-verify there is `awaiting verification` too, with `/superdev:plan`'s repair
+choice as the alternative to its act.
+A run the rule sends to repair there is `awaiting repair` while an open anchor's Repairs line, read through
+the store's **Read an anchor's Repairs line** call, names this run's anchor, and `needs repair` otherwise
+(ADR 0124).
+An open anchor over a `shipped` snapshot alone (§2) takes the same buckets as one over a `shipped` run root.
+Take the anchor listing and the Repairs lines the rule's step 4 reads once per survey, the first time a
+run needs them, and reuse them for every `shipped` run this survey routes: one listing serves every run.
+An open anchor over a `shipped` run holding a `not met:` line that lands outside the two repair buckets
+also names, in its row, every open anchor whose Repairs line names its anchor, read from that same
+listing: while the run holds an observed `not met:` note, `/superdev:plan` can open a repair for it on any
+route.
 An unreadable anchor → the item is a `blocked` row naming what could not be read. A `shipped` run root
 whose anchor is already closed is `awaiting wrap-up` without that rule's reads. The `deploy resume` test reads the posture,
 the listed targets, and their record per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Reading the
@@ -205,10 +225,11 @@ End with **one** line: the single thing you would do next, and why in half a sen
 scopetree, and a lock, and every day it sits there the base moves further from it. A `deploy resume` row
 outranks every other row, a `blocked` one included: base already carries code some targets run and others
 do not, and one `/superdev:ship` finishes it. Short of that, a `blocked` row outranks the rest, because
-nothing else in the table moves until a human clears it. The two `awaiting` rows come next, after
-`blocked` and before `in flight`: a merged scope one command from closed is finished work, and finishing
-beats starting. An `untriaged` item ranks last, for
-the opposite reason a stranded run root ranks first: it is the furthest thing from finished.
+nothing else in the table moves until a human clears it. Every `awaiting …` row, `merge unrecorded`, and
+`needs repair` come next, in the table's order, after `blocked` and before `in flight`: a scope one command from its
+next step is nearly finished work, a criterion observed false is a defect already in the deployed system,
+and finishing beats starting. An `untriaged` item ranks last, for the opposite reason a stranded run root
+ranks first: it is the furthest thing from finished.
 
 Recommend one move, not a ranked list. The table is already the ranked list.
 

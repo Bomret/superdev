@@ -34,7 +34,7 @@ exhausted and you and the user share the same picture — **not** until you have
   keeps it surfaced, and the user can object in any later turn. No survivor → ask no option question:
   name each failed option with its reason, and put the decision to the user as an open question. A fact
   that could not have been checked before the question still reopens an answer; name the fact when it
-  does. A question a skill requires by name — a release, new vs extend, the feature to extend, the deploy
+  does. A question a skill requires by name — a release, new, extend, or repair, the feature to extend, the deploy
   target, where a found defect goes, a brainstorm draft choice, a setup choice — keeps its fixed option
   set, outside the two-option cap, and is asked every time regardless: an option in that set that can
   name no saving states why instead of being dropped.

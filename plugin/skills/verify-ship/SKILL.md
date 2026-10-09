@@ -19,7 +19,9 @@ Every message this command ends on closes with the Next block, per `${CLAUDE_PLU
 Resolve `$ARGUMENTS` to one scope — a **run root**, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
 `## A live scope run` section:
 
-- **A scope slug given** → use it. No run root by that name → say so and stop.
+- **A scope slug given** → use it. No run root by that name → adopt it per
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Adopting a shipped original`. Nothing adopted →
+  say so and stop.
 - **Empty** → this command's own **candidate set** (CONTEXT.md) is every run root whose stage is
   `shipped`. Run `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Resolving an empty argument`
   cascade over that set, restating no part of it here.
@@ -65,9 +67,13 @@ observing anything. A failed anchor write is reported once. A `dod.md` line unpa
 reported by name as needing a hand-sync of the anchor's criterion text, and this reconcile does not retry it.
 
 Then take every Definition-of-Done line that is neither ticked nor `accepted:`, read from
-`<run-root>/dod.md`. At `shipped` those are the `ceiling:` lines and this command's own
-earlier `not met:` lines. A ticked line or an `accepted:` line is neither observed nor rewritten in `dod.md`. No such
+`<run-root>/dod.md`. At `shipped` those are the `ceiling:` lines and the `not met:` lines, this
+command's own earlier ones and any written before merge. A ticked line or an `accepted:` line is neither observed nor rewritten in `dod.md`. No such
 line → skip to §6.
+
+**Every `not met:` note this command writes ends with the repair citation** that
+`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Routing a shipped run` defines. Read this scope's
+repairs once, through that section's step 4, before the first observation.
 
 Observe each line yourself, inline, one at a time. Reach a target through `docs/agents/deployment.md`'s
 `Read-only reach` column at the merge commit, or through an equivalent read: an HTTP GET, a DNS lookup,
@@ -75,10 +81,10 @@ an ssh read, a status command. A command that changes a system, and a deploy tar
 outside this command.
 
 - **Observed true** → the verdict is `met: <evidence>`.
-- **Observed false** → the verdict is `not met: <the observation>`.
+- **Observed false** → the verdict is `not met: <the observation>`, ending in the repair citation.
 - **Cannot observe** → ask the operator, naming the line and why it cannot be observed:
   - *verified* → `met:`, the operator's answer as the evidence.
-  - *false* → `not met:`, the answer as the note.
+  - *false* → `not met:`, the answer as the note, ending in the repair citation.
   - *accept as unverifiable* → `accepted: <reason>`, the reason from the operator (ADR 0095).
   - *later* → the line stays as it stood, and nothing is written for it.
 
@@ -96,8 +102,19 @@ Publish the snapshot when a deploy record changed, per
 lines settled with their verdicts, and the lines still open. The stage stays `shipped`.
 
 - **Every line settled** (ticked or `accepted:`) → say in one line that all criteria are settled and the scope is ready to close, then print `/superdev:wrap-up <scope>` as the next command. When §4 reported an unpaired line, wrap-up refuses until the anchor's criterion text is in sync: say "hand-sync, then `/superdev:wrap-up <scope>`" and print the command only after that.
-- **Otherwise** → name each open line, and say running `/superdev:verify-ship <scope>` again is safe.
+- **The run routes to re-verify** per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
+  `## Routing a shipped run` → name each open line. Print `/superdev:verify-ship <scope>` as the next
+  command, with one line: a repair of this scope has closed since the line was last observed. Print
+  `/superdev:plan` on an `Or:` line, for a repair that did not hold.
+- **The run routes to repair** per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Routing a shipped run`
+  → name each observed `not met:` line with its observation. Print `/superdev:plan` as the next command,
+  with one line: its repair choice plans a `fix` feature for this scope (ADR 0124). For each open anchor
+  among the repairs §4 read whose `**Repairs:**` line names this scope's anchor, print the Repair route's
+  open-repair line too. Print `/superdev:verify-ship <scope>` on an `Or:` line, for an observation that
+  was transient.
+- **Otherwise** → name each open line, an unobserved `not met:` line among them, and say running
+  `/superdev:verify-ship <scope>` again is safe.
 
-On both exits, name the scope's staged pages per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
+On every exit, name the scope's staged pages per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
 `## Staged pages at close` (ADR 0119, INV-0123), with `/superdev:publish-kb <scope>` on an `Or:` line of
 the Next block when the count is above zero.

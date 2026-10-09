@@ -1735,6 +1735,29 @@ try {
   assert.ok(!r.ok && /closed/.test(r.err), 'adopt with a closed snapshot refused: ' + (r.err || ''));
   assert.ok(!fs.existsSync(path.join(closedRoot, 'ledger.md')), 'adopt writes nothing on that refusal');
 
+  // adopt --shipped: the explicit opt-in recreates a shipped original's run root from its anchor's
+  // snapshot (scope-mode.md's `## Adopting a shipped original`, ADR 0124), where plain adopt refuses.
+  const shippedOptRoot = path.join(tmp, 'adopted-elsewhere', 'shipped-opt-in');
+  r = call(['adopt', '--shipped', '--root', shippedOptRoot], shippedBody.replace('shipped-snapshot', 'shipped-opt-in'));
+  assert.ok(r.ok, 'adopt --shipped adopts a shipped snapshot: ' + (r.err || ''));
+  assert.strictEqual(call(['get', 'stage', '--root', shippedOptRoot]).out, 'shipped', 'the adopted ledger reads shipped');
+
+  // adopt --shipped accepts `shipped` and only `shipped`: a live, a closed, or a stage-less payload
+  // refuses and writes nothing, so the opt-in never adopts what run init's own adopt path owns.
+  for (const [stageLine, name] of [
+    ['**Stage:** implementing\n', 'shipped-opt-in-live'],
+    ['**Stage:** closed\n', 'shipped-opt-in-closed'],
+    ['', 'shipped-opt-in-stageless'],
+  ]) {
+    const optRoot = path.join(tmp, 'adopted-elsewhere', name);
+    r = call(['adopt', '--shipped', '--root', optRoot], shippedBody.replace('**Stage:** shipped\n', stageLine).replace('shipped-snapshot', name));
+    assert.ok(!r.ok && /--shipped adopts only/.test(r.err), `adopt --shipped refuses ${name}: ` + (r.err || ''));
+    assert.ok(!fs.existsSync(path.join(optRoot, 'ledger.md')), `adopt --shipped writes nothing for ${name}`);
+    if (!stageLine) {
+      assert.ok(/carries no \*\*Stage:\*\* line/.test(r.err), 'a stage-less refusal names the missing Stage line: ' + r.err);
+    }
+  }
+
   // adopt disregards every heading in the body: a bare `#`-led line and a fenced `#`-led line
   // sitting *inside* the payload, between two slice-table rows, neither end the payload early nor
   // trigger a refusal — the markers alone decide where it starts and stops, so heading-shaped

@@ -249,7 +249,9 @@ const NOT_RUNNERS = new Set(['grep', 'egrep', 'fgrep', 'rg', 'cat', 'sed', 'head
   'diff', 'cmp', 'cd', 'chmod', 'ln', 'set', 'true', 'false', ':']);
 // The wrappers a test run sits behind (`timeout` and `env` have their own option parsing below). ledger-guard.js keeps its own,
 // wider list: every name here is also known there (tests/ledger-guard.test.js), which adds `xargs`, `doas`, `stdbuf`, and `builtin`.
-const WRAPPERS = /^(?:sudo|command|env|time|exec|nohup|nice)$/;
+// `rtk` is RTK's output filter: its PreToolUse hook rewrites `bun run test` to `rtk bun run test`, PostToolUse sees the rewritten
+// command, and `rtk` passes the exit status through (docs/known-issues.md).
+const WRAPPERS = /^(?:sudo|command|env|time|exec|nohup|nice|rtk)$/;
 // A wrapper's leading option words are skipped, with the value of the options that take one. `command` has none: its options
 // (`-v`, `-V`) look a command up, and no run follows. ledger-guard.js keeps its own copy of these sets and of `optionEnd` (as
 // `WRAPPER` and `optionWords`; hooks stay standalone), and tests/ledger-guard.test.js pins that the two agree.
@@ -260,6 +262,7 @@ const WRAPPER_VALUE_OPTS = new Map([
   ['exec', new Set(['-a'])],
   ['time', new Set()],
   ['nohup', new Set()],
+  ['rtk', new Set()],
 ]);
 // The index of the last word of the option at `ws[i]` and its value, read as getopt reads it: a long option takes the next word
 // when it is a value option, and a short cluster takes it when its first value option ends the cluster (`sudo -iu bob`; `-uroot` is one word).

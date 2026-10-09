@@ -44,6 +44,11 @@ Slices live as GitHub issues — one slice = one issue. Use the GitHub REST API 
   same body-append mechanism as the anchor dependency above, and never confused with it, with the native
   `blocked_by` relation, or with sub-issue parenting: it names `docs/agents/deployment.md`'s targets, not
   another feature (`plan-contract.md` → *Scope anchor*, ADR 0101).
+- **Repairs** (optional) ↔ a `**Repairs:** #<n>` line in the **anchor's own** body — the epic on a
+  multi-slice repair, the lone slice on a single-slice one — naming the scope anchor of the feature this
+  one repairs. The same body-append mechanism as the anchor dependency above, and never confused with it,
+  with the deploy line, with the native `blocked_by` relation, or with sub-issue parenting: it records
+  which feature this one repairs and blocks nothing (`plan-contract.md` → *Scope anchor*, ADR 0124).
 - global DoD ↔ an **epic** issue (label `epic`) whose body holds the DoD checklist; slices carry the
   feature label, reference the epic (`#<epic>`), and are linked to it as **sub-issues**. A single-slice
   feature has **no epic** — the lone slice's `acceptance` checklist is the DoD, and there is no
@@ -100,6 +105,14 @@ lone slice, which is nobody's sub-issue either (ADR 0017).
   line above, or the native `blocked_by` relation, which each name a different relation. No such line
   means the feature deploys nothing. `/superdev:plan` writes one through the **Record the deploy line**
   body-append below; `/superdev:ship` reads it after the merge (ADR 0101).
+- **Read an anchor's Repairs line.** The `**Repairs:** #<n>` body line the field mapping defines, read off
+  the **anchor's own** body — never the `**Blocked by feature:** #<n>` or `**Deploy:**` lines above, or
+  the native `blocked_by` relation, which each name a different relation. No such line means no repair
+  link. A value other than `#` followed by digits alone reads as no Repairs line, and reaches no store call.
+  **Resolve `#<n>`** with `GET /repos/<owner>/<repo>/issues/<n>`: its `labels` array carries the
+  original's feature label, whose slug names the original's run root. `/superdev:plan` writes one through
+  the **Record the Repairs line** body-append below; `/superdev:plan`, `/superdev:backlog`,
+  `/superdev:wrap-up`, and the shipped-run routing rule read it (ADR 0124).
 - **Ambiguous.** Two or more **open** roots under one feature label. A closed root never makes the shape
   ambiguous by itself — a label reused after retirement stays a single, resolvable anchor at every point
   (`plan-contract.md` → *Scope anchor*, ADR 0083). `/superdev:plan` never writes an ambiguous shape, and
@@ -156,6 +169,10 @@ like a typo.
   or `**Deploy:** none` to the **anchor issue's own** body, revising the line in place on an append that
   re-answers the deploy question. A body edit through **Edit an issue's body** below, like the anchor
   dependency above, never the native relations (ADR 0101).
+- **Record the Repairs line:** append `**Repairs:** #<original-anchor>` to the **anchor issue's own** body
+  when `/superdev:plan` creates a repair, and never edit it afterwards. A body edit through **Edit an
+  issue's body** below, like the anchor dependency above, never the native relations (ADR 0124). Nothing
+  is written to the original anchor.
 - **Parallel-safe creation order:** create the epic first (slices reference `#<epic>`), then fire **all
   slice creates in parallel**, then the sub-issue links **and** the dependency writes in parallel once
   every slice's `number` and `id` are known. Only the epic→slices→relations ordering is required; within
@@ -381,17 +398,17 @@ ADR 0004).
   `POST /repos/<owner>/<repo>/issues` calls for the new slices alone. It never `PATCH`es or closes an
   issue a prior run already merged, and never rewrites its labels, sub-issue link, or `blocked_by`
   dependency — except the anchor-dependency line and the deploy line, each of which migrates to the new
-  epic issue when append promotes a single-slice feature (below) — a merged issue's `number` is a
+  epic issue when append promotes a single-slice feature (below), as the `**Repairs:**` line does — a merged issue's `number` is a
   satisfied `depends-on` root for a newly created one, nothing more.
 - **Create the epic first when none exists.** A feature whose lone issue carries the feature label with
   no sub-issue parent has no epic yet (the single-slice shape, `## Scope anchor` above). Append creates
   the epic issue first — its body holding the lone slice's `acceptance` checklist as the global DoD —
   then links every new slice as its sub-issue. The lone existing issue itself is never edited: no epic
-  body copies onto it, no sub-issue link is written for it, and it stays nobody's child. **Two
+  body copies onto it, no sub-issue link is written for it, and it stays nobody's child. **The anchor-dependency, deploy, and Repairs lines are the
   exceptions:** when the lone issue carries an anchor dependency (a `**Blocked by feature:** #<n>` line), it
   **migrates to the new epic issue's own body** and is removed from the lone issue — the epic is the
   anchor now. The `**Deploy:**` line migrates the same way, for the same reason, and is removed from the
-  lone issue. Nothing else about the lone issue changes.
+  lone issue. The `**Repairs:**` line migrates the same way too, and is removed from the lone issue. Nothing else about the lone issue changes.
 - **Amend the epic's own body — the one sanctioned edit.** An edit of the epic's body through **Edit an
   issue's body** (*REST conventions*), the amended body as its result, folds the interview's new criteria into the epic's
   Definition of Done in place, and, the same call, deletes a resolved parked question's line from the

@@ -112,6 +112,29 @@ assert.equal(decide(merge('git -c core.editor=true commit -m x'), full('npm test
 assert.equal(decide(merge('git merge --abort'), full('npm test'), red, notCalled).block, false, 'merge --abort undoes a merge, not gated');
 assert.equal(decide(merge('git merge --quit'), full('npm test'), red, notCalled).block, false, 'merge --quit abandons a merge, not gated');
 assert.equal(decide(merge('git merge --continue'), full('npm test'), red, notCalled).block, true, 'merge --continue completes a merge, gated');
+// RTK's PreToolUse hook rewrites `git commit` to `rtk git commit`, and PostToolUse sees the rewritten
+// command (docs/known-issues.md). rtk 0.51.0 leaves `git merge` alone; the merge rows guard a later
+// version that rewrites it too.
+{
+  const landed = () => true;
+  const rtkGated = (cmd) => decide(merge(cmd), full('npm test'), red, notCalled, () => false, () => '', landed).block;
+  assert.equal(rtkGated('rtk git commit --no-edit'), true, 'a commit RTK rewrote that concluded a merge is gated');
+  assert.equal(rtkGated('rtk git add -A && rtk git commit --no-edit'), true, 'a rewritten commit in a later segment is gated');
+  assert.equal(rtkGated('rtk git merge --no-ff slice/s1'), true, 'a merge behind rtk is gated');
+  assert.equal(rtkGated('rtk -vv --ultra-compact git -C /wt merge slice/s1'), true, "a merge behind rtk's value-less options is gated");
+  assert.equal(rtkGated('rtk git status'), false, 'a read behind rtk is not a merge');
+  assert.equal(rtkGated('rtk git merge --abort'), false, 'merge --abort behind rtk is not gated');
+  assert.equal(rtkGated('rtkx git merge slice/s1'), false, 'a word ending in rtk is no prefix');
+  assert.equal(rtkGated('rtk proxy git merge --no-ff slice/s1'), true, "a merge behind rtk's run-anything subcommand is gated");
+  assert.equal(rtkGated('rtk -v run --skip-env git commit --no-edit'), true, 'a commit behind rtk run and its options is gated');
+  assert.equal(rtkGated('rtk err git merge --abort'), false, 'merge --abort behind rtk err is not gated');
+  assert.equal(rtkGated('rtk proxyx git merge slice/s1'), false, 'a word starting with a subcommand name is no subcommand');
+  assert.equal(rtkGated('rtk proxy -- git merge x'), true, "a merge behind rtk's `--` separator is gated");
+  assert.equal(rtkGated('rtk run --skip-env -- git commit --no-edit'), true, "a commit behind rtk run's options and `--` is gated");
+  assert.equal(rtkGated('rtk proxy rtk git merge slice/s1'), true, 'a merge behind a nested rtk is gated');
+  assert.equal(rtkGated('rtk proxy -- git merge --abort'), false, 'merge --abort behind rtk proxy -- is not gated');
+  assert.equal(rtkGated('rtk test -- bun run test'), false, 'a test run behind rtk test -- is not a merge');
+}
 
 // a merge left unresolved (MERGE_HEAD present) → skip; nothing merged yet to gate
 assert.equal(
@@ -305,10 +328,10 @@ assert.equal(
   const m = sibling.match(/^const ARG = \/(.*)\/\.source;$/m);
   assert.ok(m, 'merge-guard.js declares its ARG token where this pin expects it');
   assert.equal(ARG, m[1], 'green-gate ARG is byte-identical to merge-guard ARG');
-  // The three regex constants that build on ARG carry the same pin: their declarations are compared as
-  // source text, so a one-sided edit to either hook fails here.
+  // The regex constants that build on ARG, and the optional `rtk` prefix both hooks' matchers take, carry
+  // the same pin: their declarations are compared as source text, so a one-sided edit to either hook fails here.
   const own = fs.readFileSync(hookPath, 'utf8');
-  for (const name of ['LONG_VALUE_OPT', 'GLOBAL_OPTS', 'VALUE_OPT_LEAD']) {
+  for (const name of ['LONG_VALUE_OPT', 'GLOBAL_OPTS', 'VALUE_OPT_LEAD', 'RTK_PREFIX']) {
     const decl = new RegExp(`^const ${name} = (.*);$`, 'm');
     const theirs = sibling.match(decl);
     assert.ok(theirs, `merge-guard.js declares ${name} where this pin expects it`);
@@ -1479,6 +1502,7 @@ fs.writeFileSync(
       git2(['commit', '--no-edit', '-q'], dir);
       assertRan(run(dir, OK, 'git commit --no-edit'), 'a conflicted merge concluded by git commit');
       assertRan(run(dir, FAILED, 'git commit --no-edit && false'), 'the same on a failed call');
+      assertRan(run(dir, OK, 'rtk git commit --no-edit'), 'the same commit as RTK rewrote it');
       rm(dir);
     }
 

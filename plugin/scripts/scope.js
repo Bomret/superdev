@@ -1192,7 +1192,7 @@ function extractRunState(body) {
 // ledger on disk. `**Branch:**` is what the ledger heading is reconstructed from, so its absence is
 // the one schema failure that matters (ADR 0042); `Stage` and the slice table get the same checks
 // `stage set` and `slice` already apply.
-function adoptLines(root, body) {
+function adoptLines(root, body, shipped = false) {
   const payload = extractRunState(body);
   const branch = getHeader(payload, 'Branch');
   if (!branch) fail('the run-state payload carries no **Branch:** line — cannot reconstruct the ledger heading');
@@ -1202,10 +1202,15 @@ function adoptLines(root, body) {
   const stage = getHeader(payload, 'Stage');
   if (stage !== null && !STAGES.includes(stage)) fail(`run-state payload carries unknown stage "${stage}"`);
   // `closed` is terminal (`## The stage never moves backwards`), and `shipped` is a stage
-  // run-init.md stops at (a run awaiting wrap-up), and it rotates aside only `closed`. `adopt` refuses both,
-  // the same posture every other schema invariant here takes, rather than trust that its one caller
-  // always checks first.
-  if (stage === 'shipped' || stage === 'closed') {
+  // run-init.md stops at (a run awaiting wrap-up), and it rotates aside only `closed`. Plain `adopt` refuses both,
+  // the same posture every other schema invariant here takes, rather than trust that its caller
+  // always checks first. The `shipped` parameter is the `--shipped` opt-in: it adopts a `shipped`
+  // payload and no other, for a command recreating a shipped original's missing run root
+  // (scope-mode.md's `## Adopting a shipped original`, ADR 0124).
+  if (shipped) {
+    if (stage === null) fail('--shipped adopts only a run-state payload at stage "shipped", and this one carries no **Stage:** line');
+    if (stage !== 'shipped') fail(`--shipped adopts only a run-state payload at stage "shipped", not "${stage}"`);
+  } else if (stage === 'shipped' || stage === 'closed') {
     fail(`run-state payload carries stage "${stage}" — a finished run has nothing to adopt`);
   }
   for (const i of tableRowIndexes(payload)) {
@@ -1214,9 +1219,9 @@ function adoptLines(root, body) {
   return [`# Ledger — ${slug}`, ...payload];
 }
 
-function verbAdopt(root, body) {
+function verbAdopt(root, body, shipped) {
   if (fs.existsSync(ledgerPath(root))) fail(`ledger already exists: ${ledgerPath(root)}`);
-  const lines = adoptLines(root, body);
+  const lines = adoptLines(root, body, shipped);
   fs.mkdirSync(root, { recursive: true });
   writeLines(root, lines);
 }
@@ -1776,7 +1781,8 @@ function usage() {
     '  trace [--slice <id>] --root <run-root>   prints the run trace, oldest first (read-only)',
     '  status                             scans <cwd>/.superdev/scopes/*/',
     '  publish --root <run-root>          prints the ledger as one "## Run state" section on stdout',
-    '  adopt --root <run-root>            stdin: a whole anchor body; extracts and writes the section',
+    '  adopt [--shipped] --root <run-root>   stdin: a whole anchor body; extracts and writes the section;',
+    '                                     --shipped adopts a "shipped" payload, and refuses every other stage',
     '  root <slug>                        prints <main-worktree>/.superdev/scopes/<slug>, resolved via git',
     '  staging <scope> [--count]          prints <main-worktree>/.superdev/kb-pending/<scope>, or its .md count',
     '  dod-line --match <text>|--match-file <path> --verdict met|not-met|ceiling|accepted',
@@ -1948,7 +1954,7 @@ function run(argv, cwd, stdinJson) {
     }
     case 'adopt': {
       const root = takeRoot(args);
-      verbAdopt(root, stdinJson);
+      verbAdopt(root, stdinJson, args.includes('--shipped'));
       ledgerEvent = { root, fields: ['adopt'] };
       break;
     }

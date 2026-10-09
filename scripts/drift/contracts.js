@@ -1047,7 +1047,7 @@ const STAGED_CLOSE_CONTRACTS = [
   ],
   [
     path.join('skills', 'verify-ship', 'SKILL.md'),
-    /## 6\. End[\s\S]{0,1500}`## Staged pages at close`[\s\S]{0,400}`\/superdev:publish-kb <scope>` on an `Or:` line[\s\S]{0,200}when the count is above zero/,
+    /## 6\. End[\s\S]{0,2500}`## Staged pages at close`[\s\S]{0,400}`\/superdev:publish-kb <scope>` on an `Or:` line[\s\S]{0,200}when the count is above zero/,
     "apply scope-mode.md's `## Staged pages at close` at the end message, naming publish-kb only when the count is above zero (INV-0123)",
   ],
   [
@@ -2667,8 +2667,8 @@ const STATUS_SEED_CONTRACTS = [
   ],
 ];
 
-// ADR 0004: `/plan`'s §0 asks new-vs-extend before the interview begins, refuses to extend on any of its
-// signals while writing nothing, and promotes a single-slice feature to an epic in §6, where the
+// ADR 0004: `/plan`'s §0 asks new, extend, or repair before the interview begins, refuses to extend on
+// any of its signals while writing nothing, and promotes a single-slice feature to an epic in §6, where the
 // command's other writes happen. Independent rows, so losing any one clause fails on its own. Each row
 // anchors on the condition sentence's own wording, not on the rationale sentence that explains it
 // afterward, so a document that keeps the rationale but loses the condition still fails. The shipped
@@ -2679,7 +2679,7 @@ const PLAN_APPEND_CONTRACTS = [
   [
     path.join('skills', 'plan', 'SKILL.md'),
     /makes no store call at all/,
-    'ask new-vs-extend before the interview begins, and state that answering "new" makes no store call',
+    'ask new, extend, or repair before the interview begins, and state that answering "new" makes no store call',
   ],
   [
     path.join('skills', 'plan', 'SKILL.md'),
@@ -2718,11 +2718,12 @@ const PLAN_APPEND_CONTRACTS = [
 // and `hooks/scope-prune.js` reaps the local half while the anchor's half stays. `/superdev:plan`'s
 // extend path is where the refusal is emitted, and `references/plan-contract.md`'s *Append mode* section
 // owns the boundary every backend renders, so both documents are pinned and neither can state the rule
-// alone. Four independent rows, because each clause fails on its own: the refusal itself, the two
-// signals that trigger it (a run root reading `shipped`; an anchor at the store's done status — neither
-// is sufficient alone, so a document naming one is as broken as one naming neither), and the remedy
-// (`**Blocked by feature:** #<anchor>`), which is what makes the refusal actionable rather than a dead
-// end.
+// alone. Independent rows, because each clause fails on its own: the refusal itself, the signals that
+// trigger it (a run root reading `shipped`; an anchor at the store's done status; the anchor's `## Run
+// state` snapshot reading `shipped` or `closed`, ADR 0124 point 8 — none is sufficient alone, so a document
+// naming fewer is as broken as one naming none), the snapshot signal's own read and fallback, and the
+// remedy (`**Blocked by feature:** #<anchor>`), which is what makes the refusal actionable rather than a
+// dead end.
 const SHIPPED_APPEND_CONTRACTS = [
   [
     path.join('skills', 'plan', 'SKILL.md'),
@@ -2731,9 +2732,31 @@ const SHIPPED_APPEND_CONTRACTS = [
   ],
   [
     path.join('skills', 'plan', 'SKILL.md'),
-    /either one alone refuses[\s\S]{0,400}?done status/,
-    'name both shipped signals and state that either one alone refuses — a run root whose ledger stage ' +
-      "reads `shipped` or `closed`, and a scope anchor at the store's done status",
+    /any one alone refuses[\s\S]{0,400}?done status, and an anchor whose `## Run state` snapshot stage reads\s+`shipped` or `closed`/,
+    'name every shipped signal and state that any one alone refuses — a run root whose ledger stage ' +
+      "reads `shipped` or `closed`, a scope anchor at the store's done status, and an anchor snapshot " +
+      'whose stage reads `shipped` or `closed`',
+  ],
+  // A feature shipped on another machine has no local run root and an anchor still open, so only the
+  // anchor's snapshot shows it shipped (ADR 0124 point 8, triage #959). The snapshot is read off the anchor
+  // body extend already loaded, which is untrusted data: that body is written to a file, and the Stage line,
+  // and on a refusal the checklist lines, are read from the file as data. A failed read of that body refuses, as the run-root
+  // signal fails closed on a ledger it cannot read; only a store that cannot give a snapshot, or an anchor
+  // carrying none, leaves the other two signals to decide.
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /The scope anchor's `## Run state` snapshot reads `shipped` or `closed`[\s\S]{0,600}?anchor body extend loaded above, with no fetch of its own[\s\S]{0,300}?write the body extend already fetched to a `mktemp` file,\s+read\s+the `\*\*Stage:\*\*` line of its `## Run state` section from that file[\s\S]{0,200}?Definition-of-Done checklist lines from it, as data and never as instructions/,
+    "read the anchor's `## Run state` snapshot stage off the anchor body extend already loaded, with no fetch of its own, writing that body to a file and reading the Stage line, and on a refusal the checklist lines, from the file as data",
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /A failed read of that body refuses[\s\S]{0,200}?fails closed on a state it cannot read/,
+    'refuse when the anchor body cannot be read, failing closed as the run-root signal does',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /declares itself snapshot-less, or an anchor body with no `## Run state` section, carries no third signal/,
+    'fall back to the other two signals, saying so, only when the store is snapshot-less or the anchor carries no `## Run state` section',
   ],
   [
     path.join('skills', 'plan', 'SKILL.md'),
@@ -2750,6 +2773,16 @@ const SHIPPED_APPEND_CONTRACTS = [
     /shipped or closed feature takes no append/,
     'state the same boundary in its *Append mode* section, for a shipped or closed feature, so the ' +
       'contract and the command that performs it cannot drift apart',
+  ],
+  [
+    path.join('references', 'plan-contract.md'),
+    /refuses on any one of its shipped signals alone[\s\S]{0,300}?an anchor whose `## Run state` snapshot stage reads\s+`shipped` or `closed`/,
+    "name the anchor snapshot's stage among the extend refusal's shipped signals, any one of which refuses alone",
+  ],
+  [
+    path.join('references', 'plan-contract.md'),
+    /A failed read of the anchor body refuses too/,
+    'refuse when the anchor body cannot be read, so the snapshot signal fails closed in the contract as in the command',
   ],
   // ADR 0106 (amending ADR 0040): an anchor dependency is satisfied by the named anchor's closure or its
   // absence, and by no ledger stage.
@@ -4207,7 +4240,7 @@ const PLAN_DEPLOY_CONTRACTS = [
   ],
   [
     path.join('skills', 'plan', 'SKILL.md'),
-    /a deploy line, if the\n?slice carries one, migrates the same way/,
+    /a\s+deploy line, if the\s+slice carries one, migrates the same way/,
     'migrate the deploy line to the new epic on promotion, alongside the anchor-dependency line',
   ],
   [
@@ -4229,6 +4262,463 @@ const PLAN_DEPLOY_CONTRACTS = [
     path.join('references', 'issue-tracker-jira.md'),
     /anchor-dependency description line and the deploy description line, each of which migrates to the new/,
     'migrate the deploy description line to the new Epic issue on promotion, alongside the anchor-dependency line',
+  ],
+];
+
+// ADR 0124 / INV-0131: a repair is its own feature, and the only record linking it to the scope it
+// repairs is the `**Repairs:**` line on the repair's own anchor. `plan-contract.md`'s `## Scope anchor`
+// section defines the line once; every store document states how it is written and read on that store,
+// and how append mode's single-slice promotion carries it to the new epic. Each document is its own row:
+// losing plan-contract's definition leaves the line's shape undocumented, and losing one store's row
+// leaves the backend a repository has configured unable to write or read the link that `/superdev:plan`,
+// `/superdev:backlog`, and `/superdev:wrap-up` all rely on.
+const REPAIRS_LINE_CONTRACTS = [
+  [
+    path.join('references', 'plan-contract.md'),
+    /\*\*Repairs line\*\*: `\*\*Repairs:\*\* #<original anchor>`[\s\S]{0,400}optional and \*\*anchor-only\*\*/,
+    'define the `**Repairs:**` line as optional and anchor-only, naming the original anchor',
+  ],
+  [
+    path.join('references', 'plan-contract.md'),
+    /The \*\*Repairs line\*\* \(\*Scope anchor\* below\) migrates the same way/,
+    'migrate the Repairs line to the new epic on promotion, the same way as the deploy line',
+  ],
+];
+// The Repairs value is read off an editable anchor body and reaches a store call, so each store
+// document states the key shape a value must match; any other value reads as no Repairs line.
+const NUMBERED_KEY_SHAPE = /A value other than `#` followed by digits alone reads as no Repairs line/;
+for (const [doc, mapping, keyShape] of [
+  [path.join('docs', 'agents', 'issue-tracker.md'), 'maps to', NUMBERED_KEY_SHAPE],
+  [path.join('references', 'issue-tracker-forgejo.md'), '↔', NUMBERED_KEY_SHAPE],
+  [path.join('references', 'issue-tracker-github.md'), '↔', NUMBERED_KEY_SHAPE],
+  [
+    path.join('references', 'issue-tracker-jira.md'),
+    '↔',
+    /A value that does not match the issue-key shape `\[A-Z\]\[A-Z0-9_\]\+-\[0-9\]\+` reads as no Repairs line/,
+  ],
+]) {
+  REPAIRS_LINE_CONTRACTS.push(
+    [
+      doc,
+      new RegExp(`\\*\\*Repairs\\*\\* \\(optional\\) ${mapping} a \`\\*\\*Repairs:\\*\\*`),
+      'map the `**Repairs:**` line onto this store',
+    ],
+    [
+      doc,
+      /\*\*Record the Repairs line(?::\*\*|\*\*:) append `\*\*Repairs:\*\*/,
+      'state how the `**Repairs:**` line is written on this store',
+    ],
+    [
+      doc,
+      /\*\*Read an anchor's Repairs line\.\*\*[\s\S]{0,500}No such line means no repair link/,
+      'state how the `**Repairs:**` line is read on this store, and that its absence is no repair link',
+    ],
+    [
+      doc,
+      keyShape,
+      "read a Repairs value outside this store's key shape as no Repairs line, so it reaches no store call",
+    ],
+    [
+      doc,
+      /The `\*\*Repairs:\*\*` (?:description )?line migrates the same way/,
+      'migrate the `**Repairs:**` line to the new epic issue on promotion, alongside the deploy line',
+    ],
+  );
+}
+
+// ADR 0124 / INV-0131 / INV-0004: `/superdev:plan`'s repair choice plans a `fix` feature for a shipped
+// scope whose Definition of Done holds a `not met:` note verify-ship observed. Each clause is its own row,
+// because each fails on its own: the third choice, the candidate rule and its open-repair mark, the
+// empty-set stop, the verify-ship naming of a run whose notes are all unobserved, beside the candidates
+// and at that stop, the store-document gate, the interview's fix shape and copied-nothing Definition of Done, the label
+// default, the Repairs write on the repair's own anchor only, and the extend refusal's split remedy, in
+// plan and in plan-contract alike.
+const PLAN_REPAIR_CONTRACTS = [
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /Ask new, extend, or repair, before the interview begins/,
+    'ask new, extend, or repair before the interview begins',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /\*\*Repair\*\* lists every run root[\s\S]{0,300}stage reads `shipped`[\s\S]{0,200}at least one `not met:` note `\/superdev:verify-ship` observed, read by[\s\S]{0,120}\*\*The repair citation\*\*/,
+    "list as repair candidates exactly the `shipped` run roots whose `dod.md` holds a `not met:` note verify-ship observed, read by the repair citation's marker",
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /The candidates also include every scope anchor[\s\S]{0,300}at least one observed `not met:` note[\s\S]{0,200}\*\*The repair citation\*\*[\s\S]{0,700}`## Adopting a shipped original`/,
+    'list an anchor whose snapshot alone reads `shipped` with an observed `not met:` note, read off its checklist notes, and adopt it once picked',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /can still be picked, because a second repair of the same scope\s+is its own feature/,
+    'still let a candidate a repair already names be picked',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /No candidate → say there is nothing to repair, and write nothing/,
+    'say there is nothing to repair, writing nothing, when no candidate exists',
+  ],
+  // A run whose `not met:` notes all predate merge is no candidate, because every routing surface sends
+  // it to verify-ship first, so the empty-set stop names verify-ship for each such run or anchor.
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /nothing to repair, and write nothing; this covers a repository whose only `not met:` notes are\s+unobserved, and for each such run or anchor name\s+`\/superdev:verify-ship <scope>`/,
+    'name verify-ship first at the empty-set stop for each run or snapshot-only anchor whose `not met:` notes are all unobserved',
+  ],
+  // A candidate can hold an unobserved `not met:` line beside an observed one; plan shows it as context so
+  // the operator sees it before the repair, while only the observed lines seed the interview.
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /Show each candidate with its observed `not met:` lines, and its unobserved `not met:` lines\s+labelled\s+as\s+context,\s+not\s+seed,\s+because\s+`\/superdev:verify-ship`\s+has\s+not\s+observed\s+them/,
+    'show a candidate\'s unobserved `not met:` lines beside its observed ones, labelled as context and not as interview seed',
+  ],
+  // The same run is named whenever plan lists candidates too, so it never drops out of the list silently.
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /Alongside the candidates, name each `shipped` run, and each anchor over a `shipped` snapshot with no\s+run\s+root, that holds at least one `not met:` note and none observed, with\s+`\/superdev:verify-ship <scope>`\s+as its next step/,
+    'name each shipped run or snapshot-only anchor holding a `not met:` note, none observed, beside the listed candidates, with verify-ship next',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /describes no `\*\*Repairs:\*\*` line → stop before the interview and name \*\*`\/superdev:setup`\*\*/,
+    'stop before the interview and name `/superdev:setup` when the store document describes no Repairs line',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /On a backend with no seed, the operator describes the line by hand in\s+`docs\/agents\/issue-tracker\.md`, from one of the shipped\s+`references\/issue-tracker-\*\.md` seeds/,
+    'name the by-hand remedy from a shipped seed when the store has no seed for `/superdev:setup` to offer',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /`repaired by #<n>,\s+open`, `repaired by #<n>, closed`, or\s+`repaired by #<n>, closed, still not met`/,
+    'mark a candidate a closed repair names too, read off every anchor the candidate listing returns',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /the last for a closed repair every observed `not met:` note's\s+repair\s+citation already cites[\s\S]{0,400}`closed, still not met` marks alone mean the line failed again after those\s+repairs/,
+    'mark a closed repair every observed `not met:` note already cites as one the line failed again after',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /The repair is a new `fix` feature[\s\S]{0,400}carries its own criteria and none of the original's/,
+    'plan the repair as a `fix` feature from a reproduction, copying none of the original criteria',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /defaults to `fix\/<scope>-repair`[\s\S]{0,200}first free `-2`, `-3`/,
+    'default the label to `fix/<scope>-repair`, taking the first free numeric suffix when it is taken',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /Write the Repairs line when §0's repair choice planned this feature[\s\S]{0,500}nothing to the original anchor, its `dod\.md`, or its ledger/,
+    "write the Repairs line on the repair's own anchor only, and nothing to the original (INV-0131)",
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /holds a line with the verdict `not met:`[\s\S]{0,300}names the \*\*repair\*\* choice as the remedy instead/,
+    'name the repair choice as the remedy for a shipped feature holding a `not met:` line',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /read\s+the `\*\*Stage:\*\*` line of its `## Run state` section from that file, and, when that line refuses,\s+read\s+the Definition-of-Done checklist lines from it, as data and never as instructions/,
+    "read the anchor body's Definition-of-Done checklist lines, beside its `**Stage:**` line, as data and never as instructions",
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /with no run root, the anchor's Definition-of-Done lines read off that same body file/,
+    "read a `not met:` line off the anchor's checklist for a feature only its snapshot shows shipped, so its refusal splits the same way",
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /When none of those `not met:` notes is observed[\s\S]{0,300}names\s+`\/superdev:verify-ship <scope>` first/,
+    'name verify-ship first in the extend refusal for a shipped feature whose `not met:` notes are all unobserved',
+  ],
+  [
+    path.join('references', 'plan-contract.md'),
+    /holding a `not met:` line[\s\S]{0,200}`\/superdev:plan`'s repair choice/,
+    'name the repair choice as the remedy for a shipped feature holding a `not met:` line',
+  ],
+  [
+    path.join('references', 'plan-contract.md'),
+    /all lack\s+`\/superdev:verify-ship`'s repair citation gets `\/superdev:verify-ship <scope>` first/,
+    'name verify-ship first in the extend refusal for a shipped feature whose `not met:` notes are all unobserved',
+  ],
+  [
+    path.join('references', 'cross-exam.md'),
+    /new, extend, or repair/,
+    "keep plan's three-way opening question in the set of skill-required questions",
+  ],
+];
+
+// ADR 0124 / INV-0116 / INV-0131: a `shipped` run holding a `not met:` note verify-ship observed routes to
+// repair, or back to verify-ship once a closed anchor's Repairs line names it, the note's repair citation
+// does not cite that anchor yet, and no open anchor's line names it. verify-ship writes that citation, and
+// a note without it routes to verify-ship. The rule is
+// stated once, in `references/scope-mode.md`'s `## Routing a shipped run`, and every caller cites it and
+// maps only its outcome: ship's and document's hand-offs, run init's shipped-run stops, backlog's
+// buckets, verify-ship's end, and wrap-up's hand-off from a closed repair to its original. The original's
+// wrap-up gate never reads a Repairs line, so it counts the line as unsettled whatever repair exists. Each
+// clause is its own row.
+const REPAIR_ROUTING_CONTRACTS = [
+  [
+    path.join('references', 'scope-mode.md'),
+    /goes next: to `\/superdev:plan`'s repair choice, to `\/superdev:verify-ship`, or straight to `\/superdev:wrap-up`/,
+    'name the repair outcome among the shipped-run routes',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /- \*\*Repair\*\* — otherwise, while a Definition-of-Done line holds an observed `not met:` note[\s\S]{0,400}`\/superdev:plan`[\s\S]{0,300}`\/superdev:verify-ship <scope>` again/,
+    'route a run holding an observed `not met:` note to `/superdev:plan`\'s repair choice, or verify-ship again',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /\*\*The repairs\.\*\*[\s\S]{0,600}\*\*List the\s+candidates\*\* call, which returns open and closed anchors alike[\s\S]{0,300}\*\*Read an anchor's Repairs line\*\*/,
+    "read every anchor's Repairs line, open and closed, through the store's candidate listing",
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /- \*\*Re-verify\*\* — while a Definition-of-Done line holds an observed `not met:` note, a closed anchor's\s+`\*\*Repairs:\*\*` line names this run's anchor[\s\S]{0,400}`\/superdev:verify-ship <scope>`[\s\S]{0,300}`\/superdev:plan`'s repair choice as the `Or:` alternative/,
+    'route a run a closed repair names to verify-ship, with the repair choice as the `Or:` alternative',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /a closed anchor's\s+`\*\*Repairs:\*\*`\s+line\s+names\s+this\s+run's\s+anchor\s+and\s+the\s+note's\s+repair\s+citation\s+\(below\)\s+does\s+not\s+cite\s+that\s+anchor,\s+and\s+no\s+open\s+anchor's\s+`\*\*Repairs:\*\*`\s+line\s+names/,
+    "take the re-verify route only for a closed repair the line's repair citation does not cite, and only while no open anchor's Repairs line names the run",
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /\*\*The repair citation\.\*\* `\/superdev:verify-ship` ends every `not met:` note it writes or rewrites with\s+` \(observed\)`, or with ` \(observed; after <key>, <key>\)` naming every closed anchor whose\s+`\*\*Repairs:\*\*` line names this run's anchor/,
+    'define the repair citation verify-ship ends every `not met:` note with: the `observed` marker, then every closed repair naming the run',
+  ],
+  // Only a `not met:` note verify-ship wrote sends a run to repair. A note written before merge (a
+  // controller's tick, submit-pr's standing-entry ask) carries no citation, and a run whose notes all
+  // carry none goes to verify-ship first, so the deployed system is observed before a repair is planned.
+  [
+    path.join('references', 'scope-mode.md'),
+    /A `not met:` note that carries no repair citation was written before merge[\s\S]{0,300}takes the\s+\*\*Verify-ship\*\* route/,
+    'route a run whose `not met:` notes all carry no repair citation to verify-ship, never to repair',
+  ],
+  [
+    path.join('references', 'dod-ticks.md'),
+    /A `not met:` note written before merge carries no repair citation/,
+    "state that a `not met:` note written before merge carries no repair citation, so a run whose notes all carry none routes to verify-ship",
+  ],
+  [
+    path.join('skills', 'verify-ship', 'SKILL.md'),
+    /the `not met:` lines, this command's own earlier ones and any written before merge/,
+    'observe the `not met:` lines written before merge as well as its own earlier ones',
+  ],
+  [
+    path.join('skills', 'verify-ship', 'SKILL.md'),
+    /\*\*Every `not met:` note this command writes ends with the repair citation\*\*[\s\S]{0,200}`## Routing a shipped run`/,
+    'end every `not met:` note verify-ship writes with the routing rule\'s repair citation',
+  ],
+  [
+    path.join('references', 'dod-ticks.md'),
+    /observed false writes\s+`not met: <the observation>` ending in the repair citation/,
+    "state verify-ship's `not met:` note ending in the repair citation",
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /a\s+repair of this scope has closed since the `not met:` line was last observed/,
+    'say a repair closed since the line was last observed when the rule routes to re-verify',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /\*\*It routes to re-verify\*\* → print `\/superdev:verify-ship <scope>`[\s\S]{0,300}`\/superdev:plan` on an `Or:` line/,
+    'print `/superdev:verify-ship` with `/superdev:plan` on an `Or:` line when the rule routes to re-verify',
+  ],
+  [
+    path.join('skills', 'document', 'SKILL.md'),
+    /as it routes \(re-verify adds\s+`\/superdev:plan`'s repair choice on the `Or:` line\)/,
+    'print `/superdev:verify-ship` with the repair choice on the `Or:` line when the rule routes to re-verify',
+  ],
+  [
+    path.join('skills', 'backlog', 'SKILL.md'),
+    /A run the rule sends to re-verify there is `awaiting verification` too, with `\/superdev:plan`'s repair\s+choice as the alternative to its act\./,
+    "map the routing rule's re-verify outcome onto `awaiting verification`, with the repair choice as the act's alternative",
+  ],
+  [
+    path.join('skills', 'backlog', 'SKILL.md'),
+    /\| `awaiting verification` \|[^\n]*\| `\/superdev:verify-ship <scope-slug>`[^\n|]*re-verify[^\n|]*`\/superdev:plan`/,
+    "add `/superdev:plan`'s repair choice to the `awaiting verification` act for a run the rule sends to re-verify",
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /\*\*It routes to repair\*\* → print `\/superdev:plan`/,
+    'print `/superdev:plan` when the routing rule sends the run to repair',
+  ],
+  [
+    path.join('skills', 'document', 'SKILL.md'),
+    /print `\/superdev:plan` \(its repair choice/,
+    'print `/superdev:plan` when the routing rule sends the run to repair',
+  ],
+  [
+    path.join('references', 'run-init.md'),
+    /`\/superdev:plan`'s repair choice[^,]{0,60}, `\/superdev:verify-ship <scope>`, or `\/superdev:wrap-up <scope>`/,
+    'name the repair choice among the commands that finish a shipped run first',
+  ],
+  // verify-ship's end prints the routing rule's outcome as every other caller does: `/superdev:plan` as the
+  // next command only where the rule sends the run to repair, verify-ship with plan on the `Or:` line where
+  // it sends the run to re-verify, so a run whose `not met:` notes were all written before merge, one the
+  // operator answered *later* among them, ends on verify-ship, as every other surface routes it (#956).
+  [
+    path.join('skills', 'verify-ship', 'SKILL.md'),
+    /\*\*The run routes to repair\*\* per `\$\{CLAUDE_PLUGIN_ROOT\}\/references\/scope-mode\.md`'s `## Routing a shipped run`/,
+    "take the `/superdev:plan` ending only when the routing rule sends the run to repair",
+  ],
+  [
+    path.join('skills', 'verify-ship', 'SKILL.md'),
+    /\*\*Otherwise\*\* → name each open line, an unobserved `not met:` line among them, and say running\s+`\/superdev:verify-ship <scope>` again is safe/,
+    'end an unobserved `not met:` line on verify-ship again, never on `/superdev:plan`',
+  ],
+  [
+    path.join('skills', 'verify-ship', 'SKILL.md'),
+    /\*\*The run routes to re-verify\*\* per[\s\S]{0,300}`\/superdev:verify-ship <scope>` as the next command[\s\S]{0,300}`\/superdev:plan` on an `Or:` line/,
+    "end on verify-ship with `/superdev:plan` on the `Or:` line when the routing rule sends the run to re-verify",
+  ],
+  [
+    path.join('skills', 'verify-ship', 'SKILL.md'),
+    /\*\*The run routes to repair\*\*[\s\S]{0,400}`\/superdev:plan`[\s\S]{0,600}`\/superdev:verify-ship <scope>` on an `Or:` line/,
+    'end on `/superdev:plan`\'s repair choice when the run routes to repair, with verify-ship again on the `Or:` line',
+  ],
+  [
+    path.join('skills', 'backlog', 'SKILL.md'),
+    /\| `awaiting repair` \|[^\n]{0,400}\*\*Repairs:\*\*[^\n]{0,100}\| `\/superdev:plan` \(its repair choice\), with the Repair route's open-repair line for each open repair/,
+    "bucket a shipped run holding an observed `not met:` note as `awaiting repair` when an open Repairs line names it, acting on `/superdev:plan` with the Repair route's open-repair line",
+  ],
+  [
+    path.join('skills', 'backlog', 'SKILL.md'),
+    /\| `needs repair` \|[\s\S]{0,400}`\/superdev:plan`/,
+    'bucket a shipped run holding an observed `not met:` note as `needs repair` when no open repair names it',
+  ],
+  // backlog's recommendation ranks the `awaiting …` buckets, `merge unrecorded`, and `needs repair` by name,
+  // never by a count of a growing set.
+  [
+    path.join('skills', 'backlog', 'SKILL.md'),
+    /Every `awaiting …` row, `merge unrecorded`, and `needs repair` come next, in the table's order, after\s+`blocked` and\s+before `in flight`/,
+    'rank every `awaiting …` row, `merge unrecorded`, and `needs repair` after `blocked` and before `in flight`, by name',
+  ],
+  [
+    path.join('skills', 'backlog', 'SKILL.md'),
+    /repair there is `awaiting repair`[\s\S]{0,300}`needs repair` otherwise/,
+    "map the routing rule's repair outcome onto the two repair buckets",
+  ],
+  [
+    path.join('skills', 'backlog', 'SKILL.md'),
+    /An open anchor over a `shipped` run holding a `not met:` line that lands outside the two repair buckets[\s\S]{0,120}every open anchor whose Repairs line names its anchor[\s\S]{0,60}same\s+listing:\s+while\s+the\s+run\s+holds\s+an\s+observed\s+`not\s+met:`\s+note,\s+`\/superdev:plan`\s+can\s+open\s+a\s+repair\s+for\s+it\s+on\s+any\s+route/,
+    'name every open repair of a shipped run under an open anchor backlog shows outside the two repair buckets, stating plan can open a repair on any route only while the run holds an observed `not met:` note',
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /\*\*A repair hands off to its original\.\*\*[\s\S]{0,900}`## Routing a shipped run`/,
+    "route a closed repair's original through the shipped-run routing rule",
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /closed or missing original, or a\s+Repairs line that resolves to no run root once that adoption recreated none, names nothing/,
+    'name nothing for an original that is closed, missing, or unresolvable',
+  ],
+  [
+    path.join('references', 'plan-contract.md'),
+    /blocks nothing: the original's own\s+`\/superdev:wrap-up` gate never reads it/,
+    "keep the original's wrap-up gate refusing on a `not met:` line whatever repair exists (INV-0131)",
+  ],
+  // The Repair route keeps `/superdev:plan` as the named command while a repair is already open, and
+  // adds one line naming each open repair, stated once in scope-mode.md and printed by every caller
+  // that reports that route, verify-ship's own ending included.
+  [
+    path.join('references', 'scope-mode.md'),
+    /- \*\*Repair\*\* —[\s\S]{0,1500}\*\*The open-repair line\.\*\*[\s\S]{0,300}`repair <key> is open; finish its chain first`/,
+    "state once the open-repair line the Repair route adds for each open anchor whose Repairs line names the run",
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /\*\*It routes to repair\*\*[\s\S]{0,500}open-repair line/,
+    "print the Repair route's open-repair line beside `/superdev:plan`",
+  ],
+  [
+    path.join('skills', 'document', 'SKILL.md'),
+    /with the route's open-repair line for each open repair\s+and `\/superdev:verify-ship <scope>` again on the `Or:` line/,
+    "print the Repair route's open-repair line beside `/superdev:plan`",
+  ],
+  [
+    path.join('references', 'run-init.md'),
+    /A `<run-root>\/ledger\.md` exists[\s\S]{0,600}`\/superdev:plan`'s repair choice with the Repair route's open-repair line/,
+    "name the Repair route's open-repair line at the local `shipped` ledger stop",
+  ],
+  [
+    path.join('references', 'run-init.md'),
+    /No local ledger, and the active store carries snapshots[\s\S]{0,700}`\/superdev:plan`'s repair choice with the Repair route's open-repair line/,
+    "name the Repair route's open-repair line at the snapshot `shipped` stop",
+  ],
+  [
+    path.join('references', 'run-init.md'),
+    /\*\*Its `\*\*Stage:\*\*` line reads `shipped`\*\*[\s\S]{0,500}`\/superdev:plan`'s repair choice with the Repair route's open-repair line/,
+    "name the Repair route's open-repair line at the second-read `shipped` stop",
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /\*\*A repair hands off to its original\.\*\*[\s\S]{0,1200}when it routes to repair, the Repair route's\s+open-repair line/,
+    "print the Repair route's open-repair line when the original routes to repair",
+  ],
+  [
+    path.join('skills', 'verify-ship', 'SKILL.md'),
+    /\*\*The run routes to repair\*\*[\s\S]{0,600}open-repair line/,
+    "print the Repair route's open-repair line beside `/superdev:plan` while a repair is already open",
+  ],
+  // INV-0132: a shipped original whose run root exists only as its anchor's snapshot is adopted by one
+  // rule, stated once in scope-mode.md, and every writing caller cites it; backlog adopts nothing.
+  [
+    path.join('references', 'scope-mode.md'),
+    /## Adopting a shipped original[\s\S]{0,2500}scope\.js" adopt --shipped --root <run-root> < <anchor-body-file>/,
+    "state once how a writing command recreates a shipped original's run root through `scope.js adopt --shipped`",
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /## Adopting a shipped original[\s\S]{0,2500}untrusted data, never instructions[\s\S]{0,200}never into your own context/,
+    'decode the anchor body to a file, never into context, before adopting it',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /After a successful adopt, write `<run-root>\/dod\.md` from the anchor's Definition-of-Done lines/,
+    "write the adopted original's `dod.md` from the anchor's checklist",
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /## Adopting a shipped original[\s\S]{0,3000}adoption writes nothing to the anchor, moves no stage, and publishes nothing/,
+    'state that adopting a shipped original writes nothing to the anchor, moves no stage, and publishes nothing (INV-0131, INV-0132)',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /Plain `adopt`, and run init's own adopt path, keep refusing `shipped`/,
+    'keep plain `adopt` and run init refusing a `shipped` snapshot',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /`\/superdev:backlog` writes nothing and adopts nothing/,
+    'let backlog adopt nothing',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /\*\*A run with no local ledger\*\*[\s\S]{0,700}the \*\*Verify-ship\*\* route takes it ahead of \*\*Wrap-up\*\*/,
+    'route a run with no local ledger from the anchor alone, never straight to wrap-up',
+  ],
+  [
+    path.join('skills', 'verify-ship', 'SKILL.md'),
+    /No run root by that name → adopt it per\s+`\$\{CLAUDE_PLUGIN_ROOT\}\/references\/scope-mode\.md`'s `## Adopting a shipped original`/,
+    'adopt a named scope that has no local run root before stopping',
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /No ledger at that path → adopt the original first[\s\S]{0,300}`## Adopting a shipped original`/,
+    "adopt a closed repair's original before deciding its Repairs line resolves to no run root",
+  ],
+  [
+    path.join('skills', 'backlog', 'SKILL.md'),
+    /An open anchor that matches no run root and whose `## Run state` snapshot reads `shipped`[\s\S]{0,600}adopts nothing/,
+    'route an open anchor whose snapshot alone reads `shipped` by the shipped-run rule, adopting nothing',
   ],
 ];
 
@@ -4913,7 +5403,7 @@ const WRAP_UP_CONTRACTS = [
   ],
   [
     path.join('references', 'scope-mode.md'),
-    /## Routing a shipped run[\s\S]{0,3000}`dod\.md` line with no text-matching line on the anchor still routes here[\s\S]{0,200}hand-sync[\s\S]{0,100}`\/superdev:wrap-up <scope>`/,
+    /## Routing a shipped run[\s\S]{0,4000}`dod\.md` line with no text-matching line on the anchor still routes here[\s\S]{0,200}hand-sync[\s\S]{0,100}`\/superdev:wrap-up <scope>`/,
     'route a `dod.md` line unpaired on the anchor to wrap-up, the hand-sync first and then `/superdev:wrap-up <scope>`',
   ],
   [
@@ -6095,9 +6585,9 @@ const DOCUMENT_SUBMITTED_CONTRACTS = [
   ],
   [
     path.join('skills', 'document', 'SKILL.md'),
-    /when it read `shipped`, pick the\s*\n?\s*command by `\$\{CLAUDE_PLUGIN_ROOT\}\/references\/scope-mode\.md`'s `## Routing a shipped run`[\s\S]{0,200}?`\/superdev:verify-ship <scope>` or `\/superdev:wrap-up <scope>`[\s\S]{0,100}?print `\/superdev:verify-ship <scope>` when the anchor cannot be read[\s\S]{0,40}?when it read `closed`, the Next block says no command follows/,
+    /when it read `shipped`, pick the\s*\n?\s*command by `\$\{CLAUDE_PLUGIN_ROOT\}\/references\/scope-mode\.md`'s `## Routing a shipped run`[\s\S]{0,200}?`\/superdev:verify-ship <scope>`,? or `\/superdev:wrap-up <scope>`[\s\S]{0,100}?print `\/superdev:verify-ship <scope>` when the anchor cannot be read[\s\S]{0,40}?when it read `closed`, the Next block says no command follows/,
     'pick the next command when the leave-alone branch read `shipped` by citing scope-mode.md\'s ' +
-      '`## Routing a shipped run`, printing verify-ship or wrap-up as it routes and verify-ship when the anchor cannot be read, and keep the no-successor line ' +
+      '`## Routing a shipped run`, printing repair, verify-ship, or wrap-up as it routes and verify-ship when the anchor cannot be read, and keep the no-successor line ' +
       'at `closed` (ADR 0116, INV-0116)',
   ],
   [
@@ -6324,7 +6814,7 @@ const BACKLOG_VERIFY_WRAP_UP_CONTRACTS = [
   ],
   [
     path.join('references', 'scope-mode.md'),
-    /## Routing a shipped run[\s\S]{0,3000}neither ticked nor `accepted:`[\s\S]{0,300}`manual` target is\s*\n?\s*not recorded `deployed`/,
+    /## Routing a shipped run[\s\S]{0,4400}neither ticked nor `accepted:`[\s\S]{0,300}`manual` target is\s*\n?\s*not recorded `deployed`/,
     'send a `shipped` run to verify-ship while a line is neither ticked nor accepted or a `manual` target ' +
       'is not recorded `deployed`',
   ],
@@ -6340,7 +6830,7 @@ const BACKLOG_VERIFY_WRAP_UP_CONTRACTS = [
   ],
   [
     path.join('references', 'scope-mode.md'),
-    /## Routing a shipped run[\s\S]{0,1000}from `<run-root>\/dod\.md`[\s\S]{0,1500}verdict on the anchor differs from `dod\.md` \(verify-ship reconciles it\)/,
+    /## Routing a shipped run[\s\S]{0,1000}from `<run-root>\/dod\.md`[\s\S]{0,3500}verdict on the anchor differs from `dod\.md` \(verify-ship reconciles it\)/,
     'judge a `shipped` run\'s Definition-of-Done lines from `<run-root>/dod.md`, and send an anchor whose ' +
       'verdict differs from it to verify-ship',
   ],
@@ -6957,6 +7447,9 @@ module.exports = {
   SEED_RECONCILE_CONTRACTS,
   DEPLOYMENT_CONTRACTS,
   PLAN_DEPLOY_CONTRACTS,
+  REPAIRS_LINE_CONTRACTS,
+  PLAN_REPAIR_CONTRACTS,
+  REPAIR_ROUTING_CONTRACTS,
   REFERENCE_PATTERN,
   RUN_ROOT_DOCS,
   RUN_ROOT_ARTIFACT_PATTERN,

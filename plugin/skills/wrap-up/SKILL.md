@@ -54,7 +54,9 @@ holds.
   per `docs/agents/issue-tracker.md`, only when `dod.md` is missing. A line that is neither ticked nor
   `accepted:` holds this reason. The note's verdict (`met:`, `accepted:`) decides whether a line is settled,
   never the box: a `[x]` whose note is `ceiling:` or `not met:` counts as unsettled. Name each such line and
-  `/superdev:verify-ship <scope>`. Wrap-up never offers acceptance itself: verify-ship settles the line.
+  `/superdev:verify-ship <scope>`. Wrap-up never offers acceptance itself: verify-ship settles the line. When
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Routing a shipped run` routes this run to repair,
+  a `not met:` line also names `/superdev:plan`'s repair choice.
 - **The anchor disagrees with a settled `dod.md`.** With `dod.md` present, also read the anchor's lines.
   Pair the lines per `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## Pairing dod.md with the anchor`.
   A paired line whose verdict differs from `dod.md` (a failed tick write) holds this reason too: name the
@@ -121,3 +123,16 @@ snapshot per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing r
 Name the scope's staged pages per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
 `## Staged pages at close` (ADR 0119, INV-0123). A count above zero → print `/superdev:publish-kb <scope>`
 as the next command. A count of zero, or a failed read → the Next block says no command follows.
+
+**A repair hands off to its original.** Read this scope's own anchor's Repairs line through
+`docs/agents/issue-tracker.md`'s **Read an anchor's Repairs line** call. No line → nothing changes above.
+A line naming an anchor → resolve that anchor's feature label, take its slug, and read the original's
+stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <original-run-root>`
+(`scope.js root <slug>` names that path). No ledger at that path → adopt the original first, from the
+anchor the Repairs line names, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
+`## Adopting a shipped original`, then read the stage. At `shipped`, pick the original's next command by
+`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Routing a shipped run`, with `<scope>` the
+original's slug, and print it as the next command and, when it routes to repair, the Repair route's
+open-repair line for each open repair; `/superdev:publish-kb <scope>` moves to an `Or:` line. A closed or missing original, or a
+Repairs line that resolves to no run root once that adoption recreated none, names nothing for the
+original.

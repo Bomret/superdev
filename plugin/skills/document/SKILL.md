@@ -163,7 +163,9 @@ Only when §2 found a live run. Everything above still applies; this adds the ru
   **The stage read `shipped`, `submitted`, or `closed` above** — the leave-alone branch — → when it read
   `submitted`, print `/superdev:ship <scope>`; when it read `shipped`, pick the
   command by `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Routing a shipped run` (ADR 0116, INV-0116)
-  and print `/superdev:verify-ship <scope>` or `/superdev:wrap-up <scope>` as it routes, and print `/superdev:verify-ship <scope>` when the anchor cannot be read, as ship does; when it read `closed`, the Next block says no command follows, and the note is left out.
+  and print `/superdev:plan` (its repair choice, with the route's open-repair line for each open repair
+  and `/superdev:verify-ship <scope>` again on the `Or:` line), `/superdev:verify-ship <scope>`, or `/superdev:wrap-up <scope>` as it routes (re-verify adds
+  `/superdev:plan`'s repair choice on the `Or:` line), and print `/superdev:verify-ship <scope>` when the anchor cannot be read, as ship does; when it read `closed`, the Next block says no command follows, and the note is left out.
   **Neither case** → print
   `/superdev:submit-pr <scope>`, with one line on what it does (open the pull request against the scope's
   current Definition of Done).

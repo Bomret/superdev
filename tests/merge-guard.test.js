@@ -135,6 +135,65 @@ assert.equal(decide(sub('gh pr merge 5 --squash')).block, true, 'gh pr merge');
 assert.equal(decide(sub('tea pr merge 5')).block, true, 'tea pr merge');
 assert.equal(decide(sub('gh pr view 5')).block, false, 'gh read is fine');
 
+// An `rtk` prefix (RTK's output filter) runs the same command, so a hand-typed `rtk git push` or
+// `rtk gh pr merge` integrates exactly as the bare form does (triage #958).
+for (const cmd of [
+  'rtk git push origin s',
+  'rtk git rebase main',
+  'rtk git merge scope',
+  'cd x && rtk git push',
+  'rtk -vv --ultra-compact git -C /wt push',
+  'rtk --verbose --skip-env git --no-pager rebase main',
+  'rtk git -C $(dirname $(dirname $(pwd)))/wt merge x',
+  'rtk gh pr merge 5 --squash',
+  'rtk tea pr merge 5',
+  'rtk tea api -X POST /repos/bomret/superdev/pulls/12/merge -d @-',
+  'rtk gh api -X PUT repos/o/r/pulls/12/merge',
+  'if rtk tea api -X POST /repos/bomret/superdev/pulls/12/merge; then :; fi',
+  // rtk's run-anything subcommands (`proxy`, `err`, `run`, `summary`, `test`) execute the command after them
+  'rtk proxy git push',
+  'rtk err git push',
+  'rtk run git push',
+  'rtk summary git merge x',
+  'rtk test git rebase main',
+  'rtk -v proxy --skip-env git push',
+  'rtk run --ultra-compact git -C /wt push',
+  'rtk proxy git -C $(dirname $(dirname $(pwd)))/wt merge x',
+  'rtk proxy gh pr merge 5',
+  'rtk err tea pr merge 5',
+  'rtk proxy tea api -X POST /repos/bomret/superdev/pulls/12/merge -d @-',
+  'if rtk run gh api -X PUT repos/o/r/pulls/12/merge; then :; fi',
+  // each subcommand also takes rtk's `--` separator before the command, and an rtk can sit behind another rtk
+  'rtk proxy -- git push',
+  'rtk run -- git push origin x',
+  'rtk test -- git rebase main',
+  'rtk err -- git push',
+  'rtk summary -- git merge x',
+  'rtk -v proxy --skip-env -- git push',
+  'rtk proxy -- gh pr merge 5',
+  'rtk run -- tea api -X POST /repos/bomret/superdev/pulls/12/merge -d @-',
+  'rtk proxy rtk git push',
+  'rtk proxy -- rtk run -- git push',
+]) assert.equal(decide(sub(cmd)).block, true, `an rtk-prefixed integration is blocked: ${cmd}`);
+for (const cmd of [
+  'rtkx git push',
+  'echo rtk git push',
+  'rtk git status',
+  'rtk git merge-base main HEAD',
+  'rtk -C /wt git push',
+  'rtk gh pr view 5',
+  'rtk tea api -X GET /repos/bomret/superdev/pulls/12/merge',
+  'rtk proxy git log',
+  'rtk proxyx git push',
+  'echo rtk proxy git push',
+  'rtk log git push',
+  'rtk proxy gh pr view 5',
+  'rtk proxy -- git log',
+  'rtk test -- bun run test',
+  'rtk proxy -- gh pr view 5',
+  'rtk proxy rtk git status',
+]) assert.equal(decide(sub(cmd)).block, false, `not an rtk-prefixed integration: ${cmd}`);
+
 // `tea api` merges a pull request through the REST endpoint (ADR 0111), so it is the same job as `tea pr merge`.
 const M = '/repos/bomret/superdev/pulls/12/merge';
 for (const cmd of [
