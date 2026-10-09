@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0131](0131-the-marketplace-source-is-pinned-to-the-release-tag.md), which
+replaces the relative `./plugin` source with a `git-subdir` source pinned to the release tag.
+
 **Context.** A Claude Code plugin install copies the whole source directory of its marketplace entry
 into the user's plugin cache. No manifest field filters files. With
 `marketplace.json`'s source at `./`, every install carried the maintainer-only half of the repo:

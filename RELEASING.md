@@ -33,7 +33,8 @@ against the repository's own register, the `drift-check.js` selftest, `drift-che
      and is one of superdev's own change types.
 2. Update `CHANGELOG.md` and bump the version in `plugin/.claude-plugin/plugin.json`, via
    `semantic-release-replace-plugin`. `plugin.json` is the single source of truth, and `marketplace.json`
-   carries no version.
+   carries no version. The same step rewrites the `ref` of `marketplace.json`'s source to `vX.Y.Z`, so the
+   release commit names its own tag (ADR 0131). A rewrite that matches nothing fails the release.
 3. Commit `chore(release): X.Y.Z [skip ci]` with the release notes, tag `vX.Y.Z`, and push.
 4. Publish a **Codeberg Release** (Gitea API) with the generated notes.
 

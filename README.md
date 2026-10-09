@@ -565,20 +565,24 @@ claimed, because none has been tested.
 /plugin install superdev@superdev
 ```
 
-**From a local clone** (for hacking on it):
+The marketplace source pins the latest release tag, so an install copies released code, never unreleased
+work on `main` (ADR 0131).
+
+**From a local clone** (for hacking on it). The marketplace installs the release tag even from a clone,
+so load the clone's own `plugin/` directory for the session instead:
 
 ```
 git clone https://codeberg.org/bomret/superdev.git
-/plugin marketplace add /absolute/path/to/superdev
-/plugin install superdev@superdev
+cd superdev
+claude --plugin-dir ./plugin
 ```
 
-**Scope.** Both commands write to your **user** settings: `marketplace add` records the source under
+**Scope.** The two git-host commands write to your **user** settings: `marketplace add` records the source under
 `extraKnownMarketplaces`, `plugin install` enables the plugin under `enabledPlugins`. A repository
 cannot ship either entry. Claude Code declines a network marketplace declared in project-scope
 `.claude/settings.json`, and a plugin listed there that is not installed draws a warning instead. That
 restriction is deliberate: cloning a repo never enables a plugin you did not ask for. Run the two
-commands once per machine, including in this repo, which dogfoods its own release. Verified on Claude
+git-host commands once per machine, including in this repo, which dogfoods its own release. Verified on Claude
 Code **v2.1.278** (2026-09-26).
 
 **Manage:** `/plugin list` and `/plugin details superdev@superdev`. For updates use

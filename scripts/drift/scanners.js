@@ -1177,13 +1177,16 @@ const scanReturnToController = (root) =>
       `instruct no return to the command body — \`${hit[0]}\` sends a reader back to the ` +
       'controller instead of forward, the way run-init.md and run-handoff.md do']));
 
-// scanMarketplaceSource() is pure over a root dir: `.claude-plugin/marketplace.json`'s relative `source`
-// for each plugin must resolve to a directory carrying `.claude-plugin/plugin.json`. That one string is
-// what limits an install to the shipped tree (ADR 0032), and `claude plugin validate .` accepts a source
-// that names no directory at all — so a renamed tree or a mistyped path breaks every install while the
-// suite stays green. The manifest is a repo-root file, never under `plugin/`, so it is read directly
-// rather than through docPath(). An absent or unparsable manifest is skipped, so fixtures need only the
-// files they exercise; an object source names a remote repo and is out of scope.
+// scanMarketplaceSource() is pure over a root dir: each plugin in `.claude-plugin/marketplace.json` must
+// name the shipped tree. A relative string `source` must resolve to a directory carrying
+// `.claude-plugin/plugin.json` (ADR 0032). A `git-subdir` object source must name such a directory in this
+// repo by its `path`, name this repo's canonical clone URL (MARKETPLACE_URL) as its `url`, so a fork or a
+// mistyped URL cannot break or hijack every install, and pin `ref` to `v` + that directory's plugin.json
+// version (ADR 0131). An object source of any other shape fails the url check. `claude plugin validate .`
+// accepts a source that names no directory at all, so a renamed tree or a mistyped path breaks every install while the suite stays green. The manifest is a
+// repo-root file, never under `plugin/`, so it is read directly rather than through docPath(). An absent
+// or unparsable manifest is skipped, so fixtures need only the files they exercise.
+const MARKETPLACE_URL = 'https://codeberg.org/bomret/superdev.git';
 function scanMarketplaceSource(root) {
   let manifest;
   try {
@@ -1192,15 +1195,33 @@ function scanMarketplaceSource(root) {
     return []; // no marketplace manifest (fixture / partial checkout) → nothing to scan
   }
   const gaps = [];
+  const gap = (expectation) =>
+    gaps.push({ source: path.join('.claude-plugin', 'marketplace.json'), expectation });
+  const pluginJson = (dir) => path.join(root, dir, '.claude-plugin', 'plugin.json');
   for (const plugin of manifest.plugins || []) {
-    if (typeof plugin.source !== 'string') continue;
-    if (!fs.existsSync(path.join(root, plugin.source, '.claude-plugin', 'plugin.json'))) {
-      gaps.push({
-        source: path.join('.claude-plugin', 'marketplace.json'),
-        expectation:
-          `point \`${plugin.name}\`'s source at a directory carrying \`.claude-plugin/plugin.json\` — ` +
-          `\`${plugin.source}\` resolves to no plugin tree, and \`claude plugin validate\` accepts that`,
-      });
+    const src = plugin.source ?? {};
+    if (typeof src === 'string') {
+      if (!fs.existsSync(pluginJson(src))) {
+        gap(`point \`${plugin.name}\`'s source at a directory carrying \`.claude-plugin/plugin.json\` — ` +
+          `\`${src}\` resolves to no plugin tree, and \`claude plugin validate\` accepts that`);
+      }
+      continue;
+    }
+    if (src.source !== 'git-subdir' || src.url !== MARKETPLACE_URL) {
+      gap(`point \`${plugin.name}\`'s \`git-subdir\` url at \`${MARKETPLACE_URL}\`, this repo's canonical clone ` +
+        `URL — it reads \`${src.url}\``);
+    }
+    let version;
+    try {
+      version = JSON.parse(fs.readFileSync(pluginJson(String(src.path)), 'utf8')).version;
+    } catch {
+      gap(`point \`${plugin.name}\`'s \`git-subdir\` path at a directory carrying \`.claude-plugin/plugin.json\` — ` +
+        `\`${src.path}\` resolves to no plugin tree`);
+      continue;
+    }
+    if (src.ref !== `v${version}`) {
+      gap(`pin \`${plugin.name}\`'s \`git-subdir\` ref to \`v${version}\`, the release tag of ` +
+        `\`${src.path}/.claude-plugin/plugin.json\` — it reads \`${src.ref}\``);
     }
   }
   return gaps;

@@ -2762,14 +2762,53 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(msGaps[0].source, path.join('.claude-plugin', 'marketplace.json'), 'names the manifest');
   assert.match(msGaps[0].expectation, /\.\/shippd/, 'names the dead path');
 
-  // an object source names a remote repo, not a path in this repo — out of scope
+  // --- the `git-subdir` source pinned to the release tag (ADR 0131): its `url` is this repo's canonical
+  // clone URL, its `path` names a plugin tree in this repo, and its `ref` is `v` + that tree's plugin.json
+  // version ---
+  const mkPinned = (source, extra = {}) =>
+    JSON.stringify({ name: 'm', plugins: [{ name: 'p', source, ...extra }] });
+  const pinned = (over = {}) =>
+    ({ source: 'git-subdir', url: 'https://codeberg.org/bomret/superdev.git', path: 'shipped', ref: 'v1.2.3', ...over });
+  const shippedTree = { 'shipped/.claude-plugin/plugin.json': '{"name":"p","version":"1.2.3"}' };
+
+  // negative: path resolves and ref matches the version
+  const msPinned = fixture({ '.claude-plugin/marketplace.json': mkPinned(pinned()), ...shippedTree });
+  assert.equal(scanMarketplaceSource(msPinned).length, 0, 'a pinned git-subdir source yields zero gaps');
+
+  // positive: the path names no plugin tree
+  const msPinnedTypo = fixture({
+    '.claude-plugin/marketplace.json': mkPinned(pinned({ path: 'shippd' })), ...shippedTree,
+  });
+  const msPinnedTypoGaps = scanMarketplaceSource(msPinnedTypo);
+  assert.equal(msPinnedTypoGaps.length, 1, 'a git-subdir path resolving to no plugin tree is a gap');
+  assert.match(msPinnedTypoGaps[0].expectation, /shippd/, 'names the dead path');
+
+  // positive: the ref differs from v<plugin.json version>
+  const msStaleRef = fixture({
+    '.claude-plugin/marketplace.json': mkPinned(pinned({ ref: 'v1.2.2' })), ...shippedTree,
+  });
+  const msStaleRefGaps = scanMarketplaceSource(msStaleRef);
+  assert.equal(msStaleRefGaps.length, 1, 'a ref other than v<version> is a gap');
+  assert.match(msStaleRefGaps[0].expectation, /v1\.2\.2/, 'names the stale ref');
+  assert.match(msStaleRefGaps[0].expectation, /v1\.2\.3/, 'names the expected ref');
+
+  // positive: a url other than the canonical repository would install a fork, or nothing
+  const msForkUrl = fixture({
+    '.claude-plugin/marketplace.json': mkPinned(pinned({ url: 'https://example.org/o/r.git' })), ...shippedTree,
+  });
+  const msForkUrlGaps = scanMarketplaceSource(msForkUrl);
+  assert.equal(msForkUrlGaps.length, 1, 'a git-subdir url other than the canonical repository is a gap');
+  assert.match(msForkUrlGaps[0].expectation, /example\.org/, 'names the wrong url');
+
+  // positive: an object source of any other shape is unrecognised
   const msRemote = fixture({
     '.claude-plugin/marketplace.json': JSON.stringify({
       name: 'm',
       plugins: [{ name: 'p', source: { source: 'github', repo: 'o/r' } }],
     }),
   });
-  assert.equal(scanMarketplaceSource(msRemote).length, 0, 'an object source is skipped');
+  const msRemoteGaps = scanMarketplaceSource(msRemote);
+  assert.ok(msRemoteGaps.length >= 1, 'an object source of another shape is a gap');
 
   // absent or unparsable manifest → nothing to scan, matching every other scanner's fixture rule
   assert.equal(scanMarketplaceSource(fixture({ 'README.md': '# repo\n' })).length, 0, 'absent manifest is skipped');

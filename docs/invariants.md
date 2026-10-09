@@ -432,7 +432,7 @@ Class: architecture
 Concepts: Shipped tree
 Statement: An install carries `plugin/` alone. Every file the runtime reads lives under `plugin/`, nothing under `plugin/` requires or reads a repo-root path, and `plugin/` carries no test code.
 Breaks: silently
-Check: `scripts/drift-check.js` `marketplace-source` (the source resolves to a directory carrying `plugin/.claude-plugin/plugin.json`). Nothing checks that shipped files never reference a path outside `plugin/`, or that `plugin/` holds no test code.
+Check: `scripts/drift-check.js` `marketplace-source` (the source's path resolves to a directory carrying `plugin/.claude-plugin/plugin.json`). Nothing checks that shipped files never reference a path outside `plugin/`, or that `plugin/` holds no test code.
 Paths: .claude-plugin/marketplace.json, plugin/**, tests/**
 
 ### INV-0052

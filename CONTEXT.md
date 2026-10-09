@@ -413,7 +413,7 @@ _Avoid: "environment" (a target is one deployable unit, and one environment may 
 **Model-invocable surface**: a skill the model can start on its own through the Skill tool, as against one only the operator can, by typing its slash command. Every skill is one unless its frontmatter carries `disable-model-invocation: true`. An external driver invokes each step of the chain through the Skill tool, and `/superdev:plan` and `/superdev:implement` start `/superdev:setup` and `/superdev:plan` the same way, so each of them must stay one, and `/superdev:ship` must not (INV-0066).
 _Avoid: "auto-invoked" (that names implicit activation by description match, a different property), "callable", "public"_
 
-**Shipped tree**: the `plugin/` subdirectory, which is everything a user's install copies and nothing else, because the marketplace manifest's `source` is `./plugin`. Everything outside it — `tests/`, `scripts/`, `docs/` — is maintainer-only and reaches no user.
+**Shipped tree**: the `plugin/` subdirectory, which is everything a user's install copies and nothing else, because the marketplace manifest's `source` names `plugin` as its `path`, at the release tag its `ref` pins (ADR 0131). Everything outside it — `tests/`, `scripts/`, `docs/` — is maintainer-only and reaches no user.
 _Avoid: "the plugin" (that names the product, not the tree), "dist", "build output" (there is no build step)_
 
 **Guardrail**: one of the deterministic Node hooks in `plugin/hooks/`, wired by `hooks/hooks.json`, that decides a tool call or a session event with no model judgment involved.

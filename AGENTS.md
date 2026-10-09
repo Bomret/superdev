@@ -32,7 +32,8 @@ No prerequisite plugins.
                          `.claude/settings.local.json` stays gitignored
 .claude-plugin/
   marketplace.json     — single-plugin marketplace manifest (deliberately NO version field); its
-                         `source` is `./plugin`, so an install copies only the shipped tree below
+                         `source` is a `git-subdir` entry with `path` `plugin` and `ref` `v<version>`, so
+                         an install copies only the shipped tree below, as the release tag holds it
 plugin/                — the SHIPPED tree: everything a user's install copies, nothing else
   .claude-plugin/
     plugin.json        — plugin manifest (name, version, author); version is the SINGLE source of truth.
@@ -67,15 +68,17 @@ scripts/               — the maintainer-only CLIs wired into `bun run test`: `
                          `drift/` modules (registry, contract tables, scanners, shared helpers,
                          selftest suites), `invariant-check.js`, the invariant register validator, and
                          `run-tests.js`, the suite runner `bun run test` invokes
-release.config.cjs     — semantic-release config (semantic-release-replace-plugin bumps plugin.json)
+release.config.cjs     — semantic-release config (semantic-release-replace-plugin bumps plugin.json and
+                         the marketplace source's `ref`)
 package.json           — dev-only tooling (Bun); NOT published to npm
 CHANGELOG.md           — release-managed by semantic-release; do not hand-edit
 CONTEXT.md             — the domain-language glossary (ubiquitous terms); maintained by /plan
 README.md · RELEASING.md · NOTICE · LICENSE
 ```
 
-The plugin ships as markdown and JS hooks. There is **no build step**: the marketplace's `./plugin`
-source is what limits an install to the shipped tree, so releasing stays a plain commit. `skills/`,
+The plugin ships as markdown and JS hooks. There is **no build step**: the marketplace source's `path`,
+`plugin`, is what limits an install to the shipped tree, and its `ref` pins the install to the release
+tag (ADR 0131), so releasing stays a plain commit. `skills/`,
 `agents/`, and `references/` are prose. `hooks/` and both `scripts/` dirs are executable. Paths inside
 `plugin/` resolve against the plugin root at runtime, so prose there names them without the `plugin/`
 prefix; `scripts/drift/lib.js`'s `docPath()` resolves the same plugin-relative paths for the
@@ -124,7 +127,9 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
   drop it (`tests/green-gate.test.js` and `tests/merge-guard.test.js`'s `LONG_VALUE_OPT` guards).
 - **Version lives only in `plugin/.claude-plugin/plugin.json`.** Never hand-edit it. semantic-release and
   `semantic-release-replace-plugin` bump it on release. `marketplace.json` carries no version, which
-  avoids a double pin where `plugin.json` would silently win.
+  avoids a double pin where `plugin.json` would silently win. Its source's `ref` names the release tag,
+  `v` followed by that version, and the same release step rewrites it (ADR 0131). Never hand-edit it
+  either.
 - **Claude Code is superdev's only harness** (ADR 0102). Skills, agents, and references name Claude
   Code's features, tools, and frontmatter directly. Prose is not written harness-neutral for
   portability.
@@ -336,8 +341,8 @@ This root owns every other subtree directly:
   **user-scope** action, so no tracked file in this repo can do it. Claude Code declines a network
   marketplace declared at project scope, which keeps a clone from enabling a plugin nobody asked for.
   Dogfooding is therefore an operator step, and [`README.md`](README.md) → *Install* carries it. Run it
-  against the **git URL of this repo**, not a `directory` source pointing at the checkout. A directory
-  source runs the working tree, so a half-edited guardrail hook fires on the very run editing it. The
-  git URL runs released `main`, the artifact an adopter installs. Personal overrides belong in the
-  gitignored `.claude/settings.local.json`.
+  against the **git URL of this repo**. The marketplace source pins the release tag (ADR 0131), so the
+  install runs the latest release, the artifact an adopter installs. A checkout loaded with
+  `claude --plugin-dir ./plugin` runs its working tree instead, so a half-edited guardrail hook fires on
+  the very run editing it. Personal overrides belong in the gitignored `.claude/settings.local.json`.
 - `CONTEXT.md`. The domain glossary.

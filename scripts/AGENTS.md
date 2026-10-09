@@ -695,7 +695,7 @@ restated fact against its source. `forcing-branch-flag`, `kb-no-backend-call`, `
 `return-to-controller`, and `conflict-conclusion-no-commit` are **negative** assertions. Each reports a
 document that still says something, rather than one that stopped saying it. `adr-status` compares a
 document against a **schema**.
-`pinned-paths` and `marketplace-source` are plain **existence** assertions.
+`pinned-paths` is a plain **existence** assertion.
 
 The exceptions are named and the rule covers the rest, deliberately. A list of every drift assertion by id
 is maintained by hand at the moment its author is thinking about code, so it falls behind. Naming the
@@ -1711,12 +1711,16 @@ each check is described **somewhere**, never that a description is accurate or
 that the classification sentence files a check under the right kind. Those stay human judgment, and no
 check can replace them.
 
-The `marketplace-source` check, `scanMarketplaceSource()`: `.claude-plugin/marketplace.json`'s
-relative `source` for each plugin resolves to a directory that carries `.claude-plugin/plugin.json`. That
-one string is what limits an install to the shipped `plugin/` tree (ADR 0032), and `claude plugin
-validate .` accepts a source that names no directory at all. A renamed tree or a fat-fingered path
-therefore breaks every install while `bun run test` stays green. An absent manifest is skipped, and an object
-source (a remote repo) is out of scope: only a path into this repository can drift against it.
+The `marketplace-source` check, `scanMarketplaceSource()`: each plugin in
+`.claude-plugin/marketplace.json` names the shipped tree. A `git-subdir` source's `url` is this
+repository's clone URL, `https://codeberg.org/bomret/superdev.git`, its `path` resolves to a directory in
+this repository that carries `.claude-plugin/plugin.json`, and its `ref` equals `v` followed by that
+file's version (ADR 0131). A relative string source resolves to such a directory the same way (ADR 0032).
+An object source of any other shape fails the `url` test. The source is what limits an install to the
+shipped `plugin/` tree and pins it to the release tag, and `claude plugin validate .` accepts a source that
+names no directory at all. A renamed tree, a fat-fingered path, a fork or mistyped URL, or a hand-edited
+ref therefore breaks every install while `bun run test` stays green. An absent manifest is
+skipped.
 
 The `readme-commands` check, `scanReadmeCommands()`: `README.md` and `skills/` name the
 same command set: every `skills/<name>/SKILL.md` is mentioned in the README as `/superdev:<name>`, and
