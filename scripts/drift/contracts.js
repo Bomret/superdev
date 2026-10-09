@@ -6638,8 +6638,8 @@ const SHIP_DEPLOY_CONTRACTS = [
   ],
   [
     path.join('skills', 'ship', 'SKILL.md'),
-    /nothing here asks a second question once the gate below has passed, except one: under `auto`, §5 asks\s*\n?\s*before it deploys a `docs\/agents\/deployment\.md` nobody was shown \(ADR 0104\)/,
-    "name the one exception to ship's no-second-question rule in its opening paragraph",
+    /nothing here asks a second question once the gate below has passed, except two: under `auto`, §5 asks\s*\n?\s*before it deploys a `docs\/agents\/deployment\.md` nobody was shown \(ADR 0104\), and §5's\s*\n?\s*hand-off asks once whether to start the next skill \(ADR 0132\)/,
+    "name the two exceptions to ship's no-second-question rule in its opening paragraph",
   ],
 ];
 
@@ -6670,13 +6670,14 @@ const DOCUMENT_SUBMITTED_CONTRACTS = [
   ],
   [
     'README.md',
-    /then stops\.\s*\n?\s*`\/superdev:verify-ship` settles[\s\S]{0,200}?`\/superdev:wrap-up` closes the\s*\n?\s*scope anchor and cleans up the run/,
-    'state that ship merges and deploys then stops, verify-ship settles the deployed criteria, and wrap-up ' +
-      'closes the anchor and cleans up the run',
+    /then offers once to start the\s*\n?\s*next command and prints it when the operator does not take the offer[\s\S]{0,500}?`\/superdev:verify-ship` settles[\s\S]{0,200}?`\/superdev:wrap-up` closes the\s*\n?\s*scope anchor and cleans up the run/,
+    'state that ship merges and deploys, then offers once to start the next command and prints it when the ' +
+      'offer is not taken, verify-ship settles the deployed criteria, and wrap-up closes the anchor and cleans ' +
+      'up the run',
   ],
   [
     'README.md',
-    /then stops with the stage at `shipped`\. Every criterion is already ticked and nothing waits on a deploy,\s*\n?\s*so it prints `\/superdev:wrap-up health-check`/,
+    /with the stage at `shipped`\. Every criterion is already ticked and nothing waits on a deploy,\s*\n?\s*so it offers `\/superdev:wrap-up health-check` and prints that command when you decline/,
     'walk the worked example from ship straight to wrap-up, nothing being left to verify (ADR 0116)',
   ],
   [
@@ -6820,15 +6821,15 @@ const BACKLOG_SUBMITTED_CONTRACTS = [
 const DEPLOY_STEP_VISIBILITY_CONTRACTS = [
   [
     path.join('skills', 'submit-pr', 'SKILL.md'),
-    /it merges the pull\s*\n?\s*request once an operator has reviewed it, applies the repository's deploy posture to the merge, and stops\s*\n?\s*there, printing `\/superdev:verify-ship <scope>` next, or `\/superdev:wrap-up <scope>` when nothing is left\s*\n?\s*to verify/,
+    /it merges the pull\s*\n?\s*request once an operator has reviewed it, applies the repository's deploy posture to the merge, then\s*\n?\s*offers to start `\/superdev:verify-ship <scope>`, or `\/superdev:wrap-up <scope>` when nothing is left to\s*\n?\s*verify, and prints that command when the operator does not take the offer/,
     "state, on its own next-command line, that `/superdev:ship` applies the repository's deploy posture " +
-      'to the merge and stops, printing `/superdev:verify-ship <scope>` next, or `/superdev:wrap-up <scope>` ' +
-      'when nothing is left to verify (ADR 0116)',
+      'to the merge, then offers to start `/superdev:verify-ship <scope>`, or `/superdev:wrap-up <scope>` ' +
+      'when nothing is left to verify, and prints that command when the offer is not taken (ADR 0116, ADR 0132)',
   ],
   [
     path.join('skills', 'backlog', 'SKILL.md'),
-    /`\/superdev:ship` sets the `shipped` stage right after the merge, before any deploy runs, and stops after the\s*\n?\s*deploy; `\/superdev:wrap-up` closes the anchor/,
-    'state that ship stops after the deploy and wrap-up closes the anchor, so a `shipped` run root ' +
+    /`\/superdev:ship` sets the `shipped` stage right after the merge, before any deploy runs, and closes no anchor;\s*\n?\s*`\/superdev:wrap-up` closes the anchor/,
+    'state that ship closes no anchor and wrap-up closes the anchor, so a `shipped` run root ' +
       'carries an open anchor by design',
   ],
   [
@@ -7735,7 +7736,145 @@ const SKILL_TOOL_INVOCATION_CONTRACTS = [
   ],
 ];
 
+// ADR 0132, INV-0093, INV-0116: `/superdev:ship`'s final hand-off asks the operator once whether to start the
+// routed skill, and chains verify-ship into wrap-up on a clean pass. The rows pin each clause of the offer in
+// ship, and the sentence in `verify-ship`, `wrap-up`, and `response-shapes.md` that the offer depends on: ship
+// tells the started skill to keep its gates and a typed verify-ship starts no wrap-up, so a later edit to
+// either neighbour that contradicts the offer turns its own row red. Each row anchors on one sentence.
+const SHIP_OFFER_CONTRACTS = [
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /\*\*Offer to continue\*\* \(ADR 0132, INV-0093\)\. Ask the operator once whether to start the routed skill now,\s+before printing the next command, when the merge landed, every listed deploy target is recorded `deployed`\s+or none is listed/,
+    'ask the operator once whether to start the routed skill, before printing the next command, when the merge landed and every listed deploy target is recorded `deployed` (ADR 0132)',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /and the route is \*\*It routes to verify-ship\*\*, \*\*It routes to wrap-up\*\* with no `dod\.md`\s+line unpaired on the anchor, or \*\*The anchor cannot be read\*\*\./,
+    'offer when the route is verify-ship, wrap-up with no hand-sync pending, or an unreadable anchor (ADR 0132)',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /A target recorded `pending` or `failed`, or\s+carrying no record, gives no offer\./,
+    'make no offer while a listed deploy target is pending, failed, or unrecorded (ADR 0132)',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /\*\*No offer\*\* is made for a run that routes to repair or to re-verify, a run with a hand-sync pending, a\s+refused ship, or a ship stopped by a failed or declined deploy/,
+    'make no offer for a repair or re-verify route, a pending hand-sync, a refused ship, or a failed or declined deploy (ADR 0132)',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /names the scope's staged\s+pages per `## Staged pages at close` with `\/superdev:publish-kb <scope>` as the alternative when the\s+count is above zero/,
+    'name the staged pages with the publish-kb alternative in the offer message, so the yes path names them as the no path does (INV-0123)',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /ends on the question `Start \/superdev:<skill> <scope> now\?`\. A message that ends on a\s+question carries no Next block/,
+    'end the offer message on its question, with no Next block (INV-0111)',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /\*\*A clear yes\*\* → call the Skill tool with `superdev:verify-ship` or `superdev:wrap-up`, whichever the\s+route names, one skill per call/,
+    'start the routed skill on a clear yes through the Skill tool, one skill per call (ADR 0132)',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /Add `--from-ship` to the\s+verify-ship call\./,
+    'pass `--from-ship` on the verify-ship call, so verify-ship prints no Next block before wrap-up starts (INV-0111)',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /\*\*Any other answer\*\* — empty, off-topic, or no → print the route above as the next command[\s\S]{0,120}?and start nothing/,
+    'print the command and start nothing on any answer that is not a clear yes (ADR 0132)',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /\*\*After a started verify-ship returns\*\*, apply `## Routing a shipped run` again\. It routes to wrap-up with\s+no hand-sync pending → call the Skill tool with `superdev:wrap-up` and the scope slug, and ask nothing\s+more/,
+    'start wrap-up with no second ask exactly when the routing rule, applied again after verify-ship, routes to wrap-up with no hand-sync pending (ADR 0132)',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /Any other outcome → start no wrap-up\. When verify-ship's message ended on its Next block, add\s+nothing\./,
+    'start no wrap-up after verify-ship on any other outcome, and add nothing when verify-ship ended on its Next block (ADR 0132)',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /When a verify-ship started with `--from-ship` printed no Next block, print the route's command as the\s+Next block, with the staged pages named per `## Staged pages at close` and `\/superdev:publish-kb <scope>` on\s+an `Or:` line when the count is above zero, and start nothing\./,
+    'print the routed command as the Next block, with the staged pages and the publish-kb alternative, when a `--from-ship` verify-ship printed no block and the second routing pass does not reach wrap-up (INV-0111, INV-0123)',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /\*\*A started skill keeps every gate and every ask\.\*\* Relay each refusal and each ask it puts to the\s+operator/,
+    'relay each refusal and ask of a started skill to the operator, bypassing none (ADR 0132)',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /\*\*A start that is refused, errors, or finds no such skill\*\* → print the command the route names as the Next\s+block, with the staged pages named per `## Staged pages at close` and `\/superdev:publish-kb <scope>` on an\s+`Or:` line when the count is above zero, and stop\./,
+    'print the command as the Next block, with the staged pages and the publish-kb alternative, and stop when a skill start is refused, errors, or is not found (ADR 0132, INV-0111, INV-0123)',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /The last message of the chain carries the Next block, and no earlier message does/,
+    'let only the last message of a chain started from the offer carry the Next block (INV-0111)',
+  ],
+  [
+    path.join('skills', 'verify-ship', 'SKILL.md'),
+    /\*\*This command starts no wrap-up itself\.\*\* A verify-ship the operator types ends by printing the next command\s+and starts nothing/,
+    'state that a verify-ship the operator types starts no wrap-up (ADR 0132)',
+  ],
+  [
+    path.join('skills', 'verify-ship', 'SKILL.md'),
+    /\*\*Under `--from-ship`, with no unpaired line\*\*, print no Next block/,
+    'print no Next block under `--from-ship` when every line is settled and nothing is unpaired, because ship routes again and either starts wrap-up or prints the block itself (INV-0111)',
+  ],
+  [
+    path.join('skills', 'verify-ship', 'SKILL.md'),
+    /\*\*`--from-ship`, if present, comes out first\*\* — never part of the scope slug/,
+    'take `--from-ship` out of the arguments before the scope resolves',
+  ],
+  [
+    path.join('skills', 'verify-ship', 'SKILL.md'),
+    /Every gate and every ask below holds on every\s+start\./,
+    'keep every gate and every ask on every start, whoever starts it (ADR 0132)',
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /Every gate and every ask below holds on every start\./,
+    'keep every gate and every ask on every start, whoever starts it (ADR 0132)',
+  ],
+  [
+    path.join('references', 'response-shapes.md'),
+    /\*\*A chain started by `\/superdev:ship`'s offer\*\* ends on the block once, at its last message/,
+    "state that a chain started by ship's offer ends on the Next block once, at its last message (INV-0111)",
+  ],
+  [
+    path.join('references', 'response-shapes.md'),
+    /`\/superdev:verify-ship` started with `--from-ship` prints no block on its exit with\s+every line settled and no line unpaired\. Ship then prints the block itself when it starts no\s+`\/superdev:wrap-up`\./,
+    'name the `--from-ship` verify-ship exit that prints no block by its condition, and let ship print the block when it starts no wrap-up (INV-0111)',
+  ],
+];
+
+// `/superdev:verify-ship` and `/superdev:wrap-up` carry no `disable-model-invocation`, so a model can start
+// either one, and the platform enforces nothing once the flag is gone (ADR 0132, INV-0093). Each
+// description states the bound in its first words, because the description is what a model reads when it
+// picks a skill. A bound stated only in the body is never read at that point, so each row anchors on the
+// start of the `description:` line.
+const INVOCATION_START_CONTRACTS = [
+  [
+    path.join('skills', 'verify-ship', 'SKILL.md'),
+    /^description:\s*Start\s+only\s+when\s+the\s+operator\s+asked\s+for\s+it\s+or\s+agreed\s+to\s+`\/superdev:ship`'s\s+offer/m,
+    "open its description with the start condition: the operator asked for the skill or agreed to `/superdev:ship`'s offer (ADR 0132, INV-0093)",
+  ],
+  [
+    path.join('skills', 'wrap-up', 'SKILL.md'),
+    /^description:\s*Start\s+only\s+when\s+the\s+operator\s+asked\s+for\s+it\s+or\s+agreed\s+to\s+`\/superdev:ship`'s\s+offer/m,
+    "open its description with the start condition: the operator asked for the skill or agreed to `/superdev:ship`'s offer (ADR 0132, INV-0093)",
+  ],
+];
+
 module.exports = {
+  SHIP_OFFER_CONTRACTS,
+  INVOCATION_START_CONTRACTS,
   SKILL_TOOL_INVOCATION_CONTRACTS,
   VETTED_OPTIONS_CONTRACTS,
   RESPONSE_SHAPES_CONTRACTS,

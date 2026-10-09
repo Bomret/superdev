@@ -1097,6 +1097,21 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // an absent step skill is skipped
   assert.deepEqual(scanModelInvocationSplit(fixture({ 'README.md': '# repo\n' })), [], 'absent step skills are skipped');
 
+  // positive: verify-ship or wrap-up off the surface strands the Skill-tool starts ship makes (ADR 0132)
+  for (const target of ['verify-ship', 'wrap-up']) {
+    const off = scanModelInvocationSplit(fixture({
+      ...splitTree,
+      [`skills/${target}/SKILL.md`]: skill(target).replace('---\n\n', 'disable-model-invocation: true\n---\n\n'),
+    }));
+    assert.equal(off.length, 1, `${target} off the surface is caught`);
+    assert.match(off[0].source, new RegExp(target), 'names the skill');
+    assert.match(off[0].expectation, /ship/, 'names ship as the Skill-tool caller');
+    assert.deepEqual(scanModelInvocationSplit(fixture({
+      ...splitTree,
+      [`skills/${target}/SKILL.md`]: skill(target),
+    })), [], `${target} on the surface is clean`);
+  }
+
   // positive: setup or plan off the surface strands the Skill-tool calls plan and implement make
   for (const target of ['setup', 'plan']) {
     const off = scanModelInvocationSplit(fixture({
@@ -4431,39 +4446,41 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'a non-denial in verify-ship is flagged',
   );
 
-  // ADR 0106, INV-0093: scanShipHumanOnly covers verify-ship beside ship
+  // ADR 0132, INV-0093: scanShipHumanOnly requires the flag on ship alone and no `--unattended` on all three
   const humanSkill = (extra) => ['---', 'name: x', 'disable-model-invocation: true', '---', '', extra, ''].join('\n');
+  const openSkill = (extra) => ['---', 'name: x', '---', '', extra, ''].join('\n');
   assert.equal(
-    scanShipHumanOnly(fixture({ 'skills/verify-ship/SKILL.md': '---\nname: x\n---\nBody.\n' })).length,
+    scanShipHumanOnly(fixture({ 'skills/ship/SKILL.md': openSkill('Body.') })).length,
     1,
-    'verify-ship without disable-model-invocation is caught',
+    'ship without disable-model-invocation is caught',
   );
   assert.equal(
-    scanShipHumanOnly(fixture({ 'skills/verify-ship/SKILL.md': humanSkill('Pass --unattended.') })).length,
+    scanShipHumanOnly(fixture({ 'skills/ship/SKILL.md': humanSkill('Pass --unattended.') })).length,
     1,
-    'verify-ship naming --unattended is caught',
+    'ship naming --unattended is caught',
   );
   assert.equal(
-    scanShipHumanOnly(fixture({ 'skills/verify-ship/SKILL.md': humanSkill('Body.') })).length,
+    scanShipHumanOnly(fixture({ 'skills/ship/SKILL.md': humanSkill('Body.') })).length,
     0,
-    'a human-only verify-ship is clean',
+    'a human-only ship is clean',
   );
-
-  assert.equal(
-    scanShipHumanOnly(fixture({ 'skills/wrap-up/SKILL.md': '---\nname: x\n---\nBody.\n' })).length,
-    1,
-    'wrap-up without disable-model-invocation is caught',
-  );
-  assert.equal(
-    scanShipHumanOnly(fixture({ 'skills/wrap-up/SKILL.md': humanSkill('Pass --unattended.') })).length,
-    1,
-    'wrap-up naming --unattended is caught',
-  );
-  assert.equal(
-    scanShipHumanOnly(fixture({ 'skills/wrap-up/SKILL.md': humanSkill('Body.') })).length,
-    0,
-    'a human-only wrap-up is clean',
-  );
+  for (const name of ['verify-ship', 'wrap-up']) {
+    assert.equal(
+      scanShipHumanOnly(fixture({ [`skills/${name}/SKILL.md`]: openSkill('Body.') })).length,
+      0,
+      `${name} without disable-model-invocation is clean`,
+    );
+    assert.equal(
+      scanShipHumanOnly(fixture({ [`skills/${name}/SKILL.md`]: openSkill('Pass --unattended.') })).length,
+      1,
+      `${name} naming --unattended is caught`,
+    );
+    assert.equal(
+      scanShipHumanOnly(fixture({ [`skills/${name}/SKILL.md`]: humanSkill('Body.') })).length,
+      0,
+      `${name} carrying the flag adds no gap to this check`,
+    );
+  }
 
   // negative: a ship-attributed paraphrase elsewhere is not flagged
   assert.equal(

@@ -547,9 +547,9 @@ Paths: plugin/skills/backlog/SKILL.md
 
 Class: architecture
 Concepts: Model-invocable surface, Unattended run
-Statement: `/superdev:ship`, `/superdev:verify-ship`, and `/superdev:wrap-up` are never model-invocable surfaces: each carries `disable-model-invocation: true` in its frontmatter. Every chain step (`/superdev:implement`, `/superdev:review`, `/superdev:document`, `/superdev:submit-pr`) stays model-invocable, carrying no such key, and so do `/superdev:setup` and `/superdev:plan`, which `/superdev:plan` and `/superdev:implement` start through the Skill tool.
+Statement: `/superdev:ship` is the only skill that is never a model-invocable surface: it carries `disable-model-invocation: true` in its frontmatter. Every chain step (`/superdev:implement`, `/superdev:review`, `/superdev:document`, `/superdev:submit-pr`) stays model-invocable, carrying no such key, and so do `/superdev:setup`, `/superdev:plan`, `/superdev:verify-ship`, and `/superdev:wrap-up`. `/superdev:plan` and `/superdev:implement` start setup and plan through the Skill tool, and `/superdev:ship` starts verify-ship and wrap-up through it (ADR 0132).
 Breaks: silently
-Check: `scripts/drift-check.js` `model-invocation-split` (every chain step, setup, plan), `ship-human-only` (ship, verify-ship, wrap-up)
+Check: `scripts/drift-check.js` `model-invocation-split` (every chain step, setup, plan, verify-ship, wrap-up), `ship-human-only` (ship)
 Paths: plugin/skills/ship/SKILL.md, plugin/skills/setup/SKILL.md, plugin/skills/plan/SKILL.md, plugin/skills/implement/SKILL.md, plugin/skills/review/SKILL.md, plugin/skills/document/SKILL.md, plugin/skills/submit-pr/SKILL.md, plugin/skills/verify-ship/**, plugin/skills/wrap-up/**
 
 ### INV-0068
@@ -784,9 +784,9 @@ Paths: plugin/skills/ship/**, plugin/references/code-management-*.md, plugin/scr
 
 Class: process
 Concepts: Unattended run, Stage
-Statement: Only a human moves a scope past its open pull request. Every unattended run ends at `/superdev:submit-pr`. `/superdev:ship`, `/superdev:verify-ship`, and `/superdev:wrap-up` each carry no unattended mode and `disable-model-invocation: true`, so no model and no surface starts one on the operator's behalf (ADR 0096, ADR 0106).
+Statement: Only a human moves a scope past its open pull request. Every unattended run ends at `/superdev:submit-pr`. `/superdev:ship`, `/superdev:verify-ship`, and `/superdev:wrap-up` each carry no unattended mode, and `/superdev:ship` carries `disable-model-invocation: true`. No model starts verify-ship or wrap-up unless the operator typed the command, asked for it, or agreed to the offer `/superdev:ship` makes at its final hand-off. The two skills' descriptions and their own gates carry that bound, because the platform does not (ADR 0096, ADR 0106, ADR 0132).
 Breaks: silently
-Check: scripts/drift-check.js — ship, verify-ship, and wrap-up name no `--unattended` branch and carry `disable-model-invocation: true`; partial: nothing pins that an unattended run ends at `submit-pr`
+Check: scripts/drift-check.js — ship carries `disable-model-invocation: true`, none of the three names an `--unattended` branch, ship's offer clause, and the start condition each of the two descriptions states; partial: nothing stops a model that ignores a description, and nothing pins that an unattended run ends at `submit-pr`
 Paths: plugin/skills/submit-pr/**, plugin/skills/ship/**, plugin/skills/verify-ship/**, plugin/skills/wrap-up/**
 
 ### INV-0094

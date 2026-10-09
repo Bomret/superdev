@@ -163,9 +163,9 @@ anchor stays open. `/superdev:wrap-up` closes it, after the merge and any
 `/superdev:verify-ship` pass the run needs, and takes the run's scaffolding down.
 
 This is the chain's own end. `/superdev:submit-pr` hands off to `/superdev:ship`, and only a human runs
-that, then `/superdev:wrap-up`, with `/superdev:verify-ship` between them when anything is left to verify.
+that. Ship offers to start `/superdev:verify-ship` and `/superdev:wrap-up` after it (ADR 0132).
 
 **Print `/superdev:ship <scope>` as the next command.** One line on what it does: it merges the pull
-request once an operator has reviewed it, applies the repository's deploy posture to the merge, and stops
-there, printing `/superdev:verify-ship <scope>` next, or `/superdev:wrap-up <scope>` when nothing is left
-to verify.
+request once an operator has reviewed it, applies the repository's deploy posture to the merge, then
+offers to start `/superdev:verify-ship <scope>`, or `/superdev:wrap-up <scope>` when nothing is left to
+verify, and prints that command when the operator does not take the offer.

@@ -1526,30 +1526,30 @@ function scanShipNoOpensPr(root) {
   return gaps;
 }
 
-// scanShipHumanOnly() is pure over a root dir: reads the SKILL.md of every human-only skill
-// (HUMAN_ONLY_SKILLS) and reports, for each, two gaps INV-0093 names — a missing `disable-model-invocation: true` in its frontmatter, and a literal `--unattended`
-// token anywhere in the file, which ADR 0096 says ship never carries (submit-pr takes that
-// token; ship's own consent is the operator typing the command at all; ADR 0106 extends both to
-// every skill in the set). An absent skill file is skipped,
-// matching every other contract scanner.
-const HUMAN_ONLY_SKILLS = ['ship', 'verify-ship', 'wrap-up'];
+// scanShipHumanOnly() is pure over a root dir: reads the SKILL.md of every skill that carries no unattended mode
+// (NO_UNATTENDED_SKILLS) and reports two gaps INV-0093 names — a literal `--unattended` token anywhere in the
+// file, which ADR 0096 says none of the three carries (submit-pr takes that token; ship's own consent is the
+// operator typing the command at all; ADR 0106 extends both to verify-ship and wrap-up), and, for ship alone,
+// a missing `disable-model-invocation: true` in its frontmatter (ADR 0132 opens the other two to the model).
+// An absent skill file is skipped, matching every other contract scanner.
+const NO_UNATTENDED_SKILLS = ['ship', 'verify-ship', 'wrap-up'];
 
 function scanShipHumanOnly(root) {
   const gaps = [];
-  for (const name of HUMAN_ONLY_SKILLS) {
+  for (const name of NO_UNATTENDED_SKILLS) {
     const source = path.join('skills', name, 'SKILL.md');
     const text = readDoc(root, source);
     if (text === null) continue; // skill absent → nothing to scan
-    if (!/^disable-model-invocation:\s*true\s*$/m.test(text)) {
+    if (name === 'ship' && !/^disable-model-invocation:\s*true\s*$/m.test(text)) {
       gaps.push({
         source,
-        expectation: 'carry `disable-model-invocation: true` in its frontmatter, so no model starts it on its own (INV-0093, ADR 0096, ADR 0106)',
+        expectation: 'carry `disable-model-invocation: true` in its frontmatter, so no model starts it on its own (INV-0093, ADR 0096, ADR 0132)',
       });
     }
     if (/--unattended/.test(text)) {
       gaps.push({
         source,
-        expectation: 'name no `--unattended` mode of its own — only a human runs this command (INV-0093, ADR 0096, ADR 0106)',
+        expectation: 'name no `--unattended` mode of its own — it carries none (INV-0093, ADR 0096, ADR 0132)',
       });
     }
   }
@@ -1563,11 +1563,14 @@ function scanShipHumanOnly(root) {
 const CHAIN_STEPS = ['implement', 'review', 'document', 'submit-pr'];
 // The skills plan and implement start through the Skill tool on missing configuration or slices.
 const SKILL_TOOL_TARGETS = ['setup', 'plan'];
+// The skills ship starts through the Skill tool when the operator agrees to its offer (ADR 0132).
+const SHIP_OFFER_TARGETS = ['verify-ship', 'wrap-up'];
 function scanModelInvocationSplit(root) {
   const gaps = [];
   const invokers = [
     ...CHAIN_STEPS.map((name) => [name, `an external driver invokes \`/superdev:${name}\` through the Skill tool, so a step off the model-invocable surface strands it there`]),
     ...SKILL_TOOL_TARGETS.map((name) => [name, `\`/superdev:plan\` and \`/superdev:implement\` start \`/superdev:${name}\` through the Skill tool, which cannot reach a skill off the model-invocable surface`]),
+    ...SHIP_OFFER_TARGETS.map((name) => [name, `\`/superdev:ship\` starts \`/superdev:${name}\` through the Skill tool when the operator agrees to its offer, which cannot reach a skill off the model-invocable surface`]),
   ];
   for (const [name, why] of invokers) {
     const source = path.join('skills', name, 'SKILL.md');

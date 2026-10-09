@@ -37,6 +37,10 @@ carries that answer.
   to `/superdev:sweep`, which is its reader.
 - **A turn that stops on an `AskUserQuestion` call** has not ended the command. The block closes the
   message the command ends on, never a turn that asks.
+- **A chain started by `/superdev:ship`'s offer** ends on the block once, at its last message. The offer
+  ends on its question. `/superdev:verify-ship` started with `--from-ship` prints no block on its exit with
+  every line settled and no line unpaired. Ship then prints the block itself when it starts no
+  `/superdev:wrap-up`.
 
 ## The brainstorm report
 

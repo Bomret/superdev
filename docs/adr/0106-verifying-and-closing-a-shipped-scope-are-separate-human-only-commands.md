@@ -8,6 +8,8 @@ plan-file store, so point 7 below describes a store superdev no longer ships.
 point 1 below: ship prints `/superdev:wrap-up <scope>` instead when nothing is left to verify.
 **Amended by:** [ADR 0124](0124-a-failed-verification-is-repaired-by-its-own-fix-feature.md), which routes a
 `shipped` run holding a `not met:` line to `/superdev:plan`'s repair choice.
+**Amended by:** [ADR 0132](0132-ship-is-the-only-human-only-skill-and-offers-the-rest.md), which lifts the
+human-only flag from verify-ship and wrap-up in point 4: only ship keeps it.
 
 **Amends:** [ADR 0040](0040-the-sweep-defers-an-anchor-whose-blocker-has-not-shipped.md),
 [ADR 0096](0096-opening-the-pull-request-and-merging-it-are-separate-commands.md) point 5, and

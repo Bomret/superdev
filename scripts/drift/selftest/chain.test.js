@@ -18,6 +18,7 @@ const {
   PATHS_DERIVATION_CONTRACTS,
   UNATTENDED_CONTRACTS,
   SKILL_TOOL_INVOCATION_CONTRACTS,
+  INVOCATION_START_CONTRACTS,
   CHANGE_TYPE_CONTRACTS,
   DEGRADED_CONTRACTS,
   DENIAL_AUTHORSHIP_CONTRACTS,
@@ -6073,5 +6074,31 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'skills/review/SKILL.md': 'To act on findings, run `/superdev:plan` to slice the fix.\n',
     });
     assert.equal(scanContract(proseReview, SKILL_TOOL_INVOCATION_CONTRACTS).length, 1, 'a review line not addressed to the operator is caught');
+  }
+
+  // --- INVOCATION_START_CONTRACTS (ADR 0132, INV-0093): verify-ship and wrap-up are model-invocable, so
+  // each description states the start condition in its first words. A condition stated only in the body
+  // is never read by the model choosing a skill, so it fails the pin.
+  {
+    const startLine = "Start only when the operator asked for it or agreed to `/superdev:ship`'s offer";
+    const skillWith = (description, body = 'Body.') => `---\nname: x\ndescription: ${description}\n---\n\n${body}\n`;
+    const startTree = (verify, wrap) => fixture({ 'skills/verify-ship/SKILL.md': verify, 'skills/wrap-up/SKILL.md': wrap });
+    const good = startTree(
+      skillWith(`${startLine}: verify a shipped scope.`),
+      skillWith(`${startLine}: wrap up a shipped scope.`),
+    );
+    assert.equal(scanContract(good, INVOCATION_START_CONTRACTS).length, 0, 'both descriptions leading with the start condition are clean');
+    const bodyOnly = startTree(
+      skillWith('Verify a shipped scope.', startLine + '.'),
+      skillWith(`${startLine}: wrap up a shipped scope.`),
+    );
+    assert.equal(scanContract(bodyOnly, INVOCATION_START_CONTRACTS).length, 1, 'verify-ship stating the condition only in its body is caught');
+    const trailing = startTree(
+      skillWith(`${startLine}: verify a shipped scope.`),
+      skillWith(`Wrap up a shipped scope. ${startLine}.`),
+    );
+    assert.equal(scanContract(trailing, INVOCATION_START_CONTRACTS).length, 1, 'wrap-up stating the condition after other words is caught');
+    const bothGone = startTree(skillWith('Only a human runs it.'), skillWith('Only a human runs it.'));
+    assert.equal(scanContract(bothGone, INVOCATION_START_CONTRACTS).length, 2, 'each dropped description is its own gap');
   }
 };

@@ -65,6 +65,8 @@ const {
   FEATURE_ARG_CONTRACTS,
   UNATTENDED_CONTRACTS,
   SKILL_TOOL_INVOCATION_CONTRACTS,
+  INVOCATION_START_CONTRACTS,
+  SHIP_OFFER_CONTRACTS,
   CHANGE_TYPE_CONTRACTS,
   DEGRADED_CONTRACTS,
   DENIAL_AUTHORSHIP_CONTRACTS,
@@ -322,16 +324,26 @@ module.exports = [
   },
   {
     id: 'ship-human-only',
-    ok: 'ship, verify-ship, and wrap-up each carry `disable-model-invocation: true` and name no `--unattended` mode of their own (INV-0093)',
+    ok: 'ship carries `disable-model-invocation: true`, and none of ship, verify-ship, and wrap-up names an `--unattended` mode of its own (INV-0093)',
     run: scanShipHumanOnly,
     format: contractGap,
   },
   {
     id: 'model-invocation-split',
-    ok: 'every chain step, and the setup and plan skills plan and implement start through the Skill tool, carries no `disable-model-invocation` (INV-0066)',
+    ok: 'every chain step, the setup and plan skills plan and implement start through the Skill tool, and the verify-ship and wrap-up skills ship starts through it, carries no `disable-model-invocation` (INV-0066)',
     run: scanModelInvocationSplit,
     format: contractGap,
   },
+  table(
+    'ship-offer',
+    SHIP_OFFER_CONTRACTS,
+    "ship's final hand-off asks once whether to start the routed skill, only when the merge landed, no listed target waits, and the route is verify-ship or wrap-up; a clear yes starts it through the Skill tool, a verify-ship after which ship routes again to wrap-up with no hand-sync pending carries on into wrap-up with no second ask, a refused start prints the command and stops, the offer names the staged pages, only the chain's last message carries the Next block, and a typed verify-ship starts no wrap-up (INV-0093)",
+  ),
+  table(
+    'invocation-start',
+    INVOCATION_START_CONTRACTS,
+    'verify-ship and wrap-up each open their description with the start condition: the operator asked for the skill or agreed to ship\'s offer (INV-0093)',
+  ),
   {
     id: 'kb-no-backend-call',
     ok: 'no document but publish-kb reaches a backend',

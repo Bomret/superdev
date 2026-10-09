@@ -250,9 +250,15 @@ time-based loop, so hand review comments and CI on it to `/loop`:
 ```
 
 Once the pull request is reviewed, `/superdev:ship` merges it, deploys the merge under the repository's
-deploy posture (`none`/`manual`/`auto`, `docs/agents/deployment.md`, ADR 0101), then stops.
-`/superdev:verify-ship` settles the criteria only a deployed system can show. `/superdev:wrap-up` closes the
-scope anchor and cleans up the run. All three are human-only. Ship names `/superdev:verify-ship` next while
+deploy posture (`none`/`manual`/`auto`, `docs/agents/deployment.md`, ADR 0101), then offers once to start the
+next command and prints it when the operator does not take the offer. A yes starts the routed skill through the Skill tool. After a started
+`/superdev:verify-ship`, ship routes again by re-applying `## Routing a shipped run`. A route to `/superdev:wrap-up`
+with no hand-sync pending starts wrap-up with no second question. Any other route ends on a Next block. A run that routes
+to repair or re-verify, waits on a deploy, or waits on a hand-sync gets no offer. Both started skills keep every
+gate and every ask (ADR 0132). `/superdev:verify-ship` settles the criteria only a deployed system can show. `/superdev:wrap-up` closes the
+scope anchor and cleans up the run. Only `/superdev:ship` is closed to models. `/superdev:verify-ship` and
+`/superdev:wrap-up` start only when the operator typed the command, asked for it, or agreed to an offer ship
+makes (ADR 0132). Ship names `/superdev:verify-ship` next while
 a criterion is open or a `manual` deploy waits for an answer, and `/superdev:wrap-up` otherwise (ADR 0116).
 A criterion `/superdev:verify-ship` observes false keeps the anchor open. Verify-ship then names
 `/superdev:plan`'s repair choice, or itself again for an observation that was transient. A run whose
@@ -543,8 +549,8 @@ A tiny feature end to end, with GitHub Issues as the slice store and GitHub as t
 - **`/superdev:submit-pr health-check`**. Pushes the scope branch and opens the pull request. You see the
   pull-request URL, and the run stands: the scopetree and the scope anchor are still there.
 - **`/superdev:ship health-check`**, once the pull request is reviewed. Merges it and deploys nothing (this
-  repository's own deploy posture is `none`), then stops with the stage at `shipped`. Every criterion is already ticked and nothing waits on a deploy,
-  so it prints `/superdev:wrap-up health-check`. `/superdev:verify-ship` runs only for a scope with a
+  repository's own deploy posture is `none`), with the stage at `shipped`. Every criterion is already ticked and nothing waits on a deploy,
+  so it offers `/superdev:wrap-up health-check` and prints that command when you decline. `/superdev:verify-ship` runs only for a scope with a
   criterion left open or a `manual` deploy to confirm.
 - **`/superdev:wrap-up health-check`**. Checks the merge and the deploy record, closes the slice issues and
   the epic, removes the scopetree and the run, and sets the stage `closed`.

@@ -261,10 +261,14 @@ This root owns every other subtree directly:
   (ADR 0013). Every command listed in `references/response-shapes.md`'s Next block section closes its last
   message with that block (ADR 0113). `/superdev:ship` is a separate, human-only command: it merges the pull request submit-pr
   opened, deploys the merge under the repository's deploy posture (`none`/`manual`/`auto`,
-  `docs/agents/deployment.md`, ADR 0101), and stops there (ADR 0106). It names `/superdev:verify-ship` next
-  while a criterion is left to verify, and `/superdev:wrap-up` otherwise (ADR 0116). `/superdev:verify-ship`
+  `docs/agents/deployment.md`, ADR 0101), and closes no anchor (ADR 0106). It routes to `/superdev:verify-ship`
+  while a criterion is left to verify, and to `/superdev:wrap-up` otherwise (ADR 0116), offers once to start the
+  routed skill through the Skill tool, and prints the command when the operator does not take the offer. A yes
+  starts the routed skill. After a started verify-ship, ship routes again. A route to wrap-up with no hand-sync
+  pending starts wrap-up. Any other route ends on a Next block (ADR 0132). `/superdev:verify-ship`
   settles the criteria only a deployed system can show, and `/superdev:wrap-up` closes the scope anchor and takes
-  the run down. Both are human-only too. A criterion verify-ship observes false routes to `/superdev:plan`'s
+  the run down. Only ship carries `disable-model-invocation: true`. The other two are model-invocable and start
+  only when the operator typed the command, asked for it, or agreed to an offer ship makes (ADR 0132, INV-0093). A criterion verify-ship observes false routes to `/superdev:plan`'s
   repair choice, which plans a `fix` feature on its own anchor, linked to the original by a `**Repairs:**`
   line (ADR 0124).
   Whoever invokes a chain command passes `--unattended` to run it unattended (ADR 0016, ADR 0108);

@@ -1,18 +1,19 @@
 ---
 name: ship
-description: Merge a superdev scope's pull request, pinned to the tested head, through the host's merge API — apply the repository's deploy posture to the merge, then stop and hand off to `/superdev:verify-ship`, or to `/superdev:wrap-up` when nothing is left to verify. Only a human runs it, once `/superdev:submit-pr` has opened the pull request and it has been reviewed.
+description: Merge a superdev scope's pull request, pinned to the tested head, through the host's merge API — apply the repository's deploy posture to the merge, then offer once to start `/superdev:verify-ship`, or `/superdev:wrap-up` when nothing is left to verify, and print that command when the offer is not taken. Only a human runs it, once `/superdev:submit-pr` has opened the pull request and it has been reviewed.
 disable-model-invocation: true
 argument-hint: "[<scope>  (empty = the only run in this repo)]"
 ---
 
 # superdev ship
 
-Merge the pull request `/superdev:submit-pr` opened, and apply the deploy posture. It stops after the
-deploy: it closes no anchor and removes nothing. `/superdev:wrap-up` follows, after `/superdev:verify-ship`
-when anything is left to verify (ADR 0106, ADR 0116, INV-0099). It dispatches no subagents, and carries no
-unattended mode of its own: only a human runs this command (ADR 0096). Calling it at all is the consent
-to merge, so nothing here asks a second question once the gate below has passed, except one: under `auto`, §5 asks
-before it deploys a `docs/agents/deployment.md` nobody was shown (ADR 0104).
+Merge the pull request `/superdev:submit-pr` opened, and apply the deploy posture. It closes no anchor and
+removes nothing. `/superdev:wrap-up` follows, after `/superdev:verify-ship` when anything is left to verify
+(ADR 0106, ADR 0116, INV-0099), and §5 offers to start the next one (ADR 0132). It dispatches no subagents,
+and carries no unattended mode of its own: only a human runs this command (ADR 0096). Calling it at all is
+the consent to merge, so nothing here asks a second question once the gate below has passed, except two:
+under `auto`, §5 asks before it deploys a `docs/agents/deployment.md` nobody was shown (ADR 0104), and §5's
+hand-off asks once whether to start the next skill (ADR 0132).
 
 Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111).
 
@@ -354,3 +355,37 @@ and rewrites no anchor line from them.
 On every route above, name the scope's staged pages per
 `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Staged pages at close` (ADR 0119, INV-0123), with
 `/superdev:publish-kb <scope>` on an `Or:` line of the Next block when the count is above zero.
+
+**Offer to continue** (ADR 0132, INV-0093). Ask the operator once whether to start the routed skill now,
+before printing the next command, when the merge landed, every listed deploy target is recorded `deployed`
+or none is listed, and the route is **It routes to verify-ship**, **It routes to wrap-up** with no `dod.md`
+line unpaired on the anchor, or **The anchor cannot be read**. A target recorded `pending` or `failed`, or
+carrying no record, gives no offer.
+
+**No offer** is made for a run that routes to repair or to re-verify, a run with a hand-sync pending, a
+refused ship, or a ship stopped by a failed or declined deploy: print the route above and stop, as without an
+offer.
+
+The offer is one message. It names the routed command with its one line from above, names the scope's staged
+pages per `## Staged pages at close` with `/superdev:publish-kb <scope>` as the alternative when the count is
+above zero, and ends on the question `Start /superdev:<skill> <scope> now?`. A message that ends on a
+question carries no Next block.
+
+- **A clear yes** → call the Skill tool with `superdev:verify-ship` or `superdev:wrap-up`, whichever the
+  route names, one skill per call, with the scope slug as its argument. Add `--from-ship` to the
+  verify-ship call.
+- **Any other answer** — empty, off-topic, or no → print the route above as the next command with the
+  staged pages named as that section states, and start nothing.
+- **After a started verify-ship returns**, apply `## Routing a shipped run` again. It routes to wrap-up with
+  no hand-sync pending → call the Skill tool with `superdev:wrap-up` and the scope slug, and ask nothing
+  more. Any other outcome → start no wrap-up. When verify-ship's message ended on its Next block, add
+  nothing. When a verify-ship started with `--from-ship` printed no Next block, print the route's command as the
+  Next block, with the staged pages named per `## Staged pages at close` and `/superdev:publish-kb <scope>` on
+  an `Or:` line when the count is above zero, and start nothing.
+- **A started skill keeps every gate and every ask.** Relay each refusal and each ask it puts to the
+  operator. A start from ship bypasses none of them.
+- **A start that is refused, errors, or finds no such skill** → print the command the route names as the Next
+  block, with the staged pages named per `## Staged pages at close` and `/superdev:publish-kb <scope>` on an
+  `Or:` line when the count is above zero, and stop.
+
+The last message of the chain carries the Next block, and no earlier message does.

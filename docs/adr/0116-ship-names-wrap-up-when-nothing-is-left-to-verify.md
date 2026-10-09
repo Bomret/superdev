@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0132](0132-ship-is-the-only-human-only-skill-and-offers-the-rest.md), which makes
+ship's final hand-off offer to start the routed command.
+
 **Amends:** [ADR 0106](0106-verifying-and-closing-a-shipped-scope-are-separate-human-only-commands.md)
 point 1.
 

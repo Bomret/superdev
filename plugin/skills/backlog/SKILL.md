@@ -85,8 +85,8 @@ is the ordinary end state a finished run sits in until `hooks/scope-prune.js` re
 root over a closed anchor means a human closed that anchor by hand before `/superdev:wrap-up` ran, so
 there a `deploy resume` row is the only way a stalled `auto` deploy shows at all, and every other such
 run root goes to `awaiting wrap-up`, which still takes the run down.
-`/superdev:ship` sets the `shipped` stage right after the merge, before any deploy runs, and stops after the
-deploy; `/superdev:wrap-up` closes the anchor. A `shipped` run root therefore carries an open anchor by
+`/superdev:ship` sets the `shipped` stage right after the merge, before any deploy runs, and closes no anchor;
+`/superdev:wrap-up` closes the anchor. A `shipped` run root therefore carries an open anchor by
 design. That case — an open anchor whose own run root reads `shipped` — is a
 row too; §3 buckets it.
 An open anchor that matches no run root and whose `## Run state` snapshot reads `shipped` — a run done on

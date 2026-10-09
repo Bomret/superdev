@@ -1108,17 +1108,24 @@ its verb ("to the base branch, commit…"), a `<base>` placeholder spelling inst
 or name, and anything sitting inside a fenced code block (masked out, the same way every other scanner
 here treats a fence). A green `no-base-branch-commit` is evidence against one specific phrasing, not
 proof that no shipped document instructs a base-branch write.
-The `ship-human-only` contract (INV-0093), `scanShipHumanOnly()`: `skills/ship/SKILL.md`,
-`skills/verify-ship/SKILL.md`, and `skills/wrap-up/SKILL.md` each carry `disable-model-invocation: true` in their frontmatter and no
-`--unattended` token anywhere — none carries an unattended mode of its own, unlike every step the
-implement chain drives (ADR 0096, ADR 0106). An absent skill file is skipped, matching every other contract
-scanner.
+The `ship-human-only` contract (INV-0093), `scanShipHumanOnly()`: `skills/ship/SKILL.md` carries
+`disable-model-invocation: true` in its frontmatter, and none of `skills/ship/SKILL.md`,
+`skills/verify-ship/SKILL.md`, and `skills/wrap-up/SKILL.md` carries an `--unattended` token anywhere. None has an
+unattended mode of its own, unlike every step the implement chain drives (ADR 0096, ADR 0106, ADR 0132).
+Absent skill files are skipped, matching every other contract scanner.
 The `model-invocation-split` check (INV-0066), `scanModelInvocationSplit()`: `skills/implement/SKILL.md`,
 `skills/review/SKILL.md`, `skills/document/SKILL.md`, and `skills/submit-pr/SKILL.md` carry no
 `disable-model-invocation: true`, because an unattended run invokes each through the Skill tool and a step
 off that surface strands the run there. `skills/setup/SKILL.md` and `skills/plan/SKILL.md` carry none
-either, because `/superdev:plan` and `/superdev:implement` start them through the Skill tool. The key
-counts only inside the frontmatter. Ship's half is `ship-human-only`'s. Absent skill files are skipped.
+either, because `/superdev:plan` and `/superdev:implement` start them through the Skill tool, and so do
+`skills/verify-ship/SKILL.md` and `skills/wrap-up/SKILL.md`, because `/superdev:ship` starts them through it
+(ADR 0132). The key counts only inside the frontmatter. Ship's half is `ship-human-only`'s. Absent skill files
+are skipped.
+The `invocation-start` contract (INV-0093, ADR 0132): the `description:` line of `skills/verify-ship/SKILL.md`
+and of `skills/wrap-up/SKILL.md` opens with the start condition, that the operator asked for the skill or agreed
+to `/superdev:ship`'s offer. A model reads the description when it picks a skill, so a condition stated only in
+the body fails the pin. The platform enforces nothing once the flag is gone, so this pin and each skill's own
+gates carry the bound.
 The `skill-tool-invocation` contract (#944): every stop where `skills/plan/SKILL.md` or
 `skills/implement/SKILL.md` starts `/superdev:setup` or `/superdev:plan` tells the agent to call the Skill
 tool, one row per stop, each anchored on that stop's own condition. Two more rows pin what gates those
@@ -2261,11 +2268,12 @@ apart, off the ledger's own `**PR:**` header rather than a query written into th
 The `deploy-step-visibility` contract (ADR 0101, INV-0099, whole-scope review, ship-deploys fix cycle 1):
 two surfaces that tell an operator what `/superdev:ship` does, or what to run next after it, had fallen
 behind ADR 0101's deploy step. One row pins `skills/submit-pr/SKILL.md`'s own next-command line naming the
-deploy alongside the merge, then the stop and `/superdev:verify-ship <scope>` as what follows, or
-`/superdev:wrap-up <scope>` when nothing is left to verify (ADR 0106, ADR 0116). One row pins the same
+deploy alongside the merge, then ship's offer to start `/superdev:verify-ship <scope>`, or
+`/superdev:wrap-up <scope>` when nothing is left to verify, and that command printed when the operator does not take
+the offer (ADR 0106, ADR 0116, ADR 0132). One row pins the same
 document's run-standing sentence stating that `/superdev:wrap-up` closes the anchor after the merge and any
 verify-ship pass the run needs. One row pins
-`skills/backlog/SKILL.md`'s claim that ship stops after the deploy and wrap-up closes the anchor, so a
+`skills/backlog/SKILL.md`'s claim that ship closes no anchor and wrap-up closes the anchor, so a
 `shipped` run root with an open anchor is the ordinary state between the two, not an anomaly. One row pins
 the `deploy resume` bucket: a `shipped` run root stuck mid-`auto`-deploy gets `/superdev:ship <scope-slug>`
 as its act whatever the scope checkout holds (ship leaves the checkout standing until wrap-up), rather
@@ -3131,8 +3139,9 @@ the next time `/superdev:ship` runs on it. Losing any one row lets a legacy run 
 merge a second time undetected, get told to run `pr set` busywork it does not need, or keep reading as
 legacy forever despite carrying a `**PR:**` header no earlier command wrote for it.
 The `ship-deploy` contract (ADR 0101, INV-0098, INV-0099, #720): `skills/ship/SKILL.md` applies the
-repository's deploy posture to the anchor's deploy targets after the merge, then stops, closing no anchor (ADR 0106), and prints
-`/superdev:verify-ship <scope>`, or `/superdev:wrap-up <scope>` when nothing is left to verify (ADR 0116). Two rows pin the pre-merge gate (§3): a listed target the targets table lacks
+repository's deploy posture to the anchor's deploy targets after the merge, closing no anchor (ADR 0106), and routes to
+`/superdev:verify-ship <scope>`, or `/superdev:wrap-up <scope>` when nothing is left to verify (ADR 0116). The
+`ship-offer` contract below pins what ship does with that route. Two rows pin the pre-merge gate (§3): a listed target the targets table lacks
 refuses, naming it, before anything merges; a pull-request diff touching `docs/agents/deployment.md`
 prints the changed posture and target lines there too, so calling ship stays the consent to exactly the
 commands it runs. Four rows pin §5's deploy step by posture: `none` (or an absent `**Deploy:**` line)
@@ -3210,9 +3219,29 @@ than `/superdev:submit-pr`, which would try to re-open a pull request already op
 reopens the stage-write refusal a doc pass on a submitted scope hits today.
 Further rows pin that a `shipped` scope picks its command by `references/scope-mode.md`'s
 `## Routing a shipped run` (INV-0116), printing repair, verify-ship, or wrap-up as it routes and verify-ship when the
-anchor cannot be read, and a `closed` one prints nothing, that `README.md` states ship merges, deploys, and stops with verify-ship and wrap-up after it, and
+anchor cannot be read, and a `closed` one prints nothing, that `README.md` states ship merges, deploys, and offers once to start the next command, with verify-ship and wrap-up after it, and
 that `README.md` names `closed`, never `shipped`, as the stage `scope-prune` reaps. One row pins the `README.md`
 worked example: it goes from ship straight to wrap-up, nothing being left to verify (ADR 0116).
+The `ship-offer` contract (ADR 0132, INV-0093, INV-0111, INV-0123): `skills/ship/SKILL.md`'s `**Offer to continue**`
+asks the operator once whether to start the routed skill, before it prints the next command. It asks only when the
+merge landed, every listed deploy target is recorded `deployed` or none is listed, and the route is verify-ship,
+wrap-up with no hand-sync pending, or an unreadable anchor. It makes no offer for a repair or re-verify route, a
+pending hand-sync, a refused ship, or a failed or declined deploy. The offer message names the staged pages with the
+publish-kb alternative and ends on its question, so it carries no Next block. A clear yes starts the routed skill
+through the Skill tool, one skill per call, and adds `--from-ship` to the verify-ship call. Any other answer prints
+the command and starts nothing. After a started verify-ship returns, ship applies the routing rule again and starts
+wrap-up with no second ask exactly when it routes there with no hand-sync pending. On any other outcome it starts no
+wrap-up: it adds nothing when verify-ship ended on its Next block, and when a `--from-ship` verify-ship printed no
+block, it prints the route's command as the Next block with the staged pages and the publish-kb alternative. A
+started skill keeps every gate
+and every ask, and a refused, failed, or missing start prints the command as the Next block, with the staged pages
+and the publish-kb alternative, and stops. Only the last message of the
+chain carries the Next block. The neighbouring rows pin the sentences that the offer depends on: verify-ship's
+statement that a typed run starts no wrap-up, its `--from-ship` argument and the exit that prints no block under it,
+its and wrap-up's statement that every gate and ask holds on every start, and `references/response-shapes.md`'s
+statement that a chain started by ship's offer ends on the block once, with its sentence naming the `--from-ship`
+verify-ship exit that prints no block by its condition, every line settled and none unpaired. Each row anchors on one sentence, so removing a
+clause from one skill fails its own row.
 
 ## Work Guidance
 
