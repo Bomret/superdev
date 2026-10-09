@@ -45,6 +45,7 @@ const {
   scanAgentToolAgnostic,
   scanHookLedgerParsers,
   scanAdrStatus,
+  scanAdrNumbers,
   scanForcingBranchFlag,
   scanNoForceMerge,
   scanConflictConclusionNoCommit,
@@ -500,6 +501,12 @@ module.exports = [
     format: (g) =>
       `${g.source} states no status — expected \`**Status:** <${ADR_STATUSES.join(' | ')}>\` on its ` +
       `own line, so a decision nothing implements cannot read as one the code honours`,
+  },
+  {
+    id: 'adr-numbers',
+    ok: 'no two ADRs share a number',
+    run: scanAdrNumbers,
+    format: contractGap,
   },
   {
     id: 'append-mode',

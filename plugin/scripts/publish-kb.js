@@ -26,7 +26,7 @@
 // `upsert` may carry the hash it was built from as a `live-hash` frontmatter key; before an upsert
 // replaces an existing page, that recorded hash is checked against the live page, and the upsert is
 // refused (staying staged, with the refusal reported per page) when it differs or is absent — unless
-// the staged file instead carries a `created-by-publish` marker (ADR 0094, ADR 0076), written just
+// the staged file instead carries a `created-by-publish` marker (ADR 0094, ADR 0130), written just
 // before this same run sent it as a `create`: a page found existing under that marker is this run's
 // own create landing, and is sent as an `update` with no live-hash check. A recorded `live-hash`
 // always wins over the marker: the marker only ever substitutes for a live-hash that was never
@@ -227,7 +227,7 @@ function parseStagedPage(text) {
 // Writes the `created-by-publish` marker into a staged file's frontmatter, ahead of the `create`
 // call it precedes: the staged file still holds every previous byte, and now also names the
 // moment this run sent it as a create. A create killed before it returns leaves the marker on
-// disk, so a later run's `find` seeing the page land reads it as this run's own retry (ADR 0076)
+// disk, so a later run's `find` seeing the page land reads it as this run's own retry (ADR 0130)
 // rather than someone else's page (INV-0091), with no `read` call needed to tell the two apart.
 //
 // Atomic write, the way `scope.js`'s `writeLines` writes its ledger: a temp file in the same
@@ -269,7 +269,7 @@ function markStagedCreate(filePath) {
 
 // Every value crosses as an environment variable, never interpolated into the command string, so
 // no value can start a shell of its own. `/bin/sh -c <template>` is the only shell invoked.
-// ADR 0076. A host that accepts the connection and never answers blocks `spawnSync` for as long as
+// ADR 0130. A host that accepts the connection and never answers blocks `spawnSync` for as long as
 // the kernel's own TCP connect timeout runs — minutes, per page. The bound lives here rather than in
 // the templates, so it covers an operator-written template that carries no `curl --max-time` of its
 // own. `scope.js`'s `testContainment` bounds its own `git fetch` the same way.
@@ -663,7 +663,7 @@ function processTitleGroup(title, group, templates) {
       results.push({ filename: e.filename, title, kind: 'left-staged', reason: result.reason, timedOut: result.timedOut });
       if (result.timedOut) {
         // A host that black-holes one call black-holes the next: carrying on to the next sibling
-        // in this same group would burn another full bound per remaining page (ADR 0076). Mark
+        // in this same group would burn another full bound per remaining page (ADR 0130). Mark
         // them untried, exactly as the outer loop already marks a later group's pages, and stop
         // here — the group's own result still carries `timedOut`, so the outer loop's own
         // `some(r => r.timedOut)` check keeps carrying the stop outward.
@@ -717,7 +717,7 @@ function processStagedFiles(files, templates) {
     if (!groups.has(parsed.title)) groups.set(parsed.title, []);
     groups.get(parsed.title).push(e);
   }
-  // ADR 0076. A host that black-holes one call black-holes the next, so carrying on would spend the
+  // ADR 0130. A host that black-holes one call black-holes the next, so carrying on would spend the
   // bound once per staged page and reproduce the very hang the bound removes. The remaining titles
   // are reported untried and stay staged, so the next run retries exactly them. Only a timeout stops
   // the walk: every other failure is per page, as it has always been.

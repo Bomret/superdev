@@ -76,7 +76,7 @@ sentence reads as a system rule here and as a process rule everywhere else.
   places on the `implementer`. The single new finding came from comparing a slice against the intent's
   success criteria — from an artifact, not from a second opinion. The consulting session also wrote no
   code and never entered the repository, so one party was inside a slice and the other across the set:
-  attention pointed elsewhere is the active ingredient, and a reviewer already supplies it. ADR 0071
+  attention pointed elsewhere is the active ingredient, and a reviewer already supplies it. ADR 0129
   forbids claiming a benefit nothing measures.
 - *Moving the drift-style contradiction check to every stage boundary.* `/superdev:plan` judges against
   the register, `/superdev:implement` pre-flights for contradictions, `/superdev:document` audits the

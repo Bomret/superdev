@@ -78,7 +78,7 @@ decides the feature has reached its readers (ADR 0023) — so make no wiki, Conf
 knowledge-base `create`, `update`, `delete`, or `upsert` call. You may **read** one, though (ADR 0094,
 INV-0091): Pass 2's remote-backend bullet below reads an existing non-aggregate page before it stages an
 `upsert` for it, through the read entry `plugin/scripts/publish-kb.js` already exposes, under the same
-time bound as every other backend call (ADR 0076). A read needs the same credential a write would; where
+time bound as every other backend call (ADR 0130). A read needs the same credential a write would; where
 none is configured, or the backend declares no `read` command, the read is simply unavailable, handled
 as Pass 2 below states.
 

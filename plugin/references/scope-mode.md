@@ -480,7 +480,19 @@ branch step left you on.
    128, `fatal: refusing to fetch into branch 'refs/heads/<base>' checked out at …`). A refusal is not a
    failure: skip it, leave the local `<base>` where it was, and name the refusal in the run's report. A
    local `<base>` already at `<tip>` needs no word. Step 4 runs either way.
-4. **Bring `<tip>` in, and record it.** `git -C <run-root>/scopetree merge-base --is-ancestor <tip> <branch>`
+4. **Bring `<tip>` in, and record it.** **Move every numbering collision first** (ADR 0126, INV-0134):
+   run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" collisions --base <tip> --branch <branch>
+   --range-base <range-base>`, with `<range-base>` per `## The scope's range base` and one `--also <ref>`
+   for each other live plan run's scope branch (`## A live scope run` → *Run-root enumeration*, stage
+   `planned` or later, its branch read with `scope.js get branch --root <run-root>`) whose ref resolves:
+   `git rev-parse --verify <ref>` succeeds. A run root whose branch no longer resolves gets no `--also`,
+   so it never stops this run. It compares numbers, so it finds a collision git never reports as a conflict.
+   Exit 0 → nothing collides. Exit 1 → for each line it prints, move this scope's ADR file or invariant
+   entry to the printed next number, update every citation of the old number on the scope branch, commit
+   that in the scopetree, and name each renumber, old and new, in the run's report. A renumber resolves
+   and asks nothing, so an unattended run renumbers the same way. Exit 2 → the check could not run: name
+   its message and stop, dispatching no slice, never reading it as no collision; on exit 2,
+   **`--unattended` → block**, per `## Unattended`. Then the merge: `git -C <run-root>/scopetree merge-base --is-ancestor <tip> <branch>`
    succeeds → nothing to merge. Otherwise run `git -C <run-root>/scopetree merge <tip>`, `<run-root>`
    spelled out as the real absolute path in the command text, never a shell variable: `hooks/green-gate.js` reads the
    command text alone. **A conflict** — `MERGE_HEAD` still set → resolve it by intent, per

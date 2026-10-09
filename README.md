@@ -100,8 +100,10 @@ plan runs test-first, inline in the scopetree.
   branch, fast-forwards your local base branch when no worktree has it checked out, merges the fetched
   tip into the scope branch whether or not the local base could advance, records that tip so review
   ranges stay limited to this scope's commits, and runs the full suite on the result. Drift since `/superdev:plan` then
-  shows before any slice is built, not at `/superdev:ship`. A conflict is resolved by intent, and a
-  colliding ADR or invariant number this scope added moves to the next free one. A base that cannot be
+  shows before any slice is built, not at `/superdev:ship`. A conflict is resolved by intent. An ADR or
+  invariant number this scope added that the base already holds moves to the next free one, found by
+  comparing numbers, because two ADR files with one number and different names merge without a conflict.
+  `/superdev:ship` runs the same check before it merges, and stops on a collision. A base that cannot be
   fetched leaves the run on the local base, recorded as a degraded pass
   ([ADR 0120](docs/adr/0120-implement-brings-the-remote-base-into-the-scope-branch-before-the-first-slice.md)).
   With **more than 3 slices the tier is `full`**: unblocked slices run in **parallel** as `implementer`
@@ -212,7 +214,7 @@ plan runs test-first, inline in the scopetree.
   runs under a 30-second bound, and a command that exhausts it **stops the run** — a host that stops
   answering one call stops answering the next, so the remaining pages are reported untried and stay
   staged for a later run
-  ([ADR 0076](docs/adr/0076-a-backend-command-runs-under-a-time-bound.md)).
+  ([ADR 0130](docs/adr/0130-a-backend-command-runs-under-a-time-bound.md)).
 - **`/superdev:prose-check`**. Checks one file, one commit range, or pasted text against the
   **controlled-prose** writing standard, and reports each violation under the standard's own section
   heading. It reads that standard by name in every repo, so it works where the repo's own docs follow a

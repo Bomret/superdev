@@ -192,7 +192,7 @@ bun run test                       # tests/ suites, drift-check, plugin manifest
 GITEA_TOKEN=<token> bun run release  # cut a release from clean main (see RELEASING.md)
 ```
 
-superdev carries no A/B harness measuring it against a no-plugin baseline (ADR 0071). `tests/` and
+superdev carries no A/B harness measuring it against a no-plugin baseline (ADR 0129). `tests/` and
 `drift-check` check that the plugin does what its prose says, never that saying it helps.
 
 ## Agent skills
@@ -300,7 +300,7 @@ This root owns every other subtree directly:
   probe `baseHistoryHasPatch` for `plugin/scripts/publish-kb.js` and `plugin/hooks/scope-prune.js`
   (ADR 0053, ADR 0065, ADR 0082), exports `mainWorkTree`, `CHANGE_TYPES`, and `refResolves` for `publish-kb.js` (`SLUG_RE` too, and `mainWorkTree` and `CHANGE_TYPES` for `profile.js`), and carries verbs that touch no ledger: `root <slug>`,
   which resolves a run root's absolute path against the repository's main working tree from any cwd
-  (ADR 0080). The verb `staging <scope>` resolves a scope's staging directory the same way (ADR 0119).
+  (ADR 0080). The verb `staging <scope>` resolves a scope's staging directory the same way (ADR 0119), and `collisions` finds a numbering collision between a scope branch and the base by number (ADR 0126).
   The verb `test` runs a test command and records its own exit status as an Observed run, requiring
   `plugin/hooks/run-trace.js` at call time (ADR 0127).
   It also writes the `planned` stage on `init`, which `/superdev:implement`'s run init moves
@@ -312,7 +312,7 @@ This root owns every other subtree directly:
   `docs/agents/knowledge-base.md` by heading name, carries `action: upsert`, `action: delete`, and
   `action: patch` end to end — `patch` merging through `kb-patch.js`'s `merge()` — delegates the
   containment check to `scope.js`'s `testContainment`, runs every backend command under a time bound
-  whose exhaustion stops the batch (ADR 0076), converts a `storage` backend's body through
+  whose exhaustion stops the batch (ADR 0130), converts a `storage` backend's body through
   `plugin/scripts/md-to-storage.js` and resolves a staged page's `parent:` (ADR 0109), and is the invocation
   `skills/publish-kb/SKILL.md` runs),
   `plugin/scripts/profile.js` (the run profile, ADR 0103: reads Claude Code's session and subagent

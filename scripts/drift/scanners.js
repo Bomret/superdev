@@ -629,6 +629,29 @@ function scanAdrStatus(root) {
     .map((n) => ({ source: path.join(ADR_DIR, n) }));
 }
 
+// scanAdrNumbers() is pure over a root dir: no two ADRs in docs/adr/ share a four-digit number. Two files
+// with one number and different slugs never conflict in git, so a duplicate lands silently unless this
+// looks (ADR 0126, INV-0134).
+function scanAdrNumbers(root) {
+  let names;
+  try {
+    names = fs.readdirSync(path.join(root, ADR_DIR));
+  } catch {
+    return []; // no ADR tree (fixture / partial checkout) → nothing to scan
+  }
+  const byNumber = new Map();
+  for (const n of names.filter((x) => /^\d{4}-.*\.md$/.test(x)).sort()) {
+    const num = n.slice(0, 4);
+    (byNumber.get(num) || byNumber.set(num, []).get(num)).push(n);
+  }
+  return [...byNumber]
+    .filter(([, files]) => files.length > 1)
+    .map(([num, files]) => ({
+      source: ADR_DIR,
+      expectation: `give each ADR its own number — ${num} is shared by ${files.join(', ')}`,
+    }));
+}
+
 // Every document in the doc loop must still instruct itself to read the content-type lens (ADR 0014).
 const scanContentTypesContract = (root) => scanDocsCarry(root, CONTENT_TYPES_DOCS, CONTENT_TYPES_PATTERN);
 
@@ -1556,6 +1579,7 @@ module.exports = {
   scanGlossarySpecialisingCitations,
   scanWritingStandardContract,
   scanAdrStatus,
+  scanAdrNumbers,
   scanContentTypesContract,
   scanCommandRefs,
   scanObservationCaptureReminders,

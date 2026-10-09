@@ -2,7 +2,7 @@
 
 **Status:** Superseded
 
-**Superseded by:** [ADR 0071](0071-the-ab-eval-harness-is-removed.md). The eval runs this technique is
+**Superseded by:** [ADR 0129](0129-the-ab-eval-harness-is-removed.md). The eval runs this technique is
 built from are deleted.
 
 ## Context

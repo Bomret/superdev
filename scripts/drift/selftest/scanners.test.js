@@ -32,6 +32,7 @@ const {
   scanUnresolvedGlossaryContract,
   scanHookLedgerParsers,
   scanAdrStatus,
+  scanAdrNumbers,
   scanForcingBranchFlag,
   scanNoForceMerge,
   scanConflictConclusionNoCommit,
@@ -688,6 +689,23 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     1,
     'a prose mention is not the status line',
   );
+
+  // --- scanAdrNumbers: no two ADRs share a number. Two files with one number and different slugs
+  // never conflict in git, so a duplicate lands silently unless the test run looks (ADR 0126). ---
+
+  const dupGaps = scanAdrNumbers(
+    fixture({ 'docs/adr/0007-a.md': '# 0007\n', 'docs/adr/0007-b.md': '# 0007\n', 'docs/adr/0008-c.md': '# 0008\n' }),
+  );
+  assert.equal(dupGaps.length, 1, 'flags one shared number once');
+  assert.match(dupGaps[0].expectation, /0007/, 'names the number');
+  assert.match(dupGaps[0].expectation, /0007-a\.md/, 'names the first file');
+  assert.match(dupGaps[0].expectation, /0007-b\.md/, 'names the second file');
+  assert.equal(
+    scanAdrNumbers(fixture({ 'docs/adr/0007-a.md': '# 0007\n', 'docs/adr/0008-b.md': '# 0008\n' })).length,
+    0,
+    'distinct numbers pass',
+  );
+  assert.equal(scanAdrNumbers(fixture({ 'README.md': 'x\n' })).length, 0, 'no ADR directory passes');
 
   // negative: each recognised value satisfies the check
   for (const status of ADR_STATUSES) {

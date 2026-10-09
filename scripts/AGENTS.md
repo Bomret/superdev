@@ -29,7 +29,7 @@ This doc owns what each script guards and the contracts between them. Repo-wide 
 `base set <sha>`, `base resolve --branch <b> --base <ref>`,
 `get stage|branch|anchor|slices|unresolved|degraded|deferred|denials|docs|pr|suite`,
 `status` (which renders the whole `/superdev:status` report), `trace [--slice <id>]` (prints the run trace, read-only), `publish`, `adopt`, `root <slug>`,
-`staging <scope> [--count]`, `dod-line`, and `test`.
+`staging <scope> [--count]`, `collisions --base <ref> --branch <ref> --range-base <ref> [--also <ref> …]`, `dod-line`, and `test`.
 `--help` or `-h`, alone or after any verb, prints the usage and exits 0, except that a flag's value, or the bullet text after `add` or `add-denial`, is data and never a help request. It is checked before any verb
 reads stdin or touches a ledger, so a stdin verb such as `dod-line` never waits on input for it.
 `suite set` writes the **suite record** (CONTEXT.md) — the last full-suite run's result and the commit
@@ -97,6 +97,22 @@ checkout it runs from: the invoking checkout, a scopetree, or a slicetree of the
 what lets every prose caller resolve `<run-root>` the same way regardless of its own cwd. It refuses
 outside a git repository, and refuses a slug carrying a path separator or a leading `.`, since either
 would path a ledger read or write outside `.superdev/scopes/`.
+
+`collisions --base <ref> --branch <ref> --range-base <ref> [--also <ref> …]` reads git and touches no
+ledger and no run root (ADR 0126, INV-0134). It prints one line per numbering collision: an ADR number,
+in one directory named `docs/adr`, or an invariant id in `docs/invariants.md`, that the branch added since
+the range base and the base already holds under another path. A file renamed into a number counts as
+added. A base ADR at the same number is no collision only when the range base held that path and the
+branch no longer does, because the scope renamed or replaced it; a file the base renamed or added is a
+different ADR, so one ADR renamed to two paths, one on each side, collides. An invariant entry whose text
+is identical on both sides is no collision. Paths are read NUL-separated, so a non-ASCII slug survives.
+Each line carries the next free number, above every number that home carries on the base, the branch,
+and every `--also` ref, so two collisions never receive one number. Callers pass `--also` only for each
+other live run whose scope branch resolves. The verb renames and rewrites nothing, because a citation of
+the base's ADR and one of the scope's read the same. The verb exits 0 when nothing collides and 1 when something does.
+It exits 2 when a ref resolves to no commit, a flag is missing, given twice, or lacks a value (or its value starts with `--`), or git fails.
+A caller never reads a failed check as no collision. The base step and `/superdev:ship` §4 call it before they merge the base. `findCollisions` is
+exported for `tests/scope.test.js` alone.
 
 `staging <scope> [--count]` is another verb that touches no ledger and needs no run root (ADR 0119). It
 prints a scope's staging directory, `<main-worktree>/.superdev/kb-pending/<scope>`, resolved the same way
@@ -320,7 +336,7 @@ passes to it as an environment variable, never interpolated into the command str
 a quote, a `$`, a backtick, or a newline therefore reaches the backend unchanged and starts no shell of
 its own.
 
-Every template runs under a **30-second bound** (ADR 0076), applied at `runTemplate`'s own `spawnSync`
+Every template runs under a **30-second bound** (ADR 0130), applied at `runTemplate`'s own `spawnSync`
 with `killSignal: 'SIGKILL'` — the same shape `scope.js`'s `testContainment` bounds its `git fetch`
 with. The bound sits in the script rather than in the templates, so it covers an operator-written
 template carrying no `curl --max-time` of its own. `SUPERDEV_PUBLISH_KB_TIMEOUT_MS` overrides it, and
@@ -370,7 +386,7 @@ unresolved when two siblings name the identical section heading. A group where n
 what deletes it. A call that fails leaves the file staged, so the next run retries exactly what did
 not make it. A malformed file (no frontmatter, no title, or an unknown action) is reported and left
 untouched. A timeout on one sibling stops the rest of that group untried, the same stop the outer
-batch loop applies between groups (ADR 0076, time-bound). A host that black-holes one call
+batch loop applies between groups (ADR 0130, time-bound). A host that black-holes one call
 black-holes the next, regardless of which loop is calling it.
 
 `--read <title>` is a read-only entry (ADR 0094, INV-0091), invoked directly rather than through
@@ -396,7 +412,7 @@ Before a hashless `upsert` finds the page absent and sends `create`, `markStaged
 `created-by-publish: <ISO-8601 time>` line into the staged file's own frontmatter, ahead of the
 `create` call — a call this same run then sends. A create killed after it lands leaves that marker
 on the staged file that survives it, so a later run whose `find` locates the page reads the marker
-and sends `update` directly (ADR 0076), never the hash guard and never a `read` call. A hashless
+and sends `update` directly (ADR 0130), never the hash guard and never a `read` call. A hashless
 `upsert` `find` reports existing, carrying no marker, is refused exactly as before: only a page this
 run itself just created skips the guard.
 
@@ -1458,7 +1474,10 @@ carrying one of `Accepted`,
 `Proposed`, `Superseded`, or `Rejected`. An ADR with no status line reads as accepted whether or not
 anything implements it, which is how a decision reaches the glossary and the command bodies while the
 code has none of it. The value's capitalization is pinned with the set, so one ADR does not sort and
-grep apart from the rest. The `append-mode` contract (ADR 0004): every slice-store document
+grep apart from the rest. The `adr-numbers` contract (ADR 0126, INV-0134): no two
+`docs/adr/*.md` files share a four-digit number. Two files with one number and different slugs never
+conflict in git, so a duplicate would land silently. The failure names the number and every file that
+carries it. The `append-mode` contract (ADR 0004): every slice-store document
 (every `references/issue-tracker-*.md` plus `docs/agents/issue-tracker.md`) carries a `## Append mode`
 section stating four universal elements. Append creates only new slice records and never edits, closes,
 or deletes a merged one. Extending a single-slice feature creates the epic first, copying the lone

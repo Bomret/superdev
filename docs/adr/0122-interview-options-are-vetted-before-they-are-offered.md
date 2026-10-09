@@ -48,7 +48,7 @@ name keep their fixed option sets and stay outside the cap.
   existed and the reversals happened anyway. Citing a file and line cannot be done without opening the
   file, so the citation forces the check.
 
-**Consequences.** Superdev measures no prompt change (ADR 0071), so nothing shows that the change helps.
+**Consequences.** Superdev measures no prompt change (ADR 0129), so nothing shows that the change helps.
 The rule is enforced by prose and by drift rows on `cross-exam.md`, `skills/brainstorm/SKILL.md`,
 and `skills/plan/SKILL.md`. Nothing mechanical checks that a cited line says what the agent claims,
 or that a question the agent asked was vetted. A fact that genuinely could not have been checked

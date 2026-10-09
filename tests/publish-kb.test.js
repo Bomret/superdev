@@ -1491,7 +1491,7 @@ withState((stateFile) => {
   fs.rmSync(stubDir, { recursive: true, force: true });
 }
 
-// --- the time bound (ADR 0076) ------------------------------------------------------------------
+// --- the time bound (ADR 0130) ------------------------------------------------------------------
 
 // --- a find that never answers is killed at the bound, and its page stays staged -----------------
 withState(() => {
@@ -1665,7 +1665,7 @@ withState((stateFile) => {
 });
 
 // --- a create killed after landing is recognised on retry by its own marker, and sent as an ------
-// update (ADR 0076, ADR 0094, INV-0091): before publish-kb sends a hashless `create`, it writes a
+// update (ADR 0130, ADR 0094, INV-0091): before publish-kb sends a hashless `create`, it writes a
 // `created-by-publish` marker into the staged file, so a later run whose `find` locates the page
 // the killed call already landed knows this is its own retry rather than someone else's page.
 withState((stateFile) => {
@@ -1698,7 +1698,7 @@ withState((stateFile) => {
 });
 
 // --- a second retry writes no second marker: the first attempt's own timestamp survives -----------
-// (ADR 0076, ADR 0094). Every retry re-marks the staged file ahead of its own `create` call; without
+// (ADR 0130, ADR 0094). Every retry re-marks the staged file ahead of its own `create` call; without
 // a presence check that appends a fresh `created-by-publish:` line on every attempt instead of leaving
 // the first one alone.
 withState(() => {

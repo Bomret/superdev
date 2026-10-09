@@ -18,9 +18,11 @@ own messages.
   honours both specs, and say so in one line.
 - **A numbering collision moves this scope's number.** An ADR file or an invariant register entry this
   scope added, whose number the other side also took, takes the next number free on both sides, and on
-  every other live plan run (`skills/plan/SKILL.md`'s shared-identifier check). Update every citation of
-  the old number on the scope branch in the same resolution, and name each renumber, old and new, in the
-  report. In the base merge, base's number never moves: it has already landed.
+  every other live plan run (`skills/plan/SKILL.md`'s shared-identifier check). A collision is found by
+  number, whether or not git reports a conflict. `scope.js collisions` finds each one and prints its
+  next free number (ADR 0126). Update every citation of the old number on the scope branch in
+  the same resolution, and name each renumber, old and new, in the report. In the base merge, base's
+  number never moves: it has already landed.
 - **Conclude a resolved conflict with `git -C <run-root>/scopetree merge --continue`.** Stage the
   resolution first, and spell `<run-root>` out as the real absolute path in the command text.
   `hooks/green-gate.js` reads that command, finds the merge it landed, and runs the suite on

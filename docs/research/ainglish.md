@@ -181,7 +181,7 @@ Adopting Ainglish is not a small edit. A full adoption touches, at minimum:
   vocabulary it does not control.
 
 The honest measurement path costs more than the edits, and superdev carries no instrument for it
-(ADR 0071). Ainglish is not one contested line. It is a vocabulary, and settling it against superdev's own
+(ADR 0129). Ainglish is not one contested line. It is a vocabulary, and settling it against superdev's own
 prose would take a measurement apparatus this repository deliberately does not keep.
 
 ## Recommendation

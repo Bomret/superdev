@@ -1122,3 +1122,12 @@ Statement: Every superdev subagent dispatch a run makes, in the foreground or th
 Breaks: silently
 Check: tests/run-trace.test.js — the dispatch and dispatch-end cases
 Paths: plugin/hooks/run-trace.js, plugin/hooks/hooks.json
+
+### INV-0134
+
+Class: process
+Concepts: Numbering collision, Scope branch, Base branch
+Statement: A scope branch never reaches the base branch carrying a numbering collision. The base step at implement start moves each colliding number of the scope to the next free one before it merges the base. `/superdev:ship` merges nothing while one stands. In this repository, the test run fails while two ADRs share a number (ADR 0126).
+Breaks: silently
+Check: tests/scope.test.js — the collision verb reports a same-number ADR with a different slug, and an invariant id, that base holds; scripts/drift-check.js — no two ADRs in docs/adr/ share a number
+Paths: plugin/scripts/scope.js, plugin/references/scope-mode.md, plugin/references/merge-conflicts.md, plugin/skills/ship/SKILL.md

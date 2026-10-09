@@ -15,7 +15,7 @@ by reading every page.
 
 **Decision.** The doc pass may read a remote knowledge base and never writes to it. It reads through the
 `find` and `read` verbs of the backend command contract that `/superdev:publish-kb` already resolves
-(ADR 0069), under the same time bound as every backend call (ADR 0076). A read publishes nothing, so the
+(ADR 0069), under the same time bound as every backend call (ADR 0130). A read publishes nothing, so the
 first reason of ADR 0023 does not apply to it.
 
 Two guards keep the read from turning into a new failure:
@@ -31,7 +31,7 @@ Two guards keep the read from turning into a new failure:
   exist yet, and is refused when the page exists: a writer that misjudged an existing page as new would
   otherwise replace it blind. The one exception is the writer's own retry: before publish-kb sends a
   hashless create, it writes a `created-by-publish` marker into the staged file, and a later run whose
-  `find` locates that same page sends an `update` instead of refusing it (ADR 0076).
+  `find` locates that same page sends an `update` instead of refusing it (ADR 0130).
 
 `/superdev:plan` still reaches no backend, read or write: at plan time nothing is built, so there is
 nothing to reconcile.

@@ -95,7 +95,7 @@ listing is also capped at `limit=2`: a title is meant to be unique within a spac
 mean the result cannot be trusted to hold the one canonical page, and `find` answers exit 2 rather than
 picking `.results[0]` at random.
 
-Every command below runs under a **30-second bound** (ADR 0076), or whatever
+Every command below runs under a **30-second bound** (ADR 0130), or whatever
 `SUPERDEV_PUBLISH_KB_TIMEOUT_MS` names. `scripts/publish-kb.js` applies it at the spawn, so a command
 written here needs no `--max-time` of its own to be safe against a host that accepts the connection and
 never answers. A command killed at the bound leaves its page staged and **stops the run**: the remaining

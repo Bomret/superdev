@@ -73,7 +73,7 @@ repository, a 64-commit range costs 0.12s batched through one `git log -p | git 
 - *Reverse-apply the branch's diff against base.* `git apply --reverse --check` in a throwaway worktree
   answers whether the change is present. Rejected: it needs a worktree, and it fails on exactly the later
   edits that cause the conflict in the first place.
-- *A wall-clock bound, the shape `publish-kb.js` uses for backend commands (ADR 0076).* Rejected: it
+- *A wall-clock bound, the shape `publish-kb.js` uses for backend commands (ADR 0130).* Rejected: it
   bounds the real cost, and it lets one repository state produce two different verdicts.
 - *A reverse patch-id guard for the apply-then-revert case.* After a forward match at commit C, scan
   `C..<base>` for the reversed diff's patch id and answer not contained on a hit. Rejected: it catches a

@@ -80,6 +80,6 @@ The boundary needs judgment at exactly one seam — whether a finding names a de
 asks for unplanned behaviour — and prose is what carries that judgment. If the boundary misfires in either
 direction (a defect repair refused as scope growth, or growth admitted as a repair), the next step is an
 argument over this prose and the cases it misjudged. superdev holds no mechanism for settling a contested
-prompt line by running the document (ADR 0071).
+prompt line by running the document (ADR 0129).
 
 Nothing changes for an ad-hoc review, which applies no fixes at all.

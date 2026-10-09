@@ -53,7 +53,7 @@ check reaches `slice-reviewer` alone, because no other review agent receives a p
 - **The verdict line last, and nothing else.** It loses because the report stays inline, and the change
   helps only when session thinking is off.
 
-**Consequences.** Superdev measures no prompt change (ADR 0071), so nothing shows that the change helps.
+**Consequences.** Superdev measures no prompt change (ADR 0129), so nothing shows that the change helps.
 The order is enforced by prose and by drift rows on both the agent body and the dispatch. Nothing
 mechanical stops a reviewer from opening the log early. A deviation the report justifies costs a fix
 cycle. The lite tier and an ad-hoc review get no dependency check. A dependency added by the

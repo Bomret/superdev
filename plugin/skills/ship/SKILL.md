@@ -163,7 +163,17 @@ the report that the scope merged with the defect standing.
 ## 4. Base moved, then the merge
 
 **Capture the tip before merging** — `git -C <run-root>/scopetree rev-parse <branch>` — as
-`<pre-merge-tip>`; §3's gate just read `docs/agents/deployment.md` at this commit. **Merge base into the
+`<pre-merge-tip>`; §3's gate just read `docs/agents/deployment.md` at this commit. **Check numbering
+collisions before the merge** (ADR 0126, INV-0134): run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js"
+collisions --base <base> --branch <branch> --range-base <range-base>`, `<range-base>` per
+`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`, and one `--also <ref>`
+for each other live plan run's scope branch whose ref resolves, as that file's base step chooses them
+(`## Bringing the scope branch to base`, step 4). Exit 0 → continue. Exit 1
+→ merge nothing and change nothing on the scope branch: print each line, which names the colliding ADR
+number or invariant id and the number it should take, and point at renumbering it on the scope branch,
+then `/superdev:review <scope>`, then `/superdev:ship <scope>` — the recovery a conflict below takes too,
+because a renumber is a change nobody has reviewed. Exit 2 → the check could not run: name its message,
+merge nothing, and never read it as no collision. **Merge base into the
 scope branch, in the scope checkout, by its literal absolute path** —
 `git -C <run-root>/scopetree merge <base>`, `<run-root>` spelled out as the real path in the command text
 itself, never a shell variable: `hooks/green-gate.js` reads the command text alone, and cannot resolve

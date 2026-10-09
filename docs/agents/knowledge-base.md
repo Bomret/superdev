@@ -108,7 +108,7 @@ Every template opens with the same login line, so it stands alone under the boun
 `tea`, several, or a `SUPERDEV_KB_TEA_LOGIN` naming none of them, after writing the cause (naming the matching logins when several) and the `tea login add --url https://codeberg.org` command to stderr,
 which `publish-kb.js` appends to the failure reason it reports.
 
-Every command below runs under a **30-second bound** (ADR 0076), or whatever
+Every command below runs under a **30-second bound** (ADR 0130), or whatever
 `SUPERDEV_PUBLISH_KB_TIMEOUT_MS` names. `scripts/publish-kb.js` applies it at the spawn, so none of these
 templates carries a `--max-time` of its own. `tea api` exits 0 on an HTTP error, so each template reads
 the status line `-i` writes to stderr and maps anything but success to its own failure exit. A command killed at the bound leaves its page staged and

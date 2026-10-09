@@ -2,7 +2,7 @@
 
 **Status:** Superseded
 
-**Superseded by:** [ADR 0071](0071-the-ab-eval-harness-is-removed.md). The gate this decision aims and
+**Superseded by:** [ADR 0129](0129-the-ab-eval-harness-is-removed.md). The gate this decision aims and
 the runner it aims at are both deleted.
 
 **Amended by:** [ADR 0070](0070-the-gate-derives-its-grader-schema-from-the-runner.md), which reverses the

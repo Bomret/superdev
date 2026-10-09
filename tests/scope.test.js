@@ -25,6 +25,7 @@ const {
   testContainment,
   baseHistoryHasPatch,
   appendTrace,
+  findCollisions,
 } = require(scopePath);
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-selftest-'));
@@ -2259,6 +2260,235 @@ try {
     fs.rmSync(repo, { recursive: true, force: true });
   }
 
+  // --- collisions: a numbering collision found by number, never by a git conflict (ADR 0126, INV-0134) ---
+  {
+    const g = (args, cwd) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
+    const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-collisions-')));
+    const put = (file, text) => {
+      fs.mkdirSync(path.dirname(path.join(repo, file)), { recursive: true });
+      fs.writeFileSync(path.join(repo, file), text);
+    };
+    const save = (msg) => {
+      g(['add', '.'], repo);
+      g(['commit', '-q', '-m', msg], repo);
+      return g(['rev-parse', 'HEAD'], repo);
+    };
+    const register = (...ids) => ids.map((id) => `### INV-${id}\n\nStatement: ${id}.\n`).join('\n');
+    g(['init', '-q', '-b', 'main'], repo);
+    g(['config', 'user.email', 'test@example.com'], repo);
+    g(['config', 'user.name', 'test'], repo);
+    put('docs/adr/0001-one.md', '# 0001\n');
+    put('ctx/docs/adr/0001-c.md', '# 0001\n');
+    put('docs/invariants.md', register('0001'));
+    const fork = save('fork point');
+    g(['checkout', '-q', '-b', 'scope'], repo);
+    put('docs/adr/0002-mine.md', '# 0002\n');
+    put('docs/adr/0003-mine2.md', '# 0003\n');
+    put('docs/adr/0004-ok.md', '# 0004\n');
+    put('docs/adr/0006-same.md', '# 0006\n');
+    put('ctx/docs/adr/0003-ctx.md', '# 0003\n');
+    put('docs/invariants.md', `${register('0001')}\n### INV-0002\n\nStatement: the scope's own.\n`);
+    save('scope work');
+    g(['checkout', '-q', 'main'], repo);
+    put('docs/adr/0002-base.md', '# 0002\n');
+    put('docs/adr/0003-base2.md', '# 0003\n');
+    put('docs/adr/0006-same.md', '# 0006 base\n');
+    put('ctx/docs/adr/0002-cb.md', '# 0002\n');
+    put('docs/invariants.md', register('0001', '0002'));
+    save('base work');
+    g(['checkout', '-q', '-b', 'other', fork], repo);
+    put('docs/adr/0007-other.md', '# 0007\n');
+    save('other live run');
+    g(['checkout', '-q', 'main'], repo);
+    const before = g(['for-each-ref', '--format=%(refname) %(objectname)'], repo);
+    const opts = { base: 'main', branch: 'scope', rangeBase: fork, also: [] };
+
+    // A same-number ADR under a different slug collides; each takes its own next free number above
+    // every number in that home on both sides; an invariant id collides the same way.
+    let found = findCollisions(repo, opts);
+    assert.deepEqual(
+      found.map((c) => [c.kind, c.home, c.number, c.scopePath, c.basePath, c.next]),
+      [
+        ['adr', 'docs/adr', '0002', 'docs/adr/0002-mine.md', 'docs/adr/0002-base.md', '0007'],
+        ['adr', 'docs/adr', '0003', 'docs/adr/0003-mine2.md', 'docs/adr/0003-base2.md', '0008'],
+        ['inv', 'docs/invariants.md', 'INV-0002', 'docs/invariants.md', 'docs/invariants.md', 'INV-0003'],
+      ],
+      'two ADR collisions with distinct next numbers and one invariant collision — the same path (0006) and a number held only in another ADR directory (ctx 0003) are none'
+    );
+    // An --also ref (another live plan run) holding the next number pushes the assignment past it.
+    found = findCollisions(repo, { ...opts, also: ['other'] });
+    assert.deepEqual(found.filter((c) => c.kind === 'adr').map((c) => c.next), ['0008', '0009'], '--also pushes past 0007');
+    // Already took in from base: nothing the scope added collides with itself.
+    assert.deepEqual(findCollisions(repo, { ...opts, rangeBase: 'scope' }), [], 'nothing added since the range base → no collision');
+    assert.equal(g(['for-each-ref', '--format=%(refname) %(objectname)'], repo), before, 'the verb moves no ref');
+    assert.equal(g(['status', '--porcelain'], repo), '', 'the verb leaves the working tree clean');
+
+    // The CLI: exit 1 with one line per collision, 0 on none, 2 on an unknown ref naming it.
+    const cli = (args) =>
+      require('node:child_process').spawnSync(process.execPath, [scopePath, 'collisions', ...args], {
+        cwd: repo,
+        encoding: 'utf8',
+        timeout: 30000,
+      });
+    let res = cli(['--base', 'main', '--branch', 'scope', '--range-base', fork]);
+    assertSpawnDecided(res, 'collisions CLI');
+    assert.equal(res.status, 1, 'collisions found → exit 1');
+    assert.equal(res.stdout.trim().split('\n').length, 3, 'one line per collision');
+    assert.match(res.stdout, /^adr docs\/adr 0002 docs\/adr\/0002-mine\.md docs\/adr\/0002-base\.md next 0007$/m);
+    res = cli(['--base', 'main', '--branch', 'scope', '--range-base', 'scope']);
+    assertSpawnDecided(res, 'collisions CLI, none');
+    assert.equal(res.status, 0, 'nothing collides → exit 0');
+    assert.equal(res.stdout, '', 'and prints nothing');
+    res = cli(['--base', 'nope', '--branch', 'scope', '--range-base', fork]);
+    assertSpawnDecided(res, 'collisions CLI, unknown ref');
+    assert.equal(res.status, 2, 'an unknown ref → exit 2, never read as no collision');
+    assert.match(res.stderr, /nope/, 'naming the ref');
+    res = cli(['--base', 'main', '--branch', 'scope']);
+    assertSpawnDecided(res, 'collisions CLI, missing flag');
+    assert.equal(res.status, 2, 'a missing --range-base → exit 2');
+    for (const flag of ['--base', '--branch', '--range-base']) {
+      res = cli(['--base', 'main', '--branch', 'scope', '--range-base', fork, flag, 'main']);
+      assertSpawnDecided(res, `collisions CLI, repeated ${flag}`);
+      assert.equal(res.status, 2, `a repeated ${flag} → exit 2`);
+      assert.match(res.stderr, new RegExp(flag), `naming ${flag}`);
+    }
+    // A flag followed by another flag has no value: the usage error names the flag missing it.
+    res = cli(['--base', '--branch', 'scope', '--range-base', fork]);
+    assertSpawnDecided(res, 'collisions CLI, flag as a value');
+    assert.equal(res.status, 2, 'a flag where a value belongs → exit 2');
+    assert.match(res.stderr, /--base needs a value/, 'naming --base');
+
+    // A repository with no ADR directory and no invariant register has nothing to compare.
+    const bare = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-collisions-bare-')));
+    g(['init', '-q', '-b', 'main'], bare);
+    g(['config', 'user.email', 'test@example.com'], bare);
+    g(['config', 'user.name', 'test'], bare);
+    fs.writeFileSync(path.join(bare, 'README.md'), 'x\n');
+    g(['add', '.'], bare);
+    g(['commit', '-q', '-m', 'only a readme'], bare);
+    assert.deepEqual(findCollisions(bare, { base: 'main', branch: 'main', rangeBase: 'main', also: [] }), [], 'no ADR directory, no register → none');
+    fs.rmSync(bare, { recursive: true, force: true });
+    fs.rmSync(repo, { recursive: true, force: true });
+
+    // A fresh fork for the edge cases: `scope` and `main` each diverge from `fork` once.
+    const edge = (fork, onScope, onBase) => {
+      const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-collisions-edge-')));
+      const write = (file, text) => {
+        fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true });
+        fs.writeFileSync(path.join(dir, file), text);
+      };
+      const commit = (step) => {
+        step(dir, write);
+        g(['add', '-A'], dir);
+        g(['commit', '-q', '--allow-empty', '-m', 'step'], dir);
+        return g(['rev-parse', 'HEAD'], dir);
+      };
+      g(['init', '-q', '-b', 'main'], dir);
+      g(['config', 'user.email', 'test@example.com'], dir);
+      g(['config', 'user.name', 'test'], dir);
+      const forkSha = commit(fork);
+      g(['checkout', '-q', '-b', 'scope'], dir);
+      commit(onScope);
+      g(['checkout', '-q', 'main'], dir);
+      commit(onBase);
+      const got = findCollisions(dir, { base: 'main', branch: 'scope', rangeBase: forkSha, also: [] });
+      fs.rmSync(dir, { recursive: true, force: true });
+      return got.map((c) => [c.kind, c.number, c.scopePath, c.basePath]);
+    };
+
+    // An ADR the scope renumbers by rename is added under its new number, whatever diff.renames says.
+    assert.deepEqual(
+      edge(
+        (d, w) => w('docs/adr/0001-x.md', '# x\n'),
+        (d) => g(['mv', 'docs/adr/0001-x.md', 'docs/adr/0002-x.md'], d),
+        (d, w) => w('docs/adr/0002-base.md', '# base\n')
+      ),
+      [['adr', '0002', 'docs/adr/0002-x.md', 'docs/adr/0002-base.md']],
+      'a renamed-into number collides like an added one'
+    );
+    // A slug-only rename keeps its own number: the old path it left behind on base is no partner.
+    assert.deepEqual(
+      edge(
+        (d, w) => w('docs/adr/0002-old-title.md', '# old\n'),
+        (d) => g(['mv', 'docs/adr/0002-old-title.md', 'docs/adr/0002-new-title.md'], d),
+        () => {}
+      ),
+      [],
+      'a slug-only rename of an existing ADR is no collision'
+    );
+    // Both sides rename one ADR's slug to two different paths: two files at one number, so it collides.
+    assert.deepEqual(
+      edge(
+        (d, w) => w('docs/adr/0002-foo.md', '# foo\n'),
+        (d) => g(['mv', 'docs/adr/0002-foo.md', 'docs/adr/0002-bar.md'], d),
+        (d) => g(['mv', 'docs/adr/0002-foo.md', 'docs/adr/0002-foo2.md'], d)
+      ),
+      [['adr', '0002', 'docs/adr/0002-bar.md', 'docs/adr/0002-foo2.md']],
+      'a slug rename to two different paths on both sides of one ADR collides'
+    );
+    // "Same ADR" means one side kept the range base's path, never one number: the scope removing an
+    // ADR at a number hides no other base ADR at that number.
+    const dropFoo = (d) => g(['rm', '-q', 'docs/adr/0001-foo.md'], d);
+    const foo = (d, w) => w('docs/adr/0001-foo.md', '# foo\n');
+    const scopeNew = (d, w) => {
+      dropFoo(d);
+      w('docs/adr/0001-new.md', '# new scope decision\n');
+    };
+    assert.deepEqual(
+      edge(foo, scopeNew, (d, w) => {
+        dropFoo(d);
+        w('docs/adr/0001-y.md', '# y base decision\n');
+      }),
+      [['adr', '0001', 'docs/adr/0001-new.md', 'docs/adr/0001-y.md']],
+      'both sides delete one ADR and add a different one at its number → collision'
+    );
+    assert.deepEqual(
+      edge(foo, scopeNew, (d) => g(['mv', 'docs/adr/0001-foo.md', 'docs/adr/0001-bar.md'], d)),
+      [['adr', '0001', 'docs/adr/0001-new.md', 'docs/adr/0001-bar.md']],
+      'a base slug rename of the ADR the scope deleted still collides with the scope new ADR'
+    );
+    assert.deepEqual(
+      edge(foo, scopeNew, (d, w) => {
+        g(['mv', 'docs/adr/0001-foo.md', 'docs/adr/0003-foo.md'], d);
+        w('docs/adr/0001-y.md', '# y base decision\n');
+      }),
+      [['adr', '0001', 'docs/adr/0001-new.md', 'docs/adr/0001-y.md']],
+      'a base ADR new at the number the scope vacated collides'
+    );
+    // Rename similarity hides no collision: three ADRs on one template pair by git's rename detection,
+    // yet the scope's and base's replacements of a deleted ADR are two different ADRs at one number.
+    const templated = (title) =>
+      `# 0001: ${title}\n\n**Status:** Accepted\n\n## Context\n\nThe plugin needs a rule here.\nEvery caller reads it.\nIt stays stable.\n\n` +
+      `## Decision\n\nAdopt the rule for ${title}.\nApply it everywhere.\n\n## Consequences\n\nCallers follow the rule.\nThe suite pins it.\n`;
+    assert.deepEqual(
+      edge(
+        (d, w) => w('docs/adr/0001-foo.md', templated('foo')),
+        (d, w) => {
+          dropFoo(d);
+          w('docs/adr/0001-new.md', templated('new'));
+        },
+        (d, w) => {
+          dropFoo(d);
+          w('docs/adr/0001-y.md', templated('y'));
+        }
+      ),
+      [['adr', '0001', 'docs/adr/0001-new.md', 'docs/adr/0001-y.md']],
+      'two templated replacements of one deleted ADR collide, though rename detection pairs each with it'
+    );
+    // The scope replacing an ADR base left untouched is no collision: after the merge only the scope's
+    // file holds the number.
+    assert.deepEqual(edge(foo, scopeNew, () => {}), [], 'the scope replacing an ADR base kept is no collision');
+    // A non-ASCII slug reads verbatim, never as a quoted path that matches no ADR file.
+    assert.deepEqual(
+      edge(() => {}, (d, w) => w('docs/adr/0002-größe.md', '# ä\n'), (d, w) => w('docs/adr/0002-base.md', '# base\n')),
+      [['adr', '0002', 'docs/adr/0002-größe.md', 'docs/adr/0002-base.md']],
+      'a non-ASCII slug collides'
+    );
+    // An invariant entry the scope took in from base, read against a stale range base, is no collision.
+    const inv = (id, text) => (d, w) => w('docs/invariants.md', `### INV-0001\n\nStatement: 1.\n${id ? `\n### INV-${id}\n\n${text}\n` : ''}`);
+    assert.deepEqual(edge(inv(), inv('0002', 'Statement: 2.'), inv('0002', 'Statement: 2.')), [], 'an identical entry on both sides is no collision');
+  }
+
   // --- suite: the suite record, the last full-suite run's result and the commit it ran on
   // (`references/scope-mode.md` `## The ledger`, INV-0017) ---------------------------------------
   {
@@ -3776,7 +4006,7 @@ try {
     // `ledger <verb> …` line: a verb added to the usage text with no driver here, or one that stops tracing, fails.
     {
       const usageText = spawnSync('node', [scopePath, '--help'], { encoding: 'utf8' }).stdout;
-      const readOnly = new Set(['get', 'trace', 'publish', 'status', 'root', 'staging', 'dod-line', 'test']);
+      const readOnly = new Set(['get', 'trace', 'publish', 'status', 'root', 'staging', 'dod-line', 'collisions', 'test']);
       const readOnlySub = /^\s+(deploy get|suite reusable|base resolve)\b/;
       const usageVerbs = new Set(usageText.split('\n').slice(1)
         .filter((l) => /^ {2}[^-\s]/.test(l) && !readOnlySub.test(l))
