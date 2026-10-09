@@ -3493,6 +3493,88 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(allFinalAltered.length, 1, 'flags the altered final-reviewer lens sentence');
   assert.equal(allFinalAltered[0].source, path.join('agents', 'final-reviewer.md'), 'names final-reviewer.md');
 
+  // review-checklist.md's `## Consistency` section carries the glossary-drift lens; removing the bullet
+  // is the gap
+  const ALL_GLOSSARY_READ =
+    'Grep those terms against the\nglossary\'s entry headwords and `_Avoid` lines and open only the entries that match.';
+  const ALL_GLOSSARY_LACKS = 'A term the glossary\nlacks is no finding: adding one needs a human\'s confirmation.';
+  const ALL_GLOSSARY_CLEAN =
+    '## Consistency\n\n- **Glossary drift** — flag a synonym listed in an entry\'s `_Avoid` line as Minor. ' +
+    ALL_GLOSSARY_READ +
+    ' ' +
+    ALL_GLOSSARY_LACKS +
+    '\n';
+  assert.equal(
+    scanContract(
+      fixture({
+        'agents/slice-reviewer.md': ALL_SLICE_CLEAN,
+        'agents/final-reviewer.md': ALL_FINAL_CLEAN,
+        'references/review-checklist.md': ALL_GLOSSARY_CLEAN,
+      }),
+      AGENT_LENS_LIST_CONTRACTS,
+    ).length,
+    0,
+    'the glossary-drift lens carried yields zero gaps',
+  );
+  const allGlossaryDropped = scanContract(
+    fixture({
+      'agents/slice-reviewer.md': ALL_SLICE_CLEAN,
+      'agents/final-reviewer.md': ALL_FINAL_CLEAN,
+      'references/review-checklist.md': '## Consistency\n\n- **Convention drift** — match what is there.\n',
+    }),
+    AGENT_LENS_LIST_CONTRACTS,
+  );
+  // every review-checklist.md row anchors on the bullet, so a dropped bullet fails each of them
+  const ALL_GLOSSARY_ROWS = AGENT_LENS_LIST_CONTRACTS.filter(
+    ([rel]) => rel === path.join('references', 'review-checklist.md'),
+  ).length;
+  assert.equal(allGlossaryDropped.length, ALL_GLOSSARY_ROWS, 'flags the dropped glossary-drift lens');
+  assert.ok(
+    allGlossaryDropped.every((gap) => gap.source === path.join('references', 'review-checklist.md')),
+    'names review-checklist.md',
+  );
+  // the bullet without its reading strategy — grep the terms, open only the matching entries — is the gap
+  const allGlossaryNoRead = scanContract(
+    fixture({
+      'agents/slice-reviewer.md': ALL_SLICE_CLEAN,
+      'agents/final-reviewer.md': ALL_FINAL_CLEAN,
+      'references/review-checklist.md': ALL_GLOSSARY_CLEAN.replace(ALL_GLOSSARY_READ, ''),
+    }),
+    AGENT_LENS_LIST_CONTRACTS,
+  );
+  assert.equal(allGlossaryNoRead.length, 1, 'flags the glossary-drift lens without its reading strategy');
+  assert.equal(
+    allGlossaryNoRead[0].source,
+    path.join('references', 'review-checklist.md'),
+    'names review-checklist.md',
+  );
+  // the bullet without its rule that a term the glossary lacks is no finding is the gap
+  const allGlossaryNoLacks = scanContract(
+    fixture({
+      'agents/slice-reviewer.md': ALL_SLICE_CLEAN,
+      'agents/final-reviewer.md': ALL_FINAL_CLEAN,
+      'references/review-checklist.md': ALL_GLOSSARY_CLEAN.replace(ALL_GLOSSARY_LACKS, ''),
+    }),
+    AGENT_LENS_LIST_CONTRACTS,
+  );
+  assert.equal(allGlossaryNoLacks.length, 1, 'flags the glossary-drift lens without its absent-term rule');
+  assert.equal(
+    allGlossaryNoLacks[0].source,
+    path.join('references', 'review-checklist.md'),
+    'names review-checklist.md',
+  );
+  // the bullet moved out of `## Consistency` into a later section is the gap too
+  const allGlossaryMoved = scanContract(
+    fixture({
+      'agents/slice-reviewer.md': ALL_SLICE_CLEAN,
+      'agents/final-reviewer.md': ALL_FINAL_CLEAN,
+      'references/review-checklist.md':
+        '## Consistency\n\n- **Convention drift** — match what is there.\n\n## Other\n\n- **Glossary drift** — flag a synonym listed in an entry\'s `_Avoid` line as Minor.\n',
+    }),
+    AGENT_LENS_LIST_CONTRACTS,
+  );
+  assert.equal(allGlossaryMoved.length, ALL_GLOSSARY_ROWS, 'flags the glossary-drift lens moved past `## Consistency`');
+
   // scanAgentLensNoDesignSmell(): slice-reviewer.md carries no `design-smell` / `design smell` token
   // anywhere, in either spelling, case-insensitively — negative check closing the one-sided-pin gap the
   // sentence rows above cannot (a sentence appended elsewhere in the file, naming the token, still

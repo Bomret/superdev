@@ -704,6 +704,26 @@ const AGENT_LENS_LIST_CONTRACTS = [
     /apply its anti-pattern, design-smell,\s+vulnerability-class, reuse-audit, and consistency lenses/,
     'read the anti-pattern, design-smell, vulnerability-class, reuse-audit, and consistency lenses — design-smell is what carries the orphan lens to the integrated scope',
   ],
+  // simplicity: the `(?!\s## )` bound ends the section at any ` ## `, not only at a heading line, because
+  // scanContract() retries on whitespace-normalised text where line starts are gone. An inline ` ## ` that
+  // falls between the `## Consistency` heading and the bullet's `_Avoid` phrase fails this row falsely, so
+  // write one there in backticks. The upgrade path is a section-aware scanner that slices the section by
+  // heading line before matching.
+  [
+    path.join('references', 'review-checklist.md'),
+    /## Consistency(?:(?!\s## )[\s\S])*?\*\*Glossary drift\*\*(?:(?!\s## )[\s\S]){0,900}?entry's `_Avoid` line/,
+    "carry the glossary-drift lens in `## Consistency`, where `final-reviewer`'s consistency lens reads it and `slice-reviewer`'s list does not",
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /## Consistency(?:(?!\s## )[\s\S])*?\*\*Glossary drift\*\*(?:(?!\s## )[\s\S])*?Grep\s+those\s+terms\s+against\s+the\s+glossary's\s+entry\s+headwords\s+and\s+`_Avoid`\s+lines\s+and\s+open\s+only\s+the\s+entries\s+that\s+match\./,
+    "keep the glossary-drift lens's reading strategy — grep the change's terms against the entry headwords and `_Avoid` lines, open only the entries that match — so a review never reads the whole glossary",
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /## Consistency(?:(?!\s## )[\s\S])*?\*\*Glossary drift\*\*(?:(?!\s## )[\s\S])*?A\s+term\s+the\s+glossary\s+lacks\s+is\s+no\s+finding/,
+    "keep the glossary-drift lens's rule that a term the glossary lacks is no finding — adding a term needs a human's confirmation, so a reviewer never flags one",
+  ],
   [
     path.join('agents', 'test-auditor.md'),
     /apply its \*\*test-cost\*\* lenses —\s+\*\*dead test\*\* and \*\*expensive test\*\*/,

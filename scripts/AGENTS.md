@@ -914,7 +914,13 @@ The `agent-lens-list` contract (ADR 0062), one sentence row per audited agent's 
 row where a dispatch restates that list instead of deferring to it, and `scanAgentLensNoDesignSmell()`:
 `agents/slice-reviewer.md` reads the anti-pattern and vulnerability-class lenses from
 `references/review-checklist.md`, plus `## Dependency verification` (ADR 0114), and `agents/final-reviewer.md` reads the anti-pattern, design-smell,
-vulnerability-class, reuse-audit, and consistency lenses. The `orphan-lens-placement` contract below is
+vulnerability-class, reuse-audit, and consistency lenses. Three rows pin the glossary-drift bullet in
+`references/review-checklist.md`'s `## Consistency` section, the lens `final-reviewer` reads through its
+consistency lens and `slice-reviewer`'s list never names: one pins the bullet, one pins its reading
+strategy (grep the change's terms against the entry headwords and `_Avoid` lines, open only the entries
+that match), and one pins its rule that a term the glossary lacks is no finding. Each row bounds its match
+to the `## Consistency` section, so an inline ` ## ` between the heading and the bullet fails the row
+falsely. Write such text in backticks there. The `orphan-lens-placement` contract below is
 meaningful only because these two lists differ — the orphan lens reaches `final-reviewer` through
 `design-smell` and never reaches `slice-reviewer`. The sentence rows alone pin only the sentence
 each file already carries, so appending a further sentence that names design-smell — without touching
