@@ -374,7 +374,7 @@ to derive it from. The derivation takes one of two branches:
 - **A runner that maps source files to the tests covering them gets a `{paths}` form**, carrying that
   runner's pass-with-no-tests flag — `npx vitest related --passWithNoTests {paths}`, `npx jest
   --passWithNoTests --findRelatedTests {paths}`. The flag is what keeps a change set holding no tests
-  green: the documentation step's range is its own prose commits, and a runner that fails on an empty
+  green: the documentation step's range holds only prose on the ordinary path, and a runner that fails on an empty
   collection reports that as RED.
 - **A runner that maps nothing gets a `{paths}`-less form** — either a fixed fast subset, or a flag that
   detects the change set on its own. **Propose no `{paths}` form here**: such a runner is handed source

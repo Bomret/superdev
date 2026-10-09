@@ -111,9 +111,10 @@ Either way:
   last recorded green suite result — `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable
   --branch <head.sha> --root <run-root>` (plain, never `--whole`: an adopted hand merge is
   not a merge superdev makes, INV-0092), the same reuse `/superdev:review`'s own gate
-  uses — exits 0 → the merged head is the tested commit, no `**Degraded:**` bullet. Exits 1, or no record
+  uses — exits 0 → the merged head is a commit the green suite record covers (INV-0017: an exact match, or a
+  Markdown-only range since the record, ADR 0128), no `**Degraded:**` bullet. Exits 1, or no record
   at all → `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" degraded add "the merge landed on <head.sha>,
-  not the tested commit"`. Either way, set the stage to `shipped`
+  not a commit the green suite record covers"`. Either way, set the stage to `shipped`
   (`scope.js stage set shipped --root <run-root>`) unless it already reads that, and publish the
   snapshot, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section.
 - **Open** → continue below.
@@ -215,7 +216,7 @@ here, before anything merges on the host — the same consent §3 already asked,
 actually carries.
 
 **Push the tip, only once it carries a green record.** The pull request's own head has to be the commit a
-full suite actually ran on, so compare the scope branch's own tip against the `head.sha` §3 read (`git -C
+reusable green suite record covers (INV-0017), so compare the scope branch's own tip against the `head.sha` §3 read (`git -C
 <run-root>/scopetree rev-parse <branch>` against that sha), whether or not base moved above — a review's
 own fix loop, or an operator's own conflict resolution, can land commits at stage `submitted` with no base
 merge involved, and those never reach the pull request either without this same push.
@@ -248,7 +249,7 @@ ran, the one §3 already read when it did not — must equal the local scope-bra
 refuse: name both shas, and merge nothing. The push rejection above catches most of the ways a foreign
 commit could still sit on the pull request's head; this check is what catches the rest — a push landing on
 it from elsewhere between that comparison and this line — and is what actually guarantees the merge below
-lands the commit a green full suite ran on, not the push rule alone.
+lands the commit a reusable green suite record covers, not the push rule alone.
 
 **The merge, pinned.** Print what you are about to merge: the pull request, its head (the scope branch's
 own tip, moved or not), the base, and the suite result. Then squash-merge it into the base branch through

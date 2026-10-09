@@ -78,13 +78,19 @@ The reader returns its findings **most-severe-first** (false claims, then incomp
 
 **Read `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run the command it selects through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <doc-commit paths>`, in the scope
 checkout over the scope branch on a live run (§8's checkout) or the invoking checkout otherwise** — the
-same tree the doc commits just landed on, the writer's initial pass and any fix round above. Red → the doc
+same tree the doc commits just landed on, the writer's initial pass and any fix round above. On a live run
+whose suite record's commit is an ancestor of the scope branch's tip, the changed-path set runs from that
+commit to the tip, per that reference's `## The changed-path set`: this run is what lets
+`/superdev:ship` reuse the review's green suite record across Markdown-only doc commits (ADR 0128), so
+run it alone with its exit status intact. Red → the doc
 commit broke a test that asserts prose; fix it before the handoff. No test command configured → continue;
 there's nothing to run. **A non-zero exit that reports no test matched the changed paths is not that
-Red** — this step's changed-path set is docs-only by construction. A runner that maps nothing collects
+Red** — on the ordinary path this step's changed-path set holds only docs. A runner that maps nothing collects
 none from it (`pytest {paths}` exits 5, "no tests ran"); a runner that maps source files to the tests
 covering them finds no test for a docs-only path either (`vitest related {paths}` exits 1, "No test files
-found", absent `--passWithNoTests`); read either outcome as green and continue. The same holds under
+found", absent `--passWithNoTests`); read either outcome as green and continue. Only a run that exits 0
+backs the suite record's carry to `/superdev:ship` (ADR 0128), so a runner carries its pass-with-no-tests
+flag (`--passWithNoTests`) in the focused command. The same holds under
 `--unattended`: there is nothing to ask, so don't stop on it.
 
 **Two things here are degraded passes**, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section — read it and follow it, on either one:

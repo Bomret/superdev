@@ -95,6 +95,8 @@ const {
   STAGED_CLOSE_CONTRACTS,
   KB_READ_NEVER_WRITE_CONTRACTS,
   TEST_SELECTION_CONTRACTS,
+  DOC_PASS_RANGE_CONTRACTS,
+  SUITE_CARRY_CONTRACTS,
   AFFECTED_FORM_CONTRACTS,
   WHOLE_REPO_SHIP_CONTRACTS,
   SUBMIT_PR_WHOLE_REPO_CONTRACTS,
@@ -343,6 +345,16 @@ module.exports = [
     format: contractGap,
   },
   table('test-selection-wiring', TEST_SELECTION_CONTRACTS, 'every loop consumer reads test-selection.md'),
+  table(
+    'doc-pass-range',
+    DOC_PASS_RANGE_CONTRACTS,
+    "the documentation step's focused run covers the range since the suite record's commit",
+  ),
+  table(
+    'suite-carry',
+    SUITE_CARRY_CONTRACTS,
+    'every document stating the suite-reuse rule states the Markdown-only carry',
+  ),
   table(
     'affected-form',
     AFFECTED_FORM_CONTRACTS,

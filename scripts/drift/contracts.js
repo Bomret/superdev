@@ -1838,7 +1838,7 @@ const AGENT_TOOLCHAIN_PATTERNS = [
 // `vitest related`, `jest --findRelatedTests`. The changed-path set holds source files and prose
 // alongside tests, so a runner without that mapping collects nothing from them and reports red: pytest
 // exits 5 on an empty collection, and vitest fails on no test files unless `passWithNoTests` is set.
-// The documentation step reaches that case on every scope, since its range is its own prose commits.
+// The documentation step reaches that case on every scope, since its range holds only prose on the ordinary path.
 // Shipped prose proposed `pytest {paths}` exactly that way, which is where ADR 0074 came from.
 //
 // The scan matches a runner token immediately followed by `{paths}` — with optional flags, path
@@ -2132,11 +2132,60 @@ const TEST_SELECTION_CONTRACTS = [
   ],
   // ADR 0025's corrected rationale: nothing else re-verifies a doc commit before the pull request — the
   // green-gate hook fires only on a controller merge, and a doc commit is not one — so the documentation
-  // step judges its own doc commits with the focused command, never the full suite.
+  // step judges its range with the focused command, never the full suite. `DOC_PASS_RANGE_CONTRACTS`
+  // pins which range (ADR 0128).
   [
     path.join('skills', 'document', 'SKILL.md'),
     TEST_SELECTION_PATTERN,
-    'read `references/test-selection.md` and run the command it selects over the doc commits it just landed',
+    'read `references/test-selection.md` and run the command it selects over the documentation step\'s range',
+  ],
+];
+
+// ADR 0128: `scope.js suite reusable` carries a green suite record across Markdown-only commits on the
+// strength of a test run at the tip, so the documentation step's focused run must cover every path
+// changed since the record's commit, not only the doc commits it just landed. The reference states the
+// range and the documentation step dispatches it; both halves are pinned (root `AGENTS.md`'s two-sided
+// pin rule).
+const DOC_PASS_RANGE_PATTERN = /suite record's commit[\s\S]{0,240}?ancestor of the (?:scope branch's )?tip/;
+
+const DOC_PASS_RANGE_CONTRACTS = [
+  [
+    path.join('references', 'test-selection.md'),
+    DOC_PASS_RANGE_PATTERN,
+    "the documentation step's changed-path set runs from the suite record's commit when it is an ancestor of the tip",
+  ],
+  [
+    path.join('skills', 'document', 'SKILL.md'),
+    DOC_PASS_RANGE_PATTERN,
+    "the documentation step's focused run covers the range from the suite record's commit when it is an ancestor of the tip",
+  ],
+];
+
+// ADR 0128, INV-0017: `scope.js suite reusable` reuses a green suite record on an exact tip match, or
+// across a Markdown-only range since the record's commit. Every document that states the reuse rule
+// states the carry too, so none of them keeps the exact-commit rule alive after the script changed. Each
+// row is anchored on the carry clause and its ADR, so losing it from one document fails that row alone.
+const SUITE_CARRY_PATTERN = /(?:Markdown-only range|changed only Markdown)[\s\S]{0,200}?ADR 0128/;
+const SUITE_CARRY_CONTRACTS = [
+  [
+    path.join('references', 'scope-mode.md'),
+    SUITE_CARRY_PATTERN,
+    "the suite record bullet states the Markdown-only carry",
+  ],
+  [
+    path.join('references', 'run-handoff.md'),
+    SUITE_CARRY_PATTERN,
+    "the handoff's suite record states the Markdown-only carry",
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    SUITE_CARRY_PATTERN,
+    "the review's reuse gate states the Markdown-only carry",
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    SUITE_CARRY_PATTERN,
+    "ship's reuse of the suite record states the Markdown-only carry",
   ],
 ];
 
@@ -7775,6 +7824,8 @@ module.exports = {
   KB_BACKEND_CALL_MARKERS,
   HOOK_HEADER_REGEX,
   TEST_SELECTION_CONTRACTS,
+  DOC_PASS_RANGE_CONTRACTS,
+  SUITE_CARRY_CONTRACTS,
   AFFECTED_FORM_CONTRACTS,
   WHOLE_REPO_SHIP_CONTRACTS,
   SUBMIT_PR_WHOLE_REPO_CONTRACTS,

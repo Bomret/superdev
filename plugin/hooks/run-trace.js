@@ -27,8 +27,9 @@ let sliceType = null;
 let verificationCommands = null;
 let SLUG_RE = null;
 let mainWorkTree = null;
+let testPathOf = null;
 try {
-  ({ appendTrace, untraceField, inProgressSlices, readTrace, sliceType, verificationCommands, SLUG_RE, mainWorkTree } = require('../scripts/scope.js'));
+  ({ appendTrace, untraceField, inProgressSlices, readTrace, sliceType, verificationCommands, SLUG_RE, mainWorkTree, isTestPath: testPathOf } = require('../scripts/scope.js'));
 } catch {
   // left null: main() records nothing
 }
@@ -39,9 +40,6 @@ const ARG = /(?:[^\s"'\\$`]|\$(?![({])|\\.|"(?:[^"\\]|\\.)*"|'[^']*'|\$\((?:[^()
 const ARG_WORDS = new RegExp(ARG, 'g');
 const REDIR = /(>{1,2}\|?)(?!\()\s*/g; // not `>(`, a process substitution
 const ARG_AT = new RegExp(ARG, 'y');
-
-// The default test patterns, used where `docs/agents/verification.md` has no usable `## Test paths`.
-const DEFAULT_TEST_PATHS = ['**/tests/', '**/test/', '**/__tests__/', '**/spec/', '**/*.Tests/', '**/*.Test/', '*.test.*', '*.spec.*', '*_test.*', 'test_*.py'];
 
 // A heredoc body is data, not a command: drop every body so prose in it never reads as a write. A
 // run-trace carries its own quote-aware variant and ledger-guard keeps its own (hooks stay standalone). An error
@@ -207,47 +205,12 @@ function bashTargets(command, cwd) {
   return [...new Set(targets)];
 }
 
-// One glob entry -> a RegExp over a repo-relative path, or null for a malformed entry. `*` stays in a
-// path segment, `**` crosses them, a trailing `/` names a directory. An entry holding a `/` is anchored
-// at the repository root; one without matches a file name at any depth.
-function globToRe(glob) {
-  if (!glob || /\s/.test(glob) || glob.startsWith('/') || glob.split('/').includes('..')) return null;
-  const dir = glob.endsWith('/');
-  const body = dir ? glob.slice(0, -1) : glob;
-  if (!body) return null;
-  let re = '';
-  for (let i = 0; i < body.length; i++) {
-    const c = body[i];
-    if (c === '*' && body[i + 1] === '*') {
-      if (body[i + 2] === '/') { re += '(?:.*/)?'; i += 2; } else { re += '.*'; i += 1; }
-    } else if (c === '*') re += '[^/]*';
-    else if (c === '?') re += '[^/]';
-    else re += c.replace(/[.+^${}()|[\]\\]/g, '\\$&');
-  }
-  const anchored = body.includes('/') || dir ? '^' : '^(?:.*/)?';
-  return new RegExp(anchored + re + (dir ? '/' : '$'));
-}
-
-// The `## Test paths` entries of a tree's `docs/agents/verification.md`: list items, each one pattern
-// optionally in a backtick span. Null where the file or the section is absent or holds no usable entry.
-function configuredTestPaths(tree) {
-  let text;
-  try { text = fs.readFileSync(path.join(tree, 'docs', 'agents', 'verification.md'), 'utf8'); } catch { return null; }
-  const lines = text.split(/\r?\n/);
-  const at = lines.findIndex((l) => /^##\s+Test paths\s*$/.test(l));
-  if (at < 0) return null;
-  const res = [];
-  for (let i = at + 1; i < lines.length && !/^#{1,6}\s/.test(lines[i]); i++) {
-    const m = /^\s*[-*]\s+(?:`([^`]*)`|(\S+))\s*$/.exec(lines[i]);
-    const re = m && globToRe(m[1] !== undefined ? m[1] : m[2]);
-    if (re) res.push(re);
-  }
-  return res.length ? res : null;
-}
-
+// The test-path classifier lives in scope.js (ADR 0128), which also reads it from a commit; the hook
+// reads its tree's own file. No file reads as no section: the defaults apply.
 function isTestPath(tree, rel) {
-  const res = configuredTestPaths(tree) || DEFAULT_TEST_PATHS.map(globToRe);
-  return res.some((re) => re.test(rel));
+  let text = '';
+  try { text = fs.readFileSync(path.join(tree, 'docs', 'agents', 'verification.md'), 'utf8'); } catch {}
+  return testPathOf(text, rel);
 }
 
 // Where an absolute path lands: { runRoot, tree, rel, slice } under a run root's slicetree or
@@ -745,7 +708,7 @@ function recordSubagentStop(input, cwd) {
 }
 
 function record(input) {
-  if (!appendTrace || !untraceField || !inProgressSlices || !readTrace || !sliceType || !verificationCommands || !SLUG_RE || !mainWorkTree || !input || typeof input !== 'object') return null;
+  if (!appendTrace || !untraceField || !inProgressSlices || !readTrace || !sliceType || !verificationCommands || !SLUG_RE || !mainWorkTree || !testPathOf || !input || typeof input !== 'object') return null;
   const ti = input.tool_input || {};
   const cwd = typeof input.cwd === 'string' && input.cwd ? input.cwd : process.cwd();
   if (input.tool_name === 'Agent') {
@@ -801,4 +764,4 @@ function main() {
 if (require.main === module) main();
 
 // `locate`, `testRuns`, and `treeState` are also `scope.js test`'s classifier and tree reader (ADR 0127): the verb and the hook never disagree.
-module.exports = { record, bashTargets, globToRe, verificationKind, ARG, stripHeredocs, locate, testRuns, treeState };
+module.exports = { record, bashTargets, verificationKind, ARG, stripHeredocs, locate, testRuns, treeState };

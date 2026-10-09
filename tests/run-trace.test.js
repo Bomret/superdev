@@ -1,8 +1,8 @@
 'use strict';
 
-// Suite for plugin/hooks/run-trace.js (ADR 0117). Classification cases call the exported `record`,
-// `bashTargets`, and `globToRe` in-process; the spawned hook covers the stdin-to-line contract, exit 0,
-// and the git timeout.
+// Suite for plugin/hooks/run-trace.js (ADR 0117). Classification cases call the exported `record`
+// and `bashTargets` in-process; the spawned hook covers the stdin-to-line contract, exit 0, and the
+// git timeout.
 
 require('./fixture-git');
 const assert = require('node:assert');
@@ -12,10 +12,10 @@ const path = require('node:path');
 const cp = require('node:child_process');
 
 const { assertSpawnDecided } = require('./spawn-verdict');
-const { inProgressSlices, appendTrace } = require('../plugin/scripts/scope.js');
+const { inProgressSlices, appendTrace, isTestPath } = require('../plugin/scripts/scope.js');
 
 const hookPath = require.resolve('../plugin/hooks/run-trace.js');
-const { record, bashTargets, globToRe, ARG, verificationKind } = require(hookPath);
+const { record, bashTargets, ARG, verificationKind } = require(hookPath);
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'run-trace-'));
 const ledger = (rows) =>
@@ -216,6 +216,19 @@ fs.rmSync(vf);
 reset();
 for (const f of ['services/api/tests/a.bats', 'src/test/java/FooTest.java', 'Libs/Weaver.Core.Tests/FooTests.cs', 'Libs/Weaver.Core.Test/Foo.cs', 'pkg/spec/x_spec.rb', 'src/latest/a.ts', 'contest/b.ts']) edit(path.join(S3, f));
 assert.deepEqual(trace(A).map((l) => l[3]), ['test', 'test', 'test', 'test', 'test', 'impl', 'impl'], 'default directories match at any depth by whole segment, .Tests and .Test directories too');
+
+// The hook and `scope.js suite reusable` share one classifier: every path gets the same kind from the
+// hook's recorded edit as from `isTestPath` over the same verification.md text, defaults and configured.
+{
+  const same = ['services/api/tests/a.bats', 'Libs/Weaver.Core.Tests/FooTests.cs', 'pkg/__tests__/z.js', 'lib/x_test.go', 'check/a.js', 'lib/q/r.t.js', 'tests/x.test.js', 'src/main.js', 'contest/b.ts'];
+  for (const text of ['', '# V\n\n## Test paths\n\n- `check/`\n- `lib/**/*.t.js`\n']) {
+    if (text) fs.writeFileSync(vf, text);
+    reset();
+    for (const f of same) edit(path.join(S3, f));
+    assert.deepEqual(trace(A).map((l) => l[3]), same.map((f) => (isTestPath(text, f) ? 'test' : 'impl')), 'hook and isTestPath agree: ' + (text ? 'configured' : 'defaults'));
+  }
+  fs.rmSync(vf);
+}
 
 // Test runs, reverts, restores (ADR 0117). S3 becomes a git repository so the run line carries a real sha.
 const git = (...a) => cp.execFileSync('git', ['-C', S3, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a], { encoding: 'utf8' }).trim();
@@ -886,12 +899,6 @@ const agentPost = (tu, response, cwd) => ({ hook_event_name: 'PostToolUse', tool
   run({ hook_event_name: 'SubagentStop', agent_id: 'sm1', agent_type: 'superdev:implementer', cwd: sub });
   assert.deepEqual(trace(S).filter((l) => l[2] === 'dispatch-end').map((l) => l[4]), ['tsm1'], 'a submodule cwd records the end under the submodule checkout');
 }
-
-// globToRe: `*` stays in a segment, `**` crosses them, a slash anchors, a malformed entry is null.
-assert.ok(globToRe('*.test.*').test('a/b/x.test.js') && globToRe('tests/').test('tests/x.js') && !globToRe('tests/').test('src/tests/x.js'));
-assert.ok(globToRe('lib/**/*.t.js').test('lib/q/r.t.js') && !globToRe('lib/*.t.js').test('lib/q/r.t.js'));
-assert.equal(globToRe('/abs/**'), null);
-assert.equal(globToRe('bad entry'), null);
 
 // The stdin-to-line contract through the spawned hook: an edit line, a run line, and the Missing RED output.
 {

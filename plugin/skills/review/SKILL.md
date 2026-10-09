@@ -306,7 +306,7 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   dispatching `final-reviewer`.**
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch>
   --root <run-root>` **in the scope checkout above**. Exit 0 → reused, running nothing (INV-0017: an
-  exact tip match). Exit 1, or no record at all, means: take the full command from
+  exact tip match, or a Markdown-only range since the record, ADR 0128). Exit 1, or no record at all, means: take the full command from
   `docs/agents/verification.md` per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run it **in
   the scope checkout above**, over the scope branch, through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full`
   (`test whole` for the whole-repo command, `test focused <changed paths>` inside a fix cycle). A suite longer than the Bash

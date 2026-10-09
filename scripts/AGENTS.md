@@ -36,9 +36,14 @@ reads stdin or touches a ledger, so a stdin verb such as `dod-line` never waits 
 it ran on, as `**Suite:** <result> @ <sha>` — refusing a sha that does not resolve to a commit in the
 repository; `get suite` prints `<result> <sha>` back, or nothing on a ledger with no record (INV-0017).
 `suite reusable` is the read half of that same reuse rule: it exits 0 (printing `reusable`) when the
-record is `green` and `<branch>`'s tip matches the recorded commit exactly, and refuses (exit 1)
-otherwise, an unrecognized argument included. No slice store commits its own records on the scope
-branch (ADR 0110), so no commit since the record is exempt.
+record is `green`, the run trace backs the recorded commit, and `<branch>`'s tip is that commit, and
+refuses (exit 1) otherwise, an unrecognized argument included. No slice store commits its own records on
+the scope branch (ADR 0110), so a commit since the record counts. The one exception is a Markdown-only
+range (ADR 0128): the recorded commit is an ancestor of the tip, every path changed since ends in `.md`
+and is no test path and not `docs/agents/verification.md`, and the run trace shows the latest test run at
+the tip passed on a clean tree with no failed full or whole run there. The test paths come from the tip
+commit's `verification.md`, through `isTestPath`, the classifier `hooks/run-trace.js` also calls. A
+refusal on a moved tip names the condition that failed after `predates tip`.
 `base set` writes the `**Base:**` header, the remote base tip the base step merged into the scope branch,
 as a full commit, refusing a sha that does not resolve. `base resolve` prints the scope's range base: the
 newer of `merge-base(<ref>, <b>)` and the recorded tip, the tip counting only when it resolves and is an
@@ -1167,7 +1172,17 @@ run instruction still fails. The fourth consumer is the odd one out: the other t
 the implement loop, before the review's full-suite runs, while `skills/document/SKILL.md` runs after them —
 a doc commit lands on the scope branch once the review has already passed, and nothing else re-verifies
 it before the pull request, so the documentation step judges just what it changed with the same focused
-command, never the full suite (ADR 0025). The `submit-pr-whole-repo` contract (ADR 0105, INV-0017, INV-0009), on `skills/submit-pr/SKILL.md`'s
+command, never the full suite (ADR 0025). The `doc-pass-range` contract (ADR 0128, INV-0017):
+`references/test-selection.md` and `skills/document/SKILL.md` both state that, on a live run whose suite
+record's commit is an ancestor of the tip, the documentation step's focused run covers every path changed
+since that commit. `scope.js suite reusable` carries a green record across Markdown-only commits on the
+strength of that run, so a run over the doc commits alone would leave a commit another author landed after
+the review unverified. Each row is anchored on the range clause, and losing it from either document fails
+that row alone. The `suite-carry` contract (ADR 0128, INV-0017): `references/scope-mode.md`'s suite
+record bullet, `references/run-handoff.md`, `skills/review/SKILL.md`'s reuse gate, and
+`skills/ship/SKILL.md` each state that `scope.js suite reusable` carries a green record across a
+Markdown-only range, not only on an exact tip match. Each row is anchored on the carry clause and its ADR,
+and losing it from one document fails that row alone. The `submit-pr-whole-repo` contract (ADR 0105, INV-0017, INV-0009), on `skills/submit-pr/SKILL.md`'s
 §4: a red whole-repo run opens no pull request, records an unresolved defect, leaves the stage where it
 was, and names `/superdev:review`; a denied run opens none, records `denied` of kind `whole`, and writes a `**Degraded:**` entry; a
 killed or never-started run opens none and records no green result; the red and denied paths' snapshot publish
@@ -1747,7 +1762,7 @@ nobody released — which is exactly what `/superdev:implement` then builds.
 The `doc-steps-no-suite` check, `scanDocStepsNoSuite()`: `skills/document/SKILL.md`,
 `skills/submit-pr/SKILL.md`, `agents/doc-writer.md`, and `agents/final-reviewer.md` name no full-suite run of
 their own (ADR 0025). That is narrower than "performs no full-suite run": `skills/document/SKILL.md` reads
-`references/test-selection.md` and runs the focused command it selects over its own doc commits, and a
+`references/test-selection.md` and runs the focused command it selects over its range (its own doc commits, or every path since the suite record's commit, ADR 0128), and a
 repository whose runner cannot narrow, or whose suite is already cheap enough not to need a distinct one,
 records the full command again in that second fence — the same duplication this repository dogfoods for
 every other focused caller (ADR 0085). What this check forbids is a document *instructing* a full run in
@@ -3067,7 +3082,7 @@ the range the push is about to add (`git log <head>..<tip> --oneline`) before se
 stays the consent that covers what is actually merged. The comparison row pins the core comparison
 itself: the tip against `head.sha` whether or not base moved, since a fix loop or a conflict resolution
 that never touched base still has to reach the pull request. Losing any of these reopens the recovery
-loop the fix cycle closed: a tested commit landed after submit-pr that never reaches the PR head the
+loop the fix cycle closed: a commit that landed after submit-pr, and that a reusable green suite record covers, never reaches the PR head and the
 pinned merge refuses forever.
 Two more rows close what the push alone cannot. The rejected-push row pins a rejected push: someone can
 push to the pull request from elsewhere (applying a suggestion on the host, say) after §3's own read,
@@ -3078,7 +3093,7 @@ the new tip, then `/superdev:ship <scope>` runs again. The equality-check row pi
 rests on: the freshest `head.sha` (the re-read after a push, or §3's own read when none ran) must equal
 the local scope-branch tip `suite reusable` accepted, or ship refuses, naming both shas, and merges
 nothing. The push rejection above catches most of the ways the two could still differ; this check is
-what catches the rest, and is the row that actually guarantees the merge lands the tested commit rather
+what catches the rest, and is the row that actually guarantees the merge lands the commit the reusable record covers rather
 than the push rule alone.
 The other-rejection row pins that any push rejection other than non-fast-forward — authentication, a pre-receive hook, the network — relays git's own error and merges nothing, surfacing the actual failure instead of falling through to a stale equality check. The re-read row pins that after an accepted push, ship re-reads the pull request until its `head.sha` equals the pushed tip, at most 3 times with a short pause (the bound `code-management-github.md` uses for a `null` `mergeable`), before the equality check fires, ensuring the check compares against fresh data.
 The `ship-merge-pin-local-tip` contract (final-reviewer triage, #687 fix cycle): the sha the pinned merge

@@ -33,6 +33,8 @@ const {
   BASE_MERGE_CONTRACTS,
   SUBMIT_PR_WHOLE_REPO_CONTRACTS,
   TEST_SELECTION_CONTRACTS,
+  DOC_PASS_RANGE_CONTRACTS,
+  SUITE_CARRY_CONTRACTS,
   FULL_SUITE_CONTRACTS,
   VERIFICATION_CEILING_CONTRACTS,
   SPAWN_FAILURE_ANSWER_CONTRACTS,
@@ -1962,7 +1964,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   assert.equal(phNoSectionSixPlannedGaps[0].source, path.join('skills', 'plan', 'SKILL.md'), 'names plan.md');
 
   // --- TEST_SELECTION_CONTRACTS: the TDD loop, the inline loop, Lens 2's independent re-run, and the
-  // documentation step's own commits each read references/test-selection.md rather than restating the
+  // documentation step's range each read references/test-selection.md rather than restating the
   // focused-command rule (ADR 0025). scan() above would stay green if one dropped the read/apply
   // instruction while the reference file itself still exists — this is the wire, not the reference. ---
 
@@ -1976,6 +1978,37 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     const tsGaps = scanContract(dropped, TEST_SELECTION_CONTRACTS);
     assert.equal(tsGaps.length, 1, `flags ${rel} for dropping the test-selection reference`);
     assert.equal(tsGaps[0].source, rel, `names ${rel} as the offender`);
+  }
+
+  // --- DOC_PASS_RANGE_CONTRACTS: the reference and the documentation step both state that the doc
+  // pass's focused run covers the range since the suite record's commit (ADR 0128). Each document is
+  // copied from this repository; removing the clause flags exactly that row. ---
+  for (const [rel] of DOC_PASS_RANGE_CONTRACTS) {
+    const real = fs.readFileSync(path.join(realRoot, 'plugin', rel), 'utf8');
+    assert.equal(scanContract(fixture({ [rel]: real }), DOC_PASS_RANGE_CONTRACTS).length, 0, `${rel} carries the range clause`);
+    const stripped = real.replace(/suite record's commit/g, 'record');
+    const gaps = scanContract(fixture({ [rel]: stripped }), DOC_PASS_RANGE_CONTRACTS);
+    assert.equal(gaps.length, 1, `flags ${rel} for dropping the range clause`);
+    assert.equal(gaps[0].source, rel, `names ${rel} as the offender`);
+  }
+
+  // --- SUITE_CARRY_CONTRACTS: every document that states the suite-reuse rule states the Markdown-only
+  // carry (ADR 0128, INV-0017). Each document is copied from this repository; removing the carry clause
+  // flags exactly that row. ---
+  const carryDocs = [
+    path.join('references', 'scope-mode.md'),
+    path.join('references', 'run-handoff.md'),
+    path.join('skills', 'review', 'SKILL.md'),
+    path.join('skills', 'ship', 'SKILL.md'),
+  ];
+  assert.deepEqual(SUITE_CARRY_CONTRACTS.map(([rel]) => rel), carryDocs, 'one carry row per reuse-rule document');
+  for (const rel of carryDocs) {
+    const real = fs.readFileSync(path.join(realRoot, 'plugin', rel), 'utf8');
+    assert.equal(scanContract(fixture({ [rel]: real }), SUITE_CARRY_CONTRACTS).length, 0, `${rel} carries the carry clause`);
+    const stripped = real.replace(/Markdown-only range|changed only Markdown/g, 'exact match');
+    const gaps = scanContract(fixture({ [rel]: stripped }), SUITE_CARRY_CONTRACTS);
+    assert.equal(gaps.length, 1, `flags ${rel} for dropping the carry clause`);
+    assert.equal(gaps[0].source, rel, `names ${rel} as the offender`);
   }
 
   // positive: a document that keeps the reference but drops the "run the command it selects" clause

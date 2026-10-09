@@ -17,7 +17,7 @@ tiers: record that slice execution finished, name what comes next.
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set <green|red|denied|none> <sha> --root <run-root>`
   (`<sha>` is `git rev-parse HEAD` in that checkout) — a record `/superdev:review` reuses instead of
   running the suite again when it is still `green` and `scope.js suite reusable` calls the branch's
-  current tip reusable against it (INV-0017): an exact match.
+  current tip reusable against it (INV-0017): an exact match, or a Markdown-only range since it (ADR 0128).
   - **No test command configured** → record `none` and continue to the handoff pass.
   - **Green** → record `green`, clear any standing `**Unresolved:**` entry
     (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Unresolved defects`) with

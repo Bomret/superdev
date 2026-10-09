@@ -109,7 +109,7 @@ and the runner substitutes them; a `test focused` with no paths runs the full co
 example `vitest related` or `jest --findRelatedTests`. The changed-path set holds source files and prose
 alongside tests, and a runner without that mapping collects nothing from them. Such a form also carries
 that runner's pass-with-no-tests flag, so a change set holding no tests reports green: the documentation
-step reaches exactly that case on every scope, since its range is its own prose commits.
+step reaches exactly that case on every scope, since its range holds only prose on the ordinary path.
 
 Where the focused command contains no such token, run it verbatim. Two shapes take this form: a **fixed
 fast subset** (`pytest tests/unit`, `go test ./internal/...`) always collects tests, since it names them
@@ -135,8 +135,13 @@ Each caller judges its own range and builds the set from it:
   `git merge`, or a conflicted one concluded by `merge --continue`. The hook runs on neither a merge still
   waiting on its conflict nor a commit that is no merge. A set it reads empty goes to the fallback below.
   Falls back to the first parent where `ORIG_HEAD` does not resolve.
-- **The documentation step.** Its own doc commits — the ones the doc-writer just landed on the scope
-  branch, never the wider range the chain is reconciling.
+- **The documentation step.** On a live scope run whose suite record's commit is an ancestor of the scope
+  branch's tip (`scope.js get suite` names the commit), every path changed from that commit to the tip.
+  `scope.js suite reusable` carries a green record across Markdown-only commits on the strength of a
+  passing test run at the tip (ADR 0128, INV-0017), so that run covers the whole range, a commit another
+  author landed after the review included. With no record, or a commit that is not an ancestor, its own
+  doc commits — the ones the doc-writer just landed on the scope branch, never the wider range the chain
+  is reconciling.
 - **Run handoff's own fix loop.** The commits that cycle's implementer just landed, on the scope checkout.
 
 ## Fallback to the full command

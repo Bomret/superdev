@@ -143,8 +143,9 @@ write, naming `scope.js`.
   `<result> <sha>`, with a trailing ` whole` when the record carries that kind, or nothing on a ledger
   with no record; written with `suite set <result> <sha> [--whole]`, which refuses a sha that does not
   resolve to a commit in the repository. A later step reuses a green record `scope.js suite reusable`
-  calls reusable against the scope branch's current tip — an exact match — instead of running the
-  suite again (INV-0017). `suite reusable --whole` additionally refuses a record with no kind, even when it is
+  calls reusable against the scope branch's current tip — an exact match, or a record on an ancestor of
+  the tip when every commit since changed only Markdown and a test run at the tip passed (ADR 0128) —
+  instead of running the suite again (INV-0017). `suite reusable --whole` additionally refuses a record with no kind, even when it is
   green and tip-matched: a step that needs a whole-repo run reuses only a record of kind `whole`; a
   step content with either kind omits `--whole` and accepts both.
 - **`**Base:** <sha>`** — the remote base tip the base step last merged into the scope branch

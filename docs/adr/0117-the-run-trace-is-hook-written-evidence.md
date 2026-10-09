@@ -4,7 +4,7 @@
 
 **Amends:** [ADR 0008](0008-tests-written-incrementally.md), [ADR 0114](0114-the-slice-review-reads-the-progress-log-only-after-its-blind-pass.md).
 
-**Amended by:** [ADR 0127](0127-a-test-run-records-its-own-outcome.md), [ADR 0125](0125-missing-red-never-blocks-a-slice-at-the-fix-cap.md).
+**Amended by:** [ADR 0127](0127-a-test-run-records-its-own-outcome.md), [ADR 0125](0125-missing-red-never-blocks-a-slice-at-the-fix-cap.md), [ADR 0128](0128-a-green-suite-record-carries-across-markdown-only-commits.md).
 
 **Context.** ADR 0008 requires one RED test, then minimal GREEN code, then the next increment. The only
 record of that order was the implementer's own progress log. On 2026-10-05 the local transcripts of this

@@ -296,7 +296,7 @@ This root owns every other subtree directly:
   `ledger.md` read and write path, exports `readLedgerHeader` for `plugin/hooks/scope-prune.js` and
   `plugin/hooks/slicetree-sweep.js`, exports the trace writer `appendTrace`, the trace reader `readTrace`,
   the field decoder `untraceField`, the ledger row readers `inProgressSlices` and `sliceType`, the verification-command reader
-  `verificationCommands`, the scope-slug pattern `SLUG_RE`, and the main-checkout resolver `mainWorkTree`, for `plugin/hooks/run-trace.js` (ADR 0117), exports the containment test `testContainment` and its second-tier
+  `verificationCommands`, the test-path classifier `isTestPath` (ADR 0128), the scope-slug pattern `SLUG_RE`, and the main-checkout resolver `mainWorkTree`, for `plugin/hooks/run-trace.js` (ADR 0117), exports the containment test `testContainment` and its second-tier
   probe `baseHistoryHasPatch` for `plugin/scripts/publish-kb.js` and `plugin/hooks/scope-prune.js`
   (ADR 0053, ADR 0065, ADR 0082), exports `mainWorkTree`, `CHANGE_TYPES`, and `refResolves` for `publish-kb.js` (`SLUG_RE` too, and `mainWorkTree` and `CHANGE_TYPES` for `profile.js`), and carries verbs that touch no ledger: `root <slug>`,
   which resolves a run root's absolute path against the repository's main working tree from any cwd

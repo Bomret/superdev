@@ -25,6 +25,7 @@ const {
   testContainment,
   baseHistoryHasPatch,
   appendTrace,
+  isTestPath,
   findCollisions,
 } = require(scopePath);
 
@@ -2674,9 +2675,10 @@ try {
     assert.ok(!r.ok && /is fail/.test(r.err), 'a later fail run defeats reuse: ' + (r.err || ''));
     traceRun(suiteRoot, 'full', 'pass', newSha, 'clean');
 
-    // suite reusable: a green record on an earlier commit is not reusable, even when every path changed
-    // since lies under `docs/plans/<branch>/` — no store commits its own records on the scope branch, so
-    // reuse is the exact-tip match alone (INV-0017, ADR 0110).
+    // suite reusable: a green record on an earlier commit is not reusable when no test run at the new
+    // tip backs the Markdown-only carry, even when every path changed since lies under
+    // `docs/plans/<branch>/` — no store commits its own records on the scope branch (INV-0017, ADR 0110,
+    // ADR 0128).
     const planDir = path.join('docs', 'plans', 'feat', 'suite-demo');
     fs.mkdirSync(path.join(suiteRepo, planDir), { recursive: true });
     fs.writeFileSync(path.join(suiteRepo, planDir, '01-tick.md'), 'ticked\n');
@@ -2685,7 +2687,7 @@ try {
     r = callIn(['suite', 'reusable', '--branch', 'main', ...SR], suiteRepo);
     assert.ok(
       !r.ok && /predates tip/.test(r.err),
-      'a record on an earlier commit is not reusable, whatever paths changed: ' + (r.err || '')
+      'a record on an earlier commit is not reusable without a run at the tip: ' + (r.err || '')
     );
 
     // suite reusable: `--plan-files` is not a flag, so it is refused like any unrecognized
@@ -2915,6 +2917,206 @@ try {
     assert.ok(!r.ok && /is fail/.test(r.err), 'a later whole fail defeats a plain check (latest of either kind): ' + (r.err || ''));
 
     fs.rmSync(suiteRepo, { recursive: true, force: true });
+  }
+
+  // --- isTestPath: the one test-path classifier (ADR 0128) ---------------------------------------
+  //
+  // Its globs: `*` stays in a segment, `**` crosses them, a slash anchors, a malformed entry is
+  // skipped, and a section with no usable entry falls back to the defaults.
+  {
+    const paths = (...g) => '## Test paths\n\n' + g.map((e) => '- `' + e + '`').join('\n') + '\n';
+    assert.ok(isTestPath('', 'a/b/x.test.js') && isTestPath('', 'tests/x.js') && !isTestPath(paths('tests/'), 'src/tests/x.js'));
+    assert.ok(isTestPath(paths('lib/**/*.t.js'), 'lib/q/r.t.js') && !isTestPath(paths('lib/*.t.js'), 'lib/q/r.t.js'));
+    assert.ok(!isTestPath(paths('/abs/**'), 'abs/x.js') && isTestPath(paths('/abs/**'), 'tests/x.js'), 'a malformed sole entry falls back to the defaults');
+    assert.ok(isTestPath(paths('bad entry', 'lib/*.t.js'), 'lib/r.t.js') && !isTestPath(paths('bad entry', 'lib/*.t.js'), 'tests/x.js'), 'a malformed entry is skipped');
+  }
+
+  // --- suite reusable: a green record carries across Markdown-only commits (ADR 0128, INV-0017) ----
+  {
+    const g = (args, cwd) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    const callIn = (argv, cwd) => {
+      const orig = console.log;
+      const logged = [];
+      console.log = (s) => logged.push(String(s));
+      try {
+        run(argv, cwd, '');
+        return { ok: true, out: logged.join('\n') };
+      } catch (e) {
+        if (e.isRefusal) return { ok: false, err: e.message };
+        throw e;
+      } finally {
+        console.log = orig;
+      }
+    };
+    const traceRun = (rt, kind, result, sha, tree) => appendTrace(rt, { kind: 'run', fields: [kind, result, sha, tree] });
+
+    const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-carry-')));
+    try {
+    g(['init', '-q', '-b', 'main'], repo);
+    g(['config', 'user.email', 'test@example.com'], repo);
+    g(['config', 'user.name', 'test'], repo);
+    fs.writeFileSync(path.join(repo, '.gitignore'), '.superdev/\n');
+    fs.writeFileSync(path.join(repo, 'a.js'), 'x\n');
+    g(['add', '.'], repo);
+    g(['commit', '-q', '-m', 'code'], repo);
+    const R = g(['rev-parse', 'HEAD'], repo);
+    // Each case gets its own root: a ledger with a record at `sha`, and the given trace lines.
+    let n = 0;
+    const root = (record, lines) => {
+      const rt = path.join(repo, '.superdev', 'scopes', `carry-${++n}`);
+      fs.mkdirSync(rt, { recursive: true });
+      fs.writeFileSync(
+        path.join(rt, 'ledger.md'),
+        `# Ledger — carry-${n}\n\n**Stage:** documented\n**Branch:** main\n**Suite:** ${record}\n**Anchor:** #1 — carry\n\n` +
+          '| id | issue | title | type | depends-on | status | range |\n|---|---|---|---|---|---|---|\n',
+        'utf8'
+      );
+      for (const l of lines) traceRun(rt, ...l);
+      return rt;
+    };
+    const commit = (file, text) => {
+      fs.mkdirSync(path.dirname(path.join(repo, file)), { recursive: true });
+      fs.writeFileSync(path.join(repo, file), text);
+      g(['add', '-A'], repo);
+      g(['commit', '-q', '-m', file], repo);
+      return g(['rev-parse', 'HEAD'], repo);
+    };
+    const reusable = (rt, ...flags) => callIn(['suite', 'reusable', '--branch', 'main', ...flags, '--root', rt], repo);
+
+    // The reproduction: a green full record at R, one README.md commit to T, a focused pass at T.
+    // ADR 0128's accepted ceiling: any passing focused run at T carries the record, whatever paths it
+    // covered. The trace's run line names no covered paths, so `suite reusable` cannot check the run
+    // spanned R..T; the documentation step's own range rule is what makes it do so.
+    const T = commit('README.md', 'doc\n');
+    let r = reusable(root(`green @ ${R}`, [['full', 'pass', R, 'clean'], ['focused', 'pass', T, 'clean']]));
+    assert.ok(r.ok && r.out === 'reusable', 'a green record carries across a Markdown-only commit: ' + (r.err || ''));
+
+    // The kind carries: a `whole` record at R satisfies --whole at T; a record with no kind still fails it.
+    r = reusable(root(`green @ ${R} whole`, [['whole', 'pass', R, 'clean'], ['focused', 'pass', T, 'clean']]), '--whole');
+    assert.ok(r.ok, 'a whole record carries and satisfies --whole: ' + (r.err || ''));
+    r = reusable(root(`green @ ${R}`, [['full', 'pass', R, 'clean'], ['focused', 'pass', T, 'clean']]), '--whole');
+    assert.ok(!r.ok && /kind/.test(r.err), 'a carried record with no kind still fails --whole: ' + (r.err || ''));
+
+    // R must be backed by its own full or whole pass on a clean tree, as on the exact tip.
+    r = reusable(root(`green @ ${R}`, [['focused', 'pass', R, 'clean'], ['focused', 'pass', T, 'clean']]));
+    assert.ok(!r.ok && new RegExp(`no full or whole run recorded at ${R}`).test(r.err), 'a focused run at R backs nothing: ' + (r.err || ''));
+    r = reusable(root(`green @ ${R}`, [['full', 'pass', R, 'dirty'], ['focused', 'pass', T, 'clean']]));
+    assert.ok(!r.ok && /dirty/.test(r.err), 'a dirty full run at R backs nothing: ' + (r.err || ''));
+
+    // The run at T: absent, failed, unknown, or on a dirty tree refuses.
+    const backed = [['full', 'pass', R, 'clean']];
+    for (const [lines, re, what] of [
+      [[], /no test run recorded at the tip/, 'no run at T'],
+      [[['focused', 'fail', T, 'clean']], /focused run at the tip is fail/, 'a failed run at T'],
+      [[['focused', 'unknown', T, 'clean']], /is unknown/, 'an unknown run at T'],
+      [[['focused', 'pass', T, 'dirty']], /dirty tree/, 'a dirty run at T'],
+      [[['focused', 'pass', T, 'clean'], ['focused', 'fail', T, 'clean']], /is fail/, 'a later failed run at T'],
+    ]) {
+      r = reusable(root(`green @ ${R}`, [...backed, ...lines]));
+      assert.ok(!r.ok && /predates tip/.test(r.err) && re.test(r.err), `${what} refuses: ${r.err || ''}`);
+    }
+
+    // The path guard: every path changed since R ends in `.md`, case-sensitive; a deletion and both sides
+    // of a rename count.
+    const branchAt = (name, from) => g(['checkout', '-q', '-b', name, from], repo);
+    const pathCase = (name, change, re, what) => {
+      branchAt(name, T);
+      change();
+      g(['add', '-A'], repo);
+      g(['commit', '-q', '-m', name], repo);
+      const tip = g(['rev-parse', 'HEAD'], repo);
+      const rt = root(`green @ ${R}`, [...backed, ['focused', 'pass', tip, 'clean']]);
+      const res = callIn(['suite', 'reusable', '--branch', name, '--root', rt], repo);
+      assert.ok(!res.ok && re.test(res.err), `${what} refuses: ${res.err || ''}`);
+      g(['checkout', '-q', 'main'], repo);
+    };
+    pathCase('p-add', () => fs.writeFileSync(path.join(repo, 'b.js'), 'y\n'), /b\.js changed since and is not Markdown/, 'an added non-Markdown file');
+    pathCase('p-mod', () => fs.writeFileSync(path.join(repo, 'a.js'), 'z\n'), /a\.js changed since/, 'a modified non-Markdown file');
+    pathCase('p-del', () => fs.rmSync(path.join(repo, 'a.js')), /a\.js changed since/, 'a deleted non-Markdown file');
+    pathCase('p-ren', () => fs.renameSync(path.join(repo, 'a.js'), path.join(repo, 'a.md')), /a\.js changed since/, 'a rename from a non-Markdown name');
+    for (const ext of ['MD', 'mdx', 'markdown']) {
+      pathCase(`p-${ext}`, () => fs.writeFileSync(path.join(repo, `x.${ext}`), 'y\n'), new RegExp(`x\\.${ext} changed since`), `a .${ext} file`);
+    }
+
+    // A Markdown file under a test path refuses: the defaults, and a configured `## Test paths` entry.
+    pathCase('t-default', () => {
+      fs.mkdirSync(path.join(repo, 'tests'), { recursive: true });
+      fs.writeFileSync(path.join(repo, 'tests', 'fixture.md'), 'f\n');
+    }, /tests\/fixture\.md is a test path/, 'a Markdown file under a default test path');
+
+    // The configured `## Test paths` come from commit T, never from the working tree: the base commit
+    // configures `check/`, and a working-tree copy that drops it changes nothing.
+    g(['checkout', '-q', '-b', 'cfg', R], repo);
+    const vRel = path.join('docs', 'agents', 'verification.md');
+    const cfgR = commit(vRel, '# V\n\n## Test paths\n\n- `check/`\n');
+    const cfgT = commit(path.join('check', 'case.md'), 'c\n');
+    fs.writeFileSync(path.join(repo, vRel), '# V\n');
+    r = callIn(['suite', 'reusable', '--branch', 'cfg', '--root', root(`green @ ${cfgR}`, [['full', 'pass', cfgR, 'clean'], ['focused', 'pass', cfgT, 'clean']])], repo);
+    assert.ok(!r.ok && /check\/case\.md is a test path/.test(r.err), "a configured test path at T refuses, whatever the working tree says: " + (r.err || ''));
+    g(['checkout', '-q', '--', vRel], repo);
+
+    // A change to the verification configuration itself refuses: it can rewrite the commands and test
+    // paths the carry trusts.
+    const cfgT2 = commit(vRel, '# V\n\n## Test paths\n\n- `nothing/`\n');
+    r = callIn(['suite', 'reusable', '--branch', 'cfg', '--root', root(`green @ ${cfgT}`, [['full', 'pass', cfgT, 'clean'], ['focused', 'pass', cfgT2, 'clean']])], repo);
+    assert.ok(!r.ok && /verification\.md is the verification configuration/.test(r.err), 'a verification.md change refuses: ' + (r.err || ''));
+    g(['checkout', '-q', 'main'], repo);
+
+    // A failed full or whole run at T is not hidden by a later focused pass.
+    for (const k of ['full', 'whole']) {
+      r = reusable(root(`green @ ${R}`, [...backed, [k, 'fail', T, 'clean'], ['focused', 'pass', T, 'clean']]));
+      assert.ok(!r.ok && new RegExp(`a ${k} run at the tip failed`).test(r.err), `a failed ${k} run at T refuses despite a later focused pass: ${r.err || ''}`);
+    }
+    // A failed run of a test file named directly (`path`) at T is not hidden either.
+    r = reusable(root(`green @ ${R}`, [...backed, ['path', 'fail', T, 'clean'], ['focused', 'pass', T, 'clean']]));
+    assert.ok(!r.ok && /a path run at the tip failed/.test(r.err), `a failed path run at T refuses despite a later focused pass: ${r.err || ''}`);
+
+    // A --no-ff merge of a side branch that changed only Markdown still carries.
+    branchAt('m-side', T);
+    commit('side-doc.md', 'm\n');
+    g(['checkout', '-q', '-b', 'm-into', T], repo);
+    g(['merge', '-q', '--no-ff', '-m', 'merge', 'm-side'], repo);
+    const M = g(['rev-parse', 'HEAD'], repo);
+    g(['checkout', '-q', 'main'], repo);
+    r = callIn(['suite', 'reusable', '--branch', 'm-into', '--root', root(`green @ ${R}`, [...backed, ['focused', 'pass', M, 'clean']])], repo);
+    assert.ok(r.ok && r.out === 'reusable', 'a --no-ff merge of a Markdown-only side branch carries: ' + (r.err || ''));
+
+    // A git error while deciding the carry refuses. A loose object of the tip moved aside makes the git
+    // call that needs it fail, while every earlier call still succeeds: the tip's root tree fails the
+    // diff, its `docs` tree the ls-tree, and the verification.md blob the show.
+    g(['checkout', '-q', '-b', 'gf', R], repo);
+    const gfR = commit(vRel, '# V\n');
+    const gfT = commit('gf.md', 'g\n');
+    g(['checkout', '-q', 'main'], repo);
+    for (const [spec, re, what] of [
+      [`${gfT}^{tree}`, /git could not list the paths changed since/, 'an unreadable tip tree'],
+      [`${gfT}:docs`, /git could not read the tip's verification configuration/, 'an unreadable docs tree at the tip'],
+      [`${gfT}:${vRel}`, /git could not read the tip's verification configuration/, 'an unreadable verification.md at the tip'],
+    ]) {
+      const oid = g(['rev-parse', spec], repo);
+      const obj = path.join(repo, '.git', 'objects', oid.slice(0, 2), oid.slice(2));
+      fs.renameSync(obj, `${obj}.aside`);
+      try {
+        r = callIn(['suite', 'reusable', '--branch', 'gf', '--root', root(`green @ ${gfR}`, [['full', 'pass', gfR, 'clean'], ['focused', 'pass', gfT, 'clean']])], repo);
+      } finally {
+        fs.renameSync(`${obj}.aside`, obj);
+      }
+      assert.ok(!r.ok && re.test(r.err), `${what} refuses: ${r.err || ''}`);
+    }
+
+    // R not an ancestor of T: a commit on a side branch.
+    branchAt('side', R);
+    const S = commit('side.md', 's\n');
+    g(['checkout', '-q', 'main'], repo);
+    r = reusable(root(`green @ ${S}`, [['full', 'pass', S, 'clean'], ['focused', 'pass', T, 'clean']]));
+    assert.ok(!r.ok && /not an ancestor/.test(r.err), 'a record off the tip line refuses: ' + (r.err || ''));
+    // A recorded sha git cannot resolve refuses rather than throwing.
+    const bogus = 'e'.repeat(40);
+    r = reusable(root(`green @ ${bogus}`, [['full', 'pass', bogus, 'clean'], ['focused', 'pass', T, 'clean']]));
+    assert.ok(!r.ok && /predates tip/.test(r.err), 'an unresolvable recorded sha refuses: ' + (r.err || ''));
+    } finally {
+      fs.rmSync(repo, { recursive: true, force: true });
+    }
   }
 
   // --- testContainment: the exported containment test (ADR 0053, ADR 0065) ---------------------

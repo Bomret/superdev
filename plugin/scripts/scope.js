@@ -210,6 +210,52 @@ function fenceBlocks(raw) {
   return { blocks, outside: outside.join('\n') };
 }
 
+// The default test patterns, used where `docs/agents/verification.md` has no usable `## Test paths`.
+const DEFAULT_TEST_PATHS = ['**/tests/', '**/test/', '**/__tests__/', '**/spec/', '**/*.Tests/', '**/*.Test/', '*.test.*', '*.spec.*', '*_test.*', 'test_*.py'];
+
+// One glob entry -> a RegExp over a repo-relative path, or null for a malformed entry. `*` stays in a
+// path segment, `**` crosses them, a trailing `/` names a directory. An entry holding a `/` is anchored
+// at the repository root; one without matches a file name at any depth.
+function globToRe(glob) {
+  if (!glob || /\s/.test(glob) || glob.startsWith('/') || glob.split('/').includes('..')) return null;
+  const dir = glob.endsWith('/');
+  const body = dir ? glob.slice(0, -1) : glob;
+  if (!body) return null;
+  let re = '';
+  for (let i = 0; i < body.length; i++) {
+    const c = body[i];
+    if (c === '*' && body[i + 1] === '*') {
+      if (body[i + 2] === '/') { re += '(?:.*/)?'; i += 2; } else { re += '.*'; i += 1; }
+    } else if (c === '*') re += '[^/]*';
+    else if (c === '?') re += '[^/]';
+    else re += c.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+  }
+  const anchored = body.includes('/') || dir ? '^' : '^(?:.*/)?';
+  return new RegExp(anchored + re + (dir ? '/' : '$'));
+}
+
+// The `## Test paths` entries of a `docs/agents/verification.md` text: list items, each one pattern
+// optionally in a backtick span. Null where the section is absent or holds no usable entry.
+function configuredTestPaths(text) {
+  const lines = text.split(/\r?\n/);
+  const at = lines.findIndex((l) => /^##\s+Test paths\s*$/.test(l));
+  if (at < 0) return null;
+  const res = [];
+  for (let i = at + 1; i < lines.length && !/^#{1,6}\s/.test(lines[i]); i++) {
+    const m = /^\s*[-*]\s+(?:`([^`]*)`|(\S+))\s*$/.exec(lines[i]);
+    const re = m && globToRe(m[1] !== undefined ? m[1] : m[2]);
+    if (re) res.push(re);
+  }
+  return res.length ? res : null;
+}
+
+// Whether repo-relative `rel` is a test path under the `verification.md` text given ('' for no file).
+// The one classifier: hooks/run-trace.js reads its tree's file, `suite reusable` reads a commit's (ADR 0128).
+function isTestPath(text, rel) {
+  const res = configuredTestPaths(text) || DEFAULT_TEST_PATHS.map(globToRe);
+  return res.some((re) => re.test(rel));
+}
+
 // The test commands a tree's `docs/agents/verification.md` configures, read the way
 // `references/test-selection.md` and `hooks/green-gate.js` read it: the first fenced block (`fenceBlocks`) is the full
 // command, the second the focused one, and the first backtick span under `## Whole-repo command` the
@@ -995,12 +1041,12 @@ function verbSuite(cwd, root, sub, result, sha, whole) {
   writeLines(root, lines);
 }
 
-// INV-0017's reuse rule: a green suite record is reusable only on the exact commit it was recorded on,
-// and only where the run trace backs it (the latest matching `run` line there reads `pass` and `clean`).
-// No slice store commits its own records on the scope branch (ADR 0110), so any commit since the record
-// can change what a suite run exercises. Reads via `fail()` (a thrown refusal, exit 1) for "not
-// reusable" — the same channel every other verb already uses to report a no — and prints `reusable`
-// (exit 0) when it is.
+// INV-0017's reuse rule: a green suite record is reusable on the exact commit it was recorded on, and
+// only where the run trace backs it (the latest matching `run` line there reads `pass` and `clean`).
+// No slice store commits its own records on the scope branch (ADR 0110), so a commit since the record
+// can change what a suite run exercises. The one exception is a Markdown-only range (ADR 0128): see
+// `carryRefusal`. Reads via `fail()` (a thrown refusal, exit 1) for "not reusable" — the same channel
+// every other verb already uses to report a no — and prints `reusable` (exit 0) when it is.
 // `whole` is INV-0017's kind gate (ADR 0105): a step that needs a whole-repo run passes it, and refuses
 // a record with no kind even when it is green and tip-matched; a step content with either kind omits it.
 function verbSuiteReusable(cwd, root, branch, whole) {
@@ -1013,9 +1059,8 @@ function verbSuiteReusable(cwd, root, branch, whole) {
   if (whole && kind !== 'whole') fail('suite record carries no kind — a whole-repo run needs one');
   const tip = resolveCommit(branch, cwd);
   if (!tip) fail(`branch "${branch}" does not resolve to a commit`);
-  if (tip !== recordedSha) fail(`suite record @ ${recordedSha} predates tip ${tip} — not reusable`);
   // The run trace backs the record (ADR 0117, INV-0017): the latest `run` line of the matching kind at
-  // the tip, compared against the full sha `resolveCommit` returns, must read `pass` and `clean`.
+  // the recorded commit, compared against the full sha, must read `pass` and `clean`.
   // For a plain check, either `full` or `whole` kind is accepted; for --whole, only `whole`.
   // simplicity: exact full-sha match, so an abbreviated sha in a trace line never backs reuse; upgrade: prefix match if a writer abbreviates
   const acceptedKinds = whole ? ['whole'] : ['full', 'whole'];
@@ -1025,12 +1070,50 @@ function verbSuiteReusable(cwd, root, branch, whole) {
   } catch (e) {
     if (e.code !== 'ENOENT') throw e;
   }
-  const runs = readTrace(traceRaw).filter((e) => e.kind === 'run' && acceptedKinds.includes(e.fields[0]) && e.fields[2] === tip);
+  const events = readTrace(traceRaw).filter((e) => e.kind === 'run');
+  const runs = events.filter((e) => acceptedKinds.includes(e.fields[0]) && e.fields[2] === recordedSha);
   const kindList = acceptedKinds.join(' or ');
-  if (!runs.length) fail(`no ${kindList} run recorded at ${tip} in the run trace — not reusable`);
+  if (!runs.length) fail(`no ${kindList} run recorded at ${recordedSha} in the run trace — not reusable`);
   const [, result2, , tree] = runs[runs.length - 1].fields;
-  if (result2 !== 'pass' || tree !== 'clean') fail(`latest ${kindList} run at ${tip} is ${result2} on a ${tree} tree — not reusable`);
+  if (result2 !== 'pass' || tree !== 'clean') fail(`latest ${kindList} run at ${recordedSha} is ${result2} on a ${tree} tree — not reusable`);
+  if (tip !== recordedSha) {
+    const why = carryRefusal(cwd, recordedSha, tip, events);
+    if (why) fail(`suite record @ ${recordedSha} predates tip ${tip}: ${why} — not reusable`);
+  }
   console.log('reusable');
+}
+
+// ADR 0128: a green record at `from` also covers `to` when `from` is an ancestor of `to`, every path
+// changed between them is Markdown, the latest test-command run at `to` passed on a clean tree, and no
+// full, whole, or path run at `to` failed. Returns the reason the carry fails, or null when it holds.
+function carryRefusal(cwd, from, to, events) {
+  if (gitSpawn(['merge-base', '--is-ancestor', from, to], cwd).status !== 0) return 'it is not an ancestor of the tip';
+  const diff = gitSpawn(['diff', '--name-only', '--no-renames', '-z', from, to], cwd);
+  if (diff.status !== 0) return 'git could not list the paths changed since';
+  const paths = diff.stdout.split('\0').filter(Boolean);
+  const other = paths.find((p) => !p.endsWith('.md'));
+  if (other) return `${other} changed since and is not Markdown`;
+  const VERIFICATION = 'docs/agents/verification.md';
+  if (paths.includes(VERIFICATION)) return `${VERIFICATION} is the verification configuration`;
+  // The test paths come from the tip commit, never a working tree; no file there means the defaults.
+  const listed = gitSpawn(['ls-tree', '--name-only', to, '--', VERIFICATION], cwd);
+  if (listed.status !== 0) return 'git could not read the tip\'s verification configuration';
+  let config = '';
+  if (listed.stdout.trim()) {
+    const shown = gitSpawn(['show', `${to}:${VERIFICATION}`], cwd);
+    if (shown.status !== 0) return 'git could not read the tip\'s verification configuration';
+    config = shown.stdout;
+  }
+  const test = paths.find((p) => isTestPath(config, p));
+  if (test) return `${test} is a test path`;
+  const at = events.filter((e) => ['focused', 'full', 'whole'].includes(e.fields[0]) && e.fields[2] === to);
+  if (!at.length) return 'no test run recorded at the tip';
+  // A failed full, whole, or path run (a test file named directly) at the tip is never hidden by a later pass.
+  const red = events.find((e) => ['full', 'whole', 'path'].includes(e.fields[0]) && e.fields[2] === to && e.fields[1] === 'fail');
+  if (red) return `a ${red.fields[0]} run at the tip failed`;
+  const [kind, result, , tree] = at[at.length - 1].fields;
+  if (result !== 'pass' || tree !== 'clean') return `the latest ${kind} run at the tip is ${result} on a ${tree} tree`;
+  return null;
 }
 
 // `**Base:**` records the remote base tip the base step merged into the scope branch
@@ -2288,6 +2371,6 @@ function main() {
 // Had the caller's argv happened to start with `init`, the same path waits on stdin instead and hangs.
 // Either way the require, not the CLI, is what fails.
 // The exports come first: `verbTest` lazily requires hooks/run-trace.js, which requires this file back for them (ADR 0127).
-module.exports = { appendTrace, untraceField, readTrace, sliceType, readLedgerHeader, inProgressSlices, verificationCommands, run, publishText, SLUG_RE, testContainment, baseHistoryHasPatch, mainWorkTree, CHANGE_TYPES, refResolves, findCollisions };
+module.exports = { appendTrace, untraceField, readTrace, sliceType, readLedgerHeader, inProgressSlices, verificationCommands, isTestPath, run, publishText, SLUG_RE, testContainment, baseHistoryHasPatch, mainWorkTree, CHANGE_TYPES, refResolves, findCollisions };
 
 if (require.main === module) main();
