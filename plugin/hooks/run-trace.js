@@ -37,17 +37,19 @@ try {
 // tests/run-trace.test.js and drift-check's arg-token contract).
 const ARG = /(?:[^\s"'\\$`]|\$(?![({])|\\.|"(?:[^"\\]|\\.)*"|'[^']*'|\$\((?:[^()\\]|\\.|\((?:[^()\\]|\\.)*\))*\)|\$\{(?:[^{}\\"'`]|\\.|"(?:[^"\\]|\\.)*"|'[^']*'|`(?:[^`\\]|\\.)*`)*\}|`(?:[^`\\]|\\.)*`)+/.source;
 const ARG_WORDS = new RegExp(ARG, 'g');
-const REDIR = /(>{1,2})\s*/g;
+const REDIR = /(>{1,2}\|?)(?!\()\s*/g; // not `>(`, a process substitution
 const ARG_AT = new RegExp(ARG, 'y');
 
 // The default test patterns, used where `docs/agents/verification.md` has no usable `## Test paths`.
-const DEFAULT_TEST_PATHS = ['tests/', 'test/', '**/__tests__/', 'spec/', '*.test.*', '*.spec.*', '*_test.*', 'test_*.py'];
+const DEFAULT_TEST_PATHS = ['**/tests/', '**/test/', '**/__tests__/', '**/spec/', '**/*.Tests/', '**/*.Test/', '*.test.*', '*.spec.*', '*_test.*', 'test_*.py'];
 
 // A heredoc body is data, not a command: drop every body so prose in it never reads as a write. A
-// byte-identical copy of ledger-guard's (hooks stay standalone; tests/run-trace.test.js pins the copy).
+// run-trace carries its own quote-aware variant and ledger-guard keeps its own (hooks stay standalone). An error
+// here only misreads a trace edit; ledger-guard's is the guard.
 function stripHeredocs(cmd) {
   const out = [];
   const queue = []; // Queue of [delimiter, indented] pairs for pending heredocs
+  let carry = ''; // The earlier lines of a quoted span still open, so a quote masks across newlines
   for (const line of cmd.split('\n')) {
     // If we're inside a heredoc body, check if this line closes the first pending heredoc
     if (queue.length > 0) {
@@ -64,14 +66,18 @@ function stripHeredocs(cmd) {
     // Mask quoted text, `$(( ))` arithmetic, and comments so a `<<` inside them is no opener; `<<<` is
     // a here-string. Comments are `#` not preceded by `$` (which would be `$#`, the arg count parameter)
     // through to end of line. Match either (non-$ character before #) or (# at line start).
-    const masked = line.replace(/"(?:[^"\\]|\\.)*"|'[^']*'|\$\(\([^)]*\)\)|(?:(?<!\$)#|^#).*$/g, (m) => '_'.repeat(m.length));
+    // A line that leaves a quote open joins the next lines to it: its `<<` text is data until the quote closes.
+    const joined = carry ? carry + '\n' + line : line;
+    const masked = joined.replace(/\\.|"(?:[^"\\]|\\.)*"|\$\$|\$'(?:[^'\\]|\\.)*'|'[^']*'|\$\(\([^)]*\)\)|(?:(?<!\$)#|^#)[^\n]*/g, (m) => '_'.repeat(m.length));
+    if (/["']/.test(masked)) { carry = joined; continue; }
+    carry = '';
     // Find all heredoc openers on this line
     const heredocRe = /(?<!<)<<(?!<)/g;
     let match;
     // eslint-disable-next-line no-cond-assign
     while ((match = heredocRe.exec(masked)) !== null) {
       const at = match.index;
-      const h = /^<<(-?)\s*(?:'([^']+)'|"([^"]+)"|\\?(\w+))/.exec(line.slice(at));
+      const h = /^<<(-?)\s*(?:'([^']+)'|"([^"]+)"|\\?(\w+))/.exec(joined.slice(at));
       if (h) {
         queue.push([h[2] || h[3] || h[4], h[1] === '-']);
       }
@@ -86,6 +92,19 @@ function unquote(word) {
   return word.replace(/'([^']*)'|"((?:[^"\\]|\\.)*)"|\\(.)/g, (_, a, b, c) => (a !== undefined ? a : b !== undefined ? b.replace(/\\(.)/g, '$1') : c));
 }
 
+// Splits a shell word at its first redirect operator, found with quoted spans and escapes masked (a quoted or escaped `>` is
+// data): { head, bare }. `head` is the operand before the operator, empty when the operator opens the word or only an fd
+// number or `&` precedes it. `bare` is set when the operator ends the word, so the next word is its target or delimiter.
+// Null where the word holds no redirect. bashTargets and segWords share it, so the two read redirects alike.
+function splitRedirect(w) {
+  const masked = w.replace(/"(?:[^"\\]|\\.)*"|'[^']*'|\\./g, (q) => '_'.repeat(q.length));
+  const at = masked.search(/[<>]/);
+  if (at < 0) return null;
+  const op = /^[<>]+[&|]?-?/.exec(masked.slice(at))[0];
+  const head = w.slice(0, at);
+  return { head: /^(?:\d+|&)$/.test(head) ? '' : head, bare: at + op.length === w.length };
+}
+
 // The files a Bash command writes, as absolute paths resolved against the `cd`/`git -C` target, else cwd.
 function bashTargets(command, cwd) {
   const targets = [];
@@ -94,8 +113,17 @@ function bashTargets(command, cwd) {
     if (w && !w.startsWith('&') && !w.startsWith('/dev/') && !w.startsWith('~')) targets.push(path.resolve(base, w));
   };
   let base = cwd;
-  for (const seg of stripHeredocs(command).split(/&&|\|\||[;|\n]/)) {
-    const ws = seg.match(ARG_WORDS) || [];
+  for (const { text: seg } of segments(command)) {
+    // Redirect words (`2>/dev/null`, `>out`, a bare `>` with its target) are not operands.
+    const ws = [];
+    let skipNext = false;
+    for (const w of seg.match(ARG_WORDS) || []) {
+      if (skipNext) { skipNext = false; continue; }
+      const r = splitRedirect(w);
+      if (!r) { ws.push(w); continue; }
+      if (r.head) ws.push(r.head);
+      skipNext = r.bare;
+    }
     let segBase = base;
     // `git -C <dir>` re-bases its own segment; `cd <dir>` re-bases the segments after it.
     const gi = ws.indexOf('-C');
@@ -109,7 +137,7 @@ function bashTargets(command, cwd) {
       continue;
     }
     // Redirects are found with quoted spans masked, so a quoted `>` is data; the target is read unmasked.
-    const masked = seg.replace(/"(?:[^"\\]|\\.)*"|'[^']*'/g, (q) => '_'.repeat(q.length));
+    const masked = seg.replace(/"(?:[^"\\]|\\.)*"|'[^']*'|\\./g, (q) => '_'.repeat(q.length));
     let m;
     REDIR.lastIndex = 0;
     while ((m = REDIR.exec(masked))) {
@@ -250,7 +278,9 @@ const NOT_RUNNERS = new Set(['grep', 'egrep', 'fgrep', 'rg', 'cat', 'sed', 'head
 // The wrappers a test run sits behind (`timeout` and `env` have their own option parsing below). ledger-guard.js keeps its own,
 // wider list: every name here is also known there (tests/ledger-guard.test.js), which adds `xargs`, `doas`, `stdbuf`, and `builtin`.
 // `rtk` is RTK's output filter: its PreToolUse hook rewrites `bun run test` to `rtk bun run test`, PostToolUse sees the rewritten
-// command, and `rtk` passes the exit status through (docs/known-issues.md).
+// command, and `rtk` passes the exit status through (docs/known-issues.md). segWords also skips rtk's `proxy` subcommand; its other
+// subcommands that run a command (`err`, `run`, `summary`, `test`) read as the command, so they record no configured-command run
+// (a named test file still records a `path` run; triage #941).
 const WRAPPERS = /^(?:sudo|command|env|time|exec|nohup|nice|rtk)$/;
 // A wrapper's leading option words are skipped, with the value of the options that take one. `command` has none: its options
 // (`-v`, `-V`) look a command up, and no run follows. ledger-guard.js keeps its own copy of these sets and of `optionEnd` (as
@@ -282,13 +312,13 @@ function gitOut(tree, args) {
 }
 
 // A command as segments joined by `&&`, `||`, `;`, `|`, `|&`, a lone `&`, or a newline: [{ text, sep }], where `sep` is the
-// separator that follows the segment. Quoted spans are masked, so a quoted separator stays data.
+// separator that follows the segment. Quoted spans are masked, so a quoted separator stays data; the `|` of a `>|` redirect is no pipe.
 function segments(command) {
   const cmd = stripHeredocs(command);
   const masked = cmd.replace(/"(?:[^"\\]|\\.)*"|'[^']*'/g, (q) => '_'.repeat(q.length));
   const out = [];
   let at = 0;
-  for (const m of masked.matchAll(/&&|\|\||\|&|[;|\n]|(?<![<>&|])&(?![&>])/g)) {
+  for (const m of masked.matchAll(/&&|\|\||\|&|[;\n]|(?<!>)\||(?<![<>&|])&(?![&>])/g)) {
     out.push({ text: cmd.slice(at, m.index), sep: m[0] === '|&' ? '|' : m[0] });
     at = m.index + m[0].length;
   }
@@ -310,10 +340,10 @@ function segWords(text) {
   let skip = false;
   for (const w of text.match(ARG_WORDS) || []) {
     if (skip) { skip = false; continue; }
-    const m = /\d*[<>]+&?/.exec(w.replace(/"(?:[^"\\]|\\.)*"|'[^']*'/g, (q) => '_'.repeat(q.length)));
-    if (!m) { ws.push(w); continue; }
-    if (m.index) ws.push(w.slice(0, m.index));
-    skip = m[0].length === w.length - m.index;
+    const r = splitRedirect(w);
+    if (!r) { ws.push(w); continue; }
+    if (r.head) ws.push(r.head);
+    skip = r.bare;
   }
   if (ws.length) ws[0] = ws[0].replace(/^\(+/, '');
   if (ws.length) ws[ws.length - 1] = ws[ws.length - 1].replace(/(?<!\\)((?:\\\\)*)\)+$/, '$1');
@@ -329,6 +359,12 @@ function segWords(text) {
         else if (ws[i] === '--') break;
       }
       continue;
+    }
+    // Ahead of the WRAPPER_VALUE_OPTS check, whose `continue` would skip it: the map's `rtk` entry then skips only the options
+    // after `proxy`, and stays for ledger-guard's parity pin.
+    if (w === 'rtk') {
+      while (/^-/.test(ws[i + 1] || '')) i++;
+      if (ws[i + 1] === 'proxy') i++;
     }
     if (WRAPPER_VALUE_OPTS.has(w)) {
       while (/^-/.test(ws[i + 1] || '')) {
@@ -379,7 +415,7 @@ function verificationKind(text, v) {
   let best = null;
   for (const kind of ['full', 'focused', 'whole']) {
     const c = v[kind];
-    if (!c) continue;
+    if (!c || segments(c).length > 1) continue;
     const tpl = segWords(c);
     if (!beginsWith(words, [tpl.cmd, ...tpl.args])) continue;
     if (!best || c.length > v[best].length) best = kind;
@@ -388,29 +424,84 @@ function verificationKind(text, v) {
   return best;
 }
 
+// The compound configured command (one holding `&&`, `||`, `;`, or `|`) that the segments from `i` on run, joiner for joiner:
+// { kind, n } over `n` segments, or null. The longest match wins, ties to full over focused over whole; a full or whole run
+// with a segment past its template's words is narrowed, so `focused` (INV-0129).
+function compoundKind(segs, i, v) {
+  let best = null;
+  for (const kind of ['full', 'focused', 'whole']) {
+    const tpls = v[kind] ? segments(v[kind]) : [];
+    const n = tpls.length;
+    if (n < 2 || i + n > segs.length || (best && best.n >= n)) continue;
+    let narrowed = false;
+    const hit = tpls.every((t, j) => {
+      const { cmd: tc, args: ta } = segWords(t.text);
+      const { cmd, args } = segWords(segs[i + j].text);
+      if (j < n - 1 && segs[i + j].sep !== t.sep) return false;
+      if (!beginsWith([cmd, ...args], [tc, ...ta])) return false;
+      narrowed = narrowed || args.length > ta.length;
+      return true;
+    });
+    if (hit) best = { kind: kind !== 'focused' && narrowed ? 'focused' : kind, n };
+  }
+  return best;
+}
+
 const PASS_THROUGH = new Set(['tail', 'cat']);
+
+// The tree a directory in no run tree classifies against: `outside` where the directory lies in it, else the directory's
+// repository top, else the directory itself.
+function outsideTree(dir, outside) {
+  const rel = path.relative(outside, dir);
+  if (!rel.startsWith('..') && !path.isAbsolute(rel)) return outside;
+  const top = gitOut(dir, ['rev-parse', '--show-toplevel']);
+  return top ? top.trim() : dir;
+}
 
 // The test runs of a Bash command: [{ at, kind, files, unknown, sole }]. `at` is the run's tree (from the
 // effective directory at the segment: the last `cd` target, else `cwd`). `unknown` marks an exit status that
 // does not reflect the test: a leading `!`, a pipe after it without `set -o pipefail`, a command after its pipeline, `||` after it, or a `;`/newline-separated
 // command after it. `sole` marks a test whose failure is the command's failure: only `cd`/`set` before it,
 // nothing after it but a pipe's tail that ends the command, no `||` before or after it, no background `&`.
-function testRuns(command, cwd) {
+// `outside` names the tree to classify against where a segment's directory is in no run tree (`scope.js test --` refuses a
+// non-test command there too): `outside` itself while the directory lies in it, and the `cd` target's repository top (else the
+// target itself, resolved once per target) after a `cd` out of it.
+// The runs it returns then carry that tree as `at`, with no run root, so a caller records nothing for them.
+function testRuns(command, cwd, outside) {
   const segs = segments(command);
   const runs = [];
   let base = cwd;
   let pipefail = false;
-  segs.forEach((seg, i) => {
-    const { cmd, args, negated } = segWords(seg.text);
+  let spanEnd = -1;
+  const outTrees = new Map();
+  segs.forEach((first, i) => {
+    if (i <= spanEnd) return;
+    const { cmd, args, negated } = segWords(first.text);
     // The last `set -o pipefail` / `set +o pipefail` before the test wins; an option group (`-euo`) counts.
-    if (/\bset\s/.test(seg.text)) for (const m of seg.text.matchAll(/([-+])[A-Za-z]*o\s+pipefail\b/g)) pipefail = m[1] === '-';
-    if (cmd === 'cd' && args[0] && plain(args[0])) { base = path.resolve(base, plain(args[0])); return; }
-    if (NOT_RUNNERS.has(path.basename(cmd))) return;
-    const at = locate(path.join(base, 'x'));
+    if (/\bset\s/.test(first.text)) for (const m of first.text.matchAll(/([-+])[A-Za-z]*o\s+pipefail\b/g)) pipefail = m[1] === '-';
+    let at = locate(path.join(base, 'x'));
+    if (!at && outside) {
+      if (!outTrees.has(base)) outTrees.set(base, outsideTree(base, outside));
+      at = { tree: outTrees.get(base) };
+    }
+    // A configured compound command is tried first: it may itself start with `cd` or a NOT_RUNNERS name.
+    const v = at ? verificationCommands(at.tree) : {};
+    const compound = at ? compoundKind(segs, i, v) : null;
+    if (!compound) {
+      if (cmd === 'cd' && args[0] && plain(args[0])) { base = path.resolve(base, plain(args[0])); return; }
+      if (NOT_RUNNERS.has(path.basename(cmd))) return;
+    }
     if (!at) return;
     const tree = at.tree;
-    const v = verificationCommands(tree);
-    let kind = verificationKind(seg.text, v);
+    const last = compound ? i + compound.n - 1 : i;
+    const seg = segs[last];
+    spanEnd = last;
+    // A `cd` inside a matched span still moves the base for what follows it.
+    for (const s of segs.slice(i, last)) {
+      const w = segWords(s.text);
+      if (w.cmd === 'cd' && w.args[0] && plain(w.args[0])) base = path.resolve(base, plain(w.args[0]));
+    }
+    let kind = compound ? compound.kind : verificationKind(seg.text, v);
     const files = [];
     if (!kind) {
       for (const w of [cmd, ...args]) {
@@ -424,13 +515,25 @@ function testRuns(command, cwd) {
       if (files.length) kind = 'path';
     }
     if (!kind) return;
-    const more = segs.slice(i + 1).some((s) => s.text.trim());
+    const more = segs.slice(last + 1).some((s) => s.text.trim());
     // A pipe's status is the pipeline's last segment, so a test piped into a tail stands only when the pipeline ends the command.
     // Under pipefail a later stage keeps the test's status only as a pass-through (`tail`, `cat`; `head` can SIGPIPE).
-    const stages = segs.slice(i + 1).filter((s) => s.text.trim());
+    const stages = segs.slice(last + 1).filter((s) => s.text.trim());
     const pipeEnds = seg.sep !== '|' || stages.every((s, j) => PASS_THROUGH.has(path.basename(segWords(s.text).cmd))
       && (j < stages.length - 1 ? s.sep === '|' : /^(?:|;|\n)$/.test(s.sep)));
-    const unknown = negated || (seg.sep === '|' && !pipefail) || !pipeEnds || seg.sep === '||' || ((seg.sep === ';' || seg.sep === '\n') && more);
+    // Inside a compound configured command every joiner reads as it does in a direct run: a `;`, newline, or `||` hides the
+    // status, a pipe keeps it only under pipefail into a pass-through stage, and a `!` on a later segment negates it.
+    const inner = compound ? segs.slice(i, last + 1) : [];
+    // Only a joiner at or after the segment carrying the run hides it; `cd`/`set` segments before it only set the scene, and
+    // a `set -o pipefail` in any of them counts.
+    const carrier = Math.max(0, inner.findIndex((s) => !/^(?:cd|set)$/.test(segWords(s.text).cmd)));
+    for (const s of inner.slice(1, carrier)) {
+      if (/\bset\s/.test(s.text)) for (const m of s.text.matchAll(/([-+])[A-Za-z]*o\s+pipefail\b/g)) pipefail = m[1] === '-';
+    }
+    const innerHides = inner.some((s, j) => j >= carrier && j < inner.length - 1 && (/^(?:;|\n|\|\|)$/.test(s.sep)
+      || (s.sep === '|' && !(pipefail && PASS_THROUGH.has(path.basename(segWords(inner[j + 1].text).cmd))))))
+      || inner.slice(1).some((s) => segWords(s.text).negated);
+    const unknown = negated || innerHides || (seg.sep === '|' && !pipefail) || !pipeEnds || seg.sep === '||' || ((seg.sep === ';' || seg.sep === '\n') && more);
     const sole = segs.slice(0, i).every((s) => /^(?:cd|set)$/.test(segWords(s.text).cmd) && /^(?:&&|;|\n)$/.test(s.sep))
       && seg.sep !== '&' && (!more || (seg.sep === '|' && pipeEnds));
     runs.push({ at, kind, files, unknown, sole });
@@ -526,8 +629,45 @@ function missingRedNote({ runRoot, tree, slice }, agent) {
   return `Missing RED: ${file} was edited, and no failing test run has followed it. Run the test and watch it fail before the implementation goes on.`;
 }
 
+// The `scope.js test` calls in a Bash command, wrapped or piped: [{ i, at }], `i` the call's segment and `at` the tree it records
+// in, or null outside every run. `scope.js test` records its own run (ADR 0127), so the hook records none for that segment and
+// lets only the Missing RED note follow; every other segment of the command is recorded as usual.
+const NODE_VALUE_OPTS = /^(?:-r|--require|--import|--loader)$/;
+function scopeTestCalls(command, cwd) {
+  const calls = [];
+  let base = cwd;
+  segments(command).forEach((seg, i) => {
+    const { cmd, args } = segWords(seg.text);
+    if (cmd === 'cd' && args[0] && plain(args[0])) { base = path.resolve(base, plain(args[0])); return; }
+    // The script word may be quoted and may lead with a variable (`"${CLAUDE_PLUGIN_ROOT}/scripts/scope.js"`): only its basename matters.
+    if (path.basename(cmd) !== 'node') return;
+    // The script is node's first word that is no option or option value; `-e`/`-p` run inline code and name no script.
+    let j = 0;
+    for (; j < args.length; j++) {
+      if (/^(?:-e|-p|--eval|--print)$/.test(args[j])) return;
+      if (NODE_VALUE_OPTS.test(args[j])) j++;
+      else if (!args[j].startsWith('-')) break;
+    }
+    if (j >= args.length || !/(?:^|\/)scope\.js$/.test(args[j].replace(/^(['"])(.*)\1$/, '$2')) || args[j + 1] !== 'test') return;
+    // `test -- <command>` records in the tree of the run `testRuns` classifies, as the verb does (a `cd` in the command moves it).
+    const free = args[j + 2] === '--' ? args.slice(j + 3) : [];
+    const run = free.length ? testRuns(free.length === 1 ? plain(free[0]) || free[0] : free.join(' '), base)[0] : null;
+    calls.push({ i, at: (run && run.at) || locate(path.join(base, 'x')) || null });
+  });
+  return calls;
+}
+
 // A `run_in_background` call returns before the test has run, so its success names no outcome.
 function recordBash(command, cwd, agent, failed, triggers, background) {
+  if (/\bscope\.js["']?\s+test\b/.test(command)) {
+    const calls = scopeTestCalls(command, cwd).filter((c) => c.at);
+    if (calls.length) {
+      if (!failed && !background) for (const c of calls) triggers.push(c.at);
+      // The calls leave the command (`:` stands in), so the segments around them record as a direct run does.
+      const skip = new Set(calls.map((c) => c.i));
+      command = segments(command).map((s, i) => (skip.has(i) ? ':' : s.text) + s.sep).join('');
+    }
+  }
   for (const r of testRuns(command, cwd)) {
     const [sha, clean] = treeState(r.at.tree);
     // The exit status names the test only where the test is the command's sole command; any other shape reads unknown.
@@ -541,11 +681,13 @@ function recordBash(command, cwd, agent, failed, triggers, background) {
   }
 }
 
-// ---- subagent dispatches (ADR 0117) ----
-// SubagentStart: the one run root named in the prompt (counted only with a readable ledger) and the one slice id
-// named under it (`slicetrees/<id>` or `reports/<id>/`), else `scope`. No run root or two records nothing.
+// ---- subagent dispatches (ADR 0117, ADR 0127) ----
+// PreToolUse on Agent: the one run root named in the prompt (counted only with a readable ledger) and the one slice id
+// named under it (`slicetrees/<id>` or `reports/<id>/`), else `scope`. No run root or two records nothing. The dispatch
+// is keyed by the call's `tool_use_id`: the platform sends SubagentStart no prompt, and a dispatch has no agent id yet.
 function recordDispatch(input) {
-  const prompt = typeof input.prompt === 'string' ? input.prompt.replace(/\\/g, '/') : '';
+  const ti = input.tool_input || {};
+  const prompt = typeof ti.prompt === 'string' ? ti.prompt.replace(/\\/g, '/') : '';
   const roots = new Set();
   const ids = new Set();
   const slug = SLUG_RE.source.replace(/^\^|\$$/g, ''); // one slug definition: scope.js's
@@ -556,11 +698,12 @@ function recordDispatch(input) {
     if (m[2] || m[3]) ids.add(m[2] || m[3]);
   }
   if (roots.size !== 1) return;
-  appendTrace([...roots][0], { slice: ids.size === 1 ? [...ids][0] : 'scope', agent: 'main', kind: 'dispatch', fields: [input.agent_type, input.agent_id, input.description] });
+  appendTrace([...roots][0], { slice: ids.size === 1 ? [...ids][0] : 'scope', agent: 'main', kind: 'dispatch', fields: [ti.subagent_type, input.tool_use_id, ti.description] });
 }
 
-// SubagentStop: the run whose trace holds the matching `dispatch` line, found among the scopes dir's runs.
-function recordDispatchEnd(input, cwd) {
+// The run whose trace holds a `dispatch` line, found among the scopes dir's runs: by its `tool_use_id`, or (`viaAgent`) by the
+// `dispatch-bind` line that tied an `agentId` to one. Returns { runRoot, d } or undefined.
+function findDispatch(cwd, key, viaAgent) {
   const m = /^(.*?\/\.superdev)\/scopes\//.exec(cwd.replace(/\\/g, '/'));
   // The main working tree holds the scopes dir, whatever checkout or subdirectory the controller stands in.
   const main = m ? null : mainWorkTree(cwd, { timeout: GIT_BOUND_MS }) || cwd;
@@ -572,20 +715,46 @@ function recordDispatchEnd(input, cwd) {
       fs.readFileSync(path.join(runRoot, 'ledger.md'));
       events = readTrace(fs.readFileSync(path.join(runRoot, 'trace.log'), 'utf8'));
     } catch { continue; }
-    const f = events.find((e) => e.kind === 'dispatch' && e.fields[1] !== undefined && untraceField(e.fields[1]) === input.agent_id);
-    if (f) return appendTrace(runRoot, { slice: untraceField(f.slice), agent: 'main', kind: 'dispatch-end', fields: [input.agent_type, input.agent_id] });
+    let id = key;
+    if (viaAgent) {
+      const bind = events.find((e) => e.kind === 'dispatch-bind' && e.fields[2] !== undefined && untraceField(e.fields[2]) === key);
+      id = bind && untraceField(bind.fields[1]);
+    }
+    const d = id && events.find((e) => e.kind === 'dispatch' && e.fields[1] !== undefined && untraceField(e.fields[1]) === id);
+    if (d) return { runRoot, d, events };
   }
+}
+
+// PostToolUse on Agent: `completed` ends the dispatch; `async_launched` binds its `agentId` for the SubagentStop that ends it.
+// A denied, failed (PostToolUseFailure), or interrupted dispatch never reaches here, so it gets no end.
+function recordAgentResult(input, cwd) {
+  const r = input.tool_response;
+  if (!r || typeof r !== 'object' || typeof input.tool_use_id !== 'string') return;
+  const f = r.status === 'completed' || r.status === 'async_launched' ? findDispatch(cwd, input.tool_use_id) : null;
+  if (!f) return;
+  const fields = [untraceField(f.d.fields[0]), input.tool_use_id];
+  if (r.status === 'completed') appendTrace(f.runRoot, { slice: untraceField(f.d.slice), agent: 'main', kind: 'dispatch-end', fields });
+  else if (typeof r.agentId === 'string' && r.agentId) appendTrace(f.runRoot, { slice: untraceField(f.d.slice), agent: 'main', kind: 'dispatch-bind', fields: [...fields, r.agentId] });
+}
+
+// SubagentStop: ends the dispatch whose `agentId` was bound, once: a stop another hook blocks fires again.
+function recordSubagentStop(input, cwd) {
+  const f = findDispatch(cwd, input.agent_id, true);
+  if (!f || f.events.some((e) => e.kind === 'dispatch-end' && e.fields[1] !== undefined && untraceField(e.fields[1]) === untraceField(f.d.fields[1]))) return;
+  appendTrace(f.runRoot, { slice: untraceField(f.d.slice), agent: 'main', kind: 'dispatch-end', fields: [untraceField(f.d.fields[0]), untraceField(f.d.fields[1])] });
 }
 
 function record(input) {
   if (!appendTrace || !untraceField || !inProgressSlices || !readTrace || !sliceType || !verificationCommands || !SLUG_RE || !mainWorkTree || !input || typeof input !== 'object') return null;
   const ti = input.tool_input || {};
   const cwd = typeof input.cwd === 'string' && input.cwd ? input.cwd : process.cwd();
-  if (input.hook_event_name === 'SubagentStart' || input.hook_event_name === 'SubagentStop') {
-    if (typeof input.agent_id === 'string' && input.agent_id) {
-      if (input.hook_event_name === 'SubagentStart') recordDispatch(input);
-      else recordDispatchEnd(input, cwd);
-    }
+  if (input.tool_name === 'Agent') {
+    if (input.hook_event_name === 'PreToolUse') recordDispatch(input);
+    else if (input.hook_event_name === 'PostToolUse') recordAgentResult(input, cwd);
+    return null;
+  }
+  if (input.hook_event_name === 'SubagentStop') {
+    if (typeof input.agent_id === 'string' && input.agent_id) recordSubagentStop(input, cwd);
     return null;
   }
   const failed = input.hook_event_name === 'PostToolUseFailure';
@@ -631,4 +800,5 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { record, bashTargets, globToRe, verificationKind, ARG, stripHeredocs };
+// `locate`, `testRuns`, and `treeState` are also `scope.js test`'s classifier and tree reader (ADR 0127): the verb and the hook never disagree.
+module.exports = { record, bashTargets, globToRe, verificationKind, ARG, stripHeredocs, locate, testRuns, treeState };

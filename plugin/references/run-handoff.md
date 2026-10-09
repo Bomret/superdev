@@ -11,7 +11,9 @@ tiers: record that slice execution finished, name what comes next.
   this one full-suite run from implement, whatever its slice types (ADR 0091) — find the scope checkout
   per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope checkout`, take the full command
   from `docs/agents/verification.md` per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`, and run it
-  once **in that checkout**, over the scope branch. Record the outcome and the commit it ran on with
+  once **in that checkout**, over the scope branch, through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full`.
+  A suite longer than the Bash tool's time limit runs through the runner in the background, and you wait for
+  its end before acting on it (every full and focused run below runs the same way). Record the outcome and the commit it ran on with
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set <green|red|denied|none> <sha> --root <run-root>`
   (`<sha>` is `git rev-parse HEAD` in that checkout) — a record `/superdev:review` reuses instead of
   running the suite again when it is still `green` and `scope.js suite reusable` calls the branch's
@@ -44,6 +46,9 @@ tiers: record that slice execution finished, name what comes next.
     changed, reporting a place outside its checkout unedited. Tell it to report the `AGENTS.md` hierarchy
     and the knowledge base unedited too, since the doc pass owns them (INV-0120). A fix report that omits
     the checked-and-changed list is a report defect, sent back to the implementer before the focused run.
+    Tell the implementer to run every test through `scope.js test`, to run a suite longer than the Bash tool's
+    time limit through the runner in the background and wait for its end, and to edit files through the edit
+    tools, never through a script.
     Before the focused run, grep the checkout for the key phrase of the rule the fix changed, in its old
     wording and its new, and compare the hits with the report's checked list. A hit in a file the list
     does not name is a missed sibling surface: send the report back to the implementer, naming the hit,
@@ -56,7 +61,7 @@ tiers: record that slice execution finished, name what comes next.
     implementer's report always takes.
   - **Inside each cycle, run only the focused command** — per
     `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`, over the commits that cycle's implementer just
-    landed — never the full suite; a full re-run inside every cycle is the cost ADR 0075's own loop shape
+    landed, through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <changed paths>` — never the full suite; a full re-run inside every cycle is the cost ADR 0075's own loop shape
     exists to avoid.
   - **When a cycle's focused run first comes back clean, re-run the full suite once** in the scope
     checkout and record it the same way as above. **Green** → clear `**Unresolved:**` as above and
@@ -120,7 +125,8 @@ tiers: record that slice execution finished, name what comes next.
   down.
 - **Report** the scope branch, the slice count, the commit range, and the suite record above left behind
   (**Green.**, **No test command configured.**, **A denied test command, recorded and continued
-  attended.**, or **Green after the fix loop.**), and **say the conversation is
+  attended.**, or **Green after the fix loop.**), and each slice merged at the fix cap with only **Missing RED** left, named
+  with its finding (ADR 0125). Then **say the conversation is
   disposable**: the ledger, `dod.md`, `interfaces.md`, and the per-slice progress logs now hold
   everything `/superdev:review` needs, so a `/clear` before it costs nothing — a fresh-context review
   reads the run state cold, which is the least anchored shape a reviewer can start in.

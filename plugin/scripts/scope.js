@@ -190,8 +190,9 @@ function sliceType(content, id) {
 // backtick fence's info string holds no backtick, so an inline span such as ```x``` is no opener). It
 // closes on a line with the same indentation limit, of the same character, at least as long as the
 // opener. `blocks` holds each closed block's body, `outside` the text between blocks. An unclosed
-// fence yields no block. scope.js and hooks/green-gate.js each carry this function, because hooks
-// stay standalone; tests/green-gate.test.js pins them byte-identical.
+// fence yields no block. scope.js and hooks/green-gate.js each carry this function, because the gate's
+// decision never depends on scope.js loading (its scope.js require serves only the fail-silent trace
+// write); tests/green-gate.test.js pins them byte-identical.
 function fenceBlocks(raw) {
   const blocks = [];
   const outside = [];
@@ -214,11 +215,12 @@ function fenceBlocks(raw) {
 // command, the second the focused one, and the first backtick span under `## Whole-repo command` the
 // whole-repo one. Each is whitespace-collapsed, or null when absent. The run-trace hook (ADR 0117)
 // classes a Bash command against them.
-function verificationCommands(tree) {
+function verificationCommands(tree, keepLines) {
   const none = { full: null, focused: null, whole: null };
   let raw;
   try { raw = fs.readFileSync(path.join(tree, 'docs', 'agents', 'verification.md'), 'utf8'); } catch { return none; }
-  const norm = (t) => (t ? t.replace(/\s+/g, ' ').trim() || null : null);
+  // `keepLines` keeps a fence's own newlines, for the runner that executes the command as written (ADR 0127).
+  const norm = (t) => (t ? (keepLines ? t.trim() : t.replace(/\s+/g, ' ').trim()) || null : null);
   const { blocks, outside } = fenceBlocks(raw);
   const sec = /^##\s+Whole-repo command\s*$([\s\S]*?)(?=^#{1,6}\s|(?![\s\S]))/m.exec(outside);
   const span = sec && /`([^`\n]+)`/.exec(sec[1]);
@@ -1694,7 +1696,7 @@ function verbStaging(cwd, args) {
 //   run <full|focused|whole|path> <pass|fail|unknown> <sha|unknown> <clean|dirty|unknown> [<files>]
 //   revert <paths> / restore <paths>
 //   note <test path>
-//   dispatch <agent_type> <agent_id> <description> / dispatch-end <agent_type> <agent_id>
+//   dispatch <agent_type> <tool_use_id> <description> / dispatch-bind <agent_type> <tool_use_id> <agent_id> / dispatch-end <agent_type> <tool_use_id>
 //   ledger <verb> <args>     (written only by the ledger-writing verbs of this CLI, after they succeed)
 // Every field is escaped so none holds a control character or a line separator: no field can start
 // a new line. No CLI verb takes a caller-chosen event; `trace` only reads.
@@ -1724,13 +1726,16 @@ function untraceField(v) {
 }
 
 // event: { slice?, agent?, kind, fields? }. One O_APPEND write per line, so concurrent writers never
-// tear a line. A failed write is swallowed: the trace never blocks the work it records.
+// tear a line. A failed write is swallowed: the trace never blocks the work it records. Returns whether
+// the line was written, for the one caller that tells its user (`scope.js test`).
 function appendTrace(runRoot, event) {
   try {
     const parts = [new Date().toISOString(), event.slice || 'scope', event.agent || 'main', event.kind, ...(event.fields || [])];
     fs.appendFileSync(path.join(runRoot, 'trace.log'), parts.map(traceField).join(' ') + '\n', 'utf8');
+    return true;
   } catch {
     // simplicity: silent by design (a recording failure must not fail a ledger verb); ceiling: a failed write loses that event; upgrade: add a stderr diagnostic if silent loss bites
+    return false;
   }
 }
 
@@ -1753,6 +1758,113 @@ function verbTrace(root, slice) {
   let lines = raw.split('\n').filter(Boolean);
   if (slice) lines = lines.filter((l) => readTrace(l)[0].slice === slice);
   console.log(lines.length ? lines.join('\n') : 'no trace: this run has recorded no events');
+}
+
+// --- test runner (ADR 0127, INV-0117) -----------------------------------------
+
+// A word as the shell reads it back: left bare where it needs no quoting, so the hook's classifier reads it as typed.
+const shellWord = (w) => (/^[\w@%+=:,./-]+$/.test(w) ? w : `'${w.replace(/'/g, "'\\''")}'`);
+
+// `test full|whole`, `test focused [<path>…]`, `test -- <command>`: runs a test command in bash, streaming its output,
+// and appends one `run` line carrying the command's own exit status (an Observed run). The run root, slice, commit, and
+// tree state are read when the run starts; the line is written when the command finishes, `dirty` when HEAD moved, the tree
+// was dirty at either end, or the trace recorded a change to the slice's files during the run. No option sets a field.
+// A command ended by a signal, or a verb killed first, writes no line, and the command's process group dies with the verb.
+// Outside every run tree, or for a command that cd's out of every run tree, the command runs and nothing is written. hooks/run-trace.js is required here, at call time, for the
+// classifier it shares with the hook (it requires this file at load, so a top-level require would be a cycle).
+// simplicity: a command that changes its own process group escapes the group kill; upgrade: a cgroup or subreaper if one bites.
+function verbTest(cwd, args) {
+  const rt = require('../hooks/run-trace.js');
+  const free = args[0] === '--';
+  let kind = args[0];
+  let command;
+  let files = [];
+  let at = rt.locate(path.join(cwd, 'x'));
+  let hidden = false; // the command's shape hides its status from the test
+  let runCwd = cwd;
+  // The tree a command classifies against outside every run tree: the repository's, else the cwd.
+  const topOf = () => {
+    const top = gitSpawn(['rev-parse', '--show-toplevel'], cwd);
+    return top.status === 0 ? top.stdout.trim() : cwd;
+  };
+  if (free) {
+    if (args.length < 2) fail('test --: needs a command');
+    command = args.length === 2 ? args[1] : args.slice(1).map(shellWord).join(' ');
+    let runs = rt.testRuns(command, cwd, at ? null : topOf());
+    // From inside a run tree, a command that cd's out of every run tree classifies as it would outside one.
+    if (at && !runs.length) runs = rt.testRuns(command, cwd, topOf());
+    if (runs.length !== 1) fail(runs.length ? 'test --: the command holds more than one test run, run one per call' : `test --: not a test run, so nothing runs: ${command}`);
+    // The classified run's own location decides, so a `cd` into a run tree records there from any cwd, and a `cd` out of
+    // every run tree records nothing.
+    if (runs[0].at.runRoot) {
+      ({ kind, files, at } = runs[0]);
+      hidden = runs[0].unknown || !runs[0].sole;
+    } else at = null;
+  } else {
+    if (!['full', 'focused', 'whole'].includes(kind) || (kind !== 'focused' && args.length > 1)) fail(`test: unrecognized arguments (${usage().split('\n').find((l) => /^ {2}test /.test(l)).trim()})`);
+    const paths = args.slice(1);
+    if (kind === 'focused' && !paths.length) kind = 'full';
+    const tree = at ? at.tree : topOf();
+    runCwd = tree; // the template is read from the tree root, so it runs there
+    const template = verificationCommands(tree, true)[kind];
+    if (!template) fail(`test ${kind}: no ${kind} command is configured in docs/agents/verification.md`);
+    command = kind === 'focused' ? template.replace(/\{paths\}/g, () => paths.map(shellWord).join(' ')) : template;
+  }
+  const [sha, tree0] = at ? rt.treeState(at.tree) : [];
+  // Where the trace ends now: a file change it records for this slice past this point happened during the run.
+  const traceFile = at && path.join(at.runRoot, 'trace.log');
+  let traceMark = 0;
+  try { if (at) traceMark = fs.statSync(traceFile).size; } catch { /* no trace yet: from its start */ }
+  // The killers exist before the command does, so no instant lacks one: the signal handlers first, then a watcher, then the
+  // command. The watcher holds a pipe from this process and reads the command's group id from it: when this process dies by
+  // any signal, even SIGKILL, the pipe closes and the watcher kills the group. Normal completion kills the watcher first.
+  // The command is held on a fourth pipe until the watcher has its group id, so no instant runs the command with the watcher blind:
+  // a verb killed before the release closes the pipe, and the command exits unrun.
+  let child;
+  const stop = (sig) => () => {
+    if (child) try { process.kill(-child.pid, 'SIGTERM'); } catch { /* already gone */ }
+    process.exit(128 + require('os').constants.signals[sig]);
+  };
+  for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(sig, stop(sig));
+  const cp = require('child_process');
+  const watcher = cp.spawn('sh', ['-c', 'read g; cat >/dev/null; [ -n "$g" ] && kill -s TERM -- -"$g" 2>/dev/null'], { stdio: ['pipe', 'ignore', 'ignore'], detached: true });
+  watcher.on('error', () => {});
+  watcher.stdin.on('error', () => {});
+  child = cp.spawn('bash', ['-c', `read -u 3 _ || exit 125\nexec 3<&-\n${command}`], { cwd: runCwd, stdio: ['inherit', 'inherit', 'inherit', 'pipe'], detached: true });
+  if (child.pid) {
+    watcher.stdin.write(`${child.pid}\n`);
+    child.stdio[3].on('error', () => {});
+    child.stdio[3].write('go\n');
+  }
+  child.on('error', (e) => {
+    process.stderr.write(`test: cannot run bash: ${e.message}\n`);
+    process.exit(127);
+  });
+  child.on('exit', (code, signal) => {
+    watcher.kill('SIGKILL');
+    if (signal) {
+      process.stderr.write(`test: the command ended by ${signal}; no run is recorded\n`);
+      process.exit(128 + require('os').constants.signals[signal]);
+    }
+    if (at) {
+      const [sha1, tree1] = rt.treeState(at.tree);
+      // An edit, revert, or restore the trace recorded for this slice during the run changed the tree, even one undone
+      // before the end. simplicity: a change no hook records (another process writing the tree) shows only at the two ends.
+      let changed = false;
+      try {
+        changed = readTrace(fs.readFileSync(traceFile).subarray(traceMark).toString('utf8'))
+          .some((e) => e.slice === at.slice && ['edit', 'revert', 'restore'].includes(e.kind));
+      } catch { /* no trace: nothing recorded */ }
+      // The commit and tree state the command ran against: a moved HEAD, a dirty tree at either end, or a recorded change
+      // during the run is `dirty`.
+      const tree = sha1 !== sha || tree0 === 'dirty' || tree1 === 'dirty' || changed ? 'dirty' : tree0 === 'unknown' || tree1 === 'unknown' ? 'unknown' : 'clean';
+      const outcome = hidden ? 'unknown' : code === 0 ? 'pass' : 'fail';
+      if (!appendTrace(at.runRoot, { slice: at.slice, kind: 'run', fields: [kind, outcome, sha, tree, files.join(',')] })) {
+        process.stderr.write('test: the run line could not be written to the run trace\n');
+      }
+    }
+    process.exit(code);
+  });
 }
 
 // --- CLI ---------------------------------------------------------------------
@@ -1779,6 +1891,9 @@ function usage() {
     '  base resolve --branch <b> --base <base-ref>   --root <run-root>   prints the scope\'s range base',
     '  get stage|branch|anchor|docs|pr|slices|unresolved|degraded|deferred|denials|suite --root <run-root>',
     '  trace [--slice <id>] --root <run-root>   prints the run trace, oldest first (read-only)',
+    '  test full|whole                    runs the configured command, records the run line the command\'s own exit status makes',
+    '  test focused [<path>…]             {paths} takes the paths; none runs the full command, recorded full',
+    '  test -- <command>                  runs a command the run trace classes as a test run, recorded as a direct run is',
     '  status                             scans <cwd>/.superdev/scopes/*/',
     '  publish --root <run-root>          prints the ledger as one "## Run state" section on stdout',
     '  adopt [--shipped] --root <run-root>   stdin: a whole anchor body; extracts and writes the section;',
@@ -1999,6 +2114,8 @@ function isBulletStdinInvocation(argv) {
 // verb (`unresolved add -h`): those are data, and usage text standing in for them would be written on.
 const VALUE_FLAGS = ['--root', '--range', '--exit', '--branch', '--slice', '--match', '--match-file', '--note', '--note-file', '--verdict'];
 function asksForHelp(argv) {
+  // After `test --` every word belongs to the command.
+  if (argv[0] === 'test' && argv.includes('--')) argv = argv.slice(0, argv.indexOf('--'));
   const rest = [];
   for (let i = 0; i < argv.length; i++) {
     if (VALUE_FLAGS.includes(argv[i])) i++;
@@ -2019,7 +2136,8 @@ function main() {
     argv[0] === 'init' || argv[0] === 'adopt' || argv[0] === 'dod-line' || isBulletStdinInvocation(argv);
   const go = (stdinJson) => {
     try {
-      run(argv, process.cwd(), stdinJson);
+      if (argv[0] === 'test') verbTest(process.cwd(), argv.slice(1));
+      else run(argv, process.cwd(), stdinJson);
       // Let the process exit naturally on success, so stdout is guaranteed to flush first;
       // a refusal still exits nonzero below.
     } catch (e) {
@@ -2047,6 +2165,7 @@ function main() {
 // `unknown verb ""` and exit 1 before its own first statement, because a refusal calls process.exit.
 // Had the caller's argv happened to start with `init`, the same path waits on stdin instead and hangs.
 // Either way the require, not the CLI, is what fails.
-if (require.main === module) main();
-
+// The exports come first: `verbTest` lazily requires hooks/run-trace.js, which requires this file back for them (ADR 0127).
 module.exports = { appendTrace, untraceField, readTrace, sliceType, readLedgerHeader, inProgressSlices, verificationCommands, run, publishText, SLUG_RE, testContainment, baseHistoryHasPatch, mainWorkTree, CHANGE_TYPES, refResolves };
+
+if (require.main === module) main();

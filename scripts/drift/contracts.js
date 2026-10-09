@@ -957,7 +957,7 @@ const BASE_MERGE_CONTRACTS = [
   [path.join('references', 'scope-mode.md'), /^## The scope's range base$/m, "carry the `## The scope's range base` section, the one definition of where a scope's own range starts (ADR 0120)"],
   [path.join('references', 'scope-mode.md'), /newer of two candidates: `merge-base\(<base>, <branch>\)`[\s\S]{0,400}ancestor of `<branch>`[\s\S]{0,300}neither holds the other, the range base\s+is `merge-base\(<base>, <branch>\)`/, 'state the range base rule: the newer of the merge-base and a recorded tip that is an ancestor of the branch, the merge-base otherwise'],
   [path.join('references', 'scope-mode.md'), /scope\.js"? base resolve --branch <branch> --base <base> --root <run-root>`\s+prints it/, 'compute the range base with `scope.js base resolve`'],
-  [path.join('references', 'scope-mode.md'), /After any merge, clean or resolved, run the full command from `docs\/agents\/verification\.md` itself through the Bash tool[\s\S]{0,300}ADR 0117/, 'run the full command itself through the Bash tool after any base merge, clean or resolved, because the run trace must back the suite record (ADR 0117)'],
+  [path.join('references', 'scope-mode.md'), /After any merge, clean or resolved, run the full command from `docs\/agents\/verification\.md` through\s+`node[^`]*scope\.js"\s+test\s+full`[\s\S]{0,300}ADR 0117/, 'run the full command through scope.js test full after any base merge, clean or resolved, because the run trace must back the suite record (ADR 0117)'],
   [path.join('references', 'scope-mode.md'), /`lite` tier only[\s\S]{0,300}`scope\.js get slices --root <run-root>`[\s\S]{0,200}`in-progress`/, 'skip the base step on a dirty scopetree whose slice is in-progress, at the `lite` tier only'],
   [path.join('references', 'scope-mode.md'), /`scope\.js get degraded --root <run-root>`[\s\S]{0,200}same reason/, 'skip the degraded write when an entry for the same reason stands'],
   [path.join('references', 'scope-mode.md'), /\*\*Gate on the full suite\.\*\*[\s\S]{0,400}suite reusable/, 'gate the first slice on the full suite, re-running it until `suite reusable` accepts the tip'],
@@ -1164,7 +1164,7 @@ const FULL_SUITE_CONTRACTS = [
   // advances an unattended stage on the entry run's suite alone.
   [
     path.join('skills', 'review', 'SKILL.md'),
-    /focused command over the fix diff[\s\S]{0,200}?hand that result to the re-review/i,
+    /focused command over the fix diff[\s\S]{0,320}?hand that result to the re-review/i,
     'run the focused command over the fix diff inside each cycle and hand that result to the re-review',
   ],
   [
@@ -5606,7 +5606,7 @@ const FIX_LOOP_FIXES_EVERY_FINDING_CONTRACTS = [
   ],
   [
     path.join('skills', 'review', 'SKILL.md'),
-    /\*\*complete\*\* list of the findings the chosen option covers[\s\S]{0,2000}3 cycles in total, every cycle counting, whichever findings drove it/,
+    /\*\*complete\*\* list of the findings the chosen option covers[\s\S]{0,2300}3 cycles in total, every cycle counting, whichever findings drove it/,
     'dispatch one implementer with the complete list of the findings the chosen option covers, the loop capped at 3 cycles in total with every cycle counting whichever findings drove it',
   ],
   [
@@ -6702,7 +6702,7 @@ const REVIEW_SUBMITTED_CONTRACTS = [
   ],
   [
     path.join('skills', 'review', 'SKILL.md'),
-    /3-strike cap[\s\S]{0,800}submitted[\s\S]{0,100}invalidate the tip's suite record the same way/,
+    /3-strike cap[\s\S]{0,1000}submitted[\s\S]{0,100}invalidate the tip's suite record the same way/,
     "invalidate the tip's suite record the same way the Declined branch does when the 3-strike cap is " +
       'reached at a `submitted` stage',
   ],
@@ -7181,8 +7181,8 @@ const RUN_TRACE_ORDER_CONTRACTS = [
     path.join('references', 'implement-lite.md'),
   ].map((doc) => [
     doc,
-    /A\s+`run\s+…\s+unknown`\s+line\s+is\s+not\s+a\s+failing\s+run:\s+it\s+neither\s+satisfies\s+the\s+RED\s+step\s+nor\s+closes\s+the\s+finding,\s+and\s+the\s+implementer\s+answers\s+it\s+by\s+re-running\s+the\s+test\s+without\s+a\s+pipe\s+or\s+`\|\|\s+true`/,
-    'state that a run unknown line is not a failing run, and that the implementer re-runs the test without a pipe or || true',
+    /A\s+`run\s+…\s+unknown`\s+line\s+is\s+not\s+a\s+failing\s+run:\s+it\s+neither\s+satisfies\s+the\s+RED\s+step\s+nor\s+closes\s+the\s+finding,\s+and\s+the\s+implementer\s+answers\s+it\s+by\s+re-running\s+the\s+test\s+through\s+`scope\.js\s+test`/,
+    'state that a run unknown line is not a failing run, and that the implementer re-runs the test through scope.js test',
   ]),
     // The lite tier dispatches nobody, so it cannot say "which the dispatch names". The full tier and
   // agents say it; the lite tier says the base is the scope branch's tip before the slice's first commit instead.
@@ -7210,13 +7210,208 @@ const RUN_TRACE_ORDER_CONTRACTS = [
   ]),
   [
     path.join('references', 'implement-full.md'),
-    /tells\s+it\s+that\s+a\s+`run\s+…\s+unknown`\s+line\s+is\s+not\s+a\s+failing\s+run,\s+and\s+that\s+it\s+answers\s+one\s+by\s+re-running\s+the\s+test\s+without\s+a\s+pipe\s+or\s+`\|\|\s+true`/,
-    'state, in step 2, that the implementer dispatch tells it a run unknown line is not a failing run and to re-run the test without a pipe or || true',
+    /tells\s+it\s+that\s+a\s+`run\s+…\s+unknown`\s+line\s+is\s+not\s+a\s+failing\s+run,\s+and\s+that\s+it\s+answers\s+one\s+by\s+re-running\s+the\s+test\s+through\s+`scope\.js\s+test`/,
+    'state, in step 2, that the implementer dispatch tells it a run unknown line is not a failing run and to re-run the test through scope.js test',
   ],
   [
     path.join('references', 'test-selection.md'),
-    /\*\*Run\s+the\s+full,\s+focused,\s+or\s+whole-repo\s+command\s+with\s+its\s+own\s+exit\s+status\s+intact\.\*\*\s+Run\s+the\s+command\s+alone,\s+after\s+nothing\s+but\s+`cd`\s+and\s+`set\s+-o\s+pipefail`[\s\S]{0,400}redirect\s+it\s+to\s+a\s+file\s+outside\s+the\s+working\s+tree[\s\S]{0,400}`scope\.js\s+suite\s+reusable`\s+never\s+reuses\s+it/,
-    'state that the full, focused, and whole-repo commands run alone after nothing but cd and set -o pipefail, with output redirected to a file outside the working tree, because suite reusable never reuses an unknown run',
+    /\*\*Run\s+the\s+full,\s+focused,\s+or\s+whole-repo\s+command\s+through\s+`scope\.js\s+test`\*\*[\s\S]{0,900}redirect\s+it\s+to\s+a\s+file\s+outside\s+the\s+working\s+tree[\s\S]{0,900}`scope\.js\s+suite\s+reusable`\s+never\s+reuses\s+it/,
+    'state that the full, focused, and whole-repo commands run through scope.js test, that output is trimmed by a pipe or a redirect to a file outside the working tree, and that suite reusable never reuses an unknown run',
+  ],
+  // ADR 0127, INV-0017: every prose that directs a test run names the runner, in the agent body and in the
+  // playbook or skill prose that dispatches it, so a one-sided loss fails a row.
+  ...[
+    path.join('agents', 'implementer.md'),
+    path.join('agents', 'slice-reviewer.md'),
+    path.join('agents', 'final-reviewer.md'),
+    path.join('references', 'implement-full.md'),
+    path.join('references', 'implement-lite.md'),
+    path.join('references', 'test-selection.md'),
+    path.join('references', 'run-handoff.md'),
+    path.join('references', 'scope-mode.md'),
+    path.join('skills', 'review', 'SKILL.md'),
+    path.join('skills', 'ship', 'SKILL.md'),
+    path.join('skills', 'submit-pr', 'SKILL.md'),
+    path.join('skills', 'document', 'SKILL.md'),
+  ].map((doc) => [
+    doc,
+    /scope\.js"\s+test\s+(?:full|focused|whole|--)/,
+    'direct a test run through the runner: node scope.js test full, focused, or whole, or test -- <command> for a direct test-file run',
+  ]),
+  // The per-file row above is satisfied by any incidental invocation, so each body's own directive and each
+  // controller run site is anchored on its own opening.
+  [
+    path.join('agents', 'implementer.md'),
+    /RED\s+and\s+GREEN\s+run,\s+through\s+the\s+runner:(?=\*\*\s+`node\s+"\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/)/,
+    'direct the RED and GREEN runs through the runner in the test-first bullet',
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /selects\s+through\s+the\s+runner:(?=\s+`node\s+"\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/)/,
+    'direct the independent suite re-run through the runner in Lens 2',
+  ],
+  [
+    path.join('references', 'run-handoff.md'),
+    /over\s+the\s+scope\s+branch,\s+through(?=\s+`node\s+"\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/)/,
+    'direct the controller\'s full run through scope.js test full',
+  ],
+  [
+    path.join('references', 'run-handoff.md'),
+    /just\s+landed,\s+through(?=\s+`node\s+"\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/)/,
+    'direct the controller\'s focused cycle run through scope.js test focused',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /over\s+the\s+scope\s+branch,\s+through(?=\s+`node\s+"\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/)/,
+    'direct the §4 full run through scope.js test full',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /just\s+landed,\s+through(?=\s+`node\s+"\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/)/,
+    'direct the focused fix-cycle run through scope.js test focused',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /over\s+that\s+tip\s+through(?=\s+`node\s+"\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/)/,
+    'direct the whole-repo run through the full scope.js test whole invocation',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /over\s+the\s+merged\s+scope\s+branch\s+through(?=\s+`node\s+"\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/)/,
+    'direct the §4 full run over the merged scope branch through the full scope.js test full invocation',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    /\(in\s+the\s+background\s+when\s+the\s+suite\s+outlasts\s+the\s+Bash\s+tool's\s+time\s+limit,\s+waiting\s+for\s+its\s+end\s+before\s+acting\s+on\s+it\)/,
+    'run the §4 full suite longer than the Bash tool\'s time limit in the background and wait for its end',
+  ],
+  [
+    path.join('skills', 'submit-pr', 'SKILL.md'),
+    /branch's\s+tip,\s+through(?=\s+`node\s+"\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/)/,
+    'direct the whole-repo run over the scope branch tip through the runner',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /diff\s+alone,\s+through\s+the\s+runner:(?=\s+`node\s+"\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/)/,
+    'direct the optional suite re-run through the runner on the directive\'s own lead-in',
+  ],
+  // A focused run names the changed paths: a bare `test focused` runs the full command and records `full`.
+  ...[
+    path.join('agents', 'implementer.md'),
+    path.join('agents', 'slice-reviewer.md'),
+    path.join('agents', 'final-reviewer.md'),
+    path.join('references', 'implement-lite.md'),
+    path.join('references', 'implement-full.md'),
+    path.join('skills', 'document', 'SKILL.md'),
+  ].map((doc) => [
+    doc,
+    /test\s+focused\s+<[a-z-]+\s+paths>/,
+    'write the focused runner invocation with its changed paths: scope.js test focused <changed paths>',
+  ]),
+  [
+    path.join('references', 'test-selection.md'),
+    /caller\s+passes\s+the\s+paths\s+to\s+the\s+runner\s+as\s+arguments[\s\S]{0,120}runner\s+substitutes/,
+    'state that the caller passes the changed paths to scope.js test focused as arguments and the runner substitutes them for {paths}',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /Every\s+implementer\s+dispatch\s+also\s+tells\s+it\s+to\s+run\s+every\s+test\s+through\s+`scope\.js\s+test`[\s\S]{0,300}longer\s+than\s+the\s+Bash\s+tool's\s+time\s+limit[\s\S]{0,100}in\s+the\s+background\s+and\s+wait\s+for\s+its\s+end/,
+    'have step 2\'s implementer dispatch tell it to run every test through scope.js test, and a suite longer than the Bash tool\'s time limit in the background, waiting for its end',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /The\s+dispatch\s+also\s+tells\s+it\s+to\s+run\s+every\s+test\s+through\s+`scope\.js\s+test`,\s+and\s+a\s+suite\s+longer\s+than\s+the\s+Bash\s+tool's\s+time\s+limit\s+through\s+the\s+runner\s+in\s+the\s+background,\s+waiting\s+for\s+its\s+end/,
+    'have step 3\'s slice-reviewer dispatch tell it to run every test through scope.js test, and a suite longer than the Bash tool\'s time limit in the background, waiting for its end',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /dispatch\s+tells\s+it\s+to\s+run\s+every\s+test\s+through\s+`scope\.js\s+test`,\s+and\s+a\s+suite\s+longer\s+than\s+the\s+Bash\s+tool's\s+time\s+limit\s+in\s+the\s+background/,
+    'have the final-reviewer dispatch tell it to run every test through scope.js test, and a suite longer than the Bash tool\'s time limit in the background',
+  ],
+  // A fix implementer is dispatched by the red-suite fix loop and the scope fix cycle, not by implement-full.
+  ...[
+    path.join('references', 'run-handoff.md'),
+    path.join('skills', 'review', 'SKILL.md'),
+  ].map((doc) => [
+    doc,
+    /Tell\s+the\s+implementer\s+to\s+run\s+every\s+test\s+through\s+`scope\.js\s+test`[\s\S]{0,300}longer\s+than\s+the\s+Bash\s+tool's\s+time\s+limit[\s\S]{0,100}in\s+the\s+background[\s\S]{0,100}edit\s+files\s+through\s+the\s+edit\s+tools,\s+never\s+through\s+a\s+script/,
+    'have the fix-implementer dispatch tell it to run every test through scope.js test, a suite longer than the Bash tool\'s time limit in the background, and to edit files through the edit tools, never through a script',
+  ]),
+  ...[
+    path.join('agents', 'implementer.md'),
+    path.join('agents', 'slice-reviewer.md'),
+    path.join('agents', 'final-reviewer.md'),
+    path.join('references', 'implement-lite.md'),
+    path.join('references', 'test-selection.md'),
+  ].map((doc) => [
+    doc,
+    /longer\s+than\s+the\s+Bash\s+tool's\s+time\s+limit[\s\S]{0,160}in\s+the\s+background[\s\S]{0,160}wait(?:s|ing)?\s+for\s+its\s+end/,
+    'state that a suite longer than the Bash tool\'s time limit runs through the runner in the background and the caller waits for its end',
+  ]),
+  // The controller's own full-suite run, in run-handoff.md and review's §4: the dispatch rows above and below
+  // pin the dispatched halves, so this clause is anchored on its own opening.
+  ...[
+    path.join('references', 'run-handoff.md'),
+    path.join('skills', 'review', 'SKILL.md'),
+  ].map((doc) => [
+    doc,
+    /A\s+suite\s+longer\s+than\s+the\s+Bash\s+tool's\s+time\s+limit\s+runs\s+through\s+the\s+runner\s+in\s+the\s+background,\s+and\s+you\s+wait\s+for\s+its\s+end/,
+    'state that the controller\'s own suite longer than the Bash tool\'s time limit runs through the runner in the background and it waits for its end',
+  ]),
+  [
+    path.join('agents', 'implementer.md'),
+    /edit\s+files\s+through\s+the\s+edit\s+tools,\s+never\s+through\s+a\s+script/,
+    'direct the implementer to edit files through the edit tools, never through a script',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /tells\s+it\s+to\s+edit\s+files\s+through\s+the\s+edit\s+tools,\s+never\s+through\s+a\s+script/,
+    'have the implementer dispatch tell it to edit files through the edit tools, never through a script',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /controller\s+never\s+edits\s+a\s+slice's\s+tree\s+to\s+produce\s+a\s+failing\s+run/,
+    'direct the controller never to edit a slice\'s tree to produce a failing run',
+  ],
+  // ADR 0125, INV-0118: at the 3-cycle fix cap Missing RED alone never blocks; the run's final report names it.
+  ...[
+    [
+      path.join('references', 'implement-full.md'),
+      'state, in step 3, that at the fix cap a slice whose only remaining Critical or Important finding is Missing RED proceeds and the final report names it, and Missing RED beside another such finding blocks',
+    ],
+    [
+      path.join('skills', 'implement', 'SKILL.md'),
+      'state, in `## Invariants (both playbooks)`, that at the 3-strike cap a Missing RED remainder alone proceeds and the final report names it, and Missing RED beside another such finding blocks',
+    ],
+    [
+      path.join('skills', 'review', 'SKILL.md'),
+      'state, in the fix loop, that at the 3-strike cap a scope whose only remaining Critical or Important finding is Missing RED proceeds and the final report names it, and Missing RED beside another such finding blocks',
+    ],
+  ].map(([doc, reason]) => [doc, /whose\s+only\s+remaining\s+Critical\s+or\s+Important\s+finding\s+is\s+\*\*Missing\s+RED\*\*[\s\S]{0,200}proceeds[\s\S]{0,300}report[\s\S]{0,120}with\s+its\s+slice[\s\S]{0,300}another\s+Critical\s+or\s+Important\s+finding\s+blocks/, reason]),
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /applies\s+\*\*Missing\s+RED\*\*[\s\S]{0,600}at\s+the\s+fix\s+cap\s+a\s+scope\s+whose\s+only\s+remaining\s+Critical\s+or\s+Important\s+finding\s+is\s+\*\*Missing\s+RED\*\*\s+proceeds[\s\S]{0,120}with\s+its\s+slice/,
+    'dispatch final-reviewer with the lite-tier cap rule: Missing RED alone proceeds at the fix cap, and the report names it with its slice',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /`--unattended`\s+→\s+block\*\*\s+at\s+that\s+cap\s+when\s+a\s+Critical\s+or\s+Important\s+finding[\s\S]{0,120}remains\s+—\s+a\s+\*\*Missing\s+RED\*\*\s+finding\s+alone\s+proceeds\s+unattended\s+too/,
+    'state, in the fix loop\'s unattended cap rule, that a Missing RED finding alone proceeds unattended too, never blocking at the cap',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /lands\s+the\s+combined\s+`Ready\s+to\s+merge\?`\s+as\s+`Yes`[\s\S]{0,400}At\s+the\s+fix\s+cap[\s\S]{0,200}only\s+remaining\s+Critical\s+or\s+Important\s+finding\s+is\s+\*\*Missing\s+RED\*\*[\s\S]{0,200}`Yes`[\s\S]{0,200}with\s+its\s+slice/,
+    'state, in the §3 Assessment exception, that at the fix cap a verdict whose only remaining Critical or Important finding is Missing RED lands the combined Ready to merge line as Yes, naming each finding with its slice',
+  ],
+  ...['slice-reviewer.md', 'final-reviewer.md'].map((doc) => [
+    path.join('agents', doc),
+    /Missing\s+RED\*\*[\s\S]{0,400}whose\s+only\s+remaining\s+Critical\s+or\s+Important\s+finding\s+is\s+\*\*Missing\s+RED\*\*[\s\S]{0,100}merges[\s\S]{0,100}report\s+names\s+the\s+finding\s+with\s+its\s+slice[\s\S]{0,300}report\s+it\s+as\s+\*\*Important\*\*[\s\S]{0,200}another\s+Critical\s+or\s+Important\s+finding\s+blocks/,
+    'state that at the 3-cycle fix cap a slice whose only remaining Critical or Important finding is Missing RED merges, and the report names the finding with its slice, that the reviewer still reports it as Important, and that Missing RED beside another such finding blocks',
+  ]),
+  [
+    path.join('references', 'run-handoff.md'),
+    /merged\s+at\s+the\s+fix\s+cap\s+with\s+only\s+\*\*Missing\s+RED\*\*\s+left,\s+named\s+with\s+its\s+finding/,
+    'give the Report bullet a place for each slice merged at the fix cap with only Missing RED left, named with its finding',
   ],
 ];
 
@@ -7230,7 +7425,7 @@ const SETUP_TEST_PATHS_CONTRACTS = [
   ],
   [
     path.join('skills', 'setup', 'SKILL.md'),
-    /no\s+`## Test paths`\s+section\s+gets\s+an\s+\*\*advisory\*\*\s+line,\s+never\s+a\s+drift\s+verdict[\s\S]{0,200}?default\s+patterns[\s\S]{0,200}?`test_\*\.py`\)[\s\S]{0,300}?no\s+usable\s+entry/,
+    /no\s+`## Test paths`\s+section\s+gets\s+an\s+\*\*advisory\*\*\s+line,\s+never\s+a\s+drift\s+verdict[\s\S]{0,200}?default\s+patterns[\s\S]{0,400}?`test_\*\.py`\)[\s\S]{0,300}?no\s+usable\s+entry/,
     'state that the check names a missing `## Test paths` section, or one with no usable entry, as an advisory naming the default patterns, never as drift (ADR 0117)',
   ],
   [

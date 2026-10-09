@@ -76,7 +76,7 @@ If it reports findings, re-dispatch **`superdev:doc-writer`** (as in §3) with t
 
 The reader returns its findings **most-severe-first** (false claims, then incomplete ones, then style), so hand them over in that order and **tell the writer the order is a priority** — the `doc-writer` has no fix-round section of its own, so say it. With a single round, anything it can't reach is then the least costly finding rather than an arbitrary one.
 
-**Read `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run the command it selects, in the scope
+**Read `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run the command it selects through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <doc-commit paths>`, in the scope
 checkout over the scope branch on a live run (§8's checkout) or the invoking checkout otherwise** — the
 same tree the doc commits just landed on, the writer's initial pass and any fix round above. Red → the doc
 commit broke a test that asserts prose; fix it before the handoff. No test command configured → continue;

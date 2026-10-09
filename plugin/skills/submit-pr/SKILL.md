@@ -81,7 +81,7 @@ from the scope checkout per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --whole --root <run-root>`.
   Only a record of kind `whole` satisfies this step; a green record with no kind does not.
   Exit 0 → outcome `reused`, no run; continue to §5. Otherwise run the whole-repo command once in the
-  scope checkout over the scope branch's tip, then record it with
+  scope checkout over the scope branch's tip, through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test whole`, then record it with
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set <green|red|denied> <sha> --whole --root <run-root>`
   (`<sha>` = `git rev-parse <branch>`):
   - **Green** → outcome `green`. Continue to §5.

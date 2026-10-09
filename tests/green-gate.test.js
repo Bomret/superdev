@@ -22,6 +22,7 @@ const {
   unquoteArg,
   readVerification,
   runTests,
+  traceSuiteRun,
   mergeInProgress,
   getChangedPaths,
   IS_MERGE,
@@ -704,7 +705,7 @@ assert.deepEqual(
   assert.deepEqual(verificationCommands(shapeDir), { full: 'a', focused: 'b', whole: 'c' }, 'scope.js reads the whole-repo span beside tilde fences');
 }
 
-// The gate keeps its own copy of the fence parser so hooks stay standalone; pin it to scope.js's
+// The gate keeps its own copy of the fence parser so its decision never depends on scope.js loading; pin it to scope.js's
 // source text. A one-byte difference fails here.
 {
   const fenceSrc = (file) => {
@@ -1617,6 +1618,168 @@ fs.writeFileSync(
     const spawned = runHook(inputObj);
     assert.equal(spawned.status, 2, 'spawning green-gate.js directly still gates the merge');
     fs.rmSync(session, { recursive: true, force: true });
+  }
+}
+
+// --- the gate's suite run lands in the run trace (INV-0017, ADR 0117) ---
+{
+  const os = require('node:os');
+  const git = (args, cwd) => cp.execFileSync('git', args, { cwd, stdio: 'pipe', encoding: 'utf8' }).trim();
+  // A scope run root holding a scopetree repo on `scope`, with a `feature` branch one commit ahead.
+  function fixture(full, focused) {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gg-trace-'));
+    const runRoot = path.join(root, '.superdev', 'scopes', 's');
+    const tree = path.join(runRoot, 'scopetree');
+    fs.mkdirSync(tree, { recursive: true });
+    git(['init', '-q', '-b', 'scope'], tree);
+    git(['config', 'user.email', 'test@example.com'], tree);
+    git(['config', 'user.name', 'test'], tree);
+    fs.mkdirSync(path.join(tree, 'docs/agents'), { recursive: true });
+    const fences = [full, focused].filter(Boolean).map((c) => `\`\`\`sh\n${c}\n\`\`\`\n`).join('\n');
+    fs.writeFileSync(path.join(tree, VERIFICATION_DOC), `# Verification\n\n${fences}`);
+    fs.writeFileSync(path.join(tree, 'a.txt'), 'a\n');
+    git(['add', '.'], tree);
+    git(['commit', '-q', '-m', 'base'], tree);
+    git(['checkout', '-q', '-b', 'feature'], tree);
+    fs.writeFileSync(path.join(tree, 'b.txt'), 'b\n');
+    git(['add', '.'], tree);
+    git(['commit', '-q', '-m', 'feature'], tree);
+    git(['checkout', '-q', 'scope'], tree);
+    git(['merge', '-q', '--no-ff', '-m', 'merge', 'feature'], tree);
+    fs.writeFileSync(path.join(runRoot, 'ledger.md'), '# Scope\n');
+    return { root, runRoot, tree };
+  }
+  const traceOf = (runRoot) => {
+    try { return fs.readFileSync(path.join(runRoot, 'trace.log'), 'utf8'); } catch { return ''; }
+  };
+  const gate = (tree) => decideMerge({ tool_input: { command: 'git merge --no-ff feature' } }, tree);
+  const scopeJs = require.resolve('../plugin/scripts/scope.js');
+
+  // identical focused and full commands: the clean merge's green run backs `suite reusable`
+  {
+    const { root, runRoot, tree } = fixture('node -e ""', 'node -e ""');
+    assert.equal(gate(tree).block, false, 'green gate run');
+    const tip = git(['rev-parse', 'HEAD'], tree);
+    assert.match(traceOf(runRoot), new RegExp(` scope main run full pass ${tip} clean`), 'the gate run is traced as a full pass at the tip');
+    fs.writeFileSync(path.join(runRoot, 'ledger.md'), `# Scope\n\n**Suite:** green @ ${tip}\n`);
+    const r = cp.spawnSync(process.execPath, [scopeJs, 'suite', 'reusable', '--branch', 'scope', '--root', runRoot], { cwd: tree, encoding: 'utf8', timeout: 15000 });
+    assertSpawnDecided(r, 'scope.js suite reusable');
+    assert.equal(r.status, 0, 'suite reusable accepts the merged tip: ' + r.stdout + r.stderr);
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+
+  // a red run records fail
+  {
+    const { root, runRoot, tree } = fixture('node -e "process.exit(1)"', 'node -e "process.exit(1)"');
+    assert.equal(gate(tree).block, true, 'red gate run blocks');
+    assert.match(traceOf(runRoot), / run full fail /, 'a red gate run appends run full fail');
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+
+  // a scopetree run records under the one in-progress slice, as run-trace.js's locate() does
+  {
+    const { root, runRoot, tree } = fixture('node -e ""', 'node -e ""');
+    fs.writeFileSync(path.join(runRoot, 'ledger.md'), '# Scope\n\n| id | title | deps | type | x | status |\n|---|---|---|---|---|---|\n| 03 | t | - | feature | x | in-progress |\n');
+    assert.equal(gate(tree).block, false, 'green gate run');
+    assert.match(traceOf(runRoot), / 03 main run full pass /, 'the lone in-progress slice owns the run');
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+
+  // a slicetree run records under the slicetree's id
+  {
+    const { root, runRoot, tree } = fixture('node -e ""', 'node -e ""');
+    const slicetree = path.join(runRoot, 'slicetrees', '07');
+    fs.mkdirSync(path.dirname(slicetree), { recursive: true });
+    fs.renameSync(tree, slicetree);
+    assert.equal(gate(slicetree).block, false, 'green gate run');
+    assert.match(traceOf(runRoot), / 07 main run full pass /, 'a slicetree run records under its id');
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+
+  // a run killed at its bound appends nothing, driven through decideMerge
+  {
+    const { root, runRoot, tree } = fixture('node -e "setTimeout(()=>{},60000)"', null);
+    const d = decideMerge({ tool_input: { command: 'git merge --no-ff feature' } }, tree, 300);
+    assert.equal(d.block, true, 'a killed run blocks the merge');
+    assert.equal(traceOf(runRoot), '', 'a killed run records nothing');
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+
+  // different focused and full commands: the focused run is never `full`
+  {
+    const { root, runRoot, tree } = fixture('node -e "process.exit(1)"', 'node -e ""');
+    assert.equal(gate(tree).block, false, 'the focused command ran green');
+    assert.match(traceOf(runRoot), / run focused pass /, 'the focused run is traced as focused');
+    assert.doesNotMatch(traceOf(runRoot), / run full /, 'no full line');
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+
+  // a merge on a dirty tree records dirty, so `scope.js suite reusable` refuses it
+  {
+    const { root, runRoot, tree } = fixture('node -e ""', 'node -e ""');
+    fs.writeFileSync(path.join(tree, 'untracked.txt'), 'x\n');
+    assert.equal(gate(tree).block, false, 'green gate run');
+    const tip = git(['rev-parse', 'HEAD'], tree);
+    assert.match(traceOf(runRoot), new RegExp(` run full pass ${tip} dirty`), 'the dirty tree is recorded as dirty');
+    fs.writeFileSync(path.join(runRoot, 'ledger.md'), `# Scope\n\n**Suite:** green @ ${tip}\n`);
+    const r = cp.spawnSync(process.execPath, [scopeJs, 'suite', 'reusable', '--branch', 'scope', '--root', runRoot], { cwd: tree, encoding: 'utf8', timeout: 15000 });
+    assertSpawnDecided(r, 'scope.js suite reusable');
+    assert.notEqual(r.status, 0, 'suite reusable refuses a dirty tree');
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+
+  // a run tree without ledger.md writes nothing
+  {
+    const { root, runRoot, tree } = fixture('node -e ""', 'node -e ""');
+    fs.rmSync(path.join(runRoot, 'ledger.md'));
+    assert.equal(gate(tree).block, false, 'green gate run');
+    assert.equal(traceOf(runRoot), '', 'no ledger, no trace line');
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+
+  // a spawn that never started produced no verdict (INV-0009): it records nothing
+  {
+    const { root, runRoot, tree } = fixture('node -e ""', null);
+    const d = decideMerge({ tool_input: { command: `git -C '${path.join(tree, 'missing')}' merge --no-ff feature` } }, tree);
+    assert.equal(d.block, true, 'a spawn that never started still gates the merge');
+    assert.equal(traceOf(runRoot), '', 'a never-started spawn records nothing');
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+
+  // the notStarted guard itself, driven straight at traceSuiteRun: a result of a spawn that never ran
+  {
+    const { root, runRoot, tree } = fixture('node -e ""', null);
+    traceSuiteRun(tree, 'full', runTests('node -e ""', path.join(tree, 'missing-dir')));
+    assert.equal(traceOf(runRoot), '', 'a notStarted result writes no trace line');
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+
+  // a gate run in a subdirectory of the run tree is recorded, with the five run fields
+  {
+    const { root, runRoot, tree } = fixture('node -e ""', null);
+    fs.mkdirSync(path.join(tree, 'sub'));
+    traceSuiteRun(path.join(tree, 'sub'), 'full', { ok: true });
+    assert.match(traceOf(runRoot), / run full pass [0-9a-f]{40,64} clean -$/m, 'a subpath cwd records one five-field run line');
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+
+  // outside every run tree nothing is written
+  {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gg-trace-out-'));
+    const tree = path.join(root, 'plain');
+    fs.mkdirSync(tree);
+    git(['init', '-q', '-b', 'main'], tree);
+    git(['config', 'user.email', 'test@example.com'], tree);
+    git(['config', 'user.name', 'test'], tree);
+    fs.mkdirSync(path.join(tree, 'docs/agents'), { recursive: true });
+    fs.writeFileSync(path.join(tree, VERIFICATION_DOC), '# V\n\n```sh\nnode -e ""\n```\n\n```sh\nnode -e ""\n```\n');
+    fs.writeFileSync(path.join(tree, 'a.txt'), 'a\n');
+    git(['add', '.'], tree);
+    git(['commit', '-q', '-m', 'base'], tree);
+    assert.equal(gate(tree).block, false, 'green run outside a run tree');
+    assert.deepEqual(fs.readdirSync(root), ['plain'], 'no trace file appears anywhere beside the tree');
+    assert.ok(!fs.existsSync(path.join(tree, 'trace.log')), 'no trace file appears inside the tree');
+    fs.rmSync(root, { recursive: true, force: true });
   }
 }
 

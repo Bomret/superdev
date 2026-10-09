@@ -18,15 +18,18 @@ A repository with no suite at all carries no such file.
   beside it stating why. A second fenced block is **only ever** the focused command — never a watch
   command, a coverage command, or sample failure output.
 
-**Run the full, focused, or whole-repo command with its own exit status intact.** Run the command alone,
-after nothing but `cd` and `set -o pipefail`. Chain nothing after it with `||`, `&&`, `;`, a newline, or a
-background `&`, and pipe into `tail` or `cat` only under `set -o pipefail`. To trim the output, redirect it to a
+**Run the full, focused, or whole-repo command through `scope.js test`** (ADR 0127). From the tree the
+work lives in, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full`, `test focused [<path>…]`, or
+`test whole`, and `test -- <command>` for a direct run of a test file. The runner runs the configured command
+as configured and records one run line with the command's own exit status, however the caller pipes,
+redirects, backgrounds, or wraps the call. To trim the output, pipe the runner into `tail`, or redirect it to a
 file outside the working tree, such as one from `mktemp` under `$TMPDIR`, and read the file afterwards.
-A redirect into the working tree leaves an untracked file, and on a passing run also records an implementation edit. The run
-trace records a run whose exit status does not reflect the test as `unknown`. An `unknown` run is no
-passing run, so `scope.js suite reusable` never reuses it and the suite runs again at the next gate. The
-whole-repo command is the third command (`## Whole-repo command` below), and `scope.js suite reusable` reads
-its runs too.
+A redirect into the working tree leaves an untracked file, and on a passing run also records an implementation edit.
+**A suite longer than the Bash tool's time limit runs through the runner in the background, and you wait for
+its end before acting on it.** The run trace records a run made outside the runner as `unknown` whenever its
+exit status does not reflect the test. An `unknown` run is no passing run, so `scope.js suite reusable` never
+reuses it and the suite runs again at the next gate. The whole-repo command is the third command
+(`## Whole-repo command` below), and `scope.js suite reusable` reads its runs too.
 
 Both commands are taken **by position**, so a fence is reserved for them alone. A watch command, a
 coverage command, sample failure output, the reason a repository records for duplicating the full command
@@ -93,13 +96,16 @@ name the repository's test files. `hooks/run-trace.js` reads it to class each re
   file name at any depth.
 - **A malformed entry is skipped** and the others still apply: an entry with whitespace, a leading `/`,
   or a `..` segment.
-- **An absent section applies the defaults**: `tests/`, `test/`, `__tests__/` (at any depth), `spec/`,
-  `*.test.*`, `*.spec.*`, `*_test.*`, `test_*.py`. A section with no usable entry applies them too.
+- **An absent section applies the defaults**: `tests/`, `test/`, `__tests__/`, and `spec/` directories at
+  any depth, matched by whole path segment; directories whose name ends in `.Tests` or `.Test`; and the
+  file names `*.test.*`, `*.spec.*`, `*_test.*`, `test_*.py`. A section with no usable entry applies them too.
 
 ## The `{paths}` token
 
 Where the focused command contains the token `{paths}`, substitute the shell-quoted changed-path set
-for it. **A `{paths}` form belongs to a runner that maps a source file to the tests covering it** — for
+for it. The caller passes the paths to the runner as arguments (`scope.js test focused <changed paths>`),
+and the runner substitutes them; a `test focused` with no paths runs the full command and records `full`.
+**A `{paths}` form belongs to a runner that maps a source file to the tests covering it** — for
 example `vitest related` or `jest --findRelatedTests`. The changed-path set holds source files and prose
 alongside tests, and a runner without that mapping collects nothing from them. Such a form also carries
 that runner's pass-with-no-tests flag, so a change set holding no tests reports green: the documentation

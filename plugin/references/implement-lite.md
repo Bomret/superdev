@@ -51,11 +51,13 @@ A stop there dispatches no slice.
   All file edits, test runs, `git` commands, and commits happen **in the scopetree as the cwd** —
   never in the invoking checkout. `mechanical` / `docs` slices need no new test — the existing suite is
   the net. Read `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run the command it selects for
-  each run. The run trace records your edits and runs, and a note from the hook means a test edit with no
+  each run, through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <changed paths>` (or `test full`, or
+  `test -- <command>` for a direct test-file run). A suite longer than the Bash tool's time limit runs
+  through the runner in the background, and you wait for its end before acting on it. The run trace records your edits and runs, and a note from the hook means a test edit with no
   failing run since: answer it with `git add <paths>`, `git restore --worktree --source=<base> -- <paths>`, a failing run,
   `git restore -- <paths>`, and a passing run, never `git stash` (`<base>` is the scope branch's tip before this slice's first commit, recorded with `git rev-parse HEAD` when the slice starts). On a `behavior` slice, a test edit followed
   by an implementation edit or a passing run with no failing run between them is a Missing RED finding (the review
-  checklist's `## Test order`). A `run … unknown` line is not a failing run: it neither satisfies the RED step nor closes the finding, and the implementer answers it by re-running the test without a pipe or `|| true`.
+  checklist's `## Test order`). A `run … unknown` line is not a failing run: it neither satisfies the RED step nor closes the finding, and the implementer answers it by re-running the test through `scope.js test`.
 - **Declare the domain shapes a slice's `spec` names before its first RED test** — the same step
   `agents/implementer.md` carries, for the tier that dispatches nobody. A `spec` naming none leaves
   nothing to declare, the fields are yours, and a shape whose term `CONTEXT.md` lacks is reported rather

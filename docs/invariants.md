@@ -973,7 +973,7 @@ Paths: plugin/skills/ship/SKILL.md, plugin/skills/backlog/SKILL.md, plugin/skill
 
 Class: process
 Concepts: Run trace
-Statement: Only superdev's hooks and `scope.js` write a run trace. An agent's Edit or Write of a `trace.log` under a run root, and a shell write into one, are refused, and no `scope.js` verb appends an event its caller chooses, so every event a reviewer reads there is one the agent under review did not author (ADR 0117).
+Statement: Only superdev's hooks and `scope.js` write a run trace. An agent's Edit or Write of a `trace.log` under a run root, and a shell write into one, are refused, and no `scope.js` verb appends an event its caller chooses: `scope.js test` appends only the exit status of a command it ran itself. Every event a reviewer reads there is one the agent under review did not author (ADR 0117, ADR 0127).
 Breaks: silently
 Check: tests/ledger-guard.test.js — the trace-file refusal cases
 Paths: plugin/hooks/**, plugin/scripts/scope.js
@@ -982,10 +982,10 @@ Paths: plugin/hooks/**, plugin/scripts/scope.js
 
 Class: process
 Concepts: Run trace, Slice-reviewer, Implementer
-Statement: On a `behavior` slice, a test edit followed by an implementation edit or a passing run with no failing test run recorded between them in the run trace is an Important finding: `slice-reviewer`'s on the full tier, `final-reviewer`'s on the lite tier. The finding closes only on a recorded revert of the implementation, a failing run, a restore, and a passing run, in that order. The reviewer judges the order from the run trace, never from the implementer's own account (ADR 0117, ADR 0008).
+Statement: On a `behavior` slice, a test edit followed by an implementation edit or a passing run with no failing test run recorded between them in the run trace is an Important finding: `slice-reviewer`'s on the full tier, `final-reviewer`'s on the lite tier. The finding closes only on a recorded revert of the implementation, a failing run, a restore, and a passing run, in that order. The reviewer judges the order from the run trace, never from the implementer's own account. At the 3-cycle fix cap, a slice whose only remaining Critical or Important finding is Missing RED merges, and the review's report names the finding (ADR 0117, ADR 0008, ADR 0125).
 Breaks: silently
 Check: scripts/drift-check.js — the trace-order rows on `slice-reviewer`, `final-reviewer`, and the prose that dispatches each
-Paths: plugin/agents/slice-reviewer.md, plugin/agents/final-reviewer.md, plugin/agents/implementer.md, plugin/references/implement-lite.md, plugin/references/review-checklist.md
+Paths: plugin/agents/slice-reviewer.md, plugin/agents/final-reviewer.md, plugin/agents/implementer.md, plugin/references/implement-lite.md, plugin/references/implement-full.md, plugin/references/review-checklist.md, plugin/skills/review/SKILL.md
 
 ### INV-0119
 
@@ -1113,3 +1113,12 @@ Breaks: silently
 Check: tests/scope.test.js — `adopt --shipped` adopts a shipped payload and refuses a live, closed, or stage-less one while plain adopt refuses shipped; scripts/drift-check.js — the `repair-routing` rows pin the rule in scope-mode.md and each caller's citation; partial: nothing checks the command an agent runs
 Symbols: adoptLines
 Paths: plugin/scripts/scope.js, plugin/references/scope-mode.md, plugin/skills/plan/**, plugin/skills/verify-ship/**, plugin/skills/wrap-up/**, plugin/skills/backlog/**
+
+### INV-0133
+
+Class: process
+Concepts: Run trace, Slice-reviewer, Implementer
+Statement: Every superdev subagent dispatch a run makes, in the foreground or the background, lands in the run trace as a `dispatch` line and, once the subagent finishes, a `dispatch-end` line, both mapped to the slice its prompt names. A run that reviewed every slice therefore passes `final-reviewer`'s per-slice review check (INV-0119) on the trace alone (ADR 0127).
+Breaks: silently
+Check: tests/run-trace.test.js — the dispatch and dispatch-end cases
+Paths: plugin/hooks/run-trace.js, plugin/hooks/hooks.json

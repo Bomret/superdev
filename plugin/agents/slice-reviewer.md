@@ -38,6 +38,9 @@ alone. Then read the slice's **run-trace lines** (`node "${CLAUDE_PLUGIN_ROOT}/s
 `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`: hooks wrote the trace, so it belongs to the blind
 pass. On a `behavior` slice, a test edit followed by an implementation edit or a passing run with no failing run between
 them is an **Important** finding, **Missing RED**. A `mechanical` or `docs` slice gets no order finding.
+At the 3-cycle fix cap a slice whose only remaining Critical or Important finding is **Missing RED**
+merges, and the report names the finding with its slice (ADR 0125); you still report it as **Important**, and the
+controller applies the cap. **Missing RED** beside another Critical or Important finding blocks.
 No trace, or no events for the slice, gets no finding: name the gap in the report. A repository with no
 test command gets no order check.
 
@@ -61,7 +64,7 @@ with the URL checked — because its remedy lives in the log and not in the diff
 
 **A Missing RED finding on a re-review** closes only when the trace shows, after the finding, a revert (or
 an implementation edit), a failing run that covers that test (the full or focused command, or a run naming
-that test file), a restore (or an implementation edit), and a passing run. A `run … unknown` line is not a failing run: it neither satisfies the RED step nor closes the finding, and the implementer answers it by re-running the test without a pipe or `|| true`.
+that test file), a restore (or an implementation edit), and a passing run. A `run … unknown` line is not a failing run: it neither satisfies the RED step nor closes the finding, and the implementer answers it by re-running the test through `scope.js test`.
 
 **A progress log that is missing** at the point you open it is named in the after-reading section. A missing log
 voids nothing from the blind pass, and the dependency findings it causes still move the verdict.
@@ -75,7 +78,7 @@ running the test suite. If you need another revision, check it out into a throwa
 ## Review economically
 
 Scope with `git show --stat` / `git diff --stat` on the range handed; read only changed hunks. `grep -n`
-to locate, then read at an offset/limit. Pipe the suite run (`<test command> 2>&1 | tail -20`); don't
+to locate, then read at an offset/limit. Pipe the suite run (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <changed paths> 2>&1 | tail -20`); don't
 re-run it beyond Lens 2's once, or re-read an artifact already in context.
 
 ## Hygiene
@@ -105,7 +108,9 @@ which no other review agent reads.
 
 - **Re-run the suite yourself, independently of the implementer's report.** Don't trust a reported green
   result. Read `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run the command it
-  selects.
+  selects through the runner: `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <changed paths>` (or `test full`),
+  and `test -- <command>` for a direct run of a test file. A suite longer than the Bash tool's time limit
+  runs through the runner in the background, and you wait for its end before acting on it.
 - **Read the actual produced artifact** — the generated file, the wire output, the rendered result —
   against intent. Tests can pass while the artifact is wrong.
 - **Adversarially name an input the existing fixtures don't cover** and reason about whether the code

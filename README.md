@@ -353,8 +353,8 @@ bash or PowerShell variants.
   records nothing for a quoted mention. A full or whole-repo command with extra argument words records as a
   focused run. The hook also records each revert or restore of files, and each subagent dispatch and its end. After an
   implementation edit or a passing run on a `behavior` slice, it adds a Missing RED note when the latest
-  test edit has no failing run since. The hook registers on `PostToolUse`, `PostToolUseFailure`,
-  `SubagentStart`, and `SubagentStop`. An edit outside every run root records nothing. A write behind
+  test edit has no failing run since. The hook registers on `PreToolUse` for the `Agent` tool, `PostToolUse`,
+  `PostToolUseFailure`, and `SubagentStop`. An edit outside every run root records nothing. A write behind
   `bash -c` or a variable passes unseen. The hook never blocks a tool call.
 - **slicetree-sweep.** A `Stop` hook that removes each slicetree and branch once its slice is
   fully merged. Finished slicetrees therefore cannot pile up when the controller skips the prompted

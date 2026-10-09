@@ -48,6 +48,34 @@ Verified 2026-08-23, against Anthropic's *How we built Claude Code auto mode* en
 (`https://www.anthropic.com/engineering/claude-code-auto-mode`) and the *Create custom subagents*
 documentation (`https://code.claude.com/docs/en/sub-agents`), both read that day.
 
+## SubagentStart carries no prompt, so the Agent tool's own events record a dispatch
+
+The run trace maps a subagent dispatch to its run root and slice through the dispatch prompt (ADR 0117,
+ADR 0127). `SubagentStart` carries `agent_id`, `agent_type`, and no `prompt`, so
+`PreToolUse` on the `Agent` tool, which carries `tool_input.prompt` and `tool_input.subagent_type`, records
+the dispatch, keyed by `tool_use_id`. The `PostToolUse` `tool_response` for `Agent` carries a `status` field:
+`completed` for a foreground dispatch, `async_launched` with an `agentId` for a background one. The hooks
+reference documents both fields (its `PostToolUse` section for the `Agent` tool, which lists the
+`async_launched` field set and says subagents run in the background by default). `run-trace.js` ties the `agentId` to the dispatch with a
+`dispatch-bind` line, and the first `SubagentStop` with that `agent_id` ends it (a repeat writes no second end). A change to either field leaves a
+dispatch without an end, and `final-reviewer`'s per-slice review check then reports the review missing.
+
+**Mitigation:** the hook never blocks on an `Agent` event; a missing field records no end, which the check
+reads as an unreviewed slice, never as a passed one.
+
+Verified 2026-10-08, on Claude Code 2.1.294, against session transcripts written by Claude Code 2.1.x: an
+`Agent` call result carried `status: "async_launched"` with `agentId`, `description`, and `prompt` for a
+background dispatch, and `status: "completed"` with `prompt` for a foreground one. The hooks reference
+(`https://code.claude.com/docs/en/hooks`) lists no `prompt` on `SubagentStart`. The `tool_response` shape the
+hook receives mirrors that transcript `toolUseResult` and was not captured from a live hook payload.
+
+Verified 2026-10-08, on Claude Code 2.1.294, against the hooks reference's `PostToolUse` section for the
+`Agent` tool and this repository's live run trace (`.superdev/scopes/run-trace-evidence/trace.log` of the
+main checkout): the agent id that run-trace's hook payloads carry inside a background subagent
+(`a935f21b116529cc5`, 13 trace lines) equals the `agentId` the parent's `Agent` tool result returned for
+that dispatch. Still open: no captured `SubagentStop` payload confirms that its `agent_id` carries the same
+value.
+
 ## A PreToolUse command rewrite reaches PostToolUse hooks
 
 A PreToolUse hook can return `updatedInput`, which replaces a tool's arguments before the tool runs.
@@ -58,7 +86,11 @@ command word, after the wrappers it knows. Before it knew `rtk`, it read `rtk` a
 recorded no run line, so `scope.js suite reusable` refused a green tip (#955).
 
 **Mitigation (implemented):** `hooks/run-trace.js` reads `rtk` as a prefix wrapper, as it reads `nice`
-or `nohup`. RTK passes the wrapped command's exit status through, so the run records its outcome.
+or `nohup`, and it skips rtk's `proxy` subcommand after it. RTK passes the wrapped command's exit status
+through, so the run records its outcome. `hooks/run-trace.js` skips none of rtk's other subcommands
+that run a command: `rtk err`, `rtk run`, `rtk summary`, or `rtk test` in front of the configured
+verification command records no configured-command run, and a named test file still records a `path`
+run (triage #941). `RTK_PREFIX` in `hooks/green-gate.js` and `hooks/merge-guard.js` takes all five.
 `hooks/ledger-guard.js` knows `rtk` too, because `tests/ledger-guard.test.js` pins that it knows every
 wrapper `run-trace.js` knows. `hooks/run-trace.js` reads a `git restore` or `git checkout` behind `rtk`
 through the same wrapper list. `hooks/green-gate.js` takes an optional `rtk`, with rtk's value-less

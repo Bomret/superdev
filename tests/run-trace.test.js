@@ -12,10 +12,10 @@ const path = require('node:path');
 const cp = require('node:child_process');
 
 const { assertSpawnDecided } = require('./spawn-verdict');
-const { inProgressSlices } = require('../plugin/scripts/scope.js');
+const { inProgressSlices, appendTrace } = require('../plugin/scripts/scope.js');
 
 const hookPath = require.resolve('../plugin/hooks/run-trace.js');
-const { record, bashTargets, globToRe, ARG, stripHeredocs, verificationKind } = require(hookPath);
+const { record, bashTargets, globToRe, ARG, verificationKind } = require(hookPath);
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'run-trace-'));
 const ledger = (rows) =>
@@ -135,6 +135,43 @@ for (const cmd of ['sed -i "" s/a/b/ f.js', "sed -i '' s/a/b/ f.js", 'sed -e s/a
   assert.deepEqual(bashTargets(cmd, S3src), [path.join(S3src, 'f.js')], cmd);
 }
 
+// A separator or `>` inside quotes never splits a command or becomes a target (ADR 0117).
+assert.deepEqual(bashTargets('sed -i "s/Connection;/IDbConnection _ => null!;/" libs/A.Test/Foo.cs', '/r'), [path.resolve('/r', 'libs/A.Test/Foo.cs')]);
+assert.deepEqual(bashTargets("sed -i 's/a/b/; s/x/y/' x.cs", '/r'), [path.resolve('/r', 'x.cs')]);
+assert.deepEqual(bashTargets('tee out.log 2>/dev/null', '/r'), [path.resolve('/r', 'out.log')]);
+assert.deepEqual(bashTargets('tee out.log>/dev/null', '/r'), [path.resolve('/r', 'out.log')]);
+assert.deepEqual(bashTargets('tee "q;w.log"', '/r'), [path.resolve('/r', 'q;w.log')]);
+for (const cmd of ['cp a b >/dev/null', 'cp a b 2>&1', 'cp a b < in.txt', 'mv a b', 'install -m 644 a b']) {
+  assert.deepEqual(bashTargets(cmd, '/r'), [path.resolve('/r', 'b')], cmd);
+}
+// A heredoc or here-string operator takes its delimiter with it; an fd number is a whole-digit word; an escaped `>` is text.
+assert.deepEqual(bashTargets("tee out << 'EOF'\nx\nEOF", '/r'), [path.resolve('/r', 'out')]);
+assert.deepEqual(bashTargets('tee -a f <<- END\n\tx\n\tEND', '/r'), [path.resolve('/r', 'f')]);
+assert.deepEqual(bashTargets('tee f <<< hello', '/r'), [path.resolve('/r', 'f')]);
+assert.deepEqual(bashTargets('tee log2>x', '/r').sort(), [path.resolve('/r', 'log2'), path.resolve('/r', 'x')].sort());
+assert.deepEqual(bashTargets('tee a\\>b', '/r'), [path.resolve('/r', 'a>b')]);
+for (const cmd of ['git commit -m "fix\n\n- a -> b\n- c | d\n- e > f"', "git commit -m 'x\ny > z'"]) {
+  assert.deepEqual(bashTargets(cmd, '/r'), [], cmd);
+}
+// A `<<` inside a multi-line quoted message opens no heredoc, so the rest of the command is still read.
+assert.deepEqual(bashTargets('git commit -m "fix\n- a -> b\n- use x << y\n"', '/r'), []);
+assert.deepEqual(bashTargets('git commit -m "fix\n- a -> b\n- use x << y\n" && tee out', '/r'), [path.resolve('/r', 'out')]);
+// A process substitution is no target; `>|` is a noclobber redirect, not a pipe.
+assert.deepEqual(bashTargets('tee >(cat) f', '/r'), [path.resolve('/r', 'f')]);
+assert.deepEqual(bashTargets('echo x >|clob', '/r'), [path.resolve('/r', 'clob')]);
+// An escaped quote outside quotes opens no quote carry: later heredoc bodies stay masked.
+assert.deepEqual(bashTargets('echo it\\\'s\ncat > f <<EOF\nfoo > bar\nEOF', '/r'), [path.resolve('/r', 'f')]);
+assert.deepEqual(bashTargets("echo $'it\\'s'\ncat > f <<EOF\nfoo > bar\nEOF", '/r'), [path.resolve('/r', 'f')]);
+// An escaped `<` makes `\<<EOF` a literal plus a redirect, no heredoc; `<<\EOF` and `\\<<EOF` still open one.
+assert.deepEqual(bashTargets('echo \\<<EOF\necho hi > out.txt', '/r'), [path.resolve('/r', 'out.txt')]);
+assert.deepEqual(bashTargets('cat > f <<\\EOF\nfoo > bar\nEOF', '/r'), [path.resolve('/r', 'f')]);
+assert.deepEqual(bashTargets('cat > f \\\\<<EOF\nfoo > bar\nEOF', '/r'), [path.resolve('/r', 'f')]);
+
+// `$$` is the PID: the second `$` opens no ANSI-C quote, so the `'` is a plain quote and later lines are still read.
+assert.deepEqual(bashTargets("echo $$'a\\' '<<EOF' \\'\necho hi > out.txt", '/r'), [path.resolve('/r', 'out.txt')]);
+assert.deepEqual(bashTargets("echo $$$$'a\\' '<<EOF' \\'\necho hi > out.txt", '/r'), [path.resolve('/r', 'out.txt')]);
+assert.deepEqual(bashTargets("echo $$$'it\\'s'\ncat > f <<EOF\nfoo > bar\nEOF", '/r'), [path.resolve('/r', 'f')]);
+
 // The command word must be in command position: arguments named like a command record nothing.
 for (const cmd of ['npm install lodash', 'echo cp a b', 'grep sed x']) {
   reset();
@@ -176,6 +213,9 @@ reset();
 edit(path.join(S3, 'tests', 'x.test.js'));
 assert.deepEqual(trace(A).map((l) => l[3]), ['test'], 'a section with no usable entry applies the defaults');
 fs.rmSync(vf);
+reset();
+for (const f of ['services/api/tests/a.bats', 'src/test/java/FooTest.java', 'Libs/Weaver.Core.Tests/FooTests.cs', 'Libs/Weaver.Core.Test/Foo.cs', 'pkg/spec/x_spec.rb', 'src/latest/a.ts', 'contest/b.ts']) edit(path.join(S3, f));
+assert.deepEqual(trace(A).map((l) => l[3]), ['test', 'test', 'test', 'test', 'test', 'impl', 'impl'], 'default directories match at any depth by whole segment, .Tests and .Test directories too');
 
 // Test runs, reverts, restores (ADR 0117). S3 becomes a git repository so the run line carries a real sha.
 const git = (...a) => cp.execFileSync('git', ['-C', S3, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a], { encoding: 'utf8' }).trim();
@@ -202,6 +242,56 @@ post('cat tests/x.test.js');
 post('git diff tests/x.test.js');
 post('bun run test:unit');
 assert.deepEqual(tail(trace(A)), [`run path pass ${sha} clean tests/x.test.js`], 'a path run records; reads and a sibling command record nothing');
+
+// A compound configured command matches across the segments it spans, with the outcome rules of a direct run (#928).
+const vfSaved = fs.readFileSync(vf, 'utf8');
+fs.writeFileSync(vf, '# V\n\n```sh\nbun test && bash scripts/test-affected.sh\n```\n\n```sh\nbun test {paths}\n```\n');
+reset();
+post('bun test && bash scripts/test-affected.sh');
+fail('bun test && bash scripts/test-affected.sh');
+post('bun test');
+post('bun test; bash scripts/test-affected.sh');
+post('bun test && bash scripts/test-affected.sh || true');
+assert.deepEqual(tail(trace(A)), [`run full pass ${sha} dirty -`, `run full fail ${sha} dirty -`, `run full unknown ${sha} dirty -`], 'a compound full command records one run; its prefix alone or a different joiner records none');
+post('bun test && bash scripts/test-affected.sh --x');
+assert.equal(trace(A).pop()[3], 'focused', 'a compound full run with a segment past its template narrows to focused');
+reset();
+fs.writeFileSync(vf, '# V\n\n```sh\ncd sub && bun test\n```\n');
+post('cd sub && bun test');
+assert.deepEqual(tail(trace(A)), [`run full pass ${sha} dirty -`], 'a compound configured command starting with cd matches');
+post('cd sub && bun test && node tests/a.test.js');
+assert.equal(trace(A).filter((l) => l[2] === 'run').pop()[7], 'sub/tests/a.test.js', 'a cd inside a matched compound still moves the base');
+reset();
+fs.writeFileSync(vf, '# V\n\n```sh\nbun test | tee out.log\n```\n');
+post('bun test | tee out.log');
+post('set -o pipefail; bun test | tee out.log');
+assert.deepEqual(trace(A).filter((l) => l[2] === 'run').map((l) => l[4]), ['unknown', 'unknown'], 'a pipe into a non-pass-through stage inside a compound reads unknown, as the same pipe run directly does');
+reset();
+fail('set -o pipefail; bun test | tee out.log');
+assert.deepEqual(trace(A).filter((l) => l[2] === 'run').map((l) => l[4]), ['unknown'], 'under pipefail a non-pass-through stage inside a compound hides the status, as a direct run does');
+fs.writeFileSync(vf, '# V\n\n```sh\nbun test; bash x.sh\n```\n\n```sh\nbun test || true\n```\n');
+reset();
+fail('bun test; bash x.sh');
+fail('bun test || true');
+assert.deepEqual(trace(A).filter((l) => l[2] === 'run').map((l) => l[4]), ['unknown', 'unknown'], 'an inner ; or || keeps the status unknown');
+
+fs.writeFileSync(vf, '# V\n\n```sh\nbun test | tee out.log\n```\n');
+reset();
+post('rtk proxy bun test | tee out.log');
+assert.equal(trace(A).filter((l) => l[2] === 'run').length, 1, 'rtk proxy <command> is <command>');
+fs.writeFileSync(vf, '# V\n\n```sh\ncd sub; bun test\n```\n\n```sh\ncd sub && set -o pipefail && bun test | tail -5\n```\n');
+reset();
+post('cd sub; bun test');
+fail('cd sub && set -o pipefail && bun test | tail -5');
+assert.deepEqual(trace(A).filter((l) => l[2] === 'run').map((l) => l[4]), ['pass', 'fail'], 'a joiner before the test and a pipefail past the first segment do not hide the outcome');
+fs.writeFileSync(vf, vfSaved);
+
+// A wrapper never changes what a command is: `rtk` joins the wrappers.
+reset();
+post('rtk grep foo tests/x.test.js');
+post('rtk -v bun run test');
+post('rtk bun run test');
+assert.deepEqual(tail(trace(A)), [`run full pass ${sha} clean -`, `run full pass ${sha} clean -`], 'rtk <test command>, with or without option words, is that run; rtk <search> is none');
 
 reset();
 for (const c of ['node tests/x.test.js | tail -5', 'node tests/x.test.js || true', 'node tests/x.test.js; true']) post(c);
@@ -476,19 +566,15 @@ for (const [template, command] of [['node scripts/run-tests.js --related {paths}
   fs.rmSync(root, { recursive: true, force: true });
 }
 
-// The shell-word token and the heredoc scan are copies of the Bash hooks' (hooks stay standalone): pin them.
+// The shell-word token is a copy of the Bash hooks' (hooks stay standalone): pin it.
 {
   const sibling = (name) => fs.readFileSync(path.join(path.dirname(hookPath), name), 'utf8');
   const argOf = (text) => (text.match(/^const ARG = \/(.*)\/\.source;$/m) || [])[1];
-  const fnOf = (text) => (text.match(/^function stripHeredocs\(cmd\) \{[\s\S]*?^\}$/m) || [])[0];
   assert.ok(argOf(sibling('merge-guard.js')), 'merge-guard.js declares its ARG token where this pin expects it');
   const pinned = (copy, original) => copy === original;
   assert.ok(pinned(ARG, argOf(sibling('merge-guard.js'))), 'run-trace ARG is byte-identical to merge-guard ARG');
-  assert.ok(fnOf(sibling('ledger-guard.js')), 'ledger-guard.js declares stripHeredocs where this pin expects it');
-  assert.ok(pinned(stripHeredocs.toString(), fnOf(sibling('ledger-guard.js'))), 'run-trace stripHeredocs is byte-identical to ledger-guard stripHeredocs');
   // The pin's comparison rejects a diverged copy.
   assert.ok(!pinned(ARG.replace(')+', ')*'), argOf(sibling('merge-guard.js'))), 'a mutated ARG fails the pin');
-  assert.ok(!pinned(stripHeredocs.toString().replace('h[1] === \'-\'', 'h[1] !== \'-\''), fnOf(sibling('ledger-guard.js'))), 'a mutated stripHeredocs fails the pin');
 }
 
 // No verification.md: no full run, still a path run.
@@ -544,6 +630,56 @@ assert.deepEqual(tail(trace(A)).map((l) => l.split(' ').slice(0, 2).join(' ')), 
   postOut('node tests/n.test.js | tail -1');
   assert.ok(postOut('bun run test').includes('Missing RED'));
   assert.equal(trace(A).filter((l) => l[2] === 'note').length, 1, 'one note across unknown then pass');
+  // A `scope.js test` call records its own run (ADR 0127): the hook writes no run line, wrapped or piped, and still
+  // sends the note after a foreground call that passed.
+  const SCOPE = require.resolve('../plugin/scripts/scope.js');
+  for (const c of [`node ${SCOPE} test full | tail -1`, `rtk node ${SCOPE} test focused a.ts`, `timeout 900 node ${SCOPE} test -- bun run test`, `cd ${S3} && node ${SCOPE} test full`, `FOO=1 node ${SCOPE} test whole 2>&1`, `node ${SCOPE} test -- node tests/n.test.js`, `node --no-warnings ${SCOPE} test -- node tests/n.test.js`,
+    `node "${SCOPE}" test -- node tests/n.test.js`, `node '${SCOPE}' test full`, 'node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test -- node tests/n.test.js']) {
+    reset();
+    postOut(c);
+    runOut({ hook_event_name: 'PostToolUseFailure', tool_name: 'Bash', tool_input: { command: c }, cwd: S3 });
+    assert.deepEqual(trace(A).filter((l) => l[2] === 'run'), [], 'the hook records no run for: ' + c);
+  }
+  reset();
+  editOut(T);
+  assert.ok(postOut(`node ${SCOPE} test full | tail -1`).includes('Missing RED'), 'a passing scope.js test run after a test edit notes');
+  for (const q of [`node "${SCOPE}" test full`, 'node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full']) {
+    reset();
+    editOut(T);
+    assert.ok(postOut(q).includes('Missing RED'), 'the quoted invocation notes too: ' + q);
+  }
+  // The verb records in the tree of the command it classifies, and a Node option may take a value: the note follows both.
+  for (const [c, cwd] of [[`node ${SCOPE} test -- 'cd ${S3} && node tests/n.test.js'`, tmp], [`node -r ${path.join(tmp, 'm.js')} ${SCOPE} test full`, S3]]) {
+    reset();
+    editOut(T);
+    assert.ok(runOut({ hook_event_name: 'PostToolUse', tool_name: 'Bash', tool_input: { command: c }, cwd }).includes('Missing RED'), 'a passing call notes: ' + c);
+    assert.deepEqual(trace(A).filter((l) => l[2] === 'run'), [], 'the hook records no run for: ' + c);
+  }
+  // Only the script word of `node` counts: a test file that merely has `scope.js test` among its arguments is a direct run, recorded.
+  for (const c of [`node tests/n.test.js scope.js test`, `node tests/n.test.js --file plugin/scripts/scope.js test`, `node -e 'x' ${SCOPE} test`]) {
+    reset();
+    postOut(c);
+    assert.equal(trace(A).filter((l) => l[2] === 'run').length, c.includes('-e') ? 0 : 1, 'one run line for: ' + c);
+  }
+  // A mixed command records the direct runs around the `scope.js test` call, never the call itself.
+  for (const c of [`node tests/n.test.js && node ${SCOPE} test full`, `bun run test; node ${SCOPE} test full`, `node ${SCOPE} test full; node tests/n.test.js`]) {
+    reset();
+    editOut(T);
+    assert.ok(postOut(c).includes('Missing RED'), 'the note still follows: ' + c);
+    const runs = trace(A).filter((l) => l[2] === 'run');
+    assert.equal(runs.length, 1, 'one run line, the direct run, for: ' + c);
+    assert.equal(runs[0][4], 'unknown', 'a direct run beside another command reads unknown: ' + c);
+  }
+  reset();
+  editOut(T);
+  appendTrace(A, { slice: '03', kind: 'run', fields: ['full', 'fail', 'unknown', 'unknown', '-'] });
+  assert.equal(postOut(`node ${SCOPE} test full`), '', 'a failing run line from the verb satisfies the RED step');
+  reset();
+  editOut(T);
+  const bg = `node ${SCOPE} test full`;
+  assert.equal(runOut({ hook_event_name: 'PostToolUse', tool_name: 'Bash', tool_input: { command: bg, run_in_background: true }, cwd: S3 }), '', 'a background call has run nothing yet');
+  postOut(`echo node ${SCOPE} test full`);
+  assert.equal(trace(A).filter((l) => l[2] === 'note').length, 0, 'an echo of the command is no run');
   // The same sequence on a mechanical slice, a docs slice, and a repository with no test command: no note.
   for (const type of ['mechanical', 'docs']) {
     fs.writeFileSync(path.join(A, 'ledger.md'), ledger([['02', 'todo'], ['03', 'in-progress']]).replace('| 03 | #03 | t | behavior', `| 03 | #03 | t | ${type}`));
@@ -584,32 +720,96 @@ assert.deepEqual(tail(trace(A)).map((l) => l.split(' ').slice(0, 2).join(' ')), 
   fs.rmSync(vf2);
 }
 
-// Subagent dispatches: SubagentStart records `dispatch`, SubagentStop the matching `dispatch-end`.
+// Subagent dispatches: PreToolUse on Agent records `dispatch`, PostToolUse `completed` (or async_launched then SubagentStop) the `dispatch-end`.
+const agentPre = (prompt, tu, type, description, cwd) => ({ hook_event_name: 'PreToolUse', tool_name: 'Agent', tool_use_id: tu, tool_input: { prompt, subagent_type: type || 'superdev:implementer', description: description || 'build it' }, cwd: cwd || tmp });
+const agentPost = (tu, response, cwd) => ({ hook_event_name: 'PostToolUse', tool_name: 'Agent', tool_use_id: tu, tool_response: response, cwd: cwd || tmp });
 {
   reset();
-  const start = (prompt, id, type, description) => run({ hook_event_name: 'SubagentStart', agent_id: id, agent_type: type || 'superdev:implementer', prompt, description: description || 'build it', cwd: tmp });
-  const stop = (id, type) => run({ hook_event_name: 'SubagentStop', agent_id: id, agent_type: type || 'superdev:implementer', cwd: tmp });
-  start(`Work in ${A}/slicetrees/04 please`, 'i1', 'superdev:implementer', 'two words');
-  assert.deepEqual(trace(A), [['04', 'main', 'dispatch', 'superdev:implementer', 'i1', 'two\\x20words']]);
-  stop('i1');
-  assert.deepEqual(trace(A)[1], ['04', 'main', 'dispatch-end', 'superdev:implementer', 'i1']);
-  start(`Append to ${A}/reports/04/progress.md`, 'r1', 'superdev:slice-reviewer');
-  assert.deepEqual(trace(A)[2].slice(0, 5), ['04', 'main', 'dispatch', 'superdev:slice-reviewer', 'r1']);
-  start(`${A}/slicetrees/04 and ${A}/reports/04/progress.md`, 'r2');
+  const stop = (id, cwd) => run({ hook_event_name: 'SubagentStop', agent_id: id, agent_type: 'superdev:implementer', cwd: cwd || tmp });
+  run(agentPre(`Work in ${A}/slicetrees/04 please`, 't1', 'superdev:implementer', 'two words'));
+  assert.deepEqual(trace(A), [['04', 'main', 'dispatch', 'superdev:implementer', 't1', 'two\\x20words']]);
+  run(agentPost('t1', { status: 'completed' }));
+  assert.deepEqual(trace(A)[1], ['04', 'main', 'dispatch-end', 'superdev:implementer', 't1'], 'a foreground dispatch ends on its PostToolUse');
+  run(agentPre(`Append to ${A}/reports/04/progress.md`, 't2', 'superdev:slice-reviewer'));
+  assert.deepEqual(trace(A)[2].slice(0, 5), ['04', 'main', 'dispatch', 'superdev:slice-reviewer', 't2']);
+  run(agentPre(`${A}/slicetrees/04 and ${A}/reports/04/progress.md`, 't3'));
   assert.equal(trace(A)[3][0], '04', 'the slicetree and report path of one slice agree');
-  start(`${A}/slicetrees/04 and ${A}/slicetrees/05`, 'r3');
+  run(agentPre(`${A}/slicetrees/04 and ${A}/slicetrees/05`, 't4'));
   assert.equal(trace(A)[4][0], 'scope', 'two slice ids in one run record under scope');
   assert.equal(trace(A).length, 5);
-  start('no run root here', 'n1');
-  start(`${A}/slicetrees/04 and ${B}/slicetrees/01`, 'n2');
-  start(`${path.join(tmp, '.superdev', 'scopes', 'nope')}/slicetrees/01`, 'n3');
+  run(agentPre('no run root here', 'n1'));
+  run(agentPre(`${A}/slicetrees/04 and ${B}/slicetrees/01`, 'n2'));
+  run(agentPre(`${path.join(tmp, '.superdev', 'scopes', 'nope')}/slicetrees/01`, 'n3'));
+  run(agentPost('unknown', { status: 'completed' }));
   stop('unknown');
   assert.equal(trace(A).length, 5);
   assert.equal(trace(B).length, 0, 'a dispatch naming no run root or two records nothing');
-  stop('r2');
-  assert.deepEqual(trace(A)[5], ['04', 'main', 'dispatch-end', 'superdev:implementer', 'r2']);
-  start(`Work in ${A}/. and ${A}, then ${A}/slicetrees/04.`, 'p1');
+  run(agentPre(`Work in ${A}/. and ${A}, then ${A}/slicetrees/04.`, 'p1'));
   assert.equal(trace(A).filter((l) => l[2] === 'dispatch' && l[4] === 'p1').length, 1, 'trailing punctuation after a run root path still records the dispatch');
+
+  // A background dispatch: async_launched binds the agentId, SubagentStop with it ends the dispatch.
+  reset();
+  run(agentPre(`${A}/slicetrees/04`, 'b1', 'superdev:slice-reviewer'));
+  run(agentPost('b1', { status: 'async_launched', agentId: 'ag1' }));
+  assert.equal(trace(A).filter((l) => l[2] === 'dispatch-end').length, 0, 'a launch is no end');
+  stop('other');
+  assert.equal(trace(A).filter((l) => l[2] === 'dispatch-end').length, 0, 'an unbound agent id ends nothing');
+  stop('ag1');
+  assert.deepEqual(trace(A).filter((l) => l[2] === 'dispatch-end'), [['04', 'main', 'dispatch-end', 'superdev:slice-reviewer', 'b1']]);
+
+  // A SubagentStop another hook blocked fires again: one dispatch still gets one end.
+  stop('ag1');
+  assert.equal(trace(A).filter((l) => l[2] === 'dispatch-end').length, 1, 'a repeated SubagentStop writes no second end');
+
+  // hooks.json registers run-trace.js for PreToolUse and PostToolUse on Agent.
+  const registered = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'plugin', 'hooks', 'hooks.json'), 'utf8')).hooks;
+  for (const ev of ['PreToolUse', 'PostToolUse']) {
+    assert.ok(registered[ev].some((g) => g.matcher === 'Agent' && g.hooks.some((h) => h.command.includes('hooks/run-trace.js'))), `${ev} on Agent runs run-trace.js`);
+  }
+
+  // Parallel implementers for slices 01 and 02 ending in reverse order each end on their own slice.
+  reset();
+  run(agentPre(`${A}/slicetrees/01`, 'x1'));
+  run(agentPre(`${A}/slicetrees/02`, 'x2'));
+  run(agentPost('x2', { status: 'completed' }));
+  run(agentPost('x1', { status: 'completed' }));
+  assert.deepEqual(trace(A).filter((l) => l[2] === 'dispatch-end').map((l) => [l[0], l[4]]), [['02', 'x2'], ['01', 'x1']]);
+
+  // A dispatch with no PostToolUse, or a PostToolUseFailure, has no end; a denied or failed result carries no completed status.
+  reset();
+  run(agentPre(`${A}/slicetrees/01`, 'f1'));
+  run(agentPre(`${A}/slicetrees/02`, 'f2'));
+  run({ hook_event_name: 'PostToolUseFailure', tool_name: 'Agent', tool_use_id: 'f2', error: 'boom', cwd: tmp });
+  assert.equal(trace(A).filter((l) => l[2] === 'dispatch-end').length, 0);
+  assert.deepEqual(trace(A).filter((l) => l[2] === 'dispatch').map((l) => [l[0], l[4]]), [['01', 'f1'], ['02', 'f2']]);
+
+  // Another status, a non-object tool_response, and async_launched without an agentId each write no end and print nothing.
+  reset();
+  run(agentPre(`${A}/slicetrees/01`, 'm1'));
+  run(agentPre(`${A}/slicetrees/01`, 'm2'));
+  run(agentPre(`${A}/slicetrees/01`, 'm3'));
+  assert.equal(spawnOut(agentPost('m1', { status: 'error' })), '');
+  assert.equal(spawnOut(agentPost('m2', 'boom')), '');
+  assert.equal(spawnOut(agentPost('m3', { status: 'async_launched' })), '');
+  stop('undefined');
+  assert.equal(trace(A).filter((l) => l[2] === 'dispatch-end').length, 0);
+
+  // A trace built from these events passes final-reviewer's check: the slice-reviewer dispatch-end follows the last implementer dispatch-end.
+  reset();
+  run(agentPre(`${A}/slicetrees/01`, 'k1'));
+  run(agentPost('k1', { status: 'completed' }));
+  run(agentPre(`${A}/slicetrees/01`, 'k2', 'superdev:slice-reviewer'));
+  run(agentPost('k2', { status: 'completed' }));
+  const ends = trace(A).filter((l) => l[2] === 'dispatch-end' && l[0] === '01');
+  const typeOf = (tu) => trace(A).find((l) => l[2] === 'dispatch' && l[4] === tu)[3];
+  assert.deepEqual(ends.map((l) => [l[4], typeOf(l[4])]), [['k1', 'superdev:implementer'], ['k2', 'superdev:slice-reviewer']], 'the review ends after the implementer');
+
+  // Every Agent-tool event exits 0 with no decision, and a SubagentStart without a prompt writes nothing.
+  assert.equal(spawnOut(agentPre(`${A}/slicetrees/01`, 'o1')), '');
+  assert.equal(spawnOut(agentPost('o1', { status: 'completed' })), '');
+  assert.equal(spawnOut({ hook_event_name: 'SubagentStart', agent_id: 'z', agent_type: 'superdev:implementer', cwd: tmp }), '');
+  assert.equal(trace(A).filter((l) => l[4] === 'o1' && l[2] === 'dispatch-end').length, 1);
+  assert.equal(trace(A).length, 6);
 }
 
 // SubagentStop from a controller whose cwd is a subdirectory of the main checkout or a worktree of it.
@@ -627,21 +827,24 @@ assert.deepEqual(tail(trace(A)).map((l) => l.split(' ').slice(0, 2).join(' ')), 
   rg('commit', '-q', '-m', 'base');
   const WT = path.join(tmp, 'wt-' + path.basename(R));
   rg('worktree', 'add', '-q', WT, '-b', 'wt');
-  const hook = (ev, id, cwd, extra) => run(Object.assign({ hook_event_name: ev, agent_id: id, agent_type: 'superdev:implementer', description: 'd', cwd }, extra));
+  const hook = (ev, id, cwd, extra) => {
+    if (ev === 'Dispatch') { run(agentPre(extra.prompt, 't-' + id, 'superdev:implementer', extra.description || 'd')); run(agentPost('t-' + id, { status: 'async_launched', agentId: id }, R)); return; }
+    run(Object.assign({ hook_event_name: ev, agent_id: id, agent_type: 'superdev:implementer', description: 'd', cwd }, extra));
+  };
   const ends = () => trace(C).filter((l) => l[2] === 'dispatch-end');
-  hook('SubagentStart', 'w1', tmp, { prompt: `${C}/slicetrees/07` });
+  hook('Dispatch', 'w1', tmp, { prompt: `${C}/slicetrees/07` });
   hook('SubagentStop', 'w1', path.join(R, 'plugin'));
-  assert.deepEqual(ends().map((l) => l.slice(0, 2).concat(l[4])), [['07', 'main', 'w1']], 'a subdirectory cwd of the main checkout records the end');
-  hook('SubagentStart', 'w2', tmp, { prompt: `${C}/slicetrees/07` });
+  assert.deepEqual(ends().map((l) => l.slice(0, 2).concat(l[4])), [['07', 'main', 't-w1']], 'a subdirectory cwd of the main checkout records the end');
+  hook('Dispatch', 'w2', tmp, { prompt: `${C}/slicetrees/07` });
   hook('SubagentStop', 'w2', WT);
   assert.equal(ends().length, 2, 'a worktree cwd records the end');
-  assert.equal(ends()[1][4], 'w2');
+  assert.equal(ends()[1][4], 't-w2');
 
   // Windows backslash paths record like the forward-slash form; a newline in the description stays on one line.
-  hook('SubagentStart', 'w3', tmp, { prompt: `${C}/slicetrees/07`.replace(/\//g, '\\'), description: 'a\nb' });
-  const d = fs.readFileSync(path.join(C, 'trace.log'), 'utf8').split('\n').filter((l) => l.includes(' w3 '));
+  hook('Dispatch', 'w3', tmp, { prompt: `${C}/slicetrees/07`.replace(/\//g, '\\'), description: 'a\nb' });
+  const d = fs.readFileSync(path.join(C, 'trace.log'), 'utf8').split('\n').filter((l) => l.includes(' t-w3 ') && l.includes(' dispatch '));
   assert.equal(d.length, 1, 'one line for the dispatch');
-  assert.ok(d[0].includes(' dispatch superdev:implementer w3 a'), 'backslash prompt records the dispatch');
+  assert.ok(d[0].includes(' dispatch superdev:implementer t-w3 a'), 'backslash prompt records the dispatch');
   assert.ok(d[0].endsWith(' a\\nb'), 'newline escaped on one line');
 }
 
@@ -654,7 +857,8 @@ assert.deepEqual(tail(trace(A)).map((l) => l.split(' ').slice(0, 2).join(' ')), 
   cp.execFileSync('git', ['init', '-q'], { cwd: R });
   fs.writeFileSync(path.join(C, 'ledger.md'), ledger([['07', 'in-progress']]));
   const ev = (name, cwd, extra) => Object.assign({ hook_event_name: name, agent_id: 'st1', agent_type: 'superdev:implementer', description: 'd', cwd }, extra);
-  run(ev('SubagentStart', tmp, { prompt: `${C}/slicetrees/07` }));
+  run(agentPre(`${C}/slicetrees/07`, 'tst1'));
+  run(agentPost('tst1', { status: 'async_launched', agentId: 'st1' }, R));
   const bin = path.join(tmp, 'stall-bin');
   fs.mkdirSync(bin, { recursive: true });
   // exec leaves no grandchild holding the stdout pipe once the bound kills the stub.
@@ -677,10 +881,10 @@ assert.deepEqual(tail(trace(A)).map((l) => l.split(' ').slice(0, 2).join(' ')), 
   const S = path.join(sub, '.superdev', 'scopes', 's');
   fs.mkdirSync(S, { recursive: true });
   fs.writeFileSync(path.join(S, 'ledger.md'), ledger([['09', 'in-progress']]));
-  const hook = (ev, cwd, extra) => run(Object.assign({ hook_event_name: ev, agent_id: 'sm1', agent_type: 'superdev:implementer', description: 'd', cwd }, extra));
-  hook('SubagentStart', tmp, { prompt: `${S}/slicetrees/09` });
-  hook('SubagentStop', sub);
-  assert.deepEqual(trace(S).filter((l) => l[2] === 'dispatch-end').map((l) => l[4]), ['sm1'], 'a submodule cwd records the end under the submodule checkout');
+  run(agentPre(`${S}/slicetrees/09`, 'tsm1'));
+  run(agentPost('tsm1', { status: 'async_launched', agentId: 'sm1' }, sub));
+  run({ hook_event_name: 'SubagentStop', agent_id: 'sm1', agent_type: 'superdev:implementer', cwd: sub });
+  assert.deepEqual(trace(S).filter((l) => l[2] === 'dispatch-end').map((l) => l[4]), ['tsm1'], 'a submodule cwd records the end under the submodule checkout');
 }
 
 // globToRe: `*` stays in a segment, `**` crosses them, a slash anchors, a malformed entry is null.

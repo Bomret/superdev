@@ -99,7 +99,12 @@ Repeat until every slice is `merged`:
    reference) is not a new dependency. Every implementer dispatch also tells it that the run trace records
    its edits and runs, that its progress log carries no RED or GREEN line, and that a note from the hook
    means a missing failing run, answered by the remedy: `git add <paths>`, `git restore --worktree --source=<base> -- <paths>`, a failing
-   run, `git restore -- <paths>`, a passing run, never `git stash` (`<base>` is the commit the slice branch was cut from, which the dispatch names). It also tells it that a `run … unknown` line is not a failing run, and that it answers one by re-running the test without a pipe or `|| true`.
+   run, `git restore -- <paths>`, a passing run, never `git stash` (`<base>` is the commit the slice branch was cut from, which the dispatch names). It also tells it that a `run … unknown` line is not a failing run, and that it answers one by re-running the test through `scope.js test`. Every implementer dispatch also
+   tells it to run every test through `scope.js test` (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test
+   focused <changed paths>`, `test full`, or `test -- <command>` for a direct test-file run), to run a suite longer than the
+   Bash tool's time limit through the runner in the background and wait for its end before acting on it, and
+   tells it to edit files through the edit tools, never through a script. The controller never edits a slice's tree to produce a failing run:
+   a failing run comes from the implementer's own revert and run, or from none at all.
 
    **Pilot the first wave.** On a fresh scope (nothing merged yet), dispatch a single slice first and take
    it through review + merge before filling the cap — a systemic problem (a mis-specified convention, a
@@ -132,12 +137,14 @@ Repeat until every slice is `merged`:
      global constraints, and the **progress-log** path (`<run-root>/reports/<id>/progress.md`), on a
      first review and on every re-review. It hands **no text from an implementer's report** — not the
      slice implementer's, not a fix implementer's, and no controller paraphrase of their status or "met"
-     claims (ADR 0114, INV-0114). The reviewer settles a **blind pass** before it opens the log, and
+     claims (ADR 0114, INV-0114). The dispatch also tells it to run every test through `scope.js test`, and
+     a suite longer than the Bash tool's time limit through the runner in the background, waiting for its
+     end. The reviewer settles a **blind pass** before it opens the log, and
      the blind pass reads the slice's run-trace lines (`scope.js trace --slice <id>`): on a `behavior`
      slice, a test edit followed by an implementation edit or a passing run with no failing run between them is an Important
      finding, **Missing RED**, and no trace or no events for the slice gets no finding, only a named gap.
      A re-review closes it only when the trace shows, after the finding, a revert (or an implementation
-     edit), a failing run covering that test, a restore (or an implementation edit), and a passing run. A `run … unknown` line is not a failing run: it neither satisfies the RED step nor closes the finding, and the implementer answers it by re-running the test without a pipe or `|| true`. Reading
+     edit), a failing run covering that test, a restore (or an implementation edit), and a passing run. A `run … unknown` line is not a failing run: it neither satisfies the RED step nor closes the finding, and the implementer answers it by re-running the test through `scope.js test`. Reading
      the log can add a finding or raise a finding's severity, and it never withdraws or downgrades one
      (INV-0113). The reviewer appends its full findings to the log, and a re-review reads the earlier
      findings there after its blind pass, closing one only from the diff and its own suite
@@ -155,7 +162,9 @@ Repeat until every slice is `merged`:
      deferred one excluded, is a wrong cut: move the slice → `blocked` and escalate (`--unattended` →
      block). A remainder of **only Minor findings** proceeds: the simplicity pass runs and the slice
      merges, and the leftover Minors are named in the report and written nowhere else (no ledger entry,
-     no triage record). The loop never asks the operator, attended or unattended; this step has no gate
+     no triage record). A slice whose only remaining Critical or Important finding is **Missing RED**
+     proceeds the same way (ADR 0125, INV-0118), and the run's final report names the finding with its
+     slice; **Missing RED** beside another Critical or Important finding blocks as above. The loop never asks the operator, attended or unattended; this step has no gate
      question. The RED-test rule is the conditional one the controller's Invariants state: a fix for a
      finding naming failing behaviour opens with a RED test, one naming none takes no RED test, and the
      re-review verifies it by reading. **Every sibling surface is reconciled**: tell the implementer to

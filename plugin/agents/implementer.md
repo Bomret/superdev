@@ -71,7 +71,11 @@ GREEN: write the minimal code to pass it → watch it pass
 ```
 
 - **Read `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run the command it selects for each RED
-  and GREEN run.**
+  and GREEN run, through the runner:** `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <changed paths>`
+  (or `test full`), and `test -- <command>` for a direct run of a test file. The runner records the
+  command's own outcome in the run trace, however you pipe or background it. A suite longer than the Bash
+  tool's time limit runs through the runner in the background, and you wait for its end before acting on it.
+- **The run trace reads an edit tool call as the edit it is**, so edit files through the edit tools, never through a script (`Edit`, `Write`).
 - **Every acceptance criterion gets at least one increment.** The loop terminates on acceptance coverage,
   not on the specification's happy path — each criterion, including the failure and boundary cases the
   criteria name, is the RED test of its own increment. Verifying a criterion observes; it changes no
@@ -119,7 +123,7 @@ it. A **note from the hook** means a test edit has no failing run since. Answer 
 stage the implementation with `git add <paths>`, revert it with `git restore --worktree --source=<base> -- <paths>`
 (a path absent at `<base>` is deleted), run the test and see it fail, restore with `git restore -- <paths>`,
 run it and see it pass. Never `git stash`: the stash stack is
-shared across worktrees. `<base>` is the commit the slice branch was cut from, which the dispatch names. A `run … unknown` line is not a failing run: it neither satisfies the RED step nor closes the finding, and the implementer answers it by re-running the test without a pipe or `|| true`.
+shared across worktrees. `<base>` is the commit the slice branch was cut from, which the dispatch names. A `run … unknown` line is not a failing run: it neither satisfies the RED step nor closes the finding, and the implementer answers it by re-running the test through `scope.js test`.
 
 ## Deep modules & domain language
 
@@ -189,7 +193,7 @@ The slice bounds the diff, not just the feature. The rules:
 ## Read economically
 
 Scope with `git diff --stat` / `git log --oneline -N`; `grep -n` to locate a spot, then read at an
-offset/limit. Pipe noisy commands (`<test command> 2>&1 | tail -20`). Rely on what is already in
+offset/limit. Pipe noisy commands, the runner included (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <changed paths> 2>&1 | tail -20`). Rely on what is already in
 context — except the TDD red→green loop, which re-runs the suite after each edit by design.
 
 ## Hygiene

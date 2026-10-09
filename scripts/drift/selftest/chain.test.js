@@ -5756,7 +5756,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     ['references/scope-mode.md', "## The scope's range base\n"],
     ['references/scope-mode.md', 'newer of two candidates'],
     ['references/scope-mode.md', 'base resolve --branch <branch> --base <base> --root <run-root>'],
-    ['references/scope-mode.md', 'After any merge, clean or resolved, run the full command from `docs/agents/verification.md` itself through the Bash tool'],
+    ['references/scope-mode.md', 'After any merge, clean or resolved, run the full command from `docs/agents/verification.md` through'],
     ['references/scope-mode.md', '`scope.js get slices --root <run-root>`'],
     ['references/scope-mode.md', '`lite` tier only'],
     ['references/scope-mode.md', '`scope.js get degraded --root <run-root>`'],

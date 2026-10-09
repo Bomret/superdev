@@ -43,6 +43,10 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/model-explicit.js\""
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-trace.js\""
           }
         ]
       }
@@ -70,6 +74,15 @@
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-trace.js\""
           }
         ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-trace.js\""
+          }
+        ]
       }
     ],
     "PostToolUseFailure": [
@@ -81,16 +94,6 @@
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/green-gate.js\"",
             "timeout": 600
           },
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-trace.js\""
-          }
-        ]
-      }
-    ],
-    "SubagentStart": [
-      {
-        "hooks": [
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-trace.js\""

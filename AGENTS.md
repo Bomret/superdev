@@ -268,7 +268,9 @@ This root owns every other subtree directly:
 - `plugin/hooks/`. Claude Code hooks, the plugin's deterministic guardrails. Governed by **Working
   rules, Hooks are CommonJS** and **Every shipped executable has a suite in `tests/`, named for it**.
   This is the strongest future child-doc candidate, if its rules outgrow this root. Of the
-  hooks, `scope-prune.js`, `slicetree-sweep.js`, and `run-trace.js` depend on `plugin/scripts/`, and the scripts
+  hooks, `scope-prune.js`, `slicetree-sweep.js`, `run-trace.js`, and `green-gate.js` depend on `plugin/scripts/`
+  (`green-gate.js` requires `scope.js` for `appendTrace` and `run-trace.js` for `locate` and `treeState`, so
+  its run line attributes like the trace's own, ADR 0127), and the scripts
   `publish-kb.js` and `profile.js` require `scope.js` as well. `scope-prune.js` and `slicetree-sweep.js` both
   `require` `../scripts/scope.js` for their ledger-header reader (ADR 0022), `run-trace.js` requires it for
   the trace writer and reader and the ledger row readers (ADR 0117), and `scope-prune.js`
@@ -288,6 +290,8 @@ This root owns every other subtree directly:
   (ADR 0053, ADR 0065, ADR 0082), exports `mainWorkTree`, `CHANGE_TYPES`, and `refResolves` for `publish-kb.js` (`SLUG_RE` too, and `mainWorkTree` and `CHANGE_TYPES` for `profile.js`), and carries verbs that touch no ledger: `root <slug>`,
   which resolves a run root's absolute path against the repository's main working tree from any cwd
   (ADR 0080). The verb `staging <scope>` resolves a scope's staging directory the same way (ADR 0119).
+  The verb `test` runs a test command and records its own exit status as an Observed run, requiring
+  `plugin/hooks/run-trace.js` at call time (ADR 0127).
   It also writes the `planned` stage on `init`, which `/superdev:implement`'s run init moves
   forward out of, ADR 0079),
   `plugin/scripts/kb-patch.js` (the deterministic section merge behind a staged page's `action: patch`,

@@ -29,7 +29,7 @@ This doc owns what each script guards and the contracts between them. Repo-wide 
 `base set <sha>`, `base resolve --branch <b> --base <ref>`,
 `get stage|branch|anchor|slices|unresolved|degraded|deferred|denials|docs|pr|suite`,
 `status` (which renders the whole `/superdev:status` report), `trace [--slice <id>]` (prints the run trace, read-only), `publish`, `adopt`, `root <slug>`,
-`staging <scope> [--count]`, and `dod-line`.
+`staging <scope> [--count]`, `dod-line`, and `test`.
 `--help` or `-h`, alone or after any verb, prints the usage and exits 0, except that a flag's value, or the bullet text after `add` or `add-denial`, is data and never a help request. It is checked before any verb
 reads stdin or touches a ledger, so a stdin verb such as `dod-line` never waits on input for it.
 `suite set` writes the **suite record** (CONTEXT.md) — the last full-suite run's result and the commit
@@ -105,6 +105,28 @@ tree and survives that checkout's removal. It accepts `_adhoc`, and refuses what
 git repository included. `--count` prints the number of `.md` pages in that directory instead, `0` when
 it is missing. The staged-page scan behind `status` resolves its staging root through the same main
 working tree.
+
+`test full|whole`, `test focused [<path>…]`, and `test -- <command>` run a test command in bash and append one
+`run` line carrying the command's own exit status, an **Observed run** (CONTEXT.md, ADR 0127, INV-0117). The verb
+streams the command's output and exits with its status. `full`, `focused`, and `whole` run the command
+`docs/agents/verification.md` configures, as written; `focused` substitutes its shell-quoted paths for `{paths}`
+and, given none, runs the full command and records `full`. `--` runs a command that `hooks/run-trace.js`'s
+`testRuns` classifies as exactly one test run, and records the kind and files a direct run records. A status the
+command shape hides from the test, such as a pipe without `pipefail`, records `unknown`. A command that classifies
+as no test run, or a kind with no configured command, is refused and nothing runs. The verb reads the run root,
+slice, commit, and tree state when the command starts, and appends the line when it finishes. A run during which
+HEAD moved, the tree was dirty at either end, or the trace recorded an edit, revert, or restore for the slice
+during the run records `dirty`, so it never backs `suite reusable`. A change no hook records shows only at the two ends. A command ended by a
+signal, or a verb killed first, writes no line, and the command's process group dies with the verb (a watcher
+process covers `SIGKILL`). A failed trace write prints a note on stderr and leaves the exit status unchanged.
+Outside every run tree the command runs and nothing is written. So does a command that `cd`s out of every run tree:
+`hooks/run-trace.js`'s `outsideTree` classifies the `cd` target against its repository top. The verb takes no option that sets an outcome,
+kind, slice, or tree state. It requires `hooks/run-trace.js` at call time for `locate`, `testRuns`, and
+`treeState`, and `scope.js` assigns its exports before `main()` runs so that hook's own require finds them.
+`hooks/green-gate.js` writes its own suite-run line through `scope.js`'s `appendTrace`, taking `locate` and
+`treeState` from `hooks/run-trace.js` under that hook's bounded git probe (`GIT_BOUND_MS`), so both attribute a run
+to the same tree. `hooks/run-trace.js` records no run for a Bash command that runs `scope.js test`, and still evaluates the Missing
+RED note after a foreground call.
 
 `dod-line` is another verb that touches no ledger, and makes no store call of its own
 (`references/dod-ticks.md`, INV-0014, triage #664): `--match <criterion text>|--match-file <path>
@@ -1159,7 +1181,7 @@ full-suite fail, or a Critical or Important finding, stands. That last clause is
 red scope, distinct from the finding merely being named. ADR 0075 adds the loop's own rows: each fix
 cycle runs the focused command over the fix diff and hands that result to the re-review; a full suite
 runs once more when a verdict first comes back clean, with a red result there counting toward the
-3-strike cap; and a denied exit run takes the entry run's own local deviation — record and continue
+3-strike cap (a Missing RED-alone remainder at the cap advances instead, ADR 0125); and a denied exit run takes the entry run's own local deviation — record and continue
 attended, block unattended — rather than the generic record-and-continue default, since it is the gate
 the stage advances on. Each row lost has its own failure — dropping the exit run advances a stage on a
 suite that never saw the fixes, dropping the focused cycle run silently reinstates a full suite per
@@ -2738,21 +2760,23 @@ fires on any finding, a Minor-only verdict included, and offers fix every findin
 Important findings, or fix none; `--unattended` fixes every finding without asking; each cycle dispatches
 one implementer with the complete list the chosen option covers, capped at 3 cycles in total with every
 cycle counting; at the cap a remainder of only Minor findings takes the clean-verdict path with no
-`unresolved add`, no `deferred add`, and no triage record, while a Critical or Important finding, a broken
+`unresolved add`, no `deferred add`, and no triage record, while a Critical or Important finding other than a lone Missing RED (ADR 0125), a broken
 criterion, or a red suite keeps the `**Unresolved:**` entry; a declined fix splits the same way; the
 RED-test rule is conditional; and an observation never joins the fix list (INV-0010).
 `skills/review/SKILL.md` §4 also pins the exit run: the full suite runs once more when a re-review first
 comes back clean or the cap leaves only Minor findings, so the stage never advances on focused runs alone.
 The controller takes the cap's Minor-only clean-verdict path only once that exit run is green.
 `skills/implement/SKILL.md`'s `## Invariants (both playbooks)` pins three rules. A Critical or Important
-remainder at the cap blocks. A Minor-only remainder proceeds. The RED-test rule is conditional.
+remainder at the cap blocks, except one whose only such finding is Missing RED, which proceeds and is named in
+the final report (ADR 0125). A Minor-only remainder proceeds. The RED-test rule is conditional.
 `agents/implementer.md` carries the conditional RED-test rule, so the dispatch and the agent body agree.
 `references/implement-full.md` step 3 carries the per-slice loop's rows:
 
 - One fresh implementer fix per cycle for any finding outside the deferred ones, a Minor-only verdict
   included, carrying the complete fix list.
 - Re-review capped at 3 cycles in total.
-- A Critical or Important remainder at the cap blocks. A Minor-only remainder proceeds and is written
+- A Critical or Important remainder at the cap blocks, except one whose only such finding is Missing RED
+  (ADR 0125). A Minor-only remainder proceeds and is written
   nowhere.
 - The loop never asks the operator.
 - The RED-test rule is conditional.

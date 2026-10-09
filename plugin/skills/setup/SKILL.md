@@ -62,7 +62,8 @@ store and code host stay unqueried:
   command text is the whole check; it runs nothing.
 - `verification.md` — a document holding test commands and no `## Test paths` section gets an
   **advisory** line, never a drift verdict: state that the default patterns
-  (`references/test-selection.md`'s `## Test paths` section: `tests/`, `test/`, `__tests__/`, `spec/`,
+  (`references/test-selection.md`'s `## Test paths` section: `tests/`, `test/`, `__tests__/`, and `spec/`
+  directories at any depth by whole segment, `*.Tests` and `*.Test` directories, and the file names
   `*.test.*`, `*.spec.*`, `*_test.*`, `test_*.py`) apply, and that the operator may add the section to
   name the repository's own test locations. A section with no usable entry, empty or all malformed, gets
   the same line, since the hook then applies the defaults. A `verification.md` with no test command gets no

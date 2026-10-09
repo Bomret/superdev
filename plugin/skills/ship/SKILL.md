@@ -148,7 +148,7 @@ name. **The section is present** → add `--whole` to the `suite reusable` call 
 refuse: name every standing bullet, merge nothing, and point at `/superdev:review <scope>`. A run here
 would overwrite that invalidation with a result the finding does not earn. Ship's own killed run records
 `none <sha> whole`, which is not this record: it carries the kind. **Any other tip** → run the whole-repo command yourself on it: take the command from that
-section, run it in the scope checkout over that tip, and record what happened with
+section, run it in the scope checkout over that tip through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test whole`, and record what happened with
 `suite set <green|red|denied|none> <tip> --whole --root <run-root>`. **Green** → proceed. **Red, denied, or
 killed or never started (no verdict, INV-0009; recorded as `none`)** → merge nothing. Name the result and
 point at `/superdev:review <scope>` to fix it and record a new one. §4 applies this same rule to the
@@ -180,7 +180,9 @@ the push below.
   the full one** (`docs/agents/verification.md`) → the gate's own pass already is the full run: record it
   with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set green <new-head> --root <run-root>` and run
   nothing more. **Otherwise, or the gate could not run** (denied, or no `verification.md`) → take the full
-  command from `docs/agents/verification.md` yourself, run it over the merged scope branch, and record
+  command from `docs/agents/verification.md` yourself, run it over the merged scope branch through
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full` (in the background when the suite outlasts the Bash
+  tool's time limit, waiting for its end before acting on it), and record
   what happened the same way (`suite set <green|red|denied|none> <new-head> --root <run-root>`).
   **With a `## Whole-repo command` section configured (§3)**, the gate's own pass never counts as the
   whole-repo run, and the shortcut above does not apply: the merged tip carries no green whole-repo

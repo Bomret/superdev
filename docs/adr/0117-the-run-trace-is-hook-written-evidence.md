@@ -4,6 +4,8 @@
 
 **Amends:** [ADR 0008](0008-tests-written-incrementally.md), [ADR 0114](0114-the-slice-review-reads-the-progress-log-only-after-its-blind-pass.md).
 
+**Amended by:** [ADR 0127](0127-a-test-run-records-its-own-outcome.md), [ADR 0125](0125-missing-red-never-blocks-a-slice-at-the-fix-cap.md).
+
 **Context.** ADR 0008 requires one RED test, then minimal GREEN code, then the next increment. The only
 record of that order was the implementer's own progress log. On 2026-10-05 the local transcripts of this
 repository held 95 `superdev:implementer` slice runs. About 31 recorded a failing test run before the
@@ -22,7 +24,8 @@ event:
 - a test run with its outcome (pass, fail, or unknown for a piped command) and the HEAD commit. A test
   run is the full, focused, or whole-repo command, or a command that names a test-path file;
 - a revert or restore of implementation files through `git restore` or `git checkout -- <paths>`;
-- a subagent dispatch and its end, mapped to the run through the dispatch prompt;
+- a subagent dispatch and its end, mapped to the run through the dispatch prompt (recorded from the
+  `Agent` tool's events since 2026-10-08, see the update under the platform basis);
 - a ledger write, appended by `scope.js` itself.
 
 A full-tier event belongs to the slice its slicetree path names. A lite-tier event belongs to the one
@@ -45,6 +48,9 @@ the input carries `agent_id` and `agent_type`. The transcripts hold 550 `PostToo
 inside subagents and 714 `hook_additional_context` attachments, so a note reaches the subagent. A Bash
 result carries no exit code: `PostToolUse` fires on success, and `PostToolUseFailure` fires on failure.
 `SubagentStart` carries `prompt` and `agent_id`. `SubagentStop` carries `agent_id` and no prompt.
+*Update 2026-10-08, Claude Code 2.1.294:* `SubagentStart` carries no `prompt`. `PreToolUse` on the `Agent`
+tool records a dispatch, keyed by `tool_use_id`, and `PostToolUse` or `SubagentStop` ends it
+(ADR 0127, `docs/known-issues.md`).
 Matching hooks run in parallel with no order guarantee.
 
 **Considered options**

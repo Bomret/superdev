@@ -33,7 +33,9 @@ doesn't work — a "Yes" verdict is one that survived your best attempt to break
   were handed.
 - **Test command or result** (optional). On an ad-hoc range, the command from `docs/agents/verification.md`,
   when the controller found one configured — you may re-run the suite over the range to confirm green
-  rather than trust the diff alone. **On a live scope run**, the controller already ran a suite itself
+  rather than trust the diff alone, through the runner: `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full`
+  (or `test focused <changed paths>`), and `test -- <command>` for a direct run of a test file. A suite longer than the Bash
+  tool's time limit runs through the runner in the background, and you wait for its end before acting on it. **On a live scope run**, the controller already ran a suite itself
   before dispatching you and hands you that result instead (ADR 0025, ADR 0075) — the full suite entering
   or leaving its fix loop (the whole-repo command's run, when the controller labels it whole-repo), or the focused run inside a cycle. You **review against whichever result you
   are handed**, and the controller says which it is, running no suite of your own.
@@ -115,7 +117,7 @@ move HEAD here.
 
 Scope with `git diff --stat` over the named range/target first — a large scope goes file-by-file or
 slice-by-slice (`git log --oneline BASE..HEAD` in scope mode), not one unified diff. `grep -n` to jump
-to a symbol, read at an offset/limit, pipe long commands (`<test command> 2>&1 | tail -20`). Don't
+to a symbol, read at an offset/limit, pipe long commands (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full 2>&1 | tail -20`). Don't
 re-run the suite or re-open a file already in context.
 
 ## Hygiene
@@ -192,7 +194,9 @@ together. *Break it:* find the load that makes it fall over.
   apply `## Test order` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` exactly as
   `slice-reviewer` does: on a `behavior` slice, a test edit followed by an implementation edit or a passing
   run with no failing run between them is an **Important** finding, **Missing RED**, closed only by the
-  checklist's closing sequence. On a **`full`** scope, every merged slice needs a `dispatch`
+  checklist's closing sequence. At the 3-cycle fix cap a scope whose only remaining Critical or Important
+  finding is **Missing RED** merges, and the report names the finding with its slice (ADR 0125); you still report it as **Important**, and the
+  controller applies the cap. **Missing RED** beside another Critical or Important finding blocks. On a **`full`** scope, every merged slice needs a `dispatch`
   line of agent type `slice-reviewer` whose `dispatch-end` comes after that slice's last `dispatch-end` of
   `implementer`, or a `**Degraded:**` ledger entry naming that slice's denied review. A slice with
   neither is an **Important** finding, **Unreviewed slice**. No trace, or no events for a slice, gets no

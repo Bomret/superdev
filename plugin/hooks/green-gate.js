@@ -34,6 +34,12 @@
 // return, never a decision, the merge proceeding silently (the failure INV-0009 and ADR 0086 name).
 // SUITE_TIMEOUT_MS bounds `execSync` itself, margin below whatever hooks.json's own entry says, so
 // the hook always ends the suite and observes the signal before the platform ceiling could.
+//
+// Each suite run the gate performs also appends one `run` line to the run trace (INV-0017, ADR 0117):
+// traceSuiteRun() writes kind (`full` only for the full command), outcome, commit, and clean state, so
+// `scope.js suite reusable` can accept a clean merge's tip. A run killed at its bound and a spawn that
+// never started produced no verdict (INV-0009) and write nothing; a cwd outside every run tree writes
+// nothing either.
 // SUITE_MARGIN_MS is 30s: room for the hook's own JSON stdin read, doc read, and the process
 // exit/output write around the spawn, comfortably inside the platform ceiling without eating into a
 // slow-but-finishing suite's real budget. Deriving the bound from the manifest, instead of repeating
@@ -43,6 +49,19 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { execSync } = require('node:child_process');
+
+// scope.js owns the trace writer (ADR 0022, ADR 0117), and run-trace.js owns the run-tree attribution
+// (`locate`) and the bounded commit and clean-state read (`treeState`), so the gate and the hook never
+// disagree. The same fail-silent require as run-trace.js: no writer or reader, no recording.
+let appendTrace = null;
+let locate = null;
+let treeState = null;
+try {
+  ({ appendTrace } = require('../scripts/scope.js'));
+  ({ locate, treeState } = require('./run-trace.js'));
+} catch {
+  // left null: traceSuiteRun() records nothing
+}
 
 // (?![-\w]) so read-only helpers `git merge-base` / `merge-tree` don't trip the gate (a `\b` would
 // match them — mirror merge-guard). `\n` lead-in + `m` so a merge on a later line of a multi-line
@@ -391,8 +410,9 @@ const NOTICE_ONE_FENCE =
 // backtick fence's info string holds no backtick, so an inline span such as ```x``` is no opener). It
 // closes on a line with the same indentation limit, of the same character, at least as long as the
 // opener. `blocks` holds each closed block's body, `outside` the text between blocks. An unclosed
-// fence yields no block. scope.js and hooks/green-gate.js each carry this function, because hooks
-// stay standalone; tests/green-gate.test.js pins them byte-identical.
+// fence yields no block. scope.js and hooks/green-gate.js each carry this function, because the gate's
+// decision never depends on scope.js loading (its scope.js require serves only the fail-silent trace
+// write); tests/green-gate.test.js pins them byte-identical.
 function fenceBlocks(raw) {
   const blocks = [];
   const outside = [];
@@ -568,7 +588,8 @@ function runTests(testCommand, cwd, timeoutMs = SUITE_TIMEOUT_MS, maxBufferBytes
     // like a RED verdict rather than failing open. A Spawn failure sits outside INV-0009, and this
     // gate answers it for its own reason (ADR 0087): it fires only on a merge, so blocking costs one
     // merge and leaves every other call free to repair the tree.
-    if (e.status == null && e.signal == null) return { ok: false, output: (e.message || '').trim() };
+    // notStarted keeps it out of the run trace: no process ran, so there is no verdict to record.
+    if (e.status == null && e.signal == null) return { ok: false, notStarted: true, output: (e.message || '').trim() };
     // status == null with a signal means the suite started and was killed (SUITE_TIMEOUT_MS,
     // ENOBUFS, or another signal) — it produced no verdict. INV-0009 / ADR 0086: no gate reads
     // that absence as a pass, so this blocks the merge like a RED result, naming the signal
@@ -650,16 +671,39 @@ function getChangedPaths(cwd) {
 // sharing this slice exists to prove. main() calls this from the parsed stdin input;
 // tests/green-gate.test.js calls it directly, so both run the same wiring instead of the suite
 // re-deriving its own copy.
-function decideMerge(input, sessionCwd) {
+// INV-0017: the gate's own suite run is evidence the run trace carries, so `scope.js suite reusable`
+// accepts a clean merge's tip. One `run` line in the run root that owns `cwd` (a scopetree or slicetree
+// with a readable ledger): `full` only when the command run is the configured full command, the outcome,
+// and the tree's commit and clean state. A run killed at its bound produced no verdict and records
+// nothing; a cwd outside every run tree records nothing.
+function traceSuiteRun(cwd, kind, result) {
+  if (!appendTrace || !locate || !treeState || result.killed || result.notStarted) return;
+  // A file under `cwd` locates the tree that owns it, so the tree root and any subpath of it attribute alike.
+  const at = locate(path.join(cwd, 'x'));
+  if (!at) return;
+  // Budget: these two probes run after the suite, inside SUITE_MARGIN_MS. treeState() bounds each by
+  // run-trace.js's GIT_BOUND_MS, far under the 30s margin, so a suite ending at its bound still leaves
+  // the hook time to write its decision before the platform ceiling. The decision is written after the trace.
+  const [sha, state] = treeState(at.tree);
+  appendTrace(at.runRoot, { slice: at.slice, kind: 'run', fields: [kind, result.ok ? 'pass' : 'fail', sha, state, '-'] });
+}
+
+// timeoutMs is a test seam: undefined keeps runTests's production bound.
+function decideMerge(input, sessionCwd, timeoutMs) {
   const cmd = (input && input.tool_input && input.tool_input.command) || '';
   const parsed = parseMergeCommand(cmd);
   // `null` when the tree is unknowable: resolveVerification() turns that into the blind reason
   // decide() blocks on, and the injected side effects below are never reached in that case.
   const cwd = parsed ? resolveCwdFromTokens(parsed.tokens, parsed.index, cmd, sessionCwd) : sessionCwd;
+  let verification = null;
   return decide(
     input,
-    (stuck) => resolveVerification(parsed, cmd, sessionCwd, stuck),
-    (tc) => runTests(tc, cwd),
+    (stuck) => (verification = resolveVerification(parsed, cmd, sessionCwd, stuck)),
+    (tc) => {
+      const result = runTests(tc, cwd, timeoutMs);
+      traceSuiteRun(cwd, tc === verification.full ? 'full' : 'focused', result);
+      return result;
+    },
     () => getChangedPaths(cwd),
     () => mergeInProgress(cwd),
     () => getCurrentBranch(cwd),
@@ -707,6 +751,7 @@ module.exports = {
   unquoteArg,
   readVerification,
   runTests,
+  traceSuiteRun,
   mergeInProgress,
   mergeLanded,
   getChangedPaths,

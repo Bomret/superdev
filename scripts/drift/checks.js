@@ -916,7 +916,7 @@ module.exports = [
       'names Missing RED as Important on a behavior slice only, with no finding for a missing trace, an ' +
       'event-less slice, or a repository with no test command; the review checklist defines Missing RED ' +
       'and its closing sequence; the implement-full dispatches and the implement-lite inline loop carry ' +
-      'the same rules; and test-selection.md runs the full, focused, and whole-repo commands alone with their exit status intact',
+      'the same rules; and test-selection.md and every prose that directs a test run name scope.js test (the implementer and slice-reviewer bodies each on their own directive, and each controller run site in run-handoff.md, review and ship on its own anchor), and implement-full.md directs the controller never to edit the slice tree to produce a failing run',
   ),
   table(
     'setup-test-paths',

@@ -172,6 +172,15 @@ assert.equal(bash('bun run test').block, false, 'unrelated bash passes');
   assert.equal(bash("echo '#string' <<EOF\ndata\nEOF\ncp /tmp/x " + L).block, true, 'real write after a real heredoc with single-quoted # is denied');
 }
 
+// An escaped quote outside quotes opens no quote carry: the later heredoc body stays masked and is allowed.
+assert.equal(bash('echo it\\\'s\ncat > notes.md <<EOF\necho x > .superdev/scopes/x/ledger.md\nEOF').block, false, 'escaped quote leaves heredoc body masked');
+
+// `$$` is the PID, so its second `$` never opens an ANSI-C quote: the `'` starts a plain quote and the later writes stay seen.
+assert.equal(bash("echo $$'a\\' '<<EOF' \\'\ncp /tmp/x .superdev/scopes/x/ledger.md").block, true, 'PID before a plain quote: cp denied');
+assert.equal(bash("echo $$'a\\' '<<EOF' \\'\necho hi > .superdev/scopes/x/ledger.md").block, true, 'PID before a plain quote: redirect denied');
+assert.equal(bash("echo $$$$'a\\' '<<EOF' \\'\ncp /tmp/x .superdev/scopes/x/ledger.md").block, true, 'two PIDs before a plain quote: cp denied');
+assert.equal(bash("echo $$$'a\\' <<EOF'\ncat > notes.md <<EOF\necho x > .superdev/scopes/x/ledger.md\nEOF").block, false, 'PID then ANSI-C quote still reads as ANSI-C');
+
 // Every in-place edit form is refused for the ledger and the run trace, plain and wrapped; read-only inspection passes.
 const INPLACE_DENY = [
   "sed -i 's/a/b/' @", "sed -i.bak 's/a/b/' @", "sed -Ei 's/a/b/' @", "sed -i -E 's/a/b/' @", "sed --in-place 's/a/b/' @",
@@ -204,7 +213,7 @@ const INPLACE_DENY = [
   // A tool behind a prefix wrapper is in command position, at the top level and inside a shell string.
   'sudo perl -pi -e x @', 'sudo ed @', 'sudo -u bob perl -pi -e x @', 'env perl -pi -e x @', 'env FOO=1 ed @', 'env -u X ex @', 'xargs perl -pi -e x < @',
   'xargs -n 1 ed @', 'nice ed @', 'nice -n 5 ed @', 'nohup ed @', 'command ed @', 'time ed @', 'timeout 5 ed @', 'timeout -s KILL 5 perl -pi -e x @', 'sudo env nice ed @',
-  'sudo -- ed @', 'sudo truncate -s 0 @', 'nice sort -o @ @',
+  'rtk ed @', 'rtk sed -i p @', 'sudo -- ed @', 'sudo truncate -s 0 @', 'nice sort -o @ @',
   // An ANSI-C `$'…'` word is a quoted string, so a shell reads its content as a command line.
   "bash -c $'perl -pi -e x @'", "sh -c $'sed -i x @'", "bash -c $'sudo ed @'", 'bash -c $"perl -pi -e x @"',
   // `truncate -r REF FILE` sizes FILE from REF, so FILE is written; the reference file is only read.
@@ -373,7 +382,7 @@ assert.equal(bash('grep sed ' + L + ' -i').block, true, 'a flag after the file b
 
 // The refusal names every ledger-writing verb in scope.js's usage text: every top-level verb there except the read-only ones.
 {
-  const READ_ONLY = new Set(['get', 'trace', 'status', 'publish', 'root', 'staging', 'dod-line']);
+  const READ_ONLY = new Set(['get', 'trace', 'status', 'publish', 'root', 'staging', 'dod-line', 'test']);
   const scopeJs = path.join(path.dirname(hookPath), '..', 'scripts', 'scope.js');
   const help = cp.spawnSync(process.execPath, [scopeJs, '--help'], { encoding: 'utf8', timeout: 5000 });
   assertSpawnDecided(help, 'scope.js --help');

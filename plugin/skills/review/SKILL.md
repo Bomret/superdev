@@ -165,7 +165,8 @@ superdev subagent that omits one):
     `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section (three or fewer slices is
     `lite`). On a **`lite`** scope, `final-reviewer` applies **Missing RED** to every slice's trace lines
     exactly as `slice-reviewer` does (Important, the checklist's closing sequence, no finding without a
-    trace). A trace line's second field is its slice (the slice id, or `scope`), and a `dispatch` line
+    trace); at the fix cap a scope whose only remaining Critical or Important finding is **Missing RED** proceeds
+    and §3's report names it with its slice. A trace line's second field is its slice (the slice id, or `scope`), and a `dispatch` line
     carries the plugin-scoped agent type, so it matches on the name part (`slice-reviewer`,
     `implementer`). On the lite tier a slice is `behavior` when its ledger row's type says so
     (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>`). On a **`full`** scope, every merged slice needs a `dispatch superdev:slice-reviewer` whose
@@ -179,7 +180,8 @@ superdev subagent that omits one):
     the DoD gate the same dispatch also carries.
 
   **Ad-hoc mode**, if a test command is configured (`docs/agents/verification.md`), tell it it may re-run
-  the suite over the range rather than trust the diff alone. **Scope mode** — §4 already ran a suite for
+  the suite over the range rather than trust the diff alone. The dispatch tells it to run every test through `scope.js test`, and a suite
+  longer than the Bash tool's time limit in the background, waiting for its end. **Scope mode** — §4 already ran a suite for
   this dispatch; hand it that result and tell it to review against that result, running no suite of its
   own. Say which run it is: `final-reviewer` reviews against whichever result you hand it, full or
   focused (ADR 0075). The entry and exit dispatches hand a full-suite result — labelled whole-repo
@@ -274,7 +276,9 @@ verdict: over-engineering findings stay non-blocking, never gating merge on thei
 has no notion of deferral and lands its own line at the finding's actual severity, so a verdict whose only
 remaining findings are `### Deferred to a plan` entries — §4's exit clause already treats that verdict as
 clean — lands the combined `Ready to merge?` as `Yes`, naming the deferrals in the Reasoning line, rather
-than carrying `final-reviewer`'s raw `No` into a report for a scope the run went on to advance.
+than carrying `final-reviewer`'s raw `No` into a report for a scope the run went on to advance. At the fix
+cap the same holds for a verdict whose only remaining Critical or Important finding is **Missing RED**
+(§4): the combined line lands `Yes`, and the Reasoning line names each such finding with its slice.
 
 **Apply nothing — on an ad-hoc range.** Never edit, commit, or merge, however small the fix looks. To act
 on findings, run `/superdev:plan` to slice the fix, then `/superdev:implement`. **Scope mode is the one
@@ -303,7 +307,9 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   --root <run-root>` **in the scope checkout above**. Exit 0 → reused, running nothing (INV-0017: an
   exact tip match). Exit 1, or no record at all, means: take the full command from
   `docs/agents/verification.md` per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run it **in
-  the scope checkout above**, over the scope branch, then record what happened with
+  the scope checkout above**, over the scope branch, through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full`
+  (`test whole` for the whole-repo command, `test focused <changed paths>` inside a fix cycle). A suite longer than the Bash
+  tool's time limit runs through the runner in the background, and you wait for its end before acting on it. Then record what happened with
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set <green|red|denied|none> <sha> --root <run-root>`
   (`<sha>` = the scope branch's own current tip). This happens whether or not the dispatch below
   succeeds, so a denied dispatch is a
@@ -326,7 +332,7 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   `final-reviewer` finding, whether or not that dispatch returned findings of its own. The stage does
   **not** advance while it stands. **Inside each fix cycle, run the focused command over the fix diff**
   — per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`, over the commits that cycle's implementer
-  just landed — and **hand that result to the re-review**, saying it is the focused run: fix cycles never
+  just landed, through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <changed paths>` — and **hand that result to the re-review**, saying it is the focused run: fix cycles never
   run the full suite. **When a fix cycle's re-review verdict first comes back clean, or the cap leaves only Minor findings, run the full suite
   once more** in the scope checkout, and record it the same way
   (`scope.js suite set <result> <sha> --root <run-root>`, `<sha>` = the tip after the fix commits):
@@ -501,7 +507,9 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
     and report each place it checked and each it changed, reporting a place outside its checkout
     unedited. Tell it to report the `AGENTS.md` hierarchy and the knowledge base unedited too, since the
     doc pass owns them (INV-0120). A fix report that omits the checked-and-changed list is a report
-    defect, sent back to the implementer before the re-review. Before the re-review, grep the checkout
+    defect, sent back to the implementer before the re-review. Tell the implementer to run every test
+    through `scope.js test`, to run a suite longer than the Bash tool's time limit through the runner in the
+    background and wait for its end, and to edit files through the edit tools, never through a script. Before the re-review, grep the checkout
     for the key phrase of the rule the fix changed, in its old wording and its new, and compare the hits
     with the report's checked list. A hit in a file the list does not name is a missed sibling surface:
     send the report back to the implementer, naming the hit, in the same cycle. A hit in the `AGENTS.md`
@@ -512,13 +520,16 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
     **only Minor findings** takes the clean-verdict path below once the exit full-suite run above is
     green (a red exit run at the cap is a remaining red suite): the stage write, with the leftover Minors
     named in the report and nowhere else — no `unresolved add`, no `deferred add`, no triage record
-    (INV-0094). At the cap a remaining **Critical or Important finding, a broken criterion, or a red
-    suite** means a wrong cut, not a bug: stop, say so, write the `**Unresolved:**` entry — at a
-    `submitted` stage, also invalidate the tip's suite record the same way the Declined branch above does
+    (INV-0094). A scope whose only remaining Critical or Important finding is **Missing RED** proceeds
+    so, §3's report naming each with its slice; **Missing RED** beside another Critical or Important
+    finding blocks (ADR 0125, INV-0118). At the cap a remaining
+    **Critical or Important finding, a broken criterion, or a red suite** means a wrong cut, not a
+    bug: stop, say so, write the `**Unresolved:**` entry — at a `submitted` stage, also invalidate the tip's suite record the same way the Declined branch above does
     — leave the stage where it is, and publish the snapshot before stopping — per
     `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section — since no later
     stage write in this run will do it. **`--unattended` → block** at that cap when a Critical or
-    Important finding, a broken criterion, or a red suite remains, per that file's **Unattended**
+    Important finding, a broken criterion, or a red suite remains — a **Missing RED** finding alone
+    proceeds unattended too, exactly as above (ADR 0125) — per that file's **Unattended**
     section, writing the same entry (and, at a `submitted` stage, invalidating the suite record the same
     way), publishing the same way, and leaving the stage where it is. **A clean verdict ends the loop
     here too, attended or unattended** — a finding it leaves standing outside the chosen set is a
