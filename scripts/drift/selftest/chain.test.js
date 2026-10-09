@@ -17,6 +17,7 @@ const {
   DEPLOYMENT_CONTRACTS,
   PATHS_DERIVATION_CONTRACTS,
   UNATTENDED_CONTRACTS,
+  SKILL_TOOL_INVOCATION_CONTRACTS,
   CHANGE_TYPE_CONTRACTS,
   DEGRADED_CONTRACTS,
   DENIAL_AUTHORSHIP_CONTRACTS,
@@ -3216,7 +3217,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
 
   const skillConfigClause =
     '`docs/agents/verification.md` carrying one fenced block is missing configuration too (ADR 0085, ' +
-    'INV-0007) → run `/superdev:setup`.\n';
+    'INV-0007) → call the Skill tool with `superdev:setup` (no argument: the full setup), then continue.\n';
   for (const skillPath of [path.join('skills', 'plan', 'SKILL.md'), path.join('skills', 'implement', 'SKILL.md')]) {
     assert.equal(
       scanContract(fixture({ [skillPath]: skillConfigClause }), PATHS_DERIVATION_CONTRACTS).length,
@@ -5989,4 +5990,48 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   );
   assert.equal(voNoConfirm.length, 1, 'flags plan once its settlement drops the confirmation clause');
   assert.equal(voNoConfirm[0].source, path.join('skills', 'plan', 'SKILL.md'), 'the confirmation gap names plan');
+
+  // --- SKILL_TOOL_INVOCATION_CONTRACTS (#944): plan and implement start setup and plan through the Skill
+  // tool, and an unattended run blocks at those stops. Each stop is its own row, so a single stop reworded
+  // back to prose is caught on its own.
+  {
+    const planText =
+      'Read `docs/agents/issue-tracker.md` (the slice store). Missing → call the Skill tool with ' +
+      '`superdev:setup` (no argument: the full setup), then continue.\n';
+    const implementStops = [
+      'Slice store or code host missing → call the Skill tool with `superdev:setup` (no argument: the full setup), then continue.\n',
+      '**One local override ahead of the cascade**: no candidate → call the Skill tool with `superdev:plan`, and stop once plan ends.\n',
+      'No slices → call the Skill tool with `superdev:plan`, and stop once plan ends: its Next block names this command.\n',
+      '- **`--unattended` present** → follow it wherever this command starts an interview command ' +
+        '(`/superdev:setup`, `/superdev:plan`). The stops above: block there instead of running the interview.\n',
+    ];
+    const scopeModeText =
+      '**A command carrying the token never asks a question, and never starts an interview command** either.\n';
+    const reviewText = 'To act on findings, the operator runs `/superdev:plan` to slice the fix.\n';
+    const tree = (stops) => fixture({
+      'skills/plan/SKILL.md': planText,
+      'skills/implement/SKILL.md': stops.join(''),
+      'references/scope-mode.md': scopeModeText,
+      'skills/review/SKILL.md': reviewText,
+    });
+    assert.equal(scanContract(tree(implementStops), SKILL_TOOL_INVOCATION_CONTRACTS).length, 0, 'every stop on the Skill tool is clean');
+    implementStops.forEach((_, i) => {
+      const dropped = implementStops.map((t, j) => (j === i ? 'Run `/superdev:plan` first.\n' : t));
+      assert.equal(scanContract(tree(dropped), SKILL_TOOL_INVOCATION_CONTRACTS).length, 1, `implement stop ${i} back in prose is caught`);
+    });
+    const prosePlan = fixture({
+      'skills/plan/SKILL.md': 'Read `docs/agents/issue-tracker.md` (the slice store). Missing → run **`/superdev:setup`** first, then continue.\n',
+      'skills/implement/SKILL.md': implementStops.join(''),
+      'references/scope-mode.md': scopeModeText,
+      'skills/review/SKILL.md': reviewText,
+    });
+    assert.equal(scanContract(prosePlan, SKILL_TOOL_INVOCATION_CONTRACTS).length, 1, "plan's setup stop in prose is caught");
+    const proseReview = fixture({
+      'skills/plan/SKILL.md': planText,
+      'skills/implement/SKILL.md': implementStops.join(''),
+      'references/scope-mode.md': scopeModeText,
+      'skills/review/SKILL.md': 'To act on findings, run `/superdev:plan` to slice the fix.\n',
+    });
+    assert.equal(scanContract(proseReview, SKILL_TOOL_INVOCATION_CONTRACTS).length, 1, 'a review line not addressed to the operator is caught');
+  }
 };

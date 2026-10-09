@@ -25,7 +25,7 @@ CLI: a subcommand where one performs the operation, `tea api` where none does.
 - **Open the PR:** `tea pr create --login <login> --repo bomret/superdev --base main --head <scope-branch>
   --title "$title" --description-file -`, the body on stdin, `title` set from a quoted heredoc
   (`title=$(cat <<'SUPERDEV_TEXT_EOF' … SUPERDEV_TEXT_EOF)`) so a backtick or `$(` in it stays literal. The `draft` override adds `--draft`. The body
-  is built from the global DoD, the slice list, and the final-review summary.
+  is built per `/superdev:submit-pr`'s body rules.
 - **The title must be a Conventional Commits header** (`type(scope): subject`, for example
   `feat(implement): …`). PRs are **squash-merged**, so the title becomes the commit message on `main`, and
   semantic-release parses it for the version bump and the changelog. A title without a conventional type

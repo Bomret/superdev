@@ -63,6 +63,7 @@ const {
   ADR_STATUSES,
   FEATURE_ARG_CONTRACTS,
   UNATTENDED_CONTRACTS,
+  SKILL_TOOL_INVOCATION_CONTRACTS,
   CHANGE_TYPE_CONTRACTS,
   DEGRADED_CONTRACTS,
   DENIAL_AUTHORSHIP_CONTRACTS,
@@ -324,7 +325,7 @@ module.exports = [
   },
   {
     id: 'model-invocation-split',
-    ok: 'every chain step carries no `disable-model-invocation` (INV-0066)',
+    ok: 'every chain step, and the setup and plan skills plan and implement start through the Skill tool, carries no `disable-model-invocation` (INV-0066)',
     run: scanModelInvocationSplit,
     format: contractGap,
   },
@@ -390,6 +391,11 @@ module.exports = [
     'paths-derivation',
     PATHS_DERIVATION_CONTRACTS,
     'setup derives a `{paths}` form only for a mapping runner, a fast subset otherwise, and never reaches `none` for a repository with a suite — the second fence carries the full command again, with the reason recorded — and a one-fence verification.md stops with /superdev:setup named, everywhere from the hook to plan and implement',
+  ),
+  table(
+    'skill-tool-invocation',
+    SKILL_TOOL_INVOCATION_CONTRACTS,
+    'plan and implement start setup and plan through the Skill tool, and an unattended run blocks at those stops instead',
   ),
   {
     id: 'unmapped-paths-form',

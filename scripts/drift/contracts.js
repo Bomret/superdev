@@ -1946,13 +1946,13 @@ const PATHS_DERIVATION_CONTRACTS = [
   ],
   [
     path.join('skills', 'plan', 'SKILL.md'),
-    /carrying\s+one\s+fenced\s+block[\s\S]{0,40}?missing\s+configuration\s+too[\s\S]{0,120}?ADR\s+0085,\s+INV-0007[\s\S]{0,60}?\/superdev:setup/i,
-    "treat `docs/agents/verification.md` carrying one fenced block as missing configuration, auto-invoking `/superdev:setup` (ADR 0085, INV-0007)",
+    /carrying\s+one\s+fenced\s+block[\s\S]{0,40}?missing\s+configuration\s+too[\s\S]{0,120}?ADR\s+0085,\s+INV-0007\)[\s\S]{0,20}?call\s+the\s+Skill\s+tool\s+with\s+`superdev:setup`/i,
+    "treat `docs/agents/verification.md` carrying one fenced block as missing configuration, calling the Skill tool with `superdev:setup` (ADR 0085, INV-0007)",
   ],
   [
     path.join('skills', 'implement', 'SKILL.md'),
-    /carrying\s+one\s+fenced\s+block[\s\S]{0,40}?missing\s+configuration\s+too[\s\S]{0,120}?ADR\s+0085,\s+INV-0007[\s\S]{0,60}?\/superdev:setup/i,
-    "treat `docs/agents/verification.md` carrying one fenced block as missing configuration, auto-invoking `/superdev:setup` (ADR 0085, INV-0007)",
+    /carrying\s+one\s+fenced\s+block[\s\S]{0,40}?missing\s+configuration\s+too[\s\S]{0,120}?ADR\s+0085,\s+INV-0007\)[\s\S]{0,20}?call\s+the\s+Skill\s+tool\s+with\s+`superdev:setup`/i,
+    "treat `docs/agents/verification.md` carrying one fenced block as missing configuration, calling the Skill tool with `superdev:setup` (ADR 0085, INV-0007)",
   ],
 ];
 
@@ -7614,7 +7614,51 @@ const FIX_DISPATCH_CONTRACTS = [
   ],
 ];
 
+// `/superdev:plan` and `/superdev:implement` start `/superdev:setup` and `/superdev:plan` through the Skill
+// tool, never by naming them in prose alone (#944): a step that names the tool is what the agent acts on.
+// Each row anchors on its own stop's condition, so rewording one stop back to prose turns that row red.
+// Implement's `--unattended` block and scope-mode's no-interview clause gate every one of these calls, so
+// losing either would let an unattended run start an interview: they are pinned here beside the calls.
+const SKILL_TOOL_INVOCATION_CONTRACTS = [
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /`docs\/agents\/issue-tracker\.md`\s+\(the\s+slice\s+store\)\.\s+Missing\s+→\s+call\s+the\s+Skill\s+tool\s+with\s+`superdev:setup`\s+\(no\s+argument/i,
+    'tell the agent to call the Skill tool with `superdev:setup`, no argument, when the slice store is unconfigured',
+  ],
+  [
+    path.join('skills', 'implement', 'SKILL.md'),
+    /Slice\s+store\s+or\s+code\s+host\s+missing\s+→\s+call\s+the\s+Skill\s+tool\s+with\s+`superdev:setup`\s+\(no\s+argument/i,
+    'tell the agent to call the Skill tool with `superdev:setup`, no argument, when the slice store or code host is missing',
+  ],
+  [
+    path.join('skills', 'implement', 'SKILL.md'),
+    /One\s+local\s+override\s+ahead\s+of\s+the\s+cascade\*\*:\s+no\s+candidate\s+→\s+call\s+the\s+Skill\s+tool\s+with\s+`superdev:plan`[\s\S]{0,120}?stop\s+once\s+plan\s+ends/i,
+    'tell the agent to call the Skill tool with `superdev:plan` when no candidate resolves, and stop once plan ends',
+  ],
+  [
+    path.join('skills', 'implement', 'SKILL.md'),
+    /No\s+slices\s+→\s+call\s+the\s+Skill\s+tool\s+with\s+`superdev:plan`[\s\S]{0,160}?stop\s+once\s+plan\s+ends/i,
+    'tell the agent to call the Skill tool with `superdev:plan` when no slices load, and stop once plan ends',
+  ],
+  [
+    path.join('skills', 'implement', 'SKILL.md'),
+    /\*\*`--unattended`\s+present\*\*[\s\S]{0,400}?starts\s+an\s+interview\s+command[\s\S]{0,300}?block\s+there\s+instead\s+of\s+running\s+the\s+interview/i,
+    'block an unattended run at the setup and plan stops instead of starting the interview',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /\*\*A\s+command\s+carrying\s+the\s+token\s+never\s+asks\s+a\s+question,\s+and\s+never\s+starts\s+an\s+interview\s+command\*\*/i,
+    'state that an unattended command never starts an interview command',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /To\s+act\s+on\s+findings,\s+the\s+operator\s+runs\s+`\/superdev:plan`/i,
+    'address the ad-hoc review\'s act-on-findings line to the operator',
+  ],
+];
+
 module.exports = {
+  SKILL_TOOL_INVOCATION_CONTRACTS,
   VETTED_OPTIONS_CONTRACTS,
   RESPONSE_SHAPES_CONTRACTS,
   BACKLOG_VERIFY_WRAP_UP_CONTRACTS,

@@ -78,10 +78,10 @@ dispatches nothing — you carry the TDD discipline yourself. Narrate at most on
 
 - Read `docs/agents/issue-tracker.md` (slice store), `docs/agents/code-management.md` (code host),
   `docs/agents/documentation.md` (documentation convention), `docs/agents/knowledge-base.md` (optional
-  KB), `docs/agents/verification.md` (test command). Slice store or code host missing → run
-  **`/superdev:setup`**, then continue. **`docs/agents/verification.md` carrying one fenced block** is
-  missing configuration too — its focused command was never recorded (ADR 0085, INV-0007) → run
-  **`/superdev:setup`**, then continue; a repository with no `docs/agents/verification.md` at all needs no
+  KB), `docs/agents/verification.md` (test command). Slice store or code host missing → call
+  the Skill tool with `superdev:setup` (no argument: the full setup), then continue. **`docs/agents/verification.md` carrying one fenced block** is
+  missing configuration too — its focused command was never recorded (ADR 0085, INV-0007) → call the
+  Skill tool with `superdev:setup` (no argument: the full setup), then continue; a repository with no `docs/agents/verification.md` at all needs no
   such command, and neither does one carrying zero fenced blocks — `hooks/green-gate.js` reads that
   exactly as it reads an absent file. **Advisory:** `docs/agents/toolchain.md` absent while the repo has
   build manifests (`package.json`, `*.csproj`/`*.sln`, `pom.xml`/`build.gradle*`, `pyproject.toml`,
@@ -102,10 +102,12 @@ dispatches nothing — you carry the TDD discipline yourself. Narrate at most on
   - **Empty** → this command's own **candidate set** (CONTEXT.md) is the features whose slices are ready,
     computed from the slice store over that store's own calls. Hand that set to
     `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Resolving an empty argument` cascade,
-    restating no part of it here. **One local override ahead of the cascade**: no candidate runs
-    **`/superdev:plan`** first, rather than the cascade's own report-and-stop.
+    restating no part of it here. **One local override ahead of the cascade**: no candidate → call the Skill tool with
+    `superdev:plan`, and stop once plan ends, rather than the cascade's own report-and-stop: plan's Next
+    block names the implement command to run next.
 - **Load the slices** (`id`, `depends-on`, `test-applicability`, `spec`, `acceptance`, + global DoD). No
-  slices → run **`/superdev:plan`** first. **One slice, no epic** → the epic is optional
+  slices → call the Skill tool with `superdev:plan`, and stop once plan ends: its Next block names this
+  command. **One slice, no epic** → the epic is optional
   (`plan-contract.md`): the DoD is that slice's `acceptance`. Verifying an `acceptance` criterion
   observes; it changes no system outside the repository (ADR 0084, INV-0006). A criterion needing a
   deploy, a migration, or any other outward-facing change to verify gets no increment: report it as
@@ -119,8 +121,9 @@ dispatches nothing — you carry the TDD discipline yourself. Narrate at most on
   unattended run never confirms an unreleased feature.
 - **`--unattended` present** → read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended**
   section and follow it wherever this command or its playbook asks a question or starts an interview
-  command (`/superdev:setup`, `/superdev:plan`). The "slice store or code host missing" and "no slices"
-  stops above are exactly that: block there instead of running the interview. Nothing else in that file
+  command (`/superdev:setup`, `/superdev:plan`). Every Skill-tool stop above is exactly that — slice store
+  or code host missing, `docs/agents/verification.md` carrying one fenced block, no candidate, and no
+  slices: block there instead of running the interview. Nothing else in that file
   applies here.
 - **Pre-flight scan:** read all slices once for contradictions (slice vs slice, slice vs DoD, a
   specification mandating something a review would flag). Batch what you find to the user; clean →

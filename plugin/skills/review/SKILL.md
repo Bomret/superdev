@@ -281,7 +281,8 @@ cap the same holds for a verdict whose only remaining Critical or Important find
 (§4): the combined line lands `Yes`, and the Reasoning line names each such finding with its slice.
 
 **Apply nothing — on an ad-hoc range.** Never edit, commit, or merge, however small the fix looks. To act
-on findings, run `/superdev:plan` to slice the fix, then `/superdev:implement`. **Scope mode is the one
+on findings, the operator runs `/superdev:plan` to slice the fix, the command this run's Next block
+names, then `/superdev:implement`. **Scope mode is the one
 exception**, per §4: there the findings belong to a run already in flight, and fixing them is the point
 of the gate. Even then you ask first, and the reviewers stay read-only.
 

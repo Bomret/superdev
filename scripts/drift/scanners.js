@@ -1517,17 +1517,20 @@ function scanShipHumanOnly(root) {
 // invoke, which strands an unattended run at that step. Ship's own half is `scanShipHumanOnly()`'s.
 // Absent skill files are skipped, matching every other contract scanner.
 const CHAIN_STEPS = ['implement', 'review', 'document', 'submit-pr'];
+// The skills plan and implement start through the Skill tool on missing configuration or slices.
+const SKILL_TOOL_TARGETS = ['setup', 'plan'];
 function scanModelInvocationSplit(root) {
   const gaps = [];
-  for (const step of CHAIN_STEPS) {
-    const source = path.join('skills', step, 'SKILL.md');
+  const invokers = [
+    ...CHAIN_STEPS.map((name) => [name, `an external driver invokes \`/superdev:${name}\` through the Skill tool, so a step off the model-invocable surface strands it there`]),
+    ...SKILL_TOOL_TARGETS.map((name) => [name, `\`/superdev:plan\` and \`/superdev:implement\` start \`/superdev:${name}\` through the Skill tool, which cannot reach a skill off the model-invocable surface`]),
+  ];
+  for (const [name, why] of invokers) {
+    const source = path.join('skills', name, 'SKILL.md');
     const text = readDoc(root, source);
     const fm = text === null ? null : text.match(/^---\n([\s\S]*?)\n---(?:\n|$)/);
     if (fm !== null && /^disable-model-invocation:\s*true\s*$/m.test(fm[1])) {
-      gaps.push({
-        source,
-        expectation: `carry no \`disable-model-invocation: true\` — an external driver invokes \`/superdev:${step}\` through the Skill tool, so a step off the model-invocable surface strands it there (INV-0066)`,
-      });
+      gaps.push({ source, expectation: `carry no \`disable-model-invocation: true\` — ${why} (INV-0066)` });
     }
   }
   return gaps;

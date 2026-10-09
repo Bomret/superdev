@@ -147,9 +147,18 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
     "produce a change list" does not. Write every done-condition in the demanding form.
   - **Hiding later steps needs a real context boundary.** A subagent dispatch, or a path handed instead
     of inlined text, clears context. An inline mention does not. ADR 0020 is the applied case.
-  - **Descriptions are permanent context load.** Every command and agent `description` is always loaded:
-    front-load the trigger word, one trigger per branch (synonyms are one branch written twice), and cut
-    identity the body already carries.
+  - **Descriptions are permanent context load.** Every agent `description`, and every skill `description`
+    within the skill listing's budget, is always loaded: front-load the trigger word, one trigger per
+    branch (synonyms are one branch written twice), and cut identity the body already carries. A skill
+    carrying `disable-model-invocation: true` is the exception: its description stays out of the model's
+    context and is read only by a human browsing the slash commands
+    ([skills docs](https://code.claude.com/docs/en/skills.md), checked 2026-10-08).
+  - **A step that starts another skill names the Skill tool.** Write "call the Skill tool with
+    `superdev:setup`", never a bare "run `/superdev:setup`", and name one skill per call. Upstream
+    mattpocock/skills adopted this because a skill named in prose loads less reliably (its CHANGELOG, PR
+    #878); superdev has not measured that gain (ADR 0071). A step whose target carries
+    `disable-model-invocation: true` cannot reach it through the tool, so it tells the operator what to run
+    instead, and so does every line written for the operator, such as the Next block.
   - **A contract in an agent body also holds in the dispatch prose that reaches it.** Both halves arrive
     in one prompt, and the dispatch is the later, more specific instruction, so it wins a conflict
     ([`CONTEXT.md`](CONTEXT.md) → *Dispatch prose*, ADR 0035). Where a drift row pins a clause in

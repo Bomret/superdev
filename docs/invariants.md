@@ -547,10 +547,10 @@ Paths: plugin/skills/backlog/SKILL.md
 
 Class: architecture
 Concepts: Model-invocable surface, Unattended run
-Statement: `/superdev:ship`, `/superdev:verify-ship`, and `/superdev:wrap-up` are never model-invocable surfaces: each carries `disable-model-invocation: true` in its frontmatter. Every chain step (`/superdev:implement`, `/superdev:review`, `/superdev:document`, `/superdev:submit-pr`) stays model-invocable, carrying no such key.
+Statement: `/superdev:ship`, `/superdev:verify-ship`, and `/superdev:wrap-up` are never model-invocable surfaces: each carries `disable-model-invocation: true` in its frontmatter. Every chain step (`/superdev:implement`, `/superdev:review`, `/superdev:document`, `/superdev:submit-pr`) stays model-invocable, carrying no such key, and so do `/superdev:setup` and `/superdev:plan`, which `/superdev:plan` and `/superdev:implement` start through the Skill tool.
 Breaks: silently
-Check: `scripts/drift-check.js` `model-invocation-split` (every chain step), `ship-human-only` (ship, verify-ship, wrap-up)
-Paths: plugin/skills/ship/SKILL.md, plugin/skills/implement/SKILL.md, plugin/skills/review/SKILL.md, plugin/skills/document/SKILL.md, plugin/skills/submit-pr/SKILL.md, plugin/skills/verify-ship/**, plugin/skills/wrap-up/**
+Check: `scripts/drift-check.js` `model-invocation-split` (every chain step, setup, plan), `ship-human-only` (ship, verify-ship, wrap-up)
+Paths: plugin/skills/ship/SKILL.md, plugin/skills/setup/SKILL.md, plugin/skills/plan/SKILL.md, plugin/skills/implement/SKILL.md, plugin/skills/review/SKILL.md, plugin/skills/document/SKILL.md, plugin/skills/submit-pr/SKILL.md, plugin/skills/verify-ship/**, plugin/skills/wrap-up/**
 
 ### INV-0068
 

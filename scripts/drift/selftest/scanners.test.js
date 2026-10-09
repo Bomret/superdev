@@ -1079,6 +1079,23 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // an absent step skill is skipped
   assert.deepEqual(scanModelInvocationSplit(fixture({ 'README.md': '# repo\n' })), [], 'absent step skills are skipped');
 
+  // positive: setup or plan off the surface strands the Skill-tool calls plan and implement make
+  for (const target of ['setup', 'plan']) {
+    const off = scanModelInvocationSplit(fixture({
+      ...splitTree,
+      [`skills/${target}/SKILL.md`]: skill(target).replace('---\n\n', 'disable-model-invocation: true\n---\n\n'),
+    }));
+    assert.equal(off.length, 1, `${target} off the surface is caught`);
+    assert.match(off[0].source, new RegExp(target), 'names the skill');
+    assert.match(off[0].expectation, /through the Skill tool/, 'names the Skill-tool callers');
+  }
+  // negative: setup and plan on the surface add no gap
+  assert.deepEqual(scanModelInvocationSplit(fixture({
+    ...splitTree,
+    'skills/setup/SKILL.md': skill('setup'),
+    'skills/plan/SKILL.md': skill('plan'),
+  })), [], 'setup and plan on the surface are clean');
+
   // --- scanHookLedgerParsers: no hook carries a ledger-header regex of its own (ADR 0022) ---
 
   // The exact line this scope deleted from hooks/scope-prune.js, in both quotings it appears in.

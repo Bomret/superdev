@@ -1089,8 +1089,15 @@ scanner.
 The `model-invocation-split` check (INV-0066), `scanModelInvocationSplit()`: `skills/implement/SKILL.md`,
 `skills/review/SKILL.md`, `skills/document/SKILL.md`, and `skills/submit-pr/SKILL.md` carry no
 `disable-model-invocation: true`, because an unattended run invokes each through the Skill tool and a step
-off that surface strands the run there. The key counts only inside the frontmatter. Ship's half is
-`ship-human-only`'s. Absent skill files are skipped.
+off that surface strands the run there. `skills/setup/SKILL.md` and `skills/plan/SKILL.md` carry none
+either, because `/superdev:plan` and `/superdev:implement` start them through the Skill tool. The key
+counts only inside the frontmatter. Ship's half is `ship-human-only`'s. Absent skill files are skipped.
+The `skill-tool-invocation` contract (#944): every stop where `skills/plan/SKILL.md` or
+`skills/implement/SKILL.md` starts `/superdev:setup` or `/superdev:plan` tells the agent to call the Skill
+tool, one row per stop, each anchored on that stop's own condition. Two more rows pin what gates those
+calls: implement's `--unattended` block and `references/scope-mode.md`'s rule that an unattended command
+never starts an interview command. A last row keeps the ad-hoc review's act-on-findings line addressed to
+the operator. The two one-fence rows of `paths-derivation` pin the same Skill-tool call for INV-0007.
 
 The `staged-close` check pins how a scope's close names its staged pages (ADR 0119). `references/scope-mode.md`'s
 `## Staged pages at close` reads the page count through `scope.js staging <scope> --count`, names a

@@ -13,12 +13,13 @@ Every message this command ends on closes with the Next block, per `${CLAUDE_PLU
 
 ## 0. Config
 
-Read `docs/agents/issue-tracker.md` (the slice store). Missing → run **`/superdev:setup`** first, then
-continue.
+Read `docs/agents/issue-tracker.md` (the slice store). Missing → call the Skill tool with `superdev:setup`
+(no argument: the full setup), then continue.
 
 **Focused-command configuration.** As in `/superdev:implement`'s **Config + input**:
 `docs/agents/verification.md` carrying one fenced block is missing configuration too — its focused
-command was never recorded (ADR 0085, INV-0007) → run **`/superdev:setup`** first, then continue; a
+command was never recorded (ADR 0085, INV-0007) → call the Skill tool with `superdev:setup` (no argument: the
+full setup), then continue; a
 repository with no `docs/agents/verification.md` at all needs no such command, and neither does one
 carrying zero fenced blocks — `hooks/green-gate.js` reads that exactly as it reads an absent file.
 
