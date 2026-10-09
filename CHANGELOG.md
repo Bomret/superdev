@@ -1,3 +1,10 @@
+## [0.67.1](https://codeberg.org/bomret/superdev/compare/v0.67.0...v0.67.1) (2026-10-09)
+
+
+### Bug Fixes
+
+* **marketplace:** pin the plugin source to the release tag ([#977](https://codeberg.org/bomret/superdev/issues/977)) ([a0a1aa3](https://codeberg.org/bomret/superdev/commit/a0a1aa32a983f17aa9af8b89d7dbc544748a9be9))
+
 # [0.67.0](https://codeberg.org/bomret/superdev/compare/v0.66.1...v0.67.0) (2026-10-09)
 
 
