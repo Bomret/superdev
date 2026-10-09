@@ -1,3 +1,19 @@
+# [0.67.0](https://codeberg.org/bomret/superdev/compare/v0.66.1...v0.67.0) (2026-10-09)
+
+
+### Bug Fixes
+
+* **prose:** plan and implement start setup and plan through the Skill tool ([#972](https://codeberg.org/bomret/superdev/issues/972)) ([98323dc](https://codeberg.org/bomret/superdev/commit/98323dcad184ce4121359b92c4a11bcc828c9a8b))
+* **scope:** carry a green suite record across Markdown-only doc commits ([#969](https://codeberg.org/bomret/superdev/issues/969)) ([50f286b](https://codeberg.org/bomret/superdev/commit/50f286b32efdf3f3e7760b418f3160052574ebf2))
+* **scope:** find ADR and invariant numbering collisions by number, not by conflict ([#966](https://codeberg.org/bomret/superdev/issues/966)) ([4f5bc26](https://codeberg.org/bomret/superdev/commit/4f5bc26bde4ca5a17f03813376f1a1ad116a7bc0))
+* **tests:** the test run passes on a busy machine ([a880869](https://codeberg.org/bomret/superdev/commit/a8808690b0c416f7607789d993839b2c2ca298ab))
+
+
+### Features
+
+* **hooks:** the run trace records trustworthy evidence ([354801c](https://codeberg.org/bomret/superdev/commit/354801c321fb607a2ac3ca56961804ee4e1ce5f6))
+* **plan:** repair a failed verification as its own fix feature ([#960](https://codeberg.org/bomret/superdev/issues/960)) ([1a0841b](https://codeberg.org/bomret/superdev/commit/1a0841bb55d8f604442c67660b2ab4d692fe5741)), closes [#932](https://codeberg.org/bomret/superdev/issues/932) [#935](https://codeberg.org/bomret/superdev/issues/935) [#933](https://codeberg.org/bomret/superdev/issues/933) [#956](https://codeberg.org/bomret/superdev/issues/956) [#956](https://codeberg.org/bomret/superdev/issues/956)
+
 ## [0.66.1](https://codeberg.org/bomret/superdev/compare/v0.66.0...v0.66.1) (2026-10-08)
 
 
