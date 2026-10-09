@@ -58,7 +58,11 @@ for (const verb of ['cat new | tee @', 'cat new | tee -a @', 'cp new @', 'mv new
 for (const sub of ['${X:-"a } b"}', "${X:-'a } b'}", '${X:-"}"}', '${X:-`a } b`}']) {
   assert.equal(bash('> ' + sub + '/' + L).block, true, 'redirect behind a quoted brace denied: ' + sub);
 }
-// unterminated groups and long runs of them resolve without catastrophic backtracking (qualitative bound, ADR 0086)
+// unterminated groups and long runs of them resolve without catastrophic backtracking (qualitative bound, ADR 0086).
+// ARG excludes `{` inside `${…}`; with that exclusion dropped (`[^}\\"'`]`), the block took 18s with its last
+// three runs at 20000 repeats, under the 120s ceiling. At 60000 repeats each of those three runs took over 120s on
+// its own (216s, 266s, and 223s) and the whole block took 710s, measured 2026-10-09 at load averages between 60 and
+// 125 on 8 cores. As shipped they take well under a second each.
 {
   const t0 = Date.now();
   bash('> $('.repeat(5000));
@@ -67,11 +71,11 @@ for (const sub of ['${X:-"a } b"}', "${X:-'a } b'}", '${X:-"}"}', '${X:-`a } b`}
   bash('> '.repeat(5000) + '${');
   bash('cp ' + '${ '.repeat(5000));
   bash('tee ' + '${'.repeat(5000));
-  bash('tee ' + '${'.repeat(20000));
-  bash('>${ '.repeat(20000));
-  bash('tee ' + '${"'.repeat(20000));
+  bash('tee ' + '${'.repeat(60000));
+  bash('>${ '.repeat(60000));
+  bash('tee ' + '${"'.repeat(60000));
   const elapsed = Date.now() - t0;
-  assert.ok(elapsed < 5000, 'substitution runs must resolve quickly, took ' + elapsed + 'ms');
+  assert.ok(elapsed < 120000, 'substitution runs must resolve quickly, took ' + elapsed + 'ms');
 }
 // Multiple heredocs on one line: every opener must be recognized and its body masked (RED test for finding 2).
 {
@@ -333,12 +337,14 @@ const wrap = (c) => {
   assert.ok(compared > 100, 'the corpus exercises the base rule: ' + compared);
 }
 
-// Long runs of wrapper openers resolve without catastrophic backtracking (qualitative bound, ADR 0086).
+// Long runs of wrapper openers resolve without catastrophic backtracking (qualitative bound, ADR 0086). inplaceHits
+// stops reading nested command lines past 8 levels; without that cap the `$(sed -i ` run recursed for 26s and then
+// overflowed the stack with a RangeError (measured 2026-10-09), which fails this block at any ceiling.
 {
   const t0 = Date.now();
   for (const run of ['(sed -i ', '$(sed -i ', '`sed -i ', 'sh -c "', "sh -c '", 'grep -i sed ']) bash(run.repeat(20000) + L);
   const elapsed = Date.now() - t0;
-  assert.ok(elapsed < 10000, 'wrapper runs must resolve quickly, took ' + elapsed + 'ms');
+  assert.ok(elapsed < 120000, 'wrapper runs must resolve quickly, took ' + elapsed + 'ms');
 }
 
 // The two hooks agree on the wrapper names they share (each keeps its own copy, hooks stay standalone): every wrapper

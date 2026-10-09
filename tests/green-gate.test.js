@@ -342,31 +342,36 @@ assert.equal(
 
 // a long run of enumerated option names with no verb must not backtrack exponentially (the comment
 // above LONG_VALUE_OPT owns why) — a qualitative bound (AGENTS.md, ADR 0086): catastrophic
-// backtracking is effectively unbounded, so this ceiling stays loose rather than tight. 42 repeats resolve in
-// about a millisecond; without the `(?!-)` after the space-form value the same input took 53s in this suite on 3 of 3
-// runs (standalone: 14s at 34 repeats, 36s at 36, over 60s from 38 on), and each further repeat multiplies
-// that by ~2.6. Timings near 34 repeats varied from 1s to 14s between runs, so the size sits well past
-// that range.
+// backtracking is effectively unbounded, so this ceiling stays loose rather than tight. 44 repeats resolve in
+// about a millisecond. Without the `(?!-)` after the space-form value, the mutant took 78s at 38 repeats, 145s at
+// 40, 239s at 42, and 669s at 44, measured 2026-10-09 by running this suite against a mutated copy of the hook, at
+// load averages between 70 and 300 on 8 cores. 44 is the size where the mutant fails the 120s ceiling by 1.5x or more in
+// every run measured, and a regression still fails the suite within minutes. A standalone timing overstates the
+// in-suite one: V8 interprets a regex's first call before compiling it to native code, and the mutant's cold first
+// call at 38 took 655s.
 {
-  const pathological = 'git ' + '--git-dir '.repeat(42) + 'x; git ' + 'merge main';
+  const pathological = 'git ' + '--git-dir '.repeat(44) + 'x; git ' + 'merge main';
   const t0 = Date.now();
   IS_MERGE.test(pathological);
   const elapsed = Date.now() - t0;
-  assert.ok(elapsed < 5000, `a pathological long-option run must resolve quickly, took ${elapsed}ms`);
+  assert.ok(elapsed < 120000, `a pathological long-option run must resolve quickly, took ${elapsed}ms`);
 }
 
 // substitution, parameter-expansion, and backtick runs through STUCK_MERGE and IS_MERGE: a qualitative
 // bound (AGENTS.md, ADR 0086) on exponential backtracking. Stuck-segment runs are quadratic through the
 // line-wide verb lookahead (triage #814). Only the `$(echo ")")` unit at 1200 repeats has a reconstructable
-// pre-fix mutant that fails it: it takes 40s when STUCK_MERGE's atomic `(?=(ARG|))\2` is a plain
-// `(?:ARG|)`, and over 20s when ARG's double-quoted `(?:[^"\\]|` gains a `+`. No mutant tried fails the other units,
-// so they keep the sizes they were written at. The block costs 2-3s as shipped, 5-6s with one concurrent copy per core; the STUCK_MERGE mutant takes 40s on that unit alone, so the ceiling sits at 15000ms.
+// pre-fix mutant that fails it: STUCK_MERGE with its atomic `(?=(ARG|))\2` as a plain `(?:ARG|)` grows
+// cubically on it (0.6s at 300 repeats, 4.6s at 600, 40s at 1200; measured 2026-10-08), and a `+` on ARG's
+// double-quoted `(?:[^"\\]|` took over 20s at 1200. That unit runs at 2400 repeats, where the shipped regex
+// stays quadratic (about 0.3s) and the atomic mutant takes about 5 minutes. No mutant tried fails the other
+// units, so they keep the sizes they were written at. The block costs 2-3s as shipped, so the 120s ceiling
+// clears a loaded machine and still fails the mutant.
 {
   const t0 = Date.now();
   for (const [unit, repeats] of [
     ['git -C $(a $(b $(c))) x;', 2000],
     ['git -C $((1+(2))) x; ', 2000],
-    ['git -C $(echo ")") x; ', 1200],
+    ['git -C $(echo ")") x; ', 2400],
     ['git -C ${a b} x; ', 2000],
     ['git -C `a x; ', 2000],
   ]) {
@@ -388,17 +393,19 @@ assert.equal(
     IS_COMMIT.test(run);
   }
   const elapsed = Date.now() - t0;
-  assert.ok(elapsed < 15000, `command-substitution runs must resolve quickly, took ${elapsed}ms`);
+  assert.ok(elapsed < 120000, `command-substitution runs must resolve quickly, took ${elapsed}ms`);
 }
 
-// A newline is itself a lead-in, so a `\s*` after it rescans every later blank line from each one:
-// quadratic, 15-18s on 64000 blank lines for either merge regex. All three lead-ins are `[ \t]*`, linear, and each
-// regex answers under the same qualitative ceiling (AGENTS.md, ADR 0086).
+// A newline is itself a lead-in, so a `\s*` after it rescans every later blank line from each one: quadratic.
+// With that mutant, 64000 blank lines took 68s (STUCK_MERGE), 54s (IS_MERGE) and 21s (IS_COMMIT), all under the
+// 120s ceiling; 128000 took 214s (STUCK_MERGE) and 243s (IS_MERGE), and 256000 took 422s (IS_COMMIT, the fastest
+// at 64000), measured 2026-10-09. All three lead-ins are `[ \t]*`, linear: 256000 blank lines take a few
+// milliseconds, and each regex answers under the same qualitative ceiling (AGENTS.md, ADR 0086).
 for (const [name, regex] of [['STUCK_MERGE', STUCK_MERGE], ['IS_MERGE', IS_MERGE], ['IS_COMMIT', IS_COMMIT]]) {
   const t0 = Date.now();
-  regex.test('\n'.repeat(64000) + 'x');
+  regex.test('\n'.repeat(256000) + 'x');
   const elapsed = Date.now() - t0;
-  assert.ok(elapsed < 5000, `${name} must answer in linear time on a long run of blank lines, took ${elapsed}ms`);
+  assert.ok(elapsed < 120000, `${name} must answer in linear time on a long run of blank lines, took ${elapsed}ms`);
 }
 
 // --- resolveMergeCwd(): the merge's own working tree, from -C or the session cwd fallback ---

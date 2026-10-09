@@ -116,7 +116,9 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
   with `Date.now()` and assert an absolute elapsed ceiling, because wall clock includes every
   millisecond the process spent descheduled, and a correctly bounded call under scheduler starvation
   produces the same reading as a real defect (ADR 0086). Compare against what the same run itself
-  measured instead, or against the bound the test itself configured (`tests/publish-kb.test.js`'s `HANG_MS`-relative checks). Where the failure
+  measured instead, or against the bound the test itself configured (`tests/publish-kb.test.js`'s `HANG_MS`, ten times
+  the slowest healthy backend spawn that run timed, and the checks relative to it). A bound that a healthy
+  command must also clear is itself taken from the same run, never fixed. Where the failure
   the assertion catches is qualitative — catastrophic backtracking is effectively unbounded — a loose
   ceiling still falsifies exactly what a tight one did, so keep the ceiling and loosen it rather than
   drop it (`tests/green-gate.test.js` and `tests/merge-guard.test.js`'s `LONG_VALUE_OPT` guards).

@@ -48,13 +48,18 @@ assert.equal(decide(sub('git --attr-source main merge x')).block, true, 'git --a
 
 // a long run of enumerated option names with no verb must not backtrack exponentially (the comment
 // above LONG_VALUE_OPT owns why) — a qualitative bound (AGENTS.md, ADR 0086): catastrophic
-// backtracking is effectively unbounded, so this ceiling stays loose rather than tight
+// backtracking is effectively unbounded, so this ceiling stays loose rather than tight. 44 repeats resolve in
+// about a millisecond. Without the `(?!-)` after the space-form value, the mutant took 47s at 36 repeats, 54s at
+// 38, 212s at 40, 419s at 42, and 320s at 44, measured 2026-10-09 by running this suite against a mutated copy of
+// the hook, at load averages between 70 and 300 on 8 cores; load varied between runs, so the non-monotonic numbers
+// (419s at 42 but 320s at 44) are noise. 44 is the size where the mutant fails the 120s ceiling by 1.5x or more in
+// every run measured, and a regression still fails the suite within minutes.
 {
-  const pathological = 'git ' + '--git-dir '.repeat(60) + 'x; git ' + 'merge main';
+  const pathological = 'git ' + '--git-dir '.repeat(44) + 'x; git ' + 'merge main';
   const t0 = Date.now();
   decide(sub(pathological));
   const elapsed = Date.now() - t0;
-  assert.ok(elapsed < 5000, `a pathological long-option run must resolve quickly, took ${elapsed}ms`);
+  assert.ok(elapsed < 120000, `a pathological long-option run must resolve quickly, took ${elapsed}ms`);
 }
 assert.equal(decide({ tool_input: { command: 'git --work-tree /wt merge x' } }).block, false, 'the controller still merges in the space form');
 
@@ -108,7 +113,10 @@ for (const cmd of ['git -C $(echo merge) x', 'git -C $(git push o) log']) {
   assert.equal(decide(sub(cmd)).block, false, `${cmd}: a verb inside an option value is not the subcommand`);
 }
 // unterminated groups and long runs of them resolve without catastrophic backtracking
-// (qualitative bound, ADR 0086)
+// (qualitative bound, ADR 0086). With STUCK's atomic `(?=(ARG|))\2` as a plain `(?:ARG|)`, the `$(echo ")")` unit
+// took 4.7s at 500 repeats, under the 120s ceiling, 68s at 1000, 413s at 1600, and 1108s at 2400 (measured
+// 2026-10-09); it runs at 1600, where the shipped regex takes a few seconds. A `+` on ARG's first double-quoted
+// `(?:[^"\\]|` ran the block past 200s unfinished at the sizes below.
 {
   const t0 = Date.now();
   decide(sub('git -C ' + '$('.repeat(500) + ' x'));
@@ -117,7 +125,7 @@ for (const cmd of ['git -C $(echo merge) x', 'git -C $(git push o) log']) {
   decide(sub('git ' + '-C $(a $(b $(c))) '.repeat(200) + 'x'));
   decide(sub('git -C $(a $(b $(c))) x;'.repeat(500)));
   decide(sub('git -C $((1+(2))) x; '.repeat(500)));
-  decide(sub('git -C $(echo ")") x; '.repeat(500)));
+  decide(sub('git -C $(echo ")") x; '.repeat(1600)));
   decide(sub('git -C ${a b} x; '.repeat(2000)));
   decide(sub('git -C ' + '${'.repeat(5000) + ' x; git y'));
   decide(sub('git -C ' + '${ '.repeat(5000) + 'x'));
@@ -126,7 +134,7 @@ for (const cmd of ['git -C $(echo merge) x', 'git -C $(git push o) log']) {
   decide(sub('git -C `a x; '.repeat(2000)));
   decide(sub('git --exec-path=' + '$(a '.repeat(2000) + 'x'));
   const elapsed = Date.now() - t0;
-  assert.ok(elapsed < 5000, `command-substitution runs must resolve quickly, took ${elapsed}ms`);
+  assert.ok(elapsed < 120000, `command-substitution runs must resolve quickly, took ${elapsed}ms`);
 }
 assert.equal(decide(sub('git --work-tree /wt status')).block, false, 'a space-form read command is fine');
 assert.equal(decide(sub('git -c user.name=x commit -m x')).block, false, 'git -c commit is fine');

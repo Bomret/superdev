@@ -17,22 +17,52 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
+const { assertSpawnDecided } = require('./spawn-verdict');
 
 const publishKbPath = require.resolve('../plugin/scripts/publish-kb.js');
 const { run, parseCommandsTemplates, parseStagedPage, classifyBackend, parseBaseBranch, parseRemote, hashBody } = require(publishKbPath);
 
 const FAKE_BACKEND = require.resolve('./fixtures/fake-kb-backend.js');
 
-// The bound every hanging-verb block below runs under. `hangingVerbDoc` hangs one verb with
-// `sleep 30` and leaves every other verb a real `node` spawn, which the same bound kills — and a
-// `node` start alone costs around 100ms. The bound therefore clears a healthy spawn by a wide
-// margin and still ends the hang in a fraction of its 30s.
-const HANG_MS = 1000;
-// The elapsed ceiling of a hanging-verb block, in bounds: the block spawns the process under test and, for a batch, one bound per
-// page it reaches, with the machine loaded by one copy of the suite per core. It stays far below the 30s the hung verb sleeps, so a
-// bound that failed to end the hang still fails it (a qualitative ceiling, AGENTS.md, ADR 0086). The batch's one-bound-not-one-per-page
-// property is asserted by the untried count and the absent backend state, not by this ceiling.
-const HUNG_CEILING = 8;
+// The bound every hanging-verb block below runs under, taken from this run rather than fixed (AGENTS.md,
+// ADR 0086). `hangingVerbDoc` hangs one verb and leaves every other verb a real `node` spawn of the fake
+// backend, which the same bound would kill if it ran slower than the bound — and a loaded machine starts
+// `node` slowly. So the suite times that spawn, in the shape `publish-kb.js` runs it (`/bin/sh -c`), three
+// times before the first timeout case, and bounds every backend command at ten times the slowest, never
+// below 1000ms. A healthy verb then clears the bound however busy the machine is, and only the hung verb
+// reaches it. A sample that fails to start, hits its own 60s bound, or answers other than not-found timed
+// nothing healthy, so it stops the suite with its reason (INV-0009).
+const HEALTHY_SAMPLES = 3;
+function slowestHealthySpawn() {
+  let slowest = 0;
+  for (let i = 0; i < HEALTHY_SAMPLES; i++) {
+    const started = Date.now();
+    const sample = spawnSync('/bin/sh', ['-c', `node ${JSON.stringify(FAKE_BACKEND)} find`], { encoding: 'utf8', timeout: 60000 });
+    assertSpawnDecided(sample, `healthy-spawn sample ${i + 1}`);
+    // With no state file, `find` answers 3 (not found): any other status means the sample timed something else.
+    if (sample.status !== 3) throw new Error(`healthy-spawn sample ${i + 1} exited ${sample.status}, not 3: ${sample.stderr}`);
+    slowest = Math.max(slowest, Date.now() - started);
+  }
+  return slowest;
+}
+const HANG_MS = Math.max(1000, 10 * slowestHealthySpawn());
+// The elapsed ceiling of a hanging-verb block. Everything else the block does — git, the containment check,
+// the healthy verbs — slows with the machine too, so a ceiling counted in bounds still trips under load. The
+// ceiling therefore answers only the qualitative question, whether the bound ended the hang at all (AGENTS.md,
+// ADR 0086): it sits well below the time the hung verb sleeps, so a bound that failed still fails the block.
+// The reported "<verb> timed out after <bound>ms" line is what proves the bound fired, and the batch's
+// one-bound-not-one-per-page property is asserted by the untried count and the absent backend state.
+const HUNG_CEILING_MS = 600000;
+// The hung verb. `exec` makes the bound's SIGKILL land on the sleep itself rather than on its shell, so no sleeper
+// outlives its case holding the output pipe open. A run whose measured bound leaves a batch of a few bounds no
+// room under the ceiling proves nothing, so it stops here instead.
+const HUNG_CMD = 'exec sleep 900';
+if (HANG_MS * 8 >= HUNG_CEILING_MS) {
+  throw new Error(
+    `measured bound ${HANG_MS}ms leaves no room for a batch under the ${HUNG_CEILING_MS}ms ceiling: ` +
+      'the machine is too loaded for the timeout cases to prove anything',
+  );
+}
 
 function git(args, cwd) {
   return execFileSync('git', args, { cwd, encoding: 'utf8' });
@@ -108,6 +138,9 @@ function withState(fn) {
   const prevTimeout = process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS;
   process.env.FAKE_KB_STATE_FILE = stateFile;
   delete process.env.FAKE_KB_CAPTURE_DIR;
+  // A case that expects every command to succeed runs under a bound no healthy command reaches, however
+  // loaded the machine; a timeout case sets its own bound inside `fn`.
+  process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = String(HUNG_CEILING_MS);
   try {
     fn(stateFile);
   } finally {
@@ -126,7 +159,7 @@ function withState(fn) {
 function hangingVerbDoc(backendLine, hangingVerb, verbs = ['find', 'read', 'create', 'update', 'delete']) {
   const sections = verbs
     .map((v) => {
-      const cmd = v === hangingVerb ? 'sleep 30' : `node ${JSON.stringify(FAKE_BACKEND)} ${v}`;
+      const cmd = v === hangingVerb ? HUNG_CMD : `node ${JSON.stringify(FAKE_BACKEND)} ${v}`;
       return `### ${v}\n\n\`\`\`sh\n${cmd}\n\`\`\``;
     })
     .join('\n\n');
@@ -136,7 +169,7 @@ function hangingVerbDoc(backendLine, hangingVerb, verbs = ['find', 'read', 'crea
 // The same doc with `failingVerb` exiting non-zero at once instead of hanging: for a behavior that
 // needs the call to fail after publish-kb wrote its retry marker, not the time bound.
 function failingVerbDoc(backendLine, failingVerb, verbs) {
-  return hangingVerbDoc(backendLine, failingVerb, verbs).replace('sleep 30', 'exit 1');
+  return hangingVerbDoc(backendLine, failingVerb, verbs).replace(HUNG_CMD, 'exit 1');
 }
 
 // --- hashBody: the digest algorithm is pinned by a literal, not derived from hashBody itself ------
@@ -1474,7 +1507,7 @@ withState(() => {
   assert.ok(res.ok, `expected a report, got: ${res.err}`);
   assert.match(res.out, new RegExp(`left staged: Hung Page — find timed out after ${HANG_MS}ms`));
   // relative to the configured bound (AGENTS.md, ADR 0086), not an absolute ceiling
-  assert.ok(elapsed < HANG_MS * HUNG_CEILING, `expected the bound to end it, took ${elapsed}ms`);
+  assert.ok(elapsed < HUNG_CEILING_MS, `expected the bound to end it, took ${elapsed}ms`);
   assert.ok(
     fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'hang', 'p.md')),
     'a timed-out page stays staged',
@@ -1503,7 +1536,7 @@ for (const verb of ['create', 'update', 'delete']) {
     assert.ok(res.ok, `[${verb}] expected a report, got: ${res.err}`);
     assert.match(res.out, new RegExp(`left staged: Verb Page — ${verb} timed out after ${HANG_MS}ms`));
     // relative to the configured bound (AGENTS.md, ADR 0086), not an absolute ceiling
-    assert.ok(elapsed < HANG_MS * HUNG_CEILING, `[${verb}] expected the bound to end it, took ${elapsed}ms`);
+    assert.ok(elapsed < HUNG_CEILING_MS, `[${verb}] expected the bound to end it, took ${elapsed}ms`);
     assert.ok(
       fs.existsSync(path.join(repo, '.superdev', 'kb-pending', `verb-${verb}`, 'p.md')),
       `[${verb}] a timed-out page stays staged`,
@@ -1561,7 +1594,7 @@ withState((stateFile) => {
   assert.ok(res.ok, `expected a report, got: ${res.err}`);
   assert.match(res.out, new RegExp(`timed out after ${HANG_MS}ms`));
   assert.match(res.out, /stopped after a timeout: 2 page\(s\) left untried/);
-  assert.ok(elapsed < HANG_MS * HUNG_CEILING, `expected the bound to end the batch; took ${elapsed}ms`);
+  assert.ok(elapsed < HUNG_CEILING_MS, `expected the bound to end the batch; took ${elapsed}ms`);
   for (const f of ['alpha.md', 'bravo.md', 'charlie.md']) {
     assert.ok(
       fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'batch', f)),
@@ -1621,7 +1654,6 @@ withState((stateFile) => {
   writeKbDoc(repo, doc);
   stagePage(repo, 'mixed', 'a-doomed.md', 'title: Doomed\naction: upsert');
   stagePage(repo, 'mixed', 'b-fine.md', 'title: Fine\naction: upsert');
-  process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = '5000';
 
   const res = call(['--scope', 'mixed'], repo);
   assert.ok(res.ok, `expected a report, got: ${res.err}`);
