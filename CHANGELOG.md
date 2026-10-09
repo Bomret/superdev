@@ -1,3 +1,11 @@
+# [0.68.0](https://codeberg.org/bomret/superdev/compare/v0.67.1...v0.68.0) (2026-10-09)
+
+
+### Features
+
+* **review:** flag vocabulary that drifts from the glossary ([f527383](https://codeberg.org/bomret/superdev/commit/f52738371d5a5db6ed8a1d2c2e45f3d84fd6b664))
+* **ship:** offer to start verify-ship and wrap-up after the merge ([75859c6](https://codeberg.org/bomret/superdev/commit/75859c62cea063bcd5ca4240945638fe5fadf29a))
+
 ## [0.67.1](https://codeberg.org/bomret/superdev/compare/v0.67.0...v0.67.1) (2026-10-09)
 
 
