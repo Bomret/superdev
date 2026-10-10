@@ -3,7 +3,9 @@ export type Slice = { id: string; title: string; status: string; dependsOn: stri
 // An agent as the pane's structure knows it: what changes only when it starts or ends. `start` is its dispatch
 // time: the trace's `dispatch` line, or this session's spawn; null when the line's time does not parse. `end` is
 // its end time the same way: the trace's `dispatch-end` line, or this session's end; null while it runs.
-export type Agent = { key: string; type: string; desc: string; slice: string; isDone: boolean; start: number | null; end: number | null }
+export type Agent = { key: string; type: string; desc: string; slice: string; isDone: boolean; start: number | null; end: number | null; review?: Review }
+// A slice review's verdict as the run trace records it (ADR 0136): `reviewed` is the implementer dispatch's key, or '' for none.
+export type Review = { spec: string; quality: string; cycle: number; reviewed: string }
 // What the run trace says an agent last did: read by its card, never by the pane.
 export type Activity = { last: string; lastKind: string; events: number }
 // A subagent this session saw start, attributed to one scope and slice (INV-0136). Written on its start and on

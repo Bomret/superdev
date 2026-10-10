@@ -60,7 +60,32 @@ test('reads the trace lines the run-trace hook writes', () => {
     { key: 'tu1', type: 'superdev:implementer', desc: 'Build slice 04', slice: '04', isDone: true, start: null, end: null },
     { key: 'tu2', type: 'superdev:final-reviewer', desc: 'Final review', slice: 'scope', isDone: true, start: null, end: null },
     { key: 'tu3', type: 'superdev:implementer', desc: 'Build slice 05', slice: '05', isDone: false, start: null, end: null },
+    {
+      key: 'tu4', type: 'superdev:slice-reviewer', desc: 'Review slice 04', slice: '04', isDone: true, start: null, end: null,
+      review: { spec: 'fail', quality: 'changes-needed', cycle: 0, reviewed: 'tu1' },
+    },
   ])
+})
+
+test('a verdict line attaches to its reviewer only; one naming no dispatch is ignored, and `-` reviews no implementer', () => {
+  const trace = [
+    'T1 03 main dispatch superdev:slice-reviewer r1 Review',
+    'T2 03 main verdict r1 pass approved 2 -',
+    'T3 03 main dispatch superdev:slice-reviewer r2 Re-review',
+    'T4 03 main verdict nobody pass approved 0 -',
+  ].join('\n')
+  const { agents } = traceAgents(trace)
+  expect(agents.map(a => a.review)).toEqual([{ spec: 'pass', quality: 'approved', cycle: 2, reviewed: '' }, undefined])
+})
+
+test('a second verdict line for one dispatch is ignored: the first wins', () => {
+  const trace = [
+    'T1 03 main dispatch superdev:slice-reviewer r1 Review',
+    'T2 03 main verdict r1 pass approved 1 -',
+    'T3 03 main verdict r1 fail changes-needed 1 -',
+  ].join('\n')
+  const { agents } = traceAgents(trace)
+  expect(agents[0].review).toEqual({ spec: 'pass', quality: 'approved', cycle: 1, reviewed: '' })
 })
 
 test('a depends-on cell of several ids splits on commas, and an empty cell names none', () => {

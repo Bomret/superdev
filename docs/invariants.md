@@ -1177,3 +1177,12 @@ Statement: A fail-to-pass run records `fail-to-pass` or `pass-to-pass` only afte
 Breaks: silently
 Check: tests/scope.test.js — the fail-to-pass cases
 Paths: plugin/scripts/scope.js
+
+### INV-0142
+
+Class: process
+Concepts: Run trace, Review verdict, Review cycle, Slice-reviewer
+Statement: In sequential delivery, every completed background `slice-reviewer` dispatch on a full-tier run gets at most one `verdict` line in the run trace, and a reader takes the first `verdict` line per dispatch. The line is written only by the run-trace hook, on the slice of the reviewer's own `dispatch` line. The line carries the review's specification and quality verdicts, its review cycle, and the implementer dispatch it reviewed, and nothing else from the report (ADR 0136).
+Breaks: silently
+Check: tests/run-trace.test.js — the verdict cases
+Paths: plugin/hooks/run-trace.js, plugin/hooks/hooks.json, plugin/agents/slice-reviewer.md

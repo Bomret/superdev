@@ -58,7 +58,8 @@ const time = (ts: string): number | null => {
 // a line from an agentId no dispatch binds (a foreground subagent, or one no scope attributes) adds no
 // agent, so no agent shows twice and a scope-less one shows nowhere. The structure (who, which slice,
 // done) goes to the pane; what each last did goes to its card alone, so a new trace line that starts or
-// ends nothing changes nothing the pane draws.
+// ends nothing changes nothing the pane draws. A `verdict` line gives its reviewer's dispatch the review it
+// records (ADR 0136); one naming no dispatch is ignored, and only the first per dispatch counts.
 export const traceAgents = (trace: string): { agents: Agent[]; activity: Record<string, Activity> } => {
   const byKey = new Map<string, Agent>()
   const activity: Record<string, Activity> = {}
@@ -76,6 +77,9 @@ export const traceAgents = (trace: string): { agents: Agent[]; activity: Record<
       const a = byKey.get(key)
       if (a) Object.assign(a, { isDone: true, end: time(ts) })
       if (activity[key]) activity[key] = { ...activity[key], last: ts, lastKind: 'ended' }
+    } else if (kind === 'verdict') {
+      const a = byKey.get(untrace(f[0]))
+      if (a && !a.review) a.review = { spec: untrace(f[1]), quality: untrace(f[2]), cycle: Number(untrace(f[3])), reviewed: untrace(f[4]) }
     }
     const bound = agent && agent !== 'main' ? alias.get(agent) : undefined
     if (bound && byKey.has(bound)) {

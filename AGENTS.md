@@ -191,8 +191,9 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
 
 Platform behaviour superdev works around, with the mitigation each one ships:
 [`docs/known-issues.md`](docs/known-issues.md). It covers the SessionStart preamble leak
-into subagent prompts (issue #32), and the delegation handoff classifier behind a denied dispatch
-(ADR 0039, ADR 0041). Read it before you change subagent prose or the unattended block.
+into subagent prompts (issue #32), the delegation handoff classifier behind a denied dispatch
+(ADR 0039, ADR 0041), and the `SubagentHandback` report the run trace reads a slice review's verdict
+from (ADR 0136). Read it before you change subagent prose or the unattended block.
 
 ## Common commands
 
@@ -364,7 +365,9 @@ This root owns every other subtree directly:
   of its `trace.log` alone: a line from an agent id no `dispatch-bind` names adds no agent. In the session
   that runs the scope, that session's own `agent.spawn`, `tool.call`, `turn.step`, and `turn.complete`
   events add live agents, and a live agent joins a scope only when its run root is the pane's own
-  `<root>/scopes/<name>`. Every one of those hooks passes its event on unchanged (INV-0135). The pane is
+  `<root>/scopes/<name>`. Every one of those hooks passes its event on unchanged (INV-0135). The first `verdict`
+  line of a slice-reviewer dispatch gives that agent the review it records, its verdicts, review cycle,
+  and reviewed implementer (ADR 0136, INV-0142); no view draws it yet. The pane is
   a docked side tab, often narrow, so every surface draws the same Box/Text tree at the host's own text
   size, wrapped to the pane's width. The overview is a column of collapsible sections: Brainstorm,
   Scopes, Pending knowledge-base pages, Design sketches, and DoD drafts. A section's open state lives

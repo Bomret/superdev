@@ -76,6 +76,34 @@ main checkout): the agent id that run-trace's hook payloads carry inside a backg
 that dispatch. Still open: no captured `SubagentStop` payload confirms that its `agent_id` carries the same
 value.
 
+## A subagent's report arrives through the SubagentHandback tool
+
+The run trace records a slice review's verdict from the reviewer's own report (ADR 0136). On Claude Code
+2.1.271 and later, a subagent that runs with the `SubagentHandback` tool delivers its report through it, and
+Claude Code provides that tool in auto mode. The `Agent` tool's `content` then carries only a short hand-back
+note. The report is that tool's `tool_input.message`,
+and the last assistant message of the subagent is the hand-back call, not the report. `run-trace.js` therefore
+reads the verdict from `PostToolUse` on `SubagentHandback`, matched in `hooks.json`, and falls back to
+`SubagentStop`'s `last_assistant_message` for a reviewer that answers in plain text. Both events carry the
+reviewer's `agent_id`, which the `dispatch-bind` line ties to its dispatch. A foreground reviewer has no
+`dispatch-bind` when its hand-back fires, so it gets no `verdict` line.
+
+**Mitigation:** the hook never blocks on either event. A report it cannot read records `unknown`, and a
+review whose events never arrive records no `verdict` line, which a reader treats as a verdict not
+recorded.
+
+Verified 2026-10-10, on Claude Code 2.1.296, against the hooks reference
+(`https://code.claude.com/docs/en/hooks`): its `SubagentStop` input lists `agent_id`, `agent_type`,
+`agent_transcript_path`, and `last_assistant_message`, and its `PostToolUse` section for the `Agent` tool says
+that a hook reads a hand-back report by matching `SubagentHandback` and reading `tool_input.message`. Observed
+in a session transcript written by Claude Code 2.1.295: slice reviewer `a2376f9e567dfb4a5` ended with a
+`SubagentHandback` call whose message ends in `### Verdict: specification ✅ | quality: approved`, and no
+assistant text followed it. The `PostToolUse` payload for `SubagentHandback` was not captured from a live
+hook.
+
+Verified 2026-10-10, on the same hooks reference: it states that Claude Code provides `SubagentHandback` in auto
+mode. Whether a run outside auto mode ever has the tool was not tested.
+
 ## A PreToolUse command rewrite reaches PostToolUse hooks
 
 A PreToolUse hook can return `updatedInput`, which replaces a tool's arguments before the tool runs.

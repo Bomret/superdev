@@ -700,11 +700,45 @@ function recordAgentResult(input, cwd) {
   else if (typeof r.agentId === 'string' && r.agentId) appendTrace(f.runRoot, { slice: untraceField(f.d.slice), agent: 'main', kind: 'dispatch-bind', fields: [...fields, r.agentId] });
 }
 
-// SubagentStop: ends the dispatch whose `agentId` was bound, once: a stop another hook blocks fires again.
-function recordSubagentStop(input, cwd) {
-  const f = findDispatch(cwd, input.agent_id, true);
+// SubagentStop: ends the dispatch `f` whose `agentId` was bound, once: a stop another hook blocks fires again.
+function recordSubagentStop(f) {
   if (!f || f.events.some((e) => e.kind === 'dispatch-end' && e.fields[1] !== undefined && untraceField(e.fields[1]) === untraceField(f.d.fields[1]))) return;
   appendTrace(f.runRoot, { slice: untraceField(f.d.slice), agent: 'main', kind: 'dispatch-end', fields: [untraceField(f.d.fields[0]), untraceField(f.d.fields[1])] });
+}
+
+// ---- review verdicts (ADR 0136, INV-0142) ----
+// The last `Verdict:` line of a slice-reviewer's report: ✅ or ❌ after `specification`, and the word after `quality`.
+// A part it cannot read is `unknown`.
+function parseVerdict(text) {
+  const line = typeof text === 'string' ? text.split('\n').filter((l) => /Verdict:/.test(l)).pop() : undefined;
+  const spec = line && /specification\W*?(✅|❌)/u.exec(line);
+  const quality = line && /quality\W*(approved|changes-needed)\b/.exec(line);
+  return { spec: spec ? (spec[1] === '✅' ? 'pass' : 'fail') : 'unknown', quality: quality ? quality[1] : 'unknown' };
+}
+
+// A background slice-reviewer's report (its hand-back, or its stop's last message): one `verdict` line on its dispatch's
+// slice. The cycle counts the slice's reviewer dispatches that ended before this one was dispatched; the reviewed
+// implementer is the slice's last one to end before it. A foreground reviewer has no `dispatch-bind`, so it gets none.
+// `f` is the dispatch `findDispatch` bound to the reviewer's `agentId`.
+function recordVerdict(f, text) {
+  try {
+    if (!f || untraceField(f.d.fields[0]) !== 'superdev:slice-reviewer') return;
+    const tu = untraceField(f.d.fields[1]);
+    if (f.events.some((e) => e.kind === 'verdict' && e.fields[0] !== undefined && untraceField(e.fields[0]) === tu)) return;
+    const slice = untraceField(f.d.slice);
+    let cycle = 0;
+    let impl = '';
+    for (const e of f.events.slice(0, f.events.indexOf(f.d))) {
+      if (e.kind !== 'dispatch-end' || untraceField(e.slice) !== slice) continue;
+      const type = untraceField(e.fields[0]);
+      if (type === 'superdev:slice-reviewer') cycle++;
+      else if (type === 'superdev:implementer') impl = untraceField(e.fields[1]);
+    }
+    const v = parseVerdict(text);
+    appendTrace(f.runRoot, { slice, agent: 'main', kind: 'verdict', fields: [tu, v.spec, v.quality, String(cycle), impl] });
+  } catch {
+    // records nothing
+  }
 }
 
 function record(input) {
@@ -716,8 +750,21 @@ function record(input) {
     else if (input.hook_event_name === 'PostToolUse') recordAgentResult(input, cwd);
     return null;
   }
+  if (input.tool_name === 'SubagentHandback') {
+    if (input.hook_event_name === 'PostToolUse' && typeof input.agent_id === 'string' && input.agent_id && typeof ti.message === 'string') {
+      let f;
+      try { f = findDispatch(cwd, input.agent_id, true); } catch { return null; }
+      recordVerdict(f, ti.message);
+    }
+    return null;
+  }
   if (input.hook_event_name === 'SubagentStop') {
-    if (typeof input.agent_id === 'string' && input.agent_id) recordSubagentStop(input, cwd);
+    if (typeof input.agent_id === 'string' && input.agent_id) {
+      // One lookup serves both: the verdict line lands before the dispatch-end.
+      const f = findDispatch(cwd, input.agent_id, true);
+      recordVerdict(f, input.last_assistant_message);
+      recordSubagentStop(f);
+    }
     return null;
   }
   const failed = input.hook_event_name === 'PostToolUseFailure';
@@ -764,4 +811,4 @@ function main() {
 if (require.main === module) main();
 
 // `locate`, `testRuns`, and `treeState` are also `scope.js test`'s classifier and tree reader (ADR 0127): the verb and the hook never disagree.
-module.exports = { record, bashTargets, verificationKind, ARG, stripHeredocs, locate, testRuns, treeState };
+module.exports = { record, parseVerdict, bashTargets, verificationKind, ARG, stripHeredocs, locate, testRuns, treeState };

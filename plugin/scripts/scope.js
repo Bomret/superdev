@@ -1778,6 +1778,7 @@ function verbStaging(cwd, args) {
 //   revert <paths> / restore <paths>
 //   note <test path>
 //   dispatch <agent_type> <tool_use_id> <description> / dispatch-bind <agent_type> <tool_use_id> <agent_id> / dispatch-end <agent_type> <tool_use_id>
+//   verdict <reviewer tool_use_id> <pass|fail|unknown> <approved|changes-needed|unknown> <cycle> <implementer tool_use_id|->   (ADR 0136; at most one per review in sequential delivery, and a reader takes the first per dispatch)
 //   ledger <verb> <args>     (written only by the ledger-writing verbs of this CLI, after they succeed)
 //   fail-to-pass <base>..<tip> <fail-to-pass|pass-to-pass|unknown> <reason>     (written only by `fail-to-pass`, which derives all three fields; no test run)
 // Every field is escaped so none holds a control character or a line separator: no field can start

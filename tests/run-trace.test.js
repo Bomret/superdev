@@ -770,6 +770,10 @@ const agentPost = (tu, response, cwd) => ({ hook_event_name: 'PostToolUse', tool
   run(agentPre(`Review ${A}/scopetree`, 'tu2', 'superdev:final-reviewer', 'Final review'));
   run(agentPost('tu2', { status: 'completed' }));
   run(agentPre(`Work in ${A}/slicetrees/05`, 'tu3', 'superdev:implementer', 'Build slice 05'));
+  run(agentPre(`Review ${A}/slicetrees/04`, 'tu4', 'superdev:slice-reviewer', 'Review slice 04'));
+  run(agentPost('tu4', { status: 'async_launched', agentId: 'ag4' }));
+  run({ hook_event_name: 'PostToolUse', tool_name: 'SubagentHandback', agent_id: 'ag4', tool_input: { message: '### Verdict: specification ❌ | quality: changes-needed' }, cwd: tmp });
+  run({ hook_event_name: 'SubagentStop', agent_id: 'ag4', agent_type: 'superdev:slice-reviewer', cwd: tmp });
   assert.deepEqual(trace(A).map((l) => l.join(' ')), lines, 'the hook writes the trace lines superdev-view parses');
 }
 {
@@ -861,6 +865,99 @@ const agentPost = (tu, response, cwd) => ({ hook_event_name: 'PostToolUse', tool
   assert.equal(trace(A).length, 6);
 }
 
+// Review verdicts (ADR 0136, INV-0142): a background slice-reviewer's report writes one `verdict` line
+// carrying the review's tool_use_id, spec and quality verdicts, review cycle, and reviewed implementer.
+{
+  const { parseVerdict } = require(hookPath);
+  const PASS = 'Findings: none.\n\n### Verdict: specification ✅ | quality: approved';
+  const FAIL = '- Critical: x\n\n### Verdict: specification ❌   |   quality: changes-needed';
+  assert.deepEqual(parseVerdict(PASS), { spec: 'pass', quality: 'approved' });
+  assert.deepEqual(parseVerdict(FAIL), { spec: 'fail', quality: 'changes-needed' });
+  assert.deepEqual(parseVerdict('no verdict here'), { spec: 'unknown', quality: 'unknown' });
+  assert.deepEqual(parseVerdict('### Verdict: specification ✅ | quality: maybe'), { spec: 'pass', quality: 'unknown' }, 'a part it cannot read is unknown');
+  assert.deepEqual(parseVerdict('### Verdict: spec good'), { spec: 'unknown', quality: 'unknown' }, 'a malformed line is unknown in both parts');
+  assert.deepEqual(parseVerdict(`Cycle 0 said:\n${FAIL}\nNow fixed.\n\n**### Verdict: specification ✅️ | quality: approved** (all closed)  `), { spec: 'pass', quality: 'approved' }, 'the last verdict line decides; bold, a variation selector, and trailing text are tolerated');
+  assert.deepEqual(parseVerdict(undefined), { spec: 'unknown', quality: 'unknown' });
+
+  // The verdict line slice-reviewer.md prescribes parses, both ways: a reworded line fails here.
+  const tpl = fs.readFileSync(path.join(__dirname, '..', 'plugin', 'agents', 'slice-reviewer.md'), 'utf8').split('\n').find((l) => l.startsWith('### Verdict:'));
+  assert.ok(tpl, 'slice-reviewer.md prescribes a `### Verdict:` line');
+  const pick = (n) => tpl.replace(/(\S+) \/ (\S+)/g, (_, a, b) => (n ? b : a));
+  assert.deepEqual(parseVerdict(pick(0)), { spec: 'pass', quality: 'approved' }, `parses ${pick(0)}`);
+  assert.deepEqual(parseVerdict(pick(1)), { spec: 'fail', quality: 'changes-needed' }, `parses ${pick(1)}`);
+
+  const handback = (ag, message, cwd) => run({ hook_event_name: 'PostToolUse', tool_name: 'SubagentHandback', agent_id: ag, agent_type: 'superdev:slice-reviewer', tool_input: { message }, cwd: cwd || tmp });
+  const stop = (ag, last) => run({ hook_event_name: 'SubagentStop', agent_id: ag, agent_type: 'superdev:slice-reviewer', last_assistant_message: last, cwd: tmp });
+  const bg = (slice, tu, type, ag) => { run(agentPre(`${A}/slicetrees/${slice}`, tu, type)); run(agentPost(tu, { status: 'async_launched', agentId: ag })); };
+  const verdicts = () => trace(A).filter((l) => l[2] === 'verdict');
+
+  reset();
+  bg('04', 'i1', 'superdev:implementer', 'ai1');
+  handback('ai1', PASS);
+  stop('ai1', PASS);
+  assert.equal(verdicts().length, 0, 'an implementer gets no verdict line');
+  bg('04', 'r1', 'superdev:slice-reviewer', 'ar1');
+  bg('05', 'i5', 'superdev:implementer', 'ai5');
+  stop('ai5');
+  bg('05', 'r5', 'superdev:slice-reviewer', 'ar5');
+  handback('ar1', FAIL);
+  assert.deepEqual(verdicts(), [['04', 'main', 'verdict', 'r1', 'fail', 'changes-needed', '0', 'i1']]);
+  stop('ar1', FAIL);
+  assert.equal(verdicts().length, 1, 'a hand-back and a stop give one verdict line');
+  handback('ar5', PASS);
+  stop('ar5');
+  assert.deepEqual(verdicts()[1], ['05', 'main', 'verdict', 'r5', 'pass', 'approved', '0', 'i5'], 'another slice numbers its own cycles');
+  bg('04', 'i2', 'superdev:implementer', 'ai2');
+  stop('ai2');
+  bg('04', 'r2', 'superdev:slice-reviewer', 'ar2'); // interrupted: no hand-back, no stop
+  bg('04', 'r3', 'superdev:slice-reviewer', 'ar3');
+  handback('ar3', 'Lean.\n### Verdict: specification ✅ | quality: approved');
+  assert.deepEqual(verdicts()[2], ['04', 'main', 'verdict', 'r3', 'pass', 'approved', '1', 'i2'], 'an unfinished review does not advance the cycle; the last finished implementer is reviewed');
+  handback('ar3', FAIL);
+  assert.equal(verdicts().length, 3, 'a repeated hand-back writes no second line');
+
+  // No implementer before the review records `-`; a report with no verdict line records unknown.
+  bg('06', 'r6', 'superdev:slice-reviewer', 'ar6');
+  handback('ar6', 'I could not finish.');
+  assert.deepEqual(verdicts()[3], ['06', 'main', 'verdict', 'r6', 'unknown', 'unknown', '0', '-']);
+
+  // A reviewer answering in plain text: the stop's last message carries the verdict.
+  bg('07', 'r7', 'superdev:slice-reviewer', 'ar7');
+  stop('ar7', PASS);
+  assert.deepEqual(verdicts()[4], ['07', 'main', 'verdict', 'r7', 'pass', 'approved', '0', '-']);
+  assert.equal(trace(A).filter((l) => l[2] === 'dispatch-end' && l[4] === 'r7').length, 1, 'the stop still ends the dispatch');
+
+  // Other reviewer types, a foreground reviewer, and a hand-back outside any run write nothing.
+  bg('04', 's1', 'superdev:simplicity-reviewer', 'as1');
+  handback('as1', PASS);
+  bg('04', 'f1', 'superdev:final-reviewer', 'af1');
+  handback('af1', PASS);
+  run(agentPre(`${A}/slicetrees/04`, 'g1', 'superdev:slice-reviewer'));
+  handback('ag-fg', PASS);
+  run(agentPost('g1', { status: 'completed' }));
+  handback('nobody', PASS);
+  assert.equal(verdicts().length, 5, 'only bound slice-reviewer dispatches get a verdict line');
+  assert.equal(trace(B).length, 0);
+
+  // A malformed payload records nothing and prints nothing; the spawned hook exits 0.
+  run({ hook_event_name: 'PostToolUse', tool_name: 'SubagentHandback', cwd: tmp });
+  run({ hook_event_name: 'PostToolUse', tool_name: 'SubagentHandback', agent_id: 'ar6', tool_input: { message: 42 }, cwd: tmp });
+  run({ hook_event_name: 'SubagentStop', agent_id: 'ar6', last_assistant_message: { x: 1 }, cwd: tmp });
+  run({ hook_event_name: 'PostToolUse', tool_name: 'SubagentHandback', agent_id: 'ar1', tool_input: { message: PASS }, cwd: path.join(tmp, 'no', 'such', 'dir') });
+  assert.equal(verdicts().length, 5);
+  assert.equal(spawnOut({ hook_event_name: 'PostToolUse', tool_name: 'SubagentHandback', agent_id: 'ar9', tool_input: { message: PASS }, cwd: tmp }), '');
+  assert.equal(spawnOut(null, '{not json'), '');
+
+  // `scope.js trace` (what `/superdev:status --trace` prints) shows each verdict line.
+  const shown = cp.spawnSync(process.execPath, [require.resolve('../plugin/scripts/scope.js'), 'trace', '--root', A], { encoding: 'utf8', timeout: 10000 });
+  assertSpawnDecided(shown, 'scope.js trace');
+  assert.equal(shown.status, 0, shown.stderr);
+  assert.equal(shown.stdout.split('\n').filter((l) => /\bverdict\b/.test(l)).length, 5, 'the timeline carries every verdict line');
+
+  // hooks.json registers run-trace.js for PostToolUse on SubagentHandback.
+  const registered = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'plugin', 'hooks', 'hooks.json'), 'utf8')).hooks;
+  assert.ok(registered.PostToolUse.some((g) => g.matcher.split('|').includes('SubagentHandback') && g.hooks.some((h) => h.command.includes('hooks/run-trace.js'))), 'PostToolUse on SubagentHandback runs run-trace.js');
+}
 // SubagentStop from a controller whose cwd is a subdirectory of the main checkout or a worktree of it.
 {
   const R = fs.mkdtempSync(path.join(tmp, 'repo-'));
