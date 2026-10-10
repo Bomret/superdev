@@ -1,5 +1,6 @@
 import { test, expect } from 'claude-code/testing'
-import { frontmatter, header, intent, progress, slices, traceAgents, untrace, waves } from './parse'
+import { cycles, frontmatter, header, intent, progress, slices, traceAgents, untrace, waves } from './parse'
+import type { Agent } from '../types'
 import { LEDGER_LINES } from './ledger-fixtures'
 import { TRACE_LINES } from './trace-fixtures'
 
@@ -86,6 +87,53 @@ test('a second verdict line for one dispatch is ignored: the first wins', () => 
   ].join('\n')
   const { agents } = traceAgents(trace)
   expect(agents[0].review).toEqual({ spec: 'pass', quality: 'approved', cycle: 1, reviewed: '' })
+})
+
+const ag = (key: string, type: string, review?: Agent['review'], isDone = true): Agent =>
+  ({ key, type: `superdev:${type}`, desc: key, slice: '03', isDone, start: null, end: null, ...(review ? { review } : {}) })
+const rv = (spec: string, quality: string, cycle: number) => ({ spec, quality, cycle, reviewed: '' })
+const shape = (agents: Agent[]) => cycles(agents).map(c => [c.title, c.mark, c.note, c.agents.map(a => a.key)])
+
+test('a lane with no slice-reviewer is one untitled group', () => {
+  expect(shape([ag('i1', 'implementer'), ag('s1', 'simplicity-reviewer')])).toEqual([['', '', '', ['i1', 's1']]])
+  expect(cycles([])).toEqual([])
+})
+
+test('each slice-reviewer closes a cycle, numbered by its verdict, marked by its outcome', () => {
+  expect(shape([
+    ag('i1', 'implementer'), ag('r1', 'slice-reviewer', rv('fail', 'changes-needed', 0)),
+    ag('i2', 'implementer'), ag('r2', 'slice-reviewer', rv('pass', 'changes-needed', 1)),
+    ag('i3', 'implementer'), ag('r3', 'slice-reviewer', rv('pass', 'approved', 2)),
+    ag('s1', 'simplicity-reviewer'),
+  ])).toEqual([
+    ['Cycle 0', '✗', 'specification, changes-needed', ['i1', 'r1']],
+    ['Cycle 1', '✗', 'changes-needed', ['i2', 'r2']],
+    ['Cycle 2', '✓', '', ['i3', 'r3']],
+    ['Simplicity', '', '', ['s1']],
+  ])
+})
+
+test('after the last review, a simplicity-reviewer leads the simplicity pass with its cut implementers; other agents with no implementer are untitled', () => {
+  expect(shape([
+    ag('i1', 'implementer'), ag('r1', 'slice-reviewer', rv('pass', 'approved', 0)),
+    ag('s1', 'simplicity-reviewer'), ag('i2', 'implementer'), ag('i3', 'implementer'),
+  ])).toEqual([['Cycle 0', '✓', '', ['i1', 'r1']], ['Simplicity', '', '', ['s1', 'i2', 'i3']]])
+  expect(shape([ag('i1', 'implementer'), ag('r1', 'slice-reviewer'), ag('g1', 'general-purpose')]))
+    .toEqual([['Cycle 0', '', '', ['i1', 'r1']], ['', '', '', ['g1']]])
+})
+
+test('a review without a verdict counts by order; an unknown part, a running review, and an open fix read so', () => {
+  expect(shape([
+    ag('i1', 'implementer'), ag('r1', 'slice-reviewer'),
+    ag('i2', 'implementer'), ag('r2', 'slice-reviewer', rv('unknown', 'approved', 1)),
+    ag('i3', 'implementer'), ag('r3', 'slice-reviewer', undefined, false),
+    ag('i4', 'implementer', undefined, false),
+  ])).toEqual([
+    ['Cycle 0', '', '', ['i1', 'r1']],
+    ['Cycle 1', '?', '', ['i2', 'r2']],
+    ['Cycle 2', '', 'reviewing', ['i3', 'r3']],
+    ['Cycle 3', '', '', ['i4']],
+  ])
 })
 
 test('a depends-on cell of several ids splits on commas, and an empty cell names none', () => {

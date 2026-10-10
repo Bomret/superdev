@@ -148,3 +148,51 @@ test('back returns to the overview, and a scope that closes while its page is op
   expect(await ui.find({ key: 'back' })).toBeUndefined()
   expect(await ui.find({ key: 'section-scopes' })).toBeDefined()
 })
+
+test("a slice lane groups its agents into review cycles, each headed with its verdict, on every surface", async ($, on) => {
+  const { files, lists } = repo()
+  files[`${A}/trace.log`] = [
+    '2026-01-01T00:00:00Z 02 main dispatch superdev:implementer i1 Build',
+    '2026-01-01T00:00:01Z 02 main dispatch-end superdev:implementer i1',
+    '2026-01-01T00:00:02Z 02 main dispatch superdev:slice-reviewer r1 Review',
+    '2026-01-01T00:00:03Z 02 main verdict r1 fail changes-needed 0 i1',
+    '2026-01-01T00:00:04Z 02 main dispatch-end superdev:slice-reviewer r1',
+    '2026-01-01T00:00:05Z 02 main dispatch superdev:implementer i2 Fix',
+    '2026-01-01T00:00:06Z 02 main dispatch-end superdev:implementer i2',
+    '2026-01-01T00:00:07Z 02 main dispatch superdev:slice-reviewer r2 Re-review',
+    '2026-01-01T00:00:08Z 02 main verdict r2 pass approved 1 i2',
+    '2026-01-01T00:00:09Z 02 main dispatch-end superdev:slice-reviewer r2',
+    '2026-01-01T00:00:10Z 02 main dispatch superdev:simplicity-reviewer s1 Simplicity\\x20review',
+    '2026-01-01T00:00:11Z 02 main dispatch-end superdev:simplicity-reviewer s1',
+  ].join('\n')
+  fakeRepo(on, files, lists)
+  await $.command.run(runCommand)
+  for (const surface of SURFACES) {
+    const ui = await open($, surface)
+    const heads = await ui.findAll({ type: 'Text', text: /^(Cycle \d.*|Simplicity)$/ })
+    expect(heads.map(t => t.text)).toEqual(['Cycle 0 · review ✗ specification, changes-needed', 'Cycle 1 · review ✓', 'Simplicity'])
+    await ui.press({ key: 'back' })
+    await ui.unmount()
+  }
+})
+
+test('a cycle whose review has no verdict line is headed by its title alone', async ($, on) => {
+  const { files, lists } = repo()
+  files[`${A}/trace.log`] = [
+    '2026-01-01T00:00:00Z 02 main dispatch superdev:implementer i1 Build',
+    '2026-01-01T00:00:01Z 02 main dispatch-end superdev:implementer i1',
+    '2026-01-01T00:00:02Z 02 main dispatch superdev:slice-reviewer r1 Review',
+    '2026-01-01T00:00:03Z 02 main dispatch-end superdev:slice-reviewer r1',
+    '2026-01-01T00:00:04Z 02 main dispatch superdev:implementer i2 Fix',
+    '2026-01-01T00:00:05Z 02 main dispatch-end superdev:implementer i2',
+  ].join('\n')
+  fakeRepo(on, files, lists)
+  await $.command.run(runCommand)
+  for (const surface of SURFACES) {
+    const ui = await open($, surface)
+    const heads = await ui.findAll({ type: 'Text', text: /^(Cycle \d.*|Simplicity)$/ })
+    expect(heads.map(t => t.text)).toEqual(['Cycle 0', 'Cycle 1'])
+    await ui.press({ key: 'back' })
+    await ui.unmount()
+  }
+})

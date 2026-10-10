@@ -89,6 +89,35 @@ export const traceAgents = (trace: string): { agents: Agent[]; activity: Record<
   return { agents: [...byKey.values()], activity }
 }
 
+// A slice lane's agents, in dispatch order, grouped into review cycles: each slice-reviewer closes one,
+// numbered by its verdict line's cycle or else by its order, and marked ✓ (pass, approved), ✗ with what
+// failed, ? (an unknown part), or nothing (no verdict line). Agents after the last review are the simplicity
+// pass when a simplicity-reviewer leads them, else an open cycle when one is an implementer. A lane with no slice-reviewer stays one group.
+export type Cycle = { title: string; mark: '' | '✓' | '✗' | '?'; note: string; agents: Agent[] }
+const isType = (a: Agent, t: string) => a.type.replace(/^superdev:/, '') === t
+export const cycles = (agents: Agent[]): Cycle[] => {
+  if (!agents.some(a => isType(a, 'slice-reviewer'))) return agents.length ? [{ title: '', mark: '', note: '', agents }] : []
+  const out: Cycle[] = []
+  let group: Agent[] = []
+  let n = 0
+  for (const a of agents) {
+    group.push(a)
+    if (!isType(a, 'slice-reviewer')) continue
+    const r = a.review
+    n = r?.cycle ?? n
+    const failed = [r?.spec === 'fail' && 'specification', r?.quality === 'changes-needed' && 'changes-needed'].filter(Boolean).join(', ')
+    const mark = !r ? '' : failed ? '✗' : r.spec === 'pass' && r.quality === 'approved' ? '✓' : '?'
+    out.push({ title: `Cycle ${n}`, mark, note: failed || (!a.isDone && !r ? 'reviewing' : ''), agents: group })
+    group = []
+    n++
+  }
+  // After the last review: the simplicity pass (a simplicity-reviewer and the implementers applying its cuts),
+  // an open fix cycle, or else an untitled group.
+  const title = group[0] && isType(group[0], 'simplicity-reviewer') ? 'Simplicity' : group.some(a => isType(a, 'implementer')) ? `Cycle ${n}` : ''
+  if (group.length) out.push({ title, mark: '', note: '', agents: group })
+  return out
+}
+
 // DoD checkboxes: `- [x]` done, `- [ ]` open.
 export const progress = (md: string) => ({
   done: (md.match(/^\s*- \[[xX]\]/gm) ?? []).length,

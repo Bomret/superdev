@@ -4,7 +4,8 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { Activity, Agent, CardData, Draft, Intent, KbPage, LiveAgent, LiveDetail, Scope, Snapshot } from '../types'
 import { drawCard } from './card'
 import { attribute, ctxOf, runRoots, target } from './live'
-import { frontmatter, header, intent, progress, slices, traceAgents, waves } from './parse'
+import { cycles, frontmatter, header, intent, progress, slices, traceAgents, waves } from './parse'
+import type { Cycle } from './parse'
 
 const PANE = 'superdev-view'
 const snapshot = atom({ plugin: 'superdev-view', key: 'snapshot' } as const, null)
@@ -34,6 +35,9 @@ const STAGE_COLOR: Record<string, string> = {
   'documented-unreviewed': 'cyan', documented: 'blue', submitted: 'magenta', shipped: 'green', closed: 'gray',
 }
 const STATUS_MARK: Record<string, string> = { todo: '·', 'in-progress': '▶', 'in-review': '◆', merged: '✓' }
+// A review cycle's header line: its title, then the review's outcome when a verdict line gives one.
+const cycleHead = (c: Cycle) =>
+  c.note === 'reviewing' ? `${c.title} · reviewing` : c.mark ? [c.title, '·', 'review', c.mark, c.note].filter(Boolean).join(' ') : c.title
 const SLICE_COLOR: Record<string, string> = { todo: 'gray', 'in-progress': 'yellow', 'in-review': 'blue', merged: 'green', blocked: 'red' }
 
 function age(ms: number): string {
@@ -432,9 +436,12 @@ export const register: Register = on => {
                 <Box key={`lane-${sl.id}`} flexDirection="column" paddingLeft={2}>
                   <Text>{`${STATUS_MARK[sl.status] ?? '?'} ${sl.id} ${sl.status}${open.slicetrees.includes(sl.id) ? ' · slicetree' : ''}`}</Text>
                   <Text dimColor>{sl.title}</Text>
-                  {open.agents.some(a => a.slice === sl.id) && (
-                    <Box flexDirection="column" marginTop={1} gap={1}>{open.agents.filter(a => a.slice === sl.id).map(entry)}</Box>
-                  )}
+                  {cycles(open.agents.filter(a => a.slice === sl.id)).map((c, n) => (
+                    <Box key={`cycle-${n}`} flexDirection="column" marginTop={n ? 2 : 1} gap={1}>
+                      {c.title !== '' && <Text bold dimColor>{cycleHead(c)}</Text>}
+                      {c.agents.map(entry)}
+                    </Box>
+                  ))}
                 </Box>
               ))}
             </Box>

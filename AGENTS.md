@@ -367,13 +367,16 @@ This root owns every other subtree directly:
   events add live agents, and a live agent joins a scope only when its run root is the pane's own
   `<root>/scopes/<name>`. Every one of those hooks passes its event on unchanged (INV-0135). The first `verdict`
   line of a slice-reviewer dispatch gives that agent the review it records, its verdicts, review cycle,
-  and reviewed implementer (ADR 0136, INV-0142); no view draws it yet. The pane is
+  and reviewed implementer (ADR 0136, INV-0142). The pane is
   a docked side tab, often narrow, so every surface draws the same Box/Text tree at the host's own text
   size, wrapped to the pane's width. The overview is a column of collapsible sections: Brainstorm,
   Scopes, Pending knowledge-base pages, Design sketches, and DoD drafts. A section's open state lives
   in the `sections` plugin state atom for the session, and a press writes no file. A scope row opens the
   scope page, which groups the slices into dependency waves read from the ledger's depends-on column and
-  draws each agent of a slice as a card. Each agent's
+  draws each agent of a slice as a card. Each slice-reviewer closes a review cycle, and a dim header
+  above that cycle's cards names it: `Cycle n`, followed by `· review` and the verdict's outcome when a
+  `verdict` line records one. Agents after the last review that a simplicity-reviewer leads are headed
+  `Simplicity`, and the implementers applying its cuts belong to that group. Each agent's
   card is a `Client` surface module (`hooks/card.tsx`) that posts once a second for its latest record, so
   a tool call or a clock tick redraws the card alone, never the pane. Every `Client` of a page
   shares one message budget, so a card is a `Client` only while its agent runs, and the pane draws a done
