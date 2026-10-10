@@ -72,7 +72,12 @@ plan runs test-first, inline in the scopetree.
   Every Definition of Done it writes
   carries a `Reachable:` criterion naming the entrance a user reaches the feature through — or `none` and
   the reason, such as no in-repo consumer or an unchanged entrance on a refactor — so a feature cannot be
-  planned without deciding what wires it into the running application. Before it decomposes, it offers a
+  planned without deciding what wires it into the running application. It also carries `Release risk:`
+  criteria for the release risks: the rollback path, data compatibility during the deploy, consumers the
+  merge does not update, and the visibility of a failure on a new production path. One `Release risk:
+  none` line names each risk that does not apply, with its reason. The command answers from the code where
+  it can. In a repository with no recorded deploy posture, it asks once whether the feature reaches a
+  running production system (ADR 0133). Before it decomposes, it offers a
   **design sketch**: a throwaway HTML page you open in your browser, inventorying the components the plan
   intends to add, change, or delete and how they interact. The command waits there, so a design you did
   not expect gets corrected while no slice has been cut yet. It then decomposes the work into

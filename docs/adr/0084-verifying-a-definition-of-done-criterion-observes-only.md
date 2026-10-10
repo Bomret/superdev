@@ -2,6 +2,11 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0133](0133-every-plan-carries-release-risk-criteria.md), which narrows the planning
+side below: `/superdev:plan`'s offer to keep a criterion verifiable only on a live system out of the
+branch-verifiable set does not apply to a `Release risk:` criterion, which stays in the Definition of Done
+unticked until `/superdev:verify-ship` observes it.
+
 **Context.** A `dod.md` criterion is prose an agent reads as an instruction. `/superdev:ship` §4 tells the
 agent to confirm every item itself and treats an earlier review as evidence rather than a substitute. That
 paragraph states no ceiling on what the agent may *do* to make an item verifiable, and §4 runs before §5's

@@ -1150,3 +1150,12 @@ Breaks: silently
 Check: tests/run-trace.test.js and mods/superdev-view/hooks/live.test.ts — one shared fixture list, mods/superdev-view/hooks/attribution-fixtures.ts, yields the same root and slice through both
 Symbols: recordDispatch, attribute
 Paths: plugin/hooks/run-trace.js, mods/superdev-view/hooks/**
+
+### INV-0137
+
+Class: process
+Concepts: Definition of Done (DoD), Release-risk criterion
+Statement: Every Definition of Done `/superdev:plan` writes, on every change type and plan kind, names each release-risk category — rollback path, deploy-window data compatibility, consumer compatibility, production visibility — in exactly one `Release risk:` criterion or in one `Release risk: none` line that gives each category's reason. Whether the step runs is never plan's judgment (ADR 0133).
+Breaks: silently
+Check: scripts/drift-check.js — the `Release risk:` token, the every-plan clause, the no-recorded-posture branch, and the deferral to the verification ceiling pinned on plan-contract.md and plan's interview; partial: nothing checks that a written Definition of Done carries the lines (triage #993)
+Paths: plugin/skills/plan/**, plugin/references/plan-contract.md

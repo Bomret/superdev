@@ -175,6 +175,9 @@ _Avoid: "specification", "requirements" (acceptance is the test oracle)_
 refactor. Every feature carries at least one, on every change type, and a single-slice feature carries it through the lone slice's `acceptance`. It is what makes the tracer-bullet rule an artifact a second reader can check rather than an adjective an agent grades itself against, and it rides `dod.md` to the final-reviewer and to a controller's own tick like any other criterion (ADR 0062).
 _Avoid: "entrance" alone (that names the thing the criterion points at, not the criterion), "wiring" (one language's rendering, and a cross-process entrance is not wiring), "integration criterion" (integration names the seam between slices, which `final-reviewer` already covers separately)_
 
+**Release-risk criterion**: a Definition-of-Done criterion led by `Release risk:` that answers one of the release-risk categories for a feature — rollback path, deploy-window data compatibility, consumer compatibility, production visibility — as a requirement the feature meets, or one `Release risk: none` line naming each category that does not apply, with its reason. Every plan carries them, on every change type, and `/superdev:plan` writes them after the deploy question; they ride `dod.md` to the final-reviewer like any other criterion (ADR 0133).
+_Avoid: "risk assessment" (a document, where this is a checklist line), "launch checklist" (a gate superdev does not run), "rollback criterion" alone (one category, not the term)_
+
 **Criterion tag**: the suffix on an epic's Definition-of-Done line naming the slice ids that deliver the criterion, or `scope` when no single slice does. It decides which criteria a slice implementer's report can tick; the report decides whether they are ticked. A single-slice feature carries none (ADR 0091).
 _Avoid: "mapping" alone (the tag is the written form), "owner" (a slice delivers a criterion, it does not own it)_
 

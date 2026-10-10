@@ -225,7 +225,8 @@ migration, or another outward-facing change forces exactly that change before me
 verification ceiling forbids it (`references/scope-mode.md`'s `## Verification ceiling`, ADR 0084), so the
 criterion would reach `/superdev:ship` unticked. Name the pre-merge deploy it would force, and offer to
 keep it out of the branch-verifiable Definition of Done, noting it for the operator to verify after merge
-instead.
+instead. The release-risk criteria are the exception: they stay in the Definition of Done and defer to the
+ceiling (`${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md`'s *The release-risk criterion*).
 
 **Emit the reachability criterion into the Definition of Done.** It holds on every change type, including
 a refactor whose honest answer is `none — entrance unchanged` — there is always a branch that fits. Ask
@@ -271,6 +272,24 @@ ask nothing — there is no recorded target yet to offer. §6 writes the answer 
 <target>]` or `**Deploy:** none` on the scope anchor (`${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md`
 → *Scope anchor*, ADR 0101).
 
+**Emit the release-risk criteria into the Definition of Done.** The step runs on every plan and every
+change type, once the deploy question above is answered: a new feature, an append (its own lines for the
+extension), a repair `fix` feature, and a single-slice plan, whose lone slice's `acceptance` carries the
+lines. Write each category that applies as its own `Release risk:` criterion, and every category that does
+not as part of one `Release risk: none` line carrying each one's reason.
+`${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md`'s *The release-risk criterion* owns the categories,
+the line shape, and the rule: read it there rather than reconstructing it here.
+
+- **The deploy-dependent categories** — rollback, deploy-window data compatibility, production
+  visibility. A recorded posture (`none`, or `manual`/`auto`) where the deploy answer lists no target
+  answers them `none` with that reason, and asks nothing. No recorded posture — no
+  `docs/agents/deployment.md`, or one with no `Posture:` line — asks once per plan whether the feature
+  reaches a running production system, answers the three from the reply, and names `/superdev:setup`'s
+  deployment decision as the way to record a posture.
+- **Answer from the code first.** Read the code for what it shows — a schema or migration change, a name
+  or format another surface consumes, a new request, event, or schedule handler — and ask the operator only
+  what the code cannot answer, each question with a recommended answer.
+
 **A `fix`-type feature starts from its reproduction.** Read
 `${CLAUDE_PLUGIN_ROOT}/references/diagnosis.md` and hold the plan to it: the **red-capable command** —
 one invocation that reproduces the defect, already run once — becomes the first acceptance criterion of
@@ -288,7 +307,7 @@ The record goes to the store at once, whether or not a scopetree exists yet: not
 the scope branch.
 
 **Derive criteria from the intent before slicing (ADR 0099, INV-0096).** Once the "in every
-configuration?" and reachability passes above have pinned the Definition of Done, and before §3
+configuration?", reachability, and release-risk passes above have pinned the Definition of Done, and before §3
 decomposes, check the draft against the intent. Every plan runs this pass: a new feature, a
 single-slice plan, and an append, where it covers the whole amended Definition of Done.
 

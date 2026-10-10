@@ -44,6 +44,16 @@ Adapted into superdev:
                          context boundary, front-loaded descriptions)
 
 --------------------------------------------------------------------------------
+agent-skills — Copyright (c) 2025 Addy Osmani
+https://github.com/addyosmani/agent-skills
+
+Adapted into superdev:
+  - shipping-and-launch, deprecation-and-migration, api-and-interface-design,
+    observability-and-instrumentation → references/plan-contract.md and
+    skills/plan/SKILL.md (the release-risk categories: rollback path, deploy-window
+    data compatibility, consumer compatibility, production visibility)
+
+--------------------------------------------------------------------------------
 Additional engineering-skill patterns (to-issues and the docs/agents setup
 convention, likewise from Matt Pocock's skills above) were distilled as principles
 into skills/plan/SKILL.md, skills/setup/SKILL.md, and the references/ seed templates. The
@@ -114,6 +124,6 @@ ISBN 978-1-319-36220-1
 
 --------------------------------------------------------------------------------
 The MIT License text is in the LICENSE file. It applies to superdev's own code and, per their terms,
-to the Superpowers, ponytail, Skills, and DOX portions bundled above. It does not apply to the
+to the Superpowers, ponytail, Skills, agent-skills, and DOX portions bundled above. It does not apply to the
 ASD-STE100, tekom, Technical Writing 101, or Handbook of Technical Writing material, which is prior
 art credited above under its own terms.

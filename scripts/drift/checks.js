@@ -87,6 +87,7 @@ const {
   PLAN_DERIVES_CRITERIA_CONTRACTS,
   PER_CRITERION_VERDICT_CONTRACTS,
   REACHABLE_CRITERION_CONTRACTS,
+  RELEASE_RISK_CRITERION_CONTRACTS,
   REVIEW_RANGE_SHAPES_CONTRACTS,
   EMPTY_ARGUMENT_CONTRACTS,
   AGENT_LENS_LIST_CONTRACTS,
@@ -275,6 +276,12 @@ module.exports = [
     'final-reviewer carries `## Judge every criterion` and its `### Criteria` output section, and review/SKILL.md\'s dispatch asks it to judge every `dod.md` line',
   ),
   table('reachable-criterion', REACHABLE_CRITERION_CONTRACTS, 'the `Reachable:` criterion rule and the surface emitting it agree'),
+  table(
+    'release-risk-criterion',
+    RELEASE_RISK_CRITERION_CONTRACTS,
+    'the `Release risk:` criterion rule and the plan step emitting it agree on the token, the every-plan clause, ' +
+      'the no-recorded-posture branch, and the deferral to the verification ceiling',
+  ),
   table('review-range-shapes', REVIEW_RANGE_SHAPES_CONTRACTS, 'the review surface and final-reviewer agree on the standing-code range shape'),
   table('empty-argument', EMPTY_ARGUMENT_CONTRACTS, 'the shared empty-argument cascade is defined once and cited, not restated'),
   {

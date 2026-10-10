@@ -98,6 +98,56 @@ inside one process, where the composition root never registers the symbol. It do
 process boundary: an endpoint no client calls leaves both sides green, and the consuming side's own slice
 is what covers that (ADR 0062).
 
+### The release-risk criterion
+
+Every feature's Definition of Done carries at least one criterion **led by `Release risk:`**. It answers
+the release-risk categories below — rollback path, deploy-window data compatibility, consumer
+compatibility, production visibility — and names each category in exactly one place: its own
+`Release risk:` criterion, or one `Release risk: none — <category>: <reason>; …` line naming every
+category that does not apply, each with its reason. Categories that share one reason may share it:
+`<category>, <category>: <reason>`.
+
+Rollback, deploy-window data compatibility, and production visibility are the deploy-dependent
+categories. Each applies only to a **deploying feature**: one whose deploy answer lists a recorded deploy
+target, or, in a repository with no recorded posture (no `docs/agents/deployment.md`, or one with no
+`Posture:` line), one whose answer to plan's once-per-plan question is that it reaches a running
+production system. Every other feature answers them `none`, with that reason.
+
+- **Rollback path.** Applies to every deploying feature. The criterion states
+  what undoing the release requires, and that the undo restores the previous behaviour.
+- **Deploy-window data compatibility.** Applies to a deploying feature that changes persisted data or its
+  schema. The criterion states that the previous release keeps working against the changed data while the
+  deploy runs.
+- **Consumer compatibility.** Applies to a feature that changes a name, format, or behaviour whose
+  consumer the same merge does not update: an external user, another repository, data an older release
+  wrote, a separately installed component of the same repository. It applies under any deploy posture.
+  The criterion states that existing consumers keep working, or names the break and the migration those
+  consumers need.
+- **Production visibility.** Applies to a deploying feature that adds a production path — code a deploy
+  target runs on a request, an event, or a schedule. The criterion states that a failure on that path
+  reaches the operator through a named signal the repository has, or one the plan's slices add.
+
+```
+- [ ] Release risk: rollback — reverting the release restores the previous order flow; the new orders column stays nullable, so no data step is needed
+- [ ] Release risk: consumer compatibility — the `v1` export format stays readable; the new field is optional for existing importers
+- [ ] Release risk: none — deploy-window data compatibility: no persisted data changes; production visibility: no new production path
+```
+
+A `none` reason never ends in a ` — <tag>`-shaped segment (` — scope`, ` — 02`, ` — #12`): the DoD-line
+parser takes the rightmost such segment of an unjudged line as the line's tag (*Criterion tags* above).
+
+Every `Release risk:` criterion states a requirement the feature meets and names no command superdev runs
+to verify it, as every criterion does (INV-0008). A rollback criterion states what an undo requires; it
+never asks `/superdev:ship` or `/superdev:verify-ship` to run one (INV-0006, INV-0098, ADR 0106). A
+`Release risk:` criterion only a deployed system can show stays in the Definition of Done, unticked, until
+`/superdev:verify-ship` observes it after the deploy (`references/scope-mode.md`'s `## Verification ceiling`).
+
+The rule holds on **every plan and every change type**: a new feature, an append, a repair `fix`
+feature, and a single-slice feature, whose lone slice's `acceptance` carries the lines. **Append mode**
+adds its own `Release risk:` lines for the extension rather than editing an existing one, and a repair
+answers for its own change. Staying uniform leaves `/plan` no judgment about whether the step runs, so a
+skipped pass never reads like a pass that found nothing to name (ADR 0133).
+
 **The epic is optional.** A plan with a single slice needs no epic: that slice IS the whole plan, so its
 `acceptance` doubles as the global DoD, and the slice is its own scope anchor. A plan with ≥2 slices
 always carries a global DoD (the epic) on top of the per-slice `acceptance` fields, as above.

@@ -815,7 +815,7 @@ overstated what that step actually does (triage #660). Both surfaces also
 carry the verification-ceiling clause the `verification-ceiling` contract pins (ADR 0084, INV-0006).
 
 The `feature-label-argument`, `unattended-token`, `change-type`, `degraded-pass`, `derived-criteria`,
-`reachable-criterion`, `label-validation`, `green-gate-timeout`, and `verb-pointer` checks
+`reachable-criterion`, `release-risk-criterion`, `label-validation`, `green-gate-timeout`, and `verb-pointer` checks
 share one scanner, `drift/lib.js`'s `scanContract()`, run over
 a table of `[document, pattern, expectation]` rows in `drift/contracts.js` instead of one function each.
 It reads every
@@ -870,6 +870,23 @@ surface alone leaves the rule describing a criterion nothing writes. Either way 
 correct on their own, which is the one-sided-pin shape the root `AGENTS.md`'s prompt-architecture rules
 name. The token rows pin `Reachable:` inside its own backticks, so prose that merely discusses
 reachability satisfies neither.
+The `release-risk-criterion` contract (ADR 0133, INV-0137) has the same shape. It pins rows on
+`references/plan-contract.md`, which carries the `### The release-risk criterion` section, names
+`Release risk:` as the token the criterion is led by, and states the every-plan, every-change-type clause.
+It pins rows on `skills/plan/SKILL.md` too, which carries the **Emit the release-risk criteria into the
+Definition of Done.** step, emits a criterion by that same token, and states the same clause. The clause on
+both halves is what keeps the step from becoming plan's judgment. The no-recorded-posture rows and the
+deferral rows cover the branches a plan can take. The no-recorded-posture rows define a deploying feature to
+include one that reaches a running production system in a repository with no recorded posture. They also
+have the surface ask once per plan whether the feature reaches a running production system. A rule keyed on
+recorded targets alone answers the deploy-dependent categories `none` whatever the operator replies. The
+deferral rows pin the reference to state that a `Release risk:` criterion only a deployed system can show
+stays in the Definition of Done, unticked, until `/superdev:verify-ship` observes it
+(`references/scope-mode.md`'s `## Verification ceiling`). They pin the surface to exempt that criterion from
+the offer to move a live-system-only criterion out of the Definition of Done. A rename
+or a dropped clause on one half alone leaves both documents reading correct while the plans and the rule
+part ways. The token rows pin `Release risk:` inside its own backticks, so prose that merely discusses
+release risk satisfies neither.
 The `review-range-shapes` contract (ADR 0063) pins rows on `skills/review/SKILL.md`'s §1, which emits the
 **Standing code** range shape, reports that there is nothing to review on a path holding no files, and
 skips `simplicity-reviewer` on that target; its §2 dispatch sentence hands `final-reviewer` the path and
@@ -2797,7 +2814,9 @@ superdev executes to verify it, naming no command superdev runs to check it; `sk
 carries the **Write a Definition-of-Done criterion as a bare requirement.** interview step; and
 `skills/plan/SKILL.md` still carries the **Surface a criterion verifiable only on a live system.** step,
 naming the pre-merge deploy such a criterion would force and offering to keep it out of the
-branch-verifiable Definition of Done. `Reachable:` stays the one standing exception, because it names an
+branch-verifiable Definition of Done. That offer does not reach a `Release risk:` criterion: the
+`release-risk-criterion` contract pins that exemption on the same step (ADR 0133, which amends ADR 0084 on
+the planning side). `Reachable:` stays the one standing exception to the bare-requirement rule, because it names an
 entrance, never a verification step. Losing the reference row leaves that exception unexplained; losing
 either skill row leaves the interview free to write a criterion naming a test command, or a live-system-only
 criterion with no offer to keep it out of the branch-verifiable set — the exact shape ADR 0084 observed

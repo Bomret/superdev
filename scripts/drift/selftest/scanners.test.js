@@ -58,6 +58,7 @@ const {
   PLAYBOOK_EDGE_CONTRACTS,
   SPECIALISING_SECTIONS,
   REACHABLE_CRITERION_CONTRACTS,
+  RELEASE_RISK_CRITERION_CONTRACTS,
   REVIEW_RANGE_SHAPES_CONTRACTS,
   EMPTY_ARGUMENT_CONTRACTS,
   AGENT_LENS_LIST_CONTRACTS,
@@ -3061,6 +3062,98 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   );
   assert.equal(rcSurfaceClauseDropped.length, 1, 'flags the surface dropping its own every-change-type clause');
   assert.equal(rcSurfaceClauseDropped[0].source, path.join('skills', 'plan', 'SKILL.md'), 'names skills/plan/SKILL.md');
+
+  // --- RELEASE_RISK_CRITERION_CONTRACTS: the release-risk rule (plan-contract.md) and the plan step that
+  // writes the lines into a Definition of Done (skills/plan/SKILL.md) agree on the token and on the
+  // every-plan, every-change-type clause (ADR 0133, INV-0137) ---
+
+  const RR_PLAN_CONTRACT_CLEAN =
+    '### The release-risk criterion\n\n' +
+    "Every feature's Definition of Done carries at least one criterion **led by `Release risk:`**.\n\n" +
+    'The rule holds on **every plan and every change type**.\n\n' +
+    'A **deploying feature** lists a recorded deploy target, or, in a repository with no recorded posture, ' +
+    'reaches a running production system.\n\n' +
+    'A `Release risk:` criterion only a deployed system can show stays in the Definition of Done, unticked, ' +
+    "until `/superdev:verify-ship` observes it after the deploy (`references/scope-mode.md`'s " +
+    '`## Verification ceiling`).\n';
+  const RR_PLAN_SKILL_CLEAN =
+    '**Emit the release-risk criteria into the Definition of Done.** The step runs on every plan and every ' +
+    'change type. Write each applying category as its own `Release risk:` criterion.\n\n' +
+    '- No recorded posture — no `docs/agents/deployment.md` — asks once per plan whether the feature ' +
+    'reaches a running production system.\n\n' +
+    'The release-risk criteria are the exception: they stay in the Definition of Done and defer to the ceiling.\n';
+  const rrScan = (contract, skill) =>
+    scanContract(
+      fixture({ 'references/plan-contract.md': contract, 'skills/plan/SKILL.md': skill }),
+      RELEASE_RISK_CRITERION_CONTRACTS,
+    );
+
+  assert.equal(rrScan(RR_PLAN_CONTRACT_CLEAN, RR_PLAN_SKILL_CLEAN).length, 0, 'both halves carried yields zero gaps');
+
+  // positive: the token is renamed on the reference only
+  const rrRefRenamed = rrScan(RR_PLAN_CONTRACT_CLEAN.replace('`Release risk:`', '`Risk:`'), RR_PLAN_SKILL_CLEAN);
+  assert.equal(rrRefRenamed.length, 1, 'flags the reference renaming the token while the surface still emits the old one');
+  assert.equal(rrRefRenamed[0].source, path.join('references', 'plan-contract.md'), 'names plan-contract.md');
+
+  // positive: the token is renamed on the surface only
+  const rrSurfaceRenamed = rrScan(RR_PLAN_CONTRACT_CLEAN, RR_PLAN_SKILL_CLEAN.replace('`Release risk:`', '`Risk:`'));
+  assert.equal(rrSurfaceRenamed.length, 1, 'flags the surface renaming the token while the reference still names the old one');
+  assert.equal(rrSurfaceRenamed[0].source, path.join('skills', 'plan', 'SKILL.md'), 'names skills/plan/SKILL.md');
+
+  // positive: the every-plan clause is dropped from the reference only
+  const rrRefClauseDropped = rrScan(
+    RR_PLAN_CONTRACT_CLEAN.replace('The rule holds on **every plan and every change type**.\n', ''),
+    RR_PLAN_SKILL_CLEAN,
+  );
+  assert.equal(rrRefClauseDropped.length, 1, 'flags the reference dropping its every-plan clause');
+  assert.equal(rrRefClauseDropped[0].source, path.join('references', 'plan-contract.md'), 'names plan-contract.md');
+
+  // positive: the every-plan clause is dropped from the surface only
+  const rrSurfaceClauseDropped = rrScan(
+    RR_PLAN_CONTRACT_CLEAN,
+    RR_PLAN_SKILL_CLEAN.replace(' The step runs on every plan and every change type.', ''),
+  );
+  assert.equal(rrSurfaceClauseDropped.length, 1, 'flags the surface dropping its every-plan clause');
+  assert.equal(rrSurfaceClauseDropped[0].source, path.join('skills', 'plan', 'SKILL.md'), 'names skills/plan/SKILL.md');
+
+  // positive: the reference keys the deploy-dependent categories on recorded targets alone
+  const rrRefPostureDropped = rrScan(
+    RR_PLAN_CONTRACT_CLEAN.replace(
+      ', or, in a repository with no recorded posture, reaches a running production system',
+      '',
+    ),
+    RR_PLAN_SKILL_CLEAN,
+  );
+  assert.equal(rrRefPostureDropped.length, 1, 'flags the reference dropping its no-recorded-posture branch');
+  assert.equal(rrRefPostureDropped[0].source, path.join('references', 'plan-contract.md'), 'names plan-contract.md');
+
+  // positive: the surface stops asking the no-recorded-posture question
+  const rrSurfacePostureDropped = rrScan(
+    RR_PLAN_CONTRACT_CLEAN,
+    RR_PLAN_SKILL_CLEAN.replace(
+      '- No recorded posture — no `docs/agents/deployment.md` — asks once per plan whether the feature ' +
+        'reaches a running production system.\n',
+      '',
+    ),
+  );
+  assert.equal(rrSurfacePostureDropped.length, 1, 'flags the surface dropping its no-recorded-posture question');
+  assert.equal(rrSurfacePostureDropped[0].source, path.join('skills', 'plan', 'SKILL.md'), 'names skills/plan/SKILL.md');
+
+  // positive: the reference drops its deferral of a deploy-only criterion to the verification ceiling
+  const rrRefCeilingDropped = rrScan(
+    RR_PLAN_CONTRACT_CLEAN.replace(/\nA `Release risk:` criterion only a deployed system can show[\s\S]*$/, ''),
+    RR_PLAN_SKILL_CLEAN,
+  );
+  assert.equal(rrRefCeilingDropped.length, 1, 'flags the reference dropping its verification-ceiling deferral');
+  assert.equal(rrRefCeilingDropped[0].source, path.join('references', 'plan-contract.md'), 'names plan-contract.md');
+
+  // positive: the surface drops the exception from its offer to move a live-system-only criterion out
+  const rrSurfaceCeilingDropped = rrScan(
+    RR_PLAN_CONTRACT_CLEAN,
+    RR_PLAN_SKILL_CLEAN.replace(/\nThe release-risk criteria are the exception[\s\S]*$/, ''),
+  );
+  assert.equal(rrSurfaceCeilingDropped.length, 1, 'flags the surface dropping its release-risk exception');
+  assert.equal(rrSurfaceCeilingDropped[0].source, path.join('skills', 'plan', 'SKILL.md'), 'names skills/plan/SKILL.md');
 
   // --- REVIEW_RANGE_SHAPES_CONTRACTS: the review surface that emits the standing-code range shape
   // (skills/review/SKILL.md) and the reviewer brief that has to accept a subject with no diff behind it

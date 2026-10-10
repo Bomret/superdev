@@ -563,6 +563,75 @@ const REACHABLE_CRITERION_CONTRACTS = [
   ],
 ];
 
+// Every plan carries release-risk criteria, on every change type and plan kind, and whether the step
+// runs is never plan's judgment (ADR 0133, INV-0137). It is the `REACHABLE_CRITERION_CONTRACTS` shape
+// again: `plan-contract.md` owns the rule and `skills/plan/SKILL.md` is the live path that writes the
+// lines into a plan, so the token, the every-plan clause, the no-recorded-posture branch, and the deferral
+// to the verification ceiling are pinned on both halves. A rename or a
+// dropped clause on one half alone leaves both documents reading correct while plans and rule part ways.
+// The token rows pin `Release risk:` inside its own backticks, so prose that merely discusses release
+// risk satisfies neither.
+const RELEASE_RISK_CRITERION_CONTRACTS = [
+  [
+    path.join('references', 'plan-contract.md'),
+    /^###\s+The release-risk criterion\s*$/m,
+    'carry the `### The release-risk criterion` section — the rule the plan surface is sent to read',
+  ],
+  [
+    path.join('references', 'plan-contract.md'),
+    /\*\*led by `Release risk:`\*\*/,
+    'name `Release risk:` as the token the criterion is led by, so the rule and the surface emitting it agree on one word',
+  ],
+  [
+    path.join('references', 'plan-contract.md'),
+    /The rule holds on \*\*every plan and every change type\*\*/,
+    'state the every-plan, every-change-type clause on the reference that owns the rule',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /\*\*Emit the release-risk criteria into the Definition of Done\.\*\*/,
+    'carry the **Emit the release-risk criteria into the Definition of Done.** step — the live path that puts them in a plan',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /`Release risk:` criterion/,
+    'emit a `Release risk:` criterion by that name, so a rename in the rule cannot leave this surface writing the old token',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /on every plan and every change type/,
+    'carry the every-plan, every-change-type clause on the surface, so the step never becomes plan\'s judgment',
+  ],
+  // A repository with no recorded posture has no recorded target, so a rule keyed on recorded targets
+  // alone answers the deploy-dependent categories `none` whatever the operator replies to plan's question
+  // (ADR 0133 rejects exactly that keying). Both halves carry the no-recorded-posture branch.
+  [
+    path.join('references', 'plan-contract.md'),
+    /with no recorded posture[\s\S]{0,300}?reaches a running\s+production\s+system/,
+    'define a deploying feature to include, in a repository with no recorded posture, one that reaches a running production system — otherwise the reply plan asks for changes nothing',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /No recorded posture[\s\S]{0,300}?asks once per plan whether the feature\s+reaches a running production system/,
+    'ask once per plan, with no recorded posture, whether the feature reaches a running production system, so the rule\'s no-recorded-posture branch has an answer to read',
+  ],
+  // A `Release risk:` criterion only a deployed system can show is one of the criteria the verification
+  // ceiling defers (INV-0006). The rule cites the ceiling so the line stays in the Definition of Done,
+  // unticked, until `/superdev:verify-ship` observes it. Plan's interview offers to move a live-system-only
+  // criterion out of the Definition of Done, which would drop a line the rule requires, so the surface
+  // carries the exception too.
+  [
+    path.join('references', 'plan-contract.md'),
+    /`Release risk:` criterion only a deployed system can show stays in the Definition of Done[\s\S]{0,300}?`## Verification ceiling`/,
+    'defer a `Release risk:` criterion only a deployed system can show to the verification ceiling, so it stays in the Definition of Done unticked until `/superdev:verify-ship` observes it',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /The release-risk criteria are the exception: they stay in the Definition of Done/,
+    'exempt a `Release risk:` criterion from the offer to move a live-system-only criterion out of the Definition of Done, so the interview never drops a line the rule requires',
+  ],
+];
+
 // Ad-hoc review is diff-based, so a path on a clean checkout resolves to an empty diff and reviews
 // nothing (ADR 0063). The standing-code shape fixes that: the files under the path at `HEAD`, reviewed as
 // they are. It only works while both halves agree — `skills/review/SKILL.md`'s §1 is the surface that
@@ -7948,6 +8017,7 @@ module.exports = {
   PLAN_DERIVES_CRITERIA_CONTRACTS,
   PER_CRITERION_VERDICT_CONTRACTS,
   REACHABLE_CRITERION_CONTRACTS,
+  RELEASE_RISK_CRITERION_CONTRACTS,
   REVIEW_RANGE_SHAPES_CONTRACTS,
   EMPTY_ARGUMENT_CONTRACTS,
   AGENT_LENS_LIST_CONTRACTS,
