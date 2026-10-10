@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { header, slices, traceAgents, untrace } from './parse'
+import { frontmatter, header, intent, progress, slices, traceAgents, untrace, waves } from './parse'
 import { LEDGER_LINES } from './ledger-fixtures'
 import { TRACE_LINES } from './trace-fixtures'
 
@@ -11,10 +11,10 @@ test('reads the ledger scope.js writes', () => {
   const written = LEDGER_LINES.join('\n')
   expect([header(written, 'Stage'), header(written, 'Branch'), header(written, 'Anchor')]).toEqual(['implementing', 'feat/view', '#9 — Show the pane'])
   expect(slices(written)).toEqual([
-    { id: '01', title: 'Draw the tiles', status: 'merged' },
-    { id: '02', title: 'Draw the scope map', status: 'in-progress' },
-    { id: '03', title: 'Document the mod', status: 'todo' },
-    { id: '04', title: 'Split | merge the panes', status: 'todo' },
+    { id: '01', title: 'Draw the tiles', status: 'merged', dependsOn: [] },
+    { id: '02', title: 'Draw the scope map', status: 'in-progress', dependsOn: ['01'] },
+    { id: '03', title: 'Document the mod', status: 'todo', dependsOn: ['02'] },
+    { id: '04', title: 'Split | merge the panes', status: 'todo', dependsOn: ['03'] },
   ])
 })
 
@@ -30,7 +30,7 @@ test('trace agents come from dispatches alone; a bound id folds in, an unbound o
   expect(untrace('a\\x20b')).toBe('a b')
   expect(traceAgents(trace)).toEqual({
     agents: [
-      { key: 'tu1', type: 'superdev:implementer', desc: 'Build slice', slice: '01', isDone: true },
+      { key: 'tu1', type: 'superdev:implementer', desc: 'Build slice', slice: '01', isDone: true, start: null, end: null },
     ],
     activity: {
       tu1: { last: 'T4', lastKind: 'ended', events: 1 },
@@ -38,11 +38,37 @@ test('trace agents come from dispatches alone; a bound id folds in, an unbound o
   })
 })
 
+test("a trace agent's start is its dispatch line's time", () => {
+  expect(traceAgents('2026-01-01T00:00:00.000Z 01 main dispatch superdev:implementer tu1 Build').agents[0]?.start).toBe(Date.parse('2026-01-01T00:00:00.000Z'))
+})
+
 test('reads the trace lines the run-trace hook writes', () => {
   const trace = TRACE_LINES.map((l, i) => `T${i} ${l}`).join('\n')
   expect(traceAgents(trace).agents).toEqual([
-    { key: 'tu1', type: 'superdev:implementer', desc: 'Build slice 04', slice: '04', isDone: true },
-    { key: 'tu2', type: 'superdev:final-reviewer', desc: 'Final review', slice: 'scope', isDone: true },
-    { key: 'tu3', type: 'superdev:implementer', desc: 'Build slice 05', slice: '05', isDone: false },
+    { key: 'tu1', type: 'superdev:implementer', desc: 'Build slice 04', slice: '04', isDone: true, start: null, end: null },
+    { key: 'tu2', type: 'superdev:final-reviewer', desc: 'Final review', slice: 'scope', isDone: true, start: null, end: null },
+    { key: 'tu3', type: 'superdev:implementer', desc: 'Build slice 05', slice: '05', isDone: false, start: null, end: null },
   ])
+})
+
+test('a depends-on cell of several ids splits on commas, and an empty cell names none', () => {
+  const row = (deps: string) => `| 05 | #5 | T | behavior | ${deps} | todo | — |`
+  expect(slices(row('02, 03,04')).map(x => x.dependsOn)).toEqual([['02', '03', '04']])
+  expect(slices(row('')).map(x => x.dependsOn)).toEqual([[]])
+})
+
+const sl = (id: string, ...dependsOn: string[]) => ({ id, title: id, status: 'todo', dependsOn })
+
+test('a slice sits in the first wave after every slice it depends on', () => {
+  expect(waves([sl('01'), sl('02', '01'), sl('03', '01'), sl('04', '01'), sl('05', '02', '03', '04')]).map(w => w.map(x => x.id))).toEqual([['01'], ['02', '03', '04'], ['05']])
+})
+
+test('a depends-on naming a missing slice counts as met, and a cycle goes into one last wave', () => {
+  expect(waves([sl('01', '09'), sl('02', '03'), sl('03', '02')]).map(w => w.map(x => x.id))).toEqual([['01'], ['02', '03']])
+})
+
+test('parses dod progress, intents, and staged page frontmatter', () => {
+  expect(progress('- [x] a\n- [ ] b\n  - [X] c\n')).toEqual({ done: 2, total: 3 })
+  expect(intent('x', '# Intent: Help\n\n**Status: ready to plan.** more')).toEqual({ name: 'x', title: 'Help', status: 'ready to plan', isDraft: false })
+  expect(frontmatter('---\ntitle: "Page"\naction: patch\n---\nbody')).toEqual({ title: 'Page', action: 'patch' })
 })

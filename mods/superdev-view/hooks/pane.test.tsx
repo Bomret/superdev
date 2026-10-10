@@ -38,12 +38,7 @@ test('clicking an active scope shows its agents, back returns', async ($, on) =>
     const ui = await $.ui.mount({ plugin: 'superdev-view', surface, ...PANE })
     expect(await ui.find({ key: 'back' })).toBeUndefined()
     await ui.press({ key: 'scope-pin' })
-    expect(await ui.find({ type: 'Text', text: /1 live · 1 done/ })).toBeDefined()
-    if (surface === 'desktop') {
-      const svg = await ui.find({ type: 'Svg' })
-      expect(String(svg?.props.source)).toMatch(/>implementer</)
-      expect(String(svg?.props.source)).toMatch(/>slice-reviewer</)
-    }
+    expect(await ui.find({ type: 'Text', text: /^DoD 0\/0 · 1 live$/ })).toBeDefined()
     expect(await ui.find({ type: 'Client', key: 'card-tu1' })).toBeDefined()
     expect(await ui.find({ type: 'Client', key: 'card-tu2' })).toBeDefined()
     await ui.press({ key: 'back' })

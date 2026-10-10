@@ -13,9 +13,10 @@ export const PANE = {
   props: { title: 'superdev', isFocused: true, bodyColumns: 120, placement: 'dock', scroll: { offset: 0, bodyRows: 60 }, view: {} },
 } as const
 
-export const ledger = (stage: string, rows: [string, string][]) =>
+// Each row is [id, status] or [id, status, depends-on cell].
+export const ledger = (stage: string, rows: ([string, string] | [string, string, string])[]) =>
   `**Stage:** ${stage}\n**Branch:** feat/x\n\n| id | issue | title | type | depends-on | status | range |\n|---|---|---|---|---|---|---|\n` +
-  rows.map(([id, status]) => `| ${id} | #${id} | Slice ${id} | behavior | — | ${status} | — |`).join('\n') + '\n'
+  rows.map(([id, status, deps = '—']) => `| ${id} | #${id} | Slice ${id} | behavior | ${deps} | ${status} | — |`).join('\n') + '\n'
 
 // `files` and `lists` stay live: a test that edits them sees the next scan read the change.
 // `cwd` is the session's: git answers the main working tree's `.git` only when asked from there.

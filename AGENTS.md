@@ -361,14 +361,22 @@ This root owns every other subtree directly:
   of its `trace.log` alone: a line from an agent id no `dispatch-bind` names adds no agent. In the session
   that runs the scope, that session's own `agent.spawn`, `tool.call`, `turn.step`, and `turn.complete`
   events add live agents, and a live agent joins a scope only when its run root is the pane's own
-  `<root>/scopes/<name>`. Every one of those hooks passes its event on unchanged (INV-0135). Each agent's
+  `<root>/scopes/<name>`. Every one of those hooks passes its event on unchanged (INV-0135). The pane is
+  a docked side tab, often narrow, so every surface draws the same Box/Text tree at the host's own text
+  size, wrapped to the pane's width. The overview is a column of collapsible sections: Running now,
+  Scopes, Brainstorm, Knowledge-base pages, Design sketches, and DoD drafts. A section's open state lives
+  in the `sections` plugin state atom for the session, and a press writes no file. Running now lists every
+  running agent of every active scope, newest dispatch first. A scope row opens the scope page, which
+  groups the slices into dependency waves read from the ledger's depends-on column. Each agent's
   card is a `Client` surface module (`hooks/card.tsx`) that posts once a second for its latest record, so
-  a tool call or a clock tick redraws the card alone, never the pane. A done card keeps posting for a
-  short grace of 5 seconds after it first sees its agent done, then stops. VS Code and mobile, which have no
-  `Client`, show the same fields as static text. The mod attributes a dispatch to a scope and slice by
+  a tool call or a clock tick redraws the card alone, never the pane. Running now draws the full card, and
+  the scope page draws a compact one with the type and the elapsed time only. A done card keeps posting
+  for a short grace of 5 seconds after it first sees its agent done, then stops. VS Code and mobile, which
+  have no `Client`, show the same fields as static text as of the pane's last redraw. The mod attributes a
+  dispatch to a scope and slice by
   `plugin/hooks/run-trace.js`'s `recordDispatch` rule, and `hooks/attribution-fixtures.ts` is the fixture
   list both suites assert (INV-0136): a change to either rule must change the other.
-  Desktop draws animated SVG, the terminal draws text. Nothing under `plugin/` requires it, and the
+  Nothing under `plugin/` requires it, and the
   root marketplace does not list it, so no adopter install carries it. Install it into a session with
   `/plugin marketplace add <repo>/mods/superdev-view`, then `/plugin install superdev-view@superdev-view`
   and `/reload-plugins`. Its own tests run under `claude plugin test mods/superdev-view`. `bun run test`
