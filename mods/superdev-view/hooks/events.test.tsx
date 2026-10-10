@@ -54,6 +54,10 @@ const keysIn = async (ui: { drawn: () => Promise<unknown> }, key: string): Promi
   return out
 }
 
+// What the pane itself drew for a done agent's card, the Box keyed `card-<key>`: no Client, so nothing posts to it.
+const doneCard = async (ui: { find: (q: { type: string; key: string }) => Promise<unknown> }, key: string) =>
+  JSON.stringify(await ui.find({ type: 'Box', key: `card-${key}` }))
+
 const openScope = async <P extends 'terminal' | 'desktop' | 'vscode' | 'mobile'>($: Engine, surface: P, scope: string) => {
   const ui = await $.ui.mount({ plugin: 'superdev-view', surface, ...PANE })
   // the picked scope persists across mounts, so a later surface opens on it already
@@ -113,7 +117,7 @@ test('a session started inside a scopetree shows the main working tree', async (
   await $.command.run(runCommand)
   const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'terminal', ...PANE })
   expect(await ui.find({ key: 'scope-a' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /\/r\/\.superdev/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^~\/\.superdev$/ })).toBeDefined()
 })
 
 test('a dispatch naming no single scope shows nowhere and counts nowhere', async ($, on) => {
@@ -128,6 +132,27 @@ test('a dispatch naming no single scope shows nowhere and counts nowhere', async
   const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'terminal', ...PANE })
   expect(await ui.find({ type: 'Text', text: /· 0 live$/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /· [1-9]\d* live$/ })).toBeUndefined()
+})
+
+test('a running card keeps one height: two call rows before its first call, its text cut to one line', async ($, on) => {
+  const { files, lists } = repo()
+  const clock = fakeRepo(on, files, lists)
+  engine(on, { tu1: 'ag1' })
+  await $.command.run(runCommand)
+  await $.agent.spawn(spawnArgs('tu1', `Work in ${A}/slicetrees/01`))
+  await clock.settle()
+  const ui = await openScope($, 'desktop', 'a')
+  const rows = async () => {
+    await ui.post({ key: 'tu1' }, { in: 'card-tu1' })
+    // the call rows are the card's last two lines
+    return (await ui.findAll({ type: 'Text', in: 'card-tu1' })).slice(-2).map(t => t.text)
+  }
+  expect(await rows()).toEqual(['\u00a0', '\u00a0'])
+  await call($, { tool: 'Grep', pattern: 'one', agentId: 'ag1' })
+  await clock.settle()
+  expect(await rows()).toEqual(['› Grep one', '\u00a0'])
+  const wraps = (await ui.findAll({ type: 'Text', in: 'card-tu1' })).map(t => t.props.wrap)
+  expect(wraps).not.toContain('wrap')
 })
 
 test('a live card pulls its last 2 calls, masked, its ctx, and its clock without a pane redraw', async ($, on) => {
@@ -204,10 +229,7 @@ test('an agent ends on completion, interruption, or failure, foreground or backg
   await clock.settle()
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await openScope($, surface, 'a')
-    for (const k of ['f1', 'b1', 'x1']) {
-      await ui.post({ key: k }, { in: `card-${k}` })
-      expect(JSON.stringify(await ui.drawn({ in: `card-${k}` }))).toMatch(/done/)
-    }
+    for (const k of ['f1', 'b1', 'x1']) expect(await doneCard(ui, k)).toMatch(/done/)
     await ui.unmount()
   }
 })
@@ -245,11 +267,10 @@ test('a trace-only agent keeps its trace card, turns done on dispatch-end, and n
   expect(JSON.stringify(await ui.drawn({ in: 'card-tu7' }))).toMatch(/running/)
   files[`${A}/trace.log`] += '2026-01-01T00:00:03Z 01 main dispatch-end superdev:implementer tu7\n'
   await $.command.run(runCommand)
-  await ui.post({ key: 'tu7' }, { in: 'card-tu7' })
-  expect(JSON.stringify(await ui.drawn({ in: 'card-tu7' }))).toMatch(/done/)
+  expect(await doneCard(ui, 'tu7')).toMatch(/done/)
 })
 
-test("VS Code and mobile show a running agent's fields as static text, as of the pane's last redraw", async ($, on) => {
+test("on the scope page VS Code and mobile show a running agent's fields as static text, as of the pane's last redraw", async ($, on) => {
   const { files, lists } = repo()
   const clock = fakeRepo(on, files, lists)
   engine(on, { tu1: 'ag1', tu2: 'ag2' })
@@ -264,7 +285,7 @@ test("VS Code and mobile show a running agent's fields as static text, as of the
   await step($, 'ag1', null)
   await clock.settle()
   for (const surface of ['vscode', 'mobile'] as const) {
-    const ui = await $.ui.mount({ plugin: 'superdev-view', surface, ...PANE })
+    const ui = await openScope($, surface, 'a')
     expect(await ui.find({ type: 'Text', text: /^implementer · a · 01 · Build slice 01 · running · started \d\d:\d\d:\d\d · .*Grep foo · .*ctx 1,012 · as of \d\d:\d\d:\d\d$/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^implementer · a · 02 · Build slice 02 · running · started \d\d:\d\d:\d\d · ctx — · as of \d\d:\d\d:\d\d$/ })).toBeDefined()
     // a tool call redraws nothing: the text holds until the pane's next redraw
@@ -355,8 +376,7 @@ for (const order of ['turn end first', 'tool result first'] as const) {
     await clock.advance(1000)
     await clock.settle()
     const ui = await openScope($, 'desktop', 'a')
-    await ui.post({ key: 'tu1' }, { in: 'card-tu1' })
-    const drawn = JSON.stringify(await ui.drawn({ in: 'card-tu1' }))
+    const drawn = await doneCard(ui, 'tu1')
     expect(drawn).toMatch(/done/)
     expect(drawn).toMatch(/Grep foo/)
     expect(drawn).toMatch(/ctx 1,012/)
@@ -388,8 +408,7 @@ test("a done card keeps a last call whose bookkeeping finishes after the agent's
   await clock.advance(1000)
   await clock.settle()
   const ui = await openScope($, 'desktop', 'a')
-  await ui.post({ key: 'tu1' }, { in: 'card-tu1' })
-  const drawn = JSON.stringify(await ui.drawn({ in: 'card-tu1' }))
+  const drawn = await doneCard(ui, 'tu1')
   expect(drawn).toMatch(/done/)
   expect(drawn).toMatch(/Grep last/)
   expect(drawn).toMatch(/Grep first/)
@@ -416,8 +435,7 @@ test("a call bookkept after an agent's end lands on its done card, not in fresh 
   await call($, { tool: 'Grep', pattern: 'late', agentId: 'ag1' })
   await clock.settle()
   const ui = await openScope($, 'desktop', 'a')
-  await ui.post({ key: 'tu1' }, { in: 'card-tu1' })
-  const drawn = JSON.stringify(await ui.drawn({ in: 'card-tu1' }))
+  const drawn = await doneCard(ui, 'tu1')
   expect(drawn).toMatch(/Grep late/)
   expect(drawn).toMatch(/Grep first/)
   expect(detail).not.toHaveProperty('ag1')
@@ -449,9 +467,9 @@ test('detail for agents no scope attributes stays bounded, and an attributed age
   expect(JSON.stringify(await ui.drawn({ in: 'card-tu1' }))).toMatch(/Grep kept/)
 })
 
-// A call or a step whose hook fires after the agent's end redraws nothing: only the done card's own pull
-// reads it.
-test("a call or step bookkept after an agent's end writes nothing the pane reads", async ($, on) => {
+// A call or a step whose hook fires after the agent's end writes only the agent's final detail, which the
+// pane draws on its done card.
+test("a call or step bookkept after an agent's end writes no snapshot, index, or selection, and its done card shows it", async ($, on) => {
   const { files, lists } = repo()
   const clock = fakeRepo(on, files, lists)
   engine(on, { tu1: 'ag1' })
@@ -474,8 +492,7 @@ test("a call or step bookkept after an agent's end writes nothing the pane reads
   await clock.settle()
   expect(writes).toBe(ended)
   const ui = await openScope($, 'desktop', 'a')
-  await ui.post({ key: 'tu1' }, { in: 'card-tu1' })
-  const drawn = JSON.stringify(await ui.drawn({ in: 'card-tu1' }))
+  const drawn = await doneCard(ui, 'tu1')
   expect(drawn).toMatch(/Grep late/)
   expect(drawn).toMatch(/ctx 1,012/)
 })
@@ -511,8 +528,7 @@ for (const by of ['turn end', 'tool result'] as const) {
     await clock.settle()
     expect(isLateInDetail).toBe(false)
     const ui = await openScope($, 'desktop', 'a')
-    await ui.post({ key: 'tu1' }, { in: 'card-tu1' })
-    const drawn = JSON.stringify(await ui.drawn({ in: 'card-tu1' }))
+    const drawn = await doneCard(ui, 'tu1')
     expect(drawn).toMatch(/done/)
     expect(drawn).toMatch(/Grep late/)
   })
@@ -538,44 +554,28 @@ for (const by of ['turn end', 'tool result'] as const) {
     await clock.advance(1000)
     await clock.settle()
     const ui = await openScope($, 'desktop', 'a')
-    await ui.post({ key: 'tu1' }, { in: 'card-tu1' })
-    expect(JSON.stringify(await ui.drawn({ in: 'card-tu1' }))).toMatch(/done/)
+    expect(await doneCard(ui, 'tu1')).toMatch(/done/)
   })
 }
 
-// A card already open when its agent ends keeps pulling for a short grace, so a call bookkept just after
-// the end still reaches it; once the grace has passed the card stops pulling. The scope page's compact card
-// draws only its mark, so the pulls are counted at the reads that answer them.
-test('an open done card keeps pulling just after the end, then stops', async ($, on) => {
+// A card is a Client only while its agent runs: every Client of a page shares one message budget, so once
+// the agent ends the pane draws its done card itself.
+test("a running agent's card is a Client, and once it ends the pane draws its done card with no Client", async ($, on) => {
   const { files, lists } = repo()
   const clock = fakeRepo(on, files, lists)
   engine(on, { tu1: 'ag1' })
-  let pulls = 0
-  on('state.get', async (_$, e, next) => {
-    if (e.key === 'liveFinal') pulls++
-    return next(e)
-  })
   await $.command.run(runCommand)
   await $.agent.spawn(spawnArgs('tu1', `Work in ${A}/slicetrees/01`))
   await clock.settle()
   const ui = await openScope($, 'desktop', 'a')
-  const drawn = async () => JSON.stringify(await ui.drawn({ in: 'card-tu1' }))
+  expect(await ui.find({ type: 'Client', key: 'card-tu1' })).toBeDefined()
   await call($, { tool: 'Grep', pattern: 'first', agentId: 'ag1' })
   await $.turn.complete({ turnId: 't', answer: '', durationMs: 1, isAborted: false, agentId: 'ag1', reason: 'answer' })
   await clock.settle()
-  await ui.advance(1000)
-  await clock.settle()
-  expect(await drawn()).toMatch(/■/)
-  const during = pulls
-  await ui.advance(1000)
-  await clock.settle()
-  expect(pulls).toBeGreaterThan(during)
-  await ui.advance(60_000)
-  await clock.settle()
-  const after = pulls
-  await ui.advance(5000)
-  await clock.settle()
-  expect(pulls).toBe(after)
+  expect(await ui.find({ type: 'Client', key: 'card-tu1' })).toBeUndefined()
+  const drawn = await doneCard(ui, 'tu1')
+  expect(drawn).toMatch(/■/)
+  expect(drawn).toMatch(/Grep first/)
 })
 
 // The session state holds an ended agent only while its scope is active here, so it does not grow with
@@ -696,81 +696,20 @@ test("a scope directory with no ledger drops its ended agent's entries", async (
   expect({ ...held.liveIndex, ...held.liveFinal }).not.toHaveProperty('tu1')
 })
 
-// --- Running now: every running agent of every active scope, newest dispatch first ---
-
-const runningRepo = () => {
+test("on vscode and mobile a trace-only running agent's scope page text carries its dispatch time", async ($, on) => {
   const { files, lists } = repo()
-  const at = (ms: number) => new Date(Date.now() + ms).toISOString()
-  files[`${A}/trace.log`] = [
-    `${at(-60_000)} 01 main dispatch superdev:implementer old Old\\x20work`,
-    `${at(60_000)} 02 main dispatch superdev:slice-reviewer new New\\x20review`,
-    `${at(-30_000)} 01 main dispatch superdev:implementer gone Done\\x20work`,
-    `${at(-20_000)} 01 main dispatch-end superdev:implementer gone`,
-  ].join('\n')
-  const C = `${R}/scopes/c`
-  files[`${C}/ledger.md`] = ledger('closed', [['01', 'merged']])
-  files[`${C}/trace.log`] = `${at(0)} 01 main dispatch superdev:implementer shut Closed\\x20scope`
-  lists[`${R}/scopes`] = [dir('a'), dir('b'), dir('c')]
-  lists[C] = []
-  return { files, lists }
-}
-
-test('Running now lists every running agent of every active scope once, newest dispatch first, with type and scope · slice', async ($, on) => {
-  const { files, lists } = runningRepo()
-  const clock = fakeRepo(on, files, lists)
-  engine(on, { tu1: 'ag1' })
-  await $.command.run(runCommand)
-  await $.agent.spawn(spawnArgs('tu1', `Work in ${B}/slicetrees/01`))
-  await clock.settle()
-  for (const surface of ['terminal', 'desktop'] as const) {
-    const ui = await $.ui.mount({ plugin: 'superdev-view', surface, ...PANE })
-    expect((await ui.findAll({ type: 'Client' })).map(c => c.key)).toEqual(['running-new', 'running-tu1', 'running-old'])
-    expect((await ui.find({ key: 'section-running' }))?.text).toMatch(/Running now \(3\)$/)
-    for (const [key, type, where] of [['new', 'slice-reviewer', 'a · 02'], ['tu1', 'implementer', 'b · 01'], ['old', 'implementer', 'a · 01']]) {
-      await ui.post({ key }, { in: `running-${key}` })
-      const drawn = JSON.stringify(await ui.drawn({ in: `running-${key}` }))
-      expect(drawn).toMatch(new RegExp(type))
-      expect(drawn).toMatch(new RegExp(where))
-    }
-    await ui.unmount()
-  }
-})
-
-test('a done agent and an agent of a closed scope are absent, and with none running the section says so', async ($, on) => {
-  const { files, lists } = runningRepo()
-  const clock = fakeRepo(on, files, lists)
-  engine(on, { tu1: 'ag1' })
-  await $.command.run(runCommand)
-  await $.agent.spawn(spawnArgs('tu1', `Work in ${B}/slicetrees/01`))
-  await clock.settle()
-  const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'terminal', ...PANE })
-  const keys = (await ui.findAll({ type: 'Client' })).map(c => c.key)
-  expect(keys).not.toContain('running-gone')
-  expect(keys).not.toContain('running-shut')
-  expect(await ui.find({ type: 'Text', text: /nothing running/ })).toBeUndefined()
-  await ui.unmount()
-  files[`${A}/trace.log`] = ''
-  await $.turn.complete({ turnId: 't', answer: '', durationMs: 1, isAborted: false, agentId: 'ag1', reason: 'answer' })
-  await $.command.run(runCommand)
-  await clock.settle()
-  const after = await $.ui.mount({ plugin: 'superdev-view', surface: 'terminal', ...PANE })
-  expect(await after.findAll({ type: 'Client' })).toEqual([])
-  expect(await after.find({ type: 'Text', text: /nothing running/ })).toBeDefined()
-})
-
-test("on vscode and mobile a trace-only running agent's Running now text carries its dispatch time", async ($, on) => {
-  const { files, lists } = runningRepo()
+  files[`${A}/trace.log`] = `${new Date(Date.now() - 60_000).toISOString()} 01 main dispatch superdev:implementer old Old\\x20work`
   const clock = fakeRepo(on, files, lists)
   await $.command.run(runCommand)
   await clock.settle()
   for (const surface of ['vscode', 'mobile'] as const) {
-    const ui = await $.ui.mount({ plugin: 'superdev-view', surface, ...PANE })
+    const ui = await openScope($, surface, 'a')
     expect((await ui.findAll({ type: 'Text' })).map(t => t.text).find(t => /Old work/.test(t ?? ''))).toMatch(/^implementer · a · 01 · Old work · running · started \d\d:\d\d:\d\d · as of \d\d:\d\d:\d\d$/)
     await ui.unmount()
   }
 })
 
-test("a running entry's post answer carries elapsed time, ctx, and the last two calls, and a tool call redraws no pane", async ($, on) => {
+test("a scope page card's post answer carries elapsed time, ctx, and the last two calls, and a tool call redraws no pane", async ($, on) => {
   const { files, lists } = repo()
   const clock = fakeRepo(on, files, lists)
   engine(on, { tu1: 'ag1' })
@@ -786,7 +725,7 @@ test("a running entry's post answer carries elapsed time, ctx, and the last two 
   await $.agent.spawn(spawnArgs('tu1', `Work in ${A}/slicetrees/01`))
   await clock.settle()
   for (const surface of ['terminal', 'desktop'] as const) {
-    const ui = await $.ui.mount({ plugin: 'superdev-view', surface, ...PANE })
+    const ui = await openScope($, surface, 'a')
     const before = writes
     await call($, { tool: 'Read', file_path: `/x/${surface}-1.ts`, agentId: 'ag1' })
     await call($, { tool: 'Grep', pattern: `${surface}-2`, agentId: 'ag1' })
@@ -794,8 +733,8 @@ test("a running entry's post answer carries elapsed time, ctx, and the last two 
     await step($, 'ag1', null)
     await clock.settle()
     expect(writes).toBe(before)
-    await ui.post({ key: 'tu1' }, { in: 'running-tu1' })
-    const drawn = JSON.stringify(await ui.drawn({ in: 'running-tu1' }))
+    await ui.post({ key: 'tu1' }, { in: 'card-tu1' })
+    const drawn = JSON.stringify(await ui.drawn({ in: 'card-tu1' }))
     expect(drawn).toMatch(/⏱ \d\d:\d\d/)
     expect(drawn).toMatch(/ctx 1,012/)
     expect(drawn).toMatch(new RegExp(`Grep ${surface}-3`))
@@ -806,7 +745,7 @@ test("a running entry's post answer carries elapsed time, ctx, and the last two 
   }
 })
 
-test('on vscode and mobile each running entry is text carrying the same fields', async ($, on) => {
+test('on vscode and mobile each scope page entry is text carrying the same fields', async ($, on) => {
   const { files, lists } = repo()
   const clock = fakeRepo(on, files, lists)
   engine(on, { tu1: 'ag1' })
@@ -821,7 +760,7 @@ test('on vscode and mobile each running entry is text carrying the same fields',
   await step($, 'ag1', null)
   await clock.settle()
   for (const surface of ['vscode', 'mobile'] as const) {
-    const ui = await $.ui.mount({ plugin: 'superdev-view', surface, ...PANE })
+    const ui = await openScope($, surface, 'a')
     expect(await ui.findAll({ type: 'Client' })).toEqual([])
     expect(await ui.find({ type: 'Text', text: /^implementer · a · 01 · Build slice 01 · running · started \d\d:\d\d:\d\d · Grep bar · Grep foo · ctx 1,012 · as of \d\d:\d\d:\d\d$/ })).toBeDefined()
     await ui.unmount()

@@ -25,15 +25,15 @@ const overviewRepo = () => {
 }
 const buttons = async (ui: { findAll: (q: { type: string }) => Promise<{ key: string | undefined }[]> }) => (await ui.findAll({ type: 'Button' })).map(b => b.key)
 
-test('the overview draws text sections in order, Running now and Scopes open, the others closed, on every surface', async ($, on) => {
+test('the overview draws text sections in order, Scopes open, the others closed, on every surface', async ($, on) => {
   const { files, lists } = overviewRepo()
   fakeRepo(on, files, lists)
   await $.command.run(runCommand)
   for (const surface of SURFACES) {
     const ui = await $.ui.mount({ plugin: 'superdev-view', surface, ...PANE })
     expect(await ui.findAll({ type: 'Svg' })).toEqual([])
-    expect(await buttons(ui)).toEqual(['section-running', 'section-scopes', 'scope-a', 'section-brainstorm', 'section-kb', 'section-design', 'section-drafts'])
-    expect(await ui.find({ type: 'Text', text: /nothing running/ })).toBeDefined()
+    expect(await buttons(ui)).toEqual(['section-brainstorm', 'section-scopes', 'scope-a', 'section-kb', 'section-design', 'section-drafts'])
+    expect((await ui.find({ key: 'section-kb' }))?.text).toMatch(/Pending knowledge-base pages \(1\)$/)
     for (const hidden of [/Idea/, /Page/, /^sk$/, /2 criteria/]) expect(await ui.find({ type: 'Text', text: hidden })).toBeUndefined()
     await ui.unmount()
   }
@@ -64,19 +64,18 @@ test('a section with no item is absent, and Scopes with no active scope says so'
   fakeRepo(on, { [`${R}/scopes/c/ledger.md`]: ledger('closed', [['01', 'merged']]) }, { [R]: [dir('scopes'), dir('brainstorm'), dir('design')], [`${R}/scopes`]: [dir('c')], [`${R}/scopes/c`]: [], [`${R}/brainstorm`]: [], [`${R}/design`]: [] })
   await $.command.run(runCommand)
   const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'terminal', ...PANE })
-  expect(await buttons(ui)).toEqual(['section-running', 'section-scopes'])
+  expect(await buttons(ui)).toEqual(['section-scopes'])
   expect(await ui.find({ type: 'Text', text: /no active scope/ })).toBeDefined()
 })
 
-test('a scope row shows its mark, name, stage, a bar segment per slice, and its counts, and opens the scope', async ($, on) => {
+test('a scope row shows its name, its stage in color beside it, a bar segment per slice, and its counts, and opens the scope', async ($, on) => {
   const { files, lists } = overviewRepo()
   fakeRepo(on, files, lists)
   await $.command.run(runCommand)
   for (const surface of SURFACES) {
     const ui = await $.ui.mount({ plugin: 'superdev-view', surface, ...PANE })
-    const row = await ui.find({ key: 'scope-a' })
-    expect(row?.text).toMatch(/^● a implementing$/)
-    expect(JSON.stringify(row?.children)).toMatch(/"color":"yellow"/)
+    expect((await ui.find({ key: 'scope-a' }))?.text).toBe('a')
+    expect((await ui.findAll({ type: 'Text', text: 'implementing' })).map(t => t.props.color)).toEqual(['yellow'])
     const bar = await ui.find({ key: 'bar-a' })
     expect((bar?.children as { props: { color: string } }[]).map(c => c.props.color)).toEqual(['green', 'yellow', 'gray'])
     expect(await ui.find({ type: 'Text', text: /^1\/3 slices · DoD 1\/2 · 0 live$/ })).toBeDefined()
@@ -95,13 +94,13 @@ test('the Scopes header shows the active and the closed counts', async ($, on) =
   expect((await ui.find({ key: 'section-scopes' }))?.text).toMatch(/Scopes · 1 active · 1 closed$/)
 })
 
-test('the overview ends with a footer naming the assignee and the root path', async ($, on) => {
+test('the overview starts with the assignee and the root path, with the home folder as ~', async ($, on) => {
   const { files, lists } = overviewRepo()
   fakeRepo(on, files, lists)
   await $.command.run(runCommand)
   const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'mobile', ...PANE })
   const texts = (await ui.findAll({ type: 'Text' })).map(t => t.text)
-  expect(texts.slice(-2)).toEqual(['assignee stefan', R])
+  expect(texts.slice(0, 2)).toEqual(['🪪 stefan', '~/.superdev'])
 })
 
 test('a press writes no file', async ($, on) => {

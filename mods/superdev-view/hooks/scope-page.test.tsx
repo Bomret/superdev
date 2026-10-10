@@ -29,7 +29,6 @@ test('the scope page draws its header and its slices in dependency waves, with n
   for (const surface of SURFACES) {
     const ui = await open($, surface)
     expect(await ui.findAll({ type: 'Svg' })).toEqual([])
-    expect((await ui.find({ key: 'back' }))?.props.hotkey).toBe('b')
     expect(await ui.find({ type: 'Text', text: /^feat\/x$/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^DoD 1\/2 · 2 live$/ })).toBeDefined()
     const texts = (await ui.findAll({ type: 'Text' })).map(t => t.text)
@@ -45,7 +44,7 @@ test('the scope page draws its header and its slices in dependency waves, with n
   }
 })
 
-test('each slice shows its id, status, and slicetree mark, with its agents as compact entries, and an unknown slice\'s agent under Scope-level', async ($, on) => {
+test('each slice shows its id, status, and slicetree mark, with its agents as full cards, and an unknown slice\'s agent under Scope-level', async ($, on) => {
   const { files, lists } = repo()
   fakeRepo(on, files, lists)
   await $.command.run(runCommand)
@@ -54,14 +53,18 @@ test('each slice shows its id, status, and slicetree mark, with its agents as co
     expect(await ui.find({ type: 'Text', text: /^▶ 02 in-progress · slicetree$/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^✓ 01 merged$/ })).toBeDefined()
     if (surface === 'terminal' || surface === 'desktop') {
-      expect((await ui.find({ type: 'Client', key: 'card-tu2' }))?.props.props).toMatchObject({ isCompact: true })
-      await ui.post({ key: 'tu2', isCompact: true }, { in: 'card-tu2' })
+      const client = await ui.find({ type: 'Client', key: 'card-tu2' })
+      expect(client?.props.width).toBe('100%')
+      expect(client?.props.props).not.toHaveProperty('isCompact')
+      await ui.post({ key: 'tu2' }, { in: 'card-tu2' })
       const drawn = JSON.stringify(await ui.drawn({ in: 'card-tu2' }))
       expect(drawn).toMatch(/implementer/)
+      expect(drawn).toMatch(/running/)
       expect(drawn).toMatch(/⏱/)
-      expect(drawn).not.toMatch(/Build/)
+      expect(drawn).toMatch(/Build 02/)
+      expect(drawn).toMatch(/a · 02/)
     } else {
-      expect(await ui.find({ type: 'Text', text: /^implementer · running · \d+[smh]$/ })).toBeDefined()
+      expect(await ui.find({ type: 'Text', text: /^implementer · a · 02 · Build 02 · running · started \d\d:\d\d:\d\d · as of \d\d:\d\d:\d\d$/ })).toBeDefined()
     }
     const scoped = await ui.find({ key: 'lane-scope' })
     expect(JSON.stringify(scoped)).toMatch(/tu9|final-reviewer/)
@@ -70,7 +73,7 @@ test('each slice shows its id, status, and slicetree mark, with its agents as co
   }
 })
 
-test("a done trace agent's entry shows its run time, dispatch to dispatch-end, on every surface", async ($, on) => {
+test("a done trace agent's card shows its run time, dispatch to dispatch-end, on every surface", async ($, on) => {
   const { files, lists } = repo()
   files[`${A}/trace.log`] = [
     '2026-01-01T00:00:00Z 03 main dispatch superdev:slice-reviewer tu3 Review\\x2003',
@@ -80,15 +83,54 @@ test("a done trace agent's entry shows its run time, dispatch to dispatch-end, o
   await $.command.run(runCommand)
   for (const surface of SURFACES) {
     const ui = await open($, surface)
-    if (surface === 'terminal' || surface === 'desktop') {
-      await ui.post({ key: 'tu3', isCompact: true }, { in: 'card-tu3' })
-      expect(JSON.stringify(await ui.drawn({ in: 'card-tu3' }))).toMatch(/⏱ 05:00/)
-    } else {
-      expect(await ui.find({ type: 'Text', text: /^slice-reviewer · done · 5m$/ })).toBeDefined()
-    }
+    const drawn = JSON.stringify(await ui.find({ type: 'Box', key: 'card-tu3' }))
+    expect(drawn).toMatch(/⏱ 05:00/)
+    expect(drawn).toMatch(/done/)
     await ui.press({ key: 'back' })
     await ui.unmount()
   }
+})
+
+// Every Client of a page shares one message budget, so the pane draws a done agent's card itself, and
+// nothing posts for it.
+test("a done agent's card is no Client and posts nothing", async ($, on) => {
+  const { files, lists } = repo()
+  files[`${A}/trace.log`] = [
+    '2026-01-01T00:00:00Z 03 main dispatch superdev:slice-reviewer tu3 Review\\x2003',
+    '2026-01-01T00:05:00Z 03 main dispatch-end superdev:slice-reviewer tu3',
+  ].join('\n')
+  const clock = fakeRepo(on, files, lists)
+  // a post's answer reads the trace activity, so each read once the scan has settled is one post or redraw
+  let reads = 0
+  let isCounting = false
+  on('state.get', async (_$, e, next) => {
+    if (isCounting && e.key === 'traceActivity') reads++
+    return next(e)
+  })
+  await $.command.run(runCommand)
+  const ui = await open($, 'desktop')
+  await clock.settle()
+  expect((await ui.findAll({ type: 'Client' })).map(c => c.key)).not.toContain('card-tu3')
+  expect(JSON.stringify(await ui.find({ type: 'Box', key: 'card-tu3' }))).toMatch(/trace events/)
+  isCounting = true
+  for (let n = 0; n < 10; n++) {
+    await ui.advance(1000)
+    await clock.settle()
+  }
+  expect(reads).toBe(0)
+  // the count is live: the pane's own redraw reads the trace activity for the done card
+  await ui.redraw()
+  expect(reads).toBeGreaterThan(0)
+})
+
+test("a trace-only running card's first props carry its trace fields, so a redraw keeps its height", async ($, on) => {
+  const { files, lists } = repo()
+  files[`${A}/trace.log`] = '2026-01-01T00:00:00Z 03 main dispatch superdev:implementer tu4 Build\\x2003'
+  fakeRepo(on, files, lists)
+  await $.command.run(runCommand)
+  const ui = await open($, 'desktop')
+  const props = (await ui.find({ type: 'Client', key: 'card-tu4' }))?.props.props
+  expect(props).toMatchObject({ isDone: false, isLive: false, events: 0, last: 'dispatched · 00:00:00' })
 })
 
 test('back returns to the overview, and a scope that closes while its page is open returns the pane to the overview', async ($, on) => {

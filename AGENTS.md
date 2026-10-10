@@ -363,15 +363,15 @@ This root owns every other subtree directly:
   events add live agents, and a live agent joins a scope only when its run root is the pane's own
   `<root>/scopes/<name>`. Every one of those hooks passes its event on unchanged (INV-0135). The pane is
   a docked side tab, often narrow, so every surface draws the same Box/Text tree at the host's own text
-  size, wrapped to the pane's width. The overview is a column of collapsible sections: Running now,
-  Scopes, Brainstorm, Knowledge-base pages, Design sketches, and DoD drafts. A section's open state lives
-  in the `sections` plugin state atom for the session, and a press writes no file. Running now lists every
-  running agent of every active scope, newest dispatch first. A scope row opens the scope page, which
-  groups the slices into dependency waves read from the ledger's depends-on column. Each agent's
+  size, wrapped to the pane's width. The overview is a column of collapsible sections: Brainstorm,
+  Scopes, Pending knowledge-base pages, Design sketches, and DoD drafts. A section's open state lives
+  in the `sections` plugin state atom for the session, and a press writes no file. A scope row opens the
+  scope page, which groups the slices into dependency waves read from the ledger's depends-on column and
+  draws each agent of a slice as a card. Each agent's
   card is a `Client` surface module (`hooks/card.tsx`) that posts once a second for its latest record, so
-  a tool call or a clock tick redraws the card alone, never the pane. Running now draws the full card, and
-  the scope page draws a compact one with the type and the elapsed time only. A done card keeps posting
-  for a short grace of 5 seconds after it first sees its agent done, then stops. VS Code and mobile, which
+  a tool call or a clock tick redraws the card alone, never the pane. Every `Client` of a page
+  shares one message budget, so a card is a `Client` only while its agent runs, and the pane draws a done
+  agent's card itself from the same drawing code. VS Code and mobile, which
   have no `Client`, show the same fields as static text as of the pane's last redraw. The mod attributes a
   dispatch to a scope and slice by
   `plugin/hooks/run-trace.js`'s `recordDispatch` rule, and `hooks/attribution-fixtures.ts` is the fixture

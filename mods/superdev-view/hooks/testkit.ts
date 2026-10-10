@@ -20,11 +20,13 @@ export const ledger = (stage: string, rows: ([string, string] | [string, string,
 
 // `files` and `lists` stay live: a test that edits them sees the next scan read the change.
 // `cwd` is the session's: git answers the main working tree's `.git` only when asked from there.
+// HOME is `/r`, so the pane shows the root as `~/.superdev`.
 // `hold` runs before an existence check answers, so a test can keep one waiting.
 // Hands back a held clock: the pane's hooks leave their bookkeeping running, and `settle()` lets it finish
 // before a test looks.
 export const fakeRepo = (on: On, files: Record<string, string>, lists: Record<string, Entry[]>, cwd = '/r', hold?: (path: string) => Promise<void>) => {
   on('session.cwd', async () => ({ value: cwd }))
+  on('env.get', async () => ({ value: '/r' }))
   on('process.run', async (_$, e) => ({
     value: { exitCode: e.argv.includes('--git-common-dir') && e.init?.cwd === cwd ? 0 : 1, stdout: '/r/.git\n', stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
   }))

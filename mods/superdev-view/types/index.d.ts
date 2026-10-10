@@ -41,8 +41,6 @@ export type CardData = {
   last: string | null
   events: number | null
   now: number
-  // A scope page's entry: type and elapsed time only. The card posts it, and the answer hands it back.
-  isCompact?: boolean
 }
 export type Progress = { done: number; total: number }
 export type Scope = {

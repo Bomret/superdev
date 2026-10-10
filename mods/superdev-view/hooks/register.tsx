@@ -2,6 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Activity, Agent, CardData, Draft, Intent, KbPage, LiveAgent, LiveDetail, Scope, Snapshot } from '../types'
+import { drawCard } from './card'
 import { attribute, ctxOf, runRoots, target } from './live'
 import { frontmatter, header, intent, progress, slices, traceAgents, waves } from './parse'
 
@@ -11,11 +12,12 @@ const selected = atom({ plugin: 'superdev-view', key: 'selected' } as const, nul
 // Which overview sections a press opened or closed, by section id; a section absent here takes its default.
 const sections = atom({ plugin: 'superdev-view', key: 'sections' } as const, {})
 // The pane reads `liveIndex`, written only when an agent starts or ends, or when a scan drops an ended agent
-// whose scope is no longer active (`prune`). Only a card's message hook reads
-// `liveDetail` (a running agent's calls and ctx, written on every tool call and model step, keyed by
-// agentId), `liveFinal` (an ended agent's last calls and ctx, keyed by dispatch, written at its end and by
-// a call or step bookkept after it), and `traceActivity` (written by a scan whose trace lines changed what
-// an agent last did), so no tool call or model step redraws the pane, before an agent's end or after it.
+// whose scope is no longer active (`prune`). Only a running card's message hook reads `liveDetail` (a
+// running agent's calls and ctx, written on every tool call and model step, keyed by agentId), so no tool
+// call or model step of a running agent redraws the pane. The scope page reads `liveFinal` (an ended
+// agent's last calls and ctx, keyed by dispatch, written at its end and by a call or step bookkept after
+// it) and `traceActivity` (written by a scan whose trace lines changed what an agent last did) to draw
+// its done cards, so only a call or step bookkept after an agent's end redraws it.
 const liveIndex = atom({ plugin: 'superdev-view', key: 'liveIndex' } as const, {})
 const liveDetail = atom({ plugin: 'superdev-view', key: 'liveDetail' } as const, {})
 const liveFinal = atom({ plugin: 'superdev-view', key: 'liveFinal' } as const, {})
@@ -185,7 +187,8 @@ async function prune($: EngineInterface, active: Set<string>): Promise<void> {
 }
 
 // What a card draws: a live agent from the index and its detail, or its final detail once it ended, a trace-only one from the snapshot and
-// the trace activity. Read by the message hook, outside any drawing, so it subscribes nothing.
+// the trace activity. Read by the message hook for a running agent, outside any drawing, and by the pane
+// for a done one, which subscribes the pane to the final detail and the trace activity alone.
 async function cardData($: EngineInterface, key: string): Promise<CardData | null> {
   const now = Date.now()
   const live = (await read($, liveIndex))[key]
@@ -201,10 +204,13 @@ async function cardData($: EngineInterface, key: string): Promise<CardData | nul
   return { ...placeholder(traced, scope.name, now), last, events: act?.events ?? null }
 }
 
+// A live agent's calls and ctx as last written, read without subscribing a drawing.
+const detailOf = (l: LiveAgent) => (l.end !== null ? shownFinal[l.key] : l.agentId ? shownDetail[l.agentId] : undefined)
+
 // A card's first props, from what the pane already reads; its first post fills in the rest.
 const placeholder = (a: Agent, scope: string, now: number, live?: LiveAgent): CardData => ({
   key: a.key, type: a.type, scope, slice: a.slice, desc: a.desc, isDone: a.isDone, isLive: !!live, start: live?.start ?? a.start, end: live?.end ?? a.end,
-  calls: (live && shownFinal[live.key]?.calls) ?? [], ctx: (live && shownFinal[live.key]?.ctx) ?? null, last: null, events: null, now,
+  calls: (live && detailOf(live)?.calls) ?? [], ctx: (live && detailOf(live)?.ctx) ?? null, last: null, events: null, now,
 })
 
 const asAgent = (l: LiveAgent): Agent => ({ key: l.key, type: l.type, desc: l.desc, slice: l.slice, isDone: l.end !== null, start: l.start, end: l.end })
@@ -341,9 +347,9 @@ export const register: Register = on => {
   })
 
   on('ui.message', async ($, e) => {
-    const data = e.data as { key?: unknown; isCompact?: unknown } | null
+    const data = e.data as { key?: unknown } | null
     const card = typeof data?.key === 'string' ? await cardData($, data.key) : null
-    return card ? { props: { ...card, isCompact: data?.isCompact === true } } : {}
+    return card ? { props: card } : {}
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
@@ -353,7 +359,10 @@ export const register: Register = on => {
 
     const snap: Snapshot | null = await read($, snapshot)
     if (!snap) return <Text dimColor>Scanning .superdev…</Text>
-    if (snap.error) return <Text dimColor>{snap.error} ({snap.root})</Text>
+    // A path under the home folder shows with `~` in place of it.
+    const home = await $.env.get('HOME')
+    const tilde = (p: string) => (home && (p === home || p.startsWith(`${home}/`)) ? `~${p.slice(home.length)}` : p)
+    if (snap.error) return <Text dimColor>{snap.error} ({tilde(snap.root)})</Text>
     const all = snap.scopes ?? []
     const active = all.filter(s => s.stage !== 'closed')
     const closed = all.filter(s => s.stage === 'closed')
@@ -367,7 +376,7 @@ export const register: Register = on => {
     const choose = (name: string) => () => void update($, selected, () => name)
     // Without cards, a live agent's text carries a card's fields as of this redraw: an ended one's final
     // calls and ctx from `shownFinal`, a running one's current ones from `shownDetail`.
-    const staticDetail = (l: LiveAgent | undefined) => l && ((l.end !== null ? shownFinal[l.key] : l.agentId ? shownDetail[l.agentId] : undefined) ?? NO_DETAIL)
+    const staticDetail = (l: LiveAgent | undefined) => l && (detailOf(l) ?? NO_DETAIL)
     const staticText = (a: Agent, l: LiveAgent | undefined, where?: string) => {
       const d = staticDetail(l)
       const start = l?.start ?? a.start
@@ -382,17 +391,24 @@ export const register: Register = on => {
 
     if (open) {
       const live = open.agents.filter(a => !a.isDone).length
-      // A compact entry: type and elapsed time, as a card whose clock ticks, or as text as of this redraw.
+      // A card's record as of this redraw: a done agent's and a trace-only one's from `cardData`, which reads
+      // nothing a running agent's call writes, and a live running one's from `placeholder`, so a card's first
+      // props already hold what its first post answers and the card keeps its height across a redraw.
+      const records = Object.fromEntries(await Promise.all(open.agents.map(async a => {
+        const l = open.live[a.key]
+        const record = a.isDone || !l ? await cardData($, a.key) : null
+        return [a.key, record ?? placeholder(a, open.name, now, l)] as const
+      })))
+      // A done agent's card is drawn here: a Client posts once a second, and every Client of a page shares
+      // one message budget. A running agent's entry is a card whose clock and calls tick, or its fields as
+      // text as of this redraw.
       const entry = (a: Agent) => {
         const l = open.live[a.key]
-        const start = l?.start ?? a.start
-        const end = l?.end ?? a.end
+        if (a.isDone) return <Box key={`card-${a.key}`} flexDirection="column">{drawCard(records[a.key], table)}</Box>
         return Client ? (
-          <Client key={`card-${a.key}`} module="./card.tsx" props={{ ...placeholder(a, open.name, now, l), isCompact: true }} />
+          <Client key={`card-${a.key}`} module="./card.tsx" props={records[a.key]} width="100%" />
         ) : (
-          <Text key={`card-${a.key}`}>
-            {[a.type.replace(/^superdev:/, ''), a.isDone ? 'done' : 'running', start !== null && age((end ?? now) - start)].filter(Boolean).join(' · ')}
-          </Text>
+          <Text key={`card-${a.key}`} wrap="wrap">{staticText(a, l, `${open.name} · ${a.slice}`)}</Text>
         )
       }
       // An agent whose slice has no ledger row goes under Scope-level, so every counted agent is drawn.
@@ -401,7 +417,7 @@ export const register: Register = on => {
       return (
         <Box flexDirection="column" gap={1}>
           <Box flexDirection="row" flexWrap="wrap" columnGap={1}>
-            <Button key="back" label="← back" hotkey="b" onPress={back} />
+            <Button key="back" label="← back" onPress={back} />
             <Text bold>{open.name}</Text>
             <Text color={STAGE_COLOR[open.stage] ?? 'white'}>{open.stage}</Text>
           </Box>
@@ -410,21 +426,23 @@ export const register: Register = on => {
             DoD {open.dod.done}/{open.dod.total} · {live} live{open.lockMtime !== null ? ` · lock ${age(now - open.lockMtime)}` : ''}
           </Text>
           {waves(open.slices).map((w, n) => (
-            <Box key={`wave-${n}`} flexDirection="column">
+            <Box key={`wave-${n}`} flexDirection="column" gap={1}>
               <Text bold>Wave {n + 1}</Text>
               {w.map(sl => (
                 <Box key={`lane-${sl.id}`} flexDirection="column" paddingLeft={2}>
                   <Text>{`${STATUS_MARK[sl.status] ?? '?'} ${sl.id} ${sl.status}${open.slicetrees.includes(sl.id) ? ' · slicetree' : ''}`}</Text>
                   <Text dimColor>{sl.title}</Text>
-                  {open.agents.filter(a => a.slice === sl.id).map(entry)}
+                  {open.agents.some(a => a.slice === sl.id) && (
+                    <Box flexDirection="column" marginTop={1} gap={1}>{open.agents.filter(a => a.slice === sl.id).map(entry)}</Box>
+                  )}
                 </Box>
               ))}
             </Box>
           ))}
           {stray.length > 0 && (
-            <Box key="lane-scope" flexDirection="column">
+            <Box key="lane-scope" flexDirection="column" gap={1}>
               <Text bold>Scope-level</Text>
-              <Box flexDirection="column" paddingLeft={2}>{stray.map(entry)}</Box>
+              <Box flexDirection="column" paddingLeft={2} gap={1}>{stray.map(entry)}</Box>
             </Box>
           )}
         </Box>
@@ -439,63 +457,55 @@ export const register: Register = on => {
       return (
         <Box flexDirection="column">
           <Button key={`section-${id}`} label={`${isOpen ? '▾' : '▸'} ${name} ${count}`} onPress={toggle(id, isOpen)} />
-          {isOpen && <Box flexDirection="column" paddingLeft={2}>{body()}</Box>}
+          {isOpen && <Box flexDirection="column" paddingLeft={2} marginTop={1} gap={1}>{body()}</Box>}
         </Box>
       )
     }
-    // Every running agent of every active scope, the trace's and this session's merged as a scope's are,
-    // newest dispatch first; an agent with no dispatch time sorts last.
     const shown = active.map(withLive)
-    const running = shown
-      .flatMap(w => w.agents.filter(a => !a.isDone).map(a => ({ a, scope: w.name, l: w.live[a.key] })))
-      .sort((x, y) => (y.a.start ?? -Infinity) - (x.a.start ?? -Infinity))
     const intents = snap.intents ?? []
     const kb = snap.kbPending ?? []
     const designs = snap.designs ?? []
 
     return (
       <Box flexDirection="column" gap={1}>
-        {section('running', 'Running now', `(${running.length})`, true, () => (
-          running.length === 0 ? <Text dimColor>nothing running</Text> : running.map(({ a, scope, l }) => Client ? (
-            <Client key={`running-${a.key}`} module="./card.tsx" props={placeholder(a, scope, now, l)} width="100%" />
-          ) : (
-            <Text key={`running-${a.key}`} wrap="wrap">{staticText(a, l, `${scope} · ${a.slice}`)}</Text>
-          ))
-        ))}
-        {section('scopes', 'Scopes', `· ${active.length} active · ${closed.length} closed`, true, () => (
-          shown.length === 0 ? <Text dimColor>no active scope</Text> : shown.map(s => {
-            const merged = s.slices.filter(x => x.status === 'merged').length
-            const live = s.agents.filter(a => !a.isDone).length
-            return (
-              <Box key={`row-${s.name}`} flexDirection="column">
-                <Button key={`scope-${s.name}`} onPress={choose(s.name)}>
-                  <Text color={STAGE_COLOR[s.stage] ?? 'white'}>●</Text> {s.name} <Text color={STAGE_COLOR[s.stage] ?? 'white'}>{s.stage}</Text>
-                </Button>
-                {s.slices.length > 0 && (
-                  <Box key={`bar-${s.name}`} flexDirection="row" flexWrap="wrap">
-                    {s.slices.map(x => <Text key={`seg-${s.name}-${x.id}`} color={SLICE_COLOR[x.status] ?? 'gray'}>█</Text>)}
-                  </Box>
-                )}
-                <Text dimColor>
-                  {merged}/{s.slices.length} slices · DoD {s.dod.done}/{s.dod.total} · {live} live{s.lockMtime !== null ? ` · lock ${age(now - s.lockMtime)}` : ''}
-                </Text>
-              </Box>
-            )
-          })
-        ))}
+        <Box flexDirection="column">
+          {snap.assignees && <Text dimColor>🪪 {snap.assignees.map(a => a.who).join(', ')}</Text>}
+          <Text dimColor wrap="truncate-start">{tilde(snap.root)}</Text>
+        </Box>
         {intents.length > 0 && section('brainstorm', 'Brainstorm', `(${intents.length})`, false, () => intents.map(i => (
           <Box key={`intent-${i.name}`} flexDirection="column">
             <Text>{i.isDraft ? 'draft' : 'ready'} · {i.title}</Text>
             {i.status !== '' && <Text dimColor>{i.status}</Text>}
           </Box>
         )))}
-        {kb.length > 0 && section('kb', 'Knowledge-base pages', `(${kb.length})`, false, () => kb.map(p => <Text key={`kb-${p.scope}-${p.file}`}>{p.title} · {p.action} · scope {p.scope}</Text>))}
+        {section('scopes', 'Scopes', `· ${active.length} active · ${closed.length} closed`, true, () => (
+          shown.length === 0 ? <Text dimColor>no active scope</Text> : shown.map(s => {
+            const merged = s.slices.filter(x => x.status === 'merged').length
+            const live = s.agents.filter(a => !a.isDone).length
+            return (
+              <Box key={`row-${s.name}`} flexDirection="column">
+                {/* the stage sits outside the Button: desktop draws a Button's label in one color */}
+                <Box flexDirection="row" alignItems="center" columnGap={1}>
+                  <Button key={`scope-${s.name}`} label={s.name} onPress={choose(s.name)} />
+                  <Text color={STAGE_COLOR[s.stage] ?? 'white'}>{s.stage}</Text>
+                </Box>
+                <Box key={`facts-${s.name}`} flexDirection="column" paddingLeft={2}>
+                  {s.slices.length > 0 && (
+                    <Box key={`bar-${s.name}`} flexDirection="row" flexWrap="wrap" columnGap={1}>
+                      {s.slices.map(x => <Text key={`seg-${s.name}-${x.id}`} color={SLICE_COLOR[x.status] ?? 'gray'}>▬▬▬</Text>)}
+                    </Box>
+                  )}
+                  <Text dimColor>
+                    {merged}/{s.slices.length} slices · DoD {s.dod.done}/{s.dod.total} · {live} live{s.lockMtime !== null ? ` · lock ${age(now - s.lockMtime)}` : ''}
+                  </Text>
+                </Box>
+              </Box>
+            )
+          })
+        ))}
+        {kb.length > 0 && section('kb', 'Pending knowledge-base pages', `(${kb.length})`, false, () => kb.map(p => <Text key={`kb-${p.scope}-${p.file}`}>{p.title} · {p.action} · scope {p.scope}</Text>))}
         {designs.length > 0 && section('design', 'Design sketches', `(${designs.length})`, false, () => designs.map(d => <Text key={`design-${d}`}>{d}</Text>))}
         {snap.drafts.length > 0 && section('drafts', 'DoD drafts', `(${snap.drafts.length})`, false, () => snap.drafts.map(d => <Text key={`draft-${d.slug}`}>{d.slug} · {d.dod.total} criteria</Text>))}
-        <Box flexDirection="column">
-          {snap.assignees && <Text dimColor>assignee {snap.assignees.map(a => a.who).join(', ')}</Text>}
-          <Text dimColor wrap="truncate-start">{snap.root}</Text>
-        </Box>
       </Box>
     )
   })

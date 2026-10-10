@@ -20,6 +20,7 @@ const PANE = {
 
 test('clicking an active scope shows its agents, back returns', async ($, on) => {
   on('session.cwd', async () => ({ value: '/r' }))
+  on('env.get', async () => ({ value: undefined }))
   on('process.run', async () => ({ value: { exitCode: 0, stdout: '/r/.git\n', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
   on('fs.exists', async (_$, e) => ({ value: e.path === R }))
   on('fs.list', async (_$, e) => {
@@ -40,7 +41,7 @@ test('clicking an active scope shows its agents, back returns', async ($, on) =>
     await ui.press({ key: 'scope-pin' })
     expect(await ui.find({ type: 'Text', text: /^DoD 0\/0 · 1 live$/ })).toBeDefined()
     expect(await ui.find({ type: 'Client', key: 'card-tu1' })).toBeDefined()
-    expect(await ui.find({ type: 'Client', key: 'card-tu2' })).toBeDefined()
+    expect(await ui.find({ type: 'Box', key: 'card-tu2' })).toBeDefined()
     await ui.press({ key: 'back' })
     expect(await ui.find({ type: 'Text', text: /afk-blocks|kb-backup/ })).toBeUndefined()
     expect(await ui.find({ key: 'back' })).toBeUndefined()
@@ -55,6 +56,7 @@ test('a rescan with nothing changed writes no snapshot, so the pane does not red
     return next(e)
   })
   on('session.cwd', async () => ({ value: '/r' }))
+  on('env.get', async () => ({ value: undefined }))
   on('process.run', async () => ({ value: { exitCode: 0, stdout: '/r/.git\n', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
   on('fs.exists', async (_$, e) => ({ value: e.path === R }))
   on('fs.list', async (_$, e) => {
