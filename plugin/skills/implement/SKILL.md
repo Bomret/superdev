@@ -30,7 +30,7 @@ dispatches nothing — you carry the TDD discipline yourself. Narrate at most on
 - **The 3-strike fix loop caps at a wrong cut, not a bug.** 3 cycles without going clean, every cycle
   counting whichever findings drove it: a remaining Critical or Important finding means the slice is a
   hidden dependency or too big — move it → `blocked` and escalate (re-slice, or hand to the human). A
-  remainder of only Minor findings proceeds, named in the report and nowhere else. A slice whose only
+  remainder of only Minor findings proceeds, warranted cuts included, named in the report and nowhere else. A slice whose only
   remaining Critical or Important findings are **Missing RED**, **Pass-to-pass**, or **Missing fail-to-pass
   run** proceeds too (ADR 0125, ADR 0134), and the run's final report names each finding with its slice; any of
   them beside a Critical or Important finding of another kind blocks. Never a

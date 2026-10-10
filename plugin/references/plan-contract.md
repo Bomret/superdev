@@ -233,7 +233,8 @@ unrendered; the touch map is plain text and unaffected.
 ## `test-applicability` → warrant gates
 
 - `behavior` — implementer does full TDD; **slice-reviewer runs** (correctness + independent
-  verification); **simplicity-reviewer runs** (over-engineering).
+  verification); **simplicity-reviewer runs** beside the first slice review (over-engineering), its warranted
+  cuts joining that review's fix list.
 - `mechanical` — pure move/rename/format: no new test — the runs already in the loop, plus the scope's
   full-suite run at `/superdev:review` (ADR 0025, ADR 0075), are the net; **both per-slice reviews skipped**; correctness is caught
   there, not by a dedicated per-slice review.

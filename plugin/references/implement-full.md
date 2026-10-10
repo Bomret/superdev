@@ -103,7 +103,9 @@ Repeat until every slice is `merged`:
    tells it to run every test through `scope.js test` (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test
    focused <changed paths>`, `test full`, or `test -- <command>` for a direct test-file run), to run a suite longer than the
    Bash tool's time limit through the runner in the background and wait for its end before acting on it, and
-   tells it to edit files through the edit tools, never through a script. The controller never edits a slice's tree to produce a failing run:
+   tells it to edit files through the edit tools, never through a script. It also tells it that a RED or GREEN step passes the test files
+   that hold the tests that step works on, and that its last run before the report passes the slice's whole changed-path set
+   (ADR 0139). The controller never edits a slice's tree to produce a failing run:
    a failing run comes from the implementer's own revert and run, or from none at all.
 
    **Pilot the first wave.** On a fresh scope (nothing merged yet), dispatch a single slice first and take
@@ -151,10 +153,24 @@ Repeat until every slice is `merged`:
      naming the environment gap.
    - **`behavior`** slice → move it → `in-review`, then dispatch **`superdev:slice-reviewer`**
      (correctness + independent verification; it reads the review checklist itself via
-     `${CLAUDE_PLUGIN_ROOT}`).
-     **The slice-reviewer dispatch hands over** the slice `spec`, its `acceptance`, the diff range, the
+     `${CLAUDE_PLUGIN_ROOT}`). **On the slice's first review, dispatch `superdev:simplicity-reviewer` in parallel with it**,
+     over the same tip and the slice's range, and build the fix list once both have returned (ADR 0138). **Warrant a
+     recommended cut only when it honours the rules the repository documents for itself** — its `AGENTS.md` or
+     `CLAUDE.md` files, its `docs/agents/` configuration, and its invariant register; a repository that documents
+     none leaves the cut to your judgment alone. You judge this, and in the slice's report you name each cut you
+     decline, with the rule it would break. Each cut you warrant joins the fix list as a Minor finding. A first
+     review that lists no finding, with no warranted cut, merges the slice with no fix cycle. A first review whose
+     only findings are warranted cuts starts a fix cycle for them, which counts toward the 3-cycle cap. A re-review
+     gets no over-engineering pass. No implementer runs on a slice after its last review: every change to it, a cut
+     included, lands in a fix cycle a re-review reads, and a merge-conflict fix keeps its handling in step 4.
+     **The slice-reviewer dispatch hands over** the slice `spec`, its `acceptance`, the **subject**, the
      global constraints, and the **progress-log** path (`<run-root>/reports/<id>/progress.md`), on a
-     first review and on every re-review. It hands **no text from an implementer's report** — not the
+     first review and on every re-review. The subject is the slice's range on the first review, review cycle 0,
+     and on a re-review, review cycle n > 0, the fix cycle's range, from the tip the latest earlier review read to
+     the current tip (ADR 0137). The dispatch tells a re-review to blind-pass over that range and then judge every
+     earlier finding from the progress log, to read code outside the range wherever the fix or an earlier finding
+     leads it and report any defect it finds there too, and to judge the earlier findings alone when the fix
+     cycle's range holds no change. Its own suite run, Lens 2, still covers the slice's whole changed-path set. It hands **no text from an implementer's report** — not the
      slice implementer's, not a fix implementer's, and no controller paraphrase of their status or "met"
      claims (ADR 0114, INV-0114). The dispatch also tells it to run every test through `scope.js test`, and
      a suite longer than the Bash tool's time limit through the runner in the background, waiting for its
@@ -196,8 +212,8 @@ Repeat until every slice is `merged`:
      finding outside the deferred ones, capped at 3 cycles in total, every cycle counting (the **3-strike
      fix loop**, controller's Invariants). At the cap a remaining **Critical or Important finding**, a
      deferred one excluded, is a wrong cut: move the slice → `blocked` and escalate (`--unattended` →
-     block). A remainder of **only Minor findings** proceeds: the simplicity pass runs and the slice
-     merges, and the leftover Minors are named in the report and written nowhere else (no ledger entry,
+     block). A remainder of **only Minor findings** proceeds, warranted cuts included: the slice merges, and the
+     leftover Minors and cuts are named in the report and written nowhere else (no ledger entry,
      no triage record). A slice whose only remaining Critical or Important findings are **Missing RED**,
      **Pass-to-pass**, or **Missing fail-to-pass run** proceeds the same way (ADR 0125, ADR 0134, INV-0118,
      INV-0138), and the run's final report names each finding with its slice; any of them beside a Critical or
@@ -238,12 +254,7 @@ Repeat until every slice is `merged`:
      the fix implementer's report names the commit that fixed it and a later re-review no longer lists it,
      resolve it by the procedure `scope-mode.md`'s `## Deferred findings` section states, in its order:
      remove the bullet, close its triage record, rebuild an open pull request's deferred section, and
-     publish the snapshot. An observation never joins the fix list; the observation bullet above stays in force. Then
-     dispatch **`superdev:simplicity-reviewer`** (over-engineering); apply warranted cuts. **Apply a
-     recommended cut only when it honours the rules the repository documents for itself** — its
-     `AGENTS.md` or `CLAUDE.md` files, its `docs/agents/` configuration, and its invariant register; a
-     repository that documents none leaves the cut to your judgment alone. You judge this, and in the
-     slice's report you name each cut you decline, with the rule it would break.
+     publish the snapshot. An observation never joins the fix list; the observation bullet above stays in force.
    - **A fix cycle's fail-to-pass run comes before its re-review** (ADR 0134, INV-0138). After each fix cycle, before
      you dispatch the re-review, run `scope.js fail-to-pass <base>..<tip>` from the slice's slicetree over the cycle's
      range, from the tip the earlier review read to the slicetree's current tip, where the cycle's commits change both
@@ -274,7 +285,8 @@ Repeat until every slice is `merged`:
      dispatched implementer, so the controller authored none of what the review verifies: review the
      slice inline — the controller already holds the implementer's report, so that review is not blind —
      applying `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`'s `## Dependency verification`
-     check and the one-way rule above (INV-0113), and
+     check and the one-way rule above (INV-0113), where an inline re-review takes the same subject as a
+     dispatched one, the fix cycle's range, and
      carry on, bounded by that section's cap — read `scope.js get denials` after writing
      the entry, and **block** once the count reaches it instead of reviewing inline again. A denied
      `simplicity-reviewer` follows that same authorship rule, and since its findings are advisory, the

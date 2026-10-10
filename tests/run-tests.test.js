@@ -162,6 +162,26 @@ const picked = (root, paths) =>
   assert.deepStrictEqual(picked(root, ['plugin/hooks/lonely.js']), ['bare'], 'a bare name between path delimiters names the file');
 }
 
+// A suite split off another (`<stem>-<part>.test.js`, no `<stem>-<part>.js` shipped) pins the file of its longest
+// `-`-delimited prefix: a change to that file, or to a file it requires, selects every part. An exact pin wins.
+{
+  const root = tree({
+    'plugin/hooks/beta-hook.js': '',
+    'plugin/scripts/beta.js': "require('./delta.js');",
+    'plugin/scripts/delta.js': '',
+    'tests/beta.test.js': suite('beta'),
+    'tests/beta-verb.test.js': suite('beta-verb'),
+    'tests/beta-other-verb.test.js': suite('beta-other-verb'),
+    'tests/beta-hook.test.js': suite('beta-hook'),
+    'tests/gamma.test.js': suite('gamma'),
+  });
+  const parts = ['beta-other-verb', 'beta-verb', 'beta'];
+  assert.deepStrictEqual(picked(root, ['plugin/scripts/beta.js']), parts, 'every part of a split suite pins the file');
+  assert.deepStrictEqual(picked(root, ['plugin/scripts/delta.js']), parts, 'every part takes the requires of the file it pins');
+  assert.deepStrictEqual(picked(root, ['tests/beta-verb.test.js']), ['beta-verb'], 'a part path selects that part');
+  assert.deepStrictEqual(picked(root, ['plugin/hooks/beta-hook.js']), ['beta-hook'], 'an exact pin wins over a prefix');
+}
+
 // A change set no suite can place runs every suite; prose and drift paths run none, an empty set runs none.
 {
   const root = focusedTree();
@@ -247,8 +267,14 @@ const picked = (root, paths) =>
   const lock = ['run', 'lock'].join('-');
   assert.deepStrictEqual(of([`plugin/hooks/${lock}.js`]), [lock, 'scope'], 'run-lock selects its suite and the suite naming it');
   const scope = of([`plugin/scripts/${'scope'}.js`]);
-  for (const s of ['scope', 'scope-prune', 'slicetree-sweep', 'run-trace', 'publish-kb', 'profile']) {
+  const parts = ['scope', ['scope', 'test', 'verb'].join('-'), ['scope', 'fail', 'to', 'pass'].join('-')];
+  for (const s of [...parts, 'scope-prune', 'slicetree-sweep', 'run-trace', 'publish-kb', 'profile']) {
     assert.ok(scope.includes(s), `scope.js selects ${s}`);
+  }
+  const required = of([`plugin/hooks/${['run', 'trace'].join('-')}.js`]);
+  for (const s of parts) {
+    assert.ok(required.includes(s), `a file scope.js requires selects ${s}`);
+    assert.ok(of([`tests/${s}.test.js`]).includes(s), `${s} selects itself`);
   }
   const all = discoverSuites(path.join(repoRoot, 'tests')).map((f) => path.basename(f, '.test.js'));
   const fixture = of(['tests/fixture-git.js']);

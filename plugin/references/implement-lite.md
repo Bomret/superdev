@@ -52,7 +52,9 @@ A stop there dispatches no slice.
   never in the invoking checkout. `mechanical` / `docs` slices need no new test — the existing suite is
   the net. Read `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run the command it selects for
   each run, through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <changed paths>` (or `test full`, or
-  `test -- <command>` for a direct test-file run). A suite longer than the Bash tool's time limit runs
+  `test -- <command>` for a direct test-file run). Each failing-test or passing-test step passes the test
+  files that hold the tests it works on. Your last run before you commit a slice passes the slice's whole
+  changed-path set, and so does a step that works on no test file (ADR 0139). A suite longer than the Bash tool's time limit runs
   through the runner in the background, and you wait for its end before acting on it. The run trace records your edits and runs, and a note from the hook means a test edit with no
   failing run since: answer it with `git add <paths>`, `git restore --worktree --source=<base> -- <paths>`, a failing run,
   `git restore -- <paths>`, and a passing run, never `git stash` (`<base>` is the scope branch's tip before this slice's first commit, recorded with `git rev-parse HEAD` when the slice starts). On a `behavior` slice, a test edit followed
@@ -111,7 +113,7 @@ A stop there dispatches no slice.
   duration the first run took or ended by a signal. It draws no finding and starts no fix cycle. The scope run's
   first `unknown` is an observation: the verb says so on stderr, and you write its triage record under
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Observations`, naming the environment gap.
-- **No per-slice review, no per-slice progress log.** Your own context is the record of how each slice
+- **No per-slice review, no per-slice over-engineering pass, no per-slice progress log.** Your own context is the record of how each slice
   unfolded; the ledger is the durable trace once that context is gone.
 - **Tick from your own report, the same way the full tier's controller ticks from an implementer's**
   (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`). You dispatch nobody, so you write the report to

@@ -56,7 +56,8 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
 tests/                 — one suite per shipped executable (the hooks, `scope.js`, `kb-patch.js`,
                          `publish-kb.js`, `profile.js`, `md-to-storage.js`) and one each for the maintainer-only
                          `invariant-check.js` and `run-tests.js`, framework-free `node:assert`, run under
-                         `node` by `bun run test` (ADR 0059); `spawn-verdict.js` and `fixture-git.js`
+                         `node` by `bun run test` (ADR 0059); `scope.js`'s suite is split by verb into
+                         `scope`, `scope-test-verb`, and `scope-fail-to-pass` (ADR 0139); `spawn-verdict.js` and `fixture-git.js`
                          are the shared helpers, not suites — `assertSpawnDecided` (INV-0009), asserted by
                          `spawn-verdict.test.js` and called from every other suite's bounded-spawn sites;
                          `fixture-git.js` appends `commit.gpgsign=false` to the `GIT_CONFIG_*` environment

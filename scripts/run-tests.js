@@ -38,6 +38,16 @@ function discoverSuites(dir) {
 // Directories whose `<name>.js` a suite `<name>.test.js` pins.
 const SHIPPED_DIRS = ['plugin/hooks', 'plugin/scripts', 'scripts'];
 
+// The shipped file a suite stem pins: `<stem>.js`, or for a suite split off another (`scope-test-verb`), the file of its
+// longest `-`-delimited prefix (`scope.js`). An exact pin wins.
+function pinnedBy(root, stem) {
+  for (let s = stem; s; s = s.includes('-') ? s.slice(0, s.lastIndexOf('-')) : '') {
+    const rel = SHIPPED_DIRS.map((d) => `${d}/${s}.js`).find((r) => fs.existsSync(path.join(root, r)));
+    if (rel) return rel;
+  }
+  return undefined;
+}
+
 const escapeRe = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // The repository-relative `.js` files `rel` requires directly, as `<path>`, `<path>.js`, or
@@ -125,8 +135,8 @@ function under({ segs, anchored }, rel) {
 
 // The suites a change set reaches, as a subset of `suites`, in suite order. A suite is reached when
 // its own text names a changed file (its basename, or its bare stem between path or quote
-// delimiters), when its name pins a shipped file that directly requires a changed file, or when the
-// changed path is the suite itself. A `.md` path also reaches a suite whose text names a directory
+// delimiters), when its name pins the changed file or a shipped file that directly requires it
+// (`pinnedBy`), or when the changed path is the suite itself. A `.md` path also reaches a suite whose text names a directory
 // holding it (`namedDirs`), because a suite may list or scan a directory; a code path never takes the
 // directory rule, so one no rule places keeps making every suite run. A `.md` path no suite names, like a
 // `scripts/drift/` path (the drift selftest sits in the tail), reaches no suite. Paths are matched by
@@ -135,11 +145,8 @@ function under({ segs, anchored }, rel) {
 // no suite and, for an otherwise unplaced path, falls back to every suite.
 function selectSuites(root, suites, paths) {
   const texts = suites.map((file) => fs.readFileSync(file, 'utf8'));
-  const requires = suites.map((file) => {
-    const stem = path.basename(file, '.test.js');
-    const shipped = SHIPPED_DIRS.map((d) => `${d}/${stem}.js`).find((rel) => fs.existsSync(path.join(root, rel)));
-    return shipped ? requiredBy(root, shipped) : new Set();
-  });
+  const pinned = suites.map((file) => pinnedBy(root, path.basename(file, '.test.js')));
+  const requires = pinned.map((shipped) => (shipped ? requiredBy(root, shipped) : new Set()));
   const dirs = texts.map((text) => namedDirs(root, text));
   const chosen = new Set();
   for (const raw of paths) {
@@ -153,6 +160,7 @@ function selectSuites(root, suites, paths) {
       if (
         path.posix.join('tests', path.basename(file)) === rel ||
         (path.posix.dirname(rel) !== 'tests' && path.basename(file, '.test.js') === stem) ||
+        pinned[i] === rel ||
         named.test(texts[i]) ||
         requires[i].has(rel) ||
         (rel.endsWith('.md') && dirs[i].some((d) => under(d, rel)))

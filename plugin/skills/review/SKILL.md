@@ -150,6 +150,10 @@ superdev subagent that omits one):
   checklist itself via `${CLAUDE_PLUGIN_ROOT}`).
   **In scope mode both of those change shape**, so the reviewer can write its own criteria before it sees
   the answer key (ADR 0020):
+  - **The git range is the whole scope range on every dispatch**, `<range-base>..<branch>`, each re-review
+    after a fix cycle included (ADR 0137, INV-0143): a full-tier slice re-review reads only its fix cycle's
+    range, so this review is the backstop that reads the whole branch. A fix cycle's range, below, is what the
+    fix-cycle outcome rule reads, never the review's subject.
   - The summary is **the scope anchor's title**, read with
     `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get anchor --root <run-root>` — the ledger's
     `**Anchor:**` line (run init writes it, per
@@ -238,9 +242,9 @@ Both subagents are **read-only** (`Read`, `Grep`, `Bash` — a hook blocks `git 
 the code-host merge calls `gh`/`tea pr merge`, `tea api`, and `gh api`, from any subagent). Scale the dispatch to the diff:
 
 - **A `full`-tier scope** → `final-reviewer` alone; skip `superdev:simplicity-reviewer` (ADR 0037),
-  reporting `` not dispatched — full tier, covered per `behavior` slice ``. That tier dispatched it per
-  `behavior` slice and applied the warranted cuts before each slice merged, so a whole-scope pass re-reads
-  cut-down code for cuts. What only the integrated view reveals — the same logic in two slices, an
+  reporting `` not dispatched — full tier, covered per `behavior` slice ``. That tier dispatched it beside each
+  `behavior` slice's first review, and a reviewed fix cycle applied the warranted cuts before the slice merged
+  (ADR 0138), so a whole-scope pass re-reads cut-down code for cuts. What only the integrated view reveals — the same logic in two slices, an
   abstraction each half-builds — is `final-reviewer`'s **Brevity (whole-scope)** axis, which is carved for
   exactly that. A `mechanical`/`docs` slice gets no per-slice pass either way, and this skip does not claim
   otherwise. Derive the tier per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section,

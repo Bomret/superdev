@@ -130,8 +130,12 @@ own argument parsing.
 
 Each caller judges its own range and builds the set from it:
 
-- **The implementer's TDD loop, and the lite tier's inline loop.** The slice base against the working
-  tree.
+- **The implementer's TDD loop, and the lite tier's inline loop.** A failing-test or passing-test step runs
+  over the test files that hold the tests the step works on, and passes those files alone to `scope.js test
+  focused`. The last run before the implementer reports, and before the lite tier commits a slice, runs over
+  the slice's whole changed-path set: the slice base against the working tree. A step that works on no test
+  file runs over that whole set too. A focused command with no `{paths}` token runs unchanged at every step,
+  and the run trace records every step's run either way (ADR 0139).
 - **The slice-reviewer's Lens 2.** The slice branch against the scope branch.
 - **The green-gate hook.** `ORIG_HEAD` against `HEAD`, read once the merge has landed: a completed
   `git merge`, or a conflicted one concluded by `merge --continue`. The hook runs on neither a merge still

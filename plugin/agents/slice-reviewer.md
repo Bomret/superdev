@@ -22,7 +22,9 @@ behaviour (ADR 0002).
 ## What the controller hands you
 
 - The slice **specification** + **acceptance criteria**.
-- The **diff** to review (slice branch vs scope).
+- The **subject**. On the first review, review cycle 0, it is the slice's range, the slice branch against
+  the scope branch. On a re-review, review cycle n > 0, it is the fix cycle's range, from the tip the latest
+  earlier review read to the current tip (ADR 0137).
 - The **ranges** for the fail-to-pass check below, each with both ends full commits.
 - Global constraints that bind the slice.
 - The slice's **progress-log** path (`<run-root>/reports/<id>/progress.md`). It holds the implementer's
@@ -101,6 +103,14 @@ and when that line reads `pass-to-pass` it is a **Pass-to-pass** finding on that
 
 **A progress log that is missing** at the point you open it is named in the after-reading section. A missing log
 voids nothing from the blind pass, and the dependency findings it causes still move the verdict.
+
+## A re-review reads its fix cycle's range
+
+Your blind pass on a re-review covers the fix cycle's range. After it, judge every earlier finding from the
+progress log, under the one-way rule above. Read code outside the range wherever the fix or an earlier
+finding leads you, and report any defect you find there too. A fix cycle's range that holds no change leaves
+you judging the earlier findings alone. Lens 2's own suite run still covers the slice's whole changed-path
+set, and the test-order, fail-to-pass, deferred-finding, and cap rules above hold unchanged.
 
 ## Read-only
 

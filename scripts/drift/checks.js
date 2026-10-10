@@ -104,6 +104,7 @@ const {
   WHOLE_REPO_SHIP_CONTRACTS,
   SUBMIT_PR_WHOLE_REPO_CONTRACTS,
   TIER_SKIP_CONTRACTS,
+  SIMPLICITY_BESIDE_FIRST_REVIEW_CONTRACTS,
   CONTAINMENT_DELEGATION_CONTRACTS,
   CONTAINMENT_REFETCH_CONTRACTS,
   CONTAINMENT_PROBE_CONTRACTS,
@@ -769,7 +770,7 @@ module.exports = [
   table(
     'reviewer-model-tiers',
     REVIEWER_MODEL_TIER_CONTRACTS,
-    'slice-reviewer runs on `opus` and simplicity-reviewer on `sonnet` at every dispatch site and in each agent default, and the full tier applies a recommended cut only when it honours the repository\'s documented rules, naming each declined cut (ADR 0118)',
+    'slice-reviewer runs on `opus` and simplicity-reviewer on `sonnet` at every dispatch site and in each agent default, and the full tier warrants a recommended cut only when it honours the repository\'s documented rules, naming each declined cut (ADR 0118)',
   ),
   table(
     'fix-dispatch-siblings',
@@ -813,6 +814,11 @@ module.exports = [
     'tier-skip',
     TIER_SKIP_CONTRACTS,
     'the full tier skips the whole-scope over-engineering pass, and still runs it per slice',
+  ),
+  table(
+    'simplicity-beside-first-review',
+    SIMPLICITY_BESIDE_FIRST_REVIEW_CONTRACTS,
+    "the full tier dispatches simplicity-reviewer in parallel with a behavior slice's first review, each warranted cut joins the fix list as a Minor finding, a clean first review with no cut merges with no cycle, a cuts-only first review starts a cycle that counts toward the cap, a Minor-and-cuts remainder merges at the cap, no implementer runs on a slice after its last review, a denied pass runs inline, and the implement skill, plan contract, review skill, simplicity-reviewer, and lite playbook agree (ADR 0138)",
   ),
   table(
     'containment-delegation',
@@ -950,7 +956,8 @@ module.exports = [
       'findings added or raised after reading, and an earlier Unverified dependency finding closes on a ' +
       "re-review when the reviewer's own dependency check now passes; only a progress-log line recording " +
       'the package as verified counts, never an unverified line whatever URL it carries; and the ' +
-      'slice-reviewer appends its findings through a quoted heredoc, never `echo` and never an unquoted heredoc',
+      'slice-reviewer appends its findings through a quoted heredoc, never `echo` and never an unquoted heredoc' +
+      "; and a slice's first review reads the whole slice while a re-review reads its fix cycle's range, judges every earlier finding from the progress log, may read outside the range and reports what it finds there, judges the earlier findings alone over an empty range, and keeps its suite run over the whole slice, inline or dispatched; and final-reviewer reads the whole scope range on every dispatch, in its body and in the review skill's dispatch",
   ),
   table(
     'run-trace-order',
@@ -965,7 +972,8 @@ module.exports = [
       "; on the full tier the implement-full controller runs the fail-to-pass verb before slice-reviewer and after each fix cycle, and slice-reviewer raises Pass-to-pass and Missing fail-to-pass run over the ranges its dispatch names, each finding naming its range" +
       "; and a fail-to-pass unknown outcome draws no finding and starts no fix cycle, each reviewer and the review report name it with its reason, the verb's first one in a scope run is an observation, and the review checklist and the lite and full playbooks carry the same rule" +
       "; and the fix loops of /superdev:review and run handoff run the verb around each fix cycle that changes a test-path file and another file, final-reviewer reads run handoff's cycles and earlier review cycles from the trace at every dispatch, finds a run handoff cycle by the commits in its window and raises the same findings for it, with the same no-finding cases in its dispatch as in its body, and a Pass-to-pass finding closes on a fail-to-pass line from the original change's base to the tip current when that closing run ran, at every dispatch, a scope line starting at that base being the finding's closing run and raising no second finding" +
-      "; and test-selection.md extends its background rule to the fail-to-pass verb, which every prose that runs the verb cites",
+      "; and test-selection.md extends its background rule to the fail-to-pass verb, which every prose that runs the verb cites" +
+      "; and a failing-test or passing-test step runs over the test files it works on, the last run before the implementer reports or the lite tier commits a slice over the whole changed-path set, as test-selection.md, the implementer body, its full-tier dispatch, and the lite playbook state",
   ),
   table(
     'setup-test-paths',

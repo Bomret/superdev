@@ -21,7 +21,11 @@ doesn't work — a "Yes" verdict is one that survived your best attempt to break
 - **Range**: the subject the controller names — never assume a range exists. `skills/review/SKILL.md`'s §1
   resolves it to one of four shapes: `BASE..HEAD` (scope mode: `BASE` = the scope's range base, `scope.js base resolve`, per
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`,
-  `HEAD` = scope branch tip), a working-tree scope (`git diff HEAD`), a path scope
+  `HEAD` = scope branch tip; **on a live scope run the range is the whole scope range, `BASE..HEAD`, on every
+  dispatch, each re-review after a fix cycle included** (ADR 0137, INV-0143): a full-tier slice re-review reads
+  only its fix cycle's range, so this review is the backstop that reads the whole branch, and a fix cycle's
+  range a re-review's dispatch names is what the fix-cycle outcome rule below reads, never your subject), a
+  working-tree scope (`git diff HEAD`), a path scope
   (`git diff <merge-base>..HEAD -- <path>`, or `git diff HEAD -- <path>` when that path has uncommitted
   changes; `<merge-base>` is the scope's range base when HEAD is a branch a live run root names),
   or **standing code** — a path whose scoped diff is empty, handed to you as the files under it

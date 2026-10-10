@@ -41,6 +41,7 @@ const {
   SPAWN_FAILURE_ANSWER_CONTRACTS,
   FIX_BOUNDARY_CONTRACTS,
   TIER_SKIP_CONTRACTS,
+  SIMPLICITY_BESIDE_FIRST_REVIEW_CONTRACTS,
   ARG_TOKEN_CONTRACTS,
   ARG_TOKEN_LINE,
   SOURCE_SECTION_CONTRACTS,
@@ -2397,7 +2398,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // with the other rows still green. ---
 
   const perSliceDispatch =
-    'Then dispatch **`superdev:simplicity-reviewer`** (over-engineering); apply warranted cuts.\n';
+    "On the slice's first review, dispatch `superdev:simplicity-reviewer` in parallel with it, over the same tip.\n";
   const fullTierSkip =
     "A `full`-tier scope → `final-reviewer` alone; skip `superdev:simplicity-reviewer`. That tier ran it " +
     "per `behavior` slice, so what only the integrated view reveals is `final-reviewer`'s Brevity axis. " +
@@ -2478,6 +2479,20 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'references/implement-full.md': perSliceDispatch,
   });
   assert.equal(scanContract(ts4, TIER_SKIP_CONTRACTS).length, 0, 'all three rows stated satisfies the contract');
+
+  // --- SIMPLICITY_BESIDE_FIRST_REVIEW_CONTRACTS (ADR 0138): the post-loop step that applied cuts after the last
+  // review fails the table wherever in the playbook it returns, though every clause the rows pin still stands. ---
+  {
+    const rel = 'references/implement-full.md';
+    const real = fs.readFileSync(path.join(realRoot, 'plugin', rel), 'utf8');
+    assert.deepEqual(scanContract(fixture({ [rel]: real }), SIMPLICITY_BESIDE_FIRST_REVIEW_CONTRACTS), [], 'the playbook as it stands holds');
+    const postLoop = 'Then dispatch **`superdev:simplicity-reviewer`** (over-engineering); apply warranted cuts.\n';
+    for (const [where, text] of [['before', postLoop + real], ['after', real + postLoop]]) {
+      const gaps = scanContract(fixture({ [rel]: text }), SIMPLICITY_BESIDE_FIRST_REVIEW_CONTRACTS);
+      assert.equal(gaps.length, 1, `a post-loop step ${where} the rule fails one row`);
+      assert.match(gaps[0].expectation, /no post-loop simplicity step/, 'the gap names the post-loop step');
+    }
+  }
 
   // --- scanDocStepsNoSuite: the other side of ADR 0025. `/superdev:document`, `/superdev:submit-pr`, and the
   // `doc-writer` instruct no full-suite run, so the scope's one run stays the review's. This asserts an
@@ -5029,7 +5044,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'agents/simplicity-reviewer.md': '---\nname: simplicity-reviewer\nmodel: sonnet\n---\nBody.\n',
       'skills/review/SKILL.md': '- **`superdev:simplicity-reviewer`** (`model: sonnet`) — over-engineering only.\n',
       'references/implement-full.md':
-        'Apply a recommended cut only when it honours the rules the repository documents for itself. ' +
+        'Warrant a recommended cut only when it honours the rules the repository documents for itself. ' +
         "In the slice's report you name each cut you decline, with the rule it would break.\n",
     };
     assert.deepEqual(scanContract(fixture(rmClauses), REVIEWER_MODEL_TIER_CONTRACTS), [], 'a fixture carrying every tier and the cut rule reports no gap');

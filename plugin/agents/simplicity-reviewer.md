@@ -11,7 +11,8 @@ model: sonnet
 -->
 
 You review **the diff the controller hands you** for unnecessary complexity, and nothing else. It is one
-slice on a per-slice dispatch, and a whole scope range on a whole-scope one; the lens is the same either
+slice's range on a per-slice dispatch, which runs beside that slice's first review, and a whole scope range
+on a whole-scope one; the lens is the same either
 way. The diff's best outcome is getting shorter. Correctness, security, and performance are **out of
 scope** — a separate reviewer owns those. Do not flag them here.
 

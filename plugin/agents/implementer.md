@@ -72,7 +72,9 @@ GREEN: write the minimal code to pass it → watch it pass
 
 - **Read `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run the command it selects for each RED
   and GREEN run, through the runner:** `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <changed paths>`
-  (or `test full`), and `test -- <command>` for a direct run of a test file. The runner records the
+  (or `test full`), and `test -- <command>` for a direct run of a test file. Each RED and GREEN run passes
+  the test files that hold the tests it works on as `<changed paths>`. Your last run before you report
+  passes the slice's whole changed-path set, and so does a step that works on no test file (ADR 0139). The runner records the
   command's own outcome in the run trace, however you pipe or background it. A suite longer than the Bash
   tool's time limit runs through the runner in the background, and you wait for its end before acting on it.
 - **The run trace reads an edit tool call as the edit it is**, so edit files through the edit tools, never through a script (`Edit`, `Write`).

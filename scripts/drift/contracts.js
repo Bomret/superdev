@@ -1517,7 +1517,8 @@ const FIX_BOUNDARY_CONTRACTS = [
 ];
 
 // ADR 0037. `/superdev:review` skips `simplicity-reviewer` on a `full`-tier scope, because that tier
-// already ran it per `behavior` slice and applied the cuts before each slice merged — a `mechanical`/`docs`
+// already ran it beside each `behavior` slice's first review, and a reviewed fix cycle applied the cuts
+// before the slice merged (ADR 0138) — a `mechanical`/`docs`
 // slice gets no per-slice pass either way, and the skip's own report line names that condition rather than
 // claiming blanket coverage. The skip is therefore not a
 // property of `skills/review/SKILL.md` alone: it is only sound while `implement-full.md` still dispatches
@@ -1535,14 +1536,14 @@ const FIX_BOUNDARY_CONTRACTS = [
 const TIER_SKIP_CONTRACTS = [
   [
     path.join('skills', 'review', 'SKILL.md'),
-    /`?full`?[- ]tier[\s\S]{0,120}?skip\s+`?superdev:simplicity-reviewer`?[\s\S]{0,400}?[Bb]revity/,
+    /`?full`?[- ]tier[\s\S]{0,120}?skip\s+`?superdev:simplicity-reviewer`?[\s\S]{0,500}?[Bb]revity/,
     'skip `superdev:simplicity-reviewer` on a `full`-tier scope, naming `final-reviewer`’s Brevity axis ' +
       'as what covers the cross-slice case the per-slice passes could not see',
   ],
   [
     path.join('references', 'implement-full.md'),
-    /dispatch[\s\S]{0,40}?`superdev:simplicity-reviewer`[\s\S]{0,60}?apply\s+warranted\s+cuts/i,
-    'dispatch `superdev:simplicity-reviewer` per `behavior` slice and apply the warranted cuts — the ' +
+    /dispatch\s+`superdev:simplicity-reviewer`\s+in\s+parallel\s+with\s+it/,
+    'dispatch `superdev:simplicity-reviewer` per `behavior` slice, in parallel with its first review — the ' +
       "per-slice pass `skills/review/SKILL.md`’s full-tier skip stands on",
   ],
   [
@@ -5858,7 +5859,7 @@ const FIX_LOOP_FIXES_EVERY_FINDING_CONTRACTS = [
   [
     path.join('references', 'implement-full.md'),
     /At the cap a remaining \*\*Critical or Important finding\*\*, a deferred one excluded, is a wrong cut[\s\S]{0,200}`blocked`[\s\S]{0,200}remainder of \*\*only Minor findings\*\* proceeds[\s\S]{0,250}named in the report and written nowhere else/,
-    'state, in step 3, that at the cap a Critical or Important remainder is a wrong cut that blocks the slice and a remainder of only Minor findings proceeds to the simplicity pass and merge, named in the report and written nowhere else',
+    'state, in step 3, that at the cap a Critical or Important remainder is a wrong cut that blocks the slice and a remainder of only Minor findings, warranted cuts included, proceeds to the merge, named in the report and written nowhere else',
   ],
   [
     path.join('references', 'implement-full.md'),
@@ -8303,7 +8304,7 @@ const SETUP_TEST_PATHS_CONTRACTS = [
 
 // ADR 0118: the review model tiers follow measured evidence. Rows pin `slice-reviewer` on `opus` and
 // `simplicity-reviewer` on `sonnet` at every dispatch site and in each agent's own default, so a reverted
-// value is a gap, and the full-tier playbook's rule for which recommended cuts the controller applies.
+// value is a gap, and the full-tier playbook's rule for which recommended cuts the controller warrants.
 const REVIEWER_MODEL_TIER_CONTRACTS = [
   [
     path.join('skills', 'implement', 'SKILL.md'),
@@ -8332,8 +8333,8 @@ const REVIEWER_MODEL_TIER_CONTRACTS = [
   ],
   [
     path.join('references', 'implement-full.md'),
-    /[Aa]pply a recommended cut only when it honours the rules the repository documents for itself[\s\S]{0,400}name each cut you decline[\s\S]{0,160}the rule it would break/,
-    "apply a recommended cut only when it honours the repository's own documented rules, and name each declined cut with the rule it would break (ADR 0118)",
+    /[Ww]arrant a recommended cut only when it honours the rules the repository documents for itself[\s\S]{0,400}name each cut you decline[\s\S]{0,160}the rule it would break/,
+    "warrant a recommended cut only when it honours the repository's own documented rules, and name each declined cut with the rule it would break (ADR 0118)",
   ],
 ];
 
@@ -8659,7 +8660,188 @@ const INVOCATION_START_CONTRACTS = [
   ],
 ];
 
+// ADR 0139: a test-first step runs the tests it works on. A failing-test or passing-test step of the implementer's TDD
+// loop, or of the lite tier's inline loop, passes the test files holding the tests that step works on, and the last run
+// before the implementer reports, or before the lite tier commits a slice, passes the slice's whole changed-path set.
+// `references/test-selection.md` owns the rule, and the implementer's body, the full tier's implementer dispatch, and the
+// lite playbook each carry it, in the same `run-trace-order` table that pins every prose directing a test run.
+RUN_TRACE_ORDER_CONTRACTS.push(
+  [
+    path.join('references', 'test-selection.md'),
+    /A\s+failing-test\s+or\s+passing-test\s+step\s+runs\s+over\s+the\s+test\s+files\s+that\s+hold\s+the\s+tests\s+the\s+step\s+works\s+on[\s\S]{0,200}?The\s+last\s+run\s+before\s+the\s+implementer\s+reports,\s+and\s+before\s+the\s+lite\s+tier\s+commits\s+a\s+slice,\s+runs\s+over\s+the\s+slice's\s+whole\s+changed-path\s+set/,
+    'state that a failing-test or passing-test step runs over the test files it works on, and the last run before the implementer reports or the lite tier commits a slice over the whole changed-path set',
+  ],
+  [
+    path.join('references', 'test-selection.md'),
+    /A\s+step\s+that\s+works\s+on\s+no\s+test\s+file\s+runs\s+over\s+that\s+whole\s+set\s+too\.\s+A\s+focused\s+command\s+with\s+no\s+`\{paths\}`\s+token\s+runs\s+unchanged\s+at\s+every\s+step/,
+    'state that a step working on no test file runs over the whole changed-path set, and a focused command with no {paths} token runs unchanged',
+  ],
+  [
+    path.join('agents', 'implementer.md'),
+    /Each\s+RED\s+and\s+GREEN\s+run\s+passes\s+the\s+test\s+files\s+that\s+hold\s+the\s+tests\s+it\s+works\s+on\s+as\s+`<changed\s+paths>`\.\s+Your\s+last\s+run\s+before\s+you\s+report\s+passes\s+the\s+slice's\s+whole\s+changed-path\s+set,\s+and\s+so\s+does\s+a\s+step\s+that\s+works\s+on\s+no\s+test\s+file/,
+    'have the implementer pass each RED and GREEN run the test files it works on, and its last run before the report the whole changed-path set',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /It\s+also\s+tells\s+it\s+that\s+a\s+RED\s+or\s+GREEN\s+step\s+passes\s+the\s+test\s+files\s+that\s+hold\s+the\s+tests\s+that\s+step\s+works\s+on,\s+and\s+that\s+its\s+last\s+run\s+before\s+the\s+report\s+passes\s+the\s+slice's\s+whole\s+changed-path\s+set/,
+    'have step 2\'s implementer dispatch tell it that a RED or GREEN step passes the test files it works on, and its last run before the report the whole changed-path set',
+  ],
+  [
+    path.join('references', 'implement-lite.md'),
+    /Each\s+failing-test\s+or\s+passing-test\s+step\s+passes\s+the\s+test\s+files\s+that\s+hold\s+the\s+tests\s+it\s+works\s+on\.\s+Your\s+last\s+run\s+before\s+you\s+commit\s+a\s+slice\s+passes\s+the\s+slice's\s+whole\s+changed-path\s+set,\s+and\s+so\s+does\s+a\s+step\s+that\s+works\s+on\s+no\s+test\s+file/,
+    'have the lite inline loop pass each failing-test or passing-test step the test files it works on, and the last run before a slice commit the whole changed-path set',
+  ],
+);
+
+// ADR 0137, INV-0143: a full-tier slice re-review reads its fix cycle's range, and the scope review's `final-reviewer`
+// reads the whole scope range on every dispatch, the backstop for an older defect no slice re-review re-reads. The
+// slice-reviewer body and step 3's dispatch each carry the subject rule, and the final-reviewer body and the review
+// skill's dispatch each carry the whole range, because a dispatch is the later, more specific instruction and wins a
+// conflict (CONTEXT.md → *Dispatch prose*, ADR 0035). These rows join the `blind-slice-review` table, the check that
+// pins what a slice review reads and when.
+BLIND_SLICE_REVIEW_CONTRACTS.push(
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /On\s+the\s+first\s+review,\s+review\s+cycle\s+0,\s+it\s+is\s+the\s+slice's\s+range[\s\S]{0,100}?On\s+a\s+re-review,\s+review\s+cycle\s+n\s+>\s+0,\s+it\s+is\s+the\s+fix\s+cycle's\s+range,\s+from\s+the\s+tip\s+the\s+latest\s+earlier\s+review\s+read\s+to\s+the\s+current\s+tip/,
+    'name the subject: the slice\'s range on the first review, and the fix cycle\'s range from the tip the latest earlier review read to the current tip on a re-review',
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /Your\s+blind\s+pass\s+on\s+a\s+re-review\s+covers\s+the\s+fix\s+cycle's\s+range\.\s+After\s+it,\s+judge\s+every\s+earlier\s+finding\s+from\s+the\s+progress\s+log/,
+    'blind-pass a re-review over the fix cycle\'s range, then judge every earlier finding from the progress log',
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /Read\s+code\s+outside\s+the\s+range\s+wherever\s+the\s+fix\s+or\s+an\s+earlier\s+finding\s+leads\s+you,\s+and\s+report\s+any\s+defect\s+you\s+find\s+there\s+too/,
+    'let a re-review read code outside its range and report any defect it finds there',
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /A\s+fix\s+cycle's\s+range\s+that\s+holds\s+no\s+change\s+leaves\s+you\s+judging\s+the\s+earlier\s+findings\s+alone/,
+    'leave a re-review over a fix range with no change judging the earlier findings alone',
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /Lens\s+2's\s+own\s+suite\s+run\s+still\s+covers\s+the\s+slice's\s+whole\s+changed-path\s+set/,
+    'keep a re-review\'s own suite run over the slice\'s whole changed-path set',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /The\s+subject\s+is\s+the\s+slice's\s+range\s+on\s+the\s+first\s+review,\s+review\s+cycle\s+0,\s+and\s+on\s+a\s+re-review,\s+review\s+cycle\s+n\s+>\s+0,\s+the\s+fix\s+cycle's\s+range,\s+from\s+the\s+tip\s+the\s+latest\s+earlier\s+review\s+read\s+to\s+the\s+current\s+tip/,
+    'have step 3\'s dispatch hand the slice\'s range on the first review and the fix cycle\'s range on a re-review as the subject',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /tells\s+a\s+re-review\s+to\s+blind-pass\s+over\s+that\s+range\s+and\s+then\s+judge\s+every\s+earlier\s+finding\s+from\s+the\s+progress\s+log/,
+    'have step 3\'s dispatch tell a re-review to blind-pass over the fix range, then judge every earlier finding from the progress log',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /to\s+read\s+code\s+outside\s+the\s+range\s+wherever\s+the\s+fix\s+or\s+an\s+earlier\s+finding\s+leads\s+it\s+and\s+report\s+any\s+defect\s+it\s+finds\s+there\s+too/,
+    'have step 3\'s dispatch let a re-review read code outside its range and report any defect it finds there',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /to\s+judge\s+the\s+earlier\s+findings\s+alone\s+when\s+the\s+fix\s+cycle's\s+range\s+holds\s+no\s+change/,
+    'have step 3\'s dispatch leave a re-review over a fix range with no change judging the earlier findings alone',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /Its\s+own\s+suite\s+run,\s+Lens\s+2,\s+still\s+covers\s+the\s+slice's\s+whole\s+changed-path\s+set/,
+    'have step 3\'s dispatch keep a re-review\'s own suite run over the slice\'s whole changed-path set',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /an\s+inline\s+re-review\s+takes\s+the\s+same\s+subject\s+as\s+a\s+dispatched\s+one/,
+    'give a re-review done inline after a denied dispatch the same subject as a dispatched one',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /on\s+a\s+live\s+scope\s+run\s+the\s+range\s+is\s+the\s+whole\s+scope\s+range,\s+`BASE\.\.HEAD`,\s+on\s+every\s+dispatch,\s+each\s+re-review\s+after\s+a\s+fix\s+cycle\s+included/,
+    'read the whole scope range on every dispatch, each re-review after a fix cycle included (INV-0143)',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /The\s+git\s+range\s+is\s+the\s+whole\s+scope\s+range\s+on\s+every\s+dispatch\*\*,\s+`<range-base>\.\.<branch>`,\s+each\s+re-review\s+after\s+a\s+fix\s+cycle\s+included/,
+    'hand final-reviewer the whole scope range on every dispatch, each re-review after a fix cycle included (INV-0143)',
+  ],
+);
+
+// ADR 0138: in the full tier, `simplicity-reviewer` runs in parallel with a `behavior` slice's first review, and each
+// cut the controller warrants joins that review's fix list as a Minor finding, so a reviewed fix cycle applies it and no
+// implementer runs on a slice after its last review (INV-0119). The playbook carries the rule, and every sibling that
+// restates the per-slice pass carries its own half: the implement skill's cap, the plan contract's warrant gates, the
+// review skill's full-tier skip, and the reviewer's own range. One row also fails when the post-loop step returns.
+const SIMPLICITY_BESIDE_FIRST_REVIEW_CONTRACTS = [
+  [
+    path.join('references', 'implement-full.md'),
+    /first\s+review,\s+dispatch\s+`superdev:simplicity-reviewer`\s+in\s+parallel\s+with\s+it\*\*,\s+over\s+the\s+same\s+tip[\s\S]{0,80}?build\s+the\s+fix\s+list\s+once\s+both\s+have\s+returned/,
+    "dispatch `superdev:simplicity-reviewer` in parallel with a `behavior` slice's first review, over the same tip, and build the fix list once both have returned",
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /Each\s+cut\s+you\s+warrant\s+joins\s+the\s+fix\s+list\s+as\s+a\s+Minor\s+finding/,
+    'add each warranted cut to the fix list as a Minor finding',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /A\s+first\s+review\s+that\s+lists\s+no\s+finding,\s+with\s+no\s+warranted\s+cut,\s+merges\s+the\s+slice\s+with\s+no\s+fix\s+cycle/,
+    'merge a slice whose first review lists no finding and warrants no cut with no fix cycle',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /A\s+first\s+review\s+whose\s+only\s+findings\s+are\s+warranted\s+cuts\s+starts\s+a\s+fix\s+cycle\s+for\s+them,\s+which\s+counts\s+toward\s+the\s+3-cycle\s+cap/,
+    'start a fix cycle for a first review whose only findings are warranted cuts, counted toward the 3-cycle cap',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /remainder\s+of\s+\*\*only\s+Minor\s+findings\*\*\s+proceeds,\s+warranted\s+cuts\s+included/,
+    'merge a slice at the cap whose remainder is only Minor findings and warranted cuts',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /(?<!(?:apply\s+warranted\s+cuts|simplicity\s+pass\s+runs|Then\s+dispatch\s+\*\*`superdev:simplicity-reviewer`\*\*)[\s\S]*)No\s+implementer\s+runs\s+on\s+a\s+slice\s+after\s+its\s+last\s+review(?![\s\S]*(?:apply\s+warranted\s+cuts|simplicity\s+pass\s+runs|Then\s+dispatch\s+\*\*`superdev:simplicity-reviewer`\*\*))/,
+    'state that no implementer runs on a slice after its last review, and carry no post-loop simplicity step that applies cuts after it',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /A\s+denied\s+`simplicity-reviewer`\s+follows\s+that\s+same\s+authorship\s+rule[\s\S]{0,120}?the\s+pass\s+runs\s+inline/,
+    'run a denied `simplicity-reviewer` pass inline as a degraded pass',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /A\s+denied\s+`simplicity-reviewer`\s+follows\s+that\s+same\s+authorship\s+rule[\s\S]{0,160}?write\s+its\s+entry\s+with\s+plain\s+`scope\.js\s+degraded\s+add`\s+—\s+its\s+denial\s+is\s+not\s+a\s+verification\s+dispatch/,
+    'write a denied `simplicity-reviewer` entry with plain `scope.js degraded add`, outside the verification-denial cap that `add-denial` counts',
+  ],
+  [
+    path.join('skills', 'implement', 'SKILL.md'),
+    /remainder\s+of\s+only\s+Minor\s+findings\s+proceeds,\s+warranted\s+cuts\s+included/,
+    "count warranted cuts among the Minor findings a slice at the 3-strike cap merges with",
+  ],
+  [
+    path.join('references', 'plan-contract.md'),
+    /\*\*simplicity-reviewer\s+runs\*\*\s+beside\s+the\s+first\s+slice\s+review/,
+    "run `simplicity-reviewer` beside a `behavior` slice's first review in the warrant gates",
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /dispatched\s+it\s+beside\s+each\s+`behavior`\s+slice's\s+first\s+review,\s+and\s+a\s+reviewed\s+fix\s+cycle\s+applied\s+the\s+warranted\s+cuts/,
+    "ground the full-tier skip in a per-slice pass beside each `behavior` slice's first review, whose cuts a reviewed fix cycle applied",
+  ],
+  [
+    path.join('agents', 'simplicity-reviewer.md'),
+    /per-slice\s+dispatch,\s+which\s+runs\s+beside\s+that\s+slice's\s+first\s+review/,
+    "name a per-slice dispatch's range as the slice's, beside that slice's first review",
+  ],
+  [
+    path.join('references', 'implement-lite.md'),
+    /No\s+per-slice\s+review,\s+no\s+per-slice\s+over-engineering\s+pass/,
+    'keep the lite tier free of a per-slice review and a per-slice over-engineering pass',
+  ],
+];
+
 module.exports = {
+  SIMPLICITY_BESIDE_FIRST_REVIEW_CONTRACTS,
   SHIP_OFFER_CONTRACTS,
   INVOCATION_START_CONTRACTS,
   SKILL_TOOL_INVOCATION_CONTRACTS,

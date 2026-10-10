@@ -176,6 +176,11 @@ nothing ran, and 128 plus the signal number when interrupted. An interrupt ends 
 process covers `SIGKILL`, so no worktree outlives the verb. A suite that outlasts the Bash tool's time limit runs the verb
 in the background (`references/test-selection.md`).
 
+`scope.js` has three suites, split by verb so a test-first step on one verb runs only that verb's cases (ADR 0139).
+`tests/scope-test-verb.test.js` holds the `test` verb's cases, and `tests/scope-fail-to-pass.test.js` holds the
+`fail-to-pass` verb's cases. `tests/scope.test.js` holds every other verb, the run trace, and the ledger-fixtures pin.
+A focused run for `scope.js`, or for a file it requires, selects all three (`run-tests.js`, below).
+
 `dod-line` is another verb that touches no ledger, and makes no store call of its own
 (`references/dod-ticks.md`, INV-0014, triage #664): `--match <criterion text>|--match-file <path>
 --verdict met|not-met|ceiling|accepted --note <text>|--note-file <path> [--line]`. It is the one
@@ -611,8 +616,10 @@ killed or never started counts as a failure (INV-0009). A `tests/` directory hol
 `docs/agents/verification.md`. The tail always runs. `selectSuites` picks the suites the repository-relative
 paths reach, matching by name, so a deleted path maps like any other. A suite is reached when its own text
 names the changed file (its basename, or its bare stem between path or quote delimiters), when the shipped
-file its name pins (`plugin/hooks/<name>.js`, `plugin/scripts/<name>.js`, or `scripts/<name>.js`) directly
-requires the changed file, or when the path is the suite itself. A test helper reaches every suite that names
+file its name pins (`plugin/hooks/<name>.js`, `plugin/scripts/<name>.js`, or `scripts/<name>.js`) is the
+changed file or directly requires it, or when the path is the suite itself. A suite split off another
+(`tests/scope-fail-to-pass.test.js`, with no `scope-fail-to-pass.js` shipped) pins the file of the longest
+`-`-delimited prefix of its name that pins one (`plugin/scripts/scope.js`), and an exact pin wins. A test helper reaches every suite that names
 it. A `.md` path follows the same naming rule, because a suite may execute or pin a document
 (`tests/publish-kb.test.js` runs the templates of `docs/agents/knowledge-base.md`, `tests/scope.test.js` pins a
 sentence of `plugin/references/scope-mode.md`). A `.md` path also reaches a suite whose text names a directory
@@ -2350,7 +2357,7 @@ model-selection table naming `opus` for `slice-reviewer` and `sonnet` for `simpl
 agent's own frontmatter default (`agents/slice-reviewer.md`, `agents/simplicity-reviewer.md`), and
 `skills/review/SKILL.md`'s whole-range `simplicity-reviewer` dispatch on `sonnet`. A pin on a model value
 fails when the value changes, not only when the line goes. `references/implement-full.md`'s cut rule is
-pinned too: the controller applies a recommended cut only when it honours the rules the repository documents
+pinned too: the controller warrants a recommended cut only when it honours the rules the repository documents
 for itself, and names each cut it declines with the rule it would break.
 
 The `fix-dispatch-siblings` contract (ADR 0118, INV-0120): measured scope fix cycles left most of their
@@ -2530,8 +2537,9 @@ both to restore green.
 
 The `tier-skip` contract (ADR 0037) pins rows, one per end of a dependency between
 two documents. `skills/review/SKILL.md` skips `superdev:simplicity-reviewer` on a `full`-tier scope, and that
-skip is sound only because `references/implement-full.md` dispatches the same reviewer per `behavior`
-slice and applies its cuts before each slice merges — a `mechanical`/`docs` slice gets no per-slice pass
+skip is sound only because `references/implement-full.md` dispatches the same reviewer beside each `behavior`
+slice's first review, and a reviewed fix cycle applies its cuts before the slice merges (ADR 0138) — a
+`mechanical`/`docs` slice gets no per-slice pass
 either way, and the skip's own report line says so rather than claiming blanket coverage. Pinning
 `review/SKILL.md` alone would be a one-sided pin in the
 direction that matters least: a `review/SKILL.md` that loses the skip costs one redundant pass. The costly
@@ -2546,6 +2554,22 @@ whole-document presence test would have stayed green as long as a copy of the qu
 anywhere else in the file — an assessment-template example, say — which is exactly the shape the drift
 took. This is a presence table, so a paraphrase it does not recognise fails loudly rather than silently,
 and it carries no ceiling note for the same reason its sibling presence tables carry none.
+
+The `simplicity-beside-first-review` contract (ADR 0138) pins where the full tier's per-slice over-engineering
+pass sits. `references/implement-full.md` dispatches `superdev:simplicity-reviewer` in parallel with a `behavior`
+slice's first review, over the same tip, and builds the fix list once both have returned. Each cut the controller
+warrants joins that list as a Minor finding, so a first review with no finding and no warranted cut merges with no
+fix cycle, a first review whose only findings are cuts starts a cycle that counts toward the 3-cycle cap, and a
+remainder of only Minor findings and cuts merges at the cap. One row pins that no implementer runs on a slice after
+its last review, and the same row fails when the post-loop step returns: it refuses the document while any sentence
+dispatches `simplicity-reviewer` after the loop or applies cuts after the last review, wherever in the file that
+sentence sits. A further row keeps a denied pass inline, and another keeps its ledger entry a plain
+`scope.js degraded add`, outside the verification-denial cap that `add-denial` counts. The siblings that restate the pass each carry their half:
+`skills/implement/SKILL.md`'s 3-strike cap counts cuts among the Minor findings, `references/plan-contract.md`'s
+warrant gates run the pass beside the first review, `skills/review/SKILL.md`'s full-tier skip rests on cuts a reviewed
+fix cycle applied, `agents/simplicity-reviewer.md` names a per-slice dispatch's range, and
+`references/implement-lite.md` keeps the lite tier free of a per-slice pass. Without these rows, a cut applied after
+the last review returns as an Unreviewed slice at the scope review (INV-0119).
 
 The `containment-delegation` contract (ADR 0053) pins a row, retargeted onto code (ADR 0069):
 `plugin/scripts/publish-kb.js`'s `checkContainment` delegates the test by `require`ing `testContainment`
@@ -2992,6 +3016,11 @@ reaches it, because a dispatch is the later, more specific instruction and wins 
 - An `unknown` outcome draws no finding and starts no fix cycle. Each reviewer and the review report name it with its slice
   and reason, and the output templates carry a **Fail-to-pass unknown** line. `references/scope-mode.md`, the two
   playbooks, and the verb's own stderr note make the scope run's first `unknown` an observation, and a later one writes none.
+- A failing-test or passing-test step runs over the test files that hold the tests it works on, and the last run
+  before the implementer reports, or before the lite tier commits a slice, covers the whole changed-path set
+  (ADR 0139). A step that works on no test file covers the whole set too, and a focused command with no `{paths}`
+  runs unchanged. Rows pin the rule in `references/test-selection.md`, `agents/implementer.md`, the step 2 implementer
+  dispatch in `references/implement-full.md`, and `references/implement-lite.md`.
 
 The `setup-test-paths` contract (ADR 0117) pins `skills/setup/SKILL.md`. Its rows:
 
@@ -3026,6 +3055,15 @@ specific instruction (ADR 0035). The rows:
   prompt that states it.
 - `agents/slice-reviewer.md` appends its findings to the log through a quoted heredoc, never `echo` and
   never an unquoted heredoc, so backticks and `$(` in the text stay literal.
+- `agents/slice-reviewer.md` and step 3's dispatch each name the subject (ADR 0137): the slice's range on the
+  first review, review cycle 0, and the fix cycle's range on a re-review, from the tip the latest earlier review
+  read to the current tip. A re-review blind-passes over that range and then judges every earlier finding from
+  the progress log. It may read code outside the range, and it reports any defect it finds there. It judges the
+  earlier findings alone over a range with no change, and its own suite run still covers the whole slice. Step 3
+  also gives an inline re-review after a denied dispatch the same subject.
+- `agents/final-reviewer.md` and `skills/review/SKILL.md`'s dispatch each state that `final-reviewer` reads the
+  whole scope range on every dispatch, each re-review after a fix cycle included (INV-0143). It is the backstop
+  for an older defect that a slice re-review no longer reads.
 
 The selftest removes each row's own clause from the shipped documents and expects that row to
 fail. Losing a row reopens its gap: a reviewer that reads the implementer's account before it forms a
